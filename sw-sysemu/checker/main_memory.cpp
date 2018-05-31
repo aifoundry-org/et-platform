@@ -1,0 +1,205 @@
+#include "main_memory.h"
+#include "main_memory_region_atomic.h"
+#include "main_memory_region_tbox.h"
+#include "main_memory_region_rbox.h"
+#include "main_memory_region_printf.h"
+#include "plusArgs.h"
+
+using namespace std;
+
+// Constructor
+main_memory::main_memory(std::string logname)
+    : log(logname, LOG_DEBUG)
+{
+    get_thread = NULL;
+    // Atomic
+    main_memory_region_atomic * amo = new main_memory_region_atomic(0xFFF00000ULL, 512, log, get_thread);
+    regions_.push_back((main_memory_region *) amo);
+    // Adds the tbox
+    main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, get_thread);
+    regions_.push_back((main_memory_region *) tbox);
+    // RBOX
+    rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, get_thread);
+    regions_.push_back((main_memory_region *) rbox);
+    // UC writes to other cores
+    main_memory_region * uc_writes = new main_memory_region(0x100000000ULL, 64, log, get_thread, MEM_REGION_WO);
+    regions_.push_back((main_memory_region *) uc_writes);
+}
+
+bool main_memory::setPrintfBase(const char* binary){
+  uint64_t symbolAddress;
+  std::ostringstream command;
+  command<<"nm "<<binary<<" 2>/dev/null |grep rtlPrintf_buf|cut -d' ' -f 1";
+  FILE *p = popen(command.str().c_str(), "r");
+  int c = fscanf(p, "%llx", &symbolAddress);
+  pclose(p);
+  
+  if (c==1) {
+    // Adds the printf region
+    log<<LOG_DEBUG<<"adding printf region (@="<<hex<<symbolAddress<<") from "<<binary<<dec<<endm;
+    main_memory_region_printf * printf = new main_memory_region_printf(symbolAddress, get_thread);
+    regions_.push_back((main_memory_region *) printf);
+  }
+  else {
+    log<<LOG_DEBUG<<"no printf region from "<<binary<<endm;
+  }
+}
+
+// Destructor
+main_memory::~main_memory()
+{
+}
+
+// Read a bunch of bytes
+void main_memory::read(uint64 ad, int size, void * data)
+{
+    log << LOG_DEBUG << "read(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
+    rg_it_t r = find(regions_.begin(), regions_.end(), ad);
+    if(r == regions_.end())
+    {
+        log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
+        dump_regions();
+    }
+    else
+    {
+        if(* r != (ad + size - 1))
+        {
+            log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries" << endm;
+            dump_regions();
+        }
+        else
+            r->read(ad, size, data);
+    }
+}
+
+// Writes a bunch of bytes
+void main_memory::write(uint64 ad, int size, const void * data)
+{
+    log << LOG_DEBUG << "write(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
+    rg_it_t r = find(regions_.begin(), regions_.end(), ad);
+    if(r == regions_.end())
+    {
+        log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
+        dump_regions();
+    }
+    else
+    {
+        if(* r != (ad + size - 1))
+        {
+            log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries" << endm;
+            dump_regions();
+        }
+        else
+            r->write(ad, size, data);
+    }
+}
+
+// Reads a byte
+char main_memory::read8(uint64 ad)
+{
+    char d;
+    read(ad, 1, &d);
+    return d;
+}
+
+// Writes a byte
+void main_memory::write8(uint64 ad, char d)
+{
+    write(ad, 1, &d);
+}
+
+// Creates a new region
+bool main_memory::new_region(uint64 base, uint64 size, int flags)
+{
+    unsigned overlap = std::count(regions_.begin(), regions_.end(), base)
+                     + std::count(regions_.begin(), regions_.end(), base + size - 1);
+
+    if(overlap > 0)
+    {
+        log << LOG_ERR << "newRegion(" << std::hex << base << ", " << std::dec << size << "): overlaps with existing region and won't be created" << endm;
+        return false;
+    }
+    else
+    {
+      regions_.push_back(new main_memory_region(base, size, log, get_thread, flags));
+        return true;
+    }
+}
+
+// Loads a file to memory
+bool main_memory::load_file(std::string filename, uint64 ad, unsigned buf_size)
+{
+    std::ifstream f(filename.c_str(), std::ios_base::binary);
+
+    if(!f.is_open())
+    {
+        log << LOG_ERR << "cannot open " << filename << endm;
+        return false;
+    }
+
+    char * buf = new char[buf_size];
+    unsigned size;
+    do
+    {
+        f.read(buf, buf_size);
+        size = f.gcount();
+        if(size > 0)
+            write(ad, size, buf);
+        ad += size;
+    } while(size > 0);
+
+    delete [] buf;
+    return  true;
+}
+
+// Dumps memory contents into a file
+bool main_memory::dump_file(std::string filename, uint64 ad, uint64 size, unsigned buf_size)
+{
+    std::ofstream f(filename.c_str(), std::ios_base::binary);
+
+    if(!f.is_open())
+    {
+        log << LOG_ERR << "cannot open " << filename << endm;
+        return false;
+    }
+
+    char * buf = new char[buf_size];
+    while(size > 0 && f.good())
+    {
+        uint size_ = size > buf_size ? buf_size : size;
+        read(ad, size_, buf);
+        f.write(buf, size_);
+        ad += size_;
+        size -= size_;
+    }
+    delete [] buf;
+
+    if(f.good())
+        return true;
+    else
+    {
+        log << LOG_ERR << "error when writing into " << filename << endm;
+        return false;
+    }
+}
+
+// Dumps all the regions
+void main_memory::dump_regions()
+{
+    log << LOG_DEBUG << "dumping regions:" << endm;
+    for(auto &r:regions_)
+        r.dump();
+}
+
+
+ 
+ void main_memory::decRboxCredit(uint16_t thread) {
+   rbox->decCredit(thread);
+ } 
+ void main_memory::incRboxCredit(uint16_t thread) {
+   rbox->incCredit(thread);
+ }
+
+ uint16_t main_memory::getRboxCredit(uint16_t thread) { 
+   return rbox->getCredit(thread);
+ }
