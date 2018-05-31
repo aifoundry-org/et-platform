@@ -1,0 +1,896 @@
+// Local
+#include "checker.h"
+
+// Global
+#include <dlfcn.h>
+#include <cmath>
+#include <math.h>
+
+// 
+#define TICKETER_REGION 0xFFF00000
+#define TBOX_REGION_START 0xFFF80000
+#define TBOX_REGION_END (TBOX_REGION_START + 512)
+
+#define PA_SIZE        40
+#define PA_M           (((uint64)1 << PA_SIZE) - 1)
+#define PG_OFFSET_SIZE 12
+#define PG_OFFSET_M    (((uint64)1 << PG_OFFSET_SIZE) - 1)
+#define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
+#define PPN_M          (((uint64)1 << PPN_SIZE) - 1)
+#define PTE_V_OFFSET   0
+#define PTE_R_OFFSET   1
+#define PTE_W_OFFSET   2
+#define PTE_X_OFFSET   3
+#define PTE_U_OFFSET   4
+#define PTE_G_OFFSET   5
+#define PTE_A_OFFSET   6
+#define PTE_D_OFFSET   7
+#define PTE_PPN_OFFSET 10
+
+namespace tbox { 
+  extern void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
+}
+
+bool fp_1ulp_check(uint32 gold, uint32 rtl)
+{
+    int exp_gold = (gold >> 23) & 0xFF;
+
+    if((exp_gold > 0) && (exp_gold < 253)) // just check regular cases (skip special denom, NaN, Inf)
+    {
+        uint32 gold_clean = gold & 0x7F800000; // clean mantissa and sign from gold
+        float err_1ulp = * (float * ) &gold_clean;
+        err_1ulp = err_1ulp / float (1 << 23); // put '1' in the unit of less precision
+
+        float goldf = * (float *) &gold;
+        float rtlf  = * (float *) &rtl;
+        float diff = fabsf(goldf - rtlf);
+        //printf("Gold: %.12e, RTL: %.12e, Diff: %.12e, Max: %.12e\n", goldf, rtlf, diff, err_1ulp);
+        //printf("Hex Gold: %08X, Hex RTL: %08X\n", gold, rtl);
+        return (diff <= err_1ulp);
+    }
+    else if ((gold & 0x7FFFFFFF) == 0) // allow sign (+/-) mismatch in case of zero
+    {
+        return ((rtl & 0x7FFFFFFF) == 0); 
+    }
+    else // regular full check for special cases
+    {
+        return (gold == rtl);
+    }
+
+}
+
+// Used to generate which store data bits to check for different store data sizes
+uint64 mem_mask(int32 size)
+{
+    uint64 mask;
+    switch(size)
+    {
+        case 1:  mask = 0x00000000000000FFULL; break;
+        case 2:  mask = 0x000000000000FFFFULL; break;
+        case 4:  mask = 0x00000000FFFFFFFFULL; break;
+        default: mask = 0xFFFFFFFFFFFFFFFFULL;
+    }
+    return mask;
+}
+
+// Singleton class
+main_memory * memory_instance = NULL;
+checker* checker_instance = NULL; // this is used when enabling the second thread from the emu, to have an object to handle the call
+                                  // if there is more than 1 checker instance (e.g. one per shire), this will have to be an array
+
+// Virtual to physical
+uint64 virt_to_phys(uint64 addr, mem_access_type macc)
+{
+    if (checker_instance != NULL)
+    {
+        return checker_instance->virt_to_phys(addr,macc);
+    }
+    else
+    {
+        // Direct mapping, physical address is 40 bits
+        return addr & PA_M;
+    }
+}
+
+// These functions are called by emu. We should clean this to a nicer way...
+uint8 checker_memread8(uint64 addr)
+{
+    uint8 ret;
+    memory_instance->read(virt_to_phys(addr, Mem_Access_Load), 1, &ret);
+    return ret;
+}
+
+uint16 checker_memread16(uint64 addr)
+{
+    uint16 ret;
+    memory_instance->read(virt_to_phys(addr, Mem_Access_Load), 2, &ret);
+    return ret;
+}
+
+uint32 checker_memread32(uint64 addr)
+{
+    uint32 ret;
+    memory_instance->read(virt_to_phys(addr, Mem_Access_Load), 4, &ret);
+    return ret;
+}
+
+uint64 checker_memread64(uint64 addr)
+{
+    uint64 ret;
+    memory_instance->read(virt_to_phys(addr, Mem_Access_Load), 8, &ret);
+    return ret;
+}
+
+void checker_memwrite8(uint64 addr, uint8 data)
+{
+    memory_instance->write(virt_to_phys(addr, Mem_Access_Store), 1, &data);
+}
+
+void checker_memwrite16(uint64 addr, uint16 data)
+{
+    memory_instance->write(virt_to_phys(addr, Mem_Access_Store), 2, &data);
+}
+
+void checker_memwrite32(uint64 addr, uint32 data)
+{
+    memory_instance->write(virt_to_phys(addr, Mem_Access_Store), 4, &data);
+}
+
+void checker_memwrite64(uint64 addr, uint64 data)
+{
+    memory_instance->write(virt_to_phys(addr, Mem_Access_Store), 8, &data);
+}
+
+void checker_thread1_enabled ( unsigned minionId, int en, uint64 pc) {
+  checker_instance -> thread1_enabled( minionId, en, pc);
+}
+
+// Function in emu to set the functions
+typedef void (*func_ptr_mem)(
+    void * func_memread8_,
+    void * func_memread16_,
+    void * func_memread32_,
+    void * func_memread64_,
+    void * func_memwrite8_,
+    void * func_memwrite16_,
+    void * func_memwrite32_,
+    void * func_memwrite64_);
+
+typedef  void (*func_ptr_thread1Enable) (void*);
+
+// Creates a new checker
+checker::checker(main_memory * memory_, function_pointer_cache * func_cache_)
+    : log("checker", LOG_DEBUG)
+{
+    for(uint32 i = 0; i < EMU_NUM_THREADS; i++)
+    {
+        current_pc[i] = 0;
+        reduce_state_array[i>>1] = Reduce_Idle;            
+    }
+    memory = memory_;
+    func_cache = func_cache_;
+    inst_cache = new instruction_cache(memory, func_cache);
+
+    setlogstate = (func_ptr_state) func_cache->get_function_ptr("setlogstate");
+    clearlogstate = func_cache->get_function_ptr("clearlogstate");
+    setpc = (func_ptr_pc) func_cache->get_function_ptr("set_pc");
+    set_thread = (func_ptr_set_thread) func_cache->get_function_ptr("set_thread");
+    get_thread = (func_ptr_get_thread) func_cache->get_function_ptr("get_thread");
+    xget       = (func_ptr_xget) func_cache->get_function_ptr("xget");
+    update_msg_ports = (func_ptr_update_msg_ports) func_cache->get_function_ptr("update_msg_port_data");
+    get_mask = (func_ptr_get_mask) func_cache->get_function_ptr("get_mask");
+    reduce_info = (func_ptr_reduce_info) func_cache->get_function_ptr("get_reduce_info");
+    get_scratchpad_value = (func_get_scratchpad_value) func_cache->get_function_ptr("get_scratchpad_value");
+    get_scratchpad_conv_list = (func_get_scratchpad_conv_list) func_cache->get_function_ptr("get_scratchpad_conv_list");
+    get_tensorfma_value = (func_get_tensorfma_value) func_cache->get_function_ptr("get_tensorfma_value");
+    get_reduce_value = (func_get_reduce_value) func_cache->get_function_ptr("get_reduce_value");
+    func_ptr_mem setmemory = (func_ptr_mem) func_cache->get_function_ptr("set_memory_funcs");
+    (setmemory((void *) checker_memread8,  (void *) checker_memread16,  (void *) checker_memread32,  (void *) checker_memread64,
+               (void *) checker_memwrite8, (void *) checker_memwrite16, (void *) checker_memwrite32, (void *) checker_memwrite64));
+    csrget = (func_ptr_csrget) func_cache->get_function_ptr("csrget");
+
+
+    func_ptr_thread1Enable setthread1en = (func_ptr_thread1Enable) func_cache->get_function_ptr("set_thread1_enabled_func");
+    setthread1en ( (void*) checker_thread1_enabled);
+    memory->setGetThread(get_thread);
+
+    // Inits X0 to 0
+    initreg = (func_ptr_init) func_cache->get_function_ptr("init");
+    fpinitreg = (func_ptr_fpinit) func_cache->get_function_ptr("fpinit");
+    func_ptr_initcsr initcsr = (func_ptr_initcsr) func_cache->get_function_ptr("initcsr");
+    for(int i = 0; i < EMU_NUM_THREADS; i++)
+    {
+        (set_thread(i));
+        (initreg(x0, 0));
+        (initcsr(i));
+        threadEnabled[i] = (i%2 == 0); // only the first thread is enabled after reset
+    }
+
+    checker_instance = this;
+    memory_instance = memory;
+#ifdef EMU_DEBUG
+    func_ptr_debug init_emu = (func_ptr_debug) func_cache->get_function_ptr("init_emu");
+    (init_emu(true, false));
+#endif
+}
+
+// Destroys the checker
+checker::~checker()
+{
+}
+
+// Sets the PC
+void checker::start_pc(uint32 thread, uint64 pc)
+{
+    if(thread >= EMU_NUM_THREADS)
+        log << LOG_FTL << "start pc with thread invalid (" << thread << ")" << endm;
+    current_pc[thread] = pc;
+}
+
+// Sets the PC due IPI
+void checker::ipi_pc(uint32 thread, uint64 pc)
+{
+    if(thread >= EMU_NUM_THREADS)
+        log << LOG_FTL << "IPI pc with thread invalid (" << thread << ")" << endm;
+    current_pc[thread] = pc;
+}
+
+checker_result checker::do_reduce(uint32 thread, instruction * inst, uint32 * wake_minion)
+{
+    uint64 other_min, action;
+    // Gets the source used for the reduce
+    uint64 src1 = (xreg) inst->get_param(1);
+    uint64 value = (xget(src1));
+    (reduce_info(value, &other_min, &action));
+
+    // Sender
+    if(action == 0)
+    {
+        // Moves to ready to send
+        reduce_state_array[thread>>1] = Reduce_Ready_To_Send;
+        reduce_pair_array[thread>>1]  = other_min;
+        // If the other minion hasn't arrived yet, wait
+        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != (thread>>1)))
+        {
+            return CHECKER_WAIT;
+        }
+        // If it has consumed the data, move both threads to Idle
+        else if(reduce_state_array[other_min] == Reduce_Data_Consumed)
+        {
+            reduce_state_array[thread>>1] = Reduce_Idle;
+            reduce_state_array[other_min] = Reduce_Idle;
+            // Wakes up the thread0 of the other minion to guarantee it checks the reduce instruction
+            // If this is not done, the thread might not get any other event from the minion monitor to
+            // wake it up
+            * wake_minion = other_min;
+        }
+        else
+        {
+            log << LOG_FTL << "Reduce error: Minion: " << (thread >> 1) << " found pairing receiver minion: " << other_min << " in Reduce_Ready_To_Send!!" << endm;
+        }
+    }
+    // Receiver
+    else if(action == 1)
+    {
+        // If receiver hasn't change the data consumed state, wait because the previous
+        // reduce is not done
+        if(reduce_state_array[thread>>1] == Reduce_Data_Consumed)
+        {
+            return CHECKER_WAIT;
+        }
+
+        // Previous reduce done, set with which minion it is doing the reduce
+        reduce_pair_array[thread>>1] = other_min;
+        // If the sender minion other minion hasn't arrived yet, wait
+        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != (thread>>1)))
+        {
+            return CHECKER_WAIT;
+        }
+        // If pairing minion is in ready to send, consume the data
+        else if(reduce_state_array[other_min] == Reduce_Ready_To_Send)
+        {
+            reduce_state_array[thread>>1] = Reduce_Data_Consumed;
+            // Wakes up the thread0 of the other minion to guarantee it checks the reduce instruction
+            // If this is not done, the thread might not get any other event from the minion monitor to
+            // wake it up
+            * wake_minion = other_min;
+        }
+        else
+        {
+            log << LOG_FTL << "Reduce error: Minion: " << (thread >> 1) << " found pairing sender minion: " << other_min << " in Reduce_Data_Consumed!!" << endm;
+        }
+    }
+    return CHECKER_OK;
+}
+
+// Emulates next instruction in the flow and compares state changes against the changes
+// passed as a parameter
+checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uint32 * wake_minion)
+{
+    if(thread >= EMU_NUM_THREADS)
+        log << LOG_FTL << "emu_inst with thread invalid (" << thread << ")" << endm;
+
+    if ( ! threadEnabled[thread] )
+      log << LOG_ERR << "emu_inst called for thread "<<thread<<", which is disabled"<<endm;
+
+    (set_thread(thread));
+    instruction * inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
+    (setlogstate(&emu_state_change)); // This is done every time just in case we have several checkers
+    (clearlogstate());
+    emu_state_change.pc = current_pc[thread];
+    (setpc(current_pc[thread]));
+    update_msg_ports();    // write any pending port data before executing the next instruction
+
+    // In case that the instruction is a reduce:
+    //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
+    //     otherwise the sender thread could advance and update the VRF contents
+    //   - The thread that is the receiver has to wait until the sender is also in the reduce
+    //     operation
+    if(inst->get_is_reduce())
+    {
+        checker_result res = do_reduce(thread, inst, wake_minion);
+        if(res == CHECKER_WAIT) return CHECKER_WAIT;
+    }
+
+    // Now the instruction can be executed
+    inst->exec();
+
+    // Ecall as is a trap is not retired, so we need to re-execute
+    if(inst->get_is_ecall())
+    {
+        // Go to target
+        current_pc[thread] = emu_state_change.pc;
+
+        inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
+        (clearlogstate());
+        emu_state_change.pc = current_pc[thread];
+        (setpc(current_pc[thread]));
+        inst->exec();
+    }
+
+    // Checks modified fields
+    if(changes != NULL)
+    {
+        // PC
+        std::ostringstream stream;
+        stream << "Checker Mismatch @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << inst->get_mnemonic() << ") -> ";
+        if(changes->pc != current_pc[thread])
+        {
+            stream << "PC error. Expected PC is 0x" << std::hex << current_pc[thread] << " but provided is 0x" << changes->pc << std::dec << std::endl;
+            error_msg = stream.str();
+            return CHECKER_ERROR;
+        }
+
+        // Changing integer register
+        if(changes->int_reg_mod != emu_state_change.int_reg_mod)
+        {
+            stream << "Int Register write error. Expected write is " << emu_state_change.int_reg_mod << " but provided is " << changes->int_reg_mod;
+            error_msg = stream.str();
+            return CHECKER_ERROR;
+        }
+        if(emu_state_change.int_reg_mod)
+        {
+            if(changes->int_reg_rd != emu_state_change.int_reg_rd)
+            {
+                stream << "Int Register dest error. Expected dest is x" << emu_state_change.int_reg_rd << " but provided is x" << changes->int_reg_rd;
+                error_msg = stream.str();
+                return CHECKER_ERROR;
+            }
+
+            // Check if it is an AMO (special case where RTL drives value)
+            if(inst->get_is_amo() && (emu_state_change.int_reg_rd != 0))
+            {
+                log << LOG_INFO << "AMO value (" << inst->get_mnemonic() << ")" << endm;
+                // Set EMU state to what RTL says
+                emu_state_change.int_reg_data = changes->int_reg_data;
+                (initreg((xreg) inst->get_param(0), emu_state_change.int_reg_data));
+            }
+
+            if(inst->get_is_load() && (virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) >= TBOX_REGION_START && virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) < TBOX_REGION_END))
+            {
+                log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
+                // Set EMU state to what RTL says
+                emu_state_change.int_reg_data = changes->int_reg_data;
+                (initreg((xreg) inst->get_param(0), emu_state_change.int_reg_data));
+            }
+
+
+            // Writes to X0/Zero are ignored
+            if((changes->int_reg_data != emu_state_change.int_reg_data) && (emu_state_change.int_reg_rd != 0))
+            {
+                stream << "Int Register data error. Expected data is 0x" << std::hex << emu_state_change.int_reg_data << " but provided is 0x" << changes->int_reg_data << std::dec;
+                error_msg = stream.str();
+                return CHECKER_ERROR;
+            }
+        }
+
+        // Changing floating register
+        if(changes->fp_reg_mod != emu_state_change.fp_reg_mod)
+        {
+            stream << "FP Register write error. Expected write is " << emu_state_change.fp_reg_mod << " but provided is " << changes->fp_reg_mod;
+            error_msg = stream.str();
+            return CHECKER_ERROR;
+        }
+        if(emu_state_change.fp_reg_mod)
+        {
+            if(changes->fp_reg_rd != emu_state_change.fp_reg_rd)
+            {
+                stream << "FP Register dest error. Expected dest is f" << emu_state_change.fp_reg_rd << " but provided is f" << changes->fp_reg_rd;
+                error_msg = stream.str();
+                return CHECKER_ERROR;
+            }
+
+            if( inst->get_is_texrcv() && get_mask(0) )
+            {
+              log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
+              // send the data to the tbox monitor, to check this is actually the data sent from the tbox
+              unsigned wordIdx = inst->get_param(1);
+              tbox::texrec(thread >> 1, thread &1,(const uint8_t*) emu_state_change.fp_reg_data, wordIdx,  get_mask(0));
+            }
+
+            for(int i = 0; i < 2; i++)
+            {
+              if(inst->get_is_1ulp())
+              {
+                if( !fp_1ulp_check(emu_state_change.fp_reg_data[i] & 0xFFFFFFFF, changes->fp_reg_data[i] & 0xFFFFFFFF) || !fp_1ulp_check(emu_state_change.fp_reg_data[i] >> 32, changes->fp_reg_data[i] >> 32))
+                {
+                    stream << "FP Register data error (" << i << "). Expected data is 0x" << std::hex << emu_state_change.fp_reg_data[i] << " but provided is 0x" << changes->fp_reg_data[i] << std::dec;
+                    error_msg = stream.str();
+                    return CHECKER_ERROR;
+                }
+              }
+              else
+              {
+                if( changes->fp_reg_data[i] != emu_state_change.fp_reg_data[i])
+                {
+                    stream << "FP Register data error (" << i << "). Expected data is 0x" << std::hex << emu_state_change.fp_reg_data[i] << " but provided is 0x" << changes->fp_reg_data[i] << std::dec;
+                    error_msg = stream.str();
+                    return CHECKER_ERROR;
+                }
+              }
+            }
+        }
+
+        // Changing mask register
+        for(int m = 0; m < 8; m++)
+        {
+            if(changes->m_reg_mod[m] != emu_state_change.m_reg_mod[m])
+            {
+                stream << "Mask Register write error for entry " << m << ". Expected write is " << emu_state_change.m_reg_mod[m] << " but provided is " << changes->m_reg_mod[m];
+                error_msg = stream.str();
+                return CHECKER_ERROR;
+            }
+            if(emu_state_change.m_reg_mod[m])
+            {
+                for(int i = 0; i < 8; i++)
+                {
+                    if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
+                    {
+                        stream << "Mask Register data error for entry " << m << " at bit " << i << ". Expected data is " << std::hex << (uint32) emu_state_change.m_reg_data[m][i] << " but provided is " << (uint32) changes->m_reg_data[m][i] << std::dec;
+                        error_msg = stream.str();
+                        return CHECKER_ERROR;
+                    }
+                }
+            }
+        }
+
+        // Memory changes
+        for(int i = 0; i < 4; i++)
+        {
+            if(changes->mem_mod[i] != emu_state_change.mem_mod[i])
+            {
+                stream << "Memory write error (" << i << "). Expected write is " << emu_state_change.mem_mod[i] << " but provided is " << changes->mem_mod[i];
+                error_msg = stream.str();
+                return CHECKER_ERROR;
+            }
+            if(emu_state_change.mem_mod[i])
+            {
+                if(changes->mem_size[i] != emu_state_change.mem_size[i])
+                {
+                    stream << "Memory write size error (" << i << "). Expected size is " << emu_state_change.mem_size[i] << " but provided is " << changes->mem_size[i];
+                    error_msg = stream.str();
+                    return CHECKER_ERROR;
+                }
+                if(changes->mem_addr[i] != emu_state_change.mem_addr[i])
+                {
+                    stream << "Memory write address error (" << i << "). Expected addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " but provided is 0x" << changes->mem_addr[i] << std::dec;
+                    error_msg = stream.str();
+                    return CHECKER_ERROR;
+                }
+                uint64 rtl_mem_data = changes->mem_data[i] & mem_mask(changes->mem_size[i]);
+                uint64 emu_mem_data = emu_state_change.mem_data[i] & mem_mask(changes->mem_size[i]);
+                // Atomic instructions are not checked currently
+                if((rtl_mem_data != emu_mem_data) && !inst->get_is_amo())
+                {
+                    stream << "Memory write data error (" << i << "). Expected data is 0x" << std::hex << emu_mem_data << " but provided is 0x" << rtl_mem_data << std::dec;
+                    error_msg = stream.str();
+                    return CHECKER_ERROR;
+                }
+            }
+        }
+
+        // TensorLoad
+        if(inst->get_is_tensor_load())
+        {
+            int entry;
+            int size;
+            uint64 data;
+            data = (get_scratchpad_value(0, 0, &entry, &size));
+            std::list<bool> * conv_list = (get_scratchpad_conv_list());
+            auto conv_list_it = conv_list->begin();
+
+            // For all the written entries
+            for(int i = 0; i < size; i++)
+            {
+                // Load was skipped due conv CSR, ignore check
+                if(* conv_list_it == 1)
+                {
+                    conv_list_it++;
+                    continue;
+                }
+                conv_list_it++;
+
+                // Looks for the 1st entry in the list of RTL written lines with same destination
+                auto it = spd_entry_list[thread].begin();
+                while(it != spd_entry_list[thread].end())
+                {
+                    if(it->entry == (entry + i)) { break; }
+                    it++;
+                }
+
+                // Checks that an entry was actually found
+                if(it == spd_entry_list[thread].end())
+                {
+                    stream << "Couldn't find scratchpad destination " << entry + i << " in the RTL scratchpad list!!";
+                    error_msg = stream.str();
+                    return CHECKER_ERROR;
+                }
+
+                // Compares the data
+                for(int j = 0; j < 8; j++)
+                {
+                    data = (get_scratchpad_value(entry + i, j, &entry, &size));
+                    if(data != it->data[j])
+                    {
+                        stream << "TensorLoad write data error for cacheline " << i << " written in entry " << entry + i << " data lane " << j << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[j] << std::dec;
+                        error_msg = stream.str();
+                        spd_entry_list[thread].erase(it);
+                        return CHECKER_ERROR;
+                    }
+                }
+                spd_entry_list[thread].erase(it);
+            }
+        }
+
+        // TensorFMA
+        if(inst->get_is_tensor_fma())
+        {
+            int size;
+            int passes;
+            bool conv_skip;
+            uint32 data;
+            data = (get_tensorfma_value(0, 0, 0, &size, &passes, &conv_skip));
+            // For all the passes
+            for(int pass = 0; pass < passes; pass++)
+            {
+                // For all the written entries
+                for(int entry = 0; entry < size; entry++)
+                {
+                    // Move to next entry if this pass for this entry was skipped due conv CSR
+                    (get_tensorfma_value(entry, pass, 0, &size, &passes, &conv_skip));
+                    if(conv_skip == 1) continue;
+                    // Looks for the 1st entry in the list of RTL written lines with same destination
+                    auto it = tensorfma_list[thread].begin();
+                    while(it != tensorfma_list[thread].end())
+                    {
+                        if(it->entry == entry) { break; }
+                        it++;
+                    }
+
+                    // Checks that an entry was actually found
+                    if(it == tensorfma_list[thread].end())
+                    {
+                        stream << "Couldn't find TensorFMA destination " << entry << " in the RTL TensorFMA list for pass " << pass << "!!";
+                        error_msg = stream.str();
+                        return CHECKER_ERROR;
+                    }
+
+                    // Compares the data for all the lanes (4 x 32b lanes)
+                    for(int lane = 0; lane < 4; lane++)
+                    {
+                        data = (get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip));
+#ifdef USE_REAL_TXFMA
+                        if(data != it->data[lane])
+#else
+                        if(!fp_1ulp_check(data, it->data[lane]))
+#endif
+                        {
+                            stream << "TensorFMA write data error for register " << entry << " lane " << lane << " pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec;
+                            error_msg = stream.str();
+                            tensorfma_list[thread].erase(it);
+                            return CHECKER_ERROR;
+                        }
+                    }
+                    tensorfma_list[thread].erase(it);
+                }
+            }
+        }
+
+        // Reduce
+        if(inst->get_is_reduce())
+        {
+            int size;
+            int start_entry;
+            uint32 data;
+            data = (get_reduce_value(0, 0, &size, &start_entry));
+
+            // For all the written entries
+            for(int entry = start_entry; entry < (start_entry + size); entry++)
+            {
+                // Looks for the 1st entry in the list of RTL written lines with same destination
+                auto it = reduce_list[thread].begin();
+                while(it != reduce_list[thread].end())
+                {
+                    if(it->entry == entry) { break; }
+                    it++;
+                }
+
+                // Checks that an entry was actually found
+                if(it == reduce_list[thread].end())
+                {
+                    stream << "Couldn't find Reduce destination " << entry << " in the RTL Reduce list!!";
+                    error_msg = stream.str();
+                    return CHECKER_ERROR;
+                }
+
+                // Compares the data for all the lanes (4 x 32b lanes)
+                for(int lane = 0; lane < 4; lane++)
+                {
+                    data = (get_reduce_value(entry, lane, &size, &start_entry));
+                    if(data != it->data[lane])
+                    {
+                        stream << "Reduce write data error for register " << entry << " lane " << lane << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec;
+                        error_msg = stream.str();
+                        reduce_list[thread].erase(it);
+                        return CHECKER_ERROR;
+                    }
+                }
+                reduce_list[thread].erase(it);
+            }
+        }
+    }
+
+    // PC update
+    if(emu_state_change.pc_mod)
+        current_pc[thread] = emu_state_change.pc;
+    else
+        if (inst->get_is_compressed())
+            current_pc[thread] = current_pc[thread] + 2;
+        else
+            current_pc[thread] = current_pc[thread] + 4;
+
+    return CHECKER_OK;
+}
+
+// Return the last error message
+std::string checker::get_error_msg()
+{
+    return error_msg;
+}
+
+// Returns the mnemonic for a PC
+std::string checker::get_mnemonic(uint64 pc)
+{
+    instruction * inst = inst_cache->get_instruction(virt_to_phys(pc, Mem_Access_Fetch));
+    return inst->get_mnemonic();
+}
+
+// enables or disables the 2nd thread
+void checker::thread1_enabled ( unsigned minionId, int en, uint64 pc) 
+{
+  unsigned thread = minionId | 1;
+  if (en != threadEnabled[thread] ) {
+    threadEnabled[thread] = en;
+    if (en) current_pc[thread] = pc;
+  }
+}
+
+// Scratchpad write
+void checker::tensorload_write(uint32 thread, uint32 entry, uint64 * data)
+{
+    scratchpad_entry scp_entry;
+
+    scp_entry.entry = entry;
+    for(int i = 0; i < 8; i++)
+    {
+        scp_entry.data[i] = data[i];
+    }
+    spd_entry_list[thread].push_back(scp_entry);
+}
+
+// TensorFMA write
+void checker::tensorfma_write(uint32 thread, uint32 entry, uint32 * data)
+{
+    tensorfma_entry tensorfma;
+
+    tensorfma.entry = entry;
+    for(int i = 0; i < 4; i++)
+    {
+        tensorfma.data[i] = data[i];
+    }
+    tensorfma_list[thread].push_back(tensorfma);
+}
+
+// Reduce write
+void checker::reduce_write(uint32 thread, uint32 entry, uint32 * data)
+{
+    tensorfma_entry reduce;
+
+    reduce.entry = entry;
+    for(int i = 0; i < 4; i++)
+    {
+        reduce.data[i] = data[i];
+    }
+    reduce_list[thread].push_back(reduce);
+}
+
+// Virtual to physical
+uint64 checker::virt_to_phys(uint64 addr, mem_access_type macc)
+{
+    // Read SATP, PRV and MSTATUS
+    uint64 satp;
+    satp = (csrget(csr_satp));
+    uint64 satp_mode = (satp >> 60) & 0xF;
+    uint64 satp_ppn = satp & PPN_M;
+    uint64 prv = (csrget(csr_prv));
+    uint64 mstatus = (csrget(csr_mstatus));
+    bool sum = (mstatus >> 18) & 0x1;
+    bool mxr = (mstatus >> 19) & 0x1;
+
+    bool vm_enabled = (satp_mode != 0) && (prv <= CSR_PRV_S);
+
+    // Set for Sv48
+    // TODO: Support Sv39
+    int Num_Levels = 4;
+    int PTE_Size = 8;
+    int PTE_Idx_Size = 9;
+
+    uint64 pte_idx_mask = ((uint64)1<<PTE_Idx_Size)-1;
+    if (vm_enabled)
+    {
+        log << LOG_DEBUG << "Virtual memory enabled. Performing page walk..." << endm;
+
+        // Perform page walk
+        int level;
+        uint64 ppn, pte_addr, pte;
+        bool pte_v, pte_r, pte_w, pte_x, pte_u, pte_a, pte_d;
+
+        level = Num_Levels;
+        ppn = satp_ppn;
+        do {
+          level--;
+          if (level < 0)
+          {
+            log << LOG_ERR << "Last level PTE is a pointer to a page table: PTE = 0x" << std::hex << pte << endm;
+            return -1;
+          }
+
+          // Take VPN[level]
+          uint64 vpn = (addr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
+          // Read PTE
+          pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
+          memory_instance->read(pte_addr, PTE_Size, &pte);
+          log << LOG_DEBUG << "* Level " << std::dec << level << ": PTE = 0x" << std::hex << pte << endm;
+
+          // Read PTE fields
+          pte_v = (pte >> PTE_V_OFFSET) & 0x1;
+          pte_r = (pte >> PTE_R_OFFSET) & 0x1;
+          pte_w = (pte >> PTE_W_OFFSET) & 0x1;
+          pte_x = (pte >> PTE_X_OFFSET) & 0x1;
+          pte_u = (pte >> PTE_U_OFFSET) & 0x1;
+          pte_a = (pte >> PTE_A_OFFSET) & 0x1;
+          pte_d = (pte >> PTE_D_OFFSET) & 0x1;
+          // Read PPN
+          ppn = (pte >> PTE_PPN_OFFSET) & PPN_M;
+
+          // Check invalid entry
+          if (!pte_v || (!pte_r && pte_w))
+          {
+            log << LOG_ERR << "Invalid entry: PTE = 0x" << std::hex << pte << endm;
+            return -1;
+          }
+
+          // Check if PTE is a pointer to next table level
+        } while (!pte_r && !pte_x);
+
+        // A leaf PTE has been found
+        log << LOG_DEBUG << "Valid leaf PTE found at level " << std::dec << level << endm;
+
+        // Check permissions
+        bool perm_ok = (macc == Mem_Access_Load)  ? pte_r || (mxr && pte_x) :
+                       (macc == Mem_Access_Store) ? pte_w :
+                                                    pte_x; // Mem_Access_Fetch
+        if (!perm_ok)
+        {
+          log << LOG_ERR << "Page permissions do not allow this type of access (";
+          switch (macc)
+          {
+            case Mem_Access_Load:  log << "Load)" << endm; break;
+            case Mem_Access_Store: log << "Store)" << endm; break;
+            case Mem_Access_Fetch: log << "Fetch)" << endm; break;
+            default:               log << "*Invalid*: " << std::dec << (int)macc << ")" << endm;
+          }
+
+          return -1;
+        }
+
+        // Check privilege mode
+        // If page is accessible to user mode, supervisor mode SW may also access it if sum bit from the sstatus is set
+        // Otherwise, check that privilege mode is higher than user
+        bool priv_ok = pte_u ? (prv == CSR_PRV_U) || sum : prv != CSR_PRV_U;
+        if (!priv_ok)
+        {
+          log << LOG_ERR << "Page not accessible for current privilege mode (";
+          switch (prv)
+          {
+            case CSR_PRV_U: log << "User)" << endm;
+            case CSR_PRV_S: log << "Supervisor)" << endm;
+            default:        log << "*Invalid*: " << std::dec << prv << ")" << endm;
+          }
+
+          return -1;
+        }
+
+        // Check if it is a misaligned superpage
+        if ((level > 0) && ((ppn & ((1<<(PTE_Idx_Size*level))-1)) != 0))
+        {
+          log << LOG_ERR << "Misaligned superpage" << endm;
+          for (int i = 0; i < level; i++)
+            log << LOG_DEBUG << "* ppn[" << std::dec << i << "] = 0x" << std::hex << ((ppn>>(PTE_Idx_Size*i)) & ((1<<(PTE_Idx_Size))-1)) << endm;
+          return -1;
+        }
+
+        if (!pte_a || ((macc == Mem_Access_Store) && !pte_d))
+        {
+          log << LOG_DEBUG << "* Setting A/D bits in PTE" << endm;
+
+          // Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
+          uint64 pte_write = pte;
+          pte_write |= 1 << PTE_A_OFFSET;
+          if (macc == Mem_Access_Store)
+            pte_write |= 1 << PTE_D_OFFSET;
+
+          // Write PTE
+          memory_instance->write(pte_addr, PTE_Size, &pte_write);
+        }
+
+        // Obtain physical address
+        uint64 paddr;
+
+        // Copy page offset
+        paddr = addr & PG_OFFSET_M;
+
+        for (int i = 0; i < Num_Levels-1; i++)
+        {
+          // If level > 0, this is a superpage translation so VPN[level-1:0] are part of the page offset
+          if (i < level)
+            paddr |= addr & (pte_idx_mask << (PG_OFFSET_SIZE + PTE_Idx_Size*i));
+          else
+            paddr |= (ppn & (pte_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
+        }
+        // PPN[3] is 17 bits wide
+        paddr |= ppn & ((((uint64)1<<17) - 1) << (PTE_Idx_Size*(Num_Levels-1)));
+        // Final physical address only uses 40 bits
+        paddr &= PA_M;
+
+        log << LOG_DEBUG << "Physical address = 0x" << std::hex << paddr << endm;
+
+        return paddr;
+    }
+    else
+    {
+        // Direct mapping, physical address is 40 bits
+        return addr & PA_M;
+    }
+}
+
