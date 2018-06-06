@@ -20,6 +20,8 @@
 extern void gprintf(const char* format, ...);
 extern void gsprintf(char* str, const char* format, ...);
 
+#define NEW_TRANS_UNIT
+
 #ifdef GFX_ONLY
  #define GFX(x) x
 #else
@@ -4122,56 +4124,90 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
             case FRSQ:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_frsq(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = (float) ((double) 1.0 / sqrt((double) val.f));
+                    DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    security_ulp_check(res_gold.u,res.u);
+#else
                     res.f = (float) ((double) 1.0 / sqrt((double) val.f));
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FSIN:
                 if ( genResult )
                 {
 #ifdef NEW_TRANS_UNIT
-                    res.f = (float) sin(2 * M_PI * (double) val.f);
+                    res.f = ttrans_fsin(val.u);
+                    // security ulp check
+                    iufval res_gold, sin_tmp;
+                    double f;
+                    sin_tmp.f = (float)  modf(val.f, &f);
+
+                    printf("SIN TRANSFORM: 0x%08x (%f) -> 0x%08x (%f)\n", val.u, val.f, sin_tmp.u, sin_tmp.f);
+
+                    sin_tmp.f = sin_tmp.f > 0.5? sin_tmp.f - 1.0
+                        : sin_tmp.f < -0.5 ? sin_tmp.f + 1.0
+                        : sin_tmp.f;
+
+                    printf("SIN TRANSFORM: 0x%08x (%f) -> 0x%08x (%f)\n", val.u, val.f, sin_tmp.u, sin_tmp.f);
+
+                    res_gold.f = (float) sin(2 * M_PI * (double) sin_tmp.f);
+                    printf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
+                    security_ulp_check(res_gold.u,res.u);
 #else
-                    res.f = sinf(val.f);
+                    res.f = sin(val.f);
 #endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
-//                    case FCOS:
-//                        if ( genResult )
-//                        {
-//#ifdef NEW_TRANS_UNIT
-//                                res.f = (float) cos(2 * M_PI * (double) val.f);
-//#else
-//                                res.f = cosf(val.f);
-//#endif
-//
-//                                // convert to canonical NaN
-//                                if ( isnan(res.f) ) res.f = nanf("");
-//                                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
-//                        }
-//                        break;
             case FEXP:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_fexp2(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = exp2f(val.f);
+
+                    // Remove denormals
+                    if ((res.u & 0x7f800000) == 0) res.u = res.u & 0xff800000;
+                    if ((res_gold.u & 0x7f800000) == 0) res_gold.u = res_gold.u & 0xff800000;
+
+                    DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    security_ulp_check(res_gold.u,res.u);
+#else
                     res.f = exp2f(val.f);
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FLOG:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_flog2(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = log2f(val.f);
+                    DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    security_ulp_check(res_gold.u,res.u);
+#else
                     res.f = log2f(val.f);
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FRCP:
                 if ( genResult )
@@ -4181,14 +4217,16 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     // security ulp check
                     iufval res_gold;
                     res_gold.f = (float) (1.0 / (double) val.f);
+                    DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    //assert(res.u == res_gold.u);
                     security_ulp_check(res_gold.u,res.u);
 #else
                     res.f = (float) (1.0 / (double) val.f);
 #endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FRCPFXP:
                 if ( genResult )
