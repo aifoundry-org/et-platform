@@ -820,7 +820,7 @@ void tensorfma()
     uint64 tfmareg = csrregs[current_thread>>1][csr_tfmastart];
 
     uint64 isconv     =  (tfmareg & 0x2000000000) >> 37;      // Is a Conv2D operation (use tensor conv register)
-    uint64 aoffset    =  (tfmareg & 0x1F00000000) >> 32;      // A matrix byte offset
+    uint64 aoffset    =  (tfmareg & 0x0F00000000) >> 32;      // A matrix 32b offset
     uint64 bcols      = ((tfmareg & 0x00F0000000) >> 28) + 1; // Number of B cols to be processed
     uint64 acols      = ((tfmareg & 0x000F000000) >> 24) + 1; // Number of A cols to be processed
     uint64 arows      = ((tfmareg & 0x0000F00000) >> 20) + 1; // Number of A rows to be processed
@@ -909,8 +909,8 @@ void tensorfma()
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
                 {
-                    int af = ac / 4;
-                    int am = ac % 4;
+                    int af = (aoffset + ac) / 4;
+                    int am = (aoffset + ac) % 4;
                     int br = bstart + ac;                // B: traverse acols rows
                     float32 old = FREGS[4*ar+bf].f[bm];
                     uint32 oldu = FREGS[4*ar+bf].u[bm];
@@ -1665,8 +1665,9 @@ void addi(xreg dst, xreg src1, int imm, const char *comm)
     }
     if(dst != x0)
     {
+        uint64 bkp_src = XREGS[src1].x;
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,XREGS[src1].x,imm);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,bkp_src,imm);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -1970,8 +1971,11 @@ void add(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x + XREGS[src2].x;
     if(dst != x0)
     {
+
+        uint64 bkp_src1 = XREGS[src1].x;
+        uint64 bkp_src2 = XREGS[src2].x;
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%016llx\n",val,bkp_src1,bkp_src2);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -1998,8 +2002,10 @@ void sub(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x - XREGS[src2].x;
     if(dst != x0)
     {
+        uint64 bkp_src1 = XREGS[src1].x;
+        uint64 bkp_src2 = XREGS[src2].x;
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx - 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx - 0x%016llx\n",val,bkp_src1,bkp_src2);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2054,8 +2060,8 @@ void xori(xreg dst, xreg src1, int imm, const char *comm)
     uint64 val = XREGS[src1].x ^ sext12(imm);
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx & 0x%016llx\n",val,XREGS[src1].x,(uint64)imm);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
