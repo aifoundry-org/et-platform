@@ -36,6 +36,7 @@ class instruction
         bool get_is_texsndh();
         bool get_is_1ulp();
         bool get_is_amo();
+        bool get_is_flb();
         bool get_is_compressed();
         int get_param(int param);
 
@@ -56,6 +57,7 @@ class instruction
         bool                         is_texrcv;      // If the instruction is a texrcv
         bool                         is_1ulp;        // The instruction must be checked with 1ULP precision
         bool                         is_amo;         // If the instruction is an atomic operation
+        bool                         is_flb;         // If the instruction is a fast local barrier
         bool                         is_compressed;  // If the instruction is a compressed encoding
         int                          params[4];      // Params to call the function
         int                          num_params;     // Number of params for the call

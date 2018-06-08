@@ -24,6 +24,7 @@ instruction::instruction()
     is_texrcv = false;
     is_1ulp = false;
     is_amo = false;
+    is_flb = false;
     emu_func = NULL;
     emu_func0 = NULL;
     emu_func1 = NULL;
@@ -375,6 +376,7 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         is_reduce      = (params[0] == csr_reduce);
         is_tensor_load = (params[0] == csr_tloadctrl);
         is_tensor_fma  = (params[0] == csr_tfmastart);
+        is_flb         = (params[1] == csr_flbarrier);
     }
 
     // Get the emulation function pointer for the opcode
@@ -444,6 +446,12 @@ bool instruction::get_is_tensor_load()
 bool instruction::get_is_tensor_fma()
 {
   return is_tensor_fma;
+}
+
+// Access
+bool instruction::get_is_flb()
+{
+  return is_flb;
 }
 
 // Access
@@ -654,6 +662,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "unknown_802")  params[num_params] = csr_tconvsize;
         else if(param == "unknown_803")  params[num_params] = csr_tconvctrl;
         else if(param == "unknown_81f")  params[num_params] = csr_cacheop;
+        else if(param == "unknown_820")  params[num_params] = csr_flbarrier;
         else if(param == "unknown_83f")  params[num_params] = csr_tloadctrl;
         else if(param == "unknown_87f")  params[num_params] = csr_tstore;
         else if(param == "unknown_7cb")  params[num_params] = csr_icache_ctrl;

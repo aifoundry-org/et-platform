@@ -1591,6 +1591,45 @@ uint64 get_reduce_value(int entry, int block, int * size, int * start_entry)
 
 ////////////////////////////////////////////////////////////
 //
+// Fast Local Barrier emulation
+//
+////////////////////////////////////////////////////////////
+
+#define FL_UC_BASE_REGION 0xFFF00000
+
+// Fast local barriers can be accessed through UC to do stores and loads,
+// and also through the CSR that implement the fast local barrier function.
+uint64 flbarrier()
+{
+    uint64 value   = csrregs[current_thread>>1][csr_flbarrier];
+    uint64 barrier = value & 0x7;
+    uint64 limit   = (value >> 3) & 0x7F;
+
+    // Gets what is the address that the fast local barrier is mapped to
+    uint64 addr    = FL_UC_BASE_REGION + (barrier * 8);
+
+    uint64 orig_value = memread64(addr);
+    uint64 result = -1;
+    printf("FastLocalBarrier: Minion %i doing barrier %i\n", current_thread>>1, barrier);
+    // Last guy, return 1 and zero barrier
+    if(orig_value == limit)
+    {
+        printf("FastLocalBarrier: last minion!!\n");
+        memwrite64(addr, 0);
+        result = 1;
+    }
+    // Not the last guy, return 0 and increment barrier
+    else
+    {
+        printf("FastLocalBarrier: Incrementing to %lli!!\n", orig_value + 1);
+        memwrite64(addr, orig_value + 1);
+        result = 0;
+    }
+    return result;
+}
+
+////////////////////////////////////////////////////////////
+//
 // RV64I emulation
 //
 ////////////////////////////////////////////////////////////
@@ -3066,6 +3105,8 @@ void csr_insn(xreg dst, csr src1, uint64 imm)
         tensorstore();
     else if ( src1 == csr_reduce ) 
         reduce();
+    else if ( src1 == csr_flbarrier )
+        x = flbarrier();
 #endif
 
     DEBUG_EMU(gprintf("\t0x%016llx --> CSR[%08x]\n", imm, src1);)
