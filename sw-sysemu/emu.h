@@ -79,6 +79,7 @@ typedef enum
     csr_tfmastart,
     csr_tstore,
     csr_reduce,
+    csr_flbarrier,
     write_ctrl,
     csr_smsg_port0,
     csr_smsg_port1,
