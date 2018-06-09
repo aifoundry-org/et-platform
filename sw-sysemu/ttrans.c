@@ -108,7 +108,9 @@ float32 ttrans_frsq(uint32 val){
 
     uint16_t exponent = GET(val, 30, 23) -1;
     uint16_t exponent_shifted = (exponent >> 1) ^ 0x40 + (exponent & 0x80);
-    uint16_t exponent_res = (~exponent_shifted)-1 - (mantissa != 0);
+    uint16_t exponent_res = (~exponent_shifted)-1 - ((mantissa != 0) || (GET(val, 23, 23) == 0));
+
+    printf("E: 0x%04x\tES: 0x%04x\tER: 0x%04x\tM: %04x\n", exponent, exponent_shifted, exponent_res, mantissa);
 
     uint32_t output = MERGE(0, exponent_res, fraction_res);
 
@@ -118,22 +120,155 @@ float32 ttrans_frsq(uint32 val){
 
 float32 ttrans_flog2(uint32 val){
 
+    if(val == 0x3f800000) return 0.0;
+
+    uint32 x2 = (val % (1 << (23-6)));
+    uint32 x = (val % (1 << 23));
+    uint32 idx = ((~(val >> (23 - 1)) % 2) << 5)+ ((val >> (23-6)) % (1 << 5));
+    uint32 exp = ((val >> 23) % (1 << 8));
+    bool sign = val >> 31;
+    bool sign_exp = exp >= 127;
+    bool high =((val >> (23-1)) %2) != 0;
+    bool or_mantissa = (val % (1 << 23)) != 0;
+
+    //printf("Sign: %d\n", sign);
+    //printf("High: %d\n", high);
+    //printf("Exp: 0x%08x\tSign: %d\n", exp, sign_exp);
+    //printf("IDX: 0x%08x\n", idx);
+
+    uint64 c2 = tlog[idx][0];
+    uint64 c1 = ((uint64)tlog[idx][1] * (1 << 18));
+    uint64 c0 = ( ((uint64)tlog[idx][2]) << 31);
+
+    printf("C2: 0x%016lx\tC1: 0x%016lx\tC0: 0x%016lx\n", c2, c1, c0);
+
+    uint64 fma1 = - c2*x2 + c1;
+
+    printf("FMA1: 0x%016lx\n", fma1);
+
+    uint64 signed_mul = fma1*x2;
+
+    printf("SIGNED_MUL: 0x%016lx\n", signed_mul);
+
+    uint64 fma2 = -signed_mul + c0;
+
+    printf("FMA2: 0x%016lx\n", fma2);
+
+    uint64 pre_result = 0;
+
+    if(or_mantissa) {
+        pre_result = (fma2 + ((uint64)1<<31));
+    }
+
+    printf("PRE_RESULT: 0x%016lx\n", pre_result);
+
+    uint32 x_minus_1 = (((~x) %(1<<23)) + 1 )%(1<<23);
+
+    if(!high){
+        x_minus_1 = (val % (1 << 23))<< 1;
+    }
+
+    printf("X_MINUS_1: 0x%016lx\n", x_minus_1);
+
+    uint64 mult_result = ((((uint64)1)<< 25) + (pre_result >> 32))* x_minus_1;
+
+    printf("MULT_RESULT: 0x%016lx\n", mult_result);
+
+    uint64 sign_result = ~mult_result+1;
+
+    if((sign_exp) ^ (high)) sign_result = mult_result;
+
+    printf("SIGN_RESULT: 0x%016lx\n", sign_result);
+
+    int i = 47;
+
+    while(sign_result >> i == 0 && i > 23) --i;
+    i++;
+
+    uint64 round_result = sign_result + (1 << (i - 24));
+
+    printf("ROUND_RESULT: %d, 0x%016lx\n", i, round_result);
+
+    uint64 exponent = (~exp - or_mantissa) % (1 << 7);
+
+    if(sign_exp) exponent = (exp+1) % (1 << 7);
+
+    printf("EXPONENT: 0x%016lx\n", exponent);
+
+    uint64 merged_result = (exponent << 49) + (round_result % ((uint64)1<<49));
+
+    i = 64;
+
+    printf("0x%016lx\n", (merged_result >> i));
+    while((merged_result >> i) == 0 && i > 22) --i;
+
+    uint32 top_exp = 142 - (64 - i);
+
+    printf("TOP_EXP: %d, %08x\n", i, top_exp);
+
+    uint32 full_result = (merged_result >> (i - 23)) % ((uint64) 1 << 23);
+
+    printf("FULL_RESULT: %d, %08x\n", i, full_result);
+
+    full_result = full_result + (top_exp << 23) + ((~(sign_exp)) << 31);
+
+    if(sign)
+        full_result = (0x1ff << 22);
+
+    return *((float32 *) &full_result);
+
+
+/*
     uint32_t idx = ((~(val >> (23 - 1)) % 2) << 5)+ ((val >> (23-6)) % (1 << 5));
     printf("IDX: %d\n", idx);
     uint32_t c2 = tlog[idx][0] << 1;
-    uint32_t c1 = ((uint32_t) 0x60000) + ((uint32_t)tlog[idx][1] * (1 << 1));
-    uint32_t c0 = ( ((uint32_t)tlog[idx][2]) << 1);
+    uint32_t c1 = ((uint32_t)tlog[idx][1]) * (1 << 1);
+    uint32_t c0 = ( ((uint32_t)tlog[idx][2]) << 2);
+
+    printf("c2: %d c1: %d c0: %d\n", tlog[idx][0], tlog[idx][1], tlog[idx][2]);
 
     uint32_t masked_val = 0x1ffff & val;
-    uint64_t fma_result = trans_fma(masked_val, c2, c1, c0);
+    //uint64_t fma_result = trans_fma(masked_val, c2, c1, c0);
+    uint32_t shifted_c2 = GET(c2, 10, 0) << 21;
+    uint64_t shifted_c1 = ((uint64_t)(GET(c1, 18,0) << 13)) << 32;
+    uint32_t shifted_x  = GET(val, 16, 0) << 6;
 
-    uint64_t fma_rounded = fma_result + (1 << 28);
+    printf("Original C2: %04x\tShifted C2: %08x\n", c2, shifted_c2);
+    printf("Original C1: %04x\tShifted C1: %016lx\n", c1, shifted_c1);
+    printf("Original X: %08x\tShifted X: %08x\n", val, shifted_x);
 
-    uint32_t ufma2= GET(fma_rounded, 60,29) + (1 << 30);
+    uint64_t mul1 = ((uint64_t)shifted_c2)*((uint64_t) shifted_x); 
+    //uint32_t shifted_mul1 = GET(mul1, 63, 32);
+
+    //printf("Original mul: %016lx\tShifted mul: %08x\n", mul1, shifted_mul1);
+    printf("Original mul: %016lx\n", mul1);
+
+    uint64_t fma1 =  - mul1 + shifted_c1;
+
+    printf("EMU FMA1: %016lx\n", fma1);
+
+    uint32_t shifted_fma1 = GET(fma1 + (((uint64_t)1)<<30), 62, 31);
+    uint64_t shifted_c0 =((uint64_t) GET(c0, 27,0)) << 32;
+
+    printf("Original FMA1: %08x\tShifted FMA1: %08x\n", fma1, shifted_fma1);
+    printf("Original C0: %04x\tShifted C0: %016lx\n", c0, shifted_c0);
+    printf("Original X: %08x\tShifted X: %08x\n", val, shifted_x);
+
+    uint64_t mul2 = ((uint64_t)shifted_fma1 )*((uint64_t) shifted_x);
+
+    uint64_t fma_result = -mul2 + shifted_c0;
+
+
+    printf("FMA RESULT: %016lx\n", fma_result);
+
+    printf("FMA RESULT: %016lx\n", fma_result);
+    uint64_t fma_rounded = fma_result + (((uint64_t)1) << 32);
+
+    uint64_t ufma2= GET(fma_rounded, 57,33) + (1 << 25);
 
     uint8_t high = GET(val, 22,22) != 0;
 
-    uint32_t x_m1 = (GET(val, 22, 0) + (0 << 23)) << 1;
+    uint32_t x_m1 = (GET(val, 22, 0)) << 1;
     if(high){
         x_m1 = GET((~GET(val, 22, 0))+ 1, 22, 0);
     }
@@ -143,7 +278,7 @@ float32 ttrans_flog2(uint32 val){
         return *((float*)&output);
     }
 
-    double nfma = ((double)ufma2)/(1 << 30);
+    double nfma = ((double)ufma2)/(1 << 25);
     double nx_m1 = ((double)x_m1)/(1 << 24);
 
     printf("Op1: 0x%08x (%.10f)\tOp2:0x%08x (%.10f)\n", ufma2, nfma, x_m1, nx_m1);
@@ -156,22 +291,27 @@ float32 ttrans_flog2(uint32 val){
 
     int32_t exp = GET(val, 30, 23) - 127;
 
-    if((exp_positive == 0) && (GET(val, 22, 0) != 0)){
-        exp++;
-    }
     printf("Exp: %d\n", exp);
 
-    float frac;
-    if(exp_positive && high) frac = 1 - mul;
-    else if( exp_positive && !high) frac = mul;
-    else if( !exp_positive && high) frac = -mul;
-    else frac = mul-1;
+    double frac;
 
-    float result = frac + exp;
-    printf("Frac: %.10f\tRes %.10f\n", frac, result);
+    frac = mul;
 
-    return result;
+    double result = frac + exp;
 
+uint64_t ures = *((uint64_t*)&result) + (1 << 28);
+
+    result = *((double*)&ures);
+
+    printf("Frac: %.10f\nRes %.10f\n", frac, result);
+
+    float res2 = result;
+
+    printf("Res2: %.10f\n", res2);
+
+    return (float) res2;
+
+    */
 }
 
 float32 ttrans_fexp2(uint32 val){
@@ -345,7 +485,9 @@ float32 ttrans_fsin(uint32 val){
     val = ttrans_sin_convert(val);
     printf("VAL: 0x%08x\n", val);
 
-    if(val == 0)  return val;
+    if(val == 0)  return *((float*)&val);
+    if(val == 0.25) return 1.0;
+    if(val == -0.25) return -1.0;
 
     bool ex0 = get(val, 23, 25) == 0x7;
     bool ex1 = get(val, 23, 25) == 0x6;
