@@ -386,6 +386,15 @@ checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uin
                 (initreg((xreg) inst->get_param(0), emu_state_change.int_reg_data));
             }
 
+            // Check if it is an Fast Local Barrier (special case where RTL drives value)
+            if(inst->get_is_flb() && (emu_state_change.int_reg_rd != 0))
+            {
+                log << LOG_INFO << "FastLocalBarrier value (" << inst->get_mnemonic() << ")" << endm;
+                // Set EMU state to what RTL says
+                emu_state_change.int_reg_data = changes->int_reg_data;
+                (initreg((xreg) inst->get_param(0), emu_state_change.int_reg_data));
+            }
+
             if(inst->get_is_load() && (virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) >= TBOX_REGION_START && virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) < TBOX_REGION_END))
             {
                 log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
