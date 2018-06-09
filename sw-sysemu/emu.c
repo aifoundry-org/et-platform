@@ -380,29 +380,76 @@ uint64 csr_cacheop_emu()
     uint64 stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
     uint64 repeat   = (op_value >> 48) & 0xFF;
 
+    uint64 op    = op_value >> 61;
+    uint64 addr  = op_value & 0xFFFFFFFFFFC0UL;
+    uint64 start = (op_value >> 59) & 0x3;
+    uint64 end   = (op_value >> 56) & 0x7;
+
+    uint64 set = (op_value >> 8) & 0xFFFFFF;
+    uint64 way  = op_value & 0xFF;
+    uint64 cl   = (set << 2) + way; // FIXME: Only valid for 4 ways
+
     DEBUG_EMU(gprintf("\tDoing CacheOp with value %016X\n", op_value);)
 
-    for(int i = 0; i <= repeat; i++)
-    {
-        uint64 set    = (op_value >> 6) & 0xF;
-        uint64 way    = op_value & 0x3;
-        uint64 cl     = (set << 2) + way;
-        uint64 op     = op_value >> 61;
-        uint64 addr   = op_value & 0xFFFFFFFFFFC0UL;
-
-        if(op == 0)
-        {
-            DEBUG_EMU(gprintf("\tDoing LockSW (%d.%d) to Set: %X, Way: %X, CL: %02X to PA: %016X\n", 
-                      current_thread >> 1, current_thread & 1, set, way, cl, addr);)
-            scp_locked[current_thread >> 1][cl] = true;
-            scp_trans[current_thread >> 1][cl]  = addr;
-        }
-        else if(op == 3)
-        {
-            DEBUG_EMU(gprintf("\tDoing Evict of VA: %016X\n", addr);)
-        }
-
-        op_value += stride;
+    switch (op) {
+       case 3: // EvictSW
+          for(int i = 0; i <= repeat; i++) {
+             DEBUG_EMU(gprintf("\tDoing EvictSW (%d.%d) to Set: %X, Way: %X, CL: %02X, StartLevel: %01X, EndLevel: %01X\n", 
+                      current_thread >> 1, current_thread & 1, set, way, cl, start, end);)
+             // TODO
+             set = (++cl >> 2) & 0xF;
+             way = cl & 0x3;
+          }
+          break;
+       case 2: // FlushSW
+          for(int i = 0; i <= repeat; i++) {
+             DEBUG_EMU(gprintf("\tDoing FlushSW (%d.%d) to Set: %X, Way: %X, CL: %02X, StartLevel: %01X, EndLevel: %01X\n", 
+                      current_thread >> 1, current_thread & 1, set, way, cl, start, end);)
+             // TODO
+             set = (++cl >> 2) & 0xF;
+             way = cl & 0x3;
+          }
+          break;
+       case 7: // EvictVA
+          for(int i = 0; i <= repeat; i++) {
+             DEBUG_EMU(gprintf("\tDoing EvictVA: %016X, StartLevel: %01X, EndLevel: %01X\n", addr, start, end);)
+             // TODO
+             addr += stride;
+          }
+          break;
+       case 6: // FlushVA
+          for(int i = 0; i <= repeat; i++) {
+             DEBUG_EMU(gprintf("\tDoing FlushVA: %016X, StartLevel: %01X, EndLevel: %01X\n", addr, start, end);)
+             // TODO
+             addr += stride;
+          }
+          break;
+       case 4: // PrefetchVA
+          DEBUG_EMU(gprintf("\tDoing PrefetchVA: %016X, Way: %X\n", addr, way);)
+          // TODO
+          break;
+       case 0: // LockVA
+          {
+             uint64 way_va  = op_value & 0x3F;
+             set = (op_value >> 6) & 0xF;
+             cl = (set << 2) + way_va; // FIXME: Only valid for 4 ways
+             DEBUG_EMU(gprintf("\tDoing LockVA: %016X, Way: %X\n", addr, way_va);)
+             scp_locked[current_thread >> 1][cl] = true;
+             scp_trans[current_thread >> 1][cl]  = addr;
+             break;
+          }
+       case 1: // UnlockVA
+          {
+             uint64 way_va   = op_value & 0x3F;
+             uint64 state = (op_value >> 57) & 0x1;
+             set = (op_value >> 6) & 0xF;
+             cl = (set << 2) + way_va; // FIXME: Only valid for 4 ways
+             DEBUG_EMU(gprintf("\tDoing UnlockVA: %016X, Way: %X, FinalState: %01X\n", addr, way_va, state);)
+             scp_locked[current_thread >> 1][cl] = false;
+             break;
+          }
+       default:
+          DEBUG_EMU(gprintf("\tUnknown CacheOp Opcode!\n");)
     }
 
     return 0;
@@ -1543,6 +1590,45 @@ uint64 get_reduce_value(int entry, int block, int * size, int * start_entry)
     * size = reduce_size[current_thread];
     * start_entry = reduce_entry[current_thread];
     return reduce_data[current_thread][entry][block];
+}
+
+////////////////////////////////////////////////////////////
+//
+// Fast Local Barrier emulation
+//
+////////////////////////////////////////////////////////////
+
+#define FL_UC_BASE_REGION 0xFFF00000
+
+// Fast local barriers can be accessed through UC to do stores and loads,
+// and also through the CSR that implement the fast local barrier function.
+uint64 flbarrier()
+{
+    uint64 value   = csrregs[current_thread>>1][csr_flbarrier];
+    uint64 barrier = value & 0x7;
+    uint64 limit   = (value >> 3) & 0x7F;
+
+    // Gets what is the address that the fast local barrier is mapped to
+    uint64 addr    = FL_UC_BASE_REGION + (barrier * 8);
+
+    uint64 orig_value = memread64(addr);
+    uint64 result = -1;
+    printf("FastLocalBarrier: Minion %i doing barrier %i\n", current_thread>>1, barrier);
+    // Last guy, return 1 and zero barrier
+    if(orig_value == limit)
+    {
+        printf("FastLocalBarrier: last minion!!\n");
+        memwrite64(addr, 0);
+        result = 1;
+    }
+    // Not the last guy, return 0 and increment barrier
+    else
+    {
+        printf("FastLocalBarrier: Incrementing to %lli!!\n", orig_value + 1);
+        memwrite64(addr, orig_value + 1);
+        result = 0;
+    }
+    return result;
 }
 
 ////////////////////////////////////////////////////////////
@@ -3022,6 +3108,8 @@ void csr_insn(xreg dst, csr src1, uint64 imm)
         tensorstore();
     else if ( src1 == csr_reduce ) 
         reduce();
+    else if ( src1 == csr_flbarrier )
+        x = flbarrier();
 #endif
 
     DEBUG_EMU(gprintf("\t0x%016llx --> CSR[%08x]\n", imm, src1);)
