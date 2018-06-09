@@ -9,6 +9,7 @@
 #include <ipc.h>
 #include <ttrans.h>
 #include <algorithm>
+#include <stdint.h>
 
 #ifndef MINIONSIM
 #include <immintrin.h>
@@ -326,11 +327,11 @@ void minit(mreg dst, uint64 val)
     ipc_init_mreg(dst);
 }
 
-void security_ulp_check(uint32 gold, uint32 table)
+uint8_t security_ulp_check(uint32 gold, uint32 table)
 {
     // Fast skip for zeros and infinity should be the same value in both in gold and table
     if (gold == table)
-        return;
+        return 0;
 
     // Detect NaNs
     bool gold_is_nan  = ((gold  & 0x7F800000) == 0x7F800000) && ((gold  & 0x007FFFFF) != 0);
@@ -340,7 +341,7 @@ void security_ulp_check(uint32 gold, uint32 table)
 
     // Skip all other tests.
     if (gold_is_nan)
-        return;
+        return 0;
 
     uint32 exp_gold   = (gold >> 23) & 0xFF;   // get gold exponent
     uint32 gold_clean = gold & 0x7F800000;     // clean mantissa and sign from gold
@@ -359,7 +360,7 @@ void security_ulp_check(uint32 gold, uint32 table)
         printf("Gold IEEE: %.12e, Table TRANS: %.12e, Diff: %.12e, Max (1ulp): %.12e\n", goldf, tablef, diff, err_1ulp);
         printf("Hex Gold: %08X, Hex Table: %08X\n", gold, table);
     }
-    assert(diff <= err_1ulp);
+    return (diff > err_1ulp);
 }
 
 #ifdef CHECKER
@@ -822,7 +823,7 @@ void tensorfma()
     uint64 tfmareg = csrregs[current_thread>>1][csr_tfmastart];
 
     uint64 isconv     =  (tfmareg & 0x2000000000) >> 37;      // Is a Conv2D operation (use tensor conv register)
-    uint64 aoffset    =  (tfmareg & 0x1F00000000) >> 32;      // A matrix byte offset
+    uint64 aoffset    =  (tfmareg & 0x0F00000000) >> 32;      // A matrix 32b offset
     uint64 bcols      = ((tfmareg & 0x00F0000000) >> 28) + 1; // Number of B cols to be processed
     uint64 acols      = ((tfmareg & 0x000F000000) >> 24) + 1; // Number of A cols to be processed
     uint64 arows      = ((tfmareg & 0x0000F00000) >> 20) + 1; // Number of A rows to be processed
@@ -911,8 +912,8 @@ void tensorfma()
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
                 {
-                    int af = ac / 4;
-                    int am = ac % 4;
+                    int af = (aoffset + ac) / 4;
+                    int am = (aoffset + ac) % 4;
                     int br = bstart + ac;                // B: traverse acols rows
                     float32 old = FREGS[4*ar+bf].f[bm];
                     uint32 oldu = FREGS[4*ar+bf].u[bm];
@@ -1667,8 +1668,9 @@ void addi(xreg dst, xreg src1, int imm, const char *comm)
     }
     if(dst != x0)
     {
+        uint64 bkp_src = XREGS[src1].x;
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,XREGS[src1].x,imm);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,bkp_src,imm);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -1972,8 +1974,11 @@ void add(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x + XREGS[src2].x;
     if(dst != x0)
     {
+
+        uint64 bkp_src1 = XREGS[src1].x;
+        uint64 bkp_src2 = XREGS[src2].x;
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%016llx\n",val,bkp_src1,bkp_src2);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2000,8 +2005,10 @@ void sub(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x - XREGS[src2].x;
     if(dst != x0)
     {
+        uint64 bkp_src1 = XREGS[src1].x;
+        uint64 bkp_src2 = XREGS[src2].x;
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx - 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx - 0x%016llx\n",val,bkp_src1,bkp_src2);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2056,8 +2063,8 @@ void xori(xreg dst, xreg src1, int imm, const char *comm)
     uint64 val = XREGS[src1].x ^ sext12(imm);
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx & 0x%016llx\n",val,XREGS[src1].x,(uint64)imm);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -4129,8 +4136,10 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     // security ulp check
                     iufval res_gold;
                     res_gold.f = (float) ((double) 1.0 / sqrt((double) val.f));
-                    DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                    security_ulp_check(res_gold.u,res.u);
+                    printf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        fprintf(stderr, "OP: RSQ\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                    }
 #else
                     res.f = (float) ((double) 1.0 / sqrt((double) val.f));
 #endif
@@ -4145,9 +4154,10 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
 #ifdef NEW_TRANS_UNIT
                     res.f = ttrans_fsin(val.u);
                     // security ulp check
+                    printf("Sin modf fault\n");
                     iufval res_gold, sin_tmp;
                     double f;
-                    sin_tmp.f = (float)  modf(val.f, &f);
+                    sin_tmp.f = (float) modf(val.f, &f);
 
                     printf("SIN TRANSFORM: 0x%08x (%f) -> 0x%08x (%f)\n", val.u, val.f, sin_tmp.u, sin_tmp.f);
 
@@ -4159,7 +4169,9 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
 
                     res_gold.f = (float) sin(2 * M_PI * (double) sin_tmp.f);
                     printf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
-                    security_ulp_check(res_gold.u,res.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        fprintf(stderr, "OP: SIN\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                    }
 #else
                     res.f = sin(val.f);
 #endif
@@ -4182,7 +4194,9 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     if ((res_gold.u & 0x7f800000) == 0) res_gold.u = res_gold.u & 0xff800000;
 
                     DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                    security_ulp_check(res_gold.u,res.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        fprintf(stderr, "OP: EXP\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                    }
 #else
                     res.f = exp2f(val.f);
 #endif
@@ -4198,9 +4212,12 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     res.f = ttrans_flog2(val.u);
                     // security ulp check
                     iufval res_gold;
-                    res_gold.f = log2f(val.f);
-                    DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                    security_ulp_check(res_gold.u,res.u);
+                    res_gold.f = (float)log2((double)val.f);
+                    //DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    printf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x (%.20f)\n", val.u, res.u, res_gold.u, res_gold.f);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        fprintf(stderr, "OP: LOG\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                    }
 #else
                     res.f = log2f(val.f);
 #endif
@@ -4219,7 +4236,9 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     res_gold.f = (float) (1.0 / (double) val.f);
                     DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                     //assert(res.u == res_gold.u);
-                    security_ulp_check(res_gold.u,res.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        fprintf(stderr, "OP: RCP\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                    }
 #else
                     res.f = (float) (1.0 / (double) val.f);
 #endif
