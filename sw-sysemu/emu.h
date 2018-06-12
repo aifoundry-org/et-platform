@@ -394,6 +394,7 @@ typedef enum
         FORPI,
         FXORPI,
         FNOTPI,
+        FSAT8PI,
         FSLLPI,
         FSRLPI,
         FSRAPI,
@@ -663,6 +664,7 @@ extern "C" void fcvt_ps_pwu (freg dst, freg src1, const char *comm);
 extern "C" void ffrc_ps (freg dst, freg src1, const char *comm);
 extern "C" void fround_ps (freg dst, freg src1, rounding_mode rm, const char *comm);
 extern "C" void fnot_pi (freg dst, freg src1, const char *comm);
+extern "C" void fsat8_pi(freg dst, freg src1, const char *comm);
 extern "C" void fadd_pi (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fsub_pi (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fmul_pi (freg dst, freg src1, freg src2, const char *comm);
