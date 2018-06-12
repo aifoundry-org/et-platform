@@ -58,6 +58,7 @@ uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0){
 float32 ttrans_frcp(uint32 val) {
 
     if(val == 0) return INFINITY;
+    if(isnan(*((float*)&val))) return *((float*)&val);
 
     uint32_t idx  = GET(val, 22, 16); // input bits [22:16]
 
@@ -322,6 +323,8 @@ float32 ttrans_fexp2(uint32 val){
 
     //printf("Sign: %d\n", sign);
     //printf("Exp: 0x%08x\tSign: %d\n", exp, sign_exp);
+
+    if(isnan(*((float*)&val))) return *((float*)&val);
 
     uint32 in_integer = 0;
 

@@ -4281,7 +4281,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     if ((res.u & 0x7f800000) == 0) res.u = res.u & 0xff800000;
                     if ((res_gold.u & 0x7f800000) == 0) res_gold.u = res_gold.u & 0xff800000;
 
-                    DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    printf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
                     if(security_ulp_check(res_gold.u,res.u)){
                         fprintf(stderr, "OP: EXP\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
                     }
@@ -4291,7 +4291,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
+                printf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f);
                 break;
             case FLOG:
                 if ( genResult )
@@ -4322,7 +4322,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     // security ulp check
                     iufval res_gold;
                     res_gold.f = (float) (1.0 / (double) val.f);
-                    DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    printf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
                     //assert(res.u == res_gold.u);
                     if(security_ulp_check(res_gold.u,res.u)){
                         fprintf(stderr, "OP: RCP\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
