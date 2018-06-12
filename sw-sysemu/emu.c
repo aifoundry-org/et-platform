@@ -783,6 +783,9 @@ void tensorload()
     uint64 control = csrregs[current_thread>>1][csr_tloadctrl];
     uint64 stride  = XREGS[31].x;
 
+    uint64 trans   = (control >> 54) & 0x07;
+    uint64 boffset = (control >> 57) & 0x03;
+
     uint64 dst    = control & 0x3F;
     uint64 rows   = ((control >> 48) & 0x1F) + 1;
     uint64 base   = control & 0xFFFFFFFFFFC0ULL;
@@ -844,6 +847,109 @@ void tensorload()
     }
 }
 
+void transtensorload()
+{
+    uint64 control = csrregs[current_thread>>1][csr_tloadctrl];
+    uint64 stride  = XREGS[31].x;
+
+    uint64 trans   = (control >> 54) & 0x07;
+    uint64 boffset = (control >> 57) & 0x03;
+
+    uint64 dst    = control & 0x3F;
+    uint64 rows   = ((control >> 48) & 0x1F) + 1;
+    uint64 base   = control & 0xFFFFFFFFFFC0ULL;
+    uint64 isconv = (control >> 53) & 0x1;
+    uint64 usetmask = (control >> 52) & 0x1;
+
+    scp_entry[current_thread] = dst;
+    scp_size[current_thread]  = rows;
+    uint64 addr               = base;
+    
+    scp_conv[current_thread].clear();
+
+    // Gets the sizes of the convolution
+    uint64 tconvsizereg         = csrregs[current_thread>>1][csr_tconvsize];
+    uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
+    uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
+    uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
+    uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
+
+    // Gets the positions of the convolution
+    uint64 tconvctrlreg = csrregs[current_thread>>1][csr_tconvctrl];
+    int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
+    int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
+    // Sign extend
+    if(conv_row_pos & 0x8000) conv_row_pos = conv_row_pos | 0xFFFFFFFFFFFF0000ULL;
+    if(conv_col_pos & 0x8000) conv_col_pos = conv_col_pos | 0xFFFFFFFFFFFF0000ULL;
+    
+    for ( int i = 0; i < rows; i++ )
+    {
+        bool skip_load = 0;
+        // Checks if needs to skip the current load due convolution CSR
+        if(isconv)
+        {
+            if(conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
+                skip_load = 1;
+            conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
+        }
+        scp_conv[current_thread].push_back(skip_load);
+    }
+    //NO TRANS
+    if(trans == 0x00){
+        
+        for(int i=0;i < rows; ++i){
+            if(usetmask || scp_conv[current_thread].front()){
+                if(addr & 0x3F)
+                {
+                    DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
+                }
+                for ( int j = 0; j < 4; j++ )
+                {
+                    for ( int k = 0; k < 4; k++ )
+                    {
+                        uint64 addr_final = addr+j*16+k*4;
+                        uint32 val32 = memread32(addr_final);
+                        float32 fval32 = * ((float32 *) &val32);
+
+                        SCP[dst + i][j].f[k] = fval32;
+                        DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
+                    }
+                }    
+            } 
+        }
+    }
+    //INTERLEAVE
+    else if(trans == 0x01 || trans == 0x02){
+       uint8 tmp_buffer[4][64];
+       int size = trans & 0x03;
+       int start;
+       start=size==1 ?  boffset << 4 : (boffset & 0x02) << 5;
+       int elements = 4 / size;
+       for(int i=0;i < rows; ++i){
+            if(usetmask || scp_conv[current_thread].front()){
+                if(addr & 0x3F)
+                {
+                    DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
+                }
+                for ( int j = 0; j < 4; j++ )
+                {
+                    for ( int k = 0; k < 4; k++ )
+                    {
+                        uint64 addr_final = addr+j*16+k*4;
+                        uint32 val32 = memread32(addr_final);
+                        float32 fval32 = * ((float32 *) &val32);
+
+                        SCP[dst + i][j].f[k] = fval32;
+                        DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
+                    }
+                }    
+            } 
+        }
+    }
+    //TRANSPOSE
+    else if(trans = 0x05 || trans == 0x06 || trans==0x07){
+    }
+}
 uint64 get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
     * last_entry = scp_entry[current_thread];
@@ -2492,18 +2598,6 @@ void jalr(xreg dst, xreg src1, int imm, const char *comm)
     if(dst != x0)
     {
         XREGS[dst].x = current_pc + 4;
-        DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
-    }
-    logxregchange(dst);
-    logpcchange(XREGS[src1].x + imm);
-}
-
-void c_jalr(xreg dst, xreg src1, int imm, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: c.jalr x%d, x%d, %d # %s\n",dst,src1,imm,comm););
-    if(dst != x0)
-    {
-        XREGS[dst].x = current_pc + 2;
         DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
     }
     logxregchange(dst);
@@ -4900,6 +4994,9 @@ void iemu2src(const char *opname, opcode opc, int count, freg dst, freg src1, fr
             case FNOTPI :   res  = ~val1;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1);)
                             break;
+            case FSAT8PI :  res = ((val1 > 127) ? 127 :(val1 < -128 ? -128 : val1)) & 0x0FF;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1);)
+                            break;
             case FSLLPI :   if (uval2 >= 32)
                                 res  = 0;
                             else
@@ -5595,6 +5692,7 @@ void fand_pi      (freg dst, freg src1, freg src2, const char *comm)            
 void for_pi       (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("for_pi",      FORPI,     4, dst, src1, src2, comm); }
 void fxor_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fxor_pi",     FXORPI,    4, dst, src1, src2, comm); }
 void fnot_pi      (freg dst, freg src1, const char *comm)                        { iemu2src("fnot_pi",     FNOTPI,    4, dst, src1, fnone, comm); }
+void fsat8_pi     (freg dst, freg src1, const char *comm)                        { iemu2src("fsat8_pi",    FSAT8PI,   4, dst, src1, fnone, comm); }
 void fsll_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsll_pi",     FSLLPI,    4, dst, src1, src2, comm); }
 void fsrl_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsrl_pi",     FSRLPI,    4, dst, src1, src2, comm); }
 void fsra_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsra_pi",     FSRAPI,    4, dst, src1, src2, comm); }
