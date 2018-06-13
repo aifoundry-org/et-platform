@@ -60,6 +60,8 @@ float32 ttrans_frcp(uint32 val) {
     if(val == 0) return INFINITY;
     if(isnan(*((float*)&val))) return *((float*)&val);
 
+    if((val & 0x7fffffff) > 0x7e800000) return 0;
+
     uint32_t idx  = GET(val, 22, 16); // input bits [22:16]
 
     uint32_t c2 = trcp[idx][0] << 1;
