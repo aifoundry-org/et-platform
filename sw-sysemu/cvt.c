@@ -95,6 +95,11 @@ float32 float16tofloat32(uint32 val) {
     //  Assemble the float32 value with the obtained sign, exponent and mantissa.
     output = (sign << 31) | (uint32(exponent & 0xff) << 23) | mantissa;
 
+    // Clear number in case of denormal
+    if ((output & 0x7f800000) == 0) {
+      output = output & 0x80000000;      
+    }
+
     return *((float32 *) &output);
 }
 
