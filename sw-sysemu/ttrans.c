@@ -94,6 +94,8 @@ float32 ttrans_frsq(uint32 val){
         return *((float*)&output);
     }
 
+    if(val == 0) return INFINITY;
+
     uint16_t idx = GET(val,23, 16); 
 
     uint32_t c2 = trsqrt[idx][0] << 2;
@@ -124,6 +126,7 @@ float32 ttrans_frsq(uint32 val){
 float32 ttrans_flog2(uint32 val){
 
     if(val == 0x3f800000) return 0.0;
+    if(val == 0) return -INFINITY;
 
     uint32 x2 = (val % (1 << (23-6)));
     uint32 x = (val % (1 << 23));
