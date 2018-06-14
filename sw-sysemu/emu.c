@@ -9,6 +9,7 @@
 #include <ipc.h>
 #include <ttrans.h>
 #include <algorithm>
+#include <stdint.h>
 
 #ifndef MINIONSIM
 #include <immintrin.h>
@@ -19,6 +20,10 @@
 
 extern void gprintf(const char* format, ...);
 extern void gsprintf(char* str, const char* format, ...);
+
+#ifndef NEW_TRANS_UNIT
+#define NEW_TRANS_UNIT
+#endif
 
 #ifdef GFX_ONLY
  #define GFX(x) x
@@ -324,21 +329,27 @@ void minit(mreg dst, uint64 val)
     ipc_init_mreg(dst);
 }
 
-void security_ulp_check(uint32 gold, uint32 table)
+uint8_t security_ulp_check(uint32 gold, uint32 table)
 {
     // Fast skip for zeros and infinity should be the same value in both in gold and table
     if (gold == table)
-        return;
+        return 0;
 
     // Detect NaNs
     bool gold_is_nan  = ((gold  & 0x7F800000) == 0x7F800000) && ((gold  & 0x007FFFFF) != 0);
     bool table_is_nan = ((table & 0x7F800000) == 0x7F800000) && ((table & 0x007FFFFF) != 0);
 
-    assert(gold_is_nan == table_is_nan);
+    assert((gold_is_nan == table_is_nan) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
 
+    bool gold_is_inf = ((gold == 0xff800000) || (gold == 0x7f800000));
+
+    //printf("GOLD: %d TABLE: %d\n", gold_is_nan, table_is_nan);
+    if(gold_is_inf){
+        assert((gold == table) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
+    }
     // Skip all other tests.
     if (gold_is_nan)
-        return;
+        return 0;
 
     uint32 exp_gold   = (gold >> 23) & 0xFF;   // get gold exponent
     uint32 gold_clean = gold & 0x7F800000;     // clean mantissa and sign from gold
@@ -357,7 +368,7 @@ void security_ulp_check(uint32 gold, uint32 table)
         printf("Gold IEEE: %.12e, Table TRANS: %.12e, Diff: %.12e, Max (1ulp): %.12e\n", goldf, tablef, diff, err_1ulp);
         printf("Hex Gold: %08X, Hex Table: %08X\n", gold, table);
     }
-    assert(diff <= err_1ulp);
+    return (diff > err_1ulp);
 }
 
 #ifdef CHECKER
@@ -4310,56 +4321,95 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
             case FRSQ:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_frsq(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = (float) ((double) 1.0 / sqrt((double) val.f));
+                    printf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
+#else
                     res.f = (float) ((double) 1.0 / sqrt((double) val.f));
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FSIN:
                 if ( genResult )
                 {
 #ifdef NEW_TRANS_UNIT
-                    res.f = (float) sin(2 * M_PI * (double) val.f);
+                    res.f = ttrans_fsin(val.u);
+                    // security ulp check
+                    iufval res_gold, sin_tmp;
+                    double f;
+                    sin_tmp.f = (float) modf(val.f, &f);
+
+                    sin_tmp.f = sin_tmp.f > 0.5? sin_tmp.f - 1.0
+                        : sin_tmp.f < -0.5 ? sin_tmp.f + 1.0
+                        : sin_tmp.f;
+
+                    res_gold.f = (float) sin(2 * M_PI * (double) sin_tmp.f);
+                    printf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
 #else
-                    res.f = sinf(val.f);
+                    res.f = sin(val.f);
 #endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
-//                    case FCOS:
-//                        if ( genResult )
-//                        {
-//#ifdef NEW_TRANS_UNIT
-//                                res.f = (float) cos(2 * M_PI * (double) val.f);
-//#else
-//                                res.f = cosf(val.f);
-//#endif
-//
-//                                // convert to canonical NaN
-//                                if ( isnan(res.f) ) res.f = nanf("");
-//                                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
-//                        }
-//                        break;
             case FEXP:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_fexp2(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = exp2f(val.f);
+
+                    // Remove denormals
+                    if ((res.u & 0x7f800000) == 0) res.u = res.u & 0xff800000;
+                    if ((res_gold.u & 0x7f800000) == 0) res_gold.u = res_gold.u & 0xff800000;
+
+                    printf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
+#else
                     res.f = exp2f(val.f);
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                printf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f);
                 break;
             case FLOG:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_flog2(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = (float)log2((double)val.f);
+                    //DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    printf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x (%.20f)\n", val.u, res.u, res_gold.u, res_gold.f);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
+#else
                     res.f = log2f(val.f);
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FRCP:
                 if ( genResult )
@@ -4369,14 +4419,18 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     // security ulp check
                     iufval res_gold;
                     res_gold.f = (float) (1.0 / (double) val.f);
-                    security_ulp_check(res_gold.u,res.u);
+                    printf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u);
+                    //assert(res.u == res_gold.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
 #else
                     res.f = (float) (1.0 / (double) val.f);
 #endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FRCPFXP:
                 if ( genResult )
