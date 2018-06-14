@@ -337,7 +337,7 @@ uint8_t security_ulp_check(uint32 gold, uint32 table)
     bool gold_is_nan  = ((gold  & 0x7F800000) == 0x7F800000) && ((gold  & 0x007FFFFF) != 0);
     bool table_is_nan = ((table & 0x7F800000) == 0x7F800000) && ((table & 0x007FFFFF) != 0);
 
-    assert(gold_is_nan == table_is_nan);
+    assert((gold_is_nan == table_is_nan) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
 
     // Skip all other tests.
     if (gold_is_nan)
@@ -4320,7 +4320,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     res_gold.f = (float) ((double) 1.0 / sqrt((double) val.f));
                     DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                     if(security_ulp_check(res_gold.u,res.u)){
-                        fprintf(stderr, "OP: RSQ\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
 #else
                     res.f = (float) ((double) 1.0 / sqrt((double) val.f));
@@ -4347,7 +4347,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     res_gold.f = (float) sin(2 * M_PI * (double) sin_tmp.f);
                     DEBUG_EMU(gprintf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                     if(security_ulp_check(res_gold.u,res.u)){
-                        fprintf(stderr, "OP: SIN\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
 #else
                     res.f = sin(val.f);
@@ -4372,7 +4372,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
 
                     DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                     if(security_ulp_check(res_gold.u,res.u)){
-                        fprintf(stderr, "OP: EXP\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
 #else
                     res.f = exp2f(val.f);
@@ -4393,7 +4393,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     //DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                     DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x (%.20f)\n", val.u, res.u, res_gold.u, res_gold.f););
                     if(security_ulp_check(res_gold.u,res.u)){
-                        fprintf(stderr, "OP: LOG\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
 #else
                     res.f = log2f(val.f);
@@ -4414,7 +4414,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                     //assert(res.u == res_gold.u);
                     if(security_ulp_check(res_gold.u,res.u)){
-                        fprintf(stderr, "OP: RCP\tI: %08X\tO: %08X\tE: %08X\n", val.u, res.u, res_gold.u);
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
 #else
                     res.f = (float) (1.0 / (double) val.f);
