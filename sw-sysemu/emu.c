@@ -427,7 +427,7 @@ uint64 csr_cacheop_emu()
           break;
        case 0: // LockVA
           {
-             uint64 way_va  = op_value & 0x3F;
+             uint64 way_va  = op_value & 0x3; // 4 ways
              set = (op_value >> 6) & 0xF;
              cl = (set << 2) + way_va; // FIXME: Only valid for 4 ways
              DEBUG_EMU(gprintf("\tDoing LockVA: %016X, Way: %X\n", addr, way_va);)
@@ -437,7 +437,7 @@ uint64 csr_cacheop_emu()
           }
        case 1: // UnlockVA
           {
-             uint64 way_va   = op_value & 0x3F;
+             uint64 way_va   = op_value & 0x3; // 4 ways
              uint64 state = (op_value >> 57) & 0x1;
              set = (op_value >> 6) & 0xF;
              cl = (set << 2) + way_va; // FIXME: Only valid for 4 ways
