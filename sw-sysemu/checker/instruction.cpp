@@ -723,6 +723,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "unknown_8cd")  params[num_params] = csr_msg_port1;
         else if(param == "unknown_8ce")  params[num_params] = csr_msg_port2;
         else if(param == "unknown_8cf")  params[num_params] = csr_msg_port3;
+        // FIXME currently unsupported CSRs
         else if(param == "ustatus"    ||
                 param == "uie"        ||
                 param == "utvec"      ||
