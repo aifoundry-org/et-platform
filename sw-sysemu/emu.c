@@ -22,7 +22,9 @@ extern void gprintf(const char* format, ...);
 extern void gsprintf(char* str, const char* format, ...);
 
 #ifndef NEW_TRANS_UNIT
+#ifndef USE_FAKE_TXFMA
 #define NEW_TRANS_UNIT
+#endif
 #endif
 
 #ifdef GFX_ONLY
@@ -4358,7 +4360,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                         DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
 #else
-                    res.f = sin(val.f);
+                    res.f = sin(2*M_PI*val.f);
 #endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");

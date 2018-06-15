@@ -95,6 +95,7 @@ float32 ttrans_frsq(uint32 val){
     }
 
     if(val == 0) return INFINITY;
+    if(val == 0x7f800000) return 0;
 
     uint16_t idx = GET(val,23, 16); 
 
