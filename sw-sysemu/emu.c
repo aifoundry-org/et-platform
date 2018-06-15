@@ -3255,6 +3255,37 @@ void csrrw(xreg dst, csr src1, xreg src2, const char *comm)
     csr_insn(dst, src1, XREGS[src2].x);
 }
 
+void csrrs(xreg dst, csr src1, xreg src2, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrs x%d, csrreg[%d], x%d # %s\n", dst, src1, src2, comm););
+    csr_insn(dst, src1, csrregs[current_thread>>1][src1] | XREGS[src2].x);
+}
+
+void csrrc(xreg dst, csr src1, xreg src2, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrc x%d, csrreg[%d], x%d # %s\n", dst, src1, src2, comm););
+    csr_insn(dst, src1, csrregs[current_thread>>1][src1] & !(XREGS[src2].x));
+}
+
+void csrrwi(xreg dst, csr src1, uint64 imm, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrwi %d, csrreg[%d] # %s\n", imm, dst, comm););
+    csr_insn(dst, src1, imm);
+}
+
+void csrrsi(xreg dst, csr src1, uint64 imm, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrsi %d, csrreg[%d] # %s\n", imm, dst, comm););
+    csr_insn(dst, src1, csrregs[current_thread>>1][src1] | imm);
+}
+
+void csrrci(xreg dst, csr src1, uint64 imm, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrci %d, csrreg[%d] # %s\n", imm, dst, comm););
+    csr_insn(dst, src1, csrregs[current_thread>>1][src1] & !(imm));
+}
+
+
 void mret(const char *comm)
 {
     DEBUG_EMU(gprintf("I: mret # %s\n", comm););
