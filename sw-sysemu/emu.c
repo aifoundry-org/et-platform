@@ -21,8 +21,14 @@
 extern void gprintf(const char* format, ...);
 extern void gsprintf(char* str, const char* format, ...);
 
-#ifndef NEW_TRANS_UNIT
+#ifdef USE_FAKE_TXFMA
+#ifdef NEW_TRANS_UNIT
+#undef NEW_TRANS_UNIT
+#endif
+#endif
+
 #ifndef USE_FAKE_TXFMA
+#ifndef NEW_TRANS_UNIT
 #define NEW_TRANS_UNIT
 #endif
 #endif

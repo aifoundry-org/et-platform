@@ -37,9 +37,12 @@ ifeq ($(NEW_TRANS_UNIT), 1)
 NEW_TRANS_UNIT_DEF=-DNEW_TRANS_UNIT
 endif
 
+ifeq ($(USE_FAKE_TXFMA), 1)
+	USE_FAKE_TXFMA_DEF=-DUSE_FAKE_TXFMA
+endif
 # tool configuration
 CXX=g++
-CXXFLAGS=-mf16c -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 $(NEW_TRANS_UNIT_DEF)
+CXXFLAGS=-mf16c -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 $(NEW_TRANS_UNIT_DEF) $(USE_FAKE_TXFMA_DEF)
 DEPDIR = .depend
 AR=ar
 ARFLAGS=rvs
