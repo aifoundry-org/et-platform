@@ -2007,8 +2007,8 @@ void mulh(xreg dst, xreg src1, xreg src2, const char *comm)
 {
     DISASM(gsprintf(dis,"I: mulh x%d, x%d, x%d # %s",dst,src1,src2,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int128 val1 = XREGS[src1].x;
-    int128 val2 = XREGS[src2].x;
+    int128 val1 = XREGS[src1].xs;
+    int128 val2 = XREGS[src2].xs;
     int128 val3 = val1 * val2;
     int64 val = val3 >> 64;
 
