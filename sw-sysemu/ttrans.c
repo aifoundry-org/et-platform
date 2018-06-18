@@ -96,6 +96,7 @@ float32 ttrans_frsq(uint32 val){
 
     if(val == 0) return INFINITY;
     if(val == 0x7f800000) return 0;
+    if(isnan(*((float*)&val))) return *((float*)&val);
 
     uint16_t idx = GET(val,23, 16); 
 
@@ -128,6 +129,7 @@ float32 ttrans_flog2(uint32 val){
 
     if(val == 0x3f800000) return 0.0;
     if(val == 0) return -INFINITY;
+    if(isnan(*((float*)&val))) return *((float*)&val);
 
     uint32 x2 = (val % (1 << (23-6)));
     uint32 x = (val % (1 << 23));
@@ -489,6 +491,8 @@ uint32_t ttrans_sin_convert(uint32_t ux){
 
 float32 ttrans_fsin(uint32 val){
 
+    if(isnan(*((float*)&val))) return *((float*)&val);
+    if((val & 0x7fffffff) == 0x7f800000) return 0;
     //printf("VAL: 0x%08x\t\n", val);
 
     val = ttrans_sin_convert(val);
