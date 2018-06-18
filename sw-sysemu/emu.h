@@ -560,6 +560,7 @@ extern "C" void amomaxu_d(xreg dst, xreg src1, xreg src2, const char *comm);
 extern "C" void csrr(xreg dst, csr src1, const char *comm);
 extern "C" void csrw(csr dst, xreg src1, const char *comm);
 extern "C" void csrwi(csr dst, uint64 imm, const char *comm);
+extern "C" void csrc(csr dst, xreg src1, const char *comm);
 extern "C" void csrs(csr dst, xreg src1, const char *comm);
 extern "C" void csrrw(xreg dst, csr src1, xreg src2, const char *comm);
 extern "C" void csrrs(xreg dst, csr src1, xreg src2, const char *comm);
@@ -595,8 +596,6 @@ extern "C" void fdiv_s (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fdiv_ps(freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fneg_s (freg dst, freg src1, const char *comm);
 extern "C" void fneg_ps(freg dst, freg src1, const char *comm);
-extern "C" void fmov_s_x(freg dst, xreg src1, const char *comm);
-extern "C" void fmov_x_s(xreg dst, freg src1, const char *comm);
 extern "C" void fcvt_x_s(xreg dst, freg src1, const char *comm);
 extern "C" void fgw_ps(freg dst, freg src1, xreg base, const char *comm);
 extern "C" void fgh_ps(freg dst, freg src1, xreg base, const char *comm);
@@ -637,6 +636,7 @@ extern "C" void feqm_ps   (mreg dst, freg src1, freg src2, const char *comm);
 extern "C" void fltm_ps   (mreg dst, freg src1, freg src2, const char *comm);
 extern "C" void flem_ps   (mreg dst, freg src1, freg src2, const char *comm);
 extern "C" void fsetm_ps  (mreg dst, freg src1,            const char *comm);
+extern "C" void fclass_s  (freg dst, freg src1,            const char *comm);
 extern "C" void fclass_ps (freg dst, freg src1,            const char *comm);
 extern "C" void fsqrt_s  (freg dst, freg src1, const char *comm);
 extern "C" void fsqrt_ps (freg dst, freg src1, const char *comm);
@@ -649,6 +649,7 @@ extern "C" void frcp_ps  (freg dst, freg src1, const char *comm);
 extern "C" void frcpfxp_ps  (freg dst, freg src1, const char *comm);
 extern "C" void fcvt_pw_ps  (freg dst, freg src1, const char *comm);
 extern "C" void fcvt_pwu_ps (freg dst, freg src1, const char *comm);
+extern "C" void fclass_d  (freg dst, freg src1, const char *comm);
 extern "C" void fcvt_d_s  (freg dst, freg src1, const char *comm);
 extern "C" void fcvt_s_d  (freg dst, freg src1, const char *comm);
 extern "C" void fcvt_s_w  (freg dst, freg src1, const char *comm);
@@ -757,9 +758,10 @@ extern "C" void fmvs_x_ps     (xreg dst, freg src1, uint8 index, const char *com
 extern "C" void fmv_x_pq      (xreg dst, freg src1, uint8 index, const char *comm);
 extern "C" void fcmovm_ps     (freg dst, freg src1, freg src2, const char *comm);
 
+extern "C" void fmv_x_w      (xreg dst, freg src1, const char *comm);
+extern "C" void fmv_w_x      (freg dst, xreg src1, const char *comm);
 extern "C" void fmv_x_s      (xreg dst, freg src1, const char *comm);
 extern "C" void fmv_s_x      (freg dst, xreg src1, const char *comm);
-extern "C" void fmv_x_d      (xreg dst, freg src1, const char *comm);
 
 //to be removed
 //extern "C" void fmv_x_ps     (xreg dst, freg src1, uint8 index, const char *comm);
@@ -775,6 +777,7 @@ extern "C" void fdiv_d   (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fmul_d   (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fsgnj_d  (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fmv_d_x  (xreg dst, freg src1, const char *comm);
+extern "C" void fmv_x_d  (xreg dst, freg src1, const char *comm);
 extern "C" void fcvt_d_w (freg dst, freg src1, const char *comm);
 
 // Mask instructions
