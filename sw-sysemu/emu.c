@@ -5505,6 +5505,7 @@ void fmvz_x_ps (xreg dst, freg src1, uint8 index, const char *comm)
     index = index & 0x03;
     if(dst != x0)
         XREGS[dst].x = FREGS[src1].u[index];
+    DEBUG_EMU(gprintf("\t 0x%08x (%d)\n", XREGS[dst].x, XREGS[dst].x);)
     logxregchange(dst);
 }
 
