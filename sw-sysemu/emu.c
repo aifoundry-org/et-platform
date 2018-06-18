@@ -804,11 +804,16 @@ void tensorload()
 
     uint64 trans   = (control >> 54) & 0x07;
     uint64 boffset = (control >> 57) & 0x03;
-
     uint64 dst    = control & 0x3F;
     uint64 rows   = ((control >> 48) & 0x1F) + 1;
-    uint64 base   = control & 0xFFFFFFFFFFC0ULL;
     uint64 isconv = (control >> 53) & 0x1;
+    uint64 base   = control & 0xFFFFFFFFFFC0ULL;
+    //new spec
+    //uint64 trans   = (control >> 56) & 0x07;
+    //uint64 boffset = (control >> 5) & 0x03;
+    //uint64 isconv = 0;
+    //uint64 dst    = (control >> 53) & 0x3F;
+    //uint64 rows   = (control & 0xF) + 1;
 
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
