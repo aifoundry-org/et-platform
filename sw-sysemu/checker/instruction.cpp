@@ -346,14 +346,14 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
     {
         opcode = "csrrs";
         arg_array.push_back("x0");
-    }
+    }/*
     else if(opcode == "csrw")
     {
         opcode = "csrrw";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
-    }
+    }*/
     else if(opcode == "csrs")
     {
         opcode = "csrrs";
