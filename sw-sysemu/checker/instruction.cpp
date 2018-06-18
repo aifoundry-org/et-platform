@@ -419,11 +419,17 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         add_parameter(a);
 
     // Checks if it is a tensor/reduce operation
-    if(boost::regex_match(opcode, boost::regex("csr.*")))
-    {
+    if (opcode == "csrw") {
         is_reduce      = (params[0] == csr_reduce);
         is_tensor_load = (params[0] == csr_tloadctrl);
         is_tensor_fma  = (params[0] == csr_tfmastart);
+        is_flb         = (params[0] == csr_flbarrier);
+    }
+    else if(boost::regex_match(opcode, boost::regex("csr.*")))
+    {
+        is_reduce      = (params[1] == csr_reduce);
+        is_tensor_load = (params[1] == csr_tloadctrl);
+        is_tensor_fma  = (params[1] == csr_tfmastart);
         is_flb         = (params[1] == csr_flbarrier);
     }
 
