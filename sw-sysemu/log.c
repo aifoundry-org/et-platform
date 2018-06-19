@@ -15,6 +15,7 @@ inst_state_change * log_info = NULL;
 void clearlogstate()
 {
     log_info->pc_mod = false;
+    log_info->exec_trap = false;
     log_info->pc = 0;
     log_info->int_reg_mod = false;
     log_info->int_reg_rd = 0;
@@ -51,6 +52,12 @@ void logpcchange(uint64 new_pc)
 {
     log_info->pc_mod = true;
     log_info->pc = new_pc;
+}
+
+// Trap
+void logtrap()
+{
+    log_info->exec_trap = true;
 }
 
 // Adds an int register change
