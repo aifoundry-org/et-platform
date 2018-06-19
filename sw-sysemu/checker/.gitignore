@@ -4,3 +4,4 @@ obj_dir
 *.o
 *.vcd
 bootrom.mem
+build_nn
