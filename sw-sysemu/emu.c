@@ -5036,6 +5036,19 @@ void ucvtemu(const char *opname, opcode opc, int count, freg dst, freg src1, con
     {
         uint32 val = FREGS[src1].u[i];
 
+        // Forcing to 0 in case of denormal input
+        if ((opc == FCVTPSF16) && ((val & 0x7c00) == 0)) {
+          val = val & 0x8000;
+        }
+
+        if ((opc == FCVTPSF11) && ((val & 0x7c0) == 0)) {
+          val = 0;
+        }
+
+        if ((opc == FCVTPSF10) && ((val & 0x3e0) == 0)) {
+          val = 0;
+        }
+
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         bool genResult = !( count == 4 && MREGS[0].b[i*2] == 0 );
 
