@@ -353,6 +353,8 @@ typedef enum
         FCVTPSUN10,
         FCVTPSUN8,
         FCVTPSUN2,
+        FCVTPSRAST,
+        FCVTRASTPS,
         //FCVTPSSN24,
         FCVTPSSN16,
         //FCVTPSSN10,
@@ -667,6 +669,8 @@ extern "C" void fcvt_l_d  (freg dst, freg src1, const char *comm);
 extern "C" void fcvt_lu_d (freg dst, freg src1, const char *comm);
 extern "C" void fcvt_ps_pw  (freg dst, freg src1, const char *comm);
 extern "C" void fcvt_ps_pwu (freg dst, freg src1, const char *comm);
+extern "C" void fcvt_ps_rast (freg dst, freg src1, const char *comm);
+extern "C" void fcvt_rast_ps (freg dst, freg src1, const char *comm);
 extern "C" void ffrc_ps (freg dst, freg src1, const char *comm);
 extern "C" void fround_ps (freg dst, freg src1, rounding_mode rm, const char *comm);
 extern "C" void fnot_pi (freg dst, freg src1, const char *comm);

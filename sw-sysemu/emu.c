@@ -4503,6 +4503,24 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
                 }
                 break;
+            case FCVTPSRAST:
+                if( genResult)
+                {
+                    res.f = ((float)val.i) / (1 << 15);
+                    // convert to canonical NaN
+                    if ( isnan(res.f) ) res.f = nanf("");
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
+                }
+                break;
+            case FCVTRASTPS:
+                if( genResult)
+                {
+                    res.i = (int32_t)(val.f*(1 << 14));
+                    // convert to canonical NaN
+                    if ( isnan(res.f) ) res.f = nanf("");
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
+                }
+                break;
             case FCVTPSPWU:
                 if ( genResult )
                 {
@@ -5739,6 +5757,8 @@ void fcvt_ps_pwu  (freg dst, freg src1, const char *comm)                       
 void ffrc_ps      (freg dst, freg src1, const char *comm)                        { femu1src("ffrc_ps",     FFRC,      4, dst, src1, comm); }
 void fclass_s     (freg dst, freg src1, const char *comm)                        { femu1src("fclass_s",    FCLASS,    1, dst, src1, comm); }
 void fclass_ps    (freg dst, freg src1, const char *comm)                        { femu1src("fclass_ps",   FCLASS,    4, dst, src1, comm); }
+void fcvt_ps_rast (freg dst, freg src1, const char *comm)                        { femu1src("fcvt_ps_rast",FCVTPSRAST,4, dst, src1, comm); }
+void fcvt_rast_ps (freg dst, freg src1, const char *comm)                        { femu1src("fcvt_rast_ps",FCVTRASTPS,4, dst, src1, comm); }
 void fmv_x_w      (xreg dst, freg src1, const char *comm)                        { fmv_x_s(dst, src1, comm); }
 void fmv_w_x      (freg dst, xreg src1, const char *comm)                        { fmv_s_x(dst, src1, comm); }
 
