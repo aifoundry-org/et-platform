@@ -335,8 +335,9 @@ checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uin
     // Now the instruction can be executed
     inst->exec();
 
-    // Ecall as is a trap is not retired, so we need to re-execute
-    if(inst->get_is_ecall())
+    // As trapped instructions do not retire in the minion, we need to execute
+    // the next instruction as well
+    if(emu_state_change.exec_trap)
     {
         // Go to target
         current_pc[thread] = emu_state_change.pc;
