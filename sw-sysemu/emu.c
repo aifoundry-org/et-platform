@@ -69,6 +69,7 @@ char dis[1024];
 int print_debug  = 0;
 int fake_sampler = 0;
 uint8 in_sysemu = 0;
+
 void init_emu(int debug, int fakesam)
 {
     print_debug  = debug;
@@ -80,7 +81,6 @@ void init_emu(int debug, int fakesam)
 // Helper routines
 //
 ////////////////////////////////////////////////////////////
-
 
 void print_regs(){
     gprintf("\n================================\n");
@@ -186,7 +186,7 @@ void print_comment(const char *comm)
     //DEBUG_EMU(print_regs();)
 }
 
-uint64 sext32(uint32 val)
+static uint64 sext32(uint32 val)
 {
     uint32 s = val & 0x80000000;
     uint64 r = s ? (0xffffffff00000000 | val ) : val;
@@ -194,7 +194,7 @@ uint64 sext32(uint32 val)
     return r;
 }
 
-uint64 sext16(uint32 val)
+static uint64 sext16(uint32 val)
 {
     uint32 s = val & 0x00008000;
     uint64 r = s ? (0xffffffffffff0000 | val ) : val;
@@ -202,7 +202,7 @@ uint64 sext16(uint32 val)
     return r;
 }
 
-uint64 sext12(uint32 val)
+static uint64 sext12(uint32 val)
 {
     uint32 s = val & 0x0000800;
     uint64 r = s ? (0xfffffffffffff000 | val) : val;
@@ -210,7 +210,7 @@ uint64 sext12(uint32 val)
     return r;
 }
 
-uint64 sext10(uint32 val)
+static uint64 sext10(uint32 val)
 {
     uint32 s = val & 0x0000200;
     uint64 r = s ? (0xfffffffffffffc00 | val) : val;
@@ -218,20 +218,22 @@ uint64 sext10(uint32 val)
     return r;
 }
 
-uint64 sext8(uint32 val)
+static uint64 sext8(uint32 val)
 {
     uint32 s = val & 0x0000080;
     uint64 r = s ? (0xffffffffffffff00 | val) : val;
     //DEBUG_EMU(gprintf("\tsext(%d) = %llu | sext(0x%08x) = 0x%016llx\n",val,r,val,r);)
     return r;
 }
-int32 sext8_2(uint8 val)
+
+static int32 sext8_2(uint8 val)
 {
     uint32 s = val & 0x80;
     int32 r = s ? (0xffffff00 | val) : val;
     //DEBUG_EMU(gprintf("\tsext(%d) = %llu | sext(0x%08x) = 0x%016llx\n",val,r,val,r);)
     return r;
 }
+
 void init_stack()
 {
     gsprintf(dis,"Sorry disassembly disabled\n");
@@ -256,9 +258,43 @@ uint64 xget(uint64 src1)
 
 uint64 csrget(csr src1)
 {
-    uint64 val = csrregs[current_thread>>1][src1];
+    uint64 val;
+    switch (src1) {
+        case csr_sstatus:
+            // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
+            val = csrregs[current_thread>>1][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
+            break;
+        default:
+            val = csrregs[current_thread>>1][src1];
+            break;
+    }
     //DEBUG_EMU(gprintf("csrget 0x%016llx <- csrreg[%d]\n",val,src1);)
     return val;
+}
+
+static void csrset(csr src1, uint64 val)
+{
+    switch (src1) {
+        case csr_sstatus:
+            // Preserve sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
+            val = (val & 0xFFFFFFF3FF8DE7FFULL) | (csrregs[current_thread>>1][csr_mstatus] & 0x0000000C00721800ULL);
+            csrregs[current_thread>>1][csr_mstatus] = val;
+            break;
+        case csr_medeleg:
+            // Not all exceptions can be delegated
+            val &= 0x0000000000000B109ULL;
+            csrregs[current_thread>>1][src1] = val;
+            break;
+        case csr_mideleg:
+            // Not all interrupts can be delegated
+            val &= 0x0000000000000222ULL;
+            csrregs[current_thread>>1][src1] = val;
+            break;
+        default:
+            csrregs[current_thread>>1][src1] = val;
+            break;
+    }
+    //DEBUG_EMU(gprintf("csrset csrreg[%d] <- 0x%016llx\n",src1,val);)
 }
 
 void fpinit(freg dst, uint64 val[2])
@@ -267,7 +303,7 @@ void fpinit(freg dst, uint64 val[2])
     FREGS[dst].x[1] = val[1];
 }
 
-float roundnef (float f){
+static float roundnef (float f){
     if ((fabs(f)-0.5 == trunc(fabs(f))) && !((int)fabs(f) % 2))
         if (f>0)
             return roundf(f)-1;
@@ -277,17 +313,17 @@ float roundnef (float f){
         return roundf(f);
 }
 
-float roundf ( float val, rounding_mode rm) {
+static float roundf ( float val, rounding_mode rm) {
     switch (rm) {
         case rne   : return roundnef(val);
         case rtz   : return trunc(val);
         case rdn   : return floor(val);
         case rup   : return ceil(val);
         case rmm   : return roundf(val);
-        case rmdyn : return roundf(val, (rounding_mode) csrregs[current_thread>>1][csr_frm] );
+        case rmdyn : return roundf(val, (rounding_mode) csrget(csr_frm) );
     }
     gprintf("invalid rounding mode: %d... using rm register instead\n", rm);
-    return roundf(val, (rounding_mode) csrregs[current_thread>>1][csr_frm] );
+    return roundf(val, (rounding_mode) csrget(csr_frm) );
 }
 
 //mxr = 0
@@ -316,6 +352,9 @@ void initcsr(uint32 thread)
 #else
     csrregs[id][csr_mhartid] = id;
 #endif
+    csrregs[id][csr_mvendorid] = 0xdeadbeef;
+    csrregs[id][csr_marchid] = 0xdeadbeef;
+    csrregs[id][csr_mimpid] = 0xdeadbeef;
     csrregs[id][csr_misa] = 0x800000000014112dULL;
     csrregs[id][csr_prv] = CSR_PRV_M;
     csrregs[id][csr_mstatus] = 0x8000000000007800ULL;
@@ -337,7 +376,7 @@ void minit(mreg dst, uint64 val)
     ipc_init_mreg(dst);
 }
 
-uint8_t security_ulp_check(uint32 gold, uint32 table)
+static uint8_t security_ulp_check(uint32 gold, uint32 table)
 {
     // Fast skip for zeros and infinity should be the same value in both in gold and table
     if (gold == table)
@@ -379,6 +418,58 @@ uint8_t security_ulp_check(uint32 gold, uint32 table)
     return (diff > err_1ulp);
 }
 
+static void trap_to_smode(uint64 cause)
+{
+    // Get current privilege mode
+    uint64 curprv = csrget(csr_prv);
+    assert(curprv <= CSR_PRV_S);
+
+    DEBUG_EMU(gprintf("\tTrapping to S-mode with cause %llu\n",cause);)
+
+    // Take sie
+    uint64 mstatus = csrget(csr_mstatus);
+    uint64 sie = (mstatus >> 1) & 0x1;
+    // Clean sie, spie and spp
+    uint64 mstatus_clean = mstatus & 0xFFFFFFFFFFFFFEDDULL;
+    // Set spie = sie, sie = 0, spp = prv
+    csrset(csr_mstatus, mstatus_clean | (curprv << 8) | (sie << 5));
+    // Set scause and sepc
+    csrset(csr_scause, cause);
+    csrset(csr_sepc, current_pc);
+    // Jump to stvec
+    logtrap();
+    logpcchange(csrget(csr_stvec));
+}
+
+static void trap_to_mmode(uint64 cause)
+{
+    // Get current privilege mode
+    uint64 curprv = csrget(csr_prv);
+
+    // Check if we should deletegate the trap to S-mode
+    if ((curprv < CSR_PRV_M) && (csrget(csr_medeleg) & (1ull << cause)))
+    {
+        trap_to_smode(cause);
+        return;
+    }
+
+    DEBUG_EMU(gprintf("\tTrapping to M-mode with cause %llu\n",cause);)
+
+    // Take mie
+    uint64 mstatus = csrget(csr_mstatus);
+    uint64 mie = (mstatus >> 3) & 0x1;
+    // Clean mie, mpie and mpp
+    uint64 mstatus_clean = mstatus & 0xFFFFFFFFFFFFE777ULL;
+    // Set mpie = mie, mie = 0, mpp = prv
+    csrset(csr_mstatus, mstatus_clean | (curprv << 11) | (mie << 7));
+    // Set mcause and mepc
+    csrset(csr_mcause, cause);
+    csrset(csr_mepc, current_pc);
+    // Jump to mtvec
+    logtrap();
+    logpcchange(csrget(csr_mtvec));
+}
+
 #ifdef CHECKER
 
 ////////////////////////////////////////////////////////////
@@ -392,7 +483,7 @@ uint64 scp_trans[EMU_NUM_MINIONS][64];  // Which PA the cacheline is mapped to
 
 uint64 csr_cacheop_emu()
 {
-    uint64 op_value = csrregs[current_thread>>1][csr_cacheop];
+    uint64 op_value = csrget(csr_cacheop);
     uint64 stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
     uint64 repeat   = (op_value >> 48) & 0xFF;
 
@@ -799,7 +890,7 @@ bool conv_skip_pass(int64 conv_row_pos, int64 conv_col_pos, uint64 conv_row_size
 
 void tensorload()
 {
-    uint64 control = csrregs[current_thread>>1][csr_tloadctrl];
+    uint64 control = csrget(csr_tloadctrl);
     uint64 stride  = XREGS[31].x;
 
     uint64 trans   = (control >> 54) & 0x07;
@@ -822,14 +913,14 @@ void tensorload()
     scp_conv[current_thread].clear();
 
     // Gets the sizes of the convolution
-    uint64 tconvsizereg         = csrregs[current_thread>>1][csr_tconvsize];
+    uint64 tconvsizereg         = csrget(csr_tconvsize);
     uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
     uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
     uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
     uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
 
     // Gets the positions of the convolution
-    uint64 tconvctrlreg = csrregs[current_thread>>1][csr_tconvctrl];
+    uint64 tconvctrlreg = csrget(csr_tconvctrl);
     int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
     int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
     // Sign extend
@@ -873,7 +964,7 @@ void tensorload()
 
 void transtensorload()
 {
-    uint64 control = csrregs[current_thread>>1][csr_tloadctrl];
+    uint64 control = csrget(csr_tloadctrl);
     uint64 stride  = XREGS[31].x;
 
     uint64 trans   = (control >> 54) & 0x07;
@@ -892,14 +983,14 @@ void transtensorload()
     scp_conv[current_thread].clear();
 
     // Gets the sizes of the convolution
-    uint64 tconvsizereg         = csrregs[current_thread>>1][csr_tconvsize];
+    uint64 tconvsizereg         = csrget(csr_tconvsize);
     uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
     uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
     uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
     uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
 
     // Gets the positions of the convolution
-    uint64 tconvctrlreg = csrregs[current_thread>>1][csr_tconvctrl];
+    uint64 tconvctrlreg = csrget(csr_tconvctrl);
     int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
     int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
     // Sign extend
@@ -994,7 +1085,7 @@ std::list<bool> * get_scratchpad_conv_list()
 
 void tensorfma()
 {
-    uint64 tfmareg = csrregs[current_thread>>1][csr_tfmastart];
+    uint64 tfmareg = csrget(csr_tfmastart);
 
     uint64 isconv     =  (tfmareg & 0x2000000000) >> 37;      // Is a Conv2D operation (use tensor conv register)
     uint64 aoffset    =  (tfmareg & 0x0F00000000) >> 32;      // A matrix 32b offset
@@ -1012,14 +1103,14 @@ void tensorfma()
     tensorfma_passes[current_thread] = acols;
 
     // Gets the sizes of the convolution
-    uint64 tconvsizereg = csrregs[current_thread>>1][csr_tconvsize];
+    uint64 tconvsizereg = csrget(csr_tconvsize);
     uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
     uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
     uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
     uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
 
     // Gets the positions of the convolution
-    uint64 tconvctrlreg = csrregs[current_thread>>1][csr_tconvctrl];
+    uint64 tconvctrlreg = csrget(csr_tconvctrl);
     int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
     int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
     // Sign extend
@@ -1549,7 +1640,7 @@ uint64 get_tensorfma_value(int entry, int pass, int block, int * size, int * pas
 
 void tensorstore()
 {
-    uint64 tstorereg = csrregs[current_thread>>1][csr_tstore];
+    uint64 tstorereg = csrget(csr_tstore);
 
     uint64 regstart =  (tstorereg & 0xF8000000000000) >> 51;      // Start register to store
     uint64 rows     = ((tstorereg & 0x07000000000000) >> 48) + 1; // Number of rows to store
@@ -1642,7 +1733,7 @@ void get_reduce_info(uint64 value, uint64 * other_min, uint64 * action)
 
 void reduce()
 {
-    uint64 value = csrregs[current_thread>>1][csr_reduce];
+    uint64 value = csrget(csr_reduce);
     uint64 other_min;
     uint64 action;
     uint32 operation = (value >> 32) & 0xF;
@@ -1665,7 +1756,7 @@ void reduce()
     reduce_size[current_thread]  = num_reg;
     reduce_entry[current_thread] = start_reg;
 
-    if((start_reg + num_reg) >= 32) 
+    if((start_reg + num_reg - 1) >= 32) 
     {
         DEBUG_EMU(gprintf("ERROR accessing register out of bound in reduce: %016llx\n", value);)
     }
@@ -1731,7 +1822,7 @@ uint64 get_reduce_value(int entry, int block, int * size, int * start_entry)
 // and also through the CSR that implement the fast local barrier function.
 uint64 flbarrier()
 {
-    uint64 value   = csrregs[current_thread>>1][csr_flbarrier];
+    uint64 value   = csrget(csr_flbarrier);
     uint64 barrier = value & 0x7;
     uint64 limit   = (value >> 3) & 0x7F;
 
@@ -3187,12 +3278,10 @@ void amomaxu_d(xreg dst, xreg src1, xreg src2, const char *comm)
     logmemwchange(0, 8, addr, res);
 }
 
-
-
 void csr_insn(xreg dst, csr src1, uint64 imm)
 {
-    uint64 x = csrregs[current_thread>>1][src1];
-    csrregs[current_thread>>1][src1] = imm;
+    uint64 x = csrget(src1);
+    csrset(src1, imm);
 
     if (src1 == csr_mhartid)
       x = current_thread;
@@ -3200,14 +3289,14 @@ void csr_insn(xreg dst, csr src1, uint64 imm)
     else if (src1 == csr_satp )
     {
         // mode: 4 bits, asid: 4/16 bits, ppn: 28/44 bits
-        csrregs[current_thread>>1][src1] = imm & 0xF000F0000FFFFFFFULL;
+        csrset(src1, imm & 0xF000F0000FFFFFFFULL);
 
         // If mode is not valid, restore previous value
         if (!(imm >> 60 == 0 || // Bare (VM disabled)
               //imm >> 60 == 8 || // TODO: Sv39 not yet supported
               imm >> 60 == 9    // Sv48
              ))
-            csrregs[current_thread>>1][src1] = x;
+            csrset(src1, x);
     }
     else if (src1 == csr_cacheop  ) x = csr_cacheop_emu();
     else if (src1 >= csr_msg_port0 && src1 <= csr_msg_port3 )
@@ -3215,7 +3304,7 @@ void csr_insn(xreg dst, csr src1, uint64 imm)
     else if (src1 >= csr_smsg_port0 && src1 <= csr_smsg_port3) 
         x = msg_port_csr(src1 - csr_smsg_port0, imm);
     else if ( src1 == csr_mt1en ) 
-        func_thread1_enabled(current_thread, csrregs[current_thread>>1][csr_mt1en], csrregs[current_thread>>1][csr_mt1rvect]);
+        func_thread1_enabled(current_thread, csrget(csr_mt1en), csrget(csr_mt1rvect));
     else if ( src1 == csr_tloadctrl ) 
         tensorload();
     else if ( src1 == csr_tfmastart ) 
@@ -3241,7 +3330,7 @@ void csr_insn(xreg dst, csr src1, uint64 imm)
 void csrr(xreg dst, csr src1, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrr x%d, csrreg[%d] # %s\n", dst, src1, comm););
-    csr_insn(dst, src1, csrregs[current_thread>>1][src1]);
+    csr_insn(dst, src1, csrget(src1));
 }
 
 void csrw(csr dst, xreg src1, const char *comm)
@@ -3259,13 +3348,13 @@ void csrwi(csr dst, uint64 imm, const char *comm)
 void csrc(csr dst, xreg src1, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrc x%d, csrreg[%d] # %s\n", src1, dst, comm););
-    csr_insn(x0, dst, csrregs[current_thread>>1][dst] & (~XREGS[src1].x));
+    csr_insn(x0, dst, csrget(dst) & (~XREGS[src1].x));
 }
 
 void csrs(csr dst, xreg src1, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrs x%d, csrreg[%d] # %s\n", src1, dst, comm););
-    csr_insn(x0, dst, csrregs[current_thread>>1][dst] | XREGS[src1].x);
+    csr_insn(x0, dst, csrget(dst) | XREGS[src1].x);
 }
 
 void csrrw(xreg dst, csr src1, xreg src2, const char *comm)
@@ -3277,13 +3366,13 @@ void csrrw(xreg dst, csr src1, xreg src2, const char *comm)
 void csrrs(xreg dst, csr src1, xreg src2, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrrs x%d, csrreg[%d], x%d # %s\n", dst, src1, src2, comm););
-    csr_insn(dst, src1, csrregs[current_thread>>1][src1] | XREGS[src2].x);
+    csr_insn(dst, src1, csrget(src1) | XREGS[src2].x);
 }
 
 void csrrc(xreg dst, csr src1, xreg src2, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrrc x%d, csrreg[%d], x%d # %s\n", dst, src1, src2, comm););
-    csr_insn(dst, src1, csrregs[current_thread>>1][src1] & (~XREGS[src2].x));
+    csr_insn(dst, src1, csrget(src1) & (~XREGS[src2].x));
 }
 
 void csrrwi(xreg dst, csr src1, uint64 imm, const char *comm)
@@ -3295,27 +3384,43 @@ void csrrwi(xreg dst, csr src1, uint64 imm, const char *comm)
 void csrrsi(xreg dst, csr src1, uint64 imm, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrrsi x%d, csrreg[%d], %d # %s\n", dst, src1, imm, comm););
-    csr_insn(dst, src1, csrregs[current_thread>>1][src1] | imm);
+    csr_insn(dst, src1, csrget(src1) | imm);
 }
 
 void csrrci(xreg dst, csr src1, uint64 imm, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrrci x%d, csrreg[%d], %d # %s\n", dst, src1, imm, comm););
-    csr_insn(dst, src1, csrregs[current_thread>>1][src1] & (~imm));
+    csr_insn(dst, src1, csrget(src1) & (~imm));
+}
+
+void sret(const char *comm)
+{
+    DEBUG_EMU(gprintf("I: sret # %s\n", comm););
+    logpcchange(csrget(csr_sepc));
+    // Take spie and spp
+    uint64 mstatus = csrget(csr_mstatus);
+    uint64 spie = (mstatus >> 5) & 0x1;
+    uint64 spp = (mstatus >> 8) & 0x1;
+    // Clean sie, spie and spp
+    uint64 mstatus_clean = mstatus & 0xFFFFFFFFFFFFFEDDULL;
+    // Set sie = spie, spie = 1, spp = U (0), prv = spp
+    csrset(csr_mstatus, mstatus_clean | (spie << 1) | (1 << 8));
+    csrset(csr_prv, spp);
 }
 
 void mret(const char *comm)
 {
     DEBUG_EMU(gprintf("I: mret # %s\n", comm););
-    logpcchange(csrregs[current_thread>>1][csr_mepc]);
+    logpcchange(csrget(csr_mepc));
     // Take mpie and mpp
-    uint64 mpie = (csrregs[current_thread>>1][csr_mstatus] >> 7) & 0x1;
-    uint64 mpp = (csrregs[current_thread>>1][csr_mstatus] >> 11) & 0x3;
+    uint64 mstatus = csrget(csr_mstatus);
+    uint64 mpie = (mstatus >> 7) & 0x1;
+    uint64 mpp = (mstatus >> 11) & 0x3;
     // Clean mie, mpie and mpp
-    uint64 mstatus_clean = csrregs[current_thread>>1][csr_mstatus] & 0xFFFFFFFFFFFFE777ULL;
+    uint64 mstatus_clean = mstatus & 0xFFFFFFFFFFFFE777ULL;
     // Set mie = mpie, mpie = 1, mpp = U (0), prv = mpp
-    csrregs[current_thread>>1][csr_mstatus] = mstatus_clean | (mpie << 3) | (1 << 7);
-    csrregs[current_thread>>1][csr_prv] = mpp;
+    csrset(csr_mstatus, mstatus_clean | (mpie << 3) | (1 << 7));
+    csrset(csr_prv, mpp);
 }
 
 void wfi(const char *comm)
@@ -3336,8 +3441,13 @@ void fence_i(const char *comm)
 void ecall(const char *comm)
 {
     DEBUG_EMU(gprintf("I: ecall # %s\n", comm););
-    logpcchange(csrregs[current_thread>>1][csr_mtvec]);
-    csrregs[current_thread>>1][csr_mcause] = 8 + csrregs[current_thread>>1][csr_prv];
+    trap_to_mmode(CSR_MCAUSE_ECALL_FROM_UMODE + csrget(csr_prv));
+}
+
+void ebreak(const char *comm)
+{
+    DEBUG_EMU(gprintf("I: ebreak # %s\n", comm););
+    trap_to_mmode(CSR_MCAUSE_BREAKPOINT);
 }
 
 ////////////////////////////////////////////////////////////
@@ -5256,6 +5366,19 @@ void ucvtemu(const char *opname, opcode opc, int count, freg dst, freg src1, con
     {
         uint32 val = FREGS[src1].u[i];
 
+        // Forcing to 0 in case of denormal input
+        if ((opc == FCVTPSF16) && ((val & 0x7c00) == 0)) {
+          val = val & 0x8000;
+        }
+
+        if ((opc == FCVTPSF11) && ((val & 0x7c0) == 0)) {
+          val = 0;
+        }
+
+        if ((opc == FCVTPSF10) && ((val & 0x3e0) == 0)) {
+          val = 0;
+        }
+
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         bool genResult = !( count == 4 && MREGS[0].b[i*2] == 0 );
 
@@ -5961,3 +6084,9 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char *comm)
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
 }
 
+// ILLEGAL INSTRUCTION
+void unknown(const char *comm)
+{
+    DEBUG_EMU(gprintf("I: trap_illegal_instruction # %s\n", comm););
+    trap_to_mmode(CSR_MCAUSE_ILLEGAL_INSTRUCTION);
+}

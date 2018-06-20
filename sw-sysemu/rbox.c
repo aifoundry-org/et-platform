@@ -75,7 +75,7 @@ uint32 process_packet(uint64 packet)
                     fully_covered_tile_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 3) gprintf("%016lx_", fully_covered_tile_pckt.qw[qw]);
-                        else        gprintf("%016lx\n");
+                        else        gprintf("%016lx\n", fully_covered_tile_pckt.qw[qw]);
                     )
                 }
 
@@ -103,7 +103,7 @@ uint32 process_packet(uint64 packet)
                     large_tri_tile_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 3) gprintf("%016lx_", large_tri_tile_pckt.qw[qw]);
-                        else        gprintf("%016lx\n");
+                        else        gprintf("%016lx\n", large_tri_tile_pckt.qw[qw]);
                     )
                 }
 
@@ -131,7 +131,7 @@ uint32 process_packet(uint64 packet)
                     tri_with_tile_64x64_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 7) gprintf("%016lx_", tri_with_tile_64x64_pckt.qw[qw]);
-                        else        gprintf("%016lx\n");
+                        else        gprintf("%016lx\n", tri_with_tile_64x64_pckt.qw[qw]);
                     )
                 }
 
@@ -173,7 +173,7 @@ uint32 process_packet(uint64 packet)
                     tri_with_tile_128x128_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 7) gprintf("%016lx_", tri_with_tile_128x128_pckt.qw[qw]);
-                        else        gprintf("%016lx\n");
+                        else        gprintf("%016lx\n", tri_with_tile_128x128_pckt.qw[qw]);
                     )
                 }
 
@@ -215,7 +215,7 @@ uint32 process_packet(uint64 packet)
                     large_tri_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 7) gprintf("%016lx_", large_tri_pckt.qw[qw]);
-                        else        gprintf("%016lx\n");
+                        else        gprintf("%016lx\n", large_tri_pckt.qw[qw]);
                     )
                 }
 
@@ -247,7 +247,7 @@ uint32 process_packet(uint64 packet)
                     rbox_state_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 7) gprintf("%016lx_", rbox_state_pckt.qw[qw]);
-                        else        gprintf("%016lx\n");
+                        else        gprintf("%016lx\n", rbox_state_pckt.qw[qw]);
                     )
                 }
 
@@ -269,7 +269,7 @@ uint32 process_packet(uint64 packet)
                     frag_shader_state_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 3) gprintf("%016lx_", frag_shader_state_pckt.qw[qw]);
-                        else        gprintf("%016lx\n");
+                        else        gprintf("%016lx\n", frag_shader_state_pckt.qw[qw]);
                     )
                 }
 

@@ -31,7 +31,6 @@ class instruction
         bool get_is_reduce();
         bool get_is_tensor_load();
         bool get_is_tensor_fma();
-        bool get_is_ecall();
         bool get_is_texrcv();
         bool get_is_texsndh();
         bool get_is_1ulp();
@@ -52,7 +51,6 @@ class instruction
         bool                         is_reduce;      // If the instruction is a reduce
         bool                         is_tensor_load; // If the instruction is a tensor load
         bool                         is_tensor_fma;  // If the instruction is a tensor FMA
-        bool                         is_ecall;       // If the instruction is an ecall
         bool                         is_texsndh;     // If the instruction is a texsndh
         bool                         is_texrcv;      // If the instruction is a texrcv
         bool                         is_1ulp;        // The instruction must be checked with 1ULP precision
