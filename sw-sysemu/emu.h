@@ -44,15 +44,34 @@ extern int print_debug;
 // and 64 bits operations set bits 127:64 to 0
 #define ZERO_EXTEND_UNUSED_FREG_BITS
 
+// Privilege levels
 #define CSR_PRV_U  0
 #define CSR_PRV_S  1
-#define CSR_PRV_H  2
 #define CSR_PRV_M  3
+
+// Traps
+#define CSR_MCAUSE_INSTR_ADDR_MISALIGNED         0ull
+#define CSR_MCAUSE_INSTR_ACCESS_FAULT            1ull
+#define CSR_MCAUSE_ILLEGAL_INSTRUCTION           2ull
+#define CSR_MCAUSE_BREAKPOINT                    3ull
+#define CSR_MCAUSE_LOAD_ADDR_MISALIGNED          4ull
+#define CSR_MCAUSE_LOAD_ACCESS_FAULT             5ull
+#define CSR_MCAUSE_STORE_AMO_ADDR_MISALIGNED     6ull
+#define CSR_MCAUSE_STORE_AMO_ACCESS_FAULT        7ull
+#define CSR_MCAUSE_ECALL_FROM_UMODE              8ull
+#define CSR_MCAUSE_ECALL_FROM_SMODE              9ull
+#define CSR_MCAUSE_ECALL_FROM_MMODE             11ull
+#define CSR_MCAUSE_INSTR_PAGE_FAULT             12ull
+#define CSR_MCAUSE_LOAD_PAGE_FAULT              13ull
+#define CSR_MCAUSE_STORE_AMO_PAGE_FAULT         15ull
 
 // CSRs
 typedef enum
 {
     csr_mhartid,
+    csr_mvendorid,
+    csr_marchid,
+    csr_mimpid,
     csr_fcsr,
     csr_frm,
     csr_mip,
@@ -66,7 +85,11 @@ typedef enum
     csr_mstatus,
     csr_mepc,
     csr_mcause,
+    csr_mscratch,
     csr_sstatus,
+    csr_sepc,
+    csr_scause,
+    csr_sscratch,
     csr_fflags,
     csr_mt1rvect,
     csr_mt1en,
@@ -568,11 +591,13 @@ extern "C" void csrrc(xreg dst, csr src1, xreg src2, const char *comm);
 extern "C" void csrrwi(xreg dst, csr src1, uint64 imm, const char *comm);
 extern "C" void csrrsi(xreg dst, csr src1, uint64 imm, const char *comm);
 extern "C" void csrrci(xreg dst, csr src1, uint64 imm, const char *comm);
+extern "C" void sret(const char *comm);
 extern "C" void mret(const char *comm);
 extern "C" void wfi(const char *comm);
 extern "C" void fence(const char *comm);
 extern "C" void fence_i(const char *comm);
 extern "C" void ecall(const char *comm);
+extern "C" void ebreak(const char *comm);
 extern "C" void flw   (freg dst, int off, xreg base, const char *comm);
 extern "C" void fld   (freg dst, int off, xreg base, const char *comm);
 extern "C" void flq   (freg dst, int off, xreg base, const char *comm);
@@ -805,6 +830,8 @@ extern "C" void init_txs(uint64 imgTableAddr);
 // Special scalar instructions
 extern "C" void packb(xreg dst, xreg src1, xreg src2, const char *comm);
 extern "C" void bitmixb(xreg dst, xreg src1, xreg src2, const char *comm);
+
+extern "C" void unknown(const char *comm);
 
 void print_regs();
 void print_comment(const char *comm);
