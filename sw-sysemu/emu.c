@@ -1665,7 +1665,7 @@ void reduce()
     reduce_size[current_thread]  = num_reg;
     reduce_entry[current_thread] = start_reg;
 
-    if((start_reg + num_reg) >= 32) 
+    if((start_reg + num_reg - 1) >= 32) 
     {
         DEBUG_EMU(gprintf("ERROR accessing register out of bound in reduce: %016llx\n", value);)
     }
