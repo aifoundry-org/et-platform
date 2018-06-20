@@ -19,7 +19,6 @@ instruction::instruction()
     is_reduce = false;
     is_tensor_load = false;
     is_tensor_fma = false;
-    is_ecall = false;
     is_texsndh = false;
     is_texrcv = false;
     is_1ulp = false;
@@ -105,9 +104,6 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
 
     if(opcode == "wfi")
         is_wfi = true;
-
-    if(opcode == "ecall")
-        is_ecall = true;
 
     if(opcode=="texrcv")
       is_texrcv=true;
@@ -418,6 +414,14 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
     for(auto a:arg_array)
         add_parameter(a);
 
+    // 0x0000 is an illegal instruction, but spike-dasm returns "addi s0, sp0, 0"
+    // 0xffffffff is an illegal instruction, and spike-dasm returns "unknown"
+    if(enc_bits == 0)
+    {
+        opcode = "unknown";
+        num_params = 0;
+    }
+
     // Checks if it is a tensor/reduce operation
     if (opcode == "csrw") {
         is_reduce      = (params[0] == csr_reduce);
@@ -506,12 +510,6 @@ bool instruction::get_is_tensor_fma()
 bool instruction::get_is_flb()
 {
   return is_flb;
-}
-
-// Access
-bool instruction::get_is_ecall()
-{
-    return is_ecall;
 }
 
 // Access
@@ -696,20 +694,27 @@ void instruction::add_parameter(std::string param)
         else if(param == "t6")   params[num_params] = 31;
         // CSRs
         else if(param == "mhartid")      params[num_params] = csr_mhartid;
+        else if(param == "mvendorid")    params[num_params] = csr_mvendorid;
+        else if(param == "marchid")      params[num_params] = csr_marchid;
+        else if(param == "mimpid")       params[num_params] = csr_mimpid;
         else if(param == "mip")          params[num_params] = csr_mip;
         else if(param == "misa")         params[num_params] = csr_misa;
-        else if(param == "mtvec")        params[num_params] = csr_mtvec;
         else if(param == "medeleg")      params[num_params] = csr_medeleg;
         else if(param == "mideleg")      params[num_params] = csr_mideleg;
         else if(param == "mie")          params[num_params] = csr_mie;
-        else if(param == "stvec")        params[num_params] = csr_stvec;
+        else if(param == "mtvec")        params[num_params] = csr_mtvec;
         else if(param == "mstatus")      params[num_params] = csr_mstatus;
         else if(param == "mepc")         params[num_params] = csr_mepc;
         else if(param == "mcause")       params[num_params] = csr_mcause;
-        else if(param == "sstatus")      params[num_params] = csr_sstatus;
+        else if(param == "mscratch")     params[num_params] = csr_mscratch;
         else if(param == "mt1rvect")     params[num_params] = csr_mt1rvect;
         else if(param == "mt1en")        params[num_params] = csr_mt1en;
         else if(param == "satp")         params[num_params] = csr_satp;
+        else if(param == "stvec")        params[num_params] = csr_stvec;
+        else if(param == "sstatus")      params[num_params] = csr_sstatus;
+        else if(param == "sepc")         params[num_params] = csr_sepc;
+        else if(param == "scause")       params[num_params] = csr_scause;
+        else if(param == "sscratch")     params[num_params] = csr_sscratch;
         else if(param == "unknown_51f")  params[num_params] = csr_cacheop;
         else if(param == "unknown_800")  params[num_params] = csr_reduce;
         else if(param == "unknown_801")  params[num_params] = csr_tfmastart;
@@ -748,16 +753,9 @@ void instruction::add_parameter(std::string param)
                 param == "sideleg"    ||
                 param == "sie"        ||
                 param == "scouteren"  ||
-                param == "sscratch"   ||
-                param == "sepc"       ||
-                param == "scause"     ||
                 param == "stval"      ||
                 param == "sip"        ||
-                param == "mvendorid"  ||
-                param == "marchid"    ||
-                param == "mimpid"     ||
                 param == "mcounteren" ||
-                param == "mscratch"   ||
                 param == "mtval"      ||
                 param == "mcycle"     ||
                 param == "minstret"   ||
