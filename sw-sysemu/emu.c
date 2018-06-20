@@ -9,6 +9,7 @@
 #include <ipc.h>
 #include <ttrans.h>
 #include <algorithm>
+#include <stdint.h>
 
 #ifndef MINIONSIM
 #include <immintrin.h>
@@ -19,6 +20,18 @@
 
 extern void gprintf(const char* format, ...);
 extern void gsprintf(char* str, const char* format, ...);
+
+#ifdef USE_FAKE_TXFMA
+#ifdef NEW_TRANS_UNIT
+#undef NEW_TRANS_UNIT
+#endif
+#endif
+
+#ifndef USE_FAKE_TXFMA
+#ifndef NEW_TRANS_UNIT
+#define NEW_TRANS_UNIT
+#endif
+#endif
 
 #ifdef GFX_ONLY
  #define GFX(x) x
@@ -324,21 +337,27 @@ void minit(mreg dst, uint64 val)
     ipc_init_mreg(dst);
 }
 
-void security_ulp_check(uint32 gold, uint32 table)
+uint8_t security_ulp_check(uint32 gold, uint32 table)
 {
     // Fast skip for zeros and infinity should be the same value in both in gold and table
     if (gold == table)
-        return;
+        return 0;
 
     // Detect NaNs
     bool gold_is_nan  = ((gold  & 0x7F800000) == 0x7F800000) && ((gold  & 0x007FFFFF) != 0);
     bool table_is_nan = ((table & 0x7F800000) == 0x7F800000) && ((table & 0x007FFFFF) != 0);
 
-    assert(gold_is_nan == table_is_nan);
+    assert((gold_is_nan == table_is_nan) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
 
+    bool gold_is_inf = ((gold == 0xff800000) || (gold == 0x7f800000));
+
+    //printf("GOLD: %d TABLE: %d\n", gold_is_nan, table_is_nan);
+    if(gold_is_inf){
+        assert((gold == table) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
+    }
     // Skip all other tests.
     if (gold_is_nan)
-        return;
+        return 0;
 
     uint32 exp_gold   = (gold >> 23) & 0xFF;   // get gold exponent
     uint32 gold_clean = gold & 0x7F800000;     // clean mantissa and sign from gold
@@ -357,7 +376,7 @@ void security_ulp_check(uint32 gold, uint32 table)
         printf("Gold IEEE: %.12e, Table TRANS: %.12e, Diff: %.12e, Max (1ulp): %.12e\n", goldf, tablef, diff, err_1ulp);
         printf("Hex Gold: %08X, Hex Table: %08X\n", gold, table);
     }
-    assert(diff <= err_1ulp);
+    return (diff > err_1ulp);
 }
 
 #ifdef CHECKER
@@ -427,7 +446,7 @@ uint64 csr_cacheop_emu()
           break;
        case 0: // LockVA
           {
-             uint64 way_va  = op_value & 0x3F;
+             uint64 way_va  = op_value & 0x3; // 4 ways
              set = (op_value >> 6) & 0xF;
              cl = (set << 2) + way_va; // FIXME: Only valid for 4 ways
              DEBUG_EMU(gprintf("\tDoing LockVA: %016X, Way: %X\n", addr, way_va);)
@@ -437,7 +456,7 @@ uint64 csr_cacheop_emu()
           }
        case 1: // UnlockVA
           {
-             uint64 way_va   = op_value & 0x3F;
+             uint64 way_va   = op_value & 0x3; // 4 ways
              uint64 state = (op_value >> 57) & 0x1;
              set = (op_value >> 6) & 0xF;
              cl = (set << 2) + way_va; // FIXME: Only valid for 4 ways
@@ -783,10 +802,18 @@ void tensorload()
     uint64 control = csrregs[current_thread>>1][csr_tloadctrl];
     uint64 stride  = XREGS[31].x;
 
+    uint64 trans   = (control >> 54) & 0x07;
+    uint64 boffset = (control >> 57) & 0x03;
     uint64 dst    = control & 0x3F;
     uint64 rows   = ((control >> 48) & 0x1F) + 1;
-    uint64 base   = control & 0xFFFFFFFFFFC0ULL;
     uint64 isconv = (control >> 53) & 0x1;
+    uint64 base   = control & 0xFFFFFFFFFFC0ULL;
+    //new spec
+    //uint64 trans   = (control >> 56) & 0x07;
+    //uint64 boffset = (control >> 5) & 0x03;
+    //uint64 isconv = 0;
+    //uint64 dst    = (control >> 53) & 0x3F;
+    //uint64 rows   = (control & 0xF) + 1;
 
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
@@ -844,6 +871,109 @@ void tensorload()
     }
 }
 
+void transtensorload()
+{
+    uint64 control = csrregs[current_thread>>1][csr_tloadctrl];
+    uint64 stride  = XREGS[31].x;
+
+    uint64 trans   = (control >> 54) & 0x07;
+    uint64 boffset = (control >> 57) & 0x03;
+
+    uint64 dst    = control & 0x3F;
+    uint64 rows   = ((control >> 48) & 0x1F) + 1;
+    uint64 base   = control & 0xFFFFFFFFFFC0ULL;
+    uint64 isconv = (control >> 53) & 0x1;
+    uint64 usetmask = (control >> 52) & 0x1;
+
+    scp_entry[current_thread] = dst;
+    scp_size[current_thread]  = rows;
+    uint64 addr               = base;
+    
+    scp_conv[current_thread].clear();
+
+    // Gets the sizes of the convolution
+    uint64 tconvsizereg         = csrregs[current_thread>>1][csr_tconvsize];
+    uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
+    uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
+    uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
+    uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
+
+    // Gets the positions of the convolution
+    uint64 tconvctrlreg = csrregs[current_thread>>1][csr_tconvctrl];
+    int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
+    int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
+    // Sign extend
+    if(conv_row_pos & 0x8000) conv_row_pos = conv_row_pos | 0xFFFFFFFFFFFF0000ULL;
+    if(conv_col_pos & 0x8000) conv_col_pos = conv_col_pos | 0xFFFFFFFFFFFF0000ULL;
+    
+    for ( int i = 0; i < rows; i++ )
+    {
+        bool skip_load = 0;
+        // Checks if needs to skip the current load due convolution CSR
+        if(isconv)
+        {
+            if(conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
+                skip_load = 1;
+            conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
+        }
+        scp_conv[current_thread].push_back(skip_load);
+    }
+    //NO TRANS
+    if(trans == 0x00){
+        
+        for(int i=0;i < rows; ++i){
+            if(usetmask || scp_conv[current_thread].front()){
+                if(addr & 0x3F)
+                {
+                    DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
+                }
+                for ( int j = 0; j < 4; j++ )
+                {
+                    for ( int k = 0; k < 4; k++ )
+                    {
+                        uint64 addr_final = addr+j*16+k*4;
+                        uint32 val32 = memread32(addr_final);
+                        float32 fval32 = * ((float32 *) &val32);
+
+                        SCP[dst + i][j].f[k] = fval32;
+                        DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
+                    }
+                }    
+            } 
+        }
+    }
+    //INTERLEAVE
+    else if(trans == 0x01 || trans == 0x02){
+       uint8 tmp_buffer[4][64];
+       int size = trans & 0x03;
+       int start;
+       start=size==1 ?  boffset << 4 : (boffset & 0x02) << 5;
+       int elements = 4 / size;
+       for(int i=0;i < rows; ++i){
+            if(usetmask || scp_conv[current_thread].front()){
+                if(addr & 0x3F)
+                {
+                    DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
+                }
+                for ( int j = 0; j < 4; j++ )
+                {
+                    for ( int k = 0; k < 4; k++ )
+                    {
+                        uint64 addr_final = addr+j*16+k*4;
+                        uint32 val32 = memread32(addr_final);
+                        float32 fval32 = * ((float32 *) &val32);
+
+                        SCP[dst + i][j].f[k] = fval32;
+                        DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
+                    }
+                }    
+            } 
+        }
+    }
+    //TRANSPOSE
+    else if(trans = 0x05 || trans == 0x06 || trans==0x07){
+    }
+}
 uint64 get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
     * last_entry = scp_entry[current_thread];
@@ -1638,7 +1768,7 @@ void lb(xreg dst, int off, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: lb x%d, %d(x%d) # %s",dst,off,base,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64 val = sext8(memread8(XREGS[base].x  + off));
+    uint64 val = sext8(memread8(XREGS[base].x + sext12(off)));
     
     if(dst != x0)
     {
@@ -1646,14 +1776,14 @@ void lb(xreg dst, int off, xreg base, const char *comm)
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
 void lh(xreg dst, int off, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: lh x%d, %d(x%d) # %s",dst,off,base,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64 val = sext16(memread16(XREGS[base].x  + off));
+    uint64 val = sext16(memread16(XREGS[base].x + sext12(off)));
     
     if(dst != x0)
     {
@@ -1661,14 +1791,14 @@ void lh(xreg dst, int off, xreg base, const char *comm)
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
 void lw(xreg dst, int off, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: lw x%d, %d(x%d) # %s",dst,off,base,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64 val = sext32(memread32(XREGS[base].x  + off));
+    uint64 val = sext32(memread32(XREGS[base].x + sext12(off)));
     
     if(dst != x0)
     {
@@ -1676,14 +1806,14 @@ void lw(xreg dst, int off, xreg base, const char *comm)
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
 void ld(xreg dst, int off, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: ld x%d, %d(x%d) # %s",dst,off,base,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64 val = memread64(XREGS[base].x  + off);
+    uint64 val = memread64(XREGS[base].x + sext12(off));
     
     if(dst != x0)
     {
@@ -1691,14 +1821,14 @@ void ld(xreg dst, int off, xreg base, const char *comm)
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
 void lbu(xreg dst, int off, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: lbu x%d, %d(x%d) # %s\n",dst,off,base,comm););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64 val = memread8(XREGS[base].x  + off);
+    uint64 val = memread8(XREGS[base].x + sext12(off));
     
     if(dst != x0)
     {
@@ -1706,14 +1836,14 @@ void lbu(xreg dst, int off, xreg base, const char *comm)
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
 void lhu(xreg dst, int off, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: lhu x%d, %d(x%d) # %s\n",dst,off,base,comm););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64 val = memread16(XREGS[base].x  + off);
+    uint64 val = memread16(XREGS[base].x + sext12(off));
     
     if(dst != x0)
     {
@@ -1721,14 +1851,14 @@ void lhu(xreg dst, int off, xreg base, const char *comm)
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
 void lwu(xreg dst, int off, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: lwu x%d, %d(x%d) # %s\n",dst,off,base,comm););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64 val = memread32(XREGS[base].x  + off);
+    uint64 val = memread32(XREGS[base].x + sext12(off));
     
     if(dst != x0)
     {
@@ -1736,7 +1866,7 @@ void lwu(xreg dst, int off, xreg base, const char *comm)
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
 void addi(xreg dst, xreg src1, int imm, const char *comm)
@@ -1771,8 +1901,9 @@ void addiw(xreg dst, xreg src1, int imm, const char *comm)
     }
     if(dst != x0)
     {
+        uint64 bkp_src = XREGS[dst].x;
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,XREGS[src1].x,imm);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,bkp_src,imm);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -1882,8 +2013,8 @@ void mulh(xreg dst, xreg src1, xreg src2, const char *comm)
 {
     DISASM(gsprintf(dis,"I: mulh x%d, x%d, x%d # %s",dst,src1,src2,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int128 val1 = XREGS[src1].x;
-    int128 val2 = XREGS[src2].x;
+    int128 val1 = XREGS[src1].xs;
+    int128 val2 = XREGS[src2].xs;
     int128 val3 = val1 * val2;
     int64 val = val3 >> 64;
 
@@ -2253,7 +2384,7 @@ void auipc(xreg dst, int imm, const char *comm)
     DEBUG_EMU(gprintf("I: auipc x%d, %d # %s\n",dst,imm,comm););
     if(dst != x0)
     {
-        XREGS[dst].x = current_pc + (imm << 12);
+        XREGS[dst].x = current_pc + sext32(imm << 12);
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx\n",XREGS[dst].x,(uint64) imm);)
     }
     logxregchange(dst);
@@ -2492,18 +2623,6 @@ void jalr(xreg dst, xreg src1, int imm, const char *comm)
     if(dst != x0)
     {
         XREGS[dst].x = current_pc + 4;
-        DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
-    }
-    logxregchange(dst);
-    logpcchange(XREGS[src1].x + imm);
-}
-
-void c_jalr(xreg dst, xreg src1, int imm, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: c.jalr x%d, x%d, %d # %s\n",dst,src1,imm,comm););
-    if(dst != x0)
-    {
-        XREGS[dst].x = current_pc + 2;
         DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
     }
     logxregchange(dst);
@@ -3137,17 +3256,52 @@ void csrwi(csr dst, uint64 imm, const char *comm)
     csr_insn(x0, dst, imm);
 }
 
+void csrc(csr dst, xreg src1, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrc x%d, csrreg[%d] # %s\n", src1, dst, comm););
+    csr_insn(x0, dst, csrregs[current_thread>>1][dst] & (~XREGS[src1].x));
+}
+
 void csrs(csr dst, xreg src1, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrs x%d, csrreg[%d] # %s\n", src1, dst, comm););
     csr_insn(x0, dst, csrregs[current_thread>>1][dst] | XREGS[src1].x);
 }
 
-
 void csrrw(xreg dst, csr src1, xreg src2, const char *comm)
 {
     DEBUG_EMU(gprintf("I: csrrw x%d, csrreg[%d], x%d # %s\n", dst, src1, src2, comm););
     csr_insn(dst, src1, XREGS[src2].x);
+}
+
+void csrrs(xreg dst, csr src1, xreg src2, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrs x%d, csrreg[%d], x%d # %s\n", dst, src1, src2, comm););
+    csr_insn(dst, src1, csrregs[current_thread>>1][src1] | XREGS[src2].x);
+}
+
+void csrrc(xreg dst, csr src1, xreg src2, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrc x%d, csrreg[%d], x%d # %s\n", dst, src1, src2, comm););
+    csr_insn(dst, src1, csrregs[current_thread>>1][src1] & (~XREGS[src2].x));
+}
+
+void csrrwi(xreg dst, csr src1, uint64 imm, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrwi x%d, csrreg[%d], %d # %s\n", dst, src1, imm, comm););
+    csr_insn(dst, src1, imm);
+}
+
+void csrrsi(xreg dst, csr src1, uint64 imm, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrsi x%d, csrreg[%d], %d # %s\n", dst, src1, imm, comm););
+    csr_insn(dst, src1, csrregs[current_thread>>1][src1] | imm);
+}
+
+void csrrci(xreg dst, csr src1, uint64 imm, const char *comm)
+{
+    DEBUG_EMU(gprintf("I: csrrci x%d, csrreg[%d], %d # %s\n", dst, src1, imm, comm););
+    csr_insn(dst, src1, csrregs[current_thread>>1][src1] & (~imm));
 }
 
 void mret(const char *comm)
@@ -3183,7 +3337,7 @@ void ecall(const char *comm)
 {
     DEBUG_EMU(gprintf("I: ecall # %s\n", comm););
     logpcchange(csrregs[current_thread>>1][csr_mtvec]);
-    csrregs[current_thread>>1][csr_mcause] = 8;
+    csrregs[current_thread>>1][csr_mcause] = 8 + csrregs[current_thread>>1][csr_prv];
 }
 
 ////////////////////////////////////////////////////////////
@@ -4216,56 +4370,95 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
             case FRSQ:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_frsq(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = (float) ((double) 1.0 / sqrt((double) val.f));
+                    DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
+#else
                     res.f = (float) ((double) 1.0 / sqrt((double) val.f));
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FSIN:
                 if ( genResult )
                 {
 #ifdef NEW_TRANS_UNIT
-                    res.f = (float) sin(2 * M_PI * (double) val.f);
+                    res.f = ttrans_fsin(val.u);
+                    // security ulp check
+                    iufval res_gold, sin_tmp;
+                    double f;
+                    sin_tmp.f = (float) modf(val.f, &f);
+
+                    sin_tmp.f = sin_tmp.f > 0.5? sin_tmp.f - 1.0
+                        : sin_tmp.f < -0.5 ? sin_tmp.f + 1.0
+                        : sin_tmp.f;
+
+                    res_gold.f = (float) sin(2 * M_PI * (double) sin_tmp.f);
+                    DEBUG_EMU(gprintf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
 #else
-                    res.f = sinf(val.f);
+                    res.f = sin(2*M_PI*val.f);
 #endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
-//                    case FCOS:
-//                        if ( genResult )
-//                        {
-//#ifdef NEW_TRANS_UNIT
-//                                res.f = (float) cos(2 * M_PI * (double) val.f);
-//#else
-//                                res.f = cosf(val.f);
-//#endif
-//
-//                                // convert to canonical NaN
-//                                if ( isnan(res.f) ) res.f = nanf("");
-//                                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
-//                        }
-//                        break;
             case FEXP:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_fexp2(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = exp2f(val.f);
+
+                    // Remove denormals
+                    if ((res.u & 0x7f800000) == 0) res.u = res.u & 0xff800000;
+                    if ((res_gold.u & 0x7f800000) == 0) res_gold.u = res_gold.u & 0xff800000;
+
+                    DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
+#else
                     res.f = exp2f(val.f);
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                printf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f);
                 break;
             case FLOG:
                 if ( genResult )
                 {
+#ifdef NEW_TRANS_UNIT
+                    res.f = ttrans_flog2(val.u);
+                    // security ulp check
+                    iufval res_gold;
+                    res_gold.f = (float)log2((double)val.f);
+                    //DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x (%.20f)\n", val.u, res.u, res_gold.u, res_gold.f););
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
+#else
                     res.f = log2f(val.f);
+#endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FRCP:
                 if ( genResult )
@@ -4275,14 +4468,18 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                     // security ulp check
                     iufval res_gold;
                     res_gold.f = (float) (1.0 / (double) val.f);
-                    security_ulp_check(res_gold.u,res.u);
+                    DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                    //assert(res.u == res_gold.u);
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    }
 #else
                     res.f = (float) (1.0 / (double) val.f);
 #endif
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 }
+                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FRCPFXP:
                 if ( genResult )
@@ -4499,10 +4696,11 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                 if (genResult)
                 {
                     switch (fpclassify(val.f)) {
-                        case FP_INFINITE:  if (signbit(val.f)) res.u = 0;
+                        case FP_INFINITE:  if (signbit(val.f)) res.u = 1<<0;
                                            else res.u = 1<<7;
                                            break;
-                        case FP_NAN:       res.u = 1<<8;
+                        case FP_NAN:       if (val.u & 0x00400000) res.u = 1<<9; // quiet NaN
+                                           else res.u = 1 << 8;                  // signaling NaN
                         case FP_ZERO:      if (signbit(val.f)) res.u = 1<<3;
                                            else res.u = 1<<4;
                                            break;
@@ -4512,7 +4710,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                         case FP_NORMAL:    if (signbit(val.f)) res.u = 1<<1;
                                            else res.u = 1<<6;
                                            break;
-                        default:           res.u = 1<<9; //quiet NaN
+                        default:           assert(0); // error!
                     }
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%f)\n",i,res.u,val.u,val.f););
                 }
@@ -4675,10 +4873,11 @@ void femu1src_d(const char *opname, opcode opc, int count, freg dst, freg src1, 
                             break;
             case FCLASS:
                     switch (fpclassify(val.d)) {
-                            case FP_INFINITE:  if (signbit(val.d)) res.u = 0;
+                            case FP_INFINITE:  if (signbit(val.d)) res.u = 1<<0;
                                                else res.u = 1<<7;
                                                break;
-                            case FP_NAN:       res.u = 1<<8;
+                            case FP_NAN:       if (val.x & 0x0008000000000000ULL) res.u = 1<<9; // quiet NaN
+                                               else res.u = 1<<8;                               // signaling NaN
                             case FP_ZERO:      if (signbit(val.d)) res.u = 1<<3;
                                                else res.u = 1<<4;
                                                break;
@@ -4688,7 +4887,7 @@ void femu1src_d(const char *opname, opcode opc, int count, freg dst, freg src1, 
                             case FP_NORMAL:    if (signbit(val.d)) res.u = 1<<1;
                                                else res.u = 1<<6;
                                                break;
-                            default:           res.u = 1<<9; //quiet NaN
+                            default:           assert(0); // error!
                     }
                     DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.d);)
                     break;
@@ -4898,6 +5097,9 @@ void iemu2src(const char *opname, opcode opc, int count, freg dst, freg src1, fr
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x\n",i,res,val1,val2);)
                             break;
             case FNOTPI :   res  = ~val1;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1);)
+                            break;
+            case FSAT8PI :  res = ((val1 > 127) ? 127 :(val1 < -128 ? -128 : val1)) & 0x0FF;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1);)
                             break;
             case FSLLPI :   if (uval2 >= 32)
@@ -5323,6 +5525,7 @@ void fmvz_x_ps (xreg dst, freg src1, uint8 index, const char *comm)
     index = index & 0x03;
     if(dst != x0)
         XREGS[dst].x = FREGS[src1].u[index];
+    DEBUG_EMU(gprintf("\t 0x%08x (%d)\n", XREGS[dst].x, XREGS[dst].x);)
     logxregchange(dst);
 }
 
@@ -5547,7 +5750,10 @@ void fcvt_lu_d    (freg dst, freg src1, const char *comm)                       
 void fcvt_ps_pw   (freg dst, freg src1, const char *comm)                        { femu1src("fcvt_ps_pw",  FCVTPSPW,  4, dst, src1, comm); }
 void fcvt_ps_pwu  (freg dst, freg src1, const char *comm)                        { femu1src("fcvt_ps_pwu", FCVTPSPWU, 4, dst, src1, comm); }
 void ffrc_ps      (freg dst, freg src1, const char *comm)                        { femu1src("ffrc_ps",     FFRC,      4, dst, src1, comm); }
-void fclass_ps      (freg dst, freg src1, const char *comm)                      { femu1src("fclass_ps",   FCLASS,    4, dst, src1, comm); }
+void fclass_s     (freg dst, freg src1, const char *comm)                        { femu1src("fclass_s",    FCLASS,    1, dst, src1, comm); }
+void fclass_ps    (freg dst, freg src1, const char *comm)                        { femu1src("fclass_ps",   FCLASS,    4, dst, src1, comm); }
+void fmv_x_w      (xreg dst, freg src1, const char *comm)                        { fmv_x_s(dst, src1, comm); }
+void fmv_w_x      (freg dst, xreg src1, const char *comm)                        { fmv_s_x(dst, src1, comm); }
 
 void fcvt_ps_f16   (freg dst, freg src1, const char *comm)                       { ucvtemu("fcvt_ps_f16",   FCVTPSF16,   4, dst, src1, comm); }
 void fcvt_ps_un24  (freg dst, freg src1, const char *comm)                       { ucvtemu("fcvt_ps_un24",  FCVTPSUN24,  4, dst, src1, comm); }
@@ -5608,6 +5814,7 @@ void fand_pi      (freg dst, freg src1, freg src2, const char *comm)            
 void for_pi       (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("for_pi",      FORPI,     4, dst, src1, src2, comm); }
 void fxor_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fxor_pi",     FXORPI,    4, dst, src1, src2, comm); }
 void fnot_pi      (freg dst, freg src1, const char *comm)                        { iemu2src("fnot_pi",     FNOTPI,    4, dst, src1, fnone, comm); }
+void fsat8_pi     (freg dst, freg src1, const char *comm)                        { iemu2src("fsat8_pi",    FSAT8PI,   4, dst, src1, fnone, comm); }
 void fsll_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsll_pi",     FSLLPI,    4, dst, src1, src2, comm); }
 void fsrl_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsrl_pi",     FSRLPI,    4, dst, src1, src2, comm); }
 void fsra_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsra_pi",     FSRAPI,    4, dst, src1, src2, comm); }
@@ -5676,6 +5883,7 @@ void fadd_d       (freg dst, freg src1, freg src2, const char *comm)            
 void fdiv_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fdiv_d",    FDIV,      1, 8, dst, src1, src2, comm); }
 void fmul_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fmul_d",    FMUL,      1, 8, dst, src1, src2, comm); }
 void fsgnj_d      (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fsgnj_d",   FSGNJ,     1, 8, dst, src1, src2, comm); }
+void fclass_d     (freg dst, freg src1, const char *comm)                        { femu1src_d("fclass_d",  FCLASS,    1, dst, src1, comm); }
 void fcvt_d_s     (freg dst, freg src1, const char *comm)                        { femu1src_d("fcvt_d_s",  FCVTDS,    1, dst, src1, comm); }
 void fcvt_s_d     (freg dst, freg src1, const char *comm)                        { femu1src  ("fcvt_s_d",  FCVTSD,    1, dst, src1, comm); }
 

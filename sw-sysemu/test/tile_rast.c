@@ -45,14 +45,14 @@ void generate_base_triangle_with_tile_128x128_packet()
 
     print_comment(">>> generate_base_triangle_with_tile_128x128_packet");
 
-    sw(x1,   8, x11, "Store a0 in RBOX packet");
-    sw(x4,  12, x11, "Store b0 in RBOX packet");
-    sw(x2,  16, x11, "Store a1 in RBOX packet");
-    sw(x5,  20, x11, "Store b1 in RBOX packet");
-    sw(x3,  24, x11, "Store a2 in RBOX packet");
-    sw(x6,  28, x11, "Store b2 in RBOX packet");
-    sd(x0,  32, x11, "Store ad, bd in RBOX packet");
-    sd(x0,  40, x11, "Store pointer to triangle data RBOX packet");
+    sw(x1,  8, x11, "Store a0 in RBOX packet");
+    sw(x4, 12, x11, "Store b0 in RBOX packet");
+    sw(x2, 16, x11, "Store a1 in RBOX packet");
+    sw(x5, 20, x11, "Store b1 in RBOX packet");
+    sw(x3, 24, x11, "Store a2 in RBOX packet");
+    sw(x6, 28, x11, "Store b2 in RBOX packet");
+    sd(x0, 32, x11, "Store ad, bd in RBOX packet");
+    sd(x0, 40, x11, "Store pointer to triangle data RBOX packet");
 
     flw_ps(f29,  0, x11, "Load pre-packed triangle information, first 128b block");
     flw_ps(f30, 16, x11, "Load pre-packed triangle information, second 128b block");
