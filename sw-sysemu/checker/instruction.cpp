@@ -341,6 +341,54 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         arg_array.push_back("x1");
         arg_array.push_back("0");
     }
+    // CSRs
+    else if(opcode == "csrr")
+    {
+        opcode = "csrrs";
+        arg_array.push_back("x0");
+    }/*
+    else if(opcode == "csrw")
+    {
+        opcode = "csrrw";
+        arg_array.push_back(arg_array[1]);
+        arg_array[1] = arg_array[0];
+        arg_array[0] = "x0";
+    }*/
+    else if(opcode == "csrs")
+    {
+        opcode = "csrrs";
+        arg_array.push_back(arg_array[1]);
+        arg_array[1] = arg_array[0];
+        arg_array[0] = "x0";
+    }
+    else if(opcode == "csrc")
+    {
+        opcode = "csrrc";
+        arg_array.push_back(arg_array[1]);
+        arg_array[1] = arg_array[0];
+        arg_array[0] = "x0";
+    }
+    else if(opcode == "csrwi")
+    {
+        opcode = "csrrwi";
+        arg_array.push_back(arg_array[1]);
+        arg_array[1] = arg_array[0];
+        arg_array[0] = "x0";
+    }
+    else if(opcode == "csrsi")
+    {
+        opcode = "csrrsi";
+        arg_array.push_back(arg_array[1]);
+        arg_array[1] = arg_array[0];
+        arg_array[0] = "x0";
+    }
+    else if(opcode == "csrci")
+    {
+        opcode = "csrrci";
+        arg_array.push_back(arg_array[1]);
+        arg_array[1] = arg_array[0];
+        arg_array[0] = "x0";
+    }
 
     // Special opcodes that need translation due conflicts
     if(opcode == "or")
@@ -371,11 +419,17 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         add_parameter(a);
 
     // Checks if it is a tensor/reduce operation
-    if(boost::regex_match(opcode, boost::regex("csr.*")))
-    {
+    if (opcode == "csrw") {
         is_reduce      = (params[0] == csr_reduce);
         is_tensor_load = (params[0] == csr_tloadctrl);
         is_tensor_fma  = (params[0] == csr_tfmastart);
+        is_flb         = (params[0] == csr_flbarrier);
+    }
+    else if(boost::regex_match(opcode, boost::regex("csr.*")))
+    {
+        is_reduce      = (params[1] == csr_reduce);
+        is_tensor_load = (params[1] == csr_tloadctrl);
+        is_tensor_fma  = (params[1] == csr_tfmastart);
         is_flb         = (params[1] == csr_flbarrier);
     }
 
@@ -675,6 +729,50 @@ void instruction::add_parameter(std::string param)
         else if(param == "unknown_8cd")  params[num_params] = csr_msg_port1;
         else if(param == "unknown_8ce")  params[num_params] = csr_msg_port2;
         else if(param == "unknown_8cf")  params[num_params] = csr_msg_port3;
+        // FIXME currently unsupported CSRs
+        else if(param == "ustatus"    ||
+                param == "uie"        ||
+                param == "utvec"      ||
+                param == "uscratch"   ||
+                param == "uepc"       ||
+                param == "ucause"     ||
+                param == "utval"      ||
+                param == "uip"        ||
+                param == "cycle"      ||
+                param == "time"       ||
+                param == "instret"    ||
+                param == "cycleh"     ||
+                param == "timeh"      ||
+                param == "insreth"    ||
+                param == "sedeleg"    ||
+                param == "sideleg"    ||
+                param == "sie"        ||
+                param == "scouteren"  ||
+                param == "sscratch"   ||
+                param == "sepc"       ||
+                param == "scause"     ||
+                param == "stval"      ||
+                param == "sip"        ||
+                param == "mvendorid"  ||
+                param == "marchid"    ||
+                param == "mimpid"     ||
+                param == "mcounteren" ||
+                param == "mscratch"   ||
+                param == "mtval"      ||
+                param == "mcycle"     ||
+                param == "minstret"   ||
+                param == "mcycleh"    ||
+                param == "minstreth"  ||
+                param == "tselect"    ||
+                param == "tdata1"     ||
+                param == "tdata2"     ||
+                param == "tdata3"     ||
+                param == "dcsr"       ||
+                param == "dpc"        ||
+                param == "dscratch"){
+                   has_error = true;
+                   str_error = "Unsupported register " + param;
+                }
         // Mask register
         else if(param[0] == 'm')
           {
