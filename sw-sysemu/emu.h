@@ -111,14 +111,14 @@ typedef enum
     csr_sstatus,
     // csr_sedeleg,
     // csr_sideleg,
-    // csr_sie,
+    csr_sie,
     csr_stvec,
     // csr_scounteren,
     csr_sscratch,
     csr_sepc,
     csr_scause,
     csr_stval,
-    // csr_sip,
+    csr_sip,
     csr_satp,
 
     // ----- S-mode ET registers ---------------------------------------------

@@ -696,14 +696,14 @@ void instruction::add_parameter(std::string param)
         else if(param == "sstatus")      params[num_params] = csr_sstatus;
         //else if(param == "sedeleg")      params[num_params] = csr_sedeleg;
         //else if(param == "sideleg")      params[num_params] = csr_sideleg;
-        //else if(param == "sie")          params[num_params] = csr_sie;
+        else if(param == "sie")          params[num_params] = csr_sie;
         else if(param == "stvec")        params[num_params] = csr_stvec;
         //else if(param == "scounteren")   params[num_params] = csr_scounteren;
         else if(param == "sscratch")     params[num_params] = csr_sscratch;
         else if(param == "sepc")         params[num_params] = csr_sepc;
         else if(param == "scause")       params[num_params] = csr_scause;
         else if(param == "stval")        params[num_params] = csr_stval;
-        //else if(param == "sip")          params[num_params] = csr_sip;
+        else if(param == "sip")          params[num_params] = csr_sip;
         else if(param == "satp")         params[num_params] = csr_satp;
         else if(param == "mvendorid")    params[num_params] = csr_mvendorid;
         else if(param == "marchid")      params[num_params] = csr_marchid;
@@ -759,9 +759,7 @@ void instruction::add_parameter(std::string param)
                 param == "insreth"    ||
                 param == "sedeleg"    ||
                 param == "sideleg"    ||
-                param == "sie"        ||
                 param == "scouteren"  ||
-                param == "sip"        ||
                 param == "mcounteren" ||
                 param == "mcycle"     ||
                 param == "minstret"   ||
