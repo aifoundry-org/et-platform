@@ -272,6 +272,12 @@ uint64 csrget(csr src1)
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
             val = csrregs[current_thread>>1][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
             break;
+        case csr_sie:
+            val = csrregs[current_thread>>1][csr_mie] & csrregs[current_thread>>1][csr_mideleg];
+            break;
+        case csr_sip:
+            val = csrregs[current_thread>>1][csr_mip] & csrregs[current_thread>>1][csr_mideleg];
+            break;
         // ----- All other registers -------------------------------------
         default:
             val = csrregs[current_thread>>1][src1];
@@ -283,9 +289,12 @@ uint64 csrget(csr src1)
 
 static void csrset(csr src1, uint64 val)
 {
+    uint64 msk;
+
     switch (src1) {
         case csr_prv:
-            csrregs[current_thread>>1][src1] = val & 0x3;
+            val &= 0x0000000000000003ULL;
+            csrregs[current_thread>>1][src1] = val;
             break;
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
@@ -297,7 +306,8 @@ static void csrset(csr src1, uint64 val)
             csrregs[current_thread>>1][csr_fcsr] = val;
             break;
         case csr_fcsr:
-            csrregs[current_thread>>1][src1] = val & 0xFF;
+            val &= 0x00000000000000FFULL;
+            csrregs[current_thread>>1][src1] = val;
             break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
@@ -310,15 +320,24 @@ static void csrset(csr src1, uint64 val)
             }
             csrregs[current_thread>>1][csr_mstatus] = val;
             break;
-#if 0 // TODO: sie and sip
         case csr_sie:
+            // Preserve meie, mtie, msie
+            // if mideleg[sei,sti,ssi]==1 then seie, stie, ssie is writeable, otherwise they are reserved
+            msk = csrregs[current_thread>>1][csr_mideleg];
+            val = (csrregs[current_thread>>1][csr_mie] & (~msk) & 0x0000000000000888ULL) | (val & msk & 0x0000000000000222ULL);
+            csrregs[current_thread>>1][csr_mie] = val;
             break;
-        case csr_sip:
-            break;
-#endif
         case csr_sepc:
             // sepc[0] = 0 always
-            csrregs[current_thread>>1][src1] = val & 0xFFFFFFFFFFFFFFFEULL;
+            val &= 0xFFFFFFFFFFFFFFFEULL;
+            csrregs[current_thread>>1][src1] = val;
+            break;
+        case csr_sip:
+            // Preserve meip, seip, mtip, stip, msip
+            // if mideleg[ssi]==1 then ssip is writeable, otherwise it is reserved
+            msk = csrregs[current_thread>>1][csr_mideleg];
+            val = (csrregs[current_thread>>1][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
+            csrregs[current_thread>>1][csr_mip] = val;
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
@@ -331,6 +350,9 @@ static void csrset(csr src1, uint64 val)
             }
             csrregs[current_thread>>1][src1] = val;
             break;
+        case csr_misa:
+            // misa is a 0-length register, cannot be modified
+            break;
         case csr_medeleg:
             // Not all exceptions can be delegated
             val &= 0x0000000000000B109ULL;
@@ -341,15 +363,21 @@ static void csrset(csr src1, uint64 val)
             val &= 0x0000000000000222ULL;
             csrregs[current_thread>>1][src1] = val;
             break;
-#if 0 // TODO: mie and mip
         case csr_mie:
+            // Hard-wire ueie, utie, usie
+            val &= 0x0000000000000AAAULL;
+            csrregs[current_thread>>1][src1] = val;
             break;
-        case csr_mip:
-            break;
-#endif
         case csr_mepc:
             // mepc[0] = 0 always
-            csrregs[current_thread>>1][src1] = val & 0xFFFFFFFFFFFFFFFEULL;
+            val &= 0xFFFFFFFFFFFFFFFEULL;
+            csrregs[current_thread>>1][src1] = val;
+            break;
+        case csr_mip:
+            // Hard-wire ueip, utip, usip
+            // Write only seip, stip, ssip
+            val &= 0x0000000000000222ULL;
+            csrregs[current_thread>>1][src1] = val;
             break;
 #if 0 // FIXME: raise invalid instruction? -- must change csr_insn() for this
         case csr_mvendorid:
@@ -359,9 +387,6 @@ static void csrset(csr src1, uint64 val)
             // read-only registers
             break;
 #endif
-        case csr_misa:
-            // misa is a 0-length register, cannot be modified
-            break;
         // ----- All other registers -------------------------------------
         default:
             csrregs[current_thread>>1][src1] = val;
