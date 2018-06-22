@@ -1,7 +1,7 @@
-#include <emu.h>
+#ifndef _TBOX_EMU_H
+#define _TBOX_EMU_H
 
-#ifndef TBOXEMUH
-#define TBOXEMUH
+#include "emu.h"
 
 class TBOXEmu
 {
@@ -652,4 +652,4 @@ private :
     bool filterSupported(ImageFormat format);
 };
 
-#endif // TBOXEMUH
+#endif // _TBOX_EMU_H

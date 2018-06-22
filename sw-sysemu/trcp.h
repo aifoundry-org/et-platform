@@ -1,5 +1,6 @@
 #ifndef _TRCP_H
 #define _TRCP_H
+
 unsigned long long trcp[128][3] = {
 	1013, 2, 33554430,
 	989, 1014, 33034208,
@@ -130,4 +131,5 @@ unsigned long long trcp[128][3] = {
 	130, 48893, 264208,
 	129, 49023, 131587
 };
-#endif
+
+#endif // _TRCP_H

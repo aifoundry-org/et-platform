@@ -1,13 +1,14 @@
-#include <emu.h>
 #include <math.h>
-#include "./trcp.h"
-#include "./trsqrt.h"
-#include "./tlog.h"
-#include "./texp.h"
-#include "./tsin.h"
-
 #include <stdio.h>
 #include <stdint.h>
+
+#include "emu.h"
+#include "trcp.h"
+#include "trsqrt.h"
+#include "tlog.h"
+#include "texp.h"
+#include "tsin.h"
+
 // FRCP   (input bit [31:0] x);      // ROM: ready!
 // FRSQ   (input bit [31:0] x);      // ROM: ready!
 // FSIN   (input bit [31:0] x);      // ROM: ready!

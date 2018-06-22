@@ -1,7 +1,7 @@
 #ifndef _IPC_H
 #define _IPC_H
 
-#include <emu.h>
+#include "emu.h"
 
 void ipc_init(const char *type, int debug);
 void ipc_init_xreg(xreg dst);
@@ -22,4 +22,5 @@ void ipc_msk(opcode opc, mreg dst, mreg src1, mreg src2,char *dis);
 void ipc_texsnd(xreg src1, xreg src2, freg fsrc, char *dis);
 void ipc_texrcv(freg dst, char *dis);
 void ipc_print_stats(const char *type);
-#endif
+
+#endif // _IPC_H

@@ -1,9 +1,10 @@
+#ifndef _RBOX_H
+#define _RBOX_H
+
 #include <cstddef>
 #include <cstdio>
-#include <emu.h>
 
-#ifndef RBOXH
-#define RBOXH
+#include "emu.h"
 
 typedef enum 
 {
@@ -527,6 +528,4 @@ float32 convert_depth_to_fp32(uint32 depth);
 void generate_frag_shader_state_packet();
 void tile_position_to_pixels(uint32 &tile_x, uint32 &tile_y, RBOXTileSize tile_size);
 
-
-#endif // RBOXH
-
+#endif // _RBOX_H

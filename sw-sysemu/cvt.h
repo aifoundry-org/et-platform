@@ -1,5 +1,6 @@
 #ifndef _CVT_H
 #define _CVT_H
+
 float32 float16tofloat32(uint32 val);
 float32 float11tofloat32(uint32 val);
 float32 float10tofloat32(uint32 val);
@@ -24,4 +25,5 @@ uint32 float32tounorm2(float32 val);
 uint32 float32tosnorm24(float32 val);
 uint32 float32tosnorm16(float32 val);
 uint32 float32tosnorm8(float32 val);
+
 #endif

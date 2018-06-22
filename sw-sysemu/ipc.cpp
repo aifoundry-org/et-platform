@@ -1,7 +1,8 @@
-#include <ipc.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+
+#include "ipc.h"
 
 extern void gprintf(const char* format, ...);
 extern void gsprintf(char* str, const char* format, ...);
