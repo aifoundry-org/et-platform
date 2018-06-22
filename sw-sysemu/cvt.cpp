@@ -1,6 +1,6 @@
-#include <emu.h>
-#include <cvt.h>
 #include <math.h>
+#include "emu.h"
+#include "cvt.h"
 
 // safe right shifts ( shifting by more than 32 bits returns 0)
 template<typename T> T rshift(T v, int s) {

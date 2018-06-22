@@ -1,6 +1,5 @@
-
-#ifndef EMULH
-#define EMULH
+#ifndef _EMUL_H
+#define _EMUL_H
 
 #include <list>
 
@@ -909,4 +908,4 @@ void print_regs();
 void print_comment(const char *comm);
 bool bset (mreg src1, const char *comm);
 
-#endif
+#endif // _EMUL_H

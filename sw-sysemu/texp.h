@@ -1,5 +1,6 @@
 #ifndef _TEXP_H
 #define _TEXP_H
+
 unsigned long long texp[64][3] = {
 	989, 90851, 2,
 	1000, 91841, 730766,
@@ -66,4 +67,5 @@ unsigned long long texp[64][3] = {
 	1936, 177809, 64232856,
 	1958, 179745, 65663072
 };
-#endif
+
+#endif // _TEXP_H

@@ -1,9 +1,8 @@
-#include <emu.h>
-#include <tbox_emu.h>
+#ifndef _TXS_H
+#define _TXS_H
 
-#ifndef TXSH
-#define TXSH
-
+#include "emu.h"
+#include "tbox_emu.h"
 
 //#define TEXTURE_CACHE
 
@@ -18,4 +17,4 @@ extern "C" void checker_sample_quad(uint32 thread, uint64 basePtr, TBOXEmu::Samp
 
 extern "C" void decompress_texture_cache_line_data(TBOXEmu::ImageInfo currentImage, uint32 startTexel, uint64 inData[], uint64 outData[]);
 
-#endif // TXSH
+#endif // _TXS_H

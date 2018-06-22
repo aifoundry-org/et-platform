@@ -1,1 +1,1 @@
-g++ -g -I$SGPU/emu ../cvt.c test1.cpp
+g++ -g -I$SGPU/emu ../cvt.cpp test1.cpp

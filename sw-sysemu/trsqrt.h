@@ -1,5 +1,6 @@
 #ifndef _TRSQRT_H
 #define _TRSQRT_H
+
 unsigned long long trsqrt[256][3] = {
 	269, 9598, 27797404,
 	264, 9867, 27428829,
@@ -258,4 +259,5 @@ unsigned long long trsqrt[256][3] = {
 	69, 21046, 14085157,
 	68, 21115, 13991654
 };
-#endif
+
+#endif // _TRSQRT_H

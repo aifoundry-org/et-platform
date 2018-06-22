@@ -1,5 +1,5 @@
-#ifndef LOGH
-#define LOGH
+#ifndef _LOG_H
+#define _LOG_H
 
 #include "emu.h"
 
@@ -35,5 +35,4 @@ void logmemwchange(int pos, int size, uint64 addr, uint64 val);
 extern "C" void setlogstate(inst_state_change * log_info_);
 extern "C" void clearlogstate();
 
-#endif
-
+#endif // _LOG_H

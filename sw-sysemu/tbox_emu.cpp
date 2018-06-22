@@ -1,13 +1,13 @@
-#include <tbox_emu.h>
-
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
+#include "tbox_emu.h"
+
 // Placeholder for declarations and code that is not common
 // between EMU and Minion-Sim
-#include <tbox_emu_local.c>
+#include "tbox_emu_local.cpp"
 
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #define max(a, b) (((a) >= (b)) ? (a) : (b))

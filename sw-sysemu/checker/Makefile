@@ -17,14 +17,14 @@ CHECKER_SOURCES= checker.cpp \
                  main_memory_region_tbox.cpp \
                  main_memory_region_rbox.cpp
 
-EMU_SOURCES= ../emu.c \
-             ../log.c \
-             ../cvt.c \
-             ../txs.c \
-             ../ttrans.c \
-             ../tbox_emu.c \
-             ../ipc.c \
-             gio.cpp \
+EMU_SOURCES= ../emu.cpp \
+             ../log.cpp \
+             ../cvt.cpp \
+             ../txs.cpp \
+             ../ttrans.cpp \
+             ../tbox_emu.cpp \
+             ../ipc.cpp \
+             ../gio.cpp \
              $(TESTROOT)/libs/testLog.cc
 
 # setting include paths
