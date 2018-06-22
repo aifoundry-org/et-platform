@@ -424,14 +424,14 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
 
     // Checks if it is a tensor/reduce operation
     if (opcode == "csrw") {
-        is_reduce      = (params[0] == csr_reduce);
+        is_reduce      = (params[0] == csr_treduce);
         is_tensor_load = (params[0] == csr_tloadctrl);
         is_tensor_fma  = (params[0] == csr_tfmastart);
         is_flb         = (params[0] == csr_flbarrier);
     }
     else if(boost::regex_match(opcode, boost::regex("csr.*")))
     {
-        is_reduce      = (params[1] == csr_reduce);
+        is_reduce      = (params[1] == csr_treduce);
         is_tensor_load = (params[1] == csr_tloadctrl);
         is_tensor_fma  = (params[1] == csr_tfmastart);
         is_flb         = (params[1] == csr_flbarrier);
@@ -693,48 +693,56 @@ void instruction::add_parameter(std::string param)
         else if(param == "t5")   params[num_params] = 30;
         else if(param == "t6")   params[num_params] = 31;
         // CSRs
-        else if(param == "mhartid")      params[num_params] = csr_mhartid;
+        else if(param == "sstatus")      params[num_params] = csr_sstatus;
+        //else if(param == "sedeleg")      params[num_params] = csr_sedeleg;
+        //else if(param == "sideleg")      params[num_params] = csr_sideleg;
+        //else if(param == "sie")          params[num_params] = csr_sie;
+        else if(param == "stvec")        params[num_params] = csr_stvec;
+        //else if(param == "scounteren")   params[num_params] = csr_scounteren;
+        else if(param == "sscratch")     params[num_params] = csr_sscratch;
+        else if(param == "sepc")         params[num_params] = csr_sepc;
+        else if(param == "scause")       params[num_params] = csr_scause;
+        else if(param == "stval")        params[num_params] = csr_stval;
+        //else if(param == "sip")          params[num_params] = csr_sip;
+        else if(param == "satp")         params[num_params] = csr_satp;
         else if(param == "mvendorid")    params[num_params] = csr_mvendorid;
         else if(param == "marchid")      params[num_params] = csr_marchid;
         else if(param == "mimpid")       params[num_params] = csr_mimpid;
-        else if(param == "mip")          params[num_params] = csr_mip;
+        else if(param == "mhartid")      params[num_params] = csr_mhartid;
+        else if(param == "mstatus")      params[num_params] = csr_mstatus;
         else if(param == "misa")         params[num_params] = csr_misa;
         else if(param == "medeleg")      params[num_params] = csr_medeleg;
         else if(param == "mideleg")      params[num_params] = csr_mideleg;
         else if(param == "mie")          params[num_params] = csr_mie;
         else if(param == "mtvec")        params[num_params] = csr_mtvec;
-        else if(param == "mstatus")      params[num_params] = csr_mstatus;
+        //else if(param == "mcounteren")   params[num_params] = csr_mcounteren;
+        else if(param == "mscratch")     params[num_params] = csr_mscratch;
         else if(param == "mepc")         params[num_params] = csr_mepc;
         else if(param == "mcause")       params[num_params] = csr_mcause;
-        else if(param == "mscratch")     params[num_params] = csr_mscratch;
-        else if(param == "mt1rvect")     params[num_params] = csr_mt1rvect;
-        else if(param == "mt1en")        params[num_params] = csr_mt1en;
-        else if(param == "satp")         params[num_params] = csr_satp;
-        else if(param == "stvec")        params[num_params] = csr_stvec;
-        else if(param == "sstatus")      params[num_params] = csr_sstatus;
-        else if(param == "sepc")         params[num_params] = csr_sepc;
-        else if(param == "scause")       params[num_params] = csr_scause;
-        else if(param == "sscratch")     params[num_params] = csr_sscratch;
-        else if(param == "unknown_51f")  params[num_params] = csr_cacheop;
-        else if(param == "unknown_800")  params[num_params] = csr_reduce;
+        else if(param == "mtval")        params[num_params] = csr_mtval;
+        else if(param == "mip")          params[num_params] = csr_mip;
+        else if(param == "unknown_800")  params[num_params] = csr_treduce;
         else if(param == "unknown_801")  params[num_params] = csr_tfmastart;
         else if(param == "unknown_802")  params[num_params] = csr_tconvsize;
         else if(param == "unknown_803")  params[num_params] = csr_tconvctrl;
-        else if(param == "unknown_81f")  params[num_params] = csr_cacheop;
+        else if(param == "unknown_81f")  params[num_params] = csr_ucacheop;
         else if(param == "unknown_820")  params[num_params] = csr_flbarrier;
         else if(param == "unknown_83f")  params[num_params] = csr_tloadctrl;
         else if(param == "unknown_87f")  params[num_params] = csr_tstore;
-        else if(param == "unknown_7cb")  params[num_params] = csr_icache_ctrl;
-        else if(param == "unknown_7cc")  params[num_params] = write_ctrl;
+        else if(param == "unknown_8cc")  params[num_params] = csr_umsg_port0;
+        else if(param == "unknown_8cd")  params[num_params] = csr_umsg_port1;
+        else if(param == "unknown_8ce")  params[num_params] = csr_umsg_port2;
+        else if(param == "unknown_8cf")  params[num_params] = csr_umsg_port3;
+        else if(param == "unknown_51f")  params[num_params] = csr_scacheop;
         else if(param == "unknown_9cc")  params[num_params] = csr_smsg_port0;
         else if(param == "unknown_9cd")  params[num_params] = csr_smsg_port1;
         else if(param == "unknown_9ce")  params[num_params] = csr_smsg_port2;
         else if(param == "unknown_9cf")  params[num_params] = csr_smsg_port3;
-        else if(param == "unknown_8cc")  params[num_params] = csr_msg_port0;
-        else if(param == "unknown_8cd")  params[num_params] = csr_msg_port1;
-        else if(param == "unknown_8ce")  params[num_params] = csr_msg_port2;
-        else if(param == "unknown_8cf")  params[num_params] = csr_msg_port3;
-        // FIXME currently unsupported CSRs
+        else if(param == "unknown_7c0" || param == "mt1rvect")  params[num_params] = csr_mt1rvect;
+        else if(param == "unknown_7c1" || param == "mt1en")     params[num_params] = csr_mt1en;
+        else if(param == "unknown_7cb")  params[num_params] = csr_icache_ctrl;
+        else if(param == "unknown_7cc")  params[num_params] = csr_write_ctrl;
+        // TODO: currently unsupported CSRs
         else if(param == "ustatus"    ||
                 param == "uie"        ||
                 param == "utvec"      ||
@@ -753,10 +761,8 @@ void instruction::add_parameter(std::string param)
                 param == "sideleg"    ||
                 param == "sie"        ||
                 param == "scouteren"  ||
-                param == "stval"      ||
                 param == "sip"        ||
                 param == "mcounteren" ||
-                param == "mtval"      ||
                 param == "mcycle"     ||
                 param == "minstret"   ||
                 param == "mcycleh"    ||

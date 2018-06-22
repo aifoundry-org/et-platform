@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "log.h"
 
@@ -50,6 +51,8 @@ void setlogstate(inst_state_change * log_info_)
 // Jump
 void logpcchange(uint64 new_pc)
 {
+    // As we support the C extension the PC must be aligned to 2B
+    assert((new_pc & 1ULL) == 0ULL);
     log_info->pc_mod = true;
     log_info->pc = new_pc;
 }
