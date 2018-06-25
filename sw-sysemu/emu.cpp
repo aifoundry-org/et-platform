@@ -4383,7 +4383,22 @@ void femu2src(const char *opname, opcode opc, int count, int size, freg dst, fre
                     // Result value is 17.14
                     float64 tmp_rcp = (1.0f / tmp) * float64(1 << 14);
 
-                    res.i = int32(tmp_rcp);
+                    iufval res_gold;
+                    res_gold.i = int32(tmp_rcp);
+
+                    float64 yn = float64(val2.i)/float64(1 << 14);
+                    double a = yn * tmp;
+                    uint32_t partial = (uint32_t)(a * (((uint64_t)1) << 31));
+                    //printf("Partial: 0x%08x\n", partial);
+                    float64 unpartial = float64(partial)/float64(((uint64_t)1) << 31);
+                    float64 result = yn*(2.0-unpartial);
+                    res.i = (int32_t)(result*(1 << 14));
+
+                    //printf("FRCPFXP NR EXPECTED: 0x%08x RESULT: 0x%08x\n", res_gold.u, res.u); 
+
+                    //Check 1ulp
+                    assert((abs(res.i - res_gold.i) <=1) && "Trans mismatch error. Please open jira to jordi.sola@esperantotech.com.");
+
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%f), 0x%08x (%d)\n",i,res.u,res.i,val1.u,tmp,val2.u,val2.i););
                 }
                 break;
@@ -4763,7 +4778,6 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
                 {
                     res.i = (int32_t)(val.f*(1 << 14) + 0.5);
                     // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%f)\n",i,res.u,res.i,val.u,val.f););
                 }
                 break;
