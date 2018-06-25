@@ -494,6 +494,7 @@ typedef enum
         FLTUPI,
         FLEPI,
         FEQPI,
+        FRCP_FIX_RAST,
         //FADDPQ,
         FADDIPI, // Packed Integer with Immediate
         FANDIPI,
@@ -728,6 +729,7 @@ extern "C" void fle_ps    (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void feq_ps    (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void feqm_ps   (mreg dst, freg src1, freg src2, const char *comm);
 extern "C" void fltm_ps   (mreg dst, freg src1, freg src2, const char *comm);
+extern "C" void frcp_fix_rast(freg dst, freg src1, freg src2, const char *comm);
 extern "C" void flem_ps   (mreg dst, freg src1, freg src2, const char *comm);
 extern "C" void fsetm_ps  (mreg dst, freg src1,            const char *comm);
 extern "C" void fclass_s  (freg dst, freg src1,            const char *comm);
