@@ -4374,6 +4374,19 @@ void femu2src(const char *opname, opcode opc, int count, int size, freg dst, fre
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f), 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
                 }
                 break;
+            case FRCP_FIX_RAST:
+                if (genResult)
+                {
+                    // Input value is 2xtriArea with 15.16 precision
+                    float64 tmp = float64(val1.i) / float64(1 << 16);
+
+                    // Result value is 17.14
+                    float64 tmp_rcp = (1.0f / tmp) * float64(1 << 14);
+
+                    res.i = int32(tmp_rcp);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%f), 0x%08x (%d)\n",i,res.u,res.i,val1.u,tmp,val2.u,val2.i););
+                }
+                break;
         }
         if ( size == 4 )
             FREGS[dst].f[i] = res.f;
@@ -4739,7 +4752,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
             case FCVTPSRAST:
                 if( genResult)
                 {
-                    res.f = ((float)val.i) / (1 << 15);
+                    res.f = ((float)val.i) / (1 << 16);
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
@@ -4748,10 +4761,10 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
             case FCVTRASTPS:
                 if( genResult)
                 {
-                    res.i = (int32_t)(val.f*(1 << 14));
+                    res.i = (int32_t)(val.f*(1 << 14) + 0.5);
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%f)\n",i,res.u,res.i,val.u,val.f););
                 }
                 break;
             case FCVTPSPWU:
@@ -6049,6 +6062,7 @@ void feq_ps         (freg dst, freg src1, freg src2, const char *comm)          
 //void fltabs_ps      (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fltabs_ps",      FLTABS,    4, 4, dst, src1, src2, comm); }
 void fmin_ph      (freg dst, freg src1, freg src2, const char *comm)             { femu2src("fmin_ph",     FMIN,      8, 2, dst, src1, src2, comm); }
 void fmax_ph      (freg dst, freg src1, freg src2, const char *comm)             { femu2src("fmax_ph",     FMAX,      8, 2, dst, src1, src2, comm); }
+void frcp_fix_rast(freg dst, freg src1, freg src2, const char *comm)             { femu2src("frcp_fix_rast",  FRCP_FIX_RAST, 4, 4, dst, src1, src2, comm); }
 void fadd_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fadd_pi",     FADDPI,    4, dst, src1, src2, comm); }
 void fsub_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsub_pi",     FSUBPI,    4, dst, src1, src2, comm); }
 void fmul_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fmul_pi",     FMULPI,    4, dst, src1, src2, comm); }
