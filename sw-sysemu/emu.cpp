@@ -44,6 +44,7 @@ extern void gsprintf(char* str, const char* format, ...);
 xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
 mdata mregs[EMU_NUM_THREADS][8];
+uint64 csrregs[EMU_NUM_THREADS][CSR_MAX];
 fdata scp[EMU_NUM_THREADS][64][4];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
@@ -55,7 +56,6 @@ bool tensorfma_conv_skip[16][8];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32 reduce_data[EMU_NUM_THREADS][32][4];
-uint64 csrregs[EMU_NUM_MINIONS][CSR_MAX];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 int32 msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
 uint64 current_pc;
@@ -263,25 +263,37 @@ uint64 csrget(csr src1)
     switch (src1) {
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
-            val = csrregs[current_thread>>1][csr_fcsr] & 0x1F;
+            val = csrregs[current_thread][csr_fcsr] & 0x1F;
             break;
         case csr_frm:
-            val = (csrregs[current_thread>>1][csr_fcsr] >> 5) & 0x7;
+            val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = csrregs[current_thread>>1][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
+            val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
             break;
         case csr_sie:
-            val = csrregs[current_thread>>1][csr_mie] & csrregs[current_thread>>1][csr_mideleg];
+            val = csrregs[current_thread][csr_mie] & csrregs[current_thread][csr_mideleg];
             break;
         case csr_sip:
-            val = csrregs[current_thread>>1][csr_mip] & csrregs[current_thread>>1][csr_mideleg];
+            val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
+            break;
+        // ----- Shared registers ----------------------------------------
+        case csr_treduce:
+        case csr_tfmastart:
+        case csr_flbarrier:
+        case csr_ucacheop:
+        case csr_tloadctrl:
+        case csr_tstore:
+        case csr_scacheop:
+        case csr_mt1en:
+        case csr_mt1rvect:
+            val = csrregs[current_thread>>1][src1];
             break;
         // ----- All other registers -------------------------------------
         default:
-            val = csrregs[current_thread>>1][src1];
+            val = csrregs[current_thread][src1];
             break;
     }
     //DEBUG_EMU(gprintf("csrget 0x%016llx <- csrreg[%d]\n",val,src1);)
@@ -295,61 +307,61 @@ static void csrset(csr src1, uint64 val)
     switch (src1) {
         case csr_prv:
             val &= 0x0000000000000003ULL;
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
-            val = (csrregs[current_thread>>1][csr_fcsr] & 0xE0) | (val & 0x1F);
-            csrregs[current_thread>>1][csr_fcsr] = val;
+            val = (csrregs[current_thread][csr_fcsr] & 0xE0) | (val & 0x1F);
+            csrregs[current_thread][csr_fcsr] = val;
             break;
         case csr_frm:
-            val = (csrregs[current_thread>>1][csr_fcsr] & 0x1F) | ((val & 0x7) << 5);
-            csrregs[current_thread>>1][csr_fcsr] = val;
+            val = (csrregs[current_thread][csr_fcsr] & 0x1F) | ((val & 0x7) << 5);
+            csrregs[current_thread][csr_fcsr] = val;
             break;
         case csr_fcsr:
             val &= 0x00000000000000FFULL;
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = (val & 0x00000000000DE133ULL) | (csrregs[current_thread>>1][csr_mstatus] & 0x8000000F00721800ULL);
+            val = (val & 0x00000000000DE133ULL) | (csrregs[current_thread][csr_mstatus] & 0x8000000F00721800ULL);
             // Set sd if fs==3 or xs==3
             if (((val >> 13) & 0x3 == 0x3) || ((val >> 15) & 0x3 == 0x3))
             {
                 val |= 0x8000000000000000ULL;
             }
-            csrregs[current_thread>>1][csr_mstatus] = val;
+            csrregs[current_thread][csr_mstatus] = val;
             break;
         case csr_sie:
             // Preserve meie, mtie, msie
             // if mideleg[sei,sti,ssi]==1 then seie, stie, ssie is writeable, otherwise they are reserved
-            msk = csrregs[current_thread>>1][csr_mideleg];
-            val = (csrregs[current_thread>>1][csr_mie] & (~msk) & 0x0000000000000888ULL) | (val & msk & 0x0000000000000222ULL);
-            csrregs[current_thread>>1][csr_mie] = val;
+            msk = csrregs[current_thread][csr_mideleg];
+            val = (csrregs[current_thread][csr_mie] & (~msk) & 0x0000000000000888ULL) | (val & msk & 0x0000000000000222ULL);
+            csrregs[current_thread][csr_mie] = val;
             break;
         case csr_sepc:
             // sepc[0] = 0 always
             val &= 0xFFFFFFFFFFFFFFFEULL;
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
         case csr_sip:
             // Preserve meip, seip, mtip, stip, msip
             // if mideleg[ssi]==1 then ssip is writeable, otherwise it is reserved
-            msk = csrregs[current_thread>>1][csr_mideleg];
-            val = (csrregs[current_thread>>1][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
-            csrregs[current_thread>>1][csr_mip] = val;
+            msk = csrregs[current_thread][csr_mideleg];
+            val = (csrregs[current_thread][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
+            csrregs[current_thread][csr_mip] = val;
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
             // Preserve sd, sxl, uxl
-            val = (val & 0x00000000007FF8BBULL) | (csrregs[current_thread>>1][src1] & 0x8000000F00000000ULL);
+            val = (val & 0x00000000007FF8BBULL) | (csrregs[current_thread][src1] & 0x8000000F00000000ULL);
             // Set sd if fs==3 or xs==3
             if (((val >> 13) & 0x3 == 0x3) || ((val >> 15) & 0x3 == 0x3))
             {
                 val |= 0x8000000000000000ULL;
             }
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
         case csr_misa:
             // misa is a 0-length register, cannot be modified
@@ -357,28 +369,28 @@ static void csrset(csr src1, uint64 val)
         case csr_medeleg:
             // Not all exceptions can be delegated
             val &= 0x0000000000000B109ULL;
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
         case csr_mideleg:
             // Not all interrupts can be delegated
             val &= 0x0000000000000222ULL;
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
         case csr_mie:
             // Hard-wire ueie, utie, usie
             val &= 0x0000000000000AAAULL;
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
         case csr_mepc:
             // mepc[0] = 0 always
             val &= 0xFFFFFFFFFFFFFFFEULL;
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
         case csr_mip:
             // Hard-wire ueip, utip, usip
             // Write only seip, stip, ssip
             val &= 0x0000000000000222ULL;
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
 #if 0 // FIXME: raise invalid instruction? -- must change csr_insn() for this
         case csr_mvendorid:
@@ -388,9 +400,21 @@ static void csrset(csr src1, uint64 val)
             // read-only registers
             break;
 #endif
+        // ----- Shared registers ----------------------------------------
+        case csr_treduce:
+        case csr_tfmastart:
+        case csr_flbarrier:
+        case csr_ucacheop:
+        case csr_tloadctrl:
+        case csr_tstore:
+        case csr_scacheop:
+        case csr_mt1en:
+        case csr_mt1rvect:
+            csrregs[current_thread>>1][src1] = val;
+            break;
         // ----- All other registers -------------------------------------
         default:
-            csrregs[current_thread>>1][src1] = val;
+            csrregs[current_thread][src1] = val;
             break;
     }
     //DEBUG_EMU(gprintf("csrset csrreg[%d] <- 0x%016llx\n",src1,val);)
@@ -425,56 +449,31 @@ static float roundf ( float val, rounding_mode rm) {
     return roundf(val, (rounding_mode) csrget(csr_frm) );
 }
 
-//mxr = 0
-//pum = 0
-//mprv = 0
-//xs = 2'b00
-//fs = 2'b??
-//mpp = 2'b??
-//hpp = 2'b0
-//spp = 0
-//mpie = 1'b?
-//hpie = 0
-//spie = 0
-//upie = 0
-//mie = 0
-//hie = 0
-//sie = 0
-//uie = 0
 void initcsr(uint32 thread)
 {
-    // the 2 threads of a minion currently share the CSR, so only init for thread 0
-    if (thread & 0x1 == 1) return;
-    uint32 id = thread >> 1;
-    // read-only registers
-    csrregs[id][csr_mvendorid] = 0xdeadbeef;
-    csrregs[id][csr_marchid] = 0xdeadbeef;
-    csrregs[id][csr_mimpid] = 0xdeadbeef;
-#ifdef CHECKER
-    csrregs[id][csr_mhartid] = thread;
-#else
-    csrregs[id][csr_mhartid] = id;
-#endif
-    // misa is a 0-length register
-    csrregs[id][csr_misa] = 0x800000000014112dULL;
     // Exit reset at M-mode
-    csrregs[id][csr_prv] = CSR_PRV_M;
+    csrregs[thread][csr_prv] = CSR_PRV_M;
+    // Read-only registers
+    csrregs[thread][csr_mvendorid] = 0xdeadbeef;
+    csrregs[thread][csr_marchid] = 0xdeadbeef;
+    csrregs[thread][csr_mimpid] = 0xdeadbeef;
+    csrregs[thread][csr_mhartid] = thread;
+    // misa is a 0-length register
+    csrregs[thread][csr_misa] = 0x800000000014112dULL;
     // M-mode registers with reset
-    csrregs[id][csr_mstatus] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
-    //--csrregs[id][csr_mie] = 0x0ULL;
-    csrregs[id][csr_mcause] = 0x0ULL;
-    csrregs[id][csr_mip] = 0x0ULL; // TODO: this is true on hard reset
-    // S-mode registers with reset
-    //--csrregs[id][csr_stvec] = 0x0ULL;
-    //--csrregs[id][csr_satp] = 0x0ULL;
-    // U-mode registers with reset
-    //--csrregs[id][csr_fcsr] = 0x00000000000000E0ULL;
-    // TODO: csrregs[id][csr_utvec] = 0x0ULL;
+    csrregs[thread][csr_mstatus] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
+    csrregs[thread][csr_mcause] = 0x0ULL;
+    csrregs[thread][csr_mip] = 0x0ULL;
     // Debug-mode registers with reset
-    // TODO: csrregs[id][csr_dcsr] <= xdebugver=1, prv=3;
+    // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
+
     // Ports
-    bzero(msg_ports, sizeof(msg_ports));
-    memset(msg_ports_pending_offset, 0xFF, sizeof(msg_ports_pending_offset));
+    if (thread == 0) {
+        assert(sizeof(msg_ports) >= EMU_NUM_THREADS*NR_MSG_PORTS*sizeof(msg_port_conf));
+        assert(sizeof(msg_ports_pending_offset) >= EMU_NUM_THREADS*NR_MSG_PORTS*sizeof(int32));
+        bzero(msg_ports, sizeof(msg_ports));
+        memset(msg_ports_pending_offset, 0xFF, sizeof(msg_ports_pending_offset));
+    }
 }
 
 void minit(mreg dst, uint64 val)
