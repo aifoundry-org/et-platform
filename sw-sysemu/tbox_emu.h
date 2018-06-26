@@ -1,7 +1,7 @@
 #ifndef _TBOX_EMU_H
 #define _TBOX_EMU_H
 
-#include "emu.h"
+#include "emu_defines.h"
 
 class TBOXEmu
 {

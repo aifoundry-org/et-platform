@@ -1180,6 +1180,7 @@ void transtensorload()
     else if(trans = 0x05 || trans == 0x06 || trans==0x07){
     }
 }
+
 uint64 get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
     * last_entry = scp_entry[current_thread];
@@ -2498,16 +2499,6 @@ void xor_(xreg dst, xreg src1, xreg src2, const char *comm)
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
 }
 
-bool bset(mreg src1, const char *comm)
-{
-    bool taken = false;
-    for(int i = 0; i<8; i++)
-    {
-        taken = taken | (MREGS[src1].b[i] ? true : false);
-    }
-    return taken;
-}
-
 void maskpopc(xreg dst, mreg src1, const char *comm)
 {
     DEBUG_EMU(gprintf("I: maskpopc x%d <- m%d # %s\n",dst,src1, comm);)
@@ -3515,6 +3506,7 @@ void ebreak(const char *comm)
 // Floating Point Loads
 //
 ////////////////////////////////////////////////////////////
+
 void femuld(const char *opname, opcode opc, int count, int size, freg dst, int off, xreg base,  int use_mask, const char *comm)
 {
 
@@ -3570,12 +3562,12 @@ void femuld(const char *opname, opcode opc, int count, int size, freg dst, int o
     IPC(ipc_ld(opc,count,size,dst,base,(XREGS[base].x+off),dis););
 }
 
-
 ////////////////////////////////////////////////////////////
 //
 // Floating Point Broadcast
 //
 ////////////////////////////////////////////////////////////
+
 void fbc_ps(freg dst, int off, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: fbc_ps f%d, %d(x%d) # %s",dst,off,base,comm););
@@ -3714,29 +3706,12 @@ void fbcx_ps(freg dst, xreg src, const char *comm)
     IPC(ipc_ps(FBCI,4,dst,fnone,fnone,fnone,dis);)
 }
 
-//void fbcx_pq(freg dst, xreg src, const char *comm)
-//{
-//    DISASM(gsprintf(dis,"I: fbcx_pq f%d, x%d # %s",dst,src,comm););
-//    DEBUG_EMU(gprintf("%s\n",dis);)
-//    DEBUG_MASK(MREGS[0]);
-//
-//    for ( int i = 0; i < 2; i++ )
-//    {
-//        if ( MREGS[0].b[i*4] )
-//        {
-//            FREGS[dst].x[i] = XREGS[src].x;
-//            DEBUG_EMU(gprintf("\t[%d] 0x%016llx (%f) <- 0x%016llx\n",i,FREGS[dst].x[i],FREGS[dst].d[i],XREGS[src].x););
-//        }
-//    }
-//    logfregchange(dst);
-//    IPC(ipc_ps(FBCI,4,dst,fnone,fnone,fnone,dis);)
-//}
-
 ////////////////////////////////////////////////////////////
 //
 // Floating Point Gather
 //
 ////////////////////////////////////////////////////////////
+
 void gatheremu(const char *opname, opcode opc, int count, int size, freg dst, freg src1, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, (f%d, x%d) # %s",opname, dst,src1,base,comm););
@@ -3769,13 +3744,12 @@ void gatheremu(const char *opname, opcode opc, int count, int size, freg dst, fr
     logfregchange(dst);
 }
 
-
-
 ////////////////////////////////////////////////////////////
 //
 // Floating Point Store
 //
 ////////////////////////////////////////////////////////////
+
 void femust(const char *opname, opcode opc, int count, int size, freg src1, int off, xreg base, int use_mask, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, %d(x%d) # %s",opname,src1,off,base,comm););
@@ -3821,6 +3795,7 @@ void femust(const char *opname, opcode opc, int count, int size, freg src1, int 
 // Floating Point Scatter
 //
 ////////////////////////////////////////////////////////////
+
 void femuscat(const char *opname, opcode opc, freg src1, freg src2, xreg base, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d, x%d # %s",opname,src1,src2,base,comm););
@@ -3857,6 +3832,7 @@ void femuscat(const char *opname, opcode opc, freg src1, freg src2, xreg base, c
 // Gather in 32-byte aligned data block
 //
 ////////////////////////////////////////////////////////////
+
 void gatheremu32(const char *opname, opcode opc, int count, int size, freg dst, xreg src1, xreg src2, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, (x%d, x%d) # %s",opname,dst,src1,src2,comm););
@@ -3937,6 +3913,7 @@ void femuscat32(const char *opname, opcode opc, int count, int size, freg src3, 
 // Floating Point Compare emulation
 //
 ////////////////////////////////////////////////////////////
+
 void femucmp(const char *opname, opcode opc, int count, int size, xreg dst, freg src1, freg src2, const char *comm)
 {
     iufval val1, val2;
@@ -3978,6 +3955,7 @@ void femucmp(const char *opname, opcode opc, int count, int size, xreg dst, freg
 // Floating Point 3-source emulation (FMA family)
 //
 ////////////////////////////////////////////////////////////
+
 void femu3src(const char *opname, opcode opc, int count, int size, freg dst, freg src1, freg src2, freg src3, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d, f%d, f%d # %s",opname,dst,src1,src2,src3,comm);)
@@ -4179,6 +4157,7 @@ void fcmovm_ps(freg dst, freg src1, freg src2, const char *comm)
 // Floating Point 2-source emulation
 //
 ////////////////////////////////////////////////////////////
+
 void femu2src(const char *opname, opcode opc, int count, int size, freg dst, freg src1, freg src2, const char *comm)
 {
     iufval val1, val2;
@@ -4430,6 +4409,7 @@ void femu2src_d(const char *opname, opcode opc, int count, int size, freg dst, f
 // Floating Point 1-source emulation
 //
 ////////////////////////////////////////////////////////////
+
 void fround_ps(freg dst, freg src1, rounding_mode rm, const char *comm)
 {
     opcode opc = FROUND;
@@ -4454,7 +4434,6 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char *comm)
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,fnone,fnone,dis);)
 }
-
 
 void femu1srcRm(const char *opname, opcode opc, int count, freg dst, freg src1, rounding_mode rm, const char *comm) {
     iufval val;
@@ -5117,15 +5096,17 @@ void femu1src_d(const char *opname, opcode opc, int count, freg dst, freg src1, 
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,fnone,fnone,dis);)
 }
-//
+
 ////////////////////////////////////////////////////////////
 //
 // F-side swizzle
 //
 ////////////////////////////////////////////////////////////
-static char c2l[4] = { 'x', 'y', 'z', 'w' };
+
 char chanletter(uint8 imm)
 {
+    static char c2l[4] = { 'x', 'y', 'z', 'w' };
+
     if ( imm >= 4 )
     {
         gprintf("wrong value in chanletter %d\n",(uint32)imm);
@@ -5177,7 +5158,6 @@ void fswizz(const char *opname, opcode opc, freg dst, freg src1, uint8  imm, con
     IPC(ipc_ps(opc,4,dst,src1,fnone,fnone,dis);)
 }
 
-
 void packrep(const char *opname, opcode opc, freg dst, freg src1, const char *comm)
 {
     DISASM(gsprintf(dis, "I: %s f%d, f%d # %s",opname,dst,src1,comm););
@@ -5215,12 +5195,12 @@ void packrep(const char *opname, opcode opc, freg dst, freg src1, const char *co
     IPC(ipc_ps(opc,4,dst,src1,fnone,fnone,dis);)
 }
 
-
 ////////////////////////////////////////////////////////////
 //
 // F-side integer ops with 2-sources emulation
 //
 ////////////////////////////////////////////////////////////
+
 void iemu2src(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d, f%d # %s",opname,dst,src1,src2,comm);)
@@ -5358,7 +5338,6 @@ void iemu2src(const char *opname, opcode opc, int count, freg dst, freg src1, fr
     IPC(ipc_pi(opc,count,dst,src1,src2,fnone,dis);)
 }
 
-
 void iemu2srcimm(const char *opname, opcode opc, int count, freg dst, freg src1, uint32 imm, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d, 0x%08x # %s",opname,dst,src1,imm,comm);)
@@ -5408,42 +5387,12 @@ void iemu2srcimm(const char *opname, opcode opc, int count, freg dst, freg src1,
     IPC(ipc_pi(opc,count,dst,src1,fnone,fnone,dis);)
 }
 
-//void iemu3srcimm(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, uint32 imm, const char *comm)
-//{
-//        DISASM(sprintf(dis,"I: %s f%d, f%d, f%d, %x # %s",opname,dst,src1,src2,imm,comm);)
-//        DEBUG_EMU(printf("%s\n",dis);)
-//        DEBUG_MASK(MREGS[0]);
-//        for ( int i = 0; i < count; i++ )
-//        {
-//                // for packed single, check the corresponding mask bit. If not set, skip this lane
-//                bool genResult = !( count == 4 && MREGS[0].b[i*2] == 0 );
-//
-//                int32 val1 = FREGS[src1].i[i];
-//                int32 val2 = FREGS[src2].i[i];
-//                int32 val3 = imm & 0x0000001F; // clean 5 bit immediate
-//
-//                int32 res = FREGS[dst].i[i];
-//
-//                if ( genResult )
-//                {
-//                        switch ( opc )
-//                        {
-//                                case FSLLOIPI: res  = val1 << val3 | val2;
-//                                  break;
-//                        }
-//                }
-//                DEBUG_EMU(printf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) << %d | 0x%08x (%d)\n",i,res,res,val1,val1,val3,val2,val2);)
-//                FREGS[dst].i[i] = res;
-//        }
-//        logfregchange(dst);
-//        IPC(ipc_pi(opc,count,dst,src1,src2,fnone,dis);)
-//}
-
 ////////////////////////////////////////////////////////////
 //
 // Graphics upconvert instructions
 //
 ////////////////////////////////////////////////////////////
+
 void ucvtemu(const char *opname, opcode opc, int count, freg dst, freg src1, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d # %s",opname,dst,src1,comm);)
@@ -5515,10 +5464,9 @@ void ucvtemu(const char *opname, opcode opc, int count, freg dst, freg src1, con
 // Graphics downconvert instructions
 //
 ////////////////////////////////////////////////////////////
+
 void dcvtemu(const char *opname, opcode opc, int count, freg dst, freg src1, rounding_mode rm, const char *comm)
 {
-//    assert(rm == rmm);
-
     DISASM(gsprintf(dis,"I: %s f%d, f%d # %s",opname,dst,src1,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -5561,6 +5509,7 @@ void dcvtemu(const char *opname, opcode opc, int count, freg dst, freg src1, rou
 // FREG with MASK destination
 //
 ////////////////////////////////////////////////////////////
+
 void fmask(const char *opname, opcode opc, int count, mreg dst, freg src1, freg src2, const char *comm)
 {
     iufval val1, val2;
@@ -5609,9 +5558,12 @@ void fmask(const char *opname, opcode opc, int count, mreg dst, freg src1, freg 
     IPC(ipc_msk(opc,dst,src1,src2,dis);)
 }
 
-///////////////////////////////////////////////////////////////
-////  Mask operations
+////////////////////////////////////////////////////////////
 //
+//  Mask operations
+//
+////////////////////////////////////////////////////////////
+
 void maskop(const char *opname, opcode opc, mreg dst, mreg src1, mreg src2, const char *comm)
 {
     uint8 val1, val2;
@@ -5706,31 +5658,6 @@ void mov_m_x (const char *opname, mreg dst, xreg src1, uint32 imm, const char *c
     logmregchange(dst);
 }
 
-// to be removed
-//void movi_m (mreg dst, uint8 imm, const char *comm)
-//{
-//        DEBUG_EMU( gprintf("I: movi_m m%d <- # %s\n", dst, comm); )
-//        for (int m = 0; m < 8; m++)
-//                MREGS[dst].b[m] = (imm >> m) & 0x01;
-//}
-
-//to be removed
-//void fmv_x_ps (xreg dst, freg src1, uint8 index, const char *comm)
-//{
-//        DEBUG_EMU( gprintf("I: fmv_x_ps x%d, f%d, %d  # %s\n", dst, src1, index, comm); )
-//
-//        index = index & 0x03;
-//        XREGS[dst].x = FREGS[src1].u[index];
-//        DEBUG_EMU(gprintf("\t 0x%08x (%d) <- {0x%08x (%d), 0x%08x (%d), 0x%08x (%d), 0x%08x (%d)}[%d]\n",
-//                         XREGS[dst].x, XREGS[dst].x,
-//                         FREGS[src1].u[0], FREGS[src1].u[0],
-//                         FREGS[src1].u[1], FREGS[src1].u[1],
-//                         FREGS[src1].u[2], FREGS[src1].u[2],
-//                         FREGS[src1].u[3], FREGS[src1].u[3],
-//                         index);)
-//        logxregchange(dst);
-//}
-
 void fmvz_x_ps (xreg dst, freg src1, uint8 index, const char *comm)
 {
     DISASM( gsprintf(dis,"I: fmvz_x_ps x%d, f%d, %d  # %s\n", dst, src1, index, comm); )
@@ -5783,7 +5710,6 @@ void fmv_s_x (freg dst, xreg src1, const char *comm)
         FREGS[dst].u[i] = 0;
     logfregchange(dst);
 }
-
 
 void cubeface_ps(freg dst, freg src1, freg src2, const char *comm)
 {
@@ -5882,30 +5808,6 @@ void cubesgntc_ps (freg dst, freg src1, freg src2, const char *comm)
     logfregchange(dst);
     IPC( ipc_ps(CUBESGNTC, 4, dst, dst, src1, fnone, dis); )
 }
-
-//void fadd_pq(freg dst, freg src1, freg src2, const char *comm)
-//{
-//    DISASM(gsprintf(dis,"I: fadd.pq f%d, f%d, f%d # %s",dst,src1,src2,comm);)
-//    DEBUG_EMU(gprintf("%s\n",dis);)
-//    DEBUG_MASK(MREGS[0]);
-//    for ( int i = 0; i < 2; i++ )
-//    {
-//        int64   val1 = FREGS[src1].q[i];
-//        int64   val2 = FREGS[src2].q[i];
-//
-//        // for packed single, check the corresponding mask bit. If not set, skip this lane
-//        if (MREGS[0].b[i*4] == 0 ) continue;
-//
-//        int64 res;
-//
-//        res  = val1 + val2;
-//        DEBUG_EMU(gprintf("\t[%d] 0x%016llx <-- 0x%016llx + 0x%016llx\n",i,res,val1,val2);)
-//        FREGS[dst].q[i] = res;
-//    }
-//
-//    logfregchange(dst);
-//    IPC(ipc_pi(FADDPQ, 2, dst, src1, src2, fnone, dis);)
-//}
 
 // LOAD
 void flw          (freg dst, int off, xreg base, const char *comm)               { femuld("flw",           FLW,       1, 4, dst, off,  base, 0, comm); }
@@ -6057,7 +5959,6 @@ void fslli_pi     (freg dst, freg src1, uint32 imm, const char *comm)           
 void fsrli_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fsrli_pi",     FSRLIPI,    4, dst, src1, imm, comm); }
 void fsrai_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fsrai_pi",     FSRAIPI,    4, dst, src1, imm, comm); }
 
-
 void fcvt_f16_ps  (freg dst, freg src1, rounding_mode rm, const char *comm)      { dcvtemu("fcvt_f16_ps",  FCVTF16PS,  4, dst, src1, rm, comm); }
 void fcvt_un24_ps (freg dst, freg src1, rounding_mode rm, const char *comm)      { dcvtemu("fcvt_un24_ps", FCVTUN24PS, 4, dst, src1, rm, comm); }
 void fcvt_un16_ps (freg dst, freg src1, rounding_mode rm, const char *comm)      { dcvtemu("fcvt_un16_ps", FCVTUN16PS, 4, dst, src1, rm, comm); }
@@ -6089,8 +5990,6 @@ void fmadd_ph     (freg dst, freg src1, freg src2, freg src3, const char *comm) 
 void fmsub_ph     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmsub_ph",    FMSUB,     8, 2, dst, src1, src2, src3, comm); }
 void fnmadd_ph    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmadd_ph",   FNMADD,    8, 2, dst, src1, src2, src3, comm); }
 void fnmsub_ph    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmsub_ph",   FNMSUB,    8, 2, dst, src1, src2, src3, comm); }
-
-//void fslloi_pi    (freg dst, freg src1, freg src2, uint32 imm, const char *comm) { iemu3srcimm("fslloi_pi", FSLLOIPI, 4, dst, src1, src2, imm, comm); }
 
 // Double precision
 void fmadd_d      (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src_d("fmadd_d",   FMADD,     1, 8, dst, src1, src2, src3, comm); }

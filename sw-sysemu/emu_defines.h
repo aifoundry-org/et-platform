@@ -1,0 +1,485 @@
+#ifndef _EMU_DEFINES_H
+#define _EMU_DEFINES_H
+
+// Basic types
+typedef double             float64;
+typedef float              float32;
+typedef __uint128_t        uint128;
+typedef __int128_t         int128;
+typedef unsigned long long uint64;
+typedef   signed long long int64;
+typedef unsigned int       uint32;
+typedef   signed int       int32;
+typedef unsigned short     uint16;
+typedef   signed short     int16;
+typedef unsigned char      uint8;
+typedef   signed char      int8;
+
+// CSRs
+typedef enum
+{
+    csr_prv = 0, // this is internal to HW
+
+    // ----- U-mode registers ------------------------------------------------
+    // csr_ustatus,
+    // csr_uie,
+    // csr_utvec,
+    // csr_uscratch,
+    // csr_uepc,
+    // csr_ucause,
+    // csr_utval,
+    // csr_uip,
+    csr_fflags,
+    csr_frm,
+    csr_fcsr,
+    // csr_cycle,
+    // csr_time,
+    // csr_instret,
+    // csr_hpmcounter3,
+    // csr_hpmcounter4,
+    // csr_hpmcounter5,
+    // csr_hpmcounter6,
+
+    // ----- U-mode ET registers ---------------------------------------------
+    csr_treduce,
+    csr_ucacheop,
+    csr_tloadctrl,
+    csr_tstore,
+    csr_tfmastart,
+    csr_tconvsize,
+    csr_tconvctrl,
+    // csr_tcoop,
+    // csr_tmask,
+    // csr_top,
+    csr_flbarrier,
+    csr_umsg_port0,
+    csr_umsg_port1,
+    csr_umsg_port2,
+    csr_umsg_port3,
+
+    // ----- S-mode registers ------------------------------------------------
+    csr_sstatus,
+    // csr_sedeleg,
+    // csr_sideleg,
+    csr_sie,
+    csr_stvec,
+    // csr_scounteren,
+    csr_sscratch,
+    csr_sepc,
+    csr_scause,
+    csr_stval,
+    csr_sip,
+    csr_satp,
+
+    // ----- S-mode ET registers ---------------------------------------------
+    csr_scacheop,
+    csr_smsg_port0,
+    csr_smsg_port1,
+    csr_smsg_port2,
+    csr_smsg_port3,
+
+    // ----- M-mode registers ------------------------------------------------
+    csr_mvendorid,
+    csr_marchid,
+    csr_mimpid,
+    csr_mhartid,
+    csr_mstatus,
+    csr_misa,
+    csr_medeleg,
+    csr_mideleg,
+    csr_mie,
+    csr_mtvec,
+    // csr_mcounteren,
+    csr_mscratch,
+    csr_mepc,
+    csr_mcause,
+    csr_mtval,
+    csr_mip,
+    // csr_pmcfg0,
+    // csr_pmcfg2,
+    // csr_pmpaddr0,
+    // csr_pmpaddr1,
+    // ...
+    // csr_pmpaddr15,
+    // csr_mcycle,
+    // csr_minstret,
+    // csr_mhpmcounter3,
+    // csr_mhpmcounter4,
+    // csr_mhpmcounter5,
+    // csr_mhpmcounter6,
+    // csr_mhpmevent3,
+    // csr_mhpmevent4,
+    // csr_mhpmevent5,
+    // csr_mhpmevent6,
+    // --- debug registers ---
+    // csr_tselect,
+    // csr_tdata1,
+    // csr_tdata2,
+    // csr_tdata3,
+    // csr_dcsr,
+    // csr_dpc,
+    // csr_dscratch,
+
+    // ----- M-mode ET registers ---------------------------------------------
+    csr_mt1rvect,
+    csr_mt1en,
+    csr_icache_ctrl,
+    csr_write_ctrl,
+
+    CSR_MAX
+} csr;
+
+#define CSR_MAX_UMODE   csr_sstatus
+#define CSR_MAX_SMODE   csr_mvendorid
+#define CSR_MAX_MMODE   CSR_MAX
+
+typedef enum
+{
+    m0 = 0,
+    m1 = 1,
+    m2 = 2,
+    m3 = 3,
+    m4 = 4,
+    m5 = 5,
+    m6 = 6,
+    m7 = 7,
+    MAXMREG = 8,
+    mnone = -1
+} mreg;
+
+typedef enum
+{
+    x0 = 0,
+    x1 = 1,
+    x2 = 2,
+    x3 = 3,
+    x4 = 4,
+    x5 = 5,
+    x6 = 6,
+    x7 = 7,
+    x8 = 8,
+    x9 = 9,
+    x10 = 10,
+    x11 = 11,
+    x12 = 12,
+    x13 = 13,
+    x14 = 14,
+    x15 = 15,
+    x16 = 16,
+    x17 = 17,
+    x18 = 18,
+    x19 = 19,
+    x20 = 20,
+    x21 = 21,
+    x22 = 22,
+    x23 = 23,
+    x24 = 24,
+    x25 = 25,
+    x26 = 26,
+    x27 = 27,
+    x28 = 28,
+    x29 = 29,
+    x30 = 30,
+    x31 = 31,
+    MAXXREG = 32,
+    xnone = -1
+} xreg;
+
+typedef enum
+{
+    f0 = 0,
+    f1 = 1,
+    f2 = 2,
+    f3 = 3,
+    f4 = 4,
+    f5 = 5,
+    f6 = 6,
+    f7 = 7,
+    f8 = 8,
+    f9 = 9,
+    f10 = 10,
+    f11 = 11,
+    f12 = 12,
+    f13 = 13,
+    f14 = 14,
+    f15 = 15,
+    f16 = 16,
+    f17 = 17,
+    f18 = 18,
+    f19 = 19,
+    f20 = 20,
+    f21 = 21,
+    f22 = 22,
+    f23 = 23,
+    f24 = 24,
+    f25 = 25,
+    f26 = 26,
+    f27 = 27,
+    f28 = 28,
+    f29 = 29,
+    f30 = 30,
+    f31 = 31,
+    MAXFREG,
+    fnone = -1
+} freg;
+
+typedef enum
+{
+    rne = 0,
+    rtz = 1,
+    rdn = 2,
+    rup = 3,
+    rmm = 4,
+    rmdyn = 7 //dynamic rounding mode, read from rm register
+} rounding_mode;
+
+typedef enum
+{
+    MSG_ENABLE = 7,
+    MSG_DISABLE = 3,
+    MSG_PGET = 0,
+    MSG_PGETNB = 1,
+} msg_port_conf_action;
+
+typedef enum
+{
+    // PS memory instructions
+    FLW,
+    FLD,
+    FSW,
+    FSD,
+    FSWB,
+    FSWH,
+    FBC,
+    FBCI,
+    FGW,
+    FGH,
+    FGB,
+    FSCW,
+    FSCH,
+    FSCB,
+    FG32W,
+    FG32H,
+    FG32B,
+    FSC32W,
+    FSC32H,
+    FSC32B,
+    // PS computation instructions
+    FADD,
+    FSUB,
+    FMUL,
+    FDIV,
+    FMIN,
+    FMAX,
+    FMADD,
+    FMSUB,
+    FNMADD,
+    FNMSUB,
+    // PS 1-source
+    FSQRT,
+    FRSQ,
+    FSIN,
+    //FCOS,
+    FEXP,
+    FLOG,
+    FRCP,
+    FRCPFXP,
+    FCVTDS,
+    FCVTSD,
+    FCVTPSPW,
+    FCVTPSPWU,
+    FFRC,
+    FROUND,
+    FSWIZZ,
+    FCMOV, // PS conversion and move
+    FCVTPWPS,
+    FCVTPWUPS,
+    FSGNJ,
+    FSGNJN,
+    FSGNJX,
+    FMVZXPS,  // warning: unimplemented
+    FMVSXPS,  // warning: unimplemented
+    FEQ, // Floating point compare
+    FLE,
+    FLT,
+    //FLTABS,
+    CUBEFACE,
+    CUBEFACEIDX,
+    CUBESGNSC,
+    CUBESGNTC,
+    FCLASS, // warning: unimplemented
+    FCVTPSF16, // Graphics Upconvert to PS
+    FCVTPSF11,
+    FCVTPSF10,
+    FCVTPSUN24,
+    FCVTPSUN16,
+    FCVTPSUN10,
+    FCVTPSUN8,
+    FCVTPSUN2,
+    FCVTPSRAST,
+    FCVTRASTPS,
+    //FCVTPSSN24,
+    FCVTPSSN16,
+    //FCVTPSSN10,
+    FCVTPSSN8,
+    //FCVTPSSN2,
+    FCVTF16PS, // Graphics DownConvert from PS
+    FCVTF11PS,
+    FCVTF10PS,
+    FCVTUN24PS,
+    FCVTUN16PS,
+    FCVTUN10PS,
+    FCVTUN8PS,
+    FCVTUN2PS,
+    //FCVTSN24PS,
+    FCVTSN16PS,
+    FCVTSN8PS,
+    MAND, // Mask operations
+    MOR,
+    MXOR,
+    MNOT,
+    FSET,
+    MOVAMX,
+    MOVAXM,
+    FADDPI, // Packed Integer extension
+    FSUBPI,
+    FMULPI,
+    FMULHPI,
+    FMULHUPI,
+    //FMULHSUPI,
+    FDIVPI,
+    FDIVUPI,
+    FREMPI,
+    FREMUPI,
+    FMINPI,
+    FMAXPI,
+    FMINUPI,
+    FMAXUPI,
+    FANDPI,
+    FORPI,
+    FXORPI,
+    FNOTPI,
+    FSAT8PI,
+    FSLLPI,
+    FSRLPI,
+    FSRAPI,
+    FLTPI,
+    FLTUPI,
+    FLEPI,
+    FEQPI,
+    FRCP_FIX_RAST,
+    FADDIPI, // Packed Integer with Immediate
+    FANDIPI,
+    FORIPI,
+    FXORIPI,
+    FSLLIPI,
+    FSRLIPI,
+    FSRAIPI,
+    FPACKREPBPI,
+    FPACKREPHPI,
+    FCVTWS, // integer opcodes that should not really be here :-)
+    FCVTWUS,
+    FCVTSW,
+    FCVTSWU,
+    FCVTDW,
+    FCVTDWU,
+    FCVTDL,
+    FCVTDLU,
+    FCVTWD,
+    FCVTWUD,
+    FCVTLD,
+    FCVTLUD,
+    SIMPLE_INT, // Integer ISA
+    MUL_INT,
+    DIV_INT,
+    REM_INT,
+    MASKOP,     // Mask ops
+    LD,
+    STORE_INT,
+
+    // Please keep me last at all times!
+    MAXOPCODE
+} opcode;
+
+typedef union
+{
+    uint8   b[16];
+    uint16  h[8];
+    uint32  u[4];
+    int32   i[4];
+    float32 f[4];
+    uint64  x[2];
+    int64   q[2];
+    float64 d[2];
+} fdata;
+
+typedef union
+{
+    uint8   b[8];
+    uint16  h[4];
+    uint32  w[2];
+    int32   ws[2];
+    uint64  x;
+    int64   xs;
+} xdata;
+
+typedef union
+{
+    uint8   b[8];
+} mdata;
+
+typedef union
+{
+    int32   i;
+    uint32  u;
+    uint64  x;
+    int64   xs;
+    float32 f;
+    float64 d;
+} iufval;
+
+typedef struct
+{
+    bool enabled;
+    uint8 logsize;
+    uint8 max_msgs;
+    uint8 scp_set;
+    uint8 scp_way;
+    uint8 rd_ptr;
+    uint8 wr_ptr;
+    bool stall;
+} msg_port_conf;
+
+// set to 1 if floating point 32 operation sets bits 127:32 to 0,
+// and 64 bits operations set bits 127:64 to 0
+#define ZERO_EXTEND_UNUSED_FREG_BITS
+
+// Privilege levels
+#define CSR_PRV_U  0
+#define CSR_PRV_S  1
+#define CSR_PRV_H  2
+#define CSR_PRV_M  3
+
+// Traps
+#define CSR_MCAUSE_INSTR_ADDR_MISALIGNED         0ull
+#define CSR_MCAUSE_INSTR_ACCESS_FAULT            1ull
+#define CSR_MCAUSE_ILLEGAL_INSTRUCTION           2ull
+#define CSR_MCAUSE_BREAKPOINT                    3ull
+#define CSR_MCAUSE_LOAD_ADDR_MISALIGNED          4ull
+#define CSR_MCAUSE_LOAD_ACCESS_FAULT             5ull
+#define CSR_MCAUSE_STORE_AMO_ADDR_MISALIGNED     6ull
+#define CSR_MCAUSE_STORE_AMO_ACCESS_FAULT        7ull
+#define CSR_MCAUSE_ECALL_FROM_UMODE              8ull
+#define CSR_MCAUSE_ECALL_FROM_SMODE              9ull
+#define CSR_MCAUSE_ECALL_FROM_MMODE             11ull
+#define CSR_MCAUSE_INSTR_PAGE_FAULT             12ull
+#define CSR_MCAUSE_LOAD_PAGE_FAULT              13ull
+#define CSR_MCAUSE_STORE_AMO_PAGE_FAULT         15ull
+
+// Maximum number of threads
+#define EMU_NUM_MINIONS         4096
+#define EMU_THREADS_PER_MINION  2
+#define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
+#define NR_MSG_PORTS            4
+
+#endif // _EMU_DEFINES_H

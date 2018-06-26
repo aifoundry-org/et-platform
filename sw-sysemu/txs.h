@@ -1,7 +1,7 @@
 #ifndef _TXS_H
 #define _TXS_H
 
-#include "emu.h"
+#include "emu_defines.h"
 #include "tbox_emu.h"
 
 //#define TEXTURE_CACHE
@@ -10,6 +10,8 @@ extern "C" void init_txs(uint64 imgTableAddr);
 extern "C" void texsndh(xreg src1, xreg src2, const char *comm);
 extern "C" void texsnds(freg src1, const char *comm);
 extern "C" void texsndt(freg src1, const char *comm);
+extern "C" void texsndr(freg src1, const char *comm);
+extern "C" void texrcv(freg dst, const uint32 imm, const char *comm);
 
 #ifdef CHECKER
 extern "C" void checker_sample_quad(uint32 thread, uint64 basePtr, TBOXEmu::SampleRequest currentRequest, fdata input[], fdata output[]);
