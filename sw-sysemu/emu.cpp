@@ -3597,37 +3597,6 @@ void fbc_ps(freg dst, int off, xreg base, const char *comm)
     IPC(ipc_ld(FBC,1,4,dst,base,(XREGS[base].x+off),dis);)
 }
 
-#ifndef MINIONSIM
-void fbc_ph(freg dst, int off, xreg base, const char *comm)
-{
-    DISASM(gsprintf(dis,"I: fbc_ph f%d, %d(x%d) # %s",dst,off,base,comm););
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    DEBUG_MASK(MREGS[0]);
-
-    uint64 addr  = (XREGS[base].x  + off);
-    uint8  b     = 0;
-    uint16 val   = 0;
-    for ( int i = 0; i < 4; i++ )
-    {
-        b |= MREGS[0].b[i*2];
-    }
-    if ( b != 0 )
-    {
-        val   = memread16(addr);
-    }
-    for ( int i = 0; i < 8; i++ )
-    {
-        if ( MREGS[0].b[i] )
-        {
-            FREGS[dst].h[i] = val;
-            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%08x + 0x%016llx = 0x%016llx]\n",i,FREGS[dst].u[i],FREGS[dst].f[i],off,XREGS[base].x,addr););
-        }
-    }
-    logfregchange(dst);
-    IPC(ipc_ld(FBC,1,2,dst,base,(XREGS[base].x+off),dis);)
-}
-#endif
-
 void fbci_pi(freg dst, uint32 imm, const char *comm)
 {
     DISASM(gsprintf(dis,"I: fbci_pi f%d, 0x%08x # %s",dst,imm,comm););
@@ -3956,6 +3925,7 @@ void femucmp(const char *opname, opcode opc, int count, int size, xreg dst, freg
 //
 ////////////////////////////////////////////////////////////
 
+// FIXME: Remove 'size' as all callers have size==4
 void femu3src(const char *opname, opcode opc, int count, int size, freg dst, freg src1, freg src2, freg src3, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d, f%d, f%d # %s",opname,dst,src1,src2,src3,comm);)
@@ -4158,6 +4128,7 @@ void fcmovm_ps(freg dst, freg src1, freg src2, const char *comm)
 //
 ////////////////////////////////////////////////////////////
 
+// FIXME: Remove 'size' as all callers have size==4
 void femu2src(const char *opname, opcode opc, int count, int size, freg dst, freg src1, freg src2, const char *comm)
 {
     iufval val1, val2;
@@ -5913,8 +5884,6 @@ void flt_ps         (freg dst, freg src1, freg src2, const char *comm)          
 void fle_ps         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fle_ps",         FLE,       4, 4, dst, src1, src2, comm); }
 void feq_ps         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("feq_ps",         FEQ,       4, 4, dst, src1, src2, comm); }
 //void fltabs_ps      (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fltabs_ps",      FLTABS,    4, 4, dst, src1, src2, comm); }
-void fmin_ph      (freg dst, freg src1, freg src2, const char *comm)             { femu2src("fmin_ph",     FMIN,      8, 2, dst, src1, src2, comm); }
-void fmax_ph      (freg dst, freg src1, freg src2, const char *comm)             { femu2src("fmax_ph",     FMAX,      8, 2, dst, src1, src2, comm); }
 void frcp_fix_rast(freg dst, freg src1, freg src2, const char *comm)             { femu2src("frcp_fix_rast",  FRCP_FIX_RAST, 4, 4, dst, src1, src2, comm); }
 void fadd_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fadd_pi",     FADDPI,    4, dst, src1, src2, comm); }
 void fsub_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsub_pi",     FSUBPI,    4, dst, src1, src2, comm); }
@@ -5986,10 +5955,6 @@ void fnmadd_ps    (freg dst, freg src1, freg src2, freg src3, const char *comm) 
 void fnmsub_s     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmsub_s",    FNMSUB,    1, 4, dst, src1, src2, src3, comm); }
 void fnmsub_ps    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmsub_ps",   FNMSUB,    4, 4, dst, src1, src2, src3, comm); }
 void fcmov_ps     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fcmov_ps",    FCMOV,     4, 4, dst, src1, src2, src3, comm); }
-void fmadd_ph     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmadd_ph",    FMADD,     8, 2, dst, src1, src2, src3, comm); }
-void fmsub_ph     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmsub_ph",    FMSUB,     8, 2, dst, src1, src2, src3, comm); }
-void fnmadd_ph    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmadd_ph",   FNMADD,    8, 2, dst, src1, src2, src3, comm); }
-void fnmsub_ph    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmsub_ph",   FNMSUB,    8, 2, dst, src1, src2, src3, comm); }
 
 // Double precision
 void fmadd_d      (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src_d("fmadd_d",   FMADD,     1, 8, dst, src1, src2, src3, comm); }
