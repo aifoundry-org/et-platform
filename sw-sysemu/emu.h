@@ -318,14 +318,6 @@ extern "C" void fsrai_pi (freg dst, freg src1, uint32 imm, const char *comm);
 extern "C" void fpackreph_pi (freg dst, freg src1, const char *comm);
 extern "C" void fpackrepb_pi (freg dst, freg src1, const char *comm);
 
-extern "C" void fbc_ph   (freg dst, int off, xreg base, const char *comm);
-extern "C" void fmin_ph  (freg dst, freg src1, freg src2, const char *comm);
-extern "C" void fmax_ph  (freg dst, freg src1, freg src2, const char *comm);
-extern "C" void fmadd_ph (freg dst, freg src1, freg src2, freg src3, const char *comm);
-extern "C" void fmsub_ph (freg dst, freg src1, freg src2, freg src3, const char *comm);
-extern "C" void fnmadd_ph(freg dst, freg src1, freg src2, freg src3, const char *comm);
-extern "C" void fnmsub_ph(freg dst, freg src1, freg src2, freg src3, const char *comm);
-
 extern "C" void feq_s        (xreg dst, freg src1, freg src2, const char *comm);
 extern "C" void fle_s        (xreg dst, freg src1, freg src2, const char *comm);
 extern "C" void flt_s        (xreg dst, freg src1, freg src2, const char *comm);
