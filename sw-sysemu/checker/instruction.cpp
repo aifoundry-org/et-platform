@@ -342,14 +342,14 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
     {
         opcode = "csrrs";
         arg_array.push_back("x0");
-    }/*
+    }
     else if(opcode == "csrw")
     {
         opcode = "csrrw";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
-    }*/
+    }
     else if(opcode == "csrs")
     {
         opcode = "csrrs";
@@ -386,7 +386,7 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         arg_array[0] = "x0";
     }
 
-    // Special opcodes that need translation due conflicts
+    // Special opcodes that need translation due to C++ naming conflicts
     if(opcode == "or")
     {
         opcode = "or_";
@@ -423,13 +423,7 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
     }
 
     // Checks if it is a tensor/reduce operation
-    if (opcode == "csrw") {
-        is_reduce      = (params[0] == csr_treduce);
-        is_tensor_load = (params[0] == csr_tloadctrl);
-        is_tensor_fma  = (params[0] == csr_tfmastart);
-        is_flb         = (params[0] == csr_flbarrier);
-    }
-    else if(boost::regex_match(opcode, boost::regex("csr.*")))
+    if(boost::regex_match(opcode, boost::regex("csrr.*")))
     {
         is_reduce      = (params[1] == csr_treduce);
         is_tensor_load = (params[1] == csr_tloadctrl);

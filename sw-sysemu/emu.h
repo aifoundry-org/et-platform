@@ -494,6 +494,7 @@ typedef enum
         FLTUPI,
         FLEPI,
         FEQPI,
+        FRCP_FIX_RAST,
         //FADDPQ,
         FADDIPI, // Packed Integer with Immediate
         FANDIPI,
@@ -604,7 +605,6 @@ extern "C" void xori(xreg dst, xreg src1, int imm, const char *comm);
 extern "C" void xor_(xreg dst, xreg src1, xreg src2, const char *comm);
 extern "C" void lui(xreg dst, int imm, const char *comm);
 extern "C" void auipc(xreg dst, int imm, const char *comm);
-extern "C" void mv(xreg dst, xreg src1, const char *comm);
 extern "C" void sllw(xreg dst, xreg src1, xreg src2, const char *comm);
 extern "C" void sll(xreg dst, xreg src1, xreg src2, const char *comm);
 extern "C" void slliw(xreg dst, xreg src1, int imm, const char *comm);
@@ -626,7 +626,6 @@ extern "C" void blt(xreg src1, xreg src2, int imm, const char *comm);
 extern "C" void bltu(xreg src1, xreg src2, int imm, const char *comm);
 extern "C" void bge(xreg src1, xreg src2, int imm, const char *comm);
 extern "C" void bgeu(xreg src1, xreg src2, int imm, const char *comm);
-extern "C" void li(xreg dst, uint64 imm, const char *comm);
 extern "C" void sd(xreg src1, int off, xreg base, const char *comm);
 extern "C" void sw(xreg src1, int off, xreg base, const char *comm);
 extern "C" void sh(xreg src1, int off, xreg base, const char *comm);
@@ -649,11 +648,6 @@ extern "C" void amomin_d(xreg dst, xreg src1, xreg src2, const char *comm);
 extern "C" void amomax_d(xreg dst, xreg src1, xreg src2, const char *comm);
 extern "C" void amominu_d(xreg dst, xreg src1, xreg src2, const char *comm);
 extern "C" void amomaxu_d(xreg dst, xreg src1, xreg src2, const char *comm);
-extern "C" void csrr(xreg dst, csr src1, const char *comm);
-extern "C" void csrw(csr dst, xreg src1, const char *comm);
-extern "C" void csrwi(csr dst, uint64 imm, const char *comm);
-extern "C" void csrc(csr dst, xreg src1, const char *comm);
-extern "C" void csrs(csr dst, xreg src1, const char *comm);
 extern "C" void csrrw(xreg dst, csr src1, xreg src2, const char *comm);
 extern "C" void csrrs(xreg dst, csr src1, xreg src2, const char *comm);
 extern "C" void csrrc(xreg dst, csr src1, xreg src2, const char *comm);
@@ -688,9 +682,6 @@ extern "C" void fmul_s (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fmul_ps(freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fdiv_s (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void fdiv_ps(freg dst, freg src1, freg src2, const char *comm);
-extern "C" void fneg_s (freg dst, freg src1, const char *comm);
-extern "C" void fneg_ps(freg dst, freg src1, const char *comm);
-extern "C" void fcvt_x_s(xreg dst, freg src1, const char *comm);
 extern "C" void fgw_ps(freg dst, freg src1, xreg base, const char *comm);
 extern "C" void fgh_ps(freg dst, freg src1, xreg base, const char *comm);
 extern "C" void fgb_ps(freg dst, freg src1, xreg base, const char *comm);
@@ -728,6 +719,7 @@ extern "C" void fle_ps    (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void feq_ps    (freg dst, freg src1, freg src2, const char *comm);
 extern "C" void feqm_ps   (mreg dst, freg src1, freg src2, const char *comm);
 extern "C" void fltm_ps   (mreg dst, freg src1, freg src2, const char *comm);
+extern "C" void frcp_fix_rast(freg dst, freg src1, freg src2, const char *comm);
 extern "C" void flem_ps   (mreg dst, freg src1, freg src2, const char *comm);
 extern "C" void fsetm_ps  (mreg dst, freg src1,            const char *comm);
 extern "C" void fclass_s  (freg dst, freg src1,            const char *comm);

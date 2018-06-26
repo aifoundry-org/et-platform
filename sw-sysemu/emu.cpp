@@ -2590,19 +2590,6 @@ void auipc(xreg dst, int imm, const char *comm)
     logxregchange(dst);
 }
 
-void mv(xreg dst, xreg src1, const char *comm)
-{
-    DISASM(gsprintf(dis,"I: mv x%d, x%d # %s",dst,src1,comm);)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    if(dst != x0)
-    {
-        XREGS[dst].x = XREGS[src1].x;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx\n",XREGS[dst].x,XREGS[src1].x);)
-    }
-    logxregchange(dst);
-    IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
-}
-
 void ori(xreg dst, xreg src1, int imm, const char *comm)
 {
     DISASM(gsprintf(dis,"I: ori x%d, x%d, %d # %s",dst,src1,imm,comm);)
@@ -2870,19 +2857,6 @@ void bgeu(xreg src1, xreg src2, int imm, const char *comm)
     DEBUG_EMU(gprintf("I: bgeu x%d, x%d, %d # %s\n",src1,src2,imm,comm););
     if((uint64) XREGS[src1].x >= (uint64) XREGS[src2].x)
         logpcchange(current_pc + imm);
-}
-
-void li(xreg dst, uint64 imm, const char *comm)
-{
-    DISASM(gsprintf(dis,"I: li x%d, %lld # %s",dst,imm,comm);)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    if(dst != x0)
-    {
-        XREGS[dst].x = imm;
-        DEBUG_EMU(gprintf("\t0x%016llx <- %016llx\n", XREGS[dst].x, imm);)
-    }
-    logxregchange(dst);
-    IPC(ipc_int(SIMPLE_INT,dst,xnone,xnone,dis);)
 }
 
 void sd(xreg src1, int off, xreg base, const char *comm)
@@ -3438,36 +3412,6 @@ void csr_insn(xreg dst, csr src1, uint64 imm)
         DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx\n",x,x);)
     }
     logxregchange(dst);
-}
-
-void csrr(xreg dst, csr src1, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrr x%d, csrreg[%d] # %s\n", dst, src1, comm););
-    csr_insn(dst, src1, csrget(src1));
-}
-
-void csrw(csr dst, xreg src1, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrw x%d, csrreg[%d] # %s\n", src1, dst, comm););
-    csr_insn(x0, dst, XREGS[src1].x);
-}
-
-void csrwi(csr dst, uint64 imm, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrwi %d, csrreg[%d] # %s\n", imm, dst, comm););
-    csr_insn(x0, dst, imm);
-}
-
-void csrc(csr dst, xreg src1, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrc x%d, csrreg[%d] # %s\n", src1, dst, comm););
-    csr_insn(x0, dst, csrget(dst) & (~XREGS[src1].x));
-}
-
-void csrs(csr dst, xreg src1, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrs x%d, csrreg[%d] # %s\n", src1, dst, comm););
-    csr_insn(x0, dst, csrget(dst) | XREGS[src1].x);
 }
 
 void csrrw(xreg dst, csr src1, xreg src2, const char *comm)
@@ -4367,6 +4311,34 @@ void femu2src(const char *opname, opcode opc, int count, int size, freg dst, fre
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f), 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
                 }
                 break;
+            case FRCP_FIX_RAST:
+                if (genResult)
+                {
+                    // Input value is 2xtriArea with 15.16 precision
+                    float64 tmp = float64(val1.i) / float64(1 << 16);
+
+                    // Result value is 17.14
+                    float64 tmp_rcp = (1.0f / tmp) * float64(1 << 14);
+
+                    iufval res_gold;
+                    res_gold.i = int32(tmp_rcp);
+
+                    float64 yn = float64(val2.i)/float64(1 << 14);
+                    double a = yn * tmp;
+                    uint32_t partial = (uint32_t)(a * (((uint64_t)1) << 31));
+                    //printf("Partial: 0x%08x\n", partial);
+                    float64 unpartial = float64(partial)/float64(((uint64_t)1) << 31);
+                    float64 result = yn*(2.0-unpartial);
+                    res.i = (int32_t)(result*(1 << 14));
+
+                    //printf("FRCPFXP NR EXPECTED: 0x%08x RESULT: 0x%08x\n", res_gold.u, res.u); 
+
+                    //Check 1ulp
+                    assert((abs(res.i - res_gold.i) <=1) && "Trans mismatch error. Please open jira to jordi.sola@esperantotech.com.");
+
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%f), 0x%08x (%d)\n",i,res.u,res.i,val1.u,tmp,val2.u,val2.i););
+                }
+                break;
         }
         if ( size == 4 )
             FREGS[dst].f[i] = res.f;
@@ -4732,7 +4704,7 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
             case FCVTPSRAST:
                 if( genResult)
                 {
-                    res.f = ((float)val.i) / (1 << 15);
+                    res.f = ((float)val.i) / (1 << 16);
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
@@ -4741,10 +4713,9 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, co
             case FCVTRASTPS:
                 if( genResult)
                 {
-                    res.i = (int32_t)(val.f*(1 << 14));
+                    res.i = (int32_t)(val.f*(1 << 14) + 0.5);
                     // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%f)\n",i,res.u,res.i,val.u,val.f););
                 }
                 break;
             case FCVTPSPWU:
@@ -6042,6 +6013,7 @@ void feq_ps         (freg dst, freg src1, freg src2, const char *comm)          
 //void fltabs_ps      (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fltabs_ps",      FLTABS,    4, 4, dst, src1, src2, comm); }
 void fmin_ph      (freg dst, freg src1, freg src2, const char *comm)             { femu2src("fmin_ph",     FMIN,      8, 2, dst, src1, src2, comm); }
 void fmax_ph      (freg dst, freg src1, freg src2, const char *comm)             { femu2src("fmax_ph",     FMAX,      8, 2, dst, src1, src2, comm); }
+void frcp_fix_rast(freg dst, freg src1, freg src2, const char *comm)             { femu2src("frcp_fix_rast",  FRCP_FIX_RAST, 4, 4, dst, src1, src2, comm); }
 void fadd_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fadd_pi",     FADDPI,    4, dst, src1, src2, comm); }
 void fsub_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsub_pi",     FSUBPI,    4, dst, src1, src2, comm); }
 void fmul_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fmul_pi",     FMULPI,    4, dst, src1, src2, comm); }
