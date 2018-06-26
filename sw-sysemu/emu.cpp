@@ -2596,19 +2596,6 @@ void auipc(xreg dst, int imm, const char *comm)
     logxregchange(dst);
 }
 
-void mv(xreg dst, xreg src1, const char *comm)
-{
-    DISASM(gsprintf(dis,"I: mv x%d, x%d # %s",dst,src1,comm);)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    if(dst != x0)
-    {
-        XREGS[dst].x = XREGS[src1].x;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx\n",XREGS[dst].x,XREGS[src1].x);)
-    }
-    logxregchange(dst);
-    IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
-}
-
 void ori(xreg dst, xreg src1, int imm, const char *comm)
 {
     DISASM(gsprintf(dis,"I: ori x%d, x%d, %d # %s",dst,src1,imm,comm);)
@@ -2876,19 +2863,6 @@ void bgeu(xreg src1, xreg src2, int imm, const char *comm)
     DEBUG_EMU(gprintf("I: bgeu x%d, x%d, %d # %s\n",src1,src2,imm,comm););
     if((uint64) XREGS[src1].x >= (uint64) XREGS[src2].x)
         logpcchange(current_pc + imm);
-}
-
-void li(xreg dst, uint64 imm, const char *comm)
-{
-    DISASM(gsprintf(dis,"I: li x%d, %lld # %s",dst,imm,comm);)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    if(dst != x0)
-    {
-        XREGS[dst].x = imm;
-        DEBUG_EMU(gprintf("\t0x%016llx <- %016llx\n", XREGS[dst].x, imm);)
-    }
-    logxregchange(dst);
-    IPC(ipc_int(SIMPLE_INT,dst,xnone,xnone,dis);)
 }
 
 void sd(xreg src1, int off, xreg base, const char *comm)
@@ -3444,36 +3418,6 @@ void csr_insn(xreg dst, csr src1, uint64 imm)
         DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx\n",x,x);)
     }
     logxregchange(dst);
-}
-
-void csrr(xreg dst, csr src1, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrr x%d, csrreg[%d] # %s\n", dst, src1, comm););
-    csr_insn(dst, src1, csrget(src1));
-}
-
-void csrw(csr dst, xreg src1, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrw x%d, csrreg[%d] # %s\n", src1, dst, comm););
-    csr_insn(x0, dst, XREGS[src1].x);
-}
-
-void csrwi(csr dst, uint64 imm, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrwi %d, csrreg[%d] # %s\n", imm, dst, comm););
-    csr_insn(x0, dst, imm);
-}
-
-void csrc(csr dst, xreg src1, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrc x%d, csrreg[%d] # %s\n", src1, dst, comm););
-    csr_insn(x0, dst, csrget(dst) & (~XREGS[src1].x));
-}
-
-void csrs(csr dst, xreg src1, const char *comm)
-{
-    DEBUG_EMU(gprintf("I: csrs x%d, csrreg[%d] # %s\n", src1, dst, comm););
-    csr_insn(x0, dst, csrget(dst) | XREGS[src1].x);
 }
 
 void csrrw(xreg dst, csr src1, xreg src2, const char *comm)
