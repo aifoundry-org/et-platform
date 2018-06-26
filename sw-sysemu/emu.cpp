@@ -12,10 +12,8 @@
 #include "ipc.h"
 #include "ttrans.h"
 
-#ifndef MINIONSIM
 #include <immintrin.h>
 #include <emmintrin.h>
-#endif
 
 #include <list>
 
@@ -3925,8 +3923,7 @@ void femucmp(const char *opname, opcode opc, int count, int size, xreg dst, freg
 //
 ////////////////////////////////////////////////////////////
 
-// FIXME: Remove 'size' as all callers have size==4
-void femu3src(const char *opname, opcode opc, int count, int size, freg dst, freg src1, freg src2, freg src3, const char *comm)
+void femu3src(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, freg src3, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d, f%d, f%d # %s",opname,dst,src1,src2,src3,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
@@ -3934,45 +3931,21 @@ void femu3src(const char *opname, opcode opc, int count, int size, freg dst, fre
 
     for ( int i = 0; i < count; i++ )
     {
-        float32 val1;
-        float32 val2;
-        float32 val3;
-        float32 res;
+        // for packed single, check the corresponding mask bit. If not set, skip this lane
+        //if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
 
-        uint32 val1u;
-        uint32 val2u;
-        uint32 val3u;
-        uint32 resu;
-        if ( size == 4 )
-        {
-            // for packed single, check the corresponding mask bit. If not set, skip this lane
-            //if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
+        float32 val1 = FREGS[src1].f[i];
+        float32 val2 = FREGS[src2].f[i];
+        float32 val3 = FREGS[src3].f[i];
 
-            val1 = FREGS[src1].f[i];
-            val2 = FREGS[src2].f[i];
-            val3 = FREGS[src3].f[i];
-        }
-#ifndef MINIONSIM
-        else
-        {
-            //if ( MREGS[0].b[i] == 0 ) continue;
+        uint32 val1u = *(uint32*)&val1;
+        uint32 val2u = *(uint32*)&val2;
+        uint32 val3u = *(uint32*)&val3;
 
-            val1 = _cvtsh_ss(FREGS[src1].h[i]);
-            val2 = _cvtsh_ss(FREGS[src2].h[i]);
-            val3 = _cvtsh_ss(FREGS[src3].h[i]);
-        }
-#endif
-        val1u = *(uint32*)&val1;
-        val2u = *(uint32*)&val2;
-        val3u = *(uint32*)&val3;
+        bool genResult = ! ( count == 4 && MREGS[0].b[i*2] == 0 );
 
-        bool genResult = ! ( ( size == 4 && ( count == 4 && MREGS[0].b[i*2] == 0 ) ) || ( size !=4 && MREGS[0].b[i] == 0 ) );
-
-        if ( size == 4 )
-        {
-            res = FREGS[dst].f[i];
-            resu = FREGS[dst].u[i];
-        }
+        float32 res = FREGS[dst].f[i];
+        uint32 resu = FREGS[dst].u[i];
 
         switch ( opc )
         {
@@ -4022,21 +3995,16 @@ void femu3src(const char *opname, opcode opc, int count, int size, freg dst, fre
                 break;
         }
 
-        if ( size == 4 )
-            FREGS[dst].f[i] = res;
-#ifndef MINIONSIM
-        else
-            FREGS[dst].h[i] = _cvtss_sh(res, 0);
-#endif
+        FREGS[dst].f[i] = res;
     }
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    bzero(FREGS[dst].b + size, sizeof(fdata) - size*count);
+    bzero(FREGS[dst].b + 4, sizeof(fdata) - 4*count);
 #endif
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,src2,src3,dis);)
 }
 
-void femu3src_d(const char *opname, opcode opc, int count, int size, freg dst, freg src1, freg src2, freg src3, const char *comm)
+void femu3src_d(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, freg src3, const char *comm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d, f%d, f%d # %s",opname,dst,src1,src2,src3,comm);)
     DEBUG_EMU(gprintf("%s\n",dis);)
@@ -4095,7 +4063,7 @@ void femu3src_d(const char *opname, opcode opc, int count, int size, freg dst, f
         FREGS[dst].d[i] = res;
     }
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    bzero(FREGS[dst].b + size, sizeof(fdata) - size*count);
+    bzero(FREGS[dst].b + 8, sizeof(fdata) - 8*count);
 #endif
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,src2,src3,dis);)
@@ -4128,8 +4096,7 @@ void fcmovm_ps(freg dst, freg src1, freg src2, const char *comm)
 //
 ////////////////////////////////////////////////////////////
 
-// FIXME: Remove 'size' as all callers have size==4
-void femu2src(const char *opname, opcode opc, int count, int size, freg dst, freg src1, freg src2, const char *comm)
+void femu2src(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, const char *comm)
 {
     iufval val1, val2;
 
@@ -4139,26 +4106,13 @@ void femu2src(const char *opname, opcode opc, int count, int size, freg dst, fre
 
     for ( int i = 0; i < count; i++ )
     {
-        if( size == 4 )
-        {
-            // for packed single, check the corresponding mask bit. If not set, skip this lane
-            //if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
+        // for packed single, check the corresponding mask bit. If not set, skip this lane
+        //if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
 
-            val1.f  = FREGS[src1].f[i];
-            val2.f  = src2 != fnone ? FREGS[src2].f[i] : 0;
-        }
-#ifndef MINIONSIM
-        else
-        {
-            // for packed half, check the corresponding mask bit. If not set, skip this lane
-            //if ( MREGS[0].b[i] == 0 ) continue;
+        val1.f  = FREGS[src1].f[i];
+        val2.f  = src2 != fnone ? FREGS[src2].f[i] : 0;
 
-            val1.f  = _cvtsh_ss(FREGS[src1].h[i]);
-            val2.f  = _cvtsh_ss(FREGS[src2].h[i]);
-        }
-#endif
-
-        bool genResult = size==4? !(count == 4 && MREGS[0].b[i*2] == 0) : !( MREGS[0].b[i] == 0 );
+        bool genResult = !(count == 4 && MREGS[0].b[i*2] == 0);
         iufval res;
         res.u = FREGS[dst].u[i];
         switch ( opc )
@@ -4290,21 +4244,16 @@ void femu2src(const char *opname, opcode opc, int count, int size, freg dst, fre
                 }
                 break;
         }
-        if ( size == 4 )
-            FREGS[dst].f[i] = res.f;
-#ifndef MINIONSIM
-        else
-            FREGS[dst].h[i] = _cvtss_sh(res.f, 0);
-#endif
+        FREGS[dst].f[i] = res.f;
     }
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    bzero(FREGS[dst].b + size, sizeof(fdata) - size*count);
+    bzero(FREGS[dst].b + 4, sizeof(fdata) - 4*count);
 #endif
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,src2,fnone,dis);)
 }
 
-void femu2src_d(const char *opname, opcode opc, int count, int size, freg dst, freg src1, freg src2, const char *comm)
+void femu2src_d(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, const char *comm)
 {
     iufval val1, val2;
 
@@ -4369,7 +4318,7 @@ void femu2src_d(const char *opname, opcode opc, int count, int size, freg dst, f
         FREGS[dst].d[i] = res.d;
     }
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    bzero(FREGS[dst].b + size, sizeof(fdata) - size*count);
+    bzero(FREGS[dst].b + 8, sizeof(fdata) - 8*count);
 #endif
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,src2,fnone,dis);)
@@ -5862,35 +5811,35 @@ void fcvt_ps_f10   (freg dst, freg src1, const char *comm)                      
 void fswizz_ps      (freg dst, freg src1, uint8  imm, const char *comm)          { fswizz("fswizz_ps",        FSWIZZ,       dst, src1, imm, comm); }
 
 // 2-SRC
-void fadd_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fadd_s",         FADD,      1, 4, dst, src1, src2, comm); }
-void fadd_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fadd_ps",        FADD,      4, 4, dst, src1, src2, comm); }
-void fsub_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsub_s",         FSUB,      1, 4, dst, src1, src2, comm); }
-void fsub_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsub_ps",        FSUB,      4, 4, dst, src1, src2, comm); }
-void fmul_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmul_s",         FMUL,      1, 4, dst, src1, src2, comm); }
-void fmul_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmul_ps",        FMUL,      4, 4, dst, src1, src2, comm); }
-void fdiv_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fdiv_s",         FDIV,      1, 4, dst, src1, src2, comm); }
-void fdiv_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fdiv_ps",        FDIV,      4, 4, dst, src1, src2, comm); }
-void fmin_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmin_s",         FMIN,      1, 4, dst, src1, src2, comm); }
-void fmin_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmin_ps",        FMIN,      4, 4, dst, src1, src2, comm); }
-void fmax_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmax_s",         FMAX,      1, 4, dst, src1, src2, comm); }
-void fmax_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmax_ps",        FMAX,      4, 4, dst, src1, src2, comm); }
-void fsgnj_s        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnj_s",        FSGNJ,     1, 4, dst, src1, src2, comm); }
-void fsgnj_ps       (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnj_ps",       FSGNJ,     4, 4, dst, src1, src2, comm); }
-void fsgnjn_s       (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnjn_s",       FSGNJN,    1, 4, dst, src1, src2, comm); }
-void fsgnjn_ps      (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnjn_ps",      FSGNJN,    4, 4, dst, src1, src2, comm); }
-void fsgnjx_s       (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnjx_s",       FSGNJX,    1, 4, dst, src1, src2, comm); }
-void fsgnjx_ps      (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnjx_ps",      FSGNJX,    4, 4, dst, src1, src2, comm); }
-void flt_ps         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("flt_ps",         FLT,       4, 4, dst, src1, src2, comm); }
-void fle_ps         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fle_ps",         FLE,       4, 4, dst, src1, src2, comm); }
-void feq_ps         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("feq_ps",         FEQ,       4, 4, dst, src1, src2, comm); }
-//void fltabs_ps      (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fltabs_ps",      FLTABS,    4, 4, dst, src1, src2, comm); }
-void frcp_fix_rast(freg dst, freg src1, freg src2, const char *comm)             { femu2src("frcp_fix_rast",  FRCP_FIX_RAST, 4, 4, dst, src1, src2, comm); }
+void fadd_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fadd_s",         FADD,      1, dst, src1, src2, comm); }
+void fadd_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fadd_ps",        FADD,      4, dst, src1, src2, comm); }
+void fsub_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsub_s",         FSUB,      1, dst, src1, src2, comm); }
+void fsub_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsub_ps",        FSUB,      4, dst, src1, src2, comm); }
+void fmul_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmul_s",         FMUL,      1, dst, src1, src2, comm); }
+void fmul_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmul_ps",        FMUL,      4, dst, src1, src2, comm); }
+void fdiv_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fdiv_s",         FDIV,      1, dst, src1, src2, comm); }
+void fdiv_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fdiv_ps",        FDIV,      4, dst, src1, src2, comm); }
+void fmin_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmin_s",         FMIN,      1, dst, src1, src2, comm); }
+void fmin_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmin_ps",        FMIN,      4, dst, src1, src2, comm); }
+void fmax_s         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmax_s",         FMAX,      1, dst, src1, src2, comm); }
+void fmax_ps        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fmax_ps",        FMAX,      4, dst, src1, src2, comm); }
+void fsgnj_s        (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnj_s",        FSGNJ,     1, dst, src1, src2, comm); }
+void fsgnj_ps       (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnj_ps",       FSGNJ,     4, dst, src1, src2, comm); }
+void fsgnjn_s       (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnjn_s",       FSGNJN,    1, dst, src1, src2, comm); }
+void fsgnjn_ps      (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnjn_ps",      FSGNJN,    4, dst, src1, src2, comm); }
+void fsgnjx_s       (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnjx_s",       FSGNJX,    1, dst, src1, src2, comm); }
+void fsgnjx_ps      (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fsgnjx_ps",      FSGNJX,    4, dst, src1, src2, comm); }
+void flt_ps         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("flt_ps",         FLT,       4, dst, src1, src2, comm); }
+void fle_ps         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fle_ps",         FLE,       4, dst, src1, src2, comm); }
+void feq_ps         (freg dst, freg src1, freg src2, const char *comm)           { femu2src("feq_ps",         FEQ,       4, dst, src1, src2, comm); }
+//void fltabs_ps    (freg dst, freg src1, freg src2, const char *comm)           { femu2src("fltabs_ps",      FLTABS,    4, dst, src1, src2, comm); }
+void frcp_fix_rast(freg dst, freg src1, freg src2, const char *comm)             { femu2src("frcp_fix_rast",  FRCP_FIX_RAST, 4, dst, src1, src2, comm); }
 void fadd_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fadd_pi",     FADDPI,    4, dst, src1, src2, comm); }
 void fsub_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fsub_pi",     FSUBPI,    4, dst, src1, src2, comm); }
 void fmul_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fmul_pi",     FMULPI,    4, dst, src1, src2, comm); }
 void fmulh_pi     (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fmulh_pi",    FMULHPI,   4, dst, src1, src2, comm); }
 void fmulhu_pi    (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fmulhu_pi",   FMULHUPI,  4, dst, src1, src2, comm); }
-//void fmulhsu_pi   (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fmulhsu_pi",  FMULHSUPI, 4, dst, src1, src2, comm); }
+//void fmulhsu_pi (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fmulhsu_pi",  FMULHSUPI, 4, dst, src1, src2, comm); }
 void fdiv_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fdiv_pi",     FDIVPI,    4, dst, src1, src2, comm); }
 void fdivu_pi     (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("fdivu_pi",    FDIVUPI,   4, dst, src1, src2, comm); }
 void frem_pi      (freg dst, freg src1, freg src2, const char *comm)             { iemu2src("frem_pi",     FREMPI,    4, dst, src1, src2, comm); }
@@ -5920,13 +5869,13 @@ void flem_ps      (mreg dst, freg src1, freg src2, const char *comm)            
 void fsetm_ps     (mreg dst, freg src1,            const char *comm)             { fmask("fsetm_ps",       FSET,      4, dst, src1, fnone, comm); }
 void fltm_pi      (mreg dst, freg src1, freg src2, const char *comm)             { fmask("fltm_pi",        FLTPI,     4, dst, src1, src2, comm); }
 
-void faddi_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("faddi_pi",     FADDIPI,    4, dst, src1, imm, comm); }
-void fandi_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fandi_pi",     FANDIPI,    4, dst, src1, imm, comm); }
-void fori_pi      (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fori_pi",      FORIPI,     4, dst, src1, imm, comm); }
-void fxori_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fxori_pi",     FXORIPI,    4, dst, src1, imm, comm); }
-void fslli_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fslli_pi",     FSLLIPI,    4, dst, src1, imm, comm); }
-void fsrli_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fsrli_pi",     FSRLIPI,    4, dst, src1, imm, comm); }
-void fsrai_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fsrai_pi",     FSRAIPI,    4, dst, src1, imm, comm); }
+void faddi_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("faddi_pi", FADDIPI,    4, dst, src1, imm, comm); }
+void fandi_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fandi_pi", FANDIPI,    4, dst, src1, imm, comm); }
+void fori_pi      (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fori_pi",  FORIPI,     4, dst, src1, imm, comm); }
+void fxori_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fxori_pi", FXORIPI,    4, dst, src1, imm, comm); }
+void fslli_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fslli_pi", FSLLIPI,    4, dst, src1, imm, comm); }
+void fsrli_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fsrli_pi", FSRLIPI,    4, dst, src1, imm, comm); }
+void fsrai_pi     (freg dst, freg src1, uint32 imm, const char *comm)            { iemu2srcimm("fsrai_pi", FSRAIPI,    4, dst, src1, imm, comm); }
 
 void fcvt_f16_ps  (freg dst, freg src1, rounding_mode rm, const char *comm)      { dcvtemu("fcvt_f16_ps",  FCVTF16PS,  4, dst, src1, rm, comm); }
 void fcvt_un24_ps (freg dst, freg src1, rounding_mode rm, const char *comm)      { dcvtemu("fcvt_un24_ps", FCVTUN24PS, 4, dst, src1, rm, comm); }
@@ -5946,25 +5895,25 @@ void fle_s        (xreg dst, freg src1, freg src2, const char *comm)            
 void flt_s        (xreg dst, freg src1, freg src2, const char *comm)             { femucmp("flt_s",        FLT,       1, 4, dst, src1, src2, comm); }
 
 // 3-SOURCE
-void fmadd_s      (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmadd_s",     FMADD,     1, 4, dst, src1, src2, src3, comm); }
-void fmadd_ps     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmadd_ps",    FMADD,     4, 4, dst, src1, src2, src3, comm); }
-void fmsub_s      (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmsub_s",     FMSUB,     1, 4, dst, src1, src2, src3, comm); }
-void fmsub_ps     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmsub_ps",    FMSUB,     4, 4, dst, src1, src2, src3, comm); }
-void fnmadd_s     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmadd_s",    FNMADD,    1, 4, dst, src1, src2, src3, comm); }
-void fnmadd_ps    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmadd_ps",   FNMADD,    4, 4, dst, src1, src2, src3, comm); }
-void fnmsub_s     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmsub_s",    FNMSUB,    1, 4, dst, src1, src2, src3, comm); }
-void fnmsub_ps    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmsub_ps",   FNMSUB,    4, 4, dst, src1, src2, src3, comm); }
-void fcmov_ps     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fcmov_ps",    FCMOV,     4, 4, dst, src1, src2, src3, comm); }
+void fmadd_s      (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmadd_s",     FMADD,     1, dst, src1, src2, src3, comm); }
+void fmadd_ps     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmadd_ps",    FMADD,     4, dst, src1, src2, src3, comm); }
+void fmsub_s      (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmsub_s",     FMSUB,     1, dst, src1, src2, src3, comm); }
+void fmsub_ps     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fmsub_ps",    FMSUB,     4, dst, src1, src2, src3, comm); }
+void fnmadd_s     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmadd_s",    FNMADD,    1, dst, src1, src2, src3, comm); }
+void fnmadd_ps    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmadd_ps",   FNMADD,    4, dst, src1, src2, src3, comm); }
+void fnmsub_s     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmsub_s",    FNMSUB,    1, dst, src1, src2, src3, comm); }
+void fnmsub_ps    (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fnmsub_ps",   FNMSUB,    4, dst, src1, src2, src3, comm); }
+void fcmov_ps     (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src("fcmov_ps",    FCMOV,     4, dst, src1, src2, src3, comm); }
 
 // Double precision
-void fmadd_d      (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src_d("fmadd_d",   FMADD,     1, 8, dst, src1, src2, src3, comm); }
-void feq_d        (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("feq_d",     FEQ,       1, 8, dst, src1, src2, comm); }
-void fmin_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fmin_d",    FMIN,      1, 8, dst, src1, src2, comm); }
-void fmax_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fmax_d",    FMAX,      1, 8, dst, src1, src2, comm); }
-void fadd_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fadd_d",    FADD,      1, 8, dst, src1, src2, comm); }
-void fdiv_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fdiv_d",    FDIV,      1, 8, dst, src1, src2, comm); }
-void fmul_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fmul_d",    FMUL,      1, 8, dst, src1, src2, comm); }
-void fsgnj_d      (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fsgnj_d",   FSGNJ,     1, 8, dst, src1, src2, comm); }
+void fmadd_d      (freg dst, freg src1, freg src2, freg src3, const char *comm)  { femu3src_d("fmadd_d",   FMADD,     1, dst, src1, src2, src3, comm); }
+void feq_d        (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("feq_d",     FEQ,       1, dst, src1, src2, comm); }
+void fmin_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fmin_d",    FMIN,      1, dst, src1, src2, comm); }
+void fmax_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fmax_d",    FMAX,      1, dst, src1, src2, comm); }
+void fadd_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fadd_d",    FADD,      1, dst, src1, src2, comm); }
+void fdiv_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fdiv_d",    FDIV,      1, dst, src1, src2, comm); }
+void fmul_d       (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fmul_d",    FMUL,      1, dst, src1, src2, comm); }
+void fsgnj_d      (freg dst, freg src1, freg src2, const char *comm)             { femu2src_d("fsgnj_d",   FSGNJ,     1, dst, src1, src2, comm); }
 void fclass_d     (freg dst, freg src1, const char *comm)                        { femu1src_d("fclass_d",  FCLASS,    1, dst, src1, comm); }
 void fcvt_d_s     (freg dst, freg src1, const char *comm)                        { femu1src_d("fcvt_d_s",  FCVTDS,    1, dst, src1, comm); }
 void fcvt_s_d     (freg dst, freg src1, const char *comm)                        { femu1src  ("fcvt_s_d",  FCVTSD,    1, dst, src1, comm); }
