@@ -1978,8 +1978,8 @@ void lb(xreg dst, int off, xreg base, const char *comm)
 
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
@@ -1993,8 +1993,8 @@ void lh(xreg dst, int off, xreg base, const char *comm)
 
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
@@ -2008,8 +2008,8 @@ void lw(xreg dst, int off, xreg base, const char *comm)
 
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
@@ -2023,8 +2023,8 @@ void ld(xreg dst, int off, xreg base, const char *comm)
 
     if(dst != x0)
     {
-        XREGS[dst].x  = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
+        XREGS[dst].x  = val;
     }
     logxregchange(dst);
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
@@ -2038,8 +2038,8 @@ void lbu(xreg dst, int off, xreg base, const char *comm)
 
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
@@ -2053,8 +2053,8 @@ void lhu(xreg dst, int off, xreg base, const char *comm)
 
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
@@ -2068,8 +2068,8 @@ void lwu(xreg dst, int off, xreg base, const char *comm)
 
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%08x + 0x%016llx]\n",val,off,XREGS[base].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
@@ -2087,9 +2087,8 @@ void addi(xreg dst, xreg src1, int imm, const char *comm)
     }
     if(dst != x0)
     {
-        uint64 bkp_src = XREGS[src1].x;
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,XREGS[src1].x,imm);)
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,bkp_src,imm);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -2107,9 +2106,8 @@ void addiw(xreg dst, xreg src1, int imm, const char *comm)
     }
     if(dst != x0)
     {
-        uint64 bkp_src = XREGS[dst].x;
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,XREGS[src1].x,imm);)
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%08x\n",val,bkp_src,imm);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -2126,8 +2124,8 @@ void slt(xreg dst, xreg src1, xreg src2, const char *comm)
         val = 0;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx < 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2144,8 +2142,8 @@ void sltu(xreg dst, xreg src1, xreg src2, const char *comm)
         val = 0;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx < 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2162,8 +2160,8 @@ void slti(xreg dst, xreg src1, int imm, const char *comm)
         val = 0;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx < 0x%016llx\n",val,XREGS[src1].x,sext12(imm));)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -2180,8 +2178,8 @@ void sltiu(xreg dst, xreg src1, int imm, const char *comm)
         val = 0;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx < 0x%016llx\n",val,XREGS[src1].x,sext12(imm));)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -2194,8 +2192,8 @@ void mul(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x * XREGS[src2].x;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx * 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(MUL_INT,dst,src1,src2,dis);)
@@ -2208,8 +2206,8 @@ void mulw(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = sext32(XREGS[src1].x * XREGS[src2].x);
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x * 0x%08lx\n",val,XREGS[src1].w[0],XREGS[src2].w[0]);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(MUL_INT,dst,src1,src2,dis);)
@@ -2226,8 +2224,8 @@ void mulh(xreg dst, xreg src1, xreg src2, const char *comm)
 
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx * 0x%016llxs\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(MUL_INT,dst,src1,src2,dis);)
@@ -2243,8 +2241,8 @@ void mulhu(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = val3 >> 64;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx * 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(MUL_INT,dst,src1,src2,dis);)
@@ -2260,8 +2258,8 @@ void div_(xreg dst, xreg src1, xreg src2, const char *comm)
     else                                                                        val = (int64) XREGS[src1].x / (int64) XREGS[src2].x;
     if(dst != x0)
     {
-        XREGS[dst].x = (uint64) val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx * 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = (uint64) val;
     }
     logxregchange(dst);
     IPC(ipc_int(DIV_INT,dst,src1,src2,dis);)
@@ -2276,8 +2274,8 @@ void divu(xreg dst, xreg src1, xreg src2, const char *comm)
     else                   val = XREGS[src1].x / XREGS[src2].x;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx / 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(DIV_INT,dst,src1,src2,dis);)
@@ -2294,8 +2292,8 @@ void divw(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val64 = sext32(val);
     if(dst != x0)
     {
-        XREGS[dst].x = val64;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x / 0x%08x\n",val64,XREGS[src1].w[0],XREGS[src2].w[0]);)
+        XREGS[dst].x = val64;
     }
     logxregchange(dst);
     IPC(ipc_int(DIV_INT,dst,src1,src2,dis);)
@@ -2311,8 +2309,8 @@ void divuw(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val64 = sext32(val);
     if(dst != x0)
     {
-        XREGS[dst].x = val64;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x / 0x%08x\n",val64,XREGS[src1].w[0],XREGS[src2].w[0]);)
+        XREGS[dst].x = val64;
     }
     logxregchange(dst);
     IPC(ipc_int(DIV_INT,dst,src1,src2,dis);)
@@ -2328,8 +2326,8 @@ void rem(xreg dst, xreg src1, xreg src2, const char *comm)
     else                                                                        val = (int64) XREGS[src1].x % (int64) XREGS[src2].x;
     if(dst != x0)
     {
-        XREGS[dst].x = (uint64) val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx %% 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = (uint64) val;
     }
     logxregchange(dst);
     IPC(ipc_int(REM_INT,dst,src1,src2,dis);)
@@ -2344,8 +2342,8 @@ void remu(xreg dst, xreg src1, xreg src2, const char *comm)
     else                   val = XREGS[src1].x % XREGS[src2].x;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx %% 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(REM_INT,dst,src1,src2,dis);)
@@ -2363,8 +2361,8 @@ void remw(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val64 = sext32(val);
     if(dst != x0)
     {
-        XREGS[dst].x = val64;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x %% 0x%08x\n",val64,XREGS[src1].w[0],XREGS[src2].w[0]);)
+        XREGS[dst].x = val64;
     }
     logxregchange(dst);
     IPC(ipc_int(REM_INT,dst,src1,src2,dis);)
@@ -2380,8 +2378,8 @@ void remuw(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val64 = sext32(val);
     if(dst != x0)
     {
-        XREGS[dst].x = val64;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x %% 0x%08x\n",val64,XREGS[src1].w[0],XREGS[src2].w[0]);)
+        XREGS[dst].x = val64;
     }
     logxregchange(dst);
     IPC(ipc_int(REM_INT,dst,src1,src2,dis);)
@@ -2395,10 +2393,8 @@ void add(xreg dst, xreg src1, xreg src2, const char *comm)
     if(dst != x0)
     {
 
-        uint64 bkp_src1 = XREGS[src1].x;
-        uint64 bkp_src2 = XREGS[src2].x;
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx + 0x%016llx\n",val,bkp_src1,bkp_src2);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2411,8 +2407,8 @@ void addw(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = sext32(XREGS[src1].x + XREGS[src2].x);
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x + 0x%08x\n",val,XREGS[src1].w[0],XREGS[src2].w[0]);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2425,10 +2421,8 @@ void sub(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x - XREGS[src2].x;
     if(dst != x0)
     {
-        uint64 bkp_src1 = XREGS[src1].x;
-        uint64 bkp_src2 = XREGS[src2].x;
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx - 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
         XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx - 0x%016llx\n",val,bkp_src1,bkp_src2);)
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2441,8 +2435,8 @@ void subw(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = sext32(XREGS[src1].x - XREGS[src2].x);
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x - 0x%08x\n",val,XREGS[src1].w[0],XREGS[src2].w[0]);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2455,8 +2449,8 @@ void or_(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x | XREGS[src2].x;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx | 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2469,8 +2463,8 @@ void and_(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x & XREGS[src2].x;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx & 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
@@ -2497,8 +2491,8 @@ void xor_(xreg dst, xreg src1, xreg src2, const char *comm)
     uint64 val = XREGS[src1].x ^ XREGS[src2].x;
     if(dst != x0)
     {
-        XREGS[dst].x = val;
         DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx & 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
