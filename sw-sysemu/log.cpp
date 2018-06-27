@@ -78,8 +78,8 @@ void logfregchange(int fdst)
     if(log_info == NULL) return;
     log_info->fp_reg_mod = true;
     log_info->fp_reg_rd = fdst;
-    log_info->fp_reg_data[0] = * ((uint64 *) &FREGS[fdst].d[0]);
-    log_info->fp_reg_data[1] = * ((uint64 *) &FREGS[fdst].d[1]);
+    log_info->fp_reg_data[0] = FREGS[fdst].x[0];
+    log_info->fp_reg_data[1] = FREGS[fdst].x[1];
 }
 
 // Adds a mask register change
