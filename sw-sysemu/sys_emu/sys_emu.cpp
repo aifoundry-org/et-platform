@@ -694,7 +694,7 @@ int main(int argc, char * argv[])
             {
                 uint64 other_min, action;
                 // Gets the source used for the reduce
-                uint64 src1 = (xreg) inst->get_param(1);
+                uint64 src1 = (xreg) inst->get_param(2);
                 uint64 value = (xget(src1));
                 (reduce_info(value, &other_min, &action));
                 // Sender
