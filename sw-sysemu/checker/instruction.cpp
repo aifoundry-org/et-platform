@@ -545,11 +545,11 @@ void instruction::exec()
     * log << LOG_DEBUG << "Executing instrucion PC: 0x" << std::hex << pc << ", Bits: 0x" << enc_bits << std::dec << ", Mnemonic: " << mnemonic << endm;
     switch(num_params)
     {
-        case 0: (emu_func0("")); break;
-        case 1: (emu_func1(params[0], "")); break;
-        case 2: (emu_func2(params[0], params[1], "")); break;
-        case 3: (emu_func3(params[0], params[1], params[2], "")); break;
-        case 4: (emu_func4(params[0], params[1], params[2], params[3], "")); break;
+        case 0: (emu_func0()); break;
+        case 1: (emu_func1(params[0])); break;
+        case 2: (emu_func2(params[0], params[1])); break;
+        case 3: (emu_func3(params[0], params[1], params[2])); break;
+        case 4: (emu_func4(params[0], params[1], params[2], params[3])); break;
     }
 }
 
