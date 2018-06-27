@@ -13,14 +13,6 @@
 #include "log.h"
 #include "testLog.h"
 
-// Memory access type
-typedef enum
-{
-    Mem_Access_Load,
-    Mem_Access_Store,
-    Mem_Access_Fetch
-} mem_access_type;
-
 typedef uint64 (*func_ptr_csrget) (csr src1);
 
 uint8 checker_memread8(uint64 addr);
@@ -90,9 +82,10 @@ class checker
         typedef void (*func_ptr_debug)  (int debug, int fakesam);
         typedef void (*func_ptr_reduce_info) (uint64 value, uint64 * other_min, uint64 * action);
         typedef uint64_t (*func_get_scratchpad_value) (int entry, int block, int * last_entry, int * size);
-        typedef std::list<bool> * (*func_get_scratchpad_conv_list) ();
+        typedef void (*func_get_scratchpad_conv_list) (std::list<bool> * list);
         typedef uint64_t (*func_get_tensorfma_value) (int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
         typedef uint64_t (*func_get_reduce_value) (int entry, int block, int * size, int * start_entry);
+        typedef uint64_t (*func_virt_to_phys) (uint64_t addr, mem_access_type macc);
 
         uint64                        current_pc[EMU_NUM_THREADS];     // Current PC
         reduce_state                  reduce_state_array[4096];        // Reduce state
@@ -118,6 +111,7 @@ class checker
         func_get_scratchpad_conv_list get_scratchpad_conv_list;        // Pointer to the function to get a scratchpad list of conv CSR results
         func_get_tensorfma_value      get_tensorfma_value;             // Pointer to the function to get a tensorfma value
         func_get_reduce_value         get_reduce_value;                // Pointer to the function to get a reduce value
+        func_virt_to_phys             virt_to_phys_emu;                // Pointer to the function to do a virtual to physical translation
         testLog                       log;                             // Logger
         uint64                        threadEnabled[EMU_NUM_THREADS];  // thread is enabled / disabled
         std::list<scratchpad_entry>   spd_entry_list[EMU_NUM_THREADS]; // List of RTL written scratchpad entries

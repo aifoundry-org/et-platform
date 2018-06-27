@@ -46,11 +46,10 @@ uint64 csrregs[EMU_NUM_THREADS][CSR_MAX];
 fdata scp[EMU_NUM_THREADS][64][4];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
-std::list<bool> scp_conv[EMU_NUM_THREADS];
 int tensorfma_size[EMU_NUM_THREADS];
 int tensorfma_passes[EMU_NUM_THREADS];
 uint32 tensorfma_data[EMU_NUM_THREADS][32][4][16];
-bool tensorfma_conv_skip[16][8];
+bool tensorfma_mask_skip[16][8];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32 reduce_data[EMU_NUM_THREADS][32][4];
@@ -583,6 +582,246 @@ static void trap_to_mmode(uint64 cause, uint64 val)
     logpcchange(csrget(csr_mtvec));
 }
 
+////////////////////////////////////////////////////////////
+// Virtual to physical
+////////////////////////////////////////////////////////////
+
+uint64 virt_to_phys(uint64 addr, mem_access_type macc)
+{
+    // Read SATP, PRV and MSTATUS
+    uint64 satp;
+    satp = csrget(csr_satp);
+    uint64 satp_mode = (satp >> 60) & 0xF;
+    uint64 satp_ppn = satp & PPN_M;
+    uint64 prv = csrget(csr_prv);
+    uint64 mstatus = csrget(csr_mstatus);
+    bool sum = (mstatus >> 18) & 0x1;
+    bool mxr = (mstatus >> 19) & 0x1;
+
+    bool vm_enabled = (satp_mode != 0) && (prv <= CSR_PRV_S);
+
+    // Set for Sv48
+    // TODO: Support Sv39
+    int Num_Levels = 4;
+    int PTE_Size = 8;
+    int PTE_Idx_Size = 9;
+
+    uint64 pte_idx_mask = ((uint64)1<<PTE_Idx_Size)-1;
+    if (vm_enabled)
+    {
+        //log << LOG_DEBUG << "Virtual memory enabled. Performing page walk..." << endm;
+
+        // Perform page walk
+        int level;
+        uint64 ppn, pte_addr, pte;
+        bool pte_v, pte_r, pte_w, pte_x, pte_u, pte_a, pte_d;
+
+        level = Num_Levels;
+        ppn = satp_ppn;
+        do {
+          level--;
+          if (level < 0)
+          {
+            //log << LOG_ERR << "Last level PTE is a pointer to a page table: PTE = 0x" << std::hex << pte << endm;
+            return -1;
+          }
+
+          // Take VPN[level]
+          uint64 vpn = (addr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
+          // Read PTE
+          pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
+          pte = memread64(pte_addr, false);
+          //log << LOG_DEBUG << "* Level " << std::dec << level << ": PTE = 0x" << std::hex << pte << endm;
+
+          // Read PTE fields
+          pte_v = (pte >> PTE_V_OFFSET) & 0x1;
+          pte_r = (pte >> PTE_R_OFFSET) & 0x1;
+          pte_w = (pte >> PTE_W_OFFSET) & 0x1;
+          pte_x = (pte >> PTE_X_OFFSET) & 0x1;
+          pte_u = (pte >> PTE_U_OFFSET) & 0x1;
+          pte_a = (pte >> PTE_A_OFFSET) & 0x1;
+          pte_d = (pte >> PTE_D_OFFSET) & 0x1;
+          // Read PPN
+          ppn = (pte >> PTE_PPN_OFFSET) & PPN_M;
+
+          // Check invalid entry
+          if (!pte_v || (!pte_r && pte_w))
+          {
+            //log << LOG_ERR << "Invalid entry: PTE = 0x" << std::hex << pte << endm;
+            return -1;
+          }
+
+          // Check if PTE is a pointer to next table level
+        } while (!pte_r && !pte_x);
+
+        // A leaf PTE has been found
+        //log << LOG_DEBUG << "Valid leaf PTE found at level " << std::dec << level << endm;
+
+        // Check permissions
+        bool perm_ok = (macc == Mem_Access_Load)  ? pte_r || (mxr && pte_x) :
+                       (macc == Mem_Access_Store) ? pte_w :
+                                                    pte_x; // Mem_Access_Fetch
+        if (!perm_ok)
+        {
+          //log << LOG_ERR << "Page permissions do not allow this type of access (";
+          //switch (macc)
+          //{
+          //  case Mem_Access_Load:  log << "Load)" << endm; break;
+          //  case Mem_Access_Store: log << "Store)" << endm; break;
+          //  case Mem_Access_Fetch: log << "Fetch)" << endm; break;
+          //  default:               log << "*Invalid*: " << std::dec << (int)macc << ")" << endm;
+          //}
+
+          return -1;
+        }
+
+        // Check privilege mode
+        // If page is accessible to user mode, supervisor mode SW may also access it if sum bit from the sstatus is set
+        // Otherwise, check that privilege mode is higher than user
+        bool priv_ok = pte_u ? (prv == CSR_PRV_U) || sum : prv != CSR_PRV_U;
+        if (!priv_ok)
+        {
+          //log << LOG_ERR << "Page not accessible for current privilege mode (";
+          //switch (prv)
+          //{
+          //  case CSR_PRV_U: log << "User)" << endm;
+          //  case CSR_PRV_S: log << "Supervisor)" << endm;
+          //  default:        log << "*Invalid*: " << std::dec << prv << ")" << endm;
+          //}
+
+          return -1;
+        }
+
+        // Check if it is a misaligned superpage
+        if ((level > 0) && ((ppn & ((1<<(PTE_Idx_Size*level))-1)) != 0))
+        {
+          //log << LOG_ERR << "Misaligned superpage" << endm;
+          //for (int i = 0; i < level; i++)
+          //  log << LOG_DEBUG << "* ppn[" << std::dec << i << "] = 0x" << std::hex << ((ppn>>(PTE_Idx_Size*i)) & ((1<<(PTE_Idx_Size))-1)) << endm;
+          return -1;
+        }
+
+        if (!pte_a || ((macc == Mem_Access_Store) && !pte_d))
+        {
+          //log << LOG_DEBUG << "* Setting A/D bits in PTE" << endm;
+
+          // Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
+          uint64 pte_write = pte;
+          pte_write |= 1 << PTE_A_OFFSET;
+          if (macc == Mem_Access_Store)
+            pte_write |= 1 << PTE_D_OFFSET;
+
+          // Write PTE
+          memwrite64(pte_addr, pte_write, false);
+        }
+
+        // Obtain physical address
+        uint64 paddr;
+
+        // Copy page offset
+        paddr = addr & PG_OFFSET_M;
+
+        for (int i = 0; i < Num_Levels-1; i++)
+        {
+          // If level > 0, this is a superpage translation so VPN[level-1:0] are part of the page offset
+          if (i < level)
+            paddr |= addr & (pte_idx_mask << (PG_OFFSET_SIZE + PTE_Idx_Size*i));
+          else
+            paddr |= (ppn & (pte_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
+        }
+        // PPN[3] is 17 bits wide
+        paddr |= ppn & ((((uint64)1<<17) - 1) << (PTE_Idx_Size*(Num_Levels-1)));
+        // Final physical address only uses 40 bits
+        paddr &= PA_M;
+
+        //log << LOG_DEBUG << "Physical address = 0x" << std::hex << paddr << endm;
+
+        return paddr;
+    }
+    else
+    {
+        // Direct mapping, physical address is 40 bits
+        return addr & PA_M;
+    }
+}
+
+////////////////////////////////////////////////////////////
+//
+// Convolution and Tensor Mask CSR Emulation
+//
+////////////////////////////////////////////////////////////
+
+// Moves one step the position of the convolution sampling based on the configuration register
+void conv_move_pointer(int64 * conv_row_pos, int64 * conv_col_pos, uint64 conv_row_step_offset, uint64 conv_col_step_offset)
+{
+    * conv_row_pos = (* conv_row_pos) + conv_row_step_offset;
+    * conv_col_pos = (* conv_col_pos) + conv_col_step_offset;
+}
+
+// Returns if there something that needs to be processed or not based on current position and configuration
+bool conv_skip_pass(int64 conv_row_pos, int64 conv_col_pos, uint64 conv_row_size, uint64 conv_col_size)
+{
+    DEBUG_EMU(printf("Doing Conv skip pass check for:\n");)
+    DEBUG_EMU(printf("\tRow Pos:  %016llx\n", conv_row_pos);)
+    DEBUG_EMU(printf("\tCol Pos:  %016llx\n", conv_col_pos);)
+    DEBUG_EMU(printf("\tRow Size: %016llx\n", conv_row_size);)
+    DEBUG_EMU(printf("\tCol Size: %016llx\n", conv_col_size);)
+    // Negative position
+    bool skip = 0;
+    if(conv_col_pos < 0) skip = 1;
+    if(conv_row_pos < 0) skip = 1;
+    // Outside position
+    if(conv_col_pos >= conv_col_size) skip = 1;
+    if(conv_row_pos >= conv_row_size) skip = 1;
+
+    if(skip)
+
+    {
+        DEBUG_EMU(gprintf("\tSkip conv_row_pos %d conv_col_pos %d conv_row_size%d conv_col_size%d\n", conv_row_pos, conv_col_pos, conv_row_size, conv_col_size);)
+
+    }
+    return skip;
+}
+
+// Update to the tensor Mask due a convolution CSR write
+void tmask_conv()
+{
+    uint64_t tmask_value = 0;
+
+    // Gets the sizes of the convolution
+    uint64 tconvsizereg         = csrget(csr_tconvsize);
+    uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
+    uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
+    uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
+    uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
+
+    // Gets the positions of the convolution
+    uint64 tconvctrlreg = csrget(csr_tconvctrl);
+    int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
+    int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
+
+    // Sign extend
+    if(conv_row_pos & 0x8000) conv_row_pos = conv_row_pos | 0xFFFFFFFFFFFF0000ULL;
+    if(conv_col_pos & 0x8000) conv_col_pos = conv_col_pos | 0xFFFFFFFFFFFF0000ULL;
+
+    // Goes through the 16 elements of the tensormap
+    for(int i = 0; i < 16; i++)
+    {
+        // Sets a 1 if convolution passes
+        if(!conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
+            tmask_value |= 1 << i;
+        conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
+    }
+    
+    csrset(csr_tmask, tmask_value);
+}
+
+// Returns the pass bit for a specific bit
+bool tmask_pass(int bit)
+{
+    return ((csrget(csr_tmask) >> bit) & 1);
+}
+
 #ifdef CHECKER
 
 ////////////////////////////////////////////////////////////
@@ -597,79 +836,215 @@ uint64 scp_trans[EMU_NUM_MINIONS][64];  // Which PA the cacheline is mapped to
 uint64 csr_cacheop_emu(csr reg)
 {
     uint64 op_value = csrget(reg);
-    uint64 stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
-    uint64 repeat   = (op_value >> 48) & 0xFF;
+    uint64 tm     = op_value >> 63;
+    uint64 op     = (op_value >> 60) & 0x7;
+    uint64 dest   = (op_value >> 58) & 0x3;
+    uint64 start  = (op_value >> 56) & 0x3;
+    uint64 addr   = op_value & 0xFFFFFFFFFFC0UL;
+    uint64 repeat = (op_value & 0xF) + 1;
+    
+    uint64 stride = XREGS[31].x & 0xFFFFFFFFFFC0UL;
 
-    uint64 op    = op_value >> 61;
-    uint64 addr  = op_value & 0xFFFFFFFFFFC0UL;
-    uint64 start = (op_value >> 59) & 0x3;
-    uint64 end   = (op_value >> 56) & 0x7;
+    uint64 set  = (addr >> 6) & 0xFFFFFF;
+    uint64 way  = (op_value >> 48) & 0xFF;
+    uint64 cl   = (set << 2) + way % 4; // FIXME: Only valid for 4 ways
 
-    uint64 set = (op_value >> 8) & 0xFFFFFF;
-    uint64 way  = op_value & 0xFF;
-    uint64 cl   = (set << 2) + way; // FIXME: Only valid for 4 ways
-
-    DEBUG_EMU(gprintf("\tDoing CacheOp with value %016X\n", op_value);)
+    DEBUG_EMU(gprintf("\tDoing CacheOp with value %016llX\n", op_value);)
 
     switch (op) {
-       case 3: // EvictSW
-          for(int i = 0; i <= repeat; i++) {
-             DEBUG_EMU(gprintf("\tDoing EvictSW (%d.%d) to Set: %X, Way: %X, CL: %02X, StartLevel: %01X, EndLevel: %01X\n",
-                      current_thread >> 1, current_thread & 1, set, way, cl, start, end);)
-             // TODO
-             set = (++cl >> 2) & 0xF;
-             way = cl & 0x3;
-          }
-          break;
-       case 2: // FlushSW
-          for(int i = 0; i <= repeat; i++) {
-             DEBUG_EMU(gprintf("\tDoing FlushSW (%d.%d) to Set: %X, Way: %X, CL: %02X, StartLevel: %01X, EndLevel: %01X\n",
-                      current_thread >> 1, current_thread & 1, set, way, cl, start, end);)
-             // TODO
-             set = (++cl >> 2) & 0xF;
-             way = cl & 0x3;
-          }
-          break;
-       case 7: // EvictVA
-          for(int i = 0; i <= repeat; i++) {
-             DEBUG_EMU(gprintf("\tDoing EvictVA: %016X, StartLevel: %01X, EndLevel: %01X\n", addr, start, end);)
-             // TODO
-             addr += stride;
-          }
-          break;
-       case 6: // FlushVA
-          for(int i = 0; i <= repeat; i++) {
-             DEBUG_EMU(gprintf("\tDoing FlushVA: %016X, StartLevel: %01X, EndLevel: %01X\n", addr, start, end);)
-             // TODO
-             addr += stride;
-          }
-          break;
-       case 4: // PrefetchVA
-          DEBUG_EMU(gprintf("\tDoing PrefetchVA: %016X, Way: %X\n", addr, way);)
-          // TODO
-          break;
-       case 0: // LockVA
-          {
-             uint64 way_va  = op_value & 0x3; // 4 ways
-             set = (op_value >> 6) & 0xF;
-             cl = (set << 2) + way_va; // FIXME: Only valid for 4 ways
-             DEBUG_EMU(gprintf("\tDoing LockVA: %016X, Way: %X\n", addr, way_va);)
-             scp_locked[current_thread >> 1][cl] = true;
-             scp_trans[current_thread >> 1][cl]  = addr;
-             break;
-          }
-       case 1: // UnlockVA
-          {
-             uint64 way_va   = op_value & 0x3; // 4 ways
-             uint64 state = (op_value >> 57) & 0x1;
-             set = (op_value >> 6) & 0xF;
-             cl = (set << 2) + way_va; // FIXME: Only valid for 4 ways
-             DEBUG_EMU(gprintf("\tDoing UnlockVA: %016X, Way: %X, FinalState: %01X\n", addr, way_va, state);)
-             scp_locked[current_thread >> 1][cl] = false;
-             break;
-          }
-       default:
-          DEBUG_EMU(gprintf("\tUnknown CacheOp Opcode!\n");)
+        case 3: // EvictSW
+            if(dest == 0) break;     // If dest is L1, done
+            if(dest <= start) break; // If start is bigger or equal than dest, done
+            if(set >= 16) break;     // Skip sets outside cache
+            if(way >= 4) break;      // Skip ways outside cache
+
+            for(int i = 0; i < repeat; i++)
+            {
+                // If cacheline is locked or not passing tensor mask condition, skip operation
+                if(!scp_locked[current_thread >> 1][cl] && (!tm || tmask_pass(i)))
+                {
+                    DEBUG_EMU(gprintf("\tDoing EvictSW (%d.%d) to Set: %X, Way: %X, CL: %02X, StartLevel: %01X, DestLevel: %01X\n", 
+                              current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
+                }
+
+                set = (++cl >> 2) & 0xF;
+                way = cl & 0x3;
+            }
+            break;
+        case 2: // FlushSW
+            if(dest == 0) break;     // If dest is L1, done
+            if(dest <= start) break; // If start is bigger or equal than dest, done
+            if(set >= 16) break;     // Skip sets outside cache
+            if(way >= 4) break;      // Skip ways outside cache
+
+            for(int i = 0; i < repeat; i++) {
+                // If cacheline is locked or not passing tensor mask condition, skip operation
+                if(!scp_locked[current_thread >> 1][cl] && (!tm || tmask_pass(i)))
+                {
+                    DEBUG_EMU(gprintf("\tDoing FlushSW (%d.%d) to Set: %X, Way: %X, CL: %02X, StartLevel: %01X, DestLevel: %01X\n", 
+                              current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
+                }
+
+                set = (++cl >> 2) & 0xF;
+                way = cl & 0x3;
+            }
+            break;
+        case 7: // EvictVA
+            if(dest == 0) break;     // If dest is L1, done
+            if(dest <= start) break; // If start is bigger or equal than dest, done
+
+            for(int i = 0; i < repeat; i++) {
+                // If not masked
+                if(!tm || tmask_pass(i))
+                {
+                    uint64 paddr = virt_to_phys(addr, Mem_Access_Store);
+
+                    // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
+                    bool scp_en = false;
+                    set = (paddr >> 6) & 0xF;
+                    cl  = (set << 2);
+                    for(int j = 0; j < 4; j++)
+                    {
+                        if((start == 0) && scp_locked[cl + j] && (scp_trans[current_thread >> 1][cl + j] == paddr)) scp_en = true;
+                    }
+                    // Address is not locked
+                    if(!scp_en)
+                        DEBUG_EMU(gprintf("\tDoing EvictVA: %016X, StartLevel: %01X, DestLevel: %01X\n", addr, start, dest);)
+                        
+                }
+                addr += stride;
+            }
+            break;
+        case 6: // FlushVA
+            if(dest == 0) break;     // If dest is L1, done
+            if(dest <= start) break; // If start is bigger or equal than dest, done
+
+            for(int i = 0; i < repeat; i++) {
+                // If not masked
+                if(!tm || tmask_pass(i))
+                {
+                    uint64 paddr = virt_to_phys(addr, Mem_Access_Store);
+
+                    // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
+                    bool scp_en = false;
+                    set = (paddr >> 6) & 0xF;
+                    cl  = (set << 2);
+                    for(int j = 0; j < 4; j++)
+                    {
+                        if((start == 0) && scp_locked[cl + j] && (scp_trans[current_thread >> 1][cl + j] == paddr)) scp_en = true;
+                    }
+                    // Address is not locked
+                    if(!scp_en)
+                        DEBUG_EMU(gprintf("\tDoing FlushVA: %016X, StartLevel: %01X, DestLevel: %01X\n", addr, start, dest);)
+                        
+                }
+                addr += stride;
+            }
+            break;
+        case 4: // PrefetchVA
+            for(int i = 0; i < repeat; i++)
+            {
+                // If not masked
+                if(!tm || tmask_pass(i))
+                {
+                    uint64 paddr = virt_to_phys(addr, Mem_Access_Store);
+
+                    // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
+                    bool scp_en = false;
+                    set = (paddr >> 6) & 0xF;
+                    cl  = (set << 2);
+                    for(int w = 0; w < 4; w++)
+                    {
+                        if((start == 0) && scp_locked[cl + w] && (scp_trans[current_thread >> 1][cl + w] == paddr)) scp_en = true;
+                    }
+                    // Address is not locked
+                    if(!scp_en)
+                        DEBUG_EMU(gprintf("\tDoing PrefetchVA: %016X, Dest: %X\n", addr, dest);)
+                }
+                addr += stride;
+            }
+            break;
+            // TODO
+            break;
+        case 0: // LockVA
+            if((way >= 4) && (way != 255)) break; // Skip ways outside cache
+            set = set % 16;
+
+            for(int i = 0; i < repeat; i++)
+            {
+                // If not masked
+                if(!tm || tmask_pass(i))
+                {
+                    DEBUG_EMU(gprintf("\tDoing LockVA: %016X, Way: %X\n", addr, way);)
+                    uint64 paddr = virt_to_phys(addr, Mem_Access_Store);
+
+                    // Looks for 1st way available
+                    if(way == 255)
+                    {
+                        cl = set << 2;
+                        // For all the ways
+                        for(int w = 0; w < 4; w++)
+                        {
+                            // Check if not locked and same PADDR
+                            if(!scp_locked[current_thread >> 1][cl + w])
+                            {
+                                way = w;
+                                break;
+                            }
+                        }
+                        // No free way found, return 1
+                        if(way == 255) return 1;
+                    }
+                    else
+                    {
+                        // For all the ways
+                        for(int w = 0; w <= 4; w++)
+                        {
+                            // Check if not locked and same PADDR
+                            if(!scp_locked[current_thread >> 1][cl + w])
+                            {
+                                break;
+                            }
+                            // No free way found, return 1
+                            if(w == 4) return 1;
+                        }
+                    }
+
+                    cl = (set << 2) + way;
+                    scp_locked[current_thread >> 1][cl] = true;
+                    scp_trans[current_thread >> 1][cl]  = paddr;
+                }
+                addr += stride;
+            }
+            break;
+        case 1: // UnlockVA
+            for(int i = 0; i < repeat; i++)
+            {
+                // If not masked
+                if(!tm || tmask_pass(i))
+                {
+                    uint64 paddr = virt_to_phys(addr, Mem_Access_Store);
+                    uint64 state  = (op_value >> 59) & 0x1;
+
+                    set = (paddr >> 6) & 0xF;
+                    cl = set << 2;
+
+                    // For all the ways
+                    for(int w = 0; w < 4; w++)
+                    {
+                        // Check if locked and same PADDR
+                        if(scp_locked[current_thread >> 1][cl + w] && (scp_trans[current_thread >> 1][cl + w] == paddr))
+                        {
+                            DEBUG_EMU(gprintf("\tDoing UnlockVA: %016X, Way: %X, FinalState: %01X\n", addr, w, state);)
+                            scp_locked[current_thread >> 1][cl + w] = false;
+                        }
+                    }
+                }
+                addr += stride;
+            }
+            break;
+        default:
+           DEBUG_EMU(gprintf("\tUnknown CacheOp Opcode!\n");)
     }
 
     return 0;
@@ -857,143 +1232,123 @@ uint32 get_mask ( unsigned maskNr ) {
         func_memwrite64 = (func_memwrite64_t) func_memwrite64_;
     }
 
-    uint8 memread8(uint64 addr)
+    uint8 memread8(uint64 addr, bool trans)
     {
+        uint64 paddr = addr;
+        if(trans) paddr = virt_to_phys(addr, Mem_Access_Load);
         // Used to detect special load accesses like ticketer
-        log_info->mem_addr[0] = addr;
-        return (func_memread8(addr));
+        log_info->mem_addr[0] = paddr;
+        return (func_memread8(paddr));
     }
 
-    uint16 memread16(uint64 addr)
+    uint16 memread16(uint64 addr, bool trans)
     {
+        uint64 paddr = addr;
+        if(trans) paddr = virt_to_phys(addr, Mem_Access_Load);
         // Used to detect special load accesses like ticketer
-        log_info->mem_addr[0] = addr;
-        return (func_memread16(addr));
+        log_info->mem_addr[0] = paddr;
+        return (func_memread16(paddr));
     }
 
-    uint32 memread32(uint64 addr)
+    uint32 memread32(uint64 addr, bool trans)
     {
+        uint64 paddr = addr;
+        if(trans) paddr = virt_to_phys(addr, Mem_Access_Load);
         // Used to detect special load accesses like ticketer
-        log_info->mem_addr[0] = addr;
-        return (func_memread32(addr));
+        log_info->mem_addr[0] = paddr;
+        return (func_memread32(paddr));
     }
 
-    uint64 memread64(uint64 addr)
+    uint64 memread64(uint64 addr, bool trans)
     {
+        uint64 paddr = addr;
+        if(trans) paddr = virt_to_phys(addr, Mem_Access_Load);
         // Used to detect special load accesses like ticketer
-        log_info->mem_addr[0] = addr;
-        return (func_memread64(addr));
+        log_info->mem_addr[0] = paddr;
+        return (func_memread64(paddr));
     }
 
-    void memwrite8(uint64 addr, uint8 data)
+    void memwrite8(uint64 addr, uint8 data, bool trans)
     {
-        printf("MEM8 %i, %016llx, %02x\n", current_thread, addr, data);
-        (func_memwrite8(addr, data));
+        uint64 paddr = addr;
+        if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
+        printf("MEM8 %i, %016llx, %02x, (%016llx)\n", current_thread, paddr, data, addr);
+        (func_memwrite8(paddr, data));
     }
 
-    void memwrite16(uint64 addr, uint16 data)
+    void memwrite16(uint64 addr, uint16 data, bool trans)
     {
-        printf("MEM16 %i, %016llx, %04x\n", current_thread, addr, data);
-        (func_memwrite16(addr, data));
+        uint64 paddr = addr;
+        if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
+        printf("MEM16 %i, %016llx, %04x, (%016llx)\n", current_thread, paddr, data, addr);
+        (func_memwrite16(paddr, data));
     }
 
-    void memwrite32(uint64 addr, uint32 data)
+    void memwrite32(uint64 addr, uint32 data, bool trans)
     {
-        printf("MEM32 %i, %016llx, %08x\n", current_thread, addr, data);
-        (func_memwrite32(addr, data));
+        uint64 paddr = addr;
+        if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
+        printf("MEM32 %i, %016llx, %08x, (%016llx)\n", current_thread, paddr, data, addr);
+        (func_memwrite32(paddr, data));
     }
 
-    void memwrite64(uint64 addr, uint64 data)
+    void memwrite64(uint64 addr, uint64 data, bool trans)
     {
-        printf("MEM64 %i, %016llx, %016llx\n", current_thread, addr, data);
-        (func_memwrite64(addr, data));
+        uint64 paddr = addr;
+        if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
+        printf("MEM64 %i, %016llx, %016llx, (%016llx)\n", current_thread, paddr, data, addr);
+        (func_memwrite64(paddr, data));
     }
 
-   typedef  void (*func_thread1_enabled_t) (unsigned minionId, int en, uint64 pc);
-   func_thread1_enabled_t func_thread1_enabled = NULL;
+    typedef  void (*func_thread1_enabled_t) (unsigned minionId, int en, uint64 pc);
+    func_thread1_enabled_t func_thread1_enabled = NULL;
 
-   extern "C" void set_thread1_enabled_func( func_thread1_enabled_t f) {
-     func_thread1_enabled = f;
-   }
+    extern "C" void set_thread1_enabled_func( func_thread1_enabled_t f) {
+      func_thread1_enabled = f;
+    }
 
 #else
-    uint8 memread8(uint64 addr)
+    uint8 memread8(uint64 addr, bool trans)
     {
         return * ((uint8 *) addr);
     }
 
-    uint16 memread16(uint64 addr)
+    uint16 memread16(uint64 addr, bool trans)
     {
         return * ((uint16 *) addr);
     }
 
-    uint32 memread32(uint64 addr)
+    uint32 memread32(uint64 addr, bool trans)
     {
         return * ((uint32 *) addr);
     }
 
-    uint64 memread64(uint64 addr)
+    uint64 memread64(uint64 addr, bool trans)
     {
         return * ((uint64 *) addr);
     }
 
-    void memwrite8(uint64 addr, uint8 data)
+    void memwrite8(uint64 addr, uint8 data, bool trans)
     {
         * ((uint8 *) addr) = data;
     }
 
-    void memwrite16(uint64 addr, uint16 data)
+    void memwrite16(uint64 addr, uint16 data, bool trans)
     {
         * ((uint16 *) addr) = data;
     }
 
-    void memwrite32(uint64 addr, uint32 data)
+    void memwrite32(uint64 addr, uint32 data, bool trans)
     {
         * ((uint32 *) addr) = data;
     }
 
-    void memwrite64(uint64 addr, uint64 data)
+    void memwrite64(uint64 addr, uint64 data, bool trans)
     {
         * ((uint64 *) addr) = data;
     }
 
 #endif
-
-////////////////////////////////////////////////////////////
-//
-// Convolution CSR Emulation
-//
-////////////////////////////////////////////////////////////
-
-// Moves one step the position of the convolution sampling based on the configuration register
-void conv_move_pointer(int64 * conv_row_pos, int64 * conv_col_pos, uint64 conv_row_step_offset, uint64 conv_col_step_offset)
-{
-    * conv_row_pos = (* conv_row_pos) + conv_row_step_offset;
-    * conv_col_pos = (* conv_col_pos) + conv_col_step_offset;
-}
-
-// Returns if there something that needs to be processed or not based on current position and configuration
-bool conv_skip_pass(int64 conv_row_pos, int64 conv_col_pos, uint64 conv_row_size, uint64 conv_col_size)
-{
-    DEBUG_EMU(printf("Doing Conv skip pass check for:\n");)
-    DEBUG_EMU(printf("\tRow Pos:  %016llx\n", conv_row_pos);)
-    DEBUG_EMU(printf("\tCol Pos:  %016llx\n", conv_col_pos);)
-    DEBUG_EMU(printf("\tRow Size: %016llx\n", conv_row_size);)
-    DEBUG_EMU(printf("\tCol Size: %016llx\n", conv_col_size);)
-    // Negative position
-    bool skip = 0;
-    if(conv_col_pos < 0) skip = 1;
-    if(conv_row_pos < 0) skip = 1;
-    // Outside position
-    if(conv_col_pos >= conv_col_size) skip = 1;
-    if(conv_row_pos >= conv_row_size) skip = 1;
-
-    if(skip)
-    {
-        DEBUG_EMU(gprintf("\tSkip conv_row_pos %d conv_col_pos %d conv_row_size%d conv_col_size%d\n", conv_row_pos, conv_col_pos, conv_row_size, conv_col_size);)
-    }
-    return skip;
-}
 
 ////////////////////////////////////////////////////////////
 //
@@ -1008,10 +1363,10 @@ void tensorload()
 
     uint64 trans   = (control >> 54) & 0x07;
     uint64 boffset = (control >> 57) & 0x03;
-    uint64 dst    = control & 0x3F;
-    uint64 rows   = ((control >> 48) & 0x1F) + 1;
-    uint64 isconv = (control >> 53) & 0x1;
-    uint64 base   = control & 0xFFFFFFFFFFC0ULL;
+    uint64 dst     = control & 0x3F;
+    uint64 rows    = ((control >> 48) & 0x1F) + 1;
+    uint64 tm      = (control >> 53) & 0x1;
+    uint64 base    = control & 0xFFFFFFFFFFC0ULL;
     //new spec
     //uint64 trans   = (control >> 56) & 0x07;
     //uint64 boffset = (control >> 5) & 0x03;
@@ -1023,34 +1378,12 @@ void tensorload()
     scp_size[current_thread]  = rows;
     uint64 addr               = base;
 
-    scp_conv[current_thread].clear();
-
-    // Gets the sizes of the convolution
-    uint64 tconvsizereg         = csrget(csr_tconvsize);
-    uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
-    uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
-    uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
-    uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
-
-    // Gets the positions of the convolution
-    uint64 tconvctrlreg = csrget(csr_tconvctrl);
-    int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
-    int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
-    // Sign extend
-    if(conv_row_pos & 0x8000) conv_row_pos = conv_row_pos | 0xFFFFFFFFFFFF0000ULL;
-    if(conv_col_pos & 0x8000) conv_col_pos = conv_col_pos | 0xFFFFFFFFFFFF0000ULL;
-
     for ( int i = 0; i < rows; i++ )
     {
         bool skip_load = 0;
-        // Checks if needs to skip the current load due convolution CSR
-        if(isconv)
-        {
-            if(conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
-                skip_load = 1;
-            conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
-        }
-        scp_conv[current_thread].push_back(skip_load);
+        // Checks if needs to skip the current load due tensormask CSR
+        if(tm)
+            skip_load = !tmask_pass(i);
 
         if(!skip_load)
         {
@@ -1082,51 +1415,20 @@ void transtensorload()
 
     uint64 trans   = (control >> 54) & 0x07;
     uint64 boffset = (control >> 57) & 0x03;
-
-    uint64 dst    = control & 0x3F;
-    uint64 rows   = ((control >> 48) & 0x1F) + 1;
-    uint64 base   = control & 0xFFFFFFFFFFC0ULL;
-    uint64 isconv = (control >> 53) & 0x1;
-    uint64 usetmask = (control >> 52) & 0x1;
+    uint64 dst     = control & 0x3F;
+    uint64 rows    = ((control >> 48) & 0x1F) + 1;
+    uint64 tm      = (control >> 53) & 0x1;
+    uint64 base    = control & 0xFFFFFFFFFFC0ULL;
 
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
     uint64 addr               = base;
 
-    scp_conv[current_thread].clear();
-
-    // Gets the sizes of the convolution
-    uint64 tconvsizereg         = csrget(csr_tconvsize);
-    uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
-    uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
-    uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
-    uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
-
-    // Gets the positions of the convolution
-    uint64 tconvctrlreg = csrget(csr_tconvctrl);
-    int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
-    int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
-    // Sign extend
-    if(conv_row_pos & 0x8000) conv_row_pos = conv_row_pos | 0xFFFFFFFFFFFF0000ULL;
-    if(conv_col_pos & 0x8000) conv_col_pos = conv_col_pos | 0xFFFFFFFFFFFF0000ULL;
-
-    for ( int i = 0; i < rows; i++ )
-    {
-        bool skip_load = 0;
-        // Checks if needs to skip the current load due convolution CSR
-        if(isconv)
-        {
-            if(conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
-                skip_load = 1;
-            conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
-        }
-        scp_conv[current_thread].push_back(skip_load);
-    }
     //NO TRANS
     if(trans == 0x00){
 
         for(int i=0;i < rows; ++i){
-            if(usetmask || scp_conv[current_thread].front()){
+            if(!tm || tmask_pass(i)){
                 if(addr & 0x3F)
                 {
                     DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
@@ -1154,7 +1456,7 @@ void transtensorload()
        start=size==1 ?  boffset << 4 : (boffset & 0x02) << 5;
        int elements = 4 / size;
        for(int i=0;i < rows; ++i){
-            if(usetmask || scp_conv[current_thread].front()){
+            if(!tm || tmask_pass(i)){
                 if(addr & 0x3F)
                 {
                     DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
@@ -1186,9 +1488,10 @@ uint64 get_scratchpad_value(int entry, int block, int * last_entry, int * size)
     return SCP[entry][block >> 1].x[block & 1];
 }
 
-std::list<bool> * get_scratchpad_conv_list()
+void get_scratchpad_conv_list(std::list<bool> * list)
 {
-    return &scp_conv[current_thread];
+    for(int i = 0; i < 16; i++)
+        list->push_back(!tmask_pass(i));
 }
 
 ////////////////////////////////////////////////////////////
@@ -1201,7 +1504,7 @@ void tensorfma()
 {
     uint64 tfmareg = csrget(csr_tfmastart);
 
-    uint64 isconv     =  (tfmareg & 0x2000000000) >> 37;      // Is a Conv2D operation (use tensor conv register)
+    uint64 tm         =  (tfmareg & 0x2000000000) >> 37;      // Is a Conv2D operation (use tensor conv register)
     uint64 aoffset    =  (tfmareg & 0x0F00000000) >> 32;      // A matrix 32b offset
     uint64 bcols      = ((tfmareg & 0x00F0000000) >> 28) + 1; // Number of B cols to be processed
     uint64 acols      = ((tfmareg & 0x000F000000) >> 24) + 1; // Number of A cols to be processed
@@ -1211,32 +1514,17 @@ void tensorfma()
     uint64 type       =  (tfmareg & 0x000000000E) >>  1;      // Mode: 00 => FP32 | 01 => *FP16+FP32 | 10 => FP16 | 11 => *INT8+INT32
     uint64 first_pass =  (tfmareg & 0x0000000001);            // Doing a first pass op (do MUL instead of FMA)
 
-    DEBUG_EMU(gprintf("\tStart Tensor FMA with isconv: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, bstart: %d, astart: %d\n", isconv, aoffset, type, first_pass, bcols, acols, arows, bstart, astart);)
+    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, bstart: %d, astart: %d\n", tm, aoffset, type, first_pass, bcols, acols, arows, bstart, astart);)
 
     tensorfma_size[current_thread] = arows * bcols / 4;
     tensorfma_passes[current_thread] = acols;
 
-    // Gets the sizes of the convolution
-    uint64 tconvsizereg = csrget(csr_tconvsize);
-    uint64 conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
-    uint64 conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
-    uint64 conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
-    uint64 conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
-
-    // Gets the positions of the convolution
-    uint64 tconvctrlreg = csrget(csr_tconvctrl);
-    int64  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
-    int64  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
-    // Sign extend
-    if(conv_row_pos & 0x8000) conv_row_pos = conv_row_pos | 0xFFFFFFFFFFFF0000ULL;
-    if(conv_col_pos & 0x8000) conv_col_pos = conv_col_pos | 0xFFFFFFFFFFFF0000ULL;
-
-    // No conv skip by default
+    // No mask skip by default
     for(int i = 0; i < 16; i++)
     {
         for(int j = 0; j < 8; j++)
         {
-            tensorfma_conv_skip[i][j] = 0;
+            tensorfma_mask_skip[i][j] = 0;
         }
     }
 
@@ -1265,22 +1553,20 @@ void tensorfma()
         for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
         {
             // Checks if needs to skip the current pass due convolution
-            if(isconv)
+            if(tm)
             {
-                if(conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
+                if(!tmask_pass(ar))
                 {
-                    conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
                     // Mark all passes as skipped
                     for(int i = 0; i < 16; i++)
-                        tensorfma_conv_skip[i][ar] = 1;
+                        tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if(first_pass)
                     {
-                        tensorfma_conv_skip[0][ar] = 0;
+                        tensorfma_mask_skip[0][ar] = 0;
                     }
                     continue;
                 }
-                conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
             }
 
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
@@ -1345,20 +1631,18 @@ void tensorfma()
         for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
         {
             // Checks if needs to skip the current pass due convolution
-            if(isconv)
+            if(tm)
             {
-                if(conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
+                if(!tmask_pass(ar))
                 {
-                    conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
                     // Mark all passes as skipped
                     for(int i = 0; i < 16; i++)
-                        tensorfma_conv_skip[i][ar] = 1;
+                        tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if(first_pass)
-                        tensorfma_conv_skip[0][ar] = 0;
+                        tensorfma_mask_skip[0][ar] = 0;
                     continue;
                 }
-                conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
             }
 
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
@@ -1531,20 +1815,18 @@ void tensorfma()
         for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
         {
             // Checks if needs to skip the current pass due convolution
-            if(isconv)
+            if(tm)
             {
-                if(conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
+                if(!tmask_pass(ar))
                 {
-                    conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
                     // Mark all passes as skipped
                     for(int i = 0; i < 16; i++)
-                        tensorfma_conv_skip[i][ar] = 1;
+                        tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if(first_pass)
-                        tensorfma_conv_skip[0][ar] = 0;
+                        tensorfma_mask_skip[0][ar] = 0;
                     continue;
                 }
-                conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
             }
 
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
@@ -1620,20 +1902,18 @@ void tensorfma()
         for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
         {
             // Checks if needs to skip the current pass due convolution
-            if(isconv)
+            if(tm)
             {
-                if(conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
+                if(!tmask_pass(ar))
                 {
-                    conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
                     // Mark all passes as skipped
                     for(int i = 0; i < 16; i++)
-                        tensorfma_conv_skip[i][ar] = 1;
+                        tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if(first_pass)
-                        tensorfma_conv_skip[0][ar] = 0;
+                        tensorfma_mask_skip[0][ar] = 0;
                     continue;
                 }
-                conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
             }
 
             int32_t w = (sizeof(int32_t) << 3) - 1;//used for the bitwise saturation
@@ -1737,12 +2017,11 @@ void tensorfma()
     }
 }
 
-uint64 get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip)
+uint64 get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * mask_skip)
 {
     * size      = tensorfma_size[current_thread];
     * passes    = tensorfma_passes[current_thread];
-    * conv_skip = tensorfma_conv_skip[pass][entry / 4];
-    printf("Conv skip for A row %i and Pass %i is %i\n", entry / 4, pass, * conv_skip);
+    * mask_skip = tensorfma_mask_skip[pass][entry / 4];
     return tensorfma_data[current_thread][entry][block][pass];
 }
 
@@ -3403,6 +3682,8 @@ void csr_insn(xreg dst, csr src1, uint64 imm)
         reduce();
     else if ( src1 == csr_flbarrier )
         x = flbarrier();
+    else if ( (src1 == csr_tconvctrl) || (src1 == csr_tconvsize) )
+        tmask_conv();
 #endif
 
     DEBUG_EMU(gprintf("\t0x%016llx --> CSR[%08x]\n", imm, src1);)

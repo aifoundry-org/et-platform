@@ -57,6 +57,7 @@ typedef uint64 (*func_ptr_csrget)      (csr src1);
 typedef void   (*func_ptr_write_msg_port_data) (uint32 thread, uint32 port_id, uint32 *data);
 typedef void   (*func_ptr_set_msg_port_data_func) (void* f, void *g, void *h);
 typedef bool   (*func_ptr_get_stall_msg_port) (uint32, uint32);
+typedef uint64_t (*func_virt_to_phys) (uint64_t addr, mem_access_type macc);
 
 typedef void   (*func_ptr_mem)(
     void * func_memread8_,
@@ -76,14 +77,6 @@ typedef enum
     Reduce_Data_Consumed
 } reduce_state;
 
-// Memory access type
-typedef enum
-{
-    Mem_Access_Load,
-    Mem_Access_Store,
-    Mem_Access_Fetch
-} mem_access_type;
-
 // Global variables
 std::list<int>           enabled_threads;          // List of enabled threads
 std::list<int>           pending_ipi;              // Pending IPI list
@@ -98,175 +91,53 @@ function_pointer_cache * func_cache;
 
 main_memory * memory;
 
-// Virtual to physical
-uint64 virt_to_phys(uint64 addr, mem_access_type macc)
-{
-    // Resolve where csrget function is
-    func_ptr_csrget csrget = (func_ptr_csrget) func_cache->get_function_ptr("csrget");
-
-    // Read SATP, PRV and MSTATUS
-    uint64 satp = (csrget(csr_satp));
-    uint64 satp_mode = (satp >> 60) & 0xF;
-    uint64 satp_ppn = satp & PPN_M;
-    uint64 prv = (csrget(csr_prv));
-    uint64 mstatus = (csrget(csr_mstatus));
-    bool sum = (mstatus >> 18) & 0x1;
-    bool mxr = (mstatus >> 19) & 0x1;
-
-    bool vm_enabled = (satp_mode != 0) && (prv <= CSR_PRV_S);
-
-    // Set for Sv48
-    // TODO: Support Sv39
-    int Num_Levels = 4;
-    int PTE_Size = 8;
-    int PTE_Idx_Size = 9;
-
-    uint64 pte_idx_mask = ((uint64)1<<PTE_Idx_Size)-1;
-    if (vm_enabled)
-    {
-        // Perform page walk
-        int level;
-        uint64 ppn, pte_addr, pte;
-        bool pte_v, pte_r, pte_w, pte_x, pte_u, pte_a, pte_d;
-
-        level = Num_Levels;
-        ppn = satp_ppn;
-        do {
-          level--;
-          if (level < 0)
-            return -1;
-
-          // Take VPN[level]
-          uint64 vpn = (addr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
-          // Read PTE
-          pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
-          memory->read(pte_addr, PTE_Size, &pte);
-
-          // Read PTE fields
-          pte_v = (pte >> PTE_V_OFFSET) & 0x1;
-          pte_r = (pte >> PTE_R_OFFSET) & 0x1;
-          pte_w = (pte >> PTE_W_OFFSET) & 0x1;
-          pte_x = (pte >> PTE_X_OFFSET) & 0x1;
-          pte_u = (pte >> PTE_U_OFFSET) & 0x1;
-          pte_a = (pte >> PTE_A_OFFSET) & 0x1;
-          pte_d = (pte >> PTE_D_OFFSET) & 0x1;
-          // Read PPN
-          ppn = (pte >> PTE_PPN_OFFSET) & PPN_M;
-
-          // Check invalid entry
-          if (!pte_v || (!pte_r && pte_w))
-            return -1;
-
-          // Check if PTE is a pointer to next table level
-        } while (!pte_r && !pte_x);
-
-        // A leaf PTE has been found
-
-        // Check permissions
-        bool perm_ok = (macc == Mem_Access_Load)  ? pte_r || (mxr && pte_x) :
-                       (macc == Mem_Access_Store) ? pte_w :
-                                                    pte_x; // Mem_Access_Fetch
-        if (!perm_ok)
-          return -1;
-
-        // Check privilege mode
-        // If page is accessible to user mode, supervisor mode SW may also access it if sum bit from the sstatus is set
-        // Otherwise, check that privilege mode is higher than user
-        bool priv_ok = pte_u ? (prv == CSR_PRV_U) || sum : prv != CSR_PRV_U;
-        if (!priv_ok)
-          return -1;
-
-        // Check if it is a misaligned superpage
-        if ((level > 0) && ((ppn & ((1<<(PTE_Idx_Size*level))-1)) != 0))
-          return -1;
-
-        if (!pte_a || ((macc == Mem_Access_Store) && !pte_d))
-        {
-          // Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
-          uint64 pte_write = pte;
-          pte_write |= 1 << PTE_A_OFFSET;
-          if (macc == Mem_Access_Store)
-            pte_write |= 1 << PTE_D_OFFSET;
-
-          // Write PTE
-          memory->write(pte_addr, PTE_Size, &pte_write);
-        }
-
-        // Obtain physical address
-        uint64 paddr;
-
-        // Copy page offset
-        paddr = addr & PG_OFFSET_M;
-
-        for (int i = 0; i < Num_Levels-1; i++)
-        {
-          // If level > 0, this is a superpage translation so VPN[level-1:0] are part of the page offset
-          if (i < level)
-            paddr |= addr & (pte_idx_mask << (PG_OFFSET_SIZE + PTE_Idx_Size*i));
-          else
-            paddr |= (ppn & (pte_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
-        }
-        // PPN[3] is 17 bits wide
-        paddr |= ppn & ((((uint64)1<<17) - 1) << (PTE_Idx_Size*(Num_Levels-1)));
-        // Final physical address only uses 40 bits
-        paddr &= PA_M;
-
-        return paddr;
-    }
-    else
-    {
-        // Direct mapping, physical address is 40 bits
-        return addr & PA_M;
-    }
-}
-
 // This functions are called by emu. We should clean this to a nicer way...
 uint8 emu_memread8(uint64 addr)
 {
     uint8 ret;
-    memory->read(virt_to_phys(addr, Mem_Access_Load), 1, &ret);
+    memory->read(addr, 1, &ret);
     return ret;
 }
 
 uint16 emu_memread16(uint64 addr)
 {
     uint16 ret;
-    memory->read(virt_to_phys(addr, Mem_Access_Load), 2, &ret);
+    memory->read(addr, 2, &ret);
     return ret;
 }
 
 uint32 emu_memread32(uint64 addr)
 {
     uint32 ret;
-    memory->read(virt_to_phys(addr, Mem_Access_Load), 4, &ret);
+    memory->read(addr, 4, &ret);
     return ret;
 }
 
 uint64 emu_memread64(uint64 addr)
 {
     uint64 ret;
-    memory->read(virt_to_phys(addr, Mem_Access_Load), 8, &ret);
+    memory->read(addr, 8, &ret);
     return ret;
 }
 
 void emu_memwrite8(uint64 addr, uint8 data)
 {
-    memory->write(virt_to_phys(addr, Mem_Access_Store), 1, &data);
+    memory->write(addr, 1, &data);
 }
 
 void emu_memwrite16(uint64 addr, uint16 data)
 {
-    memory->write(virt_to_phys(addr, Mem_Access_Store), 2, &data);
+    memory->write(addr, 2, &data);
 }
 
 void emu_memwrite32(uint64 addr, uint32 data)
 {
-    memory->write(virt_to_phys(addr, Mem_Access_Store), 4, &data);
+    memory->write(addr, 4, &data);
 }
 
 void emu_memwrite64(uint64 addr, uint64 data)
 {
-    memory->write(virt_to_phys(addr, Mem_Access_Store), 8, &data);
+    memory->write(addr, 8, &data);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -558,20 +429,22 @@ int main(int argc, char * argv[])
     instruction_cache * inst_cache = new instruction_cache(memory, func_cache);
 
     // Resolves where some functions are
-    func_ptr_pc setpc                = (func_ptr_pc) func_cache->get_function_ptr("set_pc");
-    func_ptr_thread setthread        = (func_ptr_thread) func_cache->get_function_ptr("set_thread");
-    func_ptr_mem setmemory           = (func_ptr_mem) func_cache->get_function_ptr("set_memory_funcs");
-    func_ptr_init initreg            = (func_ptr_init) func_cache->get_function_ptr("init");
-    func_ptr_minit minitreg          = (func_ptr_minit) func_cache->get_function_ptr("minit");
-    func_ptr_initcsr initcsr         = (func_ptr_initcsr) func_cache->get_function_ptr("initcsr");
-    func_ptr_state setlogstate       = (func_ptr_state) func_cache->get_function_ptr("setlogstate");
-    func_ptr clearlogstate           = func_cache->get_function_ptr("clearlogstate");
-    func_ptr_debug init_emu          = (func_ptr_debug) func_cache->get_function_ptr("init_emu");
-    func_ptr_reduce_info reduce_info = (func_ptr_reduce_info) func_cache->get_function_ptr("get_reduce_info");
-    func_ptr_xget xget               = (func_ptr_xget) func_cache->get_function_ptr("xget");
-    func_ptr_write_msg_port_data write_msg_port = (func_ptr_write_msg_port_data)  func_cache->get_function_ptr("write_msg_port_data_");
+    func_ptr_pc setpc                                      = (func_ptr_pc) func_cache->get_function_ptr("set_pc");
+    func_ptr_thread setthread                              = (func_ptr_thread) func_cache->get_function_ptr("set_thread");
+    func_ptr_mem setmemory                                 = (func_ptr_mem) func_cache->get_function_ptr("set_memory_funcs");
+    func_ptr_init initreg                                  = (func_ptr_init) func_cache->get_function_ptr("init");
+    func_ptr_minit minitreg                                = (func_ptr_minit) func_cache->get_function_ptr("minit");
+    func_ptr_initcsr initcsr                               = (func_ptr_initcsr) func_cache->get_function_ptr("initcsr");
+    func_ptr_state setlogstate                             = (func_ptr_state) func_cache->get_function_ptr("setlogstate");
+    func_ptr clearlogstate                                 = func_cache->get_function_ptr("clearlogstate");
+    func_ptr_debug init_emu                                = (func_ptr_debug) func_cache->get_function_ptr("init_emu");
+    func_ptr_reduce_info reduce_info                       = (func_ptr_reduce_info) func_cache->get_function_ptr("get_reduce_info");
+    func_ptr_xget xget                                     = (func_ptr_xget) func_cache->get_function_ptr("xget");
+    func_ptr_write_msg_port_data write_msg_port            = (func_ptr_write_msg_port_data)  func_cache->get_function_ptr("write_msg_port_data_");
     func_ptr_set_msg_port_data_func set_msg_port_data_func = (func_ptr_set_msg_port_data_func) func_cache->get_function_ptr("set_msg_port_data_func");
-    func_ptr_get_stall_msg_port getStallMsgPort = (func_ptr_get_stall_msg_port) func_cache->get_function_ptr("get_msg_port_stall");
+    func_ptr_get_stall_msg_port getStallMsgPort            = (func_ptr_get_stall_msg_port) func_cache->get_function_ptr("get_msg_port_stall");
+    func_virt_to_phys virt_to_phys_emu                     = (func_virt_to_phys) func_cache->get_function_ptr("virt_to_phys");
+
     // Init emu
     (init_emu(log_en, false));
 
@@ -681,7 +554,7 @@ int main(int argc, char * argv[])
             if(do_log) { printf("Starting emu of thread %i\n", thread_id); }
 
             // Gets instruction and sets state
-            inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread_id], Mem_Access_Fetch));
+            inst = inst_cache->get_instruction((virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch)));
             (setthread(thread_id));
             (setpc(current_pc[thread_id]));
             (clearlogstate());

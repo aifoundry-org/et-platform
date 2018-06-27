@@ -49,7 +49,7 @@ typedef enum
     csr_tconvsize,
     csr_tconvctrl,
     // csr_tcoop,
-    // csr_tmask,
+    csr_tmask,
     // csr_top,
     csr_flbarrier,
     csr_umsg_port0,
@@ -132,6 +132,32 @@ typedef enum
 #define CSR_MAX_UMODE   csr_sstatus
 #define CSR_MAX_SMODE   csr_mvendorid
 #define CSR_MAX_MMODE   CSR_MAX
+
+// MMU
+
+// Memory access type
+typedef enum
+{
+    Mem_Access_Load,
+    Mem_Access_Store,
+    Mem_Access_Fetch
+} mem_access_type;
+
+#define PA_SIZE        40
+#define PA_M           (((uint64)1 << PA_SIZE) - 1)
+#define PG_OFFSET_SIZE 12
+#define PG_OFFSET_M    (((uint64)1 << PG_OFFSET_SIZE) - 1)
+#define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
+#define PPN_M          (((uint64)1 << PPN_SIZE) - 1)
+#define PTE_V_OFFSET   0
+#define PTE_R_OFFSET   1
+#define PTE_W_OFFSET   2
+#define PTE_X_OFFSET   3
+#define PTE_U_OFFSET   4
+#define PTE_G_OFFSET   5
+#define PTE_A_OFFSET   6
+#define PTE_D_OFFSET   7
+#define PTE_PPN_OFFSET 10
 
 typedef enum
 {
