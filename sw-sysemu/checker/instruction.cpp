@@ -631,6 +631,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "fcsr")    params[num_params] = csr_fcsr;
         else if(param == "frm")     params[num_params] = csr_frm;
         else if(param == "fflags")  params[num_params] = csr_fflags;
+        else if(param == "flb0")  params[num_params] = csr_flbarrier;
         else
         {
             int c = sscanf(param.c_str(), "f%i", &params[num_params]);
@@ -715,27 +716,26 @@ void instruction::add_parameter(std::string param)
         else if(param == "mcause")       params[num_params] = csr_mcause;
         else if(param == "mtval")        params[num_params] = csr_mtval;
         else if(param == "mip")          params[num_params] = csr_mip;
-        else if(param == "unknown_800")  params[num_params] = csr_treduce;
-        else if(param == "unknown_801")  params[num_params] = csr_tfmastart;
-        else if(param == "unknown_802")  params[num_params] = csr_tconvsize;
-        else if(param == "unknown_803")  params[num_params] = csr_tconvctrl;
-        else if(param == "unknown_81f")  params[num_params] = csr_ucacheop;
-        else if(param == "unknown_820")  params[num_params] = csr_flbarrier;
-        else if(param == "unknown_83f")  params[num_params] = csr_tloadctrl;
-        else if(param == "unknown_87f")  params[num_params] = csr_tstore;
-        else if(param == "unknown_8cc")  params[num_params] = csr_umsg_port0;
-        else if(param == "unknown_8cd")  params[num_params] = csr_umsg_port1;
-        else if(param == "unknown_8ce")  params[num_params] = csr_umsg_port2;
-        else if(param == "unknown_8cf")  params[num_params] = csr_umsg_port3;
-        else if(param == "unknown_51f")  params[num_params] = csr_scacheop;
-        else if(param == "unknown_9cc")  params[num_params] = csr_smsg_port0;
-        else if(param == "unknown_9cd")  params[num_params] = csr_smsg_port1;
-        else if(param == "unknown_9ce")  params[num_params] = csr_smsg_port2;
-        else if(param == "unknown_9cf")  params[num_params] = csr_smsg_port3;
-        else if(param == "unknown_7c0" || param == "mt1rvect")  params[num_params] = csr_mt1rvect;
-        else if(param == "unknown_7c1" || param == "mt1en")     params[num_params] = csr_mt1en;
-        else if(param == "unknown_7cb")  params[num_params] = csr_icache_ctrl;
-        else if(param == "unknown_7cc")  params[num_params] = csr_write_ctrl;
+        else if(param == "tensor_reduce")  params[num_params] = csr_treduce;
+        else if(param == "tensor_fma")  params[num_params] = csr_tfmastart;
+        else if(param == "tensor_conv_size")  params[num_params] = csr_tconvsize;
+        else if(param == "tensor_conv_ctrl")  params[num_params] = csr_tconvctrl;
+        else if(param == "usr_cache_op")  params[num_params] = csr_ucacheop;
+        else if(param == "tensor_load")  params[num_params] = csr_tloadctrl;
+        else if(param == "tensor_store")  params[num_params] = csr_tstore;
+        else if(param == "umsg_port0")  params[num_params] = csr_umsg_port0;
+        else if(param == "umsg_port1")  params[num_params] = csr_umsg_port1;
+        else if(param == "umsg_port2")  params[num_params] = csr_umsg_port2;
+        else if(param == "umsg_port3")  params[num_params] = csr_umsg_port3;
+        else if(param == "sys_cache_op")  params[num_params] = csr_scacheop;
+        else if(param == "smsg_port0")  params[num_params] = csr_smsg_port0;
+        else if(param == "smsg_port1")  params[num_params] = csr_smsg_port1;
+        else if(param == "smsg_port2")  params[num_params] = csr_smsg_port2;
+        else if(param == "smsg_port3")  params[num_params] = csr_smsg_port3;
+        else if(param == "mt1rvect" || param == "mt1rvect")  params[num_params] = csr_mt1rvect;
+        else if(param == "mt1en" || param == "mt1en")     params[num_params] = csr_mt1en;
+        else if(param == "icache_ctrl")  params[num_params] = csr_icache_ctrl;
+        else if(param == "write_ctrl")  params[num_params] = csr_write_ctrl;
         // TODO: currently unsupported CSRs
         else if(param == "ustatus"    ||
                 param == "uie"        ||
