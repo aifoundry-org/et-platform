@@ -11,22 +11,6 @@
 #define TBOX_REGION_START 0xFFF80000
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
 
-#define PA_SIZE        40
-#define PA_M           (((uint64)1 << PA_SIZE) - 1)
-#define PG_OFFSET_SIZE 12
-#define PG_OFFSET_M    (((uint64)1 << PG_OFFSET_SIZE) - 1)
-#define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
-#define PPN_M          (((uint64)1 << PPN_SIZE) - 1)
-#define PTE_V_OFFSET   0
-#define PTE_R_OFFSET   1
-#define PTE_W_OFFSET   2
-#define PTE_X_OFFSET   3
-#define PTE_U_OFFSET   4
-#define PTE_G_OFFSET   5
-#define PTE_A_OFFSET   6
-#define PTE_D_OFFSET   7
-#define PTE_PPN_OFFSET 10
-
 namespace tbox { 
   extern void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
 }
@@ -78,67 +62,53 @@ main_memory * memory_instance = NULL;
 checker* checker_instance = NULL; // this is used when enabling the second thread from the emu, to have an object to handle the call
                                   // if there is more than 1 checker instance (e.g. one per shire), this will have to be an array
 
-// Virtual to physical
-uint64 virt_to_phys(uint64 addr, mem_access_type macc)
-{
-    if (checker_instance != NULL)
-    {
-        return checker_instance->virt_to_phys(addr,macc);
-    }
-    else
-    {
-        // Direct mapping, physical address is 40 bits
-        return addr & PA_M;
-    }
-}
-
 // These functions are called by emu. We should clean this to a nicer way...
 uint8 checker_memread8(uint64 addr)
 {
     uint8 ret;
-    memory_instance->read(virt_to_phys(addr, Mem_Access_Load), 1, &ret);
+    memory_instance->read(addr, 1, &ret);
     return ret;
 }
 
 uint16 checker_memread16(uint64 addr)
 {
     uint16 ret;
-    memory_instance->read(virt_to_phys(addr, Mem_Access_Load), 2, &ret);
+    memory_instance->read(addr, 2, &ret);
     return ret;
 }
 
 uint32 checker_memread32(uint64 addr)
 {
     uint32 ret;
-    memory_instance->read(virt_to_phys(addr, Mem_Access_Load), 4, &ret);
+    memory_instance->read(addr, 4, &ret);
     return ret;
 }
 
 uint64 checker_memread64(uint64 addr)
 {
     uint64 ret;
-    memory_instance->read(virt_to_phys(addr, Mem_Access_Load), 8, &ret);
+    memory_instance->read(addr, 8, &ret);
     return ret;
 }
 
 void checker_memwrite8(uint64 addr, uint8 data)
 {
-    memory_instance->write(virt_to_phys(addr, Mem_Access_Store), 1, &data);
+    memory_instance->write(addr, 1, &data);
 }
 
 void checker_memwrite16(uint64 addr, uint16 data)
 {
-    memory_instance->write(virt_to_phys(addr, Mem_Access_Store), 2, &data);
+    memory_instance->write(addr, 2, &data);
 }
 
 void checker_memwrite32(uint64 addr, uint32 data)
 {
-    memory_instance->write(virt_to_phys(addr, Mem_Access_Store), 4, &data);
+    memory_instance->write(addr, 4, &data);
 }
 
 void checker_memwrite64(uint64 addr, uint64 data)
 {
-    memory_instance->write(virt_to_phys(addr, Mem_Access_Store), 8, &data);
+    memory_instance->write(addr, 8, &data);
 }
 
 void checker_thread1_enabled ( unsigned minionId, int en, uint64 pc) {
@@ -184,6 +154,7 @@ checker::checker(main_memory * memory_, function_pointer_cache * func_cache_)
     get_scratchpad_conv_list = (func_get_scratchpad_conv_list) func_cache->get_function_ptr("get_scratchpad_conv_list");
     get_tensorfma_value = (func_get_tensorfma_value) func_cache->get_function_ptr("get_tensorfma_value");
     get_reduce_value = (func_get_reduce_value) func_cache->get_function_ptr("get_reduce_value");
+    virt_to_phys_emu = (func_virt_to_phys) func_cache->get_function_ptr("virt_to_phys");
     func_ptr_mem setmemory = (func_ptr_mem) func_cache->get_function_ptr("set_memory_funcs");
     (setmemory((void *) checker_memread8,  (void *) checker_memread16,  (void *) checker_memread32,  (void *) checker_memread64,
                (void *) checker_memwrite8, (void *) checker_memwrite16, (void *) checker_memwrite32, (void *) checker_memwrite64));
@@ -526,8 +497,9 @@ checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uin
             int size;
             uint64 data;
             data = (get_scratchpad_value(0, 0, &entry, &size));
-            std::list<bool> * conv_list = (get_scratchpad_conv_list());
-            auto conv_list_it = conv_list->begin();
+            std::list<bool> conv_list;
+            (get_scratchpad_conv_list(&conv_list));
+            auto conv_list_it = conv_list.begin();
 
             // For all the written entries
             for(int i = 0; i < size; i++)
@@ -747,160 +719,6 @@ void checker::reduce_write(uint32 thread, uint32 entry, uint32 * data)
 // Virtual to physical
 uint64 checker::virt_to_phys(uint64 addr, mem_access_type macc)
 {
-    // Read SATP, PRV and MSTATUS
-    uint64 satp;
-    satp = (csrget(csr_satp));
-    uint64 satp_mode = (satp >> 60) & 0xF;
-    uint64 satp_ppn = satp & PPN_M;
-    uint64 prv = (csrget(csr_prv));
-    uint64 mstatus = (csrget(csr_mstatus));
-    bool sum = (mstatus >> 18) & 0x1;
-    bool mxr = (mstatus >> 19) & 0x1;
-
-    bool vm_enabled = (satp_mode != 0) && (prv <= CSR_PRV_S);
-
-    // Set for Sv48
-    // TODO: Support Sv39
-    int Num_Levels = 4;
-    int PTE_Size = 8;
-    int PTE_Idx_Size = 9;
-
-    uint64 pte_idx_mask = ((uint64)1<<PTE_Idx_Size)-1;
-    if (vm_enabled)
-    {
-        log << LOG_DEBUG << "Virtual memory enabled. Performing page walk..." << endm;
-
-        // Perform page walk
-        int level;
-        uint64 ppn, pte_addr, pte;
-        bool pte_v, pte_r, pte_w, pte_x, pte_u, pte_a, pte_d;
-
-        level = Num_Levels;
-        ppn = satp_ppn;
-        do {
-          level--;
-          if (level < 0)
-          {
-            log << LOG_ERR << "Last level PTE is a pointer to a page table: PTE = 0x" << std::hex << pte << endm;
-            return -1;
-          }
-
-          // Take VPN[level]
-          uint64 vpn = (addr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
-          // Read PTE
-          pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
-          memory_instance->read(pte_addr, PTE_Size, &pte);
-          log << LOG_DEBUG << "* Level " << std::dec << level << ": PTE = 0x" << std::hex << pte << endm;
-
-          // Read PTE fields
-          pte_v = (pte >> PTE_V_OFFSET) & 0x1;
-          pte_r = (pte >> PTE_R_OFFSET) & 0x1;
-          pte_w = (pte >> PTE_W_OFFSET) & 0x1;
-          pte_x = (pte >> PTE_X_OFFSET) & 0x1;
-          pte_u = (pte >> PTE_U_OFFSET) & 0x1;
-          pte_a = (pte >> PTE_A_OFFSET) & 0x1;
-          pte_d = (pte >> PTE_D_OFFSET) & 0x1;
-          // Read PPN
-          ppn = (pte >> PTE_PPN_OFFSET) & PPN_M;
-
-          // Check invalid entry
-          if (!pte_v || (!pte_r && pte_w))
-          {
-            log << LOG_ERR << "Invalid entry: PTE = 0x" << std::hex << pte << endm;
-            return -1;
-          }
-
-          // Check if PTE is a pointer to next table level
-        } while (!pte_r && !pte_x);
-
-        // A leaf PTE has been found
-        log << LOG_DEBUG << "Valid leaf PTE found at level " << std::dec << level << endm;
-
-        // Check permissions
-        bool perm_ok = (macc == Mem_Access_Load)  ? pte_r || (mxr && pte_x) :
-                       (macc == Mem_Access_Store) ? pte_w :
-                                                    pte_x; // Mem_Access_Fetch
-        if (!perm_ok)
-        {
-          log << LOG_ERR << "Page permissions do not allow this type of access (";
-          switch (macc)
-          {
-            case Mem_Access_Load:  log << "Load)" << endm; break;
-            case Mem_Access_Store: log << "Store)" << endm; break;
-            case Mem_Access_Fetch: log << "Fetch)" << endm; break;
-            default:               log << "*Invalid*: " << std::dec << (int)macc << ")" << endm;
-          }
-
-          return -1;
-        }
-
-        // Check privilege mode
-        // If page is accessible to user mode, supervisor mode SW may also access it if sum bit from the sstatus is set
-        // Otherwise, check that privilege mode is higher than user
-        bool priv_ok = pte_u ? (prv == CSR_PRV_U) || sum : prv != CSR_PRV_U;
-        if (!priv_ok)
-        {
-          log << LOG_ERR << "Page not accessible for current privilege mode (";
-          switch (prv)
-          {
-            case CSR_PRV_U: log << "User)" << endm;
-            case CSR_PRV_S: log << "Supervisor)" << endm;
-            default:        log << "*Invalid*: " << std::dec << prv << ")" << endm;
-          }
-
-          return -1;
-        }
-
-        // Check if it is a misaligned superpage
-        if ((level > 0) && ((ppn & ((1<<(PTE_Idx_Size*level))-1)) != 0))
-        {
-          log << LOG_ERR << "Misaligned superpage" << endm;
-          for (int i = 0; i < level; i++)
-            log << LOG_DEBUG << "* ppn[" << std::dec << i << "] = 0x" << std::hex << ((ppn>>(PTE_Idx_Size*i)) & ((1<<(PTE_Idx_Size))-1)) << endm;
-          return -1;
-        }
-
-        if (!pte_a || ((macc == Mem_Access_Store) && !pte_d))
-        {
-          log << LOG_DEBUG << "* Setting A/D bits in PTE" << endm;
-
-          // Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
-          uint64 pte_write = pte;
-          pte_write |= 1 << PTE_A_OFFSET;
-          if (macc == Mem_Access_Store)
-            pte_write |= 1 << PTE_D_OFFSET;
-
-          // Write PTE
-          memory_instance->write(pte_addr, PTE_Size, &pte_write);
-        }
-
-        // Obtain physical address
-        uint64 paddr;
-
-        // Copy page offset
-        paddr = addr & PG_OFFSET_M;
-
-        for (int i = 0; i < Num_Levels-1; i++)
-        {
-          // If level > 0, this is a superpage translation so VPN[level-1:0] are part of the page offset
-          if (i < level)
-            paddr |= addr & (pte_idx_mask << (PG_OFFSET_SIZE + PTE_Idx_Size*i));
-          else
-            paddr |= (ppn & (pte_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
-        }
-        // PPN[3] is 17 bits wide
-        paddr |= ppn & ((((uint64)1<<17) - 1) << (PTE_Idx_Size*(Num_Levels-1)));
-        // Final physical address only uses 40 bits
-        paddr &= PA_M;
-
-        log << LOG_DEBUG << "Physical address = 0x" << std::hex << paddr << endm;
-
-        return paddr;
-    }
-    else
-    {
-        // Direct mapping, physical address is 40 bits
-        return addr & PA_M;
-    }
+    return (virt_to_phys_emu(addr, macc));
 }
 

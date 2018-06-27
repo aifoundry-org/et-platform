@@ -80,17 +80,18 @@ extern "C" void update_msg_port_data();
 extern "C" void get_reduce_info(uint64 value, uint64 * other_min, uint64 * action);
 extern "C" uint64 get_reduce_value(int entry, int block, int * size, int * start_entry);
 extern "C" uint64 get_scratchpad_value(int entry, int block, int * last_entry, int * size);
-extern "C" std::list<bool> * get_scratchpad_conv_list();
+extern "C" void get_scratchpad_conv_list(std::list<bool> * list);
 extern "C" uint64 get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
+extern "C" uint64 virt_to_phys(uint64 addr, mem_access_type macc);
 
-uint8 memread8(uint64 addr);
-uint16 memread16(uint64 addr);
-uint32 memread32(uint64 addr);
-uint64 memread64(uint64 addr);
-void memwrite8(uint64 addr, uint8 data);
-void memwrite16(uint64 addr, uint16 data);
-void memwrite32(uint64 addr, uint32 data);
-void memwrite64(uint64 addr, uint64 data);
+uint8 memread8(uint64 addr, bool trans = true);
+uint16 memread16(uint64 addr, bool trans = true);
+uint32 memread32(uint64 addr, bool trans = true);
+uint64 memread64(uint64 addr, bool trans = true);
+void memwrite8(uint64 addr, uint8 data, bool trans = true);
+void memwrite16(uint64 addr, uint16 data, bool trans = true);
+void memwrite32(uint64 addr, uint32 data, bool trans = true);
+void memwrite64(uint64 addr, uint64 data, bool trans = true);
 
 extern "C" void lb(xreg dst, int off, xreg base);
 extern "C" void lh(xreg dst, int off, xreg base);
