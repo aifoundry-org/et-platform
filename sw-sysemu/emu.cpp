@@ -3566,15 +3566,6 @@ void femuld(const char *opname, opcode opc, int count, int size, freg dst, int o
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%016llx]\n",i,val32,fval32,addr););
                 }
                 break;
-            case FLD:
-                if ( genResult )
-                {
-                    val64 = memread64(addr);
-                    fval64  = * ((float64 *) &val64);
-                    FREGS[dst].x[i] = val64;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <- MEM[0x%016llx]\n",i,val64,fval64,addr););
-                }
-                break;
         }
     }
 
@@ -3769,13 +3760,6 @@ void femust(const char *opname, opcode opc, int count, int size, freg src1, int 
                 DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) --> MEM[0x%016llx]\n",i,val32,fval32,addr););
                 memwrite32(addr, val32);
                 logmemwchange(i, 4, addr, val32);
-                break;
-            case FSD:
-                fval64 = FREGS[src1].d[i];
-                val64  = FREGS[src1].x[i];
-                DEBUG_EMU(gprintf("\t[%d] 0x%016x (%f) --> MEM[0x%016llx]\n",i,val64,fval64,addr););
-                memwrite64(addr, val64);
-                logmemwchange(i, 8, addr, val64);
                 break;
         }
     }
@@ -4029,71 +4013,6 @@ void femu3src(const char *opname, opcode opc, int count, freg dst, freg src1, fr
     IPC(ipc_ps(opc,count,dst,src1,src2,src3,dis);)
 }
 
-void femu3src_d(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, freg src3)
-{
-    DISASM(gsprintf(dis,"I: %s f%d, f%d, f%d, f%d",opname,dst,src1,src2,src3);)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    DEBUG_MASK(MREGS[0]);
-
-    for ( int i = 0; i < count; i++ )
-    {
-        float64 val1;
-        float64 val2;
-        float64 val3;
-        float64 res;
-
-        uint64 val1u;
-        uint64 val2u;
-        uint64 val3u;
-        uint64 resu;
-        if ( count == 2 && MREGS[0].b[i*4] == 0 ) continue;
-
-        val1 = FREGS[src1].d[i];
-        val2 = FREGS[src2].d[i];
-        val3 = FREGS[src3].d[i];
-
-        val1u = *(uint64*)&val1;
-        val2u = *(uint64*)&val2;
-        val3u = *(uint64*)&val3;
-
-        switch ( opc )
-        {
-            case FMADD:  res  = fma(val1,val2,val3);
-                         if (isnan(res)) res = nan("");
-                         resu = *(uint64*)&res;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f) * 0x%016lx (%f) + 0x%016lx (%f)\n",i,resu,res,val1u,val1,val2u,val2,val3u,val3);)
-                         break;
-            case FNMADD: res  = - fma(val1,val2,val3);
-                         if (isnan(res)) res = nan("");
-                         resu = *(uint64*)&res;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- -(0x%016lx (%f) * 0x%016lx (%f) + 0x%016lx (%f))\n",i,resu,res,val1u,val1,val2u,val2,val3u,val3);)
-                         break;
-            case FMSUB:  res  = fma(val1,val2,-val3);
-                         if (isnan(res)) res = nan("");
-                         resu = *(uint64*)&res;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f) * 0x%016lx (%f) - 0x%016lx (%f)\n",i,resu,res,val1u,val1,val2u,val2,val3u,val3);)
-                         break;
-            case FNMSUB: res  = -fma(val1,val2,-val3);
-                         if (isnan(res)) res = nan("");
-                         resu = *(uint64*)&res;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- -(0x%016lx (%f) * 0x%016lx (%f) - 0x%016lx (%f))\n",i,resu,res,val1u,val1,val2u,val2,val3u,val3);)
-                         break;
-            case FCMOV:  res  = FREGS[src1].u[i] ? val2 : val3;
-                         if (isnan(res)) res = nan("");
-                         resu = *(uint64*)&res;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- %d ? 0x%016lx (%f) : 0x%016lx (%f)\n",i,resu,res,FREGS[src1].u[i],val2u,val2,val3u,val3);)
-                         break;
-        }
-
-        FREGS[dst].d[i] = res;
-    }
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    bzero(FREGS[dst].b + 8, sizeof(fdata) - 8*count);
-#endif
-    logfregchange(dst);
-    IPC(ipc_ps(opc,count,dst,src1,src2,src3,dis);)
-}
-
 void fcmovm_ps(freg dst, freg src1, freg src2)
 {
     iufval val1, val2, res;
@@ -4278,77 +4197,6 @@ void femu2src(const char *opname, opcode opc, int count, freg dst, freg src1, fr
     IPC(ipc_ps(opc,count,dst,src1,src2,fnone,dis);)
 }
 
-void femu2src_d(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2)
-{
-    iufval val1, val2;
-
-    DISASM(gsprintf(dis,"I: %s f%d, f%d, f%d",opname,dst,src1,src2);)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    DEBUG_MASK(MREGS[0]);
-    for ( int i = 0; i < count; i++ )
-    {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( count == 2 && MREGS[0].b[i*4] == 0 ) continue;
-
-        val1.d  = FREGS[src1].d[i];
-        val2.d  = FREGS[src2].d[i];
-
-        iufval res;
-        switch ( opc )
-        {
-            case FADD:   res.d  = val1.d + val2.d;
-                         if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f) + 0x%016lx (%f)\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FSUB:   res.d  = val1.d - val2.d;
-                         if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f) - 0x%016lx (%f)\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FMUL:   res.d  = val1.d * val2.d;
-                         if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f) * 0x%016lx (%f)\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FDIV:   res.d  = val1.d / val2.d;
-                         if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f) / 0x%016lx (%f)\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FMIN:   res.d  = fminf(val1.d,val2.d);
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- min(0x%016lx (%f), 0x%016lx (%f))\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FMAX:   res.d  = fmaxf(val1.d,val2.d);
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- max(0x%016lx (%f), 0x%016lx (%f))\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FLT:    res.u  = (val1.d < val2.d) ? 0xFFFFFFFFFFFFFFFFULL : 0;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%016lx (%f) < 0x%016lx (%f)?\n",i,res.u,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FLE:    res.u  = (val1.d <= val2.d) ? 0xFFFFFFFFFFFFFFFFULL : 0;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%016lx (%f) <= 0x%016lx (%f)?\n",i,res.u,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FEQ:    res.u  = (val1.u == val2.u) ? 0xFFFFFFFFFFFFFFFFULL : 0;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%016lx (%f) == 0x%016lx (%f)?\n",i,res.u,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FSGNJ:  res.u  = val1.u & 0x7fffffffffffffffULL;
-                         res.u  = res.u | (val2.u & 0x8000000000000000ULL );
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f), 0x%016lx (%f)\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FSGNJN: res.u  = val1.u & 0x7fffffffffffffffULL;
-                         res.u  = res.u | ((~val2.u) & 0x8000000000000000ULL);
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f), 0x%016lx (%f)\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-            case FSGNJX: res.u  = val1.u & 0x7fffffffffffffffULL;
-                         res.u  = res.u | ((val1.u ^ val2.u) & 0x8000000000000000ULL);
-                         DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f), 0x%016lx (%f)\n",i,res.x,res.d,val1.x,val1.d,val2.x,val2.d);)
-                         break;
-        }
-        FREGS[dst].d[i] = res.d;
-    }
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    bzero(FREGS[dst].b + 8, sizeof(fdata) - 8*count);
-#endif
-    logfregchange(dst);
-    IPC(ipc_ps(opc,count,dst,src1,src2,fnone,dis);)
-}
-
 ////////////////////////////////////////////////////////////
 //
 // Floating Point 1-source emulation
@@ -4428,28 +4276,18 @@ void femu1srcRm(const char *opname, opcode opc, int count, freg dst, freg src1, 
                 }
                 break;
         }
-             if (((opc == FCVTWS) || (opc == FCVTWUS) ||
-                  (opc == FCVTWD) || (opc == FCVTWUD)) && (dst != f0)) XREGS[dst].x = sext32(rescvt.x);
-        else if (((opc == FCVTLD) || (opc == FCVTLUD)) && (dst != f0)) XREGS[dst].x = rescvt.x;
-        else if  ((opc == FCVTDW) || (opc == FCVTDWU) ||
-                  (opc == FCVTDL) || (opc == FCVTDLU)   )              FREGS[dst].d[i] = res.d;
-        else                                                           FREGS[dst].f[i] = res.f;
+        if (((opc == FCVTWS) || (opc == FCVTWUS)) && (dst != f0))
+            XREGS[dst].x = sext32(rescvt.x);
+        else
+            FREGS[dst].f[i] = res.f;
     }
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
     if ((opc != FCVTWS) && (opc != FCVTWUS))
     {
-        uint32 op_size;
-        if ((opc == FCVTDW) || (opc == FCVTDWU) || (opc == FCVTDL) || (opc == FCVTDLU))
-            op_size = sizeof(float64);
-        else
-            op_size = sizeof(float32);
-
-        bzero(FREGS[dst].b + count * op_size, sizeof(fdata) - count * op_size);
+        bzero(FREGS[dst].b + count * sizeof(float32), sizeof(fdata) - count * sizeof(float32));
     }
 #endif
-    if ((opc == FCVTWS) || (opc == FCVTWUS) ||
-        (opc == FCVTWD) || (opc == FCVTWUD) ||
-        (opc == FCVTLD) || (opc == FCVTLUD))
+    if ((opc == FCVTWS) || (opc == FCVTWUS))
         logxregchange(dst);
     else
         logfregchange(dst);
@@ -4747,90 +4585,6 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1)
                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%u)\n",i,res.u,res.f,valcvt.u,valcvt.u););
                 }
                 break;
-            case FCVTDW:
-                res.d = FREGS[dst].d[i];
-                if ( genResult )
-                {
-                    res.d  = valcvt.i;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%08x (%d)\n",i,res.x,res.d,valcvt.u,valcvt.i););
-                }
-                break;
-            case FCVTDWU:
-                res.d = FREGS[dst].d[i];
-                if ( genResult )
-                {
-                    res.d  = valcvt.u;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%08x (%u)\n",i,res.x,res.d,valcvt.u,valcvt.u););
-                }
-                break;
-            case FCVTDL:
-                res.d = FREGS[dst].d[i];
-                if ( genResult )
-                {
-                    res.d  = valcvt.xs;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%08x (%d)\n",i,res.x,res.d,valcvt.u,valcvt.i););
-                }
-                break;
-            case FCVTDLU:
-                res.d = FREGS[dst].d[i];
-                if ( genResult )
-                {
-                    res.d  = valcvt.x;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%08x (%u)\n",i,res.x,res.d,valcvt.u,valcvt.u););
-                }
-                break;
-            case FCVTSD:
-                res.f  = FREGS[src1].d[0];
-                // convert to canonical NaN
-                if (isnan(res.f)) res.f = nanf("");
-                DEBUG_EMU(gprintf("\t[%d] 0x%08lx (%f) <-- 0x%016lx (%f)\n",i,res.u,res.f,FREGS[src1].x[0],FREGS[src1].d[0]);)
-                break;
-            case FCVTWD:
-                rescvt.x = XREGS[dst].x;
-                if ( genResult )
-                {
-                    val.d = FREGS[src1].d[0];
-                    if      ( isnan(val.d) ) rescvt.i = 0x7fffffff;
-                    else if ( isinf(val.d) )
-                    {
-                        if ( val.d > 0 )     rescvt.i = 0x7fffffff;
-                        else                 rescvt.i = 0x80000000;
-                    }
-                    else if ( (val.d > 0) && (val.x > 0x41dfffffffc00000ULL) ) // Double not representable in int32
-                    {
-                                             rescvt.i = 0x7fffffff;
-                    }
-                    else if ( (val.d < 0) && (val.x > 0xc1e0000000000000ULL) ) // Double not representable in int32
-                    {
-                                             rescvt.i = 0x80000000;
-                    }
-                    else                     rescvt.i = val.d;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%016lx (%f)\n",i,rescvt.u,rescvt.i,val.x,val.d););
-                }
-                break;
-            case FCVTWUD:
-                rescvt.x = XREGS[dst].x;
-                if ( genResult )
-                {
-                    val.d = FREGS[src1].d[0];
-                    if      ( isnan(val.d) ) rescvt.u = 0xffffffff;
-                    else if ( isinf(val.d) )
-                    {
-                        if ( val.d > 0 )     rescvt.u = 0xffffffff;
-                        else                 rescvt.u = 0x00000000;
-                    }
-                    else if ( (val.d > 0) && (val.x > 0x41efffffffe00000ULL) ) // Double not representable in uint32
-                    {
-                                             rescvt.u = 0xffffffff;
-                    }
-                    else if ( val.d < 0 ) // Double not representable in uint32
-                    {
-                                             rescvt.u = 0x00000000;
-                    }
-                    else                     rescvt.u = val.d;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%016lx (%f)\n",i,rescvt.u,rescvt.u,val.x,val.d););
-                }
-                break;
             case FCLASS:
                 if (genResult)
                 {
@@ -4854,191 +4608,22 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1)
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%f)\n",i,res.u,val.u,val.f););
                 }
                 break;
-            case FCVTLD:
-                rescvt.x = XREGS[dst].x;
-                if ( genResult )
-                {
-                    val.d = FREGS[src1].d[0];
-                    if      ( isnan(val.d) ) rescvt.xs = 0x7fffffffffffffffLL;
-                    else if ( isinf(val.d) )
-                    {
-                        if ( val.d > 0 )     rescvt.xs = 0x7fffffffffffffffLL;
-                        else                 rescvt.xs = 0x8000000000000000LL;
-                    }
-                    else if ( (val.d > 0) && (val.x > 0x43dfffffffffffffULL) ) // Double not representable in int64
-                    {
-                                             rescvt.xs = 0x7fffffffffffffffLL;
-                    }
-                    else if ( (val.d < 0) && (val.x > 0xc3dfffffffffffffULL) ) // Double not representable in int64
-                    {
-                                             rescvt.xs = 0x8000000000000000LL;
-                    }
-                    else                     rescvt.xs = val.d;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%016lx (%f)\n",i,rescvt.u,rescvt.x,val.x,val.d););
-                }
-                break;
-            case FCVTLUD:
-                rescvt.x = XREGS[dst].x;
-                if ( genResult )
-                {
-                    val.d = FREGS[src1].d[0];
-                    if      ( isnan(val.d) ) rescvt.x = 0xffffffffffffffffULL;
-                    else if ( isinf(val.d) )
-                    {
-                        if ( val.d > 0 )     rescvt.x = 0xffffffffffffffffULL;
-                        else                 rescvt.x = 0x0000000000000000ULL;
-                    }
-                    else if ( (val.d > 0) && (val.x > 0x43efffffffffffffULL) ) // Double not representable in uint64
-                    {
-                                             rescvt.x = 0xffffffffffffffffULL;
-                    }
-                    else if ( val.d < 0 ) // Double not representable in uint32
-                    {
-                                             rescvt.x = 0x0000000000000000ULL;
-                    }
-                    else                     rescvt.x = val.d;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%016lx (%f)\n",i,rescvt.u,rescvt.u,val.x,val.d););
-                }
-                break;
         }
-             if (((opc == FCVTWS) || (opc == FCVTWUS) ||
-                  (opc == FCVTWD) || (opc == FCVTWUD)) && (dst != f0)) XREGS[dst].x = sext32(rescvt.x);
-        else if (((opc == FCVTLD) || (opc == FCVTLUD)) && (dst != f0)) XREGS[dst].x = rescvt.x;
-        else if  ((opc == FCVTDW) || (opc == FCVTDWU) ||
-                  (opc == FCVTDL) || (opc == FCVTDLU)   )              FREGS[dst].d[i] = res.d;
-        else                                                           FREGS[dst].f[i] = res.f;
+        if (((opc == FCVTWS) || (opc == FCVTWUS)) && (dst != f0))
+            XREGS[dst].x = sext32(rescvt.x);
+        else
+            FREGS[dst].f[i] = res.f;
     }
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
     if ((opc != FCVTWS) && (opc != FCVTWUS))
     {
-        uint32 op_size;
-        if ((opc == FCVTDW) || (opc == FCVTDWU) || (opc == FCVTDL) || (opc == FCVTDLU))
-            op_size = sizeof(float64);
-        else
-            op_size = sizeof(float32);
-
-        bzero(FREGS[dst].b + count * op_size, sizeof(fdata) - count * op_size);
+        bzero(FREGS[dst].b + count * sizeof(float32), sizeof(fdata) - count * sizeof(float32));
     }
 #endif
-    if ((opc == FCVTWS) || (opc == FCVTWUS) ||
-        (opc == FCVTWD) || (opc == FCVTWUD) ||
-        (opc == FCVTLD) || (opc == FCVTLUD))
+    if ((opc == FCVTWS) || (opc == FCVTWUS))
         logxregchange(dst);
     else
         logfregchange(dst);
-    IPC(ipc_ps(opc,count,dst,src1,fnone,fnone,dis);)
-}
-
-void femu1src_d(const char *opname, opcode opc, int count, freg dst, freg src1)
-{
-    iufval val;
-    iufval valcvt;
-    double intpart;
-    uint64 tmp;
-    DISASM(gsprintf(dis,"I: %s f%d, f%d",opname,dst,src1);)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    DEBUG_MASK(MREGS[0]);
-    for ( int i = 0; i < count; i++ )
-    {
-        val.d = FREGS[src1].d[i];
-        valcvt.x = XREGS[src1].x;
-
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
-
-        iufval res;
-        iufval rescvt;
-        switch ( opc )
-        {
-            case FSQRT:     res.d = sqrt(val.d);
-                            if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.d);)
-                            break;
-            case FSIN:      res.d = sin(val.d);
-                            if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.d);)
-                            break;
-            case FEXP:      res.d = exp2(val.d);
-                            if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.d);)
-                            break;
-            case FLOG:      res.d = log2(val.d);
-                            if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.d);)
-                            break;
-            case FRCP:      res.d = 1.0f / val.d;
-                            if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.d);)
-                            break;
-            case FCVTPSPW:  res.d  = val.xs;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- %d\n",i,res.x,res.d,val.xs);)
-                            break;
-            case FCVTPSPWU: res.d  = val.x;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- %u\n",i,res.x,res.d,val.x);)
-                            break;
-            case FCVTPWPS:  res.xs  = val.d;
-                            if (isnan(val.d)) res.x = 0x7fffffffffffffffULL;
-                            DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%016lx (%f)\n",i,res.xs,val.x,val.d);)
-                            break;
-            case FCVTPWUPS: res.x  = val.d;
-                            if (isnan(val.d)) res.x = 0xffffffffffffffffULL;
-                            DEBUG_EMU(gprintf("\t[%d] %u <-- 0x%016lx (%f)\n",i,res.x,val.x,val.d);)
-                            break;
-            case FFRC:      res.d  = modf(val.d,&intpart);
-                            if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.d);)
-                            break;
-            case FROUND:    res.d  = roundf(val.d); // use c++ function
-                            if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f) (warning! ignoring rounding mode!!!! fixme!)\n",i,res.x,res.d,val.x,val.d);)
-                            break;
-            case FCVTWS:    rescvt.i = round(val.d);
-                            if (isnan(val.d)) rescvt.x = 0x7fffffffffffffffULL;
-                            DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%016lx (%f)\n",i,rescvt.i,val.xs,val.d);)
-                            break;
-            case FCVTWUS:   rescvt.u = val.d;
-                            if (isnan(val.d)) rescvt.x = 0xffffffffffffffffULL;
-                            DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%016lx (%f)\n",i,rescvt.u,val.x,val.d);)
-                            break;
-            case FCVTSW:    res.d  = valcvt.xs;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- %d\n",i,res.x,res.d,valcvt.xs);)
-                            break;
-            case FCVTSWU:   res.d  = valcvt.x;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- %u\n",i,res.x,res.d,valcvt.x);)
-                            break;
-            case FCVTDS:    res.d  = val.f;
-                            if (isnan(res.d)) res.x = 0x7ff8000000000000ULL;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.f);)
-                            break;
-            case FCLASS:
-                    switch (fpclassify(val.d)) {
-                            case FP_INFINITE:  if (signbit(val.d)) res.u = 1<<0;
-                                               else res.u = 1<<7;
-                                               break;
-                            case FP_NAN:       if (val.x & 0x0008000000000000ULL) res.u = 1<<9; // quiet NaN
-                                               else res.u = 1<<8;                               // signaling NaN
-                            case FP_ZERO:      if (signbit(val.d)) res.u = 1<<3;
-                                               else res.u = 1<<4;
-                                               break;
-                            case FP_SUBNORMAL: if (signbit(val.d)) res.u = 1<<2;
-                                               else res.u = 1<<5;
-                                               break;
-                            case FP_NORMAL:    if (signbit(val.d)) res.u = 1<<1;
-                                               else res.u = 1<<6;
-                                               break;
-                            default:           assert(0); // error!
-                    }
-                    DEBUG_EMU(gprintf("\t[%d] 0x%016lx (%f) <-- 0x%016lx (%f)\n",i,res.x,res.d,val.x,val.d);)
-                    break;
-        }
-        if(((opc == FCVTWS) || (opc == FCVTWUS)) && (dst != f0)) XREGS[dst].x = sext32(rescvt.u);
-        else                                                     FREGS[dst].d[i] = res.d;
-    }
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    if((opc != FCVTWS) && (opc != FCVTWUS))
-        bzero(FREGS[dst].b + count*sizeof(float64), sizeof(fdata) - count*sizeof(float64));
-#endif
-    logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,fnone,fnone,dis);)
 }
 
@@ -5757,10 +5342,8 @@ void cubesgntc_ps (freg dst, freg src1, freg src2)
 
 // LOAD
 void flw          (freg dst, int off, xreg base)               { femuld("flw",           FLW,       1, 4, dst, off,  base, 0); }
-void fld          (freg dst, int off, xreg base)               { femuld("fld",           FLD,       1, 8, dst, off,  base, 0); }
 void flq          (freg dst, int off, xreg base)               { femuld("flq",           FLW,       4, 4, dst, off,  base, 0); }
 void flw_ps       (freg dst, int off, xreg base)               { femuld("flw_ps",        FLW,       4, 4, dst, off,  base, 1); }
-void fld_ps       (freg dst, int off, xreg base)               { femuld("fld_ps",        FLD,       2, 8, dst, off,  base, 1); }
 
 void fgw_ps       (freg dst, freg src1, xreg base)             { gatheremu("fgw_ps",     FGW,       4, 4, dst, src1, base); }
 void fgh_ps       (freg dst, freg src1, xreg base)             { gatheremu("fgh_ps",     FGH,       4, 2, dst, src1, base); }
@@ -5772,10 +5355,8 @@ void fg32b_ps     (freg dst, xreg src1, xreg src2)             { gatheremu32("fg
 
 // STORE
 void fsw          (freg src1, int off, xreg base)              { femust("fsw",           FSW,       1, 4, src1, off, base, 0); }
-void fsd          (freg src1, int off, xreg base)              { femust("fsd",           FSD,       1, 8, src1, off, base, 0); }
 void fsq          (freg src1, int off, xreg base)              { femust("fsq",           FSW,       4, 4, src1, off, base, 0); }
 void fsw_ps       (freg src1, int off, xreg base)              { femust("fsw_ps",        FSW,       4, 4, src1, off, base, 1); }
-void fsd_ps       (freg src1, int off, xreg base)              { femust("fsd_ps",        FSD,       2, 8, src1, off, base, 1); }
 
 void fscw_ps      (freg src1, freg src2, xreg base)            { femuscat("fscw_ps",     FSCW,            src1, src2, base); }
 void fsch_ps      (freg src1, freg src2, xreg base)            { femuscat("fsch_ps",     FSCH,            src1, src2, base); }
@@ -5802,14 +5383,6 @@ void fcvt_s_wu    (freg dst, freg src1)                        { femu1src("fcvt_
 void fcvt_w_s     (freg dst, freg src1, rounding_mode rm)      { femu1srcRm("fcvt_w_s",  FCVTWS,    1, dst, src1, rm); }
 void fcvt_w_s     (freg dst, freg src1)                        { femu1srcRm("fcvt_w_s",  FCVTWS,    1, dst, src1, rmdyn); }
 void fcvt_wu_s    (freg dst, freg src1)                        { femu1src("fcvt_wu_s",   FCVTWUS,   1, dst, src1); }
-void fcvt_d_w     (freg dst, freg src1)                        { femu1src("fcvt_d_w",    FCVTDW,    1, dst, src1); }
-void fcvt_d_wu    (freg dst, freg src1)                        { femu1src("fcvt_d_wu",   FCVTDWU,   1, dst, src1); }
-void fcvt_d_l     (freg dst, freg src1)                        { femu1src("fcvt_d_l",    FCVTDL,    1, dst, src1); }
-void fcvt_d_lu    (freg dst, freg src1)                        { femu1src("fcvt_d_lu",   FCVTDLU,   1, dst, src1); }
-void fcvt_w_d     (freg dst, freg src1)                        { femu1src("fcvt_w_d",    FCVTWD,    1, dst, src1); }
-void fcvt_wu_d    (freg dst, freg src1)                        { femu1src("fcvt_wu_d",   FCVTWUD,   1, dst, src1); }
-void fcvt_l_d     (freg dst, freg src1)                        { femu1src("fcvt_l_d",    FCVTLD,    1, dst, src1); }
-void fcvt_lu_d    (freg dst, freg src1)                        { femu1src("fcvt_lu_d",   FCVTLUD,   1, dst, src1); }
 void fcvt_ps_pw   (freg dst, freg src1)                        { femu1src("fcvt_ps_pw",  FCVTPSPW,  4, dst, src1); }
 void fcvt_ps_pwu  (freg dst, freg src1)                        { femu1src("fcvt_ps_pwu", FCVTPSPWU, 4, dst, src1); }
 void ffrc_ps      (freg dst, freg src1)                        { femu1src("ffrc_ps",     FFRC,      4, dst, src1); }
@@ -5930,32 +5503,6 @@ void fnmadd_ps    (freg dst, freg src1, freg src2, freg src3)  { femu3src("fnmad
 void fnmsub_s     (freg dst, freg src1, freg src2, freg src3)  { femu3src("fnmsub_s",    FNMSUB,    1, dst, src1, src2, src3); }
 void fnmsub_ps    (freg dst, freg src1, freg src2, freg src3)  { femu3src("fnmsub_ps",   FNMSUB,    4, dst, src1, src2, src3); }
 void fcmov_ps     (freg dst, freg src1, freg src2, freg src3)  { femu3src("fcmov_ps",    FCMOV,     4, dst, src1, src2, src3); }
-
-// Double precision
-void fmadd_d      (freg dst, freg src1, freg src2, freg src3)  { femu3src_d("fmadd_d",   FMADD,     1, dst, src1, src2, src3); }
-void feq_d        (freg dst, freg src1, freg src2)             { femu2src_d("feq_d",     FEQ,       1, dst, src1, src2); }
-void fmin_d       (freg dst, freg src1, freg src2)             { femu2src_d("fmin_d",    FMIN,      1, dst, src1, src2); }
-void fmax_d       (freg dst, freg src1, freg src2)             { femu2src_d("fmax_d",    FMAX,      1, dst, src1, src2); }
-void fadd_d       (freg dst, freg src1, freg src2)             { femu2src_d("fadd_d",    FADD,      1, dst, src1, src2); }
-void fdiv_d       (freg dst, freg src1, freg src2)             { femu2src_d("fdiv_d",    FDIV,      1, dst, src1, src2); }
-void fmul_d       (freg dst, freg src1, freg src2)             { femu2src_d("fmul_d",    FMUL,      1, dst, src1, src2); }
-void fsgnj_d      (freg dst, freg src1, freg src2)             { femu2src_d("fsgnj_d",   FSGNJ,     1, dst, src1, src2); }
-void fclass_d     (freg dst, freg src1)                        { femu1src_d("fclass_d",  FCLASS,    1, dst, src1); }
-void fcvt_d_s     (freg dst, freg src1)                        { femu1src_d("fcvt_d_s",  FCVTDS,    1, dst, src1); }
-void fcvt_s_d     (freg dst, freg src1)                        { femu1src  ("fcvt_s_d",  FCVTSD,    1, dst, src1); }
-
-void fmv_x_d (xreg dst, freg src1)
-{
-    DISASM(gsprintf(dis,"I: fmv_x_d x%d, f%d", dst, src1);)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-
-    if(dst != x0)
-    {
-        XREGS[dst].x = FREGS[src1].x[0];
-        DEBUG_EMU(gprintf("\t0x%016llx <- %016llx (%f)\n", XREGS[dst].x, FREGS[src1].x[0], FREGS[src1].d[0]);)
-    }
-    logxregchange(dst);
-}
 
 // MASK OPERATIONS
 void maskand      (mreg dst, mreg src1, mreg src2)             { maskop("maskand",       MAND, dst, src1, src2); }

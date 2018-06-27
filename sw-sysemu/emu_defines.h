@@ -245,9 +245,7 @@ typedef enum
 {
     // PS memory instructions
     FLW,
-    FLD,
     FSW,
-    FSD,
     FSWB,
     FSWH,
     FBC,
@@ -284,8 +282,6 @@ typedef enum
     FLOG,
     FRCP,
     FRCPFXP,
-    FCVTDS,
-    FCVTSD,
     FCVTPSPW,
     FCVTPSPWU,
     FFRC,
@@ -381,14 +377,6 @@ typedef enum
     FCVTWUS,
     FCVTSW,
     FCVTSWU,
-    FCVTDW,
-    FCVTDWU,
-    FCVTDL,
-    FCVTDLU,
-    FCVTWD,
-    FCVTWUD,
-    FCVTLD,
-    FCVTLUD,
     SIMPLE_INT, // Integer ISA
     MUL_INT,
     DIV_INT,
@@ -410,7 +398,6 @@ typedef union
     float32 f[4];
     uint64  x[2];
     int64   q[2];
-    float64 d[2];
 } fdata;
 
 typedef union
@@ -435,7 +422,6 @@ typedef union
     uint64  x;
     int64   xs;
     float32 f;
-    float64 d;
 } iufval;
 
 typedef struct

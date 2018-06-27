@@ -246,9 +246,7 @@ void ipc_init(const char *type, int debug)
         lat_sampler          = 100; // Careful! global variable used in texrcv!
 
         latency[FLW]         = lat_dcache_to_fpu;
-        latency[FLD]         = lat_dcache_to_fpu;
         latency[FSW]         = 1;
-        latency[FSD]         = 1;
         latency[FBC]         = lat_dcache_to_fpu;
         latency[FBCI]        = 1;
         latency[FGW]         = lat_dcache_to_fpu;
@@ -275,8 +273,6 @@ void ipc_init(const char *type, int debug)
         latency[FLOG]        = 12;
         latency[FRCP]        = 6;
         latency[FRCPFXP]     = 6;
-        latency[FCVTDS]      = lat_fcvt;
-        latency[FCVTSD]      = lat_fcvt;
         latency[FCVTPSPW]    = lat_fcvt;
         latency[FCVTPSPWU]   = lat_fcvt;
         latency[FFRC]        = lat_fcvt;
@@ -360,14 +356,6 @@ void ipc_init(const char *type, int debug)
         latency[FCVTWUS]     = lat_fcvt;
         latency[FCVTSW]      = lat_fcvt;
         latency[FCVTSWU]     = lat_fcvt;
-        latency[FCVTDW]      = lat_fcvt;
-        latency[FCVTDWU]     = lat_fcvt;
-        latency[FCVTDL]      = lat_fcvt;
-        latency[FCVTDLU]     = lat_fcvt;
-        latency[FCVTWD]      = lat_fcvt;
-        latency[FCVTWUD]     = lat_fcvt;
-        latency[FCVTLD]      = lat_fcvt;
-        latency[FCVTLUD]     = lat_fcvt;
 
         latency[SIMPLE_INT]  = 1;
         latency[MUL_INT]     = 3;
