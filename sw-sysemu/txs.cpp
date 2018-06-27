@@ -45,9 +45,9 @@ void checker_sample_quad(uint32 thread, uint64 basePtr, TBOXEmu::SampleRequest c
 }
 #endif
 
-void texsndh(xreg src1, xreg src2, const char *comm)
+void texsndh(xreg src1, xreg src2)
 {
-    DISASM(gsprintf(dis,"I: texsndh x%d, x%d # %s", src1, src2, comm);)
+    DISASM(gsprintf(dis,"I: texsndh x%d, x%d", src1, src2);)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_header = false;
@@ -66,9 +66,9 @@ void texsndh(xreg src1, xreg src2, const char *comm)
     IPC(ipc_texsnd(src1,src2,fnone,dis););
 }
 
-void texsnds(freg src1, const char *comm)
+void texsnds(freg src1)
 {
-    DISASM(gsprintf(dis,"I: texsnds f%d # %s", src1, comm);)
+    DISASM(gsprintf(dis,"I: texsnds f%d", src1);)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -90,9 +90,9 @@ void texsnds(freg src1, const char *comm)
     IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
-void texsndt(freg src1, const char *comm)
+void texsndt(freg src1)
 {
-    DISASM(gsprintf(dis,"I: texsndt f%d # %s", src1, comm);)
+    DISASM(gsprintf(dis,"I: texsndt f%d", src1);)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -114,9 +114,9 @@ void texsndt(freg src1, const char *comm)
     IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
-void texsndr(freg src1, const char *comm)
+void texsndr(freg src1)
 {
-    DISASM(gsprintf(dis,"I: texsndr f%d # %s", src1, comm);)
+    DISASM(gsprintf(dis,"I: texsndr f%d", src1);)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -138,9 +138,9 @@ void texsndr(freg src1, const char *comm)
     IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
-void texrcv(freg dst, const uint32 idx, const char *comm)
+void texrcv(freg dst, const uint32 idx)
 {
-    DISASM(gsprintf(dis,"I: texrcv f%d, 0x%x # %s", dst, idx, comm);)
+    DISASM(gsprintf(dis,"I: texrcv f%d, 0x%x", dst, idx);)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool sample = false;
