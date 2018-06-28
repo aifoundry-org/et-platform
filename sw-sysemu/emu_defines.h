@@ -42,9 +42,6 @@ typedef enum
 
     // ----- U-mode ET registers ---------------------------------------------
     csr_treduce,
-    csr_ucacheop,
-    csr_tloadctrl,
-    csr_tstore,
     csr_tfmastart,
     csr_tconvsize,
     csr_tconvctrl,
@@ -52,6 +49,9 @@ typedef enum
     csr_tmask,
     // csr_top,
     csr_flbarrier,
+    csr_ucacheop,
+    csr_tloadctrl,
+    csr_tstore,
     csr_umsg_port0,
     csr_umsg_port1,
     csr_umsg_port2,
@@ -453,13 +453,16 @@ typedef union
 typedef struct
 {
     bool enabled;
+    bool stall;
+    bool umode;
+    bool use_scp;
+    bool enable_oop;
     uint8 logsize;
     uint8 max_msgs;
     uint8 scp_set;
     uint8 scp_way;
     uint8 rd_ptr;
     uint8 wr_ptr;
-    bool stall;
 } msg_port_conf;
 
 // set to 1 if floating point 32 operation sets bits 127:32 to 0,

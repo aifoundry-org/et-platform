@@ -254,169 +254,6 @@ uint64 xget(uint64 src1)
     return val;
 }
 
-uint64 csrget(csr src1)
-{
-    uint64 val;
-    switch (src1) {
-        // ----- U-mode registers ----------------------------------------
-        case csr_fflags:
-            val = csrregs[current_thread][csr_fcsr] & 0x1F;
-            break;
-        case csr_frm:
-            val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
-            break;
-        // ----- S-mode registers ----------------------------------------
-        case csr_sstatus:
-            // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
-            break;
-        case csr_sie:
-            val = csrregs[current_thread][csr_mie] & csrregs[current_thread][csr_mideleg];
-            break;
-        case csr_sip:
-            val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
-            break;
-        // ----- Shared registers ----------------------------------------
-        case csr_treduce:
-        case csr_tfmastart:
-        case csr_flbarrier:
-        case csr_ucacheop:
-        case csr_tloadctrl:
-        case csr_tstore:
-        case csr_scacheop:
-        case csr_mt1en:
-        case csr_mt1rvect:
-            val = csrregs[current_thread>>1][src1];
-            break;
-        // ----- All other registers -------------------------------------
-        default:
-            val = csrregs[current_thread][src1];
-            break;
-    }
-    //DEBUG_EMU(gprintf("csrget 0x%016llx <- csrreg[%d]\n",val,src1);)
-    return val;
-}
-
-static void csrset(csr src1, uint64 val)
-{
-    uint64 msk;
-
-    switch (src1) {
-        case csr_prv:
-            val &= 0x0000000000000003ULL;
-            csrregs[current_thread][src1] = val;
-            break;
-        // ----- U-mode registers ----------------------------------------
-        case csr_fflags:
-            val = (csrregs[current_thread][csr_fcsr] & 0xE0) | (val & 0x1F);
-            csrregs[current_thread][csr_fcsr] = val;
-            break;
-        case csr_frm:
-            val = (csrregs[current_thread][csr_fcsr] & 0x1F) | ((val & 0x7) << 5);
-            csrregs[current_thread][csr_fcsr] = val;
-            break;
-        case csr_fcsr:
-            val &= 0x00000000000000FFULL;
-            csrregs[current_thread][src1] = val;
-            break;
-        // ----- S-mode registers ----------------------------------------
-        case csr_sstatus:
-            // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = (val & 0x00000000000DE133ULL) | (csrregs[current_thread][csr_mstatus] & 0x8000000F00721800ULL);
-            // Set sd if fs==3 or xs==3
-            if (((val >> 13) & 0x3 == 0x3) || ((val >> 15) & 0x3 == 0x3))
-            {
-                val |= 0x8000000000000000ULL;
-            }
-            csrregs[current_thread][csr_mstatus] = val;
-            break;
-        case csr_sie:
-            // Preserve meie, mtie, msie
-            // if mideleg[sei,sti,ssi]==1 then seie, stie, ssie is writeable, otherwise they are reserved
-            msk = csrregs[current_thread][csr_mideleg];
-            val = (csrregs[current_thread][csr_mie] & (~msk) & 0x0000000000000888ULL) | (val & msk & 0x0000000000000222ULL);
-            csrregs[current_thread][csr_mie] = val;
-            break;
-        case csr_sepc:
-            // sepc[0] = 0 always
-            val &= 0xFFFFFFFFFFFFFFFEULL;
-            csrregs[current_thread][src1] = val;
-            break;
-        case csr_sip:
-            // Preserve meip, seip, mtip, stip, msip
-            // if mideleg[ssi]==1 then ssip is writeable, otherwise it is reserved
-            msk = csrregs[current_thread][csr_mideleg];
-            val = (csrregs[current_thread][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
-            csrregs[current_thread][csr_mip] = val;
-            break;
-        // ----- M-mode registers ----------------------------------------
-        case csr_mstatus:
-            // Preserve sd, sxl, uxl
-            val = (val & 0x00000000007FF8BBULL) | (csrregs[current_thread][src1] & 0x8000000F00000000ULL);
-            // Set sd if fs==3 or xs==3
-            if (((val >> 13) & 0x3 == 0x3) || ((val >> 15) & 0x3 == 0x3))
-            {
-                val |= 0x8000000000000000ULL;
-            }
-            csrregs[current_thread][src1] = val;
-            break;
-        case csr_misa:
-            // misa is a 0-length register, cannot be modified
-            break;
-        case csr_medeleg:
-            // Not all exceptions can be delegated
-            val &= 0x0000000000000B109ULL;
-            csrregs[current_thread][src1] = val;
-            break;
-        case csr_mideleg:
-            // Not all interrupts can be delegated
-            val &= 0x0000000000000222ULL;
-            csrregs[current_thread][src1] = val;
-            break;
-        case csr_mie:
-            // Hard-wire ueie, utie, usie
-            val &= 0x0000000000000AAAULL;
-            csrregs[current_thread][src1] = val;
-            break;
-        case csr_mepc:
-            // mepc[0] = 0 always
-            val &= 0xFFFFFFFFFFFFFFFEULL;
-            csrregs[current_thread][src1] = val;
-            break;
-        case csr_mip:
-            // Hard-wire ueip, utip, usip
-            // Write only seip, stip, ssip
-            val &= 0x0000000000000222ULL;
-            csrregs[current_thread][src1] = val;
-            break;
-#if 0 // FIXME: raise invalid instruction? -- must change csr_insn() for this
-        case csr_mvendorid:
-        case csr_marchid:
-        case csr_mimpid:
-        case csr_mhartid:
-            // read-only registers
-            break;
-#endif
-        // ----- Shared registers ----------------------------------------
-        case csr_treduce:
-        case csr_tfmastart:
-        case csr_flbarrier:
-        case csr_ucacheop:
-        case csr_tloadctrl:
-        case csr_tstore:
-        case csr_scacheop:
-        case csr_mt1en:
-        case csr_mt1rvect:
-            csrregs[current_thread>>1][src1] = val;
-            break;
-        // ----- All other registers -------------------------------------
-        default:
-            csrregs[current_thread][src1] = val;
-            break;
-    }
-    //DEBUG_EMU(gprintf("csrset csrreg[%d] <- 0x%016llx\n",src1,val);)
-}
-
 void fpinit(freg dst, uint64 val[2])
 {
     FREGS[dst].x[0] = val[0];
@@ -461,6 +298,13 @@ void initcsr(uint32 thread)
     csrregs[thread][csr_mstatus] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csrregs[thread][csr_mcause] = 0x0ULL;
     csrregs[thread][csr_mip] = 0x0ULL;
+    if (thread % 2 == 0)
+    {
+        csrregs[thread>>1][csr_mt1en] = 0x0ULL;
+        csrregs[thread>>1][csr_mt1rvect] = 0x0ULL;
+    }
+    csrregs[thread][csr_icache_ctrl] = 0x0ULL;
+    csrregs[thread][csr_write_ctrl] = 0x0ULL;
     // Debug-mode registers with reset
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
 
@@ -485,6 +329,10 @@ void minit(mreg dst, uint64 val)
     }
     ipc_init_mreg(dst);
 }
+
+// forward declarations
+uint64 csrget(csr src1);
+static void csrset(csr src1, uint64 val);
 
 static uint8_t security_ulp_check(uint32 gold, uint32 table)
 {
@@ -548,6 +396,7 @@ static void trap_to_smode(uint64 cause, uint64 val)
     csrset(csr_stval, val);
     csrset(csr_sepc, current_pc);
     // Jump to stvec
+    csrset(csr_prv, CSR_PRV_S);
     logtrap();
     logpcchange(csrget(csr_stvec));
 }
@@ -578,6 +427,7 @@ static void trap_to_mmode(uint64 cause, uint64 val)
     csrset(csr_mtval, val);
     csrset(csr_mepc, current_pc);
     // Jump to mtvec
+    csrset(csr_prv, CSR_PRV_M);
     logtrap();
     logpcchange(csrget(csr_mtvec));
 }
@@ -784,7 +634,7 @@ bool conv_skip_pass(int64 conv_row_pos, int64 conv_col_pos, uint64 conv_row_size
 }
 
 // Update to the tensor Mask due a convolution CSR write
-void tmask_conv()
+static void tmask_conv()
 {
     uint64_t tmask_value = 0;
 
@@ -833,9 +683,8 @@ bool tmask_pass(int bit)
 bool   scp_locked[EMU_NUM_MINIONS][64]; // A cacheline is locked
 uint64 scp_trans[EMU_NUM_MINIONS][64];  // Which PA the cacheline is mapped to
 
-uint64 csr_cacheop_emu(csr reg)
+uint64 csr_cacheop_emu(uint64 op_value)
 {
-    uint64 op_value = csrget(reg);
     uint64 tm     = op_value >> 63;
     uint64 op     = (op_value >> 60) & 0x7;
     uint64 dest   = (op_value >> 58) & 0x3;
@@ -1058,47 +907,55 @@ func_ret_msg_port_data_t  retrieve_msg_port_data = NULL;
 func_query_msg_port_data_t query_msg_port_data = NULL;
 func_msg_port_data_request_t newMsgPortDataRequest = NULL;
 
-void set_msg_port_data_func( void* f, void *g, void *h) {
+void set_msg_port_data_func( void* f, void *g, void *h)
+{
     retrieve_msg_port_data = (func_ret_msg_port_data_t) f;
     query_msg_port_data = (func_query_msg_port_data_t) g;
     newMsgPortDataRequest = (func_msg_port_data_request_t) h;
 }
 
-bool get_msg_port_stall(uint32 thread, uint32 id) {
-  return msg_ports[thread][id].stall;
+bool get_msg_port_stall(uint32 thread, uint32 id)
+{
+    return msg_ports[thread][id].stall;
 }
 
 
-uint64 msg_port_csr ( uint32 id, uint64 wdata){
+uint64 msg_port_csr(uint32 id, uint64 wdata, bool umode)
+{
+    // FIXME: Raise "illegal instruction" exception if:
+    //   * we are in U-mode and port[id].umode is 0.
+    //   * we do MSG_PGET(NB) and port[id].enabled is 0.
     msg_port_conf_action action =  (msg_port_conf_action) (wdata & 0xF);
     switch (action)
     {
         case MSG_ENABLE:
             msg_ports[current_thread][id].enabled = true;
+            msg_ports[current_thread][id].stall = false;
+            msg_ports[current_thread][id].umode = (((wdata >> 4) & 0x1) != 0);
             msg_ports[current_thread][id].logsize = (wdata >> 5)  & 0x7;
             msg_ports[current_thread][id].max_msgs = (wdata >> 8) & 0xF;
+            msg_ports[current_thread][id].use_scp = (((wdata >> 15) & 0x1) != 0);
             msg_ports[current_thread][id].scp_set = (wdata >> 16) & 0xF;
             msg_ports[current_thread][id].scp_way = (wdata >> 24) & 0x3;
+            msg_ports[current_thread][id].enable_oop = (((wdata >> 32) & 0x1) != 0);
             msg_ports[current_thread][id].rd_ptr = 0;
             msg_ports[current_thread][id].wr_ptr = 0;
-            msg_ports[current_thread][id].stall = false;
             return 0;
         case MSG_DISABLE:
             msg_ports[current_thread][id].enabled = false;
             return 0;
         case MSG_PGET:
-          // if in sysemu stop thread if no data for port.. comparing rd_ptr and wr_ptr
-          if (in_sysemu == 1 && query_msg_port_data(current_thread, id) == 0) {
-            msg_ports[current_thread][id].stall = true;
-            return 0;
-          }
-          else
+            // if in sysemu stop thread if no data for port.. comparing rd_ptr and wr_ptr
+            if (in_sysemu == 1 && query_msg_port_data(current_thread, id) == 0)
+            {
+                msg_ports[current_thread][id].stall = true;
+                return 0;
+            }
             return get_msg_port_offset(id);
         case MSG_PGETNB:
             if (query_msg_port_data(current_thread, id))
                 return get_msg_port_offset(id);
-            else
-                return -1;
+            return -1;
         default:
             DEBUG_EMU(gprintf("ERROR Unimplemented port msg conf mode %d!!\n", (int) action);)
             return 0;
@@ -1106,7 +963,8 @@ uint64 msg_port_csr ( uint32 id, uint64 wdata){
 }
 
 // get data from RTL and write into scratchpad
-uint64 get_msg_port_offset(uint32 id) {
+uint64 get_msg_port_offset(uint32 id)
+{
     uint32 offset = msg_ports[current_thread][id].rd_ptr << msg_ports[current_thread][id].logsize;
     msg_ports[current_thread][id].rd_ptr++;
     msg_ports[current_thread][id].rd_ptr %= (msg_ports[current_thread][id].max_msgs + 1);
@@ -1122,41 +980,45 @@ uint64 get_msg_port_offset(uint32 id) {
     return offset;
 }
 
-void update_msg_port_data(){
-    for ( uint32 port_id = 0 ; port_id < NR_MSG_PORTS; port_id ++) {
+void update_msg_port_data()
+{
+    for ( uint32 port_id = 0 ; port_id < NR_MSG_PORTS; port_id ++)
+    {
         if (msg_ports_pending_offset[current_thread][port_id] >= 0 )
             write_msg_port_data(current_thread, port_id);
     }
 }
 
 
-void write_msg_port_data(uint32 thread, uint32 id) {
-
-    if ( retrieve_msg_port_data != NULL) {
-      int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
-      uint32 *data = new uint32 [wr_words];
-      for(int i = 0; i < wr_words; i++)
-        data[i] =  retrieve_msg_port_data ( thread, id, i );
-      write_msg_port_data_(thread, id, data);
-      delete [] data;
+void write_msg_port_data(uint32 thread, uint32 id)
+{
+    if ( retrieve_msg_port_data != NULL)
+    {
+        int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
+        uint32 *data = new uint32 [wr_words];
+        for(int i = 0; i < wr_words; i++)
+            data[i] =  retrieve_msg_port_data ( thread, id, i );
+        write_msg_port_data_(thread, id, data);
+        delete [] data;
     }
     else {
-      gprintf("ERROR: no data provider for msg port %d emulation has been configured\n", id);
-      exit(-1);
+        gprintf("ERROR: no data provider for msg port %d emulation has been configured\n", id);
+        exit(-1);
     }
 }
 
-void write_msg_port_data_(uint32 thread, uint32 id, uint32 *data) {
-  // write to scratchpad
-  uint64 base_addr = scp_trans[thread >> 1][(msg_ports[thread][id].scp_set << 2) | msg_ports[thread][id].scp_way];
-  base_addr += msg_ports_pending_offset[thread][id];
-  msg_ports_pending_offset[thread][id] = -1;
-  int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
-  for(int i = 0; i < wr_words; i++)
+void write_msg_port_data_(uint32 thread, uint32 id, uint32 *data)
+{
+    // write to scratchpad
+    uint64 base_addr = scp_trans[thread >> 1][(msg_ports[thread][id].scp_set << 2) | msg_ports[thread][id].scp_way];
+    base_addr += msg_ports_pending_offset[thread][id];
+    msg_ports_pending_offset[thread][id] = -1;
+    int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
+    for(int i = 0; i < wr_words; i++)
     {
-      uint32 ret = data[i];
-      DEBUG_EMU(gprintf("Writing MSG_PORT (m%d p%d) data %08X to addr %016llX\n", thread, id, ret, base_addr + 4 * i););
-      memwrite32 ( base_addr + 4 * i, ret );
+        uint32 ret = data[i];
+        DEBUG_EMU(gprintf("Writing MSG_PORT (m%d p%d) data %08X to addr %016llX\n", thread, id, ret, base_addr + 4 * i););
+        memwrite32 ( base_addr + 4 * i, ret );
     }
 }
 
@@ -1356,9 +1218,8 @@ uint32 get_mask ( unsigned maskNr ) {
 //
 ////////////////////////////////////////////////////////////
 
-void tensorload()
+void tensorload(uint64 control)
 {
-    uint64 control = csrget(csr_tloadctrl);
     uint64 stride  = XREGS[31].x;
 
     uint64 trans   = (control >> 54) & 0x07;
@@ -1408,6 +1269,7 @@ void tensorload()
     }
 }
 
+#if 0
 void transtensorload()//Transtensorload
 {
     uint64 control = csrget(csr_tloadctrl);
@@ -1571,6 +1433,7 @@ void transtensorload()//Transtensorload
         }
     }
 }
+#endif
 
 uint64 get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
@@ -1591,10 +1454,8 @@ void get_scratchpad_conv_list(std::list<bool> * list)
 //
 ////////////////////////////////////////////////////////////
 
-void tensorfma()
+void tensorfma(uint64 tfmareg)
 {
-    uint64 tfmareg = csrget(csr_tfmastart);
-
     uint64 tm         =  (tfmareg & 0x2000000000) >> 37;      // Is a Conv2D operation (use tensor conv register)
     uint64 aoffset    =  (tfmareg & 0x0F00000000) >> 32;      // A matrix 32b offset
     uint64 bcols      = ((tfmareg & 0x00F0000000) >> 28) + 1; // Number of B cols to be processed
@@ -2122,10 +1983,8 @@ uint64 get_tensorfma_value(int entry, int pass, int block, int * size, int * pas
 //
 ////////////////////////////////////////////////////////////
 
-void tensorstore()
+void tensorstore(uint64 tstorereg)
 {
-    uint64 tstorereg = csrget(csr_tstore);
-
     uint64 regstart =  (tstorereg & 0xF8000000000000) >> 51;      // Start register to store
     uint64 rows     = ((tstorereg & 0x07000000000000) >> 48) + 1; // Number of rows to store
     uint64 addr     =  (tstorereg & 0x00FFFFFFFFFFF0);            // Address where to store the results
@@ -2215,9 +2074,8 @@ void get_reduce_info(uint64 value, uint64 * other_min, uint64 * action)
     }
 }
 
-void reduce()
+void reduce(uint64 value)
 {
-    uint64 value = csrget(csr_treduce);
     uint64 other_min;
     uint64 action;
     uint32 operation = (value >> 32) & 0xF;
@@ -2304,9 +2162,8 @@ uint64 get_reduce_value(int entry, int block, int * size, int * start_entry)
 
 // Fast local barriers can be accessed through UC to do stores and loads,
 // and also through the CSR that implement the fast local barrier function.
-uint64 flbarrier()
+uint64 flbarrier(uint64 value)
 {
-    uint64 value   = csrget(csr_flbarrier);
     uint64 barrier = value & 0x7;
     uint64 limit   = (value >> 3) & 0x7F;
 
@@ -3733,56 +3590,267 @@ void amomaxu_d(xreg dst, xreg src1, xreg src2)
     logmemwchange(0, 8, addr, res);
 }
 
-
-void csr_insn(xreg dst, csr src1, uint64 imm)
+uint64 csrget(csr src1)
 {
-    // FIXME: Check if current privilege level has access to the register
+    uint64 val;
+    switch (src1) {
+        // ----- U-mode registers ----------------------------------------
+        case csr_fflags:
+            val = csrregs[current_thread][csr_fcsr] & 0x1F;
+            break;
+        case csr_frm:
+            val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
+            break;
+        // ----- S-mode registers ----------------------------------------
+        case csr_sstatus:
+            // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
+            val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
+            break;
+        case csr_sie:
+            val = csrregs[current_thread][csr_mie] & csrregs[current_thread][csr_mideleg];
+            break;
+        case csr_sip:
+            val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
+            break;
+        // ----- Tensor instructions -------------------------------------
+        case csr_treduce:
+        case csr_tfmastart:
+        case csr_flbarrier:
+        case csr_ucacheop:
+        case csr_tloadctrl:
+        case csr_tstore:
+        case csr_scacheop:
+            val = 0;
+            break;
+        // ----- Shared registers ----------------------------------------
+        case csr_mt1en:
+        case csr_mt1rvect:
+            val = csrregs[current_thread>>1][src1];
+            break;
+        // ----- All other registers -------------------------------------
+        default:
+            val = csrregs[current_thread][src1];
+            break;
+    }
+    //DEBUG_EMU(gprintf("csrget 0x%016llx <- csrreg[%d]\n",val,src1);)
+    return val;
+}
+
+static void csrset(csr src1, uint64 val)
+{
+    uint64 msk;
+
+    switch (src1) {
+        case csr_prv:
+            val &= 0x0000000000000003ULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        // ----- U-mode registers ----------------------------------------
+        case csr_fflags:
+            val = (csrregs[current_thread][csr_fcsr] & 0xE0) | (val & 0x1F);
+            csrregs[current_thread][csr_fcsr] = val;
+            break;
+        case csr_frm:
+            val = (csrregs[current_thread][csr_fcsr] & 0x1F) | ((val & 0x7) << 5);
+            csrregs[current_thread][csr_fcsr] = val;
+            break;
+        case csr_fcsr:
+            val &= 0x00000000000000FFULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_tmask:
+            val &= 0x000000000000FFFFULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_tconvsize:
+            val &= 0xFF00FFFFFF00FFFFULL;
+            csrregs[current_thread][src1] = val;
+            tmask_conv();
+            break;
+        case csr_tconvctrl:
+            val &= 0x0000FFFF0000FFFFULL;
+            csrregs[current_thread][src1] = val;
+            tmask_conv();
+            break;
+        // ----- S-mode registers ----------------------------------------
+        case csr_sstatus:
+            // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
+            val = (val & 0x00000000000DE133ULL) | (csrregs[current_thread][csr_mstatus] & 0x8000000F00721800ULL);
+            // Set sd if fs==3 or xs==3
+            if (((val >> 13) & 0x3 == 0x3) || ((val >> 15) & 0x3 == 0x3))
+            {
+                val |= 0x8000000000000000ULL;
+            }
+            csrregs[current_thread][csr_mstatus] = val;
+            break;
+        case csr_sie:
+            // Preserve meie, mtie, msie
+            // if mideleg[sei,sti,ssi]==1 then seie, stie, ssie is writeable, otherwise they are reserved
+            msk = csrregs[current_thread][csr_mideleg];
+            val = (csrregs[current_thread][csr_mie] & (~msk) & 0x0000000000000888ULL) | (val & msk & 0x0000000000000222ULL);
+            csrregs[current_thread][csr_mie] = val;
+            break;
+        case csr_sepc:
+            // sepc[0] = 0 always
+            val &= 0xFFFFFFFFFFFFFFFEULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_sip:
+            // Preserve meip, seip, mtip, stip, msip
+            // if mideleg[ssi]==1 then ssip is writeable, otherwise it is reserved
+            msk = csrregs[current_thread][csr_mideleg];
+            val = (csrregs[current_thread][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
+            csrregs[current_thread][csr_mip] = val;
+            break;
+        case csr_satp:
+            // ASID is 4bits, PPN is 28bits
+            val &= 0xF000F0000FFFFFFFULL;
+            switch (val >> 60) {
+                case 0: // Bare
+                case 9: // Sv48
+                    csrregs[current_thread][src1] = val;
+                    break;
+                case 8: // Sv39
+                default: // reserved
+                    // do not write the register if attempting to set an unsupported mode
+                    break;
+            }
+            break;
+        // ----- M-mode registers ----------------------------------------
+        case csr_mstatus:
+            // Preserve sd, sxl, uxl
+            val = (val & 0x00000000007FF8BBULL) | (csrregs[current_thread][src1] & 0x8000000F00000000ULL);
+            // Set sd if fs==3 or xs==3
+            if (((val >> 13) & 0x3 == 0x3) || ((val >> 15) & 0x3 == 0x3))
+            {
+                val |= 0x8000000000000000ULL;
+            }
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_misa:
+            // misa is a 0-length register, cannot be modified
+            break;
+        case csr_medeleg:
+            // Not all exceptions can be delegated
+            val &= 0x0000000000000B109ULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_mideleg:
+            // Not all interrupts can be delegated
+            val &= 0x0000000000000222ULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_mie:
+            // Hard-wire ueie, utie, usie
+            val &= 0x0000000000000AAAULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_mepc:
+            // mepc[0] = 0 always
+            val &= 0xFFFFFFFFFFFFFFFEULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_mip:
+            // Hard-wire ueip, utip, usip
+            // Write only seip, stip, ssip
+            val &= 0x0000000000000222ULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        // ----- Tensor instructions -------------------------------------
+        case csr_treduce:
+        case csr_tfmastart:
+        case csr_flbarrier:
+        case csr_ucacheop:
+        case csr_tloadctrl:
+        case csr_tstore:
+        case csr_scacheop:
+            break;
+        // ----- Shared registers ----------------------------------------
+        case csr_mt1en:
+#ifdef CHECKER
+            val &= 0x0000000000000001ULL;
+            csrregs[current_thread>>1][src1] = val;
+            func_thread1_enabled(current_thread, csrget(csr_mt1en), csrget(csr_mt1rvect));
+            break;
+#endif
+        case csr_mt1rvect:
+            csrregs[current_thread>>1][src1] = val;
+            break;
+        // ----- All other registers -------------------------------------
+        default:
+            csrregs[current_thread][src1] = val;
+            break;
+    }
+    //DEBUG_EMU(gprintf("csrset csrreg[%d] <- 0x%016llx\n",src1,val);)
+}
+
+void csr_insn(xreg dst, csr src1, uint64 val, bool write)
+{
+    // Check if current privilege mode has access to the register
+    uint64 prv = csrget(csr_prv);
+    if (   ((prv == CSR_PRV_U) && (src1 > CSR_MAX_UMODE))
+        || ((prv == CSR_PRV_S) && (src1 > CSR_MAX_SMODE)))
+    {
+        unknown();
+        return;
+    }
 
     uint64 x = csrget(src1);
-    csrset(src1, imm);
 
-    if (src1 == csr_mhartid)
-      x = current_thread;
-#ifdef CHECKER
-    else if (src1 == csr_satp )
+    if (write)
     {
-        // mode: 4 bits, asid: 4/16 bits, ppn: 28/44 bits
-        csrset(src1, imm & 0xF000F0000FFFFFFFULL);
-
-        // If mode is not valid, restore previous value
-        if (!(imm >> 60 == 0 || // Bare (VM disabled)
-              //imm >> 60 == 8 || // TODO: Sv39 not yet supported
-              imm >> 60 == 9    // Sv48
-             ))
-            csrset(src1, x);
-    }
-    else if (src1 == csr_ucacheop || src1 == csr_scacheop) x = csr_cacheop_emu(src1);
-    else if (src1 >= csr_umsg_port0 && src1 <= csr_umsg_port3 )
-        x = msg_port_csr(src1 - csr_umsg_port0, imm);
-    else if (src1 >= csr_smsg_port0 && src1 <= csr_smsg_port3)
-        x = msg_port_csr(src1 - csr_smsg_port0, imm);
-    else if ( src1 == csr_mt1en )
-        func_thread1_enabled(current_thread, csrget(csr_mt1en), csrget(csr_mt1rvect));
-    else if ( src1 == csr_tloadctrl )
-        tensorload();
-    else if ( src1 == csr_tfmastart )
-        tensorfma();
-    else if ( src1 == csr_tstore )
-        tensorstore();
-    else if ( src1 == csr_treduce )
-        reduce();
-    else if ( src1 == csr_flbarrier )
-        x = flbarrier();
-    else if ( (src1 == csr_tconvctrl) || (src1 == csr_tconvsize) )
-        tmask_conv();
+        DEBUG_EMU(gprintf("\t0x%016llx --> CSR[%08x]\n", val, src1);)
+        switch (src1) {
+            // Check if attempting to write a read-only register
+            case csr_mvendorid:
+            case csr_marchid:
+            case csr_mimpid:
+            case csr_mhartid:
+                unknown();
+                return;
+#ifdef CHECKER
+            case csr_treduce:
+                reduce(val);
+                break;
+            case csr_tfmastart:
+                tensorfma(val);
+                break;
+            case csr_flbarrier:
+                x = flbarrier(val);
+                break;
+            case csr_ucacheop:
+            case csr_scacheop:
+                x = csr_cacheop_emu(val);
+                break;
+            case csr_tloadctrl:
+                tensorload(val);
+                break;
+            case csr_tstore:
+                tensorstore(val);
+                break;
+            case csr_umsg_port0:
+            case csr_umsg_port1:
+            case csr_umsg_port2:
+            case csr_umsg_port3:
+                x = msg_port_csr(src1 - csr_umsg_port0, val, true);
+                break;
+            case csr_smsg_port0:
+            case csr_smsg_port1:
+            case csr_smsg_port2:
+            case csr_smsg_port3:
+                x = msg_port_csr(src1 - csr_smsg_port0, val, false);
+                break;
 #endif
+            default:
+                csrset(src1, val);
+                break;
+        }
+    }
 
-    DEBUG_EMU(gprintf("\t0x%016llx --> CSR[%08x]\n", imm, src1);)
-
-    if(dst != x0)
+    if (dst != x0)
     {
         XREGS[dst].x = x;
-        DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx\n",x,x);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- CSR[%08x]\n", x, src1);)
     }
     logxregchange(dst);
 }
@@ -3791,42 +3859,42 @@ void csrrw(xreg dst, csr src1, xreg src2)
 {
     DISASM(gsprintf(dis, "I: csrrw x%d, csrreg[%d], x%d", dst, src1, src2););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, XREGS[src2].x);
+    csr_insn(dst, src1, XREGS[src2].x, true);
 }
 
 void csrrs(xreg dst, csr src1, xreg src2)
 {
     DISASM(gsprintf(dis, "I: csrrs x%d, csrreg[%d], x%d", dst, src1, src2););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, csrget(src1) | XREGS[src2].x);
+    csr_insn(dst, src1, csrget(src1) | XREGS[src2].x, src2 != x0);
 }
 
 void csrrc(xreg dst, csr src1, xreg src2)
 {
     DISASM(gsprintf(dis, "I: csrrc x%d, csrreg[%d], x%d", dst, src1, src2););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, csrget(src1) & (~XREGS[src2].x));
+    csr_insn(dst, src1, csrget(src1) & (~XREGS[src2].x), src2 != x0);
 }
 
 void csrrwi(xreg dst, csr src1, uint64 imm)
 {
     DISASM(gsprintf(dis, "I: csrrwi x%d, csrreg[%d], %d", dst, src1, imm););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, imm);
+    csr_insn(dst, src1, imm, true);
 }
 
 void csrrsi(xreg dst, csr src1, uint64 imm)
 {
     DISASM(gsprintf(dis, "I: csrrsi x%d, csrreg[%d], %d", dst, src1, imm););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, csrget(src1) | imm);
+    csr_insn(dst, src1, csrget(src1) | imm, imm != 0);
 }
 
 void csrrci(xreg dst, csr src1, uint64 imm)
 {
     DISASM(gsprintf(dis, "I: csrrci x%d, csrreg[%d], %d", dst, src1, imm););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, csrget(src1) & (~imm));
+    csr_insn(dst, src1, csrget(src1) & (~imm), imm != 0);
 }
 
 void sret()
