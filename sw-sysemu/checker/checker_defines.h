@@ -18,6 +18,7 @@ typedef void (*func_ptr_1)(int arg0);
 typedef void (*func_ptr_2)(int arg0, int arg1);
 typedef void (*func_ptr_3)(int arg0, int arg1, int arg2);
 typedef void (*func_ptr_4)(int arg0, int arg1, int arg2, int arg3);
+typedef void (*func_ptr_5)(int arg0, int arg1, int arg2, int arg3, int arg4);
 
 #endif // _CHECKER_DEFINES_
 

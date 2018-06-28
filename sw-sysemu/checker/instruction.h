@@ -65,6 +65,7 @@ class instruction
         func_ptr_2                   emu_func2;
         func_ptr_3                   emu_func3;
         func_ptr_4                   emu_func4;
+        func_ptr_5                   emu_func5;
         testLog *                    log;
         bool                         has_error;  // The instruction decode had an error
         std::string                  str_error;  // Error of the instruction decoding
