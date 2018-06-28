@@ -1408,7 +1408,7 @@ void tensorload()
     }
 }
 
-void transtensorload()
+void transtensorload()//Transtensorload
 {
     uint64 control = csrget(csr_tloadctrl);
     uint64 stride  = XREGS[31].x;
@@ -1426,7 +1426,7 @@ void transtensorload()
 
     //NO TRANS
     if(trans == 0x00){
-
+        DEBUG_EMU(gprintf("TensorLoad: No transformation\n");)
         for(int i=0;i < rows; ++i){
             if(!tm || tmask_pass(i)){
                 if(addr & 0x3F)
@@ -1444,36 +1444,130 @@ void transtensorload()
                         SCP[dst + i][j].f[k] = fval32;
                         DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
                     }
-                }
+                }    
             }
+            DEBUG_EMU(gprintf("\t\tAddres = 0x%016x - Stride = 0x%016x\n",addr,stride);)
+            addr += stride;
+            scp_conv[current_thread].pop_front(); 
         }
     }
     //INTERLEAVE
     else if(trans == 0x01 || trans == 0x02){
+       
+       DEBUG_EMU(gprintf("TensorLoad: Interleave\n");)
        uint8 tmp_buffer[4][64];
        int size = trans & 0x03;
        int start;
        start=size==1 ?  boffset << 4 : (boffset & 0x02) << 5;
        int elements = 4 / size;
+       
+       DEBUG_EMU(gprintf("#rows:%d - size:%d - start:%d - elements:%d - boffset:%d\n",rows,size,start,elements,boffset);)
        for(int i=0;i < rows; ++i){
-            if(!tm || tmask_pass(i)){
+            if(usetmask==0 || scp_conv[current_thread].front()){
                 if(addr & 0x3F)
                 {
                     DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
                 }
-                for ( int j = 0; j < 4; j++ )
-                {
-                    for ( int k = 0; k < 4; k++ )
+                for( int elem = 0; elem < elements; ++elem){
+                    //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
+                    for ( int j = 0; j < 8; j++ )
                     {
-                        uint64 addr_final = addr+j*16+k*4;
-                        uint32 val32 = memread32(addr_final);
-                        float32 fval32 = * ((float32 *) &val32);
-
-                        SCP[dst + i][j].f[k] = fval32;
-                        DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
+                        for ( int k = 0; k < 8; k++ )
+                        {
+                            uint64 addr_final = addr+j*8+k;
+                            uint8 val = memread8(addr_final);
+                            tmp_buffer[elem][j*8+k] = val;
+                            DEBUG_EMU(gprintf("\tLoading into tmp_buffer - MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, elem,j,k,tmp_buffer[elem][j*8+k],tmp_buffer[elem][j*8+k]);)
+                        }
                     }
+                    
+                    DEBUG_EMU(gprintf("\t\tAddres = 0x%016x - Stride = 0x%016x\n",addr,stride);)
+                    addr += stride;
+                }
+                for(int line=0; line < 4; ++ line){
+                    for(int byte=0; byte < 16; byte+=4){//We interleve 32 bits each pass
+                        if(elements == 2){
+                            SCP[dst+i][line].b[byte] = tmp_buffer[0][start+line*8+byte/elements];
+                            SCP[dst+i][line].b[byte+1] = tmp_buffer[0][start+line*8+byte/elements+1];
+                            SCP[dst+i][line].b[byte+2] = tmp_buffer[1][start+line*8+byte/elements];
+                            SCP[dst+i][line].b[byte+3] = tmp_buffer[1][start+line*8+byte/elements+1];
+                        }
+                        if(elements == 4){
+                            SCP[dst+i][line].b[byte] = tmp_buffer[0][start+line*4+byte/elements];
+                            SCP[dst+i][line].b[byte+1] = tmp_buffer[1][start+line*4+byte/elements];
+                            SCP[dst+i][line].b[byte+2] = tmp_buffer[2][start+line*4+byte/elements];
+                            SCP[dst+i][line].b[byte+3] = tmp_buffer[3][start+line*4+byte/elements];
+                        }
+                        
+                        DEBUG_EMU(gprintf("SCP[%d][%d].u[%d] = 0x%08x\n",dst+i,line,byte/4,SCP[dst+i][line].u[byte/4]);)
+                    }
+                    
+                }     
+            }
+            scp_conv[current_thread].pop_front(); 
+        }
+       //printSCP(addr,rows,stride,dst); 
+    }
+    //TRANSPOSE
+    else if(trans = 0x05 || trans == 0x06 || trans==0x07){
+        
+        DEBUG_EMU(gprintf("TensorLoad: Transpose\n");)
+        if(usetmask && scp_conv[current_thread].size() == 0) return;
+        int offset = (control >> 57) & 0x1F;
+        uint8 tmp_buffer[64][64];
+        int size = trans & 0x03;
+        int start;
+        start=size==1 ?  boffset << 4 : boffset  << 5;
+        int elements = 64 >> size;
+        size = 1 << size;
+        for( int elem = 0; elem < elements; ++elem){
+            //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
+            for ( int j = 0; j < 8; j++ )
+            {
+                for ( int k = 0; k < 8; k++ )
+                {
+                    uint64 addr_final = addr+j*8+k;
+                    uint8 val = memread8(addr_final);
+                    tmp_buffer[elem][j*8+k]=val;
+                    DEBUG_EMU(gprintf("\tLoading into tmp_buffer - MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, elem,j,k,tmp_buffer[elem][j*8+k],tmp_buffer[elem][j*8+k]);)
                 }
             }
+            addr += stride;
+        }
+        for(int i=0 ;i < rows; ++i)
+        {
+             if(usetmask==0 || scp_conv[current_thread].front()){
+                if(addr & 0x3F)
+                {
+                    DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
+                }
+                for(int j=0; j < elements; ++j){
+                    if(size == 4){
+                        SCP[dst+i][j/4].b[(j*size)%16] = tmp_buffer[j][(dst+i)*size+offset];
+                        SCP[dst+i][j/4].b[(j*size+1)%16] = tmp_buffer[j][(dst+i)*size+offset+1];
+                        SCP[dst+i][j/4].b[(j*size+2)%16] = tmp_buffer[j][(dst+i)*size+offset+2];
+                        SCP[dst+i][j/4].b[(j*size+3)%16] = tmp_buffer[j][(dst+i)*size+offset+3];
+                    }                        
+                    else if(size == 2){
+                        SCP[dst+i][j/8].b[(j*size)%16] = tmp_buffer[j][(dst+i)*size+offset];
+                        SCP[dst+i][j/8].b[(j*size+1)%16] = tmp_buffer[j][(dst+i)*size+offset+1];
+                    }
+                    else if(size == 1){
+                        SCP[dst+i][j/16].b[(j*size)%16] = tmp_buffer[j][(dst+i)*size+offset];
+                    }
+                    else{
+                        DEBUG_EMU(gprintf("ERROR Tensor Load element size not valid!!\n");)
+                    }
+                    
+                }
+                for(int x = 0; x<4;++x){
+                    for(int y=0;y<4;++y){
+                         DEBUG_EMU(gprintf("SCP[%d][%d].u[%d] = 0x%08x\n",dst+i,x,y,SCP[dst+i][x].u[y]);)
+                    }
+                }
+                scp_conv[current_thread].pop_front(); 
+            }
+            
         }
     }
     //TRANSPOSE
