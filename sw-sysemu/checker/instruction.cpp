@@ -6,7 +6,38 @@
 #include <iostream>
 #include <boost/regex.hpp>
 #include <algorithm>
+#include <unordered_set>
 #include <vector>
+
+// floating-point instructions with optional rounding-mode as 3rd operand
+static std::unordered_set<std::string> rm2args({
+    "fsqrt_s",
+    "fcvt_w_s", "fcvt_wu_s", "fcvt_l_s", "fcvt_lu_s",
+    "fcvt_s_w", "fcvt_s_wu", "fcvt_s_l", "fcvt_s_lu",
+    "fsqrt_ps",
+    "fcvt_pw_ps", "fcvt_pwu_ps", "fcvt_pl_ps", "fcvt_plu_ps",
+    "fcvt_ps_pw", "fcvt_ps_pwu", "fcvt_ps_pl", "fcvt_ps_plu",
+    "fcvt_ps_f16",
+    "fcvt_ps_un24", "fcvt_ps_un16", "fcvt_ps_un10", "fcvt_ps_un8", "fcvt_ps_un2",
+    "fcvt_ps_sn24", "fcvt_ps_sn16", "fcvt_ps_sn10", "fcvt_ps_sn8", "fcvt_ps_sn2",
+    "fcvt_ps_f11", "fcvt_ps_f10",
+    "fsin_ps", "fexp_ps", "flog_ps", "ffrc_ps", "fround_ps",
+    "frcp_ps", "frsq_ps", "frcpfxp_ps",
+    "fcvt_ps_rast", "fcvt_rast_ps"
+});
+
+// floating-point instructions with optional rounding-mode as 4th operand
+static std::unordered_set<std::string> rm3args({
+    "fadd_s", "fsub_s", "fmul_s", "fdiv_s",
+    "fadd_ps", "fsub_ps", "fmul_ps", "fdiv_ps",
+    "fltabs_ps"
+});
+
+// floating-point instructions with optional rounding-mode as 5th operand
+static std::unordered_set<std::string> rm4args({
+    "fmadd_s", "fmsub_s", "fnmsub_s", "fnmadd_s",
+    "fmadd_ps", "fmsub_ps", "fnmsub_ps", "fnmadd_ps"
+});
 
 // Constructor
 instruction::instruction()
@@ -30,6 +61,7 @@ instruction::instruction()
     emu_func2 = NULL;
     emu_func3 = NULL;
     emu_func4 = NULL;
+    emu_func5 = NULL;
     num_params = 0;
     has_error = false;
     str_error = "No error";
@@ -99,7 +131,7 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         is_load = true;
 
     // Gets if the instruction is a floating point load
-    if((opcode == "flw") || (opcode == "fld") || (opcode == "flw_ps"))
+    if((opcode == "flw") || (opcode == "flw_ps"))
         is_fpload = true;
 
     if(opcode == "wfi")
@@ -385,6 +417,16 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
     }
+    else if(!is_fpload && opcode[0] == 'f')
+    {
+        // Add implicit rounding mode operand to floating-point operations
+        if(   (arg_array.size() == 2 && rm2args.find(opcode) != rm2args.end())
+           || (arg_array.size() == 3 && rm3args.find(opcode) != rm3args.end())
+           || (arg_array.size() == 4 && rm4args.find(opcode) != rm4args.end()))
+        {
+            arg_array.push_back("dyn");
+        }
+    }
 
     // Special opcodes that need translation due to C++ naming conflicts
     if(opcode == "or")
@@ -423,7 +465,7 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
     }
 
     // Checks if it is a tensor/reduce operation
-    if(boost::regex_match(opcode, boost::regex("csrr.*")))
+    if((opcode == "csrrw") || (opcode == "cssrwi"))
     {
         is_reduce      = (params[1] == csr_treduce);
         is_tensor_load = (params[1] == csr_tloadctrl);
@@ -442,7 +484,13 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
             emu_func2 = (func_ptr_2) emu_func;
             emu_func3 = (func_ptr_3) emu_func;
             emu_func4 = (func_ptr_4) emu_func;
+            emu_func5 = (func_ptr_5) emu_func;
         }
+    }
+
+    if (has_error)
+    {
+        str_error += " while decoding instruction: " + mnemonic;
     }
 }
 
@@ -550,6 +598,7 @@ void instruction::exec()
         case 2: (emu_func2(params[0], params[1])); break;
         case 3: (emu_func3(params[0], params[1], params[2])); break;
         case 4: (emu_func4(params[0], params[1], params[2], params[3])); break;
+        case 5: (emu_func5(params[0], params[1], params[2], params[3], params[4])); break;
     }
 }
 
@@ -631,7 +680,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "fcsr")    params[num_params] = csr_fcsr;
         else if(param == "frm")     params[num_params] = csr_frm;
         else if(param == "fflags")  params[num_params] = csr_fflags;
-        else if(param == "flb0")  params[num_params] = csr_flbarrier;
+        else if(param == "flb0")    params[num_params] = csr_flbarrier;
         else
         {
             int c = sscanf(param.c_str(), "f%i", &params[num_params]);
@@ -716,26 +765,26 @@ void instruction::add_parameter(std::string param)
         else if(param == "mcause")       params[num_params] = csr_mcause;
         else if(param == "mtval")        params[num_params] = csr_mtval;
         else if(param == "mip")          params[num_params] = csr_mip;
-        else if(param == "tensor_reduce")  params[num_params] = csr_treduce;
-        else if(param == "tensor_fma")  params[num_params] = csr_tfmastart;
-        else if(param == "tensor_conv_size")  params[num_params] = csr_tconvsize;
-        else if(param == "tensor_conv_ctrl")  params[num_params] = csr_tconvctrl;
-        else if(param == "usr_cache_op")  params[num_params] = csr_ucacheop;
-        else if(param == "tensor_load")  params[num_params] = csr_tloadctrl;
-        else if(param == "tensor_store")  params[num_params] = csr_tstore;
-        else if(param == "umsg_port0")  params[num_params] = csr_umsg_port0;
-        else if(param == "umsg_port1")  params[num_params] = csr_umsg_port1;
-        else if(param == "umsg_port2")  params[num_params] = csr_umsg_port2;
-        else if(param == "umsg_port3")  params[num_params] = csr_umsg_port3;
-        else if(param == "sys_cache_op")  params[num_params] = csr_scacheop;
-        else if(param == "smsg_port0")  params[num_params] = csr_smsg_port0;
-        else if(param == "smsg_port1")  params[num_params] = csr_smsg_port1;
-        else if(param == "smsg_port2")  params[num_params] = csr_smsg_port2;
-        else if(param == "smsg_port3")  params[num_params] = csr_smsg_port3;
-        else if(param == "mt1rvect" || param == "mt1rvect")  params[num_params] = csr_mt1rvect;
-        else if(param == "mt1en" || param == "mt1en")     params[num_params] = csr_mt1en;
-        else if(param == "icache_ctrl")  params[num_params] = csr_icache_ctrl;
-        else if(param == "write_ctrl")  params[num_params] = csr_write_ctrl;
+        else if(param == "tensor_reduce")    params[num_params] = csr_treduce;
+        else if(param == "tensor_fma")       params[num_params] = csr_tfmastart;
+        else if(param == "tensor_conv_size") params[num_params] = csr_tconvsize;
+        else if(param == "tensor_conv_ctrl") params[num_params] = csr_tconvctrl;
+        else if(param == "usr_cache_op")     params[num_params] = csr_ucacheop;
+        else if(param == "tensor_load")      params[num_params] = csr_tloadctrl;
+        else if(param == "tensor_store")     params[num_params] = csr_tstore;
+        else if(param == "umsg_port0")       params[num_params] = csr_umsg_port0;
+        else if(param == "umsg_port1")       params[num_params] = csr_umsg_port1;
+        else if(param == "umsg_port2")       params[num_params] = csr_umsg_port2;
+        else if(param == "umsg_port3")       params[num_params] = csr_umsg_port3;
+        else if(param == "sys_cache_op")     params[num_params] = csr_scacheop;
+        else if(param == "smsg_port0")       params[num_params] = csr_smsg_port0;
+        else if(param == "smsg_port1")       params[num_params] = csr_smsg_port1;
+        else if(param == "smsg_port2")       params[num_params] = csr_smsg_port2;
+        else if(param == "smsg_port3")       params[num_params] = csr_smsg_port3;
+        else if(param == "mt1rvect")         params[num_params] = csr_mt1rvect;
+        else if(param == "mt1en")            params[num_params] = csr_mt1en;
+        else if(param == "icache_ctrl")      params[num_params] = csr_icache_ctrl;
+        else if(param == "write_ctrl")       params[num_params] = csr_write_ctrl;
         // TODO: currently unsupported CSRs
         else if(param == "ustatus"    ||
                 param == "uie"        ||

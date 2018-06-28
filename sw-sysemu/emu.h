@@ -191,19 +191,19 @@ extern "C" void flq   (freg dst, int off, xreg base);
 extern "C" void flw_ps(freg dst, int off, xreg base);
 extern "C" void fbc_ps(freg dst, int off, xreg base);
 extern "C" void fbci_pi(freg dst, uint32 imm);
-extern "C" void fbci_ps(freg dst, uint32 imm);
-extern "C" void fbcx_ps(freg dst, xreg src);
+extern "C" void fbci_ps(freg dst, uint32 imm);          // no rounding mode
+extern "C" void fbcx_ps(freg dst, xreg src);            // no rounding mode
 extern "C" void fsw   (freg src1, int off, xreg base);
 extern "C" void fsw_ps(freg src1, int off, xreg base);
 extern "C" void fsq   (freg src1, int off, xreg base);
-extern "C" void fadd_s (freg dst, freg src1, freg src2);
-extern "C" void fadd_ps (freg dst, freg src1, freg src2);
-extern "C" void fsub_s (freg dst, freg src1, freg src2);
-extern "C" void fsub_ps(freg dst, freg src1, freg src2);
-extern "C" void fmul_s (freg dst, freg src1, freg src2);
-extern "C" void fmul_ps(freg dst, freg src1, freg src2);
-extern "C" void fdiv_s (freg dst, freg src1, freg src2);
-extern "C" void fdiv_ps(freg dst, freg src1, freg src2);
+extern "C" void fadd_s (freg dst, freg src1, freg src2, rounding_mode rm);
+extern "C" void fadd_ps (freg dst, freg src1, freg src2, rounding_mode rm);
+extern "C" void fsub_s (freg dst, freg src1, freg src2, rounding_mode rm);
+extern "C" void fsub_ps(freg dst, freg src1, freg src2, rounding_mode rm);
+extern "C" void fmul_s (freg dst, freg src1, freg src2, rounding_mode rm);
+extern "C" void fmul_ps(freg dst, freg src1, freg src2, rounding_mode rm);
+extern "C" void fdiv_s (freg dst, freg src1, freg src2, rounding_mode rm);
+extern "C" void fdiv_ps(freg dst, freg src1, freg src2, rounding_mode rm);
 extern "C" void fgw_ps(freg dst, freg src1, xreg base);
 extern "C" void fgh_ps(freg dst, freg src1, xreg base);
 extern "C" void fgb_ps(freg dst, freg src1, xreg base);
@@ -216,57 +216,56 @@ extern "C" void fg32b_ps(freg dst, xreg src1, xreg src2);
 extern "C" void fsc32w_ps(freg src3, xreg src1, xreg src2);
 extern "C" void fsc32h_ps(freg src3, xreg src1, xreg src2);
 extern "C" void fsc32b_ps(freg src3, xreg src1, xreg src2);
-extern "C" void fmadd_s  (freg dst, freg src1, freg src2, freg src3);
-extern "C" void fmadd_ps (freg dst, freg src1, freg src2, freg src3);
-extern "C" void fmsub_s  (freg dst, freg src1, freg src2, freg src3);
-extern "C" void fmsub_ps (freg dst, freg src1, freg src2, freg src3);
-extern "C" void fnmadd_s (freg dst, freg src1, freg src2, freg src3);
-extern "C" void fnmadd_ps(freg dst, freg src1, freg src2, freg src3);
-extern "C" void fnmsub_s (freg dst, freg src1, freg src2, freg src3);
-extern "C" void fnmsub_ps(freg dst, freg src1, freg src2, freg src3);
-extern "C" void fcmov_ps (freg dst, freg src1, freg src2, freg src3);
-extern "C" void fmin_s    (freg dst, freg src1, freg src2);
-extern "C" void fmin_ps   (freg dst, freg src1, freg src2);
-extern "C" void fmax_s    (freg dst, freg src1, freg src2);
-extern "C" void fmax_ps   (freg dst, freg src1, freg src2);
-extern "C" void fsgnj_s   (freg dst, freg src1, freg src2);
-extern "C" void fsgnj_ps  (freg dst, freg src1, freg src2);
-extern "C" void fsgnjn_s  (freg dst, freg src1, freg src2);
-extern "C" void fsgnjn_ps (freg dst, freg src1, freg src2);
-extern "C" void fsgnjx_s  (freg dst, freg src1, freg src2);
-extern "C" void fsgnjx_ps (freg dst, freg src1, freg src2);
-extern "C" void flt_ps    (freg dst, freg src1, freg src2);
-//extern "C" void fltabs_ps (freg dst, freg src1, freg src2);
-extern "C" void fle_ps    (freg dst, freg src1, freg src2);
-extern "C" void feq_ps    (freg dst, freg src1, freg src2);
-extern "C" void feqm_ps   (mreg dst, freg src1, freg src2);
-extern "C" void fltm_ps   (mreg dst, freg src1, freg src2);
-extern "C" void frcp_fix_rast(freg dst, freg src1, freg src2);
-extern "C" void flem_ps   (mreg dst, freg src1, freg src2);
-extern "C" void fsetm_ps  (mreg dst, freg src1);
-extern "C" void fclass_s  (freg dst, freg src1);
-extern "C" void fclass_ps (freg dst, freg src1);
-extern "C" void fsqrt_s  (freg dst, freg src1);
-extern "C" void fsqrt_ps (freg dst, freg src1);
-extern "C" void frsq_ps  (freg dst, freg src1);
-extern "C" void fsin_ps  (freg dst, freg src1);
-//extern "C" void fcos_ps  (freg dst, freg src1);
-extern "C" void fexp_ps  (freg dst, freg src1);
-extern "C" void flog_ps  (freg dst, freg src1);
-extern "C" void frcp_ps  (freg dst, freg src1);
-extern "C" void frcpfxp_ps  (freg dst, freg src1);
-extern "C" void fcvt_pw_ps  (freg dst, freg src1);
-extern "C" void fcvt_pwu_ps (freg dst, freg src1);
-extern "C" void fcvt_s_w  (freg dst, freg src1);
-extern "C" void fcvt_s_wu (freg dst, freg src1);
+extern "C" void fmadd_s  (freg dst, freg src1, freg src2, freg src3, rounding_mode rm);
+extern "C" void fmadd_ps (freg dst, freg src1, freg src2, freg src3, rounding_mode rm);
+extern "C" void fmsub_s  (freg dst, freg src1, freg src2, freg src3, rounding_mode rm);
+extern "C" void fmsub_ps (freg dst, freg src1, freg src2, freg src3, rounding_mode rm);
+extern "C" void fnmadd_s (freg dst, freg src1, freg src2, freg src3, rounding_mode rm);
+extern "C" void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm);
+extern "C" void fnmsub_s (freg dst, freg src1, freg src2, freg src3, rounding_mode rm);
+extern "C" void fnmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm);
+extern "C" void fcmov_ps (freg dst, freg src1, freg src2, freg src3);   // no rounding mode
+extern "C" void fmin_s    (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fmin_ps   (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fmax_s    (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fmax_ps   (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fsgnj_s   (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fsgnj_ps  (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fsgnjn_s  (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fsgnjn_ps (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fsgnjx_s  (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fsgnjx_ps (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void flt_ps    (freg dst, freg src1, freg src2);     // no rounding mode
+//extern "C" void fltabs_ps (freg dst, freg src1, freg src2, rounding_mode rm);
+extern "C" void fle_ps    (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void feq_ps    (freg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void feqm_ps   (mreg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fltm_ps   (mreg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void frcp_fix_rast(freg dst, freg src1, freg src2);  // no rounding mode
+extern "C" void flem_ps   (mreg dst, freg src1, freg src2);     // no rounding mode
+extern "C" void fsetm_ps  (mreg dst, freg src1);                // no rounding mode
+extern "C" void fclass_s  (freg dst, freg src1);                // no rounding mode
+extern "C" void fclass_ps (freg dst, freg src1);                // no rounding mode
+extern "C" void fsqrt_s  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fsqrt_ps (freg dst, freg src1, rounding_mode rm);
+extern "C" void frsq_ps  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fsin_ps  (freg dst, freg src1, rounding_mode rm);
+//extern "C" void fcos_ps  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fexp_ps  (freg dst, freg src1, rounding_mode rm);
+extern "C" void flog_ps  (freg dst, freg src1, rounding_mode rm);
+extern "C" void frcp_ps  (freg dst, freg src1, rounding_mode rm);
+extern "C" void frcpfxp_ps  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_pw_ps  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_pwu_ps (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_s_w  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_s_wu (freg dst, freg src1, rounding_mode rm);
 extern "C" void fcvt_w_s  (freg dst, freg src1, rounding_mode rm);
-void fcvt_w_s  (freg dst, freg src1);
-extern "C" void fcvt_wu_s (freg dst, freg src1);
-extern "C" void fcvt_ps_pw  (freg dst, freg src1);
-extern "C" void fcvt_ps_pwu (freg dst, freg src1);
-extern "C" void fcvt_ps_rast (freg dst, freg src1);
-extern "C" void fcvt_rast_ps (freg dst, freg src1);
-extern "C" void ffrc_ps (freg dst, freg src1);
+extern "C" void fcvt_wu_s (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_pw  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_pwu (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_rast (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_rast_ps (freg dst, freg src1, rounding_mode rm);
+extern "C" void ffrc_ps (freg dst, freg src1, rounding_mode rm);
 extern "C" void fround_ps (freg dst, freg src1, rounding_mode rm);
 extern "C" void fnot_pi (freg dst, freg src1);
 extern "C" void fsat8_pi(freg dst, freg src1);
@@ -306,22 +305,22 @@ extern "C" void fsrai_pi (freg dst, freg src1, uint32 imm);
 extern "C" void fpackreph_pi (freg dst, freg src1);
 extern "C" void fpackrepb_pi (freg dst, freg src1);
 
-extern "C" void feq_s        (xreg dst, freg src1, freg src2);
-extern "C" void fle_s        (xreg dst, freg src1, freg src2);
-extern "C" void flt_s        (xreg dst, freg src1, freg src2);
-extern "C" void fcvt_ps_f16  (freg dst, freg src1);
-extern "C" void fcvt_ps_un24 (freg dst, freg src1);
-extern "C" void fcvt_ps_un16 (freg dst, freg src1);
-extern "C" void fcvt_ps_un10 (freg dst, freg src1);
-extern "C" void fcvt_ps_un8  (freg dst, freg src1);
-extern "C" void fcvt_ps_un2  (freg dst, freg src1);
-//extern "C" void fcvt_ps_sn24 (freg dst, freg src1);
-extern "C" void fcvt_ps_sn16 (freg dst, freg src1);
-//extern "C" void fcvt_ps_sn10 (freg dst, freg src1);
-extern "C" void fcvt_ps_sn8  (freg dst, freg src1);
-//extern "C" void fcvt_ps_sn2  (freg dst, freg src1);
-extern "C" void fcvt_ps_f11  (freg dst, freg src1);
-extern "C" void fcvt_ps_f10  (freg dst, freg src1);
+extern "C" void feq_s        (xreg dst, freg src1, freg src2);  // no rounding mode
+extern "C" void fle_s        (xreg dst, freg src1, freg src2);  // no rounding mode
+extern "C" void flt_s        (xreg dst, freg src1, freg src2);  // no rounding mode
+extern "C" void fcvt_ps_f16  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_un24 (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_un16 (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_un10 (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_un8  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_un2  (freg dst, freg src1, rounding_mode rm);
+//extern "C" void fcvt_ps_sn24 (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_sn16 (freg dst, freg src1, rounding_mode rm);
+//extern "C" void fcvt_ps_sn10 (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_sn8  (freg dst, freg src1, rounding_mode rm);
+//extern "C" void fcvt_ps_sn2  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_f11  (freg dst, freg src1, rounding_mode rm);
+extern "C" void fcvt_ps_f10  (freg dst, freg src1, rounding_mode rm);
 
 extern "C" void fcvt_f16_ps  (freg dst, freg src1, rounding_mode rm);
 extern "C" void fcvt_un24_ps (freg dst, freg src1, rounding_mode rm);
@@ -335,21 +334,21 @@ extern "C" void fcvt_sn8_ps  (freg dst, freg src1, rounding_mode rm);
 extern "C" void fcvt_f11_ps  (freg dst, freg src1, rounding_mode rm);
 extern "C" void fcvt_f10_ps  (freg dst, freg src1, rounding_mode rm);
 
-extern "C" void fswizz_ps    (freg dst, freg src1, uint8  imm);
+extern "C" void fswizz_ps    (freg dst, freg src1, uint8  imm);         // no rounding mode
 
-extern "C" void cubeface_ps    (freg dst, freg src1, freg src2);
-extern "C" void cubefaceidx_ps (freg dst, freg src1, freg src2);
-extern "C" void cubesgnsc_ps   (freg dst, freg src1, freg src2);
-extern "C" void cubesgntc_ps   (freg dst, freg src1, freg src2);
+extern "C" void cubeface_ps    (freg dst, freg src1, freg src2);        // no rounding mode
+extern "C" void cubefaceidx_ps (freg dst, freg src1, freg src2);        // no rounding mode
+extern "C" void cubesgnsc_ps   (freg dst, freg src1, freg src2);        // no rounding mode
+extern "C" void cubesgntc_ps   (freg dst, freg src1, freg src2);        // no rounding mode
 
-extern "C" void fmvz_x_ps     (xreg dst, freg src1, uint8 index);
-extern "C" void fmvs_x_ps     (xreg dst, freg src1, uint8 index);
-extern "C" void fcmovm_ps     (freg dst, freg src1, freg src2);
+extern "C" void fmvz_x_ps     (xreg dst, freg src1, uint8 index);       // no rounding mode
+extern "C" void fmvs_x_ps     (xreg dst, freg src1, uint8 index);       // no rounding mode
+extern "C" void fcmovm_ps     (freg dst, freg src1, freg src2);         // no rounding mode
 
-extern "C" void fmv_x_w      (xreg dst, freg src1);
-extern "C" void fmv_w_x      (freg dst, xreg src1);
-extern "C" void fmv_x_s      (xreg dst, freg src1);
-extern "C" void fmv_s_x      (freg dst, xreg src1);
+extern "C" void fmv_x_w      (xreg dst, freg src1);     // no rounding mode
+extern "C" void fmv_w_x      (freg dst, xreg src1);     // no rounding mode
+extern "C" void fmv_x_s      (xreg dst, freg src1);     // no rounding mode
+extern "C" void fmv_s_x      (freg dst, xreg src1);     // no rounding mode
 
 // Mask instructions
 extern "C" void maskand    (mreg dst, mreg src1, mreg src2);

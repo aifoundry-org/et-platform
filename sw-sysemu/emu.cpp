@@ -4213,7 +4213,7 @@ void femucmp(const char *opname, opcode opc, int count, int size, xreg dst, freg
 //
 ////////////////////////////////////////////////////////////
 
-void femu3src(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, freg src3)
+void femu3src(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, freg src3, rounding_mode rm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d, f%d, f%d",opname,dst,src1,src2,src3);)
     DEBUG_EMU(gprintf("%s\n",dis);)
@@ -4321,7 +4321,7 @@ void fcmovm_ps(freg dst, freg src1, freg src2)
 //
 ////////////////////////////////////////////////////////////
 
-void femu2src(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2)
+void femu2src(const char *opname, opcode opc, int count, freg dst, freg src1, freg src2, rounding_mode rm)
 {
     iufval val1, val2;
 
@@ -4509,7 +4509,8 @@ void fround_ps(freg dst, freg src1, rounding_mode rm)
     IPC(ipc_ps(opc,count,dst,src1,fnone,fnone,dis);)
 }
 
-void femu1srcRm(const char *opname, opcode opc, int count, freg dst, freg src1, rounding_mode rm) {
+void femu1srcRm(const char *opname, opcode opc, int count, freg dst, freg src1, rounding_mode rm)
+{
     iufval val;
     iufval valcvt;
     double intpart;
@@ -4575,7 +4576,7 @@ void femu1srcRm(const char *opname, opcode opc, int count, freg dst, freg src1, 
     IPC(ipc_ps(opc,count,dst,src1,fnone,fnone,dis);)
 }
 
-void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1)
+void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, rounding_mode rm)
 {
     iufval val;
     iufval valcvt;
@@ -5202,7 +5203,7 @@ void iemu2srcimm(const char *opname, opcode opc, int count, freg dst, freg src1,
 //
 ////////////////////////////////////////////////////////////
 
-void ucvtemu(const char *opname, opcode opc, int count, freg dst, freg src1)
+void ucvtemu(const char *opname, opcode opc, int count, freg dst, freg src1, rounding_mode rm)
 {
     DISASM(gsprintf(dis,"I: %s f%d, f%d",opname,dst,src1);)
     DEBUG_EMU(gprintf("%s\n",dis);)
@@ -5648,72 +5649,71 @@ void fsc32h_ps    (freg src3, xreg src1, xreg src2)            { femuscat32("fsc
 void fsc32b_ps    (freg src3, xreg src1, xreg src2)            { femuscat32("fsc32b_ps", FSC32B,    4, 1, src3, src1, src2); }
 
 // 1-SRC
-void fsqrt_s      (freg dst, freg src1)                        { femu1src("fsqrt_s",     FSQRT,     1, dst, src1); }
-void fsqrt_ps     (freg dst, freg src1)                        { femu1src("fsqrt_ps",    FSQRT,     4, dst, src1); }
-void frsq_ps      (freg dst, freg src1)                        { femu1src("frsq_ps",     FRSQ,      4, dst, src1); }
-void fsin_ps      (freg dst, freg src1)                        { femu1src("fsin_ps",     FSIN,      4, dst, src1); }
-//void fcos_ps      (freg dst, freg src1)                        { femu1src("fcos_ps",     FCOS,      4, dst, src1); }
-void fexp_ps      (freg dst, freg src1)                        { femu1src("fexp_ps",     FEXP,      4, dst, src1); }
-void flog_ps      (freg dst, freg src1)                        { femu1src("flog_ps",     FLOG,      4, dst, src1); }
-void frcp_ps      (freg dst, freg src1)                        { femu1src("frcp_ps",     FRCP,      4, dst, src1); }
-void frcpfxp_ps   (freg dst, freg src1)                        { femu1src("frcpfxp_ps",  FRCPFXP,   4, dst, src1); }
-void fcvt_pw_ps   (freg dst, freg src1)                        { femu1src("fcvt_pw_ps",  FCVTPWPS,  4, dst, src1); }
-void fcvt_pwu_ps  (freg dst, freg src1)                        { femu1src("fcvt_pwu_ps", FCVTPWUPS, 4, dst, src1); }
-void fcvt_s_w     (freg dst, freg src1)                        { femu1src("fcvt_s_w",    FCVTSW,    1, dst, src1); }
-void fcvt_s_wu    (freg dst, freg src1)                        { femu1src("fcvt_s_wu",   FCVTSWU,   1, dst, src1); }
-void fcvt_w_s     (freg dst, freg src1, rounding_mode rm)      { femu1srcRm("fcvt_w_s",  FCVTWS,    1, dst, src1, rm); }
-void fcvt_w_s     (freg dst, freg src1)                        { femu1srcRm("fcvt_w_s",  FCVTWS,    1, dst, src1, rmdyn); }
-void fcvt_wu_s    (freg dst, freg src1)                        { femu1src("fcvt_wu_s",   FCVTWUS,   1, dst, src1); }
-void fcvt_ps_pw   (freg dst, freg src1)                        { femu1src("fcvt_ps_pw",  FCVTPSPW,  4, dst, src1); }
-void fcvt_ps_pwu  (freg dst, freg src1)                        { femu1src("fcvt_ps_pwu", FCVTPSPWU, 4, dst, src1); }
-void ffrc_ps      (freg dst, freg src1)                        { femu1src("ffrc_ps",     FFRC,      4, dst, src1); }
-void fclass_s     (freg dst, freg src1)                        { femu1src("fclass_s",    FCLASS,    1, dst, src1); }
-void fclass_ps    (freg dst, freg src1)                        { femu1src("fclass_ps",   FCLASS,    4, dst, src1); }
-void fcvt_ps_rast (freg dst, freg src1)                        { femu1src("fcvt_ps_rast",FCVTPSRAST,4, dst, src1); }
-void fcvt_rast_ps (freg dst, freg src1)                        { femu1src("fcvt_rast_ps",FCVTRASTPS,4, dst, src1); }
-void fmv_x_w      (xreg dst, freg src1)                        { fmv_x_s(dst, src1); }
-void fmv_w_x      (freg dst, xreg src1)                        { fmv_s_x(dst, src1); }
+void fsqrt_s      (freg dst, freg src1, rounding_mode rm)       { femu1src("fsqrt_s",     FSQRT,     1, dst, src1, rm); }
+void fsqrt_ps     (freg dst, freg src1, rounding_mode rm)       { femu1src("fsqrt_ps",    FSQRT,     4, dst, src1, rm); }
+void frsq_ps      (freg dst, freg src1, rounding_mode rm)       { femu1src("frsq_ps",     FRSQ,      4, dst, src1, rm); }
+void fsin_ps      (freg dst, freg src1, rounding_mode rm)       { femu1src("fsin_ps",     FSIN,      4, dst, src1, rm); }
+//void fcos_ps      (freg dst, freg src1, rounding_mode rm)     { femu1src("fcos_ps",     FCOS,      4, dst, src1, rm); }
+void fexp_ps      (freg dst, freg src1, rounding_mode rm)       { femu1src("fexp_ps",     FEXP,      4, dst, src1, rm); }
+void flog_ps      (freg dst, freg src1, rounding_mode rm)       { femu1src("flog_ps",     FLOG,      4, dst, src1, rm); }
+void frcp_ps      (freg dst, freg src1, rounding_mode rm)       { femu1src("frcp_ps",     FRCP,      4, dst, src1, rm); }
+void frcpfxp_ps   (freg dst, freg src1, rounding_mode rm)       { femu1src("frcpfxp_ps",  FRCPFXP,   4, dst, src1, rm); }
+void fcvt_pw_ps   (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_pw_ps",  FCVTPWPS,  4, dst, src1, rm); }
+void fcvt_pwu_ps  (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_pwu_ps", FCVTPWUPS, 4, dst, src1, rm); }
+void fcvt_s_w     (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_s_w",    FCVTSW,    1, dst, src1, rm); }
+void fcvt_s_wu    (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_s_wu",   FCVTSWU,   1, dst, src1, rm); }
+void fcvt_w_s     (freg dst, freg src1, rounding_mode rm)       { femu1srcRm("fcvt_w_s",  FCVTWS,    1, dst, src1, rm); } // FIXME: replace femu1srcRm() with femu1src()
+void fcvt_wu_s    (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_wu_s",   FCVTWUS,   1, dst, src1, rm); }
+void fcvt_ps_pw   (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_ps_pw",  FCVTPSPW,  4, dst, src1, rm); }
+void fcvt_ps_pwu  (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_ps_pwu", FCVTPSPWU, 4, dst, src1, rm); }
+void ffrc_ps      (freg dst, freg src1, rounding_mode rm)       { femu1src("ffrc_ps",     FFRC,      4, dst, src1, rm); }
+void fclass_s     (freg dst, freg src1)                         { femu1src("fclass_s",    FCLASS,    1, dst, src1, rmdyn); }
+void fclass_ps    (freg dst, freg src1)                         { femu1src("fclass_ps",   FCLASS,    4, dst, src1, rmdyn); }
+void fcvt_ps_rast (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_ps_rast",FCVTPSRAST,4, dst, src1, rm); }
+void fcvt_rast_ps (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_rast_ps",FCVTRASTPS,4, dst, src1, rm); }
+void fmv_x_w      (xreg dst, freg src1)                         { fmv_x_s(dst, src1); }
+void fmv_w_x      (freg dst, xreg src1)                         { fmv_s_x(dst, src1); }
 
-void fcvt_ps_f16   (freg dst, freg src1)                       { ucvtemu("fcvt_ps_f16",   FCVTPSF16,   4, dst, src1); }
-void fcvt_ps_un24  (freg dst, freg src1)                       { ucvtemu("fcvt_ps_un24",  FCVTPSUN24,  4, dst, src1); }
-void fcvt_ps_un16  (freg dst, freg src1)                       { ucvtemu("fcvt_ps_un16",  FCVTPSUN16,  4, dst, src1); }
-void fcvt_ps_un10  (freg dst, freg src1)                       { ucvtemu("fcvt_ps_un10",  FCVTPSUN10,  4, dst, src1); }
-void fcvt_ps_un8   (freg dst, freg src1)                       { ucvtemu("fcvt_ps_un8",   FCVTPSUN8,   4, dst, src1); }
-void fcvt_ps_un2   (freg dst, freg src1)                       { ucvtemu("fcvt_ps_un2",   FCVTPSUN2,   4, dst, src1); }
-//void fcvt_ps_sn24  (freg dst, freg src1)                       { ucvtemu("fcvt_ps_sn24",  FCVTPSSN24,  4, dst, src1); }
-void fcvt_ps_sn16  (freg dst, freg src1)                       { ucvtemu("fcvt_ps_sn16",  FCVTPSSN16,  4, dst, src1); }
-//void fcvt_ps_sn10   (freg dst, freg src1)                      { ucvtemu("fcvt_ps_sn10",  FCVTPSSN10,  4, dst, src1); }
-void fcvt_ps_sn8   (freg dst, freg src1)                       { ucvtemu("fcvt_ps_sn8",   FCVTPSSN8,   4, dst, src1); }
-//void fcvt_ps_sn2   (freg dst, freg src1)                       { ucvtemu("fcvt_ps_sn2",   FCVTPSSN2,   4, dst, src1); }
-void fcvt_ps_f11   (freg dst, freg src1)                       { ucvtemu("fcvt_ps_f11",   FCVTPSF11,   4, dst, src1); }
-void fcvt_ps_f10   (freg dst, freg src1)                       { ucvtemu("fcvt_ps_f10",   FCVTPSF10,   4, dst, src1); }
+void fcvt_ps_f16   (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_f16",   FCVTPSF16,   4, dst, src1, rm); }
+void fcvt_ps_un24  (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_un24",  FCVTPSUN24,  4, dst, src1, rm); }
+void fcvt_ps_un16  (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_un16",  FCVTPSUN16,  4, dst, src1, rm); }
+void fcvt_ps_un10  (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_un10",  FCVTPSUN10,  4, dst, src1, rm); }
+void fcvt_ps_un8   (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_un8",   FCVTPSUN8,   4, dst, src1, rm); }
+void fcvt_ps_un2   (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_un2",   FCVTPSUN2,   4, dst, src1, rm); }
+//void fcvt_ps_sn24  (freg dst, freg src1, rounding_mode rm)    { ucvtemu("fcvt_ps_sn24",  FCVTPSSN24,  4, dst, src1, rm); }
+void fcvt_ps_sn16  (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_sn16",  FCVTPSSN16,  4, dst, src1, rm); }
+//void fcvt_ps_sn10   (freg dst, freg src1, rounding_mode rm)   { ucvtemu("fcvt_ps_sn10",  FCVTPSSN10,  4, dst, src1, rm); }
+void fcvt_ps_sn8   (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_sn8",   FCVTPSSN8,   4, dst, src1, rm); }
+//void fcvt_ps_sn2   (freg dst, freg src1, rounding_mode rm)    { ucvtemu("fcvt_ps_sn2",   FCVTPSSN2,   4, dst, src1, rm); }
+void fcvt_ps_f11   (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_f11",   FCVTPSF11,   4, dst, src1, rm); }
+void fcvt_ps_f10   (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_f10",   FCVTPSF10,   4, dst, src1, rm); }
 
-void fswizz_ps      (freg dst, freg src1, uint8  imm)          { fswizz("fswizz_ps",        FSWIZZ,       dst, src1, imm); }
+void fswizz_ps (freg dst, freg src1, uint8  imm)                { fswizz("fswizz_ps", FSWIZZ, dst, src1, imm); }
 
 // 2-SRC
-void fadd_s         (freg dst, freg src1, freg src2)           { femu2src("fadd_s",         FADD,      1, dst, src1, src2); }
-void fadd_ps        (freg dst, freg src1, freg src2)           { femu2src("fadd_ps",        FADD,      4, dst, src1, src2); }
-void fsub_s         (freg dst, freg src1, freg src2)           { femu2src("fsub_s",         FSUB,      1, dst, src1, src2); }
-void fsub_ps        (freg dst, freg src1, freg src2)           { femu2src("fsub_ps",        FSUB,      4, dst, src1, src2); }
-void fmul_s         (freg dst, freg src1, freg src2)           { femu2src("fmul_s",         FMUL,      1, dst, src1, src2); }
-void fmul_ps        (freg dst, freg src1, freg src2)           { femu2src("fmul_ps",        FMUL,      4, dst, src1, src2); }
-void fdiv_s         (freg dst, freg src1, freg src2)           { femu2src("fdiv_s",         FDIV,      1, dst, src1, src2); }
-void fdiv_ps        (freg dst, freg src1, freg src2)           { femu2src("fdiv_ps",        FDIV,      4, dst, src1, src2); }
-void fmin_s         (freg dst, freg src1, freg src2)           { femu2src("fmin_s",         FMIN,      1, dst, src1, src2); }
-void fmin_ps        (freg dst, freg src1, freg src2)           { femu2src("fmin_ps",        FMIN,      4, dst, src1, src2); }
-void fmax_s         (freg dst, freg src1, freg src2)           { femu2src("fmax_s",         FMAX,      1, dst, src1, src2); }
-void fmax_ps        (freg dst, freg src1, freg src2)           { femu2src("fmax_ps",        FMAX,      4, dst, src1, src2); }
-void fsgnj_s        (freg dst, freg src1, freg src2)           { femu2src("fsgnj_s",        FSGNJ,     1, dst, src1, src2); }
-void fsgnj_ps       (freg dst, freg src1, freg src2)           { femu2src("fsgnj_ps",       FSGNJ,     4, dst, src1, src2); }
-void fsgnjn_s       (freg dst, freg src1, freg src2)           { femu2src("fsgnjn_s",       FSGNJN,    1, dst, src1, src2); }
-void fsgnjn_ps      (freg dst, freg src1, freg src2)           { femu2src("fsgnjn_ps",      FSGNJN,    4, dst, src1, src2); }
-void fsgnjx_s       (freg dst, freg src1, freg src2)           { femu2src("fsgnjx_s",       FSGNJX,    1, dst, src1, src2); }
-void fsgnjx_ps      (freg dst, freg src1, freg src2)           { femu2src("fsgnjx_ps",      FSGNJX,    4, dst, src1, src2); }
-void flt_ps         (freg dst, freg src1, freg src2)           { femu2src("flt_ps",         FLT,       4, dst, src1, src2); }
-void fle_ps         (freg dst, freg src1, freg src2)           { femu2src("fle_ps",         FLE,       4, dst, src1, src2); }
-void feq_ps         (freg dst, freg src1, freg src2)           { femu2src("feq_ps",         FEQ,       4, dst, src1, src2); }
-//void fltabs_ps    (freg dst, freg src1, freg src2)           { femu2src("fltabs_ps",      FLTABS,    4, dst, src1, src2); }
-void frcp_fix_rast(freg dst, freg src1, freg src2)             { femu2src("frcp_fix_rast",  FRCP_FIX_RAST, 4, dst, src1, src2); }
+void fadd_s         (freg dst, freg src1, freg src2, rounding_mode rm)  { femu2src("fadd_s",         FADD,      1, dst, src1, src2, rm); }
+void fadd_ps        (freg dst, freg src1, freg src2, rounding_mode rm)  { femu2src("fadd_ps",        FADD,      4, dst, src1, src2, rm); }
+void fsub_s         (freg dst, freg src1, freg src2, rounding_mode rm)  { femu2src("fsub_s",         FSUB,      1, dst, src1, src2, rm); }
+void fsub_ps        (freg dst, freg src1, freg src2, rounding_mode rm)  { femu2src("fsub_ps",        FSUB,      4, dst, src1, src2, rm); }
+void fmul_s         (freg dst, freg src1, freg src2, rounding_mode rm)  { femu2src("fmul_s",         FMUL,      1, dst, src1, src2, rm); }
+void fmul_ps        (freg dst, freg src1, freg src2, rounding_mode rm)  { femu2src("fmul_ps",        FMUL,      4, dst, src1, src2, rm); }
+void fdiv_s         (freg dst, freg src1, freg src2, rounding_mode rm)  { femu2src("fdiv_s",         FDIV,      1, dst, src1, src2, rm); }
+void fdiv_ps        (freg dst, freg src1, freg src2, rounding_mode rm)  { femu2src("fdiv_ps",        FDIV,      4, dst, src1, src2, rm); }
+void fmin_s         (freg dst, freg src1, freg src2)                    { femu2src("fmin_s",         FMIN,      1, dst, src1, src2, rmdyn); }
+void fmin_ps        (freg dst, freg src1, freg src2)                    { femu2src("fmin_ps",        FMIN,      4, dst, src1, src2, rmdyn); }
+void fmax_s         (freg dst, freg src1, freg src2)                    { femu2src("fmax_s",         FMAX,      1, dst, src1, src2, rmdyn); }
+void fmax_ps        (freg dst, freg src1, freg src2)                    { femu2src("fmax_ps",        FMAX,      4, dst, src1, src2, rmdyn); }
+void fsgnj_s        (freg dst, freg src1, freg src2)                    { femu2src("fsgnj_s",        FSGNJ,     1, dst, src1, src2, rmdyn); }
+void fsgnj_ps       (freg dst, freg src1, freg src2)                    { femu2src("fsgnj_ps",       FSGNJ,     4, dst, src1, src2, rmdyn); }
+void fsgnjn_s       (freg dst, freg src1, freg src2)                    { femu2src("fsgnjn_s",       FSGNJN,    1, dst, src1, src2, rmdyn); }
+void fsgnjn_ps      (freg dst, freg src1, freg src2)                    { femu2src("fsgnjn_ps",      FSGNJN,    4, dst, src1, src2, rmdyn); }
+void fsgnjx_s       (freg dst, freg src1, freg src2)                    { femu2src("fsgnjx_s",       FSGNJX,    1, dst, src1, src2, rmdyn); }
+void fsgnjx_ps      (freg dst, freg src1, freg src2)                    { femu2src("fsgnjx_ps",      FSGNJX,    4, dst, src1, src2, rmdyn); }
+void flt_ps         (freg dst, freg src1, freg src2)                    { femu2src("flt_ps",         FLT,       4, dst, src1, src2, rmdyn); }
+void fle_ps         (freg dst, freg src1, freg src2)                    { femu2src("fle_ps",         FLE,       4, dst, src1, src2, rmdyn); }
+void feq_ps         (freg dst, freg src1, freg src2)                    { femu2src("feq_ps",         FEQ,       4, dst, src1, src2, rmdyn); }
+//void fltabs_ps    (freg dst, freg src1, freg src2)                    { femu2src("fltabs_ps",      FLTABS,    4, dst, src1, src2, rmdyn); }
+void frcp_fix_rast(freg dst, freg src1, freg src2)                      { femu2src("frcp_fix_rast",  FRCP_FIX_RAST, 4, dst, src1, src2, rmdyn); }
 void fadd_pi      (freg dst, freg src1, freg src2)             { iemu2src("fadd_pi",     FADDPI,    4, dst, src1, src2); }
 void fsub_pi      (freg dst, freg src1, freg src2)             { iemu2src("fsub_pi",     FSUBPI,    4, dst, src1, src2); }
 void fmul_pi      (freg dst, freg src1, freg src2)             { iemu2src("fmul_pi",     FMULPI,    4, dst, src1, src2); }
@@ -5746,7 +5746,7 @@ void fpackrepb_pi (freg dst, freg src1)                        { packrep("fpackr
 void feqm_ps      (mreg dst, freg src1, freg src2)             { fmask("feqm_ps",        FEQ,       4, dst, src1, src2); }
 void fltm_ps      (mreg dst, freg src1, freg src2)             { fmask("fltm_ps",        FLT,       4, dst, src1, src2); }
 void flem_ps      (mreg dst, freg src1, freg src2)             { fmask("flem_ps",        FLE,       4, dst, src1, src2); }
-void fsetm_ps     (mreg dst, freg src1)             { fmask("fsetm_ps",       FSET,      4, dst, src1, fnone); }
+void fsetm_ps     (mreg dst, freg src1)                        { fmask("fsetm_ps",       FSET,      4, dst, src1, fnone); }
 void fltm_pi      (mreg dst, freg src1, freg src2)             { fmask("fltm_pi",        FLTPI,     4, dst, src1, src2); }
 
 void faddi_pi     (freg dst, freg src1, uint32 imm)            { iemu2srcimm("faddi_pi", FADDIPI,    4, dst, src1, imm); }
@@ -5775,24 +5775,24 @@ void fle_s        (xreg dst, freg src1, freg src2)             { femucmp("fle_s"
 void flt_s        (xreg dst, freg src1, freg src2)             { femucmp("flt_s",        FLT,       1, 4, dst, src1, src2); }
 
 // 3-SOURCE
-void fmadd_s      (freg dst, freg src1, freg src2, freg src3)  { femu3src("fmadd_s",     FMADD,     1, dst, src1, src2, src3); }
-void fmadd_ps     (freg dst, freg src1, freg src2, freg src3)  { femu3src("fmadd_ps",    FMADD,     4, dst, src1, src2, src3); }
-void fmsub_s      (freg dst, freg src1, freg src2, freg src3)  { femu3src("fmsub_s",     FMSUB,     1, dst, src1, src2, src3); }
-void fmsub_ps     (freg dst, freg src1, freg src2, freg src3)  { femu3src("fmsub_ps",    FMSUB,     4, dst, src1, src2, src3); }
-void fnmadd_s     (freg dst, freg src1, freg src2, freg src3)  { femu3src("fnmadd_s",    FNMADD,    1, dst, src1, src2, src3); }
-void fnmadd_ps    (freg dst, freg src1, freg src2, freg src3)  { femu3src("fnmadd_ps",   FNMADD,    4, dst, src1, src2, src3); }
-void fnmsub_s     (freg dst, freg src1, freg src2, freg src3)  { femu3src("fnmsub_s",    FNMSUB,    1, dst, src1, src2, src3); }
-void fnmsub_ps    (freg dst, freg src1, freg src2, freg src3)  { femu3src("fnmsub_ps",   FNMSUB,    4, dst, src1, src2, src3); }
-void fcmov_ps     (freg dst, freg src1, freg src2, freg src3)  { femu3src("fcmov_ps",    FCMOV,     4, dst, src1, src2, src3); }
+void fmadd_s      (freg dst, freg src1, freg src2, freg src3, rounding_mode rm)  { femu3src("fmadd_s",     FMADD,     1, dst, src1, src2, src3, rm); }
+void fmadd_ps     (freg dst, freg src1, freg src2, freg src3, rounding_mode rm)  { femu3src("fmadd_ps",    FMADD,     4, dst, src1, src2, src3, rm); }
+void fmsub_s      (freg dst, freg src1, freg src2, freg src3, rounding_mode rm)  { femu3src("fmsub_s",     FMSUB,     1, dst, src1, src2, src3, rm); }
+void fmsub_ps     (freg dst, freg src1, freg src2, freg src3, rounding_mode rm)  { femu3src("fmsub_ps",    FMSUB,     4, dst, src1, src2, src3, rm); }
+void fnmadd_s     (freg dst, freg src1, freg src2, freg src3, rounding_mode rm)  { femu3src("fnmadd_s",    FNMADD,    1, dst, src1, src2, src3, rm); }
+void fnmadd_ps    (freg dst, freg src1, freg src2, freg src3, rounding_mode rm)  { femu3src("fnmadd_ps",   FNMADD,    4, dst, src1, src2, src3, rm); }
+void fnmsub_s     (freg dst, freg src1, freg src2, freg src3, rounding_mode rm)  { femu3src("fnmsub_s",    FNMSUB,    1, dst, src1, src2, src3, rm); }
+void fnmsub_ps    (freg dst, freg src1, freg src2, freg src3, rounding_mode rm)  { femu3src("fnmsub_ps",   FNMSUB,    4, dst, src1, src2, src3, rm); }
+void fcmov_ps     (freg dst, freg src1, freg src2, freg src3)                    { femu3src("fcmov_ps",    FCMOV,     4, dst, src1, src2, src3, rmdyn); }
 
 // MASK OPERATIONS
-void maskand      (mreg dst, mreg src1, mreg src2)             { maskop("maskand",       MAND, dst, src1, src2); }
-void maskor       (mreg dst, mreg src1, mreg src2)             { maskop("maskor",        MOR,  dst, src1, src2); }
-void maskxor      (mreg dst, mreg src1, mreg src2)             { maskop("maskxor",       MXOR, dst, src1, src2); }
-void masknot      (mreg dst, mreg src1)                        { maskop("masknot",       MNOT, dst, src1, mnone); }
-void mova_m_x     (xreg src1)                                  { mova_m_x("mova_m_x",    src1); }
-void mova_x_m     (xreg dst)                                   { mova_x_m("mova_x_m",    dst); }
-void mov_m_x      (mreg dst, xreg src1, uint32 imm)            { mov_m_x("mov_m_x",      dst, src1, imm); }
+void maskand      (mreg dst, mreg src1, mreg src2)      { maskop("maskand",       MAND, dst, src1, src2); }
+void maskor       (mreg dst, mreg src1, mreg src2)      { maskop("maskor",        MOR,  dst, src1, src2); }
+void maskxor      (mreg dst, mreg src1, mreg src2)      { maskop("maskxor",       MXOR, dst, src1, src2); }
+void masknot      (mreg dst, mreg src1)                 { maskop("masknot",       MNOT, dst, src1, mnone); }
+void mova_m_x     (xreg src1)                           { mova_m_x("mova_m_x",    src1); }
+void mova_x_m     (xreg dst)                            { mova_x_m("mova_x_m",    dst); }
+void mov_m_x      (mreg dst, xreg src1, uint32 imm)     { mov_m_x("mov_m_x",      dst, src1, imm); }
 
 // SPECIAL SCALAR INSTRUCTIONS
 void packb(xreg dst, xreg src1, xreg src2)
