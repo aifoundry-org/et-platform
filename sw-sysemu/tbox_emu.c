@@ -3526,6 +3526,7 @@ uint64 TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j
     else
     {
         fmtBytesPerTexel = BYTES_PER_TEXEL_IN_MEMORY[fmt];
+
         switch (fmtBytesPerTexel)
         {
             case 1:
@@ -3536,19 +3537,34 @@ uint64 TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j
                 fmtTileWidthLog2  = 8;
                 fmtTileHeightLog2 = 7;
                 break;
+            case 3: // Standard Tile Layout padding. 24 to 32 bits
+                if (currentImage.info.tiled == 1) fmtBytesPerTexel = 4;
+                fmtTileWidthLog2  = 7;
+                fmtTileHeightLog2 = 7;
+                break;
             case 4:
                 fmtTileWidthLog2  = 7;
                 fmtTileHeightLog2 = 7;
                 break;
+            case 6: // Standard Tile Layout padding. 48 to 64 bits
+                if (currentImage.info.tiled == 1) fmtBytesPerTexel = 8;
+                fmtTileWidthLog2  = 7;
+                fmtTileHeightLog2 = 6;
+                break;
             case 8:
                 fmtTileWidthLog2  = 7;
+                fmtTileHeightLog2 = 6;
+                break;
+            case 12: // Standard Tile Layout padding. 96 to 128 bits
+                if (currentImage.info.tiled == 1) fmtBytesPerTexel = 16;
+                fmtTileWidthLog2  = 6;
                 fmtTileHeightLog2 = 6;
                 break;
             case 16:
                 fmtTileWidthLog2  = 6;
                 fmtTileHeightLog2 = 6;
                 break;
-            default:
+            default:              
                 DEBUG_EMU(gprintf("WARNING!!!  No Bytes Per Texel defined for format %d\n", fmt););
                 exit(-1);
                 break;
