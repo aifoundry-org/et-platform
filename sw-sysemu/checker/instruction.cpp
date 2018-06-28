@@ -253,35 +253,28 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         arg_array[1] = "x0";
     }
     // FP
-    else if(opcode == "fmv.s")
+    else if(opcode == "fmv_s")
     {
-        opcode = "fsgnj.s";
+        opcode = "fsgnj_s";
         arg_array.push_back(arg_array[1]);
     }
-    else if(opcode == "fabs.s")
+    else if(opcode == "fabs_s")
     {
-        opcode = "fsgnjx.s";
+        opcode = "fsgnjx_s";
         arg_array.push_back(arg_array[1]);
     }
-    else if(opcode == "fneg.s")
+    else if(opcode == "fneg_s")
     {
-        opcode = "fsgnjn.s";
+        opcode = "fsgnjn_s";
         arg_array.push_back(arg_array[1]);
     }
-    else if(opcode == "fmv.d")
+    else if(opcode == "fmv_x_s")
     {
-        opcode = "fsgnj.d";
-        arg_array.push_back(arg_array[1]);
+        opcode = "fmv_x_w";
     }
-    else if(opcode == "fabs.d")
+    else if(opcode == "fmv_s_x")
     {
-        opcode = "fsgnjx.d";
-        arg_array.push_back(arg_array[1]);
-    }
-    else if(opcode == "fneg.d")
-    {
-        opcode = "fsgnjn.d";
-        arg_array.push_back(arg_array[1]);
+        opcode = "fmv_w_x";
     }
     // Branches
     else if(opcode == "beqz")
