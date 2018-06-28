@@ -347,8 +347,6 @@ extern "C" void fcmovm_ps     (freg dst, freg src1, freg src2);         // no ro
 
 extern "C" void fmv_x_w      (xreg dst, freg src1);     // no rounding mode
 extern "C" void fmv_w_x      (freg dst, xreg src1);     // no rounding mode
-extern "C" void fmv_x_s      (xreg dst, freg src1);     // no rounding mode
-extern "C" void fmv_s_x      (freg dst, xreg src1);     // no rounding mode
 
 // Mask instructions
 extern "C" void maskand    (mreg dst, mreg src1, mreg src2);
