@@ -1448,7 +1448,6 @@ void transtensorload()//Transtensorload
             }
             DEBUG_EMU(gprintf("\t\tAddres = 0x%016x - Stride = 0x%016x\n",addr,stride);)
             addr += stride;
-            scp_conv[current_thread].pop_front(); 
         }
     }
     //INTERLEAVE
@@ -1463,7 +1462,7 @@ void transtensorload()//Transtensorload
        
        DEBUG_EMU(gprintf("#rows:%d - size:%d - start:%d - elements:%d - boffset:%d\n",rows,size,start,elements,boffset);)
        for(int i=0;i < rows; ++i){
-            if(usetmask==0 || scp_conv[current_thread].front()){
+            if(!tm || tmask_pass(i)){
                 if(addr & 0x3F)
                 {
                     DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
@@ -1504,7 +1503,6 @@ void transtensorload()//Transtensorload
                     
                 }     
             }
-            scp_conv[current_thread].pop_front(); 
         }
        //printSCP(addr,rows,stride,dst); 
     }
@@ -1512,7 +1510,10 @@ void transtensorload()//Transtensorload
     else if(trans = 0x05 || trans == 0x06 || trans==0x07){
         
         DEBUG_EMU(gprintf("TensorLoad: Transpose\n");)
-        if(usetmask && scp_conv[current_thread].size() == 0) return;
+        bool exist_conv = 0;
+        for(int i=0; i<rows & (!exist_conv);++i)
+            exist_conv = tmask_pass(i); 
+        if(tm && !exist_conv) return;
         int offset = (control >> 57) & 0x1F;
         uint8 tmp_buffer[64][64];
         int size = trans & 0x03;
@@ -1536,7 +1537,7 @@ void transtensorload()//Transtensorload
         }
         for(int i=0 ;i < rows; ++i)
         {
-             if(usetmask==0 || scp_conv[current_thread].front()){
+             if(!tm || tmask_pass(i)){
                 if(addr & 0x3F)
                 {
                     DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
@@ -1565,13 +1566,9 @@ void transtensorload()//Transtensorload
                          DEBUG_EMU(gprintf("SCP[%d][%d].u[%d] = 0x%08x\n",dst+i,x,y,SCP[dst+i][x].u[y]);)
                     }
                 }
-                scp_conv[current_thread].pop_front(); 
             }
             
         }
-    }
-    //TRANSPOSE
-    else if(trans = 0x05 || trans == 0x06 || trans==0x07){
     }
 }
 
