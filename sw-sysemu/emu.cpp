@@ -5499,9 +5499,9 @@ void fmvs_x_ps (xreg dst, freg src1, uint8 index)
     logxregchange(dst);
 }
 
-void fmv_x_s (xreg dst, freg src1)
+void fmv_x_w (xreg dst, freg src1)
 {
-    DISASM(gsprintf(dis, "I: fmv_x_s x%d, f%d", dst, src1); )
+    DISASM(gsprintf(dis, "I: fmv_x_w x%d, f%d", dst, src1); )
     DEBUG_EMU(gprintf("%s\n",dis);)
 
     if(dst != x0)
@@ -5512,9 +5512,9 @@ void fmv_x_s (xreg dst, freg src1)
     logxregchange(dst);
 }
 
-void fmv_s_x (freg dst, xreg src1)
+void fmv_w_x (freg dst, xreg src1)
 {
-    DISASM(gsprintf(dis, "I: fmv_s_x f%d, x%d", dst, src1); )
+    DISASM(gsprintf(dis, "I: fmv_w_x f%d, x%d", dst, src1); )
     DEBUG_EMU(gprintf("%s\n",dis);)
 
     FREGS[dst].u[0] = XREGS[src1].w[0];
@@ -5671,8 +5671,6 @@ void fclass_s     (freg dst, freg src1)                         { femu1src("fcla
 void fclass_ps    (freg dst, freg src1)                         { femu1src("fclass_ps",   FCLASS,    4, dst, src1, rmdyn); }
 void fcvt_ps_rast (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_ps_rast",FCVTPSRAST,4, dst, src1, rm); }
 void fcvt_rast_ps (freg dst, freg src1, rounding_mode rm)       { femu1src("fcvt_rast_ps",FCVTRASTPS,4, dst, src1, rm); }
-void fmv_x_w      (xreg dst, freg src1)                         { fmv_x_s(dst, src1); }
-void fmv_w_x      (freg dst, xreg src1)                         { fmv_s_x(dst, src1); }
 
 void fcvt_ps_f16   (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_f16",   FCVTPSF16,   4, dst, src1, rm); }
 void fcvt_ps_un24  (freg dst, freg src1, rounding_mode rm)      { ucvtemu("fcvt_ps_un24",  FCVTPSUN24,  4, dst, src1, rm); }
