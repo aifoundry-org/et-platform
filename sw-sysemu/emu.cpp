@@ -50,6 +50,7 @@ int tensorfma_size[EMU_NUM_THREADS];
 int tensorfma_passes[EMU_NUM_THREADS];
 uint32 tensorfma_data[EMU_NUM_THREADS][32][4][16];
 bool tensorfma_mask_skip[16][8];
+bool tensorfma_zero_skip[16][32][4];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32 reduce_data[EMU_NUM_THREADS][32][4];
@@ -1480,6 +1481,18 @@ void tensorfma(uint64 tfmareg)
         }
     }
 
+    // No zero skip by default
+    for(int i = 0; i < 16; i++)
+    {
+        for(int j = 0; j < 32; j++)
+        {
+            for(int k = 0; k < 4; k++)
+            {
+                tensorfma_zero_skip[i][j][k] = 0;
+            }
+        }
+    }
+
     // FP32 flow
     if(type == 0)
     {
@@ -1539,6 +1552,13 @@ void tensorfma(uint64 tfmareg)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%08x * 0x%08x\n",oldu,SCP[astart+ar][af].u[am],SCP[br][bf].u[bm]);)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = * ((uint32 *) &FREGS[4*ar+bf].f[bm]);
+
+                    // If As are zeroes, we skip operation
+                    if(SCP[astart+ar][af].f[am] == 0)
+                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    // If Bs are zeroes, we skip operation
+                    if(SCP[br][bf].f[bm] == 0)
+                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
@@ -1608,6 +1628,7 @@ void tensorfma(uint64 tfmareg)
                     int af = (aoffset + ac) / 4;
                     int am = (aoffset + ac) % 4;
                     int br = bstart + ac;                // B: traverse rows
+                
 
                     // Doing two FMAs per lane and accumulating to previous results
                     float32 accum      = FREGS[4*ar+bf].f[bm];
@@ -1725,6 +1746,12 @@ void tensorfma(uint64 tfmareg)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = * ((uint32 *) &FREGS[4*ar+bf].f[bm]);
 
+                    // If both As are zeroes, we skip operation
+                    if((SCP[astart+ar][af].h[am * 2] == 0) && (SCP[astart+ar][af].h[am * 2 + 1] == 0))
+                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                     // If both Bs are zeroes, we skip operation
+                    if((SCP[br][bf].h[bm * 2] == 0) && (SCP[br][bf].h[bm * 2 + 1] == 0))
+                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
@@ -1942,6 +1969,12 @@ void tensorfma(uint64 tfmareg)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = * ((uint32 *) &FREGS[4*ar+bf].f[bm]);
 
+                   // If As are zeroes, we skip operation
+                    if((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
+                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    // If Bs are zeroes, we skip operation
+                    if((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
+                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%d)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].u[0]);)
@@ -1973,7 +2006,7 @@ uint64 get_tensorfma_value(int entry, int pass, int block, int * size, int * pas
 {
     * size      = tensorfma_size[current_thread];
     * passes    = tensorfma_passes[current_thread];
-    * mask_skip = tensorfma_mask_skip[pass][entry / 4];
+    * mask_skip = tensorfma_mask_skip[pass][entry / 4] || tensorfma_zero_skip[pass][entry][block];
     return tensorfma_data[current_thread][entry][block][pass];
 }
 
