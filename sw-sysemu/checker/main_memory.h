@@ -20,25 +20,25 @@ class main_memory
         ~main_memory();
 
         // Read and write
-        void read (uint64 ad, int size, void * data);
-        void write(uint64 ad, int size, const void * data);
-        char read8(uint64 ad);
-        void write8(uint64 ad, char d);
+        void read (uint64_t ad, int size, void * data);
+        void write(uint64_t ad, int size, const void * data);
+        char read8(uint64_t ad);
+        void write8(uint64_t ad, char d);
 
         // Creates a new region
-        bool new_region(uint64 base, uint64 size, int flags = MEM_REGION_RW);
+        bool new_region(uint64_t base, uint64_t size, int flags = MEM_REGION_RW);
 
         // load file contents into memory
-        bool load_file(std::string filename, uint64 ad, unsigned buf_size = 256);
+        bool load_file(std::string filename, uint64_t ad, unsigned buf_size = 256);
 
         // dump memory contents into file
-        bool dump_file(std::string filename, uint64 ad, uint64 size, unsigned buf_size = 256);
+        bool dump_file(std::string filename, uint64_t ad, uint64_t size, unsigned buf_size = 256);
 
         // sets function to retrieve current thread from emu (in case it is required to known which minion accesses the mem)
         void setGetThread(main_memory_region::func_ptr_get_thread f) { get_thread = f; }
         
         // function to configure printf from RTL
-        bool setPrintfBase(const char* binary);
+        void setPrintfBase(const char* binary);
 
         // rbox credits interface for sysemu
         void decRboxCredit(uint16_t thread);

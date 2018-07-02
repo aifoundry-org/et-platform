@@ -1,5 +1,6 @@
 // Local
 #include "checker.h"
+#include "emu_casts.h"
 
 // Global
 #include <dlfcn.h>
@@ -12,21 +13,21 @@
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
 
 namespace tbox { 
-  extern void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
+    extern void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
 }
 
-bool fp_1ulp_check(uint32 gold, uint32 rtl)
+bool fp_1ulp_check(uint32_t gold, uint32_t rtl)
 {
     int exp_gold = (gold >> 23) & 0xFF;
 
     if((exp_gold > 0) && (exp_gold < 253)) // just check regular cases (skip special denom, NaN, Inf)
     {
-        uint32 gold_clean = gold & 0x7F800000; // clean mantissa and sign from gold
-        float err_1ulp = * (float * ) &gold_clean;
+        uint32_t gold_clean = gold & 0x7F800000; // clean mantissa and sign from gold
+        float err_1ulp = cast_uint32_to_float32(gold_clean);
         err_1ulp = err_1ulp / float (1 << 23); // put '1' in the unit of less precision
 
-        float goldf = * (float *) &gold;
-        float rtlf  = * (float *) &rtl;
+        float goldf = cast_uint32_to_float32(gold);
+        float rtlf  = cast_uint32_to_float32(rtl);
         float diff = fabsf(goldf - rtlf);
         //printf("Gold: %.12e, RTL: %.12e, Diff: %.12e, Max: %.12e\n", goldf, rtlf, diff, err_1ulp);
         //printf("Hex Gold: %08X, Hex RTL: %08X\n", gold, rtl);
@@ -44,9 +45,9 @@ bool fp_1ulp_check(uint32 gold, uint32 rtl)
 }
 
 // Used to generate which store data bits to check for different store data sizes
-uint64 mem_mask(int32 size)
+uint64_t mem_mask(int32_t size)
 {
-    uint64 mask;
+    uint64_t mask;
     switch(size)
     {
         case 1:  mask = 0x00000000000000FFULL; break;
@@ -63,55 +64,55 @@ checker* checker_instance = NULL; // this is used when enabling the second threa
                                   // if there is more than 1 checker instance (e.g. one per shire), this will have to be an array
 
 // These functions are called by emu. We should clean this to a nicer way...
-uint8 checker_memread8(uint64 addr)
+uint8_t checker_memread8(uint64_t addr)
 {
-    uint8 ret;
+    uint8_t ret;
     memory_instance->read(addr, 1, &ret);
     return ret;
 }
 
-uint16 checker_memread16(uint64 addr)
+uint16_t checker_memread16(uint64_t addr)
 {
-    uint16 ret;
+    uint16_t ret;
     memory_instance->read(addr, 2, &ret);
     return ret;
 }
 
-uint32 checker_memread32(uint64 addr)
+uint32_t checker_memread32(uint64_t addr)
 {
-    uint32 ret;
+    uint32_t ret;
     memory_instance->read(addr, 4, &ret);
     return ret;
 }
 
-uint64 checker_memread64(uint64 addr)
+uint64_t checker_memread64(uint64_t addr)
 {
-    uint64 ret;
+    uint64_t ret;
     memory_instance->read(addr, 8, &ret);
     return ret;
 }
 
-void checker_memwrite8(uint64 addr, uint8 data)
+void checker_memwrite8(uint64_t addr, uint8_t data)
 {
     memory_instance->write(addr, 1, &data);
 }
 
-void checker_memwrite16(uint64 addr, uint16 data)
+void checker_memwrite16(uint64_t addr, uint16_t data)
 {
     memory_instance->write(addr, 2, &data);
 }
 
-void checker_memwrite32(uint64 addr, uint32 data)
+void checker_memwrite32(uint64_t addr, uint32_t data)
 {
     memory_instance->write(addr, 4, &data);
 }
 
-void checker_memwrite64(uint64 addr, uint64 data)
+void checker_memwrite64(uint64_t addr, uint64_t data)
 {
     memory_instance->write(addr, 8, &data);
 }
 
-void checker_thread1_enabled ( unsigned minionId, int en, uint64 pc) {
+void checker_thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc) {
   checker_instance -> thread1_enabled( minionId, en, pc);
 }
 
@@ -132,7 +133,7 @@ typedef  void (*func_ptr_thread1Enable) (void*);
 checker::checker(main_memory * memory_, function_pointer_cache * func_cache_)
     : log("checker", LOG_DEBUG)
 {
-    for(uint32 i = 0; i < EMU_NUM_THREADS; i++)
+    for(uint32_t i = 0; i < EMU_NUM_THREADS; i++)
     {
         current_pc[i] = 0;
         reduce_state_array[i>>1] = Reduce_Idle;            
@@ -191,7 +192,7 @@ checker::~checker()
 }
 
 // Sets the PC
-void checker::start_pc(uint32 thread, uint64 pc)
+void checker::start_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
         log << LOG_FTL << "start pc with thread invalid (" << thread << ")" << endm;
@@ -199,19 +200,19 @@ void checker::start_pc(uint32 thread, uint64 pc)
 }
 
 // Sets the PC due IPI
-void checker::ipi_pc(uint32 thread, uint64 pc)
+void checker::ipi_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
         log << LOG_FTL << "IPI pc with thread invalid (" << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 
-checker_result checker::do_reduce(uint32 thread, instruction * inst, uint32 * wake_minion)
+checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t * wake_minion)
 {
-    uint64 other_min, action;
+    uint64_t other_min, action;
     // Gets the source used for the reduce
-    uint64 src1 = (xreg) inst->get_param(1);
-    uint64 value = (xget(src1));
+    uint64_t src1 = (xreg) inst->get_param(1);
+    uint64_t value = (xget(src1));
     (reduce_info(value, &other_min, &action));
 
     // Sender
@@ -276,7 +277,7 @@ checker_result checker::do_reduce(uint32 thread, instruction * inst, uint32 * wa
 
 // Emulates next instruction in the flow and compares state changes against the changes
 // passed as a parameter
-checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uint32 * wake_minion)
+checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, uint32_t * wake_minion)
 {
     if(thread >= EMU_NUM_THREADS)
         log << LOG_FTL << "emu_inst with thread invalid (" << thread << ")" << endm;
@@ -447,7 +448,7 @@ checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uin
                 {
                     if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
                     {
-                        stream << "Mask Register data error for entry " << m << " at bit " << i << ". Expected data is " << std::hex << (uint32) emu_state_change.m_reg_data[m][i] << " but provided is " << (uint32) changes->m_reg_data[m][i] << std::dec;
+                        stream << "Mask Register data error for entry " << m << " at bit " << i << ". Expected data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but provided is " << (uint32_t) changes->m_reg_data[m][i] << std::dec;
                         error_msg = stream.str();
                         return CHECKER_ERROR;
                     }
@@ -478,8 +479,8 @@ checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uin
                     error_msg = stream.str();
                     return CHECKER_ERROR;
                 }
-                uint64 rtl_mem_data = changes->mem_data[i] & mem_mask(changes->mem_size[i]);
-                uint64 emu_mem_data = emu_state_change.mem_data[i] & mem_mask(changes->mem_size[i]);
+                uint64_t rtl_mem_data = changes->mem_data[i] & mem_mask(changes->mem_size[i]);
+                uint64_t emu_mem_data = emu_state_change.mem_data[i] & mem_mask(changes->mem_size[i]);
                 // Atomic instructions are not checked currently
                 if((rtl_mem_data != emu_mem_data) && !inst->get_is_amo())
                 {
@@ -495,7 +496,7 @@ checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uin
         {
             int entry;
             int size;
-            uint64 data;
+            uint64_t data;
             data = (get_scratchpad_value(0, 0, &entry, &size));
             std::list<bool> conv_list;
             (get_scratchpad_conv_list(&conv_list));
@@ -550,7 +551,7 @@ checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uin
             int size;
             int passes;
             bool conv_skip;
-            uint32 data;
+            uint32_t data;
             data = (get_tensorfma_value(0, 0, 0, &size, &passes, &conv_skip));
             // For all the passes
             for(int pass = 0; pass < passes; pass++)
@@ -603,7 +604,7 @@ checker_result checker::emu_inst(uint32 thread, inst_state_change * changes, uin
         {
             int size;
             int start_entry;
-            uint32 data;
+            uint32_t data;
             data = (get_reduce_value(0, 0, &size, &start_entry));
 
             // For all the written entries
@@ -661,14 +662,14 @@ std::string checker::get_error_msg()
 }
 
 // Returns the mnemonic for a PC
-std::string checker::get_mnemonic(uint64 pc)
+std::string checker::get_mnemonic(uint64_t pc)
 {
     instruction * inst = inst_cache->get_instruction(virt_to_phys(pc, Mem_Access_Fetch));
     return inst->get_mnemonic();
 }
 
 // enables or disables the 2nd thread
-void checker::thread1_enabled ( unsigned minionId, int en, uint64 pc) 
+void checker::thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc)
 {
   unsigned thread = minionId | 1;
   if (en != threadEnabled[thread] ) {
@@ -678,7 +679,7 @@ void checker::thread1_enabled ( unsigned minionId, int en, uint64 pc)
 }
 
 // Scratchpad write
-void checker::tensorload_write(uint32 thread, uint32 entry, uint64 * data)
+void checker::tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data)
 {
     scratchpad_entry scp_entry;
 
@@ -691,7 +692,7 @@ void checker::tensorload_write(uint32 thread, uint32 entry, uint64 * data)
 }
 
 // TensorFMA write
-void checker::tensorfma_write(uint32 thread, uint32 entry, uint32 * data)
+void checker::tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data)
 {
     tensorfma_entry tensorfma;
 
@@ -704,7 +705,7 @@ void checker::tensorfma_write(uint32 thread, uint32 entry, uint32 * data)
 }
 
 // Reduce write
-void checker::reduce_write(uint32 thread, uint32 entry, uint32 * data)
+void checker::reduce_write(uint32_t thread, uint32_t entry, uint32_t * data)
 {
     tensorfma_entry reduce;
 
@@ -717,7 +718,7 @@ void checker::reduce_write(uint32 thread, uint32 entry, uint32 * data)
 }
 
 // Virtual to physical
-uint64 checker::virt_to_phys(uint64 addr, mem_access_type macc)
+uint64_t checker::virt_to_phys(uint64_t addr, mem_access_type macc)
 {
     return (virt_to_phys_emu(addr, macc));
 }

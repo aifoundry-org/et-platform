@@ -6,7 +6,7 @@ using namespace std;
 
 int main() {
     float32 a;
-    uint32  b;
+    uint32_t  b;
 
     cout << "Enter FLOAT32 : ";
     cin >> a;

@@ -7,10 +7,9 @@
 using namespace std;
 
 // Creator
-main_memory_region::main_memory_region(uint64 base, uint64 size, testLog & l, func_ptr_get_thread & get_thread, int flags)
-  : base_(base), size_(size), data_(new char[size]), log(l),
-    flags_(flags),
-    get_thread(get_thread)
+main_memory_region::main_memory_region(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread & get_thread, int flags)
+  : base_(base), size_(size), data_(new char[size]),
+    flags_(flags), log(l), get_thread(get_thread)
 {
     bzero(data_, size);
 }
@@ -23,19 +22,19 @@ main_memory_region::~main_memory_region()
 }
 
 // operators to compare, used when searching the correct main_memory_region in a memory access
-bool main_memory_region::operator==(uint64 ad)
+bool main_memory_region::operator==(uint64_t ad)
 { 
     return ad >= base_ && ad < base_ + size_;
 }
 
 // operators to compare, used when searching the correct main_memory_region in a memory access
-bool main_memory_region::operator!=(uint64 ad)
+bool main_memory_region::operator!=(uint64_t ad)
 {
     return !(*this == ad);
 }
     
 // Write to memory region
-void main_memory_region::write(uint64 ad, int size, const void * data)
+void main_memory_region::write(uint64_t ad, int size, const void * data)
 {
   if ( ( flags_ & MEM_REGION_WRITE_ALLOWED ) == 0) {
     log<<LOG_ERR<<"writing to address "<<hex<<ad<<dec<<" is not allowed"<<endm;
@@ -47,7 +46,7 @@ void main_memory_region::write(uint64 ad, int size, const void * data)
 }
 
 // Read from memory region
-void main_memory_region::read(uint64 ad, int size, void * data)
+void main_memory_region::read(uint64_t ad, int size, void * data)
 {
   if ( ( flags_ & MEM_REGION_READ_ALLOWED ) == 0) {
     log<<LOG_ERR<<"reading from address "<<hex<<ad<<dec<<" is not allowed"<<endm;

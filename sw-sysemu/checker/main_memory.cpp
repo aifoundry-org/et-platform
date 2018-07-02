@@ -26,12 +26,13 @@ main_memory::main_memory(std::string logname)
     regions_.push_back((main_memory_region *) uc_writes);
 }
 
-bool main_memory::setPrintfBase(const char* binary){
+void main_memory::setPrintfBase(const char* binary)
+{
   uint64_t symbolAddress;
   std::ostringstream command;
   command<<"nm "<<binary<<" 2>/dev/null |grep rtlPrintf_buf|cut -d' ' -f 1";
   FILE *p = popen(command.str().c_str(), "r");
-  int c = fscanf(p, "%llx", &symbolAddress);
+  int c = fscanf(p, "%" PRIx64, &symbolAddress);
   pclose(p);
   
   if (c==1) {
@@ -51,7 +52,7 @@ main_memory::~main_memory()
 }
 
 // Read a bunch of bytes
-void main_memory::read(uint64 ad, int size, void * data)
+void main_memory::read(uint64_t ad, int size, void * data)
 {
     log << LOG_DEBUG << "read(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
     rg_it_t r = find(regions_.begin(), regions_.end(), ad);
@@ -73,7 +74,7 @@ void main_memory::read(uint64 ad, int size, void * data)
 }
 
 // Writes a bunch of bytes
-void main_memory::write(uint64 ad, int size, const void * data)
+void main_memory::write(uint64_t ad, int size, const void * data)
 {
     log << LOG_DEBUG << "write(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
     rg_it_t r = find(regions_.begin(), regions_.end(), ad);
@@ -95,7 +96,7 @@ void main_memory::write(uint64 ad, int size, const void * data)
 }
 
 // Reads a byte
-char main_memory::read8(uint64 ad)
+char main_memory::read8(uint64_t ad)
 {
     char d;
     read(ad, 1, &d);
@@ -103,13 +104,13 @@ char main_memory::read8(uint64 ad)
 }
 
 // Writes a byte
-void main_memory::write8(uint64 ad, char d)
+void main_memory::write8(uint64_t ad, char d)
 {
     write(ad, 1, &d);
 }
 
 // Creates a new region
-bool main_memory::new_region(uint64 base, uint64 size, int flags)
+bool main_memory::new_region(uint64_t base, uint64_t size, int flags)
 {
     unsigned overlap = std::count(regions_.begin(), regions_.end(), base)
                      + std::count(regions_.begin(), regions_.end(), base + size - 1);
@@ -127,7 +128,7 @@ bool main_memory::new_region(uint64 base, uint64 size, int flags)
 }
 
 // Loads a file to memory
-bool main_memory::load_file(std::string filename, uint64 ad, unsigned buf_size)
+bool main_memory::load_file(std::string filename, uint64_t ad, unsigned buf_size)
 {
     std::ifstream f(filename.c_str(), std::ios_base::binary);
 
@@ -153,7 +154,7 @@ bool main_memory::load_file(std::string filename, uint64 ad, unsigned buf_size)
 }
 
 // Dumps memory contents into a file
-bool main_memory::dump_file(std::string filename, uint64 ad, uint64 size, unsigned buf_size)
+bool main_memory::dump_file(std::string filename, uint64_t ad, uint64_t size, unsigned buf_size)
 {
     std::ofstream f(filename.c_str(), std::ios_base::binary);
 

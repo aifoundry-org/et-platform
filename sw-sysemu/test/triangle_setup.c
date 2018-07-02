@@ -1,6 +1,6 @@
 #include <triangle_setup.h>
 
-uint32 triangle_setup_lit[] = 
+uint32_t triangle_setup_lit[] = 
 {
     0,              // Indices for low 32-bits of coefficients, +0
     8,
@@ -12,14 +12,14 @@ uint32 triangle_setup_lit[] =
     0x43200000
 };
 
-void do_triangle_setup_ccw_front(TriangleVector *triangle_vector, TriangleSetupVector *triangle_setup_vector, uint64 index)
+void do_triangle_setup_ccw_front(TriangleVector *triangle_vector, TriangleSetupVector *triangle_setup_vector, uint64_t index)
 {
     print_comment(">>> do_triangle_setup_ccw_front");
 
-    init(x10, (uint64) triangle_vector);
-    init(x11, (uint64) triangle_setup_vector);
+    init(x10, (uint64_t) triangle_vector);
+    init(x11, (uint64_t) triangle_setup_vector);
     init(x12,          index);
-    init(x13, (uint64) triangle_setup_lit);
+    init(x13, (uint64_t) triangle_setup_lit);
 
     //
     // NOTE : Preserve x3 for for scalar_triangle_setup_ccw_front
@@ -165,8 +165,8 @@ void scalar_triangle_setup_ccw_front(TriangleVector *triangle_vector, TriangleSe
 {
     print_comment(">>> scalar_triangle_setup_ccw_front");
 
-    init(x10, (uint64) triangle_vector);
-    init(x11, (uint64) triangle_setup_vector);
+    init(x10, (uint64_t) triangle_vector);
+    init(x11, (uint64_t) triangle_setup_vector);
 
     lwu(x3, 384, x11, "Load high-precision setup triangles mask");
 
@@ -221,9 +221,9 @@ void vector_triangle_setup_ccw_front(TriangleVector *triangle_vector, TriangleSe
     print_comment(">>> vector_triangle_setup_ccw_front");
 
     //init_stack();
-    init(x10, (uint64) triangle_vector);
-    init(x11, (uint64) triangle_setup_vector);
-    init(x12, (uint64) triangle_setup_lit);
+    init(x10, (uint64_t) triangle_vector);
+    init(x11, (uint64_t) triangle_setup_vector);
+    init(x12, (uint64_t) triangle_setup_lit);
 
     lw(x3, 80, x10, "Load triangle quad mask");
     mov_m_x(m0, x3, 0, "Set triangle quad mask");

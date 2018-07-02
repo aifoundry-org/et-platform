@@ -42,8 +42,8 @@ endif
 
 # tool configuration
 CXX=g++
-CXXFLAGS=-mf16c -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 $(NEW_TRANS_UNIT_DEF)
-CXXFLAGS_NN=-mf16c -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 $(NEW_TRANS_UNIT_DEF) -DUSE_FAKE_TXFMA
+CXXFLAGS=-mf16c -Wall -Werror -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 -std=c++11 $(NEW_TRANS_UNIT_DEF)
+CXXFLAGS_NN=-mf16c -Wall -Werror -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 -std=c++11 $(NEW_TRANS_UNIT_DEF) -DUSE_FAKE_TXFMA
 DEPDIR = .depend
 AR=ar
 ARFLAGS=rvs

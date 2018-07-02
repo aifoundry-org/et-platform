@@ -36,8 +36,8 @@ typedef enum
 #pragma pack(push, 1)
 typedef struct 
 {
-    int32 a;    // 2's complement 9.14
-    int32 b;    // 2's complement 9.14
+    int32_t a;    // 2's complement 9.14
+    int32_t b;    // 2's complement 9.14
 } EdgeEq64x64;
 
 #define EDGE_EQ_64X64_COEF_INT_BITS  9
@@ -45,8 +45,8 @@ typedef struct
 
 typedef struct
 {
-    int32 a;    // 2's complement 9.15
-    int32 b;    // 2's complement 9.15
+    int32_t a;    // 2's complement 9.15
+    int32_t b;    // 2's complement 9.15
 } EdgeEq128x128;
 
 #define EDGE_EQ_128X128_COEF_INT_BITS  9
@@ -55,10 +55,10 @@ typedef struct
 typedef struct
 {
     // Coefficients : 2's complement 9.25
-    uint32 a_low;
-    uint32 b_low;
-    int16  a_high;
-    int16  b_high;
+    uint32_t a_low;
+    uint32_t b_low;
+    int16_t  a_high;
+    int16_t  b_high;
 } EdgeEqLargeTri;
 
 #define EDGE_EQ_LARGE_TRI_COEF_INT_BITS  9
@@ -66,13 +66,13 @@ typedef struct
 
 typedef struct
 {
-    uint32 a;   // UNORM24 or FLOAT32
-    uint32 b;   // UNORM24 or FLOAT32
+    uint32_t a;   // UNORM24 or FLOAT32
+    uint32_t b;   // UNORM24 or FLOAT32
 } DepthEq;
 
 typedef struct
 {
-    int32 e;       // 2's complement 15.14
+    int32_t e;       // 2's complement 15.14
 } EdgeSample64x64;
 
 #define EDGE_EQ_64X64_SAMPLE_INT_BITS  15
@@ -80,7 +80,7 @@ typedef struct
 
 typedef struct
 {
-    int32 e;       // 2's complement 15.15
+    int32_t e;       // 2's complement 15.15
 } EdgeSample128x128;
 
 #define EDGE_EQ_128X128_SAMPLE_INT_BITS  15
@@ -88,7 +88,7 @@ typedef struct
 
 typedef struct
 {
-    int64 e;        // 2's complement 15.25
+    int64_t e;        // 2's complement 15.25
 } EdgeSampleLargeTri;
 
 #define EDGE_EQ_LARGE_TRI_SAMPLE_INT_BITS  15
@@ -96,64 +96,64 @@ typedef struct
 
 typedef union
 {
-    uint64 type :  3,
-           qw0  : 61;
-    uint64 qw;
+    uint64_t type :  3,
+             qw0  : 61;
+    uint64_t qw;
 } RBOXInPcktHeader;
 
 typedef union
 {
     struct
     {
-        uint32 type : 3,
-               dw0  : 29;
-        uint32 dw[7];
+        uint32_t type : 3,
+                 dw0  : 29;
+        uint32_t dw[7];
     } header;
-    uint64 qw[4];
+    uint64_t qw[4];
 } RBOXInPckt256b;
 
 typedef union
 {
     struct
     {
-        uint32          type      :  3,
+        uint32_t        type      :  3,
                         tile_left : 13,
                         tile_top  : 13,
                         tile_size :  3;
         EdgeSample64x64 edge[3];
-        uint32          depth;
-        uint32          unused2[2];
+        uint32_t        depth;
+        uint32_t        unused2[2];
     } tile;
-    uint64 qw[4];
+    uint64_t qw[4];
 } RBOXInPcktFullyCoveredTile;
 
 //typedef union
 //{
 //    struct
 //    {
-//        uint32 type      :  3,
-//               tile_left : 10,
-//               tile_top  : 10,
-//               unused1   :  9;
+//        uint32_t type      :  3,
+//                 tile_left : 10,
+//                 tile_top  : 10,
+//                 unused1   :  9;
 //        MediumTriEdgeSample edge[3];
-//        uint32 depth;
-//        uint32 unused2[3];
+//        uint32_t depth;
+//        uint32_t unused2[3];
 //    } tile;
-//    uint64 qw[4];
+//    uint64_t qw[4];
 //} RBOXInPcktMediumTriTile;
 
 typedef union
 {
     struct
     {
-        uint32             type      :  3,
+        uint32_t           type      :  3,
                            tile_left : 13,
                            tile_top  : 13,
                            tile_size :  3;
-        uint32             depth;
+        uint32_t           depth;
         EdgeSampleLargeTri edge[3];
     } tile;
-    uint64 qw[4];
+    uint64_t qw[4];
 } RBOXInPcktLargeTriTile;
 
 
@@ -161,11 +161,11 @@ typedef union
 {
     struct
     {
-        uint64 type :  3,
-               qw0  : 61;
-        uint64 qw[7];
+        uint64_t type :  3,
+                 qw0  : 61;
+        uint64_t qw[7];
     } header;
-    uint64 qw[8];
+    uint64_t qw[8];
 } RBOXInputPacket512b;
 
 
@@ -173,7 +173,7 @@ typedef union
 {
     struct
     {
-        uint64          type       :  3,
+        uint64_t        type       :  3,
                         tile_left  : 13,
                         tile_top   : 13,
                         tri_facing :  1,
@@ -181,18 +181,18 @@ typedef union
                         unused     : 31;
         EdgeEq64x64     edge_eqs[3];
         DepthEq         depth_eq;
-        uint64          triangle_data_ptr;
+        uint64_t        triangle_data_ptr;
         EdgeSample64x64 edge[3];
-        uint32          depth;
+        uint32_t        depth;
     } tri_with_tile_64x64;
-    uint64 qw[8];
+    uint64_t qw[8];
 } RBOXInPcktTriWithTile64x64;
 
 typedef union
 {
     struct
     {
-        uint64            type       :  3,
+        uint64_t          type       :  3,
                           tile_left  : 13,
                           tile_top   : 13,
                           tri_facing :  1,
@@ -200,38 +200,38 @@ typedef union
                           unused     : 31; 
         EdgeEq128x128     edge_eqs[3];
         DepthEq           depth_eq;
-        uint64            triangle_data_ptr;
+        uint64_t          triangle_data_ptr;
         EdgeSample128x128 edge[3];
-        uint32            depth;
+        uint32_t          depth;
     } tri_with_tile_128x128;
-    uint64 qw[8];
+    uint64_t qw[8];
 } RBOXInPcktTriWithTile128x128;
 
 typedef union
 {
     struct
     {
-        uint64         type       :  3,
+        uint64_t       type       :  3,
                        tri_facing :  1,
                        unused1    : 60; 
         EdgeEqLargeTri edge_eqs[3];
         DepthEq        depth_eq;
-        uint32         unused2;
-        uint64         triangle_data_ptr;
+        uint32_t       unused2;
+        uint64_t       triangle_data_ptr;
     } triangle;
-    uint64 qw[8];
+    uint64_t qw[8];
 } RBOXInPcktLargeTri;
 
 typedef struct
 {
-    uint64 fail_op       :  3,
-           pass_op       :  3,
-           depth_fail_op :  3,
-           compare_op    :  3,
-           compare_mask  :  8,
-           write_mask    :  8,
-           ref           :  8,
-           unused3       : 28;
+    uint64_t fail_op       :  3,
+             pass_op       :  3,
+             depth_fail_op :  3,
+             compare_op    :  3,
+             compare_mask  :  8,
+             write_mask    :  8,
+             ref           :  8,
+             unused3       : 28;
 } RBOXStencilState; 
 
 typedef enum
@@ -273,41 +273,41 @@ typedef enum
 typedef struct
 {
     // QW0
-    uint8 type    : 3,
-          unused1 : 5;
-    uint8  msaa_enable             :  1,
-           msaa_samples            :  4,
-           msaa_shading_enable     :  1,
-           msaa_alpha_to_coverage  :  1,
-           msaa_alpha_to_one       :  1;
-    uint16 msaa_sample_mask        : 16;
-    uint32 msaa_min_sample_shading : 32;
+    uint8_t type    : 3,
+            unused1 : 5;
+    uint8_t  msaa_enable             :  1,
+             msaa_samples            :  4,
+             msaa_shading_enable     :  1,
+             msaa_alpha_to_coverage  :  1,
+             msaa_alpha_to_one       :  1;
+    uint16_t msaa_sample_mask        : 16;
+    uint32_t msaa_min_sample_shading : 32;
     // QW1
-    uint64 depth_stencil_buffer_ptr;
+    uint64_t depth_stencil_buffer_ptr;
     // QW2
-    uint64 depth_stencil_buffer_format    :  9,
-           depth_stencil_buffer_tile_mode :  1,
-           depth_stencil_buffer_row_pitch : 13,
-           depth_clamp_enable             :  1,
-           depth_bound_enable             :  1,
-           depth_test_enable              :  1,
-           depth_test_write_enable        :  1,
-           depth_test_compare_op          :  3,
-           early_frag_tests_enable        :  1,
-           stencil_test_enable            :  1,
-           fragment_shader_disabled       :  1,
-           unused2                        : 31;
+    uint64_t depth_stencil_buffer_format    :  9,
+             depth_stencil_buffer_tile_mode :  1,
+             depth_stencil_buffer_row_pitch : 13,
+             depth_clamp_enable             :  1,
+             depth_bound_enable             :  1,
+             depth_test_enable              :  1,
+             depth_test_write_enable        :  1,
+             depth_test_compare_op          :  3,
+             early_frag_tests_enable        :  1,
+             stencil_test_enable            :  1,
+             fragment_shader_disabled       :  1,
+             unused2                        : 31;
     // QW3
-    uint32 depth_bound_min;
-    uint32 depth_bound_max;
+    uint32_t depth_bound_min;
+    uint32_t depth_bound_max;
     // QW4
-    uint32 depth_min;
-    uint32 depth_max;
+    uint32_t depth_min;
+    uint32_t depth_max;
     // QW5
-    uint64 scissor_start_x : 14,
-           scissor_start_y : 14,
-           scissor_height  : 14,
-           scissor_width   : 14;
+    uint64_t scissor_start_x : 14,
+             scissor_start_y : 14,
+             scissor_height  : 14,
+             scissor_width   : 14;
     // QW6
     RBOXStencilState stencil_front_state;
     // QW7
@@ -317,26 +317,26 @@ typedef struct
 typedef union
 {
     RBOXState state;
-    uint64 qw[8];
+    uint64_t qw[8];
 } RBOXInPcktRBOXState;
 
 typedef struct
 {
     // QW0
-    uint64 type    : 3,
-           unused1 : 61;
+    uint64_t type    : 3,
+             unused1 : 61;
     // QW1
-    uint64 frag_shader_function_ptr;
+    uint64_t frag_shader_function_ptr;
     // QW2
-    uint64 frag_shader_state_ptr;
+    uint64_t frag_shader_state_ptr;
     // QW3
-    uint64 unused2;
+    uint64_t unused2;
 } FragmentShaderState;
 
 typedef union
 {
     FragmentShaderState state;
-    uint64 qw[4];
+    uint64_t qw[4];
 } RBOXInPcktFrgmtShdrState;
 
 typedef enum
@@ -349,46 +349,46 @@ typedef union
 {
     struct 
     {
-        uint64 type :  2,
-               qw0  : 62;
-        uint64 qw1;
+        uint64_t type :  2,
+                 qw0  : 62;
+        uint64_t qw1;
     } header;
-    uint64 qw[2];
+    uint64_t qw[2];
 } RBOXOutPckt128b;
 
 typedef union
 {
     struct
     {
-        uint64 type      :  2,
-               state_idx :  3,
-               unused1   : 59;
-        uint64 frg_shdr_func_ptr;
-        uint64 frg_shdr_state_ptr;
-        uint64 unused2;
+        uint64_t type      :  2,
+                 state_idx :  3,
+                 unused1   : 59;
+        uint64_t frg_shdr_func_ptr;
+        uint64_t frg_shdr_state_ptr;
+        uint64_t unused2;
     } state;
-    uint64 qw[4];
+    uint64_t qw[4];
 } RBOXOutPcktFrgShdrState;
 
 typedef union
 {
     struct
     {
-        uint16 type;
-        uint16 x;
-        uint16 y;
-        uint8 smpl_idx;
-        uint8 mask;
-        uint64 triangle_data_ptr;
+        uint16_t type;
+        uint16_t x;
+        uint16_t y;
+        uint8_t  smpl_idx;
+        uint8_t  mask;
+        uint64_t triangle_data_ptr;
     } quad_info;
-    uint64 qw[2];
+    uint64_t qw[2];
 } RBOXOutPcktQuadInfo;
 
 typedef union
 {
-    uint64 qw[2];
-    uint32 dw[4];
-    uint16 hw[8];
+    uint64_t qw[2];
+    uint32_t dw[4];
+    uint16_t hw[8];
     float32 ps[4];
 } RBOXOutPcktQuadData;
 #pragma pack(pop)
@@ -396,14 +396,14 @@ typedef union
 class RingBuffer
 {
 private : 
-    uint64 buffer;
-    uint32 size;    // In 64b words
-    uint32 packets;
-    uint64 next_packet;
+    uint64_t buffer;
+    uint32_t size;    // In 64b words
+    uint32_t packets;
+    uint64_t next_packet;
 
 public :
     RingBuffer() : buffer(0), size(0), packets(0), next_packet(0) {}
-    void initialize(uint64 b, uint32 sz) {buffer = b; size = sz;}
+    void initialize(uint64_t b, uint32_t sz) {buffer = b; size = sz;}
     void reset() {next_packet = buffer; packets = 0;}
     void push_packet() {packets++;}
     bool consume_packet()
@@ -417,7 +417,7 @@ public :
         else
             return false;
     }
-    uint64 read_next_packet(uint32 sz)
+    uint64_t read_next_packet(uint32_t sz)
     {
         if (packets == 0) return 0;
         if ((next_packet + sz * 8) >= (buffer + size * 8))
@@ -426,18 +426,18 @@ public :
             next_packet += sz * 8;
         return next_packet;
     }
-    uint64 read_packet()
+    uint64_t read_packet()
     {
         if (packets == 0)
             return 0;
         else
             return next_packet;
     }
-    uint64 next_write_packet()
+    uint64_t next_write_packet()
     {
         return next_packet;
     }
-    uint64 write_packet(uint32 sz)
+    uint64_t write_packet(uint32_t sz)
     {
         if ((next_packet + sz * 8) >= (buffer + size * 8))
             next_packet = buffer;
@@ -450,8 +450,8 @@ public :
 typedef struct
 {
     // Evaluation adder precision is 2's complement 18.24
-    int64 a;
-    int64 b;
+    int64_t a;
+    int64_t b;
 } EdgeEq;
 
 typedef struct
@@ -459,14 +459,14 @@ typedef struct
     EdgeEq edge_eqs[3];
     DepthEq depth_eq;
     bool back_facing;
-    uint64 triangle_data_ptr;
+    uint64_t triangle_data_ptr;
     bool top_or_left_edge[3];
 } TriangleInfo;
 
 typedef struct
 {
-    int64 edge[3];     // Evaluation adder precision is 2's complement 18.24
-    uint32 depth;
+    int64_t edge[3];     // Evaluation adder precision is 2's complement 18.24
+    uint32_t depth;
 } TriangleSample;
 
 typedef struct
@@ -484,8 +484,8 @@ typedef struct
 
 typedef struct
 {
-    uint32 x;
-    uint32 y;
+    uint32_t x;
+    uint32_t y;
     FragmentInfo fragment[4];
 } QuadInfo;
 
@@ -503,29 +503,29 @@ typedef struct
 #define EDGE_EQ_COEF_INT_BITS  9
 #define EDGE_EQ_COEF_FRAC_BITS 25
 
-void set_rbox(uint64 inStream, uint32 inStreamSz, uint64 outStream, uint32 outStreamSz);
+void set_rbox(uint64_t inStream, uint32_t inStreamSz, uint64_t outStream, uint32_t outStreamSz);
 void reset_input_stream();
 void push_packet();
 void reset_output_stream();
 bool consume_packet();
 void process();
-uint32 process_packet(uint64 packet);
-void generate_tile(uint32 tile_x, uint32 tile_y, int64 edge_samples[3], uint32 depth_sample, RBOXTileSize tile_sz);
+uint32_t process_packet(uint64_t packet);
+void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], uint32_t depth_sample, RBOXTileSize tile_sz);
 void sample_next_row(TriangleSample &sample);
 void sample_next_quad(TriangleSample &sample);
-void sample_quad(uint32 x, uint32 y, TriangleSample quad_sample, QuadInfo &quad);
+void sample_quad(uint32_t x, uint32_t y, TriangleSample quad_sample, QuadInfo &quad);
 bool test_quad(QuadInfo &quad);
 bool sample_inside_triangle(TriangleSample sample);
-uint64 compute_depth_stencil_buffer_address(uint32 x, uint32 y);
-bool do_depth_test(uint32 frag_depth, uint32 sample_depth);
-bool do_stencil_test(uint8 frag_stencil);
-bool do_depth_bound_test(uint32 frag_depth);
-bool do_scissor_test(uint32 x, uint32 y);
-uint8 stencil_update(uint8 frag_stencil, bool stencil_test, bool depth_test);
+uint64_t compute_depth_stencil_buffer_address(uint32_t x, uint32_t y);
+bool do_depth_test(uint32_t frag_depth, uint32_t sample_depth);
+bool do_stencil_test(uint8_t frag_stencil);
+bool do_depth_bound_test(uint32_t frag_depth);
+bool do_scissor_test(uint32_t x, uint32_t y);
+uint8_t stencil_update(uint8_t frag_stencil, bool stencil_test, bool depth_test);
 void generate_quad_packet(QuadInfo quad);
-float32 convert_edge_to_fp32(int64 edge);
-float32 convert_depth_to_fp32(uint32 depth);
+float32 convert_edge_to_fp32(int64_t edge);
+float32 convert_depth_to_fp32(uint32_t depth);
 void generate_frag_shader_state_packet();
-void tile_position_to_pixels(uint32 &tile_x, uint32 &tile_y, RBOXTileSize tile_size);
+void tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, RBOXTileSize tile_size);
 
 #endif // _RBOX_H

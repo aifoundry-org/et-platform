@@ -9,7 +9,7 @@
 using namespace std;
 
 // Creator
-main_memory_region_atomic::main_memory_region_atomic(uint64 base, uint64 size, testLog & l, func_ptr_get_thread& get_thr)
+main_memory_region_atomic::main_memory_region_atomic(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
     : main_memory_region(base, size, l, get_thr)
 {
   for(int i = 0; i < NUMBER_L2; i++)
@@ -30,7 +30,7 @@ main_memory_region_atomic::~main_memory_region_atomic()
 }
 
 // Write to memory region
-void main_memory_region_atomic::write(uint64 ad, int size, const void * data)
+void main_memory_region_atomic::write(uint64_t ad, int size, const void * data)
 {
   uint32_t thread_id = (get_thread());
   uint32_t shire = thread_id / 128;
@@ -50,7 +50,7 @@ void main_memory_region_atomic::write(uint64 ad, int size, const void * data)
 
 
 // Read from memory region
-void main_memory_region_atomic::read(uint64 ad, int size, void * data)
+void main_memory_region_atomic::read(uint64_t ad, int size, void * data)
 {
   uint32_t thread_id = (get_thread());
   uint32_t shire = thread_id / 128;

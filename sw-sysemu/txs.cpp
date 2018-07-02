@@ -16,13 +16,13 @@ extern char dis[];
 
 TBOXEmu tbox_emulator;
 
-void init_txs(uint64 imgTableAddr)
+void init_txs(uint64_t imgTableAddr)
 {
     DEBUG_EMU(gprintf("Setting Image Table Address = %016llx\n", imgTableAddr); )
  
     tbox_emulator.set_image_table_address(imgTableAddr);
 
-    for (uint32 t = 0; t < EMU_NUM_THREADS; t++)
+    for (uint32_t t = 0; t < EMU_NUM_THREADS; t++)
         tbox_emulator.set_request_pending(t, false);
 
     tbox_emulator.texture_cache_initialize();
@@ -30,9 +30,9 @@ void init_txs(uint64 imgTableAddr)
 
 
 #ifdef CHECKER
-void checker_sample_quad(uint32 thread, uint64 basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
+void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
 {
-    uint64 base_copy = tbox_emulator.get_image_table_address();
+    uint64_t base_copy = tbox_emulator.get_image_table_address();
     if ( base_copy != basePtr )
     {
         DEBUG_EMU(gprintf("WARNING!!! changing image table address from %llx to %llx by checker request.\n", base_copy, basePtr);)
@@ -81,7 +81,7 @@ void texsnds(freg src1)
         tbox_emulator.set_request_coordinates(current_thread, 0, FREGS[src1]);
 
         DEBUG_EMU( gprintf("\t Set *s* texture coordinates from f%d\n", src1); )
-        for(uint32 c = 0; c < 4; c++)
+        for(uint32_t c = 0; c < 4; c++)
         {
             DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
         }
@@ -105,7 +105,7 @@ void texsndt(freg src1)
         tbox_emulator.set_request_coordinates(current_thread, 1, FREGS[src1]);
 
         DEBUG_EMU( gprintf("\t Set *t* texture coordinates from f%d\n", src1); )
-        for(uint32 c = 0; c < 4; c++)
+        for(uint32_t c = 0; c < 4; c++)
         {
             DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
         }
@@ -129,7 +129,7 @@ void texsndr(freg src1)
         tbox_emulator.set_request_coordinates(current_thread, 2, FREGS[src1]);
 
         DEBUG_EMU( gprintf("\t Set *r* texture coordinates from f%d\n", src1); )
-        for(uint32 c = 0; c < 4; c++)
+        for(uint32_t c = 0; c < 4; c++)
         {
             DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
         }
@@ -138,7 +138,7 @@ void texsndr(freg src1)
     IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
-void texrcv(freg dst, const uint32 idx)
+void texrcv(freg dst, const uint32_t idx)
 {
     DISASM(gsprintf(dis,"I: texrcv f%d, 0x%x", dst, idx);)
     DEBUG_EMU(gprintf("%s\n",dis););
@@ -159,7 +159,7 @@ void texrcv(freg dst, const uint32 idx)
 
     data = tbox_emulator.get_request_results(current_thread, idx);
 
-    for (uint32 c = 0;  c < 4; c++)
+    for (uint32_t c = 0;  c < 4; c++)
     {
         // texrcv should pay attention to the mask!!!
         if ( MREGS[0].b[c*2] == 0 ) continue;
@@ -176,7 +176,7 @@ void texrcv(freg dst, const uint32 idx)
     IPC(ipc_texrcv(dst,dis););
 }
 
-void decompress_texture_cache_line_data(TBOXEmu::ImageInfo currentImage, uint32 startTexel, uint64 inData[], uint64 outData[])
+void decompress_texture_cache_line_data(TBOXEmu::ImageInfo currentImage, uint32_t startTexel, uint64_t inData[], uint64_t outData[])
 {
     tbox_emulator.decompress_texture_cache_line_data(currentImage, startTexel, inData, outData);
 }

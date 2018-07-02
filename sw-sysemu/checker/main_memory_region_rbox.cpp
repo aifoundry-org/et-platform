@@ -9,7 +9,7 @@
 using namespace std;
 
 // Creator
-main_memory_region_rbox::main_memory_region_rbox(uint64 base, uint64 size, testLog & l, func_ptr_get_thread& get_thr)
+main_memory_region_rbox::main_memory_region_rbox(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
     : main_memory_region(base, size, l, get_thr)
 {
   bzero(credits_, sizeof(credits_));
@@ -21,7 +21,7 @@ main_memory_region_rbox::~main_memory_region_rbox()
 }
 
 // Write to memory region
-void main_memory_region_rbox::write(uint64 ad, int size, const void * data)
+void main_memory_region_rbox::write(uint64_t ad, int size, const void * data)
 {
   log << LOG_DEBUG << "writing to rbox @=" <<hex<<ad<<dec<< endm;
   uint16_t thread;
@@ -31,7 +31,7 @@ void main_memory_region_rbox::write(uint64 ad, int size, const void * data)
 
 
 // Read from memory region
-void main_memory_region_rbox::read(uint64 ad, int size, void * data)
+void main_memory_region_rbox::read(uint64_t ad, int size, void * data)
 {
   log << LOG_ERR << "not expecting to read from rbox memory map"<<endm;
 }

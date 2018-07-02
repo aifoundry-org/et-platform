@@ -18,10 +18,10 @@ class instruction
         ~instruction();
 
         // Access
-        void set_pc(uint64 pc_);
-        uint64 get_pc();
-        void set_enc(uint32 enc_bits_);
-        uint32 get_enc();
+        void set_pc(uint64_t pc_);
+        uint64_t get_pc();
+        void set_enc(uint32_t enc_bits_);
+        uint32_t get_enc();
         void set_mnemonic(std::string mnemonic_, function_pointer_cache * func_cache, testLog * log_);
         std::string get_mnemonic();
         void set_compressed(bool v);
@@ -42,8 +42,8 @@ class instruction
         // Execution
         void exec();
     private:
-        uint64                       pc;             // PC of the instruction
-        uint32                       enc_bits;       // Encoded bits
+        uint64_t                     pc;             // PC of the instruction
+        uint32_t                     enc_bits;       // Encoded bits
         std::string                  mnemonic;       // Mnemonic of the instruction
         bool                         is_load;        // If the instruction is an integer load
         bool                         is_fpload;      // If the instruction is a floating point load

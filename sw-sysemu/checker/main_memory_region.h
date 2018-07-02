@@ -17,24 +17,24 @@ class main_memory_region
     public:
         typedef uint32_t (*func_ptr_get_thread) ();
         // Constructors and destructors
-        main_memory_region(uint64 base, uint64 size, testLog & l, func_ptr_get_thread & get_thread, int flags = MEM_REGION_RW);
+        main_memory_region(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread & get_thread, int flags = MEM_REGION_RW);
         virtual ~main_memory_region();
         
         // operators to compare, used when searching the correct region in a memory access
-        bool operator==(uint64 ad);
-        bool operator!=(uint64 ad);
+        bool operator==(uint64_t ad);
+        bool operator!=(uint64_t ad);
     
         // read and write
-        virtual void write(uint64 ad, int size, const void* data);
-        virtual void read(uint64 ad, int size, void* data);
+        virtual void write(uint64_t ad, int size, const void* data);
+        virtual void read(uint64_t ad, int size, void* data);
 
         // Dump
         void dump();
         
     protected:
         // members
-        const uint64 base_;
-        const uint64 size_;
+        const uint64_t base_;
+        const uint64_t size_;
         char * const data_;
         int  flags_;
         testLog& log;

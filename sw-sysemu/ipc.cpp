@@ -22,22 +22,22 @@ typedef enum
 
 typedef struct
 {
-        uint64 cycle;
+        uint64_t cycle;
         producers producer;
 } ready_t;
 
 // Array that indicates each opcode latency
-int32 latency[MAXOPCODE];
+int32_t latency[MAXOPCODE];
 ready_t fready[MAXFREG];
 ready_t xready[MAXXREG];
 ready_t mready[MAXMREG];
-uint64  cycle = 0;
-uint64  last_texsnd = 0;
-uint64  numins = 0;
-uint32 debug_ipc = 0;
-uint32 exit_on_first_ps = 0;
-int    lat_sampler;
-uint64 histogram[MAXPRODUCERS] = {0,0,0,0,0};
+uint64_t cycle = 0;
+uint64_t last_texsnd = 0;
+uint64_t numins = 0;
+uint32_t debug_ipc = 0;
+uint32_t exit_on_first_ps = 0;
+int      lat_sampler;
+uint64_t histogram[MAXPRODUCERS] = {0,0,0,0,0};
 const char   *pnames[MAXPRODUCERS] = {"FPU", "DCACHE", "TBOX", "ALU", "NONE"};
 
 FILE *ipcoutFile;
@@ -45,8 +45,8 @@ FILE *ipcoutFile;
 
 typedef struct cache_tag_t
 {
-        uint64       tag;
-        uint64       available;
+        uint64_t       tag;
+        uint64_t       available;
         bool         valid;
 } cache_tag_t;
 
@@ -61,16 +61,16 @@ typedef struct cache_tag_t
 
 
 cache_tag_t dcache[DSETS][DWAYS];
-uint32         lru[DSETS][DWAYS];
-uint32 dinit = 0;
+uint32_t         lru[DSETS][DWAYS];
+uint32_t dinit = 0;
 
-uint64 dcache_num_lookups = 0;
-uint64 dcache_num_rdhit   = 0;
-uint64 dcache_num_wrhit   = 0;
-uint64 dcache_num_rddelayhit   = 0;
-uint64 dcache_num_wrdelayhit   = 0;
-uint64 dcache_num_rdmiss  = 0;
-uint64 dcache_num_wrmiss  = 0;
+uint64_t dcache_num_lookups = 0;
+uint64_t dcache_num_rdhit   = 0;
+uint64_t dcache_num_wrhit   = 0;
+uint64_t dcache_num_rddelayhit   = 0;
+uint64_t dcache_num_wrdelayhit   = 0;
+uint64_t dcache_num_rdmiss  = 0;
+uint64_t dcache_num_wrmiss  = 0;
 
 void dcache_init()
 {
@@ -80,9 +80,9 @@ void dcache_init()
         if ( debug_ipc ) gfprintf(ipcoutFile,"dcache_init: sets %d ways %d line size %d total capacity %d\n",DSETS,DWAYS,LINESIZE,DSETS*DWAYS*LINESIZE);
 
         // Clean the cache
-        for (uint32 s = 0; s < DSETS; s++ )
+        for (uint32_t s = 0; s < DSETS; s++ )
         {
-                for (uint32 w = 0; w < DWAYS; w++ )
+                for (uint32_t w = 0; w < DWAYS; w++ )
                 {
                         dcache[s][w].valid = false;
                         dcache[s][w].tag   = 0;
@@ -100,16 +100,16 @@ void dcache_init()
         dcache_num_wrmiss  = 0;
 }
 
-void make_mru(uint32 set, uint32 way)
+void make_mru(uint32_t set, uint32_t way)
 {
-        uint32 newlru[DWAYS];
-        uint32 idx = 1;
+        uint32_t newlru[DWAYS];
+        uint32_t idx = 1;
 
         // The given way is the most MRU, so we put in the '0' position
         newlru[0] = way;
 
         // now we copy the other ways in their current order, skipping the given 'way'
-        for (uint32 w = 0; w < DWAYS; w++ )
+        for (uint32_t w = 0; w < DWAYS; w++ )
         {
                 if ( lru[set][w] != way )
                 {
@@ -119,14 +119,14 @@ void make_mru(uint32 set, uint32 way)
         assert(idx == DWAYS);
 
         // copy back into lru array
-        for (uint32 w = 0; w < DWAYS; w++ )
+        for (uint32_t w = 0; w < DWAYS; w++ )
         {
                 lru[set][w] = newlru[w];
         }
 }
 
 
-uint32 get_victim(uint32 set)
+uint32_t get_victim(uint32_t set)
 {
         // The LRU way is always at the back of the LRU list
         return lru[set][DWAYS-1];
@@ -138,19 +138,19 @@ typedef enum
         WRITE
 } access_t;
 
-uint32 dcache_lookup(uint64 addr, access_t acc)
+uint32_t dcache_lookup(uint64_t addr, access_t acc)
 {
-        const uint32 hitlat  = 2;
-        const uint32 misslat = 30;
+        const uint32_t hitlat  = 2;
+        const uint32_t misslat = 30;
         const char *type = acc == READ ? "READ" : "WRITE";
-        uint32 set = (addr >> LOGLINE) & DSETMSK;
+        uint32_t set = (addr >> LOGLINE) & DSETMSK;
         assert(set < DSETS);
 
-        uint64 tag = addr >> (LOGLINE+LOGDSETS);
+        uint64_t tag = addr >> (LOGLINE+LOGDSETS);
 
         dcache_num_lookups++;
 
-        for (uint32 w = 0; w < DWAYS; w++ )
+        for (uint32_t w = 0; w < DWAYS; w++ )
         {
                 if ( dcache[set][w].valid && dcache[set][w].tag == tag )
                 {
@@ -166,17 +166,17 @@ uint32 dcache_lookup(uint64 addr, access_t acc)
                         }
                         else
                         {
-                                uint64 pending = dcache[set][w].available - cycle;
+                                uint64_t pending = dcache[set][w].available - cycle;
 
                                 if  ( debug_ipc ) gfprintf(ipcoutFile,"dcache_lookup: %6s: cycle %llu available %llu wait on hit on set %d way %d tag %llx addr %llx pending %llu \n",type,cycle,dcache[set][w].available,set,w,tag,addr,pending);
                                 if      ( acc == READ ) dcache_num_rddelayhit++;
                                 else if ( acc == WRITE) dcache_num_wrdelayhit++;
-                                return (uint32)pending;
+                                return (uint32_t)pending;
                         }
                 }
         }
 
-        uint32 victim = get_victim(set);
+        uint32_t victim = get_victim(set);
         dcache[set][victim].valid       = 1;
         dcache[set][victim].tag         = tag;
         dcache[set][victim].available   = cycle + misslat;
@@ -188,12 +188,12 @@ uint32 dcache_lookup(uint64 addr, access_t acc)
         return misslat; // miss latency
 }
 
-uint32 dcache_read(uint64 addr)
+uint32_t dcache_read(uint64_t addr)
 {
         return dcache_lookup(addr, READ);
 }
 
-uint32 dcache_write(uint64 addr)
+uint32_t dcache_write(uint64_t addr)
 {
         return dcache_lookup(addr, WRITE);
 }
@@ -223,14 +223,14 @@ void ipc_init(const char *type, int debug)
         numins = 0;
         dcache_init();
 
-        for (uint32 p = 0; p < MAXPRODUCERS; p++)
+        for (uint32_t p = 0; p < MAXPRODUCERS; p++)
         {
                 histogram[p] = 0;
         }
 
-        for (i = 0; i < MAXFREG; i++ ) { fready[i].cycle = (uint64)0; fready[i].producer = PRODNONE; }
-        for (i = 0; i < MAXXREG; i++ ) { xready[i].cycle = (uint64)0; xready[i].producer = PRODNONE; }
-        for (i = 0; i < MAXMREG; i++ ) { mready[i].cycle = (uint64)0; mready[i].producer = PRODNONE; }
+        for (i = 0; i < MAXFREG; i++ ) { fready[i].cycle = (uint64_t)0; fready[i].producer = PRODNONE; }
+        for (i = 0; i < MAXXREG; i++ ) { xready[i].cycle = (uint64_t)0; xready[i].producer = PRODNONE; }
+        for (i = 0; i < MAXMREG; i++ ) { mready[i].cycle = (uint64_t)0; mready[i].producer = PRODNONE; }
         for (i = 0; i < MAXOPCODE; i++ ) { latency[i] = -1; }
 
         // register X0 is always ready :-)
@@ -421,13 +421,13 @@ ready_t earliest(ready_t start, freg src)
         }
 }
 
-void set_dst_cycle(freg dst, uint64 newcycle, producers p)
+void set_dst_cycle(freg dst, uint64_t newcycle, producers p)
 {
         fready[dst].cycle = newcycle;
         fready[dst].producer = p;
 }
 
-void set_dst_cycle(xreg dst, uint64 newcycle, producers p)
+void set_dst_cycle(xreg dst, uint64_t newcycle, producers p)
 {
         xready[dst].cycle = newcycle;
         xready[dst].producer = p;
@@ -444,7 +444,7 @@ void delay_stats(ready_t ready)
         }
 }
 
-uint64 advance_time(ready_t ready)
+uint64_t advance_time(ready_t ready)
 {
         delay_stats(ready);
         cycle = ready.cycle;
@@ -453,7 +453,7 @@ uint64 advance_time(ready_t ready)
 }
 
 
-void debug_instruction(xreg xdst, freg fdst, xreg xsrc1, xreg xsrc2, freg fsrc1, freg fsrc2, freg fsrc3, uint64 lat, char *dis,bool miss)
+void debug_instruction(xreg xdst, freg fdst, xreg xsrc1, xreg xsrc2, freg fsrc1, freg fsrc2, freg fsrc3, uint64_t lat, char *dis,bool miss)
 {
         char latinfo[512];
         char srcinfo[512];
@@ -479,7 +479,7 @@ void debug_instruction(xreg xdst, freg fdst, xreg xsrc1, xreg xsrc2, freg fsrc1,
 
 void ipc_int(opcode opc, xreg dst, xreg src1, xreg src2,char *dis)
 {
-        uint32 lat = latency[opc];
+        uint32_t lat = latency[opc];
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -491,7 +491,7 @@ void ipc_int(opcode opc, xreg dst, xreg src1, xreg src2,char *dis)
 
 void ipc_f2x(opcode opc, xreg dst, freg src1, char *dis)
 {
-        uint32 lat = latency[opc];
+        uint32_t lat = latency[opc];
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -502,7 +502,7 @@ void ipc_f2x(opcode opc, xreg dst, freg src1, char *dis)
 
 void ipc_f2x(opcode opc, xreg dst, freg src1, freg src2, char *dis)
 {
-        uint32 lat = latency[opc];
+        uint32_t lat = latency[opc];
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -512,9 +512,9 @@ void ipc_f2x(opcode opc, xreg dst, freg src1, freg src2, char *dis)
         debug_instruction(dst,fnone,xnone,xnone,src1,fnone,fnone,lat,dis,false);
 }
 
-void ipc_ld(opcode opc, xreg dst, xreg src1, uint64 addr,char *dis)
+void ipc_ld(opcode opc, xreg dst, xreg src1, uint64_t addr,char *dis)
 {
-        uint32 lat = dcache_read(addr);
+        uint32_t lat = dcache_read(addr);
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -523,9 +523,9 @@ void ipc_ld(opcode opc, xreg dst, xreg src1, uint64 addr,char *dis)
         debug_instruction(dst,fnone,src1,xnone,fnone,fnone,fnone,lat,dis,lat>2);
 }
 
-void ipc_ld(opcode opc, int count, int size, freg dst, xreg src1, uint64 addr,char *dis)
+void ipc_ld(opcode opc, int count, int size, freg dst, xreg src1, uint64_t addr,char *dis)
 {
-        uint32 lat = dcache_read(addr);
+        uint32_t lat = dcache_read(addr);
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -534,9 +534,9 @@ void ipc_ld(opcode opc, int count, int size, freg dst, xreg src1, uint64 addr,ch
         debug_instruction(xnone,dst,src1,xnone,fnone,fnone,fnone,lat,dis,lat>2);
 }
 
-void ipc_gt(opcode opc, int count, int size, freg dst, freg src1, xreg base, uint64 addr,char *dis, int idx)
+void ipc_gt(opcode opc, int count, int size, freg dst, freg src1, xreg base, uint64_t addr,char *dis, int idx)
 {
-        uint32 lat = dcache_read(addr);
+        uint32_t lat = dcache_read(addr);
         ready_t ready = { cycle+1, PRODNONE };
 
         if (idx == 0) {
@@ -549,9 +549,9 @@ void ipc_gt(opcode opc, int count, int size, freg dst, freg src1, xreg base, uin
         debug_instruction(xnone,dst,base,xnone,src1,fnone,fnone,lat,dis,lat>2);
 }
 
-void ipc_st(opcode opc, int count, int size, freg src1, xreg base, uint64 addr,char *dis)
+void ipc_st(opcode opc, int count, int size, freg src1, xreg base, uint64_t addr,char *dis)
 {
-        uint32 lat = dcache_write(addr);
+        uint32_t lat = dcache_write(addr);
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -560,9 +560,9 @@ void ipc_st(opcode opc, int count, int size, freg src1, xreg base, uint64 addr,c
         debug_instruction(xnone,fnone,base,xnone,src1,fnone,fnone,lat,dis,lat>2);
 }
 
-void ipc_st(opcode opc, int count, int size, xreg src1, xreg base, uint64 addr,char *dis)
+void ipc_st(opcode opc, int count, int size, xreg src1, xreg base, uint64_t addr,char *dis)
 {
-        uint32 lat = dcache_write(addr);
+        uint32_t lat = dcache_write(addr);
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -571,9 +571,9 @@ void ipc_st(opcode opc, int count, int size, xreg src1, xreg base, uint64 addr,c
         debug_instruction(xnone,fnone,src1,base,fnone,fnone,fnone,lat,dis,lat>2);
 }
 
-void ipc_sc(opcode opc, int count, int size, freg src1, freg src2, xreg base, uint64 addr,char *dis)
+void ipc_sc(opcode opc, int count, int size, freg src1, freg src2, xreg base, uint64_t addr,char *dis)
 {
-        uint32 lat = dcache_write(addr);
+        uint32_t lat = dcache_write(addr);
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -588,7 +588,7 @@ void ipc_pi(opcode opc, int count, freg dst, freg src1, freg src2, freg src3,cha
 }
 void ipc_ps(opcode opc, int count, freg dst, freg src1, freg src2, freg src3,char *dis)
 {
-        uint32 lat = latency[opc];
+        uint32_t lat = latency[opc];
         ready_t ready = { cycle+1, PRODNONE };
 
         ready = earliest(ready, src1);
@@ -632,11 +632,11 @@ void ipc_texrcv(freg dst, char *dis)
 
 void ipc_print_stats(const char *type)
 {
-        uint64 sum = 0;
+        uint64_t sum = 0;
         if ( debug_ipc )
         {
                 gfprintf(ipcoutFile,"\nipc_stats: type %s: cycle: %6llu: ins %6llu: ipc %.3f\n",type,cycle,numins,(double)numins/(double)cycle);
-                for (uint32 p = 0; p < ALU; p++)
+                for (uint32_t p = 0; p < ALU; p++)
                 {
                         gfprintf(ipcoutFile,"ipc_stats: cycle: %6llu: wait time for %s: %llu: pc %.3f\n",cycle,pnames[p],histogram[p],(double)histogram[p]/(double)cycle);
                         sum += histogram[p];
