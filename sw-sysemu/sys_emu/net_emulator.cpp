@@ -82,15 +82,16 @@ void net_emulator::get_new_ipi(std::list<int> * enabled_threads, std::list<int> 
     if(!helper_done)
     {
         // Update the contents of the layer dynamic info
-        mem->write(layer.info_pointer,      8, &layer.tensor_a);
-        mem->write(layer.info_pointer + 8,  8, &layer.tensor_b);
-        mem->write(layer.info_pointer + 16, 8, &layer.tensor_c);
-        mem->write(layer.info_pointer + 24, 8, &layer.tensor_d);
-        mem->write(layer.info_pointer + 32, 8, &layer.tensor_e);
-        mem->write(layer.info_pointer + 40, 8, &layer.compute_pc);
-        mem->write(layer.info_pointer + 48, 8, &layer.helper_pc);
-        mem->write(layer.info_pointer + 56, 4, &layer.compute_size);
-        mem->write(layer.info_pointer + 60, 4, &layer.helper_size);
+        uint64_t ptr = layer.info_pointer;
+        mem->write(ptr,      8, &layer.tensor_a);
+        mem->write(ptr + 8,  8, &layer.tensor_b);
+        mem->write(ptr + 16, 8, &layer.tensor_c);
+        mem->write(ptr + 24, 8, &layer.tensor_d);
+        mem->write(ptr + 32, 8, &layer.tensor_e);
+        mem->write(ptr + 40, 8, &layer.compute_pc);
+        mem->write(ptr + 48, 8, &layer.helper_pc);
+        mem->write(ptr + 56, 4, &layer.compute_size);
+        mem->write(ptr + 60, 4, &layer.helper_size);
 
         // IPI
         helper_done = true;

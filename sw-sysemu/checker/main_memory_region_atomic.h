@@ -14,12 +14,12 @@ class main_memory_region_atomic : main_memory_region
 {
 public:
   // Constructors and destructors
-  main_memory_region_atomic(uint64 base, uint64 size, testLog & l, func_ptr_get_thread& get_th);
+  main_memory_region_atomic(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_th);
   ~main_memory_region_atomic();
 
   // read and write
-  void write(uint64 ad, int size, const void* data);
-  void read(uint64 ad, int size, void* data);
+  void write(uint64_t ad, int size, const void* data);
+  void read(uint64_t ad, int size, void* data);
 
 private:
   char * l2_priv_data[NUMBER_L2];

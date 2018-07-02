@@ -8,7 +8,7 @@ class main_memory_region_printf : main_memory_region
 {
 public:
   // Constructors and destructors
-  main_memory_region_printf(uint64 base, func_ptr_get_thread& get_thr)
+  main_memory_region_printf(uint64_t base, func_ptr_get_thread& get_thr)
     : main_memory_region(base, PRINTF_THREADS/2*64, log, get_thr, MEM_REGION_WO),
       log("rtlPrintf", LOG_DEBUG) { }
 
@@ -19,7 +19,7 @@ public:
   }
 
   // read and write
-  void write(uint64 ad, int size, const void* data) {
+  void write(uint64_t ad, int size, const void* data) {
     uint32_t thread = get_thread();
     assert(thread < PRINTF_THREADS);
     char c = * (char*) data;

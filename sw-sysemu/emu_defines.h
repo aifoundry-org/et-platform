@@ -1,19 +1,15 @@
 #ifndef _EMU_DEFINES_H
 #define _EMU_DEFINES_H
 
+#if defined(__cplusplus) && (__cplusplus >= 201103L)
+#include <cinttypes>
+#else
+#include <inttypes.h>
+#endif
+
 // Basic types
 typedef double             float64;
 typedef float              float32;
-typedef __uint128_t        uint128;
-typedef __int128_t         int128;
-typedef unsigned long long uint64;
-typedef   signed long long int64;
-typedef unsigned int       uint32;
-typedef   signed int       int32;
-typedef unsigned short     uint16;
-typedef   signed short     int16;
-typedef unsigned char      uint8;
-typedef   signed char      int8;
 
 // CSRs
 typedef enum
@@ -144,11 +140,11 @@ typedef enum
 } mem_access_type;
 
 #define PA_SIZE        40
-#define PA_M           (((uint64)1 << PA_SIZE) - 1)
+#define PA_M           (((uint64_t)1 << PA_SIZE) - 1)
 #define PG_OFFSET_SIZE 12
-#define PG_OFFSET_M    (((uint64)1 << PG_OFFSET_SIZE) - 1)
+#define PG_OFFSET_M    (((uint64_t)1 << PG_OFFSET_SIZE) - 1)
 #define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
-#define PPN_M          (((uint64)1 << PPN_SIZE) - 1)
+#define PPN_M          (((uint64_t)1 << PPN_SIZE) - 1)
 #define PTE_V_OFFSET   0
 #define PTE_R_OFFSET   1
 #define PTE_W_OFFSET   2
@@ -417,36 +413,36 @@ typedef enum
 
 typedef union
 {
-    uint8   b[16];
-    uint16  h[8];
-    uint32  u[4];
-    int32   i[4];
-    float32 f[4];
-    uint64  x[2];
-    int64   q[2];
+    uint8_t   b[16];
+    uint16_t  h[8];
+    uint32_t  u[4];
+    int32_t   i[4];
+    float32   f[4];
+    uint64_t  x[2];
+    int64_t   q[2];
 } fdata;
 
 typedef union
 {
-    uint8   b[8];
-    uint16  h[4];
-    uint32  w[2];
-    int32   ws[2];
-    uint64  x;
-    int64   xs;
+    uint8_t   b[8];
+    uint16_t  h[4];
+    uint32_t  w[2];
+    int32_t   ws[2];
+    uint64_t  x;
+    int64_t   xs;
 } xdata;
 
 typedef union
 {
-    uint8   b[8];
+    uint8_t   b[8];
 } mdata;
 
 typedef union
 {
-    int32   i;
-    uint32  u;
-    uint64  x;
-    int64   xs;
+    int32_t   i;
+    uint32_t  u;
+    uint64_t  x;
+    int64_t   xs;
     float32 f;
 } iufval;
 
@@ -457,12 +453,12 @@ typedef struct
     bool umode;
     bool use_scp;
     bool enable_oop;
-    uint8 logsize;
-    uint8 max_msgs;
-    uint8 scp_set;
-    uint8 scp_way;
-    uint8 rd_ptr;
-    uint8 wr_ptr;
+    uint8_t logsize;
+    uint8_t max_msgs;
+    uint8_t scp_set;
+    uint8_t scp_way;
+    uint8_t rd_ptr;
+    uint8_t wr_ptr;
 } msg_port_conf;
 
 // set to 1 if floating point 32 operation sets bits 127:32 to 0,

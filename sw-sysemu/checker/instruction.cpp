@@ -73,25 +73,25 @@ instruction::~instruction()
 }
 
 // Access
-void instruction::set_pc(uint64 pc_)
+void instruction::set_pc(uint64_t pc_)
 {
     pc = pc_;
 }
 
 // Access
-uint64 instruction::get_pc()
+uint64_t instruction::get_pc()
 {
     return pc;
 }
 
 // Access
-void instruction::set_enc(uint32 enc_bits_)
+void instruction::set_enc(uint32_t enc_bits_)
 {
     enc_bits = enc_bits_;
 }
 
 // Access
-uint32 instruction::get_enc()
+uint32_t instruction::get_enc()
 {
     return enc_bits;
 }

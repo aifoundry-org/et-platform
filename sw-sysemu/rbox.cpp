@@ -10,12 +10,12 @@ RingBuffer output;
 #define RBOX_STATE_BUFFER_SIZE 8
 
 RBOXState rbox_state[RBOX_STATE_BUFFER_SIZE];
-uint32 rbox_state_idx;
+uint32_t rbox_state_idx;
 FragmentShaderState frag_shader_state;
 TriangleInfo current_triangle;
 bool new_frag_shader_state;
 
-void set_rbox(uint64 inStream, uint32 inStreamSz, uint64 outStream, uint32 outStreamSz)
+void set_rbox(uint64_t inStream, uint32_t inStreamSz, uint64_t outStream, uint32_t outStreamSz)
 {
     input.initialize(inStream, inStreamSz);
     output.initialize(outStream, outStreamSz);
@@ -45,23 +45,23 @@ bool consume_packet()
 
 void process()
 {
-    uint64 packet;
+    uint64_t packet;
     packet = input.read_packet();
     while (packet)
     {
-        uint32 packet_size;
+        uint32_t packet_size;
         packet_size = process_packet(packet);
         input.consume_packet();
         packet = input.read_next_packet(packet_size);
     }
 }
 
-uint32 process_packet(uint64 packet)
+uint32_t process_packet(uint64_t packet)
 {
     RBOXInPcktHeader header;
     header.qw = memread64(packet);
 
-    uint32 packet_size = 0;
+    uint32_t packet_size = 0;
 
     switch (header.type)
     {
@@ -71,7 +71,7 @@ uint32 process_packet(uint64 packet)
                 RBOXInPcktFullyCoveredTile fully_covered_tile_pckt;
 
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
-                for (uint32 qw = 0; qw < 4; qw++)
+                for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     fully_covered_tile_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
@@ -80,14 +80,14 @@ uint32 process_packet(uint64 packet)
                     )
                 }
 
-                int64 edge_samples[3];
-                for (uint32 eq = 0; eq < 3; eq++)
+                int64_t edge_samples[3];
+                for (uint32_t eq = 0; eq < 3; eq++)
                     edge_samples[eq] = fully_covered_tile_pckt.tile.edge[eq].e
                                      << (EDGE_EQ_SAMPLE_FRAC_BITS - EDGE_EQ_64X64_SAMPLE_FRAC_BITS);
-                uint32 depth_sample = fully_covered_tile_pckt.tile.depth;
+                uint32_t depth_sample = fully_covered_tile_pckt.tile.depth;
                 RBOXTileSize tile_size = (RBOXTileSize) fully_covered_tile_pckt.tile.tile_size;
-                uint32 tile_x = fully_covered_tile_pckt.tile.tile_left;
-                uint32 tile_y = fully_covered_tile_pckt.tile.tile_top;
+                uint32_t tile_x = fully_covered_tile_pckt.tile.tile_left;
+                uint32_t tile_y = fully_covered_tile_pckt.tile.tile_top;
                 tile_position_to_pixels(tile_x, tile_y, tile_size);
                 generate_tile(tile_x, tile_y, edge_samples, depth_sample, tile_size);
                 packet_size = 4;
@@ -99,7 +99,7 @@ uint32 process_packet(uint64 packet)
                 RBOXInPcktLargeTriTile large_tri_tile_pckt;
 
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
-                for (uint32 qw = 0; qw < 4; qw++)
+                for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     large_tri_tile_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
@@ -108,14 +108,14 @@ uint32 process_packet(uint64 packet)
                     )
                 }
 
-                int64 edge_samples[3];
-                for (uint32 eq = 0; eq < 3; eq++)
+                int64_t edge_samples[3];
+                for (uint32_t eq = 0; eq < 3; eq++)
                     edge_samples[eq] = large_tri_tile_pckt.tile.edge[eq].e
                                      << (EDGE_EQ_SAMPLE_FRAC_BITS - EDGE_EQ_LARGE_TRI_SAMPLE_FRAC_BITS);
-                uint32 depth_sample = large_tri_tile_pckt.tile.depth;
+                uint32_t depth_sample = large_tri_tile_pckt.tile.depth;
                 RBOXTileSize tile_size = (RBOXTileSize) large_tri_tile_pckt.tile.tile_size;
-                uint32 tile_x = large_tri_tile_pckt.tile.tile_left;
-                uint32 tile_y = large_tri_tile_pckt.tile.tile_top;
+                uint32_t tile_x = large_tri_tile_pckt.tile.tile_left;
+                uint32_t tile_y = large_tri_tile_pckt.tile.tile_top;
                 tile_position_to_pixels(tile_x, tile_y, tile_size);
                 generate_tile(tile_x, tile_y, edge_samples, depth_sample, tile_size);
                 packet_size = 4;
@@ -127,7 +127,7 @@ uint32 process_packet(uint64 packet)
                 RBOXInPcktTriWithTile64x64 tri_with_tile_64x64_pckt;
 
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
-                for (uint32 qw = 0; qw < 8; qw++)
+                for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     tri_with_tile_64x64_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
@@ -136,7 +136,7 @@ uint32 process_packet(uint64 packet)
                     )
                 }
 
-                for (uint32 eq = 0; eq < 3; eq++)
+                for (uint32_t eq = 0; eq < 3; eq++)
                 {
                     current_triangle.edge_eqs[eq].a = tri_with_tile_64x64_pckt.tri_with_tile_64x64.edge_eqs[eq].a
                                                     << (EDGE_EQ_COEF_FRAC_BITS - EDGE_EQ_64X64_COEF_FRAC_BITS);
@@ -150,14 +150,14 @@ uint32 process_packet(uint64 packet)
                 current_triangle.depth_eq = tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth_eq;
                 current_triangle.triangle_data_ptr = tri_with_tile_64x64_pckt.tri_with_tile_64x64.triangle_data_ptr;
                 current_triangle.back_facing = (tri_with_tile_64x64_pckt.tri_with_tile_64x64.tri_facing == RBOX_TRI_FACING_BACK);
-                int64 edge_samples[3];
-                for (uint32 eq = 0; eq < 3; eq++)
+                int64_t edge_samples[3];
+                for (uint32_t eq = 0; eq < 3; eq++)
                     edge_samples[eq] = tri_with_tile_64x64_pckt.tri_with_tile_64x64.edge[eq].e
                                      << (EDGE_EQ_SAMPLE_FRAC_BITS - EDGE_EQ_64X64_SAMPLE_FRAC_BITS);
-                uint32 depth_sample = tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth;
+                uint32_t depth_sample = tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth;
                 RBOXTileSize tile_size = (RBOXTileSize) tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_size;
-                uint32 tile_x = tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_left;
-                uint32 tile_y = tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_top;
+                uint32_t tile_x = tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_left;
+                uint32_t tile_y = tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_top;
                 tile_position_to_pixels(tile_x, tile_y, tile_size);
                 generate_tile(tile_x, tile_y, edge_samples, depth_sample, tile_size);
                 packet_size = 8;
@@ -169,7 +169,7 @@ uint32 process_packet(uint64 packet)
                 RBOXInPcktTriWithTile128x128 tri_with_tile_128x128_pckt;
 
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
-                for (uint32 qw = 0; qw < 8; qw++)
+                for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     tri_with_tile_128x128_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
@@ -178,7 +178,7 @@ uint32 process_packet(uint64 packet)
                     )
                 }
 
-                for (uint32 eq = 0; eq < 3; eq++)
+                for (uint32_t eq = 0; eq < 3; eq++)
                 {
                     current_triangle.edge_eqs[eq].a = tri_with_tile_128x128_pckt.tri_with_tile_128x128.edge_eqs[eq].a
                                                      << (EDGE_EQ_COEF_FRAC_BITS - EDGE_EQ_128X128_COEF_FRAC_BITS);
@@ -192,14 +192,14 @@ uint32 process_packet(uint64 packet)
                 current_triangle.depth_eq = tri_with_tile_128x128_pckt.tri_with_tile_128x128.depth_eq;
                 current_triangle.triangle_data_ptr = tri_with_tile_128x128_pckt.tri_with_tile_128x128.triangle_data_ptr;
                 current_triangle.back_facing = (tri_with_tile_128x128_pckt.tri_with_tile_128x128.tri_facing == RBOX_TRI_FACING_BACK);
-                int64 edge_samples[3];
-                for (uint32 eq = 0; eq < 3; eq++)
+                int64_t edge_samples[3];
+                for (uint32_t eq = 0; eq < 3; eq++)
                     edge_samples[eq] = tri_with_tile_128x128_pckt.tri_with_tile_128x128.edge[eq].e
                                      << (EDGE_EQ_SAMPLE_FRAC_BITS - EDGE_EQ_128X128_SAMPLE_FRAC_BITS);
-                uint32 depth_sample = tri_with_tile_128x128_pckt.tri_with_tile_128x128.depth;
+                uint32_t depth_sample = tri_with_tile_128x128_pckt.tri_with_tile_128x128.depth;
                 RBOXTileSize tile_size = (RBOXTileSize) tri_with_tile_128x128_pckt.tri_with_tile_128x128.tile_size;
-                uint32 tile_x = tri_with_tile_128x128_pckt.tri_with_tile_128x128.tile_left;
-                uint32 tile_y = tri_with_tile_128x128_pckt.tri_with_tile_128x128.tile_top;
+                uint32_t tile_x = tri_with_tile_128x128_pckt.tri_with_tile_128x128.tile_left;
+                uint32_t tile_y = tri_with_tile_128x128_pckt.tri_with_tile_128x128.tile_top;
                 tile_position_to_pixels(tile_x, tile_y, tile_size);
                 generate_tile(tile_x, tile_y, edge_samples, depth_sample, tile_size);
                 packet_size = 8;
@@ -211,7 +211,7 @@ uint32 process_packet(uint64 packet)
                 RBOXInPcktLargeTri large_tri_pckt;
 
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
-                for (uint32 qw = 0; qw < 8; qw++)
+                for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     large_tri_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
@@ -220,12 +220,12 @@ uint32 process_packet(uint64 packet)
                     )
                 }
 
-                for (uint32 eq = 0; eq < 3; eq++)
+                for (uint32_t eq = 0; eq < 3; eq++)
                 {
-                    current_triangle.edge_eqs[eq].a = (uint64(large_tri_pckt.triangle.edge_eqs[eq].a_high) << 32)
-                                                    |  (int64) large_tri_pckt.triangle.edge_eqs[eq].a_low;
-                    current_triangle.edge_eqs[eq].b = (uint64(large_tri_pckt.triangle.edge_eqs[eq].b_high) << 32)
-                                                    |  (int64) large_tri_pckt.triangle.edge_eqs[eq].b_low;
+                    current_triangle.edge_eqs[eq].a = (uint64_t(large_tri_pckt.triangle.edge_eqs[eq].a_high) << 32)
+                                                    |  (int64_t) large_tri_pckt.triangle.edge_eqs[eq].a_low;
+                    current_triangle.edge_eqs[eq].b = (uint64_t(large_tri_pckt.triangle.edge_eqs[eq].b_high) << 32)
+                                                    |  (int64_t) large_tri_pckt.triangle.edge_eqs[eq].b_low;
 
                     current_triangle.top_or_left_edge[eq] =
                         (current_triangle.edge_eqs[eq].a == 0) ? ((current_triangle.edge_eqs[eq].b & EDGE_EQ_SAMPLE_SIGN_MASK) != 0)
@@ -243,7 +243,7 @@ uint32 process_packet(uint64 packet)
                 RBOXInPcktRBOXState rbox_state_pckt;
 
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
-                for (uint32 qw = 0; qw < 8; qw++)
+                for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     rbox_state_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
@@ -265,7 +265,7 @@ uint32 process_packet(uint64 packet)
                 RBOXInPcktFrgmtShdrState frag_shader_state_pckt;
 
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
-                for (uint32 qw = 0; qw < 4; qw++)
+                for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     frag_shader_state_pckt.qw[qw] = memread64(packet + qw * 8);
                     DEBUG_EMU(
@@ -286,24 +286,24 @@ uint32 process_packet(uint64 packet)
     return packet_size;
 }
 
-uint32 tile_dimensions[][2] = {{64, 64}, {64, 32}, {32, 32}, {16, 16}, {8, 8}, {4, 4}};
+uint32_t tile_dimensions[][2] = {{64, 64}, {64, 32}, {32, 32}, {16, 16}, {8, 8}, {4, 4}};
 
-void generate_tile(uint32 tile_x, uint32 tile_y, int64 edge_samples[3], uint32 depth_sample, RBOXTileSize tile_sz)
+void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], uint32_t depth_sample, RBOXTileSize tile_sz)
 {
     TriangleSample tile_sample;
-    for (uint32 eq = 0; eq < 3; eq++)
+    for (uint32_t eq = 0; eq < 3; eq++)
         tile_sample.edge[eq] = edge_samples[eq];
     tile_sample.depth = depth_sample;
 
     TriangleSample row_sample = tile_sample;
 
-    uint32 generated_quads_in_tile = 0;
+    uint32_t generated_quads_in_tile = 0;
 
-    for (uint32 y = 0; y < tile_dimensions[tile_sz][1]; y += 2)
+    for (uint32_t y = 0; y < tile_dimensions[tile_sz][1]; y += 2)
     {
         TriangleSample quad_sample = row_sample;
 
-        for (uint32 x = 0; x < tile_dimensions[tile_sz][0]; x += 2)
+        for (uint32_t x = 0; x < tile_dimensions[tile_sz][0]; x += 2)
         {
             QuadInfo quad;
 
@@ -335,19 +335,19 @@ void generate_tile(uint32 tile_x, uint32 tile_y, int64 edge_samples[3], uint32 d
 
 void sample_next_row(TriangleSample &sample)
 {
-    for (uint32 eq = 0; eq < 3; eq++)
+    for (uint32_t eq = 0; eq < 3; eq++)
         sample.edge[eq] += 2 * current_triangle.edge_eqs[eq].b;
     sample.depth += 2 * current_triangle.depth_eq.b;
 }
 
 void sample_next_quad(TriangleSample &sample)
 {
-    for (uint32 eq = 0; eq < 3; eq++)
+    for (uint32_t eq = 0; eq < 3; eq++)
         sample.edge[eq] += 2 * current_triangle.edge_eqs[eq].a;
     sample.depth += 2 * current_triangle.depth_eq.a;
 }
 
-void sample_quad(uint32 x, uint32 y, TriangleSample quad_sample, QuadInfo &quad)
+void sample_quad(uint32_t x, uint32_t y, TriangleSample quad_sample, QuadInfo &quad)
 {
     DEBUG_EMU( gprintf("RBOX : Sampling quad at (%d, %d) -> start sample = (%llx, %llx, %llx, %llx)\n"
                       "\t\tequation coefficients = (\n\t\t\t(%llx, %llx),\n\t\t\t(%llx, %llx),\n\t\t\t(%llx, %llx),\n\t\t\t(%llx, %llx)\n\t\t)\n"
@@ -360,7 +360,7 @@ void sample_quad(uint32 x, uint32 y, TriangleSample quad_sample, QuadInfo &quad)
                        current_triangle.top_or_left_edge[0], current_triangle.top_or_left_edge[1], current_triangle.top_or_left_edge[2]); )
 
     quad.fragment[0].sample = quad_sample;
-    for (uint32 eq = 0; eq < 3; eq++)
+    for (uint32_t eq = 0; eq < 3; eq++)
     {
         quad.fragment[1].sample.edge[eq] = quad.fragment[0].sample.edge[eq] + current_triangle.edge_eqs[eq].a;
         quad.fragment[2].sample.edge[eq] = quad.fragment[0].sample.edge[eq] + current_triangle.edge_eqs[eq].b;
@@ -370,7 +370,7 @@ void sample_quad(uint32 x, uint32 y, TriangleSample quad_sample, QuadInfo &quad)
     quad.fragment[2].sample.depth = quad.fragment[0].sample.depth + current_triangle.depth_eq.b;
     quad.fragment[3].sample.depth = quad.fragment[1].sample.depth + current_triangle.depth_eq.b;
 
-    for (uint32 f = 0; f < 4; f++)
+    for (uint32_t f = 0; f < 4; f++)
     {
         quad.fragment[f].coverage = sample_inside_triangle(quad.fragment[f].sample);
         DEBUG_EMU( gprintf("RBOX => Fragment %d Sample (%llx, %llx, %llx, %llx) Coverage = %d\n", f,
@@ -386,20 +386,20 @@ bool test_quad(QuadInfo &quad)
 {
     bool quad_coverage = false;
 
-    for (uint32 f = 0; f < 4; f++)
+    for (uint32_t f = 0; f < 4; f++)
     {
-        uint32 x = quad.x + (f & 0x1);
-        uint32 y = quad.y + ((f >> 1) & 0x1);
+        uint32_t x = quad.x + (f & 0x1);
+        uint32_t y = quad.y + ((f >> 1) & 0x1);
         bool scissor_test = do_scissor_test(x, y);
         quad.fragment[f].coverage = quad.fragment[f].coverage && scissor_test;
 
         if (quad.fragment[f].coverage)
         {
-            uint64 frag_depth_stencil_address = compute_depth_stencil_buffer_address(x, y);
-            uint32 frag_depth_stencil = memread32(frag_depth_stencil_address);
+            uint64_t frag_depth_stencil_address = compute_depth_stencil_buffer_address(x, y);
+            uint32_t frag_depth_stencil = memread32(frag_depth_stencil_address);
 
-            uint8 frag_stencil = frag_depth_stencil >> 24;
-            uint32 frag_depth = frag_depth_stencil & 0x00FFFFFF;
+            uint8_t frag_stencil = frag_depth_stencil >> 24;
+            uint32_t frag_depth = frag_depth_stencil & 0x00FFFFFF;
 
             DEBUG_EMU( gprintf("RBOX => Testing fragment at (%d, %d) address = %016llx sample_depth = %08x fragment_depth_stencil = %08x\n",
                               x, y, frag_depth_stencil_address, quad.fragment[f].sample.depth, frag_depth_stencil); )
@@ -410,9 +410,9 @@ bool test_quad(QuadInfo &quad)
 
             DEBUG_EMU( gprintf("RBOX => Test results : depth_bound = %d stencil = %d depth = %d\n", depth_bound_test, stencil_test, depth_test); )
 
-            uint8 out_stencil = stencil_update(frag_stencil, stencil_test, depth_test);
+            uint8_t out_stencil = stencil_update(frag_stencil, stencil_test, depth_test);
 
-            uint32 out_depth;
+            uint32_t out_depth;
             if (depth_bound_test)
             {
                 if (stencil_test)
@@ -420,7 +420,7 @@ bool test_quad(QuadInfo &quad)
                 else
                     out_depth = frag_depth;
 
-                uint32 out_depth_stencil = (out_stencil << 24) | out_depth;
+                uint32_t out_depth_stencil = (out_stencil << 24) | out_depth;
                 memwrite32(frag_depth_stencil_address, out_depth_stencil);
             }
 
@@ -433,11 +433,11 @@ bool test_quad(QuadInfo &quad)
     return quad_coverage;
 }
 
-uint64 compute_depth_stencil_buffer_address(uint32 x, uint32 y)
+uint64_t compute_depth_stencil_buffer_address(uint32_t x, uint32_t y)
 {
-    uint32 row = y / 4;
-    uint32 line = x / 4;
-    uint64 depth_stencil_buffer_offset = row * rbox_state[rbox_state_idx].depth_stencil_buffer_row_pitch
+    uint32_t row = y / 4;
+    uint32_t line = x / 4;
+    uint64_t depth_stencil_buffer_offset = row * rbox_state[rbox_state_idx].depth_stencil_buffer_row_pitch
                                        + line * 64 + (y & 0x3) * 16 + (x & 0x03) * 4;
     return rbox_state[rbox_state_idx].depth_stencil_buffer_ptr + depth_stencil_buffer_offset;
 }
@@ -449,7 +449,7 @@ bool sample_inside_triangle(TriangleSample sample)
            ((sample.edge[2] == 0) ? current_triangle.top_or_left_edge[2] : ((sample.edge[2] & EDGE_EQ_SAMPLE_SIGN_MASK) == 0));
 }
 
-bool do_scissor_test(uint32 x, uint32 y)
+bool do_scissor_test(uint32_t x, uint32_t y)
 {
     DEBUG_EMU( gprintf("RBOX => Scissor test for fragment at (%d, %d) scissor rectangle (%d, %d, %d, %d)\n",
                       x, y, rbox_state[rbox_state_idx].scissor_start_x, rbox_state[rbox_state_idx].scissor_start_y,
@@ -461,14 +461,14 @@ bool do_scissor_test(uint32 x, uint32 y)
            && (y <= (rbox_state[rbox_state_idx].scissor_start_y + rbox_state[rbox_state_idx].scissor_height));
 }
 
-bool do_depth_bound_test(uint32 frag_depth)
+bool do_depth_bound_test(uint32_t frag_depth)
 {
     return   !rbox_state[rbox_state_idx].depth_bound_enable
            || (    (frag_depth >= rbox_state[rbox_state_idx].depth_bound_min)
                &&  (frag_depth <= rbox_state[rbox_state_idx].depth_bound_max));
 }
 
-bool do_stencil_test(uint8 frag_stencil)
+bool do_stencil_test(uint8_t frag_stencil)
 {
     RBOXStencilState stencil_state;
     if (current_triangle.back_facing)
@@ -478,8 +478,8 @@ bool do_stencil_test(uint8 frag_stencil)
 
     if (rbox_state[rbox_state_idx].stencil_test_enable)
     {
-        uint8 ref_stencil_masked = stencil_state.ref & stencil_state.compare_mask;
-        uint8 frag_stencil_masked = frag_stencil & stencil_state.compare_mask;
+        uint8_t ref_stencil_masked = stencil_state.ref & stencil_state.compare_mask;
+        uint8_t frag_stencil_masked = frag_stencil & stencil_state.compare_mask;
         switch (stencil_state.compare_op)
         {
             case RBOX_COMPARE_OP_NEVER :
@@ -512,7 +512,7 @@ bool do_stencil_test(uint8 frag_stencil)
         return true;
 }
 
-bool do_depth_test(uint32 frag_depth, uint32 sample_depth)
+bool do_depth_test(uint32_t frag_depth, uint32_t sample_depth)
 {
     if (rbox_state[rbox_state_idx].depth_test_enable)
     {
@@ -548,7 +548,7 @@ bool do_depth_test(uint32 frag_depth, uint32 sample_depth)
         return true;
 }
 
-uint8 stencil_update(uint8 frag_stencil, bool stencil_test, bool depth_test)
+uint8_t stencil_update(uint8_t frag_stencil, bool stencil_test, bool depth_test)
 {
     RBOXStencilState stencil_state;
     if (current_triangle.back_facing)
@@ -604,9 +604,9 @@ void generate_quad_packet(QuadInfo quad)
 
     DEBUG_EMU( gprintf("RBOX => Generate quad packet\n"); )
 
-    uint64 packet = output.next_write_packet();
+    uint64_t packet = output.next_write_packet();
 
-    for (uint32 qw = 0; qw < 2; qw++)
+    for (uint32_t qw = 0; qw < 2; qw++)
         quad_info_pckt.qw[qw] = 0;
 
     quad_info_pckt.quad_info.type = RBOX_OUTPCKT_QUAD_INFO;
@@ -614,10 +614,10 @@ void generate_quad_packet(QuadInfo quad)
     quad_info_pckt.quad_info.y = quad.y >> 1;
     quad_info_pckt.quad_info.smpl_idx = 0;
     quad_info_pckt.quad_info.triangle_data_ptr = current_triangle.triangle_data_ptr;
-    for (uint32 f = 0; f < 4; f++)
+    for (uint32_t f = 0; f < 4; f++)
         quad_info_pckt.quad_info.mask = quad.fragment[f].coverage ? (quad_info_pckt.quad_info.mask | (3 << (2 * f))) : quad_info_pckt.quad_info.mask;
 
-    for (uint32 qw = 0; qw < 2; qw++)
+    for (uint32_t qw = 0; qw < 2; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_info_pckt.qw[qw], packet); )
         memwrite64(packet, quad_info_pckt.qw[qw]);
@@ -626,30 +626,30 @@ void generate_quad_packet(QuadInfo quad)
 
     RBOXOutPcktQuadData quad_data_pckt;
 
-    for (uint32 f = 0; f < 4; f++)
+    for (uint32_t f = 0; f < 4; f++)
         quad_data_pckt.ps[f] = convert_edge_to_fp32(quad.fragment[f].sample.edge[1]);
 
-    for (uint32 qw = 0; qw < 2; qw++)
+    for (uint32_t qw = 0; qw < 2; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
         memwrite64(packet, quad_data_pckt.qw[qw]);
         packet = packet + 8;
     }
 
-    for (uint32 f = 0; f < 4; f++)
+    for (uint32_t f = 0; f < 4; f++)
         quad_data_pckt.ps[f] = convert_edge_to_fp32(quad.fragment[f].sample.edge[2]);
 
-    for (uint32 qw = 0; qw < 2; qw++)
+    for (uint32_t qw = 0; qw < 2; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
         memwrite64(packet, quad_data_pckt.qw[qw]);
         packet = packet + 8;
     }
 
-    for (uint32 f = 0; f < 4; f++)
+    for (uint32_t f = 0; f < 4; f++)
         quad_data_pckt.ps[f] = convert_depth_to_fp32(quad.fragment[f].sample.depth);
 
-    for (uint32 qw = 0; qw < 2; qw++)
+    for (uint32_t qw = 0; qw < 2; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
         memwrite64(packet, quad_data_pckt.qw[qw]);
@@ -660,15 +660,15 @@ void generate_quad_packet(QuadInfo quad)
     output.push_packet();
 }
 
-float32 convert_edge_to_fp32(int64 edge)
+float32 convert_edge_to_fp32(int64_t edge)
 {
-    uint8 sign = edge & EDGE_EQ_SAMPLE_SIGN_MASK;
-    uint64 edge_abs = sign ? -edge : edge;
+    uint8_t sign = edge & EDGE_EQ_SAMPLE_SIGN_MASK;
+    uint64_t edge_abs = sign ? -edge : edge;
     float32 edge_abs_fp32 = float32(edge_abs) / float32(1 << EDGE_EQ_SAMPLE_FRAC_BITS);
     return (sign ? -edge_abs_fp32 : edge_abs_fp32);
 }
 
-float32 convert_depth_to_fp32(uint32 depth)
+float32 convert_depth_to_fp32(uint32_t depth)
 {
     return float32(depth) / float32((1 << 24) - 1);
 }
@@ -679,7 +679,7 @@ void generate_frag_shader_state_packet()
 
     DEBUG_EMU( gprintf("RBOX => Generate Fragment Shader State Packet\n"); )
 
-    for (uint32 qw = 0; qw < 4; qw++)
+    for (uint32_t qw = 0; qw < 4; qw++)
         f_sh_pckt.qw[qw] = 0;
 
     f_sh_pckt.state.type = RBOX_OUTPCKT_STATE_INFO;
@@ -687,9 +687,9 @@ void generate_frag_shader_state_packet()
     f_sh_pckt.state.frg_shdr_func_ptr = frag_shader_state.frag_shader_function_ptr;
     f_sh_pckt.state.frg_shdr_state_ptr = frag_shader_state.frag_shader_state_ptr;
 
-    uint64 packet = output.next_write_packet();
+    uint64_t packet = output.next_write_packet();
 
-    for (uint32 qw = 0; qw < 4; qw++)
+    for (uint32_t qw = 0; qw < 4; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", f_sh_pckt.qw[qw], packet + qw * 8); )
         memwrite64(packet + qw * 8, f_sh_pckt.qw[qw]);
@@ -699,7 +699,7 @@ void generate_frag_shader_state_packet()
     output.push_packet();
 }
 
-void tile_position_to_pixels(uint32 &tile_x, uint32 &tile_y, RBOXTileSize tile_size)
+void tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, RBOXTileSize tile_size)
 {
     switch(tile_size)
     {

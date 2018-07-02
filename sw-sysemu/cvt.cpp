@@ -1,6 +1,8 @@
 #include <math.h>
 #include "emu.h"
 #include "cvt.h"
+#include "emu_casts.h"
+
 
 // safe right shifts ( shifting by more than 32 bits returns 0)
 template<typename T> T rshift(T v, int s) {
@@ -9,12 +11,13 @@ template<typename T> T rshift(T v, int s) {
 }
 
 
-float32 float16tofloat32(uint32 val) {
-    uint8  sign;
-    uint32 mantissa;
-    int32  exponent;
-    uint32 output;
-    uint32 normbits;
+float32 float16tofloat32(uint32_t val)
+{
+    uint8_t  sign;
+    uint32_t mantissa;
+    int32_t  exponent;
+    uint32_t output;
+    uint32_t normbits = 0;
     bool denorm;
     bool infinite;
     bool nan;
@@ -93,30 +96,26 @@ float32 float16tofloat32(uint32 val) {
     }
 
     //  Assemble the float32 value with the obtained sign, exponent and mantissa.
-    output = (sign << 31) | (uint32(exponent & 0xff) << 23) | mantissa;
+    output = (sign << 31) | (uint32_t(exponent & 0xff) << 23) | mantissa;
 
     // Clear number in case of denormal
     if ((output & 0x7f800000) == 0) {
       output = output & 0x80000000;      
     }
 
-    return *((float32 *) &output);
+    return cast_uint32_to_float32(output);
 }
 
-float32 float11tofloat32(uint32 val) {
-    uint8  sign;
-    uint32 mantissa;
-    int32  exponent;
-    uint32 output;
-    uint32 normbits;
+float32 float11tofloat32(uint32_t val)
+{
+    uint32_t mantissa;
+    int32_t  exponent;
+    uint32_t output;
+    uint32_t normbits = 0;
     bool denorm;
     bool infinite;
     bool nan;
     bool zero;
-
-    //  Disassemble float11 value in sign, exponent and mantissa.
-    //  Read float11 sign.
-    sign = 0;
 
     //  Read the float11 exponent.
     exponent = ((val & 0x07c0) >> 6);
@@ -173,25 +172,21 @@ float32 float11tofloat32(uint32 val) {
     }
 
     //  Assemble the float32 value with the obtained sign, exponent and mantissa.
-    output = (uint32(exponent & 0xff) << 23) | mantissa;
+    output = (uint32_t(exponent & 0xff) << 23) | mantissa;
 
-    return *((float32 *) &output);
+    return cast_uint32_to_float32(output);
 }
 
-float32 float10tofloat32(uint32 val) {
-    uint8  sign;
-    uint32 mantissa;
-    int32  exponent;
-    uint32 output;
-    uint32 normbits;
+float32 float10tofloat32(uint32_t val)
+{
+    uint32_t mantissa;
+    int32_t  exponent;
+    uint32_t output;
+    uint32_t normbits = 0;
     bool denorm;
     bool infinite;
     bool nan;
     bool zero;
-
-    //  Disassemble float10 value in sign, exponent and mantissa.
-    //  Read float11 sign.
-    sign = 0;
 
     //  Read the float10 exponent.
     exponent = ((val & 0x03e0) >> 5);
@@ -246,23 +241,23 @@ float32 float10tofloat32(uint32 val) {
     }
 
     //  Assemble the float32 value with the obtained sign, exponent and mantissa.
-    output = (uint32(exponent & 0xff) << 23) | mantissa;
+    output = (uint32_t(exponent & 0xff) << 23) | mantissa;
 
-    return *((float32 *) &output);
+    return cast_uint32_to_float32(output);
 }
 
-uint32 float32tofloat16(float32 val) {
-    uint8  sign;
-    uint32 mantissa32;
-    uint32 mantissa16;
-    int32  exponent;
-    uint32 inputAux;
+uint32_t float32tofloat16(float32 val)
+{
+    uint8_t  sign;
+    uint32_t mantissa32;
+    uint32_t mantissa16;
+    int32_t  exponent;
+    uint32_t inputAux;
     bool denorm;
-    bool infinite;
     bool nan;
     bool zero;
 
-    inputAux = *((uint32 *) &val);
+    inputAux = cast_float32_to_uint32(val);
 
     //  Disassemble float32 value into sign, exponent and mantissa.
 
@@ -278,7 +273,6 @@ uint32 float32tofloat16(float32 val) {
     //  Compute flags.
     denorm = (exponent == 0) && (mantissa32 != 0);
     zero = (exponent == 0) && (mantissa32 == 0);
-    infinite = (exponent == 0xff) && (mantissa32 == 0);
     nan = (exponent == 0xff) && (mantissa32 != 0);
 
     //  Flush float32 denorms to 0
@@ -340,22 +334,22 @@ uint32 float32tofloat16(float32 val) {
         }
 
         //  Assemble the float16 value.
-        return (sign << 15) | (uint32(exponent & 0x3f) << 10) | mantissa16;
+        return (sign << 15) | (uint32_t(exponent & 0x3f) << 10) | mantissa16;
     }
 }
 
-uint32 float32tofloat11(float32 val) {
-    uint8  sign;
-    uint32 mantissa32;
-    uint32 mantissa11;
-    int32  exponent;
-    uint32 inputAux;
+uint32_t float32tofloat11(float32 val)
+{
+    uint8_t  sign;
+    uint32_t mantissa32;
+    uint32_t mantissa11;
+    int32_t  exponent;
+    uint32_t inputAux;
     bool denorm;
-    bool infinite;
     bool nan;
     bool zero;
 
-    inputAux = *((uint32 *) &val);
+    inputAux = cast_float32_to_uint32(val);
 
     //  Disassemble float32 value into sign, exponent and mantissa.
 
@@ -371,7 +365,6 @@ uint32 float32tofloat11(float32 val) {
     //  Compute flags.
     denorm = (exponent == 0) && (mantissa32 != 0);
     zero = (exponent == 0) && (mantissa32 == 0);
-    infinite = (exponent == 0xff) && (mantissa32 == 0);
     nan = (exponent == 0xff) && (mantissa32 != 0);
 
     //  Flush float32 denorms to 0
@@ -434,22 +427,22 @@ uint32 float32tofloat11(float32 val) {
         }
 
         //  Assemble the float11 value.
-        return (uint32(exponent & 0x3f) << 6) | mantissa11;
+        return (uint32_t(exponent & 0x3f) << 6) | mantissa11;
     }
 }
 
-uint32 float32tofloat10(float32 val) {
-    uint8  sign;
-    uint32 mantissa32;
-    uint32 mantissa10;
-    int32  exponent;
-    uint32 inputAux;
+uint32_t float32tofloat10(float32 val)
+{
+    uint8_t  sign;
+    uint32_t mantissa32;
+    uint32_t mantissa10;
+    int32_t  exponent;
+    uint32_t inputAux;
     bool denorm;
-    bool infinite;
     bool nan;
     bool zero;
 
-    inputAux = *((uint32 *) &val);
+    inputAux = cast_float32_to_uint32(val);
 
     //  Disassemble float32 value into sign, exponent and mantissa.
 
@@ -465,7 +458,6 @@ uint32 float32tofloat10(float32 val) {
     //  Compute flags.
     denorm = (exponent == 0) && (mantissa32 != 0);
     zero = (exponent == 0) && (mantissa32 == 0);
-    infinite = (exponent == 0xff) && (mantissa32 == 0);
     nan = (exponent == 0xff) && (mantissa32 != 0);
 
     //  Flush float32 denorms to 0
@@ -528,36 +520,42 @@ uint32 float32tofloat10(float32 val) {
         }
 
         //  Assemble the float10 value.
-        return (uint32(exponent & 0x1f) << 5) | mantissa10;
+        return (uint32_t(exponent & 0x1f) << 5) | mantissa10;
     }
 }
 
-float32 unorm24tofloat32(uint32 val) {
-    uint32 maxrange = (1 << 24) - 1;
+float32 unorm24tofloat32(uint32_t val)
+{
+    uint32_t maxrange = (1 << 24) - 1;
     return ( (float32)(val & 0xFFFFFF) / (float32)maxrange);
 }
 
-float32 unorm16tofloat32(uint32 val) {
-    uint32 maxrange = (1 << 16) - 1;
+float32 unorm16tofloat32(uint32_t val)
+{
+    uint32_t maxrange = (1 << 16) - 1;
     return ((float32)(val & 0xFFFF) / (float32)maxrange);
 }
 
-float32 unorm10tofloat32(uint32 val){
-    uint32 maxrange = (1 << 10) - 1;
+float32 unorm10tofloat32(uint32_t val)
+{
+    uint32_t maxrange = (1 << 10) - 1;
     return ((float32)(val & 0x3FF) / (float32)maxrange);
 };
 
-float32 unorm8tofloat32(uint32 val) {
-    uint32 maxrange = (1 << 8 ) - 1;
+float32 unorm8tofloat32(uint32_t val)
+{
+    uint32_t maxrange = (1 << 8 ) - 1;
     return ( (float32)(val & 0xFF) / (float32)maxrange);
 }
 
-float32 unorm2tofloat32(uint32 val){
-    uint32 maxrange = (1 << 2) - 1;
+float32 unorm2tofloat32(uint32_t val)
+{
+    uint32_t maxrange = (1 << 2) - 1;
     return ((float32)(val & 0x3) / (float32)maxrange);
 };
 
-float32 snorm24tofloat32(uint32 val) {
+float32 snorm24tofloat32(uint32_t val)
+{
     if (val == (1 << 23)) val = (1 << 23) + 1;
     float32 sign = ((val & 0x00800000) == 0) ? 1 : -1;
     float32 value = ((sign < 0) ? (~val + 1) : val) & 0x007fffff;
@@ -565,7 +563,8 @@ float32 snorm24tofloat32(uint32 val) {
     return sign * (value / maxrange);
 }
 
-float32 snorm16tofloat32(uint32 val) {
+float32 snorm16tofloat32(uint32_t val)
+{
     if (val == (1 << 15)) val = (1 << 15) + 1;
     float32 sign = ((val & 0x00008000) == 0) ? 1 : -1;
     float32 value = ((sign < 0) ? (~val + 1) : val) & 0x00007fff;
@@ -573,7 +572,8 @@ float32 snorm16tofloat32(uint32 val) {
     return sign * (value / maxrange);
 }
 
-float32 snorm10tofloat32(uint32 val) {
+float32 snorm10tofloat32(uint32_t val)
+{
     if (val == (1 << 9)) val = (1 << 9) + 1;
     float32 sign = ((val & 0x000200) == 0) ? 1 : -1;
     float32 value = ((sign < 0) ? (~val + 1) : val) & 0x0000001ff;
@@ -581,7 +581,8 @@ float32 snorm10tofloat32(uint32 val) {
     return sign * (value / maxrange);
 }
 
-float32 snorm8tofloat32(uint32 val) {
+float32 snorm8tofloat32(uint32_t val)
+{
     if (val == (1 << 7)) val = (1 << 7) + 1;
     float32 sign = ((val & 0x000080) == 0) ? 1 : -1;
     float32 value = ((sign < 0) ? (~val + 1) : val) & 0x0000007f;
@@ -589,7 +590,8 @@ float32 snorm8tofloat32(uint32 val) {
     return sign * (value / maxrange);
 }
 
-float32 snorm2tofloat32(uint32 val) {
+float32 snorm2tofloat32(uint32_t val)
+{
     if (val == (1 << 1)) val = (1 << 1) + 1;
     float32 sign = ((val & 0x00000002) == 0) ? 1 : -1;
     float32 value = ((sign < 0) ? (~val + 1) : val) & 0x00000001;
@@ -597,7 +599,8 @@ float32 snorm2tofloat32(uint32 val) {
     return sign * (value / maxrange);
 }
 
-uint32 float32tounorm24(float32 val) {
+uint32_t float32tounorm24(float32 val)
+{
     float64 delta;
     float64 ratio;
 
@@ -608,12 +611,13 @@ uint32 float32tounorm24(float32 val) {
     else {
         delta = (1 << 24) - 1;
         ratio = val * delta;
-        return (uint32(ratio + 0.5f));
+        return (uint32_t(ratio + 0.5f));
     }
 
 }
 
-uint32 float32tounorm16(float32 val) {
+uint32_t float32tounorm16(float32 val)
+{
     float64 delta;
     float64 ratio;
 
@@ -624,12 +628,13 @@ uint32 float32tounorm16(float32 val) {
     else {
         delta = (1 << 16) - 1;
         ratio = val * delta;
-        return (uint32(ratio + 0.5f));
+        return (uint32_t(ratio + 0.5f));
     }
 
 }
 
-uint32 float32tounorm10(float32 val) {
+uint32_t float32tounorm10(float32 val)
+{
     float64 delta;
     float64 ratio;
 
@@ -640,12 +645,13 @@ uint32 float32tounorm10(float32 val) {
     else {
         delta = (1 << 10) - 1;
         ratio = val * delta;
-        return (uint32(ratio + 0.5f));
+        return (uint32_t(ratio + 0.5f));
     }
 
 }
 
-uint32 float32tounorm8(float32 val) {
+uint32_t float32tounorm8(float32 val)
+{
     float64 delta;
     float64 ratio;
 
@@ -656,12 +662,13 @@ uint32 float32tounorm8(float32 val) {
     else {
         delta = (1 << 8) - 1;
         ratio = val * delta;
-        return (uint32(ratio + 0.5f));
+        return (uint32_t(ratio + 0.5f));
     }
 
 }
 
-uint32 float32tounorm2(float32 val) {
+uint32_t float32tounorm2(float32 val)
+{
     float64 delta;
     float64 ratio;
 
@@ -672,12 +679,13 @@ uint32 float32tounorm2(float32 val) {
     else {
         delta = (1 << 2) - 1;
         ratio = val * delta;
-        return (uint32(ratio + 0.5f));
+        return (uint32_t(ratio + 0.5f));
     }
 
 }
 
-uint32 float32tosnorm24(float32 val) {
+uint32_t float32tosnorm24(float32 val)
+{
     if((val >= 1.0) || isnan(val))
         return 0x007fffff;
     else if (val <= -1.0)
@@ -685,13 +693,14 @@ uint32 float32tosnorm24(float32 val) {
     else
     {
         float32 int_val = round(val * ((1 << 23) - 1));
-        int32 res = int32(int_val);
-        return uint32(res) & 0x00ffffff;
+        int32_t res = int32_t(int_val);
+        return uint32_t(res) & 0x00ffffff;
     }
 
 }
 
-uint32 float32tosnorm16(float32 val) {
+uint32_t float32tosnorm16(float32 val)
+{
     if((val >= 1.0) || isnan(val))
         return 0x00007fff;
     else if (val <= -1.0)
@@ -699,12 +708,12 @@ uint32 float32tosnorm16(float32 val) {
     else
     {
         float32 int_val = round(val * ((1 << 15) - 1));
-        int32 res = int32(int_val);
-        return uint32(res) & 0x00ffff;
+        int32_t res = int32_t(int_val);
+        return uint32_t(res) & 0x00ffff;
     }
 }
 
-uint32 float32tosnorm8(float32 val)
+uint32_t float32tosnorm8(float32 val)
 {
     if((val >= 1.0) || isnan(val))
         return 0x0000007f;
@@ -713,7 +722,7 @@ uint32 float32tosnorm8(float32 val)
     else
     {
         float32 int_val = round(val * ((1 << 7) - 1));
-        int32 res = int32(int_val);
-        return uint32(res) & 0x00ff;
+        int32_t res = int32_t(int_val);
+        return uint32_t(res) & 0x00ff;
     }
 }

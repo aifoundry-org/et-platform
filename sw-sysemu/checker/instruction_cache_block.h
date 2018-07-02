@@ -22,15 +22,15 @@
 class instruction_cache_block
 {
     public:
-        instruction_cache_block(uint64 base, main_memory * memory_, function_pointer_cache * func_cache_, testLog * log_);
+        instruction_cache_block(uint64_t base, main_memory * memory_, function_pointer_cache * func_cache_, testLog * log_);
         ~instruction_cache_block();
 
-        instruction * get_instruction(uint64 pc);
+        instruction * get_instruction(uint64_t pc);
     private:
         void decode(); // Decodes the instructions using the main memory
 
         instruction                  instructions[INSTRUCTION_CACHE_BLOCK_SIZE / 2];    // Decoded instructions of this block
-        uint64                       base_pc;                                           // Base PC for this block
+        uint64_t                     base_pc;                                           // Base PC for this block
         main_memory                * memory;                                            // Main memory to read the instruction bits and decode them
         function_pointer_cache     * func_cache;                                        // Pointer to the emulation functions
         testLog* log;                                                                   // Pointer to the logger

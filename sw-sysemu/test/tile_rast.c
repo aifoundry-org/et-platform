@@ -5,7 +5,7 @@
 #define min(x, y) (((x) < (y)) ? (x) : (y))
 #define max(x, y) (((x) > (y)) ? (x) : (y))
 
-uint32 rast_lit_tile_size_64x64[] =
+uint32_t rast_lit_tile_size_64x64[] =
 {
               0,    // +0
              64,    // +4
@@ -17,7 +17,7 @@ uint32 rast_lit_tile_size_64x64[] =
               0
 };
 
-uint32 rast_lit_tile_size_32x32[] =
+uint32_t rast_lit_tile_size_32x32[] =
 {
               0,    // +0
              32,    // +4
@@ -1586,7 +1586,7 @@ void create_low_prec_triangle_rbox_packets_tile_size_64x64()
     srli(x21, x21, 14, "Get 64x64 tile x position");
     srli(x22, x22, 14, "Get 64x64 tile y position");
 
-    init(x23, (uint64) rast_lit_tile_size_64x64);
+    init(x23, (uint64_t) rast_lit_tile_size_64x64);
 
     // 
     // f0 - f1 -> ai (broadcast)
@@ -1762,7 +1762,7 @@ void create_low_prec_triangle_rbox_packets_tile_size_32x32()
     srli(x21, x21, 13, "Get 32x32 tile x position");
     srli(x22, x22, 13, "Get 32x32 tile y position");
 
-    init(x23, (uint64) rast_lit_tile_size_32x32);
+    init(x23, (uint64_t) rast_lit_tile_size_32x32);
 
     // 
     // f0 - f1 -> ai (broadcast)
@@ -1838,7 +1838,7 @@ triangle_not_Nx96:
     print_comment("<<< create_low_prec_triangle_rbox_packets");
 }
 
-void generate_fully_covered_tile(uint32 tile_x, uint32 tile_y, uint64 tile_c[4], uint8 **rbox_input_buffer, uint32 *rbox_packets, TileSize tile_size)
+void generate_fully_covered_tile(uint32_t tile_x, uint32_t tile_y, uint64_t tile_c[4], uint8_t **rbox_input_buffer, uint32_t *rbox_packets, TileSize tile_size)
 {
     print_comment(">>> generate_fully_covered_tile");
 
@@ -1849,9 +1849,9 @@ void generate_fully_covered_tile(uint32 tile_x, uint32 tile_y, uint64 tile_c[4],
     tile_pckt->tile.tile_top  = tile_y;
     tile_pckt->tile.tile_size = tile_size;
     // Reduce precision from x.25 to x.14
-    for (uint32 eq = 0; eq < 3; eq++)
-        tile_pckt->tile.edge[eq].e = (uint32) ((tile_c[eq] >> 11) & 0xFFFFFFFF);
-    tile_pckt->tile.depth = (uint32) (tile_c[3] & 0xFFFFFFFF);
+    for (uint32_t eq = 0; eq < 3; eq++)
+        tile_pckt->tile.edge[eq].e = (uint32_t) ((tile_c[eq] >> 11) & 0xFFFFFFFF);
+    tile_pckt->tile.depth = (uint32_t) (tile_c[3] & 0xFFFFFFFF);
 
     (*rbox_input_buffer) += sizeof(RBOXInPcktFullyCoveredTile);
     (*rbox_packets)++;
@@ -1859,7 +1859,7 @@ void generate_fully_covered_tile(uint32 tile_x, uint32 tile_y, uint64 tile_c[4],
     print_comment("<<< generate_fully_covered_tile");
 }
 
-void generate_large_tri_tile(uint32 tile_x, uint32 tile_y, uint64 tile_c[4], uint8 **rbox_input_buffer, uint32 *rbox_packets, TileSize tile_size)
+void generate_large_tri_tile(uint32_t tile_x, uint32_t tile_y, uint64_t tile_c[4], uint8_t **rbox_input_buffer, uint32_t *rbox_packets, TileSize tile_size)
 {
     print_comment(">>> generate_large_tri_tile");
 
@@ -1869,9 +1869,9 @@ void generate_large_tri_tile(uint32 tile_x, uint32 tile_y, uint64 tile_c[4], uin
     tile_pckt->tile.tile_left = tile_x;
     tile_pckt->tile.tile_top  = tile_y;
     tile_pckt->tile.tile_size = tile_size;
-    for (uint32 eq = 0; eq < 3; eq++)
+    for (uint32_t eq = 0; eq < 3; eq++)
         tile_pckt->tile.edge[eq].e = tile_c[eq];
-    tile_pckt->tile.depth = (uint32) (tile_c[3] & 0xFFFFFFFF);
+    tile_pckt->tile.depth = (uint32_t) (tile_c[3] & 0xFFFFFFFF);
 
     (*rbox_input_buffer) += sizeof(RBOXInPcktLargeTriTile);
     (*rbox_packets)++;
@@ -1880,35 +1880,35 @@ void generate_large_tri_tile(uint32 tile_x, uint32 tile_y, uint64 tile_c[4], uin
 }
 
 
-void rasterize_128x128_high_precision(uint32 tile_x, uint32 tile_y,             // Tile position (tiles)
-                                      uint32 tile_dim_x, uint32 tile_dim_y,     // Tile dimension (tiles, max 4x4)
-                                      uint64 tile_c_step_x[4], uint64 tile_c_step_y[4], uint64 tile_c[4],
-                                      uint8 **rbox_input_buffer, uint32 *rbox_packets, TileSize tile_size)
+void rasterize_128x128_high_precision(uint32_t tile_x, uint32_t tile_y,             // Tile position (tiles)
+                                      uint32_t tile_dim_x, uint32_t tile_dim_y,     // Tile dimension (tiles, max 4x4)
+                                      uint64_t tile_c_step_x[4], uint64_t tile_c_step_y[4], uint64_t tile_c[4],
+                                      uint8_t **rbox_input_buffer, uint32_t *rbox_packets, TileSize tile_size)
 {
     print_comment(">>> rasterize_128x128_high_precision");
 
-    uint64 row_c[4];
+    uint64_t row_c[4];
 
-    for(uint32 eq = 0; eq < 4; eq++)
+    for(uint32_t eq = 0; eq < 4; eq++)
         row_c[eq] = tile_c[eq];
 
-    for(uint32 r = 0; r < tile_dim_y; r++)
+    for(uint32_t r = 0; r < tile_dim_y; r++)
     {
-        uint64 tile_corner_c[4][4];
+        uint64_t tile_corner_c[4][4];
 
-        for(uint32 eq = 0; eq < 4; eq++)
+        for(uint32_t eq = 0; eq < 4; eq++)
         {
             tile_corner_c[1][eq] = row_c[eq];
             tile_corner_c[3][eq] = row_c[eq] = row_c[eq] + tile_c_step_y[eq];
         }
         
-        uint32 saved_tile_x = tile_x;
+        uint32_t saved_tile_x = tile_x;
 
         bool tile_in_row = false;
 
-        for(uint32 c = 0; c < tile_dim_x; c++)
+        for(uint32_t c = 0; c < tile_dim_x; c++)
         {
-            for (uint32 eq = 0; eq < 4; eq++)
+            for (uint32_t eq = 0; eq < 4; eq++)
             {
                 tile_corner_c[0][eq] = tile_corner_c[1][eq];
                 tile_corner_c[2][eq] = tile_corner_c[3][eq];
@@ -1918,10 +1918,10 @@ void rasterize_128x128_high_precision(uint32 tile_x, uint32 tile_y,             
 
             bool trivial_discard = false;
             bool trivial_accept = true;
-            for (uint32 eq = 0; (eq < 3) && !trivial_discard; eq++)
+            for (uint32_t eq = 0; (eq < 3) && !trivial_discard; eq++)
             {
                 bool inside[4];
-                for(uint32 c = 0; c < 4; c++)
+                for(uint32_t c = 0; c < 4; c++)
                     inside[c] = ((tile_corner_c[c][eq] & (1ULL << 63)) == 0);
 
                 trivial_discard = !inside[0] && !inside[1] && !inside[2] && !inside[3];
@@ -1952,7 +1952,7 @@ void rasterize_128x128_high_precision(uint32 tile_x, uint32 tile_y,             
     print_comment("<<< rasterize_128x128_high_precision");
 }
 
-void generate_large_tri(uint64 a[], uint64 b[], uint8 **rbox_input_buffer, uint32 *rbox_input_packets)
+void generate_large_tri(uint64_t a[], uint64_t b[], uint8_t **rbox_input_buffer, uint32_t *rbox_input_packets)
 {
     print_comment(">>> generate_large_tri");
 
@@ -1960,15 +1960,15 @@ void generate_large_tri(uint64 a[], uint64 b[], uint8 **rbox_input_buffer, uint3
 
     large_tri_pckt->triangle.type = RBOX_INPCKT_LARGE_TRIANGLE;
     large_tri_pckt->triangle.tri_facing = 0;
-    for (uint32 eq = 0; eq < 3; eq++)
+    for (uint32_t eq = 0; eq < 3; eq++)
     {
-        large_tri_pckt->triangle.edge_eqs[eq].a_low  = (uint32)  (a[eq] & 0xFFFFFFFF);
-        large_tri_pckt->triangle.edge_eqs[eq].b_low  = (uint32)  (b[eq] & 0xFFFFFFFF);
-        large_tri_pckt->triangle.edge_eqs[eq].a_high = (uint32) ((a[eq] >> 32) & 0xFFFF);
-        large_tri_pckt->triangle.edge_eqs[eq].b_high = (uint32) ((b[eq] >> 32) & 0xFFFF);
+        large_tri_pckt->triangle.edge_eqs[eq].a_low  = (uint32_t)  (a[eq] & 0xFFFFFFFF);
+        large_tri_pckt->triangle.edge_eqs[eq].b_low  = (uint32_t)  (b[eq] & 0xFFFFFFFF);
+        large_tri_pckt->triangle.edge_eqs[eq].a_high = (uint32_t) ((a[eq] >> 32) & 0xFFFF);
+        large_tri_pckt->triangle.edge_eqs[eq].b_high = (uint32_t) ((b[eq] >> 32) & 0xFFFF);
     }
-    large_tri_pckt->triangle.depth_eq.a = (uint32) (a[3] & 0xFFFFFFFF);
-    large_tri_pckt->triangle.depth_eq.b = (uint32) (b[3] & 0xFFFFFFFF);
+    large_tri_pckt->triangle.depth_eq.a = (uint32_t) (a[3] & 0xFFFFFFFF);
+    large_tri_pckt->triangle.depth_eq.b = (uint32_t) (b[3] & 0xFFFFFFFF);
     large_tri_pckt->triangle.triangle_data_ptr = 0;
 
     (*rbox_input_buffer) += sizeof(RBOXInPcktLargeTri);
@@ -1978,12 +1978,12 @@ void generate_large_tri(uint64 a[], uint64 b[], uint8 **rbox_input_buffer, uint3
     print_comment("<<< generate_large_tri");
 }
 
-void create_high_prec_triangle_rbox_packets(TriangleSetupVector *triangle_setup_vector, uint8 *rbox_input_buffer, uint32 *rbox_packets, TileSize tile_size)
+void create_high_prec_triangle_rbox_packets(TriangleSetupVector *triangle_setup_vector, uint8_t *rbox_input_buffer, uint32_t *rbox_packets, TileSize tile_size)
 {
     print_comment(">>> create_high_prec_triangle_rbox_packets");
 
-    uint32 tile_dim_x;
-    uint32 tile_dim_y;
+    uint32_t tile_dim_x;
+    uint32_t tile_dim_y;
     switch(tile_size)
     {
         case TILE_SIZE_64x64 : tile_dim_x = 6; tile_dim_y = 6; break;
@@ -1992,23 +1992,23 @@ void create_high_prec_triangle_rbox_packets(TriangleSetupVector *triangle_setup_
         default : print_comment("Undefined tile size"); exit(-1); break;
     }
 
-    uint8 *rbox_in_buff_ptr = rbox_input_buffer;
+    uint8_t *rbox_in_buff_ptr = rbox_input_buffer;
 
-    for (uint32 idx = 0; idx < 4; idx++)
+    for (uint32_t idx = 0; idx < 4; idx++)
     {
         if ((triangle_setup_vector->high_precision_mask & (1 << (2 * idx))) != 0)
         {
             // Tile position in subpixel precision (8 bits). Align to tile size.
-            uint32 tile_x = triangle_setup_vector->tile_bound_minx[idx] >> (tile_dim_x + 8);
-            uint32 tile_y = triangle_setup_vector->tile_bound_miny[idx] >> (tile_dim_y + 8);
+            uint32_t tile_x = triangle_setup_vector->tile_bound_minx[idx] >> (tile_dim_x + 8);
+            uint32_t tile_y = triangle_setup_vector->tile_bound_miny[idx] >> (tile_dim_y + 8);
             
             // Tile dimensions in pixels.  Align to tile size;
-            uint32 tri_dim_x = triangle_setup_vector->tile_bound_dimx[idx] >> tile_dim_x;
-            uint32 tri_dim_y = triangle_setup_vector->tile_bound_dimy[idx] >> tile_dim_y;
+            uint32_t tri_dim_x = triangle_setup_vector->tile_bound_dimx[idx] >> tile_dim_x;
+            uint32_t tri_dim_y = triangle_setup_vector->tile_bound_dimy[idx] >> tile_dim_y;
 
-            uint64 a[4];
-            uint64 b[4];
-            uint64 c[4];
+            uint64_t a[4];
+            uint64_t b[4];
+            uint64_t c[4];
                 
             a[0] = triangle_setup_vector->a0[idx];
             a[1] = triangle_setup_vector->a1[idx];
@@ -2028,82 +2028,82 @@ void create_high_prec_triangle_rbox_packets(TriangleSetupVector *triangle_setup_
             // 2--3--
             // |  |
             // 0--1--
-            uint64 tile_c[4];
-            uint64 tile_c_step_x[4];
-            uint64 tile_c_step_y[4];
+            uint64_t tile_c[4];
+            uint64_t tile_c_step_x[4];
+            uint64_t tile_c_step_y[4];
 
-            for (uint32 eq = 0; eq < 4; eq++)
+            for (uint32_t eq = 0; eq < 4; eq++)
             {
                 tile_c_step_x[eq] = a[eq] * (1 << tile_dim_x);
                 tile_c_step_y[eq] = b[eq] * (1 << tile_dim_y);
             }
 
             // Compute tile equations at point 0
-            for (uint32 eq = 0; eq < 4; eq++)
+            for (uint32_t eq = 0; eq < 4; eq++)
                 tile_c[eq] = c[eq];
 
-            uint32 tile_step_x = 1 << (7 - tile_dim_x);
-            uint32 tile_step_y = 1 << (7 - tile_dim_y);
-            uint32 tile_cols = max(1, min(tri_dim_x, tile_step_x));
-            uint32 tile_rows = max(1, min(tri_dim_y, tile_step_y));
+            uint32_t tile_step_x = 1 << (7 - tile_dim_x);
+            uint32_t tile_step_y = 1 << (7 - tile_dim_y);
+            uint32_t tile_cols = max(1, min(tri_dim_x, tile_step_x));
+            uint32_t tile_rows = max(1, min(tri_dim_y, tile_step_y));
         
             rasterize_128x128_high_precision(tile_x, tile_y, tile_cols, tile_rows,
                                              tile_c_step_x, tile_c_step_y, tile_c,
                                              &rbox_in_buff_ptr, rbox_packets, tile_size);
 
-            uint32 tile_traverse_iterations = max(max(1, tri_dim_x >> (7 - tile_dim_x)), max(1, tri_dim_y >> (7 - tile_dim_y)));
+            uint32_t tile_traverse_iterations = max(max(1, tri_dim_x >> (7 - tile_dim_x)), max(1, tri_dim_y >> (7 - tile_dim_y)));
 
             if (tile_traverse_iterations > 1)
             {
-                uint64 traverse_c_step_x[4];
-                uint64 traverse_c_step_y[4];
+                uint64_t traverse_c_step_x[4];
+                uint64_t traverse_c_step_y[4];
 
-                for(uint32 eq = 0; eq < 4; eq++)
+                for(uint32_t eq = 0; eq < 4; eq++)
                 {
                     traverse_c_step_x[eq] = a[eq] * 128;
                     traverse_c_step_y[eq] = b[eq] * 128;
                 }
 
-                uint64 row_c[4];
-                uint64 column_c[4];
+                uint64_t row_c[4];
+                uint64_t column_c[4];
 
-                for(uint32 eq = 0; eq < 4; eq++)
+                for(uint32_t eq = 0; eq < 4; eq++)
                     row_c[eq] = column_c[eq] = tile_c[eq];
 
-                uint32 row_tile_x; 
-                uint32 row_tile_y = tile_y;
-                uint32 col_tile_x = tile_x;
-                uint32 col_tile_y;
+                uint32_t row_tile_x; 
+                uint32_t row_tile_y = tile_y;
+                uint32_t col_tile_x = tile_x;
+                uint32_t col_tile_y;
 
-                for(uint32 it = 1; it < tile_traverse_iterations; it++)
+                for(uint32_t it = 1; it < tile_traverse_iterations; it++)
                 {
-                    uint32 tri_pending_tiles_x = tri_dim_x;
-                    uint32 tri_pending_tiles_y = tri_dim_y;
+                    uint32_t tri_pending_tiles_x = tri_dim_x;
+                    uint32_t tri_pending_tiles_y = tri_dim_y;
 
                     if (it < max(1, tri_dim_y >> (7 - tile_dim_x)))
                     {
                         row_tile_x           = tile_x;
                         row_tile_y          += tile_step_y;
                         tri_pending_tiles_y -= tile_step_y;
-                        for(uint32 eq = 0; eq < 4; eq++)
+                        for(uint32_t eq = 0; eq < 4; eq++)
                             tile_c[eq] = row_c[eq] = row_c[eq] + traverse_c_step_y[eq];
 
-                        uint32 tile_cols = max(1, min(tri_pending_tiles_x, tile_step_x));
-                        uint32 tile_rows = max(1, min(tri_pending_tiles_y, tile_step_y));
+                        uint32_t tile_cols = max(1, min(tri_pending_tiles_x, tile_step_x));
+                        uint32_t tile_rows = max(1, min(tri_pending_tiles_y, tile_step_y));
 
                         rasterize_128x128_high_precision(row_tile_x, row_tile_y, tile_cols, tile_rows,
                                                          tile_c_step_x, tile_c_step_y, tile_c,
                                                          &rbox_in_buff_ptr, rbox_packets, tile_size);
 
-                        for (uint32 col = 0; (col < it) && (col << max(1, tri_dim_x >> (7 - tile_dim_x))); col++)
+                        for (uint32_t col = 0; (col < it) && (col << max(1, tri_dim_x >> (7 - tile_dim_x))); col++)
                         {
                             row_tile_x          += tile_step_x;
                             tri_pending_tiles_x -= tile_step_x;
-                            for(uint32 eq = 0; eq < 4; eq++)
+                            for(uint32_t eq = 0; eq < 4; eq++)
                                 tile_c[eq] += traverse_c_step_x[eq];
 
-                            uint32 tile_cols = max(1, min(tri_pending_tiles_x, tile_step_x));
-                            uint32 tile_rows = max(1, min(tri_pending_tiles_y, tile_step_y));
+                            uint32_t tile_cols = max(1, min(tri_pending_tiles_x, tile_step_x));
+                            uint32_t tile_rows = max(1, min(tri_pending_tiles_y, tile_step_y));
 
                             rasterize_128x128_high_precision(row_tile_x, row_tile_y, tile_cols, tile_rows,
                                                              tile_c_step_x, tile_c_step_y, tile_c,
@@ -2116,25 +2116,25 @@ void create_high_prec_triangle_rbox_packets(TriangleSetupVector *triangle_setup_
                         col_tile_x          += tile_step_x;
                         col_tile_y           = tile_y;
                         tri_pending_tiles_x -= tile_step_x;
-                        for(uint32 eq = 0; eq < 4; eq++)
+                        for(uint32_t eq = 0; eq < 4; eq++)
                             tile_c[eq] = column_c[eq] = column_c[eq] + traverse_c_step_x[eq];
 
-                        uint32 tile_cols = max(1, min(tri_pending_tiles_x, tile_step_x));
-                        uint32 tile_rows = max(1, min(tri_pending_tiles_y, tile_step_y));
+                        uint32_t tile_cols = max(1, min(tri_pending_tiles_x, tile_step_x));
+                        uint32_t tile_rows = max(1, min(tri_pending_tiles_y, tile_step_y));
 
                         rasterize_128x128_high_precision(col_tile_x, col_tile_y, tile_cols, tile_rows,
                                                          tile_c_step_x, tile_c_step_y, tile_c,
                                                          &rbox_in_buff_ptr, rbox_packets, tile_size);
                         
-                        for (uint32 row = 0; (row < it) && (row << max(1, tri_dim_y >> (7 - tile_dim_y))); row++)
+                        for (uint32_t row = 0; (row < it) && (row << max(1, tri_dim_y >> (7 - tile_dim_y))); row++)
                         {
                             col_tile_y          += tile_step_y;
                             tri_pending_tiles_y -= tile_step_y;
-                            for(uint32 eq = 0; eq < 4; eq++)
+                            for(uint32_t eq = 0; eq < 4; eq++)
                                 tile_c[eq] += traverse_c_step_y[eq];
 
-                            uint32 tile_cols = max(1, min(tri_pending_tiles_x, tile_step_x));
-                            uint32 tile_rows = max(1, min(tri_pending_tiles_y, tile_step_y));
+                            uint32_t tile_cols = max(1, min(tri_pending_tiles_x, tile_step_x));
+                            uint32_t tile_rows = max(1, min(tri_pending_tiles_y, tile_step_y));
 
                             rasterize_128x128_high_precision(col_tile_x, col_tile_y, tile_cols, tile_rows,
                                                              tile_c_step_x, tile_c_step_y, tile_c,
@@ -2149,7 +2149,7 @@ void create_high_prec_triangle_rbox_packets(TriangleSetupVector *triangle_setup_
     print_comment("<<< create_high_prec_triangle_rbox_packets");
 }
 
-void create_rbox_packets(TriangleSetupVector *triangle_setup_vector, uint8 *rbox_input_buffer, uint32 *rbox_packets, TileSize tile_size)
+void create_rbox_packets(TriangleSetupVector *triangle_setup_vector, uint8_t *rbox_input_buffer, uint32_t *rbox_packets, TileSize tile_size)
 {
     print_comment(">>> create_rbox_packets");
 
@@ -2161,15 +2161,15 @@ void create_rbox_packets(TriangleSetupVector *triangle_setup_vector, uint8 *rbox
         case TILE_SIZE_32x32 : create_low_prec_triangle_rbox_packets = create_low_prec_triangle_rbox_packets_tile_size_32x32; break;
     }
 
-    init(x10, (uint64) triangle_setup_vector);
-    init(x11, (uint64) rbox_input_buffer);
+    init(x10, (uint64_t) triangle_setup_vector);
+    init(x11, (uint64_t) rbox_input_buffer);
    
     addi(x12, x0, 0, "Set triangle index to 0");
     addi(x13, x0, 0, "Set RBOX packet counter to 0");
 
     lwu(x14, 388, x10, "Load low precision setup triangle mask");
 
-    init(x15, (uint64) (tile_size << 1));
+    init(x15, (uint64_t) (tile_size << 1));
 
     //
     // x10 -> triangle_setup_vector
@@ -2220,7 +2220,7 @@ high_precision_setup_triangles:
 
     if (triangle_setup_vector->high_precision_mask != 0)
     {
-        uint8 *rbox_in_buff_ptr = (uint8 *) XREGS[x11].x;
+        uint8_t *rbox_in_buff_ptr = (uint8_t *) XREGS[x11].x;
         create_high_prec_triangle_rbox_packets(triangle_setup_vector, rbox_in_buff_ptr, rbox_packets, tile_size);
     }
     print_comment("<<< create_rbox_packets");

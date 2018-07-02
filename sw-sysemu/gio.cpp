@@ -21,8 +21,8 @@ void puts_stamp( char * msg) {
 
   for (;;){
     i = s.find("\n", i);
-    if ( i = string::npos) break;
-    if ( s[i+1] == 0) break; // do not replace last \n
+    if (i == string::npos) break;
+    if (s[i+1] == 0) break; // do not replace last \n
     s.replace(i, 1, stamp);
   }
   printf("%s", s.c_str());

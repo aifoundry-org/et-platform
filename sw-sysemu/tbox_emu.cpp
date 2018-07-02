@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "tbox_emu.h"
+#include "emu_casts.h"
 
 // Placeholder for declarations and code that is not common
 // between EMU and Minion-Sim
@@ -12,7 +13,7 @@
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #define max(a, b) (((a) >= (b)) ? (a) : (b))
 
-const uint32 TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
+const uint32_t TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
     0,  // FORMAT_UNDEFINED
     1,  // FORMAT_R4G4_UNORM_PACK8
     2,  // FORMAT_R4G4B4A4_UNORM_PACK16
@@ -201,7 +202,7 @@ const uint32 TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
     0   // MAX_IMAGE_FORMAT
 };
 
-const uint32 TBOXEmu::BYTES_PER_TEXEL_IN_L1[] = {
+const uint32_t TBOXEmu::BYTES_PER_TEXEL_IN_L1[] = {
     0,  // FORMAT_UNDEFINED
     4,  // FORMAT_R4G4_UNORM_PACK8
     4,  // FORMAT_R4G4B4A4_UNORM_PACK16
@@ -650,6 +651,59 @@ const TBOXEmu::EncodeSRGBFP16 TBOXEmu::SRGB2LINEAR_TABLE[256] =
     {.encode = {0, 0x00, 0xf, 0}}
 };
 
+static inline uint16_t cast_bytes_to_uint16(uint8_t *src)
+{
+    return uint16_t(src[0]) | (uint16_t(src[1]) << 8);
+}
+
+static inline uint32_t cast_bytes_to_uint24(uint8_t *src)
+{
+    return uint32_t(src[0]) | (uint32_t(src[1]) << 8) | (uint32_t(src[2]) << 16);
+}
+
+static inline uint32_t cast_bytes_to_uint32(uint8_t *src)
+{
+    return uint32_t(src[0]) | (uint32_t(src[1]) << 8) | (uint32_t(src[2]) << 16) | (uint32_t(src[3]) << 24);
+}
+
+static inline uint64_t cast_bytes_to_uint64(uint8_t *src)
+{
+    return (uint64_t(src[0]) <<  0) | (uint64_t(src[1]) <<  8) | (uint64_t(src[2]) << 16) | (uint64_t(src[3]) << 24)
+         | (uint64_t(src[4]) << 32) | (uint64_t(src[5]) << 40) | (uint64_t(src[6]) << 48) | (uint64_t(src[7]) << 56);
+}
+
+static inline float32 cast_bytes_to_float32(uint8_t *src)
+{
+    return cast_uint32_to_float32(cast_bytes_to_uint32(src));
+}
+
+static inline void memcpy_uint16(uint8_t *dst, uint16_t src)
+{
+    dst[0] = (src >>  0) & 0xff;
+    dst[1] = (src >>  8) & 0xff;
+}
+
+static inline void memcpy_uint32(uint8_t *dst, uint32_t src)
+{
+    dst[0] = (src >>  0) & 0xff;
+    dst[1] = (src >>  8) & 0xff;
+    dst[2] = (src >> 16) & 0xff;
+    dst[3] = (src >> 24) & 0xff;
+}
+
+static inline void memcpy_uint64(uint8_t *dst, uint64_t src)
+{
+    dst[0] = (src >>  0) & 0xff;
+    dst[1] = (src >>  8) & 0xff;
+    dst[2] = (src >> 16) & 0xff;
+    dst[3] = (src >> 24) & 0xff;
+    dst[4] = (src >> 32) & 0xff;
+    dst[5] = (src >> 40) & 0xff;
+    dst[6] = (src >> 48) & 0xff;
+    dst[7] = (src >> 56) & 0xff;
+}
+
+
 TBOXEmu::TBOXEmu()
 {
     l2_requests = new L2Request[MAX_L2_REQUESTS];
@@ -662,18 +716,18 @@ TBOXEmu::TBOXEmu()
 
     imageTableAddress = 0;
     num_total_l2_requests = 0;
-    for (uint32 t = 0; t < EMU_NUM_THREADS; t++)
+    for (uint32_t t = 0; t < EMU_NUM_THREADS; t++)
     {
         request_pending[t] = false;
         num_new_l2_requests[t] = 0;
         num_created_l2_requests[t] = 0;
         num_pending_l2_requests[t] = 0;
     }
-    for (uint32 e = 0; e < MAX_L2_REQUESTS; e++)
+    for (uint32_t e = 0; e < MAX_L2_REQUESTS; e++)
         l2_requests[e].free = true;
 }
 
-void TBOXEmu::set_request_header(uint32 thread, uint64 src1, uint64 src2)
+void TBOXEmu::set_request_header(uint32_t thread, uint64_t src1, uint64_t src2)
 {
     if (thread >= EMU_NUM_THREADS)
     {
@@ -685,7 +739,7 @@ void TBOXEmu::set_request_header(uint32 thread, uint64 src1, uint64 src2)
     currentRequest[thread].data[1] = src1;
 }
 
-void TBOXEmu::set_request_coordinates(uint32 thread, uint32 idx, fdata coord)
+void TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, fdata coord)
 {
     if (thread >= EMU_NUM_THREADS)
     {
@@ -702,7 +756,7 @@ void TBOXEmu::set_request_coordinates(uint32 thread, uint32 idx, fdata coord)
     input[thread][idx] = coord;
 }
 
-fdata TBOXEmu::get_request_results(uint32 thread, uint32 idx)
+fdata TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 {
     if (thread >= EMU_NUM_THREADS)
     {
@@ -719,7 +773,7 @@ fdata TBOXEmu::get_request_results(uint32 thread, uint32 idx)
     return output[thread][idx];
 }
 
-void TBOXEmu::set_request_pending(uint32 thread, bool value)
+void TBOXEmu::set_request_pending(uint32_t thread, bool value)
 {
     if (thread >= EMU_NUM_THREADS)
     {
@@ -730,7 +784,7 @@ void TBOXEmu::set_request_pending(uint32 thread, bool value)
     request_pending[thread] = value;
 }
 
-bool TBOXEmu::check_request_pending(uint32 thread)
+bool TBOXEmu::check_request_pending(uint32_t thread)
 {
     if (thread >= EMU_NUM_THREADS)
     {
@@ -741,26 +795,26 @@ bool TBOXEmu::check_request_pending(uint32 thread)
     return request_pending[thread];
 }
 
-void TBOXEmu::set_image_table_address(uint64 address) { imageTableAddress = address; }
+void TBOXEmu::set_image_table_address(uint64_t address) { imageTableAddress = address; }
 
-uint64 TBOXEmu::get_image_table_address() { return imageTableAddress; }
+uint64_t TBOXEmu::get_image_table_address() { return imageTableAddress; }
 
-void TBOXEmu::print_sample_request(uint32 thread) const { print_sample_request(currentRequest[thread]); }
+void TBOXEmu::print_sample_request(uint32_t thread) const { print_sample_request(currentRequest[thread]); }
 
 void TBOXEmu::texture_cache_initialize()
 {
-    for (uint32 b = 0; b < TEXTURE_CACHE_BANKS; b++)
-        for (uint32 l = 0; l < TEXTURE_CACHE_LINES_PER_BANK; l++)
+    for (uint32_t b = 0; b < TEXTURE_CACHE_BANKS; b++)
+        for (uint32_t l = 0; l < TEXTURE_CACHE_LINES_PER_BANK; l++)
         {
             textureCacheValid[b][l] = false;
             textureCacheLRU[b][l] = l;
         }
 }
 
-void TBOXEmu::texture_cache_update_lru(uint32 bank, uint32 access_way)
+void TBOXEmu::texture_cache_update_lru(uint32_t bank, uint32_t access_way)
 {
     bool found_access = false;
-    uint32 l;
+    uint32_t l;
     for (l = 0; !found_access && (l < TEXTURE_CACHE_LINES_PER_BANK); l++)
         found_access = (textureCacheLRU[bank][l] == access_way);
 
@@ -769,31 +823,31 @@ void TBOXEmu::texture_cache_update_lru(uint32 bank, uint32 access_way)
     textureCacheLRU[bank][TEXTURE_CACHE_LINES_PER_BANK - 1] = access_way;
 }
 
-uint32 TBOXEmu::texture_cache_get_lru(uint32 bank)
+uint32_t TBOXEmu::texture_cache_get_lru(uint32_t bank)
 {
-    uint32 lru_way = textureCacheLRU[bank][0];
-    for (uint32 l = 0; l < (TEXTURE_CACHE_LINES_PER_BANK - 1); l++)
+    uint32_t lru_way = textureCacheLRU[bank][0];
+    for (uint32_t l = 0; l < (TEXTURE_CACHE_LINES_PER_BANK - 1); l++)
         textureCacheLRU[bank][l] = textureCacheLRU[bank][l + 1];
     textureCacheLRU[bank][TEXTURE_CACHE_LINES_PER_BANK - 1] = lru_way;
 
     return lru_way;
 }
 
-bool TBOXEmu::texture_cache_lookup(int32 bank, uint64 tag, uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE])
+bool TBOXEmu::texture_cache_lookup(int32_t bank, uint64_t tag, uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
     bool hit = false;
-    uint32 l = 0;
+    uint32_t l = 0;
     for (; !hit && (l < TEXTURE_CACHE_LINES_PER_BANK); l++)
         hit = textureCacheValid[bank][l] && (textureCacheTags[bank][l] == tag);
 
     if (hit)
     {
-        uint32 access_way = l - 1;
+        uint32_t access_way = l - 1;
 
         DEBUG_EMU( gprintf("\tTexture Cache hit at bank %d way %d for tag %016lx\n", bank, access_way, tag); )
 
         DEBUG_EMU( gprintf("\tData : "); )
-        for (uint32 q = 0; q < TEXTURE_CACHE_QWORDS_PER_LINE; q++)
+        for (uint32_t q = 0; q < TEXTURE_CACHE_QWORDS_PER_LINE; q++)
         {
             DEBUG_EMU( gprintf("%016lx ", textureCacheData[bank][access_way][q]); )
             data[q] = textureCacheData[bank][access_way][q];
@@ -806,11 +860,11 @@ bool TBOXEmu::texture_cache_lookup(int32 bank, uint64 tag, uint64 data[TEXTURE_C
     return hit;
 }
 
-void TBOXEmu::texture_cache_fill(int32 bank, uint64 tag, uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE])
+void TBOXEmu::texture_cache_fill(int32_t bank, uint64_t tag, uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
-    uint8 victim_way;
+    uint8_t victim_way;
     bool invalid_way = false;
-    for (uint32 l = 0; !invalid_way && (l < TEXTURE_CACHE_LINES_PER_BANK); l++)
+    for (uint32_t l = 0; !invalid_way && (l < TEXTURE_CACHE_LINES_PER_BANK); l++)
     {
         if (!textureCacheValid[bank][l])
         {
@@ -823,29 +877,29 @@ void TBOXEmu::texture_cache_fill(int32 bank, uint64 tag, uint64 data[TEXTURE_CAC
         texture_cache_update_lru(bank, victim_way);
     else
         victim_way = texture_cache_get_lru(bank);
- 
+
     DEBUG_EMU( gprintf("\tTexture Cache fill at bank %d way %d with tag %016lx\n", bank, victim_way, tag); )
 
     textureCacheValid[bank][victim_way] = true;
     textureCacheTags[bank][victim_way] = tag;
 
-    for (uint32 q = 0; q < TEXTURE_CACHE_QWORDS_PER_LINE; q++)
+    for (uint32_t q = 0; q < TEXTURE_CACHE_QWORDS_PER_LINE; q++)
         textureCacheData[bank][victim_way][q] = data[q];
 }
 
 void TBOXEmu::image_info_cache_initialize()
 {
-    for (uint32 l = 0; l < IMAGE_INFO_CACHE_SIZE; l++)
+    for (uint32_t l = 0; l < IMAGE_INFO_CACHE_SIZE; l++)
     {
         imageInfoCacheValid[l] = false;
         imageInfoCacheLRU[l] = l;
     }
 }
 
-void TBOXEmu::image_info_cache_update_lru(uint32 access_way)
+void TBOXEmu::image_info_cache_update_lru(uint32_t access_way)
 {
     bool found_access = false;
-    uint32 l;
+    uint32_t l;
     for (l = 0; !found_access && (l < IMAGE_INFO_CACHE_SIZE); l++)
         found_access = (imageInfoCacheLRU[l] == access_way);
 
@@ -854,26 +908,26 @@ void TBOXEmu::image_info_cache_update_lru(uint32 access_way)
     imageInfoCacheLRU[IMAGE_INFO_CACHE_SIZE - 1] = access_way;
 }
 
-uint32 TBOXEmu::image_info_cache_get_lru()
+uint32_t TBOXEmu::image_info_cache_get_lru()
 {
-    uint32 lru_way = imageInfoCacheLRU[0];
-    for (uint32 l = 0; l < (IMAGE_INFO_CACHE_SIZE - 1); l++)
+    uint32_t lru_way = imageInfoCacheLRU[0];
+    for (uint32_t l = 0; l < (IMAGE_INFO_CACHE_SIZE - 1); l++)
         imageInfoCacheLRU[l] = imageInfoCacheLRU[l + 1];
     imageInfoCacheLRU[IMAGE_INFO_CACHE_SIZE - 1] = lru_way;
 
     return lru_way;
 }
 
-bool TBOXEmu::image_info_cache_lookup(uint32 tag, ImageInfo &data)
+bool TBOXEmu::image_info_cache_lookup(uint32_t tag, ImageInfo &data)
 {
     bool hit = false;
-    uint32 l = 0;
+    uint32_t l = 0;
     for (; !hit && (l < IMAGE_INFO_CACHE_SIZE); l++)
         hit = imageInfoCacheValid[l] && (imageInfoCacheTags[l] == tag);
 
     if (hit)
     {
-        uint32 access_way = l - 1;
+        uint32_t access_way = l - 1;
 
         DEBUG_EMU( gprintf("\tImage Descriptor Cache hit at way %d for tag %d\n", access_way, tag); )
 
@@ -884,11 +938,11 @@ bool TBOXEmu::image_info_cache_lookup(uint32 tag, ImageInfo &data)
     return hit;
 }
 
-void TBOXEmu::image_info_cache_fill(uint32 tag, ImageInfo data)
+void TBOXEmu::image_info_cache_fill(uint32_t tag, ImageInfo data)
 {
-    uint8 victim_way;
+    uint8_t victim_way;
     bool invalid_way = false;
-    for (uint32 l = 0; !invalid_way && (l < IMAGE_INFO_CACHE_SIZE); l++)
+    for (uint32_t l = 0; !invalid_way && (l < IMAGE_INFO_CACHE_SIZE); l++)
     {
         if (!imageInfoCacheValid[l])
         {
@@ -910,7 +964,7 @@ void TBOXEmu::image_info_cache_fill(uint32 tag, ImageInfo data)
     imageInfoCache[victim_way] = data;
 }
 
-bool TBOXEmu::access_memory(uint64 address, uint64 &data)
+bool TBOXEmu::access_memory(uint64_t address, uint64_t &data)
 {
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
@@ -921,7 +975,7 @@ bool TBOXEmu::access_memory(uint64 address, uint64 &data)
 #endif
 }
 
-bool TBOXEmu::access_memory(uint64 address, uint32 &data)
+bool TBOXEmu::access_memory(uint64_t address, uint32_t &data)
 {
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
@@ -932,12 +986,12 @@ bool TBOXEmu::access_memory(uint64 address, uint32 &data)
 #endif
 }
 
-bool TBOXEmu::access_l2(uint64 address, uint64 &data)
+bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
 {
     DEBUG_EMU( gprintf("\t64-bit L2 access for address %016lx thread %d\n", address, current_thread); )
 
-    uint64 req_addr_lo =  address      & ~0x3fUL;
-    uint64 req_addr_hi = (address + 7) & ~0x3fUL;
+    uint64_t req_addr_lo =  address      & ~0x3fUL;
+    uint64_t req_addr_hi = (address + 7) & ~0x3fUL;
 
     if (req_addr_lo == req_addr_hi)
         return get_l2_data(address, data);
@@ -945,14 +999,14 @@ bool TBOXEmu::access_l2(uint64 address, uint64 &data)
     {
         DEBUG_EMU( gprintf("\tL2 access split cache line access\n"); )
 
-        uint32 unaligned_size = 8 - (address & 0x7UL);
+        uint32_t unaligned_size = 8 - (address & 0x7UL);
 
-        uint64 data_lo, data_hi;
+        uint64_t data_lo, data_hi;
         bool data_ready_hi, data_ready_lo;
 
         data_ready_lo = get_l2_data( address & ~0x07UL      , data_lo);
         data_ready_hi = get_l2_data((address & ~0x3fUL) + 64, data_hi);
-       
+
         bool data_ready = data_ready_hi && data_ready_lo;
 
         if (data_ready)
@@ -965,22 +1019,22 @@ bool TBOXEmu::access_l2(uint64 address, uint64 &data)
     }
 }
 
-bool TBOXEmu::access_l2(uint64 address, uint32 &data)
+bool TBOXEmu::access_l2(uint64_t address, uint32_t &data)
 {
     DEBUG_EMU( gprintf("\t32-bit L2 access for address %016lx thread %d\n", address, current_thread); )
 
-    uint64 req_addr_lo =  address      & ~0x3fUL;
-    uint64 req_addr_hi = (address + 3) & ~0x3fUL;
+    uint64_t req_addr_lo =  address      & ~0x3fUL;
+    uint64_t req_addr_hi = (address + 3) & ~0x3fUL;
 
     if (req_addr_lo == req_addr_hi)
         return get_l2_data(address, data);
     else
     {
         DEBUG_EMU( gprintf("\tL2 access split cache line access\n"); )
- 
-        uint32 unaligned_size = 4 - (address & 0x3UL);
 
-        uint32 data_lo, data_hi;
+        uint32_t unaligned_size = 4 - (address & 0x3UL);
+
+        uint32_t data_lo, data_hi;
         bool data_ready_lo, data_ready_hi;
 
         data_ready_lo = get_l2_data( address & ~0x03UL      , data_lo);
@@ -998,13 +1052,13 @@ bool TBOXEmu::access_l2(uint64 address, uint32 &data)
     }
 }
 
-bool TBOXEmu::get_l2_data(uint64 address, uint64 &data)
+bool TBOXEmu::get_l2_data(uint64_t address, uint64_t &data)
 {
     bool found = false;
 
     // Find matching request to the same cache line
-    uint32 req = 0;
-    for (uint32 proc_reqs = 0; !found && (proc_reqs < num_total_l2_requests) && (req < MAX_L2_REQUESTS); req++)
+    uint32_t req = 0;
+    for (uint32_t proc_reqs = 0; !found && (proc_reqs < num_total_l2_requests) && (req < MAX_L2_REQUESTS); req++)
     {
         if (!l2_requests[req].free)
         {
@@ -1019,8 +1073,8 @@ bool TBOXEmu::get_l2_data(uint64 address, uint64 &data)
         l2_requests[req - 1].thread_mask |= (1 << current_thread);
         if (l2_requests[req - 1].ready)
         {
-            uint8 *data_ptr = &((uint8 *) l2_requests[req - 1].data)[(address & 0x3fUL)];
-            data = *((uint64 *) data_ptr);
+            uint8_t *data_ptr = &((uint8_t *) l2_requests[req - 1].data)[(address & 0x3fUL)];
+            data = *((uint64_t *) data_ptr);
             DEBUG_EMU( gprintf("\tData ready %016lx\n", data); )
             return true;
         }
@@ -1036,13 +1090,13 @@ bool TBOXEmu::get_l2_data(uint64 address, uint64 &data)
     }
 }
 
-bool TBOXEmu::get_l2_data(uint64 address, uint32 &data)
+bool TBOXEmu::get_l2_data(uint64_t address, uint32_t &data)
 {
     bool found = false;
 
     // Find matching request to the same cache line
-    uint32 req = 0;
-    for (uint32 proc_reqs = 0; !found && (proc_reqs < num_total_l2_requests) && (req < MAX_L2_REQUESTS); req++)
+    uint32_t req = 0;
+    for (uint32_t proc_reqs = 0; !found && (proc_reqs < num_total_l2_requests) && (req < MAX_L2_REQUESTS); req++)
     {
         if (!l2_requests[req].free)
         {
@@ -1057,8 +1111,8 @@ bool TBOXEmu::get_l2_data(uint64 address, uint32 &data)
         l2_requests[req - 1].thread_mask |= (1 << current_thread);
         if (l2_requests[req - 1].ready)
         {
-            uint8 *data_ptr = &((uint8 *) l2_requests[req - 1].data)[address & 0x3fUL];
-            data = *((uint32 *) data_ptr);
+            uint8_t *data_ptr = &((uint8_t *) l2_requests[req - 1].data)[address & 0x3fUL];
+            data = *((uint32_t *) data_ptr);
             DEBUG_EMU( gprintf("\tData ready %08x\n", data); )
             return true;
         }
@@ -1074,13 +1128,13 @@ bool TBOXEmu::get_l2_data(uint64 address, uint32 &data)
     }
 }
 
-bool TBOXEmu::get_l2_data(uint64 address, ImageInfo &data)
+bool TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
 {
     bool found = false;
 
     // Find matching request to the same cache line
-    uint32 req = 0;
-    for (uint32 proc_reqs = 0; !found && (proc_reqs < num_total_l2_requests) && (req < MAX_L2_REQUESTS); req++)
+    uint32_t req = 0;
+    for (uint32_t proc_reqs = 0; !found && (proc_reqs < num_total_l2_requests) && (req < MAX_L2_REQUESTS); req++)
     {
         if (!l2_requests[req].free)
         {
@@ -1113,15 +1167,15 @@ bool TBOXEmu::get_l2_data(uint64 address, ImageInfo &data)
     }
 }
 
-void TBOXEmu::create_l2_request(uint64 address)
+void TBOXEmu::create_l2_request(uint64_t address)
 {
     if (num_total_l2_requests == MAX_L2_REQUESTS)
     {
         gprintf("Error!! No more L2 requests can be stored.\n");
         exit(-1);
     }
-    
-    uint32 free_entry = 0;
+
+    uint32_t free_entry = 0;
     while (!l2_requests[free_entry].free && (free_entry < MAX_L2_REQUESTS))
         free_entry++;
 
@@ -1143,11 +1197,11 @@ void TBOXEmu::create_l2_request(uint64 address)
     num_new_l2_requests[current_thread]++;
 }
 
-void TBOXEmu::clear_l2_requests(uint32 thread)
+void TBOXEmu::clear_l2_requests(uint32_t thread)
 {
-    uint32 num_cleared_l2_requests = 0;
+    uint32_t num_cleared_l2_requests = 0;
 
-    for (uint32 e = 0; e < MAX_L2_REQUESTS; e++)
+    for (uint32_t e = 0; e < MAX_L2_REQUESTS; e++)
     {
         if (!l2_requests[e].free)
         {
@@ -1171,7 +1225,7 @@ void TBOXEmu::clear_l2_requests(uint32 thread)
     num_pending_l2_requests[thread] = 0;
 }
 
-void TBOXEmu::reset_l2_requests_counters(uint32 thread)
+void TBOXEmu::reset_l2_requests_counters(uint32_t thread)
 {
     num_new_l2_requests[thread] = 0;
     num_pending_l2_requests[thread] = 0;
@@ -1179,11 +1233,11 @@ void TBOXEmu::reset_l2_requests_counters(uint32 thread)
 
 TBOXEmu::L2Request* TBOXEmu::get_l2_request_queue() const { return l2_requests; }
 
-uint32 TBOXEmu::get_num_new_l2_requests(uint32 thread) const { return num_new_l2_requests[thread]; }
+uint32_t TBOXEmu::get_num_new_l2_requests(uint32_t thread) const { return num_new_l2_requests[thread]; }
 
-uint32 TBOXEmu::get_num_pending_l2_requests(uint32 thread) const { return num_pending_l2_requests[thread]; }
+uint32_t TBOXEmu::get_num_pending_l2_requests(uint32_t thread) const { return num_pending_l2_requests[thread]; }
 
-bool TBOXEmu::read_image_info_cache_line(uint64 address, ImageInfo &data)
+bool TBOXEmu::read_image_info_cache_line(uint64_t address, ImageInfo &data)
 {
 #ifdef TBOX_MINION_SIM
     return get_l2_data(address, data);
@@ -1196,17 +1250,17 @@ bool TBOXEmu::read_image_info_cache_line(uint64 address, ImageInfo &data)
 #endif
 }
 
-bool TBOXEmu::read_texture_cache_line(ImageInfo currentImage, uint64 address[4], uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE])
+bool TBOXEmu::read_texture_cache_line(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
     bool data_ready;
 
-    uint64 readData[TEXTURE_CACHE_QWORDS_PER_LINE];
+    uint64_t readData[TEXTURE_CACHE_QWORDS_PER_LINE];
 
     data_ready = read_texture_cache_line_data(currentImage, address, readData);
 
     if (data_ready)
     {
-        uint32 startTexel = 2 * (address[0] & 0x01);
+        uint32_t startTexel = 2 * (address[0] & 0x01);
         decompress_texture_cache_line_data(currentImage, startTexel, readData, data);
         return true;
     }
@@ -1214,7 +1268,7 @@ bool TBOXEmu::read_texture_cache_line(ImageInfo currentImage, uint64 address[4],
         return false;
 }
 
-bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 address[4], uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE])
+bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
 
@@ -1254,8 +1308,8 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 addres
         case FORMAT_R8_SRGB:
         case FORMAT_R16G16_UNORM:
         case FORMAT_R16G16_SNORM:
-            for (uint32 l = 0; l < 4; l++)
-                data_ready = data_ready && access_memory(address[l], ((uint32 *) data)[l]);
+            for (uint32_t l = 0; l < 4; l++)
+                data_ready = data_ready && access_memory(address[l], ((uint32_t *) data)[l]);
             break;
 
         // 4 texels per line, 4 x 16 = 64b
@@ -1279,7 +1333,7 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 addres
         case FORMAT_R8G8B8A8_SRGB:
         case FORMAT_B8G8R8A8_SRGB:
         case FORMAT_A8B8G8R8_SRGB_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
                 data_ready = data_ready && access_memory(address[l], data[l]);
             break;
         case FORMAT_R8G8B8_UNORM:
@@ -1300,7 +1354,7 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 addres
         case FORMAT_D24_UNORM_S8_UINT:
         case FORMAT_R32_SFLOAT:
         case FORMAT_D32_SFLOAT:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
                 data_ready = data_ready && access_memory(address[l]    , data[l * 2 + 0]);
                 data_ready = data_ready && access_memory(address[l] + 8, data[l * 2 + 1]);
@@ -1310,7 +1364,7 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 addres
         case FORMAT_R16G16B16_SNORM:
         case FORMAT_R16G16B16A16_UNORM:
         case FORMAT_R16G16B16A16_SNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
                 data_ready = data_ready && access_memory(address[l]     , data[l * 2 + 0]);
                 data_ready = data_ready && access_memory(address[l] +  8, data[l * 2 + 1]);
@@ -1319,7 +1373,7 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 addres
         case FORMAT_R16G16B16_SFLOAT:
         case FORMAT_R16G16B16A16_SFLOAT:
         case FORMAT_R32G32_SFLOAT:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
                 data_ready = data_ready && access_memory(address[l]    , data[l * 2 + 0]);
                 data_ready = data_ready && access_memory(address[l] + 8, data[l * 2 + 1]);
@@ -1327,7 +1381,7 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 addres
             break;
         case FORMAT_R32G32B32_SFLOAT:
         case FORMAT_R32G32B32A32_SFLOAT:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
                 data_ready = data_ready && access_memory(address[l]     , data[l * 4 + 0]);
                 data_ready = data_ready && access_memory(address[l] +  8, data[l * 4 + 1]);
@@ -1336,8 +1390,8 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 addres
             }
             break;
         default:
-            for (uint32 l = 0; l < 4; l++)
-                for (uint32 q = 0; q < 2; q++)
+            for (uint32_t l = 0; l < 4; l++)
+                for (uint32_t q = 0; q < 2; q++)
                     data_ready = data_ready && access_memory(address[l] + q * 8, data[l * 2 + q]);
             break;
     }
@@ -1345,9 +1399,9 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64 addres
     return data_ready;
 }
 
-void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32 startTexel,
-                                                 uint64 inData[TEXTURE_CACHE_QWORDS_PER_LINE],
-                                                 uint64 outData[TEXTURE_CACHE_QWORDS_PER_LINE])
+void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
+                                                 uint64_t inData[TEXTURE_CACHE_QWORDS_PER_LINE],
+                                                 uint64_t outData[TEXTURE_CACHE_QWORDS_PER_LINE])
 {
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
     bool tiled = currentImage.info.tiled;
@@ -1356,688 +1410,688 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32 
     {
         case FORMAT_BC1_RGB_UNORM_BLOCK:
         case FORMAT_BC1_RGBA_UNORM_BLOCK:
-            decode_BC1((uint8 *) inData, (uint8 *) outData);
+            decode_BC1((uint8_t *) inData, (uint8_t *) outData);
             break;
         case FORMAT_BC2_UNORM_BLOCK:
-            decode_BC2((uint8 *) inData, (uint8 *) outData);
+            decode_BC2((uint8_t *) inData, (uint8_t *) outData);
             break;
         case FORMAT_BC3_UNORM_BLOCK:
-            decode_BC3((uint8 *) inData, (uint8 *) outData);
+            decode_BC3((uint8_t *) inData, (uint8_t *) outData);
             break;
         case FORMAT_BC4_UNORM_BLOCK:
-            decode_BC4_UNORM((uint8 *) inData, (uint8 *) outData);
+            decode_BC4_UNORM((uint8_t *) inData, (uint8_t *) outData);
             break;
         case FORMAT_BC4_SNORM_BLOCK:
-            decode_BC4_SNORM((uint8 *) inData, (uint8 *) outData);
+            decode_BC4_SNORM((uint8_t *) inData, (uint8_t *) outData);
             break;
         case FORMAT_BC5_UNORM_BLOCK:
-            decode_BC5_UNORM((uint8 *) inData, (uint8 *) outData);
+            decode_BC5_UNORM((uint8_t *) inData, (uint8_t *) outData);
             break;
         case FORMAT_BC5_SNORM_BLOCK:
-            decode_BC5_SNORM((uint8 *) inData, (uint8 *) outData);
+            decode_BC5_SNORM((uint8_t *) inData, (uint8_t *) outData);
             break;
         case FORMAT_BC1_RGB_SRGB_BLOCK:
         case FORMAT_BC1_RGBA_SRGB_BLOCK:
             {
-                uint8 decompressedData[64];
-                decode_BC1((uint8 *) inData, (uint8 *) decompressedData);
-                for (uint32 l = 0; l < 4; l++)
-                    for (uint32 t = 0; t < 2; t++)
+                uint8_t decompressedData[64];
+                decode_BC1((uint8_t *) inData, (uint8_t *) decompressedData);
+                for (uint32_t l = 0; l < 4; l++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint8 r_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 0];
-                        uint8 g_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 1];
-                        uint8 b_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 2];
-                        uint8 a_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 3];
-                        uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                        uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                        uint16 b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
-                        uint16 a_fp16 = SRGB2LINEAR_TABLE[a_un8].value;
-                        // uint16 a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = a_fp16;
+                        uint8_t r_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 0];
+                        uint8_t g_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 1];
+                        uint8_t b_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 2];
+                        uint8_t a_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 3];
+                        uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                        uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                        uint16_t b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
+                        uint16_t a_fp16 = SRGB2LINEAR_TABLE[a_un8].value;
+                        // uint16_t a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = a_fp16;
                     }
             }
             break;
         case FORMAT_BC2_SRGB_BLOCK:
             {
-                uint8 decompressedData[64];
-                decode_BC2((uint8 *) inData, (uint8 *) decompressedData);
-                for (uint32 l = 0; l < 4; l++)
-                    for (uint32 t = 0; t < 2; t++)
+                uint8_t decompressedData[64];
+                decode_BC2((uint8_t *) inData, (uint8_t *) decompressedData);
+                for (uint32_t l = 0; l < 4; l++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint8 r_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 0];
-                        uint8 g_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 1];
-                        uint8 b_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 2];
-                        uint8 a_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 3];
-                        uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                        uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                        uint16 b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
-                        uint16 a_fp16 = SRGB2LINEAR_TABLE[a_un8].value;
-                        //uint16 a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = a_fp16;
+                        uint8_t r_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 0];
+                        uint8_t g_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 1];
+                        uint8_t b_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 2];
+                        uint8_t a_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 3];
+                        uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                        uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                        uint16_t b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
+                        uint16_t a_fp16 = SRGB2LINEAR_TABLE[a_un8].value;
+                        //uint16_t a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = a_fp16;
                     }
             }
             break;
         case FORMAT_BC3_SRGB_BLOCK:
             {
-                uint8 decompressedData[64];
-                decode_BC3((uint8 *) inData, (uint8 *) decompressedData);
-                for (uint32 l = 0; l < 4; l++)
-                    for (uint32 t = 0; t < 2; t++)
+                uint8_t decompressedData[64];
+                decode_BC3((uint8_t *) inData, (uint8_t *) decompressedData);
+                for (uint32_t l = 0; l < 4; l++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint8 r_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 0];
-                        uint8 g_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 1];
-                        uint8 b_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 2];
-                        uint8 a_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 3];
-                        uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                        uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                        uint16 b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
-                        uint16 a_fp16 = SRGB2LINEAR_TABLE[a_un8].value;
-                        //uint16 a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = a_fp16;
+                        uint8_t r_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 0];
+                        uint8_t g_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 1];
+                        uint8_t b_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 2];
+                        uint8_t a_un8 = decompressedData[l * 16 + (startTexel + t) * 4 + 3];
+                        uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                        uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                        uint16_t b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
+                        uint16_t a_fp16 = SRGB2LINEAR_TABLE[a_un8].value;
+                        //uint16_t a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = a_fp16;
                     }
             }
             break;
         case FORMAT_BC6H_UFLOAT_BLOCK:
             {
-                for (uint32 l = 0; l < 4; l++)
-                    for (uint32 t = 0; t < 2; t++)
+                for (uint32_t l = 0; l < 4; l++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
                         float32 decompressedTexel[4];
-                        fetch_bptc_rgb_unsigned_float((uint8 *) inData, 0, startTexel + t, l, decompressedTexel);
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = (uint16) float32tofloat16(decompressedTexel[0]);
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = (uint16) float32tofloat16(decompressedTexel[1]);
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = (uint16) float32tofloat16(decompressedTexel[2]);
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = (uint16) float32tofloat16(decompressedTexel[3]);
+                        fetch_bptc_rgb_unsigned_float((uint8_t *) inData, 0, startTexel + t, l, decompressedTexel);
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = (uint16_t) float32tofloat16(decompressedTexel[0]);
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = (uint16_t) float32tofloat16(decompressedTexel[1]);
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = (uint16_t) float32tofloat16(decompressedTexel[2]);
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = (uint16_t) float32tofloat16(decompressedTexel[3]);
                     }
             }
             break;
         case FORMAT_BC6H_SFLOAT_BLOCK:
             {
-                for (uint32 l = 0; l < 4; l++)
-                    for (uint32 t = 0; t < 2; t++)
+                for (uint32_t l = 0; l < 4; l++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
                         float32 decompressedTexel[4];
-                        fetch_bptc_rgb_signed_float((uint8 *) inData, 0, startTexel + t, l, decompressedTexel);
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = (uint16) float32tofloat16(decompressedTexel[0]);
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = (uint16) float32tofloat16(decompressedTexel[1]);
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = (uint16) float32tofloat16(decompressedTexel[2]);
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = (uint16) float32tofloat16(decompressedTexel[3]);
+                        fetch_bptc_rgb_signed_float((uint8_t *) inData, 0, startTexel + t, l, decompressedTexel);
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = (uint16_t) float32tofloat16(decompressedTexel[0]);
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = (uint16_t) float32tofloat16(decompressedTexel[1]);
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = (uint16_t) float32tofloat16(decompressedTexel[2]);
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = (uint16_t) float32tofloat16(decompressedTexel[3]);
                     }
             }
             break;
         case FORMAT_BC7_UNORM_BLOCK:
             {
-                for (uint32 l = 0; l < 4; l++)
-                    for (uint32 t = 0; t < 4; t++)
+                for (uint32_t l = 0; l < 4; l++)
+                    for (uint32_t t = 0; t < 4; t++)
                     {
-                        uint8 decompressedTexel[4];
-                        fetch_bptc_rgba_unorm_bytes((uint8 *) inData, 0, t, l, decompressedTexel);
-                        ((uint32 *) outData)[l * 4 + t] = *((uint32 *) decompressedTexel);
+                        uint8_t decompressedTexel[4];
+                        fetch_bptc_rgba_unorm_bytes((uint8_t *) inData, 0, t, l, decompressedTexel);
+                        ((uint32_t *) outData)[l * 4 + t] = cast_bytes_to_uint32(decompressedTexel);
                     }
             }
             break;
         case FORMAT_BC7_SRGB_BLOCK:
             {
-                for (uint32 l = 0; l < 4; l++)
-                    for (uint32 t = 0; t < 2; t++)
+                for (uint32_t l = 0; l < 4; l++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint8 decompressedTexel[4];
-                        fetch_bptc_rgba_unorm_bytes((uint8 *) inData, 0, t, l, decompressedTexel);
-                        uint8 r_un8 = decompressedTexel[0];
-                        uint8 g_un8 = decompressedTexel[1];
-                        uint8 b_un8 = decompressedTexel[2];
-                        uint8 a_un8 = decompressedTexel[3];
-                        uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                        uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                        uint16 b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
-                        uint16 a_fp16 = SRGB2LINEAR_TABLE[a_un8].value;
-                        //uint16 a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = a_fp16;
+                        uint8_t decompressedTexel[4];
+                        fetch_bptc_rgba_unorm_bytes((uint8_t *) inData, 0, t, l, decompressedTexel);
+                        uint8_t r_un8 = decompressedTexel[0];
+                        uint8_t g_un8 = decompressedTexel[1];
+                        uint8_t b_un8 = decompressedTexel[2];
+                        uint8_t a_un8 = decompressedTexel[3];
+                        uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                        uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                        uint16_t b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
+                        uint16_t a_fp16 = SRGB2LINEAR_TABLE[a_un8].value;
+                        //uint16_t a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = a_fp16;
                     }
             }
             break;
         case FORMAT_R4G4_UNORM_PACK8:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = (((uint8 *) inData)[l * 4 + t] >> 4) & 0xf;
-                    uint8 g =  ((uint8 *) inData)[l * 4 + t]       & 0xf;
+                    uint8_t r = (((uint8_t *) inData)[l * 4 + t] >> 4) & 0xf;
+                    uint8_t g =  ((uint8_t *) inData)[l * 4 + t]       & 0xf;
                     r = (r << 4) | r;
                     g = (g << 4) | g;
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | 0xFF000000;
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | 0xFF000000;
                 }
             }
             break;
         case FORMAT_R4G4B4A4_UNORM_PACK16:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = (((uint16 *) inData)[l * 4 + t] >> 12) & 0xf;
-                    uint8 g = (((uint16 *) inData)[l * 4 + t] >>  8) & 0xf;
-                    uint8 b = (((uint16 *) inData)[l * 4 + t] >>  4) & 0xf;
-                    uint8 a =  ((uint16 *) inData)[l * 4 + t]        & 0xf;
+                    uint8_t r = (((uint16_t *) inData)[l * 4 + t] >> 12) & 0xf;
+                    uint8_t g = (((uint16_t *) inData)[l * 4 + t] >>  8) & 0xf;
+                    uint8_t b = (((uint16_t *) inData)[l * 4 + t] >>  4) & 0xf;
+                    uint8_t a =  ((uint16_t *) inData)[l * 4 + t]        & 0xf;
                     r = (r << 4) | r;
                     g = (g << 4) | g;
                     b = (b << 4) | b;
                     a = (a << 4) | a;
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | ((uint32)a << 24);
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | ((uint32_t)a << 24);
                 }
             }
             break;
         case FORMAT_B4G4R4A4_UNORM_PACK16:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = (((uint16 *) inData)[l * 4 + t] >>  4) & 0xf;
-                    uint8 g = (((uint16 *) inData)[l * 4 + t] >>  8) & 0xf;
-                    uint8 b = (((uint16 *) inData)[l * 4 + t] >> 12) & 0xf;
-                    uint8 a =  ((uint16 *) inData)[l * 4 + t]        & 0xf;
+                    uint8_t r = (((uint16_t *) inData)[l * 4 + t] >>  4) & 0xf;
+                    uint8_t g = (((uint16_t *) inData)[l * 4 + t] >>  8) & 0xf;
+                    uint8_t b = (((uint16_t *) inData)[l * 4 + t] >> 12) & 0xf;
+                    uint8_t a =  ((uint16_t *) inData)[l * 4 + t]        & 0xf;
                     r = (r << 4) | r;
                     b = (b << 4) | b;
                     g = (g << 4) | g;
                     a = (a << 4) | a;
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | ((uint32)a << 24);
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | ((uint32_t)a << 24);
                 }
             }
             break;
         case FORMAT_R5G6B5_UNORM_PACK16:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = (((uint16 *) inData)[l * 4 + t] >> 11) & 0x1f;
-                    uint8 g = (((uint16 *) inData)[l * 4 + t] >>  5) & 0x3f;
-                    uint8 b =  ((uint16 *) inData)[l * 4 + t]        & 0x1f;
+                    uint8_t r = (((uint16_t *) inData)[l * 4 + t] >> 11) & 0x1f;
+                    uint8_t g = (((uint16_t *) inData)[l * 4 + t] >>  5) & 0x3f;
+                    uint8_t b =  ((uint16_t *) inData)[l * 4 + t]        & 0x1f;
                     r = (r << 3) | ((r >> 2) & 0x7);
                     g = (g << 2) | ((g >> 4) & 0x3);
                     b = (b << 3) | ((b >> 2) & 0x7);
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | 0xFF000000;
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | 0xFF000000;
                 }
             }
             break;
         case FORMAT_B5G6R5_UNORM_PACK16:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r =  ((uint16 *) inData)[l * 4 + t]        & 0x1f;
-                    uint8 g = (((uint16 *) inData)[l * 4 + t] >>  5) & 0x3f;
-                    uint8 b = (((uint16 *) inData)[l * 4 + t] >> 11) & 0x1f;
+                    uint8_t r =  ((uint16_t *) inData)[l * 4 + t]        & 0x1f;
+                    uint8_t g = (((uint16_t *) inData)[l * 4 + t] >>  5) & 0x3f;
+                    uint8_t b = (((uint16_t *) inData)[l * 4 + t] >> 11) & 0x1f;
                     r = (r << 3) | ((r >> 2) & 0x7);
                     g = (g << 2) | ((g >> 4) & 0x3);
                     b = (b << 3) | ((b >> 2) & 0x7);
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | 0xFF000000;
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | 0xFF000000;
                 }
             }
             break;
         case FORMAT_R5G5B5A1_UNORM_PACK16:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = (((uint16 *) inData)[l * 4 + t] >> 11) & 0x1f;
-                    uint8 g = (((uint16 *) inData)[l * 4 + t] >>  6) & 0x1f;
-                    uint8 b = (((uint16 *) inData)[l * 4 + t] >>  1) & 0x1f;
-                    uint8 a =  ((uint16 *) inData)[l * 4 + t]        & 0x01;
+                    uint8_t r = (((uint16_t *) inData)[l * 4 + t] >> 11) & 0x1f;
+                    uint8_t g = (((uint16_t *) inData)[l * 4 + t] >>  6) & 0x1f;
+                    uint8_t b = (((uint16_t *) inData)[l * 4 + t] >>  1) & 0x1f;
+                    uint8_t a =  ((uint16_t *) inData)[l * 4 + t]        & 0x01;
                     r = (r << 3) | ((r >> 2) & 0x7);
                     g = (g << 3) | ((g >> 2) & 0x7);
                     b = (b << 3) | ((b >> 2) & 0x7);
                     a = -a;
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | ((uint32)a << 24);
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | ((uint32_t)a << 24);
                 }
             }
             break;
         case FORMAT_B5G5R5A1_UNORM_PACK16:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = (((uint16 *) inData)[l * 4 + t] >>  1) & 0x1f;
-                    uint8 g = (((uint16 *) inData)[l * 4 + t] >>  6) & 0x1f;
-                    uint8 b = (((uint16 *) inData)[l * 4 + t] >> 11) & 0x1f;
-                    uint8 a =  ((uint16 *) inData)[l * 4 + t]        & 0x01;
+                    uint8_t r = (((uint16_t *) inData)[l * 4 + t] >>  1) & 0x1f;
+                    uint8_t g = (((uint16_t *) inData)[l * 4 + t] >>  6) & 0x1f;
+                    uint8_t b = (((uint16_t *) inData)[l * 4 + t] >> 11) & 0x1f;
+                    uint8_t a =  ((uint16_t *) inData)[l * 4 + t]        & 0x01;
                     r = (r << 3) | ((r >> 2) & 0x7);
                     g = (g << 3) | ((g >> 2) & 0x7);
                     b = (b << 3) | ((b >> 2) & 0x7);
                     a = -a;
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | ((uint32)a << 24);
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | ((uint32_t)a << 24);
                 }
             }
             break;
         case FORMAT_A1R5G5B5_UNORM_PACK16:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = (((uint16 *) inData)[l * 4 + t] >> 10) & 0x1f;
-                    uint8 g = (((uint16 *) inData)[l * 4 + t] >>  5) & 0x1f;
-                    uint8 b =  ((uint16 *) inData)[l * 4 + t]        & 0x1f;
-                    uint8 a = (((uint16 *) inData)[l * 4 + t] >> 15) & 0x01;
+                    uint8_t r = (((uint16_t *) inData)[l * 4 + t] >> 10) & 0x1f;
+                    uint8_t g = (((uint16_t *) inData)[l * 4 + t] >>  5) & 0x1f;
+                    uint8_t b =  ((uint16_t *) inData)[l * 4 + t]        & 0x1f;
+                    uint8_t a = (((uint16_t *) inData)[l * 4 + t] >> 15) & 0x01;
                     r = (r << 3) | ((r >> 2) & 0x7);
                     g = (g << 3) | ((g >> 2) & 0x7);
                     b = (b << 3) | ((b >> 2) & 0x7);
                     a = -a;
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | ((uint32)a << 24);
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | ((uint32_t)a << 24);
                 }
             }
             break;
         case FORMAT_R8_UNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = ((uint8 *) inData)[l * 4 + t];
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | 0xFF000000;
+                    uint8_t r = ((uint8_t *) inData)[l * 4 + t];
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | 0xFF000000;
                 }
             }
             break;
         case FORMAT_R8_SNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = ((uint8 *) inData)[l * 4 + t];
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | 0x7F000000;
+                    uint8_t r = ((uint8_t *) inData)[l * 4 + t];
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | 0x7F000000;
                 }
             }
             break;
         case FORMAT_R8_SRGB:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r_un8 = ((uint8 *) inData)[l * 4 + t];
+                    uint8_t r_un8 = ((uint8_t *) inData)[l * 4 + t];
                     float32 r_fp32 = unorm8tofloat32(r_un8);
                     r_fp32 = powf(r_fp32, 2.2);
-                    uint16 r_fp16 = (uint16)float32tofloat16(r_fp32);
-                    ((uint16 *) outData)[l * 8 + t * 2 + 0] = (uint32)r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 2 + 1] = 0;
+                    uint16_t r_fp16 = (uint16_t)float32tofloat16(r_fp32);
+                    ((uint16_t *) outData)[l * 8 + t * 2 + 0] = (uint32_t)r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 2 + 1] = 0;
                 }
             }
             break;
         case FORMAT_R8G8_UNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = ((uint8 *) inData)[l * 8 + t * 2];
-                    uint8 g = ((uint8 *) inData)[l * 8 + t * 2 + 1];
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | 0xFF000000;
+                    uint8_t r = ((uint8_t *) inData)[l * 8 + t * 2];
+                    uint8_t g = ((uint8_t *) inData)[l * 8 + t * 2 + 1];
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | 0xFF000000;
                 }
             }
             break;
         case FORMAT_R8G8_SNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r = ((uint8 *) inData)[l * 8 + t * 2];
-                    uint8 g = ((uint8 *) inData)[l * 8 + t * 2 + 1];
-                    ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | 0x7F000000;
+                    uint8_t r = ((uint8_t *) inData)[l * 8 + t * 2];
+                    uint8_t g = ((uint8_t *) inData)[l * 8 + t * 2 + 1];
+                    ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | 0x7F000000;
                 }
             }
             break;
         case FORMAT_R8G8_SRGB:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint8 r_un8 = ((uint8 *) inData)[l * 8 + t * 2];
-                    uint8 g_un8 = ((uint8 *) inData)[l * 8 + t * 2 + 1];
-                    uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                    uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                    ((uint16 *) outData)[l * 8 + t * 2 + 0] = r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 2 + 1] = g_fp16;
+                    uint8_t r_un8 = ((uint8_t *) inData)[l * 8 + t * 2];
+                    uint8_t g_un8 = ((uint8_t *) inData)[l * 8 + t * 2 + 1];
+                    uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                    uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                    ((uint16_t *) outData)[l * 8 + t * 2 + 0] = r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 2 + 1] = g_fp16;
                 }
             }
             break;
         case FORMAT_R8G8B8_UNORM:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 4; t++)
+                    for (uint32_t t = 0; t < 4; t++)
                     {
-                        uint8 r = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 0];
-                        uint8 g = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 1];
-                        uint8 b = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 2];
-                        ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | 0xFF000000;
+                        uint8_t r = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 0];
+                        uint8_t g = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 1];
+                        uint8_t b = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 2];
+                        ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | 0xFF000000;
                     }
                 }
             }
             break;
         case FORMAT_R8G8B8_SNORM:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 4; t++)
+                    for (uint32_t t = 0; t < 4; t++)
                     {
-                        uint8 r = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 0];
-                        uint8 g = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 1];
-                        uint8 b = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 2];
-                        ((uint32 *) outData)[l * 4 + t] = (uint32)r | ((uint32)g << 8) | ((uint32)b << 16) | 0x7F000000;
+                        uint8_t r = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 0];
+                        uint8_t g = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 1];
+                        uint8_t b = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 2];
+                        ((uint32_t *) outData)[l * 4 + t] = (uint32_t)r | ((uint32_t)g << 8) | ((uint32_t)b << 16) | 0x7F000000;
                     }
                 }
             }
             break;
         case FORMAT_R8G8B8_SRGB:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 2; t++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint8 r_un8 = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 0];
-                        uint8 g_un8 = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 1];
-                        uint8 b_un8 = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 2];
-                        uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                        uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                        uint16 b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
+                        uint8_t r_un8 = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 0];
+                        uint8_t g_un8 = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 1];
+                        uint8_t b_un8 = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 2];
+                        uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                        uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                        uint16_t b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
                     }
                 }
             }
             break;
         case FORMAT_B8G8R8_UNORM:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 4; t++)
+                    for (uint32_t t = 0; t < 4; t++)
                     {
-                        uint8 r = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 2];
-                        uint8 g = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 1];
-                        uint8 b = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 0];
-                        ((uint32 *) outData)[l * 4 + t] = (uint32) r | ((uint32) g << 8) | ((uint32) b << 16) | 0xFF000000;
+                        uint8_t r = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 2];
+                        uint8_t g = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 1];
+                        uint8_t b = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 0];
+                        ((uint32_t *) outData)[l * 4 + t] = (uint32_t) r | ((uint32_t) g << 8) | ((uint32_t) b << 16) | 0xFF000000;
                     }
                 }
             }
             break;
         case FORMAT_B8G8R8_SNORM:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 4; t++)
+                    for (uint32_t t = 0; t < 4; t++)
                     {
-                        uint8 r = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 2];
-                        uint8 g = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 1];
-                        uint8 b = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 0];
-                        ((uint32 *) outData)[l * 4 + t] = (uint32) r | ((uint32) g << 8) | ((uint32) b << 16) | 0x7F000000;
+                        uint8_t r = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 2];
+                        uint8_t g = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 1];
+                        uint8_t b = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 0];
+                        ((uint32_t *) outData)[l * 4 + t] = (uint32_t) r | ((uint32_t) g << 8) | ((uint32_t) b << 16) | 0x7F000000;
                     }
                 }
             }
             break;
         case FORMAT_B8G8R8_SRGB:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 2; t++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint8 r_un8 = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 2];
-                        uint8 g_un8 = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 1];
-                        uint8 b_un8 = ((uint8 *) inData)[l * 4 * texel_size + t * texel_size + 0];
-                        uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                        uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                        uint16 b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
+                        uint8_t r_un8 = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 2];
+                        uint8_t g_un8 = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 1];
+                        uint8_t b_un8 = ((uint8_t *) inData)[l * 4 * texel_size + t * texel_size + 0];
+                        uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                        uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                        uint16_t b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
                     }
                 }
             }
             break;
         case FORMAT_R8G8B8A8_SRGB:
         case FORMAT_A8B8G8R8_SRGB_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 2; t++)
+                for (uint32_t t = 0; t < 2; t++)
                 {
-                    uint8 r_un8 = ((uint8 *) inData)[l * 16 + t * 4 + 0];
-                    uint8 g_un8 = ((uint8 *) inData)[l * 16 + t * 4 + 1];
-                    uint8 b_un8 = ((uint8 *) inData)[l * 16 + t * 4 + 2];
-                    uint8 a_un8 = ((uint8 *) inData)[l * 16 + t * 4 + 3];
-                    uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                    uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                    uint16 b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
-                    uint16 a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
-                    ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 3] = a_fp16;
+                    uint8_t r_un8 = ((uint8_t *) inData)[l * 16 + t * 4 + 0];
+                    uint8_t g_un8 = ((uint8_t *) inData)[l * 16 + t * 4 + 1];
+                    uint8_t b_un8 = ((uint8_t *) inData)[l * 16 + t * 4 + 2];
+                    uint8_t a_un8 = ((uint8_t *) inData)[l * 16 + t * 4 + 3];
+                    uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                    uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                    uint16_t b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
+                    uint16_t a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 3] = a_fp16;
                 }
             }
             break;
         case FORMAT_B8G8R8A8_SRGB:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 2; t++)
+                for (uint32_t t = 0; t < 2; t++)
                 {
-                    uint8 r_un8 = ((uint8 *) inData)[l * 16 + t * 4 + 2];
-                    uint8 g_un8 = ((uint8 *) inData)[l * 16 + t * 4 + 1];
-                    uint8 b_un8 = ((uint8 *) inData)[l * 16 + t * 4 + 0];
-                    uint8 a_un8 = ((uint8 *) inData)[l * 16 + t * 4 + 3];
-                    uint16 r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
-                    uint16 g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
-                    uint16 b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
-                    uint16 a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
-                    ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 3] = a_fp16;
+                    uint8_t r_un8 = ((uint8_t *) inData)[l * 16 + t * 4 + 2];
+                    uint8_t g_un8 = ((uint8_t *) inData)[l * 16 + t * 4 + 1];
+                    uint8_t b_un8 = ((uint8_t *) inData)[l * 16 + t * 4 + 0];
+                    uint8_t a_un8 = ((uint8_t *) inData)[l * 16 + t * 4 + 3];
+                    uint16_t r_fp16 = SRGB2LINEAR_TABLE[r_un8].value;
+                    uint16_t g_fp16 = SRGB2LINEAR_TABLE[g_un8].value;
+                    uint16_t b_fp16 = SRGB2LINEAR_TABLE[b_un8].value;
+                    uint16_t a_fp16 = float32tofloat16(unorm8tofloat32(a_un8));
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 3] = a_fp16;
                 }
             }
             break;
         case FORMAT_A2R10G10B10_UNORM_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 2; t++)
+                for (uint32_t t = 0; t < 2; t++)
                 {
-                    uint32 r_un10 = (((uint32 *) inData)[l * 2 + t] >> 20) & 0x03FF;
-                    uint32 g_un10 = (((uint32 *) inData)[l * 2 + t] >> 10) & 0x03FF;
-                    uint32 b_un10 =  ((uint32 *) inData)[l * 2 + t]        & 0x03FF;
-                    uint32 a_un2 =  (((uint32 *) inData)[l * 2 + t] >> 30) & 0x03;
+                    uint32_t r_un10 = (((uint32_t *) inData)[l * 2 + t] >> 20) & 0x03FF;
+                    uint32_t g_un10 = (((uint32_t *) inData)[l * 2 + t] >> 10) & 0x03FF;
+                    uint32_t b_un10 =  ((uint32_t *) inData)[l * 2 + t]        & 0x03FF;
+                    uint32_t a_un2 =  (((uint32_t *) inData)[l * 2 + t] >> 30) & 0x03;
                     float32 r_fp32 = unorm10tofloat32(r_un10);
                     float32 g_fp32 = unorm10tofloat32(g_un10);
                     float32 b_fp32 = unorm10tofloat32(b_un10);
                     float32 a_fp32 = unorm2tofloat32(a_un2);
-                    uint16 r_fp16 = float32tofloat16(r_fp32);
-                    uint16 g_fp16 = float32tofloat16(g_fp32);
-                    uint16 b_fp16 = float32tofloat16(b_fp32);
-                    uint16 a_fp16 = float32tofloat16(a_fp32);
-                    ((uint16 *) outData)[l * 8 + t * 4 + 0] = (uint32) r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 1] = (uint32) g_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 2] = (uint32) b_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 3] = (uint32) a_fp16;
+                    uint16_t r_fp16 = float32tofloat16(r_fp32);
+                    uint16_t g_fp16 = float32tofloat16(g_fp32);
+                    uint16_t b_fp16 = float32tofloat16(b_fp32);
+                    uint16_t a_fp16 = float32tofloat16(a_fp32);
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 0] = (uint32_t) r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 1] = (uint32_t) g_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 2] = (uint32_t) b_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 3] = (uint32_t) a_fp16;
                 }
             }
             break;
         case FORMAT_A2R10G10B10_SNORM_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 2; t++)
+                for (uint32_t t = 0; t < 2; t++)
                 {
-                    uint32 r_un10 = (((uint32 *) inData)[l * 2 + t] >> 20) & 0x03FF;
-                    uint32 g_un10 = (((uint32 *) inData)[l * 2 + t] >> 10) & 0x03FF;
-                    uint32 b_un10 =  ((uint32 *) inData)[l * 2 + t]        & 0x03FF;
-                    uint32 a_un2 =  (((uint32 *) inData)[l * 2 + t] >> 30) & 0x03;
+                    uint32_t r_un10 = (((uint32_t *) inData)[l * 2 + t] >> 20) & 0x03FF;
+                    uint32_t g_un10 = (((uint32_t *) inData)[l * 2 + t] >> 10) & 0x03FF;
+                    uint32_t b_un10 =  ((uint32_t *) inData)[l * 2 + t]        & 0x03FF;
+                    uint32_t a_un2 =  (((uint32_t *) inData)[l * 2 + t] >> 30) & 0x03;
                     float32 r_fp32 = snorm10tofloat32(r_un10);
                     float32 g_fp32 = snorm10tofloat32(g_un10);
                     float32 b_fp32 = snorm10tofloat32(b_un10);
                     float32 a_fp32 = snorm2tofloat32(a_un2);
-                    uint16 r_fp16 = float32tofloat16(r_fp32);
-                    uint16 g_fp16 = float32tofloat16(g_fp32);
-                    uint16 b_fp16 = float32tofloat16(b_fp32);
-                    uint16 a_fp16 = float32tofloat16(a_fp32);
-                    ((uint16 *) outData)[l * 8 + t * 4 + 0] = (uint32) r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 1] = (uint32) g_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 2] = (uint32) b_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 3] = (uint32) a_fp16;
+                    uint16_t r_fp16 = float32tofloat16(r_fp32);
+                    uint16_t g_fp16 = float32tofloat16(g_fp32);
+                    uint16_t b_fp16 = float32tofloat16(b_fp32);
+                    uint16_t a_fp16 = float32tofloat16(a_fp32);
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 0] = (uint32_t) r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 1] = (uint32_t) g_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 2] = (uint32_t) b_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 3] = (uint32_t) a_fp16;
                 }
             }
             break;
         case FORMAT_A2B10G10R10_UNORM_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 2; t++)
+                for (uint32_t t = 0; t < 2; t++)
                 {
-                    uint32 r_un10 =  ((uint32 *) inData)[l * 2 + t]        & 0x03FF;
-                    uint32 g_un10 = (((uint32 *) inData)[l * 2 + t] >> 10) & 0x03FF;
-                    uint32 b_un10 = (((uint32 *) inData)[l * 2 + t] >> 20) & 0x03FF;
-                    uint32 a_un2 =  (((uint32 *) inData)[l * 2 + t] >> 30) & 0x03;
+                    uint32_t r_un10 =  ((uint32_t *) inData)[l * 2 + t]        & 0x03FF;
+                    uint32_t g_un10 = (((uint32_t *) inData)[l * 2 + t] >> 10) & 0x03FF;
+                    uint32_t b_un10 = (((uint32_t *) inData)[l * 2 + t] >> 20) & 0x03FF;
+                    uint32_t a_un2 =  (((uint32_t *) inData)[l * 2 + t] >> 30) & 0x03;
                     float32 r_fp32 = unorm10tofloat32(r_un10);
                     float32 g_fp32 = unorm10tofloat32(g_un10);
                     float32 b_fp32 = unorm10tofloat32(b_un10);
                     float32 a_fp32 = unorm2tofloat32(a_un2);
-                    uint16 r_fp16 = float32tofloat16(r_fp32);
-                    uint16 g_fp16 = float32tofloat16(g_fp32);
-                    uint16 b_fp16 = float32tofloat16(b_fp32);
-                    uint16 a_fp16 = float32tofloat16(a_fp32);
-                    ((uint16 *) outData)[l * 8 + t * 4 + 0] = (uint32) r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 1] = (uint32) g_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 2] = (uint32) b_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 3] = (uint32) a_fp16;
+                    uint16_t r_fp16 = float32tofloat16(r_fp32);
+                    uint16_t g_fp16 = float32tofloat16(g_fp32);
+                    uint16_t b_fp16 = float32tofloat16(b_fp32);
+                    uint16_t a_fp16 = float32tofloat16(a_fp32);
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 0] = (uint32_t) r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 1] = (uint32_t) g_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 2] = (uint32_t) b_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 3] = (uint32_t) a_fp16;
                 }
             }
             break;
         case FORMAT_A2B10G10R10_SNORM_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 2; t++)
+                for (uint32_t t = 0; t < 2; t++)
                 {
-                    uint32 r_un10 =  ((uint32 *) inData)[l * 2 + t]        & 0x03FF;
-                    uint32 g_un10 = (((uint32 *) inData)[l * 2 + t] >> 10) & 0x03FF;
-                    uint32 b_un10 = (((uint32 *) inData)[l * 2 + t] >> 20) & 0x03FF;
-                    uint32 a_un2 =  (((uint32 *) inData)[l * 2 + t] >> 30) & 0x03;
+                    uint32_t r_un10 =  ((uint32_t *) inData)[l * 2 + t]        & 0x03FF;
+                    uint32_t g_un10 = (((uint32_t *) inData)[l * 2 + t] >> 10) & 0x03FF;
+                    uint32_t b_un10 = (((uint32_t *) inData)[l * 2 + t] >> 20) & 0x03FF;
+                    uint32_t a_un2 =  (((uint32_t *) inData)[l * 2 + t] >> 30) & 0x03;
                     float32 r_fp32 = snorm10tofloat32(r_un10);
                     float32 g_fp32 = snorm10tofloat32(g_un10);
                     float32 b_fp32 = snorm10tofloat32(b_un10);
                     float32 a_fp32 = snorm2tofloat32(a_un2);
-                    uint16 r_fp16 = float32tofloat16(r_fp32);
-                    uint16 g_fp16 = float32tofloat16(g_fp32);
-                    uint16 b_fp16 = float32tofloat16(b_fp32);
-                    uint16 a_fp16 = float32tofloat16(a_fp32);
-                    ((uint16 *) inData)[l * 8 + t * 4 + 0] = (uint32) r_fp16;
-                    ((uint16 *) inData)[l * 8 + t * 4 + 1] = (uint32) g_fp16;
-                    ((uint16 *) inData)[l * 8 + t * 4 + 2] = (uint32) b_fp16;
-                    ((uint16 *) inData)[l * 8 + t * 4 + 3] = (uint32) a_fp16;
+                    uint16_t r_fp16 = float32tofloat16(r_fp32);
+                    uint16_t g_fp16 = float32tofloat16(g_fp32);
+                    uint16_t b_fp16 = float32tofloat16(b_fp32);
+                    uint16_t a_fp16 = float32tofloat16(a_fp32);
+                    ((uint16_t *) inData)[l * 8 + t * 4 + 0] = (uint32_t) r_fp16;
+                    ((uint16_t *) inData)[l * 8 + t * 4 + 1] = (uint32_t) g_fp16;
+                    ((uint16_t *) inData)[l * 8 + t * 4 + 2] = (uint32_t) b_fp16;
+                    ((uint16_t *) inData)[l * 8 + t * 4 + 3] = (uint32_t) a_fp16;
                 }
             }
             break;
         case FORMAT_B10G11R11_UFLOAT_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 2; t++)
+                for (uint32_t t = 0; t < 2; t++)
                 {
-                    uint32 texel = ((uint32 *) inData)[l * 2 + t];
-                    uint16 r_fp11 =  texel        & 0x07FF;
-                    uint16 g_fp11 = (texel >> 11) & 0x07FF;
-                    uint16 b_fp10 = (texel >> 22) & 0x03FF;
-                    uint16 r_fp16 = r_fp11 << 5;
-                    uint16 g_fp16 = g_fp11 << 5;
-                    uint16 b_fp16 = b_fp10 << 6;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
+                    uint32_t texel = ((uint32_t *) inData)[l * 2 + t];
+                    uint16_t r_fp11 =  texel        & 0x07FF;
+                    uint16_t g_fp11 = (texel >> 11) & 0x07FF;
+                    uint16_t b_fp10 = (texel >> 22) & 0x03FF;
+                    uint16_t r_fp16 = r_fp11 << 5;
+                    uint16_t g_fp16 = g_fp11 << 5;
+                    uint16_t b_fp16 = b_fp10 << 6;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
                 }
             }
             break;
         case FORMAT_E5B9G9R9_UFLOAT_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 2; t++)
+                for (uint32_t t = 0; t < 2; t++)
                 {
-                    uint32 texel = ((uint32 *) inData)[l * 2 + t];
-                    uint16 r_mant9    =  texel        & 0x01FF;
-                    uint16 g_mant9    = (texel >>  9) & 0x01FF;
-                    uint16 b_mant9    = (texel >> 18) & 0x01FF;
-                    uint16 common_exp = (texel >> 27) & 0x01F;
-                    uint16 r_fp16 = sharedexp_to_float16(common_exp, r_mant9);
-                    uint16 g_fp16 = sharedexp_to_float16(common_exp, g_mant9);
-                    uint16 b_fp16 = sharedexp_to_float16(common_exp, b_mant9);
-                    ((uint16 *) outData)[l * 8 + t * 4 + 0] = r_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 1] = g_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 2] = b_fp16;
-                    ((uint16 *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
+                    uint32_t texel = ((uint32_t *) inData)[l * 2 + t];
+                    uint16_t r_mant9    =  texel        & 0x01FF;
+                    uint16_t g_mant9    = (texel >>  9) & 0x01FF;
+                    uint16_t b_mant9    = (texel >> 18) & 0x01FF;
+                    uint16_t common_exp = (texel >> 27) & 0x01F;
+                    uint16_t r_fp16 = sharedexp_to_float16(common_exp, r_mant9);
+                    uint16_t g_fp16 = sharedexp_to_float16(common_exp, g_mant9);
+                    uint16_t b_fp16 = sharedexp_to_float16(common_exp, b_mant9);
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b_fp16;
+                    ((uint16_t *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
                 }
             }
             break;
-            
+
             break;
         case FORMAT_X8_D24_UNORM_PACK32:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint32 r_un24 = ((uint32 *) inData)[l * 4 + t] & 0x00FFFFFF;
+                    uint32_t r_un24 = ((uint32_t *) inData)[l * 4 + t] & 0x00FFFFFF;
                     float32 r_fp32 = unorm24tofloat32(r_un24);
                     ((float32 *) outData)[l * 4 + t] = r_fp32;
                 }
             }
             break;
         case FORMAT_R16_UNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint16 r_un16 = ((uint16 *) inData)[l * 4 + t];
+                    uint16_t r_un16 = ((uint16_t *) inData)[l * 4 + t];
                     float32 r_fp32 = unorm16tofloat32(r_un16);
                     ((float32 *) outData)[l * 4 + t] = r_fp32;
                 }
             }
             break;
         case FORMAT_R16_SNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint16 r_sn16 = ((uint16 *) inData)[l * 4 + t];
+                    uint16_t r_sn16 = ((uint16_t *) inData)[l * 4 + t];
                     float32 r_fp32 = snorm16tofloat32(r_sn16);
                     ((float32 *) outData)[l * 4 + t] = r_fp32;
                 }
             }
             break;
         case FORMAT_R16_SFLOAT:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                for (uint32 t = 0; t < 4; t++)
+                for (uint32_t t = 0; t < 4; t++)
                 {
-                    uint16 r_un16 = ((uint16 *) inData)[l * 4 + t];
-                    ((uint16 *) outData)[l * 8 + t * 2 + 0] = r_un16;
-                    ((uint16 *) outData)[l * 8 + t * 2 + 1] = 0;
+                    uint16_t r_un16 = ((uint16_t *) inData)[l * 4 + t];
+                    ((uint16_t *) outData)[l * 8 + t * 2 + 0] = r_un16;
+                    ((uint16_t *) outData)[l * 8 + t * 2 + 1] = 0;
                 }
             }
             break;
         case FORMAT_R16G16_UNORM:
             {
-                for (uint32 l = 0; l < 4; l++)
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 2; t++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint16 r_un16 = ((uint16 *) inData)[l * 4 + t * 2 + 0];
-                        uint16 g_un16 = ((uint16 *) inData)[l * 4 + t * 2 + 1];
+                        uint16_t r_un16 = ((uint16_t *) inData)[l * 4 + t * 2 + 0];
+                        uint16_t g_un16 = ((uint16_t *) inData)[l * 4 + t * 2 + 1];
                         float32 r_fp32 = unorm16tofloat32(r_un16);
                         float32 g_fp32 = unorm16tofloat32(g_un16);
                         ((float32 *) outData)[l * 4 + t * 2 + 0] = r_fp32;
@@ -2048,12 +2102,12 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32 
             break;
         case FORMAT_R16G16_SNORM:
             {
-                for (uint32 l = 0; l < 4; l++)
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 2; t++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint16 r_sn16 = ((uint16 *) inData)[l * 4 + t * 2 + 0];
-                        uint16 g_sn16 = ((uint16 *) inData)[l * 4 + t * 2 + 1];
+                        uint16_t r_sn16 = ((uint16_t *) inData)[l * 4 + t * 2 + 0];
+                        uint16_t g_sn16 = ((uint16_t *) inData)[l * 4 + t * 2 + 1];
                         float32 r_fp32 = snorm16tofloat32(r_sn16);
                         float32 g_fp32 = snorm16tofloat32(g_sn16);
                         ((float32 *) outData)[l * 4 + t * 2 + 0] = r_fp32;
@@ -2064,26 +2118,26 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32 
             break;
         case FORMAT_R16G16_SFLOAT:
             {
-                for (uint32 l = 0; l < 4; l++)
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 4; t++)
+                    for (uint32_t t = 0; t < 4; t++)
                     {
-                        uint16 r = ((uint16 *) inData)[l * 8 + t * 2 + 0];
-                        uint16 g = ((uint16 *) inData)[l * 8 + t * 2 + 1];
-                        ((uint16 *) outData)[l * 8 + t * 2 + 0] = r;
-                        ((uint16 *) outData)[l * 8 + t * 2 + 1] = g;
+                        uint16_t r = ((uint16_t *) inData)[l * 8 + t * 2 + 0];
+                        uint16_t g = ((uint16_t *) inData)[l * 8 + t * 2 + 1];
+                        ((uint16_t *) outData)[l * 8 + t * 2 + 0] = r;
+                        ((uint16_t *) outData)[l * 8 + t * 2 + 1] = g;
                     }
                 }
             }
             break;
         case FORMAT_R16G16B16_UNORM:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 2; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 2; l++)
                 {
-                    uint16 r_un16 = ((uint16 *) inData)[l * texel_size + 0];
-                    uint16 g_un16 = ((uint16 *) inData)[l * texel_size + 1];
-                    uint16 b_un16 = ((uint16 *) inData)[l * texel_size + 2];
+                    uint16_t r_un16 = ((uint16_t *) inData)[l * texel_size + 0];
+                    uint16_t g_un16 = ((uint16_t *) inData)[l * texel_size + 1];
+                    uint16_t b_un16 = ((uint16_t *) inData)[l * texel_size + 2];
                     float32 r_fp32 = unorm16tofloat32(r_un16);
                     float32 g_fp32 = unorm16tofloat32(g_un16);
                     float32 b_fp32 = unorm16tofloat32(b_un16);
@@ -2096,12 +2150,12 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32 
             break;
         case FORMAT_R16G16B16_SNORM:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    uint16 r_sn16 = ((uint16 *) inData)[l * texel_size + 0];
-                    uint16 g_sn16 = ((uint16 *) inData)[l * texel_size + 1];
-                    uint16 b_sn16 = ((uint16 *) inData)[l * texel_size + 2];
+                    uint16_t r_sn16 = ((uint16_t *) inData)[l * texel_size + 0];
+                    uint16_t g_sn16 = ((uint16_t *) inData)[l * texel_size + 1];
+                    uint16_t b_sn16 = ((uint16_t *) inData)[l * texel_size + 2];
                     float32 r_fp32 = snorm16tofloat32(r_sn16);
                     float32 g_fp32 = snorm16tofloat32(g_sn16);
                     float32 b_fp32 = snorm16tofloat32(b_sn16);
@@ -2114,44 +2168,44 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32 
             break;
         case FORMAT_R16G16B16_SFLOAT:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    for (uint32 t = 0; t < 2; t++)
+                    for (uint32_t t = 0; t < 2; t++)
                     {
-                        uint16 r = ((uint16 *) inData)[l * 2 * texel_size + t * texel_size + 0];
-                        uint16 g = ((uint16 *) inData)[l * 2 * texel_size + t * texel_size + 1];
-                        uint16 b = ((uint16 *) inData)[l * 2 * texel_size + t * texel_size + 2];
-                        ((uint16 *) outData)[l * 8 + t * 4 + 0] = r;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 1] = g;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 2] = b;
-                        ((uint16 *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
+                        uint16_t r = ((uint16_t *) inData)[l * 2 * texel_size + t * texel_size + 0];
+                        uint16_t g = ((uint16_t *) inData)[l * 2 * texel_size + t * texel_size + 1];
+                        uint16_t b = ((uint16_t *) inData)[l * 2 * texel_size + t * texel_size + 2];
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = r;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = g;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = b;
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = 0x3c00;
                     }
                 }
             }
             break;
         case FORMAT_R32G32B32_SFLOAT:
             {
-                uint32 texel_size = tiled ? 4 : 3;
-                for (uint32 l = 0; l < 4; l++)
+                uint32_t texel_size = tiled ? 4 : 3;
+                for (uint32_t l = 0; l < 4; l++)
                 {
-                    uint32 r_fp32 = ((uint32 *) inData)[l * texel_size + 0];
-                    uint32 g_fp32 = ((uint32 *) inData)[l * texel_size + 1];
-                    uint32 b_fp32 = ((uint32 *) inData)[l * texel_size + 2];
-                    ((uint32 *) outData)[l * 4 + 0] = r_fp32;
-                    ((uint32 *) outData)[l * 4 + 1] = g_fp32;
-                    ((uint32 *) outData)[l * 4 + 2] = b_fp32;
-                    ((uint32 *) outData)[l * 4 + 3] = 0x3f800000;
+                    uint32_t r_fp32 = ((uint32_t *) inData)[l * texel_size + 0];
+                    uint32_t g_fp32 = ((uint32_t *) inData)[l * texel_size + 1];
+                    uint32_t b_fp32 = ((uint32_t *) inData)[l * texel_size + 2];
+                    ((uint32_t *) outData)[l * 4 + 0] = r_fp32;
+                    ((uint32_t *) outData)[l * 4 + 1] = g_fp32;
+                    ((uint32_t *) outData)[l * 4 + 2] = b_fp32;
+                    ((uint32_t *) outData)[l * 4 + 3] = 0x3f800000;
                 }
             }
             break;
         case FORMAT_R16G16B16A16_UNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                uint16 r_un16 = ((uint16 *) inData)[l * 4 + 0];
-                uint16 g_un16 = ((uint16 *) inData)[l * 4 + 1];
-                uint16 b_un16 = ((uint16 *) inData)[l * 4 + 2];
-                uint16 a_un16 = ((uint16 *) inData)[l * 4 + 3];
+                uint16_t r_un16 = ((uint16_t *) inData)[l * 4 + 0];
+                uint16_t g_un16 = ((uint16_t *) inData)[l * 4 + 1];
+                uint16_t b_un16 = ((uint16_t *) inData)[l * 4 + 2];
+                uint16_t a_un16 = ((uint16_t *) inData)[l * 4 + 3];
                 float32 r_fp32 = unorm16tofloat32(r_un16);
                 float32 g_fp32 = unorm16tofloat32(g_un16);
                 float32 b_fp32 = unorm16tofloat32(b_un16);
@@ -2163,12 +2217,12 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32 
             }
             break;
         case FORMAT_R16G16B16A16_SNORM:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                uint16 r_sn16 = ((uint16 *) inData)[l * 4 + 0];
-                uint16 g_sn16 = ((uint16 *) inData)[l * 4 + 1];
-                uint16 b_sn16 = ((uint16 *) inData)[l * 4 + 2];
-                uint16 a_sn16 = ((uint16 *) inData)[l * 4 + 3];
+                uint16_t r_sn16 = ((uint16_t *) inData)[l * 4 + 0];
+                uint16_t g_sn16 = ((uint16_t *) inData)[l * 4 + 1];
+                uint16_t b_sn16 = ((uint16_t *) inData)[l * 4 + 2];
+                uint16_t a_sn16 = ((uint16_t *) inData)[l * 4 + 3];
                 float32 r_fp32 = snorm16tofloat32(r_sn16);
                 float32 g_fp32 = snorm16tofloat32(g_sn16);
                 float32 b_fp32 = snorm16tofloat32(b_sn16);
@@ -2180,20 +2234,20 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32 
             }
             break;
         case FORMAT_R32G32B32A32_SFLOAT:
-            for (uint32 l = 0; l < 4; l++)
+            for (uint32_t l = 0; l < 4; l++)
             {
-                uint32 r_fp32 = ((uint32 *) inData)[l * 4 + 0];
-                uint32 g_fp32 = ((uint32 *) inData)[l * 4 + 1];
-                uint32 b_fp32 = ((uint32 *) inData)[l * 4 + 2];
-                uint32 a_fp32 = ((uint32 *) inData)[l * 4 + 3];
-                ((uint32 *) outData)[l * 4 + 0] = r_fp32;
-                ((uint32 *) outData)[l * 4 + 1] = g_fp32;
-                ((uint32 *) outData)[l * 4 + 2] = b_fp32;
-                ((uint32 *) outData)[l * 4 + 3] = a_fp32;
+                uint32_t r_fp32 = ((uint32_t *) inData)[l * 4 + 0];
+                uint32_t g_fp32 = ((uint32_t *) inData)[l * 4 + 1];
+                uint32_t b_fp32 = ((uint32_t *) inData)[l * 4 + 2];
+                uint32_t a_fp32 = ((uint32_t *) inData)[l * 4 + 3];
+                ((uint32_t *) outData)[l * 4 + 0] = r_fp32;
+                ((uint32_t *) outData)[l * 4 + 1] = g_fp32;
+                ((uint32_t *) outData)[l * 4 + 2] = b_fp32;
+                ((uint32_t *) outData)[l * 4 + 3] = a_fp32;
             }
             break;
         default:
-            for (uint32 q = 0; q < 8; q++)
+            for (uint32_t q = 0; q < 8; q++)
                 outData[q] = inData[q];
             break;
     }
@@ -2208,7 +2262,7 @@ float32 TBOXEmu::clamp(float32 v)
     return v;
 }
 
-void TBOXEmu::sample_quad(uint32 thread, bool fake_sampler, bool output_result)
+void TBOXEmu::sample_quad(uint32_t thread, bool fake_sampler, bool output_result)
 {
     DEBUG_EMU(gprintf("\tTBOX => Sample Quad\n");)
 
@@ -2216,22 +2270,22 @@ void TBOXEmu::sample_quad(uint32 thread, bool fake_sampler, bool output_result)
     {
         DEBUG_EMU(gprintf("\tCall to fake sampler\n");)
 
-        output[thread][0].h[0] = (uint16)float32tofloat16(clamp(input[thread][0].f[0]));
-        output[thread][0].h[1] = (uint16)float32tofloat16(clamp(input[thread][0].f[1]));
-        output[thread][0].h[2] = (uint16)float32tofloat16(clamp(input[thread][0].f[2]));
-        output[thread][0].h[3] = (uint16)float32tofloat16(clamp(input[thread][0].f[2]));
-        output[thread][0].h[4] = (uint16)float32tofloat16(clamp(input[thread][0].f[0] * input[thread][1].f[0] / 2));
-        output[thread][0].h[5] = (uint16)float32tofloat16(clamp(input[thread][0].f[1] * input[thread][1].f[1] / 2));
-        output[thread][0].h[6] = (uint16)float32tofloat16(clamp(input[thread][0].f[2] * input[thread][1].f[2] / 2));
-        output[thread][0].h[7] = (uint16)float32tofloat16(clamp(input[thread][0].f[3] * input[thread][1].f[3] / 2));
-        output[thread][1].h[0] = (uint16)float32tofloat16(clamp(input[thread][1].f[0]));
-        output[thread][1].h[1] = (uint16)float32tofloat16(clamp(input[thread][1].f[1]));
-        output[thread][1].h[2] = (uint16)float32tofloat16(clamp(input[thread][1].f[2]));
-        output[thread][1].h[3] = (uint16)float32tofloat16(clamp(input[thread][1].f[3]));
-        output[thread][1].h[4] = (uint16)float32tofloat16(1.0);
-        output[thread][1].h[5] = (uint16)float32tofloat16(1.0);
-        output[thread][1].h[6] = (uint16)float32tofloat16(1.0);
-        output[thread][1].h[7] = (uint16)float32tofloat16(1.0);
+        output[thread][0].h[0] = (uint16_t)float32tofloat16(clamp(input[thread][0].f[0]));
+        output[thread][0].h[1] = (uint16_t)float32tofloat16(clamp(input[thread][0].f[1]));
+        output[thread][0].h[2] = (uint16_t)float32tofloat16(clamp(input[thread][0].f[2]));
+        output[thread][0].h[3] = (uint16_t)float32tofloat16(clamp(input[thread][0].f[2]));
+        output[thread][0].h[4] = (uint16_t)float32tofloat16(clamp(input[thread][0].f[0] * input[thread][1].f[0] / 2));
+        output[thread][0].h[5] = (uint16_t)float32tofloat16(clamp(input[thread][0].f[1] * input[thread][1].f[1] / 2));
+        output[thread][0].h[6] = (uint16_t)float32tofloat16(clamp(input[thread][0].f[2] * input[thread][1].f[2] / 2));
+        output[thread][0].h[7] = (uint16_t)float32tofloat16(clamp(input[thread][0].f[3] * input[thread][1].f[3] / 2));
+        output[thread][1].h[0] = (uint16_t)float32tofloat16(clamp(input[thread][1].f[0]));
+        output[thread][1].h[1] = (uint16_t)float32tofloat16(clamp(input[thread][1].f[1]));
+        output[thread][1].h[2] = (uint16_t)float32tofloat16(clamp(input[thread][1].f[2]));
+        output[thread][1].h[3] = (uint16_t)float32tofloat16(clamp(input[thread][1].f[3]));
+        output[thread][1].h[4] = (uint16_t)float32tofloat16(1.0);
+        output[thread][1].h[5] = (uint16_t)float32tofloat16(1.0);
+        output[thread][1].h[6] = (uint16_t)float32tofloat16(1.0);
+        output[thread][1].h[7] = (uint16_t)float32tofloat16(1.0);
         output[thread][2].q[0] = 0;
         output[thread][2].q[1] = 0;
         output[thread][3].q[0] = 0;
@@ -2258,22 +2312,22 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata out
     {
         DEBUG_EMU(gprintf("\tCall to fake sampler\n");)
 
-        output[0].h[0] = (uint16)float32tofloat16(clamp(input[0].f[0]));
-        output[0].h[1] = (uint16)float32tofloat16(clamp(input[0].f[1]));
-        output[0].h[2] = (uint16)float32tofloat16(clamp(input[0].f[2]));
-        output[0].h[3] = (uint16)float32tofloat16(clamp(input[0].f[2]));
-        output[0].h[4] = (uint16)float32tofloat16(clamp(input[0].f[0] * input[1].f[0] / 2));
-        output[0].h[5] = (uint16)float32tofloat16(clamp(input[0].f[1] * input[1].f[1] / 2));
-        output[0].h[6] = (uint16)float32tofloat16(clamp(input[0].f[2] * input[1].f[2] / 2));
-        output[0].h[7] = (uint16)float32tofloat16(clamp(input[0].f[3] * input[1].f[3] / 2));
-        output[1].h[0] = (uint16)float32tofloat16(clamp(input[1].f[0]));
-        output[1].h[1] = (uint16)float32tofloat16(clamp(input[1].f[1]));
-        output[1].h[2] = (uint16)float32tofloat16(clamp(input[1].f[2]));
-        output[1].h[3] = (uint16)float32tofloat16(clamp(input[1].f[3]));
-        output[1].h[4] = (uint16)float32tofloat16(1.0);
-        output[1].h[5] = (uint16)float32tofloat16(1.0);
-        output[1].h[6] = (uint16)float32tofloat16(1.0);
-        output[1].h[7] = (uint16)float32tofloat16(1.0);
+        output[0].h[0] = (uint16_t)float32tofloat16(clamp(input[0].f[0]));
+        output[0].h[1] = (uint16_t)float32tofloat16(clamp(input[0].f[1]));
+        output[0].h[2] = (uint16_t)float32tofloat16(clamp(input[0].f[2]));
+        output[0].h[3] = (uint16_t)float32tofloat16(clamp(input[0].f[2]));
+        output[0].h[4] = (uint16_t)float32tofloat16(clamp(input[0].f[0] * input[1].f[0] / 2));
+        output[0].h[5] = (uint16_t)float32tofloat16(clamp(input[0].f[1] * input[1].f[1] / 2));
+        output[0].h[6] = (uint16_t)float32tofloat16(clamp(input[0].f[2] * input[1].f[2] / 2));
+        output[0].h[7] = (uint16_t)float32tofloat16(clamp(input[0].f[3] * input[1].f[3] / 2));
+        output[1].h[0] = (uint16_t)float32tofloat16(clamp(input[1].f[0]));
+        output[1].h[1] = (uint16_t)float32tofloat16(clamp(input[1].f[1]));
+        output[1].h[2] = (uint16_t)float32tofloat16(clamp(input[1].f[2]));
+        output[1].h[3] = (uint16_t)float32tofloat16(clamp(input[1].f[3]));
+        output[1].h[4] = (uint16_t)float32tofloat16(1.0);
+        output[1].h[5] = (uint16_t)float32tofloat16(1.0);
+        output[1].h[6] = (uint16_t)float32tofloat16(1.0);
+        output[1].h[7] = (uint16_t)float32tofloat16(1.0);
         output[2].q[0] = 0;
         output[2].q[1] = 0;
         output[3].q[0] = 0;
@@ -2287,7 +2341,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata out
     sample_quad(currentRequest, currentImage, input, output, true);
 }
 
-bool TBOXEmu::get_image_info(uint32 thread, ImageInfo &currentImage)
+bool TBOXEmu::get_image_info(uint32_t thread, ImageInfo &currentImage)
 {
     current_thread = thread;
     return TBOXEmu::get_image_info(currentRequest[thread], currentImage);
@@ -2300,7 +2354,7 @@ bool TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
     bool hit = image_info_cache_lookup(request.info.imageid, currentImage);
     if (!hit)
     {
-        uint64 imageInfoAddress = imageTableAddress + request.info.imageid * 32;
+        uint64_t imageInfoAddress = imageTableAddress + request.info.imageid * 32;
 
         bool data_ready = read_image_info_cache_line(imageInfoAddress, currentImage);
         if (data_ready)
@@ -2318,8 +2372,8 @@ bool TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
     }
 #endif
 
-    uint64 imageInfoAddress = imageTableAddress + request.info.imageid * 32;
-    
+    uint64_t imageInfoAddress = imageTableAddress + request.info.imageid * 32;
+
     currentImage.data[0] = memread64(imageInfoAddress);
     currentImage.data[1] = memread64(imageInfoAddress + 8);
     currentImage.data[2] = memread64(imageInfoAddress + 16);
@@ -2356,8 +2410,8 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
     }
 
     // Get LOD.
-    uint32 mip_level[4];
-    uint32 mip_beta[4];
+    uint32_t mip_level[4];
+    uint32_t mip_beta[4];
     FilterType pixel_filter[4];
 
     switch (currentRequest.info.operation)
@@ -2366,13 +2420,13 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
         case SAMPLE_OP_SAMPLE_C:
             {
                 float32 lod = float16tofloat32(currentRequest.info.lodaniso.lodaniso.lod);
-                uint32 lod_fxp = min(max(uint32(currentImage.info.basemip << 8),
-                                         uint32(floor(max(lod, 0.0) * 256.0))),
-                                     uint32((currentImage.info.mipcount - 1) << 8));
-                uint32 quad_mip_level = lod_fxp >> 8;
-                uint32 quad_mip_beta = (currentRequest.info.mipfilter == FILTER_TYPE_LINEAR) ? (lod_fxp & 0xFF) : 0;
+                uint32_t lod_fxp = min(max(uint32_t(currentImage.info.basemip << 8),
+                                         uint32_t(floor(max(lod, 0.0) * 256.0))),
+                                     uint32_t((currentImage.info.mipcount - 1) << 8));
+                uint32_t quad_mip_level = lod_fxp >> 8;
+                uint32_t quad_mip_beta = (currentRequest.info.mipfilter == FILTER_TYPE_LINEAR) ? (lod_fxp & 0xFF) : 0;
                 FilterType quad_filter = (FilterType)((lod <= 0) ? currentRequest.info.magfilter : currentRequest.info.minfilter);
-                for (uint32 req = 0; req < 4; req++)
+                for (uint32_t req = 0; req < 4; req++)
                 {
                     mip_level[req] = quad_mip_level;
                     mip_beta[req] = quad_mip_beta;
@@ -2382,12 +2436,12 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
             break;
         case SAMPLE_OP_SAMPLE_L:
         case SAMPLE_OP_SAMPLE_C_L:
-            for (uint32 req = 0; req < 4; req++)
+            for (uint32_t req = 0; req < 4; req++)
             {
                 float32 pixel_lod = float16tofloat32(currentRequest.info.lodaniso.lod_array[req]);
-                uint32 pixel_lod_fxp = min(max(uint32(currentImage.info.basemip << 8),
-                                                      uint32(floor(pixel_lod * 256.0))),
-                                           uint32((currentImage.info.mipcount - 1) << 8));
+                uint32_t pixel_lod_fxp = min(max(uint32_t(currentImage.info.basemip << 8),
+                                                      uint32_t(floor(pixel_lod * 256.0))),
+                                           uint32_t((currentImage.info.mipcount - 1) << 8));
                 mip_level[req] = pixel_lod_fxp >> 8;
                 mip_beta[req] = (currentRequest.info.mipfilter == FILTER_TYPE_LINEAR) ? (pixel_lod_fxp & 0xFF) : 0;
                 pixel_filter[req] = (FilterType)((pixel_lod <= 0) ? currentRequest.info.magfilter
@@ -2396,7 +2450,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
             break;
         case SAMPLE_OP_GATHER4:
         case SAMPLE_OP_GATHER4_C:
-            for (uint32 req = 0; req < 4; req++)
+            for (uint32_t req = 0; req < 4; req++)
             {
                 mip_level[req] = 0;
                 mip_beta[req] = 0;
@@ -2404,9 +2458,9 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
             }
             break;
         case SAMPLE_OP_LD:
-            for (uint32 req = 0; req < 4; req++)
+            for (uint32_t req = 0; req < 4; req++)
             {
-                mip_level[req] = uint32(float16tofloat32(currentRequest.info.lodaniso.lod_array[req]));
+                mip_level[req] = uint32_t(float16tofloat32(currentRequest.info.lodaniso.lod_array[req]));
                 mip_beta[req] = 0;
                 pixel_filter[req] = FILTER_TYPE_NEAREST;
             }
@@ -2421,16 +2475,16 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
     bzero(output, sizeof(fdata)*4);
 #endif
 
-    for (uint32 req = 0; req < 4; req++)
+    for (uint32_t req = 0; req < 4; req++)
         sample_pixel(currentRequest, input, output, req, currentImage,
                      pixel_filter[req], mip_level[req], mip_beta[req], output_result);
 }
 
 void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata output[],
-                           uint32 req, ImageInfo currentImage, FilterType filter, uint32 mip_level,
-                           uint32 mip_beta, bool output_result)
+                           uint32_t req, ImageInfo currentImage, FilterType filter, uint32_t mip_level,
+                           uint32_t mip_beta, bool output_result)
 {
-    uint32 num_mips = (mip_beta == 0) || (mip_level == uint32(currentImage.info.mipcount - 1)) ? 1 : 2;
+    uint32_t num_mips = (mip_beta == 0) || (mip_level == uint32_t(currentImage.info.mipcount - 1)) ? 1 : 2;
     float32 mip_beta_fp = 1.0 - (float32(mip_beta) / 256.0);
 
     DEBUG_EMU(gprintf("\tsample pixel %d with filter %s mip level %d mip beta %02x\n", req,
@@ -2444,7 +2498,7 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     float32 aniso_ratio = float16tofloat32(currentRequest.info.lodaniso.lodaniso.anisoratio);
 
     float32 aniso_weight = 1.0f;
-    uint32 aniso_count = 1;
+    uint32_t aniso_count = 1;
     float32 aniso_deltas = snorm8tofloat32(currentRequest.info.lodaniso.lodaniso.anisodeltau);
     float32 aniso_deltat = snorm8tofloat32(currentRequest.info.lodaniso.lodaniso.anisodeltav);
 
@@ -2462,26 +2516,26 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
 
         DEBUG_EMU(
             gprintf("\taniso_count = %d aniso_weight = %f\n", aniso_count, aniso_weight);
-        )        
+        )
     }
 
-    for (uint32 aniso_sample = 0; aniso_sample < aniso_count; aniso_sample++)
+    for (uint32_t aniso_sample = 0; aniso_sample < aniso_count; aniso_sample++)
     {
         DEBUG_EMU(if (aniso_count > 1) gprintf("\taniso sample %d out of %d\n", aniso_sample, aniso_count);)
 
-        uint32 sample_mip_level = mip_level;
+        uint32_t sample_mip_level = mip_level;
         float32 sample_mip_beta = mip_beta_fp;
 
-        for (uint32 mip = 0; mip < num_mips; mip++) // Bilinear one mip and Trilinear 2 mips?
+        for (uint32_t mip = 0; mip < num_mips; mip++) // Bilinear one mip and Trilinear 2 mips?
         {
             DEBUG_EMU(if (num_mips > 1) gprintf("\tmip sample %d\n", mip);)
-            uint32 num_slices = (currentImage.info.type == IMAGE_TYPE_3D) ? 2 : 1;
+            uint32_t num_slices = (currentImage.info.type == IMAGE_TYPE_3D) ? 2 : 1;
 
             fdata s = input[0];
             fdata t = input[1];
             fdata r = input[2];
 
-            for (uint32 slice = 0; slice < num_slices; slice++)
+            for (uint32_t slice = 0; slice < num_slices; slice++)
             {
                 DEBUG_EMU(if (num_slices > 1) gprintf("\tslice sample %d\n", slice);)
                 sample_bilinear(currentRequest, s, t, r, req, currentImage, filter, slice, sample_mip_level,
@@ -2537,22 +2591,22 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     }
 }
 
-void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fdata r, uint32 req,
-                              ImageInfo currentImage, FilterType filter, uint32 slice,
-                              uint32 sample_mip_level, float32 sample_mip_beta, uint32 aniso_sample,
+void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fdata r, uint32_t req,
+                              ImageInfo currentImage, FilterType filter, uint32_t slice,
+                              uint32_t sample_mip_level, float32 sample_mip_beta, uint32_t aniso_sample,
                               float32 aniso_weight, float aniso_deltas, float aniso_deltat, float &red,
                               float &green, float &blue, float &alpha, bool output_result)
 {
-    uint32 mip_width = max(1, (currentImage.info.width + 1) >> sample_mip_level);
-    uint32 mip_height = max(1, (currentImage.info.height + 1) >> sample_mip_level);
-    uint32 mip_depth = max(1, (currentImage.info.depth + 1) >> sample_mip_level);
+    uint32_t mip_width = max(1, (currentImage.info.width + 1) >> sample_mip_level);
+    uint32_t mip_height = max(1, (currentImage.info.height + 1) >> sample_mip_level);
+    uint32_t mip_depth = max(1, (currentImage.info.depth + 1) >> sample_mip_level);
 
-    uint32 i[2];
-    uint32 j[2];
-    uint32 k[2];
-    uint32 l;
-    bool out_of_bounds;
-    float32 betai, betaj, betak;
+    uint32_t i[2];
+    uint32_t j[2];
+    uint32_t k[2];
+    uint32_t l;
+    bool out_of_bounds = false;
+    float32 betai = 0.0, betaj = 0.0, betak = 0.0;
 
     if (currentRequest.info.operation == SAMPLE_OP_LD)
     {
@@ -2616,7 +2670,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
     else
     {
         float32 u, v, w;
-        uint32 a;
+        uint32_t a;
 
         u = s.f[req] * mip_width + aniso_sample * aniso_deltas;
 
@@ -2633,11 +2687,11 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
             w = 0;
 
         if (currentImage.info.type == IMAGE_TYPE_1D_ARRAY)
-            a = uint32(t.f[req]);
-        else if ((currentImage.info.type == IMAGE_TYPE_2D_ARRAY) || 
+            a = uint32_t(t.f[req]);
+        else if ((currentImage.info.type == IMAGE_TYPE_2D_ARRAY) ||
                  (currentImage.info.type == IMAGE_TYPE_CUBE) ||
                  (currentImage.info.type == IMAGE_TYPE_CUBE_ARRAY))
-            a = uint32(r.f[req]);
+            a = uint32_t(r.f[req]);
         else
             a = 0;
 
@@ -2671,15 +2725,15 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
             v -= 0.5f;
             w -= 0.5f;
         }
- 
-        int32 u_fxp = int32(floor(u * 256));
-        int32 v_fxp = int32(floor(v * 256));
-        int32 w_fxp = int32(floor(w * 256));
 
-        int32 i_ul = u_fxp >> 8;
-        int32 j_ul = v_fxp >> 8;
-        int32 k_ul = w_fxp >> 8;
- 
+        int32_t u_fxp = int32_t(floor(u * 256));
+        int32_t v_fxp = int32_t(floor(v * 256));
+        int32_t w_fxp = int32_t(floor(w * 256));
+
+        int32_t i_ul = u_fxp >> 8;
+        int32_t j_ul = v_fxp >> 8;
+        int32_t k_ul = w_fxp >> 8;
+
 
         betai = float32(u_fxp & 0xFF) / 256.0;
         betaj = float32(v_fxp & 0xFF) / 256.0;
@@ -2708,17 +2762,17 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         else
         {
 #ifdef TBOX_TEXTURE_CACHE
-            uint32 num_banks;
-            int32 banks[4];
-            uint64 tags[4];
-            uint64 address[4][4];
+            uint32_t num_banks;
+            int32_t banks[4];
+            uint64_t tags[4];
+            uint64_t address[4][4];
             banks[0] = -1;
             tags[0] = 0xFFFFFFFFFFFFFFFULL;
 
             create_texture_cache_tags(currentRequest, currentImage, filter, i, j, k[slice], l, sample_mip_level,
                                       num_banks, banks, tags, address);
 
-            uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE];
+            uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE];
             bool hit = texture_cache_lookup(banks[0], tags[0], data);
             bool data_ready = hit;
             if (!hit)
@@ -2728,7 +2782,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
                     texture_cache_fill(banks[0], tags[0], data);
                 else
                 {
-                    for(uint32 qw = 0; qw < TEXTURE_CACHE_QWORDS_PER_LINE; qw++)
+                    for(uint32_t qw = 0; qw < TEXTURE_CACHE_QWORDS_PER_LINE; qw++)
                         data[qw] = 0xdeadbeaffacecafeUL;
                 }
             }
@@ -2771,19 +2825,19 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         float32 texel_lr[4];
 
 #ifdef TBOX_TEXTURE_CACHE
-        uint32 num_banks;
-        int32 banks[4];
+        uint32_t num_banks;
+        int32_t banks[4];
         banks[0] = banks[1] = banks[2] = banks[3] = -1;
-        uint64 tags[4];
-        uint64 address[4][4];
+        uint64_t tags[4];
+        uint64_t address[4][4];
         tags[0] = tags[1] = tags[2] = tags[3] = 0xFFFFFFFFFFFFFFFULL;
 
         create_texture_cache_tags(currentRequest, currentImage, filter, i, j, k[slice], l, sample_mip_level,
                                   num_banks, banks, tags, address);
 
         bool hits[4];
-        uint64 data[4][TEXTURE_CACHE_QWORDS_PER_LINE];
-        for (uint32 b = 0; b < num_banks; b++)
+        uint64_t data[4][TEXTURE_CACHE_QWORDS_PER_LINE];
+        for (uint32_t b = 0; b < num_banks; b++)
         {
             hits[b] = texture_cache_lookup(banks[b], tags[b], data[b]);
             if (!hits[b])
@@ -2793,7 +2847,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
                     texture_cache_fill(banks[b], tags[b], data[b]);
                 else
                 {
-                    for(uint32 qw = 0; qw < TEXTURE_CACHE_QWORDS_PER_LINE; qw++)
+                    for(uint32_t qw = 0; qw < TEXTURE_CACHE_QWORDS_PER_LINE; qw++)
                         data[b][qw] = 0xdeadbeaffacecafeUL;
                 }
 
@@ -2802,7 +2856,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         }
 
         DEBUG_EMU(gprintf("\tTexture cache banks accessed = %d\n", num_banks);
-                  for (uint32 b = 0; b < num_banks; b++) {
+                  for (uint32_t b = 0; b < num_banks; b++) {
                       gprintf("\t\tBank = %d Tag = %016lx Hit = %d\n", banks[b], tags[b], hits[b]);
                       gprintf("\t\tAddress = %016lx %016lx %016lx %016lx\n",
                              address[b][0], address[b][1], address[b][2], address[b][3]);
@@ -2959,25 +3013,25 @@ float32 TBOXEmu::apply_component_swizzle(ComponentSwizzle swizzle, float32 sourc
     return swizzled_component;
 }
 
-void TBOXEmu::wrap_texel_coord(uint32 c[2], int32 c_ul, uint32 mip_dim, AddressMode addrmode)
+void TBOXEmu::wrap_texel_coord(uint32_t c[2], int32_t c_ul, uint32_t mip_dim, AddressMode addrmode)
 {
     switch (addrmode)
     {
         case ADDRESS_MODE_CLAMP_TO_EDGE:
-            c[0] = min(max(0, c_ul), mip_dim - 1);
-            c[1] = min(max(0, c_ul + 1), mip_dim - 1);
+            c[0] = min(uint32_t(max(0, c_ul)), mip_dim - 1);
+            c[1] = min(uint32_t(max(0, c_ul + 1)), mip_dim - 1);
             break;
- 
+
         case ADDRESS_MODE_REPEAT:
             // mod with non-negative reminder (mip_dim always >= 1)
             c[0] = c_ul >= 0 ? c_ul % mip_dim : mip_dim - 1 - (-(c_ul + 1) % mip_dim);
             c[1] = (c_ul + 1) >= 0 ? (c_ul + 1) % mip_dim : mip_dim - 1 - (-(c_ul + 1 + 1) % mip_dim);
             break;
- 
+
         case ADDRESS_MODE_CLAMP_TO_BORDER:
             DEBUG_EMU(gprintf("WARNING!!! CLAMP_TO_BORDER implemented as CLAMP_TO_EDGE.\n");)
-            c[0] = min(max(0, c_ul), mip_dim - 1);
-            c[1] = min(max(0, c_ul + 1), mip_dim - 1);
+            c[0] = min(uint32_t(max(0, c_ul)), mip_dim - 1);
+            c[1] = min(uint32_t(max(0, c_ul + 1)), mip_dim - 1);
             break;
 
         default:
@@ -2986,13 +3040,13 @@ void TBOXEmu::wrap_texel_coord(uint32 c[2], int32 c_ul, uint32 mip_dim, AddressM
     }
 }
 
-uint64 TBOXEmu::compute_mip_offset(uint32 mip_pitch_l0, uint32 mip_pitch_l1, uint32 row_pitch, uint32 rows, uint32 mip_level)
+uint64_t TBOXEmu::compute_mip_offset(uint32_t mip_pitch_l0, uint32_t mip_pitch_l1, uint32_t row_pitch, uint32_t rows, uint32_t mip_level)
 {
-	uint64 mip_offset = 0;
-	uint64 mip_row_pitch = row_pitch;
-    uint32 mip_rows = rows;
-	uint64 mip_pitch = (1 << mip_pitch_l1);
-	for (uint32 l = 0; l < mip_level; l++)
+	uint64_t mip_offset = 0;
+	uint64_t mip_row_pitch = row_pitch;
+    uint32_t mip_rows = rows;
+	uint64_t mip_pitch = (1 << mip_pitch_l1);
+	for (uint32_t l = 0; l < mip_level; l++)
     {
 		if (l == 0)
 			mip_offset = (1 << mip_pitch_l0);
@@ -3014,20 +3068,20 @@ uint64 TBOXEmu::compute_mip_offset(uint32 mip_pitch_l0, uint32 mip_pitch_l1, uin
 	return mip_offset;
 }
 
-void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage, uint32 bytesTexel, bool isCompressed,
-                                        uint32 tileWidthLog2, uint32 tileHeightLog2,
-                                        uint32 mip_level, uint32 mip_offset[])
+void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage, uint32_t bytesTexel, bool isCompressed,
+                                        uint32_t tileWidthLog2, uint32_t tileHeightLog2,
+                                        uint32_t mip_level, uint32_t mip_offset[])
 {
-    uint32 packed_level = currentImage.info.packedlevel - (mip_level - currentImage.info.packedmip);
+    uint32_t packed_level = currentImage.info.packedlevel - (mip_level - currentImage.info.packedmip);
 
-    uint32 packed_dim;
-    uint32 side_step;
+    uint32_t packed_dim;
+    uint32_t side_step;
 
     if (currentImage.info.packedlayout == 0)
     {
         // Vertical packing.
         packed_dim = tileHeightLog2;
-        uint32 image_width = currentImage.info.width + 1;
+        uint32_t image_width = currentImage.info.width + 1;
         image_width = image_width >> 2;
         side_step = max(1, image_width >> (currentImage.info.packedmip + 1));
     }
@@ -3035,7 +3089,7 @@ void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage, uint32 bytesTexe
     {
         // Horizontal packing.
         packed_dim = tileWidthLog2;
-        uint32 image_height = currentImage.info.height + 1;
+        uint32_t image_height = currentImage.info.height + 1;
         image_height = image_height >> 2;
         side_step = max(1, image_height >> (currentImage.info.packedmip + 1));
     }
@@ -3090,15 +3144,15 @@ void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage, uint32 bytesTexe
 
     if (currentImage.info.packedlayout == 1)
     {
-        uint32 temp = mip_offset[0];
+        uint32_t temp = mip_offset[0];
         mip_offset[0] = mip_offset[1];
         mip_offset[1] = temp;
     }
 }
 
-uint64 TBOXEmu::compute_tile_offset(uint32 bytesTexel, uint32 tile_i, uint32 tile_j)
+uint64_t TBOXEmu::compute_tile_offset(uint32_t bytesTexel, uint32_t tile_i, uint32_t tile_j)
 {
-    uint64 tile_offset = 0;
+    uint64_t tile_offset = 0;
     switch(bytesTexel)
     {
 	    // 256 x 256   XYXY_XYXY_YYYY_XXXX
@@ -3166,8 +3220,8 @@ uint64 TBOXEmu::compute_tile_offset(uint32 bytesTexel, uint32 tile_i, uint32 til
 }
 
 
-void TBOXEmu::read_bilinear_texels(ImageInfo currentImage, uint32 i[2], uint32 j[2], uint32 k, uint32 l,
-                                   uint32 sample_mip_level, float32 *texel_ul, float32 *texel_ur,
+void TBOXEmu::read_bilinear_texels(ImageInfo currentImage, uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l,
+                                   uint32_t sample_mip_level, float32 *texel_ul, float32 *texel_ur,
                                    float32 *texel_ll, float32 *texel_lr)
 {
     read_texel(currentImage, i[0], j[0], k, l, sample_mip_level, texel_ul);
@@ -3176,17 +3230,17 @@ void TBOXEmu::read_bilinear_texels(ImageInfo currentImage, uint32 i[2], uint32 j
     read_texel(currentImage, i[1], j[1], k, l, sample_mip_level, texel_lr);
 }
 
-#define CREATE_TAG(i, j) ((((((((currentRequest.info.imageid << 5) | uint64(mip_level)) << 16) | uint64(i)) << 14) | (uint64(j) >> 2)) << 12) | k | l)
+#define CREATE_TAG(i, j) ((((((((currentRequest.info.imageid << 5) | uint64_t(mip_level)) << 16) | uint64_t(i)) << 14) | (uint64_t(j) >> 2)) << 12) | k | l)
 
 void TBOXEmu::create_texture_cache_tags(SampleRequest currentRequest, ImageInfo currentImage,
-                                        FilterType filter, uint32 i[2], uint32 j[2], uint32 k, uint32 l,
-                                        uint32 mip_level, uint32 &num_banks, int32 banks[4], uint64 tags[4],
-                                        uint64 address[4][4])
+                                        FilterType filter, uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l,
+                                        uint32_t mip_level, uint32_t &num_banks, int32_t banks[4], uint64_t tags[4],
+                                        uint64_t address[4][4])
 {
-    uint32 fmtBytesPerTexel;
-    uint32 decompBytesPerTexel;
-    uint32 comprBlockWidth;
-    uint32 comprBlockHeight;
+    uint32_t fmtBytesPerTexel;
+    uint32_t decompBytesPerTexel;
+    uint32_t comprBlockWidth;
+    uint32_t comprBlockHeight;
 
     DEBUG_EMU( gprintf("\tCreate Texture Cache Tags for UL (%d, %d, %d) layer %d mip_level %d\n", i[0], j[0], k, l, mip_level); )
 
@@ -3206,8 +3260,8 @@ void TBOXEmu::create_texture_cache_tags(SampleRequest currentRequest, ImageInfo 
         decompBytesPerTexel = BYTES_PER_TEXEL_IN_L1[fmt];
 
         // Get compressed block horizontal and vertical coordinates.
-        uint32 comprBlockI = i[0] >> comprBlockWidth;
-        uint32 comprBlockJ = j[0] >> comprBlockHeight;
+        uint32_t comprBlockI = i[0] >> comprBlockWidth;
+        uint32_t comprBlockJ = j[0] >> comprBlockHeight;
 
         address[0][0] = texel_virtual_address(currentImage, comprBlockI, comprBlockJ, k, l, mip_level);
         address[0][0] |= (i[0] >> 1) & 0x1;
@@ -3485,18 +3539,18 @@ void TBOXEmu::create_texture_cache_tags(SampleRequest currentRequest, ImageInfo 
     }
 }
 
-uint64 TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j, uint32 k, uint32 l,
-                                      uint32 mip_level)
+uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l,
+                                      uint32_t mip_level)
 {
-    uint32 fmtBytesPerTexel = -1;
-    uint32 fmtTileWidthLog2 = -1;
-    uint32 fmtTileHeightLog2 = -1;
+    uint32_t fmtBytesPerTexel = -1;
+    uint32_t fmtTileWidthLog2 = -1;
+    uint32_t fmtTileHeightLog2 = -1;
 
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
 
     bool fmtIsCompressed = isCompressedFormat(fmt);
 
-    uint32 height = currentImage.info.height + 1;
+    uint32_t height = currentImage.info.height + 1;
 
     if (fmtIsCompressed)
     {
@@ -3518,7 +3572,7 @@ uint64 TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j
             fmtTileWidthLog2  = 6;
             fmtTileHeightLog2 = 6;
         }
-        
+
         height = max(1, height >> 2);
     }
     else
@@ -3553,17 +3607,17 @@ uint64 TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j
         }
     }
 
-    uint32 rows;
-    uint64 texelAddress;
+    uint32_t rows;
+    uint64_t texelAddress;
 
-    uint64 row_pitch = max(1, currentImage.info.rowpitch >> mip_level);
+    uint64_t row_pitch = max(1, currentImage.info.rowpitch >> mip_level);
 
     if (currentImage.info.tiled == 1)
     {
         rows = max(1, (height >> fmtTileHeightLog2) + (((height & ((1 << fmtTileHeightLog2) - 1)) != 0) ? 1 : 0));
 
-        uint64 mip_pitch;
-        uint32 mip_offset[2] = {0, 0};
+        uint64_t mip_pitch;
+        uint32_t mip_offset[2] = {0, 0};
         if (mip_level < currentImage.info.packedmip)
             mip_pitch = compute_mip_offset(currentImage.info.mippitchl0, currentImage.info.mippitchl1, currentImage.info.rowpitch, rows, mip_level);
         else
@@ -3572,12 +3626,12 @@ uint64 TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j
             compute_packed_mip_offset(currentImage, fmtBytesPerTexel, fmtIsCompressed, fmtTileWidthLog2, fmtTileHeightLog2, mip_level, mip_offset);
         }
 
-        uint64 layout_i = i + mip_offset[0];
-        uint64 layout_j = j + mip_offset[1];
-        uint64 tile_i = layout_i >> fmtTileWidthLog2;
-        uint64 tile_j = layout_j >> fmtTileHeightLog2;
-        uint64 tile_offset = tile_j * row_pitch + tile_i;
-        uint64 pixel_offset = compute_tile_offset(fmtBytesPerTexel, layout_i & ((1 << fmtTileWidthLog2) - 1), layout_j & ((1 << fmtTileHeightLog2) - 1));
+        uint64_t layout_i = i + mip_offset[0];
+        uint64_t layout_j = j + mip_offset[1];
+        uint64_t tile_i = layout_i >> fmtTileWidthLog2;
+        uint64_t tile_j = layout_j >> fmtTileHeightLog2;
+        uint64_t tile_offset = tile_j * row_pitch + tile_i;
+        uint64_t pixel_offset = compute_tile_offset(fmtBytesPerTexel, layout_i & ((1 << fmtTileWidthLog2) - 1), layout_j & ((1 << fmtTileHeightLog2) - 1));
 
         DEBUG_EMU(gprintf("\t\telement_pitch = %ld mip_pitch = %ld mip_offset = (%d, %d) tile_offset = %ld pixel_offset = %ld\n",
                           currentImage.info.elementpitch, mip_pitch, mip_offset[0], mip_offset[1], tile_offset, pixel_offset);)
@@ -3589,12 +3643,12 @@ uint64 TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j
     {
         rows = height;
 
-        uint64 mip_pitch = compute_mip_offset(currentImage.info.mippitchl0, currentImage.info.mippitchl1, currentImage.info.rowpitch, rows, mip_level);
+        uint64_t mip_pitch = compute_mip_offset(currentImage.info.mippitchl0, currentImage.info.mippitchl1, currentImage.info.rowpitch, rows, mip_level);
 
         DEBUG_EMU(gprintf("\t\telement_pitch = %ld mip_pitch = %ld row_pitch = %ld\n",
                           currentImage.info.elementpitch, mip_pitch, row_pitch);)
 
-        texelAddress = currentImage.info.address + 
+        texelAddress = currentImage.info.address +
                      + (currentImage.info.elementpitch * l + mip_pitch + j * row_pitch) * 64
                      + i * fmtBytesPerTexel;
     }
@@ -3605,12 +3659,12 @@ uint64 TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j
     return texelAddress;
 }
 
-void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j, uint32 k, uint32 l, uint32 mip_level,
+void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level,
                          float32 *texel)
 {
-    uint32 fmtBytesPerTexel;
-    uint32 comprBlockI;
-    uint32 comprBlockJ;
+    uint32_t fmtBytesPerTexel;
+    uint32_t comprBlockI = 0;
+    uint32_t comprBlockJ = 0;
 
     DEBUG_EMU(gprintf("\tread texel at (%d, %d, %d) layer %d level %d\n", i, j, k, l, mip_level);)
 
@@ -3642,9 +3696,9 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j, uint32 k, u
         fmtBytesPerTexel = BYTES_PER_TEXEL_IN_MEMORY[fmt];
     }
 
-    uint64 texelAddress = texel_virtual_address(currentImage, i, j, k, l, mip_level);
+    uint64_t texelAddress = texel_virtual_address(currentImage, i, j, k, l, mip_level);
 
-    uint8 data[16];
+    uint8_t data[16];
     switch (fmtBytesPerTexel)
     {
         case 1:
@@ -3655,32 +3709,32 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j, uint32 k, u
             break;
         case 2:
             {
-                uint16 texelData = memread16(texelAddress);
-                ((uint16 *)data)[0] = texelData;
+                uint16_t texelData = memread16(texelAddress);
+                memcpy_uint16(&data[0], texelData);
                 DEBUG_EMU(gprintf("\t\t%04x <- MEM[%016lx]\n", texelData, texelAddress);)
             }
             break;
         case 4:
             {
-                uint32 texelData = memread32(texelAddress);
-                ((uint32 *)data)[0] = texelData;
+                uint32_t texelData = memread32(texelAddress);
+                memcpy_uint32(&data[0], texelData);
                 DEBUG_EMU(gprintf("\t\t%08x <- MEM[%016lx]\n", texelData, texelAddress);)
             }
             break;
         case 8:
             {
-                uint64 texelData = memread64(texelAddress);
-                ((uint64 *)data)[0] = texelData;
+                uint64_t texelData = memread64(texelAddress);
+                memcpy_uint64(&data[0], texelData);
                 DEBUG_EMU(gprintf("\t\t%016lx <- MEM[%016lx]\n", texelData, texelAddress);)
             }
             break;
         case 16:
             {
-                uint64 texelData = memread64(texelAddress);
-                ((uint64 *)data)[0] = texelData;
+                uint64_t texelData = memread64(texelAddress);
+                memcpy_uint64(&data[0], texelData);
                 DEBUG_EMU(gprintf("\t\t%016lx <- MEM[%016lx]\n", texelData, texelAddress);)
                 texelData = memread64(texelAddress + 8);
-                ((uint64 *)data)[1] = texelData;
+                memcpy_uint64(&data[8], texelData);
                 DEBUG_EMU(gprintf("\t\t%016lx <- MEM[%016lx]\n", texelData, texelAddress + 8);)
             }
             break;
@@ -3728,64 +3782,64 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j, uint32 k, u
             texel[3] = unorm8tofloat32(data[3]);
             break;
         case FORMAT_R16_UNORM:
-            texel[0] = unorm16tofloat32(((uint16 *)data)[0]);
+            texel[0] = unorm16tofloat32(cast_bytes_to_uint16(&data[0]));
             texel[1] = 0.0f;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_SNORM:
-            texel[0] = snorm16tofloat32(((uint16 *)data)[0]);
-            texel[1] = snorm16tofloat32(((uint16 *)data)[1]);
+            texel[0] = snorm16tofloat32(cast_bytes_to_uint16(&data[0]));
+            texel[1] = snorm16tofloat32(cast_bytes_to_uint16(&data[2]));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_UNORM:
-            texel[0] = unorm16tofloat32(((uint16 *)data)[0]);
-            texel[1] = unorm16tofloat32(((uint16 *)data)[1]);
+            texel[0] = unorm16tofloat32(cast_bytes_to_uint16(&data[0]));
+            texel[1] = unorm16tofloat32(cast_bytes_to_uint16(&data[2]));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_SFLOAT:
-            texel[0] = float16tofloat32(((uint16 *)data)[0]);
-            texel[1] = float16tofloat32(((uint16 *)data)[1]);
+            texel[0] = float16tofloat32(cast_bytes_to_uint16(&data[0]));
+            texel[1] = float16tofloat32(cast_bytes_to_uint16(&data[2]));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16B16A16_SFLOAT:
-            texel[0] = float16tofloat32(((uint16 *)data)[0]);
-            texel[1] = float16tofloat32(((uint16 *)data)[1]);
-            texel[2] = float16tofloat32(((uint16 *)data)[2]);
-            texel[3] = float16tofloat32(((uint16 *)data)[3]);
+            texel[0] = float16tofloat32(cast_bytes_to_uint16(&data[0]));
+            texel[1] = float16tofloat32(cast_bytes_to_uint16(&data[2]));
+            texel[2] = float16tofloat32(cast_bytes_to_uint16(&data[4]));
+            texel[3] = float16tofloat32(cast_bytes_to_uint16(&data[6]));
             break;
         case FORMAT_D24_UNORM_S8_UINT:
-            texel[0] = unorm24tofloat32(((uint32 *)data)[0] & 0xFFFFFF);
+            texel[0] = unorm24tofloat32(cast_bytes_to_uint24(data));
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R32_SFLOAT:
-            texel[0] = ((float *)data)[0];
+            texel[0] = cast_bytes_to_float32(data);
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R32G32B32A32_SFLOAT:
-            texel[0] = ((float *)data)[0];
-            texel[1] = ((float *)data)[1];
-            texel[2] = ((float *)data)[2];
-            texel[3] = ((float *)data)[3];
+            texel[0] = cast_bytes_to_float32(&data[0]);
+            texel[1] = cast_bytes_to_float32(&data[4]);
+            texel[2] = cast_bytes_to_float32(&data[8]);
+            texel[3] = cast_bytes_to_float32(&data[12]);
             break;
         case FORMAT_B10G11R11_UFLOAT_PACK32:
-            texel[0] = float11tofloat32( *((uint32 *)data)        & 0x7ff);
-            texel[1] = float11tofloat32((*((uint32 *)data) >> 11) & 0x7ff);
-            texel[2] = float10tofloat32((*((uint32 *)data) >> 22) & 0x3ff);
+            texel[0] = float11tofloat32( cast_bytes_to_uint32(data)        & 0x7ff);
+            texel[1] = float11tofloat32((cast_bytes_to_uint32(data) >> 11) & 0x7ff);
+            texel[2] = float10tofloat32((cast_bytes_to_uint32(data) >> 22) & 0x3ff);
             texel[3] = 1.0;
             break;
         case FORMAT_A2B10G10R10_UNORM_PACK32:
-            texel[0] = unorm10tofloat32( *((uint32 *)data)        & 0x3ff);
-            texel[1] = unorm10tofloat32((*((uint32 *)data) >> 10) & 0x3ff);
-            texel[2] = unorm10tofloat32((*((uint32 *)data) >> 20) & 0x3ff);
-            texel[3] =  unorm2tofloat32((*((uint32 *)data) >> 29) & 0x3);
+            texel[0] = unorm10tofloat32( cast_bytes_to_uint32(data)        & 0x3ff);
+            texel[1] = unorm10tofloat32((cast_bytes_to_uint32(data) >> 10) & 0x3ff);
+            texel[2] = unorm10tofloat32((cast_bytes_to_uint32(data) >> 20) & 0x3ff);
+            texel[3] =  unorm2tofloat32((cast_bytes_to_uint32(data) >> 29) & 0x3);
             break;
         default:
             texel[0] = texel[1] = texel[2] = texel[3] = 0.0;
@@ -3804,8 +3858,8 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j, uint32 k, u
     DEBUG_EMU( gprintf("\t\tTexel value = (%f, %f, %f, %f)\n", texel[0], texel[1], texel[2], texel[3]); )
 }
 
-void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j,
-                         uint64 line_data[TEXTURE_CACHE_QWORDS_PER_LINE], float32 *texel, bool data_ready)
+void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
+                         uint64_t line_data[TEXTURE_CACHE_QWORDS_PER_LINE], float32 *texel, bool data_ready)
 {
     if (!data_ready)
     {
@@ -3816,9 +3870,7 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j,
         return;
     }
 
-    uint32 fmtBytesPerTexel;
-    uint32 comprBlockI;
-    uint32 comprBlockJ;
+    uint32_t fmtBytesPerTexel;
 
     DEBUG_EMU(gprintf("\tread texel at (%d, %d)\n", i, j);)
 
@@ -3835,36 +3887,36 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j,
         //  Get the actual texel after decompressing the compressed block.
         CompressedFormatInfo compInfo = getCompressedFormatInfoL1(fmt);
         fmt = compInfo.format;
-    
+
         // sRGB conversion from unorm8 to float16 already performed for the data in the cache.
         if (fmtIsSRGB)
             fmt = FORMAT_R16G16B16A16_SFLOAT;
     }
- 
-    uint8 data[16];
+
+    uint8_t data[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     switch (fmtBytesPerTexel)
     {
         case 4:
             {
-                uint32 texelData = ((uint32 *)line_data)[((j & 3) << 2) + (i & 3)];
-                ((uint32 *)data)[0] = texelData;
-                DEBUG_EMU(gprintf("\t\tcache line texel (%d, %d) : %08x\n", i & 3, j & 3, texelData);)
+                uint32_t texelData = ((uint32_t *)line_data)[((j & 3) << 2) + (i & 3)];
+                memcpy_uint32(&data[0], texelData);
+                DEBUG_EMU(gprintf("\t\tcache line texel (%d, %d) : %08" PRIx32 "\n", i & 3, j & 3, texelData);)
             }
             break;
         case 8:
             {
-                uint64 texelData = line_data[((j & 3) << 1) + (i & 1)];
-                ((uint64 *)data)[0] = texelData;
-                DEBUG_EMU(gprintf("\t\tcache line texel (%d, %d) : %016lx\n", i & 1, j & 3, texelData);)
+                uint64_t texelData = line_data[((j & 3) << 1) + (i & 1)];
+                memcpy_uint64(&data[0], texelData);
+                DEBUG_EMU(gprintf("\t\tcache line texel (%d, %d) : %016" PRIx64 "\n", i & 1, j & 3, texelData);)
             }
             break;
         case 16:
             {
-                uint64 texelData = line_data[((j & 3) << 1)];
-                ((uint64 *)data)[0] = texelData;
+                uint64_t texelData = line_data[((j & 3) << 1)];
+                memcpy_uint64(&data[0], texelData);
                 texelData = line_data[((j & 3) << 1) + 1];
-                ((uint64 *)data)[1] = texelData;
-                DEBUG_EMU(gprintf("\t\tcache line texel (0, %d) : %016lx %016lx\n", j & 3, ((uint64 *) data)[0], ((uint64 *) data)[1]);)
+                memcpy_uint64(&data[8], texelData);
+                DEBUG_EMU(gprintf("\t\tcache line texel (0, %d) : %016" PRIx64 " %016" PRIx64 "\n", j & 3, cast_bytes_to_uint64(&data[0]), cast_bytes_to_uint64(&data[8]));)
             }
             break;
         default:
@@ -3896,52 +3948,52 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32 i, uint32 j,
             texel[3] = unorm8tofloat32(data[3]);
             break;
         case FORMAT_R16_UNORM:
-            texel[0] = unorm16tofloat32(((uint16 *)data)[0]);
+            texel[0] = unorm16tofloat32(cast_bytes_to_uint16(data));
             texel[1] = 0.0f;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_SNORM:
-            texel[0] = snorm16tofloat32(((uint16 *)data)[0]);
-            texel[1] = snorm16tofloat32(((uint16 *)data)[1]);
+            texel[0] = snorm16tofloat32(cast_bytes_to_uint16(&data[0]));
+            texel[1] = snorm16tofloat32(cast_bytes_to_uint16(&data[2]));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_UNORM:
-            texel[0] = unorm16tofloat32(((uint16 *)data)[0]);
-            texel[1] = unorm16tofloat32(((uint16 *)data)[1]);
+            texel[0] = unorm16tofloat32(cast_bytes_to_uint16(&data[0]));
+            texel[1] = unorm16tofloat32(cast_bytes_to_uint16(&data[2]));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_SFLOAT:
-            texel[0] = float16tofloat32(((uint16 *)data)[0]);
-            texel[1] = float16tofloat32(((uint16 *)data)[1]);
+            texel[0] = float16tofloat32(cast_bytes_to_uint16(&data[0]));
+            texel[1] = float16tofloat32(cast_bytes_to_uint16(&data[2]));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16B16A16_SFLOAT:
-            texel[0] = float16tofloat32(((uint16 *)data)[0]);
-            texel[1] = float16tofloat32(((uint16 *)data)[1]);
-            texel[2] = float16tofloat32(((uint16 *)data)[2]);
-            texel[3] = float16tofloat32(((uint16 *)data)[3]);
+            texel[0] = float16tofloat32(cast_bytes_to_uint16(&data[0]));
+            texel[1] = float16tofloat32(cast_bytes_to_uint16(&data[2]));
+            texel[2] = float16tofloat32(cast_bytes_to_uint16(&data[4]));
+            texel[3] = float16tofloat32(cast_bytes_to_uint16(&data[6]));
             break;
         case FORMAT_D24_UNORM_S8_UINT:
-            texel[0] = unorm24tofloat32(((uint32 *)data)[0] & 0xFFFFFF);
+            texel[0] = unorm24tofloat32(cast_bytes_to_uint24(data));
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R32_SFLOAT:
-            texel[0] = ((float *)data)[0];
+            texel[0] = cast_uint32_to_float32(data[0]);
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R32G32B32A32_SFLOAT:
-            texel[0] = ((float *)data)[0];
-            texel[1] = ((float *)data)[1];
-            texel[2] = ((float *)data)[2];
-            texel[3] = ((float *)data)[3];
+            texel[0] = cast_uint32_to_float32(data[0]);
+            texel[1] = cast_uint32_to_float32(data[1]);
+            texel[2] = cast_uint32_to_float32(data[2]);
+            texel[3] = cast_uint32_to_float32(data[3]);
             break;
         default:
             texel[0] = texel[1] = texel[2] = texel[3] = 0.0;
@@ -4181,13 +4233,13 @@ void TBOXEmu::print_image_info(ImageInfo in)
 }
 
 //  Decode BC1.
-void TBOXEmu::decode_BC1(uint8 *inBuffer, uint8 *outBuffer)
+void TBOXEmu::decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer)
 {
-    uint32 color0, color1;
+    uint32_t color0, color1;
     float RGBA0[4], RGBA1[4];
     float decodedColor[4];
-    uint32 code;
-    uint32 colorbits;
+    uint32_t code;
+    uint32_t colorbits;
 
     //  Convert first reference color of the compressed block to RGBA.
     color0 = (inBuffer[1] << 8) + inBuffer[0];
@@ -4203,7 +4255,7 @@ void TBOXEmu::decode_BC1(uint8 *inBuffer, uint8 *outBuffer)
 
     //  Get the code bits for the color components in the block.
     colorbits
-        = inBuffer[4] + uint32(inBuffer[5] << 8) + uint32(inBuffer[6] << 16) + uint32(inBuffer[7] << 24);
+        = inBuffer[4] + uint32_t(inBuffer[5] << 8) + uint32_t(inBuffer[6] << 16) + uint32_t(inBuffer[7] << 24);
 
     //  Generate the decoded colors for all the texels in the block.
     for (int j = 0; j < 4; j++)
@@ -4235,20 +4287,20 @@ void TBOXEmu::decode_BC1(uint8 *inBuffer, uint8 *outBuffer)
                     decodedColor[3] = 0.0f;
             }
 
-            ((uint32 *)outBuffer)[j * 4 + i] = convertTo_R8G8B8A8_UNORM(decodedColor);
+            ((uint32_t *)outBuffer)[j * 4 + i] = convertTo_R8G8B8A8_UNORM(decodedColor);
         }
     }
 }
 
 //  Decode BC2.
-void TBOXEmu::decode_BC2(uint8 *inBuffer, uint8 *outBuffer)
+void TBOXEmu::decode_BC2(uint8_t *inBuffer, uint8_t *outBuffer)
 {
-    uint32 color0, color1;
+    uint32_t color0, color1;
     float RGBA0[4], RGBA1[4];
     float decodedColor[4];
-    uint32 code;
-    uint32 colorbits;
-    uint64 alphabits;
+    uint32_t code;
+    uint32_t colorbits;
+    uint64_t alphabits;
 
     //  Convert first reference color of the compressed block to RGBA.
     color0 = (inBuffer[9] << 8) + inBuffer[8];
@@ -4266,9 +4318,9 @@ void TBOXEmu::decode_BC2(uint8 *inBuffer, uint8 *outBuffer)
     colorbits = inBuffer[12] + (inBuffer[13] << 8) + (inBuffer[14] << 16) + (inBuffer[15] << 24);
 
     //  Get the data bits for the alpha components in the block.
-    alphabits = uint64(inBuffer[0]) + (uint64(inBuffer[1]) << 8) + (uint64(inBuffer[2]) << 16)
-                + (uint64(inBuffer[3]) << 24) + (uint64(inBuffer[4]) << 32) + (uint64(inBuffer[5]) << 40)
-                + (uint64(inBuffer[6]) << 48) + (uint64(inBuffer[7]) << 56);
+    alphabits = uint64_t(inBuffer[0]) + (uint64_t(inBuffer[1]) << 8) + (uint64_t(inBuffer[2]) << 16)
+                + (uint64_t(inBuffer[3]) << 24) + (uint64_t(inBuffer[4]) << 32) + (uint64_t(inBuffer[5]) << 40)
+                + (uint64_t(inBuffer[6]) << 48) + (uint64_t(inBuffer[7]) << 56);
 
     //  Generate the decoded colors for all the texels in the block.
     for (int j = 0; j < 4; j++)
@@ -4287,22 +4339,22 @@ void TBOXEmu::decode_BC2(uint8 *inBuffer, uint8 *outBuffer)
             alphabits = alphabits >> 4;
 
             // Convert to R8G8B8A8_UNORM.
-            ((uint32 *)outBuffer)[j * 4 + i] = convertTo_R8G8B8A8_UNORM(decodedColor);
+            ((uint32_t *)outBuffer)[j * 4 + i] = convertTo_R8G8B8A8_UNORM(decodedColor);
         }
     }
 }
 
 // Decode BC3_UNORM
-void TBOXEmu::decode_BC3(uint8 *inBuffer, uint8 *outBuffer)
+void TBOXEmu::decode_BC3(uint8_t *inBuffer, uint8_t *outBuffer)
 {
-    uint32 color0, color1;
+    uint32_t color0, color1;
     float RGBA0[4], RGBA1[4];
     float alpha0, alpha1;
     float decodedColor[4];
-    uint32 code;
-    uint32 alphacode;
-    uint64 alphabits;
-    uint32 colorbits;
+    uint32_t code;
+    uint32_t alphacode;
+    uint64_t alphabits;
+    uint32_t colorbits;
 
     //  Convert first reference color of the compressed block to RGBA.
     color0 = (inBuffer[9] << 8) + inBuffer[8];
@@ -4328,9 +4380,9 @@ void TBOXEmu::decode_BC3(uint8 *inBuffer, uint8 *outBuffer)
     alpha1 = float(inBuffer[1]) * (1.0f / 255.0f);
 
     //  Get the code bits for the alpha components in the block.
-    alphabits = ((uint64)inBuffer[2]) + (((uint64)inBuffer[3]) << 8) + (((uint64)inBuffer[4]) << 16)
-                + (((uint64)inBuffer[5]) << 24) + (((uint64)inBuffer[6]) << 32)
-                + (((uint64)inBuffer[7]) << 40);
+    alphabits = ((uint64_t)inBuffer[2]) + (((uint64_t)inBuffer[3]) << 8) + (((uint64_t)inBuffer[4]) << 16)
+                + (((uint64_t)inBuffer[5]) << 24) + (((uint64_t)inBuffer[6]) << 32)
+                + (((uint64_t)inBuffer[7]) << 40);
 
     //  Generate the decoded colors for all the texels in the block.
     for (int j = 0; j < 4; j++)
@@ -4345,32 +4397,31 @@ void TBOXEmu::decode_BC3(uint8 *inBuffer, uint8 *outBuffer)
             decode2BitRGB(code, RGBA0, RGBA1, decodedColor);
 
             //  Get the three bit alpha code for the texel in the 4x4 block.
-            alphacode = uint32(alphabits & 0x07);
+            alphacode = uint32_t(alphabits & 0x07);
             alphabits = alphabits >> 3;
 
             //  Decode alpha.
             decodedColor[3] = decode4BitComponent(alphacode, alpha0, alpha1, false);
 
             //  Convert to R8G8B8A8_UNORM.
-            ((uint32 *)outBuffer)[j * 4 + i] = convertTo_R8G8B8A8_UNORM(decodedColor);
+            ((uint32_t *)outBuffer)[j * 4 + i] = convertTo_R8G8B8A8_UNORM(decodedColor);
         }
     }
 }
 
 // Decode BC4_UNORM
-void TBOXEmu::decode_BC4_UNORM(uint8 *inBuffer, uint8 *outBuffer) { decode_BC4(inBuffer, outBuffer, false); }
+void TBOXEmu::decode_BC4_UNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC4(inBuffer, outBuffer, false); }
 
 // Decode BC4_SNORM
-void TBOXEmu::decode_BC4_SNORM(uint8 *inBuffer, uint8 *outBuffer) { decode_BC4(inBuffer, outBuffer, true); }
+void TBOXEmu::decode_BC4_SNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC4(inBuffer, outBuffer, true); }
 
 // Decode BC4
-void TBOXEmu::decode_BC4(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
+void TBOXEmu::decode_BC4(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat)
 {
-    float RGBA0[4], RGBA1[4];
     float red0, red1;
     float decodedColor[4];
-    uint32 redcode;
-    uint32 redbits;
+    uint32_t redcode;
+    uint32_t redbits;
 
     //  Convert first reference red color from the compressed block.
     red0 = signedFormat ? snorm8tofloat32(inBuffer[0]) : float(inBuffer[0]) * (1.0f / 255.0f);
@@ -4379,8 +4430,8 @@ void TBOXEmu::decode_BC4(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
     red1 = signedFormat ? snorm8tofloat32(inBuffer[1]) : float(inBuffer[1]) * (1.0f / 255.0f);
 
     //  Get the code bits for the red component in the block.
-    redbits = ((uint64)inBuffer[2]) + (((uint64)inBuffer[3]) << 8) + (((uint64)inBuffer[4]) << 16)
-              + (((uint64)inBuffer[5]) << 24) + (((uint64)inBuffer[6]) << 32) + (((uint64)inBuffer[7]) << 40);
+    redbits = ((uint64_t)inBuffer[2]) + (((uint64_t)inBuffer[3]) << 8) + (((uint64_t)inBuffer[4]) << 16)
+              + (((uint64_t)inBuffer[5]) << 24) + (((uint64_t)inBuffer[6]) << 32) + (((uint64_t)inBuffer[7]) << 40);
 
     //  Generate the decoded colors for all the texels in the block.
     for (int j = 0; j < 4; j++)
@@ -4388,7 +4439,7 @@ void TBOXEmu::decode_BC4(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
         for (int i = 0; i < 4; i++)
         {
             //  Get the three bit color code for the texel in the 4x4 block.
-            redcode = uint32(redbits & 0x07);
+            redcode = uint32_t(redbits & 0x07);
             redbits = redbits >> 3;
 
             //  Decode red component.
@@ -4398,26 +4449,25 @@ void TBOXEmu::decode_BC4(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
             decodedColor[3] = 1.0;
 
             //  Convert to R8G8B8A8_UNORM.
-            ((uint32 *)outBuffer)[j * 4 + i] = signedFormat ? convertTo_R8G8B8A8_SNORM(decodedColor)
+            ((uint32_t *)outBuffer)[j * 4 + i] = signedFormat ? convertTo_R8G8B8A8_SNORM(decodedColor)
                                                             : convertTo_R8G8B8A8_UNORM(decodedColor);
         }
     }
 }
 
 // Decode BC5_UNORM
-void TBOXEmu::decode_BC5_UNORM(uint8 *inBuffer, uint8 *outBuffer) { decode_BC5(inBuffer, outBuffer, false); }
+void TBOXEmu::decode_BC5_UNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC5(inBuffer, outBuffer, false); }
 
 // Decode BC5_SNORM
-void TBOXEmu::decode_BC5_SNORM(uint8 *inBuffer, uint8 *outBuffer) { decode_BC5(inBuffer, outBuffer, true); }
+void TBOXEmu::decode_BC5_SNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_BC5(inBuffer, outBuffer, true); }
 
 // Decode BC5
-void TBOXEmu::decode_BC5(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
+void TBOXEmu::decode_BC5(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat)
 {
-    float RGBA0[4], RGBA1[4];
     float red0, red1, green0, green1;
     float decodedColor[4];
-    uint32 redcode, greencode;
-    uint32 redbits, greenbits;
+    uint32_t redcode, greencode;
+    uint32_t redbits, greenbits;
 
     //  Convert first reference red color from the compressed block.
     red0 = signedFormat ? snorm8tofloat32(inBuffer[0]) : float(inBuffer[0]) * (1.0f / 255.0f);
@@ -4426,8 +4476,8 @@ void TBOXEmu::decode_BC5(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
     red1 = signedFormat ? snorm8tofloat32(inBuffer[1]) : float(inBuffer[1]) * (1.0f / 255.0f);
 
     //  Get the code bits for the red component in the block.
-    redbits = ((uint64)inBuffer[2]) + (((uint64)inBuffer[3]) << 8) + (((uint64)inBuffer[4]) << 16)
-              + (((uint64)inBuffer[5]) << 24) + (((uint64)inBuffer[6]) << 32) + (((uint64)inBuffer[7]) << 40);
+    redbits = ((uint64_t)inBuffer[2]) + (((uint64_t)inBuffer[3]) << 8) + (((uint64_t)inBuffer[4]) << 16)
+              + (((uint64_t)inBuffer[5]) << 24) + (((uint64_t)inBuffer[6]) << 32) + (((uint64_t)inBuffer[7]) << 40);
 
     //  Convert first reference green color from the compressed block.
     green0 = signedFormat ? snorm8tofloat32(inBuffer[8]) : float(inBuffer[8]) * (1.0f / 255.0f);
@@ -4436,9 +4486,9 @@ void TBOXEmu::decode_BC5(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
     green1 = signedFormat ? snorm8tofloat32(inBuffer[9]) : float(inBuffer[9]) * (1.0f / 255.0f);
 
     //  Get the code bits for the red component in the block.
-    greenbits = ((uint64)inBuffer[10]) + (((uint64)inBuffer[11]) << 8) + (((uint64)inBuffer[12]) << 16)
-                + (((uint64)inBuffer[13]) << 24) + (((uint64)inBuffer[14]) << 32)
-                + (((uint64)inBuffer[15]) << 40);
+    greenbits = ((uint64_t)inBuffer[10]) + (((uint64_t)inBuffer[11]) << 8) + (((uint64_t)inBuffer[12]) << 16)
+                + (((uint64_t)inBuffer[13]) << 24) + (((uint64_t)inBuffer[14]) << 32)
+                + (((uint64_t)inBuffer[15]) << 40);
 
     //  Generate the decoded colors for all the texels in the block.
     for (int j = 0; j < 4; j++)
@@ -4446,11 +4496,11 @@ void TBOXEmu::decode_BC5(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
         for (int i = 0; i < 4; i++)
         {
             //  Get the three bit color code for the texel in the 4x4 block.
-            redcode = uint32(redbits & 0x07);
+            redcode = uint32_t(redbits & 0x07);
             redbits = redbits >> 3;
 
             //  Get the three bit color code for the texel in the 4x4 block.
-            greencode = uint32(greenbits & 0x07);
+            greencode = uint32_t(greenbits & 0x07);
             greenbits = greenbits >> 3;
 
             //  Decode red component.
@@ -4460,14 +4510,14 @@ void TBOXEmu::decode_BC5(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat)
             decodedColor[3] = 1.0;
 
             //  Convert to R8G8B8A8_UNORM.
-            ((uint32 *)outBuffer)[j * 4 + i] = signedFormat ? convertTo_R8G8B8A8_SNORM(decodedColor)
+            ((uint32_t *)outBuffer)[j * 4 + i] = signedFormat ? convertTo_R8G8B8A8_SNORM(decodedColor)
                                                             : convertTo_R8G8B8A8_UNORM(decodedColor);
         }
     }
 }
 
 //  Decodes and selects the proper color using BC3/BC4/BC5 4-bit color encoding.
-float TBOXEmu::decode4BitComponent(uint32 code, float color0, float color1, bool signedFormat)
+float TBOXEmu::decode4BitComponent(uint32_t code, float color0, float color1, bool signedFormat)
 {
     float output = 0.0f;
 
@@ -4595,7 +4645,7 @@ float TBOXEmu::decode4BitComponent(uint32 code, float color0, float color1, bool
 }
 
 //  Decodes and selects the proper RGB color for BC1/BC2/BC3 2-bit color encoding without transparent color.
-void TBOXEmu::decode2BitRGB(uint32 code, float RGB0[], float RGB1[], float output[])
+void TBOXEmu::decode2BitRGB(uint32_t code, float RGB0[], float RGB1[], float output[])
 {
     //  Select color for the texel and store.
     switch (code)
@@ -4642,7 +4692,7 @@ void TBOXEmu::decode2BitRGB(uint32 code, float RGB0[], float RGB1[], float outpu
 }
 
 //  Decodes and selects the proper RGB color for BC1/BC2/BC3 2-bit color encoding with transparent color.
-void TBOXEmu::decode2BitRGBTransparent(uint32 code, float RGB0[], float RGB1[], float output[])
+void TBOXEmu::decode2BitRGBTransparent(uint32_t code, float RGB0[], float RGB1[], float output[])
 {
     //  Select color for the texel and store.
     switch (code)
@@ -4688,9 +4738,9 @@ void TBOXEmu::decode2BitRGBTransparent(uint32 code, float RGB0[], float RGB1[], 
     }
 }
 
-uint32 TBOXEmu::convertTo_R8G8B8A8_UNORM(float decodedColor[])
+uint32_t TBOXEmu::convertTo_R8G8B8A8_UNORM(float decodedColor[])
 {
-    uint8 color[4];
+    uint8_t color[4];
 
     color[0] = float32tounorm8(decodedColor[0]);
     color[1] = float32tounorm8(decodedColor[1]);
@@ -4700,9 +4750,9 @@ uint32 TBOXEmu::convertTo_R8G8B8A8_UNORM(float decodedColor[])
     return (color[0] | (color[1] << 8) | (color[2] << 16) | (color[3] << 24));
 }
 
-uint32 TBOXEmu::convertTo_R8G8B8A8_SNORM(float decodedColor[])
+uint32_t TBOXEmu::convertTo_R8G8B8A8_SNORM(float decodedColor[])
 {
-    uint8 color[4];
+    uint8_t color[4];
 
     color[0] = float32tosnorm8(decodedColor[0]);
     color[1] = float32tosnorm8(decodedColor[1]);
@@ -4879,7 +4929,7 @@ bool TBOXEmu::isFloat32Format(ImageFormat format)
     switch (format)
     {
         case FORMAT_R16_UNORM:
-        case FORMAT_R16_SNORM:         
+        case FORMAT_R16_SNORM:
         case FORMAT_R16G16_UNORM:
         case FORMAT_R16G16_SNORM:
         case FORMAT_R16G16B16_UNORM:
@@ -4896,16 +4946,16 @@ bool TBOXEmu::isFloat32Format(ImageFormat format)
         case FORMAT_D24_UNORM_S8_UINT:
         case FORMAT_D32_SFLOAT_S8_UINT:
             return true;
-        default : 
+        default :
             return false;
     }
 }
 
 
-void TBOXEmu::getCompressedTexel(ImageFormat format, uint32 comprBlockI, uint32 comprBlockJ, uint8 data[])
+void TBOXEmu::getCompressedTexel(ImageFormat format, uint32_t comprBlockI, uint32_t comprBlockJ, uint8_t data[])
 {
-    uint8 compressedData[16];
-    uint8 decompressedData[16 * 4];
+    uint8_t compressedData[16];
+    uint8_t decompressedData[16 * 4];
 
     for (int b = 0; b < 16; b++)
         compressedData[b] = data[b];
@@ -4917,33 +4967,33 @@ void TBOXEmu::getCompressedTexel(ImageFormat format, uint32 comprBlockI, uint32 
         case FORMAT_BC1_RGBA_UNORM_BLOCK:
         case FORMAT_BC1_RGBA_SRGB_BLOCK:
             decode_BC1(compressedData, decompressedData);
-            ((uint32 *)data)[0] = ((uint32 *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+            ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
             break;
         case FORMAT_BC2_UNORM_BLOCK:
         case FORMAT_BC2_SRGB_BLOCK:
             decode_BC2(compressedData, decompressedData);
-            ((uint32 *)data)[0] = ((uint32 *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+            ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
             break;
         case FORMAT_BC3_UNORM_BLOCK:
         case FORMAT_BC3_SRGB_BLOCK:
             decode_BC3(compressedData, decompressedData);
-            ((uint32 *)data)[0] = ((uint32 *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+            ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
             break;
         case FORMAT_BC4_UNORM_BLOCK:
             decode_BC4_UNORM(compressedData, decompressedData);
-            ((uint32 *)data)[0] = ((uint32 *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+            ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
             break;
         case FORMAT_BC4_SNORM_BLOCK:
             decode_BC4_SNORM(compressedData, decompressedData);
-            ((uint32 *)data)[0] = ((uint32 *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+            ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
             break;
         case FORMAT_BC5_UNORM_BLOCK:
             decode_BC5_UNORM(compressedData, decompressedData);
-            ((uint32 *)data)[0] = ((uint32 *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+            ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
             break;
         case FORMAT_BC5_SNORM_BLOCK:
             decode_BC5_SNORM(compressedData, decompressedData);
-            ((uint32 *)data)[0] = ((uint32 *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+            ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
             break;
         case FORMAT_BC6H_UFLOAT_BLOCK:
             fetch_bptc_rgb_unsigned_float(compressedData, 0, comprBlockI, comprBlockJ, (float32 *)data);
@@ -4958,7 +5008,7 @@ void TBOXEmu::getCompressedTexel(ImageFormat format, uint32 comprBlockI, uint32 
             fetch_bptc_srgb_alpha_unorm(compressedData, 0, comprBlockI, comprBlockJ, (float32 *)data);
             break;
         default:
-            ((uint32 *)data)[0] = 0;
+            ((uint32_t *)data)[0] = 0;
             break;
     }
 }
@@ -5200,7 +5250,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
  * within the block. The value of the two bits represents which subset to use
  * (0 or 1).
  */
-const uint32 TBOXEmu::partition_table1[N_PARTITIONS] = {
+const uint32_t TBOXEmu::partition_table1[N_PARTITIONS] = {
     0x50505050U, 0x40404040U, 0x54545454U, 0x54505040U, 0x50404000U, 0x55545450U, 0x55545040U, 0x54504000U,
     0x50400000U, 0x55555450U, 0x55544000U, 0x54400000U, 0x55555440U, 0x55550000U, 0x55555500U, 0x55000000U,
     0x55150100U, 0x00004054U, 0x15010000U, 0x00405054U, 0x00004050U, 0x15050100U, 0x05010000U, 0x40505054U,
@@ -5214,7 +5264,7 @@ const uint32 TBOXEmu::partition_table1[N_PARTITIONS] = {
 /* This partition table is used when the mode has three subsets. In this case
  * the values can be 0, 1 or 2.
  */
-const uint32 TBOXEmu::partition_table2[N_PARTITIONS] = {
+const uint32_t TBOXEmu::partition_table2[N_PARTITIONS] = {
     0xaa685050U, 0x6a5a5040U, 0x5a5a4200U, 0x5450a0a8U, 0xa5a50000U, 0xa0a05050U, 0x5555a0a0U, 0x5a5a5050U,
     0xaa550000U, 0xaa555500U, 0xaaaa5500U, 0x90909090U, 0x94949494U, 0xa4a4a4a4U, 0xa9a59450U, 0x2a0a4250U,
     0xa5945040U, 0x0a425054U, 0xa5a5a500U, 0x55a0a0a0U, 0xa8a85454U, 0x6a6a4040U, 0xa4a45000U, 0x1a1a0500U,
@@ -5224,7 +5274,7 @@ const uint32 TBOXEmu::partition_table2[N_PARTITIONS] = {
     0xaa444444U, 0x54a854a8U, 0x95809580U, 0x96969600U, 0xa85454a8U, 0x80959580U, 0xaa141414U, 0x96960000U,
     0xaaaa1414U, 0xa05050a0U, 0xa0a5a5a0U, 0x96000000U, 0x40804080U, 0xa9a8a9a8U, 0xaaaaaa44U, 0x2a4a5254U};
 
-const uint8 TBOXEmu::anchor_indices[][N_PARTITIONS] = {
+const uint8_t TBOXEmu::anchor_indices[][N_PARTITIONS] = {
     /* Anchor index values for the second subset of two-subset partitioning */
     {0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf,
      0xf, 0x2, 0x8, 0x2, 0x2, 0x8, 0x8, 0xf, 0x2, 0x8, 0x2, 0x2, 0x8, 0x8, 0x2, 0x2,
@@ -5245,7 +5295,7 @@ const uint8 TBOXEmu::anchor_indices[][N_PARTITIONS] = {
      0xf, 0x3, 0xf, 0xa, 0xa, 0x8, 0x9, 0xa, 0x6, 0xf, 0x8, 0xf, 0x3, 0x6, 0x6, 0x8,
      0xf, 0x3, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0xf, 0x3, 0xf, 0xf, 0x8}};
 
-int TBOXEmu::extract_bits(const uint8 *block, int offset, int n_bits)
+int TBOXEmu::extract_bits(const uint8_t *block, int offset, int n_bits)
 {
     int byte_index = offset / 8;
     int bit_index = offset % 8;
@@ -5269,7 +5319,7 @@ int TBOXEmu::extract_bits(const uint8 *block, int offset, int n_bits)
     }
 }
 
-uint8 TBOXEmu::expand_component(uint8 byte, int n_bits)
+uint8_t TBOXEmu::expand_component(uint8_t byte, int n_bits)
 {
     /* Expands a n-bit quantity into a byte by copying the most-significant
      * bits into the unused least-significant bits.
@@ -5277,8 +5327,8 @@ uint8 TBOXEmu::expand_component(uint8 byte, int n_bits)
     return byte << (8 - n_bits) | (byte >> (2 * n_bits - 8));
 }
 
-int TBOXEmu::extract_unorm_endpoints(const bptc_unorm_mode *mode, const uint8 *block, int bit_offset,
-                                     uint8 endpoints[][4])
+int TBOXEmu::extract_unorm_endpoints(const bptc_unorm_mode *mode, const uint8_t *block, int bit_offset,
+                                     uint8_t endpoints[][4])
 {
     int component;
     int subset;
@@ -5429,12 +5479,12 @@ int TBOXEmu::count_anchors_before_texel(int n_subsets, int partition_num, int te
     return count;
 }
 
-int32 TBOXEmu::interpolate(int32 a, int32 b, int index, int index_bits)
+int32_t TBOXEmu::interpolate(int32_t a, int32_t b, int index, int index_bits)
 {
-    static const uint8 weights2[] = {0, 21, 43, 64};
-    static const uint8 weights3[] = {0, 9, 18, 27, 37, 46, 55, 64};
-    static const uint8 weights4[] = {0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64};
-    static const uint8 *weights[] = {NULL, NULL, weights2, weights3, weights4};
+    static const uint8_t weights2[] = {0, 21, 43, 64};
+    static const uint8_t weights3[] = {0, 9, 18, 27, 37, 46, 55, 64};
+    static const uint8_t weights4[] = {0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64};
+    static const uint8_t *weights[] = {NULL, NULL, weights2, weights3, weights4};
     int weight;
 
     weight = weights[index_bits][index];
@@ -5442,9 +5492,9 @@ int32 TBOXEmu::interpolate(int32 a, int32 b, int index, int index_bits)
     return ((64 - weight) * a + weight * b + 32) >> 6;
 }
 
-void TBOXEmu::apply_rotation(int rotation, uint8 *result)
+void TBOXEmu::apply_rotation(int rotation, uint8_t *result)
 {
-    uint8 t;
+    uint8_t t;
 
     if (rotation == 0)
         return;
@@ -5456,7 +5506,7 @@ void TBOXEmu::apply_rotation(int rotation, uint8 *result)
     result[3] = t;
 }
 
-void TBOXEmu::fetch_rgba_unorm_from_block(const uint8 *block, uint8 *result, int texel)
+void TBOXEmu::fetch_rgba_unorm_from_block(const uint8_t *block, uint8_t *result, int texel)
 {
     int mode_num = ffs(block[0]);
     const bptc_unorm_mode *mode;
@@ -5470,8 +5520,8 @@ void TBOXEmu::fetch_rgba_unorm_from_block(const uint8 *block, uint8 *result, int
     int index;
     int anchors_before_texel;
     bool anchor;
-    uint8 endpoints[3 * 2][4];
-    uint32 subsets;
+    uint8_t endpoints[3 * 2][4];
+    uint32_t subsets;
     int component;
 
     if (mode_num == 0)
@@ -5576,19 +5626,19 @@ void TBOXEmu::fetch_rgba_unorm_from_block(const uint8 *block, uint8 *result, int
     apply_rotation(rotation, result);
 }
 
-void TBOXEmu::fetch_bptc_rgba_unorm_bytes(const uint8 *map, uint32 rowStride, uint32 i, uint32 j,
-                                          uint8 *texel)
+void TBOXEmu::fetch_bptc_rgba_unorm_bytes(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j,
+                                          uint8_t *texel)
 {
-    const uint8 *block;
+    const uint8_t *block;
 
     block = map + (((rowStride + 3) / 4) * (j / 4) + (i / 4)) * 16;
 
     fetch_rgba_unorm_from_block(block, texel, (i % 4) + (j % 4) * 4);
 }
 
-void TBOXEmu::fetch_bptc_rgba_unorm(const uint8 *map, uint32 rowStride, uint32 i, uint32 j, float32 *texel)
+void TBOXEmu::fetch_bptc_rgba_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32 *texel)
 {
-    uint8 texel_bytes[4];
+    uint8_t texel_bytes[4];
 
     fetch_bptc_rgba_unorm_bytes(map, rowStride, i, j, texel_bytes);
 
@@ -5598,10 +5648,10 @@ void TBOXEmu::fetch_bptc_rgba_unorm(const uint8 *map, uint32 rowStride, uint32 i
     texel[3] = unorm8tofloat32(texel_bytes[3]);
 }
 
-void TBOXEmu::fetch_bptc_srgb_alpha_unorm(const uint8 *map, uint32 rowStride, uint32 i, uint32 j,
+void TBOXEmu::fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j,
                                           float32 *texel)
 {
-    uint8 texel_bytes[4];
+    uint8_t texel_bytes[4];
 
     fetch_bptc_rgba_unorm_bytes(map, rowStride, i, j, texel_bytes);
 
@@ -5611,7 +5661,7 @@ void TBOXEmu::fetch_bptc_srgb_alpha_unorm(const uint8 *map, uint32 rowStride, ui
     texel[3] = unorm8tofloat32(texel_bytes[3]);
 }
 
-int32 TBOXEmu::sign_extend(int32 value, int n_bits)
+int32_t TBOXEmu::sign_extend(int32_t value, int n_bits)
 {
     if ((value & (1 << (n_bits - 1))))
     {
@@ -5664,8 +5714,8 @@ int TBOXEmu::unsigned_unquantize(int value, int n_endpoint_bits)
     return ((value << 15) + 0x4000) >> (n_endpoint_bits - 1);
 }
 
-int TBOXEmu::extract_float_endpoints(const bptc_float_mode *mode, const uint8 *block, int bit_offset,
-                                     int32 endpoints[][3], bool is_signed)
+int TBOXEmu::extract_float_endpoints(const bptc_float_mode *mode, const uint8_t *block, int bit_offset,
+                                     int32_t endpoints[][3], bool is_signed)
 {
     const bptc_float_bitfield *bitfield;
     int endpoint, component;
@@ -5740,9 +5790,9 @@ int TBOXEmu::extract_float_endpoints(const bptc_float_mode *mode, const uint8 *b
     return bit_offset;
 }
 
-int32 TBOXEmu::finish_unsigned_unquantize(int32 value) { return value * 31 / 64; }
+int32_t TBOXEmu::finish_unsigned_unquantize(int32_t value) { return value * 31 / 64; }
 
-int32 TBOXEmu::finish_signed_unquantize(int32 value)
+int32_t TBOXEmu::finish_signed_unquantize(int32_t value)
 {
     if (value < 0)
         return (-value * 31 / 32) | 0x8000;
@@ -5750,7 +5800,7 @@ int32 TBOXEmu::finish_signed_unquantize(int32 value)
         return value * 31 / 32;
 }
 
-void TBOXEmu::fetch_rgb_float_from_block(const uint8 *block, float *result, int texel, bool is_signed)
+void TBOXEmu::fetch_rgb_float_from_block(const uint8_t *block, float *result, int texel, bool is_signed)
 {
     int mode_num;
     const bptc_float_mode *mode;
@@ -5760,11 +5810,11 @@ void TBOXEmu::fetch_rgb_float_from_block(const uint8 *block, float *result, int 
     int index_bits;
     int index;
     int anchors_before_texel;
-    int32 endpoints[2 * 2][3];
-    uint32 subsets;
+    int32_t endpoints[2 * 2][3];
+    uint32_t subsets;
     int n_subsets;
     int component;
-    int32 value;
+    int32_t value;
 
     if (block[0] & 0x2)
     {
@@ -5825,38 +5875,38 @@ void TBOXEmu::fetch_rgb_float_from_block(const uint8 *block, float *result, int 
         else
             value = finish_unsigned_unquantize(value);
 
-        uint16 value_fp16 = (uint16)(value & 0xFFFF);
+        uint16_t value_fp16 = (uint16_t)(value & 0xFFFF);
         result[component] = float16tofloat32(value_fp16);
     }
 
     result[3] = 1.0f;
 }
 
-void TBOXEmu::fetch_bptc_rgb_float(const uint8 *map, uint32 rowStride, uint32 i, uint32 j, float32 *texel,
+void TBOXEmu::fetch_bptc_rgb_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32 *texel,
                                    bool is_signed)
 {
-    const uint8 *block;
+    const uint8_t *block;
 
     block = map + (((rowStride + 3) / 4) * (j / 4) + (i / 4)) * 16;
 
     fetch_rgb_float_from_block(block, texel, (i % 4) + (j % 4) * 4, is_signed);
 }
 
-void TBOXEmu::fetch_bptc_rgb_signed_float(const uint8 *map, uint32 rowStride, uint32 i, uint32 j,
+void TBOXEmu::fetch_bptc_rgb_signed_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j,
                                           float *texel)
 {
     fetch_bptc_rgb_float(map, rowStride, i, j, texel, true);
 }
 
-void TBOXEmu::fetch_bptc_rgb_unsigned_float(const uint8 *map, uint32 rowStride, uint32 i, uint32 j,
+void TBOXEmu::fetch_bptc_rgb_unsigned_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j,
                                             float *texel)
 {
     fetch_bptc_rgb_float(map, rowStride, i, j, texel, false);
 }
 
-uint16 TBOXEmu::sharedexp_to_float16(uint32 exponent, uint32 mantissa)
+uint16_t TBOXEmu::sharedexp_to_float16(uint32_t exponent, uint32_t mantissa)
 {
-    // 
+    //
     // A shared exponent float point value encodes this float point value (always positive) :
     //
     // v = mantissa[8:0] * 2^(-9) * 2^(exponent[4:0] - 5'd15)
@@ -5867,16 +5917,16 @@ uint16 TBOXEmu::sharedexp_to_float16(uint32 exponent, uint32 mantissa)
     if (mantissa == 0)
         return 0;
 
-    uint32 normalized_exponent = exponent;
+    uint32_t normalized_exponent = exponent;
 
     // Convert mantissa from 9 bits to 11 bits to match float16 mantissa.
     // The hidden bit (10) is 0 initially.
-    // 
+    //
     // Shared exponent format allows to encode exponents beyond the range
     // of float16 exponents :  [16, -15] vs [15, -14].  As the hidden
     // bit is not present the maximum exponent of 16 is always effectively
     // converted to 15.  The case of exponent -15 is handled by shifting
-    // the mantissa in bit right. 
+    // the mantissa in bit right.
     //
     // If the shared exponent is not 0 (> -15):
     //
@@ -5887,7 +5937,7 @@ uint16 TBOXEmu::sharedexp_to_float16(uint32 exponent, uint32 mantissa)
     // normalized_mantissa[10:0] = {2'b0, mantissa[8:0]}
     //
     //
-    uint32 normalized_mantissa = (exponent == 0) ? mantissa : mantissa << 1;
+    uint32_t normalized_mantissa = (exponent == 0) ? mantissa : mantissa << 1;
 
     // Normalize the mantissa so that MSB bit is 1, adjust the exponent
     // and stop when reaching the denormalized exponent (0 in excess 15).
@@ -5903,10 +5953,10 @@ uint16 TBOXEmu::sharedexp_to_float16(uint32 exponent, uint32 mantissa)
     if ((normalized_mantissa & 0x0400) == 0)
         normalized_exponent = 0;
 
-    // Encode the float16 value : 
+    // Encode the float16 value :
     //   - Sign is positive.
     //   - Mantissa is 10 bits dropping hidden bit.
-    uint16 v_fp16 = ((normalized_exponent & 0x01F) << 10) | (normalized_mantissa & 0x3FF);
+    uint16_t v_fp16 = ((normalized_exponent & 0x01F) << 10) | (normalized_mantissa & 0x3FF);
 
     return v_fp16;
 }

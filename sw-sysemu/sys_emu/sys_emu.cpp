@@ -24,11 +24,11 @@
 #define IPI_T1_ADDR 0xFFF00048
 
 #define PA_SIZE        40
-#define PA_M           (((uint64)1 << PA_SIZE) - 1)
+#define PA_M           (((uint64_t)1 << PA_SIZE) - 1)
 #define PG_OFFSET_SIZE 12
-#define PG_OFFSET_M    (((uint64)1 << PG_OFFSET_SIZE) - 1)
+#define PG_OFFSET_M    (((uint64_t)1 << PG_OFFSET_SIZE) - 1)
 #define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
-#define PPN_M          (((uint64)1 << PPN_SIZE) - 1)
+#define PPN_M          (((uint64_t)1 << PPN_SIZE) - 1)
 #define PTE_V_OFFSET   0
 #define PTE_R_OFFSET   1
 #define PTE_W_OFFSET   2
@@ -43,20 +43,20 @@
 // Types
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef void   (*func_ptr_state)       (inst_state_change * log_info_);
-typedef void   (*func_ptr_pc)          (uint64 pc);
-typedef void   (*func_ptr_thread)      (uint32 thread);
-typedef void   (*func_ptr_initcsr)     (uint32 thread);
-typedef void   (*func_ptr_init)        (xreg dst, uint64 data);
-typedef void   (*func_ptr_minit)       (mreg dst, uint64 data);
-typedef void   (*func_ptr_debug)       (int debug, int fakesam);
-typedef void   (*func_ptr_thread1_en)  (void *);
-typedef void   (*func_ptr_reduce_info) (uint64 value, uint64 * other_min, uint64 * action);
-typedef uint64 (*func_ptr_xget)        (uint64 src1);
-typedef uint64 (*func_ptr_csrget)      (csr src1);
-typedef void   (*func_ptr_write_msg_port_data) (uint32 thread, uint32 port_id, uint32 *data);
-typedef void   (*func_ptr_set_msg_port_data_func) (void* f, void *g, void *h);
-typedef bool   (*func_ptr_get_stall_msg_port) (uint32, uint32);
+typedef void     (*func_ptr_state)       (inst_state_change * log_info_);
+typedef void     (*func_ptr_pc)          (uint64_t pc);
+typedef void     (*func_ptr_thread)      (uint32_t thread);
+typedef void     (*func_ptr_initcsr)     (uint32_t thread);
+typedef void     (*func_ptr_init)        (xreg dst, uint64_t data);
+typedef void     (*func_ptr_minit)       (mreg dst, uint64_t data);
+typedef void     (*func_ptr_debug)       (int debug, int fakesam);
+typedef void     (*func_ptr_thread1_en)  (void *);
+typedef void     (*func_ptr_reduce_info) (uint64_t value, uint64_t * other_min, uint64_t * action);
+typedef uint64_t (*func_ptr_xget)        (uint64_t src1);
+typedef uint64_t (*func_ptr_csrget)      (csr src1);
+typedef void     (*func_ptr_write_msg_port_data) (uint32_t thread, uint32_t port_id, uint32_t *data);
+typedef void     (*func_ptr_set_msg_port_data_func) (void* f, void *g, void *h);
+typedef bool     (*func_ptr_get_stall_msg_port) (uint32_t, uint32_t);
 typedef uint64_t (*func_virt_to_phys) (uint64_t addr, mem_access_type macc);
 
 typedef void   (*func_ptr_mem)(
@@ -80,9 +80,9 @@ typedef enum
 // Global variables
 std::list<int>           enabled_threads;          // List of enabled threads
 std::list<int>           pending_ipi;              // Pending IPI list
-uint64                   current_pc[4096*2];       // PC for each thread
+uint64_t                 current_pc[4096*2];       // PC for each thread
 reduce_state             reduce_state_array[4096]; // Reduce state
-uint32                   reduce_pair_array[4096];  // Reduce pairing minion
+uint32_t                 reduce_pair_array[4096];  // Reduce pairing minion
 function_pointer_cache * func_cache;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -92,50 +92,50 @@ function_pointer_cache * func_cache;
 main_memory * memory;
 
 // This functions are called by emu. We should clean this to a nicer way...
-uint8 emu_memread8(uint64 addr)
+uint8_t emu_memread8(uint64_t addr)
 {
-    uint8 ret;
+    uint8_t ret;
     memory->read(addr, 1, &ret);
     return ret;
 }
 
-uint16 emu_memread16(uint64 addr)
+uint16_t emu_memread16(uint64_t addr)
 {
-    uint16 ret;
+    uint16_t ret;
     memory->read(addr, 2, &ret);
     return ret;
 }
 
-uint32 emu_memread32(uint64 addr)
+uint32_t emu_memread32(uint64_t addr)
 {
-    uint32 ret;
+    uint32_t ret;
     memory->read(addr, 4, &ret);
     return ret;
 }
 
-uint64 emu_memread64(uint64 addr)
+uint64_t emu_memread64(uint64_t addr)
 {
-    uint64 ret;
+    uint64_t ret;
     memory->read(addr, 8, &ret);
     return ret;
 }
 
-void emu_memwrite8(uint64 addr, uint8 data)
+void emu_memwrite8(uint64_t addr, uint8_t data)
 {
     memory->write(addr, 1, &data);
 }
 
-void emu_memwrite16(uint64 addr, uint16 data)
+void emu_memwrite16(uint64_t addr, uint16_t data)
 {
     memory->write(addr, 2, &data);
 }
 
-void emu_memwrite32(uint64 addr, uint32 data)
+void emu_memwrite32(uint64_t addr, uint32_t data)
 {
     memory->write(addr, 4, &data);
 }
 
-void emu_memwrite64(uint64 addr, uint64 data)
+void emu_memwrite64(uint64_t addr, uint64_t data)
 {
     memory->write(addr, 8, &data);
 }
@@ -154,7 +154,7 @@ bool dump_log(bool log_en, int log_min, int thread_id)
 // Second thread of a minion is enabled/disabled
 ////////////////////////////////////////////////////////////////////////////////
 
-void thread1_enabled(unsigned minion_id, int en, uint64 pc, bool log_en)
+void thread1_enabled(unsigned minion_id, uint64_t en, uint64_t pc, bool log_en)
 {
     unsigned thread_id = minion_id + 1;
     if(en)
@@ -280,7 +280,7 @@ bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
 // Instruction log
 ////////////////////////////////////////////////////////////////////////////////
 
-void print_inst_log(instruction * inst, uint64 minion, uint64 current_pc, inst_state_change & emu_state_change)
+void print_inst_log(instruction * inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
 {
     printf("Minion %i.%i.%i: PC %08x (inst bits %08x), mnemonic %s\n", minion / 128, (minion >> 1) & 0x3F, minion & 1, current_pc, inst->get_enc(), inst->get_mnemonic().c_str());
 }
@@ -313,8 +313,8 @@ int main(int argc, char * argv[])
     int  log_min = 4096;
     char * dump_file = NULL;
     int dump = 0;
-    uint64 dump_addr = 0;
-    uint64 dump_size = 0;
+    uint64_t dump_addr = 0;
+    uint64_t dump_size = 0;
     uint64_t minions_en = 1;
     uint64_t shires_en = 1;
     bool use_rbox = false;
@@ -565,10 +565,10 @@ int main(int argc, char * argv[])
             bool reduce_wait = false;
             if(inst->get_is_reduce())
             {
-                uint64 other_min, action;
+                uint64_t other_min, action;
                 // Gets the source used for the reduce
-                uint64 src1 = (xreg) inst->get_param(2);
-                uint64 value = (xget(src1));
+                uint64_t src1 = (xreg) inst->get_param(2);
+                uint64_t value = (xget(src1));
                 (reduce_info(value, &other_min, &action));
                 // Sender
                 if(action == 0)

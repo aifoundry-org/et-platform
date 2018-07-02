@@ -6,7 +6,7 @@
 #include <iostream>
 
 // Creator
-instruction_cache_block::instruction_cache_block(uint64 base, main_memory * memory_, function_pointer_cache * func_cache_, testLog * log_)
+instruction_cache_block::instruction_cache_block(uint64_t base, main_memory * memory_, function_pointer_cache * func_cache_, testLog * log_)
 {
     base_pc = base;
     memory = memory_;
@@ -21,7 +21,7 @@ instruction_cache_block::~instruction_cache_block()
 }
 
 // Gets an instruction of the block
-instruction * instruction_cache_block::get_instruction(uint64 pc)
+instruction * instruction_cache_block::get_instruction(uint64_t pc)
 {
     return &instructions[(pc >> INSTRUCTION_SHIFT) & INSTRUCTION_CACHE_BLOCK_INSTR_MASK];
 }
@@ -30,7 +30,7 @@ instruction * instruction_cache_block::get_instruction(uint64 pc)
 void instruction_cache_block::decode()
 {
     * log << LOG_DEBUG << "decode" << endm;
-    uint16 instruction_buffer[INSTRUCTION_CACHE_BLOCK_INSTR];
+    uint16_t instruction_buffer[INSTRUCTION_CACHE_BLOCK_INSTR];
 
     // Reads the raw instructions from memory
     memory->read(base_pc, INSTRUCTION_CACHE_BLOCK_SIZE, instruction_buffer);
@@ -67,10 +67,11 @@ void instruction_cache_block::decode()
         }
         else
         {
-            fprintf(file, "DASM(%08X)\n", *((uint32 *) &instruction_buffer[next_inst]));
+            uint32_t bits = uint32_t(instruction_buffer[next_inst]) | uint32_t(instruction_buffer[next_inst+1]) << 16;
+            fprintf(file, "DASM(%08X)\n", bits);
             instructions[next_inst] = instruction();
             instructions[next_inst].set_pc(base_pc + next_inst * 2);
-            instructions[next_inst].set_enc(*((uint32 *) &instruction_buffer[next_inst]));
+            instructions[next_inst].set_enc(bits);
             instructions[next_inst].set_compressed(false);
             inst_read++;
             next_inst += 2;
@@ -104,7 +105,6 @@ void instruction_cache_block::decode()
     int inst_disasm = 0;
     next_inst = 0;
     char str[1024];
-    int ret;
     while(fgets(str, 1024, file) == str)
     {
         if(inst_disasm == inst_read)

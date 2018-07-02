@@ -8,7 +8,7 @@
 extern xdata xregs[EMU_NUM_THREADS][32];
 extern fdata fregs[EMU_NUM_THREADS][32];
 extern mdata mregs[EMU_NUM_THREADS][8];
-extern uint32 current_thread;
+extern uint32_t current_thread;
 
 inst_state_change * log_info = NULL;
 
@@ -49,7 +49,7 @@ void setlogstate(inst_state_change * log_info_)
 }
 
 // Jump
-void logpcchange(uint64 new_pc)
+void logpcchange(uint64_t new_pc)
 {
     // As we support the C extension the PC must be aligned to 2B
     assert((new_pc & 1ULL) == 0ULL);
@@ -91,7 +91,7 @@ void logmregchange(int mdst)
         log_info->m_reg_data[mdst][i] = MREGS[mdst].b[i];
 }
 
-void logmemwchange(int pos, int size, uint64 addr, uint64 val)
+void logmemwchange(int pos, int size, uint64_t addr, uint64_t val)
 {
     if(log_info == NULL) return;
     log_info->mem_mod[pos] = true;

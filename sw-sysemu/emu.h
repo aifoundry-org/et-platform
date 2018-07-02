@@ -52,46 +52,46 @@ extern fdata fregs[EMU_NUM_THREADS][32];
 extern mdata mregs[EMU_NUM_THREADS][8];
 extern fdata scp[EMU_NUM_THREADS][64][4];
 
-extern uint32 current_thread;
+extern uint32_t current_thread;
 
 void print_regs();
 void print_comment(const char *comm);
 
 extern "C" void init_emu(int debug, int fakesam);
-extern "C" void minit(mreg dst, uint64 val);
-extern "C" void init(xreg dst, uint64 val);
-extern "C" uint64 xget(uint64 src1);
-extern "C" uint64 csrget(csr src1);
-extern "C" void fpinit(freg dst, uint64 val[2]);
-extern "C" void initcsr(uint32 thread);
+extern "C" void minit(mreg dst, uint64_t val);
+extern "C" void init(xreg dst, uint64_t val);
+extern "C" uint64_t xget(uint64_t src1);
+extern "C" uint64_t csrget(csr src1);
+extern "C" void fpinit(freg dst, uint64_t val[2]);
+extern "C" void initcsr(uint32_t thread);
 extern "C" void init_stack();
-extern "C" void set_pc(uint64 pc);
-extern "C" void set_thread(uint32 thread);
-extern "C" uint32 get_thread();
-extern "C" uint32 get_mask(unsigned maskNr);
+extern "C" void set_pc(uint64_t pc);
+extern "C" void set_thread(uint32_t thread);
+extern "C" uint32_t get_thread();
+extern "C" uint32_t get_mask(unsigned maskNr);
 #ifdef CHECKER
 extern "C" void set_msg_port_data_func(void* f, void *g, void *h);
-extern "C" bool get_msg_port_stall(uint32 thread, uint32 id);
-uint64 get_msg_port_offset(uint32 port_id);
-void write_msg_port_data(uint32 thread, uint32 port_id);
-extern "C" void write_msg_port_data_(uint32 thread, uint32 port_id, uint32 *data);
+extern "C" bool get_msg_port_stall(uint32_t thread, uint32_t id);
+uint64_t get_msg_port_offset(uint32_t port_id);
+void write_msg_port_data(uint32_t thread, uint32_t port_id);
+extern "C" void write_msg_port_data_(uint32_t thread, uint32_t port_id, uint32_t *data);
 extern "C" void update_msg_port_data();
 #endif
-extern "C" void get_reduce_info(uint64 value, uint64 * other_min, uint64 * action);
-extern "C" uint64 get_reduce_value(int entry, int block, int * size, int * start_entry);
-extern "C" uint64 get_scratchpad_value(int entry, int block, int * last_entry, int * size);
+extern "C" void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action);
+extern "C" uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry);
+extern "C" uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size);
 extern "C" void get_scratchpad_conv_list(std::list<bool> * list);
-extern "C" uint64 get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
-extern "C" uint64 virt_to_phys(uint64 addr, mem_access_type macc);
+extern "C" uint64_t get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
+extern "C" uint64_t virt_to_phys(uint64_t addr, mem_access_type macc);
 
-uint8 memread8(uint64 addr, bool trans = true);
-uint16 memread16(uint64 addr, bool trans = true);
-uint32 memread32(uint64 addr, bool trans = true);
-uint64 memread64(uint64 addr, bool trans = true);
-void memwrite8(uint64 addr, uint8 data, bool trans = true);
-void memwrite16(uint64 addr, uint16 data, bool trans = true);
-void memwrite32(uint64 addr, uint32 data, bool trans = true);
-void memwrite64(uint64 addr, uint64 data, bool trans = true);
+uint8_t memread8(uint64_t addr, bool trans = true);
+uint16_t memread16(uint64_t addr, bool trans = true);
+uint32_t memread32(uint64_t addr, bool trans = true);
+uint64_t memread64(uint64_t addr, bool trans = true);
+void memwrite8(uint64_t addr, uint8_t data, bool trans = true);
+void memwrite16(uint64_t addr, uint16_t data, bool trans = true);
+void memwrite32(uint64_t addr, uint32_t data, bool trans = true);
+void memwrite64(uint64_t addr, uint64_t data, bool trans = true);
 
 extern "C" void lb(xreg dst, int off, xreg base);
 extern "C" void lh(xreg dst, int off, xreg base);
@@ -176,9 +176,9 @@ extern "C" void amomaxu_d(xreg dst, xreg src1, xreg src2);
 extern "C" void csrrw(xreg dst, csr src1, xreg src2);
 extern "C" void csrrs(xreg dst, csr src1, xreg src2);
 extern "C" void csrrc(xreg dst, csr src1, xreg src2);
-extern "C" void csrrwi(xreg dst, csr src1, uint64 imm);
-extern "C" void csrrsi(xreg dst, csr src1, uint64 imm);
-extern "C" void csrrci(xreg dst, csr src1, uint64 imm);
+extern "C" void csrrwi(xreg dst, csr src1, uint64_t imm);
+extern "C" void csrrsi(xreg dst, csr src1, uint64_t imm);
+extern "C" void csrrci(xreg dst, csr src1, uint64_t imm);
 extern "C" void sret();
 extern "C" void mret();
 extern "C" void wfi();
@@ -190,8 +190,8 @@ extern "C" void flw   (freg dst, int off, xreg base);
 extern "C" void flq   (freg dst, int off, xreg base);
 extern "C" void flw_ps(freg dst, int off, xreg base);
 extern "C" void fbc_ps(freg dst, int off, xreg base);
-extern "C" void fbci_pi(freg dst, uint32 imm);
-extern "C" void fbci_ps(freg dst, uint32 imm);          // no rounding mode
+extern "C" void fbci_pi(freg dst, uint32_t imm);
+extern "C" void fbci_ps(freg dst, uint32_t imm);          // no rounding mode
 extern "C" void fbcx_ps(freg dst, xreg src);            // no rounding mode
 extern "C" void fsw   (freg src1, int off, xreg base);
 extern "C" void fsw_ps(freg src1, int off, xreg base);
@@ -294,14 +294,14 @@ extern "C" void fltu_pi  (freg dst, freg src1, freg src2);
 extern "C" void fle_pi   (freg dst, freg src1, freg src2);
 extern "C" void feq_pi   (freg dst, freg src1, freg src2);
 extern "C" void fltm_pi  (mreg dst, freg src1, freg src2);
-extern "C" void faddi_pi (freg dst, freg src1, uint32 imm);
-extern "C" void fandi_pi (freg dst, freg src1, uint32 imm);
-extern "C" void fori_pi  (freg dst, freg src1, uint32 imm);
-extern "C" void fxori_pi (freg dst, freg src1, uint32 imm);
-extern "C" void fslli_pi (freg dst, freg src1, uint32 imm);
-extern "C" void fsrli_pi (freg dst, freg src1, uint32 imm);
-extern "C" void fsrai_pi (freg dst, freg src1, uint32 imm);
-//extern "C" void fslloi_pi (freg dst, freg src1, freg src2, uint32 imm);
+extern "C" void faddi_pi (freg dst, freg src1, uint32_t imm);
+extern "C" void fandi_pi (freg dst, freg src1, uint32_t imm);
+extern "C" void fori_pi  (freg dst, freg src1, uint32_t imm);
+extern "C" void fxori_pi (freg dst, freg src1, uint32_t imm);
+extern "C" void fslli_pi (freg dst, freg src1, uint32_t imm);
+extern "C" void fsrli_pi (freg dst, freg src1, uint32_t imm);
+extern "C" void fsrai_pi (freg dst, freg src1, uint32_t imm);
+//extern "C" void fslloi_pi (freg dst, freg src1, freg src2, uint32_t imm);
 extern "C" void fpackreph_pi (freg dst, freg src1);
 extern "C" void fpackrepb_pi (freg dst, freg src1);
 
@@ -334,15 +334,15 @@ extern "C" void fcvt_sn8_ps  (freg dst, freg src1, rounding_mode rm);
 extern "C" void fcvt_f11_ps  (freg dst, freg src1, rounding_mode rm);
 extern "C" void fcvt_f10_ps  (freg dst, freg src1, rounding_mode rm);
 
-extern "C" void fswizz_ps    (freg dst, freg src1, uint8  imm);         // no rounding mode
+extern "C" void fswizz_ps    (freg dst, freg src1, uint8_t  imm);         // no rounding mode
 
 extern "C" void cubeface_ps    (freg dst, freg src1, freg src2);        // no rounding mode
 extern "C" void cubefaceidx_ps (freg dst, freg src1, freg src2);        // no rounding mode
 extern "C" void cubesgnsc_ps   (freg dst, freg src1, freg src2);        // no rounding mode
 extern "C" void cubesgntc_ps   (freg dst, freg src1, freg src2);        // no rounding mode
 
-extern "C" void fmvz_x_ps     (xreg dst, freg src1, uint8 index);       // no rounding mode
-extern "C" void fmvs_x_ps     (xreg dst, freg src1, uint8 index);       // no rounding mode
+extern "C" void fmvz_x_ps     (xreg dst, freg src1, uint8_t index);       // no rounding mode
+extern "C" void fmvs_x_ps     (xreg dst, freg src1, uint8_t index);       // no rounding mode
 extern "C" void fcmovm_ps     (freg dst, freg src1, freg src2);         // no rounding mode
 
 extern "C" void fmv_x_w      (xreg dst, freg src1);     // no rounding mode
@@ -355,11 +355,11 @@ extern "C" void maskxor    (mreg dst, mreg src1, mreg src2);
 extern "C" void masknot    (mreg dst, mreg src1);
 extern "C" void mova_x_m   (xreg dst);
 extern "C" void mova_m_x   (xreg src1);
-extern "C" void mov_m_x    (mreg dst, xreg src1, uint32 imm);
-extern "C" void movi_m     (mreg dst, uint8 imm);
+extern "C" void mov_m_x    (mreg dst, xreg src1, uint32_t imm);
+extern "C" void movi_m     (mreg dst, uint8_t imm);
 extern "C" void maskpopc   (xreg dst, mreg src1);
 extern "C" void maskpopcz  (xreg dst, mreg src1);
-extern "C" void maskpopc_rast (xreg dst, mreg src1, mreg src2, uint32 imm);
+extern "C" void maskpopc_rast (xreg dst, mreg src1, mreg src2, uint32_t imm);
 
 // Texture instructions
 #include "txs.h"

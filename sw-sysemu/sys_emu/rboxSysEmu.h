@@ -19,7 +19,7 @@ typedef struct
 
 class rboxSysEmu
 {
-  typedef void (*func_ptr_write_msg_port_data) (uint32 thread, uint32 port_id, uint32 *data);
+  typedef void (*func_ptr_write_msg_port_data) (uint32_t thread, uint32_t port_id, uint32_t *data);
 
  public:
 

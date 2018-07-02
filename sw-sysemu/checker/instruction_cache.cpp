@@ -15,10 +15,10 @@ instruction_cache::~instruction_cache()
 }
 
 // Decodes the instructions for this block
-void instruction_cache::decode(uint64 base_pc)
+void instruction_cache::decode(uint64_t base_pc)
 {
     log << LOG_DEBUG << "decode" << endm;
-    uint16 instruction_buffer[INSTRUCTION_CACHE_BLOCK_INSTR];
+    uint16_t instruction_buffer[INSTRUCTION_CACHE_BLOCK_INSTR];
     instruction *instructions[INSTRUCTION_CACHE_BLOCK_INSTR];
 
     // Reads the raw instructions from memory
@@ -55,10 +55,11 @@ void instruction_cache::decode(uint64 base_pc)
         // Can't execute a 32b instruction if we only have 16b available
         else if((next_inst + 1) < (INSTRUCTION_CACHE_BLOCK_INSTR))
         {
-            fprintf(file, "DASM(%08X)\n", *((uint32 *) &instruction_buffer[next_inst]));
+            uint32_t bits = uint32_t(instruction_buffer[next_inst]) | uint32_t(instruction_buffer[next_inst+1]) << 16;
+            fprintf(file, "DASM(%08X)\n", bits);
             instructions[next_inst] = new instruction();
             instructions[next_inst]->set_pc(base_pc + next_inst * 2);
-            instructions[next_inst]->set_enc(*((uint32 *) &instruction_buffer[next_inst]));
+            instructions[next_inst]->set_enc(bits);
             instructions[next_inst]->set_compressed(false);
             inst_read++;
             next_inst += 2;
@@ -91,7 +92,6 @@ void instruction_cache::decode(uint64 base_pc)
     int inst_disasm = 0;
     next_inst = 0;
     char str[1024];
-    int ret;
     while(fgets(str, 1024, file) == str)
     {
         if(inst_disasm == inst_read)
@@ -120,7 +120,7 @@ void instruction_cache::decode(uint64 base_pc)
 }
 
 // Returns a decoded instruction from a specific PC
-instruction * instruction_cache::get_instruction(uint64 pc)
+instruction * instruction_cache::get_instruction(uint64_t pc)
 {
     inst_cache_hash_it_t inst = cache.find(pc);
 

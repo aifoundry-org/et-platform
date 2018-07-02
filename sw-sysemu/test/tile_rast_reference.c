@@ -1393,7 +1393,7 @@ end_128x128:
 //  Use the scalar version in C instead.
 void rasterize_128x128_to_64x64_high_precision()
 {
-    uint64 saved_registers[32];
+    uint64_t saved_registers[32];
     
     // x10 -> triangle_setup_vector
     // x11 -> rbox_input_buffer
@@ -1419,8 +1419,8 @@ void rasterize_128x128_to_64x64_high_precision()
 
     print_comment(">>> rasterize_128x128_high_precision");
 
-    init(x30, (uint64) saved_registers);
-    init(x31, (uint64) rast_lit);
+    init(x30, (uint64_t) saved_registers);
+    init(x31, (uint64_t) rast_lit);
 
     sd(x19, 19 * 8, x30, "Save register x19");
     sd(x20, 20 * 8, x30, "Save register x20");
@@ -1645,7 +1645,7 @@ end_scalar_128x128:
 
 void rasterize_128x128_to_32x32_high_precision()
 {
-    uint64 saved_registers[32];
+    uint64_t saved_registers[32];
     
     // x10 -> triangle_setup_vector
     // x11 -> rbox_input_buffer
@@ -1675,8 +1675,8 @@ void rasterize_128x128_to_32x32_high_precision()
 
     print_comment(">>> rasterize_128x128_high_precision");
 
-    init(x30, (uint64) saved_registers);
-    init(x31, (uint64) rast_lit);
+    init(x30, (uint64_t) saved_registers);
+    init(x31, (uint64_t) rast_lit);
 
     sd(x19, 19 * 8, x30, "Save register x19");
     sd(x20, 20 * 8, x30, "Save register x20");
@@ -2016,12 +2016,12 @@ end_large_tri:
     return;
 }
 
-void create_rbox_packets(TriangleSetupVector *triangle_setup_vector, uint32 *rbox_input_buffer, uint32 *rbox_packets)
+void create_rbox_packets(TriangleSetupVector *triangle_setup_vector, uint32_t *rbox_input_buffer, uint32_t *rbox_packets)
 {
     print_comment(">>> create_rbox_packets");
 
-    init(x10, (uint64) triangle_setup_vector);
-    init(x11, (uint64) rbox_input_buffer);
+    init(x10, (uint64_t) triangle_setup_vector);
+    init(x11, (uint64_t) rbox_input_buffer);
    
     addi(x12, x0, 0, "Set triangle index to 0");
     addi(x13, x0, 0, "Set RBOX packet counter to 0");

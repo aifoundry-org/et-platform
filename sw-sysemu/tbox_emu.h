@@ -7,31 +7,31 @@ class TBOXEmu
 {
 private:
 
-    static const uint32 TEXTURE_CACHE_BANKS = 2;
-    static const uint32 TEXTURE_CACHE_LINES_PER_BANK = 32;
-    static const uint32 TEXTURE_CACHE_QWORDS_PER_LINE = 8;
-    
-    static const uint32 MAX_L2_REQUESTS = 1024;
-    static const uint32 L2_REQUEST_QWORDS = 8;
+    static const uint32_t TEXTURE_CACHE_BANKS = 2;
+    static const uint32_t TEXTURE_CACHE_LINES_PER_BANK = 32;
+    static const uint32_t TEXTURE_CACHE_QWORDS_PER_LINE = 8;
 
-    static const uint32 IMAGE_INFO_CACHE_SIZE = 16;
+    static const uint32_t MAX_L2_REQUESTS = 1024;
+    static const uint32_t L2_REQUEST_QWORDS = 8;
+
+    static const uint32_t IMAGE_INFO_CACHE_SIZE = 16;
 
     typedef union
     {
         struct
         {
-            uint16 must_be_zero_lo   : 3,
+            uint16_t must_be_zero_lo   : 3,
                    mantissa_variable : 7,
                    exponent_variable : 4,
                    must_be_zero_hi   : 2;
         } encode;
-        uint16 value;
+        uint16_t value;
     } EncodeSRGBFP16;
 
     static const EncodeSRGBFP16 SRGB2LINEAR_TABLE[256];
 
-    static const uint32 BYTES_PER_TEXEL_IN_MEMORY[];
-    static const uint32 BYTES_PER_TEXEL_IN_L1[];
+    static const uint32_t BYTES_PER_TEXEL_IN_MEMORY[];
+    static const uint32_t BYTES_PER_TEXEL_IN_L1[];
 
 public :
 
@@ -51,7 +51,7 @@ public :
 
     typedef enum
     {
-        FILTER_TYPE_NEAREST = 0, 
+        FILTER_TYPE_NEAREST = 0,
         FILTER_TYPE_LINEAR  = 1,
         MAX_FILTER_TYPE     = 1
     } FilterType;
@@ -80,7 +80,7 @@ public :
     } CompareOperation;
 
     typedef enum
-    {    
+    {
         COMPONENT_SWIZZLE_NONE     = 0,
         COMPONENT_SWIZZLE_IDENTITY = 1,
         COMPONENT_SWIZZLE_ZERO     = 2,
@@ -303,120 +303,120 @@ public :
         MAX_IMAGE_FORMAT                  = 511
     } ImageFormat;
 
-    typedef union 
+    typedef union
     {
-        uint64 data[2];
+        uint64_t data[2];
         struct
         {   // A means to be added to: sh_res_tex_txreq
             // B means to be added to: samp_txreq
-            uint64 operation :  4, 
-                   opmode    :  3,  // B only if sample_*c. Compiler must write it if gather4 w/o comparison. Comparison mode is in trace.txt, in CompareOperation here.
-                   imageid   : 12,  // A
-                   ioffset   :  4,  // Compiler
-                   joffset   :  4,  // Compiler
-                   koffset   :  4,  // Compiler
-                   minfilter :  1,  // B. filter mode in trace.txt 1-linear 0-near
-                   magfilter :  1,  // B. filter mode in trace.txt
-                   mipfilter :  1,  // B. filter mode in trace.txt
-                   aniso     :  1,  // B. filter mode in trace.txt. 1 if (anisotropic, anisotropic, anisotropic, normal)
-                   addrmodeu :  3,  // B. addressing mode in trace.txt. AddressMode here
-                   addrmodev :  3,  // B. addressing mode in trace.txt. AddressMode here
-                   addrmodew :  3,  // B. addressing mode in trace.txt. AddressMode here
-                   border    :  2,  // B. BorderColor. Set always to BORDER_COLOR_TRANSPARENT_BLACK (0)
-                   swizzler  :  3,  // Compiler
-                   swizzleg  :  3,  // Compiler
-                   swizzleb  :  3,  // Compiler
-                   swizzlea  :  3,  // Compiler
-                   mask      :  4,  // Compiler
-                   packets   :  2;  // Compiler
-            union 
+            uint64_t operation :  4,
+                     opmode    :  3,  // B only if sample_*c. Compiler must write it if gather4 w/o comparison. Comparison mode is in trace.txt, in CompareOperation here.
+                     imageid   : 12,  // A
+                     ioffset   :  4,  // Compiler
+                     joffset   :  4,  // Compiler
+                     koffset   :  4,  // Compiler
+                     minfilter :  1,  // B. filter mode in trace.txt 1-linear 0-near
+                     magfilter :  1,  // B. filter mode in trace.txt
+                     mipfilter :  1,  // B. filter mode in trace.txt
+                     aniso     :  1,  // B. filter mode in trace.txt. 1 if (anisotropic, anisotropic, anisotropic, normal)
+                     addrmodeu :  3,  // B. addressing mode in trace.txt. AddressMode here
+                     addrmodev :  3,  // B. addressing mode in trace.txt. AddressMode here
+                     addrmodew :  3,  // B. addressing mode in trace.txt. AddressMode here
+                     border    :  2,  // B. BorderColor. Set always to BORDER_COLOR_TRANSPARENT_BLACK (0)
+                     swizzler  :  3,  // Compiler
+                     swizzleg  :  3,  // Compiler
+                     swizzleb  :  3,  // Compiler
+                     swizzlea  :  3,  // Compiler
+                     mask      :  4,  // Compiler
+                     packets   :  2;  // Compiler
+            union
             {
-                uint16 lod_array[4];
-                struct 
+                uint16_t lod_array[4];
+                struct
                 {
-                    uint64 lod         : 16,
-                           anisodeltau :  8,
-                           anisodeltav :  8,
-                           anisoratio  : 16,
-                           unused      : 16;
+                    uint64_t lod         : 16,
+                             anisodeltau :  8,
+                             anisodeltav :  8,
+                             anisoratio  : 16,
+                             unused      : 16;
                 } lodaniso;
             } lodaniso;
         } info;
     } SampleRequest;
 
-    typedef union 
+    typedef union
     {
-        uint64 data[4];
-        struct 
+        uint64_t data[4];
+        struct
         {
-            uint64 address;
-            uint64 type         :  3,
-                   format       :  9,
-                   width        : 16,
-                   height       : 16,
-                   depth        : 12,
-                   reserved0    :  8;
-            uint64 arraybase    : 12,
-                   arraycount   : 12,
-                   basemip      :  5,
-                   mipcount     :  5,
-                   swizzler     :  3,
-                   swizzleg     :  3,
-                   swizzleb     :  3,
-                   swizzlea     :  3,
-                   reserved1    : 18;
-            uint64 rowpitch     : 10,
-                   mippitchl0   :  5,
-                   mippitchl1   :  5,
-                   elementpitch : 30,
-                   tiled        :  1,
-                   packedlayout :  1,
-                   packedmip    :  4,
-                   packedlevel  :  4,
-                   reserved2    :  4;
+            uint64_t address;
+            uint64_t type         :  3,
+                     format       :  9,
+                     width        : 16,
+                     height       : 16,
+                     depth        : 12,
+                     reserved0    :  8;
+            uint64_t arraybase    : 12,
+                     arraycount   : 12,
+                     basemip      :  5,
+                     mipcount     :  5,
+                     swizzler     :  3,
+                     swizzleg     :  3,
+                     swizzleb     :  3,
+                     swizzlea     :  3,
+                     reserved1    : 18;
+            uint64_t rowpitch     : 10,
+                     mippitchl0   :  5,
+                     mippitchl1   :  5,
+                     elementpitch : 30,
+                     tiled        :  1,
+                     packedlayout :  1,
+                     packedmip    :  4,
+                     packedlevel  :  4,
+                     reserved2    :  4;
         } info;
     } ImageInfo;
 
     typedef struct
     {
-        uint32 thread_mask;
-        uint64 address;                     // Aligned to request size
-        uint64 data[L2_REQUEST_QWORDS];
-        bool   ready;
-        bool   free;
+        uint32_t thread_mask;
+        uint64_t address;                     // Aligned to request size
+        uint64_t data[L2_REQUEST_QWORDS];
+        bool     ready;
+        bool     free;
     } L2Request;
 
-    void set_request_header(uint32 thread, uint64 src1, uint64 src2); 
-    void set_request_coordinates(uint32 thread, uint32 index, fdata coord);
-    fdata get_request_results(uint32 thread, uint32 index);
-    void set_request_pending(uint32 thread, bool v);
-    bool check_request_pending(uint32 thread);
-    void set_image_table_address(uint64 addr);
-    uint64 get_image_table_address();
-    void print_sample_request(uint32 thread) const;
+    void set_request_header(uint32_t thread, uint64_t src1, uint64_t src2);
+    void set_request_coordinates(uint32_t thread, uint32_t index, fdata coord);
+    fdata get_request_results(uint32_t thread, uint32_t index);
+    void set_request_pending(uint32_t thread, bool v);
+    bool check_request_pending(uint32_t thread);
+    void set_image_table_address(uint64_t addr);
+    uint64_t get_image_table_address();
+    void print_sample_request(uint32_t thread) const;
 
     void texture_cache_initialize();
     void image_info_cache_initialize();
 
-    void sample_quad(uint32 thread, bool fake_sampler, bool output_result);
-    bool get_image_info(uint32 thread, ImageInfo &currentImage);
+    void sample_quad(uint32_t thread, bool fake_sampler, bool output_result);
+    bool get_image_info(uint32_t thread, ImageInfo &currentImage);
     bool get_image_info(SampleRequest request, ImageInfo &currentImage);
     void sample_quad(SampleRequest currentRequest, fdata input[], fdata output[], bool fake_sampler);
     void sample_quad(SampleRequest currentRequest, ImageInfo currentImage, fdata input[], fdata output[], bool output_result);
-    void decompress_texture_cache_line_data(ImageInfo currentImage, uint32 startTexel,
-                                            uint64 inData[TEXTURE_CACHE_QWORDS_PER_LINE], uint64 outData[TEXTURE_CACHE_QWORDS_PER_LINE]);
+    void decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
+                                            uint64_t inData[TEXTURE_CACHE_QWORDS_PER_LINE], uint64_t outData[TEXTURE_CACHE_QWORDS_PER_LINE]);
 
     L2Request* get_l2_request_queue() const;
-    uint32 get_num_new_l2_requests(uint32 thread) const;
-    uint32 get_num_pending_l2_requests(uint32 thread) const;
-    void clear_l2_requests(uint32 thread);
-    void reset_l2_requests_counters(uint32 thread);
+    uint32_t get_num_new_l2_requests(uint32_t thread) const;
+    uint32_t get_num_pending_l2_requests(uint32_t thread) const;
+    void clear_l2_requests(uint32_t thread);
+    void reset_l2_requests_counters(uint32_t thread);
 
     static void print_sample_request(SampleRequest req);
     static void print_image_info(ImageInfo in);
 
-    static uint64 compute_mip_offset(uint32 mip_pitch_l0, uint32 mip_pitch_l1, uint32 row_pitch, uint32 rows, uint32 mip_level);
-    
+    static uint64_t compute_mip_offset(uint32_t mip_pitch_l0, uint32_t mip_pitch_l1, uint32_t row_pitch, uint32_t rows, uint32_t mip_level);
+
     TBOXEmu();
 
 private :
@@ -432,115 +432,115 @@ private :
 
     float compare_texel(CompareOperation compop, float reference, float input);
 
-    void wrap_texel_coord(uint32 c[2], int32 c_ul, uint32 mip_dim, AddressMode addrmode);
+    void wrap_texel_coord(uint32_t c[2], int32_t c_ul, uint32_t mip_dim, AddressMode addrmode);
 
     float32 apply_component_swizzle(ComponentSwizzle swizzle, float32 source, float32 red, float32 green, float32 blue, float32 alpha);
 
-    uint64 imageTableAddress;
-    
+    uint64_t imageTableAddress;
+
     SampleRequest currentRequest[EMU_NUM_THREADS];
-    
+
     bool request_pending[EMU_NUM_THREADS];
-    
+
     fdata input[EMU_NUM_THREADS][5];
 
     fdata output[EMU_NUM_THREADS][4];
-    
-    uint32 current_thread;
 
-    uint32 imageInfoCacheTags[IMAGE_INFO_CACHE_SIZE];
+    uint32_t current_thread;
+
+    uint32_t imageInfoCacheTags[IMAGE_INFO_CACHE_SIZE];
     ImageInfo imageInfoCache[IMAGE_INFO_CACHE_SIZE];
     bool imageInfoCacheValid[IMAGE_INFO_CACHE_SIZE];
-    uint8 imageInfoCacheLRU[IMAGE_INFO_CACHE_SIZE];
+    uint8_t imageInfoCacheLRU[IMAGE_INFO_CACHE_SIZE];
 
-    uint64 textureCacheTags[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK];
+    uint64_t textureCacheTags[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK];
     bool textureCacheValid[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK];
-    uint8 textureCacheLRU[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK];
-    uint64 textureCacheData[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK][TEXTURE_CACHE_QWORDS_PER_LINE];
-    
+    uint8_t textureCacheLRU[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK];
+    uint64_t textureCacheData[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK][TEXTURE_CACHE_QWORDS_PER_LINE];
+
     L2Request* l2_requests;
-    uint32 num_new_l2_requests[EMU_NUM_THREADS];
-    uint32 num_pending_l2_requests[EMU_NUM_THREADS];
-    uint32 num_created_l2_requests[EMU_NUM_THREADS];
-    uint32 num_total_l2_requests;
+    uint32_t num_new_l2_requests[EMU_NUM_THREADS];
+    uint32_t num_pending_l2_requests[EMU_NUM_THREADS];
+    uint32_t num_created_l2_requests[EMU_NUM_THREADS];
+    uint32_t num_total_l2_requests;
 
-    bool   texture_cache_lookup(int32 bank, uint64 tag, uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE]);
-    void   texture_cache_fill(int32 bank, uint64 tag, uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE]);
-    uint32 texture_cache_get_lru(uint32 bank);
-    void   texture_cache_update_lru(uint32 bank, uint32 access_way);
+    bool   texture_cache_lookup(int32_t bank, uint64_t tag, uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE]);
+    void   texture_cache_fill(int32_t bank, uint64_t tag, uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE]);
+    uint32_t texture_cache_get_lru(uint32_t bank);
+    void   texture_cache_update_lru(uint32_t bank, uint32_t access_way);
 
-    bool   image_info_cache_lookup(uint32 tag, ImageInfo &data);
-    void   image_info_cache_fill(uint32 tag, ImageInfo data);
-    uint32 image_info_cache_get_lru();
-    void   image_info_cache_update_lru(uint32 access_way);
+    bool   image_info_cache_lookup(uint32_t tag, ImageInfo &data);
+    void   image_info_cache_fill(uint32_t tag, ImageInfo data);
+    uint32_t image_info_cache_get_lru();
+    void   image_info_cache_update_lru(uint32_t access_way);
 
-    bool access_memory(uint64 address, uint64 &data);
-    bool access_memory(uint64 address, uint32 &data);
+    bool access_memory(uint64_t address, uint64_t &data);
+    bool access_memory(uint64_t address, uint32_t &data);
 
-    bool access_l2(uint64 address, uint64 &data);
-    bool access_l2(uint64 address, uint32 &data);
+    bool access_l2(uint64_t address, uint64_t &data);
+    bool access_l2(uint64_t address, uint32_t &data);
 
-    bool get_l2_data(uint64 address, uint64 &data);
-    bool get_l2_data(uint64 address, uint32 &data);
-    bool get_l2_data(uint64 address, ImageInfo &data);
+    bool get_l2_data(uint64_t address, uint64_t &data);
+    bool get_l2_data(uint64_t address, uint32_t &data);
+    bool get_l2_data(uint64_t address, ImageInfo &data);
 
-    void create_l2_request(uint64);
+    void create_l2_request(uint64_t);
 
     void sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fdata r,
-                         uint32 req, ImageInfo currentImage, FilterType filter,
-                         uint32 slice, uint32 sample_mip_level, float32 sample_mip_beta,
-                         uint32 aniso_sample, float32 aniso_weight, float aniso_deltas, float aniso_deltat,
+                         uint32_t req, ImageInfo currentImage, FilterType filter,
+                         uint32_t slice, uint32_t sample_mip_level, float32 sample_mip_beta,
+                         uint32_t aniso_sample, float32 aniso_weight, float aniso_deltas, float aniso_deltat,
                          float &red, float &green, float &blue, float &alpha, bool output_result);
     void sample_pixel(SampleRequest currentRequest, fdata input[], fdata output[],
-                      uint32 req, ImageInfo currentImage, FilterType filter, uint32 mip_level,
-                      uint32 mip_beta, bool output_result);
-    void read_texel(ImageInfo currentImage, uint32 i, uint32 j, uint32 k, uint32 l, uint32 mip_level, float32 *texel);
-    void read_texel(ImageInfo currentImage, uint32 i, uint32 j, uint64 data[], float32 *texel, bool data_ready);
+                      uint32_t req, ImageInfo currentImage, FilterType filter, uint32_t mip_level,
+                      uint32_t mip_beta, bool output_result);
+    void read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level, float32 *texel);
+    void read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint64_t data[], float32 *texel, bool data_ready);
     void create_texture_cache_tags(SampleRequest currentRequest, ImageInfo currentImage, FilterType filter,
-                                   uint32 i[2], uint32 j[2], uint32 k, uint32 l, uint32 mip_level,
-                                   uint32 &num_banks, int32 banks[4], uint64 tags[4], uint64 address[4][4]);
-    uint64 texel_virtual_address(ImageInfo currentImage, uint32 i, uint32 j, uint32 k, uint32 l, uint32 mip_level);
-    void read_bilinear_texels(ImageInfo currentImage, uint32 i[2], uint32 j[2], uint32 k, uint32 l, uint32 mip_level,
+                                   uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l, uint32_t mip_level,
+                                   uint32_t &num_banks, int32_t banks[4], uint64_t tags[4], uint64_t address[4][4]);
+    uint64_t texel_virtual_address(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level);
+    void read_bilinear_texels(ImageInfo currentImage, uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l, uint32_t mip_level,
                               float32 *texel_ul, float32 *texel_ur, float32 *texel_ll, float32 *texel_lr);
-    bool read_texture_cache_line(ImageInfo currentImage, uint64 address[4], uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE]);
-    bool read_texture_cache_line_data(ImageInfo currentImage, uint64 address[4], uint64 data[TEXTURE_CACHE_QWORDS_PER_LINE]);
-    bool read_image_info_cache_line(uint64 address, ImageInfo &data);
+    bool read_texture_cache_line(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE]);
+    bool read_texture_cache_line_data(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE]);
+    bool read_image_info_cache_line(uint64_t address, ImageInfo &data);
 
-    void compute_packed_mip_offset(ImageInfo currentImage, uint32 bytesTexel, bool isCompressed,
-                                   uint32 tileWidthLog2, uint32 tileHeightLog2, uint32 mip_level, uint32 mip_offset[]);
-    uint64 compute_tile_offset(uint32 bytesTexel, uint32 tile_i, uint32 tile_j);
+    void compute_packed_mip_offset(ImageInfo currentImage, uint32_t bytesTexel, bool isCompressed,
+                                   uint32_t tileWidthLog2, uint32_t tileHeightLog2, uint32_t mip_level, uint32_t mip_offset[]);
+    uint64_t compute_tile_offset(uint32_t bytesTexel, uint32_t tile_i, uint32_t tile_j);
 
     struct CompressedFormatInfo
     {
         CompressedFormatInfo() : blockWidth(0), blockHeight(0), blockBytes(0), format(FORMAT_UNDEFINED) {};
-        CompressedFormatInfo(uint32 bw, uint32 bh, uint32 bb, ImageFormat fmt) : blockWidth(bw), blockHeight(bh), blockBytes(bb), format(fmt) {};
-        
-        uint32 blockWidth;      // 2^n compressed block width
-        uint32 blockHeight;     // 2^n compressed block height
-        uint32 blockBytes;      // Compressed block size in bytes
+        CompressedFormatInfo(uint32_t bw, uint32_t bh, uint32_t bb, ImageFormat fmt) : blockWidth(bw), blockHeight(bh), blockBytes(bb), format(fmt) {};
+
+        uint32_t blockWidth;    // 2^n compressed block width
+        uint32_t blockHeight;   // 2^n compressed block height
+        uint32_t blockBytes;    // Compressed block size in bytes
         ImageFormat format;     // Decompressed format
     };
-    
+
     float32 clamp(float32 v);
 
-    void decode_BC1(uint8 *inBuffer, uint8 *outBuffer);
-    void decode_BC2(uint8 *inBuffer, uint8 *outBuffer);
-    void decode_BC3(uint8 *inBuffer, uint8 *outBuffer);
-    void decode_BC4_UNORM(uint8 *inBuffer, uint8 *outBuffer);
-    void decode_BC4_SNORM(uint8 *inBuffer, uint8 *outBuffer);
-    void decode_BC5_UNORM(uint8 *inBuffer, uint8 *outBuffer);
-    void decode_BC5_SNORM(uint8 *inBuffer, uint8 *outBuffer);
-    
-    void decode_BC4(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat);
-    void decode_BC5(uint8 *inBuffer, uint8 *outBuffer, bool signedFormat);
-    
-    uint32 convertTo_R8G8B8A8_UNORM(float decodedColor[]);
-    uint32 convertTo_R8G8B8A8_SNORM(float decodedColor[]);
-    
-    void decode2BitRGB(uint32 code, float RGB0[], float RGB1[], float output[]);
-    void decode2BitRGBTransparent(uint32 code, float RGB0[], float RGB1[], float output[]);
-    float decode4BitComponent(uint32 code, float color0, float color1, bool signedFormat);
-    
+    void decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer);
+    void decode_BC2(uint8_t *inBuffer, uint8_t *outBuffer);
+    void decode_BC3(uint8_t *inBuffer, uint8_t *outBuffer);
+    void decode_BC4_UNORM(uint8_t *inBuffer, uint8_t *outBuffer);
+    void decode_BC4_SNORM(uint8_t *inBuffer, uint8_t *outBuffer);
+    void decode_BC5_UNORM(uint8_t *inBuffer, uint8_t *outBuffer);
+    void decode_BC5_SNORM(uint8_t *inBuffer, uint8_t *outBuffer);
+
+    void decode_BC4(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat);
+    void decode_BC5(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat);
+
+    uint32_t convertTo_R8G8B8A8_UNORM(float decodedColor[]);
+    uint32_t convertTo_R8G8B8A8_SNORM(float decodedColor[]);
+
+    void decode2BitRGB(uint32_t code, float RGB0[], float RGB1[], float output[]);
+    void decode2BitRGBTransparent(uint32_t code, float RGB0[], float RGB1[], float output[]);
+    float decode4BitComponent(uint32_t code, float color0, float color1, bool signedFormat);
+
     /*
      * Copyright (C) 2014 Intel Corporation
      *
@@ -563,16 +563,16 @@ private :
      * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
      * DEALINGS IN THE SOFTWARE.
      */
-    
+
     /**
      * \file texcompress_bptc.c
      * GL_ARB_texture_compression_bptc support.
      */
 
-    static const uint32 BLOCK_SIZE = 4;
-    static const uint32 N_PARTITIONS = 64;
-    static const uint32 BLOCK_BYTES = 16;
-    
+    static const uint32_t BLOCK_SIZE = 4;
+    static const uint32_t N_PARTITIONS = 64;
+    static const uint32_t BLOCK_BYTES = 16;
+
     typedef struct
     {
        int  n_subsets;
@@ -586,16 +586,16 @@ private :
        int  n_index_bits;
        int  n_secondary_index_bits;
     } bptc_unorm_mode;
-    
+
     typedef struct
     {
-       int8  endpoint;
-       uint8 component;
-       uint8 offset;
-       uint8 n_bits;
+       int8_t  endpoint;
+       uint8_t component;
+       uint8_t offset;
+       uint8_t n_bits;
        bool  reverse;
     } bptc_float_bitfield;
-    
+
     typedef struct
     {
        bool                reserved;
@@ -606,48 +606,48 @@ private :
        int                 n_delta_bits[3];
        bptc_float_bitfield bitfields[24];
     } bptc_float_mode;
-    
+
     static const bptc_unorm_mode bptc_unorm_modes[];
     static const bptc_float_mode bptc_float_modes[];
-    static const uint32 partition_table1[N_PARTITIONS];
-    static const uint32 partition_table2[N_PARTITIONS];
-    static const uint8 anchor_indices[][N_PARTITIONS];
+    static const uint32_t partition_table1[N_PARTITIONS];
+    static const uint32_t partition_table2[N_PARTITIONS];
+    static const uint8_t anchor_indices[][N_PARTITIONS];
 
-    void fetch_bptc_rgba_unorm_bytes(const uint8 *map, uint32 rowStride, uint32 i, uint32 j, uint8 *texel);
-    void fetch_bptc_rgba_unorm(const uint8 *map, uint32 rowStride, uint32 i, uint32 j, float32 *texel);
-    void fetch_bptc_srgb_alpha_unorm(const uint8 *map, uint32 rowStride, uint32 i, uint32 j, float32 *texel);
-    void fetch_bptc_rgb_float(const uint8 *map, uint32 rowStride, uint32 i, uint32 j, float32 *texel, bool is_signed);
-    void fetch_bptc_rgb_signed_float(const uint8 *map, uint32 rowStride, uint32 i, uint32 j, float *texel);
-    void fetch_bptc_rgb_unsigned_float(const uint8 *map, uint32 rowStride, uint32 i, uint32 j, float *texel);
+    void fetch_bptc_rgba_unorm_bytes(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, uint8_t *texel);
+    void fetch_bptc_rgba_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32 *texel);
+    void fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32 *texel);
+    void fetch_bptc_rgb_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32 *texel, bool is_signed);
+    void fetch_bptc_rgb_signed_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel);
+    void fetch_bptc_rgb_unsigned_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel);
 
-    int32 finish_signed_unquantize(int32 value);
-    int32 finish_unsigned_unquantize(int32 value);
-    int extract_float_endpoints(const bptc_float_mode *mode, const uint8 *block, int bit_offset,
-                                int32 endpoints[][3], bool is_signed);
+    int32_t finish_signed_unquantize(int32_t value);
+    int32_t finish_unsigned_unquantize(int32_t value);
+    int extract_float_endpoints(const bptc_float_mode *mode, const uint8_t *block, int bit_offset,
+                                int32_t endpoints[][3], bool is_signed);
     int unsigned_unquantize(int value, int n_endpoint_bits);
     int signed_unquantize(int value, int n_endpoint_bits);
-    int32 sign_extend(int32 value, int n_bits);
-    void fetch_rgba_unorm_from_block(const uint8 *block, uint8 *result, int texel);
-    void fetch_rgb_float_from_block(const uint8 *block, float *result, int texel, bool is_signed);
-    void apply_rotation(int rotation, uint8 *result);
-    int32 interpolate(int32 a, int32 b, int index, int index_bits);
+    int32_t sign_extend(int32_t value, int n_bits);
+    void fetch_rgba_unorm_from_block(const uint8_t *block, uint8_t *result, int texel);
+    void fetch_rgb_float_from_block(const uint8_t *block, float *result, int texel, bool is_signed);
+    void apply_rotation(int rotation, uint8_t *result);
+    int32_t interpolate(int32_t a, int32_t b, int index, int index_bits);
     int count_anchors_before_texel(int n_subsets, int partition_num, int texel);
     bool is_anchor(int n_subsets, int partition_num, int texel);
-    int extract_unorm_endpoints(const bptc_unorm_mode *mode, const uint8 *block, int bit_offset, uint8 endpoints[][4]);
-    uint8 expand_component(uint8 byte, int n_bits);
-    int extract_bits(const uint8 *block, int offset, int n_bits);
+    int extract_unorm_endpoints(const bptc_unorm_mode *mode, const uint8_t *block, int bit_offset, uint8_t endpoints[][4]);
+    uint8_t expand_component(uint8_t byte, int n_bits);
+    int extract_bits(const uint8_t *block, int offset, int n_bits);
 
-    uint16 sharedexp_to_float16(uint32 exponent, uint32 mantissa);
-    
+    uint16_t sharedexp_to_float16(uint32_t exponent, uint32_t mantissa);
+
     bool isCompressedFormat(ImageFormat format);
     CompressedFormatInfo getCompressedFormatInfo(ImageFormat format);
     CompressedFormatInfo getCompressedFormatInfoL1(ImageFormat format);
-    
-    void getCompressedTexel(ImageFormat format, uint32 comprBlockI, uint32 comprBlockJ, uint8 data[]);
-    
+
+    void getCompressedTexel(ImageFormat format, uint32_t comprBlockI, uint32_t comprBlockJ, uint8_t data[]);
+
     bool isSRGBFormat(ImageFormat format);
     bool isFloat32Format(ImageFormat format);
-    
+
     bool comparisonSupported(ImageFormat format);
     bool filterSupported(ImageFormat format);
 };
