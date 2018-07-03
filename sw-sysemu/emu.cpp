@@ -49,6 +49,7 @@ uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
 fdata scp[EMU_NUM_THREADS][64][4];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
+bool scp_tm;
 int tensorfma_size[EMU_NUM_THREADS];
 int tensorfma_passes[EMU_NUM_THREADS];
 uint32_t tensorfma_data[EMU_NUM_THREADS][32][4][16];
@@ -1241,7 +1242,8 @@ void tensorload(uint64_t control)
 
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
-    uint64_t addr               = base;
+    scp_tm                    = tm;
+    uint64_t addr             = base;
 
     for ( int i = 0; i < rows; i++ )
     {
@@ -1449,7 +1451,7 @@ uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size
 void get_scratchpad_conv_list(std::list<bool> * list)
 {
     for(int i = 0; i < 16; i++)
-        list->push_back(!tmask_pass(i));
+        list->push_back(scp_tm && !tmask_pass(i));
 }
 
 ////////////////////////////////////////////////////////////
