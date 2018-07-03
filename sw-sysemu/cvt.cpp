@@ -5,7 +5,7 @@
 
 
 // safe right shifts ( shifting by more than 32 bits returns 0)
-template<typename T> T rshift(T v, int s) {
+template<typename T> T rshift(T v, unsigned int s) {
   if (s >= sizeof(T)*8)  return 0;
   else return v >> s;
 }
