@@ -1224,7 +1224,7 @@ uint32_t get_mask ( unsigned maskNr )
 //
 ////////////////////////////////////////////////////////////
 
-void tensorload(uint64_t control)
+/*void tensorload()
 {
     uint64_t stride  = XREGS[31].x;
 
@@ -1271,10 +1271,9 @@ void tensorload(uint64_t control)
         }
         addr += stride;
     }
-}
+}*/
 
-#if 0
-void transtensorload()//Transtensorload
+void tensorload()//Transtensorload
 {
     uint64_t control = csrget(csr_tloadctrl);
     uint64_t stride  = XREGS[31].x;
@@ -1288,7 +1287,9 @@ void transtensorload()//Transtensorload
 
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
-    uint64_t addr             = base;
+    uint64 addr               = base;
+
+    DEBUG_EMU(gprintf("Trans:%d - rows:%d - tm:%d\n",trans,rows,tm);)
 
     //NO TRANS
     if(trans == 0x00){
@@ -1379,7 +1380,10 @@ void transtensorload()//Transtensorload
         bool exist_conv = 0;
         for(int i=0; i<rows & (!exist_conv);++i)
             exist_conv = tmask_pass(i); 
-        if(tm && !exist_conv) return;
+        /*if(tm && !exist_conv){
+            DEBUG_EMU(gprintf("Exit Condition Broken\n");)
+             return;
+        }*/
         int offset = (control >> 57) & 0x1F;
         uint8_t tmp_buffer[64][64];
         int size = trans & 0x03;
@@ -2019,7 +2023,7 @@ uint64_t get_tensorfma_value(int entry, int pass, int block, int * size, int * p
 //
 ////////////////////////////////////////////////////////////
 
-void tensorstore(uint64_t tstorereg)
+/*void tensorstore()
 {
     uint64_t regstart =  (tstorereg & 0xF8000000000000) >> 51;      // Start register to store
     uint64_t rows     = ((tstorereg & 0x07000000000000) >> 48) + 1; // Number of rows to store
@@ -2046,6 +2050,46 @@ void tensorstore(uint64_t tstorereg)
                 memwrite32(addr + col * 16 + i * 4, val);
                 DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
                 //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
+            }
+            src += srcinc;
+        }
+        addr += stride;
+    }
+}*/
+
+void tensorstore()
+{
+    uint64 tstorereg = csrget(csr_tstore);
+
+    uint64 regstart =  (tstorereg & 0xF8000000000000) >> 51;      // Start register to store
+    uint64 rows     = ((tstorereg & 0x07000000000000) >> 48) + 1; // Number of rows to store
+    uint64 addr     =  (tstorereg & 0x00FFFFFFFFFFF0);            // Address where to store the results
+    uint64 srcinc   = ((tstorereg & 0x0000000000000C) >>  2) + 1; // Increment done to register source
+    uint64 cols     =  (tstorereg & 0x00000000000003) + 1;        // Number of register per col
+
+    uint64 stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
+
+    DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, regstart, rows, cols, srcinc);)
+
+    uint64 src = regstart;
+
+    // For all the rows
+    for(uint64 row = 0; row < rows; row++)
+    {
+        // For all the cols
+        for(uint64 col = 0; col < cols; col++)
+        {
+            // For all the elements of the lane
+            for(uint64 j = 0; j < 4; j++)
+            {
+                for(uint64 i = 0; i < 4; i++)
+                {
+                    uint32 val = SCP[src][j].u[i];
+                    memwrite32(addr + col * 64 + j * 16 + i * 4, val);
+                    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
+                    //DEBUG_EMU(gprintf("\t\tSCP[%d][%d].u[%d]\n",src,j,i);)
+                    //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
+                }
             }
             src += srcinc;
         }
