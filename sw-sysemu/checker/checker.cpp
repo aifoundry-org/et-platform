@@ -175,7 +175,7 @@ checker::checker(main_memory * memory_, function_pointer_cache * func_cache_)
         (set_thread(i));
         (initreg(x0, 0));
         (initcsr(i));
-        threadEnabled[i] = (i%2 == 0); // only the first thread is enabled after reset
+        threadEnabled[i] = true;
     }
 
     checker_instance = this;
