@@ -50,7 +50,6 @@ typedef void     (*func_ptr_initcsr)     (uint32_t thread);
 typedef void     (*func_ptr_init)        (xreg dst, uint64_t data);
 typedef void     (*func_ptr_minit)       (mreg dst, uint64_t data);
 typedef void     (*func_ptr_debug)       (int debug, int fakesam);
-typedef void     (*func_ptr_thread1_en)  (void *);
 typedef void     (*func_ptr_reduce_info) (uint64_t value, uint64_t * other_min, uint64_t * action);
 typedef uint64_t (*func_ptr_xget)        (uint64_t src1);
 typedef uint64_t (*func_ptr_csrget)      (csr src1);
@@ -148,43 +147,6 @@ bool dump_log(bool log_en, int log_min, int thread_id)
 {
     if(log_min >= 4096) return log_en;
     return (((thread_id >> 1) == log_min) && log_en);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Second thread of a minion is enabled/disabled
-////////////////////////////////////////////////////////////////////////////////
-
-void thread1_enabled(unsigned minion_id, uint64_t en, uint64_t pc, bool log_en)
-{
-    unsigned thread_id = minion_id + 1;
-    if(en)
-    {
-        auto it = std::find(enabled_threads.begin(), enabled_threads.end(), thread_id);
-        if(it == enabled_threads.end())
-        {
-            func_ptr_thread setthread = (func_ptr_thread) func_cache->get_function_ptr("set_thread");
-            func_ptr_init initreg = (func_ptr_init) func_cache->get_function_ptr("init");
-            func_ptr_minit minitreg = (func_ptr_minit) func_cache->get_function_ptr("minit");
-            func_ptr_initcsr initcsr = (func_ptr_initcsr) func_cache->get_function_ptr("initcsr");
-
-            if(log_en) { printf("Minion %i.%i.1: Resetting\n", minion_id / 128, (minion_id >> 1) & 0x3F); }
-            current_pc[thread_id] = RESET_PC;
-            (setthread(thread_id));
-            (initreg(x0, 0));
-            (minitreg(m0, 255));
-            (initcsr(thread_id));
-            enabled_threads.push_back(thread_id);
-        }
-    }
-    else
-    {
-        auto it = std::find(enabled_threads.begin(), enabled_threads.end(), thread_id);
-        if(it != enabled_threads.end())
-        {
-            printf("Minion %i.%i.1: Disabling\n", minion_id / 128, (minion_id >> 1) & 0x3F);
-            enabled_threads.erase(it);
-        }
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -458,10 +420,6 @@ int main(int argc, char * argv[])
     (setmemory((void *) emu_memread8,  (void *) emu_memread16,  (void *) emu_memread32,  (void *) emu_memread64,
                (void *) emu_memwrite8, (void *) emu_memwrite16, (void *) emu_memwrite32, (void *) emu_memwrite64));
 
-    // Sets callback function to know when second thread is enabled/disabled
-    func_ptr_thread1_en set_thread1_en = (func_ptr_thread1_en) func_cache->get_function_ptr("set_thread1_enabled_func");
-    set_thread1_en((void *) thread1_enabled);
-
     // Parses the memory description
     parse_mem_file(mem_desc_file, memory, log);
 
@@ -496,6 +454,18 @@ int main(int argc, char * argv[])
                 {
                     // Inits minion
                     thread_id = (s * 64 + m) * 2;
+                    if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
+                    current_pc[thread_id] = RESET_PC;
+                    reduce_state_array[thread_id>>1] = Reduce_Idle;
+                    (setthread(thread_id));
+                    (initreg(x0, 0));
+                    (minitreg(m0, 255));
+                    (initcsr(thread_id));
+                    // Puts thread id in the active list
+                    enabled_threads.push_back(thread_id);
+
+                    // Inits minion
+                    thread_id = (s * 64 + m) * 2 + 1;
                     if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
                     current_pc[thread_id] = RESET_PC;
                     reduce_state_array[thread_id>>1] = Reduce_Idle;
