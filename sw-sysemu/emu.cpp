@@ -303,11 +303,6 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mstatus] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csrregs[thread][csr_mcause] = 0x0ULL;
     csrregs[thread][csr_mip] = 0x0ULL;
-    if (thread % 2 == 0)
-    {
-        csrregs[thread>>1][csr_mt1en] = 0x0ULL;
-        csrregs[thread>>1][csr_mt1rvect] = 0x0ULL;
-    }
     csrregs[thread][csr_icache_ctrl] = 0x0ULL;
     csrregs[thread][csr_write_ctrl] = 0x0ULL;
     // Debug-mode registers with reset
@@ -1167,13 +1162,6 @@ uint32_t get_mask ( unsigned maskNr )
         if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
         printf("MEM32 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
         (func_memwrite64(paddr, data));
-    }
-
-    typedef  void (*func_thread1_enabled_t) (unsigned minionId, uint64_t en, uint64_t pc);
-    func_thread1_enabled_t func_thread1_enabled = NULL;
-
-    extern "C" void set_thread1_enabled_func( func_thread1_enabled_t f) {
-      func_thread1_enabled = f;
     }
 
 #else
@@ -3660,10 +3648,7 @@ uint64_t csrget(csr src1)
             val = 0;
             break;
         // ----- Shared registers ----------------------------------------
-        case csr_mt1en:
-        case csr_mt1rvect:
-            val = csrregs[current_thread>>1][src1];
-            break;
+
         // ----- All other registers -------------------------------------
         default:
             val = csrregs[current_thread][src1];
@@ -3803,16 +3788,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_scacheop:
             break;
         // ----- Shared registers ----------------------------------------
-        case csr_mt1en:
-#ifdef CHECKER
-            val &= 0x0000000000000001ULL;
-            csrregs[current_thread>>1][src1] = val;
-            func_thread1_enabled(current_thread, csrget(csr_mt1en), csrget(csr_mt1rvect));
-            break;
-#endif
-        case csr_mt1rvect:
-            csrregs[current_thread>>1][src1] = val;
-            break;
+
         // ----- All other registers -------------------------------------
         default:
             csrregs[current_thread][src1] = val;
