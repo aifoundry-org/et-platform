@@ -127,7 +127,6 @@ typedef void (*func_ptr_mem)(
     void * func_memwrite32_,
     void * func_memwrite64_);
 
-typedef  void (*func_ptr_thread1Enable) (void*);
 
 // Creates a new checker
 checker::checker(main_memory * memory_, function_pointer_cache * func_cache_)
@@ -162,8 +161,6 @@ checker::checker(main_memory * memory_, function_pointer_cache * func_cache_)
     csrget = (func_ptr_csrget) func_cache->get_function_ptr("csrget");
 
 
-    func_ptr_thread1Enable setthread1en = (func_ptr_thread1Enable) func_cache->get_function_ptr("set_thread1_enabled_func");
-    setthread1en ( (void*) checker_thread1_enabled);
     memory->setGetThread(get_thread);
 
     // Inits X0 to 0
