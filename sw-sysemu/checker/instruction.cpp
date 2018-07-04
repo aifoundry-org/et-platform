@@ -774,8 +774,6 @@ void instruction::add_parameter(std::string param)
         else if(param == "smsg_port1")       params[num_params] = csr_smsg_port1;
         else if(param == "smsg_port2")       params[num_params] = csr_smsg_port2;
         else if(param == "smsg_port3")       params[num_params] = csr_smsg_port3;
-        else if(param == "mt1rvect")         params[num_params] = csr_mt1rvect;
-        else if(param == "mt1en")            params[num_params] = csr_mt1en;
         else if(param == "icache_ctrl")      params[num_params] = csr_icache_ctrl;
         else if(param == "write_ctrl")       params[num_params] = csr_write_ctrl;
         // TODO: currently unsupported CSRs
