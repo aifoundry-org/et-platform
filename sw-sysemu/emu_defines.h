@@ -117,8 +117,6 @@ typedef enum
     // csr_dscratch,
 
     // ----- M-mode ET registers ---------------------------------------------
-    csr_mt1rvect,
-    csr_mt1en,
     csr_icache_ctrl,
     csr_write_ctrl,
 
