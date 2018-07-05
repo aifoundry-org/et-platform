@@ -1,6 +1,12 @@
 #include "instruction_cache.h"
 #include <unistd.h>
 
+// Defines
+#define INSTRUCTION_CACHE_BLOCK_SHIFT 6                                                     // Shift for bytes in the block
+#define INSTRUCTION_CACHE_BLOCK_SIZE   (1 << INSTRUCTION_CACHE_BLOCK_SHIFT)                 // Bytes per block
+#define INSTRUCTION_SHIFT 1                                                                 // At least 2 bytes per instruction
+#define INSTRUCTION_CACHE_BLOCK_INSTR (INSTRUCTION_CACHE_BLOCK_SIZE >> INSTRUCTION_SHIFT)   // Instruction per block, at lest 2 bytes per instruction
+
 // Constructor
 instruction_cache::instruction_cache(main_memory * memory_, function_pointer_cache * func_cache_)
     : log("instruction cache", LOG_DEBUG)

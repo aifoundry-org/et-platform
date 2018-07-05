@@ -8,7 +8,6 @@ EMU_LIBNAME_NN=$(BUILD_DIR_NN)/emu.so
 # setting list of files to compile
 CHECKER_SOURCES= checker.cpp \
                  function_pointer_cache.cpp \
-                 instruction_cache_block.cpp \
                  instruction_cache.cpp \
                  instruction.cpp \
                  main_memory.cpp \
