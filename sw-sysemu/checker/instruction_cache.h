@@ -4,7 +4,6 @@
 // Local includes
 #include "checker_defines.h"
 #include "instruction.h"
-#include "instruction_cache_block.h"
 #include "main_memory.h"
 #include "function_pointer_cache.h"
 #include "testLog.h"
