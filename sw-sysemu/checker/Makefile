@@ -1,30 +1,29 @@
-BUILD_DIR=build
+BUILD_DIR=$(shell pwd)/build
 BUILD_DIR_NN=$(BUILD_DIR)_nn
-CHECKER_LIBNAME=$(BUILD_DIR)/libchecker.a
-CHECKER_LIBNAME_NN=$(BUILD_DIR_NN)/libchecker.a
-EMU_LIBNAME=$(BUILD_DIR)/emu.so
-EMU_LIBNAME_NN=$(BUILD_DIR_NN)/emu.so
+CHECKER_LIBNAME=$(BUILD_DIR)/libchecker.so
+CHECKER_LIBNAME_NN=$(BUILD_DIR_NN)/libchecker.so
+EMU_LIBNAME=$(BUILD_DIR)/libemu.so
+EMU_LIBNAME_NN=$(BUILD_DIR_NN)/libemu.so
 
 # setting list of files to compile
 CHECKER_SOURCES= checker.cpp \
-                 function_pointer_cache.cpp \
                  instruction_cache.cpp \
                  instruction.cpp \
                  main_memory.cpp \
                  main_memory_region.cpp \
                  main_memory_region_atomic.cpp \
                  main_memory_region_tbox.cpp \
-                 main_memory_region_rbox.cpp
+                 main_memory_region_rbox.cpp \
 
 EMU_SOURCES= ../emu.cpp \
-             ../log.cpp \
-             ../cvt.cpp \
-             ../txs.cpp \
-             ../ttrans.cpp \
-             ../tbox_emu.cpp \
-             ../ipc.cpp \
-             ../gio.cpp \
-             $(TESTROOT)/libs/testLog.cc
+	     ../log.cpp \
+	     ../cvt.cpp \
+	     ../txs.cpp \
+	     ../ttrans.cpp \
+	     ../tbox_emu.cpp \
+	     ../ipc.cpp \
+	     ../emu_gio.cpp \
+	     $(TESTROOT)/libs/testLog.cc
 
 # setting include paths
 CXXINC= -I.. -I$(TESTROOT)/libs
@@ -35,19 +34,17 @@ EMU_DEBUG=-DEMU_DEBUG # To enable debug
 MIN_PER_N=$(shell grep  "define MIN_PER_N " $(RTLROOT)/inc/shire_defines.vh | sed s/".*MIN_PER_N \+\([0-9]\+\).*"/"\1"/ )
 NUM_NEIGH=$(shell grep  "define NUM_NEIGH " $(RTLROOT)/inc/shire_defines.vh | sed s/".*NUM_NEIGH \+\([0-9]\+\).*"/"\1"/ )
 
-ifeq ($(NEW_TRANS_UNIT), 1)
-NEW_TRANS_UNIT_DEF=-DNEW_TRANS_UNIT
-endif
-
 # tool configuration
 CXX=g++
-CXXFLAGS=-mf16c -Wall -Werror -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 -std=c++11 $(NEW_TRANS_UNIT_DEF)
-CXXFLAGS_NN=-mf16c -Wall -Werror -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 -std=c++11 $(NEW_TRANS_UNIT_DEF) -DUSE_FAKE_TXFMA
+CXXFLAGS=-mf16c -Wall -Werror -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 -std=c++11
+CXXFLAGS_NN=-mf16c -Wall -Werror -g -DCHECKER -fPIC -fno-fast-math $(EMU_DEBUG) -O2 -std=c++11 -DUSE_FAKE_TXFMA
 DEPDIR = .depend
 AR=ar
 ARFLAGS=rvs
-SHARED_OBJ_FLAGS=-shared -fPIC
+SHARED_OBJ_FLAGS=-shared
 HASH_FLAGS=-std=c++11
+CHECKER_LIBS=-L$(BUILD_DIR) -Wl,-rpath=$(BUILD_DIR) -lemu
+CHECKER_LIBS_NN=-L$(BUILD_DIR_NN) -Wl,-rpath=$(BUILD_DIR_NN) -lemu
 
 all: normal nn
 
@@ -55,38 +52,38 @@ normal: $(CHECKER_LIBNAME) $(EMU_LIBNAME)
 
 nn: $(CHECKER_LIBNAME_NN) $(EMU_LIBNAME_NN)
 
-define OBJ_NAME = 
+define OBJ_NAME =
 $(addsuffix .o,$(basename $(addprefix $(BUILD_DIR)/,$(notdir $1))))
 endef
 
-define OBJ_NAME_NN = 
+define OBJ_NAME_NN =
 $(addsuffix .o,$(basename $(addprefix $(BUILD_DIR_NN)/,$(notdir $1))))
 endef
 
 define CHECKER_OBJ_RULE =
-$(call OBJ_NAME,$1): $1 | $(BUILD_DIR)  $(BUILD_DIR)/.depend/
-	$(CXX) $(CXXINC) $(CXXFLAGS)  $(HASH_FLAGS) $(EMU_DEBUG) -c $$< -o $$@ -MMD -MF $$(@D)/.depend/$$(notdir $$(@:%.o=%.d))
+$(call OBJ_NAME,$1): $1 | $(BUILD_DIR)  $(BUILD_DIR)/.depend
+	$(CXX) $(CXXINC) $(CXXFLAGS)  $(EMU_DEBUG) -c $$< -o $$@ -MMD -MF $$(@D)/.depend/$$(notdir $$(@:%.o=%.d))
 
 CHECKER_OBJECTS += $(call OBJ_NAME,$1)
 endef
 
 define CHECKER_OBJ_RULE_NN =
-$(call OBJ_NAME_NN,$1): $1 | $(BUILD_DIR_NN)  $(BUILD_DIR_NN)/.depend/
-	$(CXX) $(CXXINC) $(CXXFLAGS_NN)  $(HASH_FLAGS) $(EMU_DEBUG) -c $$< -o $$@ -MMD -MF $$(@D)/.depend/$$(notdir $$(@:%.o=%.d))
+$(call OBJ_NAME_NN,$1): $1 | $(BUILD_DIR_NN)  $(BUILD_DIR_NN)/.depend
+	$(CXX) $(CXXINC) $(CXXFLAGS_NN)  $(EMU_DEBUG) -c $$< -o $$@ -MMD -MF $$(@D)/.depend/$$(notdir $$(@:%.o=%.d))
 
 CHECKER_OBJECTS_NN += $(call OBJ_NAME_NN,$1)
 endef
 
 define EMU_OBJ_RULE =
-$(call OBJ_NAME,$1): $1 | $(BUILD_DIR)  $(BUILD_DIR)/.depend/
-	$(CXX) $(CXXINC) $(CXXFLAGS) $(SHARED_OBJ_FLAGS) $(EMU_DEBUG) -DMIN_PER_N=$(MIN_PER_N) -DNUM_NEIGH=$(NUM_NEIGH) -c $$< -o $$@ -MMD -MF $$(@D)/.depend/$$(notdir $$(@:%.o=%.d))
+$(call OBJ_NAME,$1): $1 | $(BUILD_DIR)  $(BUILD_DIR)/.depend
+	$(CXX) $(CXXINC) $(CXXFLAGS) $(EMU_DEBUG) -DMIN_PER_N=$(MIN_PER_N) -DNUM_NEIGH=$(NUM_NEIGH) -c $$< -o $$@ -MMD -MF $$(@D)/.depend/$$(notdir $$(@:%.o=%.d))
 
 EMU_OBJECTS += $(call OBJ_NAME,$1)
 endef
 
 define EMU_OBJ_RULE_NN =
-$(call OBJ_NAME_NN,$1): $1 | $(BUILD_DIR_NN)  $(BUILD_DIR_NN)/.depend/
-	$(CXX) $(CXXINC) $(CXXFLAGS_NN) $(SHARED_OBJ_FLAGS) $(EMU_DEBUG) -DMIN_PER_N=$(MIN_PER_N) -DNUM_NEIGH=$(NUM_NEIGH) -c $$< -o $$@ -MMD -MF $$(@D)/.depend/$$(notdir $$(@:%.o=%.d))
+$(call OBJ_NAME_NN,$1): $1 | $(BUILD_DIR_NN)  $(BUILD_DIR_NN)/.depend
+	$(CXX) $(CXXINC) $(CXXFLAGS_NN) $(EMU_DEBUG) -DMIN_PER_N=$(MIN_PER_N) -DNUM_NEIGH=$(NUM_NEIGH) -c $$< -o $$@ -MMD -MF $$(@D)/.depend/$$(notdir $$(@:%.o=%.d))
 
 EMU_OBJECTS_NN += $(call OBJ_NAME_NN,$1)
 endef
@@ -100,29 +97,20 @@ $(foreach src,$(EMU_SOURCES), $(eval $(call EMU_OBJ_RULE_NN,$(src))))
 include $(wildcard $(BUILD_DIR)/$1/$(BUILD_DIR_CSRC_LIB)/.depend/*.d)
 include $(wildcard $(BUILD_DIR_NN)/$1/$(BUILD_DIR_CSRC_LIB)/.depend/*.d)
 
-$(CHECKER_LIBNAME): $(CHECKER_OBJECTS)
-	$(AR) $(ARFLAGS) $(CHECKER_LIBNAME) $(CHECKER_OBJECTS)
+$(CHECKER_LIBNAME): $(CHECKER_OBJECTS) $(EMU_OBJECTS)
+	$(CXX) -o $@ $(CXXFLAGS) $(SHARED_OBJ_FLAGS) $^
 
-$(CHECKER_LIBNAME_NN): $(CHECKER_OBJECTS_NN)
-	$(AR) $(ARFLAGS) $(CHECKER_LIBNAME_NN) $(CHECKER_OBJECTS_NN)
+$(CHECKER_LIBNAME_NN): $(CHECKER_OBJECTS_NN) $(EMU_OBJECTS_NN)
+	$(CXX) -o $@ $(CXXFLAGS) $(SHARED_OBJ_FLAGS) $^
 
 $(EMU_LIBNAME): $(EMU_OBJECTS)
-	$(CXX) $(CXXFLAGS) $(SHARED_OBJ_FLAGS) $(EMU_OBJECTS) -o $(EMU_LIBNAME)
+	$(CXX) -o $@ $(CXXFLAGS) $(SHARED_OBJ_FLAGS) $^
 
 $(EMU_LIBNAME_NN): $(EMU_OBJECTS_NN)
-	$(CXX) $(CXXFLAGS_NN) $(SHARED_OBJ_FLAGS) $(EMU_OBJECTS_NN) -o $(EMU_LIBNAME_NN)
+	$(CXX) -o $@ $(CXXFLAGS) $(SHARED_OBJ_FLAGS) $^
 
-$(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
-
-$(BUILD_DIR_NN):
-	mkdir -p $(BUILD_DIR_NN)
-
-$(BUILD_DIR)/.depend/:
-	mkdir -p $(BUILD_DIR)/.depend/
-
-$(BUILD_DIR_NN)/.depend/:
-	mkdir -p $(BUILD_DIR_NN)/.depend/
+$(BUILD_DIR) $(BUILD_DIR_NN) $(BUILD_DIR)/.depend $(BUILD_DIR_NN)/.depend:
+	mkdir -p $@
 
 clean:
 	rm -rf $(BUILD_DIR) $(BUILD_DIR_NN)

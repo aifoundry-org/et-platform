@@ -7,9 +7,11 @@
 #include "log.h"
 #include "ipc.h"
 #include "cvt.h"
+#include "emu_gio.h"
 
-extern void gprintf(const char* format, ...);
-extern void gsprintf(char* str, const char* format, ...);
+using emu::gprintf;
+using emu::gsprintf;
+using emu::gfprintf;
 
 extern int fake_sampler;
 extern char dis[];
@@ -29,9 +31,9 @@ void init_txs(uint64_t imgTableAddr)
 }
 
 
-#ifdef CHECKER
 void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
 {
+#ifdef CHECKER
     uint64_t base_copy = tbox_emulator.get_image_table_address();
     if ( base_copy != basePtr )
     {
@@ -42,8 +44,11 @@ void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleReque
     tbox_emulator.sample_quad(currentRequest_, input, output, fake_sampler);
 
     tbox_emulator.set_image_table_address(base_copy);
-}
+#else
+    DEBUG_EMU(gprintf("ERROR!!! You need to compiler with CHECKER enabled to use checker_sample_quad().\n");)
+    exit(-1);
 #endif
+}
 
 void texsndh(xreg src1, xreg src2)
 {

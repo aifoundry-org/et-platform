@@ -3,10 +3,11 @@
 #include <assert.h>
 
 #include "ipc.h"
+#include "emu_gio.h"
 
-extern void gprintf(const char* format, ...);
-extern void gsprintf(char* str, const char* format, ...);
-extern void gfprintf(FILE *stream, const char* format, ...);
+using emu::gprintf;
+using emu::gsprintf;
+using emu::gfprintf;
 
 #define MAX(a,b) ((a) >= (b) ? (a) : (b))
 

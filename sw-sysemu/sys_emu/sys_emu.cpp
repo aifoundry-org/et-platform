@@ -8,7 +8,6 @@
 // Local includes
 #include "emu.h"
 #include "main_memory.h"
-#include "function_pointer_cache.h"
 #include "instruction_cache.h"
 #include "instruction.h"
 #include "testLog.h"
@@ -43,31 +42,6 @@
 // Types
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef void     (*func_ptr_state)       (inst_state_change * log_info_);
-typedef void     (*func_ptr_pc)          (uint64_t pc);
-typedef void     (*func_ptr_thread)      (uint32_t thread);
-typedef void     (*func_ptr_initcsr)     (uint32_t thread);
-typedef void     (*func_ptr_init)        (xreg dst, uint64_t data);
-typedef void     (*func_ptr_minit)       (mreg dst, uint64_t data);
-typedef void     (*func_ptr_debug)       (int debug, int fakesam);
-typedef void     (*func_ptr_reduce_info) (uint64_t value, uint64_t * other_min, uint64_t * action);
-typedef uint64_t (*func_ptr_xget)        (uint64_t src1);
-typedef uint64_t (*func_ptr_csrget)      (csr src1);
-typedef void     (*func_ptr_write_msg_port_data) (uint32_t thread, uint32_t port_id, uint32_t *data);
-typedef void     (*func_ptr_set_msg_port_data_func) (void* f, void *g, void *h);
-typedef bool     (*func_ptr_get_stall_msg_port) (uint32_t, uint32_t);
-typedef uint64_t (*func_virt_to_phys) (uint64_t addr, mem_access_type macc);
-
-typedef void   (*func_ptr_mem)(
-    void * func_memread8_,
-    void * func_memread16_,
-    void * func_memread32_,
-    void * func_memread64_,
-    void * func_memwrite8_,
-    void * func_memwrite16_,
-    void * func_memwrite32_,
-    void * func_memwrite64_);
-
 // Reduce state
 typedef enum
 {
@@ -79,10 +53,9 @@ typedef enum
 // Global variables
 std::list<int>           enabled_threads;          // List of enabled threads
 std::list<int>           pending_ipi;              // Pending IPI list
-uint64_t                 current_pc[4096*2];       // PC for each thread
+static uint64_t          current_pc[4096*2];       // PC for each thread
 reduce_state             reduce_state_array[4096]; // Reduce state
 uint32_t                 reduce_pair_array[4096];  // Reduce pairing minion
-function_pointer_cache * func_cache;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Functions to emulate the main memory
@@ -251,7 +224,7 @@ void print_inst_log(instruction * inst, uint64_t minion, uint64_t current_pc, in
 
 int32_t thread_id;
 
-uint32_t get_thread()
+static uint32_t get_thread_emu()
 {
     return thread_id;
 }
@@ -369,8 +342,6 @@ int main(int argc, char * argv[])
         {
             log << LOG_FTL << "Unkown parameter " << argv[i] << endm;
         }
-
-        
     }
 
     if(mem_desc_file == NULL)
@@ -380,45 +351,29 @@ int main(int argc, char * argv[])
 
     // Generates the main memory of the emulator
     memory = new main_memory("checker main memory");
-    memory->setGetThread(get_thread);
+    memory->setGetThread(get_thread_emu);
 
-    // This is an object that resolves where the emulation functions are
-    std::string repo = getenv("BEMU");
-    repo += "/checker/build/emu.so";
-    func_cache = new function_pointer_cache(repo.c_str());
-
-    // Instruction cache    
-    instruction_cache * inst_cache = new instruction_cache(memory, func_cache);
-
-    // Resolves where some functions are
-    func_ptr_pc setpc                                      = (func_ptr_pc) func_cache->get_function_ptr("set_pc");
-    func_ptr_thread setthread                              = (func_ptr_thread) func_cache->get_function_ptr("set_thread");
-    func_ptr_mem setmemory                                 = (func_ptr_mem) func_cache->get_function_ptr("set_memory_funcs");
-    func_ptr_init initreg                                  = (func_ptr_init) func_cache->get_function_ptr("init");
-    func_ptr_minit minitreg                                = (func_ptr_minit) func_cache->get_function_ptr("minit");
-    func_ptr_initcsr initcsr                               = (func_ptr_initcsr) func_cache->get_function_ptr("initcsr");
-    func_ptr_state setlogstate                             = (func_ptr_state) func_cache->get_function_ptr("setlogstate");
-    func_ptr clearlogstate                                 = func_cache->get_function_ptr("clearlogstate");
-    func_ptr_debug init_emu                                = (func_ptr_debug) func_cache->get_function_ptr("init_emu");
-    func_ptr_reduce_info reduce_info                       = (func_ptr_reduce_info) func_cache->get_function_ptr("get_reduce_info");
-    func_ptr_xget xget                                     = (func_ptr_xget) func_cache->get_function_ptr("xget");
-    func_ptr_write_msg_port_data write_msg_port            = (func_ptr_write_msg_port_data)  func_cache->get_function_ptr("write_msg_port_data_");
-    func_ptr_set_msg_port_data_func set_msg_port_data_func = (func_ptr_set_msg_port_data_func) func_cache->get_function_ptr("set_msg_port_data_func");
-    func_ptr_get_stall_msg_port getStallMsgPort            = (func_ptr_get_stall_msg_port) func_cache->get_function_ptr("get_msg_port_stall");
-    func_virt_to_phys virt_to_phys_emu                     = (func_virt_to_phys) func_cache->get_function_ptr("virt_to_phys");
+    // Instruction cache
+    instruction_cache * inst_cache = new instruction_cache(memory);
 
     // Init emu
-    (init_emu(log_en, false));
+    init_emu(log_en, false);
 
-    *( (bool*) func_cache->get_function_ptr("in_sysemu")) = true;
+    in_sysemu = true;
 
     // Log state (needed to know PC changes)
     inst_state_change emu_state_change;
-    (setlogstate(&emu_state_change)); // This is done every time just in case we have several checkers
+    setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
 
     // Defines the memory access functions
-    (setmemory((void *) emu_memread8,  (void *) emu_memread16,  (void *) emu_memread32,  (void *) emu_memread64,
-               (void *) emu_memwrite8, (void *) emu_memwrite16, (void *) emu_memwrite32, (void *) emu_memwrite64));
+    set_memory_funcs((void *) emu_memread8,
+                     (void *) emu_memread16,
+                     (void *) emu_memread32,
+                     (void *) emu_memread64,
+                     (void *) emu_memwrite8,
+                     (void *) emu_memwrite16,
+                     (void *) emu_memwrite32,
+                     (void *) emu_memwrite64);
 
     // Parses the memory description
     parse_mem_file(mem_desc_file, memory, log);
@@ -430,11 +385,11 @@ int main(int argc, char * argv[])
     {
         net_emu.set_file(net_desc_file);
     }
-    
+
     // initialize rboxes-----------------------------------
-    if (use_rbox){ 
-      for (int i = 0 ; i < 64; i++) 
-        rbox[i]=new rboxSysEmu(i, memory, write_msg_port); 
+    if (use_rbox){
+      for (int i = 0 ; i < 64; i++)
+        rbox[i]=new rboxSysEmu(i, memory, write_msg_port_data_);
       set_msg_port_data_func(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
     }
 
@@ -457,10 +412,10 @@ int main(int argc, char * argv[])
                     if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
                     current_pc[thread_id] = RESET_PC;
                     reduce_state_array[thread_id>>1] = Reduce_Idle;
-                    (setthread(thread_id));
-                    (initreg(x0, 0));
-                    (minitreg(m0, 255));
-                    (initcsr(thread_id));
+                    set_thread(thread_id);
+                    init(x0, 0);
+                    minit(m0, 255);
+                    initcsr(thread_id);
                     // Puts thread id in the active list
                     enabled_threads.push_back(thread_id);
 
@@ -469,10 +424,10 @@ int main(int argc, char * argv[])
                     if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
                     current_pc[thread_id] = RESET_PC;
                     reduce_state_array[thread_id>>1] = Reduce_Idle;
-                    (setthread(thread_id));
-                    (initreg(x0, 0));
-                    (minitreg(m0, 255));
-                    (initcsr(thread_id));
+                    set_thread(thread_id);
+                    init(x0, 0);
+                    minit(m0, 255);
+                    initcsr(thread_id);
                     // Puts thread id in the active list
                     enabled_threads.push_back(thread_id);
                 }
@@ -489,7 +444,7 @@ int main(int argc, char * argv[])
     {
 
         // For every cycle execute rbox
-        
+
         if (use_rbox) {
             rboxes_done = true;
             for ( int i = 0; i < 64; i++)
@@ -520,14 +475,14 @@ int main(int argc, char * argv[])
 
             // Computes logging for this thread
             bool do_log = dump_log(log_en, log_min, thread_id);
-            (init_emu(do_log, false));
+            init_emu(do_log, false);
             if(do_log) { printf("Starting emu of thread %i\n", thread_id); }
 
             // Gets instruction and sets state
-            inst = inst_cache->get_instruction((virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch)));
-            (setthread(thread_id));
-            (setpc(current_pc[thread_id]));
-            (clearlogstate());
+            inst = inst_cache->get_instruction(virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch));
+            set_thread(thread_id);
+            set_pc(current_pc[thread_id]);
+            clearlogstate();
             if(do_log)
                 print_inst_log(inst, thread_id, current_pc[thread_id], emu_state_change);
 
@@ -538,8 +493,8 @@ int main(int argc, char * argv[])
                 uint64_t other_min, action;
                 // Gets the source used for the reduce
                 uint64_t src1 = (xreg) inst->get_param(2);
-                uint64_t value = (xget(src1));
-                (reduce_info(value, &other_min, &action));
+                uint64_t value = xget(src1);
+                get_reduce_info(value, &other_min, &action);
                 // Sender
                 if(action == 0)
                 {
@@ -582,13 +537,13 @@ int main(int argc, char * argv[])
                     }
                 }
             }
-           
+
             // Executes the instruction
             if(!reduce_wait)
             {
                 inst->exec();
 
-                if (getStallMsgPort(thread_id, 0) ){
+                if (get_msg_port_stall(thread_id, 0) ){
                   thread = enabled_threads.erase(thread);
                   rbox[thread_id/128]->threadDisabled(thread_id%128);
                   if (thread == enabled_threads.end()) break;
@@ -599,7 +554,7 @@ int main(int argc, char * argv[])
                     current_pc[thread_id] = emu_state_change.pc;
                   else
                     current_pc[thread_id] = current_pc[thread_id] + 4;
-                  
+
                   // Checks for IPI
                   if(emu_state_change.mem_mod[0] && (emu_state_change.mem_addr[0] == IPI_T0_ADDR))
                     ipi_to_threads(thread_id, 0, emu_state_change.mem_data[0], log_en, log_min);
@@ -653,7 +608,7 @@ int main(int argc, char * argv[])
         memory->dump_file(dump_file, dump_addr, dump_size);
     }
 
-    if (use_rbox){ 
+    if (use_rbox){
       for (int i = 0 ; i < 64; i++)
         delete rbox[i];
     }

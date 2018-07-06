@@ -8,11 +8,10 @@
 #define INSTRUCTION_CACHE_BLOCK_INSTR (INSTRUCTION_CACHE_BLOCK_SIZE >> INSTRUCTION_SHIFT)   // Instruction per block, at lest 2 bytes per instruction
 
 // Constructor
-instruction_cache::instruction_cache(main_memory * memory_, function_pointer_cache * func_cache_)
+instruction_cache::instruction_cache(main_memory * memory_)
     : log("instruction cache", LOG_DEBUG)
 {
     memory = memory_;
-    func_cache = func_cache_;
 }
 
 // Destructor
@@ -102,7 +101,7 @@ void instruction_cache::decode(uint64_t base_pc)
     {
         if(inst_disasm == inst_read)
             log << LOG_FTL << "Error: read more disasm than expected!!" << endm;
-        instructions[next_inst]->set_mnemonic(str, func_cache, &log);
+        instructions[next_inst]->set_mnemonic(str, &log);
      
         cache[base_pc + next_inst * 2] = instructions[next_inst];
 
@@ -128,6 +127,7 @@ void instruction_cache::decode(uint64_t base_pc)
 // Returns a decoded instruction from a specific PC
 instruction * instruction_cache::get_instruction(uint64_t pc)
 {
+    log << LOG_DEBUG << "instruction_cache::get_instruction("<<pc<<")"<<endm;
     inst_cache_hash_it_t inst = cache.find(pc);
 
     // If instruction is present, return the instruction

@@ -7,10 +7,329 @@
 #include <boost/regex.hpp>
 #include <algorithm>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
+// Typedef for the hash of functions
+typedef std::unordered_map<std::string, func_ptr> emu_ptr_hash_t;
+
+// Map of mnemonic string to function pointer
+static const emu_ptr_hash_t pointer_cache({
+// ----- RV64I -----------------------------------------------------------------
+    {"beq",     func_ptr(beq)},
+    {"bne",     func_ptr(bne)},
+    {"blt",     func_ptr(blt)},
+    {"bge",     func_ptr(bge)},
+    {"bltu",    func_ptr(bltu)},
+    {"bgeu",    func_ptr(bgeu)},
+    {"jalr",    func_ptr(jalr)},
+    {"jal",     func_ptr(jal)},
+    {"lui",     func_ptr(lui)},
+    {"auipc",   func_ptr(auipc)},
+    {"addi",    func_ptr(addi)},
+    {"slli",    func_ptr(slli)},
+    {"slti",    func_ptr(slti)},
+    {"sltiu",   func_ptr(sltiu)},
+    {"xori",    func_ptr(xori)},
+    {"srli",    func_ptr(srli)},
+    {"srai",    func_ptr(srai)},
+    {"ori",     func_ptr(ori)},
+    {"andi",    func_ptr(andi)},
+    {"add",     func_ptr(add)},
+    {"sub",     func_ptr(sub)},
+    {"sll",     func_ptr(sll)},
+    {"slt",     func_ptr(slt)},
+    {"sltu",    func_ptr(sltu)},
+    {"xor",     func_ptr(xor_)},
+    {"srl",     func_ptr(srl)},
+    {"sra",     func_ptr(sra)},
+    {"or",      func_ptr(or_)},
+    {"and",     func_ptr(and_)},
+    {"addiw",   func_ptr(addiw)},
+    {"slliw",   func_ptr(slliw)},
+    {"srliw",   func_ptr(srliw)},
+    {"sraiw",   func_ptr(sraiw)},
+    {"addw",    func_ptr(addw)},
+    {"subw",    func_ptr(subw)},
+    {"sllw",    func_ptr(sllw)},
+    {"srlw",    func_ptr(srlw)},
+    {"sraw",    func_ptr(sraw)},
+    {"lb",      func_ptr(lb)},
+    {"lh",      func_ptr(lh)},
+    {"lw",      func_ptr(lw)},
+    {"ld",      func_ptr(ld)},
+    {"lbu",     func_ptr(lbu)},
+    {"lhu",     func_ptr(lhu)},
+    {"lwu",     func_ptr(lwu)},
+    {"sd",      func_ptr(sd)},
+    {"sw",      func_ptr(sw)},
+    {"sh",      func_ptr(sh)},
+    {"sb",      func_ptr(sb)},
+    {"fence",   func_ptr(fence)},
+    {"fence_i", func_ptr(fence_i)},
+// ----- RV32M -----------------------------------------------------------------
+    {"mul",     func_ptr(mul)},
+    {"mulh",    func_ptr(mulh)},
+//  {"mulhsu",  func_ptr(mulhsu)},
+    {"mulhu",   func_ptr(mulhu)},
+    {"div",     func_ptr(div_)},
+    {"divu",    func_ptr(divu)},
+    {"rem",     func_ptr(rem)},
+    {"remu",    func_ptr(remu)},
+// ----- RV64M -----------------------------------------------------------------
+    {"mulw",    func_ptr(mulw)},
+    {"divw",    func_ptr(divw)},
+    {"divuw",   func_ptr(divuw)},
+    {"remw",    func_ptr(remw)},
+    {"remuw",   func_ptr(remuw)},
+// ----- RV32A -----------------------------------------------------------------
+    {"amoadd_w",        func_ptr(amoadd_w)},
+    {"amoxor_w",        func_ptr(amoxor_w)},
+    {"amoor_w",         func_ptr(amoor_w)},
+    {"amoand_w",        func_ptr(amoand_w)},
+    {"amomin_w",        func_ptr(amomin_w)},
+    {"amomax_w",        func_ptr(amomax_w)},
+    {"amominu_w",       func_ptr(amominu_w)},
+    {"amomaxu_w",       func_ptr(amomaxu_w)},
+    {"amoswap_w",       func_ptr(amoswap_w)},
+//  {"lr_w",            func_ptr(lr_w)},
+//  {"sc_w",            func_ptr(sc_w)},
+// ----- RV64A -----------------------------------------------------------------
+    {"amoadd_d",        func_ptr(amoadd_d)},
+    {"amoxor_d",        func_ptr(amoxor_d)},
+    {"amoor_d",         func_ptr(amoor_d)},
+    {"amoand_d",        func_ptr(amoand_d)},
+    {"amomin_d",        func_ptr(amomin_d)},
+    {"amomax_d",        func_ptr(amomax_d)},
+    {"amominu_d",       func_ptr(amominu_d)},
+    {"amomaxu_d",       func_ptr(amomaxu_d)},
+    {"amoswap_d",       func_ptr(amoswap_d)},
+//  {"lr_d",            func_ptr(lr_d)},
+//  {"sc_d",            func_ptr(sc_d)},
+// ----- SYSTEM ----------------------------------------------------------------
+    {"ecall",           func_ptr(ecall)},
+    {"ebreak",          func_ptr(ebreak)},
+//  {"uret",            func_ptr(uret)},
+    {"sret",            func_ptr(sret)},
+    {"mret",            func_ptr(mret)},
+//  {"dret",            func_ptr(dret)},
+//  {"sfence_vma",      func_ptr(sfence_vma)},
+    {"wfi",             func_ptr(wfi)},
+    {"csrrw",           func_ptr(csrrw)},
+    {"csrrs",           func_ptr(csrrs)},
+    {"csrrc",           func_ptr(csrrc)},
+    {"csrrwi",          func_ptr(csrrwi)},
+    {"csrrsi",          func_ptr(csrrsi)},
+    {"csrrci",          func_ptr(csrrci)},
+// ----- RV64C -----------------------------------------------------------------
+//  {"c_jalr",  func_ptr(c_jalr)},
+// ----- RV64F -----------------------------------------------------------------
+    {"fadd_s",          func_ptr(fadd_s)},
+    {"fsub_s",          func_ptr(fsub_s)},
+    {"fmul_s",          func_ptr(fmul_s)},
+    {"fdiv_s",          func_ptr(fdiv_s)},
+    {"fsgnj_s",         func_ptr(fsgnj_s)},
+    {"fsgnjn_s",        func_ptr(fsgnjn_s)},
+    {"fsgnjx_s",        func_ptr(fsgnjx_s)},
+    {"fmin_s",          func_ptr(fmin_s)},
+    {"fmax_s",          func_ptr(fmax_s)},
+    {"fsqrt_s",         func_ptr(fsqrt_s)},
+    {"feq_s",           func_ptr(feq_s)},
+    {"fle_s",           func_ptr(fle_s)},
+    {"flt_s",           func_ptr(flt_s)},
+    {"fcvt_w_s",        func_ptr(fcvt_w_s)},
+    {"fcvt_wu_s",       func_ptr(fcvt_wu_s)},
+//  {"fcvt_l_s",        func_ptr(fcvt_l_s)},
+//  {"fcvt_lu_s",       func_ptr(fcvt_lu_s)},
+    {"fmv_x_w",         func_ptr(fmv_x_w)},
+    {"fmv_x_s",         func_ptr(fmv_x_w)},     // old name for fmv_x_w
+    {"fclass_s",        func_ptr(fclass_s)},
+    {"fcvt_s_w",        func_ptr(fcvt_s_w)},
+    {"fcvt_s_wu",       func_ptr(fcvt_s_wu)},
+//  {"fcvt_s_l",        func_ptr(fcvt_s_l)},
+//  {"fcvt_s_lu",       func_ptr(fcvt_s_lu)},
+    {"fmv_w_x",         func_ptr(fmv_w_x)},
+    {"fmv_s_x",         func_ptr(fmv_w_x)},     // old name for fmv_w_x
+    {"flw",             func_ptr(flw)},
+    {"fsw",             func_ptr(fsw)},
+    {"fmadd_s",         func_ptr(fmadd_s)},
+    {"fmsub_s",         func_ptr(fmsub_s)},
+    {"fnmsub_s",        func_ptr(fnmsub_s)},
+    {"fnmadd_s",        func_ptr(fnmadd_s)},
+// ----- Esperanto mask extension ----------------------------------------------
+    {"maskand",         func_ptr(maskand)},
+    {"maskor",          func_ptr(maskor)},
+    {"maskxor",         func_ptr(maskxor)},
+    {"masknot",         func_ptr(masknot)},
+    {"mova_x_m",        func_ptr(mova_x_m)},
+    {"mova_m_x",        func_ptr(mova_m_x)},
+    {"mov_m_x",         func_ptr(mov_m_x)},
+    {"maskpopc",        func_ptr(maskpopc)},
+    {"maskpopcz",       func_ptr(maskpopcz)},
+    {"maskpopc_rast",   func_ptr(maskpopc_rast)},
+// ----- Esperanto packed-single extension -------------------------------------
+    {"flw_ps",          func_ptr(flw_ps)},
+    {"flq",             func_ptr(flq)},
+    {"fsw_ps",          func_ptr(fsw_ps)},
+//  {"fswpc_ps",        func_ptr(fswpc_ps)},
+    {"fsq",             func_ptr(fsq)},
+    {"fbc_ps",          func_ptr(fbc_ps)},
+    {"fbci_ps",         func_ptr(fbci_ps)},
+    {"fbcx_ps",         func_ptr(fbcx_ps)},
+    {"fgw_ps",          func_ptr(fgw_ps)},
+    {"fgh_ps",          func_ptr(fgh_ps)},
+    {"fgb_ps",          func_ptr(fgb_ps)},
+    {"fscw_ps",         func_ptr(fscw_ps)},
+    {"fsch_ps",         func_ptr(fsch_ps)},
+    {"fscb_ps",         func_ptr(fscb_ps)},
+    {"fg32b_ps",        func_ptr(fg32b_ps)},
+    {"fg32h_ps",        func_ptr(fg32h_ps)},
+    {"fg32w_ps",        func_ptr(fg32w_ps)},
+    {"fsc32b_ps",       func_ptr(fsc32b_ps)},
+    {"fsc32h_ps",       func_ptr(fsc32h_ps)},
+    {"fsc32w_ps",       func_ptr(fsc32w_ps)},
+    {"fadd_ps",         func_ptr(fadd_ps)},
+    {"fsub_ps",         func_ptr(fsub_ps)},
+    {"fmul_ps",         func_ptr(fmul_ps)},
+    {"fdiv_ps",         func_ptr(fdiv_ps)},
+    {"fsgnj_ps",        func_ptr(fsgnj_ps)},
+    {"fsgnjn_ps",       func_ptr(fsgnjn_ps)},
+    {"fsgnjx_ps",       func_ptr(fsgnjx_ps)},
+    {"fmin_ps",         func_ptr(fmin_ps)},
+    {"fmax_ps",         func_ptr(fmax_ps)},
+    {"fsqrt_ps",        func_ptr(fsqrt_ps)},
+    {"feq_ps",          func_ptr(feq_ps)},
+    {"fle_ps",          func_ptr(fle_ps)},
+    {"flt_ps",          func_ptr(flt_ps)},
+    {"feqm_ps",         func_ptr(feqm_ps)},
+    {"flem_ps",         func_ptr(flem_ps)},
+    {"fltm_ps",         func_ptr(fltm_ps)},
+    {"fsetm_ps",        func_ptr(fsetm_ps)},
+    {"fcmov_ps",        func_ptr(fcmov_ps)},
+    {"fcmovm_ps",       func_ptr(fcmovm_ps)},
+    {"fmvz_x_ps",       func_ptr(fmvz_x_ps)},
+    {"fmvs_x_ps",       func_ptr(fmvs_x_ps)},
+    {"fswizz_ps",       func_ptr(fswizz_ps)},
+    {"fcvt_pw_ps",      func_ptr(fcvt_pw_ps)},
+    {"fcvt_pwu_ps",     func_ptr(fcvt_pwu_ps)},
+//extern "C" void fcvt_pl_ps(...)
+//extern "C" void fcvt_plu_ps(...)
+    {"fclass_ps",       func_ptr(fclass_ps)},
+    {"fcvt_ps_pw",      func_ptr(fcvt_ps_pw)},
+    {"fcvt_ps_pwu",     func_ptr(fcvt_ps_pwu)},
+//extern "C" void fcvt_ps_pl(...)
+//extern "C" void fcvt_ps_plu(...)
+//extern "C" void fmv_ps_px(...) -- equivalent to a X-reg broadcast to V-reg
+    {"fmadd_ps",        func_ptr(fmadd_ps)},
+    {"fmsub_ps",        func_ptr(fmsub_ps)},
+    {"fnmsub_ps",       func_ptr(fnmsub_ps)},
+    {"fnmadd_ps",       func_ptr(fnmadd_ps)},
+    {"fcvt_ps_f16",     func_ptr(fcvt_ps_f16)},
+    {"fcvt_ps_un24",    func_ptr(fcvt_ps_un24)},
+    {"fcvt_ps_un16",    func_ptr(fcvt_ps_un16)},
+    {"fcvt_ps_un10",    func_ptr(fcvt_ps_un10)},
+    {"fcvt_ps_un8",     func_ptr(fcvt_ps_un8)},
+    {"fcvt_ps_un2",     func_ptr(fcvt_ps_un2)},
+    {"fcvt_ps_sn16",    func_ptr(fcvt_ps_sn16)},
+    {"fcvt_ps_sn8",     func_ptr(fcvt_ps_sn8)},
+    {"fcvt_ps_f11",     func_ptr(fcvt_ps_f11)},
+    {"fcvt_ps_f10",     func_ptr(fcvt_ps_f10)},
+    {"fcvt_f16_ps",     func_ptr(fcvt_f16_ps)},
+    {"fcvt_un24_ps",    func_ptr(fcvt_un24_ps)},
+    {"fcvt_un16_ps",    func_ptr(fcvt_un16_ps)},
+    {"fcvt_un10_ps",    func_ptr(fcvt_un10_ps)},
+    {"fcvt_un8_ps",     func_ptr(fcvt_un8_ps)},
+    {"fcvt_un2_ps",     func_ptr(fcvt_un2_ps)},
+    {"fcvt_sn16_ps",    func_ptr(fcvt_sn16_ps)},
+    {"fcvt_sn8_ps",     func_ptr(fcvt_sn8_ps)},
+    {"fcvt_f11_ps",     func_ptr(fcvt_f11_ps)},
+    {"fcvt_f10_ps",     func_ptr(fcvt_f10_ps)},
+    {"fsin_ps",         func_ptr(fsin_ps)},
+    {"fexp_ps",         func_ptr(fexp_ps)},
+    {"flog_ps",         func_ptr(flog_ps)},
+    {"ffrc_ps",         func_ptr(ffrc_ps)},
+    {"fround_ps",       func_ptr(fround_ps)},
+    {"frcp_ps",         func_ptr(frcp_ps)},
+    {"frsq_ps",         func_ptr(frsq_ps)},
+//    {"fltabs_ps",     func_ptr(fltabs_ps)},
+    {"cubeface_ps",     func_ptr(cubeface_ps)},
+    {"cubefaceidx_ps",  func_ptr(cubefaceidx_ps)},
+    {"cubesgnsc_ps",    func_ptr(cubesgnsc_ps)},
+    {"cubesgntc_ps",    func_ptr(cubesgntc_ps)},
+    {"fcvt_ps_rast",    func_ptr(fcvt_ps_rast)},
+    {"fcvt_rast_ps",    func_ptr(fcvt_rast_ps)},
+    {"frcp_fix_rast",   func_ptr(frcp_fix_rast)},
+// NB: these are scalar instructions!
+    {"packb",           func_ptr(packb)},
+    {"bitmixb",         func_ptr(bitmixb)},
+// FIXME: THIS INSTRUCTION IS OBSOLETE
+    {"frcpfxp_ps",      func_ptr(frcpfxp_ps)},
+// Texture sampling -- FIXME: THESE INSTRUCTIONS ARE OBSOLETE
+    {"texsndh",         func_ptr(texsndh)},
+    {"texsnds",         func_ptr(texsnds)},
+    {"texsndt",         func_ptr(texsndt)},
+    {"texsndr",         func_ptr(texsndr)},
+    {"texrcv",          func_ptr(texrcv)},
+// ----- Esperanto packed-integer extension ------------------------------------
+    {"fbci_pi",         func_ptr(fbci_pi)},
+    {"feq_pi",          func_ptr(feq_pi)},   // RV64I: beq
+//  {"fne_pi",          func_ptr(fne_pi)},   // RV64I: bne
+    {"fle_pi",          func_ptr(fle_pi)},   // RV64I: bge
+    {"flt_pi",          func_ptr(flt_pi)},   // RV64I: blt
+//  {"fleu_pi",         func_ptr(fleu_pi)},  // RV64I: bgeu
+    {"fltu_pi",         func_ptr(fltu_pi)},  // RV64I: bltu
+//  {"feqm_pi",         func_ptr(feqm_pi)},
+//  {"fnem_pi",         func_ptr(fnem_pi)},
+//  {"flem_pi",         func_ptr(flem_pi)},
+    {"fltm_pi",         func_ptr(fltm_pi)},
+//  {"fleum_pi",        func_ptr(fleum_pi)},
+//  {"fltum_pi",        func_ptr(fltum_pi)},
+    {"faddi_pi",        func_ptr(faddi_pi)},
+    {"fslli_pi",        func_ptr(fslli_pi)},
+//  {"fslti_pi",        func_ptr(fslti_pi)},
+//  {"fsltiu_pi",       func_ptr(fsltiu_pi)},
+    {"fxori_pi",        func_ptr(fxori_pi)},
+    {"fsrli_pi",        func_ptr(fsrli_pi)},
+    {"fsrai_pi",        func_ptr(fsrai_pi)},
+    {"fori_pi",         func_ptr(fori_pi)},
+    {"fandi_pi",        func_ptr(fandi_pi)},
+    {"fadd_pi",         func_ptr(fadd_pi)},
+    {"fsub_pi",         func_ptr(fsub_pi)},
+    {"fsll_pi",         func_ptr(fsll_pi)},
+//  {"fslt_pi",         func_ptr(fslt_pi)},
+//  {"fsltu_pi",        func_ptr(fsltu_pi)},
+    {"fxor_pi",         func_ptr(fxor_pi)},
+    {"fsrl_pi",         func_ptr(fsrl_pi)},
+    {"fsra_pi",         func_ptr(fsra_pi)},
+    {"for_pi",          func_ptr(for_pi)},
+    {"fand_pi",         func_ptr(fand_pi)},
+    {"fnot_pi",         func_ptr(fnot_pi)},
+    {"fsat8_pi",        func_ptr(fsat8_pi)},
+    {"fpackreph_pi",    func_ptr(fpackreph_pi)},
+    {"fpackrepb_pi",    func_ptr(fpackrepb_pi)},
+    {"fmul_pi",         func_ptr(fmul_pi)},
+    {"fmulh_pi",        func_ptr(fmulh_pi)},
+// fmulhsu_pi will not be implemented
+    {"fmulhu_pi",       func_ptr(fmulhu_pi)},
+    {"fdiv_pi",         func_ptr(fdiv_pi)},
+    {"fdivu_pi",        func_ptr(fdivu_pi)},
+    {"frem_pi",         func_ptr(frem_pi)},
+    {"fremu_pi",        func_ptr(fremu_pi)},
+    {"fmin_pi",         func_ptr(fmin_pi)},
+    {"fmax_pi",         func_ptr(fmax_pi)},
+    {"fminu_pi",        func_ptr(fminu_pi)},
+    {"fmaxu_pi",        func_ptr(fmaxu_pi)},
+// ----- Esperanto atomic extension --------------------------------------------
+// ----- Esperanto cache control extension -------------------------------------
+// ----- Esperanto messaging extension -----------------------------------------
+// ----- Esperanto tensor extension --------------------------------------------
+// ----- Esperanto fast local barrier extension --------------------------------
+// ----- Illegal instruction ---------------------------------------------------
+    {"unknown",         func_ptr(unknown)},
+});
+
 // floating-point instructions with optional rounding-mode as 3rd operand
-static std::unordered_set<std::string> rm2args({
+static const std::unordered_set<std::string> rm2args({
     "fsqrt_s",
     "fcvt_w_s", "fcvt_wu_s", "fcvt_l_s", "fcvt_lu_s",
     "fcvt_s_w", "fcvt_s_wu", "fcvt_s_l", "fcvt_s_lu",
@@ -27,14 +346,14 @@ static std::unordered_set<std::string> rm2args({
 });
 
 // floating-point instructions with optional rounding-mode as 4th operand
-static std::unordered_set<std::string> rm3args({
+static const std::unordered_set<std::string> rm3args({
     "fadd_s", "fsub_s", "fmul_s", "fdiv_s",
     "fadd_ps", "fsub_ps", "fmul_ps", "fdiv_ps",
     "fltabs_ps"
 });
 
 // floating-point instructions with optional rounding-mode as 5th operand
-static std::unordered_set<std::string> rm4args({
+static const std::unordered_set<std::string> rm4args({
     "fmadd_s", "fmsub_s", "fnmsub_s", "fnmadd_s",
     "fmadd_ps", "fmsub_ps", "fnmsub_ps", "fnmadd_ps"
 });
@@ -98,7 +417,7 @@ uint32_t instruction::get_enc()
 
 // Sets the mnemonic. It also starts decoding it to generate
 // the emulation routine
-void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * func_cache, testLog * log_)
+void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
 {
     mnemonic = mnemonic_;
     log = log_;
@@ -421,24 +740,6 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
         }
     }
 
-    // Special opcodes that need translation due to C++ naming conflicts
-    if(opcode == "or")
-    {
-        opcode = "or_";
-    }
-    else if(opcode == "and")
-    {
-        opcode = "and_";
-    }
-    else if(opcode == "xor")
-    {
-        opcode = "xor_";
-    }
-    else if(opcode == "div")
-    {
-        opcode = "div_";
-    }
-
     // JALR has different behaviour for compressed
     if(is_compressed && (opcode == "jalr"))
     {
@@ -469,7 +770,7 @@ void instruction::set_mnemonic(std::string mnemonic_, function_pointer_cache * f
     // Get the emulation function pointer for the opcode
     if(!has_error)
     {
-        emu_func = func_cache->get_function_ptr(opcode, &has_error, &str_error);
+        emu_func = get_function_ptr(opcode, &has_error, &str_error);
         if(!has_error)
         {
             emu_func0 = (func_ptr_0) emu_func;
@@ -837,3 +1138,28 @@ void instruction::add_parameter(std::string param)
     num_params++;
 }
 
+// Returns the pointer to a function based on name
+func_ptr instruction::get_function_ptr(std::string func, bool * error, std::string * error_msg)
+{
+    emu_ptr_hash_t::const_iterator el = pointer_cache.find(func);
+    if(el != pointer_cache.end())
+    {
+        if(error != NULL)
+            *error = false;
+        return el->second;
+    }
+
+    std::string msg = std::string("Uknown mnemonic: ") + func;
+    if(error != NULL)
+    {
+        // Reports the error to source
+        *error = true;
+        *error_msg = msg;
+    }
+    else
+    {
+        // No way to report the error, simply
+        * log << LOG_FTL << msg << endm;
+    }
+    return nullptr;
+}
