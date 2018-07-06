@@ -1,7 +1,7 @@
 #ifndef _IPC_H
 #define _IPC_H
 
-#include "emu.h"
+#include "emu_defines.h"
 
 void ipc_init(const char *type, int debug);
 void ipc_init_xreg(xreg dst);

@@ -5,27 +5,6 @@
 
 #include "emu_defines.h"
 
-#define DEBUG_EMU   1
-#define DEBUG_MASK  1
-#define DISASM      1
-
-#define MASK2BYTE(_MR) (_MR.b[7]<<7|_MR.b[6]<<6|_MR.b[5]<<5|_MR.b[4]<<4|_MR.b[3]<<3|_MR.b[2]<<2|_MR.b[1]<<1|_MR.b[0])
-
-#ifdef DEBUG_EMU
-#undef DEBUG_EMU
-#define DEBUG_EMU(a) if ( print_debug ) { a }
-extern int print_debug;
-#else
-#define DEBUG_EMU(a)
-#endif
-
-#ifdef DEBUG_MASK
-#undef DEBUG_MASK
-#define DEBUG_MASK(_MR) DEBUG_EMU(gprintf("\tmask = 0x%02x\n",MASK2BYTE(_MR));)
-#else
-#define DEBUG_MASK(a)
-#endif
-
 #ifdef IPC
 #undef IPC
 #define IPC(a) { a }
@@ -52,6 +31,8 @@ extern fdata fregs[EMU_NUM_THREADS][32];
 extern mdata mregs[EMU_NUM_THREADS][8];
 extern fdata scp[EMU_NUM_THREADS][64][4];
 
+extern uint8_t in_sysemu;
+extern uint8_t emu_use_fake_txfma;
 extern uint32_t current_thread;
 
 void print_regs();
@@ -82,7 +63,7 @@ extern "C" uint64_t get_reduce_value(int entry, int block, int * size, int * sta
 extern "C" uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size);
 extern "C" void get_scratchpad_conv_list(std::list<bool> * list);
 extern "C" uint64_t get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
-extern "C" uint64_t virt_to_phys(uint64_t addr, mem_access_type macc);
+extern "C" uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc);
 
 uint8_t memread8(uint64_t addr, bool trans = true);
 uint16_t memread16(uint64_t addr, bool trans = true);
@@ -144,7 +125,7 @@ extern "C" void srai(xreg dst, xreg src1, int imm);
 extern "C" void sraiw(xreg dst, xreg src1, int imm);
 extern "C" void jal(xreg dst, int imm);
 extern "C" void jalr(xreg dst, xreg src1, int imm);
-extern "C" void c_jalr(xreg dst, xreg src1, int imm);
+//extern "C" void c_jalr(xreg dst, xreg src1, int imm);
 extern "C" void beq(xreg src1, xreg src2, int imm);
 extern "C" void bne(xreg src1, xreg src2, int imm);
 extern "C" void blt(xreg src1, xreg src2, int imm);
@@ -356,7 +337,6 @@ extern "C" void masknot    (mreg dst, mreg src1);
 extern "C" void mova_x_m   (xreg dst);
 extern "C" void mova_m_x   (xreg src1);
 extern "C" void mov_m_x    (mreg dst, xreg src1, uint32_t imm);
-extern "C" void movi_m     (mreg dst, uint8_t imm);
 extern "C" void maskpopc   (xreg dst, mreg src1);
 extern "C" void maskpopcz  (xreg dst, mreg src1);
 extern "C" void maskpopc_rast (xreg dst, mreg src1, mreg src2, uint32_t imm);
@@ -370,5 +350,11 @@ extern "C" void bitmixb(xreg dst, xreg src1, xreg src2);
 
 // Illegal instruction encodings will execute this
 extern "C" void unknown();
+
+// Functions used by the checker/sys_emu
+extern "C" void set_memory_funcs(void * func_memread8_, void * func_memread16_,
+                                 void * func_memread32_, void * func_memread64_,
+                                 void * func_memwrite8_, void * func_memwrite16_,
+                                 void * func_memwrite32_, void * func_memwrite64_);
 
 #endif // _EMU_H

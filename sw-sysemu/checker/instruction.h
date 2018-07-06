@@ -2,8 +2,7 @@
 #define _INSTRUCTION_
 
 // Local
-#include "emu.h"
-#include "function_pointer_cache.h"
+#include "checker_defines.h"
 #include "testLog.h"
 
 // STD
@@ -22,7 +21,7 @@ class instruction
         uint64_t get_pc();
         void set_enc(uint32_t enc_bits_);
         uint32_t get_enc();
-        void set_mnemonic(std::string mnemonic_, function_pointer_cache * func_cache, testLog * log_);
+        void set_mnemonic(std::string mnemonic_, testLog * log_);
         std::string get_mnemonic();
         void set_compressed(bool v);
         bool get_is_load();
@@ -71,6 +70,8 @@ class instruction
         std::string                  str_error;  // Error of the instruction decoding
 
         void add_parameter(std::string param);
+
+        func_ptr get_function_ptr(std::string func, bool * error = NULL, std::string * error_msg = NULL);
 };
 
 #endif // _INSTRUCTION_

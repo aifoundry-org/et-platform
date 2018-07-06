@@ -4,6 +4,9 @@
 #include <cstring>
 #include <algorithm>
 #include <strings.h>
+#include <immintrin.h>
+#include <emmintrin.h>
+#include <list>
 
 #include "emu.h"
 #include "cvt.h"
@@ -11,29 +14,14 @@
 #include "ipc.h"
 #include "ttrans.h"
 #include "emu_casts.h"
-
-#include <immintrin.h>
-#include <emmintrin.h>
-
-#include <list>
+#include "emu_gio.h"
 
 using std::fpclassify;
 using std::signbit;
 
-extern void gprintf(const char* format, ...);
-extern void gsprintf(char* str, const char* format, ...);
-
-#ifdef USE_FAKE_TXFMA
-#ifdef NEW_TRANS_UNIT
-#undef NEW_TRANS_UNIT
-#endif
-#endif
-
-#ifndef USE_FAKE_TXFMA
-#ifndef NEW_TRANS_UNIT
-#define NEW_TRANS_UNIT
-#endif
-#endif
+using emu::gprintf;
+using emu::gsprintf;
+using emu::gfprintf;
 
 #ifdef GFX_ONLY
  #define GFX(x) x
@@ -60,7 +48,8 @@ int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][4];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 int32_t msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
-uint64_t current_pc;
+
+static uint64_t current_pc;
 uint32_t current_thread = 0;
 
 #define MAXSTACK 2048
@@ -69,8 +58,12 @@ static uint32_t shaderstack[EMU_NUM_THREADS][MAXSTACK];
 bool check_stack = false;
 char dis[1024];
 
-int print_debug  = 0;
 int fake_sampler = 0;
+#ifdef USE_FAKE_TXFMA
+uint8_t emu_use_fake_txfma = 1;
+#else
+uint8_t emu_use_fake_txfma = 0;
+#endif
 uint8_t in_sysemu = 0;
 
 void init_emu(int debug, int fakesam)
@@ -334,7 +327,6 @@ void minit(mreg dst, uint64_t val)
 uint64_t csrget(csr src1);
 static void csrset(csr src1, uint64_t val);
 
-#ifdef NEW_TRANS_UNIT
 static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
 {
     // Fast skip for zeros and infinity should be the same value in both in gold and table
@@ -375,7 +367,6 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
     }
     return (diff > err_1ulp);
 }
-#endif
 
 static void trap_to_smode(uint64_t cause, uint64_t val)
 {
@@ -437,7 +428,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 // Virtual to physical
 ////////////////////////////////////////////////////////////
 
-uint64_t virt_to_phys(uint64_t addr, mem_access_type macc)
+uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 {
     // Read SATP, PRV and MSTATUS
     uint64_t satp;
@@ -747,7 +738,7 @@ uint64_t csr_cacheop_emu(uint64_t op_value)
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
-                    uint64_t paddr = virt_to_phys(addr, Mem_Access_Store);
+                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
@@ -773,7 +764,7 @@ uint64_t csr_cacheop_emu(uint64_t op_value)
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
-                    uint64_t paddr = virt_to_phys(addr, Mem_Access_Store);
+                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
@@ -797,7 +788,7 @@ uint64_t csr_cacheop_emu(uint64_t op_value)
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
-                    uint64_t paddr = virt_to_phys(addr, Mem_Access_Store);
+                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
@@ -826,7 +817,7 @@ uint64_t csr_cacheop_emu(uint64_t op_value)
                 if(!tm || tmask_pass(i))
                 {
                     DEBUG_EMU(gprintf("\tDoing LockVA: %016X, Way: %X\n", addr, way);)
-                    uint64_t paddr = virt_to_phys(addr, Mem_Access_Store);
+                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
 
                     // Looks for 1st way available
                     if(way == 255)
@@ -873,7 +864,7 @@ uint64_t csr_cacheop_emu(uint64_t op_value)
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
-                    uint64_t paddr = virt_to_phys(addr, Mem_Access_Store);
+                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
                     uint64_t state  = (op_value >> 59) & 0x1;
 
                     set = (paddr >> 6) & 0xF;
@@ -1099,7 +1090,7 @@ uint32_t get_mask ( unsigned maskNr )
     uint8_t memread8(uint64_t addr, bool trans)
     {
         uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys(addr, Mem_Access_Load);
+        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
         // Used to detect special load accesses like ticketer
         log_info->mem_addr[0] = paddr;
         return (func_memread8(paddr));
@@ -1108,7 +1099,7 @@ uint32_t get_mask ( unsigned maskNr )
     uint16_t memread16(uint64_t addr, bool trans)
     {
         uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys(addr, Mem_Access_Load);
+        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
         // Used to detect special load accesses like ticketer
         log_info->mem_addr[0] = paddr;
         return (func_memread16(paddr));
@@ -1117,7 +1108,7 @@ uint32_t get_mask ( unsigned maskNr )
     uint32_t memread32(uint64_t addr, bool trans)
     {
         uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys(addr, Mem_Access_Load);
+        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
         // Used to detect special load accesses like ticketer
         log_info->mem_addr[0] = paddr;
         return (func_memread32(paddr));
@@ -1126,7 +1117,7 @@ uint32_t get_mask ( unsigned maskNr )
     uint64_t memread64(uint64_t addr, bool trans)
     {
         uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys(addr, Mem_Access_Load);
+        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
         // Used to detect special load accesses like ticketer
         log_info->mem_addr[0] = paddr;
         return (func_memread64(paddr));
@@ -1135,7 +1126,7 @@ uint32_t get_mask ( unsigned maskNr )
     void memwrite8(uint64_t addr, uint8_t data, bool trans)
     {
         uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
+        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
         printf("MEM8 %i, %016" PRIx64 ", %02" PRIx8 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
         (func_memwrite8(paddr, data));
     }
@@ -1143,7 +1134,7 @@ uint32_t get_mask ( unsigned maskNr )
     void memwrite16(uint64_t addr, uint16_t data, bool trans)
     {
         uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
+        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
         printf("MEM16 %i, %016" PRIx64 ", %04" PRIx16 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
         (func_memwrite16(paddr, data));
     }
@@ -1151,7 +1142,7 @@ uint32_t get_mask ( unsigned maskNr )
     void memwrite32(uint64_t addr, uint32_t data, bool trans)
     {
         uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
+        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
         printf("MEM32 %i, %016" PRIx64 ", %08" PRIx32 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
         (func_memwrite32(paddr, data));
     }
@@ -1159,7 +1150,7 @@ uint32_t get_mask ( unsigned maskNr )
     void memwrite64(uint64_t addr, uint64_t data, bool trans)
     {
         uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys(addr, Mem_Access_Store);
+        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
         printf("MEM32 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
         (func_memwrite64(paddr, data));
     }
@@ -4792,18 +4783,21 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, ro
             case FRSQ:
                 if ( genResult )
                 {
-#ifdef NEW_TRANS_UNIT
-                    res.f = ttrans_frsq(val.u);
-                    // security ulp check
-                    iufval res_gold;
-                    res_gold.f = (float) ((double) 1.0 / sqrt((double) val.f));
-                    DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                    if(security_ulp_check(res_gold.u,res.u)){
-                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    if (emu_use_fake_txfma)
+                    {
+                        res.f = (float) ((double) 1.0 / sqrt((double) val.f));
                     }
-#else
-                    res.f = (float) ((double) 1.0 / sqrt((double) val.f));
-#endif
+                    else
+                    {
+                        res.f = ttrans_frsq(val.u);
+                        // security ulp check
+                        iufval res_gold;
+                        res_gold.f = (float) ((double) 1.0 / sqrt((double) val.f));
+                        DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                        if(security_ulp_check(res_gold.u,res.u)){
+                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                        }
+                    }
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
                 }
@@ -4812,25 +4806,28 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, ro
             case FSIN:
                 if ( genResult )
                 {
-#ifdef NEW_TRANS_UNIT
-                    res.f = ttrans_fsin(val.u);
-                    // security ulp check
-                    iufval res_gold, sin_tmp;
-                    double f;
-                    sin_tmp.f = (float) modf(val.f, &f);
-
-                    sin_tmp.f = sin_tmp.f > 0.5? sin_tmp.f - 1.0
-                        : sin_tmp.f < -0.5 ? sin_tmp.f + 1.0
-                        : sin_tmp.f;
-
-                    res_gold.f = (float) sin(2 * M_PI * (double) sin_tmp.f);
-                    DEBUG_EMU(gprintf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                    if(security_ulp_check(res_gold.u,res.u)){
-                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    if (emu_use_fake_txfma)
+                    {
+                        res.f = sin(2*M_PI*val.f);
                     }
-#else
-                    res.f = sin(2*M_PI*val.f);
-#endif
+                    else
+                    {
+                        res.f = ttrans_fsin(val.u);
+                        // security ulp check
+                        iufval res_gold, sin_tmp;
+                        double f;
+                        sin_tmp.f = (float) modf(val.f, &f);
+
+                        sin_tmp.f = sin_tmp.f > 0.5 ? sin_tmp.f - 1.0
+                                  : sin_tmp.f < -0.5 ? sin_tmp.f + 1.0
+                                  : sin_tmp.f;
+
+                        res_gold.f = (float) sin(2 * M_PI * (double) sin_tmp.f);
+                        DEBUG_EMU(gprintf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                        if(security_ulp_check(res_gold.u,res.u)){
+                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                        }
+                    }
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
                 }
@@ -4839,23 +4836,26 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, ro
             case FEXP:
                 if ( genResult )
                 {
-#ifdef NEW_TRANS_UNIT
-                    res.f = ttrans_fexp2(val.u);
-                    // security ulp check
-                    iufval res_gold;
-                    res_gold.f = exp2f(val.f);
-
-                    // Remove denormals
-                    if ((res.u & 0x7f800000) == 0) res.u = res.u & 0xff800000;
-                    if ((res_gold.u & 0x7f800000) == 0) res_gold.u = res_gold.u & 0xff800000;
-
-                    DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                    if(security_ulp_check(res_gold.u,res.u)){
-                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    if (emu_use_fake_txfma)
+                    {
+                        res.f = exp2f(val.f);
                     }
-#else
-                    res.f = exp2f(val.f);
-#endif
+                    else
+                    {
+                        res.f = ttrans_fexp2(val.u);
+                        // security ulp check
+                        iufval res_gold;
+                        res_gold.f = exp2f(val.f);
+
+                        // Remove denormals
+                        if ((res.u & 0x7f800000) == 0) res.u = res.u & 0xff800000;
+                        if ((res_gold.u & 0x7f800000) == 0) res_gold.u = res_gold.u & 0xff800000;
+
+                        DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                        if(security_ulp_check(res_gold.u,res.u)){
+                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                        }
+                    }
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
                 }
@@ -4864,19 +4864,22 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, ro
             case FLOG:
                 if ( genResult )
                 {
-#ifdef NEW_TRANS_UNIT
-                    res.f = ttrans_flog2(val.u);
-                    // security ulp check
-                    iufval res_gold;
-                    res_gold.f = (float)log2((double)val.f);
-                    //DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                    DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x (%.20f)\n", val.u, res.u, res_gold.u, res_gold.f););
-                    if(security_ulp_check(res_gold.u,res.u)){
-                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    if (emu_use_fake_txfma)
+                    {
+                        res.f = log2f(val.f);
                     }
-#else
-                    res.f = log2f(val.f);
-#endif
+                    else
+                    {
+                        res.f = ttrans_flog2(val.u);
+                        // security ulp check
+                        iufval res_gold;
+                        res_gold.f = (float)log2((double)val.f);
+                        //DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                        DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x (%.20f)\n", val.u, res.u, res_gold.u, res_gold.f););
+                        if(security_ulp_check(res_gold.u,res.u)){
+                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                        }
+                    }
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
                 }
@@ -4885,19 +4888,22 @@ void femu1src(const char *opname, opcode opc, int count, freg dst, freg src1, ro
             case FRCP:
                 if ( genResult )
                 {
-#ifdef NEW_TRANS_UNIT
-                    res.f = ttrans_frcp(val.u);
-                    // security ulp check
-                    iufval res_gold;
-                    res_gold.f = (float) (1.0 / (double) val.f);
-                    DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                    //assert(res.u == res_gold.u);
-                    if(security_ulp_check(res_gold.u,res.u)){
-                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                    if (emu_use_fake_txfma)
+                    {
+                        res.f = (float) (1.0 / (double) val.f);
                     }
-#else
-                    res.f = (float) (1.0 / (double) val.f);
-#endif
+                    else
+                    {
+                        res.f = ttrans_frcp(val.u);
+                        // security ulp check
+                        iufval res_gold;
+                        res_gold.f = (float) (1.0 / (double) val.f);
+                        DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
+                        //assert(res.u == res_gold.u);
+                        if(security_ulp_check(res_gold.u,res.u)){
+                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                        }
+                    }
                     // convert to canonical NaN
                     if ( isnan(res.f) ) res.f = nanf("");
                 }

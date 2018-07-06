@@ -1,6 +1,5 @@
 // Global
 #include <string.h>
-#include <dlfcn.h>
 
 // Local
 #include "main_memory_region_tbox.h"
@@ -12,14 +11,6 @@ using namespace std;
 main_memory_region_tbox::main_memory_region_tbox(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
     : main_memory_region(base, size, l, get_thr)
 {
-  // This is an object that resolves where the emulation functions are
-  std::string repo = getenv("BEMU");
-  repo += "/checker/build/emu.so";
-  function_pointer_cache * func_cache = new function_pointer_cache(repo.c_str());
-
-  init_txs_ptr = (func_init_txs_t) func_cache->get_function_ptr("init_txs");
-  if(init_txs_ptr == NULL) 
-    log << LOG_FTL <<"cannot find init_txs  in emu shared lib:" << dlerror() << endm;
 }
  
 // Destructor: free allocated mem
@@ -36,7 +27,7 @@ void main_memory_region_tbox::write(uint64_t ad, int size, const void * data)
   if((ad-base_) == 0x40)
   {
       uint64_t val = * ((uint64_t *) data);
-      init_txs_ptr(val);
+      init_txs(val);
   }
 }
 
