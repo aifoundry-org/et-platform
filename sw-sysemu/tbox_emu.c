@@ -3003,11 +3003,13 @@ uint64 TBOXEmu::compute_mip_offset(uint32 mip_pitch_l0, uint32 mip_pitch_l1, uin
         {
 			mip_pitch = max(1, mip_pitch >> 1);
 			mip_offset = mip_offset + mip_pitch;
+            if (mip_pitch == 1) return mip_offset;
         }
 		else
         {
 			mip_pitch = max(1, mip_pitch >> 2);
 			mip_offset += mip_pitch;
+            if (mip_pitch == 1) return mip_offset;
         }
         mip_rows = mip_rows >>  1;
 		mip_row_pitch = mip_row_pitch >> 1;
