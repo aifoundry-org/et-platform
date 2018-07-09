@@ -911,6 +911,64 @@ bool get_msg_port_stall(uint32_t thread, uint32_t id)
     return msg_ports[thread][id].stall;
 }
 
+// get data from RTL and write into scratchpad
+static uint64_t get_msg_port_offset(uint32_t id)
+{
+    uint32_t offset = msg_ports[current_thread][id].rd_ptr << msg_ports[current_thread][id].logsize;
+    msg_ports[current_thread][id].rd_ptr++;
+    msg_ports[current_thread][id].rd_ptr %= (msg_ports[current_thread][id].max_msgs + 1);
+    msg_ports_pending_offset[current_thread][id] = offset;
+    if (in_sysemu == 1) {
+      if (newMsgPortDataRequest == NULL) {
+        gprintf("id = %d, offset = %d, current_thread = %d\n", id, offset, current_thread);
+        gprintf("ERROR: newMsgPortDataRequest == NULL");
+        exit(-1);
+      }
+      newMsgPortDataRequest(current_thread, id);
+    }
+    return offset;
+}
+
+static void write_msg_port_data(uint32_t thread, uint32_t id)
+{
+    if ( retrieve_msg_port_data != NULL)
+    {
+        int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
+        uint32_t *data = new uint32_t [wr_words];
+        for(int i = 0; i < wr_words; i++)
+            data[i] =  retrieve_msg_port_data ( thread, id, i );
+        write_msg_port_data_(thread, id, data);
+        delete [] data;
+    }
+    else {
+        gprintf("ERROR: no data provider for msg port %d emulation has been configured\n", id);
+        exit(-1);
+    }
+}
+
+void update_msg_port_data()
+{
+    for ( uint32_t port_id = 0 ; port_id < NR_MSG_PORTS; port_id ++)
+    {
+        if (msg_ports_pending_offset[current_thread][port_id] >= 0 )
+            write_msg_port_data(current_thread, port_id);
+    }
+}
+
+void write_msg_port_data_(uint32_t thread, uint32_t id, uint32_t *data)
+{
+    // write to scratchpad
+    uint64_t base_addr = scp_trans[thread >> 1][(msg_ports[thread][id].scp_set << 2) | msg_ports[thread][id].scp_way];
+    base_addr += msg_ports_pending_offset[thread][id];
+    msg_ports_pending_offset[thread][id] = -1;
+    int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
+    for(int i = 0; i < wr_words; i++)
+    {
+        uint32_t ret = data[i];
+        DEBUG_EMU(gprintf("Writing MSG_PORT (m%d p%d) data %08X to addr %016llX\n", thread, id, ret, base_addr + 4 * i););
+        memwrite32 ( base_addr + 4 * i, ret );
+    }
+}
 
 uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
 {
@@ -954,66 +1012,6 @@ uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
     }
 }
 
-// get data from RTL and write into scratchpad
-uint64_t get_msg_port_offset(uint32_t id)
-{
-    uint32_t offset = msg_ports[current_thread][id].rd_ptr << msg_ports[current_thread][id].logsize;
-    msg_ports[current_thread][id].rd_ptr++;
-    msg_ports[current_thread][id].rd_ptr %= (msg_ports[current_thread][id].max_msgs + 1);
-    msg_ports_pending_offset[current_thread][id] = offset;
-    if (in_sysemu == 1) {
-      if (newMsgPortDataRequest == NULL) {
-        gprintf("id = %d, offset = %d, current_thread = %d\n", id, offset, current_thread);
-        gprintf("ERROR: newMsgPortDataRequest == NULL");
-        exit(-1);
-      }
-      newMsgPortDataRequest(current_thread, id);
-    }
-    return offset;
-}
-
-void update_msg_port_data()
-{
-    for ( uint32_t port_id = 0 ; port_id < NR_MSG_PORTS; port_id ++)
-    {
-        if (msg_ports_pending_offset[current_thread][port_id] >= 0 )
-            write_msg_port_data(current_thread, port_id);
-    }
-}
-
-
-void write_msg_port_data(uint32_t thread, uint32_t id)
-{
-    if ( retrieve_msg_port_data != NULL)
-    {
-        int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
-        uint32_t *data = new uint32_t [wr_words];
-        for(int i = 0; i < wr_words; i++)
-            data[i] =  retrieve_msg_port_data ( thread, id, i );
-        write_msg_port_data_(thread, id, data);
-        delete [] data;
-    }
-    else {
-        gprintf("ERROR: no data provider for msg port %d emulation has been configured\n", id);
-        exit(-1);
-    }
-}
-
-void write_msg_port_data_(uint32_t thread, uint32_t id, uint32_t *data)
-{
-    // write to scratchpad
-    uint64_t base_addr = scp_trans[thread >> 1][(msg_ports[thread][id].scp_set << 2) | msg_ports[thread][id].scp_way];
-    base_addr += msg_ports_pending_offset[thread][id];
-    msg_ports_pending_offset[thread][id] = -1;
-    int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
-    for(int i = 0; i < wr_words; i++)
-    {
-        uint32_t ret = data[i];
-        DEBUG_EMU(gprintf("Writing MSG_PORT (m%d p%d) data %08X to addr %016llX\n", thread, id, ret, base_addr + 4 * i););
-        memwrite32 ( base_addr + 4 * i, ret );
-    }
-}
-
 #endif
 
 void set_pc(uint64_t pc)
@@ -1045,156 +1043,171 @@ uint32_t get_mask ( unsigned maskNr )
 
 #ifdef CHECKER
 
-    extern inst_state_change * log_info;
+extern inst_state_change * log_info;
 
-    // Defines the functions to access to the main memory during checker mode
-    typedef uint8_t  (*func_memread8_t) (uint64_t addr);
-    typedef uint16_t (*func_memread16_t)(uint64_t addr);
-    typedef uint32_t (*func_memread32_t)(uint64_t addr);
-    typedef uint64_t (*func_memread64_t)(uint64_t addr);
+// Defines the functions to access to the main memory during checker mode
+typedef uint8_t  (*func_memread8_t) (uint64_t addr);
+typedef uint16_t (*func_memread16_t)(uint64_t addr);
+typedef uint32_t (*func_memread32_t)(uint64_t addr);
+typedef uint64_t (*func_memread64_t)(uint64_t addr);
 
-    typedef void (*func_memwrite8_t)  (uint64_t addr, uint8_t data);
-    typedef void (*func_memwrite16_t) (uint64_t addr, uint16_t data);
-    typedef void (*func_memwrite32_t) (uint64_t addr, uint32_t data);
-    typedef void (*func_memwrite64_t) (uint64_t addr, uint64_t data);
+typedef void (*func_memwrite8_t)  (uint64_t addr, uint8_t data);
+typedef void (*func_memwrite16_t) (uint64_t addr, uint16_t data);
+typedef void (*func_memwrite32_t) (uint64_t addr, uint32_t data);
+typedef void (*func_memwrite64_t) (uint64_t addr, uint64_t data);
 
-    func_memread8_t   func_memread8   = NULL;
-    func_memread16_t  func_memread16  = NULL;
-    func_memread32_t  func_memread32  = NULL;
-    func_memread64_t  func_memread64  = NULL;
-    func_memwrite8_t  func_memwrite8  = NULL;
-    func_memwrite16_t func_memwrite16 = NULL;
-    func_memwrite32_t func_memwrite32 = NULL;
-    func_memwrite64_t func_memwrite64 = NULL;
+func_memread8_t   func_memread8   = NULL;
+func_memread16_t  func_memread16  = NULL;
+func_memread32_t  func_memread32  = NULL;
+func_memread64_t  func_memread64  = NULL;
+func_memwrite8_t  func_memwrite8  = NULL;
+func_memwrite16_t func_memwrite16 = NULL;
+func_memwrite32_t func_memwrite32 = NULL;
+func_memwrite64_t func_memwrite64 = NULL;
 
-    extern "C" void set_memory_funcs(
-        void * func_memread8_,
-        void * func_memread16_,
-        void * func_memread32_,
-        void * func_memread64_,
-        void * func_memwrite8_,
-        void * func_memwrite16_,
-        void * func_memwrite32_,
-        void * func_memwrite64_)
-    {
-        func_memread8   = (func_memread8_t  ) func_memread8_;
-        func_memread16  = (func_memread16_t ) func_memread16_;
-        func_memread32  = (func_memread32_t ) func_memread32_;
-        func_memread64  = (func_memread64_t ) func_memread64_;
-        func_memwrite8  = (func_memwrite8_t ) func_memwrite8_;
-        func_memwrite16 = (func_memwrite16_t) func_memwrite16_;
-        func_memwrite32 = (func_memwrite32_t) func_memwrite32_;
-        func_memwrite64 = (func_memwrite64_t) func_memwrite64_;
-    }
+void set_memory_funcs(void * func_memread8_, void * func_memread16_, void * func_memread32_, void * func_memread64_,
+                      void * func_memwrite8_, void * func_memwrite16_, void * func_memwrite32_, void * func_memwrite64_)
+{
+    func_memread8   = (func_memread8_t  ) func_memread8_;
+    func_memread16  = (func_memread16_t ) func_memread16_;
+    func_memread32  = (func_memread32_t ) func_memread32_;
+    func_memread64  = (func_memread64_t ) func_memread64_;
+    func_memwrite8  = (func_memwrite8_t ) func_memwrite8_;
+    func_memwrite16 = (func_memwrite16_t) func_memwrite16_;
+    func_memwrite32 = (func_memwrite32_t) func_memwrite32_;
+    func_memwrite64 = (func_memwrite64_t) func_memwrite64_;
+}
 
-    uint8_t memread8(uint64_t addr, bool trans)
-    {
-        uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
-        // Used to detect special load accesses like ticketer
-        log_info->mem_addr[0] = paddr;
-        return (func_memread8(paddr));
-    }
+uint8_t memread8(uint64_t addr, bool trans)
+{
+    uint64_t paddr = addr;
+    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    return func_memread8(paddr);
+}
 
-    uint16_t memread16(uint64_t addr, bool trans)
-    {
-        uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
-        // Used to detect special load accesses like ticketer
-        log_info->mem_addr[0] = paddr;
-        return (func_memread16(paddr));
-    }
+uint16_t memread16(uint64_t addr, bool trans)
+{
+    uint64_t paddr = addr;
+    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    return func_memread16(paddr);
+}
 
-    uint32_t memread32(uint64_t addr, bool trans)
-    {
-        uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
-        // Used to detect special load accesses like ticketer
-        log_info->mem_addr[0] = paddr;
-        return (func_memread32(paddr));
-    }
+uint32_t memread32(uint64_t addr, bool trans)
+{
+    uint64_t paddr = addr;
+    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    return func_memread32(paddr);
+}
 
-    uint64_t memread64(uint64_t addr, bool trans)
-    {
-        uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
-        // Used to detect special load accesses like ticketer
-        log_info->mem_addr[0] = paddr;
-        return (func_memread64(paddr));
-    }
+uint64_t memread64(uint64_t addr, bool trans)
+{
+    uint64_t paddr = addr;
+    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    return func_memread64(paddr);
+}
 
-    void memwrite8(uint64_t addr, uint8_t data, bool trans)
-    {
-        uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-        printf("MEM8 %i, %016" PRIx64 ", %02" PRIx8 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
-        (func_memwrite8(paddr, data));
-    }
+void memwrite8(uint64_t addr, uint8_t data, bool trans)
+{
+    uint64_t paddr = addr;
+    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    printf("MEM8 %i, %016" PRIx64 ", %02" PRIx8 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    func_memwrite8(paddr, data);
+}
 
-    void memwrite16(uint64_t addr, uint16_t data, bool trans)
-    {
-        uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-        printf("MEM16 %i, %016" PRIx64 ", %04" PRIx16 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
-        (func_memwrite16(paddr, data));
-    }
+void memwrite16(uint64_t addr, uint16_t data, bool trans)
+{
+    uint64_t paddr = addr;
+    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    printf("MEM16 %i, %016" PRIx64 ", %04" PRIx16 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    func_memwrite16(paddr, data);
+}
 
-    void memwrite32(uint64_t addr, uint32_t data, bool trans)
-    {
-        uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-        printf("MEM32 %i, %016" PRIx64 ", %08" PRIx32 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
-        (func_memwrite32(paddr, data));
-    }
+void memwrite32(uint64_t addr, uint32_t data, bool trans)
+{
+    uint64_t paddr = addr;
+    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    printf("MEM32 %i, %016" PRIx64 ", %08" PRIx32 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    func_memwrite32(paddr, data);
+}
 
-    void memwrite64(uint64_t addr, uint64_t data, bool trans)
-    {
-        uint64_t paddr = addr;
-        if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-        printf("MEM32 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
-        (func_memwrite64(paddr, data));
-    }
+void memwrite64(uint64_t addr, uint64_t data, bool trans)
+{
+    uint64_t paddr = addr;
+    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    printf("MEM32 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    func_memwrite64(paddr, data);
+}
 
 #else
-    uint8_t memread8(uint64_t addr, bool trans)
-    {
-        return * ((uint8_t *) addr);
-    }
 
-    uint16_t memread16(uint64_t addr, bool trans)
-    {
-        return * ((uint16_t *) addr);
-    }
+void set_msg_port_data_func(void* f, void *g, void *h)
+{
+    assert(0);
+}
 
-    uint32_t memread32(uint64_t addr, bool trans)
-    {
-        return * ((uint32_t *) addr);
-    }
+bool get_msg_port_stall(uint32_t thread, uint32_t id)
+{
+    assert(0);
+    return false;
+}
 
-    uint64_t memread64(uint64_t addr, bool trans)
-    {
-        return * ((uint64_t *) addr);
-    }
+void write_msg_port_data_(uint32_t thread, uint32_t port_id, uint32_t *data)
+{
+    assert(0);
+}
 
-    void memwrite8(uint64_t addr, uint8_t data, bool trans)
-    {
-        * ((uint8_t *) addr) = data;
-    }
+void update_msg_port_data()
+{
+    assert(0);
+}
 
-    void memwrite16(uint64_t addr, uint16_t data, bool trans)
-    {
-        * ((uint16_t *) addr) = data;
-    }
+uint8_t memread8(uint64_t addr, bool trans)
+{
+    return * ((uint8_t *) addr);
+}
 
-    void memwrite32(uint64_t addr, uint32_t data, bool trans)
-    {
-        * ((uint32_t *) addr) = data;
-    }
+uint16_t memread16(uint64_t addr, bool trans)
+{
+    return * ((uint16_t *) addr);
+}
 
-    void memwrite64(uint64_t addr, uint64_t data, bool trans)
-    {
-        * ((uint64_t *) addr) = data;
-    }
+uint32_t memread32(uint64_t addr, bool trans)
+{
+    return * ((uint32_t *) addr);
+}
+
+uint64_t memread64(uint64_t addr, bool trans)
+{
+    return * ((uint64_t *) addr);
+}
+
+void memwrite8(uint64_t addr, uint8_t data, bool trans)
+{
+    * ((uint8_t *) addr) = data;
+}
+
+void memwrite16(uint64_t addr, uint16_t data, bool trans)
+{
+    * ((uint16_t *) addr) = data;
+}
+
+void memwrite32(uint64_t addr, uint32_t data, bool trans)
+{
+    * ((uint32_t *) addr) = data;
+}
+
+void memwrite64(uint64_t addr, uint64_t data, bool trans)
+{
+    * ((uint64_t *) addr) = data;
+}
 
 #endif
 

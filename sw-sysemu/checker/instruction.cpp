@@ -212,14 +212,14 @@ static const emu_ptr_hash_t pointer_cache({
     {"fswizz_ps",       func_ptr(fswizz_ps)},
     {"fcvt_pw_ps",      func_ptr(fcvt_pw_ps)},
     {"fcvt_pwu_ps",     func_ptr(fcvt_pwu_ps)},
-//extern "C" void fcvt_pl_ps(...)
-//extern "C" void fcvt_plu_ps(...)
+//    fcvt_pl_ps
+//    fcvt_plu_ps
     {"fclass_ps",       func_ptr(fclass_ps)},
     {"fcvt_ps_pw",      func_ptr(fcvt_ps_pw)},
     {"fcvt_ps_pwu",     func_ptr(fcvt_ps_pwu)},
-//extern "C" void fcvt_ps_pl(...)
-//extern "C" void fcvt_ps_plu(...)
-//extern "C" void fmv_ps_px(...) -- equivalent to a X-reg broadcast to V-reg
+//    fcvt_ps_pl
+//    fcvt_ps_plu
+//    fmv_ps_px -- equivalent to a X-reg broadcast to V-reg
     {"fmadd_ps",        func_ptr(fmadd_ps)},
     {"fmsub_ps",        func_ptr(fmsub_ps)},
     {"fnmsub_ps",       func_ptr(fnmsub_ps)},
