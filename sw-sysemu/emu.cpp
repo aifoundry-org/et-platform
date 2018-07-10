@@ -1550,12 +1550,12 @@ void tensorfma(uint64_t tfmareg)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
 
-                    // If As are zeroes, we skip operation
-                    if(SCP[astart+ar][af].f[am] == 0)
-                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
-                    // If Bs are zeroes, we skip operation
-                    if(SCP[br][bf].f[bm] == 0)
-                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    //// If As are zeroes, we skip operation
+                    //if(SCP[astart+ar][af].f[am] == 0)
+                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    //// If Bs are zeroes, we skip operation
+                    //if(SCP[br][bf].f[bm] == 0)
+                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
@@ -1743,12 +1743,12 @@ void tensorfma(uint64_t tfmareg)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
 
-                    // If both As are zeroes, we skip operation
-                    if((SCP[astart+ar][af].h[am * 2] == 0) && (SCP[astart+ar][af].h[am * 2 + 1] == 0))
-                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
-                     // If both Bs are zeroes, we skip operation
-                    if((SCP[br][bf].h[bm * 2] == 0) && (SCP[br][bf].h[bm * 2 + 1] == 0))
-                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    //// If both As are zeroes, we skip operation
+                    //if((SCP[astart+ar][af].h[am * 2] == 0) && (SCP[astart+ar][af].h[am * 2 + 1] == 0))
+                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    // // If both Bs are zeroes, we skip operation
+                    //if((SCP[br][bf].h[bm * 2] == 0) && (SCP[br][bf].h[bm * 2 + 1] == 0))
+                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
@@ -1966,12 +1966,12 @@ void tensorfma(uint64_t tfmareg)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
 
-                   // If As are zeroes, we skip operation
-                    if((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
-                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
-                    // If Bs are zeroes, we skip operation
-                    if((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
-                        tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    //// If As are zeroes, we skip operation
+                    //if((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
+                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    //// If Bs are zeroes, we skip operation
+                    //if((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
+                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%d)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].u[0]);)
