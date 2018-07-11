@@ -2202,18 +2202,18 @@ uint64_t flbarrier(uint64_t value)
 
     uint64_t orig_value = memread64(addr);
     uint64_t result = -1;
-    printf("FastLocalBarrier: Minion %i doing barrier %" PRIu64 "\n", current_thread>>1, barrier);
+    printf("FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n", current_thread>>7, current_thread>>1 ,current_thread &1 , barrier ,orig_value , limit );
     // Last guy, return 1 and zero barrier
     if(orig_value == limit)
     {
-        printf("FastLocalBarrier: last minion!!\n");
+        printf("FastLocalBarrier: last minion Shire %i!!\n", current_thread>>7 );
         memwrite64(addr, 0);
         result = 1;
     }
     // Not the last guy, return 0 and increment barrier
     else
     {
-        printf("FastLocalBarrier: Incrementing to %" PRIu64 "!!\n", orig_value + 1);
+        printf("FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n",limit , orig_value + 1);
         memwrite64(addr, orig_value + 1);
         result = 0;
     }
