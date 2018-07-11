@@ -292,6 +292,7 @@ void ipc_init(const char *type, int debug)
         latency[FLT]         = lat_fcmp;
         //latency[FLTABS]      = lat_fcmp;
         latency[FCLASS]      = 1;
+        latency[FCLASSPS]    = 1;
         latency[FCVTPSF16]   = lat_fcvt;
         latency[FCVTPSF11]   = lat_fcvt;
         latency[FCVTPSF10]   = lat_fcvt;
