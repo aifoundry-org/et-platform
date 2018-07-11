@@ -32,7 +32,7 @@ void logmregchange(int mdst);
 void logmemwchange(int pos, int size, uint64_t addr, uint64_t val);
 
 // Support for log state
-extern "C" void setlogstate(inst_state_change * log_info_);
-extern "C" void clearlogstate();
+extern void setlogstate(inst_state_change * log_info_);
+extern void clearlogstate();
 
 #endif // _LOG_H

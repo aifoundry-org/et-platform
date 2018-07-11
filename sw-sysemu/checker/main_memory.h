@@ -35,7 +35,7 @@ class main_memory
         bool dump_file(std::string filename, uint64_t ad, uint64_t size, unsigned buf_size = 256);
 
         // sets function to retrieve current thread from emu (in case it is required to known which minion accesses the mem)
-        void setGetThread(main_memory_region::func_ptr_get_thread f) { get_thread = f; }
+        void setGetThread(main_memory_region::func_ptr_get_thread f) { getthread = f; }
         
         // function to configure printf from RTL
         void setPrintfBase(const char* binary);
@@ -51,7 +51,7 @@ class main_memory
         typedef boost::ptr_vector<main_memory_region>::iterator rg_it_t;
 
         testLog log;
-        main_memory_region::func_ptr_get_thread get_thread;
+        main_memory_region::func_ptr_get_thread getthread;
 
         main_memory_region_rbox *rbox;
 

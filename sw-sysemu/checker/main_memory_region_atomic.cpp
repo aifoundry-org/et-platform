@@ -1,6 +1,5 @@
 // Global
 #include <string.h>
-#include <dlfcn.h>
 
 // Local
 #include "main_memory_region_atomic.h"

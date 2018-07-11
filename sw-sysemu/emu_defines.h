@@ -459,6 +459,8 @@ typedef struct
     uint8_t wr_ptr;
 } msg_port_conf;
 
+#define MASK2BYTE(_MR) (_MR.b[7]<<7|_MR.b[6]<<6|_MR.b[5]<<5|_MR.b[4]<<4|_MR.b[3]<<3|_MR.b[2]<<2|_MR.b[1]<<1|_MR.b[0])
+
 // set to 1 if floating point 32 operation sets bits 127:32 to 0,
 // and 64 bits operations set bits 127:64 to 0
 #define ZERO_EXTEND_UNUSED_FREG_BITS
@@ -490,5 +492,10 @@ typedef struct
 #define EMU_THREADS_PER_MINION  2
 #define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
 #define NR_MSG_PORTS            4
+
+// Enable some features
+#define DEBUG_EMU   1
+#define DEBUG_MASK  1
+#define DISASM      1
 
 #endif // _EMU_DEFINES_H

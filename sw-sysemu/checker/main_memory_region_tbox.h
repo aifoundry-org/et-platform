@@ -6,7 +6,6 @@
 #include "testLog.h"
 #include "main_memory_region.h"
 #include "emu.h"
-#include "function_pointer_cache.h"
 
 // This class is a memory region that behaves like a tbox:
 //  - Gets the writes to know what job to do
@@ -40,11 +39,6 @@ public:
   // read and write
   void write(uint64_t ad, int size, const void* data);
   void read(uint64_t ad, int size, void* data);
-
-private:
-  // dealing with sampler and rbox emulations
-  typedef void (*func_init_txs_t)(uint64_t);
-  func_init_txs_t init_txs_ptr;
 };
 
 #endif // _MAIN_MEMORY_REGION_TBOX_
