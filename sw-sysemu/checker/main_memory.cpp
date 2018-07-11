@@ -11,18 +11,18 @@ using namespace std;
 main_memory::main_memory(std::string logname)
     : log(logname, LOG_DEBUG)
 {
-    get_thread = NULL;
+    getthread = NULL;
     // Atomic
-    main_memory_region_atomic * amo = new main_memory_region_atomic(0xFFF00000ULL, 512, log, get_thread);
+    main_memory_region_atomic * amo = new main_memory_region_atomic(0xFFF00000ULL, 512, log, getthread);
     regions_.push_back((main_memory_region *) amo);
     // Adds the tbox
-    main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, get_thread);
+    main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, getthread);
     regions_.push_back((main_memory_region *) tbox);
     // RBOX
-    rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, get_thread);
+    rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
     regions_.push_back((main_memory_region *) rbox);
     // UC writes to other cores
-    main_memory_region * uc_writes = new main_memory_region(0x100000000ULL, 64, log, get_thread, MEM_REGION_WO);
+    main_memory_region * uc_writes = new main_memory_region(0x100000000ULL, 64, log, getthread, MEM_REGION_WO);
     regions_.push_back((main_memory_region *) uc_writes);
 }
 
@@ -38,7 +38,7 @@ void main_memory::setPrintfBase(const char* binary)
   if (c==1) {
     // Adds the printf region
     log<<LOG_DEBUG<<"adding printf region (@="<<hex<<symbolAddress<<") from "<<binary<<dec<<endm;
-    main_memory_region_printf * printf = new main_memory_region_printf(symbolAddress, get_thread);
+    main_memory_region_printf * printf = new main_memory_region_printf(symbolAddress, getthread);
     regions_.push_back((main_memory_region *) printf);
   }
   else {
@@ -122,7 +122,7 @@ bool main_memory::new_region(uint64_t base, uint64_t size, int flags)
     }
     else
     {
-      regions_.push_back(new main_memory_region(base, size, log, get_thread, flags));
+      regions_.push_back(new main_memory_region(base, size, log, getthread, flags));
         return true;
     }
 }

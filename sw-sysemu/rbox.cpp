@@ -1,8 +1,11 @@
 #include <cstdio>
 
 #include "rbox.h"
+#include "emu_gio.h"
 
-extern void gprintf(const char* format, ...);
+using emu::gprintf;
+using emu::gsprintf;
+using emu::gfprintf;
 
 RingBuffer input;
 RingBuffer output;

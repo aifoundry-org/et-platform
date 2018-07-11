@@ -3,18 +3,12 @@
 #include "emu_casts.h"
 
 // Global
-#include <dlfcn.h>
 #include <cmath>
-#include <math.h>
 
-// 
+//
 #define TICKETER_REGION 0xFFF00000
 #define TBOX_REGION_START 0xFFF80000
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
-
-namespace tbox { 
-    extern void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
-}
 
 bool fp_1ulp_check(uint32_t gold, uint32_t rtl)
 {
@@ -35,7 +29,7 @@ bool fp_1ulp_check(uint32_t gold, uint32_t rtl)
     }
     else if ((gold & 0x7FFFFFFF) == 0) // allow sign (+/-) mismatch in case of zero
     {
-        return ((rtl & 0x7FFFFFFF) == 0); 
+        return ((rtl & 0x7FFFFFFF) == 0);
     }
     else // regular full check for special cases
     {
@@ -116,70 +110,43 @@ void checker_thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc) {
   checker_instance -> thread1_enabled( minionId, en, pc);
 }
 
-// Function in emu to set the functions
-typedef void (*func_ptr_mem)(
-    void * func_memread8_,
-    void * func_memread16_,
-    void * func_memread32_,
-    void * func_memread64_,
-    void * func_memwrite8_,
-    void * func_memwrite16_,
-    void * func_memwrite32_,
-    void * func_memwrite64_);
-
-
 // Creates a new checker
-checker::checker(main_memory * memory_, function_pointer_cache * func_cache_)
+checker::checker(main_memory * memory_)
     : log("checker", LOG_DEBUG)
 {
     for(uint32_t i = 0; i < EMU_NUM_THREADS; i++)
     {
         current_pc[i] = 0;
-        reduce_state_array[i>>1] = Reduce_Idle;            
+        reduce_state_array[i>>1] = Reduce_Idle;
     }
     memory = memory_;
-    func_cache = func_cache_;
-    inst_cache = new instruction_cache(memory, func_cache);
+    inst_cache = new instruction_cache(memory);
 
-    setlogstate = (func_ptr_state) func_cache->get_function_ptr("setlogstate");
-    clearlogstate = func_cache->get_function_ptr("clearlogstate");
-    setpc = (func_ptr_pc) func_cache->get_function_ptr("set_pc");
-    set_thread = (func_ptr_set_thread) func_cache->get_function_ptr("set_thread");
-    get_thread = (func_ptr_get_thread) func_cache->get_function_ptr("get_thread");
-    xget       = (func_ptr_xget) func_cache->get_function_ptr("xget");
-    update_msg_ports = (func_ptr_update_msg_ports) func_cache->get_function_ptr("update_msg_port_data");
-    get_mask = (func_ptr_get_mask) func_cache->get_function_ptr("get_mask");
-    reduce_info = (func_ptr_reduce_info) func_cache->get_function_ptr("get_reduce_info");
-    get_scratchpad_value = (func_get_scratchpad_value) func_cache->get_function_ptr("get_scratchpad_value");
-    get_scratchpad_conv_list = (func_get_scratchpad_conv_list) func_cache->get_function_ptr("get_scratchpad_conv_list");
-    get_tensorfma_value = (func_get_tensorfma_value) func_cache->get_function_ptr("get_tensorfma_value");
-    get_reduce_value = (func_get_reduce_value) func_cache->get_function_ptr("get_reduce_value");
-    virt_to_phys_emu = (func_virt_to_phys) func_cache->get_function_ptr("virt_to_phys");
-    func_ptr_mem setmemory = (func_ptr_mem) func_cache->get_function_ptr("set_memory_funcs");
-    (setmemory((void *) checker_memread8,  (void *) checker_memread16,  (void *) checker_memread32,  (void *) checker_memread64,
-               (void *) checker_memwrite8, (void *) checker_memwrite16, (void *) checker_memwrite32, (void *) checker_memwrite64));
-    csrget = (func_ptr_csrget) func_cache->get_function_ptr("csrget");
-
+    set_memory_funcs((void *) checker_memread8,
+                     (void *) checker_memread16,
+                     (void *) checker_memread32,
+                     (void *) checker_memread64,
+                     (void *) checker_memwrite8,
+                     (void *) checker_memwrite16,
+                     (void *) checker_memwrite32,
+                     (void *) checker_memwrite64);
 
     memory->setGetThread(get_thread);
 
     // Inits X0 to 0
-    initreg = (func_ptr_init) func_cache->get_function_ptr("init");
-    fpinitreg = (func_ptr_fpinit) func_cache->get_function_ptr("fpinit");
-    func_ptr_initcsr initcsr = (func_ptr_initcsr) func_cache->get_function_ptr("initcsr");
     for(int i = 0; i < EMU_NUM_THREADS; i++)
     {
-        (set_thread(i));
-        (initreg(x0, 0));
-        (initcsr(i));
+        set_thread(i);
+        init(x0, 0);
+        initcsr(i);
         threadEnabled[i] = true;
     }
 
+    texrec_func_ptr = nullptr;
     checker_instance = this;
     memory_instance = memory;
 #ifdef EMU_DEBUG
-    func_ptr_debug init_emu = (func_ptr_debug) func_cache->get_function_ptr("init_emu");
-    (init_emu(true, false));
+    init_emu(true, false);
 #endif
 }
 
@@ -209,8 +176,8 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
     uint64_t other_min, action;
     // Gets the source used for the reduce
     uint64_t src1 = (xreg) inst->get_param(1);
-    uint64_t value = (xget(src1));
-    (reduce_info(value, &other_min, &action));
+    uint64_t value = xget(src1);
+    get_reduce_info(value, &other_min, &action);
 
     // Sender
     if(action == 0)
@@ -282,13 +249,21 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
     if ( ! threadEnabled[thread] )
       log << LOG_ERR << "emu_inst called for thread "<<thread<<", which is disabled"<<endm;
 
-    (set_thread(thread));
+    log << LOG_DEBUG << "emu_inst called for thread "<<thread<<endm;
+
+    set_thread(thread);
+    log << LOG_DEBUG << "after set_thread()"<<endm;
     instruction * inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
-    (setlogstate(&emu_state_change)); // This is done every time just in case we have several checkers
-    (clearlogstate());
+    log << LOG_DEBUG << "after get_instruction()"<<endm;
+    setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
+    log << LOG_DEBUG << "after setlogstate()"<<endm;
+    clearlogstate();
+    log << LOG_DEBUG << "after clearlogstate()"<<endm;
     emu_state_change.pc = current_pc[thread];
-    (setpc(current_pc[thread]));
-    update_msg_ports();    // write any pending port data before executing the next instruction
+    set_pc(current_pc[thread]);
+    log << LOG_DEBUG << "after set_pc()"<<endm;
+    update_msg_port_data();    // write any pending port data before executing the next instruction
+    log << LOG_DEBUG << "after update_msg_port_data()"<<endm;
 
     // In case that the instruction is a reduce:
     //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
@@ -301,8 +276,12 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         if(res == CHECKER_WAIT) return CHECKER_WAIT;
     }
 
+    log << LOG_DEBUG << "after get_is_reduce() "<<thread<<endm;
+
     // Now the instruction can be executed
     inst->exec();
+
+    log << LOG_DEBUG << "after inst->exec() "<<thread<<endm;
 
     // As trapped instructions do not retire in the minion, we need to execute
     // the next instruction as well
@@ -312,9 +291,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         current_pc[thread] = emu_state_change.pc;
 
         inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
-        (clearlogstate());
+        clearlogstate();
         emu_state_change.pc = current_pc[thread];
-        (setpc(current_pc[thread]));
+        set_pc(current_pc[thread]);
         inst->exec();
     }
 
@@ -353,7 +332,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 log << LOG_INFO << "AMO value (" << inst->get_mnemonic() << ")" << endm;
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
-                (initreg((xreg) inst->get_param(0), emu_state_change.int_reg_data));
+                init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
             }
 
             // Check if it is an Fast Local Barrier (special case where RTL drives value)
@@ -362,7 +341,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 log << LOG_INFO << "FastLocalBarrier value (" << inst->get_mnemonic() << ")" << endm;
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
-                (initreg((xreg) inst->get_param(0), emu_state_change.int_reg_data));
+                init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
             }
 
             if(inst->get_is_load() && (virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) >= TBOX_REGION_START && virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) < TBOX_REGION_END))
@@ -370,7 +349,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
-                (initreg((xreg) inst->get_param(0), emu_state_change.int_reg_data));
+                init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
             }
 
 
@@ -404,7 +383,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
               log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
               // send the data to the tbox monitor, to check this is actually the data sent from the tbox
               unsigned wordIdx = inst->get_param(1);
-              tbox::texrec(thread >> 1, thread &1,(const uint8_t*) emu_state_change.fp_reg_data, wordIdx,  get_mask(0));
+              texrec(thread >> 1, thread &1,(const uint8_t*) emu_state_change.fp_reg_data, wordIdx,  get_mask(0));
             }
 
             for(int i = 0; i < 2; i++)
@@ -494,9 +473,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             int entry;
             int size;
             uint64_t data;
-            data = (get_scratchpad_value(0, 0, &entry, &size));
+            data = get_scratchpad_value(0, 0, &entry, &size);
             std::list<bool> conv_list;
-            (get_scratchpad_conv_list(&conv_list));
+            get_scratchpad_conv_list(&conv_list);
             auto conv_list_it = conv_list.begin();
 
             // For all the written entries
@@ -529,7 +508,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 // Compares the data
                 for(int j = 0; j < 8; j++)
                 {
-                    data = (get_scratchpad_value(entry + i, j, &entry, &size));
+                    data = get_scratchpad_value(entry + i, j, &entry, &size);
                     if(data != it->data[j])
                     {
                         stream << "TensorLoad write data error for cacheline " << i << " written in entry " << entry + i << " data lane " << j << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[j] << std::dec;
@@ -549,7 +528,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             int passes;
             bool conv_skip;
             uint32_t data;
-            data = (get_tensorfma_value(0, 0, 0, &size, &passes, &conv_skip));
+            data = get_tensorfma_value(0, 0, 0, &size, &passes, &conv_skip);
             // For all the passes
             for(int pass = 0; pass < passes; pass++)
             {
@@ -557,7 +536,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 for(int entry = 0; entry < size; entry++)
                 {
                     // Move to next entry if this pass for this entry was skipped due conv CSR
-                    (get_tensorfma_value(entry, pass, 0, &size, &passes, &conv_skip));
+                    get_tensorfma_value(entry, pass, 0, &size, &passes, &conv_skip);
                     if(conv_skip == 1) continue;
                     // Looks for the 1st entry in the list of RTL written lines with same destination
                     auto it = tensorfma_list[thread].begin();
@@ -578,7 +557,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     // Compares the data for all the lanes (4 x 32b lanes)
                     for(int lane = 0; lane < 4; lane++)
                     {
-                        data = (get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip));
+                        data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip);
 #ifdef USE_REAL_TXFMA
                         if(data != it->data[lane])
 #else
@@ -602,7 +581,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             int size;
             int start_entry;
             uint32_t data;
-            data = (get_reduce_value(0, 0, &size, &start_entry));
+            data = get_reduce_value(0, 0, &size, &start_entry);
 
             // For all the written entries
             for(int entry = start_entry; entry < (start_entry + size); entry++)
@@ -626,7 +605,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 // Compares the data for all the lanes (4 x 32b lanes)
                 for(int lane = 0; lane < 4; lane++)
                 {
-                    data = (get_reduce_value(entry, lane, &size, &start_entry));
+                    data = get_reduce_value(entry, lane, &size, &start_entry);
                     if(data != it->data[lane])
                     {
                         stream << "Reduce write data error for register " << entry << " lane " << lane << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec;
@@ -717,6 +696,20 @@ void checker::reduce_write(uint32_t thread, uint32_t entry, uint32_t * data)
 // Virtual to physical
 uint64_t checker::virt_to_phys(uint64_t addr, mem_access_type macc)
 {
-    return (virt_to_phys_emu(addr, macc));
+    return virt_to_phys_emu(addr, macc);
 }
 
+void checker::set_texrec_func(func_texrec_t func_ptr)
+{
+    texrec_func_ptr = func_ptr;
+}
+
+void checker::texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask)
+{
+    if (!texrec_func_ptr)
+    {
+        log << LOG_ERR << "tbox::texrec is unimplemented."<<endm;
+        return;
+    }
+    texrec_func_ptr(minionId, thread_id, data, wordIdx, mask);
+}
