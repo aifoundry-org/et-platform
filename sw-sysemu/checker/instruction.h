@@ -56,7 +56,7 @@ class instruction
         bool                         is_amo;         // If the instruction is an atomic operation
         bool                         is_flb;         // If the instruction is a fast local barrier
         bool                         is_compressed;  // If the instruction is a compressed encoding
-        int                          params[4];      // Params to call the function
+        int                          params[5];      // Params to call the function
         int                          num_params;     // Number of params for the call
         func_ptr                     emu_func;       // Pointer to the emulation function
         func_ptr_0                   emu_func0;

@@ -30,29 +30,9 @@ void init_txs(uint64_t imgTableAddr)
     tbox_emulator.texture_cache_initialize();
 }
 
-
-void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
+void texsndh(xreg src1, xreg src2, const char* comm)
 {
-#ifdef CHECKER
-    uint64_t base_copy = tbox_emulator.get_image_table_address();
-    if ( base_copy != basePtr )
-    {
-        DEBUG_EMU(gprintf("WARNING!!! changing image table address from %llx to %llx by checker request.\n", base_copy, basePtr);)
-        tbox_emulator.set_image_table_address(basePtr);
-    }
-
-    tbox_emulator.sample_quad(currentRequest_, input, output, fake_sampler);
-
-    tbox_emulator.set_image_table_address(base_copy);
-#else
-    DEBUG_EMU(gprintf("ERROR!!! You need to compiler with CHECKER enabled to use checker_sample_quad().\n");)
-    exit(-1);
-#endif
-}
-
-void texsndh(xreg src1, xreg src2)
-{
-    DISASM(gsprintf(dis,"I: texsndh x%d, x%d", src1, src2);)
+    DISASM(gsprintf(dis,"I: texsndh x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_header = false;
@@ -71,9 +51,9 @@ void texsndh(xreg src1, xreg src2)
     IPC(ipc_texsnd(src1,src2,fnone,dis););
 }
 
-void texsnds(freg src1)
+void texsnds(freg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsnds f%d", src1);)
+    DISASM(gsprintf(dis,"I: texsnds f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -95,9 +75,9 @@ void texsnds(freg src1)
     IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
-void texsndt(freg src1)
+void texsndt(freg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsndt f%d", src1);)
+    DISASM(gsprintf(dis,"I: texsndt f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -119,9 +99,9 @@ void texsndt(freg src1)
     IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
-void texsndr(freg src1)
+void texsndr(freg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsndr f%d", src1);)
+    DISASM(gsprintf(dis,"I: texsndr f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -143,9 +123,9 @@ void texsndr(freg src1)
     IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
-void texrcv(freg dst, const uint32_t idx)
+void texrcv(freg dst, const uint32_t idx, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texrcv f%d, 0x%x", dst, idx);)
+    DISASM(gsprintf(dis,"I: texrcv f%d, 0x%x%s%s", dst, idx, (comm?" # ":""), (comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool sample = false;
@@ -179,6 +159,25 @@ void texrcv(freg dst, const uint32_t idx)
 
     logfregchange(dst);
     IPC(ipc_texrcv(dst,dis););
+}
+
+void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
+{
+#ifdef CHECKER
+    uint64_t base_copy = tbox_emulator.get_image_table_address();
+    if ( base_copy != basePtr )
+    {
+        DEBUG_EMU(gprintf("WARNING!!! changing image table address from %llx to %llx by checker request.\n", base_copy, basePtr);)
+        tbox_emulator.set_image_table_address(basePtr);
+    }
+
+    tbox_emulator.sample_quad(currentRequest_, input, output, fake_sampler);
+
+    tbox_emulator.set_image_table_address(base_copy);
+#else
+    DEBUG_EMU(gprintf("ERROR!!! You need to compiler with CHECKER enabled to use checker_sample_quad().\n");)
+    exit(-1);
+#endif
 }
 
 void decompress_texture_cache_line_data(TBOXEmu::ImageInfo currentImage, uint32_t startTexel, uint64_t inData[], uint64_t outData[])
