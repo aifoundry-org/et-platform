@@ -1213,7 +1213,7 @@ uint32_t get_mask ( unsigned maskNr )
 //
 ////////////////////////////////////////////////////////////
 
-/*void tensorload(uint64_t control)
+void tensorload(uint64_t control)
 {
     uint64_t stride  = XREGS[31].x;
 
@@ -1261,24 +1261,25 @@ uint32_t get_mask ( unsigned maskNr )
         }
         addr += stride;
     }
-}*/
+}
 
-void tensorload(uint64_t control)//Transtensorload
+/*void tensorload(uint64_t control)//Transtensorload
 {
     uint64_t stride  = XREGS[31].x;
 
     uint64_t trans   = (control >> 54) & 0x07;
     uint64_t boffset = (control >> 57) & 0x03;
-    uint64_t dst     = control & 0x3F;
-    int rows    = ((control >> 48) & 0x1F) + 1;
+    uint64_t dst     = (control & 0x3F) % 48;
+    int rows         = ((control >> 48) & 0x1F) + 1;
     uint64_t tm      = (control >> 53) & 0x1;
     uint64_t base    = control & 0xFFFFFFFFFFC0ULL;
+    uint64_t full_addr    = control & 0xFFFFFFFFFFFFULL;
 
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
     uint64_t addr               = base;
 
-    DEBUG_EMU(gprintf("Trans:%d - rows:%d - tm:%d\n",trans,rows,tm);)
+    DEBUG_EMU(gprintf("Trans:%d - rows:%d - tm:%d - boffset:%d - addr:0x%16X - full_addr:0x%16X\\n",trans,rows,tm,boffset,addr,full_addr);)
 
     //NO TRANS
     if(trans == 0x00){
@@ -1365,21 +1366,21 @@ void tensorload(uint64_t control)//Transtensorload
     //TRANSPOSE
     else if(trans == 0x05 || trans == 0x06 || trans==0x07){
         
-        DEBUG_EMU(gprintf("TensorLoad: Transpose\n");)
         bool exist_conv = 0;
         for(int i=0; (i<rows) & (!exist_conv);++i)
             exist_conv = tmask_pass(i); 
-        /*if(tm && !exist_conv){
+        if(tm && !exist_conv){
             DEBUG_EMU(gprintf("Exit Condition Broken\n");)
              return;
-        }*/
+        }
         int offset = (control >> 57) & 0x1F;
         uint8_t tmp_buffer[64][64];
-        int size = trans & 0x03;
-        //int start;
-        //start=size==1 ?  boffset << 4 : boffset  << 5;
-        int elements = 64 >> size;
+        int size = (trans & 0x03);
+        
+        offset = (size==1) ?  (control & 0x30) : (control & 0x20) ;
+        int elements = 64 >> (size-1);
         size = 1 << (size-1);
+        DEBUG_EMU(gprintf("TensorLoad: Transpose - elements:%d size:%d offset:%d\n",elements,size,offset);)
         for( int elem = 0; elem < elements; ++elem){
             //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
             for ( int j = 0; j < 8; j++ )
@@ -1403,20 +1404,20 @@ void tensorload(uint64_t control)//Transtensorload
                 }
                 for(int j=0; j < elements; ++j){
                     if(size == 4){
-                        SCP[dst+i][j/4].b[(j*size)%16] = tmp_buffer[j][(dst+i)*size+offset];
-                        SCP[dst+i][j/4].b[(j*size+1)%16] = tmp_buffer[j][(dst+i)*size+offset+1];
-                        SCP[dst+i][j/4].b[(j*size+2)%16] = tmp_buffer[j][(dst+i)*size+offset+2];
-                        SCP[dst+i][j/4].b[(j*size+3)%16] = tmp_buffer[j][(dst+i)*size+offset+3];
-                        DEBUG_EMU(gprintf("\tI'm size 4 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(dst+i)*size+offset],tmp_buffer[j][(dst+i)*size+offset+1]);)
+                        SCP[dst+i][j/4].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
+                        SCP[dst+i][j/4].b[(j*size+1)%16] = tmp_buffer[j][(i)*size+offset+1];
+                        SCP[dst+i][j/4].b[(j*size+2)%16] = tmp_buffer[j][(i)*size+offset+2];
+                        SCP[dst+i][j/4].b[(j*size+3)%16] = tmp_buffer[j][(i)*size+offset+3];
+                        DEBUG_EMU(gprintf("\tI'm size 4 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(i)*size+offset],tmp_buffer[j][(i)*size+offset+1]);)
                     }                        
                     else if(size == 2){
-                        SCP[dst+i][j/8].b[(j*size)%16] = tmp_buffer[j][(dst+i)*size+offset];
-                        SCP[dst+i][j/8].b[(j*size+1)%16] = tmp_buffer[j][(dst+i)*size+offset+1];
-                        DEBUG_EMU(gprintf("\tI'm size 2 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(dst+i)*size+offset],tmp_buffer[j][(dst+i)*size+offset+1]);)
+                        SCP[dst+i][j/8].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
+                        SCP[dst+i][j/8].b[(j*size+1)%16] = tmp_buffer[j][(i)*size+offset+1];
+                        DEBUG_EMU(gprintf("\tI'm size 2 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(i)*size+offset],tmp_buffer[j][(i)*size+offset+1]);)
                     }
                     else if(size == 1){
-                        SCP[dst+i][j/16].b[(j*size)%16] = tmp_buffer[j][(dst+i)*size+offset];
-                        DEBUG_EMU(gprintf("\tI'm size 1 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(dst+i)*size+offset],tmp_buffer[j][(dst+i)*size+offset+1]);)
+                        SCP[dst+i][j/16].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
+                        DEBUG_EMU(gprintf("\tI'm size 1 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][dst+(i)*size+offset],tmp_buffer[j][dst+(i)*size+offset+1]);)
                     }
                     else{
                         DEBUG_EMU(gprintf("ERROR Tensor Load element size not valid!!\n");)
@@ -1432,7 +1433,7 @@ void tensorload(uint64_t control)//Transtensorload
             
         }
     }
-}
+}*/
 
 uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
@@ -2014,7 +2015,7 @@ uint64_t get_tensorfma_value(int entry, int pass, int block, int * size, int * p
 //
 ////////////////////////////////////////////////////////////
 
-/*void tensorstore()
+void tensorstore()
 {
     uint64_t regstart =  (tstorereg & 0xF8000000000000) >> 51;      // Start register to store
     uint64_t rows     = ((tstorereg & 0x07000000000000) >> 48) + 1; // Number of rows to store
@@ -2046,23 +2047,21 @@ uint64_t get_tensorfma_value(int entry, int pass, int block, int * size, int * p
         }
         addr += stride;
     }
-}*/
+}
 
-void tensorstore(uint64_t tstorereg)
+/*void tensorstore(uint64_t tstorereg)
 {
 
-    uint64_t regstart =  (tstorereg & 0xF8000000000000) >> 51;      // Start register to store
-    uint64_t rows     = ((tstorereg & 0x07000000000000) >> 48) + 1; // Number of rows to store
+    //uint64_t regstart =  (tstorereg & 0xF0000000000000) >> 52;      // Start register to store
+    uint64_t rows     = ((tstorereg & 0x0F000000000000) >> 48) + 1; // Number of rows to store
     uint64_t addr     =  (tstorereg & 0x00FFFFFFFFFFF0);            // Address where to store the results
     uint64_t srcinc   = ((tstorereg & 0x0000000000000C) >>  2) + 1; // Increment done to register source
     uint64_t cols     =  (tstorereg & 0x00000000000003) + 1;        // Number of register per col
 
     uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
 
-    DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, regstart, rows, cols, srcinc);)
-
-    uint64_t src = regstart;
-
+    uint64_t src = ((addr&0xFF0)>>6) % 48;
+    DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, src, rows, cols, srcinc);)
     // For all the rows
     for(uint64_t row = 0; row < rows; row++)
     {
@@ -2070,22 +2069,23 @@ void tensorstore(uint64_t tstorereg)
         for(uint64_t col = 0; col < cols; col++)
         {
             // For all the elements of the lane
-            for(uint64_t j = 0; j < 2; j++)
+            for(uint64_t j = 0; j < 4; j++)
             {
                 for(uint64_t i = 0; i < 4; i++)
                 {
                     uint32_t val = SCP[src][j].u[i];
                     memwrite32(addr + col * 64 + j * 16 + i * 4, val);
                     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
-                    //DEBUG_EMU(gprintf("\t\tSCP[%d][%d].u[%d]\n",src,j,i);)
+                    DEBUG_EMU(gprintf("\t\tSCP[%d][%d].u[%d]\n",src,j,i);)
                     //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
                 }
             }
             src += srcinc;
+            src = src % 48;
         }
         addr += stride;
     }
-}
+}*/
 
 ////////////////////////////////////////////////////////////
 //
