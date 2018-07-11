@@ -1266,8 +1266,8 @@ void tensorload(uint64_t control)
         addr += stride;
     }
 }
-
-/*void tensorload(uint64_t control)//Transtensorload
+#if 0
+void tensorload(uint64_t control)//Transtensorload
 {
     uint64_t stride  = XREGS[31].x;
 
@@ -1437,8 +1437,8 @@ void tensorload(uint64_t control)
             
         }
     }
-}*/
-
+}
+#endif
 uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
     * last_entry = scp_entry[current_thread];
@@ -2019,7 +2019,7 @@ uint64_t get_tensorfma_value(int entry, int pass, int block, int * size, int * p
 //
 ////////////////////////////////////////////////////////////
 
-void tensorstore()
+void tensorstore(uint64_t tstorereg)
 {
     uint64_t regstart =  (tstorereg & 0xF8000000000000) >> 51;      // Start register to store
     uint64_t rows     = ((tstorereg & 0x07000000000000) >> 48) + 1; // Number of rows to store
@@ -2052,8 +2052,8 @@ void tensorstore()
         addr += stride;
     }
 }
-
-/*void tensorstore(uint64_t tstorereg)
+#if 0
+void tensorstore(uint64_t tstorereg)
 {
 
     //uint64_t regstart =  (tstorereg & 0xF0000000000000) >> 52;      // Start register to store
@@ -2089,7 +2089,8 @@ void tensorstore()
         }
         addr += stride;
     }
-}*/
+}
+#endif
 
 ////////////////////////////////////////////////////////////
 //
