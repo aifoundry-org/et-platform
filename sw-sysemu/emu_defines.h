@@ -323,7 +323,8 @@ typedef enum
     CUBEFACEIDX,
     CUBESGNSC,
     CUBESGNTC,
-    FCLASS, // warning: unimplemented
+    FCLASS,
+    FCLASSPS,
     FCVTPSF16, // Graphics Upconvert to PS
     FCVTPSF11,
     FCVTPSF10,
