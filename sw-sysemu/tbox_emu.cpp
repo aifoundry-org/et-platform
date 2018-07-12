@@ -3903,8 +3903,6 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
     }
 
     uint32_t fmtBytesPerTexel;
-    uint32_t comprBlockI;
-    uint32_t comprBlockJ;
 
     DEBUG_EMU(gprintf("\tread texel at (%d, %d)\n", i, j);)
 
@@ -4452,7 +4450,6 @@ void TBOXEmu::decode_BC4_SNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_B
 // Decode BC4
 void TBOXEmu::decode_BC4(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat)
 {
-    float RGBA0[4], RGBA1[4];
     float red0, red1;
     float decodedColor[4];
     uint32_t redcode;
@@ -4499,7 +4496,6 @@ void TBOXEmu::decode_BC5_SNORM(uint8_t *inBuffer, uint8_t *outBuffer) { decode_B
 // Decode BC5
 void TBOXEmu::decode_BC5(uint8_t *inBuffer, uint8_t *outBuffer, bool signedFormat)
 {
-    float RGBA0[4], RGBA1[4];
     float red0, red1, green0, green1;
     float decodedColor[4];
     uint32_t redcode, greencode;
