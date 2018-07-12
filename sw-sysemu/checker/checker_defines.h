@@ -13,12 +13,11 @@ typedef enum
 
 // Defines the function pointer typedef
 typedef void (*func_ptr)();
-typedef void (*func_ptr_0)();
-typedef void (*func_ptr_1)(int arg0);
-typedef void (*func_ptr_2)(int arg0, int arg1);
-typedef void (*func_ptr_3)(int arg0, int arg1, int arg2);
-typedef void (*func_ptr_4)(int arg0, int arg1, int arg2, int arg3);
-typedef void (*func_ptr_5)(int arg0, int arg1, int arg2, int arg3, int arg4);
+typedef void (*func_ptr_0)(const char* comm);
+typedef void (*func_ptr_1)(int arg0, const char* comm);
+typedef void (*func_ptr_2)(int arg0, int arg1, const char* comm);
+typedef void (*func_ptr_3)(int arg0, int arg1, int arg2, const char* comm);
+typedef void (*func_ptr_4)(int arg0, int arg1, int arg2, int arg3, const char* comm);
+typedef void (*func_ptr_5)(int arg0, int arg1, int arg2, int arg3, int arg4, const char* comm);
 
 #endif // _CHECKER_DEFINES_
-
