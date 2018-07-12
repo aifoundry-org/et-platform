@@ -145,7 +145,7 @@ void ipi_to_threads(unsigned thread_src, unsigned thread_dest, uint64_t thread_m
             // Otherwise wakes up thread
             else
             {
-                if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.%i: Waking up due IPI\n", shire_id, m, thread_dest); }
+                if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.%i: Waking up due sent IPI\n", shire_id, m, thread_dest); }
                 enabled_threads.push_back(thread_id);
             }
         }
@@ -573,7 +573,7 @@ int main(int argc, char * argv[])
                 auto ipi = std::find(pending_ipi.begin(), pending_ipi.end(), * old_thread);
                 if(ipi != pending_ipi.end())
                 {
-                    if(do_log) { printf("Minion %i.%i.%i: Waking up due IPI\n", (* old_thread) / 128, ((* old_thread) / 2) & 0x3F, (* old_thread) & 1); }
+                    if(do_log) { printf("Minion %i.%i.%i: Waking up due present IPI\n", (* old_thread) / 128, ((* old_thread) / 2) & 0x3F, (* old_thread) & 1); }
                     enabled_threads.push_back(* old_thread);
                     pending_ipi.erase(ipi);
                 }
