@@ -1266,6 +1266,7 @@ void tensorload(uint64_t control)
         addr += stride;
     }
 }
+
 #if 0
 void tensorload(uint64_t control)//Transtensorload
 {
@@ -2056,15 +2057,15 @@ void tensorstore(uint64_t tstorereg)
 void tensorstore(uint64_t tstorereg)
 {
 
-    //uint64_t regstart =  (tstorereg & 0xF0000000000000) >> 52;      // Start register to store
+    uint64_t regstart =  (tstorereg & 0x30000000000000) >> 52;      // Start register to store
     uint64_t rows     = ((tstorereg & 0x0F000000000000) >> 48) + 1; // Number of rows to store
-    uint64_t addr     =  (tstorereg & 0x00FFFFFFFFFFF0);            // Address where to store the results
+    uint64_t addr     =  (tstorereg & 0x00FFFFFFFFFFC0);            // Address where to store the results
     uint64_t srcinc   = ((tstorereg & 0x0000000000000C) >>  2) + 1; // Increment done to register source
     uint64_t cols     =  (tstorereg & 0x00000000000003) + 1;        // Number of register per col
 
     uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
 
-    uint64_t src = ((addr&0xFF0)>>6) % 48;
+    uint64_t src = regstart * 16 % 48;
     DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, src, rows, cols, srcinc);)
     // For all the rows
     for(uint64_t row = 0; row < rows; row++)
@@ -2091,7 +2092,6 @@ void tensorstore(uint64_t tstorereg)
     }
 }
 #endif
-
 ////////////////////////////////////////////////////////////
 //
 // Reduce emulation
