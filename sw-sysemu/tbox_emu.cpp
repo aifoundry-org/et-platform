@@ -1,3 +1,5 @@
+#include <tbox_emu.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -3051,6 +3053,7 @@ uint64_t TBOXEmu::compute_mip_offset(uint32_t mip_pitch_l0, uint32_t mip_pitch_l
 	uint64_t mip_row_pitch = row_pitch;
     uint32_t mip_rows = rows;
 	uint64_t mip_pitch = (1 << mip_pitch_l1);
+
 	for (uint32_t l = 0; l < mip_level; l++)
     {
 		if (l == 0)
@@ -3061,11 +3064,13 @@ uint64_t TBOXEmu::compute_mip_offset(uint32_t mip_pitch_l0, uint32_t mip_pitch_l
         {
 			mip_pitch = max(1, mip_pitch >> 1);
 			mip_offset = mip_offset + mip_pitch;
+            if (mip_pitch == 1) return mip_offset;
         }
 		else
         {
 			mip_pitch = max(1, mip_pitch >> 2);
 			mip_offset += mip_pitch;
+            if (mip_pitch == 1) return mip_offset;
         }
         mip_rows = mip_rows >>  1;
 		mip_row_pitch = mip_row_pitch >> 1;
@@ -3253,23 +3258,24 @@ void TBOXEmu::create_texture_cache_tags(SampleRequest currentRequest, ImageInfo 
 
     bool fmtIsCompressed = isCompressedFormat(fmt);
 
+    //  1. Compute address at the compressed block level.
+    //  2. Get the actual texel after decompressing the compressed block.
     if (fmtIsCompressed)
     {
-        //  Compute address at the compressed block level.
-        //  Get the actual texel after decompressing the compressed block.
+        // 1.1. Get compressed block horizontal and vertical coordinates.
         CompressedFormatInfo compInfo = getCompressedFormatInfo(fmt);
 
         comprBlockWidth = compInfo.blockWidth;
         comprBlockHeight = compInfo.blockHeight;
-
-        decompBytesPerTexel = BYTES_PER_TEXEL_IN_L1[fmt];
-
-        // Get compressed block horizontal and vertical coordinates.
         uint32_t comprBlockI = i[0] >> comprBlockWidth;
         uint32_t comprBlockJ = j[0] >> comprBlockHeight;
 
+        // 1.2. Get address at the compressed block level.
         address[0][0] = texel_virtual_address(currentImage, comprBlockI, comprBlockJ, k, l, mip_level);
         address[0][0] |= (i[0] >> 1) & 0x1;
+        //-1.2.-------------------------------------------
+
+        decompBytesPerTexel = BYTES_PER_TEXEL_IN_L1[fmt];
 
         if (decompBytesPerTexel == 4)
         {
@@ -3548,14 +3554,14 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
                                       uint32_t mip_level)
 {
     uint32_t fmtBytesPerTexel = -1;
-    uint32_t fmtTileWidthLog2 = -1;
-    uint32_t fmtTileHeightLog2 = -1;
+    uint32_t fmtTileWidthLog2 = -1;  // Outer tile width in texels
+    uint32_t fmtTileHeightLog2 = -1; // Outer tile height in texels
 
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
 
     bool fmtIsCompressed = isCompressedFormat(fmt);
 
-    uint32_t height = currentImage.info.height + 1;
+    uint32_t height = currentImage.info.height + 1; // The height is coded from [0, height-1] in the table, but the range is [1, height]
 
     if (fmtIsCompressed)
     {
@@ -3583,6 +3589,7 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
     else
     {
         fmtBytesPerTexel = BYTES_PER_TEXEL_IN_MEMORY[fmt];
+
         switch (fmtBytesPerTexel)
         {
             case 1:
@@ -3593,12 +3600,27 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
                 fmtTileWidthLog2  = 8;
                 fmtTileHeightLog2 = 7;
                 break;
+            case 3: // Standard Tile Layout padding. 24 to 32 bits
+                if (currentImage.info.tiled == 1) fmtBytesPerTexel = 4;
+                fmtTileWidthLog2  = 7;
+                fmtTileHeightLog2 = 7;
+                break;
             case 4:
                 fmtTileWidthLog2  = 7;
                 fmtTileHeightLog2 = 7;
                 break;
+            case 6: // Standard Tile Layout padding. 48 to 64 bits
+                if (currentImage.info.tiled == 1) fmtBytesPerTexel = 8;
+                fmtTileWidthLog2  = 7;
+                fmtTileHeightLog2 = 6;
+                break;
             case 8:
                 fmtTileWidthLog2  = 7;
+                fmtTileHeightLog2 = 6;
+                break;
+            case 12: // Standard Tile Layout padding. 96 to 128 bits
+                if (currentImage.info.tiled == 1) fmtBytesPerTexel = 16;
+                fmtTileWidthLog2  = 6;
                 fmtTileHeightLog2 = 6;
                 break;
             case 16:
@@ -3615,20 +3637,25 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
     uint32_t rows;
     uint64_t texelAddress;
 
-    uint64_t row_pitch = max(1, currentImage.info.rowpitch >> mip_level);
+    uint64_t row_pitch = max(1, currentImage.info.rowpitch >> mip_level); // Number of columns in outer tile size (standard tile layout). Number of columns in 64 B tiles (linear layout)
 
-    if (currentImage.info.tiled == 1)
+    if (currentImage.info.tiled == 1) // Standard tile layout
     {
-        rows = max(1, (height >> fmtTileHeightLog2) + (((height & ((1 << fmtTileHeightLog2) - 1)) != 0) ? 1 : 0));
+        rows = max(1, (height >> fmtTileHeightLog2) + (((height & ((1 << fmtTileHeightLog2) - 1)) != 0) ? 1 : 0)); // max(1, ceil(height/tileHeight))
 
         uint64_t mip_pitch;
         uint32_t mip_offset[2] = {0, 0};
+
+        // Access larger mip
         if (mip_level < currentImage.info.packedmip)
+        {
             mip_pitch = compute_mip_offset(currentImage.info.mippitchl0, currentImage.info.mippitchl1, currentImage.info.rowpitch, rows, mip_level);
+        }
+        // Access packed mip
         else
         {
-            mip_pitch = compute_mip_offset(currentImage.info.mippitchl0, currentImage.info.mippitchl1, currentImage.info.rowpitch, rows, currentImage.info.packedmip);
-            compute_packed_mip_offset(currentImage, fmtBytesPerTexel, fmtIsCompressed, fmtTileWidthLog2, fmtTileHeightLog2, mip_level, mip_offset);
+            mip_pitch = compute_mip_offset(currentImage.info.mippitchl0, currentImage.info.mippitchl1, currentImage.info.rowpitch, rows, currentImage.info.packedmip); // offset of first packed mip
+            compute_packed_mip_offset(currentImage, fmtBytesPerTexel, fmtIsCompressed, fmtTileWidthLog2, fmtTileHeightLog2, mip_level, mip_offset);                    // offset of target mip
         }
 
         uint64_t layout_i = i + mip_offset[0];
@@ -3644,7 +3671,7 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
         texelAddress = currentImage.info.address + (currentImage.info.elementpitch * l + mip_pitch + tile_offset) * 64 * 1024
                      + pixel_offset;
     }
-    else
+    else    // Linear layout
     {
         rows = height;
 
@@ -3653,7 +3680,7 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
         DEBUG_EMU(gprintf("\t\telement_pitch = %ld mip_pitch = %ld row_pitch = %ld\n",
                           currentImage.info.elementpitch, mip_pitch, row_pitch);)
 
-        texelAddress = currentImage.info.address +
+        texelAddress = currentImage.info.address + 
                      + (currentImage.info.elementpitch * l + mip_pitch + j * row_pitch) * 64
                      + i * fmtBytesPerTexel;
     }
@@ -3892,7 +3919,7 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
         //  Get the actual texel after decompressing the compressed block.
         CompressedFormatInfo compInfo = getCompressedFormatInfoL1(fmt);
         fmt = compInfo.format;
-
+    
         // sRGB conversion from unorm8 to float16 already performed for the data in the cache.
         if (fmtIsSRGB)
             fmt = FORMAT_R16G16B16A16_SFLOAT;
