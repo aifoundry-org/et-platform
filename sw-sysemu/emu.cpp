@@ -5848,9 +5848,182 @@ static void tensorload(uint64_t control)
         addr += stride;
     }
 }
+#if 0
+void tensorload(uint64_t control)//Transtensorload
+{
+    uint64_t stride  = XREGS[31].x;
+
+    uint64_t trans   = (control >> 54) & 0x07;
+    uint64_t boffset = (control >> 57) & 0x03;
+    uint64_t dst     = (control & 0x3F) % 48;
+    int rows         = ((control >> 48) & 0x1F) + 1;
+    uint64_t tm      = (control >> 53) & 0x1;
+    uint64_t base    = control & 0xFFFFFFFFFFC0ULL;
+    uint64_t full_addr    = control & 0xFFFFFFFFFFFFULL;
+
+    scp_entry[current_thread] = dst;
+    scp_size[current_thread]  = rows;
+    uint64_t addr               = base;
+
+    DEBUG_EMU(gprintf("Trans:%d - rows:%d - tm:%d - boffset:%d - addr:0x%16X - full_addr:0x%16X\\n",trans,rows,tm,boffset,addr,full_addr);)
+
+    //NO TRANS
+    if(trans == 0x00){
+        DEBUG_EMU(gprintf("TensorLoad: No transformation\n");)
+        for(int i=0;i < rows; ++i){
+            if(!tm || tmask_pass(i)){
+                if(addr & 0x3F)
+                {
+                    DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
+                }
+                for ( int j = 0; j < 4; j++ )
+                {
+                    for ( int k = 0; k < 4; k++ )
+                    {
+                        uint64_t addr_final = addr+j*16+k*4;
+                        uint32_t val32 = memread32(addr_final);
+                        float32 fval32 = cast_uint32_to_float32(val32);
+
+                        SCP[dst + i][j].f[k] = fval32;
+                        DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
+                    }
+                }    
+            }
+            DEBUG_EMU(gprintf("\t\tAddres = 0x%016x - Stride = 0x%016x\n",addr,stride);)
+            addr += stride;
+        }
+    }
+    //INTERLEAVE
+    else if(trans == 0x01 || trans == 0x02){
+       
+       DEBUG_EMU(gprintf("TensorLoad: Interleave\n");)
+       uint8_t tmp_buffer[4][64];
+       int size = trans & 0x03;
+       int start;
+       start=size==1 ?  boffset << 4 : (boffset & 0x02) << 5;
+       int elements = 4 / size;
+       
+       DEBUG_EMU(gprintf("#rows:%d - size:%d - start:%d - elements:%d - boffset:%d\n",rows,size,start,elements,boffset);)
+       for(int i=0;i < rows; ++i){
+            if(!tm || tmask_pass(i)){
+                if(addr & 0x3F)
+                {
+                    DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
+                }
+                for( int elem = 0; elem < elements; ++elem){
+                    //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
+                    for ( int j = 0; j < 8; j++ )
+                    {
+                        for ( int k = 0; k < 8; k++ )
+                        {
+                            uint64_t addr_final = addr+j*8+k;
+                            uint8_t val = memread8(addr_final);
+                            tmp_buffer[elem][j*8+k] = val;
+                            DEBUG_EMU(gprintf("\tLoading into tmp_buffer - MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, elem,j,k,tmp_buffer[elem][j*8+k],tmp_buffer[elem][j*8+k]);)
+                        }
+                    }
+                    
+                    DEBUG_EMU(gprintf("\t\tAddres = 0x%016x - Stride = 0x%016x\n",addr,stride);)
+                    addr += stride;
+                }
+                for(int line=0; line < 4; ++ line){
+                    for(int byte=0; byte < 16; byte+=4){//We interleve 32 bits each pass
+                        if(elements == 2){
+                            SCP[dst+i][line].b[byte] = tmp_buffer[0][start+line*8+byte/elements];
+                            SCP[dst+i][line].b[byte+1] = tmp_buffer[0][start+line*8+byte/elements+1];
+                            SCP[dst+i][line].b[byte+2] = tmp_buffer[1][start+line*8+byte/elements];
+                            SCP[dst+i][line].b[byte+3] = tmp_buffer[1][start+line*8+byte/elements+1];
+                        }
+                        if(elements == 4){
+                            SCP[dst+i][line].b[byte] = tmp_buffer[0][start+line*4+byte/elements];
+                            SCP[dst+i][line].b[byte+1] = tmp_buffer[1][start+line*4+byte/elements];
+                            SCP[dst+i][line].b[byte+2] = tmp_buffer[2][start+line*4+byte/elements];
+                            SCP[dst+i][line].b[byte+3] = tmp_buffer[3][start+line*4+byte/elements];
+                        }
+                        
+                        DEBUG_EMU(gprintf("SCP[%d][%d].u[%d] = 0x%08x\n",dst+i,line,byte/4,SCP[dst+i][line].u[byte/4]);)
+                    }
+                    
+                }     
+            }
+        }
+       //printSCP(addr,rows,stride,dst); 
+    }
+    //TRANSPOSE
+    else if(trans == 0x05 || trans == 0x06 || trans==0x07){
+        
+        bool exist_conv = 0;
+        for(int i=0; (i<rows) & (!exist_conv);++i)
+            exist_conv = tmask_pass(i); 
+        if(tm && !exist_conv){
+            DEBUG_EMU(gprintf("Exit Condition Broken\n");)
+             return;
+        }
+        int offset = (control >> 57) & 0x1F;
+        uint8_t tmp_buffer[64][64];
+        int size = (trans & 0x03);
+        
+        offset = (size==1) ?  (control & 0x30) : (control & 0x20) ;
+        int elements = 64 >> (size-1);
+        size = 1 << (size-1);
+        DEBUG_EMU(gprintf("TensorLoad: Transpose - elements:%d size:%d offset:%d\n",elements,size,offset);)
+        for( int elem = 0; elem < elements; ++elem){
+            //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
+            for ( int j = 0; j < 8; j++ )
+            {
+                for ( int k = 0; k < 8; k++ )
+                {
+                    uint64_t addr_final = addr+j*8+k;
+                    uint8_t val = memread8(addr_final);
+                    tmp_buffer[elem][j*8+k]=val;
+                    DEBUG_EMU(gprintf("\tLoading into tmp_buffer - MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, elem,j,k,tmp_buffer[elem][j*8+k],tmp_buffer[elem][j*8+k]);)
+                }
+            }
+            addr += stride;
+        }
+        for(int i=0 ;i < rows; ++i)
+        {
+             if(!tm || tmask_pass(i)){
+                if(addr & 0x3F)
+                {
+                    DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
+                }
+                for(int j=0; j < elements; ++j){
+                    if(size == 4){
+                        SCP[dst+i][j/4].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
+                        SCP[dst+i][j/4].b[(j*size+1)%16] = tmp_buffer[j][(i)*size+offset+1];
+                        SCP[dst+i][j/4].b[(j*size+2)%16] = tmp_buffer[j][(i)*size+offset+2];
+                        SCP[dst+i][j/4].b[(j*size+3)%16] = tmp_buffer[j][(i)*size+offset+3];
+                        DEBUG_EMU(gprintf("\tI'm size 4 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(i)*size+offset],tmp_buffer[j][(i)*size+offset+1]);)
+                    }                        
+                    else if(size == 2){
+                        SCP[dst+i][j/8].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
+                        SCP[dst+i][j/8].b[(j*size+1)%16] = tmp_buffer[j][(i)*size+offset+1];
+                        DEBUG_EMU(gprintf("\tI'm size 2 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(i)*size+offset],tmp_buffer[j][(i)*size+offset+1]);)
+                    }
+                    else if(size == 1){
+                        SCP[dst+i][j/16].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
+                        DEBUG_EMU(gprintf("\tI'm size 1 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][dst+(i)*size+offset],tmp_buffer[j][dst+(i)*size+offset+1]);)
+                    }
+                    else{
+                        DEBUG_EMU(gprintf("ERROR Tensor Load element size not valid!!\n");)
+                    }
+                    
+                }
+                for(int x = 0; x<4;++x){
+                    for(int y=0;y<4;++y){
+                         DEBUG_EMU(gprintf("SCP[%d][%d].u[%d] = 0x%08x\n",dst+i,x,y,SCP[dst+i][x].u[y]);)
+                    }
+                }
+            }
+            
+        }
+    }
+}
+#endif
+
 
 // ----- TensorStore emulation -------------------------------------------------
-
 static void tensorstore(uint64_t tstorereg)
 {
     uint64_t regstart =  (tstorereg & 0xF8000000000000) >> 51;      // Start register to store
@@ -5884,6 +6057,46 @@ static void tensorstore(uint64_t tstorereg)
         addr += stride;
     }
 }
+#if 0
+void tensorstore(uint64_t tstorereg)
+{
+
+    uint64_t regstart =  (tstorereg & 0x30000000000000) >> 52;      // Start register to store
+    uint64_t rows     = ((tstorereg & 0x0F000000000000) >> 48) + 1; // Number of rows to store
+    uint64_t addr     =  (tstorereg & 0x00FFFFFFFFFFC0);            // Address where to store the results
+    uint64_t srcinc   = ((tstorereg & 0x0000000000000C) >>  2) + 1; // Increment done to register source
+    uint64_t cols     =  (tstorereg & 0x00000000000003) + 1;        // Number of register per col
+
+    uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
+
+    uint64_t src = regstart * 16 % 48;
+    DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, src, rows, cols, srcinc);)
+    // For all the rows
+    for(uint64_t row = 0; row < rows; row++)
+    {
+        // For all the cols
+        for(uint64_t col = 0; col < cols; col++)
+        {
+            // For all the elements of the lane
+            for(uint64_t j = 0; j < 4; j++)
+            {
+                for(uint64_t i = 0; i < 4; i++)
+                {
+                    uint32_t val = SCP[src][j].u[i];
+                    memwrite32(addr + col * 64 + j * 16 + i * 4, val);
+                    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
+                    DEBUG_EMU(gprintf("\t\tSCP[%d][%d].u[%d]\n",src,j,i);)
+                    //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
+                }
+            }
+            src += srcinc;
+            src = src % 48;
+        }
+        addr += stride;
+    }
+}
+#endif
+
 
 // ----- TensorFMA emulation ---------------------------------------------------
 
@@ -5985,12 +6198,14 @@ static void tensorfma(uint64_t tfmareg)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
 
-                    //// If As are zeroes, we skip operation
-                    //if(SCP[astart+ar][af].f[am] == 0)
-                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
-                    //// If Bs are zeroes, we skip operation
-                    //if(SCP[br][bf].f[bm] == 0)
-                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    if ((first_pass == 0) || (ac != 0)) {                    
+                    // If As are zeroes, we skip operation
+                      if(SCP[astart+ar][af].f[am] == 0)
+                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    // If Bs are zeroes, we skip operation
+                      if(SCP[br][bf].f[bm] == 0)
+                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    }
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
@@ -6178,12 +6393,14 @@ static void tensorfma(uint64_t tfmareg)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
 
-                    //// If both As are zeroes, we skip operation
-                    //if((SCP[astart+ar][af].h[am * 2] == 0) && (SCP[astart+ar][af].h[am * 2 + 1] == 0))
-                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
-                    // // If both Bs are zeroes, we skip operation
-                    //if((SCP[br][bf].h[bm * 2] == 0) && (SCP[br][bf].h[bm * 2 + 1] == 0))
-                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    if ((first_pass == 0) || (ac != 0)) {                    
+                    // If both As are zeroes, we skip operation
+                      if((SCP[astart+ar][af].h[am * 2] == 0) && (SCP[astart+ar][af].h[am * 2 + 1] == 0))
+                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    // If both Bs are zeroes, we skip operation
+                      if((SCP[br][bf].h[bm * 2] == 0) && (SCP[br][bf].h[bm * 2 + 1] == 0))
+                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    }
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
@@ -6401,12 +6618,14 @@ static void tensorfma(uint64_t tfmareg)
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
 
-                    //// If As are zeroes, we skip operation
-                    //if((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
-                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
-                    //// If Bs are zeroes, we skip operation
-                    //if((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
-                    //    tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    if ((first_pass == 0) || (ac != 0)) {                    
+                    // If As are zeroes, we skip operation
+                      if((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
+                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    // If Bs are zeroes, we skip operation
+                      if((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
+                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                    }
                 }
             }
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%d)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].u[0]);)
