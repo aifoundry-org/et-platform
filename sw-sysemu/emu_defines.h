@@ -41,7 +41,7 @@ typedef enum
     csr_tfmastart,
     csr_tconvsize,
     csr_tconvctrl,
-    // csr_tcoop,
+    csr_tcoop,
     csr_tmask,
     // csr_top,
     csr_flbarrier,
