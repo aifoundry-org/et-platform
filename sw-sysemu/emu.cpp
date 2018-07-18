@@ -76,6 +76,7 @@ void init_emu(int debug, int fakesam)
 static uint64_t csrget(csr src1);
 static void csrset(csr src1, uint64_t val);
 static void tmask_conv();
+static void tcoop();
 static void tensorload(uint64_t control);
 static void tensorstore(uint64_t tstorereg);
 static void tensorfma(uint64_t tfmareg);
@@ -1973,6 +1974,10 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x0000FFFF0000FFFFULL;
             csrregs[current_thread][src1] = val;
             tmask_conv();
+            break;
+        case csr_tcoop:
+            csrregs[current_thread][src1] = val;
+            tcoop();
             break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
@@ -5762,28 +5767,53 @@ static void tmask_conv()
     
     csrset(csr_tmask, tmask_value);
 }
+static void tcoop()
+{
+    uint64_t tcoopreg         = csrget(csr_tcoop);
+    
+    uint64_t warl                 = (tcoopreg >> 24) & 0xFFFFFFFFFF;
+    uint64_t timeout              = (tcoopreg >> 16) & 0x1FF;
+    uint64_t coop_mask            = (tcoopreg >> 8) & 0xFF;
+    uint64_t coop_id              = (tcoopreg >> 0) & 0xFF;
+    //TODO implement functionality checking the addresses and tcoop of every use of Tensor Load 
+    DEBUG_EMU(gprintf("\tSetting Tensor Cooperation:  Warl [%040X] . Timeout %d . Coop Mask %08X . Coop ID : %d\n",warl, timeout , coop_mask ,coop_id  );)
+    
+}
 
 // ----- TensorLoad emulation --------------------------------------------------
 
 static void tensorload(uint64_t control)
 {
+    //uint64_t dst     = control & 0x3F;
+    //int      rows    = ((control >> 48) & 0x1F) + 1;
+    //uint64_t tm      = (control >> 53) & 0x1;
+    //uint64_t base    = control & 0xFFFFFFFFFFC0ULL;
+
+
     uint64_t stride  = XREGS[31].x;
 
-    uint64_t dst     = control & 0x3F;
-    int      rows    = ((control >> 48) & 0x1F) + 1;
-    uint64_t tm      = (control >> 53) & 0x1;
-    uint64_t base    = control & 0xFFFFFFFFFFC0ULL;
-    //new spec
-    //uint64_t trans   = (control >> 56) & 0x07;
-    //uint64_t boffset = (control >> 5) & 0x03;
-    //uint64_t isconv = 0;
-    //uint64_t dst    = (control >> 53) & 0x3F;
-    //uint64_t rows   = (control & 0xF) + 1;
-
+    uint64_t tm                 = (control >> 63) & 0x1;
+    uint64_t use_coop           = (control >> 62) & 0x1;
+    //uint64_t reserved           = (control >> 59) & 0x7;
+    uint64_t dst                = (control >> 53) & 0x3F;
+    uint64_t read_sc            = (control >> 52) & 0x1;
+   // uint64_t write_any          = (control >> 48) & 0xF;
+    //uint64_t virtual_addr_l2_sc = (control >>  6) & 0x3FFFFFFFFFF;
+    uint64_t base                 = control & 0xFFFFFFFFFFC0ULL;
+    //uint64_t boffset            = (control >>  4) & 0x03;
+    int rows                    = ((control      ) & 0xF) + 1;
+    
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
     scp_tm                    = tm;
     uint64_t addr             = base;
+    DEBUG_EMU(gprintf("Tensor Load confs : tmask %d , use_coop %d,  dst %d, read_sc %d, base 0x%016X, rows %d \n", tm ,use_coop, dst, read_sc, base, rows);)
+
+    //TODO at this moment a behavior equal to the old Tensor Load is assumed, the new features will be implemented.
+    if( read_sc )
+    {
+        DEBUG_EMU(gprintf("ERROR Read from SC not currently supported in EMU !!\n");)
+    }    
 
     for ( int i = 0; i < rows; i++ )
     {
@@ -5810,6 +5840,10 @@ static void tensorload(uint64_t control)
                     DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
                 }
             }
+        }
+        else
+        {
+            DEBUG_EMU(gprintf("Tensor Load skipped !!\n");)
         }
         addr += stride;
     }
