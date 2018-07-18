@@ -2171,7 +2171,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     uint64_t pte_idx_mask = (uint64_t(1)<<PTE_Idx_Size)-1;
     if (vm_enabled)
     {
-        //log << LOG_DEBUG << "Virtual memory enabled. Performing page walk..." << endm;
+       // DEBUG_EMU(gprintf("Virtual memory enabled. Performing page walk on addr 0x%x...\n", addr);)
 
         // Perform page walk
         int level;
@@ -2296,7 +2296,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
         // Final physical address only uses 40 bits
         paddr &= PA_M;
 
-        //log << LOG_DEBUG << "Physical address = 0x" << std::hex << paddr << endm;
+        // DEBUG_EMU(gprintf("Physical address = 0x%x\n",paddr);)
 
         return paddr;
     }
