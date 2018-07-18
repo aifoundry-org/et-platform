@@ -175,8 +175,9 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
 {
     uint64_t other_min, action;
     // Gets the source used for the reduce
-    uint64_t src1 = (xreg) inst->get_param(1);
+    uint64_t src1 = (xreg) inst->get_param(2);
     uint64_t value = xget(src1);
+
     get_reduce_info(value, &other_min, &action);
 
     // Sender
@@ -276,12 +277,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         if(res == CHECKER_WAIT) return CHECKER_WAIT;
     }
 
-    log << LOG_DEBUG << "after get_is_reduce() "<<thread<<endm;
-
     // Now the instruction can be executed
     inst->exec();
-
-    log << LOG_DEBUG << "after inst->exec() "<<thread<<endm;
 
     // As trapped instructions do not retire in the minion, we need to execute
     // the next instruction as well
