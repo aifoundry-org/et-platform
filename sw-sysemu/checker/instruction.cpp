@@ -1063,6 +1063,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "tensor_fma")       params[num_params] = csr_tfmastart;
         else if(param == "tensor_conv_size") params[num_params] = csr_tconvsize;
         else if(param == "tensor_conv_ctrl") params[num_params] = csr_tconvctrl;
+        else if(param == "unknown_804")      params[num_params] = csr_tcoop;
         else if(param == "usr_cache_op")     params[num_params] = csr_ucacheop;
         else if(param == "tensor_load")      params[num_params] = csr_tloadctrl;
         else if(param == "tensor_store")     params[num_params] = csr_tstore;
