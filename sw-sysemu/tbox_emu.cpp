@@ -2533,7 +2533,7 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
         uint32_t sample_mip_level = mip_level;
         float32 sample_mip_beta = mip_beta_fp;
 
-        for (uint32_t mip = 0; mip < num_mips; mip++) // Bilinear one mip and Trilinear 2 mips?
+        for (uint32_t mip = 0; mip < num_mips; mip++)
         {
             DEBUG_EMU(if (num_mips > 1) gprintf("\tmip sample %d\n", mip);)
             uint32_t num_slices = (currentImage.info.type == IMAGE_TYPE_3D) ? 2 : 1;
