@@ -28,6 +28,7 @@ typedef struct
 {
     int    entry;
     uint32_t data[4];
+    uint32_t tensorfma_regfile_wmask;
 } tensorfma_entry;
 
 // Reduce state
@@ -64,7 +65,7 @@ class checker
 
         // Tensor operations
         void tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data);
-        void tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data);
+        void tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorfma_regfile_wmask);
         void reduce_write(uint32_t thread, uint32_t entry, uint32_t * data);
 
         typedef void (*func_texrec_t) (unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
