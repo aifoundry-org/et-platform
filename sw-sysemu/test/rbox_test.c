@@ -54,10 +54,10 @@ char *fxp_2_dec_str(char *str, int64_t v, uint32_t int_bits, uint32_t frac_bits,
     return str;
 }
 
-float32 fxp_2_float32(int64_t v, uint32_t int_bits, uint32_t frac_bits)
+float32_t fxp_2_float32(int64_t v, uint32_t int_bits, uint32_t frac_bits)
 {
     uint64_t v_abs = (v < 0) ? uint64_t(-v) : uint64_t(v);
-    float32 v_abs_fp = float32(v_abs) / float32(1ULL << frac_bits);
+    float32_t v_abs_fp = float32_t(v_abs) / float32_t(1ULL << frac_bits);
     
     return (v < 0) ? -v_abs_fp : v_abs_fp;
 }
@@ -74,7 +74,7 @@ char *fxp_2_hex_str(char *str, int64_t v, uint32_t int_bits, uint32_t frac_bits)
     return str;
 }
 
-void setup_triangle(float32 vpos_x[3], float32 vpos_y[3], float32 vdepth[3], int64_t a[4], int64_t b[4], int64_t c[4])
+void setup_triangle(float32_t vpos_x[3], float32_t vpos_y[3], float32_t vdepth[3], int64_t a[4], int64_t b[4], int64_t c[4])
 {
     char str1[256], str2[256], str3[256], str4[256], str5[256], str6[256];
 
@@ -86,7 +86,7 @@ void setup_triangle(float32 vpos_x[3], float32 vpos_y[3], float32 vdepth[3], int
     {
         vpos_x_fxp_16_8[v] = int64_t(vpos_x[v] * 256.0);
         vpos_y_fxp_16_8[v] = int64_t(vpos_y[v] * 256.0);
-        vdepth_unorm24[v] = int32_t(vdepth[v] * float32((1 << 24) - 1));
+        vdepth_unorm24[v] = int32_t(vdepth[v] * float32_t((1 << 24) - 1));
 
         printf("vertex %d -> x = %f [%s] (%s) y = %f [%s] (%s) z = %f (%08llx)\n", v,
             vpos_x[v],
@@ -188,9 +188,9 @@ void setup_triangle(float32 vpos_x[3], float32 vpos_y[3], float32 vdepth[3], int
     c_depth = (c_depth >> 24);
 
     printf("depth eq => a = %f [%x] b = %f [%x] c = %f [%x]\n",
-        float32(a_depth) / float32((1 << 24) - 1), a_depth,
-        float32(b_depth) / float32((1 << 24) - 1), b_depth,
-        float32(c_depth) / float32((1 << 24) - 1), c_depth);
+        float32_t(a_depth) / float32_t((1 << 24) - 1), a_depth,
+        float32_t(b_depth) / float32_t((1 << 24) - 1), b_depth,
+        float32_t(c_depth) / float32_t((1 << 24) - 1), c_depth);
 
     a[3] = a_depth;
     b[3] = b_depth;
@@ -290,9 +290,9 @@ int main()
 
     push_packet();
 
-    float32 vpos_x[3];
-    float32 vpos_y[3];
-    float32 vdepth[3];
+    float32_t vpos_x[3];
+    float32_t vpos_y[3];
+    float32_t vdepth[3];
     
     vpos_x[0] =  0.30; vpos_y[0] =  1.00; vdepth[0] = 0.1;
     vpos_x[1] = 20.70; vpos_y[1] =  5.09; vdepth[1] = 0.5;

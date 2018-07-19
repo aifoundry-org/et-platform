@@ -57,7 +57,7 @@ uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0){
     return fma_result;
 }
 
-float32 ttrans_frcp(uint32_t val) {
+float32_t ttrans_frcp(uint32_t val) {
 
     if(val == 0) return INFINITY;
     if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
@@ -89,7 +89,7 @@ float32 ttrans_frcp(uint32_t val) {
     return cast_uint32_to_float32(result);
 }
 
-float32 ttrans_frsq(uint32_t val){
+float32_t ttrans_frsq(uint32_t val){
 
     if(GET(val, 31, 31)){
         uint32_t output = 0xffc00000;
@@ -127,7 +127,7 @@ float32 ttrans_frsq(uint32_t val){
 
 }
 
-float32 ttrans_flog2(uint32_t val){
+float32_t ttrans_flog2(uint32_t val){
 
     if(val == 0x3f800000) return 0.0;
     if(val == 0) return -INFINITY;
@@ -325,7 +325,7 @@ uint64_t ures = *((uint64_t*)&result) + (1 << 28);
     */
 }
 
-float32 ttrans_fexp2(uint32_t val){
+float32_t ttrans_fexp2(uint32_t val){
 
     uint32_t exp = ((val >> 23) % (1 << 8));
     bool sign = (val >> 31) != 0;
@@ -491,7 +491,7 @@ uint32_t ttrans_sin_convert(uint32_t ux){
     return cast_float32_to_uint32(y);
 }
 
-float32 ttrans_fsin(uint32_t val){
+float32_t ttrans_fsin(uint32_t val){
 
     if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
     if((val & 0x7fffffff) == 0x7f800000) return 0;
