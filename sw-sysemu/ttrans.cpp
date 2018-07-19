@@ -501,8 +501,8 @@ float32 ttrans_fsin(uint32_t val){
     //printf("VAL: 0x%08x\n", val);
 
     if(val == 0)  return cast_uint32_to_float32(val);
-    if(val == 0.25) return 1.0;
-    if(val == -0.25) return -1.0;
+    if(val == 0x3e800000) return 1.0;
+    if(val == 0xbe800000) return -1.0;
 
     //bool ex0 = get(val, 23, 25) == 0x7;
     bool ex1 = get(val, 23, 25) == 0x6;
