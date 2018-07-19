@@ -5360,7 +5360,8 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 
     uint64_t set  = (addr >> 6) & 0xFFFFFF;
     uint64_t way  = (op_value >> 48) & 0xFF;
-    uint64_t cl   = (set << 2) + way % 4; // FIXME: Only valid for 4 ways
+    // uint64_t cl   = (set << 2) + way % 4; // FIXME: Only valid for 4 ways
+    uint64_t cl   = (way << 4) + set % 16; // FIXME: Only valid for 4 ways
 
     DEBUG_EMU(gprintf("\tDoing CacheOp with value %016llX\n", op_value);)
 
@@ -5380,8 +5381,8 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                               current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
                 }
 
-                set = (++cl >> 2) & 0xF;
-                way = cl & 0x3;
+                set = (++cl) & 0xF;
+                way = (cl >> 4) & 0x3;
             }
             break;
         case 2: // FlushSW
@@ -5398,8 +5399,8 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                               current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
                 }
 
-                set = (++cl >> 2) & 0xF;
-                way = cl & 0x3;
+                set = (++cl) & 0xF;
+                way = (cl >> 4) & 0x3;
             }
             break;
         case 7: // EvictVA
@@ -5869,7 +5870,7 @@ void tensorload(uint64_t control)//Transtensorload
     uint64_t addr             = base;
     scp_tm                    = tm;
 
-    DEBUG_EMU(gprintf("Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop %d - dst %d - read_sc %d - boffset:%d - addr:0x%16X\n", trans, rows, tm, use_coop, dst, read_sc, boffset, addr);)
+    DEBUG_EMU(gprintf("Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - read_sc:%d - boffset:%d - addr:0x%16X\n", trans, rows, tm, use_coop, dst, read_sc, boffset, addr);)
 
     if (read_sc) {
        DEBUG_EMU(gprintf("ERROR Read from SC not currently supported in EMU !!\n");)
