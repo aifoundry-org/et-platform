@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <txs.h>
 #include <cvt.h>
+#include <emu.h>
 
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #define max(a, b) (((a) >= (b)) ? (a) : (b))

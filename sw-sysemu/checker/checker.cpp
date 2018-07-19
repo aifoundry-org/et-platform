@@ -175,8 +175,9 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
 {
     uint64_t other_min, action;
     // Gets the source used for the reduce
-    uint64_t src1 = (xreg) inst->get_param(1);
+    uint64_t src1 = (xreg) inst->get_param(2);
     uint64_t value = xget(src1);
+
     get_reduce_info(value, &other_min, &action);
 
     // Sender
@@ -276,12 +277,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         if(res == CHECKER_WAIT) return CHECKER_WAIT;
     }
 
-    log << LOG_DEBUG << "after get_is_reduce() "<<thread<<endm;
-
     // Now the instruction can be executed
     inst->exec();
-
-    log << LOG_DEBUG << "after inst->exec() "<<thread<<endm;
 
     // As trapped instructions do not retire in the minion, we need to execute
     // the next instruction as well
@@ -526,9 +523,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         {
             int size;
             int passes;
-            bool conv_skip;
+            bool conv_skip[4];
             uint32_t data;
-            data = get_tensorfma_value(0, 0, 0, &size, &passes, &conv_skip);
+            data = get_tensorfma_value(0, 0, 0, &size, &passes, &conv_skip[0]);
             // For all the passes
             for(int pass = 0; pass < passes; pass++)
             {
@@ -536,8 +533,11 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 for(int entry = 0; entry < size; entry++)
                 {
                     // Move to next entry if this pass for this entry was skipped due conv CSR
-                    get_tensorfma_value(entry, pass, 0, &size, &passes, &conv_skip);
-                    if(conv_skip == 1) continue;
+                    for(int lane = 0; lane < 4; lane++)
+                    {             
+                        get_tensorfma_value(entry, pass, lane, &size, &passes, &(conv_skip[lane]));
+                    }
+                    if (conv_skip[0] && conv_skip[1] && conv_skip[2] && conv_skip[3]) continue;
                     // Looks for the 1st entry in the list of RTL written lines with same destination
                     auto it = tensorfma_list[thread].begin();
                     while(it != tensorfma_list[thread].end())
@@ -545,7 +545,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                         if(it->entry == entry) { break; }
                         it++;
                     }
-
                     // Checks that an entry was actually found
                     if(it == tensorfma_list[thread].end())
                     {
@@ -557,7 +556,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     // Compares the data for all the lanes (4 x 32b lanes)
                     for(int lane = 0; lane < 4; lane++)
                     {
-                        data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip);
+                        conv_skip[lane] = conv_skip[lane] | (~(((it-> tensorfma_regfile_wmask) >> lane) & 0x1));             
+
+                        if(conv_skip[lane] == 1) continue;
 #ifdef USE_REAL_TXFMA
                         if(data != it->data[lane])
 #else
@@ -668,7 +669,7 @@ void checker::tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data)
 }
 
 // TensorFMA write
-void checker::tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data)
+void checker::tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorfma_regfile_wmask)
 {
     tensorfma_entry tensorfma;
 
@@ -677,6 +678,8 @@ void checker::tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data)
     {
         tensorfma.data[i] = data[i];
     }
+    tensorfma.tensorfma_regfile_wmask = tensorfma_regfile_wmask;
+
     tensorfma_list[thread].push_back(tensorfma);
 }
 
