@@ -434,7 +434,7 @@ private :
 
     void wrap_texel_coord(uint32_t c[2], int32_t c_ul, uint32_t mip_dim, AddressMode addrmode);
 
-    float32 apply_component_swizzle(ComponentSwizzle swizzle, float32 source, float32 red, float32 green, float32 blue, float32 alpha);
+    float32_t apply_component_swizzle(ComponentSwizzle swizzle, float32_t source, float32_t red, float32_t green, float32_t blue, float32_t alpha);
 
     uint64_t imageTableAddress;
 
@@ -488,20 +488,20 @@ private :
 
     void sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fdata r,
                          uint32_t req, ImageInfo currentImage, FilterType filter,
-                         uint32_t slice, uint32_t sample_mip_level, float32 sample_mip_beta,
-                         uint32_t aniso_sample, float32 aniso_weight, float aniso_deltas, float aniso_deltat,
+                         uint32_t slice, uint32_t sample_mip_level, float32_t sample_mip_beta,
+                         uint32_t aniso_sample, float32_t aniso_weight, float aniso_deltas, float aniso_deltat,
                          float &red, float &green, float &blue, float &alpha, bool output_result);
     void sample_pixel(SampleRequest currentRequest, fdata input[], fdata output[],
                       uint32_t req, ImageInfo currentImage, FilterType filter, uint32_t mip_level,
                       uint32_t mip_beta, bool output_result);
-    void read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level, float32 *texel);
-    void read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint64_t data[], float32 *texel, bool data_ready);
+    void read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level, float32_t *texel);
+    void read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint64_t data[], float32_t *texel, bool data_ready);
     void create_texture_cache_tags(SampleRequest currentRequest, ImageInfo currentImage, FilterType filter,
                                    uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l, uint32_t mip_level,
                                    uint32_t &num_banks, int32_t banks[4], uint64_t tags[4], uint64_t address[4][4]);
     uint64_t texel_virtual_address(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level);
     void read_bilinear_texels(ImageInfo currentImage, uint32_t i[2], uint32_t j[2], uint32_t k, uint32_t l, uint32_t mip_level,
-                              float32 *texel_ul, float32 *texel_ur, float32 *texel_ll, float32 *texel_lr);
+                              float32_t *texel_ul, float32_t *texel_ur, float32_t *texel_ll, float32_t *texel_lr);
     bool read_texture_cache_line(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE]);
     bool read_texture_cache_line_data(ImageInfo currentImage, uint64_t address[4], uint64_t data[TEXTURE_CACHE_QWORDS_PER_LINE]);
     bool read_image_info_cache_line(uint64_t address, ImageInfo &data);
@@ -521,7 +521,7 @@ private :
         ImageFormat format;     // Decompressed format
     };
 
-    float32 clamp(float32 v);
+    float32_t clamp(float32_t v);
 
     void decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer);
     void decode_BC2(uint8_t *inBuffer, uint8_t *outBuffer);
@@ -614,9 +614,9 @@ private :
     static const uint8_t anchor_indices[][N_PARTITIONS];
 
     void fetch_bptc_rgba_unorm_bytes(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, uint8_t *texel);
-    void fetch_bptc_rgba_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32 *texel);
-    void fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32 *texel);
-    void fetch_bptc_rgb_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32 *texel, bool is_signed);
+    void fetch_bptc_rgba_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32_t *texel);
+    void fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32_t *texel);
+    void fetch_bptc_rgb_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float32_t *texel, bool is_signed);
     void fetch_bptc_rgb_signed_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel);
     void fetch_bptc_rgb_unsigned_float(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel);
 

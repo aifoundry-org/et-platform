@@ -8,8 +8,8 @@
 #endif
 
 // Basic types
-typedef double             float64;
-typedef float              float32;
+typedef double             float64_t;
+typedef float              float32_t;
 
 // CSRs
 typedef enum
@@ -416,7 +416,7 @@ typedef union
     uint16_t  h[8];
     uint32_t  u[4];
     int32_t   i[4];
-    float32   f[4];
+    float32_t f[4];
     uint64_t  x[2];
     int64_t   q[2];
 } fdata;
@@ -442,7 +442,7 @@ typedef union
     uint32_t  u;
     uint64_t  x;
     int64_t   xs;
-    float32 f;
+    float32_t f;
 } iufval;
 
 typedef struct

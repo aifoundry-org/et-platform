@@ -386,10 +386,10 @@ typedef union
 
 typedef union
 {
-    uint64_t qw[2];
-    uint32_t dw[4];
-    uint16_t hw[8];
-    float32 ps[4];
+    uint64_t  qw[2];
+    uint32_t  dw[4];
+    uint16_t  hw[8];
+    float32_t ps[4];
 } RBOXOutPcktQuadData;
 #pragma pack(pop)
 
@@ -471,8 +471,8 @@ typedef struct
 
 typedef struct
 {
-    float32 i;
-    float32 j;
+    float32_t i;
+    float32_t j;
 } BarycentricCoord;
 
 typedef struct
@@ -523,8 +523,8 @@ bool do_depth_bound_test(uint32_t frag_depth);
 bool do_scissor_test(uint32_t x, uint32_t y);
 uint8_t stencil_update(uint8_t frag_stencil, bool stencil_test, bool depth_test);
 void generate_quad_packet(QuadInfo quad);
-float32 convert_edge_to_fp32(int64_t edge);
-float32 convert_depth_to_fp32(uint32_t depth);
+float32_t convert_edge_to_fp32(int64_t edge);
+float32_t convert_depth_to_fp32(uint32_t depth);
 void generate_frag_shader_state_packet();
 void tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, RBOXTileSize tile_size);
 
