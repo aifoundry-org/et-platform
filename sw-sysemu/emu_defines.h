@@ -120,6 +120,12 @@ typedef enum
     csr_icache_ctrl,
     csr_write_ctrl,
 
+    // ----- Validation only registers ---------------------------------------
+    validation0,
+    validation1,
+    validation2,
+    validation3,
+
     CSR_MAX
 } csr;
 
