@@ -240,19 +240,19 @@ int main(int argc, char * argv[])
 
     char * mem_desc_file = NULL;
     char * net_desc_file = NULL;
-    bool mem_desc = false;
-    bool net_desc = false;
-    bool minions = false;
-    bool shires = false;
-    bool log_en = false;
-    int  log_min = 4096;
-    char * dump_file = NULL;
-    int dump = 0;
-    uint64_t dump_addr = 0;
-    uint64_t dump_size = 0;
-    uint64_t minions_en = 1;
-    uint64_t shires_en = 1;
-    bool use_rbox = false;
+    bool mem_desc        = false;
+    bool net_desc        = false;
+    bool minions         = false;
+    bool shires          = false;
+    bool log_en          = false;
+    int  log_min         = 4096;
+    char * dump_file     = NULL;
+    int dump             = 0;
+    uint64_t dump_addr   = 0;
+    uint64_t dump_size   = 0;
+    uint64_t minions_en  = 1;
+    uint64_t shires_en   = 1;
+    bool use_rbox        = false;
 
     bzero(rbox, sizeof(rbox));
 
@@ -389,7 +389,7 @@ int main(int argc, char * argv[])
     // initialize rboxes-----------------------------------
     if (use_rbox){
       for (int i = 0 ; i < 64; i++)
-        rbox[i]=new rboxSysEmu(i, memory, write_msg_port_data_);
+        rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data_);
       set_msg_port_data_func(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
     }
 
@@ -551,12 +551,10 @@ int main(int argc, char * argv[])
                 else {
                   // Updates PC
                   if(emu_state_change.pc_mod) {
-                    current_pc[thread_id] = emu_state_change.pc;
+                     current_pc[thread_id] = emu_state_change.pc;
                   } else {
-                     current_pc[thread_id] = current_pc[thread_id] + (inst->get_is_compressed() ? 2 : 4);
+                     current_pc[thread_id] += inst->get_size();
                   }
-
-                    /* current_pc[thread_id] = current_pc[thread_id] + 4; */
 
                   // Checks for IPI
                   if(emu_state_change.mem_mod[0] && (emu_state_change.mem_addr[0] == IPI_T0_ADDR))

@@ -583,6 +583,33 @@ void bgeu(xreg src1, xreg src2, int imm, const char* comm)
         logpcchange(current_pc + imm);
 }
 
+void c_jalr(xreg dst, xreg src1, int imm, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: jalr x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis);)
+    if(dst != x0)
+    {
+        XREGS[dst].x = current_pc + 2;
+        DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
+    }
+    logxregchange(dst);
+    logpcchange((XREGS[src1].x + imm) & 0xFFFFFFFFFFFFFFFE);
+}
+
+void c_jal(xreg dst, int imm, const char* comm)
+{
+    // NB: spike-dasm already multiplies the immediate operand by 2
+    DISASM(gsprintf(dis,"I: jal x%d, %d%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis);)
+    if(dst != x0)
+    {
+        XREGS[dst].x = current_pc + 2;
+        DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
+    }
+    logxregchange(dst);
+    logpcchange(current_pc + imm);
+}
+
 void jalr(xreg dst, xreg src1, int imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: jalr x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););

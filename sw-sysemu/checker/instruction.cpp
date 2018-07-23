@@ -122,7 +122,8 @@ static const emu_ptr_hash_t pointer_cache({
     {"csrrsi",          func_ptr(csrrsi)},
     {"csrrci",          func_ptr(csrrci)},
 // ----- RV64C -----------------------------------------------------------------
-//  {"c_jalr",  func_ptr(c_jalr)},
+    {"c_jalr",          func_ptr(c_jalr)},
+    {"c_jal",           func_ptr(c_jal)},
 // ----- RV64F -----------------------------------------------------------------
     {"fadd_s",          func_ptr(fadd_s)},
     {"fsub_s",          func_ptr(fsub_s)},
@@ -745,6 +746,10 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     {
         opcode = "c_jalr";
     }
+    if(is_compressed && (opcode == "jal"))
+    {
+        opcode = "c_jal";
+    }
 
     // Stores the arguments
     for(auto a:arg_array)
@@ -804,6 +809,12 @@ void instruction::set_compressed(bool v)
 bool instruction::get_is_compressed()
 {
     return is_compressed;
+}
+
+// Get the number of bytes the instruction is encoded with
+unsigned instruction::get_size()
+{
+    return (is_compressed ? 2 : 4);
 }
 
 // Access
@@ -1036,7 +1047,7 @@ void instruction::add_parameter(std::string param)
         //else if(param == "sideleg")      params[num_params] = csr_sideleg;
         else if(param == "sie")          params[num_params] = csr_sie;
         else if(param == "stvec")        params[num_params] = csr_stvec;
-        //else if(param == "scounteren")   params[num_params] = csr_scounteren;
+        else if(param == "scounteren")   params[num_params] = csr_scounteren;
         else if(param == "sscratch")     params[num_params] = csr_sscratch;
         else if(param == "sepc")         params[num_params] = csr_sepc;
         else if(param == "scause")       params[num_params] = csr_scause;
@@ -1053,7 +1064,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "mideleg")      params[num_params] = csr_mideleg;
         else if(param == "mie")          params[num_params] = csr_mie;
         else if(param == "mtvec")        params[num_params] = csr_mtvec;
-        //else if(param == "mcounteren")   params[num_params] = csr_mcounteren;
+        else if(param == "mcounteren")   params[num_params] = csr_mcounteren;
         else if(param == "mscratch")     params[num_params] = csr_mscratch;
         else if(param == "mepc")         params[num_params] = csr_mepc;
         else if(param == "mcause")       params[num_params] = csr_mcause;
@@ -1099,8 +1110,6 @@ void instruction::add_parameter(std::string param)
                 param == "insreth"    ||
                 param == "sedeleg"    ||
                 param == "sideleg"    ||
-                param == "scouteren"  ||
-                param == "mcounteren" ||
                 param == "mcycle"     ||
                 param == "minstret"   ||
                 param == "mcycleh"    ||
