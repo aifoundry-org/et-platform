@@ -585,6 +585,7 @@ void bgeu(xreg src1, xreg src2, int imm, const char* comm)
 
 void c_jalr(xreg dst, xreg src1, int imm, const char* comm)
 {
+    uint64_t src1_old = XREGS[src1].x; // in case dst == src1
     DISASM(gsprintf(dis,"I: jalr x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     if(dst != x0)
@@ -593,7 +594,7 @@ void c_jalr(xreg dst, xreg src1, int imm, const char* comm)
         DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
     }
     logxregchange(dst);
-    logpcchange((XREGS[src1].x + imm) & 0xFFFFFFFFFFFFFFFE);
+    logpcchange((src1_old + imm) & 0xFFFFFFFFFFFFFFFE);
 }
 
 void c_jal(xreg dst, int imm, const char* comm)
