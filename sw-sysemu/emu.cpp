@@ -6110,15 +6110,20 @@ void tensorstore(uint64_t tstorereg)
 
 static void tensorfma(uint64_t tfmareg)
 {
-    int tm         =  (tfmareg & 0x2000000000) >> 37;      // Is a Conv2D operation (use tensor conv register)
-    int aoffset    =  (tfmareg & 0x0F00000000) >> 32;      // A matrix 32b offset
-    int bcols      = ((tfmareg & 0x00F0000000) >> 28) + 1; // Number of B cols to be processed
-    int acols      = ((tfmareg & 0x000F000000) >> 24) + 1; // Number of A cols to be processed
-    int arows      = ((tfmareg & 0x0000F00000) >> 20) + 1; // Number of A rows to be processed
-    int bstart     =  (tfmareg & 0x00000FF000) >> 12;      // SCP entry where B is stored
-    int astart     =  (tfmareg & 0x0000000FF0) >>  4;      // SCP entry where A is stored
-    int type       =  (tfmareg & 0x000000000E) >>  1;      // Mode: 00 => FP32 | 01 => *FP16+FP32 | 10 => FP16 | 11 => *INT8+INT32
-    int first_pass =  (tfmareg & 0x0000000001);            // Doing a first pass op (do MUL instead of FMA)
+    int tm         = (tfmareg & 0x8000000000000000) >> 63; // Is a Conv2D operation (use tensor conv register)
+    int bcols      = (tfmareg & 0x0180000000000000) >> 55; // Number of B cols to be processed
+    int arows      = (tfmareg & 0x0070000000000000) >> 52; // Number of A rows to be processed
+    int acols      = (tfmareg & 0x000F000000000000) >> 48; // Number of A cols to be processed
+    int aoffset    = (tfmareg & 0x0000F00000000000) >> 44; // A matrix 32b offset
+    int bstart     = (tfmareg & 0x00000000000FF000) >> 12; // SCP entry where B is stored
+    int astart     = (tfmareg & 0x0000000000000FF0) >>  4; // SCP entry where A is stored
+    int type       = (tfmareg & 0x000000000000000E) >>  1; // Mode: 00 => FP32 | 01 => *FP16+FP32 | 10 => FP16 | 11 => *INT8+INT32
+    int first_pass = (tfmareg & 0x0000000000000001);       // Doing a first pass op (do MUL instead of FMA)
+
+    // Decodes fields
+    bcols = (bcols + 1) * 4;
+    arows = arows + 1;
+    acols = acols + 1;
 
     DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, bstart: %d, astart: %d\n", tm, aoffset, type, first_pass, bcols, acols, arows, bstart, astart);)
 
@@ -6149,8 +6154,6 @@ static void tensorfma(uint64_t tfmareg)
     // FP32 flow
     if(type == 0)
     {
-        if(bcols > 16) { bcols = 16; }
-
         if(first_pass)
         {
             for ( int ar = 0; ar < arows; ar++ )
@@ -6237,8 +6240,6 @@ static void tensorfma(uint64_t tfmareg)
     // *FP16+FP32
     else if(type == 1)
     {
-        if(bcols > 16) { bcols = 16; }
-
         if(first_pass)
         {
             for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
@@ -6516,8 +6517,6 @@ static void tensorfma(uint64_t tfmareg)
     }
     else if(type == 3) //INT8-INT32
     {
-
-        if(bcols > 16) { bcols = 16; }
 
         if(first_pass)
         {
