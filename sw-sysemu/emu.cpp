@@ -6703,7 +6703,6 @@ static void tensorreduce(uint64_t value)
 {
     uint64_t other_min;
     uint64_t action;
-    uint32_t operation = (value >> 32) & 0xF;
 
     get_reduce_info(value, &other_min, &action);
 
@@ -6716,8 +6715,9 @@ static void tensorreduce(uint64_t value)
     // Receive
 
     //op = rs[35:32]
-    int start_reg = (value >> 24) & 0xFF;
-    int num_reg   = (value >> 16) & 0xFF;
+    int      start_reg = (value >> 57) & 0x1F;
+    uint32_t operation = (value >> 24) & 0xF;
+    int      num_reg   = (value >> 16) & 0xFF;
 
     // Info for checker
     reduce_size[current_thread]  = num_reg;
