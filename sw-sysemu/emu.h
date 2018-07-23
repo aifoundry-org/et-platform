@@ -198,7 +198,8 @@ extern void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm = 0);
 
 // ----- RV64C emulation -------------------------------------------------------
 
-//extern void c_jalr (xreg dst, xreg src1, int imm, const char* comm = 0);
+extern void c_jalr (xreg dst, xreg src1, int imm, const char* comm = 0);
+extern void c_jal  (xreg dst, int imm, const char* comm = 0);
 
 // ----- RV64F emulation -------------------------------------------------------
 
