@@ -550,10 +550,13 @@ int main(int argc, char * argv[])
                 }
                 else {
                   // Updates PC
-                  if(emu_state_change.pc_mod)
+                  if(emu_state_change.pc_mod) {
                     current_pc[thread_id] = emu_state_change.pc;
-                  else
-                    current_pc[thread_id] = current_pc[thread_id] + 4;
+                  } else {
+                     current_pc[thread_id] = current_pc[thread_id] + (inst->get_is_compressed() ? 2 : 4);
+                  }
+
+                    /* current_pc[thread_id] = current_pc[thread_id] + 4; */
 
                   // Checks for IPI
                   if(emu_state_change.mem_mod[0] && (emu_state_change.mem_addr[0] == IPI_T0_ADDR))
