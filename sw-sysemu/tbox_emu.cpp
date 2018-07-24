@@ -2497,10 +2497,10 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     DEBUG_EMU(gprintf("\tsample pixel %d with filter %s mip level %d mip beta %02x\n", req,
                       toStrFilterType(filter), mip_level, mip_beta);)
 
-    float32_t red = 0.0;
-    float32_t green = 0.0;
-    float32_t blue = 0.0;
-    float32_t alpha = 0.0;
+    float32_t red     = 0.0;
+    float32_t green   = 0.0;
+    float32_t blue    = 0.0;
+    float32_t alpha   = 0.0;
 
     float32_t aniso_ratio = float16tofloat32(currentRequest.info.lodaniso.lodaniso.anisoratio);
 
@@ -2526,9 +2526,9 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
         )
     }
 
-    for (uint32_t aniso_sample = 0; aniso_sample < aniso_count; aniso_sample++)
+    for (uint32_t aniso_sample_idx = 0; aniso_sample_idx < aniso_count; aniso_sample_idx++)
     {
-        DEBUG_EMU(if (aniso_count > 1) gprintf("\taniso sample %d out of %d\n", aniso_sample, aniso_count);)
+        DEBUG_EMU(if (aniso_count > 1) gprintf("\taniso sample %d out of %d\n", aniso_sample_idx, aniso_count);)
 
         uint32_t sample_mip_level = mip_level;
         float32_t sample_mip_beta = mip_beta_fp;
@@ -2546,7 +2546,7 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
             {
                 DEBUG_EMU(if (num_slices > 1) gprintf("\tslice sample %d\n", slice);)
                 sample_bilinear(currentRequest, s, t, r, req, currentImage, filter, slice, sample_mip_level,
-                                sample_mip_beta, aniso_sample, aniso_weight, aniso_deltas, aniso_deltat, red,
+                                sample_mip_beta, aniso_sample_idx, aniso_weight, aniso_deltas, aniso_deltat, red,
                                 green, blue, alpha, output_result);
             }
             sample_mip_beta = 1.0 - sample_mip_beta;
@@ -2560,19 +2560,19 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     float32_t blue_swz;
     float32_t alpha_swz;
 
-    red_swz = apply_component_swizzle((ComponentSwizzle)currentImage.info.swizzler, red, red, green, blue, alpha);
-    green_swz = apply_component_swizzle((ComponentSwizzle)currentImage.info.swizzleg, green, red, green, blue, alpha);
-    blue_swz = apply_component_swizzle((ComponentSwizzle)currentImage.info.swizzleb, blue, red, green, blue, alpha);
-    alpha_swz = apply_component_swizzle((ComponentSwizzle)currentImage.info.swizzlea, alpha, red, green, blue, alpha);
+    red_swz     = apply_component_swizzle((ComponentSwizzle)currentImage.info.swizzler, red, red, green, blue, alpha);
+    green_swz   = apply_component_swizzle((ComponentSwizzle)currentImage.info.swizzleg, green, red, green, blue, alpha);
+    blue_swz    = apply_component_swizzle((ComponentSwizzle)currentImage.info.swizzleb, blue, red, green, blue, alpha);
+    alpha_swz   = apply_component_swizzle((ComponentSwizzle)currentImage.info.swizzlea, alpha, red, green, blue, alpha);
 
     // Apply request swizzle.
-    red = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzler, red_swz, red_swz, green_swz,
+    red     = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzler, red_swz, red_swz, green_swz,
                                   blue_swz, alpha_swz);
-    green = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzleg, green_swz, red_swz,
+    green   = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzleg, green_swz, red_swz,
                                     green_swz, blue_swz, alpha_swz);
-    blue = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzleb, blue_swz, red_swz,
+    blue    = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzleb, blue_swz, red_swz,
                                    green_swz, blue_swz, alpha_swz);
-    alpha = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzlea, alpha_swz, red_swz,
+    alpha   = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzlea, alpha_swz, red_swz,
                                     green_swz, blue_swz, alpha_swz);
 
     bool resultIsFloat32 = isFloat32Format((ImageFormat) currentImage.info.format) &&
@@ -2598,23 +2598,33 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     }
 }
 
+/*
+
+    This method contains two main phases:
+        1. Compute i, j, k texel coordinates and their corresponding betas
+        2. Create Texture Cache Tags and read texels:
+            a) From Texture Cache or b) From Main Memory (thought Virtual Address module)
+
+*/
 void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fdata r, uint32_t req,
                               ImageInfo currentImage, FilterType filter, uint32_t slice,
                               uint32_t sample_mip_level, float32_t sample_mip_beta, uint32_t aniso_sample,
                               float32_t aniso_weight, float aniso_deltas, float aniso_deltat, float &red,
                               float &green, float &blue, float &alpha, bool output_result)
 {
-    uint32_t mip_width = max(1, (currentImage.info.width + 1) >> sample_mip_level);
+    uint32_t mip_width  = max(1, (currentImage.info.width + 1)  >> sample_mip_level);
     uint32_t mip_height = max(1, (currentImage.info.height + 1) >> sample_mip_level);
-    uint32_t mip_depth = max(1, (currentImage.info.depth + 1) >> sample_mip_level);
+    uint32_t mip_depth  = max(1, (currentImage.info.depth + 1)  >> sample_mip_level);
 
     uint32_t i[2];
     uint32_t j[2];
     uint32_t k[2];
     uint32_t l;
     bool out_of_bounds = false;
+
     float32_t betai = 0.0, betaj = 0.0, betak = 0.0;
 
+    // 1: Compute i, j, k texel coordinates and their corresponding betas
     if (currentRequest.info.operation == SAMPLE_OP_LD)
     {
         i[0] = s.u[req];
@@ -2678,13 +2688,20 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
     {
         float32_t u, v, w;
         uint32_t a;
+        
+        /*
+            aniso_sample: 0 1 2  3 4  5 6  7 8  9 10 11 12 13 14 15
+            aniso_step:   0 0 1 -1 2 -2 3 -3 4 -4  5 -5  6 -6  7 -7
+        */
+        int side_step_sign = (aniso_sample & 0x1)? -1: 1;
 
-        u = s.f[req] * mip_width + aniso_sample * aniso_deltas;
+        u = s.f[req] * mip_width + (aniso_sample>>1)*side_step_sign*aniso_deltas;
 
         if ((currentImage.info.type == IMAGE_TYPE_2D) || (currentImage.info.type == IMAGE_TYPE_CUBE)
             || (currentImage.info.type == IMAGE_TYPE_3D) || (currentImage.info.type == IMAGE_TYPE_2D_ARRAY)
             || (currentImage.info.type == IMAGE_TYPE_CUBE_ARRAY))
-            v = t.f[req] * mip_height + aniso_sample * aniso_deltat;
+
+            v = t.f[req] * mip_height + (aniso_sample>>1)*side_step_sign*aniso_deltat;
         else
             v = 0.0;
 
@@ -2703,7 +2720,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
             a = 0;
 
         DEBUG_EMU(
-            gprintf("\tSAMPLE operation (normalized coordinates)\n");
+            gprintf("\tSAMPLE operation (unnormalized coordinates)\n");
             switch (currentImage.info.type)
             {
                 case IMAGE_TYPE_1D:
@@ -2753,6 +2770,8 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         l = min(max(currentImage.info.arraybase, a), currentImage.info.arraycount);
     }
 
+
+    // 2: Create Texture Cache Tags and read texels
     if (filter == FILTER_TYPE_NEAREST)
     {
         float32_t texel_ul[4];
