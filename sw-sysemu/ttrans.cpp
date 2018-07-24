@@ -62,7 +62,8 @@ float32_t ttrans_frcp(uint32_t val) {
     if(val == 0) return INFINITY;
     if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
 
-    if((val & 0x7fffffff) > 0x7e800000) return 0;
+    if((val & 0x7fffffff) == 0x7f800000) return 0;
+    if((val > 0x7e800000) && ((val & 0x80000000) == 0)) return 0;
 
     uint32_t idx  = GET(val, 22, 16); // input bits [22:16]
 
@@ -131,6 +132,7 @@ float32_t ttrans_flog2(uint32_t val){
 
     if(val == 0x3f800000) return 0.0;
     if(val == 0) return -INFINITY;
+    if(val == 0x7f800000) return INFINITY;
     if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
 
     uint32_t x2 = (val % (1 << (23-6)));
