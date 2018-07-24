@@ -23,19 +23,19 @@ void clearlogstate()
     log_info->int_reg_data = 0;
     for(int m = 0; m < 8; m++)
     {
-        log_info->m_reg_mod[m] = 0;
-        for(int i = 0; i < 8; i++)
+        log_info->m_reg_mod[m] = false;
+        for(int i = 0; i < VL; i++)
         {
            log_info->m_reg_data[m][i] = 0;
         }
     }
     log_info->fp_reg_mod = false;
     log_info->fp_reg_rd = 0;
-    log_info->fp_reg_data[0] = 0;
-    log_info->fp_reg_data[1] = 0;
+    for(int i = 0; i < (VL/2); i++)
+        log_info->fp_reg_data[i] = 0;
     for(int i = 0; i < 4; i++)
     {
-        log_info->mem_mod[i] = false;
+        log_info->mem_mod[i]  = false;
         log_info->mem_size[i] = 0;
         log_info->mem_addr[i] = 0;
         log_info->mem_data[i] = 0;
@@ -78,8 +78,8 @@ void logfregchange(int fdst)
     if(log_info == NULL) return;
     log_info->fp_reg_mod = true;
     log_info->fp_reg_rd = fdst;
-    log_info->fp_reg_data[0] = FREGS[fdst].x[0];
-    log_info->fp_reg_data[1] = FREGS[fdst].x[1];
+    for(int i = 0; i < (VL/2); i++)
+        log_info->fp_reg_data[i] = FREGS[fdst].x[i];
 }
 
 // Adds a mask register change
@@ -87,7 +87,7 @@ void logmregchange(int mdst)
 {
     if(log_info == NULL) return;
     log_info->m_reg_mod[mdst] = true;
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < VL; i++)
         log_info->m_reg_data[mdst][i] = MREGS[mdst].b[i];
 }
 

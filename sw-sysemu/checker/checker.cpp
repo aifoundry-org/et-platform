@@ -417,7 +417,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             }
             if(emu_state_change.m_reg_mod[m])
             {
-                for(int i = 0; i < 8; i++)
+                for(int i = 0; i < VL; i++)
                 {
                     if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
                     {
