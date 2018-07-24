@@ -2497,10 +2497,10 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     DEBUG_EMU(gprintf("\tsample pixel %d with filter %s mip level %d mip beta %02x\n", req,
                       toStrFilterType(filter), mip_level, mip_beta);)
 
-    float32 red     = 0.0;
-    float32 green   = 0.0;
-    float32 blue    = 0.0;
-    float32 alpha   = 0.0;
+    float32_t red     = 0.0;
+    float32_t green   = 0.0;
+    float32_t blue    = 0.0;
+    float32_t alpha   = 0.0;
 
     float32_t aniso_ratio = float16tofloat32(currentRequest.info.lodaniso.lodaniso.anisoratio);
 
@@ -2622,7 +2622,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
     uint32_t l;
     bool out_of_bounds = false;
 
-    float32 betai = 0.0, betaj = 0.0, betak = 0.0;
+    float32_t betai = 0.0, betaj = 0.0, betak = 0.0;
 
     // 1: Compute i, j, k texel coordinates and their corresponding betas
     if (currentRequest.info.operation == SAMPLE_OP_LD)
