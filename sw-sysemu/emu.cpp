@@ -1254,6 +1254,13 @@ void fence_i(const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
 }
 
+// TODO
+void sfence_vma(const char* comm)
+{
+    DISASM(gsprintf(dis,"I: sfence_vma%s%s",(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis);)
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // RV64M emulation
