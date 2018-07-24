@@ -226,13 +226,11 @@ void initcsr(uint32_t thread)
 
 void minit(mreg dst, uint64_t val)
 {
-    for(int i = 0; i<4; i++)
+    for(int i = 0; i < VL; ++i)
     {
-        MREGS[dst].b[i*2  ] = val & 0x1;
-        MREGS[dst].b[i*2+1] = val & 0x1;
+        MREGS[dst].b[i] = val & 0x1;
         val = val >> 1;
-        DEBUG_EMU( gprintf("init m[%d].b[%d] <- %d\n",dst,2*i  ,MREGS[dst].b[2*i]);
-                   gprintf("init m[%d].b[%d] <- %d\n",dst,2*i+1,MREGS[dst].b[2*i+1]); )
+        DEBUG_EMU(gprintf("init m[%d].b[%d] <- %d\n",dst,i,MREGS[dst].b[i]););
     }
     ipc_init_mreg(dst);
 }
@@ -355,8 +353,14 @@ uint32_t get_thread()
     return current_thread;
 }
 
-uint32_t get_mask ( unsigned maskNr )
+uint32_t get_mask(unsigned maskNr)
 {
+#if (VL == 4)
+    return uint32_t((MREGS[maskNr].b[3] << 3) |
+                    (MREGS[maskNr].b[2] << 2) |
+                    (MREGS[maskNr].b[1] << 1) |
+                    (MREGS[maskNr].b[0] << 0));
+#else
     return uint32_t((MREGS[maskNr].b[7] << 7) |
                     (MREGS[maskNr].b[6] << 6) |
                     (MREGS[maskNr].b[5] << 5) |
@@ -365,6 +369,7 @@ uint32_t get_mask ( unsigned maskNr )
                     (MREGS[maskNr].b[2] << 2) |
                     (MREGS[maskNr].b[1] << 1) |
                     (MREGS[maskNr].b[0] << 0));
+#endif
 }
 
 #ifdef CHECKER
@@ -2444,17 +2449,17 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void femuld(opcode opc, int count, int size, freg dst, int off, xreg base,  int use_mask)
+static void femuld(opcode opc, int count, freg dst, int off, xreg base, int use_mask)
 {
     for ( int i = 0; i < count; i++ )
     {
         uint64_t addr = XREGS[base].x + off;
-        addr = addr + i * size;
+        addr = addr + i * 4;
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         // except if using SP register as base
 
-        bool genResult = ! ( use_mask && MREGS[0].b[i*size/2] == 0 );
+        bool genResult = ! ( use_mask && MREGS[0].b[i] == 0 );
 
         uint32_t  val32;
         float32_t fval32;
@@ -2483,17 +2488,17 @@ static void femuld(opcode opc, int count, int size, freg dst, int off, xreg base
         FREGS[dst].u[i] = 0;
 #endif
     logfregchange(dst);
-    IPC(ipc_ld(opc,count,size,dst,base,(XREGS[base].x+off),dis););
+    IPC(ipc_ld(opc,count,4,dst,base,(XREGS[base].x+off),dis););
 }
 
-static void femust(opcode opc, int count, int size, freg src1, int off, xreg base, int use_mask)
+static void femust(opcode opc, int count, freg src1, int off, xreg base, int use_mask)
 {
     for ( int i = 0; i < count; i++ )
     {
-        if ( use_mask && MREGS[0].b[i*size/2] == 0 ) continue;
+        if ( use_mask && MREGS[0].b[i] == 0 ) continue;
 
         uint64_t addr = XREGS[base].x  + off;
-        addr = addr + i * size;
+        addr = addr + i * 4;
 
         float32_t fval32;
         uint32_t  val32;
@@ -2511,7 +2516,7 @@ static void femust(opcode opc, int count, int size, freg src1, int off, xreg bas
                 break;
         }
     }
-    IPC(ipc_st(opc,count,size,src1,base,(XREGS[base].x+off),dis);)
+    IPC(ipc_st(opc,count,4,src1,base,(XREGS[base].x+off),dis);)
 }
 
 static const char* rmnames[] = {
@@ -2613,7 +2618,7 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
     {
         val.f = FREGS[src1].f[i];
 
-        bool genResult = !(count == 4 && MREGS[0].b[i*2] == 0);
+        bool genResult = !(count == 4 && MREGS[0].b[i] == 0);
 
         iufval res;
         res.f = FREGS[dst].f[i]; // result when element is masked (existing reg value)
@@ -2910,13 +2915,10 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
 
     for ( int i = 0; i < count; i++ )
     {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        //if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
-
         val1.f  = FREGS[src1].f[i];
         val2.f  = src2 != fnone ? FREGS[src2].f[i] : 0;
 
-        bool genResult = !(count == 4 && MREGS[0].b[i*2] == 0);
+        bool genResult = !(count == 4 && MREGS[0].b[i] == 0);
         iufval res;
         res.u = FREGS[dst].u[i];
         switch ( opc )
@@ -3065,9 +3067,6 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
 {
     for ( int i = 0; i < count; i++ )
     {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        //if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
-
         float32_t val1 = FREGS[src1].f[i];
         float32_t val2 = FREGS[src2].f[i];
         float32_t val3 = FREGS[src3].f[i];
@@ -3076,7 +3075,7 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
         uint32_t val2u = cast_float32_to_uint32(val2);
         uint32_t val3u = cast_float32_to_uint32(val3);
 
-        bool genResult = ! ( count == 4 && MREGS[0].b[i*2] == 0 );
+        bool genResult = ! ( count == 4 && MREGS[0].b[i] == 0 );
 
         float32_t res = FREGS[dst].f[i];
         uint32_t resu = FREGS[dst].u[i];
@@ -3149,7 +3148,7 @@ static void femucmp(opcode opc, int count, int size, xreg dst, freg src1, freg s
     for ( int i = 0; i < count; i++ )
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
+        if ( count == 4 && MREGS[0].b[i] == 0 ) continue;
 
         val1.f  = FREGS[src1].f[i];
         val2.f  = FREGS[src2].f[i];
@@ -3361,14 +3360,14 @@ void flw(freg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: flw f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femuld(FLW, 1, 4, dst, off,  base, 0);
+    femuld(FLW, 1, dst, off,  base, 0);
 }
 
 void fsw(freg src1, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fsw f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femust(FSW, 1, 4, src1, off, base, 0);
+    femust(FSW, 1, src1, off, base, 0);
 }
 
 void fmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
@@ -3409,7 +3408,7 @@ static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
 {
     uint8_t val1, val2;
 
-    for ( int i = 0; i < 8; i++ )
+    for ( int i = 0; i < VL; i++ )
     {
         val1  = MREGS[src1].b[i];
         val2  = (src2 == mnone) ? 0 : MREGS[src2].b[i];
@@ -3482,9 +3481,9 @@ void mova_x_m(xreg dst, const char* comm)
     {
         uint32_t start = m * 8;
         uint64_t msk   = 0;
-        for ( int i = 0; i < 8; i++ )
+        for ( int i = 0; i < VL; i++ )
         {
-            msk  |= (MREGS[m].b[i] & 0x1) << i;
+            msk |= (MREGS[m].b[i] & 0x1) << i;
         }
         val |= msk << start;
         DEBUG_EMU(gprintf("\taccumulating into 0x%016llx reg m%d = 0x%08x \n",val,m,msk););
@@ -3506,7 +3505,7 @@ void mova_m_x(xreg src1, const char* comm)
     {
         uint32_t start = m * 8;
         uint64_t msk   = (val >> start) & 0xff;
-        for ( int i = 0; i < 8; i++ )
+        for ( int i = 0; i < VL; i++ )
         {
             MREGS[m].b[i] = (msk >> i) & 0x1;
             DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%08x \n",m,i,MREGS[m].b[i]););
@@ -3523,7 +3522,7 @@ void mov_m_x(mreg dst, xreg src1, uint32_t imm, const char* comm)
 
     unsigned char val = XREGS[src1].b[0] | (imm & 0xFF);
     DEBUG_EMU(gprintf("\t0x%08x <- \n", val);)
-    for ( int i = 0; i < 8; i++ )
+    for ( int i = 0; i < VL; i++ )
     {
         MREGS[dst].b[i] = ( val >> i ) & 0x1;
         //DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%08x  (from val=0x%08x)\n",dst,i,MREGS[dst].b[i],val););
@@ -3536,7 +3535,7 @@ void maskpopc(xreg dst, mreg src1, const char* comm)
     DISASM(gsprintf(dis,"I: maskpopc x%d, m%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     uint64_t count = 0;
-    for(int i = 0; i < 8; i++ )
+    for(int i = 0; i < VL; i++ )
     {
         count += (MREGS[src1].b[i] ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d\n",count,src1,i,MREGS[src1].b[i]););
@@ -3550,7 +3549,7 @@ void maskpopcz(xreg dst, mreg src1, const char* comm)
     DISASM(gsprintf(dis,"I: maskpopcz x%d, m%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     uint64_t count = 0;
-    for(int i = 0; i < 8; i++ )
+    for(int i = 0; i < VL; i++ )
     {
         count += (MREGS[src1].b[i] ? 0 : 1);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d \n",count,src1,i,MREGS[src1].b[i]););
@@ -3568,20 +3567,27 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* com
     uint32_t mask;
     switch(imm)
     {
+#if (VL == 4)
+        case 0  : mask = 0x33; break;
+        case 1  : mask = 0x66; break;
+        case 2  : mask = 0xcc; break;
+        default : mask = 0xff; break;
+#else
         case 0  : mask = 0x0f0f; break;
         case 1  : mask = 0x3c3c; break;
         case 2  : mask = 0xf0f0; break;
         default : mask = 0xffff; break;
+#endif
     }
 
-    for(int i = 0; i < 8; i++ )
+    for(int i = 0; i < VL; i++ )
     {
         count += ((MREGS[src1].b[i] & (mask & 0x1)) ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d m = %d \n",count,src1,i,MREGS[src1].b[i], mask & 0x1););
         mask = mask >> 1;
     }
 
-    for(int i = 0; i < 8; i++ )
+    for(int i = 0; i < VL; i++ )
     {
         count += ((MREGS[src2].b[i] & (mask & 0x1)) ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d m = %d \n",count,src2,i,MREGS[src2].b[i], mask & 0x1););
@@ -3605,14 +3611,14 @@ void flw_ps(freg dst, int off, xreg base, const char* comm)
     DISASM(gsprintf(dis,"I: flw.ps f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femuld(FLW, 4, 4, dst, off,  base, 1);
+    femuld(FLW, 4, dst, off,  base, 1);
 }
 
 void flq(freg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: flq f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femuld(FLW, 4, 4, dst, off,  base, 0);
+    femuld(FLW, 4, dst, off,  base, 0);
 }
 
 void fsw_ps(freg src1, int off, xreg base, const char* comm)
@@ -3620,14 +3626,14 @@ void fsw_ps(freg src1, int off, xreg base, const char* comm)
     DISASM(gsprintf(dis,"I: fsw.ps f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femust(FSW, 4, 4, src1, off, base, 1);
+    femust(FSW, 4, src1, off, base, 1);
 }
 
 void fsq(freg src1, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fsq f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femust(FSW, 4, 4, src1, off, base, 0);
+    femust(FSW, 4, src1, off, base, 0);
 }
 
 // ----- Broadcast -----------------------------------------
@@ -3643,7 +3649,7 @@ void fbc_ps(freg dst, int off, xreg base, const char* comm)
     uint32_t val   = 0;
     for ( int i = 0; i < 4; i++ )
     {
-        b |= MREGS[0].b[i*2];
+        b |= MREGS[0].b[i];
     }
     if ( b != 0 )
     {
@@ -3651,7 +3657,7 @@ void fbc_ps(freg dst, int off, xreg base, const char* comm)
     }
     for ( int i = 0; i < 4; i++ )
     {
-        if ( MREGS[0].b[i*2] )
+        if ( MREGS[0].b[i] )
         {
             FREGS[dst].u[i] = val;
             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%08x + 0x%016llx = 0x%016llx]\n",i,FREGS[dst].u[i],FREGS[dst].f[i],off,XREGS[base].x,addr););
@@ -3689,7 +3695,7 @@ void fbci_ps(freg dst, uint32_t imm, const char* comm)
 
     for ( int i = 0; i < 4; i++ )
     {
-        if ( MREGS[0].b[i*2] )
+        if ( MREGS[0].b[i] )
         {
             FREGS[dst].u[i] = val;
             DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f) <- 0x%08x\n", i, FREGS[dst].u[i], FREGS[dst].f[i], imm); );
@@ -3707,7 +3713,7 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
 
     for ( int i = 0; i < 4; i++ )
     {
-        if ( MREGS[0].b[i*2] )
+        if ( MREGS[0].b[i] )
         {
             FREGS[dst].u[i] = XREGS[src].w[0];
             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- 0x%08x\n",i,FREGS[dst].u[i],FREGS[dst].f[i],XREGS[src].w[0]););
@@ -3728,7 +3734,7 @@ static void gatheremu(opcode opc, int size, freg dst, freg src1, xreg base)
         uint64_t addr  = baddr + off;
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i*2])
+        if (MREGS[0].b[i])
         {
             // notice here the use of 'int32_t' to force sign extension of the value
             iufval val;
@@ -3764,7 +3770,7 @@ static void gatheremu32(opcode opc, int size, freg dst, xreg src1, xreg src2)
         }
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i*2])
+        if (MREGS[0].b[i])
         {
             // notice here the use of 'int32_t' to force sign extension of the value
             switch (size)
@@ -3791,7 +3797,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
         uint64_t addr  = baddr + off;
         //
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i*2] == 0 ) continue;
+        if ( MREGS[0].b[i] == 0 ) continue;
 
         // notice here the use of 'int32_t' to force sign extension of the value
         switch (opc)
@@ -3826,7 +3832,7 @@ static void femuscat32(opcode opc, int size, freg src3, xreg src1, xreg src2)
         }
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i*2])
+        if (MREGS[0].b[i])
         {
             switch (size)
             {
@@ -3951,11 +3957,11 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
     for ( int i = 0; i < 4; i++ )
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i*2] == 0 ) continue;
+        if ( MREGS[0].b[i] == 0 ) continue;
 
         val1.f  = FREGS[src1].f[i];
 
-        // For FSET, don't read the second sourc
+        // For FSET, don't read the second source
         if ( src2 != fnone ) { val2.f  = FREGS[src2].f[i]; } else { val2.u = 0; }
 
         iufval res;
@@ -3979,8 +3985,7 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
             default:     assert(0);
                          break;
         }
-        MREGS[dst].b[i*2] = res.u;
-        MREGS[dst].b[i*2+1] = res.u;
+        MREGS[dst].b[i] = res.u;
     }
     logmregchange(dst);
     IPC(ipc_msk(opc,dst,src1,src2,dis);)
@@ -3996,19 +4001,19 @@ static void fswizz(opcode opc, freg dst, freg src1, uint8_t imm)
         DEBUG_EMU(gprintf("\t[0] 0x%08x <-- 0x%08x (chan %d)\n", FREGS[dst].u[0], val.u[ imm       & 0x3],  imm       & 0x3););
     }
 
-    if ( MREGS[0].b[2] )
+    if ( MREGS[0].b[1] )
     {
         FREGS[dst].u[1] = val.u[(imm>>2)  & 0x3];
         DEBUG_EMU(gprintf("\t[1] 0x%08x <-- 0x%08x (chan %d)\n", FREGS[dst].u[1], val.u[(imm >> 2) & 0x3], (imm >> 2) & 0x3););
     }
 
-    if ( MREGS[0].b[4] )
+    if ( MREGS[0].b[2] )
     {
         FREGS[dst].u[2] = val.u[(imm>>4)  & 0x3];
         DEBUG_EMU(gprintf("\t[2] 0x%08x <-- 0x%08x (chan %d)\n", FREGS[dst].u[2], val.u[(imm >> 4) & 0x3], (imm >> 4) & 0x3););
     }
 
-    if ( MREGS[0].b[6] )
+    if ( MREGS[0].b[3] )
     {
         FREGS[dst].u[3] = val.u[(imm>>6)  & 0x3];
         DEBUG_EMU(gprintf("\t[3] 0x%08x <-- 0x%08x (chan %d)\n", FREGS[dst].u[3], val.u[(imm >> 6) & 0x3], (imm >> 6) & 0x3););
@@ -4174,7 +4179,7 @@ void fcmovm_ps(freg dst, freg src1, freg src2, const char* comm)
     {
         val1.u  = FREGS[src1].u[i];
         val2.u  = FREGS[src2].u[i];
-        int sel = MREGS[0].b[i*2];
+        int sel = MREGS[0].b[i];
         res.u   = sel ? val1.u : val2.u;
         DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- %d ? 0x%08x (%f) : 0x%08x (%f)\n",i,res.u,res.f,sel,val1.u,val1.f,val2.u,val2.f););
         FREGS[dst].u[i] = res.u;
@@ -4316,7 +4321,7 @@ static void ucvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
         }
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        bool genResult = ( MREGS[0].b[i*2] != 0 );
+        bool genResult = ( MREGS[0].b[i] != 0 );
 
         iufval res;
 
@@ -4449,7 +4454,7 @@ static void dcvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
         float32_t val  = FREGS[src1].f[i];
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        bool genResult = ( MREGS[0].b[i*2] != 0 );
+        bool genResult = ( MREGS[0].b[i] != 0 );
 
         uint32_t res;
 
@@ -4602,7 +4607,7 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     {
         val.f = FREGS[src1].f[i];
 
-        if ( MREGS[0].b[i*2] == 0 ) continue;
+        if ( MREGS[0].b[i] == 0 ) continue;
 
         iufval res;
         if (isnan(val.f))
@@ -4649,7 +4654,7 @@ void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
     for(int i = 0; i < 4; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i*2] == 0) continue;
+        if (MREGS[0].b[i] == 0) continue;
 
         uint32_t rz_lt_ry =  (FREGS[dst].u[i]) & 0x1;
         uint32_t rz_lt_rx = (FREGS[src1].u[i]) & 0x1;
@@ -4675,7 +4680,7 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
     for ( int i = 0; i < 4; i++ )
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i*2] == 0 ) continue;
+        if ( MREGS[0].b[i] == 0 ) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x3;
         float32_t rc = FREGS[src2].f[i];
@@ -4699,7 +4704,7 @@ void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
     for ( int i = 0; i < 4; i++ )
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i*2] == 0 ) continue;
+        if ( MREGS[0].b[i] == 0 ) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x7;
         float32_t sc = FREGS[src2].f[i];
@@ -4723,7 +4728,7 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
     for ( int i = 0; i < 4; i++ )
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i*2] == 0 ) continue;
+        if ( MREGS[0].b[i] == 0 ) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x7;
         float32_t tc = FREGS[src2].f[i];
@@ -4782,7 +4787,7 @@ void fbci_pi(freg dst, uint32_t imm, const char* comm)
 
     for ( int i = 0; i < 4; i++ )
     {
-        if ( MREGS[0].b[i*2] )
+        if ( MREGS[0].b[i] )
         {
             FREGS[dst].i[i] = val;
             DEBUG_EMU(gprintf("\t[%d] 0x%08x <- 0x%08x\n",i,FREGS[dst].i[i],val););
@@ -4805,7 +4810,7 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
         uint32_t isu = 0;
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i*2] == 0 ) continue;
+        if ( MREGS[0].b[i] == 0 ) continue;
 
         int32_t res;
         uint32_t ures;
@@ -4935,7 +4940,7 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
     for ( int i = 0; i < 4; i++ )
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        bool genResult = !( MREGS[0].b[i*2] == 0 );
+        bool genResult = !( MREGS[0].b[i] == 0 );
 
         int32_t val1 = FREGS[src1].i[i];
         int32_t val2 = sext10(imm); // sign extend the 10-low order bits of imm
@@ -4980,24 +4985,24 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
 
 static void packrep(opcode opc, freg dst, freg src1)
 {
+    uint32_t packed_val0, packed_val1;
     fdata val = FREGS[src1];
     switch (opc)
     {
         case FPACKREPHPI :
-            if ( MREGS[0].b[0] ) FREGS[dst].h[0] = val.h[0];
-            if ( MREGS[0].b[1] ) FREGS[dst].h[1] = val.h[2];
-            if ( MREGS[0].b[2] ) FREGS[dst].h[2] = val.h[4];
-            if ( MREGS[0].b[3] ) FREGS[dst].h[3] = val.h[6];
-            if ( MREGS[0].b[4] ) FREGS[dst].h[4] = val.h[0];
-            if ( MREGS[0].b[5] ) FREGS[dst].h[5] = val.h[2];
-            if ( MREGS[0].b[6] ) FREGS[dst].h[6] = val.h[4];
-            if ( MREGS[0].b[7] ) FREGS[dst].h[7] = val.h[6];
+            packed_val0 = uint32_t(val.h[0]) | uint32_t(val.h[2] << 16);
+            packed_val1 = uint32_t(val.h[4]) | uint32_t(val.h[6] << 16);
+            if ( MREGS[0].b[0] ) FREGS[dst].u[0] = packed_val0;
+            if ( MREGS[0].b[1] ) FREGS[dst].u[1] = packed_val1;
+            if ( MREGS[0].b[2] ) FREGS[dst].u[2] = packed_val0;
+            if ( MREGS[0].b[3] ) FREGS[dst].u[3] = packed_val1;
             break;
         case FPACKREPBPI:
-            if ( MREGS[0].b[0] ) FREGS[dst].u[0] = val.b[0] | (val.b[4] << 8) | (val.b[8] << 16) | (val.b[12] << 24);
-            if ( MREGS[0].b[2] ) FREGS[dst].u[1] = val.b[0] | (val.b[4] << 8) | (val.b[8] << 16) | (val.b[12] << 24);
-            if ( MREGS[0].b[4] ) FREGS[dst].u[2] = val.b[0] | (val.b[4] << 8) | (val.b[8] << 16) | (val.b[12] << 24);
-            if ( MREGS[0].b[6] ) FREGS[dst].u[3] = val.b[0] | (val.b[4] << 8) | (val.b[8] << 16) | (val.b[12] << 24);
+            packed_val0 = uint32_t(val.b[0]) | uint32_t(val.b[4] << 8) | uint32_t(val.b[8] << 16) | uint32_t(val.b[12] << 24);
+            if ( MREGS[0].b[0] ) FREGS[dst].u[0] = packed_val0;
+            if ( MREGS[0].b[1] ) FREGS[dst].u[1] = packed_val0;
+            if ( MREGS[0].b[2] ) FREGS[dst].u[2] = packed_val0;
+            if ( MREGS[0].b[3] ) FREGS[dst].u[3] = packed_val0;
             break;
         default:
             assert(0);
@@ -6192,7 +6197,7 @@ static void tensorfma(uint64_t tfmareg)
                     int bf = bc / 4;
                     int bm = bc % 4;
 
-                    if(MREGS[0].b[bm*2] == 0) continue;
+                    if(MREGS[0].b[bm] == 0) continue;
 
                     FREGS[4*ar+bf].f[bm] = 0.0f;
                     tensorfma_data[current_thread][4*ar+bf][bm][0] = 0;
@@ -6223,7 +6228,7 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / 4;
                 int bm = bc % 4;
-                if(MREGS[0].b[bm*2] == 0) continue;
+                if(MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
                 {
@@ -6277,7 +6282,7 @@ static void tensorfma(uint64_t tfmareg)
                 {
                     int bf = bc / 4;
                     int bm = bc % 4;
-                    if(MREGS[0].b[bm*2] == 0) continue;
+                    if(MREGS[0].b[bm] == 0) continue;
 
                     FREGS[4*ar+bf].f[bm] = 0.0f;
                     tensorfma_data[current_thread][4*ar+bf][bm][0] = 0;
@@ -6306,7 +6311,7 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / 4;
                 int bm = bc % 4;
-                if(MREGS[0].b[bm*2] == 0) continue;
+                if(MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
                 {
@@ -6555,7 +6560,7 @@ static void tensorfma(uint64_t tfmareg)
                 {
                     int bf = bc / 4;
                     int bm = bc % 4;
-                    if(MREGS[0].b[bm*2] == 0) continue;
+                    if(MREGS[0].b[bm] == 0) continue;
 
                     FREGS[4*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][4*ar+bf][bm][0] = 0;
@@ -6585,7 +6590,7 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / 4;
                 int bm = bc % 4;
-                if(MREGS[0].b[bm*2] == 0) continue;
+                if(MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
                 {

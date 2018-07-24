@@ -416,15 +416,24 @@ typedef enum
     MAXOPCODE
 } opcode;
 
+// Number of 32-bit lanes in a vector register
+#ifndef VL
+#define VL  4
+#endif
+
+#if (VL != 4) && (VL != 8)
+#error "Only 128-bit and 256-bit vectors supported"
+#endif
+
 typedef union
 {
-    uint8_t   b[16];
-    uint16_t  h[8];
-    uint32_t  u[4];
-    int32_t   i[4];
-    float32_t f[4];
-    uint64_t  x[2];
-    int64_t   q[2];
+    uint8_t   b[VL*4];
+    uint16_t  h[VL*2];
+    uint32_t  u[VL];
+    int32_t   i[VL];
+    float32_t f[VL];
+    uint64_t  x[VL/2];
+    int64_t   q[VL/2];
 } fdata;
 
 typedef union
@@ -439,7 +448,7 @@ typedef union
 
 typedef union
 {
-    uint8_t   b[8];
+    uint8_t   b[VL];
 } mdata;
 
 typedef union
@@ -466,7 +475,11 @@ typedef struct
     uint8_t wr_ptr;
 } msg_port_conf;
 
+#if VL == 4
+#define MASK2BYTE(_MR) (_MR.b[3]<<3|_MR.b[2]<<2|_MR.b[1]<<1|_MR.b[0])
+#else
 #define MASK2BYTE(_MR) (_MR.b[7]<<7|_MR.b[6]<<6|_MR.b[5]<<5|_MR.b[4]<<4|_MR.b[3]<<3|_MR.b[2]<<2|_MR.b[1]<<1|_MR.b[0])
+#endif
 
 // set to 1 if floating point 32 operation sets bits 127:32 to 0,
 // and 64 bits operations set bits 127:64 to 0
