@@ -113,7 +113,7 @@ static const emu_ptr_hash_t pointer_cache({
     {"sret",            func_ptr(sret)},
     {"mret",            func_ptr(mret)},
 //  {"dret",            func_ptr(dret)},
-//  {"sfence_vma",      func_ptr(sfence_vma)},
+    {"sfence_vma",      func_ptr(sfence_vma)},
     {"wfi",             func_ptr(wfi)},
     {"csrrw",           func_ptr(csrrw)},
     {"csrrs",           func_ptr(csrrs)},

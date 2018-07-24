@@ -136,6 +136,8 @@ extern void sb (xreg src1, int off, xreg base, const char* comm = 0);
 extern void fence   (const char* comm = 0);
 extern void fence_i (const char* comm = 0);
 
+extern void sfence_vma(const char* comm = 0);
+
 // ----- RV64M emulation -------------------------------------------------------
 
 extern void mul   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
