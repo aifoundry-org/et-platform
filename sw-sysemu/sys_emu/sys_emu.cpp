@@ -420,16 +420,16 @@ int main(int argc, char * argv[])
                     enabled_threads.push_back(thread_id);
 
                     // Inits minion
-                    /* thread_id = (s * 64 + m) * 2 + 1; */
-                    /* if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); } */
-                    /* current_pc[thread_id] = RESET_PC; */
-                    /* reduce_state_array[thread_id>>1] = Reduce_Idle; */
-                    /* set_thread(thread_id); */
-                    /* init(x0, 0); */
-                    /* minit(m0, 255); */
-                    /* initcsr(thread_id); */
-                    /* // Puts thread id in the active list */
-                    /* enabled_threads.push_back(thread_id); */
+                    thread_id = (s * 64 + m) * 2 + 1;
+                    if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
+                    current_pc[thread_id] = RESET_PC;
+                    reduce_state_array[thread_id>>1] = Reduce_Idle;
+                    set_thread(thread_id);
+                    init(x0, 0);
+                    minit(m0, 255);
+                    initcsr(thread_id);
+                    // Puts thread id in the active list
+                    enabled_threads.push_back(thread_id);
                 }
             }
         }
