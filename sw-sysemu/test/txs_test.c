@@ -126,7 +126,7 @@ int main()
      
     TBOXEmu::print_sample_request(sampleRequest);
 
-    float32 texcoords[] =
+    float32_t texcoords[] =
     {
         1.0, 1.0, 1.0, 1.0,
         1.0, 1.0, 1.0, 1.0
@@ -149,7 +149,7 @@ int main()
     texrcv(f10, 2, "# Receive result");
     texrcv(f11, 3, "# Receive result");
     
-    float32 texcoords2[] =
+    float32_t texcoords2[] =
     {
         0.50, 0.50, 0.50, 0.50,
         0.25, 0.25, 0.25, 0.25

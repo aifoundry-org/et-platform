@@ -622,12 +622,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
 
     // PC update
     if(emu_state_change.pc_mod)
-        current_pc[thread] = emu_state_change.pc;
+       current_pc[thread] = emu_state_change.pc;
     else
-        if (inst->get_is_compressed())
-            current_pc[thread] = current_pc[thread] + 2;
-        else
-            current_pc[thread] = current_pc[thread] + 4;
+       current_pc[thread] += inst->get_size();
 
     return CHECKER_OK;
 }

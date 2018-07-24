@@ -36,29 +36,30 @@ class instruction
         bool get_is_amo();
         bool get_is_flb();
         bool get_is_compressed();
+        unsigned get_size();
         int get_param(int param);
 
         // Execution
         void exec();
     private:
-        uint64_t                     pc;             // PC of the instruction
-        uint32_t                     enc_bits;       // Encoded bits
-        std::string                  mnemonic;       // Mnemonic of the instruction
-        bool                         is_load;        // If the instruction is an integer load
-        bool                         is_fpload;      // If the instruction is a floating point load
-        bool                         is_wfi;         // If the instruction is WFI
-        bool                         is_reduce;      // If the instruction is a reduce
-        bool                         is_tensor_load; // If the instruction is a tensor load
-        bool                         is_tensor_fma;  // If the instruction is a tensor FMA
-        bool                         is_texsndh;     // If the instruction is a texsndh
-        bool                         is_texrcv;      // If the instruction is a texrcv
-        bool                         is_1ulp;        // The instruction must be checked with 1ULP precision
-        bool                         is_amo;         // If the instruction is an atomic operation
-        bool                         is_flb;         // If the instruction is a fast local barrier
-        bool                         is_compressed;  // If the instruction is a compressed encoding
-        int                          params[5];      // Params to call the function
-        int                          num_params;     // Number of params for the call
-        func_ptr                     emu_func;       // Pointer to the emulation function
+        uint64_t                     pc;                     // PC of the instruction
+        uint32_t                     enc_bits;               // Encoded bits
+        std::string                  mnemonic;               // Mnemonic of the instruction
+        bool                         is_load;                // If the instruction is an integer load
+        bool                         is_fpload;              // If the instruction is a floating point load
+        bool                         is_wfi;                 // If the instruction is WFI
+        bool                         is_reduce;              // If the instruction is a reduce
+        bool                         is_tensor_load;         // If the instruction is a tensor load
+        bool                         is_tensor_fma;          // If the instruction is a tensor FMA
+        bool                         is_texsndh;             // If the instruction is a texsndh
+        bool                         is_texrcv;              // If the instruction is a texrcv
+        bool                         is_1ulp;                // The instruction must be checked with 1ULP precision
+        bool                         is_amo;                 // If the instruction is an atomic operation
+        bool                         is_flb;                 // If the instruction is a fast local barrier
+        bool                         is_compressed = false;  // If the instruction is a compressed encoding
+        int                          params[5];              // Params to call the function
+        int                          num_params;             // Number of params for the call
+        func_ptr                     emu_func;               // Pointer to the emulation function
         func_ptr_0                   emu_func0;
         func_ptr_1                   emu_func1;
         func_ptr_2                   emu_func2;

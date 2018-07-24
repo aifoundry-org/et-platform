@@ -663,17 +663,17 @@ void generate_quad_packet(QuadInfo quad)
     output.push_packet();
 }
 
-float32 convert_edge_to_fp32(int64_t edge)
+float32_t convert_edge_to_fp32(int64_t edge)
 {
     uint8_t sign = edge & EDGE_EQ_SAMPLE_SIGN_MASK;
     uint64_t edge_abs = sign ? -edge : edge;
-    float32 edge_abs_fp32 = float32(edge_abs) / float32(1 << EDGE_EQ_SAMPLE_FRAC_BITS);
+    float32_t edge_abs_fp32 = float32_t(edge_abs) / float32_t(1 << EDGE_EQ_SAMPLE_FRAC_BITS);
     return (sign ? -edge_abs_fp32 : edge_abs_fp32);
 }
 
-float32 convert_depth_to_fp32(uint32_t depth)
+float32_t convert_depth_to_fp32(uint32_t depth)
 {
-    return float32(depth) / float32((1 << 24) - 1);
+    return float32_t(depth) / float32_t((1 << 24) - 1);
 }
 
 void generate_frag_shader_state_packet()

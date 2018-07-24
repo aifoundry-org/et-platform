@@ -583,8 +583,37 @@ void bgeu(xreg src1, xreg src2, int imm, const char* comm)
         logpcchange(current_pc + imm);
 }
 
+void c_jalr(xreg dst, xreg src1, int imm, const char* comm)
+{
+    uint64_t src1_old = XREGS[src1].x; // in case dst == src1
+    DISASM(gsprintf(dis,"I: jalr x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis);)
+    if(dst != x0)
+    {
+        XREGS[dst].x = current_pc + 2;
+        DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
+    }
+    logxregchange(dst);
+    logpcchange((src1_old + imm) & 0xFFFFFFFFFFFFFFFE);
+}
+
+void c_jal(xreg dst, int imm, const char* comm)
+{
+    // NB: spike-dasm already multiplies the immediate operand by 2
+    DISASM(gsprintf(dis,"I: jal x%d, %d%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis);)
+    if(dst != x0)
+    {
+        XREGS[dst].x = current_pc + 2;
+        DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
+    }
+    logxregchange(dst);
+    logpcchange(current_pc + imm);
+}
+
 void jalr(xreg dst, xreg src1, int imm, const char* comm)
 {
+    uint64_t src1_old = XREGS[src1].x; // in case dst == src1
     DISASM(gsprintf(dis,"I: jalr x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     if(dst != x0)
@@ -593,7 +622,7 @@ void jalr(xreg dst, xreg src1, int imm, const char* comm)
         DEBUG_EMU(gprintf("\t0x%016llx <- \n",XREGS[dst].x);)
     }
     logxregchange(dst);
-    logpcchange((XREGS[src1].x + imm) & 0xFFFFFFFFFFFFFFFE);
+    logpcchange((src1_old + imm) & 0xFFFFFFFFFFFFFFFE);
 }
 
 void jal(xreg dst, int imm, const char* comm)
@@ -2428,7 +2457,7 @@ static void femuld(opcode opc, int count, int size, freg dst, int off, xreg base
         bool genResult = ! ( use_mask && MREGS[0].b[i*size/2] == 0 );
 
         uint32_t  val32;
-        float32 fval32;
+        float32_t fval32;
 
         val32 = FREGS[dst].u[i]; // default result when element is masked
 
@@ -2466,7 +2495,7 @@ static void femust(opcode opc, int count, int size, freg src1, int off, xreg bas
         uint64_t addr = XREGS[base].x  + off;
         addr = addr + i * size;
 
-        float32 fval32;
+        float32_t fval32;
         uint32_t  val32;
         switch ( opc )
         {
@@ -2732,10 +2761,10 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                 if ( genResult )
                 {
                     // Input value is 2xtriArea with 15.16 precision
-                    float64 tmp = float64(val.i) / float64(1 << 16);
+                    float64_t tmp = float64_t(val.i) / float64_t(1 << 16);
 
                     // Result value is 17.14
-                    float64 tmp_rcp = (1.0f / tmp) * float64(1 << 14);
+                    float64_t tmp_rcp = (1.0f / tmp) * float64_t(1 << 14);
 
                     res.i = int32_t(tmp_rcp);
                     DEBUG_EMU( printf("\t[%d] 0x%08x (%d) <-- 1 / 0x%08x (%d)\n", i, res.u, res.i, val.u, val.i); )
@@ -2994,20 +3023,20 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 if (genResult)
                 {
                     // Input value is 2xtriArea with 15.16 precision
-                    float64 tmp = float64(val1.i) / float64(1 << 16);
+                    float64_t tmp = float64_t(val1.i) / float64_t(1 << 16);
 
                     // Result value is 17.14
-                    float64 tmp_rcp = (1.0f / tmp) * float64(1 << 14);
+                    float64_t tmp_rcp = (1.0f / tmp) * float64_t(1 << 14);
 
                     iufval res_gold;
                     res_gold.i = int32_t(tmp_rcp);
 
-                    float64 yn = float64(val2.i)/float64(1 << 14);
+                    float64_t yn = float64_t(val2.i)/float64_t(1 << 14);
                     double a = yn * tmp;
                     uint32_t partial = (uint32_t)(a * (((uint64_t)1) << 31));
                     //printf("Partial: 0x%08x\n", partial);
-                    float64 unpartial = float64(partial)/float64(((uint64_t)1) << 31);
-                    float64 result = yn*(2.0-unpartial);
+                    float64_t unpartial = float64_t(partial)/float64_t(((uint64_t)1) << 31);
+                    float64_t result = yn*(2.0-unpartial);
                     res.i = (int32_t)(result*(1 << 14));
 
                     //printf("FRCPFXP NR EXPECTED: 0x%08x RESULT: 0x%08x\n", res_gold.u, res.u); 
@@ -3039,9 +3068,9 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         //if ( count == 4 && MREGS[0].b[i*2] == 0 ) continue;
 
-        float32 val1 = FREGS[src1].f[i];
-        float32 val2 = FREGS[src2].f[i];
-        float32 val3 = FREGS[src3].f[i];
+        float32_t val1 = FREGS[src1].f[i];
+        float32_t val2 = FREGS[src2].f[i];
+        float32_t val3 = FREGS[src3].f[i];
 
         uint32_t val1u = cast_float32_to_uint32(val1);
         uint32_t val2u = cast_float32_to_uint32(val2);
@@ -3049,7 +3078,7 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
 
         bool genResult = ! ( count == 4 && MREGS[0].b[i*2] == 0 );
 
-        float32 res = FREGS[dst].f[i];
+        float32_t res = FREGS[dst].f[i];
         uint32_t resu = FREGS[dst].u[i];
 
         switch ( opc )
@@ -4417,7 +4446,7 @@ static void dcvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
 {
     for ( int i = 0; i < 4; i++ )
     {
-        float32 val  = FREGS[src1].f[i];
+        float32_t val  = FREGS[src1].f[i];
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         bool genResult = ( MREGS[0].b[i*2] != 0 );
@@ -4649,9 +4678,9 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
         if ( MREGS[0].b[i*2] == 0 ) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x3;
-        float32 rc = FREGS[src2].f[i];
+        float32_t rc = FREGS[src2].f[i];
 
-        float32 res = (face==0x3) ? nanf("") : (rc < 0) ? float32(face * 2 + 1) : float32(face * 2);
+        float32_t res = (face==0x3) ? nanf("") : (rc < 0) ? float32_t(face * 2 + 1) : float32_t(face * 2);
 
         DEBUG_EMU(gprintf("\t[%d] %d <-- %d %f\n", i, res, face, rc););
         FREGS[dst].f[i] = res;
@@ -4673,9 +4702,9 @@ void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
         if ( MREGS[0].b[i*2] == 0 ) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x7;
-        float32 sc = FREGS[src2].f[i];
+        float32_t sc = FREGS[src2].f[i];
 
-        float32 res = ((face == 0) || (face == 5)) ? -fabs(sc) : fabs(sc);
+        float32_t res = ((face == 0) || (face == 5)) ? -fabs(sc) : fabs(sc);
 
         DEBUG_EMU(gprintf("\t[%d] 0x08%x [%f] <-- %d %f\n", i, res, res, face, sc););
         FREGS[dst].f[i] = res;
@@ -4697,9 +4726,9 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
         if ( MREGS[0].b[i*2] == 0 ) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x7;
-        float32 tc = FREGS[src2].f[i];
+        float32_t tc = FREGS[src2].f[i];
 
-        float32 res = (face == 2) ? fabs(tc) : -fabs(tc);
+        float32_t res = (face == 2) ? fabs(tc) : -fabs(tc);
 
         DEBUG_EMU(gprintf("\t[%d] 0x%08x [%f] <-- %d %f\n", i, res, res, face, tc););
         FREGS[dst].f[i] = res;
@@ -5360,7 +5389,8 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 
     uint64_t set  = (addr >> 6) & 0xFFFFFF;
     uint64_t way  = (op_value >> 48) & 0xFF;
-    uint64_t cl   = (set << 2) + way % 4; // FIXME: Only valid for 4 ways
+    // uint64_t cl   = (set << 2) + way % 4; // FIXME: Only valid for 4 ways
+    uint64_t cl   = (way << 4) + set % 16; // FIXME: Only valid for 4 ways
 
     DEBUG_EMU(gprintf("\tDoing CacheOp with value %016llX\n", op_value);)
 
@@ -5380,8 +5410,8 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                               current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
                 }
 
-                set = (++cl >> 2) & 0xF;
-                way = cl & 0x3;
+                set = (++cl) & 0xF;
+                way = (cl >> 4) & 0x3;
             }
             break;
         case 2: // FlushSW
@@ -5398,8 +5428,8 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                               current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
                 }
 
-                set = (++cl >> 2) & 0xF;
-                way = cl & 0x3;
+                set = (++cl) & 0xF;
+                way = (cl >> 4) & 0x3;
             }
             break;
         case 7: // EvictVA
@@ -5835,7 +5865,7 @@ static void tensorload(uint64_t control)
                 {
                     uint64_t addr_final = addr+j*16+k*4;
                     uint32_t val32 = memread32(addr_final);
-                    float32 fval32 = cast_uint32_to_float32(val32);
+                    float32_t fval32 = cast_uint32_to_float32(val32);
 
                     SCP[dst + i][j].f[k] = fval32;
                     DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
@@ -5869,7 +5899,7 @@ void tensorload(uint64_t control)//Transtensorload
     uint64_t addr             = base;
     scp_tm                    = tm;
 
-    DEBUG_EMU(gprintf("Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop %d - dst %d - read_sc %d - boffset:%d - addr:0x%16X\n", trans, rows, tm, use_coop, dst, read_sc, boffset, addr);)
+    DEBUG_EMU(gprintf("Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - read_sc:%d - boffset:%d - addr:0x%16X\n", trans, rows, tm, use_coop, dst, read_sc, boffset, addr);)
 
     if (read_sc) {
        DEBUG_EMU(gprintf("ERROR Read from SC not currently supported in EMU !!\n");)
@@ -5890,7 +5920,7 @@ void tensorload(uint64_t control)//Transtensorload
                     {
                         uint64_t addr_final = addr+j*16+k*4;
                         uint32_t val32 = memread32(addr_final);
-                        float32 fval32 = cast_uint32_to_float32(val32);
+                        float32_t fval32 = cast_uint32_to_float32(val32);
 
                         SCP[dst + i][j].f[k] = fval32;
                         DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
@@ -6109,15 +6139,20 @@ void tensorstore(uint64_t tstorereg)
 
 static void tensorfma(uint64_t tfmareg)
 {
-    int tm         =  (tfmareg & 0x2000000000) >> 37;      // Is a Conv2D operation (use tensor conv register)
-    int aoffset    =  (tfmareg & 0x0F00000000) >> 32;      // A matrix 32b offset
-    int bcols      = ((tfmareg & 0x00F0000000) >> 28) + 1; // Number of B cols to be processed
-    int acols      = ((tfmareg & 0x000F000000) >> 24) + 1; // Number of A cols to be processed
-    int arows      = ((tfmareg & 0x0000F00000) >> 20) + 1; // Number of A rows to be processed
-    int bstart     =  (tfmareg & 0x00000FF000) >> 12;      // SCP entry where B is stored
-    int astart     =  (tfmareg & 0x0000000FF0) >>  4;      // SCP entry where A is stored
-    int type       =  (tfmareg & 0x000000000E) >>  1;      // Mode: 00 => FP32 | 01 => *FP16+FP32 | 10 => FP16 | 11 => *INT8+INT32
-    int first_pass =  (tfmareg & 0x0000000001);            // Doing a first pass op (do MUL instead of FMA)
+    int tm         = (tfmareg & 0x8000000000000000) >> 63; // Is a Conv2D operation (use tensor conv register)
+    int bcols      = (tfmareg & 0x0180000000000000) >> 55; // Number of B cols to be processed
+    int arows      = (tfmareg & 0x0070000000000000) >> 52; // Number of A rows to be processed
+    int acols      = (tfmareg & 0x000F000000000000) >> 48; // Number of A cols to be processed
+    int aoffset    = (tfmareg & 0x0000F00000000000) >> 44; // A matrix 32b offset
+    int bstart     = (tfmareg & 0x00000000000FF000) >> 12; // SCP entry where B is stored
+    int astart     = (tfmareg & 0x0000000000000FF0) >>  4; // SCP entry where A is stored
+    int type       = (tfmareg & 0x000000000000000E) >>  1; // Mode: 00 => FP32 | 01 => *FP16+FP32 | 10 => FP16 | 11 => *INT8+INT32
+    int first_pass = (tfmareg & 0x0000000000000001);       // Doing a first pass op (do MUL instead of FMA)
+
+    // Decodes fields
+    bcols = (bcols + 1) * 4;
+    arows = arows + 1;
+    acols = acols + 1;
 
     DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, bstart: %d, astart: %d\n", tm, aoffset, type, first_pass, bcols, acols, arows, bstart, astart);)
 
@@ -6148,8 +6183,6 @@ static void tensorfma(uint64_t tfmareg)
     // FP32 flow
     if(type == 0)
     {
-        if(bcols > 16) { bcols = 16; }
-
         if(first_pass)
         {
             for ( int ar = 0; ar < arows; ar++ )
@@ -6197,7 +6230,7 @@ static void tensorfma(uint64_t tfmareg)
                     int af = (aoffset + ac) / 4;
                     int am = (aoffset + ac) % 4;
                     int br = bstart + ac;                // B: traverse acols rows
-                    float32 old = FREGS[4*ar+bf].f[bm];
+                    float32_t old = FREGS[4*ar+bf].f[bm];
                     uint32_t oldu = FREGS[4*ar+bf].u[bm];
                     FREGS[4*ar+bf].f[bm] = fmaf(SCP[astart+ar][af].f[am],SCP[br][bf].f[bm],old);
                     DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n",4*ar+bf,bm,FREGS[4*ar+bf].f[bm],old,SCP[astart+ar][af].f[am],SCP[br][bf].f[bm]);)
@@ -6236,8 +6269,6 @@ static void tensorfma(uint64_t tfmareg)
     // *FP16+FP32
     else if(type == 1)
     {
-        if(bcols > 16) { bcols = 16; }
-
         if(first_pass)
         {
             for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
@@ -6285,34 +6316,34 @@ static void tensorfma(uint64_t tfmareg)
                 
 
                     // Doing two FMAs per lane and accumulating to previous results
-                    float32 accum      = FREGS[4*ar+bf].f[bm];
+                    float32_t accum      = FREGS[4*ar+bf].f[bm];
 
 #ifdef USE_REAL_TXFMA
                     // 1st FMA
-                    uint32_t mul1_a_hex = SCP[astart+ar][af].h[am * 2];                             // get first operand
-                    bool     mul1_a_den = ((mul1_a_hex & 0x7C00) == 0);                             // detect input denormal or zero
-                    float32  mul1_a     = mul1_a_den ? 0 : _cvtsh_ss(mul1_a_hex);                   // convert to fp32
-                    int32_t  mul1_a_exp = ((mul1_a_hex >> 10) & 0x1F) - 15;                         // get exponent
+                    uint32_t  mul1_a_hex = SCP[astart+ar][af].h[am * 2];                            // get first operand
+                    bool      mul1_a_den = ((mul1_a_hex & 0x7C00) == 0);                            // detect input denormal or zero
+                    float32_t mul1_a     = mul1_a_den ? 0 : _cvtsh_ss(mul1_a_hex);                  // convert to fp32
+                    int32_t   mul1_a_exp = ((mul1_a_hex >> 10) & 0x1F) - 15;                        // get exponent
 
-                    uint32_t mul1_b_hex = SCP[br][bf].h[bm * 2];                                    // get second operand
-                    bool     mul1_b_den = ((mul1_b_hex & 0x7C00) == 0);                             // detect input denormal or zero
-                    float32  mul1_b     = mul1_b_den ? 0 : _cvtsh_ss(mul1_b_hex);                   // convert to fp32
-                    int32_t  mul1_b_exp = ((mul1_b_hex >> 10) & 0x1F) - 15;                         // get exponent
+                    uint32_t  mul1_b_hex = SCP[br][bf].h[bm * 2];                                   // get second operand
+                    bool      mul1_b_den = ((mul1_b_hex & 0x7C00) == 0);                            // detect input denormal or zero
+                    float32_t mul1_b     = mul1_b_den ? 0 : _cvtsh_ss(mul1_b_hex);                  // convert to fp32
+                    int32_t   mul1_b_exp = ((mul1_b_hex >> 10) & 0x1F) - 15;                        // get exponent
 
-                    float32  fma1       = mul1_a * mul1_b;                                          // perform first mul
+                    float32_t fma1       = mul1_a * mul1_b;                                         // perform first mul
 
                     // 2nd FMA
-                    uint32_t mul2_a_hex = SCP[astart+ar][af].h[am * 2 + 1];                         // get third operand
-                    bool     mul2_a_den = ((mul2_a_hex & 0x7C00) == 0);                             // detect input denormal or zero
-                    float32  mul2_a     = mul2_a_den ? 0 : _cvtsh_ss(mul2_a_hex);                   // convert to fp32
-                    int32_t  mul2_a_exp = ((mul2_a_hex >> 10) & 0x1F) - 15;                         // get exponent
+                    uint32_t  mul2_a_hex = SCP[astart+ar][af].h[am * 2 + 1];                        // get third operand
+                    bool      mul2_a_den = ((mul2_a_hex & 0x7C00) == 0);                            // detect input denormal or zero
+                    float32_t mul2_a     = mul2_a_den ? 0 : _cvtsh_ss(mul2_a_hex);                  // convert to fp32
+                    int32_t   mul2_a_exp = ((mul2_a_hex >> 10) & 0x1F) - 15;                        // get exponent
 
-                    uint32_t mul2_b_hex = SCP[br][bf].h[bm * 2 + 1];                                // get fourth operand
-                    bool     mul2_b_den = ((mul2_b_hex & 0x7C00) == 0);                             // detect input denormal or zero
-                    float32  mul2_b     = mul2_b_den ? 0 : _cvtsh_ss(mul2_b_hex);                   // convert to fp32
-                    int32_t  mul2_b_exp = ((mul2_b_hex >> 10) & 0x1F) - 15;                         // get exponent
+                    uint32_t  mul2_b_hex = SCP[br][bf].h[bm * 2 + 1];                               // get fourth operand
+                    bool      mul2_b_den = ((mul2_b_hex & 0x7C00) == 0);                            // detect input denormal or zero
+                    float32_t mul2_b     = mul2_b_den ? 0 : _cvtsh_ss(mul2_b_hex);                  // convert to fp32
+                    int32_t   mul2_b_exp = ((mul2_b_hex >> 10) & 0x1F) - 15;                        // get exponent
 
-                    float32  fma2       = mul2_a * mul2_b;                                          // perform second mul
+                    float32_t fma2       = mul2_a * mul2_b;                                         // perform second mul
 
                     // Get hex value and exponents of three operands of final addition
                     uint32_t hex_accum  = * (uint32_t * ) &accum;
@@ -6348,21 +6379,21 @@ static void tensorfma(uint64_t tfmareg)
                                                                 (hex_fma2  & ((0xFFFFFFFF >>  fma2_erase) <<  fma2_erase));
 
                     // Convert back to fp32 after truncation
-                    float32 accum_fp32 = * (float32 *) &accum_trunc;
-                    float32  fma1_fp32 = * (float32 *) &fma1_trunc;
-                    float32  fma2_fp32 = * (float32 *) &fma2_trunc;
+                    float32_t accum_fp32 = * (float32_t *) &accum_trunc;
+                    float32_t  fma1_fp32 = * (float32_t *) &fma1_trunc;
+                    float32_t  fma2_fp32 = * (float32_t *) &fma2_trunc;
 
                     // Perform accumulation (first in fp64 to avoid uncontrolled rounding => then clip to fp32 with appropiate rounding)
-                    float64 res64       = (float64)accum_fp32 + (float64)fma1_fp32 + (float64)fma2_fp32;
+                    float64_t res64       = (float64_t)accum_fp32 + (float64_t)fma1_fp32 + (float64_t)fma2_fp32;
                     uint64_t  hex_res64 = * (uint64_t * ) &res64;
                     hex_res64           = hex_res64 & 0xFFFFFFFFE0000000; // Cut mantissa down to 23 bits from original 52 bits of FP64
-                    res64               = * (float64 * ) &hex_res64;
-                    float32 res = (float32)res64;
+                    res64               = * (float64_t * ) &hex_res64;
+                    float32_t res = (float32_t)res64;
 
                     // Finally, clear output denormals
                     uint32_t hex_res = * (uint32_t * ) &res;
                     hex_res          = ((hex_res & 0x7F800000) == 0) ? (hex_res & 0x80000000) : hex_res; // kill output denormal to zero (preserve sign)
-                    res              = * (float32 *) &hex_res;
+                    res              = * (float32_t *) &hex_res;
                     FREGS[4*ar+bf].f[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f + %f * %f\n", 4 * ar + bf, bm, res, accum, mul1_a, mul1_b, mul2_a, mul2_b);)
@@ -6375,10 +6406,10 @@ static void tensorfma(uint64_t tfmareg)
 #else
                     // 1st FMA
                     uint32_t  mul_a_hex  = SCP[astart+ar][af].h[am * 2];
-                    float32 mul_a        = _cvtsh_ss(mul_a_hex);
+                    float32_t mul_a      = _cvtsh_ss(mul_a_hex);
                     uint32_t  mul_b_hex  = SCP[br][bf].h[bm * 2];
-                    float32 mul_b        = _cvtsh_ss(mul_b_hex);
-                    float32 res          = fmaf(mul_a, mul_b, accum);
+                    float32_t mul_b      = _cvtsh_ss(mul_b_hex);
+                    float32_t res        = fmaf(mul_a, mul_b, accum);
                     FREGS[4*ar+bf].f[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
@@ -6477,12 +6508,12 @@ static void tensorfma(uint64_t tfmareg)
                     int br = bstart + ac;                // B: traverse rows
 
                     uint32_t  mul_a_hex = SCP[astart+ar][af].h[am];
-                    float32   mul_a     = _cvtsh_ss(mul_a_hex);
+                    float32_t mul_a     = _cvtsh_ss(mul_a_hex);
                     uint32_t  mul_b_hex = SCP[br][bf].h[bm];
-                    float32   mul_b     = _cvtsh_ss(mul_b_hex);
+                    float32_t mul_b     = _cvtsh_ss(mul_b_hex);
                     uint32_t  accum_hex = FREGS[4*ar+bf].h[bm];
-                    float32   accum     = _cvtsh_ss(accum_hex);
-                    float32   res       = fmaf(mul_a, mul_b, accum);
+                    float32_t accum     = _cvtsh_ss(accum_hex);
+                    float32_t res       = fmaf(mul_a, mul_b, accum);
                     FREGS[4*ar+bf].h[bm] = _cvtss_sh(res, 0);
 
                     DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
@@ -6515,8 +6546,6 @@ static void tensorfma(uint64_t tfmareg)
     }
     else if(type == 3) //INT8-INT32
     {
-
-        if(bcols > 16) { bcols = 16; }
 
         if(first_pass)
         {
@@ -6674,7 +6703,6 @@ static void tensorreduce(uint64_t value)
 {
     uint64_t other_min;
     uint64_t action;
-    uint32_t operation = (value >> 32) & 0xF;
 
     get_reduce_info(value, &other_min, &action);
 
@@ -6687,8 +6715,9 @@ static void tensorreduce(uint64_t value)
     // Receive
 
     //op = rs[35:32]
-    int start_reg = (value >> 24) & 0xFF;
-    int num_reg   = (value >> 16) & 0xFF;
+    int      start_reg = (value >> 57) & 0x1F;
+    uint32_t operation = (value >> 24) & 0xF;
+    int      num_reg   = (value >> 16) & 0xFF;
 
     // Info for checker
     reduce_size[current_thread]  = num_reg;
