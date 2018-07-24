@@ -11,7 +11,7 @@ template<typename T> T rshift(T v, unsigned int s) {
 }
 
 
-float32 float16tofloat32(uint32_t val)
+float32_t float16tofloat32(uint32_t val)
 {
     uint8_t  sign;
     uint32_t mantissa;
@@ -43,7 +43,7 @@ float32 float16tofloat32(uint32_t val)
     if (zero)
        return (sign == 0) ? 0.0f : -0.0f;
 
-    //  Convert exponent and mantissa to float32.  Convert from excess 15 and convert to excess 127.
+    //  Convert exponent and mantissa to float32_t.  Convert from excess 15 and convert to excess 127.
     if (infinite || nan)
         exponent = 0xff;
     else
@@ -53,7 +53,7 @@ float32 float16tofloat32(uint32_t val)
     if (nan)
       sign = 0;
 
-    //  Convert mantissa to float32.  Mantissa goes from 10+1 bits to 23+1 bits.
+    //  Convert mantissa to float32_t.  Mantissa goes from 10+1 bits to 23+1 bits.
     if (infinite)
         mantissa = mantissa;
     else if (nan)
@@ -95,7 +95,7 @@ float32 float16tofloat32(uint32_t val)
         mantissa = ((mantissa << normbits) & 0x007fffff);
     }
 
-    //  Assemble the float32 value with the obtained sign, exponent and mantissa.
+    //  Assemble the float32_t value with the obtained sign, exponent and mantissa.
     output = (sign << 31) | (uint32_t(exponent & 0xff) << 23) | mantissa;
 
     // Clear number in case of denormal
@@ -106,7 +106,7 @@ float32 float16tofloat32(uint32_t val)
     return cast_uint32_to_float32(output);
 }
 
-float32 float11tofloat32(uint32_t val)
+float32_t float11tofloat32(uint32_t val)
 {
     uint32_t mantissa;
     int32_t  exponent;
@@ -133,13 +133,13 @@ float32 float11tofloat32(uint32_t val)
     if (zero)
        return 0.0f;
 
-    //  Convert exponent and mantissa to float32.  Convert from excess 15 and convert to excess 127.
+    //  Convert exponent and mantissa to float32_t.  Convert from excess 15 and convert to excess 127.
     if (infinite || nan)
         exponent = 0xff;
     else
         exponent = denorm ? (-14 + 127) : (exponent - 15) + 127;
 
-    //  Convert mantissa to float32.  Mantissa goes from 6+1 bits to 23+1 bits.
+    //  Convert mantissa to float32_t.  Mantissa goes from 6+1 bits to 23+1 bits.
     if (infinite || nan)
         mantissa = mantissa;
     else
@@ -171,13 +171,13 @@ float32 float11tofloat32(uint32_t val)
         mantissa = ((mantissa << normbits) & 0x007fffff);
     }
 
-    //  Assemble the float32 value with the obtained sign, exponent and mantissa.
+    //  Assemble the float32_t value with the obtained sign, exponent and mantissa.
     output = (uint32_t(exponent & 0xff) << 23) | mantissa;
 
     return cast_uint32_to_float32(output);
 }
 
-float32 float10tofloat32(uint32_t val)
+float32_t float10tofloat32(uint32_t val)
 {
     uint32_t mantissa;
     int32_t  exponent;
@@ -204,13 +204,13 @@ float32 float10tofloat32(uint32_t val)
     if (zero)
        return 0.0f;
 
-    //  Convert exponent and mantissa to float32.  Convert from excess 15 and convert to excess 127.
+    //  Convert exponent and mantissa to float32_t.  Convert from excess 15 and convert to excess 127.
     if (infinite || nan)
         exponent = 0xff;
     else
         exponent = denorm ? (-14 + 127) : (exponent - 15) + 127;
 
-    //  Convert mantissa to float32.  Mantissa goes from 5+1 bits to 23+1 bits.
+    //  Convert mantissa to float32_t.  Mantissa goes from 5+1 bits to 23+1 bits.
     if (infinite || nan)
         mantissa = mantissa;
     else
@@ -240,13 +240,13 @@ float32 float10tofloat32(uint32_t val)
         mantissa = ((mantissa << normbits) & 0x007fffff);
     }
 
-    //  Assemble the float32 value with the obtained sign, exponent and mantissa.
+    //  Assemble the float32_t value with the obtained sign, exponent and mantissa.
     output = (uint32_t(exponent & 0xff) << 23) | mantissa;
 
     return cast_uint32_to_float32(output);
 }
 
-uint32_t float32tofloat16(float32 val)
+uint32_t float32tofloat16(float32_t val)
 {
     uint8_t  sign;
     uint32_t mantissa32;
@@ -259,7 +259,7 @@ uint32_t float32tofloat16(float32 val)
 
     inputAux = cast_float32_to_uint32(val);
 
-    //  Disassemble float32 value into sign, exponent and mantissa.
+    //  Disassemble float32_t value into sign, exponent and mantissa.
 
     //  Extract sign.
     sign = ((inputAux & 0x80000000) == 0) ? 0 : 1;
@@ -275,7 +275,7 @@ uint32_t float32tofloat16(float32 val)
     zero = (exponent == 0) && (mantissa32 == 0);
     nan = (exponent == 0xff) && (mantissa32 != 0);
 
-    //  Flush float32 denorms to 0
+    //  Flush float32_t denorms to 0
     if (denorm || zero)
         return (sign == 0) ? 0x0000 : 0x8000;
 
@@ -291,7 +291,7 @@ uint32_t float32tofloat16(float32 val)
 
         if (exponent > 0)
         {
-            //  Convert mantissa from float32 to float16.  Mantissa 23+1 to mantissa 10+1.
+            //  Convert mantissa from float32_t to float16.  Mantissa 23+1 to mantissa 10+1.
             mantissa16 = (mantissa32 >> 13) & 0x03ff;
 
             // apply rounding
@@ -308,10 +308,10 @@ uint32_t float32tofloat16(float32 val)
         //  Check for denormalized float16 number.
         else
         {
-            //  Add implicit float32 bit to the mantissa.
+            //  Add implicit float32_t bit to the mantissa.
             mantissa32 = mantissa32 + 0x800000;
 
-            //  Convert mantissa from float32 to float16.  Mantissa 23+1 to mantissa 10+1.
+            //  Convert mantissa from float32_t to float16.  Mantissa 23+1 to mantissa 10+1.
             mantissa16 = (mantissa32 >> 13) & 0x07ff;
 
             //  Denormalize mantissa.
@@ -338,7 +338,7 @@ uint32_t float32tofloat16(float32 val)
     }
 }
 
-uint32_t float32tofloat11(float32 val)
+uint32_t float32tofloat11(float32_t val)
 {
     uint8_t  sign;
     uint32_t mantissa32;
@@ -351,7 +351,7 @@ uint32_t float32tofloat11(float32 val)
 
     inputAux = cast_float32_to_uint32(val);
 
-    //  Disassemble float32 value into sign, exponent and mantissa.
+    //  Disassemble float32_t value into sign, exponent and mantissa.
 
     //  Extract sign.
     sign = ((inputAux & 0x80000000) == 0) ? 0 : 1;
@@ -367,7 +367,7 @@ uint32_t float32tofloat11(float32 val)
     zero = (exponent == 0) && (mantissa32 == 0);
     nan = (exponent == 0xff) && (mantissa32 != 0);
 
-    //  Flush float32 denorms to 0
+    //  Flush float32_t denorms to 0
     if (denorm || zero || (sign != 0))
         return 0x0000;
 
@@ -383,7 +383,7 @@ uint32_t float32tofloat11(float32 val)
 
         if (exponent > 0)
         {
-            //  Convert mantissa from float32 to float11.  Mantissa 23+1 to mantissa 6+1.
+            //  Convert mantissa from float32_t to float11.  Mantissa 23+1 to mantissa 6+1.
             mantissa11 = (mantissa32 >> 17) & 0x003f;
 
             // apply rounding
@@ -400,10 +400,10 @@ uint32_t float32tofloat11(float32 val)
         //  Check for denormalized float11 number.
         else
         {
-            //  Add implicit float32 bit to the mantissa.
+            //  Add implicit float32_t bit to the mantissa.
             mantissa32 = mantissa32 + 0x800000;
 
-            //  Convert mantissa from float32 to float16.  Mantissa 23+1 to mantissa 10+1.
+            //  Convert mantissa from float32_t to float16.  Mantissa 23+1 to mantissa 10+1.
             mantissa11 = (mantissa32 >> 17) & 0x07f;
 
             //  Denormalize mantissa.
@@ -431,7 +431,7 @@ uint32_t float32tofloat11(float32 val)
     }
 }
 
-uint32_t float32tofloat10(float32 val)
+uint32_t float32tofloat10(float32_t val)
 {
     uint8_t  sign;
     uint32_t mantissa32;
@@ -444,7 +444,7 @@ uint32_t float32tofloat10(float32 val)
 
     inputAux = cast_float32_to_uint32(val);
 
-    //  Disassemble float32 value into sign, exponent and mantissa.
+    //  Disassemble float32_t value into sign, exponent and mantissa.
 
     //  Extract sign.
     sign = ((inputAux & 0x80000000) == 0) ? 0 : 1;
@@ -460,7 +460,7 @@ uint32_t float32tofloat10(float32 val)
     zero = (exponent == 0) && (mantissa32 == 0);
     nan = (exponent == 0xff) && (mantissa32 != 0);
 
-    //  Flush float32 denorms to 0
+    //  Flush float32_t denorms to 0
     if (denorm || zero || (sign != 0))
         return 0x0000;
 
@@ -476,7 +476,7 @@ uint32_t float32tofloat10(float32 val)
 
         if (exponent > 0)
         {
-            //  Convert mantissa from float32 to float10.  Mantissa 23+1 to mantissa 5+1.
+            //  Convert mantissa from float32_t to float10.  Mantissa 23+1 to mantissa 5+1.
             mantissa10 = (mantissa32 >> 18) & 0x001f;
 
             // apply rounding
@@ -493,10 +493,10 @@ uint32_t float32tofloat10(float32 val)
         //  Check for denormalized float10 number.
         else
         {
-            //  Add implicit float32 bit to the mantissa.
+            //  Add implicit float32_t bit to the mantissa.
             mantissa32 = mantissa32 + 0x800000;
 
-            //  Convert mantissa from float32 to float16.  Mantissa 23+1 to mantissa 5+1.
+            //  Convert mantissa from float32_t to float16.  Mantissa 23+1 to mantissa 5+1.
             mantissa10 = (mantissa32 >> 18) & 0x003f;
 
             //  Denormalize mantissa.
@@ -524,85 +524,85 @@ uint32_t float32tofloat10(float32 val)
     }
 }
 
-float32 unorm24tofloat32(uint32_t val)
+float32_t unorm24tofloat32(uint32_t val)
 {
     uint32_t maxrange = (1 << 24) - 1;
-    return ( (float32)(val & 0xFFFFFF) / (float32)maxrange);
+    return ( (float32_t)(val & 0xFFFFFF) / (float32_t)maxrange);
 }
 
-float32 unorm16tofloat32(uint32_t val)
+float32_t unorm16tofloat32(uint32_t val)
 {
     uint32_t maxrange = (1 << 16) - 1;
-    return ((float32)(val & 0xFFFF) / (float32)maxrange);
+    return ((float32_t)(val & 0xFFFF) / (float32_t)maxrange);
 }
 
-float32 unorm10tofloat32(uint32_t val)
+float32_t unorm10tofloat32(uint32_t val)
 {
     uint32_t maxrange = (1 << 10) - 1;
-    return ((float32)(val & 0x3FF) / (float32)maxrange);
+    return ((float32_t)(val & 0x3FF) / (float32_t)maxrange);
 };
 
-float32 unorm8tofloat32(uint32_t val)
+float32_t unorm8tofloat32(uint32_t val)
 {
     uint32_t maxrange = (1 << 8 ) - 1;
-    return ( (float32)(val & 0xFF) / (float32)maxrange);
+    return ( (float32_t)(val & 0xFF) / (float32_t)maxrange);
 }
 
-float32 unorm2tofloat32(uint32_t val)
+float32_t unorm2tofloat32(uint32_t val)
 {
     uint32_t maxrange = (1 << 2) - 1;
-    return ((float32)(val & 0x3) / (float32)maxrange);
+    return ((float32_t)(val & 0x3) / (float32_t)maxrange);
 };
 
-float32 snorm24tofloat32(uint32_t val)
+float32_t snorm24tofloat32(uint32_t val)
 {
     if (val == (1 << 23)) val = (1 << 23) + 1;
-    float32 sign = ((val & 0x00800000) == 0) ? 1 : -1;
-    float32 value = ((sign < 0) ? (~val + 1) : val) & 0x007fffff;
-    float32 maxrange = float32((1 << 23) - 1);
+    float32_t sign = ((val & 0x00800000) == 0) ? 1 : -1;
+    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x007fffff;
+    float32_t maxrange = float32_t((1 << 23) - 1);
     return sign * (value / maxrange);
 }
 
-float32 snorm16tofloat32(uint32_t val)
+float32_t snorm16tofloat32(uint32_t val)
 {
     if (val == (1 << 15)) val = (1 << 15) + 1;
-    float32 sign = ((val & 0x00008000) == 0) ? 1 : -1;
-    float32 value = ((sign < 0) ? (~val + 1) : val) & 0x00007fff;
-    float32 maxrange = float32((1 << 15) - 1);
+    float32_t sign = ((val & 0x00008000) == 0) ? 1 : -1;
+    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00007fff;
+    float32_t maxrange = float32_t((1 << 15) - 1);
     return sign * (value / maxrange);
 }
 
-float32 snorm10tofloat32(uint32_t val)
+float32_t snorm10tofloat32(uint32_t val)
 {
     if (val == (1 << 9)) val = (1 << 9) + 1;
-    float32 sign = ((val & 0x000200) == 0) ? 1 : -1;
-    float32 value = ((sign < 0) ? (~val + 1) : val) & 0x0000001ff;
-    float32 maxrange = float32((1 << 9) - 1);
+    float32_t sign = ((val & 0x000200) == 0) ? 1 : -1;
+    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000001ff;
+    float32_t maxrange = float32_t((1 << 9) - 1);
     return sign * (value / maxrange);
 }
 
-float32 snorm8tofloat32(uint32_t val)
+float32_t snorm8tofloat32(uint32_t val)
 {
     if (val == (1 << 7)) val = (1 << 7) + 1;
-    float32 sign = ((val & 0x000080) == 0) ? 1 : -1;
-    float32 value = ((sign < 0) ? (~val + 1) : val) & 0x0000007f;
-    float32 maxrange = float32((1 << 7) - 1);
+    float32_t sign = ((val & 0x000080) == 0) ? 1 : -1;
+    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000007f;
+    float32_t maxrange = float32_t((1 << 7) - 1);
     return sign * (value / maxrange);
 }
 
-float32 snorm2tofloat32(uint32_t val)
+float32_t snorm2tofloat32(uint32_t val)
 {
     if (val == (1 << 1)) val = (1 << 1) + 1;
-    float32 sign = ((val & 0x00000002) == 0) ? 1 : -1;
-    float32 value = ((sign < 0) ? (~val + 1) : val) & 0x00000001;
-    float32 maxrange = float32((1 << 1) - 1);
+    float32_t sign = ((val & 0x00000002) == 0) ? 1 : -1;
+    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00000001;
+    float32_t maxrange = float32_t((1 << 1) - 1);
     return sign * (value / maxrange);
 }
 
-uint32_t float32tounorm24(float32 val)
+uint32_t float32tounorm24(float32_t val)
 {
-    float64 delta;
-    float64 ratio;
+    float64_t delta;
+    float64_t ratio;
 
     if((val >= 1.0) || isnan(val))
         return 0x00ffffff;
@@ -616,10 +616,10 @@ uint32_t float32tounorm24(float32 val)
 
 }
 
-uint32_t float32tounorm16(float32 val)
+uint32_t float32tounorm16(float32_t val)
 {
-    float64 delta;
-    float64 ratio;
+    float64_t delta;
+    float64_t ratio;
 
     if((val >= 1.0) || isnan(val))
         return 0x0000ffff;
@@ -633,10 +633,10 @@ uint32_t float32tounorm16(float32 val)
 
 }
 
-uint32_t float32tounorm10(float32 val)
+uint32_t float32tounorm10(float32_t val)
 {
-    float64 delta;
-    float64 ratio;
+    float64_t delta;
+    float64_t ratio;
 
     if((val >= 1.0) || isnan(val))
         return 0x000003ff;
@@ -650,10 +650,10 @@ uint32_t float32tounorm10(float32 val)
 
 }
 
-uint32_t float32tounorm8(float32 val)
+uint32_t float32tounorm8(float32_t val)
 {
-    float64 delta;
-    float64 ratio;
+    float64_t delta;
+    float64_t ratio;
 
     if((val >= 1.0) || isnan(val))
         return 0x000000ff;
@@ -667,10 +667,10 @@ uint32_t float32tounorm8(float32 val)
 
 }
 
-uint32_t float32tounorm2(float32 val)
+uint32_t float32tounorm2(float32_t val)
 {
-    float64 delta;
-    float64 ratio;
+    float64_t delta;
+    float64_t ratio;
 
     if((val >= 1.0) || isnan(val))
         return 0x00000003;
@@ -684,7 +684,7 @@ uint32_t float32tounorm2(float32 val)
 
 }
 
-uint32_t float32tosnorm24(float32 val)
+uint32_t float32tosnorm24(float32_t val)
 {
     if((val >= 1.0) || isnan(val))
         return 0x007fffff;
@@ -692,14 +692,14 @@ uint32_t float32tosnorm24(float32 val)
         return 0x00800001;
     else
     {
-        float32 int_val = round(val * ((1 << 23) - 1));
+        float32_t int_val = round(val * ((1 << 23) - 1));
         int32_t res = int32_t(int_val);
         return uint32_t(res) & 0x00ffffff;
     }
 
 }
 
-uint32_t float32tosnorm16(float32 val)
+uint32_t float32tosnorm16(float32_t val)
 {
     if((val >= 1.0) || isnan(val))
         return 0x00007fff;
@@ -707,13 +707,13 @@ uint32_t float32tosnorm16(float32 val)
         return 0x00008001;
     else
     {
-        float32 int_val = round(val * ((1 << 15) - 1));
+        float32_t int_val = round(val * ((1 << 15) - 1));
         int32_t res = int32_t(int_val);
         return uint32_t(res) & 0x00ffff;
     }
 }
 
-uint32_t float32tosnorm8(float32 val)
+uint32_t float32tosnorm8(float32_t val)
 {
     if((val >= 1.0) || isnan(val))
         return 0x0000007f;
@@ -721,7 +721,7 @@ uint32_t float32tosnorm8(float32 val)
         return 0x00000081;
     else
     {
-        float32 int_val = round(val * ((1 << 7) - 1));
+        float32_t int_val = round(val * ((1 << 7) - 1));
         int32_t res = int32_t(int_val);
         return uint32_t(res) & 0x00ff;
     }
