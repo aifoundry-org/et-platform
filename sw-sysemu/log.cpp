@@ -28,11 +28,20 @@ void clearlogstate()
         {
            log_info->m_reg_data[m][i] = 0;
         }
+#if (VL==4)
+        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+        for(int i = 0; i < VL; i++)
+        {
+            log_info->m_reg_data[m][i+VL] = 0;
+        }
+#endif
     }
     log_info->fp_reg_mod = false;
     log_info->fp_reg_rd = 0;
     for(int i = 0; i < (VL/2); i++)
+    {
         log_info->fp_reg_data[i] = 0;
+    }
     for(int i = 0; i < 4; i++)
     {
         log_info->mem_mod[i]  = false;
@@ -66,6 +75,7 @@ void logtrap()
 // Adds an int register change
 void logxregchange(int xdst)
 {
+    assert(xdst < 32);
     if(log_info == NULL) return;
     log_info->int_reg_mod = true;
     log_info->int_reg_rd = xdst;
@@ -75,6 +85,7 @@ void logxregchange(int xdst)
 // Adds a float register change
 void logfregchange(int fdst)
 {
+    assert(fdst < 32);
     if(log_info == NULL) return;
     log_info->fp_reg_mod = true;
     log_info->fp_reg_rd = fdst;
@@ -85,10 +96,16 @@ void logfregchange(int fdst)
 // Adds a mask register change
 void logmregchange(int mdst)
 {
+    assert(mdst < 8);
     if(log_info == NULL) return;
     log_info->m_reg_mod[mdst] = true;
     for(int i = 0; i < VL; i++)
         log_info->m_reg_data[mdst][i] = MREGS[mdst].b[i];
+#if (VL==4)
+    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+    for(int i = 0; i < VL; i++)
+        log_info->m_reg_data[mdst][i+VL] = MREGS[mdst]._xb[i];
+#endif
 }
 
 void logmemwchange(int pos, int size, uint64_t addr, uint64_t val)
