@@ -2410,7 +2410,7 @@ void mret(const char* comm)
     // Set mie = mpie, mpie = 1, mpp = U (0), prv = mpp
     csrset(csr_mstatus, mstatus_clean | (mpie << 3) | (1 << 7));
     csrset(csr_prv, mpp);
-    DEBUG_EMU(gprintf("Now running in %s mode\n", (spp == CSR_PRV_M) ? "M" : (spp == CSR_PRV_S) ? "S" : "U");)
+    DEBUG_EMU(gprintf("Now running in %s mode\n", (mpp == CSR_PRV_M) ? "M" : (mpp == CSR_PRV_S) ? "S" : "U");)
 }
 
 void wfi(const char* comm)
