@@ -446,9 +446,13 @@ typedef union
     int64_t   xs;
 } xdata;
 
-typedef union
+typedef struct
 {
     uint8_t   b[VL];
+#if (VL==4)
+    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+    uint8_t   _xb[VL];
+#endif
 } mdata;
 
 typedef union
