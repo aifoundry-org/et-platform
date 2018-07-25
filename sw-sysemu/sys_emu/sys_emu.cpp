@@ -479,8 +479,8 @@ int main(int argc, char * argv[])
             if(do_log) { printf("Starting emu of thread %i\n", thread_id); }
 
             // Gets instruction and sets state
-            inst = inst_cache->get_instruction(virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch));
             set_thread(thread_id);
+            inst = inst_cache->get_instruction(virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch));
             set_pc(current_pc[thread_id]);
             clearlogstate();
             if(do_log)
