@@ -3410,14 +3410,12 @@ void fnmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 
 static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
 {
-    uint8_t val1, val2;
-
     for ( int i = 0; i < VL; i++ )
     {
-        val1  = MREGS[src1].b[i];
-        val2  = (src2 == mnone) ? 0 : MREGS[src2].b[i];
+        uint8_t val1  = MREGS[src1].b[i];
+        uint8_t val2  = (src2 == mnone) ? 0 : MREGS[src2].b[i];
 
-        bool res;
+        uint8_t res;
         switch ( opc )
         {
             case MAND:   res = (val1 & val2) & 0x1;
@@ -3438,6 +3436,35 @@ static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
         }
         MREGS[dst].b[i] = res;
     }
+#if (VL==4)
+    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+    for ( int i = 0; i < VL; i++ )
+    {
+        uint8_t val1  = MREGS[src1]._xb[i];
+        uint8_t val2  = (src2 == mnone) ? 0 : MREGS[src2]._xb[i];
+
+        uint8_t res;
+        switch ( opc )
+        {
+            case MAND:   res = (val1 & val2) & 0x1;
+                         DEBUG_EMU(gprintf("\t[%d] %d <-- %d & %d\n",i,res,val1,val2);)
+                         break;
+            case MOR:    res = (val1 | val2) & 0x1;
+                         DEBUG_EMU(gprintf("\t[%d] %d <-- %d | %d\n",i,res,val1,val2);)
+                         break;
+            case MXOR:   res = (val1 ^ val2) & 0x1;
+                         DEBUG_EMU(gprintf("\t[%d] %d <-- %d ^ %d\n",i,res,val1,val2);)
+                         break;
+            case MNOT:   res = (~val1) & 0x1;
+                         DEBUG_EMU(gprintf("\t[%d] %d <-- ~%d\n",i,res,val1);)
+                         break;
+            default:     assert(0);
+                         break;
+
+        }
+        MREGS[dst]._xb[i] = res;
+    }
+#endif
     logmregchange(dst);
     IPC(ipc_msk(opc,dst,src1,src2,dis);)
 }
@@ -3480,16 +3507,22 @@ void mova_x_m(xreg dst, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis););
 
     uint64_t val = 0;
-    for ( int m = 0; m < 8; m++ )
+    for ( int m = 7; m >= 0; m-- )
     {
-        uint32_t start = m * 8/*FIXME: VL*/;
-        uint64_t msk   = 0;
+#if (VL==4)
+        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+        val <<= VL;
         for ( int i = 0; i < VL; i++ )
         {
-            msk |= (MREGS[m].b[i] & 0x1) << i;
+            val |= (MREGS[m]._xb[i] & 0x1) << i;
         }
-        val |= msk << start;
-        DEBUG_EMU(gprintf("\taccumulating into 0x%016llx reg m%d = 0x%08x \n",val,m,msk););
+#endif
+        val <<= VL;
+        for ( int i = 0; i < VL; i++ )
+        {
+            val |= (MREGS[m].b[i] & 0x1) << i;
+        }
+        DEBUG_EMU(gprintf("\taccumulating into 0x%016llx reg m%d = 0x%08x \n",val,m,(val&((1u<<VL)-1))););
     }
     if(dst != x0)
         XREGS[dst].x = val;
@@ -3506,13 +3539,21 @@ void mova_m_x(xreg src1, const char* comm)
     DEBUG_EMU(gprintf("\tallmasks <-- 0x%016x\n",val););
     for ( int m = 0; m < 8; m++ )
     {
-        uint32_t start = m * 8/*FIXME: VL*/;
-        uint64_t msk   = (val >> start);
         for ( int i = 0; i < VL; i++ )
         {
-            MREGS[m].b[i] = (msk >> i) & 0x1;
-            DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x \n",m,i,MREGS[m].b[i]););
+            MREGS[m].b[i] = (val >> i) & 0x1;
+            DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x\n",m,i,MREGS[m].b[i]););
         }
+        val >>= VL;
+#if (VL==4)
+        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+        for ( int i = 0; i < VL; i++ )
+        {
+            MREGS[m]._xb[i] = (val >> i) & 0x1;
+            DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x\n",m,i+VL,MREGS[m]._xb[i]););
+        }
+        val >>= VL;
+#endif
         logmregchange(m);
     }
 }
@@ -3523,13 +3564,21 @@ void mov_m_x(mreg dst, xreg src1, uint32_t imm, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
 
-    unsigned char val = XREGS[src1].b[0] | (imm & 0xFF);
-    DEBUG_EMU(gprintf("\t0x%08x <- \n", val);)
+    uint32_t val = XREGS[src1].w[0] | (imm & ((1u<<VL) - 1u));
     for ( int i = 0; i < VL; i++ )
     {
         MREGS[dst].b[i] = ( val >> i ) & 0x1;
-        //DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%08x  (from val=0x%08x)\n",dst,i,MREGS[dst].b[i],val););
+        DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x  (from val=0x%08x)\n",dst,i,MREGS[dst].b[i],val););
     }
+#if (VL==4)
+    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+    val >>= VL;
+    for ( int i = 0; i < VL; i++ )
+    {
+        MREGS[dst]._xb[i] = ( val >> i ) & 0x1;
+        DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x  (from val=0x%08x)\n",dst,i+VL,MREGS[dst]._xb[i],val););
+    }
+#endif
     logmregchange(dst);
 }
 
@@ -3543,6 +3592,14 @@ void maskpopc(xreg dst, mreg src1, const char* comm)
         count += (MREGS[src1].b[i] ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d\n",count,src1,i,MREGS[src1].b[i]););
     }
+#if (VL==4)
+    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+    for(int i = 0; i < VL; i++ )
+    {
+        count += (MREGS[src1]._xb[i] ? 1 : 0);
+        DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d\n",count,src1,i+VL,MREGS[src1]._xb[i]););
+    }
+#endif
     if ( dst != x0 ) XREGS[dst].x = count;
     logxregchange(dst);
 }
@@ -3557,6 +3614,14 @@ void maskpopcz(xreg dst, mreg src1, const char* comm)
         count += (MREGS[src1].b[i] ? 0 : 1);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d \n",count,src1,i,MREGS[src1].b[i]););
     }
+#if (VL==4)
+    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+    for(int i = 0; i < VL; i++ )
+    {
+        count += (MREGS[src1]._xb[i] ? 0 : 1);
+        DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d \n",count,src1,i+VL,MREGS[src1]._xb[i]););
+    }
+#endif
     if ( dst != x0 ) XREGS[dst].x = count;
     logxregchange(dst);
 }
@@ -3570,17 +3635,10 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* com
     uint32_t mask;
     switch(imm)
     {
-#if (VL == 4)
-        case 0  : mask = 0x33; break;
-        case 1  : mask = 0x66; break;
-        case 2  : mask = 0xcc; break;
-        default : mask = 0xff; break;
-#else
         case 0  : mask = 0x0f0f; break;
         case 1  : mask = 0x3c3c; break;
         case 2  : mask = 0xf0f0; break;
         default : mask = 0xffff; break;
-#endif
     }
 
     for(int i = 0; i < VL; i++ )
@@ -3588,6 +3646,11 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* com
         count += ((MREGS[src1].b[i] & (mask & 0x1)) ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d m = %d \n",count,src1,i,MREGS[src1].b[i], mask & 0x1););
         mask = mask >> 1;
+#if (VL==4)
+        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+        count += ((MREGS[src1]._xb[i] & (mask & 0x1)) ? 1 : 0);
+        mask = mask >> 1;
+#endif
     }
 
     for(int i = 0; i < VL; i++ )
@@ -3595,6 +3658,12 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* com
         count += ((MREGS[src2].b[i] & (mask & 0x1)) ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d m = %d \n",count,src2,i,MREGS[src2].b[i], mask & 0x1););
         mask = mask >> 1;
+#if (VL==4)
+        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+        count += ((MREGS[src2]._xb[i] & (mask & 0x1)) ? 1 : 0);
+        mask = mask >> 1;
+        DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d m = %d \n",count,src2,i+VL,MREGS[src2]._xb[i], mask & 0x1););
+#endif
     }
 
     if ( dst != x0 ) XREGS[dst].x = count;
