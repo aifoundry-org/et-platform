@@ -2051,9 +2051,9 @@ static void csrset(csr src1, uint64_t val)
             switch (val >> 60) {
                 case 0: // Bare
                 case 9: // Sv48
+                case 8: // Sv39
                     csrregs[current_thread][src1] = val;
                     break;
-                case 8: // Sv39
                 default: // reserved
                     // do not write the register if attempting to set an unsupported mode
                     break;
@@ -2192,27 +2192,32 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
 uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 {
     // Read SATP, PRV and MSTATUS
-    uint64_t satp;
-    satp = csrget(csr_satp);
+    uint64_t satp      = csrget(csr_satp);;
+    uint64_t prv       = csrget(csr_prv);
+    uint64_t mstatus   = csrget(csr_mstatus);
     uint64_t satp_mode = (satp >> 60) & 0xF;
-    uint64_t satp_ppn = satp & PPN_M;
-    uint64_t prv = csrget(csr_prv);
-    uint64_t mstatus = csrget(csr_mstatus);
-    bool sum = (mstatus >> 18) & 0x1;
-    bool mxr = (mstatus >> 19) & 0x1;
+    uint64_t satp_ppn  = satp & PPN_M;
+    bool     sum       = (mstatus >> 18) & 0x1;
+    bool     mxr       = (mstatus >> 19) & 0x1;
 
     bool vm_enabled = (satp_mode != 0) && (prv <= CSR_PRV_S);
 
-    // Set for Sv48
-    // TODO: Support Sv39
-    const int Num_Levels = 4;
-    const int PTE_Size = 8;
-    const int PTE_Idx_Size = 9;
+    // Default values for Sv48
+    int Num_Levels       = 4;
+    int PTE_Size         = 8;
+    int PTE_Idx_Size     = 9;
+    int PTE_top_Idx_Size = 17;
+    // if Sv39
+    if (satp_mode == 8) {
+       Num_Levels = 3;
+       PTE_top_Idx_Size = 26;
+    }
 
-    uint64_t pte_idx_mask = (uint64_t(1)<<PTE_Idx_Size)-1;
+    uint64_t pte_idx_mask     = (uint64_t(1) << PTE_Idx_Size) - 1;
+    uint64_t pte_top_idx_mask = (uint64_t(1) << PTE_top_Idx_Size) - 1;
     if (vm_enabled)
     {
-       // DEBUG_EMU(gprintf("Virtual memory enabled. Performing page walk on addr 0x%x...\n", addr);)
+        DEBUG_EMU(gprintf("Virtual memory enabled. Performing page walk on addr 0x%016llx...\n", addr);)
 
         // Perform page walk
         int level;
@@ -2226,6 +2231,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
           if (level < 0)
           {
             //log << LOG_ERR << "Last level PTE is a pointer to a page table: PTE = 0x" << std::hex << pte << endm;
+            //DEBUG_EMU(gprintf("ERROR: Last level PTE is a pointer to a page table: PTE = 0x%x\n", pte);)
             return -1;
           }
 
@@ -2233,8 +2239,10 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
           uint64_t vpn = (addr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
           // Read PTE
           pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
+          // TODO: PMA / PMP checks
           pte = memread64(pte_addr, false);
           //log << LOG_DEBUG << "* Level " << std::dec << level << ": PTE = 0x" << std::hex << pte << endm;
+          //DEBUG_EMU(gprintf("* Level %d: PTE = 0x%x\n", level, pte);)
 
           // Read PTE fields
           pte_v = (pte >> PTE_V_OFFSET) & 0x1;
@@ -2251,6 +2259,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
           if (!pte_v || (!pte_r && pte_w))
           {
             //log << LOG_ERR << "Invalid entry: PTE = 0x" << std::hex << pte << endm;
+            //DEBUG_EMU(gprintf("ERROR: Invalid entry: PTE = 0x%x\n", pte);)
             return -1;
           }
 
@@ -2259,6 +2268,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 
         // A leaf PTE has been found
         //log << LOG_DEBUG << "Valid leaf PTE found at level " << std::dec << level << endm;
+        //DEBUG_EMU(gprintf("Valid leaf PTE found at level %d\n", level);)
 
         // Check permissions
         bool perm_ok = (macc == Mem_Access_Load)  ? pte_r || (mxr && pte_x) :
@@ -2324,20 +2334,24 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
         // Copy page offset
         paddr = addr & PG_OFFSET_M;
 
-        for (int i = 0; i < Num_Levels-1; i++)
+        for (int i = 0; i < Num_Levels; i++)
         {
           // If level > 0, this is a superpage translation so VPN[level-1:0] are part of the page offset
-          if (i < level)
+          if (i < level) {
             paddr |= addr & (pte_idx_mask << (PG_OFFSET_SIZE + PTE_Idx_Size*i));
-          else
+          } else if (i == Num_Levels-1) {
+            paddr |= (ppn & (pte_top_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
+          } else {
             paddr |= (ppn & (pte_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
+          }
         }
         // PPN[3] is 17 bits wide
-        paddr |= ppn & (((uint64_t(1)<<17) - 1) << (PTE_Idx_Size*(Num_Levels-1)));
+        //paddr |= ppn & (((uint64_t(1)<<17) - 1) << (PTE_Idx_Size*(Num_Levels-1)));
+
         // Final physical address only uses 40 bits
         paddr &= PA_M;
 
-        // DEBUG_EMU(gprintf("Physical address = 0x%x\n",paddr);)
+        DEBUG_EMU(gprintf("Physical address = 0x%x\n",paddr);)
 
         return paddr;
     }
@@ -2379,6 +2393,7 @@ void sret(const char* comm)
     // Set sie = spie, spie = 1, spp = U (0), prv = spp
     csrset(csr_mstatus, mstatus_clean | (spie << 1) | (1 << 8));
     csrset(csr_prv, spp);
+    DEBUG_EMU(gprintf("Now running in %s mode\n", (spp == CSR_PRV_M) ? "M" : (spp == CSR_PRV_S) ? "S" : "U");)
 }
 
 void mret(const char* comm)
@@ -2395,6 +2410,7 @@ void mret(const char* comm)
     // Set mie = mpie, mpie = 1, mpp = U (0), prv = mpp
     csrset(csr_mstatus, mstatus_clean | (mpie << 3) | (1 << 7));
     csrset(csr_prv, mpp);
+    DEBUG_EMU(gprintf("Now running in %s mode\n", (spp == CSR_PRV_M) ? "M" : (spp == CSR_PRV_S) ? "S" : "U");)
 }
 
 void wfi(const char* comm)
