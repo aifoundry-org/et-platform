@@ -2345,8 +2345,6 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
             paddr |= (ppn & (pte_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
           }
         }
-        // PPN[3] is 17 bits wide
-        //paddr |= ppn & (((uint64_t(1)<<17) - 1) << (PTE_Idx_Size*(Num_Levels-1)));
 
         // Final physical address only uses 40 bits
         paddr &= PA_M;
