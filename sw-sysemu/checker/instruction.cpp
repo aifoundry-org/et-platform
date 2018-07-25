@@ -172,7 +172,7 @@ static const emu_ptr_hash_t pointer_cache({
     {"flw_ps",          func_ptr(flw_ps)},
     {"flq",             func_ptr(flq)},
     {"fsw_ps",          func_ptr(fsw_ps)},
-//  {"fswpc_ps",        func_ptr(fswpc_ps)},
+    {"fswpc_ps",        func_ptr(fswpc_ps)},
     {"fsq",             func_ptr(fsq)},
     {"fbc_ps",          func_ptr(fbc_ps)},
     {"fbci_ps",         func_ptr(fbci_ps)},

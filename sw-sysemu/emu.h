@@ -269,6 +269,7 @@ extern void flq    (freg dst, int off, xreg base, const char* comm = 0);
 
 extern void fsw_ps (freg src1, int off, xreg base, const char* comm = 0);
 extern void fsq    (freg src1, int off, xreg base, const char* comm = 0);
+extern void fswpc_ps (freg src1, int off, xreg base, const char* comm = 0);
 
 // Broadcast
 
