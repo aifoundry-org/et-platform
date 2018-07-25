@@ -16,11 +16,16 @@ typedef struct
     int      fp_reg_rd;         // The destination floating register
     uint64_t fp_reg_data[VL/2]; // Value written to the floating register
     bool     m_reg_mod[8];      // If a mask register was modified by instruction
+#if (VL==4)
+    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
+    uint8_t  m_reg_data[8][2*VL]; // Value written to the mask register
+#else
     uint8_t  m_reg_data[8][VL]; // Value written to the mask register
-    bool     mem_mod[4];        // If a memory position was updated
-    int      mem_size[4];       // Size of the memory update
-    uint64_t mem_addr[4];       // Address being updated
-    uint64_t mem_data[4];       // New contents
+#endif
+    bool     mem_mod[VL];        // If a memory position was updated
+    int      mem_size[VL];       // Size of the memory update
+    uint64_t mem_addr[VL];       // Address being updated
+    uint64_t mem_data[VL];       // New contents
 } inst_state_change;
 
 // Changes done by instruction
