@@ -1078,6 +1078,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "usr_cache_op")     params[num_params] = csr_ucacheop;
         else if(param == "tensor_load")      params[num_params] = csr_tloadctrl;
         else if(param == "tensor_store")     params[num_params] = csr_tstore;
+        else if(param == "unknown_830")      params[num_params] = csr_twait;
         else if(param == "umsg_port0")       params[num_params] = csr_umsg_port0;
         else if(param == "umsg_port1")       params[num_params] = csr_umsg_port1;
         else if(param == "umsg_port2")       params[num_params] = csr_umsg_port2;
