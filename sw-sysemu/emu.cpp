@@ -4890,7 +4890,7 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%u) %%u 0x%08x (%u)\n",i,ures,ures,uval1,uval1,uval2,uval2);)
                             break;
             case FMAXPI :   res  = val1 >= val2 ? val1 : val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- min(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2);)
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- max(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2);)
                             break;
             case FMINPI :   res  = val1 < val2 ? val1 : val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- min(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2);)
