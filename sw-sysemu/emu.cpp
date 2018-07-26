@@ -5076,20 +5076,26 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
 
 static void packrep(opcode opc, freg dst, freg src1)
 {
-#if 0
-    uint32_t packed_val0, packed_val1;
+#if 1
+    uint32_t packed_val0, packed_val1, packed_val2, packed_val3;
 #endif
     fdata val = FREGS[src1];
     switch (opc)
     {
         case FPACKREPHPI :
-#if 0
+#if 1
             packed_val0 = uint32_t(val.h[0]) | uint32_t(val.h[2] << 16);
             packed_val1 = uint32_t(val.h[4]) | uint32_t(val.h[6] << 16);
+            //packed_val2 = uint32_t(val.h[8]) | uint32_t(val.h[10] << 16);
+            //packed_val3 = uint32_t(val.h[12]) | uint32_t(val.h[14] << 16);
+            packed_val2 = 0;
+            packed_val3 = 0;
+
             if ( MREGS[0].b[0] ) FREGS[dst].u[0] = packed_val0;
             if ( MREGS[0].b[1] ) FREGS[dst].u[1] = packed_val1;
-            if ( MREGS[0].b[2] ) FREGS[dst].u[2] = packed_val0;
-            if ( MREGS[0].b[3] ) FREGS[dst].u[3] = packed_val1;
+            if ( MREGS[0].b[2] ) FREGS[dst].u[2] = packed_val2;
+            if ( MREGS[0].b[3] ) FREGS[dst].u[3] = packed_val3;
+
 #else
             for (int i = 0; i < VL; i++)
             {
@@ -5102,12 +5108,15 @@ static void packrep(opcode opc, freg dst, freg src1)
 #endif
             break;
         case FPACKREPBPI:
-#if 0
+#if 1
             packed_val0 = uint32_t(val.b[0]) | uint32_t(val.b[4] << 8) | uint32_t(val.b[8] << 16) | uint32_t(val.b[12] << 24);
+            //packed_val1 = uint32_t(val.b[16]) | uint32_t(val.b[20] << 8) | uint32_t(val.b[24] << 16) | uint32_t(val.b[28] << 24);
+            packed_val1 = 0;
+
             if ( MREGS[0].b[0] ) FREGS[dst].u[0] = packed_val0;
-            if ( MREGS[0].b[1] ) FREGS[dst].u[1] = packed_val0;
+            if ( MREGS[0].b[1] ) FREGS[dst].u[1] = packed_val1;
             if ( MREGS[0].b[2] ) FREGS[dst].u[2] = packed_val0;
-            if ( MREGS[0].b[3] ) FREGS[dst].u[3] = packed_val0;
+            if ( MREGS[0].b[3] ) FREGS[dst].u[3] = packed_val1;
 #else
             for (int i = 0; i < VL; i++)
             {
