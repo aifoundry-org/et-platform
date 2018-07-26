@@ -535,9 +535,10 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     // Move to next entry if this pass for this entry was skipped due conv CSR
                     for(int lane = 0; lane < 4; lane++)
                     {             
-                        get_tensorfma_value(entry, pass, lane, &size, &passes, &(conv_skip[lane]));
+                        get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
                     }
                     if (conv_skip[0] && conv_skip[1] && conv_skip[2] && conv_skip[3]) continue;
+                    
                     // Looks for the 1st entry in the list of RTL written lines with same destination
                     auto it = tensorfma_list[thread].begin();
                     while(it != tensorfma_list[thread].end())
@@ -556,9 +557,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     // Compares the data for all the lanes (4 x 32b lanes)
                     for(int lane = 0; lane < 4; lane++)
                     {
-                        conv_skip[lane] = conv_skip[lane] | (~(((it-> tensorfma_regfile_wmask) >> lane) & 0x1));             
-
                         if(conv_skip[lane] == 1) continue;
+                        data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
 #ifdef USE_REAL_TXFMA
                         if(data != it->data[lane])
 #else

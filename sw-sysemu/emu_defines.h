@@ -43,6 +43,7 @@ typedef enum
     csr_tconvctrl,
     csr_tcoop,
     csr_tmask,
+    csr_twait,
     // csr_top,
     csr_flbarrier,
     csr_ucacheop,
