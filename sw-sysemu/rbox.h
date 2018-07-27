@@ -296,7 +296,14 @@ typedef struct
              early_frag_tests_enable        :  1,
              stencil_test_enable            :  1,
              fragment_shader_disabled       :  1,
-             unused2                        : 31;
+             fragment_shader_reads_depth    :  1,
+             fragment_shader_reads_coverage :  1,
+             fragment_shader_per_sample     :  1,
+             minion_tile_width              :  2,
+             minion_tile_height             :  2,
+             shire_layout_width             :  2,
+             shire_layout_height            :  2
+             unused2                        : 20;
     // QW3
     uint32_t depth_bound_min;
     uint32_t depth_bound_max;
