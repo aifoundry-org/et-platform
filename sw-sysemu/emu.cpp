@@ -6811,6 +6811,7 @@ static void tensorfma(uint64_t tfmareg)
                     tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
 
                     if ((ac != 0) && (ac != (acols - 1))) {
+
                     // If As are zeroes, we skip operation
                       if((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
                           tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
