@@ -31,9 +31,9 @@ build:
 	mkdir build
 
 libchecker:
-	make -C $(BEMU)/checker/
+	$(MAKE) -C $(BEMU)/checker/
 
 clean:
-	make -C $(BEMU)/checker/ clean
+	$(MAKE) -C $(BEMU)/checker/ clean
 	rm -rf build
 
