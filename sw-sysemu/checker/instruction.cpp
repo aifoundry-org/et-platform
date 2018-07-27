@@ -70,7 +70,7 @@ static const emu_ptr_hash_t pointer_cache({
 // ----- RV32M -----------------------------------------------------------------
     {"mul",     func_ptr(mul)},
     {"mulh",    func_ptr(mulh)},
-//  {"mulhsu",  func_ptr(mulhsu)},
+    {"mulhsu",  func_ptr(mulhsu)},
     {"mulhu",   func_ptr(mulhu)},
     {"div",     func_ptr(div_)},
     {"divu",    func_ptr(divu)},

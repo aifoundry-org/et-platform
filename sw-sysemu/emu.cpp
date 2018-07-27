@@ -1299,6 +1299,23 @@ void mulh(xreg dst, xreg src1, xreg src2, const char* comm)
     IPC(ipc_int(MUL_INT,dst,src1,src2,dis);)
 }
 
+void mulhsu(xreg dst, xreg src1, xreg src2, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: mulhsu x%d, x%d, x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
+    DEBUG_EMU(gprintf("%s\n",dis);)
+    __int128_t  val1 = XREGS[src1].xs;
+    __uint128_t val2 = XREGS[src2].x;
+    __int128_t  val3 = val1 * val2;
+    uint64_t val = val3 >> 64;
+    if(dst != x0)
+    {
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx * 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        XREGS[dst].x = val;
+    }
+    logxregchange(dst);
+    IPC(ipc_int(MUL_INT,dst,src1,src2,dis);)
+}
+
 void mulhu(xreg dst, xreg src1, xreg src2, const char* comm)
 {
     DISASM(gsprintf(dis,"I: mulhu x%d, x%d, x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
