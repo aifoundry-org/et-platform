@@ -29,8 +29,12 @@ EMU_SOURCES= ../emu.cpp \
 CXXINC= -I.. -I$(TESTROOT)/libs
 
 # Variables
+NO_EMU_DEBUG?=0
+ifeq ($(NO_EMU_DEBUG), 0)
 EMU_DEBUG=-DEMU_DEBUG # To enable debug
-#EMU_DEBUG=            # To disable debug
+else
+EMU_DEBUG=            # To disable debug
+endif
 MIN_PER_N=$(shell grep  "define MIN_PER_N " $(RTLROOT)/inc/shire_defines.vh | sed s/".*MIN_PER_N \+\([0-9]\+\).*"/"\1"/ )
 NUM_NEIGH=$(shell grep  "define NUM_NEIGH " $(RTLROOT)/inc/shire_defines.vh | sed s/".*NUM_NEIGH \+\([0-9]\+\).*"/"\1"/ )
 
