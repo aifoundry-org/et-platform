@@ -56,12 +56,27 @@ void main_memory::read(uint64_t ad, int size, void * data)
 {
     log << LOG_DEBUG << "read(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
     rg_it_t r = find(regions_.begin(), regions_.end(), ad);
+
     if(r == regions_.end())
     {
-        log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
-        dump_regions();
+        if (runtime_mem_regions == true)
+        {
+           log << LOG_INFO << "Creating Mem Region at addr " << std::hex << ad << endm;
+            new_region(ad & 0xFFFFFFFFC0ULL, 64);
+            if (((ad + size) & 0xFFFFFFFFC0ULL) != (ad & 0xFFFFFFFFC0ULL))
+            {
+               new_region((ad + size) & 0xFFFFFFFFC0ULL, 64);
+            }
+            r = find(regions_.begin(), regions_.end(), ad);
+        }
+        else
+        {
+           log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
+           dump_regions();
+        }
     }
-    else
+
+    if (r != regions_.end())
     {
         if(* r != (ad + size - 1))
         {
@@ -78,12 +93,27 @@ void main_memory::write(uint64_t ad, int size, const void * data)
 {
     log << LOG_DEBUG << "write(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
     rg_it_t r = find(regions_.begin(), regions_.end(), ad);
+
     if(r == regions_.end())
     {
-        log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
-        dump_regions();
+        if (runtime_mem_regions == true)
+        {
+           log << LOG_INFO << "Creating Mem Region at addr " << std::hex << ad << endm;
+            new_region(ad & 0xFFFFFFFFC0ULL, 64);
+            if (((ad + size) & 0xFFFFFFFFC0ULL) != (ad & 0xFFFFFFFFC0ULL))
+            {
+               new_region((ad + size) & 0xFFFFFFFFC0ULL, 64);
+            }
+            r = find(regions_.begin(), regions_.end(), ad);
+        }
+        else
+        {
+            log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
+            dump_regions();
+        }
     }
-    else
+
+    if (r != regions_.end())
     {
         if(* r != (ad + size - 1))
         {
@@ -190,6 +220,12 @@ void main_memory::dump_regions()
     log << LOG_DEBUG << "dumping regions:" << endm;
     for(auto &r:regions_)
         r.dump();
+}
+
+
+void main_memory::create_mem_at_runtime()
+{
+   runtime_mem_regions = true;
 }
 
 

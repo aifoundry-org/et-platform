@@ -30,6 +30,8 @@ using emu::gfprintf;
 #endif
 
 // State declaration
+char buf[64];
+int buflen = 0;
 xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
 mdata mregs[EMU_NUM_THREADS][8];
@@ -2126,6 +2128,25 @@ static void csrset(csr src1, uint64_t val)
         case csr_scacheop:
             break;
         // ----- Shared registers ----------------------------------------
+
+        // ----- Verification registers ----------------------------------------
+        case csr_validation1:
+            // Ignore carriage return
+            if ((char) val == 13) {
+               break;
+            }
+            buf[buflen++] = (char) val;
+            // If line feed or buffer full, flush to stdout
+            if (((char) val == '\n') || (buflen == 64)) {
+               if (buflen < 64) {
+                  buf[buflen] = 0;
+               }
+               if (buflen > 1) {
+                  DEBUG_EMU(gprintf("==== %s", buf);)
+               }
+               buflen = 0;
+            }
+            break;
 
         // ----- All other registers -------------------------------------
         default:
