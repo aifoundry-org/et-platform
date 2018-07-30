@@ -44,6 +44,9 @@ class main_memory
         void decRboxCredit(uint16_t thread);
         void incRboxCredit(uint16_t thread);
         uint16_t getRboxCredit(uint16_t thread);
+
+        // allow memory regions to be dynamically created
+        void create_mem_at_runtime();
     private:
         void dump_regions();
 
@@ -55,6 +58,7 @@ class main_memory
 
         main_memory_region_rbox *rbox;
 
+        bool runtime_mem_regions = false;
 };
 
 #endif // _MAIN_MEMORY_H_

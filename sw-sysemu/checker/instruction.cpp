@@ -1090,10 +1090,10 @@ void instruction::add_parameter(std::string param)
         else if(param == "smsg_port3")       params[num_params] = csr_smsg_port3;
         else if(param == "icache_ctrl")      params[num_params] = csr_icache_ctrl;
         else if(param == "write_ctrl")       params[num_params] = csr_write_ctrl;
-        else if(param == "validation0")      params[num_params] = validation0;
-        else if(param == "validation1")      params[num_params] = validation1;
-        else if(param == "validation2")      params[num_params] = validation2;
-        else if(param == "validation3")      params[num_params] = validation3;
+        else if(param == "validation0")      params[num_params] = csr_validation0;
+        else if(param == "validation1")      params[num_params] = csr_validation1;
+        else if(param == "validation2")      params[num_params] = csr_validation2;
+        else if(param == "validation3")      params[num_params] = csr_validation3;
         // TODO: currently unsupported CSRs
         else if(param == "ustatus"    ||
                 param == "uie"        ||

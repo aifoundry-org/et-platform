@@ -122,10 +122,10 @@ typedef enum
     csr_write_ctrl,
 
     // ----- Validation only registers ---------------------------------------
-    validation0,
-    validation1,
-    validation2,
-    validation3,
+    csr_validation0,
+    csr_validation1,
+    csr_validation2,
+    csr_validation3,
 
     CSR_MAX
 } csr;
