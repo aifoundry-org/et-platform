@@ -1,7 +1,7 @@
 #ifndef _LOG_H
 #define _LOG_H
 
-#include "emu.h"
+#include "emu_defines.h"
 
 // Instruction state change
 typedef struct

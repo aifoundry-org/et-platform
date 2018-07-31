@@ -45,7 +45,7 @@ bool tensorfma_mask_skip[16][8];
 bool tensorfma_zero_skip[16][32][4];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
-uint32_t reduce_data[EMU_NUM_THREADS][32][4];
+uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 int32_t msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
 
@@ -2473,6 +2473,10 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 static void femuld(opcode opc, int count, freg dst, int off, xreg base, int use_mask)
 {
     assert(count <= VL);
+#if 0
+    for ( int i = 0; i < count; i++ )
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (old)\n",i,FREGS[dst].u[i]););
+#endif
 
     for ( int i = 0; i < count; i++ )
     {
@@ -2484,21 +2488,22 @@ static void femuld(opcode opc, int count, freg dst, int off, xreg base, int use_
 
         bool genResult = ! ( use_mask && MREGS[0].b[i] == 0 );
 
-        uint32_t  val32;
-        float32_t fval32;
-
-        val32 = FREGS[dst].u[i]; // default result when element is masked
-
         switch ( opc )
         {
             case FLW:
                 if ( genResult )
                 {
-                    val32 = memread32(addr);
-                    fval32  = cast_uint32_to_float32(val32);
+                    uint32_t val32 = memread32(addr);
                     FREGS[dst].u[i] = val32;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%016llx]\n",i,val32,fval32,addr););
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%016llx]\n",i,val32,cast_uint32_to_float32(val32),addr););
                 }
+#if 0
+                else
+                {
+                    uint32_t val32 = memread32(addr);
+                    DEBUG_EMU(gprintf("\t[%d] (skipped) MEM[0x%016llx] = 0x%08x\n",i,addr,val32););
+                }
+#endif
                 break;
             default:
                 assert(0);
@@ -4096,29 +4101,6 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
 static void fswizz(opcode opc, freg dst, freg src1, uint8_t imm)
 {
     fdata val = FREGS[src1];
-
-#if 0
-    if ( MREGS[0].b[0] )
-    {
-        FREGS[dst].u[0] = val.u[(imm)     & 0x3];
-        DEBUG_EMU(gprintf("\t[0] 0x%08x <-- 0x%08x (chan %d)\n", FREGS[dst].u[0], val.u[ imm       & 0x3],  imm       & 0x3););
-    }
-    if ( MREGS[0].b[1] )
-    {
-        FREGS[dst].u[1] = val.u[(imm>>2)  & 0x3];
-        DEBUG_EMU(gprintf("\t[1] 0x%08x <-- 0x%08x (chan %d)\n", FREGS[dst].u[1], val.u[(imm >> 2) & 0x3], (imm >> 2) & 0x3););
-    }
-    if ( MREGS[0].b[2] )
-    {
-        FREGS[dst].u[2] = val.u[(imm>>4)  & 0x3];
-        DEBUG_EMU(gprintf("\t[2] 0x%08x <-- 0x%08x (chan %d)\n", FREGS[dst].u[2], val.u[(imm >> 4) & 0x3], (imm >> 4) & 0x3););
-    }
-    if ( MREGS[0].b[3] )
-    {
-        FREGS[dst].u[3] = val.u[(imm>>6)  & 0x3];
-        DEBUG_EMU(gprintf("\t[3] 0x%08x <-- 0x%08x (chan %d)\n", FREGS[dst].u[3], val.u[(imm >> 6) & 0x3], (imm >> 6) & 0x3););
-    }
-#else
     for ( int i = 0; i < VL; i++ )
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -4128,8 +4110,6 @@ static void fswizz(opcode opc, freg dst, freg src1, uint8_t imm)
         FREGS[dst].u[i] = val.u[sel];
         DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (chan %d)\n",i,FREGS[dst].u[i],val.u[sel],sel););
     }
-#endif
-
     logfregchange(dst);
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
@@ -5163,7 +5143,7 @@ static void packrep(opcode opc, freg dst, freg src1)
     }
 
     for (int i = 0; i < VL; i++)
-        DEBUG_EMU(gprintf("\t[0] 0x%08x <-- 0x%08x\n", FREGS[dst].u[i], val.u[i]););
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x\n",i,FREGS[dst].u[i],val.u[i]););
 
     logfregchange(dst);
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)

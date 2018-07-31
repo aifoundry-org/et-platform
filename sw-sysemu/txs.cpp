@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "txs.h"
+#include "emu.h"
 #include "log.h"
 #include "ipc.h"
 #include "cvt.h"
