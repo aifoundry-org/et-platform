@@ -419,7 +419,7 @@ typedef enum
 
 // Number of 32-bit lanes in a vector register
 #ifndef VL
-#define VL  4
+#define VL  8
 #endif
 
 #if (VL != 4) && (VL != 8)

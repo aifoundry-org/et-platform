@@ -3,12 +3,7 @@
 #include <assert.h>
 
 #include "log.h"
-
-// Data from EMU
-extern xdata xregs[EMU_NUM_THREADS][32];
-extern fdata fregs[EMU_NUM_THREADS][32];
-extern mdata mregs[EMU_NUM_THREADS][8];
-extern uint32_t current_thread;
+#include "emu.h"
 
 inst_state_change * log_info = NULL;
 
