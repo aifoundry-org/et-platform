@@ -430,7 +430,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         }
 
         // Memory changes
-        for(int i = 0; i < 4; i++)
+        for(int i = 0; i < VL; i++)
         {
             if(changes->mem_mod[i] != emu_state_change.mem_mod[i])
             {
