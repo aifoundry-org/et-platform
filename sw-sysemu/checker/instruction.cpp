@@ -1054,6 +1054,8 @@ void instruction::add_parameter(std::string param)
         else if(param == "stval")        params[num_params] = csr_stval;
         else if(param == "sip")          params[num_params] = csr_sip;
         else if(param == "satp")         params[num_params] = csr_satp;
+        // else if(param == "cycle")        params[num_params] = csr_cycle;
+        // else if(param == "cycleh")       params[num_params] = csr_cycleh;
         else if(param == "mvendorid")    params[num_params] = csr_mvendorid;
         else if(param == "marchid")      params[num_params] = csr_marchid;
         else if(param == "mimpid")       params[num_params] = csr_mimpid;
@@ -1070,6 +1072,8 @@ void instruction::add_parameter(std::string param)
         else if(param == "mcause")       params[num_params] = csr_mcause;
         else if(param == "mtval")        params[num_params] = csr_mtval;
         else if(param == "mip")          params[num_params] = csr_mip;
+        // else if(param == "mcycle")       params[num_params] = csr_mcycle;
+        // else if(param == "mcycleh")      params[num_params] = csr_mcycleh;
         else if(param == "tensor_reduce")    params[num_params] = csr_treduce;
         else if(param == "tensor_fma")       params[num_params] = csr_tfmastart;
         else if(param == "tensor_conv_size") params[num_params] = csr_tconvsize;
@@ -1104,16 +1108,16 @@ void instruction::add_parameter(std::string param)
                 param == "utval"      ||
                 param == "uip"        ||
                 param == "cycle"      ||
+                param == "cycleh"     ||
                 param == "time"       ||
                 param == "instret"    ||
-                param == "cycleh"     ||
                 param == "timeh"      ||
                 param == "insreth"    ||
                 param == "sedeleg"    ||
                 param == "sideleg"    ||
                 param == "mcycle"     ||
-                param == "minstret"   ||
                 param == "mcycleh"    ||
+                param == "minstret"   ||
                 param == "minstreth"  ||
                 param == "tselect"    ||
                 param == "tdata1"     ||
