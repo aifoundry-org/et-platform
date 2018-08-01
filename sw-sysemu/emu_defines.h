@@ -29,6 +29,7 @@ typedef enum
     csr_frm,
     csr_fcsr,
     // csr_cycle,
+    // csr_cycleh,
     // csr_time,
     // csr_instret,
     // csr_hpmcounter3,
@@ -99,6 +100,7 @@ typedef enum
     // ...
     // csr_pmpaddr15,
     // csr_mcycle,
+    // csr_mcycleh,
     // csr_minstret,
     // csr_mhpmcounter3,
     // csr_mhpmcounter4,
