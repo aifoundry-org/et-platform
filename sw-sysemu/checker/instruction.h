@@ -17,28 +17,28 @@ class instruction
         ~instruction();
 
         // Access
-        void set_pc(uint64_t pc_);
-        uint64_t get_pc();
-        void set_enc(uint32_t enc_bits_);
-        uint32_t get_enc();
+        void set_pc(uint64_t pc_)         { pc = pc_; }
+        uint64_t get_pc() const           { return pc; }
+        void set_enc(uint32_t enc_bits_)  { enc_bits = enc_bits_; }
+        uint32_t get_enc() const          { return enc_bits; }
         void set_mnemonic(std::string mnemonic_, testLog * log_);
-        std::string get_mnemonic();
-        void set_compressed(bool v);
-        bool get_is_load();
-        bool get_is_fpload();
-        bool get_is_wfi();
-        bool get_is_reduce();
-        bool get_is_tensor_load();
-        bool get_is_tensor_fma();
-        bool get_is_texrcv();
-        bool get_is_texsndh();
-        bool get_is_1ulp();
-        bool get_is_amo();
-        bool get_is_flb();
-        bool get_is_compressed();
-        bool get_is_csr_read();
-        unsigned get_size();
-        int get_param(int param);
+        std::string get_mnemonic()        { return mnemonic; }
+        void set_compressed(bool v)       { is_compressed = v; }
+        bool get_is_compressed() const    { return is_compressed; }
+        bool get_is_load() const          { return is_load; }
+        bool get_is_fpload() const        { return is_fpload; }
+        bool get_is_wfi() const           { return is_wfi; }
+        bool get_is_reduce() const        { return is_reduce; }
+        bool get_is_tensor_load() const   { return is_tensor_load; }
+        bool get_is_tensor_fma() const    { return is_tensor_fma; }
+        bool get_is_texrcv() const        { return is_texrcv; }
+        bool get_is_texsndh() const       { return is_texsndh; }
+        bool get_is_1ulp() const          { return is_1ulp; }
+        bool get_is_amo() const           { return is_amo; }
+        bool get_is_flb() const           { return is_flb; }
+        bool get_is_csr_read() const      { return is_csr_read; }
+        unsigned get_size() const         { return is_compressed ? 2 : 4; }
+        int get_param(int param) const    { return params[param]; }
 
         // Execution
         void exec();
