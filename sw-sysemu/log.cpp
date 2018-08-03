@@ -15,6 +15,7 @@ inst_state_change * log_info = NULL;
 // Clears the log
 void clearlogstate()
 {
+    if(log_info == NULL) return;
     log_info->pc_mod = false;
     log_info->pc = 0;
     log_info->int_reg_mod = false;
@@ -93,4 +94,3 @@ void logmemwchange(int pos, int size, uint64_t addr, uint64_t val)
     log_info->mem_addr[pos] = addr;
     log_info->mem_data[pos] = val;
 }
-

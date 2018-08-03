@@ -76,6 +76,8 @@ void init_emu(int debug, int fakesam)
 }
 
 // forward declarations
+static uint64_t csrget(csr src1);
+static void csrset(csr src1, uint64_t val);
 static void tmask_conv();
 static void tcoop();
 static void tensorload(uint64_t control);
@@ -1963,7 +1965,7 @@ void amoswap_d(xreg dst, xreg src1, xreg src2, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-uint64_t csrget(csr src1)
+static uint64_t csrget(csr src1)
 {
     uint64_t val;
     switch (src1) {
@@ -2006,7 +2008,7 @@ uint64_t csrget(csr src1)
     return val;
 }
 
-void csrset(csr src1, uint64_t val)
+static void csrset(csr src1, uint64_t val)
 {
     uint64_t msk;
 
@@ -2175,7 +2177,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
     if (   ((prv == CSR_PRV_U) && (src1 > CSR_MAX_UMODE))
         || ((prv == CSR_PRV_S) && (src1 > CSR_MAX_SMODE)))
     {
-        unknown();
+        throw trap_illegal_instruction(current_pc);
     }
 
     uint64_t x = csrget(src1);
@@ -2196,7 +2198,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_marchid:
             case csr_mimpid:
             case csr_mhartid:
-                unknown();
+                throw trap_illegal_instruction(current_pc);
                 break;
 #ifdef CHECKER
             case csr_treduce:
