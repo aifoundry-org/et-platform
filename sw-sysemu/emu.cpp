@@ -75,8 +75,6 @@ void init_emu(int debug, int fakesam)
 }
 
 // forward declarations
-static uint64_t csrget(csr src1);
-static void csrset(csr src1, uint64_t val);
 static void tmask_conv();
 static void tcoop();
 static void tensorload(uint64_t control);
@@ -1952,7 +1950,7 @@ void amoswap_d(xreg dst, xreg src1, xreg src2, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static uint64_t csrget(csr src1)
+uint64_t csrget(csr src1)
 {
     uint64_t val;
     switch (src1) {
@@ -1995,7 +1993,7 @@ static uint64_t csrget(csr src1)
     return val;
 }
 
-static void csrset(csr src1, uint64_t val)
+void csrset(csr src1, uint64_t val)
 {
     uint64_t msk;
 
@@ -2515,7 +2513,6 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 // FLoating point unit to be turned on.
 static int check_fs()
 {
-#if 0
     // Check that mstatus.FS is not off, otherwise throw an illegal instruction exception
     uint64_t mstatus = csrget(csr_mstatus);
     uint64_t fs = (mstatus >> 13) & 0x3;
@@ -2524,9 +2521,7 @@ static int check_fs()
        unknown();
        return 1;
     }
-#endif
     return 0;
-
 }
 
 

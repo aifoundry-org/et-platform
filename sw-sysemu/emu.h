@@ -48,6 +48,8 @@ extern uint64_t xget(uint64_t src1);
 extern void init(xreg dst, uint64_t val);       // init general purpose register
 extern void fpinit(freg dst, uint64_t val[2]);  // init vector register
 extern void minit(mreg dst, uint64_t val);      // init mask register
+extern uint64_t csrget(csr src1);
+extern void csrset(csr src1, uint64_t val);
 
 // Processor state manipulation
 extern void set_pc(uint64_t pc);
