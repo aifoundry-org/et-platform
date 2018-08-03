@@ -51,6 +51,7 @@ void setlogstate(inst_state_change * log_info_)
 // Jump
 void logpcchange(uint64_t new_pc)
 {
+    if(log_info == NULL) return;
     // As we support the C extension the PC must be aligned to 2B
     assert((new_pc & 1ULL) == 0ULL);
     log_info->pc_mod = true;
@@ -60,6 +61,7 @@ void logpcchange(uint64_t new_pc)
 // Trap
 void logtrap()
 {
+    if(log_info == NULL) return;
     log_info->exec_trap = true;
 }
 
