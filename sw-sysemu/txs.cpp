@@ -16,7 +16,7 @@ using emu::gfprintf;
 extern int fake_sampler;
 extern char dis[];
 
-TBOXEmu tbox_emulator;
+static TBOXEmu tbox_emulator;
 
 void init_txs(uint64_t imgTableAddr)
 {
