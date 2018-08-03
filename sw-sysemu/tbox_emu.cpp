@@ -713,14 +713,6 @@ static inline void memcpy_uint64(uint8_t *dst, uint64_t src)
 
 TBOXEmu::TBOXEmu()
 {
-    l2_requests = new L2Request[MAX_L2_REQUESTS];
-
-    if (l2_requests == NULL)
-    {
-        printf("Error creating L2 request queue!!\n");
-        exit(-1);
-    }
-
     imageTableAddress = 0;
     num_total_l2_requests = 0;
     for (uint32_t t = 0; t < EMU_NUM_THREADS; t++)
@@ -1238,7 +1230,7 @@ void TBOXEmu::reset_l2_requests_counters(uint32_t thread)
     num_pending_l2_requests[thread] = 0;
 }
 
-TBOXEmu::L2Request* TBOXEmu::get_l2_request_queue() const { return l2_requests; }
+//TBOXEmu::L2Request* TBOXEmu::get_l2_request_queue() const { return l2_requests; }
 
 uint32_t TBOXEmu::get_num_new_l2_requests(uint32_t thread) const { return num_new_l2_requests[thread]; }
 
