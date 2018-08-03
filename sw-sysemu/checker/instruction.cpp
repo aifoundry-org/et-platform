@@ -362,29 +362,30 @@ static const std::unordered_set<std::string> rm4args({
 // Constructor
 instruction::instruction()
 {
-    pc = 0;
-    enc_bits = 0;
-    is_load = false;
-    is_fpload = false;
-    is_wfi = false;
-    is_reduce = false;
+    pc             = 0;
+    enc_bits       = 0;
+    is_load        = false;
+    is_fpload      = false;
+    is_wfi         = false;
+    is_csr_read    = false;
+    is_reduce      = false;
     is_tensor_load = false;
-    is_tensor_fma = false;
-    is_texsndh = false;
-    is_texrcv = false;
-    is_1ulp = false;
-    is_amo = false;
-    is_flb = false;
-    emu_func = NULL;
-    emu_func0 = NULL;
-    emu_func1 = NULL;
-    emu_func2 = NULL;
-    emu_func3 = NULL;
-    emu_func4 = NULL;
-    emu_func5 = NULL;
-    num_params = 0;
-    has_error = false;
-    str_error = "No error";
+    is_tensor_fma  = false;
+    is_texsndh     = false;
+    is_texrcv      = false;
+    is_1ulp        = false;
+    is_amo         = false;
+    is_flb         = false;
+    emu_func       = NULL;
+    emu_func0      = NULL;
+    emu_func1      = NULL;
+    emu_func2      = NULL;
+    emu_func3      = NULL;
+    emu_func4      = NULL;
+    emu_func5      = NULL;
+    num_params     = 0;
+    has_error      = false;
+    str_error      = "No error";
 }
 
 // Destructor
@@ -470,6 +471,11 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
        || (opcode=="amoor_d")   || (opcode=="amomin_d") || (opcode=="amomax_d") || (opcode=="amominu_d")
        || (opcode=="amomaxu_d"))
         is_amo = true;
+
+    if(opcode.find("csrr") != std::string::npos) {
+        is_csr_read = true;
+    }
+
 
     // Cleanup whitespace from $args
     e = boost::regex("\\s");
@@ -836,6 +842,12 @@ bool instruction::get_is_wfi()
 }
 
 // Access
+bool instruction::get_is_csr_read()
+{
+    return is_csr_read;
+}
+
+// Access
 bool instruction::get_is_reduce()
 {
     return is_reduce;
@@ -1054,8 +1066,8 @@ void instruction::add_parameter(std::string param)
         else if(param == "stval")        params[num_params] = csr_stval;
         else if(param == "sip")          params[num_params] = csr_sip;
         else if(param == "satp")         params[num_params] = csr_satp;
-        // else if(param == "cycle")        params[num_params] = csr_cycle;
-        // else if(param == "cycleh")       params[num_params] = csr_cycleh;
+        else if(param == "cycle")        params[num_params] = csr_cycle;
+        else if(param == "cycleh")       params[num_params] = csr_cycleh;
         else if(param == "mvendorid")    params[num_params] = csr_mvendorid;
         else if(param == "marchid")      params[num_params] = csr_marchid;
         else if(param == "mimpid")       params[num_params] = csr_mimpid;
@@ -1072,8 +1084,8 @@ void instruction::add_parameter(std::string param)
         else if(param == "mcause")       params[num_params] = csr_mcause;
         else if(param == "mtval")        params[num_params] = csr_mtval;
         else if(param == "mip")          params[num_params] = csr_mip;
-        // else if(param == "mcycle")       params[num_params] = csr_mcycle;
-        // else if(param == "mcycleh")      params[num_params] = csr_mcycleh;
+        else if(param == "mcycle")       params[num_params] = csr_mcycle;
+        else if(param == "mcycleh")      params[num_params] = csr_mcycleh;
         else if(param == "tensor_reduce")    params[num_params] = csr_treduce;
         else if(param == "tensor_fma")       params[num_params] = csr_tfmastart;
         else if(param == "tensor_conv_size") params[num_params] = csr_tconvsize;
@@ -1107,16 +1119,12 @@ void instruction::add_parameter(std::string param)
                 param == "ucause"     ||
                 param == "utval"      ||
                 param == "uip"        ||
-                param == "cycle"      ||
-                param == "cycleh"     ||
                 param == "time"       ||
                 param == "instret"    ||
                 param == "timeh"      ||
                 param == "insreth"    ||
                 param == "sedeleg"    ||
                 param == "sideleg"    ||
-                param == "mcycle"     ||
-                param == "mcycleh"    ||
                 param == "minstret"   ||
                 param == "minstreth"  ||
                 param == "tselect"    ||

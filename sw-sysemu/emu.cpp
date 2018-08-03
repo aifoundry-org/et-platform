@@ -1963,12 +1963,6 @@ static uint64_t csrget(csr src1)
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
-        // case csr_cycle:
-        //     val = csrregs[current_thread][csr_mcycle];
-        //     break;
-        // case csr_cycleh:
-        //     val = csrregs[current_thread][csr_mcycleh];
-        //     break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
@@ -2155,18 +2149,6 @@ static void csrset(csr src1, uint64_t val)
             }
             break;
 
-        // ----- Read-Only registers ----------------------------------------
-        // Writing to read-only registers causes an illegal instruction exception
-        // case csr_cycle:
-        // case csr_cycleh:
-        // case csr_instret:
-        // case csr_hpmcounter3:
-        // case csr_hpmcounter4:
-        // case csr_hpmcounter5:
-        // case csr_hpmcounter6:
-            unknown();
-            break;
-
         // ----- All other registers -------------------------------------
         default:
             csrregs[current_thread][src1] = val;
@@ -2193,6 +2175,13 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
         DEBUG_EMU(gprintf("\t0x%016llx --> CSR[%08x]\n", val, src1);)
         switch (src1) {
             // Check if attempting to write a read-only register
+            case csr_cycle:
+            case csr_cycleh:
+            // case csr_instret:
+            // case csr_hpmcounter3:
+            // case csr_hpmcounter4:
+            // case csr_hpmcounter5:
+            // case csr_hpmcounter6:
             case csr_mvendorid:
             case csr_marchid:
             case csr_mimpid:
@@ -2526,7 +2515,6 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 // FLoating point unit to be turned on.
 static int check_fs()
 {
-    return 0;
 #if 0
     // Check that mstatus.FS is not off, otherwise throw an illegal instruction exception
     uint64_t mstatus = csrget(csr_mstatus);
@@ -2536,8 +2524,9 @@ static int check_fs()
        unknown();
        return 1;
     }
-    return 0;
 #endif
+    return 0;
+
 }
 
 
