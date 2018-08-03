@@ -140,20 +140,20 @@ extern void sfence_vma(const char* comm = 0);
 
 // ----- RV64M emulation -------------------------------------------------------
 
-extern void mul   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void mulh  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-//extern void mulhsu (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void mulhu (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void div_  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void divu  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void rem   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void remu  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void mul    (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void mulh   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void mulhsu (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void mulhu  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void div_   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void divu   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void rem    (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void remu   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
 
-extern void mulw  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void divw  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void divuw (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void remw  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
-extern void remuw (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void mulw   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void divw   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void divuw  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void remw   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void remuw  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
 
 // ----- RV64A emulation -------------------------------------------------------
 

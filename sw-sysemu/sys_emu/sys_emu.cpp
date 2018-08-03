@@ -245,6 +245,7 @@ int main(int argc, char * argv[])
     bool minions         = false;
     bool shires          = false;
     bool log_en          = false;
+    bool create_mem_at_runtime = false;
     int  log_min         = 4096;
     char * dump_file     = NULL;
     int dump             = 0;
@@ -331,6 +332,10 @@ int main(int argc, char * argv[])
         {
             dump = 4;
         }
+        else if(strcmp(argv[i], "-m") == 0)
+        {
+            create_mem_at_runtime = true;
+        }
         else if(strcmp(argv[i], "-l") == 0)
         {
             log_en = true;
@@ -352,6 +357,9 @@ int main(int argc, char * argv[])
     // Generates the main memory of the emulator
     memory = new main_memory("checker main memory");
     memory->setGetThread(get_thread_emu);
+    if (create_mem_at_runtime) {
+       memory->create_mem_at_runtime();
+    }
 
     // Instruction cache
     instruction_cache * inst_cache = new instruction_cache(memory);

@@ -36,6 +36,7 @@ class instruction
         bool get_is_amo();
         bool get_is_flb();
         bool get_is_compressed();
+        bool get_is_csr_read();
         unsigned get_size();
         int get_param(int param);
 
@@ -57,6 +58,7 @@ class instruction
         bool                         is_amo;                 // If the instruction is an atomic operation
         bool                         is_flb;                 // If the instruction is a fast local barrier
         bool                         is_compressed = false;  // If the instruction is a compressed encoding
+        bool                         is_csr_read;            // If the instruction is a CSR access
         int                          params[5];              // Params to call the function
         int                          num_params;             // Number of params for the call
         func_ptr                     emu_func;               // Pointer to the emulation function
