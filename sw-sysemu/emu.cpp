@@ -51,7 +51,8 @@ uint32_t reduce_data[EMU_NUM_THREADS][32][4];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 int32_t msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
 
-static uint64_t current_pc;
+static uint64_t current_pc = 0;
+static uint32_t current_inst = 0;
 uint32_t current_thread = 0;
 
 #define MAXSTACK 2048
@@ -306,7 +307,6 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     csrset(csr_sepc, current_pc);
     // Jump to stvec
     csrset(csr_prv, CSR_PRV_S);
-    logtrap();
     logpcchange(csrget(csr_stvec));
 }
 
@@ -337,13 +337,27 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     csrset(csr_mepc, current_pc);
     // Jump to mtvec
     csrset(csr_prv, CSR_PRV_M);
-    logtrap();
     logpcchange(csrget(csr_mtvec));
+}
+
+void take_trap(const trap_t& t)
+{
+    trap_to_mmode(t.get_cause(), t.get_tval());
 }
 
 void set_pc(uint64_t pc)
 {
     current_pc = pc;
+}
+
+void set_inst(uint32_t bits)
+{
+    current_inst = bits;
+}
+
+uint32_t get_inst()
+{
+    return current_inst;
 }
 
 void set_thread(uint32_t thread)
@@ -524,10 +538,9 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
 // ILLEGAL INSTRUCTION
 void unknown(const char* comm)
 {
-    DISASM(gsprintf(dis,"I: trap_illegal_instruction (%016llx)%s%s",current_pc,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: unknown (%016llx)%s%s",current_pc,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    // TODO: We may want to set mtval/stval to the instructions bits
-    trap_to_mmode(CSR_MCAUSE_ILLEGAL_INSTRUCTION, 0);
+    throw trap_illegal_instruction(current_inst);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2163,7 +2176,6 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
         || ((prv == CSR_PRV_S) && (src1 > CSR_MAX_SMODE)))
     {
         unknown();
-        return;
     }
 
     uint64_t x = csrget(src1);
@@ -2185,7 +2197,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_mimpid:
             case csr_mhartid:
                 unknown();
-                return;
+                break;
 #ifdef CHECKER
             case csr_treduce:
                 tensorreduce(val);
@@ -2408,17 +2420,23 @@ void ecall(const char* comm)
 {
     DISASM(gsprintf(dis,"I: ecall%s%s",(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    trap_to_mmode(CSR_MCAUSE_ECALL_FROM_UMODE + csrget(csr_prv), 0);
+    switch (csrget(csr_prv))
+    {
+        case CSR_PRV_U: throw trap_user_ecall(); break;
+        case CSR_PRV_S: throw trap_supervisor_ecall(); break;
+        case CSR_PRV_M: throw trap_machine_ecall(); break;
+        default       : assert(0); break;
+    }
 }
 
 void ebreak(const char* comm)
 {
     DISASM(gsprintf(dis,"I: ebreak%s%s",(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    // TODO: The spec says that hardware breakpoint sets mtval/stval to the
-    // current PC but ebreak is a software breakpoint; should it also set
-    // mtval/stval to the current PC or set it to 0?
-    trap_to_mmode(CSR_MCAUSE_BREAKPOINT, 0);
+    // The spec says that hardware breakpoint sets mtval/stval to the current
+    // PC but ebreak is a software breakpoint; should it also set mtval/stval
+    // to the current PC or set it to 0?
+    throw trap_breakpoint(current_pc);
 }
 
 void sret(const char* comm)
@@ -2518,8 +2536,7 @@ static int check_fs()
     uint64_t fs = (mstatus >> 13) & 0x3;
     if (fs == 0)
     {
-       unknown();
-       return 1;
+       throw trap_illegal_instruction(current_inst);
     }
     return 0;
 }

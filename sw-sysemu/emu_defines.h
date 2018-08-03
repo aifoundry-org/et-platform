@@ -146,12 +146,14 @@ typedef enum
     Mem_Access_Fetch
 } mem_access_type;
 
+// VA to PA translation
+#define VA_SIZE        48
 #define PA_SIZE        40
-#define PA_M           (((uint64_t)1 << PA_SIZE) - 1)
+#define PA_M           ((((uint64_t)1) << PA_SIZE) - 1)
 #define PG_OFFSET_SIZE 12
-#define PG_OFFSET_M    (((uint64_t)1 << PG_OFFSET_SIZE) - 1)
+#define PG_OFFSET_M    ((((uint64_t)1) << PG_OFFSET_SIZE) - 1)
 #define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
-#define PPN_M          (((uint64_t)1 << PPN_SIZE) - 1)
+#define PPN_M          ((((uint64_t)1) << PPN_SIZE) - 1)
 #define PTE_V_OFFSET   0
 #define PTE_R_OFFSET   1
 #define PTE_W_OFFSET   2
@@ -419,6 +421,7 @@ typedef enum
     MAXOPCODE
 } opcode;
 
+// vector register value type
 typedef union
 {
     uint8_t   b[16];
@@ -430,6 +433,7 @@ typedef union
     int64_t   q[2];
 } fdata;
 
+// general purpose register value type
 typedef union
 {
     uint8_t   b[8];
@@ -440,11 +444,13 @@ typedef union
     int64_t   xs;
 } xdata;
 
+// mask register value type
 typedef union
 {
     uint8_t   b[8];
 } mdata;
 
+// useful for type conversions
 typedef union
 {
     int32_t   i;
@@ -454,6 +460,7 @@ typedef union
     float32_t f;
 } iufval;
 
+// message port value type
 typedef struct
 {
     bool enabled;
@@ -482,20 +489,74 @@ typedef struct
 #define CSR_PRV_M  3
 
 // Traps
-#define CSR_MCAUSE_INSTR_ADDR_MISALIGNED         0ull
-#define CSR_MCAUSE_INSTR_ACCESS_FAULT            1ull
-#define CSR_MCAUSE_ILLEGAL_INSTRUCTION           2ull
-#define CSR_MCAUSE_BREAKPOINT                    3ull
-#define CSR_MCAUSE_LOAD_ADDR_MISALIGNED          4ull
-#define CSR_MCAUSE_LOAD_ACCESS_FAULT             5ull
-#define CSR_MCAUSE_STORE_AMO_ADDR_MISALIGNED     6ull
-#define CSR_MCAUSE_STORE_AMO_ACCESS_FAULT        7ull
-#define CSR_MCAUSE_ECALL_FROM_UMODE              8ull
-#define CSR_MCAUSE_ECALL_FROM_SMODE              9ull
-#define CSR_MCAUSE_ECALL_FROM_MMODE             11ull
-#define CSR_MCAUSE_INSTR_PAGE_FAULT             12ull
-#define CSR_MCAUSE_LOAD_PAGE_FAULT              13ull
-#define CSR_MCAUSE_STORE_AMO_PAGE_FAULT         15ull
+#define CAUSE_MISALIGNED_FETCH      0x00
+#define CAUSE_FETCH_ACCESS          0x01
+#define CAUSE_ILLEGAL_INSTRUCTION   0x02
+#define CAUSE_BREAKPOINT            0x03
+#define CAUSE_MISALIGNED_LOAD       0x04
+#define CAUSE_LOAD_ACCESS           0x05
+#define CAUSE_MISALIGNED_STORE      0x06
+#define CAUSE_STORE_ACCESS          0x07
+#define CAUSE_USER_ECALL            0x08
+#define CAUSE_SUPERVISOR_ECALL      0x09
+#define CAUSE_HYPERVISOR_ECALL      0x0a
+#define CAUSE_MACHINE_ECALL         0x0b
+#define CAUSE_FETCH_PAGE_FAULT      0x0c
+#define CAUSE_LOAD_PAGE_FAULT       0x0d
+#define CAUSE_STORE_PAGE_FAULT      0x0f
+
+// base class for all traps
+class trap_t
+{
+public:
+    trap_t(uint64_t n) : cause(n) {}
+    uint64_t get_cause() const { return cause; }
+
+    virtual bool has_tval() const = 0;
+    virtual uint64_t get_tval() const = 0;
+    virtual const char* what() = 0;
+
+private:
+    const uint64_t cause;
+};
+
+// define a trap type without tval
+#define DECLARE_TRAP_TVAL_N(n, x) \
+    class x : public trap_t { \
+    public: \
+        x() : trap_t(n) {} \
+        virtual bool has_tval() const override { return false; } \
+        virtual uint64_t get_tval() const override { return 0; } \
+        virtual const char* what() override { return #x; } \
+    };
+
+// define a trap type with tval
+#define DECLARE_TRAP_TVAL_Y(n, x) \
+    class x : public trap_t { \
+    public: \
+        x(uint64_t v) : trap_t(n), tval(v) {} \
+        virtual bool has_tval() const override { return true; } \
+        virtual uint64_t get_tval() const override { return tval; } \
+        virtual const char* what() override { return #x; } \
+    private: \
+        const uint64_t tval; \
+    };
+
+DECLARE_TRAP_TVAL_Y(CAUSE_MISALIGNED_FETCH,     trap_instruction_address_misaligned)
+DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_ACCESS,         trap_instruction_access_fault)
+DECLARE_TRAP_TVAL_Y(CAUSE_ILLEGAL_INSTRUCTION,  trap_illegal_instruction)
+DECLARE_TRAP_TVAL_Y(CAUSE_BREAKPOINT,           trap_breakpoint)
+DECLARE_TRAP_TVAL_Y(CAUSE_MISALIGNED_LOAD,      trap_load_address_misaligned)
+DECLARE_TRAP_TVAL_Y(CAUSE_MISALIGNED_STORE,     trap_store_address_misaligned)
+DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_ACCESS,          trap_load_access_fault)
+DECLARE_TRAP_TVAL_Y(CAUSE_STORE_ACCESS,         trap_store_access_fault)
+DECLARE_TRAP_TVAL_N(CAUSE_USER_ECALL,           trap_user_ecall)
+DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_ECALL,     trap_supervisor_ecall)
+DECLARE_TRAP_TVAL_N(CAUSE_HYPERVISOR_ECALL,     trap_hypervisor_ecall)
+DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_ECALL,        trap_machine_ecall)
+DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_PAGE_FAULT,     trap_instruction_page_fault)
+DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
+DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
 
 // Maximum number of threads
 #define EMU_NUM_MINIONS         4096

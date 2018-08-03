@@ -53,6 +53,8 @@ extern void csrset(csr src1, uint64_t val);
 
 // Processor state manipulation
 extern void set_pc(uint64_t pc);
+extern void set_inst(uint32_t bits);
+extern uint32_t get_inst();
 extern void set_thread(uint32_t thread);
 extern uint32_t get_thread();
 extern uint32_t get_mask(unsigned maskNr);
@@ -71,6 +73,9 @@ extern void set_memory_funcs(void * func_memread8_, void * func_memread16_,
                              void * func_memread32_, void * func_memread64_,
                              void * func_memwrite8_, void * func_memwrite16_,
                              void * func_memwrite32_, void * func_memwrite64_);
+
+// Traps
+void take_trap(const trap_t& t);
 
 // Illegal instruction encodings will execute this
 extern void unknown(const char* comm = 0);
