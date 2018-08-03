@@ -9,7 +9,7 @@
 
 // Constructor
 instruction_cache::instruction_cache(main_memory * memory_)
-    : log("instruction cache", LOG_DEBUG)
+    : log("instruction cache", LOG_INFO)
 {
     memory = memory_;
 }

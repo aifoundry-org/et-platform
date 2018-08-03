@@ -323,6 +323,17 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 return CHECKER_ERROR;
             }
 
+            // Check if we just read a cycle register, in which case the RTL drives value
+            if (inst->get_is_csr_read() && ((inst->get_param(1) == csr_cycle  )|| 
+                                            (inst->get_param(1) == csr_cycleh )|| 
+                                            (inst->get_param(1) == csr_mcycle )|| 
+                                            (inst->get_param(1) == csr_mcycleh)))
+            {
+                log << LOG_INFO << "CYCLE CSR value (" << inst->get_mnemonic() << ")" << endm;
+                emu_state_change.int_reg_data = changes->int_reg_data;
+                init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
+            }
+
             // Check if it is an AMO (special case where RTL drives value)
             if(inst->get_is_amo() && (emu_state_change.int_reg_rd != 0))
             {
