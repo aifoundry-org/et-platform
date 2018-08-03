@@ -28,7 +28,8 @@ typedef enum
     csr_fflags,
     csr_frm,
     csr_fcsr,
-    // csr_cycle,
+    csr_cycle,
+    csr_cycleh,
     // csr_time,
     // csr_instret,
     // csr_hpmcounter3,
@@ -98,7 +99,8 @@ typedef enum
     // csr_pmpaddr1,
     // ...
     // csr_pmpaddr15,
-    // csr_mcycle,
+    csr_mcycle,
+    csr_mcycleh,
     // csr_minstret,
     // csr_mhpmcounter3,
     // csr_mhpmcounter4,
@@ -122,10 +124,10 @@ typedef enum
     csr_write_ctrl,
 
     // ----- Validation only registers ---------------------------------------
-    validation0,
-    validation1,
-    validation2,
-    validation3,
+    csr_validation0,
+    csr_validation1,
+    csr_validation2,
+    csr_validation3,
 
     CSR_MAX
 } csr;
