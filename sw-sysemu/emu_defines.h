@@ -148,7 +148,6 @@ typedef enum
 } mem_access_type;
 
 // VA to PA translation
-#define VA_SIZE        48
 #define PA_SIZE        40
 #define PA_M           ((((uint64_t)1) << PA_SIZE) - 1)
 #define PG_OFFSET_SIZE 12
@@ -164,6 +163,20 @@ typedef enum
 #define PTE_A_OFFSET   6
 #define PTE_D_OFFSET   7
 #define PTE_PPN_OFFSET 10
+
+// SATP mode field values
+#define SATP_MODE_BARE  0
+#define SATP_MODE_SV39  8
+#define SATP_MODE_SV48  9
+
+// MSTATUS field offsets
+#define MSTATUS_MXR     19
+#define MSTATUS_SUM     18
+#define MSTATUS_MPRV    17
+#define MSTATUS_XS      15
+#define MSTATUS_FS      13
+#define MSTATUS_MPP     11
+#define MSTATUS_SPP     8
 
 typedef enum
 {

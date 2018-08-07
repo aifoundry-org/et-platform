@@ -267,8 +267,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         {
             // Initialize emu_state_change
             clearlogstate();
-            emu_state_change.pc = current_pc[thread];
-
             // Fetch new instruction (may trap)
             set_pc(current_pc[thread]);
             inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
@@ -313,6 +311,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             error_msg = stream.str();
             return CHECKER_ERROR;
         }
+
+        // Instruction bits -- the RTL monitor shows the uncompressed version of the instruction always,
+        // while bemu shows the original instruction bits, so we cannot really compare them here
+        /*if(changes->inst_bits != inst->get_enc())
+        {
+            stream << "Inst error. Expected inst is 0x" << std::hex << inst->get_enc() << " but provided is 0x" << changes->inst_bits << std::dec << std::endl;
+            error_msg = stream.str();
+            return CHECKER_ERROR;
+        }*/
 
         // Changing integer register
         if(changes->int_reg_mod != emu_state_change.int_reg_mod)
@@ -359,14 +366,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
             }
 
-            if(inst->get_is_load() && (virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) >= TBOX_REGION_START && virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) < TBOX_REGION_END))
+            // NB: the BEMU memread functions put the *physical* address used by the load into mem_addr without setting mem_mod so we can
+            // check for TBOX accesses here.
+            if(inst->get_is_load() && (emu_state_change.mem_addr[0] >= TBOX_REGION_START) && (emu_state_change.mem_addr[0] < TBOX_REGION_END))
             {
                 log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
                 init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
             }
-
 
             // Writes to X0/Zero are ignored
             if((changes->int_reg_data != emu_state_change.int_reg_data) && (emu_state_change.int_reg_rd != 0))

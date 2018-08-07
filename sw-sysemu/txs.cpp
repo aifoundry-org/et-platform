@@ -175,7 +175,7 @@ void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleReque
 
     tbox_emulator.set_image_table_address(base_copy);
 #else
-    DEBUG_EMU(gprintf("ERROR!!! You need to compiler with CHECKER enabled to use checker_sample_quad().\n");)
+    DEBUG_EMU(gprintf("ERROR!!! You need to compile with CHECKER enabled to use checker_sample_quad().\n");)
     exit(-1);
 #endif
 }

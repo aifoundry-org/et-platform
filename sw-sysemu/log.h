@@ -8,6 +8,7 @@ typedef struct
 {
     bool     pc_mod;           // Is a jump instruction
     uint64_t pc;               // PC of instruction being executed
+    uint32_t inst_bits;        // Bits of instruction being executed
     bool     int_reg_mod;      // If an integer register was modified by instruction
     int      int_reg_rd;       // The destination integer register
     uint64_t int_reg_data;     // Value written to the integer register
