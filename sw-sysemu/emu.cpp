@@ -472,7 +472,7 @@ void memwrite64(uint64_t addr, uint64_t data, bool trans)
 {
     uint64_t paddr = addr;
     if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    printf("MEM32 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    printf("MEM64 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
     func_memwrite64(paddr, data);
 }
 
