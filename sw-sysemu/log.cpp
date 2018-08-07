@@ -18,6 +18,7 @@ void clearlogstate()
     if(log_info == NULL) return;
     log_info->pc_mod = false;
     log_info->pc = 0;
+    log_info->inst_bits = 0;
     log_info->int_reg_mod = false;
     log_info->int_reg_rd = 0;
     log_info->int_reg_data = 0;
