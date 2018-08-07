@@ -43,6 +43,7 @@ typedef enum
     csr_tconvsize,
     csr_tconvctrl,
     csr_tcoop,
+    csr_offtxfma,
     csr_tmask,
     csr_twait,
     // csr_top,
