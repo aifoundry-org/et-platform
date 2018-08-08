@@ -2273,6 +2273,7 @@ static void throw_page_fault(uint64_t addr, mem_access_type macc)
 
 uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 {
+  
     // Read mstatus
     const uint64_t mstatus = csrget(csr_mstatus);
     const bool     mxr     = (mstatus >> MSTATUS_MXR ) & 0x1;
@@ -2281,7 +2282,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     const bool     mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
 
     // Read satp
-    const uint64_t satp      = csrget(csr_satp);;
+    const uint64_t satp      = csrget(csr_satp);
     const uint64_t satp_mode = (satp >> 60) & 0xF;
     const uint64_t satp_ppn  = satp & PPN_M;
 
@@ -2296,6 +2297,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     // - the effective execution mode is not 'M'
     // - satp.mode is not "Bare"
     bool vm_enabled = (((macc == Mem_Access_Fetch) ? prv_inst : prv_data) < CSR_PRV_M) && (satp_mode != SATP_MODE_BARE);
+
     if (!vm_enabled)
     {
         // Direct mapping
