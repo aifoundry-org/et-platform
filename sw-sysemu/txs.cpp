@@ -38,7 +38,7 @@ void texsndh(xreg src1, xreg src2, const char* comm)
 
     bool send_header = false;
 
-    for (int e = 0; !send_header & (e < VL); e++)
+    for (int e = 0; !send_header & (e < VL_TBOX); e++)
         send_header = (MREGS[0].b[e] == 1);
 
     if (send_header)
@@ -59,7 +59,7 @@ void texsnds(freg src1, const char* comm)
 
     bool send_coordinate = false;
 
-    for (int e = 0; !send_coordinate & (e < VL); e++)
+    for (int e = 0; !send_coordinate & (e < VL_TBOX); e++)
         send_coordinate = (MREGS[0].b[e] == 1);
 
     if (send_coordinate)
@@ -67,7 +67,7 @@ void texsnds(freg src1, const char* comm)
         tbox_emulator.set_request_coordinates(current_thread, 0, FREGS[src1]);
 
         DEBUG_EMU( gprintf("\t Set *s* texture coordinates from f%d\n", src1); )
-        for(uint32_t c = 0; c < VL; c++)
+        for(uint32_t c = 0; c < VL_TBOX; c++)
         {
             DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
         }
@@ -83,7 +83,7 @@ void texsndt(freg src1, const char* comm)
 
     bool send_coordinate = false;
 
-    for (int e = 0; !send_coordinate & (e < VL); e++)
+    for (int e = 0; !send_coordinate & (e < VL_TBOX); e++)
         send_coordinate = (MREGS[0].b[e] == 1);
 
     if (send_coordinate)
@@ -91,7 +91,7 @@ void texsndt(freg src1, const char* comm)
         tbox_emulator.set_request_coordinates(current_thread, 1, FREGS[src1]);
 
         DEBUG_EMU( gprintf("\t Set *t* texture coordinates from f%d\n", src1); )
-        for(uint32_t c = 0; c < VL; c++)
+        for(uint32_t c = 0; c < VL_TBOX; c++)
         {
             DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
         }
@@ -107,7 +107,7 @@ void texsndr(freg src1, const char* comm)
 
     bool send_coordinate = false;
 
-    for (int e = 0; !send_coordinate & (e < VL); e++)
+    for (int e = 0; !send_coordinate & (e < VL_TBOX); e++)
         send_coordinate = (MREGS[0].b[e] == 1);
 
     if (send_coordinate)
@@ -115,7 +115,7 @@ void texsndr(freg src1, const char* comm)
         tbox_emulator.set_request_coordinates(current_thread, 2, FREGS[src1]);
 
         DEBUG_EMU( gprintf("\t Set *r* texture coordinates from f%d\n", src1); )
-        for(uint32_t c = 0; c < VL; c++)
+        for(uint32_t c = 0; c < VL_TBOX; c++)
         {
             DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
         }
@@ -133,7 +133,7 @@ void texrcv(freg dst, const uint32_t idx, const char* comm)
 
     if (tbox_emulator.check_request_pending(current_thread))
     {
-        for (int e = 0; !sample & (e < VL); e++)
+        for (int e = 0; !sample & (e < VL_TBOX); e++)
             sample = (MREGS[0].b[e] == 1); // if at least one frag alive then sample quad
         tbox_emulator.set_request_pending(current_thread, false);
     }
@@ -145,7 +145,7 @@ void texrcv(freg dst, const uint32_t idx, const char* comm)
 
     data = tbox_emulator.get_request_results(current_thread, idx);
 
-    for (uint32_t c = 0;  c < VL; c++)
+    for (uint32_t c = 0; c < VL_TBOX; c++)
     {
         // texrcv should pay attention to the mask!!!
         if ( MREGS[0].b[c] == 0 ) continue;

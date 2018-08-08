@@ -428,6 +428,9 @@ typedef enum
 #error "Only 128-bit and 256-bit vectors supported"
 #endif
 
+/* Obsolete texsnd/texrcv instuctions use the low 128b of the fregs for data transfers */
+#define VL_TBOX 4
+
 typedef union
 {
     uint8_t   b[VL*4];
