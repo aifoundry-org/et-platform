@@ -563,14 +563,15 @@ int main(int argc, char * argv[])
                 if(inst->get_is_wfi() && !reduce_wait)
                 {
                     if(do_log) { printf("Minion %i.%i.%i: Going to sleep\n", thread_id / 128, (thread_id / 2) & 0x3F, thread_id & 1); }
-                    auto old_thread = thread++;
-                    enabled_threads.erase(old_thread);
+                    int old_thread = *thread;
+                    thread = enabled_threads.erase(thread);
+
                     // Checks if there's a pending IPI and wakes up thread again
-                    auto ipi = std::find(pending_ipi.begin(), pending_ipi.end(), * old_thread);
+                    auto ipi = std::find(pending_ipi.begin(), pending_ipi.end(), old_thread);
                     if(ipi != pending_ipi.end())
                     {
-                        if(do_log) { printf("Minion %i.%i.%i: Waking up due present IPI\n", (* old_thread) / 128, ((* old_thread) / 2) & 0x3F, (* old_thread) & 1); }
-                        enabled_threads.push_back(* old_thread);
+                        if(do_log) { printf("Minion %i.%i.%i: Waking up due present IPI\n", (old_thread) / 128, ((old_thread) / 2) & 0x3F, (old_thread) & 1); }
+                        enabled_threads.push_back(old_thread);
                         pending_ipi.erase(ipi);
                     }
                 }
