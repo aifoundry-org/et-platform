@@ -669,7 +669,7 @@ std::string checker::get_mnemonic(uint64_t pc)
 }
 
 // enables or disables the 2nd thread
-void checker::thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc)
+void checker::thread1_enabled(unsigned minionId, uint64_t en, uint64_t pc)
 {
   unsigned thread = minionId | 1;
   if (en != threadEnabled[thread] ) {
