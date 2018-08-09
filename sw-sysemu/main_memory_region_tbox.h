@@ -2,10 +2,8 @@
 #define _MAIN_MEMORY_REGION_TBOX_
 
 // Local
-#include "checker_defines.h"
 #include "testLog.h"
 #include "main_memory_region.h"
-#include "emu.h"
 
 // This class is a memory region that behaves like a tbox:
 //  - Gets the writes to know what job to do

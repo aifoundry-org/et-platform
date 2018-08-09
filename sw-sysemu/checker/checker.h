@@ -6,7 +6,6 @@
 #include <list>
 
 // Local
-#include "checker_defines.h"
 #include "main_memory.h"
 #include "instruction_cache.h"
 #include "log.h"
@@ -17,6 +16,14 @@ extern uint8_t emu_use_fake_txfma;
 
 extern uint8_t checker_memread8(uint64_t addr);
 extern void checker_memwrite64(uint64_t addr, uint64_t data);
+
+// Checker results
+typedef enum
+{
+    CHECKER_OK    = 0,
+    CHECKER_ERROR = 1,
+    CHECKER_WAIT  = 2
+} checker_result;
 
 typedef struct
 {

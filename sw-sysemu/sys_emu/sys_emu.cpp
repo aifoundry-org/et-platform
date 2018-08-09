@@ -11,6 +11,7 @@
 #include "instruction_cache.h"
 #include "instruction.h"
 #include "testLog.h"
+#include "log.h"
 #include "net_emulator.h"
 #include "rboxSysEmu.h"
 
@@ -179,12 +180,12 @@ bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
         uint64_t base_addr;
         uint64_t size;
         char str[1024];
-        if(sscanf(buffer, "New Mem Region: 40'h%LX, 40'h%LX, %s", &base_addr, &size, str) == 3)
+        if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
         {
             memory->new_region(base_addr, size);
             log << LOG_INFO << "New Mem Region found: @ 0x" << std::hex << base_addr << ", size = 0x" << size << std::dec << endm;
         }
-        else if(sscanf(buffer, "File Load: 40'h%LX, %s", &base_addr, str) == 2)
+        else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
             memory->load_file(str, base_addr);
             log << LOG_INFO << "New File Load found: @ 0x" << std::hex << base_addr << std::dec << endm;
@@ -201,7 +202,7 @@ bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
 
 void print_inst_log(instruction * inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
 {
-    printf("Minion %i.%i.%i: PC %08x (inst bits %08x), mnemonic %s\n", minion / 128, (minion >> 1) & 0x3F, minion & 1, current_pc, inst->get_enc(), inst->get_mnemonic().c_str());
+    printf("Minion %" PRIu64 ".%" PRIu64 ".%" PRIu64 ": PC %08" PRIx64 " (inst bits %08" PRIx32 "), mnemonic %s\n", minion / 128, (minion >> 1) & 0x3F, minion & 1, current_pc, inst->get_enc(), inst->get_mnemonic().c_str());
 }
 
 // Returns current thread
@@ -241,7 +242,6 @@ int main(int argc, char * argv[])
 
     bzero(rbox, sizeof(rbox));
 
-    int i = 0;
     for(int i = 1; i < argc; i++)
     {
         if(mem_desc)
@@ -256,17 +256,17 @@ int main(int argc, char * argv[])
         }
         else if(minions)
         {
-            sscanf(argv[i], "%llx", &minions_en);
+            sscanf(argv[i], "%" PRIx64, &minions_en);
             minions = 0;
         }
         else if(shires)
         {
-            sscanf(argv[i], "%llx", &shires_en);
+            sscanf(argv[i], "%" PRIx64, &shires_en);
             shires = 0;
         }
         else if(dump == 1)
         {
-            sscanf(argv[i], "%llx", &dump_addr);
+            sscanf(argv[i], "%" PRIx64, &dump_addr);
             dump = 0;
         }
         else if(dump == 2)
@@ -456,7 +456,7 @@ int main(int argc, char * argv[])
 
         if(log_en)
         {
-            printf("Starting Emulation Cycle %lli\n", emu_cycle);
+            printf("Starting Emulation Cycle %" PRIu64 "\n", emu_cycle);
         }
 
         auto thread = enabled_threads.begin();
@@ -497,7 +497,7 @@ int main(int argc, char * argv[])
                         reduce_state_array[thread_id>>1] = Reduce_Ready_To_Send;
                         reduce_pair_array[thread_id>>1]  = other_min;
                         // If the other minion hasn't arrived yet, wait
-                        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != (thread_id>>1)))
+                        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != uint32_t(thread_id>>1)))
                         {
                             reduce_wait = true;
                         }
@@ -517,7 +517,7 @@ int main(int argc, char * argv[])
                     {
                         reduce_pair_array[thread_id>>1] = other_min;
                         // If the other minion hasn't arrived yet, wait
-                        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != (thread_id>>1)))
+                        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != uint32_t(thread_id>>1)))
                         {
                             reduce_wait = true;
                         }
@@ -598,7 +598,7 @@ int main(int argc, char * argv[])
         auto it = ipi_threads.begin();
         while(it != ipi_threads.end())
         {
-            if(dump_log(log_en, log_min, * it)) { printf("Minion %i.%i.%i: Waking up due IPI with PC %llx\n", (* it) / 128, ((* it) / 2) & 0x3F, (* it) & 1, new_pc); }
+            if(dump_log(log_en, log_min, * it)) { printf("Minion %i.%i.%i: Waking up due IPI with PC %" PRIx64 "\n", (* it) / 128, ((* it) / 2) & 0x3F, (* it) & 1, new_pc); }
             current_pc[* it] = new_pc;
             enabled_threads.push_back(* it);
             it++;

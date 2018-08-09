@@ -7,6 +7,7 @@
 #include "log.h"
 #include "ipc.h"
 #include "cvt.h"
+#include "emu.h"
 #include "emu_gio.h"
 
 using emu::gprintf;
