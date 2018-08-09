@@ -3809,7 +3809,7 @@ void flq(freg dst, int off, xreg base, const char* comm)
     if (check_fs()) return;
     DISASM(gsprintf(dis,"I: flq f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femuld(FLW, VL, dst, off,  base, 0);
+    femuld(FLW, 4, dst, off,  base, 0);
 }
 
 void fsw_ps(freg src1, int off, xreg base, const char* comm)
@@ -3826,7 +3826,7 @@ void fsq(freg src1, int off, xreg base, const char* comm)
     if (check_fs()) return;
     DISASM(gsprintf(dis,"I: fsq f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femust(FSW, VL, src1, off, base, 0);
+    femust(FSW, 4, src1, off, base, 0);
 }
 
 void fswpc_ps(freg src1, int off, xreg base, const char* comm)
