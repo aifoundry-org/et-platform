@@ -10,7 +10,6 @@
 #include "main_memory.h"
 #include "instruction_cache.h"
 #include "instruction.h"
-#include "testLog.h"
 #include "log.h"
 #include "net_emulator.h"
 #include "rboxSysEmu.h"

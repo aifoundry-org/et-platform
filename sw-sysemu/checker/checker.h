@@ -9,7 +9,6 @@
 #include "main_memory.h"
 #include "instruction_cache.h"
 #include "log.h"
-#include "testLog.h"
 
 // defined in emu.h
 extern uint8_t emu_use_fake_txfma;

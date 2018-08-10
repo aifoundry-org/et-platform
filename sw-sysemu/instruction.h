@@ -2,6 +2,7 @@
 #define _INSTRUCTION_
 
 // Local
+#define CHECKER
 #include "testLog.h"
 
 // STD

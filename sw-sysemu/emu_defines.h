@@ -8,8 +8,18 @@
 #endif
 
 // Basic types
+#ifdef HAVE_SOFTFLOAT
+#include <softfloat/softfloat_types.h>
+
+// "Real" TXFMA is not compatible with softfloat
+#ifdef USE_REAL_TXFMA
+#undef USE_REAL_TXFMA
+#endif
+
+#else
 typedef double             float64_t;
 typedef float              float32_t;
+#endif
 
 // CSRs
 typedef enum
@@ -177,6 +187,26 @@ typedef enum
 #define MSTATUS_FS      13
 #define MSTATUS_MPP     11
 #define MSTATUS_SPP     8
+
+// fclass result bitmask
+#define FCLASS_NEG_INFINITY     0x0001
+#define FCLASS_NEG_NORMAL       0x0002
+#define FCLASS_NEG_SUBNORMAL    0x0004
+#define FCLASS_NEG_ZERO         0x0008
+#define FCLASS_POS_ZERO         0x0010
+#define FCLASS_POS_SUBNORMAL    0x0020
+#define FCLASS_POS_NORMAL       0x0040
+#define FCLASS_POS_INFINITY     0x0080
+#define FCLASS_SNAN             0x0100
+#define FCLASS_QNAN             0x0200
+// fclass combined classes
+#define FCLASS_INFINITY         (FCLASS_NEG_INFINITY  | FCLASS_POS_INFINITY )
+#define FCLASS_NORMAL           (FCLASS_NEG_NORMAL    | FCLASS_POS_NORMAL   )
+#define FCLASS_SUBNORMAL        (FCLASS_NEG_SUBNORMAL | FCLASS_POS_SUBNORMAL)
+#define FCLASS_ZERO             (FCLASS_NEG_ZERO      | FCLASS_POS_ZERO     )
+#define FCLASS_NAN              (FCLASS_SNAN          | FCLASS_QNAN         )
+#define FCLASS_NEGATIVE         (FCLASS_NEG_INFINITY | FCLASS_NEG_NORMAL | FCLASS_NEG_SUBNORMAL | FCLASS_NEG_ZERO)
+#define FCLASS_POSITIVE         (FCLASS_POS_INFINITY | FCLASS_POS_NORMAL | FCLASS_POS_SUBNORMAL | FCLASS_POS_ZERO)
 
 typedef enum
 {
@@ -455,6 +485,7 @@ typedef union
     uint32_t  u[VL];
     int32_t   i[VL];
     float32_t f[VL];
+    float     flt[VL];
     uint64_t  x[VL/2];
     int64_t   q[VL/2];
 } fdata;
@@ -485,9 +516,13 @@ typedef union
 {
     int32_t   i;
     uint32_t  u;
+    float32_t f;
+    float     flt;
     uint64_t  x;
     int64_t   xs;
-    float32_t f;
+#ifdef USE_REAL_TXFMA
+    double    dbl;
+#endif
 } iufval;
 
 // message port value type

@@ -14,7 +14,7 @@ DEPS := $(addsuffix .d,$(basename $(OBJS)))
 
 CC	 := gcc
 CXX 	 := g++
-CPPFLAGS := -I$(BEMU) -I$(BEMU)/checker -I$(TESTROOT)/libs -DCHECKER
+CPPFLAGS := -I$(BEMU) -I$(BEMU)/checker -I$(TESTROOT)/libs
 CXXFLAGS := -MMD -Wall -Werror -fPIC -std=c++11 -g -O2
 LDFLAGS  := -shared
 LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
