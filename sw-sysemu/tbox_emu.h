@@ -406,7 +406,7 @@ public :
     void decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
                                             uint64_t inData[TEXTURE_CACHE_QWORDS_PER_LINE], uint64_t outData[TEXTURE_CACHE_QWORDS_PER_LINE]);
 
-    L2Request* get_l2_request_queue() const;
+    //L2Request* get_l2_request_queue() const;
     uint32_t get_num_new_l2_requests(uint32_t thread) const;
     uint32_t get_num_pending_l2_requests(uint32_t thread) const;
     void clear_l2_requests(uint32_t thread);
@@ -458,7 +458,7 @@ private :
     uint8_t textureCacheLRU[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK];
     uint64_t textureCacheData[TEXTURE_CACHE_BANKS][TEXTURE_CACHE_LINES_PER_BANK][TEXTURE_CACHE_QWORDS_PER_LINE];
 
-    L2Request* l2_requests;
+    L2Request l2_requests[MAX_L2_REQUESTS];
     uint32_t num_new_l2_requests[EMU_NUM_THREADS];
     uint32_t num_pending_l2_requests[EMU_NUM_THREADS];
     uint32_t num_created_l2_requests[EMU_NUM_THREADS];

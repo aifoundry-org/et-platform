@@ -23,7 +23,7 @@ rboxSysEmu::rboxSysEmu(unsigned shireId, main_memory *mem,
     
   quad_transaction qt;
   
-  for ( int i = 0; i< trace.numQuads; i++)
+  for (unsigned i = 0; i< trace.numQuads; i++)
   {
     qt.minion = trace.quads[i].minion_id % NUM_SHIRE_MIN;   // Minion ID
     memcpy(&qt.data, &trace.quads[i].dPS, 64);              // Copy PS desc

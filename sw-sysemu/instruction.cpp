@@ -393,30 +393,6 @@ instruction::~instruction()
 {
 }
 
-// Access
-void instruction::set_pc(uint64_t pc_)
-{
-    pc = pc_;
-}
-
-// Access
-uint64_t instruction::get_pc()
-{
-    return pc;
-}
-
-// Access
-void instruction::set_enc(uint32_t enc_bits_)
-{
-    enc_bits = enc_bits_;
-}
-
-// Access
-uint32_t instruction::get_enc()
-{
-    return enc_bits;
-}
-
 // Sets the mnemonic. It also starts decoding it to generate
 // the emulation routine
 void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
@@ -799,108 +775,6 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     }
 }
 
-// Access
-std::string instruction::get_mnemonic()
-{
-    return mnemonic;
-}
-
-// Access
-void instruction::set_compressed(bool v)
-{
-    is_compressed = v;
-}
-
-// Access
-bool instruction::get_is_compressed()
-{
-    return is_compressed;
-}
-
-// Get the number of bytes the instruction is encoded with
-unsigned instruction::get_size()
-{
-    return (is_compressed ? 2 : 4);
-}
-
-// Access
-bool instruction::get_is_load()
-{
-    return is_load;
-}
-
-// Access
-bool instruction::get_is_fpload()
-{
-    return is_fpload;
-}
-
-// Access
-bool instruction::get_is_wfi()
-{
-    return is_wfi;
-}
-
-// Access
-bool instruction::get_is_csr_read()
-{
-    return is_csr_read;
-}
-
-// Access
-bool instruction::get_is_reduce()
-{
-    return is_reduce;
-}
-
-// Access
-bool instruction::get_is_tensor_load()
-{
-  return is_tensor_load;
-}
-
-// Access
-bool instruction::get_is_tensor_fma()
-{
-  return is_tensor_fma;
-}
-
-// Access
-bool instruction::get_is_flb()
-{
-  return is_flb;
-}
-
-// Access
-bool instruction::get_is_texrcv()
-{
-    return is_texrcv;
-}
-
-// Access
-bool instruction::get_is_texsndh()
-{
-  return is_texsndh;
-}
-
-// Access
-bool instruction::get_is_1ulp()
-{
-  return is_1ulp;
-}
-
-// Access
-bool instruction::get_is_amo()
-{
-  return is_amo;
-}
-
-// Access
-int instruction::get_param(int param)
-{
-    return params[param];
-}
-
 // Instruction execution
 void instruction::exec()
 {
@@ -1091,6 +965,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "tensor_conv_size") params[num_params] = csr_tconvsize;
         else if(param == "tensor_conv_ctrl") params[num_params] = csr_tconvctrl;
         else if(param == "unknown_804")      params[num_params] = csr_tcoop;
+        else if(param == "unknown_7d1")      params[num_params] = csr_offtxfma;
         else if(param == "usr_cache_op")     params[num_params] = csr_ucacheop;
         else if(param == "tensor_load")      params[num_params] = csr_tloadctrl;
         else if(param == "tensor_store")     params[num_params] = csr_tstore;
