@@ -9,7 +9,7 @@ typedef struct
 {
     bool     pc_mod;            // Is a jump instruction
     uint64_t pc;                // PC of instruction being executed
-    uint32_t inst_bits;        // Bits of instruction being executed
+    uint32_t inst_bits;         // Bits of instruction being executed
     bool     int_reg_mod;       // If an integer register was modified by instruction
     int      int_reg_rd;        // The destination integer register
     uint64_t int_reg_data;      // Value written to the integer register
@@ -18,10 +18,10 @@ typedef struct
     uint64_t fp_reg_data[VL/2]; // Value written to the floating register
     bool     m_reg_mod[8];      // If a mask register was modified by instruction
     uint8_t  m_reg_data[8][VL]; // Value written to the mask register
-    bool     mem_mod[VL];        // If a memory position was updated
-    int      mem_size[VL];       // Size of the memory update
-    uint64_t mem_addr[VL];       // Address being updated
-    uint64_t mem_data[VL];       // New contents
+    bool     mem_mod[VL];       // If a memory position was updated
+    int      mem_size[VL];      // Size of the memory update
+    uint64_t mem_addr[VL];      // Address being updated
+    uint64_t mem_data[VL];      // New contents
 } inst_state_change;
 
 // Changes done by instruction

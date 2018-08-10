@@ -1,11 +1,8 @@
 #include <cstdio>
 #include <cassert>
-#include <cmath>
 #include <cstring>
 #include <algorithm>
 #include <strings.h>
-#include <immintrin.h>
-#include <emmintrin.h>
 #include <list>
 
 #include "emu.h"
@@ -15,9 +12,23 @@
 #include "ttrans.h"
 #include "emu_casts.h"
 #include "emu_gio.h"
+#include "emu_memop.h"
 
-using std::fpclassify;
-using std::signbit;
+#include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
+#include <emmintrin.h> // FIXME: remove this when we fix the TXFMA code
+
+#ifdef HAVE_SOFTFLOAT
+#include "softfloat/softfloat.h"
+#include "softfloat/internals.h"
+#include "softfloat/specialize.h"
+#else
+#include <cmath>       // FIXME: remove this when we remove all C++ floating-point code
+#include <immintrin.h>
+
+#define isNaNF32UI(a)     (((~(a) & 0x7f800000) == 0) && ((a) & 0x007fffff))
+#define isSigNaNF32UI(a)  ((((a) & 0x7fc00000) == 0x7f800000) && ((a) & 0x003fffff))
+#define defaultNaNF32UI   0x7fc00000
+#endif
 
 using emu::gprintf;
 using emu::gsprintf;
@@ -177,28 +188,220 @@ void fpinit(freg dst, uint64_t val[2])
     FREGS[dst].x[1] = val[1];
 }
 
-static float roundnef (float f){
-    if ((fabs(f)-0.5 == trunc(fabs(f))) && !((int)fabs(f) % 2))
-        if (f>0)
-            return roundf(f)-1;
-        else
-            return roundf(f) +1;
-    else
-        return roundf(f);
+// internal accessor to frm; this is faster than doing csrget(csr_frm)
+static inline int frm()
+{
+    return ((csrregs[current_thread][csr_fcsr] >> 5) & 0x7);
 }
 
-static float roundf ( float val, rounding_mode rm) {
+// internal accessor to fflags; this is faster than doing
+// csrset(csr_fflags, csrget(csr_fflags) | new_value)
+static inline void update_fflags(int flags)
+{
+    csrregs[current_thread][csr_fcsr] |= (flags & 0x1F);
+}
+
+// internal accessor to mstatus.fs; this is faster than using csrset()
+static inline void dirty_fp_state()
+{
+    csrregs[current_thread][csr_mstatus] |= 0x8000000000006000ULL;
+}
+
+static inline void require_fp_active()
+{
+    if ((csrregs[current_thread][csr_mstatus] & 0x0006000ULL) == 0)
+        throw trap_illegal_instruction(current_inst);
+}
+
+static inline void handle_denormal(iufval& a)
+{
+    if ((a.u & 0x7f800000) == 0)
+        a.u &= 0x80000000; // preserve sign
+}
+
+static inline void handle_nan_default(iufval& a)
+{
+    if (isNaNF32UI(a.u))
+        a.u = defaultNaNF32UI;
+}
+
+static const char* rmnames[] = {
+    "rne", "rtz", "rdn", "rup",
+    "rmm", "res", "res", "dyn"
+};
+
+// FIXME: remove '#include <cfenv>' when we purge this function from the code
+static inline void set_x86_rounding_mode(rounding_mode rm)
+{
+    switch ((rm == rmdyn) ? frm() : rm)
+    {
+        case rne: std::fesetround(FE_TONEAREST); break;
+        case rtz: std::fesetround(FE_TOWARDZERO); break;
+        case rdn: std::fesetround(FE_DOWNWARD); break;
+        case rup: std::fesetround(FE_UPWARD); break;
+        case rmm:
+            DEBUG_EMU(gprintf("INFO: round_near_maxMag not supported by C++\n"););
+            std::fesetround(FE_TONEAREST);
+            break;
+        default:
+            assert(0);
+            break;
+    }
+}
+
+static inline void set_rounding_mode(rounding_mode rm)
+{
+    int round = (rm == rmdyn) ? frm() : rm;
+    if (round > 4)
+        throw trap_illegal_instruction(current_inst);
+#ifdef HAVE_SOFTFLOAT
+    softfloat_roundingMode = round;
+#else
+    set_x86_rounding_mode(rounding_mode(round));
+#endif
+}
+
+static const char* get_rounding_mode(rounding_mode rm)
+{
+    return rmnames[(rm == rmdyn) ? frm() : rm];
+}
+
+static inline void set_fp_exceptions()
+{
+#ifdef HAVE_SOFTFLOAT
+    if (softfloat_exceptionFlags)
+    {
+        dirty_fp_state();
+        update_fflags(softfloat_exceptionFlags);
+        softfloat_exceptionFlags = 0;
+    }
+#else
+    // FIXME: do something here...
+#endif
+}
+
+#ifdef HAVE_SOFTFLOAT
+
+static float32_t q15p16_to_f32(int32_t val)
+{
+    // convert int32 to float32 and then scale by 2^-16
+    iufval t;
+    t.f = i32_to_f32(val);
+    if (t.u)
+        t.u = packToF32UI(signF32UI(t.u), expF32UI(t.u) - 16, fracF32UI(t.u));
+    return t.f;
+}
+
+static int32_t f32_to_q17p14(float32_t val)
+{
+    iufval v;
+    v.f = val;
+
+    // NaN converts to 0
+    if (isNaNF32UI(v.u))
+    {
+        if (softfloat_isSigNaNF32UI(v.u))
+            softfloat_raiseFlags(softfloat_flag_invalid);
+        return 0;
+    }
+    // denormals and +/-0.0 convert to 0
+    if ((v.u & 0x7f800000) == 0)
+    {
+        return 0;
+    }
+    // abs(val) >= 2.0769187e+34, including +/-infinity, converts to 0
+    if ((v.u & 0x7fffffff) >= 0x78800000)
+    {
+        softfloat_raiseFlags(softfloat_flag_inexact);
+        return 0;
+    }
+    // all others are converted as int(val*16384.0+0.5)
+    v.u = v.u ? packToF32UI(signF32UI(v.u), expF32UI(v.u) + 14, fracF32UI(v.u)) : 0;
+    v.f = f32_add(v.f, { 0x3f000000 /*0.5*/ });
+    return f32_to_i32(v.f, softfloat_roundingMode, true);
+}
+
+static float32_t f32_max(float32_t a, float32_t b)
+{
+    // IEEE 754-201x compatible
+    // NB: f32_lt_quiet() will signal invalid operation if a or b is SNaN
+    bool a_gt_b = (f32_lt_quiet(b, a) || (f32_eq(a, b) && signF32UI(b.v)));
+    return (isNaNF32UI(a.v) && isNaNF32UI(b.v)) ? float32_t({ defaultNaNF32UI }) : (a_gt_b || isNaNF32UI(b.v)) ? a : b;
+}
+
+static float32_t f32_min(float32_t a, float32_t b)
+{
+    // IEEE 754-201x compatible
+    // NB: f32_lt_quiet() will signal invalid operation if a or b is SNaN
+    bool a_lt_b = (f32_lt_quiet(a, b) || (f32_eq(a, b) && signF32UI(a.v)));
+    return (isNaNF32UI(a.v) && isNaNF32UI(b.v)) ? float32_t({ defaultNaNF32UI }) : (a_lt_b || isNaNF32UI(b.v)) ? a : b;
+}
+
+static inline float32_t f32_neg(float32_t a)
+{
+    return { (a.v ^ 0x80000000) };
+}
+
+#else
+
+static float roundnef(float f)
+{
+    if ((fabs(f)-0.5 == trunc(fabs(f))) && !((int)fabs(f) % 2))
+    {
+        return (f>0) ? (roundf(f)-1) : (roundf(f)+1);
+    }
+    return roundf(f);
+}
+
+static float roundf(float val, rounding_mode rm)
+{
     switch (rm) {
         case rne   : return roundnef(val);
         case rtz   : return trunc(val);
         case rdn   : return floor(val);
         case rup   : return ceil(val);
         case rmm   : return roundf(val);
-        case rmdyn : return roundf(val, (rounding_mode) csrget(csr_frm) );
+        case rmdyn : return roundf(val, rounding_mode(frm()));
     }
-    gprintf("invalid rounding mode: %d... using rm register instead\n", rm);
-    return roundf(val, (rounding_mode) csrget(csr_frm) );
+    gprintf("invalid rounding mode: %d... using rne instead\n", rm);
+    return roundf(val, rne);
 }
+
+// convert float to int using current rounding mode
+static inline int32_t f32_to_i32(float x)
+{
+    return _mm_cvtss_si32(_mm_round_ss(_mm_set_ps1(0.0),
+                                       _mm_set_ss(x),
+                                       _MM_FROUND_CUR_DIRECTION));
+}
+
+static inline uint16_t f32_classify(float32_t a)
+{
+    uint32_t v = cast_float32_to_uint32(a);
+
+    uint32_t exp  = (v >> 23) & 0xff;
+    uint32_t mant = (v >>  0) & 0x007fffff;
+
+    bool negative    = (v >> 31) & 0x1;
+    bool inf_or_nan  = (exp == 0xff);
+    bool sub_or_zero = (exp == 0);
+    bool zero_mant   = (mant == 0);
+    bool is_nan      = isNaNF32UI(v);
+    bool is_snan     = isSigNaNF32UI(v);
+
+    return ((uint16_t(  negative &&  inf_or_nan  &&  zero_mant   ) << 0) |
+            (uint16_t(  negative && !inf_or_nan  && !sub_or_zero ) << 1) |
+            (uint16_t(  negative &&  sub_or_zero && !zero_mant   ) << 2) |
+            (uint16_t(  negative &&  sub_or_zero &&  zero_mant   ) << 3) |
+            (uint16_t( !negative &&  inf_or_nan  &&  zero_mant   ) << 7) |
+            (uint16_t( !negative && !inf_or_nan  && !sub_or_zero ) << 6) |
+            (uint16_t( !negative &&  sub_or_zero && !zero_mant   ) << 5) |
+            (uint16_t( !negative &&  sub_or_zero &&  zero_mant   ) << 4) |
+            (uint16_t( is_nan &&  is_snan )                        << 8) |
+            (uint16_t( is_nan && !is_snan )                        << 9) );
+}
+
+#endif
 
 void initcsr(uint32_t thread)
 {
@@ -253,8 +456,8 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
         return 0;
 
     // Detect NaNs
-    bool gold_is_nan  = ((gold  & 0x7F800000) == 0x7F800000) && ((gold  & 0x007FFFFF) != 0);
-    bool table_is_nan = ((table & 0x7F800000) == 0x7F800000) && ((table & 0x007FFFFF) != 0);
+    bool gold_is_nan  = isNaNF32UI(gold);
+    bool table_is_nan = isNaNF32UI(table);
 
     assert((gold_is_nan == table_is_nan) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
 
@@ -268,16 +471,15 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
     if (gold_is_nan)
         return 0;
 
-    uint32_t gold_clean = gold & 0x7F800000;     // clean mantissa and sign from gold
+    uint32_t gold_clean = gold & 0x7f800000;     // clean mantissa and sign from gold
 
     // compute 1ulp from gold
-    float err_1ulp = cast_uint32_to_float32(gold_clean);
-    err_1ulp = err_1ulp / float (1 << 23); // put '1' in the unit of less precision
+    float err_1ulp = iufval({ .u = gold_clean }).flt / float(1 << 23); // put '1' in the unit of less precision
 
     // compute diff between gold and table approximation
-    float goldf  = cast_uint32_to_float32(gold);
-    float tablef = cast_uint32_to_float32(table);
-    float diff = fabsf(goldf - tablef);
+    float goldf  = iufval({ .u = gold }).flt;
+    float tablef = iufval({ .u = table }).flt;
+    float diff   = fabsf(goldf - tablef);
 
     // fail if diff is bigger than 1ulp
     if (diff > err_1ulp) {
@@ -390,8 +592,6 @@ uint32_t get_mask(unsigned maskNr)
 #endif
 }
 
-#ifdef CHECKER
-
 extern inst_state_change * log_info;
 
 // Defines the functions to access to the main memory during checker mode
@@ -414,124 +614,151 @@ static func_memwrite16_t func_memwrite16 = NULL;
 static func_memwrite32_t func_memwrite32 = NULL;
 static func_memwrite64_t func_memwrite64 = NULL;
 
-uint8_t memread8(uint64_t addr, bool trans)
+static uint8_t emu_vmemread8(uint64_t addr)
 {
-    uint64_t paddr = addr;
-    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
     // Used to detect special load accesses like ticketer
     log_info->mem_addr[0] = paddr;
     return func_memread8(paddr);
 }
 
-uint16_t memread16(uint64_t addr, bool trans)
+static uint16_t emu_vmemread16(uint64_t addr)
 {
-    uint64_t paddr = addr;
-    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
     // Used to detect special load accesses like ticketer
     log_info->mem_addr[0] = paddr;
     return func_memread16(paddr);
 }
 
-uint32_t memread32(uint64_t addr, bool trans)
+static uint32_t emu_vmemread32(uint64_t addr)
 {
-    uint64_t paddr = addr;
-    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
     // Used to detect special load accesses like ticketer
     log_info->mem_addr[0] = paddr;
     return func_memread32(paddr);
 }
 
-uint64_t memread64(uint64_t addr, bool trans)
+static uint64_t emu_vmemread64(uint64_t addr)
 {
-    uint64_t paddr = addr;
-    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
     // Used to detect special load accesses like ticketer
     log_info->mem_addr[0] = paddr;
     return func_memread64(paddr);
 }
 
-void memwrite8(uint64_t addr, uint8_t data, bool trans)
+static uint64_t emu_pmemread64(uint64_t paddr)
 {
-    uint64_t paddr = addr;
-    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    printf("MEM8 %i, %016" PRIx64 ", %02" PRIx8 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    return func_memread64(paddr);
+}
+
+static void emu_vmemwrite8(uint64_t addr, uint8_t data)
+{
+    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    DEBUG_EMU(gprintf("MEM8 %i, %016" PRIx64 ", %02" PRIx8 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr););
     func_memwrite8(paddr, data);
 }
 
-void memwrite16(uint64_t addr, uint16_t data, bool trans)
+static void emu_vmemwrite16(uint64_t addr, uint16_t data)
 {
-    uint64_t paddr = addr;
-    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    printf("MEM16 %i, %016" PRIx64 ", %04" PRIx16 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    DEBUG_EMU(gprintf("MEM16 %i, %016" PRIx64 ", %04" PRIx16 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr););
     func_memwrite16(paddr, data);
 }
 
-void memwrite32(uint64_t addr, uint32_t data, bool trans)
+static void emu_vmemwrite32(uint64_t addr, uint32_t data)
 {
-    uint64_t paddr = addr;
-    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    printf("MEM32 %i, %016" PRIx64 ", %08" PRIx32 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    DEBUG_EMU(gprintf("MEM32 %i, %016" PRIx64 ", %08" PRIx32 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr););
     func_memwrite32(paddr, data);
 }
 
-void memwrite64(uint64_t addr, uint64_t data, bool trans)
+static void emu_vmemwrite64(uint64_t addr, uint64_t data)
 {
-    uint64_t paddr = addr;
-    if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    printf("MEM64 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    DEBUG_EMU(gprintf("MEM64 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr););
     func_memwrite64(paddr, data);
 }
 
-#else
+static void emu_pmemwrite64(uint64_t paddr, uint64_t data)
+{
+    DEBUG_EMU(gprintf("MEM64 %i, %016" PRIx64 ", %016" PRIx64 "\n", current_thread, paddr, data););
+    func_memwrite64(paddr, data);
+}
 
-uint8_t memread8(uint64_t addr, bool trans)
+static uint8_t host_vmemread8(uint64_t addr)
 {
     return * ((uint8_t *) addr);
 }
 
-uint16_t memread16(uint64_t addr, bool trans)
+static uint16_t host_vmemread16(uint64_t addr)
 {
     return * ((uint16_t *) addr);
 }
 
-uint32_t memread32(uint64_t addr, bool trans)
+static uint32_t host_vmemread32(uint64_t addr)
 {
     return * ((uint32_t *) addr);
 }
 
-uint64_t memread64(uint64_t addr, bool trans)
+static uint64_t host_vmemread64(uint64_t addr)
 {
     return * ((uint64_t *) addr);
 }
 
-void memwrite8(uint64_t addr, uint8_t data, bool trans)
+static uint64_t host_pmemread64(uint64_t paddr)
+{
+    DEBUG_EMU(gprintf("ERROR!!! Should not use pmemread64() with non-emulated memory\n"););
+    exit(1);
+}
+
+static void host_vmemwrite8(uint64_t addr, uint8_t data)
 {
     * ((uint8_t *) addr) = data;
 }
 
-void memwrite16(uint64_t addr, uint16_t data, bool trans)
+static void host_vmemwrite16(uint64_t addr, uint16_t data)
 {
     * ((uint16_t *) addr) = data;
 }
 
-void memwrite32(uint64_t addr, uint32_t data, bool trans)
+static void host_vmemwrite32(uint64_t addr, uint32_t data)
 {
     * ((uint32_t *) addr) = data;
 }
 
-void memwrite64(uint64_t addr, uint64_t data, bool trans)
+static void host_vmemwrite64(uint64_t addr, uint64_t data)
 {
     * ((uint64_t *) addr) = data;
 }
 
-#endif
+static void host_pmemwrite64(uint64_t paddr, uint64_t data)
+{
+    DEBUG_EMU(gprintf("ERROR!!! Should not use pmemread64() with non-emulated memory\n"););
+    exit(1);
+}
+
+
+uint8_t  (*vmemread8 ) (uint64_t addr) = host_vmemread8;
+uint16_t (*vmemread16) (uint64_t addr) = host_vmemread16;
+uint32_t (*vmemread32) (uint64_t addr) = host_vmemread32;
+uint64_t (*vmemread64) (uint64_t addr) = host_vmemread64;
+
+uint64_t (*pmemread64) (uint64_t paddr) = host_pmemread64;
+
+void (*vmemwrite8 ) (uint64_t addr, uint8_t  data) = host_vmemwrite8;
+void (*vmemwrite16) (uint64_t addr, uint16_t data) = host_vmemwrite16;
+void (*vmemwrite32) (uint64_t addr, uint32_t data) = host_vmemwrite32;
+void (*vmemwrite64) (uint64_t addr, uint64_t data) = host_vmemwrite64;
+
+void (*pmemwrite64) (uint64_t paddr, uint64_t data) = host_pmemwrite64;
 
 void set_memory_funcs(void * func_memread8_, void * func_memread16_,
                       void * func_memread32_, void * func_memread64_,
                       void * func_memwrite8_, void * func_memwrite16_,
                       void * func_memwrite32_, void * func_memwrite64_)
 {
-#ifdef CHECKER
     func_memread8   = (func_memread8_t  ) func_memread8_;
     func_memread16  = (func_memread16_t ) func_memread16_;
     func_memread32  = (func_memread32_t ) func_memread32_;
@@ -540,10 +767,18 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
     func_memwrite16 = (func_memwrite16_t) func_memwrite16_;
     func_memwrite32 = (func_memwrite32_t) func_memwrite32_;
     func_memwrite64 = (func_memwrite64_t) func_memwrite64_;
-#else
-    DEBUG_EMU(gprintf("ERROR!!! You need to compile with CHECKER enabled to use set_memory_funcs().\n");)
-    exit(-1);
-#endif
+
+    vmemread8  = emu_vmemread8;
+    vmemread16 = emu_vmemread16;
+    vmemread32 = emu_vmemread32;
+    vmemread64 = emu_vmemread64;
+    pmemread64 = emu_pmemread64;
+
+    vmemwrite8  = emu_vmemwrite8;
+    vmemwrite16 = emu_vmemwrite16;
+    vmemwrite32 = emu_vmemwrite32;
+    vmemwrite64 = emu_vmemwrite64;
+    pmemwrite64 = emu_pmemwrite64;
 }
 
 // ILLEGAL INSTRUCTION
@@ -1118,7 +1353,7 @@ void lb(xreg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lb x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64_t val = sext8(memread8(XREGS[base].x + sext12(off)));
+    uint64_t val = sext8(vmemread8(XREGS[base].x + sext12(off)));
 
     if(dst != x0)
     {
@@ -1133,7 +1368,7 @@ void lh(xreg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lh x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64_t val = sext16(memread16(XREGS[base].x + sext12(off)));
+    uint64_t val = sext16(vmemread16(XREGS[base].x + sext12(off)));
 
     if(dst != x0)
     {
@@ -1148,7 +1383,7 @@ void lw(xreg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lw x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64_t val = sext32(memread32(XREGS[base].x + sext12(off)));
+    uint64_t val = sext32(vmemread32(XREGS[base].x + sext12(off)));
 
     if(dst != x0)
     {
@@ -1163,7 +1398,7 @@ void ld(xreg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: ld x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64_t val = memread64(XREGS[base].x + sext12(off));
+    uint64_t val = vmemread64(XREGS[base].x + sext12(off));
 
     if(dst != x0)
     {
@@ -1178,7 +1413,7 @@ void lbu(xreg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lbu x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64_t val = memread8(XREGS[base].x + sext12(off));
+    uint64_t val = vmemread8(XREGS[base].x + sext12(off));
 
     if(dst != x0)
     {
@@ -1193,7 +1428,7 @@ void lhu(xreg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lhu x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64_t val = memread16(XREGS[base].x + sext12(off));
+    uint64_t val = vmemread16(XREGS[base].x + sext12(off));
 
     if(dst != x0)
     {
@@ -1208,7 +1443,7 @@ void lwu(xreg dst, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lwu x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint64_t val = memread32(XREGS[base].x + sext12(off));
+    uint64_t val = vmemread32(XREGS[base].x + sext12(off));
 
     if(dst != x0)
     {
@@ -1225,7 +1460,7 @@ void sd(xreg src1, int off, xreg base, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
     uint64_t addr = XREGS[base].x + off;
     uint64_t val  = XREGS[src1].x;
-    memwrite64(addr, val);
+    vmemwrite64(addr, val);
     DEBUG_EMU(gprintf("\t%016llx --> MEM[0x%016llx]\n",val,addr);)
     logmemwchange(0, 8, addr, val);
     IPC(ipc_st(STORE_INT, 1, 8, src1,base,XREGS[base].x+off,dis);)
@@ -1237,7 +1472,7 @@ void sw(xreg src1, int off, xreg base, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
     uint64_t addr = XREGS[base].x + off;
     uint32_t val  = (uint32_t) XREGS[src1].x;
-    memwrite32(addr, val);
+    vmemwrite32(addr, val);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr);)
     logmemwchange(0, 4, addr, val);
     IPC(ipc_st(STORE_INT, 1, 4, src1,base,XREGS[base].x+off,dis);)
@@ -1249,7 +1484,7 @@ void sh(xreg src1, int off, xreg base, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
     uint64_t addr = XREGS[base].x + off;
     uint32_t val  = (uint32_t) XREGS[src1].x;
-    memwrite16(addr, val);
+    vmemwrite16(addr, val);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr);)
     logmemwchange(0, 2, addr, val);
     IPC(ipc_st(STORE_INT, 1, 2, src1,base,XREGS[base].x+off,dis);)
@@ -1261,7 +1496,7 @@ void sb(xreg src1, int off, xreg base, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
     uint64_t addr = XREGS[base].x + off;
     uint32_t val  = (uint32_t) XREGS[src1].x;
-    memwrite8(addr, val);
+    vmemwrite8(addr, val);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr);)
     logmemwchange(0, 1, addr, val);
     IPC(ipc_st(STORE_INT, 1, 1, src1,base,XREGS[base].x+off,dis);)
@@ -1519,7 +1754,7 @@ void amoadd_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoadd_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = memread32(addr);
+    uint32_t val = vmemread32(addr);
     uint64_t val64 = sext32(val);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int32_t res = val + XREGS[src1].w[0];
@@ -1535,7 +1770,7 @@ void amoadd_w(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x + 0x%08x\n",res,val,XREGS[src1].w[0]);)
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1545,7 +1780,7 @@ void amoxor_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoxor_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = sext32(memread32(addr));
+    uint32_t val = sext32(vmemread32(addr));
     uint64_t val64 = sext32(val);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int32_t res = val ^ XREGS[src1].w[0];
@@ -1561,7 +1796,7 @@ void amoxor_w(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x ^ 0x%08x\n",res,val,XREGS[src1].w[0]);)
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1571,7 +1806,7 @@ void amoor_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoor_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = memread32(addr);
+    uint32_t val = vmemread32(addr);
     uint64_t val64 = sext32(val);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int32_t res = val | XREGS[src1].w[0];
@@ -1587,7 +1822,7 @@ void amoor_w(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x | 0x%08x\n",res,val,XREGS[src1].w[0]);)
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1597,7 +1832,7 @@ void amoand_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoand_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = memread32(addr);
+    uint32_t val = vmemread32(addr);
     uint64_t val64 = sext32(val);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int32_t res = val & XREGS[src1].w[0];
@@ -1613,7 +1848,7 @@ void amoand_w(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x & 0x%08x\n",res,val,XREGS[src1].w[0]);)
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1623,7 +1858,7 @@ void amomin_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amomin_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = memread32(addr);
+    uint32_t val = vmemread32(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int32_t res = ((int32_t) val < (int32_t) XREGS[src1].w[0]) ? (int32_t) val : (int32_t) XREGS[src1].w[0];
 
@@ -1638,7 +1873,7 @@ void amomin_w(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%08x <- min(0x%08x, 0x%08x)\n",res,val,XREGS[src1].w[0]);)
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1648,7 +1883,7 @@ void amomax_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amomax_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = memread32(addr);
+    uint32_t val = vmemread32(addr);
     uint64_t val64 = sext32(val);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int32_t res = ((int32_t) val < (int32_t) XREGS[src1].w[0]) ? (int32_t) XREGS[src1].w[0] : (int32_t) val;
@@ -1664,7 +1899,7 @@ void amomax_w(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%08x <- max(0x%08x, 0x%08x)\n",res,val,XREGS[src1].w[0]);)
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1674,7 +1909,7 @@ void amominu_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amominu_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = memread32(addr);
+    uint32_t val = vmemread32(addr);
     uint64_t val64 = sext32(val);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     uint32_t res = (val < XREGS[src1].w[0])? val : XREGS[src1].w[0];
@@ -1690,7 +1925,7 @@ void amominu_w(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%08x <- minu(0x%08x, 0x%08x)\n",res,val,XREGS[src1].w[0]);)
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1700,7 +1935,7 @@ void amomaxu_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amomaxu_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = memread32(addr);
+    uint32_t val = vmemread32(addr);
     uint64_t val64 = sext32(val);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     uint32_t res = (val > XREGS[src1].w[0]) ? val : XREGS[src1].w[0];
@@ -1716,7 +1951,7 @@ void amomaxu_w(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%08x <- maxu(0x%08x, 0x%08x)\n",res,val,XREGS[src1].w[0]);)
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1726,7 +1961,7 @@ void amoswap_w(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoswap_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = sext32(memread32(addr));
+    int64_t val = sext32(vmemread32(addr));
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = sext32(XREGS[src1].x);
 
@@ -1739,7 +1974,7 @@ void amoswap_w(xreg dst, xreg src1, xreg src2, const char* comm)
     logxregchange(dst);
 
     // Stores the operated data
-    memwrite32(addr, res);
+    vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 4, addr, res);
 }
@@ -1749,7 +1984,7 @@ void amoadd_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoadd_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = val + XREGS[src1].x;
 
@@ -1764,7 +1999,7 @@ void amoadd_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx + 0x%016llx\n",res,val,XREGS[src1].x);)
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -1774,7 +2009,7 @@ void amoxor_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoxor_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = val ^ XREGS[src1].x;
 
@@ -1789,7 +2024,7 @@ void amoxor_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx ^ 0x%016llx\n",res,val,XREGS[src1].x);)
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -1799,7 +2034,7 @@ void amoor_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoor_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = val | XREGS[src1].x;
 
@@ -1814,7 +2049,7 @@ void amoor_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx | 0x%016llx\n",res,val,XREGS[src1].x);)
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -1824,7 +2059,7 @@ void amoand_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoand_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = val & XREGS[src1].x;
 
@@ -1839,7 +2074,7 @@ void amoand_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx & 0x%016llx\n",res,val,XREGS[src1].x);)
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -1849,7 +2084,7 @@ void amomin_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amomin_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = ((int64_t) val < (int64_t) XREGS[src1].x) ? (int64_t) val : (int64_t) XREGS[src1].x;
 
@@ -1864,7 +2099,7 @@ void amomin_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx <- min(0x%016llx,0x%016llx)\n",res,val,XREGS[src1].x);)
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llxx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -1874,7 +2109,7 @@ void amomax_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amomax_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = ((int64_t) val > (int64_t) XREGS[src1].x) ? (int64_t) val : (int64_t) XREGS[src1].x;
 
@@ -1889,7 +2124,7 @@ void amomax_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx <- max(0x%016llx,0x%016llx)\n",res,val,XREGS[src1].x);)
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -1899,7 +2134,7 @@ void amominu_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amominu_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = ((uint64_t) val < (uint64_t) XREGS[src1].x) ? (uint64_t) val : (uint64_t) XREGS[src1].x;
 
@@ -1914,7 +2149,7 @@ void amominu_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx <- minu(0x%016llx,0x%016llx)\n",res,val,XREGS[src1].x);)
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -1924,7 +2159,7 @@ void amomaxu_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amomaxu_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = ((uint64_t) val > (uint64_t) XREGS[src1].x) ? (uint64_t) val : (uint64_t) XREGS[src1].x;
 
@@ -1939,7 +2174,7 @@ void amomaxu_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx <- maxu(0x%016llx,0x%016llx)\n",res,val,XREGS[src1].x);)
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -1949,7 +2184,7 @@ void amoswap_d(xreg dst, xreg src1, xreg src2, const char* comm)
     uint64_t addr = XREGS[src2].x;
     DISASM(gsprintf(dis,"I: amoswap_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = memread64(addr);
+    int64_t val = vmemread64(addr);
     IPC(ipc_ld(LD,dst,src2,addr,dis);)
     int64_t res = XREGS[src1].x;
 
@@ -1962,7 +2197,7 @@ void amoswap_d(xreg dst, xreg src1, xreg src2, const char* comm)
     logxregchange(dst);
 
     // Stores the operated data
-    memwrite64(addr, res);
+    vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
@@ -2212,7 +2447,6 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_mhartid:
                 throw trap_illegal_instruction(current_pc);
                 break;
-#ifdef CHECKER
             case csr_treduce:
                 tensorreduce(val);
                 break;
@@ -2244,7 +2478,6 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_smsg_port3:
                 x = msg_port_csr(src1 - csr_smsg_port0, val, false);
                 break;
-#endif
             default:
                 csrset(src1, val);
                 break;
@@ -2277,7 +2510,7 @@ static void throw_page_fault(uint64_t addr, mem_access_type macc)
 
 uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 {
-  
+
     // Read mstatus
     const uint64_t mstatus = csrget(csr_mstatus);
     const bool     mxr     = (mstatus >> MSTATUS_MXR ) & 0x1;
@@ -2363,7 +2596,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
         // Read PTE
         pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
         // TODO: PMA / PMP checks
-        pte = memread64(pte_addr, false);
+        pte = pmemread64(pte_addr);
         //log << LOG_DEBUG << "* Level " << std::dec << level << ": PTE = 0x" << std::hex << pte << endm;
         //DEBUG_EMU(gprintf("* Level %d: PTE = 0x%x\n", level, pte);)
 
@@ -2455,7 +2688,7 @@ uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
             pte_write |= uint64_t(1) << PTE_D_OFFSET;
 
         // Write PTE
-        memwrite64(pte_addr, pte_write, false);
+        pmemwrite64(pte_addr, pte_write);
     }
 
     // Obtain physical address
@@ -2595,114 +2828,66 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// Floating point instructions are only valid if the mstatus register shows the
-// FLoating point unit to be turned on.
-static int check_fs()
-{
-    // Check that mstatus.FS is not off, otherwise throw an illegal instruction exception
-    uint64_t mstatus = csrget(csr_mstatus);
-    uint64_t fs = (mstatus >> 13) & 0x3;
-    if (fs == 0)
-    {
-       throw trap_illegal_instruction(current_inst);
-    }
-    return 0;
-}
-
-
-static void femuld(opcode opc, int count, freg dst, int off, xreg base, int use_mask)
+static void femuld(int count, freg dst, int off, xreg base, int use_mask)
 {
     assert(count <= VL);
-#if 0
-    for ( int i = 0; i < count; i++ )
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x (old)\n",i,FREGS[dst].u[i]););
-#endif
 
-    for ( int i = 0; i < count; i++ )
+    for (int i = 0; i < count; i++)
     {
+        if (use_mask && MREGS[0].b[i] == 0) continue;
+
         uint64_t addr = XREGS[base].x + off;
         addr = addr + i * 4;
 
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        // except if using SP register as base
-
-        bool genResult = ! ( use_mask && MREGS[0].b[i] == 0 );
-
-        switch ( opc )
-        {
-            case FLW:
-                if ( genResult )
-                {
-                    uint32_t val32 = memread32(addr);
-                    FREGS[dst].u[i] = val32;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%016llx]\n",i,val32,cast_uint32_to_float32(val32),addr););
-                }
-#if 0
-                else
-                {
-                    uint32_t val32 = memread32(addr);
-                    DEBUG_EMU(gprintf("\t[%d] (skipped) MEM[0x%016llx] = 0x%08x\n",i,addr,val32););
-                }
-#endif
-                break;
-            default:
-                assert(0);
-                break;
-        }
+        iufval val;
+        val.u = vmemread32(addr);
+        FREGS[dst].u[i] = val.u;
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <- MEM[0x%016llx]\n",i,val.u,val.flt,addr););
     }
-
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
     for (int i = count; i < VL; ++i)
         FREGS[dst].u[i] = 0;
 #endif
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ld(opc,count,4,dst,base,(XREGS[base].x+off),dis););
 }
 
-static void femust(opcode opc, int count, freg src1, int off, xreg base, int use_mask)
+static void femust(int count, freg src1, int off, xreg base, int use_mask)
 {
     assert(count <= VL);
 
-    for ( int i = 0; i < count; i++ )
+    for (int i = 0; i < count; i++)
     {
-        if ( use_mask && MREGS[0].b[i] == 0 ) continue;
+        if (use_mask && MREGS[0].b[i] == 0) continue;
 
         uint64_t addr = XREGS[base].x  + off;
         addr = addr + i * 4;
 
-        float32_t fval32;
-        uint32_t  val32;
-        switch ( opc )
-        {
-            case FSW:
-                fval32 = FREGS[src1].f[i];
-                val32  = FREGS[src1].u[i];
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) --> MEM[0x%016llx]\n",i,val32,fval32,addr););
-                memwrite32(addr, val32);
-                logmemwchange(i, 4, addr, val32);
-                break;
-            default:
-                assert(0);
-                break;
-        }
+        iufval val;
+        val.u = FREGS[src1].u[i];
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) --> MEM[0x%016llx]\n",i,val.u,val.flt,addr););
+        vmemwrite32(addr, val.u);
+        logmemwchange(i, 4, addr, val.u);
     }
     IPC(ipc_st(opc,count,4,src1,base,(XREGS[base].x+off),dis);)
 }
-
-static const char* rmnames[] = {
-    "rne", "rtz", "rdn", "rup",
-    "rmm", "res", "res", "dyn"
-};
 
 static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
 {
     iufval val;
     iufval rescvt;
 
+    set_rounding_mode(rm);
+
     val.f = FREGS[src1].f[0];
-    switch ( opc )
+    handle_denormal(val);
+    switch (opc)
     {
         case FCVTWS:
+#ifdef HAVE_SOFTFLOAT
+            rescvt.i = f32_to_i32(val.f, softfloat_roundingMode, true);
+#else
             rescvt.x = XREGS[dst].x;
             if      ( isnan(val.f) ) rescvt.i = 0x7fffffff;
             else if ( isinf(val.f) )
@@ -2719,9 +2904,13 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
                                      rescvt.i = 0x80000000;
             }
             else                     rescvt.i = roundf(val.f, rm);
-            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%f)\n",rescvt.u,rescvt.i,val.u,val.f););
+#endif
+            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%g)\n",rescvt.u,rescvt.i,val.u,val.flt););
             break;
         case FCVTWUS:
+#ifdef HAVE_SOFTFLOAT
+            rescvt.u = f32_to_ui32(val.f, softfloat_roundingMode, true);
+#else
             rescvt.x = XREGS[dst].x;
             if      ( isnan(val.f) ) rescvt.u = 0xffffffff;
             else if ( isinf(val.f) )
@@ -2738,14 +2927,16 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
                 rescvt.u = 0x00000000;
             }
             else                     rescvt.u = roundf(val.f, rm);
-            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%f)\n",rescvt.u,rescvt.u,val.u,val.f););
+#endif
+            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%g)\n",rescvt.u,rescvt.u,val.u,val.flt););
             break;
         default:
             assert(0);
             break;
     }
+    set_fp_exceptions();
     if (dst != x0)
-        XREGS[dst].x = sext32(rescvt.x);
+        XREGS[dst].x = sext32(rescvt.u);
     logxregchange(dst);
     IPC(ipc_ps(opc,1,dst,src1,fnone,fnone,dis);)
 }
@@ -2755,16 +2946,28 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
     iufval res;
     iufval valcvt;
 
+    set_rounding_mode(rm);
+
     valcvt.x = XREGS[src1].x;
     switch ( opc )
     {
         case FCVTSW:
-            res.f  = valcvt.i;
-            DEBUG_EMU(gprintf("\t0x%08x (%f) <-- 0x%08x (%d)\n",res.u,res.f,valcvt.u,valcvt.i););
+#ifdef HAVE_SOFTFLOAT
+            res.f = i32_to_f32(valcvt.i);
+#else
+            res.f = valcvt.i;
+#endif
+            handle_denormal(res);
+            DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%d)\n",res.u,res.flt,valcvt.u,valcvt.i););
             break;
         case FCVTSWU:
-            res.f  = valcvt.u;
-            DEBUG_EMU(gprintf("\t0x%08x (%f) <-- 0x%08x (%u)\n",res.u,res.f,valcvt.u,valcvt.u););
+#ifdef HAVE_SOFTFLOAT
+            res.f = ui32_to_f32(valcvt.i);
+#else
+            res.f = valcvt.u;
+#endif
+            handle_denormal(res);
+            DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%u)\n",res.u,res.flt,valcvt.u,valcvt.i););
             break;
         default:
             assert(0);
@@ -2775,6 +2978,8 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
     for(int i = 1; i < VL; i++)
         FREGS[dst].u[i] = 0;
 #endif
+    set_fp_exceptions();
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,1,dst,src1,fnone,fnone,dis);)
 }
@@ -2783,208 +2988,251 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
 {
     assert(count <= VL);
 
-    iufval val;
-    double intpart;
+    set_rounding_mode(rm);
 
     for (int i = 0; i < count; ++i)
     {
+        if (count == VL && MREGS[0].b[i] == 0) continue;
+
+        iufval val, res;
         val.f = FREGS[src1].f[i];
-
-        bool genResult = !(count == VL && MREGS[0].b[i] == 0);
-
-        iufval res;
-        res.f = FREGS[dst].f[i]; // result when element is masked (existing reg value)
         switch ( opc )
         {
             case FSQRT:
-                if ( genResult )
                 {
+                    handle_denormal(val);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_sqrt(val.f);
+#else
                     res.f = sqrtf(val.f);
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
+                    handle_nan_default(res);
+#endif
+                    handle_denormal(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
                 break;
             case FRSQ:
-                if ( genResult )
                 {
+                    handle_denormal(val);
+                    iufval res_gold;
+                    {
+#ifdef HAVE_SOFTFLOAT
+                        set_x86_rounding_mode(rm);
+#endif
+                        res_gold.flt = float(double(1.0) / sqrt(double(val.flt)));
+                        handle_nan_default(res_gold);
+                        handle_denormal(res_gold);
+                    }
                     if (emu_use_fake_txfma)
                     {
-                        res.f = (float) ((double) 1.0 / sqrt((double) val.f));
+                        res.flt = res_gold.flt;
                     }
                     else
                     {
                         res.f = ttrans_frsq(val.u);
+                        handle_denormal(res);
                         // security ulp check
-                        iufval res_gold;
-                        res_gold.f = (float) ((double) 1.0 / sqrt((double) val.f));
                         DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                         if(security_ulp_check(res_gold.u,res.u)){
                             DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                         }
                     }
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FSIN:
-                if ( genResult )
                 {
+                    handle_denormal(val);
+                    iufval res_gold;
+                    {
+#ifdef HAVE_SOFTFLOAT
+                        set_x86_rounding_mode(rm);
+#endif
+                        iufval sin_tmp;
+                        double d;
+                        sin_tmp.flt = float(modf(double(val.flt), &d));
+                        sin_tmp.flt = sin_tmp.flt >  0.5 ? sin_tmp.flt - 1.0
+                                    : sin_tmp.flt < -0.5 ? sin_tmp.flt + 1.0
+                                    : sin_tmp.flt;
+                        res_gold.flt = float(sin(2.0 * M_PI * double(sin_tmp.flt)));
+                        handle_nan_default(res_gold);
+                        handle_denormal(res_gold);
+                    }
                     if (emu_use_fake_txfma)
                     {
-                        res.f = sin(2*M_PI*val.f);
+                        res.flt = res_gold.flt;
                     }
                     else
                     {
                         res.f = ttrans_fsin(val.u);
+                        handle_denormal(res);
                         // security ulp check
-                        iufval res_gold, sin_tmp;
-                        double f;
-                        sin_tmp.f = (float) modf(val.f, &f);
-
-                        sin_tmp.f = sin_tmp.f > 0.5 ? sin_tmp.f - 1.0
-                                  : sin_tmp.f < -0.5 ? sin_tmp.f + 1.0
-                                  : sin_tmp.f;
-
-                        res_gold.f = (float) sin(2 * M_PI * (double) sin_tmp.f);
                         DEBUG_EMU(gprintf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                         if(security_ulp_check(res_gold.u,res.u)){
                             DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                         }
                     }
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FEXP:
-                if ( genResult )
                 {
+                    handle_denormal(val);
+                    iufval res_gold;
+                    {
+#ifdef HAVE_SOFTFLOAT
+                        set_x86_rounding_mode(rm);
+#endif
+                        res_gold.flt = exp2f(val.flt);
+                        handle_nan_default(res_gold);
+                        handle_denormal(res_gold);
+                    }
                     if (emu_use_fake_txfma)
                     {
-                        res.f = exp2f(val.f);
+                        res.flt = res_gold.flt;
                     }
                     else
                     {
                         res.f = ttrans_fexp2(val.u);
+                        handle_denormal(res);
                         // security ulp check
-                        iufval res_gold;
-                        res_gold.f = exp2f(val.f);
-
-                        // Remove denormals
-                        if ((res.u & 0x7f800000) == 0) res.u = res.u & 0xff800000;
-                        if ((res_gold.u & 0x7f800000) == 0) res_gold.u = res_gold.u & 0xff800000;
-
                         DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                         if(security_ulp_check(res_gold.u,res.u)){
                             DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                         }
                     }
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
-                printf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f);
                 break;
             case FLOG:
-                if ( genResult )
                 {
+                    handle_denormal(val);
+                    iufval res_gold;
+                    {
+#ifdef HAVE_SOFTFLOAT
+                        set_x86_rounding_mode(rm);
+#endif
+                        res_gold.flt = float(log2(double(val.flt)));
+                        handle_nan_default(res_gold);
+                        handle_denormal(res_gold);
+                    }
                     if (emu_use_fake_txfma)
                     {
-                        res.f = log2f(val.f);
+                        res.flt = res_gold.flt;
                     }
                     else
                     {
                         res.f = ttrans_flog2(val.u);
+                        handle_denormal(res);
                         // security ulp check
-                        iufval res_gold;
-                        res_gold.f = (float)log2((double)val.f);
-                        //DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                        DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x (%.20f)\n", val.u, res.u, res_gold.u, res_gold.f););
+                        DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
                         if(security_ulp_check(res_gold.u,res.u)){
                             DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                         }
                     }
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FRCP:
-                if ( genResult )
                 {
+                    handle_denormal(val);
+                    iufval res_gold;
+                    {
+#ifdef HAVE_SOFTFLOAT
+                        set_x86_rounding_mode(rm);
+#endif
+                        res_gold.flt = float(double(1.0) / double(val.flt));
+                        handle_nan_default(res_gold);
+                        handle_denormal(res_gold);
+                    }
                     if (emu_use_fake_txfma)
                     {
-                        res.f = (float) (1.0 / (double) val.f);
+                        res.flt = res_gold.flt;
                     }
                     else
                     {
                         res.f = ttrans_frcp(val.u);
+                        handle_denormal(res);
                         // security ulp check
-                        iufval res_gold;
-                        res_gold.f = (float) (1.0 / (double) val.f);
                         DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                        //assert(res.u == res_gold.u);
                         if(security_ulp_check(res_gold.u,res.u)){
-                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
+                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.\n", val.u););
                         }
                     }
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
                 break;
             case FRCPFXP:
-                if ( genResult )
+                // FIXME: THIS INSTRUCTION IS OBSOLETE
                 {
                     // Input value is 2xtriArea with 15.16 precision
-                    float64_t tmp = float64_t(val.i) / float64_t(1 << 16);
+                    double tmp = double(val.i) / double(1 << 16);
 
                     // Result value is 17.14
-                    float64_t tmp_rcp = (1.0f / tmp) * float64_t(1 << 14);
+                    double tmp_rcp = (1.0 / tmp) * double(1 << 14);
 
                     res.i = int32_t(tmp_rcp);
                     DEBUG_EMU( printf("\t[%d] 0x%08x (%d) <-- 1 / 0x%08x (%d)\n", i, res.u, res.i, val.u, val.i); )
                 }
                 break;
             case FCVTPSPW:
-                if ( genResult )
                 {
-                    res.f  = val.i;
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
+#ifdef HAVE_SOFTFLOAT
+                    res.f = i32_to_f32(val.i);
+#else
+                    res.f = val.i;
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%d)\n",i,res.u,res.flt,val.u,val.i););
                 }
                 break;
             case FCVTPSRAST:
-                if( genResult)
                 {
-                    res.f = ((float)val.i) / (1 << 16);
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val.u,val.i););
+#ifdef HAVE_SOFTFLOAT
+                    res.f = q15p16_to_f32(val.i);
+#else
+                    res.flt = float(val.i) / float(1 << 16);
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%d)\n",i,res.u,res.flt,val.u,val.i););
                 }
                 break;
             case FCVTRASTPS:
-                if( genResult)
                 {
-                    res.i = (int32_t)(val.f*(1 << 14) + 0.5);
-                    // convert to canonical NaN
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%f)\n",i,res.u,res.i,val.u,val.f););
+#ifdef HAVE_SOFTFLOAT
+                    res.i = f32_to_q17p14(val.f);
+#else
+                    handle_denormal(val);
+                    iufval tmp;
+                    // NaN converts to 0
+                    tmp.u = isnan(val.flt) ? 0 : val.u;
+                    // +/-0.0 converts to 0
+                    tmp.flt = (tmp.u & 0x7fffffff) ? std::fma(tmp.flt, float(1 << 14), float(0.5)) : 0;
+                    // +/-infinity converts to 0
+                    if (isinf(tmp.flt))
+                        tmp.u = 0;
+                    // huge numbers (>= 2.14748e+9) saturate at maximum positiveinteger
+                    // instead of returning 0x80000000
+                    res.i = (tmp.i >= 0x4f000000) ? 0x7fffffff : f32_to_i32(tmp.flt);
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%g)\n",i,res.u,res.i,val.u,val.flt););
                 }
                 break;
             case FCVTPSPWU:
-                if ( genResult )
                 {
-                    res.f  = val.u;
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%u)\n",i,res.u,res.f,val.u,val.u););
+#ifdef HAVE_SOFTFLOAT
+                    res.f = ui32_to_f32(val.u);
+#else
+                    res.f = val.u;
+                    handle_nan_default(res);
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%u)\n",i,res.u,res.flt,val.u,val.u););
                 }
                 break;
             case FCVTPWPS:
-                if ( genResult )
                 {
+                    handle_denormal(val);
+#ifdef HAVE_SOFTFLOAT
+                    res.i = f32_to_i32(val.f, softfloat_roundingMode, true);
+#else
                     if      ( isnan(val.f) ) res.i = 0x7fffffff;
                     else if ( isinf(val.f) )
                     {
@@ -3000,12 +3248,16 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                                              res.i = 0x80000000;
                     }
                     else                     res.i = roundf(val.f, rm);
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08lx (%f)\n",i,res.u,res.i,val.u,val.f););
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08lx (%g)\n",i,res.u,res.i,val.u,val.flt););
                 }
                 break;
             case FCVTPWUPS:
-                if ( genResult )
                 {
+                    handle_denormal(val);
+#ifdef HAVE_SOFTFLOAT
+                    res.u = f32_to_ui32(val.f, softfloat_roundingMode, true);
+#else
                     if      ( isnan(val.f) ) res.u = 0xffffffff;
                     else if ( isinf(val.f) )
                     {
@@ -3021,50 +3273,24 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                                              res.u = 0x00000000;
                     }
                     else                     res.u = roundf(val.f, rm);
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%f)\n",i,res.u,res.u,val.u,val.f););
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%g)\n",i,res.u,res.u,val.u,val.flt););
                 }
                 break;
             case FFRC:
-                if ( genResult )
                 {
-                    res.f  = modf(val.f,&intpart);
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f)\n",i,res.u,res.f,val.u,val.f););
-                }
-                break;
-            case FROUND:
-                if ( genResult )
-                {
-                    res.f  = roundf(val.f);
-                    // convert to canonical NaN
-                    if ( isnan(res.f) ) res.f = nanf("");
-                    DEBUG_EMU(printf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f) (warning! ignoring rounding mode!!!! fixme!)\n",i,res.u,res.f,val.u,val.f););
-                }
-                break;
-            case FCLASSPS:
-                if (genResult)
-                {
-                    switch (fpclassify(val.f)) {
-                        case FP_INFINITE:  if (signbit(val.f)) res.u = 1<<0;
-                                           else res.u = 1<<7;
-                                           break;
-                        case FP_NAN:       if (val.u & 0x00400000) res.u = 1<<9; // quiet NaN
-                                           else res.u = 1 << 8;                  // signaling NaN
-                                           break;
-                        case FP_ZERO:      if (signbit(val.f)) res.u = 1<<3;
-                                           else res.u = 1<<4;
-                                           break;
-                        case FP_SUBNORMAL: if (signbit(val.f)) res.u = 1<<2;
-                                           else res.u = 1<<5;
-                                           break;
-                        case FP_NORMAL:    if (signbit(val.f)) res.u = 1<<1;
-                                           else res.u = 1<<6;
-                                           break;
-                        default:           assert(0); // error!
-                                           break;
-                    }
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%f)\n",i,res.u,val.u,val.f););
+                    handle_denormal(val);
+#ifdef HAVE_SOFTFLOAT
+                    // FIXME: We should not use floating-point computations
+                    // here... need to implement a softfloat-like equivalent
+                    if (softfloat_isSigNaNF32UI(val.u))
+                        softfloat_raiseFlags(softfloat_flag_invalid);
+                    set_x86_rounding_mode(rm);
+#endif
+                    double intpart;
+                    res.flt = float(modf(double(val.flt), &intpart));
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
                 break;
             default:
@@ -3077,6 +3303,8 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
     for (int i = count; i < VL; ++i)
         FREGS[dst].u[i] = 0;
 #endif
+    set_fp_exceptions();
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,fnone,fnone,dis);)
 }
@@ -3085,142 +3313,177 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
 {
     assert(count <= VL);
 
-    iufval val1, val2;
+    set_rounding_mode(rm);
 
     for ( int i = 0; i < count; i++ )
     {
-        val1.f  = FREGS[src1].f[i];
-        val2.f  = src2 != fnone ? FREGS[src2].f[i] : 0;
+        if (count == VL && MREGS[0].b[i] == 0) continue;
 
-        bool genResult = !(count == VL && MREGS[0].b[i] == 0);
-        iufval res;
-        res.u = FREGS[dst].u[i];
+        iufval val1, val2, res;
+        val1.f = FREGS[src1].f[i];
+        val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
         switch ( opc )
         {
             case FADD:
-                if (genResult)
                 {
+                    handle_denormal(val1);
+                    handle_denormal(val2);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_add(val1.f, val2.f);
+#else
                     res.f  = val1.f + val2.f;
-                    if (isnan(res.f)) res.u = 0x7fc00000;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f) + 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) + 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FSUB:
-                if (genResult)
                 {
-                    res.f  = val1.f - val2.f;
-                    if (isnan(res.f)) res.u = 0x7fc00000;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f) - 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+                    handle_denormal(val1);
+                    handle_denormal(val2);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_sub(val1.f, val2.f);
+#else
+                    res.flt  = val1.flt - val2.flt;
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) - 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FMUL:
-                if (genResult)
                 {
+                    handle_denormal(val1);
+                    handle_denormal(val2);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_mul(val1.f, val2.f);
+#else
                     res.f  = val1.f * val2.f;
-                    if (isnan(res.f)) res.u = 0x7fc00000;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f) * 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FDIV:
-                if (genResult)
                 {
+                    handle_denormal(val1);
+                    handle_denormal(val2);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_div(val1.f, val2.f);
+#else
                     res.f  = val1.f / val2.f;
-                    if (isnan(res.f)) res.u = 0x7fc00000;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f) / 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) / 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FMIN:
-                if (genResult)
                 {
-                    res.f  = (val1.f <= val2.f) ? val1.f : val2.f;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- min(0x%08x (%f), 0x%08x (%f))\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_min(val1.f, val2.f);
+#else
+                    res.flt = ((val1.u == 0x80000000) && (val2.u == 0)) ? val1.flt : std::fmin(val1.flt, val2.flt);
+                    handle_nan_default(res);
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FMAX:
-                if (genResult)
                 {
-                    res.f  = (val1.f >= val2.f) ? val1.f : val2.f;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- max(0x%08x (%f), 0x%08x (%f))\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_max(val1.f, val2.f);
+#else
+                    res.flt = ((val1.u == 0) && (val2.u == 0x80000000)) ? val1.flt : std::fmax(val1.flt, val2.flt);
+                    handle_nan_default(res);
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FLT:
-                if (genResult)
                 {
-                    res.u  = (val1.f < val2.f) ? 0xFFFFFFFF : 0;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%f) < 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f););
+#ifdef HAVE_SOFTFLOAT
+                    res.u = f32_lt(val1.f, val2.f) ? 0xffffffff : 0;
+#else
+                    res.u = (val1.f < val2.f) ? 0xffffffff : 0;
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
-//            case FLTABS:
-//                if (genResult)
-//                {
-//                    res.u  = (fabs(val1.f) < fabs(val2.f)) ? 0xFFFFFFFF : 0;
-//                    DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%f) < 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f););
-//                }
-//                break;
             case FLE:
-                if (genResult)
                 {
-                    res.u  = (val1.f <= val2.f) ? 0xFFFFFFFF : 0;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%f) <= 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f););
+#ifdef HAVE_SOFTFLOAT
+                    res.u = f32_le(val1.f, val2.f) ? 0xffffffff : 0;
+#else
+                    res.u  = (val1.f <= val2.f) ? 0xffffffff : 0;
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FEQ:
-                if (genResult)
                 {
-                    res.u  = (val1.f == val2.f) ? 0xFFFFFFFF : 0;
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%f) == 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f););
+#ifdef HAVE_SOFTFLOAT
+                    res.u = f32_eq(val1.f, val2.f) ? 0xffffffff : 0;
+#else
+                    res.u  = (val1.f == val2.f) ? 0xffffffff : 0;
+#endif
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FSGNJ:
-                if (genResult)
                 {
-                    res.u  = val1.u & 0x7fffffff;
-                    res.u  = res.u | (val2.u & 0x80000000 );
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f), 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+                    res.u = (val1.u & 0x7fffffff) | (val2.u & 0x80000000);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FSGNJN:
-                if (genResult)
                 {
-                    res.u  = val1.u & 0x7fffffff;
-                    res.u  = res.u | ((~val2.u) & 0x80000000);
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f), 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+                    res.u = (val1.u & 0x7fffffff) | ((~val2.u) & 0x80000000);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FSGNJX:
-                if (genResult)
                 {
-                    res.u  = val1.u & 0x7fffffff;
-                    res.u  = res.u | ((val1.u ^ val2.u) & 0x80000000);
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f), 0x%08x (%f)\n",i,res.u,res.f,val1.u,val1.f,val2.u,val2.f););
+                    res.u = (val1.u & 0x7fffffff) | ((val1.u ^ val2.u) & 0x80000000);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FRCP_FIX_RAST:
-                if (genResult)
                 {
+                    // FIXME: We should not use floating-point computations
+                    // here... need to implement a softfloat-like equivalent
+
+                    // we should ignore the FPCSR rounding mode in this
+                    // instruction as it operates on fixed-point numbers
+                    set_x86_rounding_mode(rne);
+
                     // Input value is 2xtriArea with 15.16 precision
-                    float64_t tmp = float64_t(val1.i) / float64_t(1 << 16);
+                    double tmp = double(val1.i) / double(1 << 16);
 
                     // Result value is 17.14
-                    float64_t tmp_rcp = (1.0f / tmp) * float64_t(1 << 14);
-
                     iufval res_gold;
-                    res_gold.i = int32_t(tmp_rcp);
+                    {
+                        double tmp_rcp = (1.0 / tmp) * double(1 << 14);
+                        res_gold.i = int32_t(tmp_rcp);
+                    }
 
-                    float64_t yn = float64_t(val2.i)/float64_t(1 << 14);
+                    double yn = double(val2.i) / double(1 << 14);
                     double a = yn * tmp;
-                    uint32_t partial = (uint32_t)(a * (((uint64_t)1) << 31));
-                    //printf("Partial: 0x%08x\n", partial);
-                    float64_t unpartial = float64_t(partial)/float64_t(((uint64_t)1) << 31);
-                    float64_t result = yn*(2.0-unpartial);
-                    res.i = (int32_t)(result*(1 << 14));
+                    uint32_t partial = uint32_t(a * double(uint64_t(1) << 31));
+                    double unpartial = double(partial) / double(uint64_t(1) << 31);
+                    double result = yn * (2.0 - unpartial);
+                    res.i = int32_t(result * double(1 << 14));
 
-                    //printf("FRCPFXP NR EXPECTED: 0x%08x RESULT: 0x%08x\n", res_gold.u, res.u);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%g), 0x%08x (%d)\n",i,res.u,res.i,val1.u,tmp,val2.u,val2.i););
 
                     //Check 1ulp
-                    assert((abs(res.i - res_gold.i) <=1) && "Trans mismatch error. Please open jira to jordi.sola@esperantotech.com.");
-
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%f), 0x%08x (%d)\n",i,res.u,res.i,val1.u,tmp,val2.u,val2.i););
+                    if (abs(res.i - res_gold.i) > 1)
+                    {
+                        DEBUG_EMU(gprintf("\t\tEXPECTED: 0x%08x (%g) RESULT: 0x%08x (%g)\n", res_gold.u, res_gold.flt, res.u, res.flt););
+                        assert(0 && "Trans mismatch error. Please open jira to jordi.sola@esperantotech.com.");
+                    }
                 }
                 break;
             default:
@@ -3233,6 +3496,8 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
     for (int i = count; i < VL; ++i)
         FREGS[dst].u[i] = 0;
 #endif
+    set_fp_exceptions();
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,src2,fnone,dis);)
 }
@@ -3241,78 +3506,97 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
 {
     assert(count <= VL);
 
+    set_rounding_mode(rm);
+
     for ( int i = 0; i < count; i++ )
     {
-        float32_t val1 = FREGS[src1].f[i];
-        float32_t val2 = FREGS[src2].f[i];
-        float32_t val3 = FREGS[src3].f[i];
+        if (count == VL && MREGS[0].b[i] == 0) continue;
 
-        uint32_t val1u = cast_float32_to_uint32(val1);
-        uint32_t val2u = cast_float32_to_uint32(val2);
-        uint32_t val3u = cast_float32_to_uint32(val3);
+        iufval val1, val2, val3, res;
 
-        bool genResult = ! ( count == VL && MREGS[0].b[i] == 0 );
-
-        float32_t res = FREGS[dst].f[i];
-        uint32_t resu = FREGS[dst].u[i];
-
-        switch ( opc )
+        val1.f = FREGS[src1].f[i];
+        val2.f = FREGS[src2].f[i];
+        val3.f = FREGS[src3].f[i];
+        switch (opc)
         {
             case FMADD:
-                if ( genResult )
                 {
-                    res  = fmaf(val1,val2,val3);
-                    if (isnan(res)) res = nanf("");
-                    resu = cast_float32_to_uint32(res);
+                    handle_denormal(val1);
+                    handle_denormal(val2);
+                    handle_denormal(val3);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_mulAdd(val1.f, val2.f, val3.f);
+#else
+                    res.f = fmaf(val1.f, val2.f, val3.f);
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g) + 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f) * 0x%08x (%f) + 0x%08x (%f)\n",i,resu,res,val1u,val1,val2u,val2,val3u,val3););
                 break;
             case FNMADD:
-                if ( genResult )
                 {
-                    res  = - fmaf(val1,val2,val3);
-                    if (isnan(res)) res = nanf("");
-                    resu = cast_float32_to_uint32(res);
+                    handle_denormal(val1);
+                    handle_denormal(val2);
+                    handle_denormal(val3);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_neg(f32_mulAdd(val1.f, val2.f, val3.f));
+#else
+                    res.f = -fmaf(val1.f, val2.f, val3.f);
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) + 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- -(0x%08x (%f) * 0x%08x (%f) + 0x%08x (%f))\n",i,resu,res,val1u,val1,val2u,val2,val3u,val3););
                 break;
             case FMSUB:
-                if ( genResult )
                 {
-                    res  = fmaf(val1,val2,-val3);
-                    if (isnan(res)) res = nanf("");
-                    resu = cast_float32_to_uint32(res);
+                    handle_denormal(val1);
+                    handle_denormal(val2);
+                    handle_denormal(val3);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_mulAdd(val1.f, val2.f, f32_neg(val3.f));
+#else
+                    res.f = fmaf(val1.f, val2.f, -val3.f);
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f) * 0x%08x (%f) - 0x%08x (%f)\n",i,resu,res,val1u,val1,val2u,val2,val3u,val3););
                 break;
             case FNMSUB:
-                if ( genResult )
                 {
-                    res  = -fmaf(val1,val2,-val3);
-                    if (isnan(res)) res = nanf("");
-                    resu = cast_float32_to_uint32(res);
+                    handle_denormal(val1);
+                    handle_denormal(val2);
+                    handle_denormal(val3);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_neg(f32_mulAdd(val1.f, val2.f, f32_neg(val3.f)));
+#else
+                    res.f = -fmaf(val1.f, val2.f, -val3.f);
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- -(0x%08x (%f) * 0x%08x (%f) - 0x%08x (%f))\n",i,resu,res,val1u,val1,val2u,val2,val3u,val3););
                 break;
             case FCMOV:
-                if ( genResult )
                 {
-                    res  = (FREGS[src1].u[i] != 0) ? val2 : val3;
-                    resu = cast_float32_to_uint32(res);
+                    res.u = (val1.u ? val2.u : val3.u);
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- %u ? 0x%08x (%g) : 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val2.u,val2.flt,val3.u,val3.flt););
                 }
-                DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- %d ? 0x%08x (%f) : 0x%08x (%f)\n",i,resu,res,FREGS[src1].u[i],val2u,val2,val3u,val3););
                 break;
             default:
                 assert(0);
                 break;
         }
-
-        FREGS[dst].f[i] = res;
+        FREGS[dst].f[i] = res.f;
     }
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
     for (int i = count; i < VL; ++i)
         FREGS[dst].u[i] = 0;
 #endif
+    set_fp_exceptions();
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,count,dst,src1,src2,src3,dis);)
 }
@@ -3321,32 +3605,50 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
 {
     iufval val1, val2, res;
 
-    val1.f  = FREGS[src1].f[0];
-    val2.f  = FREGS[src2].f[0];
-    switch ( opc )
+    val1.f = FREGS[src1].f[0];
+    val2.f = FREGS[src2].f[0];
+    //handle_denormal(val1);
+    //handle_denormal(val2);
+    switch (opc)
     {
-        case FLT:    res.u  = (val1.f < val2.f) ? 1 : 0;
-                     DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%f) < 0x%08x (%f)?\n",res.u,val1.u,val1.f,val2.u,val2.f);)
-                     break;
-        case FLE:    res.u  = (val1.f <= val2.f) ? 1 : 0;
-                     DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%f) <= 0x%08x (%f)?\n",res.u,val1.u,val1.f,val2.u,val2.f);)
-                     break;
-        case FEQ:    res.u  = (val1.f == val2.f) ? 1 : 0;
-                     DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%f) == 0x%08x (%f)?\n",res.u,val1.u,val1.f,val2.u,val2.f);)
-                     break;
-        default:     assert(0);
-                     break;
+        case FLT:
+#ifdef HAVE_SOFTFLOAT
+            res.u = f32_lt(val1.f, val2.f);
+#else
+            res.u = (val1.f < val2.f) ? 1 : 0;
+#endif
+            DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?\n",res.u,val1.u,val1.flt,val2.u,val2.flt);)
+            break;
+        case FLE:
+#ifdef HAVE_SOFTFLOAT
+            res.u = f32_le(val1.f, val2.f);
+#else
+            res.u = (val1.f <= val2.f) ? 1 : 0;
+#endif
+            DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?\n",res.u,val1.u,val1.flt,val2.u,val2.flt);)
+            break;
+        case FEQ:
+#ifdef HAVE_SOFTFLOAT
+            res.u = f32_eq(val1.f, val2.f);
+#else
+            res.u = (val1.f == val2.f) ? 1 : 0;
+#endif
+            DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?\n",res.u,val1.u,val1.flt,val2.u,val2.flt);)
+            break;
+        default:
+            assert(0);
+            break;
     }
+    set_fp_exceptions();
     if(dst != x0)
         XREGS[dst].x = sext32(res.u);
-
     logxregchange(dst);
     IPC(ipc_f2x(opc,dst,src1,src2,dis);)
 }
 
 void fadd_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fadd.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FADD, 1, dst, src1, src2, rm);
@@ -3354,7 +3656,7 @@ void fadd_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 
 void fsub_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsub.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FSUB, 1, dst, src1, src2, rm);
@@ -3362,7 +3664,7 @@ void fsub_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 
 void fmul_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmul.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FMUL, 1, dst, src1, src2, rm);
@@ -3370,7 +3672,7 @@ void fmul_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 
 void fdiv_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fdiv.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FDIV, 1, dst, src1, src2, rm);
@@ -3378,7 +3680,7 @@ void fdiv_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 
 void fsgnj_s(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsgnj.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FSGNJ, 1, dst, src1, src2, rmdyn);
@@ -3386,7 +3688,7 @@ void fsgnj_s(freg dst, freg src1, freg src2, const char* comm)
 
 void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsgnjn.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FSGNJN, 1, dst, src1, src2, rmdyn);
@@ -3394,7 +3696,7 @@ void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
 
 void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsgnjx.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FSGNJX, 1, dst, src1, src2, rmdyn);
@@ -3402,7 +3704,7 @@ void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
 
 void fmin_s(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmin.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FMIN, 1, dst, src1, src2, rmdyn);
@@ -3410,7 +3712,7 @@ void fmin_s(freg dst, freg src1, freg src2, const char* comm)
 
 void fmax_s(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmax.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FMAX, 1, dst, src1, src2, rmdyn);
@@ -3418,7 +3720,7 @@ void fmax_s(freg dst, freg src1, freg src2, const char* comm)
 
 void fsqrt_s(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsqrt.s f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu1src(FSQRT, 1, dst, src1, rm);
@@ -3426,7 +3728,7 @@ void fsqrt_s(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void feq_s(xreg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: feq.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucmp(FEQ, dst, src1, src2);
@@ -3434,7 +3736,7 @@ void feq_s(xreg dst, freg src1, freg src2, const char* comm)
 
 void fle_s(xreg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fle.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucmp(FLE, dst, src1, src2);
@@ -3442,7 +3744,7 @@ void fle_s(xreg dst, freg src1, freg src2, const char* comm)
 
 void flt_s(xreg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: flt.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucmp(FLT, dst, src1, src2);
@@ -3450,7 +3752,7 @@ void flt_s(xreg dst, freg src1, freg src2, const char* comm)
 
 void fcvt_w_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.w.s x%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtf2x(FCVTWS, dst, src1, rm);
@@ -3458,7 +3760,7 @@ void fcvt_w_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_wu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.wu.s x%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtf2x(FCVTWUS, dst, src1, rm);
@@ -3466,50 +3768,29 @@ void fcvt_wu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fmv_x_w(xreg dst, freg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmv.x.w x%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-
     if(dst != x0)
     {
         XREGS[dst].x = sext32(FREGS[src1].u[0]);
-        DEBUG_EMU(gprintf("\t0x%016llx <- 0x%08x (%f)\n", XREGS[dst].x, FREGS[src1].u[0], FREGS[src1].f[0]););
+        DEBUG_EMU(gprintf("\t0x%016llx <- 0x%08x (%g)\n", XREGS[dst].x, FREGS[src1].u[0], FREGS[src1].flt[0]););
     }
     logxregchange(dst);
 }
 
 void fclass_s(xreg dst, freg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fclass.s x%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-
-    iufval val;
-    iufval res;
+    iufval val, res;
     val.f = FREGS[src1].f[0];
-    switch (fpclassify(val.f)) {
-        case FP_INFINITE:  if (signbit(val.f)) res.u = 1<<0;
-                           else res.u = 1<<7;
-                           break;
-        case FP_NAN:       if (val.u & 0x00400000) res.u = 1<<9; // quiet NaN
-                           else res.u = 1 << 8;                  // signaling NaN
-                           break;
-        case FP_ZERO:      if (signbit(val.f)) res.u = 1<<3;
-                           else res.u = 1<<4;
-                           break;
-        case FP_SUBNORMAL: if (signbit(val.f)) res.u = 1<<2;
-                           else res.u = 1<<5;
-                           break;
-        case FP_NORMAL:    if (signbit(val.f)) res.u = 1<<1;
-                           else res.u = 1<<6;
-                           break;
-        default:           assert(0); // error!
-                           break;
-    }
+    res.u = f32_classify(val.f);
     if (dst != x0)
     {
-        XREGS[dst].x = res.x;
-        DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%f)\n",res.u,val.u,val.f););
+        XREGS[dst].x = sext32(res.u);
+        DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%g)\n",res.u,val.u,val.flt););
     }
     logxregchange(dst);
     IPC(ipc_ps(FCLASS,1,dst,src1,fnone,fnone,dis);)
@@ -3517,7 +3798,7 @@ void fclass_s(xreg dst, freg src1, const char* comm)
 
 void fcvt_s_w(freg dst, xreg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.s.w f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtx2f(FCVTSW, dst, src1, rm);
@@ -3525,7 +3806,7 @@ void fcvt_s_w(freg dst, xreg src1, rounding_mode rm, const char* comm)
 
 void fcvt_s_wu(freg dst, xreg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.s.wu f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtx2f(FCVTSWU, dst, src1, rm);
@@ -3533,38 +3814,42 @@ void fcvt_s_wu(freg dst, xreg src1, rounding_mode rm, const char* comm)
 
 void fmv_w_x(freg dst, xreg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmv.w.x f%d, x%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-
-    FREGS[dst].u[0] = XREGS[src1].w[0];
-    DEBUG_EMU(gprintf("\t0x%08x (%f) <- 0x%08x\n", FREGS[dst].u[0], FREGS[dst].f[0], XREGS[src1].w[0]););
+    iufval val;
+    iufval res;
+    val.u = XREGS[src1].w[0];
+    res.u = val.u;
+    FREGS[dst].u[0] = res.u;
+    DEBUG_EMU(gprintf("\t0x%08x (%g) <- 0x%08x\n",res.u,res.flt,val.u););
 #ifdef ZERO_EXTEND_UNUSED_FREG_BITS
     for(int i = 1; i < VL; ++i)
         FREGS[dst].u[i] = 0;
 #endif
+    dirty_fp_state();
     logfregchange(dst);
 }
 
 void flw(freg dst, int off, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: flw f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femuld(FLW, 1, dst, off,  base, 0);
+    femuld(1, dst, off,  base, 0);
 }
 
 void fsw(freg src1, int off, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsw f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femust(FSW, 1, src1, off, base, 0);
+    femust(1, src1, off, base, 0);
 }
 
 void fmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmadd.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu3src(FMADD, 1, dst, src1, src2, src3, rm);
@@ -3572,7 +3857,7 @@ void fmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const 
 
 void fmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmsub.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu3src(FMSUB, 1, dst, src1, src2, src3, rm);
@@ -3580,7 +3865,7 @@ void fmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const 
 
 void fnmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fnmsub.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu3src(FNMSUB, 1, dst, src1, src2, src3, rm);
@@ -3588,7 +3873,7 @@ void fnmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 
 void fnmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fnmadd.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu3src(FNMADD, 1, dst, src1, src2, src3, rm);
@@ -3872,92 +4157,95 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* com
 
 void flw_ps(freg dst, int off, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: flw.ps f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femuld(FLW, VL, dst, off,  base, 1);
+    femuld(VL, dst, off,  base, 1);
 }
 
 void flq(freg dst, int off, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: flq f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femuld(FLW, 4, dst, off,  base, 0);
+    femuld(4, dst, off,  base, 0);
 }
 
 void fsw_ps(freg src1, int off, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsw.ps f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femust(FSW, VL, src1, off, base, 1);
+    femust(VL, src1, off, base, 1);
 }
 
 void fsq(freg src1, int off, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsq f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femust(FSW, 4, src1, off, base, 0);
+    femust(4, src1, off, base, 0);
 }
 
 void fswpc_ps(freg src1, int off, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fswpc.ps f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femust(FSW, VL, src1, off, base, 1);
+    femust(VL, src1, off, base, 1);
 }
 
 // ----- Broadcast -----------------------------------------
 
 void fbc_ps(freg dst, int off, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fbc_ps f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
 
-    uint64_t addr  = (XREGS[base].x  + off);
-    uint8_t  b     = 0;
-    uint32_t val   = 0;
+    iufval val;
+    uint64_t addr = (XREGS[base].x + off);
+    val.u = 0;
+    uint8_t  b = 0;
     for ( int i = 0; i < VL; i++ )
     {
         b |= MREGS[0].b[i];
     }
     if ( b != 0 )
     {
-        val   = memread32(addr);
+        val.u = vmemread32(addr);
     }
     for ( int i = 0; i < VL; i++ )
     {
         if ( MREGS[0].b[i] )
         {
-            FREGS[dst].u[i] = val;
-            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%08x + 0x%016llx = 0x%016llx]\n",i,FREGS[dst].u[i],FREGS[dst].f[i],off,XREGS[base].x,addr););
+            FREGS[dst].u[i] = val.u;
+            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <- MEM[0x%08x + 0x%016llx = 0x%016llx]\n",i,val.u,val.flt,off,XREGS[base].x,addr););
         }
     }
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ld(FBC,1,4,dst,base,(XREGS[base].x+off),dis);)
 }
 
 void fbci_ps(freg dst, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fbci_ps f%d, 0x%08x%s%s",dst,(imm&0xfffff),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
 
-    uint32_t val = (imm & 0xfffff) << 12;  // make sure we only use 20b immediate and put into position
+    iufval val;
+    val.u = (imm & 0xfffff) << 12;  // make sure we only use 20b immediate and put into position
 
     // the low 4 bits of the immediate are replicated to fill the bottom 12 bits of the Fp number
     // Replication is as follows
     // let low be bits [3..0] of the immediate.
-    // THen
+    // Then
     //  bits  [3..0] of the fp value are 'low' if low < 8 or low+1 otherwise
     //  bits  [7..4] of the fp value are 'low'
     //  bits [11..8] of the fp value are 'low'
@@ -3970,35 +4258,39 @@ void fbci_ps(freg dst, uint32_t imm, const char* comm)
                     ((low<<8) | (low<<4) | (low+1));
 
     // now merge low with the upper part of the immediate
-    val = val | low;
+    val.u |= low;
 
     for ( int i = 0; i < VL; i++ )
     {
         if ( MREGS[0].b[i] )
         {
-            FREGS[dst].u[i] = val;
-            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f) <- 0x%08x\n", i, FREGS[dst].u[i], FREGS[dst].f[i], imm); );
+            FREGS[dst].u[i] = val.u;
+            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <- 0x%08x\n",i,val.u,val.flt,imm););
         }
     }
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(FBCI,VL,dst,fnone,fnone,fnone,dis);)
 }
 
 void fbcx_ps(freg dst, xreg src, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fbcx_ps f%d, x%d%s%s",dst,src,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
 
+    iufval val;
+    val.u = XREGS[src].w[0];
     for ( int i = 0; i < VL; i++ )
     {
         if ( MREGS[0].b[i] )
         {
-            FREGS[dst].u[i] = XREGS[src].w[0];
-            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- 0x%08x\n",i,FREGS[dst].u[i],FREGS[dst].f[i],XREGS[src].w[0]););
+            FREGS[dst].u[i] = val.u;
+            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <- 0x%08x\n",i,val.u,val.flt,val.u););
         }
     }
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(FBCI,VL,dst,fnone,fnone,fnone,dis);)
 }
@@ -4008,28 +4300,25 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
 static void gatheremu(opcode opc, int size, freg dst, freg src1, xreg base)
 {
     uint64_t baddr = XREGS[base].x;
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
-        int32_t off    = FREGS[src1].i[i];
-        uint64_t addr  = baddr + off;
+        if (MREGS[0].b[i] == 0) continue;
 
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i])
+        iufval val;
+        int32_t off   = FREGS[src1].i[i];
+        uint64_t addr = baddr + off;
+        switch (opc)
         {
-            // notice here the use of 'int32_t' to force sign extension of the value
-            iufval val;
-            switch ( opc )
-            {
-                case FGW:  val.i   = memread32(addr); break;
-                case FGH:  val.i   = (int32_t) ((int16_t) memread16(addr)); break;
-                case FGB:  val.i   = (int32_t) ((int8_t) memread8(addr)); break;
-                default :  assert(0); break;
-            }
-            FREGS[dst].i[i] = val.i;
-            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%08x + 0x%016llx = 0x%016llx]\n",i,FREGS[dst].i[i],FREGS[dst].f[i],off,baddr,addr););
-            IPC(ipc_gt(opc,VL,size,dst,src1,base,addr,dis, idx++);)
+            case FGW: val.u = vmemread32(addr); break;
+            case FGH: val.u = sext16(vmemread16(addr)); break;
+            case FGB: val.u = sext8(vmemread8(addr)); break;
+            default : assert(0); break;
         }
+        FREGS[dst].u[i] = val.u;
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <- MEM[0x%08x + 0x%016llx = 0x%016llx]\n",i,val.u,val.flt,off,baddr,addr););
+        IPC(ipc_gt(opc,VL,size,dst,src1,base,addr,dis, idx++);)
     }
+    dirty_fp_state();
     logfregchange(dst);
 }
 
@@ -4037,8 +4326,10 @@ static void gatheremu32(opcode opc, int size, freg dst, xreg src1, xreg src2)
 {
     uint64_t baddr = XREGS[src2].x;
     uint64_t index = XREGS[src1].x;
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
+        if (MREGS[0].b[i] == 0) continue;
+
         uint64_t off;
         uint64_t addr;
         switch(size)
@@ -4049,20 +4340,18 @@ static void gatheremu32(opcode opc, int size, freg dst, xreg src1, xreg src2)
             default: assert(0); break;
         }
 
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i])
+        iufval val;
+        switch (size)
         {
-            // notice here the use of 'int32_t' to force sign extension of the value
-            switch (size)
-            {
-                case 1 :  FREGS[dst].i[i] = (int32_t) ((int8_t)  memread8(addr));  break;
-                case 2 :  FREGS[dst].i[i] = (int32_t) ((int16_t) memread16(addr)); break;
-                case 4 :  FREGS[dst].i[i] =                  memread32(addr);  break;
-                default: assert(0); break;
-            }
-            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <- MEM[0x%08x + 0x%016llx = 0x%016llx]\n", i, FREGS[dst].i[i], FREGS[dst].f[i], off, baddr, addr););
+            case 1 : val.u = sext8(vmemread8(addr));  break;
+            case 2 : val.u = sext16(vmemread16(addr)); break;
+            case 4 : val.u = vmemread32(addr); break;
+            default: assert(0); break;
         }
+        FREGS[dst].u[i] = val.u;
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <- MEM[0x%08x + 0x%016llx = 0x%016llx]\n",i,val.u,val.flt,off,baddr,addr););
     }
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ld(opc,VL,size,dst,src1,src2,baddr,dis);)
 }
@@ -4070,28 +4359,25 @@ static void gatheremu32(opcode opc, int size, freg dst, xreg src1, xreg src2)
 static void femuscat(opcode opc, freg src1, freg src2, xreg base)
 {
     uint64_t baddr = XREGS[base].x;
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
-        uint32_t val   = FREGS[src1].u[i];
-        int32_t off    = FREGS[src2].i[i];
-        uint64_t addr  = baddr + off;
-        //
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i] == 0 ) continue;
+        if (MREGS[0].b[i] == 0) continue;
 
-        // notice here the use of 'int32_t' to force sign extension of the value
+        int32_t  off  = FREGS[src2].i[i];
+        uint64_t addr = baddr + off;
+        iufval val;
+        val.u = FREGS[src1].u[i];
+
         switch (opc)
         {
-            case FSCW : memwrite32(addr, (uint32_t)val); logmemwchange(i, 4, addr, val); break;
-            case FSCH : memwrite16(addr, (uint16_t)val); logmemwchange(i, 2, addr, val); break;
-            case FSCB : memwrite8(addr, (uint8_t)val);   logmemwchange(i, 1, addr, val); break;
+            case FSCW : vmemwrite32(addr, val.u); logmemwchange(i, 4, addr, val.u); break;
+            case FSCH : vmemwrite16(addr, uint16_t(val.u)); logmemwchange(i, 2, addr, val.u); break;
+            case FSCB : vmemwrite8(addr, uint8_t(val.u));  logmemwchange(i, 1, addr, val.u); break;
             default   : assert(0); break;
         }
 
         // Scatter writes are not logged!!!!
-
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) --> MEM[0x%08x + 0x%016llx = 0x%016llx = %llu]\n",
-            i, FREGS[src1].u[i], FREGS[src1].f[i], off, baddr, addr, addr););
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) --> MEM[0x%08x + 0x%016llx = 0x%016llx = %llu]\n",i,val.u,val.flt,off,baddr,addr,addr););
     }
     IPC(ipc_st(opc, VL, size, src3, base, baddr, dis);)
 }
@@ -4100,8 +4386,10 @@ static void femuscat32(opcode opc, int size, freg src3, xreg src1, xreg src2)
 {
     uint64_t baddr = XREGS[src2].x;
     uint64_t index = XREGS[src1].x;
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
+        if (MREGS[0].b[i] == 0) continue;
+
         uint64_t off;
         uint64_t addr;
         switch(size)
@@ -4112,30 +4400,27 @@ static void femuscat32(opcode opc, int size, freg src3, xreg src1, xreg src2)
             default: assert(0); break;
         }
 
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i])
+        iufval val;
+        val.u = FREGS[src3].u[i];
+        switch (size)
         {
-            switch (size)
-            {
-                case 1 : memwrite8( addr, (uint8_t)  FREGS[src3].u[i]); break;
-                case 2 : memwrite16(addr, (uint16_t) FREGS[src3].u[i]); break;
-                case 4 : memwrite32(addr, (uint32_t) FREGS[src3].u[i]); break;
-                default: assert(0); break;
-            }
-
-            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) --> MEM[0x%08x + 0x%016llx = 0x%016llx = %llu]\n",
-                i, FREGS[src3].u[i], FREGS[src3].f[i], off, baddr, addr, addr););
-
-            // Do not track store swizzles?  Same with scatters.
-            logmemwchange(i, size, addr, FREGS[src3].u[i]);
+            case 1 : vmemwrite8(addr, uint8_t(val.u)); break;
+            case 2 : vmemwrite16(addr, uint16_t(val.u)); break;
+            case 4 : vmemwrite32(addr, val.u); break;
+            default: assert(0); break;
         }
+
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) --> MEM[0x%08x + 0x%016llx = 0x%016llx = %llu]\n",i,val.u,val.flt,off,baddr,addr,addr););
+
+        // Do not track store swizzles?  Same with scatters.
+        logmemwchange(i, size, addr, val.u);
     }
     IPC(ipc_st(opc, VL, size, src3, base, baddr, dis);)
 }
 
 void fgb_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fgb.ps f%d, (f%d, x%d)%s%s",dst,src1,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4144,7 +4429,7 @@ void fgb_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgh_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fgh.ps f%d, (f%d, x%d)%s%s",dst,src1,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4153,7 +4438,7 @@ void fgh_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fgw.ps f%d, (f%d, x%d)%s%s",dst,src1,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4162,7 +4447,7 @@ void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fg32b.ps f%d, (x%d, x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4171,7 +4456,7 @@ void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
 
 void fg32h_ps(freg dst, xreg src1, xreg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fg32h.ps f%d, (x%d, x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4180,7 +4465,7 @@ void fg32h_ps(freg dst, xreg src1, xreg src2, const char* comm)
 
 void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fg32w.ps f%d, (x%d, x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4189,7 +4474,7 @@ void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm)
 
 void fscb_ps(freg src1, freg src2, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fscb.ps f%d, f%d, x%d%s%s",src1,src2,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4198,7 +4483,7 @@ void fscb_ps(freg src1, freg src2, xreg base, const char* comm)
 
 void fsch_ps(freg src1, freg src2, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsch.ps f%d, f%d, x%d%s%s",src1,src2,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4207,7 +4492,7 @@ void fsch_ps(freg src1, freg src2, xreg base, const char* comm)
 
 void fscw_ps(freg src1, freg src2, xreg base, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fscw.ps f%d, f%d, x%d%s%s",src1,src2,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4216,7 +4501,7 @@ void fscw_ps(freg src1, freg src2, xreg base, const char* comm)
 
 void fsc32b_ps(freg src3, xreg src1, xreg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsc32b.ps f%d, (x%d, x%d)%s%s",src3,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4225,7 +4510,7 @@ void fsc32b_ps(freg src3, xreg src1, xreg src2, const char* comm)
 
 void fsc32h_ps(freg src3, xreg src1, xreg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsc32h.ps f%d, (x%d, x%d)%s%s",src3,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4234,7 +4519,7 @@ void fsc32h_ps(freg src3, xreg src1, xreg src2, const char* comm)
 
 void fsc32w_ps(freg src3, xreg src1, xreg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsc32w.ps f%d, (x%d, x%d)%s%s",src3,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4245,41 +4530,59 @@ void fsc32w_ps(freg src3, xreg src1, xreg src2, const char* comm)
 
 static void fmask(opcode opc, mreg dst, freg src1, freg src2)
 {
-    iufval val1, val2;
-
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++ )
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i] == 0 ) continue;
+        if (MREGS[0].b[i] == 0) continue;
 
-        val1.f  = FREGS[src1].f[i];
+        iufval val1, val2, res;
 
-        // For FSET, don't read the second source
-        if ( src2 != fnone ) { val2.f  = FREGS[src2].f[i]; } else { val2.u = 0; }
-
-        iufval res;
-        switch ( opc )
+        val1.u = FREGS[src1].u[i];
+        val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
+        switch (opc)
         {
-            case FLT:    res.u  = (val1.f < val2.f) ? 1 : 0;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%f) < 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f);)
-                         break;
-            case FLE:    res.u  = (val1.f <= val2.f) ? 1 : 0;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%f) <= 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f);)
-                         break;
-            case FEQ:    res.u  = (val1.f == val2.f) ? 1 : 0;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%f) == 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f);)
-                         break;
-            case FSET:   res.u  = (val1.u) ? 1 : 0;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x ? 1 : 0\n",i,res.u,val1.u);)
-                         break;
-            case FLTPI:  res.u  = (val1.i < val2.i) ? 1 : 0;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%f) < 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f);)
-                         break;
-            default:     assert(0);
-                         break;
+            case FLT:
+#ifdef HAVE_SOFTFLOAT
+                res.u = f32_lt(val1.f, val2.f);
+#else
+                res.u = (val1.f < val2.f) ? 1 : 0;
+#endif
+                DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%g) < 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt);)
+                break;
+            case FLE:
+#ifdef HAVE_SOFTFLOAT
+                res.u = f32_le(val1.f, val2.f);
+#else
+                res.u = (val1.f <= val2.f) ? 1 : 0;
+#endif
+                DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%g) <= 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt);)
+                break;
+            case FEQ:
+#ifdef HAVE_SOFTFLOAT
+                res.u = f32_eq(val1.f, val2.f);
+#else
+                res.u = (val1.f == val2.f) ? 1 : 0;
+#endif
+                DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%g) == 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt);)
+                break;
+            case FSET:
+                // NB: should this be a !feq() comparison?
+                // softfloat: res.u = !f32_eq(val1.f, {0});
+                // hardfloat: res.u = (val1.f == 0.0) ? 0 : 1;
+                res.u = (val1.u) ? 1 : 0;
+                DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x ? 1 : 0\n",i,res.u,val1.u);)
+                break;
+            case FLTPI:
+                res.u = (val1.i < val2.i) ? 1 : 0;
+                DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%g) < 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt);)
+                break;
+            default:
+                assert(0);
+                break;
         }
         MREGS[dst].b[i] = res.u;
     }
+    set_fp_exceptions();
     logmregchange(dst);
     IPC(ipc_msk(opc,dst,src1,src2,dis);)
 }
@@ -4287,22 +4590,22 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
 static void fswizz(opcode opc, freg dst, freg src1, uint8_t imm)
 {
     fdata val = FREGS[src1];
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i] == 0 ) continue;
+        if (MREGS[0].b[i] == 0) continue;
 
         int sel = (i & ~0x3) | ((imm >> ((2*i) % 8)) & 0x03);
         FREGS[dst].u[i] = val.u[sel];
         DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (chan %d)\n",i,FREGS[dst].u[i],val.u[sel],sel););
     }
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
 
 void fadd_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fadd.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4311,7 +4614,7 @@ void fadd_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 
 void fsub_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsub.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4320,7 +4623,7 @@ void fsub_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 
 void fmul_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmul.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4329,7 +4632,7 @@ void fmul_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 
 void fdiv_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fdiv.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4338,7 +4641,7 @@ void fdiv_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 
 void fsgnj_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsgnj.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4347,7 +4650,7 @@ void fsgnj_ps(freg dst, freg src1, freg src2, const char* comm)
 
 void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsgnjn.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4356,7 +4659,7 @@ void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
 
 void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsgnjx.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4365,7 +4668,7 @@ void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
 
 void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmin.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4374,7 +4677,7 @@ void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
 
 void fmax_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmax.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4383,7 +4686,7 @@ void fmax_ps(freg dst, freg src1, freg src2, const char* comm)
 
 void fsqrt_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsqrt.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4392,7 +4695,7 @@ void fsqrt_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void feq_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: feq.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4401,7 +4704,7 @@ void feq_ps(freg dst, freg src1, freg src2, const char* comm)
 
 void fle_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fle.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4410,7 +4713,7 @@ void fle_ps(freg dst, freg src1, freg src2, const char* comm)
 
 void flt_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: flt.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4419,7 +4722,7 @@ void flt_ps(freg dst, freg src1, freg src2, const char* comm)
 
 void feqm_ps(mreg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: feqm.ps m%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4428,7 +4731,7 @@ void feqm_ps(mreg dst, freg src1, freg src2, const char* comm)
 
 void flem_ps(mreg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: flem.ps m%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4437,7 +4740,7 @@ void flem_ps(mreg dst, freg src1, freg src2, const char* comm)
 
 void fltm_ps(mreg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fltm.ps m%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4446,7 +4749,7 @@ void fltm_ps(mreg dst, freg src1, freg src2, const char* comm)
 
 void fsetm_ps(mreg dst, freg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsetm.ps m%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4455,7 +4758,7 @@ void fsetm_ps(mreg dst, freg src1, const char* comm)
 
 void fcmov_ps(freg dst, freg src1, freg src2, freg src3, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcmov.ps f%d, f%d, f%d, f%d%s%s",dst,src1,src2,src3,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4464,29 +4767,30 @@ void fcmov_ps(freg dst, freg src1, freg src2, freg src3, const char* comm)
 
 void fcmovm_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
-    iufval val1, val2, res;
+    require_fp_active();
 
     DISASM(gsprintf(dis,"I: fcmovm.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
 
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
+        iufval val1, val2, res;
         val1.u  = FREGS[src1].u[i];
         val2.u  = FREGS[src2].u[i];
         int sel = MREGS[0].b[i];
         res.u   = sel ? val1.u : val2.u;
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- %d ? 0x%08x (%f) : 0x%08x (%f)\n",i,res.u,res.f,sel,val1.u,val1.f,val2.u,val2.f););
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- %d ? 0x%08x (%g) : 0x%08x (%g)\n",i,res.u,res.flt,sel,val1.u,val1.flt,val2.u,val2.flt););
         FREGS[dst].u[i] = res.u;
     }
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(FCMOV,VL,dst,src1,src2,fnone,dis);)
 }
 
 void fmvz_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM( gsprintf(dis,"I: fmvz.x.ps x%d, f%d, %d%s%s",dst,src1,index,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
 
@@ -4507,7 +4811,7 @@ void fmvz_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
 
 void fmvs_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmvs.x.ps x%d, f%d, %d %s%s",dst,src1,index,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
 
@@ -4528,7 +4832,7 @@ void fmvs_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
 
 void fswizz_ps(freg dst, freg src1, uint8_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fswizz.ps f%d, f%d, %u%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4537,7 +4841,7 @@ void fswizz_ps(freg dst, freg src1, uint8_t imm, const char* comm)
 
 void fcvt_pw_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.pw.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4546,7 +4850,7 @@ void fcvt_pw_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_pwu_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.pwu.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4555,16 +4859,27 @@ void fcvt_pwu_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fclass_ps(freg dst, freg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fclass.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FCLASSPS, VL, dst, src1, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (MREGS[0].b[i] == 0) continue;
+        iufval val, res;
+        val.f = FREGS[src1].f[i];
+        res.u = f32_classify(val.f);
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%g)\n",i,res.u,val.u,val.flt););
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    logfregchange(dst);
+    IPC(ipc_ps(FCLASSPS,VL,dst,src1,fnone,fnone,dis);)
 }
 
 void fcvt_ps_pw(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.pw f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4573,7 +4888,7 @@ void fcvt_ps_pw(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_pwu(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.pwu f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4582,7 +4897,7 @@ void fcvt_ps_pwu(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmadd.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4591,7 +4906,7 @@ void fmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 
 void fmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmsub.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4600,7 +4915,7 @@ void fmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 
 void fnmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fnmsub.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4609,7 +4924,7 @@ void fnmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 
 void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fnmadd.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4620,8 +4935,12 @@ void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 
 static void ucvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
 {
-    for ( int i = 0; i < VL; i++ )
+    set_rounding_mode(rm);
+    for (int i = 0; i < VL; i++)
     {
+        // for packed single, check the corresponding mask bit. If not set, skip this lane
+        if (MREGS[0].b[i] == 0) continue;
+
         uint32_t val = FREGS[src1].u[i];
 
         // Forcing to 0 in case of denormal input
@@ -4637,54 +4956,51 @@ static void ucvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
           val = 0;
         }
 
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        bool genResult = ( MREGS[0].b[i] != 0 );
-
         iufval res;
-
-        if ( genResult )
+        switch ( opc )
         {
-            switch ( opc )
-            {
 #ifdef NEW_UPCONVERT
-                case FCVTPSF16:  res.f = float16tofloat32(val >> 16); break;
-                case FCVTPSF11:  res.f = float11tofloat32(val >> 21); break;
-                case FCVTPSF10:  res.f = float10tofloat32(val >> 22); break;
-                case FCVTPSUN24: res.f = unorm24tofloat32(val >>  8); break;
-                case FCVTPSUN16: res.f = unorm16tofloat32(val >> 16); break;
-                case FCVTPSUN10: res.f = unorm10tofloat32(val >> 22); break;
-                case FCVTPSUN8:  res.f =  unorm8tofloat32(val >> 24);  break;
-                case FCVTPSUN2:  res.f =  unorm2tofloat32(val >> 30);  break;
-                case FCVTPSSN16: res.f = snorm16tofloat32(val >> 16); break;
-                case FCVTPSSN8:  res.f =  snorm8tofloat32(val >> 24);  break;
+            case FCVTPSF16:  res.f = float16tofloat32(val >> 16); break;
+            case FCVTPSF11:  res.f = float11tofloat32(val >> 21); break;
+            case FCVTPSF10:  res.f = float10tofloat32(val >> 22); break;
+            case FCVTPSUN24: res.f = unorm24tofloat32(val >>  8); break;
+            case FCVTPSUN16: res.f = unorm16tofloat32(val >> 16); break;
+            case FCVTPSUN10: res.f = unorm10tofloat32(val >> 22); break;
+            case FCVTPSUN8:  res.f =  unorm8tofloat32(val >> 24);  break;
+            case FCVTPSUN2:  res.f =  unorm2tofloat32(val >> 30);  break;
+            case FCVTPSSN16: res.f = snorm16tofloat32(val >> 16); break;
+            case FCVTPSSN8:  res.f =  snorm8tofloat32(val >> 24);  break;
 #else
-                case FCVTPSF16:  res.f = float16tofloat32(val); break;
-                case FCVTPSF11:  res.f = float11tofloat32(val); break;
-                case FCVTPSF10:  res.f = float10tofloat32(val); break;
-                case FCVTPSUN24: res.f = unorm24tofloat32(val); break;
-                case FCVTPSUN16: res.f = unorm16tofloat32(val); break;
-                case FCVTPSUN10: res.f = unorm10tofloat32(val); break;
-                case FCVTPSUN8:  res.f = unorm8tofloat32(val);  break;
-                case FCVTPSUN2:  res.f = unorm2tofloat32(val);  break;
-                //case FCVTPSSN24: res.f = snorm24tofloat32(val); break;
-                case FCVTPSSN16: res.f = snorm16tofloat32(val); break;
-                //case FCVTPSSN10: res.f = snorm10tofloat32(val); break;
-                case FCVTPSSN8:  res.f = snorm8tofloat32(val);  break;
-                //case FCVTPSSN2:  res.f = snorm2tofloat32(val);  break;
+            case FCVTPSF16:  res.f = float16tofloat32(val); break;
+            case FCVTPSF11:  res.f = float11tofloat32(val); break;
+            case FCVTPSF10:  res.f = float10tofloat32(val); break;
+            case FCVTPSUN24: res.f = unorm24tofloat32(val); break;
+            case FCVTPSUN16: res.f = unorm16tofloat32(val); break;
+            case FCVTPSUN10: res.f = unorm10tofloat32(val); break;
+            case FCVTPSUN8:  res.f = unorm8tofloat32(val);  break;
+            case FCVTPSUN2:  res.f = unorm2tofloat32(val);  break;
+            //case FCVTPSSN24: res.f = snorm24tofloat32(val); break;
+            case FCVTPSSN16: res.f = snorm16tofloat32(val); break;
+            //case FCVTPSSN10: res.f = snorm10tofloat32(val); break;
+            case FCVTPSSN8:  res.f = snorm8tofloat32(val);  break;
+            //case FCVTPSSN2:  res.f = snorm2tofloat32(val);  break;
 #endif
-                default: assert(0); break;
-            }
-            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%d)\n",i,res.u,res.f,val,val);)
-            FREGS[dst].f[i] = res.f;
+            default: assert(0); break;
         }
+        // NB: Cannot generate denormals when upconverting
+        // handle_nan_default(res); // FIXME: Should we return defaultNaN here?
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%d)\n",i,res.u,res.flt,val,val);)
+        FREGS[dst].f[i] = res.f;
     }
+    set_fp_exceptions();
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
 
 void fcvt_ps_f16(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4693,7 +5009,7 @@ void fcvt_ps_f16(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_f11(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f11 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4702,7 +5018,7 @@ void fcvt_ps_f11(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_f10(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f10 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4711,7 +5027,7 @@ void fcvt_ps_f10(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_un24(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un24 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4720,7 +5036,7 @@ void fcvt_ps_un24(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_un16(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4729,7 +5045,7 @@ void fcvt_ps_un16(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_un10(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un10 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4738,7 +5054,7 @@ void fcvt_ps_un10(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_un8(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un8 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4747,7 +5063,7 @@ void fcvt_ps_un8(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_un2(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un2 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4756,7 +5072,7 @@ void fcvt_ps_un2(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_sn16(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.sn16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4765,7 +5081,7 @@ void fcvt_ps_sn16(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_ps_sn8(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.sn8 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4776,43 +5092,44 @@ void fcvt_ps_sn8(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 static void dcvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
 {
-    for ( int i = 0; i < VL; i++ )
+    set_rounding_mode(rm);
+    for (int i = 0; i < VL; i++)
     {
-        float32_t val  = FREGS[src1].f[i];
-
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        bool genResult = ( MREGS[0].b[i] != 0 );
+        if (MREGS[0].b[i] == 0) continue;
 
-        uint32_t res;
-
-        if ( genResult )
+        iufval val, res;
+        val.f = FREGS[src1].f[i];
+        // NB: input denormals are treated as zero, but this is done inside
+        // the conversion functions
+        switch (opc)
         {
-            switch ( opc )
-            {
-                case FCVTF10PS:  res  = float32tofloat10(val) ; break;
-                case FCVTF11PS:  res  = float32tofloat11(val) ; break;
-                case FCVTF16PS:  res  = float32tofloat16(val) ; break;
-                case FCVTUN24PS: res  = float32tounorm24(val) ; break;
-                case FCVTUN16PS: res  = float32tounorm16(val) ; break;
-                case FCVTUN10PS: res  = float32tounorm10(val) ; break;
-                case FCVTUN8PS:  res  = float32tounorm8(val)  ; break;
-                case FCVTUN2PS:  res  = float32tounorm2(val)  ; break;
-                //case FCVTSN24PS: res  = float32tosnorm24(val) ; break;
-                case FCVTSN16PS: res  = float32tosnorm16(val) ; break;
-                case FCVTSN8PS:  res  = float32tosnorm8(val)  ; break;
-                default:         assert(0)                    ; break;
-            }
-            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- down- 0x%08x (%f)\n",i,res,res,cast_float32_to_uint32(val),val);)
-            FREGS[dst].u[i] = res;
+            case FCVTF10PS:  res.u  = float32tofloat10(val.f) ; break;
+            case FCVTF11PS:  res.u  = float32tofloat11(val.f) ; break;
+            case FCVTF16PS:  res.u  = float32tofloat16(val.f) ; break;
+            case FCVTUN24PS: res.u  = float32tounorm24(val.f) ; break;
+            case FCVTUN16PS: res.u  = float32tounorm16(val.f) ; break;
+            case FCVTUN10PS: res.u  = float32tounorm10(val.f) ; break;
+            case FCVTUN8PS:  res.u  = float32tounorm8(val.f)  ; break;
+            case FCVTUN2PS:  res.u  = float32tounorm2(val.f)  ; break;
+            //case FCVTSN24PS: res.u  = float32tosnorm24(val.f) ; break;
+            case FCVTSN16PS: res.u  = float32tosnorm16(val.f) ; break;
+            case FCVTSN8PS:  res.u  = float32tosnorm8(val.f)  ; break;
+            default:         assert(0)                    ; break;
         }
+        // NB: The conversion functions generate default NaNs
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- down- 0x%08x (%g)\n",i,res.u,res.i,val.u,val.flt);)
+        FREGS[dst].u[i] = res.u;
     }
+    set_fp_exceptions();
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
 
 void fcvt_f16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.f16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4821,7 +5138,7 @@ void fcvt_f16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_f11_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.f11.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4830,7 +5147,7 @@ void fcvt_f11_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_f10_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.f10.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4839,7 +5156,7 @@ void fcvt_f10_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_un24_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.un24.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4848,7 +5165,7 @@ void fcvt_un24_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_un16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.un16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4857,7 +5174,7 @@ void fcvt_un16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_un10_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.un10.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4866,7 +5183,7 @@ void fcvt_un10_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_un8_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.un8.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4875,7 +5192,7 @@ void fcvt_un8_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_un2_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.un2.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4884,7 +5201,7 @@ void fcvt_un2_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_sn16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.sn16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4893,7 +5210,7 @@ void fcvt_sn16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_sn8_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.sn8.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -4904,7 +5221,7 @@ void fcvt_sn8_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fsin_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsin.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4913,7 +5230,7 @@ void fsin_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fexp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fexp.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4922,7 +5239,7 @@ void fexp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void flog_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: flog.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4931,7 +5248,7 @@ void flog_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void ffrc_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: ffrc.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4940,32 +5257,39 @@ void ffrc_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
-    iufval val;
+    require_fp_active();
+    set_rounding_mode(rm);
     DISASM(gsprintf(dis,"I: fround.ps f%d, f%d using rounding mode %d%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     for ( int i = 0; i < VL; i++ )
     {
+        if (MREGS[0].b[i] == 0) continue;
+
+        iufval val, res;
         val.f = FREGS[src1].f[i];
-
-        if ( MREGS[0].b[i] == 0 ) continue;
-
-        iufval res;
-        if (isnan(val.f))
-            res.f = nanf("");
+        handle_denormal(val);
+#ifdef HAVE_SOFTFLOAT
+        res.f = f32_roundToInt(val.f, softfloat_roundingMode, true);
+#else
+        handle_nan_default(val);
+        if (val.u == defaultNaNF32UI)
+            res.u = val.u;
         else  // use c++ functions
             res.f = roundf(val.f,  rm);
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) <-- 0x%08x (%f) \n",i,res.x,res.f,val.x,val.f););
+#endif
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) \n",i,res.u,res.flt,val.u,val.flt););
         FREGS[dst].f[i] = res.f;
     }
+    set_fp_exceptions();
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis););
 }
 
 void frcp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: frcp.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4974,16 +5298,17 @@ void frcp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void frsq_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: frsq.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu1src(FRSQ, VL, dst, src1, rm);
 }
 
+// FIXME: THIS INSTRUCTION IS OBSOLETE
 void frcpfxp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: frcpfxp.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -4992,7 +5317,7 @@ void frcpfxp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: cubeface.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n", dis););
     DEBUG_MASK(MREGS[0]);
@@ -5013,13 +5338,14 @@ void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
         FREGS[dst].u[i] = res;
     }
 
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(CUBEFACE, VL, dst, dst, src1, src2, dis););
 }
 
 void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: cubefaceidx.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n", dis););
     DEBUG_MASK(MREGS[0]);
@@ -5027,24 +5353,34 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
     for ( int i = 0; i < VL; i++ )
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i] == 0 ) continue;
+        if (MREGS[0].b[i] == 0) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x3;
-        float32_t rc = FREGS[src2].f[i];
+        iufval rc, res;
+        rc.f = FREGS[src2].f[i];
 
-        float32_t res = (face==0x3) ? nanf("") : (rc < 0) ? float32_t(face * 2 + 1) : float32_t(face * 2);
+        if (face == 0x3)
+        {
+            res.u = defaultNaNF32UI;
+#ifdef HAVE_SOFTFLOAT
+            softfloat_raiseFlags(softfloat_flag_invalid);
+#endif
+        }
+        else
+            res.flt = (rc.u & 0x80000000) ? float(face * 2 + 1) : float(face * 2);
 
-        DEBUG_EMU(gprintf("\t[%d] %d <-- %d %f\n", i, res, face, rc););
-        FREGS[dst].f[i] = res;
+        DEBUG_EMU(gprintf("\t[%d] %d <-- %d %g\n",i,res.i,face,rc.i););
+        FREGS[dst].f[i] = res.f;
     }
-
+    set_fp_exceptions();
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(CUBEFACEIDX, VL, dst, dst, src1, fnone, dis););
 }
 
 void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: cubesgnsc.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n", dis););
     DEBUG_MASK(MREGS[0]);
@@ -5052,24 +5388,23 @@ void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
     for ( int i = 0; i < VL; i++ )
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i] == 0 ) continue;
+        if (MREGS[0].b[i] == 0) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x7;
-        float32_t sc = FREGS[src2].f[i];
-
-        float32_t res = ((face == 0) || (face == 5)) ? -fabs(sc) : fabs(sc);
-
-        DEBUG_EMU(gprintf("\t[%d] 0x08%x [%f] <-- %d %f\n", i, res, res, face, sc););
-        FREGS[dst].f[i] = res;
+        iufval sc, res;
+        sc.u = FREGS[src2].u[i];
+        res.u = ((face == 0) || (face == 5)) ? (0x80000000 | sc.u) : (0x7fffffff & sc.u);
+        DEBUG_EMU(gprintf("\t[%d] 0x08%x [%g] <-- %d %g\n",i,res.u,res.flt,face,sc.flt););
+        FREGS[dst].u[i] = res.u;
     }
-
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(CUBESGNSC, VL, dst, dst, src1, fnone, dis););
 }
 
 void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: cubesgntc.ps f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n", dis););
     DEBUG_MASK(MREGS[0]);
@@ -5077,24 +5412,23 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
     for ( int i = 0; i < VL; i++ )
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i] == 0 ) continue;
+        if (MREGS[0].b[i] == 0) continue;
 
         uint32_t face = (FREGS[src1].u[i])&0x7;
-        float32_t tc = FREGS[src2].f[i];
-
-        float32_t res = (face == 2) ? fabs(tc) : -fabs(tc);
-
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x [%f] <-- %d %f\n", i, res, res, face, tc););
-        FREGS[dst].f[i] = res;
+        iufval tc, res;
+        tc.u = FREGS[src2].u[i];
+        res.u = (face == 2) ? (0x7fffffff & tc.u) : (0x80000000 | tc.u);
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x [%g] <-- %d %g\n",i,res.u,res.flt,face,tc.flt););
+        FREGS[dst].u[i] = res.u;
     }
-
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(CUBESGNTC, VL, dst, dst, src1, fnone, dis););
 }
 
 void fcvt_ps_rast(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.rast f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5103,7 +5437,7 @@ void fcvt_ps_rast(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void fcvt_rast_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.rast.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5112,7 +5446,7 @@ void fcvt_rast_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void frcp_fix_rast(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: frcp.fix.rast f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5129,7 +5463,7 @@ void frcp_fix_rast(freg dst, freg src1, freg src2, const char* comm)
 
 void fbci_pi(freg dst, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fbci.pi f%d, 0x%08x%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
@@ -5146,8 +5480,9 @@ void fbci_pi(freg dst, uint32_t imm, const char* comm)
             DEBUG_EMU(gprintf("\t[%d] 0x%08x <- 0x%08x\n",i,FREGS[dst].i[i],val););
         }
     }
-    IPC(ipc_pi(FBCI,VL,dst,fnone,fnone,fnone,dis);)
+    dirty_fp_state();
     logfregchange(dst);
+    IPC(ipc_pi(FBCI,VL,dst,fnone,fnone,fnone,dis);)
 }
 
 // ----- Computational (follows RV64I/F/M) -----------------
@@ -5160,120 +5495,117 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
         int32_t   val2 = src2 != fnone? FREGS[src2].i[i] : 0;
         uint32_t uval1 = FREGS[src1].u[i];
         uint32_t uval2 = src2 != fnone ? FREGS[src2].u[i] : 0;
-        uint32_t isu = 0;
+        uint32_t isu   = 0;
 
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if ( MREGS[0].b[i] == 0 ) continue;
+        if (MREGS[0].b[i] == 0) continue;
 
         int32_t res;
         uint32_t ures;
         switch ( opc )
         {
-            case FADDPI :   res  = val1 + val2;
+            case FADDPI :   res = val1 + val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x + 0x%08x\n",i,res,val1,val2);)
                             break;
-            case FSUBPI :   res  = val1 - val2;
+            case FSUBPI :   res = val1 - val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x - 0x%08x\n",i,res,val1,val2);)
                             break;
-            case FMULPI :   res  = val1 * val2;
+            case FMULPI :   res = val1 * val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,res,val1,val2);)
                             break;
-            case FMULHPI :
-                            {
+            case FMULHPI :  {
                                 int64_t res_full;
                                 res_full = int64_t(val1) * int64_t(val2);
-                                res  = int32_t((res_full >> 32) & 0xFFFFFFFF);
+                                res = int32_t((res_full >> 32) & 0xFFFFFFFF);
                                 DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,res,val1,val2);)
                             }
                             break;
-            case FMULHUPI :
-                            {
+            case FMULHUPI : {
                                 uint64_t res_full;
                                 res_full = uint64_t(uval1) * uint64_t(uval2);
-                                ures  = uint32_t((res_full >> 32) & 0xFFFFFFFF);
+                                ures = uint32_t((res_full >> 32) & 0xFFFFFFFF);
                                 isu = 1;
                                 DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,ures,uval1,uval2);)
                             }
                             break;
-//                        case FMULHSUPI :
-//                                        {
-//                                            uint64_t res_full;
-//                                            res_full = int64_t(val1) * uint64_t(uval2);
-//                                            ures  = uint32_t((res_full >> 32) & 0xFFFFFFFF);
-//                                            isu = 1;
-//                                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,ures,uval1,uval2);)
-//                                        }
-//                                        break;
-            case FDIVPI :   res  = val1 / val2;
+//          case FMULHSUPI: {
+//                              uint64_t res_full;
+//                              res_full = int64_t(val1) * uint64_t(uval2);
+//                              ures = uint32_t((res_full >> 32) & 0xFFFFFFFF);
+//                              isu = 1;
+//                              DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,ures,uval1,uval2);)
+//                          }
+//                          break;
+            case FDIVPI :   res = val1 / val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x / 0x%08x\n",i,res,val1,val2);)
                             break;
-            case FDIVUPI :  ures  = uval2 ? uval1 / uval2 : 0xFFFFFFFF;
+            case FDIVUPI :  ures = uval2 ? uval1 / uval2 : 0xFFFFFFFF;
                             isu = 1;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%u) /u 0x%08x (%u)\n",i,ures,ures,uval1,uval1,uval2,uval2);)
                             break;
-            case FREMPI  :  res  = val2 ? val1 % val2 : 0xFFFFFFFF;
+            case FREMPI  :  res = val2 ? val1 % val2 : 0xFFFFFFFF;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) %%u 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2);)
                             break;
-            case FREMUPI :  ures  = uval2 ? uval1 % uval2 : 0xFFFFFFFF;
+            case FREMUPI :  ures = uval2 ? uval1 % uval2 : 0xFFFFFFFF;
                             isu = 1;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%u) %%u 0x%08x (%u)\n",i,ures,ures,uval1,uval1,uval2,uval2);)
                             break;
-            case FMAXPI :   res  = val1 >= val2 ? val1 : val2;
+            case FMAXPI :   res = val1 >= val2 ? val1 : val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- max(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2);)
                             break;
-            case FMINPI :   res  = val1 < val2 ? val1 : val2;
+            case FMINPI :   res = val1 < val2 ? val1 : val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- min(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2);)
                             break;
-            case FMAXUPI :  res  = uval1 >= uval2 ? uval1 : uval2;
+            case FMAXUPI :  res = uval1 >= uval2 ? uval1 : uval2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- max(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2);)
                             break;
-            case FMINUPI :  res  = uval1 < uval2 ? uval1 : uval2;
+            case FMINUPI :  res = uval1 < uval2 ? uval1 : uval2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- min(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2);)
                             break;
-            case FANDPI :   res  = val1 & val2;
+            case FANDPI :   res = val1 & val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x & 0x%08x\n",i,res,val1,val2);)
                             break;
-            case FORPI :    res  = val1 | val2;
+            case FORPI :    res = val1 | val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x | 0x%08x\n",i,res,val1,val2);)
                             break;
-            case FXORPI :   res  = val1 ^ val2;
+            case FXORPI :   res = val1 ^ val2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x\n",i,res,val1,val2);)
                             break;
-            case FNOTPI :   res  = ~val1;
+            case FNOTPI :   res = ~val1;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1);)
                             break;
             case FSAT8PI :  res = ((val1 > 127) ? 127 :(val1 < -128 ? -128 : val1)) & 0x0FF;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1);)
                             break;
             case FSLLPI :   if (uval2 >= 32)
-                                res  = 0;
+                                res = 0;
                             else
-                                res  = uval1 << uval2;
+                                res = uval1 << uval2;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x << %d\n",i,res,val1,val2);)
                             break;
             case FSRLPI :   if (uval2 >= 32)
                                 res = 0;
                             else
-                            res  = int32_t(uint32_t(val1) >> uint32_t(uval2));
+                                res = int32_t(uint32_t(val1) >> uint32_t(uval2));
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2);)
                             break;
             case FSRAPI :   if (uval2 >= 32)
                                 res = 0;
                             else
-                                res  = val1 >> uint32_t(uval2);
+                                res = val1 >> uint32_t(uval2);
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2);)
                             break;
-            case FLTPI :    res  = (val1 < val2) ? 0xFFFFFFFF : 0;
+            case FLTPI :    res = (val1 < val2) ? 0xFFFFFFFF : 0;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) < 0x%08x (%d) \n",i,res,res,val1,val1,val2,val2);)
                             break;
-            case FLTUPI :   ures  = (uval1 < uval2) ? 0xFFFFFFFF : 0;
+            case FLTUPI :   ures = (uval1 < uval2) ? 0xFFFFFFFF : 0;
                             isu = 1;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%u) < 0x%08x (%u) \n",i,ures,ures,uval1,uval1,uval2,uval2);)
                             break;
-            case FLEPI :    res  = (val1 <= val2) ? 0xFFFFFFFF : 0;
+            case FLEPI :    res = (val1 <= val2) ? 0xFFFFFFFF : 0;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) <= 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2);)
                             break;
-            case FEQPI :    res  = (val1 == val2) ? 0xFFFFFFFF : 0;
+            case FEQPI :    res = (val1 == val2) ? 0xFFFFFFFF : 0;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) == 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2);)
                             break;
             default:        assert(0);
@@ -5284,6 +5616,7 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
         else
             FREGS[dst].i[i] = res;
     }
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_pi(opc,VL,dst,src1,src2,fnone,dis);)
 }
@@ -5293,45 +5626,41 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
     for ( int i = 0; i < VL; i++ )
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        bool genResult = !( MREGS[0].b[i] == 0 );
+        if (MREGS[0].b[i] == 0) continue;
 
         int32_t val1 = FREGS[src1].i[i];
         int32_t val2 = sext10(imm); // sign extend the 10-low order bits of imm
-
         int32_t res;
 
-        if ( genResult )
+        switch ( opc )
         {
-            switch ( opc )
-            {
-                case FADDIPI: res  = val1 + val2;
-                              DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) + 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2););
-                              break;
-                case FANDIPI: res  = val1 & val2;
-                              DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x & 0x%08x\n",i,res,val1,val2););
-                              break;
-                case FORIPI:  res  = val1 | val2;
-                              DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x | 0x%08x\n",i,res,val1,val2););
-                              break;
-                case FXORIPI: res  = val1 ^ val2;
-                              DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x\n",i,res,val1,val2););
-                              break;
-                case FSLLIPI: res  = val1 << val2;
-                              DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x << %d\n",i,res,val1,val2););
-                              break;
-                case FSRLIPI: res  = int32_t(uint32_t(val1) >> uint32_t(val2));
-                              DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2););
-                              break;
-                case FSRAIPI: res  = val1 >> val2;
-                              DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2););
-                              break;
-                default:      assert(0);
-                              break;
-            }
-            FREGS[dst].i[i] = res;
+            case FADDIPI: res = val1 + val2;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) + 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2););
+                          break;
+            case FANDIPI: res = val1 & val2;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x & 0x%08x\n",i,res,val1,val2););
+                          break;
+            case FORIPI:  res = val1 | val2;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x | 0x%08x\n",i,res,val1,val2););
+                          break;
+            case FXORIPI: res = val1 ^ val2;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x\n",i,res,val1,val2););
+                          break;
+            case FSLLIPI: res = val1 << val2;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x << %d\n",i,res,val1,val2););
+                          break;
+            case FSRLIPI: res = int32_t(uint32_t(val1) >> uint32_t(val2));
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2););
+                          break;
+            case FSRAIPI: res = val1 >> val2;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2););
+                          break;
+            default:      assert(0);
+                          break;
         }
-
+        FREGS[dst].i[i] = res;
     }
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_pi(opc,VL,dst,src1,fnone,fnone,dis);)
 }
@@ -5369,13 +5698,14 @@ static void packrep(opcode opc, freg dst, freg src1)
     for (int i = 0; i < VL; i++)
         DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x\n",i,FREGS[dst].u[i],val.u[i]););
 
+    dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
 
 void feq_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: feq.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5384,7 +5714,7 @@ void feq_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fle_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fle.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5393,7 +5723,7 @@ void fle_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void flt_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: flt.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5402,7 +5732,7 @@ void flt_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fltu_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fltu.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5411,7 +5741,7 @@ void fltu_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fltm_pi(mreg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fltm.pi m%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5420,7 +5750,7 @@ void fltm_pi(mreg dst, freg src1, freg src2, const char* comm)
 
 void faddi_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: faddi.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5429,7 +5759,7 @@ void faddi_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 
 void fslli_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fslli.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5438,7 +5768,7 @@ void fslli_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 
 void fxori_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fxori.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5447,7 +5777,7 @@ void fxori_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 
 void fsrli_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsrli.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5456,7 +5786,7 @@ void fsrli_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 
 void fsrai_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsrai.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5465,7 +5795,7 @@ void fsrai_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 
 void fori_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fori.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5474,7 +5804,7 @@ void fori_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 
 void fandi_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fandi.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5483,7 +5813,7 @@ void fandi_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 
 void fadd_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fadd.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5492,7 +5822,7 @@ void fadd_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fsub_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsub.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5501,7 +5831,7 @@ void fsub_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fsll_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsll.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5510,7 +5840,7 @@ void fsll_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fxor_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fxor.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5519,7 +5849,7 @@ void fxor_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fsrl_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsrl.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5528,7 +5858,7 @@ void fsrl_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fsra_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsra.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5537,7 +5867,7 @@ void fsra_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void for_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: for.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5546,7 +5876,7 @@ void for_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fand_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fand.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5555,7 +5885,7 @@ void fand_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fnot_pi(freg dst, freg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fnot.pi f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5564,7 +5894,7 @@ void fnot_pi(freg dst, freg src1, const char* comm)
 
 void fsat8_pi(freg dst, freg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fsat8.pi f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5573,7 +5903,7 @@ void fsat8_pi(freg dst, freg src1, const char* comm)
 
 void fpackreph_pi(freg dst, freg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fpackreph.pi f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5582,7 +5912,7 @@ void fpackreph_pi(freg dst, freg src1, const char* comm)
 
 void fpackrepb_pi(freg dst, freg src1, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fpackrepb.pi f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5591,7 +5921,7 @@ void fpackrepb_pi(freg dst, freg src1, const char* comm)
 
 void fmul_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmul.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5600,7 +5930,7 @@ void fmul_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fmulh_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmulh.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5609,7 +5939,7 @@ void fmulh_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fmulhu_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmulhu.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5618,7 +5948,7 @@ void fmulhu_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fdiv_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fdiv.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5627,7 +5957,7 @@ void fdiv_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fdivu_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fdivu.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5636,7 +5966,7 @@ void fdivu_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void frem_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: frem.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5645,7 +5975,7 @@ void frem_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fremu_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fremu.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5654,7 +5984,7 @@ void fremu_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fmin_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmin.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5663,7 +5993,7 @@ void fmin_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fmax_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmax.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5672,7 +6002,7 @@ void fmax_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fminu_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fminu.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -5681,7 +6011,7 @@ void fminu_pi(freg dst, freg src1, freg src2, const char* comm)
 
 void fmaxu_pi(freg dst, freg src1, freg src2, const char* comm)
 {
-    if (check_fs()) return;
+    require_fp_active();
     DISASM(gsprintf(dis,"I: fmaxu.pi f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
@@ -6019,7 +6349,7 @@ static uint64_t get_msg_port_offset(uint32_t id)
         if (newMsgPortDataRequest == NULL)
         {
             gprintf("id = %d, offset = %d, current_thread = %d\n", id, offset, current_thread);
-            gprintf("ERROR: newMsgPortDataRequest == NULL");
+            gprintf("ERROR: newMsgPortDataRequest == NULL\n");
             exit(-1);
         }
         newMsgPortDataRequest(current_thread, id);
@@ -6118,7 +6448,7 @@ void write_msg_port_data_(uint32_t thread, uint32_t id, uint32_t *data)
     {
         uint32_t ret = data[i];
         DEBUG_EMU(gprintf("Writing MSG_PORT (m%d p%d) data %08X to addr %016llX\n", thread, id, ret, base_addr + 4 * i););
-        memwrite32 ( base_addr + 4 * i, ret );
+        vmemwrite32 ( base_addr + 4 * i, ret );
     }
 }
 
@@ -6154,10 +6484,8 @@ static bool conv_skip_pass(int64_t conv_row_pos, int64_t conv_col_pos, uint64_t 
     if(conv_row_pos >= int64_t(conv_row_size)) skip = 1;
 
     if(skip)
-
     {
         DEBUG_EMU(gprintf("\tSkip conv_row_pos %d conv_col_pos %d conv_row_size%d conv_col_size%d\n", conv_row_pos, conv_col_pos, conv_row_size, conv_col_size);)
-
     }
     return skip;
 }
@@ -6194,6 +6522,7 @@ static void tmask_conv()
 
     csrset(csr_tmask, tmask_value);
 }
+
 static void tcoop()
 {
     uint64_t tcoopreg         = csrget(csr_tcoop);
@@ -6204,85 +6533,16 @@ static void tcoop()
     uint64_t coop_id              = (tcoopreg >> 0) & 0xFF;
     //TODO implement functionality checking the addresses and tcoop of every use of Tensor Load
     DEBUG_EMU(gprintf("\tSetting Tensor Cooperation:  Warl [%040X] . Timeout %d . Coop Mask %08X . Coop ID : %d\n",warl, timeout , coop_mask ,coop_id  );)
-
 }
+
 static void offtxfma()
 {
-    uint64_t reg         = csrget(csr_offtxfma);
+    uint64_t reg = csrget(csr_offtxfma);
     DEBUG_EMU(gprintf("\tSetting offtxfma:  %d \n  ", reg);)
-    
 }
 
 // ----- TensorLoad emulation --------------------------------------------------
 
-#if 0
-static void tensorload(uint64_t control)
-{
-    //uint64_t dst     = control & 0x3F;
-    //int      rows    = ((control >> 48) & 0x1F) + 1;
-    //uint64_t tm      = (control >> 53) & 0x1;
-    //uint64_t base    = control & 0xFFFFFFFFFFC0ULL;
-
-
-    uint64_t stride  = XREGS[31].x;
-
-    uint64_t tm                 = (control >> 63) & 0x1;
-    uint64_t use_coop           = (control >> 62) & 0x1;
-    //uint64_t reserved           = (control >> 59) & 0x7;
-    uint64_t dst                = (control >> 53) & 0x3F;
-    uint64_t read_sc            = (control >> 52) & 0x1;
-   // uint64_t write_any          = (control >> 48) & 0xF;
-    //uint64_t virtual_addr_l2_sc = (control >>  6) & 0x3FFFFFFFFFF;
-    uint64_t base                 = control & 0xFFFFFFFFFFC0ULL;
-    //uint64_t boffset            = (control >>  4) & 0x03;
-    int rows                    = ((control      ) & 0xF) + 1;
-
-    scp_entry[current_thread] = dst;
-    scp_size[current_thread]  = rows;
-    scp_tm                    = tm;
-    uint64_t addr             = base;
-    DEBUG_EMU(gprintf("Tensor Load confs : tmask %d , use_coop %d,  dst %d, read_sc %d, base 0x%016X, rows %d \n", tm ,use_coop, dst, read_sc, base, rows);)
-
-    //TODO at this moment a behavior equal to the old Tensor Load is assumed, the new features will be implemented.
-    if( read_sc )
-    {
-        DEBUG_EMU(gprintf("ERROR Read from SC not currently supported in EMU !!\n");)
-    }
-
-    for ( int i = 0; i < rows; i++ )
-    {
-        bool skip_load = 0;
-        // Checks if needs to skip the current load due tensormask CSR
-        if(tm)
-            skip_load = !tmask_pass(i);
-
-        if(!skip_load)
-        {
-            if(addr & 0x3F)
-            {
-                DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
-            }
-            for ( int j = 0; j < 4; j++ )
-            {
-                for ( int k = 0; k < 4; k++ )
-                {
-                    uint64_t addr_final = addr+j*16+k*4;
-                    uint32_t val32 = memread32(addr_final);
-                    float32_t fval32 = cast_uint32_to_float32(val32);
-
-                    SCP[dst + i][j].f[k] = fval32;
-                    DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
-                }
-            }
-        }
-        else
-        {
-            DEBUG_EMU(gprintf("Tensor Load skipped !!\n");)
-        }
-        addr += stride;
-    }
-}
-#endif
 void tensorload(uint64_t control)//Transtensorload
 {
     uint64_t stride  = XREGS[31].x;
@@ -6293,7 +6553,7 @@ void tensorload(uint64_t control)//Transtensorload
     uint64_t dst                = (control >> 53) & 0x3F;
     uint64_t tenb               = (control >> 52) & 0x1;
     //uint64_t virtual_addr_l2_sc = (control >>  6) & 0x3FFFFFFFFFF;
-    uint64_t base                 = control & 0xFFFFFFFFFFC0ULL;
+    uint64_t base               = control & 0xFFFFFFFFFFC0ULL;
     uint64_t boffset            = (control >>  4) & 0x03;
     int rows                    = ((control      ) & 0xF) + 1;
 
@@ -6324,7 +6584,7 @@ void tensorload(uint64_t control)//Transtensorload
                     for ( int k = 0; k < VL; k++ )
                     {
                         uint64_t addr_final = addr+j*VL*4+k*4;
-                        uint32_t val32 = memread32(addr_final);
+                        uint32_t val32 = vmemread32(addr_final);
                         float32_t fval32 = cast_uint32_to_float32(val32);
 
                         SCP[dst + i][j].f[k] = fval32;
@@ -6360,7 +6620,7 @@ void tensorload(uint64_t control)//Transtensorload
                         for ( int k = 0; k < 8; k++ )
                         {
                             uint64_t addr_final = addr+j*8+k;
-                            uint8_t val = memread8(addr_final);
+                            uint8_t val = vmemread8(addr_final);
                             tmp_buffer[elem][j*8+k] = val;
                             DEBUG_EMU(gprintf("\tLoading into tmp_buffer - MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, elem,j,k,tmp_buffer[elem][j*8+k],tmp_buffer[elem][j*8+k]);)
                         }
@@ -6417,7 +6677,7 @@ void tensorload(uint64_t control)//Transtensorload
                 for ( int k = 0; k < 8; k++ )
                 {
                     uint64_t addr_final = addr+j*8+k;
-                    uint8_t val = memread8(addr_final);
+                    uint8_t val = vmemread8(addr_final);
                     tmp_buffer[elem][j*8+k]=val;
                     DEBUG_EMU(gprintf("\tLoading into tmp_buffer - MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, elem,j,k,tmp_buffer[elem][j*8+k],tmp_buffer[elem][j*8+k]);)
                 }
@@ -6483,7 +6743,7 @@ static void tensorstore(uint64_t tstorereg)
     // For all the rows
     for(uint64_t row = 0; row < rows; row++)
     {
-        // For all the blocks of 128b 
+        // For all the blocks of 128b
         for(uint64_t col = 0; col < cols; col++)
         {
             // For all the 32 elements of the 128b block
@@ -6491,7 +6751,7 @@ static void tensorstore(uint64_t tstorereg)
             {
                 uint32_t idx = (col & 1) * 4 + i;
                 uint32_t val = FREGS[src].u[idx];
-                memwrite32(addr + col * 16 + i * 4, val);
+                vmemwrite32(addr + col * 16 + i * 4, val);
                 DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
                 //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
             }
@@ -6501,46 +6761,6 @@ static void tensorstore(uint64_t tstorereg)
         addr += stride;
     }
 }
-#if 0
-void tensorstore(uint64_t tstorereg)
-{
-
-    uint64_t regstart =  (tstorereg & 0x30000000000000) >> 52;      // Start register to store
-    uint64_t rows     = ((tstorereg & 0x0F000000000000) >> 48) + 1; // Number of rows to store
-    uint64_t addr     =  (tstorereg & 0x00FFFFFFFFFFC0);            // Address where to store the results
-    uint64_t srcinc   = ((tstorereg & 0x0000000000000C) >>  2) + 1; // Increment done to register source
-    uint64_t cols     =  (tstorereg & 0x00000000000003) + 1;        // Number of register per col
-
-    uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
-
-    uint64_t src = regstart * 16 % 48;
-    DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, src, rows, cols, srcinc);)
-    // For all the rows
-    for(uint64_t row = 0; row < rows; row++)
-    {
-        // For all the cols
-        for(uint64_t col = 0; col < cols; col++)
-        {
-            // For all the elements of the lane
-            for(uint64_t j = 0; j < 4; j++)
-            {
-                for(uint64_t i = 0; i < 4; i++)
-                {
-                    uint32_t val = SCP[src][j].u[i];
-                    memwrite32(addr + col * 64 + j * 16 + i * 4, val);
-                    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
-                    DEBUG_EMU(gprintf("\t\tSCP[%d][%d].u[%d]\n",src,j,i);)
-                    //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
-                }
-            }
-            src += srcinc;
-            src = src % 48;
-        }
-        addr += stride;
-    }
-}
-#endif
-
 
 // ----- TensorFMA emulation ---------------------------------------------------
 
@@ -6562,7 +6782,9 @@ static void tensorfma(uint64_t tfmareg)
     arows = arows + 1;
     acols = acols + 1;
 
-    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d\n", tm, aoffset, type, first_pass, bcols, acols, arows, tenb, bstart, astart);)
+    set_rounding_mode(rmdyn);
+
+    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s\n", tm, aoffset, type, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));)
 
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if(tenb)
@@ -6608,7 +6830,7 @@ static void tensorfma(uint64_t tfmareg)
 
                     if(MREGS[0].b[bm] == 0) continue;
 
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = 0.0f;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
                 }
             }
@@ -6641,48 +6863,86 @@ static void tensorfma(uint64_t tfmareg)
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
                 {
+                    iufval accum, mul_a, mul_b, res;
+
                     int af = (aoffset + ac) / VL;
                     int am = (aoffset + ac) % VL;
                     int br = bstart + ac;                // B: traverse acols rows
-                    float32_t old = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
-                    uint32_t oldu = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = fmaf(SCP[astart+ar][af].f[am],SCP[br][bf].f[bm],old);
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm],old,SCP[astart+ar][af].f[am],SCP[br][bf].f[bm]);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%08x * 0x%08x\n",oldu,SCP[astart+ar][af].u[am],SCP[br][bf].u[bm]);)
+
+                    accum.f = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
+                    mul_a.f = SCP[astart+ar][af].f[am];
+                    mul_b.f = SCP[br][bf].f[bm];
+                    handle_denormal(accum);
+                    handle_denormal(mul_a);
+                    handle_denormal(mul_b);
+#ifdef HAVE_SOFTFLOAT
+                    res.f = f32_mulAdd(mul_a.f, mul_b.f, accum.f);
+#else
+                    res.f = fmaf(mul_a.f, mul_b.f, accum.f);
+#endif
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
+                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul_a.u,mul_b.u);)
                     // For checker purposes we keep the data of all the passes
-                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = res.u;
 
                     if ((first_pass == 0) || (ac != 0)) {
                     // If As are zeroes, we skip operation
-                      if(SCP[astart+ar][af].f[am] == 0)
+                      if(mul_a.u == 0)
                           tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     // If Bs are zeroes, we skip operation
-                      if(SCP[br][bf].f[bm] == 0)
+                      if(mul_b.u == 0)
                           tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[4]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[5]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[6]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[7]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[4]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[5]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[6]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[7]);)
+#if VL==8
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[7]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[7]);)
+#elif VL==4
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,0,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,1,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,2,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,3,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,0,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,1,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,2,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,3,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[3]);)
+#endif
         }
     }
     // *FP16+FP32
     else if(type == 1)
     {
+        // FIXME: We should not use floating-point computations here... need
+        // to implement a softfloat-like equivalent
+
+        set_x86_rounding_mode(rmdyn);
+
         if(first_pass)
         {
             for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
@@ -6693,7 +6953,7 @@ static void tensorfma(uint64_t tfmareg)
                     int bm = bc % VL;
                     if(MREGS[0].b[bm] == 0) continue;
 
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = 0.0f;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
                 }
             }
@@ -6730,42 +6990,55 @@ static void tensorfma(uint64_t tfmareg)
 
 
                     // Doing two FMAs per lane and accumulating to previous results
-                    float32_t accum      = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
+                    iufval accum;
+                    accum.f = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
+                    //handle_denormal(accum); // NB: No need for this, the value is generated by TXFMA so it cannot be denormal
 
-#ifdef USE_REAL_TXFMA
+                    uint16_t  mul1_a_hex = SCP[astart+ar][af].h[am * 2];        // get first operand
+                    uint16_t  mul2_a_hex = SCP[astart+ar][af].h[am * 2 + 1];    // get third operand
+                    uint16_t  mul1_b_hex = SCP[br][bf].h[bm * 2];               // get second operand
+                    uint16_t  mul2_b_hex = SCP[br][bf].h[bm * 2 + 1];           // get fourth operand
+
+#if defined(USE_REAL_TXFMA)
+                    iufval mul1_a, mul1_b, fma1, mul2_a, mul2_b, fma2;
+
                     // 1st FMA
-                    uint32_t  mul1_a_hex = SCP[astart+ar][af].h[am * 2];                            // get first operand
-                    bool      mul1_a_den = ((mul1_a_hex & 0x7C00) == 0);                            // detect input denormal or zero
-                    float32_t mul1_a     = mul1_a_den ? 0 : _cvtsh_ss(mul1_a_hex);                  // convert to fp32
-                    int32_t   mul1_a_exp = ((mul1_a_hex >> 10) & 0x1F) - 15;                        // get exponent
+                    bool      mul1_a_den = ((mul1_a_hex & 0x7C00) == 0);        // detect input denormal or zero
+                    int32_t   mul1_a_exp = ((mul1_a_hex >> 10) & 0x1F) - 15;    // get exponent
 
-                    uint32_t  mul1_b_hex = SCP[br][bf].h[bm * 2];                                   // get second operand
-                    bool      mul1_b_den = ((mul1_b_hex & 0x7C00) == 0);                            // detect input denormal or zero
-                    float32_t mul1_b     = mul1_b_den ? 0 : _cvtsh_ss(mul1_b_hex);                  // convert to fp32
-                    int32_t   mul1_b_exp = ((mul1_b_hex >> 10) & 0x1F) - 15;                        // get exponent
+                    bool      mul1_b_den = ((mul1_b_hex & 0x7C00) == 0);        // detect input denormal or zero
+                    int32_t   mul1_b_exp = ((mul1_b_hex >> 10) & 0x1F) - 15;    // get exponent
 
-                    float32_t fma1       = mul1_a * mul1_b;                                         // perform first mul
+                    // flush denormals to zero, preserving sign
+                    if (mul1_a_den) mul1_a_hex &= 0x8000;
+                    if (mul1_b_den) mul1_b_hex &= 0x8000;
+
+                    mul1_a.flt = _cvtsh_ss(mul1_a_hex);                         // convert to fp32
+                    mul1_b.flt = _cvtsh_ss(mul1_b_hex);                         // convert to fp32
+                    fma1.flt   = mul1_a.flt * mul1_b.flt;                       // perform first mul
 
                     // 2nd FMA
-                    uint32_t  mul2_a_hex = SCP[astart+ar][af].h[am * 2 + 1];                        // get third operand
-                    bool      mul2_a_den = ((mul2_a_hex & 0x7C00) == 0);                            // detect input denormal or zero
-                    float32_t mul2_a     = mul2_a_den ? 0 : _cvtsh_ss(mul2_a_hex);                  // convert to fp32
-                    int32_t   mul2_a_exp = ((mul2_a_hex >> 10) & 0x1F) - 15;                        // get exponent
+                    bool      mul2_a_den = ((mul2_a_hex & 0x7C00) == 0);        // detect input denormal or zero
+                    int32_t   mul2_a_exp = ((mul2_a_hex >> 10) & 0x1F) - 15;    // get exponent
 
-                    uint32_t  mul2_b_hex = SCP[br][bf].h[bm * 2 + 1];                               // get fourth operand
-                    bool      mul2_b_den = ((mul2_b_hex & 0x7C00) == 0);                            // detect input denormal or zero
-                    float32_t mul2_b     = mul2_b_den ? 0 : _cvtsh_ss(mul2_b_hex);                  // convert to fp32
-                    int32_t   mul2_b_exp = ((mul2_b_hex >> 10) & 0x1F) - 15;                        // get exponent
+                    bool      mul2_b_den = ((mul2_b_hex & 0x7C00) == 0);        // detect input denormal or zero
+                    int32_t   mul2_b_exp = ((mul2_b_hex >> 10) & 0x1F) - 15;    // get exponent
 
-                    float32_t fma2       = mul2_a * mul2_b;                                         // perform second mul
+                    // flush denormals to zero, preserving sign
+                    if (mul2_a_den) mul2_a_hex &= 0x8000;
+                    if (mul2_b_den) mul2_b_hex &= 0x8000;
+
+                    mul2_a.flt = _cvtsh_ss(mul2_a_hex);                         // convert to fp32
+                    mul2_b.flt = _cvtsh_ss(mul2_b_hex);                         // convert to fp32
+                    fma2.flt   = mul2_a.flt * mul2_b.flt;                       // perform second mul
 
                     // Get hex value and exponents of three operands of final addition
-                    uint32_t hex_accum  = * (uint32_t * ) &accum;
+                    uint32_t hex_accum  = accum.u;
                     int32_t  accum_exp  = ((hex_accum >> 23) & 0xFF) - 127;
-                    uint32_t hex_fma1   = * (uint32_t * ) &fma1;
+                    uint32_t hex_fma1   = fma1.u;
                     int32_t  fma1_exp   = ((hex_fma1 >> 23) & 0xFF) - 127;
                     int32_t  fma1_exp_r = (mul1_a_den || mul1_b_den) ? -127 : mul1_a_exp + mul1_b_exp; // use exponent without shifting to match rtl
-                    uint32_t hex_fma2   = * (uint32_t * ) &fma2;
+                    uint32_t hex_fma2   = fma2.u;
                     int32_t  fma2_exp   = ((hex_fma2 >> 23) & 0xFF) - 127;
                     int32_t  fma2_exp_r = (mul2_a_den || mul2_b_den) ? -127 : mul2_a_exp + mul2_b_exp; // use exponent without shifting to match rtl
 
@@ -6793,53 +7066,63 @@ static void tensorfma(uint64_t tfmareg)
                                                                 (hex_fma2  & ((0xFFFFFFFF >>  fma2_erase) <<  fma2_erase));
 
                     // Convert back to fp32 after truncation
-                    float32_t accum_fp32 = * (float32_t *) &accum_trunc;
-                    float32_t  fma1_fp32 = * (float32_t *) &fma1_trunc;
-                    float32_t  fma2_fp32 = * (float32_t *) &fma2_trunc;
+                    float accum_fp32 = cast_uint32_to_float(accum_trunc);
+                    float  fma1_fp32 = cast_uint32_to_float(fma1_trunc);
+                    float  fma2_fp32 = cast_uint32_to_float(fma2_trunc);
 
                     // Perform accumulation (first in fp64 to avoid uncontrolled rounding => then clip to fp32 with appropiate rounding)
-                    float64_t res64       = (float64_t)accum_fp32 + (float64_t)fma1_fp32 + (float64_t)fma2_fp32;
-                    uint64_t  hex_res64 = * (uint64_t * ) &res64;
+                    double    res64     = double(accum_fp32) + double(fma1_fp32) + double(fma2_fp32);
+                    uint64_t  hex_res64 = cast_double_to_uint64(res64);
                     hex_res64           = hex_res64 & 0xFFFFFFFFE0000000; // Cut mantissa down to 23 bits from original 52 bits of FP64
-                    res64               = * (float64_t * ) &hex_res64;
-                    float32_t res = (float32_t)res64;
+                    res64               = cast_uint64_to_double(hex_res64);
+                    iufval res;
+                    res.flt             = float(res64);
 
-                    // Finally, clear output denormals
-                    uint32_t hex_res = * (uint32_t * ) &res;
-                    hex_res          = ((hex_res & 0x7F800000) == 0) ? (hex_res & 0x80000000) : hex_res; // kill output denormal to zero (preserve sign)
-                    res              = * (float32_t *) &hex_res;
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = res;
+                    // Finally, clear output denormals and NaNs
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f + %f * %f\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul1_a, mul1_b, mul2_a, mul2_b);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%04x * 0x%04x + 0x%04x * 0x%04x\n", * ((int *) &accum), mul1_a_hex, mul1_b_hex, mul2_a_hex, mul2_b_hex);)
+                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul_a.u,mul_b.u);)
                     // Uncomment to help debugging
                     //DEBUG_EMU(gprintf("\tBefore truncating accum 0x%08x, fma1 0x%08x, fma2 0x%08x\n", hex_accum, hex_fma1, hex_fma2);)
                     //DEBUG_EMU(gprintf("\tAfter truncating  accum 0x%08x, fma1 0x%08x, fma2 0x%08x\n", accum_trunc, fma1_trunc, fma2_trunc);)
                     //DEBUG_EMU(gprintf("\tExponents accum exp %d, fma1 exp %d, fma2 exp %d\n", accum_exp, fma1_exp, fma2_exp);)
                     //DEBUG_EMU(gprintf("\tRemove bits according to max exp %d, accum %d, fma1 %d, fma2 %d\n", exp_max, accum_erase, fma1_erase, fma2_erase);)
 #else
-                    // 1st FMA
-                    uint32_t  mul_a_hex  = SCP[astart+ar][af].h[am * 2];
-                    float32_t mul_a      = _cvtsh_ss(mul_a_hex);
-                    uint32_t  mul_b_hex  = SCP[br][bf].h[bm * 2];
-                    float32_t mul_b      = _cvtsh_ss(mul_b_hex);
-                    float32_t res        = fmaf(mul_a, mul_b, accum);
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = res;
+                    iufval mul_a, mul_b, res;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%04x * 0x%04x\n", cast_float32_to_uint32(accum), mul_a_hex, mul_b_hex);)
+                    // NB: we do not treat fp16 input denormals as zero here
+                    // if ((mul1_a_hex & 0x7c00) == 0) mul1_a_hex &= 0x8000;
+                    // if ((mul1_b_hex & 0x7c00) == 0) mul1_b_hex &= 0x8000;
+                    // if ((mul2_a_hex & 0x7c00) == 0) mul2_a_hex &= 0x8000;
+                    // if ((mul2_b_hex & 0x7c00) == 0) mul2_b_hex &= 0x8000;
+
+                    // 1st FMA
+                    mul_a.flt = _cvtsh_ss(mul1_a_hex);
+                    mul_b.flt = _cvtsh_ss(mul1_b_hex);
+                    res.flt   = fmaf(mul_a.flt, mul_b.flt, accum.flt);
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    //FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
+
+                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul1_a_hex,mul1_b_hex););
 
                     // 2nd FMA
-                    mul_a_hex            = SCP[astart+ar][af].h[am * 2 + 1];
-                    mul_a                = _cvtsh_ss(mul_a_hex);
-                    mul_b_hex            = SCP[br][bf].h[bm * 2 + 1];
-                    mul_b                = _cvtsh_ss(mul_b_hex);
-                    accum                = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
-                    res                  = fmaf(mul_a, mul_b, accum);
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = res;
+                    accum     = res;
+                    mul_a.flt = _cvtsh_ss(mul2_a_hex);
+                    mul_b.flt = _cvtsh_ss(mul2_b_hex);
+                    //accum.f = FREGS[FMA_MAX_BCOLS/VL*ar+bf].f[bm];
+                    //handle_denormal(accum);
+                    res.flt   = fmaf(mul_a.flt, mul_b.flt, accum.flt);
+                    handle_denormal(res);
+                    handle_nan_default(res);
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%04x * 0x%04x\n", cast_float32_to_uint32(accum), mul_a_hex, mul_b_hex);)
+                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul2_a_hex,mul2_b_hex););
 #endif
 
                     // For checker purposes we keep the data of all the passes
@@ -6847,30 +7130,49 @@ static void tensorfma(uint64_t tfmareg)
 
                     if ((first_pass == 0) || (ac != 0)) {
                     // If both As are zeroes, we skip operation
-                      if((SCP[astart+ar][af].h[am * 2] == 0) && (SCP[astart+ar][af].h[am * 2 + 1] == 0))
+                      if((mul1_a_hex == 0) && (mul2_a_hex == 0))
                           tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     // If both Bs are zeroes, we skip operation
-                      if((SCP[br][bf].h[bm * 2] == 0) && (SCP[br][bf].h[bm * 2 + 1] == 0))
+                      if((mul1_b_hex == 0) && (mul2_b_hex == 0))
                           tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[4]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[5]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[6]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[7]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[4]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[5]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[6]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[7]);)
+#if VL==8
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[7]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[7]);)
+#elif VL==4
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar  ,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,0,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,1,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,2,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,3,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,0,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,1,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,2,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,3,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[3]);)
+#endif
         }
     }
     else if(type == 3) //INT8-INT32
@@ -6936,7 +7238,7 @@ static void tensorfma(uint64_t tfmareg)
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%02x * 0x%02x\n", * ((int *) &accum), mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, * ((int *) &accum), mul_a, mul_b);)
 
                     // 2nd IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 1]);
@@ -6950,7 +7252,7 @@ static void tensorfma(uint64_t tfmareg)
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%02x * 0x%02x\n", * ((int *) &accum), mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, * ((int *) &accum), mul_a, mul_b);)
 
                    // 3rd IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 2]);
@@ -6964,7 +7266,7 @@ static void tensorfma(uint64_t tfmareg)
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%02x * 0x%02x\n", * ((int *) &accum), mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, * ((int *) &accum), mul_a, mul_b);)
 
                     // 4th IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 3]);
@@ -6978,7 +7280,7 @@ static void tensorfma(uint64_t tfmareg)
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%02x * 0x%02x\n", * ((int *) &accum), mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, * ((int *) &accum), mul_a, mul_b);)
 
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
@@ -7016,6 +7318,8 @@ static void tensorfma(uint64_t tfmareg)
     {
         DEBUG_EMU(gprintf("ERROR Unimplemented tensor FMA Type!!\n");)
     }
+    set_fp_exceptions();
+    dirty_fp_state();
 }
 
 uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, int * passes, bool * mask_skip)
@@ -7056,6 +7360,11 @@ static void tensorreduce(uint64_t value)
     {
         DEBUG_EMU(gprintf("ERROR accessing register out of bound in reduce: %016llx\n", value);)
     }
+    if (operation == 0) // FADD
+    {
+        set_rounding_mode(rmdyn);
+        DEBUG_EMU(gprintf("\tReduce (fadd) with rounding mode: %s\n",get_rounding_mode(rmdyn)););
+    }
     for(int i = 0; i < num_reg; i++)
     {
         if((start_reg + i) >= 32) break;
@@ -7064,29 +7373,39 @@ static void tensorreduce(uint64_t value)
         {
             if(operation == 0) // FADD
             {
-                float old_val = FREGS[i + start_reg].f[j];
-                uint32_t old_valu = FREGS[i + start_reg].u[j];
-                FREGS[i + start_reg].f[j] = old_val + fregs[other_min<<1][i + start_reg].f[j];
-
-                DEBUG_EMU(gprintf("\tReduce (fadd) f%d[%d]: %f = %f(m%d) + %f(m%d)\n", i + start_reg, j,
-                FREGS[i + start_reg].f[j], old_val, current_thread>>1, fregs[other_min<<1][i + start_reg].f[j], other_min);)
-                DEBUG_EMU(gprintf("\t                %08x = 0x%08x + 0x%08x\n", FREGS[i + start_reg].u[j], old_valu, fregs[other_min<<1][i + start_reg].u[j]);)
+                iufval src1, src2, rslt;
+                src1.f = FREGS[i + start_reg].f[j];
+                src2.f = fregs[other_min<<1][i + start_reg].f[j];
+                handle_denormal(src1);
+                handle_denormal(src2);
+#ifdef HAVE_SOFTFLOAT
+                rslt.f = f32_add(src1.f, src2.f);
+#else
+                rslt.f = src1.f + src2.f;
+#endif
+                handle_denormal(rslt);
+                handle_nan_default(rslt);
+                FREGS[i + start_reg].f[j] = rslt.f;
+                DEBUG_EMU(gprintf("\tReduce (fadd) f%d[%d]: %g = %g(m%d) + %g(m%d)\n",i+start_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min););
+                DEBUG_EMU(gprintf("\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x\n",i+start_reg,j,rslt.u,src1.u,src2.u););
             }
             else if(operation == 4) // IADD
             {
-                uint32_t old_valu = FREGS[i + start_reg].u[j];
-                FREGS[i + start_reg].u[j] = old_valu + fregs[other_min<<1][i + start_reg].u[j];
-
-                DEBUG_EMU(gprintf("\tReduce (iadd) f%d[%d]: %d = %d(m%d) + %d(m%d)\n", i + start_reg, j,
-                FREGS[i + start_reg].u[j], old_valu, current_thread>>1, fregs[other_min<<1][i + start_reg].u[j], other_min);)
-                DEBUG_EMU(gprintf("\t                %08x = 0x%08x + 0x%08x\n", FREGS[i + start_reg].u[j], old_valu, fregs[other_min<<1][i + start_reg].u[j]);)
+                iufval src1, src2, rslt;
+                src1.u = FREGS[i + start_reg].u[j];
+                src2.u = fregs[other_min<<1][i + start_reg].u[j];
+                rslt.u = src1.u + src2.u;
+                FREGS[i + start_reg].u[j] = rslt.u;
+                DEBUG_EMU(gprintf("\tReduce (iadd) f%d[%d]: %d = %d(m%d) + %d(m%d)\n",i+start_reg,j,rslt.u,src1.u,current_thread>>1,src2.u,other_min););
+                DEBUG_EMU(gprintf("\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x\n",i+start_reg,j,rslt.u,src1.u,src2.u););
             }
-
             else if(operation == 8) // FGET
             {
-                FREGS[i + start_reg].f[j] = fregs[other_min<<1][i + start_reg].f[j];
-                DEBUG_EMU(gprintf("\tReduce (get) f%d[%d]: <= %f(m%d)\n", i + start_reg, j, FREGS[i + start_reg].f[j],other_min);)
-                DEBUG_EMU(gprintf("\t                    <= 0x%08x\n", FREGS[i + start_reg].u[j]);)
+                iufval tmp;
+                tmp.u = fregs[other_min<<1][i + start_reg].u[j];
+                FREGS[i + start_reg].u[j] = tmp.u;
+                DEBUG_EMU(gprintf("\tReduce (get) f%d[%d]: <= %g(m%d)\n",i+start_reg,j,tmp.flt,other_min););
+                DEBUG_EMU(gprintf("\t             f%d[%d]: <= 0x%08x\n",i+start_reg,j,tmp.u););
             }
             else
             {
@@ -7097,6 +7416,8 @@ static void tensorreduce(uint64_t value)
             reduce_data[current_thread][i + start_reg][j] = FREGS[i + start_reg].u[j];
         }
     }
+    set_fp_exceptions();
+    dirty_fp_state();
 }
 
 // Helper function that given the written value to the CSR, returns:
@@ -7175,21 +7496,21 @@ static uint64_t flbarrier(uint64_t value)
     // Gets what is the address that the fast local barrier is mapped to
     uint64_t addr    = FL_UC_BASE_REGION + (barrier * 8);
 
-    uint64_t orig_value = memread64(addr);
+    uint64_t orig_value = vmemread64(addr);
     uint64_t result = -1;
     printf("FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n", current_thread>>7, current_thread>>1 ,current_thread &1 , barrier ,orig_value , limit );
     // Last guy, return 1 and zero barrier
     if(orig_value == limit)
     {
         printf("FastLocalBarrier: last minion Shire %i!!\n", current_thread>>7 );
-        memwrite64(addr, 0);
+        vmemwrite64(addr, 0);
         result = 1;
     }
     // Not the last guy, return 0 and increment barrier
     else
     {
         printf("FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n",limit , orig_value + 1);
-        memwrite64(addr, orig_value + 1);
+        vmemwrite64(addr, orig_value + 1);
         result = 0;
     }
     return result;

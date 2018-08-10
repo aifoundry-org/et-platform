@@ -4,6 +4,7 @@
 #include "main_memory_region.h"
 
 #define PRINTF_THREADS 128
+
 class main_memory_region_printf : main_memory_region
 {
 public:

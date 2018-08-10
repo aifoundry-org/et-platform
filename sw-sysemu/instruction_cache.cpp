@@ -112,7 +112,7 @@ void instruction_cache::decode(uint64_t base_pc)
 
         inst_disasm++;
     }
-
+    fclose(file);
 
     if(inst_disasm != inst_read)
         log << LOG_FTL << "Error: read less disasm than expected!!" << endm;

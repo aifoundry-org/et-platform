@@ -5,6 +5,12 @@ ifndef TESTROOT
     $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
 endif
 
+# Always compile with softfloat
+HAVE_SOFTFLOAT := 1
+
+# Use "real" TXFMA; this is incompatible (will be ignored) with HAVE_SOFTFLOAT
+USE_REAL_TXFMA := 0
+
 SRCS := $(BEMU)/emu.cpp \
         $(BEMU)/log.cpp \
         $(BEMU)/cvt.cpp \
@@ -22,6 +28,13 @@ SRCS := $(BEMU)/emu.cpp \
         $(BEMU)/main_memory_region_rbox.cpp \
         $(TESTROOT)/libs/testLog.cc
 
+ifeq ($(HAVE_SOFTFLOAT), 1)
+    include softfloat.mk
+    SRCS += $(softfloat_c_srcs)
+
+    vpath %.c $(BEMU)/softfloat
+endif
+
 vpath %.cpp $(BEMU)
 vpath %.cc  $(TESTROOT)/libs
 
@@ -30,14 +43,25 @@ DEPS := $(addsuffix .d,$(basename $(OBJS)))
 
 CC       := gcc
 CXX 	 := g++
-CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -DCHECKER
-CXXFLAGS := -MMD -Wall -Werror -fPIC -std=c++11
-ifeq ($(SOFTFLOAT), 1)
-    CXXFLAGS += -g -O2
+CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs
+CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
+CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2
+LDLIBS   :=
+LDFLAGS  := -shared
+
+ifeq ($(HAVE_SOFTFLOAT), 1)
+    CPPFLAGS += -DHAVE_SOFTFLOAT=1
+    # FIXME: Remove the following when we convert everything away from C++ floats
+    CFLAGS   += -mf16c -fno-fast-math
+    CXXFLAGS += -mf16c -fno-fast-math
 else
-    CXXFLAGS += -g -O2 -mf16c -fno-fast-math
+    CFLAGS   += -mf16c -fno-fast-math
+    CXXFLAGS += -mf16c -fno-fast-math
 endif
-LDFLAGS := -shared
+
+ifeq ($(USE_REAL_TXFMA), 1)
+    CPPFLAGS += -DUSE_REAL_TXFMA
+endif
 
 .PHONY: all
 all: libemu.so
@@ -46,7 +70,10 @@ all: libemu.so
 clean:
 	$(RM) libemu.so $(OBJS) $(DEPS)
 
+testLog.o: $(TESTROOT)/libs/testLog.cc
+	$(COMPILE.cc) -DCHECKER $(OUTPUT_OPTION) $<
+
 libemu.so: $(OBJS)
-	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 -include $(DEPS)

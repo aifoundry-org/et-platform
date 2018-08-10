@@ -4,7 +4,6 @@
 // Local includes
 #include "instruction.h"
 #include "main_memory.h"
-#include "testLog.h"
 
 // STD includes
 #include <unordered_map>

@@ -154,8 +154,9 @@ void texrcv(freg dst, const uint32_t idx, const char* comm)
         FREGS[dst].f[c] = data.f[c];
 
         // Print as float16?
-        float f32 = float16tofloat32(data.h[c * 2]);
-        DEBUG_EMU(gprintf("\t[%d] 0x%04x (%f) FP16 <-\n", c, FREGS[dst].h[c*2], f32);)
+        iufval tmp;
+        tmp.f = float16tofloat32(data.h[c * 2]);
+        DEBUG_EMU(gprintf("\t[%d] 0x%04x (%f) FP16 <-\n", c, FREGS[dst].h[c*2], tmp.flt);)
         DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) FP32 <-\n", c, FREGS[dst].u[c], FREGS[dst].f[c]);)
     }
 
@@ -165,7 +166,6 @@ void texrcv(freg dst, const uint32_t idx, const char* comm)
 
 void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
 {
-#ifdef CHECKER
     uint64_t base_copy = tbox_emulator.get_image_table_address();
     if ( base_copy != basePtr )
     {
@@ -176,10 +176,6 @@ void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleReque
     tbox_emulator.sample_quad(currentRequest_, input, output, fake_sampler);
 
     tbox_emulator.set_image_table_address(base_copy);
-#else
-    DEBUG_EMU(gprintf("ERROR!!! You need to compile with CHECKER enabled to use checker_sample_quad().\n");)
-    exit(-1);
-#endif
 }
 
 void decompress_texture_cache_line_data(TBOXEmu::ImageInfo currentImage, uint32_t startTexel, uint64_t inData[], uint64_t outData[])

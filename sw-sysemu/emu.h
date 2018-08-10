@@ -58,15 +58,6 @@ extern uint32_t get_thread();
 extern uint32_t get_mask(unsigned maskNr);
 
 // Main memory accessors
-extern uint8_t memread8(uint64_t addr, bool trans = true);
-extern uint16_t memread16(uint64_t addr, bool trans = true);
-extern uint32_t memread32(uint64_t addr, bool trans = true);
-extern uint64_t memread64(uint64_t addr, bool trans = true);
-extern void memwrite8(uint64_t addr, uint8_t data, bool trans = true);
-extern void memwrite16(uint64_t addr, uint16_t data, bool trans = true);
-extern void memwrite32(uint64_t addr, uint32_t data, bool trans = true);
-extern void memwrite64(uint64_t addr, uint64_t data, bool trans = true);
-
 extern void set_memory_funcs(void * func_memread8_, void * func_memread16_,
                              void * func_memread32_, void * func_memread64_,
                              void * func_memwrite8_, void * func_memwrite16_,

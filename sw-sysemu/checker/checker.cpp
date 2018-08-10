@@ -1,6 +1,7 @@
 // Local
 #include "checker.h"
 #include "emu_casts.h"
+#include "emu.h"
 
 // Global
 #include <cmath>
@@ -9,6 +10,59 @@
 #define TICKETER_REGION 0xFFF00000
 #define TBOX_REGION_START 0xFFF80000
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
+
+#ifdef DEBUG_STATE_CHANGES
+// Used for debugging the checker
+std::ostringstream& operator<< (std::ostringstream& os, const inst_state_change& state)
+{
+    std::ios_base::fmtflags ff = os.flags();
+    os.setf(std::ios_base::showbase);
+
+    os  << "{pc_mod=" << (state.pc_mod ? "Y" : "N")
+        << std::hex
+        << ", pc=" << state.pc
+        << ", inst_bits=" << state.inst_bits
+        << std::dec;
+    if (state.int_reg_mod)
+    {
+        os << ", x" << state.int_reg_rd << "=" << std::hex << state.int_reg_rd << std::dec;
+    }
+    if (state.fp_reg_mod)
+    {
+        os << ", f" << state.fp_reg_rd << "=";
+        for (int i = 0; i < (VL/2); ++i)
+        {
+            os  << (i==0 ? "[" : ", ")
+                << std::hex
+                << uint32_t(state.fp_reg_data[i] & 0xffffffff)
+                << ", "
+                << uint32_t((state.fp_reg_data[i] >> 32) & 0xffffffff)
+                << std::dec;
+        }
+        os << "]";
+    }
+    for (int m = 0; m < 8; ++m)
+    {
+        if (!state.m_reg_mod[m]) continue;
+        uint32_t mval = 0;
+        for (int i = 0; i < VL; ++i)
+            mval |= ((state.m_reg_data[m][i] != 0) << i);
+        os << ", m" << m << "=" << std::hex << mval << std::dec;
+    }
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!state.mem_mod[i]) continue;
+        os  << ", MEM["
+            << std::hex
+            << state.mem_addr[i] << "..." << (state.mem_addr[i] + state.mem_size[i] - 1)
+            << "]=" << state.mem_data[i]
+            << std::dec;
+    }
+    os << "}";
+    os.flags(ff);
+    return os;
+}
+#endif // DEBUG_STATE_CHANGES
 
 bool fp_1ulp_check(uint32_t gold, uint32_t rtl)
 {
@@ -147,6 +201,8 @@ checker::checker(main_memory * memory_)
     memory_instance = memory;
 #ifdef EMU_DEBUG
     init_emu(true, false);
+#else
+    init_emu(false, false);
 #endif
 }
 
@@ -302,9 +358,19 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
     // Checks modified fields
     if(changes != NULL)
     {
-        // PC
+#ifdef DEBUG_STATE_CHANGES
+        inst_state_change tmp_state_change = emu_state_change;
+        // to avoid false diffs
+        if (!emu_state_change.pc_mod)
+            tmp_state_change.pc = current_pc[thread];
+        tmp_state_change.inst_bits = changes->inst_bits;
+        log << LOG_DEBUG << "EMU changes: " << tmp_state_change << endm;
+        log << LOG_DEBUG << "RTL changes: " << (*changes) << endm;
+#endif
         std::ostringstream stream;
         stream << "Checker Mismatch @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << inst->get_mnemonic() << ") -> ";
+
+        // PC
         if(changes->pc != current_pc[thread])
         {
             stream << "PC error. Expected PC is 0x" << std::hex << current_pc[thread] << " but provided is 0x" << changes->pc << std::dec << std::endl;
@@ -394,6 +460,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         }
         if(emu_state_change.fp_reg_mod)
         {
+#if 0
+            log << LOG_DEBUG << "\tm0 = " << get_mask(0) << endm;
+#endif
             if(changes->fp_reg_rd != emu_state_change.fp_reg_rd)
             {
                 stream << "FP Register dest error. Expected dest is f" << emu_state_change.fp_reg_rd << " but provided is f" << changes->fp_reg_rd;
@@ -411,14 +480,18 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
 
             for(int i = 0; i < (VL/2); i++)
             {
+#if 0
               if (((get_mask(0) >> (2*i)) & 0x3) == 0)
                 continue;
+#endif
               if(inst->get_is_1ulp())
               {
                 bool errlo = !fp_1ulp_check(emu_state_change.fp_reg_data[i] & 0xFFFFFFFF, changes->fp_reg_data[i] & 0xFFFFFFFF);
                 bool errhi = !fp_1ulp_check(emu_state_change.fp_reg_data[i] >> 32, changes->fp_reg_data[i] >> 32);
+#if 0
                 errlo &= ((get_mask(0) >> (2*i)) & 0x1);
                 errhi &= ((get_mask(0) >> (2*i+1)) & 0x1);
+#endif
                 if (errlo || errhi)
                 {
                     stream << "FP Register data error (";
@@ -440,8 +513,10 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 {
                     bool errlo = (emu_state_change.fp_reg_data[i] & 0xFFFFFFFF) != (changes->fp_reg_data[i] & 0xFFFFFFFF);
                     bool errhi = (emu_state_change.fp_reg_data[i] >> 32) != (changes->fp_reg_data[i] >> 32);
+#if 0
                     errlo &= ((get_mask(0) >> (2*i)) & 0x1);
                     errhi &= ((get_mask(0) >> (2*i+1)) & 0x1);
+#endif
                     if (errlo || errhi)
                     {            
                         stream << "FP Register data error (";

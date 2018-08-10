@@ -1,8 +1,6 @@
 #ifndef _MAIN_MEMORY_REGION_TBOX_
 #define _MAIN_MEMORY_REGION_TBOX_
 
-// Local
-#include "testLog.h"
 #include "main_memory_region.h"
 
 // This class is a memory region that behaves like a tbox:

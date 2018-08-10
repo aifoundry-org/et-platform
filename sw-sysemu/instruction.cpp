@@ -758,15 +758,12 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     if(!has_error)
     {
         emu_func = get_function_ptr(opcode, &has_error, &str_error);
-        if(!has_error)
-        {
-            emu_func0 = (func_ptr_0) emu_func;
-            emu_func1 = (func_ptr_1) emu_func;
-            emu_func2 = (func_ptr_2) emu_func;
-            emu_func3 = (func_ptr_3) emu_func;
-            emu_func4 = (func_ptr_4) emu_func;
-            emu_func5 = (func_ptr_5) emu_func;
-        }
+        emu_func0 = (func_ptr_0) emu_func;
+        emu_func1 = (func_ptr_1) emu_func;
+        emu_func2 = (func_ptr_2) emu_func;
+        emu_func3 = (func_ptr_3) emu_func;
+        emu_func4 = (func_ptr_4) emu_func;
+        emu_func5 = (func_ptr_5) emu_func;
     }
 
     if (has_error)
@@ -780,7 +777,7 @@ void instruction::exec()
 {
     // If instruction had an error during decoding, report it when it is executed
     if(has_error)
-        * log << LOG_FTL << str_error << endm;
+        * log << LOG_ERR << str_error << endm;
     * log << LOG_DEBUG << "Executing instruction PC: 0x" << std::hex << pc << ", Bits: 0x" << enc_bits << std::dec << ", Mnemonic: " << mnemonic << endm;
     switch(num_params)
     {
@@ -1051,7 +1048,7 @@ func_ptr instruction::get_function_ptr(std::string func, bool * error, std::stri
         return el->second;
     }
 
-    std::string msg = std::string("Uknown mnemonic: ") + func;
+    std::string msg = std::string("Unknown mnemonic: ") + func;
     if(error != NULL)
     {
         // Reports the error to source
@@ -1061,7 +1058,8 @@ func_ptr instruction::get_function_ptr(std::string func, bool * error, std::stri
     else
     {
         // No way to report the error, simply
-        * log << LOG_FTL << msg << endm;
+        * log << LOG_ERR << msg << endm;
     }
-    return nullptr;
+    // will raise illegal_instruction exception if executed
+    return func_ptr(unknown);
 }

@@ -1,11 +1,8 @@
 #ifndef _MAIN_MEMORY_REGION_RBOX_
 #define _MAIN_MEMORY_REGION_RBOX_
 
-// Local
-#include "testLog.h"
 #include "main_memory_region.h"
-#include "emu.h"
-
+#include "emu_defines.h"
 
 class main_memory_region_rbox : main_memory_region
 {

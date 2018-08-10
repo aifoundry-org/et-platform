@@ -21,9 +21,9 @@ DEPS := $(addsuffix .d,$(basename $(OBJS)))
 
 CC	 := gcc
 CXX 	 := g++
-CPPFLAGS := -I$(BEMU) -I$(BEMU)/checker -I$(TESTROOT)/libs -I$(SGPU)/include -DCHECKER -DSYS_EMU
+CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include
 CXXFLAGS := -MMD -Wall -Werror -std=c++11 -g -O2
-LDLIBS   := -ldl -lboost_regex -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
+LDLIBS   := -lboost_regex -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
 
 .PHONY: all
 all: sys_emu
@@ -36,6 +36,9 @@ libemu:
 clean:
 	$(RM) sys_emu $(OBJS) $(DEPS)
 	$(MAKE) -C $(BEMU)/build clean
+
+trace.o: $(SGPU)/src/trace.cpp
+	$(COMPILE.cpp) -DSYS_EMU $(OUTPUT_OPTION) $<
 
 sys_emu: $(OBJS) | libemu
 	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@

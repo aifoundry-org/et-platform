@@ -9,7 +9,6 @@
 #include <inttypes.h>
 
 // Local
-#include "testLog.h"
 #include "main_memory.h"
 
 typedef struct

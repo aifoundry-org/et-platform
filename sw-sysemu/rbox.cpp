@@ -2,6 +2,7 @@
 
 #include "rbox.h"
 #include "emu_gio.h"
+#include "emu_memop.h"
 
 using emu::gprintf;
 using emu::gsprintf;
@@ -62,7 +63,7 @@ void process()
 uint32_t process_packet(uint64_t packet)
 {
     RBOXInPcktHeader header;
-    header.qw = memread64(packet);
+    header.qw = vmemread64(packet);
 
     uint32_t packet_size = 0;
 
@@ -76,7 +77,7 @@ uint32_t process_packet(uint64_t packet)
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    fully_covered_tile_pckt.qw[qw] = memread64(packet + qw * 8);
+                    fully_covered_tile_pckt.qw[qw] = vmemread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 3) gprintf("%016lx_", fully_covered_tile_pckt.qw[qw]);
                         else        gprintf("%016lx\n", fully_covered_tile_pckt.qw[qw]);
@@ -104,7 +105,7 @@ uint32_t process_packet(uint64_t packet)
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    large_tri_tile_pckt.qw[qw] = memread64(packet + qw * 8);
+                    large_tri_tile_pckt.qw[qw] = vmemread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 3) gprintf("%016lx_", large_tri_tile_pckt.qw[qw]);
                         else        gprintf("%016lx\n", large_tri_tile_pckt.qw[qw]);
@@ -132,7 +133,7 @@ uint32_t process_packet(uint64_t packet)
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    tri_with_tile_64x64_pckt.qw[qw] = memread64(packet + qw * 8);
+                    tri_with_tile_64x64_pckt.qw[qw] = vmemread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 7) gprintf("%016lx_", tri_with_tile_64x64_pckt.qw[qw]);
                         else        gprintf("%016lx\n", tri_with_tile_64x64_pckt.qw[qw]);
@@ -174,7 +175,7 @@ uint32_t process_packet(uint64_t packet)
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    tri_with_tile_128x128_pckt.qw[qw] = memread64(packet + qw * 8);
+                    tri_with_tile_128x128_pckt.qw[qw] = vmemread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 7) gprintf("%016lx_", tri_with_tile_128x128_pckt.qw[qw]);
                         else        gprintf("%016lx\n", tri_with_tile_128x128_pckt.qw[qw]);
@@ -216,7 +217,7 @@ uint32_t process_packet(uint64_t packet)
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    large_tri_pckt.qw[qw] = memread64(packet + qw * 8);
+                    large_tri_pckt.qw[qw] = vmemread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 7) gprintf("%016lx_", large_tri_pckt.qw[qw]);
                         else        gprintf("%016lx\n", large_tri_pckt.qw[qw]);
@@ -248,7 +249,7 @@ uint32_t process_packet(uint64_t packet)
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    rbox_state_pckt.qw[qw] = memread64(packet + qw * 8);
+                    rbox_state_pckt.qw[qw] = vmemread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 7) gprintf("%016lx_", rbox_state_pckt.qw[qw]);
                         else        gprintf("%016lx\n", rbox_state_pckt.qw[qw]);
@@ -270,7 +271,7 @@ uint32_t process_packet(uint64_t packet)
                 DEBUG_EMU( gprintf("RBOX : Packet Data "); )
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    frag_shader_state_pckt.qw[qw] = memread64(packet + qw * 8);
+                    frag_shader_state_pckt.qw[qw] = vmemread64(packet + qw * 8);
                     DEBUG_EMU(
                         if (qw < 3) gprintf("%016lx_", frag_shader_state_pckt.qw[qw]);
                         else        gprintf("%016lx\n", frag_shader_state_pckt.qw[qw]);
@@ -399,7 +400,7 @@ bool test_quad(QuadInfo &quad)
         if (quad.fragment[f].coverage)
         {
             uint64_t frag_depth_stencil_address = compute_depth_stencil_buffer_address(x, y);
-            uint32_t frag_depth_stencil = memread32(frag_depth_stencil_address);
+            uint32_t frag_depth_stencil = vmemread32(frag_depth_stencil_address);
 
             uint8_t frag_stencil = frag_depth_stencil >> 24;
             uint32_t frag_depth = frag_depth_stencil & 0x00FFFFFF;
@@ -424,7 +425,7 @@ bool test_quad(QuadInfo &quad)
                     out_depth = frag_depth;
 
                 uint32_t out_depth_stencil = (out_stencil << 24) | out_depth;
-                memwrite32(frag_depth_stencil_address, out_depth_stencil);
+                vmemwrite32(frag_depth_stencil_address, out_depth_stencil);
             }
 
             quad.fragment[f].coverage = quad.fragment[f].coverage && depth_bound_test && stencil_test && depth_test;
@@ -623,7 +624,7 @@ void generate_quad_packet(QuadInfo quad)
     for (uint32_t qw = 0; qw < 2; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_info_pckt.qw[qw], packet); )
-        memwrite64(packet, quad_info_pckt.qw[qw]);
+        vmemwrite64(packet, quad_info_pckt.qw[qw]);
         packet = packet + 8;
     }
 
@@ -635,7 +636,7 @@ void generate_quad_packet(QuadInfo quad)
     for (uint32_t qw = 0; qw < 2; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
-        memwrite64(packet, quad_data_pckt.qw[qw]);
+        vmemwrite64(packet, quad_data_pckt.qw[qw]);
         packet = packet + 8;
     }
 
@@ -645,7 +646,7 @@ void generate_quad_packet(QuadInfo quad)
     for (uint32_t qw = 0; qw < 2; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
-        memwrite64(packet, quad_data_pckt.qw[qw]);
+        vmemwrite64(packet, quad_data_pckt.qw[qw]);
         packet = packet + 8;
     }
 
@@ -655,7 +656,7 @@ void generate_quad_packet(QuadInfo quad)
     for (uint32_t qw = 0; qw < 2; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
-        memwrite64(packet, quad_data_pckt.qw[qw]);
+        vmemwrite64(packet, quad_data_pckt.qw[qw]);
         packet = packet + 8;
     }
 
@@ -695,7 +696,7 @@ void generate_frag_shader_state_packet()
     for (uint32_t qw = 0; qw < 4; qw++)
     {
         DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", f_sh_pckt.qw[qw], packet + qw * 8); )
-        memwrite64(packet + qw * 8, f_sh_pckt.qw[qw]);
+        vmemwrite64(packet + qw * 8, f_sh_pckt.qw[qw]);
     }
 
     output.write_packet(4);

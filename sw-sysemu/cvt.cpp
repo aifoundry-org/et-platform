@@ -1,8 +1,13 @@
-#include <math.h>
+#include <cfenv>
+#include <cmath>
 #include "emu.h"
 #include "cvt.h"
 #include "emu_casts.h"
-
+#ifdef HAVE_SOFTFLOAT
+#include "softfloat/softfloat.h"
+#include "softfloat/internals.h"
+#include "softfloat/specialize.h"
+#endif
 
 // safe right shifts ( shifting by more than 32 bits returns 0)
 template<typename T> T rshift(T v, unsigned int s) {
@@ -10,9 +15,13 @@ template<typename T> T rshift(T v, unsigned int s) {
   else return v >> s;
 }
 
+// FIXME: These conversion functions should set arithmetic flags
 
-float32_t float16tofloat32(uint32_t val)
+float32_t float16tofloat32(uint16_t val)
 {
+#ifdef HAVE_SOFTFLOAT
+    return f16_to_f32({ val });
+#else
     uint8_t  sign;
     uint32_t mantissa;
     int32_t  exponent;
@@ -100,13 +109,14 @@ float32_t float16tofloat32(uint32_t val)
 
     // Clear number in case of denormal
     if ((output & 0x7f800000) == 0) {
-      output = output & 0x80000000;      
+        output = output & 0x80000000;
     }
 
     return cast_uint32_to_float32(output);
+#endif
 }
 
-float32_t float11tofloat32(uint32_t val)
+float32_t float11tofloat32(uint16_t val)
 {
     uint32_t mantissa;
     int32_t  exponent;
@@ -131,7 +141,7 @@ float32_t float11tofloat32(uint32_t val)
 
     //  Return zeros.
     if (zero)
-       return 0.0f;
+       return cast_uint32_to_float32(0);
 
     //  Convert exponent and mantissa to float32_t.  Convert from excess 15 and convert to excess 127.
     if (infinite || nan)
@@ -177,7 +187,7 @@ float32_t float11tofloat32(uint32_t val)
     return cast_uint32_to_float32(output);
 }
 
-float32_t float10tofloat32(uint32_t val)
+float32_t float10tofloat32(uint16_t val)
 {
     uint32_t mantissa;
     int32_t  exponent;
@@ -202,7 +212,7 @@ float32_t float10tofloat32(uint32_t val)
 
     //  Return zeros.
     if (zero)
-       return 0.0f;
+       return cast_uint32_to_float32(0);
 
     //  Convert exponent and mantissa to float32_t.  Convert from excess 15 and convert to excess 127.
     if (infinite || nan)
@@ -246,8 +256,21 @@ float32_t float10tofloat32(uint32_t val)
     return cast_uint32_to_float32(output);
 }
 
-uint32_t float32tofloat16(float32_t val)
+uint16_t float32tofloat16(float32_t val)
 {
+#ifdef HAVE_SOFTFLOAT
+    uint_fast8_t oldrm = softfloat_roundingMode;
+    softfloat_roundingMode = softfloat_round_near_maxMag;
+    // convert input denormal to 0.0, preserving sign
+    if (expF32UI(val.v) == 0)
+        val.v &= 0x80000000;
+    float16_t rslt = f32_to_f16(val);
+    // generate canonical NaN only
+    if (isNaNF16UI(rslt.v))
+        rslt.v = defaultNaNF16UI;
+    softfloat_roundingMode = oldrm;
+    return rslt.v;
+#else
     uint8_t  sign;
     uint32_t mantissa32;
     uint32_t mantissa16;
@@ -269,7 +292,7 @@ uint32_t float32tofloat16(float32_t val)
 
     //  Extract mantissa.
     mantissa32 = inputAux & 0x007fffff;
-   
+
     //  Compute flags.
     denorm = (exponent == 0) && (mantissa32 != 0);
     zero = (exponent == 0) && (mantissa32 == 0);
@@ -334,11 +357,12 @@ uint32_t float32tofloat16(float32_t val)
         }
 
         //  Assemble the float16 value.
-        return (sign << 15) | (uint32_t(exponent & 0x3f) << 10) | mantissa16;
+        return (sign << 15) | (uint16_t(exponent & 0x3f) << 10) | mantissa16;
     }
+#endif
 }
 
-uint32_t float32tofloat11(float32_t val)
+uint16_t float32tofloat11(float32_t val)
 {
     uint8_t  sign;
     uint32_t mantissa32;
@@ -427,11 +451,11 @@ uint32_t float32tofloat11(float32_t val)
         }
 
         //  Assemble the float11 value.
-        return (uint32_t(exponent & 0x3f) << 6) | mantissa11;
+        return (uint16_t(exponent & 0x3f) << 6) | mantissa11;
     }
 }
 
-uint32_t float32tofloat10(float32_t val)
+uint16_t float32tofloat10(float32_t val)
 {
     uint8_t  sign;
     uint32_t mantissa32;
@@ -520,209 +544,337 @@ uint32_t float32tofloat10(float32_t val)
         }
 
         //  Assemble the float10 value.
-        return (uint32_t(exponent & 0x1f) << 5) | mantissa10;
+        return (uint16_t(exponent & 0x1f) << 5) | mantissa10;
     }
 }
 
 float32_t unorm24tofloat32(uint32_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     uint32_t maxrange = (1 << 24) - 1;
-    return ( (float32_t)(val & 0xFFFFFF) / (float32_t)maxrange);
+    res.flt = float(val & 0xFFFFFF) / float(maxrange);
+    return res.f;
 }
 
-float32_t unorm16tofloat32(uint32_t val)
+float32_t unorm16tofloat32(uint16_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     uint32_t maxrange = (1 << 16) - 1;
-    return ((float32_t)(val & 0xFFFF) / (float32_t)maxrange);
+    res.flt = float(val & 0xFFFF) / float(maxrange);
+    return res.f;
 }
 
-float32_t unorm10tofloat32(uint32_t val)
+float32_t unorm10tofloat32(uint16_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     uint32_t maxrange = (1 << 10) - 1;
-    return ((float32_t)(val & 0x3FF) / (float32_t)maxrange);
+    res.flt = float(val & 0x3FF) / float(maxrange);
+    return res.f;
 };
 
-float32_t unorm8tofloat32(uint32_t val)
+float32_t unorm8tofloat32(uint8_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     uint32_t maxrange = (1 << 8 ) - 1;
-    return ( (float32_t)(val & 0xFF) / (float32_t)maxrange);
+    res.flt = float(val & 0xFF) / float(maxrange);
+    return res.f;
 }
 
-float32_t unorm2tofloat32(uint32_t val)
+float32_t unorm2tofloat32(uint8_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     uint32_t maxrange = (1 << 2) - 1;
-    return ((float32_t)(val & 0x3) / (float32_t)maxrange);
+    res.flt = float(val & 0x3) / float(maxrange);
+    return res.f;
 };
 
 float32_t snorm24tofloat32(uint32_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     if (val == (1 << 23)) val = (1 << 23) + 1;
-    float32_t sign = ((val & 0x00800000) == 0) ? 1 : -1;
-    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x007fffff;
-    float32_t maxrange = float32_t((1 << 23) - 1);
-    return sign * (value / maxrange);
+    uint32_t sign = ((val & 0x00800000) == 0) ? 1 : -1;
+    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x007fffff;
+    uint32_t maxrange = (1 << 23) - 1;
+    res.flt = float(sign) * (float(value) / float(maxrange));
+    return res.f;
 }
 
-float32_t snorm16tofloat32(uint32_t val)
+float32_t snorm16tofloat32(uint16_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     if (val == (1 << 15)) val = (1 << 15) + 1;
-    float32_t sign = ((val & 0x00008000) == 0) ? 1 : -1;
-    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00007fff;
-    float32_t maxrange = float32_t((1 << 15) - 1);
-    return sign * (value / maxrange);
+    uint32_t sign = ((val & 0x00008000) == 0) ? 1 : -1;
+    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00007fff;
+    uint32_t maxrange = (1 << 15) - 1;
+    res.flt = float(sign) * (float(value) / float(maxrange));
+    return res.f;
 }
 
-float32_t snorm10tofloat32(uint32_t val)
+float32_t snorm10tofloat32(uint16_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     if (val == (1 << 9)) val = (1 << 9) + 1;
-    float32_t sign = ((val & 0x000200) == 0) ? 1 : -1;
-    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000001ff;
-    float32_t maxrange = float32_t((1 << 9) - 1);
-    return sign * (value / maxrange);
+    uint32_t sign = ((val & 0x000200) == 0) ? 1 : -1;
+    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000001ff;
+    uint32_t maxrange = (1 << 9) - 1;
+    res.flt = float(sign) * (float(value) / float(maxrange));
+    return res.f;
 }
 
-float32_t snorm8tofloat32(uint32_t val)
+float32_t snorm8tofloat32(uint8_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     if (val == (1 << 7)) val = (1 << 7) + 1;
-    float32_t sign = ((val & 0x000080) == 0) ? 1 : -1;
-    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000007f;
-    float32_t maxrange = float32_t((1 << 7) - 1);
-    return sign * (value / maxrange);
+    uint32_t sign = ((val & 0x000080) == 0) ? 1 : -1;
+    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000007f;
+    uint32_t maxrange = (1 << 7) - 1;
+    res.flt = float(sign) * (float(value) / float(maxrange));
+    return res.f;
 }
 
-float32_t snorm2tofloat32(uint32_t val)
+float32_t snorm2tofloat32(uint8_t val)
 {
+    std::fesetround(FE_TONEAREST);
+    iufval res;
     if (val == (1 << 1)) val = (1 << 1) + 1;
-    float32_t sign = ((val & 0x00000002) == 0) ? 1 : -1;
-    float32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00000001;
-    float32_t maxrange = float32_t((1 << 1) - 1);
-    return sign * (value / maxrange);
+    uint32_t sign = ((val & 0x00000002) == 0) ? 1 : -1;
+    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00000001;
+    uint32_t maxrange = (1 << 1) - 1;
+    res.flt = float(sign) * (float(value) / float(maxrange));
+    return res.f;
 }
 
 uint32_t float32tounorm24(float32_t val)
 {
-    float64_t delta;
-    float64_t ratio;
-
+#ifdef HAVE_SOFTFLOAT
+    int32_t val_i = int32_t(val.v);
+    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+        return 0x00ffffff;
+    else if (val_i <= 0)
+        return 0x00000000;
+    else {
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 24) - 1;
+        double ratio = double(val.v) * double(delta);
+        return uint32_t(ratio + 0.5f);
+    }
+#else
     if((val >= 1.0) || isnan(val))
         return 0x00ffffff;
     else if (val <= 0.0)
         return 0x00000000;
     else {
-        delta = (1 << 24) - 1;
-        ratio = val * delta;
-        return (uint32_t(ratio + 0.5f));
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 24) - 1;
+        double ratio = double(val) * double(delta);
+        return uint32_t(ratio + 0.5f);
     }
-
+#endif
 }
 
-uint32_t float32tounorm16(float32_t val)
+uint16_t float32tounorm16(float32_t val)
 {
-    float64_t delta;
-    float64_t ratio;
-
-    if((val >= 1.0) || isnan(val))
-        return 0x0000ffff;
-    else if (val <= 0.0)
-        return 0x00000000;
+#ifdef HAVE_SOFTFLOAT
+    int32_t val_i = int32_t(val.v);
+    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+        return 0xffff;
+    else if (val_i <= 0)
+        return 0x0000;
     else {
-        delta = (1 << 16) - 1;
-        ratio = val * delta;
-        return (uint32_t(ratio + 0.5f));
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 16) - 1;
+        double ratio = double(val.v) * double(delta);
+        return uint16_t(ratio + 0.5f);
     }
-
+#else
+    if((val >= 1.0) || isnan(val))
+        return 0xffff;
+    else if (val <= 0.0)
+        return 0x0000;
+    else {
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 16) - 1;
+        double ratio = double(val) * double(delta);
+        return uint16_t(ratio + 0.5f);
+    }
+#endif
 }
 
-uint32_t float32tounorm10(float32_t val)
+uint16_t float32tounorm10(float32_t val)
 {
-    float64_t delta;
-    float64_t ratio;
-
-    if((val >= 1.0) || isnan(val))
-        return 0x000003ff;
-    else if (val <= 0.0)
-        return 0x00000000;
+#ifdef HAVE_SOFTFLOAT
+    int32_t val_i = int32_t(val.v);
+    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+        return 0x03ff;
+    else if (val_i <= 0)
+        return 0x0000;
     else {
-        delta = (1 << 10) - 1;
-        ratio = val * delta;
-        return (uint32_t(ratio + 0.5f));
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 10) - 1;
+        double ratio = double(val.v) * double(delta);
+        return uint16_t(ratio + 0.5f);
     }
-
+#else
+    if((val >= 1.0) || isnan(val))
+        return 0x03ff;
+    else if (val <= 0.0)
+        return 0x0000;
+    else {
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 10) - 1;
+        double ratio = double(val) * double(delta);
+        return uint16_t(ratio + 0.5f);
+    }
+#endif
 }
 
-uint32_t float32tounorm8(float32_t val)
+uint8_t float32tounorm8(float32_t val)
 {
-    float64_t delta;
-    float64_t ratio;
-
-    if((val >= 1.0) || isnan(val))
-        return 0x000000ff;
-    else if (val <= 0.0)
-        return 0x00000000;
+#ifdef HAVE_SOFTFLOAT
+    int32_t val_i = int32_t(val.v);
+    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+        return 0xff;
+    else if (val_i <= 0)
+        return 0x00;
     else {
-        delta = (1 << 8) - 1;
-        ratio = val * delta;
-        return (uint32_t(ratio + 0.5f));
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 8) - 1;
+        double ratio = double(val.v) * double(delta);
+        return uint8_t(ratio + 0.5f);
     }
-
+#else
+    if((val >= 1.0) || isnan(val))
+        return 0xff;
+    else if (val <= 0.0)
+        return 0x00;
+    else {
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 8) - 1;
+        double ratio = double(val) * double(delta);
+        return uint8_t(ratio + 0.5f);
+    }
+#endif
 }
 
-uint32_t float32tounorm2(float32_t val)
+uint8_t float32tounorm2(float32_t val)
 {
-    float64_t delta;
-    float64_t ratio;
-
-    if((val >= 1.0) || isnan(val))
-        return 0x00000003;
-    else if (val <= 0.0)
-        return 0x00000000;
+#ifdef HAVE_SOFTFLOAT
+    int32_t val_i = int32_t(val.v);
+    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+        return 0x03;
+    else if (val_i <= 0)
+        return 0x00;
     else {
-        delta = (1 << 2) - 1;
-        ratio = val * delta;
-        return (uint32_t(ratio + 0.5f));
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 2) - 1;
+        double ratio = double(val.v) * double(delta);
+        return uint8_t(ratio + 0.5f);
     }
-
+#else
+    if((val >= 1.0) || isnan(val))
+        return 0x03;
+    else if (val <= 0.0)
+        return 0x00;
+    else {
+        std::fesetround(FE_TONEAREST);
+        uint32_t delta = (1 << 2) - 1;
+        double ratio = double(val) * double(delta);
+        return uint8_t(ratio + 0.5f);
+    }
+#endif
 }
 
 uint32_t float32tosnorm24(float32_t val)
 {
+#ifdef HAVE_SOFTFLOAT
+    int32_t val_i = int32_t(val.v);
+    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+        return 0x007fffff;
+    else if (val.v >= 0xbf800000)
+        return 0x00800001;
+    else {
+        std::fesetround(FE_TONEAREST);
+        float int_val = round(float(val.v) * float((1 << 23) - 1));
+        int32_t res = int32_t(int_val);
+        return uint32_t(res & 0x00ffffff);
+    }
+#else
     if((val >= 1.0) || isnan(val))
         return 0x007fffff;
     else if (val <= -1.0)
         return 0x00800001;
-    else
-    {
+    else {
+        std::fesetround(FE_TONEAREST);
         float32_t int_val = round(val * ((1 << 23) - 1));
         int32_t res = int32_t(int_val);
-        return uint32_t(res) & 0x00ffffff;
+        return uint32_t(res & 0x00ffffff);
     }
-
+#endif
 }
 
-uint32_t float32tosnorm16(float32_t val)
+uint16_t float32tosnorm16(float32_t val)
 {
+#ifdef HAVE_SOFTFLOAT
+    int32_t val_i = int32_t(val.v);
+    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+        return 0x7fff;
+    else if (val.v >= 0xbf800000)
+        return 0x8001;
+    else {
+        std::fesetround(FE_TONEAREST);
+        float int_val = round(float(val.v) * float((1 << 15) - 1));
+        int32_t res = int32_t(int_val);
+        return uint16_t(res & 0x0000ffff);
+    }
+#else
     if((val >= 1.0) || isnan(val))
-        return 0x00007fff;
+        return 0x7fff;
     else if (val <= -1.0)
-        return 0x00008001;
+        return 0x8001;
     else
     {
+        std::fesetround(FE_TONEAREST);
         float32_t int_val = round(val * ((1 << 15) - 1));
         int32_t res = int32_t(int_val);
-        return uint32_t(res) & 0x00ffff;
+        return uint16_t(res & 0x0000ffff);
     }
+#endif
 }
 
-uint32_t float32tosnorm8(float32_t val)
+uint8_t float32tosnorm8(float32_t val)
 {
+#ifdef HAVE_SOFTFLOAT
+    int32_t val_i = int32_t(val.v);
+    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+        return 0x7f;
+    else if (val.v >= 0xbf800000)
+        return 0x81;
+    else {
+        std::fesetround(FE_TONEAREST);
+        float int_val = round(float(val.v) * float((1 << 7) - 1));
+        int32_t res = int32_t(int_val);
+        return uint8_t(res & 0x000000ff);
+    }
+#else
     if((val >= 1.0) || isnan(val))
-        return 0x0000007f;
+        return 0x7f;
     else if (val <= -1.0)
-        return 0x00000081;
+        return 0x81;
     else
     {
+        std::fesetround(FE_TONEAREST);
         float32_t int_val = round(val * ((1 << 7) - 1));
         int32_t res = int32_t(int_val);
-        return uint32_t(res) & 0x00ff;
+        return uint8_t(res & 0x000000ff);
     }
+#endif
 }

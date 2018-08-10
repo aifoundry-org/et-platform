@@ -1,7 +1,10 @@
 #ifndef _MAIN_MEMORY_REGION_
 #define _MAIN_MEMORY_REGION_
 
+#include <inttypes.h>
+
 // Local
+#define CHECKER
 #include "testLog.h"
 
 #define MEM_REGION_READ_ALLOWED 1 
@@ -10,6 +13,7 @@
 #define MEM_REGION_RO MEM_REGION_READ_ALLOWED
 #define MEM_REGION_WO MEM_REGION_WRITE_ALLOWED
 #define MEM_REGION_RW ( MEM_REGION_READ_ALLOWED | MEM_REGION_WRITE_ALLOWED )
+
 // Memory region of the main memory
 class main_memory_region
 {

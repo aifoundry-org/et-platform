@@ -1,6 +1,6 @@
-#include <math.h>
-#include <stdio.h>
-#include <stdint.h>
+#include <cmath>
+#include <cstdio>
+#include <cstdint>
 
 #include "emu.h"
 #include "trcp.h"
@@ -9,6 +9,9 @@
 #include "texp.h"
 #include "tsin.h"
 #include "emu_casts.h"
+#ifdef HAVE_SOFTFLOAT
+#include "softfloat/softfloat.h"
+#endif
 
 // FRCP   (input bit [31:0] x);      // ROM: ready!
 // FRSQ   (input bit [31:0] x);      // ROM: ready!
@@ -18,6 +21,20 @@
 
 #define GET(in, a, b) ((in >> b) % (((uint64_t)1) << (a-b+1)))
 #define MERGE(s, e, m) (((s % 2) << 31) + ((e % (1 << 8)) << 23) + (m % (1 << 23)))
+
+static const float32_t float32_pos_zero     = cast_uint32_to_float32(0x00000000);
+static const float32_t float32_neg_zero     = cast_uint32_to_float32(0x80000000);
+static const float32_t float32_pos_one      = cast_uint32_to_float32(0x3f800000);
+static const float32_t float32_neg_one      = cast_uint32_to_float32(0xbf800000);
+#ifdef HAVE_SOFTFLOAT
+static const float32_t float32_pos_infinity = cast_uint32_to_float32(0x7f800000);
+static const float32_t float32_neg_infinity = cast_uint32_to_float32(0xff800000);
+static const float32_t float32_nan_default  = cast_uint32_to_float32(0x7fc00000);
+#else
+static const float32_t float32_pos_infinity = INFINITY;
+static const float32_t float32_neg_infinity = -INFINITY;
+static const float32_t float32_nan_default  = nanf("");
+#endif
 
 uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0){
 
@@ -29,7 +46,7 @@ uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0){
     //printf("Original C1: %04x\tShifted C1: %08x\n", c1, shifted_c1);
     //printf("Original X: %08x\tShifted X: %08x\n", val, shifted_x);
 
-    uint64_t mul1 = ((uint64_t)shifted_c2)*((uint64_t) shifted_x); 
+    uint64_t mul1 = ((uint64_t)shifted_c2)*((uint64_t) shifted_x);
     uint32_t shifted_mul1 = GET(mul1, 63, 32);
 
     //printf("Original mul: %016lx\tShifted mul: %08x\n", mul1, shifted_mul1);
@@ -49,21 +66,33 @@ uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0){
 
     uint64_t fma_result = mul2 + shifted_c0;
 
-
     //printf("FMA RESULT: %016lx\n", fma_result);
-
-
 
     return fma_result;
 }
 
-float32_t ttrans_frcp(uint32_t val) {
+float32_t ttrans_frcp(uint32_t val)
+{
+#ifdef HAVE_SOFTFLOAT
+    uint16_t kind = f32_classify(cast_uint32_to_float32(val));
+    if (kind & FCLASS_NEG_ZERO    ) return float32_neg_infinity;
+    if (kind & FCLASS_POS_ZERO    ) return float32_pos_infinity;
+    if (kind & FCLASS_NAN         ) {
+        if (!(kind & FCLASS_QNAN))
+            softfloat_raiseFlags(softfloat_flag_invalid);
+        return float32_nan_default;
+    }
+    if (kind & FCLASS_POS_INFINITY) return float32_pos_zero;
+    if (kind & FCLASS_NEG_INFINITY) return float32_neg_zero;
+#else
+    if(val == 0x00000000) return float32_pos_infinity;
+    if(val == 0x80000000) return float32_neg_infinity;
+    if(isnan(cast_uint32_to_float32(val))) return float32_nan_default;
 
-    if(val == 0) return INFINITY;
-    if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
-
-    if((val & 0x7fffffff) == 0x7f800000) return 0;
-    if((val > 0x7e800000) && ((val & 0x80000000) == 0)) return 0;
+    if(val == 0x7f800000) return float32_pos_zero;
+    if(val == 0xff800000) return float32_neg_zero;
+#endif
+    if((val & 0x7fffffff) > 0x7e800000) return (val & 0x80000000) ? float32_neg_zero : float32_pos_zero;
 
     uint32_t idx  = GET(val, 22, 16); // input bits [22:16]
 
@@ -90,28 +119,36 @@ float32_t ttrans_frcp(uint32_t val) {
     return cast_uint32_to_float32(result);
 }
 
-float32_t ttrans_frsq(uint32_t val){
-
-    if(GET(val, 31, 31)){
-        uint32_t output = 0xffc00000;
-        return cast_uint32_to_float32(output);
+float32_t ttrans_frsq(uint32_t val)
+{
+#ifdef HAVE_SOFTFLOAT
+    uint16_t kind = f32_classify(cast_uint32_to_float32(val));
+    if (kind & FCLASS_NEG_ZERO    ) return float32_neg_infinity;
+    if (kind & FCLASS_POS_ZERO    ) return float32_pos_infinity;
+    if (kind & FCLASS_POS_INFINITY) return float32_pos_zero;
+    if (kind & (FCLASS_NAN | FCLASS_NEGATIVE)) {
+        if (!(kind & FCLASS_QNAN))
+            softfloat_raiseFlags(softfloat_flag_invalid);
+        return float32_nan_default;
     }
+#else
+    if(val == 0x00000000) return float32_pos_infinity;
+    if(val == 0x80000000) return float32_neg_infinity;
+    if(val == 0x7f800000) return float32_pos_zero;
+    if(val & 0x80000000)  return float32_nan_default;
+    if(isnan(cast_uint32_to_float32(val))) return float32_nan_default;
+#endif
 
-    if(val == 0) return INFINITY;
-    if(val == 0x7f800000) return 0;
-    if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
-
-    uint16_t idx = GET(val,23, 16); 
+    uint16_t idx = GET(val,23, 16);
 
     uint32_t c2 = trsqrt[idx][0] << 2;
-    uint32_t c1 = 0x70000 + (trsqrt[idx][1] << 1); 
+    uint32_t c1 = 0x70000 + (trsqrt[idx][1] << 1);
     uint32_t c0 = 0x4000000 + (trsqrt[idx][2] << GET(val, 23, 23));
 
     uint32_t masked_val = 0xffff & val;
 
     uint64_t fma_result = trans_fma(masked_val, c2, c1, c0);
     uint64_t fma_rounded = fma_result + (((uint64_t)1) << 34);
-
 
     uint32_t mantissa  = GET(val, 22, 0);
     uint32_t fraction_res = GET(fma_rounded,57, 35);
@@ -125,15 +162,26 @@ float32_t ttrans_frsq(uint32_t val){
     uint32_t output = MERGE(0, exponent_res, fraction_res);
 
     return cast_uint32_to_float32(output);
-
 }
 
-float32_t ttrans_flog2(uint32_t val){
-
-    if(val == 0x3f800000) return 0.0;
-    if(val == 0) return -INFINITY;
-    if(val == 0x7f800000) return INFINITY;
-    if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
+float32_t ttrans_flog2(uint32_t val)
+{
+#ifdef HAVE_SOFTFLOAT
+    uint16_t kind = f32_classify(cast_uint32_to_float32(val));
+    if (kind & FCLASS_ZERO        )            return float32_neg_infinity;
+    if (kind & FCLASS_POS_INFINITY)            return float32_pos_infinity;
+    if (kind & (FCLASS_NAN | FCLASS_NEGATIVE)) {
+        if (!(kind & FCLASS_QNAN))
+            softfloat_raiseFlags(softfloat_flag_invalid);
+        return float32_nan_default;
+    }
+#else
+    if ((val & 0x7ffffff) == 0x00000000) return float32_neg_infinity;
+    if (val == 0x7f800000) return float32_pos_infinity;
+    if (val & 0x80000000) return float32_nan_default;
+    if (isnan(cast_uint32_to_float32(val))) return float32_nan_default;
+#endif
+    if(val == 0x3f800000) return float32_pos_zero;
 
     uint32_t x2 = (val % (1 << (23-6)));
     uint32_t x = (val % (1 << 23));
@@ -250,7 +298,7 @@ float32_t ttrans_flog2(uint32_t val){
     //printf("Original C1: %04x\tShifted C1: %016lx\n", c1, shifted_c1);
     //printf("Original X: %08x\tShifted X: %08x\n", val, shifted_x);
 
-    uint64_t mul1 = ((uint64_t)shifted_c2)*((uint64_t) shifted_x); 
+    uint64_t mul1 = ((uint64_t)shifted_c2)*((uint64_t) shifted_x);
     //uint32_t shifted_mul1 = GET(mul1, 63, 32);
 
     ////printf("Original mul: %016lx\tShifted mul: %08x\n", mul1, shifted_mul1);
@@ -327,7 +375,18 @@ uint64_t ures = *((uint64_t*)&result) + (1 << 28);
     */
 }
 
-float32_t ttrans_fexp2(uint32_t val){
+float32_t ttrans_fexp2(uint32_t val)
+{
+#ifdef HAVE_SOFTFLOAT
+    uint16_t kind = f32_classify(cast_uint32_to_float32(val));
+    if (kind & FCLASS_NAN) {
+        if (!(kind & FCLASS_QNAN))
+            softfloat_raiseFlags(softfloat_flag_invalid);
+        return float32_nan_default;
+    }
+#else
+    if(isnan(cast_uint32_to_float32(val))) return float32_nan_default;
+#endif
 
     uint32_t exp = ((val >> 23) % (1 << 8));
     bool sign = (val >> 31) != 0;
@@ -335,8 +394,6 @@ float32_t ttrans_fexp2(uint32_t val){
 
     ////printf("Sign: %d\n", sign);
     ////printf("Exp: 0x%08x\tSign: %d\n", exp, sign_exp);
-
-    if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
 
     uint32_t in_integer = 0;
 
@@ -357,11 +414,9 @@ float32_t ttrans_fexp2(uint32_t val){
         } else {
             in_shifted = (((1 << 23) + (val % (1 << 23))) >> (-shift)) % ( 1 << 25 );
         }
-
     }
 
     uint32_t in_rev = ((in_shifted >> 1) + (in_shifted % 2)) % (1 << 24);
-
 
     if(sign) {
         in_rev = ((~in_rev) + 1) % (1 << 24);
@@ -385,7 +440,7 @@ float32_t ttrans_fexp2(uint32_t val){
 
     bool in_Inf = (!sign) && in30 && g6;
     bool in_Zero = or_mantissa ? (sign && in30 && (g7 || (e7 && (in22_16 >= 0x15))))
-        : (sign && in30 && (g7 || (e7 && (in22_16 >= 0x16)))); 
+        : (sign && in30 && (g7 || (e7 && (in22_16 >= 0x16))));
     bool in_Denorm = or_mantissa? (sign && in30 && (g6 || (e6 && (in22_16 >= 0x7e))))
         : (sign && in30 && (g6 || (e6 && (in22_16 >= 0x7f))));
 
@@ -438,7 +493,7 @@ float32_t ttrans_fexp2(uint32_t val){
         }
     } else {
 
-        uint32_t out_exp = (sign? (0x7f - in_integer - or_mantissa) : (0x7f + in_integer)) % (1 << 8); 
+        uint32_t out_exp = (sign? (0x7f - in_integer - or_mantissa) : (0x7f + in_integer)) % (1 << 8);
 
         ////printf("OUT_EXP: 0x%08x\n", out_exp);
 
@@ -453,7 +508,9 @@ float32_t ttrans_fexp2(uint32_t val){
 #define get(v, s, e) (((v) >> (s)) % (((uint64_t)1) << ((e) - (s) + 1)))
 
 uint32_t ttrans_sin_convert(uint32_t ux){
-    float x = cast_uint32_to_float32(ux);
+    iufval tmp;
+    tmp.u = ux;
+    float x = tmp.flt;
 
     double filler;
     float y = (float)modf(x, &filler);
@@ -487,24 +544,37 @@ uint32_t ttrans_sin_convert(uint32_t ux){
     else {
         ////printf("I Quartile\n");
     }
-    
-    ////printf("[SIN TRANS] O: 0x%08x (%.10f)\tR: 0x%08x (%.10f)\n", *((uint32_t*)&x), x, *((uint32_t*)&y), y); 
 
-    return cast_float32_to_uint32(y);
+    ////printf("[SIN TRANS] O: 0x%08x (%.10f)\tR: 0x%08x (%.10f)\n", *((uint32_t*)&x), x, *((uint32_t*)&y), y);
+
+    tmp.flt = y;
+    return tmp.u;
 }
 
-float32_t ttrans_fsin(uint32_t val){
-
-    if(isnan(cast_uint32_to_float32(val))) return cast_uint32_to_float32(val);
-    if((val & 0x7fffffff) == 0x7f800000) return 0;
+float32_t ttrans_fsin(uint32_t val)
+{
+#ifdef HAVE_SOFTFLOAT
+    uint16_t kind = f32_classify(cast_uint32_to_float32(val));
+    if (kind & (FCLASS_NAN | FCLASS_INFINITY)) {
+        if (!(kind & FCLASS_QNAN))
+            softfloat_raiseFlags(softfloat_flag_invalid);
+        return float32_nan_default;
+    }
+    if (kind & FCLASS_ZERO) return (!val) ? float32_pos_zero : float32_neg_zero;
+#else
+    if(isnan(cast_uint32_to_float32(val))) return float32_nan_default;
+    if((val & 0x7fffffff) == 0x7f800000)   return float32_nan_default;
+    if(val == 0x00000000) return float32_pos_zero;
+    if(val == 0x80000000) return float32_neg_zero;
+#endif
     //printf("VAL: 0x%08x\t\n", val);
 
     val = ttrans_sin_convert(val);
     //printf("VAL: 0x%08x\n", val);
 
-    if(val == 0)  return cast_uint32_to_float32(val);
-    if(val == 0x3e800000) return 1.0;
-    if(val == 0xbe800000) return -1.0;
+    if(val == 0x00000000) return float32_pos_zero;
+    if(val == 0x3e800000) return float32_pos_one;
+    if(val == 0xbe800000) return float32_neg_one;
 
     //bool ex0 = get(val, 23, 25) == 0x7;
     bool ex1 = get(val, 23, 25) == 0x6;
@@ -603,7 +673,7 @@ float32_t ttrans_fsin(uint32_t val){
     uint64_t c0 = ((uint64_t)tsin[idx][2]) * (((uint64_t)1) << 31);
     //printf("C2: 0x%016lx\tC1: 0x%016lx\tC0: 0x%016lx\n", c2, c1, c0);
 
-    uint64_t mul1 = c2*x2; 
+    uint64_t mul1 = c2*x2;
     //printf("MUL1: 0x%016lx\n", mul1);
     uint64_t fma1 = mul1 + c1 + (1 << 12);
     //printf("FMA1: 0x%08x\n", get(fma1, 13, 42));
@@ -613,7 +683,7 @@ float32_t ttrans_fsin(uint32_t val){
     uint64_t fma2 = mul2 + c0 + (1 << 23);
 
     //printf("FMA2: 0x%016lx\n", fma2);
-   
+
     uint64_t filtered_fma2 = get((get(fma2, 33, 57) + 1), 1, 24) << 10;
 
     //printf("FMA2 FILTERED: 0x%08x\n", (filtered_fma2>>10) );
