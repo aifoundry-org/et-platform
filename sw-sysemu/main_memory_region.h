@@ -2,7 +2,6 @@
 #define _MAIN_MEMORY_REGION_
 
 // Local
-#include "checker_defines.h"
 #include "testLog.h"
 
 #define MEM_REGION_READ_ALLOWED 1 

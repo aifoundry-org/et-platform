@@ -1,11 +1,11 @@
 #ifndef _MAIN_MEMORY_REGION_ATOMIC_
 #define _MAIN_MEMORY_REGION_ATOMIC_
 
+#include <inttypes.h>
+
 // Local
-#include "checker_defines.h"
 #include "testLog.h"
 #include "main_memory_region.h"
-#include "emu.h"
 
 // This class behaves as an atomic region, that is private per L2
 #define NUMBER_L2 64

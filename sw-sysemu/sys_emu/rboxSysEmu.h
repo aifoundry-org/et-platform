@@ -35,7 +35,7 @@ class rboxSysEmu
   const unsigned id_;
   bool started_;
   bool current_thread_[NUM_SHIRE_MIN];
-  int  state_idx_[NUM_THREADS_SHIRE*2];                                     // State per thread
+  unsigned state_idx_[NUM_THREADS_SHIRE*2];                                     // State per thread
   bool done_;
   unsigned remaining_quads_;
   std::queue<quad_transaction> queue_;                                  // queue that contains quad fragments created by the rbox

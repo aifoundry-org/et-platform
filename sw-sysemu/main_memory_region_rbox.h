@@ -2,7 +2,6 @@
 #define _MAIN_MEMORY_REGION_RBOX_
 
 // Local
-#include "checker_defines.h"
 #include "testLog.h"
 #include "main_memory_region.h"
 #include "emu.h"

@@ -11,6 +11,7 @@
 #include "instruction_cache.h"
 #include "instruction.h"
 #include "testLog.h"
+#include "log.h"
 #include "net_emulator.h"
 #include "rboxSysEmu.h"
 
@@ -21,22 +22,6 @@
 #define RESET_PC    0x00001000
 #define IPI_T0_ADDR 0xFFF00040
 #define IPI_T1_ADDR 0xFFF00048
-
-#define PA_SIZE        40
-#define PA_M           (((uint64_t)1 << PA_SIZE) - 1)
-#define PG_OFFSET_SIZE 12
-#define PG_OFFSET_M    (((uint64_t)1 << PG_OFFSET_SIZE) - 1)
-#define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
-#define PPN_M          (((uint64_t)1 << PPN_SIZE) - 1)
-#define PTE_V_OFFSET   0
-#define PTE_R_OFFSET   1
-#define PTE_W_OFFSET   2
-#define PTE_X_OFFSET   3
-#define PTE_U_OFFSET   4
-#define PTE_G_OFFSET   5
-#define PTE_A_OFFSET   6
-#define PTE_D_OFFSET   7
-#define PTE_PPN_OFFSET 10
 
 ////////////////////////////////////////////////////////////////////////////////
 // Types
@@ -195,12 +180,12 @@ bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
         uint64_t base_addr;
         uint64_t size;
         char str[1024];
-        if(sscanf(buffer, "New Mem Region: 40'h%LX, 40'h%LX, %s", &base_addr, &size, str) == 3)
+        if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
         {
             memory->new_region(base_addr, size);
             log << LOG_INFO << "New Mem Region found: @ 0x" << std::hex << base_addr << ", size = 0x" << size << std::dec << endm;
         }
-        else if(sscanf(buffer, "File Load: 40'h%LX, %s", &base_addr, str) == 2)
+        else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
             memory->load_file(str, base_addr);
             log << LOG_INFO << "New File Load found: @ 0x" << std::hex << base_addr << std::dec << endm;
@@ -217,7 +202,7 @@ bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
 
 void print_inst_log(instruction * inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
 {
-    printf("Minion %i.%i.%i: PC %08x (inst bits %08x), mnemonic %s\n", minion / 128, (minion >> 1) & 0x3F, minion & 1, current_pc, inst->get_enc(), inst->get_mnemonic().c_str());
+    printf("Minion %" PRIu64 ".%" PRIu64 ".%" PRIu64 ": PC %08" PRIx64 " (inst bits %08" PRIx32 "), mnemonic %s\n", minion / 128, (minion >> 1) & 0x3F, minion & 1, current_pc, inst->get_enc(), inst->get_mnemonic().c_str());
 }
 
 // Returns current thread
@@ -257,7 +242,6 @@ int main(int argc, char * argv[])
 
     bzero(rbox, sizeof(rbox));
 
-    int i = 0;
     for(int i = 1; i < argc; i++)
     {
         if(mem_desc)
@@ -272,17 +256,17 @@ int main(int argc, char * argv[])
         }
         else if(minions)
         {
-            sscanf(argv[i], "%llx", &minions_en);
+            sscanf(argv[i], "%" PRIx64, &minions_en);
             minions = 0;
         }
         else if(shires)
         {
-            sscanf(argv[i], "%llx", &shires_en);
+            sscanf(argv[i], "%" PRIx64, &shires_en);
             shires = 0;
         }
         else if(dump == 1)
         {
-            sscanf(argv[i], "%llx", &dump_addr);
+            sscanf(argv[i], "%" PRIx64, &dump_addr);
             dump = 0;
         }
         else if(dump == 2)
@@ -472,7 +456,7 @@ int main(int argc, char * argv[])
 
         if(log_en)
         {
-            printf("Starting Emulation Cycle %lli\n", emu_cycle);
+            printf("Starting Emulation Cycle %" PRIu64 "\n", emu_cycle);
         }
 
         auto thread = enabled_threads.begin();
@@ -486,109 +470,121 @@ int main(int argc, char * argv[])
             init_emu(do_log, false);
             if(do_log) { printf("Starting emu of thread %i\n", thread_id); }
 
-            // Gets instruction and sets state
-            set_thread(thread_id);
-            inst = inst_cache->get_instruction(virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch));
-            set_pc(current_pc[thread_id]);
-            clearlogstate();
-            if(do_log)
-                print_inst_log(inst, thread_id, current_pc[thread_id], emu_state_change);
-
-            // In case of reduce, we need to make sure that the other minion is also in reduce state
-            bool reduce_wait = false;
-            if(inst->get_is_reduce())
+            // Try to execute one instruction, this may trap
+            try
             {
-                uint64_t other_min, action;
-                // Gets the source used for the reduce
-                uint64_t src1 = (xreg) inst->get_param(2);
-                uint64_t value = xget(src1);
-                get_reduce_info(value, &other_min, &action);
-                // Sender
-                if(action == 0)
+                // Gets instruction and sets state
+                clearlogstate();
+                set_thread(thread_id);
+                set_pc(current_pc[thread_id]);
+                inst = inst_cache->get_instruction(virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch));
+                if(do_log)
+                    print_inst_log(inst, thread_id, current_pc[thread_id], emu_state_change);
+
+                // In case of reduce, we need to make sure that the other minion is also in reduce state
+                bool reduce_wait = false;
+                if(inst->get_is_reduce())
                 {
-                    // Moves to ready to send
-                    reduce_state_array[thread_id>>1] = Reduce_Ready_To_Send;
-                    reduce_pair_array[thread_id>>1]  = other_min;
-                    // If the other minion hasn't arrived yet, wait
-                    if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != (thread_id>>1)))
+                    uint64_t other_min, action;
+                    // Gets the source used for the reduce
+                    uint64_t src1 = (xreg) inst->get_param(2);
+                    uint64_t value = xget(src1);
+                    get_reduce_info(value, &other_min, &action);
+                    // Sender
+                    if(action == 0)
                     {
-                        reduce_wait = true;
+                        // Moves to ready to send
+                        reduce_state_array[thread_id>>1] = Reduce_Ready_To_Send;
+                        reduce_pair_array[thread_id>>1]  = other_min;
+                        // If the other minion hasn't arrived yet, wait
+                        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != uint32_t(thread_id>>1)))
+                        {
+                            reduce_wait = true;
+                        }
+                        // If it has consumed the data, move both threads to Idle
+                        else if(reduce_state_array[other_min] == Reduce_Data_Consumed)
+                        {
+                            reduce_state_array[thread_id>>1] = Reduce_Idle;
+                            reduce_state_array[other_min]    = Reduce_Idle;
+                        }
+                        else
+                        {
+                            log << LOG_FTL << "Reduce error: Minion: " << (thread_id >> 1) << " found pairing receiver minion: " << other_min << " in Reduce_Ready_To_Send!!" << endm;
+                        }
                     }
-                    // If it has consumed the data, move both threads to Idle
-                    else if(reduce_state_array[other_min] == Reduce_Data_Consumed)
+                    // Receiver
+                    else if(action == 1)
                     {
-                        reduce_state_array[thread_id>>1] = Reduce_Idle;
-                        reduce_state_array[other_min]    = Reduce_Idle;
-                    }
-                    else
-                    {
-                        log << LOG_FTL << "Reduce error: Minion: " << (thread_id >> 1) << " found pairing receiver minion: " << other_min << " in Reduce_Ready_To_Send!!" << endm;
+                        reduce_pair_array[thread_id>>1] = other_min;
+                        // If the other minion hasn't arrived yet, wait
+                        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != uint32_t(thread_id>>1)))
+                        {
+                            reduce_wait = true;
+                        }
+                        // If pairing minion is in ready to send, consume the data
+                        else if(reduce_state_array[other_min] == Reduce_Ready_To_Send)
+                        {
+                            reduce_state_array[thread_id>>1] = Reduce_Data_Consumed;
+                        }
+                        else
+                        {
+                            log << LOG_FTL << "Reduce error: Minion: " << (thread_id >> 1) << " found pairing sender minion: " << other_min << " in Reduce_Data_Consumed!!" << endm;
+                        }
                     }
                 }
-                // Receiver
-                else if(action == 1)
+
+                // Executes the instruction
+                if(!reduce_wait)
                 {
-                    reduce_pair_array[thread_id>>1] = other_min;
-                    // If the other minion hasn't arrived yet, wait
-                    if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != (thread_id>>1)))
-                    {
-                        reduce_wait = true;
+                    inst->exec();
+
+                    if (get_msg_port_stall(thread_id, 0) ){
+                        thread = enabled_threads.erase(thread);
+                        rbox[thread_id/128]->threadDisabled(thread_id%128);
+                        if (thread == enabled_threads.end()) break;
                     }
-                    // If pairing minion is in ready to send, consume the data
-                    else if(reduce_state_array[other_min] == Reduce_Ready_To_Send)
-                    {
-                        reduce_state_array[thread_id>>1] = Reduce_Data_Consumed;
+                    else {
+                        // Updates PC
+                        if(emu_state_change.pc_mod) {
+                            current_pc[thread_id] = emu_state_change.pc;
+                        } else {
+                            current_pc[thread_id] += inst->get_size();
+                        }
+
+                        // Checks for IPI
+                        if(emu_state_change.mem_mod[0] && (emu_state_change.mem_addr[0] == IPI_T0_ADDR))
+                            ipi_to_threads(thread_id, 0, emu_state_change.mem_data[0], log_en, log_min);
+                        if(emu_state_change.mem_mod[0] && (emu_state_change.mem_addr[0] == IPI_T1_ADDR))
+                            ipi_to_threads(thread_id, 1, emu_state_change.mem_data[0], log_en, log_min);
                     }
-                    else
+                }
+
+                // Thread is going to sleep
+                if(inst->get_is_wfi() && !reduce_wait)
+                {
+                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep\n", thread_id / 128, (thread_id / 2) & 0x3F, thread_id & 1); }
+                    int old_thread = *thread;
+                    thread = enabled_threads.erase(thread);
+
+                    // Checks if there's a pending IPI and wakes up thread again
+                    auto ipi = std::find(pending_ipi.begin(), pending_ipi.end(), old_thread);
+                    if(ipi != pending_ipi.end())
                     {
-                        log << LOG_FTL << "Reduce error: Minion: " << (thread_id >> 1) << " found pairing sender minion: " << other_min << " in Reduce_Data_Consumed!!" << endm;
+                        if(do_log) { printf("Minion %i.%i.%i: Waking up due present IPI\n", (old_thread) / 128, ((old_thread) / 2) & 0x3F, (old_thread) & 1); }
+                        enabled_threads.push_back(old_thread);
+                        pending_ipi.erase(ipi);
                     }
+                }
+                else
+                {
+                    thread++;
                 }
             }
-
-            // Executes the instruction
-            if(!reduce_wait)
+            catch (const trap_t& t)
             {
-                inst->exec();
-
-                if (get_msg_port_stall(thread_id, 0) ){
-                  thread = enabled_threads.erase(thread);
-                  rbox[thread_id/128]->threadDisabled(thread_id%128);
-                  if (thread == enabled_threads.end()) break;
-                }
-                else {
-                  // Updates PC
-                  if(emu_state_change.pc_mod) {
-                     current_pc[thread_id] = emu_state_change.pc;
-                  } else {
-                     current_pc[thread_id] += inst->get_size();
-                  }
-
-                  // Checks for IPI
-                  if(emu_state_change.mem_mod[0] && (emu_state_change.mem_addr[0] == IPI_T0_ADDR))
-                    ipi_to_threads(thread_id, 0, emu_state_change.mem_data[0], log_en, log_min);
-                  if(emu_state_change.mem_mod[0] && (emu_state_change.mem_addr[0] == IPI_T1_ADDR))
-                    ipi_to_threads(thread_id, 1, emu_state_change.mem_data[0], log_en, log_min);
-                }
-            }
-
-            // Thread is going to sleep
-            if(inst->get_is_wfi() && !reduce_wait)
-            {
-                if(do_log) { printf("Minion %i.%i.%i: Going to sleep\n", thread_id / 128, (thread_id / 2) & 0x3F, thread_id & 1); }
-                auto old_thread = thread++;
-                enabled_threads.erase(old_thread);
-                // Checks if there's a pending IPI and wakes up thread again
-                auto ipi = std::find(pending_ipi.begin(), pending_ipi.end(), * old_thread);
-                if(ipi != pending_ipi.end())
-                {
-                    if(do_log) { printf("Minion %i.%i.%i: Waking up due present IPI\n", (* old_thread) / 128, ((* old_thread) / 2) & 0x3F, (* old_thread) & 1); }
-                    enabled_threads.push_back(* old_thread);
-                    pending_ipi.erase(ipi);
-                }
-            }
-            else
-            {
+                take_trap(t);
+                //if(do_log) { printf("Minion %i.%i.%i: Taking a trap\n", thread_id / 128, (thread_id / 2) & 0x3F, thread_id & 1); }
+                current_pc[thread_id] = emu_state_change.pc;
                 thread++;
             }
         }
@@ -602,7 +598,7 @@ int main(int argc, char * argv[])
         auto it = ipi_threads.begin();
         while(it != ipi_threads.end())
         {
-            if(dump_log(log_en, log_min, * it)) { printf("Minion %i.%i.%i: Waking up due IPI with PC %llx\n", (* it) / 128, ((* it) / 2) & 0x3F, (* it) & 1, new_pc); }
+            if(dump_log(log_en, log_min, * it)) { printf("Minion %i.%i.%i: Waking up due IPI with PC %" PRIx64 "\n", (* it) / 128, ((* it) / 2) & 0x3F, (* it) & 1, new_pc); }
             current_pc[* it] = new_pc;
             enabled_threads.push_back(* it);
             it++;

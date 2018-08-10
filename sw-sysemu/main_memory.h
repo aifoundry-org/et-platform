@@ -7,7 +7,6 @@
 #include <inttypes.h>
 
 // Local
-#include "checker_defines.h"
 #include "testLog.h"
 #include "main_memory_region.h"
 #include "main_memory_region_rbox.h"

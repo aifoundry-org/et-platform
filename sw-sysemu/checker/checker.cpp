@@ -253,46 +253,51 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
     log << LOG_DEBUG << "emu_inst called for thread "<<thread<<endm;
 
     set_thread(thread);
-    log << LOG_DEBUG << "after set_thread()"<<endm;
-    instruction * inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
-    log << LOG_DEBUG << "after get_instruction()"<<endm;
     setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
-    log << LOG_DEBUG << "after setlogstate()"<<endm;
-    clearlogstate();
-    log << LOG_DEBUG << "after clearlogstate()"<<endm;
-    emu_state_change.pc = current_pc[thread];
-    set_pc(current_pc[thread]);
-    log << LOG_DEBUG << "after set_pc()"<<endm;
-    update_msg_port_data();    // write any pending port data before executing the next instruction
-    log << LOG_DEBUG << "after update_msg_port_data()"<<endm;
 
-    // In case that the instruction is a reduce:
-    //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
-    //     otherwise the sender thread could advance and update the VRF contents
-    //   - The thread that is the receiver has to wait until the sender is also in the reduce
-    //     operation
-    if(inst->get_is_reduce())
+    instruction * inst = nullptr;
+
+    // As trapped instructions do not retire in the minion, we need to keep
+    // executing until the first non-trapping instruction.  We do this by
+    // setting retry to true until the first instruction that does not trap.
+    bool retry = false;
+    do
     {
-        checker_result res = do_reduce(thread, inst, wake_minion);
-        if(res == CHECKER_WAIT) return CHECKER_WAIT;
+        try
+        {
+            // Initialize emu_state_change
+            clearlogstate();
+            // Fetch new instruction (may trap)
+            set_pc(current_pc[thread]);
+            inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
+            set_inst(inst->get_enc());
+
+            // Write any pending port data before executing the next instruction
+            update_msg_port_data();
+
+            // In case that the instruction is a reduce:
+            //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
+            //     otherwise the sender thread could advance and update the VRF contents
+            //   - The thread that is the receiver has to wait until the sender is also in the reduce
+            //     operation
+            if(inst->get_is_reduce())
+            {
+                checker_result res = do_reduce(thread, inst, wake_minion);
+                if(res == CHECKER_WAIT) return CHECKER_WAIT;
+            }
+
+            // Execute the instruction (may trap)
+            inst->exec();
+            retry = false;
+        }
+        catch (const trap_t& t)
+        {
+            take_trap(t);
+            current_pc[thread] = emu_state_change.pc; // Go to target
+            retry = true;
+        }
     }
-
-    // Now the instruction can be executed
-    inst->exec();
-
-    // As trapped instructions do not retire in the minion, we need to execute
-    // the next instruction as well
-    if(emu_state_change.exec_trap)
-    {
-        // Go to target
-        current_pc[thread] = emu_state_change.pc;
-
-        inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
-        clearlogstate();
-        emu_state_change.pc = current_pc[thread];
-        set_pc(current_pc[thread]);
-        inst->exec();
-    }
+    while (retry);
 
     // Checks modified fields
     if(changes != NULL)
@@ -306,6 +311,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             error_msg = stream.str();
             return CHECKER_ERROR;
         }
+
+        // Instruction bits -- the RTL monitor shows the uncompressed version of the instruction always,
+        // while bemu shows the original instruction bits, so we cannot really compare them here
+        /*if(changes->inst_bits != inst->get_enc())
+        {
+            stream << "Inst error. Expected inst is 0x" << std::hex << inst->get_enc() << " but provided is 0x" << changes->inst_bits << std::dec << std::endl;
+            error_msg = stream.str();
+            return CHECKER_ERROR;
+        }*/
 
         // Changing integer register
         if(changes->int_reg_mod != emu_state_change.int_reg_mod)
@@ -352,14 +366,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
             }
 
-            if(inst->get_is_load() && (virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) >= TBOX_REGION_START && virt_to_phys(emu_state_change.mem_addr[0], Mem_Access_Load) < TBOX_REGION_END))
+            // NB: the BEMU memread functions put the *physical* address used by the load into mem_addr without setting mem_mod so we can
+            // check for TBOX accesses here.
+            if(inst->get_is_load() && (emu_state_change.mem_addr[0] >= TBOX_REGION_START) && (emu_state_change.mem_addr[0] < TBOX_REGION_END))
             {
                 log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
                 init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
             }
-
 
             // Writes to X0/Zero are ignored
             if((changes->int_reg_data != emu_state_change.int_reg_data) && (emu_state_change.int_reg_rd != 0))
@@ -672,7 +687,7 @@ std::string checker::get_mnemonic(uint64_t pc)
 }
 
 // enables or disables the 2nd thread
-void checker::thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc)
+void checker::thread1_enabled(unsigned minionId, uint64_t en, uint64_t pc)
 {
   unsigned thread = minionId | 1;
   if (en != threadEnabled[thread] ) {

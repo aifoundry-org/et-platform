@@ -51,7 +51,8 @@ uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 int32_t msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
 
-static uint64_t current_pc;
+static uint64_t current_pc = 0;
+static uint32_t current_inst = 0;
 uint32_t current_thread = 0;
 
 #define MAXSTACK 2048
@@ -79,6 +80,7 @@ static uint64_t csrget(csr src1);
 static void csrset(csr src1, uint64_t val);
 static void tmask_conv();
 static void tcoop();
+static void offtxfma();
 static void tensorload(uint64_t control);
 static void tensorstore(uint64_t tstorereg);
 static void tensorfma(uint64_t tfmareg);
@@ -306,7 +308,6 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     csrset(csr_sepc, current_pc);
     // Jump to stvec
     csrset(csr_prv, CSR_PRV_S);
-    logtrap();
     logpcchange(csrget(csr_stvec));
 }
 
@@ -337,13 +338,27 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     csrset(csr_mepc, current_pc);
     // Jump to mtvec
     csrset(csr_prv, CSR_PRV_M);
-    logtrap();
     logpcchange(csrget(csr_mtvec));
+}
+
+void take_trap(const trap_t& t)
+{
+    trap_to_mmode(t.get_cause(), t.get_tval());
 }
 
 void set_pc(uint64_t pc)
 {
     current_pc = pc;
+}
+
+void set_inst(uint32_t bits)
+{
+    current_inst = bits;
+}
+
+uint32_t get_inst()
+{
+    return current_inst;
 }
 
 void set_thread(uint32_t thread)
@@ -463,7 +478,7 @@ void memwrite64(uint64_t addr, uint64_t data, bool trans)
 {
     uint64_t paddr = addr;
     if(trans) paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    printf("MEM32 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
+    printf("MEM64 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr);
     func_memwrite64(paddr, data);
 }
 
@@ -525,16 +540,18 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
     func_memwrite16 = (func_memwrite16_t) func_memwrite16_;
     func_memwrite32 = (func_memwrite32_t) func_memwrite32_;
     func_memwrite64 = (func_memwrite64_t) func_memwrite64_;
+#else
+    DEBUG_EMU(gprintf("ERROR!!! You need to compile with CHECKER enabled to use set_memory_funcs().\n");)
+    exit(-1);
 #endif
 }
 
 // ILLEGAL INSTRUCTION
 void unknown(const char* comm)
 {
-    DISASM(gsprintf(dis,"I: trap_illegal_instruction (%016llx)%s%s",current_pc,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: unknown (%016llx)%s%s",current_pc,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    // TODO: We may want to set mtval/stval to the instructions bits
-    trap_to_mmode(CSR_MCAUSE_ILLEGAL_INSTRUCTION, 0);
+    throw trap_illegal_instruction(current_inst);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2040,6 +2057,10 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             tcoop();
             break;
+        case csr_offtxfma:
+            csrregs[current_thread][src1] = val;
+            offtxfma();
+            break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
@@ -2071,12 +2092,12 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][csr_mip] = val;
             break;
         case csr_satp:
-            // ASID is 4bits, PPN is 28bits
-            val &= 0xF000F0000FFFFFFFULL;
+            // MODE is 4 bits, ASID is 0bits, PPN is PPN_M bits
+            val &= 0xF000000000000000ULL | PPN_M;
             switch (val >> 60) {
-                case 0: // Bare
-                case 9: // Sv48
-                case 8: // Sv39
+                case SATP_MODE_BARE:
+                case SATP_MODE_SV39:
+                case SATP_MODE_SV48:
                     csrregs[current_thread][src1] = val;
                     break;
                 default: // reserved
@@ -2169,8 +2190,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
     if (   ((prv == CSR_PRV_U) && (src1 > CSR_MAX_UMODE))
         || ((prv == CSR_PRV_S) && (src1 > CSR_MAX_SMODE)))
     {
-        unknown();
-        return;
+        throw trap_illegal_instruction(current_pc);
     }
 
     uint64_t x = csrget(src1);
@@ -2191,8 +2211,8 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_marchid:
             case csr_mimpid:
             case csr_mhartid:
-                unknown();
-                return;
+                throw trap_illegal_instruction(current_pc);
+                break;
 #ifdef CHECKER
             case csr_treduce:
                 tensorreduce(val);
@@ -2240,192 +2260,252 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
     logxregchange(dst);
 }
 
+static void throw_page_fault(uint64_t addr, mem_access_type macc)
+{
+    switch (macc)
+    {
+        case Mem_Access_Load:
+            throw trap_load_page_fault(addr);
+            break;
+        case Mem_Access_Store:
+            throw trap_store_page_fault(addr);
+            break;
+        case Mem_Access_Fetch:
+            throw trap_instruction_page_fault(addr);
+            break;
+    }
+}
+
 uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 {
-    // Read SATP, PRV and MSTATUS
-    uint64_t satp      = csrget(csr_satp);;
-    uint64_t prv       = csrget(csr_prv);
-    uint64_t mstatus   = csrget(csr_mstatus);
-    uint64_t satp_mode = (satp >> 60) & 0xF;
-    uint64_t satp_ppn  = satp & PPN_M;
-    bool     sum       = (mstatus >> 18) & 0x1;
-    bool     mxr       = (mstatus >> 19) & 0x1;
+  
+    // Read mstatus
+    const uint64_t mstatus = csrget(csr_mstatus);
+    const bool     mxr     = (mstatus >> MSTATUS_MXR ) & 0x1;
+    const bool     sum     = (mstatus >> MSTATUS_SUM ) & 0x1;
+    const bool     mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
+    const bool     mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
 
-    bool vm_enabled = (satp_mode != 0) && (prv <= CSR_PRV_S);
+    // Read satp
+    const uint64_t satp      = csrget(csr_satp);
+    const uint64_t satp_mode = (satp >> 60) & 0xF;
+    const uint64_t satp_ppn  = satp & PPN_M;
 
-    // Default values for Sv48
-    int Num_Levels       = 4;
-    int PTE_Size         = 8;
-    int PTE_Idx_Size     = 9;
-    int PTE_top_Idx_Size = 17;
-    // if Sv39
-    if (satp_mode == 8) {
-       Num_Levels = 3;
-       PTE_top_Idx_Size = 26;
-    }
+    // Read prv
+    const uint64_t prv = csrget(csr_prv);
 
-    uint64_t pte_idx_mask     = (uint64_t(1) << PTE_Idx_Size) - 1;
-    uint64_t pte_top_idx_mask = (uint64_t(1) << PTE_top_Idx_Size) - 1;
-    if (vm_enabled)
+    // Calculate effective privilege level
+    const uint64_t prv_inst = prv;
+    const uint64_t prv_data = mprv ? mpp : prv;
+
+    // V2P mappings are enabled when all of the following are true:
+    // - the effective execution mode is not 'M'
+    // - satp.mode is not "Bare"
+    bool vm_enabled = (((macc == Mem_Access_Fetch) ? prv_inst : prv_data) < CSR_PRV_M) && (satp_mode != SATP_MODE_BARE);
+
+    if (!vm_enabled)
     {
-        DEBUG_EMU(gprintf("Virtual memory enabled. Performing page walk on addr 0x%016llx...\n", addr);)
-
-        // Perform page walk
-        int level;
-        uint64_t ppn, pte_addr, pte;
-        bool pte_v, pte_r, pte_w, pte_x, pte_u, pte_a, pte_d;
-
-        level = Num_Levels;
-        ppn = satp_ppn;
-        do {
-          level--;
-          if (level < 0)
-          {
-            //log << LOG_ERR << "Last level PTE is a pointer to a page table: PTE = 0x" << std::hex << pte << endm;
-            //DEBUG_EMU(gprintf("ERROR: Last level PTE is a pointer to a page table: PTE = 0x%x\n", pte);)
-            return -1;
-          }
-
-          // Take VPN[level]
-          uint64_t vpn = (addr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
-          // Read PTE
-          pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
-          // TODO: PMA / PMP checks
-          pte = memread64(pte_addr, false);
-          //log << LOG_DEBUG << "* Level " << std::dec << level << ": PTE = 0x" << std::hex << pte << endm;
-          //DEBUG_EMU(gprintf("* Level %d: PTE = 0x%x\n", level, pte);)
-
-          // Read PTE fields
-          pte_v = (pte >> PTE_V_OFFSET) & 0x1;
-          pte_r = (pte >> PTE_R_OFFSET) & 0x1;
-          pte_w = (pte >> PTE_W_OFFSET) & 0x1;
-          pte_x = (pte >> PTE_X_OFFSET) & 0x1;
-          pte_u = (pte >> PTE_U_OFFSET) & 0x1;
-          pte_a = (pte >> PTE_A_OFFSET) & 0x1;
-          pte_d = (pte >> PTE_D_OFFSET) & 0x1;
-          // Read PPN
-          ppn = (pte >> PTE_PPN_OFFSET) & PPN_M;
-
-          // Check invalid entry
-          if (!pte_v || (!pte_r && pte_w))
-          {
-            //log << LOG_ERR << "Invalid entry: PTE = 0x" << std::hex << pte << endm;
-            //DEBUG_EMU(gprintf("ERROR: Invalid entry: PTE = 0x%x\n", pte);)
-            return -1;
-          }
-
-          // Check if PTE is a pointer to next table level
-        } while (!pte_r && !pte_x);
-
-        // A leaf PTE has been found
-        //log << LOG_DEBUG << "Valid leaf PTE found at level " << std::dec << level << endm;
-        //DEBUG_EMU(gprintf("Valid leaf PTE found at level %d\n", level);)
-
-        // Check permissions
-        bool perm_ok = (macc == Mem_Access_Load)  ? pte_r || (mxr && pte_x) :
-                       (macc == Mem_Access_Store) ? pte_w :
-                                                    pte_x; // Mem_Access_Fetch
-        if (!perm_ok)
-        {
-          //log << LOG_ERR << "Page permissions do not allow this type of access (";
-          //switch (macc)
-          //{
-          //  case Mem_Access_Load:  log << "Load)" << endm; break;
-          //  case Mem_Access_Store: log << "Store)" << endm; break;
-          //  case Mem_Access_Fetch: log << "Fetch)" << endm; break;
-          //  default:               log << "*Invalid*: " << std::dec << (int)macc << ")" << endm;
-          //}
-
-          return -1;
-        }
-
-        // Check privilege mode
-        // If page is accessible to user mode, supervisor mode SW may also access it if sum bit from the sstatus is set
-        // Otherwise, check that privilege mode is higher than user
-        bool priv_ok = pte_u ? (prv == CSR_PRV_U) || sum : prv != CSR_PRV_U;
-        if (!priv_ok)
-        {
-          //log << LOG_ERR << "Page not accessible for current privilege mode (";
-          //switch (prv)
-          //{
-          //  case CSR_PRV_U: log << "User)" << endm;
-          //  case CSR_PRV_S: log << "Supervisor)" << endm;
-          //  default:        log << "*Invalid*: " << std::dec << prv << ")" << endm;
-          //}
-
-          return -1;
-        }
-
-        // Check if it is a misaligned superpage
-        if ((level > 0) && ((ppn & ((1<<(PTE_Idx_Size*level))-1)) != 0))
-        {
-          //log << LOG_ERR << "Misaligned superpage" << endm;
-          //for (int i = 0; i < level; i++)
-          //  log << LOG_DEBUG << "* ppn[" << std::dec << i << "] = 0x" << std::hex << ((ppn>>(PTE_Idx_Size*i)) & ((1<<(PTE_Idx_Size))-1)) << endm;
-          return -1;
-        }
-
-        if (!pte_a || ((macc == Mem_Access_Store) && !pte_d))
-        {
-          //log << LOG_DEBUG << "* Setting A/D bits in PTE" << endm;
-
-          // Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
-          uint64_t pte_write = pte;
-          pte_write |= 1 << PTE_A_OFFSET;
-          if (macc == Mem_Access_Store)
-            pte_write |= 1 << PTE_D_OFFSET;
-
-          // Write PTE
-          memwrite64(pte_addr, pte_write, false);
-        }
-
-        // Obtain physical address
-        uint64_t paddr;
-
-        // Copy page offset
-        paddr = addr & PG_OFFSET_M;
-
-        for (int i = 0; i < Num_Levels; i++)
-        {
-          // If level > 0, this is a superpage translation so VPN[level-1:0] are part of the page offset
-          if (i < level) {
-            paddr |= addr & (pte_idx_mask << (PG_OFFSET_SIZE + PTE_Idx_Size*i));
-          } else if (i == Num_Levels-1) {
-            paddr |= (ppn & (pte_top_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
-          } else {
-            paddr |= (ppn & (pte_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
-          }
-        }
-
-        // Final physical address only uses 40 bits
-        paddr &= PA_M;
-
-        DEBUG_EMU(gprintf("Physical address = 0x%x\n",paddr);)
-
-        return paddr;
-    }
-    else
-    {
-        // Direct mapping, physical address is 40 bits
+        // Direct mapping
         return addr & PA_M;
     }
+
+    int64_t sign;
+    int Num_Levels;
+    int PTE_top_Idx_Size;
+    const int PTE_Size     = 8;
+    const int PTE_Idx_Size = 9;
+    switch (satp_mode)
+    {
+        case SATP_MODE_SV39:
+            Num_Levels = 3;
+            PTE_top_Idx_Size = 26;
+            // bits 63-39 of address must be equal to bit 38
+            sign = (int64_t(addr) >> 37);
+            break;
+        case SATP_MODE_SV48:
+            Num_Levels = 4;
+            PTE_top_Idx_Size = 17;
+            // bits 63-48 of address must be equal to bit 47
+            sign = (int64_t(addr) >> 46);
+            break;
+        default:
+            assert(0); // we should never get here!
+            break;
+    }
+
+    if (sign != int64_t(0) && sign != ~int64_t(0))
+    {
+        throw_page_fault(addr, macc);
+    }
+
+    const uint64_t pte_idx_mask     = (uint64_t(1) << PTE_Idx_Size) - 1;
+    const uint64_t pte_top_idx_mask = (uint64_t(1) << PTE_top_Idx_Size) - 1;
+
+    DEBUG_EMU(gprintf("Virtual memory enabled. Performing page walk on addr 0x%016llx...\n", addr););
+
+    // Perform page walk. Anything that goes wrong raises a page fault error
+    // for the access type of the original access, setting tval to the
+    // original virtual address.
+    uint64_t pte_addr, pte;
+    bool pte_v, pte_r, pte_w, pte_x, pte_u, pte_a, pte_d;
+    int level    = Num_Levels;
+    uint64_t ppn = satp_ppn;
+    do {
+        level--;
+        if (level < 0)
+        {
+            //log << LOG_ERR << "Last level PTE is a pointer to a page table: PTE = 0x" << std::hex << pte << endm;
+            //DEBUG_EMU(gprintf("ERROR: Last level PTE is a pointer to a page table: PTE = 0x%x\n", pte);)
+            throw_page_fault(addr, macc);
+        }
+
+        // Take VPN[level]
+        uint64_t vpn = (addr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
+        // Read PTE
+        pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
+        // TODO: PMA / PMP checks
+        pte = memread64(pte_addr, false);
+        //log << LOG_DEBUG << "* Level " << std::dec << level << ": PTE = 0x" << std::hex << pte << endm;
+        //DEBUG_EMU(gprintf("* Level %d: PTE = 0x%x\n", level, pte);)
+
+        // Read PTE fields
+        pte_v = (pte >> PTE_V_OFFSET) & 0x1;
+        pte_r = (pte >> PTE_R_OFFSET) & 0x1;
+        pte_w = (pte >> PTE_W_OFFSET) & 0x1;
+        pte_x = (pte >> PTE_X_OFFSET) & 0x1;
+        pte_u = (pte >> PTE_U_OFFSET) & 0x1;
+        pte_a = (pte >> PTE_A_OFFSET) & 0x1;
+        pte_d = (pte >> PTE_D_OFFSET) & 0x1;
+        // Read PPN
+        ppn = (pte >> PTE_PPN_OFFSET) & PPN_M;
+
+        // Check invalid entry
+        if (!pte_v || (!pte_r && pte_w))
+        {
+            //log << LOG_ERR << "Invalid entry: PTE = 0x" << std::hex << pte << endm;
+            //DEBUG_EMU(gprintf("ERROR: Invalid entry: PTE = 0x%x\n", pte);)
+            throw_page_fault(addr, macc);
+        }
+
+        // Check if PTE is a pointer to next table level
+    } while (!pte_r && !pte_x);
+
+    // A leaf PTE has been found
+    //log << LOG_DEBUG << "Valid leaf PTE found at level " << std::dec << level << endm;
+    //DEBUG_EMU(gprintf("Valid leaf PTE found at level %d\n", level);)
+
+    // Check permissions. This is different for each access type.
+    // Load accesses are permitted iff all the following are true:
+    // - the page has read permissions or the page has execute permissions and mstatus.mxr is set
+    // - if the effective execution mode is user, then the page permits user-mode access (U=1)
+    // - if the effective execution mode is system, then the page permits system-mode access (U=0 or SUM=1)
+    // Store accesses are permitted iff all the following are true:
+    // - the page has write permissions
+    // - if the effective execution mode is user, then the page permits user-mode access (U=1)
+    // - if the effective execution mode is system, then the page permits system-mode access (U=0 or SUM=1)
+    // Instruction fetches are permitted iff all the following are true:
+    // - the page has execute permissions
+    // - if the execution mode is user, then the page permits user-mode access (U=1)
+    // - if the execution mode is system, then the page does not permit user-mode access (U=0)
+    switch (macc)
+    {
+        case Mem_Access_Load:
+            if (!(pte_r || (mxr && pte_x)) ||
+                ((prv_data == CSR_PRV_U) && !pte_u) ||
+                ((prv_data == CSR_PRV_S) && pte_u && !sum))
+            {
+                throw_page_fault(addr, macc);
+            }
+            break;
+        case Mem_Access_Store:
+            if (!pte_w ||
+                ((prv_data == CSR_PRV_U) && !pte_u) ||
+                ((prv_data == CSR_PRV_S) && pte_u && !sum))
+            {
+                throw_page_fault(addr, macc);
+            }
+            break;
+        case Mem_Access_Fetch:
+            if (!pte_x ||
+                ((prv_inst == CSR_PRV_U) && !pte_u) ||
+                ((prv_inst == CSR_PRV_S) && pte_u))
+            {
+                throw_page_fault(addr, macc);
+            }
+            break;
+    }
+
+    // Check if it is a misaligned superpage
+    if ((level > 0) && ((ppn & ((1<<(PTE_Idx_Size*level))-1)) != 0))
+    {
+        //log << LOG_ERR << "Misaligned superpage" << endm;
+        //for (int i = 0; i < level; i++)
+        //  log << LOG_DEBUG << "* ppn[" << std::dec << i << "] = 0x" << std::hex << ((ppn>>(PTE_Idx_Size*i)) & ((1<<(PTE_Idx_Size))-1)) << endm;
+        throw_page_fault(addr, macc);
+    }
+
+    // Hardware A/D bit updates (FIXME: This should be done by SW)
+    if (!pte_a || ((macc == Mem_Access_Store) && !pte_d))
+    {
+        //log << LOG_DEBUG << "* Setting A/D bits in PTE" << endm;
+
+        // Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
+        uint64_t pte_write = pte;
+        pte_write |= uint64_t(1) << PTE_A_OFFSET;
+        if (macc == Mem_Access_Store)
+            pte_write |= uint64_t(1) << PTE_D_OFFSET;
+
+        // Write PTE
+        memwrite64(pte_addr, pte_write, false);
+    }
+
+    // Obtain physical address
+    uint64_t paddr;
+
+    // Copy page offset
+    paddr = addr & PG_OFFSET_M;
+
+    for (int i = 0; i < Num_Levels; i++)
+    {
+        // If level > 0, this is a superpage translation so VPN[level-1:0] are part of the page offset
+        if (i < level) {
+            paddr |= addr & (pte_idx_mask << (PG_OFFSET_SIZE + PTE_Idx_Size*i));
+        } else if (i == Num_Levels-1) {
+            paddr |= (ppn & (pte_top_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
+        } else {
+            paddr |= (ppn & (pte_idx_mask << (PTE_Idx_Size*i))) << PG_OFFSET_SIZE;
+        }
+    }
+
+    // Final physical address only uses 40 bits
+    paddr &= PA_M;
+
+    DEBUG_EMU(gprintf("Physical address = 0x%x\n",paddr););
+
+    return paddr;
 }
 
 void ecall(const char* comm)
 {
     DISASM(gsprintf(dis,"I: ecall%s%s",(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    trap_to_mmode(CSR_MCAUSE_ECALL_FROM_UMODE + csrget(csr_prv), 0);
+    switch (csrget(csr_prv))
+    {
+        case CSR_PRV_U: throw trap_user_ecall(); break;
+        case CSR_PRV_S: throw trap_supervisor_ecall(); break;
+        case CSR_PRV_M: throw trap_machine_ecall(); break;
+        default       : assert(0); break;
+    }
 }
 
 void ebreak(const char* comm)
 {
     DISASM(gsprintf(dis,"I: ebreak%s%s",(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    // TODO: The spec says that hardware breakpoint sets mtval/stval to the
-    // current PC but ebreak is a software breakpoint; should it also set
-    // mtval/stval to the current PC or set it to 0?
-    trap_to_mmode(CSR_MCAUSE_BREAKPOINT, 0);
+    // The spec says that hardware breakpoint sets mtval/stval to the current
+    // PC but ebreak is a software breakpoint; should it also set mtval/stval
+    // to the current PC or set it to 0?
+    throw trap_breakpoint(current_pc);
 }
 
 void sret(const char* comm)
@@ -2520,18 +2600,14 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 // FLoating point unit to be turned on.
 static int check_fs()
 {
-#if 0
     // Check that mstatus.FS is not off, otherwise throw an illegal instruction exception
     uint64_t mstatus = csrget(csr_mstatus);
     uint64_t fs = (mstatus >> 13) & 0x3;
     if (fs == 0)
     {
-       unknown();
-       return 1;
+       throw trap_illegal_instruction(current_inst);
     }
-#endif
     return 0;
-
 }
 
 
@@ -6148,6 +6224,12 @@ static void tcoop()
     //TODO implement functionality checking the addresses and tcoop of every use of Tensor Load
     DEBUG_EMU(gprintf("\tSetting Tensor Cooperation:  Warl [%040X] . Timeout %d . Coop Mask %08X . Coop ID : %d\n",warl, timeout , coop_mask ,coop_id  );)
 
+}
+static void offtxfma()
+{
+    uint64_t reg         = csrget(csr_offtxfma);
+    DEBUG_EMU(gprintf("\tSetting offtxfma:  %d \n  ", reg);)
+    
 }
 
 // ----- TensorLoad emulation --------------------------------------------------

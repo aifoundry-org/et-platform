@@ -2,7 +2,6 @@
 #define _INSTRUCTION_CACHE_
 
 // Local includes
-#include "checker_defines.h"
 #include "instruction.h"
 #include "main_memory.h"
 #include "testLog.h"

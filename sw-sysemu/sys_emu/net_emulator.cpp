@@ -1,5 +1,6 @@
 // Global
 #include <stdlib.h>
+#include <inttypes.h>
 
 // Local
 #include "net_emulator.h"
@@ -30,10 +31,10 @@ void net_emulator::set_file(char * net_desc_file)
     while(!feof(f))
     {
         net_emulator_layer layer;
-        int res = fscanf(f, "Compute: %llx, Helper: %llx, ShireMask: %llx, MinionMask: %llx, ID: %i, Name: %s\n", &layer.compute_pc, &layer.helper_pc, &layer.shire_mask, &layer.minion_mask, &layer.id, layer.name);
+        int res = fscanf(f, "Compute: %" PRIx64 ", Helper: %" PRIx64 ", ShireMask: %" PRIx64 ", MinionMask: %" PRIx64 ", ID: %i, Name: %s\n", &layer.compute_pc, &layer.helper_pc, &layer.shire_mask, &layer.minion_mask, &layer.id, layer.name);
         if(res == 6)
         {
-            res = fscanf(f, "TensorA: %llx, TensorB: %llx, TensorC: %llx, TensorD: %llx, TensorE: %llx, ComputeSize: %x, HelperSize: %x, InfoPointer: %llx\n", &layer.tensor_a, &layer.tensor_b, &layer.tensor_c, &layer.tensor_d, &layer.tensor_e, &layer.compute_size, &layer.helper_size, &layer.info_pointer);
+            res = fscanf(f, "TensorA: %" PRIx64 ", TensorB: %" PRIx64 ", TensorC: %" PRIx64 ", TensorD: %" PRIx64 ", TensorE: %" PRIx64 ", ComputeSize: %x, HelperSize: %x, InfoPointer: %" PRIx64 "\n", &layer.tensor_a, &layer.tensor_b, &layer.tensor_c, &layer.tensor_d, &layer.tensor_e, &layer.compute_size, &layer.helper_size, &layer.info_pointer);
             if(res == 8)
                 layers.push_back(layer);
             else

@@ -8,6 +8,7 @@
 #include "log.h"
 #include "ipc.h"
 #include "cvt.h"
+#include "emu.h"
 #include "emu_gio.h"
 
 using emu::gprintf;
@@ -17,7 +18,7 @@ using emu::gfprintf;
 extern int fake_sampler;
 extern char dis[];
 
-TBOXEmu tbox_emulator;
+static TBOXEmu tbox_emulator;
 
 void init_txs(uint64_t imgTableAddr)
 {
@@ -176,7 +177,7 @@ void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleReque
 
     tbox_emulator.set_image_table_address(base_copy);
 #else
-    DEBUG_EMU(gprintf("ERROR!!! You need to compiler with CHECKER enabled to use checker_sample_quad().\n");)
+    DEBUG_EMU(gprintf("ERROR!!! You need to compile with CHECKER enabled to use checker_sample_quad().\n");)
     exit(-1);
 #endif
 }
