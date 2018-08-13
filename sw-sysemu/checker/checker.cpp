@@ -411,10 +411,14 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
 
             for(int i = 0; i < (VL/2); i++)
             {
+              if (((get_mask(0) >> (2*i)) & 0x3) == 0)
+                continue;
               if(inst->get_is_1ulp())
               {
                 bool errlo = !fp_1ulp_check(emu_state_change.fp_reg_data[i] & 0xFFFFFFFF, changes->fp_reg_data[i] & 0xFFFFFFFF);
                 bool errhi = !fp_1ulp_check(emu_state_change.fp_reg_data[i] >> 32, changes->fp_reg_data[i] >> 32);
+                errlo &= ((get_mask(0) >> (2*i)) & 0x1);
+                errhi &= ((get_mask(0) >> (2*i+1)) & 0x1);
                 if (errlo || errhi)
                 {
                     stream << "FP Register data error (";
@@ -425,6 +429,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     else
                         stream << (2*i+1);
                     stream << "). Expected data is 0x" << std::hex << emu_state_change.fp_reg_data[i] << " but provided is 0x" << changes->fp_reg_data[i] << std::dec;
+                    stream << " Current mask: 0x" << std::hex << get_mask(0) << std::dec;
                     error_msg = stream.str();
                     return CHECKER_ERROR;
                 }
@@ -435,16 +440,22 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 {
                     bool errlo = (emu_state_change.fp_reg_data[i] & 0xFFFFFFFF) != (changes->fp_reg_data[i] & 0xFFFFFFFF);
                     bool errhi = (emu_state_change.fp_reg_data[i] >> 32) != (changes->fp_reg_data[i] >> 32);
-                    stream << "FP Register data error (";
-                    if (errlo && errhi)
-                        stream << (2*i+1) << ", " << (2*i);
-                    else if (errlo)
-                        stream << (2*i);
-                    else
-                        stream << (2*i+1);
-                    stream << "). Expected data is 0x" << std::hex << emu_state_change.fp_reg_data[i] << " but provided is 0x" << changes->fp_reg_data[i] << std::dec;
-                    error_msg = stream.str();
-                    return CHECKER_ERROR;
+                    errlo &= ((get_mask(0) >> (2*i)) & 0x1);
+                    errhi &= ((get_mask(0) >> (2*i+1)) & 0x1);
+                    if (errlo || errhi)
+                    {            
+                        stream << "FP Register data error (";
+                        if (errlo && errhi)
+                            stream << (2*i+1) << ", " << (2*i);
+                        else if (errlo)
+                            stream << (2*i);
+                        else
+                            stream << (2*i+1);
+                        stream << "). Expected data is 0x" << std::hex << emu_state_change.fp_reg_data[i] << " but provided is 0x" << changes->fp_reg_data[i] << std::dec;
+                        stream << " Current mask: 0x" << std::hex << get_mask(0) << std::dec;
+                        error_msg = stream.str();
+                        return CHECKER_ERROR;
+                    }
                 }
               }
             }
