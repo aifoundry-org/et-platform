@@ -3428,7 +3428,7 @@ void fsqrt_s(freg dst, freg src1, rounding_mode rm, const char* comm)
 void feq_s(xreg dst, freg src1, freg src2, const char* comm)
 {
     if (check_fs()) return;
-    DISASM(gsprintf(dis,"I: feq.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: feq.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucmp(FEQ, dst, src1, src2);
 }
@@ -3436,7 +3436,7 @@ void feq_s(xreg dst, freg src1, freg src2, const char* comm)
 void fle_s(xreg dst, freg src1, freg src2, const char* comm)
 {
     if (check_fs()) return;
-    DISASM(gsprintf(dis,"I: fle.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fle.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucmp(FLE, dst, src1, src2);
 }
@@ -3444,7 +3444,7 @@ void fle_s(xreg dst, freg src1, freg src2, const char* comm)
 void flt_s(xreg dst, freg src1, freg src2, const char* comm)
 {
     if (check_fs()) return;
-    DISASM(gsprintf(dis,"I: flt.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: flt.s f%d, f%d, f%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucmp(FLT, dst, src1, src2);
 }
