@@ -1478,14 +1478,13 @@ void remw(xreg dst, xreg src1, xreg src2, const char* comm)
     DISASM(gsprintf(dis,"I: remw x%d, x%d, x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     int32_t val;
-    gprintf("Doing %d %d\n", XREGS[src1].ws[0] , XREGS[src2].ws[0]);
     if(XREGS[src2].ws[0] == 0)                                              val = XREGS[src1].ws[0]; // Divide by 0
     else if((XREGS[src2].ws[0] == -1) && (XREGS[src1].w[0] == 0x80000000))  val = 0;                 // Divide is out of range in x86, return 0 straight
     else                                                                    val = XREGS[src1].ws[0] % XREGS[src2].ws[0];
     uint64_t val64 = sext32(val);
     if(dst != x0)
     {
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x %% 0x%08x\n",val64,XREGS[src1].w[0],XREGS[src2].w[0]);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%08x (%d) %% 0x%08x (%d)\n",val64,XREGS[src1].w[0], XREGS[src1].ws[0], XREGS[src2].w[0], XREGS[src2].ws[0]);)
         XREGS[dst].x = val64;
     }
     logxregchange(dst);
@@ -3332,7 +3331,7 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
         case FLE:    res.u  = (val1.f <= val2.f) ? 1 : 0;
                      DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%f) <= 0x%08x (%f)?\n",res.u,val1.u,val1.f,val2.u,val2.f);)
                      break;
-        case FEQ:    res.u  = (val1.u == val2.u) ? 1 : 0;
+        case FEQ:    res.u  = (val1.f == val2.f) ? 1 : 0;
                      DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%f) == 0x%08x (%f)?\n",res.u,val1.u,val1.f,val2.u,val2.f);)
                      break;
         default:     assert(0);
