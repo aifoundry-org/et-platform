@@ -1368,7 +1368,7 @@ void div_(xreg dst, xreg src1, xreg src2, const char* comm)
     else                                                                        val = (int64_t) XREGS[src1].x / (int64_t) XREGS[src2].x;
     if(dst != x0)
     {
-        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx * 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
+        DEBUG_EMU(gprintf("\t0x%016llx  <- 0x%016llx / 0x%016llx\n",val,XREGS[src1].x,XREGS[src2].x);)
         XREGS[dst].x = (uint64_t) val;
     }
     logxregchange(dst);
