@@ -3167,7 +3167,7 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
             case FEQ:
                 if (genResult)
                 {
-                    res.u  = (val1.u == val2.u) ? 0xFFFFFFFF : 0;
+                    res.u  = (val1.f == val2.f) ? 0xFFFFFFFF : 0;
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%f) == 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f););
                 }
                 break;
@@ -4266,7 +4266,7 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
             case FLE:    res.u  = (val1.f <= val2.f) ? 1 : 0;
                          DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%f) <= 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f);)
                          break;
-            case FEQ:    res.u  = (val1.u == val2.u) ? 1 : 0;
+            case FEQ:    res.u  = (val1.f == val2.f) ? 1 : 0;
                          DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%f) == 0x%08x (%f)?\n",i,res.u,val1.u,val1.f,val2.u,val2.f);)
                          break;
             case FSET:   res.u  = (val1.u) ? 1 : 0;
