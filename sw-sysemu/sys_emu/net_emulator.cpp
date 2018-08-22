@@ -4,6 +4,7 @@
 
 // Local
 #include "net_emulator.h"
+#include "sys_emu.h"
 
 // Constructor
 net_emulator::net_emulator(main_memory * mem_)
@@ -108,17 +109,17 @@ void net_emulator::get_new_ipi(std::list<int> * enabled_threads, std::list<int> 
     }
 
     // Generate list of IPI based on masks
-    for(int s = 0; s < 64; s++)
+    for(int s = 0; s < (NUM_MINIONS / MINIONS_PER_SHIRE); s++)
     {
         // If shire enabled
         if((layer.shire_mask >> s) & 1)
         {
-            for(int m = 0; m < 64; m++)
+            for(int m = 0; m < MINIONS_PER_SHIRE; m++)
             {
                 // If minion enabled
                 if((layer.minion_mask >> m) & 1)
                 {
-                    int minion_id = s * 128 + m * 2 + thread;
+                    int minion_id = s * MINIONS_PER_SHIRE * THREADS_PER_MINION + m * THREADS_PER_MINION + thread;
                     ipi_threads->push_back(minion_id);
                 }
             }

@@ -578,7 +578,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
         {
             int size;
             int passes;
-            bool conv_skip[4];
+            bool conv_skip[VL];
             uint32_t data;
             data = get_tensorfma_value(0, 0, 0, &size, &passes, &conv_skip[0]);
             // For all the passes
@@ -588,11 +588,14 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 for(int entry = 0; entry < size; entry++)
                 {
                     // Move to next entry if this pass for this entry was skipped due conv CSR
-                    for(int lane = 0; lane < 4; lane++)
+                    bool skip = true;
+                    for(int lane = 0; lane < VL; lane++)
                     {             
                         get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
+                        skip = skip && conv_skip[lane];
                     }
-                    if (conv_skip[0] && conv_skip[1] && conv_skip[2] && conv_skip[3]) continue;
+
+                    if (skip) continue;
                     
                     // Looks for the 1st entry in the list of RTL written lines with same destination
                     auto it = tensorfma_list[thread].begin();
@@ -609,8 +612,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                         return CHECKER_ERROR;
                     }
 
-                    // Compares the data for all the lanes (4 x 32b lanes)
-                    for(int lane = 0; lane < 4; lane++)
+                    // Compares the data for all the lanes (8 x 32b lanes)
+                    for(int lane = 0; lane < VL; lane++)
                     {
                         if(conv_skip[lane] == 1) continue;
                         data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
@@ -726,7 +729,7 @@ void checker::tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, 
     tensorfma_entry tensorfma;
 
     tensorfma.entry = entry;
-    for(int i = 0; i < 4; i++)
+    for(int i = 0; i < VL; i++)
     {
         tensorfma.data[i] = data[i];
     }
