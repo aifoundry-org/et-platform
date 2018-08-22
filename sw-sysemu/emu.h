@@ -30,7 +30,7 @@
 extern xdata xregs[EMU_NUM_THREADS][32];
 extern fdata fregs[EMU_NUM_THREADS][32];
 extern mdata mregs[EMU_NUM_THREADS][8];
-extern fdata scp[EMU_NUM_THREADS][64][4];
+extern fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES][L1_SCP_BLOCKS];
 
 // Processor configuration
 extern uint8_t in_sysemu;
@@ -496,7 +496,7 @@ extern void get_scratchpad_conv_list(std::list<bool> * list);
 
 // TensorFMA
 
-extern uint64_t get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
+extern uint32_t get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
 
 // TensorReduce
 

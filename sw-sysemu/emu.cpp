@@ -36,15 +36,15 @@ xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
 mdata mregs[EMU_NUM_THREADS][8];
 uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
-fdata scp[EMU_NUM_THREADS][64][4];
+fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES][L1_SCP_BLOCKS];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
 bool scp_tm;
 int tensorfma_size[EMU_NUM_THREADS];
 int tensorfma_passes[EMU_NUM_THREADS];
-uint32_t tensorfma_data[EMU_NUM_THREADS][32][4][16];
-bool tensorfma_mask_skip[16][8];
-bool tensorfma_zero_skip[16][32][4];
+uint32_t tensorfma_data[EMU_NUM_THREADS][32][VL][TFMA_MAX_ACOLS];
+bool tensorfma_mask_skip[TFMA_MAX_ACOLS][TFMA_MAX_AROWS];
+bool tensorfma_zero_skip[TFMA_MAX_ACOLS][32][VL];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
@@ -5342,17 +5342,6 @@ static void packrep(opcode opc, freg dst, freg src1)
     switch (opc)
     {
         case FPACKREPHPI :
-#if (VL==8) // FIXME: "Old" fpackrephpi behavior
-            {
-                uint32_t packed_val0 = uint32_t(val.h[0]) | uint32_t(val.h[2] << 16);
-                uint32_t packed_val1 = uint32_t(val.h[4]) | uint32_t(val.h[6] << 16);
-                for (int i = 0; i < VL; i += 2)
-                {
-                    if (MREGS[0].b[i  ]) FREGS[dst].u[i  ] = packed_val0;
-                    if (MREGS[0].b[i+1]) FREGS[dst].u[i+1] = packed_val1;
-                }
-            }
-#else
             for (int i = 0; i < VL; i++)
             {
                 if (MREGS[0].b[i] == 0) continue;
@@ -5361,16 +5350,8 @@ static void packrep(opcode opc, freg dst, freg src1)
                 FREGS[dst].u[i] = uint32_t(val.h[j]) | (uint32_t(val.h[j+2]) << 16);
                 //DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (chan %d,%d)\n",i,FREGS[dst].u[i],FREGS[dst].u[i],j,j+2););
             }
-#endif
             break;
         case FPACKREPBPI:
-#if (VL==8) // FIXME: "Old" fpackrepbpi behavior
-            {
-                uint32_t packed_val = uint32_t(val.b[0]) | uint32_t(val.b[4] << 8) | uint32_t(val.b[8] << 16) | uint32_t(val.b[12] << 24);
-                for (int i = 0; i < VL; i++)
-                    if (MREGS[0].b[i]) FREGS[dst].u[i] = packed_val;
-            }
-#else
             for (int i = 0; i < VL; i++)
             {
                 if (MREGS[0].b[i] == 0) continue;
@@ -5379,7 +5360,6 @@ static void packrep(opcode opc, freg dst, freg src1)
                 FREGS[dst].u[i] = uint32_t(val.b[j]) | (uint32_t(val.b[j+4]) << 8) | (uint32_t(val.b[j+8]) << 16) | (uint32_t(val.b[j+12]) << 24);
                 //DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (chan %d,%d,%d,%d)\n",i,FREGS[dst].u[i],FREGS[dst].u[i],j,j+4,j+8,j+12););
             }
-#endif
             break;
         default:
             assert(0);
@@ -5773,14 +5753,14 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
 
 // ----- Scratchpad emulation --------------------------------------------------
 
-static bool     scp_locked[EMU_NUM_MINIONS][64]; // A cacheline is locked
-static uint64_t scp_trans[EMU_NUM_MINIONS][64];  // Which PA the cacheline is mapped to
+static bool     scp_locked[EMU_NUM_MINIONS][L1_SCP_ENTRIES]; // A cacheline is locked
+static uint64_t scp_trans[EMU_NUM_MINIONS][L1_SCP_ENTRIES];  // Which PA the cacheline is mapped to
 
 uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
     * last_entry = scp_entry[current_thread];
     * size = scp_size[current_thread];
-    return SCP[entry][block >> 1].x[block & 1];
+    return SCP[entry][block >> 2].x[block & 3];
 }
 
 void get_scratchpad_conv_list(std::list<bool> * list)
@@ -6337,11 +6317,11 @@ void tensorload(uint64_t control)//Transtensorload
                 {
                     DEBUG_EMU(gprintf("ERROR Tensor Load not aligned to cache line!!\n");)
                 }
-                for ( int j = 0; j < 4; j++ )
+                for ( int j = 0; j < L1_SCP_BLOCKS; j++ )
                 {
-                    for ( int k = 0; k < 4; k++ )
+                    for ( int k = 0; k < VL; k++ )
                     {
-                        uint64_t addr_final = addr+j*16+k*4;
+                        uint64_t addr_final = addr+j*VL*4+k*4;
                         uint32_t val32 = memread32(addr_final);
                         float32_t fval32 = cast_uint32_to_float32(val32);
 
@@ -6387,19 +6367,19 @@ void tensorload(uint64_t control)//Transtensorload
                     DEBUG_EMU(gprintf("\t\tAddres = 0x%016x - Stride = 0x%016x\n",addr,stride);)
                     addr += stride;
                 }
-                for (int line = 0; line < 4; ++ line) {
-                    for (int byte = 0; byte < 16; byte+=4) { // We interleve 32 bits each pass
+                for (int line = 0; line < L1_SCP_BLOCKS; ++ line) {
+                    for (int byte = 0; byte < L1_SCP_BLOCK_SIZE; byte+=4) { // We interleve 32 bits each pass
                         if (elements == 2){
-                            SCP[dst+i][line].b[byte] = tmp_buffer[0][start+line*8+byte/elements];
-                            SCP[dst+i][line].b[byte+1] = tmp_buffer[0][start+line*8+byte/elements+1];
-                            SCP[dst+i][line].b[byte+2] = tmp_buffer[1][start+line*8+byte/elements];
-                            SCP[dst+i][line].b[byte+3] = tmp_buffer[1][start+line*8+byte/elements+1];
+                            SCP[dst+i][line].b[byte]   = tmp_buffer[0][start+line*16+byte/elements];
+                            SCP[dst+i][line].b[byte+1] = tmp_buffer[0][start+line*16+byte/elements+1];
+                            SCP[dst+i][line].b[byte+2] = tmp_buffer[1][start+line*16+byte/elements];
+                            SCP[dst+i][line].b[byte+3] = tmp_buffer[1][start+line*16+byte/elements+1];
                         }
                         if(elements == 4){
-                            SCP[dst+i][line].b[byte] = tmp_buffer[0][start+line*4+byte/elements];
-                            SCP[dst+i][line].b[byte+1] = tmp_buffer[1][start+line*4+byte/elements];
-                            SCP[dst+i][line].b[byte+2] = tmp_buffer[2][start+line*4+byte/elements];
-                            SCP[dst+i][line].b[byte+3] = tmp_buffer[3][start+line*4+byte/elements];
+                            SCP[dst+i][line].b[byte]   = tmp_buffer[0][start+line*8+byte/elements];
+                            SCP[dst+i][line].b[byte+1] = tmp_buffer[1][start+line*8+byte/elements];
+                            SCP[dst+i][line].b[byte+2] = tmp_buffer[2][start+line*8+byte/elements];
+                            SCP[dst+i][line].b[byte+3] = tmp_buffer[3][start+line*8+byte/elements];
                         }
 
                         DEBUG_EMU(gprintf("SCP[%d][%d].u[%d] = 0x%08x\n",dst+i,line,byte/4,SCP[dst+i][line].u[byte/4]);)
@@ -6451,19 +6431,19 @@ void tensorload(uint64_t control)//Transtensorload
                 }
                 for (int j = 0; j < elements; ++j) {
                     if (size == 4){
-                        SCP[dst+i][j/4].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
-                        SCP[dst+i][j/4].b[(j*size+1)%16] = tmp_buffer[j][(i)*size+offset+1];
-                        SCP[dst+i][j/4].b[(j*size+2)%16] = tmp_buffer[j][(i)*size+offset+2];
-                        SCP[dst+i][j/4].b[(j*size+3)%16] = tmp_buffer[j][(i)*size+offset+3];
+                        SCP[dst+i][j*4/L1_SCP_BLOCK_SIZE].b[(j*size)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset];
+                        SCP[dst+i][j*4/L1_SCP_BLOCK_SIZE].b[(j*size+1)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset+1];
+                        SCP[dst+i][j*4/L1_SCP_BLOCK_SIZE].b[(j*size+2)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset+2];
+                        SCP[dst+i][j*4/L1_SCP_BLOCK_SIZE].b[(j*size+3)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset+3];
                         DEBUG_EMU(gprintf("\tI'm size 4 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(i)*size+offset],tmp_buffer[j][(i)*size+offset+1]);)
                     }
                     else if (size == 2) {
-                        SCP[dst+i][j/8].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
-                        SCP[dst+i][j/8].b[(j*size+1)%16] = tmp_buffer[j][(i)*size+offset+1];
+                        SCP[dst+i][j*2/L1_SCP_BLOCK_SIZE].b[(j*size)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset];
+                        SCP[dst+i][j*2/L1_SCP_BLOCK_SIZE].b[(j*size+1)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset+1];
                         DEBUG_EMU(gprintf("\tI'm size 2 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][(i)*size+offset],tmp_buffer[j][(i)*size+offset+1]);)
                     }
                     else if (size == 1) {
-                        SCP[dst+i][j/16].b[(j*size)%16] = tmp_buffer[j][(i)*size+offset];
+                        SCP[dst+i][j/L1_SCP_BLOCK_SIZE].b[(j*size)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset];
                         DEBUG_EMU(gprintf("\tI'm size 1 - b[0]=0x%02x b[1]=0x%02x\n",tmp_buffer[j][dst+(i)*size+offset],tmp_buffer[j][dst+(i)*size+offset+1]);)
                     }
                     else {
@@ -6471,8 +6451,8 @@ void tensorload(uint64_t control)//Transtensorload
                     }
 
                 }
-                for (int x = 0; x < 4; ++x) {
-                    for (int y = 0; y < 4; ++y) {
+                for (int x = 0; x < L1_SCP_BLOCKS; ++x) {
+                    for (int y = 0; y < VL; ++y) {
                          DEBUG_EMU(gprintf("SCP[%d][%d].u[%d] = 0x%08x\n",dst+i,x,y,SCP[dst+i][x].u[y]);)
                     }
                 }
@@ -6501,18 +6481,20 @@ static void tensorstore(uint64_t tstorereg)
     // For all the rows
     for(uint64_t row = 0; row < rows; row++)
     {
-        // For all the cols
+        // For all the blocks of 128b 
         for(uint64_t col = 0; col < cols; col++)
         {
-            // For all the elements of the lane
+            // For all the 32 elements of the 128b block
             for(uint64_t i = 0; i < 4; i++)
             {
-                uint32_t val = FREGS[src].u[i];
+                uint32_t idx = (col & 1) * 4 + i;
+                uint32_t val = FREGS[src].u[idx];
                 memwrite32(addr + col * 16 + i * 4, val);
                 DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
                 //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
             }
-            src += srcinc;
+            if(cols == 1)    src += srcinc; // For 128b stores, move to next desired register
+            else if(col & 1) src += srcinc; // For 256b and 512b stores, move to next desired register when 256b are written
         }
         addr += stride;
     }
@@ -6579,24 +6561,24 @@ static void tensorfma(uint64_t tfmareg)
 
     DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, bstart: %d, astart: %d\n", tm, aoffset, type, first_pass, bcols, acols, arows, bstart, astart);)
 
-    tensorfma_size[current_thread] = arows * bcols / 4;
+    tensorfma_size[current_thread] = arows * bcols / VL;
     tensorfma_passes[current_thread] = acols;
 
     // No mask skip by default
-    for(int i = 0; i < 16; i++)
+    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
     {
-        for(int j = 0; j < 8; j++)
+        for(int j = 0; j < TFMA_MAX_AROWS; j++)
         {
             tensorfma_mask_skip[i][j] = 0;
         }
     }
 
     // No zero skip by default
-    for(int i = 0; i < 16; i++)
+    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
     {
         for(int j = 0; j < 32; j++)
         {
-            for(int k = 0; k < 4; k++)
+            for(int k = 0; k < VL; k++)
             {
                 tensorfma_zero_skip[i][j][k] = 0;
             }
@@ -6612,13 +6594,13 @@ static void tensorfma(uint64_t tfmareg)
             {
                 for ( int bc = 0; bc < bcols; bc++ )
                 {
-                    int bf = bc / 4;
-                    int bm = bc % 4;
+                    int bf = bc / VL;
+                    int bm = bc % VL;
 
                     if(MREGS[0].b[bm] == 0) continue;
 
-                    FREGS[4*ar+bf].f[bm] = 0.0f;
-                    tensorfma_data[current_thread][4*ar+bf][bm][0] = 0;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = 0.0f;
+                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
                 }
             }
         }
@@ -6631,7 +6613,7 @@ static void tensorfma(uint64_t tfmareg)
                 if(!tmask_pass(ar))
                 {
                     // Mark all passes as skipped
-                    for(int i = 0; i < 16; i++)
+                    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
                         tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if(first_pass)
@@ -6644,49 +6626,49 @@ static void tensorfma(uint64_t tfmareg)
 
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
             {
-                int bf = bc / 4;
-                int bm = bc % 4;
+                int bf = bc / VL;
+                int bm = bc % VL;
                 if(MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
                 {
-                    int af = (aoffset + ac) / 4;
-                    int am = (aoffset + ac) % 4;
+                    int af = (aoffset + ac) / VL;
+                    int am = (aoffset + ac) % VL;
                     int br = bstart + ac;                // B: traverse acols rows
-                    float32_t old = FREGS[4*ar+bf].f[bm];
-                    uint32_t oldu = FREGS[4*ar+bf].u[bm];
-                    FREGS[4*ar+bf].f[bm] = fmaf(SCP[astart+ar][af].f[am],SCP[br][bf].f[bm],old);
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n",4*ar+bf,bm,FREGS[4*ar+bf].f[bm],old,SCP[astart+ar][af].f[am],SCP[br][bf].f[bm]);)
+                    float32_t old = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
+                    uint32_t oldu = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = fmaf(SCP[astart+ar][af].f[am],SCP[br][bf].f[bm],old);
+                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm],old,SCP[astart+ar][af].f[am],SCP[br][bf].f[bm]);)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%08x * 0x%08x\n",oldu,SCP[astart+ar][af].u[am],SCP[br][bf].u[bm]);)
                     // For checker purposes we keep the data of all the passes
-                    tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
+                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
                     if ((first_pass == 0) || (ac != 0)) {
                     // If As are zeroes, we skip operation
                       if(SCP[astart+ar][af].f[am] == 0)
-                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     // If Bs are zeroes, we skip operation
                       if(SCP[br][bf].f[bm] == 0)
-                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,1,FREGS[4*ar+0].u[1],FREGS[4*ar+0].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,2,FREGS[4*ar+0].u[2],FREGS[4*ar+0].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,3,FREGS[4*ar+0].u[3],FREGS[4*ar+0].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,0,FREGS[4*ar+1].u[0],FREGS[4*ar+1].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,1,FREGS[4*ar+1].u[1],FREGS[4*ar+1].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,2,FREGS[4*ar+1].u[2],FREGS[4*ar+1].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,3,FREGS[4*ar+1].u[3],FREGS[4*ar+1].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,0,FREGS[4*ar+2].u[0],FREGS[4*ar+2].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,1,FREGS[4*ar+2].u[1],FREGS[4*ar+2].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,2,FREGS[4*ar+2].u[2],FREGS[4*ar+2].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,3,FREGS[4*ar+2].u[3],FREGS[4*ar+2].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,0,FREGS[4*ar+3].u[0],FREGS[4*ar+3].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,1,FREGS[4*ar+3].u[1],FREGS[4*ar+3].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,2,FREGS[4*ar+3].u[2],FREGS[4*ar+3].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,3,FREGS[4*ar+3].u[3],FREGS[4*ar+3].f[3]);)
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[7]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[7]);)
         }
     }
     // *FP16+FP32
@@ -6698,12 +6680,12 @@ static void tensorfma(uint64_t tfmareg)
             {
                 for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
                 {
-                    int bf = bc / 4;
-                    int bm = bc % 4;
+                    int bf = bc / VL;
+                    int bm = bc % VL;
                     if(MREGS[0].b[bm] == 0) continue;
 
-                    FREGS[4*ar+bf].f[bm] = 0.0f;
-                    tensorfma_data[current_thread][4*ar+bf][bm][0] = 0;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = 0.0f;
+                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
                 }
             }
         }
@@ -6716,7 +6698,7 @@ static void tensorfma(uint64_t tfmareg)
                 if(!tmask_pass(ar))
                 {
                     // Mark all passes as skipped
-                    for(int i = 0; i < 16; i++)
+                    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
                         tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if(first_pass)
@@ -6727,19 +6709,19 @@ static void tensorfma(uint64_t tfmareg)
 
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
             {
-                int bf = bc / 4;
-                int bm = bc % 4;
+                int bf = bc / VL;
+                int bm = bc % VL;
                 if(MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
                 {
-                    int af = (aoffset + ac) / 4;
-                    int am = (aoffset + ac) % 4;
+                    int af = (aoffset + ac) / VL;
+                    int am = (aoffset + ac) % VL;
                     int br = bstart + ac;                // B: traverse rows
 
 
                     // Doing two FMAs per lane and accumulating to previous results
-                    float32_t accum      = FREGS[4*ar+bf].f[bm];
+                    float32_t accum      = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
 
 #ifdef USE_REAL_TXFMA
                     // 1st FMA
@@ -6817,9 +6799,9 @@ static void tensorfma(uint64_t tfmareg)
                     uint32_t hex_res = * (uint32_t * ) &res;
                     hex_res          = ((hex_res & 0x7F800000) == 0) ? (hex_res & 0x80000000) : hex_res; // kill output denormal to zero (preserve sign)
                     res              = * (float32_t *) &hex_res;
-                    FREGS[4*ar+bf].f[bm] = res;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f + %f * %f\n", 4 * ar + bf, bm, res, accum, mul1_a, mul1_b, mul2_a, mul2_b);)
+                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f + %f * %f\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul1_a, mul1_b, mul2_a, mul2_b);)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%04x * 0x%04x + 0x%04x * 0x%04x\n", * ((int *) &accum), mul1_a_hex, mul1_b_hex, mul2_a_hex, mul2_b_hex);)
                     // Uncomment to help debugging
                     //DEBUG_EMU(gprintf("\tBefore truncating accum 0x%08x, fma1 0x%08x, fma2 0x%08x\n", hex_accum, hex_fma1, hex_fma2);)
@@ -6833,9 +6815,9 @@ static void tensorfma(uint64_t tfmareg)
                     uint32_t  mul_b_hex  = SCP[br][bf].h[bm * 2];
                     float32_t mul_b      = _cvtsh_ss(mul_b_hex);
                     float32_t res        = fmaf(mul_a, mul_b, accum);
-                    FREGS[4*ar+bf].f[bm] = res;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%04x * 0x%04x\n", cast_float32_to_uint32(accum), mul_a_hex, mul_b_hex);)
 
                     // 2nd FMA
@@ -6843,128 +6825,43 @@ static void tensorfma(uint64_t tfmareg)
                     mul_a                = _cvtsh_ss(mul_a_hex);
                     mul_b_hex            = SCP[br][bf].h[bm * 2 + 1];
                     mul_b                = _cvtsh_ss(mul_b_hex);
-                    accum                = FREGS[4*ar+bf].f[bm];
+                    accum                = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
                     res                  = fmaf(mul_a, mul_b, accum);
-                    FREGS[4*ar+bf].f[bm] = res;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%04x * 0x%04x\n", cast_float32_to_uint32(accum), mul_a_hex, mul_b_hex);)
 #endif
 
                     // For checker purposes we keep the data of all the passes
-                    tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
+                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
                     if ((first_pass == 0) || (ac != 0)) {
                     // If both As are zeroes, we skip operation
                       if((SCP[astart+ar][af].h[am * 2] == 0) && (SCP[astart+ar][af].h[am * 2 + 1] == 0))
-                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     // If both Bs are zeroes, we skip operation
                       if((SCP[br][bf].h[bm * 2] == 0) && (SCP[br][bf].h[bm * 2 + 1] == 0))
-                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,1,FREGS[4*ar+0].u[1],FREGS[4*ar+0].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,2,FREGS[4*ar+0].u[2],FREGS[4*ar+0].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,3,FREGS[4*ar+0].u[3],FREGS[4*ar+0].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,0,FREGS[4*ar+1].u[0],FREGS[4*ar+1].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,1,FREGS[4*ar+1].u[1],FREGS[4*ar+1].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,2,FREGS[4*ar+1].u[2],FREGS[4*ar+1].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,3,FREGS[4*ar+1].u[3],FREGS[4*ar+1].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,0,FREGS[4*ar+2].u[0],FREGS[4*ar+2].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,1,FREGS[4*ar+2].u[1],FREGS[4*ar+2].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,2,FREGS[4*ar+2].u[2],FREGS[4*ar+2].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,3,FREGS[4*ar+2].u[3],FREGS[4*ar+2].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,0,FREGS[4*ar+3].u[0],FREGS[4*ar+3].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,1,FREGS[4*ar+3].u[1],FREGS[4*ar+3].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,2,FREGS[4*ar+3].u[2],FREGS[4*ar+3].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,3,FREGS[4*ar+3].u[3],FREGS[4*ar+3].f[3]);)
-        }
-    }
-    // FP16
-    else if(type == 2)
-    {
-        if(first_pass)
-        {
-            for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
-            {
-                for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
-                {
-                    int bf = bc / 8;
-                    int bm = bc % 8;
-                    if(MREGS[0].b[bm] == 0) continue;
-
-                    FREGS[4*ar+bf].h[bm] = 0.0f;
-                    tensorfma_data[current_thread][4*ar+bf][bm / 2][0] = 0;
-                }
-            }
-        }
-
-        for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
-        {
-            // Checks if needs to skip the current pass due convolution
-            if(tm)
-            {
-                if(!tmask_pass(ar))
-                {
-                    // Mark all passes as skipped
-                    for(int i = 0; i < 16; i++)
-                        tensorfma_mask_skip[i][ar] = 1;
-                    // Except 1st if first pass
-                    if(first_pass)
-                        tensorfma_mask_skip[0][ar] = 0;
-                    continue;
-                }
-            }
-
-            for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
-            {
-                int bf = bc / 8;
-                int bm = bc % 8;
-                if(MREGS[0].b[bm] == 0) continue;
-
-                for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
-                {
-                    int af = (aoffset + ac) / 8;
-                    int am = (aoffset + ac) % 8;
-                    int br = bstart + ac;                // B: traverse rows
-
-                    uint32_t  mul_a_hex = SCP[astart+ar][af].h[am];
-                    float32_t mul_a     = _cvtsh_ss(mul_a_hex);
-                    uint32_t  mul_b_hex = SCP[br][bf].h[bm];
-                    float32_t mul_b     = _cvtsh_ss(mul_b_hex);
-                    uint32_t  accum_hex = FREGS[4*ar+bf].h[bm];
-                    float32_t accum     = _cvtsh_ss(accum_hex);
-                    float32_t res       = fmaf(mul_a, mul_b, accum);
-                    FREGS[4*ar+bf].h[bm] = _cvtss_sh(res, 0);
-
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %f = %f + %f * %f\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t                       = 0x%04x + 0x%04x * 0x%04x\n", accum_hex, mul_a_hex, mul_b_hex);)
-
-                    // For checker purposes we keep the data of all the passes
-                    if(bm & 1)
-                    {
-                        tensorfma_data[current_thread][4*ar+bf][bm/2][ac] = FREGS[4*ar+bf].u[bm/2];
-                    }
-                }
-            }
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,1,FREGS[4*ar+0].u[1],FREGS[4*ar+0].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,2,FREGS[4*ar+0].u[2],FREGS[4*ar+0].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar  ,3,FREGS[4*ar+0].u[3],FREGS[4*ar+0].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,0,FREGS[4*ar+1].u[0],FREGS[4*ar+1].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,1,FREGS[4*ar+1].u[1],FREGS[4*ar+1].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,2,FREGS[4*ar+1].u[2],FREGS[4*ar+1].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+1,3,FREGS[4*ar+1].u[3],FREGS[4*ar+1].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,0,FREGS[4*ar+2].u[0],FREGS[4*ar+2].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,1,FREGS[4*ar+2].u[1],FREGS[4*ar+2].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,2,FREGS[4*ar+2].u[2],FREGS[4*ar+2].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+2,3,FREGS[4*ar+2].u[3],FREGS[4*ar+2].f[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,0,FREGS[4*ar+3].u[0],FREGS[4*ar+3].f[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,1,FREGS[4*ar+3].u[1],FREGS[4*ar+3].f[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,2,FREGS[4*ar+3].u[2],FREGS[4*ar+3].f[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    4*ar+3,3,FREGS[4*ar+3].u[3],FREGS[4*ar+3].f[3]);)
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%f)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].f[7]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%f)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].f[7]);)
         }
     }
     else if(type == 3) //INT8-INT32
@@ -6976,12 +6873,12 @@ static void tensorfma(uint64_t tfmareg)
             {
                 for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
                 {
-                    int bf = bc / 4;
-                    int bm = bc % 4;
+                    int bf = bc / VL;
+                    int bm = bc % VL;
                     if(MREGS[0].b[bm] == 0) continue;
 
-                    FREGS[4*ar+bf].u[bm] = 0;
-                    tensorfma_data[current_thread][4*ar+bf][bm][0] = 0;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
+                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
                 }
             }
         }
@@ -6994,7 +6891,7 @@ static void tensorfma(uint64_t tfmareg)
                 if(!tmask_pass(ar))
                 {
                     // Mark all passes as skipped
-                    for(int i = 0; i < 16; i++)
+                    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
                         tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if(first_pass)
@@ -7006,18 +6903,18 @@ static void tensorfma(uint64_t tfmareg)
             int32_t w = (sizeof(int32_t) << 3) - 1;//used for the bitwise saturation
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
             {
-                int bf = bc / 4;
-                int bm = bc % 4;
+                int bf = bc / VL;
+                int bm = bc % VL;
                 if(MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
                 {
-                    int af = (aoffset + ac) / 4;
-                    int am = (aoffset + ac) % 4;
+                    int af = (aoffset + ac) / VL;
+                    int am = (aoffset + ac) % VL;
                     int br = bstart + ac;                // B: traverse rows
 
                     // Doing four IMAs per lane and accumulating to previous results
-                    int32_t accum     = FREGS[4*ar+bf].u[bm];
+                    int32_t accum     = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
                     // 1st IMA
                     int32_t  mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4]);
@@ -7027,85 +6924,84 @@ static void tensorfma(uint64_t tfmareg)
                     //BITWISE SATURATION
                     res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
-                    FREGS[4*ar+bf].u[bm] = res;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%02x * 0x%02x\n", * ((int *) &accum), mul_a, mul_b);)
 
                     // 2nd IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 1]);
                     mul_b    = sext8_2 (SCP[br][bf].b[bm * 4 + 1]);
-                    accum    = FREGS[4*ar+bf].u[bm];
+                    accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
                     //BITWISE SATURATION
                     res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
-                    FREGS[4*ar+bf].u[bm] = res;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%02x * 0x%02x\n", * ((int *) &accum), mul_a, mul_b);)
 
                    // 3rd IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 2]);
                     mul_b    = sext8_2 (SCP[br][bf].b[bm * 4 + 2]);
-                    accum    = FREGS[4*ar+bf].u[bm];
+                    accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
                     //BITWISE SATURATION
                     res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
-                    FREGS[4*ar+bf].u[bm] = res;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%02x * 0x%02x\n", * ((int *) &accum), mul_a, mul_b);)
 
                     // 4th IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 3]);
                     mul_b    = sext8_2 (SCP[br][bf].b[bm * 4 + 3]);
-                    accum    = FREGS[4*ar+bf].u[bm];
+                    accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
                     //BITWISE SATURATION
                     res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
-                    FREGS[4*ar+bf].u[bm] = res;
+                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", 4 * ar + bf, bm, res, accum, mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
                     DEBUG_EMU(gprintf("\t                       = 0x%08x + 0x%02x * 0x%02x\n", * ((int *) &accum), mul_a, mul_b);)
 
                     // For checker purposes we keep the data of all the passes
-                    tensorfma_data[current_thread][4*ar+bf][bm][ac] = FREGS[4*ar+bf].u[bm];
+                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
                     if ((ac != 0) && (ac != (acols - 1))) {
 
                     // If As are zeroes, we skip operation
                       if((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
-                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     // If Bs are zeroes, we skip operation
                       if((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
-                          tensorfma_zero_skip[ac][ar*4+bc/4][bc%4] = 1;
+                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%d)\n",ar,4*ar  ,0,FREGS[4*ar+0].u[0],FREGS[4*ar+0].u[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar  ,1,FREGS[4*ar+0].u[1],FREGS[4*ar+0].u[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar  ,2,FREGS[4*ar+0].u[2],FREGS[4*ar+0].u[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar  ,3,FREGS[4*ar+0].u[3],FREGS[4*ar+0].u[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+1,0,FREGS[4*ar+1].u[0],FREGS[4*ar+1].u[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+1,1,FREGS[4*ar+1].u[1],FREGS[4*ar+1].u[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+1,2,FREGS[4*ar+1].u[2],FREGS[4*ar+1].u[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+1,3,FREGS[4*ar+1].u[3],FREGS[4*ar+1].u[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+2,0,FREGS[4*ar+2].u[0],FREGS[4*ar+2].u[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+2,1,FREGS[4*ar+2].u[1],FREGS[4*ar+2].u[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+2,2,FREGS[4*ar+2].u[2],FREGS[4*ar+2].u[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+2,3,FREGS[4*ar+2].u[3],FREGS[4*ar+2].u[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+3,0,FREGS[4*ar+3].u[0],FREGS[4*ar+3].u[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+3,1,FREGS[4*ar+3].u[1],FREGS[4*ar+3].u[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+3,2,FREGS[4*ar+3].u[2],FREGS[4*ar+3].u[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    4*ar+3,3,FREGS[4*ar+3].u[3],FREGS[4*ar+3].u[3]);)
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%d)\n",ar,TFMA_MAX_BCOLS/VL*ar  ,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6]);)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7]);)
         }
-
     }
     else
     {
@@ -7113,12 +7009,12 @@ static void tensorfma(uint64_t tfmareg)
     }
 }
 
-uint64_t get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * mask_skip)
+uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, int * passes, bool * mask_skip)
 {
     * size      = tensorfma_size[current_thread];
     * passes    = tensorfma_passes[current_thread];
-    * mask_skip = tensorfma_mask_skip[pass][entry / 4] || tensorfma_zero_skip[pass][entry][block];
-    return tensorfma_data[current_thread][entry][block][pass];
+    * mask_skip = tensorfma_mask_skip[pass][entry / TFMA_REGS_PER_ROW] || tensorfma_zero_skip[pass][entry][lane];
+    return tensorfma_data[current_thread][entry][lane][pass];
 }
 
 // ----- TensorReduce emulation ------------------------------------------------
