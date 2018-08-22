@@ -5802,15 +5802,15 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 
     uint64_t stride = XREGS[31].x & 0xFFFFFFFFFFC0UL;
 
-    uint64_t set  = (addr >> 6) & 0xFFFFFF;
-    uint64_t way  = (op_value >> 48) & 0xFF;
-    // uint64_t cl   = (set << 2) + way % 4; // FIXME: Only valid for 4 ways
-    uint64_t cl   = (way << 4) + set % 16; // FIXME: Only valid for 4 ways
+    uint64_t set  = (addr >> 6) & 0xF;
+    uint64_t way  = (op_value >> 48) & 0x3;
+    uint64_t cl   = (way << 4) + set;
 
     DEBUG_EMU(gprintf("\tDoing CacheOp with value %016llX\n", op_value);)
 
     switch (op) {
         case 3: // EvictSW
+            start = 0;  // always start from L1
             if(dest == 0) break;     // If dest is L1, done
             if(dest <= start) break; // If start is bigger or equal than dest, done
             if(set >= 16) break;     // Skip sets outside cache
@@ -5830,6 +5830,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
             }
             break;
         case 2: // FlushSW
+            start = 0;  // always start from L1
             if(dest == 0) break;     // If dest is L1, done
             if(dest <= start) break; // If start is bigger or equal than dest, done
             if(set >= 16) break;     // Skip sets outside cache
@@ -5925,6 +5926,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
             // TODO
             break;
         case 0: // LockVA
+            way = (op_value >> 48) & 0xFF;
             if((way >= 4) && (way != 255)) break; // Skip ways outside cache
             set = set % 16;
 
