@@ -36,7 +36,7 @@ xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
 mdata mregs[EMU_NUM_THREADS][8];
 uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
-fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES][L1_SCP_BLOCKS];
+fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+16][L1_SCP_BLOCKS];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
 bool scp_tm;
@@ -6291,7 +6291,7 @@ void tensorload(uint64_t control)//Transtensorload
     uint64_t use_coop           = (control >> 62) & 0x1;
     uint64_t trans              = (control >> 59) & 0x7;
     uint64_t dst                = (control >> 53) & 0x3F;
-    uint64_t read_sc            = (control >> 52) & 0x1;
+    uint64_t tenb               = (control >> 52) & 0x1;
     //uint64_t virtual_addr_l2_sc = (control >>  6) & 0x3FFFFFFFFFF;
     uint64_t base                 = control & 0xFFFFFFFFFFC0ULL;
     uint64_t boffset            = (control >>  4) & 0x03;
@@ -6302,10 +6302,12 @@ void tensorload(uint64_t control)//Transtensorload
     uint64_t addr             = base;
     scp_tm                    = tm;
 
-    DEBUG_EMU(gprintf("Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - read_sc:%d - boffset:%d - addr:0x%16X\n", trans, rows, tm, use_coop, dst, read_sc, boffset, addr);)
+    DEBUG_EMU(gprintf("Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%16X\n", trans, rows, tm, use_coop, dst, tenb, boffset, addr);)
 
-    if (read_sc) {
-       DEBUG_EMU(gprintf("ERROR Read from SC not currently supported in EMU !!\n");)
+    // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
+    if(tenb)
+    {
+        dst = 64;
     }
 
     //NO TRANS
@@ -6549,6 +6551,7 @@ static void tensorfma(uint64_t tfmareg)
     int arows      = (tfmareg & 0x0070000000000000) >> 52; // Number of A rows to be processed
     int acols      = (tfmareg & 0x000F000000000000) >> 48; // Number of A cols to be processed
     int aoffset    = (tfmareg & 0x0000F00000000000) >> 44; // A matrix 32b offset
+    int tenb       = (tfmareg & 0x0000000000100000) >> 20; // B is stored in TENB and not in SCP
     int bstart     = (tfmareg & 0x00000000000FF000) >> 12; // SCP entry where B is stored
     int astart     = (tfmareg & 0x0000000000000FF0) >>  4; // SCP entry where A is stored
     int type       = (tfmareg & 0x000000000000000E) >>  1; // Mode: 00 => FP32 | 01 => *FP16+FP32 | 10 => FP16 | 11 => *INT8+INT32
@@ -6559,7 +6562,13 @@ static void tensorfma(uint64_t tfmareg)
     arows = arows + 1;
     acols = acols + 1;
 
-    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, bstart: %d, astart: %d\n", tm, aoffset, type, first_pass, bcols, acols, arows, bstart, astart);)
+    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d\n", tm, aoffset, type, first_pass, bcols, acols, arows, tenb, bstart, astart);)
+
+    // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
+    if(tenb)
+    {
+        bstart = 64;
+    }
 
     tensorfma_size[current_thread] = arows * bcols / VL;
     tensorfma_passes[current_thread] = acols;
