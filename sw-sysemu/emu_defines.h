@@ -10,15 +10,8 @@
 // Basic types
 #ifdef HAVE_SOFTFLOAT
 #include <softfloat/softfloat_types.h>
-
-// "Real" TXFMA is not compatible with softfloat
-#ifdef USE_REAL_TXFMA
-#undef USE_REAL_TXFMA
-#endif
-
 #else
-typedef double             float64_t;
-typedef float              float32_t;
+typedef float float32_t;
 #endif
 
 // CSRs

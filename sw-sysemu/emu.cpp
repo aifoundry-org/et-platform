@@ -3229,7 +3229,6 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                 break;
             case FCVTPWPS:
                 {
-                    handle_denormal(val);
 #ifdef HAVE_SOFTFLOAT
                     res.i = f32_to_i32(val.f, softfloat_roundingMode, true);
 #else
@@ -3254,7 +3253,6 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                 break;
             case FCVTPWUPS:
                 {
-                    handle_denormal(val);
 #ifdef HAVE_SOFTFLOAT
                     res.u = f32_to_ui32(val.f, softfloat_roundingMode, true);
 #else
@@ -3408,6 +3406,8 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 break;
             case FLT:
                 {
+                    handle_denormal(val1);
+                    handle_denormal(val2);
 #ifdef HAVE_SOFTFLOAT
                     res.u = f32_lt(val1.f, val2.f) ? 0xffffffff : 0;
 #else
@@ -3418,6 +3418,8 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 break;
             case FLE:
                 {
+                    handle_denormal(val1);
+                    handle_denormal(val2);
 #ifdef HAVE_SOFTFLOAT
                     res.u = f32_le(val1.f, val2.f) ? 0xffffffff : 0;
 #else
@@ -3428,6 +3430,8 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 break;
             case FEQ:
                 {
+                    handle_denormal(val1);
+                    handle_denormal(val2);
 #ifdef HAVE_SOFTFLOAT
                     res.u = f32_eq(val1.f, val2.f) ? 0xffffffff : 0;
 #else
@@ -3544,9 +3548,9 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                     handle_denormal(val2);
                     handle_denormal(val3);
 #ifdef HAVE_SOFTFLOAT
-                    res.f = f32_neg(f32_mulAdd(val1.f, val2.f, val3.f));
+                    res.f = f32_mulAdd(f32_neg(val1.f), val2.f, f32_neg(val3.f));
 #else
-                    res.f = -fmaf(val1.f, val2.f, val3.f);
+                    res.f = fmaf(-val1.f, val2.f, -val3.f);
                     handle_nan_default(res);
 #endif
                     handle_denormal(res);
@@ -3574,9 +3578,9 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                     handle_denormal(val2);
                     handle_denormal(val3);
 #ifdef HAVE_SOFTFLOAT
-                    res.f = f32_neg(f32_mulAdd(val1.f, val2.f, f32_neg(val3.f)));
+                    res.f = f32_mulAdd(f32_neg(val1.f), val2.f, val3.f);
 #else
-                    res.f = -fmaf(val1.f, val2.f, -val3.f);
+                    res.f = fmaf(-val1.f, val2.f, val3.f);
                     handle_nan_default(res);
 #endif
                     handle_denormal(res);
@@ -5272,15 +5276,18 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 
         iufval val, res;
         val.f = FREGS[src1].f[i];
-        handle_denormal(val);
 #ifdef HAVE_SOFTFLOAT
         res.f = f32_roundToInt(val.f, softfloat_roundingMode, true);
 #else
-        handle_nan_default(val);
-        if (val.u == defaultNaNF32UI)
-            res.u = val.u;
-        else  // use c++ functions
+        if (isNaNF32UI(val.u))
+        {
+            res.u = defaultNaNF32UI;
+        }
+        else
+        {
             res.f = roundf(val.f,  rm);
+            handle_nan_default(res);
+        }
 #endif
         DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) \n",i,res.u,res.flt,val.u,val.flt););
         FREGS[dst].f[i] = res.f;
