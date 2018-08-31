@@ -3332,9 +3332,9 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                     res.f = f32_add(val1.f, val2.f);
 #else
                     res.f  = val1.f + val2.f;
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) + 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
@@ -3346,9 +3346,9 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                     res.f = f32_sub(val1.f, val2.f);
 #else
                     res.flt  = val1.flt - val2.flt;
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) - 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
@@ -3360,9 +3360,9 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                     res.f = f32_mul(val1.f, val2.f);
 #else
                     res.f  = val1.f * val2.f;
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
@@ -3374,14 +3374,16 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                     res.f = f32_div(val1.f, val2.f);
 #else
                     res.f  = val1.f / val2.f;
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) / 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FMIN:
                 {
+                    handle_denormal(val1);
+                    handle_denormal(val2);
 #ifdef HAVE_SOFTFLOAT
                     res.f = f32_min(val1.f, val2.f);
 #else
@@ -3393,6 +3395,8 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 break;
             case FMAX:
                 {
+                    handle_denormal(val1);
+                    handle_denormal(val2);
 #ifdef HAVE_SOFTFLOAT
                     res.f = f32_max(val1.f, val2.f);
 #else
@@ -3528,9 +3532,9 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                     res.f = f32_mulAdd(val1.f, val2.f, val3.f);
 #else
                     res.f = fmaf(val1.f, val2.f, val3.f);
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g) + 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
                 break;
@@ -3543,9 +3547,9 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                     res.f = f32_neg(f32_mulAdd(val1.f, val2.f, val3.f));
 #else
                     res.f = -fmaf(val1.f, val2.f, val3.f);
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) + 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
                 break;
@@ -3558,9 +3562,9 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                     res.f = f32_mulAdd(val1.f, val2.f, f32_neg(val3.f));
 #else
                     res.f = fmaf(val1.f, val2.f, -val3.f);
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
                 break;
@@ -3573,9 +3577,9 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                     res.f = f32_neg(f32_mulAdd(val1.f, val2.f, f32_neg(val3.f)));
 #else
                     res.f = -fmaf(val1.f, val2.f, -val3.f);
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
                 break;
@@ -6879,9 +6883,9 @@ static void tensorfma(uint64_t tfmareg)
                     res.f = f32_mulAdd(mul_a.f, mul_b.f, accum.f);
 #else
                     res.f = fmaf(mul_a.f, mul_b.f, accum.f);
+                    handle_nan_default(res);
 #endif
                     handle_denormal(res);
-                    handle_nan_default(res);
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
                     DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
                     DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul_a.u,mul_b.u);)
@@ -7382,9 +7386,9 @@ static void tensorreduce(uint64_t value)
                 rslt.f = f32_add(src1.f, src2.f);
 #else
                 rslt.f = src1.f + src2.f;
+                handle_nan_default(rslt);
 #endif
                 handle_denormal(rslt);
-                handle_nan_default(rslt);
                 FREGS[i + start_reg].f[j] = rslt.f;
                 DEBUG_EMU(gprintf("\tReduce (fadd) f%d[%d]: %g = %g(m%d) + %g(m%d)\n",i+start_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min););
                 DEBUG_EMU(gprintf("\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x\n",i+start_reg,j,rslt.u,src1.u,src2.u););
