@@ -617,15 +617,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 conv_list_it++;
 
                 // Looks for the 1st entry in the list of RTL written lines with same destination
-                auto it = spd_entry_list[thread].begin();
-                while(it != spd_entry_list[thread].end())
+                auto it = scp_entry_list[thread].begin();
+                while(it != scp_entry_list[thread].end())
                 {
                     if(it->entry == (entry + i)) { break; }
                     it++;
                 }
 
                 // Checks that an entry was actually found
-                if(it == spd_entry_list[thread].end())
+                if(it == scp_entry_list[thread].end())
                 {
                     stream << "Couldn't find scratchpad destination " << entry + i << " in the RTL scratchpad list!!";
                     error_msg = stream.str();
@@ -640,11 +640,11 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     {
                         stream << "TensorLoad write data error for cacheline " << i << " written in entry " << entry + i << " data lane " << j << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[j] << std::dec;
                         error_msg = stream.str();
-                        spd_entry_list[thread].erase(it);
+                        scp_entry_list[thread].erase(it);
                         return CHECKER_ERROR;
                     }
                 }
-                spd_entry_list[thread].erase(it);
+                scp_entry_list[thread].erase(it);
             }
         }
 
@@ -795,7 +795,7 @@ void checker::tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data)
     {
         scp_entry.data[i] = data[i];
     }
-    spd_entry_list[thread].push_back(scp_entry);
+    scp_entry_list[thread].push_back(scp_entry);
 }
 
 // TensorFMA write

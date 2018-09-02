@@ -6561,8 +6561,6 @@ void tensorload(uint64_t control)//Transtensorload
     uint64_t boffset            = (control >>  4) & 0x03;
     int rows                    = ((control      ) & 0xF) + 1;
 
-    scp_entry[current_thread] = dst;
-    scp_size[current_thread]  = rows;
     uint64_t addr             = base;
     scp_tm                    = tm;
 
@@ -6573,6 +6571,9 @@ void tensorload(uint64_t control)//Transtensorload
     {
         dst = 64;
     }
+
+    scp_entry[current_thread] = dst;
+    scp_size[current_thread]  = rows;
 
     //NO TRANS
     if (trans == 0x00) {

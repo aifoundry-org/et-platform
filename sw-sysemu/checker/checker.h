@@ -91,7 +91,7 @@ class checker
         func_texrec_t                 texrec_func_ptr;                 // Emulates texrec
         testLog                       log;                             // Logger
         uint64_t                      threadEnabled[EMU_NUM_THREADS];  // thread is enabled / disabled
-        std::list<scratchpad_entry>   spd_entry_list[EMU_NUM_THREADS]; // List of RTL written scratchpad entries
+        std::list<scratchpad_entry>   scp_entry_list[EMU_NUM_THREADS]; // List of RTL written scratchpad entries
         std::list<tensorfma_entry>    tensorfma_list[EMU_NUM_THREADS]; // List of RTL written tensorfma entries
         std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];    // List of RTL written reduce entries
 };
