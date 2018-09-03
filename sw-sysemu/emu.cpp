@@ -7250,7 +7250,7 @@ static void tensorfma(uint64_t tfmareg)
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, * ((int *) &accum), mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);)
 
                     // 2nd IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 1]);
@@ -7264,7 +7264,7 @@ static void tensorfma(uint64_t tfmareg)
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, * ((int *) &accum), mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);)
 
                    // 3rd IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 2]);
@@ -7278,7 +7278,7 @@ static void tensorfma(uint64_t tfmareg)
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, * ((int *) &accum), mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);)
 
                     // 4th IMA
                     mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 3]);
@@ -7292,7 +7292,7 @@ static void tensorfma(uint64_t tfmareg)
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
                     DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);)
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, * ((int *) &accum), mul_a, mul_b);)
+                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);)
 
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
