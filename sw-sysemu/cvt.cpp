@@ -598,7 +598,7 @@ float32_t snorm24tofloat32(uint32_t val)
     std::fesetround(FE_TONEAREST);
     iufval res;
     if (val == (1 << 23)) val = (1 << 23) + 1;
-    uint32_t sign = ((val & 0x00800000) == 0) ? 1 : -1;
+    int sign = ((val & 0x00800000) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x007fffff;
     uint32_t maxrange = (1 << 23) - 1;
     res.flt = float(sign) * (float(value) / float(maxrange));
@@ -610,7 +610,7 @@ float32_t snorm16tofloat32(uint16_t val)
     std::fesetround(FE_TONEAREST);
     iufval res;
     if (val == (1 << 15)) val = (1 << 15) + 1;
-    uint32_t sign = ((val & 0x00008000) == 0) ? 1 : -1;
+    int sign = ((val & 0x00008000) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00007fff;
     uint32_t maxrange = (1 << 15) - 1;
     res.flt = float(sign) * (float(value) / float(maxrange));
@@ -622,7 +622,7 @@ float32_t snorm10tofloat32(uint16_t val)
     std::fesetround(FE_TONEAREST);
     iufval res;
     if (val == (1 << 9)) val = (1 << 9) + 1;
-    uint32_t sign = ((val & 0x000200) == 0) ? 1 : -1;
+    int sign = ((val & 0x000200) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000001ff;
     uint32_t maxrange = (1 << 9) - 1;
     res.flt = float(sign) * (float(value) / float(maxrange));
@@ -634,7 +634,7 @@ float32_t snorm8tofloat32(uint8_t val)
     std::fesetround(FE_TONEAREST);
     iufval res;
     if (val == (1 << 7)) val = (1 << 7) + 1;
-    uint32_t sign = ((val & 0x000080) == 0) ? 1 : -1;
+    int sign = ((val & 0x000080) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000007f;
     uint32_t maxrange = (1 << 7) - 1;
     res.flt = float(sign) * (float(value) / float(maxrange));
@@ -646,7 +646,7 @@ float32_t snorm2tofloat32(uint8_t val)
     std::fesetround(FE_TONEAREST);
     iufval res;
     if (val == (1 << 1)) val = (1 << 1) + 1;
-    uint32_t sign = ((val & 0x00000002) == 0) ? 1 : -1;
+    int sign = ((val & 0x00000002) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00000001;
     uint32_t maxrange = (1 << 1) - 1;
     res.flt = float(sign) * (float(value) / float(maxrange));
