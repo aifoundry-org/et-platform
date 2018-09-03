@@ -11,7 +11,6 @@
 #ifdef HAVE_SOFTFLOAT
 #include <softfloat/softfloat_types.h>
 #else
-typedef double float64_t;
 typedef float float32_t;
 #endif
 
