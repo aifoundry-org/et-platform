@@ -444,6 +444,7 @@ extern void fand_pi  (freg dst, freg src1, freg src2, const char* comm = 0);
 
 extern void fnot_pi  (freg dst, freg src1, const char* comm = 0);
 extern void fsat8_pi (freg dst, freg src1, const char* comm = 0);
+extern void fsatu8_pi (freg dst, freg src1, const char* comm = 0);
 
 extern void fpackreph_pi (freg dst, freg src1, const char* comm = 0);
 extern void fpackrepb_pi (freg dst, freg src1, const char* comm = 0);

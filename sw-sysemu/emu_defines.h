@@ -425,6 +425,7 @@ typedef enum
     FXORPI,
     FNOTPI,
     FSAT8PI,
+    FSATU8PI,
     FSLLPI,
     FSRLPI,
     FSRAPI,
