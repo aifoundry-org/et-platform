@@ -664,7 +664,7 @@ uint32_t float32tounorm24(float32_t val)
     else {
         std::fesetround(FE_TONEAREST);
         uint32_t delta = (1 << 24) - 1;
-        double ratio = double(val.v) * double(delta);
+        double ratio = double(cast_float32_to_float(val)) * double(delta);
         return uint32_t(ratio + 0.5f);
     }
 #else
@@ -692,7 +692,7 @@ uint16_t float32tounorm16(float32_t val)
     else {
         std::fesetround(FE_TONEAREST);
         uint32_t delta = (1 << 16) - 1;
-        double ratio = double(val.v) * double(delta);
+        double ratio = double(cast_float32_to_float(val)) * double(delta);
         return uint16_t(ratio + 0.5f);
     }
 #else
@@ -720,7 +720,7 @@ uint16_t float32tounorm10(float32_t val)
     else {
         std::fesetround(FE_TONEAREST);
         uint32_t delta = (1 << 10) - 1;
-        double ratio = double(val.v) * double(delta);
+        double ratio = double(cast_float32_to_float(val)) * double(delta);
         return uint16_t(ratio + 0.5f);
     }
 #else
@@ -748,7 +748,7 @@ uint8_t float32tounorm8(float32_t val)
     else {
         std::fesetround(FE_TONEAREST);
         uint32_t delta = (1 << 8) - 1;
-        double ratio = double(val.v) * double(delta);
+        double ratio = double(cast_float32_to_float(val)) * double(delta);
         return uint8_t(ratio + 0.5f);
     }
 #else
@@ -776,7 +776,7 @@ uint8_t float32tounorm2(float32_t val)
     else {
         std::fesetround(FE_TONEAREST);
         uint32_t delta = (1 << 2) - 1;
-        double ratio = double(val.v) * double(delta);
+        double ratio = double(cast_float32_to_float(val)) * double(delta);
         return uint8_t(ratio + 0.5f);
     }
 #else
@@ -803,7 +803,7 @@ uint32_t float32tosnorm24(float32_t val)
         return 0x00800001;
     else {
         std::fesetround(FE_TONEAREST);
-        float int_val = round(float(val.v) * float((1 << 23) - 1));
+        float int_val = round(cast_float32_to_float(val) * float((1 << 23) - 1));
         int32_t res = int32_t(int_val);
         return uint32_t(res & 0x00ffffff);
     }
@@ -831,7 +831,7 @@ uint16_t float32tosnorm16(float32_t val)
         return 0x8001;
     else {
         std::fesetround(FE_TONEAREST);
-        float int_val = round(float(val.v) * float((1 << 15) - 1));
+        float int_val = round(cast_float32_to_float(val) * float((1 << 15) - 1));
         int32_t res = int32_t(int_val);
         return uint16_t(res & 0x0000ffff);
     }
@@ -860,7 +860,7 @@ uint8_t float32tosnorm8(float32_t val)
         return 0x81;
     else {
         std::fesetround(FE_TONEAREST);
-        float int_val = round(float(val.v) * float((1 << 7) - 1));
+        float int_val = round(cast_float32_to_float(val) * float((1 << 7) - 1));
         int32_t res = int32_t(int_val);
         return uint8_t(res & 0x000000ff);
     }
