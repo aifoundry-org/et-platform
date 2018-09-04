@@ -4172,12 +4172,12 @@ void flw_ps(freg dst, int off, xreg base, const char* comm)
     femuld(VL, dst, off,  base, 1);
 }
 
-void flq(freg dst, int off, xreg base, const char* comm)
+void flq2(freg dst, int off, xreg base, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: flq f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: flq2 f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femuld(4, dst, off,  base, 0);
+    femuld(VL, dst, off,  base, 0);
 }
 
 void fsw_ps(freg src1, int off, xreg base, const char* comm)
@@ -4189,12 +4189,12 @@ void fsw_ps(freg src1, int off, xreg base, const char* comm)
     femust(VL, src1, off, base, 1);
 }
 
-void fsq(freg src1, int off, xreg base, const char* comm)
+void fsq2(freg src1, int off, xreg base, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fsq f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsq2 f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    femust(4, src1, off, base, 0);
+    femust(VL, src1, off, base, 0);
 }
 
 void fswpc_ps(freg src1, int off, xreg base, const char* comm)

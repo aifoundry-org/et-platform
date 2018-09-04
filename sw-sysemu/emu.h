@@ -261,10 +261,10 @@ extern void maskpopc_rast (xreg dst, mreg src1, mreg src2, uint32_t imm, const c
 // Load and store
 
 extern void flw_ps (freg dst, int off, xreg base, const char* comm = 0);
-extern void flq    (freg dst, int off, xreg base, const char* comm = 0);
+extern void flq2   (freg dst, int off, xreg base, const char* comm = 0);
 
 extern void fsw_ps (freg src1, int off, xreg base, const char* comm = 0);
-extern void fsq    (freg src1, int off, xreg base, const char* comm = 0);
+extern void fsq2   (freg src1, int off, xreg base, const char* comm = 0);
 extern void fswpc_ps (freg src1, int off, xreg base, const char* comm = 0);
 
 // Broadcast

@@ -170,10 +170,10 @@ static const emu_ptr_hash_t pointer_cache({
     {"maskpopc_rast",   func_ptr(maskpopc_rast)},
 // ----- Esperanto packed-single extension -------------------------------------
     {"flw_ps",          func_ptr(flw_ps)},
-    {"flq",             func_ptr(flq)},
+    {"flq2",            func_ptr(flq2)},
     {"fsw_ps",          func_ptr(fsw_ps)},
     {"fswpc_ps",        func_ptr(fswpc_ps)},
-    {"fsq",             func_ptr(fsq)},
+    {"fsq2",            func_ptr(fsq2)},
     {"fbc_ps",          func_ptr(fbc_ps)},
     {"fbci_ps",         func_ptr(fbci_ps)},
     {"fbcx_ps",         func_ptr(fbcx_ps)},
