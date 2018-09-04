@@ -5588,6 +5588,9 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
             case FSAT8PI :  res = ((val1 > 127) ? 127 :(val1 < -128 ? -128 : val1)) & 0x0FF;
                             DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1);)
                             break;
+            case FSATU8PI : res = ((val1 > 255) ? 255 :(val1 < 0 ? 0 : val1)) & 0x0FF;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1);)
+                            break;
             case FSLLPI :   if (uval2 >= 32)
                                 res = 0;
                             else
@@ -5910,6 +5913,15 @@ void fsat8_pi(freg dst, freg src1, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     iemu2src(FSAT8PI, dst, src1, fnone);
+}
+
+void fsatu8_pi(freg dst, freg src1, const char* comm)
+{
+    require_fp_active();
+    DISASM(gsprintf(dis,"I: fsatu8.pi f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis););
+    DEBUG_MASK(MREGS[0]);
+    iemu2src(FSATU8PI, dst, src1, fnone);
 }
 
 void fpackreph_pi(freg dst, freg src1, const char* comm)

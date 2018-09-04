@@ -306,6 +306,7 @@ static const emu_ptr_hash_t pointer_cache({
     {"fand_pi",         func_ptr(fand_pi)},
     {"fnot_pi",         func_ptr(fnot_pi)},
     {"fsat8_pi",        func_ptr(fsat8_pi)},
+    {"fsatu8_pi",       func_ptr(fsatu8_pi)},
     {"fpackreph_pi",    func_ptr(fpackreph_pi)},
     {"fpackrepb_pi",    func_ptr(fpackrepb_pi)},
     {"fmul_pi",         func_ptr(fmul_pi)},
