@@ -6765,7 +6765,7 @@ static void tensorstore(uint64_t tstorereg)
     uint64_t srcinc   = ((tstorereg & 0xC00000000000000C) >> 62) + 1; // Increment done to register source
     uint64_t regstart =  (tstorereg & 0x3E00000000000000) >> 57;      // Start register to store
     uint64_t cols     = ((tstorereg & 0x0180000000000000) >> 55) + 1; // Number of register per col
-    uint64_t rows     = ((tstorereg & 0x0070000000000000) >> 52) + 1; // Number of rows to store
+    uint64_t rows     = ((tstorereg & 0x0078000000000000) >> 51) + 1; // Number of rows to store
     uint64_t addr     =  (tstorereg & 0x0000FFFFFFFFFFF0);            // Address where to store the results
 
     uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFF0UL;
@@ -6802,9 +6802,9 @@ static void tensorfma(uint64_t tfmareg)
 {
     int tm         = (tfmareg & 0x8000000000000000) >> 63; // Is a Conv2D operation (use tensor conv register)
     int bcols      = (tfmareg & 0x0180000000000000) >> 55; // Number of B cols to be processed
-    int arows      = (tfmareg & 0x0070000000000000) >> 52; // Number of A rows to be processed
-    int acols      = (tfmareg & 0x000F000000000000) >> 48; // Number of A cols to be processed
-    int aoffset    = (tfmareg & 0x0000F00000000000) >> 44; // A matrix 32b offset
+    int arows      = (tfmareg & 0x0078000000000000) >> 51; // Number of A rows to be processed
+    int acols      = (tfmareg & 0x0007800000000000) >> 47; // Number of A cols to be processed
+    int aoffset    = (tfmareg & 0x0000780000000000) >> 43; // A matrix 32b offset
     int tenb       = (tfmareg & 0x0000000000100000) >> 20; // B is stored in TENB and not in SCP
     int bstart     = (tfmareg & 0x00000000000FF000) >> 12; // SCP entry where B is stored
     int astart     = (tfmareg & 0x0000000000000FF0) >>  4; // SCP entry where A is stored
