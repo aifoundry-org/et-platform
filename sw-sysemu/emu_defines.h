@@ -639,7 +639,7 @@ DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
 #define L1_SCP_BLOCKS     (L1_SCP_LINE_SIZE / (VL * 4))
 #define L1_SCP_BLOCK_SIZE (VL * 4)
 // Some Tensor defines
-#define TFMA_MAX_AROWS    8
+#define TFMA_MAX_AROWS    16
 #define TFMA_MAX_ACOLS    16
 #define TFMA_MAX_BCOLS    16
 #define TFMA_REGS_PER_ROW (64 / (VL * 4))
