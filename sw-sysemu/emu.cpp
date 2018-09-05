@@ -1454,15 +1454,25 @@ void lwu(xreg dst, int off, xreg base, const char* comm)
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
+#define FL_UC_BASE_REGION 0xFFF00000
+
 void sd(xreg src1, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: sd x%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     uint64_t addr = XREGS[base].x + off;
     uint64_t val  = XREGS[src1].x;
-    vmemwrite64(addr, val);
-    DEBUG_EMU(gprintf("\t%016llx --> MEM[0x%016llx]\n",val,addr);)
-    logmemwchange(0, 8, addr, val);
+
+    uint64_t addr_offset_flb = 0;
+    if((addr >= FL_UC_BASE_REGION) && (addr <= (FL_UC_BASE_REGION + 512)))
+    {
+        uint64_t shire  = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+        addr_offset_flb = 512 * shire;
+    }
+
+    vmemwrite64(addr + addr_offset_flb, val);
+    DEBUG_EMU(gprintf("\t%016llx --> MEM[0x%016llx]\n",val,addr + addr_offset_flb);)
+    logmemwchange(0, 8, addr + addr_offset_flb, val);
     IPC(ipc_st(STORE_INT, 1, 8, src1,base,XREGS[base].x+off,dis);)
 }
 
@@ -7508,32 +7518,32 @@ uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#define FL_UC_BASE_REGION 0xFFF00000
-
 // Fast local barriers can be accessed through UC to do stores and loads,
 // and also through the CSR that implement the fast local barrier function.
 static uint64_t flbarrier(uint64_t value)
 {
     uint64_t barrier = value & 0x7;
     uint64_t limit   = (value >> 3) & 0x7F;
+    uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
 
     // Gets what is the address that the fast local barrier is mapped to
-    uint64_t addr    = FL_UC_BASE_REGION + (barrier * 8);
+    uint64_t addr    = FL_UC_BASE_REGION + (barrier * 8) + shire * 512; // Access is private per cache
 
     uint64_t orig_value = vmemread64(addr);
     uint64_t result = -1;
-    printf("FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n", current_thread>>7, current_thread>>1 ,current_thread &1 , barrier ,orig_value , limit );
+    printf("FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n",
+            (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit );
     // Last guy, return 1 and zero barrier
     if(orig_value == limit)
     {
-        printf("FastLocalBarrier: last minion Shire %i!!\n", current_thread>>7 );
+        printf("FastLocalBarrier: last minion Shire %i!!\n", (int) shire);
         vmemwrite64(addr, 0);
         result = 1;
     }
     // Not the last guy, return 0 and increment barrier
     else
     {
-        printf("FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n",limit , orig_value + 1);
+        printf("FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n", limit, orig_value + 1);
         vmemwrite64(addr, orig_value + 1);
         result = 0;
     }

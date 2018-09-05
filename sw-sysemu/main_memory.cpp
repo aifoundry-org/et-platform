@@ -12,7 +12,7 @@ main_memory::main_memory(std::string logname)
 {
     getthread = NULL;
     // Atomic
-    main_memory_region_atomic * amo = new main_memory_region_atomic(0xFFF00000ULL, 512, log, getthread);
+    main_memory_region_atomic * amo = new main_memory_region_atomic(0xFFF00000ULL, 32 * 512, log, getthread);
     regions_.push_back((main_memory_region *) amo);
     // Adds the tbox
     main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, getthread);

@@ -622,9 +622,10 @@ DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
 
 // Maximum number of threads
-#define EMU_NUM_MINIONS         4096
+#define EMU_NUM_MINIONS         1024
 #define EMU_THREADS_PER_MINION  2
 #define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
+#define EMU_MINIONS_PER_SHIRE   32
 #define NR_MSG_PORTS            4
 
 // Enable some features
@@ -644,3 +645,4 @@ DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
 #define TFMA_REGS_PER_ROW (64 / (VL * 4))
 
 #endif // _EMU_DEFINES_H
+
