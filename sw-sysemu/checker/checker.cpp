@@ -71,11 +71,11 @@ bool fp_1ulp_check(uint32_t gold, uint32_t rtl)
     if((exp_gold > 0) && (exp_gold < 253)) // just check regular cases (skip special denom, NaN, Inf)
     {
         uint32_t gold_clean = gold & 0x7F800000; // clean mantissa and sign from gold
-        float err_1ulp = cast_uint32_to_float32(gold_clean);
+        float err_1ulp = cast_uint32_to_float(gold_clean);
         err_1ulp = err_1ulp / float (1 << 23); // put '1' in the unit of less precision
 
-        float goldf = cast_uint32_to_float32(gold);
-        float rtlf  = cast_uint32_to_float32(rtl);
+        float goldf = cast_uint32_to_float(gold);
+        float rtlf  = cast_uint32_to_float(rtl);
         float diff = fabsf(goldf - rtlf);
         //printf("Gold: %.12e, RTL: %.12e, Diff: %.12e, Max: %.12e\n", goldf, rtlf, diff, err_1ulp);
         //printf("Hex Gold: %08X, Hex RTL: %08X\n", gold, rtl);
@@ -480,32 +480,44 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
 
             for(int i = 0; i < (VL/2); i++)
             {
-#if 0
-              if (((get_mask(0) >> (2*i)) & 0x3) == 0)
-                continue;
-#endif
               if(inst->get_is_1ulp())
               {
                 bool errlo = !fp_1ulp_check(emu_state_change.fp_reg_data[i] & 0xFFFFFFFF, changes->fp_reg_data[i] & 0xFFFFFFFF);
                 bool errhi = !fp_1ulp_check(emu_state_change.fp_reg_data[i] >> 32, changes->fp_reg_data[i] >> 32);
-#if 0
-                errlo &= ((get_mask(0) >> (2*i)) & 0x1);
-                errhi &= ((get_mask(0) >> (2*i+1)) & 0x1);
-#endif
                 if (errlo || errhi)
                 {
-                    stream << "FP Register data error (";
+                    uint32_t emu_datalo = emu_state_change.fp_reg_data[i] & 0xFFFFFFFF;
+                    uint32_t rtl_datalo = changes->fp_reg_data[i] & 0xFFFFFFFF;
+                    uint32_t emu_datahi = emu_state_change.fp_reg_data[i] >> 32;
+                    uint32_t rtl_datahi = changes->fp_reg_data[i] >> 32;
+                    stream << "FP Register data error f" << emu_state_change.fp_reg_rd;
                     if (errlo && errhi)
-                        stream << (2*i+1) << ", " << (2*i);
-                    else if (errlo)
-                        stream << (2*i);
+                        stream << "[" << (2*i+1) << ", " << (2*i) << "]";
                     else
-                        stream << (2*i+1);
-                    stream << "). Expected data is 0x" << std::hex << emu_state_change.fp_reg_data[i] << " but provided is 0x" << changes->fp_reg_data[i] << std::dec;
-                    stream << " Current mask: 0x" << std::hex << get_mask(0) << std::dec;
+                        stream << "[" << (errlo ? (2*i) : (2*i+1)) << "]";
+                    stream << ". Expected data is " << std::hex;
+                    if (errlo && errhi)
+                        stream << "{0x" << std::hex << emu_datahi << ", 0x" << emu_datalo << "}";
+                    else
+                        stream << "0x" << std::hex << (errlo ? emu_datalo : emu_datahi);
+                    stream << " but provided is ";
+                    if (errlo && errhi)
+                        stream << "{0x" << std::hex << rtl_datahi << ", 0x" << rtl_datalo << "}";
+                    else
+                        stream << "0x" << std::hex << (errlo ? rtl_datalo : rtl_datahi);
+                    stream << " Current mask: 0x" << get_mask(0) << std::dec;
                     error_msg = stream.str();
                     return CHECKER_ERROR;
                 }
+#if 0
+                if( changes->fp_reg_data[i] != emu_state_change.fp_reg_data[i])
+                {
+                    // Checker and RTL do not match exactly; force the RTL value
+                    // into the checker to avoid errors in future instructions
+                    fpinit((freg)changes->fp_reg_rd, changes->fp_reg_data);
+                    //log << LOG_INFO << "Forcing f" << changes->fp_reg_rd << "[  to {" << changes->fp_reg_dataendm;
+                }
+#endif
               }
               else
               {
@@ -513,21 +525,28 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 {
                     bool errlo = (emu_state_change.fp_reg_data[i] & 0xFFFFFFFF) != (changes->fp_reg_data[i] & 0xFFFFFFFF);
                     bool errhi = (emu_state_change.fp_reg_data[i] >> 32) != (changes->fp_reg_data[i] >> 32);
-#if 0
-                    errlo &= ((get_mask(0) >> (2*i)) & 0x1);
-                    errhi &= ((get_mask(0) >> (2*i+1)) & 0x1);
-#endif
                     if (errlo || errhi)
-                    {            
-                        stream << "FP Register data error (";
+                    {
+                        uint32_t emu_datalo = emu_state_change.fp_reg_data[i] & 0xFFFFFFFF;
+                        uint32_t rtl_datalo = changes->fp_reg_data[i] & 0xFFFFFFFF;
+                        uint32_t emu_datahi = emu_state_change.fp_reg_data[i] >> 32;
+                        uint32_t rtl_datahi = changes->fp_reg_data[i] >> 32;
+                        stream << "FP Register data error f" << emu_state_change.fp_reg_rd;
                         if (errlo && errhi)
-                            stream << (2*i+1) << ", " << (2*i);
-                        else if (errlo)
-                            stream << (2*i);
+                            stream << "[" << (2*i+1) << ", " << (2*i) << "]";
                         else
-                            stream << (2*i+1);
-                        stream << "). Expected data is 0x" << std::hex << emu_state_change.fp_reg_data[i] << " but provided is 0x" << changes->fp_reg_data[i] << std::dec;
-                        stream << " Current mask: 0x" << std::hex << get_mask(0) << std::dec;
+                            stream << "[" << (errlo ? (2*i) : (2*i+1)) << "]";
+                        stream << ". Expected data is " << std::hex;
+                        if (errlo && errhi)
+                            stream << "{0x" << std::hex << emu_datahi << ", 0x" << emu_datalo << "}";
+                        else
+                            stream << "0x" << std::hex << (errlo ? emu_datalo : emu_datahi);
+                        stream << " but provided is ";
+                        if (errlo && errhi)
+                            stream << "(0x" << std::hex << rtl_datahi << ", 0x" << rtl_datalo << ")";
+                        else
+                            stream << "0x" << std::hex << (errlo ? rtl_datalo : rtl_datahi);
+                        stream << " Current mask: 0x" << get_mask(0) << std::dec;
                         error_msg = stream.str();
                         return CHECKER_ERROR;
                     }
@@ -551,7 +570,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 {
                     if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
                     {
-                        stream << "Mask Register data error for entry " << m << " at bit " << i << ". Expected data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but provided is " << (uint32_t) changes->m_reg_data[m][i] << std::dec;
+                        stream << "Mask Register data error m" << m << "[" << i << "]. Expected data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but provided is " << (uint32_t) changes->m_reg_data[m][i] << std::dec;
                         error_msg = stream.str();
                         return CHECKER_ERROR;
                     }
@@ -698,7 +717,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                         if(!fp_1ulp_check(data, it->data[lane]))
 #endif
                         {
-                            stream << "TensorFMA write data error for register " << entry << " lane " << lane << " pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec;
+                            stream << "TensorFMA write data error for register f" << entry << "[" << lane << "] pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec;
                             error_msg = stream.str();
                             tensorfma_list[thread].erase(it);
                             return CHECKER_ERROR;

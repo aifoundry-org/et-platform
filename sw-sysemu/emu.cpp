@@ -6,39 +6,22 @@
 #include <list>
 
 #include "emu.h"
-#include "cvt.h"
 #include "log.h"
 #include "ipc.h"
-#include "ttrans.h"
 #include "emu_casts.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
+#include "fpu.h"
+#include "fpu_casts.h"
 
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 #include <emmintrin.h> // FIXME: remove this when we fix the TXFMA code
 
-#ifdef HAVE_SOFTFLOAT
-#include "softfloat/softfloat.h"
-#include "softfloat/internals.h"
-#include "softfloat/specialize.h"
-#else
-#include <cmath>       // FIXME: remove this when we remove all C++ floating-point code
-#include <immintrin.h>
-
-#define isNaNF32UI(a)     (((~(a) & 0x7f800000) == 0) && ((a) & 0x007fffff))
-#define isSigNaNF32UI(a)  ((((a) & 0x7fc00000) == 0x7f800000) && ((a) & 0x003fffff))
-#define defaultNaNF32UI   0x7fc00000
-#endif
+#define FL_UC_BASE_REGION 0xFFF00000
 
 using emu::gprintf;
 using emu::gsprintf;
 using emu::gfprintf;
-
-#ifdef GFX_ONLY
- #define GFX(x) x
-#else
- #define GFX(x)
-#endif
 
 // State declaration
 char buf[64];
@@ -73,11 +56,6 @@ bool check_stack = false;
 char dis[1024];
 
 int fake_sampler = 0;
-#ifdef USE_FAKE_TXFMA
-uint8_t emu_use_fake_txfma = 1;
-#else
-uint8_t emu_use_fake_txfma = 0;
-#endif
 uint8_t in_sysemu = 0;
 
 void init_emu(int debug, int fakesam)
@@ -100,12 +78,16 @@ static uint64_t csr_cacheop_emu(uint64_t op_value);
 static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode);
 static uint64_t flbarrier(uint64_t value);
 
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Helper routines
 //
 ////////////////////////////////////////////////////////////////////////////////
+
+#define ZERO_UNUSED_FREG_BITS(regid, start) do { \
+    for (int _zeufb_index = start; _zeufb_index < VL; ++_zeufb_index) \
+        FREGS[regid].u[_zeufb_index] = 0; \
+} while (0)
 
 void print_comment(const char *comm)
 {
@@ -213,16 +195,21 @@ static inline void require_fp_active()
         throw trap_illegal_instruction(current_inst);
 }
 
-static inline void handle_denormal(iufval& a)
+static inline void handle_denormal(iufval32& a)
 {
     if ((a.u & 0x7f800000) == 0)
         a.u &= 0x80000000; // preserve sign
 }
 
-static inline void handle_nan_default(iufval& a)
+static inline bool isNaN(uint32_t a)
 {
-    if (isNaNF32UI(a.u))
-        a.u = defaultNaNF32UI;
+    return (((~(a) & 0x7F800000) == 0) && ((a) & 0x007FFFFF));
+}
+
+static inline void handle_nan_default(iufval32& a)
+{
+    if (isNaN(a.u))
+        a.u = 0x7FC00000;
 }
 
 static const char* rmnames[] = {
@@ -254,154 +241,97 @@ static inline void set_rounding_mode(rounding_mode rm)
     int round = (rm == rmdyn) ? frm() : rm;
     if (round > 4)
         throw trap_illegal_instruction(current_inst);
-#ifdef HAVE_SOFTFLOAT
-    softfloat_roundingMode = round;
-#else
-    set_x86_rounding_mode(rounding_mode(round));
-#endif
+    fpu::rm(round);
 }
 
-static const char* get_rounding_mode(rounding_mode rm)
+static inline const char* get_rounding_mode(rounding_mode rm)
 {
     return rmnames[(rm == rmdyn) ? frm() : rm];
 }
 
 static inline void set_fp_exceptions()
 {
-#ifdef HAVE_SOFTFLOAT
-    if (softfloat_exceptionFlags)
+    if (fpu::flags())
     {
         dirty_fp_state();
-        update_fflags(softfloat_exceptionFlags);
-        softfloat_exceptionFlags = 0;
+        update_fflags(fpu::flags());
+        fpu::flags(0);
     }
-#else
-    // FIXME: do something here...
-#endif
 }
 
-#ifdef HAVE_SOFTFLOAT
-
-static float32_t q15p16_to_f32(int32_t val)
+static float gold_frsq(float a)
 {
-    // convert int32 to float32 and then scale by 2^-16
-    iufval t;
-    t.f = i32_to_f32(val);
-    if (t.u)
-        t.u = packToF32UI(signF32UI(t.u), expF32UI(t.u) - 16, fracF32UI(t.u));
-    return t.f;
+    iufval32 res, val;
+
+    val.flt =a ;
+    handle_denormal(val);
+    res.flt = float(double(1.0) / sqrt(double(val.flt)));
+    handle_nan_default(res);
+    handle_denormal(res);
+    return res.flt;
 }
 
-static int32_t f32_to_q17p14(float32_t val)
+static float gold_fsin(float a)
 {
-    iufval v;
-    v.f = val;
+    double dummy;
+    iufval32 res, val, tmp;
 
-    // NaN converts to 0
-    if (isNaNF32UI(v.u))
-    {
-        if (softfloat_isSigNaNF32UI(v.u))
-            softfloat_raiseFlags(softfloat_flag_invalid);
-        return 0;
-    }
-    // denormals and +/-0.0 convert to 0
-    if ((v.u & 0x7f800000) == 0)
-    {
-        return 0;
-    }
-    // abs(val) >= 2.0769187e+34, including +/-infinity, converts to 0
-    if ((v.u & 0x7fffffff) >= 0x78800000)
-    {
-        softfloat_raiseFlags(softfloat_flag_inexact);
-        return 0;
-    }
-    // all others are converted as int(val*16384.0+0.5)
-    v.u = v.u ? packToF32UI(signF32UI(v.u), expF32UI(v.u) + 14, fracF32UI(v.u)) : 0;
-    v.f = f32_add(v.f, { 0x3f000000 /*0.5*/ });
-    return f32_to_i32(v.f, softfloat_roundingMode, true);
+    val.flt = a;
+    handle_denormal(val);
+    tmp.flt = float(modf(double(val.flt), &dummy));
+    tmp.flt = tmp.flt >  0.5 ? tmp.flt - 1.0
+        : tmp.flt < -0.5 ? tmp.flt + 1.0
+        : tmp.flt;
+    res.flt = float(sin(2.0 * M_PI * double(tmp.flt)));
+    handle_nan_default(res);
+    handle_denormal(res);
+    return res.flt;
 }
 
-static float32_t f32_max(float32_t a, float32_t b)
+static float gold_fexp(float a)
 {
-    // IEEE 754-201x compatible
-    // NB: f32_lt_quiet() will signal invalid operation if a or b is SNaN
-    bool a_gt_b = (f32_lt_quiet(b, a) || (f32_eq(a, b) && signF32UI(b.v)));
-    return (isNaNF32UI(a.v) && isNaNF32UI(b.v)) ? float32_t({ defaultNaNF32UI }) : (a_gt_b || isNaNF32UI(b.v)) ? a : b;
+    iufval32 res, val;
+
+    val.flt = a;
+    handle_denormal(val);
+    res.flt = exp2f(val.flt);
+    handle_nan_default(res);
+    handle_denormal(res);
+    return res.flt;
 }
 
-static float32_t f32_min(float32_t a, float32_t b)
+static float gold_flog(float a)
 {
-    // IEEE 754-201x compatible
-    // NB: f32_lt_quiet() will signal invalid operation if a or b is SNaN
-    bool a_lt_b = (f32_lt_quiet(a, b) || (f32_eq(a, b) && signF32UI(a.v)));
-    return (isNaNF32UI(a.v) && isNaNF32UI(b.v)) ? float32_t({ defaultNaNF32UI }) : (a_lt_b || isNaNF32UI(b.v)) ? a : b;
+    iufval32 res, val;
+
+    val.flt = a;
+    handle_denormal(val);
+    res.flt = float(log2(double(val.flt)));
+    handle_nan_default(res);
+    handle_denormal(res);
+    return res.flt;
 }
 
-static inline float32_t f32_neg(float32_t a)
+static float gold_frcp(float a)
 {
-    return { (a.v ^ 0x80000000) };
+    iufval32 res, val;
+
+    val.flt = a;
+    handle_denormal(val);
+    res.flt = float(double(1.0) / double(val.flt));
+    handle_nan_default(res);
+    handle_denormal(res);
+    return res.flt;
 }
 
-#else
-
-static float roundnef(float f)
+static int32_t gold_frcp_fix_rast(int32_t a)
 {
-    if ((fabs(f)-0.5 == trunc(fabs(f))) && !((int)fabs(f) % 2))
-    {
-        return (f>0) ? (roundf(f)-1) : (roundf(f)+1);
-    }
-    return roundf(f);
+    // Input value is 2xtriArea with 15.16 precision
+    double fval = double(a) / double(1 << 16);
+    // Result value is 17.14
+    double fres = (1.0 / fval) * double(1 << 14);
+    return int32_t(fres);
 }
-
-static float roundf(float val, rounding_mode rm)
-{
-    switch (rm) {
-        case rne   : return roundnef(val);
-        case rtz   : return trunc(val);
-        case rdn   : return floor(val);
-        case rup   : return ceil(val);
-        case rmm   : return roundf(val);
-        case rmdyn : return roundf(val, rounding_mode(frm()));
-    }
-    gprintf("invalid rounding mode: %d... using rne instead\n", rm);
-    return roundf(val, rne);
-}
-
-// convert float to int using current rounding mode
-static inline int32_t f32_to_i32(float x)
-{
-    return _mm_cvtss_si32(_mm_round_ss(_mm_set_ps1(0.0),
-                                       _mm_set_ss(x),
-                                       _MM_FROUND_CUR_DIRECTION));
-}
-
-static inline uint16_t f32_classify(float32_t a)
-{
-    uint32_t v = cast_float32_to_uint32(a);
-
-    uint32_t exp  = (v >> 23) & 0xff;
-    uint32_t mant = (v >>  0) & 0x007fffff;
-
-    bool negative    = (v >> 31) & 0x1;
-    bool inf_or_nan  = (exp == 0xff);
-    bool sub_or_zero = (exp == 0);
-    bool zero_mant   = (mant == 0);
-    bool is_nan      = isNaNF32UI(v);
-    bool is_snan     = isSigNaNF32UI(v);
-
-    return ((uint16_t(  negative &&  inf_or_nan  &&  zero_mant   ) << 0) |
-            (uint16_t(  negative && !inf_or_nan  && !sub_or_zero ) << 1) |
-            (uint16_t(  negative &&  sub_or_zero && !zero_mant   ) << 2) |
-            (uint16_t(  negative &&  sub_or_zero &&  zero_mant   ) << 3) |
-            (uint16_t( !negative &&  inf_or_nan  &&  zero_mant   ) << 7) |
-            (uint16_t( !negative && !inf_or_nan  && !sub_or_zero ) << 6) |
-            (uint16_t( !negative &&  sub_or_zero && !zero_mant   ) << 5) |
-            (uint16_t( !negative &&  sub_or_zero &&  zero_mant   ) << 4) |
-            (uint16_t( is_nan &&  is_snan )                        << 8) |
-            (uint16_t( is_nan && !is_snan )                        << 9) );
-}
-
-#endif
 
 void initcsr(uint32_t thread)
 {
@@ -456,8 +386,8 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
         return 0;
 
     // Detect NaNs
-    bool gold_is_nan  = isNaNF32UI(gold);
-    bool table_is_nan = isNaNF32UI(table);
+    bool gold_is_nan  = isNaN(gold);
+    bool table_is_nan = isNaN(table);
 
     assert((gold_is_nan == table_is_nan) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
 
@@ -474,11 +404,11 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
     uint32_t gold_clean = gold & 0x7f800000;     // clean mantissa and sign from gold
 
     // compute 1ulp from gold
-    float err_1ulp = iufval({ .u = gold_clean }).flt / float(1 << 23); // put '1' in the unit of less precision
+    float err_1ulp = cast_uint32_to_float(gold_clean) / float(1 << 23); // put '1' in the unit of less precision
 
     // compute diff between gold and table approximation
-    float goldf  = iufval({ .u = gold }).flt;
-    float tablef = iufval({ .u = table }).flt;
+    float goldf  = cast_uint32_to_float(gold);
+    float tablef = cast_uint32_to_float(table);
     float diff   = fabsf(goldf - tablef);
 
     // fail if diff is bigger than 1ulp
@@ -614,77 +544,137 @@ static func_memwrite16_t func_memwrite16 = NULL;
 static func_memwrite32_t func_memwrite32 = NULL;
 static func_memwrite64_t func_memwrite64 = NULL;
 
+static uint64_t translate_esr_memmap(uint64_t paddr)
+{
+    if((paddr >= FL_UC_BASE_REGION) && (paddr <= (FL_UC_BASE_REGION + 512)))
+    {
+        uint64_t shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+        return paddr + 512 * shire;
+    }
+    return paddr;
+}
+
+static uint8_t emu_pmemread8(uint64_t paddr)
+{
+    uint64_t tmp = paddr;
+    paddr = translate_esr_memmap(paddr);
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    uint8_t data = func_memread8(paddr);
+    DEBUG_EMU(gprintf("MEM8 %i, %02" PRIx16 " = [%016" PRIx64 " (%016" PRIx64 ")]\n", current_thread, data, paddr, tmp););
+    return data;
+}
+
+static uint16_t emu_pmemread16(uint64_t paddr)
+{
+    uint64_t tmp = paddr;
+    paddr = translate_esr_memmap(paddr);
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    uint16_t data = func_memread16(paddr);
+    DEBUG_EMU(gprintf("MEM16 %i, %04" PRIx16 " = [%016" PRIx64 " (%016" PRIx64 ")]\n", current_thread, data, paddr, tmp););
+    return data;
+}
+
+static uint32_t emu_pmemread32(uint64_t paddr)
+{
+    uint64_t tmp = paddr;
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    uint32_t data = func_memread32(paddr);
+    DEBUG_EMU(gprintf("MEM32 %i, %08" PRIx32 " = [%016" PRIx64 " (%016" PRIx64 ")]\n", current_thread, data, paddr, tmp););
+    return data;
+}
+
+static uint64_t emu_pmemread64(uint64_t paddr)
+{
+    uint64_t tmp = paddr;
+    paddr = translate_esr_memmap(paddr);
+    // Used to detect special load accesses like ticketer
+    log_info->mem_addr[0] = paddr;
+    uint64_t data =func_memread64(paddr);
+    DEBUG_EMU(gprintf("MEM64 %i, %016" PRIx64 " = [%016" PRIx64 " (%016" PRIx64 ")]\n", current_thread, data, paddr, tmp););
+    return data;
+}
+
 static uint8_t emu_vmemread8(uint64_t addr)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr;
-    return func_memread8(paddr);
+    return emu_pmemread8(paddr);
 }
 
 static uint16_t emu_vmemread16(uint64_t addr)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr;
-    return func_memread16(paddr);
+    return emu_pmemread16(paddr);
 }
 
 static uint32_t emu_vmemread32(uint64_t addr)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr;
-    return func_memread32(paddr);
+    return emu_pmemread32(paddr);
 }
 
 static uint64_t emu_vmemread64(uint64_t addr)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr;
-    return func_memread64(paddr);
+    return emu_pmemread64(paddr);
 }
 
-static uint64_t emu_pmemread64(uint64_t paddr)
+static void emu_pmemwrite8(uint64_t paddr, uint8_t data)
 {
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr;
-    return func_memread64(paddr);
+    uint64_t tmp = paddr;
+    paddr = translate_esr_memmap(paddr);
+    DEBUG_EMU(gprintf("MEM8 %i, [%016" PRIx64 " (%016" PRIx64 ")] = %02" PRIx8 "\n", current_thread, paddr, tmp, data););
+    func_memwrite8(paddr, data);
+}
+
+static void emu_pmemwrite16(uint64_t paddr, uint16_t data)
+{
+    uint64_t tmp = paddr;
+    paddr = translate_esr_memmap(paddr);
+    DEBUG_EMU(gprintf("MEM16 %i, [%016" PRIx64 " (%016" PRIx64 ")] = %04" PRIx16 "\n", current_thread, paddr, tmp, data););
+    func_memwrite16(paddr, data);
+}
+
+static void emu_pmemwrite32(uint64_t paddr, uint32_t data)
+{
+    uint64_t tmp = paddr;
+    paddr = translate_esr_memmap(paddr);
+    DEBUG_EMU(gprintf("MEM32 %i, [%016" PRIx64 " (%016" PRIx64 ")] = %08" PRIx32 "\n", current_thread, paddr, tmp, data););
+    func_memwrite32(paddr, data);
+}
+
+static void emu_pmemwrite64(uint64_t paddr, uint64_t data)
+{
+    uint64_t tmp = paddr;
+    paddr = translate_esr_memmap(paddr);
+    DEBUG_EMU(gprintf("MEM64 %i, [%016" PRIx64 " (%016" PRIx64 ")] = %016" PRIx64 "\n", current_thread, paddr, tmp, data););
+    func_memwrite64(paddr, data);
 }
 
 static void emu_vmemwrite8(uint64_t addr, uint8_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    DEBUG_EMU(gprintf("MEM8 %i, %016" PRIx64 ", %02" PRIx8 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr););
-    func_memwrite8(paddr, data);
+    emu_pmemwrite8(paddr, data);
 }
 
 static void emu_vmemwrite16(uint64_t addr, uint16_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    DEBUG_EMU(gprintf("MEM16 %i, %016" PRIx64 ", %04" PRIx16 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr););
-    func_memwrite16(paddr, data);
+    emu_pmemwrite16(paddr, data);
 }
 
 static void emu_vmemwrite32(uint64_t addr, uint32_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    DEBUG_EMU(gprintf("MEM32 %i, %016" PRIx64 ", %08" PRIx32 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr););
-    func_memwrite32(paddr, data);
+    emu_pmemwrite32(paddr, data);
 }
 
 static void emu_vmemwrite64(uint64_t addr, uint64_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
-    DEBUG_EMU(gprintf("MEM64 %i, %016" PRIx64 ", %016" PRIx64 ", (%016" PRIx64 ")\n", current_thread, paddr, data, addr););
-    func_memwrite64(paddr, data);
-}
-
-static void emu_pmemwrite64(uint64_t paddr, uint64_t data)
-{
-    DEBUG_EMU(gprintf("MEM64 %i, %016" PRIx64 ", %016" PRIx64 "\n", current_thread, paddr, data););
-    func_memwrite64(paddr, data);
+    emu_pmemwrite64(paddr, data);
 }
 
 static uint8_t host_vmemread8(uint64_t addr)
@@ -1454,25 +1444,15 @@ void lwu(xreg dst, int off, xreg base, const char* comm)
     IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
 }
 
-#define FL_UC_BASE_REGION 0xFFF00000
-
 void sd(xreg src1, int off, xreg base, const char* comm)
 {
     DISASM(gsprintf(dis,"I: sd x%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:""));)
     DEBUG_EMU(gprintf("%s\n",dis);)
     uint64_t addr = XREGS[base].x + off;
     uint64_t val  = XREGS[src1].x;
-
-    uint64_t addr_offset_flb = 0;
-    if((addr >= FL_UC_BASE_REGION) && (addr <= (FL_UC_BASE_REGION + 512)))
-    {
-        uint64_t shire  = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-        addr_offset_flb = 512 * shire;
-    }
-
-    vmemwrite64(addr + addr_offset_flb, val);
-    DEBUG_EMU(gprintf("\t%016llx --> MEM[0x%016llx]\n",val,addr + addr_offset_flb);)
-    logmemwchange(0, 8, addr + addr_offset_flb, val);
+    vmemwrite64(addr, val);
+    DEBUG_EMU(gprintf("\t%016llx --> MEM[0x%016llx]\n",val,addr);)
+    logmemwchange(0, 8, addr, val);
     IPC(ipc_st(STORE_INT, 1, 8, src1,base,XREGS[base].x+off,dis);)
 }
 
@@ -2852,15 +2832,11 @@ static void femuld(int count, freg dst, int off, xreg base, int use_mask)
         uint64_t addr = XREGS[base].x + off;
         addr = addr + i * 4;
 
-        iufval val;
-        val.u = vmemread32(addr);
-        FREGS[dst].u[i] = val.u;
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <- MEM[0x%016llx]\n",i,val.u,val.flt,addr););
+        uint32_t val = vmemread32(addr);
+        FREGS[dst].u[i] = val;
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <- MEM[0x%016llx]\n",i,val,cast_uint32_to_float(val),addr););
     }
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    for (int i = count; i < VL; ++i)
-        FREGS[dst].u[i] = 0;
-#endif
+    ZERO_UNUSED_FREG_BITS(dst, count);
     dirty_fp_state();
     logfregchange(dst);
     IPC(ipc_ld(opc,count,4,dst,base,(XREGS[base].x+off),dis););
@@ -2877,71 +2853,30 @@ static void femust(int count, freg src1, int off, xreg base, int use_mask)
         uint64_t addr = XREGS[base].x  + off;
         addr = addr + i * 4;
 
-        iufval val;
-        val.u = FREGS[src1].u[i];
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) --> MEM[0x%016llx]\n",i,val.u,val.flt,addr););
-        vmemwrite32(addr, val.u);
-        logmemwchange(i, 4, addr, val.u);
+        uint32_t val = FREGS[src1].u[i];
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) --> MEM[0x%016llx]\n",i,val,cast_uint32_to_float(val),addr););
+        vmemwrite32(addr, val);
+        logmemwchange(i, 4, addr, val);
     }
     IPC(ipc_st(opc,count,4,src1,base,(XREGS[base].x+off),dis);)
 }
 
 static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
 {
-    iufval val;
-    iufval rescvt;
+    iufval32 val;
+    u32_i32 res;
 
     set_rounding_mode(rm);
-
-    val.f = FREGS[src1].f[0];
-    handle_denormal(val);
+    val.u = FREGS[src1].u[0];
     switch (opc)
     {
         case FCVTWS:
-#ifdef HAVE_SOFTFLOAT
-            rescvt.i = f32_to_i32(val.f, softfloat_roundingMode, true);
-#else
-            rescvt.x = XREGS[dst].x;
-            if      ( isnan(val.f) ) rescvt.i = 0x7fffffff;
-            else if ( isinf(val.f) )
-            {
-                if ( val.f > 0 )     rescvt.i = 0x7fffffff;
-                else                 rescvt.i = 0x80000000;
-            }
-            else if ( (val.f > 0) && (val.u > 0x4effffff) ) // Float not representable in int32
-            {
-                                     rescvt.i = 0x7fffffff;
-            }
-            else if ( (val.f < 0) && (val.u > 0xcf000000) ) // Float not representable in int32
-            {
-                                     rescvt.i = 0x80000000;
-            }
-            else                     rescvt.i = roundf(val.f, rm);
-#endif
-            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%g)\n",rescvt.u,rescvt.i,val.u,val.flt););
+            res.i = fpu::f32_to_i32(val.f);
+            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%g)\n",res.u,res.u,val.u,val.flt););
             break;
         case FCVTWUS:
-#ifdef HAVE_SOFTFLOAT
-            rescvt.u = f32_to_ui32(val.f, softfloat_roundingMode, true);
-#else
-            rescvt.x = XREGS[dst].x;
-            if      ( isnan(val.f) ) rescvt.u = 0xffffffff;
-            else if ( isinf(val.f) )
-            {
-                if ( val.f > 0 )     rescvt.u = 0xffffffff;
-                else                 rescvt.u = 0x00000000;
-            }
-            else if ( (val.f > 0) && (val.u > 0x4f7fffff) ) // Float not representable in uint32
-            {
-                rescvt.u = 0xffffffff;
-            }
-            else if ( val.f < 0 ) // Float not representable in uint32
-            {
-                rescvt.u = 0x00000000;
-            }
-            else                     rescvt.u = roundf(val.f, rm);
-#endif
-            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%g)\n",rescvt.u,rescvt.u,val.u,val.flt););
+            res.u = fpu::f32_to_ui32(val.f);
+            DEBUG_EMU(gprintf("\t0x%08x (%u) <-- 0x%08x (%g)\n",res.u,res.u,val.u,val.flt););
             break;
         default:
             assert(0);
@@ -2949,48 +2884,35 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
     }
     set_fp_exceptions();
     if (dst != x0)
-        XREGS[dst].x = sext32(rescvt.u);
+        XREGS[dst].x = sext32(res.u);
     logxregchange(dst);
     IPC(ipc_ps(opc,1,dst,src1,fnone,fnone,dis);)
 }
 
 static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
 {
-    iufval res;
-    iufval valcvt;
+    iufval32 res;
+    u32_i32 val;
 
     set_rounding_mode(rm);
 
-    valcvt.x = XREGS[src1].x;
+    val.u = XREGS[src1].w[0];
     switch ( opc )
     {
         case FCVTSW:
-#ifdef HAVE_SOFTFLOAT
-            res.f = i32_to_f32(valcvt.i);
-#else
-            res.f = valcvt.i;
-#endif
-            handle_denormal(res);
-            DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%d)\n",res.u,res.flt,valcvt.u,valcvt.i););
+            res.f = fpu::i32_to_f32(val.i);
+            DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%d)\n",res.u,res.flt,val.u,val.i););
             break;
         case FCVTSWU:
-#ifdef HAVE_SOFTFLOAT
-            res.f = ui32_to_f32(valcvt.i);
-#else
-            res.f = valcvt.u;
-#endif
-            handle_denormal(res);
-            DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%u)\n",res.u,res.flt,valcvt.u,valcvt.i););
+            res.f = fpu::ui32_to_f32(val.u);
+            DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%u)\n",res.u,res.flt,val.u,val.u););
             break;
         default:
             assert(0);
             break;
     }
-    FREGS[dst].f[0] = res.f;
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    for(int i = 1; i < VL; i++)
-        FREGS[dst].u[i] = 0;
-#endif
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
     set_fp_exceptions();
     dirty_fp_state();
     logfregchange(dst);
@@ -3002,175 +2924,95 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
     assert(count <= VL);
 
     set_rounding_mode(rm);
+    switch ( opc )
+    {
+        case FRSQ:
+        case FSIN:
+        case FEXP:
+        case FLOG:
+        case FRCP:
+        case FFRC:
+            set_x86_rounding_mode(rne);
+            break;
+        default:
+            break;
+    }
 
     for (int i = 0; i < count; ++i)
     {
         if (count == VL && MREGS[0].b[i] == 0) continue;
 
-        iufval val, res;
-        val.f = FREGS[src1].f[i];
+        iufval32 val, res;
+        val.u = FREGS[src1].u[i];
         switch ( opc )
         {
             case FSQRT:
                 {
-                    handle_denormal(val);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_sqrt(val.f);
-#else
-                    res.f = sqrtf(val.f);
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_sqrt(val.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
                 break;
             case FRSQ:
                 {
-                    handle_denormal(val);
-                    iufval res_gold;
-                    {
-#ifdef HAVE_SOFTFLOAT
-                        set_x86_rounding_mode(rm);
-#endif
-                        res_gold.flt = float(double(1.0) / sqrt(double(val.flt)));
-                        handle_nan_default(res_gold);
-                        handle_denormal(res_gold);
-                    }
-                    if (emu_use_fake_txfma)
-                    {
-                        res.flt = res_gold.flt;
-                    }
-                    else
-                    {
-                        res.f = ttrans_frsq(val.u);
-                        handle_denormal(res);
-                        // security ulp check
-                        DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                        if(security_ulp_check(res_gold.u,res.u)){
-                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
-                        }
+                    iufval32 res_gold;
+                    res_gold.flt = gold_frsq(val.flt);
+                    res.f = fpu::f32_rsqrt(val.f);
+                    // security ulp check
+                    if(security_ulp_check(res_gold.u,res.u)){
+                        DEBUG_EMU(gprintf("RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n",val.u,res.u,res_gold.u););
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
                 break;
             case FSIN:
                 {
-                    handle_denormal(val);
-                    iufval res_gold;
-                    {
-#ifdef HAVE_SOFTFLOAT
-                        set_x86_rounding_mode(rm);
-#endif
-                        iufval sin_tmp;
-                        double d;
-                        sin_tmp.flt = float(modf(double(val.flt), &d));
-                        sin_tmp.flt = sin_tmp.flt >  0.5 ? sin_tmp.flt - 1.0
-                                    : sin_tmp.flt < -0.5 ? sin_tmp.flt + 1.0
-                                    : sin_tmp.flt;
-                        res_gold.flt = float(sin(2.0 * M_PI * double(sin_tmp.flt)));
-                        handle_nan_default(res_gold);
-                        handle_denormal(res_gold);
-                    }
-                    if (emu_use_fake_txfma)
-                    {
-                        res.flt = res_gold.flt;
-                    }
-                    else
-                    {
-                        res.f = ttrans_fsin(val.u);
-                        handle_denormal(res);
-                        // security ulp check
+                    iufval32 res_gold;
+                    res_gold.flt = gold_fsin(val.flt);
+                    res.f = fpu::f32_sin2pi(val.f);
+                    // security ulp check
+                    if(security_ulp_check(res_gold.u,res.u)){
                         DEBUG_EMU(gprintf("SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                        if(security_ulp_check(res_gold.u,res.u)){
-                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
-                        }
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
                 break;
             case FEXP:
                 {
-                    handle_denormal(val);
-                    iufval res_gold;
-                    {
-#ifdef HAVE_SOFTFLOAT
-                        set_x86_rounding_mode(rm);
-#endif
-                        res_gold.flt = exp2f(val.flt);
-                        handle_nan_default(res_gold);
-                        handle_denormal(res_gold);
-                    }
-                    if (emu_use_fake_txfma)
-                    {
-                        res.flt = res_gold.flt;
-                    }
-                    else
-                    {
-                        res.f = ttrans_fexp2(val.u);
-                        handle_denormal(res);
-                        // security ulp check
+                    iufval32 res_gold;
+                    res_gold.flt = gold_fexp(val.flt);
+                    res.f = fpu::f32_exp2(val.f);
+                    // security ulp check
+                    if(security_ulp_check(res_gold.u,res.u)){
                         DEBUG_EMU(gprintf("EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                        if(security_ulp_check(res_gold.u,res.u)){
-                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
-                        }
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
                 break;
             case FLOG:
                 {
-                    handle_denormal(val);
-                    iufval res_gold;
-                    {
-#ifdef HAVE_SOFTFLOAT
-                        set_x86_rounding_mode(rm);
-#endif
-                        res_gold.flt = float(log2(double(val.flt)));
-                        handle_nan_default(res_gold);
-                        handle_denormal(res_gold);
-                    }
-                    if (emu_use_fake_txfma)
-                    {
-                        res.flt = res_gold.flt;
-                    }
-                    else
-                    {
-                        res.f = ttrans_flog2(val.u);
-                        handle_denormal(res);
-                        // security ulp check
+                    iufval32 res_gold;
+                    res_gold.flt = gold_flog(val.flt);
+                    res.f = fpu::f32_log2(val.f);
+                    // security ulp check
+                    if(security_ulp_check(res_gold.u,res.u)){
                         DEBUG_EMU(gprintf("LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                        if(security_ulp_check(res_gold.u,res.u)){
-                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
-                        }
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u););
                     }
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
                 break;
             case FRCP:
                 {
-                    handle_denormal(val);
-                    iufval res_gold;
-                    {
-#ifdef HAVE_SOFTFLOAT
-                        set_x86_rounding_mode(rm);
-#endif
-                        res_gold.flt = float(double(1.0) / double(val.flt));
-                        handle_nan_default(res_gold);
-                        handle_denormal(res_gold);
-                    }
-                    if (emu_use_fake_txfma)
-                    {
-                        res.flt = res_gold.flt;
-                    }
-                    else
-                    {
-                        res.f = ttrans_frcp(val.u);
-                        handle_denormal(res);
-                        // security ulp check
+                    iufval32 res_gold;
+                    res_gold.flt = gold_frcp(val.flt);
+                    res.f = fpu::f32_rcp(val.f);
+                    // security ulp check
+                    if(security_ulp_check(res_gold.u,res.u)){
                         DEBUG_EMU(gprintf("RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x\n", val.u, res.u, res_gold.u););
-                        if(security_ulp_check(res_gold.u,res.u)){
-                            DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.\n", val.u););
-                        }
+                        DEBUG_EMU(gprintf("WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.\n", val.u););
                     }
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
@@ -3190,117 +3032,43 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                 break;
             case FCVTPSPW:
                 {
-#ifdef HAVE_SOFTFLOAT
-                    res.f = i32_to_f32(val.i);
-#else
-                    res.f = val.i;
-#endif
+                    res.f = fpu::i32_to_f32(val.i);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%d)\n",i,res.u,res.flt,val.u,val.i););
                 }
                 break;
             case FCVTPSRAST:
                 {
-#ifdef HAVE_SOFTFLOAT
-                    res.f = q15p16_to_f32(val.i);
-#else
-                    res.flt = float(val.i) / float(1 << 16);
-#endif
+                    res.f = fpu::fxp1516_to_f32(val.i);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%d)\n",i,res.u,res.flt,val.u,val.i););
                 }
                 break;
             case FCVTRASTPS:
                 {
-#ifdef HAVE_SOFTFLOAT
-                    res.i = f32_to_q17p14(val.f);
-#else
-                    handle_denormal(val);
-                    iufval tmp;
-                    // NaN converts to 0
-                    tmp.u = isnan(val.flt) ? 0 : val.u;
-                    // +/-0.0 converts to 0
-                    tmp.flt = (tmp.u & 0x7fffffff) ? std::fma(tmp.flt, float(1 << 14), float(0.5)) : 0;
-                    // +/-infinity converts to 0
-                    if (isinf(tmp.flt))
-                        tmp.u = 0;
-                    // huge numbers (>= 2.14748e+9) saturate at maximum positiveinteger
-                    // instead of returning 0x80000000
-                    res.i = (tmp.i >= 0x4f000000) ? 0x7fffffff : f32_to_i32(tmp.flt);
-#endif
+                    res.i = fpu::f32_to_fxp1714(val.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%g)\n",i,res.u,res.i,val.u,val.flt););
                 }
                 break;
             case FCVTPSPWU:
                 {
-#ifdef HAVE_SOFTFLOAT
-                    res.f = ui32_to_f32(val.u);
-#else
-                    res.f = val.u;
-                    handle_nan_default(res);
-#endif
+                    res.f = fpu::ui32_to_f32(val.u);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%u)\n",i,res.u,res.flt,val.u,val.u););
                 }
                 break;
             case FCVTPWPS:
                 {
-#ifdef HAVE_SOFTFLOAT
-                    res.i = f32_to_i32(val.f, softfloat_roundingMode, true);
-#else
-                    if      ( isnan(val.f) ) res.i = 0x7fffffff;
-                    else if ( isinf(val.f) )
-                    {
-                        if ( val.f > 0 )     res.i = 0x7fffffff;
-                        else                 res.i = 0x80000000;
-                    }
-                    else if ( (val.f > 0) && (val.u > 0x4effffff) ) // Float not representable in int32
-                    {
-                                             res.i = 0x7fffffff;
-                    }
-                    else if ( (val.f < 0) && (val.u > 0xcf000000) ) // Float not representable in int32
-                    {
-                                             res.i = 0x80000000;
-                    }
-                    else                     res.i = roundf(val.f, rm);
-#endif
+                    res.i = fpu::f32_to_i32(val.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08lx (%g)\n",i,res.u,res.i,val.u,val.flt););
                 }
                 break;
             case FCVTPWUPS:
                 {
-#ifdef HAVE_SOFTFLOAT
-                    res.u = f32_to_ui32(val.f, softfloat_roundingMode, true);
-#else
-                    if      ( isnan(val.f) ) res.u = 0xffffffff;
-                    else if ( isinf(val.f) )
-                    {
-                        if ( val.f > 0 )     res.u = 0xffffffff;
-                        else                 res.u = 0x00000000;
-                    }
-                    else if ( (val.f > 0) && (val.u > 0x4f7fffff) ) // Float not representable in uint32
-                    {
-                                             res.u = 0xffffffff;
-                    }
-                    else if ( val.f < 0 ) // Float not representable in uint32
-                    {
-                                             res.u = 0x00000000;
-                    }
-                    else                     res.u = roundf(val.f, rm);
-#endif
+                    res.u = fpu::f32_to_ui32(val.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%g)\n",i,res.u,res.u,val.u,val.flt););
                 }
                 break;
             case FFRC:
                 {
-                    handle_denormal(val);
-#ifdef HAVE_SOFTFLOAT
-                    // FIXME: We should not use floating-point computations
-                    // here... need to implement a softfloat-like equivalent
-                    if (softfloat_isSigNaNF32UI(val.u))
-                        softfloat_raiseFlags(softfloat_flag_invalid);
-                    set_x86_rounding_mode(rm);
-#endif
-                    double intpart;
-                    res.flt = float(modf(double(val.flt), &intpart));
-                    handle_nan_default(res);
+                    res.f = fpu::f32_frac(val.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g)\n",i,res.u,res.flt,val.u,val.flt););
                 }
                 break;
@@ -3308,12 +3076,9 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                 assert(0);
                 break;
         }
-        FREGS[dst].f[i] = res.f;
+        FREGS[dst].u[i] = res.u;
     }
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    for (int i = count; i < VL; ++i)
-        FREGS[dst].u[i] = 0;
-#endif
+    ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
     dirty_fp_state();
     logfregchange(dst);
@@ -3325,181 +3090,106 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
     assert(count <= VL);
 
     set_rounding_mode(rm);
+    switch ( opc )
+    {
+        case FRCP_FIX_RAST:
+            set_x86_rounding_mode(rne);
+            break;
+        default:
+            break;
+    }
+
 
     for ( int i = 0; i < count; i++ )
     {
         if (count == VL && MREGS[0].b[i] == 0) continue;
 
-        iufval val1, val2, res;
-        val1.f = FREGS[src1].f[i];
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
         val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
         switch ( opc )
         {
             case FADD:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_add(val1.f, val2.f);
-#else
-                    res.f  = val1.f + val2.f;
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_add(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) + 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FSUB:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_sub(val1.f, val2.f);
-#else
-                    res.flt  = val1.flt - val2.flt;
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_sub(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) - 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FMUL:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_mul(val1.f, val2.f);
-#else
-                    res.f  = val1.f * val2.f;
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_mul(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FDIV:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_div(val1.f, val2.f);
-#else
-                    res.f  = val1.f / val2.f;
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_div(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) / 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FMIN:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_min(val1.f, val2.f);
-#else
-                    res.flt = ((val1.u == 0x80000000) && (val2.u == 0)) ? val1.flt : std::fmin(val1.flt, val2.flt);
-                    handle_nan_default(res);
-#endif
+                    res.f = fpu::f32_minNum(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FMAX:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_max(val1.f, val2.f);
-#else
-                    res.flt = ((val1.u == 0) && (val2.u == 0x80000000)) ? val1.flt : std::fmax(val1.flt, val2.flt);
-                    handle_nan_default(res);
-#endif
+                    res.f = fpu::f32_maxNum(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FLT:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.u = f32_lt(val1.f, val2.f) ? 0xffffffff : 0;
-#else
-                    res.u = (val1.f < val2.f) ? 0xffffffff : 0;
-#endif
+                    res.u = fpu::f32_lt(val1.f, val2.f) ? 0xffffffff : 0;
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FLE:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.u = f32_le(val1.f, val2.f) ? 0xffffffff : 0;
-#else
-                    res.u  = (val1.f <= val2.f) ? 0xffffffff : 0;
-#endif
+                    res.u = fpu::f32_le(val1.f, val2.f) ? 0xffffffff : 0;
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FEQ:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-#ifdef HAVE_SOFTFLOAT
-                    res.u = f32_eq(val1.f, val2.f) ? 0xffffffff : 0;
-#else
-                    res.u  = (val1.f == val2.f) ? 0xffffffff : 0;
-#endif
+                    res.u = fpu::f32_eq(val1.f, val2.f) ? 0xffffffff : 0;
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FSGNJ:
                 {
-                    res.u = (val1.u & 0x7fffffff) | (val2.u & 0x80000000);
+                    res.f = fpu::f32_copySign(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FSGNJN:
                 {
-                    res.u = (val1.u & 0x7fffffff) | ((~val2.u) & 0x80000000);
+                    res.f = fpu::f32_copySignNot(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FSGNJX:
                 {
-                    res.u = (val1.u & 0x7fffffff) | ((val1.u ^ val2.u) & 0x80000000);
+                    res.f = fpu::f32_copySignXor(val1.f, val2.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt););
                 }
                 break;
             case FRCP_FIX_RAST:
                 {
-                    // FIXME: We should not use floating-point computations
-                    // here... need to implement a softfloat-like equivalent
+                    res.i = fpu::fxp1714_rcpStep(val1.i, val2.i);
 
-                    // we should ignore the FPCSR rounding mode in this
-                    // instruction as it operates on fixed-point numbers
-                    set_x86_rounding_mode(rne);
-
-                    // Input value is 2xtriArea with 15.16 precision
-                    double tmp = double(val1.i) / double(1 << 16);
-
-                    // Result value is 17.14
-                    iufval res_gold;
-                    {
-                        double tmp_rcp = (1.0 / tmp) * double(1 << 14);
-                        res_gold.i = int32_t(tmp_rcp);
-                    }
-
-                    double yn = double(val2.i) / double(1 << 14);
-                    double a = yn * tmp;
-                    uint32_t partial = uint32_t(a * double(uint64_t(1) << 31));
-                    double unpartial = double(partial) / double(uint64_t(1) << 31);
-                    double result = yn * (2.0 - unpartial);
-                    res.i = int32_t(result * double(1 << 14));
-
-                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%g), 0x%08x (%d)\n",i,res.u,res.i,val1.u,tmp,val2.u,val2.i););
+                    DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d), 0x%08x (%d)\n",i,res.u,res.i,val1.u,val1.i,val2.u,val2.i););
 
                     //Check 1ulp
+                    iufval32 res_gold;
+                    res_gold.i = gold_frcp_fix_rast(val1.i);
                     if (abs(res.i - res_gold.i) > 1)
                     {
                         DEBUG_EMU(gprintf("\t\tEXPECTED: 0x%08x (%g) RESULT: 0x%08x (%g)\n", res_gold.u, res_gold.flt, res.u, res.flt););
@@ -3511,12 +3201,9 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 assert(0);
                 break;
         }
-        FREGS[dst].f[i] = res.f;
+        FREGS[dst].u[i] = res.u;
     }
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    for (int i = count; i < VL; ++i)
-        FREGS[dst].u[i] = 0;
-#endif
+    ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
     dirty_fp_state();
     logfregchange(dst);
@@ -3533,70 +3220,34 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
     {
         if (count == VL && MREGS[0].b[i] == 0) continue;
 
-        iufval val1, val2, val3, res;
+        iufval32 val1, val2, val3, res;
 
-        val1.f = FREGS[src1].f[i];
-        val2.f = FREGS[src2].f[i];
-        val3.f = FREGS[src3].f[i];
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        val3.u = FREGS[src3].u[i];
         switch (opc)
         {
             case FMADD:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-                    handle_denormal(val3);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_mulAdd(val1.f, val2.f, val3.f);
-#else
-                    res.f = fmaf(val1.f, val2.f, val3.f);
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_mulAdd(val1.f, val2.f, val3.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g) + 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
                 break;
             case FNMADD:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-                    handle_denormal(val3);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_mulAdd(f32_neg(val1.f), val2.f, f32_neg(val3.f));
-#else
-                    res.f = fmaf(-val1.f, val2.f, -val3.f);
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_negMulAdd(val1.f, val2.f, val3.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) + 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
                 break;
             case FMSUB:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-                    handle_denormal(val3);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_mulAdd(val1.f, val2.f, f32_neg(val3.f));
-#else
-                    res.f = fmaf(val1.f, val2.f, -val3.f);
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_mulSub(val1.f, val2.f, val3.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
                 break;
             case FNMSUB:
                 {
-                    handle_denormal(val1);
-                    handle_denormal(val2);
-                    handle_denormal(val3);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_mulAdd(f32_neg(val1.f), val2.f, val3.f);
-#else
-                    res.f = fmaf(-val1.f, val2.f, val3.f);
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    res.f = fpu::f32_negMulSub(val1.f, val2.f, val3.f);
                     DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g))\n",i,res.u,res.flt,val1.u,val1.flt,val2.u,val2.flt,val3.u,val3.flt););
                 }
                 break;
@@ -3610,12 +3261,9 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                 assert(0);
                 break;
         }
-        FREGS[dst].f[i] = res.f;
+        FREGS[dst].u[i] = res.u;
     }
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    for (int i = count; i < VL; ++i)
-        FREGS[dst].u[i] = 0;
-#endif
+    ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
     dirty_fp_state();
     logfregchange(dst);
@@ -3624,36 +3272,22 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
 
 static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
 {
-    iufval val1, val2, res;
+    iufval32 val1, val2, res;
 
-    val1.f = FREGS[src1].f[0];
-    val2.f = FREGS[src2].f[0];
-    //handle_denormal(val1);
-    //handle_denormal(val2);
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
     switch (opc)
     {
         case FLT:
-#ifdef HAVE_SOFTFLOAT
-            res.u = f32_lt(val1.f, val2.f);
-#else
-            res.u = (val1.f < val2.f) ? 1 : 0;
-#endif
+            res.u = fpu::f32_lt(val1.f, val2.f) ? 1 : 0;
             DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?\n",res.u,val1.u,val1.flt,val2.u,val2.flt);)
             break;
         case FLE:
-#ifdef HAVE_SOFTFLOAT
-            res.u = f32_le(val1.f, val2.f);
-#else
-            res.u = (val1.f <= val2.f) ? 1 : 0;
-#endif
+            res.u = fpu::f32_le(val1.f, val2.f) ? 1 : 0;
             DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?\n",res.u,val1.u,val1.flt,val2.u,val2.flt);)
             break;
         case FEQ:
-#ifdef HAVE_SOFTFLOAT
-            res.u = f32_eq(val1.f, val2.f);
-#else
-            res.u = (val1.f == val2.f) ? 1 : 0;
-#endif
+            res.u = fpu::f32_eq(val1.f, val2.f) ? 1 : 0;
             DEBUG_EMU(gprintf("\t0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?\n",res.u,val1.u,val1.flt,val2.u,val2.flt);)
             break;
         default:
@@ -3795,7 +3429,7 @@ void fmv_x_w(xreg dst, freg src1, const char* comm)
     if(dst != x0)
     {
         XREGS[dst].x = sext32(FREGS[src1].u[0]);
-        DEBUG_EMU(gprintf("\t0x%016llx <- 0x%08x (%g)\n", XREGS[dst].x, FREGS[src1].u[0], FREGS[src1].flt[0]););
+        DEBUG_EMU(gprintf("\t0x%016llx <- 0x%08x (%g)\n", XREGS[dst].x, FREGS[src1].u[0], cast_uint32_to_float(FREGS[src1].u[0])););
     }
     logxregchange(dst);
 }
@@ -3805,9 +3439,9 @@ void fclass_s(xreg dst, freg src1, const char* comm)
     require_fp_active();
     DISASM(gsprintf(dis,"I: fclass.s x%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    iufval val, res;
-    val.f = FREGS[src1].f[0];
-    res.u = f32_classify(val.f);
+    iufval32 val, res;
+    val.u = FREGS[src1].u[0];
+    res.u = fpu::f32_classify(val.f);
     if (dst != x0)
     {
         XREGS[dst].x = sext32(res.u);
@@ -3838,16 +3472,12 @@ void fmv_w_x(freg dst, xreg src1, const char* comm)
     require_fp_active();
     DISASM(gsprintf(dis,"I: fmv.w.x f%d, x%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
-    iufval val;
-    iufval res;
+    iufval32 val, res;
     val.u = XREGS[src1].w[0];
     res.u = val.u;
     FREGS[dst].u[0] = res.u;
     DEBUG_EMU(gprintf("\t0x%08x (%g) <- 0x%08x\n",res.u,res.flt,val.u););
-#ifdef ZERO_EXTEND_UNUSED_FREG_BITS
-    for(int i = 1; i < VL; ++i)
-        FREGS[dst].u[i] = 0;
-#endif
+    ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
     logfregchange(dst);
 }
@@ -4228,7 +3858,7 @@ void fbc_ps(freg dst, int off, xreg base, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
 
-    iufval val;
+    iufval32 val;
     uint64_t addr = (XREGS[base].x + off);
     val.u = 0;
     uint8_t  b = 0;
@@ -4260,7 +3890,7 @@ void fbci_ps(freg dst, uint32_t imm, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
 
-    iufval val;
+    iufval32 val;
     val.u = (imm & 0xfffff) << 12;  // make sure we only use 20b immediate and put into position
 
     // the low 4 bits of the immediate are replicated to fill the bottom 12 bits of the Fp number
@@ -4301,7 +3931,7 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
     DEBUG_MASK(MREGS[0]);
 
-    iufval val;
+    iufval32 val;
     val.u = XREGS[src].w[0];
     for ( int i = 0; i < VL; i++ )
     {
@@ -4325,7 +3955,7 @@ static void gatheremu(opcode opc, int size, freg dst, freg src1, xreg base)
     {
         if (MREGS[0].b[i] == 0) continue;
 
-        iufval val;
+        iufval32 val;
         int32_t off   = FREGS[src1].i[i];
         uint64_t addr = baddr + off;
         switch (opc)
@@ -4361,7 +3991,7 @@ static void gatheremu32(opcode opc, int size, freg dst, xreg src1, xreg src2)
             default: assert(0); break;
         }
 
-        iufval val;
+        iufval32 val;
         switch (size)
         {
             case 1 : val.u = sext8(vmemread8(addr));  break;
@@ -4386,7 +4016,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
 
         int32_t  off  = FREGS[src2].i[i];
         uint64_t addr = baddr + off;
-        iufval val;
+        iufval32 val;
         val.u = FREGS[src1].u[i];
 
         switch (opc)
@@ -4421,7 +4051,7 @@ static void femuscat32(opcode opc, int size, freg src3, xreg src1, xreg src2)
             default: assert(0); break;
         }
 
-        iufval val;
+        iufval32 val;
         val.u = FREGS[src3].u[i];
         switch (size)
         {
@@ -4556,34 +4186,22 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
 
-        iufval val1, val2, res;
+        iufval32 val1, val2, res;
 
         val1.u = FREGS[src1].u[i];
         val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
         switch (opc)
         {
             case FLT:
-#ifdef HAVE_SOFTFLOAT
-                res.u = f32_lt(val1.f, val2.f);
-#else
-                res.u = (val1.f < val2.f) ? 1 : 0;
-#endif
+                res.u = fpu::f32_lt(val1.f, val2.f) ? 1 : 0;
                 DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%g) < 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt);)
                 break;
             case FLE:
-#ifdef HAVE_SOFTFLOAT
-                res.u = f32_le(val1.f, val2.f);
-#else
-                res.u = (val1.f <= val2.f) ? 1 : 0;
-#endif
+                res.u = fpu::f32_le(val1.f, val2.f) ? 1 : 0;
                 DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%g) <= 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt);)
                 break;
             case FEQ:
-#ifdef HAVE_SOFTFLOAT
-                res.u = f32_eq(val1.f, val2.f);
-#else
-                res.u = (val1.f == val2.f) ? 1 : 0;
-#endif
+                res.u = fpu::f32_eq(val1.f, val2.f) ? 1 : 0;
                 DEBUG_EMU(gprintf("\t[%d] %d <-- 0x%08x (%g) == 0x%08x (%g)?\n",i,res.u,val1.u,val1.flt,val2.u,val2.flt);)
                 break;
             case FSET:
@@ -4796,7 +4414,7 @@ void fcmovm_ps(freg dst, freg src1, freg src2, const char* comm)
 
     for (int i = 0; i < VL; i++)
     {
-        iufval val1, val2, res;
+        iufval32 val1, val2, res;
         val1.u  = FREGS[src1].u[i];
         val2.u  = FREGS[src2].u[i];
         int sel = MREGS[0].b[i];
@@ -4887,9 +4505,9 @@ void fclass_ps(freg dst, freg src1, const char* comm)
     for (int i = 0; i < VL; ++i)
     {
         if (MREGS[0].b[i] == 0) continue;
-        iufval val, res;
-        val.f = FREGS[src1].f[i];
-        res.u = f32_classify(val.f);
+        iufval32 val, res;
+        val.u = FREGS[src1].u[i];
+        res.u = fpu::f32_classify(val.f);
         DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x (%g)\n",i,res.u,val.u,val.flt););
         FREGS[dst].u[i] = res.u;
     }
@@ -4963,55 +4581,36 @@ static void ucvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
         if (MREGS[0].b[i] == 0) continue;
 
         uint32_t val = FREGS[src1].u[i];
-
-        // Forcing to 0 in case of denormal input
-        if ((opc == FCVTPSF16) && ((val & 0x7c00) == 0)) {
-          val = val & 0x8000;
-        }
-
-        if ((opc == FCVTPSF11) && ((val & 0x7c0) == 0)) {
-          val = 0;
-        }
-
-        if ((opc == FCVTPSF10) && ((val & 0x3e0) == 0)) {
-          val = 0;
-        }
-
-        iufval res;
+        iufval32 res;
         switch ( opc )
         {
 #ifdef NEW_UPCONVERT
-            case FCVTPSF16:  res.f = float16tofloat32(val >> 16); break;
-            case FCVTPSF11:  res.f = float11tofloat32(val >> 21); break;
-            case FCVTPSF10:  res.f = float10tofloat32(val >> 22); break;
-            case FCVTPSUN24: res.f = unorm24tofloat32(val >>  8); break;
-            case FCVTPSUN16: res.f = unorm16tofloat32(val >> 16); break;
-            case FCVTPSUN10: res.f = unorm10tofloat32(val >> 22); break;
-            case FCVTPSUN8:  res.f =  unorm8tofloat32(val >> 24);  break;
-            case FCVTPSUN2:  res.f =  unorm2tofloat32(val >> 30);  break;
-            case FCVTPSSN16: res.f = snorm16tofloat32(val >> 16); break;
-            case FCVTPSSN8:  res.f =  snorm8tofloat32(val >> 24);  break;
+            case FCVTPSF16:  res.f = fpu::f16_to_f32(cast_uint16_to_float16(val >> 16));  break;
+            case FCVTPSF11:  res.f = fpu::f11_to_f32(cast_uint16_to_float11(val >> 21));  break;
+            case FCVTPSF10:  res.f = fpu::f10_to_f32(cast_uint16_to_float10(val >> 22));  break;
+            case FCVTPSUN24: res.f = fpu::un24_to_f32(val >>  8); break;
+            case FCVTPSUN16: res.f = fpu::un16_to_f32(val >> 16); break;
+            case FCVTPSUN10: res.f = fpu::un10_to_f32(val >> 22); break;
+            case FCVTPSUN8:  res.f = fpu::un8_to_f32(val >> 24);  break;
+            case FCVTPSUN2:  res.f = fpu::un2_to_f32(val >> 30);  break;
+            case FCVTPSSN16: res.f = fpu::sn16_to_f32(val >> 16); break;
+            case FCVTPSSN8:  res.f = fpu::sn8_to_f32(val >> 24);  break;
 #else
-            case FCVTPSF16:  res.f = float16tofloat32(val); break;
-            case FCVTPSF11:  res.f = float11tofloat32(val); break;
-            case FCVTPSF10:  res.f = float10tofloat32(val); break;
-            case FCVTPSUN24: res.f = unorm24tofloat32(val); break;
-            case FCVTPSUN16: res.f = unorm16tofloat32(val); break;
-            case FCVTPSUN10: res.f = unorm10tofloat32(val); break;
-            case FCVTPSUN8:  res.f = unorm8tofloat32(val);  break;
-            case FCVTPSUN2:  res.f = unorm2tofloat32(val);  break;
-            //case FCVTPSSN24: res.f = snorm24tofloat32(val); break;
-            case FCVTPSSN16: res.f = snorm16tofloat32(val); break;
-            //case FCVTPSSN10: res.f = snorm10tofloat32(val); break;
-            case FCVTPSSN8:  res.f = snorm8tofloat32(val);  break;
-            //case FCVTPSSN2:  res.f = snorm2tofloat32(val);  break;
+            case FCVTPSF16:  res.f = fpu::f16_to_f32(cast_uint16_to_float16(val));  break;
+            case FCVTPSF11:  res.f = fpu::f11_to_f32(cast_uint16_to_float11(val));  break;
+            case FCVTPSF10:  res.f = fpu::f10_to_f32(cast_uint16_to_float10(val));  break;
+            case FCVTPSUN24: res.f = fpu::un24_to_f32(val); break;
+            case FCVTPSUN16: res.f = fpu::un16_to_f32(val); break;
+            case FCVTPSUN10: res.f = fpu::un10_to_f32(val); break;
+            case FCVTPSUN8:  res.f = fpu::un8_to_f32(val);  break;
+            case FCVTPSUN2:  res.f = fpu::un2_to_f32(val);  break;
+            case FCVTPSSN16: res.f = fpu::sn16_to_f32(val); break;
+            case FCVTPSSN8:  res.f = fpu::sn8_to_f32(val);  break;
 #endif
             default: assert(0); break;
         }
-        // NB: Cannot generate denormals when upconverting
-        // handle_nan_default(res); // FIXME: Should we return defaultNaN here?
         DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%d)\n",i,res.u,res.flt,val,val);)
-        FREGS[dst].f[i] = res.f;
+        FREGS[dst].u[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5119,26 +4718,22 @@ static void dcvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
 
-        iufval val, res;
-        val.f = FREGS[src1].f[i];
-        // NB: input denormals are treated as zero, but this is done inside
-        // the conversion functions
+        iufval32 val, res;
+        val.u = FREGS[src1].u[i];
         switch (opc)
         {
-            case FCVTF10PS:  res.u  = float32tofloat10(val.f) ; break;
-            case FCVTF11PS:  res.u  = float32tofloat11(val.f) ; break;
-            case FCVTF16PS:  res.u  = float32tofloat16(val.f) ; break;
-            case FCVTUN24PS: res.u  = float32tounorm24(val.f) ; break;
-            case FCVTUN16PS: res.u  = float32tounorm16(val.f) ; break;
-            case FCVTUN10PS: res.u  = float32tounorm10(val.f) ; break;
-            case FCVTUN8PS:  res.u  = float32tounorm8(val.f)  ; break;
-            case FCVTUN2PS:  res.u  = float32tounorm2(val.f)  ; break;
-            //case FCVTSN24PS: res.u  = float32tosnorm24(val.f) ; break;
-            case FCVTSN16PS: res.u  = float32tosnorm16(val.f) ; break;
-            case FCVTSN8PS:  res.u  = float32tosnorm8(val.f)  ; break;
-            default:         assert(0)                    ; break;
+            case FCVTF10PS:  res.u = cast_float10_to_uint16(fpu::f32_to_f10(val.f));  break;
+            case FCVTF11PS:  res.u = cast_float11_to_uint16(fpu::f32_to_f11(val.f));  break;
+            case FCVTF16PS:  res.u = cast_float16_to_uint16(fpu::f32_to_f16(val.f));  break;
+            case FCVTUN24PS: res.u = fpu::f32_to_un24(val.f); break;
+            case FCVTUN16PS: res.u = fpu::f32_to_un16(val.f); break;
+            case FCVTUN10PS: res.u = fpu::f32_to_un10(val.f); break;
+            case FCVTUN8PS:  res.u = fpu::f32_to_un8(val.f);  break;
+            case FCVTUN2PS:  res.u = fpu::f32_to_un2(val.f);  break;
+            case FCVTSN16PS: res.u = fpu::f32_to_sn16(val.f); break;
+            case FCVTSN8PS:  res.u = fpu::f32_to_sn8(val.f);  break;
+            default: assert(0); break;
         }
-        // NB: The conversion functions generate default NaNs
         DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- down- 0x%08x (%g)\n",i,res.u,res.i,val.u,val.flt);)
         FREGS[dst].u[i] = res.u;
     }
@@ -5287,23 +4882,11 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     {
         if (MREGS[0].b[i] == 0) continue;
 
-        iufval val, res;
-        val.f = FREGS[src1].f[i];
-#ifdef HAVE_SOFTFLOAT
-        res.f = f32_roundToInt(val.f, softfloat_roundingMode, true);
-#else
-        if (isNaNF32UI(val.u))
-        {
-            res.u = defaultNaNF32UI;
-        }
-        else
-        {
-            res.f = roundf(val.f,  rm);
-            handle_nan_default(res);
-        }
-#endif
+        iufval32 val, res;
+        val.u = FREGS[src1].u[i];
+        res.f = fpu::f32_roundToInt(val.f);
         DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%08x (%g) \n",i,res.u,res.flt,val.u,val.flt););
-        FREGS[dst].f[i] = res.f;
+        FREGS[dst].u[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5351,10 +4934,9 @@ void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
         // check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
 
-        uint32_t rz_lt_ry =  (FREGS[dst].u[i]) & 0x1;
-        uint32_t rz_lt_rx = (FREGS[src1].u[i]) & 0x1;
-        uint32_t ry_lt_rx = (FREGS[src2].u[i]) & 0x1;
-
+        uint8_t rz_lt_ry = (FREGS[ dst].u[i] & 0x1);
+        uint8_t rz_lt_rx = (FREGS[src1].u[i] & 0x1);
+        uint8_t ry_lt_rx = (FREGS[src2].u[i] & 0x1);
         uint32_t res = rz_lt_ry ? (ry_lt_rx ? 0 : 1) : (rz_lt_rx ? 0 : 2);
 
         DEBUG_EMU(gprintf("\t[%d] %d <-- %d %d %d\n", i, res, rz_lt_ry, rz_lt_rx, ry_lt_rx););
@@ -5379,22 +4961,12 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
         // check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
 
-        uint32_t face = (FREGS[src1].u[i])&0x3;
-        iufval rc, res;
-        rc.f = FREGS[src2].f[i];
-
-        if (face == 0x3)
-        {
-            res.u = defaultNaNF32UI;
-#ifdef HAVE_SOFTFLOAT
-            softfloat_raiseFlags(softfloat_flag_invalid);
-#endif
-        }
-        else
-            res.flt = (rc.u & 0x80000000) ? float(face * 2 + 1) : float(face * 2);
-
-        DEBUG_EMU(gprintf("\t[%d] %d <-- %d %g\n",i,res.i,face,rc.i););
-        FREGS[dst].f[i] = res.f;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f  = fpu::f32_cubeFaceIdx(val1.u, val2.f);
+        DEBUG_EMU(gprintf("\t[%d] %g <-- %u %g\n",i,res.flt,val1.u,val2.flt););
+        FREGS[dst].u[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5414,11 +4986,11 @@ void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
         // check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
 
-        uint32_t face = (FREGS[src1].u[i])&0x7;
-        iufval sc, res;
-        sc.u = FREGS[src2].u[i];
-        res.u = ((face == 0) || (face == 5)) ? (0x80000000 | sc.u) : (0x7fffffff & sc.u);
-        DEBUG_EMU(gprintf("\t[%d] 0x08%x [%g] <-- %d %g\n",i,res.u,res.flt,face,sc.flt););
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f  = fpu::f32_cubeFaceSignS(val1.u, val2.f);
+        DEBUG_EMU(gprintf("\t[%d] 0x08%x (%g) <-- 0x%x 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val2.u,val2.flt););
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
@@ -5438,11 +5010,11 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
         // check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
 
-        uint32_t face = (FREGS[src1].u[i])&0x7;
-        iufval tc, res;
-        tc.u = FREGS[src2].u[i];
-        res.u = (face == 2) ? (0x7fffffff & tc.u) : (0x80000000 | tc.u);
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x [%g] <-- %d %g\n",i,res.u,res.flt,face,tc.flt););
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f  = fpu::f32_cubeFaceSignT(val1.u, val2.f);
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) <-- 0x%x 0x%08x (%g)\n",i,res.u,res.flt,val1.u,val2.u,val2.flt););
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
@@ -6621,10 +6193,8 @@ void tensorload(uint64_t control)//Transtensorload
                     for ( int k = 0; k < VL; k++ )
                     {
                         uint64_t addr_final = addr+j*VL*4+k*4;
-                        uint32_t val32 = vmemread32(addr_final);
-                        float32_t fval32 = cast_uint32_to_float32(val32);
-
-                        SCP[dst + i][j].f[k] = fval32;
+                        uint32_t val = vmemread32(addr_final);
+                        SCP[dst + i][j].u[k] = val;
                         DEBUG_EMU(gprintf("\tScratchpad tensor load MEM[%016X]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)\n", addr_final, dst+i,j,k,SCP[dst+i][j].u[k],SCP[dst+i][j].u[k]);)
                     }
                 }
@@ -6900,25 +6470,16 @@ static void tensorfma(uint64_t tfmareg)
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
                 {
-                    iufval accum, mul_a, mul_b, res;
+                    iufval32 accum, mul_a, mul_b, res;
 
                     int af = (aoffset + ac) / VL;
                     int am = (aoffset + ac) % VL;
                     int br = bstart + ac;                // B: traverse acols rows
 
-                    accum.f = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
-                    mul_a.f = SCP[astart+ar][af].f[am];
-                    mul_b.f = SCP[br][bf].f[bm];
-                    handle_denormal(accum);
-                    handle_denormal(mul_a);
-                    handle_denormal(mul_b);
-#ifdef HAVE_SOFTFLOAT
-                    res.f = f32_mulAdd(mul_a.f, mul_b.f, accum.f);
-#else
-                    res.f = fmaf(mul_a.f, mul_b.f, accum.f);
-                    handle_nan_default(res);
-#endif
-                    handle_denormal(res);
+                    accum.u = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                    mul_a.u = SCP[astart+ar][af].u[am];
+                    mul_b.u = SCP[br][bf].u[bm];
+                    res.f = fpu::f32_mulAdd(mul_a.f, mul_b.f, accum.f);
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
                     DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
                     DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul_a.u,mul_b.u);)
@@ -6936,39 +6497,39 @@ static void tensorfma(uint64_t tfmareg)
                 }
             }
 #if VL==8
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[4]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[5]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[6]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[7]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[4]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[5]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[6]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[7]);)
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7]));)
 #elif VL==4
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,0,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,1,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,2,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,3,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,0,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,1,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,2,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,3,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[3]);)
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,0,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,1,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,2,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,3,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,0,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,1,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,2,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,3,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3]));)
 #endif
         }
     }
@@ -7027,188 +6588,73 @@ static void tensorfma(uint64_t tfmareg)
 
 
                     // Doing two FMAs per lane and accumulating to previous results
-                    iufval accum;
-                    accum.f = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].f[bm];
-                    //handle_denormal(accum); // NB: No need for this, the value is generated by TXFMA so it cannot be denormal
+                    iufval32 accum, res;
+                    accum.u = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
-                    uint16_t  mul1_a_hex = SCP[astart+ar][af].h[am * 2];        // get first operand
-                    uint16_t  mul2_a_hex = SCP[astart+ar][af].h[am * 2 + 1];    // get third operand
-                    uint16_t  mul1_b_hex = SCP[br][bf].h[bm * 2];               // get second operand
-                    uint16_t  mul2_b_hex = SCP[br][bf].h[bm * 2 + 1];           // get fourth operand
+                    uint16_t a1 = SCP[astart+ar][af].h[am * 2];       // get first operand
+                    uint16_t a2 = SCP[astart+ar][af].h[am * 2 + 1];   // get third operand
+                    uint16_t b1 = SCP[br][bf].h[bm * 2];              // get second operand
+                    uint16_t b2 = SCP[br][bf].h[bm * 2 + 1];          // get fourth operand
 
-#if defined(USE_REAL_TXFMA)
-                    iufval mul1_a, mul1_b, fma1, mul2_a, mul2_b, fma2;
-
-                    // 1st FMA
-                    bool      mul1_a_den = ((mul1_a_hex & 0x7C00) == 0);        // detect input denormal or zero
-                    int32_t   mul1_a_exp = ((mul1_a_hex >> 10) & 0x1F) - 15;    // get exponent
-
-                    bool      mul1_b_den = ((mul1_b_hex & 0x7C00) == 0);        // detect input denormal or zero
-                    int32_t   mul1_b_exp = ((mul1_b_hex >> 10) & 0x1F) - 15;    // get exponent
-
-                    // flush denormals to zero, preserving sign
-                    if (mul1_a_den) mul1_a_hex &= 0x8000;
-                    if (mul1_b_den) mul1_b_hex &= 0x8000;
-
-                    mul1_a.flt = _cvtsh_ss(mul1_a_hex);                         // convert to fp32
-                    mul1_b.flt = _cvtsh_ss(mul1_b_hex);                         // convert to fp32
-                    fma1.flt   = mul1_a.flt * mul1_b.flt;                       // perform first mul
-
-                    // 2nd FMA
-                    bool      mul2_a_den = ((mul2_a_hex & 0x7C00) == 0);        // detect input denormal or zero
-                    int32_t   mul2_a_exp = ((mul2_a_hex >> 10) & 0x1F) - 15;    // get exponent
-
-                    bool      mul2_b_den = ((mul2_b_hex & 0x7C00) == 0);        // detect input denormal or zero
-                    int32_t   mul2_b_exp = ((mul2_b_hex >> 10) & 0x1F) - 15;    // get exponent
-
-                    // flush denormals to zero, preserving sign
-                    if (mul2_a_den) mul2_a_hex &= 0x8000;
-                    if (mul2_b_den) mul2_b_hex &= 0x8000;
-
-                    mul2_a.flt = _cvtsh_ss(mul2_a_hex);                         // convert to fp32
-                    mul2_b.flt = _cvtsh_ss(mul2_b_hex);                         // convert to fp32
-                    fma2.flt   = mul2_a.flt * mul2_b.flt;                       // perform second mul
-
-                    // Get hex value and exponents of three operands of final addition
-                    uint32_t hex_accum  = accum.u;
-                    int32_t  accum_exp  = ((hex_accum >> 23) & 0xFF) - 127;
-                    uint32_t hex_fma1   = fma1.u;
-                    int32_t  fma1_exp   = ((hex_fma1 >> 23) & 0xFF) - 127;
-                    int32_t  fma1_exp_r = (mul1_a_den || mul1_b_den) ? -127 : mul1_a_exp + mul1_b_exp; // use exponent without shifting to match rtl
-                    uint32_t hex_fma2   = fma2.u;
-                    int32_t  fma2_exp   = ((hex_fma2 >> 23) & 0xFF) - 127;
-                    int32_t  fma2_exp_r = (mul2_a_den || mul2_b_den) ? -127 : mul2_a_exp + mul2_b_exp; // use exponent without shifting to match rtl
-
-                    // Get max exponent that determines where we truncate other values
-                    int32_t exp_max = ((accum_exp >= fma1_exp_r) && (accum_exp  >= fma2_exp_r)) ? accum_exp  :
-                                      ((fma1_exp_r >= accum_exp) && (fma1_exp_r >= fma2_exp_r)) ? fma1_exp_r :
-                                                                                                  fma2_exp_r;
-
-                    // Truncate all values to (set truncate accordingly):
-                    //    - 0: b23 (no rouding)
-                    //    - 1: round bit
-                    //    - 2: guard bit
-                    int32_t  truncate = 1;
-                    int32_t  accum_erase = exp_max - accum_exp - truncate;
-                    uint32_t accum_trunc = (accum_erase > 23) ? (hex_accum &  0x80000000) :
-                                           (accum_erase < 1 ) ? (hex_accum              ) :
-                                                                (hex_accum & ((0xFFFFFFFF >> accum_erase) << accum_erase));
-                    int32_t   fma1_erase = exp_max -  fma1_exp - truncate;
-                    uint32_t  fma1_trunc = ( fma1_erase > 23) ? (hex_fma1  &  0x80000000) :
-                                           ( fma1_erase < 1 ) ? (hex_fma1               ) :
-                                                                (hex_fma1  & ((0xFFFFFFFF >>  fma1_erase) <<  fma1_erase));
-                    int32_t   fma2_erase = exp_max -  fma2_exp - truncate;
-                    uint32_t  fma2_trunc = ( fma2_erase > 23) ? (hex_fma2  &  0x80000000) :
-                                           ( fma2_erase < 1 ) ? (hex_fma2               ) :
-                                                                (hex_fma2  & ((0xFFFFFFFF >>  fma2_erase) <<  fma2_erase));
-
-                    // Convert back to fp32 after truncation
-                    float accum_fp32 = cast_uint32_to_float(accum_trunc);
-                    float  fma1_fp32 = cast_uint32_to_float(fma1_trunc);
-                    float  fma2_fp32 = cast_uint32_to_float(fma2_trunc);
-
-                    // Perform accumulation (first in fp64 to avoid uncontrolled rounding => then clip to fp32 with appropiate rounding)
-                    double    res64     = double(accum_fp32) + double(fma1_fp32) + double(fma2_fp32);
-                    uint64_t  hex_res64 = cast_double_to_uint64(res64);
-                    hex_res64           = hex_res64 & 0xFFFFFFFFE0000000; // Cut mantissa down to 23 bits from original 52 bits of FP64
-                    res64               = cast_uint64_to_double(hex_res64);
-                    iufval res;
-                    res.flt             = float(res64);
-
-                    // Finally, clear output denormals and NaNs
-                    handle_denormal(res);
-                    handle_nan_default(res);
+                    res.f = fpu::f32_tensorMulAddF16(accum.f, fpu::F16(a1), fpu::F16(b1), fpu::F16(a2), fpu::F16(b2));
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul_a.u,mul_b.u);)
-                    // Uncomment to help debugging
-                    //DEBUG_EMU(gprintf("\tBefore truncating accum 0x%08x, fma1 0x%08x, fma2 0x%08x\n", hex_accum, hex_fma1, hex_fma2);)
-                    //DEBUG_EMU(gprintf("\tAfter truncating  accum 0x%08x, fma1 0x%08x, fma2 0x%08x\n", accum_trunc, fma1_trunc, fma2_trunc);)
-                    //DEBUG_EMU(gprintf("\tExponents accum exp %d, fma1 exp %d, fma2 exp %d\n", accum_exp, fma1_exp, fma2_exp);)
-                    //DEBUG_EMU(gprintf("\tRemove bits according to max exp %d, accum %d, fma1 %d, fma2 %d\n", exp_max, accum_erase, fma1_erase, fma2_erase);)
-#else
-                    iufval mul_a, mul_b, res;
-
-                    // NB: we do not treat fp16 input denormals as zero here
-                    // if ((mul1_a_hex & 0x7c00) == 0) mul1_a_hex &= 0x8000;
-                    // if ((mul1_b_hex & 0x7c00) == 0) mul1_b_hex &= 0x8000;
-                    // if ((mul2_a_hex & 0x7c00) == 0) mul2_a_hex &= 0x8000;
-                    // if ((mul2_b_hex & 0x7c00) == 0) mul2_b_hex &= 0x8000;
-
-                    // 1st FMA
-                    mul_a.flt = _cvtsh_ss(mul1_a_hex);
-                    mul_b.flt = _cvtsh_ss(mul1_b_hex);
-                    res.flt   = fmaf(mul_a.flt, mul_b.flt, accum.flt);
-                    handle_denormal(res);
-                    handle_nan_default(res);
-                    //FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
-
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul1_a_hex,mul1_b_hex););
-
-                    // 2nd FMA
-                    accum     = res;
-                    mul_a.flt = _cvtsh_ss(mul2_a_hex);
-                    mul_b.flt = _cvtsh_ss(mul2_b_hex);
-                    //accum.f = FREGS[FMA_MAX_BCOLS/VL*ar+bf].f[bm];
-                    //handle_denormal(accum);
-                    res.flt   = fmaf(mul_a.flt, mul_b.flt, accum.flt);
-                    handle_denormal(res);
-                    handle_nan_default(res);
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
-
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul2_a_hex,mul2_b_hex););
-#endif
+                    DEBUG_EMU(
+                        float fa1 = fpu::FLT( fpu::f16_to_f32(fpu::F16(a1)) );
+                        float fb1 = fpu::FLT( fpu::f16_to_f32(fpu::F16(b1)) );
+                        float fa2 = fpu::FLT( fpu::f16_to_f32(fpu::F16(a2)) );
+                        float fb2 = fpu::FLT( fpu::f16_to_f32(fpu::F16(b2)) );
+                        gprintf("\tTensor FMA f%d[%d]: %g = %g + (%g * %g) + (%g * %g)\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,fa1,fb1,fa2,fb2);
+                        gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + (0x%04x * 0x%04x) + (0x%04x * 0x%04x)\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,a1,b1,a2,b2);
+                    );
 
                     // For checker purposes we keep the data of all the passes
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
                     if ((first_pass == 0) || (ac != 0)) {
                     // If both As are zeroes, we skip operation
-                      if((mul1_a_hex == 0) && (mul2_a_hex == 0))
+                      if((a1 == 0) && (a2 == 0))
                           tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     // If both Bs are zeroes, we skip operation
-                      if((mul1_b_hex == 0) && (mul2_b_hex == 0))
+                      if((b1 == 0) && (b2 == 0))
                           tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
 #if VL==8
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[4]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[5]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[6]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[7]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[4]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[5]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[6]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[7]);)
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7]));)
 #elif VL==4
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar  ,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,0,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,1,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,2,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,3,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+2].flt[3]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,0,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[0]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,1,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[1]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,2,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[2]);)
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,3,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+3].flt[3]);)
+            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar  ,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,0,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,1,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,2,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,3,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,0,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,1,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,2,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2]));)
+            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,3,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3]));)
 #endif
         }
     }
@@ -7410,25 +6856,17 @@ static void tensorreduce(uint64_t value)
         {
             if(operation == 0) // FADD
             {
-                iufval src1, src2, rslt;
-                src1.f = FREGS[i + start_reg].f[j];
-                src2.f = fregs[other_min<<1][i + start_reg].f[j];
-                handle_denormal(src1);
-                handle_denormal(src2);
-#ifdef HAVE_SOFTFLOAT
-                rslt.f = f32_add(src1.f, src2.f);
-#else
-                rslt.f = src1.f + src2.f;
-                handle_nan_default(rslt);
-#endif
-                handle_denormal(rslt);
-                FREGS[i + start_reg].f[j] = rslt.f;
+                iufval32 src1, src2, rslt;
+                src1.u = FREGS[i + start_reg].u[j];
+                src2.u = fregs[other_min<<1][i + start_reg].u[j];
+                rslt.f = fpu::f32_add(src1.f, src2.f);
+                FREGS[i + start_reg].u[j] = rslt.u;
                 DEBUG_EMU(gprintf("\tReduce (fadd) f%d[%d]: %g = %g(m%d) + %g(m%d)\n",i+start_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min););
                 DEBUG_EMU(gprintf("\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x\n",i+start_reg,j,rslt.u,src1.u,src2.u););
             }
             else if(operation == 4) // IADD
             {
-                iufval src1, src2, rslt;
+                iufval32 src1, src2, rslt;
                 src1.u = FREGS[i + start_reg].u[j];
                 src2.u = fregs[other_min<<1][i + start_reg].u[j];
                 rslt.u = src1.u + src2.u;
@@ -7438,7 +6876,7 @@ static void tensorreduce(uint64_t value)
             }
             else if(operation == 8) // FGET
             {
-                iufval tmp;
+                iufval32 tmp;
                 tmp.u = fregs[other_min<<1][i + start_reg].u[j];
                 FREGS[i + start_reg].u[j] = tmp.u;
                 DEBUG_EMU(gprintf("\tReduce (get) f%d[%d]: <= %g(m%d)\n",i+start_reg,j,tmp.flt,other_min););
