@@ -1029,6 +1029,10 @@ void instruction::add_parameter(std::string param)
         else if ( param == "rup") params[num_params] = 3;
         else if ( param == "rmm") params[num_params] = 4;
         else if ( param == "dyn") params[num_params] = 7;
+        // Unknown CSR
+        else if(param.find("unknown_") !=std::string::npos) {
+           params[num_params] = csr_unknown;
+        }
         else
           {
             has_error = true;

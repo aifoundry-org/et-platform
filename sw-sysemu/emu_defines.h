@@ -133,6 +133,9 @@ typedef enum
     csr_validation2,
     csr_validation3,
 
+    // ----- Used for illegal CSR accesses -----------------------------------
+    csr_unknown,
+
     CSR_MAX
 } csr;
 

@@ -2429,12 +2429,15 @@ static void csrset(csr src1, uint64_t val)
 
 static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
 {
+    // Access to a CSR that doesnt exists throws illegal instruction exception
+    if (src1 == csr_unknown) throw trap_illegal_instruction(current_inst);
+
     // Check if current privilege mode has access to the register
     uint64_t prv = csrget(csr_prv);
     if (   ((prv == CSR_PRV_U) && (src1 > CSR_MAX_UMODE))
         || ((prv == CSR_PRV_S) && (src1 > CSR_MAX_SMODE)))
     {
-        throw trap_illegal_instruction(current_pc);
+        throw trap_illegal_instruction(current_inst);
     }
 
     uint64_t x = csrget(src1);
@@ -2455,7 +2458,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_marchid:
             case csr_mimpid:
             case csr_mhartid:
-                throw trap_illegal_instruction(current_pc);
+                throw trap_illegal_instruction(current_inst);
                 break;
             case csr_treduce:
                 tensorreduce(val);
