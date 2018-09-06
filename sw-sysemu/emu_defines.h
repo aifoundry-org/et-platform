@@ -7,16 +7,62 @@
 #include <inttypes.h>
 #endif
 
-// Basic types
-#ifdef HAVE_SOFTFLOAT
-#include <softfloat/softfloat_types.h>
-#else
-typedef float float32_t;
-#endif
+// Maximum number of threads
+#define EMU_NUM_MINIONS         1024
+#define EMU_THREADS_PER_MINION  2
+#define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
+#define EMU_MINIONS_PER_SHIRE   32
+#define NR_MSG_PORTS            4
+
+// Enable some features
+#define DEBUG_EMU   1
+#define DEBUG_MASK  1
+#define DISASM      1
+
+// Scratchpad defines
+#define L1_SCP_ENTRIES    64
+#define L1_SCP_LINE_SIZE  64
+#define L1_SCP_BLOCKS     (L1_SCP_LINE_SIZE / (VL * 4))
+#define L1_SCP_BLOCK_SIZE (VL * 4)
+// Some Tensor defines
+#define TFMA_MAX_AROWS    16
+#define TFMA_MAX_ACOLS    16
+#define TFMA_MAX_BCOLS    16
+#define TFMA_REGS_PER_ROW (64 / (VL * 4))
+
+// VA to PA translation
+#define PA_SIZE        40
+#define PA_M           ((((uint64_t)1) << PA_SIZE) - 1)
+#define PG_OFFSET_SIZE 12
+#define PG_OFFSET_M    ((((uint64_t)1) << PG_OFFSET_SIZE) - 1)
+#define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
+#define PPN_M          ((((uint64_t)1) << PPN_SIZE) - 1)
+#define PTE_V_OFFSET   0
+#define PTE_R_OFFSET   1
+#define PTE_W_OFFSET   2
+#define PTE_X_OFFSET   3
+#define PTE_U_OFFSET   4
+#define PTE_G_OFFSET   5
+#define PTE_A_OFFSET   6
+#define PTE_D_OFFSET   7
+#define PTE_PPN_OFFSET 10
+
+// SATP mode field values
+#define SATP_MODE_BARE  0
+#define SATP_MODE_SV39  8
+#define SATP_MODE_SV48  9
+
+// MSTATUS field offsets
+#define MSTATUS_MXR     19
+#define MSTATUS_SUM     18
+#define MSTATUS_MPRV    17
+#define MSTATUS_XS      15
+#define MSTATUS_FS      13
+#define MSTATUS_MPP     11
+#define MSTATUS_SPP     8
 
 // CSRs
-typedef enum
-{
+typedef enum {
     csr_prv = 0, // this is internal to HW
 
     // ----- U-mode registers ------------------------------------------------
@@ -143,69 +189,14 @@ typedef enum
 #define CSR_MAX_SMODE   csr_mvendorid
 #define CSR_MAX_MMODE   CSR_MAX
 
-// MMU
-
 // Memory access type
-typedef enum
-{
+typedef enum {
     Mem_Access_Load,
     Mem_Access_Store,
     Mem_Access_Fetch
 } mem_access_type;
 
-// VA to PA translation
-#define PA_SIZE        40
-#define PA_M           ((((uint64_t)1) << PA_SIZE) - 1)
-#define PG_OFFSET_SIZE 12
-#define PG_OFFSET_M    ((((uint64_t)1) << PG_OFFSET_SIZE) - 1)
-#define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
-#define PPN_M          ((((uint64_t)1) << PPN_SIZE) - 1)
-#define PTE_V_OFFSET   0
-#define PTE_R_OFFSET   1
-#define PTE_W_OFFSET   2
-#define PTE_X_OFFSET   3
-#define PTE_U_OFFSET   4
-#define PTE_G_OFFSET   5
-#define PTE_A_OFFSET   6
-#define PTE_D_OFFSET   7
-#define PTE_PPN_OFFSET 10
-
-// SATP mode field values
-#define SATP_MODE_BARE  0
-#define SATP_MODE_SV39  8
-#define SATP_MODE_SV48  9
-
-// MSTATUS field offsets
-#define MSTATUS_MXR     19
-#define MSTATUS_SUM     18
-#define MSTATUS_MPRV    17
-#define MSTATUS_XS      15
-#define MSTATUS_FS      13
-#define MSTATUS_MPP     11
-#define MSTATUS_SPP     8
-
-// fclass result bitmask
-#define FCLASS_NEG_INFINITY     0x0001
-#define FCLASS_NEG_NORMAL       0x0002
-#define FCLASS_NEG_SUBNORMAL    0x0004
-#define FCLASS_NEG_ZERO         0x0008
-#define FCLASS_POS_ZERO         0x0010
-#define FCLASS_POS_SUBNORMAL    0x0020
-#define FCLASS_POS_NORMAL       0x0040
-#define FCLASS_POS_INFINITY     0x0080
-#define FCLASS_SNAN             0x0100
-#define FCLASS_QNAN             0x0200
-// fclass combined classes
-#define FCLASS_INFINITY         (FCLASS_NEG_INFINITY  | FCLASS_POS_INFINITY )
-#define FCLASS_NORMAL           (FCLASS_NEG_NORMAL    | FCLASS_POS_NORMAL   )
-#define FCLASS_SUBNORMAL        (FCLASS_NEG_SUBNORMAL | FCLASS_POS_SUBNORMAL)
-#define FCLASS_ZERO             (FCLASS_NEG_ZERO      | FCLASS_POS_ZERO     )
-#define FCLASS_NAN              (FCLASS_SNAN          | FCLASS_QNAN         )
-#define FCLASS_NEGATIVE         (FCLASS_NEG_INFINITY | FCLASS_NEG_NORMAL | FCLASS_NEG_SUBNORMAL | FCLASS_NEG_ZERO)
-#define FCLASS_POSITIVE         (FCLASS_POS_INFINITY | FCLASS_POS_NORMAL | FCLASS_POS_SUBNORMAL | FCLASS_POS_ZERO)
-
-typedef enum
-{
+typedef enum {
     m0 = 0,
     m1 = 1,
     m2 = 2,
@@ -218,8 +209,7 @@ typedef enum
     mnone = -1
 } mreg;
 
-typedef enum
-{
+typedef enum {
     x0 = 0,
     x1 = 1,
     x2 = 2,
@@ -256,8 +246,7 @@ typedef enum
     xnone = -1
 } xreg;
 
-typedef enum
-{
+typedef enum {
     f0 = 0,
     f1 = 1,
     f2 = 2,
@@ -290,12 +279,11 @@ typedef enum
     f29 = 29,
     f30 = 30,
     f31 = 31,
-    MAXFREG,
+    MAXFREG = 32,
     fnone = -1
 } freg;
 
-typedef enum
-{
+typedef enum {
     rne = 0,
     rtz = 1,
     rdn = 2,
@@ -304,16 +292,14 @@ typedef enum
     rmdyn = 7 //dynamic rounding mode, read from rm register
 } rounding_mode;
 
-typedef enum
-{
+typedef enum {
     MSG_ENABLE = 7,
     MSG_DISABLE = 3,
     MSG_PGET = 0,
     MSG_PGETNB = 1,
 } msg_port_conf_action;
 
-typedef enum
-{
+typedef enum {
     // PS memory instructions
     FLW,
     FSW,
@@ -475,21 +461,17 @@ typedef enum
 #define VL_TBOX 4
 
 // vector register value type
-typedef union
-{
+typedef union {
     uint8_t   b[VL*4];
     uint16_t  h[VL*2];
     uint32_t  u[VL];
     int32_t   i[VL];
-    float32_t f[VL];
-    float     flt[VL];
     uint64_t  x[VL/2];
     int64_t   q[VL/2];
 } fdata;
 
 // general purpose register value type
-typedef union
-{
+typedef union {
     uint8_t   b[8];
     uint16_t  h[4];
     uint32_t  w[2];
@@ -499,8 +481,7 @@ typedef union
 } xdata;
 
 // mask register value type
-typedef struct
-{
+typedef struct {
     uint8_t   b[VL];
 #if (VL==4)
     // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
@@ -508,23 +489,8 @@ typedef struct
 #endif
 } mdata;
 
-// useful for type conversions
-typedef union
-{
-    int32_t   i;
-    uint32_t  u;
-    float32_t f;
-    float     flt;
-    uint64_t  x;
-    int64_t   xs;
-#ifdef USE_REAL_TXFMA
-    double    dbl;
-#endif
-} iufval;
-
 // message port value type
-typedef struct
-{
+typedef struct {
     bool enabled;
     bool stall;
     bool umode;
@@ -572,9 +538,8 @@ typedef struct
 #define CAUSE_STORE_PAGE_FAULT      0x0f
 
 // base class for all traps
-class trap_t
-{
-public:
+class trap_t {
+  public:
     trap_t(uint64_t n) : cause(n) {}
     uint64_t get_cause() const { return cause; }
 
@@ -582,14 +547,14 @@ public:
     virtual uint64_t get_tval() const = 0;
     virtual const char* what() = 0;
 
-private:
+  private:
     const uint64_t cause;
 };
 
 // define a trap type without tval
 #define DECLARE_TRAP_TVAL_N(n, x) \
     class x : public trap_t { \
-    public: \
+      public: \
         x() : trap_t(n) {} \
         virtual bool has_tval() const override { return false; } \
         virtual uint64_t get_tval() const override { return 0; } \
@@ -599,12 +564,12 @@ private:
 // define a trap type with tval
 #define DECLARE_TRAP_TVAL_Y(n, x) \
     class x : public trap_t { \
-    public: \
+      public: \
         x(uint64_t v) : trap_t(n), tval(v) {} \
         virtual bool has_tval() const override { return true; } \
         virtual uint64_t get_tval() const override { return tval; } \
         virtual const char* what() override { return #x; } \
-    private: \
+      private: \
         const uint64_t tval; \
     };
 
@@ -623,29 +588,6 @@ DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_ECALL,        trap_machine_ecall)
 DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_PAGE_FAULT,     trap_instruction_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
-
-// Maximum number of threads
-#define EMU_NUM_MINIONS         1024
-#define EMU_THREADS_PER_MINION  2
-#define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
-#define EMU_MINIONS_PER_SHIRE   32
-#define NR_MSG_PORTS            4
-
-// Enable some features
-#define DEBUG_EMU   1
-#define DEBUG_MASK  1
-#define DISASM      1
-
-// Scratchpad defines
-#define L1_SCP_ENTRIES    64
-#define L1_SCP_LINE_SIZE  64
-#define L1_SCP_BLOCKS     (L1_SCP_LINE_SIZE / (VL * 4))
-#define L1_SCP_BLOCK_SIZE (VL * 4)
-// Some Tensor defines
-#define TFMA_MAX_AROWS    16
-#define TFMA_MAX_ACOLS    16
-#define TFMA_MAX_BCOLS    16
-#define TFMA_REGS_PER_ROW (64 / (VL * 4))
 
 #endif // _EMU_DEFINES_H
 

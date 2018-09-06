@@ -41,7 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "softfloat.h"
 
 #ifndef THREAD_LOCAL
-#define THREAD_LOCAL
+#define THREAD_LOCAL __thread
 #endif
 
 THREAD_LOCAL uint_fast8_t softfloat_roundingMode = softfloat_round_near_even;

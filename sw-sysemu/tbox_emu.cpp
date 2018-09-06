@@ -7,7 +7,7 @@
 #include <cstring>
 
 #include "tbox_emu.h"
-#include "emu_casts.h"
+#include "fpu_casts.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
 #include "cvt.h"
@@ -22,21 +22,19 @@ using emu::gfprintf;
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #define max(a, b) (((a) >= (b)) ? (a) : (b))
 
-static inline float32_t clamp(float v)
+static inline float32_t clampf(float v)
 {
     if (v > 1.0)
-        return cast_float_to_float32(1.0);
+        return fpu::F32(1.0);
     if (v < 0.0)
-        return cast_float_to_float32(0.0);
-    return cast_float_to_float32(v);
+        return fpu::F32(0.0);
+    return fpu::F32(v);
 }
 
-#ifdef HAVE_SOFTFLOAT
-static inline float32_t clamp(float32_t v)
+static inline float32_t clamp(uint32_t v)
 {
-    return clamp(cast_float32_to_float(v));
+    return clampf(fpu::FLT(v));
 }
-#endif
 
 const uint32_t TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
     0,  // FORMAT_UNDEFINED
@@ -699,9 +697,7 @@ static inline uint64_t cast_bytes_to_uint64(uint8_t *src)
 
 static inline float cast_bytes_to_float(uint8_t *src)
 {
-    iufval tmp;
-    tmp.u = cast_bytes_to_uint32(src);
-    return tmp.flt;
+    return fpu::FLT( cast_bytes_to_uint32(src) );
 }
 
 static inline void memcpy_uint16(uint8_t *dst, uint16_t src)
@@ -1526,10 +1522,10 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
                     {
                         float decompressedTexel[4];
                         fetch_bptc_rgb_unsigned_float((uint8_t *) inData, 0, startTexel + t, l, decompressedTexel);
-                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = float32tofloat16(cast_float_to_float32(decompressedTexel[0]));
-                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = float32tofloat16(cast_float_to_float32(decompressedTexel[1]));
-                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = float32tofloat16(cast_float_to_float32(decompressedTexel[2]));
-                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = float32tofloat16(cast_float_to_float32(decompressedTexel[3]));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = float32tofloat16(fpu::F32(decompressedTexel[0]));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = float32tofloat16(fpu::F32(decompressedTexel[1]));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = float32tofloat16(fpu::F32(decompressedTexel[2]));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = float32tofloat16(fpu::F32(decompressedTexel[3]));
                     }
             }
             break;
@@ -1540,10 +1536,10 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
                     {
                         float decompressedTexel[4];
                         fetch_bptc_rgb_signed_float((uint8_t *) inData, 0, startTexel + t, l, decompressedTexel);
-                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = float32tofloat16(cast_float_to_float32(decompressedTexel[0]));
-                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = float32tofloat16(cast_float_to_float32(decompressedTexel[1]));
-                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = float32tofloat16(cast_float_to_float32(decompressedTexel[2]));
-                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = float32tofloat16(cast_float_to_float32(decompressedTexel[3]));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 0] = float32tofloat16(fpu::F32(decompressedTexel[0]));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 1] = float32tofloat16(fpu::F32(decompressedTexel[1]));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 2] = float32tofloat16(fpu::F32(decompressedTexel[2]));
+                        ((uint16_t *) outData)[l * 8 + t * 4 + 3] = float32tofloat16(fpu::F32(decompressedTexel[3]));
                     }
             }
             break;
@@ -1736,7 +1732,7 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
                 {
                     uint8_t r_un8 = ((uint8_t *) inData)[l * 4 + t];
                     float32_t r_fp32 = unorm8tofloat32(r_un8);
-                    r_fp32 = cast_float_to_float32(powf(cast_float32_to_float(r_fp32), 2.2));
+                    r_fp32 = fpu::F32(powf(fpu::FLT(r_fp32), 2.2));
                     uint16_t r_fp16 = float32tofloat16(r_fp32);
                     ((uint16_t *) outData)[l * 8 + t * 2 + 0] = (uint32_t)r_fp16;
                     ((uint16_t *) outData)[l * 8 + t * 2 + 1] = 0;
@@ -2163,7 +2159,7 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
                     ((float32_t *) outData)[l * 4 + 0] = r_fp32;
                     ((float32_t *) outData)[l * 4 + 1] = g_fp32;
                     ((float32_t *) outData)[l * 4 + 2] = b_fp32;
-                    ((float32_t *) outData)[l * 4 + 3] = cast_float_to_float32(1.0);
+                    ((float32_t *) outData)[l * 4 + 3] = fpu::F32(1.0);
                 }
             }
             break;
@@ -2181,7 +2177,7 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
                     ((float32_t *) outData)[l * 4 + 0] = r_fp32;
                     ((float32_t *) outData)[l * 4 + 1] = g_fp32;
                     ((float32_t *) outData)[l * 4 + 2] = b_fp32;
-                    ((float32_t *) outData)[l * 4 + 3] = cast_float_to_float32(1.0);
+                    ((float32_t *) outData)[l * 4 + 3] = fpu::F32(1.0);
                 }
             }
             break;
@@ -2278,25 +2274,24 @@ void TBOXEmu::sample_quad(uint32_t thread, bool fake_sampler, bool output_result
 
     if (fake_sampler)
     {
-        std::fesetround(FE_TONEAREST);
         DEBUG_EMU(gprintf("\tCall to fake sampler\n");)
 
-        output[thread][0].h[0] = float32tofloat16(clamp(input[thread][0].f[0]));
-        output[thread][0].h[1] = float32tofloat16(clamp(input[thread][0].f[1]));
-        output[thread][0].h[2] = float32tofloat16(clamp(input[thread][0].f[2]));
-        output[thread][0].h[3] = float32tofloat16(clamp(input[thread][0].f[2]));
-        output[thread][0].h[4] = float32tofloat16(clamp(input[thread][0].flt[0] * input[thread][1].flt[0] / 2.0));
-        output[thread][0].h[5] = float32tofloat16(clamp(input[thread][0].flt[1] * input[thread][1].flt[1] / 2.0));
-        output[thread][0].h[6] = float32tofloat16(clamp(input[thread][0].flt[2] * input[thread][1].flt[2] / 2.0));
-        output[thread][0].h[7] = float32tofloat16(clamp(input[thread][0].flt[3] * input[thread][1].flt[3] / 2.0));
-        output[thread][1].h[0] = float32tofloat16(clamp(input[thread][1].f[0]));
-        output[thread][1].h[1] = float32tofloat16(clamp(input[thread][1].f[1]));
-        output[thread][1].h[2] = float32tofloat16(clamp(input[thread][1].f[2]));
-        output[thread][1].h[3] = float32tofloat16(clamp(input[thread][1].f[3]));
-        output[thread][1].h[4] = float32tofloat16(cast_float_to_float32(1.0));
-        output[thread][1].h[5] = float32tofloat16(cast_float_to_float32(1.0));
-        output[thread][1].h[6] = float32tofloat16(cast_float_to_float32(1.0));
-        output[thread][1].h[7] = float32tofloat16(cast_float_to_float32(1.0));
+        output[thread][0].h[0] = float32tofloat16(clamp(input[thread][0].u[0]));
+        output[thread][0].h[1] = float32tofloat16(clamp(input[thread][0].u[1]));
+        output[thread][0].h[2] = float32tofloat16(clamp(input[thread][0].u[2]));
+        output[thread][0].h[3] = float32tofloat16(clamp(input[thread][0].u[2]));
+        output[thread][0].h[4] = float32tofloat16(clampf(fpu::FLT(input[thread][0].u[0]) * fpu::FLT(input[thread][1].u[0]) / 2.0));
+        output[thread][0].h[5] = float32tofloat16(clampf(fpu::FLT(input[thread][0].u[1]) * fpu::FLT(input[thread][1].u[1]) / 2.0));
+        output[thread][0].h[6] = float32tofloat16(clampf(fpu::FLT(input[thread][0].u[2]) * fpu::FLT(input[thread][1].u[2]) / 2.0));
+        output[thread][0].h[7] = float32tofloat16(clampf(fpu::FLT(input[thread][0].u[3]) * fpu::FLT(input[thread][1].u[3]) / 2.0));
+        output[thread][1].h[0] = float32tofloat16(clamp(input[thread][1].u[0]));
+        output[thread][1].h[1] = float32tofloat16(clamp(input[thread][1].u[1]));
+        output[thread][1].h[2] = float32tofloat16(clamp(input[thread][1].u[2]));
+        output[thread][1].h[3] = float32tofloat16(clamp(input[thread][1].u[3]));
+        output[thread][1].h[4] = float32tofloat16(fpu::F32(1.0));
+        output[thread][1].h[5] = float32tofloat16(fpu::F32(1.0));
+        output[thread][1].h[6] = float32tofloat16(fpu::F32(1.0));
+        output[thread][1].h[7] = float32tofloat16(fpu::F32(1.0));
         output[thread][2].q[0] = 0;
         output[thread][2].q[1] = 0;
         output[thread][3].q[0] = 0;
@@ -2323,22 +2318,22 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata out
     {
         DEBUG_EMU(gprintf("\tCall to fake sampler\n");)
 
-        output[0].h[0] = float32tofloat16(clamp(input[0].f[0]));
-        output[0].h[1] = float32tofloat16(clamp(input[0].f[1]));
-        output[0].h[2] = float32tofloat16(clamp(input[0].f[2]));
-        output[0].h[3] = float32tofloat16(clamp(input[0].f[2]));
-        output[0].h[4] = float32tofloat16(clamp(input[0].flt[0] * input[1].flt[0] / 2.0));
-        output[0].h[5] = float32tofloat16(clamp(input[0].flt[1] * input[1].flt[1] / 2.0));
-        output[0].h[6] = float32tofloat16(clamp(input[0].flt[2] * input[1].flt[2] / 2.0));
-        output[0].h[7] = float32tofloat16(clamp(input[0].flt[3] * input[1].flt[3] / 2.0));
-        output[1].h[0] = float32tofloat16(clamp(input[1].f[0]));
-        output[1].h[1] = float32tofloat16(clamp(input[1].f[1]));
-        output[1].h[2] = float32tofloat16(clamp(input[1].f[2]));
-        output[1].h[3] = float32tofloat16(clamp(input[1].f[3]));
-        output[1].h[4] = float32tofloat16(cast_float_to_float32(1.0));
-        output[1].h[5] = float32tofloat16(cast_float_to_float32(1.0));
-        output[1].h[6] = float32tofloat16(cast_float_to_float32(1.0));
-        output[1].h[7] = float32tofloat16(cast_float_to_float32(1.0));
+        output[0].h[0] = float32tofloat16(clamp(input[0].u[0]));
+        output[0].h[1] = float32tofloat16(clamp(input[0].u[1]));
+        output[0].h[2] = float32tofloat16(clamp(input[0].u[2]));
+        output[0].h[3] = float32tofloat16(clamp(input[0].u[2]));
+        output[0].h[4] = float32tofloat16(clampf(fpu::FLT(input[0].u[0]) * fpu::FLT(input[1].u[0]) / 2.0));
+        output[0].h[5] = float32tofloat16(clampf(fpu::FLT(input[0].u[1]) * fpu::FLT(input[1].u[1]) / 2.0));
+        output[0].h[6] = float32tofloat16(clampf(fpu::FLT(input[0].u[2]) * fpu::FLT(input[1].u[2]) / 2.0));
+        output[0].h[7] = float32tofloat16(clampf(fpu::FLT(input[0].u[3]) * fpu::FLT(input[1].u[3]) / 2.0));
+        output[1].h[0] = float32tofloat16(clamp(input[1].u[0]));
+        output[1].h[1] = float32tofloat16(clamp(input[1].u[1]));
+        output[1].h[2] = float32tofloat16(clamp(input[1].u[2]));
+        output[1].h[3] = float32tofloat16(clamp(input[1].u[3]));
+        output[1].h[4] = float32tofloat16(fpu::F32(1.0));
+        output[1].h[5] = float32tofloat16(fpu::F32(1.0));
+        output[1].h[6] = float32tofloat16(fpu::F32(1.0));
+        output[1].h[7] = float32tofloat16(fpu::F32(1.0));
         output[2].q[0] = 0;
         output[2].q[1] = 0;
         output[3].q[0] = 0;
@@ -2430,7 +2425,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
         case SAMPLE_OP_SAMPLE:
         case SAMPLE_OP_SAMPLE_C:
             {
-                float lod = cast_float32_to_float(float16tofloat32(currentRequest.info.lodaniso.lodaniso.lod));
+                float lod = fpu::FLT(float16tofloat32(currentRequest.info.lodaniso.lodaniso.lod));
                 uint32_t lod_fxp = min(max(uint32_t(currentImage.info.basemip << 8),
                                            uint32_t(floor(max(lod, 0.0) * 256.0))),
                                        uint32_t((currentImage.info.mipcount - 1) << 8));
@@ -2449,7 +2444,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
         case SAMPLE_OP_SAMPLE_C_L:
             for (uint32_t req = 0; req < 4; req++)
             {
-                float pixel_lod = cast_float32_to_float(float16tofloat32(currentRequest.info.lodaniso.lod_array[req]));
+                float pixel_lod = fpu::FLT(float16tofloat32(currentRequest.info.lodaniso.lod_array[req]));
                 uint32_t pixel_lod_fxp = min(max(uint32_t(currentImage.info.basemip << 8),
                                                  uint32_t(floor(pixel_lod * 256.0))),
                                              uint32_t((currentImage.info.mipcount - 1) << 8));
@@ -2471,7 +2466,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
         case SAMPLE_OP_LD:
             for (uint32_t req = 0; req < 4; req++)
             {
-                mip_level[req] = uint32_t(cast_float32_to_float(float16tofloat32(currentRequest.info.lodaniso.lod_array[req])));
+                mip_level[req] = uint32_t(fpu::FLT(float16tofloat32(currentRequest.info.lodaniso.lod_array[req])));
                 mip_beta[req] = 0;
                 pixel_filter[req] = FILTER_TYPE_NEAREST;
             }
@@ -2504,12 +2499,12 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     float blue    = 0.0;
     float alpha   = 0.0;
 
-    float aniso_ratio = cast_float32_to_float(float16tofloat32(currentRequest.info.lodaniso.lodaniso.anisoratio));
+    float aniso_ratio = fpu::FLT(float16tofloat32(currentRequest.info.lodaniso.lodaniso.anisoratio));
 
     float aniso_weight = 1.0f;
     uint32_t aniso_count = 1;
-    float aniso_deltas = cast_float32_to_float(snorm8tofloat32(currentRequest.info.lodaniso.lodaniso.anisodeltau));
-    float aniso_deltat = cast_float32_to_float(snorm8tofloat32(currentRequest.info.lodaniso.lodaniso.anisodeltav));
+    float aniso_deltas = fpu::FLT(snorm8tofloat32(currentRequest.info.lodaniso.lodaniso.anisodeltau));
+    float aniso_deltat = fpu::FLT(snorm8tofloat32(currentRequest.info.lodaniso.lodaniso.anisodeltav));
 
     if (((currentRequest.info.operation == SAMPLE_OP_SAMPLE)
          || (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C))
@@ -2585,18 +2580,18 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     if (resultIsFloat32)
     {
         DEBUG_EMU(gprintf("\tFLOAT32 result\n");)
-        output[0].f[req] = cast_float_to_float32(red);
-        output[1].f[req] = cast_float_to_float32(green);
-        output[2].f[req] = cast_float_to_float32(blue);
-        output[3].f[req] = cast_float_to_float32(alpha);
+        output[0].u[req] = fpu::UI32(red);
+        output[1].u[req] = fpu::UI32(green);
+        output[2].u[req] = fpu::UI32(blue);
+        output[3].u[req] = fpu::UI32(alpha);
     }
     else
     {
         DEBUG_EMU(gprintf("\tFLOAT16 result\n");)
-        output[0].h[req * 2] = float32tofloat16(cast_float_to_float32(red));
-        output[1].h[req * 2] = float32tofloat16(cast_float_to_float32(green));
-        output[2].h[req * 2] = float32tofloat16(cast_float_to_float32(blue));
-        output[3].h[req * 2] = float32tofloat16(cast_float_to_float32(alpha));
+        output[0].h[req * 2] = float32tofloat16(fpu::F32(red));
+        output[1].h[req * 2] = float32tofloat16(fpu::F32(green));
+        output[2].h[req * 2] = float32tofloat16(fpu::F32(blue));
+        output[3].h[req * 2] = float32tofloat16(fpu::F32(alpha));
     }
 }
 
@@ -2697,27 +2692,27 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         */
         int side_step_sign = (aniso_sample & 0x1)? -1: 1;
 
-        u = s.flt[req] * mip_width + (aniso_sample>>1)*side_step_sign*aniso_deltas;
+        u = fpu::FLT(s.u[req]) * mip_width + (aniso_sample>>1)*side_step_sign*aniso_deltas;
 
         if ((currentImage.info.type == IMAGE_TYPE_2D) || (currentImage.info.type == IMAGE_TYPE_CUBE)
             || (currentImage.info.type == IMAGE_TYPE_3D) || (currentImage.info.type == IMAGE_TYPE_2D_ARRAY)
             || (currentImage.info.type == IMAGE_TYPE_CUBE_ARRAY))
 
-            v = t.flt[req] * mip_height + (aniso_sample>>1)*side_step_sign*aniso_deltat;
+            v = fpu::FLT(t.u[req]) * mip_height + (aniso_sample>>1)*side_step_sign*aniso_deltat;
         else
             v = 0.0;
 
         if (currentImage.info.type == IMAGE_TYPE_3D)
-            w = r.flt[req] * mip_depth;
+            w = fpu::FLT(r.u[req]) * mip_depth;
         else
             w = 0;
 
         if (currentImage.info.type == IMAGE_TYPE_1D_ARRAY)
-            a = uint32_t(t.flt[req]);
+            a = uint32_t(fpu::FLT(t.u[req]));
         else if ((currentImage.info.type == IMAGE_TYPE_2D_ARRAY) ||
                  (currentImage.info.type == IMAGE_TYPE_CUBE) ||
                  (currentImage.info.type == IMAGE_TYPE_CUBE_ARRAY))
-            a = uint32_t(r.flt[req]);
+            a = uint32_t(fpu::FLT(r.u[req]));
         else
             a = 0;
 
@@ -2833,7 +2828,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
                 || (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C_L)
                 || (currentRequest.info.operation == SAMPLE_OP_GATHER4_C))
             {
-                texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.opmode, t.flt[req], texel_ul[0]);
+                texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_ul[0]);
                 texel_ul[1] = 0.0;
                 texel_ul[2] = 0.0;
                 texel_ul[3] = 0.0;
@@ -2933,10 +2928,10 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
             (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C_L) ||
             (currentRequest.info.operation == SAMPLE_OP_GATHER4_C))
         {
-            texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.opmode, t.flt[req], texel_ul[0]);
-            texel_ur[0] = compare_texel((CompareOperation)currentRequest.info.opmode, t.flt[req], texel_ur[0]);
-            texel_ll[0] = compare_texel((CompareOperation)currentRequest.info.opmode, t.flt[req], texel_ll[0]);
-            texel_lr[0] = compare_texel((CompareOperation)currentRequest.info.opmode, t.flt[req], texel_lr[0]);
+            texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_ul[0]);
+            texel_ur[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_ur[0]);
+            texel_ll[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_ll[0]);
+            texel_lr[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_lr[0]);
             texel_ul[1] = 0.0;
             texel_ur[1] = 0.0;
             texel_ll[1] = 0.0;
@@ -3803,69 +3798,69 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_
     switch (fmt)
     {
         case FORMAT_R8_UNORM:
-            texel[0] = cast_float32_to_float(unorm8tofloat32(data[0]));
+            texel[0] = fpu::FLT(unorm8tofloat32(data[0]));
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R8G8_UNORM:
-            texel[0] = cast_float32_to_float(unorm8tofloat32(data[0]));
-            texel[1] = cast_float32_to_float(unorm8tofloat32(data[1]));
+            texel[0] = fpu::FLT(unorm8tofloat32(data[0]));
+            texel[1] = fpu::FLT(unorm8tofloat32(data[1]));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R8G8B8A8_UNORM:
         case FORMAT_R8G8B8A8_SRGB:
-            texel[0] = cast_float32_to_float(unorm8tofloat32(data[0]));
-            texel[1] = cast_float32_to_float(unorm8tofloat32(data[1]));
-            texel[2] = cast_float32_to_float(unorm8tofloat32(data[2]));
-            texel[3] = cast_float32_to_float(unorm8tofloat32(data[3]));
+            texel[0] = fpu::FLT(unorm8tofloat32(data[0]));
+            texel[1] = fpu::FLT(unorm8tofloat32(data[1]));
+            texel[2] = fpu::FLT(unorm8tofloat32(data[2]));
+            texel[3] = fpu::FLT(unorm8tofloat32(data[3]));
             break;
         case FORMAT_R8G8B8A8_SNORM:
-            texel[0] = cast_float32_to_float(snorm8tofloat32(data[0]));
-            texel[1] = cast_float32_to_float(snorm8tofloat32(data[1]));
-            texel[2] = cast_float32_to_float(snorm8tofloat32(data[2]));
-            texel[3] = cast_float32_to_float(snorm8tofloat32(data[3]));
+            texel[0] = fpu::FLT(snorm8tofloat32(data[0]));
+            texel[1] = fpu::FLT(snorm8tofloat32(data[1]));
+            texel[2] = fpu::FLT(snorm8tofloat32(data[2]));
+            texel[3] = fpu::FLT(snorm8tofloat32(data[3]));
             break;
         case FORMAT_B8G8R8A8_UNORM:
         case FORMAT_B8G8R8A8_SRGB:
-            texel[0] = cast_float32_to_float(unorm8tofloat32(data[2]));
-            texel[1] = cast_float32_to_float(unorm8tofloat32(data[1]));
-            texel[2] = cast_float32_to_float(unorm8tofloat32(data[0]));
-            texel[3] = cast_float32_to_float(unorm8tofloat32(data[3]));
+            texel[0] = fpu::FLT(unorm8tofloat32(data[2]));
+            texel[1] = fpu::FLT(unorm8tofloat32(data[1]));
+            texel[2] = fpu::FLT(unorm8tofloat32(data[0]));
+            texel[3] = fpu::FLT(unorm8tofloat32(data[3]));
             break;
         case FORMAT_R16_UNORM:
-            texel[0] = cast_float32_to_float(unorm16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[0] = fpu::FLT(unorm16tofloat32(cast_bytes_to_uint16(&data[0])));
             texel[1] = 0.0f;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_SNORM:
-            texel[0] = cast_float32_to_float(snorm16tofloat32(cast_bytes_to_uint16(&data[0])));
-            texel[1] = cast_float32_to_float(snorm16tofloat32(cast_bytes_to_uint16(&data[2])));
+            texel[0] = fpu::FLT(snorm16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[1] = fpu::FLT(snorm16tofloat32(cast_bytes_to_uint16(&data[2])));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_UNORM:
-            texel[0] = cast_float32_to_float(unorm16tofloat32(cast_bytes_to_uint16(&data[0])));
-            texel[1] = cast_float32_to_float(unorm16tofloat32(cast_bytes_to_uint16(&data[2])));
+            texel[0] = fpu::FLT(unorm16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[1] = fpu::FLT(unorm16tofloat32(cast_bytes_to_uint16(&data[2])));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_SFLOAT:
-            texel[0] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[0])));
-            texel[1] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[2])));
+            texel[0] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[1] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[2])));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16B16A16_SFLOAT:
-            texel[0] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[0])));
-            texel[1] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[2])));
-            texel[2] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[4])));
-            texel[3] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[6])));
+            texel[0] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[1] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[2])));
+            texel[2] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[4])));
+            texel[3] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[6])));
             break;
         case FORMAT_D24_UNORM_S8_UINT:
-            texel[0] = cast_float32_to_float(unorm24tofloat32(cast_bytes_to_uint24(data)));
+            texel[0] = fpu::FLT(unorm24tofloat32(cast_bytes_to_uint24(data)));
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
@@ -3883,16 +3878,16 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_
             texel[3] = cast_bytes_to_float(&data[12]);
             break;
         case FORMAT_B10G11R11_UFLOAT_PACK32:
-            texel[0] = cast_float32_to_float(float11tofloat32( cast_bytes_to_uint32(data)        & 0x7ff));
-            texel[1] = cast_float32_to_float(float11tofloat32((cast_bytes_to_uint32(data) >> 11) & 0x7ff));
-            texel[2] = cast_float32_to_float(float10tofloat32((cast_bytes_to_uint32(data) >> 22) & 0x3ff));
+            texel[0] = fpu::FLT(float11tofloat32( cast_bytes_to_uint32(data)        & 0x7ff));
+            texel[1] = fpu::FLT(float11tofloat32((cast_bytes_to_uint32(data) >> 11) & 0x7ff));
+            texel[2] = fpu::FLT(float10tofloat32((cast_bytes_to_uint32(data) >> 22) & 0x3ff));
             texel[3] = 1.0;
             break;
         case FORMAT_A2B10G10R10_UNORM_PACK32:
-            texel[0] = cast_float32_to_float(unorm10tofloat32( cast_bytes_to_uint32(data)        & 0x3ff));
-            texel[1] = cast_float32_to_float(unorm10tofloat32((cast_bytes_to_uint32(data) >> 10) & 0x3ff));
-            texel[2] = cast_float32_to_float(unorm10tofloat32((cast_bytes_to_uint32(data) >> 20) & 0x3ff));
-            texel[3] = cast_float32_to_float( unorm2tofloat32((cast_bytes_to_uint32(data) >> 29) & 0x3));
+            texel[0] = fpu::FLT(unorm10tofloat32( cast_bytes_to_uint32(data)        & 0x3ff));
+            texel[1] = fpu::FLT(unorm10tofloat32((cast_bytes_to_uint32(data) >> 10) & 0x3ff));
+            texel[2] = fpu::FLT(unorm10tofloat32((cast_bytes_to_uint32(data) >> 20) & 0x3ff));
+            texel[3] = fpu::FLT( unorm2tofloat32((cast_bytes_to_uint32(data) >> 29) & 0x3));
             break;
         default:
             texel[0] = texel[1] = texel[2] = texel[3] = 0.0;
@@ -3902,9 +3897,9 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_
 
     if (fmtIsSRGB)
     {
-        texel[0] = cast_float32_to_float(float16tofloat32(SRGB2LINEAR_TABLE[float32tounorm8(cast_float_to_float32(texel[0]))].value));
-        texel[1] = cast_float32_to_float(float16tofloat32(SRGB2LINEAR_TABLE[float32tounorm8(cast_float_to_float32(texel[1]))].value));
-        texel[2] = cast_float32_to_float(float16tofloat32(SRGB2LINEAR_TABLE[float32tounorm8(cast_float_to_float32(texel[2]))].value));
+        texel[0] = fpu::FLT(float16tofloat32(SRGB2LINEAR_TABLE[float32tounorm8(fpu::F32(texel[0]))].value));
+        texel[1] = fpu::FLT(float16tofloat32(SRGB2LINEAR_TABLE[float32tounorm8(fpu::F32(texel[1]))].value));
+        texel[2] = fpu::FLT(float16tofloat32(SRGB2LINEAR_TABLE[float32tounorm8(fpu::F32(texel[2]))].value));
         texel[3] = texel[3];
     }
 
@@ -3982,71 +3977,71 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
     {
         case FORMAT_R8G8B8A8_UNORM:
         case FORMAT_R8G8B8A8_SRGB:
-            texel[0] = cast_float32_to_float(unorm8tofloat32(data[0]));
-            texel[1] = cast_float32_to_float(unorm8tofloat32(data[1]));
-            texel[2] = cast_float32_to_float(unorm8tofloat32(data[2]));
-            texel[3] = cast_float32_to_float(unorm8tofloat32(data[3]));
+            texel[0] = fpu::FLT(unorm8tofloat32(data[0]));
+            texel[1] = fpu::FLT(unorm8tofloat32(data[1]));
+            texel[2] = fpu::FLT(unorm8tofloat32(data[2]));
+            texel[3] = fpu::FLT(unorm8tofloat32(data[3]));
             break;
         case FORMAT_R8G8B8A8_SNORM:
-            texel[0] = cast_float32_to_float(snorm8tofloat32(data[0]));
-            texel[1] = cast_float32_to_float(snorm8tofloat32(data[1]));
-            texel[2] = cast_float32_to_float(snorm8tofloat32(data[2]));
-            texel[3] = cast_float32_to_float(snorm8tofloat32(data[3]));
+            texel[0] = fpu::FLT(snorm8tofloat32(data[0]));
+            texel[1] = fpu::FLT(snorm8tofloat32(data[1]));
+            texel[2] = fpu::FLT(snorm8tofloat32(data[2]));
+            texel[3] = fpu::FLT(snorm8tofloat32(data[3]));
             break;
         case FORMAT_B8G8R8A8_UNORM:
         case FORMAT_B8G8R8A8_SRGB:
-            texel[0] = cast_float32_to_float(unorm8tofloat32(data[2]));
-            texel[1] = cast_float32_to_float(unorm8tofloat32(data[1]));
-            texel[2] = cast_float32_to_float(unorm8tofloat32(data[0]));
-            texel[3] = cast_float32_to_float(unorm8tofloat32(data[3]));
+            texel[0] = fpu::FLT(unorm8tofloat32(data[2]));
+            texel[1] = fpu::FLT(unorm8tofloat32(data[1]));
+            texel[2] = fpu::FLT(unorm8tofloat32(data[0]));
+            texel[3] = fpu::FLT(unorm8tofloat32(data[3]));
             break;
         case FORMAT_R16_UNORM:
-            texel[0] = cast_float32_to_float(unorm16tofloat32(cast_bytes_to_uint16(data)));
+            texel[0] = fpu::FLT(unorm16tofloat32(cast_bytes_to_uint16(data)));
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_SNORM:
-            texel[0] = cast_float32_to_float(snorm16tofloat32(cast_bytes_to_uint16(&data[0])));
-            texel[1] = cast_float32_to_float(snorm16tofloat32(cast_bytes_to_uint16(&data[2])));
+            texel[0] = fpu::FLT(snorm16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[1] = fpu::FLT(snorm16tofloat32(cast_bytes_to_uint16(&data[2])));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_UNORM:
-            texel[0] = cast_float32_to_float(unorm16tofloat32(cast_bytes_to_uint16(&data[0])));
-            texel[1] = cast_float32_to_float(unorm16tofloat32(cast_bytes_to_uint16(&data[2])));
+            texel[0] = fpu::FLT(unorm16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[1] = fpu::FLT(unorm16tofloat32(cast_bytes_to_uint16(&data[2])));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16_SFLOAT:
-            texel[0] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[0])));
-            texel[1] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[2])));
+            texel[0] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[1] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[2])));
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R16G16B16A16_SFLOAT:
-            texel[0] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[0])));
-            texel[1] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[2])));
-            texel[2] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[4])));
-            texel[3] = cast_float32_to_float(float16tofloat32(cast_bytes_to_uint16(&data[6])));
+            texel[0] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[0])));
+            texel[1] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[2])));
+            texel[2] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[4])));
+            texel[3] = fpu::FLT(float16tofloat32(cast_bytes_to_uint16(&data[6])));
             break;
         case FORMAT_D24_UNORM_S8_UINT:
-            texel[0] = cast_float32_to_float(unorm24tofloat32(cast_bytes_to_uint24(data)));
+            texel[0] = fpu::FLT(unorm24tofloat32(cast_bytes_to_uint24(data)));
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R32_SFLOAT:
-            texel[0] = cast_float32_to_float(cast_uint32_to_float32(data[0]));
+            texel[0] = fpu::FLT(data[0]);
             texel[1] = 0.0;
             texel[2] = 0.0;
             texel[3] = 1.0;
             break;
         case FORMAT_R32G32B32A32_SFLOAT:
-            texel[0] = cast_float32_to_float(cast_uint32_to_float32(data[0]));
-            texel[1] = cast_float32_to_float(cast_uint32_to_float32(data[1]));
-            texel[2] = cast_float32_to_float(cast_uint32_to_float32(data[2]));
-            texel[3] = cast_float32_to_float(cast_uint32_to_float32(data[3]));
+            texel[0] = fpu::FLT(data[0]);
+            texel[1] = fpu::FLT(data[1]);
+            texel[2] = fpu::FLT(data[2]);
+            texel[3] = fpu::FLT(data[3]);
             break;
         default:
             texel[0] = texel[1] = texel[2] = texel[3] = 0.0;
@@ -4477,10 +4472,10 @@ void TBOXEmu::decode_BC4(uint8_t *inBuffer, uint8_t *outBuffer, bool signedForma
     uint32_t redbits;
 
     //  Convert first reference red color from the compressed block.
-    red0 = signedFormat ? cast_float32_to_float(snorm8tofloat32(inBuffer[0])) : float(inBuffer[0]) * (1.0f / 255.0f);
+    red0 = signedFormat ? fpu::FLT(snorm8tofloat32(inBuffer[0])) : float(inBuffer[0]) * (1.0f / 255.0f);
 
     // Convert second reference red color from the compressed block.
-    red1 = signedFormat ? cast_float32_to_float(snorm8tofloat32(inBuffer[1])) : float(inBuffer[1]) * (1.0f / 255.0f);
+    red1 = signedFormat ? fpu::FLT(snorm8tofloat32(inBuffer[1])) : float(inBuffer[1]) * (1.0f / 255.0f);
 
     //  Get the code bits for the red component in the block.
     redbits = ((uint64_t)inBuffer[2]) + (((uint64_t)inBuffer[3]) << 8) + (((uint64_t)inBuffer[4]) << 16)
@@ -4523,20 +4518,20 @@ void TBOXEmu::decode_BC5(uint8_t *inBuffer, uint8_t *outBuffer, bool signedForma
     uint32_t redbits, greenbits;
 
     //  Convert first reference red color from the compressed block.
-    red0 = signedFormat ? cast_float32_to_float(snorm8tofloat32(inBuffer[0])) : float(inBuffer[0]) * (1.0f / 255.0f);
+    red0 = signedFormat ? fpu::FLT(snorm8tofloat32(inBuffer[0])) : float(inBuffer[0]) * (1.0f / 255.0f);
 
     // Convert second reference red color from the compressed block.
-    red1 = signedFormat ? cast_float32_to_float(snorm8tofloat32(inBuffer[1])) : float(inBuffer[1]) * (1.0f / 255.0f);
+    red1 = signedFormat ? fpu::FLT(snorm8tofloat32(inBuffer[1])) : float(inBuffer[1]) * (1.0f / 255.0f);
 
     //  Get the code bits for the red component in the block.
     redbits = ((uint64_t)inBuffer[2]) + (((uint64_t)inBuffer[3]) << 8) + (((uint64_t)inBuffer[4]) << 16)
               + (((uint64_t)inBuffer[5]) << 24) + (((uint64_t)inBuffer[6]) << 32) + (((uint64_t)inBuffer[7]) << 40);
 
     //  Convert first reference green color from the compressed block.
-    green0 = signedFormat ? cast_float32_to_float(snorm8tofloat32(inBuffer[8])) : float(inBuffer[8]) * (1.0f / 255.0f);
+    green0 = signedFormat ? fpu::FLT(snorm8tofloat32(inBuffer[8])) : float(inBuffer[8]) * (1.0f / 255.0f);
 
     // Convert second reference green color from the compressed block.
-    green1 = signedFormat ? cast_float32_to_float(snorm8tofloat32(inBuffer[9])) : float(inBuffer[9]) * (1.0f / 255.0f);
+    green1 = signedFormat ? fpu::FLT(snorm8tofloat32(inBuffer[9])) : float(inBuffer[9]) * (1.0f / 255.0f);
 
     //  Get the code bits for the red component in the block.
     greenbits = ((uint64_t)inBuffer[10]) + (((uint64_t)inBuffer[11]) << 8) + (((uint64_t)inBuffer[12]) << 16)
@@ -4795,10 +4790,10 @@ uint32_t TBOXEmu::convertTo_R8G8B8A8_UNORM(float decodedColor[])
 {
     uint8_t color[4];
 
-    color[0] = float32tounorm8(cast_float_to_float32(decodedColor[0]));
-    color[1] = float32tounorm8(cast_float_to_float32(decodedColor[1]));
-    color[2] = float32tounorm8(cast_float_to_float32(decodedColor[2]));
-    color[3] = float32tounorm8(cast_float_to_float32(decodedColor[3]));
+    color[0] = float32tounorm8(fpu::F32(decodedColor[0]));
+    color[1] = float32tounorm8(fpu::F32(decodedColor[1]));
+    color[2] = float32tounorm8(fpu::F32(decodedColor[2]));
+    color[3] = float32tounorm8(fpu::F32(decodedColor[3]));
 
     return (color[0] | (color[1] << 8) | (color[2] << 16) | (color[3] << 24));
 }
@@ -4807,10 +4802,10 @@ uint32_t TBOXEmu::convertTo_R8G8B8A8_SNORM(float decodedColor[])
 {
     uint8_t color[4];
 
-    color[0] = float32tosnorm8(cast_float_to_float32(decodedColor[0]));
-    color[1] = float32tosnorm8(cast_float_to_float32(decodedColor[1]));
-    color[2] = float32tosnorm8(cast_float_to_float32(decodedColor[2]));
-    color[3] = float32tosnorm8(cast_float_to_float32(decodedColor[3]));
+    color[0] = float32tosnorm8(fpu::F32(decodedColor[0]));
+    color[1] = float32tosnorm8(fpu::F32(decodedColor[1]));
+    color[2] = float32tosnorm8(fpu::F32(decodedColor[2]));
+    color[3] = float32tosnorm8(fpu::F32(decodedColor[3]));
 
     return (color[0] | (color[1] << 8) | (color[2] << 16) | (color[3] << 24));
 }
@@ -5695,10 +5690,10 @@ void TBOXEmu::fetch_bptc_rgba_unorm(const uint8_t *map, uint32_t rowStride, uint
 
     fetch_bptc_rgba_unorm_bytes(map, rowStride, i, j, texel_bytes);
 
-    texel[0] = cast_float32_to_float(unorm8tofloat32(texel_bytes[0]));
-    texel[1] = cast_float32_to_float(unorm8tofloat32(texel_bytes[1]));
-    texel[2] = cast_float32_to_float(unorm8tofloat32(texel_bytes[2]));
-    texel[3] = cast_float32_to_float(unorm8tofloat32(texel_bytes[3]));
+    texel[0] = fpu::FLT(unorm8tofloat32(texel_bytes[0]));
+    texel[1] = fpu::FLT(unorm8tofloat32(texel_bytes[1]));
+    texel[2] = fpu::FLT(unorm8tofloat32(texel_bytes[2]));
+    texel[3] = fpu::FLT(unorm8tofloat32(texel_bytes[3]));
 }
 
 void TBOXEmu::fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t rowStride, uint32_t i, uint32_t j, float *texel)
@@ -5707,10 +5702,10 @@ void TBOXEmu::fetch_bptc_srgb_alpha_unorm(const uint8_t *map, uint32_t rowStride
 
     fetch_bptc_rgba_unorm_bytes(map, rowStride, i, j, texel_bytes);
 
-    texel[0] = cast_float32_to_float(unorm8tofloat32(texel_bytes[0]));
-    texel[1] = cast_float32_to_float(unorm8tofloat32(texel_bytes[1]));
-    texel[2] = cast_float32_to_float(unorm8tofloat32(texel_bytes[2]));
-    texel[3] = cast_float32_to_float(unorm8tofloat32(texel_bytes[3]));
+    texel[0] = fpu::FLT(unorm8tofloat32(texel_bytes[0]));
+    texel[1] = fpu::FLT(unorm8tofloat32(texel_bytes[1]));
+    texel[2] = fpu::FLT(unorm8tofloat32(texel_bytes[2]));
+    texel[3] = fpu::FLT(unorm8tofloat32(texel_bytes[3]));
 }
 
 int32_t TBOXEmu::sign_extend(int32_t value, int n_bits)
@@ -5928,7 +5923,7 @@ void TBOXEmu::fetch_rgb_float_from_block(const uint8_t *block, float *result, in
             value = finish_unsigned_unquantize(value);
 
         uint16_t value_fp16 = (uint16_t)(value & 0xFFFF);
-        result[component] = cast_float32_to_float(float16tofloat32(value_fp16));
+        result[component] = fpu::FLT(float16tofloat32(value_fp16));
     }
 
     result[3] = 1.0f;
