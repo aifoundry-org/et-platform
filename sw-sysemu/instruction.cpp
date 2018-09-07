@@ -777,17 +777,19 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
 void instruction::exec()
 {
     // If instruction had an error during decoding, report it when it is executed
-    if(has_error)
-        * log << LOG_ERR << str_error << endm;
-    * log << LOG_DEBUG << "Executing instruction PC: 0x" << std::hex << pc << ", Bits: 0x" << enc_bits << std::dec << ", Mnemonic: " << mnemonic << endm;
-    switch(num_params)
-    {
-        case 0: (emu_func0(nullptr)); break;
-        case 1: (emu_func1(params[0], nullptr)); break;
-        case 2: (emu_func2(params[0], params[1], nullptr)); break;
-        case 3: (emu_func3(params[0], params[1], params[2], nullptr)); break;
-        case 4: (emu_func4(params[0], params[1], params[2], params[3], nullptr)); break;
-        case 5: (emu_func5(params[0], params[1], params[2], params[3], params[4], nullptr)); break;
+    if (has_error) {
+       * log << LOG_ERR << str_error << endm;
+    } else {
+       * log << LOG_DEBUG << "Executing instruction PC: 0x" << std::hex << pc << ", Bits: 0x" << enc_bits << std::dec << ", Mnemonic: " << mnemonic  << ", num_params: " << num_params << endm;
+       switch(num_params)
+       {
+          case 0: (emu_func0(nullptr)); break;
+          case 1: (emu_func1(params[0], nullptr)); break;
+          case 2: (emu_func2(params[0], params[1], nullptr)); break;
+          case 3: (emu_func3(params[0], params[1], params[2], nullptr)); break;
+          case 4: (emu_func4(params[0], params[1], params[2], params[3], nullptr)); break;
+          case 5: (emu_func5(params[0], params[1], params[2], params[3], params[4], nullptr)); break;
+       }
     }
 }
 
@@ -958,16 +960,19 @@ void instruction::add_parameter(std::string param)
         else if(param == "mip")          params[num_params] = csr_mip;
         else if(param == "mcycle")       params[num_params] = csr_mcycle;
         else if(param == "mcycleh")      params[num_params] = csr_mcycleh;
-        else if(param == "tensor_reduce")    params[num_params] = csr_treduce;
-        else if(param == "tensor_fma")       params[num_params] = csr_tfmastart;
+        else if(param == "tensor_load")      params[num_params] = csr_tloadctrl;
+        else if(param == "tensor_load_l2")   params[num_params] = csr_tloadl2ctrl;
+        else if(param == "tensor_mask")      params[num_params] = csr_tmask;
         else if(param == "tensor_conv_size") params[num_params] = csr_tconvsize;
         else if(param == "tensor_conv_ctrl") params[num_params] = csr_tconvctrl;
-        else if(param == "unknown_804")      params[num_params] = csr_tcoop;
-        else if(param == "unknown_7d1")      params[num_params] = csr_offtxfma;
-        else if(param == "usr_cache_op")     params[num_params] = csr_ucacheop;
-        else if(param == "tensor_load")      params[num_params] = csr_tloadctrl;
+        else if(param == "tensor_coop")      params[num_params] = csr_tcoop;
+        else if(param == "tensor_fma")       params[num_params] = csr_tfmastart;
+        else if(param == "tensor_reduce")    params[num_params] = csr_treduce;
         else if(param == "tensor_store")     params[num_params] = csr_tstore;
-        else if(param == "unknown_830")      params[num_params] = csr_twait;
+        else if(param == "tensor_error")     params[num_params] = csr_terror;
+        else if(param == "tensor_wait")      params[num_params] = csr_twait;
+        else if(param == "usr_cache_op")     params[num_params] = csr_ucacheop;
+        else if(param == "scp_ctrl")         params[num_params] = csr_scpctrl;
         else if(param == "umsg_port0")       params[num_params] = csr_umsg_port0;
         else if(param == "umsg_port1")       params[num_params] = csr_umsg_port1;
         else if(param == "umsg_port2")       params[num_params] = csr_umsg_port2;
@@ -983,6 +988,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "validation1")      params[num_params] = csr_validation1;
         else if(param == "validation2")      params[num_params] = csr_validation2;
         else if(param == "validation3")      params[num_params] = csr_validation3;
+
         // TODO: currently unsupported CSRs
         else if(param == "ustatus"    ||
                 param == "uie"        ||
