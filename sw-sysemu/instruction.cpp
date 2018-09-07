@@ -971,6 +971,7 @@ void instruction::add_parameter(std::string param)
         else if(param == "tensor_store")     params[num_params] = csr_tstore;
         else if(param == "tensor_error")     params[num_params] = csr_terror;
         else if(param == "tensor_wait")      params[num_params] = csr_twait;
+        else if(param == "unknown_7d1")      params[num_params] = csr_offtxfma;
         else if(param == "usr_cache_op")     params[num_params] = csr_ucacheop;
         else if(param == "scp_ctrl")         params[num_params] = csr_scpctrl;
         else if(param == "umsg_port0")       params[num_params] = csr_umsg_port0;
