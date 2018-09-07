@@ -53,6 +53,7 @@ typedef enum
     csr_terror,
     csr_twait,
     // csr_top,
+    csr_offtxfma,
     csr_flbarrier,
     csr_ucacheop,
     csr_scpctrl,
