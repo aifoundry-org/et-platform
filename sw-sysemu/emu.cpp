@@ -91,7 +91,6 @@ static uint64_t csrget(csr src1);
 static void csrset(csr src1, uint64_t val);
 static void tmask_conv();
 static void tcoop();
-static void offtxfma();
 static void tensorload(uint64_t control);
 static void tensorstore(uint64_t tstorereg);
 static void tensorfma(uint64_t tfmareg);
@@ -2300,10 +2299,6 @@ static void csrset(csr src1, uint64_t val)
         case csr_tcoop:
             csrregs[current_thread][src1] = val;
             tcoop();
-            break;
-        case csr_offtxfma:
-            csrregs[current_thread][src1] = val;
-            offtxfma();
             break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
@@ -6569,12 +6564,6 @@ static void tcoop()
     uint64_t coop_id              = (tcoopreg >> 0) & 0xFF;
     //TODO implement functionality checking the addresses and tcoop of every use of Tensor Load
     DEBUG_EMU(gprintf("\tSetting Tensor Cooperation:  Warl [%040X] . Timeout %d . Coop Mask %08X . Coop ID : %d\n",warl, timeout , coop_mask ,coop_id  );)
-}
-
-static void offtxfma()
-{
-    uint64_t reg = csrget(csr_offtxfma);
-    DEBUG_EMU(gprintf("\tSetting offtxfma:  %d \n  ", reg);)
 }
 
 // ----- TensorLoad emulation --------------------------------------------------
