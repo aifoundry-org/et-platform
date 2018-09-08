@@ -34,7 +34,6 @@ extern fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+16][L1_SCP_BLOCKS];
 
 // Processor configuration
 extern uint8_t in_sysemu;
-extern uint8_t emu_use_fake_txfma;
 extern uint32_t current_thread;
 
 // Configure the emulation environment
