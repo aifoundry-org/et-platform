@@ -10,9 +10,6 @@
 #include "instruction_cache.h"
 #include "log.h"
 
-// defined in emu.h
-extern uint8_t emu_use_fake_txfma;
-
 extern uint8_t checker_memread8(uint64_t addr);
 extern void checker_memwrite64(uint64_t addr, uint64_t data);
 

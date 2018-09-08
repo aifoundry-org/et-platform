@@ -7,9 +7,9 @@
 #include "emu.h"
 #include "log.h"
 #include "ipc.h"
-#include "cvt.h"
-#include "emu.h"
+#include "fpu.h"
 #include "emu_gio.h"
+#include "emu_casts.h"
 
 using emu::gprintf;
 using emu::gsprintf;
@@ -70,7 +70,7 @@ void texsnds(freg src1, const char* comm)
         DEBUG_EMU( gprintf("\t Set *s* texture coordinates from f%d\n", src1); )
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
-            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
+            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); )
         }
     }
 
@@ -94,7 +94,7 @@ void texsndt(freg src1, const char* comm)
         DEBUG_EMU( gprintf("\t Set *t* texture coordinates from f%d\n", src1); )
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
-            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
+            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); )
         }
     }
 
@@ -118,7 +118,7 @@ void texsndr(freg src1, const char* comm)
         DEBUG_EMU( gprintf("\t Set *r* texture coordinates from f%d\n", src1); )
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
-            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].f[c], FREGS[src1].u[c]); )
+            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); )
         }
     }
 
@@ -151,13 +151,13 @@ void texrcv(freg dst, const uint32_t idx, const char* comm)
         // texrcv should pay attention to the mask!!!
         if ( MREGS[0].b[c] == 0 ) continue;
 
-        FREGS[dst].f[c] = data.f[c];
+        FREGS[dst].u[c] = data.u[c];
 
         // Print as float16?
-        iufval tmp;
-        tmp.f = float16tofloat32(data.h[c * 2]);
-        DEBUG_EMU(gprintf("\t[%d] 0x%04x (%f) FP16 <-\n", c, FREGS[dst].h[c*2], tmp.flt);)
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%f) FP32 <-\n", c, FREGS[dst].u[c], FREGS[dst].f[c]);)
+        iufval32 tmp;
+        tmp.f = fpu::f16_to_f32(cast_uint16_to_float16(data.h[c * 2]));
+        DEBUG_EMU(gprintf("\t[%d] 0x%04x (%g) FP16 <-\n", c, FREGS[dst].h[c*2], cast_uint32_to_float(tmp.u));)
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) FP32 <-\n", c, FREGS[dst].u[c], cast_uint32_to_float(FREGS[dst].u[c]));)
     }
 
     logfregchange(dst);

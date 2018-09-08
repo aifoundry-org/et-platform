@@ -1,6 +1,8 @@
 #ifndef _CVT_H
 #define _CVT_H
 
+#include "fpu_types.h"
+
 float32_t float16tofloat32(uint16_t val);
 float32_t float11tofloat32(uint16_t val);
 float32_t float10tofloat32(uint16_t val);
