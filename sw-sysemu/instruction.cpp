@@ -413,7 +413,7 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     std::string opcode = m[1];
     std::string args = m[2];
 
-    if(opcode == "")
+    if (opcode == "")
     {
         has_error = true;
         str_error = "Failed extracting opcode from instruction mnemonic";
@@ -425,31 +425,31 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     * log << LOG_DEBUG << "Opcode is " << opcode << endm;
 
     // Gets if the instruction is a load
-    if((opcode == "ld") || (opcode == "lw") || (opcode == "lwu") || (opcode == "lh") || (opcode == "lhu") || (opcode == "lb") || (opcode == "lbu"))
+    if ((opcode == "ld") || (opcode == "lw") || (opcode == "lwu") || (opcode == "lh") || (opcode == "lhu") || (opcode == "lb") || (opcode == "lbu"))
         is_load = true;
 
     // Gets if the instruction is a floating point load
-    if((opcode == "flw") || (opcode == "flw_ps"))
+    if ((opcode == "flw") || (opcode == "flw_ps"))
         is_fpload = true;
 
-    if(opcode == "wfi")
+    if (opcode == "wfi")
         is_wfi = true;
 
-    if(opcode=="texrcv")
+    if (opcode=="texrcv")
       is_texrcv=true;
 
-    if(opcode=="texsndh")
+    if (opcode=="texsndh")
       is_texsndh=true;
 
-    if((opcode=="frsq_ps") || (opcode=="flog_ps") || (opcode=="fexp_ps") || (opcode=="fsin_ps"))
+    if ((opcode=="frsq_ps") || (opcode=="flog_ps") || (opcode=="fexp_ps") || (opcode=="fsin_ps"))
         is_1ulp = true;
 
-    if(   (opcode=="amoswap_d") || (opcode=="amoadd_d") || (opcode=="amoxor_d") || (opcode=="amoand_d")
+    if (   (opcode=="amoswap_d") || (opcode=="amoadd_d") || (opcode=="amoxor_d") || (opcode=="amoand_d")
        || (opcode=="amoor_d")   || (opcode=="amomin_d") || (opcode=="amomax_d") || (opcode=="amominu_d")
        || (opcode=="amomaxu_d"))
         is_amo = true;
 
-    if(opcode.find("csrr") != std::string::npos) {
+    if (opcode.find("csrr") != std::string::npos) {
         is_csr_read = true;
     }
 
@@ -471,7 +471,7 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     args = boost::regex_replace(args, e, std::string(""));
 
     // Remove pc except for csr operations
-    if(!boost::regex_match(opcode, boost::regex("csr.*")))
+    if (!boost::regex_match(opcode, boost::regex("csr.*")))
     {
         e = boost::regex("pc");
         args = boost::regex_replace(args, e, std::string(""));
@@ -487,131 +487,131 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
         arg_array.push_back(m[1]);
         args = boost::regex_replace(args, e, std::string(""));
     }
-    if(args != "")
+    if (args != "")
         arg_array.push_back(args);
 
     // Pseudoinstructions (convert to another instruction).
     // From riscv spec Chapter 21
     // Integer
-    if(opcode == "li")
+    if (opcode == "li")
     {
         opcode = "addi";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
-    if(opcode == "nop")
+    if (opcode == "nop")
     {
         opcode = "addi";
         arg_array.push_back("x0");
         arg_array.push_back("x0");
         arg_array.push_back("0");
     }
-    else if(opcode == "mv")
+    else if (opcode == "mv")
     {
         opcode = "addi";
         arg_array.push_back("0");
     }
-    else if(opcode == "not")
+    else if (opcode == "not")
     {
         opcode = "xori";
         arg_array.push_back("-1");
     }
-    else if(opcode == "neg")
+    else if (opcode == "neg")
     {
         opcode = "sub";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
-    else if(opcode == "negw")
+    else if (opcode == "negw")
     {
         opcode = "subw";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
-    else if(opcode == "sext_w")
+    else if (opcode == "sext_w")
     {
         opcode = "addiw";
         arg_array.push_back("x0");
     }
-    else if(opcode == "seqz")
+    else if (opcode == "seqz")
     {
         opcode = "sltiu";
         arg_array.push_back("1");
     }
-    else if(opcode == "snez")
+    else if (opcode == "snez")
     {
         opcode = "sltu";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
-    else if(opcode == "sltz")
+    else if (opcode == "sltz")
     {
         opcode = "slt";
         arg_array.push_back("x0");
     }
-    else if(opcode == "sgtz")
+    else if (opcode == "sgtz")
     {
         opcode = "slt";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
     // FP
-    else if(opcode == "fmv_s")
+    else if (opcode == "fmv_s")
     {
         opcode = "fsgnj_s";
         arg_array.push_back(arg_array[1]);
     }
-    else if(opcode == "fabs_s")
+    else if (opcode == "fabs_s")
     {
         opcode = "fsgnjx_s";
         arg_array.push_back(arg_array[1]);
     }
-    else if(opcode == "fneg_s")
+    else if (opcode == "fneg_s")
     {
         opcode = "fsgnjn_s";
         arg_array.push_back(arg_array[1]);
     }
-    else if(opcode == "fmv_x_s")
+    else if (opcode == "fmv_x_s")
     {
         opcode = "fmv_x_w";
     }
-    else if(opcode == "fmv_s_x")
+    else if (opcode == "fmv_s_x")
     {
         opcode = "fmv_w_x";
     }
     // Branches
-    else if(opcode == "beqz")
+    else if (opcode == "beqz")
     {
         opcode = "beq";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
-    else if(opcode == "bnez")
+    else if (opcode == "bnez")
     {
         opcode = "bne";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
-    else if(opcode == "blez")
+    else if (opcode == "blez")
     {
         opcode = "bge";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
     }
-    else if(opcode == "bgez")
+    else if (opcode == "bgez")
     {
         opcode = "bge";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
-    else if(opcode == "bltz")
+    else if (opcode == "bltz")
     {
         opcode = "blt";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = "x0";
     }
-    else if(opcode == "bgtz")
+    else if (opcode == "bgtz")
     {
         opcode = "blt";
         arg_array.push_back(arg_array[1]);
@@ -619,46 +619,46 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
         arg_array[0] = "x0";
     }
     // Jumps
-    else if(opcode == "j")
+    else if (opcode == "j")
     {
         opcode = "jal";
         arg_array.push_back(arg_array[0]);
         arg_array[0] = "x0";
     }
-    else if(opcode == "jal")
+    else if (opcode == "jal")
     {
         // If one argument means that link register dest is implicit and is x1
-        if(arg_array.size() == 1)
+        if (arg_array.size() == 1)
         {
             arg_array.push_back(arg_array[0]);
             arg_array[0] = "x1";
         }
     }
-    else if(opcode == "jr")
+    else if (opcode == "jr")
     {
         opcode = "jalr";
         arg_array.push_back(arg_array[0]);
         arg_array[0] = "x0";
         arg_array.push_back("0");
     }
-    else if(opcode == "jalr")
+    else if (opcode == "jalr")
     {
         // If one argument means that link register dest is implicit and is x1 and offset is 0
-        if(arg_array.size() == 1)
+        if (arg_array.size() == 1)
         {
             arg_array.push_back(arg_array[0]);
             arg_array[0] = "x1";
             arg_array.push_back("0");
         }
         // If two arguments means that link register dest is implicit and is x1
-        if(arg_array.size() == 2)
+        if (arg_array.size() == 2)
         {
             arg_array.push_back(arg_array[1]);
             arg_array[1] = arg_array[0];
             arg_array[0] = "x1";
         }
     }
-    else if(opcode == "ret")
+    else if (opcode == "ret")
     {
         opcode = "jalr";
         arg_array.push_back("x0");
@@ -666,57 +666,57 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
         arg_array.push_back("0");
     }
     // CSRs
-    else if(opcode == "csrr")
+    else if (opcode == "csrr")
     {
         opcode = "csrrs";
         arg_array.push_back("x0");
     }
-    else if(opcode == "csrw")
+    else if (opcode == "csrw")
     {
         opcode = "csrrw";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
     }
-    else if(opcode == "csrs")
+    else if (opcode == "csrs")
     {
         opcode = "csrrs";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
     }
-    else if(opcode == "csrc")
+    else if (opcode == "csrc")
     {
         opcode = "csrrc";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
     }
-    else if(opcode == "csrwi")
+    else if (opcode == "csrwi")
     {
         opcode = "csrrwi";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
     }
-    else if(opcode == "csrsi")
+    else if (opcode == "csrsi")
     {
         opcode = "csrrsi";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
     }
-    else if(opcode == "csrci")
+    else if (opcode == "csrci")
     {
         opcode = "csrrci";
         arg_array.push_back(arg_array[1]);
         arg_array[1] = arg_array[0];
         arg_array[0] = "x0";
     }
-    else if(!is_fpload && opcode[0] == 'f')
+    else if (!is_fpload && opcode[0] == 'f')
     {
         // Add implicit rounding mode operand to floating-point operations
-        if(   (arg_array.size() == 2 && rm2args.find(opcode) != rm2args.end())
+        if (   (arg_array.size() == 2 && rm2args.find(opcode) != rm2args.end())
            || (arg_array.size() == 3 && rm3args.find(opcode) != rm3args.end())
            || (arg_array.size() == 4 && rm4args.find(opcode) != rm4args.end()))
         {
@@ -725,11 +725,11 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     }
 
     // JALR has different behaviour for compressed
-    if(is_compressed && (opcode == "jalr"))
+    if (is_compressed && (opcode == "jalr"))
     {
         opcode = "c_jalr";
     }
-    if(is_compressed && (opcode == "jal"))
+    if (is_compressed && (opcode == "jal"))
     {
         opcode = "c_jal";
     }
@@ -740,14 +740,14 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
 
     // 0x0000 is an illegal instruction, but spike-dasm returns "addi s0, sp0, 0"
     // 0xffffffff is an illegal instruction, and spike-dasm returns "unknown"
-    if(enc_bits == 0)
+    if (enc_bits == 0)
     {
         opcode = "unknown";
         num_params = 0;
     }
 
     // Checks if it is a tensor/reduce operation
-    if((opcode == "csrrw") || (opcode == "cssrwi"))
+    if ((opcode == "csrrw") || (opcode == "cssrwi"))
     {
         is_reduce      = (params[1] == csr_treduce);
         is_tensor_load = (params[1] == csr_tloadctrl);
@@ -756,7 +756,7 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     }
 
     // Get the emulation function pointer for the opcode
-    if(!has_error)
+    if (!has_error)
     {
         emu_func = get_function_ptr(opcode, &has_error, &str_error);
         emu_func0 = (func_ptr_0) emu_func;
@@ -798,84 +798,188 @@ void instruction::add_parameter(std::string param)
 {
     * log << LOG_DEBUG << "Adding parameter <" << param << ">" << endm;
     // Args unknown
-    if(param == "argsunknown")
+    if (param == "argsunknown")
     {
         // Weird case seen in WFI where despite having no parameter the disasm returns this parameter
         return;
     }
     // Hex constant
-    if(param.find("0x") !=std::string::npos)
+    if (param.find("0x") !=std::string::npos)
     {
         // Negative
         bool neg = false;
-        if(param[0] == '-')
+        if (param[0] == '-')
         {
             param.erase(0, 1);
             neg = true;
         }
         int c = sscanf(param.c_str(), "0x%X", &params[num_params]);
-        if(c != 1)
+        if (c != 1)
         {
             has_error = true;
             str_error = "Error parsing parameter " + param + ". Expecting hex immediate";
         }
-        if(neg)
+        if (neg)
             params[num_params] = -params[num_params];
     }
     // Dec constat
-    else if(boost::regex_match(param, boost::regex("^-?[[:d:]]+")))
+    else if (boost::regex_match(param, boost::regex("^-?[[:d:]]+")))
     {
         int c = sscanf(param.c_str(), "%i", &params[num_params]);
-        if(c != 1)
+        if (c != 1)
         {
             has_error = true;
             str_error = "Error parsing parameter " + param + ". Expecting dec immediate";
         }
     }
+    // Integer register or CSR
+    else if (param == "zero")             params[num_params] = 0;
+    else if (param == "ra")               params[num_params] = 1;
+    else if (param == "sp")               params[num_params] = 2;
+    else if (param == "gp")               params[num_params] = 3;
+    else if (param == "tp")               params[num_params] = 4;
+    else if (param == "t0")               params[num_params] = 5;
+    else if (param == "t1")               params[num_params] = 6;
+    else if (param == "t2")               params[num_params] = 7;
+    else if (param == "s0")               params[num_params] = 8;
+    else if (param == "s1")               params[num_params] = 9;
+    else if (param == "a0")               params[num_params] = 10;
+    else if (param == "a1")               params[num_params] = 11;
+    else if (param == "a2")               params[num_params] = 12;
+    else if (param == "a3")               params[num_params] = 13;
+    else if (param == "a4")               params[num_params] = 14;
+    else if (param == "a5")               params[num_params] = 15;
+    else if (param == "a6")               params[num_params] = 16;
+    else if (param == "a7")               params[num_params] = 17;
+    else if (param == "s2")               params[num_params] = 18;
+    else if (param == "s3")               params[num_params] = 19;
+    else if (param == "s4")               params[num_params] = 20;
+    else if (param == "s5")               params[num_params] = 21;
+    else if (param == "s6")               params[num_params] = 22;
+    else if (param == "s7")               params[num_params] = 23;
+    else if (param == "s8")               params[num_params] = 24;
+    else if (param == "s9")               params[num_params] = 25;
+    else if (param == "s10")              params[num_params] = 26;
+    else if (param == "s11")              params[num_params] = 27;
+    else if (param == "t3")               params[num_params] = 28;
+    else if (param == "t4")               params[num_params] = 29;
+    else if (param == "t5")               params[num_params] = 30;
+    else if (param == "t6")               params[num_params] = 31;
+    else if (param == "fcsr")             params[num_params] = csr_fcsr;
+    else if (param == "frm")              params[num_params] = csr_frm;
+    else if (param == "fflags")           params[num_params] = csr_fflags;
+    else if (param == "flb0")             params[num_params] = csr_flbarrier;
+    else if (param == "sstatus")          params[num_params] = csr_sstatus;
+    else if (param == "sie")              params[num_params] = csr_sie;
+    else if (param == "stvec")            params[num_params] = csr_stvec;
+    else if (param == "scounteren")       params[num_params] = csr_scounteren;
+    else if (param == "sscratch")         params[num_params] = csr_sscratch;
+    else if (param == "sepc")             params[num_params] = csr_sepc;
+    else if (param == "scause")           params[num_params] = csr_scause;
+    else if (param == "stval")            params[num_params] = csr_stval;
+    else if (param == "sip")              params[num_params] = csr_sip;
+    else if (param == "satp")             params[num_params] = csr_satp;
+    else if (param == "cycle")            params[num_params] = csr_cycle;
+    else if (param == "cycleh")           params[num_params] = csr_cycleh;
+    else if (param == "mvendorid")        params[num_params] = csr_mvendorid;
+    else if (param == "marchid")          params[num_params] = csr_marchid;
+    else if (param == "mimpid")           params[num_params] = csr_mimpid;
+    else if (param == "mhartid")          params[num_params] = csr_mhartid;
+    else if (param == "mstatus")          params[num_params] = csr_mstatus;
+    else if (param == "misa")             params[num_params] = csr_misa;
+    else if (param == "medeleg")          params[num_params] = csr_medeleg;
+    else if (param == "mideleg")          params[num_params] = csr_mideleg;
+    else if (param == "mie")              params[num_params] = csr_mie;
+    else if (param == "mtvec")            params[num_params] = csr_mtvec;
+    else if (param == "mcounteren")       params[num_params] = csr_mcounteren;
+    else if (param == "mscratch")         params[num_params] = csr_mscratch;
+    else if (param == "mepc")             params[num_params] = csr_mepc;
+    else if (param == "mcause")           params[num_params] = csr_mcause;
+    else if (param == "mtval")            params[num_params] = csr_mtval;
+    else if (param == "mip")              params[num_params] = csr_mip;
+    else if (param == "mcycle")           params[num_params] = csr_mcycle;
+    else if (param == "mcycleh")          params[num_params] = csr_mcycleh;
+    else if (param == "tensor_load")      params[num_params] = csr_tloadctrl;
+    else if (param == "tensor_load_l2")   params[num_params] = csr_tloadl2ctrl;
+    else if (param == "tensor_mask")      params[num_params] = csr_tmask;
+    else if (param == "tensor_conv_size") params[num_params] = csr_tconvsize;
+    else if (param == "tensor_conv_ctrl") params[num_params] = csr_tconvctrl;
+    else if (param == "tensor_coop")      params[num_params] = csr_tcoop;
+    else if (param == "tensor_fma")       params[num_params] = csr_tfmastart;
+    else if (param == "tensor_reduce")    params[num_params] = csr_treduce;
+    else if (param == "tensor_store")     params[num_params] = csr_tstore;
+    else if (param == "tensor_error")     params[num_params] = csr_terror;
+    else if (param == "tensor_wait")      params[num_params] = csr_twait;
+    else if (param == "unknown_7d1")      params[num_params] = csr_offtxfma;
+    else if (param == "usr_cache_op")     params[num_params] = csr_ucacheop; // TODO remove
+    else if (param == "csr_evict_va")     params[num_params] = csr_evict_va;
+    else if (param == "csr_flush_va")     params[num_params] = csr_flush_va;
+    else if (param == "csr_lock_va")      params[num_params] = csr_lock_va;
+    else if (param == "csr_unlock_va")    params[num_params] = csr_unlock_va;
+    else if (param == "csr_prefetch_va")  params[num_params] = csr_prefetch_va;
+    else if (param == "scratchpad_ctrl")  params[num_params] = csr_scpctrl;
+    else if (param == "tex_send")         params[num_params] = csr_texsend;
+    else if (param == "umsg_port0")       params[num_params] = csr_umsg_port0;
+    else if (param == "umsg_port1")       params[num_params] = csr_umsg_port1;
+    else if (param == "umsg_port2")       params[num_params] = csr_umsg_port2;
+    else if (param == "umsg_port3")       params[num_params] = csr_umsg_port3;
+    else if (param == "sys_cache_op")     params[num_params] = csr_scacheop; // TODO remove
+    else if (param == "evict_sw")         params[num_params] = csr_evict_sw;
+    else if (param == "flush_sw")         params[num_params] = csr_flush_sw;
+    else if (param == "smsg_port0")       params[num_params] = csr_smsg_port0;
+    else if (param == "smsg_port1")       params[num_params] = csr_smsg_port1;
+    else if (param == "smsg_port2")       params[num_params] = csr_smsg_port2;
+    else if (param == "smsg_port3")       params[num_params] = csr_smsg_port3;
+    else if (param == "icache_ctrl")      params[num_params] = csr_icache_ctrl;
+    else if (param == "write_ctrl")       params[num_params] = csr_write_ctrl;
+    else if (param == "minstmask")        params[num_params] = csr_minstmask;
+    else if (param == "minstmatch")       params[num_params] = csr_minstmatch;
+    else if (param == "flush_icache")     params[num_params] = csr_flush_icache;
+    else if (param == "sleep_txfma_27")   params[num_params] = sleep_txfma_27;
+    else if (param == "validation0")      params[num_params] = csr_validation0;
+    else if (param == "validation1")      params[num_params] = csr_validation1;
+    else if (param == "validation2")      params[num_params] = csr_validation2;
+    else if (param == "validation3")      params[num_params] = csr_validation3;
+
     // Floating register
-    else if(param[0] == 'f')
+    else if (param[0] == 'f')
     {
-        if     (param == "ft0")  params[num_params] = 0;
-        else if(param == "ft1")  params[num_params] = 1;
-        else if(param == "ft2")  params[num_params] = 2;
-        else if(param == "ft3")  params[num_params] = 3;
-        else if(param == "ft4")  params[num_params] = 4;
-        else if(param == "ft5")  params[num_params] = 5;
-        else if(param == "ft6")  params[num_params] = 6;
-        else if(param == "ft7")  params[num_params] = 7;
-        else if(param == "fs0")  params[num_params] = 8;
-        else if(param == "fs1")  params[num_params] = 9;
-        else if(param == "fa0")  params[num_params] = 10;
-        else if(param == "fa1")  params[num_params] = 11;
-        else if(param == "fa2")  params[num_params] = 12;
-        else if(param == "fa3")  params[num_params] = 13;
-        else if(param == "fa4")  params[num_params] = 14;
-        else if(param == "fa5")  params[num_params] = 15;
-        else if(param == "fa6")  params[num_params] = 16;
-        else if(param == "fa7")  params[num_params] = 17;
-        else if(param == "fs2")  params[num_params] = 18;
-        else if(param == "fs3")  params[num_params] = 19;
-        else if(param == "fs4")  params[num_params] = 20;
-        else if(param == "fs5")  params[num_params] = 21;
-        else if(param == "fs6")  params[num_params] = 22;
-        else if(param == "fs7")  params[num_params] = 23;
-        else if(param == "fs8")  params[num_params] = 24;
-        else if(param == "fs9")  params[num_params] = 25;
-        else if(param == "fs10") params[num_params] = 26;
-        else if(param == "fs11") params[num_params] = 27;
-        else if(param == "ft8")  params[num_params] = 28;
-        else if(param == "ft9")  params[num_params] = 29;
-        else if(param == "ft10") params[num_params] = 30;
-        else if(param == "ft11") params[num_params] = 31;
-        // CSRs
-        else if(param == "fcsr")    params[num_params] = csr_fcsr;
-        else if(param == "frm")     params[num_params] = csr_frm;
-        else if(param == "fflags")  params[num_params] = csr_fflags;
-        else if(param == "flb0")    params[num_params] = csr_flbarrier;
+        if      (param == "ft0")  params[num_params] = 0;
+        else if (param == "ft1")  params[num_params] = 1;
+        else if (param == "ft2")  params[num_params] = 2;
+        else if (param == "ft3")  params[num_params] = 3;
+        else if (param == "ft4")  params[num_params] = 4;
+        else if (param == "ft5")  params[num_params] = 5;
+        else if (param == "ft6")  params[num_params] = 6;
+        else if (param == "ft7")  params[num_params] = 7;
+        else if (param == "fs0")  params[num_params] = 8;
+        else if (param == "fs1")  params[num_params] = 9;
+        else if (param == "fa0")  params[num_params] = 10;
+        else if (param == "fa1")  params[num_params] = 11;
+        else if (param == "fa2")  params[num_params] = 12;
+        else if (param == "fa3")  params[num_params] = 13;
+        else if (param == "fa4")  params[num_params] = 14;
+        else if (param == "fa5")  params[num_params] = 15;
+        else if (param == "fa6")  params[num_params] = 16;
+        else if (param == "fa7")  params[num_params] = 17;
+        else if (param == "fs2")  params[num_params] = 18;
+        else if (param == "fs3")  params[num_params] = 19;
+        else if (param == "fs4")  params[num_params] = 20;
+        else if (param == "fs5")  params[num_params] = 21;
+        else if (param == "fs6")  params[num_params] = 22;
+        else if (param == "fs7")  params[num_params] = 23;
+        else if (param == "fs8")  params[num_params] = 24;
+        else if (param == "fs9")  params[num_params] = 25;
+        else if (param == "fs10") params[num_params] = 26;
+        else if (param == "fs11") params[num_params] = 27;
+        else if (param == "ft8")  params[num_params] = 28;
+        else if (param == "ft9")  params[num_params] = 29;
+        else if (param == "ft10") params[num_params] = 30;
+        else if (param == "ft11") params[num_params] = 31;
         else
         {
             int c = sscanf(param.c_str(), "f%i", &params[num_params]);
-            if(c != 1)
+            if (c != 1)
             {
                 has_error = true;
                 str_error = "Error parsing parameter " + param + ". Expecting float register";
@@ -883,168 +987,71 @@ void instruction::add_parameter(std::string param)
         }
     }
     // Integer register
-    else if(param[0] == 'x')
+    else if (param[0] == 'x')
     {
         int c = sscanf(param.c_str(), "x%i", &params[num_params]);
-        if(c != 1)
+        if (c != 1)
         {
             has_error = true;
             str_error = "Error parsing parameter " + param + ". Expecting integer register";
         }
     }
-    // Integer register, CSR or Mask registers
+    // Mask register
+    else if (param[0] == 'm')
+    {
+       if      (param == "mt0")  params[num_params] = 0;
+       else if (param == "mt1")  params[num_params] = 1;
+       else if (param == "mt2")  params[num_params] = 2;
+       else if (param == "mt3")  params[num_params] = 3;
+       else if (param == "mt4")  params[num_params] = 4;
+       else if (param == "mt5")  params[num_params] = 5;
+       else if (param == "mt6")  params[num_params] = 6;
+       else if (param == "mt7")  params[num_params] = 7;
+    }
+    // rounding modes
+    else if ( param == "rne") params[num_params] = 0;
+    else if ( param == "rtz") params[num_params] = 1;
+    else if ( param == "rdn") params[num_params] = 2;
+    else if ( param == "rup") params[num_params] = 3;
+    else if ( param == "rmm") params[num_params] = 4;
+    else if ( param == "dyn") params[num_params] = 7;
+
+    // TODO: currently unsupported CSRs
+    else if (param == "ustatus"    ||
+             param == "uie"        ||
+             param == "utvec"      ||
+             param == "uscratch"   ||
+             param == "uepc"       ||
+             param == "ucause"     ||
+             param == "utval"      ||
+             param == "uip"        ||
+             param == "time"       ||
+             param == "instret"    ||
+             param == "timeh"      ||
+             param == "insreth"    ||
+             param == "sedeleg"    ||
+             param == "sideleg"    ||
+             param == "minstret"   ||
+             param == "minstreth"  ||
+             param == "tselect"    ||
+             param == "tdata1"     ||
+             param == "tdata2"     ||
+             param == "tdata3"     ||
+             param == "dcsr"       ||
+             param == "dpc"        ||
+             param == "dscratch")
+    {
+       has_error = true;
+       str_error = "Unsupported register " + param;
+    }
+    // Unknown CSR
+    else if (param.find("unknown_") !=std::string::npos) {
+       params[num_params] = csr_unknown;
+    }
     else
     {
-        if     (param == "zero") params[num_params] = 0;
-        else if(param == "ra")   params[num_params] = 1;
-        else if(param == "sp")   params[num_params] = 2;
-        else if(param == "gp")   params[num_params] = 3;
-        else if(param == "tp")   params[num_params] = 4;
-        else if(param == "t0")   params[num_params] = 5;
-        else if(param == "t1")   params[num_params] = 6;
-        else if(param == "t2")   params[num_params] = 7;
-        else if(param == "s0")   params[num_params] = 8;
-        else if(param == "s1")   params[num_params] = 9;
-        else if(param == "a0")   params[num_params] = 10;
-        else if(param == "a1")   params[num_params] = 11;
-        else if(param == "a2")   params[num_params] = 12;
-        else if(param == "a3")   params[num_params] = 13;
-        else if(param == "a4")   params[num_params] = 14;
-        else if(param == "a5")   params[num_params] = 15;
-        else if(param == "a6")   params[num_params] = 16;
-        else if(param == "a7")   params[num_params] = 17;
-        else if(param == "s2")   params[num_params] = 18;
-        else if(param == "s3")   params[num_params] = 19;
-        else if(param == "s4")   params[num_params] = 20;
-        else if(param == "s5")   params[num_params] = 21;
-        else if(param == "s6")   params[num_params] = 22;
-        else if(param == "s7")   params[num_params] = 23;
-        else if(param == "s8")   params[num_params] = 24;
-        else if(param == "s9")   params[num_params] = 25;
-        else if(param == "s10")  params[num_params] = 26;
-        else if(param == "s11")  params[num_params] = 27;
-        else if(param == "t3")   params[num_params] = 28;
-        else if(param == "t4")   params[num_params] = 29;
-        else if(param == "t5")   params[num_params] = 30;
-        else if(param == "t6")   params[num_params] = 31;
-        // CSRs
-        else if(param == "sstatus")      params[num_params] = csr_sstatus;
-        //else if(param == "sedeleg")      params[num_params] = csr_sedeleg;
-        //else if(param == "sideleg")      params[num_params] = csr_sideleg;
-        else if(param == "sie")          params[num_params] = csr_sie;
-        else if(param == "stvec")        params[num_params] = csr_stvec;
-        else if(param == "scounteren")   params[num_params] = csr_scounteren;
-        else if(param == "sscratch")     params[num_params] = csr_sscratch;
-        else if(param == "sepc")         params[num_params] = csr_sepc;
-        else if(param == "scause")       params[num_params] = csr_scause;
-        else if(param == "stval")        params[num_params] = csr_stval;
-        else if(param == "sip")          params[num_params] = csr_sip;
-        else if(param == "satp")         params[num_params] = csr_satp;
-        else if(param == "cycle")        params[num_params] = csr_cycle;
-        else if(param == "cycleh")       params[num_params] = csr_cycleh;
-        else if(param == "mvendorid")    params[num_params] = csr_mvendorid;
-        else if(param == "marchid")      params[num_params] = csr_marchid;
-        else if(param == "mimpid")       params[num_params] = csr_mimpid;
-        else if(param == "mhartid")      params[num_params] = csr_mhartid;
-        else if(param == "mstatus")      params[num_params] = csr_mstatus;
-        else if(param == "misa")         params[num_params] = csr_misa;
-        else if(param == "medeleg")      params[num_params] = csr_medeleg;
-        else if(param == "mideleg")      params[num_params] = csr_mideleg;
-        else if(param == "mie")          params[num_params] = csr_mie;
-        else if(param == "mtvec")        params[num_params] = csr_mtvec;
-        else if(param == "mcounteren")   params[num_params] = csr_mcounteren;
-        else if(param == "mscratch")     params[num_params] = csr_mscratch;
-        else if(param == "mepc")         params[num_params] = csr_mepc;
-        else if(param == "mcause")       params[num_params] = csr_mcause;
-        else if(param == "mtval")        params[num_params] = csr_mtval;
-        else if(param == "mip")          params[num_params] = csr_mip;
-        else if(param == "mcycle")       params[num_params] = csr_mcycle;
-        else if(param == "mcycleh")      params[num_params] = csr_mcycleh;
-        else if(param == "tensor_load")      params[num_params] = csr_tloadctrl;
-        else if(param == "tensor_load_l2")   params[num_params] = csr_tloadl2ctrl;
-        else if(param == "tensor_mask")      params[num_params] = csr_tmask;
-        else if(param == "tensor_conv_size") params[num_params] = csr_tconvsize;
-        else if(param == "tensor_conv_ctrl") params[num_params] = csr_tconvctrl;
-        else if(param == "tensor_coop")      params[num_params] = csr_tcoop;
-        else if(param == "tensor_fma")       params[num_params] = csr_tfmastart;
-        else if(param == "tensor_reduce")    params[num_params] = csr_treduce;
-        else if(param == "tensor_store")     params[num_params] = csr_tstore;
-        else if(param == "tensor_error")     params[num_params] = csr_terror;
-        else if(param == "tensor_wait")      params[num_params] = csr_twait;
-        else if(param == "unknown_7d1")      params[num_params] = csr_offtxfma;
-        else if(param == "usr_cache_op")     params[num_params] = csr_ucacheop;
-        else if(param == "scp_ctrl")         params[num_params] = csr_scpctrl;
-        else if(param == "umsg_port0")       params[num_params] = csr_umsg_port0;
-        else if(param == "umsg_port1")       params[num_params] = csr_umsg_port1;
-        else if(param == "umsg_port2")       params[num_params] = csr_umsg_port2;
-        else if(param == "umsg_port3")       params[num_params] = csr_umsg_port3;
-        else if(param == "sys_cache_op")     params[num_params] = csr_scacheop;
-        else if(param == "smsg_port0")       params[num_params] = csr_smsg_port0;
-        else if(param == "smsg_port1")       params[num_params] = csr_smsg_port1;
-        else if(param == "smsg_port2")       params[num_params] = csr_smsg_port2;
-        else if(param == "smsg_port3")       params[num_params] = csr_smsg_port3;
-        else if(param == "icache_ctrl")      params[num_params] = csr_icache_ctrl;
-        else if(param == "write_ctrl")       params[num_params] = csr_write_ctrl;
-        else if(param == "validation0")      params[num_params] = csr_validation0;
-        else if(param == "validation1")      params[num_params] = csr_validation1;
-        else if(param == "validation2")      params[num_params] = csr_validation2;
-        else if(param == "validation3")      params[num_params] = csr_validation3;
-
-        // TODO: currently unsupported CSRs
-        else if(param == "ustatus"    ||
-                param == "uie"        ||
-                param == "utvec"      ||
-                param == "uscratch"   ||
-                param == "uepc"       ||
-                param == "ucause"     ||
-                param == "utval"      ||
-                param == "uip"        ||
-                param == "time"       ||
-                param == "instret"    ||
-                param == "timeh"      ||
-                param == "insreth"    ||
-                param == "sedeleg"    ||
-                param == "sideleg"    ||
-                param == "minstret"   ||
-                param == "minstreth"  ||
-                param == "tselect"    ||
-                param == "tdata1"     ||
-                param == "tdata2"     ||
-                param == "tdata3"     ||
-                param == "dcsr"       ||
-                param == "dpc"        ||
-                param == "dscratch"){
-                   has_error = true;
-                   str_error = "Unsupported register " + param;
-                }
-        // Mask register
-        else if(param[0] == 'm')
-          {
-            if     (param == "mt0")  params[num_params] = 0;
-            else if(param == "mt1")  params[num_params] = 1;
-            else if(param == "mt2")  params[num_params] = 2;
-            else if(param == "mt3")  params[num_params] = 3;
-            else if(param == "mt4")  params[num_params] = 4;
-            else if(param == "mt5")  params[num_params] = 5;
-            else if(param == "mt6")  params[num_params] = 6;
-            else if(param == "mt7")  params[num_params] = 7;
-          }
-        // rounding modes
-        else if ( param == "rne") params[num_params] = 0;
-        else if ( param == "rtz") params[num_params] = 1;
-        else if ( param == "rdn") params[num_params] = 2;
-        else if ( param == "rup") params[num_params] = 3;
-        else if ( param == "rmm") params[num_params] = 4;
-        else if ( param == "dyn") params[num_params] = 7;
-        // Unknown CSR
-        else if(param.find("unknown_") !=std::string::npos) {
-           params[num_params] = csr_unknown;
-        }
-        else
-          {
-            has_error = true;
-            str_error = "Unknown parameter " + param + ". Expecting integer register or CSR";
-          }
+       has_error = true;
+       str_error = "Unknown parameter " + param + ". Expecting integer register or CSR";
     }
     num_params++;
 }
@@ -1053,15 +1060,15 @@ void instruction::add_parameter(std::string param)
 func_ptr instruction::get_function_ptr(std::string func, bool * error, std::string * error_msg)
 {
     emu_ptr_hash_t::const_iterator el = pointer_cache.find(func);
-    if(el != pointer_cache.end())
+    if (el != pointer_cache.end())
     {
-        if(error != NULL)
+        if (error != NULL)
             *error = false;
         return el->second;
     }
 
     std::string msg = std::string("Unknown mnemonic: ") + func;
-    if(error != NULL)
+    if (error != NULL)
     {
         // Reports the error to source
         *error = true;

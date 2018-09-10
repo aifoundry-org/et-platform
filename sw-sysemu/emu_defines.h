@@ -102,7 +102,13 @@ typedef enum {
     csr_offtxfma,
     csr_flbarrier,
     csr_ucacheop,
+    csr_evict_va,
+    csr_flush_va,
+    csr_lock_va,
+    csr_unlock_va,
+    csr_prefetch_va,
     csr_scpctrl,
+    csr_texsend,
     csr_umsg_port0,
     csr_umsg_port1,
     csr_umsg_port2,
@@ -124,6 +130,8 @@ typedef enum {
 
     // ----- S-mode ET registers ---------------------------------------------
     csr_scacheop,
+    csr_evict_sw,
+    csr_flush_sw,
     csr_smsg_port0,
     csr_smsg_port1,
     csr_smsg_port2,
@@ -175,6 +183,10 @@ typedef enum {
     // ----- M-mode ET registers ---------------------------------------------
     csr_icache_ctrl,
     csr_write_ctrl,
+    csr_minstmask,
+    csr_minstmatch,
+    csr_flush_icache,
+    sleep_txfma_27,
 
     // ----- Validation only registers ---------------------------------------
     csr_validation0,
