@@ -2285,6 +2285,24 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             offtxfma();
             break;
+        case csr_evict_va:
+        case csr_flush_va:
+        case csr_prefetch_va:
+            val &= 0x8C00FFFFFFFFFFCFULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_lock_va:
+            val &= 0xFF80FFFFFFFFFFCFULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_unlock_va:
+            val &= 0xC000FFFFFFFFFFCFULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_texsend:
+            val &= 0x00000000000000FFULL;
+            csrregs[current_thread][src1] = val;
+            break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
@@ -2328,6 +2346,14 @@ static void csrset(csr src1, uint64_t val)
                     // do not write the register if attempting to set an unsupported mode
                     break;
             }
+            break;
+        case csr_evict_sw:
+            val &= 0x8C0000000003C0CFULL;
+            csrregs[current_thread][src1] = val;
+            break;
+        case csr_flush_sw:
+            val &= 0x8C0000000003C0CFULL;
+            csrregs[current_thread][src1] = val;
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
