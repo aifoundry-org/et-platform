@@ -48,6 +48,7 @@ class instruction
         bool get_is_csr_read() const      { return is_csr_read; }
         unsigned get_size() const         { return is_compressed ? 2 : 4; }
         int get_param(int param) const    { return params[param]; }
+        func_ptr get_emu_func() const     { return emu_func; }
 
         // Execution
         void exec();

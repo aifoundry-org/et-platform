@@ -35,6 +35,8 @@ extern fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+16][L1_SCP_BLOCKS];
 // Processor configuration
 extern uint8_t in_sysemu;
 extern uint32_t current_thread;
+extern void set_core_type(et_core_t core);
+extern et_core_t get_core_type();
 
 // Configure the emulation environment
 extern void init_emu(int debug, int fakesam);
@@ -64,6 +66,7 @@ extern void set_memory_funcs(void * func_memread8_, void * func_memread16_,
 
 // Traps
 extern void take_trap(const trap_t& t);
+extern void emu_mcode_insn(void (*func_ptr)());
 
 // Illegal instruction encodings will execute this
 extern void unknown(const char* comm = 0);
@@ -217,15 +220,15 @@ extern void flt_s (xreg dst, freg src1, freg src2, const char* comm = 0);
 
 extern void fcvt_w_s  (xreg dst, freg src1, rounding_mode rm, const char* comm = 0);
 extern void fcvt_wu_s (xreg dst, freg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcvt_l_s  (xreg dst, freg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcvt_lu_s (xreg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_l_s  (xreg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_lu_s (xreg dst, freg src1, rounding_mode rm, const char* comm = 0);
 extern void fmv_x_w   (xreg dst, freg src1, const char* comm = 0);
 extern void fclass_s  (xreg dst, freg src1, const char* comm = 0);
 
 extern void fcvt_s_w  (freg dst, xreg src1, rounding_mode rm, const char* comm = 0);
 extern void fcvt_s_wu (freg dst, xreg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcvt_s_l  (freg dst, xreg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcvt_s_lu (freg dst, xreg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_s_l  (freg dst, xreg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_s_lu (freg dst, xreg src1, rounding_mode rm, const char* comm = 0);
 extern void fmv_w_x   (freg dst, xreg src1, const char* comm = 0);
 
 extern void flw (freg dst, int off, xreg base, const char* comm = 0);

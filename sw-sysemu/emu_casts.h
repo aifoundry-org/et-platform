@@ -6,12 +6,9 @@
 typedef union {
     int32_t  i;
     uint32_t u;
-} u32_i32;
-
-typedef union {
-    int64_t  i;
-    uint64_t u;
-} u64_i64;
+    int64_t  l;
+    uint64_t lu;
+} u32_i32_u64_i64;
 
 typedef union {
     int16_t   i;
