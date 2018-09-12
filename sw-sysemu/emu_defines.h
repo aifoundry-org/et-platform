@@ -463,6 +463,23 @@ typedef enum {
     MAXOPCODE
 } opcode;
 
+typedef enum {
+   SWAP,
+   AND,
+   OR,
+   XOR,
+   ADD,
+   MIN,
+   MAX,
+   MINU,
+   MAXU,
+   MINPS,
+   MAXPS,
+
+   // Keep last - do not remove
+   MAXAMOOP
+} amoop;
+
 // Number of 32-bit lanes in a vector register
 #ifndef VL
 #define VL  8
@@ -603,6 +620,35 @@ DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_ECALL,        trap_machine_ecall)
 DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_PAGE_FAULT,     trap_instruction_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
+
+
+//
+// Atomics functions
+//
+
+#define AMO_EMU_W_FUNC(NAME, OPC) \
+void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");)\
+   DEBUG_EMU(gprintf("%s\n",dis);)\
+   amo_emu_w(OPC, dst, src1, src2);\
+}
+
+#define AMO_EMU_D_FUNC(NAME, OPC) \
+void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");)\
+   DEBUG_EMU(gprintf("%s\n",dis);)\
+   amo_emu_d(OPC, dst, src1, src2);\
+}
+
+#define AMO_EMU_F_FUNC(NAME, OPC) \
+void NAME(freg dst, freg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");)\
+   DEBUG_EMU(gprintf("%s\n",dis);)\
+   amo_emu_f(OPC, dst, src1, src2);\
+}
 
 #endif // _EMU_DEFINES_H
 
