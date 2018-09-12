@@ -211,6 +211,12 @@ checker::~checker()
 {
 }
 
+// Sets the core type
+void checker::set_et_core(int core_type)
+{
+   set_core_type((et_core_t)core_type);
+}
+
 // Sets the PC
 void checker::start_pc(uint32_t thread, uint64_t pc)
 {
@@ -300,13 +306,13 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
 // passed as a parameter
 checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, uint32_t * wake_minion)
 {
-    if(thread >= EMU_NUM_THREADS)
-        log << LOG_FTL << "emu_inst with thread invalid (" << thread << ")" << endm;
+    if (thread >= EMU_NUM_THREADS)
+       log << LOG_FTL << "emu_inst with thread invalid (" << thread << ")" << endm;
 
-    if ( ! threadEnabled[thread] )
-      log << LOG_ERR << "emu_inst called for thread "<<thread<<", which is disabled"<<endm;
+    if (!threadEnabled[thread])
+       log << LOG_ERR << "emu_inst called for thread " << thread << ", which is disabled" << endm;
 
-    log << LOG_DEBUG << "emu_inst called for thread "<<thread<<endm;
+    log << LOG_DEBUG << "emu_inst called for thread " << thread << endm;
 
     set_thread(thread);
     setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
@@ -341,6 +347,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 checker_result res = do_reduce(thread, inst, wake_minion);
                 if(res == CHECKER_WAIT) return CHECKER_WAIT;
             }
+
+            // Check if a trap is forced for this instruction
+            emu_mcode_insn(inst->get_emu_func());
 
             // Execute the instruction (may trap)
             inst->exec();
@@ -404,9 +413,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             }
 
             // Check if we just read a cycle register, in which case the RTL drives value
-            if (inst->get_is_csr_read() && ((inst->get_param(1) == csr_cycle  )|| 
-                                            (inst->get_param(1) == csr_cycleh )|| 
-                                            (inst->get_param(1) == csr_mcycle )|| 
+            if (inst->get_is_csr_read() && ((inst->get_param(1) == csr_cycle  )||
+                                            (inst->get_param(1) == csr_cycleh )||
+                                            (inst->get_param(1) == csr_mcycle )||
                                             (inst->get_param(1) == csr_mcycleh)))
             {
                 log << LOG_INFO << "CYCLE CSR value (" << inst->get_mnemonic() << ")" << endm;
@@ -684,13 +693,13 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     // Move to next entry if this pass for this entry was skipped due conv CSR
                     bool skip = true;
                     for(int lane = 0; lane < VL; lane++)
-                    {             
+                    {
                         get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
                         skip = skip && conv_skip[lane];
                     }
 
                     if (skip) continue;
-                    
+
                     // Looks for the 1st entry in the list of RTL written lines with same destination
                     auto it = tensorfma_list[thread].begin();
                     while(it != tensorfma_list[thread].end())

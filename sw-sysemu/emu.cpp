@@ -45,6 +45,7 @@ uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 int32_t msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
 
+static et_core_t core_type = ET_MINION;
 static uint64_t current_pc = 0;
 static uint32_t current_inst = 0;
 uint32_t current_thread = 0;
@@ -476,6 +477,46 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 void take_trap(const trap_t& t)
 {
     trap_to_mmode(t.get_cause(), t.get_tval());
+}
+
+void emu_mcode_insn(void (*func_ptr)())
+{
+   // Minion does not support some instructions in hardware
+   // but emulates them in mcode instead
+   if (core_type == ET_MINION) {
+      if (   (func_ptr == (void (*)())fence_i)
+          || (func_ptr == (void (*)())fcvt_l_s)
+          || (func_ptr == (void (*)())fcvt_lu_s)
+          || (func_ptr == (void (*)())fcvt_s_l)
+          || (func_ptr == (void (*)())fcvt_s_lu)
+          || (func_ptr == (void (*)())fdiv_pi)
+          || (func_ptr == (void (*)())fdivu_pi)
+          || (func_ptr == (void (*)())fremu_pi)
+          || (func_ptr == (void (*)())frem_pi)
+          || (func_ptr == (void (*)())fdiv_s)
+          || (func_ptr == (void (*)())fsqrt_s)
+          || (func_ptr == (void (*)())fsqrt_ps)
+          || (func_ptr == (void (*)())fdiv_ps)
+          || (func_ptr == (void (*)())sfence_vma))
+      {
+         throw trap_mcode_instruction(current_inst);
+      }
+      return;
+   }
+   // Check specific CSRs that force the matching instruction to be trapped
+   if ((current_inst ^ csrget(csr_minstmatch)) & csrget(csr_minstmask)) {
+      throw trap_mcode_instruction(current_inst);
+   }
+}
+
+void set_core_type(et_core_t core)
+{
+   core_type = core;
+}
+
+et_core_t get_core_type()
+{
+   return core_type;
 }
 
 void set_pc(uint64_t pc)
@@ -1867,8 +1908,9 @@ void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
           DEBUG_EMU(gprintf("\t0x%08x <- maxu(0x%08x (%d), 0x%08x (%d))\n", res, val1, val1, val2, val2);)
           break;
        default:
+          assert(0);
           res = 0;
-          DEBUG_EMU(gprintf("\tFATAL: Unknown atomic op %d\n", op);)
+          break;
     }
 
     // Store the operated data
@@ -3060,7 +3102,7 @@ static void femust(int count, freg src1, int off, xreg base, int use_mask)
 static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
 {
     iufval32 val;
-    u32_i32 res;
+    u32_i32_u64_i64 res;
 
     set_rounding_mode(rm);
     val.u = FREGS[src1].u[0];
@@ -3068,10 +3110,18 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
     {
         case FCVTWS:
             res.i = fpu::f32_to_i32(val.f);
-            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%g)\n",res.u,res.u,val.u,val.flt););
+            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%g)\n",res.u,res.i,val.u,val.flt););
             break;
         case FCVTWUS:
             res.u = fpu::f32_to_ui32(val.f);
+            DEBUG_EMU(gprintf("\t0x%08x (%u) <-- 0x%08x (%g)\n",res.u,res.u,val.u,val.flt););
+            break;
+        case FCVTLS:
+            res.l = fpu::f32_to_i64(val.f);
+            DEBUG_EMU(gprintf("\t0x%08x (%d) <-- 0x%08x (%g)\n",res.u,res.i,val.u,val.flt););
+            break;
+        case FCVTLUS:
+            res.lu = fpu::f32_to_ui64(val.f);
             DEBUG_EMU(gprintf("\t0x%08x (%u) <-- 0x%08x (%g)\n",res.u,res.u,val.u,val.flt););
             break;
         default:
@@ -3088,20 +3138,31 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
 static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
 {
     iufval32 res;
-    u32_i32 val;
+    u32_i32_u64_i64 val;
 
     set_rounding_mode(rm);
 
-    val.u = XREGS[src1].w[0];
     switch ( opc )
     {
         case FCVTSW:
+            val.u = XREGS[src1].w[0];
             res.f = fpu::i32_to_f32(val.i);
             DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%d)\n",res.u,res.flt,val.u,val.i););
             break;
         case FCVTSWU:
+            val.u = XREGS[src1].w[0];
             res.f = fpu::ui32_to_f32(val.u);
             DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%u)\n",res.u,res.flt,val.u,val.u););
+            break;
+        case FCVTSL:
+            val.lu = XREGS[src1].x;
+            res.f = fpu::i64_to_f32(val.l);
+            DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%d)\n",res.u,res.flt,val.u,val.l););
+            break;
+        case FCVTSLU:
+            val.lu = XREGS[src1].x;
+            res.f = fpu::ui64_to_f32(val.lu);
+            DEBUG_EMU(gprintf("\t0x%08x (%g) <-- 0x%08x (%u)\n",res.u,res.flt,val.u,val.lu););
             break;
         default:
             assert(0);
@@ -3617,6 +3678,22 @@ void fcvt_wu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
     femucvtf2x(FCVTWUS, dst, src1, rm);
 }
 
+void fcvt_l_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
+{
+    require_fp_active();
+    DISASM(gsprintf(dis,"I: fcvt.l.s x%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis););
+    femucvtf2x(FCVTLS, dst, src1, rm);
+}
+
+void fcvt_lu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
+{
+    require_fp_active();
+    DISASM(gsprintf(dis,"I: fcvt.lu.s x%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis););
+    femucvtf2x(FCVTLUS, dst, src1, rm);
+}
+
 void fmv_x_w(xreg dst, freg src1, const char* comm)
 {
     require_fp_active();
@@ -3661,6 +3738,22 @@ void fcvt_s_wu(freg dst, xreg src1, rounding_mode rm, const char* comm)
     DISASM(gsprintf(dis,"I: fcvt.s.wu f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtx2f(FCVTSWU, dst, src1, rm);
+}
+
+void fcvt_s_l(freg dst, xreg src1, rounding_mode rm, const char* comm)
+{
+    require_fp_active();
+    DISASM(gsprintf(dis,"I: fcvt.s.l f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis););
+    femucvtx2f(FCVTSL, dst, src1, rm);
+}
+
+void fcvt_s_lu(freg dst, xreg src1, rounding_mode rm, const char* comm)
+{
+    require_fp_active();
+    DISASM(gsprintf(dis,"I: fcvt.s.lu f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DEBUG_EMU(gprintf("%s\n",dis););
+    femucvtx2f(FCVTSLU, dst, src1, rm);
 }
 
 void fmv_w_x(freg dst, xreg src1, const char* comm)

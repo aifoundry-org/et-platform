@@ -49,6 +49,7 @@ class checker
         checker(main_memory * memory_);
         ~checker();
 
+        void set_et_core(int core_type);
         // Sets the PC
         void start_pc(uint32_t thread, uint64_t pc);
         void ipi_pc(uint32_t thread, uint64_t pc);

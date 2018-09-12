@@ -449,8 +449,12 @@ typedef enum {
     FPACKREPHPI,
     FCVTWS, // integer opcodes that should not really be here :-)
     FCVTWUS,
+    FCVTLS,
+    FCVTLUS,
     FCVTSW,
     FCVTSWU,
+    FCVTSL,
+    FCVTSLU,
     SIMPLE_INT, // Integer ISA
     MUL_INT,
     DIV_INT,
@@ -479,6 +483,11 @@ typedef enum {
    // Keep last - do not remove
    MAXAMOOP
 } amoop;
+
+typedef enum {
+   ET_MINION = 0,
+   ET_MAXION
+} et_core_t;
 
 // Number of 32-bit lanes in a vector register
 #ifndef VL
@@ -568,6 +577,7 @@ typedef struct {
 #define CAUSE_FETCH_PAGE_FAULT      0x0c
 #define CAUSE_LOAD_PAGE_FAULT       0x0d
 #define CAUSE_STORE_PAGE_FAULT      0x0f
+#define CAUSE_MCODE_INSTRUCTION     0x1e
 
 // base class for all traps
 class trap_t {
@@ -620,6 +630,7 @@ DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_ECALL,        trap_machine_ecall)
 DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_PAGE_FAULT,     trap_instruction_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
+DECLARE_TRAP_TVAL_Y(CAUSE_MCODE_INSTRUCTION,    trap_mcode_instruction)
 
 
 //
