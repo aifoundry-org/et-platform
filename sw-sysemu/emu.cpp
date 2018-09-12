@@ -1739,6 +1739,175 @@ void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
+{
+    uint64_t addr;
+    uint32_t res, val1, val2;
+
+    addr = XREGS[src1].x;
+
+    // Check misaligned access
+    if ((addr & 0x3) != 0) throw trap_load_address_misaligned(addr);
+
+    val1 = vmemread32(addr);
+    val2 = XREGS[src2].w[0];
+    IPC(ipc_ld(LD, dst, src1, addr, dis);)
+
+    // Save the loaded data
+    if(dst != x0)
+    {
+        XREGS[dst].x = sext32(val1);
+        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n", val1, addr);)
+    }
+    logxregchange(dst);
+
+    switch (op) {
+       case SWAP:
+          res = val2;
+          break;
+       case AND:
+          res = val1 & val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x & 0x%08x\n", res, val1, val2);)
+          break;
+       case OR:
+          res = val1 | val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x | 0x%08x\n", res, val1, val2);)
+          break;
+       case XOR:
+          res = val1 ^ val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x ^ 0x%08x\n", res, val1, val2);)
+          break;
+       case ADD:
+          res = (int32_t)val1 + (int32_t)val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x (%d) + 0x%08x (%d)\n", res, val1, (int32_t)val1, val2, (int32_t)val2);)
+          break;
+       case MIN:
+          res = ((int32_t)val1 < (int32_t)val2) ? val1 : val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- min(0x%08x (%d), 0x%08x (%d))\n", res, val1, (int32_t)val1, val2, (int32_t)val2);)
+          break;
+       case MAX:
+          res = ((int32_t)val1 > (int32_t)val2) ? val1 : val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- max(0x%08x (%d), 0x%08x (%d))\n", res, val1, (int32_t)val1, val2, (int32_t)val2);)
+          break;
+       case MINU:
+          res = (val1 < val2) ? val1 : val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- minu(0x%08x (%d), 0x%08x (%d))\n", res, val1, val1, val2, val2);)
+          break;
+       case MAXU:
+          res = (val1 > val2) ? val1 : val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- maxu(0x%08x (%d), 0x%08x (%d))\n", res, val1, val1, val2, val2);)
+          break;
+       default:
+          res = 0;
+          DEBUG_EMU(gprintf("\tFATAL: Unknown atomic op %d\n", op);)
+    }
+
+    // Stores the operated data
+    vmemwrite32(addr, res);
+    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n", res, addr);)
+    logmemwchange(0, 4, addr, res);
+}
+
+
+void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
+{
+    uint64_t addr, val1, val2, res;
+
+    addr = XREGS[src1].x;
+
+    // Check misaligned access
+    if ((addr & 0x7) != 0) throw trap_load_address_misaligned(addr);
+
+    val1 = vmemread64(addr);
+    val2 = XREGS[src2].x;
+    IPC(ipc_ld(LD, dst, src1, addr, dis);)
+
+    // Save the loaded data
+    if (dst != x0)
+    {
+        XREGS[dst].x = val1;
+        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n", val1, addr);)
+    }
+    logxregchange(dst);
+
+    switch (op) {
+       case SWAP:
+          res = val2;
+          break;
+       case AND:
+          res = val1 & val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x & 0x%08x\n", res, val1, val2);)
+          break;
+       case OR:
+          res = val1 | val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x | 0x%08x\n", res, val1, val2);)
+          break;
+       case XOR:
+          res = val1 ^ val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x ^ 0x%08x\n", res, val1, val2);)
+          break;
+       case ADD:
+          res = (int64_t)val1 + (int64_t)val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x (%d) + 0x%08x (%d)\n", res, val1, (int64_t)val1, val2, (int64_t)val2);)
+          break;
+       case MIN:
+          res = ((int64_t)val1 < (int64_t)val2) ? val1 : val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- min(0x%08x (%d), 0x%08x (%d))\n", res, val1, (int64_t)val1, val2, (int64_t)val2);)
+          break;
+       case MAX:
+          res = ((int64_t)val1 > (int64_t)val2) ? val1 : val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- max(0x%08x (%d), 0x%08x (%d))\n", res, val1, (int64_t)val1, val2, (int64_t)val2);)
+          break;
+       case MINU:
+          res = (val1 < val2) ? val1 : val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- minu(0x%08x (%d), 0x%08x (%d))\n", res, val1, val1, val2, val2);)
+          break;
+       case MAXU:
+          res = (val1 > val2) ? val1 : val2;
+          DEBUG_EMU(gprintf("\t0x%08x <- maxu(0x%08x (%d), 0x%08x (%d))\n", res, val1, val1, val2, val2);)
+          break;
+       default:
+          res = 0;
+          DEBUG_EMU(gprintf("\tFATAL: Unknown atomic op %d\n", op);)
+    }
+
+    // Store the operated data
+    vmemwrite64(addr, res);
+    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n", res, addr);)
+    logmemwchange(0, 8, addr, res);
+}
+
+//
+// Scalar 32 bits Atomics
+//
+
+AMO_EMU_W_FUNC(amoswap_w, SWAP)
+AMO_EMU_W_FUNC(amoand_w,  AND)
+AMO_EMU_W_FUNC(amoor_w,   OR)
+AMO_EMU_W_FUNC(amoxor_w,  XOR)
+AMO_EMU_W_FUNC(amoadd_w,  ADD)
+AMO_EMU_W_FUNC(amomin_w,  MIN)
+AMO_EMU_W_FUNC(amomax_w,  MAX)
+AMO_EMU_W_FUNC(amominu_w, MINU)
+AMO_EMU_W_FUNC(amomaxu_w, MAXU)
+
+//
+// Scalar 64 bits Atomics
+//
+
+AMO_EMU_D_FUNC(amoswap_d, SWAP)
+AMO_EMU_D_FUNC(amoand_d,  AND)
+AMO_EMU_D_FUNC(amoor_d,   OR)
+AMO_EMU_D_FUNC(amoxor_d,  XOR)
+AMO_EMU_D_FUNC(amoadd_d,  ADD)
+AMO_EMU_D_FUNC(amomin_d,  MIN)
+AMO_EMU_D_FUNC(amomax_d,  MAX)
+AMO_EMU_D_FUNC(amominu_d, MINU)
+AMO_EMU_D_FUNC(amomaxu_d, MAXU)
+
+
+
+/*
 void amoadd_w(xreg dst, xreg src1, xreg src2, const char* comm)
 {
     uint64_t addr = XREGS[src2].x;
@@ -2191,6 +2360,7 @@ void amoswap_d(xreg dst, xreg src1, xreg src2, const char* comm)
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
     logmemwchange(0, 8, addr, res);
 }
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -5708,6 +5878,176 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
 // Esperanto atomic extension emulation
 //
 ////////////////////////////////////////////////////////////////////////////////
+
+void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
+{
+    uint64_t addr;
+    iufval32 res, val1, val2;
+
+    for (int el = 0; el < VL; el++) {
+
+        if (MREGS[0].b[el] == 0) continue;
+
+        addr = XREGS[src2].x + FREGS[src1].i[el];
+
+        // Check misaligned access
+        if ((addr & 0x3) != 0) throw trap_load_address_misaligned(addr);
+
+        val1.u = vmemread32(addr);
+        val2.u = FREGS[dst].u[el];
+
+        //IPC(ipc_ld(LD, dst, src1, addr, dis);)
+
+        // Save the loaded data
+        XREGS[dst].w[el] = val1.u;
+        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n", val1.u, addr);)
+        logfregchange(dst);
+
+        switch (op) {
+           case SWAP:
+              res.u = val2.u;
+              break;
+           case AND:
+              res.u = val1.u & val2.u;
+              DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x & 0x%08x\n", res.u, val1.u, val2.u);)
+              break;
+           case OR:
+              res.u = val1.u | val2.u;
+              DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x | 0x%08x\n", res.u, val1.u, val2.u);)
+              break;
+           case XOR:
+              res.u = val1.u ^ val2.u;
+              DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x ^ 0x%08x\n", res.u, val1.u, val2.u);)
+              break;
+           case ADD:
+              res.u = val1.i + val2.i;
+              DEBUG_EMU(gprintf("\t0x%08x (%d) <- 0x%08x (%d) + 0x%08x (%d)\n", res.u, res.i, val1.u, val1.i, val2.u, val2.i);)
+              break;
+           case MIN:
+              res.u = (val1.i < val2.i) ? val1.u : val2.u;
+              DEBUG_EMU(gprintf("\t0x%08x (%d) <- min(0x%08x (%d), 0x%08x (%d))\n", res.u, res.i, val1.u, val1.i, val2.u, val2.i);)
+              break;
+           case MAX:
+              res.u = (val1.i > val2.i) ? val1.u : val2.u;
+              DEBUG_EMU(gprintf("\t0x%08x (%d) <- max(0x%08x (%d), 0x%08x (%d))\n", res.u, res.i, val1.u, val1.i, val2.u, val2.i);)
+              break;
+           case MINU:
+              res.u = (val1.u < val2.u) ? val1.u : val2.u;
+              DEBUG_EMU(gprintf("\t0x%08x (%d) <- minu(0x%08x (%d), 0x%08x (%d))\n", res.u, res.u, val1.u, val1.u, val2.u, val2.u);)
+              break;
+           case MAXU:
+              res.u = (val1.u > val2.u) ? val1.u : val2.u;
+              DEBUG_EMU(gprintf("\t0x%08x (%d) <- maxu(0x%08x (%d), 0x%08x (%d))\n", res.u, res.u, val1.u, val1.u, val2.u, val2.u);)
+              break;
+           case MINPS:
+              res.f = fpu::f32_minNum(val1.f, val2.f);
+              DEBUG_EMU(gprintf("\t0x%08x (%g) <- minu(0x%08x (%g), 0x%08x (%g))\n", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);)
+              break;
+           case MAXPS:
+              res.f = fpu::f32_maxNum(val1.f, val2.f);
+              DEBUG_EMU(gprintf("\t0x%08x (%g) <- maxu(0x%08x (%g), 0x%08x (%g))\n", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);)
+              break;
+           default:
+              res.u = 0;
+              DEBUG_EMU(gprintf("\tFATAL: Unknown atomic op %d\n", op);)
+        }
+
+        // Stores the operated data
+        vmemwrite32(addr, res.u);
+        DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n", res.u, addr);)
+        logmemwchange(0, 4, addr, res.u);
+    }
+}
+
+
+//
+// Local Scalar 32 bits Atomics
+//
+
+AMO_EMU_W_FUNC(amoswapl_w, SWAP)
+AMO_EMU_W_FUNC(amoandl_w,  AND)
+AMO_EMU_W_FUNC(amoorl_w,   OR)
+AMO_EMU_W_FUNC(amoxorl_w,  XOR)
+AMO_EMU_W_FUNC(amoaddl_w,  ADD)
+AMO_EMU_W_FUNC(amominl_w,  MIN)
+AMO_EMU_W_FUNC(amomaxl_w,  MAX)
+AMO_EMU_W_FUNC(amominul_w, MINU)
+AMO_EMU_W_FUNC(amomaxul_w, MAXU)
+
+//
+// Global Scalar 32 bits Atomics
+//
+
+AMO_EMU_W_FUNC(amoswapg_w, SWAP)
+AMO_EMU_W_FUNC(amoandg_w,  AND)
+AMO_EMU_W_FUNC(amoorg_w,   OR)
+AMO_EMU_W_FUNC(amoxorg_w,  XOR)
+AMO_EMU_W_FUNC(amoaddg_w,  ADD)
+AMO_EMU_W_FUNC(amoming_w,  MIN)
+AMO_EMU_W_FUNC(amomaxg_w,  MAX)
+AMO_EMU_W_FUNC(amominug_w, MINU)
+AMO_EMU_W_FUNC(amomaxug_w, MAXU)
+
+//
+// Local Scalar 64 bits Atomics
+//
+
+AMO_EMU_D_FUNC(amoswapl_d, SWAP)
+AMO_EMU_D_FUNC(amoandl_d,  AND)
+AMO_EMU_D_FUNC(amoorl_d,   OR)
+AMO_EMU_D_FUNC(amoxorl_d,  XOR)
+AMO_EMU_D_FUNC(amoaddl_d,  ADD)
+AMO_EMU_D_FUNC(amominl_d,  MIN)
+AMO_EMU_D_FUNC(amomaxl_d,  MAX)
+AMO_EMU_D_FUNC(amominul_d, MINU)
+AMO_EMU_D_FUNC(amomaxul_d, MAXU)
+
+//
+// Global Scalar 64 bits Atomics
+//
+
+AMO_EMU_D_FUNC(amoswapg_d, SWAP)
+AMO_EMU_D_FUNC(amoandg_d,  AND)
+AMO_EMU_D_FUNC(amoorg_d,   OR)
+AMO_EMU_D_FUNC(amoxorg_d,  XOR)
+AMO_EMU_D_FUNC(amoaddg_d,  ADD)
+AMO_EMU_D_FUNC(amoming_d,  MIN)
+AMO_EMU_D_FUNC(amomaxg_d,  MAX)
+AMO_EMU_D_FUNC(amominug_d, MINU)
+AMO_EMU_D_FUNC(amomaxug_d, MAXU)
+
+//
+// Local Packed 32 bits Atomics
+//
+
+AMO_EMU_F_FUNC(famoswapl_pi, SWAP)
+AMO_EMU_F_FUNC(famoandl_pi,  AND)
+AMO_EMU_F_FUNC(famoorl_pi,   OR)
+AMO_EMU_F_FUNC(famoxorl_pi,  XOR)
+AMO_EMU_F_FUNC(famoaddl_pi,  ADD)
+AMO_EMU_F_FUNC(famominl_pi,  MIN)
+AMO_EMU_F_FUNC(famomaxl_pi,  MAX)
+AMO_EMU_F_FUNC(famominul_pi, MINU)
+AMO_EMU_F_FUNC(famomaxul_pi, MAXU)
+AMO_EMU_F_FUNC(famominl_ps,  MINPS)
+AMO_EMU_F_FUNC(famomaxl_ps,  MAXPS)
+
+//
+// Global Packed 32 bits Atomics
+//
+
+AMO_EMU_F_FUNC(famoswapg_pi, SWAP)
+AMO_EMU_F_FUNC(famoandg_pi,  AND)
+AMO_EMU_F_FUNC(famoorg_pi,   OR)
+AMO_EMU_F_FUNC(famoxorg_pi,  XOR)
+AMO_EMU_F_FUNC(famoaddg_pi,  ADD)
+AMO_EMU_F_FUNC(famoming_pi,  MIN)
+AMO_EMU_F_FUNC(famomaxg_pi,  MAX)
+AMO_EMU_F_FUNC(famominug_pi, MINU)
+AMO_EMU_F_FUNC(famomaxug_pi, MAXU)
+AMO_EMU_F_FUNC(famoming_ps,  MINPS)
+AMO_EMU_F_FUNC(famomaxg_ps,  MAXPS)
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //

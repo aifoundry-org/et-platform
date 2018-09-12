@@ -468,6 +468,69 @@ extern void packb(xreg dst, xreg src1, xreg src2, const char* comm = 0);
 extern void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm = 0);
 
 // ----- Esperanto atomic extension --------------------------------------------
+extern void amoswapl_w (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoaddl_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoxorl_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoorl_w   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoandl_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amominl_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amomaxl_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amominul_w (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amomaxul_w (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+
+extern void amoswapl_d (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoaddl_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoxorl_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoorl_d   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoandl_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amominl_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amomaxl_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amominul_d (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amomaxul_d (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+
+extern void famoswapl_pi (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoaddl_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoxorl_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoorl_pi   (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoandl_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famominl_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famomaxl_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famominul_pi (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famomaxul_pi (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famominl_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famomaxl_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
+
+extern void amoswapg_w (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoaddg_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoxorg_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoorg_w   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoandg_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoming_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amomaxg_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amominug_w (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amomaxug_w (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+
+extern void amoswapg_d (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoaddg_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoxorg_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoorg_d   (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoandg_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amoming_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amomaxg_d  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amominug_d (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+extern void amomaxug_d (xreg dst, xreg src1, xreg src2, const char* comm = 0);
+
+extern void famoswapg_pi (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoaddg_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoxorg_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoorg_pi   (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoandg_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoming_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famomaxg_pi  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famominug_pi (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famomaxug_pi (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famoming_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
+extern void famomaxg_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
 
 // ----- Esperanto cache control extension -------------------------------------
 
