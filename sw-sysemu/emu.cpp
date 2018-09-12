@@ -1779,23 +1779,23 @@ void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
           break;
        case ADD:
           res = (int32_t)val1 + (int32_t)val2;
-          DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x (%d) + 0x%08x (%d)\n", res, val1, (int32_t)val1, val2, (int32_t)val2);)
+          DEBUG_EMU(gprintf("\t0x%08x (%d) <- 0x%08x (%d) + 0x%08x (%d)\n", res, (int32_t)res, val1, (int32_t)val1, val2, (int32_t)val2);)
           break;
        case MIN:
           res = ((int32_t)val1 < (int32_t)val2) ? val1 : val2;
-          DEBUG_EMU(gprintf("\t0x%08x <- min(0x%08x (%d), 0x%08x (%d))\n", res, val1, (int32_t)val1, val2, (int32_t)val2);)
-          break;
-       case MAX:
-          res = ((int32_t)val1 > (int32_t)val2) ? val1 : val2;
-          DEBUG_EMU(gprintf("\t0x%08x <- max(0x%08x (%d), 0x%08x (%d))\n", res, val1, (int32_t)val1, val2, (int32_t)val2);)
+          DEBUG_EMU(gprintf("\t0x%08x (%d) <- min(0x%08x (%d), 0x%08x (%d))\n", res, (int32_t)res, val1, (int32_t)val1, val2, (int32_t)val2);)
+          break;                                                                              
+       case MAX:                                                                              
+          res = ((int32_t)val1 > (int32_t)val2) ? val1 : val2;                                
+          DEBUG_EMU(gprintf("\t0x%08x (%d) <- max(0x%08x (%d), 0x%08x (%d))\n", res, (int32_t)res, val1, (int32_t)val1, val2, (int32_t)val2);)
           break;
        case MINU:
           res = (val1 < val2) ? val1 : val2;
-          DEBUG_EMU(gprintf("\t0x%08x <- minu(0x%08x (%d), 0x%08x (%d))\n", res, val1, val1, val2, val2);)
-          break;
-       case MAXU:
-          res = (val1 > val2) ? val1 : val2;
-          DEBUG_EMU(gprintf("\t0x%08x <- maxu(0x%08x (%d), 0x%08x (%d))\n", res, val1, val1, val2, val2);)
+          DEBUG_EMU(gprintf("\t0x%08x (%d) <- minu(0x%08x (%d), 0x%08x (%d))\n", res, res, val1, val1, val2, val2);)
+          break;                                                                      
+       case MAXU:                                                                     
+          res = (val1 > val2) ? val1 : val2;                                          
+          DEBUG_EMU(gprintf("\t0x%08x (%d) <- maxu(0x%08x (%d), 0x%08x (%d))\n", res, res, val1, val1, val2, val2);)
           break;
        default:
           res = 0;
@@ -5875,7 +5875,10 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// Esperanto atomic extension emulation
+// Esperanto Atomics extension emulation
+//
+//    BEMU does not make a difference between local and global ops
+//    because the memory model is flat
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -5896,7 +5899,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
         val1.u = vmemread32(addr);
         val2.u = FREGS[dst].u[el];
 
-        //IPC(ipc_ld(LD, dst, src1, addr, dis);)
+        IPC(ipc_ld(LD, dst, src2, addr, dis);)
 
         // Save the loaded data
         XREGS[dst].w[el] = val1.u;
@@ -5941,11 +5944,11 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
               break;
            case MINPS:
               res.f = fpu::f32_minNum(val1.f, val2.f);
-              DEBUG_EMU(gprintf("\t0x%08x (%g) <- minu(0x%08x (%g), 0x%08x (%g))\n", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);)
+              DEBUG_EMU(gprintf("\t0x%08x (%g) <- min(0x%08x (%g), 0x%08x (%g))\n", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);)
               break;
            case MAXPS:
               res.f = fpu::f32_maxNum(val1.f, val2.f);
-              DEBUG_EMU(gprintf("\t0x%08x (%g) <- maxu(0x%08x (%g), 0x%08x (%g))\n", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);)
+              DEBUG_EMU(gprintf("\t0x%08x (%g) <- max(0x%08x (%g), 0x%08x (%g))\n", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);)
               break;
            default:
               res.u = 0;
