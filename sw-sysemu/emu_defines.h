@@ -65,6 +65,15 @@
 typedef enum {
     csr_prv = 0, // this is internal to HW
 
+    // ----- Used for illegal CSR accesses -----------------------------------
+    csr_unknown,
+
+    // ----- Validation only registers ---------------------------------------
+    csr_validation0,
+    csr_validation1,
+    csr_validation2,
+    csr_validation3,
+
     // ----- U-mode registers ------------------------------------------------
     // csr_ustatus,
     // csr_uie,
@@ -187,15 +196,6 @@ typedef enum {
     csr_minstmatch,
     csr_flush_icache,
     sleep_txfma_27,
-
-    // ----- Validation only registers ---------------------------------------
-    csr_validation0,
-    csr_validation1,
-    csr_validation2,
-    csr_validation3,
-
-    // ----- Used for illegal CSR accesses -----------------------------------
-    csr_unknown,
 
     CSR_MAX
 } csr;
