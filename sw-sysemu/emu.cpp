@@ -6404,6 +6404,8 @@ static void tensorfma(uint64_t tfmareg)
     int arows      = (tfmareg & 0x0078000000000000) >> 51; // Number of A rows to be processed
     int acols      = (tfmareg & 0x0007800000000000) >> 47; // Number of A cols to be processed
     int aoffset    = (tfmareg & 0x0000780000000000) >> 43; // A matrix 32b offset
+    int ub         = (tfmareg & 0x0000000000400000) >> 22; // Matrix B is unsigned (IMA only)
+    int ua         = (tfmareg & 0x0000000000200000) >> 21; // Matrix A is unsigned (IMA only)
     int tenb       = (tfmareg & 0x0000000000100000) >> 20; // B is stored in TENB and not in SCP
     int bstart     = (tfmareg & 0x00000000000FF000) >> 12; // SCP entry where B is stored
     int astart     = (tfmareg & 0x0000000000000FF0) >>  4; // SCP entry where A is stored
@@ -6417,7 +6419,7 @@ static void tensorfma(uint64_t tfmareg)
 
     set_rounding_mode(rmdyn);
 
-    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s\n", tm, aoffset, type, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));)
+    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenb: %d, bstart: %d, astart: %d, rm: %s\n", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenb, bstart, astart, get_rounding_mode(rmdyn));)
 
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if(tenb)
@@ -6737,8 +6739,8 @@ static void tensorfma(uint64_t tfmareg)
                     int32_t accum     = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
                     // 1st IMA
-                    int32_t  mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4]);
-                    int32_t  mul_b    = sext8_2 (SCP[br][bf].b[bm * 4]);
+                    int32_t  mul_a    = ua ? SCP[astart+ar][af].b[am * 4] : sext8_2 (SCP[astart+ar][af].b[am * 4]);
+                    int32_t  mul_b    = ub ? SCP[br][bf].b[bm * 4]        : sext8_2 (SCP[br][bf].b[bm * 4]);
                     int32_t  res_mul  = mul_a * mul_b;
                     int32_t  res      = res_mul + accum;
                     //BITWISE SATURATION
@@ -6750,8 +6752,8 @@ static void tensorfma(uint64_t tfmareg)
                     DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);)
 
                     // 2nd IMA
-                    mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 1]);
-                    mul_b    = sext8_2 (SCP[br][bf].b[bm * 4 + 1]);
+                    mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 1] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 1]);
+                    mul_b    = ub ? SCP[br][bf].b[bm * 4 + 1]        : sext8_2 (SCP[br][bf].b[bm * 4 + 1]);
                     accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
@@ -6764,8 +6766,8 @@ static void tensorfma(uint64_t tfmareg)
                     DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);)
 
                    // 3rd IMA
-                    mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 2]);
-                    mul_b    = sext8_2 (SCP[br][bf].b[bm * 4 + 2]);
+                    mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 2] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 2]);
+                    mul_b    = ub ? SCP[br][bf].b[bm * 4 + 2]        : sext8_2 (SCP[br][bf].b[bm * 4 + 2]);
                     accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
@@ -6778,8 +6780,8 @@ static void tensorfma(uint64_t tfmareg)
                     DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);)
 
                     // 4th IMA
-                    mul_a    = sext8_2 (SCP[astart+ar][af].b[am * 4 + 3]);
-                    mul_b    = sext8_2 (SCP[br][bf].b[bm * 4 + 3]);
+                    mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 3] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 3]);
+                    mul_b    = ub ? SCP[br][bf].b[bm * 4 + 3]        : sext8_2 (SCP[br][bf].b[bm * 4 + 3]);
                     accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
