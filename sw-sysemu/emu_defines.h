@@ -536,7 +536,7 @@ typedef struct {
     bool stall;
     bool umode;
     bool use_scp;
-    bool enable_oop;
+    bool enable_oob;
     uint8_t logsize;
     uint8_t max_msgs;
     uint8_t scp_set;
