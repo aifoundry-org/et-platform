@@ -2458,6 +2458,7 @@ static uint64_t csrget(csr src1)
         case csr_treduce:
         case csr_tfmastart:
         case csr_flbarrier:
+        case csr_fccounter:
         case csr_ucacheop:
         case csr_tloadctrl:
         case csr_tstore:
@@ -2641,6 +2642,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_treduce:
         case csr_tfmastart:
         case csr_flbarrier:
+        case csr_fccounter:
         case csr_ucacheop:
         case csr_tloadctrl:
         case csr_tstore:

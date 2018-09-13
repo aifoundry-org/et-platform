@@ -45,6 +45,7 @@ class instruction
         bool get_is_1ulp() const          { return is_1ulp; }
         bool get_is_amo() const           { return is_amo; }
         bool get_is_flb() const           { return is_flb; }
+        bool get_is_fcc() const           { return is_fcc; }
         bool get_is_csr_read() const      { return is_csr_read; }
         unsigned get_size() const         { return is_compressed ? 2 : 4; }
         int get_param(int param) const    { return params[param]; }
@@ -67,6 +68,7 @@ class instruction
         bool                         is_1ulp;                // The instruction must be checked with 1ULP precision
         bool                         is_amo;                 // If the instruction is an atomic operation
         bool                         is_flb;                 // If the instruction is a fast local barrier
+        bool                         is_fcc;                 // If the instruction is a fast credit counter
         bool                         is_compressed = false;  // If the instruction is a compressed encoding
         bool                         is_csr_read;            // If the instruction is a CSR access
         int                          params[5];              // Params to call the function
