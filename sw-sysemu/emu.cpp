@@ -6461,7 +6461,7 @@ static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
             msg_ports[current_thread][id].use_scp = (((wdata >> 15) & 0x1) != 0);
             msg_ports[current_thread][id].scp_set = (wdata >> 16) & 0xF;
             msg_ports[current_thread][id].scp_way = (wdata >> 24) & 0x3;
-            msg_ports[current_thread][id].enable_oop = (((wdata >> 32) & 0x1) != 0);
+            msg_ports[current_thread][id].enable_oob = (((wdata >> 32) & 0x1) != 0);
             msg_ports[current_thread][id].rd_ptr = 0;
             msg_ports[current_thread][id].wr_ptr = 0;
             return 0;
