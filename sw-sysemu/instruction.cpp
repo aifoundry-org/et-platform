@@ -140,15 +140,15 @@ static const emu_ptr_hash_t pointer_cache({
     {"flt_s",          func_ptr(flt_s)},
     {"fcvt_w_s",       func_ptr(fcvt_w_s)},
     {"fcvt_wu_s",      func_ptr(fcvt_wu_s)},
-//  {"fcvt_l_s",        func_ptr(fcvt_l_s)},
-//  {"fcvt_lu_s",       func_ptr(fcvt_lu_s)},
+    {"fcvt_l_s",       func_ptr(fcvt_l_s)},
+    {"fcvt_lu_s",      func_ptr(fcvt_lu_s)},
     {"fmv_x_w",        func_ptr(fmv_x_w)},
     {"fmv_x_s",        func_ptr(fmv_x_w)},     // old name for fmv_x_w
     {"fclass_s",       func_ptr(fclass_s)},
     {"fcvt_s_w",       func_ptr(fcvt_s_w)},
     {"fcvt_s_wu",      func_ptr(fcvt_s_wu)},
-//  {"fcvt_s_l",        func_ptr(fcvt_s_l)},
-//  {"fcvt_s_lu",       func_ptr(fcvt_s_lu)},
+    {"fcvt_s_l",       func_ptr(fcvt_s_l)},
+    {"fcvt_s_lu",      func_ptr(fcvt_s_lu)},
     {"fmv_w_x",        func_ptr(fmv_w_x)},
     {"fmv_s_x",        func_ptr(fmv_w_x)},     // old name for fmv_w_x
     {"flw",            func_ptr(flw)},
@@ -976,30 +976,42 @@ void instruction::add_parameter(std::string param)
     else if (param == "tensor_wait")      params[num_params] = csr_twait;
     else if (param == "unknown_7d1")      params[num_params] = csr_offtxfma;
     else if (param == "usr_cache_op")     params[num_params] = csr_ucacheop; // TODO remove
-    else if (param == "csr_evict_va")     params[num_params] = csr_evict_va;
-    else if (param == "csr_flush_va")     params[num_params] = csr_flush_va;
-    else if (param == "csr_lock_va")      params[num_params] = csr_lock_va;
-    else if (param == "csr_unlock_va")    params[num_params] = csr_unlock_va;
-    else if (param == "csr_prefetch_va")  params[num_params] = csr_prefetch_va;
+    else if (param == "evict_va")         params[num_params] = csr_evict_va;
+    else if (param == "flush_va")         params[num_params] = csr_flush_va;
+    else if (param == "lock_va")          params[num_params] = csr_lock_va;
+    else if (param == "unlock_va")        params[num_params] = csr_unlock_va;
+    else if (param == "prefetch_va")      params[num_params] = csr_prefetch_va;
     else if (param == "scratchpad_ctrl")  params[num_params] = csr_scpctrl;
     else if (param == "tex_send")         params[num_params] = csr_texsend;
-    else if (param == "umsg_port0")       params[num_params] = csr_umsg_port0;
-    else if (param == "umsg_port1")       params[num_params] = csr_umsg_port1;
-    else if (param == "umsg_port2")       params[num_params] = csr_umsg_port2;
-    else if (param == "umsg_port3")       params[num_params] = csr_umsg_port3;
+    else if (param == "porthead0")        params[num_params] = csr_porthead0;
+    else if (param == "porthead1")        params[num_params] = csr_porthead1;
+    else if (param == "porthead2")        params[num_params] = csr_porthead2;
+    else if (param == "porthead3")        params[num_params] = csr_porthead3;
+    else if (param == "portheadnb0")      params[num_params] = csr_portheadnb0;
+    else if (param == "portheadnb1")      params[num_params] = csr_portheadnb1;
+    else if (param == "portheadnb2")      params[num_params] = csr_portheadnb2;
+    else if (param == "portheadnb3")      params[num_params] = csr_portheadnb3;
+    else if (param == "umsg_port0")       params[num_params] = csr_umsg_port0; //TODO remove
+    else if (param == "umsg_port1")       params[num_params] = csr_umsg_port1; //TODO remove
+    else if (param == "umsg_port2")       params[num_params] = csr_umsg_port2; //TODO remove
+    else if (param == "umsg_port3")       params[num_params] = csr_umsg_port3; //TODO remove
     else if (param == "sys_cache_op")     params[num_params] = csr_scacheop; // TODO remove
     else if (param == "evict_sw")         params[num_params] = csr_evict_sw;
     else if (param == "flush_sw")         params[num_params] = csr_flush_sw;
-    else if (param == "smsg_port0")       params[num_params] = csr_smsg_port0;
-    else if (param == "smsg_port1")       params[num_params] = csr_smsg_port1;
-    else if (param == "smsg_port2")       params[num_params] = csr_smsg_port2;
-    else if (param == "smsg_port3")       params[num_params] = csr_smsg_port3;
+    else if (param == "portctrl0")        params[num_params] = csr_portctrl0;
+    else if (param == "portctrl1")        params[num_params] = csr_portctrl1;
+    else if (param == "portctrl2")        params[num_params] = csr_portctrl2;
+    else if (param == "portctrl3")        params[num_params] = csr_portctrl3;
+    else if (param == "smsg_port0")       params[num_params] = csr_smsg_port0; //TODO remove
+    else if (param == "smsg_port1")       params[num_params] = csr_smsg_port1; //TODO remove
+    else if (param == "smsg_port2")       params[num_params] = csr_smsg_port2; //TODO remove
+    else if (param == "smsg_port3")       params[num_params] = csr_smsg_port3; //TODO remove
     else if (param == "icache_ctrl")      params[num_params] = csr_icache_ctrl;
     else if (param == "write_ctrl")       params[num_params] = csr_write_ctrl;
     else if (param == "minstmask")        params[num_params] = csr_minstmask;
     else if (param == "minstmatch")       params[num_params] = csr_minstmatch;
     else if (param == "flush_icache")     params[num_params] = csr_flush_icache;
-    else if (param == "sleep_txfma_27")   params[num_params] = sleep_txfma_27;
+    else if (param == "sleep_txfma_27")   params[num_params] = csr_sleep_txfma_27;
     else if (param == "validation0")      params[num_params] = csr_validation0;
     else if (param == "validation1")      params[num_params] = csr_validation1;
     else if (param == "validation2")      params[num_params] = csr_validation2;

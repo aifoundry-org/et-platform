@@ -49,6 +49,8 @@ static et_core_t core_type = ET_MINION;
 static uint64_t current_pc = 0;
 static uint32_t current_inst = 0;
 uint32_t current_thread = 0;
+uint32_t num_sets = 16;
+uint32_t num_ways = 4;
 
 #define MAXSTACK 2048
 static uint32_t shaderstack[EMU_NUM_THREADS][MAXSTACK];
@@ -76,6 +78,9 @@ static void tensorstore(uint64_t tstorereg);
 static void tensorfma(uint64_t tfmareg);
 static void tensorreduce(uint64_t value);
 static uint64_t csr_cacheop_emu(uint64_t op_value);
+static uint64_t port_get(uint32_t id);
+static uint64_t port_get_nb(uint32_t id);
+static void configure_port(uint32_t id, uint64_t wdata);
 static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode);
 static uint64_t flbarrier(uint64_t value);
 
@@ -361,6 +366,10 @@ void initcsr(uint32_t thread)
         bzero(msg_ports, sizeof(msg_ports));
         memset(msg_ports_pending_offset, 0xFF, sizeof(msg_ports_pending_offset));
     }
+    csrregs[thread][csr_portctrl0] = 0x0000000000008000ULL;
+    csrregs[thread][csr_portctrl1] = 0x0000000000008000ULL;
+    csrregs[thread][csr_portctrl2] = 0x0000000000008000ULL;
+    csrregs[thread][csr_portctrl3] = 0x0000000000008000ULL;
 }
 
 void minit(mreg dst, uint64_t val)
@@ -1825,17 +1834,17 @@ void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
        case MIN:
           res = ((int32_t)val1 < (int32_t)val2) ? val1 : val2;
           DEBUG_EMU(gprintf("\t0x%08x (%d) <- min(0x%08x (%d), 0x%08x (%d))\n", res, (int32_t)res, val1, (int32_t)val1, val2, (int32_t)val2);)
-          break;                                                                              
-       case MAX:                                                                              
-          res = ((int32_t)val1 > (int32_t)val2) ? val1 : val2;                                
+          break;
+       case MAX:
+          res = ((int32_t)val1 > (int32_t)val2) ? val1 : val2;
           DEBUG_EMU(gprintf("\t0x%08x (%d) <- max(0x%08x (%d), 0x%08x (%d))\n", res, (int32_t)res, val1, (int32_t)val1, val2, (int32_t)val2);)
           break;
        case MINU:
           res = (val1 < val2) ? val1 : val2;
           DEBUG_EMU(gprintf("\t0x%08x (%d) <- minu(0x%08x (%d), 0x%08x (%d))\n", res, res, val1, val1, val2, val2);)
-          break;                                                                      
-       case MAXU:                                                                     
-          res = (val1 > val2) ? val1 : val2;                                          
+          break;
+       case MAXU:
+          res = (val1 > val2) ? val1 : val2;
           DEBUG_EMU(gprintf("\t0x%08x (%d) <- maxu(0x%08x (%d), 0x%08x (%d))\n", res, res, val1, val1, val2, val2);)
           break;
        default:
@@ -2413,6 +2422,7 @@ void amoswap_d(xreg dst, xreg src1, xreg src2, const char* comm)
 static uint64_t csrget(csr src1)
 {
     uint64_t val;
+
     switch (src1) {
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
@@ -2420,6 +2430,18 @@ static uint64_t csrget(csr src1)
             break;
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
+            break;
+        case csr_porthead0:
+        case csr_porthead1:
+        case csr_porthead2:
+        case csr_porthead3:
+            val = port_get(src1 - csr_porthead0);
+            break;
+        case csr_portheadnb0:
+        case csr_portheadnb1:
+        case csr_portheadnb2:
+        case csr_portheadnb3:
+            val = port_get_nb(src1 - csr_portheadnb0);
             break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
@@ -2567,6 +2589,14 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x8C0000000003C0CFULL;
             csrregs[current_thread][src1] = val;
             break;
+        case csr_portctrl0:
+        case csr_portctrl1:
+        case csr_portctrl2:
+        case csr_portctrl3:
+            val &= 0x00000000FFFF0FF3ULL;
+            val |= 0x0000000000008000ULL;
+            csrregs[current_thread][src1] = val;
+            break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
             // Preserve sd, sxl, uxl
@@ -2676,6 +2706,14 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_marchid:
             case csr_mimpid:
             case csr_mhartid:
+            case csr_porthead0:
+            case csr_porthead1:
+            case csr_porthead2:
+            case csr_porthead3:
+            case csr_portheadnb0:
+            case csr_portheadnb1:
+            case csr_portheadnb2:
+            case csr_portheadnb3:
                 throw trap_illegal_instruction(current_inst);
                 break;
             case csr_treduce:
@@ -2697,6 +2735,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_tstore:
                 tensorstore(val);
                 break;
+            // TODO remove old msg port spec
             case csr_umsg_port0:
             case csr_umsg_port1:
             case csr_umsg_port2:
@@ -2709,6 +2748,14 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_smsg_port3:
                 x = msg_port_csr(src1 - csr_smsg_port0, val, false);
                 break;
+            case csr_portctrl0:
+            case csr_portctrl1:
+            case csr_portctrl2:
+            case csr_portctrl3:
+                configure_port(src1 - csr_portctrl0, val);
+                csrset(src1, val);
+                break;
+
             default:
                 csrset(src1, val);
                 break;
@@ -6182,21 +6229,21 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 
     uint64_t stride = XREGS[31].x & 0xFFFFFFFFFFC0UL;
 
-    uint64_t set  = (addr >> 6) & 0xF;
-    uint64_t way  = (op_value >> 48) & 0x3;
+    uint64_t set  = (addr >> 6)      & (num_sets - 1);
+    uint64_t way  = (op_value >> 48) & (num_ways - 1);
     uint64_t cl   = (way << 4) + set;
 
     DEBUG_EMU(gprintf("\tDoing CacheOp with value %016llX\n", op_value);)
 
     switch (op) {
         case 3: // EvictSW
-            start = 0;  // always start from L1
-            if(dest == 0) break;     // If dest is L1, done
-            if(dest <= start) break; // If start is bigger or equal than dest, done
-            if(set >= 16) break;     // Skip sets outside cache
-            if(way >= 4) break;      // Skip ways outside cache
+            start = 0;                 // always start from L1
+            if(dest == 0)       break; // If dest is L1, done
+            if(dest <= start)   break; // If start is bigger or equal than dest, done
+            if(set >= num_sets) break; // Skip sets outside cache
+            if(way >= num_ways) break; // Skip ways outside cache
 
-            for(int i = 0; i < repeat; i++)
+            for (int i = 0; i < repeat; i++)
             {
                 // If cacheline is locked or not passing tensor mask condition, skip operation
                 if(!scp_locked[current_thread >> 1][cl] && (!tm || tmask_pass(i)))
@@ -6205,18 +6252,18 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                               current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
                 }
 
-                set = (++cl) & 0xF;
-                way = (cl >> 4) & 0x3;
+                set = (++cl)    & (num_sets - 1);
+                way = (cl >> 4) & (num_ways - 1);
             }
             break;
         case 2: // FlushSW
-            start = 0;  // always start from L1
-            if(dest == 0) break;     // If dest is L1, done
-            if(dest <= start) break; // If start is bigger or equal than dest, done
-            if(set >= 16) break;     // Skip sets outside cache
-            if(way >= 4) break;      // Skip ways outside cache
+            start = 0;                 // always start from L1
+            if(dest == 0)       break; // If dest is L1, done
+            if(dest <= start)   break; // If start is bigger or equal than dest, done
+            if(set >= num_sets) break; // Skip sets outside cache
+            if(way >= num_ways) break; // Skip ways outside cache
 
-            for(int i = 0; i < repeat; i++) {
+            for (int i = 0; i < repeat; i++) {
                 // If cacheline is locked or not passing tensor mask condition, skip operation
                 if(!scp_locked[current_thread >> 1][cl] && (!tm || tmask_pass(i)))
                 {
@@ -6224,15 +6271,15 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                               current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
                 }
 
-                set = (++cl) & 0xF;
-                way = (cl >> 4) & 0x3;
+                set = (++cl)    & (num_sets - 1);
+                way = (cl >> 4) & (num_ways - 1);
             }
             break;
         case 7: // EvictVA
             if(dest == 0) break;     // If dest is L1, done
             if(dest <= start) break; // If start is bigger or equal than dest, done
 
-            for(int i = 0; i < repeat; i++) {
+            for (int i = 0; i < repeat; i++) {
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
@@ -6240,9 +6287,9 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
-                    set = (paddr >> 6) & 0xF;
+                    set = (paddr >> 6) & (num_sets - 1);
                     cl  = (set << 2);
-                    for(int j = 0; j < 4; j++)
+                    for (unsigned j = 0; j < num_ways; j++)
                     {
                         if((start == 0) && scp_locked[cl + j] && (scp_trans[current_thread >> 1][cl + j] == paddr)) scp_en = true;
                     }
@@ -6258,7 +6305,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
             if(dest == 0) break;     // If dest is L1, done
             if(dest <= start) break; // If start is bigger or equal than dest, done
 
-            for(int i = 0; i < repeat; i++) {
+            for (int i = 0; i < repeat; i++) {
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
@@ -6266,9 +6313,9 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
-                    set = (paddr >> 6) & 0xF;
+                    set = (paddr >> 6) & (num_sets - 1);
                     cl  = (set << 2);
-                    for(int j = 0; j < 4; j++)
+                    for (unsigned j = 0; j < num_ways; j++)
                     {
                         if((start == 0) && scp_locked[cl + j] && (scp_trans[current_thread >> 1][cl + j] == paddr)) scp_en = true;
                     }
@@ -6281,7 +6328,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
             }
             break;
         case 4: // PrefetchVA
-            for(int i = 0; i < repeat; i++)
+            for (int i = 0; i < repeat; i++)
             {
                 // If not masked
                 if(!tm || tmask_pass(i))
@@ -6290,9 +6337,9 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
-                    set = (paddr >> 6) & 0xF;
+                    set = (paddr >> 6) & (num_sets - 1);
                     cl  = (set << 2);
-                    for(int w = 0; w < 4; w++)
+                    for (unsigned w = 0; w < num_ways; w++)
                     {
                         if((start == 0) && scp_locked[cl + w] && (scp_trans[current_thread >> 1][cl + w] == paddr)) scp_en = true;
                     }
@@ -6307,10 +6354,10 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
             break;
         case 0: // LockVA
             way = (op_value >> 48) & 0xFF;
-            if((way >= 4) && (way != 255)) break; // Skip ways outside cache
-            set = set % 16;
+            if((way >= num_ways) && (way != 255)) break; // Skip ways outside cache
+            set = set % num_sets;
 
-            for(int i = 0; i < repeat; i++)
+            for (int i = 0; i < repeat; i++)
             {
                 // If not masked
                 if(!tm || tmask_pass(i))
@@ -6323,7 +6370,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                     {
                         cl = set << 2;
                         // For all the ways
-                        for(int w = 0; w < 4; w++)
+                        for (unsigned w = 0; w < num_ways; w++)
                         {
                             // Check if not locked and same PADDR
                             if(!scp_locked[current_thread >> 1][cl + w])
@@ -6338,7 +6385,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                     else
                     {
                         // For all the ways
-                        for(int w = 0; w <= 4; w++)
+                        for (unsigned w = 0; w <= num_ways; w++)
                         {
                             // Check if not locked and same PADDR
                             if(!scp_locked[current_thread >> 1][cl + w])
@@ -6358,7 +6405,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
             }
             break;
         case 1: // UnlockVA
-            for(int i = 0; i < repeat; i++)
+            for (int i = 0; i < repeat; i++)
             {
                 // If not masked
                 if(!tm || tmask_pass(i))
@@ -6366,11 +6413,11 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
                     uint64_t state  = (op_value >> 59) & 0x1;
 
-                    set = (paddr >> 6) & 0xF;
+                    set = (paddr >> 6) & (num_sets - 1);
                     cl = set << 2;
 
                     // For all the ways
-                    for(int w = 0; w < 4; w++)
+                    for (unsigned w = 0; w < num_ways; w++)
                     {
                         // Check if locked and same PADDR
                         if(scp_locked[current_thread >> 1][cl + w] && (scp_trans[current_thread >> 1][cl + w] == paddr))
@@ -6433,7 +6480,7 @@ static void write_msg_port_data(uint32_t thread, uint32_t id)
     {
         int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
         uint32_t *data = new uint32_t [wr_words];
-        for(int i = 0; i < wr_words; i++)
+        for (int i = 0; i < wr_words; i++)
             data[i] =  retrieve_msg_port_data ( thread, id, i );
         write_msg_port_data_(thread, id, data);
         delete [] data;
@@ -6442,6 +6489,52 @@ static void write_msg_port_data(uint32_t thread, uint32_t id)
         gprintf("ERROR: no data provider for msg port %d emulation has been configured\n", id);
         exit(-1);
     }
+}
+
+static uint64_t port_get(uint32_t id)
+{
+   if ((csrget(csr_prv) == CSR_PRV_U) && (msg_ports[current_thread][id].umode == false))
+      throw trap_illegal_instruction(current_inst);
+
+   if (in_sysemu == 1 && query_msg_port_data(current_thread, id) == 0)
+   {
+      msg_ports[current_thread][id].stall = true;
+      return 0;
+   }
+   return get_msg_port_offset(id);
+}
+
+static uint64_t port_get_nb(uint32_t id)
+{
+   if ((csrregs[current_thread][csr_prv] == CSR_PRV_U) && (msg_ports[current_thread][id].umode == false))
+      throw trap_illegal_instruction(current_inst);
+
+   if (query_msg_port_data(current_thread, id))
+      return get_msg_port_offset(id);
+
+   return -1;
+}
+
+
+static void configure_port(uint32_t id, uint64_t wdata)
+{
+   if (   (((wdata >> 16) & 0xFF) > (num_sets - 1))  // Illegal Set
+       || (((wdata >> 24) & 0xFF) > (num_ways - 1))) // Illegal Way
+   {
+      throw trap_illegal_instruction(current_inst);
+   }
+
+   msg_ports[current_thread][id].enabled    = wdata & 0x1;
+   msg_ports[current_thread][id].enable_oob = (wdata >> 1)  & 0x1;
+   msg_ports[current_thread][id].umode      = (wdata >> 4)  & 0x1;
+   msg_ports[current_thread][id].logsize    = (wdata >> 5)  & 0x7;
+   msg_ports[current_thread][id].max_msgs   = (wdata >> 8)  & 0xF;
+   msg_ports[current_thread][id].use_scp    = (wdata >> 15) & 0x1;
+   msg_ports[current_thread][id].scp_set    = (wdata >> 16) & 0xF;
+   msg_ports[current_thread][id].scp_way    = (wdata >> 24) & 0x3;
+   msg_ports[current_thread][id].rd_ptr     = 0;
+   msg_ports[current_thread][id].wr_ptr     = 0;
+   msg_ports[current_thread][id].stall      = false;
 }
 
 static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)

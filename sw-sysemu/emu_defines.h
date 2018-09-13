@@ -118,10 +118,18 @@ typedef enum {
     csr_prefetch_va,
     csr_scpctrl,
     csr_texsend,
-    csr_umsg_port0,
-    csr_umsg_port1,
-    csr_umsg_port2,
-    csr_umsg_port3,
+    csr_porthead0,
+    csr_porthead1,
+    csr_porthead2,
+    csr_porthead3,
+    csr_portheadnb0,
+    csr_portheadnb1,
+    csr_portheadnb2,
+    csr_portheadnb3,
+    csr_umsg_port0, // TODO remove once everything is up to spec
+    csr_umsg_port1, // TODO remove once everything is up to spec
+    csr_umsg_port2, // TODO remove once everything is up to spec
+    csr_umsg_port3, // TODO remove once everything is up to spec
 
     // ----- S-mode registers ------------------------------------------------
     csr_sstatus,
@@ -141,10 +149,14 @@ typedef enum {
     csr_scacheop,
     csr_evict_sw,
     csr_flush_sw,
-    csr_smsg_port0,
-    csr_smsg_port1,
-    csr_smsg_port2,
-    csr_smsg_port3,
+    csr_portctrl0,
+    csr_portctrl1,
+    csr_portctrl2,
+    csr_portctrl3,
+    csr_smsg_port0, // TODO remove once everything is up to spec
+    csr_smsg_port1, // TODO remove once everything is up to spec
+    csr_smsg_port2, // TODO remove once everything is up to spec
+    csr_smsg_port3, // TODO remove once everything is up to spec
 
     // ----- M-mode registers ------------------------------------------------
     csr_mvendorid,
@@ -195,7 +207,7 @@ typedef enum {
     csr_minstmask,
     csr_minstmatch,
     csr_flush_icache,
-    sleep_txfma_27,
+    csr_sleep_txfma_27,
 
     CSR_MAX
 } csr;
