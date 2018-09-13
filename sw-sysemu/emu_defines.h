@@ -110,6 +110,7 @@ typedef enum {
     // csr_top,
     csr_offtxfma,
     csr_flbarrier,
+    csr_fccounter,
     csr_ucacheop,
     csr_evict_va,
     csr_flush_va,

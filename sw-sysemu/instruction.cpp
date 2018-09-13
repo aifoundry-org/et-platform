@@ -441,6 +441,7 @@ instruction::instruction()
     is_1ulp        = false;
     is_amo         = false;
     is_flb         = false;
+    is_fcc         = false;
     emu_func       = NULL;
     emu_func0      = NULL;
     emu_func1      = NULL;
@@ -817,6 +818,7 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
         is_tensor_load = (params[1] == csr_tloadctrl);
         is_tensor_fma  = (params[1] == csr_tfmastart);
         is_flb         = (params[1] == csr_flbarrier);
+        is_fcc         = (params[1] == csr_fccounter);
     }
 
     // Get the emulation function pointer for the opcode
@@ -932,7 +934,10 @@ void instruction::add_parameter(std::string param)
     else if (param == "fcsr")             params[num_params] = csr_fcsr;
     else if (param == "frm")              params[num_params] = csr_frm;
     else if (param == "fflags")           params[num_params] = csr_fflags;
+    else if (param == "flb")              params[num_params] = csr_flbarrier;
     else if (param == "flb0")             params[num_params] = csr_flbarrier;
+    else if (param == "fcc")              params[num_params] = csr_fccounter;
+    else if (param == "unknown_821")      params[num_params] = csr_fccounter;
     else if (param == "sstatus")          params[num_params] = csr_sstatus;
     else if (param == "sie")              params[num_params] = csr_sie;
     else if (param == "stvec")            params[num_params] = csr_stvec;
