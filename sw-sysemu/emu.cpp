@@ -339,9 +339,9 @@ void initcsr(uint32_t thread)
     // Exit reset at M-mode
     csrregs[thread][csr_prv] = CSR_PRV_M;
     // Read-only registers
-    csrregs[thread][csr_mvendorid] = 0xdeadbeef;
-    csrregs[thread][csr_marchid] = 0xdeadbeef;
-    csrregs[thread][csr_mimpid] = 0xdeadbeef;
+    csrregs[thread][csr_mvendorid] = 0x1E0A;
+    csrregs[thread][csr_marchid] = 0x0;
+    csrregs[thread][csr_mimpid] = 0x0;
     csrregs[thread][csr_mhartid] = thread;
     // misa is a 0-length register
     csrregs[thread][csr_misa] = 0x800000000014112dULL;
