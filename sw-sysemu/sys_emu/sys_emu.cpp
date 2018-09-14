@@ -523,7 +523,11 @@ int main(int argc, char * argv[])
                 // Executes the instruction
                 if(!reduce_wait)
                 {
+                    printf("Executing %i %llx\n", thread_id, (long long unsigned int) current_pc[thread_id]);
+                    fflush(stdout);
                     inst->exec();
+                    printf("Done!!\n");
+                    fflush(stdout);
 
                     if (get_msg_port_stall(thread_id, 0) ){
                         thread = enabled_threads.erase(thread);
