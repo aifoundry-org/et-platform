@@ -6744,7 +6744,7 @@ static void offtxfma()
 
 void tensorload(uint64_t control)//Transtensorload
 {
-    uint64_t stride  = XREGS[31].x;
+    uint64_t stride  = XREGS[31].x & 0xFFFFFFFFFFC0ULL;
 
     uint64_t tm                 = (control >> 63) & 0x1;
     uint64_t use_coop           = (control >> 62) & 0x1;
