@@ -450,7 +450,18 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     csrset(csr_sepc, current_pc);
     // Jump to stvec
     csrset(csr_prv, CSR_PRV_S);
-    logpcchange(csrget(csr_stvec));
+    // compute address where to jump to:
+    //  if tvec[0]==0 (direct mode) => jump to tvec
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+    uint64_t tvec = csrget(csr_stvec);
+    if ( (tvec & 1 ) == 1  && (cause >> 31) == 1) { // vectored mode and interrupt => add +4 * cause
+      tvec &=  ~0x1ULL;
+      tvec += (cause & 0xF) << 2;
+    }
+    else {
+      tvec &=  ~0x1ULL;
+    }
+    logpcchange(tvec);
 }
 
 static void trap_to_mmode(uint64_t cause, uint64_t val)
@@ -480,7 +491,18 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     csrset(csr_mepc, current_pc);
     // Jump to mtvec
     csrset(csr_prv, CSR_PRV_M);
-    logpcchange(csrget(csr_mtvec));
+    // compute address where to jump to
+    //  if tvec[0]==0 (direct mode) => jump to tvec
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+    uint64_t tvec = csrget(csr_mtvec);
+    if ( (tvec & 1 ) == 1  && (cause >> 31) == 1) { // vectored mode and interrupt => add +4 * cause
+      tvec &=  ~0x1ULL;
+      tvec += (cause & 0xF) << 2;
+    }
+    else {
+      tvec &=  ~0x1ULL;
+    }
+    logpcchange(tvec);
 }
 
 void take_trap(const trap_t& t)
@@ -2598,6 +2620,12 @@ static void csrset(csr src1, uint64_t val)
             val |= 0x0000000000008000ULL;
             csrregs[current_thread][src1] = val;
             break;
+    case csr_stvec:
+            if ((val & 0xFFE) != 0)
+              DEBUG_EMU(gprintf("ERROR!!! stvec not aligned to 4k boundary: %x\n", val););
+            val &= 0xFFFFFFFFF001ULL;
+            csrregs[current_thread][src1] = val;
+            break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
             // Preserve sd, sxl, uxl
@@ -2636,6 +2664,12 @@ static void csrset(csr src1, uint64_t val)
             // Hard-wire ueip, utip, usip
             // Write only seip, stip, ssip
             val &= 0x0000000000000222ULL;
+            csrregs[current_thread][src1] = val;
+            break;
+    case csr_mtvec:
+            if ((val & 0xFFE) != 0)
+              DEBUG_EMU(gprintf("ERROR!!! mtvec not aligned to 4k boundary: %x\n", val););
+            val &= 0xFFFFFFFFF001ULL;
             csrregs[current_thread][src1] = val;
             break;
         // ----- Tensor instructions -------------------------------------
