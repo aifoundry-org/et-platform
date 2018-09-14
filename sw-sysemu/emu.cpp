@@ -30,7 +30,7 @@ xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
 mdata mregs[EMU_NUM_THREADS][8];
 uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
-fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+16][L1_SCP_BLOCKS];
+fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS][L1_SCP_BLOCKS];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
 bool scp_tm;
@@ -6236,8 +6236,8 @@ AMO_EMU_F_FUNC(famomaxg_ps,  MAXPS)
 
 // ----- Scratchpad emulation --------------------------------------------------
 
-static bool     scp_locked[EMU_NUM_MINIONS][L1_SCP_ENTRIES]; // A cacheline is locked
-static uint64_t scp_trans[EMU_NUM_MINIONS][L1_SCP_ENTRIES];  // Which PA the cacheline is mapped to
+static bool     scp_locked[EMU_NUM_MINIONS][L1_ENTRIES]; // A cacheline is locked
+static uint64_t scp_trans[EMU_NUM_MINIONS][L1_ENTRIES];  // Which PA the cacheline is mapped to
 
 uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
@@ -6764,7 +6764,7 @@ void tensorload(uint64_t control)//Transtensorload
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if(tenb)
     {
-        dst = 64;
+        dst = L1_SCP_ENTRIES;
     }
 
     scp_entry[current_thread] = dst;
@@ -6922,41 +6922,78 @@ void tensorload(uint64_t control)//Transtensorload
     }
 }
 
-
 // ----- TensorStore emulation -------------------------------------------------
+
 static void tensorstore(uint64_t tstorereg)
 {
-    uint64_t srcinc   = ((tstorereg & 0xC00000000000000C) >> 62) + 1; // Increment done to register source
-    uint64_t regstart =  (tstorereg & 0x3E00000000000000) >> 57;      // Start register to store
-    uint64_t cols     = ((tstorereg & 0x0180000000000000) >> 55) + 1; // Number of register per col
-    uint64_t rows     = ((tstorereg & 0x0078000000000000) >> 51) + 1; // Number of rows to store
-    uint64_t addr     =  (tstorereg & 0x0000FFFFFFFFFFF0);            // Address where to store the results
+    uint64_t tstore_scp = (tstorereg >> 48) & 0x1;
 
-    uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFF0UL;
-
-    DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, regstart, rows, cols, srcinc);)
-
-    uint64_t src = regstart;
-
-    // For all the rows
-    for(uint64_t row = 0; row < rows; row++)
+    if(tstore_scp)
     {
-        // For all the blocks of 128b
-        for(uint64_t col = 0; col < cols; col++)
+        uint64_t srcinc   = ((tstorereg & 0xC00000000000000C) >> 62) + 1; // Increment done to scratchpad source
+        uint64_t scpstart =  (tstorereg & 0x3F00000000000000) >> 56;      // Start scratchpad entry to store
+        uint64_t rows     = ((tstorereg & 0x0078000000000000) >> 51) + 1; // Number of rows to store
+        uint64_t addr     =  (tstorereg & 0x00FFFFFFFFFFC0);              // Address where to store the results
+
+        uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
+
+        uint64_t src = scpstart % L1_SCP_ENTRIES;
+        DEBUG_EMU(gprintf("\tStart Tensor Store Scp with addr: %016llx, stride: %016llx, rows: %d, scpstart: %d, srcinc: %d\n", addr, stride, rows, src, srcinc);)
+        // For all the rows
+        for(uint64_t row = 0; row < rows; row++)
         {
-            // For all the 32 elements of the 128b block
-            for(uint64_t i = 0; i < 4; i++)
+            // For all the elements of the lane
+            for(int j = 0; j < L1_SCP_BLOCKS; j++)
             {
-                uint32_t idx = (col & 1) * 4 + i;
-                uint32_t val = FREGS[src].u[idx];
-                vmemwrite32(addr + col * 16 + i * 4, val);
-                DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
-                //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
+                for(int i = 0; i < VL; i++)
+                {
+                    uint32_t val = SCP[src][j].u[i];
+                    uint64_t waddr = addr + j * VL * 4 + i * 4;
+                    vmemwrite32(waddr, val);
+                    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,waddr);)
+                    DEBUG_EMU(gprintf("\t\tSCP[%d][%d].u[%d]\n",src,j,i);)
+                    //logmemwchange(0, 4, waddr, val); => Don't log mem changes!
+                }
             }
-            if(cols == 1)    src += srcinc; // For 128b stores, move to next desired register
-            else if(col & 1) src += srcinc; // For 256b and 512b stores, move to next desired register when 256b are written
+            src += srcinc;
+            src = src % L1_SCP_ENTRIES;
+            addr += stride;
         }
-        addr += stride;
+    }
+    else
+    {
+        uint64_t srcinc   = ((tstorereg & 0xC00000000000000C) >> 62) + 1; // Increment done to register source
+        uint64_t regstart =  (tstorereg & 0x3E00000000000000) >> 57;      // Start register to store
+        uint64_t cols     = ((tstorereg & 0x0180000000000000) >> 55) + 1; // Number of register per col
+        uint64_t rows     = ((tstorereg & 0x0078000000000000) >> 51) + 1; // Number of rows to store
+        uint64_t addr     =  (tstorereg & 0x0000FFFFFFFFFFF0);            // Address where to store the results
+
+        uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFF0UL;
+
+        DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, regstart, rows, cols, srcinc);)
+
+        uint64_t src = regstart;
+
+        // For all the rows
+        for(uint64_t row = 0; row < rows; row++)
+        {
+            // For all the blocks of 128b
+            for(uint64_t col = 0; col < cols; col++)
+            {
+                // For all the 32 elements of the 128b block
+                for(uint64_t i = 0; i < 4; i++)
+                {
+                    uint32_t idx = (col & 1) * 4 + i;
+                    uint32_t val = FREGS[src].u[idx];
+                    vmemwrite32(addr + col * 16 + i * 4, val);
+                    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",val,addr + col * 16 + i * 4);)
+                    //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
+                }
+                if(cols == 1)    src += srcinc; // For 128b stores, move to next desired register
+                else if(col & 1) src += srcinc; // For 256b and 512b stores, move to next desired register when 256b are written
+            }
+            addr += stride;
+        }
     }
 }
 
@@ -6989,7 +7026,7 @@ static void tensorfma(uint64_t tfmareg)
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if(tenb)
     {
-        bstart = 64;
+        bstart = L1_SCP_ENTRIES;
     }
 
     tensorfma_size[current_thread] = arows * bcols / VL;
