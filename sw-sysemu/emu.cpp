@@ -4212,13 +4212,13 @@ void fsq2(freg src1, int off, xreg base, const char* comm)
     femust(VL, src1, off, base, 0);
 }
 
-void fswpc_ps(freg src1, int off, xreg base, const char* comm)
+void fswg_ps(freg src1, xreg base, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fswpc.ps f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fswg.ps f%d, 0(x%d)%s%s",src1,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femust(VL, src1, off, base, 1);
+    femust(VL, src1, 0, base, 1);
 }
 
 // ----- Broadcast -----------------------------------------
