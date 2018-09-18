@@ -478,7 +478,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
         return;
     }
 
-    DEBUG_EMU(gprintf("\tTrapping to M-mode with cause %llu\n",cause);)
+    DEBUG_EMU(gprintf("\tTrapping to M-mode with cause %llu and tval %llx\n",cause, val);)
 
     // Take mie
     uint64_t mstatus = csrget(csr_mstatus);
@@ -2229,7 +2229,10 @@ static void csrset(csr src1, uint64_t val)
         case csr_scacheop:
             break;
         // ----- Shared registers ----------------------------------------
-
+        case csr_sleep_txfma_27:
+            csrregs[current_thread][src1] = val;
+            csrregs[current_thread^1][src1] = val;
+            break;
         // ----- Verification registers ----------------------------------------
         case csr_validation1:
             // Ignore carriage return
@@ -2264,8 +2267,8 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
 
     // Check if current privilege mode has access to the register
     uint64_t prv = csrget(csr_prv);
-    if (   ((prv == CSR_PRV_U) && (src1 > CSR_MAX_UMODE))
-        || ((prv == CSR_PRV_S) && (src1 > CSR_MAX_SMODE)))
+    if (   ((prv == CSR_PRV_U) && (src1 >= CSR_MAX_UMODE))
+        || ((prv == CSR_PRV_S) && (src1 >= CSR_MAX_SMODE)))
     {
         throw trap_illegal_instruction(current_inst);
     }
@@ -2602,11 +2605,15 @@ void ebreak(const char* comm)
 
 void sret(const char* comm)
 {
+    uint64_t curprv = csrget(csr_prv);
+    uint64_t mstatus = csrget(csr_mstatus);
+    if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && ( ((mstatus >> 22) & 1) == 1 ) ))
+      throw trap_illegal_instruction(current_inst);
+
     DISASM(gsprintf(dis,"I: sret%s%s",(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
     logpcchange(csrget(csr_sepc));
     // Take spie and spp
-    uint64_t mstatus = csrget(csr_mstatus);
     uint64_t spie = (mstatus >> 5) & 0x1;
     uint64_t spp = (mstatus >> 8) & 0x1;
     // Clean sie, spie and spp
@@ -2636,6 +2643,11 @@ void mret(const char* comm)
 
 void wfi(const char* comm)
 {
+    uint64_t curprv = csrget(csr_prv);
+    uint64_t mstatus = csrget(csr_mstatus);
+    if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && ( ((mstatus >> 21) & 1 ) == 1 ) ) )
+      throw trap_illegal_instruction(current_inst);
+
     DISASM(gsprintf(dis,"I: wfi%s%s",(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
 }

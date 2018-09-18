@@ -462,6 +462,7 @@ int main(int argc, char * argv[])
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
                 inst = inst_cache->get_instruction(virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch));
+                set_inst(inst->get_enc());
                 if(do_log)
                     print_inst_log(inst, thread_id, current_pc[thread_id], emu_state_change);
 
