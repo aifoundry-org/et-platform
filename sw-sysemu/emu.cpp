@@ -370,6 +370,8 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_portctrl1] = 0x0000000000008000ULL;
     csrregs[thread][csr_portctrl2] = 0x0000000000008000ULL;
     csrregs[thread][csr_portctrl3] = 0x0000000000008000ULL;
+
+    csrregs[thread][csr_minstmask] = 0xFFFFFFFFFFFFFFFFULL;
 }
 
 void minit(mreg dst, uint64_t val)
@@ -532,10 +534,9 @@ void emu_mcode_insn(void (*func_ptr)())
       {
          throw trap_mcode_instruction(current_inst);
       }
-      return;
    }
    // Check specific CSRs that force the matching instruction to be trapped
-   if ((current_inst ^ csrget(csr_minstmatch)) & csrget(csr_minstmask)) {
+   if ((current_inst != 0) && (((current_inst ^ csrget(csr_minstmatch)) & csrget(csr_minstmask)) == 0)) {
       throw trap_mcode_instruction(current_inst);
    }
 }
