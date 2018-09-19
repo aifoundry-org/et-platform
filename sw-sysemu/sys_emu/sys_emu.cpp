@@ -523,11 +523,7 @@ int main(int argc, char * argv[])
                 // Executes the instruction
                 if(!reduce_wait)
                 {
-                    printf("Executing %i %llx\n", thread_id, (long long unsigned int) current_pc[thread_id]);
-                    fflush(stdout);
                     inst->exec();
-                    printf("Done!!\n");
-                    fflush(stdout);
 
                     if (get_msg_port_stall(thread_id, 0) ){
                         thread = enabled_threads.erase(thread);
@@ -553,7 +549,7 @@ int main(int argc, char * argv[])
                 // Thread is going to sleep
                 if(inst->get_is_fcc() && !reduce_wait)
                 {
-                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
+                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep (FCC)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
                     int old_thread = *thread;
                     thread = enabled_threads.erase(thread);
 
@@ -565,6 +561,11 @@ int main(int argc, char * argv[])
                         enabled_threads.push_back(old_thread);
                         pending_fcc.erase(fcc);
                     }
+                }
+                else if(inst->get_is_wfi() && !reduce_wait)
+                {
+                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep (WFI)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
+                    thread = enabled_threads.erase(thread);
                 }
                 else
                 {

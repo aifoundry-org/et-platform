@@ -30,6 +30,8 @@
 #define TFMA_MAX_ACOLS    16
 #define TFMA_MAX_BCOLS    16
 #define TFMA_REGS_PER_ROW (64 / (VL * 4))
+// FastLocalBarrier
+#define FAST_LOCAL_BARRIERS 32
 
 // VA to PA translation
 #define PA_SIZE        40
