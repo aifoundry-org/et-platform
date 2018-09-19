@@ -618,7 +618,7 @@ static func_memwrite64_t func_memwrite64 = NULL;
 
 static uint64_t translate_esr_memmap(uint64_t paddr)
 {
-    if((paddr >= FL_UC_BASE_REGION) && (paddr <= (FL_UC_BASE_REGION + 512)))
+    if((paddr >= FL_UC_BASE_REGION) && (paddr < (FL_UC_BASE_REGION + 512)))
     {
         uint64_t shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
         return paddr + 512 * shire;
@@ -1816,14 +1816,14 @@ void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
     uint64_t addr;
     uint32_t res, val1, val2;
 
-    addr = XREGS[src1].x;
+    addr = XREGS[src2].x;
 
     // Check misaligned access
     if ((addr & 0x3) != 0) throw trap_load_address_misaligned(addr);
 
     val1 = vmemread32(addr);
-    val2 = XREGS[src2].w[0];
-    IPC(ipc_ld(LD, dst, src1, addr, dis);)
+    val2 = XREGS[src1].w[0];
+    IPC(ipc_ld(LD, dst, src2, addr, dis);)
 
     // Save the loaded data
     if(dst != x0)
@@ -1885,14 +1885,14 @@ void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
 {
     uint64_t addr, val1, val2, res;
 
-    addr = XREGS[src1].x;
+    addr = XREGS[src2].x;
 
     // Check misaligned access
     if ((addr & 0x7) != 0) throw trap_load_address_misaligned(addr);
 
     val1 = vmemread64(addr);
-    val2 = XREGS[src2].x;
-    IPC(ipc_ld(LD, dst, src1, addr, dis);)
+    val2 = XREGS[src1].x;
+    IPC(ipc_ld(LD, dst, src2, addr, dis);)
 
     // Save the loaded data
     if (dst != x0)
@@ -1954,486 +1954,31 @@ void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
 // Scalar 32 bits Atomics
 //
 
-AMO_EMU_W_FUNC(amoswap_w, SWAP)
-AMO_EMU_W_FUNC(amoand_w,  AND)
-AMO_EMU_W_FUNC(amoor_w,   OR)
-AMO_EMU_W_FUNC(amoxor_w,  XOR)
-AMO_EMU_W_FUNC(amoadd_w,  ADD)
-AMO_EMU_W_FUNC(amomin_w,  MIN)
-AMO_EMU_W_FUNC(amomax_w,  MAX)
-AMO_EMU_W_FUNC(amominu_w, MINU)
-AMO_EMU_W_FUNC(amomaxu_w, MAXU)
+RV_AMO_EMU_W_FUNC(amoswap_w, SWAP)
+RV_AMO_EMU_W_FUNC(amoand_w,  AND)
+RV_AMO_EMU_W_FUNC(amoor_w,   OR)
+RV_AMO_EMU_W_FUNC(amoxor_w,  XOR)
+RV_AMO_EMU_W_FUNC(amoadd_w,  ADD)
+RV_AMO_EMU_W_FUNC(amomin_w,  MIN)
+RV_AMO_EMU_W_FUNC(amomax_w,  MAX)
+RV_AMO_EMU_W_FUNC(amominu_w, MINU)
+RV_AMO_EMU_W_FUNC(amomaxu_w, MAXU)
 
 //
 // Scalar 64 bits Atomics
 //
 
-AMO_EMU_D_FUNC(amoswap_d, SWAP)
-AMO_EMU_D_FUNC(amoand_d,  AND)
-AMO_EMU_D_FUNC(amoor_d,   OR)
-AMO_EMU_D_FUNC(amoxor_d,  XOR)
-AMO_EMU_D_FUNC(amoadd_d,  ADD)
-AMO_EMU_D_FUNC(amomin_d,  MIN)
-AMO_EMU_D_FUNC(amomax_d,  MAX)
-AMO_EMU_D_FUNC(amominu_d, MINU)
-AMO_EMU_D_FUNC(amomaxu_d, MAXU)
+RV_AMO_EMU_D_FUNC(amoswap_d, SWAP)
+RV_AMO_EMU_D_FUNC(amoand_d,  AND)
+RV_AMO_EMU_D_FUNC(amoor_d,   OR)
+RV_AMO_EMU_D_FUNC(amoxor_d,  XOR)
+RV_AMO_EMU_D_FUNC(amoadd_d,  ADD)
+RV_AMO_EMU_D_FUNC(amomin_d,  MIN)
+RV_AMO_EMU_D_FUNC(amomax_d,  MAX)
+RV_AMO_EMU_D_FUNC(amominu_d, MINU)
+RV_AMO_EMU_D_FUNC(amomaxu_d, MAXU)
 
 
-
-/*
-void amoadd_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoadd_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = vmemread32(addr);
-    uint64_t val64 = sext32(val);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int32_t res = val + XREGS[src1].w[0];
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val64;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val64,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x + 0x%08x\n",res,val,XREGS[src1].w[0]);)
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amoxor_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoxor_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = sext32(vmemread32(addr));
-    uint64_t val64 = sext32(val);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int32_t res = val ^ XREGS[src1].w[0];
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val64;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val64,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x ^ 0x%08x\n",res,val,XREGS[src1].w[0]);)
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amoor_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoor_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = vmemread32(addr);
-    uint64_t val64 = sext32(val);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int32_t res = val | XREGS[src1].w[0];
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val64;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val64,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x | 0x%08x\n",res,val,XREGS[src1].w[0]);)
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amoand_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoand_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = vmemread32(addr);
-    uint64_t val64 = sext32(val);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int32_t res = val & XREGS[src1].w[0];
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val64;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val64,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%08x <- 0x%08x & 0x%08x\n",res,val,XREGS[src1].w[0]);)
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amomin_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amomin_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = vmemread32(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int32_t res = ((int32_t) val < (int32_t) XREGS[src1].w[0]) ? (int32_t) val : (int32_t) XREGS[src1].w[0];
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%08x <- min(0x%08x, 0x%08x)\n",res,val,XREGS[src1].w[0]);)
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amomax_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amomax_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = vmemread32(addr);
-    uint64_t val64 = sext32(val);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int32_t res = ((int32_t) val < (int32_t) XREGS[src1].w[0]) ? (int32_t) XREGS[src1].w[0] : (int32_t) val;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val64;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val64,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%08x <- max(0x%08x, 0x%08x)\n",res,val,XREGS[src1].w[0]);)
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amominu_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amominu_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = vmemread32(addr);
-    uint64_t val64 = sext32(val);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    uint32_t res = (val < XREGS[src1].w[0])? val : XREGS[src1].w[0];
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val64;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val64,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%08x <- minu(0x%08x, 0x%08x)\n",res,val,XREGS[src1].w[0]);)
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amomaxu_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amomaxu_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    uint32_t val = vmemread32(addr);
-    uint64_t val64 = sext32(val);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    uint32_t res = (val > XREGS[src1].w[0]) ? val : XREGS[src1].w[0];
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val64;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val64,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%08x <- maxu(0x%08x, 0x%08x)\n",res,val,XREGS[src1].w[0]);)
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amoswap_w(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoswap_w x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = sext32(vmemread32(addr));
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = sext32(XREGS[src1].x);
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    // Stores the operated data
-    vmemwrite32(addr, res);
-    DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 4, addr, res);
-}
-
-void amoadd_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoadd_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = val + XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx + 0x%016llx\n",res,val,XREGS[src1].x);)
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-
-void amoxor_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoxor_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = val ^ XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx ^ 0x%016llx\n",res,val,XREGS[src1].x);)
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-
-void amoor_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoor_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = val | XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx | 0x%016llx\n",res,val,XREGS[src1].x);)
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-
-void amoand_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoand_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = val & XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%016llx <- 0x%016llx & 0x%016llx\n",res,val,XREGS[src1].x);)
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-
-void amomin_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amomin_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = ((int64_t) val < (int64_t) XREGS[src1].x) ? (int64_t) val : (int64_t) XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%016llx <- min(0x%016llx,0x%016llx)\n",res,val,XREGS[src1].x);)
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llxx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-
-void amomax_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amomax_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = ((int64_t) val > (int64_t) XREGS[src1].x) ? (int64_t) val : (int64_t) XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%016llx <- max(0x%016llx,0x%016llx)\n",res,val,XREGS[src1].x);)
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-
-void amominu_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amominu_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = ((uint64_t) val < (uint64_t) XREGS[src1].x) ? (uint64_t) val : (uint64_t) XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%016llx <- minu(0x%016llx,0x%016llx)\n",res,val,XREGS[src1].x);)
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-
-void amomaxu_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amomaxu_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = ((uint64_t) val > (uint64_t) XREGS[src1].x) ? (uint64_t) val : (uint64_t) XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    DEBUG_EMU(gprintf("\t0x%016llx <- maxu(0x%016llx,0x%016llx)\n",res,val,XREGS[src1].x);)
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-
-void amoswap_d(xreg dst, xreg src1, xreg src2, const char* comm)
-{
-    uint64_t addr = XREGS[src2].x;
-    DISASM(gsprintf(dis,"I: amoswap_d x%d, x%d, (x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:""));)
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    int64_t val = vmemread64(addr);
-    IPC(ipc_ld(LD,dst,src2,addr,dis);)
-    int64_t res = XREGS[src1].x;
-
-    // Saves the loaded data
-    if(dst != x0)
-    {
-        XREGS[dst].x = val;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n",val,addr);)
-    }
-    logxregchange(dst);
-
-    // Stores the operated data
-    vmemwrite64(addr, res);
-    DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n",res,addr);)
-    logmemwchange(0, 8, addr, res);
-}
-*/
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -6143,89 +5688,89 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
 // Local Scalar 32 bits Atomics
 //
 
-AMO_EMU_W_FUNC(amoswapl_w, SWAP)
-AMO_EMU_W_FUNC(amoandl_w,  AND)
-AMO_EMU_W_FUNC(amoorl_w,   OR)
-AMO_EMU_W_FUNC(amoxorl_w,  XOR)
-AMO_EMU_W_FUNC(amoaddl_w,  ADD)
-AMO_EMU_W_FUNC(amominl_w,  MIN)
-AMO_EMU_W_FUNC(amomaxl_w,  MAX)
-AMO_EMU_W_FUNC(amominul_w, MINU)
-AMO_EMU_W_FUNC(amomaxul_w, MAXU)
+ET_AMO_EMU_W_FUNC(amoswapl_w, SWAP)
+ET_AMO_EMU_W_FUNC(amoandl_w,  AND)
+ET_AMO_EMU_W_FUNC(amoorl_w,   OR)
+ET_AMO_EMU_W_FUNC(amoxorl_w,  XOR)
+ET_AMO_EMU_W_FUNC(amoaddl_w,  ADD)
+ET_AMO_EMU_W_FUNC(amominl_w,  MIN)
+ET_AMO_EMU_W_FUNC(amomaxl_w,  MAX)
+ET_AMO_EMU_W_FUNC(amominul_w, MINU)
+ET_AMO_EMU_W_FUNC(amomaxul_w, MAXU)
 
 //
 // Global Scalar 32 bits Atomics
 //
 
-AMO_EMU_W_FUNC(amoswapg_w, SWAP)
-AMO_EMU_W_FUNC(amoandg_w,  AND)
-AMO_EMU_W_FUNC(amoorg_w,   OR)
-AMO_EMU_W_FUNC(amoxorg_w,  XOR)
-AMO_EMU_W_FUNC(amoaddg_w,  ADD)
-AMO_EMU_W_FUNC(amoming_w,  MIN)
-AMO_EMU_W_FUNC(amomaxg_w,  MAX)
-AMO_EMU_W_FUNC(amominug_w, MINU)
-AMO_EMU_W_FUNC(amomaxug_w, MAXU)
+ET_AMO_EMU_W_FUNC(amoswapg_w, SWAP)
+ET_AMO_EMU_W_FUNC(amoandg_w,  AND)
+ET_AMO_EMU_W_FUNC(amoorg_w,   OR)
+ET_AMO_EMU_W_FUNC(amoxorg_w,  XOR)
+ET_AMO_EMU_W_FUNC(amoaddg_w,  ADD)
+ET_AMO_EMU_W_FUNC(amoming_w,  MIN)
+ET_AMO_EMU_W_FUNC(amomaxg_w,  MAX)
+ET_AMO_EMU_W_FUNC(amominug_w, MINU)
+ET_AMO_EMU_W_FUNC(amomaxug_w, MAXU)
 
 //
 // Local Scalar 64 bits Atomics
 //
 
-AMO_EMU_D_FUNC(amoswapl_d, SWAP)
-AMO_EMU_D_FUNC(amoandl_d,  AND)
-AMO_EMU_D_FUNC(amoorl_d,   OR)
-AMO_EMU_D_FUNC(amoxorl_d,  XOR)
-AMO_EMU_D_FUNC(amoaddl_d,  ADD)
-AMO_EMU_D_FUNC(amominl_d,  MIN)
-AMO_EMU_D_FUNC(amomaxl_d,  MAX)
-AMO_EMU_D_FUNC(amominul_d, MINU)
-AMO_EMU_D_FUNC(amomaxul_d, MAXU)
+ET_AMO_EMU_D_FUNC(amoswapl_d, SWAP)
+ET_AMO_EMU_D_FUNC(amoandl_d,  AND)
+ET_AMO_EMU_D_FUNC(amoorl_d,   OR)
+ET_AMO_EMU_D_FUNC(amoxorl_d,  XOR)
+ET_AMO_EMU_D_FUNC(amoaddl_d,  ADD)
+ET_AMO_EMU_D_FUNC(amominl_d,  MIN)
+ET_AMO_EMU_D_FUNC(amomaxl_d,  MAX)
+ET_AMO_EMU_D_FUNC(amominul_d, MINU)
+ET_AMO_EMU_D_FUNC(amomaxul_d, MAXU)
 
 //
 // Global Scalar 64 bits Atomics
 //
 
-AMO_EMU_D_FUNC(amoswapg_d, SWAP)
-AMO_EMU_D_FUNC(amoandg_d,  AND)
-AMO_EMU_D_FUNC(amoorg_d,   OR)
-AMO_EMU_D_FUNC(amoxorg_d,  XOR)
-AMO_EMU_D_FUNC(amoaddg_d,  ADD)
-AMO_EMU_D_FUNC(amoming_d,  MIN)
-AMO_EMU_D_FUNC(amomaxg_d,  MAX)
-AMO_EMU_D_FUNC(amominug_d, MINU)
-AMO_EMU_D_FUNC(amomaxug_d, MAXU)
+ET_AMO_EMU_D_FUNC(amoswapg_d, SWAP)
+ET_AMO_EMU_D_FUNC(amoandg_d,  AND)
+ET_AMO_EMU_D_FUNC(amoorg_d,   OR)
+ET_AMO_EMU_D_FUNC(amoxorg_d,  XOR)
+ET_AMO_EMU_D_FUNC(amoaddg_d,  ADD)
+ET_AMO_EMU_D_FUNC(amoming_d,  MIN)
+ET_AMO_EMU_D_FUNC(amomaxg_d,  MAX)
+ET_AMO_EMU_D_FUNC(amominug_d, MINU)
+ET_AMO_EMU_D_FUNC(amomaxug_d, MAXU)
 
 //
 // Local Packed 32 bits Atomics
 //
 
-AMO_EMU_F_FUNC(famoswapl_pi, SWAP)
-AMO_EMU_F_FUNC(famoandl_pi,  AND)
-AMO_EMU_F_FUNC(famoorl_pi,   OR)
-AMO_EMU_F_FUNC(famoxorl_pi,  XOR)
-AMO_EMU_F_FUNC(famoaddl_pi,  ADD)
-AMO_EMU_F_FUNC(famominl_pi,  MIN)
-AMO_EMU_F_FUNC(famomaxl_pi,  MAX)
-AMO_EMU_F_FUNC(famominul_pi, MINU)
-AMO_EMU_F_FUNC(famomaxul_pi, MAXU)
-AMO_EMU_F_FUNC(famominl_ps,  MINPS)
-AMO_EMU_F_FUNC(famomaxl_ps,  MAXPS)
+ET_AMO_EMU_F_FUNC(famoswapl_pi, SWAP)
+ET_AMO_EMU_F_FUNC(famoandl_pi,  AND)
+ET_AMO_EMU_F_FUNC(famoorl_pi,   OR)
+ET_AMO_EMU_F_FUNC(famoxorl_pi,  XOR)
+ET_AMO_EMU_F_FUNC(famoaddl_pi,  ADD)
+ET_AMO_EMU_F_FUNC(famominl_pi,  MIN)
+ET_AMO_EMU_F_FUNC(famomaxl_pi,  MAX)
+ET_AMO_EMU_F_FUNC(famominul_pi, MINU)
+ET_AMO_EMU_F_FUNC(famomaxul_pi, MAXU)
+ET_AMO_EMU_F_FUNC(famominl_ps,  MINPS)
+ET_AMO_EMU_F_FUNC(famomaxl_ps,  MAXPS)
 
 //
 // Global Packed 32 bits Atomics
 //
 
-AMO_EMU_F_FUNC(famoswapg_pi, SWAP)
-AMO_EMU_F_FUNC(famoandg_pi,  AND)
-AMO_EMU_F_FUNC(famoorg_pi,   OR)
-AMO_EMU_F_FUNC(famoxorg_pi,  XOR)
-AMO_EMU_F_FUNC(famoaddg_pi,  ADD)
-AMO_EMU_F_FUNC(famoming_pi,  MIN)
-AMO_EMU_F_FUNC(famomaxg_pi,  MAX)
-AMO_EMU_F_FUNC(famominug_pi, MINU)
-AMO_EMU_F_FUNC(famomaxug_pi, MAXU)
-AMO_EMU_F_FUNC(famoming_ps,  MINPS)
-AMO_EMU_F_FUNC(famomaxg_ps,  MAXPS)
+ET_AMO_EMU_F_FUNC(famoswapg_pi, SWAP)
+ET_AMO_EMU_F_FUNC(famoandg_pi,  AND)
+ET_AMO_EMU_F_FUNC(famoorg_pi,   OR)
+ET_AMO_EMU_F_FUNC(famoxorg_pi,  XOR)
+ET_AMO_EMU_F_FUNC(famoaddg_pi,  ADD)
+ET_AMO_EMU_F_FUNC(famoming_pi,  MIN)
+ET_AMO_EMU_F_FUNC(famomaxg_pi,  MAX)
+ET_AMO_EMU_F_FUNC(famominug_pi, MINU)
+ET_AMO_EMU_F_FUNC(famomaxug_pi, MAXU)
+ET_AMO_EMU_F_FUNC(famoming_ps,  MINPS)
+ET_AMO_EMU_F_FUNC(famomaxg_ps,  MAXPS)
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -7593,8 +7138,8 @@ uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry)
 // and also through the CSR that implement the fast local barrier function.
 static uint64_t flbarrier(uint64_t value)
 {
-    uint64_t barrier = value & 0x7;
-    uint64_t limit   = (value >> 3) & 0x7F;
+    uint64_t barrier = value % FAST_LOCAL_BARRIERS;
+    uint64_t limit   = (value / FAST_LOCAL_BARRIERS) & 0x7F;
     uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
 
     // Gets what is the address that the fast local barrier is mapped to
