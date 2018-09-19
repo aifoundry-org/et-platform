@@ -5622,11 +5622,11 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
         val2.u = FREGS[dst].u[el];
 
         IPC(ipc_ld(LD, dst, src2, addr, dis);)
+        //IPC(ipc_gt(opc,VL,size,dst,src1,base,addr,dis, idx++);)
 
         // Save the loaded data
-        XREGS[dst].w[el] = val1.u;
+        FREGS[dst].u[el] = val1.u;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n", val1.u, addr);)
-        logfregchange(dst);
 
         switch (op) {
            case SWAP:
@@ -5682,6 +5682,8 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
         DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n", res.u, addr);)
         logmemwchange(0, 4, addr, res.u);
     }
+    dirty_fp_state();
+    logfregchange(dst);
 }
 
 
