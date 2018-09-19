@@ -618,7 +618,7 @@ static func_memwrite64_t func_memwrite64 = NULL;
 
 static uint64_t translate_esr_memmap(uint64_t paddr)
 {
-    if((paddr >= FL_UC_BASE_REGION) && (paddr <= (FL_UC_BASE_REGION + 512)))
+    if((paddr >= FL_UC_BASE_REGION) && (paddr < (FL_UC_BASE_REGION + 512)))
     {
         uint64_t shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
         return paddr + 512 * shire;
@@ -7138,8 +7138,8 @@ uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry)
 // and also through the CSR that implement the fast local barrier function.
 static uint64_t flbarrier(uint64_t value)
 {
-    uint64_t barrier = value & 0x7;
-    uint64_t limit   = (value >> 3) & 0x7F;
+    uint64_t barrier = value % FAST_LOCAL_BARRIERS;
+    uint64_t limit   = (value / FAST_LOCAL_BARRIERS) & 0x7F;
     uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
 
     // Gets what is the address that the fast local barrier is mapped to
