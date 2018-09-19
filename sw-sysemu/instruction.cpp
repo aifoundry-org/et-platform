@@ -888,7 +888,7 @@ void instruction::add_parameter(std::string param)
         if (neg)
             params[num_params] = -params[num_params];
     }
-    // Dec constat
+    // Dec constant
     else if (boost::regex_match(param, boost::regex("^-?[[:d:]]+")))
     {
         int c = sscanf(param.c_str(), "%i", &params[num_params]);
