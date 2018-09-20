@@ -1820,7 +1820,7 @@ void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
     addr = XREGS[src2].x;
 
     // Check misaligned access
-    if ((addr & 0x3) != 0) throw trap_load_address_misaligned(addr);
+    if ((addr & 0x3) != 0) throw trap_store_address_misaligned(addr);
 
     val1 = vmemread32(addr);
     val2 = XREGS[src1].w[0];
@@ -1889,7 +1889,7 @@ void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
     addr = XREGS[src2].x;
 
     // Check misaligned access
-    if ((addr & 0x7) != 0) throw trap_load_address_misaligned(addr);
+    if ((addr & 0x7) != 0) throw trap_store_address_misaligned(addr);
 
     val1 = vmemread64(addr);
     val2 = XREGS[src1].x;
@@ -5628,7 +5628,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
         addr = XREGS[src2].x + FREGS[src1].i[el];
 
         // Check misaligned access
-        if ((addr & 0x3) != 0) throw trap_load_address_misaligned(addr);
+        if ((addr & 0x3) != 0) throw trap_store_address_misaligned(addr);
 
         val1.u = vmemread32(addr);
         val2.u = FREGS[dst].u[el];
