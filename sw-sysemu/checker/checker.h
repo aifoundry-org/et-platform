@@ -46,7 +46,7 @@ class checker
 {
     public:
         // Constructor and destructor
-        checker(main_memory * memory_);
+  checker(main_memory * memory_, bool print_debug);
         ~checker();
 
         void set_et_core(int core_type);
