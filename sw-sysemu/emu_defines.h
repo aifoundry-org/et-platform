@@ -672,7 +672,7 @@ void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 #define ET_AMO_EMU_F_FUNC(NAME, OPC) \
 void NAME(freg dst, freg src1, xreg src2, const char* comm)\
 {\
-   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");)\
+   DISASM(gsprintf(dis,"I: " #NAME " ft%d, ft%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");)\
    DEBUG_EMU(gprintf("%s\n",dis);)\
    amo_emu_f(OPC, dst, src1, src2);\
 }
