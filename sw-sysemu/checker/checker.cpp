@@ -165,7 +165,7 @@ void checker_thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc) {
 }
 
 // Creates a new checker
-checker::checker(main_memory * memory_)
+checker::checker(main_memory * memory_, bool print_debug)
     : log("checker", LOG_DEBUG)
 {
     for(uint32_t i = 0; i < EMU_NUM_THREADS; i++)
@@ -200,7 +200,7 @@ checker::checker(main_memory * memory_)
     checker_instance = this;
     memory_instance = memory;
 #ifdef EMU_DEBUG
-    init_emu(true, false);
+    init_emu(print_debug, false);
 #else
     init_emu(false, false);
 #endif
