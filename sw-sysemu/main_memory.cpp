@@ -23,11 +23,13 @@ main_memory::main_memory(std::string logname)
     // UC writes to notify completion of kernels to master processor
     main_memory_region * uc_writes = new main_memory_region(0x100000000ULL, 64, log, getthread, MEM_REGION_WO);
     regions_.push_back((main_memory_region *) uc_writes);
-    // UC writes to the fast local barrier ESRs
+    // UC writes to the fast local barrier and mtime/mtimecmp ESRs
     for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++)
     {
         main_memory_region * flb = new main_memory_region(0x100340000ULL + i*0x400000ULL, 64, log, getthread, MEM_REGION_WO);
         regions_.push_back((main_memory_region *) flb);
+        main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*0x400000ULL, 64, log, getthread);
+        regions_.push_back((main_memory_region *) mtm);
     }
 }
 
