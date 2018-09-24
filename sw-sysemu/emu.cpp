@@ -1817,14 +1817,14 @@ void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
     uint64_t addr;
     uint32_t res, val1, val2;
 
-    addr = XREGS[src2].x;
+    addr = XREGS[src1].x;
 
     // Check misaligned access
     if ((addr & 0x3) != 0) throw trap_store_address_misaligned(addr);
 
     val1 = vmemread32(addr);
-    val2 = XREGS[src1].w[0];
-    IPC(ipc_ld(LD, dst, src2, addr, dis);)
+    val2 = XREGS[src2].w[0];
+    IPC(ipc_ld(LD, dst, src1, addr, dis);)
 
     // Save the loaded data
     if(dst != x0)
@@ -1886,14 +1886,14 @@ void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
 {
     uint64_t addr, val1, val2, res;
 
-    addr = XREGS[src2].x;
+    addr = XREGS[src1].x;
 
     // Check misaligned access
     if ((addr & 0x7) != 0) throw trap_store_address_misaligned(addr);
 
     val1 = vmemread64(addr);
-    val2 = XREGS[src1].x;
-    IPC(ipc_ld(LD, dst, src2, addr, dis);)
+    val2 = XREGS[src2].x;
+    IPC(ipc_ld(LD, dst, src1, addr, dis);)
 
     // Save the loaded data
     if (dst != x0)
@@ -1955,29 +1955,29 @@ void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
 // Scalar 32 bits Atomics
 //
 
-RV_AMO_EMU_W_FUNC(amoswap_w, SWAP)
-RV_AMO_EMU_W_FUNC(amoand_w,  AND)
-RV_AMO_EMU_W_FUNC(amoor_w,   OR)
-RV_AMO_EMU_W_FUNC(amoxor_w,  XOR)
-RV_AMO_EMU_W_FUNC(amoadd_w,  ADD)
-RV_AMO_EMU_W_FUNC(amomin_w,  MIN)
-RV_AMO_EMU_W_FUNC(amomax_w,  MAX)
-RV_AMO_EMU_W_FUNC(amominu_w, MINU)
-RV_AMO_EMU_W_FUNC(amomaxu_w, MAXU)
+AMO_EMU_W_FUNC(amoswap_w, SWAP)
+AMO_EMU_W_FUNC(amoand_w,  AND)
+AMO_EMU_W_FUNC(amoor_w,   OR)
+AMO_EMU_W_FUNC(amoxor_w,  XOR)
+AMO_EMU_W_FUNC(amoadd_w,  ADD)
+AMO_EMU_W_FUNC(amomin_w,  MIN)
+AMO_EMU_W_FUNC(amomax_w,  MAX)
+AMO_EMU_W_FUNC(amominu_w, MINU)
+AMO_EMU_W_FUNC(amomaxu_w, MAXU)
 
 //
 // Scalar 64 bits Atomics
 //
 
-RV_AMO_EMU_D_FUNC(amoswap_d, SWAP)
-RV_AMO_EMU_D_FUNC(amoand_d,  AND)
-RV_AMO_EMU_D_FUNC(amoor_d,   OR)
-RV_AMO_EMU_D_FUNC(amoxor_d,  XOR)
-RV_AMO_EMU_D_FUNC(amoadd_d,  ADD)
-RV_AMO_EMU_D_FUNC(amomin_d,  MIN)
-RV_AMO_EMU_D_FUNC(amomax_d,  MAX)
-RV_AMO_EMU_D_FUNC(amominu_d, MINU)
-RV_AMO_EMU_D_FUNC(amomaxu_d, MAXU)
+AMO_EMU_D_FUNC(amoswap_d, SWAP)
+AMO_EMU_D_FUNC(amoand_d,  AND)
+AMO_EMU_D_FUNC(amoor_d,   OR)
+AMO_EMU_D_FUNC(amoxor_d,  XOR)
+AMO_EMU_D_FUNC(amoadd_d,  ADD)
+AMO_EMU_D_FUNC(amomin_d,  MIN)
+AMO_EMU_D_FUNC(amomax_d,  MAX)
+AMO_EMU_D_FUNC(amominu_d, MINU)
+AMO_EMU_D_FUNC(amomaxu_d, MAXU)
 
 
 
@@ -5633,9 +5633,6 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
         val1.u = vmemread32(addr);
         val2.u = FREGS[dst].u[el];
 
-        IPC(ipc_ld(LD, dst, src2, addr, dis);)
-        //IPC(ipc_gt(opc,VL,size,dst,src1,base,addr,dis, idx++);)
-
         // Save the loaded data
         FREGS[dst].u[el] = val1.u;
         DEBUG_EMU(gprintf("\t0x%016llx  <- MEM[0x%016llx]\n", val1.u, addr);)
@@ -5693,6 +5690,8 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
         vmemwrite32(addr, res.u);
         DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n", res.u, addr);)
         logmemwchange(0, 4, addr, res.u);
+
+        IPC(ipc_gt(FGW, VL, 4, dst, src1, src2, addr, dis, idx++);)
     }
     dirty_fp_state();
     logfregchange(dst);
@@ -5703,89 +5702,89 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
 // Local Scalar 32 bits Atomics
 //
 
-ET_AMO_EMU_W_FUNC(amoswapl_w, SWAP)
-ET_AMO_EMU_W_FUNC(amoandl_w,  AND)
-ET_AMO_EMU_W_FUNC(amoorl_w,   OR)
-ET_AMO_EMU_W_FUNC(amoxorl_w,  XOR)
-ET_AMO_EMU_W_FUNC(amoaddl_w,  ADD)
-ET_AMO_EMU_W_FUNC(amominl_w,  MIN)
-ET_AMO_EMU_W_FUNC(amomaxl_w,  MAX)
-ET_AMO_EMU_W_FUNC(amominul_w, MINU)
-ET_AMO_EMU_W_FUNC(amomaxul_w, MAXU)
+AMO_EMU_W_FUNC(amoswapl_w, SWAP)
+AMO_EMU_W_FUNC(amoandl_w,  AND)
+AMO_EMU_W_FUNC(amoorl_w,   OR)
+AMO_EMU_W_FUNC(amoxorl_w,  XOR)
+AMO_EMU_W_FUNC(amoaddl_w,  ADD)
+AMO_EMU_W_FUNC(amominl_w,  MIN)
+AMO_EMU_W_FUNC(amomaxl_w,  MAX)
+AMO_EMU_W_FUNC(amominul_w, MINU)
+AMO_EMU_W_FUNC(amomaxul_w, MAXU)
 
 //
 // Global Scalar 32 bits Atomics
 //
 
-ET_AMO_EMU_W_FUNC(amoswapg_w, SWAP)
-ET_AMO_EMU_W_FUNC(amoandg_w,  AND)
-ET_AMO_EMU_W_FUNC(amoorg_w,   OR)
-ET_AMO_EMU_W_FUNC(amoxorg_w,  XOR)
-ET_AMO_EMU_W_FUNC(amoaddg_w,  ADD)
-ET_AMO_EMU_W_FUNC(amoming_w,  MIN)
-ET_AMO_EMU_W_FUNC(amomaxg_w,  MAX)
-ET_AMO_EMU_W_FUNC(amominug_w, MINU)
-ET_AMO_EMU_W_FUNC(amomaxug_w, MAXU)
+AMO_EMU_W_FUNC(amoswapg_w, SWAP)
+AMO_EMU_W_FUNC(amoandg_w,  AND)
+AMO_EMU_W_FUNC(amoorg_w,   OR)
+AMO_EMU_W_FUNC(amoxorg_w,  XOR)
+AMO_EMU_W_FUNC(amoaddg_w,  ADD)
+AMO_EMU_W_FUNC(amoming_w,  MIN)
+AMO_EMU_W_FUNC(amomaxg_w,  MAX)
+AMO_EMU_W_FUNC(amominug_w, MINU)
+AMO_EMU_W_FUNC(amomaxug_w, MAXU)
 
 //
 // Local Scalar 64 bits Atomics
 //
 
-ET_AMO_EMU_D_FUNC(amoswapl_d, SWAP)
-ET_AMO_EMU_D_FUNC(amoandl_d,  AND)
-ET_AMO_EMU_D_FUNC(amoorl_d,   OR)
-ET_AMO_EMU_D_FUNC(amoxorl_d,  XOR)
-ET_AMO_EMU_D_FUNC(amoaddl_d,  ADD)
-ET_AMO_EMU_D_FUNC(amominl_d,  MIN)
-ET_AMO_EMU_D_FUNC(amomaxl_d,  MAX)
-ET_AMO_EMU_D_FUNC(amominul_d, MINU)
-ET_AMO_EMU_D_FUNC(amomaxul_d, MAXU)
+AMO_EMU_D_FUNC(amoswapl_d, SWAP)
+AMO_EMU_D_FUNC(amoandl_d,  AND)
+AMO_EMU_D_FUNC(amoorl_d,   OR)
+AMO_EMU_D_FUNC(amoxorl_d,  XOR)
+AMO_EMU_D_FUNC(amoaddl_d,  ADD)
+AMO_EMU_D_FUNC(amominl_d,  MIN)
+AMO_EMU_D_FUNC(amomaxl_d,  MAX)
+AMO_EMU_D_FUNC(amominul_d, MINU)
+AMO_EMU_D_FUNC(amomaxul_d, MAXU)
 
 //
 // Global Scalar 64 bits Atomics
 //
 
-ET_AMO_EMU_D_FUNC(amoswapg_d, SWAP)
-ET_AMO_EMU_D_FUNC(amoandg_d,  AND)
-ET_AMO_EMU_D_FUNC(amoorg_d,   OR)
-ET_AMO_EMU_D_FUNC(amoxorg_d,  XOR)
-ET_AMO_EMU_D_FUNC(amoaddg_d,  ADD)
-ET_AMO_EMU_D_FUNC(amoming_d,  MIN)
-ET_AMO_EMU_D_FUNC(amomaxg_d,  MAX)
-ET_AMO_EMU_D_FUNC(amominug_d, MINU)
-ET_AMO_EMU_D_FUNC(amomaxug_d, MAXU)
+AMO_EMU_D_FUNC(amoswapg_d, SWAP)
+AMO_EMU_D_FUNC(amoandg_d,  AND)
+AMO_EMU_D_FUNC(amoorg_d,   OR)
+AMO_EMU_D_FUNC(amoxorg_d,  XOR)
+AMO_EMU_D_FUNC(amoaddg_d,  ADD)
+AMO_EMU_D_FUNC(amoming_d,  MIN)
+AMO_EMU_D_FUNC(amomaxg_d,  MAX)
+AMO_EMU_D_FUNC(amominug_d, MINU)
+AMO_EMU_D_FUNC(amomaxug_d, MAXU)
 
 //
 // Local Packed 32 bits Atomics
 //
 
-ET_AMO_EMU_F_FUNC(famoswapl_pi, SWAP)
-ET_AMO_EMU_F_FUNC(famoandl_pi,  AND)
-ET_AMO_EMU_F_FUNC(famoorl_pi,   OR)
-ET_AMO_EMU_F_FUNC(famoxorl_pi,  XOR)
-ET_AMO_EMU_F_FUNC(famoaddl_pi,  ADD)
-ET_AMO_EMU_F_FUNC(famominl_pi,  MIN)
-ET_AMO_EMU_F_FUNC(famomaxl_pi,  MAX)
-ET_AMO_EMU_F_FUNC(famominul_pi, MINU)
-ET_AMO_EMU_F_FUNC(famomaxul_pi, MAXU)
-ET_AMO_EMU_F_FUNC(famominl_ps,  MINPS)
-ET_AMO_EMU_F_FUNC(famomaxl_ps,  MAXPS)
+AMO_EMU_F_FUNC(famoswapl_pi, SWAP)
+AMO_EMU_F_FUNC(famoandl_pi,  AND)
+AMO_EMU_F_FUNC(famoorl_pi,   OR)
+AMO_EMU_F_FUNC(famoxorl_pi,  XOR)
+AMO_EMU_F_FUNC(famoaddl_pi,  ADD)
+AMO_EMU_F_FUNC(famominl_pi,  MIN)
+AMO_EMU_F_FUNC(famomaxl_pi,  MAX)
+AMO_EMU_F_FUNC(famominul_pi, MINU)
+AMO_EMU_F_FUNC(famomaxul_pi, MAXU)
+AMO_EMU_F_FUNC(famominl_ps,  MINPS)
+AMO_EMU_F_FUNC(famomaxl_ps,  MAXPS)
 
 //
 // Global Packed 32 bits Atomics
 //
 
-ET_AMO_EMU_F_FUNC(famoswapg_pi, SWAP)
-ET_AMO_EMU_F_FUNC(famoandg_pi,  AND)
-ET_AMO_EMU_F_FUNC(famoorg_pi,   OR)
-ET_AMO_EMU_F_FUNC(famoxorg_pi,  XOR)
-ET_AMO_EMU_F_FUNC(famoaddg_pi,  ADD)
-ET_AMO_EMU_F_FUNC(famoming_pi,  MIN)
-ET_AMO_EMU_F_FUNC(famomaxg_pi,  MAX)
-ET_AMO_EMU_F_FUNC(famominug_pi, MINU)
-ET_AMO_EMU_F_FUNC(famomaxug_pi, MAXU)
-ET_AMO_EMU_F_FUNC(famoming_ps,  MINPS)
-ET_AMO_EMU_F_FUNC(famomaxg_ps,  MAXPS)
+AMO_EMU_F_FUNC(famoswapg_pi, SWAP)
+AMO_EMU_F_FUNC(famoandg_pi,  AND)
+AMO_EMU_F_FUNC(famoorg_pi,   OR)
+AMO_EMU_F_FUNC(famoxorg_pi,  XOR)
+AMO_EMU_F_FUNC(famoaddg_pi,  ADD)
+AMO_EMU_F_FUNC(famoming_pi,  MIN)
+AMO_EMU_F_FUNC(famomaxg_pi,  MAX)
+AMO_EMU_F_FUNC(famominug_pi, MINU)
+AMO_EMU_F_FUNC(famomaxug_pi, MAXU)
+AMO_EMU_F_FUNC(famoming_ps,  MINPS)
+AMO_EMU_F_FUNC(famomaxg_ps,  MAXPS)
 
 
 ////////////////////////////////////////////////////////////////////////////////
