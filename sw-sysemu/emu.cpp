@@ -1990,6 +1990,7 @@ AMO_EMU_D_FUNC(amomaxu_d, MAXU)
 static uint64_t csrget(csr src1)
 {
     uint64_t val;
+    uint64_t prv = csrregs[current_thread][csr_prv];
 
     switch (src1) {
         // ----- U-mode registers ----------------------------------------
@@ -2003,12 +2004,24 @@ static uint64_t csrget(csr src1)
         case csr_porthead1:
         case csr_porthead2:
         case csr_porthead3:
+            // Check that port is enabled and configured to be legally accessed by U-mode otherwise exception
+            if (   (((csrregs[current_thread][csr_portctrl0 + src1 - csr_porthead0]) & 0x1) == 0)
+                || ((prv == CSR_PRV_U) && ((csrregs[current_thread][csr_portctrl0 + src1 - csr_porthead0] & 0x0000000000000008ULL) == 0)))
+            {
+               throw trap_illegal_instruction(current_inst);
+            }
             val = port_get(src1 - csr_porthead0);
             break;
         case csr_portheadnb0:
         case csr_portheadnb1:
         case csr_portheadnb2:
         case csr_portheadnb3:
+            // Check that port is enabled and configured to be legally accessed by U-mode otherwise exception
+            if (   (((csrregs[current_thread][csr_portctrl0 + src1 - csr_portheadnb0]) & 0x1) == 0)
+                || ((prv == CSR_PRV_U) && ((csrregs[current_thread][csr_portctrl0 + src1 - csr_portheadnb0] & 0x0000000000000008ULL) == 0)))
+            {
+               throw trap_illegal_instruction(current_inst);
+            }
             val = port_get_nb(src1 - csr_portheadnb0);
             break;
         // ----- S-mode registers ----------------------------------------
@@ -2157,6 +2170,11 @@ static void csrset(csr src1, uint64_t val)
         case csr_flush_sw:
             val &= 0x8C0000000003C0CFULL;
             csrregs[current_thread][src1] = val;
+            break;
+        case csr_scpctrl:
+            val &= 0x0000000000000001ULL;
+            csrregs[current_thread][src1] = val;
+            num_sets = val ? 4 : 16;
             break;
         case csr_portctrl0:
         case csr_portctrl1:
@@ -6114,7 +6132,8 @@ static uint64_t port_get_nb(uint32_t id)
 static void configure_port(uint32_t id, uint64_t wdata)
 {
    if (   (((wdata >> 16) & 0xFF) > (num_sets - 1))  // Illegal Set
-       || (((wdata >> 24) & 0xFF) > (num_ways - 1))) // Illegal Way
+       || (((wdata >> 24) & 0xFF) > (num_ways - 1))  // Illegal Way
+       || (((wdata >> 5)  & 0x7)  > 6))              // Illegal Message size
    {
       throw trap_illegal_instruction(current_inst);
    }
@@ -6125,7 +6144,7 @@ static void configure_port(uint32_t id, uint64_t wdata)
    msg_ports[current_thread][id].logsize    = (wdata >> 5)  & 0x7;
    msg_ports[current_thread][id].max_msgs   = (wdata >> 8)  & 0xF;
    msg_ports[current_thread][id].use_scp    = (wdata >> 15) & 0x1;
-   msg_ports[current_thread][id].scp_set    = (wdata >> 16) & 0xF;
+   msg_ports[current_thread][id].scp_set    = (wdata >> 16) & 0xFF;
    msg_ports[current_thread][id].scp_way    = (wdata >> 24) & 0x3;
    msg_ports[current_thread][id].rd_ptr     = 0;
    msg_ports[current_thread][id].wr_ptr     = 0;
