@@ -373,42 +373,31 @@ int main(int argc, char * argv[])
     // Setup for all minions
 
     // For all the shires
-    for(int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
+    for (int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
     {
-        // If shire enabled
-        if((shires_en >> s) & 1)
-        {
-            // For all the minions
-            for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
-            {
-                if((minions_en >> m) & 1)
-                {
-                    // Inits minion
-                    thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION;
-                    if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
-                    current_pc[thread_id] = RESET_PC;
-                    reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
-                    set_thread(thread_id);
-                    init(x0, 0);
-                    minit(m0, 255);
-                    initcsr(thread_id);
-                    // Puts thread id in the active list
-                    enabled_threads.push_back(thread_id);
+       // Skip disabled shire
+       if (((shires_en >> s) & 1) == 0) continue;
 
-                    // Inits minion
-                    thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + 1;
-                    if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
-                    current_pc[thread_id] = RESET_PC;
-                    reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
-                    set_thread(thread_id);
-                    init(x0, 0);
-                    minit(m0, 255);
-                    initcsr(thread_id);
-                    // Puts thread id in the active list
-                    enabled_threads.push_back(thread_id);
-                }
-            }
-        }
+       // For all the minions
+       for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
+       {
+          // Skip disabled minion
+          if (((minions_en >> m) & 1) == 0) continue;
+
+          // Inits threads
+          for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
+             thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
+             if (dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
+             current_pc[thread_id] = RESET_PC;
+             reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
+             set_thread(thread_id);
+             init(x0, 0);
+             minit(m0, 255);
+             initcsr(thread_id);
+             // Puts thread id in the active list
+             enabled_threads.push_back(thread_id);
+          }
+       }
     }
 
     instruction * inst;
