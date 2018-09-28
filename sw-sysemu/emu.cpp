@@ -6544,11 +6544,12 @@ static void tensorstore(uint64_t tstorereg)
         uint64_t regstart =  (tstorereg & 0x3E00000000000000) >> 57;      // Start register to store
         uint64_t cols     = ((tstorereg & 0x0180000000000000) >> 55) + 1; // Number of register per col
         uint64_t rows     = ((tstorereg & 0x0078000000000000) >> 51) + 1; // Number of rows to store
+        uint64_t coop     = ((tstorereg & 0x0006000000000000) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     =  (tstorereg & 0x0000FFFFFFFFFFF0);            // Address where to store the results
 
         uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFF0UL;
 
-        DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d\n", addr, stride, regstart, rows, cols, srcinc);)
+        DEBUG_EMU(gprintf("\tStart Tensor Store with addr: %016llx, stride: %016llx, regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d\n", addr, stride, regstart, rows, cols, srcinc, coop);)
 
         uint64_t src = regstart;
 
