@@ -349,7 +349,7 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mimpid] = 0x0;
     csrregs[thread][csr_mhartid] = thread;
     // misa is a 0-length register
-    csrregs[thread][csr_misa] = 0x800000000014112dULL;
+    csrregs[thread][csr_misa] = CSR_ISA_MAX;
     // M-mode registers with reset
     csrregs[thread][csr_mstatus] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csrregs[thread][csr_mcause] = 0x0ULL;
