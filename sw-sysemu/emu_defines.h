@@ -678,5 +678,16 @@ void NAME(freg dst, freg src1, xreg src2, const char* comm)\
 }
 
 
+#define CSR_ISA_MAX ( \
+                     (1 << 2)  | /* Compressed extension */                      \
+                     (1 << 5)  | /* Single-precision floating-point extension */ \
+                     (1 << 6)  | /* Additional standard extensions present */    \
+                     (1 << 8)  | /* RV32I/64I/128I base ISA */                   \
+                     (1 << 12) | /* Integer Multiply/Divide extension */         \
+                     (1 << 18) | /* Supervisor mode implemented */               \
+                     (1 << 20) | /* User mode implemented */                     \
+                     (1 << 23) ) /*  Non-standard extensions present */
+
+
 #endif // _EMU_DEFINES_H
 
