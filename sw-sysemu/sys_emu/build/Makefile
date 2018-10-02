@@ -11,9 +11,15 @@ endif
 SRCS := $(BEMU)/sys_emu/net_emulator.cpp \
 	$(BEMU)/sys_emu/rboxSysEmu.cpp \
 	$(BEMU)/sys_emu/sys_emu.cpp \
+        $(BEMU)/common/main_memory.cpp \
+        $(BEMU)/common/main_memory_region.cpp \
+        $(BEMU)/common/main_memory_region_atomic.cpp \
+        $(BEMU)/common/main_memory_region_tbox.cpp \
+        $(BEMU)/common/main_memory_region_rbox.cpp \
 	$(SGPU)/src/trace.cpp
 
 vpath %.cpp $(BEMU)/sys_emu
+vpath %.cpp $(BEMU)/common
 vpath %.cpp $(SGPU)/src
 
 OBJS := $(addsuffix .o,$(basename $(notdir $(SRCS))))

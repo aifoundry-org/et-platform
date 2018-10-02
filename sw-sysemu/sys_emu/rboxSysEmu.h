@@ -1,7 +1,7 @@
 #ifndef _RBOX_SYSEMU_H_
 #define _RBOX_SYSEMU_H_
 
-#include "main_memory.h"
+#include "common/main_memory.h"
 #include "emu.h"
 #include <queue>
 #include <header.h>

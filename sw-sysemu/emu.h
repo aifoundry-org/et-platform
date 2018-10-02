@@ -4,6 +4,7 @@
 #include <list>
 
 #include "emu_defines.h"
+#include "instruction.h"
 
 #ifdef IPC
 #undef IPC
@@ -52,8 +53,7 @@ extern void minit(mreg dst, uint64_t val);      // init mask register
 
 // Processor state manipulation
 extern void set_pc(uint64_t pc);
-extern void set_inst(uint32_t bits);
-extern uint32_t get_inst();
+extern instruction * get_inst();
 extern void set_thread(uint32_t thread);
 extern uint32_t get_thread();
 extern uint32_t get_mask(unsigned maskNr);
@@ -180,9 +180,6 @@ extern void amoswap_d (xreg dst, xreg src1, xreg src2, const char* comm = 0);
 //extern void sc_d(...)
 
 // ----- SYSTEM emulation ------------------------------------------------------
-
-// Virtual to physical address translation
-extern uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc);
 
 extern void ecall(const char* comm = 0);
 extern void ebreak(const char* comm = 0);

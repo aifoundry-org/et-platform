@@ -9,7 +9,7 @@
 #include <inttypes.h>
 
 // Local
-#include "main_memory.h"
+#include "common/main_memory.h"
 
 typedef struct
 {

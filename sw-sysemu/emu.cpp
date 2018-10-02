@@ -23,6 +23,9 @@ using emu::gprintf;
 using emu::gsprintf;
 using emu::gfprintf;
 
+// Neede by fence.i
+extern void flush_insn_cache();
+
 // State declaration
 char buf[64];
 int buflen = 0;
@@ -46,8 +49,8 @@ msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 int32_t msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
 
 static et_core_t core_type = ET_MINION;
-static uint64_t current_pc = 0;
-static uint32_t current_inst = 0;
+uint64_t current_pc = 0;
+uint32_t current_inst = 0;
 uint32_t current_thread = 0;
 uint32_t num_sets = 16;
 uint32_t num_ways = 4;
@@ -556,16 +559,6 @@ void set_pc(uint64_t pc)
     current_pc = pc;
 }
 
-void set_inst(uint32_t bits)
-{
-    current_inst = bits;
-}
-
-uint32_t get_inst()
-{
-    return current_inst;
-}
-
 void set_thread(uint32_t thread)
 {
     current_thread = thread;
@@ -597,7 +590,14 @@ uint32_t get_mask(unsigned maskNr)
 
 extern inst_state_change * log_info;
 
-// Defines the functions to access to the main memory during checker mode
+////////////////////////////////////////////////////////////////////////////////
+//
+// Memory emulation
+//
+////////////////////////////////////////////////////////////////////////////////
+
+// Accessor functions for externally defined memory
+
 typedef uint8_t  (*func_memread8_t) (uint64_t addr);
 typedef uint16_t (*func_memread16_t)(uint64_t addr);
 typedef uint32_t (*func_memread32_t)(uint64_t addr);
@@ -616,6 +616,19 @@ static func_memwrite8_t  func_memwrite8  = NULL;
 static func_memwrite16_t func_memwrite16 = NULL;
 static func_memwrite32_t func_memwrite32 = NULL;
 static func_memwrite64_t func_memwrite64 = NULL;
+
+// forward declaration
+static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc);
+
+static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc)
+{
+    if (macc != Mem_Access_Fetch)
+    {
+        DEBUG_EMU(gprintf("ERROR!!! Should not use pmemread64() with non-emulated memory\n"););
+        exit(1);
+    }
+    return addr;
+}
 
 static uint64_t translate_esr_memmap(uint64_t paddr)
 {
@@ -665,7 +678,7 @@ static uint64_t emu_pmemread64(uint64_t paddr)
     paddr = translate_esr_memmap(paddr);
     // Used to detect special load accesses like ticketer
     log_info->mem_addr[0] = paddr;
-    uint64_t data =func_memread64(paddr);
+    uint64_t data = func_memread64(paddr);
     DEBUG_EMU(gprintf("MEM64 %i, %016" PRIx64 " = [%016" PRIx64 " (%016" PRIx64 ")]\n", current_thread, data, paddr, tmp););
     return data;
 }
@@ -750,6 +763,16 @@ static void emu_vmemwrite64(uint64_t addr, uint64_t data)
     emu_pmemwrite64(paddr, data);
 }
 
+static void emu_pmemfetch512(uint64_t paddr, uint16_t * data)
+{
+    for (int i = 0; i < 8; ++i)
+    {
+        uint64_t value = func_memread64(paddr + 8*i);
+        ((uint64_t *) data)[i] = value;
+        DEBUG_EMU(gprintf("MEM64 %i, %016" PRIx64 " = [%016" PRIx64 "]\n", current_thread, value, paddr + 8*i););
+    }
+}
+
 static uint8_t host_vmemread8(uint64_t addr)
 {
     return * ((uint8_t *) addr);
@@ -798,10 +821,19 @@ static void host_vmemwrite64(uint64_t addr, uint64_t data)
 
 static void host_pmemwrite64(uint64_t paddr, uint64_t data)
 {
-    DEBUG_EMU(gprintf("ERROR!!! Should not use pmemread64() with non-emulated memory\n"););
+    DEBUG_EMU(gprintf("ERROR!!! Should not use pmemwrite64() with non-emulated memory\n"););
     exit(1);
 }
 
+static void host_pmemfetch512(uint64_t addr, uint16_t * data)
+{
+    memcpy(data, (void*) addr, 64);
+}
+
+// Abstract memory accessors. By default we use the host memory directly,
+// unless we are asked to use emulated memory.
+
+uint64_t (*vmemtranslate) (uint64_t addr, mem_access_type macc) = virt_to_phys_host;
 
 uint8_t  (*vmemread8 ) (uint64_t addr) = host_vmemread8;
 uint16_t (*vmemread16) (uint64_t addr) = host_vmemread16;
@@ -817,6 +849,8 @@ void (*vmemwrite64) (uint64_t addr, uint64_t data) = host_vmemwrite64;
 
 void (*pmemwrite64) (uint64_t paddr, uint64_t data) = host_pmemwrite64;
 
+void (*pmemfetch512) (uint64_t paddr, uint16_t * data) = host_pmemfetch512;
+
 void set_memory_funcs(void * func_memread8_, void * func_memread16_,
                       void * func_memread32_, void * func_memread64_,
                       void * func_memwrite8_, void * func_memwrite16_,
@@ -831,6 +865,8 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
     func_memwrite32 = (func_memwrite32_t) func_memwrite32_;
     func_memwrite64 = (func_memwrite64_t) func_memwrite64_;
 
+    vmemtranslate = virt_to_phys_emu;
+
     vmemread8  = emu_vmemread8;
     vmemread16 = emu_vmemread16;
     vmemread32 = emu_vmemread32;
@@ -842,7 +878,15 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
     vmemwrite32 = emu_vmemwrite32;
     vmemwrite64 = emu_vmemwrite64;
     pmemwrite64 = emu_pmemwrite64;
+
+    pmemfetch512 = emu_pmemfetch512;
 }
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// RV64I emulation
+//
+////////////////////////////////////////////////////////////////////////////////
 
 // ILLEGAL INSTRUCTION
 void unknown(const char* comm)
@@ -851,12 +895,6 @@ void unknown(const char* comm)
     DEBUG_EMU(gprintf("%s\n",dis);)
     throw trap_illegal_instruction(current_inst);
 }
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// RV64I emulation
-//
-////////////////////////////////////////////////////////////////////////////////
 
 void beq(xreg src1, xreg src2, int imm, const char* comm)
 {
@@ -1574,7 +1612,8 @@ void fence(const char* comm)
 void fence_i(const char* comm)
 {
     DISASM(gsprintf(dis,"I: fence_i%s%s",(comm?" # ":""),(comm?comm:"")););
-    DEBUG_EMU(gprintf("%s\n",dis);)
+    DEBUG_EMU(gprintf("%s\n",dis););
+    flush_insn_cache();
 }
 
 // TODO
@@ -2389,7 +2428,7 @@ static void throw_page_fault(uint64_t addr, mem_access_type macc)
     }
 }
 
-uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
+static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 {
 
     // Read mstatus
@@ -5896,7 +5935,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
-                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
@@ -5922,7 +5961,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
-                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
@@ -5946,7 +5985,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
-                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
 
                     // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
                     bool scp_en = false;
@@ -5976,7 +6015,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                 if(!tm || tmask_pass(i))
                 {
                     DEBUG_EMU(gprintf("\tDoing LockVA: %016X, Way: %X\n", addr, way);)
-                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
 
                     // Looks for 1st way available
                     if(way == 255)
@@ -6023,7 +6062,7 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
                 // If not masked
                 if(!tm || tmask_pass(i))
                 {
-                    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
                     uint64_t state  = (op_value >> 59) & 0x1;
 
                     set = (paddr >> 6) & (num_sets - 1);
