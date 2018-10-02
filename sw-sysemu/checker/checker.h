@@ -6,8 +6,8 @@
 #include <list>
 
 // Local
-#include "main_memory.h"
-#include "instruction_cache.h"
+#include "common/main_memory.h"
+#include "instruction.h"
 #include "log.h"
 
 extern uint8_t checker_memread8(uint64_t addr);
@@ -58,12 +58,6 @@ class checker
         // Gets an error in string format
         std::string get_error_msg();
 
-        // Converts virtual address to physical
-        uint64_t virt_to_phys(uint64_t addr, mem_access_type macc);
-
-        // Gets mnemonic
-        std::string get_mnemonic(uint64_t pc);
-
         // enable or disable 2nd thread
         void thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc);
 
@@ -83,7 +77,6 @@ class checker
         reduce_state                  reduce_state_array[4096];        // Reduce state
         uint32_t                      reduce_pair_array[4096];         // Reduce pairing minion
         main_memory                 * memory;                          // Pointer to the memory of the simulation
-        instruction_cache           * inst_cache;                      // Pointer to the decoded instruction cache
         inst_state_change             emu_state_change;                // Struct that holds the state change for the emu
         std::string                   error_msg;                       // Stores the error message
         func_texrec_t                 texrec_func_ptr;                 // Emulates texrec

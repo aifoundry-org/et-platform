@@ -5,9 +5,15 @@ ifndef TESTROOT
     $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
 endif
 
-SRCS := checker.cpp
+SRCS := $(BEMU)/checker/checker.cpp \
+        $(BEMU)/common/main_memory.cpp \
+        $(BEMU)/common/main_memory_region.cpp \
+        $(BEMU)/common/main_memory_region_atomic.cpp \
+        $(BEMU)/common/main_memory_region_tbox.cpp \
+        $(BEMU)/common/main_memory_region_rbox.cpp
 
 vpath %.cpp $(BEMU)/checker
+vpath %.cpp $(BEMU)/common
 
 OBJS := $(addsuffix .o,$(basename $(notdir $(SRCS))))
 DEPS := $(addsuffix .d,$(basename $(OBJS)))

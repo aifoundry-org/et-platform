@@ -174,7 +174,6 @@ checker::checker(main_memory * memory_, bool print_debug)
         reduce_state_array[i>>1] = Reduce_Idle;
     }
     memory = memory_;
-    inst_cache = new instruction_cache(memory);
 
     set_memory_funcs((void *) checker_memread8,
                      (void *) checker_memread16,
@@ -331,8 +330,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             clearlogstate();
             // Fetch new instruction (may trap)
             set_pc(current_pc[thread]);
-            inst = inst_cache->get_instruction(virt_to_phys(current_pc[thread], Mem_Access_Fetch));
-            set_inst(inst->get_enc());
+            inst = get_inst();
 
             // Write any pending port data before executing the next instruction
             update_msg_port_data();
@@ -796,13 +794,6 @@ std::string checker::get_error_msg()
     return error_msg;
 }
 
-// Returns the mnemonic for a PC
-std::string checker::get_mnemonic(uint64_t pc)
-{
-    instruction * inst = inst_cache->get_instruction(virt_to_phys(pc, Mem_Access_Fetch));
-    return inst->get_mnemonic();
-}
-
 // enables or disables the 2nd thread
 void checker::thread1_enabled(unsigned minionId, uint64_t en, uint64_t pc)
 {
@@ -852,12 +843,6 @@ void checker::reduce_write(uint32_t thread, uint32_t entry, uint32_t * data)
         reduce.data[i] = data[i];
     }
     reduce_list[thread].push_back(reduce);
-}
-
-// Virtual to physical
-uint64_t checker::virt_to_phys(uint64_t addr, mem_access_type macc)
-{
-    return virt_to_phys_emu(addr, macc);
 }
 
 void checker::set_texrec_func(func_texrec_t func_ptr)

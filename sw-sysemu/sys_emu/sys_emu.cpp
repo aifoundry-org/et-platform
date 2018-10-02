@@ -7,10 +7,7 @@
 
 // Local includes
 #include "emu.h"
-#include "emu_defines.h"
-#include "main_memory.h"
-#include "instruction_cache.h"
-#include "instruction.h"
+#include "common/main_memory.h"
 #include "log.h"
 #include "net_emulator.h"
 #include "rboxSysEmu.h"
@@ -329,9 +326,6 @@ int main(int argc, char * argv[])
        memory->create_mem_at_runtime();
     }
 
-    // Instruction cache
-    instruction_cache * inst_cache = new instruction_cache(memory);
-
     // Init emu
     init_emu(log_en, false);
 
@@ -450,8 +444,7 @@ int main(int argc, char * argv[])
                 clearlogstate();
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
-                inst = inst_cache->get_instruction(virt_to_phys_emu(current_pc[thread_id], Mem_Access_Fetch));
-                set_inst(inst->get_enc());
+                inst = get_inst();
                 if(do_log)
                     print_inst_log(inst, thread_id, current_pc[thread_id], emu_state_change);
 

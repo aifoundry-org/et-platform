@@ -19,11 +19,6 @@ SRCS := $(BEMU)/emu.cpp \
         $(BEMU)/emu_gio.cpp \
         $(BEMU)/instruction_cache.cpp \
         $(BEMU)/instruction.cpp \
-        $(BEMU)/main_memory.cpp \
-        $(BEMU)/main_memory_region.cpp \
-        $(BEMU)/main_memory_region_atomic.cpp \
-        $(BEMU)/main_memory_region_tbox.cpp \
-        $(BEMU)/main_memory_region_rbox.cpp \
         $(TESTROOT)/libs/testLog.cc
 
 include softfloat.mk
