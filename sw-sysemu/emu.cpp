@@ -17,6 +17,18 @@
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 #include <emmintrin.h> // FIXME: remove this when we fix the TXFMA code
 
+// L1 Dcache configuration, used by the cache management operations
+#define L1D_NUM_SETS  16
+#define L1D_NUM_WAYS  4
+#define L1D_LINE_SIZE 64
+
+// Scratchpad defines
+#define L1_ENTRIES        (L1D_NUM_SETS * L1D_NUM_WAYS)
+#define L1_SCP_ENTRIES    48
+#define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
+#define L1_SCP_BLOCKS     (L1_SCP_LINE_SIZE / (VL * 4))
+#define L1_SCP_BLOCK_SIZE (VL * 4)
+
 using emu::gprintf;
 using emu::gsprintf;
 using emu::gfprintf;
@@ -45,6 +57,9 @@ int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 int32_t msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
+
+// Used to access different threads transparently
+#define SCP   scp[current_thread]
 
 static et_core_t core_type = ET_MINION;
 uint64_t current_pc = 0;
@@ -82,8 +97,9 @@ static uint64_t csr_cacheop_emu(uint64_t op_value);
 static uint64_t port_get(uint32_t id);
 static uint64_t port_get_nb(uint32_t id);
 static void configure_port(uint32_t id, uint64_t wdata);
-static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode);
 static uint64_t flbarrier(uint64_t value);
+// TODO: remove old msg port spec
+static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -2031,6 +2047,13 @@ AMO_EMU_D_FUNC(amomaxu_d, MAXU)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+// forward declarations
+static void dcache_evict_flush_set_way(bool, bool, int, int, int, int);
+static int dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
+static int dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
+static int dcache_lock_vaddr(bool, int, uint64_t, int, int, uint64_t);
+static int dcache_unlock_vaddr(bool, bool, uint64_t, int, int, uint64_t);
+
 static uint64_t csrget(csr src1)
 {
     uint64_t val;
@@ -2079,14 +2102,14 @@ static uint64_t csrget(csr src1)
         case csr_sip:
             val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
             break;
-        // ----- Tensor instructions -------------------------------------
+        // ----- Tensor, barrier, cacheop instructions -------------------
         case csr_treduce:
         case csr_tfmastart:
+        case csr_tloadctrl:
+        case csr_tstore:
         case csr_flbarrier:
         case csr_fccounter:
         case csr_ucacheop:
-        case csr_tloadctrl:
-        case csr_tstore:
         case csr_scacheop:
             val = 0;
             break;
@@ -2147,17 +2170,56 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_evict_va:
         case csr_flush_va:
+            val &= 0x8C00FFFFFFFFFFCFULL;
+            csrregs[current_thread][src1] = val;
+            {
+                bool     tm     = (val & 0x8000000000000000ULL);
+                int      dest   = (val >> 58) & 0x03;
+                int      count  = (val >>  0) & 0x0F;
+                uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+                uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
+                int      id     = XREGS[31].x & 0x0000000000000001ULL;
+                dcache_evict_flush_vaddr(src1 == csr_evict_va, tm, dest, vaddr, count, id, stride);
+            }
+            break;
         case csr_prefetch_va:
             val &= 0x8C00FFFFFFFFFFCFULL;
             csrregs[current_thread][src1] = val;
+            {
+                bool tm         = (val & 0x8000000000000000ULL);
+                int  dest       = (val >> 58) & 0x03;
+                int  count      = (val >>  0) & 0x0F;
+                uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+                uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
+                int      id     = XREGS[31].x & 0x0000000000000001ULL;
+                dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
+            }
             break;
         case csr_lock_va:
             val &= 0xFF80FFFFFFFFFFCFULL;
             csrregs[current_thread][src1] = val;
+            {
+                bool     tm     = (val & 0x8000000000000000ULL);
+                int      way    = (val >> 55) & 0xFF;
+                int      count  = (val >>  0) & 0x0F;
+                uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+                uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
+                int      id     = XREGS[31].x & 0x0000000000000001ULL;
+                dcache_lock_vaddr(tm, way, vaddr, count, id, stride);
+            }
             break;
         case csr_unlock_va:
             val &= 0xC000FFFFFFFFFFCFULL;
             csrregs[current_thread][src1] = val;
+            {
+                bool     tm     = (val & 0x8000000000000000ULL);
+                bool     valid  = (val >> 55) & 0xFF;
+                int      count  = (val >>  0) & 0x0F;
+                uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+                uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
+                int      id     = XREGS[31].x & 0x0000000000000001ULL;
+                dcache_unlock_vaddr(tm, valid, vaddr, count, id, stride);
+            }
             break;
         case csr_texsend:
             val &= 0x00000000000000FFULL;
@@ -2208,12 +2270,17 @@ static void csrset(csr src1, uint64_t val)
             }
             break;
         case csr_evict_sw:
-            val &= 0x8C0000000003C0CFULL;
-            csrregs[current_thread][src1] = val;
-            break;
         case csr_flush_sw:
             val &= 0x8C0000000003C0CFULL;
             csrregs[current_thread][src1] = val;
+            {
+                bool tm    = (val & 0x8000000000000000ULL);
+                int  dest  = (val >> 58) & 0x03;
+                int  set   = (val >> 14) & 0x0F;
+                int  way   = (val >>  6) & 0x03;
+                int  count = (val >>  0) & 0x0F;
+                dcache_evict_flush_set_way(src1 == csr_evict_sw, tm, dest, set, way, count);
+            }
             break;
         case csr_scpctrl:
             val &= 0x0000000000000001ULL;
@@ -2227,6 +2294,7 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x00000000FFFF0FF3ULL;
             val |= 0x0000000000008000ULL;
             csrregs[current_thread][src1] = val;
+            configure_port(src1 - csr_portctrl0, val);
             break;
     case csr_stvec:
             if ((val & 0xFFE) != 0)
@@ -2280,14 +2348,14 @@ static void csrset(csr src1, uint64_t val)
             val &= 0xFFFFFFFFF001ULL;
             csrregs[current_thread][src1] = val;
             break;
-        // ----- Tensor instructions -------------------------------------
+        // ----- Tensor, barrier, cacheop instructions -------------------
         case csr_treduce:
         case csr_tfmastart:
+        case csr_tloadctrl:
+        case csr_tstore:
         case csr_flbarrier:
         case csr_fccounter:
         case csr_ucacheop:
-        case csr_tloadctrl:
-        case csr_tstore:
         case csr_scacheop:
             break;
         // ----- Shared registers ----------------------------------------
@@ -2363,18 +2431,12 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_portheadnb3:
                 throw trap_illegal_instruction(current_inst);
                 break;
+            // Tensor instructions encoded in the CSR space
             case csr_treduce:
                 tensorreduce(val);
                 break;
             case csr_tfmastart:
                 tensorfma(val);
-                break;
-            case csr_flbarrier:
-                x = flbarrier(val);
-                break;
-            case csr_ucacheop:
-            case csr_scacheop:
-                x = csr_cacheop_emu(val);
                 break;
             case csr_tloadctrl:
                 tensorload(val);
@@ -2382,7 +2444,16 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_tstore:
                 tensorstore(val);
                 break;
-            // TODO remove old msg port spec
+            // Fast local barrier instructions encoded in the CSR space
+            case csr_flbarrier:
+                x = flbarrier(val);
+                break;
+            // TODO: remove old cacheop spec
+            case csr_ucacheop:
+            case csr_scacheop:
+                x = csr_cacheop_emu(val);
+                break;
+            // TODO: remove old msg port spec
             case csr_umsg_port0:
             case csr_umsg_port1:
             case csr_umsg_port2:
@@ -2395,14 +2466,6 @@ static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
             case csr_smsg_port3:
                 x = msg_port_csr(src1 - csr_smsg_port0, val, false);
                 break;
-            case csr_portctrl0:
-            case csr_portctrl1:
-            case csr_portctrl2:
-            case csr_portctrl3:
-                configure_port(src1 - csr_portctrl0, val);
-                csrset(src1, val);
-                break;
-
             default:
                 csrset(src1, val);
                 break;
@@ -5857,8 +5920,11 @@ AMO_EMU_F_FUNC(famomaxg_ps,  MAXPS)
 
 // ----- Scratchpad emulation --------------------------------------------------
 
-static bool     scp_locked[EMU_NUM_MINIONS][L1_ENTRIES]; // A cacheline is locked
-static uint64_t scp_trans[EMU_NUM_MINIONS][L1_ENTRIES];  // Which PA the cacheline is mapped to
+// True if a cacheline is locked
+static bool scp_locked[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
+
+// Which PA a locked cacheline is mapped to
+static uint64_t scp_trans[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
 
 uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size)
 {
@@ -5875,222 +5941,258 @@ void get_scratchpad_conv_list(std::list<bool> * list)
 
 // ----- CacheOp emulation -----------------------------------------------------
 
+static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, int way, int numlines)
+{
+    // Skip all if dest is L1, or if set/way is outside the cache limits
+    if ((dest == 0) || (set >= L1D_NUM_SETS) || (way >= L1D_NUM_WAYS))
+        return;
+
+    for (int i = 0; i <= numlines; i++)
+    {
+        // If cacheline is locked or not passing tensor mask condition, skip operation
+        if (!scp_locked[current_thread >> 1][set][way] && (!tm || tmask_pass(i)))
+        {
+            DEBUG_EMU(gprintf("\tDoing %s (%d.%d) to Set: %d, Way: %d, DestLevel: %d\n",
+                              evict ? "EvictSW" : "FlushSW", current_thread >> 1, current_thread & 1,
+                              set, way, dest);)
+        }
+
+        // Increment set and way with wrap-around
+        if (++set >= L1D_NUM_SETS)
+        {
+            if (++way >= L1D_NUM_WAYS)
+            {
+                way = 0;
+            }
+            set = 0;
+        }
+    }
+}
+
+static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
+{
+    (void)(id);
+
+    // Skip all if dest is L1
+    if (dest == 0)
+        return 0;
+
+    for (int i = 0; i <= numlines; i++, vaddr += stride)
+    {
+        // skip if masked
+        if (tm && !tmask_pass(i))
+            continue;
+
+        uint64_t paddr;
+        try
+        {
+            paddr = vmemtranslate(vaddr, Mem_Access_Load);
+        }
+        catch (const trap_t& t)
+        {
+            DEBUG_EMU(gprintf("\t%s: %016X, DestLevel: %01X generated exception (suppressed)\n",
+                              evict ? "EvictVA" : "FlushVA", vaddr, dest););
+            return 1;
+        }
+        int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+        bool skip = false;
+        for (int j = 0; j < L1D_NUM_WAYS; ++j)
+        {
+            skip = skip || (scp_locked[current_thread >> 1][set][j] && (scp_trans[current_thread >> 1][set][j] == paddr));
+        }
+        if (skip)
+            continue;
+        DEBUG_EMU(gprintf("\tDoing %s: %016X (%016X), DestLevel: %01X\n",
+                          evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest););
+    }
+    return 0;
+}
+
+static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
+{
+    (void)(id);
+
+    // Skip all if dest is MEM
+    if (dest == 3)
+        return 0;
+
+    for (int i = 0; i <= numlines; i++, vaddr += stride)
+    {
+        // Skip if masked
+        if (tm && !tmask_pass(i))
+            continue;
+
+        uint64_t paddr;
+        try
+        {
+            paddr = vmemtranslate(vaddr, Mem_Access_Load);
+        }
+        catch (const trap_t& t)
+        {
+            // Stop the operation if there is an exception
+            DEBUG_EMU(gprintf("\tPrefetchVA: %016X, DestLevel: %01X generated exception (suppressed)\n", vaddr, dest););
+            return 1;
+        }
+        // If target level is L1 check if the line is locked
+        bool skip = false;
+        if (dest == 0)
+        {
+            int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+            for (int j = 0; j < L1D_NUM_WAYS; ++j)
+            {
+                skip = skip || (scp_locked[current_thread >> 1][set][j] && (scp_trans[current_thread >> 1][set][j] == paddr));
+            }
+        }
+        if (skip)
+            continue;
+        DEBUG_EMU(gprintf("\tDoing PrefetchVA: %016X (%016X), DestLevel: %01X\n", vaddr, paddr, dest););
+    }
+    return 0;
+}
+
+static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
+{
+    (void)(id);
+
+    // Skip all if way is outside the cache limits
+    if ((way >= L1D_NUM_WAYS) && (way != 255))
+        return 0;
+
+    for (int i = 0; i <= numlines; i++, vaddr += stride)
+    {
+        // Skip if masked
+        if (tm && !tmask_pass(i))
+            continue;
+
+        uint64_t paddr;
+        try
+        {
+            paddr = vmemtranslate(vaddr, Mem_Access_Store);
+        }
+        catch (const trap_t& t)
+        {
+            // Stop the operation if there is an exception
+            DEBUG_EMU(gprintf("\tLockVA %016X, Way: %d generated exception (suppressed)\n", vaddr, way););
+            return 1;
+        }
+        int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+
+        if (way == 255)
+        {
+            // Lock the first available way
+            // FIXME: or if the line exists unlocked in the cache use the way of the existing line.
+            for (int w = 0; w < L1D_NUM_WAYS; ++w)
+            {
+                if (!scp_locked[current_thread >> 1][set][w])
+                {
+                    way = w;
+                    break;
+                }
+            }
+        }
+        if (way == 255)
+        {
+            // All ways are locked; stop the operation
+            DEBUG_EMU(gprintf("\tLockVA: %016X, Way: %d no unlocked ways\n", vaddr, way););
+            return 1;
+        }
+
+        // Check if paddr already locked in the cache
+        for (int w = 0; w < L1D_NUM_WAYS; ++w)
+        {
+            if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
+            {
+                // Line already locked; stop the operation
+                DEBUG_EMU(gprintf("\tLockVA: %016X, Way: %d double-locking on way %d\n", vaddr, way, w););
+                return 1;
+            }
+        }
+        // FIXME: We should check if PA exists, unlocked, in another set in the cache
+
+        scp_locked[current_thread >> 1][set][way] = true;
+        scp_trans[current_thread >> 1][set][way] = paddr;
+        DEBUG_EMU(gprintf("\tDoing LockVA: %016X (%016X), Way: %d, Set: %d\n", vaddr, paddr, way, set););
+    }
+    return 0;
+}
+
+static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int numlines, int id, uint64_t stride)
+{
+    for (int i = 0; i <= numlines; i++, vaddr += stride)
+    {
+        // Skip if masked
+        if (tm && !tmask_pass(i))
+            continue;
+
+        uint64_t paddr;
+        try
+        {
+            paddr = vmemtranslate(vaddr, Mem_Access_Store);
+        }
+        catch (const trap_t& t)
+        {
+            // Stop the operation if there is an exception
+            DEBUG_EMU(gprintf("\tUnlockVA: %016X generated exception (suppressed)\n", vaddr););
+            return 1;
+        }
+        int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+
+        // Check if paddr is locked in the cache
+        for (int w = 0; w < L1D_NUM_WAYS; ++w)
+        {
+            if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
+            {
+                DEBUG_EMU(gprintf("\tDoing UnlockVA: %016X (%016X), Way: %d, Set: %d, FinalState: %s\n",
+                                  vaddr, paddr, w, set, keep_valid ? "valid" : "invalid"););
+                scp_locked[current_thread >> 1][set][w] = false;
+            }
+        }
+    }
+    return 0;
+}
+
 static uint64_t csr_cacheop_emu(uint64_t op_value)
 {
-    uint64_t tm     = op_value >> 63;
-    uint64_t op     = (op_value >> 60) & 0x7;
-    uint64_t dest   = (op_value >> 58) & 0x3;
-    uint64_t start  = (op_value >> 56) & 0x3;
-    uint64_t addr   = op_value & 0xFFFFFFFFFFC0UL;
-    int      repeat = (op_value & 0xF) + 1;
+    bool tm         = ((op_value >> 63) & 1);
+    bool keep_valid = ((op_value >> 59) & 1);
 
-    uint64_t stride = XREGS[31].x & 0xFFFFFFFFFFC0UL;
+    int  op       = (op_value >> 60) & 0x07;
+    int  dest     = (op_value >> 58) & 0x03;
+    int  way      = (op_value >> 48) & 0xFF;
+    int  set      = (op_value >>  6) & 0x0F;
+    int  numlines = (op_value >>  0) & 0x0F;
 
-    uint64_t set  = (addr >> 6)      & (num_sets - 1);
-    uint64_t way  = (op_value >> 48) & (num_ways - 1);
-    uint64_t cl   = (way << 4) + set;
+    uint64_t addr   = op_value    & 0x0000FFFFFFFFFFC0ULL;
+    uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
+    int      id     = XREGS[31].x & 0x0000000000000001ULL;
 
     DEBUG_EMU(gprintf("\tDoing CacheOp with value %016llX\n", op_value);)
 
     switch (op) {
-        case 3: // EvictSW
-            start = 0;                 // always start from L1
-            if(dest == 0)       break; // If dest is L1, done
-            if(dest <= start)   break; // If start is bigger or equal than dest, done
-            if(set >= num_sets) break; // Skip sets outside cache
-            if(way >= num_ways) break; // Skip ways outside cache
-
-            for (int i = 0; i < repeat; i++)
-            {
-                // If cacheline is locked or not passing tensor mask condition, skip operation
-                if(!scp_locked[current_thread >> 1][cl] && (!tm || tmask_pass(i)))
-                {
-                    DEBUG_EMU(gprintf("\tDoing EvictSW (%d.%d) to Set: %X, Way: %X, CL: %02X, StartLevel: %01X, DestLevel: %01X\n",
-                              current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
-                }
-
-                set = (++cl)    & (num_sets - 1);
-                way = (cl >> 4) & (num_ways - 1);
-            }
-            break;
+        case 0: // LockVA
+            return dcache_lock_vaddr(tm, way, addr, numlines, id, stride);
+        case 1: // UnlockVA
+            return dcache_unlock_vaddr(tm, keep_valid, addr, numlines, id, stride);
         case 2: // FlushSW
-            start = 0;                 // always start from L1
-            if(dest == 0)       break; // If dest is L1, done
-            if(dest <= start)   break; // If start is bigger or equal than dest, done
-            if(set >= num_sets) break; // Skip sets outside cache
-            if(way >= num_ways) break; // Skip ways outside cache
-
-            for (int i = 0; i < repeat; i++) {
-                // If cacheline is locked or not passing tensor mask condition, skip operation
-                if(!scp_locked[current_thread >> 1][cl] && (!tm || tmask_pass(i)))
-                {
-                    DEBUG_EMU(gprintf("\tDoing FlushSW (%d.%d) to Set: %X, Way: %X, CL: %02X, StartLevel: %01X, DestLevel: %01X\n",
-                              current_thread >> 1, current_thread & 1, set, way, cl, start, dest);)
-                }
-
-                set = (++cl)    & (num_sets - 1);
-                way = (cl >> 4) & (num_ways - 1);
-            }
+            if (csrget(csr_prv) != CSR_PRV_M)
+                throw trap_illegal_instruction(current_inst);
+            dcache_evict_flush_set_way(false, tm, dest, set, way, numlines);
             break;
-        case 7: // EvictVA
-            if(dest == 0) break;     // If dest is L1, done
-            if(dest <= start) break; // If start is bigger or equal than dest, done
-
-            for (int i = 0; i < repeat; i++) {
-                // If not masked
-                if(!tm || tmask_pass(i))
-                {
-                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
-
-                    // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
-                    bool scp_en = false;
-                    set = (paddr >> 6) & (num_sets - 1);
-                    cl  = (set << 2);
-                    for (unsigned j = 0; j < num_ways; j++)
-                    {
-                        if((start == 0) && scp_locked[cl + j] && (scp_trans[current_thread >> 1][cl + j] == paddr)) scp_en = true;
-                    }
-                    // Address is not locked
-                    if(!scp_en)
-                        DEBUG_EMU(gprintf("\tDoing EvictVA: %016X, StartLevel: %01X, DestLevel: %01X\n", addr, start, dest);)
-
-                }
-                addr += stride;
-            }
-            break;
-        case 6: // FlushVA
-            if(dest == 0) break;     // If dest is L1, done
-            if(dest <= start) break; // If start is bigger or equal than dest, done
-
-            for (int i = 0; i < repeat; i++) {
-                // If not masked
-                if(!tm || tmask_pass(i))
-                {
-                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
-
-                    // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
-                    bool scp_en = false;
-                    set = (paddr >> 6) & (num_sets - 1);
-                    cl  = (set << 2);
-                    for (unsigned j = 0; j < num_ways; j++)
-                    {
-                        if((start == 0) && scp_locked[cl + j] && (scp_trans[current_thread >> 1][cl + j] == paddr)) scp_en = true;
-                    }
-                    // Address is not locked
-                    if(!scp_en)
-                        DEBUG_EMU(gprintf("\tDoing FlushVA: %016X, StartLevel: %01X, DestLevel: %01X\n", addr, start, dest);)
-
-                }
-                addr += stride;
-            }
+        case 3: // EvictSW
+            if (csrget(csr_prv) != CSR_PRV_M)
+                throw trap_illegal_instruction(current_inst);
+            dcache_evict_flush_set_way(true, tm, dest, set, way, numlines);
             break;
         case 4: // PrefetchVA
-            for (int i = 0; i < repeat; i++)
-            {
-                // If not masked
-                if(!tm || tmask_pass(i))
-                {
-                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
-
-                    // Looks if the address is locked (gets set and checks the 4 ways) and start level is L1
-                    bool scp_en = false;
-                    set = (paddr >> 6) & (num_sets - 1);
-                    cl  = (set << 2);
-                    for (unsigned w = 0; w < num_ways; w++)
-                    {
-                        if((start == 0) && scp_locked[cl + w] && (scp_trans[current_thread >> 1][cl + w] == paddr)) scp_en = true;
-                    }
-                    // Address is not locked
-                    if(!scp_en)
-                        DEBUG_EMU(gprintf("\tDoing PrefetchVA: %016X, Dest: %X\n", addr, dest);)
-                }
-                addr += stride;
-            }
-            break;
-            // TODO
-            break;
-        case 0: // LockVA
-            way = (op_value >> 48) & 0xFF;
-            if((way >= num_ways) && (way != 255)) break; // Skip ways outside cache
-            set = set % num_sets;
-
-            for (int i = 0; i < repeat; i++)
-            {
-                // If not masked
-                if(!tm || tmask_pass(i))
-                {
-                    DEBUG_EMU(gprintf("\tDoing LockVA: %016X, Way: %X\n", addr, way);)
-                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
-
-                    // Looks for 1st way available
-                    if(way == 255)
-                    {
-                        cl = set << 2;
-                        // For all the ways
-                        for (unsigned w = 0; w < num_ways; w++)
-                        {
-                            // Check if not locked and same PADDR
-                            if(!scp_locked[current_thread >> 1][cl + w])
-                            {
-                                way = w;
-                                break;
-                            }
-                        }
-                        // No free way found, return 1
-                        if(way == 255) return 1;
-                    }
-                    else
-                    {
-                        // For all the ways
-                        for (unsigned w = 0; w <= num_ways; w++)
-                        {
-                            // Check if not locked and same PADDR
-                            if(!scp_locked[current_thread >> 1][cl + w])
-                            {
-                                break;
-                            }
-                            // No free way found, return 1
-                            if(w == 4) return 1;
-                        }
-                    }
-
-                    cl = (set << 2) + way;
-                    scp_locked[current_thread >> 1][cl] = true;
-                    scp_trans[current_thread >> 1][cl]  = paddr;
-                }
-                addr += stride;
-            }
-            break;
-        case 1: // UnlockVA
-            for (int i = 0; i < repeat; i++)
-            {
-                // If not masked
-                if(!tm || tmask_pass(i))
-                {
-                    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
-                    uint64_t state  = (op_value >> 59) & 0x1;
-
-                    set = (paddr >> 6) & (num_sets - 1);
-                    cl = set << 2;
-
-                    // For all the ways
-                    for (unsigned w = 0; w < num_ways; w++)
-                    {
-                        // Check if locked and same PADDR
-                        if(scp_locked[current_thread >> 1][cl + w] && (scp_trans[current_thread >> 1][cl + w] == paddr))
-                        {
-                            DEBUG_EMU(gprintf("\tDoing UnlockVA: %016X, Way: %X, FinalState: %01X\n", addr, w, state);)
-                            scp_locked[current_thread >> 1][cl + w] = false;
-                        }
-                    }
-                }
-                addr += stride;
-            }
-            break;
+            return dcache_prefetch_vaddr(tm, dest, addr, numlines, id, stride);
+        case 6: // FlushVA
+            return dcache_evict_flush_vaddr(false, tm, dest, addr, numlines, id, stride);
+        case 7: // EvictVA
+            return dcache_evict_flush_vaddr(true, tm, dest, addr, numlines, id, stride);
         default:
-           DEBUG_EMU(gprintf("\tUnknown CacheOp Opcode!\n");)
+           DEBUG_EMU(gprintf("\tUnknown CacheOp Opcode (%d)!\n", op););
+           throw trap_illegal_instruction(current_inst);
     }
-
     return 0;
 }
 
@@ -6195,6 +6297,7 @@ static void configure_port(uint32_t id, uint64_t wdata)
    msg_ports[current_thread][id].stall      = false;
 }
 
+// TODO: remove old msg port spec
 static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
 {
     // FIXME: Raise "illegal instruction" exception if:
@@ -6261,15 +6364,15 @@ void update_msg_port_data()
 void write_msg_port_data_(uint32_t thread, uint32_t id, uint32_t *data)
 {
     // write to scratchpad
-    uint64_t base_addr = scp_trans[thread >> 1][(msg_ports[thread][id].scp_set << 2) | msg_ports[thread][id].scp_way];
+    uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports_pending_offset[thread][id];
     msg_ports_pending_offset[thread][id] = -1;
     int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
-    for(int i = 0; i < wr_words; i++)
+    for (int i = 0; i < wr_words; i++)
     {
         uint32_t ret = data[i];
         DEBUG_EMU(gprintf("Writing MSG_PORT (m%d p%d) data %08X to addr %016llX\n", thread, id, ret, base_addr + 4 * i););
-        vmemwrite32 ( base_addr + 4 * i, ret );
+        vmemwrite32(base_addr + 4 * i, ret);
     }
 }
 
