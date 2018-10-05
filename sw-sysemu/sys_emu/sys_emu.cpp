@@ -198,18 +198,19 @@ static uint32_t get_thread_emu()
 // Help message
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
-"sys_emu <-mem_desc file> [-net_desc file] [-minions mask] [-shires mask] [-dump_file file_name <-dump_addr address> <-dump_size size>] [-l [-lm minion]] [-m] [-rbox]\n\
--mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
--net_desc    Blah.\n\
--minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
--shires      A mask of Shires that should be enabled. Default: 1 Shire\n\
--dump_file   Path to the file in which to dump the memory content at the end of the simulation\n\
--dump_addr   Address in memory at which to start dumping. Only valid if -dump_file is used\n\
--dump_size   Size of the memory to dump. Only valid if -dump_file is used\n\
--l           Enable Logging\n\
--lm          Log a given Minion ID only. Default: all Minions\n\
--m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
--rbox        Enable RBOX emulation\n\
+"\n ET System Emulator\n\n\
+     sys_emu <-mem_desc file> [-net_desc file] [-minions mask] [-shires mask] [-dump_file file_name <-dump_addr address> <-dump_size size>] [-l [-lm minion]] [-m] [-rbox]\n\n\
+ -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
+ -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
+ -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
+ -shires      A mask of Shires that should be enabled. Default: 1 Shire\n\
+ -dump_file   Path to the file in which to dump the memory content at the end of the simulation\n\
+ -dump_addr   Address in memory at which to start dumping. Only valid if -dump_file is used\n\
+ -dump_size   Size of the memory to dump. Only valid if -dump_file is used\n\
+ -l           Enable Logging\n\
+ -lm          Log a given Minion ID only. Default: all Minions\n\
+ -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
+ -rbox        Enable RBOX emulation\n\n\
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
