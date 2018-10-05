@@ -665,24 +665,24 @@ DECLARE_TRAP_TVAL_Y(CAUSE_MCODE_INSTRUCTION,    trap_mcode_instruction)
 #define AMO_EMU_W_FUNC(NAME, OPC) \
 void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 {\
-   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");)\
-   DEBUG_EMU(gprintf("%s\n",dis);)\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
    amo_emu_w(OPC, dst, src1, src2);\
 }
 
 #define AMO_EMU_D_FUNC(NAME, OPC) \
 void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 {\
-   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");)\
-   DEBUG_EMU(gprintf("%s\n",dis);)\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
    amo_emu_d(OPC, dst, src1, src2);\
 }
 
 #define AMO_EMU_F_FUNC(NAME, OPC) \
 void NAME(freg dst, freg src1, xreg src2, const char* comm)\
 {\
-   DISASM(gsprintf(dis,"I: " #NAME " ft%d, ft%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");)\
-   DEBUG_EMU(gprintf("%s\n",dis);)\
+   DISASM(gsprintf(dis,"I: " #NAME " ft%d, ft%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
    amo_emu_f(OPC, dst, src1, src2);\
 }
 

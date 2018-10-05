@@ -16,9 +16,9 @@
 
 #ifdef DISASM
 #undef DISASM
-#define DISASM(a) { a }
+#define DISASM(a) do { a } while (0)
 #else
-#define DISASM(a)
+#define DISASM(a) do { } while (0)
 #endif
 
 // Used to access different threads transparently
