@@ -93,9 +93,8 @@ bool dump_log(bool log_en, int log_min, int thread_id)
 // second thread (thread_dest) inside the shire of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
-void fcc_to_threads(unsigned thread_src, unsigned thread_dest, uint64_t thread_mask, bool log_en, int log_min)
+void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, bool log_en, int log_min)
 {
-    unsigned shire_id = thread_src / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
         if((thread_mask >> m) & 1)
@@ -521,11 +520,26 @@ int main(int argc, char * argv[])
                             current_pc[thread_id] += inst->get_size();
                         }
 
-                        // Checks for FCC
-                        if(emu_state_change.mem_mod[0] && ((emu_state_change.mem_addr[0] & 0xFFFFC1FF) == FCC_T0_ADDR))
-                            fcc_to_threads(thread_id, 0, emu_state_change.mem_data[0], log_en, log_min);
-                        if(emu_state_change.mem_mod[0] && ((emu_state_change.mem_addr[0] & 0xFFFFC1FF) == FCC_T1_ADDR))
-                            fcc_to_threads(thread_id, 1, emu_state_change.mem_data[0], log_en, log_min);
+                        // Checks for ESR writes
+                        if((emu_state_change.mem_addr[0] & ESR_REGION_MASK) == ESR_REGION)
+                        {
+                            uint64_t paddr = emu_state_change.mem_addr[0];
+                            unsigned shire_id = (paddr & ESR_REGION_LOCAL) >> ESR_REGION_SHIRE_SH;
+                            // Check if doing a local access
+                            if((paddr & ESR_REGION_LOCAL) == ESR_REGION_LOCAL)
+                            {
+                                // Set shire ID to the one of the thread
+                                shire_id = thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+                                // Fix the final address
+                                paddr = (paddr & ~ESR_REGION_LOCAL) + shire_id * ESR_REGION_OFFSET;
+                            }
+
+                            // Is it an FCC?
+                            if(emu_state_change.mem_mod[0] && ((paddr & ~ESR_REGION_LOCAL) == (ESR_SHIRE_REGION + ESR_SHIRE_FCC0_OFFSET)))
+                                fcc_to_threads(shire_id, 0, emu_state_change.mem_data[0], log_en, log_min);
+                            if(emu_state_change.mem_mod[0] && ((paddr & ~ESR_REGION_LOCAL) == (ESR_SHIRE_REGION + ESR_SHIRE_FCC2_OFFSET)))
+                                fcc_to_threads(shire_id, 1, emu_state_change.mem_data[0], log_en, log_min);
+                        }
                     }
                 }
 

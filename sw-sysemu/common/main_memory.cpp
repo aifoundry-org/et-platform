@@ -11,9 +11,6 @@ main_memory::main_memory(std::string logname)
     : log(logname, LOG_DEBUG)
 {
     getthread = NULL;
-    // Atomic
-    main_memory_region_atomic * amo = new main_memory_region_atomic(0xFFF00000ULL, 32 * 512, log, getthread);
-    regions_.push_back((main_memory_region *) amo);
     // Adds the tbox
     main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, getthread);
     regions_.push_back((main_memory_region *) tbox);
@@ -26,7 +23,7 @@ main_memory::main_memory(std::string logname)
     // UC writes to the fast local barrier and mtime/mtimecmp ESRs
     for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++)
     {
-        main_memory_region * flb = new main_memory_region(0x100340000ULL + i*0x400000ULL, 64, log, getthread, MEM_REGION_WO);
+        main_memory_region * flb = new main_memory_region(0x100340000ULL + i*0x400000ULL, 512, log, getthread);
         regions_.push_back((main_memory_region *) flb);
         main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*0x400000ULL, 64, log, getthread);
         regions_.push_back((main_memory_region *) mtm);

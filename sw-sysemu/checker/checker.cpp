@@ -7,7 +7,6 @@
 #include <cmath>
 
 //
-#define TICKETER_REGION 0xFFF00000
 #define TBOX_REGION_START 0xFFF80000
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
 

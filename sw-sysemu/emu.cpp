@@ -17,8 +17,6 @@
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 #include <emmintrin.h> // FIXME: remove this when we fix the TXFMA code
 
-#define FL_UC_BASE_REGION 0xFFF00000
-
 using emu::gprintf;
 using emu::gsprintf;
 using emu::gfprintf;
@@ -633,10 +631,16 @@ static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc)
 
 static uint64_t translate_esr_memmap(uint64_t paddr)
 {
-    if((paddr >= FL_UC_BASE_REGION) && (paddr < (FL_UC_BASE_REGION + 512)))
+    // Check if shire ESR region
+    if((paddr & ESR_REGION_MASK) == ESR_REGION)
     {
-        uint64_t shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-        return paddr + 512 * shire;
+        // Check if doing a local access
+        if((paddr & ESR_REGION_LOCAL) == ESR_REGION_LOCAL)
+        {
+            // Fix the final address
+            uint64_t shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+            paddr = (paddr & ~ESR_REGION_LOCAL) + shire * ESR_REGION_OFFSET;
+        }
     }
     return paddr;
 }
@@ -7217,7 +7221,7 @@ static uint64_t flbarrier(uint64_t value)
     uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
 
     // Gets what is the address that the fast local barrier is mapped to
-    uint64_t addr    = FL_UC_BASE_REGION + (barrier * 8) + shire * 512; // Access is private per cache
+    uint64_t addr    = ESR_SHIRE_REGION + ESR_SHIRE_FLB_OFFSET + (barrier * 8) + shire * ESR_REGION_OFFSET; // Access is private per cache
 
     uint64_t orig_value = vmemread64(addr);
     uint64_t result = -1;
