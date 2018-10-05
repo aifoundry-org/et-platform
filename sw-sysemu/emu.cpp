@@ -88,7 +88,6 @@ static uint64_t csrget(csr src1);
 static void csrset(csr src1, uint64_t val);
 static void tmask_conv();
 static void tcoop();
-static void offtxfma();
 static void tensorload(uint64_t control);
 static void tensorstore(uint64_t tstorereg);
 static void tensorfma(uint64_t tfmareg);
@@ -191,6 +190,12 @@ void fpinit(freg dst, uint64_t val[2])
 {
     FREGS[dst].x[0] = val[0];
     FREGS[dst].x[1] = val[1];
+}
+
+// internal accessor to prv; this is faster than doing csrget(csr_prv)
+static inline int prvget()
+{
+    return csrregs[current_thread][csr_prv];
 }
 
 // internal accessor to frm; this is faster than doing csrget(csr_frm)
@@ -452,7 +457,7 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
 static void trap_to_smode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
-    uint64_t curprv = csrget(csr_prv);
+    uint64_t curprv = prvget();
     assert(curprv <= CSR_PRV_S);
 
     DEBUG_EMU(gprintf("\tTrapping to S-mode with cause %llu\n",cause);)
@@ -487,7 +492,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 static void trap_to_mmode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
-    uint64_t curprv = csrget(csr_prv);
+    uint64_t curprv = prvget();
 
     // Check if we should deletegate the trap to S-mode
     if ((curprv < CSR_PRV_M) && (csrget(csr_medeleg) & (1ull << cause)))
@@ -2060,6 +2065,9 @@ static uint64_t csrget(csr src1)
     uint64_t prv = csrregs[current_thread][csr_prv];
 
     switch (src1) {
+        // ----- Illegal registers ---------------------------------------
+        case csr_unknown:
+            throw trap_illegal_instruction(current_inst);
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
             val = csrregs[current_thread][csr_fcsr] & 0x1F;
@@ -2113,8 +2121,6 @@ static uint64_t csrget(csr src1)
         case csr_scacheop:
             val = 0;
             break;
-        // ----- Shared registers ----------------------------------------
-
         // ----- All other registers -------------------------------------
         default:
             val = csrregs[current_thread][src1];
@@ -2129,6 +2135,24 @@ static void csrset(csr src1, uint64_t val)
     uint64_t msk;
 
     switch (src1) {
+        // ----- Read-only and illegal registers -------------------------
+        case csr_cycle:
+        case csr_cycleh:
+        case csr_mvendorid:
+        case csr_marchid:
+        case csr_mimpid:
+        case csr_mhartid:
+        case csr_porthead0:
+        case csr_porthead1:
+        case csr_porthead2:
+        case csr_porthead3:
+        case csr_portheadnb0:
+        case csr_portheadnb1:
+        case csr_portheadnb2:
+        case csr_portheadnb3:
+        case csr_unknown:
+            throw trap_illegal_instruction(current_inst);
+        // ----- Internal registers --------------------------------------
         case csr_prv:
             val &= 0x0000000000000003ULL;
             csrregs[current_thread][src1] = val;
@@ -2145,6 +2169,10 @@ static void csrset(csr src1, uint64_t val)
         case csr_fcsr:
             val &= 0x00000000000000FFULL;
             csrregs[current_thread][src1] = val;
+            break;
+        // ----- U-mode ET registers ---------------------------------------------
+        case csr_tloadctrl:
+            tensorload(val);
             break;
         case csr_tmask:
             val &= 0x000000000000FFFFULL;
@@ -2164,9 +2192,16 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             tcoop();
             break;
-        case csr_offtxfma:
-            csrregs[current_thread][src1] = val;
-            offtxfma();
+        case csr_tfmastart:
+            tensorfma(val);
+            break;
+        case csr_treduce:
+            tensorreduce(val);
+            break;
+        case csr_tstore:
+            tensorstore(val);
+            break;
+        case csr_fccounter:
             break;
         case csr_evict_va:
         case csr_flush_va:
@@ -2180,19 +2215,6 @@ static void csrset(csr src1, uint64_t val)
                 uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
                 int      id     = XREGS[31].x & 0x0000000000000001ULL;
                 dcache_evict_flush_vaddr(src1 == csr_evict_va, tm, dest, vaddr, count, id, stride);
-            }
-            break;
-        case csr_prefetch_va:
-            val &= 0x8C00FFFFFFFFFFCFULL;
-            csrregs[current_thread][src1] = val;
-            {
-                bool tm         = (val & 0x8000000000000000ULL);
-                int  dest       = (val >> 58) & 0x03;
-                int  count      = (val >>  0) & 0x0F;
-                uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
-                uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
-                int      id     = XREGS[31].x & 0x0000000000000001ULL;
-                dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
             }
             break;
         case csr_lock_va:
@@ -2221,6 +2243,24 @@ static void csrset(csr src1, uint64_t val)
                 dcache_unlock_vaddr(tm, valid, vaddr, count, id, stride);
             }
             break;
+        case csr_prefetch_va:
+            val &= 0x8C00FFFFFFFFFFCFULL;
+            csrregs[current_thread][src1] = val;
+            {
+                bool tm         = (val & 0x8000000000000000ULL);
+                int  dest       = (val >> 58) & 0x03;
+                int  count      = (val >>  0) & 0x0F;
+                uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+                uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
+                int      id     = XREGS[31].x & 0x0000000000000001ULL;
+                dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
+            }
+            break;
+        case csr_scpctrl:
+            val &= 0x0000000000000001ULL;
+            csrregs[current_thread][src1] = val;
+            num_sets = val ? 4 : 16;
+            break;
         case csr_texsend:
             val &= 0x00000000000000FFULL;
             csrregs[current_thread][src1] = val;
@@ -2242,6 +2282,10 @@ static void csrset(csr src1, uint64_t val)
             msk = csrregs[current_thread][csr_mideleg];
             val = (csrregs[current_thread][csr_mie] & (~msk) & 0x0000000000000888ULL) | (val & msk & 0x0000000000000222ULL);
             csrregs[current_thread][csr_mie] = val;
+            break;
+        case csr_stvec:
+            val &= 0xFFFFFFFFF001ULL;
+            csrregs[current_thread][src1] = val;
             break;
         case csr_sepc:
             // sepc[0] = 0 always
@@ -2269,6 +2313,7 @@ static void csrset(csr src1, uint64_t val)
                     break;
             }
             break;
+        // ----- S-mode ET registers ---------------------------------------------
         case csr_evict_sw:
         case csr_flush_sw:
             val &= 0x8C0000000003C0CFULL;
@@ -2282,11 +2327,6 @@ static void csrset(csr src1, uint64_t val)
                 dcache_evict_flush_set_way(src1 == csr_evict_sw, tm, dest, set, way, count);
             }
             break;
-        case csr_scpctrl:
-            val &= 0x0000000000000001ULL;
-            csrregs[current_thread][src1] = val;
-            num_sets = val ? 4 : 16;
-            break;
         case csr_portctrl0:
         case csr_portctrl1:
         case csr_portctrl2:
@@ -2295,12 +2335,6 @@ static void csrset(csr src1, uint64_t val)
             val |= 0x0000000000008000ULL;
             csrregs[current_thread][src1] = val;
             configure_port(src1 - csr_portctrl0, val);
-            break;
-    case csr_stvec:
-            if ((val & 0xFFE) != 0)
-              DEBUG_EMU(gprintf("ERROR!!! stvec not aligned to 4k boundary: %x\n", val););
-            val &= 0xFFFFFFFFF001ULL;
-            csrregs[current_thread][src1] = val;
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
@@ -2331,6 +2365,10 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x0000000000000AAAULL;
             csrregs[current_thread][src1] = val;
             break;
+        case csr_mtvec:
+            val &= 0xFFFFFFFFF001ULL;
+            csrregs[current_thread][src1] = val;
+            break;
         case csr_mepc:
             // mepc[0] = 0 always
             val &= 0xFFFFFFFFFFFFFFFEULL;
@@ -2341,22 +2379,6 @@ static void csrset(csr src1, uint64_t val)
             // Write only seip, stip, ssip
             val &= 0x0000000000000222ULL;
             csrregs[current_thread][src1] = val;
-            break;
-    case csr_mtvec:
-            if ((val & 0xFFE) != 0)
-              DEBUG_EMU(gprintf("ERROR!!! mtvec not aligned to 4k boundary: %x\n", val););
-            val &= 0xFFFFFFFFF001ULL;
-            csrregs[current_thread][src1] = val;
-            break;
-        // ----- Tensor, barrier, cacheop instructions -------------------
-        case csr_treduce:
-        case csr_tfmastart:
-        case csr_tloadctrl:
-        case csr_tstore:
-        case csr_flbarrier:
-        case csr_fccounter:
-        case csr_ucacheop:
-        case csr_scacheop:
             break;
         // ----- Shared registers ----------------------------------------
         case csr_sleep_txfma_27:
@@ -2381,7 +2403,20 @@ static void csrset(csr src1, uint64_t val)
                buflen = 0;
             }
             break;
-
+        // ----- Not really ESRs -----------------------------------------
+        case csr_ucacheop:
+        case csr_scacheop:
+        case csr_umsg_port0:
+        case csr_umsg_port1:
+        case csr_umsg_port2:
+        case csr_umsg_port3:
+        case csr_smsg_port0:
+        case csr_smsg_port1:
+        case csr_smsg_port2:
+        case csr_smsg_port3:
+            // We shouldn't be here!
+            assert(0);
+            break;
         // ----- All other registers -------------------------------------
         default:
             csrregs[current_thread][src1] = val;
@@ -2390,92 +2425,53 @@ static void csrset(csr src1, uint64_t val)
     //DEBUG_EMU(gprintf("csrset csrreg[%d] <- 0x%016llx\n",src1,val);)
 }
 
-static void csr_insn(xreg dst, csr src1, uint64_t val, bool write)
+static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool write)
 {
-    // Access to a CSR that doesnt exists throws illegal instruction exception
-    if (src1 == csr_unknown) throw trap_illegal_instruction(current_inst);
-
     // Check if current privilege mode has access to the register
-    uint64_t prv = csrget(csr_prv);
+    uint64_t prv = prvget();
     if (   ((prv == CSR_PRV_U) && (src1 >= CSR_MAX_UMODE))
         || ((prv == CSR_PRV_S) && (src1 >= CSR_MAX_SMODE)))
     {
         throw trap_illegal_instruction(current_inst);
     }
-
-    uint64_t x = csrget(src1);
-
     if (write)
     {
-        DEBUG_EMU(gprintf("\t0x%016llx --> CSR[%08x]\n", val, src1);)
         switch (src1) {
-            // Check if attempting to write a read-only register
-            case csr_cycle:
-            case csr_cycleh:
-            // case csr_instret:
-            // case csr_hpmcounter3:
-            // case csr_hpmcounter4:
-            // case csr_hpmcounter5:
-            // case csr_hpmcounter6:
-            case csr_mvendorid:
-            case csr_marchid:
-            case csr_mimpid:
-            case csr_mhartid:
-            case csr_porthead0:
-            case csr_porthead1:
-            case csr_porthead2:
-            case csr_porthead3:
-            case csr_portheadnb0:
-            case csr_portheadnb1:
-            case csr_portheadnb2:
-            case csr_portheadnb3:
-                throw trap_illegal_instruction(current_inst);
-                break;
-            // Tensor instructions encoded in the CSR space
-            case csr_treduce:
-                tensorreduce(val);
-                break;
-            case csr_tfmastart:
-                tensorfma(val);
-                break;
-            case csr_tloadctrl:
-                tensorload(val);
-                break;
-            case csr_tstore:
-                tensorstore(val);
-                break;
             // Fast local barrier instructions encoded in the CSR space
             case csr_flbarrier:
-                x = flbarrier(val);
+                oldval = flbarrier(newval);
                 break;
             // TODO: remove old cacheop spec
             case csr_ucacheop:
             case csr_scacheop:
-                x = csr_cacheop_emu(val);
+                oldval = csr_cacheop_emu(newval);
                 break;
             // TODO: remove old msg port spec
             case csr_umsg_port0:
             case csr_umsg_port1:
             case csr_umsg_port2:
             case csr_umsg_port3:
-                x = msg_port_csr(src1 - csr_umsg_port0, val, true);
+                oldval = msg_port_csr(src1 - csr_umsg_port0, newval, true);
                 break;
             case csr_smsg_port0:
             case csr_smsg_port1:
             case csr_smsg_port2:
             case csr_smsg_port3:
-                x = msg_port_csr(src1 - csr_smsg_port0, val, false);
+                oldval = msg_port_csr(src1 - csr_smsg_port0, newval, false);
                 break;
             default:
-                csrset(src1, val);
+                csrset(src1, newval);
                 break;
         }
     }
-
     if (dst != x0)
     {
-        XREGS[dst].x = x;
-        DEBUG_EMU(gprintf("\t0x%016llx  <- CSR[%08x]\n", x, src1);)
+        XREGS[dst].x = oldval;
+        DEBUG_EMU(gprintf("\t0x%016llx <-- CSR[%08x]\n", oldval, src1);)
+    }
+    if (write)
+    {
+        DEBUG_EMU(gprintf("\t0x%016llx --> CSR[%08x]\n", newval, src1);)
     }
     logxregchange(dst);
 }
@@ -2512,7 +2508,7 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     const uint64_t satp_ppn  = satp & PPN_M;
 
     // Read prv
-    const uint64_t prv = csrget(csr_prv);
+    const uint64_t prv = prvget();
 
     // Calculate effective privilege level
     const uint64_t prv_inst = prv;
@@ -2709,7 +2705,7 @@ void ecall(const char* comm)
 {
     DISASM(gsprintf(dis,"I: ecall%s%s",(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis);)
-    switch (csrget(csr_prv))
+    switch (prvget())
     {
         case CSR_PRV_U: throw trap_user_ecall(); break;
         case CSR_PRV_S: throw trap_supervisor_ecall(); break;
@@ -2730,7 +2726,7 @@ void ebreak(const char* comm)
 
 void sret(const char* comm)
 {
-    uint64_t curprv = csrget(csr_prv);
+    uint64_t curprv = prvget();
     uint64_t mstatus = csrget(csr_mstatus);
     if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && ( ((mstatus >> 22) & 1) == 1 ) ))
       throw trap_illegal_instruction(current_inst);
@@ -2768,7 +2764,7 @@ void mret(const char* comm)
 
 void wfi(const char* comm)
 {
-    uint64_t curprv = csrget(csr_prv);
+    uint64_t curprv = prvget();
     uint64_t mstatus = csrget(csr_mstatus);
     if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && ( ((mstatus >> 21) & 1 ) == 1 ) ) )
       throw trap_illegal_instruction(current_inst);
@@ -2780,43 +2776,55 @@ void wfi(const char* comm)
 void csrrw(xreg dst, csr src1, xreg src2, const char* comm)
 {
     DISASM(gsprintf(dis,"I: csrrw x%d, csrreg[%d], x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, XREGS[src2].x, true);
+    DEBUG_EMU(gprintf("%s\n",dis););
+    uint64_t oldval = csrget(src1);
+    uint64_t newval = XREGS[src2].x;
+    csr_insn(dst, src1, oldval, newval, true);
 }
 
 void csrrs(xreg dst, csr src1, xreg src2, const char* comm)
 {
     DISASM(gsprintf(dis,"I: csrrs x%d, csrreg[%d], x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, csrget(src1) | XREGS[src2].x, src2 != x0);
+    DEBUG_EMU(gprintf("%s\n",dis););
+    uint64_t oldval = csrget(src1);
+    uint64_t newval = oldval | XREGS[src2].x;
+    csr_insn(dst, src1, oldval, newval, src2 != x0);
 }
 
 void csrrc(xreg dst, csr src1, xreg src2, const char* comm)
 {
     DISASM(gsprintf(dis,"I: csrrc x%d, csrreg[%d], x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, csrget(src1) & (~XREGS[src2].x), src2 != x0);
+    DEBUG_EMU(gprintf("%s\n",dis););
+    uint64_t oldval = csrget(src1);
+    uint64_t newval = oldval & (~XREGS[src2].x);
+    csr_insn(dst, src1, oldval, newval, src2 != x0);
 }
 
 void csrrwi(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: csrrwi x%d, csrreg[%d], %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, imm, true);
+    DEBUG_EMU(gprintf("%s\n",dis););
+    uint64_t oldval = csrget(src1);
+    uint64_t newval = imm;
+    csr_insn(dst, src1, oldval, newval, true);
 }
 
 void csrrsi(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: csrrsi x%d, csrreg[%d], %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, csrget(src1) | imm, imm != 0);
+    DEBUG_EMU(gprintf("%s\n",dis););
+    uint64_t oldval = csrget(src1);
+    uint64_t newval = oldval | imm;
+    csr_insn(dst, src1, oldval, newval, imm != 0);
 }
 
 void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: csrrci x%d, csrreg[%d], %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
-    DEBUG_EMU(gprintf("%s\n",dis);)
-    csr_insn(dst, src1, csrget(src1) & (~imm), imm != 0);
+    DEBUG_EMU(gprintf("%s\n",dis););
+    uint64_t oldval = csrget(src1);
+    uint64_t newval = oldval & (~imm);
+    csr_insn(dst, src1, oldval, newval, imm != 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6174,12 +6182,12 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
         case 1: // UnlockVA
             return dcache_unlock_vaddr(tm, keep_valid, addr, numlines, id, stride);
         case 2: // FlushSW
-            if (csrget(csr_prv) != CSR_PRV_M)
+            if (prvget() != CSR_PRV_M)
                 throw trap_illegal_instruction(current_inst);
             dcache_evict_flush_set_way(false, tm, dest, set, way, numlines);
             break;
         case 3: // EvictSW
-            if (csrget(csr_prv) != CSR_PRV_M)
+            if (prvget() != CSR_PRV_M)
                 throw trap_illegal_instruction(current_inst);
             dcache_evict_flush_set_way(true, tm, dest, set, way, numlines);
             break;
@@ -6252,7 +6260,7 @@ static void write_msg_port_data(uint32_t thread, uint32_t id)
 
 static uint64_t port_get(uint32_t id)
 {
-   if ((csrget(csr_prv) == CSR_PRV_U) && (msg_ports[current_thread][id].umode == false))
+   if ((prvget() == CSR_PRV_U) && (msg_ports[current_thread][id].umode == false))
       throw trap_illegal_instruction(current_inst);
 
    if (in_sysemu == 1 && query_msg_port_data(current_thread, id) == 0)
@@ -6457,12 +6465,6 @@ static void tcoop()
     uint64_t coop_id              = (tcoopreg >> 0) & 0xFF;
     //TODO implement functionality checking the addresses and tcoop of every use of Tensor Load
     DEBUG_EMU(gprintf("\tSetting Tensor Cooperation:  Warl [%040X] . Timeout %d . Coop Mask %08X . Coop ID : %d\n",warl, timeout , coop_mask ,coop_id  );)
-}
-
-static void offtxfma()
-{
-   uint64_t reg = csrget(csr_offtxfma);
-   DEBUG_EMU(gprintf("\tSetting offtxfma:  %d \n  ", reg);)
 }
 
 // ----- TensorLoad emulation --------------------------------------------------
