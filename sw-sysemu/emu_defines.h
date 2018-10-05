@@ -19,12 +19,6 @@
 #define DEBUG_MASK  1
 #define DISASM      1
 
-// Scratchpad defines
-#define L1_ENTRIES        64
-#define L1_SCP_ENTRIES    48
-#define L1_SCP_LINE_SIZE  64
-#define L1_SCP_BLOCKS     (L1_SCP_LINE_SIZE / (VL * 4))
-#define L1_SCP_BLOCK_SIZE (VL * 4)
 // Some Tensor defines
 #define TFMA_MAX_AROWS    16
 #define TFMA_MAX_ACOLS    16
