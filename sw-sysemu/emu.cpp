@@ -6734,6 +6734,7 @@ static void tensorfma(uint64_t tfmareg)
     int arows      = (tfmareg & 0x0078000000000000) >> 51; // Number of A rows to be processed
     int acols      = (tfmareg & 0x0007800000000000) >> 47; // Number of A cols to be processed
     int aoffset    = (tfmareg & 0x0000780000000000) >> 43; // A matrix 32b offset
+    int tenc_rf    = (tfmareg & 0x0000000000800000) >> 23; // Store TIMA results in VPU RF (IMA only)
     int ub         = (tfmareg & 0x0000000000400000) >> 22; // Matrix B is unsigned (IMA only)
     int ua         = (tfmareg & 0x0000000000200000) >> 21; // Matrix A is unsigned (IMA only)
     int tenb       = (tfmareg & 0x0000000000100000) >> 20; // B is stored in TENB and not in SCP
@@ -6749,7 +6750,7 @@ static void tensorfma(uint64_t tfmareg)
 
     set_rounding_mode(rmdyn);
 
-    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenb: %d, bstart: %d, astart: %d, rm: %s\n", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenb, bstart, astart, get_rounding_mode(rmdyn));)
+    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc_rf: %d, tenb: %d, bstart: %d, astart: %d, rm: %s\n", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenc_rf, tenb, bstart, astart, get_rounding_mode(rmdyn));)
 
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if(tenb)
