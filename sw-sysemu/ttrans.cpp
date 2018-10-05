@@ -538,7 +538,7 @@ uint32_t ttrans_fsin(uint32_t val)
     switch (val) {
       case 0xbe800000: return minusOneF32UI;
       case 0x00000000: return zeroF32UI;
-      case 0x80000000: return zeroF32UI;
+      case 0x80000000: return minusZeroF32UI;
       case 0x3e800000: return oneF32UI;
       default: break;
     }
