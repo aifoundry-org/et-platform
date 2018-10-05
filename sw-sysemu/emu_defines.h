@@ -64,6 +64,21 @@
 #define MSTATUS_MPP     11
 #define MSTATUS_SPP     8
 
+// ESR region
+#define ESR_REGION          0x0100000000ULL // ESR region
+#define ESR_REGION_MASK     0xFF00000000ULL // Address bits used to know if we are in ESR region
+#define ESR_REGION_LOCAL    0x003FC00000ULL // Address bits used to know if access is local
+#define ESR_REGION_SHIRE_SH 22              // Bits to shift to get shire destination
+#define ESR_REGION_OFFSET   0x0000400000ULL
+#define ESR_SHIRE_REGION    0x0100340000ULL
+
+// ESR Offsets
+#define ESR_SHIRE_FLB_OFFSET  0x100ULL
+#define ESR_SHIRE_FCC0_OFFSET 0x0C0ULL
+#define ESR_SHIRE_FCC1_OFFSET 0x0C8ULL
+#define ESR_SHIRE_FCC2_OFFSET 0x0D0ULL
+#define ESR_SHIRE_FCC3_OFFSET 0x0D8ULL
+
 // CSRs
 typedef enum {
     csr_prv = 0, // this is internal to HW
