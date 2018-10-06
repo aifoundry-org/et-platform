@@ -5183,133 +5183,97 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
 {
     for ( int i = 0; i < VL; i++ )
     {
-        int32_t   val1 = FREGS[src1].i[i];
-        int32_t   val2 = src2 != fnone? FREGS[src2].i[i] : 0;
-        uint32_t uval1 = FREGS[src1].u[i];
-        uint32_t uval2 = src2 != fnone ? FREGS[src2].u[i] : 0;
-        uint32_t isu   = 0;
-
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
 
-        int32_t res;
-        uint32_t ures;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
+
         switch ( opc )
         {
-            case FADDPI :   res = val1 + val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x + 0x%08x\n",i,res,val1,val2););
+            case FADDPI :   res.u = val1.u + val2.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x + 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-            case FSUBPI :   res = val1 - val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x - 0x%08x\n",i,res,val1,val2););
+            case FSUBPI :   res.u = val1.u - val2.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x - 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-            case FMULPI :   res = val1 * val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,res,val1,val2););
+            case FMULPI :   res.u = val1.u * val2.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-            case FMULHPI :  {
-                                int64_t res_full;
-                                res_full = int64_t(val1) * int64_t(val2);
-                                res = int32_t((res_full >> 32) & 0xFFFFFFFF);
-                                DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,res,val1,val2););
-                            }
+            case FMULHPI :  res.i = ((int64_t(val1.i) * int64_t(val2.i)) >> 32) & 0xFFFFFFFF;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-            case FMULHUPI : {
-                                uint64_t res_full;
-                                res_full = uint64_t(uval1) * uint64_t(uval2);
-                                ures = uint32_t((res_full >> 32) & 0xFFFFFFFF);
-                                isu = 1;
-                                DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,ures,uval1,uval2););
-                            }
+            case FMULHUPI : res.u = ((uint64_t(val1.u) * uint64_t(val2.u)) >> 32) & 0xFFFFFFFF;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-//          case FMULHSUPI: {
-//                              uint64_t res_full;
-//                              res_full = int64_t(val1) * uint64_t(uval2);
-//                              ures = uint32_t((res_full >> 32) & 0xFFFFFFFF);
-//                              isu = 1;
-//                              DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x * 0x%08x\n",i,ures,uval1,uval2););
-//                          }
-//                          break;
-            case FDIVPI :   res = val1 / val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x / 0x%08x\n",i,res,val1,val2););
+            case FDIVPI :   res.i = val1.i / val2.i;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x / 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-            case FDIVUPI :  ures = uval2 ? uval1 / uval2 : 0xFFFFFFFF;
-                            isu = 1;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%u) /u 0x%08x (%u)\n",i,ures,ures,uval1,uval1,uval2,uval2););
+            case FDIVUPI :  res.u = val2.u ? (val1.u / val2.u) : 0xFFFFFFFF;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%u) /u 0x%08x (%u)\n",i,res.u,res.u,val1.u,val1.u,val2.u,val2.u););
                             break;
-            case FREMPI  :  res = val2 ? val1 % val2 : 0xFFFFFFFF;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) %%u 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2););
+            case FREMPI  :  res.i = val2.i ? (val1.i % val2.i) : 0xFFFFFFFF;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) %% 0x%08x (%d)\n",i,res.u,res.i,val1.u,val1.i,val2.u,val2.i););
                             break;
-            case FREMUPI :  ures = uval2 ? uval1 % uval2 : 0xFFFFFFFF;
-                            isu = 1;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%u) %%u 0x%08x (%u)\n",i,ures,ures,uval1,uval1,uval2,uval2););
+            case FREMUPI :  res.u = val2.u ? (val1.u % val2.u) : 0xFFFFFFFF;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- 0x%08x (%u) %%u 0x%08x (%u)\n",i,res.u,res.u,val1.u,val1.u,val2.u,val2.u););
                             break;
-            case FMAXPI :   res = val1 >= val2 ? val1 : val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- max(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2););
+            case FMAXPI :   res.i = (val1.i >= val2.i) ? val1.i : val2.i;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- max(0x%08x (%d), 0x%08x (%d) )\n",i,res.u,res.i,val1.u,val1.i,val2.u,val2.i););
                             break;
-            case FMINPI :   res = val1 < val2 ? val1 : val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- min(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2););
+            case FMINPI :   res.i = (val1.i < val2.i) ? val1.i : val2.i;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- min(0x%08x (%d), 0x%08x (%d) )\n",i,res.u,res.i,val1.u,val1.i,val2.u,val2.i););
                             break;
-            case FMAXUPI :  res = uval1 >= uval2 ? uval1 : uval2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- max(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2););
+            case FMAXUPI :  res.u = (val1.u >= val2.u) ? val1.u : val2.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- maxu(0x%08x (%u), 0x%08x (%u) )\n",i,res.u,res.u,val1.u,val1.u,val2.u,val2.u););
                             break;
-            case FMINUPI :  res = uval1 < uval2 ? uval1 : uval2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- min(0x%08x (%d), 0x%08x (%d) )\n",i,res,res,val1,val1,val2,val2););
+            case FMINUPI :  res.u = (val1.u < val2.u) ? val1.u : val2.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%u) <-- minu(0x%08x (%u), 0x%08x (%u) )\n",i,res.u,res.u,val1.u,val1.u,val2.u,val2.u););
                             break;
-            case FANDPI :   res = val1 & val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x & 0x%08x\n",i,res,val1,val2););
+            case FANDPI :   res.u = val1.u & val2.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x & 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-            case FORPI :    res = val1 | val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x | 0x%08x\n",i,res,val1,val2););
+            case FORPI :    res.u = val1.u | val2.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x | 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-            case FXORPI :   res = val1 ^ val2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x\n",i,res,val1,val2););
+            case FXORPI :   res.u = val1.u ^ val2.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x\n",i,res.u,val1.u,val2.u););
                             break;
-            case FNOTPI :   res = ~val1;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1););
+            case FNOTPI :   res.u = ~val1.u;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res.u,val1.u););
                             break;
-            case FSAT8PI :  res = ((val1 > 127) ? 127 :(val1 < -128 ? -128 : val1)) & 0x0FF;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1););
+            case FSAT8PI :  res.i = ((val1.i > 127) ? 127 :(val1.i < -128 ? -128 : val1.i)) & 0x0FF;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- sat8(0x%08x)\n",i,res.u,val1.u););
                             break;
-            case FSATU8PI : res = ((val1 > 255) ? 255 :(val1 < 0 ? 0 : val1)) & 0x0FF;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- ~ 0x%08x\n",i,res,val1););
+            case FSATU8PI : res.u = ((val1.i > 255) ? 255u :(val1.i < 0 ? 0u : val1.u)) & 0x0FFu;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- sat8u(0x%08x)\n",i,res.u,val1.u););
                             break;
-            case FSLLPI :   if (uval2 >= 32)
-                                res = 0;
-                            else
-                                res = uval1 << uval2;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x << %d\n",i,res,val1,val2););
+            case FSLLPI :   res.u = (val2.u >= 32) ? 0 : (val1.u << val2.u);
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x << %d\n",i,res.u,val1.u,val2.u););
                             break;
-            case FSRLPI :   if (uval2 >= 32)
-                                res = 0;
-                            else
-                                res = int32_t(uint32_t(val1) >> uint32_t(uval2));
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2););
+            case FSRLPI :   res.u = (val2.u >= 32) ? 0 : (val1.u >> val2.u);
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %u\n",i,res.u,val1.u,val2.u););
                             break;
-            case FSRAPI :   if (uval2 >= 32)
-                                res = 0;
-                            else
-                                res = val1 >> uint32_t(uval2);
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2););
+            case FSRAPI :   res.u = (val2.u >= 32) ? (val1.i >> 31) : (val1.i >> val2.i);
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >>a %d\n",i,res.u,val1.u,val2.u););
                             break;
-            case FLTPI :    res = (val1 < val2) ? 0xFFFFFFFF : 0;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) < 0x%08x (%d) \n",i,res,res,val1,val1,val2,val2););
+            case FLTPI :    res.u = (val1.i < val2.i) ? 0xFFFFFFFF : 0;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) < 0x%08x (%d) \n",i,res.u,res.i,val1.u,val1.i,val2.u,val2.i););
                             break;
-            case FLTUPI :   ures = (uval1 < uval2) ? 0xFFFFFFFF : 0;
-                            isu = 1;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%u) < 0x%08x (%u) \n",i,ures,ures,uval1,uval1,uval2,uval2););
+            case FLTUPI :   res.u = (val1.u < val2.u) ? 0xFFFFFFFF : 0;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%u) < 0x%08x (%u) \n",i,res.u,res.u,val1.u,val1.u,val2.u,val2.u););
                             break;
-            case FLEPI :    res = (val1 <= val2) ? 0xFFFFFFFF : 0;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) <= 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2););
+            case FLEPI :    res.u = (val1.i <= val2.i) ? 0xFFFFFFFF : 0;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) <= 0x%08x (%d)\n",i,res.u,res.i,val1.u,val1.i,val2.u,val2.i););
                             break;
-            case FEQPI :    res = (val1 == val2) ? 0xFFFFFFFF : 0;
-                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) == 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2););
+            case FEQPI :    res.u = (val1.u == val2.u) ? 0xFFFFFFFF : 0;
+                            DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) == 0x%08x (%d)\n",i,res.u,res.i,val1.u,val1.i,val2.u,val2.i););
                             break;
             default:        assert(0);
                             break;
         }
-        if ( isu )
-            FREGS[dst].u[i] = ures;
-        else
-            FREGS[dst].i[i] = res;
+        FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
     logfregchange(dst);
@@ -5323,37 +5287,37 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
 
-        int32_t val1 = FREGS[src1].i[i];
-        int32_t val2 = sext10(imm); // sign extend the 10-low order bits of imm
-        int32_t res;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = sext10(imm); // sign extend the 10-low order bits of imm
 
         switch ( opc )
         {
-            case FADDIPI: res = val1 + val2;
-                          DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) + 0x%08x (%d)\n",i,res,res,val1,val1,val2,val2););
+            case FADDIPI: res.u = val1.u + val2.u;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x (%d) <-- 0x%08x (%d) + 0x%08x (%d)\n",i,res.u,res.i,val1.u,val1.i,val2.u,val2.i););
                           break;
-            case FANDIPI: res = val1 & val2;
-                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x & 0x%08x\n",i,res,val1,val2););
+            case FANDIPI: res.u = val1.u & val2.u;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x & 0x%08x\n",i,res.u,val1.u,val2.u););
                           break;
-            case FORIPI:  res = val1 | val2;
-                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x | 0x%08x\n",i,res,val1,val2););
+            case FORIPI:  res.u = val1.u | val2.u;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x | 0x%08x\n",i,res.u,val1.u,val2.u););
                           break;
-            case FXORIPI: res = val1 ^ val2;
-                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x\n",i,res,val1,val2););
+            case FXORIPI: res.u = val1.u ^ val2.u;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x\n",i,res.u,val1.u,val2.u););
                           break;
-            case FSLLIPI: res = val1 << val2;
-                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x << %d\n",i,res,val1,val2););
+            case FSLLIPI: res.u = val1.u << val2.u;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x << %d\n",i,res.u,val1.u,val2.u););
                           break;
-            case FSRLIPI: res = int32_t(uint32_t(val1) >> uint32_t(val2));
-                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2););
+            case FSRLIPI: res.u = val1.u >> val2.u;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %u\n",i,res.u,val1.u,val2.u););
                           break;
-            case FSRAIPI: res = val1 >> val2;
-                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >> %d\n",i,res,val1,val2););
+            case FSRAIPI: res.i = val1.i >> val2.i;
+                          DEBUG_EMU(gprintf("\t[%d] 0x%08x <-- 0x%08x >>a %u\n",i,res.u,val1.u,val2.u););
                           break;
             default:      assert(0);
                           break;
         }
-        FREGS[dst].i[i] = res;
+        FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
     logfregchange(dst);
