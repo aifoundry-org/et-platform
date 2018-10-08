@@ -22,7 +22,7 @@ static TBOXEmu tbox_emulator;
 
 void init_txs(uint64_t imgTableAddr)
 {
-    DEBUG_EMU(gprintf("Setting Image Table Address = %016llx\n", imgTableAddr); )
+    DEBUG_EMU(gprintf("Setting Image Table Address = %016llx\n", imgTableAddr); );
  
     tbox_emulator.set_image_table_address(imgTableAddr);
 
@@ -34,7 +34,7 @@ void init_txs(uint64_t imgTableAddr)
 
 void texsndh(xreg src1, xreg src2, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsndh x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:""));)
+    DISASM(gsprintf(dis,"I: texsndh x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_header = false;
@@ -45,8 +45,8 @@ void texsndh(xreg src1, xreg src2, const char* comm)
     if (send_header)
     {
         tbox_emulator.set_request_header(current_thread, XREGS[src1].x, XREGS[src2].x);
-        DEBUG_EMU(gprintf("\tSample request %016llx %016llx\n", XREGS[src1].x, XREGS[src2].x); )
-        DEBUG_EMU(gprintf("\t"); tbox_emulator.print_sample_request(current_thread); )
+        DEBUG_EMU(gprintf("\tSample request %016llx %016llx\n", XREGS[src1].x, XREGS[src2].x); );
+        DEBUG_EMU(gprintf("\t"); tbox_emulator.print_sample_request(current_thread); );
         tbox_emulator.set_request_pending(current_thread, true);
     }
 
@@ -55,7 +55,7 @@ void texsndh(xreg src1, xreg src2, const char* comm)
 
 void texsnds(freg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsnds f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));)
+    DISASM(gsprintf(dis,"I: texsnds f%d%s%s", src1, (comm?" # ":""), (comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -67,10 +67,10 @@ void texsnds(freg src1, const char* comm)
     {
         tbox_emulator.set_request_coordinates(current_thread, 0, FREGS[src1]);
 
-        DEBUG_EMU( gprintf("\t Set *s* texture coordinates from f%d\n", src1); )
+        DEBUG_EMU( gprintf("\t Set *s* texture coordinates from f%d\n", src1); );
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
-            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); )
+            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); );
         }
     }
 
@@ -79,7 +79,7 @@ void texsnds(freg src1, const char* comm)
 
 void texsndt(freg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsndt f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));)
+    DISASM(gsprintf(dis,"I: texsndt f%d%s%s", src1, (comm?" # ":""), (comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -91,10 +91,10 @@ void texsndt(freg src1, const char* comm)
     {
         tbox_emulator.set_request_coordinates(current_thread, 1, FREGS[src1]);
 
-        DEBUG_EMU( gprintf("\t Set *t* texture coordinates from f%d\n", src1); )
+        DEBUG_EMU( gprintf("\t Set *t* texture coordinates from f%d\n", src1); );
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
-            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); )
+            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); );
         }
     }
 
@@ -103,7 +103,7 @@ void texsndt(freg src1, const char* comm)
 
 void texsndr(freg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsndr f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));)
+    DISASM(gsprintf(dis,"I: texsndr f%d%s%s", src1, (comm?" # ":""), (comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool send_coordinate = false;
@@ -115,10 +115,10 @@ void texsndr(freg src1, const char* comm)
     {
         tbox_emulator.set_request_coordinates(current_thread, 2, FREGS[src1]);
 
-        DEBUG_EMU( gprintf("\t Set *r* texture coordinates from f%d\n", src1); )
+        DEBUG_EMU( gprintf("\t Set *r* texture coordinates from f%d\n", src1); );
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
-            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); )
+            DEBUG_EMU( gprintf("\t[%d] 0x%08x (%f)\n", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c])); );
         }
     }
 
@@ -127,7 +127,7 @@ void texsndr(freg src1, const char* comm)
 
 void texrcv(freg dst, const uint32_t idx, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texrcv f%d, 0x%x%s%s", dst, idx, (comm?" # ":""), (comm?comm:""));)
+    DISASM(gsprintf(dis,"I: texrcv f%d, 0x%x%s%s", dst, idx, (comm?" # ":""), (comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
 
     bool sample = false;
@@ -156,8 +156,8 @@ void texrcv(freg dst, const uint32_t idx, const char* comm)
         // Print as float16?
         iufval32 tmp;
         tmp.f = fpu::f16_to_f32(cast_uint16_to_float16(data.h[c * 2]));
-        DEBUG_EMU(gprintf("\t[%d] 0x%04x (%g) FP16 <-\n", c, FREGS[dst].h[c*2], cast_uint32_to_float(tmp.u));)
-        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) FP32 <-\n", c, FREGS[dst].u[c], cast_uint32_to_float(FREGS[dst].u[c]));)
+        DEBUG_EMU(gprintf("\t[%d] 0x%04x (%g) FP16 <-\n", c, FREGS[dst].h[c*2], cast_uint32_to_float(tmp.u)););
+        DEBUG_EMU(gprintf("\t[%d] 0x%08x (%g) FP32 <-\n", c, FREGS[dst].u[c], cast_uint32_to_float(FREGS[dst].u[c])););
     }
 
     logfregchange(dst);
@@ -169,7 +169,7 @@ void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleReque
     uint64_t base_copy = tbox_emulator.get_image_table_address();
     if ( base_copy != basePtr )
     {
-        DEBUG_EMU(gprintf("WARNING!!! changing image table address from %llx to %llx by checker request.\n", base_copy, basePtr);)
+        DEBUG_EMU(gprintf("WARNING!!! changing image table address from %llx to %llx by checker request.\n", base_copy, basePtr););
         tbox_emulator.set_image_table_address(basePtr);
     }
 
