@@ -386,6 +386,14 @@ static const emu_ptr_hash_t pointer_cache({
     {"famoming_ps",    func_ptr(famoming_ps)},
     {"famomaxg_ps",    func_ptr(famomaxg_ps)},
 
+    // {"flwl_ps",        func_ptr(flwl_ps)},
+    // {"fswl_ps",        func_ptr(fswl_ps)},
+    // {"fgwl_ps",        func_ptr(fgwl_ps)},
+    // {"fscwl_ps",       func_ptr(fscwl_ps)},
+    // {"flwg_ps",        func_ptr(flwg_ps)},
+    // {"fswg_ps",        func_ptr(fswg_ps)},
+    // {"fgwg_ps",        func_ptr(fgwg_ps)},
+    // {"fscwg_ps",       func_ptr(fscwg_ps)},
 // ----- Esperanto cache control extension -------------------------------------
 // ----- Esperanto messaging extension -----------------------------------------
 // ----- Esperanto tensor extension --------------------------------------------
