@@ -44,7 +44,7 @@ libemu_clean:
 
 .PHONY: clean
 clean: libemu_clean
-	$(RM) sys_emu $(OBJS) $(DEPS)
+	$(RM) sys_emu *.o *.d
 
 trace.o: $(SGPU)/src/trace.cpp
 	$(COMPILE.cpp) -DSYS_EMU $(OUTPUT_OPTION) $<
