@@ -530,6 +530,15 @@ extern void famomaxug_pi (freg dst, freg src1, xreg src2, const char* comm = 0);
 extern void famoming_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
 extern void famomaxg_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
 
+// extern void flwl_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fswl_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fgwl_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fscwl_ps     (freg dst, xreg src1, const char* comm = 0);
+// extern void flwg_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fswg_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fgwg_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fscwg_ps     (freg dst, xreg src1, const char* comm = 0);
+
 // ----- Esperanto cache control extension -------------------------------------
 
 // ----- Esperanto messaging extension -----------------------------------------
