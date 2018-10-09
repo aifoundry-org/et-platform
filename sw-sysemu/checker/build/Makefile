@@ -45,7 +45,7 @@ libemu_clean:
 clean: libemu_clean
 	$(RM) sys_emu *.o *.d
 
-libchecker.so: $(OBJS) | libemu
+libchecker.so: $(OBJS) | libemu_all
 	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 -include $(DEPS)
