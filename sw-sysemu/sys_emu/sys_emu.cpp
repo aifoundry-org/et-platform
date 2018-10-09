@@ -199,7 +199,7 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc file> [-net_desc file] [-minions mask] [-shires mask] [-dump_file file_name <-dump_addr address> <-dump_size size>] [-l [-lm minion]] [-m] [-rbox]\n\n\
+     sys_emu <-mem_desc file> [-net_desc file] [-minions mask] [-shires mask] [-dump_file file_name <-dump_addr address> <-dump_size size>] [-l [-lm minion]] [-m] [-rbox] [-reset_pc XXX] \n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
  -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
@@ -211,6 +211,7 @@ static const char * help_msg =
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -rbox        Enable RBOX emulation\n\n\
+ -reset_pc    Sets boot program counter (default 0x1000) \
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -239,6 +240,8 @@ int main(int argc, char * argv[])
     uint64_t minions_en  = 1;
     uint64_t shires_en   = 1;
     bool use_rbox        = false;
+    uint64_t reset_pc    = 0x1000;
+    bool reset_pc_flag   = false;
 
     bzero(rbox, sizeof(rbox));
 
@@ -263,6 +266,11 @@ int main(int argc, char * argv[])
         {
             sscanf(argv[i], "%" PRIx64, &shires_en);
             shires = 0;
+        }
+        else if(reset_pc_flag) 
+        {
+          sscanf(argv[i], "%" PRIx64, &reset_pc);
+          reset_pc_flag = false;
         }
         else if(dump == 1)
         {
@@ -299,6 +307,10 @@ int main(int argc, char * argv[])
         else if(strcmp(argv[i], "-shires") == 0)
         {
             shires = true;
+        }
+        else if(strcmp(argv[i], "-reset_pc") == 0)
+        {
+            reset_pc_flag = true;
         }
         else if(strcmp(argv[i], "-dump_addr") == 0)
         {
@@ -384,8 +396,8 @@ int main(int argc, char * argv[])
     // initialize rboxes-----------------------------------
     if (use_rbox){
       for (int i = 0 ; i < 64; i++)
-        rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data_);
-      set_msg_port_data_func(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
+        rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data);
+      set_msg_port_data_funcs(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
     }
 
     // Generates the mask of enabled minions
@@ -407,7 +419,7 @@ int main(int argc, char * argv[])
           for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
              thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
              if (dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
-             current_pc[thread_id] = RESET_PC;
+             current_pc[thread_id] = reset_pc;
              reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
              set_thread(thread_id);
              init(x0, 0);

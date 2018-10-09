@@ -51,7 +51,7 @@ all: libemu.so
 
 .PHONY: clean
 clean:
-	$(RM) libemu.so $(OBJS) $(DEPS)
+	$(RM) libemu.so *.o *.d
 
 testLog.o: $(TESTROOT)/libs/testLog.cc
 	$(COMPILE.cc) -DCHECKER $(OUTPUT_OPTION) $<

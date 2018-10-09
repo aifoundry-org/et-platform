@@ -16,22 +16,20 @@
 
 #ifdef DISASM
 #undef DISASM
-#define DISASM(a) { a }
+#define DISASM(a) do { a } while (0)
 #else
-#define DISASM(a)
+#define DISASM(a) do { } while (0)
 #endif
 
 // Used to access different threads transparently
 #define XREGS xregs[current_thread]
 #define FREGS fregs[current_thread]
 #define MREGS mregs[current_thread]
-#define SCP   scp[current_thread]
 
 // Processor state
 extern xdata xregs[EMU_NUM_THREADS][32];
 extern fdata fregs[EMU_NUM_THREADS][32];
 extern mdata mregs[EMU_NUM_THREADS][8];
-extern fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS][L1_SCP_BLOCKS];
 
 // Processor configuration
 extern uint8_t in_sysemu;
@@ -532,13 +530,22 @@ extern void famomaxug_pi (freg dst, freg src1, xreg src2, const char* comm = 0);
 extern void famoming_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
 extern void famomaxg_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
 
+// extern void flwl_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fswl_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fgwl_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fscwl_ps     (freg dst, xreg src1, const char* comm = 0);
+// extern void flwg_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fswg_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fgwg_ps      (freg dst, xreg src1, const char* comm = 0);
+// extern void fscwg_ps     (freg dst, xreg src1, const char* comm = 0);
+
 // ----- Esperanto cache control extension -------------------------------------
 
 // ----- Esperanto messaging extension -----------------------------------------
 
-extern void set_msg_port_data_func(void* f, void *g, void *h);
+extern void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata);
 extern bool get_msg_port_stall(uint32_t thread, uint32_t id);
-extern void write_msg_port_data_(uint32_t thread, uint32_t port_id, uint32_t *data);
+extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data);
 extern void update_msg_port_data();
 
 // ----- Esperanto tensor extension --------------------------------------------

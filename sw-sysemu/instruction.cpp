@@ -386,6 +386,14 @@ static const emu_ptr_hash_t pointer_cache({
     {"famoming_ps",    func_ptr(famoming_ps)},
     {"famomaxg_ps",    func_ptr(famomaxg_ps)},
 
+    // {"flwl_ps",        func_ptr(flwl_ps)},
+    // {"fswl_ps",        func_ptr(fswl_ps)},
+    // {"fgwl_ps",        func_ptr(fgwl_ps)},
+    // {"fscwl_ps",       func_ptr(fscwl_ps)},
+    // {"flwg_ps",        func_ptr(flwg_ps)},
+    // {"fswg_ps",        func_ptr(fswg_ps)},
+    // {"fgwg_ps",        func_ptr(fgwg_ps)},
+    // {"fscwg_ps",       func_ptr(fscwg_ps)},
 // ----- Esperanto cache control extension -------------------------------------
 // ----- Esperanto messaging extension -----------------------------------------
 // ----- Esperanto tensor extension --------------------------------------------
@@ -1007,10 +1015,10 @@ void instruction::add_parameter(std::string param)
     else if (param == "portctrl1")        params[num_params] = csr_portctrl1;
     else if (param == "portctrl2")        params[num_params] = csr_portctrl2;
     else if (param == "portctrl3")        params[num_params] = csr_portctrl3;
-    else if (param == "smsg_port0")       params[num_params] = csr_smsg_port0; //TODO remove
-    else if (param == "smsg_port1")       params[num_params] = csr_smsg_port1; //TODO remove
-    else if (param == "smsg_port2")       params[num_params] = csr_smsg_port2; //TODO remove
-    else if (param == "smsg_port3")       params[num_params] = csr_smsg_port3; //TODO remove
+    else if (param == "smsg_port0")       params[num_params] = csr_portctrl0; //TODO remove
+    else if (param == "smsg_port1")       params[num_params] = csr_portctrl1; //TODO remove
+    else if (param == "smsg_port2")       params[num_params] = csr_portctrl2; //TODO remove
+    else if (param == "smsg_port3")       params[num_params] = csr_portctrl3; //TODO remove
     else if (param == "icache_ctrl")      params[num_params] = csr_icache_ctrl;
     else if (param == "write_ctrl")       params[num_params] = csr_write_ctrl;
     else if (param == "minstmask")        params[num_params] = csr_minstmask;

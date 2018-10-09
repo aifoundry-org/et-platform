@@ -33,16 +33,19 @@ endif
 .PHONY: all
 all: libchecker.so
 
-.PHONY: libemu
-libemu:
+.PHONY: libemu_all
+libemu_all:
 	$(MAKE) -C $(BEMU)/build all
 
-.PHONY: clean
-clean:
-	$(RM) libchecker.so $(OBJS) $(DEPS)
+.PHONY: libemu_clean
+libemu_clean:
 	$(MAKE) -C $(BEMU)/build clean
 
-libchecker.so: $(OBJS) | libemu
+.PHONY: clean
+clean: libemu_clean
+	$(RM) sys_emu *.o *.d
+
+libchecker.so: $(OBJS) | libemu_all
 	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 -include $(DEPS)
