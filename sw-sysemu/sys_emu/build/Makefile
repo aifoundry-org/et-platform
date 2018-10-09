@@ -34,19 +34,22 @@ LDLIBS   := -lboost_regex -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
 .PHONY: all
 all: sys_emu
 
-.PHONY: libemu
-libemu:
+.PHONY: libemu_all
+libemu_all:
 	$(MAKE) -C $(BEMU)/build all
 
-.PHONY: clean
-clean:
-	$(RM) sys_emu $(OBJS) $(DEPS)
+.PHONY: libemu_clean
+libemu_clean:
 	$(MAKE) -C $(BEMU)/build clean
+
+.PHONY: clean
+clean: libemu_clean
+	$(RM) sys_emu $(OBJS) $(DEPS)
 
 trace.o: $(SGPU)/src/trace.cpp
 	$(COMPILE.cpp) -DSYS_EMU $(OUTPUT_OPTION) $<
 
-sys_emu: $(OBJS) | libemu
+sys_emu: $(OBJS) | libemu_all
 	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 -include $(DEPS)

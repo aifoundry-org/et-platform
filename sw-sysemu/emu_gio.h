@@ -5,14 +5,14 @@
 
 #ifdef DEBUG_EMU
 #undef DEBUG_EMU
-#define DEBUG_EMU(a) if ( print_debug ) { a }
+#define DEBUG_EMU(a) do { if (print_debug) { a } } while (0)
 #else
-#define DEBUG_EMU(a)
+#define DEBUG_EMU(a) do { } while (0)
 #endif
 
 #ifdef DEBUG_MASK
 #undef DEBUG_MASK
-#define DEBUG_MASK(_MR) DEBUG_EMU(gprintf("\tmask = 0x%02x\n",MASK2BYTE(_MR));)
+#define DEBUG_MASK(_MR) DEBUG_EMU(gprintf("\tmask = 0x%02x\n",MASK2BYTE(_MR)););
 #else
 #define DEBUG_MASK(a)
 #endif
