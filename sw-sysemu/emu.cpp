@@ -90,7 +90,7 @@ void init_emu(int debug, int fakesam)
 static uint64_t csrget(csr src1);
 static void csrset(csr src1, uint64_t val);
 static void tmask_conv();
-static void tcoop();
+static void tcoop(uint64_t value);
 static void tensorload(uint64_t control);
 static void tensorstore(uint64_t tstorereg);
 static void tensorfma(uint64_t tfmareg);
@@ -2125,14 +2125,25 @@ static uint64_t csrget(csr src1)
             val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
             break;
         // ----- Tensor, barrier, cacheop instructions -------------------
-        case csr_treduce:
-        case csr_tfmastart:
         case csr_tloadctrl:
+        case csr_tloadl2ctrl:
+        case csr_tcoop:
+        case csr_tfmastart:
+        case csr_treduce:
         case csr_tstore:
+        case csr_twait:
         case csr_flbarrier:
         case csr_fccounter:
         case csr_ucacheop:
+        case csr_evict_va:
+        case csr_flush_va:
+        case csr_lock_va:
+        case csr_unlock_va:
+        case csr_prefetch_va:
         case csr_scacheop:
+        case csr_evict_sw:
+        case csr_flush_sw:
+        case csr_flush_icache:
             val = 0;
             break;
         // ----- All other registers -------------------------------------
@@ -2204,8 +2215,8 @@ static void csrset(csr src1, uint64_t val)
             tmask_conv();
             break;
         case csr_tcoop:
-            csrregs[current_thread][src1] = val;
-            tcoop();
+            val &= 0x0000000000FFFFFFULL;
+            tcoop(val);
             break;
         case csr_tfmastart:
             tensorfma(val);
@@ -2221,7 +2232,6 @@ static void csrset(csr src1, uint64_t val)
         case csr_evict_va:
         case csr_flush_va:
             val &= 0x8C00FFFFFFFFFFCFULL;
-            csrregs[current_thread][src1] = val;
             {
                 bool     tm     = (val & 0x8000000000000000ULL);
                 int      dest   = (val >> 58) & 0x03;
@@ -2234,7 +2244,6 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_lock_va:
             val &= 0xFF80FFFFFFFFFFCFULL;
-            csrregs[current_thread][src1] = val;
             {
                 bool     tm     = (val & 0x8000000000000000ULL);
                 int      way    = (val >> 55) & 0xFF;
@@ -2247,7 +2256,6 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_unlock_va:
             val &= 0xC000FFFFFFFFFFCFULL;
-            csrregs[current_thread][src1] = val;
             {
                 bool     tm     = (val & 0x8000000000000000ULL);
                 bool     valid  = (val >> 55) & 0xFF;
@@ -2260,7 +2268,6 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_prefetch_va:
             val &= 0x8C00FFFFFFFFFFCFULL;
-            csrregs[current_thread][src1] = val;
             {
                 bool tm         = (val & 0x8000000000000000ULL);
                 int  dest       = (val >> 58) & 0x03;
@@ -2333,7 +2340,6 @@ static void csrset(csr src1, uint64_t val)
         case csr_evict_sw:
         case csr_flush_sw:
             val &= 0x8C0000000003C0CFULL;
-            csrregs[current_thread][src1] = val;
             {
                 bool tm    = (val & 0x8000000000000000ULL);
                 int  dest  = (val >> 58) & 0x03;
@@ -6445,16 +6451,13 @@ static void tmask_conv()
     csrset(csr_tmask, tmask_value);
 }
 
-static void tcoop()
+static void tcoop(uint64_t value)
 {
-    uint64_t tcoopreg         = csrget(csr_tcoop);
-
-    uint64_t warl                 = (tcoopreg >> 24) & 0xFFFFFFFFFF;
-    uint64_t timeout              = (tcoopreg >> 16) & 0x1FF;
-    uint64_t coop_mask            = (tcoopreg >> 8) & 0xFF;
-    uint64_t coop_id              = (tcoopreg >> 0) & 0xFF;
-    //TODO implement functionality checking the addresses and tcoop of every use of Tensor Load
-    DEBUG_EMU(gprintf("\tSetting Tensor Cooperation:  Warl [%040X] . Timeout %d . Coop Mask %08X . Coop ID : %d\n",warl, timeout , coop_mask ,coop_id  ););
+    int     timeout   = (value >> 16) & 0x1FF;
+    uint8_t coop_mask = (value >>  8) & 0xFF;
+    int     coop_id   = (value >>  0) & 0xFF;
+    // TODO: implement functionality checking the addresses and tcoop of every use of Tensor Load
+    DEBUG_EMU(gprintf("\tSetting Tensor Cooperation:  Timeout %d. Coop Mask %02X. Coop ID: %d\n",timeout,coop_mask,coop_id););
 }
 
 // ----- TensorLoad emulation --------------------------------------------------
