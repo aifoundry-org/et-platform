@@ -396,8 +396,8 @@ int main(int argc, char * argv[])
     // initialize rboxes-----------------------------------
     if (use_rbox){
       for (int i = 0 ; i < 64; i++)
-        rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data_);
-      set_msg_port_data_func(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
+        rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data);
+      set_msg_port_data_funcs(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
     }
 
     // Generates the mask of enabled minions

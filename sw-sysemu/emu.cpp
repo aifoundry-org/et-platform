@@ -22,6 +22,10 @@
 #define L1D_NUM_WAYS  4
 #define L1D_LINE_SIZE 64
 
+// MsgPort defines
+#define PORT_LOG2_MIN_SIZE   2
+#define PORT_LOG2_MAX_SIZE   6
+
 // Scratchpad defines
 #define L1_ENTRIES        (L1D_NUM_SETS * L1D_NUM_WAYS)
 #define L1_SCP_ENTRIES    48
@@ -56,7 +60,6 @@ int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
-int32_t msg_ports_pending_offset[EMU_NUM_THREADS][NR_MSG_PORTS];
 
 // Used to access different threads transparently
 #define SCP   scp[current_thread]
@@ -93,12 +96,11 @@ static void tensorstore(uint64_t tstorereg);
 static void tensorfma(uint64_t tfmareg);
 static void tensorreduce(uint64_t value);
 static uint64_t csr_cacheop_emu(uint64_t op_value);
-static uint64_t port_get(uint32_t id);
-static uint64_t port_get_nb(uint32_t id);
+static int64_t port_get(uint32_t id, bool block);
 static void configure_port(uint32_t id, uint64_t wdata);
 static uint64_t flbarrier(uint64_t value);
 // TODO: remove old msg port spec
-static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode);
+static int64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -383,12 +385,10 @@ void initcsr(uint32_t thread)
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
 
     // Ports
-    if (thread == 0)
+    for (int i = 0; i < NR_MSG_PORTS; ++i)
     {
-        assert(sizeof(msg_ports) >= EMU_NUM_THREADS*NR_MSG_PORTS*sizeof(msg_port_conf));
-        assert(sizeof(msg_ports_pending_offset) >= EMU_NUM_THREADS*NR_MSG_PORTS*sizeof(int32_t));
-        bzero(msg_ports, sizeof(msg_ports));
-        memset(msg_ports_pending_offset, 0xFF, sizeof(msg_ports_pending_offset));
+        memset(&msg_ports[thread][i], 0, sizeof(msg_port_conf));
+        msg_ports[thread][i].offset = -1;
     }
     csrregs[thread][csr_portctrl0] = 0x0000000000008000ULL;
     csrregs[thread][csr_portctrl1] = 0x0000000000008000ULL;
@@ -2099,7 +2099,7 @@ static uint64_t csrget(csr src1)
             {
                throw trap_illegal_instruction(current_inst);
             }
-            val = port_get(src1 - csr_porthead0);
+            val = port_get(src1 - csr_porthead0, true);
             break;
         case csr_portheadnb0:
         case csr_portheadnb1:
@@ -2111,7 +2111,7 @@ static uint64_t csrget(csr src1)
             {
                throw trap_illegal_instruction(current_inst);
             }
-            val = port_get_nb(src1 - csr_portheadnb0);
+            val = port_get(src1 - csr_portheadnb0, false);
             break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
@@ -6212,44 +6212,30 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 // setup functions to retrieve data written to port and to query if there is
 // data available from RTL
 
-typedef uint32_t (*func_ret_msg_port_data_t)  (uint32_t, uint32_t, uint32_t);
-typedef bool (*func_query_msg_port_data_t)  (uint32_t, uint32_t);
-typedef void (*func_msg_port_data_request_t) (uint32_t, uint32_t);
+typedef uint32_t (*func_get_msg_port_data_t) (uint32_t, uint32_t, uint32_t);
+typedef bool     (*func_msg_port_has_data_t) (uint32_t, uint32_t);
+typedef void     (*func_req_msg_port_data_t) (uint32_t, uint32_t);
 
-static func_ret_msg_port_data_t     retrieve_msg_port_data = NULL;
-static func_query_msg_port_data_t   query_msg_port_data    = NULL;
-static func_msg_port_data_request_t newMsgPortDataRequest  = NULL;
+static func_get_msg_port_data_t   get_msg_port_data = NULL;
+static func_msg_port_has_data_t   msg_port_has_data = NULL;
+static func_req_msg_port_data_t   req_msg_port_data = NULL;
 
-// get data from RTL and write into scratchpad
-static uint64_t get_msg_port_offset(uint32_t id)
+void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata)
 {
-    uint32_t offset = msg_ports[current_thread][id].rd_ptr << msg_ports[current_thread][id].logsize;
-    msg_ports[current_thread][id].rd_ptr++;
-    msg_ports[current_thread][id].rd_ptr %= (msg_ports[current_thread][id].max_msgs + 1);
-    msg_ports_pending_offset[current_thread][id] = offset;
-    if (in_sysemu == 1)
-    {
-        if (newMsgPortDataRequest == NULL)
-        {
-            gprintf("id = %d, offset = %d, current_thread = %d\n", id, offset, current_thread);
-            gprintf("ERROR: newMsgPortDataRequest == NULL\n");
-            exit(-1);
-        }
-        newMsgPortDataRequest(current_thread, id);
-    }
-    return offset;
+    get_msg_port_data = func_get_msg_port_data_t(getdata),
+    msg_port_has_data = func_msg_port_has_data_t(hasdata);
+    req_msg_port_data = func_req_msg_port_data_t(reqdata);
 }
 
-static void write_msg_port_data(uint32_t thread, uint32_t id)
+static void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
 {
-    if ( retrieve_msg_port_data != NULL)
+    if (get_msg_port_data != NULL)
     {
-        int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
-        uint32_t *data = new uint32_t [wr_words];
+        int wr_words = 1 << (msg_ports[thread][id].logsize-2);
         for (int i = 0; i < wr_words; i++)
-            data[i] =  retrieve_msg_port_data ( thread, id, i );
-        write_msg_port_data_(thread, id, data);
-        delete [] data;
+        {
+            data[i] = get_msg_port_data(thread, id, i);
+        }
     }
     else
     {
@@ -6258,60 +6244,107 @@ static void write_msg_port_data(uint32_t thread, uint32_t id)
     }
 }
 
-static uint64_t port_get(uint32_t id)
+void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
 {
-   if ((prvget() == CSR_PRV_U) && (msg_ports[current_thread][id].umode == false))
-      throw trap_illegal_instruction(current_inst);
-
-   if (in_sysemu == 1 && query_msg_port_data(current_thread, id) == 0)
-   {
-      msg_ports[current_thread][id].stall = true;
-      return 0;
-   }
-   return get_msg_port_offset(id);
+    uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
+    base_addr += msg_ports[thread][id].offset;
+    msg_ports[thread][id].offset = -1;
+    int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
+    for (int i = 0; i < wr_words; i++)
+    {
+        DEBUG_EMU(gprintf("Writing MSG_PORT (m%d p%d) data %08X to addr %016llX\n", thread, id, data[i], base_addr + 4 * i););
+        vmemwrite32(base_addr + 4 * i, data[i]);
+    }
 }
 
-static uint64_t port_get_nb(uint32_t id)
+bool get_msg_port_stall(uint32_t thread, uint32_t id)
 {
-   if ((csrregs[current_thread][csr_prv] == CSR_PRV_U) && (msg_ports[current_thread][id].umode == false))
-      throw trap_illegal_instruction(current_inst);
-
-   if (query_msg_port_data(current_thread, id))
-      return get_msg_port_offset(id);
-
-   return -1;
+    return msg_ports[thread][id].stall;
 }
 
+void update_msg_port_data()
+{
+    for (int id = 0 ; id < NR_MSG_PORTS; id ++)
+    {
+        if (msg_ports[current_thread][id].offset < 0 )
+            continue;
+        uint32_t data[1<<(PORT_LOG2_MAX_SIZE-2)];
+        read_msg_port_data(current_thread, id, data);
+        write_msg_port_data(current_thread, id, data);
+    }
+}
+
+static int64_t port_get(uint32_t id, bool block)
+{
+    if (((prvget() == CSR_PRV_U) && !msg_ports[current_thread][id].umode) || !msg_ports[current_thread][id].enabled)
+    {
+        throw trap_illegal_instruction(current_inst);
+    }
+
+    if (!msg_port_has_data(current_thread, id))
+    {
+        if (!block)
+            return -1;
+
+        if (in_sysemu)
+        {
+            // if in sysemu stop thread if no data for port.. comparing rd_ptr and wr_ptr
+            DEBUG_EMU(gprintf("Stalling MSG_PORT (m%d p%d)\n", current_thread, id););
+            msg_ports[current_thread][id].stall = true;
+            return 0;
+        }
+    }
+
+    int32_t offset = msg_ports[current_thread][id].rd_ptr << msg_ports[current_thread][id].logsize;
+    msg_ports[current_thread][id].offset = offset;
+    if (++msg_ports[current_thread][id].rd_ptr > msg_ports[current_thread][id].max_msgs)
+    {
+        msg_ports[current_thread][id].rd_ptr = 0;
+    }
+    //DEBUG_EMU(gprintf("Reading MSG_PORT%s (m%d p%d) offset %d, rd_ptr=%d\n", block ? "" : "NB", current_thread, id, offset, msg_ports[current_thread][id].rd_ptr););
+    if (in_sysemu)
+    {
+        if (req_msg_port_data == NULL)
+        {
+            gprintf("id = %d, offset = %d, current_thread = %d\n", id, offset, current_thread);
+            gprintf("ERROR: req_msg_port_data == NULL\n");
+            exit(-1);
+        }
+        req_msg_port_data(current_thread, id);
+    }
+    return offset;
+}
 
 static void configure_port(uint32_t id, uint64_t wdata)
 {
-   if (   (((wdata >> 16) & 0xFF) > (num_sets - 1))  // Illegal Set
-       || (((wdata >> 24) & 0xFF) > (num_ways - 1))  // Illegal Way
-       || (((wdata >> 5)  & 0x7)  > 6))              // Illegal Message size
-   {
-      throw trap_illegal_instruction(current_inst);
-   }
+    int scp_set = (wdata >> 16) & 0xFF;
+    int scp_way = (wdata >> 24) & 0xFF;
+    int logsize = (wdata >> 5)  & 0x07;
 
-   msg_ports[current_thread][id].enabled    = wdata & 0x1;
-   msg_ports[current_thread][id].enable_oob = (wdata >> 1)  & 0x1;
-   msg_ports[current_thread][id].umode      = (wdata >> 4)  & 0x1;
-   msg_ports[current_thread][id].logsize    = (wdata >> 5)  & 0x7;
-   msg_ports[current_thread][id].max_msgs   = (wdata >> 8)  & 0xF;
-   msg_ports[current_thread][id].use_scp    = (wdata >> 15) & 0x1;
-   msg_ports[current_thread][id].scp_set    = (wdata >> 16) & 0xFF;
-   msg_ports[current_thread][id].scp_way    = (wdata >> 24) & 0x3;
-   msg_ports[current_thread][id].rd_ptr     = 0;
-   msg_ports[current_thread][id].wr_ptr     = 0;
-   msg_ports[current_thread][id].stall      = false;
+    if ((scp_set >= L1D_NUM_SETS) || (scp_way >= L1D_NUM_WAYS) ||
+        (logsize < PORT_LOG2_MIN_SIZE) || (logsize > PORT_LOG2_MAX_SIZE))
+    {
+        throw trap_illegal_instruction(current_inst);
+    }
+
+    msg_ports[current_thread][id].enabled    = wdata & 0x1;
+    msg_ports[current_thread][id].stall      = false;
+    msg_ports[current_thread][id].umode      = (wdata >> 4)  & 0x1;
+    msg_ports[current_thread][id].use_scp    = true;
+    msg_ports[current_thread][id].enable_oob = (wdata >> 1)  & 0x1;
+    msg_ports[current_thread][id].logsize    = logsize;
+    msg_ports[current_thread][id].max_msgs   = (wdata >> 8)  & 0xF;
+    msg_ports[current_thread][id].scp_set    = scp_set;
+    msg_ports[current_thread][id].scp_way    = scp_way;
+    msg_ports[current_thread][id].rd_ptr     = 0;
+    msg_ports[current_thread][id].wr_ptr     = 0;
+    msg_ports[current_thread][id].offset     = -1;
 }
 
 // TODO: remove old msg port spec
-static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
+static int64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
 {
-    // FIXME: Raise "illegal instruction" exception if:
-    //   * we are in U-mode and port[id].umode is 0.
-    //   * we do MSG_PGET(NB) and port[id].enabled is 0.
-    msg_port_conf_action action =  (msg_port_conf_action) (wdata & 0xF);
+    msg_port_conf_action action = msg_port_conf_action(wdata & 0xF);
     switch (action)
     {
         case MSG_ENABLE:
@@ -6326,61 +6359,18 @@ static uint64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
             msg_ports[current_thread][id].enable_oob = (((wdata >> 32) & 0x1) != 0);
             msg_ports[current_thread][id].rd_ptr = 0;
             msg_ports[current_thread][id].wr_ptr = 0;
+            msg_ports[current_thread][id].offset = -1;
             return 0;
         case MSG_DISABLE:
             msg_ports[current_thread][id].enabled = false;
             return 0;
         case MSG_PGET:
-            // if in sysemu stop thread if no data for port.. comparing rd_ptr and wr_ptr
-            if (in_sysemu == 1 && query_msg_port_data(current_thread, id) == 0)
-            {
-                msg_ports[current_thread][id].stall = true;
-                return 0;
-            }
-            return get_msg_port_offset(id);
+            return port_get(id, true);
         case MSG_PGETNB:
-            if (query_msg_port_data(current_thread, id))
-                return get_msg_port_offset(id);
-            return -1;
+            return port_get(id, false);
         default:
             DEBUG_EMU(gprintf("ERROR Unimplemented port msg conf mode %d!!\n", (int) action););
             return 0;
-    }
-}
-
-void set_msg_port_data_func( void* f, void *g, void *h)
-{
-    retrieve_msg_port_data = (func_ret_msg_port_data_t) f;
-    query_msg_port_data = (func_query_msg_port_data_t) g;
-    newMsgPortDataRequest = (func_msg_port_data_request_t) h;
-}
-
-bool get_msg_port_stall(uint32_t thread, uint32_t id)
-{
-    return msg_ports[thread][id].stall;
-}
-
-void update_msg_port_data()
-{
-    for ( uint32_t port_id = 0 ; port_id < NR_MSG_PORTS; port_id ++)
-    {
-        if (msg_ports_pending_offset[current_thread][port_id] >= 0 )
-            write_msg_port_data(current_thread, port_id);
-    }
-}
-
-void write_msg_port_data_(uint32_t thread, uint32_t id, uint32_t *data)
-{
-    // write to scratchpad
-    uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
-    base_addr += msg_ports_pending_offset[thread][id];
-    msg_ports_pending_offset[thread][id] = -1;
-    int wr_words = (1<<msg_ports[thread][id].logsize) >> 2;
-    for (int i = 0; i < wr_words; i++)
-    {
-        uint32_t ret = data[i];
-        DEBUG_EMU(gprintf("Writing MSG_PORT (m%d p%d) data %08X to addr %016llX\n", thread, id, ret, base_addr + 4 * i););
-        vmemwrite32(base_addr + 4 * i, ret);
     }
 }
 
