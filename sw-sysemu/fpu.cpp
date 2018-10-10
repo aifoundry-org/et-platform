@@ -111,6 +111,18 @@ namespace fpu {
 // Extensions to softfloat
 // -----------------------------------------------------------------------
 
+static uint_fast32_t
+    softfloat_propagateF32UI( uint_fast32_t uiA, uint_fast32_t uiB )
+{
+    if ( softfloat_isSigNaNF32UI( uiA ) || softfloat_isSigNaNF32UI( uiB ) ) {
+        softfloat_raiseFlags( softfloat_flag_invalid );
+    }
+    return isNaNF32UI( uiA )
+        ? ( isNaNF32UI( uiB ) ? defaultNaNF32UI : uiB )
+        : uiA;
+}
+
+
 static float32_t f32_minimumNumber( float32_t a, float32_t b )
 {
     union ui32_f32 uA;
@@ -124,12 +136,11 @@ static float32_t f32_minimumNumber( float32_t a, float32_t b )
     uB.f = b;
     uiB = uB.ui;
     if ( isNaNF32UI( uiA ) || isNaNF32UI( uiB ) ) {
-        if (
-            softfloat_isSigNaNF32UI( uiA ) || softfloat_isSigNaNF32UI( uiB )
-        ) {
-            softfloat_raiseFlags( softfloat_flag_invalid );
-        }
-        return isNaNF32UI( uiA ) ? b : a;
+        union ui32_f32 uZ;
+        uint_fast32_t uiZ;
+        uiZ = softfloat_propagateF32UI( uiA, uiB );
+        uZ.ui = uiZ;
+        return uZ.f;
     }
     signA = signF32UI( uiA );
     signB = signF32UI( uiB );
@@ -153,12 +164,11 @@ static float32_t f32_maximumNumber( float32_t a, float32_t b )
     uB.f = b;
     uiB = uB.ui;
     if ( isNaNF32UI( uiA ) || isNaNF32UI( uiB ) ) {
-        if (
-            softfloat_isSigNaNF32UI( uiA ) || softfloat_isSigNaNF32UI( uiB )
-        ) {
-            softfloat_raiseFlags( softfloat_flag_invalid );
-        }
-        return isNaNF32UI( uiA ) ? b : a;
+        union ui32_f32 uZ;
+        uint_fast32_t uiZ;
+        uiZ = softfloat_propagateF32UI( uiA, uiB );
+        uZ.ui = uiZ;
+        return uZ.f;
     }
     signA = signF32UI( uiA );
     signB = signF32UI( uiB );
