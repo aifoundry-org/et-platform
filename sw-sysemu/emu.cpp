@@ -4947,31 +4947,31 @@ void fcvt_sn8_ps(freg dst, freg src1, const char* comm)
 
 // ----- Graphics additional -------------------------------
 
-void fsin_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fsin_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fsin.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsin.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FSIN, VL, dst, src1, rm);
+    femu1src(FSIN, VL, dst, src1, rmdyn);
 }
 
-void fexp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fexp_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fexp.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fexp.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FEXP, VL, dst, src1, rm);
+    femu1src(FEXP, VL, dst, src1, rmdyn);
 }
 
-void flog_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void flog_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: flog.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: flog.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FLOG, VL, dst, src1, rm);
+    femu1src(FLOG, VL, dst, src1, rmdyn);
 }
 
 void ffrc_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
@@ -5006,32 +5006,32 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis););
 }
 
-void frcp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void frcp_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: frcp.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: frcp.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRCP, VL, dst, src1, rm);
+    femu1src(FRCP, VL, dst, src1, rmdyn);
 }
 
-void frsq_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void frsq_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: frsq.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: frsq.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRSQ, VL, dst, src1, rm);
+    femu1src(FRSQ, VL, dst, src1, rmdyn);
 }
 
 // FIXME: THIS INSTRUCTION IS OBSOLETE
-void frcpfxp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void frcpfxp_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: frcpfxp.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: frcpfxp.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRCPFXP, VL, dst, src1, rm);
+    femu1src(FRCPFXP, VL, dst, src1, rmdyn);
 }
 
 void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5143,13 +5143,13 @@ void fcvt_ps_rast(freg dst, freg src1, rounding_mode rm, const char* comm)
     femu1src(FCVTPSRAST, VL, dst, src1, rm);
 }
 
-void fcvt_rast_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_rast_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.rast.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.rast.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FCVTRASTPS, VL, dst, src1, rm);
+    femu1src(FCVTRASTPS, VL, dst, src1, rmdyn);
 }
 
 void frcp_fix_rast(freg dst, freg src1, freg src2, const char* comm)
