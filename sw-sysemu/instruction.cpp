@@ -413,9 +413,8 @@ static const std::unordered_set<std::string> rm2args({
     "fsqrt_ps",
     "fcvt_pw_ps", "fcvt_pwu_ps", "fcvt_pl_ps", "fcvt_plu_ps",
     "fcvt_ps_pw", "fcvt_ps_pwu", "fcvt_ps_pl", "fcvt_ps_plu",
-    "fsin_ps", "fexp_ps", "flog_ps", "ffrc_ps", "fround_ps",
-    "frcp_ps", "frsq_ps", "frcpfxp_ps",
-    "fcvt_ps_rast", "fcvt_rast_ps"
+    "ffrc_ps", "fround_ps",
+    "fcvt_ps_rast"
 });
 
 // floating-point instructions with optional rounding-mode as 4th operand

@@ -233,7 +233,7 @@ static const char * help_msg =
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -rbox        Enable RBOX emulation\n\n\
- -reset_pc    Sets boot program counter (default 0x1000) \
+ -reset_pc    Sets boot program counter (default 0x1000) \n\
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -262,7 +262,7 @@ int main(int argc, char * argv[])
     uint64_t minions_en  = 1;
     uint64_t shires_en   = 1;
     bool use_rbox        = false;
-    uint64_t reset_pc    = 0x1000;
+    uint64_t reset_pc    = RESET_PC;
     bool reset_pc_flag   = false;
 
     memset(rbox, 0, sizeof(rbox));

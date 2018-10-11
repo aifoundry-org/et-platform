@@ -371,18 +371,18 @@ extern void fcvt_sn8_ps  (freg dst, freg src1, const char* comm = 0);
 
 // Graphics additional
 
-extern void fsin_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcos_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fexp_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void flog_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fsin_ps   (freg dst, freg src1, const char* comm = 0);
+//extern void fcos_ps   (freg dst, freg src1, const char* comm = 0);
+extern void fexp_ps   (freg dst, freg src1, const char* comm = 0);
+extern void flog_ps   (freg dst, freg src1, const char* comm = 0);
 extern void ffrc_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
 extern void fround_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void frcp_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void frsq_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void frcp_ps   (freg dst, freg src1, const char* comm = 0);
+extern void frsq_ps   (freg dst, freg src1, const char* comm = 0);
 //extern void fltabs_ps (freg dst, freg src1, freg src2, rounding_mode rm, const char* comm = 0);
 
 // FIXME: THIS INSTRUCTION IS OBSOLETE
-extern void frcpfxp_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void frcpfxp_ps (freg dst, freg src1, const char* comm = 0);
 
 extern void cubeface_ps    (freg dst, freg src1, freg src2, const char* comm = 0);
 extern void cubefaceidx_ps (freg dst, freg src1, freg src2, const char* comm = 0);
@@ -390,7 +390,7 @@ extern void cubesgnsc_ps   (freg dst, freg src1, freg src2, const char* comm = 0
 extern void cubesgntc_ps   (freg dst, freg src1, freg src2, const char* comm = 0);
 
 extern void fcvt_ps_rast  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_rast_ps  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_rast_ps  (freg dst, freg src1, const char* comm = 0);
 extern void frcp_fix_rast (freg dst, freg src1, freg src2, const char* comm = 0);
 
 // Texture sampling
