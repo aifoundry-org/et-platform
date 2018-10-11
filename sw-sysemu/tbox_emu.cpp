@@ -1,10 +1,9 @@
-#include <tbox_emu.h>
-
 #include <cfenv>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <stdexcept>
 
 #include "tbox_emu.h"
 #include "fpu_casts.h"
@@ -745,10 +744,7 @@ TBOXEmu::TBOXEmu()
 void TBOXEmu::set_request_header(uint32_t thread, uint64_t src1, uint64_t src2)
 {
     if (thread >= EMU_NUM_THREADS)
-    {
-        gprintf("Error.  Thread id out of range\n");
-        exit(-1);
-    }
+        throw std::runtime_error("Thread id out-of-range");
 
     currentRequest[thread].data[0] = src2;
     currentRequest[thread].data[1] = src1;
@@ -757,16 +753,10 @@ void TBOXEmu::set_request_header(uint32_t thread, uint64_t src1, uint64_t src2)
 void TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, fdata coord)
 {
     if (thread >= EMU_NUM_THREADS)
-    {
-        gprintf("Error.  Thread id out of range\n");
-        exit(-1);
-    }
+        throw std::runtime_error("Thread id out-of-range");
 
     if (idx > 5)
-    {
-        gprintf("Error.  Unsupported coordinate index %d\n", idx);
-        exit(-1);
-    }
+        throw std::runtime_error("Unsupported coordinate index (> 5)");
 
     input[thread][idx] = coord;
 }
@@ -774,16 +764,10 @@ void TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, fdata coord
 fdata TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 {
     if (thread >= EMU_NUM_THREADS)
-    {
-        gprintf("Error.  Thread id out of range\n");
-        exit(-1);
-    }
+        throw std::runtime_error("Thread id out-of-range");
 
     if (idx > 4)
-    {
-        gprintf("Error.  Unsupported result index %d\n", idx);
-        exit(-1);
-    }
+        throw std::runtime_error("Unsupported result index (> 4)");
 
     return output[thread][idx];
 }
@@ -791,10 +775,7 @@ fdata TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 void TBOXEmu::set_request_pending(uint32_t thread, bool value)
 {
     if (thread >= EMU_NUM_THREADS)
-    {
-        gprintf("Error.  Thread id out of range\n");
-        exit(-1);
-    }
+        throw std::runtime_error("Thread id out-of-range");
 
     request_pending[thread] = value;
 }
@@ -802,10 +783,7 @@ void TBOXEmu::set_request_pending(uint32_t thread, bool value)
 bool TBOXEmu::check_request_pending(uint32_t thread)
 {
     if (thread >= EMU_NUM_THREADS)
-    {
-        gprintf("Error.  Thread id out of range\n");
-        exit(-1);
-    }
+        throw std::runtime_error("Thread id out-of-range");
 
     return request_pending[thread];
 }
@@ -1185,20 +1163,14 @@ bool TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
 void TBOXEmu::create_l2_request(uint64_t address)
 {
     if (num_total_l2_requests == MAX_L2_REQUESTS)
-    {
-        gprintf("Error!! No more L2 requests can be stored.\n");
-        exit(-1);
-    }
+        throw std::runtime_error("No more L2 requests can be stored.");
 
     uint32_t free_entry = 0;
     while (!l2_requests[free_entry].free && (free_entry < MAX_L2_REQUESTS))
         free_entry++;
 
     if (free_entry == MAX_L2_REQUESTS)
-    {
-        gprintf("Error!! No free L2 request entry found.\n");
-        exit(-1);
-    }
+        throw std::runtime_error("No free L2 request entry found.");
 
     DEBUG_EMU( gprintf("\tCreated new L2 request %d for address %016lx thread %d\n", free_entry, address & ~0x3fUL, current_thread); );
 
@@ -2401,9 +2373,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
              && (currentRequest.info.minfilter == FILTER_TYPE_NEAREST))
         && !filterSupported((ImageFormat)currentImage.info.format))
     {
-        printf("TBOX : Format %s (%ld) doesn't support filtering. Exiting\n",
-               toStrImageFormat((ImageFormat)currentImage.info.format), currentImage.info.format);
-        exit(-1);
+        throw std::runtime_error("TBOX: Format does not support filtering.");
     }
 
     if (((currentRequest.info.operation == SAMPLE_OP_SAMPLE_C) ||
@@ -2411,8 +2381,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
          (currentRequest.info.operation == SAMPLE_OP_GATHER4_C)) &&
         !comparisonSupported((ImageFormat)currentImage.info.format))
     {
-        gprintf("TBOX : Format %s (%ld) doesn't support comparison filter\n",
-                toStrImageFormat((ImageFormat)currentImage.info.format), currentImage.info.format);
+        throw std::runtime_error("TBOX: Format does not support comparison filter.");
     }
 
     // Get LOD.
@@ -3029,8 +2998,7 @@ float TBOXEmu::apply_component_swizzle(ComponentSwizzle swizzle, float source, f
             swizzled_component = alpha;
             break;
         default:
-            gprintf("Error!! Unsupported component swizzle mode\n");
-            exit(-1);
+            throw std::runtime_error("Unsupported component swizzle mode.");
     }
 
     return swizzled_component;
@@ -3134,7 +3102,7 @@ void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage, uint32_t bytesTe
                 case 2 : mip_offset[1] = 216; break;
                 case 1 : mip_offset[1] = 220; break;
                 case 0 : mip_offset[1] = 224; break;
-                default : gprintf("Undefined packed level\n"); exit(-1);
+                default : throw std::runtime_error("Undefined packed level.");
             }
             break;
         case 7 :
@@ -3147,7 +3115,7 @@ void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage, uint32_t bytesTe
                 case 2 : mip_offset[1] = 104; break;
                 case 1 : mip_offset[1] = 108; break;
                 case 0 : mip_offset[1] = 112; break;
-                default : gprintf("Undefined packed level\n"); exit(-1);
+                default : throw std::runtime_error("Undefined packed level.");
             }
             break;
         case 6 :
@@ -3159,13 +3127,11 @@ void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage, uint32_t bytesTe
                 case 2 : mip_offset[1] = 48; break;
                 case 1 : mip_offset[1] = 52; break;
                 case 0 : mip_offset[1] = 56; break;
-                default : gprintf("Undefined packed level\n"); exit(-1);
+                default : throw std::runtime_error("Undefined packed level.");
             }
             break;
         default :
-            gprintf("Unsupported tile height\n");
-            exit(-1);
-            break;
+            throw std::runtime_error("Unsupported tile height.");
     }
 
     if (currentImage.info.packedlayout == 1)
@@ -3239,7 +3205,7 @@ uint64_t TBOXEmu::compute_tile_offset(uint32_t bytesTexel, uint32_t tile_i, uint
                               | ((tile_j & 0x004) << ( 8 - 2))
                               | ((tile_i & 0x003) <<       6)
                               | ((tile_j & 0x003) <<       4); break;
-        default : gprintf("Unsupportes bytes per texel\n"); exit(-1);
+        default : throw std::runtime_error("Unsupported bytes per texel.");
     }
 
     return tile_offset;
@@ -3644,9 +3610,7 @@ uint64_t TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i, uint
                 fmtTileHeightLog2 = 6;
                 break;
             default:
-                DEBUG_EMU(gprintf("WARNING!!!  No Bytes Per Texel defined for format %d\n", fmt););
-                exit(-1);
-                break;
+                throw std::runtime_error("No Bytes Per Texel defined for format.");
         }
     }
 
@@ -3787,9 +3751,7 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_
             }
             break;
         default:
-            gprintf("Bytes per texel %d not supported\n", fmtBytesPerTexel);
-            exit(-1);
-            break;
+            throw std::runtime_error("Unsupported Bytes Per Texel value.");
     }
 
     if (fmtIsCompressed)
@@ -3968,9 +3930,7 @@ void TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
             }
             break;
         default:
-            gprintf("Error!! Unimplemented bytes per texel %d\n", fmtBytesPerTexel);
-            exit(-1);
-            break;
+            throw std::runtime_error("Unimplemented bytes per texel value.");
     }
 
     switch (fmt)
@@ -4065,8 +4025,7 @@ float TBOXEmu::compare_texel(CompareOperation compop, float reference, float inp
         case COMPARE_OP_GREATER_OR_EQUAL : return reference >= input;
         case COMPARE_OP_ALWAYS           : return 1.0;
         default:
-            gprintf("Error!!! Unsupported compara mode %d\n", compop);
-            exit(-1);
+            throw std::runtime_error("Unsupported compare mode.");
     }
 }
 
