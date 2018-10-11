@@ -413,10 +413,6 @@ static const std::unordered_set<std::string> rm2args({
     "fsqrt_ps",
     "fcvt_pw_ps", "fcvt_pwu_ps", "fcvt_pl_ps", "fcvt_plu_ps",
     "fcvt_ps_pw", "fcvt_ps_pwu", "fcvt_ps_pl", "fcvt_ps_plu",
-    "fcvt_ps_f16",
-    "fcvt_ps_un24", "fcvt_ps_un16", "fcvt_ps_un10", "fcvt_ps_un8", "fcvt_ps_un2",
-    "fcvt_ps_sn24", "fcvt_ps_sn16", "fcvt_ps_sn10", "fcvt_ps_sn8", "fcvt_ps_sn2",
-    "fcvt_ps_f11", "fcvt_ps_f10",
     "fsin_ps", "fexp_ps", "flog_ps", "ffrc_ps", "fround_ps",
     "frcp_ps", "frsq_ps", "frcpfxp_ps",
     "fcvt_ps_rast", "fcvt_rast_ps"

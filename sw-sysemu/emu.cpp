@@ -4684,9 +4684,9 @@ void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 
 // ----- Graphics upconvert --------------------------------
 
-static void ucvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
+static void ucvtemu(opcode opc, freg dst, freg src1)
 {
-    set_rounding_mode(rm);
+    set_rounding_mode(rmdyn);
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -4730,101 +4730,101 @@ static void ucvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
 
-void fcvt_ps_f16(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_f16(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF16, dst, src1, rm);
+    ucvtemu(FCVTPSF16, dst, src1);
 }
 
-void fcvt_ps_f11(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_f11(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f11 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF11, dst, src1, rm);
+    ucvtemu(FCVTPSF11, dst, src1);
 }
 
-void fcvt_ps_f10(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_f10(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f10 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF10, dst, src1, rm);
+    ucvtemu(FCVTPSF10, dst, src1);
 }
 
-void fcvt_ps_un24(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un24(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un24 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN24, dst, src1, rm);
+    ucvtemu(FCVTPSUN24, dst, src1);
 }
 
-void fcvt_ps_un16(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un16(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN16, dst, src1, rm);
+    ucvtemu(FCVTPSUN16, dst, src1);
 }
 
-void fcvt_ps_un10(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un10(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un10 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN10, dst, src1, rm);
+    ucvtemu(FCVTPSUN10, dst, src1);
 }
 
-void fcvt_ps_un8(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un8(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un8 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN8, dst, src1, rm);
+    ucvtemu(FCVTPSUN8, dst, src1);
 }
 
-void fcvt_ps_un2(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un2(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un2 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN2, dst, src1, rm);
+    ucvtemu(FCVTPSUN2, dst, src1);
 }
 
-void fcvt_ps_sn16(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_sn16(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.sn16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSSN16, dst, src1, rm);
+    ucvtemu(FCVTPSSN16, dst, src1);
 }
 
-void fcvt_ps_sn8(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_sn8(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.sn8 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSSN8, dst, src1, rm);
+    ucvtemu(FCVTPSSN8, dst, src1);
 }
 
 // ----- Graphics downconvert ------------------------------
 
-static void dcvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
+static void dcvtemu(opcode opc, freg dst, freg src1)
 {
-    set_rounding_mode(rm);
+    set_rounding_mode(rmdyn);
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -4855,94 +4855,94 @@ static void dcvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
 
-void fcvt_f16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_f16_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.f16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.f16.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF16PS, dst, src1, rm);
+    dcvtemu(FCVTF16PS, dst, src1);
 }
 
-void fcvt_f11_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_f11_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.f11.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.f11.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF11PS, dst, src1, rm);
+    dcvtemu(FCVTF11PS, dst, src1);
 }
 
-void fcvt_f10_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_f10_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.f10.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.f10.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF10PS, dst, src1, rm);
+    dcvtemu(FCVTF10PS, dst, src1);
 }
 
-void fcvt_un24_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un24_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un24.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un24.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN24PS, dst, src1, rm);
+    dcvtemu(FCVTUN24PS, dst, src1);
 }
 
-void fcvt_un16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un16_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un16.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN16PS, dst, src1, rm);
+    dcvtemu(FCVTUN16PS, dst, src1);
 }
 
-void fcvt_un10_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un10_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un10.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un10.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN10PS, dst, src1, rm);
+    dcvtemu(FCVTUN10PS, dst, src1);
 }
 
-void fcvt_un8_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un8_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un8.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un8.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN8PS, dst, src1, rm);
+    dcvtemu(FCVTUN8PS, dst, src1);
 }
 
-void fcvt_un2_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un2_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un2.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un2.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN2PS, dst, src1, rm);
+    dcvtemu(FCVTUN2PS, dst, src1);
 }
 
-void fcvt_sn16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_sn16_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.sn16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.sn16.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTSN16PS, dst, src1, rm);
+    dcvtemu(FCVTSN16PS, dst, src1);
 }
 
-void fcvt_sn8_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_sn8_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.sn8.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.sn8.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTSN8PS, dst, src1, rm);
+    dcvtemu(FCVTSN8PS, dst, src1);
 }
 
 // ----- Graphics additional -------------------------------
