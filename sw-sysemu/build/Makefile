@@ -18,8 +18,7 @@ SRCS := $(BEMU)/emu.cpp \
         $(BEMU)/ipc.cpp \
         $(BEMU)/emu_gio.cpp \
         $(BEMU)/instruction_cache.cpp \
-        $(BEMU)/instruction.cpp \
-        $(TESTROOT)/libs/testLog.cc
+        $(BEMU)/instruction.cpp
 
 include softfloat.mk
 SRCS += $(softfloat_c_srcs)
