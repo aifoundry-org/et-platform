@@ -8,7 +8,7 @@
 #endif
 
 // Maximum number of threads
-#define EMU_NUM_MINIONS         (35*32)  // at most 35 shires
+#define EMU_NUM_MINIONS         (36*32)  // at most 36 shires
 #define EMU_THREADS_PER_MINION  2
 #define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
 #define EMU_MINIONS_PER_SHIRE   32
