@@ -34,11 +34,7 @@ retry_vsnprintf:
             // not enough buffer space; grow gio_buf
             gio_maxsize *= 2;
             delete[] gio_buf;
-            gio_buf = new char[gio_maxsize];
-            if (!gio_buf) {
-                printf("Internal error: could not allocate enough memory (%d) for gprintf()\n", gio_maxsize);
-                exit(1);
-            }
+            gio_buf = new char[gio_maxsize]; // may throw std::bad_alloc
             goto retry_vsnprintf;
         }
         va_end(argptr);

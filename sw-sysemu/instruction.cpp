@@ -1,14 +1,17 @@
-// Local
-#include "instruction.h"
-#include "emu.h"
-
-// STD
 #include <iostream>
-#include <boost/regex.hpp>
 #include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
 #include <vector>
+#include <stdexcept>
+
+#include <boost/regex.hpp>
+
+#include "instruction.h"
+#include "emu.h"
+#include "emu_gio.h"
+
+using emu::gprintf;
 
 // Typedef for the hash of functions
 typedef std::unordered_map<std::string, func_ptr> emu_ptr_hash_t;
@@ -432,7 +435,19 @@ static const std::unordered_set<std::string> rm4args({
     "fmadd_ps", "fmsub_ps", "fnmsub_ps", "fnmadd_ps"
 });
 
+// Returns the pointer to a function based on name
+static func_ptr get_function_ptr(std::string func)
+{
+    emu_ptr_hash_t::const_iterator el = pointer_cache.find(func);
+    if (el != pointer_cache.end())
+        return el->second;
+   
+    DEBUG_EMU(gprintf("Unknown opcode '%s' while decoding instruction.",func.c_str()););
+    return func_ptr(unknown);
+}
+
 // Constructor
+#if 0
 instruction::instruction()
 {
     pc             = 0;
@@ -440,7 +455,6 @@ instruction::instruction()
     is_load        = false;
     is_fpload      = false;
     is_wfi         = false;
-    is_csr_read    = false;
     is_reduce      = false;
     is_tensor_load = false;
     is_tensor_fma  = false;
@@ -450,32 +464,31 @@ instruction::instruction()
     is_amo         = false;
     is_flb         = false;
     is_fcc         = false;
-    emu_func       = NULL;
-    emu_func0      = NULL;
-    emu_func1      = NULL;
-    emu_func2      = NULL;
-    emu_func3      = NULL;
-    emu_func4      = NULL;
-    emu_func5      = NULL;
+    is_compressed  = false;
+    is_csr_read    = false;
     num_params     = 0;
-    has_error      = false;
-    str_error      = "No error";
+    str_error.clear();
+    emu_func       = nullptr;
+    emu_func0      = nullptr;
+    emu_func1      = nullptr;
+    emu_func2      = nullptr;
+    emu_func3      = nullptr;
+    emu_func4      = nullptr;
+    emu_func5      = nullptr;
 }
 
 // Destructor
 instruction::~instruction()
 {
 }
+#endif
 
 // Sets the mnemonic. It also starts decoding it to generate
 // the emulation routine
-void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
+void instruction::set_mnemonic(std::string mnemonic_)
 {
     mnemonic = mnemonic_;
-    log = log_;
     mnemonic.erase(std::remove(mnemonic.begin(), mnemonic.end(), '\n'), mnemonic.end());
-
-    * log << LOG_DEBUG << "Mnemonic is " << mnemonic << endm;
 
     boost::regex e("^([^\\s]+)(.*)");
     boost::smatch m;
@@ -488,14 +501,13 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
 
     if (opcode == "")
     {
-        has_error = true;
         str_error = "Failed extracting opcode from instruction mnemonic";
+        return;
     }
 
     // Change any "." in the ocpode name to underscore
     e = boost::regex("\\.");
     opcode = boost::regex_replace(opcode, e, std::string("_"));
-    * log << LOG_DEBUG << "Opcode is " << opcode << endm;
 
     // Gets if the instruction is a load
     if ((opcode == "ld") || (opcode == "lw") || (opcode == "lwu") || (opcode == "lh") || (opcode == "lhu") || (opcode == "lb") || (opcode == "lbu"))
@@ -526,7 +538,6 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
         is_csr_read = true;
     }
 
-
     // Cleanup whitespace from $args
     e = boost::regex("\\s");
     args = boost::regex_replace(args, e, std::string(""));
@@ -553,7 +564,6 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     // Converts to vector
     std::vector<std::string> arg_array;
 
-    * log << LOG_DEBUG << "Args are " << args << endm;
     e = boost::regex("^([^,]+),");
     while(boost::regex_search(args, m, e))
     {
@@ -789,7 +799,7 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     else if (!is_fpload && opcode[0] == 'f')
     {
         // Add implicit rounding mode operand to floating-point operations
-        if (   (arg_array.size() == 2 && rm2args.find(opcode) != rm2args.end())
+        if (  (arg_array.size() == 2 && rm2args.find(opcode) != rm2args.end())
            || (arg_array.size() == 3 && rm3args.find(opcode) != rm3args.end())
            || (arg_array.size() == 4 && rm4args.find(opcode) != rm4args.end()))
         {
@@ -830,9 +840,9 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
     }
 
     // Get the emulation function pointer for the opcode
-    if (!has_error)
+    if (str_error.empty())
     {
-        emu_func = get_function_ptr(opcode, &has_error, &str_error);
+        emu_func = get_function_ptr(opcode);
         emu_func0 = (func_ptr_0) emu_func;
         emu_func1 = (func_ptr_1) emu_func;
         emu_func2 = (func_ptr_2) emu_func;
@@ -840,37 +850,29 @@ void instruction::set_mnemonic(std::string mnemonic_, testLog * log_)
         emu_func4 = (func_ptr_4) emu_func;
         emu_func5 = (func_ptr_5) emu_func;
     }
-
-    if (has_error)
-    {
-        str_error += " while decoding instruction: " + mnemonic;
-    }
 }
 
 // Instruction execution
 void instruction::exec()
 {
     // If instruction had an error during decoding, report it when it is executed
-    if (has_error) {
-       * log << LOG_ERR << str_error << endm;
-    } else {
-       * log << LOG_DEBUG << "Executing instruction PC: 0x" << std::hex << pc << ", Bits: 0x" << enc_bits << std::dec << ", Mnemonic: " << mnemonic  << ", num_params: " << num_params << endm;
-       switch(num_params)
-       {
-          case 0: (emu_func0(nullptr)); break;
-          case 1: (emu_func1(params[0], nullptr)); break;
-          case 2: (emu_func2(params[0], params[1], nullptr)); break;
-          case 3: (emu_func3(params[0], params[1], params[2], nullptr)); break;
-          case 4: (emu_func4(params[0], params[1], params[2], params[3], nullptr)); break;
-          case 5: (emu_func5(params[0], params[1], params[2], params[3], params[4], nullptr)); break;
-       }
+    if (!str_error.empty())
+        throw std::runtime_error(str_error);
+
+    switch (num_params)
+    {
+        case 0: (emu_func0(nullptr)); break;
+        case 1: (emu_func1(params[0], nullptr)); break;
+        case 2: (emu_func2(params[0], params[1], nullptr)); break;
+        case 3: (emu_func3(params[0], params[1], params[2], nullptr)); break;
+        case 4: (emu_func4(params[0], params[1], params[2], params[3], nullptr)); break;
+        case 5: (emu_func5(params[0], params[1], params[2], params[3], params[4], nullptr)); break;
     }
 }
 
 // Adds a parameter
 void instruction::add_parameter(std::string param)
 {
-    * log << LOG_DEBUG << "Adding parameter <" << param << ">" << endm;
     // Args unknown
     if (param == "argsunknown")
     {
@@ -890,7 +892,6 @@ void instruction::add_parameter(std::string param)
         int c = sscanf(param.c_str(), "0x%X", &params[num_params]);
         if (c != 1)
         {
-            has_error = true;
             str_error = "Error parsing parameter " + param + ". Expecting hex immediate";
         }
         if (neg)
@@ -902,7 +903,6 @@ void instruction::add_parameter(std::string param)
         int c = sscanf(param.c_str(), "%i", &params[num_params]);
         if (c != 1)
         {
-            has_error = true;
             str_error = "Error parsing parameter " + param + ". Expecting dec immediate";
         }
     }
@@ -1070,7 +1070,6 @@ void instruction::add_parameter(std::string param)
             int c = sscanf(param.c_str(), "f%i", &params[num_params]);
             if (c != 1)
             {
-                has_error = true;
                 str_error = "Error parsing parameter " + param + ". Expecting float register";
             }
         }
@@ -1081,7 +1080,6 @@ void instruction::add_parameter(std::string param)
         int c = sscanf(param.c_str(), "x%i", &params[num_params]);
         if (c != 1)
         {
-            has_error = true;
             str_error = "Error parsing parameter " + param + ". Expecting integer register";
         }
     }
@@ -1130,44 +1128,16 @@ void instruction::add_parameter(std::string param)
              param == "dpc"        ||
              param == "dscratch")
     {
-       has_error = true;
-       str_error = "Unsupported register " + param;
+        str_error = "Unsupported register " + param;
     }
     // Unknown CSR
-    else if (param.find("unknown_") !=std::string::npos) {
-       params[num_params] = csr_unknown;
+    else if (param.find("unknown_") !=std::string::npos)
+    {
+        params[num_params] = csr_unknown;
     }
     else
     {
-       has_error = true;
        str_error = "Unknown parameter " + param + ". Expecting integer register or CSR";
     }
     num_params++;
-}
-
-// Returns the pointer to a function based on name
-func_ptr instruction::get_function_ptr(std::string func, bool * error, std::string * error_msg)
-{
-    emu_ptr_hash_t::const_iterator el = pointer_cache.find(func);
-    if (el != pointer_cache.end())
-    {
-        if (error != NULL)
-            *error = false;
-        return el->second;
-    }
-
-    std::string msg = std::string("Unknown mnemonic: ") + func;
-    if (error != NULL)
-    {
-        // Reports the error to source
-        *error = true;
-        *error_msg = msg;
-    }
-    else
-    {
-        // No way to report the error, simply
-        * log << LOG_ERR << msg << endm;
-    }
-    // will raise illegal_instruction exception if executed
-    return func_ptr(unknown);
 }

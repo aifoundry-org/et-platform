@@ -1,19 +1,17 @@
 #include <cassert>
 #include <unordered_map>
+#include <stdexcept>
 #include <unistd.h>
-#include "emu_defines.h"
+
+#include "emu_gio.h"
 #include "instruction.h"
+
+using emu::gprintf;
 
 // The instruction cache data structure is a hash table indexed by the
 // physical PC of the instruction being fetched.
 
 static std::unordered_map<uint64_t,instruction*> insn_cache;
-
-// Logging
-testLog& log() {
-  static testLog l("instruction cache", LOG_INFO);
-  return l;
-}
 
 // memory emulation
 extern uint64_t (*vmemtranslate) (uint64_t, mem_access_type);
@@ -48,7 +46,7 @@ void flush_insn_cache()
 // Returns a decoded instruction from a specific PC
 instruction * get_inst()
 {
-    log() << LOG_DEBUG << "instruction_cache::get_instruction("<<current_pc<<")"<<endm;
+    DEBUG_EMU(gprintf("Fetching instruction from PC 0x%016llx\n",current_pc););
 
     // Physical address corresponding to virtual PC
     uint64_t paddr = vmemtranslate(current_pc, Mem_Access_Fetch);
@@ -99,9 +97,8 @@ instruction * get_inst()
     // Creates a file with the disasm contents
     FILE * file = fopen("./dasm_checker_in", "w");
     if (file == NULL)
-    {
-        log() << LOG_FTL << "Failed opening file 'dasm_checker_in'." << endm;
-    }
+        throw std::runtime_error("Failed opening file 'dasm_checker_in'.");
+
     uint64_t pc = paddr;
     while ((insn_index < last_index) && (insn_count <= INSNS_PER_ICACHE_BLOCK))
     {
@@ -138,10 +135,9 @@ instruction * get_inst()
         if (file != nullptr)
             break;
         if (--retries <= 0)
-        {
-            log() << LOG_FTL << "Failed opening file 'dasm_checker_out'." << endm;
-        }
-        log() << LOG_INFO << "Failed opening file 'dasm_checker_out'. Pending retries: " << retries << endm;
+            throw std::runtime_error("Failed opening file 'dasm_checker_out'.");
+
+        DEBUG_EMU(gprintf("Failed opening file 'dasm_checker_out'. Pending retries: %d\n",retries););
         sleep(1000);
     }
 
@@ -151,27 +147,23 @@ instruction * get_inst()
     while (fgets(str, 1024, file) == str)
     {
         if (insn_disasm == insn_count)
-        {
-            log() << LOG_FTL << "Error: read more disasm than expected!!" << endm;
-        }
+            throw std::runtime_error("Read more disasm than expected.");
+
         instruction * insn = insns[insn_disasm++];
-        insn->set_mnemonic(str, &log());
+        insn->set_mnemonic(str);
         insn_cache[insn->get_pc()] = insn;
     }
     fclose(file);
     if (insn_disasm != insn_count)
-    {
-        log() << LOG_FTL << "Error: read less disasm than expected!!" << endm;
-    }
+        throw std::runtime_error("Read less disasm than expected.");
 
     // Remove the files
     system("/bin/rm -f ./dasm_checker_in ./dasm_checker_out");
 
     auto jt = insn_cache.find(paddr);
     if(jt == insn_cache.end())
-    {
-        log() << LOG_FTL << "Error: internal error while updating the instruction cache!!" << endm;
-    }
+        throw std::runtime_error("Internal error while updating the instruction cache.");
+
     instruction * insn = jt->second;
     current_inst = insn->get_enc();
     return insn;
