@@ -45,17 +45,21 @@ ifeq ($(USE_REAL_TXFMA), 1)
     CPPFLAGS += -DUSE_REAL_TXFMA
 endif
 
+
 .PHONY: all
 all: libemu.so
 
 .PHONY: clean
 clean:
+	echo "clean ${TB_TOP_MODULE} : `date +%H%M%S`" >> touched
 	$(RM) libemu.so *.o *.d
 
 testLog.o: $(TESTROOT)/libs/testLog.cc
+	echo "testLog.o ${TB_TOP_MODULE} : `date +%H%M%S`" >> touched
 	$(COMPILE.cc) -DCHECKER $(OUTPUT_OPTION) $<
 
 libemu.so: $(OBJS)
+	echo "libemu.so ${TB_TOP_MODULE} : `date +%H%M%S`" >> touched
 	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 -include $(DEPS)
