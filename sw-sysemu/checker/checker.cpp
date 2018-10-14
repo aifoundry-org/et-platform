@@ -1,12 +1,10 @@
-// Local
+#include <cmath>
+#include <exception>
+
 #include "checker.h"
 #include "emu_casts.h"
 #include "emu.h"
 
-// Global
-#include <cmath>
-
-//
 #define TBOX_REGION_START 0xFFF80000
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
 
@@ -357,6 +355,10 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             take_trap(t);
             current_pc[thread] = emu_state_change.pc; // Go to target
             retry = true;
+        }
+        catch (const std::exception& e)
+        {
+            log << LOG_FTL << e.what() << endm;
         }
     }
     while (retry);

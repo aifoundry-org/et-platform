@@ -17,12 +17,12 @@ class instruction_cache
         instruction * get_instruction(uint64_t pc);
 
     private:
-        // Typedef for the hash of
+        // Typedef for the hash of blocks
         typedef std::unordered_map<uint64_t, instruction *>           inst_cache_hash_t;
         typedef std::unordered_map<uint64_t, instruction *>::iterator inst_cache_hash_it_t;
 
-        inst_cache_hash_t            cache;      // Hash of blocks
-        testLog                      log;        // Logging
+        // Hash of blocks
+        inst_cache_hash_t   cache;
 };
 
 #endif // _INSTRUCTION_CACHE_
