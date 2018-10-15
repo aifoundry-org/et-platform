@@ -1,8 +1,8 @@
-#include <cstdio>
+#include <cstdio>       // FIXME: Remove this, use "emu_gio.h" instead
 #include <cassert>
 #include <cstring>
 #include <algorithm>
-#include <strings.h>
+#include <stdexcept>
 #include <list>
 
 #include "emu.h"
@@ -32,6 +32,16 @@
 #define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
 #define L1_SCP_BLOCKS     (L1_SCP_LINE_SIZE / (VL * 4))
 #define L1_SCP_BLOCK_SIZE (VL * 4)
+
+// MISA initial value
+#define CSR_ISA_MAX ((1 << 2)  | /* Compressed extension */                      \
+                     (1 << 5)  | /* Single-precision floating-point extension */ \
+                     (1 << 6)  | /* Additional standard extensions present */    \
+                     (1 << 8)  | /* RV32I/64I/128I base ISA */                   \
+                     (1 << 12) | /* Integer Multiply/Divide extension */         \
+                     (1 << 18) | /* Supervisor mode implemented */               \
+                     (1 << 20) | /* User mode implemented */                     \
+                     (1 << 23) ) /* Non-standard extensions present */
 
 using emu::gprintf;
 using emu::gsprintf;
@@ -73,8 +83,8 @@ uint32_t num_ways = 4;
 
 #define MAXSTACK 2048
 static uint32_t shaderstack[EMU_NUM_THREADS][MAXSTACK];
+static bool check_stack = false;
 
-bool check_stack = false;
 char dis[1024];
 
 int fake_sampler = 0;
@@ -166,13 +176,12 @@ static int32_t sext8_2(uint8_t val)
     return r;
 }
 
-void init_stack()
+static void check_sp_out_of_range(uint64_t val)
 {
-    gsprintf(dis,"Sorry disassembly disabled\n");
-    check_stack = true;
-    XREGS[x2].x = (uint64_t)&(shaderstack[current_thread][MAXSTACK-1]);
-    DEBUG_EMU(gprintf("init x2.x = 0x%016llx\n",XREGS[x2].x););
-    ipc_init_xreg(x2);
+    uint64_t lo = uint64_t(&shaderstack[current_thread][0]);
+    uint64_t hi = uint64_t(&shaderstack[current_thread][MAXSTACK]);
+    if (val < lo || val > hi)
+        throw std::runtime_error("stack pointer is out-of-range");
 }
 
 void init(xreg dst, uint64_t val)
@@ -180,6 +189,12 @@ void init(xreg dst, uint64_t val)
     XREGS[dst].x = val;
     DEBUG_EMU(gprintf("init x%d <-- 0x%016llx\n",dst,val););
     ipc_init_xreg(dst);
+}
+
+void init_stack()
+{
+    check_stack = true;
+    init(x2, uint64_t(&shaderstack[current_thread][MAXSTACK-1]));
 }
 
 uint64_t xget(uint64_t src1)
@@ -242,11 +257,6 @@ static inline void handle_nan_default(iufval32& a)
         a.u = 0x7FC00000;
 }
 
-static const char* rmnames[] = {
-    "rne", "rtz", "rdn", "rup",
-    "rmm", "res", "res", "dyn"
-};
-
 // FIXME: remove '#include <cfenv>' when we purge this function from the code
 static inline void set_x86_rounding_mode(rounding_mode rm)
 {
@@ -276,7 +286,14 @@ static inline void set_rounding_mode(rounding_mode rm)
 
 static inline const char* get_rounding_mode(rounding_mode rm)
 {
-    return rmnames[(rm == rmdyn) ? frm() : rm];
+    static const char* rmnames[] = {
+        "rne",      "rtz",       "rdn",       "rup",
+        "rmm",      "res5",      "res6",      "dyn",
+        "dyn(rne)", "dyn(rtz)",  "dyn(rdn)",  "dyn(rup)",
+        "dyn(rmm)", "dyn(res5)", "dyn(res6)", "dyn(res7)",
+    };
+
+    return rmnames[(rm == rmdyn) ? (8 + frm()) : rm];
 }
 
 static inline void set_fp_exceptions()
@@ -652,10 +669,7 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc);
 static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc)
 {
     if (macc != Mem_Access_Fetch)
-    {
-        DEBUG_EMU(gprintf("ERROR!!! Should not use pmemread64() with non-emulated memory\n"););
-        exit(1);
-    }
+        throw std::runtime_error("virt_to_phys_host() for loads/stores is unimplemented");
     return addr;
 }
 
@@ -858,8 +872,7 @@ static uint64_t host_vmemread64(uint64_t addr)
 
 static uint64_t host_pmemread64(uint64_t paddr)
 {
-    DEBUG_EMU(gprintf("ERROR!!! Should not use pmemread64() with non-emulated memory\n"););
-    exit(1);
+    throw std::runtime_error("host_pmemread64() is unimplemented");
 }
 
 static void host_vmemwrite8(uint64_t addr, uint8_t data)
@@ -884,8 +897,7 @@ static void host_vmemwrite64(uint64_t addr, uint64_t data)
 
 static void host_pmemwrite64(uint64_t paddr, uint64_t data)
 {
-    DEBUG_EMU(gprintf("ERROR!!! Should not use pmemwrite64() with non-emulated memory\n"););
-    exit(1);
+    throw std::runtime_error("host_pmemwrite64() is unimplemented");
 }
 
 static void host_pmemfetch512(uint64_t addr, uint16_t * data)
@@ -1095,10 +1107,9 @@ void addi(xreg dst, xreg src1, int imm, const char* comm)
     if (dst != x0)
     {
         uint64_t val = XREGS[src1].x + sext12(imm);
-        if (check_stack && dst == x2 && (val < (uint64_t)(&shaderstack[current_thread][0]) || val > (uint64_t)(&shaderstack[current_thread][MAXSTACK])))
+        if (dst == x2 && check_stack)
         {
-            gprintf("x2 out of bounds: 0x%016llx 0x%016llx 0x%016llx\n",val,(uint64_t)&shaderstack[current_thread][0],(uint64_t)&shaderstack[current_thread][MAXSTACK]);
-            exit(-1);
+           check_sp_out_of_range(val);
         }
         DEBUG_EMU(gprintf("\t0x%016llx <-- 0x%016llx + 0x%08x\n",val,XREGS[src1].x,imm););
         XREGS[dst].x = val;
@@ -1369,10 +1380,9 @@ void addiw(xreg dst, xreg src1, int imm, const char* comm)
     if (dst != x0)
     {
         uint64_t val = sext32(XREGS[src1].w[0] + imm);
-        if (check_stack && dst == x2 && (val < (uint64_t)(&shaderstack[current_thread][0]) || val > (uint64_t)(&shaderstack[current_thread][MAXSTACK])))
+        if (dst == x2 && check_stack)
         {
-            gprintf("x2 out of bounds: 0x%016llx 0x%016llx 0x%016llx\n",val,(uint64_t)&shaderstack[current_thread][0],(uint64_t)&shaderstack[current_thread][MAXSTACK]);
-            exit(-1);
+           check_sp_out_of_range(val);
         }
         DEBUG_EMU(gprintf("\t0x%016llx <-- 0x%08x + 0x%08x\n",val,XREGS[src1].w[0],imm););
         XREGS[dst].x = val;
@@ -1916,7 +1926,23 @@ void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
+#define AMO_EMU_W_FUNC(NAME, OPC) \
+void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
+   amo_emu_w(OPC, dst, src1, src2);\
+}
+
+#define AMO_EMU_D_FUNC(NAME, OPC) \
+void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
+   amo_emu_d(OPC, dst, src1, src2);\
+}
+
+static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
 {
     uint64_t addr;
     uint32_t res, val1, val2;
@@ -1986,8 +2012,7 @@ void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
     logmemwchange(0, 4, addr, res);
 }
 
-
-void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
+static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
 {
     uint64_t addr, val1, val2, res;
 
@@ -2084,8 +2109,6 @@ AMO_EMU_D_FUNC(amomin_d,  MIN)
 AMO_EMU_D_FUNC(amomax_d,  MAX)
 AMO_EMU_D_FUNC(amominu_d, MINU)
 AMO_EMU_D_FUNC(amomaxu_d, MAXU)
-
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -2626,8 +2649,6 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
         level--;
         if (level < 0)
         {
-            //log << LOG_ERR << "Last level PTE is a pointer to a page table: PTE = 0x" << std::hex << pte << endm;
-            //DEBUG_EMU(gprintf("ERROR: Last level PTE is a pointer to a page table: PTE = 0x%x\n", pte););
             throw_page_fault(addr, macc);
         }
 
@@ -2637,8 +2658,6 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
         pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
         // TODO: PMA / PMP checks
         pte = pmemread64(pte_addr);
-        //log << LOG_DEBUG << "* Level " << std::dec << level << ": PTE = 0x" << std::hex << pte << endm;
-        //DEBUG_EMU(gprintf("* Level %d: PTE = 0x%x\n", level, pte););
 
         // Read PTE fields
         pte_v = (pte >> PTE_V_OFFSET) & 0x1;
@@ -2654,8 +2673,6 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
         // Check invalid entry
         if (!pte_v || (!pte_r && pte_w))
         {
-            //log << LOG_ERR << "Invalid entry: PTE = 0x" << std::hex << pte << endm;
-            //DEBUG_EMU(gprintf("ERROR: Invalid entry: PTE = 0x%x\n", pte););
             throw_page_fault(addr, macc);
         }
 
@@ -2664,8 +2681,6 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     while (!pte_r && !pte_x);
 
     // A leaf PTE has been found
-    //log << LOG_DEBUG << "Valid leaf PTE found at level " << std::dec << level << endm;
-    //DEBUG_EMU(gprintf("Valid leaf PTE found at level %d\n", level););
 
     // Check permissions. This is different for each access type.
     // Load accesses are permitted iff all the following are true:
@@ -2711,17 +2726,12 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     // Check if it is a misaligned superpage
     if ((level > 0) && ((ppn & ((1<<(PTE_Idx_Size*level))-1)) != 0))
     {
-        //log << LOG_ERR << "Misaligned superpage" << endm;
-        //for (int i = 0; i < level; i++)
-        //  log << LOG_DEBUG << "* ppn[" << std::dec << i << "] = 0x" << std::hex << ((ppn>>(PTE_Idx_Size*i)) & ((1<<(PTE_Idx_Size))-1)) << endm;
         throw_page_fault(addr, macc);
     }
 
     // Hardware A/D bit updates (FIXME: This should be done by SW)
     if (!pte_a || ((macc == Mem_Access_Store) && !pte_d))
     {
-        //log << LOG_DEBUG << "* Setting A/D bits in PTE" << endm;
-
         // Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
         uint64_t pte_write = pte;
         pte_write |= uint64_t(1) << PTE_A_OFFSET;
@@ -3402,7 +3412,7 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
 void fadd_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fadd.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fadd.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FADD, 1, dst, src1, src2, rm);
 }
@@ -3410,7 +3420,7 @@ void fadd_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 void fsub_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fsub.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsub.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FSUB, 1, dst, src1, src2, rm);
 }
@@ -3418,7 +3428,7 @@ void fsub_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 void fmul_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fmul.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fmul.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FMUL, 1, dst, src1, src2, rm);
 }
@@ -3426,7 +3436,7 @@ void fmul_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 void fdiv_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fdiv.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fdiv.s f%d, f%d, f%d, %s%s%s",dst,src1,src2,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu2src(FDIV, 1, dst, src1, src2, rm);
 }
@@ -3474,7 +3484,7 @@ void fmax_s(freg dst, freg src1, freg src2, const char* comm)
 void fsqrt_s(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fsqrt.s f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsqrt.s f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu1src(FSQRT, 1, dst, src1, rm);
 }
@@ -3506,7 +3516,7 @@ void flt_s(xreg dst, freg src1, freg src2, const char* comm)
 void fcvt_w_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.w.s x%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.w.s x%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtf2x(FCVTWS, dst, src1, rm);
 }
@@ -3514,7 +3524,7 @@ void fcvt_w_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 void fcvt_wu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.wu.s x%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.wu.s x%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtf2x(FCVTWUS, dst, src1, rm);
 }
@@ -3522,7 +3532,7 @@ void fcvt_wu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 void fcvt_l_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.l.s x%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.l.s x%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtf2x(FCVTLS, dst, src1, rm);
 }
@@ -3530,7 +3540,7 @@ void fcvt_l_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 void fcvt_lu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.lu.s x%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.lu.s x%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtf2x(FCVTLUS, dst, src1, rm);
 }
@@ -3568,7 +3578,7 @@ void fclass_s(xreg dst, freg src1, const char* comm)
 void fcvt_s_w(freg dst, xreg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.s.w f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.s.w f%d, x%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtx2f(FCVTSW, dst, src1, rm);
 }
@@ -3576,7 +3586,7 @@ void fcvt_s_w(freg dst, xreg src1, rounding_mode rm, const char* comm)
 void fcvt_s_wu(freg dst, xreg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.s.wu f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.s.wu f%d, x%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtx2f(FCVTSWU, dst, src1, rm);
 }
@@ -3584,7 +3594,7 @@ void fcvt_s_wu(freg dst, xreg src1, rounding_mode rm, const char* comm)
 void fcvt_s_l(freg dst, xreg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.s.l f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.s.l f%d, x%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtx2f(FCVTSL, dst, src1, rm);
 }
@@ -3592,7 +3602,7 @@ void fcvt_s_l(freg dst, xreg src1, rounding_mode rm, const char* comm)
 void fcvt_s_lu(freg dst, xreg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.s.lu f%d, x%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.s.lu f%d, x%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femucvtx2f(FCVTSLU, dst, src1, rm);
 }
@@ -3631,7 +3641,7 @@ void fsw(freg src1, int off, xreg base, const char* comm)
 void fmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fmadd.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fmadd.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu3src(FMADD, 1, dst, src1, src2, src3, rm);
 }
@@ -3639,7 +3649,7 @@ void fmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const 
 void fmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fmsub.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fmsub.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu3src(FMSUB, 1, dst, src1, src2, src3, rm);
 }
@@ -3647,7 +3657,7 @@ void fmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const 
 void fnmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fnmsub.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fnmsub.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu3src(FNMSUB, 1, dst, src1, src2, src3, rm);
 }
@@ -3655,7 +3665,7 @@ void fnmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 void fnmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fnmadd.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fnmadd.s f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     femu3src(FNMADD, 1, dst, src1, src2, src3, rm);
 }
@@ -3737,7 +3747,7 @@ void maskand(mreg dst, mreg src1, mreg src2, const char* comm)
 
 void maskor(mreg dst, mreg src1, mreg src2, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: maskand m%d, m%d, m%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: maskor m%d, m%d, m%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     maskop(MOR, dst, src1, src2);
@@ -3745,7 +3755,7 @@ void maskor(mreg dst, mreg src1, mreg src2, const char* comm)
 
 void maskxor(mreg dst, mreg src1, mreg src2, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: maskand m%d, m%d, m%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: maskxor m%d, m%d, m%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     maskop(MXOR, dst, src1, src2);
@@ -3753,7 +3763,7 @@ void maskxor(mreg dst, mreg src1, mreg src2, const char* comm)
 
 void masknot(mreg dst, mreg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: maskand m%d, m%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: masknot m%d, m%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     maskop(MNOT, dst, src1, mnone);
@@ -4375,7 +4385,7 @@ static void fswizz(opcode opc, freg dst, freg src1, uint8_t imm)
 void fadd_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fadd.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fadd.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu2src(FADD, VL, dst, src1, src2, rm);
@@ -4384,7 +4394,7 @@ void fadd_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 void fsub_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fsub.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsub.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu2src(FSUB, VL, dst, src1, src2, rm);
@@ -4393,7 +4403,7 @@ void fsub_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 void fmul_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fmul.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fmul.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu2src(FMUL, VL, dst, src1, src2, rm);
@@ -4402,7 +4412,7 @@ void fmul_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 void fdiv_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fdiv.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fdiv.ps f%d, f%d, f%d, %s%s%s",dst,src1,src2,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu2src(FDIV, VL, dst, src1, src2, rm);
@@ -4456,7 +4466,7 @@ void fmax_ps(freg dst, freg src1, freg src2, const char* comm)
 void fsqrt_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fsqrt.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsqrt.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu1src(FSQRT, VL, dst, src1, rm);
@@ -4611,7 +4621,7 @@ void fswizz_ps(freg dst, freg src1, uint8_t imm, const char* comm)
 void fcvt_pw_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.pw.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.pw.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu1src(FCVTPWPS, VL, dst, src1, rm);
@@ -4620,7 +4630,7 @@ void fcvt_pw_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 void fcvt_pwu_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.pwu.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.pwu.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu1src(FCVTPWUPS, VL, dst, src1, rm);
@@ -4649,7 +4659,7 @@ void fclass_ps(freg dst, freg src1, const char* comm)
 void fcvt_ps_pw(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.ps.pw f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.ps.pw f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu1src(FCVTPSPW, VL, dst, src1, rm);
@@ -4658,7 +4668,7 @@ void fcvt_ps_pw(freg dst, freg src1, rounding_mode rm, const char* comm)
 void fcvt_ps_pwu(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.ps.pwu f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.ps.pwu f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu1src(FCVTPSPWU, VL, dst, src1, rm);
@@ -4667,7 +4677,7 @@ void fcvt_ps_pwu(freg dst, freg src1, rounding_mode rm, const char* comm)
 void fmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fmadd.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fmadd.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu3src(FMADD, VL, dst, src1, src2, src3, rm);
@@ -4676,7 +4686,7 @@ void fmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 void fmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fmsub.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fmsub.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu3src(FMSUB, VL, dst, src1, src2, src3, rm);
@@ -4685,7 +4695,7 @@ void fmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 void fnmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fnmsub.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fnmsub.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu3src(FNMSUB, VL, dst, src1, src2, src3, rm);
@@ -4694,7 +4704,7 @@ void fnmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fnmadd.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fnmadd.ps f%d, f%d, f%d, f%d, %s%s%s",dst,src1,src2,src3,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu3src(FNMADD, VL, dst, src1, src2, src3, rm);
@@ -4702,9 +4712,9 @@ void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 
 // ----- Graphics upconvert --------------------------------
 
-static void ucvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
+static void ucvtemu(opcode opc, freg dst, freg src1)
 {
-    set_rounding_mode(rm);
+    set_rounding_mode(rmdyn);
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -4748,101 +4758,101 @@ static void ucvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
 
-void fcvt_ps_f16(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_f16(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF16, dst, src1, rm);
+    ucvtemu(FCVTPSF16, dst, src1);
 }
 
-void fcvt_ps_f11(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_f11(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f11 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF11, dst, src1, rm);
+    ucvtemu(FCVTPSF11, dst, src1);
 }
 
-void fcvt_ps_f10(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_f10(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.f10 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF10, dst, src1, rm);
+    ucvtemu(FCVTPSF10, dst, src1);
 }
 
-void fcvt_ps_un24(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un24(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un24 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN24, dst, src1, rm);
+    ucvtemu(FCVTPSUN24, dst, src1);
 }
 
-void fcvt_ps_un16(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un16(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN16, dst, src1, rm);
+    ucvtemu(FCVTPSUN16, dst, src1);
 }
 
-void fcvt_ps_un10(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un10(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un10 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN10, dst, src1, rm);
+    ucvtemu(FCVTPSUN10, dst, src1);
 }
 
-void fcvt_ps_un8(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un8(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un8 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN8, dst, src1, rm);
+    ucvtemu(FCVTPSUN8, dst, src1);
 }
 
-void fcvt_ps_un2(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_un2(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.un2 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN2, dst, src1, rm);
+    ucvtemu(FCVTPSUN2, dst, src1);
 }
 
-void fcvt_ps_sn16(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_sn16(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.sn16 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSSN16, dst, src1, rm);
+    ucvtemu(FCVTPSSN16, dst, src1);
 }
 
-void fcvt_ps_sn8(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_ps_sn8(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
     DISASM(gsprintf(dis,"I: fcvt.ps.sn8 f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSSN8, dst, src1, rm);
+    ucvtemu(FCVTPSSN8, dst, src1);
 }
 
 // ----- Graphics downconvert ------------------------------
 
-static void dcvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
+static void dcvtemu(opcode opc, freg dst, freg src1)
 {
-    set_rounding_mode(rm);
+    set_rounding_mode(rmdyn);
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -4873,129 +4883,129 @@ static void dcvtemu(opcode opc, freg dst, freg src1, rounding_mode rm)
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis);)
 }
 
-void fcvt_f16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_f16_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.f16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.f16.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF16PS, dst, src1, rm);
+    dcvtemu(FCVTF16PS, dst, src1);
 }
 
-void fcvt_f11_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_f11_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.f11.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.f11.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF11PS, dst, src1, rm);
+    dcvtemu(FCVTF11PS, dst, src1);
 }
 
-void fcvt_f10_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_f10_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.f10.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.f10.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF10PS, dst, src1, rm);
+    dcvtemu(FCVTF10PS, dst, src1);
 }
 
-void fcvt_un24_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un24_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un24.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un24.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN24PS, dst, src1, rm);
+    dcvtemu(FCVTUN24PS, dst, src1);
 }
 
-void fcvt_un16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un16_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un16.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN16PS, dst, src1, rm);
+    dcvtemu(FCVTUN16PS, dst, src1);
 }
 
-void fcvt_un10_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un10_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un10.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un10.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN10PS, dst, src1, rm);
+    dcvtemu(FCVTUN10PS, dst, src1);
 }
 
-void fcvt_un8_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un8_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un8.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un8.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN8PS, dst, src1, rm);
+    dcvtemu(FCVTUN8PS, dst, src1);
 }
 
-void fcvt_un2_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_un2_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.un2.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.un2.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN2PS, dst, src1, rm);
+    dcvtemu(FCVTUN2PS, dst, src1);
 }
 
-void fcvt_sn16_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_sn16_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.sn16.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.sn16.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTSN16PS, dst, src1, rm);
+    dcvtemu(FCVTSN16PS, dst, src1);
 }
 
-void fcvt_sn8_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_sn8_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.sn8.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.sn8.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rmdyn),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTSN8PS, dst, src1, rm);
+    dcvtemu(FCVTSN8PS, dst, src1);
 }
 
 // ----- Graphics additional -------------------------------
 
-void fsin_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fsin_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fsin.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsin.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FSIN, VL, dst, src1, rm);
+    femu1src(FSIN, VL, dst, src1, rmdyn);
 }
 
-void fexp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fexp_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fexp.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fexp.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FEXP, VL, dst, src1, rm);
+    femu1src(FEXP, VL, dst, src1, rmdyn);
 }
 
-void flog_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void flog_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: flog.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: flog.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FLOG, VL, dst, src1, rm);
+    femu1src(FLOG, VL, dst, src1, rmdyn);
 }
 
 void ffrc_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: ffrc.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: ffrc.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu1src(FFRC, VL, dst, src1, rm);
@@ -5005,7 +5015,7 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
     set_rounding_mode(rm);
-    DISASM(gsprintf(dis,"I: fround.ps f%d, f%d using rounding mode %d%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fround.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     for ( int i = 0; i < VL; i++ )
@@ -5024,32 +5034,32 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     IPC(ipc_ps(opc,VL,dst,src1,fnone,fnone,dis););
 }
 
-void frcp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void frcp_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: frcp.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: frcp.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRCP, VL, dst, src1, rm);
+    femu1src(FRCP, VL, dst, src1, rmdyn);
 }
 
-void frsq_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void frsq_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: frsq.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: frsq.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRSQ, VL, dst, src1, rm);
+    femu1src(FRSQ, VL, dst, src1, rmdyn);
 }
 
 // FIXME: THIS INSTRUCTION IS OBSOLETE
-void frcpfxp_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void frcpfxp_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: frcpfxp.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: frcpfxp.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRCPFXP, VL, dst, src1, rm);
+    femu1src(FRCPFXP, VL, dst, src1, rmdyn);
 }
 
 void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5155,19 +5165,19 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
 void fcvt_ps_rast(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.ps.rast f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.ps.rast f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
     femu1src(FCVTPSRAST, VL, dst, src1, rm);
 }
 
-void fcvt_rast_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_rast_ps(freg dst, freg src1, const char* comm)
 {
     require_fp_active();
-    DISASM(gsprintf(dis,"I: fcvt.rast.ps f%d, f%d, %s%s%s",dst,src1,rmnames[rm],(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fcvt.rast.ps f%d, f%d%s%s",dst,src1,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     DEBUG_MASK(MREGS[0]);
-    femu1src(FCVTRASTPS, VL, dst, src1, rm);
+    femu1src(FCVTRASTPS, VL, dst, src1, rmdyn);
 }
 
 void frcp_fix_rast(freg dst, freg src1, freg src2, const char* comm)
@@ -5775,10 +5785,20 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
 //
 // Esperanto Atomics extension emulation
 //
-//    BEMU does not make a difference between local and global ops
-//    because the memory model is flat
-//
 ////////////////////////////////////////////////////////////////////////////////
+
+//
+// NB: BEMU does not differentiate between local and global atomic ops because
+// memory is flat
+//
+
+#define AMO_EMU_F_FUNC(NAME, OPC) \
+void NAME(freg dst, freg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " ft%d, ft%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
+   amo_emu_f(OPC, dst, src1, src2);\
+}
 
 void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
 {
@@ -6263,18 +6283,13 @@ void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata)
 
 static void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
 {
-    if (get_msg_port_data != NULL)
+    if (get_msg_port_data == NULL)
+        throw std::runtime_error("read_msg_port_data() is NULL");
+
+    int wr_words = 1 << (msg_ports[thread][id].logsize-2);
+    for (int i = 0; i < wr_words; i++)
     {
-        int wr_words = 1 << (msg_ports[thread][id].logsize-2);
-        for (int i = 0; i < wr_words; i++)
-        {
-            data[i] = get_msg_port_data(thread, id, i);
-        }
-    }
-    else
-    {
-        gprintf("ERROR: no data provider for msg port %d emulation has been configured\n", id);
-        exit(-1);
+        data[i] = get_msg_port_data(thread, id, i);
     }
 }
 
@@ -6339,11 +6354,7 @@ static int64_t port_get(uint32_t id, bool block)
     if (in_sysemu)
     {
         if (req_msg_port_data == NULL)
-        {
-            gprintf("id = %d, offset = %d, current_thread = %d\n", id, offset, current_thread);
-            gprintf("ERROR: req_msg_port_data == NULL\n");
-            exit(-1);
-        }
+            throw std::runtime_error("req_msg_port_data() is NULL");
         req_msg_port_data(current_thread, id);
     }
     return offset;
@@ -6619,7 +6630,7 @@ void tensorload(uint64_t control)//Transtensorload
         if (tm && !exist_conv)
         {
             DEBUG_EMU(gprintf("Exit Condition Broken\n"););
-             return;
+            return;
         }
         int offset = (control >> 57) & 0x1F;
         uint8_t tmp_buffer[64][64];

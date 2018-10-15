@@ -4,7 +4,6 @@
 
 // Local
 #include "net_emulator.h"
-#include "sys_emu.h"
 
 // Constructor
 net_emulator::net_emulator(main_memory * mem_)

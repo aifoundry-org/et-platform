@@ -1,79 +1,96 @@
-// Global includes
-#include <stdio.h>
-#include <stdlib.h>
-
-// STD
+#include <cstdio>
+#include <cstdlib>
 #include <list>
+#include <exception>
 
-// Local includes
 #include "emu.h"
 #include "common/main_memory.h"
 #include "log.h"
 #include "net_emulator.h"
 #include "rboxSysEmu.h"
-#include "sys_emu.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// Defines
+////////////////////////////////////////////////////////////////////////////////
+
+#define RESET_PC    0x00001000
+#define FCC_T0_ADDR 0x01003400C0ULL
+#define FCC_T1_ADDR 0x01003400D0ULL
+#define FLB_ADDR    0x0100340100ULL
+
+////////////////////////////////////////////////////////////////////////////////
+// Types
+////////////////////////////////////////////////////////////////////////////////
+
+// Reduce state
+typedef enum
+{
+    Reduce_Idle,
+    Reduce_Ready_To_Send,
+    Reduce_Data_Consumed
+} reduce_state;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Global variables
 ////////////////////////////////////////////////////////////////////////////////
 
-std::list<int>  enabled_threads;                     // List of enabled threads
-std::list<int>  pending_fcc;                         // Pending FastCreditCounter list
-static uint64_t current_pc[EMU_NUM_THREADS];         // PC for each thread
-reduce_state    reduce_state_array[EMU_NUM_MINIONS]; // Reduce state
-uint32_t        reduce_pair_array[EMU_NUM_MINIONS];  // Reduce pairing minion
+static std::list<int>  enabled_threads;                     // List of enabled threads
+static std::list<int>  pending_fcc;                         // Pending FastCreditCounter list
+static uint64_t        current_pc[EMU_NUM_THREADS];         // PC for each thread
+static reduce_state    reduce_state_array[EMU_NUM_MINIONS]; // Reduce state
+static uint32_t        reduce_pair_array[EMU_NUM_MINIONS];  // Reduce pairing minion
 
 ////////////////////////////////////////////////////////////////////////////////
 // Functions to emulate the main memory
 ////////////////////////////////////////////////////////////////////////////////
 
-main_memory * memory;
+static main_memory* memory;
 
 // This functions are called by emu. We should clean this to a nicer way...
-uint8_t emu_memread8(uint64_t addr)
+static uint8_t emu_memread8(uint64_t addr)
 {
     uint8_t ret;
     memory->read(addr, 1, &ret);
     return ret;
 }
 
-uint16_t emu_memread16(uint64_t addr)
+static uint16_t emu_memread16(uint64_t addr)
 {
     uint16_t ret;
     memory->read(addr, 2, &ret);
     return ret;
 }
 
-uint32_t emu_memread32(uint64_t addr)
+static uint32_t emu_memread32(uint64_t addr)
 {
     uint32_t ret;
     memory->read(addr, 4, &ret);
     return ret;
 }
 
-uint64_t emu_memread64(uint64_t addr)
+static uint64_t emu_memread64(uint64_t addr)
 {
     uint64_t ret;
     memory->read(addr, 8, &ret);
     return ret;
 }
 
-void emu_memwrite8(uint64_t addr, uint8_t data)
+static void emu_memwrite8(uint64_t addr, uint8_t data)
 {
     memory->write(addr, 1, &data);
 }
 
-void emu_memwrite16(uint64_t addr, uint16_t data)
+static void emu_memwrite16(uint64_t addr, uint16_t data)
 {
     memory->write(addr, 2, &data);
 }
 
-void emu_memwrite32(uint64_t addr, uint32_t data)
+static void emu_memwrite32(uint64_t addr, uint32_t data)
 {
     memory->write(addr, 4, &data);
 }
 
-void emu_memwrite64(uint64_t addr, uint64_t data)
+static void emu_memwrite64(uint64_t addr, uint64_t data)
 {
     memory->write(addr, 8, &data);
 }
@@ -82,7 +99,7 @@ void emu_memwrite64(uint64_t addr, uint64_t data)
 // Dump or not log info
 ////////////////////////////////////////////////////////////////////////////////
 
-bool dump_log(bool log_en, int log_min, int thread_id)
+static bool dump_log(bool log_en, int log_min, int thread_id)
 {
     if(log_min >= EMU_NUM_MINIONS) return log_en;
     return (((thread_id / EMU_THREADS_PER_MINION) == log_min) && log_en);
@@ -93,7 +110,7 @@ bool dump_log(bool log_en, int log_min, int thread_id)
 // second thread (thread_dest) inside the shire of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
-void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, bool log_en, int log_min)
+static void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, bool log_en, int log_min)
 {
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
@@ -120,21 +137,23 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
 ////////////////////////////////////////////////////////////////////////////////
 // functions to connect rbox emulation with emu
 ////////////////////////////////////////////////////////////////////////////////
-rboxSysEmu *rbox[64];
+static rboxSysEmu *rbox[64];
 
-void newMsgPortDataRequest(uint32_t current_thread,  uint32_t port_id) {
-  unsigned shire = current_thread/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-  unsigned thread = current_thread % (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-  if (rbox[shire] != NULL)
-    rbox[shire]->dataRequest(thread);
+static void newMsgPortDataRequest(uint32_t current_thread,  uint32_t port_id)
+{
+    unsigned shire = current_thread/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    unsigned thread = current_thread % (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    if (rbox[shire] != NULL)
+        rbox[shire]->dataRequest(thread);
 }
 
-bool queryMsgPort(uint32_t current_thread,  uint32_t port_id) {
-  unsigned shire = current_thread/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-  unsigned thread = current_thread % (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-  if (rbox[shire] != NULL)
-    return rbox[shire]->dataQuery(thread);
-  else return false;
+static bool queryMsgPort(uint32_t current_thread,  uint32_t port_id)
+{
+    unsigned shire = current_thread/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    unsigned thread = current_thread % (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    if (rbox[shire] != NULL)
+        return rbox[shire]->dataQuery(thread);
+    else return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -142,9 +161,8 @@ bool queryMsgPort(uint32_t current_thread,  uint32_t port_id) {
 // loaded in the different regions
 ////////////////////////////////////////////////////////////////////////////////
 
-bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
+static bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
 {
-
     FILE * file = fopen(filename, "r");
     if(file == NULL)
     {
@@ -180,14 +198,18 @@ bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
 // Instruction log
 ////////////////////////////////////////////////////////////////////////////////
 
-void print_inst_log(instruction * inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
+static void print_inst_log(instruction * inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
 {
-    printf("Minion %" PRIu64 ".%" PRIu64 ".%" PRIu64 ": PC %08" PRIx64 " (inst bits %08" PRIx32 "), mnemonic %s\n", minion / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (minion / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, minion % EMU_THREADS_PER_MINION, current_pc, inst->get_enc(), inst->get_mnemonic().c_str());
+    printf("Minion %" PRIu64 ".%" PRIu64 ".%" PRIu64 ": PC %08" PRIx64 " (inst bits %08" PRIx32 "), mnemonic %s\n",
+           minion / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION),
+           (minion / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE,
+           minion % EMU_THREADS_PER_MINION, current_pc,
+           inst->get_enc(), inst->get_mnemonic().c_str());
 }
 
 // Returns current thread
 
-int32_t thread_id;
+static int32_t thread_id;
 
 static uint32_t get_thread_emu()
 {
@@ -211,7 +233,7 @@ static const char * help_msg =
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -rbox        Enable RBOX emulation\n\n\
- -reset_pc    Sets boot program counter (default 0x1000) \
+ -reset_pc    Sets boot program counter (default 0x1000) \n\
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -240,10 +262,10 @@ int main(int argc, char * argv[])
     uint64_t minions_en  = 1;
     uint64_t shires_en   = 1;
     bool use_rbox        = false;
-    uint64_t reset_pc    = 0x1000;
+    uint64_t reset_pc    = RESET_PC;
     bool reset_pc_flag   = false;
 
-    bzero(rbox, sizeof(rbox));
+    memset(rbox, 0, sizeof(rbox));
 
     for(int i = 1; i < argc; i++)
     {
@@ -613,6 +635,10 @@ int main(int argc, char * argv[])
                 //if(do_log) { printf("Minion %i.%i.%i: Taking a trap\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
                 current_pc[thread_id] = emu_state_change.pc;
                 thread++;
+            }
+            catch (const std::exception& e)
+            {
+                log << LOG_FTL << e.what() << endm;
             }
         }
 
