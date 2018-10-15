@@ -466,11 +466,11 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
     float diff   = fabsf(goldf - tablef);
 
     // fail if diff is bigger than 1ulp
-    if (diff > err_1ulp)
+    /*if (diff > err_1ulp)
     {
         printf("Gold IEEE: %.12e, Table TRANS: %.12e, Diff: %.12e, Max (1ulp): %.12e\n", goldf, tablef, diff, err_1ulp);
         printf("Hex Gold: %08X, Hex Table: %08X\n", gold, table);
-    }
+    }*/
     return (diff > err_1ulp);
 }
 
