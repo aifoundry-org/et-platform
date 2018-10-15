@@ -18,8 +18,7 @@ SRCS := $(BEMU)/emu.cpp \
         $(BEMU)/ipc.cpp \
         $(BEMU)/emu_gio.cpp \
         $(BEMU)/instruction_cache.cpp \
-        $(BEMU)/instruction.cpp \
-        $(TESTROOT)/libs/testLog.cc
+        $(BEMU)/instruction.cpp
 
 include softfloat.mk
 SRCS += $(softfloat_c_srcs)
@@ -45,6 +44,7 @@ CXXFLAGS += -mf16c -fno-fast-math
 ifeq ($(USE_REAL_TXFMA), 1)
     CPPFLAGS += -DUSE_REAL_TXFMA
 endif
+
 
 .PHONY: all
 all: libemu.so

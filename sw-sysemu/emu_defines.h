@@ -661,46 +661,5 @@ DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_MCODE_INSTRUCTION,    trap_mcode_instruction)
 
-
-//
-// Atomics functions
-//
-
-#define AMO_EMU_W_FUNC(NAME, OPC) \
-void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
-{\
-   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
-   DEBUG_EMU(gprintf("%s\n",dis););\
-   amo_emu_w(OPC, dst, src1, src2);\
-}
-
-#define AMO_EMU_D_FUNC(NAME, OPC) \
-void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
-{\
-   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
-   DEBUG_EMU(gprintf("%s\n",dis););\
-   amo_emu_d(OPC, dst, src1, src2);\
-}
-
-#define AMO_EMU_F_FUNC(NAME, OPC) \
-void NAME(freg dst, freg src1, xreg src2, const char* comm)\
-{\
-   DISASM(gsprintf(dis,"I: " #NAME " ft%d, ft%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
-   DEBUG_EMU(gprintf("%s\n",dis););\
-   amo_emu_f(OPC, dst, src1, src2);\
-}
-
-
-#define CSR_ISA_MAX ( \
-                     (1 << 2)  | /* Compressed extension */                      \
-                     (1 << 5)  | /* Single-precision floating-point extension */ \
-                     (1 << 6)  | /* Additional standard extensions present */    \
-                     (1 << 8)  | /* RV32I/64I/128I base ISA */                   \
-                     (1 << 12) | /* Integer Multiply/Divide extension */         \
-                     (1 << 18) | /* Supervisor mode implemented */               \
-                     (1 << 20) | /* User mode implemented */                     \
-                     (1 << 23) ) /*  Non-standard extensions present */
-
-
 #endif // _EMU_DEFINES_H
 

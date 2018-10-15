@@ -335,54 +335,54 @@ extern void fnmadd_ps (freg dst, freg src1, freg src2, freg src3, rounding_mode 
 
 // Graphics upconvert
 
-extern void fcvt_ps_f16  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_ps_f11  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_ps_f10  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_ps_f16  (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_ps_f11  (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_ps_f10  (freg dst, freg src1, const char* comm = 0);
 
-extern void fcvt_ps_un24 (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_ps_un16 (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_ps_un10 (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_ps_un8  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_ps_un2  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_ps_un24 (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_ps_un16 (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_ps_un10 (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_ps_un8  (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_ps_un2  (freg dst, freg src1, const char* comm = 0);
 
-//extern void fcvt_ps_sn24 (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_ps_sn16 (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcvt_ps_sn10 (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_ps_sn8  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcvt_ps_sn2  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+//extern void fcvt_ps_sn24 (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_ps_sn16 (freg dst, freg src1, const char* comm = 0);
+//extern void fcvt_ps_sn10 (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_ps_sn8  (freg dst, freg src1, const char* comm = 0);
+//extern void fcvt_ps_sn2  (freg dst, freg src1, const char* comm = 0);
 
 // Graphics downconvert
 
-extern void fcvt_f16_ps  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_f11_ps  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_f10_ps  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_f16_ps  (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_f11_ps  (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_f10_ps  (freg dst, freg src1, const char* comm = 0);
 
-extern void fcvt_un24_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_un16_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_un10_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_un8_ps  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_un2_ps  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_un24_ps (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_un16_ps (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_un10_ps (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_un8_ps  (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_un2_ps  (freg dst, freg src1, const char* comm = 0);
 
-//extern void fcvt_sn24_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_sn16_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcvt_sn10_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_sn8_ps  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcvt_sn2_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+//extern void fcvt_sn24_ps (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_sn16_ps (freg dst, freg src1, const char* comm = 0);
+//extern void fcvt_sn10_ps (freg dst, freg src1, const char* comm = 0);
+extern void fcvt_sn8_ps  (freg dst, freg src1, const char* comm = 0);
+//extern void fcvt_sn2_ps (freg dst, freg src1, const char* comm = 0);
 
 // Graphics additional
 
-extern void fsin_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-//extern void fcos_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fexp_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void flog_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fsin_ps   (freg dst, freg src1, const char* comm = 0);
+//extern void fcos_ps   (freg dst, freg src1, const char* comm = 0);
+extern void fexp_ps   (freg dst, freg src1, const char* comm = 0);
+extern void flog_ps   (freg dst, freg src1, const char* comm = 0);
 extern void ffrc_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
 extern void fround_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void frcp_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void frsq_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void frcp_ps   (freg dst, freg src1, const char* comm = 0);
+extern void frsq_ps   (freg dst, freg src1, const char* comm = 0);
 //extern void fltabs_ps (freg dst, freg src1, freg src2, rounding_mode rm, const char* comm = 0);
 
 // FIXME: THIS INSTRUCTION IS OBSOLETE
-extern void frcpfxp_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void frcpfxp_ps (freg dst, freg src1, const char* comm = 0);
 
 extern void cubeface_ps    (freg dst, freg src1, freg src2, const char* comm = 0);
 extern void cubefaceidx_ps (freg dst, freg src1, freg src2, const char* comm = 0);
@@ -390,7 +390,7 @@ extern void cubesgnsc_ps   (freg dst, freg src1, freg src2, const char* comm = 0
 extern void cubesgntc_ps   (freg dst, freg src1, freg src2, const char* comm = 0);
 
 extern void fcvt_ps_rast  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
-extern void fcvt_rast_ps  (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void fcvt_rast_ps  (freg dst, freg src1, const char* comm = 0);
 extern void frcp_fix_rast (freg dst, freg src1, freg src2, const char* comm = 0);
 
 // Texture sampling
