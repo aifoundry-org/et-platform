@@ -63,6 +63,7 @@ int scp_size[EMU_NUM_THREADS];
 bool scp_tm;
 int tensorfma_size[EMU_NUM_THREADS];
 int tensorfma_passes[EMU_NUM_THREADS];
+fdata tensorfma_tenc[EMU_NUM_THREADS][32];
 uint32_t tensorfma_data[EMU_NUM_THREADS][32][VL][TFMA_MAX_ACOLS];
 bool tensorfma_mask_skip[TFMA_MAX_ACOLS][TFMA_MAX_AROWS];
 bool tensorfma_zero_skip[TFMA_MAX_ACOLS][32][VL];
@@ -6826,7 +6827,7 @@ static void tensorfma(uint64_t tfmareg)
     int arows      = (tfmareg & 0x0078000000000000) >> 51; // Number of A rows to be processed
     int acols      = (tfmareg & 0x0007800000000000) >> 47; // Number of A cols to be processed
     int aoffset    = (tfmareg & 0x0000780000000000) >> 43; // A matrix 32b offset
-    int tenc_rf    = (tfmareg & 0x0000000000800000) >> 23; // Store TIMA results in VPU RF (IMA only)
+    int tenc_to_rf = (tfmareg & 0x0000000000800000) >> 23; // Store TIMA results in VPU RF (IMA only)
     int ub         = (tfmareg & 0x0000000000400000) >> 22; // Matrix B is unsigned (IMA only)
     int ua         = (tfmareg & 0x0000000000200000) >> 21; // Matrix A is unsigned (IMA only)
     int tenb       = (tfmareg & 0x0000000000100000) >> 20; // B is stored in TENB and not in SCP
@@ -6842,7 +6843,7 @@ static void tensorfma(uint64_t tfmareg)
 
     set_rounding_mode(rmdyn);
 
-    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc_rf: %d, tenb: %d, bstart: %d, astart: %d, rm: %s\n", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenc_rf, tenb, bstart, astart, get_rounding_mode(rmdyn)););
+    DEBUG_EMU(gprintf("\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc_to_rf: %d, tenb: %d, bstart: %d, astart: %d, rm: %s\n", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenc_to_rf, tenb, bstart, astart, get_rounding_mode(rmdyn)););
 
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if (tenb)
@@ -7113,7 +7114,6 @@ static void tensorfma(uint64_t tfmareg)
     }
     else if (type == 3) //INT8-INT32
     {
-
         if (first_pass)
         {
             for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
@@ -7124,7 +7124,7 @@ static void tensorfma(uint64_t tfmareg)
                     int bm = bc % VL;
                     if (MREGS[0].b[bm] == 0) continue;
 
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
+                    tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
                 }
             }
@@ -7147,7 +7147,9 @@ static void tensorfma(uint64_t tfmareg)
                 }
             }
 
+            fdata * tensor_dest = (fdata *) &FREGS;
             int32_t w = (sizeof(int32_t) << 3) - 1;//used for the bitwise saturation
+            char str[256] = "";
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
             {
                 int bf = bc / VL;
@@ -7160,8 +7162,19 @@ static void tensorfma(uint64_t tfmareg)
                     int am = (aoffset + ac) % VL;
                     int br = bstart + ac;                // B: traverse rows
 
+                    // If in last pass and dumping results to VPU RF, then the destination is the VPU RF
+                    if((ac == (acols - 1)) && tenc_to_rf)
+                    {
+                        tensor_dest = (fdata *) &FREGS;
+                        strcpy(str, "");
+                    }
+                    else
+                    {
+                        tensor_dest = (fdata *) &tensorfma_tenc[current_thread];
+                        strcpy(str, "TENC_");
+                    }
                     // Doing four IMAs per lane and accumulating to previous results
-                    int32_t accum     = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                    int32_t accum     = tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
                     // 1st IMA
                     int32_t  mul_a    = ua ? SCP[astart+ar][af].b[am * 4] : sext8_2 (SCP[astart+ar][af].b[am * 4]);
@@ -7171,57 +7184,59 @@ static void tensorfma(uint64_t tfmareg)
                     //BITWISE SATURATION
                     res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
+                    tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b););
+                    DEBUG_EMU(gprintf("\tTensor IMA %sf%d[%d]: %d = %d + %d * %d\n", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b););
+                    DEBUG_EMU(gprintf("\t           %sf%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b););
 
                     // 2nd IMA
                     mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 1] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 1]);
                     mul_b    = ub ? SCP[br][bf].b[bm * 4 + 1]        : sext8_2 (SCP[br][bf].b[bm * 4 + 1]);
-                    accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                    accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
                     //BITWISE SATURATION
                     res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
+                    tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b););
+                    DEBUG_EMU(gprintf("\tTensor IMA %sf%d[%d]: %d = %d + %d * %d\n", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b););
+                    DEBUG_EMU(gprintf("\t           %sf%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b););
 
-                   // 3rd IMA
+                    // 3rd IMA
                     mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 2] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 2]);
                     mul_b    = ub ? SCP[br][bf].b[bm * 4 + 2]        : sext8_2 (SCP[br][bf].b[bm * 4 + 2]);
-                    accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                    accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
                     //BITWISE SATURATION
                     res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
+                    tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b););
+                    DEBUG_EMU(gprintf("\tTensor IMA %sf%d[%d]: %d = %d + %d * %d\n", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b););
+                    DEBUG_EMU(gprintf("\t           %sf%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b););
 
                     // 4th IMA
                     mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 3] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 3]);
                     mul_b    = ub ? SCP[br][bf].b[bm * 4 + 3]        : sext8_2 (SCP[br][bf].b[bm * 4 + 3]);
-                    accum    = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                    accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
                     //BITWISE SATURATION
                     res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
+                    tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
-                    DEBUG_EMU(gprintf("\tTensor IMA f%d[%d]: %d = %d + %d * %d\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b););
+                    DEBUG_EMU(gprintf("\tTensor IMA %sf%d[%d]: %d = %d + %d * %d\n", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b););
+                    DEBUG_EMU(gprintf("\t           %sf%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x\n", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b););
 
                     // For checker purposes we keep the data of all the passes
-                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
 
-                    if ((ac != 0) && (ac != (acols - 1)))
+                    bool do_not_zero_skip = ((first_pass == 1) && (ac == 0))            // Can't skip for first pass and first acol
+                                         || ((tenc_to_rf == 1) && (ac == (acols - 1))); // Can't skip for TENC write to RF and last acol
+                    if(!do_not_zero_skip)
                     {
 
                     // If As are zeroes, we skip operation
@@ -7233,22 +7248,23 @@ static void tensorfma(uint64_t tfmareg)
                     }
                 }
             }
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%d)\n",ar,TFMA_MAX_BCOLS/VL*ar  ,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar  ,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6]););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7]););
+
+            DEBUG_EMU(gprintf("\tC row %d: %sf%d[%d] = 0x%08x (%d)\n",ar,str,TFMA_MAX_BCOLS/VL*ar  ,0,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[0],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[0]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,1,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[1],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[1]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,2,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[2],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[2]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,3,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[3],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[3]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,4,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[4],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[4]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,5,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[5],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[5]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,6,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[6],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[6]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,7,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[7],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[7]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,0,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[0],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[0]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,1,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[1],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[1]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,2,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[2],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[2]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,3,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[3],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[3]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,4,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[4],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[4]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,5,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[5],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[5]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,6,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[6],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[6]););
+            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,7,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[7],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[7]););
         }
     }
     else
