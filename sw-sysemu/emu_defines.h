@@ -8,7 +8,7 @@
 #endif
 
 // Maximum number of threads
-#define EMU_NUM_MINIONS         (36*32)  // at most 36 shires
+#define EMU_NUM_MINIONS         (35*32)  // at most 35 shires
 #define EMU_THREADS_PER_MINION  2
 #define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
 #define EMU_MINIONS_PER_SHIRE   32
@@ -122,8 +122,6 @@ typedef enum {
     csr_tstore,
     csr_terror,
     csr_twait,
-    csr_hartid,
-    csr_sleep_txfma_27,
     // csr_top,
     csr_offtxfma,
     csr_flbarrier,
@@ -225,8 +223,8 @@ typedef enum {
     csr_minstmask,
     csr_minstmatch,
     csr_flush_icache,
-    csr_msleep_txfma_27,
-    csr_menable_shadows,
+    csr_sleep_txfma_27,
+
     CSR_MAX
 } csr;
 
@@ -662,6 +660,47 @@ DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_PAGE_FAULT,     trap_instruction_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_MCODE_INSTRUCTION,    trap_mcode_instruction)
+
+
+//
+// Atomics functions
+//
+
+#define AMO_EMU_W_FUNC(NAME, OPC) \
+void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
+   amo_emu_w(OPC, dst, src1, src2);\
+}
+
+#define AMO_EMU_D_FUNC(NAME, OPC) \
+void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
+   amo_emu_d(OPC, dst, src1, src2);\
+}
+
+#define AMO_EMU_F_FUNC(NAME, OPC) \
+void NAME(freg dst, freg src1, xreg src2, const char* comm)\
+{\
+   DISASM(gsprintf(dis,"I: " #NAME " ft%d, ft%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DEBUG_EMU(gprintf("%s\n",dis););\
+   amo_emu_f(OPC, dst, src1, src2);\
+}
+
+
+#define CSR_ISA_MAX ( \
+                     (1 << 2)  | /* Compressed extension */                      \
+                     (1 << 5)  | /* Single-precision floating-point extension */ \
+                     (1 << 6)  | /* Additional standard extensions present */    \
+                     (1 << 8)  | /* RV32I/64I/128I base ISA */                   \
+                     (1 << 12) | /* Integer Multiply/Divide extension */         \
+                     (1 << 18) | /* Supervisor mode implemented */               \
+                     (1 << 20) | /* User mode implemented */                     \
+                     (1 << 23) ) /*  Non-standard extensions present */
+
 
 #endif // _EMU_DEFINES_H
 
