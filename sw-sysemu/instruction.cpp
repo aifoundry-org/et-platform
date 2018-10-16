@@ -854,6 +854,9 @@ void instruction::exec()
     if (!str_error.empty())
         throw std::runtime_error(str_error);
 
+    // Check if we should trap the instruction to microcode
+    check_minst_match(get_enc());
+
     switch (num_params)
     {
         case 0: (emu_func0(nullptr)); break;

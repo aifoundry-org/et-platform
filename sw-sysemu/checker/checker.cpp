@@ -343,9 +343,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 if(res == CHECKER_WAIT) return CHECKER_WAIT;
             }
 
-            // Check if a trap is forced for this instruction
-            emu_mcode_insn(inst->get_emu_func());
-
             // Execute the instruction (may trap)
             inst->exec();
             retry = false;
