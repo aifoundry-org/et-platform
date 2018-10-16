@@ -2147,14 +2147,14 @@ static uint64_t csrget(csr src1)
             val = port_get(src1 - csr_portheadnb0, false);
             break;
         case csr_sleep_txfma_27:
-          if ( prv != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0) {
+          if ( prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0) {
                throw trap_illegal_instruction(current_inst);
           }
           val = csrregs[current_thread][csr_msleep_txfma_27];
           break;
         case csr_hartid:
           //check shadow is allowed
-          if ( prv != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 1) == 0) {
+          if ( prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 1) == 0) {
                throw trap_illegal_instruction(current_inst);
           }
           val = csrregs[current_thread][csr_mhartid];
