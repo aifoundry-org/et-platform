@@ -960,6 +960,8 @@ void instruction::add_parameter(std::string param)
     else if (param == "marchid")          params[num_params] = csr_marchid;
     else if (param == "mimpid")           params[num_params] = csr_mimpid;
     else if (param == "mhartid")          params[num_params] = csr_mhartid;
+    else if (param == "unknown_cd0")      params[num_params] = csr_hartid;
+    else if (param == "unknown_7d2")      params[num_params] = csr_menable_shadows;
     else if (param == "mstatus")          params[num_params] = csr_mstatus;
     else if (param == "misa")             params[num_params] = csr_misa;
     else if (param == "medeleg")          params[num_params] = csr_medeleg;
@@ -1022,7 +1024,8 @@ void instruction::add_parameter(std::string param)
     else if (param == "minstmask")        params[num_params] = csr_minstmask;
     else if (param == "minstmatch")       params[num_params] = csr_minstmatch;
     else if (param == "flush_icache")     params[num_params] = csr_flush_icache;
-    else if (param == "sleep_txfma_27")   params[num_params] = csr_sleep_txfma_27;
+    else if (param == "sleep_txfma_27")   params[num_params] = csr_msleep_txfma_27; //TODO: change string to 'msleep_txfma_27' when tools are updated
+    else if (param == "unknown_8d5")      params[num_params] = csr_sleep_txfma_27;
     else if (param == "validation0")      params[num_params] = csr_validation0;
     else if (param == "validation1")      params[num_params] = csr_validation1;
     else if (param == "validation2")      params[num_params] = csr_validation2;
