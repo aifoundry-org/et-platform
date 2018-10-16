@@ -23,9 +23,17 @@ main_memory::main_memory(std::string logname)
     // UC writes to the fast local barrier and mtime/mtimecmp ESRs
     for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++)
     {
-        main_memory_region * flb = new main_memory_region(0x100340000ULL + i*0x400000ULL, 512, log, getthread);
-        regions_.push_back((main_memory_region *) flb);
-        main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*0x400000ULL, 64, log, getthread);
+        for (int n = 0; n < 4; n++)
+        {
+            main_memory_region * neigh_esrs = new main_memory_region(0x100100000ULL + i*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
+            regions_.push_back((main_memory_region *) neigh_esrs);
+        }
+        main_memory_region * shire_esrs = new main_memory_region(0x100340000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) shire_esrs);
+        // M prot for shire
+        shire_esrs = new main_memory_region(0x100340000ULL + (3ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) shire_esrs);
+        main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*ESR_REGION_OFFSET, 64, log, getthread);
         regions_.push_back((main_memory_region *) mtm);
     }
 }
