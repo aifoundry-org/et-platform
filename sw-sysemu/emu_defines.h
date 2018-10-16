@@ -122,6 +122,8 @@ typedef enum {
     csr_tstore,
     csr_terror,
     csr_twait,
+    csr_hartid,
+    csr_sleep_txfma_27,
     // csr_top,
     csr_offtxfma,
     csr_flbarrier,
@@ -223,8 +225,8 @@ typedef enum {
     csr_minstmask,
     csr_minstmatch,
     csr_flush_icache,
-    csr_sleep_txfma_27,
-
+    csr_msleep_txfma_27,
+    csr_menable_shadows,
     CSR_MAX
 } csr;
 
