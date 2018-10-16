@@ -507,9 +507,6 @@ int main(int argc, char * argv[])
                 if(do_log)
                     print_inst_log(inst, thread_id, current_pc[thread_id], emu_state_change);
 
-                // Check if a trap is forced for this instruction
-                emu_mcode_insn(inst->get_emu_func());
-
                 // In case of reduce, we need to make sure that the other minion is also in reduce state
                 bool reduce_wait = false;
                 if(inst->get_is_reduce())
