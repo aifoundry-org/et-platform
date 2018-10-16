@@ -397,7 +397,8 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mip] = 0x0ULL;
     csrregs[thread][csr_icache_ctrl] = 0x0ULL;
     csrregs[thread][csr_write_ctrl] = 0x0ULL;
-    csrregs[thread][csr_sleep_txfma_27] = 0x0ULL;
+    csrregs[thread][csr_msleep_txfma_27] = 0x0ULL;
+    csrregs[thread][csr_menable_shadows] = 0x0ULL;
     // Debug-mode registers with reset
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
 
@@ -2145,7 +2146,20 @@ static uint64_t csrget(csr src1)
             }
             val = port_get(src1 - csr_portheadnb0, false);
             break;
-        // ----- S-mode registers ----------------------------------------
+        case csr_sleep_txfma_27:
+          if ( prv != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0) {
+               throw trap_illegal_instruction(current_inst);
+          }
+          val = csrregs[current_thread][csr_msleep_txfma_27];
+          break;
+        case csr_hartid:
+          //check shadow is allowed
+          if ( prv != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 1) == 0) {
+               throw trap_illegal_instruction(current_inst);
+          }
+          val = csrregs[current_thread][csr_mhartid];
+          break;
+          // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
             val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
@@ -2200,6 +2214,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_marchid:
         case csr_mimpid:
         case csr_mhartid:
+        case csr_hartid:
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
@@ -2319,6 +2334,14 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x00000000000000FFULL;
             csrregs[current_thread][src1] = val;
             break;
+        case csr_sleep_txfma_27:
+            if ( csrregs[current_thread][csr_prv] != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0) {
+              throw trap_illegal_instruction(current_inst);
+            }
+            csrregs[current_thread][csr_msleep_txfma_27] = val;
+            csrregs[current_thread ^ 1][csr_msleep_txfma_27] = val;
+            break;
+
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
@@ -2435,10 +2458,11 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             break;
         // ----- Shared registers ----------------------------------------
-        case csr_sleep_txfma_27:
-            csrregs[current_thread][src1] = val;
-            csrregs[current_thread^1][src1] = val;
-            break;
+        case csr_msleep_txfma_27:
+        case csr_menable_shadows:
+          csrregs[current_thread][src1] = val;
+          csrregs[current_thread^1][src1] = val;
+          break;          
         // ----- Verification registers ----------------------------------------
         case csr_validation1:
             // Ignore carriage return
