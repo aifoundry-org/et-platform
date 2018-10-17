@@ -3984,6 +3984,8 @@ void flq2(freg dst, int off, xreg base, const char* comm)
     DISASM(gsprintf(dis,"I: flq2 f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     require_fp_active();
+    uint64_t addr = XREGS[base].x + off;
+    if ((addr % 4) != 0) throw trap_load_address_misaligned(addr);
     femuld(VL, dst, off,  base, 0);
 }
 
@@ -4001,6 +4003,8 @@ void fsq2(freg src1, int off, xreg base, const char* comm)
     DISASM(gsprintf(dis,"I: fsq2 f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     require_fp_active();
+    uint64_t addr = XREGS[base].x + off;
+    if ((addr % 4) != 0) throw trap_store_address_misaligned(addr);
     femust(VL, src1, off, base, 0);
 }
 
