@@ -5,6 +5,7 @@
 
 #include "emu_defines.h"
 #include "instruction.h"
+#include "testLog.h"
 
 #ifdef IPC
 #undef IPC
@@ -38,7 +39,7 @@ extern void set_core_type(et_core_t core);
 extern et_core_t get_core_type();
 
 // Configure the emulation environment
-extern void init_emu(int debug, int fakesam);
+extern void init_emu(int debug, int fakesam, enum logLevel log_level);
 
 // Helpers
 extern void print_comment(const char *comm);

@@ -379,14 +379,14 @@ int main(int argc, char * argv[])
     }
 
     // Generates the main memory of the emulator
-    memory = new main_memory("checker main memory");
+    memory = new main_memory("checker main memory", log_en? LOG_DEBUG : LOG_INFO);
     memory->setGetThread(get_thread_emu);
     if (create_mem_at_runtime) {
        memory->create_mem_at_runtime();
     }
 
     // Init emu
-    init_emu(log_en, false);
+    init_emu(log_en, false, log_en? LOG_DEBUG : LOG_INFO);
 
     in_sysemu = true;
 
@@ -493,7 +493,7 @@ int main(int argc, char * argv[])
 
             // Computes logging for this thread
             bool do_log = dump_log(log_en, log_min, thread_id);
-            init_emu(do_log, false);
+            init_emu(do_log, false, do_log? LOG_DEBUG: LOG_INFO);
             if(do_log) { printf("Starting emu of thread %i\n", thread_id); }
 
             // Try to execute one instruction, this may trap

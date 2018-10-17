@@ -7,8 +7,8 @@
 using namespace std;
 
 // Constructor
-main_memory::main_memory(std::string logname)
-    : log(logname, LOG_DEBUG)
+main_memory::main_memory(std::string logname, enum logLevel log_level)
+    : log(logname, log_level)
 {
     getthread = NULL;
     // Adds the tbox

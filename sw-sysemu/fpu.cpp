@@ -1,3 +1,5 @@
+/* -*- Mode:C++; c-basic-offset: 4; -*- */
+
 #include "fpu.h"
 #include "fpu_casts.h"
 #include "cvt.h"
@@ -751,13 +753,13 @@ namespace fpu {
                     handle_nan_default(res);
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul_a.u,mul_b.u);)
+                    LOG(DEBUG, "\tTensor FMA f%d[%d]: %g = %g + %g * %g",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt);
+                    LOG(DEBUG, "\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul_a.u,mul_b.u);
                     // Uncomment to help debugging
-                    //DEBUG_EMU(gprintf("\tBefore truncating accum 0x%08x, fma1 0x%08x, fma2 0x%08x\n", hex_accum, hex_fma1, hex_fma2);)
-                    //DEBUG_EMU(gprintf("\tAfter truncating  accum 0x%08x, fma1 0x%08x, fma2 0x%08x\n", accum_trunc, fma1_trunc, fma2_trunc);)
-                    //DEBUG_EMU(gprintf("\tExponents accum exp %d, fma1 exp %d, fma2 exp %d\n", accum_exp, fma1_exp, fma2_exp);)
-                    //DEBUG_EMU(gprintf("\tRemove bits according to max exp %d, accum %d, fma1 %d, fma2 %d\n", exp_max, accum_erase, fma1_erase, fma2_erase);)
+                    //LOG(DEBUG, "\tBefore truncating accum 0x%08x, fma1 0x%08x, fma2 0x%08x", hex_accum, hex_fma1, hex_fma2);
+                    //LOG(DEBUG, "\tAfter truncating  accum 0x%08x, fma1 0x%08x, fma2 0x%08x", accum_trunc, fma1_trunc, fma2_trunc);
+                    //LOG(DEBUG, "\tExponents accum exp %d, fma1 exp %d, fma2 exp %d", accum_exp, fma1_exp, fma2_exp);
+                    //LOG(DEBUG, "\tRemove bits according to max exp %d, accum %d, fma1 %d, fma2 %d", exp_max, accum_erase, fma1_erase, fma2_erase);
 #else
                     iufval32 mul_a, mul_b, res;
 
@@ -775,8 +777,8 @@ namespace fpu {
                     handle_nan_default(res);
                     //FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul1_a_hex,mul1_b_hex););
+                    LOG(DEBUG, "\tTensor FMA f%d[%d]: %g = %g + %g * %g",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt);
+                    LOG(DEBUG, "\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul1_a_hex,mul1_b_hex);
 
                     // 2nd FMA
                     accum     = res;
@@ -789,8 +791,8 @@ namespace fpu {
                     handle_nan_default(res);
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
 
-                    DEBUG_EMU(gprintf("\tTensor FMA f%d[%d]: %g = %g + %g * %g\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt););
-                    DEBUG_EMU(gprintf("\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x\n",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul2_a_hex,mul2_b_hex););
+                    LOG(EMU, "\tTensor FMA f%d[%d]: %g = %g + %g * %g",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt);
+                    LOG(EMU, "\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul2_a_hex,mul2_b_hex);
 #endif
 #endif
 
