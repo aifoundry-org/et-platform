@@ -73,3 +73,41 @@ retry_vsnprintf:
     }
 
 } // namespace emu
+
+
+// Logging
+testLog& emu_log() {
+  static testLog l("EMU", LOG_INFO);
+  return l;
+}
+
+void log_printf(enum logLevel level, const char* format,...)
+{
+
+  if ( level >= LOG_ERR || level>= emu_log().getLogLevel() ) {
+    va_list args;
+    va_start(args, format);
+    
+    va_list tmp_args; //unfortunately you cannot consume a va_list twice
+    va_copy(tmp_args, args); //so we have to copy it
+    const int required_len = vsnprintf(nullptr, 0, format, tmp_args) + 1;
+    va_end(tmp_args);
+    
+    std::string buf(required_len, '\0');
+    if (std::vsnprintf(&buf[0], buf.size(), format, args) < 0) {
+      throw std::runtime_error{"string_vsprintf encoding error"};
+    }
+
+    // add [EMU M.T] stamp before each new line
+    std::string emu_stamp = "[EMU " + std::to_string(current_thread>>1) + "." + std::to_string(current_thread&1) + "] ";
+    emu_log().setName( emu_stamp);
+    emu_stamp = "\n" + emu_stamp;
+    size_t newline = 0;
+    size_t stamp_len = emu_stamp.length();
+    while( (newline = buf.find("\n", newline)) != std::string::npos){
+      buf.replace(newline, 1, emu_stamp);
+      newline+=stamp_len;
+    }
+    emu_log() << level << buf.c_str() << endm;
+  }
+}
