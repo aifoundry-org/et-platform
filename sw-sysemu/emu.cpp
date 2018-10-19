@@ -1986,7 +1986,9 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
     // Stores the operated data
     vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n", res, addr););
-    logmemwchange(0, 4, addr, res);
+    // note: for logging purposes, sending val2 instead of res => we want to check what the
+    // dcache outputs to the shire caches, not the actual value written in memory
+    logmemwchange(0, 4, addr, val2);
 }
 
 static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
@@ -2056,7 +2058,9 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
     // Store the operated data
     vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n", res, addr););
-    logmemwchange(0, 8, addr, res);
+    // note: for logging purposes, sending val2 instead of res => we want to check what the
+    // dcache outputs to the shire caches, not the actual value written in memory
+    logmemwchange(0, 8, addr, val2);
 }
 
 //
@@ -5818,7 +5822,10 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
         // Stores the operated data
         vmemwrite32(addr, res.u);
         DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n", res.u, addr););
-        logmemwchange(0, 4, addr, res.u);
+
+        // note: for logging purposes, sending val2.u instead of res.u => we want to check what the
+        // dcache outputs to the shire caches, not the actual value written in memory
+        logmemwchange(el, 4, addr, val2.u);
 
         IPC(ipc_gt(FGW, VL, 4, dst, src1, src2, addr, dis, idx++);)
     }
