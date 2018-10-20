@@ -64,10 +64,12 @@ extern void set_memory_funcs(void * func_memread8_, void * func_memread16_,
 
 // Traps
 extern void take_trap(const trap_t& t);
-extern void emu_mcode_insn(void (*func_ptr)());
 
 // Illegal instruction encodings will execute this
 extern void unknown(const char* comm = 0);
+
+// Instruction encodings that match minstmatch/minstmask will execute this
+extern void check_minst_match(uint32_t bits);
 
 // ----- RV64I emulation -------------------------------------------------------
 
