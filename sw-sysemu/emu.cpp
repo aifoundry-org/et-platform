@@ -596,12 +596,6 @@ uint32_t get_thread()
 
 uint32_t get_mask(unsigned maskNr)
 {
-#if (VL == 4)
-    return uint32_t((MREGS[maskNr].b[3] << 3) |
-                    (MREGS[maskNr].b[2] << 2) |
-                    (MREGS[maskNr].b[1] << 1) |
-                    (MREGS[maskNr].b[0] << 0));
-#else
     return uint32_t((MREGS[maskNr].b[7] << 7) |
                     (MREGS[maskNr].b[6] << 6) |
                     (MREGS[maskNr].b[5] << 5) |
@@ -610,7 +604,6 @@ uint32_t get_mask(unsigned maskNr)
                     (MREGS[maskNr].b[2] << 2) |
                     (MREGS[maskNr].b[1] << 1) |
                     (MREGS[maskNr].b[0] << 0));
-#endif
 }
 
 extern inst_state_change * log_info;
@@ -1993,7 +1986,9 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
     // Stores the operated data
     vmemwrite32(addr, res);
     DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n", res, addr););
-    logmemwchange(0, 4, addr, res);
+    // note: for logging purposes, sending val2 instead of res => we want to check what the
+    // dcache outputs to the shire caches, not the actual value written in memory
+    logmemwchange(0, 4, addr, val2);
 }
 
 static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
@@ -2063,7 +2058,9 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
     // Store the operated data
     vmemwrite64(addr, res);
     DEBUG_EMU(gprintf("\t0x%016llx --> MEM[0x%016llx]\n", res, addr););
-    logmemwchange(0, 8, addr, res);
+    // note: for logging purposes, sending val2 instead of res => we want to check what the
+    // dcache outputs to the shire caches, not the actual value written in memory
+    logmemwchange(0, 8, addr, val2);
 }
 
 //
@@ -3728,35 +3725,6 @@ static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
         }
         MREGS[dst].b[i] = res;
     }
-#if (VL==4)
-    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-    for ( int i = 0; i < VL; i++ )
-    {
-        uint8_t val1  = MREGS[src1]._xb[i];
-        uint8_t val2  = (src2 == mnone) ? 0 : MREGS[src2]._xb[i];
-
-        uint8_t res;
-        switch ( opc )
-        {
-            case MAND:   res = (val1 & val2) & 0x1;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- %d & %d\n",i,res,val1,val2););
-                         break;
-            case MOR:    res = (val1 | val2) & 0x1;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- %d | %d\n",i,res,val1,val2););
-                         break;
-            case MXOR:   res = (val1 ^ val2) & 0x1;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- %d ^ %d\n",i,res,val1,val2););
-                         break;
-            case MNOT:   res = (~val1) & 0x1;
-                         DEBUG_EMU(gprintf("\t[%d] %d <-- ~%d\n",i,res,val1););
-                         break;
-            default:     assert(0);
-                         break;
-
-        }
-        MREGS[dst]._xb[i] = res;
-    }
-#endif
     logmregchange(dst);
     IPC(ipc_msk(opc,dst,src1,src2,dis);)
 }
@@ -3801,14 +3769,6 @@ void mova_x_m(xreg dst, const char* comm)
     uint64_t val = 0;
     for ( int m = 7; m >= 0; m-- )
     {
-#if (VL==4)
-        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-        val <<= VL;
-        for ( int i = 0; i < VL; i++ )
-        {
-            val |= (MREGS[m]._xb[i] & 0x1) << i;
-        }
-#endif
         val <<= VL;
         for ( int i = 0; i < VL; i++ )
         {
@@ -3837,15 +3797,6 @@ void mova_m_x(xreg src1, const char* comm)
             DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x\n",m,i,MREGS[m].b[i]););
         }
         val >>= VL;
-#if (VL==4)
-        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-        for ( int i = 0; i < VL; i++ )
-        {
-            MREGS[m]._xb[i] = (val >> i) & 0x1;
-            DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x\n",m,i+VL,MREGS[m]._xb[i]););
-        }
-        val >>= VL;
-#endif
         logmregchange(m);
     }
 }
@@ -3862,15 +3813,6 @@ void mov_m_x(mreg dst, xreg src1, uint32_t imm, const char* comm)
         MREGS[dst].b[i] = ( val >> i ) & 0x1;
         DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x  (from val=0x%08x)\n",dst,i,MREGS[dst].b[i],val););
     }
-#if (VL==4)
-    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-    val >>= VL;
-    for ( int i = 0; i < VL; i++ )
-    {
-        MREGS[dst]._xb[i] = ( val >> i ) & 0x1;
-        DEBUG_EMU(gprintf("\tm%d.b[%d] = 0x%x  (from val=0x%08x)\n",dst,i+VL,MREGS[dst]._xb[i],val););
-    }
-#endif
     logmregchange(dst);
 }
 
@@ -3884,14 +3826,6 @@ void maskpopc(xreg dst, mreg src1, const char* comm)
         count += (MREGS[src1].b[i] ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d\n",count,src1,i,MREGS[src1].b[i]););
     }
-#if (VL==4)
-    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-    for(int i = 0; i < VL; i++ )
-    {
-        count += (MREGS[src1]._xb[i] ? 1 : 0);
-        DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d\n",count,src1,i+VL,MREGS[src1]._xb[i]););
-    }
-#endif
     if ( dst != x0 ) XREGS[dst].x = count;
     logxregchange(dst);
 }
@@ -3906,14 +3840,6 @@ void maskpopcz(xreg dst, mreg src1, const char* comm)
         count += (MREGS[src1].b[i] ? 0 : 1);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d \n",count,src1,i,MREGS[src1].b[i]););
     }
-#if (VL==4)
-    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-    for(int i = 0; i < VL; i++ )
-    {
-        count += (MREGS[src1]._xb[i] ? 0 : 1);
-        DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d \n",count,src1,i+VL,MREGS[src1]._xb[i]););
-    }
-#endif
     if ( dst != x0 ) XREGS[dst].x = count;
     logxregchange(dst);
 }
@@ -3938,11 +3864,6 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* com
         count += ((MREGS[src1].b[i] & (mask & 0x1)) ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d m = %d \n",count,src1,i,MREGS[src1].b[i], mask & 0x1););
         mask = mask >> 1;
-#if (VL==4)
-        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-        count += ((MREGS[src1]._xb[i] & (mask & 0x1)) ? 1 : 0);
-        mask = mask >> 1;
-#endif
     }
 
     for(int i = 0; i < VL; i++ )
@@ -3950,12 +3871,6 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* com
         count += ((MREGS[src2].b[i] & (mask & 0x1)) ? 1 : 0);
         DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d m = %d \n",count,src2,i,MREGS[src2].b[i], mask & 0x1););
         mask = mask >> 1;
-#if (VL==4)
-        // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-        count += ((MREGS[src2]._xb[i] & (mask & 0x1)) ? 1 : 0);
-        mask = mask >> 1;
-        DEBUG_EMU(gprintf("\tcount = %ld from m%d.b[%d] = %d m = %d \n",count,src2,i+VL,MREGS[src2]._xb[i], mask & 0x1););
-#endif
     }
 
     if ( dst != x0 ) XREGS[dst].x = count;
@@ -3984,6 +3899,8 @@ void flq2(freg dst, int off, xreg base, const char* comm)
     DISASM(gsprintf(dis,"I: flq2 f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     require_fp_active();
+    uint64_t addr = XREGS[base].x + off;
+    if ((addr % 4) != 0) throw trap_load_address_misaligned(addr);
     femuld(VL, dst, off,  base, 0);
 }
 
@@ -4001,6 +3918,8 @@ void fsq2(freg src1, int off, xreg base, const char* comm)
     DISASM(gsprintf(dis,"I: fsq2 f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     DEBUG_EMU(gprintf("%s\n",dis););
     require_fp_active();
+    uint64_t addr = XREGS[base].x + off;
+    if ((addr % 4) != 0) throw trap_store_address_misaligned(addr);
     femust(VL, src1, off, base, 0);
 }
 
@@ -4603,14 +4522,9 @@ void fmvz_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
     index = index % VL;
     if (dst != x0)
         XREGS[dst].x = FREGS[src1].u[index];
-#if (VL == 4)
-    DEBUG_EMU(gprintf("\t 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x}\n", XREGS[dst].x,
-                      FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3]););
-#else
     DEBUG_EMU(gprintf("\t 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}\n", XREGS[dst].x,
                       FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3],
                       FREGS[src1].u[4], FREGS[src1].u[5], FREGS[src1].u[6], FREGS[src1].u[7]););
-#endif
     logxregchange(dst);
     IPC(ipc_f2x(FMVZXPS,dst,src1,dis););
 }
@@ -4624,14 +4538,9 @@ void fmvs_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
     index = index % VL;
     if (dst != x0)
         XREGS[dst].x = sext32(FREGS[src1].u[index]);
-#if (VL == 4)
-    DEBUG_EMU(gprintf("\t 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x}\n", XREGS[dst].x,
-                      FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3]););
-#else
     DEBUG_EMU(gprintf("\t 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}\n", XREGS[dst].x,
                       FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3],
                       FREGS[src1].u[4], FREGS[src1].u[5], FREGS[src1].u[6], FREGS[src1].u[7]););
-#endif
     logxregchange(dst);
     IPC(ipc_f2x(FMVSXPS,dst,src1,dis););
 }
@@ -5913,7 +5822,10 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
         // Stores the operated data
         vmemwrite32(addr, res.u);
         DEBUG_EMU(gprintf("\t0x%08x --> MEM[0x%016llx]\n", res.u, addr););
-        logmemwchange(0, 4, addr, res.u);
+
+        // note: for logging purposes, sending val2.u instead of res.u => we want to check what the
+        // dcache outputs to the shire caches, not the actual value written in memory
+        logmemwchange(el, 4, addr, val2.u);
 
         IPC(ipc_gt(FGW, VL, 4, dst, src1, src2, addr, dis, idx++);)
     }
@@ -6949,41 +6861,11 @@ static void tensorfma(uint64_t tfmareg)
                     }
                 }
             }
-#if VL==8
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7])););
-#elif VL==4
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,0,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,1,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,2,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,3,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,0,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,1,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,2,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,3,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3])););
-#endif
+            for(int reg = 0; reg < 2; reg++)
+                for(int lane = 0; lane < VL; lane++)
+                    if((reg != 0) || (lane != 0))
+                        DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+reg,lane,FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane])););
         }
     }
     // *FP16+FP32
@@ -7075,41 +6957,11 @@ static void tensorfma(uint64_t tfmareg)
                     }
                 }
             }
-#if VL==8
             DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar+0,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,4,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[4])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,5,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[5])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,6,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[6])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+0,7,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[7])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,4,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[4])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,5,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[5])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,6,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[6])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,7,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[7])););
-#elif VL==4
-            DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%g)\n",ar,TFMA_MAX_BCOLS/VL*ar  ,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,1,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,2,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar  ,3,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,0,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,1,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,2,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+1,3,FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+1].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,0,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,1,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,2,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+2,3,FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+2].u[3])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,0,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[0])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,1,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[1])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,2,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[2])););
-            DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+3,3,FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+3].u[3])););
-#endif
+            for(int reg = 0; reg < 2; reg++)
+                for(int lane = 0; lane < VL; lane++)
+                    if((reg != 0) || (lane != 0))
+                        DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%g)\n",    TFMA_MAX_BCOLS/VL*ar+reg,lane,FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane],cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane])););
         }
     }
     else if (type == 3) //INT8-INT32
@@ -7143,6 +6995,31 @@ static void tensorfma(uint64_t tfmareg)
                     // Except 1st if first pass
                     if (first_pass)
                         tensorfma_mask_skip[0][ar] = 0;
+
+                    // If writing to VPU RF, need to write data
+                    if(tenc_to_rf)
+                    {
+                        for ( int bc = 0; bc < bcols; bc++ ) // For all the Cols
+                        {
+                            int bf = bc / VL;
+                            int bm = bc % VL;
+
+                            // Write 0s
+                            if(first_pass)
+                                FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
+                            // Write TENC to VPU RF
+                            else
+                            {
+                                int32_t accum = tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
+                                FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = accum;
+                            }
+                        }
+                        DEBUG_EMU(gprintf("\tC row %d: f%d[%d] = 0x%08x (%d)\n",ar,TFMA_MAX_BCOLS/VL*ar  ,0,FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0],FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]););
+                        for(int reg = 0; reg < 2; reg++)
+                            for(int lane = 0; lane < VL; lane++)
+                                if((reg != 0) || (lane != 0))
+                                    DEBUG_EMU(gprintf("\t         f%d[%d] = 0x%08x (%d)\n",    TFMA_MAX_BCOLS/VL*ar+reg,lane,FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane],FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]););
+                    }
                     continue;
                 }
             }
@@ -7250,21 +7127,10 @@ static void tensorfma(uint64_t tfmareg)
             }
 
             DEBUG_EMU(gprintf("\tC row %d: %sf%d[%d] = 0x%08x (%d)\n",ar,str,TFMA_MAX_BCOLS/VL*ar  ,0,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[0],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[0]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,1,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[1],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[1]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,2,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[2],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[2]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,3,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[3],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[3]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,4,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[4],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[4]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,5,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[5],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[5]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,6,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[6],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[6]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar  ,7,tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[7],tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[7]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,0,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[0],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[0]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,1,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[1],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[1]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,2,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[2],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[2]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,3,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[3],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[3]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,4,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[4],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[4]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,5,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[5],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[5]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,6,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[6],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[6]););
-            DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+1,7,tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[7],tensor_dest[TFMA_MAX_BCOLS/VL*ar+1].u[7]););
+            for(int reg = 0; reg < 2; reg++)
+                for(int lane = 0; lane < VL; lane++)
+                    if((reg != 0) || (lane != 0))
+                        DEBUG_EMU(gprintf("\t         %sf%d[%d] = 0x%08x (%d)\n",    str,TFMA_MAX_BCOLS/VL*ar+reg,lane,tensor_dest[TFMA_MAX_BCOLS/VL*ar+reg].u[lane],tensor_dest[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]););
         }
     }
     else
