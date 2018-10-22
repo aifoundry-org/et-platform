@@ -16,7 +16,7 @@
 // Defines
 ////////////////////////////////////////////////////////////////////////////////
 
-#define RESET_PC    0x00001000
+#define RESET_PC    0x8000001000ULL
 #define FCC_T0_ADDR 0x01003400C0ULL
 #define FCC_T1_ADDR 0x01003400D0ULL
 #define FLB_ADDR    0x0100340100ULL
@@ -245,7 +245,7 @@ static const char * help_msg =
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -rbox        Enable RBOX emulation\n\
- -reset_pc    Sets boot program counter (default 0x1000) \n\
+ -reset_pc    Sets boot program counter (default 0x8000001000) \n\
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
  -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
 ";
