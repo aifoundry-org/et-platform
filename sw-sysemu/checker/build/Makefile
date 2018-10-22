@@ -19,12 +19,18 @@ vpath %.cpp $(BEMU)/common
 OBJS := $(addsuffix .o,$(basename $(notdir $(SRCS))))
 DEPS := $(addsuffix .d,$(basename $(OBJS)))
 
+BFDROOT := $(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf
+
 CC	 := gcc
 CXX 	 := g++
 CPPFLAGS := -I$(BEMU) -I$(BEMU)/checker -I$(TESTROOT)/libs
 CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -std=c++11 -g -O2
 LDFLAGS  := -shared
 LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
+
+CPPFLAGS += -I$(BFDROOT)/include
+LDLIBS   += -L$(BFDROOT)/lib -Wl,-rpath=$(BFDROOT)/lib \
+	    -lbfd -lopcodes
 
 NO_EMU_DEBUG ?= 0
 ifeq ($(NO_EMU_DEBUG), 0)
