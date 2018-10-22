@@ -1,3 +1,5 @@
+/* -*- Mode:C++; c-basic-offset: 4; -*- */
+
 #include <cassert>
 #include <unordered_map>
 #include <stdexcept>
@@ -46,7 +48,7 @@ void flush_insn_cache()
 // Returns a decoded instruction from a specific PC
 instruction * get_inst()
 {
-    DEBUG_EMU(gprintf("Fetching instruction from PC 0x%016llx\n",current_pc););
+    LOG(DEBUG, "Fetching instruction from PC 0x%016llx", current_pc);
 
     // Physical address corresponding to virtual PC
     uint64_t paddr = vmemtranslate(current_pc, Mem_Access_Fetch);
@@ -137,7 +139,7 @@ instruction * get_inst()
         if (--retries <= 0)
             throw std::runtime_error("Failed opening file 'dasm_checker_out'.");
 
-        DEBUG_EMU(gprintf("Failed opening file 'dasm_checker_out'. Pending retries: %d\n",retries););
+        LOG(DEBUG, "Failed opening file 'dasm_checker_out'. Pending retries: %d\n",retries);
         sleep(1000);
     }
 

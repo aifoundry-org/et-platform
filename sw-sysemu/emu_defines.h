@@ -8,7 +8,7 @@
 #endif
 
 // Maximum number of threads
-#define EMU_NUM_MINIONS         1024
+#define EMU_NUM_MINIONS         (36*32)  // at most 36 shires
 #define EMU_THREADS_PER_MINION  2
 #define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
 #define EMU_MINIONS_PER_SHIRE   32
@@ -65,6 +65,9 @@
 #define ESR_REGION_SHIRE_SH 22              // Bits to shift to get shire destination
 #define ESR_REGION_OFFSET   0x0000400000ULL
 #define ESR_SHIRE_REGION    0x0100340000ULL
+#define ESR_NEIGH_REGION    0x0100100000ULL
+#define ESR_NEIGH_OFFSET    0x0000010000ULL
+#define ESR_NEIGH_BDCST     0x00000F0000ULL // Address bits used to know if access is local
 
 // ESR Offsets
 #define ESR_SHIRE_FLB_OFFSET  0x100ULL
@@ -119,6 +122,8 @@ typedef enum {
     csr_tstore,
     csr_terror,
     csr_twait,
+    csr_hartid,
+    csr_sleep_txfma_27,
     // csr_top,
     csr_offtxfma,
     csr_flbarrier,
@@ -220,8 +225,8 @@ typedef enum {
     csr_minstmask,
     csr_minstmatch,
     csr_flush_icache,
-    csr_sleep_txfma_27,
-
+    csr_msleep_txfma_27,
+    csr_menable_shadows,
     CSR_MAX
 } csr;
 
