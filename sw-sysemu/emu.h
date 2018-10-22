@@ -543,7 +543,7 @@ extern void famomaxg_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
 
 // ----- Esperanto messaging extension -----------------------------------------
 
-extern void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata);
+extern void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata, void* getoob, void *reqreset);
 extern bool get_msg_port_stall(uint32_t thread, uint32_t id);
 extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data);
 extern void update_msg_port_data();
