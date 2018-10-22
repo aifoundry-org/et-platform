@@ -7,8 +7,8 @@
 using namespace std;
 
 // Constructor
-main_memory::main_memory(std::string logname)
-    : log(logname, LOG_DEBUG)
+main_memory::main_memory(std::string logname, enum logLevel log_level)
+    : log(logname, log_level)
 {
     getthread = NULL;
     // Adds the tbox
@@ -18,14 +18,22 @@ main_memory::main_memory(std::string logname)
     rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
     regions_.push_back((main_memory_region *) rbox);
     // UC writes to notify completion of kernels to master processor
-    main_memory_region * uc_writes = new main_memory_region(0x0108000000ULL, 64, log, getthread, MEM_REGION_WO);
+    main_memory_region * uc_writes = new main_memory_region(0x0108000800ULL, 64, log, getthread, MEM_REGION_WO);
     regions_.push_back((main_memory_region *) uc_writes);
     // UC writes to the fast local barrier and mtime/mtimecmp ESRs
     for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++)
     {
-        main_memory_region * flb = new main_memory_region(0x100340000ULL + i*0x400000ULL, 512, log, getthread);
-        regions_.push_back((main_memory_region *) flb);
-        main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*0x400000ULL, 64, log, getthread);
+        for (int n = 0; n < 4; n++)
+        {
+            main_memory_region * neigh_esrs = new main_memory_region(0x100100000ULL + i*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
+            regions_.push_back((main_memory_region *) neigh_esrs);
+        }
+        main_memory_region * shire_esrs = new main_memory_region(0x100340000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) shire_esrs);
+        // M prot for shire
+        shire_esrs = new main_memory_region(0x100340000ULL + (3ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) shire_esrs);
+        main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*ESR_REGION_OFFSET, 64, log, getthread);
         regions_.push_back((main_memory_region *) mtm);
     }
 }

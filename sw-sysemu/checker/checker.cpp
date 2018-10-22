@@ -162,8 +162,8 @@ void checker_thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc) {
 }
 
 // Creates a new checker
-checker::checker(main_memory * memory_, bool print_debug)
-    : log("checker", LOG_DEBUG)
+checker::checker(main_memory * memory_, bool print_debug, enum logLevel emu_log_level)
+    : log("checker", emu_log_level)
 {
     for(uint32_t i = 0; i < EMU_NUM_THREADS; i++)
     {
@@ -196,9 +196,9 @@ checker::checker(main_memory * memory_, bool print_debug)
     checker_instance = this;
     memory_instance = memory;
 #ifdef EMU_DEBUG
-    init_emu(print_debug, false);
+    init_emu(print_debug, false, emu_log_level);
 #else
-    init_emu(false, false);
+    init_emu(false, false, emu_log_level);
 #endif
 }
 
@@ -342,9 +342,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 checker_result res = do_reduce(thread, inst, wake_minion);
                 if(res == CHECKER_WAIT) return CHECKER_WAIT;
             }
-
-            // Check if a trap is forced for this instruction
-            emu_mcode_insn(inst->get_emu_func());
 
             // Execute the instruction (may trap)
             inst->exec();
