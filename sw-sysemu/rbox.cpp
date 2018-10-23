@@ -1,3 +1,5 @@
+/* -*- Mode:C++; c-basic-offset: 4; -*- */
+
 #include <cstdio>
 
 #include "rbox.h"
@@ -71,18 +73,16 @@ uint32_t process_packet(uint64_t packet)
     {
         case RBOX_INPCKT_FULLY_COVERED_TILE:
             {
-                DEBUG_EMU( gprintf("RBOX : Processing fully covered tile packet\n"); )
+                LOG(DEBUG, "RBOX : Processing fully covered tile packet");
                 RBOXInPcktFullyCoveredTile fully_covered_tile_pckt;
-
-                DEBUG_EMU( gprintf("RBOX : Packet Data "); )
+                
+                emu_log()<<LOG_DEBUG<<"RBOX : Packet Data"<<std::hex;
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     fully_covered_tile_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    DEBUG_EMU(
-                        if (qw < 3) gprintf("%016lx_", fully_covered_tile_pckt.qw[qw]);
-                        else        gprintf("%016lx\n", fully_covered_tile_pckt.qw[qw]);
-                    )
+                    emu_log()<<" "<<fully_covered_tile_pckt.qw[qw];
                 }
+                emu_log()<<std::dec<<endm;
 
                 int64_t edge_samples[3];
                 for (uint32_t eq = 0; eq < 3; eq++)
@@ -99,18 +99,16 @@ uint32_t process_packet(uint64_t packet)
             break;
         case RBOX_INPCKT_LARGE_TRIANGLE_TILE:
             {
-                DEBUG_EMU( gprintf("RBOX : Processing partially covered tile packet\n"); )
+                LOG(DEBUG, "RBOX : Processing partially covered tile packet");
                 RBOXInPcktLargeTriTile large_tri_tile_pckt;
 
-                DEBUG_EMU( gprintf("RBOX : Packet Data "); )
+                emu_log()<<LOG_DEBUG<<"RBOX : Packet Data"<<std::hex;
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     large_tri_tile_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    DEBUG_EMU(
-                        if (qw < 3) gprintf("%016lx_", large_tri_tile_pckt.qw[qw]);
-                        else        gprintf("%016lx\n", large_tri_tile_pckt.qw[qw]);
-                    )
+                    emu_log()<< " "<<large_tri_tile_pckt.qw[qw];
                 }
+                emu_log()<<std::dec<<endm;
 
                 int64_t edge_samples[3];
                 for (uint32_t eq = 0; eq < 3; eq++)
@@ -127,18 +125,16 @@ uint32_t process_packet(uint64_t packet)
             break;
         case RBOX_INPCKT_TRIANGLE_WITH_TILE_64x64:
             {
-                DEBUG_EMU(gprintf("RBOX : Processing triangle with tile, triangle inside 64x64 tile aligned 64x64 tile\n"); )
+                LOG(DEBUG, "RBOX : Processing triangle with tile, triangle inside 64x64 tile aligned 64x64 tile");
                 RBOXInPcktTriWithTile64x64 tri_with_tile_64x64_pckt;
 
-                DEBUG_EMU( gprintf("RBOX : Packet Data "); )
+                emu_log()<<"RBOX : Packet Data"<<std::hex;
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     tri_with_tile_64x64_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    DEBUG_EMU(
-                        if (qw < 7) gprintf("%016lx_", tri_with_tile_64x64_pckt.qw[qw]);
-                        else        gprintf("%016lx\n", tri_with_tile_64x64_pckt.qw[qw]);
-                    )
+                    emu_log()<<tri_with_tile_64x64_pckt.qw[qw];
                 }
+                emu_log()<<std::dec<<endm;
 
                 for (uint32_t eq = 0; eq < 3; eq++)
                 {
@@ -169,19 +165,16 @@ uint32_t process_packet(uint64_t packet)
             break;
         case RBOX_INPCKT_TRIANGLE_WITH_TILE_128x128:
             {
-                DEBUG_EMU( gprintf("RBOX : Processing triangle with tile, triangle inside 64x64 tile aligned 128x128 tile\n"); )
+                LOG(DEBUG, "RBOX : Processing triangle with tile, triangle inside 64x64 tile aligned 128x128 tile");
                 RBOXInPcktTriWithTile128x128 tri_with_tile_128x128_pckt;
 
-                DEBUG_EMU( gprintf("RBOX : Packet Data "); )
+                emu_log()<<LOG_DEBUG<<"RBOX : Packet Data"<<std::hex;
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     tri_with_tile_128x128_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    DEBUG_EMU(
-                        if (qw < 7) gprintf("%016lx_", tri_with_tile_128x128_pckt.qw[qw]);
-                        else        gprintf("%016lx\n", tri_with_tile_128x128_pckt.qw[qw]);
-                    )
+                    emu_log()<<" "<< tri_with_tile_128x128_pckt.qw[qw];
                 }
-
+                emu_log()<<std::dec<<endm;
                 for (uint32_t eq = 0; eq < 3; eq++)
                 {
                     current_triangle.edge_eqs[eq].a = tri_with_tile_128x128_pckt.tri_with_tile_128x128.edge_eqs[eq].a
@@ -211,18 +204,16 @@ uint32_t process_packet(uint64_t packet)
             break;
         case RBOX_INPCKT_LARGE_TRIANGLE:
             {
-                DEBUG_EMU( gprintf("RBOX : Processing large triangle packet\n"); )
+                LOG(DEBUG, "RBOX : Processing large triangle packet");
                 RBOXInPcktLargeTri large_tri_pckt;
 
-                DEBUG_EMU( gprintf("RBOX : Packet Data "); )
+                emu_log()<<LOG_DEBUG<<"RBOX : Packet Data"<<std::hex;
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     large_tri_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    DEBUG_EMU(
-                        if (qw < 7) gprintf("%016lx_", large_tri_pckt.qw[qw]);
-                        else        gprintf("%016lx\n", large_tri_pckt.qw[qw]);
-                    )
+                    emu_log()<<" "<<large_tri_pckt.qw[qw];
                 }
+                emu_log()<<std::dec<<endm;
 
                 for (uint32_t eq = 0; eq < 3; eq++)
                 {
@@ -243,19 +234,16 @@ uint32_t process_packet(uint64_t packet)
             break;
         case RBOX_INPCKT_RBOX_STATE:
             {
-                DEBUG_EMU( gprintf("RBOX : Processing RBOX state packet\n"); )
+                LOG(DEBUG, "RBOX : Processing RBOX state packet");
                 RBOXInPcktRBOXState rbox_state_pckt;
 
-                DEBUG_EMU( gprintf("RBOX : Packet Data "); )
+                emu_log()<<"RBOX : Packet Data"<<std::hex;
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     rbox_state_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    DEBUG_EMU(
-                        if (qw < 7) gprintf("%016lx_", rbox_state_pckt.qw[qw]);
-                        else        gprintf("%016lx\n", rbox_state_pckt.qw[qw]);
-                    )
+                    emu_log()<<" "<< rbox_state_pckt.qw[qw];
                 }
-
+                emu_log()<<std::dec<<endm;
                 rbox_state_idx++;
                 if (rbox_state_idx == RBOX_STATE_BUFFER_SIZE)
                     rbox_state_idx = 0;
@@ -265,19 +253,16 @@ uint32_t process_packet(uint64_t packet)
             break;
         case RBOX_INPCKT_FRAG_SHADING_STATE:
             {
-                DEBUG_EMU( gprintf("RBOX : Processing fragment shading state packet\n"); )
+                LOG(DEBUG, "RBOX : Processing fragment shading state packet");
                 RBOXInPcktFrgmtShdrState frag_shader_state_pckt;
 
-                DEBUG_EMU( gprintf("RBOX : Packet Data "); )
+                emu_log()<<"RBOX : Packet Data"<<std::hex;
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     frag_shader_state_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    DEBUG_EMU(
-                        if (qw < 3) gprintf("%016lx_", frag_shader_state_pckt.qw[qw]);
-                        else        gprintf("%016lx\n", frag_shader_state_pckt.qw[qw]);
-                    )
+                    emu_log()<<" "<<frag_shader_state_pckt.qw[qw];
                 }
-
+                emu_log()<<std::dec<<endm;
                 frag_shader_state = frag_shader_state_pckt.state;
                 new_frag_shader_state = true;
                 packet_size = 4;
@@ -323,7 +308,7 @@ void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], ui
                     new_frag_shader_state = false;
                 }
 
-                DEBUG_EMU( gprintf("RBOX : Generated packet for quad at (%d, %d)\n", tile_x + x, tile_y + y); )
+                LOG(DEBUG, "RBOX : Generated packet for quad at (%d, %d)", tile_x + x, tile_y + y);
 
                 generate_quad_packet(quad);
                 generated_quads_in_tile++;
@@ -334,7 +319,7 @@ void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], ui
         sample_next_row(row_sample);
     }
 
-    DEBUG_EMU( gprintf("RBOX : Generated %d quads in tile\n", generated_quads_in_tile); )
+    LOG(DEBUG, "RBOX : Generated %d quads in tile", generated_quads_in_tile);
 }
 
 void sample_next_row(TriangleSample &sample)
@@ -353,15 +338,15 @@ void sample_next_quad(TriangleSample &sample)
 
 void sample_quad(uint32_t x, uint32_t y, TriangleSample quad_sample, QuadInfo &quad)
 {
-    DEBUG_EMU( gprintf("RBOX : Sampling quad at (%d, %d) -> start sample = (%llx, %llx, %llx, %llx)\n"
+    LOG(DEBUG, "RBOX : Sampling quad at (%d, %d) -> start sample = (%llx, %llx, %llx, %llx)\n"
                       "\t\tequation coefficients = (\n\t\t\t(%llx, %llx),\n\t\t\t(%llx, %llx),\n\t\t\t(%llx, %llx),\n\t\t\t(%llx, %llx)\n\t\t)\n"
-                      "\t\ttop_or_left_edges = (%d, %d, %d)\n",
+                      "\t\ttop_or_left_edges = (%d, %d, %d)",
                        x, y, quad_sample.edge[0], quad_sample.edge[1], quad_sample.edge[2], quad_sample.depth,
                        current_triangle.edge_eqs[0].a, current_triangle.edge_eqs[0].b,
                        current_triangle.edge_eqs[1].a, current_triangle.edge_eqs[1].b,
                        current_triangle.edge_eqs[2].a, current_triangle.edge_eqs[2].b,
                        current_triangle.depth_eq.a, current_triangle.depth_eq.b,
-                       current_triangle.top_or_left_edge[0], current_triangle.top_or_left_edge[1], current_triangle.top_or_left_edge[2]); )
+                       current_triangle.top_or_left_edge[0], current_triangle.top_or_left_edge[1], current_triangle.top_or_left_edge[2]);
 
     quad.fragment[0].sample = quad_sample;
     for (uint32_t eq = 0; eq < 3; eq++)
@@ -377,9 +362,9 @@ void sample_quad(uint32_t x, uint32_t y, TriangleSample quad_sample, QuadInfo &q
     for (uint32_t f = 0; f < 4; f++)
     {
         quad.fragment[f].coverage = sample_inside_triangle(quad.fragment[f].sample);
-        DEBUG_EMU( gprintf("RBOX => Fragment %d Sample (%llx, %llx, %llx, %llx) Coverage = %d\n", f,
+        LOG(DEBUG, "RBOX => Fragment %d Sample (%llx, %llx, %llx, %llx) Coverage = %d", f,
                           quad.fragment[f].sample.edge[0], quad.fragment[f].sample.edge[1], quad.fragment[f].sample.edge[2],
-                          quad.fragment[f].sample.depth, quad.fragment[f].coverage); )
+                          quad.fragment[f].sample.depth, quad.fragment[f].coverage);
     }
 
     quad.x = x;
@@ -405,14 +390,14 @@ bool test_quad(QuadInfo &quad)
             uint8_t frag_stencil = frag_depth_stencil >> 24;
             uint32_t frag_depth = frag_depth_stencil & 0x00FFFFFF;
 
-            DEBUG_EMU( gprintf("RBOX => Testing fragment at (%d, %d) address = %016llx sample_depth = %08x fragment_depth_stencil = %08x\n",
-                              x, y, frag_depth_stencil_address, quad.fragment[f].sample.depth, frag_depth_stencil); )
+            LOG(DEBUG, "RBOX => Testing fragment at (%d, %d) address = %016llx sample_depth = %08x fragment_depth_stencil = %08x",
+                              x, y, frag_depth_stencil_address, quad.fragment[f].sample.depth, frag_depth_stencil);
 
             bool depth_bound_test =  do_depth_bound_test(frag_depth);
             bool stencil_test = do_stencil_test(frag_stencil);
             bool depth_test = do_depth_test(frag_depth, quad.fragment[f].sample.depth);
 
-            DEBUG_EMU( gprintf("RBOX => Test results : depth_bound = %d stencil = %d depth = %d\n", depth_bound_test, stencil_test, depth_test); )
+            LOG(DEBUG, "RBOX => Test results : depth_bound = %d stencil = %d depth = %d", depth_bound_test, stencil_test, depth_test);
 
             uint8_t out_stencil = stencil_update(frag_stencil, stencil_test, depth_test);
 
@@ -455,9 +440,9 @@ bool sample_inside_triangle(TriangleSample sample)
 
 bool do_scissor_test(uint32_t x, uint32_t y)
 {
-    DEBUG_EMU( gprintf("RBOX => Scissor test for fragment at (%d, %d) scissor rectangle (%d, %d, %d, %d)\n",
+    LOG(DEBUG, "RBOX => Scissor test for fragment at (%d, %d) scissor rectangle (%d, %d, %d, %d)",
                       x, y, rbox_state[rbox_state_idx].scissor_start_x, rbox_state[rbox_state_idx].scissor_start_y,
-                      rbox_state[rbox_state_idx].scissor_width, rbox_state[rbox_state_idx].scissor_height); )
+                      rbox_state[rbox_state_idx].scissor_width, rbox_state[rbox_state_idx].scissor_height);
 
     return    (x >= rbox_state[rbox_state_idx].scissor_start_x)
            && (y >= rbox_state[rbox_state_idx].scissor_start_y)
@@ -606,7 +591,7 @@ void generate_quad_packet(QuadInfo quad)
 {
     RBOXOutPcktQuadInfo quad_info_pckt;
 
-    DEBUG_EMU( gprintf("RBOX => Generate quad packet\n"); )
+    LOG(DEBUG, "RBOX => Generate quad packet");
 
     uint64_t packet = output.next_write_packet();
 
@@ -623,7 +608,7 @@ void generate_quad_packet(QuadInfo quad)
 
     for (uint32_t qw = 0; qw < 2; qw++)
     {
-        DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_info_pckt.qw[qw], packet); )
+        LOG(DEBUG, "RBOX => Writing QW %016llx at address %llx", quad_info_pckt.qw[qw], packet);
         vmemwrite64(packet, quad_info_pckt.qw[qw]);
         packet = packet + 8;
     }
@@ -635,7 +620,7 @@ void generate_quad_packet(QuadInfo quad)
 
     for (uint32_t qw = 0; qw < 2; qw++)
     {
-        DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
+        LOG(DEBUG, "RBOX => Writing QW %016llx at address %llx", quad_data_pckt.qw[qw], packet);
         vmemwrite64(packet, quad_data_pckt.qw[qw]);
         packet = packet + 8;
     }
@@ -645,7 +630,7 @@ void generate_quad_packet(QuadInfo quad)
 
     for (uint32_t qw = 0; qw < 2; qw++)
     {
-        DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
+        LOG(DEBUG, "RBOX => Writing QW %016llx at address %llx", quad_data_pckt.qw[qw], packet);
         vmemwrite64(packet, quad_data_pckt.qw[qw]);
         packet = packet + 8;
     }
@@ -655,7 +640,7 @@ void generate_quad_packet(QuadInfo quad)
 
     for (uint32_t qw = 0; qw < 2; qw++)
     {
-        DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", quad_data_pckt.qw[qw], packet); )
+        LOG(DEBUG, "RBOX => Writing QW %016llx at address %llx", quad_data_pckt.qw[qw], packet);
         vmemwrite64(packet, quad_data_pckt.qw[qw]);
         packet = packet + 8;
     }
@@ -681,7 +666,7 @@ void generate_frag_shader_state_packet()
 {
     RBOXOutPcktFrgShdrState f_sh_pckt;
 
-    DEBUG_EMU( gprintf("RBOX => Generate Fragment Shader State Packet\n"); )
+    LOG(DEBUG, "RBOX => Generate Fragment Shader State Packet");
 
     for (uint32_t qw = 0; qw < 4; qw++)
         f_sh_pckt.qw[qw] = 0;
@@ -695,7 +680,7 @@ void generate_frag_shader_state_packet()
 
     for (uint32_t qw = 0; qw < 4; qw++)
     {
-        DEBUG_EMU( gprintf("RBOX => Writing QW %016llx at address %llx\n", f_sh_pckt.qw[qw], packet + qw * 8); )
+        LOG(DEBUG, "RBOX => Writing QW %016llx at address %llx", f_sh_pckt.qw[qw], packet + qw * 8);
         vmemwrite64(packet + qw * 8, f_sh_pckt.qw[qw]);
     }
 
@@ -710,32 +695,32 @@ void tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, RBOXTileSize ti
         case RBOX_TILE_SIZE_64x64 :
             tile_x = tile_x << 6;
             tile_y = tile_y << 6;
-            DEBUG_EMU( gprintf("RBOX : Tile Size 64x64 Position (%d, %d)\n", tile_x, tile_y); )
+            LOG(DEBUG, "RBOX : Tile Size 64x64 Position (%d, %d)", tile_x, tile_y);
             break;
         case RBOX_TILE_SIZE_64x32 :
             tile_x = tile_x << 6;
             tile_y = tile_y << 5;
-            DEBUG_EMU( gprintf("RBOX : Tile Size 64x32 Position (%d, %d)\n", tile_x, tile_y); )
+            LOG(DEBUG, "RBOX : Tile Size 64x32 Position (%d, %d)", tile_x, tile_y);
             break;
         case RBOX_TILE_SIZE_32x32 :
             tile_x = tile_x << 5;
             tile_y = tile_y << 5;
-            DEBUG_EMU( gprintf("RBOX : Tile Size 32x32 Position (%d, %d)\n", tile_x, tile_y); )
+            LOG(DEBUG, "RBOX : Tile Size 32x32 Position (%d, %d)", tile_x, tile_y);
             break;
         case RBOX_TILE_SIZE_16x16 :
             tile_x = tile_x << 4;
             tile_y = tile_y << 4;
-            DEBUG_EMU( gprintf("RBOX : Tile Size 16x16 Position (%d, %d)\n", tile_x, tile_y); )
+            LOG(DEBUG, "RBOX : Tile Size 16x16 Position (%d, %d)", tile_x, tile_y);
             break;
         case RBOX_TILE_SIZE_8x8 :
             tile_x = tile_x << 3;
             tile_y = tile_y << 3;
-            DEBUG_EMU( gprintf("RBOX : Tile Size 8x8 Position (%d, %d)\n", tile_x, tile_y); )
+            LOG(DEBUG, "RBOX : Tile Size 8x8 Position (%d, %d)", tile_x, tile_y);
             break;
         case RBOX_TILE_SIZE_4x4 :
             tile_x = tile_x << 2;
             tile_y = tile_y << 2;
-            DEBUG_EMU( gprintf("RBOX : Tile Size 4x4 Position (%d, %d)\n", tile_x, tile_y); )
+            LOG(DEBUG, "RBOX : Tile Size 4x4 Position (%d, %d)", tile_x, tile_y);
             break;
     }
 }

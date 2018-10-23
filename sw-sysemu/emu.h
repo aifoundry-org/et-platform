@@ -5,6 +5,7 @@
 
 #include "emu_defines.h"
 #include "instruction.h"
+#include "testLog.h"
 
 #ifdef IPC
 #undef IPC
@@ -38,7 +39,7 @@ extern void set_core_type(et_core_t core);
 extern et_core_t get_core_type();
 
 // Configure the emulation environment
-extern void init_emu(int debug, int fakesam);
+extern void init_emu(int debug, int fakesam, enum logLevel log_level);
 
 // Helpers
 extern void print_comment(const char *comm);
@@ -547,7 +548,7 @@ extern void famomaxg_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
 
 extern void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata);
 extern bool get_msg_port_stall(uint32_t thread, uint32_t id);
-extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data);
+extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
 extern void update_msg_port_data();
 
 // ----- Esperanto tensor extension --------------------------------------------

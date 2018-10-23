@@ -14,7 +14,7 @@ class main_memory
 {
     public:
         // Constructors and destructors
-        main_memory(std::string logname);
+  main_memory(std::string logname, enum logLevel log_level);
         ~main_memory();
 
         // Read and write

@@ -7,8 +7,8 @@
 using namespace std;
 
 // Constructor
-main_memory::main_memory(std::string logname)
-    : log(logname, LOG_DEBUG)
+main_memory::main_memory(std::string logname, enum logLevel log_level)
+    : log(logname, log_level)
 {
     getthread = NULL;
     // Adds the tbox
@@ -28,6 +28,8 @@ main_memory::main_memory(std::string logname)
             main_memory_region * neigh_esrs = new main_memory_region(0x100100000ULL + i*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
             regions_.push_back((main_memory_region *) neigh_esrs);
         }
+        main_memory_region * rbox_esrs  = new main_memory_region(0x100310000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) rbox_esrs);
         main_memory_region * shire_esrs = new main_memory_region(0x100340000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
         // M prot for shire

@@ -573,6 +573,7 @@ typedef struct {
     uint8_t scp_way;
     uint8_t rd_ptr;
     uint8_t wr_ptr;
+    uint8_t size;
     int32_t offset;
 } msg_port_conf;
 
