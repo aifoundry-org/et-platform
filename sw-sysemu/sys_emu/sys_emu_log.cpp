@@ -1,7 +1,7 @@
 #include "testLog.h"
 
 // static members of testLog
-logLevel testLog::globalLogLevel_ = LOG_INFO;
+logLevel testLog::globalLogLevel_ = LOG_DEBUG;
 bool testLog::globalLogLevelSet_ = false;
 logLevel testLog::defaultLogLevel_ = LOG_INFO;
 bool testLog::defaultLogLevelSet_ = false;

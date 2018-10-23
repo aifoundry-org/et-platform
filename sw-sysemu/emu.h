@@ -548,7 +548,7 @@ extern void famomaxg_ps  (freg dst, freg src1, xreg src2, const char* comm = 0);
 
 extern void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata);
 extern bool get_msg_port_stall(uint32_t thread, uint32_t id);
-extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data);
+extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
 extern void update_msg_port_data();
 
 // ----- Esperanto tensor extension --------------------------------------------

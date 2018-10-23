@@ -102,9 +102,10 @@ int rboxSysEmu::tick()
 void rboxSysEmu::dataRequest(unsigned thread)
 {
     // send to minion msg port
-    write_msg_port_(thread, 0, (uint32_t*)(&(queuePerThread_[thread].front().data)));
-    queuePerThread_[thread].pop();
-    remaining_quads_--;
+  uint8_t oob = 0;
+  write_msg_port_(thread, 0, (uint32_t*)(&(queuePerThread_[thread].front().data)),oob);
+  queuePerThread_[thread].pop();
+  remaining_quads_--;
 }
 
 bool rboxSysEmu::dataQuery(unsigned thread)
