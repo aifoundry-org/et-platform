@@ -437,7 +437,7 @@ static func_ptr get_function_ptr(std::string func)
     if (el != pointer_cache.end())
         return el->second;
    
-    DEBUG_EMU(gprintf("Unknown opcode '%s' while decoding instruction.",func.c_str()););
+    LOG(WARN, "Unknown opcode '%s' while decoding instruction.",func.c_str());
     return func_ptr(unknown);
 }
 
