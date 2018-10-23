@@ -453,7 +453,7 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
 
     bool gold_is_inf = ((gold == 0xff800000) || (gold == 0x7f800000));
 
-    //printf("GOLD: %d TABLE: %d\n", gold_is_nan, table_is_nan);
+    //LOG(DEBUG,"GOLD: %d TABLE: %d\n", gold_is_nan, table_is_nan);
     if (gold_is_inf)
     {
         assert((gold == table) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
@@ -475,8 +475,8 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
     // fail if diff is bigger than 1ulp
     /*if (diff > err_1ulp)
     {
-        printf("Gold IEEE: %.12e, Table TRANS: %.12e, Diff: %.12e, Max (1ulp): %.12e\n", goldf, tablef, diff, err_1ulp);
-        printf("Hex Gold: %08X, Hex Table: %08X\n", gold, table);
+        LOG(DEBUG, "Gold IEEE: %.12e, Table TRANS: %.12e, Diff: %.12e, Max (1ulp): %.12e\n", goldf, tablef, diff, err_1ulp);
+        LOG(DEBUG, "Hex Gold: %08X, Hex Table: %08X\n", gold, table);
     }*/
     return (diff > err_1ulp);
 }
@@ -7371,19 +7371,19 @@ static uint64_t flbarrier(uint64_t value)
 
     uint64_t orig_value = vmemread64(addr);
     uint64_t result = -1;
-    printf("FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n",
-            (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit );
+    LOG(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n",
+        (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit );
     // Last guy, return 1 and zero barrier
     if (orig_value == limit)
     {
-        printf("FastLocalBarrier: last minion Shire %i!!\n", (int) shire);
+        LOG(DEBUG,"FastLocalBarrier: last minion Shire %i!!\n", (int) shire);
         vmemwrite64(addr, 0);
         result = 1;
     }
     // Not the last guy, return 0 and increment barrier
     else
     {
-        printf("FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n", limit, orig_value + 1);
+        LOG(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n", limit, orig_value + 1);
         vmemwrite64(addr, orig_value + 1);
         result = 0;
     }
