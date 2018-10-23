@@ -2,6 +2,8 @@
 #define _EMU_GIO_H
 
 #include "emu_defines.h"
+#include <cstdarg>
+#include "testLog.h"
 
 #ifdef DEBUG_EMU
 #undef DEBUG_EMU
@@ -12,12 +14,16 @@
 
 #ifdef DEBUG_MASK
 #undef DEBUG_MASK
-#define DEBUG_MASK(_MR) DEBUG_EMU(gprintf("\tmask = 0x%02x\n",MASK2BYTE(_MR)););
+#define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02x\n",MASK2BYTE(_MR));
 #else
 #define DEBUG_MASK(a)
 #endif
 
 extern int print_debug;
+
+#define LOG(severity, format, ...)    log_printf(LOG_##severity, format, ##__VA_ARGS__)
+void log_printf(enum logLevel level, const char* format, ...);
+testLog& emu_log();
 
 namespace emu {
     extern void gprintf(const char* format, ...);
