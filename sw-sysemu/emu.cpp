@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <list>
+#include <queue>
 
 #include "emu.h"
 #include "log.h"
@@ -73,6 +74,7 @@ int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
+std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 
 // Used to access different threads transparently
 #define SCP   scp[current_thread]
@@ -6225,17 +6227,20 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 // setup functions to retrieve data written to port and to query if there is
 // data available from RTL
 
-typedef uint32_t (*func_get_msg_port_data_t)  (uint32_t, uint32_t, uint32_t);
+typedef std::pair<uint32_t,uint8_t> (*func_get_msg_port_data_t)  (uint32_t, uint32_t, uint32_t);
 typedef bool     (*func_msg_port_has_data_t)  (uint32_t, uint32_t);
 typedef void     (*func_req_msg_port_data_t)  (uint32_t, uint32_t);
-typedef uint8_t  (*func_req_msg_port_oob_t)   (uint32_t, uint32_t);
-typedef void     (*func_req_msg_port_reset_t) (void);
+
 
 static func_get_msg_port_data_t   get_msg_port_data = NULL;
 static func_msg_port_has_data_t   msg_port_has_data = NULL;
 static func_req_msg_port_data_t   req_msg_port_data = NULL;
-static func_req_msg_port_oob_t    get_msg_port_oob  = NULL;
-static func_req_msg_port_reset_t    req_msg_port_reset  = NULL;
+
+
+bool get_msg_port_stall(uint32_t thread, uint32_t id)
+{
+    return msg_ports[thread][id].stall;
+}
 
 bool msg_port_empty(uint32_t thread, uint32_t id) {
   return msg_ports[thread][id].size==0;
@@ -6245,16 +6250,14 @@ bool msg_port_full(uint32_t thread, uint32_t id) {
   return msg_ports[thread][id].size==(msg_ports[thread][id].max_msgs+1);
 }
 
-void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata, void *getoob, void *reqreset)
+void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata)
 {
     get_msg_port_data = func_get_msg_port_data_t(getdata),
     msg_port_has_data = func_msg_port_has_data_t(hasdata);
     req_msg_port_data = func_req_msg_port_data_t(reqdata);
-    get_msg_port_oob  = func_req_msg_port_oob_t(getoob);
-    req_msg_port_reset = func_req_msg_port_reset_t(reqreset);
 }
 
-static void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
+static void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t* oob)
 {
     if (get_msg_port_data == NULL)
         throw std::runtime_error("read_msg_port_data() is NULL");
@@ -6262,11 +6265,15 @@ static void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
     int wr_words = 1 << (msg_ports[thread][id].logsize-2);
     for (int i = 0; i < wr_words; i++)
     {
-        data[i] = get_msg_port_data(thread, id, i);
+	std::pair<uint32_t,uint8_t> reqd_data;
+	reqd_data = get_msg_port_data(thread, id, i);
+	if(i == wr_words-1)
+	    *oob = reqd_data.second;
+	data[i] =  reqd_data.first;
     }
 }
 
-void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
+void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
 {
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[current_thread][id].rd_ptr << msg_ports[thread][id].logsize;
@@ -6279,6 +6286,8 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
         LOG(DEBUG, "Writing MSG_PORT (m%d p%d) data %08X to addr %016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
+    if(msg_ports[current_thread][id].enable_oob)
+	msg_ports_oob[thread][id].push(oob);
 }
 
 
@@ -6290,7 +6299,9 @@ void update_msg_port_data()
 	if (!msg_port_has_data(current_thread, id))
             continue;
         uint32_t data[1<<(PORT_LOG2_MAX_SIZE-2)];
-        read_msg_port_data(current_thread, id, data);
+	uint8_t oob = 0;
+	
+        read_msg_port_data(current_thread, id, data, &oob);
 
 	if(msg_port_full(current_thread,id))
 		  DEBUG_EMU(gprintf("Thread %i Port %i: Port is full:%i empty:%i. wr_ptr: %i rd_ptr: %i. max_msgs: %i \n",current_thread,id,
@@ -6299,8 +6310,7 @@ void update_msg_port_data()
 			    msg_ports[current_thread][id].max_msgs
 			    ););
 	else 
-	  write_msg_port_data(current_thread, id, data);
-
+	    write_msg_port_data(current_thread, id, data, oob);
 	
     }
 }
@@ -6333,12 +6343,12 @@ static int64_t port_get(uint32_t id, bool block)
 
     int32_t offset = msg_ports[current_thread][id].rd_ptr << msg_ports[current_thread][id].logsize;
 
-    uint8_t oob = get_msg_port_oob(current_thread,id);
-    if (msg_ports[current_thread][id].enable_oob) {      
-      offset|=oob;
+    if (msg_ports[current_thread][id].enable_oob){
+	uint8_t oob = msg_ports_oob[current_thread][id].front();
+	msg_ports_oob[current_thread][id].pop();
+	offset|=oob;
     }
-
-    
+        
     if (++msg_ports[current_thread][id].rd_ptr > msg_ports[current_thread][id].max_msgs)
     {
         msg_ports[current_thread][id].rd_ptr = 0;
@@ -6381,7 +6391,8 @@ static void configure_port(uint32_t id, uint64_t wdata)
     msg_ports[current_thread][id].offset     = -1;
 
     //reset the monitor queue so we don't get incorrect oob if the user doesn't pull all msgs
-    req_msg_port_reset();
+    std::queue<uint8_t> to_delete;
+    std::swap(msg_ports_oob[current_thread][id], to_delete);
 }
 
 // TODO: remove old msg port spec
