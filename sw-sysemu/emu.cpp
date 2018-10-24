@@ -7102,7 +7102,6 @@ static void tensorfma(uint64_t tfmareg)
             }
 
             fdata * tensor_dest = (fdata *) &FREGS;
-            int32_t w = (sizeof(int32_t) << 3) - 1;//used for the bitwise saturation
             char str[256] = "";
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
             {
@@ -7135,8 +7134,6 @@ static void tensorfma(uint64_t tfmareg)
                     int32_t  mul_b    = ub ? SCP[br][bf].b[bm * 4]        : sext8_2 (SCP[br][bf].b[bm * 4]);
                     int32_t  res_mul  = mul_a * mul_b;
                     int32_t  res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7149,8 +7146,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7163,8 +7158,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7177,8 +7170,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
