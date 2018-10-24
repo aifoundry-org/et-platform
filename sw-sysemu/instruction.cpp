@@ -605,7 +605,7 @@ static const emu_opnd_hash_t operand_cache({
     {"cycleh",          csr_unknown},
     {"time",            csr_unknown},
     {"timeh",           csr_unknown},
-    {"instret",         csr_unknown},
+    {"instret",         csr_instret},
     {"instreth",        csr_unknown},
     {"hpmcounter3",     csr_unknown},
     {"hpmcounter4",     csr_unknown},
@@ -744,7 +744,7 @@ static const emu_opnd_hash_t operand_cache({
     {"pmpaddr15",        csr_unknown},
     {"mcycle",           csr_mcycle},
     {"mcycleh",          csr_unknown},
-    {"minstret",         csr_unknown},
+    {"minstret",         csr_minstret},
     {"minstreth",        csr_unknown},
     {"mhpmcounter3",     csr_unknown},
     {"mhpmcounter4",     csr_unknown},
@@ -1207,6 +1207,7 @@ void instruction::set_mnemonic(std::string mnemonic_)
         emu_func4 = (func_ptr_4) emu_func;
         emu_func5 = (func_ptr_5) emu_func;
     }
+    
 }
 
 // Instruction execution
