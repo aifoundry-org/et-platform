@@ -2123,6 +2123,10 @@ static uint64_t csrget(csr src1)
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
+	case csr_cycle:
+	case csr_instret:
+	    val = 0;
+	    break;
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
@@ -2160,7 +2164,7 @@ static uint64_t csrget(csr src1)
           }
           val = csrregs[current_thread][csr_mhartid];
           break;
-          // ----- S-mode registers ----------------------------------------
+        // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
             val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
@@ -2193,6 +2197,11 @@ static uint64_t csrget(csr src1)
         case csr_flush_icache:
             val = 0;
             break;
+        // ----- M-mode registers ----------------------------------------
+	case csr_mcycle:
+	case csr_minstret:
+	    val = 0;
+	    break;
         // ----- All other registers -------------------------------------
         default:
             val = csrregs[current_thread][src1];
@@ -2210,6 +2219,7 @@ static void csrset(csr src1, uint64_t val)
     {
         // ----- Read-only and illegal registers -------------------------
         case csr_cycle:
+	case csr_instret:
         case csr_mvendorid:
         case csr_marchid:
         case csr_mimpid:
@@ -2457,6 +2467,10 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x0000000000000222ULL;
             csrregs[current_thread][src1] = val;
             break;
+	case csr_mcycle:
+	case csr_minstret:
+	    // writes are ignored, always return 0
+	    break;
         // ----- Shared registers ----------------------------------------
         case csr_msleep_txfma_27:
         case csr_menable_shadows:
@@ -2541,7 +2555,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
             case csr_smsg_port2:
             case csr_smsg_port3:
                 oldval = msg_port_csr(src1 - csr_smsg_port0, newval, false);
-                break;
+                break;	    
             default:
                 csrset(src1, newval);
                 break;
