@@ -401,8 +401,6 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mstatus] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csrregs[thread][csr_mcause] = 0x0ULL;
     csrregs[thread][csr_mip] = 0x0ULL;
-    csrregs[thread][csr_icache_ctrl] = 0x0ULL;
-    csrregs[thread][csr_write_ctrl] = 0x0ULL;
     csrregs[thread][csr_msleep_txfma_27] = 0x0ULL;
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
     // Debug-mode registers with reset
@@ -2212,7 +2210,6 @@ static void csrset(csr src1, uint64_t val)
     {
         // ----- Read-only and illegal registers -------------------------
         case csr_cycle:
-        case csr_cycleh:
         case csr_mvendorid:
         case csr_marchid:
         case csr_mimpid:
