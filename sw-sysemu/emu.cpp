@@ -37,14 +37,14 @@
 #define L1_SCP_BLOCK_SIZE (VL * 4)
 
 // MISA initial value
-#define CSR_ISA_MAX ((1 << 2)  | /* Compressed extension */                      \
-                     (1 << 5)  | /* Single-precision floating-point extension */ \
-                     (1 << 6)  | /* Additional standard extensions present */    \
-                     (1 << 8)  | /* RV32I/64I/128I base ISA */                   \
-                     (1 << 12) | /* Integer Multiply/Divide extension */         \
-                     (1 << 18) | /* Supervisor mode implemented */               \
-                     (1 << 20) | /* User mode implemented */                     \
-                     (1 << 23) ) /* Non-standard extensions present */
+#define CSR_ISA_MAX ((1ull << 2)  | /* "C" Compressed extension */                      \
+                     (1ull << 5)  | /* "F" Single-precision floating-point extension */ \
+                     (1ull << 8)  | /* "I" RV32I/64I/128I base ISA */                   \
+                     (1ull << 12) | /* "M" Integer Multiply/Divide extension */         \
+                     (1ull << 18) | /* "S" Supervisor mode implemented */               \
+                     (1ull << 20) | /* "U" User mode implemented */                     \
+                     (1ull << 23) | /* "X": Non-standard extensions present */          \
+                     (2ull << 62))  /* XLEN = 64-bit */
 
 using emu::gprintf;
 using emu::gsprintf;
@@ -2347,8 +2347,8 @@ static void csrset(csr src1, uint64_t val)
 
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
-            // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = (val & 0x00000000000DE133ULL) | (csrregs[current_thread][csr_mstatus] & 0x8000000F00721800ULL);
+            // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
+            val = (val & 0x00000000000C6133ULL) | (csrregs[current_thread][csr_mstatus] & 0x0000000F00739800ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
@@ -2418,8 +2418,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
-            // Preserve sd, sxl, uxl
-            val = (val & 0x00000000007FF8BBULL) | (csrregs[current_thread][src1] & 0x8000000F00000000ULL);
+            // Preserve sxl, uxl, xs
+            val = (val & 0x00000000007E78BBULL) | (csrregs[current_thread][src1] & 0x0000000F00018000ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
@@ -4419,6 +4419,9 @@ void fsqrt_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fsqrt.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
+    if (core_type == ET_MINION)
+        throw trap_mcode_instruction(current_inst);
+
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femu1src(FSQRT, VL, dst, src1, rm);
