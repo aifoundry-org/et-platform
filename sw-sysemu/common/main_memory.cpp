@@ -19,7 +19,7 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
     regions_.push_back((main_memory_region *) rbox);
     // UC writes to notify completion of kernels to master processor
     //main_memory_region * uc_writes = new main_memory_region(0x0108000000ULL, ESR_REGION_OFFSET, log, getthread, MEM_REGION_WO);
-    main_memory_region * uc_writes = new main_memory_region(0x0108000800ULL, ESR_REGION_OFFSET, log, getthread, MEM_REGION_WO);
+    main_memory_region * uc_writes = new main_memory_region(0x0108000800ULL, ESR_REGION_OFFSET, log, getthread, MEM_REGION_WO); //TODO: This line has to survive the merge 
     regions_.push_back((main_memory_region *) uc_writes);
     // UC writes to the fast local barrier and mtime/mtimecmp ESRs
     for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++)
