@@ -8,7 +8,7 @@
 #endif
 
 // Maximum number of threads
-#define EMU_NUM_MINIONS         (36*32)  // at most 36 shires
+#define EMU_NUM_MINIONS         (35*32)  // at most 36 shires
 #define EMU_THREADS_PER_MINION  2
 #define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
 #define EMU_MINIONS_PER_SHIRE   32
@@ -83,12 +83,6 @@ typedef enum {
     // ----- Used for illegal CSR accesses -----------------------------------
     csr_unknown,
 
-    // ----- Validation only registers ---------------------------------------
-    csr_validation0,
-    csr_validation1,
-    csr_validation2,
-    csr_validation3,
-
     // ----- U-mode registers ------------------------------------------------
     // csr_ustatus,
     // csr_uie,
@@ -102,40 +96,41 @@ typedef enum {
     csr_frm,
     csr_fcsr,
     csr_cycle,
-    csr_cycleh,
     // csr_time,
-    // csr_instret,
+    csr_instret,
     // csr_hpmcounter3,
-    // csr_hpmcounter4,
-    // csr_hpmcounter5,
-    // csr_hpmcounter6,
+    // ...
+    // csr_hpmcounter31,
 
     // ----- U-mode ET registers ---------------------------------------------
-    csr_tloadctrl,
-    csr_tloadl2ctrl,
-    csr_tmask,
+    csr_treduce,
+    csr_tfmastart,
     csr_tconvsize,
     csr_tconvctrl,
     csr_tcoop,
-    csr_tfmastart,
-    csr_treduce,
-    csr_tstore,
+    csr_tmask,
+    //csr_tquant,
+    csr_texsend,
     csr_terror,
-    csr_twait,
-    csr_hartid,
-    csr_sleep_txfma_27,
-    // csr_top,
-    csr_offtxfma,
+    csr_scpctrl,
     csr_flbarrier,
     csr_fccounter,
     csr_ucacheop,
-    csr_evict_va,
-    csr_flush_va,
-    csr_lock_va,
-    csr_unlock_va,
-    csr_prefetch_va,
-    csr_scpctrl,
-    csr_texsend,
+    csr_twait,
+    csr_tloadctrl,
+    //csr_gscprog
+    csr_tloadl2ctrl,
+    csr_tstore,
+    csr_validation0,
+    csr_validation1,
+    csr_validation2,
+    csr_validation3,
+    csr_hartid,
+    csr_sleep_txfma_27,
+    csr_umsg_port0, // TODO remove once everything is up to spec
+    csr_umsg_port1, // TODO remove once everything is up to spec
+    csr_umsg_port2, // TODO remove once everything is up to spec
+    csr_umsg_port3, // TODO remove once everything is up to spec
     csr_porthead0,
     csr_porthead1,
     csr_porthead2,
@@ -144,10 +139,11 @@ typedef enum {
     csr_portheadnb1,
     csr_portheadnb2,
     csr_portheadnb3,
-    csr_umsg_port0, // TODO remove once everything is up to spec
-    csr_umsg_port1, // TODO remove once everything is up to spec
-    csr_umsg_port2, // TODO remove once everything is up to spec
-    csr_umsg_port3, // TODO remove once everything is up to spec
+    csr_evict_va,
+    csr_flush_va,
+    csr_lock_va,
+    csr_unlock_va,
+    csr_prefetch_va,
 
     // ----- S-mode registers ------------------------------------------------
     csr_sstatus,
@@ -194,36 +190,38 @@ typedef enum {
     csr_mtval,
     csr_mip,
     // csr_pmcfg0,
+    // csr_pmcfg1,
     // csr_pmcfg2,
+    // csr_pmcfg3,
     // csr_pmpaddr0,
     // csr_pmpaddr1,
     // ...
     // csr_pmpaddr15,
     csr_mcycle,
-    csr_mcycleh,
-    // csr_minstret,
+    csr_minstret,
     // csr_mhpmcounter3,
-    // csr_mhpmcounter4,
-    // csr_mhpmcounter5,
-    // csr_mhpmcounter6,
+    // ...
+    // csr_mhpmcounter31,
     // csr_mhpmevent3,
-    // csr_mhpmevent4,
-    // csr_mhpmevent5,
-    // csr_mhpmevent6,
-    // --- debug registers ---
+    // ...
+    // csr_mhpmevent31,
+
+    // ----- debug registers -----------
     // csr_tselect,
     // csr_tdata1,
     // csr_tdata2,
     // csr_tdata3,
+    // csr_tinfo,
+    // csr_tcontrol,
     // csr_dcsr,
     // csr_dpc,
-    // csr_dscratch,
+    // csr_dscratch0,
+    // csr_dscratch1,
 
     // ----- M-mode ET registers ---------------------------------------------
-    csr_icache_ctrl,
-    csr_write_ctrl,
     csr_minstmask,
     csr_minstmatch,
+    //csr_amofence_ctrl,
     csr_flush_icache,
     csr_msleep_txfma_27,
     csr_menable_shadows,

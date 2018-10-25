@@ -196,9 +196,9 @@ checker::checker(main_memory * memory_, bool print_debug, enum logLevel emu_log_
     checker_instance = this;
     memory_instance = memory;
 #ifdef EMU_DEBUG
-    init_emu(print_debug, false, emu_log_level);
+    init_emu(print_debug, true, emu_log_level);
 #else
-    init_emu(false, false, emu_log_level);
+    init_emu(false, true, emu_log_level);
 #endif
 }
 
@@ -410,9 +410,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
 
             // Check if we just read a cycle register, in which case the RTL drives value
             if (inst->get_is_csr_read() && ((inst->get_param(1) == csr_cycle  )||
-                                            (inst->get_param(1) == csr_cycleh )||
-                                            (inst->get_param(1) == csr_mcycle )||
-                                            (inst->get_param(1) == csr_mcycleh)))
+                                            (inst->get_param(1) == csr_mcycle )))
             {
                 log << LOG_INFO << "CYCLE CSR value (" << inst->get_mnemonic() << ")" << endm;
                 emu_state_change.int_reg_data = changes->int_reg_data;
