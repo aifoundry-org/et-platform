@@ -2285,6 +2285,8 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata out
 {
     LOG(DEBUG, "\tTBOX => Sample Quad");
 
+    return;
+
     ImageInfo currentImage;
 
     if (fake_sampler)
