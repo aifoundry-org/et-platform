@@ -196,9 +196,9 @@ checker::checker(main_memory * memory_, bool print_debug, enum logLevel emu_log_
     checker_instance = this;
     memory_instance = memory;
 #ifdef EMU_DEBUG
-    init_emu(print_debug, false, emu_log_level);
+    init_emu(print_debug, true, emu_log_level);
 #else
-    init_emu(false, false, emu_log_level);
+    init_emu(false, true, emu_log_level);
 #endif
 }
 
