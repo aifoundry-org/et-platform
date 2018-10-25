@@ -37,14 +37,14 @@
 #define L1_SCP_BLOCK_SIZE (VL * 4)
 
 // MISA initial value
-#define CSR_ISA_MAX ((1 << 2)  | /* Compressed extension */                      \
-                     (1 << 5)  | /* Single-precision floating-point extension */ \
-                     (1 << 6)  | /* Additional standard extensions present */    \
-                     (1 << 8)  | /* RV32I/64I/128I base ISA */                   \
-                     (1 << 12) | /* Integer Multiply/Divide extension */         \
-                     (1 << 18) | /* Supervisor mode implemented */               \
-                     (1 << 20) | /* User mode implemented */                     \
-                     (1 << 23) ) /* Non-standard extensions present */
+#define CSR_ISA_MAX ((1ull << 2)  | /* "C" Compressed extension */                      \
+                     (1ull << 5)  | /* "F" Single-precision floating-point extension */ \
+                     (1ull << 8)  | /* "I" RV32I/64I/128I base ISA */                   \
+                     (1ull << 12) | /* "M" Integer Multiply/Divide extension */         \
+                     (1ull << 18) | /* "S" Supervisor mode implemented */               \
+                     (1ull << 20) | /* "U" User mode implemented */                     \
+                     (1ull << 23) | /* "X": Non-standard extensions present */          \
+                     (2ull << 62))  /* XLEN = 64-bit */
 
 using emu::gprintf;
 using emu::gsprintf;
@@ -401,8 +401,6 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mstatus] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csrregs[thread][csr_mcause] = 0x0ULL;
     csrregs[thread][csr_mip] = 0x0ULL;
-    csrregs[thread][csr_icache_ctrl] = 0x0ULL;
-    csrregs[thread][csr_write_ctrl] = 0x0ULL;
     csrregs[thread][csr_msleep_txfma_27] = 0x0ULL;
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
     // Debug-mode registers with reset
@@ -2125,6 +2123,10 @@ static uint64_t csrget(csr src1)
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
+	case csr_cycle:
+	case csr_instret:
+	    val = 0;
+	    break;
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
@@ -2162,7 +2164,7 @@ static uint64_t csrget(csr src1)
           }
           val = csrregs[current_thread][csr_mhartid];
           break;
-          // ----- S-mode registers ----------------------------------------
+        // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
             val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
@@ -2195,6 +2197,11 @@ static uint64_t csrget(csr src1)
         case csr_flush_icache:
             val = 0;
             break;
+        // ----- M-mode registers ----------------------------------------
+	case csr_mcycle:
+	case csr_minstret:
+	    val = 0;
+	    break;
         // ----- All other registers -------------------------------------
         default:
             val = csrregs[current_thread][src1];
@@ -2212,7 +2219,7 @@ static void csrset(csr src1, uint64_t val)
     {
         // ----- Read-only and illegal registers -------------------------
         case csr_cycle:
-        case csr_cycleh:
+	case csr_instret:
         case csr_mvendorid:
         case csr_marchid:
         case csr_mimpid:
@@ -2347,8 +2354,8 @@ static void csrset(csr src1, uint64_t val)
 
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
-            // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = (val & 0x00000000000DE133ULL) | (csrregs[current_thread][csr_mstatus] & 0x8000000F00721800ULL);
+            // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
+            val = (val & 0x00000000000C6133ULL) | (csrregs[current_thread][csr_mstatus] & 0x0000000F00739800ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
@@ -2418,8 +2425,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
-            // Preserve sd, sxl, uxl
-            val = (val & 0x00000000007FF8BBULL) | (csrregs[current_thread][src1] & 0x8000000F00000000ULL);
+            // Preserve sxl, uxl, xs
+            val = (val & 0x00000000007E78BBULL) | (csrregs[current_thread][src1] & 0x0000000F00018000ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
@@ -2460,6 +2467,10 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x0000000000000222ULL;
             csrregs[current_thread][src1] = val;
             break;
+	case csr_mcycle:
+	case csr_minstret:
+	    // writes are ignored, always return 0
+	    break;
         // ----- Shared registers ----------------------------------------
         case csr_msleep_txfma_27:
         case csr_menable_shadows:
@@ -2544,7 +2555,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
             case csr_smsg_port2:
             case csr_smsg_port3:
                 oldval = msg_port_csr(src1 - csr_smsg_port0, newval, false);
-                break;
+                break;	    
             default:
                 csrset(src1, newval);
                 break;
@@ -4419,6 +4430,9 @@ void fsqrt_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fsqrt.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
+    if (core_type == ET_MINION)
+        throw trap_mcode_instruction(current_inst);
+
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femu1src(FSQRT, VL, dst, src1, rm);
@@ -7088,7 +7102,6 @@ static void tensorfma(uint64_t tfmareg)
             }
 
             fdata * tensor_dest = (fdata *) &FREGS;
-            int32_t w = (sizeof(int32_t) << 3) - 1;//used for the bitwise saturation
             char str[256] = "";
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
             {
@@ -7121,8 +7134,6 @@ static void tensorfma(uint64_t tfmareg)
                     int32_t  mul_b    = ub ? SCP[br][bf].b[bm * 4]        : sext8_2 (SCP[br][bf].b[bm * 4]);
                     int32_t  res_mul  = mul_a * mul_b;
                     int32_t  res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7135,8 +7146,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7149,8 +7158,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7163,8 +7170,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 

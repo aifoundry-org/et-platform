@@ -2285,6 +2285,8 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata out
 {
     LOG(DEBUG, "\tTBOX => Sample Quad");
 
+    return;
+
     ImageInfo currentImage;
 
     if (fake_sampler)
@@ -2352,6 +2354,10 @@ bool TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
 #endif
 
     uint64_t imageInfoAddress = imageTableAddress + request.info.imageid * 32;
+
+
+    DEBUG_EMU( gprintf("\tRead Image Descriptor with ID %ld from Address %016lx\n", request.info.imageid, imageInfoAddress); );
+    fflush(stdout);
 
     currentImage.data[0] = vmemread64(imageInfoAddress);
     currentImage.data[1] = vmemread64(imageInfoAddress + 8);
