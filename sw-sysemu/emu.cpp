@@ -94,12 +94,17 @@ char dis[1024];
 
 int fake_sampler = 0;
 uint8_t in_sysemu = 0;
+int32_t minion_only_log = -1; // for sys_emu, to log only data from one minion
 
 void init_emu(int debug, int fakesam, enum logLevel level)
 {
     print_debug  = debug;
     fake_sampler = fakesam;
     emu_log().setLogLevel(level);
+}
+
+void log_only_minion(int32_t m) {
+    minion_only_log = m;
 }
 
 // forward declarations
@@ -7376,21 +7381,23 @@ static uint64_t flbarrier(uint64_t value)
 
     uint64_t orig_value = vmemread64(addr);
     uint64_t result = -1;
-    LOG(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n",
+
+    LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
         (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit );
     // Last guy, return 1 and zero barrier
     if (orig_value == limit)
     {
-        LOG(DEBUG,"FastLocalBarrier: last minion Shire %i!!\n", (int) shire);
+        LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: last minion Shire %i!!", (int) shire);
         vmemwrite64(addr, 0);
         result = 1;
     }
     // Not the last guy, return 0 and increment barrier
     else
     {
-        LOG(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n", limit, orig_value + 1);
+        LOG_ALL_MINIONS(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!", limit, orig_value + 1);
         vmemwrite64(addr, orig_value + 1);
         result = 0;
     }
+
     return result;
 }

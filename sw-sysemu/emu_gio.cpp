@@ -76,14 +76,21 @@ retry_vsnprintf:
 
 
 // Logging
+
+extern int32_t minion_only_log;
+
+
 testLog& emu_log() {
   static testLog l("EMU", LOG_INFO);
+  static testLog l_filtered("EMU",LOG_ERR);
+  if (minion_only_log >= 0 && (int32_t)(current_thread / EMU_THREADS_PER_MINION) != minion_only_log) return l_filtered;
   return l;
 }
 
 void log_printf(enum logLevel level, const char* format,...)
 {
 
+  if (minion_only_log >= 0 && (int32_t)(current_thread / EMU_THREADS_PER_MINION) != minion_only_log) return;
   if ( level >= LOG_ERR || level>= emu_log().getLogLevel() ) {
     va_list args;
     va_start(args, format);
