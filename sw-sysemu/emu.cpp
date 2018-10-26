@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <list>
+#include <queue>
 
 #include "emu.h"
 #include "log.h"
@@ -36,14 +37,14 @@
 #define L1_SCP_BLOCK_SIZE (VL * 4)
 
 // MISA initial value
-#define CSR_ISA_MAX ((1 << 2)  | /* Compressed extension */                      \
-                     (1 << 5)  | /* Single-precision floating-point extension */ \
-                     (1 << 6)  | /* Additional standard extensions present */    \
-                     (1 << 8)  | /* RV32I/64I/128I base ISA */                   \
-                     (1 << 12) | /* Integer Multiply/Divide extension */         \
-                     (1 << 18) | /* Supervisor mode implemented */               \
-                     (1 << 20) | /* User mode implemented */                     \
-                     (1 << 23) ) /* Non-standard extensions present */
+#define CSR_ISA_MAX ((1ull << 2)  | /* "C" Compressed extension */                      \
+                     (1ull << 5)  | /* "F" Single-precision floating-point extension */ \
+                     (1ull << 8)  | /* "I" RV32I/64I/128I base ISA */                   \
+                     (1ull << 12) | /* "M" Integer Multiply/Divide extension */         \
+                     (1ull << 18) | /* "S" Supervisor mode implemented */               \
+                     (1ull << 20) | /* "U" User mode implemented */                     \
+                     (1ull << 23) | /* "X": Non-standard extensions present */          \
+                     (2ull << 62))  /* XLEN = 64-bit */
 
 using emu::gprintf;
 using emu::gsprintf;
@@ -73,6 +74,7 @@ int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
+std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 
 // Used to access different threads transparently
 #define SCP   scp[current_thread]
@@ -399,8 +401,6 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mstatus] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csrregs[thread][csr_mcause] = 0x0ULL;
     csrregs[thread][csr_mip] = 0x0ULL;
-    csrregs[thread][csr_icache_ctrl] = 0x0ULL;
-    csrregs[thread][csr_write_ctrl] = 0x0ULL;
     csrregs[thread][csr_msleep_txfma_27] = 0x0ULL;
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
     // Debug-mode registers with reset
@@ -451,7 +451,7 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
 
     bool gold_is_inf = ((gold == 0xff800000) || (gold == 0x7f800000));
 
-    //printf("GOLD: %d TABLE: %d\n", gold_is_nan, table_is_nan);
+    //LOG(DEBUG,"GOLD: %d TABLE: %d\n", gold_is_nan, table_is_nan);
     if (gold_is_inf)
     {
         assert((gold == table) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
@@ -473,8 +473,8 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
     // fail if diff is bigger than 1ulp
     /*if (diff > err_1ulp)
     {
-        printf("Gold IEEE: %.12e, Table TRANS: %.12e, Diff: %.12e, Max (1ulp): %.12e\n", goldf, tablef, diff, err_1ulp);
-        printf("Hex Gold: %08X, Hex Table: %08X\n", gold, table);
+        LOG(DEBUG, "Gold IEEE: %.12e, Table TRANS: %.12e, Diff: %.12e, Max (1ulp): %.12e\n", goldf, tablef, diff, err_1ulp);
+        LOG(DEBUG, "Hex Gold: %08X, Hex Table: %08X\n", gold, table);
     }*/
     return (diff > err_1ulp);
 }
@@ -2123,6 +2123,10 @@ static uint64_t csrget(csr src1)
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
+	case csr_cycle:
+	case csr_instret:
+	    val = 0;
+	    break;
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
@@ -2160,7 +2164,7 @@ static uint64_t csrget(csr src1)
           }
           val = csrregs[current_thread][csr_mhartid];
           break;
-          // ----- S-mode registers ----------------------------------------
+        // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
             val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
@@ -2193,6 +2197,11 @@ static uint64_t csrget(csr src1)
         case csr_flush_icache:
             val = 0;
             break;
+        // ----- M-mode registers ----------------------------------------
+	case csr_mcycle:
+	case csr_minstret:
+	    val = 0;
+	    break;
         // ----- All other registers -------------------------------------
         default:
             val = csrregs[current_thread][src1];
@@ -2210,7 +2219,7 @@ static void csrset(csr src1, uint64_t val)
     {
         // ----- Read-only and illegal registers -------------------------
         case csr_cycle:
-        case csr_cycleh:
+	case csr_instret:
         case csr_mvendorid:
         case csr_marchid:
         case csr_mimpid:
@@ -2345,8 +2354,8 @@ static void csrset(csr src1, uint64_t val)
 
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
-            // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = (val & 0x00000000000DE133ULL) | (csrregs[current_thread][csr_mstatus] & 0x8000000F00721800ULL);
+            // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
+            val = (val & 0x00000000000C6133ULL) | (csrregs[current_thread][csr_mstatus] & 0x0000000F00739800ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
@@ -2416,8 +2425,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
-            // Preserve sd, sxl, uxl
-            val = (val & 0x00000000007FF8BBULL) | (csrregs[current_thread][src1] & 0x8000000F00000000ULL);
+            // Preserve sxl, uxl, xs
+            val = (val & 0x00000000007E78BBULL) | (csrregs[current_thread][src1] & 0x0000000F00018000ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
@@ -2458,6 +2467,10 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x0000000000000222ULL;
             csrregs[current_thread][src1] = val;
             break;
+	case csr_mcycle:
+	case csr_minstret:
+	    // writes are ignored, always return 0
+	    break;
         // ----- Shared registers ----------------------------------------
         case csr_msleep_txfma_27:
         case csr_menable_shadows:
@@ -2542,7 +2555,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
             case csr_smsg_port2:
             case csr_smsg_port3:
                 oldval = msg_port_csr(src1 - csr_smsg_port0, newval, false);
-                break;
+                break;	    
             default:
                 csrset(src1, newval);
                 break;
@@ -4417,6 +4430,9 @@ void fsqrt_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fsqrt.ps f%d, f%d, %s%s%s",dst,src1,get_rounding_mode(rm),(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
+    if (core_type == ET_MINION)
+        throw trap_mcode_instruction(current_inst);
+
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femu1src(FSQRT, VL, dst, src1, rm);
@@ -6225,13 +6241,28 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 // setup functions to retrieve data written to port and to query if there is
 // data available from RTL
 
-typedef uint32_t (*func_get_msg_port_data_t) (uint32_t, uint32_t, uint32_t);
-typedef bool     (*func_msg_port_has_data_t) (uint32_t, uint32_t);
-typedef void     (*func_req_msg_port_data_t) (uint32_t, uint32_t);
+typedef std::pair<uint32_t,uint8_t> (*func_get_msg_port_data_t)  (uint32_t, uint32_t, uint32_t);
+typedef bool     (*func_msg_port_has_data_t)  (uint32_t, uint32_t);
+typedef void     (*func_req_msg_port_data_t)  (uint32_t, uint32_t);
+
 
 static func_get_msg_port_data_t   get_msg_port_data = NULL;
 static func_msg_port_has_data_t   msg_port_has_data = NULL;
 static func_req_msg_port_data_t   req_msg_port_data = NULL;
+
+
+bool get_msg_port_stall(uint32_t thread, uint32_t id)
+{
+    return msg_ports[thread][id].stall;
+}
+
+bool msg_port_empty(uint32_t thread, uint32_t id) {
+  return msg_ports[thread][id].size==0;
+}
+
+bool msg_port_full(uint32_t thread, uint32_t id) {
+  return msg_ports[thread][id].size==(msg_ports[thread][id].max_msgs+1);
+}
 
 void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata)
 {
@@ -6240,7 +6271,7 @@ void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata)
     req_msg_port_data = func_req_msg_port_data_t(reqdata);
 }
 
-static void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
+static void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t* oob)
 {
     if (get_msg_port_data == NULL)
         throw std::runtime_error("read_msg_port_data() is NULL");
@@ -6248,39 +6279,57 @@ static void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
     int wr_words = 1 << (msg_ports[thread][id].logsize-2);
     for (int i = 0; i < wr_words; i++)
     {
-        data[i] = get_msg_port_data(thread, id, i);
+	std::pair<uint32_t,uint8_t> reqd_data;
+	reqd_data = get_msg_port_data(thread, id, i);
+	if(i == wr_words-1)
+	    *oob = reqd_data.second;
+	data[i] =  reqd_data.first;
     }
 }
 
-void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data)
+void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
 {
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
-    base_addr += msg_ports[thread][id].offset;
-    msg_ports[thread][id].offset = -1;
+    base_addr += msg_ports[current_thread][id].rd_ptr << msg_ports[thread][id].logsize;
+        
+    msg_ports[thread][id].size++;
+
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
     for (int i = 0; i < wr_words; i++)
     {
         LOG(DEBUG, "Writing MSG_PORT (m%d p%d) data %08X to addr %016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
+    if(msg_ports[current_thread][id].enable_oob)
+	msg_ports_oob[thread][id].push(oob);
 }
 
-bool get_msg_port_stall(uint32_t thread, uint32_t id)
-{
-    return msg_ports[thread][id].stall;
-}
 
 void update_msg_port_data()
 {
     for (int id = 0 ; id < NR_MSG_PORTS; id ++)
     {
-        if (msg_ports[current_thread][id].offset < 0 )
+      //if (msg_ports[current_thread][id].offset < 0 || !msg_port_has_data(current_thread, id))
+	if (!msg_port_has_data(current_thread, id))
             continue;
         uint32_t data[1<<(PORT_LOG2_MAX_SIZE-2)];
-        read_msg_port_data(current_thread, id, data);
-        write_msg_port_data(current_thread, id, data);
+	uint8_t oob = 0;
+	
+        read_msg_port_data(current_thread, id, data, &oob);
+
+	if(msg_port_full(current_thread,id))
+		  DEBUG_EMU(gprintf("Thread %i Port %i: Port is full:%i empty:%i. wr_ptr: %i rd_ptr: %i. max_msgs: %i \n",current_thread,id,
+			    msg_port_full(current_thread,id) , msg_port_empty(current_thread,id),
+			    msg_ports[current_thread][id].wr_ptr, msg_ports[current_thread][id].rd_ptr,
+			    msg_ports[current_thread][id].max_msgs
+			    ););
+	else 
+	    write_msg_port_data(current_thread, id, data, oob);
+	
     }
 }
+
+
 
 static int64_t port_get(uint32_t id, bool block)
 {
@@ -6289,11 +6338,14 @@ static int64_t port_get(uint32_t id, bool block)
         throw trap_illegal_instruction(current_inst);
     }
 
-    if (!msg_port_has_data(current_thread, id))
+
+    if(msg_port_empty(current_thread,id))
     {
+      DEBUG_EMU(gprintf("Blocking MSG_PORT%s (m%d p%d) wr_ptr=%d, rd_ptr=%d\n", block ? "" : "NB", current_thread, id,  msg_ports[current_thread][id].wr_ptr, msg_ports[current_thread][id].rd_ptr););
         if (!block)
             return -1;
 
+	  
         if (in_sysemu)
         {
             // if in sysemu stop thread if no data for port.. comparing rd_ptr and wr_ptr
@@ -6304,12 +6356,20 @@ static int64_t port_get(uint32_t id, bool block)
     }
 
     int32_t offset = msg_ports[current_thread][id].rd_ptr << msg_ports[current_thread][id].logsize;
-    msg_ports[current_thread][id].offset = offset;
+
+    if (msg_ports[current_thread][id].enable_oob){
+	uint8_t oob = msg_ports_oob[current_thread][id].front();
+	msg_ports_oob[current_thread][id].pop();
+	offset|=oob;
+    }
+        
     if (++msg_ports[current_thread][id].rd_ptr > msg_ports[current_thread][id].max_msgs)
     {
         msg_ports[current_thread][id].rd_ptr = 0;
     }
-    //LOG(DEBUG, "Reading MSG_PORT%s (m%d p%d) offset %d, rd_ptr=%d", block ? "" : "NB", current_thread, id, offset, msg_ports[current_thread][id].rd_ptr);
+    msg_ports[current_thread][id].size--;
+    
+    DEBUG_EMU(gprintf("Reading MSG_PORT%s (m%d p%d) offset %d, rd_ptr=%d\n", block ? "" : "NB", current_thread, id, offset, msg_ports[current_thread][id].rd_ptr););
     if (in_sysemu)
     {
         if (req_msg_port_data == NULL)
@@ -6343,6 +6403,10 @@ static void configure_port(uint32_t id, uint64_t wdata)
     msg_ports[current_thread][id].rd_ptr     = 0;
     msg_ports[current_thread][id].wr_ptr     = 0;
     msg_ports[current_thread][id].offset     = -1;
+
+    //reset the monitor queue so we don't get incorrect oob if the user doesn't pull all msgs
+    std::queue<uint8_t> to_delete;
+    std::swap(msg_ports_oob[current_thread][id], to_delete);
 }
 
 // TODO: remove old msg port spec
@@ -6363,10 +6427,14 @@ static int64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
             msg_ports[current_thread][id].enable_oob = (((wdata >> 32) & 0x1) != 0);
             msg_ports[current_thread][id].rd_ptr = 0;
             msg_ports[current_thread][id].wr_ptr = 0;
+	    msg_ports[current_thread][id].size = 0;
             msg_ports[current_thread][id].offset = -1;
             return 0;
         case MSG_DISABLE:
             msg_ports[current_thread][id].enabled = false;
+            msg_ports[current_thread][id].rd_ptr = 0;
+            msg_ports[current_thread][id].wr_ptr = 0;
+            msg_ports[current_thread][id].offset = -1;
             return 0;
         case MSG_PGET:
             return port_get(id, true);
@@ -7034,7 +7102,6 @@ static void tensorfma(uint64_t tfmareg)
             }
 
             fdata * tensor_dest = (fdata *) &FREGS;
-            int32_t w = (sizeof(int32_t) << 3) - 1;//used for the bitwise saturation
             char str[256] = "";
             for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
             {
@@ -7067,8 +7134,6 @@ static void tensorfma(uint64_t tfmareg)
                     int32_t  mul_b    = ub ? SCP[br][bf].b[bm * 4]        : sext8_2 (SCP[br][bf].b[bm * 4]);
                     int32_t  res_mul  = mul_a * mul_b;
                     int32_t  res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7081,8 +7146,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7095,8 +7158,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7109,8 +7170,6 @@ static void tensorfma(uint64_t tfmareg)
                     accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     res_mul  = mul_a * mul_b;
                     res      = res_mul + accum;
-                    //BITWISE SATURATION
-                    res = (~((~(res_mul^accum)  & (res_mul^res)) >> w) & res) + (((~(res_mul^accum) & (res_mul^res)) >> w) & ((1<<w) ^ (res >> w)));
 
                     tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
 
@@ -7317,19 +7376,19 @@ static uint64_t flbarrier(uint64_t value)
 
     uint64_t orig_value = vmemread64(addr);
     uint64_t result = -1;
-    printf("FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n",
-            (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit );
+    LOG(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " \n",
+        (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit );
     // Last guy, return 1 and zero barrier
     if (orig_value == limit)
     {
-        printf("FastLocalBarrier: last minion Shire %i!!\n", (int) shire);
+        LOG(DEBUG,"FastLocalBarrier: last minion Shire %i!!\n", (int) shire);
         vmemwrite64(addr, 0);
         result = 1;
     }
     // Not the last guy, return 0 and increment barrier
     else
     {
-        printf("FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n", limit, orig_value + 1);
+        LOG(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!\n", limit, orig_value + 1);
         vmemwrite64(addr, orig_value + 1);
         result = 0;
     }

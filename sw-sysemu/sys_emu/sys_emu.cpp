@@ -221,7 +221,7 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc file> [-net_desc file] [-minions mask] [-shires mask] [-dump_file file_name <-dump_addr address> <-dump_size size>] [-l [-lm minion]] [-m] [-rbox] [-reset_pc XXX] \n\n\
+     sys_emu <-mem_desc file> [-net_desc file] [-minions mask] [-shires mask] [-dump_file file_name <-dump_addr address> <-dump_size size>] [-l] [-ll] [-lm minion]] [-m] [-rbox] [-reset_pc XXX] \n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
  -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
@@ -230,6 +230,7 @@ static const char * help_msg =
  -dump_addr   Address in memory at which to start dumping. Only valid if -dump_file is used\n\
  -dump_size   Size of the memory to dump. Only valid if -dump_file is used\n\
  -l           Enable Logging\n\
+ -ll          Log memory accesses\n\
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -rbox        Enable RBOX emulation\n\n\
@@ -253,6 +254,7 @@ int main(int argc, char * argv[])
     bool minions         = false;
     bool shires          = false;
     bool log_en          = false;
+    bool log_mem_en      = false;
     bool create_mem_at_runtime = false;
     int  log_min         = EMU_NUM_MINIONS;
     char * dump_file     = NULL;
@@ -358,6 +360,10 @@ int main(int argc, char * argv[])
         {
             log_en = true;
         }
+        else if(strcmp(argv[i], "-ll") == 0)
+        {
+            log_mem_en = true;
+        }
         else if (strcmp(argv[i], "-rbox") == 0) {
            use_rbox = true;
         }
@@ -379,7 +385,7 @@ int main(int argc, char * argv[])
     }
 
     // Generates the main memory of the emulator
-    memory = new main_memory("checker main memory", log_en? LOG_DEBUG : LOG_INFO);
+    memory = new main_memory("checker main memory", log_mem_en? LOG_DEBUG : LOG_INFO);
     memory->setGetThread(get_thread_emu);
     if (create_mem_at_runtime) {
        memory->create_mem_at_runtime();
