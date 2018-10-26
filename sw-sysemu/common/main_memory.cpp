@@ -21,14 +21,18 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
     //main_memory_region * uc_writes = new main_memory_region(0x0108000000ULL, ESR_REGION_OFFSET, log, getthread, MEM_REGION_WO);
     main_memory_region * uc_writes = new main_memory_region(0x0108000800ULL, ESR_REGION_OFFSET, log, getthread, MEM_REGION_WO); //TODO: This line has to survive the merge 
     regions_.push_back((main_memory_region *) uc_writes);
-    // UC writes to the fast local barrier and mtime/mtimecmp ESRs
+
+    // Adds the uncacheable regions
+    // For all the shires
     for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++)
     {
+        // For all the neighs in each shire
         for (int n = 0; n < 4; n++)
         {
             main_memory_region * neigh_esrs = new main_memory_region(0x100100000ULL + i*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
             regions_.push_back((main_memory_region *) neigh_esrs);
         }
+        // Shire UC regions
         main_memory_region * shire_esrs = new main_memory_region(0x100340000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
         // M prot for shire
