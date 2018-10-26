@@ -430,6 +430,405 @@ static const std::unordered_set<std::string> rm4args({
     "fmadd_ps", "fmsub_ps", "fnmsub_ps", "fnmadd_ps"
 });
 
+// Typedef for the hash op instruction operands
+typedef std::unordered_map<std::string, int> emu_opnd_hash_t;
+
+// Map of resource string to instruction operand
+static const emu_opnd_hash_t operand_cache({
+    // ----- integer registers -----------------------------------------------
+    {"zero",            0},
+    {"ra",              1},
+    {"sp",              2},
+    {"gp",              3},
+    {"tp",              4},
+    {"t0",              5},
+    {"t1",              6},
+    {"t2",              7},
+    {"s0",              8},
+    {"s1",              9},
+    {"a0",              10},
+    {"a1",              11},
+    {"a2",              12},
+    {"a3",              13},
+    {"a4",              14},
+    {"a5",              15},
+    {"a6",              16},
+    {"a7",              17},
+    {"s2",              18},
+    {"s3",              19},
+    {"s4",              20},
+    {"s5",              21},
+    {"s6",              22},
+    {"s7",              23},
+    {"s8",              24},
+    {"s9",              25},
+    {"s10",             26},
+    {"s11",             27},
+    {"t3",              28},
+    {"t4",              29},
+    {"t5",              30},
+    {"t6",              31},
+    {"x0",              0},
+    {"x1",              1},
+    {"x2",              2},
+    {"x3",              3},
+    {"x4",              4},
+    {"x5",              5},
+    {"x6",              6},
+    {"x7",              7},
+    {"x8",              8},
+    {"x9",              9},
+    {"x10",             10},
+    {"x11",             11},
+    {"x12",             12},
+    {"x13",             13},
+    {"x14",             14},
+    {"x15",             15},
+    {"x16",             16},
+    {"x17",             17},
+    {"x18",             18},
+    {"x19",             19},
+    {"x20",             20},
+    {"x21",             21},
+    {"x22",             22},
+    {"x23",             23},
+    {"x24",             24},
+    {"x25",             25},
+    {"x26",             26},
+    {"x27",             27},
+    {"x28",             28},
+    {"x29",             29},
+    {"x30",             30},
+    {"x31",             31},
+    // ----- floating-point registers ----------------------------------------
+    {"ft0",             0},
+    {"ft1",             1},
+    {"ft2",             2},
+    {"ft3",             3},
+    {"ft4",             4},
+    {"ft5",             5},
+    {"ft6",             6},
+    {"ft7",             7},
+    {"fs0",             8},
+    {"fs1",             9},
+    {"fa0",             10},
+    {"fa1",             11},
+    {"fa2",             12},
+    {"fa3",             13},
+    {"fa4",             14},
+    {"fa5",             15},
+    {"fa6",             16},
+    {"fa7",             17},
+    {"fs2",             18},
+    {"fs3",             19},
+    {"fs4",             20},
+    {"fs5",             21},
+    {"fs6",             22},
+    {"fs7",             23},
+    {"fs8",             24},
+    {"fs9",             25},
+    {"fs10",            26},
+    {"fs11",            27},
+    {"ft8",             28},
+    {"ft9",             29},
+    {"ft10",            30},
+    {"ft11",            31},
+    {"f0",              0},
+    {"f1",              1},
+    {"f2",              2},
+    {"f3",              3},
+    {"f4",              4},
+    {"f5",              5},
+    {"f6",              6},
+    {"f7",              7},
+    {"f8",              8},
+    {"f9",              9},
+    {"f10",             10},
+    {"f11",             11},
+    {"f12",             12},
+    {"f13",             13},
+    {"f14",             14},
+    {"f15",             15},
+    {"f16",             16},
+    {"f17",             17},
+    {"f18",             18},
+    {"f19",             19},
+    {"f20",             20},
+    {"f21",             21},
+    {"f22",             22},
+    {"f23",             23},
+    {"f24",             24},
+    {"f25",             25},
+    {"f26",             26},
+    {"f27",             27},
+    {"f28",             28},
+    {"f29",             29},
+    {"f30",             30},
+    {"f31",             31},
+    // ----- mask registers --------------------------------------------------
+    {"mt0",             0},
+    {"mt1",             1},
+    {"mt2",             2},
+    {"mt3",             3},
+    {"mt4",             4},
+    {"mt5",             5},
+    {"mt6",             6},
+    {"mt7",             7},
+    {"m0",              0},
+    {"m1",              1},
+    {"m2",              2},
+    {"m3",              3},
+    {"m4",              4},
+    {"m5",              5},
+    {"m6",              6},
+    {"m7",              7},
+    // ----- rounding modes --------------------------------------------------
+    {"rne",             0},
+    {"rtz",             1},
+    {"rdn",             2},
+    {"rup",             3},
+    {"rmm",             4},
+    {"dyn",             7},
+    // ----- U-mode registers ------------------------------------------------
+    {"ustatus",         csr_unknown},
+    {"uie",             csr_unknown},
+    {"utvec",           csr_unknown},
+    {"uscratch",        csr_unknown},
+    {"uepc",            csr_unknown},
+    {"ucause",          csr_unknown},
+    {"utval",           csr_unknown},
+    {"uip",             csr_unknown},
+    {"fflags",          csr_fflags},
+    {"frm",             csr_frm},
+    {"fcsr",            csr_fcsr},
+    {"cycle",           csr_cycle},
+    {"cycleh",          csr_unknown},
+    {"time",            csr_unknown},
+    {"timeh",           csr_unknown},
+    {"instret",         csr_instret},
+    {"instreth",        csr_unknown},
+    {"hpmcounter3",     csr_unknown},
+    {"hpmcounter4",     csr_unknown},
+    {"hpmcounter5",     csr_unknown},
+    {"hpmcounter6",     csr_unknown},
+    {"hpmcounter7",     csr_unknown},
+    {"hpmcounter8",     csr_unknown},
+    {"hpmcounter9",     csr_unknown},
+    {"hpmcounter10",    csr_unknown},
+    {"hpmcounter11",    csr_unknown},
+    {"hpmcounter12",    csr_unknown},
+    {"hpmcounter13",    csr_unknown},
+    {"hpmcounter14",    csr_unknown},
+    {"hpmcounter15",    csr_unknown},
+    {"hpmcounter16",    csr_unknown},
+    {"hpmcounter17",    csr_unknown},
+    {"hpmcounter18",    csr_unknown},
+    {"hpmcounter19",    csr_unknown},
+    {"hpmcounter20",    csr_unknown},
+    {"hpmcounter21",    csr_unknown},
+    {"hpmcounter22",    csr_unknown},
+    {"hpmcounter23",    csr_unknown},
+    {"hpmcounter24",    csr_unknown},
+    {"hpmcounter25",    csr_unknown},
+    {"hpmcounter26",    csr_unknown},
+    {"hpmcounter27",    csr_unknown},
+    {"hpmcounter28",    csr_unknown},
+    {"hpmcounter29",    csr_unknown},
+    {"hpmcounter30",    csr_unknown},
+    {"hpmcounter31",    csr_unknown},
+    // ----- U-mode ET registers ---------------------------------------------
+    {"tensor_reduce",    csr_treduce},
+    {"tensor_fma",       csr_tfmastart},
+    {"tensor_conv_size", csr_tconvsize},
+    {"tensor_conv_ctrl", csr_tconvctrl},
+    {"tensor_coop",      csr_tcoop},
+    {"tensor_mask",      csr_tmask},
+    //"tensor_quant",
+    {"tex_send",         csr_texsend},
+    {"tensor_error",     csr_terror},
+    {"scratchpad_ctrl",  csr_scpctrl},
+    {"flb",              csr_flbarrier},
+    {"flb0",             csr_flbarrier},
+    {"fcc",              csr_fccounter},
+    {"unknown_821",      csr_fccounter},
+    {"usr_cache_op",     csr_ucacheop}, // TODO remove
+    {"tensor_wait",      csr_twait},
+    {"tensor_load",      csr_tloadctrl},
+    //"gsc_progress"
+    {"tensor_load_l2",   csr_tloadl2ctrl},
+    {"tensor_store",     csr_tstore},
+    {"validation0",      csr_validation0},
+    {"validation1",      csr_validation1},
+    {"validation2",      csr_validation2},
+    {"validation3",      csr_validation3},
+    {"unknown_cd0",      csr_hartid},
+    {"unknown_8d5",      csr_sleep_txfma_27},
+    {"umsg_port0",       csr_umsg_port0}, //TODO remove
+    {"umsg_port1",       csr_umsg_port1}, //TODO remove
+    {"umsg_port2",       csr_umsg_port2}, //TODO remove
+    {"umsg_port3",       csr_umsg_port3}, //TODO remove
+    {"porthead0",        csr_porthead0},
+    {"porthead1",        csr_porthead1},
+    {"porthead2",        csr_porthead2},
+    {"porthead3",        csr_porthead3},
+    {"portheadnb0",      csr_portheadnb0},
+    {"portheadnb1",      csr_portheadnb1},
+    {"portheadnb2",      csr_portheadnb2},
+    {"portheadnb3",      csr_portheadnb3},
+    {"evict_va",         csr_evict_va},
+    {"flush_va",         csr_flush_va},
+    {"lock_va",          csr_lock_va},
+    {"unlock_va",        csr_unlock_va},
+    {"prefetch_va",      csr_prefetch_va},
+    // ----- S-mode registers ------------------------------------------------
+    {"sstatus",          csr_sstatus},
+    {"sedeleg",          csr_unknown},
+    {"sideleg",          csr_unknown},
+    {"sie",              csr_sie},
+    {"stvec",            csr_stvec},
+    {"scounteren",       csr_scounteren},
+    {"sscratch",         csr_sscratch},
+    {"sepc",             csr_sepc},
+    {"scause",           csr_scause},
+    {"stval",            csr_stval},
+    {"sip",              csr_sip},
+    {"satp",             csr_satp},
+    // ----- S-mode ET registers ---------------------------------------------
+    {"sys_cache_op",     csr_scacheop}, // TODO remove
+    {"evict_sw",         csr_evict_sw},
+    {"flush_sw",         csr_flush_sw},
+    {"portctrl0",        csr_portctrl0},
+    {"portctrl1",        csr_portctrl1},
+    {"portctrl2",        csr_portctrl2},
+    {"portctrl3",        csr_portctrl3},
+    {"smsg_port0",       csr_portctrl0}, //TODO remove
+    {"smsg_port1",       csr_portctrl1}, //TODO remove
+    {"smsg_port2",       csr_portctrl2}, //TODO remove
+    {"smsg_port3",       csr_portctrl3}, //TODO remove
+    // ----- M-mode registers ------------------------------------------------
+    {"mvendorid",        csr_mvendorid},
+    {"marchid",          csr_marchid},
+    {"mimpid",           csr_mimpid},
+    {"mhartid",          csr_mhartid},
+    {"mstatus",          csr_mstatus},
+    {"misa",             csr_misa},
+    {"medeleg",          csr_medeleg},
+    {"mideleg",          csr_mideleg},
+    {"mie",              csr_mie},
+    {"mtvec",            csr_mtvec},
+    {"mcounteren",       csr_mcounteren},
+    {"mscratch",         csr_mscratch},
+    {"mepc",             csr_mepc},
+    {"mcause",           csr_mcause},
+    {"mtval",            csr_mtval},
+    {"mip",              csr_mip},
+    {"pmpcfg0",          csr_unknown},
+    {"pmpcfg1",          csr_unknown},
+    {"pmpcfg2",          csr_unknown},
+    {"pmpcfg3",          csr_unknown},
+    {"pmpaddr0",         csr_unknown},
+    {"pmpaddr1",         csr_unknown},
+    {"pmpaddr2",         csr_unknown},
+    {"pmpaddr3",         csr_unknown},
+    {"pmpaddr4",         csr_unknown},
+    {"pmpaddr5",         csr_unknown},
+    {"pmpaddr6",         csr_unknown},
+    {"pmpaddr7",         csr_unknown},
+    {"pmpaddr8",         csr_unknown},
+    {"pmpaddr9",         csr_unknown},
+    {"pmpaddr10",        csr_unknown},
+    {"pmpaddr11",        csr_unknown},
+    {"pmpaddr12",        csr_unknown},
+    {"pmpaddr13",        csr_unknown},
+    {"pmpaddr14",        csr_unknown},
+    {"pmpaddr15",        csr_unknown},
+    {"mcycle",           csr_mcycle},
+    {"mcycleh",          csr_unknown},
+    {"minstret",         csr_minstret},
+    {"minstreth",        csr_unknown},
+    {"mhpmcounter3",     csr_unknown},
+    {"mhpmcounter4",     csr_unknown},
+    {"mhpmcounter5",     csr_unknown},
+    {"mhpmcounter6",     csr_unknown},
+    {"mhpmcounter7",     csr_unknown},
+    {"mhpmcounter8",     csr_unknown},
+    {"mhpmcounter9",     csr_unknown},
+    {"mhpmcounter10",    csr_unknown},
+    {"mhpmcounter11",    csr_unknown},
+    {"mhpmcounter12",    csr_unknown},
+    {"mhpmcounter13",    csr_unknown},
+    {"mhpmcounter14",    csr_unknown},
+    {"mhpmcounter15",    csr_unknown},
+    {"mhpmcounter16",    csr_unknown},
+    {"mhpmcounter17",    csr_unknown},
+    {"mhpmcounter18",    csr_unknown},
+    {"mhpmcounter19",    csr_unknown},
+    {"mhpmcounter20",    csr_unknown},
+    {"mhpmcounter21",    csr_unknown},
+    {"mhpmcounter22",    csr_unknown},
+    {"mhpmcounter23",    csr_unknown},
+    {"mhpmcounter24",    csr_unknown},
+    {"mhpmcounter25",    csr_unknown},
+    {"mhpmcounter26",    csr_unknown},
+    {"mhpmcounter27",    csr_unknown},
+    {"mhpmcounter28",    csr_unknown},
+    {"mhpmcounter29",    csr_unknown},
+    {"mhpmcounter30",    csr_unknown},
+    {"mhpmcounter31",    csr_unknown},
+    {"mhpmevent3",       csr_unknown},
+    {"mhpmevent4",       csr_unknown},
+    {"mhpmevent5",       csr_unknown},
+    {"mhpmevent6",       csr_unknown},
+    {"mhpmevent7",       csr_unknown},
+    {"mhpmevent8",       csr_unknown},
+    {"mhpmevent9",       csr_unknown},
+    {"mhpmevent10",      csr_unknown},
+    {"mhpmevent11",      csr_unknown},
+    {"mhpmevent12",      csr_unknown},
+    {"mhpmevent13",      csr_unknown},
+    {"mhpmevent14",      csr_unknown},
+    {"mhpmevent15",      csr_unknown},
+    {"mhpmevent16",      csr_unknown},
+    {"mhpmevent17",      csr_unknown},
+    {"mhpmevent18",      csr_unknown},
+    {"mhpmevent19",      csr_unknown},
+    {"mhpmevent20",      csr_unknown},
+    {"mhpmevent21",      csr_unknown},
+    {"mhpmevent22",      csr_unknown},
+    {"mhpmevent23",      csr_unknown},
+    {"mhpmevent24",      csr_unknown},
+    {"mhpmevent25",      csr_unknown},
+    {"mhpmevent26",      csr_unknown},
+    {"mhpmevent27",      csr_unknown},
+    {"mhpmevent28",      csr_unknown},
+    {"mhpmevent29",      csr_unknown},
+    {"mhpmevent30",      csr_unknown},
+    {"mhpmevent31",      csr_unknown},
+    // ----- debug registers -----------
+    {"tselect",          csr_unknown},
+    {"tdata1",           csr_unknown},
+    {"tdata2",           csr_unknown},
+    {"tdata3",           csr_unknown},
+    {"tinfo",            csr_unknown},
+    {"tcontrol",         csr_unknown},
+    {"mcontrol",         csr_unknown}, // alias for tdata1
+    {"icount",           csr_unknown}, // alias for tdata1
+    {"itrigger",         csr_unknown}, // alias for tdata1
+    {"etrigger",         csr_unknown}, // alias for tdata1
+    {"dcsr",             csr_unknown},
+    {"dpc",              csr_unknown},
+    {"dscratch0",        csr_unknown},
+    {"dscratch1",        csr_unknown},
+    // ----- M-mode ET registers ---------------------------------------------
+    {"minstmask",        csr_minstmask},
+    {"minstmatch",       csr_minstmatch},
+    //"amofence_ctrl"
+    {"flush_icache",     csr_flush_icache},
+    {"sleep_txfma_27",   csr_msleep_txfma_27}, //TODO: change string to 'msleep_txfma_27' when tools are updated
+    {"unknown_7d1",      csr_msleep_txfma_27},
+    {"unknown_7d2",      csr_menable_shadows},
+});
+
 // Returns the pointer to a function based on name
 static func_ptr get_function_ptr(std::string func)
 {
@@ -440,43 +839,6 @@ static func_ptr get_function_ptr(std::string func)
     LOG(WARN, "Unknown opcode '%s' while decoding instruction.",func.c_str());
     return func_ptr(unknown);
 }
-
-// Constructor
-#if 0
-instruction::instruction()
-{
-    pc             = 0;
-    enc_bits       = 0;
-    is_load        = false;
-    is_fpload      = false;
-    is_wfi         = false;
-    is_reduce      = false;
-    is_tensor_load = false;
-    is_tensor_fma  = false;
-    is_texsndh     = false;
-    is_texrcv      = false;
-    is_1ulp        = false;
-    is_amo         = false;
-    is_flb         = false;
-    is_fcc         = false;
-    is_compressed  = false;
-    is_csr_read    = false;
-    num_params     = 0;
-    str_error.clear();
-    emu_func       = nullptr;
-    emu_func0      = nullptr;
-    emu_func1      = nullptr;
-    emu_func2      = nullptr;
-    emu_func3      = nullptr;
-    emu_func4      = nullptr;
-    emu_func5      = nullptr;
-}
-
-// Destructor
-instruction::~instruction()
-{
-}
-#endif
 
 // Sets the mnemonic. It also starts decoding it to generate
 // the emulation routine
@@ -845,6 +1207,7 @@ void instruction::set_mnemonic(std::string mnemonic_)
         emu_func4 = (func_ptr_4) emu_func;
         emu_func5 = (func_ptr_5) emu_func;
     }
+    
 }
 
 // Instruction execution
@@ -877,8 +1240,14 @@ void instruction::add_parameter(std::string param)
         // Weird case seen in WFI where despite having no parameter the disasm returns this parameter
         return;
     }
+    // Check for the usual suspects
+    emu_opnd_hash_t::const_iterator el = operand_cache.find(param);
+    if (el != operand_cache.end())
+    {
+        params[num_params] = el->second;
+    }
     // Hex constant
-    if (param.find("0x") !=std::string::npos)
+    else if (param.find("0x") != std::string::npos)
     {
         // Negative
         bool neg = false;
@@ -904,233 +1273,6 @@ void instruction::add_parameter(std::string param)
             str_error = "Error parsing parameter " + param + ". Expecting dec immediate";
         }
     }
-    // Integer register or CSR
-    else if (param == "zero")             params[num_params] = 0;
-    else if (param == "ra")               params[num_params] = 1;
-    else if (param == "sp")               params[num_params] = 2;
-    else if (param == "gp")               params[num_params] = 3;
-    else if (param == "tp")               params[num_params] = 4;
-    else if (param == "t0")               params[num_params] = 5;
-    else if (param == "t1")               params[num_params] = 6;
-    else if (param == "t2")               params[num_params] = 7;
-    else if (param == "s0")               params[num_params] = 8;
-    else if (param == "s1")               params[num_params] = 9;
-    else if (param == "a0")               params[num_params] = 10;
-    else if (param == "a1")               params[num_params] = 11;
-    else if (param == "a2")               params[num_params] = 12;
-    else if (param == "a3")               params[num_params] = 13;
-    else if (param == "a4")               params[num_params] = 14;
-    else if (param == "a5")               params[num_params] = 15;
-    else if (param == "a6")               params[num_params] = 16;
-    else if (param == "a7")               params[num_params] = 17;
-    else if (param == "s2")               params[num_params] = 18;
-    else if (param == "s3")               params[num_params] = 19;
-    else if (param == "s4")               params[num_params] = 20;
-    else if (param == "s5")               params[num_params] = 21;
-    else if (param == "s6")               params[num_params] = 22;
-    else if (param == "s7")               params[num_params] = 23;
-    else if (param == "s8")               params[num_params] = 24;
-    else if (param == "s9")               params[num_params] = 25;
-    else if (param == "s10")              params[num_params] = 26;
-    else if (param == "s11")              params[num_params] = 27;
-    else if (param == "t3")               params[num_params] = 28;
-    else if (param == "t4")               params[num_params] = 29;
-    else if (param == "t5")               params[num_params] = 30;
-    else if (param == "t6")               params[num_params] = 31;
-    else if (param == "fcsr")             params[num_params] = csr_fcsr;
-    else if (param == "frm")              params[num_params] = csr_frm;
-    else if (param == "fflags")           params[num_params] = csr_fflags;
-    else if (param == "flb")              params[num_params] = csr_flbarrier;
-    else if (param == "flb0")             params[num_params] = csr_flbarrier;
-    else if (param == "fcc")              params[num_params] = csr_fccounter;
-    else if (param == "unknown_821")      params[num_params] = csr_fccounter;
-    else if (param == "sstatus")          params[num_params] = csr_sstatus;
-    else if (param == "sie")              params[num_params] = csr_sie;
-    else if (param == "stvec")            params[num_params] = csr_stvec;
-    else if (param == "scounteren")       params[num_params] = csr_scounteren;
-    else if (param == "sscratch")         params[num_params] = csr_sscratch;
-    else if (param == "sepc")             params[num_params] = csr_sepc;
-    else if (param == "scause")           params[num_params] = csr_scause;
-    else if (param == "stval")            params[num_params] = csr_stval;
-    else if (param == "sip")              params[num_params] = csr_sip;
-    else if (param == "satp")             params[num_params] = csr_satp;
-    else if (param == "cycle")            params[num_params] = csr_cycle;
-    else if (param == "cycleh")           params[num_params] = csr_cycleh;
-    else if (param == "mvendorid")        params[num_params] = csr_mvendorid;
-    else if (param == "marchid")          params[num_params] = csr_marchid;
-    else if (param == "mimpid")           params[num_params] = csr_mimpid;
-    else if (param == "mhartid")          params[num_params] = csr_mhartid;
-    else if (param == "unknown_cd0")      params[num_params] = csr_hartid;
-    else if (param == "unknown_7d2")      params[num_params] = csr_menable_shadows;
-    else if (param == "mstatus")          params[num_params] = csr_mstatus;
-    else if (param == "misa")             params[num_params] = csr_misa;
-    else if (param == "medeleg")          params[num_params] = csr_medeleg;
-    else if (param == "mideleg")          params[num_params] = csr_mideleg;
-    else if (param == "mie")              params[num_params] = csr_mie;
-    else if (param == "mtvec")            params[num_params] = csr_mtvec;
-    else if (param == "mcounteren")       params[num_params] = csr_mcounteren;
-    else if (param == "mscratch")         params[num_params] = csr_mscratch;
-    else if (param == "mepc")             params[num_params] = csr_mepc;
-    else if (param == "mcause")           params[num_params] = csr_mcause;
-    else if (param == "mtval")            params[num_params] = csr_mtval;
-    else if (param == "mip")              params[num_params] = csr_mip;
-    else if (param == "mcycle")           params[num_params] = csr_mcycle;
-    else if (param == "mcycleh")          params[num_params] = csr_mcycleh;
-    else if (param == "tensor_load")      params[num_params] = csr_tloadctrl;
-    else if (param == "tensor_load_l2")   params[num_params] = csr_tloadl2ctrl;
-    else if (param == "tensor_mask")      params[num_params] = csr_tmask;
-    else if (param == "tensor_conv_size") params[num_params] = csr_tconvsize;
-    else if (param == "tensor_conv_ctrl") params[num_params] = csr_tconvctrl;
-    else if (param == "tensor_coop")      params[num_params] = csr_tcoop;
-    else if (param == "tensor_fma")       params[num_params] = csr_tfmastart;
-    else if (param == "tensor_reduce")    params[num_params] = csr_treduce;
-    else if (param == "tensor_store")     params[num_params] = csr_tstore;
-    else if (param == "tensor_error")     params[num_params] = csr_terror;
-    else if (param == "tensor_wait")      params[num_params] = csr_twait;
-    else if (param == "unknown_7d1")      params[num_params] = csr_offtxfma;
-    else if (param == "usr_cache_op")     params[num_params] = csr_ucacheop; // TODO remove
-    else if (param == "evict_va")         params[num_params] = csr_evict_va;
-    else if (param == "flush_va")         params[num_params] = csr_flush_va;
-    else if (param == "lock_va")          params[num_params] = csr_lock_va;
-    else if (param == "unlock_va")        params[num_params] = csr_unlock_va;
-    else if (param == "prefetch_va")      params[num_params] = csr_prefetch_va;
-    else if (param == "scratchpad_ctrl")  params[num_params] = csr_scpctrl;
-    else if (param == "tex_send")         params[num_params] = csr_texsend;
-    else if (param == "porthead0")        params[num_params] = csr_porthead0;
-    else if (param == "porthead1")        params[num_params] = csr_porthead1;
-    else if (param == "porthead2")        params[num_params] = csr_porthead2;
-    else if (param == "porthead3")        params[num_params] = csr_porthead3;
-    else if (param == "portheadnb0")      params[num_params] = csr_portheadnb0;
-    else if (param == "portheadnb1")      params[num_params] = csr_portheadnb1;
-    else if (param == "portheadnb2")      params[num_params] = csr_portheadnb2;
-    else if (param == "portheadnb3")      params[num_params] = csr_portheadnb3;
-    else if (param == "umsg_port0")       params[num_params] = csr_umsg_port0; //TODO remove
-    else if (param == "umsg_port1")       params[num_params] = csr_umsg_port1; //TODO remove
-    else if (param == "umsg_port2")       params[num_params] = csr_umsg_port2; //TODO remove
-    else if (param == "umsg_port3")       params[num_params] = csr_umsg_port3; //TODO remove
-    else if (param == "sys_cache_op")     params[num_params] = csr_scacheop; // TODO remove
-    else if (param == "evict_sw")         params[num_params] = csr_evict_sw;
-    else if (param == "flush_sw")         params[num_params] = csr_flush_sw;
-    else if (param == "portctrl0")        params[num_params] = csr_portctrl0;
-    else if (param == "portctrl1")        params[num_params] = csr_portctrl1;
-    else if (param == "portctrl2")        params[num_params] = csr_portctrl2;
-    else if (param == "portctrl3")        params[num_params] = csr_portctrl3;
-    else if (param == "smsg_port0")       params[num_params] = csr_portctrl0; //TODO remove
-    else if (param == "smsg_port1")       params[num_params] = csr_portctrl1; //TODO remove
-    else if (param == "smsg_port2")       params[num_params] = csr_portctrl2; //TODO remove
-    else if (param == "smsg_port3")       params[num_params] = csr_portctrl3; //TODO remove
-    else if (param == "icache_ctrl")      params[num_params] = csr_icache_ctrl;
-    else if (param == "write_ctrl")       params[num_params] = csr_write_ctrl;
-    else if (param == "minstmask")        params[num_params] = csr_minstmask;
-    else if (param == "minstmatch")       params[num_params] = csr_minstmatch;
-    else if (param == "flush_icache")     params[num_params] = csr_flush_icache;
-    else if (param == "sleep_txfma_27")   params[num_params] = csr_msleep_txfma_27; //TODO: change string to 'msleep_txfma_27' when tools are updated
-    else if (param == "unknown_8d5")      params[num_params] = csr_sleep_txfma_27;
-    else if (param == "validation0")      params[num_params] = csr_validation0;
-    else if (param == "validation1")      params[num_params] = csr_validation1;
-    else if (param == "validation2")      params[num_params] = csr_validation2;
-    else if (param == "validation3")      params[num_params] = csr_validation3;
-
-    // Floating register
-    else if (param[0] == 'f')
-    {
-        if      (param == "ft0")  params[num_params] = 0;
-        else if (param == "ft1")  params[num_params] = 1;
-        else if (param == "ft2")  params[num_params] = 2;
-        else if (param == "ft3")  params[num_params] = 3;
-        else if (param == "ft4")  params[num_params] = 4;
-        else if (param == "ft5")  params[num_params] = 5;
-        else if (param == "ft6")  params[num_params] = 6;
-        else if (param == "ft7")  params[num_params] = 7;
-        else if (param == "fs0")  params[num_params] = 8;
-        else if (param == "fs1")  params[num_params] = 9;
-        else if (param == "fa0")  params[num_params] = 10;
-        else if (param == "fa1")  params[num_params] = 11;
-        else if (param == "fa2")  params[num_params] = 12;
-        else if (param == "fa3")  params[num_params] = 13;
-        else if (param == "fa4")  params[num_params] = 14;
-        else if (param == "fa5")  params[num_params] = 15;
-        else if (param == "fa6")  params[num_params] = 16;
-        else if (param == "fa7")  params[num_params] = 17;
-        else if (param == "fs2")  params[num_params] = 18;
-        else if (param == "fs3")  params[num_params] = 19;
-        else if (param == "fs4")  params[num_params] = 20;
-        else if (param == "fs5")  params[num_params] = 21;
-        else if (param == "fs6")  params[num_params] = 22;
-        else if (param == "fs7")  params[num_params] = 23;
-        else if (param == "fs8")  params[num_params] = 24;
-        else if (param == "fs9")  params[num_params] = 25;
-        else if (param == "fs10") params[num_params] = 26;
-        else if (param == "fs11") params[num_params] = 27;
-        else if (param == "ft8")  params[num_params] = 28;
-        else if (param == "ft9")  params[num_params] = 29;
-        else if (param == "ft10") params[num_params] = 30;
-        else if (param == "ft11") params[num_params] = 31;
-        else
-        {
-            int c = sscanf(param.c_str(), "f%i", &params[num_params]);
-            if (c != 1)
-            {
-                str_error = "Error parsing parameter " + param + ". Expecting float register";
-            }
-        }
-    }
-    // Integer register
-    else if (param[0] == 'x')
-    {
-        int c = sscanf(param.c_str(), "x%i", &params[num_params]);
-        if (c != 1)
-        {
-            str_error = "Error parsing parameter " + param + ". Expecting integer register";
-        }
-    }
-    // Mask register
-    else if (param[0] == 'm')
-    {
-       if      (param == "mt0")  params[num_params] = 0;
-       else if (param == "mt1")  params[num_params] = 1;
-       else if (param == "mt2")  params[num_params] = 2;
-       else if (param == "mt3")  params[num_params] = 3;
-       else if (param == "mt4")  params[num_params] = 4;
-       else if (param == "mt5")  params[num_params] = 5;
-       else if (param == "mt6")  params[num_params] = 6;
-       else if (param == "mt7")  params[num_params] = 7;
-    }
-    // rounding modes
-    else if ( param == "rne") params[num_params] = 0;
-    else if ( param == "rtz") params[num_params] = 1;
-    else if ( param == "rdn") params[num_params] = 2;
-    else if ( param == "rup") params[num_params] = 3;
-    else if ( param == "rmm") params[num_params] = 4;
-    else if ( param == "dyn") params[num_params] = 7;
-
-    // TODO: currently unsupported CSRs
-    else if (param == "ustatus"    ||
-             param == "uie"        ||
-             param == "utvec"      ||
-             param == "uscratch"   ||
-             param == "uepc"       ||
-             param == "ucause"     ||
-             param == "utval"      ||
-             param == "uip"        ||
-             param == "time"       ||
-             param == "instret"    ||
-             param == "timeh"      ||
-             param == "insreth"    ||
-             param == "sedeleg"    ||
-             param == "sideleg"    ||
-             param == "minstret"   ||
-             param == "minstreth"  ||
-             param == "tselect"    ||
-             param == "tdata1"     ||
-             param == "tdata2"     ||
-             param == "tdata3"     ||
-             param == "dcsr"       ||
-             param == "dpc"        ||
-             param == "dscratch")
-    {
-        str_error = "Unsupported register " + param;
-    }
     // Unknown CSR
     else if (param.find("unknown_") !=std::string::npos)
     {
@@ -1138,7 +1280,7 @@ void instruction::add_parameter(std::string param)
     }
     else
     {
-       str_error = "Unknown parameter " + param + ". Expecting integer register or CSR";
+       str_error = "Unknown parameter " + param + ".";
     }
     num_params++;
 }
