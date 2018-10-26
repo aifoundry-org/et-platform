@@ -40,6 +40,7 @@ extern et_core_t get_core_type();
 
 // Configure the emulation environment
 extern void init_emu(int debug, int fakesam, enum logLevel log_level);
+extern void log_only_minion(int32_t m);
 
 // Helpers
 extern void print_comment(const char *comm);

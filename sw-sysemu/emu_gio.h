@@ -22,6 +22,13 @@
 extern int print_debug;
 
 #define LOG(severity, format, ...)    log_printf(LOG_##severity, format, ##__VA_ARGS__)
+#define LOG_ALL_MINIONS( severity, format, ...) do {	\
+    int32_t old_minion_only_log = minion_only_log;	\
+    minion_only_log = -1;				\
+    LOG(severity, format, ##__VA_ARGS__);		\
+    minion_only_log = old_minion_only_log;		\
+  } while(0)						\
+
 void log_printf(enum logLevel level, const char* format, ...);
 testLog& emu_log();
 
