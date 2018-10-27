@@ -1187,7 +1187,7 @@ void instruction::set_mnemonic(std::string mnemonic_)
     }
 
     // Checks if it is a tensor/reduce operation
-    if ((opcode == "csrrw") || (opcode == "cssrwi"))
+    if ((opcode == "csrrw") || (opcode == "cssrwi") || (opcode == "csrrwi"))
     {
         is_reduce      = (params[1] == csr_treduce);
         is_tensor_load = (params[1] == csr_tloadctrl);
