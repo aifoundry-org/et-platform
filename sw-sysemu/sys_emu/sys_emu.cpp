@@ -256,7 +256,7 @@ int main(int argc, char * argv[])
     bool log_en          = false;
     bool log_mem_en      = false;
     bool create_mem_at_runtime = false;
-    int  log_min         = EMU_NUM_MINIONS;
+    int  log_min         = -1;
     char * dump_file     = NULL;
     int dump             = 0;
     uint64_t dump_addr   = 0;
@@ -393,6 +393,7 @@ int main(int argc, char * argv[])
 
     // Init emu
     init_emu(log_en, false, log_en? LOG_DEBUG : LOG_INFO);
+    log_only_minion(log_min);
 
     in_sysemu = true;
 
@@ -459,6 +460,9 @@ int main(int argc, char * argv[])
        }
     }
 
+
+
+    
     instruction * inst;
     uint64_t emu_cycle = 0;
 
@@ -499,7 +503,6 @@ int main(int argc, char * argv[])
 
             // Computes logging for this thread
             bool do_log = dump_log(log_en, log_min, thread_id);
-            init_emu(do_log, false, do_log? LOG_DEBUG: LOG_INFO);
             if(do_log) { printf("Starting emu of thread %i\n", thread_id); }
 
             // Try to execute one instruction, this may trap
