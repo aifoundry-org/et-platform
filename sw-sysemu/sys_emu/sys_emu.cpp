@@ -137,7 +137,7 @@ static void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thr
 ////////////////////////////////////////////////////////////////////////////////
 // functions to connect rbox emulation with emu
 ////////////////////////////////////////////////////////////////////////////////
-static rboxSysEmu *rbox[64];
+static rboxSysEmu *rbox[EMU_NUM_SHIRES];
 
 static void newMsgPortDataRequest(uint32_t current_thread,  uint32_t port_id)
 {
@@ -424,7 +424,7 @@ int main(int argc, char * argv[])
 
     // initialize rboxes-----------------------------------
     if (use_rbox){
-      for (int i = 0 ; i < 64; i++)
+      for (int i = 0 ; i < EMU_NUM_SHIRES; i++)
         rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data);
       set_msg_port_data_funcs(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
     }
@@ -475,12 +475,12 @@ int main(int argc, char * argv[])
 
         if (use_rbox) {
             rboxes_done = true;
-            for ( int i = 0; i < 64; i++)
+            for ( int i = 0; i < EMU_NUM_SHIRES; i++)
             {
                 int newEnable = rbox[i]->tick();
 
                 if (newEnable > 0)
-                    enabled_threads.push_back(newEnable + 64*i);
+                    enabled_threads.push_back(newEnable + EMU_MINIONS_PER_SHIRE*i);
 
                 if (!rbox[i]->done())
                 {
@@ -575,7 +575,7 @@ int main(int argc, char * argv[])
 
                     if (get_msg_port_stall(thread_id, 0) ){
                         thread = enabled_threads.erase(thread);
-                        rbox[thread_id/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)]->threadDisabled(thread_id%(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION));
+                        if(use_rbox) rbox[thread_id/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)]->threadDisabled(thread_id%(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION));
                         if (thread == enabled_threads.end()) break;
                     }
                     else {
@@ -673,7 +673,7 @@ int main(int argc, char * argv[])
     }
 
     if (use_rbox){
-      for (int i = 0 ; i < 64; i++)
+      for (int i = 0 ; i < EMU_NUM_SHIRES; i++)
         delete rbox[i];
     }
 

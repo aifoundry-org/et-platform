@@ -2224,7 +2224,7 @@ static void csrset(csr src1, uint64_t val)
     {
         // ----- Read-only and illegal registers -------------------------
         case csr_cycle:
-	case csr_instret:
+        case csr_instret:
         case csr_mvendorid:
         case csr_marchid:
         case csr_mimpid:
@@ -2348,6 +2348,12 @@ static void csrset(csr src1, uint64_t val)
         case csr_texsend:
             val &= 0x00000000000000FFULL;
             csrregs[current_thread][src1] = val;
+            // Notify to TBOX that a Sample Request is ready
+            //unsigned port_id        = csrregs[current_thread][src1] & 0x0000000F;
+            //unsigned number_packets = (csrregs[current_thread][src1] >> 4) & 0x0000000F;
+
+            //new_sample_request(port_id, number_packets);
+
             break;
         case csr_sleep_txfma_27:
             if ( csrregs[current_thread][csr_prv] != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0) {
@@ -2472,8 +2478,8 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x0000000000000222ULL;
             csrregs[current_thread][src1] = val;
             break;
-	case csr_mcycle:
-	case csr_minstret:
+        case csr_mcycle:
+        case csr_minstret:
 	    // writes are ignored, always return 0
 	    break;
         // ----- Shared registers ----------------------------------------
