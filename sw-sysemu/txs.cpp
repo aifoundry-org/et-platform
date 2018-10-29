@@ -34,6 +34,22 @@ void init_txs(uint64_t imgTableAddr)
     tbox_emulator.texture_cache_initialize();
 }
 
+/*
+    Add a sample_request in the texsend_fifo
+
+*/
+void new_sample_request(unsigned port_id, unsigned number_packets)
+{
+
+    LOG(DEBUG, "\tSample Request. Packets = %d, Port_id = %d, Hart_id = %d", number_packets, port_id, current_thread);
+
+    /*tbox_emulator.set_request_pending(hart_id, true, number_packets, port_id);
+    tbox_emulator.set_request_header(current_thread, XREGS[src1].x, XREGS[src2].x);
+    tbox_emulator.set_request_coordinates(current_thread, 0, FREGS[src1]);
+    tbox_emulator.set_request_coordinates(current_thread, 1, FREGS[src1]);
+    tbox_emulator.set_request_coordinates(current_thread, 2, FREGS[src1]);*/
+}
+
 void texsndh(xreg src1, xreg src2, const char* comm)
 {
     DISASM(gsprintf(dis,"I: texsndh x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:"")););
