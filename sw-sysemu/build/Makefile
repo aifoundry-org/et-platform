@@ -5,9 +5,6 @@ ifndef TESTROOT
     $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
 endif
 
-# Use "real" TXFMA
-USE_REAL_TXFMA := 0
-
 SRCS := $(BEMU)/emu.cpp \
         $(BEMU)/fpu.cpp \
         $(BEMU)/cvt.cpp \
@@ -40,10 +37,6 @@ LDFLAGS  := -shared
 
 # FIXME: Remove the following when we convert everything away from C++ floats
 CXXFLAGS += -mf16c -fno-fast-math
-
-ifeq ($(USE_REAL_TXFMA), 1)
-    CPPFLAGS += -DUSE_REAL_TXFMA
-endif
 
 
 .PHONY: all
