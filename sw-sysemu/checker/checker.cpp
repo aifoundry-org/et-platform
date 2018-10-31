@@ -730,11 +730,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     {
                         if(conv_skip[lane] == 1) continue;
                         data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
-#ifdef USE_REAL_TXFMA
                         if(data != it->data[lane])
-#else
-                        if(!fp_1ulp_check(data, it->data[lane]))
-#endif
                         {
                             stream << "TensorFMA write data error for register f" << entry << "[" << lane << "] pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
                             error_msg += stream.str();
