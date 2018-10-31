@@ -36,12 +36,15 @@ void init_txs(uint64_t imgTableAddr)
 
 /*
     Add a sample_request in the texsend_fifo
-
 */
-void new_sample_request(unsigned port_id, unsigned number_packets)
+void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base_address)
 {
 
-    LOG(DEBUG, "\tSample Request. Packets = %d, Port_id = %d, Hart_id = %d", number_packets, port_id, current_thread);
+    LOG(DEBUG, "\tSample Request. Packets = %u, Port_id = %u, Hart_id = %u, Port Base Address = %lu", number_packets, port_id, current_thread, base_address);
+
+    //read_msg_port_data(current_thread, port_id, data, &oob);
+    // Parse header
+    // Send data to tbox_emu
 
     /*tbox_emulator.set_request_pending(hart_id, true, number_packets, port_id);
     tbox_emulator.set_request_header(current_thread, XREGS[src1].x, XREGS[src2].x);

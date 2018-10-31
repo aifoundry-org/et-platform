@@ -424,10 +424,15 @@ int main(int argc, char * argv[])
 
     // initialize rboxes-----------------------------------
     if (use_rbox){
-      for (int i = 0 ; i < EMU_NUM_SHIRES; i++)
-        rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data);
-      set_msg_port_data_funcs(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
+        for (int i = 0 ; i < EMU_NUM_SHIRES; i++)
+            rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data);
+        set_msg_port_data_funcs(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
     }
+    // end initialize rboxes-------------------------------
+
+    // initialize ports-----------------------------------
+    
+    // end initialize ports-------------------------------
 
     // Generates the mask of enabled minions
     // Setup for all minions

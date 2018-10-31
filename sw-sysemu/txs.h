@@ -8,6 +8,8 @@
 
 extern void init_txs(uint64_t imgTableAddr);
 
+extern void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base_address);
+
 // FIXME: THESE INSTRUCTIONS ARE OBSOLETE
 extern void texsndh(xreg src1, xreg src2, const char* comm = 0);
 extern void texsnds(freg src1, const char* comm = 0);
