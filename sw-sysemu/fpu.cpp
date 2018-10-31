@@ -181,6 +181,276 @@ static float32_t f32_maximumNumber( float32_t a, float32_t b )
 }
 
 
+float32_t f16_mulExt( float16_t a, float16_t b )
+{
+    union ui16_f16 uA;
+    uint_fast16_t uiA;
+    bool signA;
+    int_fast8_t expA;
+    uint_fast16_t sigA;
+    union ui16_f16 uB;
+    uint_fast16_t uiB;
+    bool signB;
+    int_fast8_t expB;
+    uint_fast16_t sigB;
+    bool signZ;
+    uint_fast16_t magBits;
+    struct exp8_sig16 normExpSig;
+    int_fast16_t expZ;
+    uint_fast32_t sigZ, uiZ;
+    union ui32_f32 uZ;
+    struct commonNaN commonNaN __attribute__((unused));
+
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    uA.f = a;
+    uiA = uA.ui;
+    signA = signF16UI( uiA );
+    expA  = expF16UI( uiA );
+    sigA  = fracF16UI( uiA );
+    uB.f = b;
+    uiB = uB.ui;
+    signB = signF16UI( uiB );
+    expB  = expF16UI( uiB );
+    sigB  = fracF16UI( uiB );
+    signZ = signA ^ signB;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    if ( expA == 0x1F ) {
+        if ( sigA || ((expB == 0x1F) && sigB) ) goto propagateNaN;
+        magBits = expB | sigB;
+        goto infArg;
+    }
+    if ( expB == 0x1F ) {
+        if ( sigB ) goto propagateNaN;
+        magBits = expA | sigA;
+        goto infArg;
+    }
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    if ( ! expA ) {
+        if ( ! sigA ) goto zero;
+        normExpSig = softfloat_normSubnormalF16Sig( sigA );
+        expA = normExpSig.exp;
+        sigA = normExpSig.sig;
+    }
+    if ( ! expB ) {
+        if ( ! sigB ) goto zero;
+        normExpSig = softfloat_normSubnormalF16Sig( sigB );
+        expB = normExpSig.exp;
+        sigB = normExpSig.sig;
+    }
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    expZ = expA + expB - 0xF + 0x70;
+    sigA = (sigA | 0x0400)<<4;
+    sigB = (sigB | 0x0400)<<5;
+    sigZ = (uint_fast32_t) sigA * sigB;
+    if ( sigZ < 0x40000000 ) {
+        --expZ;
+        sigZ <<= 1;
+    }
+    uiZ = packToF32UI( signZ, expZ, sigZ>>7 );
+    goto uiZ;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+ propagateNaN:
+    uiZ = softfloat_propagateNaNF16UI( uiA, uiB );
+    softfloat_f16UIToCommonNaN( uiZ, &commonNaN );
+    uiZ = softfloat_commonNaNToF32UI( &commonNaN );
+    goto uiZ;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+ infArg:
+    if ( ! magBits ) {
+        softfloat_raiseFlags( softfloat_flag_invalid );
+        uiZ = defaultNaNF32UI;
+    } else {
+        uiZ = packToF32UI( signZ, 0xFF, 0 );
+    }
+    goto uiZ;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+ zero:
+    uiZ = packToF32UI( signZ, 0, 0 );
+ uiZ:
+    uZ.ui = uiZ;
+    return uZ.f;
+}
+
+
+static float32_t f32_add3(float32_t a, float32_t b, float32_t c)
+{
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    int_fast16_t expA;
+    uint_fast32_t sigA;
+    union ui32_f32 uB;
+    uint_fast32_t uiB;
+    int_fast16_t expB;
+    uint_fast32_t sigB;
+    union ui32_f32 uC;
+    uint_fast32_t uiC;
+    int_fast16_t expC;
+    uint_fast32_t sigC;
+    int_fast8_t sigSubB;
+    int_fast8_t sigSubC;
+    int_fast16_t expDiffB;
+    int_fast16_t expDiffC;
+    union ui32_f32 uZ;
+    uint_fast32_t uiZ;
+    bool signZ;
+    int_fast16_t expZ;
+    uint_fast32_t sigZ;
+
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    uA.f = a;
+    uiA = uA.ui;
+    uB.f = b;
+    uiB = uB.ui;
+    uC.f = c;
+    uiC = uC.ui;
+    if ( (uiA & 0x7FFFFFFF) < (uiB & 0x7FFFFFFF) ) {
+        uiA = uB.ui;
+        uiB = uA.ui;
+        uA.ui = uiA;
+        uB.ui = uiB;
+    }
+    if ( (uiA & 0x7FFFFFFF) < (uiC & 0x7FFFFFFF) ) {
+        uiA = uC.ui;
+        uiC = uA.ui;
+        uA.ui = uiA;
+        uC.ui = uiC;
+    }
+    if ( (uiB & 0x7FFFFFFF) < (uiC & 0x7FFFFFFF) ) {
+        uiB = uC.ui;
+        uiC = uB.ui;
+        uB.ui = uiB;
+        uC.ui = uiC;
+    }
+    expA  = expF32UI( uiA );
+    sigA  = fracF32UI( uiA );
+    expB  = expF32UI( uiB );
+    sigB  = fracF32UI( uiB );
+    expC  = expF32UI( uiC );
+    sigC  = fracF32UI( uiC );
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    if ( expA == 0xFF ) {
+        if ( sigA ) goto propagateNaN;
+        if ( expB == 0xFF ) {
+            if ( sigB ) goto propagateNaN;
+            if ( signF32UI( uiA ) ^ signF32UI( uiB ) ) goto generateNaN;
+            if ( expC == 0xFF ) {
+                if ( sigC ) goto propagateNaN;
+                if ( signF32UI( uiA ) ^ signF32UI( uiC ) ) goto generateNaN;
+            }
+        }
+        uiZ = packToF32UI( signF32UI( uiA ), 0xFF, 0 );
+        goto uiZ;
+    }
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    sigA <<= 3;
+    sigB <<= 3;
+    sigC <<= 3;
+    if ( expA ) { sigA |= 0x04000000; } else { expA = ( sigA != 0 ); }
+    if ( expB ) { sigB |= 0x04000000; } else { expB = ( sigB != 0 ); }
+    if ( expC ) { sigC |= 0x04000000; } else { expC = ( sigC != 0 ); }
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    expDiffB = expA - expB;
+    expDiffC = expA - expC;
+    if ( expDiffB ) {
+        if ( expDiffB < 31 ) {
+            uint32_t stickyB = sigB << (-expDiffB & 31);
+            if ( stickyB )
+                softfloat_raiseFlags( softfloat_flag_inexact );
+            sigB = (sigB >> expDiffB) | (stickyB != 0);
+        } else {
+            if ( sigB )
+                softfloat_raiseFlags( softfloat_flag_inexact );
+            sigB = (sigB != 0);
+        }
+    }
+    if ( expDiffC ) {
+        if ( expDiffC < 31 ) {
+            uint32_t stickyC = sigC << (-expDiffC & 31);
+            if ( stickyC )
+                softfloat_raiseFlags( softfloat_flag_inexact );
+            sigC = (sigC >> expDiffC) | (stickyC != 0);
+        } else {
+            if ( sigC )
+                softfloat_raiseFlags( softfloat_flag_inexact );
+            sigC = (sigC != 0);
+        }
+    }
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    sigSubB = signF32UI( uiA ) ^ signF32UI( uiB );
+    sigSubC = signF32UI( uiA ) ^ signF32UI( uiC );
+    signZ = signF32UI( uiA );
+    expZ = expA;
+    sigZ = sigA + (sigSubB ? -sigB : sigB) + (sigSubC ? -sigC : sigC);
+    if ( (sigSubB || sigSubC) && sigZ >= 0x80000000 ) {
+        signZ = !signZ;
+        sigZ = -sigZ;
+    }
+    if ( !(sigSubB || sigSubC) && sigZ < 0x08000000 ) {
+        --expZ;
+        sigZ <<= 1;
+    }
+    if ( (sigSubB || sigSubC) && !sigZ ) {
+        uiZ =
+            packToF32UI(
+                        (softfloat_roundingMode == softfloat_round_min), 0, 0 );
+        goto uiZ;
+    }
+#ifdef F32_ADD3_HANDLE_SOME_CANCELATION
+    if ( sigSubB && expDiffB == 0 && sigZ == 1 && expDiffC > 25 ) {
+        uiZ =
+            packToF32UI(
+                        expC ? signF32UI(uiC) : (softfloat_roundingMode == softfloat_round_min),
+                        expC ? expC - 1 : 0,
+                        expC ? sigZ<<23 : 0 );
+        goto uiZ;
+    }
+#endif
+    sigZ <<= 3;
+    if (sigZ >= 0x80000000) {
+        sigZ >>= 1;
+        expZ += 1;
+    }
+    return softfloat_normRoundPackToF32( signZ, expZ, sigZ );
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+ generateNaN:
+    softfloat_raiseFlags( softfloat_flag_invalid );
+    uiZ = defaultNaNF32UI;
+    goto uiZ;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+ propagateNaN:
+    uiZ = softfloat_propagateNaNF32UI( uiA, uiB );
+ uiZ:
+    uZ.ui = uiZ;
+    return uZ.f;
+}
+
+
+static float32_t f16_mulMulAdd3(
+    float32_t c, float16_t a1, float16_t b1, float16_t a2, float16_t b2 )
+{
+    float32_t p1;
+    float32_t p2;
+
+    p1 = f16_mulExt( a1, b1 );
+    p2 = f16_mulExt( a2, b2 );
+    return f32_add3( p1, p2, c );
+}
+
+
 // -----------------------------------------------------------------------
 // Public functions
 // -----------------------------------------------------------------------
@@ -654,146 +924,9 @@ namespace fpu {
                                   float16_t a1, float16_t b1,
                                   float16_t a2, float16_t b2)
     {
-        // Calculate acc += f32(a1)*f32(b1) + f32(a2)*f32(b2)
-        //
-        // The real accumulation is performed with "infinte" accuracy as a
-        // 3-way addition
-        float32_t fma1 = ::f32_mulAdd(::f16_to_f32(daz(a1)),
-                                      ::f16_to_f32(daz(b1)),
-                                      daz(acc));
-        float32_t fma2 = ::f32_mulAdd(::f16_to_f32(daz(a2)),
-                                      ::f16_to_f32(daz(b2)),
-                                      fma1);
-        return ftz(fma2);
+        return ftz(f16_mulMulAdd3(daz(acc),
+                                  daz(a1), daz(b1),
+                                  daz(a2), daz(b2)));
     }
-
-    // the original code for f32_tensorMulAddF16() from bemu.cpp
-#if 0
-#if defined(USE_REAL_TXFMA)
-                    iufval mul1_a, mul1_b, fma1, mul2_a, mul2_b, fma2;
-
-                    // 1st FMA
-                    bool      mul1_a_den = ((mul1_a_hex & 0x7C00) == 0);        // detect input denormal or zero
-                    int32_t   mul1_a_exp = ((mul1_a_hex >> 10) & 0x1F) - 15;    // get exponent
-
-                    bool      mul1_b_den = ((mul1_b_hex & 0x7C00) == 0);        // detect input denormal or zero
-                    int32_t   mul1_b_exp = ((mul1_b_hex >> 10) & 0x1F) - 15;    // get exponent
-
-                    // flush denormals to zero, preserving sign
-                    if (mul1_a_den) mul1_a_hex &= 0x8000;
-                    if (mul1_b_den) mul1_b_hex &= 0x8000;
-
-                    mul1_a.flt = _cvtsh_ss(mul1_a_hex);                         // convert to fp32
-                    mul1_b.flt = _cvtsh_ss(mul1_b_hex);                         // convert to fp32
-                    fma1.flt   = mul1_a.flt * mul1_b.flt;                       // perform first mul
-
-                    // 2nd FMA
-                    bool      mul2_a_den = ((mul2_a_hex & 0x7C00) == 0);        // detect input denormal or zero
-                    int32_t   mul2_a_exp = ((mul2_a_hex >> 10) & 0x1F) - 15;    // get exponent
-
-                    bool      mul2_b_den = ((mul2_b_hex & 0x7C00) == 0);        // detect input denormal or zero
-                    int32_t   mul2_b_exp = ((mul2_b_hex >> 10) & 0x1F) - 15;    // get exponent
-
-                    // flush denormals to zero, preserving sign
-                    if (mul2_a_den) mul2_a_hex &= 0x8000;
-                    if (mul2_b_den) mul2_b_hex &= 0x8000;
-
-                    mul2_a.flt = _cvtsh_ss(mul2_a_hex);                         // convert to fp32
-                    mul2_b.flt = _cvtsh_ss(mul2_b_hex);                         // convert to fp32
-                    fma2.flt   = mul2_a.flt * mul2_b.flt;                       // perform second mul
-
-                    // Get hex value and exponents of three operands of final addition
-                    uint32_t hex_accum  = accum.u;
-                    int32_t  accum_exp  = ((hex_accum >> 23) & 0xFF) - 127;
-                    uint32_t hex_fma1   = fma1.u;
-                    int32_t  fma1_exp   = ((hex_fma1 >> 23) & 0xFF) - 127;
-                    int32_t  fma1_exp_r = (mul1_a_den || mul1_b_den) ? -127 : mul1_a_exp + mul1_b_exp; // use exponent without shifting to match rtl
-                    uint32_t hex_fma2   = fma2.u;
-                    int32_t  fma2_exp   = ((hex_fma2 >> 23) & 0xFF) - 127;
-                    int32_t  fma2_exp_r = (mul2_a_den || mul2_b_den) ? -127 : mul2_a_exp + mul2_b_exp; // use exponent without shifting to match rtl
-
-                    // Get max exponent that determines where we truncate other values
-                    int32_t exp_max = ((accum_exp >= fma1_exp_r) && (accum_exp  >= fma2_exp_r)) ? accum_exp  :
-                                      ((fma1_exp_r >= accum_exp) && (fma1_exp_r >= fma2_exp_r)) ? fma1_exp_r :
-                                                                                                  fma2_exp_r;
-
-                    // Truncate all values to (set truncate accordingly):
-                    //    - 0: b23 (no rouding)
-                    //    - 1: round bit
-                    //    - 2: guard bit
-                    int32_t  truncate = 1;
-                    int32_t  accum_erase = exp_max - accum_exp - truncate;
-                    uint32_t accum_trunc = (accum_erase > 23) ? (hex_accum &  0x80000000) :
-                                           (accum_erase < 1 ) ? (hex_accum              ) :
-                                                                (hex_accum & ((0xFFFFFFFF >> accum_erase) << accum_erase));
-                    int32_t   fma1_erase = exp_max -  fma1_exp - truncate;
-                    uint32_t  fma1_trunc = ( fma1_erase > 23) ? (hex_fma1  &  0x80000000) :
-                                           ( fma1_erase < 1 ) ? (hex_fma1               ) :
-                                                                (hex_fma1  & ((0xFFFFFFFF >>  fma1_erase) <<  fma1_erase));
-                    int32_t   fma2_erase = exp_max -  fma2_exp - truncate;
-                    uint32_t  fma2_trunc = ( fma2_erase > 23) ? (hex_fma2  &  0x80000000) :
-                                           ( fma2_erase < 1 ) ? (hex_fma2               ) :
-                                                                (hex_fma2  & ((0xFFFFFFFF >>  fma2_erase) <<  fma2_erase));
-
-                    // Convert back to fp32 after truncation
-                    float accum_fp32 = cast_uint32_to_float(accum_trunc);
-                    float  fma1_fp32 = cast_uint32_to_float(fma1_trunc);
-                    float  fma2_fp32 = cast_uint32_to_float(fma2_trunc);
-
-                    // Perform accumulation (first in fp64 to avoid uncontrolled rounding => then clip to fp32 with appropiate rounding)
-                    double    res64     = double(accum_fp32) + double(fma1_fp32) + double(fma2_fp32);
-                    uint64_t  hex_res64 = cast_double_to_uint64(res64);
-                    hex_res64           = hex_res64 & 0xFFFFFFFFE0000000; // Cut mantissa down to 23 bits from original 52 bits of FP64
-                    res64               = cast_uint64_to_double(hex_res64);
-                    iufval res;
-                    res.flt             = float(res64);
-
-                    // Finally, clear output denormals and NaNs
-                    handle_denormal(res);
-                    handle_nan_default(res);
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
-
-                    LOG(DEBUG, "\tTensor FMA f%d[%d]: %g = %g + %g * %g",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt);
-                    LOG(DEBUG, "\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul_a.u,mul_b.u);
-                    // Uncomment to help debugging
-                    //LOG(DEBUG, "\tBefore truncating accum 0x%08x, fma1 0x%08x, fma2 0x%08x", hex_accum, hex_fma1, hex_fma2);
-                    //LOG(DEBUG, "\tAfter truncating  accum 0x%08x, fma1 0x%08x, fma2 0x%08x", accum_trunc, fma1_trunc, fma2_trunc);
-                    //LOG(DEBUG, "\tExponents accum exp %d, fma1 exp %d, fma2 exp %d", accum_exp, fma1_exp, fma2_exp);
-                    //LOG(DEBUG, "\tRemove bits according to max exp %d, accum %d, fma1 %d, fma2 %d", exp_max, accum_erase, fma1_erase, fma2_erase);
-#else
-                    iufval32 mul_a, mul_b, res;
-
-                    // NB: we do not treat fp16 input denormals as zero here
-                    // if ((mul1_a_hex & 0x7c00) == 0) mul1_a_hex &= 0x8000;
-                    // if ((mul1_b_hex & 0x7c00) == 0) mul1_b_hex &= 0x8000;
-                    // if ((mul2_a_hex & 0x7c00) == 0) mul2_a_hex &= 0x8000;
-                    // if ((mul2_b_hex & 0x7c00) == 0) mul2_b_hex &= 0x8000;
-
-                    // 1st FMA
-                    mul_a.flt = _cvtsh_ss(mul1_a_hex);
-                    mul_b.flt = _cvtsh_ss(mul1_b_hex);
-                    res.flt   = fmaf(mul_a.flt, mul_b.flt, accum.flt);
-                    handle_denormal(res);
-                    handle_nan_default(res);
-                    //FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
-
-                    LOG(DEBUG, "\tTensor FMA f%d[%d]: %g = %g + %g * %g",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt);
-                    LOG(DEBUG, "\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul1_a_hex,mul1_b_hex);
-
-                    // 2nd FMA
-                    accum     = res;
-                    mul_a.flt = _cvtsh_ss(mul2_a_hex);
-                    mul_b.flt = _cvtsh_ss(mul2_b_hex);
-                    //accum.f = FREGS[FMA_MAX_BCOLS/VL*ar+bf].f[bm];
-                    //handle_denormal(accum);
-                    res.flt   = fmaf(mul_a.flt, mul_b.flt, accum.flt);
-                    handle_denormal(res);
-                    handle_nan_default(res);
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
-
-                    LOG(EMU, "\tTensor FMA f%d[%d]: %g = %g + %g * %g",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,mul_a.flt,mul_b.flt);
-                    LOG(EMU, "\t           f%d[%d]: 0x%08x = 0x%08x + 0x%04x * 0x%04x",TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,mul2_a_hex,mul2_b_hex);
-#endif
-#endif
 
 } // namespace fpu

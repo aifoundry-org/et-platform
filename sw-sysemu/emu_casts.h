@@ -102,26 +102,4 @@ static inline float32_t cast_float_to_float32(float val)
     return tmp.f;
 }
 
-#if 0//defined(USE_REAL_TXFMA)
-typedef union {
-    uint64_t  x;
-    int64_t   xs;
-    double    dbl;
-} iufval64;
-
-static inline double cast_uint64_to_double(uint64_t val)
-{
-    iufval64 tmp;
-    tmp.x = val;
-    return tmp.dbl;
-}
-
-static inline uint64_t cast_double_to_uint64(double val)
-{
-    iufval64 tmp;
-    tmp.dbl = val;
-    return tmp.x;
-}
-#endif
-
 #endif // _EMU_CASTS_H
