@@ -2218,6 +2218,11 @@ static uint64_t csrget(csr src1)
     return val;
 }
 
+/* TODO remove this nasty fix*/
+uint64_t get_data_from_mem_64(uint64_t addr){
+    return vmemread64(addr);
+}
+
 static void csrset(csr src1, uint64_t val)
 {
     uint64_t msk;

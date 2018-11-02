@@ -34,23 +34,71 @@ void init_txs(uint64_t imgTableAddr)
     tbox_emulator.texture_cache_initialize();
 }
 
+static char coord_name[5]="strq";
+
 /*
-    Add a sample_request in the texsend_fifo
+    Adds a sample_request in TBOX and execute it
 */
 void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base_address)
 {
 
-    LOG(DEBUG, "\tSample Request. Packets = %u, Port_id = %u, Hart_id = %u, Port Base Address = %lu", number_packets, port_id, current_thread, base_address);
+    LOG(DEBUG, "\tSample Request. Packets = %u, Port_id = %u, Hart_id = %u, Port Base Address = %x", number_packets, port_id, current_thread, base_address);
 
-    //read_msg_port_data(current_thread, port_id, data, &oob);
-    // Parse header
-    // Send data to tbox_emu
+    uint64_t val[12];
+    
+    for(unsigned i=0; i<number_packets*2; i++)
+    {
+        val[i] = get_data_from_mem_64(base_address);
+        base_address+=8; // 8 bytes
+    }    
+    
 
-    /*tbox_emulator.set_request_pending(hart_id, true, number_packets, port_id);
-    tbox_emulator.set_request_header(current_thread, XREGS[src1].x, XREGS[src2].x);
-    tbox_emulator.set_request_coordinates(current_thread, 0, FREGS[src1]);
-    tbox_emulator.set_request_coordinates(current_thread, 1, FREGS[src1]);
-    tbox_emulator.set_request_coordinates(current_thread, 2, FREGS[src1]);*/
+    tbox_emulator.set_request_pending(current_thread, true);
+
+    TBOXEmu::SampleRequest header;
+    memcpy(&header, val, sizeof(TBOXEmu::SampleRequest));
+    tbox_emulator.set_request_header(current_thread, header);
+    LOG(DEBUG, "\tSample request header %016llx %016llx", header.data[0], header.data[1]);
+
+    // Parse header and send coordinates
+    for(unsigned char i = 0; i < header.info.packets; i++)
+    {
+        fdata coordinates;
+        memcpy(&coordinates, &(val[((i+1)<<2)]), sizeof(fdata));
+        tbox_emulator.set_request_coordinates(current_thread, i, coordinates);
+        LOG(DEBUG, "\t Set *%c* texture coordinates", coord_name[i]);
+        for(uint32_t c = 0; c < VL_TBOX; c++)
+        {
+            LOG(DEBUG, "\t[%d] 0x%08x (%f)", c, coordinates.u[c], cast_uint32_to_float(coordinates.u[c]));
+        }
+    }
+
+    tbox_emulator.set_request_pending(current_thread, false);
+
+    /* Compute request */
+    tbox_emulator.sample_quad(current_thread, fake_sampler, true); // Performs Sample Request
+
+    fdata data;
+
+    /* Get result */
+    for (uint32_t channel = 0; channel < VL_TBOX; channel++)
+    {
+        data = tbox_emulator.get_request_results(current_thread, channel);
+        
+        LOG(DEBUG, "\t[%d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data.u[0], data.u[1], data.u[2], data.u[3]);
+        
+        /* Put result in port */
+        write_msg_port_data(current_thread, port_id, &(data.u[0]), 0);
+        
+        for (uint32_t c = 0; c < VL_TBOX; c++)
+        {
+            // Print as float16?
+            iufval32 tmp;
+            tmp.f = fpu::f16_to_f32(cast_uint16_to_float16(data.h[c * 2]));
+            LOG(DEBUG, "\t[%d] 0x%04x (%g) FP16 <-", c, cast_uint32_to_float(tmp.u));
+        }
+    }
+   
 }
 
 void texsndh(xreg src1, xreg src2, const char* comm)
