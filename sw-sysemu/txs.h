@@ -5,7 +5,6 @@
 #include "tbox_emu.h"
 
 //#define TEXTURE_CACHE
-
 extern void init_txs(uint64_t imgTableAddr);
 
 extern void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base_address);
