@@ -252,6 +252,7 @@ int main(int argc, char * argv[])
     bool mem_desc        = false;
     bool net_desc        = false;
     bool minions         = false;
+    bool second_thread   = true;
     bool shires          = false;
     bool log_en          = false;
     bool log_mem_en      = false;
@@ -373,6 +374,10 @@ int main(int argc, char * argv[])
            printf("%s", help_msg);
            return 0;
         }
+        else if (strcmp(argv[i], "-single_thread") == 0)
+        {
+            second_thread = false;
+        }
         else
         {
             log << LOG_FTL << "Unkown parameter " << argv[i] << endm;
@@ -450,7 +455,7 @@ int main(int argc, char * argv[])
           if (((minions_en >> m) & 1) == 0) continue;
 
           // Inits threads
-          for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
+          for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {            
              thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
              if (dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
              current_pc[thread_id] = reset_pc;
@@ -461,6 +466,7 @@ int main(int argc, char * argv[])
              initcsr(thread_id);
              // Puts thread id in the active list
              enabled_threads.push_back(thread_id);
+             if(!second_thread) break; // single thread per minion
           }
        }
     }
