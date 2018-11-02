@@ -2644,13 +2644,13 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
             Num_Levels = 3;
             PTE_top_Idx_Size = 26;
             // bits 63-39 of address must be equal to bit 38
-            sign = (int64_t(addr) >> 37);
+            sign = (int64_t(addr) >> 38);
             break;
         case SATP_MODE_SV48:
             Num_Levels = 4;
             PTE_top_Idx_Size = 17;
             // bits 63-48 of address must be equal to bit 47
-            sign = (int64_t(addr) >> 46);
+            sign = (int64_t(addr) >> 47);
             break;
         default:
             assert(0); // we should never get here!
