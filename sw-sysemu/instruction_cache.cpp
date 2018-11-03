@@ -48,23 +48,8 @@ void flush_insn_cache()
 // Returns a decoded instruction from a specific PC
 instruction * get_inst()
 {
-    LOG(DEBUG, "Fetching instruction from PC 0x%016llx", current_pc);
-
     // Physical address corresponding to virtual PC
     uint64_t paddr = vmemtranslate(current_pc, Mem_Access_Fetch);
-
-    // If instruction is present, return the instruction
-    auto it = insn_cache.find(paddr);
-    if(it != insn_cache.end())
-    {
-        instruction * insn = it->second;
-        current_inst = insn->get_enc();
-        return insn;
-    }
-
-    // We haven't decoded the instruction before, so we need to fetch it into
-    // the "cache" first. We fetch blocks of 64B, naturally aligned (to avoid
-    // misalignment and PMA faults).
 
     // Cache-block aligned address and offset inside the block
     uint64_t paddr_aligned = ICACHE_ALIGNED(paddr);
@@ -73,6 +58,24 @@ instruction * get_inst()
     // Instruction buffer; it holds 2 cache blocks
     uint16_t ibuf[2*INSNS_PER_ICACHE_BLOCK];
     int first_index = paddr_offset/2;
+
+    // If instruction is present, return the instruction unless it crosses a block boundary
+    // in which case it may not have been decoded properly before and we need to fetch the next block.
+    auto it = insn_cache.find(paddr);
+    if (it != insn_cache.end()) {
+        instruction * insn = it->second;
+        current_inst = insn->get_enc();
+        if ((paddr_offset != ICACHE_BLOCK_SIZE-2) || (insn->get_is_compressed())) {
+           LOG(DEBUG, "Fetched %sinstruction from PC 0x%016llx (PA: 0x%010llx): 0x%08x (%s)", insn->get_is_compressed() ? "compressed " : "", current_pc, paddr, current_inst, insn->get_mnemonic().c_str());
+           return insn;
+        } else {
+           insn_cache.erase(it);
+        }
+    }
+
+    // We haven't decoded the instruction before, so we need to fetch it into
+    // the "cache" first. We fetch blocks of 64B, naturally aligned (to avoid
+    // misalignment and PMA faults).
 
     // Fetch a cache block
     pmemfetch512(paddr_aligned, &ibuf[0]);
@@ -86,9 +89,10 @@ instruction * get_inst()
     // must do all this only if the first instruction crosses a block.
     if ((paddr_offset == ICACHE_BLOCK_SIZE-2) && !insn_is_compressed(ibuf[first_index]))
     {
+        LOG(DEBUG, "Instruction at PA 0x%010llx is crossing a block. Fetching next one", paddr);
         assert(ICACHE_ALIGNED(current_pc+2) == (current_pc+2));
         uint64_t paddr_aligned2 = vmemtranslate(current_pc+2, Mem_Access_Fetch);
-        pmemfetch512(paddr_aligned2, &ibuf[1]);
+        pmemfetch512(paddr_aligned2, &ibuf[32]);
         last_index = 2*INSNS_PER_ICACHE_BLOCK;
     }
 
@@ -104,7 +108,14 @@ instruction * get_inst()
     uint64_t pc = paddr;
     while ((insn_index < last_index) && (insn_count <= INSNS_PER_ICACHE_BLOCK))
     {
-        instruction * insn = new instruction();
+        instruction * insn;
+        auto it = insn_cache.find(pc);
+        if (it != insn_cache.end()) {
+           insn = it->second;
+           delete insn;
+           insn_cache.erase(it);
+        }
+        insn = new instruction();
         insn->set_pc(pc);
         if (insn_is_compressed(ibuf[insn_index]))
         {
@@ -168,5 +179,6 @@ instruction * get_inst()
 
     instruction * insn = jt->second;
     current_inst = insn->get_enc();
+    LOG(DEBUG, "Fetched %sinstruction from PC 0x%016llx (PA: 0x%010llx): 0x%08x (%s)", insn->get_is_compressed() ? "compressed " : "", current_pc, paddr, current_inst, insn->get_mnemonic().c_str());
     return insn;
 }
