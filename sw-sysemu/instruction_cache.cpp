@@ -4,11 +4,11 @@
 #include <unordered_map>
 #include <stdexcept>
 #include <unistd.h>
+#include <cstdlib>
 
 #include "emu_gio.h"
 #include "instruction.h"
 
-using emu::gprintf;
 
 // The instruction cache data structure is a hash table indexed by the
 // physical PC of the instruction being fetched.
@@ -101,7 +101,13 @@ instruction * get_inst()
     int insn_count = 0;
 
     // Creates a file with the disasm contents
-    FILE * file = fopen("./dasm_checker_in", "w");
+    srand (time(NULL));
+    
+    char file_in_string[32] = "./dasm_checker_in_XXXXXX";
+    char file_out_string[32] = "./dasm_checker_out_XXXXXX";
+
+    (void) mktemp(file_in_string);
+    FILE * file = fopen(file_in_string, "w");
     if (file == NULL)
         throw std::runtime_error("Failed opening file 'dasm_checker_in'.");
 
@@ -140,11 +146,15 @@ instruction * get_inst()
     fclose(file);
 
     // Call "spike-dasm" to disassemble the file contents
-    system("$RISCV/bin/spike-dasm < ./dasm_checker_in > ./dasm_checker_out");
+    static char cmd[1024];
+    (void) mktemp(file_out_string);
+    snprintf(cmd, 1024, "$RISCV/bin/spike-dasm < %s > %s", file_in_string, file_out_string);
+    system(cmd);
+
     int retries = 60;
     while (true)
     {
-        file = fopen("./dasm_checker_out", "r");
+        file = fopen(file_out_string, "r");
         if (file != nullptr)
             break;
         if (--retries <= 0)
@@ -171,7 +181,8 @@ instruction * get_inst()
         throw std::runtime_error("Read less disasm than expected.");
 
     // Remove the files
-    system("/bin/rm -f ./dasm_checker_in ./dasm_checker_out");
+    snprintf(cmd, 1024, "/bin/rm -f %s %s", file_in_string, file_out_string);
+    system(cmd);
 
     auto jt = insn_cache.find(paddr);
     if(jt == insn_cache.end())
