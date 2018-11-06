@@ -80,25 +80,16 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
     tbox_emulator.sample_quad(current_thread, fake_sampler, true); // Performs Sample Request
 
     /* Get result */
-    fdata data[4];
+    fdata data[4]; // Space for 4 channels
 
-    for (uint32_t channel = 0; channel < VL_TBOX; channel++)
+    unsigned num_channels = tbox_emulator.get_request_results(current_thread, data);
+    
+    for (uint32_t channel = 0; channel < num_channels; channel++)
     {
-        data[channel] = tbox_emulator.get_request_results(current_thread, channel);
-        
-        LOG(DEBUG, "\t[Channel %d] 0x%04x 0x%04x 0x%04x 0x%04x <-", channel, data[channel].h[0], data[channel].h[1], data[channel].h[2], data[channel].h[3]);
-        
-        for (uint32_t c = 0; c < VL_TBOX; c++)
-        {
-            // Print as float16?
-            iufval32 tmp;
-            tmp.f = fpu::f16_to_f32(cast_uint16_to_float16(data[channel].h[c]));
-            LOG(DEBUG, "\t[%d] 0x%04x (%g) FP16 <-", c, cast_uint32_to_float(tmp.u));
-        }
-    }
-
-    /* Put result in port */
-    write_msg_port_data(current_thread, port_id, &(data[0].u[0]), 0);
+        LOG(DEBUG, "\t[Channel %d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data[channel].u[0], data[channel].u[1], data[channel].u[2], data[channel].u[3]);
+        /* Put result in port */
+        write_msg_port_data(current_thread, port_id, &(data[channel].u[0]), 0); // Note: TBOX now executes 4 fragments, so channel data will be contained in lower 128 bits of fdata
+    }    
 }
 
 void texsndh(xreg src1, xreg src2, const char* comm)
@@ -171,6 +162,7 @@ void texsndt(freg src1, const char* comm)
 
 void texsndr(freg src1, const char* comm)
 {
+
     DISASM(gsprintf(dis,"I: texsndr f%d%s%s", src1, (comm?" # ":""), (comm?comm:"")););
     LOG(DEBUG, "%s",dis);
 
