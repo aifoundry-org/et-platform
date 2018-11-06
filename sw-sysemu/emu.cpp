@@ -6333,13 +6333,15 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
     msg_ports[thread][id].size++;
 
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
+
+    LOG(DEBUG, "wr_words %d, logsize %d",  wr_words, msg_ports[thread][id].logsize);
     for (int i = 0; i < wr_words; i++)
     {
         LOG(DEBUG, "Writing MSG_PORT (m%d p%d) data %08X to addr %016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
     if(msg_ports[current_thread][id].enable_oob)
-	msg_ports_oob[thread][id].push(oob);
+        msg_ports_oob[thread][id].push(oob);
 }
 
 

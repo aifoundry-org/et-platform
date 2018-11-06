@@ -774,7 +774,7 @@ void TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, fdata coord
     input[thread][idx] = coord;
 }
 
-/* idx == component R (0), G(1), B(2) or A(3)*/
+/* idx == component R (0), G (1), B (2) or A (3)*/
 fdata TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 {
     if (thread >= EMU_NUM_THREADS)
@@ -1399,6 +1399,7 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64_t addr
     return data_ready;
 }
 
+/* startTexel: in sRGB selects left or right half*/
 void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
                                                  uint64_t inData[TEXTURE_CACHE_QWORDS_PER_LINE],
                                                  uint64_t outData[TEXTURE_CACHE_QWORDS_PER_LINE])
@@ -2575,10 +2576,10 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     else
     {
         LOG(DEBUG, "\tFLOAT16 result");
-        output[0].h[req * 2] = float32tofloat16(fpu::F32(red));
-        output[1].h[req * 2] = float32tofloat16(fpu::F32(green));
-        output[2].h[req * 2] = float32tofloat16(fpu::F32(blue));
-        output[3].h[req * 2] = float32tofloat16(fpu::F32(alpha));
+        output[0].h[req] = float32tofloat16(fpu::F32(fpu::UI32(red)));
+        output[1].h[req] = float32tofloat16(fpu::F32(fpu::UI32(green)));
+        output[2].h[req] = float32tofloat16(fpu::F32(fpu::UI32(blue)));
+        output[3].h[req] = float32tofloat16(fpu::F32(fpu::UI32(alpha)));
     }
 }
 
