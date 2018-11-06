@@ -391,6 +391,7 @@ public :
 
     void set_request_coordinates(uint32_t thread, uint32_t index, fdata coord);
     fdata get_request_results(uint32_t thread, uint32_t index);
+    unsigned get_request_results(uint32_t thread, fdata* data);
     void set_request_pending(uint32_t thread, bool v);
     bool check_request_pending(uint32_t thread);
     void set_image_table_address(uint64_t addr);

@@ -786,6 +786,27 @@ fdata TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
     return output[thread][idx];
 }
 
+/* 
+    This function return the TBOX results with packed channels 
+*/
+unsigned TBOXEmu::get_request_results(uint32_t thread, fdata* data)
+{
+    if (thread >= EMU_NUM_THREADS)
+        throw std::runtime_error("Thread id out-of-range");
+
+    
+    unsigned out_channel = 0;
+    bool channel_in_result = true; // Packing disabled
+    for(unsigned channel = 0; channel < 4; channel++)
+    {
+        if(channel_in_result)
+        {
+            data[out_channel++] = output[thread][channel];
+        }
+    }
+    return out_channel;
+}
+
 void TBOXEmu::set_request_pending(uint32_t thread, bool value)
 {
     if (thread >= EMU_NUM_THREADS)
@@ -2575,11 +2596,18 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     }
     else
     {
-        LOG(DEBUG, "\tFLOAT16 result");
-        output[0].h[req] = float32tofloat16(fpu::F32(fpu::UI32(red)));
-        output[1].h[req] = float32tofloat16(fpu::F32(fpu::UI32(green)));
-        output[2].h[req] = float32tofloat16(fpu::F32(fpu::UI32(blue)));
-        output[3].h[req] = float32tofloat16(fpu::F32(fpu::UI32(alpha)));
+        LOG(DEBUG, "\tFLOAT16 result, FLOAT32 convert");
+
+        /*
+            output[0].h[req] = float32tofloat16(fpu::F32(fpu::UI32(red)));
+            output[1].h[req] = float32tofloat16(fpu::F32(fpu::UI32(green)));
+            output[2].h[req] = float32tofloat16(fpu::F32(fpu::UI32(blue)));
+            output[3].h[req] = float32tofloat16(fpu::F32(fpu::UI32(alpha)));
+        */
+        output[0].u[req] = fpu::UI32(red);
+        output[1].u[req] = fpu::UI32(green);
+        output[2].u[req] = fpu::UI32(blue);
+        output[3].u[req] = fpu::UI32(alpha);
     }
 }
 
