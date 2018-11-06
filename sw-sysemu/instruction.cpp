@@ -887,8 +887,8 @@ void instruction::set_mnemonic(std::string mnemonic_)
         is_1ulp = true;
 
     if (   (opcode=="amoswap_d") || (opcode=="amoadd_d") || (opcode=="amoxor_d") || (opcode=="amoand_d")
-       || (opcode=="amoor_d")   || (opcode=="amomin_d") || (opcode=="amomax_d") || (opcode=="amominu_d")
-       || (opcode=="amomaxu_d"))
+        || (opcode=="amoor_d")   || (opcode=="amomin_d") || (opcode=="amomax_d") || (opcode=="amominu_d")
+        || (opcode=="amomaxu_d"))
         is_amo = true;
 
     if (opcode.find("csrr") != std::string::npos) {
