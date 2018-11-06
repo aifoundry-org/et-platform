@@ -60,6 +60,8 @@ xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
 mdata mregs[EMU_NUM_THREADS][8];
 uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
+bool mtvec_is_set[EMU_NUM_THREADS] = {};
+bool stvec_is_set[EMU_NUM_THREADS] = {};
 fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS][L1_SCP_BLOCKS];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
@@ -510,6 +512,13 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     // compute address where to jump to:
     //  if tvec[0]==0 (direct mode) => jump to tvec
     //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+
+    // Throw an error if no one ever set stvec otherwise we'll enter an infinite loop of illegal
+    // instruction exceptions
+    if (stvec_is_set[current_thread] == false) {
+       LOG(DEBUG, "WARNING Trap vector has never been set. Can't take exception properly");
+    }
+
     uint64_t tvec = csrget(csr_stvec);
     if ( (tvec & 1 ) == 1  && (cause >> 31) == 1)
     {
@@ -554,6 +563,13 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     // compute address where to jump to
     //  if tvec[0]==0 (direct mode) => jump to tvec
     //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+
+    // Throw an error if no one ever set mtvec otherwise we'll enter an infinite loop of illegal
+    // instruction exceptions
+    if (mtvec_is_set[current_thread] == false) {
+       LOG(DEBUG, "WARNING Trap vector has never been set. Doesn't smell good...");
+    }
+
     uint64_t tvec = csrget(csr_mtvec);
     if ( (tvec & 1 ) == 1  && (cause >> 31) == 1)
     {
@@ -2388,6 +2404,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_stvec:
             val &= 0xFFFFFFFFF001ULL;
             csrregs[current_thread][src1] = val;
+            stvec_is_set[current_thread] = true;
             break;
         case csr_sepc:
             // sepc[0] = 0 always
@@ -2470,6 +2487,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_mtvec:
             val &= 0xFFFFFFFFF001ULL;
             csrregs[current_thread][src1] = val;
+            mtvec_is_set[current_thread] = true;
             break;
         case csr_mepc:
             // mepc[0] = 0 always
@@ -2648,13 +2666,13 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
             Num_Levels = 3;
             PTE_top_Idx_Size = 26;
             // bits 63-39 of address must be equal to bit 38
-            sign = (int64_t(addr) >> 37);
+            sign = (int64_t(addr) >> 38);
             break;
         case SATP_MODE_SV48:
             Num_Levels = 4;
             PTE_top_Idx_Size = 17;
             // bits 63-48 of address must be equal to bit 47
-            sign = (int64_t(addr) >> 46);
+            sign = (int64_t(addr) >> 47);
             break;
         default:
             assert(0); // we should never get here!
