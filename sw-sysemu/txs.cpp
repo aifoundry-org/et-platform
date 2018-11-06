@@ -46,15 +46,16 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
 
     uint64_t val[12];
     
+    /* Get data from port and send it to TBOX */
     for(unsigned i=0; i<number_packets*2; i++)
     {
         val[i] = get_data_from_mem_64(base_address);
         base_address+=8; // 8 bytes
     }    
     
-
     tbox_emulator.set_request_pending(current_thread, true);
 
+    // Set header
     TBOXEmu::SampleRequest header;
     memcpy(&header, val, sizeof(TBOXEmu::SampleRequest));
     tbox_emulator.set_request_header(current_thread, header);
@@ -78,27 +79,26 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
     /* Compute request */
     tbox_emulator.sample_quad(current_thread, fake_sampler, true); // Performs Sample Request
 
-    fdata data;
-
     /* Get result */
+    fdata data[4];
+
     for (uint32_t channel = 0; channel < VL_TBOX; channel++)
     {
-        data = tbox_emulator.get_request_results(current_thread, channel);
+        data[channel] = tbox_emulator.get_request_results(current_thread, channel);
         
-        LOG(DEBUG, "\t[%d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data.u[0], data.u[1], data.u[2], data.u[3]);
-        
-        /* Put result in port */
-        write_msg_port_data(current_thread, port_id, &(data.u[0]), 0);
+        LOG(DEBUG, "\t[Channel %d] 0x%04x 0x%04x 0x%04x 0x%04x <-", channel, data[channel].h[0], data[channel].h[1], data[channel].h[2], data[channel].h[3]);
         
         for (uint32_t c = 0; c < VL_TBOX; c++)
         {
             // Print as float16?
             iufval32 tmp;
-            tmp.f = fpu::f16_to_f32(cast_uint16_to_float16(data.h[c * 2]));
+            tmp.f = fpu::f16_to_f32(cast_uint16_to_float16(data[channel].h[c]));
             LOG(DEBUG, "\t[%d] 0x%04x (%g) FP16 <-", c, cast_uint32_to_float(tmp.u));
         }
     }
-   
+
+    /* Put result in port */
+    write_msg_port_data(current_thread, port_id, &(data[0].u[0]), 0);
 }
 
 void texsndh(xreg src1, xreg src2, const char* comm)
