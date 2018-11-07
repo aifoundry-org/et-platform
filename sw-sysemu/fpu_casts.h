@@ -24,7 +24,6 @@ namespace fpu {
         return uZ.flt;
     }
 
-
     static inline float32_t F32(uint32_t x)
     {
         ui32_f32 uZ;
@@ -32,6 +31,18 @@ namespace fpu {
         return uZ.f;
     }
 
+    union float_f32
+    {
+        float     f;
+        float32_t f32;
+    };
+
+    static inline float32_t F2F32(float x)
+    {
+        float_f32 uZ;
+        uZ.f = x;
+        return uZ.f32;
+    }
 
     static inline float16_t F16(uint16_t x)
     {
