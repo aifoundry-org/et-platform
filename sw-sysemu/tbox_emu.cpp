@@ -9,6 +9,7 @@
 
 #include "tbox_emu.h"
 #include "fpu_casts.h"
+#include "emu_casts.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
 #include "cvt.h"
@@ -743,6 +744,7 @@ TBOXEmu::TBOXEmu()
         l2_requests[e].free = true;
 }
 
+/* Receives two parts of 64 bits */
 void TBOXEmu::set_request_header(uint32_t thread, uint64_t src1, uint64_t src2)
 {
     if (thread >= EMU_NUM_THREADS)
@@ -750,6 +752,15 @@ void TBOXEmu::set_request_header(uint32_t thread, uint64_t src1, uint64_t src2)
 
     currentRequest[thread].data[0] = src2;
     currentRequest[thread].data[1] = src1;
+}
+
+/* Receives the header of the Sample Request */
+void TBOXEmu::set_request_header(uint32_t thread, SampleRequest header)
+{
+    if (thread >= EMU_NUM_THREADS)
+        throw std::runtime_error("Thread id out-of-range");
+
+    currentRequest[thread] = header;
 }
 
 void TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, fdata coord)
@@ -763,6 +774,7 @@ void TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, fdata coord
     input[thread][idx] = coord;
 }
 
+/* idx == component R (0), G (1), B (2) or A (3)*/
 fdata TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 {
     if (thread >= EMU_NUM_THREADS)
@@ -772,6 +784,27 @@ fdata TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
         throw std::runtime_error("Unsupported result index (> 4)");
 
     return output[thread][idx];
+}
+
+/* 
+    This function return the TBOX results with packed channels 
+*/
+unsigned TBOXEmu::get_request_results(uint32_t thread, fdata* data)
+{
+    if (thread >= EMU_NUM_THREADS)
+        throw std::runtime_error("Thread id out-of-range");
+
+    
+    unsigned out_channel = 0;
+    bool channel_in_result = true; // Packing disabled
+    for(unsigned channel = 0; channel < 4; channel++)
+    {
+        if(channel_in_result)
+        {
+            data[out_channel++] = output[thread][channel];
+        }
+    }
+    return out_channel;
 }
 
 void TBOXEmu::set_request_pending(uint32_t thread, bool value)
@@ -1387,6 +1420,7 @@ bool TBOXEmu::read_texture_cache_line_data(ImageInfo currentImage, uint64_t addr
     return data_ready;
 }
 
+/* startTexel: in sRGB selects left or right half*/
 void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
                                                  uint64_t inData[TEXTURE_CACHE_QWORDS_PER_LINE],
                                                  uint64_t outData[TEXTURE_CACHE_QWORDS_PER_LINE])
@@ -2972,7 +3006,17 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         }
     }
 
-    if (output_result) LOG(DEBUG,"\tResult = {%f, %f, %f, %f}", red, green, blue, alpha);
+    iufval32 tmp_red;
+    iufval32 tmp_green;
+    iufval32 tmp_blue;
+    iufval32 tmp_alpha;
+    
+    tmp_red.flt   = red;
+    tmp_green.flt = green;
+    tmp_blue.flt  = blue;
+    tmp_alpha.flt = alpha;
+
+    if (output_result) LOG(DEBUG,"\tResult = {0x%08x (%f), 0x%08x (%f), 0x%08x (%f), 0x%08x (%f)}", tmp_red.u, red, tmp_green.u, green, tmp_blue.u, blue, tmp_alpha.u, alpha);
 }
 
 float TBOXEmu::apply_component_swizzle(ComponentSwizzle swizzle, float source, float red, float green,
