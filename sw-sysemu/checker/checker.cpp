@@ -724,21 +724,22 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                         error_msg += stream.str();
                         check_res = CHECKER_ERROR;
                     }
-
-                    // Compares the data for all the lanes (8 x 32b lanes)
-                    for(int lane = 0; lane < VL; lane++)
+                    else
                     {
-                        if(conv_skip[lane] == 1) continue;
-                        data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
-                        if(data != it->data[lane])
+                        // Compares the data for all the lanes (8 x 32b lanes)
+                        for(int lane = 0; lane < VL; lane++)
                         {
-                            stream << "TensorFMA write data error for register f" << entry << "[" << lane << "] pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
-                            error_msg += stream.str();
-                            tensorfma_list[thread].erase(it);
-                            check_res = CHECKER_ERROR;
+                            if(conv_skip[lane] == 1) continue;
+                            data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
+                            if(data != it->data[lane])
+                            {
+                                stream << "TensorFMA write data error for register f" << entry << "[" << lane << "] pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
+                                error_msg += stream.str();
+                                return CHECKER_ERROR;
+                            }
                         }
+                        tensorfma_list[thread].erase(it);
                     }
-                    tensorfma_list[thread].erase(it);
                 }
             }
         }
@@ -769,20 +770,22 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                     error_msg += stream.str();
                     check_res = CHECKER_ERROR;
                 }
-
-                // Compares the data for all the lanes (4 x 32b lanes)
-                for(int lane = 0; lane < 4; lane++)
+                else
                 {
-                    data = get_reduce_value(entry, lane, &size, &start_entry);
-                    if(data != it->data[lane])
+                    // Compares the data for all the lanes (4 x 32b lanes)
+                    for(int lane = 0; lane < 4; lane++)
                     {
-                        stream << "Reduce write data error for register " << entry << " lane " << lane << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
-                        error_msg += stream.str();
-                        reduce_list[thread].erase(it);
-                        check_res = CHECKER_ERROR;
+                        data = get_reduce_value(entry, lane, &size, &start_entry);
+                        if(data != it->data[lane])
+                        {
+                            stream << "Reduce write data error for register " << entry << " lane " << lane << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
+                            error_msg += stream.str();
+                            reduce_list[thread].erase(it);
+                            check_res = CHECKER_ERROR;
+                        }
                     }
+                    reduce_list[thread].erase(it);
                 }
-                reduce_list[thread].erase(it);
             }
         }
     }
