@@ -163,6 +163,7 @@ uint16_t float32tofloat16(float32_t val)
     // convert input denormal to 0.0, preserving sign
     if (expF32UI(val.v) == 0)
         val.v &= 0x80000000;
+
     float16_t rslt = f32_to_f16(val);
     return rslt.v;
 }
