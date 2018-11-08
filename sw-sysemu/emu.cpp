@@ -395,7 +395,7 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_prv] = CSR_PRV_M;
     // Read-only registers
     csrregs[thread][csr_mvendorid] = 0x1E0A;
-    csrregs[thread][csr_marchid] = 0x0;
+    csrregs[thread][csr_marchid] = 0x8000000000000001ULL;
     csrregs[thread][csr_mimpid] = 0x0;
     csrregs[thread][csr_mhartid] = thread;
     // misa is a 0-length register
