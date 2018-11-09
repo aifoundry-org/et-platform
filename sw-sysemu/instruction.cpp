@@ -651,6 +651,8 @@ static const emu_opnd_hash_t operand_cache({
     {"flb0",             csr_flbarrier},
     {"fcc",              csr_fccounter},
     {"unknown_821",      csr_fccounter},
+    {"unknown_822",      csr_stall},
+    {"stall",            csr_stall},            
     {"usr_cache_op",     csr_ucacheop}, // TODO remove
     {"tensor_wait",      csr_twait},
     {"tensor_load",      csr_tloadctrl},

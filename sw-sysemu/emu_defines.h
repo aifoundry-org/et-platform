@@ -117,6 +117,7 @@ typedef enum {
     csr_scpctrl,
     csr_flbarrier,
     csr_fccounter,
+    csr_stall,
     csr_ucacheop,
     csr_twait,
     csr_tloadctrl,
