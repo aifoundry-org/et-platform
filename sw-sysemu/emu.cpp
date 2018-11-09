@@ -335,10 +335,22 @@ static float gold_fsin(float a)
     val.flt = a;
     handle_denormal(val);
     tmp.flt = float(modf(double(val.flt), &dummy));
-    tmp.flt = tmp.flt >  0.5 ? tmp.flt - 1.0
-        : tmp.flt < -0.5 ? tmp.flt + 1.0
-        : tmp.flt;
-    res.flt = float(sin(2.0 * M_PI * double(tmp.flt)));
+    tmp.flt = 
+          tmp.flt <= -0.75 ?  tmp.flt + 1.0 // -IV  Quartile
+        : tmp.flt <= -0.5  ? -tmp.flt - 0.5 // -III Quartile
+        : tmp.flt <= -0.25 ? -tmp.flt - 0.5 // -II  Quartile
+        : tmp.flt <= -0.0  ?  tmp.flt       // -I   Quartile
+        : tmp.flt >= 0.75  ?  tmp.flt - 1.0 // +IV  Quartile
+        : tmp.flt >= 0.5   ? -tmp.flt + 0.5 // +III Quartile
+        : tmp.flt >= 0.25  ? -tmp.flt + 0.5 // +II  Quartile
+        : tmp.flt;                          // +I   Quartile
+
+    if(tmp.flt == 0.25) res.flt = 1.0;
+    else if(tmp.flt == -0.25) res.flt = -1.0;
+    else if(tmp.flt == 0.0) res.flt = 0.0;
+    else if(tmp.flt == -0.0) res.flt = -0.0;
+    else res.flt = float(sin(2.0 * M_PI * double(tmp.flt)));
+
     handle_nan_default(res);
     handle_denormal(res);
     return res.flt;
