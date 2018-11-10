@@ -54,7 +54,7 @@ class checker
         void start_pc(uint32_t thread, uint64_t pc);
         void ipi_pc(uint32_t thread, uint64_t pc);
         // Emulates current instruction and compares the state changes
-        checker_result emu_inst(uint32_t thread, inst_state_change * changes, uint32_t * wake_minion);
+        checker_result emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion);
         // Gets an error in string format
         std::string get_error_msg();
 
@@ -70,7 +70,7 @@ class checker
         void set_texrec_func(func_texrec_t func_ptr);
 
     private:
-        checker_result do_reduce(uint32_t thread, instruction * inst, uint32_t * wake_thread);
+        checker_result do_reduce(uint32_t thread, instruction * inst, int * wake_thread);
         void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
 
         uint64_t                      current_pc[EMU_NUM_THREADS];     // Current PC
