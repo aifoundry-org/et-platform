@@ -643,7 +643,8 @@ static const emu_opnd_hash_t operand_cache({
     {"tensor_conv_ctrl", csr_tconvctrl},
     {"tensor_coop",      csr_tcoop},
     {"tensor_mask",      csr_tmask},
-    //"tensor_quant",
+    {"tensor_quant",     csr_tquant},
+    {"unknown_806",      csr_tquant},
     {"tex_send",         csr_texsend},
     {"tensor_error",     csr_terror},
     {"scratchpad_ctrl",  csr_scpctrl},
@@ -1189,11 +1190,12 @@ void instruction::set_mnemonic(std::string mnemonic_)
     // Checks if it is a tensor/reduce operation
     if ((opcode == "csrrw") || (opcode == "cssrwi"))
     {
-        is_reduce      = (params[1] == csr_treduce);
-        is_tensor_load = (params[1] == csr_tloadctrl);
-        is_tensor_fma  = (params[1] == csr_tfmastart);
-        is_flb         = (params[1] == csr_flbarrier);
-        is_fcc         = (params[1] == csr_fccounter);
+        is_reduce       = (params[1] == csr_treduce);
+        is_tensor_load  = (params[1] == csr_tloadctrl);
+        is_tensor_fma   = (params[1] == csr_tfmastart);
+        is_tensor_quant = (params[1] == csr_tquant);
+        is_flb          = (params[1] == csr_flbarrier);
+        is_fcc          = (params[1] == csr_fccounter);
     }
 
     // Get the emulation function pointer for the opcode
