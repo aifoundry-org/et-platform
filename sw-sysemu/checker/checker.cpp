@@ -229,7 +229,7 @@ void checker::ipi_pc(uint32_t thread, uint64_t pc)
     current_pc[thread] = pc;
 }
 
-checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t * wake_minion)
+checker_result checker::do_reduce(uint32_t thread, instruction * inst, int * wake_minion)
 {
     uint64_t other_min, action;
     // Gets the source used for the reduce
@@ -257,7 +257,7 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
             // Wakes up the thread0 of the other minion to guarantee it checks the reduce instruction
             // If this is not done, the thread might not get any other event from the minion monitor to
             // wake it up
-            * wake_minion = other_min;
+            * wake_minion = (int) other_min;
         }
         else
         {
@@ -300,7 +300,7 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
 
 // Emulates next instruction in the flow and compares state changes against the changes
 // passed as a parameter
-checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, uint32_t * wake_minion)
+checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion)
 {
     checker_result check_res = CHECKER_OK;
     if (thread >= EMU_NUM_THREADS)
