@@ -328,7 +328,7 @@ public :
                      swizzleb  :  3,  // Compiler
                      swizzlea  :  3,  // Compiler
                      mask      :  4,  // Compiler
-                     packets   :  2;  // Compiler
+                     packets   :  2;  // Compiler. Number of dimensions
             union
             {
                 uint16_t lod_array[4];
@@ -386,9 +386,12 @@ public :
         bool     free;
     } L2Request;
 
-    void set_request_header(uint32_t thread, uint64_t src1, uint64_t src2);
+    void set_request_header(uint32_t thread, uint64_t src1, uint64_t src2); // Obsolete method
+    void set_request_header(uint32_t thread, SampleRequest header);
+
     void set_request_coordinates(uint32_t thread, uint32_t index, fdata coord);
     fdata get_request_results(uint32_t thread, uint32_t index);
+    unsigned get_request_results(uint32_t thread, fdata* data);
     void set_request_pending(uint32_t thread, bool v);
     bool check_request_pending(uint32_t thread);
     void set_image_table_address(uint64_t addr);
