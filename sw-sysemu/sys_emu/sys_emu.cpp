@@ -650,6 +650,9 @@ int main(int argc, char * argv[])
             {
                 take_trap(t);
                 //if(do_log) { printf("Minion %i.%i.%i: Taking a trap\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
+                if (current_pc[thread_id] == emu_state_change.pc) {
+                   log << LOG_FTL << "Thread " << thread_id << " is trapping to the same address that caused a trap (0x" << std::hex << current_pc[thread_id] << "). Avoiding infinite trap recursion." << endm;
+                }
                 current_pc[thread_id] = emu_state_change.pc;
                 thread++;
             }
