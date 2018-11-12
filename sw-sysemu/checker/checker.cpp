@@ -838,7 +838,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                             stream << "Reduce write data error for register " << entry << " lane " << lane << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
                             error_msg += stream.str();
                             reduce_list[thread].erase(it);
-                            check_res = CHECKER_ERROR;
+                            return CHECKER_ERROR;
                         }
                     }
                     reduce_list[thread].erase(it);
