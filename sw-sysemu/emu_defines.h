@@ -228,6 +228,7 @@ typedef enum {
     csr_flush_icache,
     csr_msleep_txfma_27,
     csr_menable_shadows,
+    csr_excl_mode,
     CSR_MAX
 } csr;
 

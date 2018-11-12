@@ -828,6 +828,7 @@ static const emu_opnd_hash_t operand_cache({
     {"sleep_txfma_27",   csr_msleep_txfma_27}, //TODO: change string to 'msleep_txfma_27' when tools are updated
     {"unknown_7d1",      csr_msleep_txfma_27},
     {"unknown_7d2",      csr_menable_shadows},
+    {"unknown_7d3",      csr_excl_mode}      
 });
 
 // Returns the pointer to a function based on name
