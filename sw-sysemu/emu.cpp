@@ -98,6 +98,31 @@ int fake_sampler = 0;
 uint8_t in_sysemu = 0;
 int32_t minion_only_log = -1; // for sys_emu, to log only data from one minion
 
+std::stringstream dump_xregs(uint32_t thread_id)
+{
+   std::stringstream str;
+   if (thread_id < EMU_NUM_THREADS) {
+      for (int ii = 0; ii < 32; ++ii) {
+         str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << xregs[thread_id][ii].x << "\n";
+      }
+   }
+   return str;
+}
+
+std::stringstream dump_fregs(uint32_t thread_id)
+{
+   std::stringstream str;
+   if (thread_id < EMU_NUM_THREADS) {
+      for (int ii = 0; ii < 32; ++ii) {
+         for (int jj = 0; jj < VL; ++jj) {
+            str << "FREG[" << std::dec << ii << "][" << jj <<  "] = 0x" << std::hex << fregs[thread_id][ii].u[jj] << "\t";
+         }
+         str << "\n";
+      }
+   }
+   return str;
+}
+
 void init_emu(int debug, int fakesam, enum logLevel level)
 {
     print_debug  = debug;

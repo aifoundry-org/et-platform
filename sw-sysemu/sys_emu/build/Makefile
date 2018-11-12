@@ -32,6 +32,10 @@ CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include
 CXXFLAGS := -MMD -Wall -Werror -std=c++11 -g -O2
 LDLIBS   := -lboost_regex -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
 
+ifdef SYSEMU_DEBUG
+   CXXFLAGS += -DSYSEMU_DEBUG
+endif
+
 .PHONY: all
 all: sys_emu
 
