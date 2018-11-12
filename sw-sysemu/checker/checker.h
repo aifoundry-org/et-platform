@@ -54,7 +54,7 @@ class checker
         void start_pc(uint32_t thread, uint64_t pc);
         void ipi_pc(uint32_t thread, uint64_t pc);
         // Emulates current instruction and compares the state changes
-        checker_result emu_inst(uint32_t thread, inst_state_change * changes, uint32_t * wake_minion);
+        checker_result emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion);
         // Gets an error in string format
         std::string get_error_msg();
 
@@ -64,27 +64,29 @@ class checker
         // Tensor operations
         void tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data);
         void tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorfma_regfile_wmask);
+        void tensorquant_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorquant_regfile_wmask);
         void reduce_write(uint32_t thread, uint32_t entry, uint32_t * data);
 
         typedef void (*func_texrec_t) (unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
         void set_texrec_func(func_texrec_t func_ptr);
 
     private:
-        checker_result do_reduce(uint32_t thread, instruction * inst, uint32_t * wake_thread);
+        checker_result do_reduce(uint32_t thread, instruction * inst, int * wake_thread);
         void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
 
-        uint64_t                      current_pc[EMU_NUM_THREADS];     // Current PC
-        reduce_state                  reduce_state_array[4096];        // Reduce state
-        uint32_t                      reduce_pair_array[4096];         // Reduce pairing minion
-        main_memory                 * memory;                          // Pointer to the memory of the simulation
-        inst_state_change             emu_state_change;                // Struct that holds the state change for the emu
-        std::string                   error_msg;                       // Stores the error message
-        func_texrec_t                 texrec_func_ptr;                 // Emulates texrec
-        testLog                       log;                             // Logger
-        uint64_t                      threadEnabled[EMU_NUM_THREADS];  // thread is enabled / disabled
-        std::list<scratchpad_entry>   scp_entry_list[EMU_NUM_THREADS]; // List of RTL written scratchpad entries
-        std::list<tensorfma_entry>    tensorfma_list[EMU_NUM_THREADS]; // List of RTL written tensorfma entries
-        std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];    // List of RTL written reduce entries
+        uint64_t                      current_pc[EMU_NUM_THREADS];         // Current PC
+        reduce_state                  reduce_state_array[EMU_NUM_THREADS]; // Reduce state
+        uint32_t                      reduce_pair_array[EMU_NUM_THREADS];  // Reduce pairing minion
+        main_memory                 * memory;                              // Pointer to the memory of the simulation
+        inst_state_change             emu_state_change;                    // Struct that holds the state change for the emu
+        std::string                   error_msg;                           // Stores the error message
+        func_texrec_t                 texrec_func_ptr;                     // Emulates texrec
+        testLog                       log;                                 // Logger
+        uint64_t                      threadEnabled[EMU_NUM_THREADS];      // thread is enabled / disabled
+        std::list<scratchpad_entry>   scp_entry_list[EMU_NUM_THREADS];     // List of RTL written scratchpad entries
+        std::list<tensorfma_entry>    tensorfma_list[EMU_NUM_THREADS];     // List of RTL written tensorfma entries
+        std::list<tensorfma_entry>    tensorquant_list[EMU_NUM_THREADS];   // List of RTL written tensorquant entries
+        std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];        // List of RTL written reduce entries
 };
 
 #endif // _CHECKER_

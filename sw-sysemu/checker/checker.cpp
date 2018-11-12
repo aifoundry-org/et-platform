@@ -229,7 +229,7 @@ void checker::ipi_pc(uint32_t thread, uint64_t pc)
     current_pc[thread] = pc;
 }
 
-checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t * wake_minion)
+checker_result checker::do_reduce(uint32_t thread, instruction * inst, int * wake_minion)
 {
     uint64_t other_min, action;
     // Gets the source used for the reduce
@@ -257,7 +257,7 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
             // Wakes up the thread0 of the other minion to guarantee it checks the reduce instruction
             // If this is not done, the thread might not get any other event from the minion monitor to
             // wake it up
-            * wake_minion = other_min;
+            * wake_minion = (int) other_min;
         }
         else
         {
@@ -300,7 +300,7 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
 
 // Emulates next instruction in the flow and compares state changes against the changes
 // passed as a parameter
-checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, uint32_t * wake_minion)
+checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion)
 {
     checker_result check_res = CHECKER_OK;
     if (thread >= EMU_NUM_THREADS)
@@ -744,6 +744,63 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
             }
         }
 
+        // TensorQuant
+        if(inst->get_is_tensor_quant())
+        {
+            //int size;
+            //int passes;
+            //bool conv_skip[VL];
+            //uint32_t data;
+            //data = get_tensorfma_value(0, 0, 0, &size, &passes, &conv_skip[0]);
+            //// For all the passes
+            //for(int pass = 0; pass < passes; pass++)
+            //{
+            //    // For all the written entries
+            //    for(int entry = 0; entry < size; entry++)
+            //    {
+            //        // Move to next entry if this pass for this entry was skipped due conv CSR
+            //        bool skip = true;
+            //        for(int lane = 0; lane < VL; lane++)
+            //        {
+            //            get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
+            //            skip = skip && conv_skip[lane];
+            //        }
+
+            //        if (skip) continue;
+
+            //        // Looks for the 1st entry in the list of RTL written lines with same destination
+            //        auto it = tensorfma_list[thread].begin();
+            //        while(it != tensorfma_list[thread].end())
+            //        {
+            //            if(it->entry == entry) { break; }
+            //            it++;
+            //        }
+            //        // Checks that an entry was actually found
+            //        if(it == tensorfma_list[thread].end())
+            //        {
+            //            stream << "Couldn't find TensorFMA destination " << entry << " in the RTL TensorFMA list for pass " << pass << "!!" << std::endl;
+            //            error_msg += stream.str();
+            //            check_res = CHECKER_ERROR;
+            //        }
+
+            //        // Compares the data for all the lanes (8 x 32b lanes)
+            //        for(int lane = 0; lane < VL; lane++)
+            //        {
+            //            if(conv_skip[lane] == 1) continue;
+            //            data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
+            //            if(data != it->data[lane])
+            //            {
+            //                stream << "TensorFMA write data error for register f" << entry << "[" << lane << "] pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
+            //                error_msg += stream.str();
+            //                tensorfma_list[thread].erase(it);
+            //                check_res = CHECKER_ERROR;
+            //            }
+            //        }
+            //        tensorfma_list[thread].erase(it);
+            //    }
+            //}
+        }
+
         // Reduce
         if(inst->get_is_reduce())
         {
@@ -843,6 +900,21 @@ void checker::tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, 
     tensorfma_list[thread].push_back(tensorfma);
 }
 
+// TensorQuant write
+void checker::tensorquant_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorquant_regfile_wmask)
+{
+    tensorfma_entry tensorquant;
+
+    tensorquant.entry = entry;
+    for(int i = 0; i < VL; i++)
+    {
+        tensorquant.data[i] = data[i];
+    }
+    tensorquant.tensorfma_regfile_wmask = tensorquant_regfile_wmask;
+
+    tensorquant_list[thread].push_back(tensorquant);
+}
+
 // Reduce write
 void checker::reduce_write(uint32_t thread, uint32_t entry, uint32_t * data)
 {
@@ -870,3 +942,4 @@ void checker::texrec(unsigned minionId, unsigned thread_id, const uint8_t *data,
     }
     texrec_func_ptr(minionId, thread_id, data, wordIdx, mask);
 }
+

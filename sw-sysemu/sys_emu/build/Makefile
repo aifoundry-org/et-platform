@@ -51,6 +51,6 @@ trace.o: $(SGPU)/src/trace.cpp
 	$(COMPILE.cpp) -DSYS_EMU $(OUTPUT_OPTION) $<
 
 sys_emu: $(OBJS) | libemu_all
-	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 -include $(DEPS)
