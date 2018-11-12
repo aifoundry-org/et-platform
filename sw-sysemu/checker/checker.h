@@ -70,6 +70,7 @@ class checker
         typedef void (*func_texrec_t) (unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
         void set_texrec_func(func_texrec_t func_ptr);
 
+        void update_fcsr_flags(unsigned minionId, unsigned flags);
     private:
         checker_result do_reduce(uint32_t thread, instruction * inst, int * wake_thread);
         void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
