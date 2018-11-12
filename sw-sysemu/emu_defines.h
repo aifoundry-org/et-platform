@@ -111,6 +111,7 @@ typedef enum {
     csr_tconvctrl,
     csr_tcoop,
     csr_tmask,
+    csr_tquant,
     //csr_tquant,
     csr_texsend,
     csr_terror,

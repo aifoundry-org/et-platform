@@ -36,6 +36,7 @@ class instruction
         bool get_is_reduce() const        { return is_reduce; }
         bool get_is_tensor_load() const   { return is_tensor_load; }
         bool get_is_tensor_fma() const    { return is_tensor_fma; }
+        bool get_is_tensor_quant() const  { return is_tensor_quant; }
         bool get_is_texrcv() const        { return is_texrcv; }
         bool get_is_texsndh() const       { return is_texsndh; }
         bool get_is_1ulp() const          { return is_1ulp; }
@@ -59,6 +60,7 @@ class instruction
         bool            is_reduce;        // If the instruction is a reduce
         bool            is_tensor_load;   // If the instruction is a tensor load
         bool            is_tensor_fma;    // If the instruction is a tensor FMA
+        bool            is_tensor_quant;  // If the instruction is a tensor Quant
         bool            is_texsndh;       // If the instruction is a texsndh
         bool            is_texrcv;        // If the instruction is a texrcv
         bool            is_1ulp;          // The instruction must be checked with 1ULP precision
