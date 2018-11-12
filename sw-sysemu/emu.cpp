@@ -419,6 +419,7 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mip] = 0x0ULL;
     csrregs[thread][csr_msleep_txfma_27] = 0x0ULL;
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
+    csrregs[thread][csr_excl_mode] = 0x0ULL;    
     // Debug-mode registers with reset
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
 
