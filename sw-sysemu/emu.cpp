@@ -142,6 +142,7 @@ static void tcoop(uint64_t value);
 static void tensorload(uint64_t control);
 static void tensorstore(uint64_t tstorereg);
 static void tensorfma(uint64_t tfmareg);
+static void tensorquant(uint64_t value);
 static void tensorreduce(uint64_t value);
 static uint64_t csr_cacheop_emu(uint64_t op_value);
 static int64_t port_get(uint32_t id, bool block);
@@ -360,10 +361,22 @@ static float gold_fsin(float a)
     val.flt = a;
     handle_denormal(val);
     tmp.flt = float(modf(double(val.flt), &dummy));
-    tmp.flt = tmp.flt >  0.5 ? tmp.flt - 1.0
-        : tmp.flt < -0.5 ? tmp.flt + 1.0
-        : tmp.flt;
-    res.flt = float(sin(2.0 * M_PI * double(tmp.flt)));
+    tmp.flt = 
+          tmp.flt <= -0.75 ?  tmp.flt + 1.0 // -IV  Quartile
+        : tmp.flt <= -0.5  ? -tmp.flt - 0.5 // -III Quartile
+        : tmp.flt <= -0.25 ? -tmp.flt - 0.5 // -II  Quartile
+        : tmp.flt <= -0.0  ?  tmp.flt       // -I   Quartile
+        : tmp.flt >= 0.75  ?  tmp.flt - 1.0 // +IV  Quartile
+        : tmp.flt >= 0.5   ? -tmp.flt + 0.5 // +III Quartile
+        : tmp.flt >= 0.25  ? -tmp.flt + 0.5 // +II  Quartile
+        : tmp.flt;                          // +I   Quartile
+
+    if(tmp.flt == 0.25) res.flt = 1.0;
+    else if(tmp.flt == -0.25) res.flt = -1.0;
+    else if(tmp.flt == 0.0) res.flt = 0.0;
+    else if(tmp.flt == -0.0) res.flt = -0.0;
+    else res.flt = float(sin(2.0 * M_PI * double(tmp.flt)));
+
     handle_nan_default(res);
     handle_denormal(res);
     return res.flt;
@@ -431,6 +444,7 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mip] = 0x0ULL;
     csrregs[thread][csr_msleep_txfma_27] = 0x0ULL;
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
+    csrregs[thread][csr_excl_mode] = 0x0ULL;    
     // Debug-mode registers with reset
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
 
@@ -2322,6 +2336,9 @@ static void csrset(csr src1, uint64_t val)
         case csr_tcoop:
             val &= 0x0000000000FFFFFFULL;
             tcoop(val);
+            break;
+        case csr_tquant:
+            tensorquant(val);
             break;
         case csr_tfmastart:
             tensorfma(val);
@@ -6791,6 +6808,115 @@ void tensorload(uint64_t control)//Transtensorload
 
         }
     }
+}
+
+// ----- TensorQuant emulation -------------------------------------------------
+
+static void tensorquant(uint64_t value)
+{
+    uint64_t regstart =  (value & 0x3E00000000000000) >> 57;      // Start register to operate
+    uint64_t cols     = ((value & 0x0180000000000000) >> 55) + 1; // Number of register per col
+    uint64_t rows     = ((value & 0x0078000000000000) >> 51) + 1; // Number of rows to store
+    uint64_t scpsrc   =  (value & 0x0007E00000000000) >> 45;      // Scratchpad source where data is
+    
+    // Array that converts an integer to string to print transformation information
+    char trans_int_to_str[32][128] = { "LAST",
+                                       "INT32 to FP32",
+                                       "FP32 to INT32",
+                                       "INT32 ReLU",
+                                       "INT32 add row-wise",
+                                       "INT32 add col-wise",
+                                       "FP32 mul row-wise",
+                                       "FP32 mul col-wise",
+                                       "INT8 saturate",
+                                       "UINT8 saturate",
+                                       "Pack to 128b" };
+
+    // Gets all the transformations done by the tensorquant operation
+    uint64_t transformations[10];
+    for(int i = 0; i < 10; i++)
+        transformations[i] = (value >> (i * 4)) & 0xF;
+
+    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", scpsrc, rows, cols, regstart);
+    for(int i = 0; i < 10; i++)
+    {
+        LOG(DEBUG, "\t\tTransformation %d: %s", i, trans_int_to_str[transformations[i]]);
+        if(transformations[i] == 0) break;
+
+        // For all the rows
+        for(uint64_t row = 0; row < rows; row++)
+        {
+            // For all the blocks of 128b
+            for(uint64_t col = 0; col < cols; col++)
+            {
+                // For all the 32 elements of the 128b block
+                for(uint64_t elem = 0; elem < 4; elem++)
+                {
+                    uint64_t src = regstart + row * 2 + (col / 2);
+                    uint32_t idx = (col & 1) * 4 + elem;
+                    iufval32 val, res;
+                    val.u = FREGS[src].u[idx];
+
+                    // INT32 to FP32
+                    if(transformations[i] == 1)
+                    {
+                        res.f = fpu::i32_to_f32(val.i);
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)",src,idx,res.u,res.flt,val.u,val.i);
+                    }
+                    // FP32 to INT32
+                    else if(transformations[i] == 2)
+                    {
+                        res.i = fpu::f32_to_i32(val.f);
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)",src,idx,res.u,res.i,val.u,val.flt);
+                    }
+                    // INT32 ReLU
+                    else if(transformations[i] == 3)
+                    {
+                        res.i = 0xdeadbeaf;
+                    }
+                    // INT32 add row-wise
+                    else if(transformations[i] == 4)
+                    {
+                        res.i = 0xdeadbeaf;
+                    }
+                    // INT32 add col-wise
+                    else if(transformations[i] == 5)
+                    {
+                        res.i = 0xdeadbeaf;
+                    }
+                    // FP32 mul row-wise
+                    else if(transformations[i] == 6)
+                    {
+                        res.i = 0xdeadbeaf;
+                    }
+                    // FP32 mul col-wise
+                    else if(transformations[i] == 7)
+                    {
+                        res.i = 0xdeadbeaf;
+                    }
+                    // INT8 saturate
+                    else if(transformations[i] == 8)
+                    {
+                        res.i = ((val.i > 127) ? 127 :(val.i < -128 ? -128 : val.i)) & 0x0FF;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x",src,idx,res.u,val.u);
+                    }
+                    // UINT8 saturate
+                    else if(transformations[i] == 9)
+                    {
+                        res.u = ((val.i > 255) ? 255u :(val.i < 0 ? 0u : val.u)) & 0x0FFu;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x",src,idx,res.u,val.u);
+                    }
+                    // Pack to 128b
+                    else
+                    {
+                        res.i = 0xdeadbeaf;
+                    }
+                    FREGS[src].u[idx] = res.u;
+                }
+            }
+        }
+    }
+
 }
 
 // ----- TensorStore emulation -------------------------------------------------
