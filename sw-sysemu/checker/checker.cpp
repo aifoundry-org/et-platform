@@ -943,3 +943,7 @@ void checker::texrec(unsigned minionId, unsigned thread_id, const uint8_t *data,
     texrec_func_ptr(minionId, thread_id, data, wordIdx, mask);
 }
 
+
+void checker::update_fcsr_flags(unsigned minionId, unsigned flags) {
+  //TODO: implement
+}
