@@ -508,6 +508,13 @@ int main(int argc, char * argv[])
     {
         log << LOG_FTL << "Memory descriptor file not set!!" << endm;
     }
+    if (debug == true) {
+#ifdef SYSEMU_DEBUG
+       log << LOG_INFO << "Starting in interactive mode." << endm;
+#else
+       log << LOG_INFO << "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG." << endm;
+#endif
+    }
 
     // Generates the main memory of the emulator
     memory = new main_memory("checker main memory", log_mem_en? LOG_DEBUG : LOG_INFO);
