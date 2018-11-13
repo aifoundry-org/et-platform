@@ -222,7 +222,7 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc file> [-net_desc file] [-minions mask] [-shires mask] [-dump_file file_name <-dump_addr address> <-dump_size size>] [-l] [-ll] [-lm minion]] [-m] [-rbox] [-reset_pc XXX] \n\n\
+     sys_emu -mem_desc <file> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-rbox] [-reset_pc <addr>] [-d]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
  -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
@@ -236,7 +236,7 @@ static const char * help_msg =
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -rbox        Enable RBOX emulation\n\
  -reset_pc    Sets boot program counter (default 0x1000) \n\
- -d           Start in debug mode (sys_emu must have been compiled with SYSEMU_DEBUG)\n\
+ -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
 ";
 
 
@@ -249,12 +249,12 @@ static std::vector<uint64_t> pc_breakpoints;
 
 static const char * help_dbg =
 "help|h:\t\tPrint this message\n\
-run|r [n]:\tExecute until the end or a breakpoint\n\
+run|r:\t\tExecute until the end or a breakpoint is reached\n\
 step|s [n]:\tExecute n cycles (or 1 if not specified)\n\
 xdump|x <N>:\tDump GPRs of thread N (0 <= N < 2048)\n\
 fdump|f <N>:\tDump FPRs of thread N (0 <= N < 2048)\n\
-break_pc|b PC:\tSet a breakpoint for when any thread gets to provided PC\n\
-list_breaks:\tSet a breakpoint for when any thread gets to provided PC\n\
+break|b <PC>:\tSet a breakpoint for the provided PC\n\
+list_breaks:\tList the currently active breakpoints\n\
 clear_breaks:\tClear all the breakpoints previously set\n\
 quit|q:\t\tTerminate the program\n\
 ";
@@ -295,7 +295,7 @@ bool process_dbg_cmd(std::string cmd) {
    } else if ((command[0] == "") || (command[0] == "s") || (command[0] == "step")) {
       steps = (num_args > 1) ? std::stoi(command[1]) : 1;
       prompt = false;
-   } else if ((command[0] == "b") || (command[0] == "break_pc")) {
+   } else if ((command[0] == "b") || (command[0] == "break")) {
       if (num_args > 1) {
          uint64_t pc_break;
          std::stringstream ss;

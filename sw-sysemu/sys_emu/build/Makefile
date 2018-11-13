@@ -43,6 +43,10 @@ all: sys_emu
 libemu_all:
 	$(MAKE) -C $(BEMU)/build all
 
+.PHONY: libemu_static
+libemu_static:
+	$(MAKE) -C $(BEMU)/build static
+
 .PHONY: libemu_clean
 libemu_clean:
 	$(MAKE) -C $(BEMU)/build clean
