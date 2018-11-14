@@ -216,8 +216,9 @@ uint16_t float32tofloat11(float32_t val)
             //  Convert mantissa from float32_t to float11.  Mantissa 23+1 to mantissa 6+1.
             mantissa11 = (mantissa32 >> 17) & 0x003f;
 
+            // no rounding for F11 Datatype
             // apply rounding
-            mantissa11 += (mantissa32 >> 16) & 0x1; // Round to nearest, ties to Max Magnitude
+            // mantissa11 += (mantissa32 >> 16) & 0x1; // Round to nearest, ties to Max Magnitude
             //mantissa11 += ((mantissa32>>16) & 0x1) &
             //              (((mantissa32 & 0x2FFFF) != 0) ? 1 : 0); // Round to nearest, ties to even
 
@@ -239,8 +240,9 @@ uint16_t float32tofloat11(float32_t val)
             //  Denormalize mantissa.
             mantissa11 = rshift(mantissa11, -exponent + 1);
 
+            // No rounding for F11 datatypes
             // apply rounding
-            mantissa11 += rshift (mantissa32, (17-exponent)) & 0x1; // Round to nearest, ties to Max Magnitude
+            //mantissa11 += rshift (mantissa32, (17-exponent)) & 0x1; // Round to nearest, ties to Max Magnitude
             //mantissa11 += (rshift(mantissa32,(17-exponent)) & 0x1) &
             //              ((((rshift(mantissa32,(18-exponent)) & 0x1) != 0) && ((mantissa32 & (1<<(17-exponent)-1)) != 0)) ? 1 : 0); // Round to nearest, ties to even
 
@@ -309,8 +311,9 @@ uint16_t float32tofloat10(float32_t val)
             //  Convert mantissa from float32_t to float10.  Mantissa 23+1 to mantissa 5+1.
             mantissa10 = (mantissa32 >> 18) & 0x001f;
 
+            // No rounding for F10 datatypes
             // apply rounding
-            mantissa10 += (mantissa32 >> 17) & 0x1; // Round to nearest, ties to Max Magnitude
+            //mantissa10 += (mantissa32 >> 17) & 0x1; // Round to nearest, ties to Max Magnitude
             //mantissa10 += ((mantissa32>>17) & 0x1) &
             //              (((mantissa32 & 0x5FFFF) != 0) ? 1 : 0); // Round to nearest, ties to even
 
@@ -326,14 +329,15 @@ uint16_t float32tofloat10(float32_t val)
             //  Add implicit float32_t bit to the mantissa.
             mantissa32 = mantissa32 + 0x800000;
 
-            //  Convert mantissa from float32_t to float16.  Mantissa 23+1 to mantissa 5+1.
+            //  Convert mantissa from float32_t to float10.  Mantissa 23+1 to mantissa 5+1.
             mantissa10 = (mantissa32 >> 18) & 0x003f;
 
             //  Denormalize mantissa.
             mantissa10 = rshift(mantissa10, (-exponent + 1));
 
+            // no rounding for F10 Datatype
             // apply rounding
-            mantissa10 += rshift(mantissa32 , (18-exponent)) & 0x1; // Round to nearest, ties to Max Magnitude
+            // mantissa10 += rshift(mantissa32 , (18-exponent)) & 0x1; // Round to nearest, ties to Max Magnitude
             //mantissa10 += (rshift(mantissa32, (18-exponent)) & 0x1) &
             //              ((((rshift(mantissa32, (19-exponent)) & 0x1) != 0) && ((mantissa32 & (1<<(18-exponent)-1)) != 0)) ? 1 : 0); // Round to nearest, ties to even
 
