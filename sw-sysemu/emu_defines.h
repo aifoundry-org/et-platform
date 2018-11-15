@@ -231,6 +231,7 @@ typedef enum {
     csr_msleep_txfma_27,
     csr_menable_shadows,
     csr_excl_mode,
+    csr_mtxfma_sleep_traps,
     CSR_MAX
 } csr;
 
@@ -614,6 +615,7 @@ typedef struct {
 #define CAUSE_LOAD_PAGE_FAULT       0x0d
 #define CAUSE_STORE_PAGE_FAULT      0x0f
 #define CAUSE_MCODE_INSTRUCTION     0x1e
+#define CAUSE_TXFMA_OFF             0x1f
 
 // base class for all traps
 class trap_t {
@@ -667,6 +669,7 @@ DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_PAGE_FAULT,     trap_instruction_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_MCODE_INSTRUCTION,    trap_mcode_instruction)
+DECLARE_TRAP_TVAL_Y(CAUSE_TXFMA_OFF,            trap_txfma_off)
 
 #endif // _EMU_DEFINES_H
 
