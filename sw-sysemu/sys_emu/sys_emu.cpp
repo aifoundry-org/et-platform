@@ -606,7 +606,7 @@ int main(int argc, char * argv[])
 
     bool rboxes_done = false;
     // While there are active threads or the network emulator is still not done
-    while(enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done()) || (use_rbox && !rboxes_done))
+    while((emu_done() == false) && (enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done()) || (use_rbox && !rboxes_done)))
     {
 
         // For every cycle execute rbox
