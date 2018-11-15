@@ -11,15 +11,19 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
     : log(logname, log_level)
 {
    getthread = NULL;
+
    // Adds the tbox
    main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, getthread);
    regions_.push_back((main_memory_region *) tbox);
+
    // RBOX
    rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
    regions_.push_back((main_memory_region *) rbox);
+
    // UC writes to notify completion of kernels to master processor
    main_memory_region * uc_writes = new main_memory_region(0x0108000000ULL, 64, log, getthread, MEM_REGION_WO);
    regions_.push_back((main_memory_region *) uc_writes);
+
    // UC writes to the fast local barrier and mtime/mtimecmp ESRs
    for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++) {
       for (int n = 0; n < 4; n++) {
@@ -42,19 +46,19 @@ void main_memory::setPrintfBase(const char* binary)
 {
    uint64_t symbolAddress;
    std::ostringstream command;
-   command<<"nm "<<binary<<" 2>/dev/null |grep rtlPrintf_buf|cut -d' ' -f 1";
+   command << "nm " << binary << " 2>/dev/null | grep rtlPrintf_buf | cut -d' ' -f 1";
    FILE *p = popen(command.str().c_str(), "r");
    int c = fscanf(p, "%" PRIx64, &symbolAddress);
    pclose(p);
 
    if (c==1) {
       // Adds the printf region
-      log<<LOG_DEBUG<<"adding printf region (@="<<hex<<symbolAddress<<") from "<<binary<<dec<<endm;
+      log << LOG_DEBUG << "adding printf region (@=" << hex << symbolAddress << ") from " << binary << dec << endm;
       main_memory_region_printf * printf = new main_memory_region_printf(symbolAddress, getthread);
       regions_.push_back((main_memory_region *) printf);
    }
    else {
-      log<<LOG_DEBUG<<"no printf region from "<<binary<<endm;
+      log << LOG_DEBUG << "no printf region from " << binary << endm;
    }
 }
 
@@ -66,12 +70,12 @@ main_memory::~main_memory()
 // Create a new memory region on the fly
 void main_memory::create_new_region(uint64_t ad, int size)
 {
+   uint64_t top  = ((ad + size + CACHE_LINE_SIZE - 1) & CACHE_LINE_MASK) - 1;
    uint64_t base = ad & CACHE_LINE_MASK;
-   uint64_t top = (ad + size + CACHE_LINE_SIZE) & CACHE_LINE_MASK;
 
    while (find(regions_.begin(), regions_.end(), base) != regions_.end()) base += CACHE_LINE_SIZE;
    while (find(regions_.begin(), regions_.end(), top)  != regions_.end()) top  -= CACHE_LINE_SIZE;
-   new_region(base, top-base+1);
+   new_region(base, top - base + 1);
 }
 
 // Read a bunch of bytes
@@ -195,15 +199,16 @@ bool main_memory::new_region(uint64_t base, uint64_t size, int flags)
 {
    uint64_t top;
    // Regions are always multiple of cache lines
-   top  = ((base + size) & CACHE_LINE_MASK) + CACHE_LINE_SIZE -1;
+   top  = ((base + size + CACHE_LINE_SIZE - 1) & CACHE_LINE_MASK) - 1;
    base = base & CACHE_LINE_MASK;
    size = top - base + 1;
 
+   log << LOG_DEBUG << "new_region(base=0x" << std::hex << base << ", size=0x" << size << ", top=0x" << top << ")" << endm;
    unsigned overlap = std::count(regions_.begin(), regions_.end(), base)
                     + std::count(regions_.begin(), regions_.end(), top);
 
    if (overlap > 0) {
-      log << LOG_ERR << "newRegion(" << std::hex << base << ", " << std::dec << size << "): overlaps with existing region and won't be created" << endm;
+     log << LOG_ERR << "new_region(base=0x" << std::hex << base << ", size=0x" << size << ", top=0x" << top << "): overlaps with existing region and won't be created" << endm;
       return false;
    }
    else {
