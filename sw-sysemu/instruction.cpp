@@ -1199,6 +1199,7 @@ void instruction::set_mnemonic(std::string mnemonic_)
         is_tensor_quant = (params[1] == csr_tquant);
         is_flb          = (params[1] == csr_flbarrier);
         is_fcc          = (params[1] == csr_fccounter);
+        is_stall        = (params[1] == csr_stall);
     }
 
     // Get the emulation function pointer for the opcode
