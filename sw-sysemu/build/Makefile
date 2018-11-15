@@ -27,8 +27,10 @@ vpath %.c   $(BEMU)/softfloat
 OBJS := $(addsuffix .o,$(basename $(notdir $(SRCS))))
 DEPS := $(addsuffix .d,$(basename $(OBJS)))
 
+AR       := ar
 CC       := gcc
-CXX 	 := g++
+CXX 	:= g++
+ARFLAGS 	:= rvs
 CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs
 CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
@@ -40,16 +42,23 @@ CXXFLAGS += -mf16c -fno-fast-math
 
 
 .PHONY: all
+ifdef LIBEMU_STATIC
+all: libemu.a
+else
 all: libemu.so
+endif
 
 .PHONY: clean
 clean:
-	$(RM) libemu.so *.o *.d
+	$(RM) libemu.a libemu.so *.o *.d
 
 testLog.o: $(TESTROOT)/libs/testLog.cc
 	$(COMPILE.cc) -DCHECKER $(OUTPUT_OPTION) $<
 
 libemu.so: $(OBJS)
 	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+libemu.a: $(OBJS)
+	$(AR) $(ARFLAGS) $@ $^
 
 -include $(DEPS)

@@ -229,7 +229,7 @@ void checker::ipi_pc(uint32_t thread, uint64_t pc)
     current_pc[thread] = pc;
 }
 
-checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t * wake_minion)
+checker_result checker::do_reduce(uint32_t thread, instruction * inst, int * wake_minion)
 {
     uint64_t other_min, action;
     // Gets the source used for the reduce
@@ -257,7 +257,7 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
             // Wakes up the thread0 of the other minion to guarantee it checks the reduce instruction
             // If this is not done, the thread might not get any other event from the minion monitor to
             // wake it up
-            * wake_minion = other_min;
+            * wake_minion = (int) other_min;
         }
         else
         {
@@ -300,7 +300,7 @@ checker_result checker::do_reduce(uint32_t thread, instruction * inst, uint32_t 
 
 // Emulates next instruction in the flow and compares state changes against the changes
 // passed as a parameter
-checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, uint32_t * wake_minion)
+checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion)
 {
     checker_result check_res = CHECKER_OK;
     if (thread >= EMU_NUM_THREADS)
@@ -667,7 +667,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                 {
                     stream << "Couldn't find scratchpad destination " << entry + i << " in the RTL scratchpad list!!" << std::endl;
                     error_msg += stream.str();
-                    check_res = CHECKER_ERROR;
+                    return CHECKER_ERROR;
                 }
 
                 // Compares the data
@@ -679,7 +679,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                         stream << "TensorLoad write data error for cacheline " << i << " written in entry " << entry + i << " data lane " << j << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[j] << std::dec << std::endl;
                         error_msg += stream.str();
                         scp_entry_list[thread].erase(it);
-                        check_res = CHECKER_ERROR;
+                        return CHECKER_ERROR;
                     }
                 }
                 scp_entry_list[thread].erase(it);
@@ -735,11 +735,57 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                             {
                                 stream << "TensorFMA write data error for register f" << entry << "[" << lane << "] pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
                                 error_msg += stream.str();
+                                tensorfma_list[thread].erase(it);
                                 return CHECKER_ERROR;
                             }
                         }
                         tensorfma_list[thread].erase(it);
                     }
+                }
+            }
+        }
+
+        // TensorQuant
+        if(inst->get_is_tensor_quant())
+        {
+            int size;
+            int transforms;
+            uint32_t data;
+            data = get_tensorquant_value(0, 0, 0, &size, &transforms);
+            // For all the transforms
+            for(int trans = 0; trans < transforms; trans++)
+            {
+                // For all the written entries
+                for(int entry = 0; entry < size; entry++)
+                {
+                    // Looks for the 1st entry in the list of RTL written lines with same destination
+                    auto it = tensorquant_list[thread].begin();
+                    while(it != tensorquant_list[thread].end())
+                    {
+                        if(it->entry == entry) { break; }
+                        it++;
+                    }
+                    // Checks that an entry was actually found
+                    if(it == tensorquant_list[thread].end())
+                    {
+                        stream << "Couldn't find TensorQuant destination " << entry << " in the RTL TensorQuant list for trans " << trans << "!!" << std::endl;
+                        error_msg += stream.str();
+                        return CHECKER_ERROR;
+                    }
+
+                    // Compares the data for all the lanes (8 x 32b lanes)
+                    for(int lane = 0; lane < VL; lane++)
+                    {
+                        data = get_tensorquant_value(entry, trans, lane, &size, &transforms);
+                        if(data != it->data[lane])
+                        {
+                            stream << "TensorQuant write data error for register f" << entry << "[" << lane << "] trans " << trans << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
+                            error_msg += stream.str();
+                            tensorquant_list[thread].erase(it);
+                            return CHECKER_ERROR;
+                        }
+                    }
+                    tensorquant_list[thread].erase(it);
                 }
             }
         }
@@ -781,7 +827,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, u
                             stream << "Reduce write data error for register " << entry << " lane " << lane << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
                             error_msg += stream.str();
                             reduce_list[thread].erase(it);
-                            check_res = CHECKER_ERROR;
+                            return CHECKER_ERROR;
                         }
                     }
                     reduce_list[thread].erase(it);
@@ -843,6 +889,21 @@ void checker::tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, 
     tensorfma_list[thread].push_back(tensorfma);
 }
 
+// TensorQuant write
+void checker::tensorquant_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorquant_regfile_wmask)
+{
+    tensorfma_entry tensorquant;
+
+    tensorquant.entry = entry;
+    for(int i = 0; i < VL; i++)
+    {
+        tensorquant.data[i] = data[i];
+    }
+    tensorquant.tensorfma_regfile_wmask = tensorquant_regfile_wmask;
+
+    tensorquant_list[thread].push_back(tensorquant);
+}
+
 // Reduce write
 void checker::reduce_write(uint32_t thread, uint32_t entry, uint32_t * data)
 {
@@ -869,4 +930,9 @@ void checker::texrec(unsigned minionId, unsigned thread_id, const uint8_t *data,
         return;
     }
     texrec_func_ptr(minionId, thread_id, data, wordIdx, mask);
+}
+
+
+void checker::update_fcsr_flags(unsigned minionId, unsigned flags) {
+  //TODO: implement
 }

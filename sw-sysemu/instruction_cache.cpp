@@ -100,17 +100,7 @@ instruction * get_inst()
     int insn_index = first_index;
     int insn_count = 0;
 
-    // Creates a file with the disasm contents
-    srand (time(NULL));
-    
-    char file_in_string[32] = "./dasm_checker_in_XXXXXX";
-    char file_out_string[32] = "./dasm_checker_out_XXXXXX";
-
-    (void) mktemp(file_in_string);
-    FILE * file = fopen(file_in_string, "w");
-    if (file == NULL)
-        throw std::runtime_error("Failed opening file 'dasm_checker_in'.");
-
+    char dasm_str[1024] = "";
     uint64_t pc = paddr;
     while ((insn_index < last_index) && (insn_count <= INSNS_PER_ICACHE_BLOCK))
     {
@@ -130,7 +120,7 @@ instruction * get_inst()
             insn->set_compressed(true);
             pc += 2;
             ++insn_index;
-            fprintf(file,"DASM(%04X)\n", bits);
+            sprintf(dasm_str,"%sDASM(%04X)\n", dasm_str, bits);
         }
         else
         {
@@ -139,54 +129,35 @@ instruction * get_inst()
             insn->set_compressed(false);
             pc += 4;
             insn_index += 2;
-            fprintf(file,"DASM(%08X)\n", bits);
+            sprintf(dasm_str,"%sDASM(%08X)\n", dasm_str, bits);
         }
         insns[insn_count++] = insn;
     }
-    fclose(file);
 
-    // Call "spike-dasm" to disassemble the file contents
+    // Call "spike-dasm" to disassemble the stream contents
+    FILE * stream;
     static char cmd[1024];
-    (void) mktemp(file_out_string);
-    snprintf(cmd, 1024, "$RISCV/bin/spike-dasm < %s > %s", file_in_string, file_out_string);
-    system(cmd);
+    snprintf(cmd, 1024, "echo -n '%s' | $RISCV/bin/spike-dasm", dasm_str);
 
-    int retries = 60;
-    while (true)
-    {
-        file = fopen(file_out_string, "r");
-        if (file != nullptr)
-            break;
-        if (--retries <= 0)
-            throw std::runtime_error("Failed opening file 'dasm_checker_out'.");
-
-        LOG(DEBUG, "Failed opening file 'dasm_checker_out'. Pending retries: %d\n",retries);
-        sleep(1000);
-    }
+    stream = popen(cmd, "r");
+    if (stream == nullptr) throw std::runtime_error("Failed while running spike-dasm");
 
     // Read "spike-dasm" output
     int insn_disasm = 0;
     char str[1024];
-    while (fgets(str, 1024, file) == str)
+    while (fgets(str, 1024, stream) == str)
     {
-        if (insn_disasm == insn_count)
-            throw std::runtime_error("Read more disasm than expected.");
+        if (insn_disasm == insn_count) throw std::runtime_error("Read more disasm than expected.");
 
         instruction * insn = insns[insn_disasm++];
         insn->set_mnemonic(str);
         insn_cache[insn->get_pc()] = insn;
     }
-    fclose(file);
-    if (insn_disasm != insn_count)
-        throw std::runtime_error("Read less disasm than expected.");
-
-    // Remove the files
-    snprintf(cmd, 1024, "/bin/rm -f %s %s", file_in_string, file_out_string);
-    system(cmd);
+    pclose(stream);
+    if (insn_disasm != insn_count) throw std::runtime_error("Read less disasm than expected.");
 
     auto jt = insn_cache.find(paddr);
-    if(jt == insn_cache.end())
-        throw std::runtime_error("Internal error while updating the instruction cache.");
+    if(jt == insn_cache.end()) throw std::runtime_error("Internal error while updating the instruction cache.");
 
     instruction * insn = jt->second;
     current_inst = insn->get_enc();
