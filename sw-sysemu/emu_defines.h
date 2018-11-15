@@ -21,13 +21,15 @@
 #define DEBUG_MASK  1
 #define DISASM      1
 
-// Some Tensor defines
+// Some TensorFMA defines
 #define TFMA_MAX_AROWS    16
 #define TFMA_MAX_ACOLS    16
 #define TFMA_MAX_BCOLS    16
 #define TFMA_REGS_PER_ROW (64 / (VL * 4))
 // FastLocalBarrier
 #define FAST_LOCAL_BARRIERS 32
+// TensorQuant defines
+#define TQUANT_MAX_TRANS 10
 
 // VA to PA translation
 #define PA_SIZE        40

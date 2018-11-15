@@ -72,6 +72,9 @@ fdata tensorfma_tenc[EMU_NUM_THREADS][32];
 uint32_t tensorfma_data[EMU_NUM_THREADS][32][VL][TFMA_MAX_ACOLS];
 bool tensorfma_mask_skip[TFMA_MAX_ACOLS][TFMA_MAX_AROWS];
 bool tensorfma_zero_skip[TFMA_MAX_ACOLS][32][VL];
+int tensorquant_size[EMU_NUM_THREADS];
+int tensorquant_trans[EMU_NUM_THREADS];
+uint32_t tensorquant_data[EMU_NUM_THREADS][32][VL][TQUANT_MAX_TRANS];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
@@ -6832,16 +6835,20 @@ static void tensorquant(uint64_t value)
                                        "UINT8 saturate",
                                        "Pack to 128b" };
 
+    tensorquant_size[current_thread] = (cols / 2) * rows;
+    tensorquant_trans[current_thread] = 0;
+
     // Gets all the transformations done by the tensorquant operation
-    uint64_t transformations[10];
-    for(int i = 0; i < 10; i++)
+    uint64_t transformations[TQUANT_MAX_TRANS];
+    for(int i = 0; i < TQUANT_MAX_TRANS; i++)
         transformations[i] = (value >> (i * 4)) & 0xF;
 
     LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", scpsrc, rows, cols, regstart);
-    for(int i = 0; i < 10; i++)
+    for(int trans = 0; trans < TQUANT_MAX_TRANS; trans++)
     {
-        LOG(DEBUG, "\t\tTransformation %d: %s", i, trans_int_to_str[transformations[i]]);
-        if(transformations[i] == 0) break;
+        LOG(DEBUG, "\t\tTransformation %d: %s", trans, trans_int_to_str[transformations[trans]]);
+        if(transformations[trans] == 0) break;
+        tensorquant_trans[current_thread]++;
 
         // For all the rows
         for(uint64_t row = 0; row < rows; row++)
@@ -6856,52 +6863,53 @@ static void tensorquant(uint64_t value)
                     uint32_t idx = (col & 1) * 4 + elem;
                     iufval32 val, res;
                     val.u = FREGS[src].u[idx];
+                    res.u = val.u;
 
                     // INT32 to FP32
-                    if(transformations[i] == 1)
+                    if(transformations[trans] == 1)
                     {
                         res.f = fpu::i32_to_f32(val.i);
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)",src,idx,res.u,res.flt,val.u,val.i);
                     }
                     // FP32 to INT32
-                    else if(transformations[i] == 2)
+                    else if(transformations[trans] == 2)
                     {
                         res.i = fpu::f32_to_i32(val.f);
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)",src,idx,res.u,res.i,val.u,val.flt);
                     }
                     // INT32 ReLU
-                    else if(transformations[i] == 3)
+                    else if(transformations[trans] == 3)
                     {
                         res.i = 0xdeadbeaf;
                     }
                     // INT32 add row-wise
-                    else if(transformations[i] == 4)
+                    else if(transformations[trans] == 4)
                     {
                         res.i = 0xdeadbeaf;
                     }
                     // INT32 add col-wise
-                    else if(transformations[i] == 5)
+                    else if(transformations[trans] == 5)
                     {
                         res.i = 0xdeadbeaf;
                     }
                     // FP32 mul row-wise
-                    else if(transformations[i] == 6)
+                    else if(transformations[trans] == 6)
                     {
                         res.i = 0xdeadbeaf;
                     }
                     // FP32 mul col-wise
-                    else if(transformations[i] == 7)
+                    else if(transformations[trans] == 7)
                     {
                         res.i = 0xdeadbeaf;
                     }
                     // INT8 saturate
-                    else if(transformations[i] == 8)
+                    else if(transformations[trans] == 8)
                     {
                         res.i = ((val.i > 127) ? 127 :(val.i < -128 ? -128 : val.i)) & 0x0FF;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x",src,idx,res.u,val.u);
                     }
                     // UINT8 saturate
-                    else if(transformations[i] == 9)
+                    else if(transformations[trans] == 9)
                     {
                         res.u = ((val.i > 255) ? 255u :(val.i < 0 ? 0u : val.u)) & 0x0FFu;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x",src,idx,res.u,val.u);
@@ -6909,14 +6917,42 @@ static void tensorquant(uint64_t value)
                     // Pack to 128b
                     else
                     {
-                        res.i = 0xdeadbeaf;
+                        // Only first col gets updated
+                        if((col == 0) && ((cols >= 2) || (elem < 2)))
+                        {
+                            for(uint64_t elem_pack = 0; elem_pack < 4; elem_pack++)
+                            {
+                                uint64_t src_pack = regstart + row * 2 + (elem * 4 + elem_pack) / VL;
+                                uint64_t idx_pack = (elem * 4 + elem_pack) % VL;
+                                uint64_t byte_offset = elem_pack;
+                                iufval32 val_pack;
+                                val_pack.u = FREGS[src_pack].u[idx_pack];
+
+                                // Clears the byte offset
+                                res.i = res.i & ~(0xFF << (byte_offset * 8));
+                                // Puts the byte value
+                                res.i = res.i | ((val_pack.u & 0xFF) << (byte_offset * 8));
+                            }
+                            LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x",src,idx,res.u,val.u);
+                        }
                     }
+
+                    // Updates RF
                     FREGS[src].u[idx] = res.u;
+
+                    // Checker
+                    tensorquant_data[current_thread][src][idx][trans] = res.u;
                 }
             }
         }
     }
+}
 
+uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms)
+{
+    * size       = tensorquant_size[current_thread];
+    * transforms = tensorquant_trans[current_thread];
+    return tensorquant_data[current_thread][entry][lane][transform];
 }
 
 // ----- TensorStore emulation -------------------------------------------------
