@@ -579,4 +579,7 @@ extern uint64_t get_reduce_value(int entry, int block, int * size, int * start_e
 extern uint64_t get_data_from_mem_64(uint64_t addr);
 // ----- Esperanto fast local barrier extension --------------------------------
 
+// control traps on txfma sleep
+bool txfma_off_allowed(csr src1, uint64_t val);
+
 #endif // _EMU_H
