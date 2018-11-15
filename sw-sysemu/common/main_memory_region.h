@@ -7,6 +7,9 @@
 #define CHECKER
 #include "testLog.h"
 
+#define CACHE_LINE_MASK 0xFFFFFFFFC0ULL
+#define CACHE_LINE_SIZE 64
+
 #define MEM_REGION_READ_ALLOWED 1 
 #define MEM_REGION_WRITE_ALLOWED 2
 
