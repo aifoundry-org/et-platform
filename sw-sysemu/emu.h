@@ -565,7 +565,11 @@ extern void get_scratchpad_conv_list(std::list<bool> * list);
 
 // TensorFMA
 
-extern uint32_t get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
+extern uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, int * passes, bool * conv_skip);
+
+// TensorQuant
+
+extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms);
 
 // TensorReduce
 
