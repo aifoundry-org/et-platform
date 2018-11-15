@@ -512,7 +512,7 @@ int main(int argc, char * argv[])
 #ifdef SYSEMU_DEBUG
        log << LOG_INFO << "Starting in interactive mode." << endm;
 #else
-       log << LOG_INFO << "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG." << endm;
+       log << LOG_WARN << "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG." << endm;
 #endif
     }
 
