@@ -100,6 +100,12 @@ char dis[1024];
 int fake_sampler = 0;
 uint8_t in_sysemu = 0;
 int32_t minion_only_log = -1; // for sys_emu, to log only data from one minion
+bool m_emu_done = false;
+
+bool emu_done()
+{
+   return m_emu_done;
+}
 
 std::stringstream dump_xregs(uint32_t thread_id)
 {
@@ -2552,12 +2558,17 @@ static void csrset(csr src1, uint64_t val)
           break;
         // ----- Verification registers ----------------------------------------
         case csr_validation1:
+            // EOT signals end of test
+            if ((char) val == 4) {
+               emu_log() << LOG_INFO << "Validation1 CSR received End Of Transmission." << endm;
+               m_emu_done = true;
+            }
             // Ignore carriage return
             if ((char) val == 13)
             {
                break;
             }
-            buf[buflen++] = (char) val;
+            if ((char) val != '\n') buf[buflen++] = (char) val;
             // If line feed or buffer full, flush to stdout
             if (((char) val == '\n') || (buflen == 64))
             {
@@ -2567,7 +2578,7 @@ static void csrset(csr src1, uint64_t val)
                }
                if (buflen > 1)
                {
-                  LOG(DEBUG, "==== %s", buf);
+                  emu_log() << LOG_INFO << "==== " << buf << endm;
                }
                buflen = 0;
             }
