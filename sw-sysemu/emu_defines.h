@@ -21,13 +21,15 @@
 #define DEBUG_MASK  1
 #define DISASM      1
 
-// Some Tensor defines
+// Some TensorFMA defines
 #define TFMA_MAX_AROWS    16
 #define TFMA_MAX_ACOLS    16
 #define TFMA_MAX_BCOLS    16
 #define TFMA_REGS_PER_ROW (64 / (VL * 4))
 // FastLocalBarrier
 #define FAST_LOCAL_BARRIERS 32
+// TensorQuant defines
+#define TQUANT_MAX_TRANS 10
 
 // VA to PA translation
 #define PA_SIZE        40
@@ -111,6 +113,7 @@ typedef enum {
     csr_tconvctrl,
     csr_tcoop,
     csr_tmask,
+    csr_tquant,
     //csr_tquant,
     csr_texsend,
     csr_terror,
@@ -228,6 +231,7 @@ typedef enum {
     csr_flush_icache,
     csr_msleep_txfma_27,
     csr_menable_shadows,
+    csr_excl_mode,
     CSR_MAX
 } csr;
 

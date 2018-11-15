@@ -2,6 +2,7 @@
 #define _EMU_H
 
 #include <list>
+#include <iomanip>
 
 #include "emu_defines.h"
 #include "instruction.h"
@@ -39,6 +40,8 @@ extern void set_core_type(et_core_t core);
 extern et_core_t get_core_type();
 
 // Configure the emulation environment
+extern std::stringstream dump_xregs(uint32_t thread_id);
+extern std::stringstream dump_fregs(uint32_t thread_id);
 extern void init_emu(int debug, int fakesam, enum logLevel log_level);
 extern void log_only_minion(int32_t m);
 
@@ -562,7 +565,11 @@ extern void get_scratchpad_conv_list(std::list<bool> * list);
 
 // TensorFMA
 
-extern uint32_t get_tensorfma_value(int entry, int pass, int block, int * size, int * passes, bool * conv_skip);
+extern uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, int * passes, bool * conv_skip);
+
+// TensorQuant
+
+extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms);
 
 // TensorReduce
 

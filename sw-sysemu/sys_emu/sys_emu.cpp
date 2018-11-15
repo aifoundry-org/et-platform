@@ -1,3 +1,4 @@
+#include <iostream>
 #include <cstdio>
 #include <cstdlib>
 #include <list>
@@ -221,7 +222,7 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc file> [-net_desc file] [-minions mask] [-shires mask] [-dump_file file_name <-dump_addr address> <-dump_size size>] [-l] [-ll] [-lm minion]] [-m] [-rbox] [-reset_pc XXX] \n\n\
+     sys_emu -mem_desc <file> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-rbox] [-reset_pc <addr>] [-d]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
  -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
@@ -233,9 +234,125 @@ static const char * help_msg =
  -ll          Log memory accesses\n\
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
- -rbox        Enable RBOX emulation\n\n\
+ -rbox        Enable RBOX emulation\n\
  -reset_pc    Sets boot program counter (default 0x1000) \n\
+ -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
 ";
+
+
+static uint64_t minions_en = 1;
+static uint64_t shires_en  = 1;
+
+#ifdef SYSEMU_DEBUG
+static int  steps          = 0;
+static std::vector<uint64_t> pc_breakpoints;
+
+static const char * help_dbg =
+"help|h:\t\tPrint this message\n\
+run|r:\t\tExecute until the end or a breakpoint is reached\n\
+step|s [n]:\tExecute n cycles (or 1 if not specified)\n\
+xdump|x <N>:\tDump GPRs of thread N (0 <= N < 2048)\n\
+fdump|f <N>:\tDump FPRs of thread N (0 <= N < 2048)\n\
+break|b <PC>:\tSet a breakpoint for the provided PC\n\
+list_breaks:\tList the currently active breakpoints\n\
+clear_breaks:\tClear all the breakpoints previously set\n\
+quit|q:\t\tTerminate the program\n\
+";
+
+size_t split(const std::string &txt, std::vector<std::string> &strs, char ch = ' ')
+{
+   size_t pos = txt.find( ch );
+   size_t initialPos = 0;
+   strs.clear();
+
+   // Decompose statement
+   while( pos != std::string::npos ) {
+      strs.push_back( txt.substr( initialPos, pos - initialPos ) );
+      initialPos = pos + 1;
+
+      pos = txt.find( ch, initialPos );
+   }
+
+   // Add the last one
+   strs.push_back( txt.substr( initialPos, std::min( pos, txt.size() ) - initialPos + 1 ) );
+
+   return strs.size();
+}
+                   
+bool process_dbg_cmd(std::string cmd) {
+   bool prompt = true;
+   std::vector<std::string> command;
+   size_t num_args = split(cmd, command);
+   steps = -1;
+   // Miscellaneous
+   if ((cmd == "h") || (cmd == "help")) {
+      printf("%s", help_dbg);
+   } else if ((cmd == "q") || (cmd == "quit")) {
+      exit(0);
+   // Simulation control
+   } else if ((command[0] == "r") || (command[0] == "run")) {
+      prompt = false;
+   } else if ((command[0] == "") || (command[0] == "s") || (command[0] == "step")) {
+      steps = (num_args > 1) ? std::stoi(command[1]) : 1;
+      prompt = false;
+   } else if ((command[0] == "b") || (command[0] == "break")) {
+      if (num_args > 1) {
+         uint64_t pc_break;
+         std::stringstream ss;
+         bool found = false;
+         ss << std::hex << command[1];
+         ss >> pc_break;
+         auto it = pc_breakpoints.begin();
+         while (it != pc_breakpoints.end()) {
+            if (*it == pc_break) {
+               found = true;
+               break;
+            }
+            it++;
+         }
+         if (!found) pc_breakpoints.push_back(pc_break);
+         printf("Set breakpoint for PC 0x%lx", pc_break);
+      }
+   } else if ((command[0] == "list_breaks")) {
+      auto it = pc_breakpoints.begin();
+      while (it != pc_breakpoints.end()) {
+         printf("Breakpoint set for PC 0x%lx\n", *it);
+         it++;
+      }
+   } else if ((command[0] == "clear_breaks")) {
+      pc_breakpoints.clear();
+   // Architectural State Dumping
+   } else if ((command[0] == "x") || (command[0] == "xdump")) {
+      std::string str = dump_xregs((num_args > 1) ? std::stoi(command[1]) : 0).str();
+      printf("%s\n", str.c_str());
+   } else if ((command[0] == "f") || command[0] == "fdump") {
+      std::string str = dump_fregs((num_args > 1) ? std::stoi(command[1]) : 0).str();
+      printf("%s\n", str.c_str());
+   } else {
+      printf("Unknown command\n\n");
+      printf("%s", help_dbg);
+   }
+   return prompt;
+}
+
+bool get_pc_break() {
+   for (int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
+   {
+      if (((shires_en >> s) & 1) == 0) continue;
+      for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
+      {
+         if (((minions_en >> m) & 1) == 0) continue;
+         for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {            
+            thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
+            if ( std::find(pc_breakpoints.begin(), pc_breakpoints.end(), current_pc[thread_id]) != pc_breakpoints.end() ) {
+               return true;
+            }
+         }
+      }
+   }
+   return false;
+}
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main
@@ -262,11 +379,10 @@ int main(int argc, char * argv[])
     int dump             = 0;
     uint64_t dump_addr   = 0;
     uint64_t dump_size   = 0;
-    uint64_t minions_en  = 1;
-    uint64_t shires_en   = 1;
     bool use_rbox        = false;
     uint64_t reset_pc    = RESET_PC;
     bool reset_pc_flag   = false;
+    bool debug           = false;
 
     memset(rbox, 0, sizeof(rbox));
 
@@ -378,6 +494,10 @@ int main(int argc, char * argv[])
         {
             second_thread = false;
         }
+        else if(strcmp(argv[i], "-d") == 0)
+        {
+            debug = true;
+        }
         else
         {
             log << LOG_FTL << "Unkown parameter " << argv[i] << endm;
@@ -387,6 +507,13 @@ int main(int argc, char * argv[])
     if(mem_desc_file == NULL)
     {
         log << LOG_FTL << "Memory descriptor file not set!!" << endm;
+    }
+    if (debug == true) {
+#ifdef SYSEMU_DEBUG
+       log << LOG_INFO << "Starting in interactive mode." << endm;
+#else
+       log << LOG_INFO << "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG." << endm;
+#endif
     }
 
     // Generates the main memory of the emulator
@@ -500,6 +627,30 @@ int main(int argc, char * argv[])
                 }
             }
         }
+
+        
+#ifdef SYSEMU_DEBUG
+        if ((debug == true) && ((get_pc_break() == true) || (steps == 0))) {
+           bool retry = false;
+           bool prompt = true;
+           std::string line;
+           do {
+              printf("\n$ ");
+              std::getline(std::cin, line);
+              try {
+                 prompt = process_dbg_cmd(line);
+                 retry = false;
+              } 
+              catch (const std::exception& e)
+              {
+                 printf("\nError parsing command. Please retry\n\n");
+                 printf("%s", help_dbg);
+                 retry = true;
+              }
+           } while (prompt || retry);
+        }
+        if (steps > 0) steps--;
+#endif
 
         if(log_en)
         {
@@ -650,6 +801,9 @@ int main(int argc, char * argv[])
             {
                 take_trap(t);
                 //if(do_log) { printf("Minion %i.%i.%i: Taking a trap\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
+                if (current_pc[thread_id] == emu_state_change.pc) {
+                   log << LOG_FTL << "Thread " << thread_id << " is trapping to the same address that caused a trap (0x" << std::hex << current_pc[thread_id] << "). Avoiding infinite trap recursion." << endm;
+                }
                 current_pc[thread_id] = emu_state_change.pc;
                 thread++;
             }
