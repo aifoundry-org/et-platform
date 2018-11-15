@@ -454,6 +454,7 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_msleep_txfma_27] = 0x0ULL;
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
     csrregs[thread][csr_excl_mode] = 0x0ULL;    
+    csrregs[thread][csr_mtxfma_sleep_traps] = 0x0ULL;    
     // Debug-mode registers with reset
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
 
@@ -2347,12 +2348,18 @@ static void csrset(csr src1, uint64_t val)
             tcoop(val);
             break;
         case csr_tquant:
+            if ( ! txfma_off_allowed(src1, val) )
+                throw trap_txfma_off(current_inst);
             tensorquant(val);
             break;
         case csr_tfmastart:
+            if ( ! txfma_off_allowed(src1, val) )
+                throw trap_txfma_off(current_inst);
             tensorfma(val);
             break;
         case csr_treduce:
+            if ( ! txfma_off_allowed(src1, val) )
+                throw trap_txfma_off(current_inst);
             tensorreduce(val);
             break;
         case csr_tstore:
@@ -2553,6 +2560,7 @@ static void csrset(csr src1, uint64_t val)
         // ----- Shared registers ----------------------------------------
         case csr_msleep_txfma_27:
         case csr_menable_shadows:
+        case csr_mtxfma_sleep_traps:
           csrregs[current_thread][src1] = val;
           csrregs[current_thread^1][src1] = val;
           break;
@@ -7631,4 +7639,50 @@ static uint64_t flbarrier(uint64_t value)
     }
 
     return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// determine if instruction needs to trap if txfma is off
+//
+////////////////////////////////////////////////////////////////////////////////
+
+bool txfma_off_allowed(csr src1, uint64_t val) {
+
+    // if txfma is not sleep, allow
+    if ( csrregs[current_thread][csr_msleep_txfma_27] == 0 ) return true;
+
+    // and for each csr, allow if  corresponding bit in txfma_sleep_traps is 0
+    // and do not allow if using the txfma
+    uint32_t trap_conf = csrregs[current_thread][csr_mtxfma_sleep_traps];
+    switch ( src1 )
+        {
+        case csr_tfmastart:
+            if (((trap_conf >> 4) & 1 ) == 0) return true; 
+            else return ((val & 0xE) == 6); // only allow for int8
+            
+        case csr_tquant:
+            if ((( trap_conf >> 4) & 1 ) == 3) return true; //trap disabled
+            else return false;
+            
+        case csr_treduce:
+            if (((trap_conf >> 2) & 1 ) == 0) return true;
+            // allow for int, not allow for fp32
+            switch ( (val >> 24) & 0xF )
+                {
+                case 0:  // fadd
+                case 1:  // fsub
+                case 2:  // fmax
+                case 3:  // fmin
+                case 8:  // fget
+                    return false;
+                default:
+                    return true;
+                }
+            
+        default:
+            return true;
+        }
+
+    return true;
 }
