@@ -363,6 +363,7 @@ static float gold_frsq(float a)
     return res.flt;
 }
 
+//TODO: Erase this once Girgoris does his refactor
 static float gold_fsin(float a)
 {
     double dummy;
@@ -370,6 +371,21 @@ static float gold_fsin(float a)
 
     val.flt = a;
     handle_denormal(val);
+
+#define infinityF32UI      0x7F800000
+#define minusInfinityF32UI 0xFF800000
+    //Take care of special cases ruined by modf
+    switch (val.u) {
+      case minusInfinityF32UI: 
+          val.u = 0x7fc00000;
+          return val.flt;
+          break;
+      case infinityF32UI     : 
+          val.u = 0x7fc00000;
+          return val.flt;
+          break;
+    }
+
     tmp.flt = float(modf(double(val.flt), &dummy));
     tmp.flt = 
           tmp.flt <= -0.75 ?  tmp.flt + 1.0 // -IV  Quartile
@@ -3186,6 +3202,8 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                     res_gold.flt = gold_fsin(val.flt);
                     res.f = fpu::f32_sin2pi(val.f);
                     // security ulp check
+
+                    LOG(DEBUG, "SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", val.u, res.u, res_gold.u);
                     if (security_ulp_check(res_gold.u,res.u))
                     {
                         LOG(DEBUG, "SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", val.u, res.u, res_gold.u);
