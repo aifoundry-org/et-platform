@@ -74,6 +74,7 @@ bool tensorfma_mask_skip[TFMA_MAX_ACOLS][TFMA_MAX_AROWS];
 bool tensorfma_zero_skip[TFMA_MAX_ACOLS][32][VL];
 int tensorquant_size[EMU_NUM_THREADS];
 int tensorquant_trans[EMU_NUM_THREADS];
+bool tensorquant_is_pack[EMU_NUM_THREADS][TQUANT_MAX_TRANS];
 uint32_t tensorquant_data[EMU_NUM_THREADS][32][VL][TQUANT_MAX_TRANS];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
@@ -6865,6 +6866,7 @@ static void tensorquant(uint64_t value)
     LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", scpsrc, rows, cols, regstart);
     for(int trans = 0; trans < TQUANT_MAX_TRANS; trans++)
     {
+        tensorquant_is_pack[current_thread][trans] = (transformations[trans] >= 10);
         LOG(DEBUG, "\t\tTransformation %d: %s", trans, trans_int_to_str[transformations[trans]]);
         if(transformations[trans] == 0) break;
         tensorquant_trans[current_thread]++;
@@ -6967,10 +6969,11 @@ static void tensorquant(uint64_t value)
     }
 }
 
-uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms)
+uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms, bool * is_pack)
 {
     * size       = tensorquant_size[current_thread];
     * transforms = tensorquant_trans[current_thread];
+    * is_pack    = tensorquant_is_pack[current_thread][transform];
     return tensorquant_data[current_thread][entry][lane][transform];
 }
 
@@ -7662,7 +7665,7 @@ bool txfma_off_allowed(csr src1, uint64_t val) {
             else return ((val & 0xE) == 6); // only allow for int8
             
         case csr_tquant:
-            if ((( trap_conf >> 4) & 1 ) == 3) return true; //trap disabled
+            if ((( trap_conf >> 3) & 1 ) == 0) return true; //trap disabled
             else return false;
             
         case csr_treduce:
