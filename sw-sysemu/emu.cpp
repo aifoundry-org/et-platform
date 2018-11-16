@@ -2253,6 +2253,7 @@ static uint64_t csrget(csr src1)
         case csr_twait:
         case csr_flbarrier:
         case csr_fccounter:
+        case csr_stall:            
         case csr_ucacheop:
         case csr_evict_va:
         case csr_flush_va:
@@ -2367,6 +2368,8 @@ static void csrset(csr src1, uint64_t val)
             tensorstore(val);
             break;
         case csr_fccounter:
+            break;
+        case csr_stall:
             break;
         case csr_evict_va:
         case csr_flush_va:
