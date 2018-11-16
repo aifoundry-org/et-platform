@@ -750,8 +750,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
             int size;
             int transforms;
+            bool is_pack;
             uint32_t data;
-            data = get_tensorquant_value(0, 0, 0, &size, &transforms);
+            data = get_tensorquant_value(0, 0, 0, &size, &transforms, &is_pack);
             // For all the transforms
             for(int trans = 0; trans < transforms; trans++)
             {
@@ -760,23 +761,40 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 {
                     // Looks for the 1st entry in the list of RTL written lines with same destination
                     auto it = tensorquant_list[thread].begin();
-                    while(it != tensorquant_list[thread].end())
+
+                    // Pack 128b writes two times same destination (even) and doesn't write odd
+                    data = get_tensorquant_value(entry, trans, 0, &size, &transforms, &is_pack);
+                    // Ignore odd entries
+                    if(is_pack && (entry & 1)) continue;
+
+                    // Check next entry for regular operations, ignore 1 write for packs
+                    int entries_checked = is_pack ? 2 : 1;
+                    for(int i = 0; i < entries_checked; i++)
                     {
-                        if(it->entry == entry) { break; }
-                        it++;
-                    }
-                    // Checks that an entry was actually found
-                    if(it == tensorquant_list[thread].end())
-                    {
-                        stream << "Couldn't find TensorQuant destination " << entry << " in the RTL TensorQuant list for trans " << trans << "!!" << std::endl;
-                        error_msg += stream.str();
-                        return CHECKER_ERROR;
+                        it = tensorquant_list[thread].begin();
+                        while(it != tensorquant_list[thread].end())
+                        {
+                            if(it->entry == entry) { break; }
+                            it++;
+                        }
+                        // Checks that an entry was actually found
+                        if(it == tensorquant_list[thread].end())
+                        {
+                            stream << "Couldn't find TensorQuant destination " << entry << " in the RTL TensorQuant list for trans " << trans << "!!" << std::endl;
+                            error_msg += stream.str();
+                            return CHECKER_ERROR;
+                        }
+                        // Ignore first write for pack 128b
+                        if(is_pack && (i == 0))
+                        {
+                            tensorquant_list[thread].erase(it);
+                        }
                     }
 
                     // Compares the data for all the lanes (8 x 32b lanes)
                     for(int lane = 0; lane < VL; lane++)
                     {
-                        data = get_tensorquant_value(entry, trans, lane, &size, &transforms);
+                        data = get_tensorquant_value(entry, trans, lane, &size, &transforms, &is_pack);
                         if(data != it->data[lane])
                         {
                             stream << "TensorQuant write data error for register f" << entry << "[" << lane << "] trans " << trans << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
