@@ -24,21 +24,31 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
    main_memory_region * uc_writes = new main_memory_region(0x0108000000ULL, 64, log, getthread, MEM_REGION_WO);
    regions_.push_back((main_memory_region *) uc_writes);
 
-   // UC writes to the fast local barrier and mtime/mtimecmp ESRs
+   //For all the shires
+   //UC writes to the fast local barrier and mtime/mtimecmp ESRs
    for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++) {
       for (int n = 0; n < 4; n++) {
          main_memory_region * neigh_esrs = new main_memory_region(0x100100000ULL + i*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
          regions_.push_back((main_memory_region *) neigh_esrs);
       }
+
+      //RBOX
       main_memory_region * rbox_esrs  = new main_memory_region(0x100310000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
       regions_.push_back((main_memory_region *) rbox_esrs);
+
+      // Shire ESRs 
       main_memory_region * shire_esrs = new main_memory_region(0x100340000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
       regions_.push_back((main_memory_region *) shire_esrs);
       // M prot for shire
       shire_esrs = new main_memory_region(0x100340000ULL + (3ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
       regions_.push_back((main_memory_region *) shire_esrs);
+
       main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*ESR_REGION_OFFSET, 64, log, getthread);
       regions_.push_back((main_memory_region *) mtm);
+
+      // L2 scratchpad
+      main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + i*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
+      regions_.push_back((main_memory_region *) l2_scp);
    }
 }
 

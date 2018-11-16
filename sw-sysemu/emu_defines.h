@@ -80,6 +80,11 @@
 #define ESR_SHIRE_FCC2_OFFSET 0x0D0ULL
 #define ESR_SHIRE_FCC3_OFFSET 0x0D8ULL
 
+// L2 scratchpad
+#define L2_SCP_BASE   0x80000000ULL
+#define L2_SCP_OFFSET 0x00800000ULL
+#define L2_SCP_SIZE   0x00400000ULL
+
 // CSRs
 typedef enum {
     csr_prv = 0, // this is internal to HW
