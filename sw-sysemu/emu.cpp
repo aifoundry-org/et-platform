@@ -14,8 +14,8 @@
 #include "emu_casts.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
-#include "fpu.h"
-#include "fpu_casts.h"
+#include "fpu/fpu.h"
+#include "fpu/fpu_casts.h"
 
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 #include <emmintrin.h> // FIXME: remove this when we fix the TXFMA code
@@ -191,13 +191,6 @@ static uint64_t sext16(uint32_t val)
 {
     uint32_t s = val & 0x00008000;
     uint64_t r = s ? (0xffffffffffff0000ull | val ) : val;
-    return r;
-}
-
-static uint64_t sext12(uint32_t val)
-{
-    uint32_t s = val & 0x0000800;
-    uint64_t r = s ? (0xfffffffffffff000ull | val) : val;
     return r;
 }
 
@@ -388,7 +381,7 @@ static float gold_fsin(float a)
     }
 
     tmp.flt = float(modf(double(val.flt), &dummy));
-    tmp.flt = 
+    tmp.flt =
           tmp.flt <= -0.75 ?  tmp.flt + 1.0 // -IV  Quartile
         : tmp.flt <= -0.5  ? -tmp.flt - 0.5 // -III Quartile
         : tmp.flt <= -0.25 ? -tmp.flt - 0.5 // -II  Quartile
@@ -471,8 +464,8 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mip] = 0x0ULL;
     csrregs[thread][csr_msleep_txfma_27] = 0x0ULL;
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
-    csrregs[thread][csr_excl_mode] = 0x0ULL;    
-    csrregs[thread][csr_mtxfma_sleep_traps] = 0x0ULL;    
+    csrregs[thread][csr_excl_mode] = 0x0ULL;
+    csrregs[thread][csr_mtxfma_sleep_traps] = 0x0ULL;
     // Debug-mode registers with reset
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
 
@@ -504,7 +497,7 @@ void minit(mreg dst, uint64_t val)
 static bool tmask_pass(int bit)
 {
     // Returns the pass bit for a specific bit
-    return ((csrget(csr_tmask) >> bit) & 1);
+    return ((csrget(csr_tensor_mask) >> bit) & 1);
 }
 
 static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
@@ -899,6 +892,11 @@ static void emu_vmemwrite64(uint64_t addr, uint64_t data)
     emu_pmemwrite64(paddr, data);
 }
 
+static uint16_t emu_pmemfetch16(uint64_t paddr)
+{
+    return func_memread16(paddr);
+}
+
 static void emu_pmemfetch512(uint64_t paddr, uint16_t * data)
 {
     for (int i = 0; i < 8; ++i)
@@ -959,6 +957,11 @@ static void host_pmemwrite64(uint64_t paddr, uint64_t data)
     throw std::runtime_error("host_pmemwrite64() is unimplemented");
 }
 
+static uint16_t host_pmemfetch16(uint64_t addr)
+{
+    return * ((uint16_t *) addr);
+}
+
 static void host_pmemfetch512(uint64_t addr, uint16_t * data)
 {
     memcpy(data, (void*) addr, 64);
@@ -982,6 +985,8 @@ void (*vmemwrite32) (uint64_t addr, uint32_t data) = host_vmemwrite32;
 void (*vmemwrite64) (uint64_t addr, uint64_t data) = host_vmemwrite64;
 
 void (*pmemwrite64) (uint64_t paddr, uint64_t data) = host_pmemwrite64;
+
+uint16_t (*pmemfetch16) (uint64_t paddr) = host_pmemfetch16;
 
 void (*pmemfetch512) (uint64_t paddr, uint16_t * data) = host_pmemfetch512;
 
@@ -1013,6 +1018,7 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
     vmemwrite64 = emu_vmemwrite64;
     pmemwrite64 = emu_pmemwrite64;
 
+    pmemfetch16 = emu_pmemfetch16;
     pmemfetch512 = emu_pmemfetch512;
 }
 
@@ -1025,63 +1031,70 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
 // ILLEGAL INSTRUCTION
 void unknown(const char* comm)
 {
-    DISASM(gsprintf(dis,"I: unknown (%016llx)%s%s",current_pc,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: unknown @%016" PRIx64 "(0x%04x)%s%s",current_pc,current_inst,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     throw trap_illegal_instruction(current_inst);
 }
 
-void beq(xreg src1, xreg src2, int imm, const char* comm)
+// NOP
+void nop(const char* comm)
 {
-    DISASM(gsprintf(dis,"I: beq x%d, x%d, %d%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: nop%s%s",current_pc,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+}
+
+void beq(xreg src1, xreg src2, int64_t imm, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: beq x%d, x%d, %" PRId64 "%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (XREGS[src1].x == XREGS[src2].x)
         logpcchange(current_pc + imm);
 }
 
-void bne(xreg src1, xreg src2, int imm, const char* comm)
+void bne(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: bne x%d, x%d, %d%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: bne x%d, x%d, %" PRId64 "%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (XREGS[src1].x != XREGS[src2].x)
         logpcchange(current_pc + imm);
 }
 
-void blt(xreg src1, xreg src2, int imm, const char* comm)
+void blt(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: blt x%d, x%d, %d%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: blt x%d, x%d, %" PRId64 "%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (XREGS[src1].xs < XREGS[src2].xs)
         logpcchange(current_pc + imm);
 }
 
-void bltu(xreg src1, xreg src2, int imm, const char* comm)
+void bltu(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: bltu x%d, x%d, %d%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: bltu x%d, x%d, %" PRId64 "%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (XREGS[src1].x < XREGS[src2].x)
         logpcchange(current_pc + imm);
 }
 
-void bge(xreg src1, xreg src2, int imm, const char* comm)
+void bge(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: bge x%d, x%d, %d%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: bge x%d, x%d, %" PRId64 "%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (XREGS[src1].xs >= XREGS[src2].xs)
         logpcchange(current_pc + imm);
 }
 
-void bgeu(xreg src1, xreg src2, int imm, const char* comm)
+void bgeu(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: bgeu x%d, x%d, %d%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: bgeu x%d, x%d, %" PRId64 "%s%s",src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (XREGS[src1].x >= XREGS[src2].x)
         logpcchange(current_pc + imm);
 }
 
-void c_jalr(xreg dst, xreg src1, int imm, const char* comm)
+void c_jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
     uint64_t val1 = XREGS[src1].x; // in case dst == src1
-    DISASM(gsprintf(dis,"I: jalr x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: jalr x%d, x%d, %" PRId64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
@@ -1092,10 +1105,10 @@ void c_jalr(xreg dst, xreg src1, int imm, const char* comm)
     logpcchange((val1 + imm) & 0xFFFFFFFFFFFFFFFE);
 }
 
-void c_jal(xreg dst, int imm, const char* comm)
+void c_jal(xreg dst, int64_t imm, const char* comm)
 {
     // NB: spike-dasm already multiplies the immediate operand by 2
-    DISASM(gsprintf(dis,"I: jal x%d, %d%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: jal x%d, %" PRId64 "%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
@@ -1106,10 +1119,10 @@ void c_jal(xreg dst, int imm, const char* comm)
     logpcchange(current_pc + imm);
 }
 
-void jalr(xreg dst, xreg src1, int imm, const char* comm)
+void jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
     uint64_t val1 = XREGS[src1].x; // in case dst == src1
-    DISASM(gsprintf(dis,"I: jalr x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: jalr x%d, x%d, %" PRId64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
@@ -1120,10 +1133,10 @@ void jalr(xreg dst, xreg src1, int imm, const char* comm)
     logpcchange((val1 + imm) & 0xFFFFFFFFFFFFFFFE);
 }
 
-void jal(xreg dst, int imm, const char* comm)
+void jal(xreg dst, int64_t imm, const char* comm)
 {
     // NB: spike-dasm already multiplies the immediate operand by 2
-    DISASM(gsprintf(dis,"I: jal x%d, %d%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: jal x%d, %" PRId64 "%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
@@ -1134,156 +1147,156 @@ void jal(xreg dst, int imm, const char* comm)
     logpcchange(current_pc + imm);
 }
 
-void lui(xreg dst, int imm, const char* comm)
+void lui(xreg dst, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: lui x%d, %d%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: lui x%d, 0x%016" PRIx64 "%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
-        XREGS[dst].x = sext32(imm << 12);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " << 12",XREGS[dst].x,(uint64_t) imm);
+        XREGS[dst].x = imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64,XREGS[dst].x,imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,xnone,xnone,dis);)
 }
 
-void auipc(xreg dst, int imm, const char* comm)
+void auipc(xreg dst, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: auipc x%d, %d%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: auipc x%d, 0x%016" PRIx64 "%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
-        XREGS[dst].x = current_pc + sext32(imm << 12);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " << 12",XREGS[dst].x,(uint64_t) imm);
+        XREGS[dst].x = current_pc + imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64,XREGS[dst].x,imm);
     }
     logxregchange(dst);
 }
 
-void addi(xreg dst, xreg src1, int imm, const char* comm)
+void addi(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: addi x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: addi x%d, x%d, %" PRId64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x + sext12(imm);
+        uint64_t val = XREGS[src1].x + imm;
         if (dst == x2 && check_stack)
         {
            check_sp_out_of_range(val);
         }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1].x, sext12(imm));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1].x, imm);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void slli(xreg dst, xreg src1, int imm, const char* comm)
+void slli(xreg dst, xreg src1, unsigned imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: slli x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: slli x%d, x%d, %u%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.x << (imm & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %d", XREGS[dst].x, val1.x, imm & 0x3f);
+        XREGS[dst].x = val1.x << imm;
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst].x, val1.x, imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void slti(xreg dst, xreg src1, int imm, const char* comm)
+void slti(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: slti x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: slti x%d, x%d, %" PRId64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
-        uint64_t val = (XREGS[src1].xs < int64_t(sext12(imm))) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val,XREGS[src1].x,sext12(imm));
+        uint64_t val = (XREGS[src1].xs < imm) ? 1 : 0;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val,XREGS[src1].x,imm);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void sltiu(xreg dst, xreg src1, int imm, const char* comm)
+void sltiu(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: sltiu x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: sltiu x%d, x%d, %" PRIu64 "%s%s",dst,src1,uint64_t(imm),(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
-        uint64_t val = (XREGS[src1].x < sext12(imm)) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val,XREGS[src1].x,sext12(imm));
+        uint64_t val = (XREGS[src1].x < uint64_t(imm)) ? 1 : 0;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val,XREGS[src1].x,imm);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void xori(xreg dst, xreg src1, int imm, const char* comm)
+void xori(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: xori x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: xori x%d, x%d, 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x ^ sext12(imm);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, val,XREGS[src1].x,(uint64_t)imm);
+        uint64_t val = XREGS[src1].x ^ imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, val,XREGS[src1].x,imm);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void srli(xreg dst, xreg src1, int imm, const char* comm)
+void srli(xreg dst, xreg src1, unsigned imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: srli x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: srli x%d, x%d, %u%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.x >> (imm & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %d", XREGS[dst].x, val1.x, imm & 0x3f);
+        XREGS[dst].x = val1.x >> imm;
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void srai(xreg dst, xreg src1, int imm, const char* comm)
+void srai(xreg dst, xreg src1, unsigned imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: srai x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: srai x%d, x%d, %" PRId64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.xs >> int64_t(imm & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %d", XREGS[dst].x, val1.x, imm & 0x3f);
+        XREGS[dst].xs = val1.xs >> imm;
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void ori(xreg dst, xreg src1, int imm, const char* comm)
+void ori(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: ori x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: ori x%d, x%d, 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.x | sext12(imm);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, XREGS[dst].x, val1.x, sext12(imm));
+        XREGS[dst].x = val1.x | imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, XREGS[dst].x, val1.x, imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void andi(xreg dst, xreg src1, int imm, const char* comm)
+void andi(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: andi x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: andi x%d, x%d, 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.x & sext12(imm);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, XREGS[dst].x, val1.x, sext12(imm));
+        XREGS[dst].x = val1.x & imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, XREGS[dst].x, val1.x, imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -1432,9 +1445,9 @@ void and_(xreg dst, xreg src1, xreg src2, const char* comm)
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
 }
 
-void addiw(xreg dst, xreg src1, int imm, const char* comm)
+void addiw(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: addiw x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: addiw x%d, x%d, %" PRId64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
@@ -1443,50 +1456,50 @@ void addiw(xreg dst, xreg src1, int imm, const char* comm)
         {
            check_sp_out_of_range(val);
         }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x",val,XREGS[src1].w[0],imm);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x",val,XREGS[src1].w[0],uint32_t(imm));
         XREGS[dst].x = val;
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void slliw(xreg dst, xreg src1, int imm, const char* comm)
+void slliw(xreg dst, xreg src1, unsigned imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: slliw x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: slliw x%d, x%d, %u%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext32(val1.w[0] << (imm & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %d", XREGS[dst].x, val1.w[0], imm & 0x1f);
+        XREGS[dst].x = sext32(val1.w[0] << imm);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %u", XREGS[dst].x, val1.w[0], imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void srliw(xreg dst, xreg src1, int imm, const char* comm)
+void srliw(xreg dst, xreg src1, unsigned imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: srliw x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: srliw x%d, x%d, %u%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext32(val1.w[0] >> (imm & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst].x, val1.w[0], imm & 0x1f);
+        XREGS[dst].x = sext32(val1.w[0] >> imm);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst].x, val1.w[0], imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
 }
 
-void sraiw(xreg dst, xreg src1, int imm, const char* comm)
+void sraiw(xreg dst, xreg src1, unsigned imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: sraiw x%d, x%d, %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: sraiw x%d, x%d, %u%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext32(val1.ws[0] >> int32_t(imm & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst].x, val1.w[0], imm & 0x1f);
+        XREGS[dst].x = sext32(val1.ws[0] >> imm);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst].x, val1.w[0], imm);
     }
     logxregchange(dst);
     IPC(ipc_int(SIMPLE_INT,dst,src1,xnone,dis);)
@@ -1565,110 +1578,110 @@ void sraw(xreg dst, xreg src1, xreg src2, const char* comm)
     IPC(ipc_int(SIMPLE_INT,dst,src1,src2,dis);)
 }
 
-void lb(xreg dst, int off, xreg base, const char* comm)
+void lb(xreg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lb x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t val = sext8(vmemread8(XREGS[base].x + sext12(off)));
+    uint64_t val = sext8(vmemread8(XREGS[base].x + off));
 
     if (dst != x0)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,sext12(off));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,off);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
 }
 
-void lh(xreg dst, int off, xreg base, const char* comm)
+void lh(xreg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lh x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t val = sext16(vmemread16(XREGS[base].x + sext12(off)));
+    uint64_t val = sext16(vmemread16(XREGS[base].x + off));
     if (dst != x0)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,sext12(off));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,off);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
 }
 
-void lw(xreg dst, int off, xreg base, const char* comm)
+void lw(xreg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lw x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t val = sext32(vmemread32(XREGS[base].x + sext12(off)));
+    uint64_t val = sext32(vmemread32(XREGS[base].x + off));
     if (dst != x0)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,sext12(off));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,off);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
 }
 
-void ld(xreg dst, int off, xreg base, const char* comm)
+void ld(xreg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: ld x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t val = vmemread64(XREGS[base].x + sext12(off));
+    uint64_t val = vmemread64(XREGS[base].x + off);
     if (dst != x0)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,sext12(off));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,off);
         XREGS[dst].x  = val;
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
 }
 
-void lbu(xreg dst, int off, xreg base, const char* comm)
+void lbu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lbu x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t val = vmemread8(XREGS[base].x + sext12(off));
+    uint64_t val = vmemread8(XREGS[base].x + off);
     if (dst != x0)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,sext12(off));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,off);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
 }
 
-void lhu(xreg dst, int off, xreg base, const char* comm)
+void lhu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lhu x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t val = vmemread16(XREGS[base].x + sext12(off));
+    uint64_t val = vmemread16(XREGS[base].x + off);
     if (dst != x0)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,sext12(off));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,off);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
 }
 
-void lwu(xreg dst, int off, xreg base, const char* comm)
+void lwu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: lwu x%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t val = vmemread32(XREGS[base].x + sext12(off));
+    uint64_t val = vmemread32(XREGS[base].x + off);
     if (dst != x0)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,sext12(off));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]",val,XREGS[base].x,off);
         XREGS[dst].x = val;
     }
     logxregchange(dst);
-    IPC(ipc_ld(LD,dst,base,XREGS[base].x+sext12(off),dis);)
+    IPC(ipc_ld(LD,dst,base,XREGS[base].x+off,dis);)
 }
 
-void sd(xreg src1, int off, xreg base, const char* comm)
+void sd(xreg src1, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: sd x%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t addr = XREGS[base].x + sext12(off);
+    uint64_t addr = XREGS[base].x + off;
     uint64_t val  = XREGS[src1].x;
     vmemwrite64(addr, val);
     LOG(DEBUG, "\t%016" PRIx64 " --> MEM[0x%016" PRIx64 "]",val,addr);
@@ -1676,11 +1689,11 @@ void sd(xreg src1, int off, xreg base, const char* comm)
     IPC(ipc_st(STORE_INT, 1, 8, src1,base,addr,dis);)
 }
 
-void sw(xreg src1, int off, xreg base, const char* comm)
+void sw(xreg src1, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: sw x%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t addr = XREGS[base].x + sext12(off);
+    uint64_t addr = XREGS[base].x + off;
     uint32_t val  = XREGS[src1].w[0];
     vmemwrite32(addr, val);
     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM[0x%016" PRIx64 "]",val,addr);
@@ -1688,11 +1701,11 @@ void sw(xreg src1, int off, xreg base, const char* comm)
     IPC(ipc_st(STORE_INT, 1, 4, src1,base,addr,dis);)
 }
 
-void sh(xreg src1, int off, xreg base, const char* comm)
+void sh(xreg src1, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: sh x%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t addr = XREGS[base].x + sext12(off);
+    uint64_t addr = XREGS[base].x + off;
     uint16_t val  = XREGS[src1].h[0];
     vmemwrite16(addr, val);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM[0x%016" PRIx64 "]",val,addr);
@@ -1700,11 +1713,11 @@ void sh(xreg src1, int off, xreg base, const char* comm)
     IPC(ipc_st(STORE_INT, 1, 2, src1,base,addr,dis);)
 }
 
-void sb(xreg src1, int off, xreg base, const char* comm)
+void sb(xreg src1, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: sb x%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-    uint64_t addr = XREGS[base].x + sext12(off);
+    uint64_t addr = XREGS[base].x + off;
     uint8_t val   = XREGS[src1].b[0];
     vmemwrite8(addr, val);
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM[0x%016" PRIx64 "]",val,addr);
@@ -1726,15 +1739,6 @@ void fence_i(const char* comm)
         throw trap_mcode_instruction(current_inst);
 
     flush_insn_cache();
-}
-
-// TODO
-void sfence_vma(const char* comm)
-{
-    DISASM(gsprintf(dis,"I: sfence_vma%s%s",(comm?" # ":""),(comm?comm:"")););
-    emu_log()<<LOG_DEBUG<<dis<<endm;
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2151,6 +2155,7 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
     logmemwchange(0, 8, addr, val2);
 }
 
+#if 0
 //
 // Scalar 32 bits Atomics
 //
@@ -2178,6 +2183,7 @@ AMO_EMU_D_FUNC(amomin_d,  MIN)
 AMO_EMU_D_FUNC(amomax_d,  MAX)
 AMO_EMU_D_FUNC(amominu_d, MINU)
 AMO_EMU_D_FUNC(amomaxu_d, MAXU)
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -2261,23 +2267,23 @@ static uint64_t csrget(csr src1)
             val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
             break;
         // ----- Tensor, barrier, cacheop instructions -------------------
-        case csr_tloadctrl:
-        case csr_tloadl2ctrl:
-        case csr_tcoop:
-        case csr_tfmastart:
-        case csr_treduce:
-        case csr_tstore:
-        case csr_twait:
-        case csr_flbarrier:
-        case csr_fccounter:
-        case csr_stall:            
-        case csr_ucacheop:
+        case csr_tensor_load:
+        case csr_tensor_load_l2:
+        case csr_tensor_coop:
+        case csr_tensor_fma:
+        case csr_tensor_reduce:
+        case csr_tensor_store:
+        case csr_tensor_wait:
+        case csr_flb0:
+        case csr_fcc:
+        case csr_stall:
+        case csr_usr_cache_op:
         case csr_evict_va:
         case csr_flush_va:
         case csr_lock_va:
         case csr_unlock_va:
         case csr_prefetch_va:
-        case csr_scacheop:
+        case csr_sys_cache_op:
         case csr_evict_sw:
         case csr_flush_sw:
         case csr_flush_icache:
@@ -2345,49 +2351,49 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             break;
         // ----- U-mode ET registers ---------------------------------------------
-        case csr_tloadctrl:
+        case csr_tensor_load:
             tensorload(val);
             break;
-        case csr_tloadl2ctrl:
+        case csr_tensor_load_l2:
             tensorloadl2(val);
             break;
-        case csr_tmask:
+        case csr_tensor_mask:
             val &= 0x000000000000FFFFULL;
             csrregs[current_thread][src1] = val;
             break;
-        case csr_tconvsize:
+        case csr_tensor_conv_size:
             val &= 0xFF00FFFFFF00FFFFULL;
             csrregs[current_thread][src1] = val;
             tmask_conv();
             break;
-        case csr_tconvctrl:
+        case csr_tensor_conv_ctrl:
             val &= 0x0000FFFF0000FFFFULL;
             csrregs[current_thread][src1] = val;
             tmask_conv();
             break;
-        case csr_tcoop:
+        case csr_tensor_coop:
             val &= 0x0000000000FFFFFFULL;
             tcoop(val);
             break;
-        case csr_tquant:
+        case csr_tensor_quant:
             if ( ! txfma_off_allowed(src1, val) )
                 throw trap_txfma_off(current_inst);
             tensorquant(val);
             break;
-        case csr_tfmastart:
+        case csr_tensor_fma:
             if ( ! txfma_off_allowed(src1, val) )
                 throw trap_txfma_off(current_inst);
             tensorfma(val);
             break;
-        case csr_treduce:
+        case csr_tensor_reduce:
             if ( ! txfma_off_allowed(src1, val) )
                 throw trap_txfma_off(current_inst);
             tensorreduce(val);
             break;
-        case csr_tstore:
+        case csr_tensor_store:
             tensorstore(val);
             break;
-        case csr_fccounter:
+        case csr_fcc:
             break;
         case csr_stall:
             break;
@@ -2440,17 +2446,17 @@ static void csrset(csr src1, uint64_t val)
                 dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
             }
             break;
-        case csr_scpctrl:
+        case csr_scratchpad_ctrl:
             val &= 0x0000000000000001ULL;
             csrregs[current_thread][src1] = val;
             num_sets = val ? 4 : 16;
             break;
-        case csr_texsend:
+        case csr_tex_send:
             val &= 0x00000000000000FFULL;
             csrregs[current_thread][src1] = val;
             // Notify to TBOX that a Sample Request is ready
             // unsigned port_id        = csrregs[current_thread][src1] & 0x0000000F;
-            // unsigned number_packets = (csrregs[current_thread][src1] >> 4) & 0x0000000F;    
+            // unsigned number_packets = (csrregs[current_thread][src1] >> 4) & 0x0000000F;
             new_sample_request(csrregs[current_thread][src1] & 0x0000000F, (csrregs[current_thread][src1] >> 4) & 0x0000000F, read_port_base_address(current_thread, csrregs[current_thread][src1] & 0x0000000F));
             break;
         case csr_sleep_txfma_27:
@@ -2613,8 +2619,8 @@ static void csrset(csr src1, uint64_t val)
             }
             break;
         // ----- Not really ESRs -----------------------------------------
-        case csr_ucacheop:
-        case csr_scacheop:
+        case csr_usr_cache_op:
+        case csr_sys_cache_op:
         case csr_umsg_port0:
         case csr_umsg_port1:
         case csr_umsg_port2:
@@ -2648,12 +2654,12 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
         switch (src1)
         {
             // Fast local barrier instructions encoded in the CSR space
-            case csr_flbarrier:
+            case csr_flb0:
                 oldval = flbarrier(newval);
                 break;
             // TODO: remove old cacheop spec
-            case csr_ucacheop:
-            case csr_scacheop:
+            case csr_usr_cache_op:
+            case csr_sys_cache_op:
                 oldval = csr_cacheop_emu(newval);
                 break;
             // TODO: remove old msg port spec
@@ -2977,6 +2983,15 @@ void wfi(const char* comm)
     emu_log()<<LOG_DEBUG<<dis<<endm;
 }
 
+// TODO
+void sfence_vma(xreg src1, xreg src2, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: sfence_vma x%d, x%d%s%s",src1,src2,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    if (core_type == ET_MINION)
+        throw trap_mcode_instruction(current_inst);
+}
+
 void csrrw(xreg dst, csr src1, xreg src2, const char* comm)
 {
     DISASM(gsprintf(dis,"I: csrrw x%d, csrreg[%d], x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
@@ -3006,7 +3021,7 @@ void csrrc(xreg dst, csr src1, xreg src2, const char* comm)
 
 void csrrwi(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrwi x%d, csrreg[%d], %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrwi x%d, csrreg[%d], 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = imm;
@@ -3015,7 +3030,7 @@ void csrrwi(xreg dst, csr src1, uint64_t imm, const char* comm)
 
 void csrrsi(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrsi x%d, csrreg[%d], %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrsi x%d, csrreg[%d], 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | imm;
@@ -3024,7 +3039,7 @@ void csrrsi(xreg dst, csr src1, uint64_t imm, const char* comm)
 
 void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrci x%d, csrreg[%d], %d%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrci x%d, csrreg[%d], 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~imm);
@@ -3037,11 +3052,11 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void femuld(int count, freg dst, int off, xreg base, int use_mask)
+static void femuld(int count, freg dst, int64_t off, xreg base, int use_mask)
 {
     assert(count <= VL);
 
-    uint64_t base_addr = XREGS[base].x + sext12(off);
+    uint64_t base_addr = XREGS[base].x + off;
     for (int i = 0; i < count; i++)
     {
         if (use_mask && MREGS[0].b[i] == 0) continue;
@@ -3056,11 +3071,11 @@ static void femuld(int count, freg dst, int off, xreg base, int use_mask)
     IPC(ipc_ld(opc,count,4,dst,base,(XREGS[base].x+off),dis););
 }
 
-static void femust(int count, freg src1, int off, xreg base, int use_mask)
+static void femust(int count, freg src1, int64_t off, xreg base, int use_mask)
 {
     assert(count <= VL);
 
-    uint64_t base_addr = XREGS[base].x + sext12(off);
+    uint64_t base_addr = XREGS[base].x + off;
     for (int i = 0; i < count; i++)
     {
         if (use_mask && MREGS[0].b[i] == 0) continue;
@@ -3770,7 +3785,7 @@ void fmv_w_x(freg dst, xreg src1, const char* comm)
     logfregchange(dst);
 }
 
-void flw(freg dst, int off, xreg base, const char* comm)
+void flw(freg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: flw f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -3778,7 +3793,7 @@ void flw(freg dst, int off, xreg base, const char* comm)
     femuld(1, dst, off,  base, 0);
 }
 
-void fsw(freg src1, int off, xreg base, const char* comm)
+void fsw(freg src1, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fsw f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -3893,19 +3908,20 @@ void mova_x_m(xreg dst, const char* comm)
 {
     DISASM(gsprintf(dis,"I: mova.x.m x%d, allmasks%s%s",dst,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
-
-    uint64_t val = 0;
-    for ( int m = 7; m >= 0; m-- )
-    {
-        val <<= VL;
-        for ( int i = 0; i < VL; i++ )
-        {
-            val |= (MREGS[m].b[i] & 0x1) << i;
-        }
-        LOG(DEBUG, "\taccumulating into 0x%016" PRIx64 " reg m%d = 0x%08x ",val,m,(val&((1u<<VL)-1)));
-    }
     if (dst != x0)
+    {
+        uint64_t val = 0;
+        for ( int m = 7; m >= 0; m-- )
+        {
+            val <<= VL;
+            for ( int i = 0; i < VL; i++ )
+            {
+                val |= (MREGS[m].b[i] & 0x1) << i;
+            }
+            LOG(DEBUG, "\taccumulating into 0x%016" PRIx64 " reg m%d = 0x%08x ",val,m,(val&((1u<<VL)-1)));
+        }
         XREGS[dst].x = val;
+    }
     logxregchange(dst);
 }
 
@@ -3929,9 +3945,9 @@ void mova_m_x(xreg src1, const char* comm)
     }
 }
 
-void mov_m_x(mreg dst, xreg src1, uint32_t imm, const char* comm)
+void mov_m_x(mreg dst, xreg src1, unsigned imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: mov.m.x m%d, x%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: mov.m.x m%d, x%d, 0x%02x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     DEBUG_MASK(MREGS[0]);
 
@@ -3972,7 +3988,7 @@ void maskpopcz(xreg dst, mreg src1, const char* comm)
     logxregchange(dst);
 }
 
-void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* comm)
+void maskpopc_rast(xreg dst, mreg src1, mreg src2, unsigned imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: maskpopc.rast x%d, m%d, m%d, %d%s%s",dst,src1,src2,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -4013,16 +4029,7 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, uint32_t imm, const char* com
 
 // ----- Load and store ------------------------------------
 
-void flw_ps(freg dst, int off, xreg base, const char* comm)
-{
-    DISASM(gsprintf(dis,"I: flw.ps f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
-    emu_log()<<LOG_DEBUG<<dis<<endm;
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femuld(VL, dst, off,  base, 1);
-}
-
-void flq2(freg dst, int off, xreg base, const char* comm)
+void flq2(freg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: flq2 f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -4032,37 +4039,73 @@ void flq2(freg dst, int off, xreg base, const char* comm)
     femuld(VL, dst, off,  base, 0);
 }
 
-void fsw_ps(freg src1, int off, xreg base, const char* comm)
+void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fsw.ps f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: flw.ps f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femust(VL, src1, off, base, 1);
+    femuld(VL, dst, off,  base, 1);
 }
 
-void fsq2(freg src1, int off, xreg base, const char* comm)
+void flwl_ps(freg dst, xreg base, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fsq2 f%d, %d(x%d)%s%s",src1,off,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: flwl.ps f%d, 0(x%d)%s%s",dst,base,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    femuld(VL, dst, 0,  base, 1);
+}
+
+void flwg_ps(freg dst, xreg base, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: flwg.ps f%d, 0(x%d)%s%s",dst,base,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    femuld(VL, dst, 0,  base, 1);
+}
+
+void fsq2(freg src, xreg base, int64_t off, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: fsq2 f%d, %d(x%d)%s%s",src,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
     uint64_t addr = XREGS[base].x + off;
     if ((addr % 4) != 0) throw trap_store_address_misaligned(addr);
-    femust(VL, src1, off, base, 0);
+    femust(VL, src, off, base, 0);
 }
 
-void fswg_ps(freg src1, xreg base, const char* comm)
+void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fswg.ps f%d, 0(x%d)%s%s",src1,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsw.ps f%d, %d(x%d)%s%s",src,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femust(VL, src1, 0, base, 1);
+    femust(VL, src, off, base, 1);
+}
+
+void fswl_ps(freg src, xreg base, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: fswl.ps f%d, 0(x%d)%s%s",src,base,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    femust(VL, src, 0, base, 1);
+}
+
+void fswg_ps(freg src, xreg base, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: fswg.ps f%d, 0(x%d)%s%s",src,base,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    femust(VL, src, 0, base, 1);
 }
 
 // ----- Broadcast -----------------------------------------
 
-void fbc_ps(freg dst, int off, xreg base, const char* comm)
+void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fbc_ps f%d, %d(x%d)%s%s",dst,off,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -4070,7 +4113,7 @@ void fbc_ps(freg dst, int off, xreg base, const char* comm)
     DEBUG_MASK(MREGS[0]);
 
     iufval32 val;
-    uint64_t addr = XREGS[base].x + sext12(off);
+    uint64_t addr = XREGS[base].x + off;
     val.u = 0;
     uint8_t  b = 0;
     for ( int i = 0; i < VL; i++ )
@@ -4102,26 +4145,7 @@ void fbci_ps(freg dst, uint32_t imm, const char* comm)
     DEBUG_MASK(MREGS[0]);
 
     iufval32 val;
-    val.u = (imm & 0xfffff) << 12;  // make sure we only use 20b immediate and put into position
-
-    // the low 4 bits of the immediate are replicated to fill the bottom 12 bits of the Fp number
-    // Replication is as follows
-    // let low be bits [3..0] of the immediate.
-    // Then
-    //  bits  [3..0] of the fp value are 'low' if low < 8 or low+1 otherwise
-    //  bits  [7..4] of the fp value are 'low'
-    //  bits [11..8] of the fp value are 'low'
-
-    // take the low 4 bits of the immediate
-    uint32_t low = (imm & 0xf);
-
-    // do the replication
-    low = low < 8 ? ((low<<8) | (low<<4) | low) :
-                    ((low<<8) | (low<<4) | (low+1));
-
-    // now merge low with the upper part of the immediate
-    val.u |= low;
-
+    val.u = imm;
     for ( int i = 0; i < VL; i++ )
     {
         if ( MREGS[0].b[i] )
@@ -4307,6 +4331,24 @@ void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
     gatheremu(FGW, 4, dst, src1, base);
 }
 
+void fgwl_ps(freg dst, freg src1, xreg base, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: fgw.ps f%d, (f%d, x%d)%s%s",dst,src1,base,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    throw std::runtime_error("Unimplemented instruction (fgwl.ps)");
+}
+
+void fgwg_ps(freg dst, freg src1, xreg base, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: fgw.ps f%d, (f%d, x%d)%s%s",dst,src1,base,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    throw std::runtime_error("Unimplemented instruction (fgwg.ps)");
+}
+
 void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fg32b.ps f%d, (x%d, x%d)%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
@@ -4334,58 +4376,74 @@ void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm)
     gatheremu32(FG32W, 4, dst, src1, src2);
 }
 
-void fscb_ps(freg src1, freg src2, xreg base, const char* comm)
+void fscb_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fscb.ps f%d, f%d, x%d%s%s",src1,src2,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fscb.ps f%d, (f%d, x%d)%s%s",src,src1,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuscat(FSCB, src1, src2, base);
+    femuscat(FSCB, src, src1, base);
 }
 
-void fsch_ps(freg src1, freg src2, xreg base, const char* comm)
+void fsch_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fsch.ps f%d, f%d, x%d%s%s",src1,src2,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsch.ps f%d, (f%d, x%d)%s%s",src,src1,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuscat(FSCH, src1, src2, base);
+    femuscat(FSCH, src, src1, base);
 }
 
-void fscw_ps(freg src1, freg src2, xreg base, const char* comm)
+void fscw_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fscw.ps f%d, f%d, x%d%s%s",src1,src2,base,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fscw.ps f%d, (f%d, x%d)%s%s",src,src1,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuscat(FSCW, src1, src2, base);
+    femuscat(FSCW, src, src1, base);
 }
 
-void fsc32b_ps(freg src3, xreg src1, xreg src2, const char* comm)
+void fscwl_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fsc32b.ps f%d, (x%d, x%d)%s%s",src3,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fscwl.ps f%d, (f%d, x%d)%s%s",src,src1,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femuscat32(FSC32B, 1, src3, src1, src2);
+    throw std::runtime_error("Unimplemented instruction (fscwl.ps)");
 }
 
-void fsc32h_ps(freg src3, xreg src1, xreg src2, const char* comm)
+void fscwg_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fsc32h.ps f%d, (x%d, x%d)%s%s",src3,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fscwg.ps f%d, (f%d, x%d)%s%s",src,src1,base,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femuscat32(FSC32H, 2, src3, src1, src2);
+    throw std::runtime_error("Unimplemented instruction (fscwg.ps)");
 }
 
-void fsc32w_ps(freg src3, xreg src1, xreg src2, const char* comm)
+void fsc32b_ps(freg src, xreg src1, xreg src2, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: fsc32w.ps f%d, (x%d, x%d)%s%s",src3,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: fsc32b.ps f%d, (x%d, x%d)%s%s",src,src1,src2,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuscat32(FSC32W, 4, src3, src1, src2);
+    femuscat32(FSC32B, 1, src, src1, src2);
+}
+
+void fsc32h_ps(freg src, xreg src1, xreg src2, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: fsc32h.ps f%d, (x%d, x%d)%s%s",src,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    femuscat32(FSC32H, 2, src, src1, src2);
+}
+
+void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
+{
+    DISASM(gsprintf(dis,"I: fsc32w.ps f%d, (x%d, x%d)%s%s",src,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    emu_log()<<LOG_DEBUG<<dis<<endm;
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    femuscat32(FSC32W, 4, src, src1, src2);
 }
 
 // ----- Computational (follows RV64F) ---------------------
@@ -4644,7 +4702,7 @@ void fcmovm_ps(freg dst, freg src1, freg src2, const char* comm)
     IPC(ipc_ps(FCMOV,VL,dst,src1,src2,fnone,dis);)
 }
 
-void fmvz_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
+void fmvz_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
 {
     DISASM( gsprintf(dis,"I: fmvz.x.ps x%d, f%d, %d%s%s",dst,src1,index,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -4662,7 +4720,7 @@ void fmvz_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
     IPC(ipc_f2x(FMVZXPS,dst,src1,dis););
 }
 
-void fmvs_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
+void fmvs_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fmvs.x.ps x%d, f%d, %d %s%s",dst,src1,index,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -4680,7 +4738,7 @@ void fmvs_x_ps(xreg dst, freg src1, uint8_t index, const char* comm)
     IPC(ipc_f2x(FMVSXPS,dst,src1,dis););
 }
 
-void fswizz_ps(freg dst, freg src1, uint8_t imm, const char* comm)
+void fswizz_ps(freg dst, freg src1, unsigned imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fswizz.ps f%d, f%d, %u%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -5268,23 +5326,19 @@ void frcp_fix_rast(freg dst, freg src1, freg src2, const char* comm)
 
 // ----- Broadcast -----------------------------------------
 
-void fbci_pi(freg dst, uint32_t imm, const char* comm)
+void fbci_pi(freg dst, int32_t imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fbci.pi f%d, 0x%08x%s%s",dst,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    uint32_t sgn = imm & 0x80000;
-    uint32_t val = imm & 0xfffff;  // Make sure the imm is really only 20b long
-    val = sgn ?  (0xfff00000 | val) : val;
-
     for ( int i = 0; i < VL; i++ )
     {
         if ( MREGS[0].b[i] )
         {
-            FREGS[dst].i[i] = val;
-            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x",i,FREGS[dst].i[i],val);
+            FREGS[dst].i[i] = imm;
+            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x",i,FREGS[dst].i[i],imm);
         }
     }
     dirty_fp_state();
@@ -5414,12 +5468,14 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
             case FANDIPI: res.u = val1.u & val2.u;
                           LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x & 0x%08x",i,res.u,val1.u,val2.u);
                           break;
+#if 0
             case FORIPI:  res.u = val1.u | val2.u;
                           LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x | 0x%08x",i,res.u,val1.u,val2.u);
                           break;
             case FXORIPI: res.u = val1.u ^ val2.u;
                           LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x",i,res.u,val1.u,val2.u);
                           break;
+#endif
             case FSLLIPI: res.u = val1.u << val2.u;
                           LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x << %u",i,res.u,val1.u,val2.u);
                           break;
@@ -5522,7 +5578,7 @@ void fltm_pi(mreg dst, freg src1, freg src2, const char* comm)
     fmask(FLTPI, dst, src1, src2);
 }
 
-void faddi_pi(freg dst, freg src1, uint32_t imm, const char* comm)
+void faddi_pi(freg dst, freg src1, int32_t imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: faddi.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -5531,7 +5587,7 @@ void faddi_pi(freg dst, freg src1, uint32_t imm, const char* comm)
     iemu2srcimm(FADDIPI, dst, src1, imm);
 }
 
-void fslli_pi(freg dst, freg src1, uint32_t imm, const char* comm)
+void fslli_pi(freg dst, freg src1, unsigned imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fslli.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -5540,6 +5596,7 @@ void fslli_pi(freg dst, freg src1, uint32_t imm, const char* comm)
     iemu2srcimm(FSLLIPI, dst, src1, imm);
 }
 
+#if 0
 void fxori_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fxori.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
@@ -5548,8 +5605,9 @@ void fxori_pi(freg dst, freg src1, uint32_t imm, const char* comm)
     DEBUG_MASK(MREGS[0]);
     iemu2srcimm(FXORIPI, dst, src1, imm);
 }
+#endif
 
-void fsrli_pi(freg dst, freg src1, uint32_t imm, const char* comm)
+void fsrli_pi(freg dst, freg src1, unsigned imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fsrli.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -5558,7 +5616,7 @@ void fsrli_pi(freg dst, freg src1, uint32_t imm, const char* comm)
     iemu2srcimm(FSRLIPI, dst, src1, imm);
 }
 
-void fsrai_pi(freg dst, freg src1, uint32_t imm, const char* comm)
+void fsrai_pi(freg dst, freg src1, unsigned imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fsrai.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -5567,6 +5625,7 @@ void fsrai_pi(freg dst, freg src1, uint32_t imm, const char* comm)
     iemu2srcimm(FSRAIPI, dst, src1, imm);
 }
 
+#if 0
 void fori_pi(freg dst, freg src1, uint32_t imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fori.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
@@ -5575,8 +5634,9 @@ void fori_pi(freg dst, freg src1, uint32_t imm, const char* comm)
     DEBUG_MASK(MREGS[0]);
     iemu2srcimm(FORIPI, dst, src1, imm);
 }
+#endif
 
-void fandi_pi(freg dst, freg src1, uint32_t imm, const char* comm)
+void fandi_pi(freg dst, freg src1, int32_t imm, const char* comm)
 {
     DISASM(gsprintf(dis,"I: fandi.pi f%d, f%d, 0x%08x%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
@@ -6615,14 +6675,14 @@ static void tmask_conv()
     uint64_t tmask_value = 0;
 
     // Gets the sizes of the convolution
-    uint64_t tconvsizereg         = csrget(csr_tconvsize);
+    uint64_t tconvsizereg         = csrget(csr_tensor_conv_size);
     uint64_t conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
     uint64_t conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
     uint64_t conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
     uint64_t conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
 
     // Gets the positions of the convolution
-    uint64_t tconvctrlreg = csrget(csr_tconvctrl);
+    uint64_t tconvctrlreg = csrget(csr_tensor_conv_ctrl);
     int64_t  conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
     int64_t  conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
 
@@ -6639,7 +6699,7 @@ static void tmask_conv()
         conv_move_pointer(&conv_row_pos, &conv_col_pos, conv_row_step_offset, conv_col_step_offset);
     }
 
-    csrset(csr_tmask, tmask_value);
+    csrset(csr_tensor_mask, tmask_value);
 }
 
 static void tcoop(uint64_t value)
@@ -6903,7 +6963,7 @@ static void tensorquant(uint64_t value)
     uint64_t cols     = ((value & 0x0180000000000000) >> 55) + 1; // Number of register per col
     uint64_t rows     = ((value & 0x0078000000000000) >> 51) + 1; // Number of rows to store
     uint64_t scpsrc   =  (value & 0x0007E00000000000) >> 45;      // Scratchpad source where data is
-    
+
     // Array that converts an integer to string to print transformation information
     char trans_int_to_str[32][128] = { "LAST",
                                        "INT32 to FP32",
@@ -7739,20 +7799,20 @@ bool txfma_off_allowed(csr src1, uint64_t val) {
     // and do not allow if using the txfma
     uint32_t trap_conf = csrregs[current_thread][csr_mtxfma_sleep_traps];
     switch ( src1 )
-        {
-        case csr_tfmastart:
-            if (((trap_conf >> 4) & 1 ) == 0) return true; 
+    {
+        case csr_tensor_fma:
+            if (((trap_conf >> 4) & 1 ) == 0) return true;
             else return ((val & 0xE) == 6); // only allow for int8
-            
-        case csr_tquant:
+
+        case csr_tensor_quant:
             if ((( trap_conf >> 3) & 1 ) == 0) return true; //trap disabled
             else return false;
-            
-        case csr_treduce:
+
+        case csr_tensor_reduce:
             if (((trap_conf >> 2) & 1 ) == 0) return true;
             // allow for int, not allow for fp32
             switch ( (val >> 24) & 0xF )
-                {
+            {
                 case 0:  // fadd
                 case 1:  // fsub
                 case 2:  // fmax
@@ -7761,11 +7821,11 @@ bool txfma_off_allowed(csr src1, uint64_t val) {
                     return false;
                 default:
                     return true;
-                }
-            
+            }
+
         default:
             return true;
-        }
+    }
 
     return true;
 }

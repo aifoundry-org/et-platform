@@ -1,7 +1,9 @@
 #ifndef _EMU_CASTS_H
 #define _EMU_CASTS_H
 
-#include "fpu_types.h"
+// FIXME: We should REMOVE this file and use fpu/fpu_casts.h instead!
+
+#include <fpu/fpu_types.h>
 
 typedef union {
     int32_t  i;

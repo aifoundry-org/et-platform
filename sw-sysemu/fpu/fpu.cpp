@@ -649,7 +649,7 @@ namespace fpu {
 
     float16_t f32_to_f16(float32_t a)
     {
-        return F16( float32tofloat16(a) );
+        return ::f32_to_f16( daz(a) );
     }
 
 
@@ -711,7 +711,7 @@ namespace fpu {
 
     float32_t f16_to_f32(float16_t a)
     {
-        return float16tofloat32( UI16(daz(a)) );
+        return ::f16_to_f32( daz(a) );
     }
 
 
@@ -757,9 +757,21 @@ namespace fpu {
     }
 
 
+    float32_t sn24_to_f32(uint16_t a)
+    {
+        return snorm24tofloat32(a);
+    }
+
+
     float32_t sn16_to_f32(uint16_t a)
     {
         return snorm16tofloat32(a);
+    }
+
+
+    float32_t sn10_to_f32(uint16_t a)
+    {
+        return snorm10tofloat32(a);
     }
 
 
@@ -767,6 +779,13 @@ namespace fpu {
     {
         return snorm8tofloat32(a);
     }
+
+
+    float32_t sn2_to_f32(uint8_t a)
+    {
+        return snorm2tofloat32(a);
+    }
+
 
     // Graphics additional
 

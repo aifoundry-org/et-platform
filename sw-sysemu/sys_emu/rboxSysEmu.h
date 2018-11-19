@@ -2,7 +2,6 @@
 #define _RBOX_SYSEMU_H_
 
 #include "common/main_memory.h"
-#include "emu.h"
 #include <queue>
 #include <header.h>
 

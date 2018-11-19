@@ -88,11 +88,9 @@
 // CSRs
 typedef enum {
     csr_prv = 0, // this is internal to HW
-
-    // ----- Used for illegal CSR accesses -----------------------------------
+    /* Unimplemented register */
     csr_unknown,
-
-    // ----- U-mode registers ------------------------------------------------
+    /* RISCV user registers */
     // csr_ustatus,
     // csr_uie,
     // csr_utvec,
@@ -110,38 +108,40 @@ typedef enum {
     // csr_hpmcounter3,
     // ...
     // csr_hpmcounter31,
-
-    // ----- U-mode ET registers ---------------------------------------------
-    csr_treduce,
-    csr_tfmastart,
-    csr_tconvsize,
-    csr_tconvctrl,
-    csr_tcoop,
-    csr_tmask,
-    csr_tquant,
-    //csr_tquant,
-    csr_texsend,
-    csr_terror,
-    csr_scpctrl,
-    csr_flbarrier,
-    csr_fccounter,
+    /* Esperanto user registers */
+    csr_tensor_reduce,
+    csr_tensor_fma,
+    csr_tensor_conv_size,
+    csr_tensor_conv_ctrl,
+    csr_tensor_coop,
+    csr_tensor_mask,
+    csr_tensor_quant,
+    csr_tex_send,
+    csr_tensor_error,
+    csr_scratchpad_ctrl,
+    csr_usr_cache_op,
+    csr_prefetch_va,
+    csr_flb0,
+    csr_fcc,
     csr_stall,
-    csr_ucacheop,
-    csr_twait,
-    csr_tloadctrl,
-    //csr_gscprog
-    csr_tloadl2ctrl,
-    csr_tstore,
-    csr_validation0,
-    csr_validation1,
-    csr_validation2,
-    csr_validation3,
-    csr_hartid,
-    csr_sleep_txfma_27,
+    csr_tensor_wait,
+    csr_tensor_load,
+    //csr_gsc_progress,
+    csr_tensor_load_l2,
+    csr_tensor_store,
+    csr_evict_va,
+    csr_flush_va,
     csr_umsg_port0, // TODO remove once everything is up to spec
     csr_umsg_port1, // TODO remove once everything is up to spec
     csr_umsg_port2, // TODO remove once everything is up to spec
     csr_umsg_port3, // TODO remove once everything is up to spec
+    csr_validation0,
+    csr_validation1,
+    csr_validation2,
+    csr_validation3,
+    csr_sleep_txfma_27,
+    csr_lock_va,
+    csr_unlock_va,
     csr_porthead0,
     csr_porthead1,
     csr_porthead2,
@@ -150,13 +150,8 @@ typedef enum {
     csr_portheadnb1,
     csr_portheadnb2,
     csr_portheadnb3,
-    csr_evict_va,
-    csr_flush_va,
-    csr_lock_va,
-    csr_unlock_va,
-    csr_prefetch_va,
-
-    // ----- S-mode registers ------------------------------------------------
+    csr_hartid,
+    /* RISCV supervisor registers */
     csr_sstatus,
     // csr_sedeleg,
     // csr_sideleg,
@@ -169,21 +164,19 @@ typedef enum {
     csr_stval,
     csr_sip,
     csr_satp,
-
-    // ----- S-mode ET registers ---------------------------------------------
-    csr_scacheop,
+    /* Esperanto supervisor registers */
+    csr_sys_cache_op,
     csr_evict_sw,
     csr_flush_sw,
-    csr_portctrl0,
-    csr_portctrl1,
-    csr_portctrl2,
-    csr_portctrl3,
     csr_smsg_port0, // TODO remove once everything is up to spec
     csr_smsg_port1, // TODO remove once everything is up to spec
     csr_smsg_port2, // TODO remove once everything is up to spec
     csr_smsg_port3, // TODO remove once everything is up to spec
-
-    // ----- M-mode registers ------------------------------------------------
+    csr_portctrl0,
+    csr_portctrl1,
+    csr_portctrl2,
+    csr_portctrl3,
+    /* RISCV machine registers */
     csr_mvendorid,
     csr_marchid,
     csr_mimpid,
@@ -216,8 +209,7 @@ typedef enum {
     // csr_mhpmevent3,
     // ...
     // csr_mhpmevent31,
-
-    // ----- debug registers -----------
+    /* RISCV debug registers */
     // csr_tselect,
     // csr_tdata1,
     // csr_tdata2,
@@ -226,10 +218,8 @@ typedef enum {
     // csr_tcontrol,
     // csr_dcsr,
     // csr_dpc,
-    // csr_dscratch0,
-    // csr_dscratch1,
-
-    // ----- M-mode ET registers ---------------------------------------------
+    // csr_dscratch,
+    /* Esperanto machine registers */
     csr_minstmask,
     csr_minstmatch,
     //csr_amofence_ctrl,
