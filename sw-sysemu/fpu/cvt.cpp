@@ -1,6 +1,6 @@
 #include <cmath>
 #include "cvt.h"
-#include "emu_casts.h"
+#include "fpu_casts.h"
 #include "softfloat/softfloat.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
@@ -12,11 +12,6 @@ template<typename T> T rshift(T v, unsigned int s) {
 }
 
 // FIXME: These conversion functions should set arithmetic flags
-
-float32_t float16tofloat32(uint16_t val)
-{
-    return f16_to_f32({ val });
-}
 
 float32_t float11tofloat32(uint16_t val)
 {
@@ -43,7 +38,7 @@ float32_t float11tofloat32(uint16_t val)
 
     //  Return zeros.
     if (zero)
-       return cast_uint32_to_float32(0);
+       return fpu::F32(0);
 
     //  Convert exponent and mantissa to float32_t.  Convert from excess 15 and convert to excess 127.
     if (infinite || nan)
@@ -86,7 +81,7 @@ float32_t float11tofloat32(uint16_t val)
     //  Assemble the float32_t value with the obtained sign, exponent and mantissa.
     output = (uint32_t(exponent & 0xff) << 23) | mantissa;
 
-    return cast_uint32_to_float32(output);
+    return fpu::F32(output);
 }
 
 float32_t float10tofloat32(uint16_t val)
@@ -114,7 +109,7 @@ float32_t float10tofloat32(uint16_t val)
 
     //  Return zeros.
     if (zero)
-       return cast_uint32_to_float32(0);
+       return fpu::F32(0);
 
     //  Convert exponent and mantissa to float32_t.  Convert from excess 15 and convert to excess 127.
     if (infinite || nan)
@@ -155,17 +150,7 @@ float32_t float10tofloat32(uint16_t val)
     //  Assemble the float32_t value with the obtained sign, exponent and mantissa.
     output = (uint32_t(exponent & 0xff) << 23) | mantissa;
 
-    return cast_uint32_to_float32(output);
-}
-
-uint16_t float32tofloat16(float32_t val)
-{
-    // convert input denormal to 0.0, preserving sign
-    if (expF32UI(val.v) == 0)
-        val.v &= 0x80000000;
-
-    float16_t rslt = f32_to_f16(val);
-    return rslt.v;
+    return fpu::F32(output);
 }
 
 uint16_t float32tofloat11(float32_t val)
@@ -179,7 +164,7 @@ uint16_t float32tofloat11(float32_t val)
     bool nan;
     bool zero;
 
-    inputAux = cast_float32_to_uint32(val);
+    inputAux = fpu::UI32(val);
 
     //  Disassemble float32_t value into sign, exponent and mantissa.
 
@@ -274,7 +259,7 @@ uint16_t float32tofloat10(float32_t val)
     bool nan;
     bool zero;
 
-    inputAux = cast_float32_to_uint32(val);
+    inputAux = fpu::UI32(val);
 
     //  Disassemble float32_t value into sign, exponent and mantissa.
 
@@ -360,97 +345,87 @@ uint16_t float32tofloat10(float32_t val)
 
 float32_t unorm24tofloat32(uint32_t val)
 {
-    iufval32 res;
     uint32_t maxrange = (1 << 24) - 1;
-    res.flt = float(val & 0xFFFFFF) / float(maxrange);
-    return res.f;
+    float res = float(val & 0xFFFFFF) / float(maxrange);
+    return fpu::F2F32(res);
 }
 
 float32_t unorm16tofloat32(uint16_t val)
 {
-    iufval32 res;
     uint32_t maxrange = (1 << 16) - 1;
-    res.flt = float(val & 0xFFFF) / float(maxrange);
-    return res.f;
+    float res = float(val & 0xFFFF) / float(maxrange);
+    return fpu::F2F32(res);
 }
 
 float32_t unorm10tofloat32(uint16_t val)
 {
-    iufval32 res;
     uint32_t maxrange = (1 << 10) - 1;
-    res.flt = float(val & 0x3FF) / float(maxrange);
-    return res.f;
+    float res = float(val & 0x3FF) / float(maxrange);
+    return fpu::F2F32(res);
 };
 
 float32_t unorm8tofloat32(uint8_t val)
 {
-    iufval32 res;
     uint32_t maxrange = (1 << 8 ) - 1;
-    res.flt = float(val & 0xFF) / float(maxrange);
-    return res.f;
+    float res = float(val & 0xFF) / float(maxrange);
+    return fpu::F2F32(res);
 }
 
 float32_t unorm2tofloat32(uint8_t val)
 {
-    iufval32 res;
     uint32_t maxrange = (1 << 2) - 1;
-    res.flt = float(val & 0x3) / float(maxrange);
-    return res.f;
+    float res = float(val & 0x3) / float(maxrange);
+    return fpu::F2F32(res);
 };
 
 float32_t snorm24tofloat32(uint32_t val)
 {
-    iufval32 res;
     if (val == (1 << 23)) val = (1 << 23) + 1;
     int sign = ((val & 0x00800000) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x007fffff;
     uint32_t maxrange = (1 << 23) - 1;
-    res.flt = float(sign) * (float(value) / float(maxrange));
-    return res.f;
+    float res = float(sign) * (float(value) / float(maxrange));
+    return fpu::F2F32(res);
 }
 
 float32_t snorm16tofloat32(uint16_t val)
 {
-    iufval32 res;
     if (val == (1 << 15)) val = (1 << 15) + 1;
     int sign = ((val & 0x00008000) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00007fff;
     uint32_t maxrange = (1 << 15) - 1;
-    res.flt = float(sign) * (float(value) / float(maxrange));
-    return res.f;
+    float res = float(sign) * (float(value) / float(maxrange));
+    return fpu::F2F32(res);
 }
 
 float32_t snorm10tofloat32(uint16_t val)
 {
-    iufval32 res;
     if (val == (1 << 9)) val = (1 << 9) + 1;
     int sign = ((val & 0x000200) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000001ff;
     uint32_t maxrange = (1 << 9) - 1;
-    res.flt = float(sign) * (float(value) / float(maxrange));
-    return res.f;
+    float res = float(sign) * (float(value) / float(maxrange));
+    return fpu::F2F32(res);
 }
 
 float32_t snorm8tofloat32(uint8_t val)
 {
-    iufval32 res;
     if (val == (1 << 7)) val = (1 << 7) + 1;
     int sign = ((val & 0x000080) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000007f;
     uint32_t maxrange = (1 << 7) - 1;
-    res.flt = float(sign) * (float(value) / float(maxrange));
-    return res.f;
+    float res = float(sign) * (float(value) / float(maxrange));
+    return fpu::F2F32(res);
 }
 
 float32_t snorm2tofloat32(uint8_t val)
 {
-    iufval32 res;
     if (val == (1 << 1)) val = (1 << 1) + 1;
     int sign = ((val & 0x00000002) == 0) ? 1 : -1;
     uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00000001;
     uint32_t maxrange = (1 << 1) - 1;
-    res.flt = float(sign) * (float(value) / float(maxrange));
-    return res.f;
+    float res = float(sign) * (float(value) / float(maxrange));
+    return fpu::F2F32(res);
 }
 
 uint32_t float32tounorm24(float32_t val)
@@ -462,7 +437,7 @@ uint32_t float32tounorm24(float32_t val)
         return 0x00000000;
     else {
         uint32_t delta = (1 << 24) - 1;
-        double ratio = double(cast_float32_to_float(val)) * double(delta);
+        double ratio = double(fpu::FLT(val)) * double(delta);
         return uint32_t(ratio + 0.5f);
     }
 }
@@ -476,7 +451,7 @@ uint16_t float32tounorm16(float32_t val)
         return 0x0000;
     else {
         uint32_t delta = (1 << 16) - 1;
-        double ratio = double(cast_float32_to_float(val)) * double(delta);
+        double ratio = double(fpu::FLT(val)) * double(delta);
         return uint16_t(ratio + 0.5f);
     }
 }
@@ -490,7 +465,7 @@ uint16_t float32tounorm10(float32_t val)
         return 0x0000;
     else {
         uint32_t delta = (1 << 10) - 1;
-        double ratio = double(cast_float32_to_float(val)) * double(delta);
+        double ratio = double(fpu::FLT(val)) * double(delta);
         return uint16_t(ratio + 0.5f);
     }
 }
@@ -504,7 +479,7 @@ uint8_t float32tounorm8(float32_t val)
         return 0x00;
     else {
         uint32_t delta = (1 << 8) - 1;
-        double ratio = double(cast_float32_to_float(val)) * double(delta);
+        double ratio = double(fpu::FLT(val)) * double(delta);
         return uint8_t(ratio + 0.5f);
     }
 }
@@ -518,7 +493,7 @@ uint8_t float32tounorm2(float32_t val)
         return 0x00;
     else {
         uint32_t delta = (1 << 2) - 1;
-        double ratio = double(cast_float32_to_float(val)) * double(delta);
+        double ratio = double(fpu::FLT(val)) * double(delta);
         return uint8_t(ratio + 0.5f);
     }
 }
@@ -531,7 +506,7 @@ uint32_t float32tosnorm24(float32_t val)
     else if (val.v >= 0xbf800000)
         return 0x00800001;
     else {
-        float int_val = round(cast_float32_to_float(val) * float((1 << 23) - 1));
+        float int_val = round(fpu::FLT(val) * float((1 << 23) - 1));
         int32_t res = int32_t(int_val);
         return uint32_t(res & 0x00ffffff);
     }
@@ -545,7 +520,7 @@ uint16_t float32tosnorm16(float32_t val)
     else if (val.v >= 0xbf800000)
         return 0x8001;
     else {
-        float int_val = round(cast_float32_to_float(val) * float((1 << 15) - 1));
+        float int_val = round(fpu::FLT(val) * float((1 << 15) - 1));
         int32_t res = int32_t(int_val);
         return uint16_t(res & 0x0000ffff);
     }
@@ -559,7 +534,7 @@ uint8_t float32tosnorm8(float32_t val)
     else if (val.v >= 0xbf800000)
         return 0x81;
     else {
-        float int_val = round(cast_float32_to_float(val) * float((1 << 7) - 1));
+        float int_val = round(fpu::FLT(val) * float((1 << 7) - 1));
         int32_t res = int32_t(int_val);
         return uint8_t(res & 0x000000ff);
     }

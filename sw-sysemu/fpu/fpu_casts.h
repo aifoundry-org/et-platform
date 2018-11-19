@@ -1,8 +1,8 @@
 #ifndef _FPU_CASTS_H
 #define _FPU_CASTS_H
 
-#include <fpu_types.h>
-#include <softfloat/internals.h>
+#include "fpu_types.h"
+#include "softfloat/internals.h"
 
 union ui16_f11 { uint16_t ui; float11_t f; };
 union ui16_f10 { uint16_t ui; float10_t f; };
@@ -31,17 +31,11 @@ namespace fpu {
         return uZ.f;
     }
 
-    union float_f32
-    {
-        float     f;
-        float32_t f32;
-    };
-
     static inline float32_t F2F32(float x)
     {
-        float_f32 uZ;
-        uZ.f = x;
-        return uZ.f32;
+        union { float32_t f; float flt; } uZ;
+        uZ.flt = x;
+        return uZ.f;
     }
 
     static inline float16_t F16(uint16_t x)
