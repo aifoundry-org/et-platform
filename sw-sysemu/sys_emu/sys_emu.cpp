@@ -813,6 +813,11 @@ int main(int argc, char * argv[])
                     if(do_log) { printf("Minion %i.%i.%i: Going to sleep (WFI)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
                     thread = enabled_threads.erase(thread);
                 }
+                else if(inst->get_is_stall() && !reduce_wait)
+                {
+                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep (CSR STALL)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
+                    thread = enabled_threads.erase(thread);
+                }
                 else
                 {
                     thread++;
