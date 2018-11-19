@@ -4,6 +4,8 @@
 #include "checker.h"
 #include "emu_casts.h"
 #include "emu.h"
+#include "insn.h"
+#include "common/riscv_disasm.h"
 
 #define TBOX_REGION_START 0xFFF80000
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
@@ -229,12 +231,9 @@ void checker::ipi_pc(uint32_t thread, uint64_t pc)
     current_pc[thread] = pc;
 }
 
-checker_result checker::do_reduce(uint32_t thread, instruction * inst, int * wake_minion)
+checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_minion)
 {
     uint64_t other_min, action;
-    // Gets the source used for the reduce
-    uint64_t src1 = (xreg) inst->get_param(2);
-    uint64_t value = xget(src1);
 
     get_reduce_info(value, &other_min, &action);
 
@@ -314,7 +313,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
     set_thread(thread);
     setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
 
-    instruction * inst = nullptr;
+    insn_t inst;
 
     // As trapped instructions do not retire in the minion, we need to keep
     // executing until the first non-trapping instruction.  We do this by
@@ -329,7 +328,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             clearlogstate();
             // Fetch new instruction (may trap)
             set_pc(current_pc[thread]);
-            inst = get_inst();
+            inst.fetch_and_decode(current_pc[thread]);
 
             // Write any pending port data before executing the next instruction
             update_msg_port_data();
@@ -339,14 +338,16 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             //     otherwise the sender thread could advance and update the VRF contents
             //   - The thread that is the receiver has to wait until the sender is also in the reduce
             //     operation
-            if(inst->get_is_reduce())
+            if(inst.is_reduce())
             {
-                checker_result res = do_reduce(thread, inst, wake_minion);
+                // Gets the source used for the reduce
+                uint64_t value = xget(inst.rs1());
+                checker_result res = do_reduce(thread, value, wake_minion);
                 if(res == CHECKER_WAIT) return CHECKER_WAIT;
             }
 
             // Execute the instruction (may trap)
-            inst->exec();
+            inst.execute();
             retry = false;
         }
         catch (const trap_t& t)
@@ -382,8 +383,10 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         log << LOG_DEBUG << "EMU changes: " << tmp_state_change << endm;
         log << LOG_DEBUG << "RTL changes: " << (*changes) << endm;
 #endif
+        char insn_disasm[128];
+        riscv_disasm(insn_disasm, 128, inst.bits);
         std::ostringstream stream;
-        stream << "Checker Mismatch @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << inst->get_mnemonic() << ") -> ";
+        stream << "Checker Mismatch @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << insn_disasm << ") -> ";
 
         error_msg = "";
         // Check PC
@@ -394,16 +397,16 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             if(emu_state_change.pc_mod)
                current_pc[thread] = emu_state_change.pc;
             else
-               current_pc[thread] += inst->get_size();
+               current_pc[thread] += inst.size();
             // don't check anything else when PC mismatches... everything would mismatch
             return CHECKER_ERROR;
         }
 
         // Instruction bits -- the RTL monitor shows the uncompressed version of the instruction always,
         // while bemu shows the original instruction bits, so we cannot really compare them here
-        /*if(changes->inst_bits != inst->get_enc())
+        /*if(changes->inst_bits != inst.bits)
         {
-            stream << "Inst error. Expected inst is 0x" << std::hex << inst->get_enc() << " but provided is 0x" << changes->inst_bits << std::dec << std::endl;
+            stream << "Inst error. Expected inst is 0x" << std::hex << inst.bits << " but provided is 0x" << changes->inst_bits << std::dec << std::endl;
             error_msg += stream.str();
             check_res = CHECKER_ERROR;
         }*/
@@ -425,40 +428,40 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             }
 
             // Check if we just read a cycle register, in which case the RTL drives value
-            if (inst->get_is_csr_read() && ((inst->get_param(1) == csr_cycle  )||
-                                            (inst->get_param(1) == csr_mcycle )))
+            if (inst.is_csr_read() && ((get_csr_enum(inst.csrimm()) == csr_cycle  )||
+                                       (get_csr_enum(inst.csrimm()) == csr_mcycle )))
             {
-                log << LOG_INFO << "CYCLE CSR value (" << inst->get_mnemonic() << ")" << endm;
+                log << LOG_INFO << "CYCLE CSR value (" << insn_disasm << ")" << endm;
                 emu_state_change.int_reg_data = changes->int_reg_data;
-                init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
+                init(inst.rd(), emu_state_change.int_reg_data);
             }
 
             // Check if it is an AMO (special case where RTL drives value)
-            if(inst->get_is_amo() && (emu_state_change.int_reg_rd != 0))
+            if(inst.is_amo() && (emu_state_change.int_reg_rd != 0))
             {
-                log << LOG_INFO << "AMO value (" << inst->get_mnemonic() << ")" << endm;
+                log << LOG_INFO << "AMO value (" << insn_disasm << ")" << endm;
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
-                init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
+                init(inst.rd(), emu_state_change.int_reg_data);
             }
 
             // Check if it is an Fast Local Barrier (special case where RTL drives value)
-            if(inst->get_is_flb() && (emu_state_change.int_reg_rd != 0))
+            if(inst.is_flb() && (emu_state_change.int_reg_rd != 0))
             {
-                log << LOG_INFO << "FastLocalBarrier value (" << inst->get_mnemonic() << ")" << endm;
+                log << LOG_INFO << "FastLocalBarrier value (" << insn_disasm << ")" << endm;
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
-                init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
+                init(inst.rd(), emu_state_change.int_reg_data);
             }
 
             // NB: the BEMU memread functions put the *physical* address used by the load into mem_addr without setting mem_mod so we can
             // check for TBOX accesses here.
-            if(inst->get_is_load() && (emu_state_change.mem_addr[0] >= TBOX_REGION_START) && (emu_state_change.mem_addr[0] < TBOX_REGION_END))
+            if(inst.is_load() && (emu_state_change.mem_addr[0] >= TBOX_REGION_START) && (emu_state_change.mem_addr[0] < TBOX_REGION_END))
             {
-                log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
+                log << LOG_INFO << "Access to tbox (" << insn_disasm << ")" << endm;
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
-                init((xreg) inst->get_param(0), emu_state_change.int_reg_data);
+                init(inst.rd(), emu_state_change.int_reg_data);
             }
 
             // Writes to X0/Zero are ignored
@@ -489,17 +492,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 check_res = CHECKER_ERROR;
             }
 
-            if( inst->get_is_texrcv() && get_mask(0) )
-            {
-              log << LOG_INFO << "Access to tbox (" << inst->get_mnemonic() << ")" << endm;
-              // send the data to the tbox monitor, to check this is actually the data sent from the tbox
-              unsigned wordIdx = inst->get_param(1);
-              texrec(thread >> 1, thread &1,(const uint8_t*) emu_state_change.fp_reg_data, wordIdx,  get_mask(0));
-            }
-
             for(int i = 0; i < (VL/2); i++)
             {
-              if(inst->get_is_1ulp())
+              if(inst.is_1ulp())
               {
                 bool errlo = !fp_1ulp_check(emu_state_change.fp_reg_data[i] & 0xFFFFFFFF, changes->fp_reg_data[i] & 0xFFFFFFFF);
                 bool errhi = !fp_1ulp_check(emu_state_change.fp_reg_data[i] >> 32, changes->fp_reg_data[i] >> 32);
@@ -623,7 +618,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 uint64_t rtl_mem_data = changes->mem_data[i] & mem_mask(changes->mem_size[i]);
                 uint64_t emu_mem_data = emu_state_change.mem_data[i] & mem_mask(changes->mem_size[i]);
                 // Atomic instructions are not checked currently
-                if((rtl_mem_data != emu_mem_data) && !inst->get_is_amo())
+                if((rtl_mem_data != emu_mem_data) && !inst.is_amo())
                 {
                     stream << "Memory write data error (" << i << "). Expected data is 0x" << std::hex << emu_mem_data << " but provided is 0x" << rtl_mem_data << std::dec << std::endl;
                     error_msg += stream.str();
@@ -633,7 +628,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         }
 
         // TensorLoad
-        if(inst->get_is_tensor_load())
+        if(inst.is_tensor_load())
         {
             int entry;
             int size;
@@ -687,7 +682,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         }
 
         // TensorFMA
-        if(inst->get_is_tensor_fma())
+        if(inst.is_tensor_fma())
         {
             int size;
             int passes;
@@ -746,7 +741,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         }
 
         // TensorQuant
-        if(inst->get_is_tensor_quant())
+        if(inst.is_tensor_quant())
         {
             int size;
             int transforms;
@@ -809,7 +804,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         }
 
         // Reduce
-        if(inst->get_is_reduce())
+        if(inst.is_reduce())
         {
             int size;
             int start_entry;
@@ -858,7 +853,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
     if(emu_state_change.pc_mod)
        current_pc[thread] = emu_state_change.pc;
     else
-       current_pc[thread] += inst->get_size();
+       current_pc[thread] += inst.size();
 
     return check_res;
 }

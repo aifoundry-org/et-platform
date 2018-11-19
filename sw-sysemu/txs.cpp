@@ -9,7 +9,7 @@
 #include "emu.h"
 #include "log.h"
 #include "ipc.h"
-#include "fpu.h"
+#include "fpu/fpu.h"
 #include "emu_gio.h"
 #include "emu_casts.h"
 

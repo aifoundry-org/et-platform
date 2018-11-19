@@ -2,14 +2,15 @@
 #include <cstdio>
 #include <cstdint>
 
+#include "fpu_casts.h"
+#include "softfloat/internals.h"
+#include "softfloat/specialize.h"
+
 #include "trcp.h"
 #include "trsqrt.h"
 #include "tlog.h"
 #include "texp.h"
 #include "tsin.h"
-#include "emu_casts.h"
-#include "softfloat/internals.h"
-#include "softfloat/specialize.h"
 
 // FRCP   (input bit [31:0] x);      // ROM: ready!
 // FRSQ   (input bit [31:0] x);      // ROM: ready!
@@ -475,9 +476,7 @@ uint32_t ttrans_fexp2(uint32_t val)
 
 uint32_t ttrans_sin_convert(uint32_t ux)
 {
-    iufval32 tmp;
-    tmp.u = ux;
-    float x = tmp.flt;
+    float x = fpu::FLT(ux);
     double filler;
     float y = (float)modf(x, &filler);
 
@@ -513,8 +512,7 @@ uint32_t ttrans_sin_convert(uint32_t ux)
 
     ////printf("[SIN TRANS] O: 0x%08x (%.10f)\tR: 0x%08x (%.10f)\n", *((uint32_t*)&x), x, *((uint32_t*)&y), y);
 
-    tmp.flt = y;
-    return tmp.u;
+    return fpu::UI32(y);
 }
 
 uint32_t ttrans_fsin(uint32_t val)

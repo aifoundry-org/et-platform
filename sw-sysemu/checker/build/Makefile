@@ -6,6 +6,7 @@ ifndef TESTROOT
 endif
 
 SRCS := $(BEMU)/checker/checker.cpp \
+        $(BEMU)/common/riscv_disasm.cpp \
         $(BEMU)/common/main_memory.cpp \
         $(BEMU)/common/main_memory_region.cpp \
         $(BEMU)/common/main_memory_region_atomic.cpp \
@@ -21,7 +22,7 @@ DEPS := $(addsuffix .d,$(basename $(OBJS)))
 CC	 := gcc
 CXX 	 := g++
 CPPFLAGS := -I$(BEMU) -I$(BEMU)/checker -I$(TESTROOT)/libs
-CXXFLAGS := -MMD -Wall -Werror -fPIC -std=c++11 -g -O2
+CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -std=c++11 -g -O2
 LDFLAGS  := -shared
 LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
 
@@ -43,7 +44,7 @@ libemu_clean:
 
 .PHONY: clean
 clean: libemu_clean
-	$(RM) sys_emu *.o *.d
+	$(RM) *.so *.a *.o *.d
 
 libchecker.so: $(OBJS) | libemu_all
 	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@

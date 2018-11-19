@@ -5,7 +5,9 @@ logLevel testLog::globalLogLevel_ = LOG_DEBUG;
 logLevel testLog::defaultLogLevel_ = LOG_INFO;
 bool testLog::logLevelsSet_ = false;
 unsigned testLog::errors_ = 0;
-unsigned testLog::maxErrors_ = (unsigned) -1;
+
+// set maxErrors_ to 1 because sys_emu does not use testMain/testBase
+unsigned testLog::maxErrors_ = 1u;
 
 // nearly empty implementation of testLog functions, that only make sense in RTL simulations
 
