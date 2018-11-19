@@ -2572,10 +2572,7 @@ static void csrset(csr src1, uint64_t val)
                m_emu_done = true;
             }
             // Ignore carriage return
-            if ((char) val == 13)
-            {
-               break;
-            }
+            if ((char) val == 13) break;
             if ((char) val != '\n') buf[buflen++] = (char) val;
             // If line feed or buffer full, flush to stdout
             if (((char) val == '\n') || (buflen == 64))
