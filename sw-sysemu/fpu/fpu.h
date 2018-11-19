@@ -1,7 +1,7 @@
 #ifndef _FPU_H
 #define _FPU_H
 
-#include <fpu_types.h>
+#include "fpu_types.h"
 
 namespace fpu {
 
@@ -103,11 +103,11 @@ namespace fpu {
     float32_t un8_to_f32(uint8_t);
     float32_t un2_to_f32(uint8_t);
 
+    float32_t sn24_to_f32(uint32_t);
     float32_t sn16_to_f32(uint16_t);
+    float32_t sn10_to_f32(uint16_t);
     float32_t sn8_to_f32(uint8_t);
-    //float32_t sn24_to_f32(uint32_t);
-    //float32_t sn10_to_f32(uint16_t);
-    //float32_t sn2_to_f32(uint8_t);
+    float32_t sn2_to_f32(uint8_t);
 
     // Graphics additional
 

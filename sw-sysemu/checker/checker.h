@@ -7,7 +7,6 @@
 
 // Local
 #include "common/main_memory.h"
-#include "instruction.h"
 #include "log.h"
 
 extern uint8_t checker_memread8(uint64_t addr);
@@ -72,7 +71,7 @@ class checker
 
         void update_fcsr_flags(unsigned minionId, unsigned flags);
     private:
-        checker_result do_reduce(uint32_t thread, instruction * inst, int * wake_thread);
+        checker_result do_reduce(uint32_t thread, uint64_t value, int * wake_thread);
         void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
 
         uint64_t                      current_pc[EMU_NUM_THREADS];         // Current PC

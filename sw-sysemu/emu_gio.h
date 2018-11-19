@@ -14,7 +14,7 @@
 
 #ifdef DEBUG_MASK
 #undef DEBUG_MASK
-#define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02x\n",MASK2BYTE(_MR));
+#define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02x",MASK2BYTE(_MR));
 #else
 #define DEBUG_MASK(a)
 #endif

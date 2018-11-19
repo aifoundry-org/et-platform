@@ -5,7 +5,9 @@
 #include <exception>
 
 #include "emu.h"
+#include "insn.h"
 #include "common/main_memory.h"
+#include "common/riscv_disasm.h"
 #include "log.h"
 #include "net_emulator.h"
 #include "rboxSysEmu.h"
@@ -199,13 +201,15 @@ static bool parse_mem_file(const char * filename, main_memory * memory, testLog&
 // Instruction log
 ////////////////////////////////////////////////////////////////////////////////
 
-static void print_inst_log(instruction * inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
+static void print_inst_log(const insn_t& inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
 {
+    char insn_disasm[128];
+    riscv_disasm(insn_disasm, 128, inst.bits);
     printf("Minion %" PRIu64 ".%" PRIu64 ".%" PRIu64 ": PC %08" PRIx64 " (inst bits %08" PRIx32 "), mnemonic %s\n",
            minion / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION),
            (minion / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE,
            minion % EMU_THREADS_PER_MINION, current_pc,
-           inst->get_enc(), inst->get_mnemonic().c_str());
+           inst.bits, insn_disasm);
 }
 
 // Returns current thread
@@ -278,7 +282,7 @@ size_t split(const std::string &txt, std::vector<std::string> &strs, char ch = '
 
    return strs.size();
 }
-                   
+
 bool process_dbg_cmd(std::string cmd) {
    bool prompt = true;
    std::vector<std::string> command;
@@ -342,7 +346,7 @@ bool get_pc_break() {
       for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
       {
          if (((minions_en >> m) & 1) == 0) continue;
-         for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {            
+         for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
             thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
             if ( std::find(pc_breakpoints.begin(), pc_breakpoints.end(), current_pc[thread_id]) != pc_breakpoints.end() ) {
                return true;
@@ -408,7 +412,7 @@ int main(int argc, char * argv[])
             sscanf(argv[i], "%" PRIx64, &shires_en);
             shires = 0;
         }
-        else if(reset_pc_flag) 
+        else if(reset_pc_flag)
         {
           sscanf(argv[i], "%" PRIx64, &reset_pc);
           reset_pc_flag = false;
@@ -563,7 +567,7 @@ int main(int argc, char * argv[])
     // end initialize rboxes-------------------------------
 
     // initialize ports-----------------------------------
-    
+
     // end initialize ports-------------------------------
 
     // Generates the mask of enabled minions
@@ -582,7 +586,7 @@ int main(int argc, char * argv[])
           if (((minions_en >> m) & 1) == 0) continue;
 
           // Inits threads
-          for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {            
+          for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
              thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
              if (dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
              current_pc[thread_id] = reset_pc;
@@ -598,10 +602,7 @@ int main(int argc, char * argv[])
        }
     }
 
-
-
-    
-    instruction * inst;
+    insn_t inst;
     uint64_t emu_cycle = 0;
 
     bool rboxes_done = false;
@@ -628,7 +629,6 @@ int main(int argc, char * argv[])
             }
         }
 
-        
 #ifdef SYSEMU_DEBUG
         if ((debug == true) && ((get_pc_break() == true) || (steps == 0))) {
            bool retry = false;
@@ -640,7 +640,7 @@ int main(int argc, char * argv[])
               try {
                  prompt = process_dbg_cmd(line);
                  retry = false;
-              } 
+              }
               catch (const std::exception& e)
               {
                  printf("\nError parsing command. Please retry\n\n");
@@ -674,18 +674,17 @@ int main(int argc, char * argv[])
                 clearlogstate();
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
-                inst = get_inst();
+                inst.fetch_and_decode(current_pc[thread_id]);
                 if(do_log)
                     print_inst_log(inst, thread_id, current_pc[thread_id], emu_state_change);
 
                 // In case of reduce, we need to make sure that the other minion is also in reduce state
                 bool reduce_wait = false;
-                if(inst->get_is_reduce())
+                if(inst.is_reduce())
                 {
                     uint64_t other_min, action;
                     // Gets the source used for the reduce
-                    uint64_t src1 = (xreg) inst->get_param(2);
-                    uint64_t value = xget(src1);
+                    uint64_t value = xget(inst.rs1());
                     get_reduce_info(value, &other_min, &action);
                     // Sender
                     if(action == 0)
@@ -733,7 +732,7 @@ int main(int argc, char * argv[])
                 // Executes the instruction
                 if(!reduce_wait)
                 {
-                    inst->exec();
+                    inst.execute();
 
                     if (get_msg_port_stall(thread_id, 0) ){
                         thread = enabled_threads.erase(thread);
@@ -745,7 +744,7 @@ int main(int argc, char * argv[])
                         if(emu_state_change.pc_mod) {
                             current_pc[thread_id] = emu_state_change.pc;
                         } else {
-                            current_pc[thread_id] += inst->get_size();
+                            current_pc[thread_id] += inst.size();
                         }
 
                         // Checks for ESR writes
@@ -772,7 +771,7 @@ int main(int argc, char * argv[])
                 }
 
                 // Thread is going to sleep
-                if(inst->get_is_fcc() && !reduce_wait)
+                if(inst.is_fcc() && !reduce_wait)
                 {
                     if(do_log) { printf("Minion %i.%i.%i: Going to sleep (FCC)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
                     int old_thread = *thread;
@@ -787,12 +786,12 @@ int main(int argc, char * argv[])
                         pending_fcc.erase(fcc);
                     }
                 }
-                else if(inst->get_is_wfi() && !reduce_wait)
+                else if(inst.is_wfi() && !reduce_wait)
                 {
                     if(do_log) { printf("Minion %i.%i.%i: Going to sleep (WFI)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
                     thread = enabled_threads.erase(thread);
                 }
-                else if(inst->get_is_stall() && !reduce_wait)
+                else if(inst.is_stall() && !reduce_wait)
                 {
                     if(do_log) { printf("Minion %i.%i.%i: Going to sleep (CSR STALL)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
                     thread = enabled_threads.erase(thread);

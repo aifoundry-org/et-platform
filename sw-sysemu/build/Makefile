@@ -6,22 +6,22 @@ ifndef TESTROOT
 endif
 
 SRCS := $(BEMU)/emu.cpp \
-        $(BEMU)/fpu.cpp \
-        $(BEMU)/cvt.cpp \
+        $(BEMU)/fpu/fpu.cpp \
+        $(BEMU)/fpu/cvt.cpp \
         $(BEMU)/txs.cpp \
-        $(BEMU)/ttrans.cpp \
+        $(BEMU)/fpu/ttrans.cpp \
         $(BEMU)/tbox_emu.cpp \
         $(BEMU)/log.cpp \
         $(BEMU)/ipc.cpp \
         $(BEMU)/emu_gio.cpp \
-        $(BEMU)/instruction_cache.cpp \
-        $(BEMU)/instruction.cpp
+        $(BEMU)/insn_dec_func.cpp \
+        $(BEMU)/insn_exec_func.cpp
 
 include softfloat.mk
 SRCS += $(softfloat_c_srcs)
 
 vpath %.cpp $(BEMU)
-vpath %.cc  $(TESTROOT)/libs
+vpath %.cpp $(BEMU)/fpu
 vpath %.c   $(BEMU)/softfloat
 
 OBJS := $(addsuffix .o,$(basename $(notdir $(SRCS))))
@@ -29,8 +29,8 @@ DEPS := $(addsuffix .d,$(basename $(OBJS)))
 
 AR       := ar
 CC       := gcc
-CXX 	:= g++
-ARFLAGS 	:= rvs
+CXX      := g++
+ARFLAGS  := rvs
 CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs
 CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
@@ -39,7 +39,6 @@ LDFLAGS  := -shared
 
 # FIXME: Remove the following when we convert everything away from C++ floats
 CXXFLAGS += -mf16c -fno-fast-math
-
 
 .PHONY: all
 ifdef LIBEMU_STATIC
@@ -50,10 +49,7 @@ endif
 
 .PHONY: clean
 clean:
-	$(RM) libemu.a libemu.so *.o *.d
-
-testLog.o: $(TESTROOT)/libs/testLog.cc
-	$(COMPILE.cc) -DCHECKER $(OUTPUT_OPTION) $<
+	$(RM) libemu.{a,so} *.o *.d
 
 libemu.so: $(OBJS)
 	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@

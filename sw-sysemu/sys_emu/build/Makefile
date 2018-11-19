@@ -12,6 +12,7 @@ SRCS := $(BEMU)/sys_emu/net_emulator.cpp \
         $(BEMU)/sys_emu/rboxSysEmu.cpp \
         $(BEMU)/sys_emu/sys_emu.cpp \
         $(BEMU)/sys_emu/sys_emu_log.cpp \
+        $(BEMU)/common/riscv_disasm.cpp \
         $(BEMU)/common/main_memory.cpp \
         $(BEMU)/common/main_memory_region.cpp \
         $(BEMU)/common/main_memory_region_atomic.cpp \
@@ -29,8 +30,8 @@ DEPS := $(addsuffix .d,$(basename $(OBJS)))
 CC	 := gcc
 CXX 	 := g++
 CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include
-CXXFLAGS := -MMD -Wall -Werror -std=c++11 -g -O2
-LDLIBS   := -lboost_regex -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
+CXXFLAGS := -MMD -MP -Wall -Werror -std=c++11 -g -O2
+LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
 
 ifdef SYSEMU_DEBUG
    CXXFLAGS += -DSYSEMU_DEBUG
