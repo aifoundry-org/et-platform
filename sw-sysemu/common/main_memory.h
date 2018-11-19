@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 // Local
+#include "elfio/elfio.hpp"
 #include "main_memory_region.h"
 #include "main_memory_region_rbox.h"
 
@@ -28,6 +29,7 @@ class main_memory
 
        // load file contents into memory
        bool load_file(std::string filename, uint64_t ad, unsigned buf_size = 256);
+       bool load_elf(std::string filename);
 
        // dump memory contents into file
        bool dump_file(std::string filename, uint64_t ad, uint64_t size, unsigned buf_size = 256);

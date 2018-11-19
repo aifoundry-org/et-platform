@@ -5,6 +5,7 @@
 #include "main_memory_region_printf.h"
 
 using namespace std;
+using namespace ELFIO;
 
 // Constructor
 main_memory::main_memory(std::string logname, enum logLevel log_level)
@@ -201,7 +202,12 @@ bool main_memory::new_region(uint64_t base, uint64_t size, int flags)
    // Regions are always multiple of cache lines
    top  = ((base + size + CACHE_LINE_SIZE - 1) & CACHE_LINE_MASK) - 1;
    base = base & CACHE_LINE_MASK;
+
+   while (find(regions_.begin(), regions_.end(), base) != regions_.end()) base += CACHE_LINE_SIZE;
+   while (find(regions_.begin(), regions_.end(), top)  != regions_.end()) top  -= CACHE_LINE_SIZE;
+
    size = top - base + 1;
+   if (size <= 0) return false;
 
    log << LOG_DEBUG << "new_region(base=0x" << std::hex << base << ", size=0x" << size << ", top=0x" << top << ")" << endm;
    unsigned overlap = std::count(regions_.begin(), regions_.end(), base)
@@ -238,6 +244,49 @@ bool main_memory::load_file(std::string filename, uint64_t ad, unsigned buf_size
    } while (size > 0);
 
    delete [] buf;
+   return  true;
+}
+
+bool main_memory::load_elf(std::string filename)
+{
+   elfio reader;
+
+   // Load ELF data
+   if (!reader.load(filename)) {
+      log << LOG_FTL << "cannot open ELF file " << filename << endm;
+      return false;
+   }
+
+   Elf_Half seg_num = reader.segments.size();
+   for (int i = 0; i < seg_num; ++i) {
+      const segment* pseg = reader.segments[i];
+      bool load = pseg->get_type() & PT_LOAD;
+      log << LOG_INFO << "Segment[" << i << "] VA: 0x"
+                      << std::hex <<  pseg->get_virtual_address()
+                      << "\tType: 0x" << pseg->get_type()
+                      << (load ? " (LOAD)" : "") << endm;
+
+      for (int j = 0; j < pseg->get_sections_num(); ++j) {
+         const section* psec = reader.sections[pseg->get_section_index_at(j)];
+         bool alloc = psec->get_flags() & SHF_ALLOC;
+
+         log << LOG_INFO << "\tSection[" << j << "] "
+                         << psec->get_name() << std::hex
+                         << "\tVA: 0x" << psec->get_address()
+                         << "\tSize: 0x" << psec->get_size()
+                         << "\tType: 0x" << psec->get_type()
+                         << "\tFlags: 0x" << psec->get_flags()
+                         << (alloc ? " (ALLOC)" : "") << endm;
+         if (psec->get_size() != 0) {
+            if (alloc == true) {
+               new_region(psec->get_address(), psec->get_size());
+            }
+            if ((load == true) && (psec->get_type() != SHT_NOBITS)) {
+               write(psec->get_address(), psec->get_size(), (void*)psec->get_data());
+            }
+         }
+      }
+   }
    return  true;
 }
 

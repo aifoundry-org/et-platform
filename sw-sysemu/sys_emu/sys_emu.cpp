@@ -165,7 +165,7 @@ static bool queryMsgPort(uint32_t current_thread,  uint32_t port_id)
 static bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
 {
     FILE * file = fopen(filename, "r");
-    if(file == NULL)
+    if (file == NULL)
     {
         log << LOG_FTL << "Parse Mem File Error -> Couldn't open file " << filename << " for reading!!" << endm;
     }
@@ -174,7 +174,7 @@ static bool parse_mem_file(const char * filename, main_memory * memory, testLog&
     char buffer[1024];
     char * buf_ptr = (char *) buffer;
     size_t buf_size = 1024;
-    while(getline(&buf_ptr, &buf_size, file) != -1)
+    while (getline(&buf_ptr, &buf_size, file) != -1)
     {
         uint64_t base_addr;
         uint64_t size;
@@ -188,6 +188,11 @@ static bool parse_mem_file(const char * filename, main_memory * memory, testLog&
         {
             memory->load_file(str, base_addr);
             log << LOG_INFO << "New File Load found: @ 0x" << std::hex << base_addr << std::dec << endm;
+        }
+        else if(sscanf(buffer, "ELF Load: %s", str) == 1)
+        {
+            memory->load_elf(str);
+            log << LOG_INFO << "New ELF Load found: " << str << endm;
         }
     }
     // Closes the file
@@ -364,8 +369,10 @@ int main(int argc, char * argv[])
     // Logger
     testLog log("System EMU", LOG_DEBUG);
 
+    char * elf_file      = NULL;
     char * mem_desc_file = NULL;
     char * net_desc_file = NULL;
+    bool elf             = false;
     bool mem_desc        = false;
     bool net_desc        = false;
     bool minions         = false;
@@ -388,7 +395,12 @@ int main(int argc, char * argv[])
 
     for(int i = 1; i < argc; i++)
     {
-        if(mem_desc)
+        if (elf)
+        {
+            elf = false;
+            elf_file = argv[i];
+        }
+        else if(mem_desc)
         {
             mem_desc = false;
             mem_desc_file = argv[i];
@@ -432,6 +444,10 @@ int main(int argc, char * argv[])
         {
             log_min = atoi(argv[i]);
             dump = 0;
+        }
+        else if(strcmp(argv[i], "-elf") == 0)
+        {
+            elf = true;
         }
         else if(strcmp(argv[i], "-mem_desc") == 0)
         {
@@ -504,9 +520,9 @@ int main(int argc, char * argv[])
         }
     }
 
-    if(mem_desc_file == NULL)
+    if ((elf_file == NULL) && (mem_desc_file == NULL))
     {
-        log << LOG_FTL << "Memory descriptor file not set!!" << endm;
+        log << LOG_FTL << "Need an elf file or a mem_desc file!" << endm;
     }
     if (debug == true) {
 #ifdef SYSEMU_DEBUG
@@ -544,7 +560,12 @@ int main(int argc, char * argv[])
                      (void *) emu_memwrite64);
 
     // Parses the memory description
-    parse_mem_file(mem_desc_file, memory, log);
+    if (elf_file != NULL) {
+       memory->load_elf(elf_file);
+    }
+    if (mem_desc_file != NULL) {
+       parse_mem_file(mem_desc_file, memory, log);
+    }
 
     net_emulator net_emu(memory);
     net_emu.set_log(&log);
