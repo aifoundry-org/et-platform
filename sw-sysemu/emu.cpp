@@ -6932,6 +6932,7 @@ static void tensorquant(uint64_t value)
         LOG(DEBUG, "\t\tTransformation %d: %s", trans, trans_int_to_str[transformations[trans]]);
         if(transformations[trans] == 0) break;
         tensorquant_trans[current_thread]++;
+        bool scp_inc = false;
 
         // For all the rows
         for(uint64_t row = 0; row < rows; row++)
@@ -6944,7 +6945,7 @@ static void tensorquant(uint64_t value)
                 {
                     uint64_t src = regstart + row * 2 + (col / 2);
                     uint32_t idx = (col & 1) * 4 + elem;
-                    iufval32 val, res;
+                    iufval32 val, val2, res;
                     val.u = FREGS[src].u[idx];
                     res.u = val.u;
 
@@ -6968,22 +6969,38 @@ static void tensorquant(uint64_t value)
                     // INT32 add row-wise
                     else if(transformations[trans] == 4)
                     {
-                        res.i = 0xdeadbeaf;
+                        uint64_t col_pos = col * 4 + elem;
+                        val2.i = SCP[scpsrc][col_pos / VL].i[col_pos % VL];
+                        res.i = val.i + val2.i;
+                        scp_inc = true;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x",src,idx,res,val.i,val2.i);
                     }
                     // INT32 add col-wise
                     else if(transformations[trans] == 5)
                     {
-                        res.i = 0xdeadbeaf;
+                        uint64_t row_pos = row;
+                        val2.i = SCP[scpsrc][row_pos / VL].i[row_pos % VL];
+                        res.i = val.i + val2.i;
+                        scp_inc = true;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x",src,idx,res,val.i,val2.i);
                     }
                     // FP32 mul row-wise
                     else if(transformations[trans] == 6)
                     {
-                        res.i = 0xdeadbeaf;
+                        uint64_t col_pos = col * 4 + elem;
+                        val2.u = SCP[scpsrc][col_pos / VL].u[col_pos % VL];
+                        res.f = fpu::f32_mul(val.f, val2.f);
+                        scp_inc = true;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)",src,idx,res.u,res.flt,val.u,val.flt,val2.u,val2.flt);
                     }
                     // FP32 mul col-wise
                     else if(transformations[trans] == 7)
                     {
-                        res.i = 0xdeadbeaf;
+                        uint64_t row_pos = row;
+                        val2.u = SCP[scpsrc][row_pos / VL].u[row_pos % VL];
+                        res.f = fpu::f32_mul(val.f, val2.f);
+                        scp_inc = true;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)",src,idx,res.u,res.flt,val.u,val.flt,val2.u,val2.flt);
                     }
                     // INT8 saturate
                     else if(transformations[trans] == 8)
@@ -7028,6 +7045,7 @@ static void tensorquant(uint64_t value)
                 }
             }
         }
+        if(scp_inc) scpsrc++;
     }
 }
 
