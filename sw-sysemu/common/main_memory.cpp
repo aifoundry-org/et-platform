@@ -11,41 +11,46 @@ using namespace ELFIO;
 main_memory::main_memory(std::string logname, enum logLevel log_level)
     : log(logname, log_level)
 {
-   getthread = NULL;
+    getthread = NULL;
 
-   // Adds the tbox
-   main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, getthread);
-   regions_.push_back((main_memory_region *) tbox);
+    // Adds the tbox
+    main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, getthread);
+    regions_.push_back((main_memory_region *) tbox);
 
-   // RBOX
-   rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
-   regions_.push_back((main_memory_region *) rbox);
+    // RBOX
+    rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
+    regions_.push_back((main_memory_region *) rbox);
 
-   // UC writes to notify completion of kernels to master processor
-   main_memory_region * uc_writes = new main_memory_region(0x0108000000ULL, 64, log, getthread, MEM_REGION_WO);
-   regions_.push_back((main_memory_region *) uc_writes);
+    // UC writes to notify completion of kernels to master processor
+    main_memory_region * uc_writes = new main_memory_region(0x0108000800ULL, ESR_REGION_OFFSET, log, getthread, MEM_REGION_WO); //TODO: This line has to survive the merge 
+    regions_.push_back((main_memory_region *) uc_writes);
 
-   //For all the shires
-   //UC writes to the fast local barrier and mtime/mtimecmp ESRs
-   for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++) {
-      for (int n = 0; n < 4; n++) {
-         main_memory_region * neigh_esrs = new main_memory_region(0x100100000ULL + i*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
-         regions_.push_back((main_memory_region *) neigh_esrs);
-      }
+    // Adds the uncacheable regions
+    // For all the shires
+    for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++)
+    {
+        // For all the neighs in each shire
+        for (int n = 0; n < 4; n++)
+        {
+            main_memory_region * neigh_esrs = new main_memory_region(0x100100000ULL + i*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
+            regions_.push_back((main_memory_region *) neigh_esrs);
+        }
 
-      //RBOX
-      main_memory_region * rbox_esrs  = new main_memory_region(0x100310000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
-      regions_.push_back((main_memory_region *) rbox_esrs);
+        // RBOX
+        main_memory_region * rbox_esrs  = new main_memory_region(0x100310000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) rbox_esrs);
 
-      // Shire ESRs 
-      main_memory_region * shire_esrs = new main_memory_region(0x100340000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
-      regions_.push_back((main_memory_region *) shire_esrs);
-      // M prot for shire
-      shire_esrs = new main_memory_region(0x100340000ULL + (3ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
-      regions_.push_back((main_memory_region *) shire_esrs);
+        // Shire ESRs
+        main_memory_region * shire_esrs = new main_memory_region(0x100340000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) shire_esrs);
 
-      main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*ESR_REGION_OFFSET, 64, log, getthread);
-      regions_.push_back((main_memory_region *) mtm);
+        // M prot for shire
+        shire_esrs = new main_memory_region(0x100340000ULL + (3ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) shire_esrs);
+
+        main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*ESR_REGION_OFFSET, 64, log, getthread);
+        regions_.push_back((main_memory_region *) mtm);
+
 //currently not defined. It is required by the implementation of l2 prefetch scp
 //we can use it when the new toolchain is ready and minion dv tests use the proper regions.
 #if L2SCP
@@ -53,7 +58,8 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
       main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + i*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
       regions_.push_back((main_memory_region *) l2_scp);
 #endif
-   }
+
+    }
 }
 
 void main_memory::setPrintfBase(const char* binary)
