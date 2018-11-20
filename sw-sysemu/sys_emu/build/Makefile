@@ -31,10 +31,7 @@ CC	 := gcc
 CXX 	 := g++
 CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include
 CXXFLAGS := -MMD -MP -Wall -Werror -std=c++11 -g -O2
-LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu \
-            -L$(RISCV)/lib64 -liberty \
-            -L$(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf/lib -lbfd -lopcodes \
-            -lz -lm
+LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
 
 ifdef SYSEMU_DEBUG
    CXXFLAGS += -DSYSEMU_DEBUG
