@@ -219,8 +219,8 @@ bool main_memory::new_region(uint64_t base, uint64_t size, int flags)
    while (find(regions_.begin(), regions_.end(), base) != regions_.end()) base += CACHE_LINE_SIZE;
    while (find(regions_.begin(), regions_.end(), top)  != regions_.end()) top  -= CACHE_LINE_SIZE;
 
+   if (top <= base) return false;
    size = top - base + 1;
-   if (size <= 0) return false;
 
    log << LOG_DEBUG << "new_region(base=0x" << std::hex << base << ", size=0x" << size << ", top=0x" << top << ")" << endm;
    unsigned overlap = std::count(regions_.begin(), regions_.end(), base)
