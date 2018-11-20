@@ -370,11 +370,11 @@ static float gold_fsin(float a)
 #define minusInfinityF32UI 0xFF800000
     //Take care of special cases ruined by modf
     switch (val.u) {
-      case minusInfinityF32UI: 
+      case minusInfinityF32UI:
           val.u = 0x7fc00000;
           return val.flt;
           break;
-      case infinityF32UI     : 
+      case infinityF32UI     :
           val.u = 0x7fc00000;
           return val.flt;
           break;
@@ -466,6 +466,8 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
     csrregs[thread][csr_excl_mode] = 0x0ULL;
     csrregs[thread][csr_mtxfma_sleep_traps] = 0x0ULL;
+    csrregs[thread][csr_mcounteren] = 0x0ULL;
+    csrregs[thread][csr_scounteren] = 0x0ULL;
     // Debug-mode registers with reset
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
 
@@ -2215,8 +2217,24 @@ static uint64_t csrget(csr src1)
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
         case csr_cycle:
+            if (   (prvget() == CSR_PRV_M)
+                || ((prvget() == CSR_PRV_U) && (csrregs[current_thread][csr_scounteren] & 0x1))
+                || ((prvget() == CSR_PRV_S) && (csrregs[current_thread][csr_mcounteren] & 0x1)))
+            {
+               val = 0;
+            } else {
+               throw trap_illegal_instruction(current_inst);
+            }
+            break;
         case csr_instret:
-            val = 0;
+            if (   (prvget() == CSR_PRV_M)
+                || ((prvget() == CSR_PRV_U) && (csrregs[current_thread][csr_scounteren] & 0x4))
+                || ((prvget() == CSR_PRV_S) && (csrregs[current_thread][csr_mcounteren] & 0x4)))
+            {
+               val = 0;
+            } else {
+               throw trap_illegal_instruction(current_inst);
+            }
             break;
         case csr_porthead0:
         case csr_porthead1:
