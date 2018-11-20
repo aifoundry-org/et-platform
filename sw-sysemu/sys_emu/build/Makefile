@@ -31,7 +31,10 @@ CC	 := gcc
 CXX 	 := g++
 CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include
 CXXFLAGS := -MMD -MP -Wall -Werror -std=c++11 -g -O2
-LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
+LDLIBS   := -L$(BEMU)/build -lemu \
+            -L$(RISCV)/lib64 -liberty \
+            -L$(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf/lib -lbfd -lopcodes \
+            -lz -lm
 
 ifdef SYSEMU_DEBUG
    CXXFLAGS += -DSYSEMU_DEBUG
@@ -46,7 +49,7 @@ libemu_all:
 
 .PHONY: libemu_static
 libemu_static:
-	$(MAKE) -C $(BEMU)/build static
+	LIBEMU_STATIC=1 $(MAKE) -C $(BEMU)/build all
 
 .PHONY: libemu_clean
 libemu_clean:
@@ -61,5 +64,8 @@ trace.o: $(SGPU)/src/trace.cpp
 
 sys_emu: $(OBJS) | libemu_all
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+sys_emu_static: $(OBJS) | libemu_static
+	$(CXX) -static $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 -include $(DEPS)
