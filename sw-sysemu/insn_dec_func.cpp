@@ -601,7 +601,7 @@ static insn_exec_funct_t dec_jal(uint32_t bits __attribute__((unused)),
 }
 
 
-static insn_exec_funct_t dec_system(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_system(uint32_t bits, uint32_t& flags)
 {
     static const insn_exec_funct_t functab[8] = {
         /* 000 */ nullptr,
@@ -624,7 +624,7 @@ static insn_exec_funct_t dec_system(uint32_t bits, uint32_t& flags __attribute__
         //case 0x002: return (rd | rs1) ? insn_unknown : insn_uret;
         case 0x102: return (rd | rs1) ? insn_unknown : insn_sret;
         case 0x302: return (rd | rs1) ? insn_unknown : insn_mret;
-        case 0x105: return (rd | rs1) ? insn_unknown : insn_wfi;
+        case 0x105: flags |= insn_t::flag_WFI; return (rd | rs1) ? insn_unknown : insn_wfi;
         }
         if ((imm12 >= 0x120) && (imm12 <= 0x13f) && (rd == 0)) {
             return insn_sfence_vma;
