@@ -231,7 +231,7 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-rbox] [-reset_pc <addr>] [-d]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-rbox] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
@@ -247,6 +247,7 @@ static const char * help_msg =
  -rbox        Enable RBOX emulation\n\
  -reset_pc    Sets boot program counter (default 0x1000) \n\
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
+ -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
 ";
 
 
@@ -395,12 +396,19 @@ int main(int argc, char * argv[])
     uint64_t reset_pc    = RESET_PC;
     bool reset_pc_flag   = false;
     bool debug           = false;
+    uint64_t max_cycles  = 10000000;
+    bool max_cycle       = false;
 
     memset(rbox, 0, sizeof(rbox));
 
     for(int i = 1; i < argc; i++)
     {
-        if (elf)
+        if (max_cycle)
+        {
+            max_cycle = false;
+            sscanf(argv[i], "%" PRIx64, &max_cycles);
+        }
+        else if (elf)
         {
             elf = false;
             elf_file = argv[i];
@@ -449,6 +457,10 @@ int main(int argc, char * argv[])
         {
             log_min = atoi(argv[i]);
             dump = 0;
+        }
+        else if(strcmp(argv[i], "-max_cycles") == 0)
+        {
+            max_cycle = true;
         }
         else if(strcmp(argv[i], "-elf") == 0)
         {
@@ -629,7 +641,7 @@ int main(int argc, char * argv[])
 
     bool rboxes_done = false;
     // While there are active threads or the network emulator is still not done
-    while((emu_done() == false) && (enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done()) || (use_rbox && !rboxes_done)))
+    while((emu_done() == false) && (enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done()) || (use_rbox && !rboxes_done)) && (emu_cycle < max_cycles))
     {
 
         // For every cycle execute rbox
@@ -854,6 +866,11 @@ int main(int argc, char * argv[])
             it++;
         }
         emu_cycle++;
+    }
+    if (emu_cycle == max_cycles) {
+       printf("Error, max cycles reached (%" PRIx64 ")\n", max_cycles);
+    } else {
+       printf("PASS");
     }
     printf("Emulation done!!\n");
 
