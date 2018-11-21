@@ -231,8 +231,9 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu -mem_desc <file> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-rbox] [-reset_pc <addr>] [-d]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-rbox] [-reset_pc <addr>] [-d]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
+ -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
  -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
  -shires      A mask of Shires that should be enabled. Default: 1 Shire\n\

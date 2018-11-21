@@ -87,17 +87,6 @@ main_memory::~main_memory()
 {
 }
 
-// Create a new memory region on the fly
-void main_memory::create_new_region(uint64_t ad, int size)
-{
-   uint64_t top  = ((ad + size + CACHE_LINE_SIZE - 1) & CACHE_LINE_MASK) - 1;
-   uint64_t base = ad & CACHE_LINE_MASK;
-
-   while (find(regions_.begin(), regions_.end(), base) != regions_.end()) base += CACHE_LINE_SIZE;
-   while (find(regions_.begin(), regions_.end(), top)  != regions_.end()) top  -= CACHE_LINE_SIZE;
-   new_region(base, top - base + 1);
-}
-
 // Read a bunch of bytes
 void main_memory::read(uint64_t ad, int size, void * data)
 {
@@ -107,7 +96,7 @@ void main_memory::read(uint64_t ad, int size, void * data)
    if (r == regions_.end()) {
       if (runtime_mem_regions == true) {
          log << LOG_DEBUG << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region, creating on the fly" << endm;
-         create_new_region(ad, size);
+         new_region(ad, size);
          r = find(regions_.begin(), regions_.end(), ad);
          if (r == regions_.end()) {
             log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region, something went wrong when trying to create region" << endm;
@@ -125,7 +114,7 @@ void main_memory::read(uint64_t ad, int size, void * data)
          rg_it_t next_region = find(regions_.begin(), regions_.end(), ad+size-1);
          if ((next_region == regions_.end()) && (runtime_mem_regions == true)) {
             log << LOG_DEBUG << "read(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries, creating next section on the fly" << endm;
-            create_new_region(ad+size-1, 1);
+            new_region(ad+size-1, 1);
             next_region = find(regions_.begin(), regions_.end(), ad+size-1);
             if (next_region == regions_.end()) {
                log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): something went wrong when trying to create region next region" << endm;
@@ -158,7 +147,7 @@ void main_memory::write(uint64_t ad, int size, const void * data)
    if (r == regions_.end()) {
       if (runtime_mem_regions == true) {
          log << LOG_DEBUG << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region, creating on the fly" << endm;
-         create_new_region(ad, size);
+         new_region(ad, size);
          r = find(regions_.begin(), regions_.end(), ad);
          if (r == regions_.end()) {
             log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region, something went wrong when trying to create region" << endm;
@@ -176,7 +165,7 @@ void main_memory::write(uint64_t ad, int size, const void * data)
          rg_it_t next_region = find(regions_.begin(), regions_.end(), ad+size-1);
          if ((next_region == regions_.end()) && (runtime_mem_regions == true)) {
             log << LOG_DEBUG << "write(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries, creating on the fly" << endm;
-            create_new_region(ad+size-1, 1);
+            new_region(ad+size-1, 1);
             next_region = find(regions_.begin(), regions_.end(), ad+size-1);
             if (next_region == regions_.end()) {
                log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): something went wrong when trying to create region next region" << endm;
@@ -225,8 +214,8 @@ bool main_memory::new_region(uint64_t base, uint64_t size, int flags)
    while (find(regions_.begin(), regions_.end(), base) != regions_.end()) base += CACHE_LINE_SIZE;
    while (find(regions_.begin(), regions_.end(), top)  != regions_.end()) top  -= CACHE_LINE_SIZE;
 
+   if (top <= base) return false;
    size = top - base + 1;
-   if (size <= 0) return false;
 
    log << LOG_DEBUG << "new_region(base=0x" << std::hex << base << ", size=0x" << size << ", top=0x" << top << ")" << endm;
    unsigned overlap = std::count(regions_.begin(), regions_.end(), base)

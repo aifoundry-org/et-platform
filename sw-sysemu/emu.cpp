@@ -1997,7 +1997,7 @@ void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
 #define AMO_EMU_W_FUNC(NAME, OPC) \
 void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 {\
-   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, (x%d), x%d%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
    emu_log()<<LOG_DEBUG<<dis<<endm;\
    amo_emu_w(OPC, dst, src1, src2);\
 }
@@ -2005,7 +2005,7 @@ void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 #define AMO_EMU_D_FUNC(NAME, OPC) \
 void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 {\
-   DISASM(gsprintf(dis,"I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DISASM(gsprintf(dis,"I: " #NAME " x%d, (x%d), x%d%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
    emu_log()<<LOG_DEBUG<<dis<<endm;\
    amo_emu_d(OPC, dst, src1, src2);\
 }
@@ -5938,7 +5938,7 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
 #define AMO_EMU_F_FUNC(NAME, OPC) \
 void NAME(freg dst, freg src1, xreg src2, const char* comm)\
 {\
-   DISASM(gsprintf(dis,"I: " #NAME " ft%d, ft%d, (x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
+   DISASM(gsprintf(dis,"I: " #NAME " f%d, f%d(x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : ""););\
    emu_log()<<LOG_DEBUG<<dis<<endm;\
    amo_emu_f(OPC, dst, src1, src2);\
 }

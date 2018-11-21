@@ -46,7 +46,7 @@ libemu_all:
 
 .PHONY: libemu_static
 libemu_static:
-	$(MAKE) -C $(BEMU)/build static
+	LIBEMU_STATIC=1 $(MAKE) -C $(BEMU)/build all
 
 .PHONY: libemu_clean
 libemu_clean:
@@ -61,5 +61,8 @@ trace.o: $(SGPU)/src/trace.cpp
 
 sys_emu: $(OBJS) | libemu_all
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+sys_emu_static: $(OBJS) | libemu_static
+	$(CXX) -static $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
 -include $(DEPS)
