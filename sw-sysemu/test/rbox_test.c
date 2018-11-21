@@ -213,8 +213,6 @@ int main()
     signal_action.sa_flags = SA_SIGINFO;
     sigaction(SIGSEGV, &signal_action, NULL);
 
-    print_debug = 1;
-
     printf("RBOX Basic Tester\n");
 
     uint32_t depth_stencil_buffer[1024 * 1024];

@@ -6,10 +6,6 @@
 #include "emu_gio.h"
 #include "emu_memop.h"
 
-using emu::gprintf;
-using emu::gsprintf;
-using emu::gfprintf;
-
 RingBuffer input;
 RingBuffer output;
 
@@ -76,13 +72,12 @@ uint32_t process_packet(uint64_t packet)
                 LOG(DEBUG, "RBOX : Processing fully covered tile packet");
                 RBOXInPcktFullyCoveredTile fully_covered_tile_pckt;
                 
-                emu_log()<<LOG_DEBUG<<"RBOX : Packet Data"<<std::hex;
+                LOG(DEBUG, "RBOX : Packet Data");
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     fully_covered_tile_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    emu_log()<<" "<<fully_covered_tile_pckt.qw[qw];
+                    LOG(DEBUG, "\t[%u] = %" PRIx64, qw, fully_covered_tile_pckt.qw[qw]);
                 }
-                emu_log()<<std::dec<<endm;
 
                 int64_t edge_samples[3];
                 for (uint32_t eq = 0; eq < 3; eq++)
@@ -102,13 +97,12 @@ uint32_t process_packet(uint64_t packet)
                 LOG(DEBUG, "RBOX : Processing partially covered tile packet");
                 RBOXInPcktLargeTriTile large_tri_tile_pckt;
 
-                emu_log()<<LOG_DEBUG<<"RBOX : Packet Data"<<std::hex;
+                LOG(DEBUG, "RBOX : Packet Data");
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     large_tri_tile_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    emu_log()<< " "<<large_tri_tile_pckt.qw[qw];
+                    LOG(DEBUG, "\t[%u] = %" PRIx64, qw, large_tri_tile_pckt.qw[qw]);
                 }
-                emu_log()<<std::dec<<endm;
 
                 int64_t edge_samples[3];
                 for (uint32_t eq = 0; eq < 3; eq++)
@@ -128,13 +122,12 @@ uint32_t process_packet(uint64_t packet)
                 LOG(DEBUG, "RBOX : Processing triangle with tile, triangle inside 64x64 tile aligned 64x64 tile");
                 RBOXInPcktTriWithTile64x64 tri_with_tile_64x64_pckt;
 
-                emu_log()<<"RBOX : Packet Data"<<std::hex;
+                LOG(DEBUG, "RBOX : Packet Data");
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     tri_with_tile_64x64_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    emu_log()<<tri_with_tile_64x64_pckt.qw[qw];
+                    LOG(DEBUG, "\t[%u] = %" PRIx64, qw, tri_with_tile_64x64_pckt.qw[qw]);
                 }
-                emu_log()<<std::dec<<endm;
 
                 for (uint32_t eq = 0; eq < 3; eq++)
                 {
@@ -168,13 +161,12 @@ uint32_t process_packet(uint64_t packet)
                 LOG(DEBUG, "RBOX : Processing triangle with tile, triangle inside 64x64 tile aligned 128x128 tile");
                 RBOXInPcktTriWithTile128x128 tri_with_tile_128x128_pckt;
 
-                emu_log()<<LOG_DEBUG<<"RBOX : Packet Data"<<std::hex;
+                LOG(DEBUG, "RBOX : Packet Data");
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     tri_with_tile_128x128_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    emu_log()<<" "<< tri_with_tile_128x128_pckt.qw[qw];
+                    LOG(DEBUG, "\t[%u] = %" PRIx64, qw, tri_with_tile_128x128_pckt.qw[qw]);
                 }
-                emu_log()<<std::dec<<endm;
                 for (uint32_t eq = 0; eq < 3; eq++)
                 {
                     current_triangle.edge_eqs[eq].a = tri_with_tile_128x128_pckt.tri_with_tile_128x128.edge_eqs[eq].a
@@ -207,13 +199,12 @@ uint32_t process_packet(uint64_t packet)
                 LOG(DEBUG, "RBOX : Processing large triangle packet");
                 RBOXInPcktLargeTri large_tri_pckt;
 
-                emu_log()<<LOG_DEBUG<<"RBOX : Packet Data"<<std::hex;
+                LOG(DEBUG, "RBOX : Packet Data");
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     large_tri_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    emu_log()<<" "<<large_tri_pckt.qw[qw];
+                    LOG(DEBUG, "\t[%u] = %" PRIx64, qw, large_tri_pckt.qw[qw]);
                 }
-                emu_log()<<std::dec<<endm;
 
                 for (uint32_t eq = 0; eq < 3; eq++)
                 {
@@ -237,13 +228,12 @@ uint32_t process_packet(uint64_t packet)
                 LOG(DEBUG, "RBOX : Processing RBOX state packet");
                 RBOXInPcktRBOXState rbox_state_pckt;
 
-                emu_log()<<"RBOX : Packet Data"<<std::hex;
+                LOG(DEBUG, "RBOX : Packet Data");
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
                     rbox_state_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    emu_log()<<" "<< rbox_state_pckt.qw[qw];
+                    LOG(DEBUG, "\t[%u] = %" PRIx64, qw, rbox_state_pckt.qw[qw]);
                 }
-                emu_log()<<std::dec<<endm;
                 rbox_state_idx++;
                 if (rbox_state_idx == RBOX_STATE_BUFFER_SIZE)
                     rbox_state_idx = 0;
@@ -256,13 +246,12 @@ uint32_t process_packet(uint64_t packet)
                 LOG(DEBUG, "RBOX : Processing fragment shading state packet");
                 RBOXInPcktFrgmtShdrState frag_shader_state_pckt;
 
-                emu_log()<<"RBOX : Packet Data"<<std::hex;
+                LOG(DEBUG, "RBOX : Packet Data");
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
                     frag_shader_state_pckt.qw[qw] = vmemread64(packet + qw * 8);
-                    emu_log()<<" "<<frag_shader_state_pckt.qw[qw];
+                    LOG(DEBUG, "\t[%u] = %" PRIx64, qw,frag_shader_state_pckt.qw[qw]);
                 }
-                emu_log()<<std::dec<<endm;
                 frag_shader_state = frag_shader_state_pckt.state;
                 new_frag_shader_state = true;
                 packet_size = 4;

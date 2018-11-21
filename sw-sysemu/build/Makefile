@@ -12,7 +12,6 @@ SRCS := $(BEMU)/emu.cpp \
         $(BEMU)/fpu/ttrans.cpp \
         $(BEMU)/tbox_emu.cpp \
         $(BEMU)/log.cpp \
-        $(BEMU)/ipc.cpp \
         $(BEMU)/emu_gio.cpp \
         $(BEMU)/insn_dec_func.cpp \
         $(BEMU)/insn_exec_func.cpp

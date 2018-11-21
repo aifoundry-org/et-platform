@@ -8,23 +8,16 @@
 #include "txs.h"
 #include "emu.h"
 #include "log.h"
-#include "ipc.h"
 #include "fpu/fpu.h"
 #include "emu_gio.h"
 #include "emu_casts.h"
 
-using emu::gprintf;
-using emu::gsprintf;
-using emu::gfprintf;
-
 extern int fake_sampler;
-extern char dis[];
-
 static TBOXEmu tbox_emulator;
 
 void init_txs(uint64_t imgTableAddr)
 {
-    LOG(DEBUG, "Setting Image Table Address = %016llx", imgTableAddr);
+    LOG(DEBUG, "Setting Image Table Address = %016" PRIx64, imgTableAddr);
  
     tbox_emulator.set_image_table_address(imgTableAddr);
 
@@ -42,7 +35,7 @@ static char coord_name[5]="strq";
 void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base_address)
 {
 
-    LOG(DEBUG, "\tSample Request. Packets = %u, Port_id = %u, Hart_id = %u, Port Base Address = %x", number_packets, port_id, current_thread, base_address);
+    LOG(DEBUG, "\tSample Request. Packets = %u, Port_id = %u, Hart_id = %u, Port Base Address = %" PRIx64, number_packets, port_id, current_thread, base_address);
 
     uint64_t val[12];
     
@@ -59,7 +52,7 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
     TBOXEmu::SampleRequest header;
     memcpy(&header, val, sizeof(TBOXEmu::SampleRequest));
     tbox_emulator.set_request_header(current_thread, header);
-    LOG(DEBUG, "\tSample request header %016llx %016llx", header.data[0], header.data[1]);
+    LOG(DEBUG, "\tSample request header %016" PRIx64 " %016" PRIx64, header.data[0], header.data[1]);
 
     // Parse header and send coordinates
     for(unsigned char i = 0; i < header.info.packets; i++)
@@ -94,8 +87,7 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
 
 void texsndh(xreg src1, xreg src2, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsndh x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:"")););
-    LOG(DEBUG, "%s",dis);
+    LOG(DEBUG, "I: texsndh x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:""));
 
     bool send_header = false;
 
@@ -105,17 +97,14 @@ void texsndh(xreg src1, xreg src2, const char* comm)
     if (send_header)
     {
         tbox_emulator.set_request_header(current_thread, XREGS[src1].x, XREGS[src2].x);
-        LOG(DEBUG, "\tSample request %016llx %016llx", XREGS[src1].x, XREGS[src2].x);
+        LOG(DEBUG, "\tSample request %016" PRIx64 " %016" PRIx64, XREGS[src1].x, XREGS[src2].x);
         tbox_emulator.set_request_pending(current_thread, true);
     }
-
-    IPC(ipc_texsnd(src1,src2,fnone,dis););
 }
 
 void texsnds(freg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsnds f%d%s%s", src1, (comm?" # ":""), (comm?comm:"")););
-    LOG(DEBUG, "%s",dis);
+    LOG(DEBUG, "I: texsnds f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));
 
     bool send_coordinate = false;
 
@@ -132,14 +121,11 @@ void texsnds(freg src1, const char* comm)
             LOG(DEBUG, "\t[%d] 0x%08x (%f)", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c]));
         }
     }
-
-    IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
 void texsndt(freg src1, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texsndt f%d%s%s", src1, (comm?" # ":""), (comm?comm:"")););
-    LOG(DEBUG, "%s",dis);
+    LOG(DEBUG, "I: texsndt f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));
 
     bool send_coordinate = false;
 
@@ -156,15 +142,12 @@ void texsndt(freg src1, const char* comm)
             LOG(DEBUG, "\t[%d] 0x%08x (%f)", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c]));
         }
     }
-
-    IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
 void texsndr(freg src1, const char* comm)
 {
 
-    DISASM(gsprintf(dis,"I: texsndr f%d%s%s", src1, (comm?" # ":""), (comm?comm:"")););
-    LOG(DEBUG, "%s",dis);
+    LOG(DEBUG, "I: texsndr f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));
 
     bool send_coordinate = false;
 
@@ -181,14 +164,11 @@ void texsndr(freg src1, const char* comm)
             LOG(DEBUG, "\t[%d] 0x%08x (%f)", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c]));
         }
     }
-
-    IPC(ipc_texsnd(xnone,xnone,src1,dis););
 }
 
 void texrcv(freg dst, const uint32_t idx, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: texrcv f%d, 0x%x%s%s", dst, idx, (comm?" # ":""), (comm?comm:"")););
-    LOG(DEBUG, "%s",dis);
+    LOG(DEBUG, "I: texrcv f%d, 0x%x%s%s", dst, idx, (comm?" # ":""), (comm?comm:""));
 
     bool sample = false;
 
@@ -221,7 +201,6 @@ void texrcv(freg dst, const uint32_t idx, const char* comm)
     }
 
     logfregchange(dst);
-    IPC(ipc_texrcv(dst,dis););
 }
 
 void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
@@ -229,7 +208,7 @@ void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleReque
     uint64_t base_copy = tbox_emulator.get_image_table_address();
     if ( base_copy != basePtr )
     {
-        LOG(WARN, "WARNING!!! changing image table address from %llx to %llx by checker request.", base_copy, basePtr);
+        LOG(WARN, "WARNING!!! changing image table address from %" PRIx64 " to %" PRIx64 " by checker request.", base_copy, basePtr);
         tbox_emulator.set_image_table_address(basePtr);
     }
 
