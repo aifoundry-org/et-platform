@@ -164,7 +164,7 @@ void checker_thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc) {
 }
 
 // Creates a new checker
-checker::checker(main_memory * memory_, bool print_debug, enum logLevel emu_log_level)
+checker::checker(main_memory * memory_, enum logLevel emu_log_level)
     : log("checker", emu_log_level)
 {
     for(uint32_t i = 0; i < EMU_NUM_THREADS; i++)
@@ -202,11 +202,7 @@ checker::checker(main_memory * memory_, bool print_debug, enum logLevel emu_log_
     texrec_func_ptr = nullptr;
     checker_instance = this;
     memory_instance = memory;
-#ifdef EMU_DEBUG
-    init_emu(print_debug, true, emu_log_level);
-#else
-    init_emu(false, true, emu_log_level);
-#endif
+    init_emu(true, emu_log_level);
 }
 
 // Destroys the checker
