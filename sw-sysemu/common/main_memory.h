@@ -54,7 +54,6 @@ class main_memory
        boost::ptr_vector<main_memory_region> regions_;
        typedef boost::ptr_vector<main_memory_region>::iterator rg_it_t;
 
-       void create_new_region(uint64_t ad, int size);
        testLog log;
        main_memory_region::func_ptr_get_thread getthread;
 
