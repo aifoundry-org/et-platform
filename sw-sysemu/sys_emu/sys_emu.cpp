@@ -869,8 +869,6 @@ int main(int argc, char * argv[])
     }
     if (emu_cycle == max_cycles) {
        printf("Error, max cycles reached (%" PRIx64 ")\n", max_cycles);
-    } else {
-       printf("PASS");
     }
     printf("Emulation done!!\n");
 
