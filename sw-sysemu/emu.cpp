@@ -1041,7 +1041,7 @@ void unknown(const char* comm)
 // NOP
 void nop(const char* comm)
 {
-    DISASM(gsprintf(dis,"I: nop%s%s",current_pc,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: nop%s%s",(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
 }
 
