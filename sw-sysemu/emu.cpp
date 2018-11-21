@@ -7648,10 +7648,6 @@ static void tensorreduce(uint64_t value)
     reduce_size[current_thread]  = num_reg;
     reduce_entry[current_thread] = start_reg;
 
-    if ((start_reg + num_reg - 1) >= 32)
-    {
-        LOG(DEBUG, "ERROR accessing register out of bound in reduce: %016" PRIx64, value);
-    }
     if (operation == 0) // FADD
     {
         set_rounding_mode(rmdyn);
@@ -7659,37 +7655,36 @@ static void tensorreduce(uint64_t value)
     }
     for(int i = 0; i < num_reg; i++)
     {
-        if ((start_reg + i) >= 32) break;
-
         for(int j = 0; j < VL; j++)
         {
+            uint64_t op_reg = (i + start_reg) % 32;
             if (operation == 0) // FADD
             {
                 iufval32 src1, src2, rslt;
-                src1.u = FREGS[i + start_reg].u[j];
-                src2.u = fregs[other_min<<1][i + start_reg].u[j];
+                src1.u = FREGS[op_reg].u[j];
+                src2.u = fregs[other_min<<1][op_reg].u[j];
                 rslt.f = fpu::f32_add(src1.f, src2.f);
-                FREGS[i + start_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fadd) f%d[%d]: %g = %g(m%d) + %g(m%d)",i+start_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min);
-                LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",i+start_reg,j,rslt.u,src1.u,src2.u);
+                FREGS[op_reg].u[j] = rslt.u;
+                LOG(DEBUG, "\tReduce (fadd) f%d[%d]: %g = %g(m%d) + %g(m%d)",op_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min);
+                LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
             }
             else if (operation == 4) // IADD
             {
                 iufval32 src1, src2, rslt;
-                src1.u = FREGS[i + start_reg].u[j];
-                src2.u = fregs[other_min<<1][i + start_reg].u[j];
+                src1.u = FREGS[op_reg].u[j];
+                src2.u = fregs[other_min<<1][op_reg].u[j];
                 rslt.u = src1.u + src2.u;
-                FREGS[i + start_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (iadd) f%d[%d]: %d = %d(m%d) + %d(m%d)",i+start_reg,j,rslt.u,src1.u,current_thread>>1,src2.u,other_min);
-                LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",i+start_reg,j,rslt.u,src1.u,src2.u);
+                FREGS[op_reg].u[j] = rslt.u;
+                LOG(DEBUG, "\tReduce (iadd) f%d[%d]: %d = %d(m%d) + %d(m%d)",op_reg,j,rslt.u,src1.u,current_thread>>1,src2.u,other_min);
+                LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
             }
             else if (operation == 8) // FGET
             {
                 iufval32 tmp;
-                tmp.u = fregs[other_min<<1][i + start_reg].u[j];
-                FREGS[i + start_reg].u[j] = tmp.u;
-                LOG(DEBUG, "\tReduce (get) f%d[%d]: <= %g(m%d)",i+start_reg,j,tmp.flt,other_min);
-                LOG(DEBUG, "\t             f%d[%d]: <= 0x%08x",i+start_reg,j,tmp.u);
+                tmp.u = fregs[other_min<<1][op_reg].u[j];
+                FREGS[op_reg].u[j] = tmp.u;
+                LOG(DEBUG, "\tReduce (get) f%d[%d]: <= %g(m%d)",op_reg,j,tmp.flt,other_min);
+                LOG(DEBUG, "\t             f%d[%d]: <= 0x%08x",op_reg,j,tmp.u);
             }
             else
             {
@@ -7697,7 +7692,7 @@ static void tensorreduce(uint64_t value)
             }
 
             // Checker
-            reduce_data[current_thread][i + start_reg][j] = FREGS[i + start_reg].u[j];
+            reduce_data[current_thread][op_reg][j] = FREGS[op_reg].u[j];
         }
     }
     set_fp_exceptions();
@@ -7709,32 +7704,24 @@ static void tensorreduce(uint64_t value)
 //   - what is the action taken by the minion (send, receive, do nothing)
 void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action)
 {
-    uint64_t level = (value >> 4) & 0xF;
+    uint64_t level = (value >> 3) & 0xF;
     uint64_t type  = value & 3;
     uint64_t minion_id = current_thread >> 1;
 
-    // REDUCE: Compute sender/receiver assuming recursive halving
-    if (type == 3)
+    // SENDER
+    if(type == 0)
     {
-        uint64_t distance = 1 << level;
-        uint64_t minion_mask = (1 << (level + 1)) - 1;
-        if ((minion_id & minion_mask) == distance)
-        {
-            * action    = 0; // sender
-            * other_min = minion_id - distance;
-        }
-        else if ((minion_id & minion_mask) == 0)
-        {
-            * action    = 1; // receiver
-            * other_min = minion_id + distance;
-        }
-        else
-        {
-            * action    = 2; // do nothing
-        }
+        * action = 1;
+        * other_min = (value >> 3) & 0x1FFF;
+    }
+    // RECEIVER
+    else if(type == 1)
+    {
+        * action = 0;
+        * other_min = (value >> 3) & 0x1FFF;
     }
     // BROADCAST: Compute sender/receiver assuming recursive halving
-    else if (type == 2)
+    else if(type == 2)
     {
         uint64_t distance = 1 << level;
         uint64_t minion_mask = (1 << (level + 1)) - 1;
@@ -7746,6 +7733,26 @@ void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action)
         else if ((minion_id & minion_mask) == 0)
         {
             * action    = 0; // receiver
+            * other_min = minion_id + distance;
+        }
+        else
+        {
+            * action    = 2; // do nothing
+        }
+    }
+    // REDUCE: Compute sender/receiver assuming recursive halving
+    else
+    {
+        uint64_t distance = 1 << level;
+        uint64_t minion_mask = (1 << (level + 1)) - 1;
+        if ((minion_id & minion_mask) == distance)
+        {
+            * action    = 0; // sender
+            * other_min = minion_id - distance;
+        }
+        else if ((minion_id & minion_mask) == 0)
+        {
+            * action    = 1; // receiver
             * other_min = minion_id + distance;
         }
         else
