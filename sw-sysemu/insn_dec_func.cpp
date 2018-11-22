@@ -583,6 +583,8 @@ static insn_exec_funct_t dec_branch(uint32_t bits, uint32_t& flags __attribute__
 static insn_exec_funct_t dec_jalr(uint32_t bits __attribute__((unused)),
                                   uint32_t& flags __attribute__((unused)))
 {
+    unsigned funct3 = (bits >> 12) & 7;
+    if (funct3 != 0) return insn_unknown;
     return insn_jalr;
 }
 
