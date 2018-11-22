@@ -2217,24 +2217,44 @@ static uint64_t csrget(csr src1)
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
         case csr_cycle:
-            if (   (prvget() == CSR_PRV_M)
-                || ((prvget() == CSR_PRV_U) && (csrregs[current_thread][csr_scounteren] & 0x1))
-                || ((prvget() == CSR_PRV_S) && (csrregs[current_thread][csr_mcounteren] & 0x1)))
-            {
-               val = 0;
-            } else {
-               throw trap_illegal_instruction(current_inst);
-            }
-            break;
+        case csr_time:
         case csr_instret:
-            if (   (prvget() == CSR_PRV_M)
-                || ((prvget() == CSR_PRV_U) && (csrregs[current_thread][csr_scounteren] & 0x4))
-                || ((prvget() == CSR_PRV_S) && (csrregs[current_thread][csr_mcounteren] & 0x4)))
+        case csr_hpmcounter3:
+        case csr_hpmcounter4:
+        case csr_hpmcounter5:
+        case csr_hpmcounter6:
+        case csr_hpmcounter7:
+        case csr_hpmcounter8:
+        case csr_hpmcounter9:
+        case csr_hpmcounter10:
+        case csr_hpmcounter11:
+        case csr_hpmcounter12:
+        case csr_hpmcounter13:
+        case csr_hpmcounter14:
+        case csr_hpmcounter15:
+        case csr_hpmcounter16:
+        case csr_hpmcounter17:
+        case csr_hpmcounter18:
+        case csr_hpmcounter19:
+        case csr_hpmcounter20:
+        case csr_hpmcounter21:
+        case csr_hpmcounter22:
+        case csr_hpmcounter23:
+        case csr_hpmcounter24:
+        case csr_hpmcounter25:
+        case csr_hpmcounter26:
+        case csr_hpmcounter27:
+        case csr_hpmcounter28:
+        case csr_hpmcounter29:
+        case csr_hpmcounter30:
+        case csr_hpmcounter31:
+            // Legal to read only if machine mode or {m,s}counteren correctly configured for next level of privilege
+            if (   ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_scounteren] & (1 << (src1-csr_cycle))) == 0))
+                || ((prvget() == CSR_PRV_S) && ((csrregs[current_thread][csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
             {
-               val = 0;
-            } else {
                throw trap_illegal_instruction(current_inst);
             }
+            val = csrregs[current_thread][src1];
             break;
         case csr_porthead0:
         case csr_porthead1:
