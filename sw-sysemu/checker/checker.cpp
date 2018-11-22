@@ -174,6 +174,11 @@ checker::checker(main_memory * memory_, bool print_debug, enum logLevel emu_log_
     }
     memory = memory_;
 
+    waived_csrs.push_back(csr_validation0);
+    waived_csrs.push_back(csr_validation1);
+    waived_csrs.push_back(csr_validation2);
+    waived_csrs.push_back(csr_validation3);
+
     set_memory_funcs((void *) checker_memread8,
                      (void *) checker_memread16,
                      (void *) checker_memread32,
@@ -425,6 +430,14 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 stream << "Int Register dest error. Expected dest is x" << emu_state_change.int_reg_rd << " but provided is x" << changes->int_reg_rd << std::endl;
                 error_msg += stream.str();
                 check_res = CHECKER_ERROR;
+            }
+
+            // Check if we read a CSR that we want to waive checking for
+            if (inst.is_csr_read() && (std::find(waived_csrs.begin(), waived_csrs.end(), get_csr_enum(inst.csrimm())) != waived_csrs.end()))
+            {
+                log << LOG_INFO << "Waived CSR value (" << insn_disasm << ")" << endm;
+                emu_state_change.int_reg_data = changes->int_reg_data;
+                init(inst.rd(), emu_state_change.int_reg_data);
             }
 
             // Check if we just read a cycle register, in which case the RTL drives value
