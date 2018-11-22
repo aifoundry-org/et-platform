@@ -87,6 +87,7 @@ class checker
         std::list<tensorfma_entry>    tensorfma_list[EMU_NUM_THREADS];     // List of RTL written tensorfma entries
         std::list<tensorfma_entry>    tensorquant_list[EMU_NUM_THREADS];   // List of RTL written tensorquant entries
         std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];        // List of RTL written reduce entries
+        std::list<csr>                waived_csrs;                         // List of CSRs whose checking is waived
 };
 
 #endif // _CHECKER_
