@@ -406,7 +406,7 @@ int main(int argc, char * argv[])
         if (max_cycle)
         {
             max_cycle = false;
-            sscanf(argv[i], "%" PRIx64, &max_cycles);
+            sscanf(argv[i], "%" SCNd64, &max_cycles);
         }
         else if (elf)
         {
@@ -868,7 +868,7 @@ int main(int argc, char * argv[])
         emu_cycle++;
     }
     if (emu_cycle == max_cycles) {
-       printf("Error, max cycles reached (%" PRIx64 ")\n", max_cycles);
+       printf("Error, max cycles reached (%" SCNd64 ")\n", max_cycles);
     }
     printf("Emulation done!!\n");
 
