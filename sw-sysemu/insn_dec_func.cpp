@@ -948,7 +948,7 @@ static insn_exec_funct_t dec_c_misc_alu(uint32_t bits, uint32_t& flags __attribu
         /*110.xx*/ insn_c_andi, insn_c_andi, insn_c_andi,  insn_c_andi,
         /*111.xx*/ insn_c_subw, insn_c_addw, insn_unknown, insn_unknown
     };
-    uint16_t idx = ((bits >> 10) & 0x1c) | ((bits >> 5) & 0x3);
+    uint16_t idx = ((bits >> 8) & 0x1c) | ((bits >> 5) & 0x3);
     return functab[idx];
 }
 

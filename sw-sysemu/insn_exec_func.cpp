@@ -1010,7 +1010,7 @@ void insn_c_srai(insn_t inst) {
 }
 
 void insn_c_srli(insn_t inst) {
-    srli(inst.rvc_rs1(), inst.rvc_rs1(), inst.rvc_shamt());
+    srli(inst.rvc_rs1p(), inst.rvc_rs1p(), inst.rvc_shamt());
 }
 
 void insn_c_andi(insn_t inst) {
