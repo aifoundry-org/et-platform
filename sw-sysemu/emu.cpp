@@ -54,7 +54,7 @@ using emu::gfprintf;
 extern void flush_insn_cache();
 
 // State declaration
-char buf[64];
+std::ostringstream uart_stream;
 int buflen = 0;
 xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
@@ -2638,22 +2638,14 @@ static void csrset(csr src1, uint64_t val)
             if ((char) val == 4) {
                emu_log() << LOG_INFO << "Validation1 CSR received End Of Transmission." << endm;
                m_emu_done = true;
+               break;
             }
-            // Ignore carriage return
-            if ((char) val == 13) break;
-            if ((char) val != '\n') buf[buflen++] = (char) val;
-            // If line feed or buffer full, flush to stdout
-            if (((char) val == '\n') || (buflen == 64))
-            {
-               if (buflen < 64)
-               {
-                  buf[buflen] = 0;
-               }
-               if (buflen > 1)
-               {
-                  emu_log() << LOG_INFO << "==== " << buf << endm;
-               }
-               buflen = 0;
+            if ((char) val != '\n') {
+               uart_stream << (char) val;
+            } else { // If line feed, flush to stdout
+               std::cout << uart_stream.str() << std::endl;
+               uart_stream.str("");
+               uart_stream.clear();
             }
             break;
         // ----- Not really ESRs -----------------------------------------
