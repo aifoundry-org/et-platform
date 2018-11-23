@@ -181,7 +181,7 @@ static float32_t f32_maximumNumber( float32_t a, float32_t b )
 }
 
 
-float32_t f16_mulExt( float16_t a, float16_t b )
+static float32_t f16_mulExt( float16_t a, float16_t b )
 {
     union ui16_f16 uA;
     uint_fast16_t uiA;
@@ -279,7 +279,7 @@ float32_t f16_mulExt( float16_t a, float16_t b )
 }
 
 
-static float32_t f32_add3(float32_t a, float32_t b, float32_t c)
+static float32_t f32_add3( float32_t a, float32_t b, float32_t c )
 {
     union ui32_f32 uA;
     uint_fast32_t uiA;
@@ -293,8 +293,8 @@ static float32_t f32_add3(float32_t a, float32_t b, float32_t c)
     uint_fast32_t uiC;
     int_fast16_t expC;
     uint_fast32_t sigC;
-    int_fast8_t sigSubB;
-    int_fast8_t sigSubC;
+    int_fast8_t subB;
+    int_fast8_t subC;
     int_fast16_t expDiffB;
     int_fast16_t expDiffC;
     union ui32_f32 uZ;
@@ -363,60 +363,41 @@ static float32_t f32_add3(float32_t a, float32_t b, float32_t c)
     expDiffB = expA - expB;
     expDiffC = expA - expC;
     if ( expDiffB ) {
-        if ( expDiffB < 31 ) {
-            uint32_t stickyB = sigB << (-expDiffB & 31);
-            if ( stickyB )
-                softfloat_raiseFlags( softfloat_flag_inexact );
-            sigB = (sigB >> expDiffB) | (stickyB != 0);
-        } else {
-            if ( sigB )
-                softfloat_raiseFlags( softfloat_flag_inexact );
-            sigB = (sigB != 0);
-        }
+        sigB = softfloat_shiftRightJam32( sigB, expDiffB );
+        sigB |= ((sigB & 0x2) != 0);
+        sigB &= ~0x2;
     }
     if ( expDiffC ) {
-        if ( expDiffC < 31 ) {
-            uint32_t stickyC = sigC << (-expDiffC & 31);
-            if ( stickyC )
-                softfloat_raiseFlags( softfloat_flag_inexact );
-            sigC = (sigC >> expDiffC) | (stickyC != 0);
-        } else {
-            if ( sigC )
-                softfloat_raiseFlags( softfloat_flag_inexact );
-            sigC = (sigC != 0);
-        }
+        sigC = softfloat_shiftRightJam32( sigC, expDiffC );
+        sigC |= ((sigC & 0x2) != 0);
+        sigC &= ~0x2;
     }
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
-    sigSubB = signF32UI( uiA ) ^ signF32UI( uiB );
-    sigSubC = signF32UI( uiA ) ^ signF32UI( uiC );
+    subB = signF32UI( uiA ) ^ signF32UI( uiB );
+    subC = signF32UI( uiA ) ^ signF32UI( uiC );
+    if ( subB && !subC && (sigB & sigC & 1) ) {
+        sigC -= 1;
+    } else if ( !subB && subC && (sigB & sigC & 1) ) {
+        sigB -= 1;
+    }
     signZ = signF32UI( uiA );
     expZ = expA;
-    sigZ = sigA + (sigSubB ? -sigB : sigB) + (sigSubC ? -sigC : sigC);
-    if ( (sigSubB || sigSubC) && sigZ >= 0x80000000 ) {
+    sigZ = sigA + (subB ? -sigB : sigB) + (subC ? -sigC : sigC);
+    if ( (subB || subC) && sigZ >= 0x80000000 ) {
         signZ = !signZ;
         sigZ = -sigZ;
     }
-    if ( !(sigSubB || sigSubC) && sigZ < 0x08000000 ) {
+    if ( !(subB || subC) && sigZ < 0x08000000 ) {
         --expZ;
         sigZ <<= 1;
     }
-    if ( (sigSubB || sigSubC) && !sigZ ) {
+    if ( (subB || subC) && !sigZ ) {
         uiZ =
             packToF32UI(
-                        (softfloat_roundingMode == softfloat_round_min), 0, 0 );
+                (softfloat_roundingMode == softfloat_round_min), 0, 0 );
         goto uiZ;
     }
-#ifdef F32_ADD3_HANDLE_SOME_CANCELATION
-    if ( sigSubB && expDiffB == 0 && sigZ == 1 && expDiffC > 25 ) {
-        uiZ =
-            packToF32UI(
-                        expC ? signF32UI(uiC) : (softfloat_roundingMode == softfloat_round_min),
-                        expC ? expC - 1 : 0,
-                        expC ? sigZ<<23 : 0 );
-        goto uiZ;
-    }
-#endif
     sigZ <<= 3;
     if (sigZ >= 0x80000000) {
         sigZ >>= 1;
