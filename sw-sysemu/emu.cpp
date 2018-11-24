@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <list>
 #include <queue>
+#include <unordered_map>
 
 #include "emu.h"
 #include "log.h"
@@ -81,6 +82,191 @@ int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
+
+std::unordered_map<int, char const*> csr_names = {
+   { csr_prv,               "prv"                },
+   { csr_unknown,           "unknown"            },
+   { csr_fflags,            "fflags"             },
+   { csr_frm,               "frm"                },
+   { csr_fcsr,              "fcsr"               },
+   { csr_cycle,             "cycle"              },
+   { csr_time,              "time"               },
+   { csr_instret,           "instret"            },
+   { csr_hpmcounter3,       "hpmcounter3"        },
+   { csr_hpmcounter4,       "hpmcounter4"        },
+   { csr_hpmcounter5,       "hpmcounter5"        },
+   { csr_hpmcounter6,       "hpmcounter6"        },
+   { csr_hpmcounter7,       "hpmcounter7"        },
+   { csr_hpmcounter8,       "hpmcounter8"        },
+   { csr_hpmcounter9,       "hpmcounter9"        },
+   { csr_hpmcounter10,      "hpmcounter10"       },
+   { csr_hpmcounter11,      "hpmcounter11"       },
+   { csr_hpmcounter12,      "hpmcounter12"       },
+   { csr_hpmcounter13,      "hpmcounter13"       },
+   { csr_hpmcounter14,      "hpmcounter14"       },
+   { csr_hpmcounter15,      "hpmcounter15"       },
+   { csr_hpmcounter16,      "hpmcounter16"       },
+   { csr_hpmcounter17,      "hpmcounter17"       },
+   { csr_hpmcounter18,      "hpmcounter18"       },
+   { csr_hpmcounter19,      "hpmcounter19"       },
+   { csr_hpmcounter20,      "hpmcounter20"       },
+   { csr_hpmcounter21,      "hpmcounter21"       },
+   { csr_hpmcounter22,      "hpmcounter22"       },
+   { csr_hpmcounter23,      "hpmcounter23"       },
+   { csr_hpmcounter24,      "hpmcounter24"       },
+   { csr_hpmcounter25,      "hpmcounter25"       },
+   { csr_hpmcounter26,      "hpmcounter26"       },
+   { csr_hpmcounter27,      "hpmcounter27"       },
+   { csr_hpmcounter28,      "hpmcounter28"       },
+   { csr_hpmcounter29,      "hpmcounter29"       },
+   { csr_hpmcounter30,      "hpmcounter30"       },
+   { csr_hpmcounter31,      "hpmcounter31"       },
+   { csr_tensor_reduce,     "tensor_reduce"      },
+   { csr_tensor_fma,        "tensor_fma"         },
+   { csr_tensor_conv_size,  "tensor_conv_size"   },
+   { csr_tensor_conv_ctrl,  "tensor_conv_ctrl"   },
+   { csr_tensor_coop,       "tensor_coop"        },
+   { csr_tensor_mask,       "tensor_mask"        },
+   { csr_tensor_quant,      "tensor_quant"       },
+   { csr_tex_send,          "tex_send"           },
+   { csr_tensor_error,      "tensor_error"       },
+   { csr_scratchpad_ctrl,   "scratchpad_ctrl"    },
+   { csr_usr_cache_op,      "usr_cache_op"       },
+   { csr_prefetch_va,       "prefetch_va"        },
+   { csr_flb0,              "flb0"               },
+   { csr_fcc,               "fcc"                },
+   { csr_stall,             "stall"              },
+   { csr_tensor_wait,       "tensor_wait"        },
+   { csr_tensor_load,       "tensor_load"        },
+   { csr_tensor_load_l2,    "tensor_load_l2"     },
+   { csr_tensor_store,      "tensor_store"       },
+   { csr_evict_va,          "evict_va"           },
+   { csr_flush_va,          "flush_va"           },
+   { csr_umsg_port0,        "umsg_port0"         },
+   { csr_umsg_port1,        "umsg_port1"         },
+   { csr_umsg_port2,        "umsg_port2"         },
+   { csr_umsg_port3,        "umsg_port3"         },
+   { csr_validation0,       "validation0"        },
+   { csr_validation1,       "validation1"        },
+   { csr_validation2,       "validation2"        },
+   { csr_validation3,       "validation3"        },
+   { csr_sleep_txfma_27,    "sleep_txfma_27"     },
+   { csr_lock_va,           "lock_va"            },
+   { csr_unlock_va,         "unlock_va"          },
+   { csr_porthead0,         "porthead0"          },
+   { csr_porthead1,         "porthead1"          },
+   { csr_porthead2,         "porthead2"          },
+   { csr_porthead3,         "porthead3"          },
+   { csr_portheadnb0,       "portheadnb0"        },
+   { csr_portheadnb1,       "portheadnb1"        },
+   { csr_portheadnb2,       "portheadnb2"        },
+   { csr_portheadnb3,       "portheadnb3"        },
+   { csr_hartid,            "hartid"             },
+   { csr_sstatus,           "sstatus"            },
+   { csr_sie,               "sie"                },
+   { csr_stvec,             "stvec"              },
+   { csr_scounteren,        "scounteren"         },
+   { csr_sscratch,          "sscratch"           },
+   { csr_sepc,              "sepc"               },
+   { csr_scause,            "scause"             },
+   { csr_stval,             "stval"              },
+   { csr_sip,               "sip"                },
+   { csr_satp,              "satp"               },
+   { csr_sys_cache_op,      "sys_cache_op"       },
+   { csr_evict_sw,          "evict_sw"           },
+   { csr_flush_sw,          "flush_sw"           },
+   { csr_smsg_port0,        "smsg_port0"         },
+   { csr_smsg_port1,        "smsg_port1"         },
+   { csr_smsg_port2,        "smsg_port2"         },
+   { csr_smsg_port3,        "smsg_port3"         },
+   { csr_portctrl0,         "portctrl0"          },
+   { csr_portctrl1,         "portctrl1"          },
+   { csr_portctrl2,         "portctrl2"          },
+   { csr_portctrl3,         "portctrl3"          },
+   { csr_mvendorid,         "mvendorid"          },
+   { csr_marchid,           "marchid"            },
+   { csr_mimpid,            "mimpid"             },
+   { csr_mhartid,           "mhartid"            },
+   { csr_mstatus,           "mstatus"            },
+   { csr_misa,              "misa"               },
+   { csr_medeleg,           "medeleg"            },
+   { csr_mideleg,           "mideleg"            },
+   { csr_mie,               "mie"                },
+   { csr_mtvec,             "mtvec"              },
+   { csr_mcounteren,        "mcounteren"         },
+   { csr_mscratch,          "mscratch"           },
+   { csr_mepc,              "mepc"               },
+   { csr_mcause,            "mcause"             },
+   { csr_mtval,             "mtval"              },
+   { csr_mip,               "mip"                },
+   { csr_mcycle,            "mcycle"             },
+   { csr_minstret,          "minstret"           },
+   { csr_mhpmcounter3,      "mhpmcounter3"       },
+   { csr_mhpmcounter4,      "mhpmcounter4"       },
+   { csr_mhpmcounter5,      "mhpmcounter5"       },
+   { csr_mhpmcounter6,      "mhpmcounter6"       },
+   { csr_mhpmcounter7,      "mhpmcounter7"       },
+   { csr_mhpmcounter8,      "mhpmcounter8"       },
+   { csr_mhpmcounter9,      "mhpmcounter9"       },
+   { csr_mhpmcounter10,     "mhpmcounter10"      },
+   { csr_mhpmcounter11,     "mhpmcounter11"      },
+   { csr_mhpmcounter12,     "mhpmcounter12"      },
+   { csr_mhpmcounter13,     "mhpmcounter13"      },
+   { csr_mhpmcounter14,     "mhpmcounter14"      },
+   { csr_mhpmcounter15,     "mhpmcounter15"      },
+   { csr_mhpmcounter16,     "mhpmcounter16"      },
+   { csr_mhpmcounter17,     "mhpmcounter17"      },
+   { csr_mhpmcounter18,     "mhpmcounter18"      },
+   { csr_mhpmcounter19,     "mhpmcounter19"      },
+   { csr_mhpmcounter20,     "mhpmcounter20"      },
+   { csr_mhpmcounter21,     "mhpmcounter21"      },
+   { csr_mhpmcounter22,     "mhpmcounter22"      },
+   { csr_mhpmcounter23,     "mhpmcounter23"      },
+   { csr_mhpmcounter24,     "mhpmcounter24"      },
+   { csr_mhpmcounter25,     "mhpmcounter25"      },
+   { csr_mhpmcounter26,     "mhpmcounter26"      },
+   { csr_mhpmcounter27,     "mhpmcounter27"      },
+   { csr_mhpmcounter28,     "mhpmcounter28"      },
+   { csr_mhpmcounter29,     "mhpmcounter29"      },
+   { csr_mhpmcounter30,     "mhpmcounter30"      },
+   { csr_mhpmcounter31,     "mhpmcounter31"      },
+   { csr_mhpmevent3,        "mhpmevent3"         },
+   { csr_mhpmevent4,        "mhpmevent4"         },
+   { csr_mhpmevent5,        "mhpmevent5"         },
+   { csr_mhpmevent6,        "mhpmevent6"         },
+   { csr_mhpmevent7,        "mhpmevent7"         },
+   { csr_mhpmevent8,        "mhpmevent8"         },
+   { csr_mhpmevent9,        "mhpmevent9"         },
+   { csr_mhpmevent10,       "mhpmevent10"        },
+   { csr_mhpmevent11,       "mhpmevent11"        },
+   { csr_mhpmevent12,       "mhpmevent12"        },
+   { csr_mhpmevent13,       "mhpmevent13"        },
+   { csr_mhpmevent14,       "mhpmevent14"        },
+   { csr_mhpmevent15,       "mhpmevent15"        },
+   { csr_mhpmevent16,       "mhpmevent16"        },
+   { csr_mhpmevent17,       "mhpmevent17"        },
+   { csr_mhpmevent18,       "mhpmevent18"        },
+   { csr_mhpmevent19,       "mhpmevent19"        },
+   { csr_mhpmevent20,       "mhpmevent20"        },
+   { csr_mhpmevent21,       "mhpmevent21"        },
+   { csr_mhpmevent22,       "mhpmevent22"        },
+   { csr_mhpmevent23,       "mhpmevent23"        },
+   { csr_mhpmevent24,       "mhpmevent24"        },
+   { csr_mhpmevent25,       "mhpmevent25"        },
+   { csr_mhpmevent26,       "mhpmevent26"        },
+   { csr_mhpmevent27,       "mhpmevent27"        },
+   { csr_mhpmevent28,       "mhpmevent28"        },
+   { csr_mhpmevent29,       "mhpmevent29"        },
+   { csr_mhpmevent30,       "mhpmevent30"        },
+   { csr_mhpmevent31,       "mhpmevent31"        },
+   { csr_minstmask,         "minstmask"          },
+   { csr_minstmatch,        "minstmatch"         },
+   { csr_flush_icache,      "flush_icache"       },
+   { csr_msleep_txfma_27,   "msleep_txfma_27"    },
+   { csr_menable_shadows,   "menable_shadows"    },
+   { csr_excl_mode,         "excl_mode"          },
+   { csr_mtxfma_sleep_traps,"mtxfma_sleep_traps" }
+};
 
 // Used to access different threads transparently
 #define SCP   scp[current_thread]
@@ -2337,7 +2523,6 @@ static uint64_t csrget(csr src1)
             val = csrregs[current_thread][src1];
             break;
     }
-    //LOG(DEBUG, "csrget 0x%016" PRIx64 " <-- csrreg[%d]",val,src1);
     return val;
 }
 
@@ -2667,7 +2852,6 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             break;
     }
-    LOG(DEBUG, "csrset csrreg[%d] <-- 0x%016" PRIx64,src1,val);
 }
 
 static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool write)
@@ -2713,11 +2897,11 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
     if (dst != x0)
     {
         XREGS[dst].x = oldval;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- CSR[0x%08x]", oldval, src1);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- CSR[%s]", oldval, csr_names[src1]);
     }
     if (write)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " --> CSR[0x%08x]", newval, src1);
+        LOG(DEBUG, "\t0x%016" PRIx64 " --> CSR[%s]", newval, csr_names[src1]);
     }
     logxregchange(dst);
 }
@@ -3024,7 +3208,7 @@ void sfence_vma(xreg src1, xreg src2, const char* comm)
 
 void csrrw(xreg dst, csr src1, xreg src2, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrw x%d, csrreg[%d], x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrw x%d, CSR[%s], x%d%s%s",dst,csr_names[src1],src2,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = XREGS[src2].x;
@@ -3033,7 +3217,7 @@ void csrrw(xreg dst, csr src1, xreg src2, const char* comm)
 
 void csrrs(xreg dst, csr src1, xreg src2, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrs x%d, csrreg[%d], x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrs x%d, CSR[%s], x%d%s%s",dst,csr_names[src1],src2,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | XREGS[src2].x;
@@ -3042,7 +3226,7 @@ void csrrs(xreg dst, csr src1, xreg src2, const char* comm)
 
 void csrrc(xreg dst, csr src1, xreg src2, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrc x%d, csrreg[%d], x%d%s%s",dst,src1,src2,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrc x%d, CSR[%s], x%d%s%s",dst,csr_names[src1],src2,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~XREGS[src2].x);
@@ -3051,7 +3235,7 @@ void csrrc(xreg dst, csr src1, xreg src2, const char* comm)
 
 void csrrwi(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrwi x%d, csrreg[%d], 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrwi x%d, CSR[%s], 0x%016" PRIx64 "%s%s",dst,csr_names[src1],imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = imm;
@@ -3060,7 +3244,7 @@ void csrrwi(xreg dst, csr src1, uint64_t imm, const char* comm)
 
 void csrrsi(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrsi x%d, csrreg[%d], 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrsi x%d, CSR[%s], 0x%016" PRIx64 "%s%s",dst,csr_names[src1],imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | imm;
@@ -3069,7 +3253,7 @@ void csrrsi(xreg dst, csr src1, uint64_t imm, const char* comm)
 
 void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 {
-    DISASM(gsprintf(dis,"I: csrrci x%d, csrreg[%d], 0x%016" PRIx64 "%s%s",dst,src1,imm,(comm?" # ":""),(comm?comm:"")););
+    DISASM(gsprintf(dis,"I: csrrci x%d, CSR[%s], 0x%016" PRIx64 "%s%s",dst,csr_names[src1],imm,(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~imm);
