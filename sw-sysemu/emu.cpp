@@ -1229,6 +1229,7 @@ void nop(const char* comm)
 {
     DISASM(gsprintf(dis,"I: nop%s%s",(comm?" # ":""),(comm?comm:"")););
     emu_log()<<LOG_DEBUG<<dis<<endm;
+    logxregchange(x0);
 }
 
 void beq(xreg src1, xreg src2, int64_t imm, const char* comm)

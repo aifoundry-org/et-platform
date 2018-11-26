@@ -147,30 +147,30 @@ public:
     }
 
     int64_t rvc_imm_lwsp() const {
-        return sx<8>( ((bits >> 2) & 0x1C) | ((bits >> 7) & 0x20) |
+        return ( ((bits >> 2) & 0x1C) | ((bits >> 7) & 0x20) |
                       ((bits << 4) & 0xC0) );
     }
 
     int64_t rvc_imm_ldsp() const {
-        return sx<9>( ((bits >> 2) & 0x018) | ((bits >> 7) & 0x020) |
-                      ((bits << 4) & 0x1C0) );
+        return ( ((bits >> 2) & 0x018) | ((bits >> 7) & 0x020) |
+                 ((bits << 4) & 0x1C0) );
     }
 
     int64_t rvc_imm_swsp() const {
-        return sx<8>( ((bits >> 7) & 0x3C) | ((bits >> 1) & 0xC0) );
+        return ( ((bits >> 7) & 0x3C) | ((bits >> 1) & 0xC0) );
     }
 
     int64_t rvc_imm_sdsp() const {
-        return sx<9>( ((bits >> 7) & 0x038) | ((bits >> 1) & 0x1C0) );
+        return ( ((bits >> 7) & 0x038) | ((bits >> 1) & 0x1C0) );
     }
 
     int64_t rvc_imm_lsw() const {
-        return sx<7>( ((bits >> 4) & 0x04) | ((bits >> 7) & 0x38) |
-                      ((bits << 1) & 0x40) );
+       return ( ((bits >> 4) & 0x04) | ((bits >> 7) & 0x38) |
+                ((bits << 1) & 0x40) );
     }
 
     int64_t rvc_imm_lsd() const {
-        return sx<8>( ((bits >> 7) & 0x38) | ((bits << 1) & 0xC0) );
+        return ( ((bits >> 7) & 0x38) | ((bits << 1) & 0xC0) );
     }
 
     int64_t rvc_j_imm() const {
@@ -186,7 +186,7 @@ public:
     }
 
     unsigned rvc_shamt() const {
-        return unsigned( ((bits >> 2) & 0x0F) | ((bits >> 7) & 0x10) );
+        return unsigned( ((bits >> 2) & 0x1F) | ((bits >> 7) & 0x10) );
     }
 
 public:

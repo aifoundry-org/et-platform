@@ -8,6 +8,8 @@ ifndef TESTROOT
     $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
 endif
 
+BFDROOT := $(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf
+
 SRCS := $(BEMU)/sys_emu/net_emulator.cpp \
         $(BEMU)/sys_emu/rboxSysEmu.cpp \
         $(BEMU)/sys_emu/sys_emu.cpp \
@@ -32,6 +34,10 @@ CXX 	 := g++
 CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include
 CXXFLAGS := -MMD -MP -Wall -Werror -std=c++11 -g -O2
 LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
+
+CPPFLAGS += -I$(BFDROOT)/include
+LDLIBS   += -L$(BFDROOT)/lib -Wl,-rpath=$(BFDROOT)/lib \
+	    -lbfd -lopcodes
 
 ifdef SYSEMU_DEBUG
    CXXFLAGS += -DSYSEMU_DEBUG
