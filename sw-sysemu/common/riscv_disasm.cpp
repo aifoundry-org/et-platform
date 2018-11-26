@@ -1,7 +1,5 @@
 #include <cstdio>
 #include <cstdarg>
-
-#if 0 // FIXME: we need to compile libbfd, libopcode and libiberty as dynamic libraries
 // NB: bfd.h needs 'PACKAGE' and 'PACKAGE_VERSION' to be defined
 // NB: dis-asm.h needs string.h
 #include <cstring>
@@ -78,11 +76,3 @@ void riscv_disasm(char* str, size_t size, uint32_t bits)
     *strm.ptr = '\0';
     (void) (func) (0, &info);
 }
-#else
-#include "riscv_disasm.h"
-
-void riscv_disasm(char* str, size_t size, uint32_t bits)
-{
-    snprintf(str, size, "DASM(0x%08x)", bits);
-}
-#endif
