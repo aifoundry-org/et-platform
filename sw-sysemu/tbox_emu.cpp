@@ -16,10 +16,6 @@
 #include "emu.h"
 #endif
 
-using emu::gprintf;
-using emu::gsprintf;
-using emu::gfprintf;
-
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #define max(a, b) (((a) >= (b)) ? (a) : (b))
 
@@ -871,14 +867,13 @@ bool TBOXEmu::texture_cache_lookup(int32_t bank, uint64_t tag, uint64_t data[TEX
     {
         uint32_t access_way = l - 1;
 
-        emu_log()<<"\tTexture Cache hit at bank " << bank << " way "<<access_way<<" for tag " << std::hex << tag<<
-            endl << "\tData : ";
+        LOG(DEBUG, "\tTexture Cache hit at bank %d way %u for tag %" PRIx64, bank, access_way, tag);
+        LOG(DEBUG, "\tData:");
         for (uint32_t q = 0; q < TEXTURE_CACHE_QWORDS_PER_LINE; q++)
         {
-            emu_log()<< textureCacheData[bank][access_way][q];
+            LOG(DEBUG, "\t%" PRIx64, textureCacheData[bank][access_way][q]);
             data[q] = textureCacheData[bank][access_way][q];
         }
-        emu_log()<<std::dec<<endm;
 
         texture_cache_update_lru(bank, access_way);
     }
@@ -2387,7 +2382,7 @@ bool TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
     uint64_t imageInfoAddress = imageTableAddress + request.info.imageid * 32;
 
 
-    DEBUG_EMU( gprintf("\tRead Image Descriptor with ID %ld from Address %016lx\n", request.info.imageid, imageInfoAddress); );
+    LOG(DEBUG, "\tRead Image Descriptor with ID %ld from Address %016lx\n", request.info.imageid, imageInfoAddress);
     fflush(stdout);
 
     currentImage.data[0] = vmemread64(imageInfoAddress);
@@ -2663,26 +2658,26 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         else
             l = 0;
 
-        emu_log()<<LOG_DEBUG<<"\tLD operation (texel coordinates)"<<endl;
+        LOG(DEBUG, "\tLD operation (texel coordinates)");
         switch (currentImage.info.type)
             {
             case IMAGE_TYPE_1D:
-                emu_log()<<"\tmip width "<<mip_width<<" i "<<i[0]<<endm;
+                LOG(DEBUG, "\tmip width %u i %u", mip_width, i[0]);
                 break;
             case IMAGE_TYPE_2D:
-                emu_log()<<"\tmip width "<< mip_width <<" mip height "<< mip_height<<" i "<<i[0]<<" j "<< j[0]<<endm;
+                LOG(DEBUG, "\tmip width %u mip height %u i %u j %u", mip_width, mip_height, i[0], j[0]);
                 break;
             case IMAGE_TYPE_3D:
-                emu_log()<<"\tmip width "<< mip_width <<"mip height "<< mip_height<<" mip depth "<<mip_depth<<
-                    " i "<< i[0]<<" j "<< j[0]<<" k "<<k[0]<<endm;
+                LOG(DEBUG, "\tmip width %u mip height %u mip depth %u i %u j %u k %u",
+                    mip_width, mip_height, mip_depth, i[0], j[0], k[0]);
                 break;
             case IMAGE_TYPE_1D_ARRAY:
-                emu_log()<<"\tmip width "<< mip_width <<" i "<< i[0] <<" l "<<l<<endm;
+                LOG(DEBUG, "\tmip width %u i %u l %u", mip_width, i[0], l);
                 break;
             case IMAGE_TYPE_CUBE:
             case IMAGE_TYPE_2D_ARRAY:
             case IMAGE_TYPE_CUBE_ARRAY:
-                emu_log()<<"\tmip width " << mip_width<< " mip height "<< mip_height<<" i " <<i[0] <<" j "<< j[0]<< "l "<<l<<endm;
+                LOG(DEBUG, "\tmip width %u mip height %u i %u j %u l %u", mip_width, mip_height, i[0], j[0], l);
                 break;
             }
     }
@@ -2722,26 +2717,25 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
             a = 0;
 
         
-        emu_log()<<LOG_DEBUG<<"\tSAMPLE operation (unnormalized coordinates)"<<endl;
+        LOG(DEBUG, "\tSAMPLE operation (unnormalized coordinates)");
         switch (currentImage.info.type)
             {
             case IMAGE_TYPE_1D:
-                emu_log()<<"\tmip width "<< mip_width<< " u "<<u<<endm;
+                LOG(DEBUG, "\tmip width %u u %f", mip_width, u);
                 break;
             case IMAGE_TYPE_2D:
-                emu_log()<<"\tmip width "<< mip_width <<" mip height "<< mip_height<<" u "<<u<<" v "<<v<<endm;
+                LOG(DEBUG, "\tmip width %u mip height %u u %f v %f", mip_width, mip_height, u, v);
                 break;
             case IMAGE_TYPE_3D:
-                emu_log()<<"\tmip width "<<mip_width<<" mip height "<<mip_height<<" mip depth "<<
-                    mip_depth<<" u "<<u<<" v "<<v<<" w "<<w<<endm;
+                LOG(DEBUG, "\tmip width %u mip height %u mip depth %u u %f v %f w %f", mip_width, mip_height, mip_depth, u, v, w);
                 break;
             case IMAGE_TYPE_1D_ARRAY:
-                emu_log()<<"\tmip width "<< mip_width<<" u "<<u<<" a = "<<a<<endm;
+                LOG(DEBUG, "\tmip width %u u %f a = %u", mip_width, u, a);
                 break;
             case IMAGE_TYPE_CUBE:
             case IMAGE_TYPE_2D_ARRAY:
             case IMAGE_TYPE_CUBE_ARRAY:
-                emu_log()<<"\tmip width "<< mip_width <<" mip height "<<mip_height<<" u "<< u <<" v "<< v<< " a "<<a<<endm;
+                LOG(DEBUG, "\tmip width %u mip height %u u %f v %f a %u", mip_width, mip_height, u, v, a);
                 break;
             }
         
@@ -2818,13 +2812,10 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
 
             output_result = output_result && data_ready;
 
-            emu_log()<<LOG_DEBUG<<"\tTexture cache access"<<endl<<
-                "\t\tBank = "<< banks[0]<<" Tag = "<<std::hex<<tags[0]<<" Hit = "<<hit<<endl<<
-                "\t\tAddress = ";
-            for ( int i = 0; i< 4; i++) emu_log<<address[0][i] <<" ";
-            emu_log()<<endl<<"\t\tData = ";
-            for ( int i = 0; i< 8;i++) emu_log<<data[i]<<" ";
-            emu_log()<<std::dec<<endm;
+            LOG(DEBUG, "\tTexture cache access");
+            LOG(DEBUG, "\t\tBank = %d Tag = %" PRIx64 " Hit = %d", banks[0], tags[0], hit);
+            for ( int i = 0; i< 4; i++) LOG(DEBUG, "\t\tAddress[%d] = %" PRIx64, i, address[0][i]);
+            for ( int i = 0; i< 8;i++) LOG(DEBUG, "\t\tData[%d] = %" PRIx64, i, data[i]);;
             
             read_texel(currentImage, i[0], j[0], data, texel_ul, output_result);
 #else
@@ -2884,14 +2875,11 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
             }
         }
 
-        emu_log() << LOG_DEBUG << "\tTexture cache banks accessed = "<< num_banks<<endl<<std::hex;
+        LOG(DEBUG, "\tTexture cache banks accessed = %u", num_banks);
         for (uint32_t b = 0; b < num_banks; b++) {
-            emu_log()<<"\t\tBank = "<<banks[b]<<" Tag = "<< hex<<tags[b]<<" Hit = hits[b]"<<endl<< "\t\tAddress =";
-            for ( int i = 0; i< 4; i++) emu_log()<<" "<<address[b][i];
-            emu_log()<<"\t\tData =";
-            for ( int i = 0; i< 8; i++)
-                emu_log()<<data[b][i];
-            emu_log()<<std::dec<<endm;
+            LOG(DEBUG, "\t\tBank = %d Tag = %" PRIx64 " Hit = %d", banks[b], tags[b], hits[b]);
+            for ( int i = 0; i< 4; i++) LOG(DEBUG, "\t\tAddress[%d] = %" PRIx64, i, address[b][i]);
+            for ( int i = 0; i< 8; i++) LOG(DEBUG, "\t\tData[%d] = %" PRIx64, i, data[b][i]);
         }
 
         switch (num_banks)

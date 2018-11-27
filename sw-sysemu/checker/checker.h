@@ -45,7 +45,7 @@ class checker
 {
  public:
         // Constructor and destructor
-        checker(main_memory * memory_, bool print_debug, enum logLevel emu_log_level);
+        checker(main_memory * memory_, enum logLevel emu_log_level);
         ~checker();
 
         void set_et_core(int core_type);
