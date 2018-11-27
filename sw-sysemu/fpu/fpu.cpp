@@ -10,6 +10,12 @@
 
 #include <cmath> // FIXME: remove this when we fix f32_frac()
 
+// Extend softfloat arithmetic flags
+enum {
+    softfloat_flag_denormal = 128
+};
+
+
 // Set to convert input denormals as zero
 #ifndef FPU_DAZ
 #define FPU_DAZ 1
@@ -60,7 +66,11 @@ namespace fpu {
     static inline float32_t daz(float32_t x)
     {
 #ifdef FPU_DAZ
-        return F32(subnormalToZeroF32UI(UI32(x)));
+        uint_fast32_t src = UI32(x);
+        uint_fast32_t dst = subnormalToZeroF32UI(src);
+        if (src != dst)
+            softfloat_raiseFlags(softfloat_flag_denormal);
+        return F32(dst);
 #else
         return x;
 #endif
@@ -70,7 +80,11 @@ namespace fpu {
     static inline float16_t daz(float16_t x)
     {
 #ifdef FPU_DAZ
-        return F16(subnormalToZeroF16UI(UI16(x)));
+        uint_fast16_t src = UI16(x);
+        uint_fast16_t dst = subnormalToZeroF16UI(src);
+        if (src != dst)
+            softfloat_raiseFlags(softfloat_flag_denormal);
+        return F16(dst);
 #else
         return x;
 #endif
@@ -80,7 +94,11 @@ namespace fpu {
     static inline float11_t daz(float11_t x)
     {
 #ifdef FPU_DAZ
-        return F11(subnormalToZeroF11UI(UI16(x)));
+        uint_fast16_t src = UI16(x);
+        uint_fast16_t dst = subnormalToZeroF11UI(src);
+        if (src != dst)
+            softfloat_raiseFlags(softfloat_flag_denormal);
+        return F11(dst);
 #else
         return x;
 #endif
@@ -90,7 +108,11 @@ namespace fpu {
     static inline float10_t daz(float10_t x)
     {
 #ifdef FPU_DAZ
-        return F10(subnormalToZeroF10UI(UI16(x)));
+        uint_fast16_t src = UI16(x);
+        uint_fast16_t dst = subnormalToZeroF10UI(src);
+        if (src != dst)
+            softfloat_raiseFlags(softfloat_flag_denormal);
+        return F10(dst);
 #else
         return x;
 #endif
@@ -100,7 +122,11 @@ namespace fpu {
     static inline float32_t ftz(float32_t x)
     {
 #ifdef FPU_FTZ
-        return F32(subnormalToZeroF32UI(UI32(x)));
+        uint_fast32_t src = UI32(x);
+        uint_fast32_t dst = subnormalToZeroF32UI(src);
+        if (src != dst)
+            softfloat_raiseFlags(softfloat_flag_underflow);
+        return F32(dst);
 #else
         return x;
 #endif
