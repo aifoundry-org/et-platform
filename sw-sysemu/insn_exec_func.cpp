@@ -1057,12 +1057,6 @@ void insn_c_illegal(insn_t inst __attribute__((unused))) {
     unknown();
 }
 
-// nop instruction
-
-void insn_c_nop(insn_t inst __attribute__((unused))) {
-    nop();
-}
-
 // breakpoint instruction
 
 void insn_c_ebreak(insn_t inst) {
