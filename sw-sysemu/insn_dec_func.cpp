@@ -817,7 +817,7 @@ static insn_exec_funct_t dec_custom3(uint32_t bits, uint32_t& flags)
                case 0x0: return (bits & 0x01800000) ? insn_unknown : insn_fmvz_x_ps; // rs2[4:3] == 0
                case 0x1: return (bits & 0x01f00000) ? insn_unknown : insn_fclass_ps; // rs2 == 0
                case 0x2: return (bits & 0x01800000) ? insn_unknown : insn_fmvs_x_ps; // rs2[4:3] == 0
-               case 0x5: return (bits & 0x01f00c00) ? insn_unknown : insn_flem_ps;   // rs2|rd[4:3] == 0
+               case 0x5: return (bits & 0x01f00c00) ? insn_unknown : insn_fsetm_ps;  // rs2|rd[4:3] == 0
                default : return insn_unknown;
                }
     case 0x73: return insn_fswizz_ps;
@@ -902,10 +902,10 @@ static insn_exec_funct_t dec_c_sd(uint32_t bits __attribute__((unused)),
 
 // ----- Quadrant 1 -----
 
-static insn_exec_funct_t dec_c_addi(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_c_addi(uint32_t bits __attribute__((unused)),
+                                    uint32_t& flags __attribute__((unused)))
 {
-    uint16_t rs1_rd = (bits >> 7) & 31;
-    return (rs1_rd == 0) ? insn_c_nop : insn_c_addi;
+    return insn_c_addi;
 }
 
 

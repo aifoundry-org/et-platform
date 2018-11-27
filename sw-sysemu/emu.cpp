@@ -1407,13 +1407,6 @@ void unknown(const char* comm)
     throw trap_illegal_instruction(current_inst);
 }
 
-// NOP
-void nop(const char* comm)
-{
-    LOG(DEBUG, "I: nop%s%s", (comm?" # ":""), (comm?comm:""));
-    logxregchange(x0);
-}
-
 void beq(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: beq x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
