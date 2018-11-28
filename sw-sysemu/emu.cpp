@@ -7046,7 +7046,8 @@ static void tensorquant(uint64_t value)
                     // INT32 ReLU
                     else if(transformations[trans] == 3)
                     {
-                        res.i = 0xdeadbeaf;
+                        res.i = (val.i < 0) ? 0 : val.i;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- MAX_INT32(0x%08x, 0x00000000)",src,idx,res.i,val.i);
                     }
                     // INT32 add row-wise
                     else if(transformations[trans] == 4)
@@ -7127,7 +7128,7 @@ static void tensorquant(uint64_t value)
                 }
             }
         }
-        if(scp_inc) scpsrc++;
+        if(scp_inc) scpsrc = (scpsrc + 1) % L1_SCP_ENTRIES;
     }
 }
 
