@@ -7671,6 +7671,16 @@ static void tensorreduce(uint64_t value)
                 LOG(DEBUG, "\tReduce (fadd) f%d[%d]: %g = %g(m%d) + %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min);
                 LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
             }
+            else if (operation == 2) // FMAX
+            {
+                iufval32 src1, src2, rslt;
+                src1.u = FREGS[op_reg].u[j];
+                src2.u = fregs[other_min<<1][op_reg].u[j];
+                rslt.f = fpu::f32_maxNum(src1.f,src2.f);//src1.u > src2.u ? src1.u : src2.u;
+                FREGS[op_reg].u[j] = rslt.u;
+                LOG(DEBUG, "\tReduce (fmax) f%d[%d]: %g = %g(m%d) > %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min);
+                LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x > 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
+            }
             else if (operation == 4) // IADD
             {
                 iufval32 src1, src2, rslt;
