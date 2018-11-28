@@ -51,13 +51,9 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
         main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*ESR_REGION_OFFSET, 64, log, getthread);
         regions_.push_back((main_memory_region *) mtm);
 
-//currently not defined. It is required by the implementation of l2 prefetch scp
-//we can use it when the new toolchain is ready and minion dv tests use the proper regions.
-#if L2SCP
-      // L2 scratchpad
-      main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + i*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
-      regions_.push_back((main_memory_region *) l2_scp);
-#endif
+        // L2 scratchpad
+        main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + i*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
+        regions_.push_back((main_memory_region *) l2_scp);
 
     }
 }
