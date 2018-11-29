@@ -633,9 +633,10 @@ static inline int frm()
 
 // internal accessor to fflags; this is faster than doing
 // csrset(csr_fflags, csrget(csr_fflags) | new_value)
-static inline void update_fflags(int flags)
+static inline void update_fflags(uint_fast8_t flags)
 {
-    csrregs[current_thread][csr_fcsr] |= (flags & 0x1F);
+    uint32_t newval = (flags & 0x1F) | (uint32_t(flags & 0x80) << 24);
+    csrregs[current_thread][csr_fcsr] |= newval;
 }
 
 // internal accessor to mstatus.fs; this is faster than using csrset()
@@ -686,15 +687,15 @@ static inline void set_x86_rounding_mode(rounding_mode rm)
     }
 }
 
-static inline void set_rounding_mode(rounding_mode rm)
+static inline void set_rounding_mode(rounding_mode mode)
 {
-    int round = (rm == rmdyn) ? frm() : rm;
+    uint_fast8_t round = (mode == rmdyn) ? frm() : mode;
     if (round > 4)
         throw trap_illegal_instruction(current_inst);
     fpu::rm(round);
 }
 
-static inline const char* get_rounding_mode(rounding_mode rm)
+static inline const char* get_rounding_mode(rounding_mode mode)
 {
     static const char* rmnames[] = {
         "rne",      "rtz",       "rdn",       "rup",
@@ -703,7 +704,7 @@ static inline const char* get_rounding_mode(rounding_mode rm)
         "dyn(rmm)", "dyn(res5)", "dyn(res6)", "dyn(res7)",
     };
 
-    return rmnames[(rm == rmdyn) ? (8 + frm()) : rm];
+    return rmnames[(mode == rmdyn) ? (8 + frm()) : mode];
 }
 
 static inline void set_fp_exceptions()
@@ -1405,13 +1406,6 @@ void unknown(const char* comm)
 {
     LOG(DEBUG, "I: unknown @%016" PRIx64 "(0x%04x)%s%s", current_pc, current_inst, (comm?" # ":""), (comm?comm:""));
     throw trap_illegal_instruction(current_inst);
-}
-
-// NOP
-void nop(const char* comm)
-{
-    LOG(DEBUG, "I: nop%s%s", (comm?" # ":""), (comm?comm:""));
-    logxregchange(x0);
 }
 
 void beq(xreg src1, xreg src2, int64_t imm, const char* comm)

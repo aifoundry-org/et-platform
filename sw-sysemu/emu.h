@@ -72,9 +72,6 @@ extern void take_trap(const trap_t& t);
 // Illegal instruction encodings will execute this
 extern void unknown(const char* comm = 0);
 
-// NOPs will execute this
-extern void nop(const char* comm = 0);
-
 // Instruction encodings that match minstmatch/minstmask will execute this
 extern void check_minst_match(uint32_t bits);
 
