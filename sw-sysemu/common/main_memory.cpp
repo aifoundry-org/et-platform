@@ -48,6 +48,10 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
         shire_esrs = new main_memory_region(0x100340000ULL + (3ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
 
+        // S prot for shire
+        shire_esrs = new main_memory_region(0x100340000ULL + (1ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        regions_.push_back((main_memory_region *) shire_esrs);
+
         main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*ESR_REGION_OFFSET, 64, log, getthread);
         regions_.push_back((main_memory_region *) mtm);
 
