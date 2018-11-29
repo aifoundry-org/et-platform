@@ -56,7 +56,7 @@ void riscv_disasm_init()
     info.buffer_vma = 0;
     info.buffer_length = 4;
     info.print_address_func = disasm_print_address;
-    info.disassembler_options = "no-aliases";
+    info.disassembler_options = "no-aliases,numeric";
     disassemble_init_for_target(&info);
     func = disassembler(info.arch, 0, info.mach, nullptr);
 }
