@@ -7,7 +7,9 @@
 #include "emu.h"
 #include "insn.h"
 #include "common/main_memory.h"
+#ifndef NODISASM
 #include "common/riscv_disasm.h"
+#endif
 #include "log.h"
 #include "net_emulator.h"
 #include "rboxSysEmu.h"
@@ -208,6 +210,7 @@ static bool parse_mem_file(const char * filename, main_memory * memory, testLog&
 
 static void print_inst_log(const insn_t& inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
 {
+#ifndef NODISASM
     char insn_disasm[128];
     riscv_disasm(insn_disasm, 128, inst.bits);
     printf("Minion %" PRIu64 ".%" PRIu64 ".%" PRIu64 ": PC %08" PRIx64 " (inst bits %08" PRIx32 "), mnemonic %s\n",
@@ -215,6 +218,12 @@ static void print_inst_log(const insn_t& inst, uint64_t minion, uint64_t current
            (minion / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE,
            minion % EMU_THREADS_PER_MINION, current_pc,
            inst.bits, insn_disasm);
+#else
+    printf("Minion %" PRIu64 ".%" PRIu64 ".%" PRIu64 ": PC %08" PRIx64 " (inst bits %08" PRIx32 ")\n",
+           minion / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION),
+           (minion / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE,
+           minion % EMU_THREADS_PER_MINION, current_pc, inst.bits);
+#endif
 }
 
 // Returns current thread
