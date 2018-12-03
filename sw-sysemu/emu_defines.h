@@ -142,7 +142,7 @@ typedef enum {
     csr_tex_send,
     csr_tensor_error,
     csr_scratchpad_ctrl,
-    csr_usr_cache_op,
+    csr_usr_cache_op, //TODO remove once everything is up to spec
     csr_prefetch_va,
     csr_flb0,
     csr_fcc,
