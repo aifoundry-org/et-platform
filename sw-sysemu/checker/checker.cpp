@@ -433,7 +433,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 log << LOG_INFO << "Waived CSR value (" << insn_disasm << ")" << endm;
                 emu_state_change.int_reg_data = changes->int_reg_data;
-                if (inst.rd() != x0) init(inst.rd(), emu_state_change.int_reg_data);
+                init(inst.rd(), emu_state_change.int_reg_data);
             }
 
             // Check if we just read a cycle register, in which case the RTL drives value
