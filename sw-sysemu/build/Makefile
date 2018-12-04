@@ -31,10 +31,15 @@ CC       := gcc
 CXX      := g++
 ARFLAGS  := rvs
 CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs
-CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
-CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
+CXXFLAGS := -MMD -MP -Wall -Werror -g -O2 -std=c++11
+CFLAGS   := -MMD -MP -Wall -Werror -g -O2 -std=c11
 LDLIBS   :=
 LDFLAGS  := -shared
+
+ifndef LIBEMU_STATIC
+CXXFLAGS += -fPIC
+CFLAGS   += -fPIC
+endif
 
 # FIXME: Remove the following when we convert everything away from C++ floats
 CXXFLAGS += -mf16c -fno-fast-math
