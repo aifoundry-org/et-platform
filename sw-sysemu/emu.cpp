@@ -854,7 +854,7 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_portctrl2] = 0x0000000000008000ULL;
     csrregs[thread][csr_portctrl3] = 0x0000000000008000ULL;
 
-    csrregs[thread][csr_minstmask] = 0xFFFFFFFFFFFFFFFFULL;
+    csrregs[thread][csr_minstmask] = 0x0ULL;
 }
 
 void minit(mreg dst, uint64_t val)
@@ -1018,8 +1018,12 @@ void take_trap(const trap_t& t)
 
 void check_minst_match(uint32_t bits)
 {
-    if ((bits != 0) && (((bits ^ csrget(csr_minstmatch)) & csrget(csr_minstmask)) == 0))
-        throw trap_mcode_instruction(bits);
+    uint64_t minstmask = csrget(csr_minstmask);
+    if ( (minstmask >> 32) != 0 ) {
+        uint32_t mask = minstmask;
+        if ( ((bits ^ csrget(csr_minstmatch)) & mask) == 0)
+            throw trap_mcode_instruction(bits);
+    }
 }
 
 void set_core_type(et_core_t core)
