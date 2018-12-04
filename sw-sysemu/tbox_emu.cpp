@@ -2952,7 +2952,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         {
             if (currentImage.info.type == IMAGE_TYPE_3D)
             {
-                betaj = (slice == 0) ? (1.0 - betaj) : betaj;
+                betak = (slice == 0) ? (1.0 - betak) : betak;
 
                 red += (((texel_ul[0] * (1.0 - betai) + texel_ur[0] * betai) * (1.0 - betaj)
                          + (texel_ll[0] * (1.0 - betai) + texel_lr[0] * betai) * betaj)
