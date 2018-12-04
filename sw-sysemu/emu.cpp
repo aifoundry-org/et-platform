@@ -244,7 +244,7 @@ typedef enum {
 extern void flush_insn_cache();
 
 // State declaration
-std::ostringstream uart_stream;
+std::ostringstream uart_stream[EMU_NUM_THREADS];
 int buflen = 0;
 xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
@@ -507,8 +507,9 @@ std::stringstream dump_fregs(uint32_t thread_id)
 
 void init_emu(int fakesam, enum logLevel level)
 {
-    fake_sampler = fakesam;
-    emu_log().setLogLevel(level);
+   XREGS[x0].x  = 0;
+   fake_sampler = fakesam;
+   emu_log().setLogLevel(level);
 }
 
 void log_only_minion(int32_t m) {
@@ -597,8 +598,10 @@ static void check_sp_out_of_range(uint64_t val)
 
 void init(xreg dst, uint64_t val)
 {
-    XREGS[dst].x = val;
-    LOG(DEBUG, "init x%d <-- 0x%016" PRIx64, dst, val);
+    if (dst != x0) {
+       XREGS[dst].x = val;
+       LOG(DEBUG, "init x%d <-- 0x%016" PRIx64, dst, val);
+    }
 }
 
 void init_stack()
@@ -2884,11 +2887,11 @@ static void csrset(csr src1, uint64_t val)
                break;
             }
             if ((char) val != '\n') {
-               uart_stream << (char) val;
+               uart_stream[current_thread] << (char) val;
             } else { // If line feed, flush to stdout
-               std::cout << uart_stream.str() << std::endl;
-               uart_stream.str("");
-               uart_stream.clear();
+               std::cout << uart_stream[current_thread].str() << std::endl;
+               uart_stream[current_thread].str("");
+               uart_stream[current_thread].clear();
             }
             break;
         // ----- Not really ESRs -----------------------------------------
