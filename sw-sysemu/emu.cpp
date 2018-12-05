@@ -827,7 +827,7 @@ void initcsr(uint32_t thread)
     // Exit reset at M-mode
     csrregs[thread][csr_prv] = CSR_PRV_M;
     // Read-only registers
-    csrregs[thread][csr_mvendorid] = 0x1E0A;
+    csrregs[thread][csr_mvendorid] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity) 
     csrregs[thread][csr_marchid] = 0x8000000000000001ULL;
     csrregs[thread][csr_mimpid] = 0x0;
     csrregs[thread][csr_mhartid] = thread;
