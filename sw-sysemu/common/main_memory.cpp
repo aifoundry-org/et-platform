@@ -36,6 +36,13 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
             regions_.push_back((main_memory_region *) neigh_esrs);
         }
 
+        // SHIRE CACHE BANK ESR
+        for (int n = 0; n < 4; n++)
+        {
+          main_memory_region * cb_esrs  = new main_memory_region(0x100300030ULL + i*ESR_REGION_OFFSET + (n*0x2000), 8, log, getthread);
+          regions_.push_back((main_memory_region *) cb_esrs);
+        }
+
         // RBOX
         main_memory_region * rbox_esrs  = new main_memory_region(0x100310000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) rbox_esrs);
