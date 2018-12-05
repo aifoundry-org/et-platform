@@ -244,7 +244,7 @@ typedef enum {
 extern void flush_insn_cache();
 
 // State declaration
-std::ostringstream uart_stream;
+std::ostringstream uart_stream[EMU_NUM_THREADS];
 int buflen = 0;
 xdata xregs[EMU_NUM_THREADS][32];
 fdata fregs[EMU_NUM_THREADS][32];
@@ -507,8 +507,9 @@ std::stringstream dump_fregs(uint32_t thread_id)
 
 void init_emu(int fakesam, enum logLevel level)
 {
-    fake_sampler = fakesam;
-    emu_log().setLogLevel(level);
+   XREGS[x0].x  = 0;
+   fake_sampler = fakesam;
+   emu_log().setLogLevel(level);
 }
 
 void log_only_minion(int32_t m) {
@@ -597,8 +598,10 @@ static void check_sp_out_of_range(uint64_t val)
 
 void init(xreg dst, uint64_t val)
 {
-    XREGS[dst].x = val;
-    LOG(DEBUG, "init x%d <-- 0x%016" PRIx64, dst, val);
+    if (dst != x0) {
+       XREGS[dst].x = val;
+       LOG(DEBUG, "init x%d <-- 0x%016" PRIx64, dst, val);
+    }
 }
 
 void init_stack()
@@ -824,7 +827,7 @@ void initcsr(uint32_t thread)
     // Exit reset at M-mode
     csrregs[thread][csr_prv] = CSR_PRV_M;
     // Read-only registers
-    csrregs[thread][csr_mvendorid] = 0x1E0A;
+    csrregs[thread][csr_mvendorid] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity) 
     csrregs[thread][csr_marchid] = 0x8000000000000001ULL;
     csrregs[thread][csr_mimpid] = 0x0;
     csrregs[thread][csr_mhartid] = thread;
@@ -854,7 +857,7 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_portctrl2] = 0x0000000000008000ULL;
     csrregs[thread][csr_portctrl3] = 0x0000000000008000ULL;
 
-    csrregs[thread][csr_minstmask] = 0xFFFFFFFFFFFFFFFFULL;
+    csrregs[thread][csr_minstmask] = 0x0ULL;
 }
 
 void minit(mreg dst, uint64_t val)
@@ -1018,8 +1021,12 @@ void take_trap(const trap_t& t)
 
 void check_minst_match(uint32_t bits)
 {
-    if ((bits != 0) && (((bits ^ csrget(csr_minstmatch)) & csrget(csr_minstmask)) == 0))
-        throw trap_mcode_instruction(bits);
+    uint64_t minstmask = csrget(csr_minstmask);
+    if ( (minstmask >> 32) != 0 ) {
+        uint32_t mask = minstmask;
+        if ( ((bits ^ csrget(csr_minstmatch)) & mask) == 0)
+            throw trap_mcode_instruction(bits);
+    }
 }
 
 void set_core_type(et_core_t core)
@@ -2880,11 +2887,11 @@ static void csrset(csr src1, uint64_t val)
                break;
             }
             if ((char) val != '\n') {
-               uart_stream << (char) val;
+               uart_stream[current_thread] << (char) val;
             } else { // If line feed, flush to stdout
-               std::cout << uart_stream.str() << std::endl;
-               uart_stream.str("");
-               uart_stream.clear();
+               std::cout << uart_stream[current_thread].str() << std::endl;
+               uart_stream[current_thread].str("");
+               uart_stream[current_thread].clear();
             }
             break;
         // ----- Not really ESRs -----------------------------------------
