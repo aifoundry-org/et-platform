@@ -2458,7 +2458,7 @@ static uint64_t csrget(csr src1)
             throw trap_illegal_instruction(current_inst);
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
-            val = csrregs[current_thread][csr_fcsr] & 0x1F;
+	    val = csrregs[current_thread][csr_fcsr] & 0x8000001f;
             break;
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
