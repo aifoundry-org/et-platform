@@ -773,6 +773,7 @@ static insn_exec_funct_t dec_custom3(uint32_t bits, uint32_t& flags)
                case 0x1: return insn_flt_pi;
                case 0x2: return insn_feq_pi;
                case 0x3: return insn_fltu_pi;
+               case 0x4: return (bits & 0x01f00c00) ? insn_unknown : insn_fsetm_pi;  // rs2|rd[4:3] == 0
                default : return insn_unknown;
                }
     case 0x60: switch (rs2) {
@@ -817,7 +818,6 @@ static insn_exec_funct_t dec_custom3(uint32_t bits, uint32_t& flags)
                case 0x0: return (bits & 0x01800000) ? insn_unknown : insn_fmvz_x_ps; // rs2[4:3] == 0
                case 0x1: return (bits & 0x01f00000) ? insn_unknown : insn_fclass_ps; // rs2 == 0
                case 0x2: return (bits & 0x01800000) ? insn_unknown : insn_fmvs_x_ps; // rs2[4:3] == 0
-               case 0x5: return (bits & 0x01f00c00) ? insn_unknown : insn_fsetm_ps;  // rs2|rd[4:3] == 0
                default : return insn_unknown;
                }
     case 0x73: return insn_fswizz_ps;

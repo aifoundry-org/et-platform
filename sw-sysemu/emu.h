@@ -322,7 +322,7 @@ extern void feqm_ps (mreg dst, freg src1, freg src2, const char* comm = 0);
 extern void flem_ps (mreg dst, freg src1, freg src2, const char* comm = 0);
 extern void fltm_ps (mreg dst, freg src1, freg src2, const char* comm = 0);
 
-extern void fsetm_ps (mreg dst, freg src1, const char* comm = 0);
+extern void fsetm_pi (mreg dst, freg src1, const char* comm = 0);
 
 extern void fcmov_ps  (freg dst, freg src1, freg src2, freg src3, const char* comm = 0);
 extern void fcmovm_ps (freg dst, freg src1, freg src2, const char* comm = 0);
