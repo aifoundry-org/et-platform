@@ -765,7 +765,6 @@ FMT_FD_FS1_FS2        (insn_flt_ps,         flt_ps)
 FMT_MD_FS1_FS2        (insn_feqm_ps,        feqm_ps)
 FMT_MD_FS1_FS2        (insn_flem_ps,        flem_ps)
 FMT_MD_FS1_FS2        (insn_fltm_ps,        fltm_ps)
-FMT_MD_FS1            (insn_fsetm_ps,       fsetm_ps)
 // classify
 FMT_FD_FS1            (insn_fclass_ps,      fclass_ps)
 // graphics upconverts
@@ -846,6 +845,7 @@ FMT_FD_FS1_FS2     (insn_fle_pi,        fle_pi)
 FMT_FD_FS1_FS2     (insn_flt_pi,        flt_pi)
 FMT_MD_FS1_FS2     (insn_fltm_pi,       fltm_pi)
 FMT_FD_FS1_FS2     (insn_fltu_pi,       fltu_pi)
+FMT_MD_FS1         (insn_fsetm_pi,      fsetm_pi)
 
 // ----- ET graphics scalar --------------------------------
 FMT_RD_RS1_RS2  (insn_packb,    packb)

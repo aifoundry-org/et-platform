@@ -4824,9 +4824,9 @@ void fltm_ps(mreg dst, freg src1, freg src2, const char* comm)
     fmask(FLT, dst, src1, src2);
 }
 
-void fsetm_ps(mreg dst, freg src1, const char* comm)
+void fsetm_pi(mreg dst, freg src1, const char* comm)
 {
-    LOG(DEBUG, "I: fsetm.ps m%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fsetm.pi m%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     fmask(FSET, dst, src1, fnone);
