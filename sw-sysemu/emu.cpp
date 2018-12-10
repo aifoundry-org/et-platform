@@ -2730,9 +2730,10 @@ static void csrset(csr src1, uint64_t val)
                 dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
             }
             break;
-        case csr_scratchpad_ctrl:
+        case csr_scratchpad_ctrl: // Shared register
             val &= 0x0000000000000001ULL;
             csrregs[current_thread][src1] = val;
+	    csrregs[current_thread^1][src1] = val;
             num_sets = val ? 4 : 16;
             break;
         case csr_tex_send:
@@ -2785,7 +2786,7 @@ static void csrset(csr src1, uint64_t val)
             val = (csrregs[current_thread][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
             csrregs[current_thread][csr_mip] = val;
             break;
-        case csr_satp:
+        case csr_satp: // Shared register
             // MODE is 4 bits, ASID is 0bits, PPN is PPN_M bits
             val &= 0xF000000000000000ULL | PPN_M;
             switch (val >> 60)
@@ -2794,6 +2795,7 @@ static void csrset(csr src1, uint64_t val)
                 case SATP_MODE_SV39:
                 case SATP_MODE_SV48:
                     csrregs[current_thread][src1] = val;
+		    csrregs[current_thread^1][src1] = val;
                     break;
                 default: // reserved
                     // do not write the register if attempting to set an unsupported mode
