@@ -133,6 +133,19 @@ namespace fpu {
 #endif
     }
 
+    static inline float16_t ftz(float16_t x)
+    {
+#ifdef FPU_FTZ
+        uint_fast16_t src = UI16(x);
+        uint_fast16_t dst = subnormalToZeroF16UI(src);
+        if (src != dst)
+            softfloat_raiseFlags(softfloat_flag_underflow);
+        return F16(dst);
+#else
+        return x;
+#endif
+    }
+
 } // namespace fpu
 
 
@@ -657,7 +670,7 @@ namespace fpu {
 
     float16_t f32_to_f16(float32_t a)
     {
-        return ::f32_to_f16( daz(a) );
+        return daz(::f32_to_f16( daz(a) ));
     }
 
 
