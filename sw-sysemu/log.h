@@ -15,6 +15,8 @@ typedef struct
     uint64_t int_reg_data;      // Value written to the integer register
     bool     fp_reg_mod;        // If a float register was modified by instruction
     int      fp_reg_rd;         // The destination floating register
+    bool     fflags_mod;        // Fcsr flags were updated by this instruction
+    uint64_t fflags_value;      // Fcsr flags new value
     uint64_t fp_reg_data[VL/2]; // Value written to the floating register
     bool     m_reg_mod[8];      // If a mask register was modified by instruction
     uint8_t  m_reg_data[8][VL]; // Value written to the mask register
@@ -30,6 +32,7 @@ void logxregchange(int xdst);
 void logfregchange(int fdst);
 void logmregchange(int mdst);
 void logmemwchange(int pos, int size, uint64_t addr, uint64_t val);
+void logfflagschange(uint64_t new_fflags);
 
 // Support for log state
 extern void setlogstate(inst_state_change * log_info_);

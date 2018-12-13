@@ -494,6 +494,29 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             error_msg += stream.str();
             check_res = CHECKER_ERROR;
         }
+
+	// Changing fflags
+	if ( changes->fflags_mod != emu_state_change.fflags_mod )
+	{
+	  // Someone changed the flags
+	  std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
+	  stream << "fflags changed by " << changer << ". Expected new flags: " << std::hex <<  emu_state_change.fflags_value << " but provided are " << changes->fflags_value << std::dec << std::endl;
+	  error_msg += stream.str();
+	  check_res = CHECKER_WARNING;        
+	}
+	
+	if ( emu_state_change.fflags_mod)
+	{
+	  if ( changes->fflags_value != emu_state_change.fflags_value )
+	  {
+	    stream << "fflags values change. Expected new flags: " << std::hex << emu_state_change.fflags_value << " but provided are " << changes->fflags_value << std::dec << std::endl;
+	    error_msg += stream.str();
+	    check_res = CHECKER_WARNING;
+	  }
+	}
+	  
+	
+	
         if(emu_state_change.fp_reg_mod)
         {
 #if 0
@@ -580,6 +603,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     }
                 }
               }
+	      
+	      
             }
         }
 

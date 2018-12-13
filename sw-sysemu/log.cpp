@@ -17,6 +17,8 @@ void clearlogstate()
     log_info->int_reg_mod = false;
     log_info->int_reg_rd = 0;
     log_info->int_reg_data = 0;
+    log_info->fflags_mod = false;
+    log_info->fflags_value = 0;
     for(int m = 0; m < 8; m++)
     {
         log_info->m_reg_mod[m] = false;
@@ -95,4 +97,11 @@ void logmemwchange(int pos, int size, uint64_t addr, uint64_t val)
     log_info->mem_size[pos] = size;
     log_info->mem_addr[pos] = addr;
     log_info->mem_data[pos] = val;
+}
+
+void logfflagschange(uint64_t new_flags)
+{
+    if(log_info == NULL) return;
+    log_info->fflags_mod = true;
+    log_info->fflags_value = new_flags;
 }

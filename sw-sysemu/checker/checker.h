@@ -17,7 +17,8 @@ typedef enum
 {
     CHECKER_OK    = 0,
     CHECKER_ERROR = 1,
-    CHECKER_WAIT  = 2
+    CHECKER_WAIT  = 2,
+    CHECKER_WARNING = 3
 } checker_result;
 
 typedef struct

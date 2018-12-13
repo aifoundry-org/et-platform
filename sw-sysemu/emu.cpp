@@ -639,6 +639,7 @@ static inline int frm()
 static inline void update_fflags(uint_fast8_t flags)
 {
     uint32_t newval = (flags & 0x1F) | (uint32_t(flags & 0x80) << 24);
+    logfflagschange(newval);
     csrregs[current_thread][csr_fcsr] |= newval;
 }
 
@@ -7617,8 +7618,10 @@ static void tensorfma(uint64_t tfmareg)
     {
         LOG(DEBUG, "ERROR Unimplemented tensor FMA Type!!");
     }
-    set_fp_exceptions();
-    dirty_fp_state();
+    if ( type != 3 ) {
+	set_fp_exceptions();
+	dirty_fp_state();
+    }
 }
 
 uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, int * passes, bool * mask_skip)
