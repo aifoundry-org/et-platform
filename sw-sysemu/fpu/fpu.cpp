@@ -856,7 +856,7 @@ namespace fpu {
     float32_t f32_roundToInt(float32_t a)
     {
         // NB: Don't convert denormals; input denormals will become 0 anyway
-        return ::f32_roundToInt(a, softfloat_roundingMode, true);
+        return ::f32_roundToInt(daz(a), softfloat_roundingMode, true);
     }
 
 
