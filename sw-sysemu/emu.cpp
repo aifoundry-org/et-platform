@@ -813,12 +813,13 @@ static float gold_frcp(float a)
     return res.flt;
 }
 
-static int32_t gold_frcp_fix_rast(int32_t a)
+static int32_t gold_frcp_fix_rast(int32_t a, int32_t b)
 {
     // Input value is 2xtriArea with 15.16 precision
-    double fval = double(a) / double(1 << 16);
+    double fval_a = double(a) / double(1 << 16);
+    double fval_b = double(b) / double(1 << 14);
     // Result value is 17.14
-    double fres = (1.0 / fval) * double(1 << 14);
+    double fres = (2*fval_b - fval_b*fval_b*fval_a ) * double(1 << 14);
     return int32_t(fres);
 }
 
@@ -3702,7 +3703,7 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
 
                     //Check 1ulp
                     iufval32 res_gold;
-                    res_gold.i = gold_frcp_fix_rast(val1.i);
+                    res_gold.i = gold_frcp_fix_rast(val1.i, val2.i);
                     if (abs(res.i - res_gold.i) > 1)
                     {
                         LOG(DEBUG, "\t\tEXPECTED: 0x%08x (%g) RESULT: 0x%08x (%g)", res_gold.u, res_gold.flt, res.u, res.flt);
