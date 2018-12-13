@@ -271,6 +271,7 @@ int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
+uint64_t fcc_cnt;
 
 std::unordered_map<int, char const*> csr_names = {
    { csr_prv,               "prv"                },
@@ -2588,6 +2589,10 @@ static uint64_t csrget(csr src1)
     return val;
 }
 
+uint64_t get_fcc_cnt(){
+    return fcc_cnt;
+}
+
 /* TODO remove this nasty fix*/
 uint64_t get_data_from_mem_64(uint64_t addr){
     return vmemread64(addr);
@@ -2679,6 +2684,7 @@ static void csrset(csr src1, uint64_t val)
             tensorstore(val);
             break;
         case csr_fcc:
+            fcc_cnt = val & 0x01;
             break;
         case csr_stall:
             break;
