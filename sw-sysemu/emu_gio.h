@@ -14,8 +14,12 @@
          ((LOG_##severity >= emu_log().getLogLevel()) && \
           ((minion_only_log < 0) || int32_t(current_thread / EMU_THREADS_PER_MINION) == minion_only_log)) ) \
     { \
-        (void) snprintf(emu_log_buffer, 4096, "[EMU %u.%u] " format, \
-                        current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, \
+        (void) snprintf(emu_log_buffer, 4096, "[EMU Curr%u S%u->N%u->M%u->T%u] " format, \
+                        			(current_thread), \
+                        			(current_thread / 35), \
+						(current_thread % 32)/4, \
+						(current_thread %32)%8, \
+						(current_thread % EMU_THREADS_PER_MINION), \
                         ##__VA_ARGS__); \
         emu_log() << LOG_##severity << emu_log_buffer << endm; \
     } \
