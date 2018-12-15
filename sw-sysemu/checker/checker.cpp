@@ -298,6 +298,11 @@ checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_mi
     return CHECKER_OK;
 }
 
+void checker::emu_disasm(char* str, size_t size, uint32_t bits)
+{
+   riscv_disasm(str, size, bits);
+}
+
 // Emulates next instruction in the flow and compares state changes against the changes
 // passed as a parameter
 checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion)
