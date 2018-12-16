@@ -1,0 +1,44 @@
+/*-------------------------------------------------------------------------
+* Copyright (C) 2018, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
+*/
+
+properties: [[$class: 'GitLabConnectionProperty', gitLabConnection: 'GitLab']]
+
+node('AWS')
+{
+    stage("HostInfo") {
+        echo "hostname".execute().text
+        echo ""
+        echo "${params.BRANCH}"
+    }
+    stage('Checkout') {
+        checkout([
+            $class: 'GitSCM',
+            branches: [[name: BRANCH]],
+            doGenerateSubmoduleConfigurations: false,
+            extensions: [[$class: 'CleanCheckout']],
+            submoduleCfg: [],
+            userRemoteConfigs: [[
+                credentialsId: 'jennkis_aws_centos',
+                url: 'git@gitlab.local:maxion/boom-template.git'
+            ]]
+        ])
+        // Explicitely clean things and update specific modules
+        sshagent (credentials: ['jennkis_aws_centos']) {
+            sh 'git clean -xfd'
+            sh 'git submodule foreach --recursive git clean -xfd'
+            sh 'git reset --hard'
+            sh 'git submodule foreach --recursive git reset --hard'
+            sh 'git submodule update --init --recursive riscvemu'
+        }
+    }
+
+    load 'CI/Jenkinsfile'
+}
