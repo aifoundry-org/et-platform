@@ -48,7 +48,7 @@ CXXFLAGS += -mf16c -fno-fast-math
 ifdef LIBEMU_STATIC
 all: libemu.a
 else
-all: libemu.so
+all: libemu.so libemu.a
 endif
 
 .PHONY: clean
