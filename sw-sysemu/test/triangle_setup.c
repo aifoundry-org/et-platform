@@ -303,7 +303,7 @@ void vector_triangle_setup_ccw_front(TriangleVector *triangle_vector, TriangleSe
     fmin_pi(f16, f16, f18, "Clamp to maximum tile dimension for 32-bit setup");
     
     feq_pi(f16, f16, f18, "Detect if triangle tiled BB is too large for 32-bit setup");
-    fsetm_ps(m1, f16, "Set mask with the comparison result");
+    fsetm_pi(m1, f16, "Set mask with the comparison result");
 
     maskand(m2, m0, m1, "Combine with triangle mask");
     
@@ -363,7 +363,7 @@ void vector_triangle_setup_ccw_front(TriangleVector *triangle_vector, TriangleSe
     // Check area sign to detect back facing triangles
     fbci_pi(f20, 0, "Load zero");
     flt_pi(f21, f19, f20, "area < 0");
-    fsetm_ps(m1, f21, "Set mask with comparison result");
+    fsetm_pi(m1, f21, "Set mask with comparison result");
 
     masknot(m1, m1, "Negate mask");
     maskand(m0, m0, m1, "Cull back facing triangles");

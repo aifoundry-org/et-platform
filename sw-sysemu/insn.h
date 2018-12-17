@@ -186,7 +186,7 @@ public:
     }
 
     unsigned rvc_shamt() const {
-        return unsigned( ((bits >> 2) & 0x1F) | ((bits >> 7) & 0x10) );
+        return unsigned( ((bits >> 2) & 0x1F) | ((bits >> 7) & 0x20) );
     }
 
 public:

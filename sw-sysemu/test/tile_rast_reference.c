@@ -13,7 +13,7 @@
     mov_m_x(m0, x0, 0x50, "Set mask to (0, 0, 1, 1)"); \
     fswizz_ps(FTMP, FSMP_TOP, SWIZZLE2,  "Pack tests result of (e" #EQ " < 0) for tile (" #P1 ", " #P2 ",  " #P3 ", " #P4 ")"); \
     mov_m_x(m0, x0, 0x55, "Set mask to (1, 1, 1, 1)"); \
-    fsetm_ps(m1, FTMP, "Store in mask registers tests result of (e" #EQ " < 0) for tile (" #P1 ", " #P2 ",  " #P3 ", " #P4 ")"); \
+    fsetm_pi(m1, FTMP, "Store in mask registers tests result of (e" #EQ " < 0) for tile (" #P1 ", " #P2 ",  " #P3 ", " #P4 ")"); \
     maskpopc(XTMP, m1, "Count number of points passing (e" #EQ " < 0)"); \
     if (XREGS[XTMP].x == 8) \
         goto LABEL;
@@ -146,21 +146,21 @@ tile3_Nx32:
     flt_pi(f4, f4, f16, "Test (e1 < 0) for points (3, 8, 7, 9)");
     flt_pi(f5, f5, f16, "Test (e2 < 0) for points (3, 8, 7, 9)");
 
-    fsetm_ps(m1, f3, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
+    fsetm_pi(m1, f3, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 0
     if (XREGS[x24].x == 8)
         goto end_Nx32;
 
-    fsetm_ps(m1, f4, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
+    fsetm_pi(m1, f4, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 1
     if (XREGS[x24].x == 8)
         goto end_Nx32;
 
-    fsetm_ps(m1, f5, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
+    fsetm_pi(m1, f5, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 2
@@ -305,21 +305,21 @@ tile3_32xN:
     flt_pi(f4, f4, f16, "Test (e1 < 0) for points (3, 8, 7, 9)");
     flt_pi(f5, f5, f16, "Test (e2 < 0) for points (3, 8, 7, 9)");
 
-    fsetm_ps(m1, f3, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
+    fsetm_pi(m1, f3, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 0
     if (XREGS[x24].x == 8)
         goto end_32xN;
 
-    fsetm_ps(m1, f4, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
+    fsetm_pi(m1, f4, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 1
     if (XREGS[x24].x == 8)
         goto end_32xN;
 
-    fsetm_ps(m1, f5, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
+    fsetm_pi(m1, f5, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 2
@@ -1019,21 +1019,21 @@ tile3_128x128:
 
     addi(x21, x21, 1, "Advance tile x coordinate one position");
 
-    fsetm_ps(m1, f15, "Store in mask registers tests result of (e0 < 0) for first tile (3, 4, 8, 9)");
+    fsetm_pi(m1, f15, "Store in mask registers tests result of (e0 < 0) for first tile (3, 4, 8, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 0
     if (XREGS[x24].x == 8)
         goto end_row_128x128;
 
-    fsetm_ps(m1, f16, "Store in mask registers tests result of (e0 < 0) for first tile (3, 4, 8, 9)");
+    fsetm_pi(m1, f16, "Store in mask registers tests result of (e0 < 0) for first tile (3, 4, 8, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 1
     if (XREGS[x24].x == 8)
         goto end_row_128x128;
 
-    fsetm_ps(m1, f17, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
+    fsetm_pi(m1, f17, "Store in mask registers tests result of (e0 < 0) for first tile (3, 8, 7, 9)");
     maskpopc(x24, m1, "Count number of points passing (e0 < 0)");
 
     // Trivially discard tile if all four tile corners are in the negative side of edge equation 2
