@@ -47,9 +47,9 @@ float32_t float11tofloat32(uint16_t val)
         exponent = denorm ? (-14 + 127) : (exponent - 15) + 127;
 
     //  Convert mantissa to float32_t.  Mantissa goes from 6+1 bits to 23+1 bits.
-    if (infinite || nan)
-        mantissa = mantissa;
-    else
+    if (nan)
+        return fpu::F32(defaultNaNF32UI);
+    if (!infinite)
         mantissa = (mantissa << 17);
 
     //  Check for denormalized float16 values.
@@ -118,10 +118,10 @@ float32_t float10tofloat32(uint16_t val)
         exponent = denorm ? (-14 + 127) : (exponent - 15) + 127;
 
     //  Convert mantissa to float32_t.  Mantissa goes from 5+1 bits to 23+1 bits.
-    if (infinite || nan)
-        mantissa = mantissa;
-    else
-        mantissa = (mantissa << 18);
+    if (nan)
+        return fpu::F32(defaultNaNF32UI);
+    if (!infinite)
+        mantissa = (mantissa << 17);
 
     //  Check for denormalized float16 values.
     if (denorm)
@@ -163,6 +163,7 @@ uint16_t float32tofloat11(float32_t val)
     bool denorm;
     bool nan;
     bool zero;
+    bool infinity;
 
     inputAux = fpu::UI32(val);
 
@@ -181,6 +182,7 @@ uint16_t float32tofloat11(float32_t val)
     denorm = (exponent == 0) && (mantissa32 != 0);
     zero = (exponent == 0) && (mantissa32 == 0);
     nan = (exponent == 0xff) && (mantissa32 != 0);
+    infinity = (exponent == 0xff) && (mantissa32 == 0);
 
     //  Flush float32_t denorms to 0
     if (denorm || zero || (sign != 0))
@@ -188,9 +190,11 @@ uint16_t float32tofloat11(float32_t val)
 
     if (nan)
         return 0x07e0;
+    else if(infinity)
+        return 0x07c0;
     //  Flush numbers with an exponent not representable in float11 to infinite.
     else if (exponent > (127 + 15))
-        return 0x07c0;
+        return 0x07bf;
     else
     {
         //  Convert exponent to float11.  Excess 127 to excess 15.
@@ -258,6 +262,7 @@ uint16_t float32tofloat10(float32_t val)
     bool denorm;
     bool nan;
     bool zero;
+    bool infinity;
 
     inputAux = fpu::UI32(val);
 
@@ -276,6 +281,7 @@ uint16_t float32tofloat10(float32_t val)
     denorm = (exponent == 0) && (mantissa32 != 0);
     zero = (exponent == 0) && (mantissa32 == 0);
     nan = (exponent == 0xff) && (mantissa32 != 0);
+    infinity = (exponent == 0xff) && (mantissa32 == 0);
 
     //  Flush float32_t denorms to 0
     if (denorm || zero || (sign != 0))
@@ -284,8 +290,10 @@ uint16_t float32tofloat10(float32_t val)
     if (nan)
         return 0x03f0;
     //  Flush numbers with an exponent not representable in float10 to infinite.
-    else if (exponent > (127 + 15))
+    else if (infinity)
         return 0x03e0;
+    else if (exponent > (127 + 15))
+        return 0x03df;
     else
     {
         //  Convert exponent to float10.  Excess 127 to excess 15.

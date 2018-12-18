@@ -54,6 +54,8 @@ class checker
         void ipi_pc(uint32_t thread, uint64_t pc);
         // Emulates current instruction and compares the state changes
         checker_result emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion);
+	// Decoder Helper functions
+	void emu_disasm(char* str, size_t size, uint32_t bits);
         // Gets an error in string format
         std::string get_error_msg();
 
