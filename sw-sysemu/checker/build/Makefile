@@ -38,7 +38,7 @@ ifeq ($(NO_EMU_DEBUG), 0)
 endif
 
 .PHONY: all
-all: libchecker.so
+all: libchecker.so libchecker.a
 
 .PHONY: libemu_all
 libemu_all:
@@ -54,5 +54,8 @@ clean: libemu_clean
 
 libchecker.so: $(OBJS) | libemu_all
 	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+
+libchecker.a: $(OBJS)
+	$(AR) $(ARFLAGS) $@ $^ 
 
 -include $(DEPS)
