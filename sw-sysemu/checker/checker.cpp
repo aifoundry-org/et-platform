@@ -482,7 +482,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             }
 
             //Read esr_icache_trigger status
-            if(inst.is_load() && (emu_state_change.mem_addr[0] >= ESR_SHIRE_REGION_START) && (emu_state_change.mem_addr[0
+            if(inst.is_load() && (emu_state_change.mem_addr[0] >= ESR_SHIRE_REGION_START) && (emu_state_change.mem_addr[0]))
             {
               log << LOG_INFO << "Access to SHIRE ESR(" << insn_disasm << ")" << endm;
               //Set EMU state to waht RTL says
