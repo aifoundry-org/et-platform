@@ -13,10 +13,6 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
 {
     getthread = NULL;
 
-    // Adds the tbox
-    main_memory_region_tbox * tbox = new main_memory_region_tbox(0xFFF80000ULL, 512, log, getthread);
-    regions_.push_back((main_memory_region *) tbox);
-
     // RBOX
     rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
     regions_.push_back((main_memory_region *) rbox);
@@ -66,6 +62,10 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
         main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + i*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
         regions_.push_back((main_memory_region *) l2_scp);
 
+        // Fake TBOX region.  Used to set the Image Descriptor Table Pointer.  Eventually the TBOX ESRs will
+        // be defined and implemented in the neighborhood region.
+        main_memory_region_tbox * tbox = new main_memory_region_tbox(0x1002e0000ULL + i * ESR_REGION_OFFSET, 64, log, getthread);
+        regions_.push_back((main_memory_region *) tbox);
     }
 }
 

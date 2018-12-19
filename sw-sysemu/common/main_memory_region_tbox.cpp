@@ -23,8 +23,8 @@ void main_memory_region_tbox::write(uint64_t ad, int size, const void * data)
 {
   log << LOG_DEBUG << "writing to tbox @=" <<hex<<ad<<dec<< endm;
 
-  // If address is ImageInfoTable then call init_txs_ptr to init ImageInfoTable pointer. In tri_raster.cpp there can be fiund: #define TBOX_IMG_TABLE_BASE_PTR (TBOX_BASE + 0x40)
-  if((ad-base_) == 0x40)
+  // The fake ESR Image Descriptor Table Pointer set at the start of the memory region.
+  if((ad-base_) == 0)
   {
       uint64_t val = * ((uint64_t *) data);
       init_txs(val);

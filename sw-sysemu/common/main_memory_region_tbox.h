@@ -3,27 +3,8 @@
 
 #include "main_memory_region.h"
 
-// This class is a memory region that behaves like a tbox:
-//  - Gets the writes to know what job to do
-//  - Once all the inputs are written, calls the tbox emulator
-//  - Gets the reads and returns the output data
-
-// memory map when writing:
-// 00h: headerL (64b)
-// 08h: headerH (64b)
-// 10h: u  (128b)
-// 20h: v  (128b)
-// 30h: t   (128b)
-// 40h: image information table base pointer
-
-// Temporary: Add padding zeroes to the 256b of results to make a 512b object and then read as 4 chunks of 128b from the 
-// following offsets. The padding adds 16 zeroes in between each of the 16b values.
-// 00h: rec0    // red
-// 10h: rec1    // green
-// 20h: rec2    // blue
-// 30h: rec3    // alpha
-   
-#define TBOX_MEM_REGION_SZ 128
+// Fake TBOX memory region to capture a single fake ESR that defines the
+// Image Descriptor Table Pointer.
 
 class main_memory_region_tbox : main_memory_region
 {
