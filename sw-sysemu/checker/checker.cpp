@@ -10,6 +10,9 @@
 #define TBOX_REGION_START 0xFFF80000
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
 
+#define ESR_SHIRE_REGION_START 0x100340000L
+#define ESR_SHIRE_REGION_END   0x1FFF5FFF8L
+
 #ifdef DEBUG_STATE_CHANGES
 // Used for debugging the checker
 std::ostringstream& operator<< (std::ostringstream& os, const inst_state_change& state)
@@ -476,6 +479,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 // Set EMU state to what RTL says
                 emu_state_change.int_reg_data = changes->int_reg_data;
                 init(inst.rd(), emu_state_change.int_reg_data);
+            }
+
+            //Read esr_icache_trigger status
+            if(inst.is_load() && (emu_state_change.mem_addr[0] >= ESR_SHIRE_REGION_START) && (emu_state_change.mem_addr[0
+            {
+              log << LOG_INFO << "Access to SHIRE ESR(" << insn_disasm << ")" << endm;
+              //Set EMU state to waht RTL says
+              emu_state_change.int_reg_data = changes->int_reg_data;
+              init(inst.rd(), emu_state_change.int_reg_data);
             }
 
             // Writes to X0/Zero are ignored
