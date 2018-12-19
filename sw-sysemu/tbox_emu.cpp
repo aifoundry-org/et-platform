@@ -4457,7 +4457,7 @@ void TBOXEmu::decode_BC4(uint8_t *inBuffer, uint8_t *outBuffer, bool signedForma
     float red0, red1;
     float decodedColor[4];
     uint32_t redcode;
-    uint32_t redbits;
+    uint64_t redbits;
 
     //  Convert first reference red color from the compressed block.
     red0 = signedFormat ? fpu::FLT(fpu::sn8_to_f32(inBuffer[0])) : float(inBuffer[0]) * (1.0f / 255.0f);
@@ -4503,7 +4503,7 @@ void TBOXEmu::decode_BC5(uint8_t *inBuffer, uint8_t *outBuffer, bool signedForma
     float red0, red1, green0, green1;
     float decodedColor[4];
     uint32_t redcode, greencode;
-    uint32_t redbits, greenbits;
+    uint64_t redbits, greenbits;
 
     //  Convert first reference red color from the compressed block.
     red0 = signedFormat ? fpu::FLT(fpu::sn8_to_f32(inBuffer[0])) : float(inBuffer[0]) * (1.0f / 255.0f);
