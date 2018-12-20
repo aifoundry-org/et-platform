@@ -540,6 +540,8 @@ void init_emu(enum logLevel level)
 {
    XREGS[x0].x  = 0;
    emu_log().setLogLevel(level);
+   // FIXME: remove '#include <cfenv>' when we purge this function from the code
+   std::fesetround(FE_TONEAREST); // set rne for host
 }
 
 void log_only_minion(int32_t m) {
@@ -697,25 +699,6 @@ static inline void handle_nan_default(iufval32& a)
 {
     if (isNaN(a.u))
         a.u = 0x7FC00000;
-}
-
-// FIXME: remove '#include <cfenv>' when we purge this function from the code
-static inline void set_x86_rounding_mode(rounding_mode rm)
-{
-    switch ((rm == rmdyn) ? frm() : rm)
-    {
-        case rne: std::fesetround(FE_TONEAREST); break;
-        case rtz: std::fesetround(FE_TOWARDZERO); break;
-        case rdn: std::fesetround(FE_DOWNWARD); break;
-        case rup: std::fesetround(FE_UPWARD); break;
-        case rmm:
-            LOG(INFO, "round_near_maxMag not supported by C++");
-            std::fesetround(FE_TONEAREST);
-            break;
-        default:
-            assert(0);
-            break;
-    }
 }
 
 static inline void set_rounding_mode(rounding_mode mode)
@@ -3463,19 +3446,6 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
     assert(count <= VL);
 
     set_rounding_mode(rm);
-    switch ( opc )
-    {
-        case FRSQ:
-        case FSIN:
-        case FEXP:
-        case FLOG:
-        case FRCP:
-        case FFRC:
-            set_x86_rounding_mode(rne);
-            break;
-        default:
-            break;
-    }
 
     for (int i = 0; i < count; ++i)
     {
@@ -3635,15 +3605,6 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
     assert(count <= VL);
 
     set_rounding_mode(rm);
-    switch ( opc )
-    {
-        case FRCP_FIX_RAST:
-            set_x86_rounding_mode(rne);
-            break;
-        default:
-            break;
-    }
-
 
     for ( int i = 0; i < count; i++ )
     {
@@ -7692,11 +7653,6 @@ static void tensorfma(uint64_t tfmareg)
     // *FP16+FP32
     else if (type == 1)
     {
-        // FIXME: We should not use floating-point computations here... need
-        // to implement a softfloat-like equivalent
-
-        set_x86_rounding_mode(rmdyn);
-
         if (first_pass)
         {
             for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
