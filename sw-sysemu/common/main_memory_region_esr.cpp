@@ -11,7 +11,7 @@ extern uint32_t current_thread;
 
 #ifdef SYS_EMU
 extern int32_t minion_only_log;
-extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, bool log_en, int log_min);
+extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest, bool log_en, int log_min);
 #endif
 
 using namespace std;
@@ -49,15 +49,12 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                 switch(esr_info.address)
                 {
-#ifdef SYS_EMU
-                    bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);
-#endif
-
                     case ESR_SHIRE_FLB_OFFSET  : break;
                     case ESR_SHIRE_FCC0_OFFSET :
                     {
                         LOG(DEBUG, "Write to FCC0_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
+                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                        
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 0, log_en, minion_only_log);
 #endif
                         break;
@@ -66,6 +63,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     {
                         LOG(DEBUG, "Write to FCC1_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
+                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 1, log_en, minion_only_log);
 #endif
                         break;
@@ -75,6 +73,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     {
                         LOG(DEBUG, "Write to FCC2_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
+                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data),  0,log_en, minion_only_log);
 #endif
                         break;
@@ -84,6 +83,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     {
                         LOG(DEBUG, "Write to FCC2_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
+                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data),  1,log_en, minion_only_log);
 #endif
                         break;

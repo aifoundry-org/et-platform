@@ -116,7 +116,7 @@ static bool dump_log(bool log_en, int log_min, int thread_id)
 // of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
-static void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest, bool log_en, int log_min)
+void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest, bool log_en, int log_min)
 {
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
