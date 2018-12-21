@@ -733,7 +733,7 @@ static float gold_frsq(float a)
     return res.flt;
 }
 
-//TODO: Erase this once Girgoris does his refactor
+//TODO: Erase this once Grigoris does his refactor
 static float gold_fsin(float a)
 {
     double dummy;
@@ -1107,78 +1107,35 @@ static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc)
     return addr;
 }
 
-static std::list<uint64_t> translate_esr_memmap(uint64_t paddr)
-{
-    std::list<uint64_t> ret_list;
-    // Check if shire ESR region
-    if ((paddr & ESR_REGION_MASK) == ESR_REGION)
-    {
-        // Check if doing a local access
-        if ((paddr & ESR_REGION_LOCAL) == ESR_REGION_LOCAL)
-        {
-            // Fix the final address
-            uint64_t shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-            paddr = (paddr & ~ESR_REGION_LOCAL) + shire * ESR_REGION_OFFSET;
-        }
-
-        // Neigh broadcast
-        if((paddr & ESR_NEIGH_REGION) == ESR_NEIGH_REGION)
-        {
-            // Doing a broadcast
-            if((paddr & ESR_NEIGH_BDCST) == ESR_NEIGH_BDCST)
-            {
-                paddr = paddr & ~ESR_NEIGH_BDCST;
-                for(int n = 0; n < 4; n++)
-                    ret_list.push_back(paddr + n*ESR_NEIGH_OFFSET);
-                return ret_list;
-            }
-        }
-    }
-    ret_list.push_back(paddr);
-    return ret_list;
-}
-
 static uint8_t emu_pmemread8(uint64_t paddr)
 {
-    uint64_t tmp = paddr;
-    auto paddr_list = translate_esr_memmap(paddr);
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr_list.front();
-    uint8_t data = func_memread8(paddr_list.front());
-    LOG(DEBUG, "MEM8 %i, %02" PRIx16 " = [%016" PRIx64 " (%016" PRIx64 ")]", current_thread, data, paddr_list.front(), tmp);
+    log_info->mem_addr[0] = paddr;
+    uint8_t data = func_memread8(paddr);
+    LOG(DEBUG, "MEM8 %i, %02" PRIx16 " = [%016" PRIx64 "]", current_thread, data, paddr);
     return data;
 }
 
 static uint16_t emu_pmemread16(uint64_t paddr)
 {
-    uint64_t tmp = paddr;
-    auto paddr_list = translate_esr_memmap(paddr);
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr_list.front();
-    uint16_t data = func_memread16(paddr_list.front());
-    LOG(DEBUG, "MEM16 %i, %04" PRIx16 " = [%016" PRIx64 " (%016" PRIx64 ")]", current_thread, data, paddr_list.front(), tmp);
+    log_info->mem_addr[0] = paddr;
+    uint16_t data = func_memread16(paddr);
+    LOG(DEBUG, "MEM16 %i, %04" PRIx16 " = [%016" PRIx64 "]", current_thread, data, paddr);
     return data;
 }
 
 static uint32_t emu_pmemread32(uint64_t paddr)
 {
-    uint64_t tmp = paddr;
-    auto paddr_list = translate_esr_memmap(paddr);
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr_list.front();
-    uint32_t data = func_memread32(paddr_list.front());
-    LOG(DEBUG, "MEM32 %i, %08" PRIx32 " = [%016" PRIx64 " (%016" PRIx64 ")]", current_thread, data, paddr_list.front(), tmp);
+    log_info->mem_addr[0] = paddr;
+    uint32_t data = func_memread32(paddr);
+    LOG(DEBUG, "MEM32 %i, %08" PRIx32 " = [%016" PRIx64 "]", current_thread, data, paddr);
     return data;
 }
 
 static uint64_t emu_pmemread64(uint64_t paddr)
 {
-    uint64_t tmp = paddr;
-    auto paddr_list = translate_esr_memmap(paddr);
-    // Used to detect special load accesses like ticketer
-    log_info->mem_addr[0] = paddr_list.front();
-    uint64_t data = func_memread64(paddr_list.front());
-    LOG(DEBUG, "MEM64 %i, %016" PRIx64 " = [%016" PRIx64 " (%016" PRIx64 ")]", current_thread, data, paddr_list.front(), tmp);
+    log_info->mem_addr[0] = paddr;
+    uint64_t data = func_memread64(paddr);
+    LOG(DEBUG, "MEM64 %i, %016" PRIx64 " = [%016" PRIx64 "]", current_thread, data, paddr);
     return data;
 }
 
@@ -1208,46 +1165,26 @@ static uint64_t emu_vmemread64(uint64_t addr)
 
 static void emu_pmemwrite8(uint64_t paddr, uint8_t data)
 {
-    uint64_t tmp = paddr;
-    auto paddr_list = translate_esr_memmap(paddr);
-    for(auto it = paddr_list.begin(); it != paddr_list.end(); it++)
-    {
-        LOG(DEBUG, "MEM8 %i, [%016" PRIx64 " (%016" PRIx64 ")] = %02" PRIx8, current_thread, * it, tmp, data);
-        func_memwrite8(* it, data);
-    }
+    LOG(DEBUG, "MEM8 %i, [%016" PRIx64 "] = %02" PRIx8, current_thread, paddr, data);
+    func_memwrite8(paddr, data);
 }
 
 static void emu_pmemwrite16(uint64_t paddr, uint16_t data)
 {
-    uint64_t tmp = paddr;
-    auto paddr_list = translate_esr_memmap(paddr);
-    for(auto it = paddr_list.begin(); it != paddr_list.end(); it++)
-    {
-        LOG(DEBUG, "MEM16 %i, [%016" PRIx64 " (%016" PRIx64 ")] = %04" PRIx16, current_thread, * it, tmp, data);
-        func_memwrite16(* it, data);
-    }
+    LOG(DEBUG, "MEM16 %i, [%016" PRIx64 "] = %04" PRIx16, current_thread, paddr, data);
+    func_memwrite16(paddr, data);
 }
 
 static void emu_pmemwrite32(uint64_t paddr, uint32_t data)
 {
-    uint64_t tmp = paddr;
-    auto paddr_list = translate_esr_memmap(paddr);
-    for(auto it = paddr_list.begin(); it != paddr_list.end(); it++)
-    {
-        LOG(DEBUG, "MEM32 %i, [%016" PRIx64 " (%016" PRIx64 ")] = %08" PRIx32, current_thread, * it, tmp, data);
-        func_memwrite32(* it, data);
-    }
+    LOG(DEBUG, "MEM32 %i, [%016" PRIx64 "] = %08" PRIx32, current_thread, paddr, data);
+    func_memwrite32(paddr, data);
 }
 
 static void emu_pmemwrite64(uint64_t paddr, uint64_t data)
 {
-    uint64_t tmp = paddr;
-    auto paddr_list = translate_esr_memmap(paddr);
-    for(auto it = paddr_list.begin(); it != paddr_list.end(); it++)
-    {
-        LOG(DEBUG, "MEM64 %i, [%016" PRIx64 " (%016" PRIx64 ")] = %016" PRIx64, current_thread, * it, tmp, data);
-        func_memwrite64(* it, data);
-    }
+    LOG(DEBUG, "MEM64 %i, [%016" PRIx64 "] = %016" PRIx64, current_thread, paddr, data);
+    func_memwrite64(paddr, data);
 }
 
 static void emu_vmemwrite8(uint64_t addr, uint8_t data)
