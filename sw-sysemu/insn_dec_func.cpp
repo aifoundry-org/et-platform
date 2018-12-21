@@ -385,6 +385,10 @@ static insn_exec_funct_t dec_op_32(uint32_t bits, uint32_t& flags __attribute__(
               case 0x01: flags |= insn_t::flag_AMO; return insn_amoaddg_d;
               case 0x04: flags |= insn_t::flag_AMO; return insn_amoswapl_d;
               case 0x05: flags |= insn_t::flag_AMO; return insn_amoswapg_d;
+	      case 0x08: flags |= insn_t::flag_AMO; return insn_sbl;
+	      case 0x09: flags |= insn_t::flag_AMO; return insn_sbg;
+	      case 0x0C: flags |= insn_t::flag_AMO; return insn_shl;
+	      case 0x0D: flags |= insn_t::flag_AMO; return insn_shg;
               case 0x10: flags |= insn_t::flag_AMO; return insn_amoxorl_d;
               case 0x11: flags |= insn_t::flag_AMO; return insn_amoxorg_d;
               case 0x20: flags |= insn_t::flag_AMO; return insn_amoorl_d;

@@ -1945,6 +1945,47 @@ void sb(xreg src1, xreg base, int64_t off, const char* comm)
     logmemwchange(0, 1, addr, val);
 }
 
+void sbl(xreg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: sbl x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    uint64_t addr = XREGS[base].x;
+    uint8_t val   = XREGS[src1].b[0];
+    vmemwrite8(addr, val);
+    LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM[0x%016" PRIx64 "]", val, addr);
+    logmemwchange(0, 1, addr, val);
+}
+
+void sbg(xreg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: sbg x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    uint64_t addr = XREGS[base].x;
+    uint8_t val   = XREGS[src1].b[0];
+    vmemwrite8(addr, val);
+    LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM[0x%016" PRIx64 "]", val, addr);
+    logmemwchange(0, 1, addr, val);
+}
+
+void shl(xreg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: shl x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    uint64_t addr = XREGS[base].x;
+    uint16_t val  = XREGS[src1].h[0];
+    vmemwrite16(addr, val);
+    LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM[0x%016" PRIx64 "]", val, addr);
+    logmemwchange(0, 2, addr, val);
+}
+
+void shg(xreg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: shg x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    uint64_t addr = XREGS[base].x;
+    uint16_t val  = XREGS[src1].h[0];
+    vmemwrite16(addr, val);
+    LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM[0x%016" PRIx64 "]", val, addr);
+    logmemwchange(0, 2, addr, val);
+}
+
+
 void fence(const char* comm)
 {
     LOG(DEBUG, "I: fence%s%s", (comm?" # ":""), (comm?comm:""));

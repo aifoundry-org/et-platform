@@ -394,5 +394,10 @@ extern void insn_famoswapg_pi (insn_t);
 extern void insn_famoswapl_pi (insn_t);
 extern void insn_famoxorg_pi  (insn_t);
 extern void insn_famoxorl_pi  (insn_t);
+extern void insn_sbl          (insn_t);
+extern void insn_sbg          (insn_t);
+extern void insn_shl          (insn_t);
+extern void insn_shg          (insn_t);
+
 
 #endif // __INSN_EXEC_FUNC_H__
