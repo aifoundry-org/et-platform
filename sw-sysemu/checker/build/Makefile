@@ -9,9 +9,10 @@ SRCS := $(BEMU)/checker/checker.cpp \
         $(BEMU)/common/riscv_disasm.cpp \
         $(BEMU)/common/main_memory.cpp \
         $(BEMU)/common/main_memory_region.cpp \
+        $(BEMU)/common/main_memory_region_esr.cpp \
         $(BEMU)/common/main_memory_region_atomic.cpp \
         $(BEMU)/common/main_memory_region_tbox.cpp \
-        $(BEMU)/common/main_memory_region_rbox.cpp
+        $(BEMU)/common/main_memory_region_rbox.cpp 
 
 vpath %.cpp $(BEMU)/checker
 vpath %.cpp $(BEMU)/common
