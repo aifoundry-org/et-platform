@@ -400,6 +400,11 @@ csr get_csr_enum(uint16_t imm) {
         (exec) (inst.rs2(), inst.rs1(), inst.s_imm()); \
     }
 
+#define FMT_RS2_RS1(name, exec) \
+    void name(insn_t inst) { \
+        (exec) (inst.rs2(), inst.rs1()); \
+    }
+
 #define FMT_MD_FS1(name, exec) \
     void name(insn_t inst) { \
         (exec) (inst.md(), inst.fs1()); \
@@ -889,6 +894,11 @@ FMT_RD_RS1_RS2  (insn_amoxorg_d,      amoxorg_d)
 FMT_RD_RS1_RS2  (insn_amoxorg_w,      amoxorg_w)
 FMT_RD_RS1_RS2  (insn_amoxorl_d,      amoxorl_d)
 FMT_RD_RS1_RS2  (insn_amoxorl_w,      amoxorl_w)
+FMT_RS2_RS1 (insn_sbl,            sbl)
+FMT_RS2_RS1 (insn_sbg,            sbg)
+FMT_RS2_RS1 (insn_shl,            shl)
+FMT_RS2_RS1 (insn_shg,            shg)
+
 // packed
 FMT_FD_FS1_RS2  (insn_famoaddg_pi,    famoaddg_pi)
 FMT_FD_FS1_RS2  (insn_famoaddl_pi,    famoaddl_pi)
