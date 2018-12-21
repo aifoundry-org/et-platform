@@ -22,6 +22,7 @@ SRCS += $(BEMU)/common/main_memory.cpp \
         $(BEMU)/common/main_memory_region_atomic.cpp \
         $(BEMU)/common/main_memory_region_tbox.cpp \
         $(BEMU)/common/main_memory_region_rbox.cpp \
+        $(BEMU)/common/main_memory_region_esr.cpp \
         $(SGPU)/src/trace.cpp
 
 vpath %.cpp $(BEMU)/sys_emu
@@ -33,7 +34,7 @@ DEPS := $(addsuffix .d,$(basename $(OBJS)))
 
 CC	 := gcc
 CXX 	 := g++
-CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include
+CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include -DSYS_EMU
 CXXFLAGS := -MMD -MP -Wall -Werror -std=c++11 -g -O2
 LDLIBS   += -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu \
 
