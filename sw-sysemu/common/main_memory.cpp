@@ -2,6 +2,7 @@
 #include "main_memory_region_atomic.h"
 #include "main_memory_region_tbox.h"
 #include "main_memory_region_rbox.h"
+#include "main_memory_region_esr.h"
 #include "main_memory_region_printf.h"
 
 using namespace std;
@@ -23,48 +24,63 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
 
     // Adds the uncacheable regions
     // For all the shires
-    for (int i = 0; i < (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE); i++)
+    for (int i = 0; i < ((EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE) + 1); i++)
     {
+        int shire;
+
+        // Need to add the ESR space for the Local Shire.
+        if (i == (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE))
+            shire = 255;
+        else
+            shire = i;
+
         // For all the neighs in each shire
         for (int n = 0; n < 4; n++)
         {
-            main_memory_region * neigh_esrs = new main_memory_region(0x100100000ULL + i*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
+            main_memory_region_esr * neigh_esrs = new main_memory_region_esr(0x100100000ULL + shire*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
             regions_.push_back((main_memory_region *) neigh_esrs);
         }
 
         // SHIRE CACHE BANK ESR
         for (int n = 0; n < 4; n++)
         {
-          main_memory_region * cb_esrs  = new main_memory_region(0x100300030ULL + i*ESR_REGION_OFFSET + (n*0x2000), 8, log, getthread);
+          main_memory_region_esr * cb_esrs  = new main_memory_region_esr(0x100300030ULL + shire*ESR_REGION_OFFSET + (n*0x2000), 8, log, getthread);
           regions_.push_back((main_memory_region *) cb_esrs);
         }
 
         // RBOX
-        main_memory_region * rbox_esrs  = new main_memory_region(0x100310000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        main_memory_region_esr * rbox_esrs  = new main_memory_region_esr(0x100310000ULL + shire*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) rbox_esrs);
 
         // Shire ESRs
-        main_memory_region * shire_esrs = new main_memory_region(0x100340000ULL + i*ESR_REGION_OFFSET, 131072, log, getthread);
+
+        // U prot for shire
+        main_memory_region_esr * shire_esrs = new main_memory_region_esr(0x100340000ULL + shire*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
 
         // M prot for shire
-        shire_esrs = new main_memory_region(0x100340000ULL + (3ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        shire_esrs = new main_memory_region_esr(0x100340000ULL + (3ULL << 30ULL) + shire*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
 
         // S prot for shire
-        shire_esrs = new main_memory_region(0x100340000ULL + (1ULL << 30ULL) + i*ESR_REGION_OFFSET, 131072, log, getthread);
+        shire_esrs = new main_memory_region_esr(0x100340000ULL + (1ULL << 30ULL) + shire*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
 
-        main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + i*ESR_REGION_OFFSET, 64, log, getthread);
-        regions_.push_back((main_memory_region *) mtm);
+        // Probably this doesn't exist for the local shire?
+        if (shire != 255)
+        {
+            // I don't know what is this.
+            main_memory_region * mtm = new main_memory_region(0x1c03001d8ULL + shire*ESR_REGION_OFFSET, 64, log, getthread);
+            regions_.push_back((main_memory_region *) mtm);
 
-        // L2 scratchpad
-        main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + i*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
-        regions_.push_back((main_memory_region *) l2_scp);
+            // L2 scratchpad
+            main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + shire*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
+            regions_.push_back((main_memory_region *) l2_scp);
+        }
 
         // Fake TBOX region.  Used to set the Image Descriptor Table Pointer.  Eventually the TBOX ESRs will
         // be defined and implemented in the neighborhood region.
-        main_memory_region_tbox * tbox = new main_memory_region_tbox(0x1002e0000ULL + i * ESR_REGION_OFFSET, 64, log, getthread);
+        main_memory_region_tbox * tbox = new main_memory_region_tbox(0x1002e0000ULL + shire * ESR_REGION_OFFSET, 64, log, getthread);
         regions_.push_back((main_memory_region *) tbox);
     }
 }

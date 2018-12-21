@@ -58,15 +58,40 @@
 #define MSTATUS_SPP     8
 
 // ESR region
-#define ESR_REGION          0x0100000000ULL // ESR region
-#define ESR_REGION_MASK     0xFF00000000ULL // Address bits used to know if we are in ESR region
-#define ESR_REGION_LOCAL    0x003FC00000ULL // Address bits used to know if access is local
-#define ESR_REGION_SHIRE_SH 22              // Bits to shift to get shire destination
-#define ESR_REGION_OFFSET   0x0000400000ULL
-#define ESR_SHIRE_REGION    0x0100340000ULL
-#define ESR_NEIGH_REGION    0x0100100000ULL
-#define ESR_NEIGH_OFFSET    0x0000010000ULL
-#define ESR_NEIGH_BDCST     0x00000F0000ULL // Address bits used to know if access is local
+#define ESR_REGION             0x0100000000ULL  // ESR Region bit [32] == 1
+#define ESR_REGION_MASK        0xFF00000000ULL  // Mask to determine if address is in the ESR region (bits [39:32]
+
+#define ESR_REGION_PROT_MASK   0x00C0000000ULL  // ESR Region Protection is defined in bits [31:30]
+#define ESR_REGION_PROT_SHIFT  30               // Bits to shift to get the ESR Region Protection defined in bits [31:30]
+
+#define ESR_REGION_SHIRE_MASK  0x003FC00000ULL  // On the ESR Region the Shire is defined by bits [29:22]
+#define ESR_REGION_LOCAL_SHIRE 0x003FC00000ULL  // On the ESR Region the Local Shire is defined by bits [29:22] == 8'hff
+#define ESR_REGION_SHIRE_SHIFT 22               // Bits to shift to get Shire, Shire is defined by bits [19:22]
+
+#define ESR_SREGION_MASK       0x0000300000ULL  // The ESR Region is defined by bits [21:20] and further limited by bits [19:12] depending on the region
+#define ESR_SREGION_SHIFT      20               // Bits to shift to get Region, Region is defined in bits [21:20]
+#define ESR_SREGION_EXT_MASK   0x00003E0000ULL  // The ESR Extended Region is defined by bits [21:17]
+#define ESR_SREGION_EXT_SHIFT  17               // Bits to shift to get Extended Region, Extended Region is defined in bits [21:17]
+#define ESR_REGION_OFFSET      0x0000400000ULL  // 
+#define ESR_SHIRE_REGION       0x0100340000ULL  // Shire ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b010
+#define ESR_NEIGH_REGION       0x0100100000ULL  // Neighborhood ESR Region is at region [21:20] == 2'b01
+
+#define ESR_HART_MASK          0x00000FF000ULL  // On HART ESR Region the HART is defined in bits [19:12]
+#define ESR_HART_SHIFT         12               // On HART ESR Region bits to shift to get the HART defined in bits [19:12]
+
+#define ESR_NEIGH_MASK         0x00000F0000ULL  // On Neighborhood ESR Region Neighborhood is defined when bits [19:16]
+#define ESR_NEIGH_SHIFT        16               // On Neighborhood ESR Region bits to shift to get the Neighborhood defined in bits [19:16]
+#define ESR_NEIGH_OFFSET       0x0000010000ULL  // On Neighborhood ESR Region the Neighborhood is defined by bits [19:16]
+#define ESR_NEIGH_BROADCAST    0x00000F0000ULL  // On Neighborhood ESR Region Neighborhood Broadcast is defined when bits [19:16] == 4'b1111
+
+#define ESR_BANK_MASK          0x000001E000ULL  // On Shire Cache ESR Region Bank is defined in bits [16:13]
+#define ESR_BANK_SHIFT         13               // On Shire Cache ESR Region bits to shift to get Bank defined in bits [16:13]
+
+#define ESR_HART_ESR_MASK      0x0000000FF8ULL  // On HART ESR Region the ESR is defined by bits [11:3]
+#define ESR_NEIGH_ESR_MASK     0x000000FFF8ULL  // On Neighborhood ESR Region the ESR is defined in bits [15:3]
+#define ESR_SC_ESR_MASK        0x0000001FF8ULL  // On Shire Cache ESR Region the ESR is defined in bits [12:3]
+#define ESR_SHIRE_ESR_MASK     0x000001FFF8ULL  // On Shire ESR Region the ESR is defined in bits [16:3]
+
 
 // ESR Offsets
 #define ESR_SHIRE_FLB_OFFSET  0x100ULL
