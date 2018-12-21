@@ -789,27 +789,6 @@ int main(int argc, char * argv[])
                         } else {
                             current_pc[thread_id] += inst.size();
                         }
-
-                        // Checks for ESR writes
-                        //if((emu_state_change.mem_addr[0] & ESR_REGION_MASK) == ESR_REGION)
-                        //{
-                        //    uint64_t paddr = emu_state_change.mem_addr[0];
-                        //    unsigned shire_id = (paddr & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT;
-                        //    // Check if doing a local access
-                        //    if((paddr & ESR_REGION_SHIRE_MASK) == ESR_REGION_LOCAL_SHIRE)
-                        //    {
-                        //        // Set shire ID to the one of the thread
-                        //        shire_id = thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-                        //        // Fix the final address
-                        //        paddr = (paddr & ~ESR_REGION_SHIRE_MASK) + shire_id * ESR_REGION_OFFSET;
-                        //    }
-
-                        //    // Is it an FCC?
-                        //    if(emu_state_change.mem_mod[0] && ((paddr & ~ESR_REGION_SHIRE_MASK) == (ESR_SHIRE_REGION + ESR_SHIRE_FCC0_OFFSET)))
-                        //        fcc_to_threads(shire_id, 0, emu_state_change.mem_data[0], log_en, log_min);
-                        //    if(emu_state_change.mem_mod[0] && ((paddr & ~ESR_REGION_SHIRE_MASK) == (ESR_SHIRE_REGION + ESR_SHIRE_FCC2_OFFSET)))
-                        //        fcc_to_threads(shire_id, 1, emu_state_change.mem_data[0], log_en, log_min);
-                        //}
                     }
                 }
 

@@ -43,6 +43,19 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     {
         switch(esr_info.region)
         {
+            case ESR_Region_Neighborhood :
+                
+                if (esr_info.neighborhood == ESR_NEIGH_BROADCAST)
+                {
+                    for (int neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
+                    {
+                        uint64_t neigh_addr = (ad & ~ESR_NEIGH_MASK) + neigh * ESR_NEIGH_OFFSET;
+                        write(neigh_addr, size, data);
+                    }
+                }
+
+                break;
+
             case ESR_Region_Shire:
             {
                 LOG(DEBUG, "Write to ESR Region Shire at ESR address %08" PRIx64, esr_info.address);
