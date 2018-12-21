@@ -22,8 +22,7 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
     main_memory_region * uc_writes = new main_memory_region(0x0108000800ULL, ESR_REGION_OFFSET, log, getthread, MEM_REGION_WO); //TODO: This line has to survive the merge 
     regions_.push_back((main_memory_region *) uc_writes);
 
-    // Adds the uncacheable regions
-    // For all the shires
+    // For all the shires and the local shire mask
     for (int i = 0; i < ((EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE) + 1); i++)
     {
         int shire;
@@ -34,10 +33,16 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
         else
             shire = i;
 
-        // For all the neighs in each shire
-        for (int n = 0; n < 4; n++)
+        // For all the neighs in each shire and the neighborhood broadcast mask
+        for (int n = 0; n < (EMU_NEIGH_PER_SHIRE + 1); n++)
         {
-            main_memory_region_esr * neigh_esrs = new main_memory_region_esr(0x100100000ULL + shire*ESR_REGION_OFFSET + n*ESR_NEIGH_OFFSET, 65536, log, getthread);
+            int neigh;
+
+            if (n == EMU_NEIGH_PER_SHIRE)
+                neigh = ESR_NEIGH_BROADCAST;
+            else
+                neigh = n;                
+            main_memory_region_esr * neigh_esrs = new main_memory_region_esr(0x100100000ULL + shire*ESR_REGION_OFFSET + neigh*ESR_NEIGH_OFFSET, 65536, log, getthread);
             regions_.push_back((main_memory_region *) neigh_esrs);
         }
 

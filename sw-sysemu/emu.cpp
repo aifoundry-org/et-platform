@@ -1106,37 +1106,6 @@ static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc)
     return addr;
 }
 
-//static std::list<uint64_t> translate_esr_memmap(uint64_t paddr)
-//{
-//    std::list<uint64_t> ret_list;
-//    // Check if shire ESR region
-//    if ((paddr & ESR_REGION_MASK) == ESR_REGION)
-//    {
-//        // Check if doing a local access
-//        if ((paddr & ESR_REGION_LOCAL) == ESR_REGION_LOCAL)
-//        {
-//            // Fix the final address
-//            uint64_t shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-//            paddr = (paddr & ~ESR_REGION_LOCAL) + shire * ESR_REGION_OFFSET;
-//        }
-//
-//        // Neigh broadcast
-//        if((paddr & ESR_NEIGH_REGION) == ESR_NEIGH_REGION)
-//        {
-//            // Doing a broadcast
-//            if((paddr & ESR_NEIGH_BDCST) == ESR_NEIGH_BDCST)
-//            {
-//                paddr = paddr & ~ESR_NEIGH_BDCST;
-//                for(int n = 0; n < 4; n++)
-//                    ret_list.push_back(paddr + n*ESR_NEIGH_OFFSET);
-//                return ret_list;
-//            }
-//        }
-//    }
-//    ret_list.push_back(paddr);
-//    return ret_list;
-//}
-
 static uint8_t emu_pmemread8(uint64_t paddr)
 {
     log_info->mem_addr[0] = paddr;
