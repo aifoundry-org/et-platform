@@ -1,0 +1,3 @@
+[submodule "infra_tools"]
+	path = infra_tools
+	url = git@gitlab.local:software/infra-tools.git

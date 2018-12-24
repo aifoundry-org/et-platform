@@ -1,0 +1,23 @@
+#------------------------------------------------------------------------------
+# Copyright (C) 2018, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------
+
+add_subdirectory("lib")
+
+include_directories("${PROJECT_SOURCE_DIR}/include")
+
+set (EXTRA_LIBS ${EXTRA_LIBS} lib)
+
+# add the executable
+add_executable (test_repo test.cc)
+target_link_libraries (test_repo
+                       PRIVATE
+                         TestLib)
+
+install(TARGETS test_repo DESTINATION bin)
