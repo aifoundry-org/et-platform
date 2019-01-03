@@ -7269,8 +7269,6 @@ static void tensorfma(uint64_t tfmareg)
                     int bf = bc / VL;
                     int bm = bc % VL;
 
-                    if (MREGS[0].b[bm] == 0) continue;
-
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
                 }
@@ -7300,7 +7298,6 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
-                if (MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
                 {
@@ -7354,7 +7351,6 @@ static void tensorfma(uint64_t tfmareg)
                 {
                     int bf = bc / VL;
                     int bm = bc % VL;
-                    if (MREGS[0].b[bm] == 0) continue;
 
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
@@ -7383,7 +7379,6 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
-                if (MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
                 {
@@ -7442,7 +7437,6 @@ static void tensorfma(uint64_t tfmareg)
                 {
                     int bf = bc / VL;
                     int bm = bc % VL;
-                    if (MREGS[0].b[bm] == 0) continue;
 
                     tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
@@ -7498,7 +7492,6 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
-                if (MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
                 {
