@@ -5,6 +5,7 @@
 // Local
 #include "main_memory_region_esr.h"
 #include "emu_gio.h"
+#include "emu.h"
 
 extern uint32_t current_pc;
 extern uint32_t current_thread;
@@ -59,35 +60,59 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             case ESR_Region_Shire:
             {
                 LOG(DEBUG, "Write to ESR Region Shire at ESR address %08" PRIx64, esr_info.address);
-
                 switch(esr_info.address)
                 {
                     case ESR_SHIRE_FLB_OFFSET  : break;
                     case ESR_SHIRE_FCC0_OFFSET :
+                    case ESR_SHIRE_FCC1_OFFSET : 		      
                     {
                         LOG(DEBUG, "Write to FCC0_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), log_en, minion_only_log);
+#else
+			fcc_inc(0, esr_info.shire, *((uint64_t*)data), ESR_SHIRE_FCC1_OFFSET==esr_info.address);
 #endif
                         break;
                     }
-                    case ESR_SHIRE_FCC1_OFFSET : break;
+
                     case ESR_SHIRE_FCC2_OFFSET :
+                    case ESR_SHIRE_FCC3_OFFSET :		      
                     {
                         LOG(DEBUG, "Write to FCC2_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data), log_en, minion_only_log);
+#else
+
+			fcc_inc(1, esr_info.shire, *((uint64_t*)data), ESR_SHIRE_FCC3_OFFSET==esr_info.address);
 #endif
                         break;
                     }
-                    case ESR_SHIRE_FCC3_OFFSET : break;
+
                     default : break;
                 }
 
                 break;   
             }
+	  case ESR_Region_HART :
+	  {
+	    switch(esr_info.address)
+	    {
+	      case ESR_HART_PORT0_OFFSET:
+	      case ESR_HART_PORT1_OFFSET:
+	      case ESR_HART_PORT2_OFFSET:
+	      case ESR_HART_PORT3_OFFSET:
+	      {
+		//Writing to port, sending to dst agent
+		
+	      }
+	      break;
+	      
+	      default: break;
+	    }
+	  }
+	  break;
             default : break;
         }
     }

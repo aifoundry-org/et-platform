@@ -285,7 +285,11 @@ extern void fgb_ps    (freg dst, freg src1, xreg base, const char* comm = 0);
 extern void fgh_ps    (freg dst, freg src1, xreg base, const char* comm = 0);
 extern void fgw_ps    (freg dst, freg src1, xreg base, const char* comm = 0);
 extern void fgwl_ps   (freg dst, freg src1, xreg base, const char* comm = 0);
+extern void fghl_ps   (freg dst, freg src1, xreg base, const char* comm = 0);
+extern void fgbl_ps   (freg dst, freg src1, xreg base, const char* comm = 0);
 extern void fgwg_ps   (freg dst, freg src1, xreg base, const char* comm = 0);
+extern void fghg_ps   (freg dst, freg src1, xreg base, const char* comm = 0);
+extern void fgbg_ps   (freg dst, freg src1, xreg base, const char* comm = 0);
 
 extern void fg32b_ps  (freg dst, xreg src1, xreg src2, const char* comm = 0);
 extern void fg32h_ps  (freg dst, xreg src1, xreg src2, const char* comm = 0);
@@ -295,7 +299,12 @@ extern void fscb_ps   (freg src, freg src1, xreg base, const char* comm = 0);
 extern void fsch_ps   (freg src, freg src1, xreg base, const char* comm = 0);
 extern void fscw_ps   (freg src, freg src1, xreg base, const char* comm = 0);
 extern void fscwl_ps  (freg src, freg src1, xreg base, const char* comm = 0);
+extern void fschl_ps  (freg src, freg src1, xreg base, const char* comm = 0);
+extern void fscbl_ps  (freg src, freg src1, xreg base, const char* comm = 0);
 extern void fscwg_ps  (freg src, freg src1, xreg base, const char* comm = 0);
+extern void fschg_ps  (freg src, freg src1, xreg base, const char* comm = 0);
+extern void fscbg_ps  (freg src, freg src1, xreg base, const char* comm = 0);
+
 
 extern void fsc32b_ps (freg src, xreg src1, xreg src2, const char* comm = 0);
 extern void fsc32h_ps (freg src, xreg src1, xreg src2, const char* comm = 0);
@@ -583,5 +592,8 @@ extern uint64_t get_data_from_mem_64(uint64_t addr);
 
 // control traps on txfma sleep
 bool txfma_off_allowed(csr src1, uint64_t val);
+
+// ----- Esperanto fast credit counter extension --------------------------------
+extern  void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id);
 
 #endif // _EMU_H
