@@ -678,7 +678,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             auto conv_list_it = conv_list.begin();
 
             // For all the written entries
-            for(int i = 0; i < size; i++)
+            for(int i = 0; i < size && emu_state_change.tensor_mod; i++)
             {
                 // Load was skipped due conv CSR, ignore check
                 if(* conv_list_it == 1)
@@ -982,9 +982,4 @@ void checker::texrec(unsigned minionId, unsigned thread_id, const uint8_t *data,
         return;
     }
     texrec_func_ptr(minionId, thread_id, data, wordIdx, mask);
-}
-
-
-void checker::update_fcsr_flags(unsigned minionId, unsigned flags) {
-  //TODO: implement
 }
