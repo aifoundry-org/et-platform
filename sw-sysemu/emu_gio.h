@@ -16,10 +16,10 @@
     { \
         (void) snprintf(emu_log_buffer, 4096, "[EMU Curr%u S%u->N%u->M%u->T%u] " format, \
                         			(current_thread >> 1), \
-                        			((current_thread >> 1) / 32), \
-						((current_thread >> 1) %32)/8, \
-						((current_thread >> 1) %32)%8, \
-						((current_thread >> 1) % EMU_THREADS_PER_MINION), \
+                        			((current_thread >> 1) >>5), \
+						((current_thread >> 1) &0x1f)/8, \
+						((current_thread >> 1) &0x1f)%8, \
+						((current_thread >> 1) &0x1), \
                         ##__VA_ARGS__); \
         emu_log() << LOG_##severity << emu_log_buffer << endm; \
     } \
