@@ -640,6 +640,7 @@ static inline int frm()
 static inline void update_fflags(uint_fast8_t flags)
 {
     uint32_t newval = (flags & 0x1F) | (uint32_t(flags & 0x80) << 24);
+    logfflagschange(newval);
     csrregs[current_thread][csr_fcsr] |= newval;
 }
 
@@ -1106,37 +1107,6 @@ static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc)
         throw std::runtime_error("virt_to_phys_host() for loads/stores is unimplemented");
     return addr;
 }
-
-//static std::list<uint64_t> translate_esr_memmap(uint64_t paddr)
-//{
-//    std::list<uint64_t> ret_list;
-//    // Check if shire ESR region
-//    if ((paddr & ESR_REGION_MASK) == ESR_REGION)
-//    {
-//        // Check if doing a local access
-//        if ((paddr & ESR_REGION_LOCAL) == ESR_REGION_LOCAL)
-//        {
-//            // Fix the final address
-//            uint64_t shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-//            paddr = (paddr & ~ESR_REGION_LOCAL) + shire * ESR_REGION_OFFSET;
-//        }
-//
-//        // Neigh broadcast
-//        if((paddr & ESR_NEIGH_REGION) == ESR_NEIGH_REGION)
-//        {
-//            // Doing a broadcast
-//            if((paddr & ESR_NEIGH_BDCST) == ESR_NEIGH_BDCST)
-//            {
-//                paddr = paddr & ~ESR_NEIGH_BDCST;
-//                for(int n = 0; n < 4; n++)
-//                    ret_list.push_back(paddr + n*ESR_NEIGH_OFFSET);
-//                return ret_list;
-//            }
-//        }
-//    }
-//    ret_list.push_back(paddr);
-//    return ret_list;
-//}
 
 static uint8_t emu_pmemread8(uint64_t paddr)
 {
@@ -1975,6 +1945,47 @@ void sb(xreg src1, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM[0x%016" PRIx64 "]", val, addr);
     logmemwchange(0, 1, addr, val);
 }
+
+void sbl(xreg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: sbl x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    uint64_t addr = XREGS[base].x;
+    uint8_t val   = XREGS[src1].b[0];
+    vmemwrite8(addr, val);
+    LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM[0x%016" PRIx64 "]", val, addr);
+    logmemwchange(0, 1, addr, val);
+}
+
+void sbg(xreg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: sbg x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    uint64_t addr = XREGS[base].x;
+    uint8_t val   = XREGS[src1].b[0];
+    vmemwrite8(addr, val);
+    LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM[0x%016" PRIx64 "]", val, addr);
+    logmemwchange(0, 1, addr, val);
+}
+
+void shl(xreg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: shl x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    uint64_t addr = XREGS[base].x;
+    uint16_t val  = XREGS[src1].h[0];
+    vmemwrite16(addr, val);
+    LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM[0x%016" PRIx64 "]", val, addr);
+    logmemwchange(0, 2, addr, val);
+}
+
+void shg(xreg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: shg x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    uint64_t addr = XREGS[base].x;
+    uint16_t val  = XREGS[src1].h[0];
+    vmemwrite16(addr, val);
+    LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM[0x%016" PRIx64 "]", val, addr);
+    logmemwchange(0, 2, addr, val);
+}
+
 
 void fence(const char* comm)
 {
@@ -7264,8 +7275,6 @@ static void tensorfma(uint64_t tfmareg)
                     int bf = bc / VL;
                     int bm = bc % VL;
 
-                    if (MREGS[0].b[bm] == 0) continue;
-
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
                 }
@@ -7295,7 +7304,6 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
-                if (MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
                 {
@@ -7349,7 +7357,6 @@ static void tensorfma(uint64_t tfmareg)
                 {
                     int bf = bc / VL;
                     int bm = bc % VL;
-                    if (MREGS[0].b[bm] == 0) continue;
 
                     FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
@@ -7378,7 +7385,6 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
-                if (MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
                 {
@@ -7437,7 +7443,6 @@ static void tensorfma(uint64_t tfmareg)
                 {
                     int bf = bc / VL;
                     int bm = bc % VL;
-                    if (MREGS[0].b[bm] == 0) continue;
 
                     tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
                     tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
@@ -7493,7 +7498,6 @@ static void tensorfma(uint64_t tfmareg)
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
-                if (MREGS[0].b[bm] == 0) continue;
 
                 for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
                 {
@@ -7591,8 +7595,10 @@ static void tensorfma(uint64_t tfmareg)
     {
         LOG(DEBUG, "ERROR Unimplemented tensor FMA Type!!");
     }
-    set_fp_exceptions();
-    dirty_fp_state();
+    if ( type != 3 ) {
+	set_fp_exceptions();
+	dirty_fp_state();
+    }
 }
 
 uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, int * passes, bool * mask_skip)
