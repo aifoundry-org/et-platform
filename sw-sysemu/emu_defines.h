@@ -10,6 +10,7 @@
 // Maximum number of threads
 #define EMU_NUM_SHIRES          35 // at most 36 shires
 #define EMU_MINIONS_PER_SHIRE   32
+#define EMU_NEIGH_PER_SHIRE     4
 #define EMU_NUM_MINIONS         (EMU_NUM_SHIRES*EMU_MINIONS_PER_SHIRE)
 #define EMU_THREADS_PER_MINION  2
 #define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
@@ -84,7 +85,7 @@
 #define ESR_NEIGH_MASK         0x00000F0000ULL  // On Neighborhood ESR Region Neighborhood is defined when bits [19:16]
 #define ESR_NEIGH_SHIFT        16               // On Neighborhood ESR Region bits to shift to get the Neighborhood defined in bits [19:16]
 #define ESR_NEIGH_OFFSET       0x0000010000ULL  // On Neighborhood ESR Region the Neighborhood is defined by bits [19:16]
-#define ESR_NEIGH_BROADCAST    0x00000F0000ULL  // On Neighborhood ESR Region Neighborhood Broadcast is defined when bits [19:16] == 4'b1111
+#define ESR_NEIGH_BROADCAST    16               // On Neighborhood ESR Region Neighborhood Broadcast is defined when bits [19:16] == 4'b1111
 
 #define ESR_BANK_MASK          0x000001E000ULL  // On Shire Cache ESR Region Bank is defined in bits [16:13]
 #define ESR_BANK_SHIFT         13               // On Shire Cache ESR Region bits to shift to get Bank defined in bits [16:13]
