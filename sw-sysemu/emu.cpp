@@ -534,9 +534,6 @@ static void configure_port(uint32_t id, uint64_t wdata);
 static uint64_t flbarrier(uint64_t value);
 static uint64_t read_port_base_address(unsigned thread, unsigned id);
 
-// TODO: remove old msg port spec
-static int64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode);
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Helper routines
@@ -2567,11 +2564,6 @@ static uint64_t csrget(csr src1)
     return val;
 }
 
-/* TODO remove this nasty fix*/
-uint64_t get_data_from_mem_64(uint64_t addr){
-    return vmemread64(addr);
-}
-
 static void csrset(csr src1, uint64_t val)
 {
     uint64_t msk;
@@ -2918,19 +2910,6 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
             case csr_usr_cache_op:
             case csr_sys_cache_op:
                 oldval = csr_cacheop_emu(newval);
-                break;
-            // TODO: remove old msg port spec
-            case csr_umsg_port0:
-            case csr_umsg_port1:
-            case csr_umsg_port2:
-            case csr_umsg_port3:
-                oldval = msg_port_csr(src1 - csr_umsg_port0, newval, true);
-                break;
-            case csr_smsg_port0:
-            case csr_smsg_port1:
-            case csr_smsg_port2:
-            case csr_smsg_port3:
-                oldval = msg_port_csr(src1 - csr_smsg_port0, newval, false);
                 break;
             default:
                 csrset(src1, newval);
@@ -6415,19 +6394,6 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// setup functions to retrieve data written to port and to query if there is
-// data available from RTL
-
-typedef std::pair<uint32_t,uint8_t> (*func_get_msg_port_data_t)  (uint32_t, uint32_t, uint32_t);
-typedef bool     (*func_msg_port_has_data_t)  (uint32_t, uint32_t);
-typedef void     (*func_req_msg_port_data_t)  (uint32_t, uint32_t);
-
-
-static func_get_msg_port_data_t   get_msg_port_data = NULL;
-static func_msg_port_has_data_t   msg_port_has_data = NULL;
-static func_req_msg_port_data_t   req_msg_port_data = NULL;
-
-
 bool get_msg_port_stall(uint32_t thread, uint32_t id)
 {
     return msg_ports[thread][id].stall;
@@ -6443,32 +6409,9 @@ bool msg_port_full(uint32_t thread, uint32_t id)
     return msg_ports[thread][id].size == (msg_ports[thread][id].max_msgs + 1);
 }
 
-void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata)
-{
-    get_msg_port_data = func_get_msg_port_data_t(getdata);
-    msg_port_has_data = func_msg_port_has_data_t(hasdata);
-    req_msg_port_data = func_req_msg_port_data_t(reqdata);
-}
-
 uint64_t read_port_base_address(unsigned thread, unsigned id)
 {
     return scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
-}
-
-void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t* oob)
-{
-    if (get_msg_port_data == NULL)
-        throw std::runtime_error("read_msg_port_data() is NULL");
-
-    int wr_words = 1 << (msg_ports[thread][id].logsize-2);
-    for (int i = 0; i < wr_words; i++)
-    {
-        std::pair<uint32_t,uint8_t> reqd_data;
-        reqd_data = get_msg_port_data(thread, id, i);
-        if (i == wr_words-1)
-            *oob = reqd_data.second;
-        data[i] =  reqd_data.first;
-    }
 }
 
 void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
@@ -6490,36 +6433,6 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
     if(msg_ports[current_thread][id].enable_oob)
         msg_ports_oob[thread][id].push(oob);
 }
-
-
-void update_msg_port_data()
-{
-    for (int id = 0 ; id < NR_MSG_PORTS; id ++)
-    {
-        //if (msg_ports[current_thread][id].offset < 0 || !msg_port_has_data(current_thread, id))
-        if (!msg_port_has_data(current_thread, id))
-            continue;
-        uint32_t data[1<<(PORT_LOG2_MAX_SIZE-2)];
-        uint8_t oob = 0;
-
-        read_msg_port_data(current_thread, id, data, &oob);
-
-        if (msg_port_full(current_thread,id))
-        {
-            LOG(DEBUG, "Thread %i Port %i: Port is full:%i empty:%i. wr_ptr: %i rd_ptr: %i. max_msgs: %i",
-                current_thread, id,
-                msg_port_full(current_thread,id), msg_port_empty(current_thread,id),
-                msg_ports[current_thread][id].wr_ptr, msg_ports[current_thread][id].rd_ptr,
-                msg_ports[current_thread][id].max_msgs);
-        }
-        else
-        {
-            write_msg_port_data(current_thread, id, data, oob);
-        }
-    }
-}
-
-
 
 static int64_t port_get(uint32_t id, bool block)
 {
@@ -6561,13 +6474,6 @@ static int64_t port_get(uint32_t id, bool block)
     }
     msg_ports[current_thread][id].size--;
 
-    LOG(DEBUG, "Reading MSG_PORT%s (m%d p%d) offset %d, rd_ptr=%d", block ? "" : "NB", current_thread, id, offset, msg_ports[current_thread][id].rd_ptr);
-    if (in_sysemu)
-    {
-        if (req_msg_port_data == NULL)
-            throw std::runtime_error("req_msg_port_data() is NULL");
-        req_msg_port_data(current_thread, id);
-    }
     return offset;
 }
 
@@ -6599,43 +6505,6 @@ static void configure_port(uint32_t id, uint64_t wdata)
     //reset the monitor queue so we don't get incorrect oob if the user doesn't pull all msgs
     std::queue<uint8_t> to_delete;
     std::swap(msg_ports_oob[current_thread][id], to_delete);
-}
-
-// TODO: remove old msg port spec
-static int64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
-{
-    msg_port_conf_action action = msg_port_conf_action(wdata & 0xF);
-    switch (action)
-    {
-        case MSG_ENABLE:
-            msg_ports[current_thread][id].enabled = true;
-            msg_ports[current_thread][id].stall = false;
-            msg_ports[current_thread][id].umode = (((wdata >> 4) & 0x1) != 0);
-            msg_ports[current_thread][id].logsize = (wdata >> 5)  & 0x7;
-            msg_ports[current_thread][id].max_msgs = (wdata >> 8) & 0xF;
-            msg_ports[current_thread][id].use_scp = (((wdata >> 15) & 0x1) != 0);
-            msg_ports[current_thread][id].scp_set = (wdata >> 16) & 0xF;
-            msg_ports[current_thread][id].scp_way = (wdata >> 24) & 0x3;
-            msg_ports[current_thread][id].enable_oob = (((wdata >> 32) & 0x1) != 0);
-            msg_ports[current_thread][id].rd_ptr = 0;
-            msg_ports[current_thread][id].wr_ptr = 0;
-            msg_ports[current_thread][id].size = 0;
-            msg_ports[current_thread][id].offset = -1;
-            return 0;
-        case MSG_DISABLE:
-            msg_ports[current_thread][id].enabled = false;
-            msg_ports[current_thread][id].rd_ptr = 0;
-            msg_ports[current_thread][id].wr_ptr = 0;
-            msg_ports[current_thread][id].offset = -1;
-            return 0;
-        case MSG_PGET:
-            return port_get(id, true);
-        case MSG_PGETNB:
-            return port_get(id, false);
-        default:
-            LOG(DEBUG, "ERROR Unimplemented port msg conf mode %d!!", (int) action);
-            return 0;
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
