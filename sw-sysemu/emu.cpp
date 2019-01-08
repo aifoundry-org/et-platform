@@ -4956,18 +4956,6 @@ static void ucvtemu(opcode opc, freg dst, freg src1)
         iufval32 res;
         switch ( opc )
         {
-#ifdef NEW_UPCONVERT
-            case FCVTPSF16:  res.f = fpu::f16_to_f32(cast_uint16_to_float16(val >> 16));  break;
-            case FCVTPSF11:  res.f = fpu::f11_to_f32(cast_uint16_to_float11(val >> 21));  break;
-            case FCVTPSF10:  res.f = fpu::f10_to_f32(cast_uint16_to_float10(val >> 22));  break;
-            case FCVTPSUN24: res.f = fpu::un24_to_f32(val >>  8); break;
-            case FCVTPSUN16: res.f = fpu::un16_to_f32(val >> 16); break;
-            case FCVTPSUN10: res.f = fpu::un10_to_f32(val >> 22); break;
-            case FCVTPSUN8:  res.f = fpu::un8_to_f32(val >> 24);  break;
-            case FCVTPSUN2:  res.f = fpu::un2_to_f32(val >> 30);  break;
-            case FCVTPSSN16: res.f = fpu::sn16_to_f32(val >> 16); break;
-            case FCVTPSSN8:  res.f = fpu::sn8_to_f32(val >> 24);  break;
-#else
             case FCVTPSF16:  res.f = fpu::f16_to_f32(cast_uint16_to_float16(val));  break;
             case FCVTPSF11:  res.f = fpu::f11_to_f32(cast_uint16_to_float11(val));  break;
             case FCVTPSF10:  res.f = fpu::f10_to_f32(cast_uint16_to_float10(val));  break;
@@ -4978,7 +4966,6 @@ static void ucvtemu(opcode opc, freg dst, freg src1)
             case FCVTPSUN2:  res.f = fpu::un2_to_f32(val);  break;
             case FCVTPSSN16: res.f = fpu::sn16_to_f32(val); break;
             case FCVTPSSN8:  res.f = fpu::sn8_to_f32(val);  break;
-#endif
             default: assert(0); break;
         }
         LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%d)", i, res.u, res.flt, val, val);
