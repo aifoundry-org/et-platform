@@ -15,6 +15,8 @@ extern int32_t minion_only_log;
 extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, bool log_en, int log_min);
 #endif
 
+extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
+
 using namespace std;
 
 // Creator
@@ -44,6 +46,26 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     {
         switch(esr_info.region)
         {
+            case ESR_Region_HART:
+
+                switch(esr_info.address)
+                {
+                    case ESR_HART_PORT0_OFFSET :
+                        write_msg_port_data(esr_info.hart, 0, (uint32_t *) data, 0);
+                        break;               
+                    case ESR_HART_PORT1_OFFSET :
+                        write_msg_port_data(esr_info.hart, 1, (uint32_t *) data, 0);
+                        break;               
+                    case ESR_HART_PORT2_OFFSET :
+                        write_msg_port_data(esr_info.hart, 2, (uint32_t *) data, 0);
+                        break;               
+                    case ESR_HART_PORT3_OFFSET :
+                        write_msg_port_data(esr_info.hart, 3, (uint32_t *) data, 0);
+                        break;               
+                }
+
+                break;
+
             case ESR_Region_Neighborhood :
                 
                 if (esr_info.neighborhood == ESR_NEIGH_BROADCAST)

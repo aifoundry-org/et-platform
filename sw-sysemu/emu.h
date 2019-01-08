@@ -561,11 +561,9 @@ extern void shg (xreg dst, xreg base, const char* comm = 0);
 
 // ----- Esperanto messaging extension -----------------------------------------
 
-extern void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata);
 extern bool get_msg_port_stall(uint32_t thread, uint32_t id);
 extern void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t* oob);
 extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
-extern void update_msg_port_data();
 
 // ----- Esperanto tensor extension --------------------------------------------
 
@@ -587,7 +585,6 @@ extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * 
 extern void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action);
 extern uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry);
 
-extern uint64_t get_data_from_mem_64(uint64_t addr);
 // ----- Esperanto fast local barrier extension --------------------------------
 
 // control traps on txfma sleep

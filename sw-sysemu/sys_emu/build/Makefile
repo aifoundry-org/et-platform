@@ -11,7 +11,6 @@ endif
 BFDROOT := $(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf
 
 SRCS := $(BEMU)/sys_emu/net_emulator.cpp \
-        $(BEMU)/sys_emu/rboxSysEmu.cpp \
         $(BEMU)/sys_emu/sys_emu.cpp \
         $(BEMU)/sys_emu/sys_emu_log.cpp 
 ifndef SYSEMU_STATIC
