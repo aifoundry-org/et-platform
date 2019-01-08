@@ -7,6 +7,7 @@
 
 #include "txs.h"
 #include "emu.h"
+#include "emu_memop.h"
 #include "log.h"
 #include "fpu/fpu.h"
 #include "emu_gio.h"
@@ -42,7 +43,7 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
     /* Get data from port and send it to TBOX */
     for(unsigned i=0; i<number_packets*2; i++)
     {
-        val[i] = get_data_from_mem_64(base_address);
+        val[i] = vmemread64(base_address);
         base_address+=8; // 8 bytes
     }    
     
@@ -83,124 +84,6 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
         /* Put result in port */
         write_msg_port_data(current_thread, port_id, &(data[channel].u[0]), 0); // Note: TBOX now executes 4 fragments, so channel data will be contained in lower 128 bits of fdata
     }    
-}
-
-void texsndh(xreg src1, xreg src2, const char* comm)
-{
-    LOG(DEBUG, "I: texsndh x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:""));
-
-    bool send_header = false;
-
-    for (int e = 0; !send_header & (e < VL_TBOX); e++)
-        send_header = (MREGS[0].b[e] == 1);
-
-    if (send_header)
-    {
-        tbox_emulator.set_request_header(current_thread, XREGS[src1].x, XREGS[src2].x);
-        LOG(DEBUG, "\tSample request %016" PRIx64 " %016" PRIx64, XREGS[src1].x, XREGS[src2].x);
-        tbox_emulator.set_request_pending(current_thread, true);
-    }
-}
-
-void texsnds(freg src1, const char* comm)
-{
-    LOG(DEBUG, "I: texsnds f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));
-
-    bool send_coordinate = false;
-
-    for (int e = 0; !send_coordinate & (e < VL_TBOX); e++)
-        send_coordinate = (MREGS[0].b[e] == 1);
-
-    if (send_coordinate)
-    {
-        tbox_emulator.set_request_coordinates(current_thread, 0, FREGS[src1]);
-
-        LOG(DEBUG, "\t Set *s* texture coordinates from f%d", src1);
-        for(uint32_t c = 0; c < VL_TBOX; c++)
-        {
-            LOG(DEBUG, "\t[%d] 0x%08x (%f)", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c]));
-        }
-    }
-}
-
-void texsndt(freg src1, const char* comm)
-{
-    LOG(DEBUG, "I: texsndt f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));
-
-    bool send_coordinate = false;
-
-    for (int e = 0; !send_coordinate & (e < VL_TBOX); e++)
-        send_coordinate = (MREGS[0].b[e] == 1);
-
-    if (send_coordinate)
-    {
-        tbox_emulator.set_request_coordinates(current_thread, 1, FREGS[src1]);
-
-        LOG(DEBUG, "\t Set *t* texture coordinates from f%d", src1);
-        for(uint32_t c = 0; c < VL_TBOX; c++)
-        {
-            LOG(DEBUG, "\t[%d] 0x%08x (%f)", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c]));
-        }
-    }
-}
-
-void texsndr(freg src1, const char* comm)
-{
-
-    LOG(DEBUG, "I: texsndr f%d%s%s", src1, (comm?" # ":""), (comm?comm:""));
-
-    bool send_coordinate = false;
-
-    for (int e = 0; !send_coordinate & (e < VL_TBOX); e++)
-        send_coordinate = (MREGS[0].b[e] == 1);
-
-    if (send_coordinate)
-    {
-        tbox_emulator.set_request_coordinates(current_thread, 2, FREGS[src1]);
-
-        LOG(DEBUG, "\t Set *r* texture coordinates from f%d", src1);
-        for(uint32_t c = 0; c < VL_TBOX; c++)
-        {
-            LOG(DEBUG, "\t[%d] 0x%08x (%f)", c, FREGS[src1].u[c], cast_uint32_to_float(FREGS[src1].u[c]));
-        }
-    }
-}
-
-void texrcv(freg dst, const uint32_t idx, const char* comm)
-{
-    LOG(DEBUG, "I: texrcv f%d, 0x%x%s%s", dst, idx, (comm?" # ":""), (comm?comm:""));
-
-    bool sample = false;
-
-    if (tbox_emulator.check_request_pending(current_thread))
-    {
-        for (int e = 0; !sample & (e < VL_TBOX); e++)
-            sample = (MREGS[0].b[e] == 1); // if at least one frag alive then sample quad
-        tbox_emulator.set_request_pending(current_thread, false);
-    }
-
-    if (sample)
-        tbox_emulator.sample_quad(current_thread, fake_sampler, true);
-
-    fdata data;
-
-    data = tbox_emulator.get_request_results(current_thread, idx);
-
-    for (uint32_t c = 0; c < VL_TBOX; c++)
-    {
-        // texrcv should pay attention to the mask!!!
-        if ( MREGS[0].b[c] == 0 ) continue;
-
-        FREGS[dst].u[c] = data.u[c];
-
-        // Print as float16?
-        iufval32 tmp;
-        tmp.f = fpu::f16_to_f32(cast_uint16_to_float16(data.h[c * 2]));
-        LOG(DEBUG, "\t[%d] 0x%04x (%g) FP16 <-", c, FREGS[dst].h[c*2], cast_uint32_to_float(tmp.u));
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) FP32 <-", c, FREGS[dst].u[c], cast_uint32_to_float(FREGS[dst].u[c]));
-    }
-
-    logfregchange(dst);
 }
 
 void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
