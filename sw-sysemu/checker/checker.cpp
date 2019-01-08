@@ -336,9 +336,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             set_pc(current_pc[thread]);
             inst.fetch_and_decode(current_pc[thread]);
 
-            // Write any pending port data before executing the next instruction
-            update_msg_port_data();
-
             // In case that the instruction is a reduce:
             //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
             //     otherwise the sender thread could advance and update the VRF contents
