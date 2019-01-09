@@ -117,23 +117,6 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                 break;   
             }
-	  case ESR_Region_HART :
-	  {
-	    switch(esr_info.address)
-	    {
-	      case ESR_HART_PORT0_OFFSET:
-	      case ESR_HART_PORT1_OFFSET:
-	      case ESR_HART_PORT2_OFFSET:
-	      case ESR_HART_PORT3_OFFSET:
-	      {
-		//Writing to port, sending to dst agent
-		
-	      }
-	      break;
-	      
-	      default: break;
-	    }
-	  }
 	  break;
             default : break;
         }
