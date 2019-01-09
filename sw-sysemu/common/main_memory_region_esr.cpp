@@ -5,6 +5,7 @@
 // Local
 #include "main_memory_region_esr.h"
 #include "emu_gio.h"
+#include "emu.h"
 
 extern uint32_t current_pc;
 extern uint32_t current_thread;
@@ -13,6 +14,8 @@ extern uint32_t current_thread;
 extern int32_t minion_only_log;
 extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest, bool log_en, int log_min);
 #endif
+
+extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
 
 using namespace std;
 
@@ -43,6 +46,26 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     {
         switch(esr_info.region)
         {
+            case ESR_Region_HART:
+
+                switch(esr_info.address)
+                {
+                    case ESR_HART_PORT0_OFFSET :
+                        write_msg_port_data(esr_info.hart, 0, (uint32_t *) data, 0);
+                        break;               
+                    case ESR_HART_PORT1_OFFSET :
+                        write_msg_port_data(esr_info.hart, 1, (uint32_t *) data, 0);
+                        break;               
+                    case ESR_HART_PORT2_OFFSET :
+                        write_msg_port_data(esr_info.hart, 2, (uint32_t *) data, 0);
+                        break;               
+                    case ESR_HART_PORT3_OFFSET :
+                        write_msg_port_data(esr_info.hart, 3, (uint32_t *) data, 0);
+                        break;               
+                }
+
+                break;
+
             case ESR_Region_Neighborhood :
                 
                 if (esr_info.neighborhood == ESR_NEIGH_BROADCAST)
@@ -67,8 +90,10 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     {
                         LOG(DEBUG, "Write to FCC0_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
-                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                        
-                        fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 0, log_en, minion_only_log);
+                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);
+                        fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data),0, log_en, minion_only_log);
+#else
+                        fcc_inc(0, esr_info.shire, *((uint64_t*)data), 0);
 #endif
                         break;
                     }
@@ -78,7 +103,10 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 1, log_en, minion_only_log);
+#else
+                        fcc_inc(0, esr_info.shire, *((uint64_t*)data), 1);
 #endif
+
                         break;
                     }
 
@@ -88,6 +116,8 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data),  0,log_en, minion_only_log);
+#else
+                        fcc_inc(1, esr_info.shire, *((uint64_t*)data), 0);
 #endif
                         break;
                     }
@@ -98,6 +128,8 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data),  1,log_en, minion_only_log);
+#else
+                        fcc_inc(1, esr_info.shire, *((uint64_t*)data), 1);
 #endif
                         break;
                     }

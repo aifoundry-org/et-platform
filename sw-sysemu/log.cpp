@@ -19,6 +19,7 @@ void clearlogstate()
     log_info->int_reg_data = 0;
     log_info->fflags_mod = false;
     log_info->fflags_value = 0;
+    log_info->tensor_mod = false;
     for(int m = 0; m < 8; m++)
     {
         log_info->m_reg_mod[m] = false;
@@ -104,4 +105,9 @@ void logfflagschange(uint64_t new_flags)
     if(log_info == NULL) return;
     log_info->fflags_mod = true;
     log_info->fflags_value = new_flags;
+}
+
+void logtensorchange()
+{
+  log_info->tensor_mod = true;
 }

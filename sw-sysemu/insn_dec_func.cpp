@@ -105,9 +105,17 @@ static insn_exec_funct_t dec_custom0(uint32_t bits, uint32_t& flags __attribute_
               case 0x28: return (bits & 0x01f00000) ? insn_unknown : insn_fswl_ps; // rs2==0
               case 0x29: return (bits & 0x01f00000) ? insn_unknown : insn_fswg_ps; // rs2==0
               case 0x48: return insn_fgwl_ps;
+	      case 0x44: return insn_fghl_ps;
+	      case 0x40: return insn_fgbl_ps;
               case 0x49: return insn_fgwg_ps;
+	      case 0x45: return insn_fghg_ps;
+	      case 0x41: return insn_fgbg_ps;
               case 0x68: return insn_fscwl_ps;
+	      case 0x64: return insn_fschl_ps;
+	      case 0x60: return insn_fscbl_ps; 
               case 0x69: return insn_fscwg_ps;
+	      case 0x65: return insn_fschg_ps;
+	      case 0x61: return insn_fscbg_ps;
               default  : return insn_unknown;
               }
     default : return insn_unknown;
