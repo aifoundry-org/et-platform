@@ -2679,11 +2679,19 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_fcc:
             fcc_cnt = val & 0x01;
-	        if (fcc[current_thread][fcc_cnt] == 0 ) {
-                //fcc underflow
-		        LOG(DEBUG, "FCC underflow. You shouldn't be here...");
-	        }
-	        fcc[current_thread][fcc_cnt]--;
+            if ( in_sysemu ) {
+               // If you are not going to block decrement it
+	       if ( fcc[current_thread][fcc_cnt] != 0 )
+	          fcc[current_thread][fcc_cnt]--;  
+               
+            } else {
+              if (fcc[current_thread][fcc_cnt] == 0 ) {
+               //fcc underflow
+		    LOG(DEBUG, "FCC underflow. You shouldn't be here...");
+	       }
+	     fcc[current_thread][fcc_cnt]--;  
+            }
+             
             break;
         case csr_stall:
             break;

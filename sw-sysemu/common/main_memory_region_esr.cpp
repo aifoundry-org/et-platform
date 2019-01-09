@@ -92,9 +92,9 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data),0, log_en, minion_only_log);
-#else
-                        fcc_inc(0, esr_info.shire, *((uint64_t*)data), 0);
 #endif
+                        fcc_inc(0, esr_info.shire, *((uint64_t*)data), 0);
+
                         break;
                     }
                     case ESR_SHIRE_FCC1_OFFSET :
@@ -103,9 +103,8 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 1, log_en, minion_only_log);
-#else
-                        fcc_inc(0, esr_info.shire, *((uint64_t*)data), 1);
 #endif
+                        fcc_inc(0, esr_info.shire, *((uint64_t*)data), 1);
 
                         break;
                     }
@@ -116,9 +115,9 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data),  0,log_en, minion_only_log);
-#else
-                        fcc_inc(1, esr_info.shire, *((uint64_t*)data), 0);
 #endif
+                        fcc_inc(1, esr_info.shire, *((uint64_t*)data), 0);
+
                         break;
                     }
 
@@ -128,9 +127,9 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data),  1,log_en, minion_only_log);
-#else
-                        fcc_inc(1, esr_info.shire, *((uint64_t*)data), 1);
 #endif
+                        fcc_inc(1, esr_info.shire, *((uint64_t*)data), 1);
+
                         break;
                     }
                     default : break;
