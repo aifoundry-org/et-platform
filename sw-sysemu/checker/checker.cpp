@@ -190,6 +190,8 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level)
 
     memory->setGetThread(get_thread);
 
+    set_delayed_msg_port_write(true);
+
     // Inits X0 to 0
     for(int i = 0; i < EMU_NUM_THREADS; i++)
     {
