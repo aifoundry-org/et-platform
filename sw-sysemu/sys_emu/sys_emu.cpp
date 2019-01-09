@@ -12,7 +12,6 @@
 #endif
 #include "log.h"
 #include "net_emulator.h"
-#include "rboxSysEmu.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -141,28 +140,6 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// functions to connect rbox emulation with emu
-////////////////////////////////////////////////////////////////////////////////
-static rboxSysEmu *rbox[EMU_NUM_SHIRES];
-
-static void newMsgPortDataRequest(uint32_t current_thread,  uint32_t port_id)
-{
-    unsigned shire = current_thread/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-    unsigned thread = current_thread % (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-    if (rbox[shire] != NULL)
-        rbox[shire]->dataRequest(thread);
-}
-
-static bool queryMsgPort(uint32_t current_thread,  uint32_t port_id)
-{
-    unsigned shire = current_thread/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-    unsigned thread = current_thread % (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-    if (rbox[shire] != NULL)
-        return rbox[shire]->dataQuery(thread);
-    else return false;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Parses a file that defines the memory regions plus contents to be
 // loaded in the different regions
 ////////////////////////////////////////////////////////////////////////////////
@@ -241,7 +218,7 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-rbox] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
@@ -254,7 +231,6 @@ static const char * help_msg =
  -ll          Log memory accesses\n\
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
- -rbox        Enable RBOX emulation\n\
  -reset_pc    Sets boot program counter (default 0x8000001000) \n\
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
  -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
@@ -402,14 +378,11 @@ int main(int argc, char * argv[])
     int dump             = 0;
     uint64_t dump_addr   = 0;
     uint64_t dump_size   = 0;
-    bool use_rbox        = false;
     uint64_t reset_pc    = RESET_PC;
     bool reset_pc_flag   = false;
     bool debug           = false;
     uint64_t max_cycles  = 10000000;
     bool max_cycle       = false;
-
-    memset(rbox, 0, sizeof(rbox));
 
     for(int i = 1; i < argc; i++)
     {
@@ -524,9 +497,6 @@ int main(int argc, char * argv[])
         {
             log_mem_en = true;
         }
-        else if (strcmp(argv[i], "-rbox") == 0) {
-           use_rbox = true;
-        }
         else if (  (strcmp(argv[i], "-h") == 0)
                  ||(strcmp(argv[i], "-help") == 0)
                  ||(strcmp(argv[i], "--help") == 0)) {
@@ -602,14 +572,6 @@ int main(int argc, char * argv[])
         net_emu.set_file(net_desc_file);
     }
 
-    // initialize rboxes-----------------------------------
-    if (use_rbox){
-        for (int i = 0 ; i < EMU_NUM_SHIRES; i++)
-            rbox[i] = new rboxSysEmu(i, memory, write_msg_port_data);
-        set_msg_port_data_funcs(NULL, (void * ) queryMsgPort, (void * ) newMsgPortDataRequest);
-    }
-    // end initialize rboxes-------------------------------
-
     // initialize ports-----------------------------------
 
     // end initialize ports-------------------------------
@@ -649,29 +611,9 @@ int main(int argc, char * argv[])
     insn_t inst;
     uint64_t emu_cycle = 0;
 
-    bool rboxes_done = false;
     // While there are active threads or the network emulator is still not done
-    while((emu_done() == false) && (enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done()) || (use_rbox && !rboxes_done)) && (emu_cycle < max_cycles))
+    while((emu_done() == false) && (enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done())) && (emu_cycle < max_cycles))
     {
-
-        // For every cycle execute rbox
-
-        if (use_rbox) {
-            rboxes_done = true;
-            for ( int i = 0; i < EMU_NUM_SHIRES; i++)
-            {
-                int newEnable = rbox[i]->tick();
-
-                if (newEnable > 0)
-                    enabled_threads.push_back(newEnable + EMU_MINIONS_PER_SHIRE*i);
-
-                if (!rbox[i]->done())
-                {
-                    rboxes_done = false;
-                    break;
-                }
-            }
-        }
 
 #ifdef SYSEMU_DEBUG
         if ((debug == true) && ((get_pc_break() == true) || (steps == 0))) {
@@ -780,7 +722,6 @@ int main(int argc, char * argv[])
 
                     if (get_msg_port_stall(thread_id, 0) ){
                         thread = enabled_threads.erase(thread);
-                        if(use_rbox) rbox[thread_id/(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)]->threadDisabled(thread_id%(EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION));
                         if (thread == enabled_threads.end()) break;
                     }
                     else {
@@ -867,11 +808,6 @@ int main(int argc, char * argv[])
     if(dump_file != NULL)
     {
         memory->dump_file(dump_file, dump_addr, dump_size);
-    }
-
-    if (use_rbox){
-      for (int i = 0 ; i < EMU_NUM_SHIRES; i++)
-        delete rbox[i];
     }
 
     return 0;

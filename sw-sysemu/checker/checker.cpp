@@ -339,9 +339,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             set_pc(current_pc[thread]);
             inst.fetch_and_decode(current_pc[thread]);
 
-            // Write any pending port data before executing the next instruction
-            update_msg_port_data();
-
             // In case that the instruction is a reduce:
             //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
             //     otherwise the sender thread could advance and update the VRF contents
@@ -690,7 +687,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             auto conv_list_it = conv_list.begin();
 
             // For all the written entries
-            for(int i = 0; i < size; i++)
+            for(int i = 0; i < size && emu_state_change.tensor_mod; i++)
             {
                 // Load was skipped due conv CSR, ignore check
                 if(* conv_list_it == 1)
@@ -994,9 +991,4 @@ void checker::texrec(unsigned minionId, unsigned thread_id, const uint8_t *data,
         return;
     }
     texrec_func_ptr(minionId, thread_id, data, wordIdx, mask);
-}
-
-
-void checker::update_fcsr_flags(unsigned minionId, unsigned flags) {
-  //TODO: implement
 }

@@ -91,6 +91,18 @@ typedef enum {
     FSC32W,
     FSC32H,
     FSC32B,
+    FGWL,
+    FGHL,
+    FGBL,
+    FGWG,
+    FGHG,
+    FGBG,
+    FSCWL,
+    FSCHL,
+    FSCBL,
+    FSCWG,
+    FSCHG,
+    FSCBG,
     // PS computation instructions
     FADD,
     FSUB,
@@ -252,6 +264,8 @@ mdata mregs[EMU_NUM_THREADS][8];
 uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
 bool mtvec_is_set[EMU_NUM_THREADS] = {};
 bool stvec_is_set[EMU_NUM_THREADS] = {};
+bool tensorload_setupb_topair[EMU_NUM_THREADS] = {false};
+int tensorload_setupb_numlines[EMU_NUM_THREADS];
 fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS][L1_SCP_BLOCKS];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
@@ -272,6 +286,10 @@ uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 uint64_t fcc_cnt;
+
+uint16_t fcc[EMU_NUM_THREADS][2] ={0};
+
+
 
 std::unordered_map<int, char const*> csr_names = {
    { csr_prv,               "prv"                },
@@ -534,9 +552,6 @@ static int64_t port_get(uint32_t id, bool block);
 static void configure_port(uint32_t id, uint64_t wdata);
 static uint64_t flbarrier(uint64_t value);
 static uint64_t read_port_base_address(unsigned thread, unsigned id);
-
-// TODO: remove old msg port spec
-static int64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -2664,6 +2679,11 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_fcc:
             fcc_cnt = val & 0x01;
+	        if (fcc[current_thread][fcc_cnt] == 0 ) {
+                //fcc underflow
+		        LOG(DEBUG, "FCC underflow. You shouldn't be here...");
+	        }
+	        fcc[current_thread][fcc_cnt]--;
             break;
         case csr_stall:
             break;
@@ -2689,7 +2709,8 @@ static void csrset(csr src1, uint64_t val)
                 uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
                 uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
                 int      id     = XREGS[31].x & 0x0000000000000001ULL;
-                dcache_lock_vaddr(tm, way, vaddr, count, id, stride);
+                int failed = dcache_lock_vaddr(tm, way, vaddr, count, id, stride);
+		csrregs[current_thread][csr_tensor_error] |= (failed << 5); 
             }
             break;
         case csr_unlock_va:
@@ -2925,19 +2946,6 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
             case csr_sys_cache_op:
                 oldval = csr_cacheop_emu(newval);
                 break;
-            // TODO: remove old msg port spec
-            case csr_umsg_port0:
-            case csr_umsg_port1:
-            case csr_umsg_port2:
-            case csr_umsg_port3:
-                oldval = msg_port_csr(src1 - csr_umsg_port0, newval, true);
-                break;
-            case csr_smsg_port0:
-            case csr_smsg_port1:
-            case csr_smsg_port2:
-            case csr_smsg_port3:
-                oldval = msg_port_csr(src1 - csr_smsg_port0, newval, false);
-                break;
             default:
                 csrset(src1, newval);
                 break;
@@ -2953,6 +2961,25 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
         LOG(DEBUG, "\t0x%016" PRIx64 " --> CSR[%s]", newval, csr_names[src1]);
     }
     logxregchange(dst);
+}
+
+void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id) {
+
+    uint64_t current_mask = minion_mask;
+    for(int minion_id = 0; minion_id < 64; ++minion_id) {	
+	int inc_minion = (current_mask & (1 << minion_id)) >> minion_id;
+	if(inc_minion) {
+	    size_t fcc_addr = shire*EMU_MINIONS_PER_SHIRE*EMU_THREADS_PER_MINION+EMU_THREADS_PER_MINION*minion_id+thread;
+	    bool fcc_overflow = false;
+	    
+	    fcc[fcc_addr][fcc_id] += 1;
+	    fcc_overflow = fcc[fcc_addr][fcc_id] == 0;
+	    if (fcc_overflow) {
+		// If overflow raise flag
+		csrregs[current_thread][csr_tensor_error] |= (0x1 << 3); 
+	    }
+	}
+    }
 }
 
 static void throw_page_fault(uint64_t addr, mem_access_type macc)
@@ -4384,7 +4411,21 @@ static void gatheremu(opcode opc, int size, freg dst, freg src1, xreg base)
         {
             case FGW: val.u = vmemread32(addr); break;
             case FGH: val.u = sext16(vmemread16(addr)); break;
+	    case FGBL:
+	    case FGBG:
             case FGB: val.u = sext8(vmemread8(addr)); break;
+	    case FGWL:
+	    case FGWG:
+		if ( (addr % size) != 0 )
+		    throw trap_load_address_misaligned(addr);		
+		val.u = vmemread32(addr);
+		break;
+	    case FGHL:
+	    case FGHG:
+		if ( (addr % size) != 0 )
+		    throw trap_load_address_misaligned(addr);
+		val.u = sext16(vmemread16(addr));
+		break;
             default : assert(0); break;
         }
         FREGS[dst].u[i] = val.u;
@@ -4443,7 +4484,23 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
         {
             case FSCW : vmemwrite32(addr, val.u); logmemwchange(i, 4, addr, val.u); break;
             case FSCH : vmemwrite16(addr, uint16_t(val.u)); logmemwchange(i, 2, addr, val.u); break;
+	    case FSCBL :
+	    case FSCBG :		
             case FSCB : vmemwrite8(addr, uint8_t(val.u));  logmemwchange(i, 1, addr, val.u); break;
+	    case FSCWL :
+	    case FSCWG :
+		if ( (addr % 4) != 0 )
+		    throw trap_load_address_misaligned(addr);		
+		vmemwrite32(addr, val.u);
+		logmemwchange(i, 4, addr, val.u);
+		break;
+	    case FSCHL :
+	    case FSCHG :
+		if ( (addr % 2) != 0 )
+		    throw trap_load_address_misaligned(addr);
+		vmemwrite16(addr, uint16_t(val.u));
+		logmemwchange(i, 2, addr, val.u);
+		break;
             default   : assert(0); break;
         }
 
@@ -4513,18 +4570,51 @@ void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgwl_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgw.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgwl.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    throw std::runtime_error("Unimplemented instruction (fgwl.ps)");
+    gatheremu(FGWL, 4, dst, src1, base);
+}
+
+void fghl_ps(freg dst, freg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: fghl.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    gatheremu(FGHL, 2, dst, src1, base);
+}
+
+void fgbl_ps(freg dst, freg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: fgbl.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    gatheremu(FGBL, 1, dst, src1, base);
 }
 
 void fgwg_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgw.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgwg.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    gatheremu(FGWG, 4, dst, src1, base);
+}
+
+void fghg_ps(freg dst, freg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: fghg.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    require_fp_active();
+    DEBUG_MASK(MREGS[0]);
+    gatheremu(FGHG, 2, dst, src1, base);
+}
+
+void fgbg_ps(freg dst, freg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: fgbg.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     throw std::runtime_error("Unimplemented instruction (fgwg.ps)");
+    gatheremu(FGBG, 1, dst, src1, base);
 }
 
 void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
@@ -4579,14 +4669,42 @@ void fscwl_ps(freg src, freg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: fscwl.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    throw std::runtime_error("Unimplemented instruction (fscwl.ps)");
+    femuscat(FSCWL, src, src1, base);
+}
+
+void fschl_ps(freg src, freg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: fschl.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    require_fp_active();
+    femuscat(FSCHL, src, src1, base);
+}
+
+void fscbl_ps(freg src, freg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: fscbl.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    require_fp_active();
+    femuscat(FSCBL, src, src1, base);
 }
 
 void fscwg_ps(freg src, freg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: fscwg.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    throw std::runtime_error("Unimplemented instruction (fscwg.ps)");
+    femuscat(FSCWG, src, src1, base);
+}
+
+void fschg_ps(freg src, freg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: fschg.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    require_fp_active();
+    femuscat(FSCHG, src, src1, base);
+}
+
+void fscbg_ps(freg src, freg src1, xreg base, const char* comm)
+{
+    LOG(DEBUG, "I: fscbg.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    require_fp_active();
+    femuscat(FSCBG, src, src1, base);
 }
 
 void fsc32b_ps(freg src, xreg src1, xreg src2, const char* comm)
@@ -4983,18 +5101,6 @@ static void ucvtemu(opcode opc, freg dst, freg src1)
         iufval32 res;
         switch ( opc )
         {
-#ifdef NEW_UPCONVERT
-            case FCVTPSF16:  res.f = fpu::f16_to_f32(cast_uint16_to_float16(val >> 16));  break;
-            case FCVTPSF11:  res.f = fpu::f11_to_f32(cast_uint16_to_float11(val >> 21));  break;
-            case FCVTPSF10:  res.f = fpu::f10_to_f32(cast_uint16_to_float10(val >> 22));  break;
-            case FCVTPSUN24: res.f = fpu::un24_to_f32(val >>  8); break;
-            case FCVTPSUN16: res.f = fpu::un16_to_f32(val >> 16); break;
-            case FCVTPSUN10: res.f = fpu::un10_to_f32(val >> 22); break;
-            case FCVTPSUN8:  res.f = fpu::un8_to_f32(val >> 24);  break;
-            case FCVTPSUN2:  res.f = fpu::un2_to_f32(val >> 30);  break;
-            case FCVTPSSN16: res.f = fpu::sn16_to_f32(val >> 16); break;
-            case FCVTPSSN8:  res.f = fpu::sn8_to_f32(val >> 24);  break;
-#else
             case FCVTPSF16:  res.f = fpu::f16_to_f32(cast_uint16_to_float16(val));  break;
             case FCVTPSF11:  res.f = fpu::f11_to_f32(cast_uint16_to_float11(val));  break;
             case FCVTPSF10:  res.f = fpu::f10_to_f32(cast_uint16_to_float10(val));  break;
@@ -5005,7 +5111,6 @@ static void ucvtemu(opcode opc, freg dst, freg src1)
             case FCVTPSUN2:  res.f = fpu::un2_to_f32(val);  break;
             case FCVTPSSN16: res.f = fpu::sn16_to_f32(val); break;
             case FCVTPSSN8:  res.f = fpu::sn8_to_f32(val);  break;
-#endif
             default: assert(0); break;
         }
         LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%d)", i, res.u, res.flt, val, val);
@@ -6210,6 +6315,7 @@ static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vadd
         {
           LOG(DEBUG, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
               evict ? "EvictVA" : "FlushVA", vaddr, dest);
+	  csrregs[current_thread][csr_tensor_error] |= (0x1 << 7); 
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -6249,6 +6355,7 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
+	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 7); 
             return 1;
         }
         // If target level is L1 check if the line is locked
@@ -6271,7 +6378,7 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
 static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
 {
     (void)(id);
-
+    
     // Skip all if way is outside the cache limits
     if ((way >= L1D_NUM_WAYS) && (way != 255))
         return 0;
@@ -6291,6 +6398,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tLockVA %016" PRIx64 ", Way: %d generated exception (suppressed)", vaddr, way);
+	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 7); 
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -6299,14 +6407,21 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         {
             // Lock the first available way
             // FIXME: or if the line exists unlocked in the cache use the way of the existing line.
+	    bool way_found = false;
             for (int w = 0; w < L1D_NUM_WAYS; ++w)
             {
                 if (!scp_locked[current_thread >> 1][set][w])
                 {
                     way = w;
+		    way_found = true;
                     break;
                 }
             }
+	    // No free way found to lock
+	    if(!way_found) {
+		csrregs[current_thread][csr_tensor_error] |= (0x1 << 5); 
+		return 1;
+	    }
         }
         if (way == 255)
         {
@@ -6322,10 +6437,17 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
             {
                 // Line already locked; stop the operation
                 LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d double-locking on way %d", vaddr, way, w);
+		csrregs[current_thread][csr_tensor_error] |= (0x1 << 5); 
                 return 1;
-            }
+            }	    
         }
         // FIXME: We should check if PA exists, unlocked, in another set in the cache
+
+	// check if the way is locked
+	if (scp_locked[current_thread >> 1][set][way]) {
+	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
+	    return 1;
+	}
 
         scp_locked[current_thread >> 1][set][way] = true;
         scp_trans[current_thread >> 1][set][way] = paddr;
@@ -6351,6 +6473,7 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tUnlockVA: %016" PRIx64 " generated exception (suppressed)", vaddr);
+	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 7); 
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -6368,6 +6491,37 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
     }
     return 0;
 }
+
+// static bool dcache_vaddr_is_locked(bool tm, uint64_t vaddr, int numlines, uint64_t stride) {
+    
+//     bool locked = true;
+//     for (int i = 0; i <= numlines; i++, vaddr += stride)
+//     {
+//         // Skip if masked
+//         if (tm && !tmask_pass(i))
+//             continue;
+
+//         uint64_t paddr = 0;
+//         try
+//         {
+//             paddr = vmemtranslate(vaddr, Mem_Access_Store);
+//         }
+//         catch (const trap_t& t)
+//         {
+//             // Stop the operation if there is an exception
+//             //LOG(DEBUG, "\tUnlockVA: %016" PRIx64 " generated exception (suppressed)", vaddr);
+//             //return false;
+//         }
+//         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+
+//         // Check if paddr is locked in the cache
+//         for (int w = 0; w < L1D_NUM_WAYS; ++w)
+//         {
+// 	    locked &= scp_locked[current_thread >> 1][set][w];
+//         }
+//     }
+//     return locked;
+// }
 
 static uint64_t csr_cacheop_emu(uint64_t op_value)
 {
@@ -6421,19 +6575,6 @@ static uint64_t csr_cacheop_emu(uint64_t op_value)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// setup functions to retrieve data written to port and to query if there is
-// data available from RTL
-
-typedef std::pair<uint32_t,uint8_t> (*func_get_msg_port_data_t)  (uint32_t, uint32_t, uint32_t);
-typedef bool     (*func_msg_port_has_data_t)  (uint32_t, uint32_t);
-typedef void     (*func_req_msg_port_data_t)  (uint32_t, uint32_t);
-
-
-static func_get_msg_port_data_t   get_msg_port_data = NULL;
-static func_msg_port_has_data_t   msg_port_has_data = NULL;
-static func_req_msg_port_data_t   req_msg_port_data = NULL;
-
-
 bool get_msg_port_stall(uint32_t thread, uint32_t id)
 {
     return msg_ports[thread][id].stall;
@@ -6449,32 +6590,9 @@ bool msg_port_full(uint32_t thread, uint32_t id)
     return msg_ports[thread][id].size == (msg_ports[thread][id].max_msgs + 1);
 }
 
-void set_msg_port_data_funcs(void* getdata, void *hasdata, void *reqdata)
-{
-    get_msg_port_data = func_get_msg_port_data_t(getdata);
-    msg_port_has_data = func_msg_port_has_data_t(hasdata);
-    req_msg_port_data = func_req_msg_port_data_t(reqdata);
-}
-
 uint64_t read_port_base_address(unsigned thread, unsigned id)
 {
     return scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
-}
-
-void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t* oob)
-{
-    if (get_msg_port_data == NULL)
-        throw std::runtime_error("read_msg_port_data() is NULL");
-
-    int wr_words = 1 << (msg_ports[thread][id].logsize-2);
-    for (int i = 0; i < wr_words; i++)
-    {
-        std::pair<uint32_t,uint8_t> reqd_data;
-        reqd_data = get_msg_port_data(thread, id, i);
-        if (i == wr_words-1)
-            *oob = reqd_data.second;
-        data[i] =  reqd_data.first;
-    }
 }
 
 void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
@@ -6496,36 +6614,6 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
     if(msg_ports[current_thread][id].enable_oob)
         msg_ports_oob[thread][id].push(oob);
 }
-
-
-void update_msg_port_data()
-{
-    for (int id = 0 ; id < NR_MSG_PORTS; id ++)
-    {
-        //if (msg_ports[current_thread][id].offset < 0 || !msg_port_has_data(current_thread, id))
-        if (!msg_port_has_data(current_thread, id))
-            continue;
-        uint32_t data[1<<(PORT_LOG2_MAX_SIZE-2)];
-        uint8_t oob = 0;
-
-        read_msg_port_data(current_thread, id, data, &oob);
-
-        if (msg_port_full(current_thread,id))
-        {
-            LOG(DEBUG, "Thread %i Port %i: Port is full:%i empty:%i. wr_ptr: %i rd_ptr: %i. max_msgs: %i",
-                current_thread, id,
-                msg_port_full(current_thread,id), msg_port_empty(current_thread,id),
-                msg_ports[current_thread][id].wr_ptr, msg_ports[current_thread][id].rd_ptr,
-                msg_ports[current_thread][id].max_msgs);
-        }
-        else
-        {
-            write_msg_port_data(current_thread, id, data, oob);
-        }
-    }
-}
-
-
 
 static int64_t port_get(uint32_t id, bool block)
 {
@@ -6567,13 +6655,6 @@ static int64_t port_get(uint32_t id, bool block)
     }
     msg_ports[current_thread][id].size--;
 
-    LOG(DEBUG, "Reading MSG_PORT%s (m%d p%d) offset %d, rd_ptr=%d", block ? "" : "NB", current_thread, id, offset, msg_ports[current_thread][id].rd_ptr);
-    if (in_sysemu)
-    {
-        if (req_msg_port_data == NULL)
-            throw std::runtime_error("req_msg_port_data() is NULL");
-        req_msg_port_data(current_thread, id);
-    }
     return offset;
 }
 
@@ -6605,43 +6686,6 @@ static void configure_port(uint32_t id, uint64_t wdata)
     //reset the monitor queue so we don't get incorrect oob if the user doesn't pull all msgs
     std::queue<uint8_t> to_delete;
     std::swap(msg_ports_oob[current_thread][id], to_delete);
-}
-
-// TODO: remove old msg port spec
-static int64_t msg_port_csr(uint32_t id, uint64_t wdata, bool umode)
-{
-    msg_port_conf_action action = msg_port_conf_action(wdata & 0xF);
-    switch (action)
-    {
-        case MSG_ENABLE:
-            msg_ports[current_thread][id].enabled = true;
-            msg_ports[current_thread][id].stall = false;
-            msg_ports[current_thread][id].umode = (((wdata >> 4) & 0x1) != 0);
-            msg_ports[current_thread][id].logsize = (wdata >> 5)  & 0x7;
-            msg_ports[current_thread][id].max_msgs = (wdata >> 8) & 0xF;
-            msg_ports[current_thread][id].use_scp = (((wdata >> 15) & 0x1) != 0);
-            msg_ports[current_thread][id].scp_set = (wdata >> 16) & 0xF;
-            msg_ports[current_thread][id].scp_way = (wdata >> 24) & 0x3;
-            msg_ports[current_thread][id].enable_oob = (((wdata >> 32) & 0x1) != 0);
-            msg_ports[current_thread][id].rd_ptr = 0;
-            msg_ports[current_thread][id].wr_ptr = 0;
-            msg_ports[current_thread][id].size = 0;
-            msg_ports[current_thread][id].offset = -1;
-            return 0;
-        case MSG_DISABLE:
-            msg_ports[current_thread][id].enabled = false;
-            msg_ports[current_thread][id].rd_ptr = 0;
-            msg_ports[current_thread][id].wr_ptr = 0;
-            msg_ports[current_thread][id].offset = -1;
-            return 0;
-        case MSG_PGET:
-            return port_get(id, true);
-        case MSG_PGETNB:
-            return port_get(id, false);
-        default:
-            LOG(DEBUG, "ERROR Unimplemented port msg conf mode %d!!", (int) action);
-            return 0;
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6747,10 +6791,30 @@ void tensorload(uint64_t control)//Transtensorload
     if (tenb)
     {
         dst = L1_SCP_ENTRIES;
+	tensorload_setupb_topair[current_thread] = true;
+	tensorload_setupb_topair[current_thread^1] = true;
+	tensorload_setupb_numlines[current_thread] = rows;
+	tensorload_setupb_numlines[current_thread^1] = rows;
     }
 
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
+
+    // // Check if SCP is enabled
+    // // Disabled until the SCPControl register spec is updated
+    // if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) && false ) {
+    //   	LOG(DEBUG, "ERROR TensorLoad with SCP disabled!!");
+    //   	csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+    //   	return; 
+    //  }
+    
+    // // Check if line is locked
+    // // Disabled until the spec is updated 
+    // if(!dcache_vaddr_is_locked(tm, base, rows, stride)){
+    // 	LOG(DEBUG, "ERROR Tensor Load writing to unlocked scp lines!!");
+    // 	csrregs[current_thread][csr_tensor_error] |= 0x1;
+    // 	return;
+    // }
 
     //NO TRANS
     if (trans == 0x00)
@@ -6763,13 +6827,22 @@ void tensorload(uint64_t control)//Transtensorload
                 if (addr & 0x3F)
                 {
                     LOG(DEBUG, "ERROR Tensor Load not aligned to cache line!!");
+
                 }
                 for ( int j = 0; j < L1_SCP_BLOCKS; j++ )
                 {
                     for ( int k = 0; k < VL; k++ )
                     {
                         uint64_t addr_final = addr+j*VL*4+k*4;
-                        uint32_t val = vmemread32(addr_final);
+			uint32_t val = 0;
+			try {
+			    val = vmemread32(addr_final);    
+			} catch (const trap_t& t) {
+			    // Memory exception
+			    csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+			    return;
+			}
+                        
                         SCP[dst + i][j].u[k] = val;
                         LOG(DEBUG, "\tScratchpad tensor load MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, dst+i, j, k, SCP[dst+i][j].u[k], SCP[dst+i][j].u[k]);
                     }
@@ -6806,7 +6879,14 @@ void tensorload(uint64_t control)//Transtensorload
                         for ( int k = 0; k < 8; k++ )
                         {
                             uint64_t addr_final = addr+j*8+k;
-                            uint8_t val = vmemread8(addr_final);
+                            uint8_t val = 0;
+			    try {
+				val = vmemread8(addr_final);    
+			    } catch (const trap_t& t) {
+				// Memory exception
+				csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+				return;
+			    }
                             tmp_buffer[elem][j*8+k] = val;
                             LOG(DEBUG, "\tLoading into tmp_buffer - MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, elem, j, k, tmp_buffer[elem][j*8+k], tmp_buffer[elem][j*8+k]);
                         }
@@ -6855,7 +6935,7 @@ void tensorload(uint64_t control)//Transtensorload
             LOG(DEBUG, "Exit Condition Broken");
             return;
         }
-        int offset = (control >> 57) & 0x1F;
+        int offset;
         uint8_t tmp_buffer[64][64];
         int size = (trans & 0x03);
 
@@ -6871,7 +6951,14 @@ void tensorload(uint64_t control)//Transtensorload
                 for ( int k = 0; k < 8; k++ )
                 {
                     uint64_t addr_final = addr+j*8+k;
-                    uint8_t val = vmemread8(addr_final);
+		    uint8_t val = 0;
+		    try {
+			val = vmemread8(addr_final);    
+		    } catch (const trap_t& t) {
+			// Memory exception
+			csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+			return;
+		    }
                     tmp_buffer[elem][j*8+k]=val;
                     LOG(DEBUG, "\tLoading into tmp_buffer - MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, elem, j, k, tmp_buffer[elem][j*8+k], tmp_buffer[elem][j*8+k]);
                 }
@@ -6909,7 +6996,9 @@ void tensorload(uint64_t control)//Transtensorload
                     }
                     else
                     {
-                        LOG(DEBUG, "ERROR Tensor Load element size not valid!!");
+			LOG(DEBUG, "ERROR Tensor Load element size not valid!!");			    
+			csrregs[current_thread][csr_tensor_error] |= (0x1 << 1);
+			return;
                     }
 
                 }
@@ -6924,6 +7013,7 @@ void tensorload(uint64_t control)//Transtensorload
 
         }
     }
+    logtensorchange();
 }
 
 // ----- TensorLoadL2Scp emulation --------------------------------------------------
@@ -7005,6 +7095,17 @@ static void tensorquant(uint64_t value)
         tensorquant_trans[current_thread]++;
         bool scp_inc = false;
 
+	if ( transformations[trans] == 4 || transformations[trans] == 5 ||
+	     transformations[trans] == 6 || transformations[trans] == 7 ) {	    
+	    // Check if SCP is enabled
+	    // Dissabled until software update
+	    // if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) ) {
+	    // 	csrregs[current_thread][csr_tensor_error] |= (0x1 << 4); 
+	    // 	return; 
+	    // }
+	}
+	     
+	
         // For all the rows
         for(int row = 0; row < rows; row++)
         {
@@ -7146,6 +7247,14 @@ static void tensorstore(uint64_t tstorereg)
 
         int src = scpstart % L1_SCP_ENTRIES;
         LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
+	
+	// // check if L1 SCP is enabled
+	// // Disabled until software update
+	// if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) ) {
+	//     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4); 
+	//     return; 
+	// }
+	
         // For all the rows
         for(int row = 0; row < rows; row++)
         {
@@ -7156,7 +7265,13 @@ static void tensorstore(uint64_t tstorereg)
                 {
                     uint32_t val = SCP[src][j].u[i];
                     uint64_t waddr = addr + j * VL * 4 + i * 4;
-                    vmemwrite32(waddr, val);
+		    try {
+			vmemwrite32(waddr, val);
+		    } catch (const trap_t& t) {
+			// Memory exception
+			csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+			return;
+		    }
                     LOG(DEBUG, "\t0x%08x --> MEM[0x%016" PRIx64 "]", val, waddr);
                     LOG(DEBUG, "\t\tSCP[%d][%d].u[%d]", src, j, i);
                     //logmemwchange(0, 4, waddr, val); => Don't log mem changes!
@@ -7183,6 +7298,19 @@ static void tensorstore(uint64_t tstorereg)
 
         int src = regstart;
 
+	// Check legal coop combination
+	// xs[50:49]/xs[56:55]
+	const char coop_comb[4*4] = { 1, 1, 0, 1,
+				      1, 1, 0, 0,
+				      0, 0, 0, 0,
+				      1, 0, 0, 0};
+	
+	if (!coop_comb[4*(coop-1)+(cols-1)]){
+	     csrregs[current_thread][csr_tensor_error] |= (0x1 << 8);
+	     return;
+	}
+	
+
         // For all the rows
         for(int row = 0; row < rows; row++)
         {
@@ -7194,7 +7322,14 @@ static void tensorstore(uint64_t tstorereg)
                 {
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u[idx];
-                    vmemwrite32(addr + col * 16 + i * 4, val);
+		    try {
+			vmemwrite32(addr + col * 16 + i * 4, val);
+		    } catch (const trap_t& t) {
+			// Memory exception
+			csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+			return;
+		    }
+                    
                     LOG(DEBUG, "\t0x%08x --> MEM[0x%016" PRIx64 "]", val, addr + col * 16 + i * 4);
                     //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
                 }
@@ -7233,10 +7368,33 @@ static void tensorfma(uint64_t tfmareg)
 
     LOG(DEBUG, "\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc_to_rf: %d, tenb: %d, bstart: %d, astart: %d, rm: %s", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenc_to_rf, tenb, bstart, astart, get_rounding_mode(rmdyn));
 
+    // //  check if L1 SCP is enabled
+    // // Disabled until software update
+    // if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) ) {
+    // 	csrregs[current_thread][csr_tensor_error] |= (0x1 << 4); 
+    // 	return; 
+    // }
+    
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if (tenb)
     {
         bstart = L1_SCP_ENTRIES;
+	// No tl to pair or incompatible combination of rows and columns length
+	if (!tensorload_setupb_topair[current_thread] || (tensorload_setupb_numlines[current_thread] != acols))
+	{
+	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
+	    return;
+	} else {
+	    //pair tl
+	    tensorload_setupb_topair[current_thread] = false;
+	    tensorload_setupb_topair[current_thread^1] = false;
+	}	 
+    } else {
+	// unpaired tl
+	if (!tensorload_setupb_topair[current_thread] ) {
+	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
+	    return;
+	}
     }
 
     tensorfma_size[current_thread] = arows * bcols / VL;
@@ -7635,6 +7793,13 @@ static void tensorreduce(uint64_t value)
     reduce_size[current_thread]  = num_reg;
     reduce_entry[current_thread] = start_reg;
 
+    // Sending and receiving from the same minion
+    if ( other_min == (current_thread>>1) )
+    {
+	csrregs[current_thread][csr_tensor_error] |= (0x1 << 9);
+	return;
+    }
+    
     if (operation == 0) // FADD
     {
         set_rounding_mode(rmdyn);
