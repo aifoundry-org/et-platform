@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <assert.h>
 
 // Local
 #include "api_communicate.h"
@@ -11,7 +12,7 @@ api_communicate::api_communicate(main_memory * mem_)
 {
     log                   = NULL;
     mem                   = mem_;
-    enabled               = true;
+    enabled               = false;
     done                  = false;
     communication_channel = -1;
 }
@@ -61,7 +62,7 @@ bool api_communicate::is_enabled(){
 void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<int> * ipi_threads_t0, uint64_t * new_pc_t0, std::list<int> * ipi_threads_t1, uint64_t * new_pc_t1)
 {
     // Waits until all minions are idle
-    if(enabled_threads->size() != 0) return;
+    if(!enabled || (enabled_threads->size() != 0)) return;
 
     * log << LOG_INFO << "api_communicate: command" << endm;
 
@@ -120,6 +121,8 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
             {
                 LaunchDescMsg launch_def;
 
+                assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
+
                 read_bytes( communication_channel, &launch_def, sizeof(LaunchDescMsg));
                 * log << LOG_INFO << "api_communicate: Execute 0x" << std::hex << launch_def.thread0_pc << ", 0x" << launch_def.thread1_pc << std::dec << endm;
 
@@ -127,8 +130,8 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
                 * new_pc_t0 = launch_def.thread0_pc;
                 * new_pc_t1 = launch_def.thread1_pc;
 
-                // Generate list of IPI based on masks
-                for(int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
+                // Generate list of IPI based on masks for compute minions
+                for(int s = 0; s < 32; s++)
                 {
                     // If shire enabled
                     if((launch_def.shire_mask >> s) & 1)
@@ -156,12 +159,14 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
             break;
         case kIPIContinue:
             * log << LOG_INFO << "api_communicate: continue" << endm;
+            
+            assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
 
             // PC 0 means continue
             * new_pc_t0 = 0;
             * new_pc_t1 = 0;
-            // Resume operation on all minions
-            for(int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
+            // Resume operation on all compute minions
+            for(int s = 0; s < 32; s++)
             {
                 for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
                 {
