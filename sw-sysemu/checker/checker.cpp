@@ -541,7 +541,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             if (inst.is_load() && address_is_in_ignored_region(emu_state_change.mem_addr[0]))
             {
                log << LOG_INFO << "Access to an ignored memory region (" << insn_disasm << ")" << endm;
-               emu_state_change.fp_reg_data = changes->fp_reg_data;
+               for (int i = 0; i < (VL/2); i++) {
+                  emu_state_change.fp_reg_data[i] = changes->fp_reg_data[i];
+               }
                fpinit(inst.fd(), emu_state_change.fp_reg_data);
             }
 
