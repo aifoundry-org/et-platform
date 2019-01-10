@@ -94,7 +94,7 @@
 #define ESR_NEIGH_ESR_MASK     0x000000FFF8ULL  // On Neighborhood ESR Region the ESR is defined in bits [15:3]
 #define ESR_SC_ESR_MASK        0x0000001FF8ULL  // On Shire Cache ESR Region the ESR is defined in bits [12:3]
 #define ESR_SHIRE_ESR_MASK     0x000001FFF8ULL  // On Shire ESR Region the ESR is defined in bits [16:3]
-
+#define ESR_SHIRE_ESR_SHIFT    3
 
 // ESR Offsets
 #define ESR_SHIRE_FLB_OFFSET  0x100ULL
@@ -107,6 +107,18 @@
 #define ESR_HART_PORT1_OFFSET 0x810ULL
 #define ESR_HART_PORT2_OFFSET 0x820ULL
 #define ESR_HART_PORT3_OFFSET 0x830ULL
+
+#define ESR_SHIRE_BROADCAST0_OFFSET  0x1FFF0L
+#define ESR_SHIRE_BROADCAST1_OFFSET  0x1FFF8L
+
+#define ESR_BROADCAST_PROT_MASK      0xC00000000000000ULL // Region protection is defined in bits [60:59] in esr broadcast data write.
+#define ESR_BROADCAST_PROT_SHIFT     59
+
+#define ESR_BROADCAST_ESR_ADDR_MASK  0x7FFFF0000000000ULL // ESR broadcastable address is defined in bits[58:40] in esr broadcast data write.
+#define ESR_BROADCAST_ESR_ADDR_SHIFT 40
+#define ESR_BROADCAST_ESR_MAX_SHIRES ESR_BROADCAST_ESR_ADDR_SHIFT
+#define ESR_BROADCAST_ESR_SHIRE_MASK 0xFFFFFFFFFFULL      // Shire to spread the broadcast address in bits [39:0] in esr broadcast data write.
+
 
 // L2 scratchpad
 #define L2_SCP_BASE   0x80000000ULL

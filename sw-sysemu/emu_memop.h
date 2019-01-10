@@ -18,6 +18,6 @@ extern void (*vmemwrite32) (uint64_t addr, uint32_t data);
 extern void (*vmemwrite64) (uint64_t addr, uint64_t data);
 
 // extern uint64_t pmemread64(uint64_t addr);
-// extern void pmemwrite64(uint64_t addr, uint64_t data);
+extern void (*pmemwrite64) (uint64_t addr, uint64_t data);
 
 #endif // _EMU_MEMOP_H
