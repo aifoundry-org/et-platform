@@ -49,7 +49,18 @@ private:
         bool             valid;
     } esr_info_t;
 
+    typedef struct {
+      /* @TODO define properly this structure.*/
+        esr_protection_t protection;
+        uint64_t         shire;
+        uint64_t         esraddress;
+    } esr_info_data_t;
+
     void decode_ESR_address(uint64_t address, esr_info_t *info);
+
+    void decode_ESR_data(uint64_t address, esr_info_data_t *info);
+
+    void encode_ESR_address(esr_info_data_t, uint64_t shire_id, uint64_t *new_ad);
 };
 
 #endif // _MAIN_MEMORY_REGION_ESR_
