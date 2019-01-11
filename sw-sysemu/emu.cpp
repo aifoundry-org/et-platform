@@ -27,7 +27,7 @@
 
 // MsgPort defines
 #define PORT_LOG2_MIN_SIZE   2
-#define PORT_LOG2_MAX_SIZE   6
+#define PORT_LOG2_MAX_SIZE   5
 
 // Scratchpad defines
 #define L1_ENTRIES        (L1D_NUM_SETS * L1D_NUM_WAYS)
@@ -69,7 +69,13 @@ typedef struct {
     uint8_t wr_ptr;
     uint8_t size;
     int32_t offset;
-} msg_port_conf;
+} msg_port_conf_t;
+
+typedef struct
+{
+    uint8_t  data[(1 << PORT_LOG2_MAX_SIZE)];
+    uint8_t  oob;
+} msg_port_write_t;
 
 typedef enum {
     // PS memory instructions
@@ -283,10 +289,14 @@ uint32_t tensorquant_data[EMU_NUM_THREADS][32][VL][TQUANT_MAX_TRANS];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
-msg_port_conf msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
+msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
-uint64_t fcc_cnt;
+bool msg_port_delayed_write = false;
+std::queue<msg_port_write_t> msg_port_pending_writes[EMU_NUM_THREADS][EMU_NUM_THREADS][NR_MSG_PORTS];
+std::queue<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_TBOXES][EMU_NUM_THREADS][NR_MSG_PORTS];
+std::queue<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_RBOXES][EMU_NUM_THREADS][NR_MSG_PORTS];
 
+uint64_t fcc_cnt;
 uint16_t fcc[EMU_NUM_THREADS][2] ={0};
 
 
@@ -867,7 +877,7 @@ void initcsr(uint32_t thread)
     // Ports
     for (int i = 0; i < NR_MSG_PORTS; ++i)
     {
-        memset(&msg_ports[thread][i], 0, sizeof(msg_port_conf));
+        memset(&msg_ports[thread][i], 0, sizeof(msg_port_conf_t));
         msg_ports[thread][i].offset = -1;
     }
     csrregs[thread][csr_portctrl0] = 0x0000000000008000ULL;
@@ -6603,10 +6613,15 @@ uint64_t read_port_base_address(unsigned thread, unsigned id)
     return scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
 }
 
-void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
+void set_delayed_msg_port_write(bool f)
+{
+    msg_port_delayed_write = f;
+}
+
+void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
 {
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
-    base_addr += msg_ports[current_thread][id].rd_ptr << msg_ports[thread][id].logsize;
+    base_addr += msg_ports[thread][id].rd_ptr << msg_ports[thread][id].logsize;
 
     msg_ports[thread][id].size++;
 
@@ -6619,8 +6634,101 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
 
-    if(msg_ports[current_thread][id].enable_oob)
+    if(msg_ports[thread][id].enable_oob)
         msg_ports_oob[thread][id].push(oob);
+}
+
+void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
+{
+    if (msg_port_delayed_write)
+    {
+        msg_port_write_t port_write;
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+            port_write.data[b] = data[b];
+        port_write.oob = oob;
+        msg_port_pending_writes[current_thread][thread][id].push(port_write);
+
+        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
+    }
+    else
+        write_msg_port_data_to_scp(thread, id, data, oob);
+}
+
+void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_id, uint32_t *data, uint8_t oob)
+{
+    if (msg_port_delayed_write)
+    {
+        msg_port_write_t port_write;
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+            port_write.data[b] = data[b];
+        port_write.oob = oob;
+        msg_port_pending_writes_tbox[tbox_id][thread][id].push(port_write);
+
+        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
+    }
+    else
+        write_msg_port_data_to_scp(thread, id, data, oob);
+}
+
+void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_id, uint32_t *data, uint8_t oob)
+{
+    if (msg_port_delayed_write)
+    {
+        msg_port_write_t port_write;
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+            port_write.data[b] = data[b];
+        port_write.oob = oob;
+        msg_port_pending_writes_tbox[rbox_id][thread][id].push(port_write);
+
+        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
+    }
+    else
+        write_msg_port_data_to_scp(thread, id, data, oob);
+}
+
+void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t source_thread)
+{
+    if (!msg_port_pending_writes[source_thread][target_thread][port_id].empty())
+    {
+        msg_port_write_t port_write;
+        port_write = msg_port_pending_writes[source_thread][target_thread][port_id].front();
+
+        LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from m%d", target_thread, port_id, source_thread);
+
+        write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+    }
+    else
+        LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from m%d not found!!", target_thread, port_id, source_thread);
+}
+
+void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id)
+{
+    if (!msg_port_pending_writes_tbox[tbox_id][target_thread][port_id].empty())
+    {
+        msg_port_write_t port_write;
+        port_write = msg_port_pending_writes_tbox[tbox_id][target_thread][port_id].front();
+
+        LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from tbox%d", target_thread, port_id, tbox_id);
+
+        write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+    }
+    else
+        LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from tbox%d not found!!", target_thread, port_id, tbox_id);
+}
+
+void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id)
+{
+    if (!msg_port_pending_writes_rbox[rbox_id][target_thread][port_id].empty())
+    {
+        msg_port_write_t port_write;
+        port_write = msg_port_pending_writes_rbox[rbox_id][target_thread][port_id].front();
+
+        LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from rbox%d", target_thread, port_id, rbox_id);
+
+        write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+    }
+    else
+        LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from rbox%d not found!!", target_thread, port_id, rbox_id);
 }
 
 static int64_t port_get(uint32_t id, bool block)

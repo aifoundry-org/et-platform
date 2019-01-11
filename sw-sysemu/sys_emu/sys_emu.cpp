@@ -12,6 +12,7 @@
 #endif
 #include "log.h"
 #include "net_emulator.h"
+#include "api_communicate.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -218,10 +219,11 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
+ -api_comm    Path to socket that feeds runtime API commands.\n\
  -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
  -shires      A mask of Shires that should be enabled. Default: 1 Shire\n\
  -dump_file   Path to the file in which to dump the memory content at the end of the simulation\n\
@@ -234,6 +236,7 @@ static const char * help_msg =
  -reset_pc    Sets boot program counter (default 0x8000001000) \n\
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
  -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
+ -mins_dis    Minions start disabled\n\
 ";
 
 
@@ -364,9 +367,11 @@ int main(int argc, char * argv[])
     char * elf_file      = NULL;
     char * mem_desc_file = NULL;
     char * net_desc_file = NULL;
+    char * api_comm_path = NULL;
     bool elf             = false;
     bool mem_desc        = false;
     bool net_desc        = false;
+    bool api_comm        = false;
     bool minions         = false;
     bool second_thread   = true;
     bool shires          = false;
@@ -383,6 +388,7 @@ int main(int argc, char * argv[])
     bool debug           = false;
     uint64_t max_cycles  = 10000000;
     bool max_cycle       = false;
+    bool mins_dis        = false;
 
     for(int i = 1; i < argc; i++)
     {
@@ -405,6 +411,11 @@ int main(int argc, char * argv[])
         {
             net_desc = false;
             net_desc_file = argv[i];
+        }
+        else if(api_comm)
+        {
+            api_comm = false;
+            api_comm_path = argv[i];
         }
         else if(minions)
         {
@@ -456,6 +467,10 @@ int main(int argc, char * argv[])
         else if(strcmp(argv[i], "-net_desc") == 0)
         {
             net_desc = true;
+        }
+        else if(strcmp(argv[i], "-api_comm") == 0)
+        {
+            api_comm = true;
         }
         else if(strcmp(argv[i], "-minions") == 0)
         {
@@ -511,16 +526,26 @@ int main(int argc, char * argv[])
         {
             debug = true;
         }
+        else if(strcmp(argv[i], "-mins_dis") == 0)
+        {
+            mins_dis = true;
+        }
         else
         {
-            log << LOG_FTL << "Unkown parameter " << argv[i] << endm;
+            log << LOG_FTL << "Unknown parameter " << argv[i] << endm;
         }
     }
 
-    if ((elf_file == NULL) && (mem_desc_file == NULL))
+    if ((elf_file == NULL) && (mem_desc_file == NULL) && (api_comm_path == NULL))
     {
-        log << LOG_FTL << "Need an elf file or a mem_desc file!" << endm;
+        log << LOG_FTL << "Need an elf file or a mem_desc file or runtime API!" << endm;
     }
+
+    if ((net_desc_file != NULL) && (api_comm_path != NULL))
+    {
+        log << LOG_FTL << "Can't have net_desc and api_comm set at same time!" << endm;
+    }
+
     if (debug == true) {
 #ifdef SYSEMU_DEBUG
        log << LOG_INFO << "Starting in interactive mode." << endm;
@@ -572,6 +597,14 @@ int main(int argc, char * argv[])
         net_emu.set_file(net_desc_file);
     }
 
+    api_communicate api_listener(memory);
+    api_listener.set_log(&log);
+    // Parses the net description (it emulates a Maxion sending interrupts to minions)
+    if(api_comm_path != NULL)
+    {
+        api_listener.set_comm_path(api_comm_path);
+    }
+
     // initialize ports-----------------------------------
 
     // end initialize ports-------------------------------
@@ -602,7 +635,7 @@ int main(int argc, char * argv[])
              minit(m0, 255);
              initcsr(thread_id);
              // Puts thread id in the active list
-             enabled_threads.push_back(thread_id);
+             if(!mins_dis) enabled_threads.push_back(thread_id);
              if(!second_thread) break; // single thread per minion
           }
        }
@@ -612,7 +645,10 @@ int main(int argc, char * argv[])
     uint64_t emu_cycle = 0;
 
     // While there are active threads or the network emulator is still not done
-    while((emu_done() == false) && (enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done())) && (emu_cycle < max_cycles))
+    while(  (emu_done() == false)
+         && (enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done()) || (api_listener.is_enabled() && !api_listener.is_done()))
+         && (emu_cycle < max_cycles)
+    )
     {
 
 #ifdef SYSEMU_DEBUG
@@ -783,17 +819,28 @@ int main(int argc, char * argv[])
             }
         }
 
-        // Once all threads done this cycle, check for new IPIs from net emu
-        std::list<int> ipi_threads; // List of threads with an IPI with PC from network emu
-        uint64_t       new_pc;      // New PC for the IPI
+        // Once all threads done this cycle, check for new IPIs from net emu/runtime API
+        std::list<int> ipi_threads, ipi_threads_t1; // List of threads with an IPI with PC from network emu
+        uint64_t       new_pc,      new_pc_t1;      // New PC for the IPI
         net_emu.get_new_ipi(&enabled_threads, &ipi_threads, &new_pc);
+        api_listener.get_next_cmd(&enabled_threads, &ipi_threads, &new_pc, &ipi_threads_t1, &new_pc_t1);
 
         // Sets the PC for all the minions that got an IPI with PC
         auto it = ipi_threads.begin();
         while(it != ipi_threads.end())
         {
             if(dump_log(log_en, log_min, * it)) { printf("Minion %i.%i.%i: Waking up due IPI with PC %" PRIx64 "\n", (* it) / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), ((* it) / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, (* it) % EMU_THREADS_PER_MINION, new_pc); }
-            current_pc[* it] = new_pc;
+            if(new_pc != 0) current_pc[* it] = new_pc; // 0 means resume
+            enabled_threads.push_back(* it);
+            it++;
+        }
+
+        // Sets the PC for all the minions that got an IPI with PC
+        it = ipi_threads_t1.begin();
+        while(it != ipi_threads_t1.end())
+        {
+            if(dump_log(log_en, log_min, * it)) { printf("Minion %i.%i.%i: Waking up due IPI with PC %" PRIx64 "\n", (* it) / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), ((* it) / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, (* it) % EMU_THREADS_PER_MINION, new_pc_t1); }
+            if(new_pc_t1 != 0) current_pc[* it] = new_pc_t1; // 0 means resume
             enabled_threads.push_back(* it);
             it++;
         }
