@@ -292,9 +292,9 @@ uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 bool msg_port_delayed_write = false;
-std::queue<msg_port_write_t> msg_port_pending_writes[EMU_NUM_THREADS][EMU_NUM_THREADS][NR_MSG_PORTS];
-std::queue<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_TBOXES][EMU_NUM_THREADS][NR_MSG_PORTS];
-std::queue<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_RBOXES][EMU_NUM_THREADS][NR_MSG_PORTS];
+std::queue<msg_port_write_t> msg_port_pending_writes[2][2][NR_MSG_PORTS];
+std::queue<msg_port_write_t> msg_port_pending_writes_tbox[2][2][NR_MSG_PORTS];
+std::queue<msg_port_write_t> msg_port_pending_writes_rbox[2][2][NR_MSG_PORTS];
 
 uint16_t fcc[EMU_NUM_THREADS][2] ={0};
 
