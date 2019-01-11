@@ -561,9 +561,15 @@ extern void shg (xreg dst, xreg base, const char* comm = 0);
 
 // ----- Esperanto messaging extension -----------------------------------------
 
-extern bool get_msg_port_stall(uint32_t thread, uint32_t id);
-extern void read_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t* oob);
-extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
+extern void set_delayed_msg_port_write(bool f);
+extern bool get_msg_port_stall(uint32_t target_thread, uint32_t port_id);
+extern void read_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t *data, uint8_t* oob);
+extern void write_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t *data, uint8_t oob);
+extern void write_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id, uint32_t *data, uint8_t oob);
+extern void write_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id, uint32_t *data, uint8_t oob);
+extern void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t source_thread);
+extern void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id);
+extern void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id);
 
 // ----- Esperanto tensor extension --------------------------------------------
 

@@ -19,7 +19,7 @@
                         			((current_thread >> 1) >>5), \
 						((current_thread >> 1) &0x1f)/8, \
 						((current_thread >> 1) &0x1f)%8, \
-						((current_thread >> 1) &0x1), \
+						(current_thread &0x1), \
                         ##__VA_ARGS__); \
         emu_log() << LOG_##severity << emu_log_buffer << endm; \
     } \
