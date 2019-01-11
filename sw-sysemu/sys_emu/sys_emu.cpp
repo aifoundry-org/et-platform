@@ -561,7 +561,7 @@ int main(int argc, char * argv[])
     }
 
     // Init emu
-    init_emu(false, log_en ? LOG_DEBUG : LOG_INFO);
+    init_emu(log_en ? LOG_DEBUG : LOG_INFO);
     log_only_minion(log_min);
 
     in_sysemu = true;
