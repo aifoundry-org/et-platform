@@ -204,7 +204,7 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level)
     texrec_func_ptr = nullptr;
     checker_instance = this;
     memory_instance = memory;
-    init_emu(true, emu_log_level);
+    init_emu(emu_log_level);
 }
 
 // Destroys the checker

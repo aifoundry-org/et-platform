@@ -13,7 +13,6 @@
 #include "emu_gio.h"
 #include "emu_casts.h"
 
-extern int fake_sampler;
 static TBOXEmu tbox_emulator;
 
 void init_txs(uint64_t imgTableAddr)
@@ -71,7 +70,7 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
     tbox_emulator.set_request_pending(current_thread, false);
 
     /* Compute request */
-    tbox_emulator.sample_quad(current_thread, fake_sampler, true); // Performs Sample Request
+    tbox_emulator.sample_quad(current_thread, true); // Performs Sample Request
 
     /* Get result */
     fdata data[4]; // Space for 4 channels
@@ -82,7 +81,7 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
     {
         LOG(DEBUG, "\t[Channel %d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data[channel].u[0], data[channel].u[1], data[channel].u[2], data[channel].u[3]);
         /* Put result in port */
-        write_msg_port_data(current_thread, port_id, &(data[channel].u[0]), 0); // Note: TBOX now executes 4 fragments, so channel data will be contained in lower 128 bits of fdata
+        write_msg_port_data_from_tbox(current_thread, port_id, current_thread / EMU_TBOXES_PER_SHIRE, &(data[channel].u[0]), 0);
     }    
 }
 
@@ -95,7 +94,7 @@ void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleReque
         tbox_emulator.set_image_table_address(basePtr);
     }
 
-    tbox_emulator.sample_quad(currentRequest_, input, output, fake_sampler);
+    tbox_emulator.sample_quad(currentRequest_, input, output);
 
     tbox_emulator.set_image_table_address(base_copy);
 }

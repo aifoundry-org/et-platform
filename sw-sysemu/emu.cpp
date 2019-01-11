@@ -73,6 +73,11 @@ typedef struct {
 
 typedef struct
 {
+    uint32_t source_thread;
+    uint32_t target_thread;
+    uint32_t target_port;
+    bool     is_tbox;
+    bool     is_rbox;
     uint8_t  data[(1 << PORT_LOG2_MAX_SIZE)];
     uint8_t  oob;
 } msg_port_write_t;
@@ -292,13 +297,11 @@ uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 bool msg_port_delayed_write = false;
-std::queue<msg_port_write_t> msg_port_pending_writes[2][2][NR_MSG_PORTS];
-std::queue<msg_port_write_t> msg_port_pending_writes_tbox[2][2][NR_MSG_PORTS];
-std::queue<msg_port_write_t> msg_port_pending_writes_rbox[2][2][NR_MSG_PORTS];
+std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
+std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
+std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
 
 uint16_t fcc[EMU_NUM_THREADS][2] ={0};
-
-
 
 std::unordered_map<int, char const*> csr_names = {
    { csr_prv,               "prv"                },
@@ -499,7 +502,6 @@ uint32_t num_ways = 4;
 static uint32_t shaderstack[EMU_NUM_THREADS][MAXSTACK];
 static bool check_stack = false;
 
-int fake_sampler = 0;
 uint8_t in_sysemu = 0;
 bool m_emu_done = false;
 
@@ -533,10 +535,9 @@ std::stringstream dump_fregs(uint32_t thread_id)
    return str;
 }
 
-void init_emu(int fakesam, enum logLevel level)
+void init_emu(enum logLevel level)
 {
    XREGS[x0].x  = 0;
-   fake_sampler = fakesam;
    emu_log().setLogLevel(level);
 }
 
@@ -6608,7 +6609,7 @@ void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, ui
 
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
 
-    LOG(DEBUG, "wr_words %d, logsize %d",  wr_words, msg_ports[thread][id].logsize);
+    LOG(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
     for (int i = 0; i < wr_words; i++)
     {
         LOG(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08x to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
@@ -6624,10 +6625,15 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
     if (msg_port_delayed_write)
     {
         msg_port_write_t port_write;
+        port_write.source_thread = current_thread;
+        port_write.target_thread = thread;
+        port_write.target_port   = id;
+        port_write.is_tbox       = false;
+        port_write.is_rbox       = false;
         for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
-        msg_port_pending_writes[current_thread][thread][id].push(port_write);
+        msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
         LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
     }
@@ -6640,10 +6646,15 @@ void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_i
     if (msg_port_delayed_write)
     {
         msg_port_write_t port_write;
+        port_write.source_thread = tbox_id;
+        port_write.target_thread = thread;
+        port_write.target_port   = id;
+        port_write.is_tbox       = true;
+        port_write.is_rbox       = false;
         for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
-        msg_port_pending_writes_tbox[tbox_id][thread][id].push(port_write);
+        msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
         LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
     }
@@ -6656,10 +6667,15 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
     if (msg_port_delayed_write)
     {
         msg_port_write_t port_write;
+        port_write.source_thread = rbox_id;
+        port_write.target_thread = thread;
+        port_write.target_port   = id;
+        port_write.is_tbox       = false;
+        port_write.is_rbox       = true;
         for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
-        msg_port_pending_writes_tbox[rbox_id][thread][id].push(port_write);
+        msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
         LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
     }
@@ -6669,14 +6685,34 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
 
 void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t source_thread)
 {
-    if (!msg_port_pending_writes[source_thread][target_thread][port_id].empty())
+    uint32_t shire = target_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    if (!msg_port_pending_writes[shire].empty())
     {
         msg_port_write_t port_write;
-        port_write = msg_port_pending_writes[source_thread][target_thread][port_id].front();
+        bool found = false;
 
-        LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from m%d", target_thread, port_id, source_thread);
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); )
+        {
+            port_write = *it;
+            if ((port_write.target_thread == target_thread) && 
+                (port_write.target_thread == port_id)       &&
+                (port_write.source_thread == source_thread) &&
+                !(port_write.is_tbox || port_write.is_rbox))
+            {
+                found = true;
+                msg_port_pending_writes[shire].erase(it);
+                break;
+            }
+        }
 
-        write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+        if (found)
+        {
+            LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from m%d", target_thread, port_id, source_thread);
+            write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+        }
+        else
+            LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from m%d not found!!", target_thread, port_id, source_thread);
+
     }
     else
         LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from m%d not found!!", target_thread, port_id, source_thread);
@@ -6684,14 +6720,33 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
 
 void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id)
 {
-    if (!msg_port_pending_writes_tbox[tbox_id][target_thread][port_id].empty())
+    uint32_t shire = target_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    if (!msg_port_pending_writes[shire].empty())
     {
         msg_port_write_t port_write;
-        port_write = msg_port_pending_writes_tbox[tbox_id][target_thread][port_id].front();
+        bool found = false;
 
-        LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from tbox%d", target_thread, port_id, tbox_id);
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); )
+        {
+            port_write = *it;
+            if ((port_write.target_thread == target_thread) && 
+                (port_write.target_port   == port_id)       &&
+                (port_write.source_thread == tbox_id)       &&
+                 port_write.is_tbox && !port_write.is_rbox)
+            {
+                found = true;
+                msg_port_pending_writes[shire].erase(it);
+                break;
+            }
+        }
 
-        write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+        if (found)
+        {
+            LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from tbox%d", target_thread, port_id, tbox_id);
+            write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+        }
+        else
+            LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from tbox%d not found!!", target_thread, port_id, tbox_id);
     }
     else
         LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from tbox%d not found!!", target_thread, port_id, tbox_id);
@@ -6699,14 +6754,33 @@ void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, ui
 
 void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id)
 {
-    if (!msg_port_pending_writes_rbox[rbox_id][target_thread][port_id].empty())
+    uint32_t shire = target_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    if (!msg_port_pending_writes[shire].empty())
     {
         msg_port_write_t port_write;
-        port_write = msg_port_pending_writes_rbox[rbox_id][target_thread][port_id].front();
+        bool found = false;
 
-        LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from rbox%d", target_thread, port_id, rbox_id);
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); )
+        {
+            port_write = *it;
+            if ((port_write.target_thread == target_thread) && 
+                (port_write.target_port   == port_id)       &&
+                (port_write.source_thread == rbox_id)       &&
+                !port_write.is_tbox && port_write.is_rbox)
+            {
+                found = true;
+                msg_port_pending_writes[shire].erase(it);
+                break;
+            }
+        }
 
-        write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+        if (found)
+        {
+            LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from rbox%d", target_thread, port_id, rbox_id);
+            write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
+        }
+        else
+            LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from rbox%d not found!!", target_thread, port_id, rbox_id);
     }
     else
         LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from rbox%d not found!!", target_thread, port_id, rbox_id);
