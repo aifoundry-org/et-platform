@@ -222,7 +222,7 @@ void checker::set_et_core(int core_type)
 void checker::start_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
-        log << LOG_FTL << "start pc with thread invalid (" << std:hex << thread << ")" << endm;
+        log << LOG_FTL << "start pc with thread invalid (" << std::hex << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 
@@ -230,7 +230,7 @@ void checker::start_pc(uint32_t thread, uint64_t pc)
 void checker::ipi_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
-        log << LOG_FTL << "IPI pc with thread invalid (" << std:hex << thread << ")" << endm;
+        log << LOG_FTL << "IPI pc with thread invalid (" << std::hex << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 

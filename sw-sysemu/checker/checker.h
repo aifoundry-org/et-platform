@@ -4,6 +4,7 @@
 // STD
 #include <string>
 #include <list>
+#include <iostream>
 
 // Local
 #include "common/main_memory.h"
