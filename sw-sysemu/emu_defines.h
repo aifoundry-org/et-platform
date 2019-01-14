@@ -34,6 +34,8 @@
 // VA to PA translation
 #define PA_SIZE        40
 #define PA_M           ((((uint64_t)1) << PA_SIZE) - 1)
+#define VA_SIZE        48
+#define VA_M           ((((uint64_t)1) << VA_SIZE) - 1)
 #define PG_OFFSET_SIZE 12
 #define PG_OFFSET_M    ((((uint64_t)1) << PG_OFFSET_SIZE) - 1)
 #define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)

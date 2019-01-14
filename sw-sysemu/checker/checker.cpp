@@ -666,9 +666,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     error_msg += stream.str();
                     check_res = CHECKER_ERROR;
                 }
-                if(changes->mem_addr[i] != emu_state_change.mem_addr[i])
+                if( (changes->mem_addr[i] & VA_M) != (emu_state_change.mem_addr[i] & VA_M))
                 {
-                    stream << "Memory write address error (" << i << "). Expected addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " but provided is 0x" << changes->mem_addr[i] << std::dec << std::endl;
+                    stream << "Memory write address error (" << i << "). Expected addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " & " << VA_M <<" but provided is 0x" << changes->mem_addr[i] <<" & "<< VA_M << std::dec << std::endl;
                     error_msg += stream.str();
                     check_res = CHECKER_ERROR;
                 }
