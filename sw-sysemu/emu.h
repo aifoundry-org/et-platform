@@ -577,6 +577,7 @@ extern void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port
 
 extern uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size);
 extern void get_scratchpad_conv_list(std::list<bool> * list);
+extern int  get_scratchpad_next_entry(int entry);
 
 // TensorFMA
 

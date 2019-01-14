@@ -6281,6 +6281,30 @@ void get_scratchpad_conv_list(std::list<bool> * list)
         list->push_back(scp_tm && !tmask_pass(i));
 }
 
+// This is a temporal fix until all the software is migrated to the new SCP.
+// When migration is complete, BEMU tensor operations should only operate with
+// SCP ranges
+int get_scratchpad_next_entry(int entry)
+{
+
+    const static int row_to_scp[48] = {  0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,
+					 16,17,18,19,20,21,22,23,24,25,26,27,
+					 32,33,34,35,36,37,38,39,40,41,42,43,
+					 48,49,50,41,52,53,54,55,56,57,58,59};
+    if ( csrregs[current_thread][csr_scratchpad_ctrl] & 0x1 )
+    {
+	if ( entry > 47 || entry < 0)
+	{
+	    LOG(DEBUG,"SCP entry out of range : %i\n", entry );
+	    return entry;
+	}
+	return row_to_scp[entry];
+    } else
+	return entry;
+    
+}
+
+
 // ----- CacheOp emulation -----------------------------------------------------
 
 static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, int way, int numlines)
