@@ -7559,7 +7559,7 @@ static void tensorfma(uint64_t tfmareg)
     LOG(DEBUG, "\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc_to_rf: %d, tenb: %d, bstart: %d, astart: %d, rm: %s", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenc_to_rf, tenb, bstart, astart, get_rounding_mode(rmdyn));
 
     // //  check if L1 SCP is enabled
-    // // Disabled until software update
+    // // Disabled until software update - JIRA RTLMIN-2096 
     // if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) ) {
     // 	csrregs[current_thread][csr_tensor_error] |= (0x1 << 4); 
     // 	return; 
@@ -7573,7 +7573,7 @@ static void tensorfma(uint64_t tfmareg)
 	if (!tensorload_setupb_topair[current_thread] || (tensorload_setupb_numlines[current_thread] != acols))
 	{
 	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
-	    return;
+	    //return;
 	} else {
 	    //pair tl
 	    tensorload_setupb_topair[current_thread] = false;
@@ -7583,7 +7583,7 @@ static void tensorfma(uint64_t tfmareg)
 	// unpaired tl
 	if (!tensorload_setupb_topair[current_thread] ) {
 	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
-	    return;
+	    //return;
 	}
     }
 
