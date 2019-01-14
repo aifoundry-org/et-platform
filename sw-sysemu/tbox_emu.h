@@ -3,6 +3,8 @@
 
 #include "emu_defines.h"
 
+typedef float fp32_t;
+
 class TBOXEmu
 {
 private:
@@ -303,6 +305,7 @@ public :
         MAX_IMAGE_FORMAT                  = 511
     } ImageFormat;
 
+    /*   OLD 128-bit header  
     typedef union
     {
         uint64_t data[2];
@@ -342,6 +345,57 @@ public :
                 } lodaniso;
             } lodaniso;
         } info;
+    } SampleRequest; */
+
+    typedef union
+    {
+        uint64_t data[4];
+        struct
+        {
+            // Image Instruction
+            uint64_t operation :  4,    // Header[  3:  0], Image Sampling Operation : SAMPLE, SAMPLE_L, SAMPLE_C, SAMPLE_C_L, GATHER4, GATHER4_C, GATHER4_PO, GATHER4_PO_C
+                     component :  2,    // Header[  5:  4], Component Selection (for GATHER4*) : Red, Green, Blue, Alpha
+                     ioffset   :  4,    // Header[  9:  6], Texel Offset i (horizontal) : [-8, 7]
+                     joffset   :  4,    // Header[ 13: 10], Texel Offset j (vertical)   : [-8, 7]
+                     koffset   :  4,    // Header[ 17: 14], Texel Offset k (depth)      : [-8, 7]
+                     packets   :  2,    // Header[ 18: 19], Sampler Request Packets (Only coordinate packets) : [1 to 3]
+                     reserved0 : 12,    // Header[ 31: 20], Reserved
+                     mask      :  8,    // Header[ 39: 32], Pixel Mask : {q1p3, q1p2, q1p1, q1p0, q0p3, q0p2, q0p1, q0p0}
+                     reserved1 : 24;    // Header[ 63: 40], Reserved
+            // Image State 
+            uint32_t imageid   : 12,    // Header[ 75: 64], Image Descriptor Identifier 
+                     reserved3 :  4,    // Header[ 79: 76], Reserved
+                     borderid  : 12,    // Header[ 91: 80], Border Descriptor Identifier
+                     reserved4 :  4;    // Header[ 95: 92], Reserved
+
+            // Sampler State
+            uint32_t minfilter :  1,    // Header[     96], Minification Filter : Nearest, Linear
+                     magfilter :  1,    // Header[     97], Magnification Filter : Nearest, Linear
+                     mipfilter :  1,    // Header[     98], Mipmap Filter : Nearest, Linear
+                     aniso     :  1,    // Header[     99], Anisotropic Filter : Disabled, Enabled
+                     compop    :  3,    // Header[102:100], Compare Operation (for SAMPLE_C*, GATHER4_C*) : Never, Less, Equal, Less_or_Equal, Greater, Not_Equal, Greater_or_Equal, Always
+                     addrmodeu :  3,    // Header[105:103], Address Mode u (horizontal) : REPEAT, MIRRORED_REPEAT, CLAMP_TO_EDGE, CLAMP_TO_BORDER, MIRROR_CLAMP_TO_EDGE
+                     addrmodev :  3,    // Header[108:106], Address Mode v (vertical)   : REPEAT, MIRRORED_REPEAT, CLAMP_TO_EDGE, CLAMP_TO_BORDER, MIRROR_CLAMP_TO_EDGE
+                     addrmodew :  3,    // Header[111:109], Address Mode w (depth)      : REPEAT, MIRRORED_REPEAT, CLAMP_TO_EDGE, CLAMP_TO_BORDER, MIRROR_CLAMP_TO_EDGE
+                     border    :  2,    // Header[113:112], Border Color Mode : Transparent_Black, Opaque_Black, Opaque_White, From_Image_Descriptor
+                     swizzler  :  3,    // Header[116:114], Component Swizzle Red   : None, Identity, Zero, One, Red, Green, Blue, Alpha
+                     swizzleg  :  3,    // Header[119:117], Component Swizzle Green : None, Identity, Zero, One, Red, Green, Blue, Alpha
+                     swizzleb  :  3,    // Header[122:120], Component Swizzle Blue  : None, Identity, Zero, One, Red, Green, Blue, Alpha
+                     swizzlea  :  3,    // Header[125:123], Component Swizzle Alpha : None, Identity, Zero, One, Red, Green, Blue, Alpha
+                     reserved5 :  2;    // Header[127:126], Reserved
+            union
+            {
+                uint16_t lod_array[2][4];       // Header[256:128], Per Pixel LOD : {q1p3, q1p2, q1p1, q1p0, q0p3, q0p2, q0p1, q0p0}
+                struct
+                {
+                    uint16_t lod[2];            // Header[159:128], Per Quad LOD : {q1, q0}
+                    uint32_t reserved0;         // Header[191:160], Reserved
+                    uint8_t  anisodeltas[2];    // Header[199:192], Per Quad Anistropic Sample Delta u (horizontal): {q1, q0} [-1.0, 1.0]
+                    uint8_t  anisodeltat[2];    // Header[215:208], Per Quad Anistropic Sample Delta v (vertical)  : {q1, q0} [-1.0, 1.0]
+                    uint16_t anisoratio[2];     // Header[255:240], Per Quad Anisotropic Ratio : {q1, q0}
+                } lodanisoq;
+            } lodaniso;
+        } info;
     } SampleRequest;
 
     typedef union
@@ -349,31 +403,36 @@ public :
         uint64_t data[4];
         struct
         {
-            uint64_t address;
-            uint64_t type         :  3,
-                     format       :  9,
-                     width        : 16,
-                     height       : 16,
-                     depth        : 12,
-                     reserved0    :  8;
-            uint64_t arraybase    : 12,
-                     arraycount   : 12,
-                     basemip      :  5,
-                     mipcount     :  5,
-                     swizzler     :  3,
-                     swizzleg     :  3,
-                     swizzleb     :  3,
-                     swizzlea     :  3,
-                     reserved1    : 18;
-            uint64_t rowpitch     : 10,
-                     mippitchl0   :  5,
-                     mippitchl1   :  5,
-                     elementpitch : 30,
-                     tiled        :  1,
-                     packedlayout :  1,
-                     packedmip    :  4,
-                     packedlevel  :  4,
-                     reserved2    :  4;
+            uint64_t address;               // Image Descriptor[ 63:  0], Image Base Pointer
+            uint64_t type         :  3,     // Image Descriptor[ 66: 64], Image Type : 1D, 2D, Cube, 1D Array, 2D Array, Cube Array
+                     format       :  9,     // Image Descriptor[ 75: 67], Image Format
+                     width        : 16,     // Image Descriptor[ 91: 76], Image Width  : [1, 64K]
+                     height       : 16,     // Image Descriptor[107: 92], Image Height : [1, 64K]
+                     depth        : 15,     // Image Descriptor[122:108], Image Depth (only for 3D Images) : [1, 32K]
+                     mipcount     :  5;     // Image Descriptor[127:123], Mip Level Count : [1, 17]
+                     
+            uint64_t arraycount   : 12,     // Image Descriptor[139:128], Array Layer Count : [1, 4K]
+                     arraybase    : 12,     // Image Descriptor[151:140], Base Array Layer  : [1, 4K]
+                     basemip      :  5,     // Image Descriptor[156:152], Base Mip Level    : [0, 16]
+                     swizzler     :  3,     // Image Descriptor[164:162], Component Swizzle Red   : Reserved, Identity, Zero, One, Red, Green, Blue, Alpha
+                     swizzleg     :  3,     // Image Descriptor[167:165], Component Swizzle Green : Reserved, Identity, Zero, One, Red, Green, Blue, Alpha
+                     swizzleb     :  3,     // Image Descriptor[170:168], Component Swizzle BLue  : Reserved, Identity, Zero, One, Red, Green, Blue, Alpha
+                     swizzlea     :  3,     // Image Descriptor[173:171], Component Swizzle Alpha : Reserved, Identity, Zero, One, Red, Green, Blue, Alpha
+                     rowpitch     : 14,     // Image Descriptor[188:175], Row Pitch : for Linear Layout [0, 16383], for Standard Tiled Layout [0, 1023]
+                     reserved0    :  3;     // Image Descriptor[191:188], Reserved
+
+            uint64_t mippitchl0   :  5,     // Image Descriptor[196:192], Mip Pitch L0 : for Linear Layout [1, 30], for Standard Tiled Layout [1, 20]
+                     mippitchl1   :  5,     // Image Descriptor[201:197], Mip Pitch L1 : for Linear Layout [1, 29], for Standard Tiled Layout [1, 19]
+                     mipscale8    :  5,     // Image Descriptor[206:202], Mip Count Scale by 8 (for 3D Images)
+                     mipscale4    :  5,     // Image Descriptor[211:207], Mip Count Scale by 4 (for 2D, Cube and 3D Images)
+                     elementpitch : 30,     // Image Descriptor[241:212], Element/Slice Pitch : for Linear Layout 2D Images [0, 1073741823]
+                                            //                                                  for Standard Tiled Layout 2D Images [0, 1048575]
+                                            //                                                  for Standard Tiled Layout 3D Images [0, 262143]
+                     tiled        :  1,     // Image Descriptor[    242], Tiled : Linear Layout, Standard Tiled Layout
+                     packedlayout :  1,     // Image Descriptor[    243], Packed Mip Layout : Vertical Packing, Horizontal Packing
+                     packedmip    :  4,     // Image Descriptor[245:244], First Packed Mip : for Linear Layout [0, 10], for Standard Tiled Layout [0, 11]
+                     packedlevel  :  4,     // Image Descriptor[247:246], First Packed Mip Level : for Linear Layout [0, 6], for Standard Tiled Layout [0, 7]
+                     reserved1    :  8;     // Image Descriptor[255:248], Reserved
         } info;
     } ImageInfo;
 
@@ -401,10 +460,10 @@ public :
     void texture_cache_initialize();
     void image_info_cache_initialize();
 
-    void sample_quad(uint32_t thread, bool fake_sampler, bool output_result);
+    void sample_quad(uint32_t thread, bool output_result);
     bool get_image_info(uint32_t thread, ImageInfo &currentImage);
     bool get_image_info(SampleRequest request, ImageInfo &currentImage);
-    void sample_quad(SampleRequest currentRequest, fdata input[], fdata output[], bool fake_sampler);
+    void sample_quad(SampleRequest currentRequest, fdata input[], fdata output[]);
     void sample_quad(SampleRequest currentRequest, ImageInfo currentImage, fdata input[], fdata output[], bool output_result);
     void decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
                                             uint64_t inData[TEXTURE_CACHE_QWORDS_PER_LINE], uint64_t outData[TEXTURE_CACHE_QWORDS_PER_LINE]);
@@ -495,7 +554,8 @@ private :
                          uint32_t aniso_sample, float aniso_weight, float aniso_deltas, float aniso_deltat,
                          float &red, float &green, float &blue, float &alpha, bool output_result);
     void sample_pixel(SampleRequest currentRequest, fdata input[], fdata output[],
-                      uint32_t req, ImageInfo currentImage, FilterType filter, uint32_t mip_level,
+                      uint32_t quad, uint32_t pixel,
+                      ImageInfo currentImage, FilterType filter, uint32_t mip_level,
                       uint32_t mip_beta, bool output_result);
     void read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint32_t k, uint32_t l, uint32_t mip_level, float *texel);
     void read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, uint64_t data[], float *texel, bool data_ready);
