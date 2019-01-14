@@ -2470,9 +2470,7 @@ static uint64_t csrget(csr src1)
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
-        case csr_cycle:
         case csr_time:
-        case csr_instret:
         case csr_hpmcounter3:
         case csr_hpmcounter4:
         case csr_hpmcounter5:
@@ -2582,6 +2580,8 @@ static uint64_t csrget(csr src1)
             val = 0;
             break;
         // ----- M-mode registers ----------------------------------------
+	case csr_cycle:
+	case csr_instret:
         case csr_mcycle:
         case csr_minstret:
             val = 0;
