@@ -301,6 +301,7 @@ std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
 
+uint64_t fcc_cnt;
 uint16_t fcc[EMU_NUM_THREADS][2] ={0};
 
 std::unordered_map<int, char const*> csr_names = {
@@ -2593,6 +2594,15 @@ static uint64_t csrget(csr src1)
     return val;
 }
 
+uint64_t get_fcc_cnt(){
+    return fcc_cnt;
+}
+
+/* TODO remove this nasty fix*/
+uint64_t get_data_from_mem_64(uint64_t addr){
+    return vmemread64(addr);
+}
+
 static void csrset(csr src1, uint64_t val)
 {
     uint64_t msk;
@@ -2679,11 +2689,20 @@ static void csrset(csr src1, uint64_t val)
             tensorstore(val);
             break;
         case csr_fcc:
-	    if (fcc[current_thread][val&0x1] == 0 ) {
-		//fcc underflow
-		LOG(DEBUG, "FCC underflow. You shouldn't be here...");
-	    }
-	    fcc[current_thread][val&0x1]--;
+            fcc_cnt = val & 0x01;
+            if ( in_sysemu ) {
+               // If you are not going to block decrement it
+	       if ( fcc[current_thread][fcc_cnt] != 0 )
+	          fcc[current_thread][fcc_cnt]--;  
+               
+            } else {
+              if (fcc[current_thread][fcc_cnt] == 0 ) {
+               //fcc underflow
+		    LOG(DEBUG, "FCC underflow. You shouldn't be here...");
+	       }
+	     fcc[current_thread][fcc_cnt]--;  
+            }
+             
             break;
         case csr_stall:
             break;

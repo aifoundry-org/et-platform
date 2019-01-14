@@ -12,7 +12,7 @@ extern uint32_t current_thread;
 
 #ifdef SYS_EMU
 extern int32_t minion_only_log;
-extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, bool log_en, int log_min);
+extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest, bool log_en, int log_min);
 #endif
 
 extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
@@ -82,42 +82,61 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             case ESR_Region_Shire:
             {
                 LOG(DEBUG, "Write to ESR Region Shire at ESR address %08" PRIx64, esr_info.address);
+
                 switch(esr_info.address)
                 {
                     case ESR_SHIRE_FLB_OFFSET  : break;
                     case ESR_SHIRE_FCC0_OFFSET :
-                    case ESR_SHIRE_FCC1_OFFSET : 		      
                     {
                         LOG(DEBUG, "Write to FCC0_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
                         bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);
-                        fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), log_en, minion_only_log);
-#else
-			fcc_inc(0, esr_info.shire, *((uint64_t*)data), ESR_SHIRE_FCC1_OFFSET==esr_info.address);
+                        fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data),0, log_en, minion_only_log);
 #endif
+                        fcc_inc(0, esr_info.shire, *((uint64_t*)data), 0);
+
+                        break;
+                    }
+                    case ESR_SHIRE_FCC1_OFFSET :
+                    {
+                        LOG(DEBUG, "Write to FCC1_OFFSET value %016" PRIx64, *((uint64_t *) data));
+#ifdef SYS_EMU
+                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
+                        fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 1, log_en, minion_only_log);
+#endif
+                        fcc_inc(0, esr_info.shire, *((uint64_t*)data), 1);
+
                         break;
                     }
 
                     case ESR_SHIRE_FCC2_OFFSET :
-                    case ESR_SHIRE_FCC3_OFFSET :		      
                     {
                         LOG(DEBUG, "Write to FCC2_OFFSET value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
-                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);
-                        fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data), log_en, minion_only_log);
-#else
-
-			fcc_inc(1, esr_info.shire, *((uint64_t*)data), ESR_SHIRE_FCC3_OFFSET==esr_info.address);
+                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
+                        fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data),  0,log_en, minion_only_log);
 #endif
+                        fcc_inc(1, esr_info.shire, *((uint64_t*)data), 0);
+
                         break;
                     }
 
+                    case ESR_SHIRE_FCC3_OFFSET : ;
+                    {
+                        LOG(DEBUG, "Write to FCC2_OFFSET value %016" PRIx64, *((uint64_t *) data));
+#ifdef SYS_EMU
+                        bool log_en = (emu_log().getLogLevel() == LOG_DEBUG);                                                
+                        fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data),  1,log_en, minion_only_log);
+#endif
+                        fcc_inc(1, esr_info.shire, *((uint64_t*)data), 1);
+
+                        break;
+                    }
                     default : break;
                 }
 
                 break;   
             }
-	  break;
             default : break;
         }
     }
