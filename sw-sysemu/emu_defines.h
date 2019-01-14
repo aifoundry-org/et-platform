@@ -8,7 +8,7 @@
 #endif
 
 // Maximum number of threads
-#define EMU_NUM_SHIRES          33 // at most 33 shires
+#define EMU_NUM_SHIRES          35 // at most 33 shires (Pending fix from JIRA: RTLMIN-1949)
 #define EMU_MINIONS_PER_SHIRE   32
 #define EMU_NEIGH_PER_SHIRE     4
 #define EMU_TBOXES_PER_SHIRE    4

@@ -1,11 +1,6 @@
-/* -*- Mode:C++; c-basic-offset: 4; -*- */
 
-#include <cfenv>
 #include <cmath>
-#include <cstdio>
-#include <cstdlib>
 #include <cstring>
-#include <stdexcept>
 
 #include "tbox_emu.h"
 #include "emu_gio.h"
@@ -694,7 +689,7 @@ static inline uint64_t cast_bytes_to_uint64(uint8_t *src)
 
 static inline float cast_bytes_to_float(uint8_t *src)
 {
-    return fpu::FLT( cast_bytes_to_uint32(src) );
+    return fpu::FLT(cast_bytes_to_uint32(src));
 }
 
 static inline void memcpy_uint16(uint8_t *dst, uint16_t src)
@@ -2267,37 +2262,9 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
     }
 }
 
-void TBOXEmu::sample_quad(uint32_t thread, bool fake_sampler, bool output_result)
+void TBOXEmu::sample_quad(uint32_t thread, bool output_result)
 {
     LOG(DEBUG, "\tTBOX => Sample Quad");
-
-    if (fake_sampler)
-    {
-        LOG(DEBUG, "\tCall to fake sampler");
-
-        output[thread][0].h[0] = fpu::UI16(fpu::f32_to_f16(clamp(input[thread][0].u[0])));
-        output[thread][0].h[1] = fpu::UI16(fpu::f32_to_f16(clamp(input[thread][0].u[1])));
-        output[thread][0].h[2] = fpu::UI16(fpu::f32_to_f16(clamp(input[thread][0].u[2])));
-        output[thread][0].h[3] = fpu::UI16(fpu::f32_to_f16(clamp(input[thread][0].u[2])));
-        output[thread][0].h[4] = fpu::UI16(fpu::f32_to_f16(clampf(fpu::FLT(input[thread][0].u[0]) * fpu::FLT(input[thread][1].u[0]) / 2.0)));
-        output[thread][0].h[5] = fpu::UI16(fpu::f32_to_f16(clampf(fpu::FLT(input[thread][0].u[1]) * fpu::FLT(input[thread][1].u[1]) / 2.0)));
-        output[thread][0].h[6] = fpu::UI16(fpu::f32_to_f16(clampf(fpu::FLT(input[thread][0].u[2]) * fpu::FLT(input[thread][1].u[2]) / 2.0)));
-        output[thread][0].h[7] = fpu::UI16(fpu::f32_to_f16(clampf(fpu::FLT(input[thread][0].u[3]) * fpu::FLT(input[thread][1].u[3]) / 2.0)));
-        output[thread][1].h[0] = fpu::UI16(fpu::f32_to_f16(clamp(input[thread][1].u[0])));
-        output[thread][1].h[1] = fpu::UI16(fpu::f32_to_f16(clamp(input[thread][1].u[1])));
-        output[thread][1].h[2] = fpu::UI16(fpu::f32_to_f16(clamp(input[thread][1].u[2])));
-        output[thread][1].h[3] = fpu::UI16(fpu::f32_to_f16(clamp(input[thread][1].u[3])));
-        output[thread][1].h[4] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(1.0)));
-        output[thread][1].h[5] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(1.0)));
-        output[thread][1].h[6] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(1.0)));
-        output[thread][1].h[7] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(1.0)));
-        output[thread][2].q[0] = 0;
-        output[thread][2].q[1] = 0;
-        output[thread][3].q[0] = 0;
-        output[thread][3].q[1] = 0;
-
-        return;
-    }
 
     ImageInfo currentImage;
 
@@ -2307,41 +2274,13 @@ void TBOXEmu::sample_quad(uint32_t thread, bool fake_sampler, bool output_result
     sample_quad(currentRequest[thread], currentImage, input[thread], output[thread], output_result);
 }
 
-void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata output[], bool fake_sampler)
+void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata output[])
 {
     LOG(DEBUG, "\tTBOX => Sample Quad");
 
     return;
 
     ImageInfo currentImage;
-
-    if (fake_sampler)
-    {
-        LOG(DEBUG, "\tCall to fake sampler");
-
-        output[0].h[0] = fpu::UI16(fpu::f32_to_f16(clamp(input[0].u[0])));
-        output[0].h[1] = fpu::UI16(fpu::f32_to_f16(clamp(input[0].u[1])));
-        output[0].h[2] = fpu::UI16(fpu::f32_to_f16(clamp(input[0].u[2])));
-        output[0].h[3] = fpu::UI16(fpu::f32_to_f16(clamp(input[0].u[2])));
-        output[0].h[4] = fpu::UI16(fpu::f32_to_f16(clampf(fpu::FLT(input[0].u[0]) * fpu::FLT(input[1].u[0]) / 2.0)));
-        output[0].h[5] = fpu::UI16(fpu::f32_to_f16(clampf(fpu::FLT(input[0].u[1]) * fpu::FLT(input[1].u[1]) / 2.0)));
-        output[0].h[6] = fpu::UI16(fpu::f32_to_f16(clampf(fpu::FLT(input[0].u[2]) * fpu::FLT(input[1].u[2]) / 2.0)));
-        output[0].h[7] = fpu::UI16(fpu::f32_to_f16(clampf(fpu::FLT(input[0].u[3]) * fpu::FLT(input[1].u[3]) / 2.0)));
-        output[1].h[0] = fpu::UI16(fpu::f32_to_f16(clamp(input[1].u[0])));
-        output[1].h[1] = fpu::UI16(fpu::f32_to_f16(clamp(input[1].u[1])));
-        output[1].h[2] = fpu::UI16(fpu::f32_to_f16(clamp(input[1].u[2])));
-        output[1].h[3] = fpu::UI16(fpu::f32_to_f16(clamp(input[1].u[3])));
-        output[1].h[4] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(1.0)));
-        output[1].h[5] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(1.0)));
-        output[1].h[6] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(1.0)));
-        output[1].h[7] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(1.0)));
-        output[2].q[0] = 0;
-        output[2].q[1] = 0;
-        output[3].q[0] = 0;
-        output[3].q[1] = 0;
-
-        return;
-    }
 
     get_image_info(currentRequest, currentImage);
 
@@ -2382,7 +2321,7 @@ bool TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImage)
     uint64_t imageInfoAddress = imageTableAddress + request.info.imageid * 32;
 
 
-    LOG(DEBUG, "\tRead Image Descriptor with ID %ld from Address %016lx\n", request.info.imageid, imageInfoAddress);
+    LOG(DEBUG, "\tRead Image Descriptor with ID %d from Address %016lx\n", request.info.imageid, imageInfoAddress);
     fflush(stdout);
 
     currentImage.data[0] = vmemread64(imageInfoAddress);
@@ -2417,83 +2356,87 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
         throw std::runtime_error("TBOX: Format does not support comparison filter.");
     }
 
-    // Get LOD.
-    uint32_t mip_level[4];
-    uint32_t mip_beta[4];
-    FilterType pixel_filter[4];
-
-    switch (currentRequest.info.operation)
-    {
-        case SAMPLE_OP_SAMPLE:
-        case SAMPLE_OP_SAMPLE_C:
-            {
-                float lod = fpu::FLT(fpu::f16_to_f32(fpu::F16(currentRequest.info.lodaniso.lodaniso.lod)));
-                uint32_t lod_fxp = min(max(uint32_t(currentImage.info.basemip << 8),
-                                           uint32_t(floor(max(lod, 0.0) * 256.0))),
-                                       uint32_t((currentImage.info.mipcount - 1) << 8));
-                uint32_t quad_mip_level = lod_fxp >> 8;
-                uint32_t quad_mip_beta = (currentRequest.info.mipfilter == FILTER_TYPE_LINEAR) ? (lod_fxp & 0xFF) : 0;
-                FilterType quad_filter = (FilterType)((lod <= 0.0) ? currentRequest.info.magfilter : currentRequest.info.minfilter);
-                for (uint32_t req = 0; req < 4; req++)
-                {
-                    mip_level[req] = quad_mip_level;
-                    mip_beta[req] = quad_mip_beta;
-                    pixel_filter[req] = quad_filter;
-                }
-            }
-            break;
-        case SAMPLE_OP_SAMPLE_L:
-        case SAMPLE_OP_SAMPLE_C_L:
-            for (uint32_t req = 0; req < 4; req++)
-            {
-                float pixel_lod = fpu::FLT(fpu::f16_to_f32(fpu::F16(currentRequest.info.lodaniso.lod_array[req])));
-                uint32_t pixel_lod_fxp = min(max(uint32_t(currentImage.info.basemip << 8),
-                                                 uint32_t(floor(pixel_lod * 256.0))),
-                                             uint32_t((currentImage.info.mipcount - 1) << 8));
-                mip_level[req] = pixel_lod_fxp >> 8;
-                mip_beta[req] = (currentRequest.info.mipfilter == FILTER_TYPE_LINEAR) ? (pixel_lod_fxp & 0xFF) : 0;
-                pixel_filter[req] = (FilterType)((pixel_lod <= 0) ? currentRequest.info.magfilter
-                                                                  : currentRequest.info.minfilter);
-            }
-            break;
-        case SAMPLE_OP_GATHER4:
-        case SAMPLE_OP_GATHER4_C:
-            for (uint32_t req = 0; req < 4; req++)
-            {
-                mip_level[req] = 0;
-                mip_beta[req] = 0;
-                pixel_filter[req] = FILTER_TYPE_LINEAR;
-            }
-            break;
-        case SAMPLE_OP_LD:
-            for (uint32_t req = 0; req < 4; req++)
-            {
-                mip_level[req] = uint32_t(fpu::FLT(fpu::f16_to_f32(fpu::F16(currentRequest.info.lodaniso.lod_array[req]))));
-                mip_beta[req] = 0;
-                pixel_filter[req] = FILTER_TYPE_NEAREST;
-            }
-            break;
-        default:
-            LOG(ERR, "Unsupported sample operation");
-            break;
-    }
-
     // set unused bytes to 0, so that it can be compared with RTL
     bzero(output, sizeof(fdata)*4);
 
-    for (uint32_t req = 0; req < 4; req++)
-        sample_pixel(currentRequest, input, output, req, currentImage,
-                     pixel_filter[req], mip_level[req], mip_beta[req], output_result);
+    for (uint32_t quad = 0; quad < 2; quad++)
+    {
+        // Get LOD.
+        uint32_t mip_level[4];
+        uint32_t mip_beta[4];
+        FilterType pixel_filter[4];
+
+        switch (currentRequest.info.operation)
+        {
+            case SAMPLE_OP_SAMPLE:
+            case SAMPLE_OP_SAMPLE_C:
+                {
+                    float lod = fpu::FLT(fpu::f16_to_f32(fpu::F16(currentRequest.info.lodaniso.lodanisoq.lod[quad])));
+                    uint32_t lod_fxp = min(max(uint32_t(currentImage.info.basemip << 8),
+                                               uint32_t(floor(max(lod, 0.0) * 256.0))),
+                                           uint32_t((currentImage.info.mipcount - 1) << 8));
+                    uint32_t quad_mip_level = lod_fxp >> 8;
+                    uint32_t quad_mip_beta = (currentRequest.info.mipfilter == FILTER_TYPE_LINEAR) ? (lod_fxp & 0xFF) : 0;
+                    FilterType quad_filter = (FilterType)((lod <= 0.0) ? currentRequest.info.magfilter : currentRequest.info.minfilter);
+                    for (uint32_t req = 0; req < 4; req++)
+                    {
+                        mip_level[req] = quad_mip_level;
+                        mip_beta[req] = quad_mip_beta;
+                        pixel_filter[req] = quad_filter;
+                    }
+                }
+                break;
+            case SAMPLE_OP_SAMPLE_L:
+            case SAMPLE_OP_SAMPLE_C_L:
+                for (uint32_t req = 0; req < 4; req++)
+                {
+                    float pixel_lod = fpu::FLT(fpu::f16_to_f32(fpu::F16(currentRequest.info.lodaniso.lod_array[quad][req])));
+                    uint32_t pixel_lod_fxp = min(max(uint32_t(currentImage.info.basemip << 8),
+                                                     uint32_t(floor(pixel_lod * 256.0))),
+                                                 uint32_t((currentImage.info.mipcount - 1) << 8));
+                    mip_level[req] = pixel_lod_fxp >> 8;
+                    mip_beta[req] = (currentRequest.info.mipfilter == FILTER_TYPE_LINEAR) ? (pixel_lod_fxp & 0xFF) : 0;
+                    pixel_filter[req] = (FilterType)((pixel_lod <= 0) ? currentRequest.info.magfilter
+                                                                      : currentRequest.info.minfilter);
+                }
+                break;
+            case SAMPLE_OP_GATHER4:
+            case SAMPLE_OP_GATHER4_C:
+                for (uint32_t req = 0; req < 4; req++)
+                {
+                    mip_level[req] = 0;
+                    mip_beta[req] = 0;
+                    pixel_filter[req] = FILTER_TYPE_LINEAR;
+                }
+                break;
+            case SAMPLE_OP_LD:
+                for (uint32_t req = 0; req < 4; req++)
+                {
+                    mip_level[req] = uint32_t(fpu::FLT(fpu::f16_to_f32(fpu::F16(currentRequest.info.lodaniso.lod_array[quad][req]))));
+                    mip_beta[req] = 0;
+                    pixel_filter[req] = FILTER_TYPE_NEAREST;
+                }
+                break;
+            default:
+                LOG(ERR, "Unsupported sample operation");
+                break;
+        }
+
+        for (uint32_t req = 0; req < 4; req++)
+            sample_pixel(currentRequest, input, output, quad, req, currentImage,
+                         pixel_filter[req], mip_level[req], mip_beta[req], output_result);
+    }
 }
 
 void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata output[],
-                           uint32_t req, ImageInfo currentImage, FilterType filter, uint32_t mip_level,
+                           uint32_t quad, uint32_t pixel,
+                           ImageInfo currentImage, FilterType filter, uint32_t mip_level,
                            uint32_t mip_beta, bool output_result)
 {
     uint32_t num_mips = (mip_beta == 0) || (mip_level == uint32_t(currentImage.info.mipcount - 1)) ? 1 : 2;
     float mip_beta_fp = 1.0 - (float(mip_beta) / 256.0);
 
-    LOG(DEBUG, "\tsample pixel %d with filter %s mip level %d mip beta %02x", req,
+    LOG(DEBUG, "\tsample pixel %d with filter %s mip level %d mip beta %02x", pixel,
                       toStrFilterType(filter), mip_level, mip_beta);
 
     float red     = 0.0;
@@ -2501,12 +2444,12 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     float blue    = 0.0;
     float alpha   = 0.0;
 
-    float aniso_ratio = fpu::FLT(fpu::f16_to_f32(fpu::F16(currentRequest.info.lodaniso.lodaniso.anisoratio)));
+    float aniso_ratio = fpu::FLT(fpu::f16_to_f32(fpu::F16(currentRequest.info.lodaniso.lodanisoq.anisoratio[quad])));
 
     float aniso_weight = 1.0f;
     uint32_t aniso_count = 1;
-    float aniso_deltas = fpu::FLT(fpu::sn8_to_f32(currentRequest.info.lodaniso.lodaniso.anisodeltau));
-    float aniso_deltat = fpu::FLT(fpu::sn8_to_f32(currentRequest.info.lodaniso.lodaniso.anisodeltav));
+    float aniso_deltas = fpu::FLT(fpu::sn8_to_f32(currentRequest.info.lodaniso.lodanisoq.anisodeltas[quad]));
+    float aniso_deltat = fpu::FLT(fpu::sn8_to_f32(currentRequest.info.lodaniso.lodanisoq.anisodeltat[quad]));
 
     if (((currentRequest.info.operation == SAMPLE_OP_SAMPLE)
          || (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C))
@@ -2543,7 +2486,7 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
             for (uint32_t slice = 0; slice < num_slices; slice++)
             {
                 if (num_slices > 1) LOG(DEBUG,"\tslice sample %d", slice);
-                sample_bilinear(currentRequest, s, t, r, req, currentImage, filter, slice, sample_mip_level,
+                sample_bilinear(currentRequest, s, t, r, quad * 4 + pixel, currentImage, filter, slice, sample_mip_level,
                                 sample_mip_beta, aniso_sample_idx, aniso_weight, aniso_deltas, aniso_deltat, red,
                                 green, blue, alpha, output_result);
             }
@@ -2573,27 +2516,10 @@ void TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata ou
     alpha   = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzlea, alpha_swz, red_swz,
                                     green_swz, blue_swz, alpha_swz);
 
-    bool resultIsFloat32 = isFloat32Format((ImageFormat) currentImage.info.format) &&
-                           !((currentRequest.info.operation == SAMPLE_OP_SAMPLE_C) ||
-                             (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C_L) ||
-                             (currentRequest.info.operation == SAMPLE_OP_GATHER4_C));
-
-    if (resultIsFloat32)
-    {
-        LOG(DEBUG, "\tFLOAT32 result");
-        output[0].u[req] = fpu::UI32(red);
-        output[1].u[req] = fpu::UI32(green);
-        output[2].u[req] = fpu::UI32(blue);
-        output[3].u[req] = fpu::UI32(alpha);
-    }
-    else
-    {
-        LOG(DEBUG, "\tFLOAT16 result");
-        output[0].h[req * 2] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(red)));
-        output[1].h[req * 2] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(green)));
-        output[2].h[req * 2] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(blue)));
-        output[3].h[req * 2] = fpu::UI16(fpu::f32_to_f16(fpu::F2F32(alpha)));
-    }
+    output[0].u[quad * 4 + pixel] = fpu::UI32(red);
+    output[1].u[quad * 4 + pixel] = fpu::UI32(green);
+    output[2].u[quad * 4 + pixel] = fpu::UI32(blue);
+    output[3].u[quad * 4 + pixel] = fpu::UI32(alpha);
 }
 
 /*
@@ -2610,9 +2536,9 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
                               float aniso_weight, float aniso_deltas, float aniso_deltat, float &red,
                               float &green, float &blue, float &alpha, bool output_result)
 {
-    uint32_t mip_width  = max(1, (currentImage.info.width + 1)  >> sample_mip_level);
+    uint32_t mip_width  = max(1, (currentImage.info.width  + 1) >> sample_mip_level);
     uint32_t mip_height = max(1, (currentImage.info.height + 1) >> sample_mip_level);
-    uint32_t mip_depth  = max(1, (currentImage.info.depth + 1)  >> sample_mip_level);
+    uint32_t mip_depth  = max(1, (currentImage.info.depth  + 1) >> sample_mip_level);
 
     uint32_t i[2];
     uint32_t j[2];
@@ -2760,9 +2686,9 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         betaj = float(v_fxp & 0xFF) / 256.0;
         betak = float(w_fxp & 0xFF) / 256.0;
 
-        wrap_texel_coord(i, i_ul, mip_width, (AddressMode)currentRequest.info.addrmodeu);
-        wrap_texel_coord(j, j_ul, mip_height, (AddressMode)currentRequest.info.addrmodev);
-        wrap_texel_coord(k, k_ul, mip_depth, (AddressMode)currentRequest.info.addrmodew);
+        wrap_texel_coord(i, i_ul, mip_width,  (AddressMode) currentRequest.info.addrmodeu);
+        wrap_texel_coord(j, j_ul, mip_height, (AddressMode) currentRequest.info.addrmodev);
+        wrap_texel_coord(k, k_ul, mip_depth,  (AddressMode) currentRequest.info.addrmodew);
 
         l = min(max(currentImage.info.arraybase, a), currentImage.info.arraycount);
     }
@@ -2825,7 +2751,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
                 || (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C_L)
                 || (currentRequest.info.operation == SAMPLE_OP_GATHER4_C))
             {
-                texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_ul[0]);
+                texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_ul[0]);
                 texel_ul[1] = 0.0;
                 texel_ul[2] = 0.0;
                 texel_ul[3] = 0.0;
@@ -2922,10 +2848,10 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
             (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C_L) ||
             (currentRequest.info.operation == SAMPLE_OP_GATHER4_C))
         {
-            texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_ul[0]);
-            texel_ur[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_ur[0]);
-            texel_ll[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_ll[0]);
-            texel_lr[0] = compare_texel((CompareOperation)currentRequest.info.opmode, fpu::FLT(t.u[req]), texel_lr[0]);
+            texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_ul[0]);
+            texel_ur[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_ur[0]);
+            texel_ll[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_ll[0]);
+            texel_lr[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_lr[0]);
             texel_ul[1] = 0.0;
             texel_ur[1] = 0.0;
             texel_ll[1] = 0.0;
@@ -2943,10 +2869,10 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         if (   (currentRequest.info.operation == SAMPLE_OP_GATHER4)
             || (currentRequest.info.operation == SAMPLE_OP_GATHER4_C))
         {
-            red = texel_ul[0];
-            green = texel_ur[0];
-            blue = texel_ll[0];
-            alpha = texel_lr[0];
+            red   = texel_ul[currentRequest.info.component];
+            green = texel_ur[currentRequest.info.component];
+            blue  = texel_ll[currentRequest.info.component];
+            alpha = texel_lr[currentRequest.info.component];
         }
         else
         {
@@ -4194,8 +4120,8 @@ const char *TBOXEmu::toStrImageFormat(ImageFormat fmt)
 
 void TBOXEmu::print_sample_request(SampleRequest req)
 {
-    LOG(DEBUG, "Operation = %s | Image ID = %ld | Delta I = %ld | Delta J = %ld | Delta K = %ld | ",
-               toStrSampleOperation((SampleOperation)req.info.operation), req.info.imageid,
+    LOG(DEBUG, "Operation = %s | Image ID = %d | Border Color ID = %d | Delta I = %ld | Delta J = %ld | Delta K = %ld | ",
+               toStrSampleOperation((SampleOperation)req.info.operation), req.info.imageid, req.info.borderid,
                req.info.ioffset, req.info.joffset, req.info.koffset);
     LOG(DEBUG, "Min = %s | Mag = %s | Mip = %s | Aniso = %s | ", toStrFilterType((FilterType)req.info.minfilter),
                toStrFilterType((FilterType)req.info.magfilter), toStrFilterType((FilterType)req.info.mipfilter),
@@ -4212,12 +4138,12 @@ void TBOXEmu::print_sample_request(SampleRequest req)
     {
         case SAMPLE_OP_GATHER4:
         case SAMPLE_OP_GATHER4_PO:
-            LOG(DEBUG,"Component Selection = %d | ", (req.info.opmode & 0x3));
+            LOG(DEBUG,"Component Selection = %d | ", (req.info.component & 0x3));
             break;
         case SAMPLE_OP_SAMPLE_C:
         case SAMPLE_OP_SAMPLE_C_L:
         case SAMPLE_OP_GATHER4_C:
-            LOG(DEBUG,"Compare Operation = %s | ", toStrCompareOperation((CompareOperation)req.info.opmode));
+            LOG(DEBUG,"Compare Operation = %s | ", toStrCompareOperation((CompareOperation)req.info.compop));
             break;
     }
     switch (req.info.operation)
@@ -4225,25 +4151,33 @@ void TBOXEmu::print_sample_request(SampleRequest req)
         case SAMPLE_OP_SAMPLE_L:
         case SAMPLE_OP_SAMPLE_C_L:
         case SAMPLE_OP_LD:
-            LOG(DEBUG,"LODs = %f %f %f %f",
-                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0]))),
-                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[1]))),
-                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[2]))),
-                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[3]))));
+            LOG(DEBUG,"LODs = %f %f %f %f  %f %f %f %f",
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][0]))),
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][1]))),
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][2]))),
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][3]))),
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[1][0]))),
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[1][1]))),
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[1][2]))),
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[1][3]))));
             break;
         case SAMPLE_OP_SAMPLE:
         case SAMPLE_OP_SAMPLE_C:
-            LOG(DEBUG,"LOD = %f | Aniso Ratio = %f | Aniso Delta S = %f | Aniso Delta T = %f",
-                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodaniso.lod))),
-                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodaniso.anisoratio))),
-                fpu::FLT(fpu::sn8_to_f32(req.info.lodaniso.lodaniso.anisodeltau)),
-                fpu::FLT(fpu::sn8_to_f32(req.info.lodaniso.lodaniso.anisodeltav)));
+            for (uint32_t quad = 0; quad < 2; quad++)
+                LOG(DEBUG,"Quad %d | LOD = %f | Aniso Ratio = %f | Aniso Delta S = %f | Aniso Delta T = %f",
+                    quad,
+                    fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[quad]))),
+                    fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.anisoratio[quad]))),
+                    fpu::FLT(fpu::sn8_to_f32(req.info.lodaniso.lodanisoq.anisodeltas[quad])),
+                    fpu::FLT(fpu::sn8_to_f32(req.info.lodaniso.lodanisoq.anisodeltat[quad])));
             break;
         case SAMPLE_OP_GATHER4:
         case SAMPLE_OP_GATHER4_PO:
         case SAMPLE_OP_GATHER4_C:
         case SAMPLE_OP_GATHER4_PO_C:
-            LOG(DEBUG,"LOD = %f", fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodaniso.lod))));
+            LOG(DEBUG,"Quad 0 LOD = %f | Quad 1 LOD = %f",
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[0]))),
+                fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[1]))));
             break;
     }
  
@@ -4258,14 +4192,17 @@ void TBOXEmu::print_image_info(ImageInfo in)
                in.info.depth, in.info.tiled);
     LOG(DEBUG, "Array Base = %ld | Array Count = %ld | Base Mip = %ld | Mip Count = %ld | ", in.info.arraybase,
                in.info.arraycount, in.info.basemip, in.info.mipcount);
-    LOG(DEBUG, "Swizzle = %s %s %s %s | ", toStrComponentSwizzle((ComponentSwizzle)in.info.swizzler),
+    LOG(DEBUG, "Swizzle = %s %s %s %s | ",
+               toStrComponentSwizzle((ComponentSwizzle)in.info.swizzler),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzleg),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzleb),
                toStrComponentSwizzle((ComponentSwizzle)in.info.swizzlea));
     LOG(DEBUG, " Row Pitch = %ld | Mip Pitch L0 = %ld | Mip Pitch L1 = %ld | Element Pitch = %ld | ",
                in.info.rowpitch, in.info.mippitchl0, in.info.mippitchl1, in.info.elementpitch);
-    LOG(DEBUG, " Tiled = %ld | Packed Layout = %ld | First Packed Mip = %ld | First Packed Mip Level = %ld",
+    LOG(DEBUG, " Tiled = %ld | Packed Layout = %ld | First Packed Mip = %ld | First Packed Mip Level = %ld | ",
                in.info.tiled, in.info.packedlayout, in.info.packedmip, in.info.packedlevel);
+    LOG(DEBUG, " Mip Scale by 8 = %ld | Mip Scale by 4 = %ld\n",
+               in.info.mipscale8, in.info.mipscale4);
 }
 
 //  Decode BC1.
