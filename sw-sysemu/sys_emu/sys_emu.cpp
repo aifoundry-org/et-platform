@@ -40,7 +40,7 @@ typedef enum
 ////////////////////////////////////////////////////////////////////////////////
 
 static std::list<int>  enabled_threads;                     // List of enabled threads
-static std::list<int>  pending_fcc;                         // Pending FastCreditCounter list
+static std::list<int>  pending_fcc[EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list 
 static uint64_t        current_pc[EMU_NUM_THREADS];         // PC for each thread
 static reduce_state    reduce_state_array[EMU_NUM_MINIONS]; // Reduce state
 static uint32_t        reduce_pair_array[EMU_NUM_MINIONS];  // Reduce pairing minion
@@ -112,27 +112,28 @@ static bool dump_log(bool log_en, int log_min, int thread_id)
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
-// second thread (thread_dest) inside the shire of thread_src
+// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
+// of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
-void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, bool log_en, int log_min) 
+void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest, bool log_en, int log_min)
 {
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
         if((thread_mask >> m) & 1)
         {
             int thread_id = shire_id * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION + m * EMU_THREADS_PER_MINION  + thread_dest;
-            if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.%i: Receiving FCC\n", shire_id, m, thread_dest); }
+            if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.%i: Receiving FCC on counter %u \n", shire_id, m, thread_dest, cnt_dest); }
             // Checks if is already awaken
             if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) != enabled_threads.end())
             {
                 // Pushes to pending FCC
-                pending_fcc.push_back(thread_id);
+                pending_fcc[cnt_dest].push_back(thread_id);
             }
             // Otherwise wakes up thread
             else
             {
-                if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.%i: Waking up due sent FCC\n", shire_id, m, thread_dest); }
+                if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.%i: Waking up due sent FCC on counter %u\n", shire_id, m, thread_dest, cnt_dest); }
                 enabled_threads.push_back(thread_id);
             }
         }
@@ -772,17 +773,19 @@ int main(int argc, char * argv[])
                 // Thread is going to sleep
                 if(inst.is_fcc() && !reduce_wait)
                 {
-                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep (FCC)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
+                    unsigned cnt = get_fcc_cnt();
+                    
+                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep (FCC) blocking on counter %u\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION, cnt); }
                     int old_thread = *thread;
                     thread = enabled_threads.erase(thread);
 
                     // Checks if there's a pending FCC and wakes up thread again
-                    auto fcc = std::find(pending_fcc.begin(), pending_fcc.end(), old_thread);
-                    if(fcc != pending_fcc.end())
+                    auto fcc = std::find(pending_fcc[cnt].begin(), pending_fcc[cnt].end(), old_thread);
+                    if(fcc != pending_fcc[cnt].end())
                     {
-                        if(do_log) { printf("Minion %i.%i.%i: Waking up due present FCC\n", old_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (old_thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, old_thread % EMU_THREADS_PER_MINION); }
+                        if(do_log) { printf("Minion %i.%i.%i: Waking up due present FCC on counter %u\n", old_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (old_thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, old_thread % EMU_THREADS_PER_MINION, cnt); }
                         enabled_threads.push_back(old_thread);
-                        pending_fcc.erase(fcc);
+                        pending_fcc[cnt].erase(fcc);
                     }
                 }
                 else if(inst.is_wfi() && !reduce_wait)

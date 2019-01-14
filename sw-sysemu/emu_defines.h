@@ -30,6 +30,8 @@
 #define FAST_LOCAL_BARRIERS 32
 // TensorQuant defines
 #define TQUANT_MAX_TRANS 10
+// FastCreditCounters
+#define EMU_NUM_FCC_COUNTERS_PER_THREAD 2
 
 // VA to PA translation
 #define PA_SIZE        40
