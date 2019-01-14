@@ -696,9 +696,12 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             }
         }
 
+
+
         // TensorLoad
         if(inst.is_tensor_load())
         {
+
             int entry;
             int size;
             uint64_t data;
@@ -722,7 +725,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 auto it = scp_entry_list[thread].begin();
                 while(it != scp_entry_list[thread].end())
                 {
-                    if(it->entry == (entry + i)) { break; }
+		  if(it->entry == get_scratchpad_next_entry(entry+i)) { break; }
                     it++;
                 }
 
