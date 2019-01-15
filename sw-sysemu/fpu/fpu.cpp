@@ -559,7 +559,7 @@ namespace fpu {
     // NB: IEEE 754-201x compatible
     float32_t f32_minNum(float32_t a, float32_t b)
     {
-        return ::f32_minimumNumber( daz(a), daz(b) );
+        return ::f32_minimumNumber(daz(a), daz(b));
     }
 
 
@@ -590,25 +590,25 @@ namespace fpu {
 
     int_fast32_t f32_to_i32(float32_t a)
     {
-        return ::f32_to_i32(a, softfloat_roundingMode, true);
+        return ::f32_to_i32(daz(a), softfloat_roundingMode, true);
     }
 
 
     uint_fast32_t f32_to_ui32(float32_t a)
     {
-        return ::f32_to_ui32(a, softfloat_roundingMode, true);
+        return ::f32_to_ui32(daz(a), softfloat_roundingMode, true);
     }
 
 
     int_fast64_t f32_to_i64(float32_t a)
     {
-        return ::f32_to_i64(a, softfloat_roundingMode, true);
+        return ::f32_to_i64(daz(a), softfloat_roundingMode, true);
     }
 
 
     uint_fast64_t f32_to_ui64(float32_t a)
     {
-        return ::f32_to_ui64(a, softfloat_roundingMode, true);
+        return ::f32_to_ui64(daz(a), softfloat_roundingMode, true);
     }
 
 
@@ -670,61 +670,61 @@ namespace fpu {
 
     float16_t f32_to_f16(float32_t a)
     {
-        return daz(::f32_to_f16( daz(a) ));
+        return daz( ::f32_to_f16(daz(a)) );
     }
 
 
     float11_t f32_to_f11(float32_t a)
     {
-        return F11( float32tofloat11(a) );
+        return F11( float32tofloat11(daz(a)) );
     }
 
 
     float10_t f32_to_f10(float32_t a)
     {
-        return F10( float32tofloat10(a) );
+        return F10( float32tofloat10(daz(a)) );
     }
 
 
     uint_fast32_t f32_to_un24(float32_t a)
     {
-        return float32tounorm24(a);
+        return float32tounorm24(daz(a));
     }
 
 
     uint_fast16_t f32_to_un16(float32_t a)
     {
-        return float32tounorm16(a);
+        return float32tounorm16(daz(a));
     }
 
 
     uint_fast16_t f32_to_un10(float32_t a)
     {
-        return float32tounorm10(a);
+        return float32tounorm10(daz(a));
     }
 
 
     uint_fast8_t f32_to_un8(float32_t a)
     {
-        return float32tounorm8(a);
+        return float32tounorm8(daz(a));
     }
 
 
     uint_fast8_t f32_to_un2(float32_t a)
     {
-        return float32tounorm2(a);
+        return float32tounorm2(daz(a));
     }
 
 
     uint_fast16_t f32_to_sn16(float32_t a)
     {
-        return float32tosnorm16(a);
+        return float32tosnorm16(daz(a));
     }
 
 
     uint_fast8_t f32_to_sn8(float32_t a)
     {
-        return float32tosnorm8(a);
+        return float32tosnorm8(daz(a));
     }
 
 
@@ -732,7 +732,7 @@ namespace fpu {
 
     float32_t f16_to_f32(float16_t a)
     {
-        return ::f16_to_f32( daz(a) );
+        return ::f16_to_f32(daz(a));
     }
 
 
@@ -838,7 +838,6 @@ namespace fpu {
         }
         float32_t z;
         {
-
             // FIXME: We should not use floating-point here, we should
             // implement a softfloat equivalent
             //
@@ -869,7 +868,6 @@ namespace fpu {
 
     float32_t f32_roundToInt(float32_t a)
     {
-        // NB: Don't convert denormals; input denormals will become 0 anyway
         return ::f32_roundToInt(daz(a), softfloat_roundingMode, true);
     }
 
@@ -915,7 +913,7 @@ namespace fpu {
 
     int32_t f32_to_fxp1714(float32_t a)
     {
-        uint32_t v = UI32(a);
+        uint32_t v = UI32(daz(a));
 
         // NaN converts to 0
         if (isNaNF32UI(v))
