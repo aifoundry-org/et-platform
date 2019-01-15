@@ -207,6 +207,8 @@ typedef enum {
     csr_sleep_txfma_27,
     csr_lock_va,
     csr_unlock_va,
+    csr_lock_sw,
+    csr_unlock_sw,
     csr_porthead0,
     csr_porthead1,
     csr_porthead2,
@@ -231,6 +233,7 @@ typedef enum {
     csr_satp,
     /* Esperanto supervisor registers */
     csr_sys_cache_op,
+    csr_mcache_control,
     csr_evict_sw,
     csr_flush_sw,
     csr_smsg_port0, // TODO remove once everything is up to spec

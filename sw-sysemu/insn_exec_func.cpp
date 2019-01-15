@@ -269,6 +269,8 @@ static csr imm2csr(uint16_t imm)
     case 0x8d5 : return csr_sleep_txfma_27; /* TODO: add to binutils */
     case 0x8df : return csr_lock_va;
     case 0x8ff : return csr_unlock_va;
+    case 0x7fd : return csr_lock_sw;
+    case 0x7f : return csr_unlock_sw;
     case 0xcc8 : return csr_porthead0;
     case 0xcc9 : return csr_porthead1;
     case 0xcca : return csr_porthead2;
@@ -280,8 +282,9 @@ static csr imm2csr(uint16_t imm)
     case 0xcd0 : return csr_hartid;         /* TODO: add to binutils */
     /* Esperanto supervisor CSRs */
     case 0x51f : return csr_sys_cache_op;   /* TODO: remove, it is replaced by individual CacheOp CSRs */
-    case 0x9c0 : return csr_evict_sw;
-    case 0x9e0 : return csr_flush_sw;
+    case 0x7e0 : return csr_mcache_control;   /* TODO: remove, it is replaced by individual CacheOp CSRs */
+    case 0x7f9 : return csr_evict_sw;
+    case 0x7fb : return csr_flush_sw;
     case 0x9cc : return csr_portctrl0;
     case 0x9cd : return csr_portctrl1;
     case 0x9ce : return csr_portctrl2;
