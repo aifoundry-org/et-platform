@@ -46,7 +46,6 @@ extern void log_only_minion(int32_t m);
 extern bool emu_done();
 extern std::stringstream dump_xregs(uint32_t thread_id);
 extern std::stringstream dump_fregs(uint32_t thread_id);
-extern void print_comment(const char *comm);
 extern void init_stack();
 extern void initcsr(uint32_t thread);           // init all CSRs
 extern uint64_t xget(uint64_t src1);
