@@ -7223,7 +7223,12 @@ void tensorload(uint64_t control)//Transtensorload
 
         }
     }
-    logtensorchange();
+    int op = 0;
+    if (trans == 0x05 || trans == 0x06 || trans==0x07)
+	op = 1;
+    else if (trans == 0x01 || trans == 0x02)
+	op = 2;
+    logtensorchange(op);
 }
 
 // ----- TensorLoadL2Scp emulation --------------------------------------------------
