@@ -540,6 +540,8 @@ void init_emu(enum logLevel level)
 {
    XREGS[x0].x  = 0;
    emu_log().setLogLevel(level);
+   // FIXME: remove '#include <cfenv>' when we purge this function from the code
+   std::fesetround(FE_TONEAREST); // set rne for host
 }
 
 void log_only_minion(int32_t m) {
@@ -575,9 +577,27 @@ static uint64_t read_port_base_address(unsigned thread, unsigned id);
         FREGS[regid].u[_zeufb_index] = 0; \
 } while (0)
 
-void print_comment(const char *comm)
+static inline const char* get_fp_flags(uint_fast8_t flags)
 {
-    LOG(DEBUG, "// %s", comm);
+    static const char* fnames[] = {
+        "",            "NX",             "UF",             "UF,NX",
+        "OF",          "OF,NX",          "OF,UF",          "OF,UF,NX",
+        "DZ",          "DZ,NX",          "DZ,UF",          "DZ,UF,NX",
+        "DZ,OF",       "DZ,OF,NX",       "DZ,OF,UF",       "DZ,OF,UF,NX",
+        "NV",          "NV,NX",          "NV,UF",          "NV,UF,NX",
+        "NV,OF",       "NV,OF,NX",       "NV,OF,UF",       "NV,OF,UF,NX",
+        "NV,DZ",       "NV,DZ,NX",       "NV,DZ,UF",       "NV,DZ,UF,NX",
+        "NV,DZ,OF",    "NV,DZ,OF,NX",    "NV,DZ,OF,UF",    "NV,DZ,OF,UF,NX",
+        "ID",          "ID,NX",          "ID,UF",          "ID,UF,NX",
+        "ID,OF",       "ID,OF,NX",       "ID,OF,UF",       "ID,OF,UF,NX",
+        "ID,DZ",       "ID,DZ,NX",       "ID,DZ,UF",       "ID,DZ,UF,NX",
+        "ID,DZ,OF",    "ID,DZ,OF,NX",    "ID,DZ,OF,UF",    "ID,DZ,OF,UF,NX",
+        "ID,NV",       "ID,NV,NX",       "ID,NV,UF",       "ID,NV,UF,NX",
+        "ID,NV,OF",    "ID,NV,OF,NX",    "ID,NV,OF,UF",    "ID,NV,OF,UF,NX",
+        "ID,NV,DZ",    "ID,NV,DZ,NX",    "ID,NV,DZ,UF",    "ID,NV,DZ,UF,NX",
+        "ID,NV,DZ,OF", "ID,NV,DZ,OF,NX", "ID,NV,DZ,OF,UF", "ID,NV,DZ,OF,UF,NX"
+    };
+    return fnames[(flags & 0x1f) | ((flags >> 2) & 0x20)];
 }
 
 static uint64_t sext32(uint32_t val)
@@ -668,6 +688,7 @@ static inline void update_fflags(uint_fast8_t flags)
     uint32_t newval = (flags & 0x1F) | (uint32_t(flags & 0x80) << 24);
     logfflagschange(newval);
     csrregs[current_thread][csr_fcsr] |= newval;
+    LOG(DEBUG, "\tfpu flags = 0x%02x (%s)", flags, get_fp_flags(flags));
 }
 
 // internal accessor to mstatus.fs; this is faster than using csrset()
@@ -699,23 +720,9 @@ static inline void handle_nan_default(iufval32& a)
         a.u = 0x7FC00000;
 }
 
-// FIXME: remove '#include <cfenv>' when we purge this function from the code
-static inline void set_x86_rounding_mode(rounding_mode rm)
+static inline void clear_arithmetic_flags()
 {
-    switch ((rm == rmdyn) ? frm() : rm)
-    {
-        case rne: std::fesetround(FE_TONEAREST); break;
-        case rtz: std::fesetround(FE_TOWARDZERO); break;
-        case rdn: std::fesetround(FE_DOWNWARD); break;
-        case rup: std::fesetround(FE_UPWARD); break;
-        case rmm:
-            LOG(INFO, "round_near_maxMag not supported by C++");
-            std::fesetround(FE_TONEAREST);
-            break;
-        default:
-            assert(0);
-            break;
-    }
+    fpu::flags(0);
 }
 
 static inline void set_rounding_mode(rounding_mode mode)
@@ -968,9 +975,6 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     csrset(csr_sepc, current_pc);
     // Jump to stvec
     csrset(csr_prv, CSR_PRV_S);
-    // compute address where to jump to:
-    //  if tvec[0]==0 (direct mode) => jump to tvec
-    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
 
     // Throw an error if no one ever set stvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
@@ -978,6 +982,9 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
        LOG(DEBUG, "WARNING Trap vector has never been set. Can't take exception properly");
     }
 
+    // compute address where to jump to:
+    //  if tvec[0]==0 (direct mode) => jump to tvec
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_stvec);
     if ( (tvec & 1 ) == 1  && (cause >> 31) == 1)
     {
@@ -1019,9 +1026,6 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     csrset(csr_mepc, current_pc);
     // Jump to mtvec
     csrset(csr_prv, CSR_PRV_M);
-    // compute address where to jump to
-    //  if tvec[0]==0 (direct mode) => jump to tvec
-    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
 
     // Throw an error if no one ever set mtvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
@@ -1029,6 +1033,9 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
        LOG(DEBUG, "WARNING Trap vector has never been set. Doesn't smell good...");
     }
 
+    // compute address where to jump to
+    //  if tvec[0]==0 (direct mode) => jump to tvec
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_mtvec);
     if ( (tvec & 1 ) == 1  && (cause >> 31) == 1)
     {
@@ -2470,9 +2477,7 @@ static uint64_t csrget(csr src1)
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
-        case csr_cycle:
         case csr_time:
-        case csr_instret:
         case csr_hpmcounter3:
         case csr_hpmcounter4:
         case csr_hpmcounter5:
@@ -2582,6 +2587,8 @@ static uint64_t csrget(csr src1)
             val = 0;
             break;
         // ----- M-mode registers ----------------------------------------
+	case csr_cycle:
+	case csr_instret:
         case csr_mcycle:
         case csr_minstret:
             val = 0;
@@ -3389,6 +3396,7 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
     u32_i32_u64_i64 res;
 
     set_rounding_mode(rm);
+    clear_arithmetic_flags();
     val.u = FREGS[src1].u[0];
     switch (opc)
     {
@@ -3424,6 +3432,7 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
     u32_i32_u64_i64 val;
 
     set_rounding_mode(rm);
+    clear_arithmetic_flags();
 
     switch ( opc )
     {
@@ -3463,19 +3472,7 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
     assert(count <= VL);
 
     set_rounding_mode(rm);
-    switch ( opc )
-    {
-        case FRSQ:
-        case FSIN:
-        case FEXP:
-        case FLOG:
-        case FRCP:
-        case FFRC:
-            set_x86_rounding_mode(rne);
-            break;
-        default:
-            break;
-    }
+    clear_arithmetic_flags();
 
     for (int i = 0; i < count; ++i)
     {
@@ -3635,15 +3632,7 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
     assert(count <= VL);
 
     set_rounding_mode(rm);
-    switch ( opc )
-    {
-        case FRCP_FIX_RAST:
-            set_x86_rounding_mode(rne);
-            break;
-        default:
-            break;
-    }
-
+    clear_arithmetic_flags();
 
     for ( int i = 0; i < count; i++ )
     {
@@ -3759,6 +3748,7 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
     assert(count <= VL);
 
     set_rounding_mode(rm);
+    clear_arithmetic_flags();
 
     for ( int i = 0; i < count; i++ )
     {
@@ -3817,6 +3807,7 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
 {
     iufval32 val1, val2, res;
 
+    clear_arithmetic_flags();
     val1.u = FREGS[src1].u[0];
     val2.u = FREGS[src2].u[0];
     switch (opc)
@@ -4754,6 +4745,7 @@ void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
 
 static void fmask(opcode opc, mreg dst, freg src1, freg src2)
 {
+    clear_arithmetic_flags();
     for (int i = 0; i < VL; i++ )
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -5111,6 +5103,7 @@ void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 static void ucvtemu(opcode opc, freg dst, freg src1)
 {
     set_rounding_mode(rmdyn);
+    clear_arithmetic_flags();
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -5225,6 +5218,7 @@ void fcvt_ps_sn8(freg dst, freg src1, const char* comm)
 static void dcvtemu(opcode opc, freg dst, freg src1)
 {
     set_rounding_mode(rmdyn);
+    clear_arithmetic_flags();
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -5373,6 +5367,7 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     LOG(DEBUG, "I: fround.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     set_rounding_mode(rm);
+    clear_arithmetic_flags();
     DEBUG_MASK(MREGS[0]);
     for ( int i = 0; i < VL; i++ )
     {
@@ -5443,6 +5438,7 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: cubefaceidx.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
+    clear_arithmetic_flags();
     DEBUG_MASK(MREGS[0]);
 
     for ( int i = 0; i < VL; i++ )
@@ -6280,6 +6276,30 @@ void get_scratchpad_conv_list(std::list<bool> * list)
     for(int i = 0; i < 16; i++)
         list->push_back(scp_tm && !tmask_pass(i));
 }
+
+// This is a temporal fix until all the software is migrated to the new SCP.
+// When migration is complete, BEMU tensor operations should only operate with
+// SCP ranges
+int get_scratchpad_next_entry(int entry)
+{
+
+    const static int row_to_scp[48] = {  0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,
+					 16,17,18,19,20,21,22,23,24,25,26,27,
+					 32,33,34,35,36,37,38,39,40,41,42,43,
+					 48,49,50,41,52,53,54,55,56,57,58,59};
+    if ( csrregs[current_thread][csr_scratchpad_ctrl] & 0x1 )
+    {
+	if ( entry > 47 || entry < 0)
+	{
+	    LOG(DEBUG,"SCP entry out of range : %i\n", entry );
+	    return entry;
+	}
+	return row_to_scp[entry];
+    } else
+	return entry;
+    
+}
+
 
 // ----- CacheOp emulation -----------------------------------------------------
 
@@ -7203,7 +7223,12 @@ void tensorload(uint64_t control)//Transtensorload
 
         }
     }
-    logtensorchange();
+    int op = 0;
+    if (trans == 0x05 || trans == 0x06 || trans==0x07)
+	op = 1;
+    else if (trans == 0x01 || trans == 0x02)
+	op = 2;
+    logtensorchange(op);
 }
 
 // ----- TensorLoadL2Scp emulation --------------------------------------------------
@@ -7555,11 +7580,12 @@ static void tensorfma(uint64_t tfmareg)
     acols = acols + 1;
 
     set_rounding_mode(rmdyn);
+    clear_arithmetic_flags();
 
     LOG(DEBUG, "\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc_to_rf: %d, tenb: %d, bstart: %d, astart: %d, rm: %s", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenc_to_rf, tenb, bstart, astart, get_rounding_mode(rmdyn));
 
     // //  check if L1 SCP is enabled
-    // // Disabled until software update
+    // // Disabled until software update - JIRA RTLMIN-2096 
     // if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) ) {
     // 	csrregs[current_thread][csr_tensor_error] |= (0x1 << 4); 
     // 	return; 
@@ -7573,7 +7599,7 @@ static void tensorfma(uint64_t tfmareg)
 	if (!tensorload_setupb_topair[current_thread] || (tensorload_setupb_numlines[current_thread] != acols))
 	{
 	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
-	    return;
+	    //return;
 	} else {
 	    //pair tl
 	    tensorload_setupb_topair[current_thread] = false;
@@ -7583,7 +7609,7 @@ static void tensorfma(uint64_t tfmareg)
 	// unpaired tl
 	if (!tensorload_setupb_topair[current_thread] ) {
 	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
-	    return;
+	    //return;
 	}
     }
 
@@ -7692,11 +7718,6 @@ static void tensorfma(uint64_t tfmareg)
     // *FP16+FP32
     else if (type == 1)
     {
-        // FIXME: We should not use floating-point computations here... need
-        // to implement a softfloat-like equivalent
-
-        set_x86_rounding_mode(rmdyn);
-
         if (first_pass)
         {
             for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
@@ -7989,7 +8010,8 @@ static void tensorreduce(uint64_t value)
 	csrregs[current_thread][csr_tensor_error] |= (0x1 << 9);
 	return;
     }
-    
+
+    clear_arithmetic_flags();
     if (operation == 0) // FADD
     {
         set_rounding_mode(rmdyn);
