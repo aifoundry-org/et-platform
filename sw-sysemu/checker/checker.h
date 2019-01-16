@@ -4,6 +4,7 @@
 // STD
 #include <string>
 #include <list>
+#include <iostream>
 
 // Local
 #include "common/main_memory.h"
@@ -42,6 +43,12 @@ typedef enum
     Reduce_Data_Consumed
 } reduce_state;
 
+typedef struct
+{
+   uint64_t base;
+   uint64_t top;
+} ignored_mem_region;
+
 class checker
 {
  public:
@@ -73,6 +80,11 @@ class checker
         void set_texrec_func(func_texrec_t func_ptr);
 
         void update_fcsr_flags(unsigned minionId, unsigned flags);
+
+        // Register a region to ignore checks on
+        void add_ignored_mem_region(uint64_t base, uint64_t top);
+        bool address_is_in_ignored_region(uint64_t addr);
+
     private:
         checker_result do_reduce(uint32_t thread, uint64_t value, int * wake_thread);
         void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
@@ -91,6 +103,7 @@ class checker
         std::list<tensorfma_entry>    tensorquant_list[EMU_NUM_THREADS];   // List of RTL written tensorquant entries
         std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];        // List of RTL written reduce entries
         std::list<csr>                waived_csrs;                         // List of CSRs whose checking is waived
+        std::list<ignored_mem_region> ignored_mem_regions;                 // List of memory regions whose data won't be checked
 };
 
 #endif // _CHECKER_
