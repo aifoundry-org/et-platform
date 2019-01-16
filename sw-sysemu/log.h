@@ -25,6 +25,7 @@ typedef struct
     uint64_t mem_addr[VL];      // Address being updated
     uint64_t mem_data[VL];      // New contents
     bool     tensor_mod;        // Tensor op produced new values
+    int      tl_transform;      // 0: No transform, 1: Interleave 2: Transpose
 } inst_state_change;
 
 // Changes done by instruction
@@ -34,7 +35,7 @@ void logfregchange(int fdst);
 void logmregchange(int mdst);
 void logmemwchange(int pos, int size, uint64_t addr, uint64_t val);
 void logfflagschange(uint64_t new_fflags);
-void logtensorchange();
+void logtensorchange(int trans);
 
 // Support for log state
 extern void setlogstate(inst_state_change * log_info_);

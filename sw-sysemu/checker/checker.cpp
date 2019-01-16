@@ -710,6 +710,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             get_scratchpad_conv_list(&conv_list);
             auto conv_list_it = conv_list.begin();
 
+	    if (emu_state_change.tl_transform)
+	      aggregate_tl_data(thread);
+	    
             // For all the written entries
             for(int i = 0; i < size && emu_state_change.tensor_mod; i++)
             {
@@ -733,6 +736,10 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 if(it == scp_entry_list[thread].end())
                 {
                     stream << "Couldn't find scratchpad destination " << entry + i << " in the RTL scratchpad list!!" << std::endl;
+		    log << LOG_ERR << "SCP Candidates: " << endm;
+		    for(auto e : scp_entry_list[thread]) {
+		      log << LOG_ERR << "\tEntry : " << e.entry << endm;
+		    }
                     error_msg += stream.str();
                     return CHECKER_ERROR;
                 }
@@ -947,16 +954,87 @@ void checker::thread1_enabled(unsigned minionId, uint64_t en, uint64_t pc)
 }
 
 // Scratchpad write
-void checker::tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data)
+void checker::tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data, uint32_t banks)
 {
     scratchpad_entry scp_entry;
 
     scp_entry.entry = entry;
+    scp_entry.banks = banks;
     for(int i = 0; i < 8; i++)
     {
         scp_entry.data[i] = data[i];
     }
     scp_entry_list[thread].push_back(scp_entry);
+}
+
+void checker::aggregate_tl_data(uint32_t thread)
+{
+  std::list<scratchpad_entry> aggregated_scp_entries;
+  
+  log << LOG_DEBUG << "Aggregating partial writes to dcache. size : " << scp_entry_list[thread].size() << endm;
+  log << LOG_DEBUG << "Dumping SCP entries Before aggregation " << endm;
+  
+  for ( auto e : scp_entry_list[thread] ) {
+    log << LOG_DEBUG << "Entry: " << std::hex << e.entry << " Banks: " << e.banks << " data: " << e.data[0] << " " << e.data[1] << " " << e.data[2] << " " << e.data[3] << " " << e.data[4] << " " << e.data[5] << " " << e.data[6] << " " << e.data[7] << std::dec << endm;
+  }
+  
+  // empty the queue, merge all that can be merged
+  while ( !scp_entry_list[thread].empty() ) {
+    auto it = scp_entry_list[thread].begin();
+    scratchpad_entry entry;
+    // Get the entry and copy it. Move data to next half-line if it's needed
+    entry = *it;
+    it = scp_entry_list[thread].erase(it);
+    int addr_fhl = entry.entry & ~(1 << 5);
+    int addr_shl = entry.entry |  (1 << 5);
+    if ( entry.entry == addr_shl )
+    {
+      // This entry addres writes to a second half-line.
+      entry.entry = addr_fhl;
+      for( int i = 0 ; i < 4 ; ++i )
+      {
+	entry.data[4+i] = entry.data[i];
+      }
+    }
+
+    // Search for all mergeable entries
+    log << LOG_DEBUG << "Merging Entry: " << std::hex << entry.entry << " Banks: " << entry.banks << " addr_fhl: " << addr_fhl << " addr_shl: " << addr_shl << endm;
+    auto it2 = scp_entry_list[thread].begin();
+    while (it2 != scp_entry_list[thread].end())
+    {
+      auto entry2 = *it2;
+      if ( entry2.entry == addr_fhl || entry2.entry == addr_shl )
+      {
+	int offset = entry2.entry == addr_fhl ? 0 : 4;
+	for (int i = 0 ; i < 4 ; ++i)
+	{
+	  uint32_t valid = entry2.banks & (uint32_t(1) << i);
+	  if( valid )
+	  {
+	    entry.data[offset+i] = entry.data[i];
+	    entry.banks |= (valid << offset);
+	  }
+	}
+	log << LOG_DEBUG << "Merging and deleting entry " << std::hex << entry2.entry << std::dec << endm;
+	it2 = scp_entry_list[thread].erase(it2);
+      } else
+      {	
+	++it2;
+      }
+    }
+    entry.entry>>=6; //remove entry offset
+    aggregated_scp_entries.push_back(entry);
+  }
+  
+  // Replace old list with the new merged list
+  std::swap(scp_entry_list[thread], aggregated_scp_entries);
+
+  log << LOG_DEBUG << "Dumping SCP entries After aggregation " << endm;
+  
+  for( auto e : scp_entry_list[thread] ) {
+    log << LOG_DEBUG << "Entry: " << std::hex << e.entry << " Banks: " << e.banks << " data: " << e.data[0] << " " << e.data[1] << " " << e.data[2] << " " << e.data[3] << " " << e.data[4] << " " << e.data[5] << " " << e.data[6] << " " << e.data[7] << std::dec << endm;
+  }
+    
 }
 
 // TensorFMA write

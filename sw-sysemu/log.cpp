@@ -20,6 +20,7 @@ void clearlogstate()
     log_info->fflags_mod = false;
     log_info->fflags_value = 0;
     log_info->tensor_mod = false;
+    log_info->tl_transform = 0;
     for(int m = 0; m < 8; m++)
     {
         log_info->m_reg_mod[m] = false;
@@ -107,7 +108,8 @@ void logfflagschange(uint64_t new_flags)
     log_info->fflags_value = new_flags;
 }
 
-void logtensorchange()
+void logtensorchange(int trans)
 {
   log_info->tensor_mod = true;
+  log_info->tl_transform = trans;
 }

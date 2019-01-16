@@ -24,7 +24,8 @@ typedef enum
 
 typedef struct
 {
-    int    entry;
+    uint32_t banks;
+    int      entry;
     uint64_t data[8];
 } scratchpad_entry;
 
@@ -71,10 +72,11 @@ class checker
         void thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc);
 
         // Tensor operations
-        void tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data);
+        void tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data, uint32_t banks);
         void tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorfma_regfile_wmask);
         void tensorquant_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorquant_regfile_wmask);
         void reduce_write(uint32_t thread, uint32_t entry, uint32_t * data);
+        void aggregate_tl_data(uint32_t thread);
 
         typedef void (*func_texrec_t) (unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
         void set_texrec_func(func_texrec_t func_ptr);
