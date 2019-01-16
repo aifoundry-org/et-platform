@@ -1986,7 +1986,7 @@ void sb(xreg src1, xreg base, int64_t off, const char* comm)
 
 void sbl(xreg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: sbl x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: sbl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = XREGS[base].x;
     uint8_t val   = XREGS[src1].b[0];
     vmemwrite8(addr, val);
@@ -1996,7 +1996,7 @@ void sbl(xreg src1, xreg base, const char* comm)
 
 void sbg(xreg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: sbg x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: sbg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = XREGS[base].x;
     uint8_t val   = XREGS[src1].b[0];
     vmemwrite8(addr, val);
@@ -2006,7 +2006,7 @@ void sbg(xreg src1, xreg base, const char* comm)
 
 void shl(xreg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: shl x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: shl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = XREGS[base].x;
     uint16_t val  = XREGS[src1].h[0];
     vmemwrite16(addr, val);
@@ -2016,7 +2016,7 @@ void shl(xreg src1, xreg base, const char* comm)
 
 void shg(xreg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: shg x%d, " PRId64 "(x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: shg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = XREGS[base].x;
     uint16_t val  = XREGS[src1].h[0];
     vmemwrite16(addr, val);
@@ -2269,14 +2269,14 @@ void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
 #define AMO_EMU_W_FUNC(NAME, OPC) \
 void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 {\
-   LOG(DEBUG, "I: " #NAME " x%d, (x%d), x%d%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");\
+   LOG(DEBUG, "I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src2, src1, comm ? " # " : "", comm ? comm : "");\
    amo_emu_w(OPC, dst, src1, src2);\
 }
 
 #define AMO_EMU_D_FUNC(NAME, OPC) \
 void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 {\
-   LOG(DEBUG, "I: " #NAME " x%d, (x%d), x%d%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");\
+   LOG(DEBUG, "I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src2, src1, comm ? " # " : "", comm ? comm : "");\
    amo_emu_d(OPC, dst, src1, src2);\
 }
 
@@ -4305,7 +4305,7 @@ void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
 
 void flwl_ps(freg dst, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: flwl.ps f%d, 0(x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: flwl.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuld(VL, dst, 0,  base, 1);
@@ -4313,7 +4313,7 @@ void flwl_ps(freg dst, xreg base, const char* comm)
 
 void flwg_ps(freg dst, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: flwg.ps f%d, 0(x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: flwg.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuld(VL, dst, 0,  base, 1);
@@ -4338,7 +4338,7 @@ void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
 
 void fswl_ps(freg src, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fswl.ps f%d, 0(x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fswl.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femust(VL, src, 0, base, 1);
@@ -4346,7 +4346,7 @@ void fswl_ps(freg src, xreg base, const char* comm)
 
 void fswg_ps(freg src, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fswg.ps f%d, 0(x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fswg.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femust(VL, src, 0, base, 1);
@@ -4575,7 +4575,7 @@ static void femuscat32(opcode opc, int size, freg src3, xreg src1, xreg src2)
 
 void fgb_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgb.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgb.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGB, 1, dst, src1, base);
@@ -4583,7 +4583,7 @@ void fgb_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgh_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgh.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgh.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGH, 2, dst, src1, base);
@@ -4591,7 +4591,7 @@ void fgh_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgw.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgw.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGW, 4, dst, src1, base);
@@ -4599,7 +4599,7 @@ void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgwl_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgwl.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgwl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGWL, 4, dst, src1, base);
@@ -4607,7 +4607,7 @@ void fgwl_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fghl_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fghl.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fghl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGHL, 2, dst, src1, base);
@@ -4615,7 +4615,7 @@ void fghl_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgbl_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgbl.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgbl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGBL, 1, dst, src1, base);
@@ -4623,7 +4623,7 @@ void fgbl_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgwg_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgwg.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgwg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGWG, 4, dst, src1, base);
@@ -4631,7 +4631,7 @@ void fgwg_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fghg_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fghg.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fghg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGHG, 2, dst, src1, base);
@@ -4639,7 +4639,7 @@ void fghg_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fgbg_ps(freg dst, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fgbg.ps f%d, (f%d, x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fgbg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     throw std::runtime_error("Unimplemented instruction (fgwg.ps)");
@@ -4648,7 +4648,7 @@ void fgbg_ps(freg dst, freg src1, xreg base, const char* comm)
 
 void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: fg32b.ps f%d, (x%d, x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fg32b.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu32(FG32B, 1, dst, src1, src2);
@@ -4656,7 +4656,7 @@ void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
 
 void fg32h_ps(freg dst, xreg src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: fg32h.ps f%d, (x%d, x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fg32h.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu32(FG32H, 2, dst, src1, src2);
@@ -4664,7 +4664,7 @@ void fg32h_ps(freg dst, xreg src1, xreg src2, const char* comm)
 
 void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: fg32w.ps f%d, (x%d, x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fg32w.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu32(FG32W, 4, dst, src1, src2);
@@ -4672,7 +4672,7 @@ void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm)
 
 void fscb_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fscb.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fscb.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat(FSCB, src, src1, base);
@@ -4680,7 +4680,7 @@ void fscb_ps(freg src, freg src1, xreg base, const char* comm)
 
 void fsch_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fsch.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fsch.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat(FSCH, src, src1, base);
@@ -4688,7 +4688,7 @@ void fsch_ps(freg src, freg src1, xreg base, const char* comm)
 
 void fscw_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fscw.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fscw.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat(FSCW, src, src1, base);
@@ -4696,49 +4696,49 @@ void fscw_ps(freg src, freg src1, xreg base, const char* comm)
 
 void fscwl_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fscwl.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fscwl.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femuscat(FSCWL, src, src1, base);
 }
 
 void fschl_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fschl.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fschl.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femuscat(FSCHL, src, src1, base);
 }
 
 void fscbl_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fscbl.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fscbl.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femuscat(FSCBL, src, src1, base);
 }
 
 void fscwg_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fscwg.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fscwg.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femuscat(FSCWG, src, src1, base);
 }
 
 void fschg_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fschg.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fschg.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femuscat(FSCHG, src, src1, base);
 }
 
 void fscbg_ps(freg src, freg src1, xreg base, const char* comm)
 {
-    LOG(DEBUG, "I: fscbg.ps f%d, (f%d, x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fscbg.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femuscat(FSCBG, src, src1, base);
 }
 
 void fsc32b_ps(freg src, xreg src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: fsc32b.ps f%d, (x%d, x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fsc32b.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat32(FSC32B, 1, src, src1, src2);
@@ -4746,7 +4746,7 @@ void fsc32b_ps(freg src, xreg src1, xreg src2, const char* comm)
 
 void fsc32h_ps(freg src, xreg src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: fsc32h.ps f%d, (x%d, x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fsc32h.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat32(FSC32H, 2, src, src1, src2);
@@ -4754,7 +4754,7 @@ void fsc32h_ps(freg src, xreg src1, xreg src2, const char* comm)
 
 void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: fsc32w.ps f%d, (x%d, x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fsc32w.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat32(FSC32W, 4, src, src1, src2);
