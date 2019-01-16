@@ -687,6 +687,13 @@ static inline int frm()
     return ((csrregs[current_thread][csr_fcsr] >> 5) & 0x7);
 }
 
+// internal accessor to tensor_error; this is faster than doing csrset()
+static inline void update_tensor_error(uint64_t value)
+{
+    csrregs[current_thread][csr_tensor_error] |= value;
+    LOG(DEBUG, "\tTensorError = 0x%016" PRIx64 " (0x%016" PRIx64 ")", csrregs[current_thread][csr_tensor_error], value);
+}
+
 // internal accessor to fflags; this is faster than doing
 // csrset(csr_fflags, csrget(csr_fflags) | new_value)
 static inline void update_fflags(uint_fast8_t flags)
@@ -2482,6 +2489,10 @@ static uint64_t csrget(csr src1)
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
             break;
+        case csr_cycle:
+        case csr_instret:
+            val = 0;
+            break;
         case csr_time:
         case csr_hpmcounter3:
         case csr_hpmcounter4:
@@ -2574,6 +2585,7 @@ static uint64_t csrget(csr src1)
         case csr_tensor_load:
         case csr_tensor_load_l2:
         case csr_tensor_coop:
+        case csr_tensor_quant:
         case csr_tensor_fma:
         case csr_tensor_reduce:
         case csr_tensor_store:
@@ -2594,8 +2606,6 @@ static uint64_t csrget(csr src1)
             val = 0;
             break;
         // ----- M-mode registers ----------------------------------------
-        case csr_cycle:
-        case csr_instret:
         case csr_mcycle:
         case csr_minstret:
             val = 0;
@@ -2743,7 +2753,7 @@ static void csrset(csr src1, uint64_t val)
                 uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
                 int      id     = XREGS[31].x & 0x0000000000000001ULL;
                 int failed = dcache_lock_vaddr(tm, way, vaddr, count, id, stride);
-                csrregs[current_thread][csr_tensor_error] |= (failed << 5);
+                update_tensor_error(failed << 5);
             }
             break;
         case csr_unlock_va:
@@ -3011,15 +3021,9 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
         if (inc_minion)
         {
             size_t fcc_addr = shire*EMU_MINIONS_PER_SHIRE*EMU_THREADS_PER_MINION+EMU_THREADS_PER_MINION*minion_id+thread;
-            bool fcc_overflow = false;
-
             fcc[fcc_addr][fcc_id] += 1;
-            fcc_overflow = fcc[fcc_addr][fcc_id] == 0;
-            if (fcc_overflow)
-            {
-                // If overflow raise flag
-                csrregs[current_thread][csr_tensor_error] |= (0x1 << 3);
-            }
+            if (fcc[fcc_addr][fcc_id] == 0)
+                update_tensor_error(1 << 3);
         }
     }
 }
@@ -6372,7 +6376,7 @@ static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vadd
         {
             LOG(DEBUG, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
                 evict ? "EvictVA" : "FlushVA", vaddr, dest);
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+            update_tensor_error(1 << 7);
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -6412,7 +6416,7 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+            update_tensor_error(1 << 7);
             return 1;
         }
         // If target level is L1 check if the line is locked
@@ -6455,7 +6459,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tLockVA %016" PRIx64 ", Way: %d generated exception (suppressed)", vaddr, way);
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+            update_tensor_error(1 << 7);
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -6477,7 +6481,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
             // No free way found to lock
             if (!way_found)
             {
-                csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
+                update_tensor_error(1 << 5);
                 return 1;
             }
         }
@@ -6495,7 +6499,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
             {
                 // Line already locked; stop the operation
                 LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d double-locking on way %d", vaddr, way, w);
-                csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
+                update_tensor_error(1 << 5);
                 return 1;
             }
         }
@@ -6504,7 +6508,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         // check if the way is locked
         if (scp_locked[current_thread >> 1][set][way])
         {
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
+            update_tensor_error(1 << 5);
             return 1;
         }
 
@@ -6532,7 +6536,7 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tUnlockVA: %016" PRIx64 " generated exception (suppressed)", vaddr);
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+            update_tensor_error(1 << 7);
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -7035,7 +7039,7 @@ void tensorload(uint64_t control)
     // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) && false)
     // {
     //     LOG(DEBUG, "ERROR TensorLoad with SCP disabled!!");
-    //     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+    //     update_tensor_error(1 << 4);
     //     return;
     // }
 
@@ -7044,7 +7048,7 @@ void tensorload(uint64_t control)
     // if (!dcache_vaddr_is_locked(tm, base, rows, stride))
     // {
     //     LOG(DEBUG, "ERROR Tensor Load writing to unlocked scp lines!!");
-    //     csrregs[current_thread][csr_tensor_error] |= 0x1;
+    //     update_tensor_error(1 << 0);
     //     return;
     // }
 
@@ -7074,7 +7078,7 @@ void tensorload(uint64_t control)
                         catch (const trap_t& t)
                         {
                             // Memory exception
-                            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                            update_tensor_error(1 << 7);
                             return;
                         }
                         SCP[dst + i][j].u[k] = val;
@@ -7121,7 +7125,7 @@ void tensorload(uint64_t control)
                             catch (const trap_t& t)
                             {
                                 // Memory exception
-                                csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                                update_tensor_error(1 << 7);
                                 return;
                             }
                             tmp_buffer[elem][j*8+k] = val;
@@ -7196,7 +7200,7 @@ void tensorload(uint64_t control)
                     catch (const trap_t& t)
                     {
                         // Memory exception
-                        csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                        update_tensor_error(1 << 7);
                         return;
                     }
                     tmp_buffer[elem][j*8+k]=val;
@@ -7237,7 +7241,7 @@ void tensorload(uint64_t control)
                     else
                     {
                         LOG(DEBUG, "ERROR Tensor Load element size not valid!!");
-                        csrregs[current_thread][csr_tensor_error] |= (0x1 << 1);
+                        update_tensor_error(1 << 1);
                         return;
                     }
 
@@ -7347,7 +7351,7 @@ static void tensorquant(uint64_t value)
             // Dissabled until software update
             // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
             // {
-            //     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+            //     update_tensor_error(1 << 4);
             //     return;
             // }
         }
@@ -7498,7 +7502,7 @@ static void tensorstore(uint64_t tstorereg)
         // // Disabled until software update
         // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
         // {
-        //     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+        //     update_tensor_error(1 << 4);
         //     return;
         // }
 
@@ -7519,7 +7523,7 @@ static void tensorstore(uint64_t tstorereg)
                     catch (const trap_t& t)
                     {
                         // Memory exception
-                        csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                        update_tensor_error(1 << 7);
                         return;
                     }
                     LOG(DEBUG, "\t0x%08x --> MEM[0x%016" PRIx64 "]", val, waddr);
@@ -7559,7 +7563,7 @@ static void tensorstore(uint64_t tstorereg)
 
         if (!coop_comb[4*(coop-1)+(cols-1)])
         {
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 8);
+            update_tensor_error(1 << 8);
             return;
         }
 
@@ -7581,7 +7585,7 @@ static void tensorstore(uint64_t tstorereg)
                     catch (const trap_t& t)
                     {
                         // Memory exception
-                        csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                        update_tensor_error(1 << 7);
                         return;
                     }
                     LOG(DEBUG, "\t0x%08x --> MEM[0x%016" PRIx64 "]", val, addr + col * 16 + i * 4);
@@ -7627,7 +7631,7 @@ static void tensorfma(uint64_t tfmareg)
     // // Disabled until software update - JIRA RTLMIN-2096
     // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
     // {
-    //     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+    //     update_tensor_error(1 << 4);
     //     return;
     // }
 
@@ -7638,25 +7642,13 @@ static void tensorfma(uint64_t tfmareg)
         if (!tensorload_setupb_topair[current_thread] || (tensorload_setupb_numlines[current_thread] != acols))
         {
             // No TensorLoad to pair or incompatible combination of rows and columns length
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
-            //return;
-        }
-        else
-        {
-            //pair tl
-            tensorload_setupb_topair[current_thread] = false;
-            tensorload_setupb_topair[current_thread^1] = false;
+            update_tensor_error(1 << 6);
+            return;
         }
     }
-    else
-    {
-        // unpaired tl
-        if (!tensorload_setupb_topair[current_thread])
-        {
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
-            //return;
-        }
-    }
+    // Unpair a paired TensorLoad
+    tensorload_setupb_topair[current_thread] = false;
+    tensorload_setupb_topair[current_thread^1] = false;
 
     tensorfma_size[current_thread] = arows * bcols / VL;
     tensorfma_passes[current_thread] = acols;
@@ -8054,7 +8046,7 @@ static void tensorreduce(uint64_t value)
     // Sending and receiving from the same minion
     if (other_min == (current_thread>>1))
     {
-        csrregs[current_thread][csr_tensor_error] |= (0x1 << 9);
+        update_tensor_error(1 << 9);
         return;
     }
 
