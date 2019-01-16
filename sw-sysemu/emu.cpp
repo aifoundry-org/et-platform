@@ -514,8 +514,10 @@ bool emu_done()
 std::stringstream dump_xregs(uint32_t thread_id)
 {
    std::stringstream str;
-   if (thread_id < EMU_NUM_THREADS) {
-      for (int ii = 0; ii < 32; ++ii) {
+   if (thread_id < EMU_NUM_THREADS)
+   {
+      for (int ii = 0; ii < 32; ++ii)
+      {
          str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << xregs[thread_id][ii].x << "\n";
       }
    }
@@ -525,9 +527,12 @@ std::stringstream dump_xregs(uint32_t thread_id)
 std::stringstream dump_fregs(uint32_t thread_id)
 {
    std::stringstream str;
-   if (thread_id < EMU_NUM_THREADS) {
-      for (int ii = 0; ii < 32; ++ii) {
-         for (int jj = 0; jj < VL; ++jj) {
+   if (thread_id < EMU_NUM_THREADS)
+   {
+      for (int ii = 0; ii < 32; ++ii)
+      {
+         for (int jj = 0; jj < VL; ++jj)
+         {
             str << "FREG[" << std::dec << ii << "][" << jj <<  "] = 0x" << std::hex << fregs[thread_id][ii].u[jj] << "\t";
          }
          str << "\n";
@@ -603,14 +608,14 @@ static inline const char* get_fp_flags(uint_fast8_t flags)
 static uint64_t sext32(uint32_t val)
 {
     uint32_t s = val & 0x80000000;
-    uint64_t r = s ? (0xffffffff00000000ull | val ) : val;
+    uint64_t r = s ? (0xffffffff00000000ull | val) : val;
     return r;
 }
 
 static uint64_t sext16(uint32_t val)
 {
     uint32_t s = val & 0x00008000;
-    uint64_t r = s ? (0xffffffffffff0000ull | val ) : val;
+    uint64_t r = s ? (0xffffffffffff0000ull | val) : val;
     return r;
 }
 
@@ -645,7 +650,8 @@ static void check_sp_out_of_range(uint64_t val)
 
 void init(xreg dst, uint64_t val)
 {
-    if (dst != x0) {
+    if (dst != x0)
+    {
        XREGS[dst].x = val;
        LOG(DEBUG, "init x%d <-- 0x%016" PRIx64, dst, val);
     }
@@ -801,10 +807,10 @@ static float gold_fsin(float a)
         : tmp.flt >= 0.25  ? -tmp.flt + 0.5 // +II  Quartile
         : tmp.flt;                          // +I   Quartile
 
-    if(tmp.flt == 0.25) res.flt = 1.0;
-    else if(tmp.flt == -0.25) res.flt = -1.0;
-    else if(tmp.flt == 0.0) res.flt = 0.0;
-    else if(tmp.flt == -0.0) res.flt = -0.0;
+    if (tmp.flt == 0.25) res.flt = 1.0;
+    else if (tmp.flt == -0.25) res.flt = -1.0;
+    else if (tmp.flt == 0.0) res.flt = 0.0;
+    else if (tmp.flt == -0.0) res.flt = -0.0;
     else res.flt = float(sin(2.0 * M_PI * double(tmp.flt)));
 
     handle_nan_default(res);
@@ -854,7 +860,7 @@ static int32_t gold_frcp_fix_rast(int32_t a, int32_t b)
     double fval_a = double(a) / double(1 << 16);
     double fval_b = double(b) / double(1 << 14);
     // Result value is 17.14
-    double fres = (2*fval_b - fval_b*fval_b*fval_a ) * double(1 << 14);
+    double fres = (2*fval_b - fval_b*fval_b*fval_a) * double(1 << 14);
     return int32_t(fres);
 }
 
@@ -863,7 +869,7 @@ void initcsr(uint32_t thread)
     // Exit reset at M-mode
     csrregs[thread][csr_prv] = CSR_PRV_M;
     // Read-only registers
-    csrregs[thread][csr_mvendorid] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity) 
+    csrregs[thread][csr_mvendorid] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity)
     csrregs[thread][csr_marchid] = 0x8000000000000001ULL;
     csrregs[thread][csr_mimpid] = 0x0;
     csrregs[thread][csr_mhartid] = thread;
@@ -898,7 +904,7 @@ void initcsr(uint32_t thread)
 
 void minit(mreg dst, uint64_t val)
 {
-    for(int i = 0; i < VL; ++i)
+    for (int i = 0; i < VL; ++i)
     {
         MREGS[dst].b[i] = val & 0x1;
         val = val >> 1;
@@ -978,15 +984,14 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 
     // Throw an error if no one ever set stvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
-    if (stvec_is_set[current_thread] == false) {
-       LOG(DEBUG, "WARNING Trap vector has never been set. Can't take exception properly");
-    }
+    if (stvec_is_set[current_thread] == false)
+        LOG(DEBUG, "WARNING Trap vector has never been set. Can't take exception properly");
 
     // compute address where to jump to:
     //  if tvec[0]==0 (direct mode) => jump to tvec
     //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_stvec);
-    if ( (tvec & 1 ) == 1  && (cause >> 31) == 1)
+    if ((tvec & 1) == 1 && (cause >> 31) == 1)
     {
         // vectored mode and interrupt => add +4 * cause
         tvec &=  ~0x1ULL;
@@ -1029,15 +1034,14 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 
     // Throw an error if no one ever set mtvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
-    if (mtvec_is_set[current_thread] == false) {
-       LOG(DEBUG, "WARNING Trap vector has never been set. Doesn't smell good...");
-    }
+    if (mtvec_is_set[current_thread] == false)
+        LOG(DEBUG, "WARNING Trap vector has never been set. Doesn't smell good...");
 
     // compute address where to jump to
     //  if tvec[0]==0 (direct mode) => jump to tvec
     //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_mtvec);
-    if ( (tvec & 1 ) == 1  && (cause >> 31) == 1)
+    if ((tvec & 1) == 1 && (cause >> 31) == 1)
     {
         // vectored mode and interrupt => add +4 * cause
         tvec &=  ~0x1ULL;
@@ -1058,9 +1062,10 @@ void take_trap(const trap_t& t)
 void check_minst_match(uint32_t bits)
 {
     uint64_t minstmask = csrget(csr_minstmask);
-    if ( (minstmask >> 32) != 0 ) {
+    if ((minstmask >> 32) != 0)
+    {
         uint32_t mask = minstmask;
-        if ( ((bits ^ csrget(csr_minstmatch)) & mask) == 0)
+        if (((bits ^ csrget(csr_minstmatch)) & mask) == 0)
             throw trap_mcode_instruction(bits);
     }
 }
@@ -2472,7 +2477,7 @@ static uint64_t csrget(csr src1)
             throw trap_illegal_instruction(current_inst);
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
-	    val = csrregs[current_thread][csr_fcsr] & 0x8000001f;
+            val = csrregs[current_thread][csr_fcsr] & 0x8000001f;
             break;
         case csr_frm:
             val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
@@ -2540,14 +2545,16 @@ static uint64_t csrget(csr src1)
             val = port_get(src1 - csr_portheadnb0, false);
             break;
         case csr_sleep_txfma_27:
-          if ( prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0) {
+          if (prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0)
+          {
                throw trap_illegal_instruction(current_inst);
           }
           val = csrregs[current_thread][csr_msleep_txfma_27];
           break;
         case csr_hartid:
           //check shadow is allowed
-          if ( prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 1) == 0) {
+          if (prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 1) == 0)
+          {
                throw trap_illegal_instruction(current_inst);
           }
           val = csrregs[current_thread][csr_mhartid];
@@ -2587,8 +2594,8 @@ static uint64_t csrget(csr src1)
             val = 0;
             break;
         // ----- M-mode registers ----------------------------------------
-	case csr_cycle:
-	case csr_instret:
+        case csr_cycle:
+        case csr_instret:
         case csr_mcycle:
         case csr_minstret:
             val = 0;
@@ -2678,17 +2685,17 @@ static void csrset(csr src1, uint64_t val)
             tcoop(val);
             break;
         case csr_tensor_quant:
-            if ( ! txfma_off_allowed(src1, val) )
+            if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorquant(val);
             break;
         case csr_tensor_fma:
-            if ( ! txfma_off_allowed(src1, val) )
+            if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorfma(val);
             break;
         case csr_tensor_reduce:
-            if ( ! txfma_off_allowed(src1, val) )
+            if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorreduce(val);
             break;
@@ -2697,19 +2704,19 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_fcc:
             fcc_cnt = val & 0x01;
-            if ( in_sysemu ) {
-               // If you are not going to block decrement it
-	       if ( fcc[current_thread][fcc_cnt] != 0 )
-	          fcc[current_thread][fcc_cnt]--;  
-               
-            } else {
-              if (fcc[current_thread][fcc_cnt] == 0 ) {
-               //fcc underflow
-		    LOG(DEBUG, "FCC underflow. You shouldn't be here...");
-	       }
-	     fcc[current_thread][fcc_cnt]--;  
+            if (in_sysemu)
+            {
+                // If you are not going to block decrement it
+                if (fcc[current_thread][fcc_cnt] != 0)
+                    fcc[current_thread][fcc_cnt]--;
             }
-             
+            else
+            {
+                //fcc underflow
+                if (fcc[current_thread][fcc_cnt] == 0)
+                    LOG(DEBUG, "FCC underflow. You shouldn't be here...");
+                fcc[current_thread][fcc_cnt]--;
+            }
             break;
         case csr_stall:
             break;
@@ -2736,7 +2743,7 @@ static void csrset(csr src1, uint64_t val)
                 uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
                 int      id     = XREGS[31].x & 0x0000000000000001ULL;
                 int failed = dcache_lock_vaddr(tm, way, vaddr, count, id, stride);
-		csrregs[current_thread][csr_tensor_error] |= (failed << 5); 
+                csrregs[current_thread][csr_tensor_error] |= (failed << 5);
             }
             break;
         case csr_unlock_va:
@@ -2766,7 +2773,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_scratchpad_ctrl: // Shared register
             val &= 0x0000000000000001ULL;
             csrregs[current_thread][src1] = val;
-	    csrregs[current_thread^1][src1] = val;
+            csrregs[current_thread^1][src1] = val;
             num_sets = val ? 4 : 16;
             break;
         case csr_tex_send:
@@ -2778,8 +2785,9 @@ static void csrset(csr src1, uint64_t val)
             new_sample_request(csrregs[current_thread][src1] & 0x0000000F, (csrregs[current_thread][src1] >> 4) & 0x0000000F, read_port_base_address(current_thread, csrregs[current_thread][src1] & 0x0000000F));
             break;
         case csr_sleep_txfma_27:
-            if ( csrregs[current_thread][csr_prv] != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0) {
-              throw trap_illegal_instruction(current_inst);
+            if (csrregs[current_thread][csr_prv] != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0)
+            {
+                throw trap_illegal_instruction(current_inst);
             }
             csrregs[current_thread][csr_msleep_txfma_27] = val;
             csrregs[current_thread ^ 1][csr_msleep_txfma_27] = val;
@@ -2828,7 +2836,7 @@ static void csrset(csr src1, uint64_t val)
                 case SATP_MODE_SV39:
                 case SATP_MODE_SV48:
                     csrregs[current_thread][src1] = val;
-		    csrregs[current_thread^1][src1] = val;
+                    csrregs[current_thread^1][src1] = val;
                     break;
                 default: // reserved
                     // do not write the register if attempting to set an unsupported mode
@@ -2916,17 +2924,22 @@ static void csrset(csr src1, uint64_t val)
         // ----- Verification registers ----------------------------------------
         case csr_validation1:
             // EOT signals end of test
-            if ((char) val == 4) {
-               LOG(INFO, "Validation1 CSR received End Of Transmission.");
-               m_emu_done = true;
-               break;
+            if ((char) val == 4)
+            {
+                LOG(INFO, "Validation1 CSR received End Of Transmission.");
+                m_emu_done = true;
+                break;
             }
-            if ((char) val != '\n') {
-               uart_stream[current_thread] << (char) val;
-            } else { // If line feed, flush to stdout
-               std::cout << uart_stream[current_thread].str() << std::endl;
-               uart_stream[current_thread].str("");
-               uart_stream[current_thread].clear();
+            if ((char) val != '\n')
+            {
+                uart_stream[current_thread] << (char) val;
+            }
+            else
+            {
+                // If line feed, flush to stdout
+                std::cout << uart_stream[current_thread].str() << std::endl;
+                uart_stream[current_thread].str("");
+                uart_stream[current_thread].clear();
             }
             break;
         // ----- Not really ESRs -----------------------------------------
@@ -2989,22 +3002,25 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
     logxregchange(dst);
 }
 
-void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id) {
-
+void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id)
+{
     uint64_t current_mask = minion_mask;
-    for(int minion_id = 0; minion_id < 64; ++minion_id) {	
-	int inc_minion = (current_mask & (1 << minion_id)) >> minion_id;
-	if(inc_minion) {
-	    size_t fcc_addr = shire*EMU_MINIONS_PER_SHIRE*EMU_THREADS_PER_MINION+EMU_THREADS_PER_MINION*minion_id+thread;
-	    bool fcc_overflow = false;
-	    
-	    fcc[fcc_addr][fcc_id] += 1;
-	    fcc_overflow = fcc[fcc_addr][fcc_id] == 0;
-	    if (fcc_overflow) {
-		// If overflow raise flag
-		csrregs[current_thread][csr_tensor_error] |= (0x1 << 3); 
-	    }
-	}
+    for (int minion_id = 0; minion_id < 64; ++minion_id)
+    {
+        int inc_minion = (current_mask & (1 << minion_id)) >> minion_id;
+        if (inc_minion)
+        {
+            size_t fcc_addr = shire*EMU_MINIONS_PER_SHIRE*EMU_THREADS_PER_MINION+EMU_THREADS_PER_MINION*minion_id+thread;
+            bool fcc_overflow = false;
+
+            fcc[fcc_addr][fcc_id] += 1;
+            fcc_overflow = fcc[fcc_addr][fcc_id] == 0;
+            if (fcc_overflow)
+            {
+                // If overflow raise flag
+                csrregs[current_thread][csr_tensor_error] |= (0x1 << 3);
+            }
+        }
     }
 }
 
@@ -3252,7 +3268,7 @@ void sret(const char* comm)
 {
     uint64_t curprv = prvget();
     uint64_t mstatus = csrget(csr_mstatus);
-    if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && ( ((mstatus >> 22) & 1) == 1 ) ))
+    if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && (((mstatus >> 22) & 1) == 1)))
       throw trap_illegal_instruction(current_inst);
 
     LOG(DEBUG, "I: sret%s%s", (comm?" # ":""), (comm?comm:""));
@@ -3288,7 +3304,7 @@ void wfi(const char* comm)
 {
     uint64_t curprv = prvget();
     uint64_t mstatus = csrget(csr_mstatus);
-    if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && ( ((mstatus >> 21) & 1 ) == 1 ) ) )
+    if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && (((mstatus >> 21) & 1) == 1)))
       throw trap_illegal_instruction(current_inst);
 
     LOG(DEBUG, "I: wfi%s%s", (comm?" # ":""), (comm?comm:""));
@@ -3434,7 +3450,7 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
     set_rounding_mode(rm);
     clear_arithmetic_flags();
 
-    switch ( opc )
+    switch (opc)
     {
         case FCVTSW:
             val.u = XREGS[src1].w[0];
@@ -3480,7 +3496,7 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
 
         iufval32 val, res;
         val.u = FREGS[src1].u[i];
-        switch ( opc )
+        switch (opc)
         {
             case FSQRT:
                 {
@@ -3634,14 +3650,14 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
     set_rounding_mode(rm);
     clear_arithmetic_flags();
 
-    for ( int i = 0; i < count; i++ )
+    for (int i = 0; i < count; i++)
     {
         if (count == VL && MREGS[0].b[i] == 0) continue;
 
         iufval32 val1, val2, res;
         val1.u = FREGS[src1].u[i];
         val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
-        switch ( opc )
+        switch (opc)
         {
             case FADD:
                 {
@@ -3750,7 +3766,7 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
     set_rounding_mode(rm);
     clear_arithmetic_flags();
 
-    for ( int i = 0; i < count; i++ )
+    for (int i = 0; i < count; i++)
     {
         if (count == VL && MREGS[0].b[i] == 0) continue;
 
@@ -4090,13 +4106,13 @@ void fnmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 
 static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
 {
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         uint8_t val1  = MREGS[src1].b[i];
         uint8_t val2  = (src2 == mnone) ? 0 : MREGS[src2].b[i];
 
         uint8_t res;
-        switch ( opc )
+        switch (opc)
         {
             case MAND:   res = (val1 & val2) & 0x1;
                          LOG(DEBUG, "\t[%d] %d <-- %d & %d", i, res, val1, val2);
@@ -4154,10 +4170,10 @@ void mova_x_m(xreg dst, const char* comm)
     if (dst != x0)
     {
         uint64_t val = 0;
-        for ( int m = 7; m >= 0; m-- )
+        for (int m = 7; m >= 0; m--)
         {
             val <<= VL;
-            for ( int i = 0; i < VL; i++ )
+            for (int i = 0; i < VL; i++)
             {
                 val |= (MREGS[m].b[i] & 0x1) << i;
             }
@@ -4175,9 +4191,9 @@ void mova_m_x(xreg src1, const char* comm)
     uint64_t val = XREGS[src1].x;
 
     LOG(DEBUG, "\tallmasks <-- 0x%016" PRIx64, val);
-    for ( int m = 0; m < 8; m++ )
+    for (int m = 0; m < 8; m++)
     {
-        for ( int i = 0; i < VL; i++ )
+        for (int i = 0; i < VL; i++)
         {
             MREGS[m].b[i] = (val >> i) & 0x1;
             LOG(DEBUG, "\tm%d.b[%d] = 0x%x", m, i, MREGS[m].b[i]);
@@ -4193,9 +4209,9 @@ void mov_m_x(mreg dst, xreg src1, unsigned imm, const char* comm)
     DEBUG_MASK(MREGS[0]);
 
     uint32_t val = XREGS[src1].w[0] | (imm & ((1u<<VL) - 1u));
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
-        MREGS[dst].b[i] = ( val >> i ) & 0x1;
+        MREGS[dst].b[i] = (val >> i) & 0x1;
         LOG(DEBUG, "\tm%d.b[%d] = 0x%x  (from val=0x%08x)", dst, i, MREGS[dst].b[i], val);
     }
     logmregchange(dst);
@@ -4205,12 +4221,13 @@ void maskpopc(xreg dst, mreg src1, const char* comm)
 {
     LOG(DEBUG, "I: maskpopc x%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     uint64_t count = 0;
-    for(int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         count += (MREGS[src1].b[i] ? 1 : 0);
         LOG(DEBUG, "\tcount = %ld from m%d.b[%d] = %d", count, src1, i, MREGS[src1].b[i]);
     }
-    if ( dst != x0 ) XREGS[dst].x = count;
+    if (dst != x0)
+        XREGS[dst].x = count;
     logxregchange(dst);
 }
 
@@ -4218,12 +4235,13 @@ void maskpopcz(xreg dst, mreg src1, const char* comm)
 {
     LOG(DEBUG, "I: maskpopcz x%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     uint64_t count = 0;
-    for(int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         count += (MREGS[src1].b[i] ? 0 : 1);
         LOG(DEBUG, "\tcount = %ld from m%d.b[%d] = %d ", count, src1, i, MREGS[src1].b[i]);
     }
-    if ( dst != x0 ) XREGS[dst].x = count;
+    if (dst != x0)
+        XREGS[dst].x = count;
     logxregchange(dst);
 }
 
@@ -4241,21 +4259,22 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, unsigned imm, const char* com
         default : mask = 0xffff; break;
     }
 
-    for(int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         count += ((MREGS[src1].b[i] & (mask & 0x1)) ? 1 : 0);
         LOG(DEBUG, "\tcount = %ld from m%d.b[%d] = %d m = %d ", count, src1, i, MREGS[src1].b[i], mask & 0x1);
         mask = mask >> 1;
     }
 
-    for(int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         count += ((MREGS[src2].b[i] & (mask & 0x1)) ? 1 : 0);
         LOG(DEBUG, "\tcount = %ld from m%d.b[%d] = %d m = %d ", count, src2, i, MREGS[src2].b[i], mask & 0x1);
         mask = mask >> 1;
     }
 
-    if ( dst != x0 ) XREGS[dst].x = count;
+    if (dst != x0)
+        XREGS[dst].x = count;
     logxregchange(dst);
 }
 
@@ -4345,17 +4364,17 @@ void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
     uint64_t addr = XREGS[base].x + off;
     val.u = 0;
     uint8_t  b = 0;
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         b |= MREGS[0].b[i];
     }
-    if ( b != 0 )
+    if (b != 0)
     {
         val.u = vmemread32(addr);
     }
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
-        if ( MREGS[0].b[i] )
+        if (MREGS[0].b[i])
         {
             FREGS[dst].u[i] = val.u;
             LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- MEM[0x%016" PRIx64 "]", i, val.u, val.flt, addr);
@@ -4373,9 +4392,9 @@ void fbci_ps(freg dst, uint32_t imm, const char* comm)
 
     iufval32 val;
     val.u = imm;
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
-        if ( MREGS[0].b[i] )
+        if (MREGS[0].b[i])
         {
             FREGS[dst].u[i] = val.u;
             LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x", i, val.u, val.flt, imm);
@@ -4393,9 +4412,9 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
 
     iufval32 val;
     val.u = XREGS[src].w[0];
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
-        if ( MREGS[0].b[i] )
+        if (MREGS[0].b[i])
         {
             FREGS[dst].u[i] = val.u;
             LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x", i, val.u, val.flt, val.u);
@@ -4421,21 +4440,21 @@ static void gatheremu(opcode opc, int size, freg dst, freg src1, xreg base)
         {
             case FGW: val.u = vmemread32(addr); break;
             case FGH: val.u = sext16(vmemread16(addr)); break;
-	    case FGBL:
-	    case FGBG:
+            case FGBL:
+            case FGBG:
             case FGB: val.u = sext8(vmemread8(addr)); break;
-	    case FGWL:
-	    case FGWG:
-		if ( (addr % size) != 0 )
-		    throw trap_load_address_misaligned(addr);		
-		val.u = vmemread32(addr);
-		break;
-	    case FGHL:
-	    case FGHG:
-		if ( (addr % size) != 0 )
-		    throw trap_load_address_misaligned(addr);
-		val.u = sext16(vmemread16(addr));
-		break;
+            case FGWL:
+            case FGWG:
+                if ((addr % size) != 0)
+                    throw trap_load_address_misaligned(addr);
+                val.u = vmemread32(addr);
+                break;
+            case FGHL:
+            case FGHG:
+                if ((addr % size) != 0)
+                    throw trap_load_address_misaligned(addr);
+                val.u = sext16(vmemread16(addr));
+                break;
             default : assert(0); break;
         }
         FREGS[dst].u[i] = val.u;
@@ -4494,23 +4513,23 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
         {
             case FSCW : vmemwrite32(addr, val.u); logmemwchange(i, 4, addr, val.u); break;
             case FSCH : vmemwrite16(addr, uint16_t(val.u)); logmemwchange(i, 2, addr, val.u); break;
-	    case FSCBL :
-	    case FSCBG :		
+            case FSCBL :
+            case FSCBG :
             case FSCB : vmemwrite8(addr, uint8_t(val.u));  logmemwchange(i, 1, addr, val.u); break;
-	    case FSCWL :
-	    case FSCWG :
-		if ( (addr % 4) != 0 )
-		    throw trap_load_address_misaligned(addr);		
-		vmemwrite32(addr, val.u);
-		logmemwchange(i, 4, addr, val.u);
-		break;
-	    case FSCHL :
-	    case FSCHG :
-		if ( (addr % 2) != 0 )
-		    throw trap_load_address_misaligned(addr);
-		vmemwrite16(addr, uint16_t(val.u));
-		logmemwchange(i, 2, addr, val.u);
-		break;
+            case FSCWL :
+            case FSCWG :
+                if ((addr % 4) != 0)
+                    throw trap_load_address_misaligned(addr);
+                vmemwrite32(addr, val.u);
+                logmemwchange(i, 4, addr, val.u);
+                break;
+            case FSCHL :
+            case FSCHG :
+                if ((addr % 2) != 0)
+                    throw trap_load_address_misaligned(addr);
+                vmemwrite16(addr, uint16_t(val.u));
+                logmemwchange(i, 2, addr, val.u);
+                break;
             default   : assert(0); break;
         }
 
@@ -4746,7 +4765,7 @@ void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
 static void fmask(opcode opc, mreg dst, freg src1, freg src2)
 {
     clear_arithmetic_flags();
-    for (int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
@@ -5111,7 +5130,7 @@ static void ucvtemu(opcode opc, freg dst, freg src1)
 
         uint32_t val = FREGS[src1].u[i];
         iufval32 res;
-        switch ( opc )
+        switch (opc)
         {
             case FCVTPSF16:  res.f = fpu::f16_to_f32(cast_uint16_to_float16(val));  break;
             case FCVTPSF11:  res.f = fpu::f11_to_f32(cast_uint16_to_float11(val));  break;
@@ -5369,7 +5388,7 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     set_rounding_mode(rm);
     clear_arithmetic_flags();
     DEBUG_MASK(MREGS[0]);
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         if (MREGS[0].b[i] == 0) continue;
 
@@ -5415,7 +5434,7 @@ void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    for(int i = 0; i < VL; i++)
+    for (int i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
@@ -5441,7 +5460,7 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
     clear_arithmetic_flags();
     DEBUG_MASK(MREGS[0]);
 
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
@@ -5464,7 +5483,7 @@ void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
@@ -5486,7 +5505,7 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
@@ -5540,9 +5559,9 @@ void fbci_pi(freg dst, int32_t imm, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
-        if ( MREGS[0].b[i] )
+        if (MREGS[0].b[i])
         {
             FREGS[dst].i[i] = imm;
             LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x", i, FREGS[dst].i[i], imm);
@@ -5556,7 +5575,7 @@ void fbci_pi(freg dst, int32_t imm, const char* comm)
 
 static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
 {
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
@@ -5565,7 +5584,7 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
         val1.u = FREGS[src1].u[i];
         val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
 
-        switch ( opc )
+        switch (opc)
         {
             case FADDPI :   res.u = val1.u + val2.u;
                             LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x + 0x%08x", i, res.u, val1.u, val2.u);
@@ -5656,7 +5675,7 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
 
 static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
 {
-    for ( int i = 0; i < VL; i++ )
+    for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
         if (MREGS[0].b[i] == 0) continue;
@@ -5665,7 +5684,7 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
         val1.u = FREGS[src1].u[i];
         val2.u = sext10(imm); // sign extend the 10-low order bits of imm
 
-        switch ( opc )
+        switch (opc)
         {
             case FADDIPI: res.u = val1.u + val2.u;
                           LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x + 0x%08x", i, res.u, val1.u, val2.u);
@@ -6273,7 +6292,7 @@ uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size
 
 void get_scratchpad_conv_list(std::list<bool> * list)
 {
-    for(int i = 0; i < 16; i++)
+    for (int i = 0; i < 16; i++)
         list->push_back(scp_tm && !tmask_pass(i));
 }
 
@@ -6282,24 +6301,23 @@ void get_scratchpad_conv_list(std::list<bool> * list)
 // SCP ranges
 int get_scratchpad_next_entry(int entry)
 {
-
-    const static int row_to_scp[48] = {  0, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,
-					 16,17,18,19,20,21,22,23,24,25,26,27,
-					 32,33,34,35,36,37,38,39,40,41,42,43,
-					 48,49,50,41,52,53,54,55,56,57,58,59};
-    if ( csrregs[current_thread][csr_scratchpad_ctrl] & 0x1 )
+    const static int row_to_scp[48] = {
+        0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+        32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+        48, 49, 50, 41, 52, 53, 54, 55, 56, 57, 58, 59
+    };
+    if (csrregs[current_thread][csr_scratchpad_ctrl] & 0x1)
     {
-	if ( entry > 47 || entry < 0)
-	{
-	    LOG(DEBUG,"SCP entry out of range : %i\n", entry );
-	    return entry;
-	}
-	return row_to_scp[entry];
-    } else
-	return entry;
-    
+        if (entry > 47 || entry < 0)
+        {
+            LOG(DEBUG,"SCP entry out of range : %i\n", entry);
+            return entry;
+        }
+        return row_to_scp[entry];
+    }
+    return entry;
 }
-
 
 // ----- CacheOp emulation -----------------------------------------------------
 
@@ -6352,9 +6370,9 @@ static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vadd
         }
         catch (const trap_t& t)
         {
-          LOG(DEBUG, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
-              evict ? "EvictVA" : "FlushVA", vaddr, dest);
-	  csrregs[current_thread][csr_tensor_error] |= (0x1 << 7); 
+            LOG(DEBUG, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
+                evict ? "EvictVA" : "FlushVA", vaddr, dest);
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -6394,7 +6412,7 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
-	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 7); 
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
             return 1;
         }
         // If target level is L1 check if the line is locked
@@ -6417,7 +6435,7 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
 static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
 {
     (void)(id);
-    
+
     // Skip all if way is outside the cache limits
     if ((way >= L1D_NUM_WAYS) && (way != 255))
         return 0;
@@ -6437,7 +6455,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tLockVA %016" PRIx64 ", Way: %d generated exception (suppressed)", vaddr, way);
-	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 7); 
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -6446,21 +6464,22 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         {
             // Lock the first available way
             // FIXME: or if the line exists unlocked in the cache use the way of the existing line.
-	    bool way_found = false;
+            bool way_found = false;
             for (int w = 0; w < L1D_NUM_WAYS; ++w)
             {
                 if (!scp_locked[current_thread >> 1][set][w])
                 {
                     way = w;
-		    way_found = true;
+                    way_found = true;
                     break;
                 }
             }
-	    // No free way found to lock
-	    if(!way_found) {
-		csrregs[current_thread][csr_tensor_error] |= (0x1 << 5); 
-		return 1;
-	    }
+            // No free way found to lock
+            if (!way_found)
+            {
+                csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
+                return 1;
+            }
         }
         if (way == 255)
         {
@@ -6476,17 +6495,18 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
             {
                 // Line already locked; stop the operation
                 LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d double-locking on way %d", vaddr, way, w);
-		csrregs[current_thread][csr_tensor_error] |= (0x1 << 5); 
+                csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
                 return 1;
-            }	    
+            }
         }
         // FIXME: We should check if PA exists, unlocked, in another set in the cache
 
-	// check if the way is locked
-	if (scp_locked[current_thread >> 1][set][way]) {
-	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
-	    return 1;
-	}
+        // check if the way is locked
+        if (scp_locked[current_thread >> 1][set][way])
+        {
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
+            return 1;
+        }
 
         scp_locked[current_thread >> 1][set][way] = true;
         scp_trans[current_thread >> 1][set][way] = paddr;
@@ -6512,7 +6532,7 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tUnlockVA: %016" PRIx64 " generated exception (suppressed)", vaddr);
-	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 7); 
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
             return 1;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
@@ -6531,15 +6551,15 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
     return 0;
 }
 
-// static bool dcache_vaddr_is_locked(bool tm, uint64_t vaddr, int numlines, uint64_t stride) {
-    
+// static bool dcache_vaddr_is_locked(bool tm, uint64_t vaddr, int numlines, uint64_t stride)
+// {
 //     bool locked = true;
 //     for (int i = 0; i <= numlines; i++, vaddr += stride)
 //     {
 //         // Skip if masked
 //         if (tm && !tmask_pass(i))
 //             continue;
-
+//
 //         uint64_t paddr = 0;
 //         try
 //         {
@@ -6552,11 +6572,11 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
 //             //return false;
 //         }
 //         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
-
+//
 //         // Check if paddr is locked in the cache
 //         for (int w = 0; w < L1D_NUM_WAYS; ++w)
 //         {
-// 	    locked &= scp_locked[current_thread >> 1][set][w];
+//             locked &= scp_locked[current_thread >> 1][set][w];
 //         }
 //     }
 //     return locked;
@@ -6655,7 +6675,7 @@ void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, ui
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
 
-    if(msg_ports[thread][id].enable_oob)
+    if (msg_ports[thread][id].enable_oob)
         msg_ports_oob[thread][id].push(oob);
 }
 
@@ -6730,10 +6750,10 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
         msg_port_write_t port_write;
         bool found = false;
 
-        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); )
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); /**/)
         {
             port_write = *it;
-            if ((port_write.target_thread == target_thread) && 
+            if ((port_write.target_thread == target_thread) &&
                 (port_write.target_thread == port_id)       &&
                 (port_write.source_thread == source_thread) &&
                 !(port_write.is_tbox || port_write.is_rbox))
@@ -6765,10 +6785,10 @@ void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, ui
         msg_port_write_t port_write;
         bool found = false;
 
-        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); )
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); /**/)
         {
             port_write = *it;
-            if ((port_write.target_thread == target_thread) && 
+            if ((port_write.target_thread == target_thread) &&
                 (port_write.target_port   == port_id)       &&
                 (port_write.source_thread == tbox_id)       &&
                  port_write.is_tbox && !port_write.is_rbox)
@@ -6799,10 +6819,10 @@ void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, ui
         msg_port_write_t port_write;
         bool found = false;
 
-        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); )
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); /**/)
         {
             port_write = *it;
-            if ((port_write.target_thread == target_thread) && 
+            if ((port_write.target_thread == target_thread) &&
                 (port_write.target_port   == port_id)       &&
                 (port_write.source_thread == rbox_id)       &&
                 !port_write.is_tbox && port_write.is_rbox)
@@ -6833,7 +6853,7 @@ static int64_t port_get(uint32_t id, bool block)
     }
 
 
-    if(msg_port_empty(current_thread,id))
+    if (msg_port_empty(current_thread,id))
     {
         LOG(DEBUG, "Blocking MSG_PORT%s (m%d p%d) wr_ptr=%d, rd_ptr=%d", block ? "" : "NB", current_thread, id,
             msg_ports[current_thread][id].wr_ptr, msg_ports[current_thread][id].rd_ptr);
@@ -6952,7 +6972,7 @@ static void tmask_conv()
     if (conv_col_pos & 0x8000) conv_col_pos = conv_col_pos | 0xFFFFFFFFFFFF0000ULL;
 
     // Goes through the 16 elements of the tensormap
-    for(int i = 0; i < 16; i++)
+    for (int i = 0; i < 16; i++)
     {
         // Sets a 1 if convolution passes
         if (!conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
@@ -6978,7 +6998,7 @@ static void tcoop(uint64_t value)
 
 // ----- TensorLoad emulation --------------------------------------------------
 
-void tensorload(uint64_t control)//Transtensorload
+void tensorload(uint64_t control)
 {
     uint64_t stride  = XREGS[31].x & 0xFFFFFFFFFFC0ULL;
 
@@ -7001,10 +7021,10 @@ void tensorload(uint64_t control)//Transtensorload
     if (tenb)
     {
         dst = L1_SCP_ENTRIES;
-	tensorload_setupb_topair[current_thread] = true;
-	tensorload_setupb_topair[current_thread^1] = true;
-	tensorload_setupb_numlines[current_thread] = rows;
-	tensorload_setupb_numlines[current_thread^1] = rows;
+        tensorload_setupb_topair[current_thread] = true;
+        tensorload_setupb_topair[current_thread^1] = true;
+        tensorload_setupb_numlines[current_thread] = rows;
+        tensorload_setupb_numlines[current_thread^1] = rows;
     }
 
     scp_entry[current_thread] = dst;
@@ -7012,18 +7032,20 @@ void tensorload(uint64_t control)//Transtensorload
 
     // // Check if SCP is enabled
     // // Disabled until the SCPControl register spec is updated
-    // if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) && false ) {
-    //   	LOG(DEBUG, "ERROR TensorLoad with SCP disabled!!");
-    //   	csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
-    //   	return; 
-    //  }
-    
+    // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) && false)
+    // {
+    //     LOG(DEBUG, "ERROR TensorLoad with SCP disabled!!");
+    //     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+    //     return;
+    // }
+
     // // Check if line is locked
-    // // Disabled until the spec is updated 
-    // if(!dcache_vaddr_is_locked(tm, base, rows, stride)){
-    // 	LOG(DEBUG, "ERROR Tensor Load writing to unlocked scp lines!!");
-    // 	csrregs[current_thread][csr_tensor_error] |= 0x1;
-    // 	return;
+    // // Disabled until the spec is updated
+    // if (!dcache_vaddr_is_locked(tm, base, rows, stride))
+    // {
+    //     LOG(DEBUG, "ERROR Tensor Load writing to unlocked scp lines!!");
+    //     csrregs[current_thread][csr_tensor_error] |= 0x1;
+    //     return;
     // }
 
     //NO TRANS
@@ -7039,20 +7061,22 @@ void tensorload(uint64_t control)//Transtensorload
                     LOG(DEBUG, "ERROR Tensor Load not aligned to cache line!!");
 
                 }
-                for ( int j = 0; j < L1_SCP_BLOCKS; j++ )
+                for (int j = 0; j < L1_SCP_BLOCKS; j++)
                 {
-                    for ( int k = 0; k < VL; k++ )
+                    for (int k = 0; k < VL; k++)
                     {
                         uint64_t addr_final = addr+j*VL*4+k*4;
-			uint32_t val = 0;
-			try {
-			    val = vmemread32(addr_final);    
-			} catch (const trap_t& t) {
-			    // Memory exception
-			    csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
-			    return;
-			}
-                        
+                        uint32_t val = 0;
+                        try
+                        {
+                            val = vmemread32(addr_final);
+                        }
+                        catch (const trap_t& t)
+                        {
+                            // Memory exception
+                            csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                            return;
+                        }
                         SCP[dst + i][j].u[k] = val;
                         LOG(DEBUG, "\tScratchpad tensor load MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, dst+i, j, k, SCP[dst+i][j].u[k], SCP[dst+i][j].u[k]);
                     }
@@ -7081,22 +7105,25 @@ void tensorload(uint64_t control)//Transtensorload
                 {
                     LOG(DEBUG, "ERROR Tensor Load not aligned to cache line!!");
                 }
-                for( int elem = 0; elem < elements; ++elem)
+                for (int elem = 0; elem < elements; ++elem)
                 {
                     //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
-                    for ( int j = 0; j < 8; j++ )
+                    for (int j = 0; j < 8; j++)
                     {
-                        for ( int k = 0; k < 8; k++ )
+                        for (int k = 0; k < 8; k++)
                         {
                             uint64_t addr_final = addr+j*8+k;
                             uint8_t val = 0;
-			    try {
-				val = vmemread8(addr_final);    
-			    } catch (const trap_t& t) {
-				// Memory exception
-				csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
-				return;
-			    }
+                            try
+                            {
+                                val = vmemread8(addr_final);
+                            }
+                            catch (const trap_t& t)
+                            {
+                                // Memory exception
+                                csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                                return;
+                            }
                             tmp_buffer[elem][j*8+k] = val;
                             LOG(DEBUG, "\tLoading into tmp_buffer - MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, elem, j, k, tmp_buffer[elem][j*8+k], tmp_buffer[elem][j*8+k]);
                         }
@@ -7138,7 +7165,7 @@ void tensorload(uint64_t control)//Transtensorload
     {
 
         bool exist_conv = 0;
-        for(int i=0; (i<rows) & (!exist_conv);++i)
+        for (int i=0; (i<rows) & (!exist_conv);++i)
             exist_conv = tmask_pass(i);
         if (tm && !exist_conv)
         {
@@ -7153,22 +7180,25 @@ void tensorload(uint64_t control)//Transtensorload
         int elements = 64 >> (size-1);
         size = 1 << (size-1);
         LOG(DEBUG, "TensorLoad: Transpose - elements:%d size:%d offset:%d", elements, size, offset);
-        for( int elem = 0; elem < elements; ++elem)
+        for (int elem = 0; elem < elements; ++elem)
         {
             //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
-            for ( int j = 0; j < 8; j++ )
+            for (int j = 0; j < 8; j++)
             {
-                for ( int k = 0; k < 8; k++ )
+                for (int k = 0; k < 8; k++)
                 {
                     uint64_t addr_final = addr+j*8+k;
-		    uint8_t val = 0;
-		    try {
-			val = vmemread8(addr_final);    
-		    } catch (const trap_t& t) {
-			// Memory exception
-			csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
-			return;
-		    }
+                    uint8_t val = 0;
+                    try
+                    {
+                        val = vmemread8(addr_final);
+                    }
+                    catch (const trap_t& t)
+                    {
+                        // Memory exception
+                        csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                        return;
+                    }
                     tmp_buffer[elem][j*8+k]=val;
                     LOG(DEBUG, "\tLoading into tmp_buffer - MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, elem, j, k, tmp_buffer[elem][j*8+k], tmp_buffer[elem][j*8+k]);
                 }
@@ -7206,9 +7236,9 @@ void tensorload(uint64_t control)//Transtensorload
                     }
                     else
                     {
-			LOG(DEBUG, "ERROR Tensor Load element size not valid!!");			    
-			csrregs[current_thread][csr_tensor_error] |= (0x1 << 1);
-			return;
+                        LOG(DEBUG, "ERROR Tensor Load element size not valid!!");
+                        csrregs[current_thread][csr_tensor_error] |= (0x1 << 1);
+                        return;
                     }
 
                 }
@@ -7256,7 +7286,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             {
                 LOG(DEBUG, "ERROR Tensor Load not aligned to cache line!!");
             }
-            for ( int j = 0; j < L1_SCP_LINE_SIZE/4; j++ )
+            for (int j = 0; j < L1_SCP_LINE_SIZE/4; j++)
             {
                 uint64_t addr_offset  = j*4;
                 uint64_t addr_final = addr+addr_offset;
@@ -7298,37 +7328,38 @@ static void tensorquant(uint64_t value)
 
     // Gets all the transformations done by the tensorquant operation
     uint64_t transformations[TQUANT_MAX_TRANS];
-    for(int i = 0; i < TQUANT_MAX_TRANS; i++)
+    for (int i = 0; i < TQUANT_MAX_TRANS; i++)
         transformations[i] = (value >> (i * 4)) & 0xF;
 
     LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", scpsrc, rows, cols, regstart);
-    for(int trans = 0; trans < TQUANT_MAX_TRANS; trans++)
+    for (int trans = 0; trans < TQUANT_MAX_TRANS; trans++)
     {
         tensorquant_is_pack[current_thread][trans] = (transformations[trans] >= 10);
         LOG(DEBUG, "\t\tTransformation %d: %s", trans, trans_int_to_str[transformations[trans]]);
-        if(transformations[trans] == 0) break;
+        if (transformations[trans] == 0) break;
         tensorquant_trans[current_thread]++;
         bool scp_inc = false;
 
-	if ( transformations[trans] == 4 || transformations[trans] == 5 ||
-	     transformations[trans] == 6 || transformations[trans] == 7 ) {	    
-	    // Check if SCP is enabled
-	    // Dissabled until software update
-	    // if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) ) {
-	    // 	csrregs[current_thread][csr_tensor_error] |= (0x1 << 4); 
-	    // 	return; 
-	    // }
-	}
-	     
-	
+        if (transformations[trans] == 4 || transformations[trans] == 5 ||
+            transformations[trans] == 6 || transformations[trans] == 7)
+        {
+            // Check if SCP is enabled
+            // Dissabled until software update
+            // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
+            // {
+            //     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+            //     return;
+            // }
+        }
+
         // For all the rows
-        for(int row = 0; row < rows; row++)
+        for (int row = 0; row < rows; row++)
         {
             // For all the blocks of 128b
-            for(int col = 0; col < cols; col++)
+            for (int col = 0; col < cols; col++)
             {
                 // For all the 32 elements of the 128b block
-                for(int elem = 0; elem < 4; elem++)
+                for (int elem = 0; elem < 4; elem++)
                 {
                     int src = regstart + row * 2 + (col / 2);
                     int idx = (col & 1) * 4 + elem;
@@ -7337,25 +7368,25 @@ static void tensorquant(uint64_t value)
                     res.u = val.u;
 
                     // INT32 to FP32
-                    if(transformations[trans] == 1)
+                    if (transformations[trans] == 1)
                     {
                         res.f = fpu::i32_to_f32(val.i);
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)", src, idx, res.u, res.flt, val.u, val.i);
                     }
                     // FP32 to INT32
-                    else if(transformations[trans] == 2)
+                    else if (transformations[trans] == 2)
                     {
                         res.i = fpu::f32_to_i32(val.f);
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)", src, idx, res.u, res.i, val.u, val.flt);
                     }
                     // INT32 ReLU
-                    else if(transformations[trans] == 3)
+                    else if (transformations[trans] == 3)
                     {
                         res.i = (val.i < 0) ? 0 : val.i;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- MAX_INT32(0x%08x, 0x00000000)",src,idx,res.i,val.i);
                     }
                     // INT32 add row-wise
-                    else if(transformations[trans] == 4)
+                    else if (transformations[trans] == 4)
                     {
                         int col_pos = col * 4 + elem;
                         val2.i = SCP[scpsrc][col_pos / VL].i[col_pos % VL];
@@ -7364,7 +7395,7 @@ static void tensorquant(uint64_t value)
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", src, idx, res.u, val.u, val2.u);
                     }
                     // INT32 add col-wise
-                    else if(transformations[trans] == 5)
+                    else if (transformations[trans] == 5)
                     {
                         int row_pos = row;
                         val2.i = SCP[scpsrc][row_pos / VL].i[row_pos % VL];
@@ -7373,7 +7404,7 @@ static void tensorquant(uint64_t value)
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", src, idx, res.u, val.u, val2.u);
                     }
                     // FP32 mul row-wise
-                    else if(transformations[trans] == 6)
+                    else if (transformations[trans] == 6)
                     {
                         int col_pos = col * 4 + elem;
                         val2.u = SCP[scpsrc][col_pos / VL].u[col_pos % VL];
@@ -7382,7 +7413,7 @@ static void tensorquant(uint64_t value)
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", src, idx, res.u, res.flt, val.u, val.flt, val2.u, val2.flt);
                     }
                     // FP32 mul col-wise
-                    else if(transformations[trans] == 7)
+                    else if (transformations[trans] == 7)
                     {
                         int row_pos = row;
                         val2.u = SCP[scpsrc][row_pos / VL].u[row_pos % VL];
@@ -7391,13 +7422,13 @@ static void tensorquant(uint64_t value)
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", src, idx, res.u, res.flt, val.u, val.flt, val2.u, val2.flt);
                     }
                     // INT8 saturate
-                    else if(transformations[trans] == 8)
+                    else if (transformations[trans] == 8)
                     {
                         res.i = ((val.i > 127) ? 127 :(val.i < -128 ? -128 : val.i)) & 0x0FF;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", src, idx, res.u, val.u);
                     }
                     // UINT8 saturate
-                    else if(transformations[trans] == 9)
+                    else if (transformations[trans] == 9)
                     {
                         res.u = ((val.i > 255) ? 255u :(val.i < 0 ? 0u : val.u)) & 0x0FFu;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", src, idx, res.u, val.u);
@@ -7406,9 +7437,9 @@ static void tensorquant(uint64_t value)
                     else
                     {
                         // Only first col gets updated
-                        if((col == 0) && ((cols >= 2) || (elem < 2)))
+                        if ((col == 0) && ((cols >= 2) || (elem < 2)))
                         {
-                            for(int elem_pack = 0; elem_pack < 4; elem_pack++)
+                            for (int elem_pack = 0; elem_pack < 4; elem_pack++)
                             {
                                 int src_pack = regstart + row * 2 + (elem * 4 + elem_pack) / VL;
                                 int idx_pack = (elem * 4 + elem_pack) % VL;
@@ -7433,7 +7464,7 @@ static void tensorquant(uint64_t value)
                 }
             }
         }
-        if(scp_inc) scpsrc = (scpsrc + 1) % L1_SCP_ENTRIES;
+        if (scp_inc) scpsrc = (scpsrc + 1) % L1_SCP_ENTRIES;
     }
 }
 
@@ -7462,31 +7493,35 @@ static void tensorstore(uint64_t tstorereg)
 
         int src = scpstart % L1_SCP_ENTRIES;
         LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
-	
-	// // check if L1 SCP is enabled
-	// // Disabled until software update
-	// if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) ) {
-	//     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4); 
-	//     return; 
-	// }
-	
+
+        // // check if L1 SCP is enabled
+        // // Disabled until software update
+        // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
+        // {
+        //     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+        //     return;
+        // }
+
         // For all the rows
-        for(int row = 0; row < rows; row++)
+        for (int row = 0; row < rows; row++)
         {
             // For all the elements of the lane
-            for(int j = 0; j < L1_SCP_BLOCKS; j++)
+            for (int j = 0; j < L1_SCP_BLOCKS; j++)
             {
-                for(int i = 0; i < VL; i++)
+                for (int i = 0; i < VL; i++)
                 {
                     uint32_t val = SCP[src][j].u[i];
                     uint64_t waddr = addr + j * VL * 4 + i * 4;
-		    try {
-			vmemwrite32(waddr, val);
-		    } catch (const trap_t& t) {
-			// Memory exception
-			csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
-			return;
-		    }
+                    try
+                    {
+                        vmemwrite32(waddr, val);
+                    }
+                    catch (const trap_t& t)
+                    {
+                        // Memory exception
+                        csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                        return;
+                    }
                     LOG(DEBUG, "\t0x%08x --> MEM[0x%016" PRIx64 "]", val, waddr);
                     LOG(DEBUG, "\t\tSCP[%d][%d].u[%d]", src, j, i);
                     //logmemwchange(0, 4, waddr, val); => Don't log mem changes!
@@ -7513,38 +7548,42 @@ static void tensorstore(uint64_t tstorereg)
 
         int src = regstart;
 
-	// Check legal coop combination
-	// xs[50:49]/xs[56:55]
-	const char coop_comb[4*4] = { 1, 1, 0, 1,
-				      1, 1, 0, 0,
-				      0, 0, 0, 0,
-				      1, 0, 0, 0};
-	
-	if (!coop_comb[4*(coop-1)+(cols-1)]){
-	     csrregs[current_thread][csr_tensor_error] |= (0x1 << 8);
-	     return;
-	}
-	
+        // Check legal coop combination
+        // xs[50:49]/xs[56:55]
+        const char coop_comb[4*4] = {
+            1, 1, 0, 1,
+            1, 1, 0, 0,
+            0, 0, 0, 0,
+            1, 0, 0, 0
+        };
+
+        if (!coop_comb[4*(coop-1)+(cols-1)])
+        {
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 8);
+            return;
+        }
 
         // For all the rows
-        for(int row = 0; row < rows; row++)
+        for (int row = 0; row < rows; row++)
         {
             // For all the blocks of 128b
-            for(int col = 0; col < cols; col++)
+            for (int col = 0; col < cols; col++)
             {
                 // For all the 32 elements of the 128b block
-                for(uint64_t i = 0; i < 4; i++)
+                for (uint64_t i = 0; i < 4; i++)
                 {
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u[idx];
-		    try {
-			vmemwrite32(addr + col * 16 + i * 4, val);
-		    } catch (const trap_t& t) {
-			// Memory exception
-			csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
-			return;
-		    }
-                    
+                    try
+                    {
+                        vmemwrite32(addr + col * 16 + i * 4, val);
+                    }
+                    catch (const trap_t& t)
+                    {
+                        // Memory exception
+                        csrregs[current_thread][csr_tensor_error] |= (0x1 << 7);
+                        return;
+                    }
                     LOG(DEBUG, "\t0x%08x --> MEM[0x%016" PRIx64 "]", val, addr + col * 16 + i * 4);
                     //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
                 }
@@ -7585,52 +7624,58 @@ static void tensorfma(uint64_t tfmareg)
     LOG(DEBUG, "\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc_to_rf: %d, tenb: %d, bstart: %d, astart: %d, rm: %s", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenc_to_rf, tenb, bstart, astart, get_rounding_mode(rmdyn));
 
     // //  check if L1 SCP is enabled
-    // // Disabled until software update - JIRA RTLMIN-2096 
-    // if ( !(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) ) {
-    // 	csrregs[current_thread][csr_tensor_error] |= (0x1 << 4); 
-    // 	return; 
+    // // Disabled until software update - JIRA RTLMIN-2096
+    // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
+    // {
+    //     csrregs[current_thread][csr_tensor_error] |= (0x1 << 4);
+    //     return;
     // }
-    
+
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if (tenb)
     {
         bstart = L1_SCP_ENTRIES;
-	// No tl to pair or incompatible combination of rows and columns length
-	if (!tensorload_setupb_topair[current_thread] || (tensorload_setupb_numlines[current_thread] != acols))
-	{
-	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
-	    //return;
-	} else {
-	    //pair tl
-	    tensorload_setupb_topair[current_thread] = false;
-	    tensorload_setupb_topair[current_thread^1] = false;
-	}	 
-    } else {
-	// unpaired tl
-	if (!tensorload_setupb_topair[current_thread] ) {
-	    csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
-	    //return;
-	}
+        if (!tensorload_setupb_topair[current_thread] || (tensorload_setupb_numlines[current_thread] != acols))
+        {
+            // No TensorLoad to pair or incompatible combination of rows and columns length
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
+            //return;
+        }
+        else
+        {
+            //pair tl
+            tensorload_setupb_topair[current_thread] = false;
+            tensorload_setupb_topair[current_thread^1] = false;
+        }
+    }
+    else
+    {
+        // unpaired tl
+        if (!tensorload_setupb_topair[current_thread])
+        {
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 6);
+            //return;
+        }
     }
 
     tensorfma_size[current_thread] = arows * bcols / VL;
     tensorfma_passes[current_thread] = acols;
 
     // No mask skip by default
-    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
+    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
     {
-        for(int j = 0; j < TFMA_MAX_AROWS; j++)
+        for (int j = 0; j < TFMA_MAX_AROWS; j++)
         {
             tensorfma_mask_skip[i][j] = 0;
         }
     }
 
     // No zero skip by default
-    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
+    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
     {
-        for(int j = 0; j < 32; j++)
+        for (int j = 0; j < 32; j++)
         {
-            for(int k = 0; k < VL; k++)
+            for (int k = 0; k < VL; k++)
             {
                 tensorfma_zero_skip[i][j][k] = 0;
             }
@@ -7642,9 +7687,9 @@ static void tensorfma(uint64_t tfmareg)
     {
         if (first_pass)
         {
-            for ( int ar = 0; ar < arows; ar++ )
+            for (int ar = 0; ar < arows; ar++)
             {
-                for ( int bc = 0; bc < bcols; bc++ )
+                for (int bc = 0; bc < bcols; bc++)
                 {
                     int bf = bc / VL;
                     int bm = bc % VL;
@@ -7655,7 +7700,7 @@ static void tensorfma(uint64_t tfmareg)
             }
         }
 
-        for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
+        for (int ar = 0; ar < arows; ar++)              // A: traverse arows rows
         {
             // Checks if needs to skip the current pass due convolution
             if (tm)
@@ -7663,7 +7708,7 @@ static void tensorfma(uint64_t tfmareg)
                 if (!tmask_pass(ar))
                 {
                     // Mark all passes as skipped
-                    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
+                    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
                         tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if (first_pass)
@@ -7674,18 +7719,18 @@ static void tensorfma(uint64_t tfmareg)
                 }
             }
 
-            for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
+            for (int bc = 0; bc < bcols; bc++)          // B: process bcols cols
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
 
-                for ( int ac = 0; ac < acols; ac++ )     // A: traverse acols cols
+                for (int ac = 0; ac < acols; ac++)      // A: traverse acols cols
                 {
                     iufval32 accum, mul_a, mul_b, res;
 
                     int af = (aoffset + ac) / VL;
                     int am = (aoffset + ac) % VL;
-                    int br = bstart + ac;                // B: traverse acols rows
+                    int br = bstart + ac;               // B: traverse acols rows
 
                     accum.u = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                     mul_a.u = SCP[astart+ar][af].u[am];
@@ -7699,19 +7744,19 @@ static void tensorfma(uint64_t tfmareg)
 
                     if ((first_pass == 0) || (ac != 0))
                     {
-                    // If As are zeroes, we skip operation
-                      if (mul_a.u == 0)
-                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                    // If Bs are zeroes, we skip operation
-                      if (mul_b.u == 0)
-                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
+                        // If As are zeroes, we skip operation
+                        if (mul_a.u == 0)
+                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
+                        // If Bs are zeroes, we skip operation
+                        if (mul_b.u == 0)
+                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
             LOG(DEBUG, "\tC row %d: f%d[%d] = 0x%08x (%g)", ar, TFMA_MAX_BCOLS/VL*ar+0, 0, FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0], cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]));
-            for(int reg = 0; reg < 2; reg++)
-                for(int lane = 0; lane < VL; lane++)
-                    if((reg != 0) || (lane != 0))
+            for (int reg = 0; reg < 2; reg++)
+                for (int lane = 0; lane < VL; lane++)
+                    if ((reg != 0) || (lane != 0))
                         LOG(DEBUG, "\t         f%d[%d] = 0x%08x (%g)",    TFMA_MAX_BCOLS/VL*ar+reg, lane, FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane], cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]));
         }
     }
@@ -7720,9 +7765,9 @@ static void tensorfma(uint64_t tfmareg)
     {
         if (first_pass)
         {
-            for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
+            for (int ar = 0; ar < arows; ar++)          // A: traverse arows rows
             {
-                for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
+                for (int bc = 0; bc < bcols; bc++)      // B: process bcols cols
                 {
                     int bf = bc / VL;
                     int bm = bc % VL;
@@ -7733,7 +7778,7 @@ static void tensorfma(uint64_t tfmareg)
             }
         }
 
-        for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
+        for (int ar = 0; ar < arows; ar++)              // A: traverse arows rows
         {
             // Checks if needs to skip the current pass due convolution
             if (tm)
@@ -7741,7 +7786,7 @@ static void tensorfma(uint64_t tfmareg)
                 if (!tmask_pass(ar))
                 {
                     // Mark all passes as skipped
-                    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
+                    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
                         tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if (first_pass)
@@ -7750,16 +7795,16 @@ static void tensorfma(uint64_t tfmareg)
                 }
             }
 
-            for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
+            for (int bc = 0; bc < bcols; bc++)          // B: process bcols cols
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
 
-                for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
+                for (int ac = 0; ac < acols; ac++)      // A: accumulate acols values
                 {
                     int af = (aoffset + ac) / VL;
                     int am = (aoffset + ac) % VL;
-                    int br = bstart + ac;                // B: traverse rows
+                    int br = bstart + ac;               // B: traverse rows
 
 
                     // Doing two FMAs per lane and accumulating to previous results
@@ -7786,19 +7831,19 @@ static void tensorfma(uint64_t tfmareg)
 
                     if ((first_pass == 0) || (ac != 0))
                     {
-                    // If both As are zeroes, we skip operation
-                      if ((a1 == 0) && (a2 == 0))
-                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                    // If both Bs are zeroes, we skip operation
-                      if ((b1 == 0) && (b2 == 0))
-                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
+                        // If both As are zeroes, we skip operation
+                        if ((a1 == 0) && (a2 == 0))
+                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
+                        // If both Bs are zeroes, we skip operation
+                        if ((b1 == 0) && (b2 == 0))
+                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
             LOG(DEBUG, "\tC row %d: f%d[%d] = 0x%08x (%g)", ar, TFMA_MAX_BCOLS/VL*ar+0, 0, FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0], cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]));
-            for(int reg = 0; reg < 2; reg++)
-                for(int lane = 0; lane < VL; lane++)
-                    if((reg != 0) || (lane != 0))
+            for (int reg = 0; reg < 2; reg++)
+                for (int lane = 0; lane < VL; lane++)
+                    if ((reg != 0) || (lane != 0))
                         LOG(DEBUG, "\t         f%d[%d] = 0x%08x (%g)",    TFMA_MAX_BCOLS/VL*ar+reg, lane, FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane], cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]));
         }
     }
@@ -7806,9 +7851,9 @@ static void tensorfma(uint64_t tfmareg)
     {
         if (first_pass)
         {
-            for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
+            for (int ar = 0; ar < arows; ar++)          // A: traverse arows rows
             {
-                for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
+                for (int bc = 0; bc < bcols; bc++)      // B: process bcols cols
                 {
                     int bf = bc / VL;
                     int bm = bc % VL;
@@ -7819,7 +7864,7 @@ static void tensorfma(uint64_t tfmareg)
             }
         }
 
-        for ( int ar = 0; ar < arows; ar++ )             // A: traverse arows rows
+        for (int ar = 0; ar < arows; ar++)              // A: traverse arows rows
         {
             // Checks if needs to skip the current pass due convolution
             if (tm)
@@ -7827,34 +7872,36 @@ static void tensorfma(uint64_t tfmareg)
                 if (!tmask_pass(ar))
                 {
                     // Mark all passes as skipped
-                    for(int i = 0; i < TFMA_MAX_ACOLS; i++)
+                    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
                         tensorfma_mask_skip[i][ar] = 1;
                     // Except 1st if first pass
                     if (first_pass)
                         tensorfma_mask_skip[0][ar] = 0;
 
                     // If writing to VPU RF, need to write data
-                    if(tenc_to_rf)
+                    if (tenc_to_rf)
                     {
-                        for ( int bc = 0; bc < bcols; bc++ ) // For all the Cols
+                        for (int bc = 0; bc < bcols; bc++) // For all the Cols
                         {
                             int bf = bc / VL;
                             int bm = bc % VL;
 
-                            // Write 0s
-                            if(first_pass)
+                            if (first_pass)
+                            {
+                                // Write 0s
                                 FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
-                            // Write TENC to VPU RF
+                            }
                             else
                             {
+                                // Write TENC to VPU RF
                                 int32_t accum = tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
                                 FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = accum;
                             }
                         }
                         LOG(DEBUG, "\tC row %d: f%d[%d] = 0x%08x (%d)", ar, TFMA_MAX_BCOLS/VL*ar  ,0, FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0], FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]);
-                        for(int reg = 0; reg < 2; reg++)
-                            for(int lane = 0; lane < VL; lane++)
-                                if((reg != 0) || (lane != 0))
+                        for (int reg = 0; reg < 2; reg++)
+                            for (int lane = 0; lane < VL; lane++)
+                                if ((reg != 0) || (lane != 0))
                                     LOG(DEBUG, "\t         f%d[%d] = 0x%08x (%d)",    TFMA_MAX_BCOLS/VL*ar+reg, lane, FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane], FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]);
                     }
                     continue;
@@ -7863,19 +7910,19 @@ static void tensorfma(uint64_t tfmareg)
 
             fdata * tensor_dest = (fdata *) &FREGS;
             char str[256] = "";
-            for ( int bc = 0; bc < bcols; bc++ )         // B: process bcols cols
+            for (int bc = 0; bc < bcols; bc++)          // B: process bcols cols
             {
                 int bf = bc / VL;
                 int bm = bc % VL;
 
-                for ( int ac = 0; ac < acols; ac++ )     // A: accumulate acols values
+                for (int ac = 0; ac < acols; ac++)      // A: accumulate acols values
                 {
                     int af = (aoffset + ac) / VL;
                     int am = (aoffset + ac) % VL;
-                    int br = bstart + ac;                // B: traverse rows
+                    int br = bstart + ac;               // B: traverse rows
 
                     // If in last pass and dumping results to VPU RF, then the destination is the VPU RF
-                    if((ac == (acols - 1)) && tenc_to_rf)
+                    if ((ac == (acols - 1)) && tenc_to_rf)
                     {
                         tensor_dest = (fdata *) &FREGS;
                         strcpy(str, "");
@@ -7940,23 +7987,22 @@ static void tensorfma(uint64_t tfmareg)
 
                     bool do_not_zero_skip = ((first_pass == 1) && (ac == 0))            // Can't skip for first pass and first acol
                                          || ((tenc_to_rf == 1) && (ac == (acols - 1))); // Can't skip for TENC write to RF and last acol
-                    if(!do_not_zero_skip)
+                    if (!do_not_zero_skip)
                     {
-
-                    // If As are zeroes, we skip operation
-                      if ((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
-                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                    // If Bs are zeroes, we skip operation
-                      if ((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
-                          tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
+                        // If As are zeroes, we skip operation
+                        if ((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
+                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
+                        // If Bs are zeroes, we skip operation
+                        if ((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
+                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
                     }
                 }
             }
 
             LOG(DEBUG, "\tC row %d: %sf%d[%d] = 0x%08x (%d)", ar, str, TFMA_MAX_BCOLS/VL*ar  ,0, tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[0], tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[0]);
-            for(int reg = 0; reg < 2; reg++)
-                for(int lane = 0; lane < VL; lane++)
-                    if((reg != 0) || (lane != 0))
+            for (int reg = 0; reg < 2; reg++)
+                for (int lane = 0; lane < VL; lane++)
+                    if ((reg != 0) || (lane != 0))
                         LOG(DEBUG, "\t         %sf%d[%d] = 0x%08x (%d)",    str, TFMA_MAX_BCOLS/VL*ar+reg, lane, tensor_dest[TFMA_MAX_BCOLS/VL*ar+reg].u[lane], tensor_dest[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]);
         }
     }
@@ -7964,9 +8010,10 @@ static void tensorfma(uint64_t tfmareg)
     {
         LOG(DEBUG, "ERROR Unimplemented tensor FMA Type!!");
     }
-    if ( type != 3 ) {
-	set_fp_exceptions();
-	dirty_fp_state();
+    if (type != 3)
+    {
+        set_fp_exceptions();
+        dirty_fp_state();
     }
 }
 
@@ -8005,10 +8052,10 @@ static void tensorreduce(uint64_t value)
     reduce_entry[current_thread] = start_reg;
 
     // Sending and receiving from the same minion
-    if ( other_min == (current_thread>>1) )
+    if (other_min == (current_thread>>1))
     {
-	csrregs[current_thread][csr_tensor_error] |= (0x1 << 9);
-	return;
+        csrregs[current_thread][csr_tensor_error] |= (0x1 << 9);
+        return;
     }
 
     clear_arithmetic_flags();
@@ -8017,9 +8064,9 @@ static void tensorreduce(uint64_t value)
         set_rounding_mode(rmdyn);
         LOG(DEBUG, "\tReduce (fadd) with rounding mode: %s", get_rounding_mode(rmdyn));
     }
-    for(int i = 0; i < num_reg; i++)
+    for (int i = 0; i < num_reg; i++)
     {
-        for(int j = 0; j < VL; j++)
+        for (int j = 0; j < VL; j++)
         {
             int op_reg = (i + start_reg) % 32;
             if (operation == 0) // FADD
@@ -8083,19 +8130,19 @@ void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action)
     uint64_t minion_id = current_thread >> 1;
 
     // SENDER
-    if(type == 0)
+    if (type == 0)
     {
         * action = 1;
         * other_min = (value >> 3) & 0x1FFF;
     }
     // RECEIVER
-    else if(type == 1)
+    else if (type == 1)
     {
         * action = 0;
         * other_min = (value >> 3) & 0x1FFF;
     }
     // BROADCAST: Compute sender/receiver assuming recursive halving
-    else if(type == 2)
+    else if (type == 2)
     {
         uint64_t distance = 1 << level;
         uint64_t minion_mask = (1 << (level + 1)) - 1;
@@ -8164,7 +8211,7 @@ static uint64_t flbarrier(uint64_t value)
     uint64_t result = -1;
 
     LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
-        (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit );
+        (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit);
     // Last guy, return 1 and zero barrier
     if (orig_value == limit)
     {
@@ -8192,25 +8239,26 @@ static uint64_t flbarrier(uint64_t value)
 bool txfma_off_allowed(csr src1, uint64_t val) {
 
     // if txfma is not sleep, allow
-    if ( csrregs[current_thread][csr_msleep_txfma_27] == 0 ) return true;
+    if (csrregs[current_thread][csr_msleep_txfma_27] == 0)
+        return true;
 
     // and for each csr, allow if  corresponding bit in txfma_sleep_traps is 0
     // and do not allow if using the txfma
     uint32_t trap_conf = csrregs[current_thread][csr_mtxfma_sleep_traps];
-    switch ( src1 )
+    switch (src1)
     {
         case csr_tensor_fma:
-            if (((trap_conf >> 4) & 1 ) == 0) return true;
+            if (((trap_conf >> 4) & 1) == 0) return true;
             else return ((val & 0xE) == 6); // only allow for int8
 
         case csr_tensor_quant:
-            if ((( trap_conf >> 3) & 1 ) == 0) return true; //trap disabled
+            if ((( trap_conf >> 3) & 1) == 0) return true; //trap disabled
             else return false;
 
         case csr_tensor_reduce:
-            if (((trap_conf >> 2) & 1 ) == 0) return true;
+            if (((trap_conf >> 2) & 1) == 0) return true;
             // allow for int, not allow for fp32
-            switch ( (val >> 24) & 0xF )
+            switch ((val >> 24) & 0xF)
             {
                 case 0:  // fadd
                 case 1:  // fsub
