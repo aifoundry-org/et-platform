@@ -193,6 +193,8 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level)
 
     memory->setGetThread(get_thread);
 
+    set_delayed_msg_port_write(true);
+
     // Inits X0 to 0
     for(int i = 0; i < EMU_NUM_THREADS; i++)
     {
@@ -205,7 +207,7 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level)
     texrec_func_ptr = nullptr;
     checker_instance = this;
     memory_instance = memory;
-    init_emu(true, emu_log_level);
+    init_emu(emu_log_level);
 }
 
 // Destroys the checker
@@ -223,7 +225,7 @@ void checker::set_et_core(int core_type)
 void checker::start_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
-        log << LOG_FTL << "start pc with thread invalid (" << thread << ")" << endm;
+        log << LOG_FTL << "start pc with thread invalid (" << std::hex << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 
@@ -231,7 +233,7 @@ void checker::start_pc(uint32_t thread, uint64_t pc)
 void checker::ipi_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
-        log << LOG_FTL << "IPI pc with thread invalid (" << thread << ")" << endm;
+        log << LOG_FTL << "IPI pc with thread invalid (" << std::hex << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 
@@ -433,6 +435,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 check_res = CHECKER_ERROR;
             }
 
+            // Check if load comes from an unpredictible memory region, accept RTL value if so.
+            if (inst.is_load() && address_is_in_ignored_region(emu_state_change.mem_addr[0]))
+            {
+               log << LOG_INFO << "Access to an ignored memory region (" << insn_disasm << ")" << endm;
+               emu_state_change.int_reg_data = changes->int_reg_data;
+               init(inst.rd(), emu_state_change.int_reg_data);
+            }
+
+
             // Check if we read a CSR that we want to waive checking for
             if (inst.is_csr_read() && (std::find(waived_csrs.begin(), waived_csrs.end(), get_csr_enum(inst.csrimm())) != waived_csrs.end()))
             {
@@ -504,28 +515,28 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             check_res = CHECKER_ERROR;
         }
 
-	// Changing fflags
-	if ( changes->fflags_mod != emu_state_change.fflags_mod )
-	{
-	  // Someone changed the flags
-	  std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
-	  stream << "fflags changed by " << changer << ". Expected new flags: " << std::hex <<  emu_state_change.fflags_value << " but provided are " << changes->fflags_value << std::dec << std::endl;
-	  error_msg += stream.str();
-	  check_res = CHECKER_WARNING;        
-	}
-	
-	if ( emu_state_change.fflags_mod)
-	{
-	  if ( changes->fflags_value != emu_state_change.fflags_value )
-	  {
-	    stream << "fflags values change. Expected new flags: " << std::hex << emu_state_change.fflags_value << " but provided are " << changes->fflags_value << std::dec << std::endl;
-	    error_msg += stream.str();
-	    check_res = CHECKER_WARNING;
-	  }
-	}
-	  
-	
-	
+        // Changing fflags
+        if ( changes->fflags_mod != emu_state_change.fflags_mod )
+        {
+          // Someone changed the flags
+          std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
+          stream << "fflags changed by " << changer << ". Expected new flags: " << std::hex <<  emu_state_change.fflags_value << " but provided are " << changes->fflags_value << std::dec << std::endl;
+          error_msg += stream.str();
+          check_res = CHECKER_WARNING;
+        }
+        
+        if ( emu_state_change.fflags_mod)
+        {
+          if ( changes->fflags_value != emu_state_change.fflags_value )
+          {
+            stream << "fflags values change. Expected new flags: " << std::hex << emu_state_change.fflags_value << " but provided are " << changes->fflags_value << std::dec << std::endl;
+            error_msg += stream.str();
+            check_res = CHECKER_WARNING;
+          }
+        }
+
+
+
         if(emu_state_change.fp_reg_mod)
         {
 #if 0
@@ -536,6 +547,16 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 stream << "FP Register dest error. Expected dest is f" << emu_state_change.fp_reg_rd << " but provided is f" << changes->fp_reg_rd << std::endl;
                 error_msg += stream.str();
                 check_res = CHECKER_ERROR;
+            }
+
+            // Check if load comes from an unpredictible memory region, accept RTL value if so.
+            if (inst.is_load() && address_is_in_ignored_region(emu_state_change.mem_addr[0]))
+            {
+               log << LOG_INFO << "Access to an ignored memory region (" << insn_disasm << ")" << endm;
+               for (int i = 0; i < (VL/2); i++) {
+                  emu_state_change.fp_reg_data[i] = changes->fp_reg_data[i];
+               }
+               fpinit(inst.fd(), emu_state_change.fp_reg_data);
             }
 
             for(int i = 0; i < (VL/2); i++)
@@ -612,8 +633,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     }
                 }
               }
-	      
-	      
+
+
             }
         }
 
@@ -657,9 +678,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     error_msg += stream.str();
                     check_res = CHECKER_ERROR;
                 }
-                if(changes->mem_addr[i] != emu_state_change.mem_addr[i])
+                if( (changes->mem_addr[i] & VA_M) != (emu_state_change.mem_addr[i] & VA_M))
                 {
-                    stream << "Memory write address error (" << i << "). Expected addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " but provided is 0x" << changes->mem_addr[i] << std::dec << std::endl;
+                    stream << "Memory write address error (" << i << "). Expected addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " & " << VA_M <<" but provided is 0x" << changes->mem_addr[i] <<" & "<< VA_M << std::dec << std::endl;
                     error_msg += stream.str();
                     check_res = CHECKER_ERROR;
                 }
@@ -991,4 +1012,23 @@ void checker::texrec(unsigned minionId, unsigned thread_id, const uint8_t *data,
         return;
     }
     texrec_func_ptr(minionId, thread_id, data, wordIdx, mask);
+}
+
+bool checker::address_is_in_ignored_region(uint64_t addr)
+{
+   auto it = ignored_mem_regions.begin();
+   while (it != ignored_mem_regions.end())
+   {
+      if ((addr >= it->base) && (addr <= it->top)) return true;
+      it++;
+   }
+   return false;
+}
+
+void checker::add_ignored_mem_region(uint64_t base, uint64_t top)
+{
+   ignored_mem_region region;
+   region.base = base;
+   region.top  = top;
+   ignored_mem_regions.push_back(region);
 }

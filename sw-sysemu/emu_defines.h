@@ -8,12 +8,16 @@
 #endif
 
 // Maximum number of threads
-#define EMU_NUM_SHIRES          35 // at most 36 shires
+#define EMU_NUM_SHIRES          35 // at most 33 shires (Pending fix from JIRA: RTLMIN-1949)
 #define EMU_MINIONS_PER_SHIRE   32
 #define EMU_NEIGH_PER_SHIRE     4
+#define EMU_TBOXES_PER_SHIRE    4
+#define EMU_RBOXES_PER_SHIRE    1
 #define EMU_NUM_MINIONS         (EMU_NUM_SHIRES*EMU_MINIONS_PER_SHIRE)
 #define EMU_THREADS_PER_MINION  2
 #define EMU_NUM_THREADS         (EMU_NUM_MINIONS*EMU_THREADS_PER_MINION)
+#define EMU_NUM_TBOXES          (EMU_NUM_SHIRES*EMU_TBOXES_PER_SHIRE)
+#define EMU_NUM_RBOXES          (EMU_NUM_SHIRES*EMU_TBOXES_PER_SHIRE)
 
 #define NR_MSG_PORTS            4
 
@@ -32,6 +36,8 @@
 // VA to PA translation
 #define PA_SIZE        40
 #define PA_M           ((((uint64_t)1) << PA_SIZE) - 1)
+#define VA_SIZE        48
+#define VA_M           ((((uint64_t)1) << VA_SIZE) - 1)
 #define PG_OFFSET_SIZE 12
 #define PG_OFFSET_M    ((((uint64_t)1) << PG_OFFSET_SIZE) - 1)
 #define PPN_SIZE       (PA_SIZE - PG_OFFSET_SIZE)
