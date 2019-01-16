@@ -14,20 +14,6 @@
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #define max(a, b) (((a) >= (b)) ? (a) : (b))
 
-static inline float32_t clampf(float v)
-{
-    if (v > 1.0)
-        return fpu::F2F32(1.0);
-    if (v < 0.0)
-        return fpu::F2F32(0.0);
-    return fpu::F2F32(v);
-}
-
-static inline float32_t clamp(uint32_t v)
-{
-    return clampf(fpu::FLT(v));
-}
-
 const uint32_t TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
     0,  // FORMAT_UNDEFINED
     1,  // FORMAT_R4G4_UNORM_PACK8

@@ -302,7 +302,7 @@ std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
 
 uint64_t fcc_cnt;
-uint16_t fcc[EMU_NUM_THREADS][2] ={0};
+uint16_t fcc[EMU_NUM_THREADS][2] ={{0}};
 
 std::unordered_map<int, char const*> csr_names = {
    { csr_prv,               "prv"                },
@@ -2752,8 +2752,8 @@ static void csrset(csr src1, uint64_t val)
                 uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
                 uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
                 int      id     = XREGS[31].x & 0x0000000000000001ULL;
-                int failed = dcache_lock_vaddr(tm, way, vaddr, count, id, stride);
-                update_tensor_error(failed << 5);
+                if (dcache_lock_vaddr(tm, way, vaddr, count, id, stride))
+                    update_tensor_error(1 << 5);
             }
             break;
         case csr_unlock_va:
@@ -3014,13 +3014,11 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
 
 void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id)
 {
-    uint64_t current_mask = minion_mask;
-    for (int minion_id = 0; minion_id < 64; ++minion_id)
+    for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion)
     {
-        int inc_minion = (current_mask & (1 << minion_id)) >> minion_id;
-        if (inc_minion)
+        if (minion_mask & (1 << minion))
         {
-            size_t fcc_addr = shire*EMU_MINIONS_PER_SHIRE*EMU_THREADS_PER_MINION+EMU_THREADS_PER_MINION*minion_id+thread;
+            size_t fcc_addr = shire*EMU_THREADS_PER_SHIRE + EMU_THREADS_PER_MINION*minion + thread;
             fcc[fcc_addr][fcc_id] += 1;
             if (fcc[fcc_addr][fcc_id] == 0)
                 update_tensor_error(1 << 3);
