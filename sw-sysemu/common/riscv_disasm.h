@@ -1,5 +1,5 @@
 #ifndef __RISCV_DISASM_H__
-#define __RISCV_DIASAM_H__
+#define __RISCV_DISASM_H__
 
 #include <cstdint>
 #include <cstddef>
