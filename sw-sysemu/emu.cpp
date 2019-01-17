@@ -2583,12 +2583,14 @@ static uint64_t csrget(csr src1)
             break;
         // ----- Tensor, barrier, cacheop instructions -------------------
         case csr_tensor_load:
-        case csr_tensor_load_l2:
         case csr_tensor_coop:
         case csr_tensor_quant:
         case csr_tensor_fma:
         case csr_tensor_reduce:
         case csr_tensor_store:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
+        case csr_tensor_load_l2:
         case csr_tensor_wait:
         case csr_flb0:
         case csr_fcc:
@@ -2671,6 +2673,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- U-mode ET registers ---------------------------------------------
         case csr_tensor_load:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             tensorload(val);
             break;
         case csr_tensor_load_l2:
@@ -2691,25 +2695,35 @@ static void csrset(csr src1, uint64_t val)
             tmask_conv();
             break;
         case csr_tensor_coop:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             val &= 0x0000000000FFFFFFULL;
             tcoop(val);
             break;
         case csr_tensor_quant:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorquant(val);
             break;
         case csr_tensor_fma:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorfma(val);
             break;
         case csr_tensor_reduce:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorreduce(val);
             break;
         case csr_tensor_store:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             tensorstore(val);
             break;
         case csr_fcc:
