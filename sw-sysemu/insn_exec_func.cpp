@@ -1,4 +1,4 @@
-#include "insn.h"
+ #include "insn.h"
 #include "insn_exec_func.h"
 #include "emu.h"
 
@@ -270,7 +270,7 @@ static csr imm2csr(uint16_t imm)
     case 0x8df : return csr_lock_va;
     case 0x8ff : return csr_unlock_va;
     case 0x7fd : return csr_lock_sw;
-    case 0x7f : return csr_unlock_sw;
+    case 0x7ff : return csr_unlock_sw;
     case 0xcc8 : return csr_porthead0;
     case 0xcc9 : return csr_porthead1;
     case 0xcca : return csr_porthead2;
