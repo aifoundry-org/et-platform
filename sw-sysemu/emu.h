@@ -7,21 +7,6 @@
 #include "emu_defines.h"
 #include "testLog.h"
 
-#ifdef IPC
-#undef IPC
-#define IPC(a) { a }
-#define DISASM 1
-#else
-#define IPC(a)
-#endif
-
-#ifdef DISASM
-#undef DISASM
-#define DISASM(a) do { a } while (0)
-#else
-#define DISASM(a) do { } while (0)
-#endif
-
 // Used to access different threads transparently
 #define XREGS xregs[current_thread]
 #define FREGS fregs[current_thread]
@@ -591,14 +576,11 @@ extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * 
 extern void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action);
 extern uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry);
 
-extern uint64_t get_fcc_cnt();
-extern uint64_t get_data_from_mem_64(uint64_t addr);
 // ----- Esperanto fast local barrier extension --------------------------------
 
-// control traps on txfma sleep
-bool txfma_off_allowed(csr src1, uint64_t val);
-
 // ----- Esperanto fast credit counter extension --------------------------------
-extern  void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id);
+
+extern uint64_t get_fcc_cnt();
+extern void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id);
 
 #endif // _EMU_H
