@@ -374,6 +374,8 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_sleep_txfma_27,    "sleep_txfma_27"     },
    { csr_lock_va,           "lock_va"            },
    { csr_unlock_va,         "unlock_va"          },
+   { csr_lock_sw,           "lock_sw"            },
+   { csr_unlock_sw,         "unlock_sw"          },
    { csr_porthead0,         "porthead0"          },
    { csr_porthead1,         "porthead1"          },
    { csr_porthead2,         "porthead2"          },
@@ -394,6 +396,7 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_sip,               "sip"                },
    { csr_satp,              "satp"               },
    { csr_sys_cache_op,      "sys_cache_op"       },
+   { csr_mcache_control,    "mcache_control"     },
    { csr_evict_sw,          "evict_sw"           },
    { csr_flush_sw,          "flush_sw"           },
    { csr_smsg_port0,        "smsg_port0"         },
@@ -2472,6 +2475,8 @@ static int dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_
 static int dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
 static int dcache_lock_vaddr(bool, int, uint64_t, int, int, uint64_t);
 static int dcache_unlock_vaddr(bool, bool, uint64_t, int, int, uint64_t);
+static int dcache_lock_paddr(int, uint64_t);
+static int dcache_unlock_paddr(int, uint64_t);
 
 static uint64_t csrget(csr src1)
 {
@@ -2583,12 +2588,14 @@ static uint64_t csrget(csr src1)
             break;
         // ----- Tensor, barrier, cacheop instructions -------------------
         case csr_tensor_load:
-        case csr_tensor_load_l2:
         case csr_tensor_coop:
         case csr_tensor_quant:
         case csr_tensor_fma:
         case csr_tensor_reduce:
         case csr_tensor_store:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
+        case csr_tensor_load_l2:
         case csr_tensor_wait:
         case csr_flb0:
         case csr_fcc:
@@ -2598,7 +2605,10 @@ static uint64_t csrget(csr src1)
         case csr_flush_va:
         case csr_lock_va:
         case csr_unlock_va:
+        case csr_lock_sw:
+        case csr_unlock_sw:
         case csr_prefetch_va:
+        case csr_mcache_control:
         case csr_sys_cache_op:
         case csr_evict_sw:
         case csr_flush_sw:
@@ -2671,6 +2681,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- U-mode ET registers ---------------------------------------------
         case csr_tensor_load:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             tensorload(val);
             break;
         case csr_tensor_load_l2:
@@ -2691,25 +2703,35 @@ static void csrset(csr src1, uint64_t val)
             tmask_conv();
             break;
         case csr_tensor_coop:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             val &= 0x0000000000FFFFFFULL;
             tcoop(val);
             break;
         case csr_tensor_quant:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorquant(val);
             break;
         case csr_tensor_fma:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorfma(val);
             break;
         case csr_tensor_reduce:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             if (!txfma_off_allowed(src1, val))
                 throw trap_txfma_off(current_inst);
             tensorreduce(val);
             break;
         case csr_tensor_store:
+            if (current_thread % EMU_THREADS_PER_MINION)
+                throw trap_illegal_instruction(current_inst);
             tensorstore(val);
             break;
         case csr_fcc:
@@ -2768,6 +2790,25 @@ static void csrset(csr src1, uint64_t val)
                 dcache_unlock_vaddr(tm, valid, vaddr, count, id, stride);
             }
             break;
+        case csr_lock_sw:
+            val &= 0xFF80FFFFFFFFFFCFULL;
+            {
+                int      way    = (val >> 55) & 0xFF;
+                uint64_t paddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+                int failed = dcache_lock_paddr(way, paddr);
+           	    csrregs[current_thread][csr_tensor_error] |= (failed << 5); 
+            }
+            break;
+        case csr_unlock_sw:
+            val &= 0xC000FFFFFFFFFFCFULL;
+            {
+                int      way    = (val >> 55) & 0xFF;
+                uint64_t paddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+                int failed = dcache_unlock_paddr(way, paddr);
+           	    csrregs[current_thread][csr_tensor_error] |= (failed << 5);
+            }
+            break;
+
         case csr_prefetch_va:
             val &= 0x8C00FFFFFFFFFFCFULL;
             {
@@ -6430,6 +6471,83 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
         if (skip)
             continue;
         LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
+    }
+    return 0;
+}
+
+static int dcache_lock_paddr(int way, uint64_t paddr)
+{
+    // Skip all if way is outside the cache limits
+    if ((way >= L1D_NUM_WAYS) && (way != 255))
+        return 0;
+
+    int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+
+    if (way == 255)
+    {
+        // Lock the first available way
+        // FIXME: or if the line exists unlocked in the cache use the way of the existing line.
+        bool way_found = false;
+        for (int w = 0; w < L1D_NUM_WAYS; ++w)
+        {
+            if (!scp_locked[current_thread >> 1][set][w])
+            {
+                way = w;
+                way_found = true;
+                break;
+            }
+        }
+        // No free way found to lock
+        if(!way_found) {
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 5); 
+            return 1;
+        }
+    }
+    if (way == 255)
+    {
+        // All ways are locked; stop the operation
+        LOG(DEBUG, "\tLockSW: %016" PRIx64 ", Way: %d no unlocked ways", paddr, way);
+        return 1;
+    }
+
+    // Check if paddr already locked in the cache
+    for (int w = 0; w < L1D_NUM_WAYS; ++w)
+    {
+        if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
+        {
+            // Line already locked; stop the operation
+            LOG(DEBUG, "\tLockSW: %016" PRIx64 ", Way: %d double-locking on way %d", paddr, way, w);
+            csrregs[current_thread][csr_tensor_error] |= (0x1 << 5); 
+            return 1;
+        }	    
+    }
+    // FIXME: We should check if PA exists, unlocked, in another set in the cache
+
+    // check if the way is locked
+    if (scp_locked[current_thread >> 1][set][way]) {
+        csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
+        return 1;
+    }
+
+    scp_locked[current_thread >> 1][set][way] = true;
+    scp_trans[current_thread >> 1][set][way] = paddr;
+    LOG(DEBUG, "\tDoing LockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
+    return 0;
+}
+
+static int dcache_unlock_paddr(int way, uint64_t paddr)
+{
+    int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+
+    // Check if paddr is locked in the cache
+    for (int w = 0; w < L1D_NUM_WAYS; ++w)
+    {
+        if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
+        {
+            LOG(DEBUG, "\tDoing UnlockSW: (%016" PRIx64 "), Way: %d, Set: %d",
+                     paddr, w, set);
+            scp_locked[current_thread >> 1][set][w] = false;
+        }
     }
     return 0;
 }
