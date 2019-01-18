@@ -893,6 +893,7 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_menable_shadows] = 0x0ULL;
     csrregs[thread][csr_excl_mode] = 0x0ULL;
     csrregs[thread][csr_mtxfma_sleep_traps] = 0x0ULL;
+    csrregs[thread][csr_mcache_control] = 0x0ULL;
     csrregs[thread][csr_mcounteren] = 0x0ULL;
     csrregs[thread][csr_scounteren] = 0x0ULL;
     // Debug-mode registers with reset
@@ -1160,7 +1161,7 @@ static uint8_t emu_pmemread8(uint64_t paddr)
 {
     log_info->mem_addr[0] = paddr;
     uint8_t data = func_memread8(paddr);
-    LOG(DEBUG, "MEM8 %i, %02" PRIx16 " = [%016" PRIx64 "]", current_thread, data, paddr);
+    LOG(DEBUG, "MEM8 %02" PRIx8 " = [%016" PRIx64 "]", data, paddr);
     return data;
 }
 
@@ -1168,7 +1169,7 @@ static uint16_t emu_pmemread16(uint64_t paddr)
 {
     log_info->mem_addr[0] = paddr;
     uint16_t data = func_memread16(paddr);
-    LOG(DEBUG, "MEM16 %i, %04" PRIx16 " = [%016" PRIx64 "]", current_thread, data, paddr);
+    LOG(DEBUG, "MEM16 %04" PRIx16 " = [%016" PRIx64 "]", data, paddr);
     return data;
 }
 
@@ -1176,7 +1177,7 @@ static uint32_t emu_pmemread32(uint64_t paddr)
 {
     log_info->mem_addr[0] = paddr;
     uint32_t data = func_memread32(paddr);
-    LOG(DEBUG, "MEM32 %i, %08" PRIx32 " = [%016" PRIx64 "]", current_thread, data, paddr);
+    LOG(DEBUG, "MEM32 %08" PRIx32 " = [%016" PRIx64 "]", data, paddr);
     return data;
 }
 
@@ -1184,8 +1185,13 @@ static uint64_t emu_pmemread64(uint64_t paddr)
 {
     log_info->mem_addr[0] = paddr;
     uint64_t data = func_memread64(paddr);
-    LOG(DEBUG, "MEM64 %i, %016" PRIx64 " = [%016" PRIx64 "]", current_thread, data, paddr);
+    LOG(DEBUG, "MEM64 %016" PRIx64 " = [%016" PRIx64 "]", data, paddr);
     return data;
+}
+
+static uint16_t emu_pmemfetch16(uint64_t paddr)
+{
+    return func_memread16(paddr);
 }
 
 static uint8_t emu_vmemread8(uint64_t addr)
@@ -1214,25 +1220,25 @@ static uint64_t emu_vmemread64(uint64_t addr)
 
 static void emu_pmemwrite8(uint64_t paddr, uint8_t data)
 {
-    LOG(DEBUG, "MEM8 %i, [%016" PRIx64 "] = %02" PRIx8, current_thread, paddr, data);
+    LOG(DEBUG, "MEM8 [%016" PRIx64 "] = %02" PRIx8, paddr, data);
     func_memwrite8(paddr, data);
 }
 
 static void emu_pmemwrite16(uint64_t paddr, uint16_t data)
 {
-    LOG(DEBUG, "MEM16 %i, [%016" PRIx64 "] = %04" PRIx16, current_thread, paddr, data);
+    LOG(DEBUG, "MEM16 [%016" PRIx64 "] = %04" PRIx16, paddr, data);
     func_memwrite16(paddr, data);
 }
 
 static void emu_pmemwrite32(uint64_t paddr, uint32_t data)
 {
-    LOG(DEBUG, "MEM32 %i, [%016" PRIx64 "] = %08" PRIx32, current_thread, paddr, data);
+    LOG(DEBUG, "MEM32 [%016" PRIx64 "] = %08" PRIx32, paddr, data);
     func_memwrite32(paddr, data);
 }
 
 static void emu_pmemwrite64(uint64_t paddr, uint64_t data)
 {
-    LOG(DEBUG, "MEM64 %i, [%016" PRIx64 "] = %016" PRIx64, current_thread, paddr, data);
+    LOG(DEBUG, "MEM64 [%016" PRIx64 "] = %016" PRIx64, paddr, data);
     func_memwrite64(paddr, data);
 }
 
@@ -1258,21 +1264,6 @@ static void emu_vmemwrite64(uint64_t addr, uint64_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
     emu_pmemwrite64(paddr, data);
-}
-
-static uint16_t emu_pmemfetch16(uint64_t paddr)
-{
-    return func_memread16(paddr);
-}
-
-static void emu_pmemfetch512(uint64_t paddr, uint16_t * data)
-{
-    for (int i = 0; i < 8; ++i)
-    {
-        uint64_t value = func_memread64(paddr + 8*i);
-        ((uint64_t *) data)[i] = value;
-        LOG(DEBUG, "MEM64 %i, %016" PRIx64 " = [%016" PRIx64 "]", current_thread, value, paddr + 8*i);
-    }
 }
 
 static uint8_t host_vmemread8(uint64_t addr)
@@ -1330,11 +1321,6 @@ static uint16_t host_pmemfetch16(uint64_t addr)
     return * ((uint16_t *) addr);
 }
 
-static void host_pmemfetch512(uint64_t addr, uint16_t * data)
-{
-    memcpy(data, (void*) addr, 64);
-}
-
 // Abstract memory accessors. By default we use the host memory directly,
 // unless we are asked to use emulated memory.
 
@@ -1345,7 +1331,8 @@ uint16_t (*vmemread16) (uint64_t addr) = host_vmemread16;
 uint32_t (*vmemread32) (uint64_t addr) = host_vmemread32;
 uint64_t (*vmemread64) (uint64_t addr) = host_vmemread64;
 
-uint64_t (*pmemread64) (uint64_t paddr) = host_pmemread64;
+uint64_t (*pmemread64 ) (uint64_t paddr) = host_pmemread64;
+uint16_t (*pmemfetch16) (uint64_t paddr) = host_pmemfetch16;
 
 void (*vmemwrite8 ) (uint64_t addr, uint8_t  data) = host_vmemwrite8;
 void (*vmemwrite16) (uint64_t addr, uint16_t data) = host_vmemwrite16;
@@ -1353,10 +1340,6 @@ void (*vmemwrite32) (uint64_t addr, uint32_t data) = host_vmemwrite32;
 void (*vmemwrite64) (uint64_t addr, uint64_t data) = host_vmemwrite64;
 
 void (*pmemwrite64) (uint64_t paddr, uint64_t data) = host_pmemwrite64;
-
-uint16_t (*pmemfetch16) (uint64_t paddr) = host_pmemfetch16;
-
-void (*pmemfetch512) (uint64_t paddr, uint16_t * data) = host_pmemfetch512;
 
 void set_memory_funcs(void * func_memread8_, void * func_memread16_,
                       void * func_memread32_, void * func_memread64_,
@@ -1387,7 +1370,6 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
     pmemwrite64 = emu_pmemwrite64;
 
     pmemfetch16 = emu_pmemfetch16;
-    pmemfetch512 = emu_pmemfetch512;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2475,8 +2457,8 @@ static int dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_
 static int dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
 static int dcache_lock_vaddr(bool, int, uint64_t, int, int, uint64_t);
 static int dcache_unlock_vaddr(bool, bool, uint64_t, int, int, uint64_t);
-static int dcache_lock_paddr(int, uint64_t);
-static int dcache_unlock_paddr(int, uint64_t);
+static void dcache_lock_paddr(int, uint64_t);
+static void dcache_unlock_paddr(int, uint64_t);
 
 static uint64_t csrget(csr src1)
 {
@@ -2608,7 +2590,6 @@ static uint64_t csrget(csr src1)
         case csr_lock_sw:
         case csr_unlock_sw:
         case csr_prefetch_va:
-        case csr_mcache_control:
         case csr_sys_cache_op:
         case csr_evict_sw:
         case csr_flush_sw:
@@ -2626,15 +2607,6 @@ static uint64_t csrget(csr src1)
             break;
     }
     return val;
-}
-
-uint64_t get_fcc_cnt(){
-    return fcc_cnt;
-}
-
-/* TODO remove this nasty fix*/
-uint64_t get_data_from_mem_64(uint64_t addr){
-    return vmemread64(addr);
 }
 
 static void csrset(csr src1, uint64_t val)
@@ -2711,22 +2683,16 @@ static void csrset(csr src1, uint64_t val)
         case csr_tensor_quant:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            if (!txfma_off_allowed(src1, val))
-                throw trap_txfma_off(current_inst);
             tensorquant(val);
             break;
         case csr_tensor_fma:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            if (!txfma_off_allowed(src1, val))
-                throw trap_txfma_off(current_inst);
             tensorfma(val);
             break;
         case csr_tensor_reduce:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            if (!txfma_off_allowed(src1, val))
-                throw trap_txfma_off(current_inst);
             tensorreduce(val);
             break;
         case csr_tensor_store:
@@ -2774,8 +2740,7 @@ static void csrset(csr src1, uint64_t val)
                 uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
                 uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
                 int      id     = XREGS[31].x & 0x0000000000000001ULL;
-                if (dcache_lock_vaddr(tm, way, vaddr, count, id, stride))
-                    update_tensor_error(1 << 5);
+                dcache_lock_vaddr(tm, way, vaddr, count, id, stride);
             }
             break;
         case csr_unlock_va:
@@ -2795,8 +2760,7 @@ static void csrset(csr src1, uint64_t val)
             {
                 int      way    = (val >> 55) & 0xFF;
                 uint64_t paddr  = val         & 0x0000FFFFFFFFFFC0ULL;
-                int failed = dcache_lock_paddr(way, paddr);
-           	    csrregs[current_thread][csr_tensor_error] |= (failed << 5); 
+                dcache_lock_paddr(way, paddr);
             }
             break;
         case csr_unlock_sw:
@@ -2804,11 +2768,9 @@ static void csrset(csr src1, uint64_t val)
             {
                 int      way    = (val >> 55) & 0xFF;
                 uint64_t paddr  = val         & 0x0000FFFFFFFFFFC0ULL;
-                int failed = dcache_unlock_paddr(way, paddr);
-           	    csrregs[current_thread][csr_tensor_error] |= (failed << 5);
+                dcache_unlock_paddr(way, paddr);
             }
             break;
-
         case csr_prefetch_va:
             val &= 0x8C00FFFFFFFFFFCFULL;
             {
@@ -2969,9 +2931,9 @@ static void csrset(csr src1, uint64_t val)
         case csr_msleep_txfma_27:
         case csr_menable_shadows:
         case csr_mtxfma_sleep_traps:
-          csrregs[current_thread][src1] = val;
-          csrregs[current_thread^1][src1] = val;
-          break;
+            csrregs[current_thread][src1] = val;
+            csrregs[current_thread^1][src1] = val;
+            break;
         // ----- Verification registers ----------------------------------------
         case csr_validation1:
             // EOT signals end of test
@@ -3051,20 +3013,6 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
         LOG(DEBUG, "\t0x%016" PRIx64 " --> CSR[%s]", newval, csr_names[src1]);
     }
     logxregchange(dst);
-}
-
-void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id)
-{
-    for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion)
-    {
-        if (minion_mask & (1 << minion))
-        {
-            size_t fcc_addr = shire*EMU_THREADS_PER_SHIRE + EMU_THREADS_PER_MINION*minion + thread;
-            fcc[fcc_addr][fcc_id] += 1;
-            if (fcc[fcc_addr][fcc_id] == 0)
-                update_tensor_error(1 << 3);
-        }
-    }
 }
 
 static void throw_page_fault(uint64_t addr, mem_access_type macc)
@@ -3242,17 +3190,10 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
         throw_page_fault(addr, macc);
     }
 
-    // Hardware A/D bit updates (FIXME: This should be done by SW)
+    // Check if A/D bit should be updated
     if (!pte_a || ((macc == Mem_Access_Store) && !pte_d))
     {
-        // Set pte.a to 1 and, if the memory access is a store, also set pte.d to 1
-        uint64_t pte_write = pte;
-        pte_write |= uint64_t(1) << PTE_A_OFFSET;
-        if (macc == Mem_Access_Store)
-            pte_write |= uint64_t(1) << PTE_D_OFFSET;
-
-        // Write PTE
-        pmemwrite64(pte_addr, pte_write);
+        throw_page_fault(addr, macc);
     }
 
     // Obtain physical address
@@ -6475,11 +6416,11 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
     return 0;
 }
 
-static int dcache_lock_paddr(int way, uint64_t paddr)
+static void dcache_lock_paddr(int way, uint64_t paddr)
 {
     // Skip all if way is outside the cache limits
     if ((way >= L1D_NUM_WAYS) && (way != 255))
-        return 0;
+        return;
 
     int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
@@ -6498,16 +6439,18 @@ static int dcache_lock_paddr(int way, uint64_t paddr)
             }
         }
         // No free way found to lock
-        if(!way_found) {
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 5); 
-            return 1;
+        if (!way_found)
+        {
+            update_tensor_error(1 << 5);
+            return;
         }
     }
     if (way == 255)
     {
         // All ways are locked; stop the operation
         LOG(DEBUG, "\tLockSW: %016" PRIx64 ", Way: %d no unlocked ways", paddr, way);
-        return 1;
+        update_tensor_error(1 << 5);
+        return;
     }
 
     // Check if paddr already locked in the cache
@@ -6517,25 +6460,25 @@ static int dcache_lock_paddr(int way, uint64_t paddr)
         {
             // Line already locked; stop the operation
             LOG(DEBUG, "\tLockSW: %016" PRIx64 ", Way: %d double-locking on way %d", paddr, way, w);
-            csrregs[current_thread][csr_tensor_error] |= (0x1 << 5); 
-            return 1;
-        }	    
+            update_tensor_error(1 << 5);
+            return;
+        }
     }
     // FIXME: We should check if PA exists, unlocked, in another set in the cache
 
     // check if the way is locked
-    if (scp_locked[current_thread >> 1][set][way]) {
-        csrregs[current_thread][csr_tensor_error] |= (0x1 << 5);
-        return 1;
+    if (scp_locked[current_thread >> 1][set][way])
+    {
+        update_tensor_error(1 << 5);
+        return;
     }
 
     scp_locked[current_thread >> 1][set][way] = true;
     scp_trans[current_thread >> 1][set][way] = paddr;
     LOG(DEBUG, "\tDoing LockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
-    return 0;
 }
 
-static int dcache_unlock_paddr(int way, uint64_t paddr)
+static void dcache_unlock_paddr(int way, uint64_t paddr)
 {
     int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
@@ -6544,12 +6487,10 @@ static int dcache_unlock_paddr(int way, uint64_t paddr)
     {
         if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
         {
-            LOG(DEBUG, "\tDoing UnlockSW: (%016" PRIx64 "), Way: %d, Set: %d",
-                     paddr, w, set);
+            LOG(DEBUG, "\tDoing UnlockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, w, set);
             scp_locked[current_thread >> 1][set][w] = false;
         }
     }
-    return 0;
 }
 
 static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
@@ -6605,6 +6546,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         {
             // All ways are locked; stop the operation
             LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d no unlocked ways", vaddr, way);
+            update_tensor_error(1 << 5);
             return 1;
         }
 
@@ -7044,6 +6986,45 @@ static void configure_port(uint32_t id, uint64_t wdata)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+static bool txfma_off_allowed(csr src1, uint64_t val)
+{
+    // if txfma is not sleep, allow
+    if (csrregs[current_thread][csr_msleep_txfma_27] == 0)
+        return true;
+
+    // and for each csr, allow if corresponding bit in txfma_sleep_traps is 0
+    // and do not allow if using the txfma
+    uint32_t trap_conf = csrregs[current_thread][csr_mtxfma_sleep_traps];
+    switch (src1)
+    {
+        case csr_tensor_fma:
+            if (((trap_conf >> 4) & 1) == 0) return true;
+            return ((val & 0xE) == 6); // only allow for int8
+
+        case csr_tensor_quant:
+            if ((( trap_conf >> 3) & 1) == 0) return true; //trap disabled
+            return false;
+
+        case csr_tensor_reduce:
+            if (((trap_conf >> 2) & 1) == 0) return true;
+            // allow for int, do not allow for fp
+            switch ((val >> 24) & 0xF)
+            {
+                case 0:  // fadd
+                case 1:  // fsub
+                case 2:  // fmax
+                case 3:  // fmin
+                case 8:  // fget
+                    return false;
+                default:
+                    return true;
+            }
+
+        default:
+            return true;
+    }
+}
+
 // ----- TensorConvolution emulation -------------------------------------------
 
 // Returns if there something that needs to be processed or not based on current position and configuration
@@ -7375,9 +7356,9 @@ void tensorload(uint64_t control)
     }
     int op = 0;
     if (trans == 0x05 || trans == 0x06 || trans==0x07)
-	op = 1;
+        op = 1;
     else if (trans == 0x01 || trans == 0x02)
-	op = 2;
+        op = 2;
     logtensorchange(op);
 }
 
@@ -7425,6 +7406,9 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
 
 static void tensorquant(uint64_t value)
 {
+    if (!txfma_off_allowed(csr_tensor_quant, value))
+        throw trap_txfma_off(current_inst);
+
     int regstart =  (value & 0x3E00000000000000) >> 57;      // Start register to operate
     int cols     = ((value & 0x0180000000000000) >> 55) + 1; // Number of register per col
     int rows     = ((value & 0x0078000000000000) >> 51) + 1; // Number of rows to store
@@ -7719,6 +7703,9 @@ static void tensorstore(uint64_t tstorereg)
 
 static void tensorfma(uint64_t tfmareg)
 {
+    if (!txfma_off_allowed(csr_tensor_fma, tfmareg))
+        throw trap_txfma_off(current_inst);
+
     int tm         = (tfmareg & 0x8000000000000000) >> 63; // Is a Conv2D operation (use tensor conv register)
     int bcols      = (tfmareg & 0x0180000000000000) >> 55; // Number of B cols to be processed
     int arows      = (tfmareg & 0x0078000000000000) >> 51; // Number of A rows to be processed
@@ -8140,6 +8127,9 @@ static void tensorreduce(uint64_t value)
     uint64_t other_min;
     uint64_t action;
 
+    if (!txfma_off_allowed(csr_tensor_reduce, value))
+        throw trap_txfma_off(current_inst);
+
     get_reduce_info(value, &other_min, &action);
 
     reduce_size[current_thread] = 0;
@@ -8184,7 +8174,7 @@ static void tensorreduce(uint64_t value)
                 src2.u = fregs[other_min<<1][op_reg].u[j];
                 rslt.f = fpu::f32_add(src1.f, src2.f);
                 FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fadd) f%d[%d]: %g = %g(m%d) + %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min);
+                LOG(DEBUG, "\tReduce (fadd) f%d[%d]: %g = %g + %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,src2.flt,other_min);
                 LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
             }
             else if (operation == 2) // FMAX
@@ -8194,7 +8184,7 @@ static void tensorreduce(uint64_t value)
                 src2.u = fregs[other_min<<1][op_reg].u[j];
                 rslt.f = fpu::f32_maxNum(src1.f,src2.f);//src1.u > src2.u ? src1.u : src2.u;
                 FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fmax) f%d[%d]: %g = %g(m%d) > %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,current_thread>>1,src2.flt,other_min);
+                LOG(DEBUG, "\tReduce (fmax) f%d[%d]: %g = %g > %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,src2.flt,other_min);
                 LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x > 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
             }
             else if (operation == 4) // IADD
@@ -8204,7 +8194,7 @@ static void tensorreduce(uint64_t value)
                 src2.u = fregs[other_min<<1][op_reg].u[j];
                 rslt.u = src1.u + src2.u;
                 FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (iadd) f%d[%d]: %d = %d(m%d) + %d(m%" PRId64 ")",op_reg,j,rslt.u,src1.u,current_thread>>1,src2.u,other_min);
+                LOG(DEBUG, "\tReduce (iadd) f%d[%d]: %d = %d + %d(m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
                 LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
             }
             else if (operation == 8) // FGET
@@ -8343,47 +8333,25 @@ static uint64_t flbarrier(uint64_t value)
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// determine if instruction needs to trap if txfma is off
+// Esperanto fast credit counter extension
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-bool txfma_off_allowed(csr src1, uint64_t val) {
+uint64_t get_fcc_cnt()
+{
+    return fcc_cnt;
+}
 
-    // if txfma is not sleep, allow
-    if (csrregs[current_thread][csr_msleep_txfma_27] == 0)
-        return true;
-
-    // and for each csr, allow if  corresponding bit in txfma_sleep_traps is 0
-    // and do not allow if using the txfma
-    uint32_t trap_conf = csrregs[current_thread][csr_mtxfma_sleep_traps];
-    switch (src1)
+void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id)
+{
+    for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion)
     {
-        case csr_tensor_fma:
-            if (((trap_conf >> 4) & 1) == 0) return true;
-            else return ((val & 0xE) == 6); // only allow for int8
-
-        case csr_tensor_quant:
-            if ((( trap_conf >> 3) & 1) == 0) return true; //trap disabled
-            else return false;
-
-        case csr_tensor_reduce:
-            if (((trap_conf >> 2) & 1) == 0) return true;
-            // allow for int, not allow for fp32
-            switch ((val >> 24) & 0xF)
-            {
-                case 0:  // fadd
-                case 1:  // fsub
-                case 2:  // fmax
-                case 3:  // fmin
-                case 8:  // fget
-                    return false;
-                default:
-                    return true;
-            }
-
-        default:
-            return true;
+        if (minion_mask & (1 << minion))
+        {
+            size_t fcc_addr = shire*EMU_THREADS_PER_SHIRE + EMU_THREADS_PER_MINION*minion + thread;
+            fcc[fcc_addr][fcc_id] += 1;
+            if (fcc[fcc_addr][fcc_id] == 0)
+                update_tensor_error(1 << 3);
+        }
     }
-
-    return true;
 }
