@@ -1,64 +1,94 @@
-ifndef BEMU
-    $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
-endif
-ifndef TESTROOT
-    $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
-endif
-
-SRCS := $(BEMU)/emu.cpp \
-        $(BEMU)/fpu/fpu.cpp \
-        $(BEMU)/fpu/cvt.cpp \
-        $(BEMU)/txs.cpp \
-        $(BEMU)/fpu/ttrans.cpp \
-        $(BEMU)/tbox_emu.cpp \
-        $(BEMU)/log.cpp \
-        $(BEMU)/emu_gio.cpp \
-        $(BEMU)/insn_dec_func.cpp \
-        $(BEMU)/insn_exec_func.cpp
-
+include emu.mk
+include fpu.mk
 include softfloat.mk
-SRCS += $(softfloat_c_srcs)
 
-vpath %.cpp $(BEMU)
-vpath %.cpp $(BEMU)/fpu
-vpath %.c   $(BEMU)/softfloat
+libemu_SRCS := $(emu_cpp_srcs)
 
-OBJS := $(addsuffix .o,$(basename $(notdir $(SRCS))))
-DEPS := $(addsuffix .d,$(basename $(OBJS)))
+libfpu_SRCS := $(fpu_cpp_srcs) \
+	       $(softfloat_c_srcs)
 
 AR       := ar
 CC       := gcc
 CXX      := g++
 ARFLAGS  := rvs
-CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs
-CXXFLAGS := -MMD -MP -Wall -Werror -g -O2 -std=c++11
-CFLAGS   := -MMD -MP -Wall -Werror -g -O2 -std=c11
-LDLIBS   :=
+common_CPPFLAGS := -I..
+CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
+CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
 LDFLAGS  := -shared
-
-ifndef LIBEMU_STATIC
-CXXFLAGS += -fPIC
-CFLAGS   += -fPIC
-endif
 
 # FIXME: Remove the following when we convert everything away from C++ floats
 CXXFLAGS += -mf16c -fno-fast-math
 
 .PHONY: all
-ifdef LIBEMU_STATIC
-all: libemu.a
-else
-all: libemu.so libemu.a
-endif
+all: libfpu libemu
 
 .PHONY: clean
-clean:
-	$(RM) libemu.{a,so} *.o *.d
+clean: clean_libfpu clean_libemu
 
-libemu.so: $(OBJS)
+# ---------- libfpu -----------------------------------------------------------
+
+libfpu_OBJS := $(addprefix libfpu/,$(addsuffix .o,$(basename $(libfpu_SRCS))))
+libfpu_DEPS := $(addsuffix .d,$(basename $(libfpu_OBJS)))
+
+libfpu_DIRS := $(sort $(dir $(libfpu_OBJS)))
+
+.PHONY: libfpu
+libfpu: libfpu.so libfpu.a
+
+.PHONY: clean_libfpu
+clean_libfpu:
+	$(RM) -r libfpu.* libfpu/
+
+libfpu.so libfpu.a: CPPFLAGS := $(common_CPPFLAGS)
+libfpu.so libfpu.a: LDLIBS :=
+
+libfpu.so: $(libfpu_OBJS)
 	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-libemu.a: $(OBJS)
-	$(AR) $(ARFLAGS) $@ $^
+libfpu.a: $(libfpu_OBJS)
+	$(AR) $(ARFLAGS) $@ $^ 
 
--include $(DEPS)
+$(libfpu_DIRS):
+	mkdir -p $@
+
+libfpu/%.o: ../%.cpp | $(libfpu_DIRS)
+	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
+
+libfpu/%.o: ../%.c | $(libfpu_DIRS)
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
+
+$(libfpu_OBJS): Makefile
+
+-include $(libfpu_DEPS)
+
+# ---------- libemu -----------------------------------------------------------
+
+libemu_OBJS := $(addprefix libemu/,$(addsuffix .o,$(basename $(libemu_SRCS))))
+libemu_DEPS := $(addsuffix .d,$(basename $(libemu_OBJS)))
+libemu_DIRS := $(sort $(dir $(libemu_OBJS)))
+
+.PHONY: libemu
+libemu: libemu.so libemu.a
+
+.PHONY: clean_libemu
+clean_libemu:
+	$(RM) -r libemu.* libemu/
+
+libemu.so libemu.a: CPPFLAGS := $(common_CPPFLAGS) -I$(TESTROOT)/libs
+libemu.so libemu.a: LDLIBS := -L. -Wl,-rpath=$(shell readlink -f .) -lfpu
+
+libemu.so: $(libemu_OBJS) libfpu.so
+	$(CC) $(LDFLAGS) $(TARGET_ARCH) $(libemu_OBJS) $(LOADLIBES) $(LDLIBS) -o $@
+
+libemu.a: $(libemu_OBJS) libfpu.a
+	$(AR) $(ARFLAGS) $@ $(OBJS) 
+
+$(libemu_DIRS):
+	mkdir -p $@
+
+libemu/%.o: ../%.cpp | $(libemu_DIRS)
+	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
+
+$(libemu_OBJS): Makefile
+
+-include $(libemu_DEPS)

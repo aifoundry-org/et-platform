@@ -1,62 +1,75 @@
-ifndef BEMU
-    $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
-endif
 ifndef TESTROOT
     $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
 endif
 
-SRCS := $(BEMU)/checker/checker.cpp \
-        $(BEMU)/common/riscv_disasm.cpp \
-        $(BEMU)/common/main_memory.cpp \
-        $(BEMU)/common/main_memory_region.cpp \
-        $(BEMU)/common/main_memory_region_esr.cpp \
-        $(BEMU)/common/main_memory_region_atomic.cpp \
-        $(BEMU)/common/main_memory_region_tbox.cpp \
-        $(BEMU)/common/main_memory_region_rbox.cpp 
+include ../../build/emu.mk
 
-vpath %.cpp $(BEMU)/checker
-vpath %.cpp $(BEMU)/common
+checker_hdrs := \
+	checker/checker.h \
+	common/main_memory.h \
+	common/main_memory_region.h \
+	common/main_memory_region_atomic.h \
+	common/main_memory_region_esr.h \
+	common/main_memory_region_rbox.h \
+	common/main_memory_region_tbox.h \
+	common/riscv_disasm.h
 
-OBJS := $(addsuffix .o,$(basename $(notdir $(SRCS))))
-DEPS := $(addsuffix .d,$(basename $(OBJS)))
+checker_cpp_srcs := \
+	checker/checker.cpp \
+        common/main_memory.cpp \
+        common/main_memory_region.cpp \
+        common/main_memory_region_atomic.cpp \
+        common/main_memory_region_esr.cpp \
+        common/main_memory_region_rbox.cpp \
+        common/main_memory_region_tbox.cpp \
+        common/riscv_disasm.cpp
+
+checker_SRCS := $(checker_cpp_srcs) \
+		$(emu_cpp_srcs)
+
+checker_OBJS := $(addprefix obj/,$(addsuffix .o,$(basename $(checker_SRCS))))
+checker_DEPS := $(addsuffix .d,$(basename $(checker_OBJS)))
+checker_DIRS := $(sort $(dir $(checker_OBJS)))
 
 BFDROOT := $(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf
 
 CC	 := gcc
 CXX 	 := g++
-CPPFLAGS := -I$(BEMU) -I$(BEMU)/checker -I$(TESTROOT)/libs
-CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -std=c++11 -g -O2
+CPPFLAGS := -I../.. -I.. -I$(TESTROOT)/libs
+CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
+CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
+LDLIBS   := -L../../build -Wl,-rpath=$(shell readlink -f ../../build) -lfpu
 LDFLAGS  := -shared
-LDLIBS   := -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu
 
 CPPFLAGS += -I$(BFDROOT)/include
-LDLIBS   += -L$(BFDROOT)/lib -Wl,-rpath=$(BFDROOT)/lib \
-	    -lbfd -lopcodes
-
-NO_EMU_DEBUG ?= 0
-ifeq ($(NO_EMU_DEBUG), 0)
-    CPPFLAGS += -DEMU_DEBUG
-endif
+LDLIBS   += -L$(BFDROOT)/lib -Wl,-rpath=$(BFDROOT)/lib -lbfd -lopcodes
 
 .PHONY: all
 all: libchecker.so libchecker.a
 
-.PHONY: libemu_all
-libemu_all:
-	$(MAKE) -C $(BEMU)/build all
-
-.PHONY: libemu_clean
-libemu_clean:
-	$(MAKE) -C $(BEMU)/build clean
-
 .PHONY: clean
-clean: libemu_clean
-	$(RM) *.so *.a *.o *.d
+clean:
+	$(MAKE) -C ../../build clean_libfpu
+	$(RM) -r libchecker.* obj/
 
-libchecker.so: $(OBJS) | libemu_all
-	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+../../build/libfpu.so ../../build/libfpu.a:
+	$(MAKE) -C ../../build $(notdir $@)
 
-libchecker.a: $(OBJS)
-	$(AR) $(ARFLAGS) $@ $^ 
+libchecker.so: $(checker_OBJS) ../../build/libfpu.so
+	$(CXX) $(LDFLAGS) $(TARGET_ARCH) $(checker_OBJS) $(LOADLIBES) $(LDLIBS) -o $@
 
--include $(DEPS)
+libchecker.a: $(checker_OBJS) ../../build/libfpu.a
+	$(AR) $(ARFLAGS) $@ $(checker_OBJS) 
+
+$(checker_DIRS):
+	mkdir -p $@
+
+obj/%.o: ../../%.cpp | $(checker_DIRS)
+	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
+
+obj/%.o: ../../%.c | $(checker_DIRS)
+	$(COMPILE.c) $(OUTPUT_OPTION) $<
+
+$(checker_OBJS): Makefile
+
+-include $(checker_DEPS)

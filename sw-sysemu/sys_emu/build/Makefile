@@ -1,83 +1,80 @@
-ifndef BEMU
-    $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
-endif
-ifndef SGPU
-    $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
-endif
-ifndef TESTROOT
-    $(error "Please execute 'source ./env.sh' or 'source ./env_csh.sh' in the repository root directory before calling make")
+GCC_GTE_5p3p1 := $(shell expr `gcc -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 50301)
+
+ifneq ($(GCC_GTE_5p3p1),1)
+    $(error "GCC version 5.3.1 or higher required")
 endif
 
-BFDROOT := $(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf
+include ../../build/emu.mk
 
-SRCS := $(BEMU)/sys_emu/net_emulator.cpp \
-        $(BEMU)/sys_emu/api_communicate.cpp \
-        $(BEMU)/sys_emu/sys_emu.cpp \
-        $(BEMU)/sys_emu/sys_emu_log.cpp 
-ifndef SYSEMU_STATIC
-SRCS += $(BEMU)/common/riscv_disasm.cpp 
-endif
-SRCS += $(BEMU)/common/main_memory.cpp \
-        $(BEMU)/common/main_memory_region.cpp \
-        $(BEMU)/common/main_memory_region_atomic.cpp \
-        $(BEMU)/common/main_memory_region_tbox.cpp \
-        $(BEMU)/common/main_memory_region_rbox.cpp \
-        $(BEMU)/common/main_memory_region_esr.cpp \
-        $(SGPU)/src/trace.cpp
+sysemu_hdrs := \
+	common/main_memory.h \
+	common/main_memory_region.h \
+	common/main_memory_region_atomic.h \
+	common/main_memory_region_esr.h \
+	common/main_memory_region_rbox.h \
+	common/main_memory_region_tbox.h \
+	sys_emu/api_communicate.h \
+	sys_emu/et_emulator.h \
+	sys_emu/testLog.h
 
-vpath %.cpp $(BEMU)/sys_emu
-vpath %.cpp $(BEMU)/common
-vpath %.cpp $(SGPU)/src
+sysemu_cpp_srcs := \
+	common/main_memory.cpp \
+	common/main_memory_region.cpp \
+	common/main_memory_region_atomic.cpp \
+	common/main_memory_region_esr.cpp \
+	common/main_memory_region_rbox.cpp \
+	common/main_memory_region_tbox.cpp \
+	sys_emu/api_communicate.cpp \
+	sys_emu/net_emulator.cpp \
+	sys_emu/sys_emu.cpp \
+	sys_emu/sys_emu_log.cpp
 
-OBJS := $(addsuffix .o,$(basename $(notdir $(SRCS))))
-DEPS := $(addsuffix .d,$(basename $(OBJS)))
+sysemu_SRCS := $(sysemu_cpp_srcs) \
+	       $(emu_cpp_srcs)
+
+sysemu_OBJS := $(addprefix obj/,$(addsuffix .o,$(basename $(sysemu_SRCS))))
+sysemu_DEPS := $(addsuffix .d,$(basename $(sysemu_OBJS)))
+sysemu_DIRS := $(sort $(dir $(sysemu_OBJS)))
 
 CC	 := gcc
 CXX 	 := g++
-CPPFLAGS := -I$(BEMU) -I$(TESTROOT)/libs -I$(SGPU)/include -DSYS_EMU
-CXXFLAGS := -MMD -MP -Wall -Werror -std=c++11 -g -O2
-LDLIBS   += -L$(BEMU)/build -Wl,-rpath=$(BEMU)/build -lemu \
+CPPFLAGS := -I../.. -I.. -DSYS_EMU
+CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
+CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
+LDLIBS   := ../../build/libfpu.a
 
-CPPFLAGS += -I$(BFDROOT)/include
-ifdef SYSEMU_DEBUG
-   CXXFLAGS += -DSYSEMU_DEBUG
-endif
-
-ifdef SYSEMU_STATIC
-LDFLAGS  += -static
-CPPFLAGS += -DNODISASM=1
-else
-LDLIBS   += -L$(BFDROOT)/lib -Wl,-rpath=$(BFDROOT)/lib \
-	    -lbfd -lopcodes
-endif
+# FIXME: Remove the following when we convert everything away from C++ floats
+CXXFLAGS += -mf16c -fno-fast-math
 
 .PHONY: all
 all: sys_emu
 
 .PHONY: static
-static:
-	SYSEMU_STATIC=1 $(MAKE) sys_emu
+static: LDFLAGS := -static
+static: sys_emu
+	strip $<
 
-.PHONY: libemu_all
-libemu_all:
-ifdef SYSEMU_STATIC
-	LIBEMU_STATIC=1 $(MAKE) -C $(BEMU)/build all
-else
-	$(MAKE) -C $(BEMU)/build all
-endif
-
-.PHONY: libemu_clean
-libemu_clean:
-	$(MAKE) -C $(BEMU)/build clean
+.PHONY: debug
+debug: CPPFLAGS += -DSYSEMU_DEBUG
+debug: sys_emu
 
 .PHONY: clean
-clean: libemu_clean
-	$(RM) sys_emu *.o *.d
+clean:
+	$(MAKE) -C ../../build clean_libfpu
+	$(RM) -r sys_emu obj/
 
-trace.o: $(SGPU)/src/trace.cpp
-	$(COMPILE.cpp) -DSYS_EMU $(OUTPUT_OPTION) $<
+../../build/libfpu.a:
+	$(MAKE) -C ../../build $(notdir $@)
 
-sys_emu: $(OBJS) | libemu_all
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
+sys_emu: $(sysemu_OBJS) ../../build/libfpu.a
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $(sysemu_OBJS) $(LOADLIBES) $(LDLIBS) -o $@
 
--include $(DEPS)
+$(sysemu_DIRS):
+	mkdir -p $@
+
+obj/%.o: ../../%.cpp | $(sysemu_DIRS)
+	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
+
+$(sysemu_OBJS): Makefile
+
+-include $(sysemu_DEPS)
