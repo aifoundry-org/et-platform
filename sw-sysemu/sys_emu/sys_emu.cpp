@@ -5,6 +5,7 @@
 #include <exception>
 
 #include "emu.h"
+#include "emu_gio.h"
 #include "insn.h"
 #include "common/main_memory.h"
 #include "log.h"
@@ -98,29 +99,19 @@ static void emu_memwrite64(uint64_t addr, uint64_t data)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Dump or not log info
-////////////////////////////////////////////////////////////////////////////////
-
-static bool dump_log(bool log_en, int log_min, int thread_id)
-{
-    if ((log_min < 0) || (log_min >= EMU_NUM_MINIONS)) return log_en;
-    return (((thread_id / EMU_THREADS_PER_MINION) == log_min) && log_en);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
 // second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
 // of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
-void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest, bool log_en, int log_min)
+void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
 {
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
         if((thread_mask >> m) & 1)
         {
-            int thread_id = shire_id * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION + m * EMU_THREADS_PER_MINION  + thread_dest;
-            if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.%i: Receiving FCC on counter %u \n", shire_id, m, thread_dest, cnt_dest); }
+            int thread_id = shire_id * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + thread_dest;
+            LOG_OTHER(DEBUG, thread_id, "Receiving FCC on counter %u", cnt_dest);
             // Checks if is already awaken
             if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) != enabled_threads.end())
             {
@@ -130,7 +121,7 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
             // Otherwise wakes up thread
             else
             {
-                if(dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.%i: Waking up due sent FCC on counter %u\n", shire_id, m, thread_dest, cnt_dest); }
+                LOG_OTHER(DEBUG, thread_id, "Waking up due sent FCC on counter %u", cnt_dest);
                 enabled_threads.push_back(thread_id);
             }
         }
@@ -142,12 +133,12 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
 // loaded in the different regions
 ////////////////////////////////////////////////////////////////////////////////
 
-static bool parse_mem_file(const char * filename, main_memory * memory, testLog& log)
+static bool parse_mem_file(const char * filename, main_memory * memory)
 {
     FILE * file = fopen(filename, "r");
     if (file == NULL)
     {
-        log << LOG_FTL << "Parse Mem File Error -> Couldn't open file " << filename << " for reading!!" << endm;
+        LOG_NOTHREAD(FTL, "Parse Mem File Error -> Couldn't open file %s for reading!!", filename);
     }
 
     // Parses the contents
@@ -162,17 +153,17 @@ static bool parse_mem_file(const char * filename, main_memory * memory, testLog&
         if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
         {
             memory->new_region(base_addr, size);
-            log << LOG_INFO << "New Mem Region found: @ 0x" << std::hex << base_addr << ", size = 0x" << size << std::dec << endm;
+            LOG_NOTHREAD(INFO, "New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIu64, base_addr, size);
         }
         else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
             memory->load_file(str, base_addr);
-            log << LOG_INFO << "New File Load found: @ 0x" << std::hex << base_addr << std::dec << endm;
+            LOG_NOTHREAD(INFO, "New File Load found: @ 0x%" PRIx64, base_addr);
         }
         else if(sscanf(buffer, "ELF Load: %s", str) == 1)
         {
             memory->load_elf(str);
-            log << LOG_INFO << "New ELF Load found: " << str << endm;
+            LOG_NOTHREAD(INFO, "New ELF Load found: %s", str);
         }
     }
     // Closes the file
@@ -183,14 +174,6 @@ static bool parse_mem_file(const char * filename, main_memory * memory, testLog&
 ////////////////////////////////////////////////////////////////////////////////
 // Instruction log
 ////////////////////////////////////////////////////////////////////////////////
-
-static void print_inst_log(const insn_t& inst, uint64_t minion, uint64_t current_pc, inst_state_change & emu_state_change)
-{
-    printf("Minion %" PRIu64 ".%" PRIu64 ".%" PRIu64 ": PC %08" PRIx64 " (inst bits %08" PRIx32 ")\n",
-           minion / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION),
-           (minion / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE,
-           minion % EMU_THREADS_PER_MINION, current_pc, inst.bits);
-}
 
 // Returns current thread
 
@@ -347,10 +330,6 @@ bool get_pc_break() {
 
 int main(int argc, char * argv[])
 {
-
-    // Logger
-    testLog log("System EMU", LOG_DEBUG);
-
     char * elf_file      = NULL;
     char * mem_desc_file = NULL;
     char * net_desc_file = NULL;
@@ -519,25 +498,25 @@ int main(int argc, char * argv[])
         }
         else
         {
-            log << LOG_FTL << "Unknown parameter " << argv[i] << endm;
+            LOG_NOTHREAD(FTL, "Unknown parameter %s", argv[i]);
         }
     }
 
     if ((elf_file == NULL) && (mem_desc_file == NULL) && (api_comm_path == NULL))
     {
-        log << LOG_FTL << "Need an elf file or a mem_desc file or runtime API!" << endm;
+        LOG_NOTHREAD(FTL, "Need an elf file or a mem_desc file or runtime API!");
     }
 
     if ((net_desc_file != NULL) && (api_comm_path != NULL))
     {
-        log << LOG_FTL << "Can't have net_desc and api_comm set at same time!" << endm;
+        LOG_NOTHREAD(FTL, "Can't have net_desc and api_comm set at same time!");
     }
 
     if (debug == true) {
 #ifdef SYSEMU_DEBUG
-       log << LOG_INFO << "Starting in interactive mode." << endm;
+       LOG_NOTHREAD(INFO, "Starting in interactive mode.");
 #else
-       log << LOG_WARN << "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG." << endm;
+       LOG_NOTHREAD(WARN, "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG.");
 #endif
     }
 
@@ -573,11 +552,11 @@ int main(int argc, char * argv[])
        memory->load_elf(elf_file);
     }
     if (mem_desc_file != NULL) {
-       parse_mem_file(mem_desc_file, memory, log);
+       parse_mem_file(mem_desc_file, memory);
     }
 
     net_emulator net_emu(memory);
-    net_emu.set_log(&log);
+    net_emu.set_log(&emu_log());
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
     if(net_desc_file != NULL)
     {
@@ -585,7 +564,7 @@ int main(int argc, char * argv[])
     }
 
     api_communicate api_listener(memory);
-    api_listener.set_log(&log);
+    api_listener.set_log(&emu_log());
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
     if(api_comm_path != NULL)
     {
@@ -615,8 +594,8 @@ int main(int argc, char * argv[])
 
           // Inits threads
           for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
-             thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
-             if (dump_log(log_en, log_min, thread_id)) { printf("Minion %i.%i.0: Resetting\n", s, m); }
+             thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+             LOG_OTHER(DEBUG, thread_id, "Resetting");
              current_pc[thread_id] = reset_pc;
              reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
              set_thread(thread_id);
@@ -663,10 +642,7 @@ int main(int argc, char * argv[])
         if (steps > 0) steps--;
 #endif
 
-        if(log_en)
-        {
-            printf("Starting Emulation Cycle %" PRIu64 "\n", emu_cycle);
-        }
+        LOG_NOTHREAD(DEBUG, "Starting Emulation Cycle %" PRIu64, emu_cycle);
 
         auto thread = enabled_threads.begin();
 
@@ -675,8 +651,7 @@ int main(int argc, char * argv[])
             thread_id = * thread;
 
             // Computes logging for this thread
-            bool do_log = dump_log(log_en, log_min, thread_id);
-            if(do_log) { printf("Starting emu of thread %i\n", thread_id); }
+            LOG_OTHER(DEBUG, thread_id, "Starting emu");
 
             // Try to execute one instruction, this may trap
             try
@@ -686,8 +661,6 @@ int main(int argc, char * argv[])
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
                 inst.fetch_and_decode(current_pc[thread_id]);
-                if(do_log)
-                    print_inst_log(inst, thread_id, current_pc[thread_id], emu_state_change);
 
                 // In case of reduce, we need to make sure that the other minion is also in reduce state
                 bool reduce_wait = false;
@@ -716,7 +689,7 @@ int main(int argc, char * argv[])
                         }
                         else
                         {
-                            log << LOG_FTL << "Reduce error: Minion: " << (thread_id  / EMU_THREADS_PER_MINION) << " found pairing receiver minion: " << other_min << " in Reduce_Ready_To_Send!!" << endm;
+                            LOG(FTL, "Reduce error: Found pairing receiver minion: %" PRIu64 " in Reduce_Ready_To_Send!!", other_min);
                         }
                     }
                     // Receiver
@@ -735,7 +708,7 @@ int main(int argc, char * argv[])
                         }
                         else
                         {
-                            log << LOG_FTL << "Reduce error: Minion: " << (thread_id  / EMU_THREADS_PER_MINION) << " found pairing sender minion: " << other_min << " in Reduce_Data_Consumed!!" << endm;
+                            LOG(FTL, "Reduce error: Found pairing sender minion: %" PRIu64 " in Reduce_Data_Consumed!!", other_min);
                         }
                     }
                 }
@@ -762,27 +735,29 @@ int main(int argc, char * argv[])
                 // Thread is going to sleep
                 if(inst.is_fcc() && !reduce_wait)
                 {
-		  unsigned cnt = get_fcc_cnt();
-		    if(do_log) { printf("Minion %i.%i.%i: Going to sleep (FCC) blocking on counter %u\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION, cnt); }                    
+                    unsigned cnt = get_fcc_cnt();
+                    LOG(DEBUG, "Going to sleep (FCC) blocking on counter %u", cnt);
                     int old_thread = *thread;
 
                     // Checks if there's a pending FCC and wakes up thread again
                     if(pending_fcc[old_thread][cnt]==0)
                     {
-		      thread = enabled_threads.erase(thread);
-		    }else {
-		      if(do_log) { printf("Minion %i.%i.%i: Waking up due present FCC on counter %u\n", old_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (old_thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, old_thread % EMU_THREADS_PER_MINION, cnt); }
-		      pending_fcc[old_thread][cnt]--;
+                        thread = enabled_threads.erase(thread);
+                    }
+                    else
+                    {
+                        LOG(DEBUG, "Waking up due present FCC on counter %u", cnt);
+                        pending_fcc[old_thread][cnt]--;
                     }
                 }
                 else if(inst.is_wfi() && !reduce_wait)
                 {
-                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep (WFI)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
+                    LOG(DEBUG, "Going to sleep (WFI)");
                     thread = enabled_threads.erase(thread);
                 }
                 else if(inst.is_stall() && !reduce_wait)
                 {
-                    if(do_log) { printf("Minion %i.%i.%i: Going to sleep (CSR STALL)\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
+                    LOG(DEBUG, "Going to sleep (CSR STALL)");
                     thread = enabled_threads.erase(thread);
                 }
                 else
@@ -793,16 +768,18 @@ int main(int argc, char * argv[])
             catch (const trap_t& t)
             {
                 take_trap(t);
-                //if(do_log) { printf("Minion %i.%i.%i: Taking a trap\n", thread_id / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), (thread_id / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, thread_id % EMU_THREADS_PER_MINION); }
-                if (current_pc[thread_id] == emu_state_change.pc) {
-                   log << LOG_FTL << "Thread " << thread_id << " is trapping to the same address that caused a trap (0x" << std::hex << current_pc[thread_id] << "). Avoiding infinite trap recursion." << endm;
+                //LOG(DEBUG, "Taking a trap");
+                if (current_pc[thread_id] == emu_state_change.pc)
+                {
+                    LOG(FTL, "Trapping to the same address that caused a trap (0x%" PRIx64 "). Avoiding infinite trap recursion.",
+                        current_pc[thread_id]);
                 }
                 current_pc[thread_id] = emu_state_change.pc;
                 thread++;
             }
             catch (const std::exception& e)
             {
-                log << LOG_FTL << e.what() << endm;
+                LOG(FTL, "%s", e.what());
             }
         }
 
@@ -816,7 +793,7 @@ int main(int argc, char * argv[])
         auto it = ipi_threads.begin();
         while(it != ipi_threads.end())
         {
-            if(dump_log(log_en, log_min, * it)) { printf("Minion %i.%i.%i: Waking up due IPI with PC %" PRIx64 "\n", (* it) / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), ((* it) / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, (* it) % EMU_THREADS_PER_MINION, new_pc); }
+            LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, new_pc);
             if(new_pc != 0) current_pc[* it] = new_pc; // 0 means resume
             enabled_threads.push_back(* it);
             it++;
@@ -826,7 +803,7 @@ int main(int argc, char * argv[])
         it = ipi_threads_t1.begin();
         while(it != ipi_threads_t1.end())
         {
-            if(dump_log(log_en, log_min, * it)) { printf("Minion %i.%i.%i: Waking up due IPI with PC %" PRIx64 "\n", (* it) / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION), ((* it) / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE, (* it) % EMU_THREADS_PER_MINION, new_pc_t1); }
+            LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, new_pc_t1);
             if(new_pc_t1 != 0) current_pc[* it] = new_pc_t1; // 0 means resume
             enabled_threads.push_back(* it);
             it++;

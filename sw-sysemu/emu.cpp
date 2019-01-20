@@ -552,11 +552,6 @@ void init_emu(enum logLevel level)
    std::fesetround(FE_TONEAREST); // set rne for host
 }
 
-void log_only_minion(int32_t m) {
-    extern int32_t minion_only_log;
-    minion_only_log = m;
-}
-
 // forward declarations
 static uint64_t csrget(csr src1);
 static void csrset(csr src1, uint64_t val);
