@@ -2473,6 +2473,12 @@ static uint64_t csrget(csr src1)
             break;
         case csr_cycle:
         case csr_instret:
+            if ( ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_scounteren] & csrregs[current_thread][csr_mcounteren] &
+                                               (1 << (src1-csr_cycle))) == 0)) ||
+                 ((prvget() == CSR_PRV_S) && ((csrregs[current_thread][csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
+                {
+                    throw trap_illegal_instruction(current_inst);
+                }
             val = 0;
             break;
         case csr_time:
@@ -2505,12 +2511,12 @@ static uint64_t csrget(csr src1)
         case csr_hpmcounter29:
         case csr_hpmcounter30:
         case csr_hpmcounter31:
-            // Legal to read only if machine mode or {m,s}counteren correctly configured for next level of privilege
-            if (   ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_scounteren] & (1 << (src1-csr_cycle))) == 0))
-                || ((prvget() == CSR_PRV_S) && ((csrregs[current_thread][csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
-            {
-               throw trap_illegal_instruction(current_inst);
-            }
+            if ( ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_scounteren] & csrregs[current_thread][csr_mcounteren] &
+                                               (1 << (src1-csr_cycle))) == 0)) ||
+                 ((prvget() == CSR_PRV_S) && ((csrregs[current_thread][csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
+                {
+                    throw trap_illegal_instruction(current_inst);
+                }
             val = csrregs[current_thread][src1];
             break;
         case csr_porthead0:
