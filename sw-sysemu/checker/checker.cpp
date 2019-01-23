@@ -112,6 +112,8 @@ uint64_t mem_mask(int32_t size)
 main_memory * memory_instance = NULL;
 checker* checker_instance = NULL; // this is used when enabling the second thread from the emu, to have an object to handle the call
                                   // if there is more than 1 checker instance (e.g. one per shire), this will have to be an array
+bool fail_on_check = false;	  // Option to still emulation instruction but dont fail test
+
 
 // These functions are called by emu. We should clean this to a nicer way...
 uint8_t checker_memread8(uint64_t addr)
@@ -167,7 +169,7 @@ void checker_thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc) {
 }
 
 // Creates a new checker
-checker::checker(main_memory * memory_, enum logLevel emu_log_level)
+checker::checker(main_memory * memory_, enum logLevel emu_log_level, bool checker_en)
     : log("checker", emu_log_level)
 {
     for(uint32_t i = 0; i < EMU_NUM_THREADS; i++)
@@ -206,6 +208,7 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level)
 
     texrec_func_ptr = nullptr;
     checker_instance = this;
+    fail_on_check = checker_en;
     memory_instance = memory;
     init_emu(emu_log_level);
 }
@@ -407,7 +410,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             else
                current_pc[thread] += inst.size();
             // don't check anything else when PC mismatches... everything would mismatch
-            return CHECKER_ERROR;
+            	if(fail_on_check) return CHECKER_ERROR;
+	    	else	      return CHECKER_WARNING;
         }
 
         // Instruction bits -- the RTL monitor shows the uncompressed version of the instruction always,
@@ -424,7 +428,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
             stream << "Int Register write error. Expected write is " << emu_state_change.int_reg_mod << " but provided is " << changes->int_reg_mod << std::endl;
             error_msg += stream.str();
-            check_res = CHECKER_ERROR;
+	    if(fail_on_check) check_res = CHECKER_ERROR;
+	    else	      check_res = CHECKER_WARNING;
         }
         if(emu_state_change.int_reg_mod)
         {
@@ -432,7 +437,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 stream << "Int Register dest error. Expected dest is x" << emu_state_change.int_reg_rd << " but provided is x" << changes->int_reg_rd << std::endl;
                 error_msg += stream.str();
-                check_res = CHECKER_ERROR;
+		if(fail_on_check) check_res = CHECKER_ERROR;
+	    	else	          check_res = CHECKER_WARNING;
             }
 
             // Check if load comes from an unpredictible memory region, accept RTL value if so.
@@ -503,7 +509,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 stream << "Int Register data error. Expected data is 0x" << std::hex << emu_state_change.int_reg_data << " but provided is 0x" << changes->int_reg_data << std::dec << std::endl;
                 error_msg += stream.str();
-                check_res = CHECKER_ERROR;
+		if(fail_on_check) check_res = CHECKER_ERROR;
+	    	else	          check_res = CHECKER_WARNING;
             }
         }
 
@@ -512,7 +519,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
             stream << "FP Register write error. Expected write is " << emu_state_change.fp_reg_mod << " but provided is " << changes->fp_reg_mod << std::endl;
             error_msg += stream.str();
-            check_res = CHECKER_ERROR;
+	    if(fail_on_check) check_res = CHECKER_ERROR;
+	    else	      check_res = CHECKER_WARNING;
         }
 
         // Changing fflags
@@ -546,7 +554,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 stream << "FP Register dest error. Expected dest is f" << emu_state_change.fp_reg_rd << " but provided is f" << changes->fp_reg_rd << std::endl;
                 error_msg += stream.str();
-                check_res = CHECKER_ERROR;
+		if(fail_on_check) check_res = CHECKER_ERROR;
+	    	else	      	  check_res = CHECKER_WARNING;
             }
 
             // Check if load comes from an unpredictible memory region, accept RTL value if so.
@@ -588,7 +597,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                         stream << "0x" << std::hex << (errlo ? rtl_datalo : rtl_datahi);
                     stream << " Current mask: 0x" << get_mask(0) << std::dec << std::endl;
                     error_msg += stream.str();
-                    check_res = CHECKER_ERROR;
+		    if(fail_on_check) check_res = CHECKER_ERROR;
+	    	    else	      check_res = CHECKER_WARNING;
                 }
 #if 0
                 if( changes->fp_reg_data[i] != emu_state_change.fp_reg_data[i])
@@ -629,7 +639,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                             stream << "0x" << std::hex << (errlo ? rtl_datalo : rtl_datahi);
                         stream << " Current mask: 0x" << get_mask(0) << std::dec << std::endl;
                         error_msg += stream.str();
-                        check_res = CHECKER_ERROR;
+		    	if(fail_on_check) check_res = CHECKER_ERROR;
+	    	    	else	      	  check_res = CHECKER_WARNING;	
                     }
                 }
               }
@@ -645,7 +656,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 stream << "Mask Register write error for entry " << m << ". Expected write is " << emu_state_change.m_reg_mod[m] << " but provided is " << changes->m_reg_mod[m] << std::endl;
                 error_msg += stream.str();
-                check_res = CHECKER_ERROR;
+		if(fail_on_check) check_res = CHECKER_ERROR;
+	    	else	          check_res = CHECKER_WARNING;
             }
             if(emu_state_change.m_reg_mod[m])
             {
@@ -655,7 +667,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     {
                         stream << "Mask Register data error m" << m << "[" << i << "]. Expected data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but provided is " << (uint32_t) changes->m_reg_data[m][i] << std::dec << std::endl;
                         error_msg += stream.str();
-                        check_res = CHECKER_ERROR;
+			if(fail_on_check) check_res = CHECKER_ERROR;
+	    	    	else	      	  check_res = CHECKER_WARNING;
                     }
                 }
             }
@@ -668,7 +681,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 stream << "Memory write error (" << i << "). Expected write is " << emu_state_change.mem_mod[i] << " but provided is " << changes->mem_mod[i] << std::endl;
                 error_msg += stream.str();
-                check_res = CHECKER_ERROR;
+		if(fail_on_check) check_res = CHECKER_ERROR;
+	    	else	      	  check_res = CHECKER_WARNING;
             }
             if(emu_state_change.mem_mod[i])
             {
@@ -676,13 +690,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 {
                     stream << "Memory write size error (" << i << "). Expected size is " << emu_state_change.mem_size[i] << " but provided is " << changes->mem_size[i] << std::endl;
                     error_msg += stream.str();
-                    check_res = CHECKER_ERROR;
+		    if(fail_on_check) check_res = CHECKER_ERROR;
+	    	    else	      check_res = CHECKER_WARNING;
                 }
                 if( (changes->mem_addr[i] & VA_M) != (emu_state_change.mem_addr[i] & VA_M))
                 {
                     stream << "Memory write address error (" << i << "). Expected addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " & " << VA_M <<" but provided is 0x" << changes->mem_addr[i] <<" & "<< VA_M << std::dec << std::endl;
                     error_msg += stream.str();
-                    check_res = CHECKER_ERROR;
+		    if(fail_on_check) check_res = CHECKER_ERROR;
+	    	    else	      check_res = CHECKER_WARNING;
                 }
                 uint64_t rtl_mem_data = changes->mem_data[i] & mem_mask(changes->mem_size[i]);
                 uint64_t emu_mem_data = emu_state_change.mem_data[i] & mem_mask(changes->mem_size[i]);
@@ -691,7 +707,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 {
                     stream << "Memory write data error (" << i << "). Expected data is 0x" << std::hex << emu_mem_data << " but provided is 0x" << rtl_mem_data << std::dec << std::endl;
                     error_msg += stream.str();
-                    check_res = CHECKER_ERROR;
+		    if(fail_on_check) check_res = CHECKER_ERROR;
+	    	    else	      check_res = CHECKER_WARNING;
                 }
             }
         }
@@ -796,7 +813,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     {
                         stream << "Couldn't find TensorFMA destination " << entry << " in the RTL TensorFMA list for pass " << pass << "!!" << std::endl;
                         error_msg += stream.str();
-                        check_res = CHECKER_ERROR;
+			if(fail_on_check) check_res = CHECKER_ERROR;
+	    	    	else	      	  check_res = CHECKER_WARNING;
                     }
                     else
                     {
@@ -906,7 +924,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 {
                     stream << "Couldn't find Reduce destination " << entry << " in the RTL Reduce list!!" << std::endl;
                     error_msg += stream.str();
-                    check_res = CHECKER_ERROR;
+		    if(fail_on_check) check_res = CHECKER_ERROR;
+	    	    else	      check_res = CHECKER_WARNING;
                 }
                 else
                 {
