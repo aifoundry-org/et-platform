@@ -50,15 +50,16 @@ private:
     } esr_info_t;
 
     typedef struct {
-      /* @TODO define properly this structure.*/
+        uint64_t         esr_region;
         esr_protection_t protection;
+        esr_region_t     esr_sregion;
+        uint64_t         esr_address;
         uint64_t         shire;
-        uint64_t         esraddress;
     } esr_info_data_t;
 
     void decode_ESR_address(uint64_t address, esr_info_t *info);
 
-    void decode_ESR_data(uint64_t address, esr_info_data_t *info);
+    void decode_ESR_data(uint64_t data, esr_info_data_t *info);
 
     void encode_ESR_address(esr_info_data_t, uint64_t shire_id, uint64_t *new_ad);
 };

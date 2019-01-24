@@ -72,6 +72,7 @@
 // ESR region
 #define ESR_REGION             0x0100000000ULL  // ESR Region bit [32] == 1
 #define ESR_REGION_MASK        0xFF00000000ULL  // Mask to determine if address is in the ESR region (bits [39:32]
+#define ESR_REGION_MASK_SHIFT  32
 
 #define ESR_REGION_PROT_MASK   0x00C0000000ULL  // ESR Region Protection is defined in bits [31:30]
 #define ESR_REGION_PROT_SHIFT  30               // Bits to shift to get the ESR Region Protection defined in bits [31:30]
@@ -120,13 +121,15 @@
 #define ESR_SHIRE_BROADCAST0_OFFSET  0x1FFF0L
 #define ESR_SHIRE_BROADCAST1_OFFSET  0x1FFF8L
 
-#define ESR_BROADCAST_PROT_MASK      0xC00000000000000ULL // Region protection is defined in bits [60:59] in esr broadcast data write.
-#define ESR_BROADCAST_PROT_SHIFT     59
-
-#define ESR_BROADCAST_ESR_ADDR_MASK  0x7FFFF0000000000ULL // ESR broadcastable address is defined in bits[58:40] in esr broadcast data write.
-#define ESR_BROADCAST_ESR_ADDR_SHIFT 40
+#define ESR_BROADCAST_PROT_MASK              0x1800000000000000ULL // Region protection is defined in bits [60:59] in esr broadcast data write.
+#define ESR_BROADCAST_PROT_SHIFT             59
+#define ESR_BROADCAST_ESR_SREGION_MASK       0x07C0000000000000ULL // bits [21:17] in Memory Shire Esr Map. Esr region.
+#define ESR_BROADCAST_ESR_SREGION_MASK_SHIFT 54
+#define ESR_BROADCAST_ESR_ADDR_MASK          0x003FFF0000000000ULL // bits[17:3] in Memory Shire Esr Map. Esr address
+#define ESR_BROADCAST_ESR_ADDR_SHIFT         40
+#define ESR_BROADCAST_ESR_SHIRE_MASK         0x000000FFFFFFFFFFULL // bit mask Shire to spread the broadcast bits 
 #define ESR_BROADCAST_ESR_MAX_SHIRES ESR_BROADCAST_ESR_ADDR_SHIFT
-#define ESR_BROADCAST_ESR_SHIRE_MASK 0xFFFFFFFFFFULL      // Shire to spread the broadcast address in bits [39:0] in esr broadcast data write.
+
 
 
 // L2 scratchpad
