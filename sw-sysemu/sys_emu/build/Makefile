@@ -1,9 +1,3 @@
-GCC_GTE_5p3p1 := $(shell expr `gcc -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 50301)
-
-ifneq ($(GCC_GTE_5p3p1),1)
-    $(error "GCC version 5.3.1 or higher required")
-endif
-
 include ../../build/emu.mk
 
 sysemu_hdrs := \
@@ -41,7 +35,7 @@ CXX 	 := g++
 CPPFLAGS := -I../.. -I.. -DSYS_EMU
 CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
-LDLIBS   := ../../build/libfpu.a
+LDLIBS   := ../../build/libfpu.a -lm
 
 # FIXME: Remove the following when we convert everything away from C++ floats
 CXXFLAGS += -mf16c -fno-fast-math
