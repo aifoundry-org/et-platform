@@ -34,8 +34,7 @@
 #define L1_ENTRIES        (L1D_NUM_SETS * L1D_NUM_WAYS)
 #define L1_SCP_ENTRIES    48
 #define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
-#define L1_SCP_BLOCKS     (L1_SCP_LINE_SIZE / (VL * 4))
-#define L1_SCP_BLOCK_SIZE (VL * 4)
+typedef fdata_array_t<L1D_LINE_SIZE/4> cache_line_t;
 
 // MISA initial value
 #define CSR_ISA_MAX ((1ull << 2)  | /* "C" Compressed extension */                      \
@@ -277,7 +276,7 @@ bool mtvec_is_set[EMU_NUM_THREADS] = {};
 bool stvec_is_set[EMU_NUM_THREADS] = {};
 bool tensorload_setupb_topair[EMU_NUM_THREADS] = {false};
 int tensorload_setupb_numlines[EMU_NUM_THREADS];
-fdata scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS][L1_SCP_BLOCKS];
+cache_line_t scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS];
 int scp_entry[EMU_NUM_THREADS];
 int scp_size[EMU_NUM_THREADS];
 bool scp_tm;
@@ -560,7 +559,9 @@ static void tcoop(uint64_t value);
 static void tensorload(uint64_t control);
 static void tensorloadl2(uint64_t control);
 static void tensorstore(uint64_t tstorereg);
-static void tensorfma(uint64_t tfmareg);
+static void tensor_fma32(uint64_t tfmareg);
+static void tensor_fma16a32(uint64_t tfmareg);
+static void tensor_ima8a32(uint64_t tfmareg);
 static void tensorquant(uint64_t value);
 static void tensorreduce(uint64_t value);
 static uint64_t csr_cacheop_emu(uint64_t op_value);
@@ -689,7 +690,8 @@ static inline int frm()
 static inline void update_tensor_error(uint64_t value)
 {
     csrregs[current_thread][csr_tensor_error] |= value;
-    LOG(DEBUG, "\tTensorError = 0x%016" PRIx64 " (0x%016" PRIx64 ")", csrregs[current_thread][csr_tensor_error], value);
+    if (value)
+        LOG(DEBUG, "\tTensorError = 0x%016" PRIx64 " (0x%016" PRIx64 ")", csrregs[current_thread][csr_tensor_error], value);
 }
 
 // internal accessor to fflags; this is faster than doing
@@ -1805,7 +1807,6 @@ void lb(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lb x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     uint64_t val = sext8(vmemread8(XREGS[base].x + off));
-
     if (dst != x0)
     {
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM[0x%016" PRIx64 " + 0x%016" PRIx64 "]", val, XREGS[base].x, off);
@@ -2645,7 +2646,13 @@ static void csrset(csr src1, uint64_t val)
         case csr_tensor_fma:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            tensorfma(val);
+            switch ((val >> 1) & 0x7)
+            {
+                case 0: tensor_fma32(val); break;
+                case 1: tensor_fma16a32(val); break;
+                case 3: tensor_ima8a32(val); break;
+                default: /* nothing */ break;
+            }
             break;
         case csr_tensor_reduce:
             if (current_thread % EMU_THREADS_PER_MINION)
@@ -6228,7 +6235,7 @@ uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size
 {
     * last_entry = scp_entry[current_thread];
     * size = scp_size[current_thread];
-    return SCP[entry][block >> 2].x[block & 3];
+    return SCP[entry].x[block];
 }
 
 void get_scratchpad_conv_list(std::list<bool> * list)
@@ -7132,42 +7139,31 @@ void tensorload(uint64_t control)
                     LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
 
                 }
-                for (int j = 0; j < L1_SCP_BLOCKS; j++)
+                for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
-                    for (int k = 0; k < VL; k++)
+                    try
                     {
-                        uint64_t addr_final = addr+j*VL*4+k*4;
-                        uint32_t val = 0;
-                        try
-                        {
-                            val = vmemread32(addr_final);
-                        }
-                        catch (const trap_t& t)
-                        {
-                            // Memory exception
-                            update_tensor_error(1 << 7);
-                            return;
-                        }
-                        SCP[dst + i][j].u[k] = val;
-                        LOG(DEBUG, "\tScratchpad tensor load MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, dst+i, j, k, SCP[dst+i][j].u[k], SCP[dst+i][j].u[k]);
+                        SCP[dst + i].u[j] = vmemread32(addr + j*4);
                     }
+                    catch (const trap_t& t)
+                    {
+                        // Memory exception
+                        update_tensor_error(1 << 7);
+                        return;
+                    }
+                    LOG(DEBUG, "\tScratchpad tensor load MEM[%016" PRIx64 "]: Row%d-Elem%d <= 0x%08x (%d)", addr+j*4, dst+i, j, SCP[dst+i].u[j], SCP[dst+i].u[j]);
                 }
             }
             LOG(DEBUG, "\t\tAddress = 0x%016" PRIx64 " - Stride = 0x%016" PRIx64, addr, stride);
             addr += stride;
         }
     }
-    //INTERLEAVE
-    else if (trans == 0x01 || trans == 0x02)
+    //INTERLEAVE8
+    else if (trans == 0x01)
     {
        LOG(DEBUG, "%s", "TensorLoad: Interleave");
-       uint8_t tmp_buffer[4][64];
-       int size = trans & 0x03;
-       int start;
-       start=size==1 ?  boffset << 4 : (boffset & 0x02) << 5;
-       int elements = 4 / size;
-
-       LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, size, start, elements, boffset);
+       boffset *= 16;
+       LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/16);
        for (int i = 0; i < rows; ++i)
        {
             if (!tm || tmask_pass(i))
@@ -7176,60 +7172,61 @@ void tensorload(uint64_t control)
                 {
                     LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
                 }
-                for (int elem = 0; elem < elements; ++elem)
+                uint64_t vaddr = addr + boffset;
+                for (int c = 0; c < 16; ++c)
                 {
-                    //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
-                    for (int j = 0; j < 8; j++)
+                    for (int r = 0; r < 4; ++r)
                     {
-                        for (int k = 0; k < 8; k++)
+                        try
                         {
-                            uint64_t addr_final = addr+j*8+k;
-                            uint8_t val = 0;
-                            try
-                            {
-                                val = vmemread8(addr_final);
-                            }
-                            catch (const trap_t& t)
-                            {
-                                // Memory exception
-                                update_tensor_error(1 << 7);
-                                return;
-                            }
-                            tmp_buffer[elem][j*8+k] = val;
-                            LOG(DEBUG, "\tLoading into tmp_buffer - MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, elem, j, k, tmp_buffer[elem][j*8+k], tmp_buffer[elem][j*8+k]);
+                            SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = vmemread8(vaddr + r*stride + c);
                         }
+                        catch (const trap_t& t)
+                        {
+                            // Memory exception
+                            update_tensor_error(1 << 7);
+                            return;
+                        }
+                        LOG(DEBUG, "SCP[%d].b[%d] = 0x%02" PRIx8, (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].b[c*4+r]);
                     }
-
-                    LOG(DEBUG, "\t\tAddres = 0x%016" PRIx64 " - Stride = 0x%016" PRIx64, addr, stride);
-                    addr += stride;
-                }
-                for (int line = 0; line < L1_SCP_BLOCKS; ++ line)
-                {
-                    for (int byte = 0; byte < L1_SCP_BLOCK_SIZE; byte+=4)
-                    {
-                        // We interleve 32 bits each pass
-                        if (elements == 2)
-                        {
-                            SCP[dst+i][line].b[byte]   = tmp_buffer[0][start+line*16+byte/elements];
-                            SCP[dst+i][line].b[byte+1] = tmp_buffer[0][start+line*16+byte/elements+1];
-                            SCP[dst+i][line].b[byte+2] = tmp_buffer[1][start+line*16+byte/elements];
-                            SCP[dst+i][line].b[byte+3] = tmp_buffer[1][start+line*16+byte/elements+1];
-                        }
-                        if (elements == 4)
-                        {
-                            SCP[dst+i][line].b[byte]   = tmp_buffer[0][start+line*8+byte/elements];
-                            SCP[dst+i][line].b[byte+1] = tmp_buffer[1][start+line*8+byte/elements];
-                            SCP[dst+i][line].b[byte+2] = tmp_buffer[2][start+line*8+byte/elements];
-                            SCP[dst+i][line].b[byte+3] = tmp_buffer[3][start+line*8+byte/elements];
-                        }
-
-                        LOG(DEBUG, "SCP[%d][%d].u[%d] = 0x%08x", dst+i, line, byte/4, SCP[dst+i][line].u[byte/4]);
-                    }
-
                 }
             }
         }
-       //printSCP(addr,rows,stride,dst);
+    }
+    //INTERLEAVE16
+    else if (trans == 0x02)
+    {
+       LOG(DEBUG, "%s", "TensorLoad: Interleave");
+       boffset *= 32;
+       LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/32);
+       for (int i = 0; i < rows; ++i)
+       {
+            if (!tm || tmask_pass(i))
+            {
+                if (addr & 0x3F)
+                {
+                    LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
+                }
+                uint64_t vaddr = addr + boffset;
+                for (int c = 0; c < 16; ++c)
+                {
+                    for (int r = 0; r < 2; ++r)
+                    {
+                        try
+                        {
+                            SCP[(dst+i)%L1_SCP_ENTRIES].h[c*4 + r] = vmemread8(vaddr + r*stride + c);
+                        }
+                        catch (const trap_t& t)
+                        {
+                            // Memory exception
+                            update_tensor_error(1 << 7);
+                            return;
+                        }
+                        LOG(DEBUG, "SCP[%d].h[%d] = 0x%04" PRIx16, (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].h[c*4+r]);
+                    }
+                }
+            }
+        }
     }
     //TRANSPOSE
     else if (trans == 0x05 || trans == 0x06 || trans==0x07)
@@ -7271,12 +7268,12 @@ void tensorload(uint64_t control)
                         return;
                     }
                     tmp_buffer[elem][j*8+k]=val;
-                    LOG(DEBUG, "\tLoading into tmp_buffer - MEM[%016" PRIx64 "]: Row%d-Freg%d-Elem%d <= 0x%08x (%d)", addr_final, elem, j, k, tmp_buffer[elem][j*8+k], tmp_buffer[elem][j*8+k]);
+                    LOG(DEBUG, "\tLoading into tmp_buffer - MEM[%016" PRIx64 "]: Row%d-Elem%d <= 0x%08x (%d)", addr_final, elem, j*8+k, tmp_buffer[elem][j*8+k], tmp_buffer[elem][j*8+k]);
                 }
             }
             addr += stride;
         }
-        for (int  i =0 ;i < rows; ++i)
+        for (int i = 0; i < rows; ++i)
         {
              if (!tm || tmask_pass(i))
              {
@@ -7288,21 +7285,21 @@ void tensorload(uint64_t control)
                 {
                     if (size == 4)
                     {
-                        SCP[dst+i][j*4/L1_SCP_BLOCK_SIZE].b[(j*size)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset];
-                        SCP[dst+i][j*4/L1_SCP_BLOCK_SIZE].b[(j*size+1)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset+1];
-                        SCP[dst+i][j*4/L1_SCP_BLOCK_SIZE].b[(j*size+2)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset+2];
-                        SCP[dst+i][j*4/L1_SCP_BLOCK_SIZE].b[(j*size+3)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset+3];
+                        SCP[dst+i].b[j*4  ] = tmp_buffer[j][i*4+offset  ];
+                        SCP[dst+i].b[j*4+1] = tmp_buffer[j][i*4+offset+1];
+                        SCP[dst+i].b[j*4+2] = tmp_buffer[j][i*4+offset+2];
+                        SCP[dst+i].b[j*4+3] = tmp_buffer[j][i*4+offset+3];
                         LOG(DEBUG, "\tI'm size 4 - b[0]=0x%02x b[1]=0x%02x", tmp_buffer[j][(i)*size+offset], tmp_buffer[j][(i)*size+offset+1]);
                     }
                     else if (size == 2)
                     {
-                        SCP[dst+i][j*2/L1_SCP_BLOCK_SIZE].b[(j*size)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset];
-                        SCP[dst+i][j*2/L1_SCP_BLOCK_SIZE].b[(j*size+1)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset+1];
+                        SCP[dst+i].b[j*2  ] = tmp_buffer[j][i*2+offset  ];
+                        SCP[dst+i].b[j*2+1] = tmp_buffer[j][i*2+offset+1];
                         LOG(DEBUG, "\tI'm size 2 - b[0]=0x%02x b[1]=0x%02x", tmp_buffer[j][(i)*size+offset], tmp_buffer[j][(i)*size+offset+1]);
                     }
                     else if (size == 1)
                     {
-                        SCP[dst+i][j/L1_SCP_BLOCK_SIZE].b[(j*size)%L1_SCP_BLOCK_SIZE] = tmp_buffer[j][(i)*size+offset];
+                        SCP[dst+i].b[j] = tmp_buffer[j][i+offset];
                         LOG(DEBUG, "\tI'm size 1 - b[0]=0x%02x b[1]=0x%02x", tmp_buffer[j][dst+(i)*size+offset], tmp_buffer[j][dst+(i)*size+offset+1]);
                     }
                     else
@@ -7313,13 +7310,8 @@ void tensorload(uint64_t control)
                     }
 
                 }
-                for (int x = 0; x < L1_SCP_BLOCKS; ++x)
-                {
-                    for (int y = 0; y < VL; ++y)
-                    {
-                        LOG(DEBUG, "SCP[%d][%d].u[%d] = 0x%08x", dst+i, x, y, SCP[dst+i][x].u[y]);
-                    }
-                }
+                for (int x = 0; x < L1D_LINE_SIZE/4; ++x)
+                    LOG(DEBUG, "SCP[%d].u[%d] = 0x%08x", dst+i, x, SCP[dst+i].u[x]);
             }
 
         }
@@ -7357,7 +7349,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             {
                 LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
             }
-            for (int j = 0; j < L1_SCP_LINE_SIZE/4; j++)
+            for (int j = 0; j < L1D_LINE_SIZE/4; j++)
             {
                 uint64_t addr_offset  = j*4;
                 uint64_t addr_final = addr+addr_offset;
@@ -7463,7 +7455,7 @@ static void tensorquant(uint64_t value)
                     else if (transformations[trans] == 4)
                     {
                         int col_pos = col * 4 + elem;
-                        val2.i = SCP[scpsrc][col_pos / VL].i[col_pos % VL];
+                        val2.i = SCP[scpsrc].i[col_pos];
                         res.i = val.i + val2.i;
                         scp_inc = true;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", src, idx, res.u, val.u, val2.u);
@@ -7472,7 +7464,7 @@ static void tensorquant(uint64_t value)
                     else if (transformations[trans] == 5)
                     {
                         int row_pos = row;
-                        val2.i = SCP[scpsrc][row_pos / VL].i[row_pos % VL];
+                        val2.i = SCP[scpsrc].i[row_pos];
                         res.i = val.i + val2.i;
                         scp_inc = true;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", src, idx, res.u, val.u, val2.u);
@@ -7481,7 +7473,7 @@ static void tensorquant(uint64_t value)
                     else if (transformations[trans] == 6)
                     {
                         int col_pos = col * 4 + elem;
-                        val2.u = SCP[scpsrc][col_pos / VL].u[col_pos % VL];
+                        val2.u = SCP[scpsrc].u[col_pos];
                         res.f = fpu::f32_mul(val.f, val2.f);
                         scp_inc = true;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", src, idx, res.u, res.flt, val.u, val.flt, val2.u, val2.flt);
@@ -7490,7 +7482,7 @@ static void tensorquant(uint64_t value)
                     else if (transformations[trans] == 7)
                     {
                         int row_pos = row;
-                        val2.u = SCP[scpsrc][row_pos / VL].u[row_pos % VL];
+                        val2.u = SCP[scpsrc].u[row_pos];
                         res.f = fpu::f32_mul(val.f, val2.f);
                         scp_inc = true;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", src, idx, res.u, res.flt, val.u, val.flt, val2.u, val2.flt);
@@ -7580,26 +7572,23 @@ static void tensorstore(uint64_t tstorereg)
         for (int row = 0; row < rows; row++)
         {
             // For all the elements of the lane
-            for (int j = 0; j < L1_SCP_BLOCKS; j++)
+            for (int i = 0; i < L1D_LINE_SIZE/4; i++)
             {
-                for (int i = 0; i < VL; i++)
+                uint32_t val = SCP[src].u[i];
+                uint64_t waddr = addr + i * 4;
+                try
                 {
-                    uint32_t val = SCP[src][j].u[i];
-                    uint64_t waddr = addr + j * VL * 4 + i * 4;
-                    try
-                    {
-                        vmemwrite32(waddr, val);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
-                    LOG(DEBUG, "\t0x%08x --> MEM[0x%016" PRIx64 "]", val, waddr);
-                    LOG(DEBUG, "\t\tSCP[%d][%d].u[%d]", src, j, i);
-                    //logmemwchange(0, 4, waddr, val); => Don't log mem changes!
+                    vmemwrite32(waddr, val);
                 }
+                catch (const trap_t& t)
+                {
+                    // Memory exception
+                    update_tensor_error(1 << 7);
+                    return;
+                }
+                LOG(DEBUG, "\t0x%08x --> MEM[0x%016" PRIx64 "]", val, waddr);
+                LOG(DEBUG, "\t\tSCP[%d].u[%d]", src, i);
+                //logmemwchange(0, 4, waddr, val); => Don't log mem changes!
             }
             src += srcinc;
             src = src % L1_SCP_ENTRIES;
@@ -7671,414 +7660,405 @@ static void tensorstore(uint64_t tstorereg)
 
 // ----- TensorFMA emulation ---------------------------------------------------
 
-static void tensorfma(uint64_t tfmareg)
+static void tensor_fma32(uint64_t tfmareg)
 {
     if (!txfma_off_allowed(csr_tensor_fma, tfmareg))
         throw trap_txfma_off(current_inst);
 
-    int tm         = (tfmareg & 0x8000000000000000) >> 63; // Is a Conv2D operation (use tensor conv register)
-    int bcols      = (tfmareg & 0x0180000000000000) >> 55; // Number of B cols to be processed
-    int arows      = (tfmareg & 0x0078000000000000) >> 51; // Number of A rows to be processed
-    int acols      = (tfmareg & 0x0007800000000000) >> 47; // Number of A cols to be processed
-    int aoffset    = (tfmareg & 0x0000780000000000) >> 43; // A matrix 32b offset
-    int tenc_to_rf = (tfmareg & 0x0000000000800000) >> 23; // Store TIMA results in VPU RF (IMA only)
-    int ub         = (tfmareg & 0x0000000000400000) >> 22; // Matrix B is unsigned (IMA only)
-    int ua         = (tfmareg & 0x0000000000200000) >> 21; // Matrix A is unsigned (IMA only)
-    int tenb       = (tfmareg & 0x0000000000100000) >> 20; // B is stored in TENB and not in SCP
-    int bstart     = (tfmareg & 0x00000000000FF000) >> 12; // SCP entry where B is stored
-    int astart     = (tfmareg & 0x0000000000000FF0) >>  4; // SCP entry where A is stored
-    int type       = (tfmareg & 0x000000000000000E) >>  1; // Mode: 00 => FP32 | 01 => *FP16+FP32 | 10 => FP16 | 11 => *INT8+INT32
-    int first_pass = (tfmareg & 0x0000000000000001);       // Doing a first pass op (do MUL instead of FMA)
+    bool usemsk     = (tfmareg >> 63) & 0x1;
+    int  bcols      = (tfmareg >> 55) & 0x3;
+    int  arows      = (tfmareg >> 51) & 0xF;
+    int  acols      = (tfmareg >> 47) & 0xF;
+    int  aoffset    = (tfmareg >> 43) & 0xF;
+    bool tenb       = (tfmareg >> 20) & 0x1;
+    int  bstart     = (tfmareg >> 12) & 0xFF;
+    int  astart     = (tfmareg >>  4) & 0xFF;
+    bool first_pass = (tfmareg >>  0) & 1;
 
-    // Decodes fields
     bcols = (bcols + 1) * 4;
     arows = arows + 1;
     acols = acols + 1;
 
-    set_rounding_mode(rmdyn);
-    clear_arithmetic_flags();
-
-    LOG(DEBUG, "\tStart Tensor FMA with tm: %d, aoffset: %d, Type: %d, First pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc_to_rf: %d, tenb: %d, bstart: %d, astart: %d, rm: %s", tm, aoffset, type, first_pass, bcols, acols, arows, ub, ua, tenc_to_rf, tenb, bstart, astart, get_rounding_mode(rmdyn));
-
-    // //  check if L1 SCP is enabled
-    // // Disabled until software update - JIRA RTLMIN-2096
+    // // FIXME: Disabled until software update - JIRA RTLMIN-2096
+    // // Check if L1 SCP is enabled
     // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
     // {
     //     update_tensor_error(1 << 4);
     //     return;
     // }
 
-    // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
-    if (tenb)
+    LOG(DEBUG, "\tStart TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
+        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));
+
+    if (tenb && (!tensorload_setupb_topair[current_thread] ||
+                 (tensorload_setupb_numlines[current_thread] != acols)))
     {
-        bstart = L1_SCP_ENTRIES;
-        if (!tensorload_setupb_topair[current_thread] || (tensorload_setupb_numlines[current_thread] != acols))
-        {
-            // No TensorLoad to pair or incompatible combination of rows and columns length
-            update_tensor_error(1 << 6);
-            return;
-        }
+        // No TensorLoad to pair or incompatible combination of rows and columns length
+        update_tensor_error(1 << 6);
+        return;
     }
     // Unpair a paired TensorLoad
     tensorload_setupb_topair[current_thread] = false;
     tensorload_setupb_topair[current_thread^1] = false;
 
-    tensorfma_size[current_thread] = arows * bcols / VL;
-    tensorfma_passes[current_thread] = acols;
+    // Initialize info for checker
+    memset(tensorfma_mask_skip, 0, sizeof(tensorfma_mask_skip));
+    memset(tensorfma_zero_skip, 0, sizeof(tensorfma_zero_skip));
+    if (first_pass)
+        memset(tensorfma_data[current_thread], 0, sizeof(tensorfma_data[0]));
 
-    // No mask skip by default
-    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
-    {
-        for (int j = 0; j < TFMA_MAX_AROWS; j++)
-        {
-            tensorfma_mask_skip[i][j] = 0;
-        }
-    }
+    set_rounding_mode(rmdyn);
+    clear_arithmetic_flags();
 
-    // No zero skip by default
-    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
+    if (first_pass)
     {
-        for (int j = 0; j < 32; j++)
+        for (int i = 0; i < arows; ++i)
         {
-            for (int k = 0; k < VL; k++)
+            for (int j = 0; j < bcols; ++j)
             {
-                tensorfma_zero_skip[i][j][k] = 0;
+                FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
             }
         }
     }
 
-    // FP32 flow
-    if (type == 0)
+    for (int k = 0; k < acols; ++k)
     {
-        if (first_pass)
+        // Model TenB as an extension of the scratchpad
+        cache_line_t& tmpb = SCP[tenb ? (k+L1_SCP_ENTRIES) : ((bstart+k)%L1_SCP_ENTRIES)];
+
+        for (int i = 0; i < arows; ++i)
         {
-            for (int ar = 0; ar < arows; ar++)
+            // Skip computation for this row
+            if (usemsk && !tmask_pass(i))
             {
-                for (int bc = 0; bc < bcols; bc++)
-                {
-                    int bf = bc / VL;
-                    int bm = bc % VL;
-
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
-                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
-                }
-            }
-        }
-
-        for (int ar = 0; ar < arows; ar++)              // A: traverse arows rows
-        {
-            // Checks if needs to skip the current pass due convolution
-            if (tm)
-            {
-                if (!tmask_pass(ar))
-                {
-                    // Mark all passes as skipped
-                    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
-                        tensorfma_mask_skip[i][ar] = 1;
-                    // Except 1st if first pass
-                    if (first_pass)
-                    {
-                        tensorfma_mask_skip[0][ar] = 0;
-                    }
-                    continue;
-                }
+                // Mark this iteration as skipped for the checker, except if
+                // it is the first iteration and first_pass is set.
+                if (!first_pass || k)
+                    tensorfma_mask_skip[k/4][i] = 1;
+                continue;
             }
 
-            for (int bc = 0; bc < bcols; bc++)          // B: process bcols cols
+            float32_t a = fpu::F32(SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+k) % (L1D_LINE_SIZE/4)]);
+
+            for (int j = 0; j < bcols; ++j)
             {
-                int bf = bc / VL;
-                int bm = bc % VL;
+                float32_t b = fpu::F32(tmpb.u[j]);
 
-                for (int ac = 0; ac < acols; ac++)      // A: traverse acols cols
+                // If all products are 0, we can skip the operation, except if first_pass is set and this
+                // is the first iteration
+                if (!(first_pass && !k) && !((fpu::UI32(a) & fpu::UI32(b))))
                 {
-                    iufval32 accum, mul_a, mul_b, res;
-
-                    int af = (aoffset + ac) / VL;
-                    int am = (aoffset + ac) % VL;
-                    int br = bstart + ac;               // B: traverse acols rows
-
-                    accum.u = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-                    mul_a.u = SCP[astart+ar][af].u[am];
-                    mul_b.u = SCP[br][bf].u[bm];
-                    res.f = fpu::f32_mulAdd(mul_a.f, mul_b.f, accum.f);
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
-                    LOG(DEBUG, "\tTensor FMA f%d[%d]: %g = %g + %g * %g", TFMA_MAX_BCOLS/VL*ar+bf, bm, res.flt, accum.flt, mul_a.flt, mul_b.flt);
-                    LOG(DEBUG, "\t           f%d[%d]: 0x%08x = 0x%08x + 0x%08x * 0x%08x", TFMA_MAX_BCOLS/VL*ar+bf, bm, res.u, accum.u, mul_a.u, mul_b.u);
-                    // For checker purposes we keep the data of all the passes
-                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = res.u;
-
-                    if ((first_pass == 0) || (ac != 0))
-                    {
-                        // If As are zeroes, we skip operation
-                        if (mul_a.u == 0)
-                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                        // If Bs are zeroes, we skip operation
-                        if (mul_b.u == 0)
-                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                    }
+                    tensorfma_zero_skip[k][i*TFMA_REGS_PER_ROW+j/VL][j%VL] = true;
                 }
+                else
+                {
+                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                    float32_t c = fpu::f32_mulAdd(c0, a, b);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+
+                    LOG(DEBUG, "\tTensorFMA32 f%d[%d]: %g = %g + %g * %g", i*TFMA_REGS_PER_ROW+j/VL, j%VL,
+                        fpu::FLT(c), fpu::FLT(c0), fpu::FLT(a), fpu::FLT(b));
+                    LOG(DEBUG, "\t            f%d[%d]: 0x%08" PRIu32 " = 0x%08" PRIu32 " + 0x%08" PRIu32 " * 0x%08" PRIu32,
+                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
+                }
+                // For checker purposes we keep the data of all the passes
+                tensorfma_data[current_thread][i*TFMA_REGS_PER_ROW+j/VL][j%VL][k] = FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL];
             }
-            LOG(DEBUG, "\tC row %d: f%d[%d] = 0x%08x (%g)", ar, TFMA_MAX_BCOLS/VL*ar+0, 0, FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0], cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]));
-            for (int reg = 0; reg < 2; reg++)
-                for (int lane = 0; lane < VL; lane++)
-                    if ((reg != 0) || (lane != 0))
-                        LOG(DEBUG, "\t         f%d[%d] = 0x%08x (%g)",    TFMA_MAX_BCOLS/VL*ar+reg, lane, FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane], cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]));
         }
     }
-    // *FP16+FP32
-    else if (type == 1)
+
+    // logging
+    for (int i = 0; i < arows; ++i)
     {
-        if (first_pass)
+        LOG(DEBUG, "\tC[%2d][*]: f%d[%d] = 0x%08x (%d)", i, i*TFMA_REGS_PER_ROW, 0,
+            FREGS[i*TFMA_REGS_PER_ROW].u[0], FREGS[i*TFMA_REGS_PER_ROW].i[0]);
+        for (int j = 1; j < TFMA_MAX_BCOLS; ++j)
+            LOG(DEBUG, "\t          f%d[%d] = 0x%08x (%d)", i*TFMA_REGS_PER_ROW+j/VL, j%VL,
+                FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL], FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+    }
+
+    set_fp_exceptions();
+    dirty_fp_state();
+}
+
+static void tensor_fma16a32(uint64_t tfmareg)
+{
+    if (!txfma_off_allowed(csr_tensor_fma, tfmareg))
+        throw trap_txfma_off(current_inst);
+
+    bool usemsk     = (tfmareg >> 63) & 0x1;
+    int  bcols      = (tfmareg >> 55) & 0x3;
+    int  arows      = (tfmareg >> 51) & 0xF;
+    int  acols      = (tfmareg >> 47) & 0xF;
+    int  aoffset    = (tfmareg >> 43) & 0xF;
+    bool tenb       = (tfmareg >> 20) & 0x1;
+    int  bstart     = (tfmareg >> 12) & 0xFF;
+    int  astart     = (tfmareg >>  4) & 0xFF;
+    bool first_pass = (tfmareg >>  0) & 1;
+
+    bcols = (bcols + 1) * 4;
+    arows = arows + 1;
+    acols = (acols + 1) * 2;
+    aoffset = aoffset * 2;
+
+    // // FIXME: Disabled until software update - JIRA RTLMIN-2096
+    // // Check if L1 SCP is enabled
+    // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
+    // {
+    //     update_tensor_error(1 << 4);
+    //     return;
+    // }
+
+    LOG(DEBUG, "\tStart TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
+        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));
+
+    if (tenb && (!tensorload_setupb_topair[current_thread] ||
+                 (tensorload_setupb_numlines[current_thread] != acols/2)))
+    {
+        // No TensorLoad to pair or incompatible combination of rows and columns length
+        update_tensor_error(1 << 6);
+        return;
+    }
+    // Unpair a paired TensorLoad
+    tensorload_setupb_topair[current_thread] = false;
+    tensorload_setupb_topair[current_thread^1] = false;
+
+    // Initialize info for checker
+    memset(tensorfma_mask_skip, 0, sizeof(tensorfma_mask_skip));
+    memset(tensorfma_zero_skip, 0, sizeof(tensorfma_zero_skip));
+    if (first_pass)
+        memset(tensorfma_data[current_thread], 0, sizeof(tensorfma_data[0]));
+
+    set_rounding_mode(rmdyn);
+    clear_arithmetic_flags();
+
+    if (first_pass)
+    {
+        for (int i = 0; i < arows; ++i)
         {
-            for (int ar = 0; ar < arows; ar++)          // A: traverse arows rows
+            for (int j = 0; j < bcols; ++j)
             {
-                for (int bc = 0; bc < bcols; bc++)      // B: process bcols cols
-                {
-                    int bf = bc / VL;
-                    int bm = bc % VL;
-
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
-                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
-                }
+                FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
             }
-        }
-
-        for (int ar = 0; ar < arows; ar++)              // A: traverse arows rows
-        {
-            // Checks if needs to skip the current pass due convolution
-            if (tm)
-            {
-                if (!tmask_pass(ar))
-                {
-                    // Mark all passes as skipped
-                    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
-                        tensorfma_mask_skip[i][ar] = 1;
-                    // Except 1st if first pass
-                    if (first_pass)
-                        tensorfma_mask_skip[0][ar] = 0;
-                    continue;
-                }
-            }
-
-            for (int bc = 0; bc < bcols; bc++)          // B: process bcols cols
-            {
-                int bf = bc / VL;
-                int bm = bc % VL;
-
-                for (int ac = 0; ac < acols; ac++)      // A: accumulate acols values
-                {
-                    int af = (aoffset + ac) / VL;
-                    int am = (aoffset + ac) % VL;
-                    int br = bstart + ac;               // B: traverse rows
-
-
-                    // Doing two FMAs per lane and accumulating to previous results
-                    iufval32 accum, res;
-                    accum.u = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-
-                    uint16_t a1 = SCP[astart+ar][af].h[am * 2];       // get first operand
-                    uint16_t a2 = SCP[astart+ar][af].h[am * 2 + 1];   // get third operand
-                    uint16_t b1 = SCP[br][bf].h[bm * 2];              // get second operand
-                    uint16_t b2 = SCP[br][bf].h[bm * 2 + 1];          // get fourth operand
-
-                    res.f = fpu::f32_tensorMulAddF16(accum.f, fpu::F16(a1), fpu::F16(b1), fpu::F16(a2), fpu::F16(b2));
-                    FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res.u;
-
-                    float fa1 = fpu::FLT( fpu::f16_to_f32(fpu::F16(a1)) );
-                    float fb1 = fpu::FLT( fpu::f16_to_f32(fpu::F16(b1)) );
-                    float fa2 = fpu::FLT( fpu::f16_to_f32(fpu::F16(a2)) );
-                    float fb2 = fpu::FLT( fpu::f16_to_f32(fpu::F16(b2)) );
-                    LOG(DEBUG, "\tTensor FMA f%d[%d]: %g = %g + (%g * %g) + (%g * %g)", TFMA_MAX_BCOLS/VL*ar+bf,bm,res.flt,accum.flt,fa1,fb1,fa2,fb2);
-                    LOG(DEBUG, "\t           f%d[%d]: 0x%08x = 0x%08x + (0x%04x * 0x%04x) + (0x%04x * 0x%04x)", TFMA_MAX_BCOLS/VL*ar+bf,bm,res.u,accum.u,a1,b1,a2,b2);
-
-                    // For checker purposes we keep the data of all the passes
-                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-
-                    if ((first_pass == 0) || (ac != 0))
-                    {
-                        // If both As are zeroes, we skip operation
-                        if ((a1 == 0) && (a2 == 0))
-                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                        // If both Bs are zeroes, we skip operation
-                        if ((b1 == 0) && (b2 == 0))
-                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                    }
-                }
-            }
-            LOG(DEBUG, "\tC row %d: f%d[%d] = 0x%08x (%g)", ar, TFMA_MAX_BCOLS/VL*ar+0, 0, FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0], cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]));
-            for (int reg = 0; reg < 2; reg++)
-                for (int lane = 0; lane < VL; lane++)
-                    if ((reg != 0) || (lane != 0))
-                        LOG(DEBUG, "\t         f%d[%d] = 0x%08x (%g)",    TFMA_MAX_BCOLS/VL*ar+reg, lane, FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane], cast_uint32_to_float(FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]));
         }
     }
-    else if (type == 3) //INT8-INT32
-    {
-        if (first_pass)
-        {
-            for (int ar = 0; ar < arows; ar++)          // A: traverse arows rows
-            {
-                for (int bc = 0; bc < bcols; bc++)      // B: process bcols cols
-                {
-                    int bf = bc / VL;
-                    int bm = bc % VL;
 
-                    tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
-                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][0] = 0;
+    for (int k = 0; k < acols; k += 2)
+    {
+        // Model TenB as an extension of the scratchpad
+        cache_line_t& tmpb = SCP[tenb ? ((k/2)+L1_SCP_ENTRIES) : ((bstart+k/2)%L1_SCP_ENTRIES)];
+
+        for (int i = 0; i < arows; ++i)
+        {
+            // Skip computation for this row
+            if (usemsk && !tmask_pass(i))
+            {
+                // Mark this iteration as skipped for the checker, except if
+                // it is the first iteration and first_pass is set.
+                if (!first_pass || k)
+                    tensorfma_mask_skip[k/4][i] = 1;
+                continue;
+            }
+
+            float16_t a1 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+0) % (L1D_LINE_SIZE/2)]);
+            float16_t a2 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+1) % (L1D_LINE_SIZE/2)]);
+
+            for (int j = 0; j < bcols; ++j)
+            {
+                float16_t b1 = fpu::F16(tmpb.h[2*j+0]);
+                float16_t b2 = fpu::F16(tmpb.h[2*j+1]);
+
+                // If all products are 0, we can skip the operation, except if first_pass is set and this
+                // is the first iteration
+                if (!(first_pass && !k) && ((fpu::UI16(a1)==0 || fpu::UI16(b1)==0) &&
+                                            (fpu::UI16(a2)==0 || fpu::UI16(b2)==0)))
+                {
+                    tensorfma_zero_skip[k/2][i*TFMA_REGS_PER_ROW+j/VL][j%VL] = true;
+                    LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ") -- SKIP!",
+                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL], FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL],
+                        fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
+                    LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: f%d[%d] + (SCP[%d].h[%d] * SCP[%d].h[%d]) + (SCP[%d].h[%d] * SCP[%d].h[%d]) -- SKIP!",
+                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, i*TFMA_REGS_PER_ROW+j/VL, j%VL,
+                        (astart+i) % L1_SCP_ENTRIES, (aoffset+k+0) % (L1D_LINE_SIZE/2),
+                        tenb ? (k/2 + L1_SCP_ENTRIES) : ((bstart+k/2) % L1_SCP_ENTRIES), 2*j+0,
+                        (astart+i) % L1_SCP_ENTRIES, (aoffset+k+1) % (L1D_LINE_SIZE/2),
+                        tenb ? (k/2 + L1_SCP_ENTRIES) : ((bstart+k/2) % L1_SCP_ENTRIES), 2*j+1);
+                }
+                else
+                {
+                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                    float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+
+                    //LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: %g = %g + (%g * %g) + (%g * %g)", i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::FLT(c), fpu::FLT(c0),
+                    //    fpu::FLT(fpu::f16_to_f32(a1)), fpu::FLT(fpu::f16_to_f32(b1)), fpu::FLT(fpu::f16_to_f32(a2)), fpu::FLT(fpu::f16_to_f32(b2)));
+                    LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
+                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
+                    LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: f%d[%d] + (SCP[%d].h[%d] * SCP[%d].h[%d]) + (SCP[%d].h[%d] * SCP[%d].h[%d])",
+                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, i*TFMA_REGS_PER_ROW+j/VL, j%VL,
+                        (astart+i) % L1_SCP_ENTRIES, (aoffset+k+0) % (L1D_LINE_SIZE/2),
+                        tenb ? (k/2 + L1_SCP_ENTRIES) : ((bstart+k/2) % L1_SCP_ENTRIES), 2*j+0,
+                        (astart+i) % L1_SCP_ENTRIES, (aoffset+k+1) % (L1D_LINE_SIZE/2),
+                        tenb ? (k/2 + L1_SCP_ENTRIES) : ((bstart+k/2) % L1_SCP_ENTRIES), 2*j+1);
+                }
+                // For checker purposes we keep the data of all the passes
+                tensorfma_data[current_thread][i*TFMA_REGS_PER_ROW+j/VL][j%VL][k/2] = FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL];
+            }
+        }
+    }
+
+    // logging
+    for (int i = 0; i < arows; ++i)
+    {
+        LOG(DEBUG, "\tC[%2d][*]: f%d[%d] = 0x%08x (%g)", i, i*TFMA_REGS_PER_ROW, 0,
+            FREGS[i*TFMA_REGS_PER_ROW].u[0], fpu::FLT(FREGS[i*TFMA_REGS_PER_ROW].i[0]));
+        for (int j = 1; j < TFMA_MAX_BCOLS; ++j)
+            LOG(DEBUG, "\tC[%2d][*]: f%d[%d] = 0x%08x (%g)", i, i*TFMA_REGS_PER_ROW+j/VL, j%VL,
+                FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL], fpu::FLT(FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]));
+    }
+
+    set_fp_exceptions();
+    dirty_fp_state();
+}
+
+static void tensor_ima8a32(uint64_t tfmareg)
+{
+    if (!txfma_off_allowed(csr_tensor_fma, tfmareg))
+        throw trap_txfma_off(current_inst);
+
+    bool usemsk     = (tfmareg >> 63) & 0x1;
+    int  bcols      = (tfmareg >> 55) & 0x3;
+    int  arows      = (tfmareg >> 51) & 0xF;
+    int  acols      = (tfmareg >> 47) & 0xF;
+    int  aoffset    = (tfmareg >> 43) & 0xF;
+    bool tenc2rf    = (tfmareg >> 23) & 0x1;
+    bool ub         = (tfmareg >> 22) & 0x1;
+    bool ua         = (tfmareg >> 21) & 0x1;
+    bool tenb       = (tfmareg >> 20) & 0x1;
+    int  bstart     = (tfmareg >> 12) & 0xFF;
+    int  astart     = (tfmareg >>  4) & 0xFF;
+    bool first_pass = (tfmareg >>  0) & 1;
+
+    bcols = (bcols + 1) * 4;
+    arows = arows + 1;
+    acols = (acols + 1) * 4;
+    aoffset = aoffset * 4;
+
+    // // FIXME: Disabled until software update - JIRA RTLMIN-2096
+    // // Check if L1 SCP is enabled
+    // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
+    // {
+    //     update_tensor_error(1 << 4);
+    //     return;
+    // }
+
+    LOG(DEBUG, "\tStart TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
+        usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
+
+    if (tenb && (!tensorload_setupb_topair[current_thread] ||
+                 (tensorload_setupb_numlines[current_thread] != acols/4)))
+    {
+        // No TensorLoad to pair or incompatible combination of rows and columns length
+        update_tensor_error(1 << 6);
+        return;
+    }
+
+    // Unpair a paired TensorLoad
+    tensorload_setupb_topair[current_thread] = false;
+    tensorload_setupb_topair[current_thread^1] = false;
+
+    // Initialize info for checker
+    memset(tensorfma_mask_skip, 0, sizeof(tensorfma_mask_skip));
+    memset(tensorfma_zero_skip, 0, sizeof(tensorfma_zero_skip));
+    if (first_pass)
+        memset(tensorfma_data[current_thread], 0, sizeof(tensorfma_data[0]));
+
+    if (first_pass)
+        memset(tensorfma_tenc[current_thread], 0, sizeof(tensorfma_tenc[0]));
+
+    for (int k = 0; k < acols; k += 4)
+    {
+        // Model TenB as an extension of the scratchpad
+        cache_line_t& tmpb = SCP[tenb ? ((k/4)+L1_SCP_ENTRIES) : ((bstart+k/4)%L1_SCP_ENTRIES)];
+
+        for (int i = 0; i < arows; ++i)
+        {
+            // We should skip computation for this row, but if tenc2rf is set,
+            // then we must copy TenC to FREGS even for this row (but only the
+            // first time around this loop).
+            if (usemsk && !tmask_pass(i))
+            {
+                if (tenc2rf && k == 0)
+                {
+                    for (int j = 0; j < bcols; ++j)
+                    {
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] =
+                            tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW + j/VL].u[j%VL];
+                    }
+                    dirty_fp_state();
+                    LOG(DEBUG, "\tC[%d][*]: f%d[%d] = 0x%08x (%d)", i, i*TFMA_REGS_PER_ROW, 0,
+                        FREGS[i*TFMA_REGS_PER_ROW].u[0], FREGS[i*TFMA_REGS_PER_ROW].i[0]);
+                    for (int j = 1; j < bcols; ++j)
+                    {
+                        LOG(DEBUG, "\t          f%d[%d] = 0x%08x (%d)", i*TFMA_REGS_PER_ROW+j/VL, j%VL,
+                            FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j], FREGS[i*TFMA_REGS_PER_ROW+j/VL].i[j]);
+                    }
+                }
+                // Mark this iteration as skipped for the checker, except if
+                // it is the first iteration and first_pass is set.
+                if (!first_pass || k)
+                    tensorfma_mask_skip[k/4][i] = 1;
+                continue;
+            }
+
+            fdata* dst = ((k+4 == acols) && tenc2rf) ? FREGS : tensorfma_tenc[current_thread];
+            const char* dname = ((k+4 == acols) && tenc2rf) ? "f" : "TenC";
+
+#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].b[(aoffset+k+(x)) % L1D_LINE_SIZE]
+            int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
+            int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
+            int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
+            int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
+#undef ASRC
+
+            for (int j = 0; j < bcols; ++j)
+            {
+#define BSRC(x) tmpb.b[j*4+(x)]
+                int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
+                int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
+                int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
+                int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
+#undef BSRC
+                int32_t c0 = tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW+j/VL].i[j%VL];
+                int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
+                dst[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL] = c;
+                LOG(DEBUG, "\tTensorIMA8A32 %s%d[%d]: %d = %d + (%d * %d) + (%d * %d) + (%d * %d) + (%d * %d)",
+                    dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, a1, b1, a2, b2, a3, b3, a4, b4);
+                // For checker purposes we keep the data of all the passes
+                tensorfma_data[current_thread][i*TFMA_REGS_PER_ROW+j/VL][j%VL][k/4] = uint32_t(c);
+
+                // If all products are 0, we can skip the operation, except if first_pass is set and this
+                // is the first iteration, or TenC must be copied to FREGS and this is the last iteration
+                if (!(first_pass && !k) && !(tenc2rf && (k+4 == acols)))
+                {
+                    if (!((a1 & b1) | (a2 & b2) | (a3 & b3) | (a4 & b4)))
+                        tensorfma_zero_skip[k/4][i*TFMA_REGS_PER_ROW+j/VL][j%VL] = true;
                 }
             }
         }
-
-        for (int ar = 0; ar < arows; ar++)              // A: traverse arows rows
-        {
-            // Checks if needs to skip the current pass due convolution
-            if (tm)
-            {
-                if (!tmask_pass(ar))
-                {
-                    // Mark all passes as skipped
-                    for (int i = 0; i < TFMA_MAX_ACOLS; i++)
-                        tensorfma_mask_skip[i][ar] = 1;
-                    // Except 1st if first pass
-                    if (first_pass)
-                        tensorfma_mask_skip[0][ar] = 0;
-
-                    // If writing to VPU RF, need to write data
-                    if (tenc_to_rf)
-                    {
-                        for (int bc = 0; bc < bcols; bc++) // For all the Cols
-                        {
-                            int bf = bc / VL;
-                            int bm = bc % VL;
-
-                            if (first_pass)
-                            {
-                                // Write 0s
-                                FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = 0;
-                            }
-                            else
-                            {
-                                // Write TENC to VPU RF
-                                int32_t accum = tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-                                FREGS[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = accum;
-                            }
-                        }
-                        LOG(DEBUG, "\tC row %d: f%d[%d] = 0x%08x (%d)", ar, TFMA_MAX_BCOLS/VL*ar  ,0, FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0], FREGS[TFMA_MAX_BCOLS/VL*ar+0].u[0]);
-                        for (int reg = 0; reg < 2; reg++)
-                            for (int lane = 0; lane < VL; lane++)
-                                if ((reg != 0) || (lane != 0))
-                                    LOG(DEBUG, "\t         f%d[%d] = 0x%08x (%d)",    TFMA_MAX_BCOLS/VL*ar+reg, lane, FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane], FREGS[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]);
-                    }
-                    continue;
-                }
-            }
-
-            fdata * tensor_dest = (fdata *) &FREGS;
-            char str[256] = "";
-            for (int bc = 0; bc < bcols; bc++)          // B: process bcols cols
-            {
-                int bf = bc / VL;
-                int bm = bc % VL;
-
-                for (int ac = 0; ac < acols; ac++)      // A: accumulate acols values
-                {
-                    int af = (aoffset + ac) / VL;
-                    int am = (aoffset + ac) % VL;
-                    int br = bstart + ac;               // B: traverse rows
-
-                    // If in last pass and dumping results to VPU RF, then the destination is the VPU RF
-                    if ((ac == (acols - 1)) && tenc_to_rf)
-                    {
-                        tensor_dest = (fdata *) &FREGS;
-                        strcpy(str, "");
-                    }
-                    else
-                    {
-                        tensor_dest = (fdata *) &tensorfma_tenc[current_thread];
-                        strcpy(str, "TENC_");
-                    }
-                    // Doing four IMAs per lane and accumulating to previous results
-                    int32_t accum     = tensorfma_tenc[current_thread][TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-
-                    // 1st IMA
-                    int32_t  mul_a    = ua ? SCP[astart+ar][af].b[am * 4] : sext8_2 (SCP[astart+ar][af].b[am * 4]);
-                    int32_t  mul_b    = ub ? SCP[br][bf].b[bm * 4]        : sext8_2 (SCP[br][bf].b[bm * 4]);
-                    int32_t  res_mul  = mul_a * mul_b;
-                    int32_t  res      = res_mul + accum;
-
-                    tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
-
-                    LOG(DEBUG, "\tTensor IMA %sf%d[%d]: %d = %d + %d * %d", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);
-                    LOG(DEBUG, "\t           %sf%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);
-
-                    // 2nd IMA
-                    mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 1] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 1]);
-                    mul_b    = ub ? SCP[br][bf].b[bm * 4 + 1]        : sext8_2 (SCP[br][bf].b[bm * 4 + 1]);
-                    accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-                    res_mul  = mul_a * mul_b;
-                    res      = res_mul + accum;
-
-                    tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
-
-                    LOG(DEBUG, "\tTensor IMA %sf%d[%d]: %d = %d + %d * %d", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);
-                    LOG(DEBUG, "\t           %sf%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);
-
-                    // 3rd IMA
-                    mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 2] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 2]);
-                    mul_b    = ub ? SCP[br][bf].b[bm * 4 + 2]        : sext8_2 (SCP[br][bf].b[bm * 4 + 2]);
-                    accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-                    res_mul  = mul_a * mul_b;
-                    res      = res_mul + accum;
-
-                    tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
-
-                    LOG(DEBUG, "\tTensor IMA %sf%d[%d]: %d = %d + %d * %d", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);
-                    LOG(DEBUG, "\t           %sf%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);
-
-                    // 4th IMA
-                    mul_a    = ua ? SCP[astart+ar][af].b[am * 4 + 3] : sext8_2 (SCP[astart+ar][af].b[am * 4 + 3]);
-                    mul_b    = ub ? SCP[br][bf].b[bm * 4 + 3]        : sext8_2 (SCP[br][bf].b[bm * 4 + 3]);
-                    accum    = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-                    res_mul  = mul_a * mul_b;
-                    res      = res_mul + accum;
-
-                    tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm] = res;
-
-                    LOG(DEBUG, "\tTensor IMA %sf%d[%d]: %d = %d + %d * %d", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, accum, mul_a, mul_b);
-                    LOG(DEBUG, "\t           %sf%d[%d]: 0x%08x = 0x%08x + 0x%02x * 0x%02x", str, TFMA_MAX_BCOLS/VL * ar + bf, bm, res, * ((int *) &accum), mul_a, mul_b);
-
-                    // For checker purposes we keep the data of all the passes
-                    tensorfma_data[current_thread][TFMA_MAX_BCOLS/VL*ar+bf][bm][ac] = tensor_dest[TFMA_MAX_BCOLS/VL*ar+bf].u[bm];
-
-                    bool do_not_zero_skip = ((first_pass == 1) && (ac == 0))            // Can't skip for first pass and first acol
-                                         || ((tenc_to_rf == 1) && (ac == (acols - 1))); // Can't skip for TENC write to RF and last acol
-                    if (!do_not_zero_skip)
-                    {
-                        // If As are zeroes, we skip operation
-                        if ((SCP[astart+ar][af].b[am * 4] == 0) && (SCP[astart+ar][af].b[am * 4 + 1] == 0) && (SCP[astart+ar][af].b[am * 4 + 2] == 0) && (SCP[astart+ar][af].b[am * 4 + 3] == 0))
-                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                        // If Bs are zeroes, we skip operation
-                        if ((SCP[br][bf].b[bm * 4] == 0) && (SCP[br][bf].b[bm * 4 + 1] == 0) && (SCP[br][bf].b[bm * 4 + 2] == 0) && (SCP[br][bf].b[bm * 4 + 3] == 0))
-                            tensorfma_zero_skip[ac][TFMA_MAX_BCOLS/VL*ar+bc/VL][bc%VL] = 1;
-                    }
-                }
-            }
-
-            LOG(DEBUG, "\tC row %d: %sf%d[%d] = 0x%08x (%d)", ar, str, TFMA_MAX_BCOLS/VL*ar  ,0, tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[0], tensor_dest[TFMA_MAX_BCOLS/VL*ar+0].u[0]);
-            for (int reg = 0; reg < 2; reg++)
-                for (int lane = 0; lane < VL; lane++)
-                    if ((reg != 0) || (lane != 0))
-                        LOG(DEBUG, "\t         %sf%d[%d] = 0x%08x (%d)",    str, TFMA_MAX_BCOLS/VL*ar+reg, lane, tensor_dest[TFMA_MAX_BCOLS/VL*ar+reg].u[lane], tensor_dest[TFMA_MAX_BCOLS/VL*ar+reg].u[lane]);
-        }
     }
-    else
+
+    // logging
+    for (int i = 0; i < arows; ++i)
     {
-        LOG(DEBUG, "%s", "ERROR Unimplemented tensor FMA Type!!");
-    }
-    if (type != 3)
-    {
-        set_fp_exceptions();
-        dirty_fp_state();
+        const fdata* dst = tenc2rf ? FREGS : tensorfma_tenc[current_thread];
+        const char* dname = tenc2rf ? "f" : "TenC";
+
+        LOG(DEBUG, "\t%s[%2d][*]: f%d[%d] = 0x%08x (%d)", dname, i, i*TFMA_REGS_PER_ROW, 0,
+            dst[i*TFMA_REGS_PER_ROW].u[0], dst[i*TFMA_REGS_PER_ROW].i[0]);
+        for (int j = 1; j < TFMA_MAX_BCOLS; ++j)
+            LOG(DEBUG, "\t          %s%d[%d] = 0x%08x (%d)", dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL,
+                dst[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL], dst[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
     }
 }
 
