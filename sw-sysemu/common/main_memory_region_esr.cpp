@@ -7,6 +7,7 @@
 #include "emu_gio.h"
 #include "emu_memop.h"
 #include "emu.h"
+#include "txs.h"
 
 extern uint32_t current_pc;
 extern uint32_t current_thread;
@@ -33,13 +34,12 @@ main_memory_region_esr::~main_memory_region_esr()
 // Write to memory region
 void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 {
-    esr_info_t esr_info;
     static uint8_t brcst0_received = 0;
+
+    esr_info_t esr_info;
     decode_ESR_address(ad, &esr_info);
 
-    //log << LOG_DEBUG << "Writing to ESR Region @=" <<hex<<ad<<dec<< endm;
-
-    LOG(DEBUG, "Writing to ESR Region with address %016" PRIx64, ad);
+    LOG(DEBUG, "Writng to ESR Region with address %016" PRIx64, ad);
 
     if (!esr_info.valid)
         LOG(DEBUG, "Invalid ESR");
@@ -48,6 +48,8 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
         switch(esr_info.region)
         {
             case ESR_Region_HART:
+
+                LOG(DEBUG, "Write to ESR Region HART at ESR address %08" PRIx64, esr_info.address);
 
                 switch(esr_info.address)
                 {
@@ -71,10 +73,24 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 
                 if (esr_info.neighborhood == ESR_NEIGH_BROADCAST)
                 {
+                    LOG(DEBUG, "Broadcast to ESR Region Neighborhood at ESR address %08" PRIx64, esr_info.address);
+
                     for (int neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
                     {
                         uint64_t neigh_addr = (ad & ~ESR_NEIGH_MASK) + neigh * ESR_NEIGH_OFFSET;
-                        write(neigh_addr, size, data);
+                        pmemwrite64(neigh_addr, *((uint64_t *) data));
+                    }
+                }
+                else
+                {
+                    LOG(DEBUG, "Write to ESR Region Neighborhood at ESR address %08" PRIx64, esr_info.address);
+
+                    switch(esr_info.address)
+                    {
+                        case ESR_NEIGH_TBOX_IMGT_PTR:
+                            init_txs(*((uint64_t *) data));
+                            break;
+                        default : break;
                     }
                 }
 
@@ -171,18 +187,20 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                 break;   
             }
-            default : break;
+            default :
+                LOG(WARN, "Write to ESR Region UNDEFINED at ESR address %08" PRIx64, esr_info.address);
+                break;
         }
     }
 
     if (brcst0_received != 2) {
-      // Fast local barriers implementation is using the ESR space storage!! 
-      if(data_ != NULL)
-        memcpy(data_ + (ad - base_), data, size);
+        // Fast local barriers implementation is using the ESR space storage!! 
+         if(data_ != NULL)
+            memcpy(data_ + (ad - base_), data, size);
     }
     else
     {
-      brcst0_received = 0;
+        brcst0_received = 0;
     }
 }
 

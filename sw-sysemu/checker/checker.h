@@ -63,8 +63,8 @@ class checker
         void ipi_pc(uint32_t thread, uint64_t pc);
         // Emulates current instruction and compares the state changes
         checker_result emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion);
-	// Decoder Helper functions
-	void emu_disasm(char* str, size_t size, uint32_t bits);
+        // Decoder Helper functions
+        void emu_disasm(char* str, size_t size, uint32_t bits);
         // Gets an error in string format
         std::string get_error_msg();
 
@@ -78,18 +78,17 @@ class checker
         void reduce_write(uint32_t thread, uint32_t entry, uint32_t * data);
         void aggregate_tl_data(uint32_t thread);
 
-        typedef void (*func_texrec_t) (unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
-        void set_texrec_func(func_texrec_t func_ptr);
-
         void update_fcsr_flags(unsigned minionId, unsigned flags);
 
         // Register a region to ignore checks on
         void add_ignored_mem_region(uint64_t base, uint64_t top);
         bool address_is_in_ignored_region(uint64_t addr);
 
+        // TBOX write to Minion Message Port
+        void tbox_port_write(uint32_t thread, uint32_t port_id);
+
     private:
         checker_result do_reduce(uint32_t thread, uint64_t value, int * wake_thread);
-        void texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask);
 
         uint64_t                      current_pc[EMU_NUM_THREADS];         // Current PC
         reduce_state                  reduce_state_array[EMU_NUM_THREADS]; // Reduce state
@@ -97,7 +96,6 @@ class checker
         main_memory                 * memory;                              // Pointer to the memory of the simulation
         inst_state_change             emu_state_change;                    // Struct that holds the state change for the emu
         std::string                   error_msg;                           // Stores the error message
-        func_texrec_t                 texrec_func_ptr;                     // Emulates texrec
         testLog                       log;                                 // Logger
         uint64_t                      threadEnabled[EMU_NUM_THREADS];      // thread is enabled / disabled
         std::list<scratchpad_entry>   scp_entry_list[EMU_NUM_THREADS];     // List of RTL written scratchpad entries
