@@ -33,7 +33,12 @@ set(MAP_FILE ${TARGET_NAME}.map)
 set(LST_FILE ${TARGET_NAME}.lst)
 
 # Our gcc has -fdelete-null-pointer-checks enabled, needed for -Wnull-dereference
-set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -Wnull-dereference \
+#
+# Need mcmodel=medany instead of default medlow to be able to place code at the bottom
+# of DRAM space which begins at 516G (0x8100000000)
+# See https://www.sifive.com/blog/all-aboard-part-4-risc-v-code-models
+#
+set(CMAKE_C_FLAGS "-mcmodel=medany -Wall -Wextra -Werror -Wnull-dereference \
 -Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith -Wundef \
 -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations")

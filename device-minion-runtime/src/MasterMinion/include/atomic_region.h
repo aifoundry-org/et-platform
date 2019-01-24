@@ -9,24 +9,17 @@
 *-------------------------------------------------------------------------
 */
 
-ENTRY(_boot)
+#ifndef _ATOMIC_IPI_H_
+#define _ATOMIC_IPI_H_
 
-SECTIONS
-{
-  . = 0x8000200000;
-  .text.init : { *(.text.init) }
-  . = ALIGN(0x1000);
-  .tohost : { *(.tohost) }
-  . = ALIGN(0x1000);
-  .text : { *(.text) }
-  . = ALIGN(0x1000);
-  .data : { *(.data) }
-  .sdata          :
-  {
-    __global_pointer$ = . + 0x800;
-    *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
-    *(.sdata .sdata.* .gnu.linkonce.s.*)
-  }
-  .bss : { *(.bss) }
-  _end = .;
-}
+// Atomic and IPI defines
+#define ATOMIC_REGION 0x013FF40100ULL
+#define IPI_THREAD0   0x013FF400C0ULL
+#define IPI_THREAD1   0x013FF400D0ULL
+#define IPI_NET       0x0108000800ULL
+
+#define IPI_TRIGGER_ESR_ADDR       0x01C0340090ULL
+#define IPI_TRIGGER_CLEAR_ESR_ADDR 0x01C0340098ULL
+
+#endif
+
