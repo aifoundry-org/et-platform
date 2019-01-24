@@ -37,6 +37,7 @@ typedef enum
 // Global variables
 ////////////////////////////////////////////////////////////////////////////////
 
+uint64_t emu_cycle = 0;
 static std::list<int>  enabled_threads;                     // List of enabled threads
 uint32_t               pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list 
 static uint64_t        current_pc[EMU_NUM_THREADS];         // PC for each thread
@@ -609,8 +610,7 @@ int main(int argc, char * argv[])
        }
     }
 
-    insn_t inst;
-    uint64_t emu_cycle = 0;
+    LOG_NOTHREAD(INFO, "Starting emulation");
 
     // While there are active threads or the network emulator is still not done
     while(  (emu_done() == false)
@@ -618,7 +618,6 @@ int main(int argc, char * argv[])
          && (emu_cycle < max_cycles)
     )
     {
-
 #ifdef SYSEMU_DEBUG
         if ((debug == true) && ((get_pc_break() == true) || (steps == 0))) {
            bool retry = false;
@@ -642,21 +641,17 @@ int main(int argc, char * argv[])
         if (steps > 0) steps--;
 #endif
 
-        LOG_NOTHREAD(DEBUG, "Starting Emulation Cycle %" PRIu64, emu_cycle);
-
         auto thread = enabled_threads.begin();
 
         while(thread != enabled_threads.end())
         {
             thread_id = * thread;
 
-            // Computes logging for this thread
-            LOG_OTHER(DEBUG, thread_id, "Starting emu");
-
             // Try to execute one instruction, this may trap
             try
             {
                 // Gets instruction and sets state
+                insn_t inst;
                 clearlogstate();
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
@@ -811,9 +806,9 @@ int main(int argc, char * argv[])
         emu_cycle++;
     }
     if (emu_cycle == max_cycles) {
-       printf("Error, max cycles reached (%" SCNd64 ")\n", max_cycles);
+       LOG(ERR, "Error, max cycles reached (%" SCNd64 ")", max_cycles);
     }
-    printf("Emulation done!!\n");
+    LOG_NOTHREAD(INFO, "Finishing emulation");
 
     // Dumping
     if(dump_file != NULL)
