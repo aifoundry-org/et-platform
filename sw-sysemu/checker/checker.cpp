@@ -397,13 +397,13 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         char insn_disasm[128];
         riscv_disasm(insn_disasm, 128, inst.bits);
         std::ostringstream stream;
-        stream << "Checker Mismatch @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << insn_disasm << ") -> ";
+        stream << "BEMU Checker mismatch @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << insn_disasm << ") -> ";
 
         error_msg = "";
         // Check PC
         if(changes->pc != current_pc[thread])
         {
-            stream << "PC error. Expected PC is 0x" << std::hex << current_pc[thread] << " but provided is 0x" << changes->pc << std::dec << std::endl;
+            stream << "BEMU Checker PC error. BEMU expects PC 0x" << std::hex << current_pc[thread] << " but DUT reported PC 0x" << changes->pc << std::dec << std::endl;
             error_msg += stream.str();
             if(emu_state_change.pc_mod)
                current_pc[thread] = emu_state_change.pc;
@@ -426,7 +426,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         // Changing integer register
         if(changes->int_reg_mod != emu_state_change.int_reg_mod)
         {
-            stream << "Int Register write error. Expected write is " << emu_state_change.int_reg_mod << " but provided is " << changes->int_reg_mod << std::endl;
+            stream << "BEMU Checker Int Register write error. BEMU expects reg value is " << emu_state_change.int_reg_mod << " but DUT reported " << changes->int_reg_mod << std::endl;
             error_msg += stream.str();
 	    if(fail_on_check) check_res = CHECKER_ERROR;
 	    else	      check_res = CHECKER_WARNING;
@@ -435,7 +435,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
             if(changes->int_reg_rd != emu_state_change.int_reg_rd)
             {
-                stream << "Int Register dest error. Expected dest is x" << emu_state_change.int_reg_rd << " but provided is x" << changes->int_reg_rd << std::endl;
+                stream << "BEMU Checker Int Register dest error. BEMU expects dest is x" << emu_state_change.int_reg_rd << " but DUT reported x" << changes->int_reg_rd << std::endl;
                 error_msg += stream.str();
 		if(fail_on_check) check_res = CHECKER_ERROR;
 	    	else	          check_res = CHECKER_WARNING;
@@ -507,7 +507,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             // Writes to X0/Zero are ignored
             if((changes->int_reg_data != emu_state_change.int_reg_data) && (emu_state_change.int_reg_rd != 0))
             {
-                stream << "Int Register data error. Expected data is 0x" << std::hex << emu_state_change.int_reg_data << " but provided is 0x" << changes->int_reg_data << std::dec << std::endl;
+                stream << "BEMU Checker Int Register data error. BEMU expects data is 0x" << std::hex << emu_state_change.int_reg_data << " but DUT reported 0x" << changes->int_reg_data << std::dec << std::endl;
                 error_msg += stream.str();
 		if(fail_on_check) check_res = CHECKER_ERROR;
 	    	else	          check_res = CHECKER_WARNING;
@@ -517,7 +517,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         // Changing floating register
         if(changes->fp_reg_mod != emu_state_change.fp_reg_mod)
         {
-            stream << "FP Register write error. Expected write is " << emu_state_change.fp_reg_mod << " but provided is " << changes->fp_reg_mod << std::endl;
+            stream << "BEMU Checker FP Register write error. BEMU expects write is " << emu_state_change.fp_reg_mod << " but DUT reported " << changes->fp_reg_mod << std::endl;
             error_msg += stream.str();
 	    if(fail_on_check) check_res = CHECKER_ERROR;
 	    else	      check_res = CHECKER_WARNING;
@@ -528,7 +528,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
           // Someone changed the flags
           std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
-          stream << "fflags changed by " << changer << ". Expected new flags: " << std::hex <<  emu_state_change.fflags_value << " but provided are " << changes->fflags_value << std::dec << std::endl;
+          stream << "BEMU Checker fflags changed by " << changer << ". BEMU expects new flags: " << std::hex <<  emu_state_change.fflags_value << " but DUT reported " << changes->fflags_value << std::dec << std::endl;
           error_msg += stream.str();
           check_res = CHECKER_WARNING;
         }
@@ -537,7 +537,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
           if ( changes->fflags_value != emu_state_change.fflags_value )
           {
-            stream << "fflags values change. Expected new flags: " << std::hex << emu_state_change.fflags_value << " but provided are " << changes->fflags_value << std::dec << std::endl;
+            stream << "BEMU Checker fflags values change. BEMU expects new flags: " << std::hex << emu_state_change.fflags_value << " but DUT reported " << changes->fflags_value << std::dec << std::endl;
             error_msg += stream.str();
             check_res = CHECKER_WARNING;
           }
@@ -552,7 +552,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
 #endif
             if(changes->fp_reg_rd != emu_state_change.fp_reg_rd)
             {
-                stream << "FP Register dest error. Expected dest is f" << emu_state_change.fp_reg_rd << " but provided is f" << changes->fp_reg_rd << std::endl;
+                stream << "BEMU Checker FP Register dest error. BEMU expects dest is f" << emu_state_change.fp_reg_rd << " but DUT reported f" << changes->fp_reg_rd << std::endl;
                 error_msg += stream.str();
 		if(fail_on_check) check_res = CHECKER_ERROR;
 	    	else	      	  check_res = CHECKER_WARNING;
@@ -580,17 +580,17 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     uint32_t rtl_datalo = changes->fp_reg_data[i] & 0xFFFFFFFF;
                     uint32_t emu_datahi = emu_state_change.fp_reg_data[i] >> 32;
                     uint32_t rtl_datahi = changes->fp_reg_data[i] >> 32;
-                    stream << "FP Register data error f" << emu_state_change.fp_reg_rd;
+                    stream << "BEMU Checker FP Register data error f" << emu_state_change.fp_reg_rd;
                     if (errlo && errhi)
                         stream << "[" << (2*i+1) << ", " << (2*i) << "]";
                     else
                         stream << "[" << (errlo ? (2*i) : (2*i+1)) << "]";
-                    stream << ". Expected data is " << std::hex;
+                    stream << ". BEMU expects data is " << std::hex;
                     if (errlo && errhi)
                         stream << "{0x" << std::hex << emu_datahi << ", 0x" << emu_datalo << "}";
                     else
                         stream << "0x" << std::hex << (errlo ? emu_datalo : emu_datahi);
-                    stream << " but provided is ";
+                    stream << " but DUT reported ";
                     if (errlo && errhi)
                         stream << "{0x" << std::hex << rtl_datahi << ", 0x" << rtl_datalo << "}";
                     else
@@ -622,17 +622,17 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                         uint32_t rtl_datalo = changes->fp_reg_data[i] & 0xFFFFFFFF;
                         uint32_t emu_datahi = emu_state_change.fp_reg_data[i] >> 32;
                         uint32_t rtl_datahi = changes->fp_reg_data[i] >> 32;
-                        stream << "FP Register data error f" << emu_state_change.fp_reg_rd;
+                        stream << "BEMU Checker FP Register data error f" << emu_state_change.fp_reg_rd;
                         if (errlo && errhi)
                             stream << "[" << (2*i+1) << ", " << (2*i) << "]";
                         else
                             stream << "[" << (errlo ? (2*i) : (2*i+1)) << "]";
-                        stream << ". Expected data is " << std::hex;
+                        stream << ". BEMU expects data is " << std::hex;
                         if (errlo && errhi)
                             stream << "{0x" << std::hex << emu_datahi << ", 0x" << emu_datalo << "}";
                         else
                             stream << "0x" << std::hex << (errlo ? emu_datalo : emu_datahi);
-                        stream << " but provided is ";
+                        stream << " but DUT reported ";
                         if (errlo && errhi)
                             stream << "(0x" << std::hex << rtl_datahi << ", 0x" << rtl_datalo << ")";
                         else
@@ -654,7 +654,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
             if(changes->m_reg_mod[m] != emu_state_change.m_reg_mod[m])
             {
-                stream << "Mask Register write error for entry " << m << ". Expected write is " << emu_state_change.m_reg_mod[m] << " but provided is " << changes->m_reg_mod[m] << std::endl;
+                stream << "BEMU Checker Mask Register write error for entry " << m << ". BEMU expects write is " << emu_state_change.m_reg_mod[m] << " but DUT reported " << changes->m_reg_mod[m] << std::endl;
                 error_msg += stream.str();
 		if(fail_on_check) check_res = CHECKER_ERROR;
 	    	else	          check_res = CHECKER_WARNING;
@@ -665,7 +665,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 {
                     if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
                     {
-                        stream << "Mask Register data error m" << m << "[" << i << "]. Expected data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but provided is " << (uint32_t) changes->m_reg_data[m][i] << std::dec << std::endl;
+                        stream << "BEMU Checker Mask Register data error m" << m << "[" << i << "]. BEMU expects data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but DUT reported " << (uint32_t) changes->m_reg_data[m][i] << std::dec << std::endl;
                         error_msg += stream.str();
 			if(fail_on_check) check_res = CHECKER_ERROR;
 	    	    	else	      	  check_res = CHECKER_WARNING;
@@ -679,7 +679,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
             if(changes->mem_mod[i] != emu_state_change.mem_mod[i])
             {
-                stream << "Memory write error (" << i << "). Expected write is " << emu_state_change.mem_mod[i] << " but provided is " << changes->mem_mod[i] << std::endl;
+                stream << "BEMU Checker Memory write error (" << i << "). BEMU expects write is " << emu_state_change.mem_mod[i] << " but DUT reported " << changes->mem_mod[i] << std::endl;
                 error_msg += stream.str();
 		if(fail_on_check) check_res = CHECKER_ERROR;
 	    	else	      	  check_res = CHECKER_WARNING;
@@ -688,14 +688,14 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 if(changes->mem_size[i] != emu_state_change.mem_size[i])
                 {
-                    stream << "Memory write size error (" << i << "). Expected size is " << emu_state_change.mem_size[i] << " but provided is " << changes->mem_size[i] << std::endl;
+                    stream << "BEMU Checker Memory write size error (" << i << "). BEMU expects size is " << emu_state_change.mem_size[i] << " but DUT reported " << changes->mem_size[i] << std::endl;
                     error_msg += stream.str();
 		    if(fail_on_check) check_res = CHECKER_ERROR;
 	    	    else	      check_res = CHECKER_WARNING;
                 }
                 if( (changes->mem_addr[i] & VA_M) != (emu_state_change.mem_addr[i] & VA_M))
                 {
-                    stream << "Memory write address error (" << i << "). Expected addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " & " << VA_M <<" but provided is 0x" << changes->mem_addr[i] <<" & "<< VA_M << std::dec << std::endl;
+                    stream << "BEMU Checker Memory write address error (" << i << "). BEMU expects addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " & " << VA_M <<" but DUT reported 0x" << changes->mem_addr[i] <<" & "<< VA_M << std::dec << std::endl;
                     error_msg += stream.str();
 		    if(fail_on_check) check_res = CHECKER_ERROR;
 	    	    else	      check_res = CHECKER_WARNING;
@@ -705,7 +705,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 // Atomic instructions are not checked currently
                 if((rtl_mem_data != emu_mem_data) && !inst.is_amo())
                 {
-                    stream << "Memory write data error (" << i << "). Expected data is 0x" << std::hex << emu_mem_data << " but provided is 0x" << rtl_mem_data << std::dec << std::endl;
+                    stream << "BEMU Checker Memory write data error (" << i << "). BEMU expects data is 0x" << std::hex << emu_mem_data << " but DUT reported 0x" << rtl_mem_data << std::dec << std::endl;
                     error_msg += stream.str();
 		    if(fail_on_check) check_res = CHECKER_ERROR;
 	    	    else	      check_res = CHECKER_WARNING;
@@ -752,7 +752,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 // Checks that an entry was actually found
                 if(it == scp_entry_list[thread].end())
                 {
-                    stream << "Couldn't find scratchpad destination " << entry + i << " in the RTL scratchpad list!!" << std::endl;
+                    stream << "BEMU Checker couldn't find scratchpad destination " << entry + i << " in the DUT reported scratchpad list!!" << std::endl;
 		    log << LOG_ERR << "SCP Candidates: " << endm;
 		    for(auto e : scp_entry_list[thread]) {
 		      log << LOG_ERR << "\tEntry : " << e.entry << endm;
@@ -767,7 +767,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     data = get_scratchpad_value(entry + i, j, &entry, &size);
                     if(data != it->data[j])
                     {
-                        stream << "TensorLoad write data error for cacheline " << i << " written in entry " << entry + i << " data lane " << j << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[j] << std::dec << std::endl;
+                        stream << "BEMU Checker TensorLoad write data error for cacheline " << i << " written in entry " << entry + i << " data lane " << j << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[j] << std::dec << std::endl;
                         error_msg += stream.str();
                         scp_entry_list[thread].erase(it);
                         return CHECKER_ERROR;
@@ -811,7 +811,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     // Checks that an entry was actually found
                     if(it == tensorfma_list[thread].end())
                     {
-                        stream << "Couldn't find TensorFMA destination " << entry << " in the RTL TensorFMA list for pass " << pass << "!!" << std::endl;
+                        stream << "BEMU Checker couldn't find TensorFMA destination " << entry << " in the DUT reported TensorFMA list for pass " << pass << "!!" << std::endl;
                         error_msg += stream.str();
 			if(fail_on_check) check_res = CHECKER_ERROR;
 	    	    	else	      	  check_res = CHECKER_WARNING;
@@ -825,7 +825,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                             data = get_tensorfma_value(entry, pass, lane, &size, &passes, &conv_skip[lane]);
                             if(data != it->data[lane])
                             {
-                                stream << "TensorFMA write data error for register f" << entry << "[" << lane << "] pass " << pass << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
+                                stream << "BEMU Checker TensorFMA write data error for register f" << entry << "[" << lane << "] pass " << pass << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
                                 error_msg += stream.str();
                                 tensorfma_list[thread].erase(it);
                                 return CHECKER_ERROR;
@@ -872,7 +872,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                         // Checks that an entry was actually found
                         if(it == tensorquant_list[thread].end())
                         {
-                            stream << "Couldn't find TensorQuant destination " << entry << " in the RTL TensorQuant list for trans " << trans << "!!" << std::endl;
+                            stream << "BEMU Checker couldn't find TensorQuant destination " << entry << " in the DUT reported TensorQuant list for trans " << trans << "!!" << std::endl;
                             error_msg += stream.str();
                             return CHECKER_ERROR;
                         }
@@ -889,7 +889,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                         data = get_tensorquant_value(entry, trans, lane, &size, &transforms, &is_pack);
                         if(data != it->data[lane])
                         {
-                            stream << "TensorQuant write data error for register f" << entry << "[" << lane << "] trans " << trans << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
+                            stream << "BEMU Checker TensorQuant write data error for register f" << entry << "[" << lane << "] trans " << trans << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
                             error_msg += stream.str();
                             tensorquant_list[thread].erase(it);
                             return CHECKER_ERROR;
@@ -922,7 +922,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 // Checks that an entry was actually found
                 if(it == reduce_list[thread].end())
                 {
-                    stream << "Couldn't find Reduce destination " << entry << " in the RTL Reduce list!!" << std::endl;
+                    stream << "BEMU Checker couldn't find Reduce destination " << entry << " in the DUT provided Reduce list!!" << std::endl;
                     error_msg += stream.str();
 		    if(fail_on_check) check_res = CHECKER_ERROR;
 	    	    else	      check_res = CHECKER_WARNING;
@@ -935,7 +935,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                         data = get_reduce_value(entry, lane, &size, &start_entry);
                         if(data != it->data[lane])
                         {
-                            stream << "Reduce write data error for register " << entry << " lane " << lane << ". Expected data is 0x" << std::hex << data << " but provided is 0x" << it->data[lane] << std::dec << std::endl;
+                            stream << "BEMU Checker Reduce write data error for register " << entry << " lane " << lane << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
                             error_msg += stream.str();
                             reduce_list[thread].erase(it);
                             return CHECKER_ERROR;
