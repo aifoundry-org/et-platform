@@ -12,7 +12,78 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
-set(CMAKE_AR            ${GCC_PATH}/bin/riscv64-unknown-elf-ar)
-set(CMAKE_RANLIB        ${GCC_PATH}/bin/riscv64-unknown-elf-ranlib)
-set(CMAKE_C_COMPILER    ${GCC_PATH}/bin/riscv64-unknown-elf-gcc)
+set(CMAKE_AR         ${GCC_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH "ar"      FORCE)
+set(CMAKE_RANLIB     ${GCC_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH "ranlib"  FORCE)
+set(CMAKE_C_COMPILER ${GCC_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH "gcc"     FORCE)
+set(CMAKE_OBJCOPY    ${GCC_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH "objcopy" FORCE)
+set(CMAKE_OBJDUMP    ${GCC_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH "objdump" FORCE) 
+set(CMAKE_HEXDUMP    hexdump CACHE STRING "hexdump" FORCE)
 
+# CMake string handling a cruel joke, it escapes spaces with backslashes in quoted
+# strings in add_custom_command COMMANDs, so instead we tokenize to a list.
+# CMake separates each list item by a space when building the COMMAND
+# This dumps 32-bits per line, change the 1/4 and %08x to 1/8 %016x for 64-bits, etc. 
+set(CMAKE_HEXDUMP_ARGS "-v -e '\"@%010_ax \" 1/4 \"%08x\" \"\\n\"'")
+string(REGEX REPLACE " " ";" CMAKE_HEXDUMP_ARGS_LIST "${CMAKE_HEXDUMP_ARGS}") 
+
+set(ELF_FILE ${TARGET_NAME}.elf)
+set(BIN_FILE ${TARGET_NAME}.bin)
+set(HEX_FILE ${TARGET_NAME}.hex)
+set(MAP_FILE ${TARGET_NAME}.map)
+set(LST_FILE ${TARGET_NAME}.lst)
+
+# Our gcc has -fdelete-null-pointer-checks enabled, needed for -Wnull-dereference
+set(CMAKE_C_FLAGS "-Wall -Wextra -Werror -Wnull-dereference \
+-Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith -Wundef \
+-Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
+-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations")
+
+# macro to create an executable .elf plus .bin, .hex, .lst and .map files
+# if LINKER_SCRIPT is defined, uses it instead of the default
+macro(add_custom_executable TARGET_NAME)
+
+    add_executable(${ELF_FILE} ${ARGN})
+ 
+    # custom command to generate a raw binary image file from the elf
+    add_custom_command(
+        OUTPUT ${BIN_FILE}
+        COMMAND ${CMAKE_OBJCOPY} -O binary ${ELF_FILE} ${BIN_FILE}
+        DEPENDS ${ELF_FILE}
+    )
+
+    # custom command to generate a hex file from the bin
+    add_custom_command(
+        OUTPUT ${HEX_FILE}
+        COMMAND ${CMAKE_HEXDUMP} ${CMAKE_HEXDUMP_ARGS_LIST} ${BIN_FILE} > ${HEX_FILE}
+        DEPENDS ${BIN_FILE}
+    )
+
+    # custom command to generate an assembly listing from the elf
+    add_custom_command(
+        OUTPUT ${LST_FILE}
+        COMMAND ${CMAKE_OBJDUMP} -h -S ${ELF_FILE} > ${LST_FILE}
+        DEPENDS ${ELF_FILE}
+    )
+
+    # Always generate the bin file
+    add_custom_target( 
+        "bin"
+        ALL
+        DEPENDS ${BIN_FILE}
+    )
+
+    # Always generate the hex file
+    add_custom_target( 
+        "hex"
+        ALL
+        DEPENDS ${HEX_FILE}
+    )
+
+    # Always generate the assembly listing 
+    add_custom_target( 
+        "lst"
+        ALL
+        DEPENDS ${LST_FILE}
+    )
+
+endmacro(add_custom_executable)
