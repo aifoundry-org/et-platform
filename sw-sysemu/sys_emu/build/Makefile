@@ -12,7 +12,6 @@ sysemu_hdrs := \
 	common/main_memory_region_atomic.h \
 	common/main_memory_region_esr.h \
 	common/main_memory_region_rbox.h \
-	common/main_memory_region_tbox.h \
 	sys_emu/api_communicate.h \
 	sys_emu/et_emulator.h \
 	sys_emu/testLog.h
@@ -23,7 +22,6 @@ sysemu_cpp_srcs := \
 	common/main_memory_region_atomic.cpp \
 	common/main_memory_region_esr.cpp \
 	common/main_memory_region_rbox.cpp \
-	common/main_memory_region_tbox.cpp \
 	sys_emu/api_communicate.cpp \
 	sys_emu/net_emulator.cpp \
 	sys_emu/sys_emu.cpp \
