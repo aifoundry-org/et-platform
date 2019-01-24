@@ -128,6 +128,9 @@
 #define ESR_BROADCAST_ESR_MAX_SHIRES ESR_BROADCAST_ESR_ADDR_SHIFT
 #define ESR_BROADCAST_ESR_SHIRE_MASK 0xFFFFFFFFFFULL      // Shire to spread the broadcast address in bits [39:0] in esr broadcast data write.
 
+#define ESR_NEIGH_TBOX_CONTROL  0x8000
+#define ESR_NEIGH_TBOX_STATUS   0x8008
+#define ESR_NEIGH_TBOX_IMGT_PTR 0x8010
 
 // L2 scratchpad
 #define L2_SCP_BASE   0x80000000ULL

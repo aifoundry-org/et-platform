@@ -206,7 +206,6 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level, bool checke
         threadEnabled[i] = true;
     }
 
-    texrec_func_ptr = nullptr;
     checker_instance = this;
     fail_on_check = checker_en;
     memory_instance = memory;
@@ -1065,21 +1064,6 @@ void checker::reduce_write(uint32_t thread, uint32_t entry, uint32_t * data)
     reduce_list[thread].push_back(reduce);
 }
 
-void checker::set_texrec_func(func_texrec_t func_ptr)
-{
-    texrec_func_ptr = func_ptr;
-}
-
-void checker::texrec(unsigned minionId, unsigned thread_id, const uint8_t *data, unsigned wordIdx, uint32_t mask)
-{
-    if (!texrec_func_ptr)
-    {
-        log << LOG_ERR << "tbox::texrec is unimplemented."<<endm;
-        return;
-    }
-    texrec_func_ptr(minionId, thread_id, data, wordIdx, mask);
-}
-
 bool checker::address_is_in_ignored_region(uint64_t addr)
 {
    auto it = ignored_mem_regions.begin();
@@ -1098,3 +1082,12 @@ void checker::add_ignored_mem_region(uint64_t base, uint64_t top)
    region.top  = top;
    ignored_mem_regions.push_back(region);
 }
+
+void checker::tbox_port_write(uint32_t thread, uint32_t port_id)
+{
+    // TBOXes can only send writes to the message ports of Minions in their own
+    // neighborhood.  The thread identifier can bue used to identify the
+    // neighborhood and the neighborhood the TBOX.
+    commit_msg_port_data_from_tbox(thread, port_id, thread / EMU_THREADS_PER_NEIGH);
+}
+

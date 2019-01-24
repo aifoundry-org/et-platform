@@ -6813,7 +6813,9 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
         msg_port_write_t port_write;
         bool found = false;
 
-        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); /**/)
+        LOG(INFO, "Pending MSG_PORT writes for Shire %d is %ld", shire, msg_port_pending_writes[shire].size());
+
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); it++)
         {
             port_write = *it;
             if ((port_write.target_thread == target_thread) &&
@@ -6848,7 +6850,9 @@ void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, ui
         msg_port_write_t port_write;
         bool found = false;
 
-        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); /**/)
+        LOG(INFO, "Pending MSG_PORT writes for Shire %d is %ld", shire, msg_port_pending_writes[shire].size());
+
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); it++)
         {
             port_write = *it;
             if ((port_write.target_thread == target_thread) &&
@@ -6864,7 +6868,7 @@ void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, ui
 
         if (found)
         {
-            LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from tbox%d", target_thread, port_id, tbox_id);
+            LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from tbox%d oob %d", target_thread, port_id, tbox_id, port_write.oob);
             write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
         }
         else
@@ -6882,7 +6886,9 @@ void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, ui
         msg_port_write_t port_write;
         bool found = false;
 
-        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); /**/)
+        LOG(INFO, "Pending MSG_PORT writes for Shire %d is %ld", shire, msg_port_pending_writes[shire].size());
+
+        for (auto it = msg_port_pending_writes[shire].begin(); it != msg_port_pending_writes[shire].end(); it++)
         {
             port_write = *it;
             if ((port_write.target_thread == target_thread) &&
