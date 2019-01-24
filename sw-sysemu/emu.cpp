@@ -17,6 +17,7 @@
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
 
+#include <cmath>       // FIXME: remove this when we purge "gold" versions of the code
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 #include <emmintrin.h> // FIXME: remove this when we fix the TXFMA code
 

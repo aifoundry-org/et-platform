@@ -244,7 +244,7 @@ uint32_t ttrans_flog2(uint32_t val)
 
     //printf("FULL_RESULT: %d, %08x\n", i, full_result);
 
-    full_result = full_result + (top_exp << 23) + ((~(sign_exp)) << 31);
+    full_result = full_result + (top_exp << 23) + ((~(sign_exp ? 1 : 0)) << 31);
 
     if(sign)
         full_result = (0x1ff << 22);
