@@ -1,6 +1,5 @@
 #include "main_memory.h"
 #include "main_memory_region_atomic.h"
-#include "main_memory_region_tbox.h"
 #include "main_memory_region_rbox.h"
 #include "main_memory_region_esr.h"
 #include "main_memory_region_printf.h"
@@ -82,11 +81,6 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
             main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + shire*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
             regions_.push_back((main_memory_region *) l2_scp);
         }
-
-        // Fake TBOX region.  Used to set the Image Descriptor Table Pointer.  Eventually the TBOX ESRs will
-        // be defined and implemented in the neighborhood region.
-        main_memory_region_tbox * tbox = new main_memory_region_tbox(0x1002e0000ULL + shire * ESR_REGION_OFFSET, 64, log, getthread);
-        regions_.push_back((main_memory_region *) tbox);
     }
 }
 
