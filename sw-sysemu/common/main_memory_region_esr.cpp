@@ -14,9 +14,12 @@ extern uint32_t current_thread;
 
 #ifdef SYS_EMU
 extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest);
+extern void ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
+extern void (*pmemwrite64) (uint64_t paddr, uint64_t data);
 #endif
 
 extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
+extern void (*pmemwrite64) (uint64_t paddr, uint64_t data);
 
 using namespace std;
 
@@ -39,7 +42,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     esr_info_t esr_info;
     decode_ESR_address(ad, &esr_info);
 
-    LOG(DEBUG, "Writng to ESR Region with address %016" PRIx64, ad);
+    LOG(DEBUG, "Writing to ESR Region with address %016" PRIx64, ad);
 
     if (!esr_info.valid)
         LOG(DEBUG, "Invalid ESR");
@@ -54,16 +57,16 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 switch(esr_info.address)
                 {
                     case ESR_HART_PORT0_OFFSET :
-                        write_msg_port_data(esr_info.hart, 0, (uint32_t *) data, 0);
+                        write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 0, (uint32_t *) data, 0);
                         break;               
                     case ESR_HART_PORT1_OFFSET :
-                        write_msg_port_data(esr_info.hart, 1, (uint32_t *) data, 0);
+                        write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 1, (uint32_t *) data, 0);
                         break;               
                     case ESR_HART_PORT2_OFFSET :
-                        write_msg_port_data(esr_info.hart, 2, (uint32_t *) data, 0);
+                        write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 2, (uint32_t *) data, 0);
                         break;               
                     case ESR_HART_PORT3_OFFSET :
-                        write_msg_port_data(esr_info.hart, 3, (uint32_t *) data, 0);
+                        write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 3, (uint32_t *) data, 0);
                         break;               
                 }
 
@@ -102,6 +105,13 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                 switch(esr_info.address)
                 {
+                    case ESR_SHIRE_IPI_REDIRECT_TRIGGER_OFFSET:
+                    {
+#ifdef SYS_EMU
+                        ipi_redirect_to_threads(esr_info.shire, *((uint64_t *) data));
+#endif
+                        break;
+                    }
                     case ESR_SHIRE_FLB_OFFSET  : break;
                     case ESR_SHIRE_FCC0_OFFSET :
                     {

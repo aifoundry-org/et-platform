@@ -263,7 +263,6 @@ typedef enum {
    MAXAMOOP
 } amoop;
 
-
 // Neede by fence.i
 extern void flush_insn_cache();
 
@@ -1366,6 +1365,25 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
     pmemwrite64 = emu_pmemwrite64;
 
     pmemfetch16 = emu_pmemfetch16;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Callback for messages
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void def_msg_to_thread(int thread_id)
+{
+}
+
+typedef void (*msg_to_thread_t) (int thread_id);
+
+void (*msg_to_thread) (int thread_id) = def_msg_to_thread;
+
+void set_msg_funcs(void * func_msg_to_thread)
+{
+    msg_to_thread = (msg_to_thread_t) func_msg_to_thread;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6725,10 +6743,15 @@ void set_delayed_msg_port_write(bool f)
 
 void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
 {
+    // Drop the write if port not configured
+    if(!msg_ports[thread][id].enabled) return;
+
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[thread][id].rd_ptr << msg_ports[thread][id].logsize;
 
     msg_ports[thread][id].size++;
+    msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % msg_ports[thread][id].max_msgs;
+    msg_ports[thread][id].stall  = false;
 
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
 
@@ -6741,6 +6764,8 @@ void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, ui
 
     if (msg_ports[thread][id].enable_oob)
         msg_ports_oob[thread][id].push(oob);
+
+    msg_to_thread(thread);
 }
 
 void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
