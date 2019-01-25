@@ -71,11 +71,7 @@ public:
     msgStarted_=true;
 
     if ( l >= globalLogLevel_  && l >= logLevel_ ) {
-#ifndef SYS_EMU
-      std::ios_base::fmtflags flags = os_.flags();
-      os_<< std::dec << simTimeStr() <<": ";
-      os_.flags(flags);
-#endif
+      os_<< simTimeStr() <<": ";
       switch(l) {
       case LOG_DEBUG: os_<<"DEBUG "; break;
       case LOG_INFO: os_<<"INFO "; break;

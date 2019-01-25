@@ -81,7 +81,7 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
     {
         LOG(DEBUG, "\t[Channel %d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data[channel].u[0], data[channel].u[1], data[channel].u[2], data[channel].u[3]);
         /* Put result in port */
-        write_msg_port_data_from_tbox(current_thread, port_id, current_thread / EMU_TBOXES_PER_SHIRE, &(data[channel].u[0]), 0);
+        write_msg_port_data_from_tbox(current_thread, port_id, current_thread / EMU_TBOXES_PER_SHIRE, &(data[channel].u[0]), 1);
     }    
 }
 
