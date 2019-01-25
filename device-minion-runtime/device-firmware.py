@@ -26,12 +26,20 @@ sys.dont_write_bytecode = True
 
 _LOG_LEVEL_STRINGS = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
 
-PROJECTS = ['et-sw-device-firmware']
+PROJECTS = [
+    'infra_tools.common_docker_images.et_sw_base',
+    'Docker.et_sw_device_fw'
+]
 
 WRAPPER_EXTENSIONS = {}
 for f in PROJECTS:
-    mod =  __import__('Docker.' + f +  '.docker_wrapper_extensions')
-    WRAPPER_EXTENSIONS[f] = getattr(getattr(mod, f),'docker_wrapper_extensions')
+    mod =  __import__(f +  '.docker_wrapper_extensions')
+    # walk through the subfolder hierarchy
+    # The first element is the module
+    for i in f.split(".")[1:]:
+        mod = getattr(mod, i)
+    mod = getattr(mod,'docker_wrapper_extensions')
+    WRAPPER_EXTENSIONS[mod.base_image_name()] = mod
 
 
 def _log_level_string_to_int(log_level_string):

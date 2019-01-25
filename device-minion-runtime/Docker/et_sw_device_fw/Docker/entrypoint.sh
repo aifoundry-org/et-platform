@@ -23,6 +23,11 @@ if [[ -z "$GID" ]]; then
     exit 1
 fi;
 
+if [[ -z "$DOCKER_GID" ]]; then
+    echo Undefined venv "$DOCKER_GID"
+    exit 1
+fi;
+
 if [[ -z "$USERNAME" ]]; then
     echo Undefined vevn "$USERNAME"
     exit 1
@@ -42,13 +47,20 @@ else
 fi;
 
 groupadd  --gid $GID $USERNAME
-useradd --uid $GID --gid $UID $USERNAME -p test ${HOME_ARG}
+# Crete a docker group that matches that on the host, necessary for talking
+# with the docker daemon, remove it if it already exists
+groupdel docker
+groupadd -o --gid $DOCKER_GID docker
+useradd --uid $UID --gid $GID $USERNAME -p test ${HOME_ARG}
+usermod -aG docker $USERNAME
 
 echo "$USERNAME ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/$USERNAME
 
 cd $SRC_DIR
 
-PATH=$PATH:$SRC_DIR/bin:$SRC_DIR/scripts:/esperanto/bin:$SRC_DIR/infra_tools/aws_helpers
+source scl_source enable devtoolset-7
+
+PATH=$PATH:$SRC_DIR:$SRC_DIR/bin:$SRC_DIR/scripts:/esperanto/bin:$SRC_DIR/infra_tools/aws_helpers
 
 # If prompt defined drop the user to the prompt
 if [[ -n "$PROMPT" ]]; then
