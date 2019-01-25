@@ -165,6 +165,8 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                         
                         dynamic_cast<main_memory_region*>(this)->read(ad-8, 8, &minion_mask);
 
+                        LOG(DEBUG, "Write to BROADCAST1 value %016" PRIx64, *((uint64_t *) data));
+
                         decode_ESR_data(*((uint64_t *)data), &esr_info_data);
                         //broadcast(esr_data_info, minion_mask);
                         for (long shire_id = 0; shire_id < ESR_BROADCAST_ESR_MAX_SHIRES; shire_id++)
@@ -178,7 +180,6 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                           }
                         }
                         brcst0_received = 2;
-                        LOG(DEBUG, "Write to BROADCAST1 value %016" PRIx64, *((uint64_t *) data));
                       }
                       break;
                     }                    
@@ -274,14 +275,18 @@ void main_memory_region_esr::decode_ESR_address(uint64_t address, esr_info_t *in
 
 void main_memory_region_esr::encode_ESR_address(esr_info_data_t data, uint64_t shire_id, uint64_t *new_ad)
 {
-  *new_ad = ESR_SHIRE_REGION;
+  *new_ad =  data.esr_region;
+  *new_ad |= (((uint64_t)data.protection) << ESR_REGION_PROT_SHIFT);
   *new_ad |= (shire_id << ESR_REGION_SHIRE_SHIFT);
-  *new_ad |= (data.esraddress << ESR_SHIRE_ESR_SHIFT);
+  *new_ad |= (((uint64_t)data.esr_sregion) << ESR_SREGION_EXT_SHIFT);
+  *new_ad |= (data.esr_address << ESR_SHIRE_ESR_SHIFT);
 }
 
-void main_memory_region_esr::decode_ESR_data(uint64_t address, esr_info_data_t *info)
+void main_memory_region_esr::decode_ESR_data(uint64_t data, esr_info_data_t *info)
 {
-  info->protection = esr_protection_t((address & ESR_BROADCAST_PROT_MASK) >> ESR_BROADCAST_PROT_SHIFT);
-  info->esraddress = ((address & ESR_BROADCAST_ESR_ADDR_MASK) >> ESR_BROADCAST_ESR_ADDR_SHIFT);
-  info->shire = (address & ESR_BROADCAST_ESR_SHIRE_MASK);
+  info->esr_region = ESR_REGION; //not in data provided by broadcast
+  info->protection = esr_protection_t((data & ESR_BROADCAST_PROT_MASK) >> ESR_BROADCAST_PROT_SHIFT);
+  info->esr_sregion = esr_region_t((data & ESR_BROADCAST_ESR_SREGION_MASK) >> ESR_BROADCAST_ESR_SREGION_MASK_SHIFT);
+  info->esr_address = ((data & ESR_BROADCAST_ESR_ADDR_MASK) >> ESR_BROADCAST_ESR_ADDR_SHIFT);
+  info->shire = (data & ESR_BROADCAST_ESR_SHIRE_MASK);
 }
