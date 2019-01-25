@@ -9,11 +9,13 @@
 
 // Maximum number of threads
 #define EMU_NUM_SHIRES          35 // at most 33 shires (Pending fix from JIRA: RTLMIN-1949)
+#define EMU_NUM_COMPUTE_SHIRES  32
+#define EMU_MASTER_SHIRE        32
+#define EMU_MINIONS_PER_SHIRE   32
 #define EMU_NEIGH_PER_SHIRE     4
 #define EMU_MINIONS_PER_NEIGH   8
 #define EMU_TBOXES_PER_SHIRE    4
 #define EMU_RBOXES_PER_SHIRE    1
-#define EMU_MINIONS_PER_SHIRE   (EMU_NEIGH_PER_SHIRE*EMU_MINIONS_PER_NEIGH)
 #define EMU_NUM_MINIONS         (EMU_NUM_SHIRES*EMU_MINIONS_PER_SHIRE)
 #define EMU_THREADS_PER_MINION  2
 #define EMU_THREADS_PER_NEIGH   (EMU_THREADS_PER_MINION*EMU_MINIONS_PER_NEIGH)
@@ -95,7 +97,7 @@
 #define ESR_NEIGH_MASK         0x00000F0000ULL  // On Neighborhood ESR Region Neighborhood is defined when bits [19:16]
 #define ESR_NEIGH_SHIFT        16               // On Neighborhood ESR Region bits to shift to get the Neighborhood defined in bits [19:16]
 #define ESR_NEIGH_OFFSET       0x0000010000ULL  // On Neighborhood ESR Region the Neighborhood is defined by bits [19:16]
-#define ESR_NEIGH_BROADCAST    16               // On Neighborhood ESR Region Neighborhood Broadcast is defined when bits [19:16] == 4'b1111
+#define ESR_NEIGH_BROADCAST    15               // On Neighborhood ESR Region Neighborhood Broadcast is defined when bits [19:16] == 4'b1111
 
 #define ESR_BANK_MASK          0x000001E000ULL  // On Shire Cache ESR Region Bank is defined in bits [16:13]
 #define ESR_BANK_SHIFT         13               // On Shire Cache ESR Region bits to shift to get Bank defined in bits [16:13]
@@ -107,11 +109,12 @@
 #define ESR_SHIRE_ESR_SHIFT    3
 
 // ESR Offsets
-#define ESR_SHIRE_FLB_OFFSET  0x100ULL
-#define ESR_SHIRE_FCC0_OFFSET 0x0C0ULL
-#define ESR_SHIRE_FCC1_OFFSET 0x0C8ULL
-#define ESR_SHIRE_FCC2_OFFSET 0x0D0ULL
-#define ESR_SHIRE_FCC3_OFFSET 0x0D8ULL
+#define ESR_SHIRE_IPI_REDIRECT_TRIGGER_OFFSET 0x080ULL
+#define ESR_SHIRE_FLB_OFFSET                  0x100ULL
+#define ESR_SHIRE_FCC0_OFFSET                 0x0C0ULL
+#define ESR_SHIRE_FCC1_OFFSET                 0x0C8ULL
+#define ESR_SHIRE_FCC2_OFFSET                 0x0D0ULL
+#define ESR_SHIRE_FCC3_OFFSET                 0x0D8ULL
 
 #define ESR_HART_PORT0_OFFSET 0x800ULL
 #define ESR_HART_PORT1_OFFSET 0x810ULL
