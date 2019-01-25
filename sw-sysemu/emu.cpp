@@ -2562,7 +2562,7 @@ static uint64_t csrget(csr src1)
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE7FFULL;
+            val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE777ULL;
             break;
         case csr_sie:
             val = csrregs[current_thread][csr_mie] & csrregs[current_thread][csr_mideleg];
