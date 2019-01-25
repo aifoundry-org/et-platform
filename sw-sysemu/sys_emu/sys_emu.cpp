@@ -37,12 +37,16 @@ typedef enum
 // Global variables
 ////////////////////////////////////////////////////////////////////////////////
 
-uint64_t emu_cycle = 0;
-static std::list<int>  enabled_threads;                     // List of enabled threads
+uint64_t               emu_cycle = 0;
+static std::list<int>  enabled_threads;                                               // List of enabled threads
+static std::list<int>  fcc_wait_threads;                                              // List of threads waiting for an FCC
+static std::list<int>  port_wait_threads;                                             // List of threads waiting for a port write
 uint32_t               pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list 
-static uint64_t        current_pc[EMU_NUM_THREADS];         // PC for each thread
-static reduce_state    reduce_state_array[EMU_NUM_MINIONS]; // Reduce state
-static uint32_t        reduce_pair_array[EMU_NUM_MINIONS];  // Reduce pairing minion
+static uint64_t        current_pc[EMU_NUM_THREADS];                                   // PC for each thread
+static reduce_state    reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
+static uint32_t        reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
+static bool            global_log_en;
+static int             global_log_min;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Functions to emulate the main memory
@@ -113,17 +117,78 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
         {
             int thread_id = shire_id * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + thread_dest;
             LOG_OTHER(DEBUG, thread_id, "Receiving FCC on counter %u", cnt_dest);
+
+            auto thread = std::find(fcc_wait_threads.begin(), fcc_wait_threads.end(), thread_id);
             // Checks if is already awaken
-            if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) != enabled_threads.end())
+            if(thread == fcc_wait_threads.end())
             {
                 // Pushes to pending FCC
-	      pending_fcc[thread_id][cnt_dest]++;
+                pending_fcc[thread_id][cnt_dest]++;
             }
             // Otherwise wakes up thread
             else
             {
                 LOG_OTHER(DEBUG, thread_id, "Waking up due sent FCC on counter %u", cnt_dest);
                 enabled_threads.push_back(thread_id);
+                fcc_wait_threads.erase(thread);
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Sends an FCC to the desired minions specified in thread mask to the 1st or
+// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
+// of thread_src
+////////////////////////////////////////////////////////////////////////////////
+
+void msg_to_thread(int thread_id)
+{
+    auto thread = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
+    printf("Message to thread %i with log %i\n", thread_id, global_log_min);
+    // Checks if in port wait state
+    if(thread != port_wait_threads.end())
+    {
+        LOG_OTHER(DEBUG, thread_id, "Waking up due msg\n");
+        enabled_threads.push_back(thread_id);
+        port_wait_threads.erase(thread);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Sends an IPI_REDIRECT to thee desired minions specified in thread mask
+// of the specified shire id.
+////////////////////////////////////////////////////////////////////////////////
+
+void ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
+{
+    // Get IPI_REDIRECT_FILTER ESR for the shire
+    uint64_t ipi_redirect_filter;
+    memory->read(0x1C0340088ULL + (shire_id << 22), 8, &ipi_redirect_filter);
+
+    for(int t = 0; t < EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION; t++)
+    {
+        // If both IPI_REDIRECT_TRIGGER and IPI_REDIRECT_FILTER has bit set
+        if(((thread_mask >> t) & 1) && ((ipi_redirect_filter >> t) & 1))
+        {
+            // Get PC
+            uint64_t new_pc;
+            uint64_t neigh_id;
+            neigh_id = t / EMU_THREADS_PER_NEIGH;
+            memory->read(0x0100100040ULL + (neigh_id << 16) + (shire_id << 22), 8, &new_pc);
+            int thread_id = shire_id * EMU_THREADS_PER_SHIRE + t;
+            LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx\n", (long long unsigned int) new_pc);
+            // If thread sleeping, wakes up and changes PC
+            if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+            {
+                LOG_OTHER(DEBUG, thread_id, "Waking up due IPI_REDIRECT\n");
+                enabled_threads.push_back(thread_id);
+                current_pc[thread_id] = new_pc;
+            }
+            // Otherwise IPI is dropped
+            else
+            {
+                LOG_OTHER(DEBUG, thread_id, "WARNING => IPI_REDIRECT dropped\n");
             }
         }
     }
@@ -190,11 +255,12 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
  -api_comm    Path to socket that feeds runtime API commands.\n\
+ -master_min  Enables master minion to send interrupts to compute minions.\n\
  -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
  -shires      A mask of Shires that should be enabled. Default: 1 Shire\n\
  -dump_file   Path to the file in which to dump the memory content at the end of the simulation\n\
@@ -339,6 +405,7 @@ int main(int argc, char * argv[])
     bool mem_desc        = false;
     bool net_desc        = false;
     bool api_comm        = false;
+    bool master_min      = false;
     bool minions         = false;
     bool second_thread   = true;
     bool shires          = false;
@@ -439,6 +506,10 @@ int main(int argc, char * argv[])
         {
             api_comm = true;
         }
+        else if(strcmp(argv[i], "-master_min") == 0)
+        {
+            master_min = true;
+        }
         else if(strcmp(argv[i], "-minions") == 0)
         {
             minions = true;
@@ -508,9 +579,13 @@ int main(int argc, char * argv[])
         LOG_NOTHREAD(FTL, "Need an elf file or a mem_desc file or runtime API!");
     }
 
-    if ((net_desc_file != NULL) && (api_comm_path != NULL))
+    uint64_t drivers_enabled = 0;
+    if (net_desc_file != NULL) drivers_enabled++;
+    if (master_min)            drivers_enabled++;
+
+    if (drivers_enabled > 1)
     {
-        LOG_NOTHREAD(FTL, "Can't have net_desc and api_comm set at same time!");
+        LOG_NOTHREAD(FTL, "Can't have net_desc and master_min set at same time!");
     }
 
     if (debug == true) {
@@ -531,6 +606,8 @@ int main(int argc, char * argv[])
     // Init emu
     init_emu(log_en ? LOG_DEBUG : LOG_INFO);
     log_only_minion(log_min);
+    global_log_en = log_en;
+    global_log_min = log_min;
 
     in_sysemu = true;
 
@@ -547,6 +624,9 @@ int main(int argc, char * argv[])
                      (void *) emu_memwrite16,
                      (void *) emu_memwrite32,
                      (void *) emu_memwrite64);
+
+    // Callbacks for port writes
+    set_msg_funcs((void *) msg_to_thread);
 
     // Parses the memory description
     if (elf_file != NULL) {
@@ -586,6 +666,8 @@ int main(int argc, char * argv[])
     {
        // Skip disabled shire
        if (((shires_en >> s) & 1) == 0) continue;
+       // Skip master shire if not enabled
+       if ((master_min == 0) && (s >= EMU_NUM_COMPUTE_SHIRES)) continue;
 
        // For all the minions
        for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
@@ -614,7 +696,12 @@ int main(int argc, char * argv[])
 
     // While there are active threads or the network emulator is still not done
     while(  (emu_done() == false)
-         && (enabled_threads.size() || (net_emu.is_enabled() && !net_emu.done()) || (api_listener.is_enabled() && !api_listener.is_done()))
+         && (   enabled_threads.size()
+             || fcc_wait_threads.size()
+             || port_wait_threads.size()
+             || (net_emu.is_enabled() && !net_emu.done())
+             || (api_listener.is_enabled() && !api_listener.is_done())
+            )
          && (emu_cycle < max_cycles)
     )
     {
@@ -715,6 +802,7 @@ int main(int argc, char * argv[])
 
                     if (get_msg_port_stall(thread_id, 0) ){
                         thread = enabled_threads.erase(thread);
+                        port_wait_threads.push_back(thread_id);
                         if (thread == enabled_threads.end()) break;
                     }
                     else {
@@ -738,6 +826,7 @@ int main(int argc, char * argv[])
                     if(pending_fcc[old_thread][cnt]==0)
                     {
                         thread = enabled_threads.erase(thread);
+                        fcc_wait_threads.push_back(thread_id);
                     }
                     else
                     {

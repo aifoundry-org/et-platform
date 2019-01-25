@@ -17,17 +17,13 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
     rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
     regions_.push_back((main_memory_region *) rbox);
 
-    // UC writes to notify completion of kernels to master processor
-    main_memory_region * uc_writes = new main_memory_region(0x0108000800ULL, ESR_REGION_OFFSET, log, getthread, MEM_REGION_WO); //TODO: This line has to survive the merge 
-    regions_.push_back((main_memory_region *) uc_writes);
-
     // For all the shires and the local shire mask
-    for (int i = 0; i < ((EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE) + 1); i++)
+    for (int i = 0; i < (EMU_NUM_SHIRES + 1); i++)
     {
         int shire;
 
         // Need to add the ESR space for the Local Shire.
-        if (i == (EMU_NUM_MINIONS/EMU_MINIONS_PER_SHIRE))
+        if (i == EMU_NUM_SHIRES)
             shire = 255;
         else
             shire = i;
@@ -48,8 +44,8 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
         // SHIRE CACHE BANK ESR
         for (int n = 0; n < 4; n++)
         {
-          main_memory_region_esr * cb_esrs  = new main_memory_region_esr(0x100300030ULL + shire*ESR_REGION_OFFSET + (n*0x2000), 8, log, getthread);
-          regions_.push_back((main_memory_region *) cb_esrs);
+            main_memory_region_esr * cb_esrs  = new main_memory_region_esr(0x100300030ULL + shire*ESR_REGION_OFFSET + (n*0x2000), 8, log, getthread);
+            regions_.push_back((main_memory_region *) cb_esrs);
         }
 
         // RBOX
@@ -81,6 +77,10 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
             main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + shire*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
             regions_.push_back((main_memory_region *) l2_scp);
         }
+
+        // HART ESRs
+        main_memory_region_esr * hart_esrs = new main_memory_region_esr(0x100000000ULL + (shire*ESR_REGION_OFFSET), 1024 * 1024, log, getthread);
+        regions_.push_back((main_memory_region *) hart_esrs);
     }
 }
 
