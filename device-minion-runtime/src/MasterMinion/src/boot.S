@@ -138,7 +138,7 @@ _boot:
   li zero, 0xf
   mova.m.x zero
 
-  la a1, _start
+  la a1, main
   jalr x0, a1
 
 
