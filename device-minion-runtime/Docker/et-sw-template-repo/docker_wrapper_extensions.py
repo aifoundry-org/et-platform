@@ -19,7 +19,7 @@ import os
 import subprocess
 import sys
 
-IMAGE_NAME='et-sw-template-repo'
+IMAGE_NAME='et-sw-device-firmware'
 
 logger = logging.getLogger(IMAGE_NAME)
 

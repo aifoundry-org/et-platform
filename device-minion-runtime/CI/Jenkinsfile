@@ -21,7 +21,7 @@ gitlabCommitStatus(name: "${JOB_NAME}") {
     stage("Build Docker") {
         echo "Build Docker"
         // Currently pull the docker image, first review the login credentials
-        sh './template-repo.py --logging=DEBUG docker pull-image et-sw-template-repo'
+        sh './device-firmware.py --logging=DEBUG docker pull-image et-sw-device-firmware'
     }
 
     try {
@@ -48,7 +48,7 @@ gitlabCommitStatus(name: "${JOB_NAME}") {
 
         stage("Upload Artifacts") {
             echo "----- $GIT_COMMIT ${GIT_COMMIT} ${env.GIT_COMMIT}"
-            sh './template-repo.py et-sw-template-repo artifacts.py --push ./install et-sw-ci/${JOB_NAME}/${BUILD_NUMBER}/${GIT_COMMIT}'
+            sh './device-firmware.py et-sw-device-firmware artifacts.py --push ./install et-sw-ci/${JOB_NAME}/${BUILD_NUMBER}/${GIT_COMMIT}'
         }
     }
 }

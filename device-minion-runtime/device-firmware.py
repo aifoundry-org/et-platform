@@ -26,7 +26,7 @@ sys.dont_write_bytecode = True
 
 _LOG_LEVEL_STRINGS = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
 
-PROJECTS = ['et-sw-template-repo']
+PROJECTS = ['et-sw-device-firmware']
 
 WRAPPER_EXTENSIONS = {}
 for f in PROJECTS:

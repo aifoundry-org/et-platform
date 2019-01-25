@@ -87,7 +87,7 @@ class JenkinsfileParams:
 
 
 JOB_DESCRIPTION = {
-    'template-repo': JenkinsfileParams('Software/template-repo'),
+    'device-firmware': JenkinsfileParams('Software/device-firmware'),
 
 }
 
