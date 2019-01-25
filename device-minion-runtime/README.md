@@ -1,107 +1,55 @@
-Software Project Template
+Device Firmware Project
 =========================
 
-This is a template project that provides/demonstrates how to:
+This project implements the device firmware running on the Esperanto SOC
 
-*  Build our project using CMake, example code structure
-*  Generate documentation using Doxygen
-*  Use Docker for building and running our project
-*  Example CI setup in Jenkins, it builds in AWS and saves artifacts
-   in S3 bucket.
-*  Example clang-format and clang-tidy setups
+The project implements the following components:
+
+    \todo add reference to Master Minion Documentation
+    \todo add add reference to Slave Minion Documentation
 
 
-##  Entrypoint command
+Following we have the basic steps to build the basic "flavor" of the repo and generating
+the repo's documentation
 
-To facilitate interaction of the user with the underlying scripting
-infrastructure an entrypoint script is provided with the same nameas the
-repo. In this case tis called:
+## Initialize the repo
 
-    device-firmware.py
+### Install the necessary git-hooks
 
-Try the `--help` to see all available subcommands to this entrypoint script.
+\todo add instructions how to setup the git-hooks
 
-The entrypoint script will provide support to:
+### Update the git submodules
 
-*  Interrupt with Docker
-*  Launch manually any regressions to Jenkins
-*  Any other functionality we want to automate for the user
+Run:
 
-## Interacting with Docker
+    ./scripts/init-submodules.sh
 
-See the available subcommands doing:
+## Create a docker container to work in
 
-    device-firmware.py docker -h
+In the repo's TOT run the following command:
 
-To instantiate a container and get prompt try:
+    ./device-firmware.py docker prompt et-sw-device-fw
 
-    ./device-firmware.py docker prompt et-sw-device-firmware
+The above should automatically compute the correct version of the et-sw-platform docker image
+to use, instantiate a container for the user and return an active prompt for the user to use.
+The container automatically mounts inside it the repo code and any code that the user builds
+will persist once it exits the container.
 
-The `prompt` subcommands instantiates a container and mounts inside it
-the source code. It also creates a user with the same UID/GID as the one
-instatiating the container, so that any files touched by the container
-in the mounted source code have the right permissions.
+For more details about docker see the related documentation section of the sw-platform repo.
 
-The prompt has other options, e.g. mounting the user's home directory
-or other volumes etc.
+## Build the documentation
 
-### Execute a command inside the container and exit
+Do the following steps to build "something" i.e. the documentation:
 
-To execute run somehting directly inside the container you can do:
+    mkdir -p build && cd build
+    cmake ..
+    make doc
 
-   ./device-firmware.py et-sw-device-firmware echo test
-INFO:root:Running cmd: docker run --rm --hostname Docker -e UID=1000 -e GID=1000 -e USERNAME=ubuntu -e SRC_DIR=/mnt/lala/Project/SW/device-firmware -e CREATE_HOME=1 -v /mnt/lala/Project/SW/device-firmware:/mnt/lala/Project/SW/device-firmware --entrypoint /entrypoint.sh 828856276785.dkr.ecr.us-west-2.amazonaws.com/et-sw-device-firmware:fe2a657e2e echo test
-test
+The generated Doxygen documentation should be under folder:
 
-In the above example we instantiated the container and run `echo test` inside it.
-The `et-sw-device-firmware` subcommand has the property that any arguments that it does not
-recognize to pass them through to the container
+    build/doc/docs
 
-## Build instructions
+##  Entrypoint helper script
 
-To build the repo manually, instantiate a container and drop into a prompt as shown above and
-run:
-
-    mkdir install
-    mkdir build
-    cd build
-    cmake -DCMAKE_INSTALL_PREFIX=../install ../
-    make all -j $(nproc)
-    make install
-
-
-## Jenkins regressions
-
-The logic for the jenkins regressions is implemented in the CI folder.
-There you will file the `Jenkinsfile` that implements a jenkins pipeline
-using groovy. The Jenkinsfile implements a basic template that can be
-applicate to most jobs: Download the docker image, update the git-repo
-build the code, run the tests, upload the results in a S3 bucket. The
-jenkins regression is expected to run on AWS.
-
-The same execution steps of the regression job we have added so far
-can be foud in `CI/Software/device-firmware.json`
-
-The same steps can be executed by the user in order to debug the job locally
-
-TODO: Enable running the job locally by extending the entrypoint script.
-
-
-## Clang tools
-
-We are using:
-
-* clang-format for auto-formating the code
-* clang-tidy for running a linter
-
-
-### Code auto-formatting using clang-format
-
-Taken from https://github.com/andrewseidl/githook-clang-format
-
-TODO register the hook by default
-
-Added https://llvm.org/svn/llvm-project/cfe/trunk/tools/clang-format/git-clang-format
-in order to automatically call clang format.
-
-Run ```git clang-format``` to format the code
+The entrypoint command follows the same design principles as the one in the sw-platform repo,
+please refer to the documentation of the sw-platform repo.
