@@ -1,9 +1,3 @@
-GCC_GTE_5p3p1 := $(shell expr `gcc -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 50301)
-
-ifneq ($(GCC_GTE_5p3p1),1)
-    $(error "GCC version 5.3.1 or higher required")
-endif
-
 include ../../build/emu.mk
 
 sysemu_hdrs := \
@@ -12,7 +6,6 @@ sysemu_hdrs := \
 	common/main_memory_region_atomic.h \
 	common/main_memory_region_esr.h \
 	common/main_memory_region_rbox.h \
-	common/main_memory_region_tbox.h \
 	sys_emu/api_communicate.h \
 	sys_emu/et_emulator.h \
 	sys_emu/testLog.h
@@ -23,7 +16,6 @@ sysemu_cpp_srcs := \
 	common/main_memory_region_atomic.cpp \
 	common/main_memory_region_esr.cpp \
 	common/main_memory_region_rbox.cpp \
-	common/main_memory_region_tbox.cpp \
 	sys_emu/api_communicate.cpp \
 	sys_emu/net_emulator.cpp \
 	sys_emu/sys_emu.cpp \
@@ -41,7 +33,7 @@ CXX 	 := g++
 CPPFLAGS := -I../.. -I.. -DSYS_EMU
 CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
-LDLIBS   := ../../build/libfpu.a
+LDLIBS   := ../../build/libfpu.a -lm
 
 # FIXME: Remove the following when we convert everything away from C++ floats
 CXXFLAGS += -mf16c -fno-fast-math

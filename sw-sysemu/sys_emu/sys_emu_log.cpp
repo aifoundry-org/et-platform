@@ -11,15 +11,33 @@ unsigned testLog::maxErrors_ = 1u;
 
 // nearly empty implementation of testLog functions, that only make sense in RTL simulations
 
-void endSimAt(uint32_t extraTime) {  exit(1); }
-void endSim() { exit(1); }
-bool simEnded(){  return false; }
-uint64_t testLog::simTime() { return 0; }
-
-void testLog::setLogLevels() {
-  logLevelsSet_ = true;
+void endSimAt(uint32_t extraTime)
+{
+    exit(1);
 }
 
-std::string testLog::simTimeStr(){
-  return std::string ("");
+void endSim()
+{
+    exit(1);
+}
+
+bool simEnded()
+{
+    return false;
+}
+
+uint64_t testLog::simTime()
+{
+    extern uint64_t emu_cycle;
+    return emu_cycle;
+}
+
+void testLog::setLogLevels()
+{
+    logLevelsSet_ = true;
+}
+
+std::string testLog::simTimeStr()
+{
+    return std::to_string(testLog::simTime());
 }
