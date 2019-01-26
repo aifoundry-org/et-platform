@@ -3,11 +3,7 @@ Device Firmware Project
 
 This project implements the device firmware running on the Esperanto SOC
 
-The project implements the following components:
-
-    \todo add reference to Master Minion Documentation
-    \todo add add reference to Slave Minion Documentation
-
+The system architecture is described in detail @subpage system_architecture
 
 Following we have the basic steps to build the basic "flavor" of the repo and generating
 the repo's documentation
