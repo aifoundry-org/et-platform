@@ -148,9 +148,9 @@
 //
 typedef enum {
     csr_prv = 0, // this is internal to HW
-    /* Unimplemented register */
-    csr_unknown,
-    /* RISCV user registers */
+    csr_unknown, // used for accesses to unimplemented CSRs
+
+    /*-------------------------- RISCV user mode CSRs ------------------------*/
     // csr_ustatus,
     // csr_uie,
     // csr_utvec,
@@ -194,7 +194,7 @@ typedef enum {
     csr_hpmcounter29,
     csr_hpmcounter30,
     csr_hpmcounter31,
-    /* Esperanto user registers */
+    /*------------------------ Esperanto user mode CSRs ----------------------*/
     csr_tensor_reduce,
     csr_tensor_fma,
     csr_tensor_conv_size,
@@ -228,8 +228,6 @@ typedef enum {
     csr_sleep_txfma_27,
     csr_lock_va,
     csr_unlock_va,
-    csr_lock_sw,
-    csr_unlock_sw,
     csr_porthead0,
     csr_porthead1,
     csr_porthead2,
@@ -239,8 +237,8 @@ typedef enum {
     csr_portheadnb2,
     csr_portheadnb3,
     csr_hartid,
-    /* RISCV supervisor registers */
-    csr_sstatus,
+    /*---------------------- RISCV supervisor mode CSRs ----------------------*/
+    csr_sstatus, // this must stay the first SUPERVISOR mode CSR
     // csr_sedeleg,
     // csr_sideleg,
     csr_sie,
@@ -252,11 +250,8 @@ typedef enum {
     csr_stval,
     csr_sip,
     csr_satp,
-    /* Esperanto supervisor registers */
+    /*------------------- Esperanto supervisor mode CSRs ---------------------*/
     csr_sys_cache_op,
-    csr_mcache_control,
-    csr_evict_sw,
-    csr_flush_sw,
     csr_smsg_port0, // TODO remove once everything is up to spec
     csr_smsg_port1, // TODO remove once everything is up to spec
     csr_smsg_port2, // TODO remove once everything is up to spec
@@ -265,8 +260,8 @@ typedef enum {
     csr_portctrl1,
     csr_portctrl2,
     csr_portctrl3,
-    /* RISCV machine registers */
-    csr_mvendorid,
+    /*---------------------- RISCV machine mode CSRs -------------------------*/
+    csr_mvendorid, // this must stay the first MACHINE mode CSR
     csr_marchid,
     csr_mimpid,
     csr_mhartid,
@@ -350,7 +345,7 @@ typedef enum {
     csr_mhpmevent29,
     csr_mhpmevent30,
     csr_mhpmevent31,
-    /* RISCV debug registers */
+    /*--------------------------- RISCV debug CSRs ---------------------------*/
     // csr_tselect,
     // csr_tdata1,
     // csr_tdata2,
@@ -360,7 +355,7 @@ typedef enum {
     // csr_dcsr,
     // csr_dpc,
     // csr_dscratch,
-    /* Esperanto machine registers */
+    /*--------------------- Esperanto machine mode CSRs ----------------------*/
     csr_minstmask,
     csr_minstmatch,
     //csr_amofence_ctrl,
@@ -369,6 +364,11 @@ typedef enum {
     csr_menable_shadows,
     csr_excl_mode,
     csr_mtxfma_sleep_traps,
+    csr_mcache_control,
+    csr_evict_sw,
+    csr_flush_sw,
+    csr_lock_sw,
+    csr_unlock_sw,
     CSR_MAX
 } csr;
 
