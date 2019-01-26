@@ -10,16 +10,18 @@
     ],
     "GIT_STEPS": [
         "echo \"GIT STEPS START\"",
-        "git submodule update --init --recursive",
+        "scripts/init-submodules.sh",
         "echo \"GIT STEPS DONE\""
     ],
     "BUILD_STEPS": [
         "echo \"BUILD START\"",
-        "./template-repo.py et-sw-template-repo \"mkdir -p build && mkdir -p install && cd build && cmake -DCMAKE_INSTALL_PREFIX=../install ../  && make all  -j $(nproc) && make install\"",
+        "./device-firmware.py et-sw-device-fw \"mkdir -p build && cd build && cmake .. && make all -j $(nproc) \" ",
+        "echo sync the documenation",
+
         "echo \"BUILD DONE\""
     ],
     "TEST_STEPS": [
-        "./template-repo.py et-sw-template-repo echo test",
+        "echo \"TEST START\"",
         "echo \"TEST DONE\""
     ]
 }

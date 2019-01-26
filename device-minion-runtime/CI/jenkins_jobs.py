@@ -87,8 +87,8 @@ class JenkinsfileParams:
 
 
 JOB_DESCRIPTION = {
-    'template-repo': JenkinsfileParams('Software/template-repo'),
-
+    'docker-image-builder': JenkinsfileParams('Software/device-fw/docker-image-builder'),
+    'checkin-regression': JenkinsfileParams('Software/device-fw/checkin-regression'),
 }
 
 def run_subcommand(args):
