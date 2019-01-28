@@ -7,7 +7,7 @@ extern uint32_t current_inst;
 
 // memory emulation
 extern uint64_t (*vmemtranslate) (uint64_t, mem_access_type);
-extern uint16_t (*pmemfetch16) (uint64_t);
+extern uint16_t pmemfetch16(uint64_t);
 
 // re-define the type
 typedef void (*insn_exec_funct_t)(insn_t);
