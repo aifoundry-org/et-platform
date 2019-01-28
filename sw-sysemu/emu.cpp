@@ -2516,7 +2516,7 @@ static uint64_t csrget(csr src1)
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = csrregs[current_thread][csr_mstatus] & 0xFFFFFFF3FF8DE777ULL;
+            val = csrregs[current_thread][csr_mstatus] & 0x80000003000DE133ULL;
             break;
         case csr_sie:
             val = csrregs[current_thread][csr_mie] & csrregs[current_thread][csr_mideleg];
@@ -2837,8 +2837,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mstatus:
-            // Preserve sxl, uxl, xs
-            val = (val & 0x00000000007E78BBULL) | (csrregs[current_thread][src1] & 0x0000000F00018000ULL);
+            // Preserve sd, sxl, uxl, xs
+            val = (val & 0x00000000007E79BBULL) | (csrregs[current_thread][src1] & 0x8000000F00018000ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
