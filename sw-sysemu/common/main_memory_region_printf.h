@@ -20,7 +20,7 @@ public:
   }
 
   // read and write
-  void write(uint64_t ad, int size, const void* data) {
+  void write(uint64_t __attribute__((unused)), int __attribute__((unused)), const void* data) {
     uint32_t thread = get_thread();
     assert(thread < PRINTF_THREADS);
     char c = * (char*) data;

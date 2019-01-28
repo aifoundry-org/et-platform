@@ -43,7 +43,7 @@ static int ATTRIBUTE_PRINTF_2 disasm_printf(void *stream, const char *fmt, ...)
     va_end(ap);
     obj->ptr += len;
     return len;
-};
+}
 
 
 void riscv_disasm_init()

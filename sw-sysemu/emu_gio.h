@@ -31,7 +31,6 @@
     } \
 } while (0)
 
-
 #define LOG(severity, format, ...) do { \
     extern uint32_t current_thread; \
     extern int32_t minion_only_log; \
@@ -39,7 +38,6 @@
               (minion_only_log < 0) || int32_t(current_thread / EMU_THREADS_PER_MINION) == minion_only_log, \
               current_thread, format, ##__VA_ARGS__); \
 } while (0)
-
 
 #define LOG_OTHER(severity, thread, format, ...) do { \
     extern int32_t minion_only_log; \
