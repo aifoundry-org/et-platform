@@ -991,7 +991,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     // Throw an error if no one ever set stvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
     if (stvec_is_set[current_thread] == false)
-        LOG(DEBUG, "WARNING Trap vector has never been set. Can't take exception properly");
+        LOG(DEBUG, "%s", "WARNING Trap vector has never been set. Can't take exception properly");
 
     // compute address where to jump to:
     //  if tvec[0]==0 (direct mode) => jump to tvec
@@ -1041,7 +1041,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     // Throw an error if no one ever set mtvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
     if (mtvec_is_set[current_thread] == false)
-        LOG(DEBUG, "WARNING Trap vector has never been set. Doesn't smell good...");
+        LOG(DEBUG, "%s", "WARNING Trap vector has never been set. Doesn't smell good...");
 
     // compute address where to jump to
     //  if tvec[0]==0 (direct mode) => jump to tvec
@@ -1157,7 +1157,7 @@ static void host_memwrite32(uint64_t addr, uint32_t data)
 static void host_memwrite64(uint64_t addr, uint64_t data)
 { * ((uint64_t *) addr) = data; }
 
-static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc)
+static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc __attribute__((unused)))
 { return addr; }
 
 static func_memread8_t   func_memread8   = host_memread8;
@@ -1309,7 +1309,7 @@ void set_memory_funcs(void * func_memread8_, void * func_memread16_,
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void def_msg_to_thread(int thread_id)
+void def_msg_to_thread(int thread_id __attribute__((unused)))
 {
 }
 
@@ -2533,6 +2533,7 @@ static uint64_t csrget(csr src1)
         case csr_tensor_store:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
+            /* fallthrough */
         case csr_tensor_load_l2:
         case csr_tensor_wait:
         case csr_flb0:
@@ -2668,7 +2669,7 @@ static void csrset(csr src1, uint64_t val)
             {
                 //fcc underflow
                 if (fcc[current_thread][fcc_cnt] == 0)
-                    LOG(DEBUG, "FCC underflow. You shouldn't be here...");
+                    LOG(DEBUG, "%s", "FCC underflow. You shouldn't be here...");
                 fcc[current_thread][fcc_cnt]--;
             }
             break;
@@ -2895,7 +2896,7 @@ static void csrset(csr src1, uint64_t val)
             // EOT signals end of test
             if ((char) val == 4)
             {
-                LOG(INFO, "Validation1 CSR received End Of Transmission.");
+                LOG(INFO, "%s", "Validation1 CSR received End Of Transmission.");
                 m_emu_done = true;
                 break;
             }
@@ -4404,7 +4405,7 @@ static void gatheremu(opcode opc, int size, freg dst, freg src1, xreg base)
     logfregchange(dst);
 }
 
-static void gatheremu32(opcode opc, int size, freg dst, xreg src1, xreg src2)
+static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
 {
     uint64_t baddr = XREGS[src2].x;
     uint64_t index = XREGS[src1].x;
@@ -4478,7 +4479,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
     }
 }
 
-static void femuscat32(opcode opc, int size, freg src3, xreg src1, xreg src2)
+static void femuscat32(int size, freg src3, xreg src1, xreg src2)
 {
     uint64_t baddr = XREGS[src2].x;
     uint64_t index = XREGS[src1].x;
@@ -4591,7 +4592,7 @@ void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: fg32b.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu32(FG32B, 1, dst, src1, src2);
+    gatheremu32(1, dst, src1, src2);
 }
 
 void fg32h_ps(freg dst, xreg src1, xreg src2, const char* comm)
@@ -4599,7 +4600,7 @@ void fg32h_ps(freg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: fg32h.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu32(FG32H, 2, dst, src1, src2);
+    gatheremu32(2, dst, src1, src2);
 }
 
 void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm)
@@ -4607,7 +4608,7 @@ void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: fg32w.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu32(FG32W, 4, dst, src1, src2);
+    gatheremu32(4, dst, src1, src2);
 }
 
 void fscb_ps(freg src, freg src1, xreg base, const char* comm)
@@ -4681,7 +4682,7 @@ void fsc32b_ps(freg src, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: fsc32b.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuscat32(FSC32B, 1, src, src1, src2);
+    femuscat32(1, src, src1, src2);
 }
 
 void fsc32h_ps(freg src, xreg src1, xreg src2, const char* comm)
@@ -4689,7 +4690,7 @@ void fsc32h_ps(freg src, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: fsc32h.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuscat32(FSC32H, 2, src, src1, src2);
+    femuscat32(2, src, src1, src2);
 }
 
 void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
@@ -4697,7 +4698,7 @@ void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: fsc32w.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuscat32(FSC32W, 4, src, src1, src2);
+    femuscat32(4, src, src1, src2);
 }
 
 // ----- Computational (follows RV64F) ---------------------
@@ -6434,7 +6435,7 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
     LOG(DEBUG, "\tDoing LockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
 }
 
-static void dcache_unlock_paddr(int way, uint64_t paddr)
+static void dcache_unlock_paddr(int way __attribute__((unused)), uint64_t paddr)
 {
     int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
@@ -6533,7 +6534,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
     return 0;
 }
 
-static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
 {
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -6999,7 +7000,7 @@ static bool txfma_off_allowed(csr src1, uint64_t val)
 // Returns if there something that needs to be processed or not based on current position and configuration
 static bool conv_skip_pass(int conv_row_pos, int conv_col_pos, int conv_row_size, int conv_col_size)
 {
-    LOG(DEBUG, "Doing Conv skip pass check for:");
+    LOG(DEBUG, "%s", "Doing Conv skip pass check for:");
     LOG(DEBUG, "\tRow Pos:  %d", conv_row_pos);
     LOG(DEBUG, "\tCol Pos:  %d", conv_col_pos);
     LOG(DEBUG, "\tRow Size: %d", conv_row_size);
@@ -7104,7 +7105,7 @@ void tensorload(uint64_t control)
     // // Disabled until the SCPControl register spec is updated
     // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) && false)
     // {
-    //     LOG(DEBUG, "ERROR TensorLoad with SCP disabled!!");
+    //     LOG(DEBUG, "%s", "ERROR TensorLoad with SCP disabled!!");
     //     update_tensor_error(1 << 4);
     //     return;
     // }
@@ -7113,7 +7114,7 @@ void tensorload(uint64_t control)
     // // Disabled until the spec is updated
     // if (!dcache_vaddr_is_locked(tm, base, rows, stride))
     // {
-    //     LOG(DEBUG, "ERROR Tensor Load writing to unlocked scp lines!!");
+    //     LOG(DEBUG, "%s", "ERROR Tensor Load writing to unlocked scp lines!!");
     //     update_tensor_error(1 << 0);
     //     return;
     // }
@@ -7121,14 +7122,14 @@ void tensorload(uint64_t control)
     //NO TRANS
     if (trans == 0x00)
     {
-        LOG(DEBUG, "TensorLoad: No transformation");
+        LOG(DEBUG, "%s", "TensorLoad: No transformation");
         for (int i = 0; i < rows; ++i)
         {
             if (!tm || tmask_pass(i))
             {
                 if (addr & 0x3F)
                 {
-                    LOG(DEBUG, "ERROR Tensor Load not aligned to cache line!!");
+                    LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
 
                 }
                 for (int j = 0; j < L1_SCP_BLOCKS; j++)
@@ -7159,7 +7160,7 @@ void tensorload(uint64_t control)
     //INTERLEAVE
     else if (trans == 0x01 || trans == 0x02)
     {
-       LOG(DEBUG, "TensorLoad: Interleave");
+       LOG(DEBUG, "%s", "TensorLoad: Interleave");
        uint8_t tmp_buffer[4][64];
        int size = trans & 0x03;
        int start;
@@ -7173,7 +7174,7 @@ void tensorload(uint64_t control)
             {
                 if (addr & 0x3F)
                 {
-                    LOG(DEBUG, "ERROR Tensor Load not aligned to cache line!!");
+                    LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
                 }
                 for (int elem = 0; elem < elements; ++elem)
                 {
@@ -7239,7 +7240,7 @@ void tensorload(uint64_t control)
             exist_conv = tmask_pass(i);
         if (tm && !exist_conv)
         {
-            LOG(DEBUG, "Exit Condition Broken");
+            LOG(DEBUG, "%s", "Exit Condition Broken");
             return;
         }
         int offset;
@@ -7281,7 +7282,7 @@ void tensorload(uint64_t control)
              {
                 if (addr & 0x3F)
                 {
-                    LOG(DEBUG, "ERROR Tensor Load not aligned to cache line!!");
+                    LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
                 }
                 for (int j = 0; j < elements; ++j)
                 {
@@ -7306,7 +7307,7 @@ void tensorload(uint64_t control)
                     }
                     else
                     {
-                        LOG(DEBUG, "ERROR Tensor Load element size not valid!!");
+                        LOG(DEBUG, "%s", "ERROR Tensor Load element size not valid!!");
                         update_tensor_error(1 << 1);
                         return;
                     }
@@ -7354,7 +7355,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
         {
             if (addr & 0x3F)
             {
-                LOG(DEBUG, "ERROR Tensor Load not aligned to cache line!!");
+                LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
             }
             for (int j = 0; j < L1_SCP_LINE_SIZE/4; j++)
             {
@@ -8072,7 +8073,7 @@ static void tensorfma(uint64_t tfmareg)
     }
     else
     {
-        LOG(DEBUG, "ERROR Unimplemented tensor FMA Type!!");
+        LOG(DEBUG, "%s", "ERROR Unimplemented tensor FMA Type!!");
     }
     if (type != 3)
     {

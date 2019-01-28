@@ -394,262 +394,262 @@ const uint32_t TBOXEmu::BYTES_PER_TEXEL_IN_L1[] = {
 
 const TBOXEmu::EncodeSRGBFP16 TBOXEmu::SRGB2LINEAR_TABLE[256] =
 {
-    {.encode = {0, 0x00, 0x0, 0}},
-    {.encode = {0, 0x20, 0x3, 0}},
-    {.encode = {0, 0x20, 0x4, 0}},
-    {.encode = {0, 0x70, 0x4, 0}},
-    {.encode = {0, 0x20, 0x5, 0}},
-    {.encode = {0, 0x48, 0x5, 0}},
-    {.encode = {0, 0x70, 0x5, 0}},
-    {.encode = {0, 0x0c, 0x6, 0}},
-    {.encode = {0, 0x20, 0x6, 0}},
-    {.encode = {0, 0x34, 0x6, 0}},
-    {.encode = {0, 0x48, 0x6, 0}},
-    {.encode = {0, 0x5c, 0x6, 0}},
-    {.encode = {0, 0x70, 0x6, 0}},
-    {.encode = {0, 0x04, 0x7, 0}},
-    {.encode = {0, 0x10, 0x7, 0}},
-    {.encode = {0, 0x1c, 0x7, 0}},
-    {.encode = {0, 0x2a, 0x7, 0}},
-    {.encode = {0, 0x38, 0x7, 0}},
-    {.encode = {0, 0x46, 0x7, 0}},
-    {.encode = {0, 0x56, 0x7, 0}},
-    {.encode = {0, 0x66, 0x7, 0}},
-    {.encode = {0, 0x76, 0x7, 0}},
-    {.encode = {0, 0x03, 0x8, 0}},
-    {.encode = {0, 0x0c, 0x8, 0}},
-    {.encode = {0, 0x16, 0x8, 0}},
-    {.encode = {0, 0x1f, 0x8, 0}},
-    {.encode = {0, 0x29, 0x8, 0}},
-    {.encode = {0, 0x34, 0x8, 0}},
-    {.encode = {0, 0x3e, 0x8, 0}},
-    {.encode = {0, 0x49, 0x8, 0}},
-    {.encode = {0, 0x55, 0x8, 0}},
-    {.encode = {0, 0x60, 0x8, 0}},
-    {.encode = {0, 0x6c, 0x8, 0}},
-    {.encode = {0, 0x7a, 0x8, 0}},
-    {.encode = {0, 0x03, 0x9, 0}},
-    {.encode = {0, 0x0a, 0x9, 0}},
-    {.encode = {0, 0x11, 0x9, 0}},
-    {.encode = {0, 0x18, 0x9, 0}},
-    {.encode = {0, 0x1f, 0x9, 0}},
-    {.encode = {0, 0x26, 0x9, 0}},
-    {.encode = {0, 0x2e, 0x9, 0}},
-    {.encode = {0, 0x36, 0x9, 0}},
-    {.encode = {0, 0x3e, 0x9, 0}},
-    {.encode = {0, 0x46, 0x9, 0}},
-    {.encode = {0, 0x4e, 0x9, 0}},
-    {.encode = {0, 0x57, 0x9, 0}},
-    {.encode = {0, 0x60, 0x9, 0}},
-    {.encode = {0, 0x69, 0x9, 0}},
-    {.encode = {0, 0x72, 0x9, 0}},
-    {.encode = {0, 0x7c, 0x9, 0}},
-    {.encode = {0, 0x03, 0xa, 0}},
-    {.encode = {0, 0x08, 0xa, 0}},
-    {.encode = {0, 0x0d, 0xa, 0}},
-    {.encode = {0, 0x12, 0xa, 0}},
-    {.encode = {0, 0x17, 0xa, 0}},
-    {.encode = {0, 0x1c, 0xa, 0}},
-    {.encode = {0, 0x22, 0xa, 0}},
-    {.encode = {0, 0x28, 0xa, 0}},
-    {.encode = {0, 0x2d, 0xa, 0}},
-    {.encode = {0, 0x33, 0xa, 0}},
-    {.encode = {0, 0x39, 0xa, 0}},
-    {.encode = {0, 0x3f, 0xa, 0}},
-    {.encode = {0, 0x45, 0xa, 0}},
-    {.encode = {0, 0x4c, 0xa, 0}},
-    {.encode = {0, 0x52, 0xa, 0}},
-    {.encode = {0, 0x58, 0xa, 0}},
-    {.encode = {0, 0x60, 0xa, 0}},
-    {.encode = {0, 0x66, 0xa, 0}},
-    {.encode = {0, 0x6c, 0xa, 0}},
-    {.encode = {0, 0x74, 0xa, 0}},
-    {.encode = {0, 0x7a, 0xa, 0}},
-    {.encode = {0, 0x01, 0xb, 0}},
-    {.encode = {0, 0x05, 0xb, 0}},
-    {.encode = {0, 0x08, 0xb, 0}},
-    {.encode = {0, 0x0c, 0xb, 0}},
-    {.encode = {0, 0x10, 0xb, 0}},
-    {.encode = {0, 0x14, 0xb, 0}},
-    {.encode = {0, 0x18, 0xb, 0}},
-    {.encode = {0, 0x1c, 0xb, 0}},
-    {.encode = {0, 0x20, 0xb, 0}},
-    {.encode = {0, 0x24, 0xb, 0}},
-    {.encode = {0, 0x29, 0xb, 0}},
-    {.encode = {0, 0x2d, 0xb, 0}},
-    {.encode = {0, 0x31, 0xb, 0}},
-    {.encode = {0, 0x36, 0xb, 0}},
-    {.encode = {0, 0x3a, 0xb, 0}},
-    {.encode = {0, 0x3f, 0xb, 0}},
-    {.encode = {0, 0x43, 0xb, 0}},
-    {.encode = {0, 0x48, 0xb, 0}},
-    {.encode = {0, 0x4d, 0xb, 0}},
-    {.encode = {0, 0x51, 0xb, 0}},
-    {.encode = {0, 0x56, 0xb, 0}},
-    {.encode = {0, 0x5b, 0xb, 0}},
-    {.encode = {0, 0x60, 0xb, 0}},
-    {.encode = {0, 0x65, 0xb, 0}},
-    {.encode = {0, 0x6a, 0xb, 0}},
-    {.encode = {0, 0x70, 0xb, 0}},
-    {.encode = {0, 0x74, 0xb, 0}},
-    {.encode = {0, 0x7a, 0xb, 0}},
-    {.encode = {0, 0x00, 0xc, 0}},
-    {.encode = {0, 0x02, 0xc, 0}},
-    {.encode = {0, 0x05, 0xc, 0}},
-    {.encode = {0, 0x08, 0xc, 0}},
-    {.encode = {0, 0x0b, 0xc, 0}},
-    {.encode = {0, 0x0e, 0xc, 0}},
-    {.encode = {0, 0x11, 0xc, 0}},
-    {.encode = {0, 0x14, 0xc, 0}},
-    {.encode = {0, 0x17, 0xc, 0}},
-    {.encode = {0, 0x1a, 0xc, 0}},
-    {.encode = {0, 0x1d, 0xc, 0}},
-    {.encode = {0, 0x20, 0xc, 0}},
-    {.encode = {0, 0x23, 0xc, 0}},
-    {.encode = {0, 0x26, 0xc, 0}},
-    {.encode = {0, 0x29, 0xc, 0}},
-    {.encode = {0, 0x2c, 0xc, 0}},
-    {.encode = {0, 0x30, 0xc, 0}},
-    {.encode = {0, 0x33, 0xc, 0}},
-    {.encode = {0, 0x36, 0xc, 0}},
-    {.encode = {0, 0x3a, 0xc, 0}},
-    {.encode = {0, 0x3d, 0xc, 0}},
-    {.encode = {0, 0x40, 0xc, 0}},
-    {.encode = {0, 0x44, 0xc, 0}},
-    {.encode = {0, 0x47, 0xc, 0}},
-    {.encode = {0, 0x4b, 0xc, 0}},
-    {.encode = {0, 0x4e, 0xc, 0}},
-    {.encode = {0, 0x52, 0xc, 0}},
-    {.encode = {0, 0x56, 0xc, 0}},
-    {.encode = {0, 0x59, 0xc, 0}},
-    {.encode = {0, 0x5d, 0xc, 0}},
-    {.encode = {0, 0x61, 0xc, 0}},
-    {.encode = {0, 0x65, 0xc, 0}},
-    {.encode = {0, 0x68, 0xc, 0}},
-    {.encode = {0, 0x6c, 0xc, 0}},
-    {.encode = {0, 0x70, 0xc, 0}},
-    {.encode = {0, 0x74, 0xc, 0}},
-    {.encode = {0, 0x78, 0xc, 0}},
-    {.encode = {0, 0x7c, 0xc, 0}},
-    {.encode = {0, 0x00, 0xd, 0}},
-    {.encode = {0, 0x02, 0xd, 0}},
-    {.encode = {0, 0x04, 0xd, 0}},
-    {.encode = {0, 0x06, 0xd, 0}},
-    {.encode = {0, 0x08, 0xd, 0}},
-    {.encode = {0, 0x0a, 0xd, 0}},
-    {.encode = {0, 0x0d, 0xd, 0}},
-    {.encode = {0, 0x0f, 0xd, 0}},
-    {.encode = {0, 0x11, 0xd, 0}},
-    {.encode = {0, 0x13, 0xd, 0}},
-    {.encode = {0, 0x15, 0xd, 0}},
-    {.encode = {0, 0x18, 0xd, 0}},
-    {.encode = {0, 0x1a, 0xd, 0}},
-    {.encode = {0, 0x1c, 0xd, 0}},
-    {.encode = {0, 0x1e, 0xd, 0}},
-    {.encode = {0, 0x21, 0xd, 0}},
-    {.encode = {0, 0x23, 0xd, 0}},
-    {.encode = {0, 0x25, 0xd, 0}},
-    {.encode = {0, 0x28, 0xd, 0}},
-    {.encode = {0, 0x2a, 0xd, 0}},
-    {.encode = {0, 0x2d, 0xd, 0}},
-    {.encode = {0, 0x2f, 0xd, 0}},
-    {.encode = {0, 0x32, 0xd, 0}},
-    {.encode = {0, 0x34, 0xd, 0}},
-    {.encode = {0, 0x36, 0xd, 0}},
-    {.encode = {0, 0x39, 0xd, 0}},
-    {.encode = {0, 0x3c, 0xd, 0}},
-    {.encode = {0, 0x3e, 0xd, 0}},
-    {.encode = {0, 0x41, 0xd, 0}},
-    {.encode = {0, 0x43, 0xd, 0}},
-    {.encode = {0, 0x46, 0xd, 0}},
-    {.encode = {0, 0x48, 0xd, 0}},
-    {.encode = {0, 0x4b, 0xd, 0}},
-    {.encode = {0, 0x4e, 0xd, 0}},
-    {.encode = {0, 0x51, 0xd, 0}},
-    {.encode = {0, 0x53, 0xd, 0}},
-    {.encode = {0, 0x56, 0xd, 0}},
-    {.encode = {0, 0x59, 0xd, 0}},
-    {.encode = {0, 0x5b, 0xd, 0}},
-    {.encode = {0, 0x5e, 0xd, 0}},
-    {.encode = {0, 0x61, 0xd, 0}},
-    {.encode = {0, 0x64, 0xd, 0}},
-    {.encode = {0, 0x67, 0xd, 0}},
-    {.encode = {0, 0x6a, 0xd, 0}},
-    {.encode = {0, 0x6d, 0xd, 0}},
-    {.encode = {0, 0x70, 0xd, 0}},
-    {.encode = {0, 0x72, 0xd, 0}},
-    {.encode = {0, 0x76, 0xd, 0}},
-    {.encode = {0, 0x78, 0xd, 0}},
-    {.encode = {0, 0x7c, 0xd, 0}},
-    {.encode = {0, 0x7e, 0xd, 0}},
-    {.encode = {0, 0x01, 0xe, 0}},
-    {.encode = {0, 0x02, 0xe, 0}},
-    {.encode = {0, 0x04, 0xe, 0}},
-    {.encode = {0, 0x05, 0xe, 0}},
-    {.encode = {0, 0x07, 0xe, 0}},
-    {.encode = {0, 0x09, 0xe, 0}},
-    {.encode = {0, 0x0a, 0xe, 0}},
-    {.encode = {0, 0x0c, 0xe, 0}},
-    {.encode = {0, 0x0d, 0xe, 0}},
-    {.encode = {0, 0x0f, 0xe, 0}},
-    {.encode = {0, 0x11, 0xe, 0}},
-    {.encode = {0, 0x12, 0xe, 0}},
-    {.encode = {0, 0x14, 0xe, 0}},
-    {.encode = {0, 0x16, 0xe, 0}},
-    {.encode = {0, 0x17, 0xe, 0}},
-    {.encode = {0, 0x19, 0xe, 0}},
-    {.encode = {0, 0x1b, 0xe, 0}},
-    {.encode = {0, 0x1c, 0xe, 0}},
-    {.encode = {0, 0x1e, 0xe, 0}},
-    {.encode = {0, 0x20, 0xe, 0}},
-    {.encode = {0, 0x21, 0xe, 0}},
-    {.encode = {0, 0x23, 0xe, 0}},
-    {.encode = {0, 0x25, 0xe, 0}},
-    {.encode = {0, 0x27, 0xe, 0}},
-    {.encode = {0, 0x29, 0xe, 0}},
-    {.encode = {0, 0x2a, 0xe, 0}},
-    {.encode = {0, 0x2c, 0xe, 0}},
-    {.encode = {0, 0x2e, 0xe, 0}},
-    {.encode = {0, 0x30, 0xe, 0}},
-    {.encode = {0, 0x32, 0xe, 0}},
-    {.encode = {0, 0x33, 0xe, 0}},
-    {.encode = {0, 0x35, 0xe, 0}},
-    {.encode = {0, 0x37, 0xe, 0}},
-    {.encode = {0, 0x39, 0xe, 0}},
-    {.encode = {0, 0x3b, 0xe, 0}},
-    {.encode = {0, 0x3d, 0xe, 0}},
-    {.encode = {0, 0x3f, 0xe, 0}},
-    {.encode = {0, 0x41, 0xe, 0}},
-    {.encode = {0, 0x43, 0xe, 0}},
-    {.encode = {0, 0x45, 0xe, 0}},
-    {.encode = {0, 0x47, 0xe, 0}},
-    {.encode = {0, 0x49, 0xe, 0}},
-    {.encode = {0, 0x4b, 0xe, 0}},
-    {.encode = {0, 0x4d, 0xe, 0}},
-    {.encode = {0, 0x4f, 0xe, 0}},
-    {.encode = {0, 0x51, 0xe, 0}},
-    {.encode = {0, 0x53, 0xe, 0}},
-    {.encode = {0, 0x55, 0xe, 0}},
-    {.encode = {0, 0x57, 0xe, 0}},
-    {.encode = {0, 0x59, 0xe, 0}},
-    {.encode = {0, 0x5b, 0xe, 0}},
-    {.encode = {0, 0x5d, 0xe, 0}},
-    {.encode = {0, 0x5f, 0xe, 0}},
-    {.encode = {0, 0x61, 0xe, 0}},
-    {.encode = {0, 0x63, 0xe, 0}},
-    {.encode = {0, 0x65, 0xe, 0}},
-    {.encode = {0, 0x68, 0xe, 0}},
-    {.encode = {0, 0x6a, 0xe, 0}},
-    {.encode = {0, 0x6c, 0xe, 0}},
-    {.encode = {0, 0x6e, 0xe, 0}},
-    {.encode = {0, 0x70, 0xe, 0}},
-    {.encode = {0, 0x72, 0xe, 0}},
-    {.encode = {0, 0x74, 0xe, 0}},
-    {.encode = {0, 0x76, 0xe, 0}},
-    {.encode = {0, 0x7a, 0xe, 0}},
-    {.encode = {0, 0x7c, 0xe, 0}},
-    {.encode = {0, 0x7e, 0xe, 0}},
-    {.encode = {0, 0x00, 0xf, 0}}
+    {{0, 0x00, 0x0, 0}},
+    {{0, 0x20, 0x3, 0}},
+    {{0, 0x20, 0x4, 0}},
+    {{0, 0x70, 0x4, 0}},
+    {{0, 0x20, 0x5, 0}},
+    {{0, 0x48, 0x5, 0}},
+    {{0, 0x70, 0x5, 0}},
+    {{0, 0x0c, 0x6, 0}},
+    {{0, 0x20, 0x6, 0}},
+    {{0, 0x34, 0x6, 0}},
+    {{0, 0x48, 0x6, 0}},
+    {{0, 0x5c, 0x6, 0}},
+    {{0, 0x70, 0x6, 0}},
+    {{0, 0x04, 0x7, 0}},
+    {{0, 0x10, 0x7, 0}},
+    {{0, 0x1c, 0x7, 0}},
+    {{0, 0x2a, 0x7, 0}},
+    {{0, 0x38, 0x7, 0}},
+    {{0, 0x46, 0x7, 0}},
+    {{0, 0x56, 0x7, 0}},
+    {{0, 0x66, 0x7, 0}},
+    {{0, 0x76, 0x7, 0}},
+    {{0, 0x03, 0x8, 0}},
+    {{0, 0x0c, 0x8, 0}},
+    {{0, 0x16, 0x8, 0}},
+    {{0, 0x1f, 0x8, 0}},
+    {{0, 0x29, 0x8, 0}},
+    {{0, 0x34, 0x8, 0}},
+    {{0, 0x3e, 0x8, 0}},
+    {{0, 0x49, 0x8, 0}},
+    {{0, 0x55, 0x8, 0}},
+    {{0, 0x60, 0x8, 0}},
+    {{0, 0x6c, 0x8, 0}},
+    {{0, 0x7a, 0x8, 0}},
+    {{0, 0x03, 0x9, 0}},
+    {{0, 0x0a, 0x9, 0}},
+    {{0, 0x11, 0x9, 0}},
+    {{0, 0x18, 0x9, 0}},
+    {{0, 0x1f, 0x9, 0}},
+    {{0, 0x26, 0x9, 0}},
+    {{0, 0x2e, 0x9, 0}},
+    {{0, 0x36, 0x9, 0}},
+    {{0, 0x3e, 0x9, 0}},
+    {{0, 0x46, 0x9, 0}},
+    {{0, 0x4e, 0x9, 0}},
+    {{0, 0x57, 0x9, 0}},
+    {{0, 0x60, 0x9, 0}},
+    {{0, 0x69, 0x9, 0}},
+    {{0, 0x72, 0x9, 0}},
+    {{0, 0x7c, 0x9, 0}},
+    {{0, 0x03, 0xa, 0}},
+    {{0, 0x08, 0xa, 0}},
+    {{0, 0x0d, 0xa, 0}},
+    {{0, 0x12, 0xa, 0}},
+    {{0, 0x17, 0xa, 0}},
+    {{0, 0x1c, 0xa, 0}},
+    {{0, 0x22, 0xa, 0}},
+    {{0, 0x28, 0xa, 0}},
+    {{0, 0x2d, 0xa, 0}},
+    {{0, 0x33, 0xa, 0}},
+    {{0, 0x39, 0xa, 0}},
+    {{0, 0x3f, 0xa, 0}},
+    {{0, 0x45, 0xa, 0}},
+    {{0, 0x4c, 0xa, 0}},
+    {{0, 0x52, 0xa, 0}},
+    {{0, 0x58, 0xa, 0}},
+    {{0, 0x60, 0xa, 0}},
+    {{0, 0x66, 0xa, 0}},
+    {{0, 0x6c, 0xa, 0}},
+    {{0, 0x74, 0xa, 0}},
+    {{0, 0x7a, 0xa, 0}},
+    {{0, 0x01, 0xb, 0}},
+    {{0, 0x05, 0xb, 0}},
+    {{0, 0x08, 0xb, 0}},
+    {{0, 0x0c, 0xb, 0}},
+    {{0, 0x10, 0xb, 0}},
+    {{0, 0x14, 0xb, 0}},
+    {{0, 0x18, 0xb, 0}},
+    {{0, 0x1c, 0xb, 0}},
+    {{0, 0x20, 0xb, 0}},
+    {{0, 0x24, 0xb, 0}},
+    {{0, 0x29, 0xb, 0}},
+    {{0, 0x2d, 0xb, 0}},
+    {{0, 0x31, 0xb, 0}},
+    {{0, 0x36, 0xb, 0}},
+    {{0, 0x3a, 0xb, 0}},
+    {{0, 0x3f, 0xb, 0}},
+    {{0, 0x43, 0xb, 0}},
+    {{0, 0x48, 0xb, 0}},
+    {{0, 0x4d, 0xb, 0}},
+    {{0, 0x51, 0xb, 0}},
+    {{0, 0x56, 0xb, 0}},
+    {{0, 0x5b, 0xb, 0}},
+    {{0, 0x60, 0xb, 0}},
+    {{0, 0x65, 0xb, 0}},
+    {{0, 0x6a, 0xb, 0}},
+    {{0, 0x70, 0xb, 0}},
+    {{0, 0x74, 0xb, 0}},
+    {{0, 0x7a, 0xb, 0}},
+    {{0, 0x00, 0xc, 0}},
+    {{0, 0x02, 0xc, 0}},
+    {{0, 0x05, 0xc, 0}},
+    {{0, 0x08, 0xc, 0}},
+    {{0, 0x0b, 0xc, 0}},
+    {{0, 0x0e, 0xc, 0}},
+    {{0, 0x11, 0xc, 0}},
+    {{0, 0x14, 0xc, 0}},
+    {{0, 0x17, 0xc, 0}},
+    {{0, 0x1a, 0xc, 0}},
+    {{0, 0x1d, 0xc, 0}},
+    {{0, 0x20, 0xc, 0}},
+    {{0, 0x23, 0xc, 0}},
+    {{0, 0x26, 0xc, 0}},
+    {{0, 0x29, 0xc, 0}},
+    {{0, 0x2c, 0xc, 0}},
+    {{0, 0x30, 0xc, 0}},
+    {{0, 0x33, 0xc, 0}},
+    {{0, 0x36, 0xc, 0}},
+    {{0, 0x3a, 0xc, 0}},
+    {{0, 0x3d, 0xc, 0}},
+    {{0, 0x40, 0xc, 0}},
+    {{0, 0x44, 0xc, 0}},
+    {{0, 0x47, 0xc, 0}},
+    {{0, 0x4b, 0xc, 0}},
+    {{0, 0x4e, 0xc, 0}},
+    {{0, 0x52, 0xc, 0}},
+    {{0, 0x56, 0xc, 0}},
+    {{0, 0x59, 0xc, 0}},
+    {{0, 0x5d, 0xc, 0}},
+    {{0, 0x61, 0xc, 0}},
+    {{0, 0x65, 0xc, 0}},
+    {{0, 0x68, 0xc, 0}},
+    {{0, 0x6c, 0xc, 0}},
+    {{0, 0x70, 0xc, 0}},
+    {{0, 0x74, 0xc, 0}},
+    {{0, 0x78, 0xc, 0}},
+    {{0, 0x7c, 0xc, 0}},
+    {{0, 0x00, 0xd, 0}},
+    {{0, 0x02, 0xd, 0}},
+    {{0, 0x04, 0xd, 0}},
+    {{0, 0x06, 0xd, 0}},
+    {{0, 0x08, 0xd, 0}},
+    {{0, 0x0a, 0xd, 0}},
+    {{0, 0x0d, 0xd, 0}},
+    {{0, 0x0f, 0xd, 0}},
+    {{0, 0x11, 0xd, 0}},
+    {{0, 0x13, 0xd, 0}},
+    {{0, 0x15, 0xd, 0}},
+    {{0, 0x18, 0xd, 0}},
+    {{0, 0x1a, 0xd, 0}},
+    {{0, 0x1c, 0xd, 0}},
+    {{0, 0x1e, 0xd, 0}},
+    {{0, 0x21, 0xd, 0}},
+    {{0, 0x23, 0xd, 0}},
+    {{0, 0x25, 0xd, 0}},
+    {{0, 0x28, 0xd, 0}},
+    {{0, 0x2a, 0xd, 0}},
+    {{0, 0x2d, 0xd, 0}},
+    {{0, 0x2f, 0xd, 0}},
+    {{0, 0x32, 0xd, 0}},
+    {{0, 0x34, 0xd, 0}},
+    {{0, 0x36, 0xd, 0}},
+    {{0, 0x39, 0xd, 0}},
+    {{0, 0x3c, 0xd, 0}},
+    {{0, 0x3e, 0xd, 0}},
+    {{0, 0x41, 0xd, 0}},
+    {{0, 0x43, 0xd, 0}},
+    {{0, 0x46, 0xd, 0}},
+    {{0, 0x48, 0xd, 0}},
+    {{0, 0x4b, 0xd, 0}},
+    {{0, 0x4e, 0xd, 0}},
+    {{0, 0x51, 0xd, 0}},
+    {{0, 0x53, 0xd, 0}},
+    {{0, 0x56, 0xd, 0}},
+    {{0, 0x59, 0xd, 0}},
+    {{0, 0x5b, 0xd, 0}},
+    {{0, 0x5e, 0xd, 0}},
+    {{0, 0x61, 0xd, 0}},
+    {{0, 0x64, 0xd, 0}},
+    {{0, 0x67, 0xd, 0}},
+    {{0, 0x6a, 0xd, 0}},
+    {{0, 0x6d, 0xd, 0}},
+    {{0, 0x70, 0xd, 0}},
+    {{0, 0x72, 0xd, 0}},
+    {{0, 0x76, 0xd, 0}},
+    {{0, 0x78, 0xd, 0}},
+    {{0, 0x7c, 0xd, 0}},
+    {{0, 0x7e, 0xd, 0}},
+    {{0, 0x01, 0xe, 0}},
+    {{0, 0x02, 0xe, 0}},
+    {{0, 0x04, 0xe, 0}},
+    {{0, 0x05, 0xe, 0}},
+    {{0, 0x07, 0xe, 0}},
+    {{0, 0x09, 0xe, 0}},
+    {{0, 0x0a, 0xe, 0}},
+    {{0, 0x0c, 0xe, 0}},
+    {{0, 0x0d, 0xe, 0}},
+    {{0, 0x0f, 0xe, 0}},
+    {{0, 0x11, 0xe, 0}},
+    {{0, 0x12, 0xe, 0}},
+    {{0, 0x14, 0xe, 0}},
+    {{0, 0x16, 0xe, 0}},
+    {{0, 0x17, 0xe, 0}},
+    {{0, 0x19, 0xe, 0}},
+    {{0, 0x1b, 0xe, 0}},
+    {{0, 0x1c, 0xe, 0}},
+    {{0, 0x1e, 0xe, 0}},
+    {{0, 0x20, 0xe, 0}},
+    {{0, 0x21, 0xe, 0}},
+    {{0, 0x23, 0xe, 0}},
+    {{0, 0x25, 0xe, 0}},
+    {{0, 0x27, 0xe, 0}},
+    {{0, 0x29, 0xe, 0}},
+    {{0, 0x2a, 0xe, 0}},
+    {{0, 0x2c, 0xe, 0}},
+    {{0, 0x2e, 0xe, 0}},
+    {{0, 0x30, 0xe, 0}},
+    {{0, 0x32, 0xe, 0}},
+    {{0, 0x33, 0xe, 0}},
+    {{0, 0x35, 0xe, 0}},
+    {{0, 0x37, 0xe, 0}},
+    {{0, 0x39, 0xe, 0}},
+    {{0, 0x3b, 0xe, 0}},
+    {{0, 0x3d, 0xe, 0}},
+    {{0, 0x3f, 0xe, 0}},
+    {{0, 0x41, 0xe, 0}},
+    {{0, 0x43, 0xe, 0}},
+    {{0, 0x45, 0xe, 0}},
+    {{0, 0x47, 0xe, 0}},
+    {{0, 0x49, 0xe, 0}},
+    {{0, 0x4b, 0xe, 0}},
+    {{0, 0x4d, 0xe, 0}},
+    {{0, 0x4f, 0xe, 0}},
+    {{0, 0x51, 0xe, 0}},
+    {{0, 0x53, 0xe, 0}},
+    {{0, 0x55, 0xe, 0}},
+    {{0, 0x57, 0xe, 0}},
+    {{0, 0x59, 0xe, 0}},
+    {{0, 0x5b, 0xe, 0}},
+    {{0, 0x5d, 0xe, 0}},
+    {{0, 0x5f, 0xe, 0}},
+    {{0, 0x61, 0xe, 0}},
+    {{0, 0x63, 0xe, 0}},
+    {{0, 0x65, 0xe, 0}},
+    {{0, 0x68, 0xe, 0}},
+    {{0, 0x6a, 0xe, 0}},
+    {{0, 0x6c, 0xe, 0}},
+    {{0, 0x6e, 0xe, 0}},
+    {{0, 0x70, 0xe, 0}},
+    {{0, 0x72, 0xe, 0}},
+    {{0, 0x74, 0xe, 0}},
+    {{0, 0x76, 0xe, 0}},
+    {{0, 0x7a, 0xe, 0}},
+    {{0, 0x7c, 0xe, 0}},
+    {{0, 0x7e, 0xe, 0}},
+    {{0, 0x00, 0xf, 0}}
 };
 
 static inline uint16_t cast_bytes_to_uint16(uint8_t *src)
@@ -849,7 +849,7 @@ bool TBOXEmu::texture_cache_lookup(int32_t bank, uint64_t tag, uint64_t data[TEX
         uint32_t access_way = l - 1;
 
         LOG(DEBUG, "\tTexture Cache hit at bank %d way %u for tag %" PRIx64, bank, access_way, tag);
-        LOG(DEBUG, "\tData:");
+        LOG(DEBUG, "%s", "\tData:");
         for (uint32_t q = 0; q < TEXTURE_CACHE_QWORDS_PER_LINE; q++)
         {
             LOG(DEBUG, "\t%" PRIx64, textureCacheData[bank][access_way][q]);
@@ -999,7 +999,7 @@ bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
         return get_l2_data(address, data);
     else
     {
-        LOG(DEBUG, "\tL2 access split cache line access");
+        LOG(DEBUG, "%s", "\tL2 access split cache line access");
 
         uint32_t unaligned_size = 8 - (address & 0x7UL);
 
@@ -1032,7 +1032,7 @@ bool TBOXEmu::access_l2(uint64_t address, uint32_t &data)
         return get_l2_data(address, data);
     else
     {
-        LOG(DEBUG, "\tL2 access split cache line access");
+        LOG(DEBUG, "%s", "\tL2 access split cache line access");
 
         uint32_t unaligned_size = 4 - (address & 0x3UL);
 
@@ -2250,7 +2250,7 @@ void TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, uint32_
 
 void TBOXEmu::sample_quad(uint32_t thread, bool output_result)
 {
-    LOG(DEBUG, "\tTBOX => Sample Quad");
+    LOG(DEBUG, "%s", "\tTBOX => Sample Quad");
 
     ImageInfo currentImage;
 
@@ -2262,7 +2262,7 @@ void TBOXEmu::sample_quad(uint32_t thread, bool output_result)
 
 void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata output[])
 {
-    LOG(DEBUG, "\tTBOX => Sample Quad");
+    LOG(DEBUG, "%s", "\tTBOX => Sample Quad");
 
     return;
 
@@ -2404,7 +2404,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, 
                 }
                 break;
             default:
-                LOG(ERR, "Unsupported sample operation");
+                LOG(ERR, "%s", "Unsupported sample operation");
                 break;
         }
 
@@ -2570,7 +2570,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
         else
             l = 0;
 
-        LOG(DEBUG, "\tLD operation (texel coordinates)");
+        LOG(DEBUG, "%s", "\tLD operation (texel coordinates)");
         switch (currentImage.info.type)
             {
             case IMAGE_TYPE_1D:
@@ -2629,7 +2629,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
             a = 0;
 
         
-        LOG(DEBUG, "\tSAMPLE operation (unnormalized coordinates)");
+        LOG(DEBUG, "%s", "\tSAMPLE operation (unnormalized coordinates)");
         switch (currentImage.info.type)
             {
             case IMAGE_TYPE_1D:
@@ -2687,7 +2687,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
 
         if ((currentRequest.info.operation == SAMPLE_OP_LD) && out_of_bounds)
         {
-            LOG(ERR, "\tOut of bound access");
+            LOG(ERR, "%s", "\tOut of bound access");
 
             red   = 0.0f;
             green = 0.0f;
@@ -2724,7 +2724,7 @@ void TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fd
 
             output_result = output_result && data_ready;
 
-            LOG(DEBUG, "\tTexture cache access");
+            LOG(DEBUG, "%s", "\tTexture cache access");
             LOG(DEBUG, "\t\tBank = %d Tag = %" PRIx64 " Hit = %d", banks[0], tags[0], hit);
             for ( int i = 0; i< 4; i++) LOG(DEBUG, "\t\tAddress[%d] = %" PRIx64, i, address[0][i]);
             for ( int i = 0; i< 8;i++) LOG(DEBUG, "\t\tData[%d] = %" PRIx64, i, data[i]);;
@@ -2961,13 +2961,13 @@ void TBOXEmu::wrap_texel_coord(uint32_t c[2], int32_t c_ul, uint32_t mip_dim, Ad
             break;
 
         case ADDRESS_MODE_CLAMP_TO_BORDER:
-            LOG(WARN, "CLAMP_TO_BORDER implemented as CLAMP_TO_EDGE.");
+            LOG(WARN, "%s", "CLAMP_TO_BORDER implemented as CLAMP_TO_EDGE.");
             c[0] = min(uint32_t(max(0, c_ul)), mip_dim - 1);
             c[1] = min(uint32_t(max(0, c_ul + 1)), mip_dim - 1);
             break;
 
         default:
-            LOG(ERR, "Unsupported address mode.");
+            LOG(ERR, "%s", "Unsupported address mode.");
             break;
     }
 }
@@ -3003,7 +3003,9 @@ uint64_t TBOXEmu::compute_mip_offset(uint32_t mip_pitch_l0, uint32_t mip_pitch_l
 	return mip_offset;
 }
 
-void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage, uint32_t bytesTexel, bool isCompressed,
+void TBOXEmu::compute_packed_mip_offset(ImageInfo currentImage,
+                                        uint32_t bytesTexel __attribute__((unused)),
+                                        bool isCompressed __attribute__((unused)),
                                         uint32_t tileWidthLog2, uint32_t tileHeightLog2,
                                         uint32_t mip_level, uint32_t mip_offset[])
 {
@@ -5022,7 +5024,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
       {0, 1, 0, 10, false}, {0, 2, 0, 10, false}, {1, 0, 0, 5, false}, {3, 1, 4, 1, false},
       {2, 1, 0, 4, false},  {1, 1, 0, 5, false},  {3, 2, 0, 1, false}, {3, 1, 0, 4, false},
       {1, 2, 0, 5, false},  {3, 2, 1, 1, false},  {2, 2, 0, 4, false}, {2, 0, 0, 5, false},
-      {3, 2, 2, 1, false},  {3, 0, 0, 5, false},  {3, 2, 3, 1, false}, {-1}}},
+      {3, 2, 2, 1, false},  {3, 0, 0, 5, false},  {3, 2, 3, 1, false}, {-1, 0, 0, 0, false}}},
     /* 01 */
     {false, true, 5, 7, 3, {6, 6, 6}, {{2, 1, 5, 1, false}, {3, 1, 4, 1, false}, {3, 1, 5, 1, false},
                                        {0, 0, 0, 7, false}, {3, 2, 0, 1, false}, {3, 2, 1, 1, false},
@@ -5031,7 +5033,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
                                        {3, 2, 3, 1, false}, {3, 2, 5, 1, false}, {3, 2, 4, 1, false},
                                        {1, 0, 0, 6, false}, {2, 1, 0, 4, false}, {1, 1, 0, 6, false},
                                        {3, 1, 0, 4, false}, {1, 2, 0, 6, false}, {2, 2, 0, 4, false},
-                                       {2, 0, 0, 6, false}, {3, 0, 0, 6, false}, {-1}}},
+                                       {2, 0, 0, 6, false}, {3, 0, 0, 6, false}, {-1, 0, 0, 0, false}}},
     /* 00010 */
     {false,
      true,
@@ -5057,7 +5059,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
       {3, 2, 2, 1, false},
       {3, 0, 0, 5, false},
       {3, 2, 3, 1, false},
-      {-1}}},
+      {-1, 0, 0, 0, false}}},
     /* 00011 */
     {false,
      false,
@@ -5071,7 +5073,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
       {1, 0, 0, 10, false},
       {1, 1, 0, 10, false},
       {1, 2, 0, 10, false},
-      {-1}}},
+      {-1, 0, 0, 0, false}}},
     /* 00110 */
     {false, true, 5, 11, 3, {4, 5, 4}, {{0, 0, 0, 10, false}, {0, 1, 0, 10, false}, {0, 2, 0, 10, false},
                                         {1, 0, 0, 4, false},  {0, 0, 10, 1, false}, {3, 1, 4, 1, false},
@@ -5079,7 +5081,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
                                         {3, 1, 0, 4, false},  {1, 2, 0, 4, false},  {0, 2, 10, 1, false},
                                         {3, 2, 1, 1, false},  {2, 2, 0, 4, false},  {2, 0, 0, 4, false},
                                         {3, 2, 0, 1, false},  {3, 2, 2, 1, false},  {3, 0, 0, 4, false},
-                                        {2, 1, 4, 1, false},  {3, 2, 3, 1, false},  {-1}}},
+                                        {2, 1, 4, 1, false},  {3, 2, 3, 1, false},  {-1, 0, 0, 0, false}}},
     /* 00111 */
     {false,
      true,
@@ -5096,7 +5098,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
       {0, 1, 10, 1, false},
       {1, 2, 0, 9, false},
       {0, 2, 10, 1, false},
-      {-1}}},
+      {-1, 0, 0, 0, false}}},
     /* 01010 */
     {false, true, 5, 11, 3, {4, 4, 5}, {{0, 0, 0, 10, false}, {0, 1, 0, 10, false}, {0, 2, 0, 10, false},
                                         {1, 0, 0, 4, false},  {0, 0, 10, 1, false}, {2, 2, 4, 1, false},
@@ -5104,7 +5106,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
                                         {3, 2, 0, 1, false},  {3, 1, 0, 4, false},  {1, 2, 0, 5, false},
                                         {0, 2, 10, 1, false}, {2, 2, 0, 4, false},  {2, 0, 0, 4, false},
                                         {3, 2, 1, 1, false},  {3, 2, 2, 1, false},  {3, 0, 0, 4, false},
-                                        {3, 2, 4, 1, false},  {3, 2, 3, 1, false},  {-1}}},
+                                        {3, 2, 4, 1, false},  {3, 2, 3, 1, false},  {-1, 0, 0, 0, false}}},
     /* 01011 */
     {false,
      true,
@@ -5121,7 +5123,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
       {0, 1, 10, 2, true},
       {1, 2, 0, 8, false},
       {0, 2, 10, 2, true},
-      {-1}}},
+      {-1, 0, 0, 0, false}}},
     /* 01110 */
     {false,
      true,
@@ -5132,7 +5134,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
      {{0, 0, 0, 9, false}, {2, 2, 4, 1, false}, {0, 1, 0, 9, false}, {2, 1, 4, 1, false}, {0, 2, 0, 9, false},
       {3, 2, 4, 1, false}, {1, 0, 0, 5, false}, {3, 1, 4, 1, false}, {2, 1, 0, 4, false}, {1, 1, 0, 5, false},
       {3, 2, 0, 1, false}, {3, 1, 0, 4, false}, {1, 2, 0, 5, false}, {3, 2, 1, 1, false}, {2, 2, 0, 4, false},
-      {2, 0, 0, 5, false}, {3, 2, 2, 1, false}, {3, 0, 0, 5, false}, {3, 2, 3, 1, false}, {-1}}},
+      {2, 0, 0, 5, false}, {3, 2, 2, 1, false}, {3, 0, 0, 5, false}, {3, 2, 3, 1, false}, {-1, 0, 0, 0, false}}},
     /* 01111 */
     {false,
      true,
@@ -5149,7 +5151,7 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
       {0, 1, 10, 6, true},
       {1, 2, 0, 4, false},
       {0, 2, 10, 6, true},
-      {-1}}},
+      {-1, 0, 0, 0, false}}},
     /* 10010 */
     {false,
      true,
@@ -5160,9 +5162,19 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
      {{0, 0, 0, 8, false}, {3, 1, 4, 1, false}, {2, 2, 4, 1, false}, {0, 1, 0, 8, false}, {3, 2, 2, 1, false},
       {2, 1, 4, 1, false}, {0, 2, 0, 8, false}, {3, 2, 3, 1, false}, {3, 2, 4, 1, false}, {1, 0, 0, 6, false},
       {2, 1, 0, 4, false}, {1, 1, 0, 5, false}, {3, 2, 0, 1, false}, {3, 1, 0, 4, false}, {1, 2, 0, 5, false},
-      {3, 2, 1, 1, false}, {2, 2, 0, 4, false}, {2, 0, 0, 6, false}, {3, 0, 0, 6, false}, {-1}}},
+      {3, 2, 1, 1, false}, {2, 2, 0, 4, false}, {2, 0, 0, 6, false}, {3, 0, 0, 6, false}, {-1, 0, 0, 0, false}}},
     /* 10011 */
-    {true /* reserved */},
+    {true /* reserved */, true, 0, 0, 0, {0, 0, 0}, {{0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {-1, 0, 0, 0, false}}},
     /* 10110 */
     {false, true, 5, 8, 3, {5, 6, 5}, {{0, 0, 0, 8, false}, {3, 2, 0, 1, false},
                                        {2, 2, 4, 1, false}, {0, 1, 0, 8, false},
@@ -5174,10 +5186,20 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
                                        {1, 2, 0, 5, false}, {3, 2, 1, 1, false},
                                        {2, 2, 0, 4, false}, {2, 0, 0, 5, false},
                                        {3, 2, 2, 1, false}, {3, 0, 0, 5, false},
-                                       {3, 2, 3, 1, false}, {-1}}},
+                                       {3, 2, 3, 1, false}, {-1, 0, 0, 0, false}}},
     /* 10111 */
-    {true /* reserved */},
-    /* 11010 */
+    {true /* reserved */, true, 0, 0, 0, {0, 0, 0}, {{0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {-1, 0, 0, 0, false}}},
+     /* 11010 */
     {false, true, 5, 8, 3, {5, 5, 6}, {{0, 0, 0, 8, false}, {3, 2, 1, 1, false},
                                        {2, 2, 4, 1, false}, {0, 1, 0, 8, false},
                                        {2, 2, 5, 1, false}, {2, 1, 4, 1, false},
@@ -5188,10 +5210,20 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
                                        {3, 1, 0, 4, false}, {1, 2, 0, 6, false},
                                        {2, 2, 0, 4, false}, {2, 0, 0, 5, false},
                                        {3, 2, 2, 1, false}, {3, 0, 0, 5, false},
-                                       {3, 2, 3, 1, false}, {-1}}},
+                                       {3, 2, 3, 1, false}, {-1, 0, 0, 0, false}}},
     /* 11011 */
-    {true /* reserved */},
-    /* 11110 */
+    {true /* reserved */, true, 0, 0, 0, {0, 0, 0}, {{0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {-1, 0, 0, 0, false}}},
+     /* 11110 */
     {false, false, 5, 6, 3, {6, 6, 6}, {{0, 0, 0, 6, false}, {3, 1, 4, 1, false}, {3, 2, 0, 1, false},
                                         {3, 2, 1, 1, false}, {2, 2, 4, 1, false}, {0, 1, 0, 6, false},
                                         {2, 1, 5, 1, false}, {2, 2, 5, 1, false}, {3, 2, 2, 1, false},
@@ -5199,10 +5231,20 @@ const TBOXEmu::bptc_float_mode TBOXEmu::bptc_float_modes[] = {
                                         {3, 2, 3, 1, false}, {3, 2, 5, 1, false}, {3, 2, 4, 1, false},
                                         {1, 0, 0, 6, false}, {2, 1, 0, 4, false}, {1, 1, 0, 6, false},
                                         {3, 1, 0, 4, false}, {1, 2, 0, 6, false}, {2, 2, 0, 4, false},
-                                        {2, 0, 0, 6, false}, {3, 0, 0, 6, false}, {-1}}},
+                                        {2, 0, 0, 6, false}, {3, 0, 0, 6, false}, {-1, 0, 0, 0, false}}},
     /* 11111 */
-    {true /* reserved */},
-};
+    {true /* reserved */, true, 0, 0, 0, {0, 0, 0}, {{0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {0, 0, 0, 0, false},
+                                                     {0, 0, 0, 0, false}, {-1, 0, 0, 0, false}}},
+ };
 
 /* This partition table is used when the mode has two subsets. Each
  * partition is represented by a 32-bit value which gives 2 bits per texel
@@ -5623,7 +5665,7 @@ int32_t TBOXEmu::sign_extend(int32_t value, int n_bits)
 {
     if ((value & (1 << (n_bits - 1))))
     {
-        value |= (~(int32_t)0) << n_bits;
+        value |= (~uint32_t(0)) << n_bits;
     }
 
     return value;
