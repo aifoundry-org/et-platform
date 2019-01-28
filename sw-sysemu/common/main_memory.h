@@ -2,9 +2,8 @@
 #define _MAIN_MEMORY_H_
 
 // Global
-#include <fstream>
-#include <boost/ptr_container/ptr_vector.hpp>
 #include <inttypes.h>
+#include <list>
 
 // Local
 #include "elfio/elfio.hpp"
@@ -51,8 +50,10 @@ class main_memory
     private:
        void dump_regions();
 
-       boost::ptr_vector<main_memory_region> regions_;
-       typedef boost::ptr_vector<main_memory_region>::iterator rg_it_t;
+       std::list<main_memory_region *> regions_;
+       typedef std::list<main_memory_region *>::iterator rg_it_t;
+
+       rg_it_t find(uint64_t ad);
 
        testLog log;
        main_memory_region::func_ptr_get_thread getthread;

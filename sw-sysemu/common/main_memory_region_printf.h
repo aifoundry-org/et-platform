@@ -1,8 +1,13 @@
 #ifndef _MAIN_MEM_REGION_PRINTF_H_
 #define _MAIN_MEM_REGION_PRINTF_H_
 
+// Local
 #include "main_memory_region.h"
 
+// Global
+#include <assert.h>
+
+// Defines
 #define PRINTF_THREADS 128
 
 class main_memory_region_printf : main_memory_region
