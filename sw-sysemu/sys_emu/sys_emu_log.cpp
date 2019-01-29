@@ -11,7 +11,7 @@ unsigned testLog::maxErrors_ = 1u;
 
 // nearly empty implementation of testLog functions, that only make sense in RTL simulations
 
-void endSimAt(uint32_t extraTime)
+void endSimAt(uint32_t extraTime __attribute__((unused)))
 {
     exit(1);
 }

@@ -31,8 +31,8 @@ sysemu_DIRS := $(sort $(dir $(sysemu_OBJS)))
 CC	 := gcc
 CXX 	 := g++
 CPPFLAGS := -I../.. -I.. -DSYS_EMU
-CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
-CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
+CXXFLAGS := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c++11
+CFLAGS   := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c11
 LDLIBS   := ../../build/libfpu.a -lm
 
 # FIXME: Remove the following when we convert everything away from C++ floats

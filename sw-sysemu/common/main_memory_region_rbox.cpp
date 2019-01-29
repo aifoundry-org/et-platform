@@ -20,7 +20,7 @@ main_memory_region_rbox::~main_memory_region_rbox()
 }
 
 // Write to memory region
-void main_memory_region_rbox::write(uint64_t ad, int size, const void * data)
+void main_memory_region_rbox::write(uint64_t ad, int size __attribute__((unused)), const void * data)
 {
   log << LOG_DEBUG << "writing to rbox @=" <<hex<<ad<<dec<< endm;
   uint16_t thread;
@@ -30,7 +30,9 @@ void main_memory_region_rbox::write(uint64_t ad, int size, const void * data)
 
 
 // Read from memory region
-void main_memory_region_rbox::read(uint64_t ad, int size, void * data)
+void main_memory_region_rbox::read(uint64_t ad __attribute__((unused)),
+                                   int size __attribute__((unused)),
+                                   void * data __attribute__((unused)))
 {
   log << LOG_ERR << "not expecting to read from rbox memory map"<<endm;
 }

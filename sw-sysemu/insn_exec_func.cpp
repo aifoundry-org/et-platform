@@ -302,7 +302,7 @@ static csr imm2csr(uint16_t imm)
     /* Unimplemented register */
     default    : return csr_unknown;
     }
-};
+}
 
 // NB: not reallly a helper function; get_csr_enum() is the external version
 // of imm2csr() so that the latter can be inlined for speed
@@ -319,12 +319,12 @@ csr get_csr_enum(uint16_t imm) {
     }
 
 #define FMT_NONE(name, exec) \
-    void name(insn_t inst) { \
+    void name(insn_t inst __attribute__((unused))) { \
         (exec) (); \
     }
 
 #define FMT_PRED_SUCC(name, exec) \
-    void name(insn_t inst) { \
+    void name(insn_t inst __attribute__((unused))) { \
         (exec) (); \
     }
 
@@ -1080,6 +1080,6 @@ void insn_c_illegal(insn_t inst __attribute__((unused))) {
 
 // breakpoint instruction
 
-void insn_c_ebreak(insn_t inst) {
+void insn_c_ebreak(insn_t inst __attribute__((unused))) {
     ebreak();
 }

@@ -1,13 +1,10 @@
 #include "insn.h"
 #include "insn_exec_func.h"
 #include "emu_gio.h"
+#include "emu_memop.h"
 
 // program state
 extern uint32_t current_inst;
-
-// memory emulation
-extern uint64_t (*vmemtranslate) (uint64_t, mem_access_type);
-extern uint16_t (*pmemfetch16) (uint64_t);
 
 // re-define the type
 typedef void (*insn_exec_funct_t)(insn_t);
@@ -223,7 +220,8 @@ static insn_exec_funct_t dec_custom1(uint32_t bits __attribute__((unused)),
 }
 
 
-static insn_exec_funct_t dec_amo(uint32_t bits, uint32_t& flags)
+static insn_exec_funct_t dec_amo(uint32_t bits __attribute__((unused)),
+                                 uint32_t& flags __attribute__((unused)))
 {
 #if 0
     unsigned funct3 = (bits >> 12) & 7;

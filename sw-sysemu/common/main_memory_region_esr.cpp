@@ -15,11 +15,9 @@ extern uint32_t current_thread;
 #ifdef SYS_EMU
 extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest);
 extern void ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
-extern void (*pmemwrite64) (uint64_t paddr, uint64_t data);
 #endif
 
 extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
-extern void (*pmemwrite64) (uint64_t paddr, uint64_t data);
 
 using namespace std;
 
@@ -45,7 +43,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     LOG(DEBUG, "Writing to ESR Region with address %016" PRIx64, ad);
 
     if (!esr_info.valid)
-        LOG(DEBUG, "Invalid ESR");
+        LOG(DEBUG, "%s", "Invalid ESR");
     else
     {
         switch(esr_info.region)
