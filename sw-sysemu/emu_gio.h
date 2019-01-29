@@ -53,13 +53,7 @@
 } while(0)
 
 
-#if VL == 4
-#define MASK2BYTE(_MR) (_MR.b[3]<<3|_MR.b[2]<<2|_MR.b[1]<<1|_MR.b[0])
-#else
-#define MASK2BYTE(_MR) (_MR.b[7]<<7|_MR.b[6]<<6|_MR.b[5]<<5|_MR.b[4]<<4|_MR.b[3]<<3|_MR.b[2]<<2|_MR.b[1]<<1|_MR.b[0])
-#endif
-
-#define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02x",MASK2BYTE(_MR));
+#define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02lx",(_MR).b.to_ulong())
 
 
 extern testLog& emu_log();
