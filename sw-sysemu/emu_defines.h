@@ -1,11 +1,8 @@
 #ifndef _EMU_DEFINES_H
 #define _EMU_DEFINES_H
 
-#if defined(__cplusplus) && (__cplusplus >= 201103L)
 #include <cinttypes>
-#else
-#include <inttypes.h>
-#endif
+#include <bitset>
 
 // Maximum number of threads
 #define EMU_NUM_SHIRES          35 // at most 33 shires (Pending fix from JIRA: RTLMIN-1949)
@@ -87,7 +84,7 @@
 #define ESR_SREGION_SHIFT      20               // Bits to shift to get Region, Region is defined in bits [21:20]
 #define ESR_SREGION_EXT_MASK   0x00003E0000ULL  // The ESR Extended Region is defined by bits [21:17]
 #define ESR_SREGION_EXT_SHIFT  17               // Bits to shift to get Extended Region, Extended Region is defined in bits [21:17]
-#define ESR_REGION_OFFSET      0x0000400000ULL  // 
+#define ESR_REGION_OFFSET      0x0000400000ULL  //
 #define ESR_SHIRE_REGION       0x0100340000ULL  // Shire ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b010
 #define ESR_NEIGH_REGION       0x0100100000ULL  // Neighborhood ESR Region is at region [21:20] == 2'b01
 
@@ -130,7 +127,7 @@
 #define ESR_BROADCAST_ESR_SREGION_MASK_SHIFT 54
 #define ESR_BROADCAST_ESR_ADDR_MASK          0x003FFF0000000000ULL // bits[17:3] in Memory Shire Esr Map. Esr address
 #define ESR_BROADCAST_ESR_ADDR_SHIFT         40
-#define ESR_BROADCAST_ESR_SHIRE_MASK         0x000000FFFFFFFFFFULL // bit mask Shire to spread the broadcast bits 
+#define ESR_BROADCAST_ESR_SHIRE_MASK         0x000000FFFFFFFFFFULL // bit mask Shire to spread the broadcast bits
 #define ESR_BROADCAST_ESR_MAX_SHIRES ESR_BROADCAST_ESR_ADDR_SHIFT
 
 
@@ -377,13 +374,13 @@ typedef enum {
 #define CSR_MAX_MMODE   CSR_MAX
 
 // Memory access type
-typedef enum {
+enum mem_access_type {
     Mem_Access_Load,
     Mem_Access_Store,
     Mem_Access_Fetch
-} mem_access_type;
+};
 
-typedef enum {
+enum mreg {
     m0 = 0,
     m1 = 1,
     m2 = 2,
@@ -394,9 +391,9 @@ typedef enum {
     m7 = 7,
     MAXMREG = 8,
     mnone = -1
-} mreg;
+};
 
-typedef enum {
+enum xreg {
     x0 = 0,
     x1 = 1,
     x2 = 2,
@@ -431,9 +428,9 @@ typedef enum {
     x31 = 31,
     MAXXREG = 32,
     xnone = -1
-} xreg;
+};
 
-typedef enum {
+enum freg {
     f0 = 0,
     f1 = 1,
     f2 = 2,
@@ -468,29 +465,29 @@ typedef enum {
     f31 = 31,
     MAXFREG = 32,
     fnone = -1
-} freg;
+};
 
-typedef enum {
+enum rounding_mode {
     rne = 0,
     rtz = 1,
     rdn = 2,
     rup = 3,
     rmm = 4,
     rmdyn = 7 //dynamic rounding mode, read from rm register
-} rounding_mode;
+};
 
-typedef enum {
+enum et_core_t {
    ET_MINION = 0,
    ET_MAXION
-} et_core_t;
+};
 
 // Number of 32-bit lanes in a vector register
 #ifndef VL
 #define VL  8
 #endif
 
-#if (VL != 4) && (VL != 8)
-#error "Only 128-bit and 256-bit vectors supported"
+#if (VL != 8)
+#error "Only 256-bit vectors supported"
 #endif
 
 /* Obsolete texsnd/texrcv instuctions use the low 128b of the fregs for data transfers */
@@ -521,11 +518,7 @@ union xdata {
 
 // mask register value type
 struct mdata {
-    uint8_t   b[VL];
-#if (VL==4)
-    // FIXME: for compatibility with the RTL that has 8b masks for 128b vectors
-    uint8_t   _xb[VL];
-#endif
+    std::bitset<VL>  b;
 };
 
 // Privilege levels

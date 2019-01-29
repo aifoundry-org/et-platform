@@ -912,12 +912,8 @@ void initcsr(uint32_t thread)
 
 void minit(mreg dst, uint64_t val)
 {
-    for (int i = 0; i < VL; ++i)
-    {
-        MREGS[dst].b[i] = val & 0x1;
-        val = val >> 1;
-        LOG(DEBUG, "init m[%d].b[%d] <-- %d", int(dst), i, int(MREGS[dst].b[i]));
-    }
+    MREGS[dst].b = std::bitset<VL>(val);
+    LOG(DEBUG, "init m[%d] <-- 0x%02lx", int(dst), MREGS[dst].b.to_ulong());
 }
 
 static bool tmask_pass(int bit)
@@ -1105,14 +1101,7 @@ uint32_t get_thread()
 
 uint32_t get_mask(unsigned maskNr)
 {
-    return uint32_t((MREGS[maskNr].b[7] << 7) |
-                    (MREGS[maskNr].b[6] << 6) |
-                    (MREGS[maskNr].b[5] << 5) |
-                    (MREGS[maskNr].b[4] << 4) |
-                    (MREGS[maskNr].b[3] << 3) |
-                    (MREGS[maskNr].b[2] << 2) |
-                    (MREGS[maskNr].b[1] << 1) |
-                    (MREGS[maskNr].b[0] << 0));
+    return MREGS[maskNr].b.to_ulong();
 }
 
 extern inst_state_change * log_info;
@@ -2223,7 +2212,7 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
     addr = XREGS[src1].x;
 
     // Check misaligned access
-    if ((addr & 0x3) != 0) throw trap_store_address_misaligned(addr);
+    if (addr % 4) throw trap_store_address_misaligned(addr);
 
     val1 = vmemread32(addr);
     val2 = XREGS[src2].w[0];
@@ -2294,7 +2283,7 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
     addr = XREGS[src1].x;
 
     // Check misaligned access
-    if ((addr & 0x7) != 0) throw trap_store_address_misaligned(addr);
+    if (addr % 8) throw trap_store_address_misaligned(addr);
 
     val1 = vmemread64(addr);
     val2 = XREGS[src2].x;
@@ -3313,14 +3302,13 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void femuld(int count, freg dst, int64_t off, xreg base, int use_mask)
+static void femuld(int count, freg dst, uint64_t base_addr, bool use_mask)
 {
     assert(count <= VL);
 
-    uint64_t base_addr = XREGS[base].x + off;
     for (int i = 0; i < count; i++)
     {
-        if (use_mask && MREGS[0].b[i] == 0) continue;
+        if (use_mask && !MREGS[0].b[i]) continue;
         uint64_t addr = base_addr + i * 4;
         uint32_t val = vmemread32(addr);
         FREGS[dst].u[i] = val;
@@ -3331,14 +3319,13 @@ static void femuld(int count, freg dst, int64_t off, xreg base, int use_mask)
     logfregchange(dst);
 }
 
-static void femust(int count, freg src1, int64_t off, xreg base, int use_mask)
+static void femust(int count, freg src1, uint64_t base_addr, int use_mask)
 {
     assert(count <= VL);
 
-    uint64_t base_addr = XREGS[base].x + off;
     for (int i = 0; i < count; i++)
     {
-        if (use_mask && MREGS[0].b[i] == 0) continue;
+        if (use_mask && !MREGS[0].b[i]) continue;
         uint64_t addr = base_addr + i * 4;
         uint32_t val = FREGS[src1].u[i];
         LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val, addr);
@@ -3433,7 +3420,7 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
 
     for (int i = 0; i < count; ++i)
     {
-        if (count == VL && MREGS[0].b[i] == 0) continue;
+        if (count == VL && !MREGS[0].b[i]) continue;
 
         iufval32 val, res;
         val.u = FREGS[src1].u[i];
@@ -3593,7 +3580,7 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
 
     for (int i = 0; i < count; i++)
     {
-        if (count == VL && MREGS[0].b[i] == 0) continue;
+        if (count == VL && !MREGS[0].b[i]) continue;
 
         iufval32 val1, val2, res;
         val1.u = FREGS[src1].u[i];
@@ -3709,7 +3696,7 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
 
     for (int i = 0; i < count; i++)
     {
-        if (count == VL && MREGS[0].b[i] == 0) continue;
+        if (count == VL && !MREGS[0].b[i]) continue;
 
         iufval32 val1, val2, val3, res;
 
@@ -4001,14 +3988,16 @@ void flw(freg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: flw f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femuld(1, dst, off,  base, 0);
+    uint64_t addr = XREGS[base].x + off;
+    femuld(1, dst, addr, false);
 }
 
 void fsw(freg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: fsw f%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femust(1, src1, off, base, 0);
+    uint64_t addr = XREGS[base].x + off;
+    femust(1, src1, addr, 0);
 }
 
 void fmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
@@ -4047,61 +4036,54 @@ void fnmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 
 static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
 {
-    for (int i = 0; i < VL; i++)
+    std::bitset<VL> m1 = MREGS[src1].b;
+    std::bitset<VL> m2 = (src2 == mnone) ? 0 : MREGS[src2].b;
+    switch (opc)
     {
-        uint8_t val1  = MREGS[src1].b[i];
-        uint8_t val2  = (src2 == mnone) ? 0 : MREGS[src2].b[i];
-
-        uint8_t res;
-        switch (opc)
-        {
-            case MAND:   res = (val1 & val2) & 0x1;
-                         LOG(DEBUG, "\t[%d] %d <-- %d & %d", i, res, val1, val2);
-                         break;
-            case MOR:    res = (val1 | val2) & 0x1;
-                         LOG(DEBUG, "\t[%d] %d <-- %d | %d", i, res, val1, val2);
-                         break;
-            case MXOR:   res = (val1 ^ val2) & 0x1;
-                         LOG(DEBUG, "\t[%d] %d <-- %d ^ %d", i, res, val1, val2);
-                         break;
-            case MNOT:   res = (~val1) & 0x1;
-                         LOG(DEBUG, "\t[%d] %d <-- ~%d", i, res, val1);
-                         break;
-            default:     assert(0);
-                         break;
-
-        }
-        MREGS[dst].b[i] = res;
+        case MAND:
+            MREGS[dst].b = m1 & m2;
+            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx & 0x%02lx", MREGS[dst].b.to_ulong(), m1.to_ulong(), m2.to_ulong());
+            break;
+        case MOR:
+            MREGS[dst].b = m1 | m2;
+            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx | 0x%02lx", MREGS[dst].b.to_ulong(), m1.to_ulong(), m2.to_ulong());
+            break;
+        case MXOR:
+            MREGS[dst].b = m1 ^ m2;
+            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx ^ 0x%02lx", MREGS[dst].b.to_ulong(), m1.to_ulong(), m2.to_ulong());
+            break;
+        case MNOT:
+            MREGS[dst].b = ~m1;
+            LOG(DEBUG, "\t0x%02lx <-- ~0x%02lx", MREGS[dst].b.to_ulong(), m1.to_ulong());
+            break;
+        default:
+            assert(0);
+            break;
     }
-
     logmregchange(dst);
 }
 
 void maskand(mreg dst, mreg src1, mreg src2, const char* comm)
 {
     LOG(DEBUG, "I: maskand m%d, m%d, m%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    DEBUG_MASK(MREGS[0]);
     maskop(MAND, dst, src1, src2);
 }
 
 void maskor(mreg dst, mreg src1, mreg src2, const char* comm)
 {
     LOG(DEBUG, "I: maskor m%d, m%d, m%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    DEBUG_MASK(MREGS[0]);
     maskop(MOR, dst, src1, src2);
 }
 
 void maskxor(mreg dst, mreg src1, mreg src2, const char* comm)
 {
     LOG(DEBUG, "I: maskxor m%d, m%d, m%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    DEBUG_MASK(MREGS[0]);
     maskop(MXOR, dst, src1, src2);
 }
 
 void masknot(mreg dst, mreg src1, const char* comm)
 {
     LOG(DEBUG, "I: masknot m%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    DEBUG_MASK(MREGS[0]);
     maskop(MNOT, dst, src1, mnone);
 }
 
@@ -4113,11 +4095,7 @@ void mova_x_m(xreg dst, const char* comm)
         uint64_t val = 0;
         for (int m = 7; m >= 0; m--)
         {
-            val <<= VL;
-            for (int i = 0; i < VL; i++)
-            {
-                val |= (MREGS[m].b[i] & 0x1) << i;
-            }
+            val = (val << VL) | MREGS[m].b.to_ulong();
             LOG(DEBUG, "\taccumulating into 0x%016" PRIx64 " reg m%d = 0x%016" PRIx64, val, m, (val&((1u<<VL)-1)));
         }
         XREGS[dst].x = val;
@@ -4134,11 +4112,8 @@ void mova_m_x(xreg src1, const char* comm)
     LOG(DEBUG, "\tallmasks <-- 0x%016" PRIx64, val);
     for (int m = 0; m < 8; m++)
     {
-        for (int i = 0; i < VL; i++)
-        {
-            MREGS[m].b[i] = (val >> i) & 0x1;
-            LOG(DEBUG, "\tm%d.b[%d] = 0x%x", m, i, MREGS[m].b[i]);
-        }
+        MREGS[m].b = std::bitset<VL>(val);
+        LOG(DEBUG, "\tm%d = 0x%02lx", m, MREGS[m].b.to_ulong());
         val >>= VL;
         logmregchange(m);
     }
@@ -4150,23 +4125,16 @@ void mov_m_x(mreg dst, xreg src1, unsigned imm, const char* comm)
     DEBUG_MASK(MREGS[0]);
 
     uint32_t val = XREGS[src1].w[0] | (imm & ((1u<<VL) - 1u));
-    for (int i = 0; i < VL; i++)
-    {
-        MREGS[dst].b[i] = (val >> i) & 0x1;
-        LOG(DEBUG, "\tm%d.b[%d] = 0x%x  (from val=0x%08x)", dst, i, MREGS[dst].b[i], val);
-    }
+    MREGS[dst].b = std::bitset<VL>(val);
+    LOG(DEBUG, "\tm%d = 0x%02lx (from val=0x%08" PRIx32 ")", dst, MREGS[dst].b.to_ulong(), val);
     logmregchange(dst);
 }
 
 void maskpopc(xreg dst, mreg src1, const char* comm)
 {
     LOG(DEBUG, "I: maskpopc x%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    uint64_t count = 0;
-    for (int i = 0; i < VL; i++)
-    {
-        count += (MREGS[src1].b[i] ? 1 : 0);
-        LOG(DEBUG, "\tcount = %ld from m%d.b[%d] = %d", count, src1, i, MREGS[src1].b[i]);
-    }
+    uint64_t count = MREGS[src1].b.count();
+    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].b.to_ulong());
     if (dst != x0)
         XREGS[dst].x = count;
     logxregchange(dst);
@@ -4175,12 +4143,8 @@ void maskpopc(xreg dst, mreg src1, const char* comm)
 void maskpopcz(xreg dst, mreg src1, const char* comm)
 {
     LOG(DEBUG, "I: maskpopcz x%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    uint64_t count = 0;
-    for (int i = 0; i < VL; i++)
-    {
-        count += (MREGS[src1].b[i] ? 0 : 1);
-        LOG(DEBUG, "\tcount = %ld from m%d.b[%d] = %d ", count, src1, i, MREGS[src1].b[i]);
-    }
+    uint64_t count = MREGS[src1].b.size() - MREGS[src1].b.count();
+    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].b.to_ulong());
     if (dst != x0)
         XREGS[dst].x = count;
     logxregchange(dst);
@@ -4189,31 +4153,18 @@ void maskpopcz(xreg dst, mreg src1, const char* comm)
 void maskpopc_rast(xreg dst, mreg src1, mreg src2, unsigned imm, const char* comm)
 {
     LOG(DEBUG, "I: maskpopc.rast x%d, m%d, m%d, %d%s%s", dst, src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    uint64_t count = 0;
-
-    uint32_t mask;
+    std::bitset<VL> m1, m2;
     switch(imm)
     {
-        case 0  : mask = 0x0f0f; break;
-        case 1  : mask = 0x3c3c; break;
-        case 2  : mask = 0xf0f0; break;
-        default : mask = 0xffff; break;
+        case 0  : m2 = 0x0f; m1 = 0x0f; break;
+        case 1  : m2 = 0x3c; m1 = 0x3c; break;
+        case 2  : m2 = 0xf0; m1 = 0xf0; break;
+        default : m2 = 0xff; m1 = 0xff; break;
     }
-
-    for (int i = 0; i < VL; i++)
-    {
-        count += ((MREGS[src1].b[i] & (mask & 0x1)) ? 1 : 0);
-        LOG(DEBUG, "\tcount = %ld from m%d.b[%d] = %d m = %d ", count, src1, i, MREGS[src1].b[i], mask & 0x1);
-        mask = mask >> 1;
-    }
-
-    for (int i = 0; i < VL; i++)
-    {
-        count += ((MREGS[src2].b[i] & (mask & 0x1)) ? 1 : 0);
-        LOG(DEBUG, "\tcount = %ld from m%d.b[%d] = %d m = %d ", count, src2, i, MREGS[src2].b[i], mask & 0x1);
-        mask = mask >> 1;
-    }
-
+    uint64_t count = (MREGS[src1].b & m1).count();
+    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].b.to_ulong());
+    count += (MREGS[src2].b & m2).count();
+    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src2].b.to_ulong());
     if (dst != x0)
         XREGS[dst].x = count;
     logxregchange(dst);
@@ -4232,8 +4183,7 @@ void flq2(freg dst, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: flq2 f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     uint64_t addr = XREGS[base].x + off;
-    if ((addr % 4) != 0) throw trap_load_address_misaligned(addr);
-    femuld(VL, dst, off,  base, 0);
+    femuld(VL, dst, addr, false);
 }
 
 void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
@@ -4241,7 +4191,8 @@ void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: flw.ps f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuld(VL, dst, off,  base, 1);
+    uint64_t addr = XREGS[base].x + off;
+    femuld(VL, dst, addr, true);
 }
 
 void flwl_ps(freg dst, xreg base, const char* comm)
@@ -4249,7 +4200,10 @@ void flwl_ps(freg dst, xreg base, const char* comm)
     LOG(DEBUG, "I: flwl.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuld(VL, dst, 0,  base, 1);
+    uint64_t addr = XREGS[base].x;
+    if (MREGS[0].b.any() && (addr % (VL*4)))
+        throw trap_load_address_misaligned(addr);
+    femuld(VL, dst, addr, true);
 }
 
 void flwg_ps(freg dst, xreg base, const char* comm)
@@ -4257,7 +4211,10 @@ void flwg_ps(freg dst, xreg base, const char* comm)
     LOG(DEBUG, "I: flwg.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femuld(VL, dst, 0,  base, 1);
+    uint64_t addr = XREGS[base].x;
+    if (MREGS[0].b.any() && (addr % (VL*4)))
+        throw trap_load_address_misaligned(addr);
+    femuld(VL, dst, addr, true);
 }
 
 void fsq2(freg src, xreg base, int64_t off, const char* comm)
@@ -4265,8 +4222,7 @@ void fsq2(freg src, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: fsq2 f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     uint64_t addr = XREGS[base].x + off;
-    if ((addr % 4) != 0) throw trap_store_address_misaligned(addr);
-    femust(VL, src, off, base, 0);
+    femust(VL, src, addr, 0);
 }
 
 void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
@@ -4274,7 +4230,8 @@ void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: fsw.ps f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femust(VL, src, off, base, 1);
+    uint64_t addr = XREGS[base].x + off;
+    femust(VL, src, addr, 1);
 }
 
 void fswl_ps(freg src, xreg base, const char* comm)
@@ -4282,7 +4239,10 @@ void fswl_ps(freg src, xreg base, const char* comm)
     LOG(DEBUG, "I: fswl.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femust(VL, src, 0, base, 1);
+    uint64_t addr = XREGS[base].x;
+    if (MREGS[0].b.any() && (addr % (VL*4)))
+        throw trap_load_address_misaligned(addr);
+    femust(VL, src, addr, 1);
 }
 
 void fswg_ps(freg src, xreg base, const char* comm)
@@ -4290,7 +4250,10 @@ void fswg_ps(freg src, xreg base, const char* comm)
     LOG(DEBUG, "I: fswg.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femust(VL, src, 0, base, 1);
+    uint64_t addr = XREGS[base].x;
+    if (MREGS[0].b.any() && (addr % (VL*4)))
+        throw trap_load_address_misaligned(addr);
+    femust(VL, src, addr, 1);
 }
 
 // ----- Broadcast -----------------------------------------
@@ -4304,12 +4267,7 @@ void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
     iufval32 val;
     uint64_t addr = XREGS[base].x + off;
     val.u = 0;
-    uint8_t  b = 0;
-    for (int i = 0; i < VL; i++)
-    {
-        b |= MREGS[0].b[i];
-    }
-    if (b != 0)
+    if (MREGS[0].b.any())
     {
         val.u = vmemread32(addr);
     }
@@ -4367,12 +4325,12 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
 
 // ----- Gather and scatter --------------------------------
 
-static void gatheremu(opcode opc, int size, freg dst, freg src1, xreg base)
+static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
 {
     uint64_t baddr = XREGS[base].x;
     for (int i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val;
         int32_t off   = FREGS[src1].i[i];
@@ -4395,14 +4353,14 @@ static void gatheremu(opcode opc, int size, freg dst, freg src1, xreg base)
                 break;
             case FGWL:
             case FGWG:
-                if ((addr % size) != 0)
+                if (addr % 4)
                     throw trap_load_address_misaligned(addr);
                 val.u = vmemread32(addr);
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             case FGHL:
             case FGHG:
-                if ((addr % size) != 0)
+                if (addr % 2)
                     throw trap_load_address_misaligned(addr);
                 val.u = sext16(vmemread16(addr));
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", i, val.u, addr);
@@ -4423,7 +4381,7 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
     uint64_t index = XREGS[src1].x;
     for (int i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         uint64_t off;
         uint64_t addr;
@@ -4465,7 +4423,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
     uint64_t baddr = XREGS[base].x;
     for (int i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         int32_t  off  = FREGS[src2].i[i];
         uint64_t addr = baddr + off;
@@ -4494,7 +4452,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
             case FSCWL:
             case FSCWG:
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val.u, addr);
-                if ((addr % 4) != 0)
+                if (addr % 4)
                     throw trap_load_address_misaligned(addr);
                 vmemwrite32(addr, val.u);
                 logmemwchange(i, 4, addr, val.u);
@@ -4502,7 +4460,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
             case FSCHL:
             case FSCHG:
                 LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", i, uint16_t(val.u), addr);
-                if ((addr % 2) != 0)
+                if (addr % 2)
                     throw trap_load_address_misaligned(addr);
                 vmemwrite16(addr, uint16_t(val.u));
                 logmemwchange(i, 2, addr, val.u);
@@ -4520,7 +4478,7 @@ static void femuscat32(int size, freg src3, xreg src1, xreg src2)
     uint64_t index = XREGS[src1].x;
     for (int i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         uint64_t off;
         uint64_t addr;
@@ -4562,7 +4520,7 @@ void fgb_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fgb.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu(FGB, 1, dst, src1, base);
+    gatheremu(FGB, dst, src1, base);
 }
 
 void fgh_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -4570,7 +4528,7 @@ void fgh_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fgh.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu(FGH, 2, dst, src1, base);
+    gatheremu(FGH, dst, src1, base);
 }
 
 void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -4578,7 +4536,7 @@ void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fgw.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu(FGW, 4, dst, src1, base);
+    gatheremu(FGW, dst, src1, base);
 }
 
 void fgwl_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -4586,7 +4544,7 @@ void fgwl_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fgwl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu(FGWL, 4, dst, src1, base);
+    gatheremu(FGWL, dst, src1, base);
 }
 
 void fghl_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -4594,7 +4552,7 @@ void fghl_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fghl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu(FGHL, 2, dst, src1, base);
+    gatheremu(FGHL, dst, src1, base);
 }
 
 void fgbl_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -4602,7 +4560,7 @@ void fgbl_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fgbl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu(FGBL, 1, dst, src1, base);
+    gatheremu(FGBL, dst, src1, base);
 }
 
 void fgwg_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -4610,7 +4568,7 @@ void fgwg_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fgwg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu(FGWG, 4, dst, src1, base);
+    gatheremu(FGWG, dst, src1, base);
 }
 
 void fghg_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -4618,7 +4576,7 @@ void fghg_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fghg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    gatheremu(FGHG, 2, dst, src1, base);
+    gatheremu(FGHG, dst, src1, base);
 }
 
 void fgbg_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -4626,8 +4584,7 @@ void fgbg_ps(freg dst, freg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: fgbg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    throw std::runtime_error("Unimplemented instruction (fgwg.ps)");
-    gatheremu(FGBG, 1, dst, src1, base);
+    gatheremu(FGBG, dst, src1, base);
 }
 
 void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
@@ -4752,7 +4709,7 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val1, val2, res;
 
@@ -4798,7 +4755,7 @@ static void fswizz(freg dst, freg src1, uint8_t imm)
     fdata val = FREGS[src1];
     for (int i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         int sel = (i & ~0x3) | ((imm >> ((2*i) % 8)) & 0x03);
         FREGS[dst].u[i] = val.u[sel];
@@ -5042,7 +4999,7 @@ void fclass_ps(freg dst, freg src1, const char* comm)
     DEBUG_MASK(MREGS[0]);
     for (int i = 0; i < VL; ++i)
     {
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
         iufval32 val, res;
         val.u = FREGS[src1].u[i];
         res.u = fpu::f32_classify(val.f);
@@ -5110,7 +5067,7 @@ static void ucvtemu(opcode opc, freg dst, freg src1)
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         uint32_t val = FREGS[src1].u[i];
         iufval32 res;
@@ -5225,7 +5182,7 @@ static void dcvtemu(opcode opc, freg dst, freg src1)
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val, res;
         val.u = FREGS[src1].u[i];
@@ -5374,7 +5331,7 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     DEBUG_MASK(MREGS[0]);
     for (int i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val, res;
         val.u = FREGS[src1].u[i];
@@ -5421,7 +5378,7 @@ void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
     for (int i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         uint8_t rz_lt_ry = (FREGS[ dst].u[i] & 0x1);
         uint8_t rz_lt_rx = (FREGS[src1].u[i] & 0x1);
@@ -5447,7 +5404,7 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
     for (int i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val1, val2, res;
         val1.u = FREGS[src1].u[i];
@@ -5470,7 +5427,7 @@ void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
     for (int i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val1, val2, res;
         val1.u = FREGS[src1].u[i];
@@ -5492,7 +5449,7 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
     for (int i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val1, val2, res;
         val1.u = FREGS[src1].u[i];
@@ -5562,7 +5519,7 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val1, val2, res;
         val1.u = FREGS[src1].u[i];
@@ -5662,7 +5619,7 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
     for (int i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (MREGS[0].b[i] == 0) continue;
+        if (!MREGS[0].b[i]) continue;
 
         iufval32 val1, val2, res;
         val1.u = FREGS[src1].u[i];
@@ -5702,7 +5659,7 @@ static void packrep(opcode opc, freg dst, freg src1)
         case FPACKREPHPI :
             for (int i = 0; i < VL; i++)
             {
-                if (MREGS[0].b[i] == 0) continue;
+                if (!MREGS[0].b[i]) continue;
 
                 int j = (4 * i) % (VL*2);
                 FREGS[dst].u[i] = uint32_t(val.h[j]) | (uint32_t(val.h[j+2]) << 16);
@@ -5712,7 +5669,7 @@ static void packrep(opcode opc, freg dst, freg src1)
         case FPACKREPBPI:
             for (int i = 0; i < VL; i++)
             {
-                if (MREGS[0].b[i] == 0) continue;
+                if (!MREGS[0].b[i]) continue;
 
                 int j = (16 * i) % (VL*4);
                 FREGS[dst].u[i] = uint32_t(val.b[j]) | (uint32_t(val.b[j+4]) << 8) | (uint32_t(val.b[j+8]) << 16) | (uint32_t(val.b[j+12]) << 24);
@@ -6087,12 +6044,12 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
 
     for (int el = 0; el < VL; el++)
     {
-        if (MREGS[0].b[el] == 0) continue;
+        if (!MREGS[0].b[el]) continue;
 
         addr = XREGS[src2].x + FREGS[src1].i[el];
 
         // Check misaligned access
-        if ((addr & 0x3) != 0) throw trap_store_address_misaligned(addr);
+        if (addr % 4) throw trap_store_address_misaligned(addr);
 
         val1.u = vmemread32(addr);
         val2.u = FREGS[dst].u[el];
