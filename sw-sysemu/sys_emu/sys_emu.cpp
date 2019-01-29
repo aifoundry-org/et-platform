@@ -149,7 +149,7 @@ void msg_to_thread(int thread_id)
     // Checks if in port wait state
     if(thread != port_wait_threads.end())
     {
-        LOG_OTHER(DEBUG, thread_id, "Waking up due msg\n");
+        LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due msg");
         enabled_threads.push_back(thread_id);
         port_wait_threads.erase(thread);
     }
@@ -177,18 +177,18 @@ void ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
             neigh_id = t / EMU_THREADS_PER_NEIGH;
             memory->read(0x0100100040ULL + (neigh_id << 16) + (shire_id << 22), 8, &new_pc);
             int thread_id = shire_id * EMU_THREADS_PER_SHIRE + t;
-            LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx\n", (long long unsigned int) new_pc);
+            LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
             // If thread sleeping, wakes up and changes PC
             if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
             {
-                LOG_OTHER(DEBUG, thread_id, "Waking up due IPI_REDIRECT\n");
+                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due IPI_REDIRECT");
                 enabled_threads.push_back(thread_id);
                 current_pc[thread_id] = new_pc;
             }
             // Otherwise IPI is dropped
             else
             {
-                LOG_OTHER(DEBUG, thread_id, "WARNING => IPI_REDIRECT dropped\n");
+                LOG_OTHER(DEBUG, thread_id, "%s", "WARNING => IPI_REDIRECT dropped");
             }
         }
     }
@@ -429,7 +429,7 @@ int main(int argc, char * argv[])
         if (max_cycle)
         {
             max_cycle = false;
-            sscanf(argv[i], "%" SCNd64, &max_cycles);
+            sscanf(argv[i], "%" SCNu64, &max_cycles);
         }
         else if (elf)
         {
@@ -576,7 +576,7 @@ int main(int argc, char * argv[])
 
     if ((elf_file == NULL) && (mem_desc_file == NULL) && (api_comm_path == NULL))
     {
-        LOG_NOTHREAD(FTL, "Need an elf file or a mem_desc file or runtime API!");
+        LOG_NOTHREAD(FTL, "%s", "Need an elf file or a mem_desc file or runtime API!");
     }
 
     uint64_t drivers_enabled = 0;
@@ -585,14 +585,14 @@ int main(int argc, char * argv[])
 
     if (drivers_enabled > 1)
     {
-        LOG_NOTHREAD(FTL, "Can't have net_desc and master_min set at same time!");
+        LOG_NOTHREAD(FTL, "%s", "Can't have net_desc and master_min set at same time!");
     }
 
     if (debug == true) {
 #ifdef SYSEMU_DEBUG
-       LOG_NOTHREAD(INFO, "Starting in interactive mode.");
+       LOG_NOTHREAD(INFO, "%s", "Starting in interactive mode.");
 #else
-       LOG_NOTHREAD(WARN, "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG.");
+       LOG_NOTHREAD(WARN, "%s", "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG.");
 #endif
     }
 
@@ -678,7 +678,7 @@ int main(int argc, char * argv[])
           // Inits threads
           for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
              thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-             LOG_OTHER(DEBUG, thread_id, "Resetting");
+             LOG_OTHER(DEBUG, thread_id, "%s", "Resetting");
              current_pc[thread_id] = reset_pc;
              reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
              set_thread(thread_id);
@@ -692,7 +692,7 @@ int main(int argc, char * argv[])
        }
     }
 
-    LOG_NOTHREAD(INFO, "Starting emulation");
+    LOG_NOTHREAD(INFO, "%s", "Starting emulation");
 
     // While there are active threads or the network emulator is still not done
     while(  (emu_done() == false)
@@ -836,12 +836,12 @@ int main(int argc, char * argv[])
                 }
                 else if(inst.is_wfi() && !reduce_wait)
                 {
-                    LOG(DEBUG, "Going to sleep (WFI)");
+                    LOG(DEBUG, "%s", "Going to sleep (WFI)");
                     thread = enabled_threads.erase(thread);
                 }
                 else if(inst.is_stall() && !reduce_wait)
                 {
-                    LOG(DEBUG, "Going to sleep (CSR STALL)");
+                    LOG(DEBUG, "%s", "Going to sleep (CSR STALL)");
                     thread = enabled_threads.erase(thread);
                 }
                 else
@@ -852,7 +852,7 @@ int main(int argc, char * argv[])
             catch (const trap_t& t)
             {
                 take_trap(t);
-                //LOG(DEBUG, "Taking a trap");
+                //LOG(DEBUG, "%s", "Taking a trap");
                 if (current_pc[thread_id] == emu_state_change.pc)
                 {
                     LOG(FTL, "Trapping to the same address that caused a trap (0x%" PRIx64 "). Avoiding infinite trap recursion.",
@@ -897,7 +897,7 @@ int main(int argc, char * argv[])
     if (emu_cycle == max_cycles) {
        LOG(ERR, "Error, max cycles reached (%" SCNd64 ")", max_cycles);
     }
-    LOG_NOTHREAD(INFO, "Finishing emulation");
+    LOG_NOTHREAD(INFO, "%s", "Finishing emulation");
 
     // Dumping
     if(dump_file != NULL)

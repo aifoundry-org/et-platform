@@ -85,7 +85,8 @@ void new_sample_request(unsigned port_id, unsigned number_packets, uint64_t base
     }    
 }
 
-void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
+void checker_sample_quad(uint32_t thread __attribute__((unused)), uint64_t basePtr,
+                         TBOXEmu::SampleRequest currentRequest_, fdata input[], fdata output[])
 {
     uint64_t base_copy = tbox_emulator.get_image_table_address();
     if ( base_copy != basePtr )
