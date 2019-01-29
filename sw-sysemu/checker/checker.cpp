@@ -1,12 +1,16 @@
+// Global
 #include <cmath>
 #include <exception>
+#include <assert.h>
 
+// Local
 #include "checker.h"
 #include "emu_casts.h"
 #include "emu.h"
 #include "insn.h"
 #include "common/riscv_disasm.h"
 
+// Defines
 #define TBOX_REGION_START 0xFFF80000
 #define TBOX_REGION_END (TBOX_REGION_START + 512)
 
