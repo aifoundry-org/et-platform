@@ -532,8 +532,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
           }
         }
 
-
-
         if(emu_state_change.fp_reg_mod)
         {
 #if 0
@@ -916,7 +914,7 @@ finished_checking:
     else
        current_pc[thread] += inst.size();
 
-    if (check_res == CHECKER_ERROR)
+    if (check_res != CHECKER_OK)
     {
         error_msg += stream.str();
         if (!fail_on_check)

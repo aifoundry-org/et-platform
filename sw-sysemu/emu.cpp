@@ -5073,19 +5073,51 @@ static void ucvtemu(opcode opc, freg dst, freg src1)
         iufval32 res;
         switch (opc)
         {
-            case FCVTPSF16:  res.f = fpu::f16_to_f32(cast_uint16_to_float16(val));  break;
-            case FCVTPSF11:  res.f = fpu::f11_to_f32(cast_uint16_to_float11(val));  break;
-            case FCVTPSF10:  res.f = fpu::f10_to_f32(cast_uint16_to_float10(val));  break;
-            case FCVTPSUN24: res.f = fpu::un24_to_f32(val); break;
-            case FCVTPSUN16: res.f = fpu::un16_to_f32(val); break;
-            case FCVTPSUN10: res.f = fpu::un10_to_f32(val); break;
-            case FCVTPSUN8:  res.f = fpu::un8_to_f32(val);  break;
-            case FCVTPSUN2:  res.f = fpu::un2_to_f32(val);  break;
-            case FCVTPSSN16: res.f = fpu::sn16_to_f32(val); break;
-            case FCVTPSSN8:  res.f = fpu::sn8_to_f32(val);  break;
-            default: assert(0); break;
+            case FCVTPSF16:
+                res.f = fpu::f16_to_f32( fpu::F16(val) );
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val), res.flt);
+                break;
+            case FCVTPSF11:
+                res.f = fpu::f11_to_f32( fpu::F11(val) );
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val & 0x7ff), res.flt);
+                break;
+            case FCVTPSF10:
+                res.f = fpu::f10_to_f32( fpu::F10(val) );
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val & 0x3ff), res.flt);
+                break;
+            case FCVTPSUN24:
+                res.f = fpu::un24_to_f32(val);
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%06" PRIx32 " (%u)", i, res.u, res.flt, val & 0xffffff, val & 0xffffffff);
+                break;
+            case FCVTPSUN16:
+                res.f = fpu::un16_to_f32(val);
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%u)", i, res.u, res.flt, uint16_t(val), uint16_t(val));
+                break;
+            case FCVTPSUN10:
+                res.f = fpu::un10_to_f32(val);
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%u)", i, res.u, res.flt, uint16_t(val & 0xfff), val & 0xfff);
+                break;
+            case FCVTPSUN8:
+                res.f = fpu::un8_to_f32(val);
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%02" PRIx8 " (%u)", i, res.u, res.flt, uint8_t(val), uint8_t(val));
+                break;
+            case FCVTPSUN2:
+                res.f = fpu::un2_to_f32(val);
+                res.f = fpu::un8_to_f32(val);
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%1" PRIx8 " (%u)", i, res.u, res.flt, uint8_t(val & 0x3), uint8_t(val & 0x3));
+                break;
+            case FCVTPSSN16:
+                res.f = fpu::sn16_to_f32(val);
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%s%u)", i, res.u, res.flt, uint16_t(val), (val & 0x8000) ? "-" : "", uint16_t(val & 0x7fff));
+                break;
+            case FCVTPSSN8:
+                res.f = fpu::sn8_to_f32(val);
+                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%02" PRIx8 " (%s%u)", i, res.u, res.flt, uint8_t(val), (val & 0x80) ? "-" : "", uint8_t(val & 0x7f));
+                break;
+            default:
+                assert(0);
+                break;
         }
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%d)", i, res.u, res.flt, val, val);
         FREGS[dst].u[i] = res.u;
     }
     set_fp_exceptions();
