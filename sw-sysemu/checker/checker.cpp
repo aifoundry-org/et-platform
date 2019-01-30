@@ -231,7 +231,7 @@ void checker::set_et_core(int core_type)
 void checker::start_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
-        log << LOG_ERROR << "start pc with thread invalid (" << std::hex << thread << ")" << endm;
+        log << LOG_ERR << "start pc with thread invalid (" << std::hex << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 
@@ -239,7 +239,7 @@ void checker::start_pc(uint32_t thread, uint64_t pc)
 void checker::ipi_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
-        log << LOG_ERROR << "IPI pc with thread invalid (" << std::hex << thread << ")" << endm;
+        log << LOG_ERR << "IPI pc with thread invalid (" << std::hex << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 
@@ -272,7 +272,7 @@ checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_mi
         }
         else
         {
-            log << LOG_ERROR << "Reduce error: Minion: " << (thread >> 1) << " found pairing receiver minion: " << other_min << " in Reduce_Ready_To_Send!!" << endm;
+            log << LOG_ERR << "Reduce error: Minion: " << (thread >> 1) << " found pairing receiver minion: " << other_min << " in Reduce_Ready_To_Send!!" << endm;
         }
     }
     // Receiver
@@ -303,7 +303,7 @@ checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_mi
         }
         else
         {
-            log << LOG_ERROR << "Reduce error: Minion: " << (thread >> 1) << " found pairing sender minion: " << other_min << " in Reduce_Data_Consumed!!" << endm;
+            log << LOG_ERR << "Reduce error: Minion: " << (thread >> 1) << " found pairing sender minion: " << other_min << " in Reduce_Data_Consumed!!" << endm;
         }
     }
     return CHECKER_OK;
@@ -319,8 +319,8 @@ void checker::emu_disasm(char* str, size_t size, uint32_t bits)
 checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion)
 {
     checker_result check_res = CHECKER_OK;
-    if (thread >= EMU_NUM_THREADS || thread == )
-       log << LOG_ERROR << "emu_inst with thread invalid (" << std::hex << thread << ")" << endm;
+    if (thread >= EMU_NUM_THREADS )
+       log << LOG_ERR << "emu_inst with thread invalid (" << std::hex << thread << ")" << endm;
 
     if (!threadEnabled[thread])
        log << LOG_ERR << "emu_inst called for thread " << thread << ", which is disabled" << endm;
@@ -376,13 +376,13 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             // and we are about to loop forever because {m,s}tvec point to an illegal instruction
             // Loop a few times for the sake of it to make it clear in the log.
             if ((current_pc[thread] == emu_state_change.pc) && (retry_count < 0)) {
-               log << LOG_ERROR << "Sad, looks like we are stuck in an infinite trap recursion. Giving up." << endm;
+               log << LOG_ERR << "Sad, looks like we are stuck in an infinite trap recursion. Giving up." << endm;
                retry = false;
             }
         }
         catch (const std::exception& e)
         {
-            log << LOG_ERROR << e.what() << endm;
+            log << LOG_ERR << e.what() << endm;
         }
     }
     while (retry);
