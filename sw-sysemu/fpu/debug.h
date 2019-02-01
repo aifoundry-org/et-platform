@@ -89,8 +89,21 @@ static inline std::ostream& operator<<(std::ostream& os, Float32<1> x)
     std::bitset<7>  ovfl(x.sig >> 25);
     std::bitset<1>  lead(x.sig >> 24);
     std::bitset<23> frac(x.sig >>  1);
+    std::bitset<1>  grd(x.sig);
+    return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << grd << ')';
+}
+
+
+static inline std::ostream& operator<<(std::ostream& os, Float32<2> x)
+{
+    std::bitset<1>  sign(x.sign);
+    std::bitset<8>  exp(x.exp);
+    std::bitset<6>  ovfl(x.sig >> 26);
+    std::bitset<1>  lead(x.sig >> 25);
+    std::bitset<23> frac(x.sig >>  2);
+    std::bitset<1>  grd(x.sig >> 1);
     std::bitset<1>  rnd(x.sig);
-    return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << rnd << ')';
+    return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << grd << ' ' << rnd << ')';
 }
 
 
@@ -102,9 +115,10 @@ static inline std::ostream& operator<<(std::ostream& os, Float32<N> x)
     std::bitset<8-N>  ovfl(x.sig >> (N+24));
     std::bitset<1>    lead(x.sig >> (N+23));
     std::bitset<23>   frac(x.sig >> N);
-    std::bitset<1>    rnd(x.sig);
-    std::bitset<N-1>  stck(x.sig);
-    return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << rnd << ' ' << stck << ')';
+    std::bitset<1>    grd(x.sig >> (N-1));
+    std::bitset<1>    rnd(x.sig >> (N-2));
+    std::bitset<N-2>  stck(x.sig);
+    return os << '(' << sign << ' ' << exp << ' ' << ovfl << ' ' << lead << ' ' << frac << ' ' << grd << ' ' << rnd << " s:" << stck << ')';
 }
 
 
