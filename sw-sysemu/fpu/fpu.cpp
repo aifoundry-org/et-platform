@@ -448,37 +448,45 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     expDiffB = expA - expB;
     expDiffC = expA - expC;
 #ifdef FPU_DEBUG
-    std::cout << "H_shft: " << Float32<3>(signA,expA,sigA) << "(shft: 0)\n";
+    std::cout << "H_shft: " << Float32<3>(signA,expA,sigA) << " (shft: 0)\n";
 #endif
     if ( expDiffB ) {
         sigB = softfloat_shiftRightJam32( sigB, expDiffB );
-        sigB |= ((sigB & 0x2) != 0);
-        sigB &= ~0x2;
+        sigB = (sigB & ~2) | ((sigB & 2) >> 1);
     }
     if ( expDiffC ) {
         sigC = softfloat_shiftRightJam32( sigC, expDiffC );
-        sigC |= ((sigC & 0x2) != 0);
-        sigC &= ~0x2;
+        sigC = (sigC & ~2) | ((sigC & 2) >> 1);
     }
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     subB = signA ^ signB;
     subC = signA ^ signC;
 #ifdef FPU_DEBUG
-    std::cout << "M_shft: " << Float32<3>(signB,expA,sigB) << "(shft: " << expDiffB << ")\n";
-    std::cout << "L_shft: " << Float32<3>(signC,expA,sigC) << "(shft: " << expDiffC << ")\n\n";
+    std::cout << "M_shft: " << Float32<3>(signB,expA,sigB) << " (shft: " << expDiffB << ")\n";
+    std::cout << "L_shft: " << Float32<3>(signC,expA,sigC) << " (shft: " << expDiffC << ")\n\n";
 #endif
-    if ( subB && !subC && (sigB & sigC & 1) ) {
-        sigC -= 1;
-    } else if ( !subB && subC && (sigB & sigC & 1) ) {
-        sigB -= 1;
+#if 0
+    if ( sigB & sigC & 1 ) {
+        if ( subB && !subC ) {
+            --sigC;
+        } else if ( !subB && subC ) {
+            --sigB;
+        } else if ( !subB && !subC ) {
+            --sigB;
+        }
     }
+#else
+    if ( subB && !subC && (sigB & sigC & 1) ) {
+        --sigC;
+    } else if ( !subB && subC && (sigB & sigC & 1) ) {
+        --sigB;
+    }
+#endif
     signZ = signA;
     expZ = expA;
     sigZ = sigA + (subB ? -sigB : sigB) + (subC ? -sigC : sigC);
 #ifdef FPU_DEBUG
-    std::cout << "M_adj : " << Float32<3>(signB,expZ,sigB) << "(shft: " << expDiffB << ")\n";
-    std::cout << "L_adj : " << Float32<3>(signC,expZ,sigC) << "(shft: " << expDiffC << ")\n\n";
     std::cout << "H_add : " << Float32<3>(signA,expZ,sigA) << '\n';
     std::cout << "M_add : " << Float32<3>(signB,expZ,(subB ? -sigB : sigB)) << " (inv: " << (!!subB) << ")\n";
     std::cout << "L_add : " << Float32<3>(signC,expZ,(subC ? -sigC : sigC)) << " (inv: " << (!!subC) << ")\n\n";
@@ -508,6 +516,7 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
         goto uiZ;
     }
     sigZ <<= 3;
+    // 010: sigZ = ((sigZ & ~3) << 3) | (sigZ & 3);
 #if 0
     if (sigZ >= 0x80000000) {
         sigZ >>= 1;
