@@ -9,6 +9,10 @@ project(MasterMinion LANGUAGES C ASM)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# Locate hex output @ beginning of DRAM region 0x8000200000
+set(CMAKE_OFFSET_ADDRESS 0x8000200000)
+
+# TODO FIXME move shared code out of project specific dir
 set(SOURCES src/main.c src/trap_handler.c src/boot.S src/trap_handler.S)
 
 include_directories(include)
