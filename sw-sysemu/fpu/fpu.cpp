@@ -133,6 +133,7 @@ namespace fpu {
 #endif
     }
 
+
     static inline float16_t ftz(float16_t x)
     {
 #ifdef FPU_FTZ

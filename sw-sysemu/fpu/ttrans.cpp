@@ -161,11 +161,11 @@ uint32_t ttrans_frsq(uint32_t val)
 uint32_t ttrans_flog2(uint32_t val)
 {
     switch (val) {
-    case minusZeroF32UI: return minusInfinityF32UI;
-    case zeroF32UI     : return minusInfinityF32UI;
-    case oneF32UI      : return zeroF32UI;
-    case infinityF32UI : return infinityF32UI;
-    default: break;
+      case minusZeroF32UI: return minusInfinityF32UI;
+      case zeroF32UI     : return minusInfinityF32UI;
+      case oneF32UI      : return zeroF32UI;
+      case infinityF32UI : return infinityF32UI;
+      default: break;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
@@ -545,10 +545,13 @@ uint32_t ttrans_sin_convert(uint32_t ux)
 uint32_t ttrans_fsin(uint32_t val)
 {
     switch (val) {
-      case minusInfinityF32UI: return defaultNaNF32UI;
-      case minusZeroF32UI    : return minusZeroF32UI;
-      case zeroF32UI         : return zeroF32UI;
-      case infinityF32UI     : return defaultNaNF32UI;
+      case minusZeroF32UI:
+      case zeroF32UI:
+          return val;
+      case infinityF32UI:
+      case minusInfinityF32UI:
+          softfloat_raiseFlags(softfloat_flag_invalid);
+          return defaultNaNF32UI;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
