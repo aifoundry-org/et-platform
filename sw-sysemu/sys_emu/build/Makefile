@@ -55,7 +55,7 @@ clean:
 	$(MAKE) -C ../../build clean_libfpu
 	$(RM) -r sys_emu obj/
 
-../../build/libfpu.a:
+../../build/libfpu.a: force
 	$(MAKE) -C ../../build $(notdir $@)
 
 sys_emu: $(sysemu_OBJS) ../../build/libfpu.a
@@ -70,3 +70,6 @@ obj/%.o: ../../%.cpp | $(sysemu_DIRS)
 $(sysemu_OBJS): Makefile
 
 -include $(sysemu_DEPS)
+
+.PHONY: force
+force:
