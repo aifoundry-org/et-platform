@@ -380,6 +380,12 @@ uint32_t ttrans_fexp2(uint32_t val)
     bool sign = (val >> 31) != 0;
     //bool sign_exp = (exp >= 127);
 
+    // val < -126.0
+    if (val > 0xc2fc0000) {
+        softfloat_raiseFlags(softfloat_flag_underflow);
+        return 0;
+    }
+
     ////printf("Sign: %d\n", sign);
     ////printf("Exp: 0x%08x\tSign: %d\n", exp, sign_exp);
 
