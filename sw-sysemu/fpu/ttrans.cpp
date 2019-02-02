@@ -167,9 +167,13 @@ uint32_t ttrans_flog2(uint32_t val)
     case infinityF32UI : return infinityF32UI;
     default: break;
     }
-    if (isNaNF32UI(val) || (val & 0x80000000)) {
+    if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
+        return defaultNaNF32UI;
+    }
+    if (val & 0x80000000) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return defaultNaNF32UI;
     }
 
