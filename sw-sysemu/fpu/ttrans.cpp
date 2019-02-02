@@ -66,11 +66,18 @@ static uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0)
 uint32_t ttrans_frcp(uint32_t val)
 {
     switch (val) {
-      case minusInfinityF32UI: return minusZeroF32UI;
-      case minusZeroF32UI    : return minusInfinityF32UI;
-      case zeroF32UI         : return infinityF32UI;
-      case infinityF32UI     : return zeroF32UI;
-      default: break;
+      case minusInfinityF32UI:
+          return minusZeroF32UI;
+      case infinityF32UI:
+          return zeroF32UI;
+      case minusZeroF32UI:
+          softfloat_raiseFlags(softfloat_flag_infinite);
+          return minusInfinityF32UI;
+      case zeroF32UI:
+          softfloat_raiseFlags(softfloat_flag_infinite);
+          return infinityF32UI;
+      default:
+          break;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
@@ -106,10 +113,16 @@ uint32_t ttrans_frcp(uint32_t val)
 uint32_t ttrans_frsq(uint32_t val)
 {
     switch (val) {
-      case minusZeroF32UI: return minusInfinityF32UI;
-      case zeroF32UI     : return infinityF32UI;
-      case infinityF32UI : return zeroF32UI;
-      default: break;
+      case minusZeroF32UI:
+          softfloat_raiseFlags(softfloat_flag_infinite);
+          return minusInfinityF32UI;
+      case zeroF32UI:
+          softfloat_raiseFlags(softfloat_flag_infinite);
+          return infinityF32UI;
+      case infinityF32UI:
+          return zeroF32UI;
+      default:
+          break;
     }
     if (isNaNF32UI(val) || (val & 0x80000000)) {
         if (softfloat_isSigNaNF32UI(val))
