@@ -33,7 +33,7 @@ BFDROOT := $(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf
 
 CC	 := gcc
 CXX 	 := g++
-CPPFLAGS := -I../.. -I.. -I$(TESTROOT)/libs
+CPPFLAGS := -I../.. -I.. -I$(TESTROOT)/libs -I$(TESTROOT)/shire/shiretop/csrc
 CXXFLAGS := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c11
 LDLIBS   := -L../../build -Wl,-rpath=$(shell readlink -f ../../build) -lfpu
