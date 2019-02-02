@@ -50,7 +50,7 @@ clean:
 	$(MAKE) -C ../../build clean_libfpu
 	$(RM) -r libchecker.* obj/
 
-../../build/libfpu.so ../../build/libfpu.a:
+../../build/libfpu.so ../../build/libfpu.a: force
 	$(MAKE) -C ../../build $(notdir $@)
 
 libchecker.so: $(checker_OBJS) ../../build/libfpu.so
@@ -71,3 +71,6 @@ obj/%.o: ../../%.c | $(checker_DIRS)
 $(checker_OBJS): Makefile
 
 -include $(checker_DEPS)
+
+.PHONY: force
+force:
