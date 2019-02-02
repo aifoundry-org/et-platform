@@ -74,7 +74,7 @@ libemu: libemu.so libemu.a
 clean_libemu:
 	$(RM) -r libemu.* libemu/
 
-libemu.so libemu.a: CPPFLAGS := $(common_CPPFLAGS) -I$(TESTROOT)/libs
+libemu.so libemu.a: CPPFLAGS := $(common_CPPFLAGS) -I$(TESTROOT)/libs -I$(TESTROOT)/shire/shiretop/csrc
 libemu.so libemu.a: LDLIBS := -L. -Wl,-rpath=$(shell readlink -f .) -lfpu
 
 libemu.so: $(libemu_OBJS) libfpu.so
