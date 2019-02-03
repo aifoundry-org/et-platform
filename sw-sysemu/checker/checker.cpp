@@ -504,6 +504,8 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 stream << "BEMU Checker Int Register data_error. BEMU expects data is 0x" << std::hex << emu_state_change.int_reg_data << " but DUT reported 0x" << changes->int_reg_data << std::dec << std::endl;
 		check_res = CHECKER_ERROR;
+                //Set EMU state to what RTL says
+                init(inst.rd(), emu_state_change.int_reg_data);
             }
         }
 
@@ -553,6 +555,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                fpinit(inst.fd(), emu_state_change.fp_reg_data);
             }
 
+            bool fp_reg_data_mismatch = false;
             for(int i = 0; i < (VL/2); i++)
             {
               if(inst.is_1ulp())
@@ -583,15 +586,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     stream << " Current mask: 0x" << get_mask(0) << std::dec << std::endl;
 		    check_res = CHECKER_ERROR;
                 }
-#if 0
-                if( changes->fp_reg_data[i] != emu_state_change.fp_reg_data[i])
-                {
-                    // Checker and RTL do not match exactly; force the RTL value
-                    // into the checker to avoid errors in future instructions
-                    fpinit((freg)changes->fp_reg_rd, changes->fp_reg_data);
-                    //log << LOG_INFO << "Forcing f" << changes->fp_reg_rd << "[  to {" << changes->fp_reg_dataendm;
-                }
-#endif
               }
               else
               {
@@ -625,8 +619,13 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     }
                 }
               }
+              fp_reg_data_mismatch = fp_reg_data_mismatch || (changes->fp_reg_data[i] != emu_state_change.fp_reg_data[i]);
+            }
 
-
+            //Set EMU state to what RTL says
+            if (fp_reg_data_mismatch)
+            {
+                fpinit((freg)changes->fp_reg_rd, changes->fp_reg_data);
             }
         }
 
