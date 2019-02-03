@@ -9,7 +9,6 @@
 #include <queue>
 #include <unordered_map>
 
-#include "vlog_defines.h"
 #include "emu.h"
 #include "log.h"
 #include "emu_casts.h"

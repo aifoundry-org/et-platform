@@ -9,6 +9,7 @@
 #define EMU_NUM_COMPUTE_SHIRES  32
 #define EMU_MASTER_SHIRE        32
 #define EMU_IO_SHIRE_SP		33
+#define IO_SHIRE_ID		254
 #define EMU_NEIGH_PER_SHIRE     4
 #define EMU_MINIONS_PER_NEIGH   8
 #define EMU_TBOXES_PER_SHIRE    4
