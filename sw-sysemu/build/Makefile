@@ -89,6 +89,9 @@ $(libemu_DIRS):
 libemu/%.o: ../%.cpp | $(libemu_DIRS)
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
-$(libemu_OBJS): Makefile
+vlog_define:
+	$(TESTROOT)/shire/shiretop/scripts/gen_defines.sh
+
+$(libemu_OBJS): Makefile vlog_define
 
 -include $(libemu_DEPS)
