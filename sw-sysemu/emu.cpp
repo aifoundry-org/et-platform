@@ -9,6 +9,7 @@
 #include <queue>
 #include <unordered_map>
 
+#include "vlog_defines.h"
 #include "emu.h"
 #include "log.h"
 #include "emu_casts.h"
@@ -879,7 +880,13 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mvendorid] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity)
     csrregs[thread][csr_marchid] = 0x8000000000000001ULL;
     csrregs[thread][csr_mimpid] = 0x0;
-    csrregs[thread][csr_mhartid] = thread;
+    if (thread == ((EMU_IO_SHIRE_SP*EMU_MINIONS_PER_SHIRE) << 1)) {
+	csrregs[thread][csr_mhartid] = ((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1);
+    	LOG(INFO, "Repurposing Shire 33 for Service Process : Thread %u Original MHartID %" PRIu64 " New MHartID %u" , thread, csrregs[thread][csr_mhartid],((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1)); 
+    }
+    else
+	csrregs[thread][csr_mhartid] = thread;
+
     // misa is a 0-length register
     csrregs[thread][csr_misa] = CSR_ISA_MAX;
     // M-mode registers with reset
