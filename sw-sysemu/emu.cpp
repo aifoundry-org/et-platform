@@ -350,7 +350,6 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_tensor_quant,      "tensor_quant"       },
    { csr_tex_send,          "tex_send"           },
    { csr_tensor_error,      "tensor_error"       },
-   { csr_scratchpad_ctrl,   "scratchpad_ctrl"    },
    { csr_usr_cache_op,      "usr_cache_op"       },
    { csr_prefetch_va,       "prefetch_va"        },
    { csr_flb0,              "flb0"               },
@@ -2734,11 +2733,11 @@ static void csrset(csr src1, uint64_t val)
                 dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
             }
             break;
-        case csr_scratchpad_ctrl: // Shared register
-            val &= 0x0000000000000001ULL;
+        case csr_mcache_control: // Shared register
+            val &= 0x0000000000000003ULL;
             csrregs[current_thread][src1] = val;
             csrregs[current_thread^1][src1] = val;
-            num_sets = val ? 4 : 16;
+            num_sets = (val & 0x1) ? 4 : 16;
             break;
         case csr_tex_send:
             val &= 0x00000000000000FFULL;
@@ -6286,7 +6285,7 @@ int get_scratchpad_next_entry(int entry)
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
         48, 49, 50, 41, 52, 53, 54, 55, 56, 57, 58, 59
     };
-    if (csrregs[current_thread][csr_scratchpad_ctrl] & 0x1)
+    if (csrregs[current_thread][csr_mcache_control] == 0x3)
     {
         if (entry > 47 || entry < 0)
         {
@@ -7139,23 +7138,13 @@ void tensorload(uint64_t control)
     scp_entry[current_thread] = dst;
     scp_size[current_thread]  = rows;
 
-    // // Check if SCP is enabled
-    // // Disabled until the SCPControl register spec is updated
-    // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1) && false)
-    // {
-    //     LOG(DEBUG, "%s", "ERROR TensorLoad with SCP disabled!!");
-    //     update_tensor_error(1 << 4);
-    //     return;
-    // }
-
-    // // Check if line is locked
-    // // Disabled until the spec is updated
-    // if (!dcache_vaddr_is_locked(tm, base, rows, stride))
-    // {
-    //     LOG(DEBUG, "%s", "ERROR Tensor Load writing to unlocked scp lines!!");
-    //     update_tensor_error(1 << 0);
-    //     return;
-    // }
+    // Check if SCP is enabled
+    if (csrregs[current_thread][csr_mcache_control] != 0x3)
+    {
+        LOG(DEBUG, "%s", "ERROR TensorLoad with SCP disabled!!");
+        update_tensor_error(1 << 4);
+        return;
+    }
 
     //NO TRANS
     if (trans == 0x00)
@@ -7440,16 +7429,15 @@ static void tensorquant(uint64_t value)
         tensorquant_trans[current_thread]++;
         bool scp_inc = false;
 
-        if (transformations[trans] == 4 || transformations[trans] == 5 ||
-            transformations[trans] == 6 || transformations[trans] == 7)
+        if ((transformations[trans] == 4) || (transformations[trans] == 5) ||
+            (transformations[trans] == 6) || (transformations[trans] == 7))
         {
             // Check if SCP is enabled
-            // Dissabled until software update
-            // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
-            // {
-            //     update_tensor_error(1 << 4);
-            //     return;
-            // }
+            if (csrregs[current_thread][csr_mcache_control] != 0x3)
+            {
+                update_tensor_error(1 << 4);
+                return;
+            }
         }
 
         // For all the rows
@@ -7594,13 +7582,12 @@ static void tensorstore(uint64_t tstorereg)
         int src = scpstart % L1_SCP_ENTRIES;
         LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
 
-        // // check if L1 SCP is enabled
-        // // Disabled until software update
-        // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
-        // {
-        //     update_tensor_error(1 << 4);
-        //     return;
-        // }
+        // Check if L1 SCP is enabled
+        if (csrregs[current_thread][csr_mcache_control] != 0x3)
+        {
+            update_tensor_error(1 << 4);
+            return;
+        }
 
         // For all the rows
         for (int row = 0; row < rows; row++)
@@ -7712,13 +7699,12 @@ static void tensor_fma32(uint64_t tfmareg)
     arows = arows + 1;
     acols = acols + 1;
 
-    // // FIXME: Disabled until software update - JIRA RTLMIN-2096
-    // // Check if L1 SCP is enabled
-    // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
-    // {
-    //     update_tensor_error(1 << 4);
-    //     return;
-    // }
+    // Check if L1 SCP is enabled
+    if (csrregs[current_thread][csr_mcache_control] != 0x3)
+    {
+        update_tensor_error(1 << 4);
+        return;
+    }
 
     LOG(DEBUG, "\tStart TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));

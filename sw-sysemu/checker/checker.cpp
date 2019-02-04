@@ -821,9 +821,10 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
 
                     // Check next entry for regular operations, ignore 1 write for packs
                     int entries_checked = is_pack ? 2 : 1;
+                    auto it = tensorquant_list[thread].begin();
                     for(int i = 0; i < entries_checked; i++)
                     {
-                        auto it = tensorquant_list[thread].begin();
+                        it = tensorquant_list[thread].begin();
                         while(it != tensorquant_list[thread].end())
                         {
                             if(it->entry == entry) { break; }
@@ -842,10 +843,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                             tensorquant_list[thread].erase(it);
                         }
                     }
-
-                    // Looks for the 1st entry in the list of RTL written lines with same destination
-                    auto it = tensorquant_list[thread].begin();
-                    assert(it != tensorquant_list[thread].end());
 
                     // Compares the data for all the lanes (8 x 32b lanes)
                     for(int lane = 0; lane < VL; lane++)
