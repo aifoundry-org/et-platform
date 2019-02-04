@@ -242,7 +242,6 @@ static csr imm2csr(uint16_t imm)
     case 0x806 : return csr_tensor_quant;   /* TODO: add to binutils */
     case 0x807 : return csr_tex_send;
     case 0x808 : return csr_tensor_error;
-    case 0x810 : return csr_scratchpad_ctrl;
 #if 1 /* TODO: uncomment, usr_cache_op is replaced by individual CacheOp CSRs */
     case 0x81f : return csr_prefetch_va;
 #else
