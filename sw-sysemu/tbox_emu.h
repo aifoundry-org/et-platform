@@ -508,7 +508,7 @@ private :
 
     fdata output[EMU_NUM_THREADS][4];
 
-    uint32_t current_thread;
+    uint32_t request_hart;
 
     uint32_t imageInfoCacheTags[IMAGE_INFO_CACHE_SIZE];
     ImageInfo imageInfoCache[IMAGE_INFO_CACHE_SIZE];

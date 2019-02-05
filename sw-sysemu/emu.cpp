@@ -1185,7 +1185,7 @@ static uint16_t pmemread16(uint64_t paddr)
     return data;
 }
 
-static uint32_t pmemread32(uint64_t paddr)
+uint32_t pmemread32(uint64_t paddr)
 {
     log_info->mem_addr[0] = paddr;
     uint32_t data = func_memread32(paddr);
@@ -1238,7 +1238,7 @@ static void pmemwrite16(uint64_t paddr, uint16_t data)
     func_memwrite16(paddr, data);
 }
 
-static void pmemwrite32(uint64_t paddr, uint32_t data)
+void pmemwrite32(uint64_t paddr, uint32_t data)
 {
     func_memwrite32(paddr, data);
 }

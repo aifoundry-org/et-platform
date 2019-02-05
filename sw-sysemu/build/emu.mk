@@ -18,4 +18,5 @@ emu_cpp_srcs := \
 	insn_exec_func.cpp \
 	log.cpp \
 	tbox_emu.cpp \
-	txs.cpp
+	txs.cpp \
+	rbox.cpp
