@@ -1,4 +1,19 @@
 #!/usr/bin/bash
 
-g++ -mf16c -O0 -I../ -I $SGPU/include -I ./ ../emu.cpp ../ttrans.cpp ../rbox.cpp ../cvt.cpp ../log.cpp ../ipc.cpp ../emu_gio.cpp rbox_test.c triangle_setup.c tile_rast.c -o rbox_test
+echo "First build libfpu.a"
+
+pushd ../build
+make
+popd
+
+echo "Then compile the test binary"
+
+# NOTE : There is no static version of libemu!!
+
+EMU_FILES="../emu.cpp ../emu_gio.cpp ../insn_dec_func.cpp ../insn_exec_func.cpp ../log.cpp ../tbox_emu.cpp ../txs.cpp ../rbox.cpp"
+INCLUDE_DIRS="-I ../ -I ../sys_emu/"
+SOURCE_FILES="../sys_emu/sys_emu_log.cpp rbox_test.c"
+LIBRARY_FILES=" ../build/libfpu.a -lm"
+
+g++ -mf16c -std=c++11 -MMD -MP -Wall -Werror -fPIC -static -O2 $INCLUDE_DIRS $EMU_FILES $SOURCE_FILES $LIBRARY_FILES -o rbox_test
 
