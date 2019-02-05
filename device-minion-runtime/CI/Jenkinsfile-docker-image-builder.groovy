@@ -84,6 +84,15 @@ pipeline {
                 // Build the sw-platform image
                 sh './device-firmware.py --logging=DEBUG docker build-image et-sw-device-fw'
                 sh './device-firmware.py --logging=DEBUG docker push-image et-sw-device-fw'
+                withDockerRegistry([ credentialsId: "jenkins-nexus3", url: "https://sc-docker-registry.esperanto.ai/v2/repository/et-sw" ]) {
+                    echo "Build Docker For Colo"
+                    // Build the base image first we inherit from and push
+                    sh './device-firmware.py --logging=DEBUG docker build-image --docker-registry Colo et-sw-base'
+                    sh './device-firmware.py --logging=DEBUG docker push-image --docker-registry Colo et-sw-base'
+                    // Build the sw-platform image
+                    sh './device-firmware.py --logging=DEBUG docker build-image --docker-registry Colo et-sw-device-fw'
+                    sh './device-firmware.py --logging=DEBUG docker push-image --docker-registry Colo et-sw-device-fw'
+                }
                 echo "Building Docker Image done"
             }
         }
