@@ -13,8 +13,8 @@ using namespace std;
 using namespace ELFIO;
 
 // Constructor
-main_memory::main_memory(std::string logname, enum logLevel log_level)
-    : log(logname, log_level)
+main_memory::main_memory(testLog& log_)
+    : log(log_)
 {
     getthread = NULL;
 
@@ -117,7 +117,6 @@ main_memory::~main_memory()
 // Read a bunch of bytes
 void main_memory::read(uint64_t ad, int size, void * data)
 {
-   log << LOG_DEBUG << "read(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
    rg_it_t r = find(ad);
 
    if (r == regions_.end()) {
@@ -168,7 +167,6 @@ void main_memory::read(uint64_t ad, int size, void * data)
 // Writes a bunch of bytes
 void main_memory::write(uint64_t ad, int size, const void * data)
 {
-   log << LOG_DEBUG << "write(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
    rg_it_t r = find(ad);
 
    if (r == regions_.end()) {

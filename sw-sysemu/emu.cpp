@@ -558,10 +558,9 @@ std::stringstream dump_fregs(uint32_t thread_id)
    return str;
 }
 
-void init_emu(enum logLevel level)
+void init_emu()
 {
    XREGS[x0].x  = 0;
-   emu_log().setLogLevel(level);
    // FIXME: remove '#include <cfenv>' when we purge this function from the code
    std::fesetround(FE_TONEAREST); // set rne for host
 }
@@ -1186,13 +1185,13 @@ uint64_t (*vmemtranslate) (uint64_t addr, mem_access_type macc) = virt_to_phys_h
 // forward declaration
 static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc);
 
-static uint8_t pmemread8(uint64_t paddr)
+uint8_t pmemread8(uint64_t paddr)
 {
     uint8_t data = func_memread8(paddr);
     return data;
 }
 
-static uint16_t pmemread16(uint64_t paddr)
+uint16_t pmemread16(uint64_t paddr)
 {
     uint16_t data = func_memread16(paddr);
     return data;
@@ -1215,36 +1214,36 @@ uint16_t pmemfetch16(uint64_t paddr)
     return func_memread16(paddr);
 }
 
-uint8_t vmemread8(uint64_t addr)
+static uint8_t vmemread8(uint64_t addr)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
     return pmemread8(paddr);
 }
 
-uint16_t vmemread16(uint64_t addr)
+static uint16_t vmemread16(uint64_t addr)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
     return pmemread16(paddr);
 }
 
-uint32_t vmemread32(uint64_t addr)
+static uint32_t vmemread32(uint64_t addr)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
     return pmemread32(paddr);
 }
 
-uint64_t vmemread64(uint64_t addr)
+static uint64_t vmemread64(uint64_t addr)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
     return pmemread64(paddr);
 }
 
-static void pmemwrite8(uint64_t paddr, uint8_t data)
+void pmemwrite8(uint64_t paddr, uint8_t data)
 {
     func_memwrite8(paddr, data);
 }
 
-static void pmemwrite16(uint64_t paddr, uint16_t data)
+void pmemwrite16(uint64_t paddr, uint16_t data)
 {
     func_memwrite16(paddr, data);
 }
@@ -1259,25 +1258,25 @@ void pmemwrite64(uint64_t paddr, uint64_t data)
     func_memwrite64(paddr, data);
 }
 
-void vmemwrite8(uint64_t addr, uint8_t data)
+static void vmemwrite8(uint64_t addr, uint8_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
     pmemwrite8(paddr, data);
 }
 
-void vmemwrite16(uint64_t addr, uint16_t data)
+static void vmemwrite16(uint64_t addr, uint16_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
     pmemwrite16(paddr, data);
 }
 
-void vmemwrite32(uint64_t addr, uint32_t data)
+static void vmemwrite32(uint64_t addr, uint32_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
     pmemwrite32(paddr, data);
 }
 
-void vmemwrite64(uint64_t addr, uint64_t data)
+static void vmemwrite64(uint64_t addr, uint64_t data)
 {
     uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
     pmemwrite64(paddr, data);

@@ -971,8 +971,8 @@ bool TBOX::TBOXEmu::access_memory(uint64_t address, uint64_t &data)
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
 #else
-    data = vmemread64(address);
-    LOG(DEBUG, "\t\t %016lx <- MEM[%016lx]", data, address);
+    data = pmemread64(address);
+    LOG(DEBUG, "\t\t %016lx <- PMEM64[%016lx]", data, address);
     return true;
 #endif
 }
@@ -982,8 +982,8 @@ bool TBOX::TBOXEmu::access_memory(uint64_t address, uint32_t &data)
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
 #else
-    data = vmemread32(address);
-    LOG(DEBUG, "\t\t %08x <- MEM[%016lx]", data, address);
+    data = pmemread32(address);
+    LOG(DEBUG, "\t\t %08x <- PMEM32[%016lx]", data, address);
     return true;
 #endif
 }
@@ -1201,7 +1201,7 @@ void TBOX::TBOXEmu::clear_l2_requests(uint32_t thread)
     {
         if (!l2_requests[e].free)
         {
-            if (l2_requests[e].thread_mask & (1 << thread)) LOG(DEBUG,"\tClear L2 request %d for thread %d", e, thread);
+            if (l2_requests[e].thread_mask & (1 << thread)) LOG(DEBUG, "\tClear L2 request %d for thread %d", e, thread);
 
             l2_requests[e].thread_mask &= ~(1 << thread);
 
@@ -1238,10 +1238,10 @@ bool TBOX::TBOXEmu::read_image_info_cache_line(uint64_t address, ImageInfo &data
 #ifdef TBOX_MINION_SIM
     return get_l2_data(address, data);
 #else
-    data.data[0] = vmemread64(address + 0);
-    data.data[1] = vmemread64(address + 8);
-    data.data[2] = vmemread64(address + 16);
-    data.data[3] = vmemread64(address + 24);
+    data.data[0] = pmemread64(address + 0);
+    data.data[1] = pmemread64(address + 8);
+    data.data[2] = pmemread64(address + 16);
+    data.data[3] = pmemread64(address + 24);
     return true;
 #endif
 }
@@ -1403,7 +1403,7 @@ void TBOX::TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, u
     ImageFormat fmt = (ImageFormat)currentImage.info.format;
     bool tiled = currentImage.info.tiled;
 
-    LOG(DEBUG, "Decompress Texture Cache Line format %x tiled %d\n", fmt, tiled);
+    LOG(DEBUG, "Decompress Texture Cache Line format %x tiled %d", fmt, tiled);
 
     switch (fmt)
     {
@@ -2307,13 +2307,13 @@ bool TBOX::TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImag
     uint64_t imageInfoAddress = imageTableAddress + request.info.imageid * 32;
 
 
-    LOG(DEBUG, "\tRead Image Descriptor with ID %d from Address %016lx\n", request.info.imageid, imageInfoAddress);
+    LOG(DEBUG, "\tRead Image Descriptor with ID %d from Address %016lx", request.info.imageid, imageInfoAddress);
     fflush(stdout);
 
-    currentImage.data[0] = vmemread64(imageInfoAddress);
-    currentImage.data[1] = vmemread64(imageInfoAddress + 8);
-    currentImage.data[2] = vmemread64(imageInfoAddress + 16);
-    currentImage.data[3] = vmemread64(imageInfoAddress + 24);
+    currentImage.data[0] = pmemread64(imageInfoAddress);
+    currentImage.data[1] = pmemread64(imageInfoAddress + 8);
+    currentImage.data[2] = pmemread64(imageInfoAddress + 16);
+    currentImage.data[3] = pmemread64(imageInfoAddress + 24);
 
     LOG(DEBUG, "\tImage Info %016lx %016lx %016lx %016lx", currentImage.data[0],
                currentImage.data[1], currentImage.data[2], currentImage.data[3]);
@@ -2445,17 +2445,17 @@ void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fd
         aniso_count = (aniso_count >> 1) + (aniso_count & 0x01);
         aniso_count = aniso_count * 2;
         if (aniso_count == 0)
-            LOG(WARN,"Aniso count is 0!! aniso_ratio = %f round(aniso_ratio) = %f", aniso_ratio, round(aniso_ratio));
+            LOG(WARN, "Aniso count is 0!! aniso_ratio = %f round(aniso_ratio) = %f", aniso_ratio, round(aniso_ratio));
         
         aniso_weight = 1.0f / float(aniso_count);
         
-        LOG(DEBUG,"\taniso_count = %d aniso_weight = %f", aniso_count, aniso_weight);
+        LOG(DEBUG, "\taniso_count = %d aniso_weight = %f", aniso_count, aniso_weight);
 
     }
 
     for (uint32_t aniso_sample_idx = 0; aniso_sample_idx < aniso_count; aniso_sample_idx++)
     {
-        if (aniso_count > 1) LOG(DEBUG,"\taniso sample %d out of %d", aniso_sample_idx, aniso_count);
+        if (aniso_count > 1) LOG(DEBUG, "\taniso sample %d out of %d", aniso_sample_idx, aniso_count);
 
         uint32_t sample_mip_level = mip_level;
         float sample_mip_beta = mip_beta_fp;
@@ -2471,7 +2471,7 @@ void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fd
 
             for (uint32_t slice = 0; slice < num_slices; slice++)
             {
-                if (num_slices > 1) LOG(DEBUG,"\tslice sample %d", slice);
+                if (num_slices > 1) LOG(DEBUG, "\tslice sample %d", slice);
                 sample_bilinear(currentRequest, s, t, r, quad * 4 + pixel, currentImage, filter, slice, sample_mip_level,
                                 sample_mip_beta, aniso_sample_idx, aniso_weight, aniso_deltas, aniso_deltat, red,
                                 green, blue, alpha, output_result);
@@ -2902,7 +2902,7 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata
     }
 
     if (output_result) {
-        LOG(DEBUG,"\tResult = {0x%08x (%f), 0x%08x (%f), 0x%08x (%f), 0x%08x (%f)}",
+        LOG(DEBUG, "\tResult = {0x%08x (%f), 0x%08x (%f), 0x%08x (%f), 0x%08x (%f)}",
             fpu::UI32(red), red, fpu::UI32(green), green,
             fpu::UI32(blue), blue, fpu::UI32(alpha), alpha);
     }
@@ -3658,39 +3658,39 @@ void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, u
     {
         case 1:
             {
-                data[0] = vmemread8(texelAddress);
-                LOG(DEBUG, "\t\t%02x <- MEM[%016lx]", data[0], texelAddress);
+                data[0] = pmemread8(texelAddress);
+                LOG(DEBUG, "\t\t%02x <- PMEM8[%016lx]", data[0], texelAddress);
             }
             break;
         case 2:
             {
-                uint16_t texelData = vmemread16(texelAddress);
+                uint16_t texelData = pmemread16(texelAddress);
                 memcpy_uint16(&data[0], texelData);
-                LOG(DEBUG, "\t\t%04x <- MEM[%016lx]", texelData, texelAddress);
+                LOG(DEBUG, "\t\t%04x <- PMEM16[%016lx]", texelData, texelAddress);
             }
             break;
         case 4:
             {
-                uint32_t texelData = vmemread32(texelAddress);
+                uint32_t texelData = pmemread32(texelAddress);
                 memcpy_uint32(&data[0], texelData);
-                LOG(DEBUG, "\t\t%08x <- MEM[%016lx]", texelData, texelAddress);
+                LOG(DEBUG, "\t\t%08x <- PMEM32[%016lx]", texelData, texelAddress);
             }
             break;
         case 8:
             {
-                uint64_t texelData = vmemread64(texelAddress);
+                uint64_t texelData = pmemread64(texelAddress);
                 memcpy_uint64(&data[0], texelData);
-                LOG(DEBUG, "\t\t%016lx <- MEM[%016lx]", texelData, texelAddress);
+                LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress);
             }
             break;
         case 16:
             {
-                uint64_t texelData = vmemread64(texelAddress);
+                uint64_t texelData = pmemread64(texelAddress);
                 memcpy_uint64(&data[0], texelData);
-                LOG(DEBUG, "\t\t%016lx <- MEM[%016lx]", texelData, texelAddress);
-                texelData = vmemread64(texelAddress + 8);
+                LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress);
+                texelData = pmemread64(texelAddress + 8);
                 memcpy_uint64(&data[8], texelData);
-                LOG(DEBUG, "\t\t%016lx <- MEM[%016lx]", texelData, texelAddress + 8);
+                LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress + 8);
             }
             break;
         default:
@@ -4126,12 +4126,12 @@ void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
     {
         case SAMPLE_OP_GATHER4:
         case SAMPLE_OP_GATHER4_PO:
-            LOG(DEBUG,"Component Selection = %d | ", (req.info.component & 0x3));
+            LOG(DEBUG, "Component Selection = %d | ", (req.info.component & 0x3));
             break;
         case SAMPLE_OP_SAMPLE_C:
         case SAMPLE_OP_SAMPLE_C_L:
         case SAMPLE_OP_GATHER4_C:
-            LOG(DEBUG,"Compare Operation = %s | ", toStrCompareOperation((CompareOperation)req.info.compop));
+            LOG(DEBUG, "Compare Operation = %s | ", toStrCompareOperation((CompareOperation)req.info.compop));
             break;
     }
     switch (req.info.operation)
@@ -4139,7 +4139,7 @@ void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
         case SAMPLE_OP_SAMPLE_L:
         case SAMPLE_OP_SAMPLE_C_L:
         case SAMPLE_OP_LD:
-            LOG(DEBUG,"LODs = %f %f %f %f  %f %f %f %f",
+            LOG(DEBUG, "LODs = %f %f %f %f  %f %f %f %f",
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][0]))),
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][1]))),
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lod_array[0][2]))),
@@ -4152,7 +4152,7 @@ void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
         case SAMPLE_OP_SAMPLE:
         case SAMPLE_OP_SAMPLE_C:
             for (uint32_t quad = 0; quad < 2; quad++)
-                LOG(DEBUG,"Quad %d | LOD = %f | Aniso Ratio = %f | Aniso Delta S = %f | Aniso Delta T = %f",
+                LOG(DEBUG, "Quad %d | LOD = %f | Aniso Ratio = %f | Aniso Delta S = %f | Aniso Delta T = %f",
                     quad,
                     fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[quad]))),
                     fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.anisoratio[quad]))),
@@ -4163,7 +4163,7 @@ void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
         case SAMPLE_OP_GATHER4_PO:
         case SAMPLE_OP_GATHER4_C:
         case SAMPLE_OP_GATHER4_PO_C:
-            LOG(DEBUG,"Quad 0 LOD = %f | Quad 1 LOD = %f",
+            LOG(DEBUG, "Quad 0 LOD = %f | Quad 1 LOD = %f",
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[0]))),
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[1]))));
             break;
@@ -4189,7 +4189,7 @@ void TBOX::TBOXEmu::print_image_info(ImageInfo in)
                in.info.rowpitch, in.info.mippitchl0, in.info.mippitchl1, in.info.elementpitch);
     LOG(DEBUG, " Tiled = %ld | Packed Layout = %ld | First Packed Mip = %ld | First Packed Mip Level = %ld | ",
                in.info.tiled, in.info.packedlayout, in.info.packedmip, in.info.packedlevel);
-    LOG(DEBUG, " Mip Scale by 8 = %ld | Mip Scale by 4 = %ld\n",
+    LOG(DEBUG, " Mip Scale by 8 = %ld | Mip Scale by 4 = %ld",
                in.info.mipscale8, in.info.mipscale4);
 }
 
