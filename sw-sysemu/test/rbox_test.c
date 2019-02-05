@@ -1,10 +1,14 @@
-#include <rbox.h>
-#include <triangle_setup.h>
-#include <tile_rast.h>
 #include <cstdio>
 #include <cstring>
 #include <csignal>
 #include <cstdlib>
+
+//#include <triangle_setup.h>
+//#include <tile_rast.h>
+#include <testLog.h>
+#include <emu_gio.h>
+#include <emu.h>
+#include <rbox.h>
 
 uint64_t get_abs_integral_fxp(int64_t v, uint32_t int_bits, uint32_t frac_bits)
 {
@@ -54,10 +58,10 @@ char *fxp_2_dec_str(char *str, int64_t v, uint32_t int_bits, uint32_t frac_bits,
     return str;
 }
 
-float32_t fxp_2_float32(int64_t v, uint32_t int_bits, uint32_t frac_bits)
+float fxp_2_float32(int64_t v, uint32_t int_bits, uint32_t frac_bits)
 {
     uint64_t v_abs = (v < 0) ? uint64_t(-v) : uint64_t(v);
-    float32_t v_abs_fp = float32_t(v_abs) / float32_t(1ULL << frac_bits);
+    float v_abs_fp = float(v_abs) / float(1ULL << frac_bits);
     
     return (v < 0) ? -v_abs_fp : v_abs_fp;
 }
@@ -65,16 +69,16 @@ float32_t fxp_2_float32(int64_t v, uint32_t int_bits, uint32_t frac_bits)
 char *fxp_2_hex_str(char *str, int64_t v, uint32_t int_bits, uint32_t frac_bits)
 {
     char format_str[32];
-    uint32_t frac_hex_digits = frac_bits >> 2 + (((frac_bits & 0x3) > 0) ? 1 : 0);
+    uint32_t frac_hex_digits = (frac_bits >> 2) + (((frac_bits & 0x3) > 0) ? 1 : 0);
 
-    sprintf(format_str, "%%llx.%%0%dllx", frac_hex_digits);
+    sprintf(format_str, "%%" PRIx64 ".%%0%d" PRIx64, frac_hex_digits);
     
     sprintf(str, format_str, v >> frac_bits, v & ((1 << frac_bits) - 1));
 
     return str;
 }
 
-void setup_triangle(float32_t vpos_x[3], float32_t vpos_y[3], float32_t vdepth[3], int64_t a[4], int64_t b[4], int64_t c[4])
+void setup_triangle(float vpos_x[3], float vpos_y[3], float vdepth[3], int64_t a[4], int64_t b[4], int64_t c[4])
 {
     char str1[256], str2[256], str3[256], str4[256], str5[256], str6[256];
 
@@ -86,9 +90,9 @@ void setup_triangle(float32_t vpos_x[3], float32_t vpos_y[3], float32_t vdepth[3
     {
         vpos_x_fxp_16_8[v] = int64_t(vpos_x[v] * 256.0);
         vpos_y_fxp_16_8[v] = int64_t(vpos_y[v] * 256.0);
-        vdepth_unorm24[v] = int32_t(vdepth[v] * float32_t((1 << 24) - 1));
+        vdepth_unorm24[v] = int32_t(vdepth[v] * float((1 << 24) - 1));
 
-        printf("vertex %d -> x = %f [%s] (%s) y = %f [%s] (%s) z = %f (%08llx)\n", v,
+        printf("vertex %d -> x = %f [%s] (%s) y = %f [%s] (%s) z = %f (%08x)\n", v,
             vpos_x[v],
             fxp_2_hex_str(str1, vpos_x_fxp_16_8[v], 16, 8),
             fxp_2_dec_str(str2, vpos_x_fxp_16_8[v], 16, 8, 6),
@@ -187,10 +191,10 @@ void setup_triangle(float32_t vpos_x[3], float32_t vpos_y[3], float32_t vdepth[3
     b_depth = (b_depth >> 24);
     c_depth = (c_depth >> 24);
 
-    printf("depth eq => a = %f [%x] b = %f [%x] c = %f [%x]\n",
-        float32_t(a_depth) / float32_t((1 << 24) - 1), a_depth,
-        float32_t(b_depth) / float32_t((1 << 24) - 1), b_depth,
-        float32_t(c_depth) / float32_t((1 << 24) - 1), c_depth);
+    printf("depth eq => a = %f [%016" PRIx64 "] b = %f [%016" PRIx64 "] c = %f [%016" PRIx64 "]\n",
+        float(a_depth) / float((1 << 24) - 1), a_depth,
+        float(b_depth) / float((1 << 24) - 1), b_depth,
+        float(c_depth) / float((1 << 24) - 1), c_depth);
 
     a[3] = a_depth;
     b[3] = b_depth;
@@ -204,6 +208,9 @@ void flush_on_seg_signal(int signal, siginfo_t *si, void *arg)
    exit(-1);
 }
 
+// Required by the log functionality
+uint64_t emu_cycle = 0;
+
 int main()
 {
     struct sigaction signal_action;
@@ -212,6 +219,18 @@ int main()
     signal_action.sa_sigaction = flush_on_seg_signal;
     signal_action.sa_flags = SA_SIGINFO;
     sigaction(SIGSEGV, &signal_action, NULL);
+
+    // Emulator infrastructure initialization
+    // Generates the main memory of the emulator
+    //memory = new main_memory("checker main memory", log_mem_en? LOG_DEBUG : LOG_INFO);
+    //memory->setGetThread(get_thread_emu);
+    //if (create_mem_at_runtime) {
+    //   memory->create_mem_at_runtime();
+    //}
+
+    init_emu(LOG_DEBUG);
+    log_only_minion(-1);
+
 
     printf("RBOX Basic Tester\n");
 
@@ -224,43 +243,44 @@ int main()
             depth_stencil_buffer[y * 1024 + x] = 0xFFFFFF;
 
     uint64_t in_buffer[1024];
-    uint64_t *out_buffer = new uint64_t[1024 * 1024];
+    //uint64_t *out_buffer = new uint64_t[1024 * 1024];
 
-    set_rbox((uint64_t) in_buffer, 1024, (uint64_t) out_buffer, 1024 * 1024);
+    printf("Verify packet sizes\n");
+    printf("Size of RBOXInPcktRBOXState          = %ld\n",          sizeof(RBOX::InPcktRBOXStateT));
+    printf("Size of RBOXInPcktFrgmtShdrState     = %ld\n",     sizeof(RBOX::InPcktFrgmtShdrStateT));
+    printf("Size of RBOXInPcktTriWithTile64x64   = %ld\n",   sizeof(RBOX::InPcktTriWithTile64x64T));
+    printf("Size of RBOXInPcktTriWithTile128x128 = %ld\n", sizeof(RBOX::InPcktTriWithTile128x128T));
+    printf("Size of RBOXInPcktLargeTri           = %ld\n",           sizeof(RBOX::InPcktLargeTriT));
+    printf("Size of RBOXInPcktLargeTriTile       = %ld\n",       sizeof(RBOX::InPcktLargeTriTileT));
+    printf("Size of RBOXInPcktFullyCoveredTile   = %ld\n",   sizeof(RBOX::InPcktFullyCoveredTileT));
+    printf("Size of RBOXInPcktEndOfInBuf         = %ld\n",         sizeof(RBOX::InPcktEndOfInBufT));
+    printf("Size of RBOXOutPcktFrgShdrState      = %ld\n",      sizeof(RBOX::OutPcktFrgShdrStateT));
+    printf("Size of RBOXOutPcktQuadInfo          = %ld\n",          sizeof(RBOX::OutPcktQuadInfoT));
+    printf("Size of RBOXOutPcktQuadData          = %ld\n",          sizeof(RBOX::OutPcktQuadDataT));
 
-    reset_input_stream();
-    reset_output_stream();
+    RBOX::InPcktRBOXStateT          rbox_state_pckt;
+    RBOX::InPcktFrgmtShdrStateT     frg_shdr_state_pckt;
+    RBOX::InPcktTriWithTile64x64T   tri_with_tile_64x64_pckt;
+    //RBOX::InPcktTriWithTile128x128T tri_with_tile_128x128_pckt;
+    //RBOX::InPcktLargeTriT           large_tri_pckt;
+    //RBOX::InPcktLargeTriTileT       large_tri_tile_pckt;
+    //RBOX::InPcktFullyCoveredTileT   fully_cov_tile_pckt;
+    RBOX::InPcktEndOfInBufT         end_of_input_buffer_pckt;
 
-    RBOXInPcktRBOXState          rbox_state_pckt;
-    RBOXInPcktFrgmtShdrState     frg_shdr_state_pckt;
-    RBOXInPcktTriWithTile64x64   tri_with_tile_64x64_pckt;
-    RBOXInPcktTriWithTile128x128 tri_with_tile_128x128_pckt;
-    RBOXInPcktLargeTri           large_tri_pckt;
-    RBOXInPcktLargeTriTile       large_tri_tile_pckt;
-    RBOXInPcktFullyCoveredTile   fully_cov_tile_pckt;
-
-    printf("Size of RBOXInPcktRBOXState = %d\n",          sizeof(RBOXInPcktRBOXState));
-    printf("Size of RBOXInPcktFrgmtShdrState = %d\n",     sizeof(RBOXInPcktFrgmtShdrState));
-    printf("Size of RBOXInPcktTriWithTile64x64 = %d\n",   sizeof(RBOXInPcktTriWithTile64x64));
-    printf("Size of RBOXInPcktTriWithTile128x128 = %d\n", sizeof(RBOXInPcktTriWithTile128x128));
-    printf("Size of RBOXInPcktLargeTri = %d\n",           sizeof(RBOXInPcktLargeTri));
-    printf("Size of RBOXInPcktLargeTriTile = %d\n",       sizeof(RBOXInPcktLargeTriTile));
-    printf("Size of RBOXInPcktFullyCoveredTile = %d\n",   sizeof(RBOXInPcktFullyCoveredTile));
-
-    for(uint32_t qw = 0; qw < 8; qw++)
+    for(uint32_t qw = 0; qw < (sizeof(rbox_state_pckt) / 8); qw++)
         rbox_state_pckt.qw[qw] = 0;
 
-    rbox_state_pckt.state.type = RBOX_INPCKT_RBOX_STATE;
+    rbox_state_pckt.state.type = RBOX::INPCKT_RBOX_STATE;
     rbox_state_pckt.state.msaa_enable = 0;
     rbox_state_pckt.state.depth_stencil_buffer_ptr = (uint64_t) depth_stencil_buffer;
-    rbox_state_pckt.state.depth_stencil_buffer_format = FORMAT_D24_UNORM_S8_UINT;
+    rbox_state_pckt.state.depth_stencil_buffer_format = RBOX::FORMAT_D24_UNORM_S8_UINT;
     rbox_state_pckt.state.depth_stencil_buffer_tile_mode = 1;
     rbox_state_pckt.state.depth_stencil_buffer_row_pitch = 256;
     rbox_state_pckt.state.depth_clamp_enable = 1;
     rbox_state_pckt.state.depth_bound_enable = 0;
     rbox_state_pckt.state.depth_test_enable = 1;
     rbox_state_pckt.state.depth_test_write_enable = 1;
-    rbox_state_pckt.state.depth_test_compare_op = RBOX_COMPARE_OP_LESS;
+    rbox_state_pckt.state.depth_test_compare_op = RBOX::COMPARE_OP_LESS;
     rbox_state_pckt.state.early_frag_tests_enable = 1;
     rbox_state_pckt.state.stencil_test_enable = 0;
     rbox_state_pckt.state.fragment_shader_disabled = 0;
@@ -271,26 +291,22 @@ int main()
     rbox_state_pckt.state.scissor_height = 1024;
     rbox_state_pckt.state.scissor_width  = 1024;
 
-    for (uint32_t qw = 0; qw < 8; qw++)
+    for (uint32_t qw = 0; qw < (sizeof(rbox_state_pckt) / 8); qw++)
         in_buffer[in_buffer_ptr++] = rbox_state_pckt.qw[qw];
 
-    push_packet();
-
-    for (uint32_t qw = 0; qw < 4; qw++)
+    for (uint32_t qw = 0; qw < (sizeof(frg_shdr_state_pckt) / 8); qw++)
         frg_shdr_state_pckt.qw[qw] = 0;
 
-    frg_shdr_state_pckt.state.type = RBOX_INPCKT_FRAG_SHADING_STATE;
+    frg_shdr_state_pckt.state.type = RBOX::INPCKT_FRAG_SHADING_STATE;
     frg_shdr_state_pckt.state.frag_shader_function_ptr = 0xA0000000;
     frg_shdr_state_pckt.state.frag_shader_state_ptr = 0xB0000000;
 
-    for (uint32_t qw = 0; qw < 4; qw++)
+    for (uint32_t qw = 0; qw < (sizeof(frg_shdr_state_pckt) / 8); qw++)
         in_buffer[in_buffer_ptr++] = frg_shdr_state_pckt.qw[qw];
 
-    push_packet();
-
-    float32_t vpos_x[3];
-    float32_t vpos_y[3];
-    float32_t vdepth[3];
+    float vpos_x[3];
+    float vpos_y[3];
+    float vdepth[3];
     
     vpos_x[0] =  0.30; vpos_y[0] =  1.00; vdepth[0] = 0.1;
     vpos_x[1] = 20.70; vpos_y[1] =  5.09; vdepth[1] = 0.5;
@@ -300,77 +316,130 @@ int main()
 
     setup_triangle(vpos_x, vpos_y, vdepth, a, b, c);
 
-    for (uint32_t qw = 0; qw < 8; qw++)
+    for (uint32_t qw = 0; qw < (sizeof(tri_with_tile_64x64_pckt) / 8); qw++)
         tri_with_tile_64x64_pckt.qw[qw] = 0;
 
-    tri_with_tile_64x64_pckt.tri_with_tile_64x64.type = RBOX_INPCKT_TRIANGLE_WITH_TILE_64x64;
+    tri_with_tile_64x64_pckt.tri_with_tile_64x64.type = RBOX::INPCKT_TRIANGLE_WITH_TILE_64x64;
     tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_left = 0;
     tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_top = 0;
-    tri_with_tile_64x64_pckt.tri_with_tile_64x64.tri_facing = RBOX_TRI_FACING_FRONT;
-    tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_size = RBOX_TILE_SIZE_64x64;
+    tri_with_tile_64x64_pckt.tri_with_tile_64x64.tri_facing = RBOX::TRI_FACING_FRONT;
+    tri_with_tile_64x64_pckt.tri_with_tile_64x64.tile_size = RBOX::TILE_SIZE_64x64;
 
     for (uint32_t eq = 0; eq < 3; eq++)
     {
-        printf("Edge eq %d -> a = %llx b = %llx c = %llx\n", eq, a[eq], b[eq], c[eq]);
+        printf("Edge eq %d -> a = %016" PRIx64 " b = %016" PRIx64 " c = %016" PRIx64 "\n", eq, a[eq], b[eq], c[eq]);
         tri_with_tile_64x64_pckt.tri_with_tile_64x64.edge_eqs[eq].a = (uint64_t) (a[eq] >> 11);
         tri_with_tile_64x64_pckt.tri_with_tile_64x64.edge_eqs[eq].b = (uint64_t) (b[eq] >> 11);
         tri_with_tile_64x64_pckt.tri_with_tile_64x64.edge[eq].e     = (uint64_t) (c[eq] >> 11);
     }
-    printf("Depth eq => a = %llx b = %llx c = %llx\n", a[3], b[3], c[3]);
+    printf("Depth eq => a = %016" PRIx64 " b = %016" PRIx64 " c = %08" PRIx64 "\n", a[3], b[3], c[3]);
     tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth_eq.a = uint32_t(a[3]);
     tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth_eq.b = uint32_t(b[3]);
     tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth      = uint32_t(c[3]);
     tri_with_tile_64x64_pckt.tri_with_tile_64x64.triangle_data_ptr = 0;
 
-    for (uint32_t qw = 0; qw < 8; qw++)
+    for (uint32_t qw = 0; qw < (sizeof(tri_with_tile_64x64_pckt) / 8); qw++)
         in_buffer[in_buffer_ptr++] = tri_with_tile_64x64_pckt.qw[qw];
 
-    push_packet();
+    for (uint32_t qw = 0; qw < (sizeof(end_of_input_buffer_pckt) / 8); qw++)
+        end_of_input_buffer_pckt.qw[qw] = 0;
+    end_of_input_buffer_pckt.header.type = RBOX::INPCKT_END_OF_INPUT_BUFFER;
 
-    process();
+    for (uint32_t qw = 0; qw < (sizeof(end_of_input_buffer_pckt) / 8); qw++)
+        in_buffer[in_buffer_ptr++] = end_of_input_buffer_pckt.qw[qw];
 
-    RBOXOutPcktFrgShdrState out_frg_shdr_state_pckt;
+    printf("Input buffer :\n");
+    for (uint32_t qw = 0; qw < in_buffer_ptr; qw++)
+    {
+        if ((qw & 0x7) == 0)
+            printf("\t");
+        printf("%016" PRIx64 " ", in_buffer[qw]);
+        if ((qw & 0x7) == 7)
+            printf("\n");
+    }
+
+    if ((in_buffer_ptr & 0x07) != 0)
+        printf("\n");
+
+    printf("\n");
+
+    printf("Input buffer (for RTL) :\n");
+    printf("rbox_input_buffer = {\n");
+    for (uint32_t qw = 0; qw < in_buffer_ptr; qw++)
+    {
+        if ((qw & 0x7) == 0)
+            printf("\t");
+        printf("%016" PRIx64 ", ", in_buffer[in_buffer_ptr - qw - 1]);
+        if ((qw & 0x7) == 7)
+            printf("\n");
+    }
+
+    if ((in_buffer_ptr & 0x07) != 0)
+        printf("\n");
+
+    printf("\t};\n");
+
+    //rbox.reset();
+    //rbox.write_esr();
+    //rbox.write_esr();
+    //rbox.write_esr();
+    //rbox.run();
+
+    /*RBOXOutPcktFrgShdrState out_frg_shdr_state_pckt;
     RBOXOutPcktQuadInfo     out_quad_info_pckt;
     RBOXOutPcktQuadData     out_quad_data_pckt;
-
-    printf("Size of RBOXOutPcktFrgShdrState = %d\n", sizeof(RBOXOutPcktFrgShdrState));
-    printf("Size of RBOXOutPcktQuadInfo = %d\n",     sizeof(RBOXOutPcktQuadInfo));
-    printf("Size of RBOXOutPcktQuadData = %d\n",     sizeof(RBOXOutPcktQuadData));
 
     uint32_t out_buffer_ptr = 0;
     uint32_t out_packets = 0;
 
-    while(consume_packet())
+    uint64_t crc = 0;
+
+    while()
     {
-        RBOXOutPckt128b rbox_out_packet;
+        OutPckt256bT rbox_out_packet;
 
         rbox_out_packet.qw[0] = out_buffer[out_buffer_ptr];
 
         switch(rbox_out_packet.header.type)
         {
-            case RBOX_OUTPCKT_STATE_INFO    :
-                printf("Reading RBOX Output Packet %d with Fragment Shader Information from %016llx\n", out_packets, &out_buffer[out_buffer_ptr]);
+            case OUTPCKT_STATE_INFO    :
+                printf("Reading RBOX Output Packet %d with Fragment Shader Information from %p\n", out_packets, &out_buffer[out_buffer_ptr]);
 
                 for (uint32_t qw = 0; qw < 4; qw++)
                     out_frg_shdr_state_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
 
+                for (uint32_t qw = 0; qw < 4; qw++)
+                    crc += out_frg_shdr_state_pckt.qw[qw];
+
                 out_packets++;
 
                 break;
-            case RBOX_OUTPCKT_QUAD_INFO     :
-                printf("Reading RBOX Output Packet %d with Quad Information from %016llx\n", out_packets, &out_buffer[out_buffer_ptr]);
+            case OUTPCKT_QUAD_INFO     :
+                printf("Reading RBOX Output Packet %d with Quad Information from %p\n", out_packets, &out_buffer[out_buffer_ptr]);
 
-                for (uint32_t qw = 0; qw < 2; qw++)
+                for (uint32_t qw = 0; qw < 4; qw++)
                     out_quad_info_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
 
-                for (uint32_t qw = 0; qw < 2; qw++)
+                for (uint32_t qw = 0; qw < 4; qw++)
+                    crc += out_quad_info_pckt.qw[qw];
+
+                for (uint32_t qw = 0; qw < 4; qw++)
                     out_quad_data_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
 
-                for (uint32_t qw = 0; qw < 2; qw++)
+                for (uint32_t qw = 0; qw < 4; qw++)
+                    crc += out_quad_data_pckt.qw[qw];
+
+                for (uint32_t qw = 0; qw < 4; qw++)
                     out_quad_data_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
 
-                for (uint32_t qw = 0; qw < 2; qw++)
+                for (uint32_t qw = 0; qw < 4; qw++)
+                    crc += out_quad_data_pckt.qw[qw];
+
+                for (uint32_t qw = 0; qw < 4; qw++)
                     out_quad_data_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
+
+                for (uint32_t qw = 0; qw < 4; qw++)
+                    crc += out_quad_data_pckt.qw[qw];
 
                 out_packets++;
 
@@ -381,9 +450,9 @@ int main()
         }
 
         printf("Total RBOX output packets : %d\n", out_packets);
-    }
+    }*/
 
-    printf("Test Triangle Setup code\n");  
+    /*printf("Test Triangle Setup code\n");  
 
     uint32_t vposx[] = {0,         0,  64 * 256, 64 * 256, 318 * 256, 318 * 256};
     uint32_t vposy[] = {0, 128 * 256, 128 * 256,        0,         0, 128 * 256};
@@ -491,7 +560,7 @@ int main()
 
     while(consume_packet())
     {
-        RBOXOutPckt128b rbox_out_packet;
+        RBOXOutPckt256b rbox_out_packet;
 
         rbox_out_packet.qw[0] = out_buffer[out_buffer_ptr];
 
@@ -510,7 +579,7 @@ int main()
                 {
                     printf("Reading RBOX Output Packet %d with Quad Information from %016llx\n", out_packets, &out_buffer[out_buffer_ptr]);
 
-                    for (uint32_t qw = 0; qw < 2; qw++)
+                    for (uint32_t qw = 0; qw < 4; qw++)
                         out_quad_info_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
 
                     out_packets++;
@@ -529,13 +598,13 @@ int main()
                     if (out_quad_info_pckt.quad_info.mask & 0x40)
                         framebuffer[(y + 1) * 1024 + x + 1]++;
 
-                    for (uint32_t qw = 0; qw < 2; qw++)
+                    for (uint32_t qw = 0; qw < 4; qw++)
                         out_quad_data_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
 
-                    for (uint32_t qw = 0; qw < 2; qw++)
+                    for (uint32_t qw = 0; qw < 4; qw++)
                         out_quad_data_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
 
-                    for (uint32_t qw = 0; qw < 2; qw++)
+                    for (uint32_t qw = 0; qw < 4; qw++)
                         out_quad_data_pckt.qw[qw] = out_buffer[out_buffer_ptr++];
                 }
 
@@ -554,7 +623,7 @@ int main()
         for(uint32_t x = 0; x < 1024; x++)
             printf("%d", framebuffer[y * 1024 + x]);
         printf("\n");
-    }
+    }*/
 }
 
 

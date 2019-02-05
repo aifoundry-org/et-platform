@@ -990,7 +990,7 @@ bool TBOXEmu::access_memory(uint64_t address, uint32_t &data)
 
 bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
 {
-    LOG(DEBUG, "\t64-bit L2 access for address %016lx thread %d", address, current_thread);
+    LOG(DEBUG, "\t64-bit L2 access for address %016lx thread %d", address, request_hart);
 
     uint64_t req_addr_lo =  address      & ~0x3fUL;
     uint64_t req_addr_hi = (address + 7) & ~0x3fUL;
@@ -1023,7 +1023,7 @@ bool TBOXEmu::access_l2(uint64_t address, uint64_t &data)
 
 bool TBOXEmu::access_l2(uint64_t address, uint32_t &data)
 {
-    LOG(DEBUG, "\t32-bit L2 access for address %016lx thread %d", address, current_thread);
+    LOG(DEBUG, "\t32-bit L2 access for address %016lx thread %d", address, request_hart);
 
     uint64_t req_addr_lo =  address      & ~0x3fUL;
     uint64_t req_addr_hi = (address + 3) & ~0x3fUL;
@@ -1072,7 +1072,7 @@ bool TBOXEmu::get_l2_data(uint64_t address, uint64_t &data)
     if (found)
     {
         LOG(DEBUG, "\tFound existing L2 request %d for address %016lx", req - 1, address);
-        l2_requests[req - 1].thread_mask |= (1 << current_thread);
+        l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
             uint8_t *data_ptr = &((uint8_t *) l2_requests[req - 1].data)[(address & 0x3fUL)];
@@ -1081,7 +1081,7 @@ bool TBOXEmu::get_l2_data(uint64_t address, uint64_t &data)
             return true;
         }
 
-        num_pending_l2_requests[current_thread]++;
+        num_pending_l2_requests[request_hart]++;
 
         return false;
     }
@@ -1110,7 +1110,7 @@ bool TBOXEmu::get_l2_data(uint64_t address, uint32_t &data)
     if (found)
     {
         LOG(DEBUG, "\tFound existing L2 request %d for address %016lx", req - 1, address);
-        l2_requests[req - 1].thread_mask |= (1 << current_thread);
+        l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
             uint8_t *data_ptr = &((uint8_t *) l2_requests[req - 1].data)[address & 0x3fUL];
@@ -1119,7 +1119,7 @@ bool TBOXEmu::get_l2_data(uint64_t address, uint32_t &data)
             return true;
         }
 
-        num_pending_l2_requests[current_thread]++;
+        num_pending_l2_requests[request_hart]++;
 
         return false;
     }
@@ -1148,7 +1148,7 @@ bool TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
     if (found)
     {
         LOG(DEBUG, "\tFound existing L2 request %d for address %016lx", req - 1, address);
-        l2_requests[req - 1].thread_mask |= (1 << current_thread);
+        l2_requests[req - 1].thread_mask |= (1 << request_hart);
         if (l2_requests[req - 1].ready)
         {
             data.data[0] = l2_requests[req - 1].data[4 * ((address >> 5) & 1) + 0];
@@ -1158,7 +1158,7 @@ bool TBOXEmu::get_l2_data(uint64_t address, ImageInfo &data)
             return true;
         }
 
-        num_pending_l2_requests[current_thread]++;
+        num_pending_l2_requests[request_hart]++;
 
         return false;
     }
@@ -1181,16 +1181,16 @@ void TBOXEmu::create_l2_request(uint64_t address)
     if (free_entry == MAX_L2_REQUESTS)
         throw std::runtime_error("No free L2 request entry found.");
 
-    LOG(DEBUG, "\tCreated new L2 request %d for address %016lx thread %d", free_entry, address & ~0x3fUL, current_thread);
+    LOG(DEBUG, "\tCreated new L2 request %d for address %016lx thread %d", free_entry, address & ~0x3fUL, request_hart);
 
-    l2_requests[free_entry].thread_mask  = (1 << current_thread);
+    l2_requests[free_entry].thread_mask  = (1 << request_hart);
     l2_requests[free_entry].address = address & ~0x3fUL;
     l2_requests[free_entry].ready   = false;
     l2_requests[free_entry].free    = false;
     num_total_l2_requests++;
-    num_pending_l2_requests[current_thread]++;
-    num_created_l2_requests[current_thread]++;
-    num_new_l2_requests[current_thread]++;
+    num_pending_l2_requests[request_hart]++;
+    num_created_l2_requests[request_hart]++;
+    num_new_l2_requests[request_hart]++;
 }
 
 void TBOXEmu::clear_l2_requests(uint32_t thread)
@@ -2254,7 +2254,7 @@ void TBOXEmu::sample_quad(uint32_t thread, bool output_result)
 
     ImageInfo currentImage;
 
-    //  Also sets current_thread so there is no need to do it here.
+    //  Also sets request_hart so there is no need to do it here.
     get_image_info(thread, currentImage);
 
     sample_quad(currentRequest[thread], currentImage, input[thread], output[thread], output_result);
@@ -2275,7 +2275,7 @@ void TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata out
 
 bool TBOXEmu::get_image_info(uint32_t thread, ImageInfo &currentImage)
 {
-    current_thread = thread;
+    request_hart = thread;
     return TBOXEmu::get_image_info(currentRequest[thread], currentImage);
 }
 

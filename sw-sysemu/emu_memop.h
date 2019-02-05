@@ -22,9 +22,11 @@ extern void vmemwrite64 (uint64_t addr, uint64_t data);
 extern uint16_t pmemfetch16(uint64_t paddr);
 
 // physical memory read accesses
-// extern uint64_t pmemread64(uint64_t addr);
+extern uint32_t pmemread32(uint64_t addr);
+extern uint64_t pmemread64(uint64_t addr);
 
 // physical memory write accesses
+extern void pmemwrite32 (uint64_t paddr, uint32_t data);
 extern void pmemwrite64 (uint64_t paddr, uint64_t data);
 
 #endif // _EMU_MEMOP_H

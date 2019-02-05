@@ -1184,7 +1184,7 @@ static uint16_t pmemread16(uint64_t paddr)
     return data;
 }
 
-static uint32_t pmemread32(uint64_t paddr)
+uint32_t pmemread32(uint64_t paddr)
 {
     log_info->mem_addr[0] = paddr;
     uint32_t data = func_memread32(paddr);
@@ -1237,7 +1237,7 @@ static void pmemwrite16(uint64_t paddr, uint16_t data)
     func_memwrite16(paddr, data);
 }
 
-static void pmemwrite32(uint64_t paddr, uint32_t data)
+void pmemwrite32(uint64_t paddr, uint32_t data)
 {
     func_memwrite32(paddr, data);
 }
@@ -6412,40 +6412,10 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
 
 static void dcache_lock_paddr(int way, uint64_t paddr)
 {
-    // Skip all if way is outside the cache limits
-    if ((way >= L1D_NUM_WAYS) && (way != 255))
-        return;
+    // Only keep lower bits to target a valid way
+    way %= 4;
 
     int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
-
-    if (way == 255)
-    {
-        // Lock the first available way
-        // FIXME: or if the line exists unlocked in the cache use the way of the existing line.
-        bool way_found = false;
-        for (int w = 0; w < L1D_NUM_WAYS; ++w)
-        {
-            if (!scp_locked[current_thread >> 1][set][w])
-            {
-                way = w;
-                way_found = true;
-                break;
-            }
-        }
-        // No free way found to lock
-        if (!way_found)
-        {
-            update_tensor_error(1 << 5);
-            return;
-        }
-    }
-    if (way == 255)
-    {
-        // All ways are locked; stop the operation
-        LOG(DEBUG, "\tLockSW: %016" PRIx64 ", Way: %d no unlocked ways", paddr, way);
-        update_tensor_error(1 << 5);
-        return;
-    }
 
     // Check if paddr already locked in the cache
     for (int w = 0; w < L1D_NUM_WAYS; ++w)
