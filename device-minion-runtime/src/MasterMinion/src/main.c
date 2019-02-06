@@ -35,11 +35,11 @@ int main(void)
     // enable shadow registers for hartid and sleep txfma
     __asm__ __volatile__ (
         "csrwi 0x7d2, 0x3\n"
-        : 
-        : 
+        :
+        :
         : "t0"
     );
-    
+
     // Gets the minion id
     unsigned int minion_id = get_minion_id();
 
@@ -50,8 +50,8 @@ int main(void)
     }
 
     // configure trap vector and move to user mode
-    __asm__ __volatile__ 
-    ( 
+    __asm__ __volatile__
+    (
        "la t0, mtrap_vector\n"
        "csrw mtvec, t0\n"
        "li t0, 0x1800\n"
@@ -60,11 +60,11 @@ int main(void)
        "csrw mepc, t0\n"          // set mepc to user-mode entry point
        "mret\n"                   // go to user mode
        "1:\n"                     // label to referr to user-mode
-       : 
-       : 
+       :
+       :
        : "t0"
     );
-    
+
     minion_id = minion_id & 0x1F;
 
     // If thread0
@@ -78,7 +78,7 @@ int main(void)
 
             // Resets the barriers
             __asm__ __volatile__ (
-                // Set 
+                // Set
                 "add       x31, %[barrier_t0], zero\n"
                 "addi      x30, x0, 32\n"
                 "init_loop:\n"
@@ -127,13 +127,13 @@ int main(void)
         // Enable the scratchpad and allocate ways 0, 1 and 2 for all sets
         //volatile char __attribute__((aligned(4096))) scp[4096];
         uint64_t scp = 0x20000000;
-        
+
         __asm__ __volatile__ (
             // Lock S/W function (0x0)
             "li a1, 0x0\n"
             "add  a1, a1, %[scp]\n"
             "addi a3, zero, 16\n"
-            
+
             "li   a4, 0x080000000001000\n"
             "li   a5, 0x100000000002000\n"
             "loop_lock:\n"
@@ -215,7 +215,7 @@ static void master_code(void)
 
     // Enable port to receive done messages
     // TODO: there could be an overflow... move to two ports of 16 entries each of 8 bytes
-    char port_buf[16*4]; 
+    char port_buf[16*4];
 
     //      use_tmask way  addr                         num_lines stride id
     //      --------- ---  ----                         --------- ------ --
@@ -244,20 +244,21 @@ static void master_code(void)
         "li a3,0x00000F53\n"
         "slli a2,%[scp_set],16\n"
         "or a3, a3, a2\n"
-        "csrw 0x9cc,a3\n" //Open port 0   
+        "csrw 0x9cc,a3\n" //Open port 0
         :
         : [scp_set] "r" (scp_set)
         : "a2","a3"
     );
-  
+
     // Wait for other shires to finish their set up
     uint32_t delay = IPI_CYCLES;
     delay_cycles(delay);
 
+
     // Write the IPI_REDIRECT_FILTER for all compute shires to all 1s
     for (uint32_t shire = 0 ; shire < 32; shire++) {
         __asm__ __volatile__
-        ( 
+        (
         "slli x3, %[shire], 22\n" // shire_id to be added to ESR address
         "li   x4, 0x01C0340088\n" // shire_id = 0, neigh_id = 4'hF --> broadcast, PP = 2'b00
         "add  x4, x4, x3\n"       // add shire_id
@@ -302,18 +303,18 @@ static void master_code(void)
         );
 
         // evict Line with Configuration data to L3
-        uint64_t addr = (uint64_t)(void*) net_desc[iter].info_pointer ; 
+        uint64_t addr = (uint64_t)(void*) net_desc[iter].info_pointer ;
 
         //       use_tmask dst  start addr  num_lines stride id
         //       --------- ---- ----- ----- --------- ------ --
-        evict_va( 0,       0x2, 0x0,  addr, 1,        0x0,   0x0); 
+        evict_va( 0,       0x2, 0x0,  addr, 1,        0x0,   0x0);
 
         FENCE;
 
         // For all the shires write the helper PC to the IPI_REDIRECT_PC
         for (uint32_t shire = 0 ; shire < 32; shire++) {
             __asm__ __volatile__
-            ( 
+            (
                 "slli x3, %[shire], 22\n"    // shire_id to be added to ESR address
                 "li   x4, 0x01001F0040\n"    // shire_id = 0, neigh_id = 4'hF --> broadcast, PP = 2'b00
                 "add  x4, x4, x3\n"          // add shire_id
@@ -330,7 +331,7 @@ static void master_code(void)
     // For all the shires trigger redirect to thread1
     for (uint32_t shire = 0 ; shire < 32; shire++) {
         __asm__ __volatile__
-        ( 
+        (
             "slli x3, %[shire], 22\n"       // shire_id to be added to ESR address
             "li   x4, 0x0100340080\n"       //
             "add  x4, x4, x3\n"             // add shire_id
@@ -345,7 +346,7 @@ static void master_code(void)
     // For all the shires write the compute PC to the IPI_REDIRECT_PC
     for (uint32_t shire = 0 ; shire < 32; shire++) {
         __asm__ __volatile__
-        ( 
+        (
             "slli x3, %[shire], 22\n"     // shire_id to be added to ESR address
             "li   x4, 0x01001F0040\n"     //shire_id = 0, neigh_id = 4'hF --> broadcast, PP = 2'b00
             "add  x4, x4, x3\n"           // add shire_id
@@ -362,7 +363,7 @@ static void master_code(void)
     // For all the shires trigger thread0
     for (uint32_t shire = 0 ; shire < 32; shire++) {
         __asm__ __volatile__
-        ( 
+        (
             "slli x3, %[shire], 22\n"       // shire_id to be added to ESR address
             "li   x4, 0x0100340080\n"       //
             "add  x4, x4, x3\n"             // add shire_id

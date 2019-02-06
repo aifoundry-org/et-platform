@@ -9,7 +9,13 @@
 #------------------------------------------------------------------------------
 
 cmake_minimum_required(VERSION 3.5)
-project(TemplateRepo VERSION 0.1.0 LANGUAGES CXX)
+
+# Must set CMAKE_TOOLCHAIN_FILE before project() is called
+set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
+
+project(DeviceFirmware LANGUAGES C ASM)
+
+#set(CMAKE_VERBOSE_MAKEFILE ON)
 
 option(BUILD_DOC "Build documentation" ON)
 

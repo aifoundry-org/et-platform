@@ -8,16 +8,19 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_subdirectory("lib")
+# add_subdirectory("lib")
 
-include_directories("${PROJECT_SOURCE_DIR}/include")
+add_subdirectory("MasterMinion")
+add_subdirectory("ServiceProcessor")
 
-set (EXTRA_LIBS ${EXTRA_LIBS} lib)
+#include_directories("${PROJECT_SOURCE_DIR}/include")
+
+#set (EXTRA_LIBS ${EXTRA_LIBS} lib)
 
 # add the executable
-add_executable (test_repo test.cc)
-target_link_libraries (test_repo
-                       PRIVATE
-                         TestLib)
+#add_executable (test_repo test.cc)
+#target_link_libraries (test_repo
+#                       PRIVATE
+#                         TestLib)
 
-install(TARGETS test_repo DESTINATION bin)
+#install(TARGETS test_repo DESTINATION bin)

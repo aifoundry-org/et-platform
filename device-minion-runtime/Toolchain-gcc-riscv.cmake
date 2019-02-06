@@ -1,0 +1,102 @@
+# See https://gitlab.kitware.com/cmake/community/wikis/doc/cmake/CrossCompiling
+
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR riscv64)
+
+set(GCC_PATH /esperanto/minion)
+
+# Only search our cross-tooclhain's library paths
+set(CMAKE_FIND_ROOT_PATH ${GCC_PATH})
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+
+# TODO FIXME move this to a shared dir that isn't project specific
+get_filename_component(ELFTOHEX_ABS_PATH "src/elftohex.py" ABSOLUTE)
+
+set(CMAKE_AR         ${GCC_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
+set(CMAKE_RANLIB     ${GCC_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
+set(CMAKE_C_COMPILER ${GCC_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH   "gcc"      FORCE)
+set(CMAKE_OBJCOPY    ${GCC_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH   "objcopy"  FORCE)
+set(CMAKE_OBJDUMP    ${GCC_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH   "objdump"  FORCE)
+set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "elftohex" FORCE)
+
+# Our gcc has -fdelete-null-pointer-checks enabled by default, needed for -Wnull-dereference
+#
+# Need mcmodel=medany instead of default medlow to be able to place code at the bottom
+# of DRAM space which begins at 516G (0x8100000000)
+# See https://www.sifive.com/blog/all-aboard-part-4-risc-v-code-models
+#
+set(CMAKE_C_FLAGS "-mcmodel=medany -Wall -Wextra -Werror -Wnull-dereference \
+-Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith -Wundef \
+-Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
+-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations" CACHE STRING "c flags" FORCE)
+
+# macro to create an executable .elf plus .bin, .hex, .lst and .map files
+# if LINKER_SCRIPT is defined, uses it instead of the default
+macro(add_riscv_executable TARGET_NAME LINKER_SCRIPT ZEBU_TARGET)
+    set(ELF_FILE ${TARGET_NAME}.elf)
+    set(BIN_FILE ${TARGET_NAME}.bin)
+    set(HEX_FILE ${TARGET_NAME}.hex)
+    set(MAP_FILE ${TARGET_NAME}.map)
+    set(LST_FILE ${TARGET_NAME}.lst)
+
+    add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
+
+    # Get the absolute path to the linker script
+    get_filename_component(LINKER_SCRIPT_ABS_PATH "src/sections.ld" ABSOLUTE)
+
+    # Use custom linker script and generate a map file
+    set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -lc -lm -lgcc -Xlinker -Map=${MAP_FILE} -T ${LINKER_SCRIPT_ABS_PATH}")
+
+    # Add explicit dependency on linker script when linking target
+    set_target_properties(${ELF_FILE} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_ABS_PATH})
+
+    # custom command to generate a bin from the elf
+    add_custom_command(
+        OUTPUT ${BIN_FILE}
+        COMMAND ${CMAKE_OBJCOPY} -O binary ${ELF_FILE} ${BIN_FILE}
+        DEPENDS ${ELF_FILE}
+    )
+
+    # custom command to generate a ZeBu hex file from the elf
+    add_custom_command(
+        OUTPUT ${HEX_FILE}
+        COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} ${HEX_FILE}
+        DEPENDS ${ELF_FILE}
+    )
+
+    # custom command to generate an assembly listing from the elf
+    add_custom_command(
+        OUTPUT ${LST_FILE}
+        COMMAND ${CMAKE_OBJDUMP} -h -S ${ELF_FILE} > ${LST_FILE}
+        DEPENDS ${ELF_FILE}
+    )
+
+    # These custom targets are unintuitive:
+    # Must use a unique name: can't be the same between components (e.g. MasterMinion and ServiceProcessor), so include ${TARGET_NAME}
+    # Must not match an existing target (e.g. can't be "${BIN_FILE"}), so append ".always". Don't understand this.
+
+    # Always generate the bin file
+    add_custom_target(
+        "${TARGET_NAME}.bin.always"
+        ALL
+        DEPENDS ${BIN_FILE}
+    )
+
+    # Always generate the ZeBu hex file
+    add_custom_target(
+        "${TARGET_NAME}.hex.always"
+        ALL
+        DEPENDS ${ELFTOHEX_ABS_PATH} ${HEX_FILE}
+    )
+
+    # Always generate the assembly listing
+    add_custom_target(
+        "${TARGET_NAME}.lst.always"
+        ALL
+        DEPENDS ${LST_FILE}
+    )
+
+endmacro(add_riscv_executable)
