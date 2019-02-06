@@ -1172,28 +1172,24 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc);
 
 static uint8_t pmemread8(uint64_t paddr)
 {
-    log_info->mem_addr[0] = paddr;
     uint8_t data = func_memread8(paddr);
     return data;
 }
 
 static uint16_t pmemread16(uint64_t paddr)
 {
-    log_info->mem_addr[0] = paddr;
     uint16_t data = func_memread16(paddr);
     return data;
 }
 
 uint32_t pmemread32(uint64_t paddr)
 {
-    log_info->mem_addr[0] = paddr;
     uint32_t data = func_memread32(paddr);
     return data;
 }
 
 uint64_t pmemread64(uint64_t paddr)
 {
-    log_info->mem_addr[0] = paddr;
     uint64_t data = func_memread64(paddr);
     return data;
 }
