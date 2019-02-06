@@ -8,11 +8,11 @@
 #define EMU_NUM_SHIRES          34 // 32 Compute + Master + IO Shire SP 
 #define EMU_NUM_COMPUTE_SHIRES  32
 #define EMU_MASTER_SHIRE        32
-#define EMU_IO_SHIRE_SP		33
-#define IO_SHIRE_ID		254
+#define EMU_IO_SHIRE_SP		    33
+#define IO_SHIRE_ID		        254
 #define EMU_NEIGH_PER_SHIRE     4
 #define EMU_MINIONS_PER_NEIGH   8
-#define EMU_TBOXES_PER_SHIRE    4
+#define EMU_TBOXES_PER_SHIRE    2
 #define EMU_RBOXES_PER_SHIRE    1
 #define EMU_MINIONS_PER_SHIRE   (EMU_NEIGH_PER_SHIRE*EMU_MINIONS_PER_NEIGH)
 #define EMU_NUM_MINIONS         (EMU_NUM_SHIRES*EMU_MINIONS_PER_SHIRE)
@@ -20,8 +20,8 @@
 #define EMU_THREADS_PER_NEIGH   (EMU_THREADS_PER_MINION*EMU_MINIONS_PER_NEIGH)
 #define EMU_THREADS_PER_SHIRE   (EMU_THREADS_PER_NEIGH*EMU_NEIGH_PER_SHIRE)
 #define EMU_NUM_THREADS         (EMU_THREADS_PER_SHIRE*EMU_NUM_SHIRES)
-#define EMU_NUM_TBOXES          (EMU_NUM_SHIRES*EMU_TBOXES_PER_SHIRE)
-#define EMU_NUM_RBOXES          (EMU_NUM_SHIRES*EMU_TBOXES_PER_SHIRE)
+#define EMU_NUM_TBOXES          (EMU_NUM_COMPUTE_SHIRES*EMU_TBOXES_PER_SHIRE)
+#define EMU_NUM_RBOXES          (EMU_NUM_COMPUTE_SHIRES*EMU_RBOXES_PER_SHIRE)
 
 #define NR_MSG_PORTS            4
 
@@ -89,6 +89,7 @@
 #define ESR_REGION_OFFSET      0x0000400000ULL  //
 #define ESR_SHIRE_REGION       0x0100340000ULL  // Shire ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b010
 #define ESR_NEIGH_REGION       0x0100100000ULL  // Neighborhood ESR Region is at region [21:20] == 2'b01
+#define ESR_RBOX_REGION        0x0100320000ULL  // RBOX ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b001
 
 #define ESR_HART_MASK          0x00000FF000ULL  // On HART ESR Region the HART is defined in bits [19:12]
 #define ESR_HART_SHIFT         12               // On HART ESR Region bits to shift to get the HART defined in bits [19:12]
@@ -105,7 +106,8 @@
 #define ESR_NEIGH_ESR_MASK     0x000000FFF8ULL  // On Neighborhood ESR Region the ESR is defined in bits [15:3]
 #define ESR_SC_ESR_MASK        0x0000001FF8ULL  // On Shire Cache ESR Region the ESR is defined in bits [12:3]
 #define ESR_SHIRE_ESR_MASK     0x000001FFF8ULL  // On Shire ESR Region the ESR is defined in bits [16:3]
-#define ESR_SHIRE_ESR_SHIFT    3
+#define ESR_RBOX_ESR_MASK      0x000001FFF8ULL  // On RBOX ESR Region the ESR is defined in bits [16:3]
+#define ESR_ESR_ID_SHIFT       3
 
 // ESR Offsets
 #define ESR_SHIRE_IPI_REDIRECT_TRIGGER_OFFSET 0x080ULL
@@ -136,6 +138,16 @@
 #define ESR_NEIGH_TBOX_CONTROL  0x8000
 #define ESR_NEIGH_TBOX_STATUS   0x8008
 #define ESR_NEIGH_TBOX_IMGT_PTR 0x8010
+
+
+#define ESR_RBOX_CONFIG         0x00
+#define ESR_RBOX_IN_BUF_PG      0x01
+#define ESR_RBOX_IN_BUF_CFG     0x02
+#define ESR_RBOX_OUT_BUF_PG     0x03
+#define ESR_RBOX_OUT_BUF_CFG    0x04
+#define ESR_RBOX_STATUS         0x05
+#define ESR_RBOX_START          0x06
+#define ESR_RBOX_CONSUME        0x07
 
 // L2 scratchpad
 #define L2_SCP_BASE   0x80000000ULL

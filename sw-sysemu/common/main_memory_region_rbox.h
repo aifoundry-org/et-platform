@@ -7,19 +7,17 @@
 class main_memory_region_rbox : main_memory_region
 {
 public:
-  // Constructors and destructors
-  main_memory_region_rbox(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_th);
-  ~main_memory_region_rbox();
+    // Constructors and destructors
+    main_memory_region_rbox(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_th);
+    ~main_memory_region_rbox();
 
-  // read and write
-  void write(uint64_t ad, int size, const void* data);
-  void read(uint64_t ad, int size, void* data);
+    // read and write
+    void write(uint64_t ad, int size, const void* data);
+    void read(uint64_t ad, int size, void* data);
 
-  void decCredit(uint16_t thread);
-  void incCredit(uint16_t thread);
-  uint16_t getCredit(uint16_t thread);
 private:
-  uint16_t credits_[EMU_NUM_THREADS];
+
+    void decode_esr(uint64_t ad, uint32_t &rbox_id, uint32_t &reg_id);
 };
 
 #endif // _MAIN_MEMORY_REGION_RBOX_

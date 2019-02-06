@@ -378,16 +378,4 @@ void main_memory::create_mem_at_runtime()
 {
    runtime_mem_regions = true;
 }
-
-
  
-void main_memory::decRboxCredit(uint16_t thread) {
-   rbox->decCredit(thread);
-} 
-void main_memory::incRboxCredit(uint16_t thread) {
-   rbox->incCredit(thread);
-}
-
-uint16_t main_memory::getRboxCredit(uint16_t thread) { 
-   return rbox->getCredit(thread);
-}
