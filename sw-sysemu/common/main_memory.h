@@ -39,11 +39,6 @@ class main_memory
        // function to configure printf from RTL
        void setPrintfBase(const char* binary);
 
-       // rbox credits interface for sysemu
-       void decRboxCredit(uint16_t thread);
-       void incRboxCredit(uint16_t thread);
-       uint16_t getRboxCredit(uint16_t thread);
-
        // allow memory regions to be dynamically created
        void create_mem_at_runtime();
 
