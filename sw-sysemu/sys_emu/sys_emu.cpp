@@ -610,14 +610,14 @@ int main(int argc, char * argv[])
     setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
 
     // Defines the memory access functions
-    set_memory_funcs((void *) emu_memread8,
-                     (void *) emu_memread16,
-                     (void *) emu_memread32,
-                     (void *) emu_memread64,
-                     (void *) emu_memwrite8,
-                     (void *) emu_memwrite16,
-                     (void *) emu_memwrite32,
-                     (void *) emu_memwrite64);
+    set_memory_funcs(emu_memread8,
+                     emu_memread16,
+                     emu_memread32,
+                     emu_memread64,
+                     emu_memwrite8,
+                     emu_memwrite16,
+                     emu_memwrite32,
+                     emu_memwrite64);
 
     // Callbacks for port writes
     set_msg_funcs((void *) msg_to_thread);

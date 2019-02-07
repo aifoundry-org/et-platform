@@ -893,12 +893,15 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mvendorid] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity)
     csrregs[thread][csr_marchid] = 0x8000000000000001ULL;
     csrregs[thread][csr_mimpid] = 0x0;
-    if (thread == ((EMU_IO_SHIRE_SP*EMU_MINIONS_PER_SHIRE) << 1)) {
-	csrregs[thread][csr_mhartid] = ((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1);
-    	LOG(INFO, "Repurposing Shire 33 for Service Process : Thread %u Original MHartID %" PRIu64 " New MHartID %u" , thread, csrregs[thread][csr_mhartid],((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1)); 
+    if (thread == ((EMU_IO_SHIRE_SP*EMU_MINIONS_PER_SHIRE) << 1))
+    {
+        csrregs[thread][csr_mhartid] = ((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1);
+        LOG(INFO, "Repurposing Shire 33 for Service Process : Thread %u Original MHartID %" PRIu64 " New MHartID %u" , thread, csrregs[thread][csr_mhartid],((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1));
     }
     else
-	csrregs[thread][csr_mhartid] = thread;
+    {
+        csrregs[thread][csr_mhartid] = thread;
+    }
 
     // misa is a 0-length register
     csrregs[thread][csr_misa] = CSR_ISA_MAX;
@@ -1132,17 +1135,18 @@ extern inst_state_change * log_info;
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+static inline int effective_execution_mode(mem_access_type macc)
+{
+    // Read mstatus
+    const uint64_t mstatus = csrregs[current_thread][csr_mstatus];
+    const int      mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
+    const int      mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
+    return (macc == Mem_Access_Fetch || macc == Mem_Access_PTW)
+        ? prvget()
+        : (mprv ? mpp : prvget());
+}
+
 // Accessor functions for externally defined memory
-
-typedef uint8_t  (*func_memread8_t) (uint64_t addr);
-typedef uint16_t (*func_memread16_t)(uint64_t addr);
-typedef uint32_t (*func_memread32_t)(uint64_t addr);
-typedef uint64_t (*func_memread64_t)(uint64_t addr);
-
-typedef void (*func_memwrite8_t)  (uint64_t addr, uint8_t data);
-typedef void (*func_memwrite16_t) (uint64_t addr, uint16_t data);
-typedef void (*func_memwrite32_t) (uint64_t addr, uint32_t data);
-typedef void (*func_memwrite64_t) (uint64_t addr, uint64_t data);
 
 static uint8_t host_memread8(uint64_t addr)
 { return * ((uint8_t *) addr); }
@@ -1171,134 +1175,296 @@ static void host_memwrite64(uint64_t addr, uint64_t data)
 static uint64_t virt_to_phys_host(uint64_t addr, mem_access_type macc __attribute__((unused)))
 { return addr; }
 
-static func_memread8_t   func_memread8   = host_memread8;
-static func_memread16_t  func_memread16  = host_memread16;
-static func_memread32_t  func_memread32  = host_memread32;
-static func_memread64_t  func_memread64  = host_memread64;
-static func_memwrite8_t  func_memwrite8  = host_memwrite8;
-static func_memwrite16_t func_memwrite16 = host_memwrite16;
-static func_memwrite32_t func_memwrite32 = host_memwrite32;
-static func_memwrite64_t func_memwrite64 = host_memwrite64;
+uint8_t  (*pmemread8)  (uint64_t addr) = host_memread8;
+uint16_t (*pmemread16) (uint64_t addr) = host_memread16;
+uint32_t (*pmemread32) (uint64_t addr) = host_memread32;
+uint64_t (*pmemread64) (uint64_t addr) = host_memread64;
+
+void (*pmemwrite8)  (uint64_t addr, uint8_t  data) = host_memwrite8;
+void (*pmemwrite16) (uint64_t addr, uint16_t data) = host_memwrite16;
+void (*pmemwrite32) (uint64_t addr, uint32_t data) = host_memwrite32;
+void (*pmemwrite64) (uint64_t addr, uint64_t data) = host_memwrite64;
 
 uint64_t (*vmemtranslate) (uint64_t addr, mem_access_type macc) = virt_to_phys_host;
 
-// forward declaration
-static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc);
+// PMA checks
 
-uint8_t pmemread8(uint64_t paddr)
+// Minion Memory map
+// +-------------------+---------------------------------+-------------+
+// |   Address range   |      Address range (hex)        |             |
+// | From    |   To    |      From      |      To        | Maps to     |
+// +---------+---------+----------------+----------------+-------------+
+// |    0G   |    1G   | 0x00_0000_0000 | 0x00_3fff_ffff | IO region   |
+// |    1G   |    2G   | 0x00_4000_0000 | 0x00_7fff_ffff | SP region   |
+// |    1G   | 1G+64K  | 0x00_4000_0000 | 0x00_4000_ffff | SP/ROM      |
+// |  1G+1M  |  1G+2M  | 0x00_4040_0000 | 0x00_404f_ffff | SP/SRAM     |
+// |    2G   |    4G   | 0x00_8000_0000 | 0x00_ffff_ffff | SCP region  |
+// |    4G   |    8G   | 0x01_0000_0000 | 0x01_ffff_ffff | ESR region  |
+// |    8G   |  256G   | 0x02_0000_0000 | 0x3f_ffff_ffff | Reserved    |
+// |  256G   |  512G   | 0x40_0000_0000 | 0x7f_ffff_ffff | PCIe region |
+// |  512G   | 512G+2M | 0x80_0000_0000 | 0x80_001f_ffff | DRAM/Mbox   |
+// | 512G+2M |  516G   | 0x80_0020_0000 | 0x80_ffff_ffff | DRAM/OSbox  |
+// |  516G   |  ...    | 0x81_0000_0000 | 0xff_ffff_ffff | DRAM/Other  |
+// +---------+---------+----------------+----------------+-------------+
+
+static inline bool paddr_is_io_space(uint64_t addr)
 {
-    uint8_t data = func_memread8(paddr);
-    return data;
+    return addr < UINT64_C(0x0040000000);
 }
 
-uint16_t pmemread16(uint64_t paddr)
+static inline bool paddr_is_sp_space(uint64_t addr)
 {
-    uint16_t data = func_memread16(paddr);
-    return data;
+    return (addr >= UINT64_C(0x0040000000)) && (addr < UINT64_C(0x0080000000));
 }
 
-uint32_t pmemread32(uint64_t paddr)
+static inline bool paddr_is_sp_rom(uint64_t addr)
 {
-    uint32_t data = func_memread32(paddr);
-    return data;
+    return (addr >= UINT64_C(0x0040000000)) && (addr < UINT64_C(0x0040010000));
 }
 
-uint64_t pmemread64(uint64_t paddr)
+static inline bool paddr_is_sp_sram(uint64_t addr)
 {
-    uint64_t data = func_memread64(paddr);
-    return data;
+    return (addr >= UINT64_C(0x0040400000)) && (addr < UINT64_C(0x0040500000));
+}
+
+static inline bool paddr_is_scratchpad(uint64_t addr)
+{
+    return (addr >= UINT64_C(0x0080000000)) && (addr < UINT64_C(0x0100000000));
+}
+
+static inline bool paddr_is_esr_space(uint64_t addr)
+{
+    return (addr >= UINT64_C(0x0100000000)) && (addr < UINT64_C(0x0200000000));
+}
+
+static inline bool paddr_is_reserved(uint64_t addr)
+{
+    return (addr >= UINT64_C(0x0200000000)) && (addr < UINT64_C(0x4000000000));
+}
+
+static inline bool paddr_is_pcie_space(uint64_t addr)
+{
+    return (addr >= UINT64_C(0x4000000000)) && (addr < UINT64_C(0x8000000000));
+}
+
+static inline bool paddr_is_dram_mbox(uint64_t addr)
+{
+    return (addr >= UINT64_C(0x8000000000)) && (addr < UINT64_C(0x8000200000));
+}
+
+static inline bool paddr_is_dram_osbox(uint64_t addr)
+{
+    return (addr >= UINT64_C(0x8000200000)) && (addr < UINT64_C(0x8100000000));
+}
+
+static inline bool paddr_is_dram_other(uint64_t addr)
+{
+    return addr >= UINT64_C(0x8100000000);
+}
+
+static inline bool paddr_is_dram(uint64_t addr)
+{
+    return addr >= UINT64_C(0x8000000000);
+}
+
+static inline bool access_is_size_aligned(uint64_t addr, size_t size)
+{
+    return !(addr % size);
+}
+
+static bool pma_check_data_access(uint64_t addr, size_t size, mem_access_type macc)
+{
+    bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
+
+    bool amo      = (macc == Mem_Access_AtomicL || macc == Mem_Access_AtomicG);
+    bool amo_g    = (macc == Mem_Access_AtomicG);
+    bool ts_tl_co = (macc >= Mem_Access_TxLoad && macc <= Mem_Access_CacheOp);
+
+    if (paddr_is_io_space(addr))
+        return !amo
+            && !ts_tl_co
+            && (spio || /*!mprot.disable_io_access*/true);
+
+    if (paddr_is_sp_space(addr))
+        return spio && !amo && !ts_tl_co;
+
+    if (paddr_is_scratchpad(addr))
+        return ts_tl_co
+            || amo_g
+            || access_is_size_aligned(addr, size);
+
+    if (paddr_is_esr_space(addr))
+        return !amo
+            && !ts_tl_co
+            && (size == 8)
+            && access_is_size_aligned(addr, size)
+            && ( int((addr >> 30) & 0x3) <= effective_execution_mode(macc) )
+            && ( int((addr >> 30) & 0x3) != 2 || spio );
+
+    if (paddr_is_pcie_space(addr))
+        return !amo
+            && !ts_tl_co
+            && (spio || /*!mprot.disable_pcie_access*/true);
+
+    if (paddr_is_dram_mbox(addr))
+        return effective_execution_mode(macc) == CSR_PRV_M;
+
+    if (paddr_is_dram_osbox(addr))
+        return spio || /*!mprot.disable_osbox_access*/true;
+
+    return paddr_is_dram(addr);
+}
+
+static bool pma_check_ptw_access(uint64_t addr)
+{
+    bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
+
+    if (paddr_is_sp_rom(addr))
+        return spio;
+
+    if (paddr_is_sp_sram(addr))
+        return spio;
+
+    if (paddr_is_dram_mbox(addr))
+        return effective_execution_mode(Mem_Access_PTW) == CSR_PRV_M;
+
+    if (paddr_is_dram_osbox(addr))
+        return spio || /*!mprot.disable_osbox_access*/true;
+
+    return paddr_is_dram(addr);
+}
+
+static bool pma_check_fetch_access(uint64_t addr)
+{
+    bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
+
+    if (paddr_is_sp_rom(addr))
+        return spio;
+
+    if (paddr_is_sp_sram(addr))
+        return spio;
+
+    if (paddr_is_dram_mbox(addr))
+        return effective_execution_mode(Mem_Access_Fetch) == CSR_PRV_M;
+
+    if (paddr_is_dram_osbox(addr))
+        return spio || /*!mprot.disable_osbox_access*/true;
+
+    return paddr_is_dram(addr);
 }
 
 uint16_t pmemfetch16(uint64_t paddr)
 {
-    return func_memread16(paddr);
+    if (!pma_check_fetch_access(paddr))
+    {
+        throw trap_instruction_access_fault(paddr);
+    }
+    return pmemread16(paddr);
 }
 
 static uint8_t vmemread8(uint64_t addr)
 {
-    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Load);
+    if (!pma_check_data_access(paddr, 1, Mem_Access_Load))
+    {
+        throw trap_load_access_fault(addr);
+    }
     return pmemread8(paddr);
 }
 
 static uint16_t vmemread16(uint64_t addr)
 {
-    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Load);
+    if (!pma_check_data_access(paddr, 2, Mem_Access_Load))
+    {
+        throw trap_load_access_fault(addr);
+    }
     return pmemread16(paddr);
 }
 
 static uint32_t vmemread32(uint64_t addr)
 {
-    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Load);
+    if (!pma_check_data_access(paddr, 4, Mem_Access_Load))
+    {
+        throw trap_load_access_fault(addr);
+    }
     return pmemread32(paddr);
 }
 
 static uint64_t vmemread64(uint64_t addr)
 {
-    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Load);
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Load);
+    if (!pma_check_data_access(paddr, 8, Mem_Access_Load))
+    {
+        throw trap_load_access_fault(addr);
+    }
     return pmemread64(paddr);
-}
-
-void pmemwrite8(uint64_t paddr, uint8_t data)
-{
-    func_memwrite8(paddr, data);
-}
-
-void pmemwrite16(uint64_t paddr, uint16_t data)
-{
-    func_memwrite16(paddr, data);
-}
-
-void pmemwrite32(uint64_t paddr, uint32_t data)
-{
-    func_memwrite32(paddr, data);
-}
-
-void pmemwrite64(uint64_t paddr, uint64_t data)
-{
-    func_memwrite64(paddr, data);
 }
 
 static void vmemwrite8(uint64_t addr, uint8_t data)
 {
-    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
+    if (!pma_check_data_access(paddr, 1, Mem_Access_Store))
+    {
+        throw trap_store_access_fault(addr);
+    }
     pmemwrite8(paddr, data);
 }
 
 static void vmemwrite16(uint64_t addr, uint16_t data)
 {
-    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
+    if (!pma_check_data_access(paddr, 2, Mem_Access_Store))
+    {
+        throw trap_store_access_fault(addr);
+    }
     pmemwrite16(paddr, data);
 }
 
 static void vmemwrite32(uint64_t addr, uint32_t data)
 {
-    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
+    if (!pma_check_data_access(paddr, 4, Mem_Access_Store))
+    {
+        throw trap_store_access_fault(addr);
+    }
     pmemwrite32(paddr, data);
 }
 
 static void vmemwrite64(uint64_t addr, uint64_t data)
 {
-    uint64_t paddr = virt_to_phys_emu(addr, Mem_Access_Store);
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
+    if (!pma_check_data_access(paddr, 8, Mem_Access_Store))
+    {
+        throw trap_store_access_fault(addr);
+    }
     pmemwrite64(paddr, data);
 }
+
+// forward declaration
+static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc);
 
 // Abstract memory accessors. By default we use the host memory directly,
 // unless we are asked to use emulated memory.
 
-void set_memory_funcs(void * func_memread8_, void * func_memread16_,
-                      void * func_memread32_, void * func_memread64_,
-                      void * func_memwrite8_, void * func_memwrite16_,
-                      void * func_memwrite32_, void * func_memwrite64_)
+void set_memory_funcs(uint8_t  (*func_memread8_ ) (uint64_t),
+                      uint16_t (*func_memread16_) (uint64_t),
+                      uint32_t (*func_memread32_) (uint64_t),
+                      uint64_t (*func_memread64_) (uint64_t),
+                      void (*func_memwrite8_ ) (uint64_t, uint8_t ),
+                      void (*func_memwrite16_) (uint64_t, uint16_t),
+                      void (*func_memwrite32_) (uint64_t, uint32_t),
+                      void (*func_memwrite64_) (uint64_t, uint64_t))
 {
-    func_memread8   = (func_memread8_t  ) func_memread8_;
-    func_memread16  = (func_memread16_t ) func_memread16_;
-    func_memread32  = (func_memread32_t ) func_memread32_;
-    func_memread64  = (func_memread64_t ) func_memread64_;
-    func_memwrite8  = (func_memwrite8_t ) func_memwrite8_;
-    func_memwrite16 = (func_memwrite16_t) func_memwrite16_;
-    func_memwrite32 = (func_memwrite32_t) func_memwrite32_;
-    func_memwrite64 = (func_memwrite64_t) func_memwrite64_;
-
+    pmemread8   = func_memread8_;
+    pmemread16  = func_memread16_;
+    pmemread32  = func_memread32_;
+    pmemread64  = func_memread64_;
+    pmemwrite8  = func_memwrite8_;
+    pmemwrite16 = func_memwrite16_;
+    pmemwrite32 = func_memwrite32_;
+    pmemwrite64 = func_memwrite64_;
     vmemtranslate = virt_to_phys_emu;
 }
 
@@ -2206,32 +2372,34 @@ void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-#define AMO_EMU_W_FUNC(NAME, OPC) \
+#define AMO_EMU_W_FUNC(NAME, LG, OPC) \
 void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 {\
    LOG(DEBUG, "I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src2, src1, comm ? " # " : "", comm ? comm : "");\
-   amo_emu_w(OPC, dst, src1, src2);\
+   amo_emu_w(OPC, dst, src1, src2, Mem_Access_Atomic ## LG);\
 }
 
-#define AMO_EMU_D_FUNC(NAME, OPC) \
+#define AMO_EMU_D_FUNC(NAME, LG, OPC) \
 void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 {\
    LOG(DEBUG, "I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src2, src1, comm ? " # " : "", comm ? comm : "");\
-   amo_emu_d(OPC, dst, src1, src2);\
+   amo_emu_d(OPC, dst, src1, src2, Mem_Access_Atomic ## LG);\
 }
 
-static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
+static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type macc)
 {
-    uint64_t addr;
-    uint32_t res, val1, val2;
-
-    addr = XREGS[src1].x;
+    uint64_t addr = XREGS[src1].x;
 
     // Check misaligned access
     if (addr % 4) throw trap_store_address_misaligned(addr);
 
-    val1 = vmemread32(addr);
-    val2 = XREGS[src2].w[0];
+    uint64_t paddr = vmemtranslate(addr, macc);
+    if (!pma_check_data_access(paddr, 4, macc))
+    {
+        throw trap_store_access_fault(addr);
+    }
+    uint32_t val1 = pmemread32(paddr);
+    uint32_t val2 = XREGS[src2].w[0];
 
     // Save the loaded data
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", sext32(val1), addr);
@@ -2241,6 +2409,7 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
     }
     logxregchange(dst);
 
+    uint32_t res;
     switch (op)
     {
        case SWAP:
@@ -2286,23 +2455,26 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2)
 
     // Stores the operated data
     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", res, addr);
-    vmemwrite32(addr, res);
+    pmemwrite32(paddr, res);
     // note: for logging purposes, sending val2 instead of res => we want to check what the
     // dcache outputs to the shire caches, not the actual value written in memory
     logmemwchange(0, 4, addr, val2);
 }
 
-static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
+static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type macc)
 {
-    uint64_t addr, val1, val2, res;
-
-    addr = XREGS[src1].x;
+    uint64_t addr = XREGS[src1].x;
 
     // Check misaligned access
     if (addr % 8) throw trap_store_address_misaligned(addr);
 
-    val1 = vmemread64(addr);
-    val2 = XREGS[src2].x;
+    uint64_t paddr = vmemtranslate(addr, macc);
+    if (!pma_check_data_access(paddr, 8, macc))
+    {
+        throw trap_store_access_fault(addr);
+    }
+    uint64_t val1 = pmemread64(paddr);
+    uint64_t val2 = XREGS[src2].x;
 
     // Save the loaded data
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM64[0x%016" PRIx64 "]", val1, addr);
@@ -2312,6 +2484,7 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
     }
     logxregchange(dst);
 
+    uint64_t res;
     switch (op)
     {
        case SWAP:
@@ -2357,7 +2530,7 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2)
 
     // Store the operated data
     LOG(DEBUG, "\t0x%016" PRIx64 " --> MEM64[0x%016" PRIx64 "]", res, addr);
-    vmemwrite64(addr, res);
+    pmemwrite64(paddr, res);
     // note: for logging purposes, sending val2 instead of res => we want to check what the
     // dcache outputs to the shire caches, not the actual value written in memory
     logmemwchange(0, 8, addr, val2);
@@ -2983,13 +3156,45 @@ static void throw_page_fault(uint64_t addr, mem_access_type macc)
     switch (macc)
     {
         case Mem_Access_Load:
+        case Mem_Access_TxLoad:
             throw trap_load_page_fault(addr);
             break;
         case Mem_Access_Store:
+        case Mem_Access_TxStore:
+        case Mem_Access_AtomicL:
+        case Mem_Access_AtomicG:
+        case Mem_Access_CacheOp:
             throw trap_store_page_fault(addr);
             break;
         case Mem_Access_Fetch:
             throw trap_instruction_page_fault(addr);
+            break;
+        case Mem_Access_PTW:
+            assert(0);
+            break;
+    }
+}
+
+static void throw_access_fault(uint64_t addr, mem_access_type macc)
+{
+    switch (macc)
+    {
+        case Mem_Access_Load:
+        case Mem_Access_TxLoad:
+            throw trap_load_access_fault(addr);
+            break;
+        case Mem_Access_Store:
+        case Mem_Access_TxStore:
+        case Mem_Access_AtomicL:
+        case Mem_Access_AtomicG:
+        case Mem_Access_CacheOp:
+            throw trap_store_access_fault(addr);
+            break;
+        case Mem_Access_Fetch:
+            throw trap_instruction_access_fault(addr);
+            break;
+        case Mem_Access_PTW:
+            assert(0);
             break;
     }
 }
@@ -2999,27 +3204,23 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 
     // Read mstatus
     const uint64_t mstatus = csrget(csr_mstatus);
-    const bool     mxr     = (mstatus >> MSTATUS_MXR ) & 0x1;
-    const bool     sum     = (mstatus >> MSTATUS_SUM ) & 0x1;
-    const bool     mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
-    const bool     mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
+    const int      mxr     = (mstatus >> MSTATUS_MXR ) & 0x1;
+    const int      sum     = (mstatus >> MSTATUS_SUM ) & 0x1;
+    const int      mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
+    const int      mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
 
     // Read satp
     const uint64_t satp      = csrget(csr_satp);
     const uint64_t satp_mode = (satp >> 60) & 0xF;
     const uint64_t satp_ppn  = satp & PPN_M;
 
-    // Read prv
-    const uint64_t prv = prvget();
-
     // Calculate effective privilege level
-    const uint64_t prv_inst = prv;
-    const uint64_t prv_data = mprv ? mpp : prv;
+    const int prv = (macc == Mem_Access_Fetch) ? prvget() : (mprv ? mpp : prvget());
 
     // V2P mappings are enabled when all of the following are true:
     // - the effective execution mode is not 'M'
     // - satp.mode is not "Bare"
-    bool vm_enabled = (((macc == Mem_Access_Fetch) ? prv_inst : prv_data) < CSR_PRV_M) && (satp_mode != SATP_MODE_BARE);
+    bool vm_enabled = (prv < CSR_PRV_M) && (satp_mode != SATP_MODE_BARE);
 
     if (!vm_enabled)
     {
@@ -3038,13 +3239,13 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
             Num_Levels = 3;
             PTE_top_Idx_Size = 26;
             // bits 63-39 of address must be equal to bit 38
-            sign = (int64_t(addr) >> 38);
+            sign = int64_t(addr) >> 38;
             break;
         case SATP_MODE_SV48:
             Num_Levels = 4;
             PTE_top_Idx_Size = 17;
             // bits 63-48 of address must be equal to bit 47
-            sign = (int64_t(addr) >> 47);
+            sign = int64_t(addr) >> 47;
             break;
         default:
             assert(0); // we should never get here!
@@ -3070,8 +3271,7 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     uint64_t ppn = satp_ppn;
     do
     {
-        level--;
-        if (level < 0)
+        if (--level < 0)
         {
             throw_page_fault(addr, macc);
         }
@@ -3080,7 +3280,10 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
         uint64_t vpn = (addr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
         // Read PTE
         pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
-        // TODO: PMA / PMP checks
+        if (!pma_check_ptw_access(pte_addr))
+        {
+            throw_access_fault(addr, macc);
+        }
         pte = pmemread64(pte_addr);
         LOG(DEBUG, "\tPTW: %016" PRIx64 " <-- PMEM64[%016" PRIx64 "]", pte, pte_addr);
 
@@ -3123,28 +3326,36 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     switch (macc)
     {
         case Mem_Access_Load:
+        case Mem_Access_TxLoad:
             if (!(pte_r || (mxr && pte_x)) ||
-                ((prv_data == CSR_PRV_U) && !pte_u) ||
-                ((prv_data == CSR_PRV_S) && pte_u && !sum))
+                ((prv == CSR_PRV_U) && !pte_u) ||
+                ((prv == CSR_PRV_S) && pte_u && !sum))
             {
                 throw_page_fault(addr, macc);
             }
             break;
         case Mem_Access_Store:
+        case Mem_Access_TxStore:
+        case Mem_Access_AtomicL:
+        case Mem_Access_AtomicG:
+        case Mem_Access_CacheOp:
             if (!pte_w ||
-                ((prv_data == CSR_PRV_U) && !pte_u) ||
-                ((prv_data == CSR_PRV_S) && pte_u && !sum))
+                ((prv == CSR_PRV_U) && !pte_u) ||
+                ((prv == CSR_PRV_S) && pte_u && !sum))
             {
                 throw_page_fault(addr, macc);
             }
             break;
         case Mem_Access_Fetch:
             if (!pte_x ||
-                ((prv_inst == CSR_PRV_U) && !pte_u) ||
-                ((prv_inst == CSR_PRV_S) && pte_u))
+                ((prv == CSR_PRV_U) && !pte_u) ||
+                ((prv == CSR_PRV_S) && pte_u))
             {
                 throw_page_fault(addr, macc);
             }
+            break;
+        case Mem_Access_PTW:
+            assert(0);
             break;
     }
 
@@ -3185,9 +3396,7 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 
     // Final physical address only uses 40 bits
     paddr &= PA_M;
-
     LOG(DEBUG, "\tPTW: Paddr = 0x%016" PRIx64, paddr);
-
     return paddr;
 }
 
@@ -6080,28 +6289,32 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
 // memory is flat
 //
 
-#define AMO_EMU_F_FUNC(NAME, OPC) \
+#define AMO_EMU_F_FUNC(NAME, LG, OPC) \
 void NAME(freg dst, freg src1, xreg src2, const char* comm)\
 {\
    LOG(DEBUG, "I: " #NAME " f%d, f%d(x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");\
-   amo_emu_f(OPC, dst, src1, src2);\
+   amo_emu_f(OPC, dst, src1, src2, Mem_Access_Atomic ## LG);\
 }
 
-void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
+void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
 {
-    uint64_t addr;
-    iufval32 res, val1, val2;
-
     for (int el = 0; el < VL; el++)
     {
+        iufval32 res, val1, val2;
+
         if (!MREGS[0].b[el]) continue;
 
-        addr = XREGS[src2].x + FREGS[src1].i[el];
+        uint64_t addr = XREGS[src2].x + FREGS[src1].i[el];
 
         // Check misaligned access
         if (addr % 4) throw trap_store_address_misaligned(addr);
 
-        val1.u = vmemread32(addr);
+        uint64_t paddr = vmemtranslate(addr, macc);
+        if (!pma_check_data_access(paddr, 4, macc))
+        {
+            throw trap_store_access_fault(addr);
+        }
+        val1.u = pmemread32(paddr);
         val2.u = FREGS[dst].u[el];
 
         // Save the loaded data
@@ -6160,7 +6373,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
 
         // Stores the operated data
         LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", res.u, addr);
-        vmemwrite32(addr, res.u);
+        pmemwrite32(paddr, res.u);
 
         // note: for logging purposes, sending val2.u instead of res.u => we want to check what the
         // dcache outputs to the shire caches, not the actual value written in memory
@@ -6175,89 +6388,89 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2)
 // Local Scalar 32 bits Atomics
 //
 
-AMO_EMU_W_FUNC(amoswapl_w, SWAP)
-AMO_EMU_W_FUNC(amoandl_w,  AND)
-AMO_EMU_W_FUNC(amoorl_w,   OR)
-AMO_EMU_W_FUNC(amoxorl_w,  XOR)
-AMO_EMU_W_FUNC(amoaddl_w,  ADD)
-AMO_EMU_W_FUNC(amominl_w,  MIN)
-AMO_EMU_W_FUNC(amomaxl_w,  MAX)
-AMO_EMU_W_FUNC(amominul_w, MINU)
-AMO_EMU_W_FUNC(amomaxul_w, MAXU)
+AMO_EMU_W_FUNC(amoswapl_w, L, SWAP)
+AMO_EMU_W_FUNC(amoandl_w,  L, AND)
+AMO_EMU_W_FUNC(amoorl_w,   L, OR)
+AMO_EMU_W_FUNC(amoxorl_w,  L, XOR)
+AMO_EMU_W_FUNC(amoaddl_w,  L, ADD)
+AMO_EMU_W_FUNC(amominl_w,  L, MIN)
+AMO_EMU_W_FUNC(amomaxl_w,  L, MAX)
+AMO_EMU_W_FUNC(amominul_w, L, MINU)
+AMO_EMU_W_FUNC(amomaxul_w, L, MAXU)
 
 //
 // Global Scalar 32 bits Atomics
 //
 
-AMO_EMU_W_FUNC(amoswapg_w, SWAP)
-AMO_EMU_W_FUNC(amoandg_w,  AND)
-AMO_EMU_W_FUNC(amoorg_w,   OR)
-AMO_EMU_W_FUNC(amoxorg_w,  XOR)
-AMO_EMU_W_FUNC(amoaddg_w,  ADD)
-AMO_EMU_W_FUNC(amoming_w,  MIN)
-AMO_EMU_W_FUNC(amomaxg_w,  MAX)
-AMO_EMU_W_FUNC(amominug_w, MINU)
-AMO_EMU_W_FUNC(amomaxug_w, MAXU)
+AMO_EMU_W_FUNC(amoswapg_w, G, SWAP)
+AMO_EMU_W_FUNC(amoandg_w,  G, AND)
+AMO_EMU_W_FUNC(amoorg_w,   G, OR)
+AMO_EMU_W_FUNC(amoxorg_w,  G, XOR)
+AMO_EMU_W_FUNC(amoaddg_w,  G, ADD)
+AMO_EMU_W_FUNC(amoming_w,  G, MIN)
+AMO_EMU_W_FUNC(amomaxg_w,  G, MAX)
+AMO_EMU_W_FUNC(amominug_w, G, MINU)
+AMO_EMU_W_FUNC(amomaxug_w, G, MAXU)
 
 //
 // Local Scalar 64 bits Atomics
 //
 
-AMO_EMU_D_FUNC(amoswapl_d, SWAP)
-AMO_EMU_D_FUNC(amoandl_d,  AND)
-AMO_EMU_D_FUNC(amoorl_d,   OR)
-AMO_EMU_D_FUNC(amoxorl_d,  XOR)
-AMO_EMU_D_FUNC(amoaddl_d,  ADD)
-AMO_EMU_D_FUNC(amominl_d,  MIN)
-AMO_EMU_D_FUNC(amomaxl_d,  MAX)
-AMO_EMU_D_FUNC(amominul_d, MINU)
-AMO_EMU_D_FUNC(amomaxul_d, MAXU)
+AMO_EMU_D_FUNC(amoswapl_d, L, SWAP)
+AMO_EMU_D_FUNC(amoandl_d,  L, AND)
+AMO_EMU_D_FUNC(amoorl_d,   L, OR)
+AMO_EMU_D_FUNC(amoxorl_d,  L, XOR)
+AMO_EMU_D_FUNC(amoaddl_d,  L, ADD)
+AMO_EMU_D_FUNC(amominl_d,  L, MIN)
+AMO_EMU_D_FUNC(amomaxl_d,  L, MAX)
+AMO_EMU_D_FUNC(amominul_d, L, MINU)
+AMO_EMU_D_FUNC(amomaxul_d, L, MAXU)
 
 //
 // Global Scalar 64 bits Atomics
 //
 
-AMO_EMU_D_FUNC(amoswapg_d, SWAP)
-AMO_EMU_D_FUNC(amoandg_d,  AND)
-AMO_EMU_D_FUNC(amoorg_d,   OR)
-AMO_EMU_D_FUNC(amoxorg_d,  XOR)
-AMO_EMU_D_FUNC(amoaddg_d,  ADD)
-AMO_EMU_D_FUNC(amoming_d,  MIN)
-AMO_EMU_D_FUNC(amomaxg_d,  MAX)
-AMO_EMU_D_FUNC(amominug_d, MINU)
-AMO_EMU_D_FUNC(amomaxug_d, MAXU)
+AMO_EMU_D_FUNC(amoswapg_d, G, SWAP)
+AMO_EMU_D_FUNC(amoandg_d,  G, AND)
+AMO_EMU_D_FUNC(amoorg_d,   G, OR)
+AMO_EMU_D_FUNC(amoxorg_d,  G, XOR)
+AMO_EMU_D_FUNC(amoaddg_d,  G, ADD)
+AMO_EMU_D_FUNC(amoming_d,  G, MIN)
+AMO_EMU_D_FUNC(amomaxg_d,  G, MAX)
+AMO_EMU_D_FUNC(amominug_d, G, MINU)
+AMO_EMU_D_FUNC(amomaxug_d, G, MAXU)
 
 //
 // Local Packed 32 bits Atomics
 //
 
-AMO_EMU_F_FUNC(famoswapl_pi, SWAP)
-AMO_EMU_F_FUNC(famoandl_pi,  AND)
-AMO_EMU_F_FUNC(famoorl_pi,   OR)
-AMO_EMU_F_FUNC(famoxorl_pi,  XOR)
-AMO_EMU_F_FUNC(famoaddl_pi,  ADD)
-AMO_EMU_F_FUNC(famominl_pi,  MIN)
-AMO_EMU_F_FUNC(famomaxl_pi,  MAX)
-AMO_EMU_F_FUNC(famominul_pi, MINU)
-AMO_EMU_F_FUNC(famomaxul_pi, MAXU)
-AMO_EMU_F_FUNC(famominl_ps,  MINPS)
-AMO_EMU_F_FUNC(famomaxl_ps,  MAXPS)
+AMO_EMU_F_FUNC(famoswapl_pi, L, SWAP)
+AMO_EMU_F_FUNC(famoandl_pi,  L, AND)
+AMO_EMU_F_FUNC(famoorl_pi,   L, OR)
+AMO_EMU_F_FUNC(famoxorl_pi,  L, XOR)
+AMO_EMU_F_FUNC(famoaddl_pi,  L, ADD)
+AMO_EMU_F_FUNC(famominl_pi,  L, MIN)
+AMO_EMU_F_FUNC(famomaxl_pi,  L, MAX)
+AMO_EMU_F_FUNC(famominul_pi, L, MINU)
+AMO_EMU_F_FUNC(famomaxul_pi, L, MAXU)
+AMO_EMU_F_FUNC(famominl_ps,  L, MINPS)
+AMO_EMU_F_FUNC(famomaxl_ps,  L, MAXPS)
 
 //
 // Global Packed 32 bits Atomics
 //
 
-AMO_EMU_F_FUNC(famoswapg_pi, SWAP)
-AMO_EMU_F_FUNC(famoandg_pi,  AND)
-AMO_EMU_F_FUNC(famoorg_pi,   OR)
-AMO_EMU_F_FUNC(famoxorg_pi,  XOR)
-AMO_EMU_F_FUNC(famoaddg_pi,  ADD)
-AMO_EMU_F_FUNC(famoming_pi,  MIN)
-AMO_EMU_F_FUNC(famomaxg_pi,  MAX)
-AMO_EMU_F_FUNC(famominug_pi, MINU)
-AMO_EMU_F_FUNC(famomaxug_pi, MAXU)
-AMO_EMU_F_FUNC(famoming_ps,  MINPS)
-AMO_EMU_F_FUNC(famomaxg_ps,  MAXPS)
+AMO_EMU_F_FUNC(famoswapg_pi, G, SWAP)
+AMO_EMU_F_FUNC(famoandg_pi,  G, AND)
+AMO_EMU_F_FUNC(famoorg_pi,   G, OR)
+AMO_EMU_F_FUNC(famoxorg_pi,  G, XOR)
+AMO_EMU_F_FUNC(famoaddg_pi,  G, ADD)
+AMO_EMU_F_FUNC(famoming_pi,  G, MIN)
+AMO_EMU_F_FUNC(famomaxg_pi,  G, MAX)
+AMO_EMU_F_FUNC(famominug_pi, G, MINU)
+AMO_EMU_F_FUNC(famomaxug_pi, G, MAXU)
+AMO_EMU_F_FUNC(famoming_ps,  G, MINPS)
+AMO_EMU_F_FUNC(famomaxg_ps,  G, MAXPS)
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -7147,16 +7360,17 @@ void tensorload(uint64_t control)
         {
             if (!tm || tmask_pass(i))
             {
-                if (addr & 0x3F)
+                assert(access_is_size_aligned(addr, L1D_LINE_SIZE));
+                uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
+                if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
                 {
-                    LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
-
+                    throw trap_load_access_fault(addr);
                 }
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
                     try
                     {
-                        SCP[dst + i].u[j] = vmemread32(addr + j*4);
+                        SCP[dst + i].u[j] = pmemread32(paddr + j*4);
                     }
                     catch (const trap_t& t)
                     {
@@ -7174,25 +7388,27 @@ void tensorload(uint64_t control)
     //INTERLEAVE8
     else if (trans == 0x01)
     {
-       LOG(DEBUG, "%s", "TensorLoad: Interleave");
-       boffset *= 16;
-       LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/16);
-       for (int i = 0; i < rows; ++i)
-       {
+        LOG(DEBUG, "%s", "TensorLoad: Interleave");
+        boffset *= 16;
+        LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/16);
+        for (int i = 0; i < rows; ++i)
+        {
             if (!tm || tmask_pass(i))
             {
-                if (addr & 0x3F)
+                for (int r = 0; r < 4; ++r)
                 {
-                    LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
-                }
-                uint64_t vaddr = addr + boffset;
-                for (int c = 0; c < 16; ++c)
-                {
-                    for (int r = 0; r < 4; ++r)
+                    uint64_t vaddr = addr + boffset + r*stride;
+                    assert(access_is_size_aligned(vaddr, 16));
+                    uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
+                    if (!pma_check_data_access(paddr, 16, Mem_Access_TxLoad))
+                    {
+                        throw trap_load_access_fault(vaddr);
+                    }
+                    for (int c = 0; c < 16; ++c)
                     {
                         try
                         {
-                            SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = vmemread8(vaddr + r*stride + c);
+                            SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = pmemread8(paddr + c);
                         }
                         catch (const trap_t& t)
                         {
@@ -7201,7 +7417,7 @@ void tensorload(uint64_t control)
                             return;
                         }
                         LOG(DEBUG, "SCP[%d].b[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]",
-                            (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].b[c*4+r], vaddr + r*stride + c);
+                            (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].b[c*4+r], vaddr + c);
                     }
                 }
             }
@@ -7210,25 +7426,27 @@ void tensorload(uint64_t control)
     //INTERLEAVE16
     else if (trans == 0x02)
     {
-       LOG(DEBUG, "%s", "TensorLoad: Interleave");
-       boffset *= 32;
-       LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/32);
-       for (int i = 0; i < rows; ++i)
-       {
+        LOG(DEBUG, "%s", "TensorLoad: Interleave");
+        boffset *= 32;
+        LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/32);
+        for (int i = 0; i < rows; ++i)
+        {
             if (!tm || tmask_pass(i))
             {
-                if (addr & 0x3F)
+                for (int r = 0; r < 2; ++r)
                 {
-                    LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
-                }
-                uint64_t vaddr = addr + boffset;
-                for (int c = 0; c < 16; ++c)
-                {
-                    for (int r = 0; r < 2; ++r)
+                    uint64_t vaddr = addr + boffset + r*stride;
+                    assert(access_is_size_aligned(vaddr, 32));
+                    uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
+                    if (!pma_check_data_access(paddr, 32, Mem_Access_TxLoad))
+                    {
+                        throw trap_load_access_fault(vaddr);
+                    }
+                    for (int c = 0; c < 16; ++c)
                     {
                         try
                         {
-                            SCP[(dst+i)%L1_SCP_ENTRIES].h[c*4 + r] = vmemread8(vaddr + r*stride + c);
+                            SCP[(dst+i)%L1_SCP_ENTRIES].h[c*2 + r] = pmemread16(paddr + c*2);
                         }
                         catch (const trap_t& t)
                         {
@@ -7237,7 +7455,7 @@ void tensorload(uint64_t control)
                             return;
                         }
                         LOG(DEBUG, "SCP[%d].h[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
-                            (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].h[c*4+r], vaddr + r*stride + c);
+                            (dst+i)%L1_SCP_ENTRIES, c*2+r, SCP[dst+i].h[c*4+r], vaddr + c*2);
                     }
                 }
             }
@@ -7246,35 +7464,39 @@ void tensorload(uint64_t control)
     //TRANSPOSE
     else if (trans == 0x05 || trans == 0x06 || trans==0x07)
     {
-
         bool exist_conv = 0;
         for (int i=0; (i<rows) & (!exist_conv);++i)
+        {
             exist_conv = tmask_pass(i);
+        }
         if (tm && !exist_conv)
         {
             LOG(DEBUG, "%s", "Exit Condition Broken");
             return;
         }
-        int offset;
         uint8_t tmp_buffer[64][64];
         int size = (trans & 0x03);
-
-        offset = (size==1) ?  (control & 0x30) : (control & 0x20) ;
+        int offset = (size==1) ?  (control & 0x30) : (control & 0x20) ;
         int elements = 64 >> (size-1);
         size = 1 << (size-1);
         LOG(DEBUG, "TensorLoad: Transpose - elements:%d size:%d offset:%d", elements, size, offset);
         for (int elem = 0; elem < elements; ++elem)
         {
             //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
+            assert(access_is_size_aligned(addr, 64));
+            uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
+            if (!pma_check_data_access(paddr, 64, Mem_Access_TxLoad))
+            {
+                throw trap_load_access_fault(addr);
+            }
             for (int j = 0; j < 8; j++)
             {
                 for (int k = 0; k < 8; k++)
                 {
-                    uint64_t addr_final = addr+j*8+k;
                     uint8_t val = 0;
                     try
                     {
-                        val = vmemread8(addr_final);
+                        val = pmemread8(paddr + j*8 + k);
                     }
                     catch (const trap_t& t)
                     {
@@ -7282,16 +7504,16 @@ void tensorload(uint64_t control)
                         update_tensor_error(1 << 7);
                         return;
                     }
-                    tmp_buffer[elem][j*8+k]=val;
-                    LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, addr_final, elem, j*8+k, val);
+                    tmp_buffer[elem][j*8+k] = val;
+                    LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, paddr+j*8+k, elem, j*8+k, val);
                 }
             }
             addr += stride;
         }
         for (int i = 0; i < rows; ++i)
         {
-             if (!tm || tmask_pass(i))
-             {
+            if (!tm || tmask_pass(i))
+            {
                 if (addr & 0x3F)
                 {
                     LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
@@ -7355,27 +7577,26 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
 
     uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
 
-    for (int i  = 0; i < rows; ++i)
+    for (int i = 0; i < rows; ++i)
     {
-        uint64_t paddr_line_base =  L2_SCP_BASE + shire * L2_SCP_OFFSET + ((dst + i) * 64);
+        uint64_t l2scp_addr = L2_SCP_BASE + shire * L2_SCP_OFFSET + ((dst + i) * L1D_LINE_SIZE);
         if (!tm || tmask_pass(i))
         {
-            if (addr & 0x3F)
+            assert(access_is_size_aligned(addr, L1D_LINE_SIZE));
+            uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
             {
-                LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
+                throw trap_load_access_fault(addr);
             }
             for (int j = 0; j < L1D_LINE_SIZE/4; j++)
             {
-                uint64_t addr_offset  = j*4;
-                uint64_t addr_final = addr+addr_offset;
-                uint32_t val = vmemread32(addr_final);
-                uint64_t paddr = paddr_line_base + addr_offset ;
-                pmemwrite32(paddr, val);
-                LOG(DEBUG, "\tTensorLoadL2SCP MEM32[0x%016" PRIx64 "] to PMEM32[0x%016" PRIx64 "] line %d, base 0x%016" PRIx64 "  offset 0x%016" PRIx64 " <= 0x%08" PRIx32,
-                    addr_final, paddr, dst+i, paddr_line_base , addr_offset , val);
+                uint32_t val = pmemread32(paddr + j*4);
+                pmemwrite32(l2scp_addr + j*4, val);
+                LOG(DEBUG, "\tTensorLoadL2SCP MEM32[0x%016" PRIx64 "] to PMEM32[0x%016" PRIx64 "] line %d, base 0x%016" PRIx64 " offset 0x%x <= 0x%08" PRIx32,
+                    addr+j*4, l2scp_addr+j*4, dst+i, l2scp_addr, j*4, val);
             }
         }
-        LOG(DEBUG, "\t\tVaddr = 0x%016" PRIx64 " Paddr = 0x%016" PRIx64 "  - Stride = 0x%016" PRIx64 "- line %d", addr, paddr_line_base , stride,  dst+i);
+        LOG(DEBUG, "\t\tVaddr = 0x%016" PRIx64 " Paddr = 0x%016" PRIx64 " - Stride = 0x%016" PRIx64 "- line %d", addr, l2scp_addr, stride, dst+i);
         addr += stride;
     }
 }
@@ -7587,15 +7808,20 @@ static void tensorstore(uint64_t tstorereg)
         // For all the rows
         for (int row = 0; row < rows; row++)
         {
+            assert(access_is_size_aligned(addr, L1D_LINE_SIZE));
+            uint64_t paddr = vmemtranslate(addr, Mem_Access_TxStore);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxStore))
+            {
+                throw trap_store_access_fault(addr);
+            }
             // For all the elements of the lane
             for (int i = 0; i < L1D_LINE_SIZE/4; i++)
             {
                 uint32_t val = SCP[src].u[i];
-                uint64_t waddr = addr + i * 4;
-                LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, waddr);
+                LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, addr + i*4);
                 try
                 {
-                    vmemwrite32(waddr, val);
+                    pmemwrite32(paddr + i*4, val);
                 }
                 catch (const trap_t& t)
                 {
@@ -7603,7 +7829,7 @@ static void tensorstore(uint64_t tstorereg)
                     update_tensor_error(1 << 7);
                     return;
                 }
-                //logmemwchange(0, 4, waddr, val); => Don't log mem changes!
+                //logmemwchange(0, 4, addr + i*4, val); => Don't log mem changes!
             }
             src += srcinc;
             src = src % L1_SCP_ENTRIES;
@@ -7647,15 +7873,21 @@ static void tensorstore(uint64_t tstorereg)
             // For all the blocks of 128b
             for (int col = 0; col < cols; col++)
             {
+                assert(access_is_size_aligned(addr, 16));
+                uint64_t paddr = vmemtranslate(addr + col*16, Mem_Access_TxStore);
+                if (!pma_check_data_access(paddr, 16, Mem_Access_TxStore))
+                {
+                    throw trap_store_access_fault(addr);
+                }
                 // For all the 32 elements of the 128b block
                 for (uint64_t i = 0; i < 4; i++)
                 {
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u[idx];
-                    LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col * 16 + i * 4);
+                    LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
                     try
                     {
-                        vmemwrite32(addr + col * 16 + i * 4, val);
+                        pmemwrite32(paddr + i*4, val);
                     }
                     catch (const trap_t& t)
                     {
@@ -7663,7 +7895,7 @@ static void tensorstore(uint64_t tstorereg)
                         update_tensor_error(1 << 7);
                         return;
                     }
-                    //logmemwchange(0, 4, addr + col * 16 + i * 4, val); => Don't log mem changes!
+                    //logmemwchange(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
                 }
                 if (cols == 1)    src += srcinc; // For 128b stores, move to next desired register
                 else if (col & 1) src += srcinc; // For 256b and 512b stores, move to next desired register when 256b are written
@@ -8243,9 +8475,11 @@ static uint64_t flbarrier(uint64_t value)
     uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
 
     // Gets what is the address that the fast local barrier is mapped to
-    uint64_t addr    = ESR_SHIRE_REGION + ESR_SHIRE_FLB_OFFSET + (barrier * 8) + shire * ESR_REGION_OFFSET; // Access is private per cache
+    uint64_t addr = ESR_SHIRE_REGION + ESR_SHIRE_FLB_OFFSET + (barrier * 8) + shire * ESR_REGION_OFFSET; // Access is private per cache
 
-    uint64_t orig_value = vmemread64(addr);
+    // NB: No PMA checks here... we know it will pass ;-)
+
+    uint64_t orig_value = pmemread64(addr);
     uint64_t result = -1;
 
     LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
@@ -8254,17 +8488,17 @@ static uint64_t flbarrier(uint64_t value)
     if (orig_value == limit)
     {
         //LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: last minion Shire %i!!", (int) shire);
-        LOG(DEBUG,"FastLocalBarrier: last minion Shire %i!!", (int) shire);        
-        
-        vmemwrite64(addr, 0);
+        LOG(DEBUG,"FastLocalBarrier: last minion Shire %i!!", (int) shire);
+
+        pmemwrite64(addr, 0);
         result = 1;
     }
     // Not the last guy, return 0 and increment barrier
     else
     {
         //LOG_ALL_MINIONS(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!", limit, orig_value + 1);
-        LOG(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!", limit, orig_value + 1);        
-        vmemwrite64(addr, orig_value + 1);
+        LOG(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!", limit, orig_value + 1);
+        pmemwrite64(addr, orig_value + 1);
         result = 0;
     }
 

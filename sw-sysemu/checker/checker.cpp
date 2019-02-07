@@ -193,14 +193,14 @@ checker::checker(main_memory * memory_, testLog& log_, bool checker_en)
     memory_instance = memory;
     init_emu();
 
-    set_memory_funcs((void *) checker_memread8,
-                     (void *) checker_memread16,
-                     (void *) checker_memread32,
-                     (void *) checker_memread64,
-                     (void *) checker_memwrite8,
-                     (void *) checker_memwrite16,
-                     (void *) checker_memwrite32,
-                     (void *) checker_memwrite64);
+    set_memory_funcs(checker_memread8,
+                     checker_memread16,
+                     checker_memread32,
+                     checker_memread64,
+                     checker_memwrite8,
+                     checker_memwrite16,
+                     checker_memwrite32,
+                     checker_memwrite64);
 
     memory->setGetThread(get_thread);
 
