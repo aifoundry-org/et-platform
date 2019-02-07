@@ -65,6 +65,7 @@ RUN --mount=type=ssh cd /tmp / \
      && make install-opcodes install-libiberty install-bfd \
      && rm -rf /tmp/*
 
+RUN pip install pyelftools
 
 ARG GIT_SHA
 LABEL git_sha="$GIT_SHA"
