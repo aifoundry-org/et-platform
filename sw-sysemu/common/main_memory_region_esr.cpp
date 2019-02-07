@@ -8,6 +8,7 @@
 #include "emu_memop.h"
 #include "emu.h"
 #include "txs.h"
+#include "tbox_emu.h"
 
 extern uint32_t current_pc;
 extern uint32_t current_thread;
@@ -88,10 +89,15 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                     switch(esr_info.address)
                     {
-                        case ESR_NEIGH_TBOX_IMGT_PTR:
-                            init_txs(*((uint64_t *) data));
+                        case ESR_NEIGH_TBOX_IMGT_PTR :
+                            {
+                                uint32_t tbox_id = tbox_id_from_thread(current_thread);
+                                GET_TBOX(esr_info.shire, tbox_id).set_image_table_address(*((uint64_t *) data));
+                            }
                             break;
-                        default : break;
+                        default :
+                            LOG(WARN, "Write to ESR Region Neighborhood at UNDEFINED ESR address %08" PRIx64, esr_info.address);
+                            break;
                     }
                 }
 
@@ -287,7 +293,7 @@ void main_memory_region_esr::encode_ESR_address(esr_info_data_t data, uint64_t s
   *new_ad |= (((uint64_t)data.protection) << ESR_REGION_PROT_SHIFT);
   *new_ad |= (shire_id << ESR_REGION_SHIRE_SHIFT);
   *new_ad |= (((uint64_t)data.esr_sregion) << ESR_SREGION_EXT_SHIFT);
-  *new_ad |= (data.esr_address << ESR_SHIRE_ESR_SHIFT);
+  *new_ad |= (data.esr_address << ESR_ESR_ID_SHIFT);
 }
 
 void main_memory_region_esr::decode_ESR_data(uint64_t data, esr_info_data_t *info)

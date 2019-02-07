@@ -3,7 +3,9 @@
 
 // Local
 #include "main_memory_region_rbox.h"
-#include "txs.h"
+#include "emu.h"
+#include "rbox.h"
+#include "emu_gio.h"
 
 using namespace std;
 
@@ -11,7 +13,6 @@ using namespace std;
 main_memory_region_rbox::main_memory_region_rbox(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
     : main_memory_region(base, size, l, get_thr)
 {
-  bzero(credits_, sizeof(credits_));
 }
  
 // Destructor: free allocated mem
@@ -20,30 +21,142 @@ main_memory_region_rbox::~main_memory_region_rbox()
 }
 
 // Write to memory region
-void main_memory_region_rbox::write(uint64_t ad, int size __attribute__((unused)), const void * data)
+void main_memory_region_rbox::write(uint64_t ad, int size, const void * data)
 {
-  log << LOG_DEBUG << "writing to rbox @=" <<hex<<ad<<dec<< endm;
-  uint16_t thread;
-  memcpy( &thread, data, sizeof(uint16_t));
-  incCredit(thread);
+    uint32_t rbox_id;
+    uint32_t reg_id;
+
+    LOG(DEBUG, "Writing to RBOX ESR Region with address %016" PRIx64, ad);
+
+    if (size != 8)
+        LOG(WARN, "Write to RBOX ESR Region with address %016" PRIx64 " is not 64-bit", ad);
+
+    decode_esr(ad, rbox_id, reg_id);
+
+    uint64_t reg_wr_data = *((uint64_t *) data);
+
+    switch(reg_id)
+    {
+        case ESR_RBOX_CONFIG      :
+        case ESR_RBOX_IN_BUF_PG   :
+        case ESR_RBOX_IN_BUF_CFG  :
+        case ESR_RBOX_OUT_BUF_PG  :
+        case ESR_RBOX_OUT_BUF_CFG :
+        case ESR_RBOX_START       :
+        case ESR_RBOX_CONSUME     :
+            GET_RBOX(rbox_id, 0).write_esr(reg_id, reg_wr_data);
+            break;
+    }
+
+    switch(reg_id)
+    {
+        case ESR_RBOX_CONFIG      :
+            LOG(DEBUG, "Write to RBOX %02d ESR CONFIG the value %016" PRIx64, rbox_id, reg_wr_data);
+            break;
+        case ESR_RBOX_IN_BUF_PG   :
+            LOG(DEBUG, "Write to RBOX %02d ESR INPUT BUFFER PAGES the value %016" PRIx64, rbox_id, reg_wr_data);
+            break;
+        case ESR_RBOX_IN_BUF_CFG  :
+            LOG(DEBUG, "Write to RBOX %02d ESR INPUT BUFFER CONFIG the value %016" PRIx64, rbox_id, reg_wr_data);
+            break;
+        case ESR_RBOX_OUT_BUF_PG  :
+            LOG(DEBUG, "Write to RBOX %02d ESR OUTPUT BUFFER PAGE the value %016" PRIx64, rbox_id, reg_wr_data);
+            break;
+        case ESR_RBOX_OUT_BUF_CFG :
+            LOG(DEBUG, "Write to RBOX %02d ESR OUTPUT BUFFER CONFIG the value %016" PRIx64, rbox_id, reg_wr_data);
+            break;
+        case ESR_RBOX_START       :
+            LOG(DEBUG, "Write to RBOX %02d ESR START the value %016" PRIx64, rbox_id, reg_wr_data);
+            break;
+        case ESR_RBOX_CONSUME     :
+            LOG(DEBUG, "Write to RBOX %02d ESR CONSUME the value %016" PRIx64, rbox_id, reg_wr_data);
+            break;
+        case ESR_RBOX_STATUS      :
+            // Read only
+            LOG(WARN, "Write to RBOX %02d READ ONLY ESR STATUS", rbox_id);
+            break;
+        default :
+            LOG(WARN, "Write to RBOX %02d UNDEFINED ESR %d", rbox_id, reg_id);
+            break;
+    }
 }
 
 
 // Read from memory region
-void main_memory_region_rbox::read(uint64_t ad __attribute__((unused)),
-                                   int size __attribute__((unused)),
-                                   void * data __attribute__((unused)))
+void main_memory_region_rbox::read(uint64_t ad, int size, void * data)
 {
-  log << LOG_ERR << "not expecting to read from rbox memory map"<<endm;
+    uint32_t rbox_id;
+    uint32_t reg_id;
+
+    LOG(DEBUG, "Reading from RBOX ESR Region with address %016" PRIx64, ad);
+
+    if (size != 8)
+        LOG(WARN, "Read RBOX ESR Region with address %016" PRIx64 " is not 64-bit", ad);
+
+    decode_esr(ad, rbox_id, reg_id);
+
+    uint64_t reg_rd_data = 0;
+
+    switch(reg_id)
+    {
+        case ESR_RBOX_CONFIG      :
+        case ESR_RBOX_IN_BUF_PG   :
+        case ESR_RBOX_IN_BUF_CFG  :
+        case ESR_RBOX_OUT_BUF_PG  :
+        case ESR_RBOX_OUT_BUF_CFG :
+        case ESR_RBOX_START       :
+        case ESR_RBOX_CONSUME     :
+        case ESR_RBOX_STATUS      :
+            reg_rd_data = GET_RBOX(rbox_id, 0).read_esr(reg_id);
+            break;
+    }
+
+    switch(reg_id)
+    {
+        case ESR_RBOX_CONFIG      :
+            LOG(DEBUG, "Read from RBOX %02d ESR CONFIG the value %016" PRIx64, rbox_id, reg_rd_data);
+            break;
+        case ESR_RBOX_IN_BUF_PG   :
+            LOG(DEBUG, "Read from RBOX %02d ESR INPUT BUFFER PAGES the value %016" PRIx64, rbox_id, reg_rd_data);
+            break;
+        case ESR_RBOX_IN_BUF_CFG  :
+            LOG(DEBUG, "Read from RBOX %02d ESR INPUT BUFFER CONFIG the value %016" PRIx64, rbox_id, reg_rd_data);
+            break;
+        case ESR_RBOX_OUT_BUF_PG  :
+            LOG(DEBUG, "Read from RBOX %02d ESR OUTPUT BUFFER PAGES the value %016" PRIx64, rbox_id, reg_rd_data);
+            break;
+        case ESR_RBOX_OUT_BUF_CFG :
+            LOG(DEBUG, "Read from RBOX %02d ESR OUTPUT BUFFER CONFIG the value %016" PRIx64, rbox_id, reg_rd_data);
+            break;
+        case ESR_RBOX_START       :
+            LOG(DEBUG, "Read from RBOX %02d ESR START the value %016" PRIx64, rbox_id, reg_rd_data);
+            break;
+        case ESR_RBOX_CONSUME     :
+            LOG(DEBUG, "Read from RBOX %02d ESR CONSUME the value %016" PRIx64, rbox_id, reg_rd_data);
+            break;
+        case ESR_RBOX_STATUS      :
+            LOG(DEBUG, "Read from RBOX %02d ESR STATUS the value %016" PRIx64, rbox_id, reg_rd_data);
+        default :
+            LOG(WARN, "Read from RBOX %02d UNDEFINED ESR %d", rbox_id, reg_id);
+            break;
+    }
+
+    *((uint64_t *) data) = reg_rd_data;
 }
 
-void main_memory_region_rbox::decCredit(uint16_t thread){
-  credits_[thread]--;
-}
-void main_memory_region_rbox::incCredit(uint16_t thread){
-  credits_[thread]++;
+void main_memory_region_rbox::decode_esr(uint64_t ad, uint32_t &rbox_id, uint32_t &reg_id)
+{
+    uint32_t shire_id = (ad & ESR_REGION_SHIRE_MASK);
+
+    if (shire_id == ESR_REGION_LOCAL_SHIRE)
+    {
+        rbox_id = (current_thread / EMU_THREADS_PER_SHIRE);
+    }
+    else
+    {
+        rbox_id = (shire_id >> ESR_REGION_SHIRE_SHIFT);
+    }
+
+    reg_id = (ad & ESR_RBOX_ESR_MASK) >> ESR_ESR_ID_SHIFT;
 }
 
-uint16_t main_memory_region_rbox::getCredit(uint16_t thread){
-  return credits_[thread];
-}
