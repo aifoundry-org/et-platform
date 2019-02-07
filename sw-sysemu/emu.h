@@ -64,10 +64,14 @@ extern uint32_t get_thread();
 extern uint32_t get_mask(unsigned maskNr);
 
 // Main memory accessors
-extern void set_memory_funcs(void * func_memread8_, void * func_memread16_,
-                             void * func_memread32_, void * func_memread64_,
-                             void * func_memwrite8_, void * func_memwrite16_,
-                             void * func_memwrite32_, void * func_memwrite64_);
+extern void set_memory_funcs(uint8_t  (*func_memread8_ ) (uint64_t),
+                             uint16_t (*func_memread16_) (uint64_t),
+                             uint32_t (*func_memread32_) (uint64_t),
+                             uint64_t (*func_memread64_) (uint64_t),
+                             void (*func_memwrite8_ ) (uint64_t, uint8_t ),
+                             void (*func_memwrite16_) (uint64_t, uint16_t),
+                             void (*func_memwrite32_) (uint64_t, uint32_t),
+                             void (*func_memwrite64_) (uint64_t, uint64_t));
 extern void set_msg_funcs(void * func_msg_to_thread);
 
 // Traps
