@@ -16,6 +16,8 @@
 #include "emu_memop.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
+#include "tbox_emu.h"
+#include "rbox.h"
 
 #include <cmath>       // FIXME: remove this when we purge "gold" versions of the code
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
@@ -299,6 +301,19 @@ bool msg_port_delayed_write = false;
 std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
+
+// Accelerators
+#if (EMU_TBOXES_PER_SHIRE > 1)
+    TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
+#else
+    TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
+#endif
+
+#if (EMU_RBOXES_PER_SHIRE > 1)
+    RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+#else
+    RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
+#endif
 
 uint64_t fcc_cnt;
 uint16_t fcc[EMU_NUM_THREADS][2] ={{0}};
@@ -2739,9 +2754,11 @@ static void csrset(csr src1, uint64_t val)
             val &= 0x00000000000000FFULL;
             csrregs[current_thread][src1] = val;
             // Notify to TBOX that a Sample Request is ready
-            // unsigned port_id        = csrregs[current_thread][src1] & 0x0000000F;
-            // unsigned number_packets = (csrregs[current_thread][src1] >> 4) & 0x0000000F;
-            new_sample_request(csrregs[current_thread][src1] & 0x0000000F, (csrregs[current_thread][src1] >> 4) & 0x0000000F, read_port_base_address(current_thread, csrregs[current_thread][src1] & 0x0000000F));
+            // Thanks for making the code unreadable
+            new_sample_request(current_thread,
+                               csrregs[current_thread][src1] & 0x0000000F,          // port_id
+                               (csrregs[current_thread][src1] >> 4) & 0x0000000F,   // num_packets
+                               read_port_base_address(current_thread, csrregs[current_thread][src1] & 0x0000000F /* port id */ ));
             break;
         case csr_sleep_txfma_27:
             if (csrregs[current_thread][csr_prv] != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0)
@@ -6279,7 +6296,7 @@ int get_scratchpad_next_entry(int entry)
         0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
         16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-        48, 49, 50, 41, 52, 53, 54, 55, 56, 57, 58, 59
+        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     };
     if (csrregs[current_thread][csr_mcache_control] == 0x3)
     {
