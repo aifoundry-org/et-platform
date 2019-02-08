@@ -51,11 +51,11 @@ extern bool emu_done();
 extern std::stringstream dump_xregs(uint32_t thread_id);
 extern std::stringstream dump_fregs(uint32_t thread_id);
 extern void init_stack();
-extern void initcsr(uint32_t thread);           // init all CSRs
+extern void initcsr(uint32_t thread);             // init all CSRs
 extern uint64_t xget(uint64_t src1);
-extern void init(xreg dst, uint64_t val);       // init general purpose register
-extern void fpinit(freg dst, uint64_t val[2]);  // init vector register
-extern void minit(mreg dst, uint64_t val);      // init mask register
+extern void init(xreg dst, uint64_t val);         // init general purpose register
+extern void fpinit(freg dst, uint64_t val[VL/2]); // init vector register
+extern void minit(mreg dst, uint64_t val);        // init mask register
 
 // Processor state manipulation
 extern void set_pc(uint64_t pc);

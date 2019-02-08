@@ -681,10 +681,10 @@ uint64_t xget(uint64_t src1)
     return val;
 }
 
-void fpinit(freg dst, uint64_t val[2])
+void fpinit(freg dst, uint64_t val[VL/2])
 {
-    FREGS[dst].x[0] = val[0];
-    FREGS[dst].x[1] = val[1];
+    for (int i = 0; i < VL/2; ++i)
+        FREGS[dst].x[i] = val[i];
 }
 
 // internal accessor to prv; this is faster than doing csrget(csr_prv)
@@ -2767,15 +2767,15 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
-            val = (csrregs[current_thread][csr_fcsr] & 0xE0) | (val & 0x1F);
+            val = (csrregs[current_thread][csr_fcsr] & 0x000000E0) | (val & 0x8000001F);
             csrregs[current_thread][csr_fcsr] = val;
             break;
         case csr_frm:
-            val = (csrregs[current_thread][csr_fcsr] & 0x1F) | ((val & 0x7) << 5);
+            val = (csrregs[current_thread][csr_fcsr] & 0x8000001F) | ((val & 0x7) << 5);
             csrregs[current_thread][csr_fcsr] = val;
             break;
         case csr_fcsr:
-            val &= 0x00000000000000FFULL;
+            val &= 0x800000FF;
             csrregs[current_thread][src1] = val;
             break;
         // ----- U-mode ET registers ---------------------------------------------
