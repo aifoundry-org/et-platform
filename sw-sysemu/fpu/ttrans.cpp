@@ -386,6 +386,12 @@ uint32_t ttrans_fexp2(uint32_t val)
         return 0;
     }
 
+    // val >= 128.0
+    if (val >= 0x43000000 && val < 0x80000000) {
+        softfloat_raiseFlags(softfloat_flag_overflow);
+        return infinityF32UI;
+    }
+
     ////printf("Sign: %d\n", sign);
     ////printf("Exp: 0x%08x\tSign: %d\n", exp, sign_exp);
 
