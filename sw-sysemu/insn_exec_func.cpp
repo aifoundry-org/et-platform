@@ -1,4 +1,4 @@
- #include "insn.h"
+#include "insn.h"
 #include "insn_exec_func.h"
 #include "emu.h"
 
@@ -242,11 +242,8 @@ static csr imm2csr(uint16_t imm)
     case 0x806 : return csr_tensor_quant;   /* TODO: add to binutils */
     case 0x807 : return csr_tex_send;
     case 0x808 : return csr_tensor_error;
-#if 1 /* TODO: uncomment, usr_cache_op is replaced by individual CacheOp CSRs */
+    // TODO: case 0x810 : return csr_ucache_control;
     case 0x81f : return csr_prefetch_va;
-#else
-    case 0x81f : return csr_usr_cache_op;
-#endif
     case 0x820 : return csr_flb0;
     case 0x821 : return csr_fcc;            /* TODO: add to binutils */
     case 0x822 : return csr_stall;          /* TODO: add to binutils */
@@ -257,10 +254,6 @@ static csr imm2csr(uint16_t imm)
     case 0x87f : return csr_tensor_store;
     case 0x89f : return csr_evict_va;
     case 0x8bf : return csr_flush_va;
-    case 0x8cc : return csr_umsg_port0;     /* TODO: remove once everything is migrated to new port spec */
-    case 0x8cd : return csr_umsg_port1;     /* TODO: remove once everything is migrated to new port spec */
-    case 0x8ce : return csr_umsg_port2;     /* TODO: remove once everything is migrated to new port spec */
-    case 0x8cf : return csr_umsg_port3;     /* TODO: remove once everything is migrated to new port spec */
     case 0x8d0 : return csr_validation0;
     case 0x8d1 : return csr_validation1;
     case 0x8d2 : return csr_validation2;
@@ -268,8 +261,7 @@ static csr imm2csr(uint16_t imm)
     case 0x8d5 : return csr_sleep_txfma_27; /* TODO: add to binutils */
     case 0x8df : return csr_lock_va;
     case 0x8ff : return csr_unlock_va;
-    case 0x7fd : return csr_lock_sw;
-    case 0x7ff : return csr_unlock_sw;
+    // TODO: case 0xcc0 : return csr_fccnb;
     case 0xcc8 : return csr_porthead0;
     case 0xcc9 : return csr_porthead1;
     case 0xcca : return csr_porthead2;
@@ -280,24 +272,24 @@ static csr imm2csr(uint16_t imm)
     case 0xccf : return csr_portheadnb3;
     case 0xcd0 : return csr_hartid;         /* TODO: add to binutils */
     /* Esperanto supervisor CSRs */
-    case 0x51f : return csr_sys_cache_op;   /* TODO: remove, it is replaced by individual CacheOp CSRs */
-    case 0x7e0 : return csr_mcache_control;   /* TODO: remove, it is replaced by individual CacheOp CSRs */
-    case 0x7f9 : return csr_evict_sw;
-    case 0x7fb : return csr_flush_sw;
     case 0x9cc : return csr_portctrl0;
     case 0x9cd : return csr_portctrl1;
     case 0x9ce : return csr_portctrl2;
     case 0x9cf : return csr_portctrl3;
     /* Esperanto machine CSRs */
-    //case 0x7cb : return csr_icache_ctrl;
-    //case 0x7cc : return csr_write_ctrl;
+    // TODO: case 0x7c0 : return csr_matp;
     case 0x7cd : return csr_minstmask;
     case 0x7ce : return csr_minstmatch;
-    //case 0x7cf : return csr_amofence_ctrl;
-    case 0x7d0 : return csr_flush_icache;
+    // TODO: case 0x7cf : return csr_amofence_ctrl;
+    case 0x7d0 : return csr_cache_invalidate;
     case 0x7d1 : return csr_msleep_txfma_27; /* TODO: rename in binutils */
     case 0x7d2 : return csr_menable_shadows; /* TODO: add to binutils */
     case 0x7d3 : return csr_excl_mode;       /* TODO: add to binutils */
+    case 0x7e0 : return csr_mcache_control;
+    case 0x7f9 : return csr_evict_sw;
+    case 0x7fb : return csr_flush_sw;
+    case 0x7fd : return csr_lock_sw;
+    case 0x7ff : return csr_unlock_sw;
     /* Unimplemented register */
     default    : return csr_unknown;
     }

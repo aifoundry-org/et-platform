@@ -325,7 +325,6 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_frm,               "frm"                },
    { csr_fcsr,              "fcsr"               },
    { csr_cycle,             "cycle"              },
-   { csr_time,              "time"               },
    { csr_instret,           "instret"            },
    { csr_hpmcounter3,       "hpmcounter3"        },
    { csr_hpmcounter4,       "hpmcounter4"        },
@@ -365,7 +364,6 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_tensor_quant,      "tensor_quant"       },
    { csr_tex_send,          "tex_send"           },
    { csr_tensor_error,      "tensor_error"       },
-   { csr_usr_cache_op,      "usr_cache_op"       },
    { csr_prefetch_va,       "prefetch_va"        },
    { csr_flb0,              "flb0"               },
    { csr_fcc,               "fcc"                },
@@ -376,10 +374,6 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_tensor_store,      "tensor_store"       },
    { csr_evict_va,          "evict_va"           },
    { csr_flush_va,          "flush_va"           },
-   { csr_umsg_port0,        "umsg_port0"         },
-   { csr_umsg_port1,        "umsg_port1"         },
-   { csr_umsg_port2,        "umsg_port2"         },
-   { csr_umsg_port3,        "umsg_port3"         },
    { csr_validation0,       "validation0"        },
    { csr_validation1,       "validation1"        },
    { csr_validation2,       "validation2"        },
@@ -387,8 +381,6 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_sleep_txfma_27,    "sleep_txfma_27"     },
    { csr_lock_va,           "lock_va"            },
    { csr_unlock_va,         "unlock_va"          },
-   { csr_lock_sw,           "lock_sw"            },
-   { csr_unlock_sw,         "unlock_sw"          },
    { csr_porthead0,         "porthead0"          },
    { csr_porthead1,         "porthead1"          },
    { csr_porthead2,         "porthead2"          },
@@ -408,14 +400,6 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_stval,             "stval"              },
    { csr_sip,               "sip"                },
    { csr_satp,              "satp"               },
-   { csr_sys_cache_op,      "sys_cache_op"       },
-   { csr_mcache_control,    "mcache_control"     },
-   { csr_evict_sw,          "evict_sw"           },
-   { csr_flush_sw,          "flush_sw"           },
-   { csr_smsg_port0,        "smsg_port0"         },
-   { csr_smsg_port1,        "smsg_port1"         },
-   { csr_smsg_port2,        "smsg_port2"         },
-   { csr_smsg_port3,        "smsg_port3"         },
    { csr_portctrl0,         "portctrl0"          },
    { csr_portctrl1,         "portctrl1"          },
    { csr_portctrl2,         "portctrl2"          },
@@ -498,10 +482,15 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_mhpmevent31,       "mhpmevent31"        },
    { csr_minstmask,         "minstmask"          },
    { csr_minstmatch,        "minstmatch"         },
-   { csr_flush_icache,      "flush_icache"       },
+   { csr_cache_invalidate,  "cache_invalidate"   },
    { csr_msleep_txfma_27,   "msleep_txfma_27"    },
    { csr_menable_shadows,   "menable_shadows"    },
    { csr_excl_mode,         "excl_mode"          },
+   { csr_mcache_control,    "mcache_control"     },
+   { csr_evict_sw,          "evict_sw"           },
+   { csr_flush_sw,          "flush_sw"           },
+   { csr_lock_sw,           "lock_sw"            },
+   { csr_unlock_sw,         "unlock_sw"          },
    { csr_mtxfma_sleep_traps,"mtxfma_sleep_traps" }
 };
 
@@ -577,7 +566,6 @@ static void tensor_fma16a32(uint64_t tfmareg);
 static void tensor_ima8a32(uint64_t tfmareg);
 static void tensorquant(uint64_t value);
 static void tensorreduce(uint64_t value);
-static uint64_t csr_cacheop_emu(uint64_t op_value);
 static int64_t port_get(uint32_t id, bool block);
 static void configure_port(uint32_t id, uint64_t wdata);
 static uint64_t flbarrier(uint64_t value);
@@ -2606,7 +2594,6 @@ static uint64_t csrget(csr src1)
                 }
             val = 0;
             break;
-        case csr_time:
         case csr_hpmcounter3:
         case csr_hpmcounter4:
         case csr_hpmcounter5:
@@ -2709,7 +2696,6 @@ static uint64_t csrget(csr src1)
         case csr_flb0:
         case csr_fcc:
         case csr_stall:
-        case csr_usr_cache_op:
         case csr_evict_va:
         case csr_flush_va:
         case csr_lock_va:
@@ -2717,10 +2703,9 @@ static uint64_t csrget(csr src1)
         case csr_lock_sw:
         case csr_unlock_sw:
         case csr_prefetch_va:
-        case csr_sys_cache_op:
         case csr_evict_sw:
         case csr_flush_sw:
-        case csr_flush_icache:
+        case csr_cache_invalidate:
             val = 0;
             break;
         // ----- M-mode registers ----------------------------------------
@@ -3090,20 +3075,6 @@ static void csrset(csr src1, uint64_t val)
                 uart_stream[current_thread].clear();
             }
             break;
-        // ----- Not really ESRs -----------------------------------------
-        case csr_usr_cache_op:
-        case csr_sys_cache_op:
-        case csr_umsg_port0:
-        case csr_umsg_port1:
-        case csr_umsg_port2:
-        case csr_umsg_port3:
-        case csr_smsg_port0:
-        case csr_smsg_port1:
-        case csr_smsg_port2:
-        case csr_smsg_port3:
-            // We shouldn't be here!
-            assert(0);
-            break;
         // ----- All other registers -------------------------------------
         default:
             csrregs[current_thread][src1] = val;
@@ -3127,11 +3098,6 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
             // Fast local barrier instructions encoded in the CSR space
             case csr_flb0:
                 oldval = flbarrier(newval);
-                break;
-            // TODO: remove old cacheop spec
-            case csr_usr_cache_op:
-            case csr_sys_cache_op:
-                oldval = csr_cacheop_emu(newval);
                 break;
             default:
                 csrset(src1, newval);
@@ -6802,83 +6768,6 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
     return 0;
 }
 
-// static bool dcache_vaddr_is_locked(bool tm, uint64_t vaddr, int numlines, uint64_t stride)
-// {
-//     bool locked = true;
-//     for (int i = 0; i <= numlines; i++, vaddr += stride)
-//     {
-//         // Skip if masked
-//         if (tm && !tmask_pass(i))
-//             continue;
-//
-//         uint64_t paddr = 0;
-//         try
-//         {
-//             paddr = vmemtranslate(vaddr, Mem_Access_Store);
-//         }
-//         catch (const trap_t& t)
-//         {
-//             // Stop the operation if there is an exception
-//             //LOG(DEBUG, "\tUnlockVA: %016" PRIx64 " generated exception (suppressed)", vaddr);
-//             //return false;
-//         }
-//         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
-//
-//         // Check if paddr is locked in the cache
-//         for (int w = 0; w < L1D_NUM_WAYS; ++w)
-//         {
-//             locked &= scp_locked[current_thread >> 1][set][w];
-//         }
-//     }
-//     return locked;
-// }
-
-static uint64_t csr_cacheop_emu(uint64_t op_value)
-{
-    bool tm         = ((op_value >> 63) & 1);
-    bool keep_valid = ((op_value >> 59) & 1);
-
-    int  op       = (op_value >> 60) & 0x07;
-    int  dest     = (op_value >> 58) & 0x03;
-    int  way      = (op_value >> 48) & 0xFF;
-    int  set      = (op_value >>  6) & 0x0F;
-    int  numlines = (op_value >>  0) & 0x0F;
-
-    uint64_t addr   = op_value    & 0x0000FFFFFFFFFFC0ULL;
-    uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
-    int      id     = XREGS[31].x & 0x0000000000000001ULL;
-
-    LOG(DEBUG, "\tDoing CacheOp with value %016" PRIx64, op_value);
-
-    switch (op)
-    {
-        case 0: // LockVA
-            return dcache_lock_vaddr(tm, way, addr, numlines, id, stride);
-        case 1: // UnlockVA
-            return dcache_unlock_vaddr(tm, keep_valid, addr, numlines, id, stride);
-        case 2: // FlushSW
-            if (prvget() != CSR_PRV_M)
-                throw trap_illegal_instruction(current_inst);
-            dcache_evict_flush_set_way(false, tm, dest, set, way, numlines);
-            break;
-        case 3: // EvictSW
-            if (prvget() != CSR_PRV_M)
-                throw trap_illegal_instruction(current_inst);
-            dcache_evict_flush_set_way(true, tm, dest, set, way, numlines);
-            break;
-        case 4: // PrefetchVA
-            return dcache_prefetch_vaddr(tm, dest, addr, numlines, id, stride);
-        case 6: // FlushVA
-            return dcache_evict_flush_vaddr(false, tm, dest, addr, numlines, id, stride);
-        case 7: // EvictVA
-            return dcache_evict_flush_vaddr(true, tm, dest, addr, numlines, id, stride);
-        default:
-           LOG(DEBUG, "\tUnknown CacheOp Opcode (%d)!", op);
-           throw trap_illegal_instruction(current_inst);
-    }
-    return 0;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Esperanto messaging extension emulation
@@ -8034,7 +7923,7 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
     // // FIXME: Disabled until software update - JIRA RTLMIN-2096
     // // Check if L1 SCP is enabled
-    // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
+    // if (csrregs[current_thread][csr_mcache_control] != 3))
     // {
     //     update_tensor_error(1 << 4);
     //     return;
@@ -8160,7 +8049,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
     // // FIXME: Disabled until software update - JIRA RTLMIN-2096
     // // Check if L1 SCP is enabled
-    // if (!(csrregs[current_thread][csr_scratchpad_ctrl] & 0x1))
+    // if (csrregs[current_thread][csr_mcache_control] != 3)
     // {
     //     update_tensor_error(1 << 4);
     //     return;
