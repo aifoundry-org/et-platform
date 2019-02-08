@@ -379,6 +379,7 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     bool signZ;
     int_fast16_t expZ;
     uint_fast32_t sigZ;
+    int_fast8_t shiftDist;
 
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
@@ -479,7 +480,7 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
 #else
     if ( subB && !subC && (sigB & sigC & 1) ) {
         --sigC;
-    } else if ( !subB && subC && (sigB & sigC & 1) ) {
+    } else if ( !subB && /*subC &&*/ (sigB & sigC & 1) ) {
         --sigB;
     }
 #endif
@@ -515,8 +516,16 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
 #endif
         goto uiZ;
     }
-    sigZ <<= 3;
-    // 010: sigZ = ((sigZ & ~3) << 3) | (sigZ & 3);
+#if 1
+    //sigZ <<= 3;
+    sigZ = ((sigZ & ~1) << 3) | (sigZ & 1);
+    if ( sigZ < 0x40000000 ) {
+        --expZ;
+    	sigZ = ((sigZ & ~1) << 1) | (sigZ & 1);
+#ifdef FPU_DEBUG
+        std::cout << "z_adj1: " << Float32<7>(signZ,expZ,sigZ) << '\n';
+#endif
+    }
 #if 0
     if (sigZ >= 0x80000000) {
         sigZ >>= 1;
@@ -525,6 +534,15 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
         std::cout << "z_adj2: " << Float32<3>(signZ,expZ,sigZ) << '\n';
 #endif
     }
+#endif
+#endif
+#if 1
+    shiftDist = softfloat_countLeadingZeros32( sigZ ) - 1;
+    expZ -= shiftDist;
+    sigZ = ((sigZ & ~1) << shiftDist) | (sigZ & 1);
+#ifdef FPU_DEBUG
+    std::cout << "z_adj2: " << Float32<7>(signZ,expZ,sigZ) << '\n';
+#endif
 #endif
 #ifdef FPU_DEBUG
     {
@@ -541,7 +559,8 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
         std::cout << "z_rslt: " << fZ << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
     }
 #endif
-    return softfloat_normRoundPackToF32( signZ, expZ, sigZ );
+    return softfloat_roundPackToF32( signZ, expZ, sigZ );
+    //return softfloat_normRoundPackToF32( signZ, expZ, sigZ );
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
  generateNaN:
