@@ -682,10 +682,10 @@ uint64_t xget(uint64_t src1)
     return val;
 }
 
-void fpinit(freg dst, uint64_t val[2])
+void fpinit(freg dst, uint64_t val[VL/2])
 {
-    FREGS[dst].x[0] = val[0];
-    FREGS[dst].x[1] = val[1];
+    for (int i = 0; i < VL/2; ++i)
+        FREGS[dst].x[i] = val[i];
 }
 
 // internal accessor to prv; this is faster than doing csrget(csr_prv)
