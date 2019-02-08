@@ -173,8 +173,8 @@ void checker_thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc) {
 }
 
 // Creates a new checker
-checker::checker(main_memory * memory_, enum logLevel emu_log_level, bool checker_en)
-    : log("checker", emu_log_level)
+checker::checker(main_memory * memory_, testLog& log_, bool checker_en)
+    : log(log_)
 {
     for(uint32_t i = 0; i < EMU_NUM_THREADS; i++)
     {
@@ -188,14 +188,19 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level, bool checke
     waived_csrs.push_back(csr_validation2);
     waived_csrs.push_back(csr_validation3);
 
-    set_memory_funcs((void *) checker_memread8,
-                     (void *) checker_memread16,
-                     (void *) checker_memread32,
-                     (void *) checker_memread64,
-                     (void *) checker_memwrite8,
-                     (void *) checker_memwrite16,
-                     (void *) checker_memwrite32,
-                     (void *) checker_memwrite64);
+    checker_instance = this;
+    fail_on_check = checker_en;
+    memory_instance = memory;
+    init_emu();
+
+    set_memory_funcs(checker_memread8,
+                     checker_memread16,
+                     checker_memread32,
+                     checker_memread64,
+                     checker_memwrite8,
+                     checker_memwrite16,
+                     checker_memwrite32,
+                     checker_memwrite64);
 
     memory->setGetThread(get_thread);
 
@@ -209,11 +214,6 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level, bool checke
         initcsr(i);
         threadEnabled[i] = true;
     }
-
-    checker_instance = this;
-    fail_on_check = checker_en;
-    memory_instance = memory;
-    init_emu(emu_log_level);
 }
 
 // Destroys the checker
