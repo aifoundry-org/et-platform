@@ -174,7 +174,7 @@ typedef enum {
     csr_frm,
     csr_fcsr,
     csr_cycle,
-    csr_time,
+    // csr_time,
     csr_instret,
     csr_hpmcounter3,
     csr_hpmcounter4,
@@ -215,23 +215,18 @@ typedef enum {
     csr_tensor_quant,
     csr_tex_send,
     csr_tensor_error,
-    csr_scratchpad_ctrl,
-    csr_usr_cache_op, //TODO remove once everything is up to spec
+    // TODO: csr_ucache_control,
     csr_prefetch_va,
     csr_flb0,
     csr_fcc,
     csr_stall,
     csr_tensor_wait,
     csr_tensor_load,
-    //csr_gsc_progress,
+    // TODO: csr_gsc_progress,
     csr_tensor_load_l2,
     csr_tensor_store,
     csr_evict_va,
     csr_flush_va,
-    csr_umsg_port0, // TODO remove once everything is up to spec
-    csr_umsg_port1, // TODO remove once everything is up to spec
-    csr_umsg_port2, // TODO remove once everything is up to spec
-    csr_umsg_port3, // TODO remove once everything is up to spec
     csr_validation0,
     csr_validation1,
     csr_validation2,
@@ -239,6 +234,7 @@ typedef enum {
     csr_sleep_txfma_27,
     csr_lock_va,
     csr_unlock_va,
+    // TODO: csr_fccnb,
     csr_porthead0,
     csr_porthead1,
     csr_porthead2,
@@ -262,11 +258,6 @@ typedef enum {
     csr_sip,
     csr_satp,
     /*------------------- Esperanto supervisor mode CSRs ---------------------*/
-    csr_sys_cache_op,
-    csr_smsg_port0, // TODO remove once everything is up to spec
-    csr_smsg_port1, // TODO remove once everything is up to spec
-    csr_smsg_port2, // TODO remove once everything is up to spec
-    csr_smsg_port3, // TODO remove once everything is up to spec
     csr_portctrl0,
     csr_portctrl1,
     csr_portctrl2,
@@ -367,10 +358,11 @@ typedef enum {
     // csr_dpc,
     // csr_dscratch,
     /*--------------------- Esperanto machine mode CSRs ----------------------*/
+    // TODO: csr_matp
     csr_minstmask,
     csr_minstmatch,
-    //csr_amofence_ctrl,
-    csr_flush_icache,
+    // TODO: csr_amofence_ctrl,
+    csr_cache_invalidate,
     csr_msleep_txfma_27,
     csr_menable_shadows,
     csr_excl_mode,
