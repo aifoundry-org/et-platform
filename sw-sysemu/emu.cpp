@@ -2768,15 +2768,15 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
-            val = (csrregs[current_thread][csr_fcsr] & 0xE0) | (val & 0x1F);
+            val = (csrregs[current_thread][csr_fcsr] & 0x000000E0) | (val & 0x8000001F);
             csrregs[current_thread][csr_fcsr] = val;
             break;
         case csr_frm:
-            val = (csrregs[current_thread][csr_fcsr] & 0x1F) | ((val & 0x7) << 5);
+            val = (csrregs[current_thread][csr_fcsr] & 0x8000001F) | ((val & 0x7) << 5);
             csrregs[current_thread][csr_fcsr] = val;
             break;
         case csr_fcsr:
-            val &= 0x00000000000000FFULL;
+            val &= 0x800000FF;
             csrregs[current_thread][src1] = val;
             break;
         // ----- U-mode ET registers ---------------------------------------------
