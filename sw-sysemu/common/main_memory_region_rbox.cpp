@@ -136,6 +136,7 @@ void main_memory_region_rbox::read(uint64_t ad, int size, void * data)
             break;
         case ESR_RBOX_STATUS      :
             LOG(DEBUG, "Read from RBOX %02d ESR STATUS the value %016" PRIx64, rbox_id, reg_rd_data);
+            break;
         default :
             LOG(WARN, "Read from RBOX %02d UNDEFINED ESR %d", rbox_id, reg_id);
             break;
