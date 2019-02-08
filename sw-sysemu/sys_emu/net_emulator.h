@@ -39,7 +39,6 @@ class net_emulator
 
         // Set
         void set_file(char * net_desc_file);
-        void set_log(testLog * log_);
 
         // Access
         bool done();
@@ -48,7 +47,6 @@ class net_emulator
         // Execution
         void get_new_ipi(std::list<int> * enabled_threads, std::list<int> * ipi_threads, uint64_t * new_pc);
     private:
-        testLog *                     log;         // Logger
         std::list<net_emulator_layer> layers;      // List of layers to do
         bool                          helper_done; // Helper IPI already sent
         main_memory *                 mem;         // Pointer to the memory

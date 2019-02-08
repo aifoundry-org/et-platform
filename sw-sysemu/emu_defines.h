@@ -5,11 +5,11 @@
 #include <bitset>
 
 // Maximum number of threads
-#define EMU_NUM_SHIRES          34 // 32 Compute + Master + IO Shire SP 
+#define EMU_NUM_SHIRES          34 // 32 Compute + Master + IO Shire SP
 #define EMU_NUM_COMPUTE_SHIRES  32
 #define EMU_MASTER_SHIRE        32
-#define EMU_IO_SHIRE_SP		    33
-#define IO_SHIRE_ID		        254
+#define EMU_IO_SHIRE_SP         33
+#define IO_SHIRE_ID             254
 #define EMU_NEIGH_PER_SHIRE     4
 #define EMU_MINIONS_PER_NEIGH   8
 #define EMU_TBOXES_PER_SHIRE    2
@@ -391,7 +391,13 @@ typedef enum {
 enum mem_access_type {
     Mem_Access_Load,
     Mem_Access_Store,
-    Mem_Access_Fetch
+    Mem_Access_Fetch,
+    Mem_Access_PTW,
+    Mem_Access_AtomicL,
+    Mem_Access_AtomicG,
+    Mem_Access_TxLoad,
+    Mem_Access_TxStore,
+    Mem_Access_CacheOp
 };
 
 enum mreg {

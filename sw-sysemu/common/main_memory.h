@@ -14,7 +14,7 @@ class main_memory
 {
     public:
        // Constructors and destructors
-       main_memory(std::string logname, enum logLevel log_level);
+       main_memory(testLog& log_);
        ~main_memory();
 
        // Read and write
@@ -50,7 +50,7 @@ class main_memory
 
        rg_it_t find(uint64_t ad);
 
-       testLog log;
+       testLog& log;
        main_memory_region::func_ptr_get_thread getthread;
 
        main_memory_region_rbox *rbox;

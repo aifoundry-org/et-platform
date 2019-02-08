@@ -29,27 +29,9 @@ public:
     setLogLevel(logLvl);
   }
 
-  testLog( const testLog &l )
-  {
-    name_ = l.name_;
-    msgStarted_ = l.msgStarted_;
-    msgInLogLevel_ = l.msgInLogLevel_;
-    os_ << l.os_.str();
-    fatal_ = l.fatal_;
-    logLevel_ = l.logLevel_;
-  }
+  testLog(const testLog&) = delete;
+  testLog& operator=(const testLog&) = delete;
 
-  testLog & operator=(const testLog &l){
-    name_ = l.name_;
-    msgStarted_ = l.msgStarted_;
-    msgInLogLevel_ = l.msgInLogLevel_;
-    os_ << l.os_.str();
-    fatal_ = l.fatal_;
-    logLevel_ = l.logLevel_;
-    return *this;
-  }
-
-  virtual ~testLog() {}
   void setLogLevel(logLevel level) {
     logLevel_ = level;
     // cannot mask errors or fatal

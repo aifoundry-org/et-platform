@@ -54,7 +54,7 @@ class checker
 {
  public:
         // Constructor and destructor
-        checker(main_memory * memory_, enum logLevel emu_log_level, bool checker_en);
+        checker(main_memory * memory_, testLog& log, bool checker_en);
         ~checker();
 
         void set_et_core(int core_type);
@@ -96,7 +96,7 @@ class checker
         main_memory                 * memory;                              // Pointer to the memory of the simulation
         inst_state_change             emu_state_change;                    // Struct that holds the state change for the emu
         std::string                   error_msg;                           // Stores the error message
-        testLog                       log;                                 // Logger
+        testLog&                      log;                                 // Logger
         uint64_t                      threadEnabled[EMU_NUM_THREADS];      // thread is enabled / disabled
         std::list<scratchpad_entry>   scp_entry_list[EMU_NUM_THREADS];     // List of RTL written scratchpad entries
         std::list<tensorfma_entry>    tensorfma_list[EMU_NUM_THREADS];     // List of RTL written tensorfma entries
