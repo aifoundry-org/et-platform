@@ -1,9 +1,9 @@
-Device Firmware Project
-=========================
+Device Firmware Project  {#device_firmware}
+=======================
 
 This project implements the device firmware running on the Esperanto SOC
 
-The system architecture is described in detail @subpage system_architecture
+The system architecture is described in detail @subpage device_firmware_system_architecture
 
 Following we have the basic steps to build the basic "flavor" of the repo and generating
 the repo's documentation

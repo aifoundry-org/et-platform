@@ -1,4 +1,4 @@
-Device Firmware System Architecture  {#system_architecture}
+Device Firmware System Architecture  {#device_firmware_system_architecture}
 ===================================
 
 There are 5 different type of minions, all having same privilege modes but running different services/software on each layer depending on its functionality:
