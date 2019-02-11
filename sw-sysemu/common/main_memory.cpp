@@ -18,10 +18,6 @@ main_memory::main_memory(testLog& log_)
 {
     getthread = NULL;
 
-    // RBOX
-    rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
-    regions_.push_back((main_memory_region *) rbox);
-
     // For all the shires and the local shire mask
     for (int i = 0; i < (EMU_NUM_SHIRES + 1); i++)
     {
@@ -54,7 +50,7 @@ main_memory::main_memory(testLog& log_)
         }
 
         // RBOX
-        main_memory_region_esr * rbox_esrs  = new main_memory_region_esr(0x100310000ULL + shire*ESR_REGION_OFFSET, 131072, log, getthread);
+        main_memory_region_rbox * rbox_esrs  = new main_memory_region_rbox(0x100320000ULL + shire*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) rbox_esrs);
 
         // Shire ESRs
