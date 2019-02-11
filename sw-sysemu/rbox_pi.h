@@ -264,8 +264,8 @@ namespace RBOX
     typedef struct
     {
         // QW0
-        uint8_t type    : 3,
-                unused1 : 5;
+        uint8_t  type    : 3,
+                 unused1 : 5;
         uint8_t  msaa_enable             :  1,
                  msaa_samples            :  4,
                  msaa_shading_enable     :  1,
@@ -410,14 +410,14 @@ namespace RBOX
     
     typedef enum
     {
-        RBOX_CONFIG_ESR               = 0,
-        RBOX_INPUT_BUFFER_PAGES_ESR   = 1,
-        RBOX_INPUT_BUFFER_CONFIG_ESR  = 2,
-        RBOX_OUTPUT_BUFFER_PAGE_ESR   = 3,
-        RBOX_OUTPUT_BUFFER_CONFIG_ESR = 4,
-        RBOX_STATUS_ESR               = 5,
-        RBOX_START_ESR                = 6,
-        RBOX_CONSUME_ESR              = 7
+        CONFIG_ESR               = 0,
+        INPUT_BUFFER_PAGES_ESR   = 1,
+        INPUT_BUFFER_CONFIG_ESR  = 2,
+        OUTPUT_BUFFER_PAGE_ESR   = 3,
+        OUTPUT_BUFFER_CONFIG_ESR = 4,
+        STATUS_ESR               = 5,
+        START_ESR                = 6,
+        CONSUME_ESR              = 7
     } ESRIdT;
     
     typedef union
