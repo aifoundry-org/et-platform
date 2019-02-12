@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------
-* Copyright (C) 2019, Esperanto Technologies Inc.
+* Copyright (C) 2018, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
@@ -9,12 +9,9 @@
 *-------------------------------------------------------------------------
 */
 
+#ifndef _FW_MASTER_CODE_H_
+#define _FW_MASTER_CODE_H_
 
-#include "TemplateConfig.h"
+void fw_master_code(void);
 
-#include "test_lib/test_lib.h"
-
-#include <cstdio>
-#include <cstdlib>
-
-int main() { printf("test output %i \n", test()); }
+#endif
