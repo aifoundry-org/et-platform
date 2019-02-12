@@ -28,7 +28,7 @@ set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "e
 # of DRAM space which begins at 516G (0x8100000000)
 # See https://www.sifive.com/blog/all-aboard-part-4-risc-v-code-models
 #
-set(CMAKE_C_FLAGS "-mcmodel=medany -Wall -Wextra -Werror -Wnull-dereference \
+set(CMAKE_C_FLAGS "-g3 -mcmodel=medany -Wall -Wextra -Werror -Wnull-dereference \
 -Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith -Wundef \
 -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations" CACHE STRING "c flags" FORCE)

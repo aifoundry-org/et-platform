@@ -15,7 +15,7 @@ set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
 project(DeviceFirmware LANGUAGES C ASM)
 
-#set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 
 option(BUILD_DOC "Build documentation" ON)
 
