@@ -7,14 +7,13 @@
 #include "softfloat/softfloat.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
+#include "debug.h"
+
 
 
 //#ifndef FPU_DEBUG
 //#define FPU_DEBUG
 //#endif
-#ifdef FPU_DEBUG
-#include "debug.h"
-#endif
 
 #include <cmath> // FIXME: remove this when we fix f32_frac()
 
