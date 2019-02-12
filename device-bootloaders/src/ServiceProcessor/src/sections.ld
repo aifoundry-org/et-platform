@@ -13,8 +13,8 @@ ENTRY(_boot)
 
 SECTIONS
 {
-    /* DRAM Linux region R_L3_Linux */
-    . = 0x8000200000;
+    /* . = 0x40400000; */
+    . = 0x40000000; /* Loading into ROM for now, SP PC starts @ 0x40000000 */
     .text :
     {
         /* Place boot code first */
