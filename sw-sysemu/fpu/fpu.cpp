@@ -9,9 +9,9 @@
 #include "softfloat/specialize.h"
 
 
-#ifndef FPU_DEBUG
-#define FPU_DEBUG
-#endif
+//#ifndef FPU_DEBUG
+//#define FPU_DEBUG
+//#endif
 #ifdef FPU_DEBUG
 #include "debug.h"
 #endif
