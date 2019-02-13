@@ -2571,6 +2571,7 @@ static void dcache_unlock_paddr(int, uint64_t);
 static uint64_t csrget(csr src1)
 {
     uint64_t val;
+    uint64_t msk;
 
     switch (src1)
     {
@@ -2681,6 +2682,11 @@ static uint64_t csrget(csr src1)
         case csr_sip:
             val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
             break;
+        case csr_sepc:
+            // sepc[1] is masked if C extension is disabled (misa[2])
+            msk = 0x0000FFFFFFFFFFFCULL | ((csrregs[current_thread][csr_misa] & 4) >> 1);
+            val = csrregs[current_thread][csr_sepc] & msk;
+            break;
         // ----- Tensor, barrier, cacheop instructions -------------------
         case csr_tensor_load:
         case csr_tensor_coop:
@@ -2712,6 +2718,11 @@ static uint64_t csrget(csr src1)
         case csr_mcycle:
         case csr_minstret:
             val = 0;
+            break;
+        case csr_mepc:
+            // sepc[1] is masked if C extension is disabled (misa[2])
+            msk = 0x0000FFFFFFFFFFFCULL | ((csrregs[current_thread][csr_misa] & 4) >> 1);
+            val = csrregs[current_thread][csr_mepc] & msk;
             break;
         // ----- All other registers -------------------------------------
         default:
@@ -2926,6 +2937,11 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread ^ 1][csr_msleep_txfma_27] = val;
             break;
         // ----- S-mode registers ----------------------------------------
+        case csr_scause:
+            // Maks all bits excepts the ones we care about
+            val &= 0x800000000000001FULL;
+            csrregs[current_thread][csr_scause] = val;
+            break;
         case csr_sstatus:
             // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
             val = (val & 0x00000000000C6133ULL) | (csrregs[current_thread][csr_mstatus] & 0x0000000F00739800ULL);
@@ -2950,11 +2966,12 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_sepc:
             // sepc[0] = 0 always
-            val &= 0xFFFFFFFFFFFFFFFEULL;
+            // keep only valid virtual or pysical addresses
+            val &= 0x0000FFFFFFFFFFFEULL;
             csrregs[current_thread][src1] = val;
             break;
         case csr_sip:
-            // Preserve meip, seip, mtip, stip, msip
+            // Regist
             // if mideleg[ssi]==1 then ssip is writeable, otherwise it is reserved
             msk = csrregs[current_thread][csr_mideleg];
             val = (csrregs[current_thread][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
@@ -2999,6 +3016,11 @@ static void csrset(csr src1, uint64_t val)
             configure_port(src1 - csr_portctrl0, val);
             break;
         // ----- M-mode registers ----------------------------------------
+        case csr_mcause:
+            // Maks all bits excepts the ones we care about
+            val &= 0x800000000000001FULL;
+            csrregs[current_thread][csr_mcause] = val;
+            break;
         case csr_mstatus:
             // Preserve sd, sxl, uxl, xs
             val = (val & 0x00000000007E79BBULL) | (csrregs[current_thread][src1] & 0x8000000F00018000ULL);
@@ -3034,7 +3056,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_mepc:
             // mepc[0] = 0 always
-            val &= 0xFFFFFFFFFFFFFFFEULL;
+            // keep only valid virtual or pysical addresses
+            val &= 0x0000FFFFFFFFFFFEULL;
             csrregs[current_thread][src1] = val;
             break;
         case csr_mip:
@@ -7225,7 +7248,7 @@ void tensorload(uint64_t control)
     // Check if SCP is enabled
     if (csrregs[current_thread][csr_mcache_control] != 0x3)
     {
-        //LOG(DEBUG, "%s", "ERROR TensorLoad with SCP disabled!!");
+        LOG(DEBUG, "%s", "ERROR TensorLoad with SCP disabled!!");
         update_tensor_error(1 << 4);
         return;
     }
