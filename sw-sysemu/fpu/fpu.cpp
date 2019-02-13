@@ -11,9 +11,9 @@
 
 
 
-//#ifndef FPU_DEBUG
-//#define FPU_DEBUG
-//#endif
+#ifdef FPU_DEBUG
+#undef FPU_DEBUG
+#endif
 
 #include <cmath> // FIXME: remove this when we fix f32_frac()
 
