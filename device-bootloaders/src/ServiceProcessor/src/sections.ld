@@ -63,11 +63,12 @@ SECTIONS
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
     }
 
-    /* Align here to ensure crt.S bss init asm has an aligned end address
-       The default stack alignment is 16 bytes in RV32I and RV64I */
-    . = ALIGN(16);
+    /* Align here to ensure crt.S bss init asm has an aligned end address */
+    . = ALIGN(4);
     __bss_end = .;
 
+    /* The default stack alignment is 16 bytes in RV32I and RV64I */
+    . = ALIGN(16);
     stack :
     {
         __stack_base = .;
