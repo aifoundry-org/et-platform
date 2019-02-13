@@ -7248,7 +7248,7 @@ void tensorload(uint64_t control)
     // Check if SCP is enabled
     if (csrregs[current_thread][csr_mcache_control] != 0x3)
     {
-        //LOG(DEBUG, "%s", "ERROR TensorLoad with SCP disabled!!");
+        LOG(DEBUG, "%s", "ERROR TensorLoad with SCP disabled!!");
         update_tensor_error(1 << 4);
         return;
     }
