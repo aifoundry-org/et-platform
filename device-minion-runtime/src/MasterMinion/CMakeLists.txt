@@ -7,9 +7,4 @@ set(ZEBU_TARGET DRAM)
 
 include_directories(include)
 
-# Disable compressed instructions
-# TODO FIXME disable floating point if SP doesn't support the F extension, but
-# need better multilib support in toolchain to build soft-float ABI
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=rv64imaf -mabi=lp64f")
-
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${SOURCES})
