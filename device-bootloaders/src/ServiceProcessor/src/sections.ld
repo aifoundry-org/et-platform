@@ -11,6 +11,12 @@
 
 ENTRY(_boot)
 
+MEMORY
+{
+    rom (rx)  : org = 0x40000000, l = 64K
+    ram (!rx) : org = 0x40400000, l = 1M
+}
+
 SECTIONS
 {
     /* . = 0x40400000; */
@@ -20,17 +26,17 @@ SECTIONS
         /* Place boot code first */
         *(.text.init)
         *(.text .text.* .gnu.linkonce.t.*)
-    }
+    } > rom
 
     .rodata :
     {
         *(.rodata .rodata.* .gnu.linkonce.r.*)
-    }
+    } > rom
 
     .data :
     {
         *(.data .data.* .gnu.linkonce.d.*)
-    }
+    } > ram
 
     /* We want the small data sections together, so single-instruction offsets
       can access them all, and initialized data all before uninitialized, so
@@ -47,7 +53,7 @@ SECTIONS
         __global_pointer$ = . + 0x800;
         *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
         *(.sdata .sdata.* .gnu.linkonce.s.*)
-    }
+    } > ram
 
     /* Align here to ensure crt.S bss init asm has an aligned start address */
     . = ALIGN(4);
@@ -56,12 +62,12 @@ SECTIONS
     .bss :
     {
         *(.bss .bss.* .gnu.linkonce.b.*)
-    }
+    } > ram
 
     .sbss :
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
-    }
+    } > ram
 
     /* Align here to ensure crt.S bss init asm has an aligned end address */
     . = ALIGN(4);
@@ -69,9 +75,10 @@ SECTIONS
 
     /* The default stack alignment is 16 bytes in RV32I and RV64I */
     . = ALIGN(16);
+
     stack :
     {
         __stack_base = .;
         *(stack stack.*)
-    }
+    } > ram
 }
