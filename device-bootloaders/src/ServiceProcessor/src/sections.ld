@@ -78,7 +78,7 @@ SECTIONS
 
     stack :
     {
+        KEEP(*(stack stack.*))
         __stack_base = .;
-        *(stack stack.*)
     } > ram
 }
