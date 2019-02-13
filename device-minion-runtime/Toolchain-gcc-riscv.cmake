@@ -24,13 +24,15 @@ set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "e
 
 # Our gcc has -fdelete-null-pointer-checks enabled by default, needed for -Wnull-dereference
 #
-# Need mcmodel=medany instead of default medlow to be able to place code at the bottom
+# Need -mcmodel=medany instead of default medlow to be able to place code at the bottom
 # of DRAM space which begins at 516G (0x8100000000)
 # See https://www.sifive.com/blog/all-aboard-part-4-risc-v-code-models
 #
-set(CMAKE_C_FLAGS "-g3 -mcmodel=medany -Wall -Wextra -Werror -Wnull-dereference \
--Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith -Wundef \
--Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
+# Explicitly set -march and -mabi to disable compressed instructions in A0
+#
+set(CMAKE_C_FLAGS "-g3 -mcmodel=medany -march=rv64imaf -mabi=lp64f -Wall -Wextra -Werror \
+-Wnull-dereference -Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith \
+-Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations" CACHE STRING "c flags" FORCE)
 
 # macro to create an executable .elf plus .bin, .hex, .lst and .map files
