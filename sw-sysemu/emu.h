@@ -593,7 +593,7 @@ extern uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, i
 
 // TensorQuant
 
-extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms, bool * is_pack);
+extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * reg, int * size, int * transforms, bool * skip_entry);
 
 // TensorReduce
 
