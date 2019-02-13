@@ -2571,6 +2571,7 @@ static void dcache_unlock_paddr(int, uint64_t);
 static uint64_t csrget(csr src1)
 {
     uint64_t val;
+    uint64_t msk;
 
     switch (src1)
     {
@@ -2681,6 +2682,11 @@ static uint64_t csrget(csr src1)
         case csr_sip:
             val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
             break;
+        case csr_sepc:
+            // sepc[1] is masked if C extension is disabled (misa[2])
+            msk = 0x0000FFFFFFFFFFFCULL | ((csrregs[current_thread][csr_misa] & 4) >> 1);
+            val = csrregs[current_thread][csr_sepc] & msk;
+            break;
         // ----- Tensor, barrier, cacheop instructions -------------------
         case csr_tensor_load:
         case csr_tensor_coop:
@@ -2712,6 +2718,11 @@ static uint64_t csrget(csr src1)
         case csr_mcycle:
         case csr_minstret:
             val = 0;
+            break;
+        case csr_mepc:
+            // sepc[1] is masked if C extension is disabled (misa[2])
+            msk = 0x0000FFFFFFFFFFFCULL | ((csrregs[current_thread][csr_misa] & 4) >> 1);
+            val = csrregs[current_thread][csr_mepc] & msk;
             break;
         // ----- All other registers -------------------------------------
         default:
@@ -2955,7 +2966,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_sepc:
             // sepc[0] = 0 always
-            val &= 0xFFFFFFFFFFFFFFFEULL;
+            // keep only valid virtual or pysical addresses
+            val &= 0x0000FFFFFFFFFFFEULL;
             csrregs[current_thread][src1] = val;
             break;
         case csr_sip:
@@ -3044,7 +3056,8 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_mepc:
             // mepc[0] = 0 always
-            val &= 0xFFFFFFFFFFFFFFFEULL;
+            // keep only valid virtual or pysical addresses
+            val &= 0x0000FFFFFFFFFFFEULL;
             csrregs[current_thread][src1] = val;
             break;
         case csr_mip:
