@@ -288,10 +288,6 @@ fdata tensorfma_tenc[EMU_NUM_THREADS][32];
 uint32_t tensorfma_data[EMU_NUM_THREADS][32][VL][TFMA_MAX_ACOLS];
 bool tensorfma_mask_skip[TFMA_MAX_ACOLS][TFMA_MAX_AROWS];
 bool tensorfma_zero_skip[TFMA_MAX_ACOLS][32][VL];
-int tensorquant_size[EMU_NUM_THREADS];
-int tensorquant_trans[EMU_NUM_THREADS];
-bool tensorquant_is_pack[EMU_NUM_THREADS][TQUANT_MAX_TRANS];
-uint32_t tensorquant_data[EMU_NUM_THREADS][32][VL][TQUANT_MAX_TRANS];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
@@ -301,6 +297,14 @@ bool msg_port_delayed_write = false;
 std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
+
+int tensorquant_trans[EMU_NUM_THREADS];
+struct {
+    bool     skip_entry;
+    uint32_t regs;
+    uint32_t data[32][VL];
+} tensorquant_values[EMU_NUM_THREADS][TQUANT_MAX_TRANS];
+
 
 // Accelerators
 #if (EMU_TBOXES_PER_SHIRE > 1)
@@ -7504,179 +7508,280 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
 
 // ----- TensorQuant emulation -------------------------------------------------
 
+static const char* get_quant_transform(int op)
+{
+    static const char* trans_int_to_str[16] = {
+        "LAST",
+        "INT32_TO_FP32",
+        "FP32_TO_INT32",
+        "INT32_RELU",
+        "INT32_ADD_ROW",
+        "INT32_ADD_COL",
+        "FP32_MUL_ROW",
+        "FP32_MUL_COL",
+        "SATINT8",
+        "SATUINT8",
+        "PACK_128B",
+        "Reserved(11)",
+        "Reserved(12)",
+        "Reserved(13)",
+        "Reserved(14)",
+        "Reserved(15)"
+    };
+    return trans_int_to_str[op&15];
+}
+
 static void tensorquant(uint64_t value)
 {
     if (!txfma_off_allowed(csr_tensor_quant, value))
         throw trap_txfma_off(current_inst);
 
-    int regstart =  (value & 0x3E00000000000000) >> 57;      // Start register to operate
-    int cols     = ((value & 0x0180000000000000) >> 55) + 1; // Number of register per col
-    int rows     = ((value & 0x0078000000000000) >> 51) + 1; // Number of rows to store
-    int scpsrc   =  (value & 0x0007E00000000000) >> 45;      // Scratchpad source where data is
+    int fstart = (value >> 57) & 0x1F;
+    int cols   = (value >> 55) & 0x3;
+    int rows   = (value >> 51) & 0xF;
+    int line   = (value >> 45) & 0x3F;
 
-    // Array that converts an integer to string to print transformation information
-    char trans_int_to_str[32][128] = { "LAST",
-                                       "INT32 to FP32",
-                                       "FP32 to INT32",
-                                       "INT32 ReLU",
-                                       "INT32 add row-wise",
-                                       "INT32 add col-wise",
-                                       "FP32 mul row-wise",
-                                       "FP32 mul col-wise",
-                                       "INT8 saturate",
-                                       "UINT8 saturate",
-                                       "Pack to 128b" };
+    cols = (cols + 1) * 4;
+    rows = rows + 1;
+    line = line % L1_SCP_ENTRIES;
 
-    tensorquant_size[current_thread] = (cols / 2) * rows;
-    tensorquant_trans[current_thread] = 0;
+    tensorquant_trans[current_thread] = -1;
 
-    // Gets all the transformations done by the tensorquant operation
-    uint64_t transformations[TQUANT_MAX_TRANS];
-    for (int i = 0; i < TQUANT_MAX_TRANS; i++)
-        transformations[i] = (value >> (i * 4)) & 0xF;
+    set_rounding_mode(rmdyn);
+    clear_arithmetic_flags();
 
-    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", scpsrc, rows, cols, regstart);
-    for (int trans = 0; trans < TQUANT_MAX_TRANS; trans++)
+    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", line, rows, cols, fstart);
+    for (int k = 0; k < TQUANT_MAX_TRANS; k++)
     {
-        tensorquant_is_pack[current_thread][trans] = (transformations[trans] >= 10);
-        LOG(DEBUG, "\t\tTransformation %d: %s", trans, trans_int_to_str[transformations[trans]]);
-        if (transformations[trans] == 0) break;
+        int trans = (value >> (k*4)) & 0xF;
+        LOG(DEBUG, "\t\tTransformation %d: %s", k, get_quant_transform(trans));
+
         tensorquant_trans[current_thread]++;
-        bool scp_inc = false;
+        tensorquant_values[current_thread][k].skip_entry = false;
+        tensorquant_values[current_thread][k].regs = 0;
 
-        if ((transformations[trans] == 4) || (transformations[trans] == 5) ||
-            (transformations[trans] == 6) || (transformations[trans] == 7))
+        switch (trans)
         {
-            // Check if SCP is enabled
-            if (csrregs[current_thread][csr_mcache_control] != 0x3)
-            {
-                update_tensor_error(1 << 4);
+            case 0: // NONE
                 return;
-            }
-        }
-
-        // For all the rows
-        for (int row = 0; row < rows; row++)
-        {
-            // For all the blocks of 128b
-            for (int col = 0; col < cols; col++)
-            {
-                // For all the 32 elements of the 128b block
-                for (int elem = 0; elem < 4; elem++)
+            case 1: // INT32_TO_FP32
+                for (int i = 0; i < rows; ++i)
                 {
-                    int src = regstart + row * 2 + (col / 2);
-                    int idx = (col & 1) * 4 + elem;
-                    iufval32 val, val2, res;
-                    val.u = FREGS[src].u[idx];
-                    res.u = val.u;
-
-                    // INT32 to FP32
-                    if (transformations[trans] == 1)
+                    for (int j = 0; j < cols; ++j)
                     {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
                         res.f = fpu::i32_to_f32(val.i);
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)", src, idx, res.u, res.flt, val.u, val.i);
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)", freg, j%VL, res.u, res.flt, val.u, val.i);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
                     }
-                    // FP32 to INT32
-                    else if (transformations[trans] == 2)
-                    {
-                        res.i = fpu::f32_to_i32(val.f);
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)", src, idx, res.u, res.i, val.u, val.flt);
-                    }
-                    // INT32 ReLU
-                    else if (transformations[trans] == 3)
-                    {
-                        res.i = (val.i < 0) ? 0 : val.i;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- MAX_INT32(0x%08x, 0x00000000)",src,idx,res.i,val.i);
-                    }
-                    // INT32 add row-wise
-                    else if (transformations[trans] == 4)
-                    {
-                        int col_pos = col * 4 + elem;
-                        val2.i = SCP[scpsrc].i[col_pos];
-                        res.i = val.i + val2.i;
-                        scp_inc = true;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", src, idx, res.u, val.u, val2.u);
-                    }
-                    // INT32 add col-wise
-                    else if (transformations[trans] == 5)
-                    {
-                        int row_pos = row;
-                        val2.i = SCP[scpsrc].i[row_pos];
-                        res.i = val.i + val2.i;
-                        scp_inc = true;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", src, idx, res.u, val.u, val2.u);
-                    }
-                    // FP32 mul row-wise
-                    else if (transformations[trans] == 6)
-                    {
-                        int col_pos = col * 4 + elem;
-                        val2.u = SCP[scpsrc].u[col_pos];
-                        res.f = fpu::f32_mul(val.f, val2.f);
-                        scp_inc = true;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", src, idx, res.u, res.flt, val.u, val.flt, val2.u, val2.flt);
-                    }
-                    // FP32 mul col-wise
-                    else if (transformations[trans] == 7)
-                    {
-                        int row_pos = row;
-                        val2.u = SCP[scpsrc].u[row_pos];
-                        res.f = fpu::f32_mul(val.f, val2.f);
-                        scp_inc = true;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", src, idx, res.u, res.flt, val.u, val.flt, val2.u, val2.flt);
-                    }
-                    // INT8 saturate
-                    else if (transformations[trans] == 8)
-                    {
-                        res.i = ((val.i > 127) ? 127 :(val.i < -128 ? -128 : val.i)) & 0x0FF;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", src, idx, res.u, val.u);
-                    }
-                    // UINT8 saturate
-                    else if (transformations[trans] == 9)
-                    {
-                        res.u = ((val.i > 255) ? 255u :(val.i < 0 ? 0u : val.u)) & 0x0FFu;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", src, idx, res.u, val.u);
-                    }
-                    // Pack to 128b
-                    else
-                    {
-                        // Only first col gets updated
-                        if ((col == 0) && ((cols >= 2) || (elem < 2)))
-                        {
-                            for (int elem_pack = 0; elem_pack < 4; elem_pack++)
-                            {
-                                int src_pack = regstart + row * 2 + (elem * 4 + elem_pack) / VL;
-                                int idx_pack = (elem * 4 + elem_pack) % VL;
-                                int byte_offset = elem_pack;
-                                iufval32 val_pack;
-                                val_pack.u = FREGS[src_pack].u[idx_pack];
-
-                                // Clears the byte offset
-                                res.i = res.i & ~(0xFF << (byte_offset * 8));
-                                // Puts the byte value
-                                res.i = res.i | ((val_pack.u & 0xFF) << (byte_offset * 8));
-                            }
-                            LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", src, idx, res.u, val.u);
-                        }
-                    }
-
-                    // Updates RF
-                    FREGS[src].u[idx] = res.u;
-
-                    // Checker
-                    tensorquant_data[current_thread][src][idx][trans] = res.u;
                 }
-            }
+                break;
+            case 2: // FP32_TO_INT32
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
+                        res.i = fpu::f32_to_i32(val.f);
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)", freg, j%VL, res.u, res.i, val.u, val.flt);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                break;
+            case 3: // INT32_RELU
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
+                        res.i = (val.i < 0) ? 0 : val.i;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- MAX_INT32(0x%08x, 0x0)", freg, j%VL, res.i, val.i);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                break;
+            case 4: // INT32_ADD_ROW
+                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                {
+                    update_tensor_error(1 << 4);
+                    return;
+                }
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val1, val2, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u[j%VL];
+                        val2.u = SCP[line].u[j];
+                        res.i = val1.i + val2.i;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                line = (line + 1) % L1_SCP_ENTRIES;
+                break;
+            case 5: // INT32_ADD_COL
+                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                {
+                    update_tensor_error(1 << 4);
+                    return;
+                }
+                for (int i = 0; i < rows; ++i)
+                {
+                    iufval32 val2;
+                    val2.u = SCP[line].u[i];
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val1, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u[j%VL];
+                        res.i = val1.i + val2.i;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                line = (line + 1) % L1_SCP_ENTRIES;
+                break;
+            case 6: // FP32_MUL_ROW
+                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                {
+                    update_tensor_error(1 << 4);
+                    return;
+                }
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val1, val2, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u[j%VL];
+                        val2.u = SCP[line].u[j];
+                        res.f = fpu::f32_mul(val1.f, val2.f);
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                line = (line + 1) % L1_SCP_ENTRIES;
+                break;
+            case 7: // FP32_MUL_COL
+                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                {
+                    update_tensor_error(1 << 4);
+                    return;
+                }
+                for (int i = 0; i < rows; ++i)
+                {
+                    iufval32 val2;
+                    val2.u = SCP[line].u[i];
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val1, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u[j%VL];
+                        res.f = fpu::f32_mul(val1.f, val2.f);
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                line = (line + 1) % L1_SCP_ENTRIES;
+                break;
+            case 8: // SATINT8
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
+                        res.i = (val.i > 127 ? 127 : (val.i < -128 ? -128 : val.i)) & 0xFF;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                break;
+            case 9: // SATUINT8
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
+                        res.i = (val.i > 255 ? 255 : (val.i < 0 ? 0 : val.i)) & 0xFF;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                break;
+            case 10: // PACK_128B
+                // RTL operates on even registers first, and then on odd
+                // registers, so it generates two writes to the destination
+                // register when a row spans a vector.
+                tensorquant_values[current_thread][k].skip_entry = (cols >= VL);
+                for (int i = 0; i < rows; ++i)
+                {
+                    int fdst = (fstart + i*2) % 32;
+                    for (int j = 0; j < cols; j += 4)
+                    {
+                        int fsrc = (fstart + i*2 + j/VL) % 32;
+                        uint32_t val0 = FREGS[fsrc].u[(j+0)%VL];
+                        uint32_t val1 = FREGS[fsrc].u[(j+1)%VL];
+                        uint32_t val2 = FREGS[fsrc].u[(j+2)%VL];
+                        uint32_t val3 = FREGS[fsrc].u[(j+3)%VL];
+                        FREGS[fdst].b[j+0] = uint8_t(val0 & 0xFF);
+                        FREGS[fdst].b[j+1] = uint8_t(val1 & 0xFF);
+                        FREGS[fdst].b[j+2] = uint8_t(val2 & 0xFF);
+                        FREGS[fdst].b[j+3] = uint8_t(val3 & 0xFF);
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x}", fdst, j/4, FREGS[fdst].u[j/4], val0, val1, val2, val3);
+                    }
+                    tensorquant_values[current_thread][k].regs |= (1 << fdst);
+                    for (int j = 0; j < VL; ++j)
+                        tensorquant_values[current_thread][k].data[fdst][j] = FREGS[fdst].u[j];
+                }
+                break;
+            default:
+                assert(0);
+                break;
         }
-        if (scp_inc) scpsrc = (scpsrc + 1) % L1_SCP_ENTRIES;
     }
 }
 
-uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms, bool * is_pack)
+uint32_t get_tensorquant_value(int entry, int transform, int lane, int * reg, int * size, int * transforms, bool * skip_entry)
 {
-    * size       = tensorquant_size[current_thread];
-    * transforms = tensorquant_trans[current_thread];
-    * is_pack    = tensorquant_is_pack[current_thread][transform];
-    return tensorquant_data[current_thread][entry][lane][transform];
+    uint32_t regs = tensorquant_values[current_thread][transform].regs;
+    while (entry-- > 0) {
+        regs = regs & (regs - 1);
+    }
+    * reg         = __builtin_ffs(regs) - 1;
+    * size        = __builtin_popcount(tensorquant_values[current_thread][transform].regs);
+    * transforms  = tensorquant_trans[current_thread];
+    * skip_entry  = tensorquant_values[current_thread][transform].skip_entry;
+    return tensorquant_values[current_thread][transform].data[*reg][lane];
 }
 
 // ----- TensorStore emulation -------------------------------------------------
