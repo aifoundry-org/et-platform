@@ -45,7 +45,6 @@ uint32_t               pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THR
 static uint64_t        current_pc[EMU_NUM_THREADS];                                   // PC for each thread
 static reduce_state    reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
 static uint32_t        reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
-static bool            global_log_en;
 static int             global_log_min;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -145,7 +144,7 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
 void msg_to_thread(int thread_id)
 {
     auto thread = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
-    printf("Message to thread %i with log %i\n", thread_id, global_log_min);
+    LOG_NOTHREAD(INFO, "Message to thread %i with log %i", thread_id, global_log_min);
     // Checks if in port wait state
     if(thread != port_wait_threads.end())
     {
@@ -255,7 +254,7 @@ static uint32_t get_thread_emu()
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-ll] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
@@ -267,7 +266,6 @@ static const char * help_msg =
  -dump_addr   Address in memory at which to start dumping. Only valid if -dump_file is used\n\
  -dump_size   Size of the memory to dump. Only valid if -dump_file is used\n\
  -l           Enable Logging\n\
- -ll          Log memory accesses\n\
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -reset_pc    Sets boot program counter (default 0x8000001000) \n\
@@ -410,7 +408,6 @@ int main(int argc, char * argv[])
     bool second_thread   = true;
     bool shires          = false;
     bool log_en          = false;
-    bool log_mem_en      = false;
     bool create_mem_at_runtime = false;
     int  log_min         = -1;
     char * dump_file     = NULL;
@@ -546,10 +543,6 @@ int main(int argc, char * argv[])
         {
             log_en = true;
         }
-        else if(strcmp(argv[i], "-ll") == 0)
-        {
-            log_mem_en = true;
-        }
         else if (  (strcmp(argv[i], "-h") == 0)
                  ||(strcmp(argv[i], "-help") == 0)
                  ||(strcmp(argv[i], "--help") == 0)) {
@@ -596,17 +589,18 @@ int main(int argc, char * argv[])
 #endif
     }
 
+    emu::log.setLogLevel(log_en ? LOG_DEBUG : LOG_INFO);
+
     // Generates the main memory of the emulator
-    memory = new main_memory("checker main memory", log_mem_en? LOG_DEBUG : LOG_INFO);
+    memory = new main_memory(emu::log);
     memory->setGetThread(get_thread_emu);
     if (create_mem_at_runtime) {
        memory->create_mem_at_runtime();
     }
 
     // Init emu
-    init_emu(log_en ? LOG_DEBUG : LOG_INFO);
+    init_emu();
     log_only_minion(log_min);
-    global_log_en = log_en;
     global_log_min = log_min;
 
     in_sysemu = true;
@@ -616,14 +610,14 @@ int main(int argc, char * argv[])
     setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
 
     // Defines the memory access functions
-    set_memory_funcs((void *) emu_memread8,
-                     (void *) emu_memread16,
-                     (void *) emu_memread32,
-                     (void *) emu_memread64,
-                     (void *) emu_memwrite8,
-                     (void *) emu_memwrite16,
-                     (void *) emu_memwrite32,
-                     (void *) emu_memwrite64);
+    set_memory_funcs(emu_memread8,
+                     emu_memread16,
+                     emu_memread32,
+                     emu_memread64,
+                     emu_memwrite8,
+                     emu_memwrite16,
+                     emu_memwrite32,
+                     emu_memwrite64);
 
     // Callbacks for port writes
     set_msg_funcs((void *) msg_to_thread);
@@ -637,7 +631,6 @@ int main(int argc, char * argv[])
     }
 
     net_emulator net_emu(memory);
-    net_emu.set_log(&emu_log());
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
     if(net_desc_file != NULL)
     {
@@ -645,7 +638,6 @@ int main(int argc, char * argv[])
     }
 
     api_communicate api_listener(memory);
-    api_listener.set_log(&emu_log());
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
     if(api_comm_path != NULL)
     {

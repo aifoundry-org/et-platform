@@ -7,11 +7,11 @@
 
 // Local
 #include "api_communicate.h"
+#include "emu_gio.h"
 
 // Constructor
 api_communicate::api_communicate(main_memory * mem_)
 {
-    log                   = NULL;
     mem                   = mem_;
     enabled               = false;
     done                  = false;
@@ -27,7 +27,7 @@ api_communicate::~api_communicate()
 void api_communicate::set_comm_path(char * api_comm_path)
 {
     enabled = true;
-    * log << LOG_INFO << "api_communicate: Init" << endm;
+    LOG_NOTHREAD(INFO, "%s", "api_communicate: Init");
 
     communication_channel = socket( AF_UNIX, SOCK_STREAM, 0);
 
@@ -39,14 +39,8 @@ void api_communicate::set_comm_path(char * api_comm_path)
 
     if ( connect( communication_channel, (sockaddr*)&addr_un, sizeof(addr_un)) != 0 )
     {
-        * log << LOG_FTL << "Failed to open IPI communication pipet" << endm;
+        LOG_NOTHREAD(FTL, "%s", "Failed to open IPI communication pipe");
     }
-}
-
-// Set
-void api_communicate::set_log(testLog * log_)
-{
-    log = log_;
 }
 
 // Done
@@ -65,12 +59,12 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
     // Waits until all minions are idle
     if(!enabled || (enabled_threads->size() != 0)) return;
 
-    * log << LOG_INFO << "api_communicate: command" << endm;
+    LOG_NOTHREAD(INFO, "%s", "api_communicate: command");
 
     char cmd;
     if ( read_bytes( communication_channel, &cmd, 1) != 1 )
     {
-        * log << LOG_FTL << "api_communicate: communucation command retrieve failed." << endm;
+        LOG_NOTHREAD(FTL, "%s", "api_communicate: communucation command retrieve failed.");
         return;
     }
 
@@ -81,7 +75,7 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
                 MemDescMsg mem_def;
 
                 read_bytes( communication_channel, &mem_def, sizeof(MemDescMsg));
-                * log << LOG_INFO << "api_communicate: Init mem 0x" << std::hex << mem_def.mem_addr << ", 0x" << mem_def.mem_size << std::dec << endm;
+                LOG_NOTHREAD(INFO, "api_communicate: Init mem 0x%llx, 0x%llx", mem_def.mem_addr, mem_def.mem_size);
                 mem->new_region( mem_def.mem_addr, mem_def.mem_size);
             }
             break;
@@ -90,7 +84,7 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
                 MemDescMsg mem_def;
 
                 read_bytes( communication_channel, &mem_def, sizeof(MemDescMsg));
-                * log << LOG_INFO << "api_communicate: Init exec mem 0x" << std::hex << mem_def.mem_addr << ", 0x" << mem_def.mem_size << std::dec << endm;
+                LOG_NOTHREAD(INFO, "api_communicate: Init exec mem 0x%llx, 0x%llx", mem_def.mem_addr, mem_def.mem_size);
                 mem->new_region( mem_def.mem_addr, mem_def.mem_size);
             }
             break;
@@ -100,7 +94,7 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
 
                 read_bytes( communication_channel, &mem_def, sizeof(MemDescMsg));
                 char * tmp_mem = new char[mem_def.mem_size];
-                * log << LOG_INFO << "api_communicate: Read mem 0x" << std::hex << mem_def.mem_addr << ", 0x" << mem_def.mem_size << std::dec << endm;
+                LOG_NOTHREAD(INFO, "api_communicate: Read mem 0x%llx, 0x%llx", mem_def.mem_addr, mem_def.mem_size);
                 mem->read(mem_def.mem_addr, mem_def.mem_size, tmp_mem);
                 write_bytes( communication_channel, tmp_mem, mem_def.mem_size);
                 delete[] tmp_mem;
@@ -112,7 +106,7 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
 
                 read_bytes( communication_channel, &mem_def, sizeof(MemDescMsg));
                 char* tmp_mem = new char[mem_def.mem_size];
-                * log << LOG_INFO << "api_communicate: Write mem 0x" << std::hex << mem_def.mem_addr << ", 0x" << mem_def.mem_size << std::dec << endm;
+                LOG_NOTHREAD(INFO, "api_communicate: Write mem 0x%llx, 0x%llx", mem_def.mem_addr, mem_def.mem_size);
                 read_bytes( communication_channel, tmp_mem, mem_def.mem_size);
                 mem->write(mem_def.mem_addr, mem_def.mem_size, tmp_mem);
                 delete[] tmp_mem;
@@ -125,7 +119,7 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
                 assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
 
                 read_bytes( communication_channel, &launch_def, sizeof(LaunchDescMsg));
-                * log << LOG_INFO << "api_communicate: Execute 0x" << std::hex << launch_def.thread0_pc << ", 0x" << launch_def.thread1_pc << std::dec << endm;
+                LOG_NOTHREAD(INFO, "api_communicate: Execute 0x%llx, 0x%llx", launch_def.thread0_pc, launch_def.thread1_pc);
 
                 // Gets the PCs
                 * new_pc_t0 = launch_def.thread0_pc;
@@ -154,13 +148,12 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
         case kIPISync:
             {
                 char ret = 0;
-                * log << LOG_INFO << "api_communicate: sync" << endm;
+                LOG_NOTHREAD(INFO, "%s", "api_communicate: sync");
                 write( communication_channel, &ret, 1 );
             }
             break;
         case kIPIContinue:
-            * log << LOG_INFO << "api_communicate: continue" << endm;
-            
+            LOG_NOTHREAD(INFO, "%s", "api_communicate: continue");
             assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
 
             // PC 0 means continue
@@ -178,11 +171,12 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
             }
             break;
         case kIPIShutdown:
-            * log << LOG_INFO << "api_communicate: shutdown" << endm;
+            LOG_NOTHREAD(INFO, "%s", "api_communicate: shutdown");
             done = true;
             break;
         default:
-            * log << LOG_FTL << "api_communicate: Unknown command received" << endm;
+            LOG_NOTHREAD(FTL, "%s", "api_communicate: Unknown command received");
+            break;
     }
 }
 

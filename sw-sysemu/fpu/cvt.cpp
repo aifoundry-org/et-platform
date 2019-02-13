@@ -11,8 +11,6 @@ template<typename T> T rshift(T v, unsigned int s) {
   else return v >> s;
 }
 
-// FIXME: These conversion functions should set arithmetic flags
-
 float32_t float11tofloat32(uint16_t val)
 {
     uint32_t mantissa;
@@ -185,71 +183,75 @@ uint16_t float32tofloat11(float32_t val)
     infinity = (exponent == 0xff) && (mantissa32 == 0);
 
     //  Flush float32_t denorms to 0
-    if (denorm || zero || (sign != 0))
+    if (denorm || zero || (sign != 0)) {
         return 0x0000;
-
-    if (nan)
+    }
+    if (nan) {
+        if (softfloat_isSigNaNF32UI(inputAux))
+            softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x07e0;
-    else if(infinity)
+    }
+    if (infinity) {
         return 0x07c0;
+    }
     //  Flush numbers with an exponent not representable in float11 to infinite.
-    else if (exponent > (127 + 15))
+    if (exponent > (127 + 15)) {
+        softfloat_raiseFlags(softfloat_flag_overflow);
         return 0x07bf;
+    }
+
+    //  Convert exponent to float11.  Excess 127 to excess 15.
+    exponent = exponent - 127 + 15;
+
+    if (exponent > 0)
+    {
+        //  Convert mantissa from float32_t to float11.  Mantissa 23+1 to mantissa 6+1.
+        mantissa11 = (mantissa32 >> 17) & 0x003f;
+
+        // no rounding for F11 Datatype
+        // apply rounding
+        // mantissa11 += (mantissa32 >> 16) & 0x1; // Round to nearest, ties to Max Magnitude
+        //mantissa11 += ((mantissa32>>16) & 0x1) &
+        //              (((mantissa32 & 0x2FFFF) != 0) ? 1 : 0); // Round to nearest, ties to even
+
+        // increment exponent if there was overflow
+        if ( (mantissa11 >> 6) != 0 ) {
+            exponent ++;
+            mantissa11 = 0;
+        }
+    }
+    //  Check for denormalized float11 number.
     else
     {
-        //  Convert exponent to float11.  Excess 127 to excess 15.
-        exponent = exponent - 127 + 15;
+        //  Add implicit float32_t bit to the mantissa.
+        mantissa32 = mantissa32 + 0x800000;
 
-        if (exponent > 0)
-        {
-            //  Convert mantissa from float32_t to float11.  Mantissa 23+1 to mantissa 6+1.
-            mantissa11 = (mantissa32 >> 17) & 0x003f;
+        //  Convert mantissa from float32_t to float16.  Mantissa 23+1 to mantissa 10+1.
+        mantissa11 = (mantissa32 >> 17) & 0x07f;
 
-            // no rounding for F11 Datatype
-            // apply rounding
-            // mantissa11 += (mantissa32 >> 16) & 0x1; // Round to nearest, ties to Max Magnitude
-            //mantissa11 += ((mantissa32>>16) & 0x1) &
-            //              (((mantissa32 & 0x2FFFF) != 0) ? 1 : 0); // Round to nearest, ties to even
+        //  Denormalize mantissa.
+        mantissa11 = rshift(mantissa11, -exponent + 1);
 
-            // increment exponent if there was overflow
-            if ( (mantissa11 >> 6) != 0 ) {
-              exponent ++;
-              mantissa11 = 0;
-            }
-        }
-        //  Check for denormalized float11 number.
-        else
-        {
-            //  Add implicit float32_t bit to the mantissa.
-            mantissa32 = mantissa32 + 0x800000;
+        // No rounding for F11 datatypes
+        // apply rounding
+        //mantissa11 += rshift (mantissa32, (17-exponent)) & 0x1; // Round to nearest, ties to Max Magnitude
+        //mantissa11 += (rshift(mantissa32,(17-exponent)) & 0x1) &
+        //              ((((rshift(mantissa32,(18-exponent)) & 0x1) != 0) && ((mantissa32 & (1<<(17-exponent)-1)) != 0)) ? 1 : 0); // Round to nearest, ties to even
 
-            //  Convert mantissa from float32_t to float16.  Mantissa 23+1 to mantissa 10+1.
-            mantissa11 = (mantissa32 >> 17) & 0x07f;
-
-            //  Denormalize mantissa.
-            mantissa11 = rshift(mantissa11, -exponent + 1);
-
-            // No rounding for F11 datatypes
-            // apply rounding
-            //mantissa11 += rshift (mantissa32, (17-exponent)) & 0x1; // Round to nearest, ties to Max Magnitude
-            //mantissa11 += (rshift(mantissa32,(17-exponent)) & 0x1) &
-            //              ((((rshift(mantissa32,(18-exponent)) & 0x1) != 0) && ((mantissa32 & (1<<(17-exponent)-1)) != 0)) ? 1 : 0); // Round to nearest, ties to even
-
-            // increment exponent if there was overflow
-            if ( (mantissa11 >> 7) != 0 ) {
-              exponent ++;
-              mantissa11 = mantissa11 >> 1;
-            }
-
-            if (exponent < -19)
-              mantissa11  = rshift( mantissa11, -( 19 + exponent));
-            //  Set denormalized exponent.
-            exponent = 0;
+        // increment exponent if there was overflow
+        if ( (mantissa11 >> 7) != 0 ) {
+            exponent ++;
+            mantissa11 = mantissa11 >> 1;
         }
 
-        //  Assemble the float11 value.
-        return (uint16_t(exponent & 0x3f) << 6) | mantissa11;
+        if (exponent < -19)
+            mantissa11  = rshift( mantissa11, -( 19 + exponent));
+        //  Set denormalized exponent.
+        exponent = 0;
     }
+
+    //  Assemble the float11 value.
+    return (uint16_t(exponent & 0x3f) << 6) | mantissa11;
 }
 
 uint16_t float32tofloat10(float32_t val)
@@ -284,71 +286,75 @@ uint16_t float32tofloat10(float32_t val)
     infinity = (exponent == 0xff) && (mantissa32 == 0);
 
     //  Flush float32_t denorms to 0
-    if (denorm || zero || (sign != 0))
+    if (denorm || zero || (sign != 0)) {
         return 0x0000;
-
-    if (nan)
+    }
+    if (nan) {
+        if (softfloat_isSigNaNF32UI(inputAux))
+            softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x03f0;
+    }
     //  Flush numbers with an exponent not representable in float10 to infinite.
-    else if (infinity)
+    if (infinity) {
         return 0x03e0;
-    else if (exponent > (127 + 15))
+    }
+    if (exponent > (127 + 15)) {
+        softfloat_raiseFlags(softfloat_flag_overflow);
         return 0x03df;
+    }
+
+    //  Convert exponent to float10.  Excess 127 to excess 15.
+    exponent = exponent - 127 + 15;
+
+    if (exponent > 0)
+    {
+        //  Convert mantissa from float32_t to float10.  Mantissa 23+1 to mantissa 5+1.
+        mantissa10 = (mantissa32 >> 18) & 0x001f;
+
+        // No rounding for F10 datatypes
+        // apply rounding
+        //mantissa10 += (mantissa32 >> 17) & 0x1; // Round to nearest, ties to Max Magnitude
+        //mantissa10 += ((mantissa32>>17) & 0x1) &
+        //              (((mantissa32 & 0x5FFFF) != 0) ? 1 : 0); // Round to nearest, ties to even
+
+        // increment exponent if there was overflow
+        if ( (mantissa10 >> 5) != 0 ) {
+            exponent ++;
+            mantissa10 = 0;
+        }
+    }
+    //  Check for denormalized float10 number.
     else
     {
-        //  Convert exponent to float10.  Excess 127 to excess 15.
-        exponent = exponent - 127 + 15;
+        //  Add implicit float32_t bit to the mantissa.
+        mantissa32 = mantissa32 + 0x800000;
 
-        if (exponent > 0)
-        {
-            //  Convert mantissa from float32_t to float10.  Mantissa 23+1 to mantissa 5+1.
-            mantissa10 = (mantissa32 >> 18) & 0x001f;
+        //  Convert mantissa from float32_t to float10.  Mantissa 23+1 to mantissa 5+1.
+        mantissa10 = (mantissa32 >> 18) & 0x003f;
 
-            // No rounding for F10 datatypes
-            // apply rounding
-            //mantissa10 += (mantissa32 >> 17) & 0x1; // Round to nearest, ties to Max Magnitude
-            //mantissa10 += ((mantissa32>>17) & 0x1) &
-            //              (((mantissa32 & 0x5FFFF) != 0) ? 1 : 0); // Round to nearest, ties to even
+        //  Denormalize mantissa.
+        mantissa10 = rshift(mantissa10, (-exponent + 1));
 
-            // increment exponent if there was overflow
-            if ( (mantissa10 >> 5) != 0 ) {
-              exponent ++;
-              mantissa10 = 0;
-            }
-        }
-        //  Check for denormalized float10 number.
-        else
-        {
-            //  Add implicit float32_t bit to the mantissa.
-            mantissa32 = mantissa32 + 0x800000;
+        // no rounding for F10 Datatype
+        // apply rounding
+        // mantissa10 += rshift(mantissa32 , (18-exponent)) & 0x1; // Round to nearest, ties to Max Magnitude
+        //mantissa10 += (rshift(mantissa32, (18-exponent)) & 0x1) &
+        //              ((((rshift(mantissa32, (19-exponent)) & 0x1) != 0) && ((mantissa32 & (1<<(18-exponent)-1)) != 0)) ? 1 : 0); // Round to nearest, ties to even
 
-            //  Convert mantissa from float32_t to float10.  Mantissa 23+1 to mantissa 5+1.
-            mantissa10 = (mantissa32 >> 18) & 0x003f;
-
-            //  Denormalize mantissa.
-            mantissa10 = rshift(mantissa10, (-exponent + 1));
-
-            // no rounding for F10 Datatype
-            // apply rounding
-            // mantissa10 += rshift(mantissa32 , (18-exponent)) & 0x1; // Round to nearest, ties to Max Magnitude
-            //mantissa10 += (rshift(mantissa32, (18-exponent)) & 0x1) &
-            //              ((((rshift(mantissa32, (19-exponent)) & 0x1) != 0) && ((mantissa32 & (1<<(18-exponent)-1)) != 0)) ? 1 : 0); // Round to nearest, ties to even
-
-            // increment exponent if there was overflow
-            if ( (mantissa10 >> 6) != 0 ) {
-              exponent ++;
-              mantissa10 = mantissa10 >> 1;
-            }
-
-            if (exponent < -18)
-              mantissa10  = rshift( mantissa10, -( 18 + exponent));
-            //  Set denormalized exponent.
-            exponent = 0;
+        // increment exponent if there was overflow
+        if ( (mantissa10 >> 6) != 0 ) {
+            exponent ++;
+            mantissa10 = mantissa10 >> 1;
         }
 
-        //  Assemble the float10 value.
-        return (uint16_t(exponent & 0x1f) << 5) | mantissa10;
+        if (exponent < -18)
+            mantissa10  = rshift( mantissa10, -( 18 + exponent));
+        //  Set denormalized exponent.
+        exponent = 0;
     }
+
+    //  Assemble the float10 value.
+    return (uint16_t(exponent & 0x1f) << 5) | mantissa10;
 }
 
 float32_t unorm24tofloat32(uint32_t val)
@@ -439,111 +445,143 @@ float32_t snorm2tofloat32(uint8_t val)
 uint32_t float32tounorm24(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
-    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+    if (isNaNF32UI(val.v)) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x00ffffff;
-    else if (val_i <= 0)
-        return 0x00000000;
-    else {
-        uint32_t delta = (1 << 24) - 1;
-        double ratio = double(fpu::FLT(val)) * double(delta);
-        return uint32_t(ratio + 0.5f);
     }
+    if (val_i >= 0x3f800000) {
+        return 0x00ffffff;
+    }
+    if (val_i <= 0) {
+        return 0x00000000;
+    }
+    uint32_t delta = (1 << 24) - 1;
+    double ratio = double(fpu::FLT(val)) * double(delta);
+    return uint32_t(ratio + 0.5f);
 }
 
 uint16_t float32tounorm16(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
-    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+    if (isNaNF32UI(val.v)) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0xffff;
-    else if (val_i <= 0)
-        return 0x0000;
-    else {
-        uint32_t delta = (1 << 16) - 1;
-        double ratio = double(fpu::FLT(val)) * double(delta);
-        return uint16_t(ratio + 0.5f);
     }
+    if (val_i >= 0x3f800000) {
+        return 0xffff;
+    }
+    if (val_i <= 0) {
+        return 0x0000;
+    }
+    uint32_t delta = (1 << 16) - 1;
+    double ratio = double(fpu::FLT(val)) * double(delta);
+    return uint16_t(ratio + 0.5f);
 }
 
 uint16_t float32tounorm10(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
-    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+    if (isNaNF32UI(val.v)) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x03ff;
-    else if (val_i <= 0)
-        return 0x0000;
-    else {
-        uint32_t delta = (1 << 10) - 1;
-        double ratio = double(fpu::FLT(val)) * double(delta);
-        return uint16_t(ratio + 0.5f);
     }
+    if (val_i >= 0x3f800000) {
+        return 0x03ff;
+    }
+    if (val_i <= 0) {
+        return 0x0000;
+    }
+    uint32_t delta = (1 << 10) - 1;
+    double ratio = double(fpu::FLT(val)) * double(delta);
+    return uint16_t(ratio + 0.5f);
 }
 
 uint8_t float32tounorm8(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
-    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+    if (isNaNF32UI(val.v)) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0xff;
-    else if (val_i <= 0)
-        return 0x00;
-    else {
-        uint32_t delta = (1 << 8) - 1;
-        double ratio = double(fpu::FLT(val)) * double(delta);
-        return uint8_t(ratio + 0.5f);
     }
+    if (val_i >= 0x3f800000) {
+        return 0xff;
+    }
+    if (val_i <= 0) {
+        return 0x00;
+    }
+    uint32_t delta = (1 << 8) - 1;
+    double ratio = double(fpu::FLT(val)) * double(delta);
+    return uint8_t(ratio + 0.5f);
 }
 
 uint8_t float32tounorm2(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
-    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+    if (isNaNF32UI(val.v)) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x03;
-    else if (val_i <= 0)
-        return 0x00;
-    else {
-        uint32_t delta = (1 << 2) - 1;
-        double ratio = double(fpu::FLT(val)) * double(delta);
-        return uint8_t(ratio + 0.5f);
     }
+    if (val_i >= 0x3f800000) {
+        return 0x03;
+    }
+    if (val_i <= 0) {
+        return 0x00;
+    }
+    uint32_t delta = (1 << 2) - 1;
+    double ratio = double(fpu::FLT(val)) * double(delta);
+    return uint8_t(ratio + 0.5f);
 }
 
 uint32_t float32tosnorm24(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
-    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+    if (isNaNF32UI(val.v)) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x007fffff;
-    else if (val.v >= 0xbf800000)
-        return 0x00800001;
-    else {
-        float int_val = round(fpu::FLT(val) * float((1 << 23) - 1));
-        int32_t res = int32_t(int_val);
-        return uint32_t(res & 0x00ffffff);
     }
+    if (val_i >= 0x3f800000) {
+        return 0x007fffff;
+    }
+    if (val.v >= 0xbf800000) {
+        return 0x00800001;
+    }
+    float int_val = round(fpu::FLT(val) * float((1 << 23) - 1));
+    int32_t res = int32_t(int_val);
+    return uint32_t(res & 0x00ffffff);
 }
 
 uint16_t float32tosnorm16(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
-    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+    if (isNaNF32UI(val.v)) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x7fff;
-    else if (val.v >= 0xbf800000)
-        return 0x8001;
-    else {
-        float int_val = round(fpu::FLT(val) * float((1 << 15) - 1));
-        int32_t res = int32_t(int_val);
-        return uint16_t(res & 0x0000ffff);
     }
+    if (val_i >= 0x3f800000) {
+        return 0x7fff;
+    }
+    if (val.v >= 0xbf800000) {
+        return 0x8001;
+    }
+    float int_val = round(fpu::FLT(val) * float((1 << 15) - 1));
+    int32_t res = int32_t(int_val);
+    return uint16_t(res & 0x0000ffff);
 }
 
 uint8_t float32tosnorm8(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
-    if ((val_i >= 0x3f800000) ||  isNaNF32UI(val.v))
+    if (isNaNF32UI(val.v)) {
+        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x7f;
-    else if (val.v >= 0xbf800000)
-        return 0x81;
-    else {
-        float int_val = round(fpu::FLT(val) * float((1 << 7) - 1));
-        int32_t res = int32_t(int_val);
-        return uint8_t(res & 0x000000ff);
     }
+    if (val_i >= 0x3f800000) {
+        return 0x7f;
+    }
+    if (val.v >= 0xbf800000) {
+        return 0x81;
+    }
+    float int_val = round(fpu::FLT(val) * float((1 << 7) - 1));
+    int32_t res = int32_t(int_val);
+    return uint8_t(res & 0x000000ff);
 }

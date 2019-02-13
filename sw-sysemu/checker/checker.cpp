@@ -116,7 +116,7 @@ uint64_t mem_mask(int32_t size)
 main_memory * memory_instance = NULL;
 checker* checker_instance = NULL; // this is used when enabling the second thread from the emu, to have an object to handle the call
                                   // if there is more than 1 checker instance (e.g. one per shire), this will have to be an array
-bool fail_on_check = false;	  // Option to still emulation instruction but dont fail test
+bool fail_on_check = false;       // Option to still emulation instruction but dont fail test
 
 
 // These functions are called by emu. We should clean this to a nicer way...
@@ -173,8 +173,8 @@ void checker_thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc) {
 }
 
 // Creates a new checker
-checker::checker(main_memory * memory_, enum logLevel emu_log_level, bool checker_en)
-    : log("checker", emu_log_level)
+checker::checker(main_memory * memory_, testLog& log_, bool checker_en)
+    : log(log_)
 {
     for(uint32_t i = 0; i < EMU_NUM_THREADS; i++)
     {
@@ -188,14 +188,19 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level, bool checke
     waived_csrs.push_back(csr_validation2);
     waived_csrs.push_back(csr_validation3);
 
-    set_memory_funcs((void *) checker_memread8,
-                     (void *) checker_memread16,
-                     (void *) checker_memread32,
-                     (void *) checker_memread64,
-                     (void *) checker_memwrite8,
-                     (void *) checker_memwrite16,
-                     (void *) checker_memwrite32,
-                     (void *) checker_memwrite64);
+    checker_instance = this;
+    fail_on_check = checker_en;
+    memory_instance = memory;
+    init_emu();
+
+    set_memory_funcs(checker_memread8,
+                     checker_memread16,
+                     checker_memread32,
+                     checker_memread64,
+                     checker_memwrite8,
+                     checker_memwrite16,
+                     checker_memwrite32,
+                     checker_memwrite64);
 
     memory->setGetThread(get_thread);
 
@@ -209,11 +214,6 @@ checker::checker(main_memory * memory_, enum logLevel emu_log_level, bool checke
         initcsr(i);
         threadEnabled[i] = true;
     }
-
-    checker_instance = this;
-    fail_on_check = checker_en;
-    memory_instance = memory;
-    init_emu(emu_log_level);
 }
 
 // Destroys the checker
@@ -426,14 +426,14 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         if(changes->int_reg_mod != emu_state_change.int_reg_mod)
         {
             stream << "BEMU Checker Int Register write error. BEMU expects register write is " << emu_state_change.int_reg_mod << " but DUT reported " << changes->int_reg_mod << std::endl;
-	    check_res = CHECKER_ERROR;
+            check_res = CHECKER_ERROR;
         }
         if(emu_state_change.int_reg_mod)
         {
             if(changes->int_reg_rd != emu_state_change.int_reg_rd)
             {
                 stream << "BEMU Checker Int Register dest error. BEMU expects dest is " << emu_state_change.int_reg_rd << " but DUT reported " << changes->int_reg_rd << std::endl;
-		check_res = CHECKER_ERROR;
+                check_res = CHECKER_ERROR;
             }
 
             // Check if load comes from an unpredictible memory region, accept RTL value if so.
@@ -503,7 +503,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             if((changes->int_reg_data != emu_state_change.int_reg_data) && (emu_state_change.int_reg_rd != 0))
             {
                 stream << "BEMU Checker Int Register data_error. BEMU expects data is 0x" << std::hex << emu_state_change.int_reg_data << " but DUT reported 0x" << changes->int_reg_data << std::dec << std::endl;
-		check_res = CHECKER_ERROR;
+                check_res = CHECKER_ERROR;
                 //Set EMU state to what RTL says
                 init(inst.rd(), emu_state_change.int_reg_data);
             }
@@ -513,7 +513,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         if(changes->fp_reg_mod != emu_state_change.fp_reg_mod)
         {
             stream << "BEMU Checker FP Register write error. BEMU expects write is " << emu_state_change.fp_reg_mod << " but DUT reported " << changes->fp_reg_mod << std::endl;
-	    check_res = CHECKER_ERROR;
+            check_res = CHECKER_ERROR;
         }
 
         // Changing fflags
@@ -542,7 +542,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             if(changes->fp_reg_rd != emu_state_change.fp_reg_rd)
             {
                 stream << "BEMU Checker FP Register dest error. BEMU expects dest is f" << emu_state_change.fp_reg_rd << " but DUT reported f" << changes->fp_reg_rd << std::endl;
-		check_res = CHECKER_ERROR;
+                check_res = CHECKER_ERROR;
             }
 
             // Check if load comes from an unpredictible memory region, accept RTL value if so.
@@ -584,7 +584,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     else
                         stream << "0x" << std::hex << (errlo ? rtl_datalo : rtl_datahi);
                     stream << " Current mask: 0x" << get_mask(0) << std::dec << std::endl;
-		    check_res = CHECKER_ERROR;
+                    check_res = CHECKER_ERROR;
                 }
               }
               else
@@ -635,7 +635,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             if(changes->m_reg_mod[m] != emu_state_change.m_reg_mod[m])
             {
                 stream << "BEMU Checker Mask Register write error for entry " << m << ". BEMU expects write is " << emu_state_change.m_reg_mod[m] << " but DUT reported " << changes->m_reg_mod[m] << std::endl;
-		check_res = CHECKER_ERROR;
+                check_res = CHECKER_ERROR;
             }
             if(emu_state_change.m_reg_mod[m])
             {
@@ -644,7 +644,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
                     {
                         stream << "BEMU Checker Mask Register data_error m" << m << "[" << i << "]. BEMU expects data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but DUT reported " << (uint32_t) changes->m_reg_data[m][i] << std::dec << std::endl;
-			check_res = CHECKER_ERROR;
+                        check_res = CHECKER_ERROR;
                     }
                 }
             }
@@ -656,19 +656,19 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             if(changes->mem_mod[i] != emu_state_change.mem_mod[i])
             {
                 stream << "BEMU Checker Memory write error (" << i << "). BEMU expects write is " << emu_state_change.mem_mod[i] << " but DUT reported " << changes->mem_mod[i] << std::endl;
-		check_res = CHECKER_ERROR;
+                check_res = CHECKER_ERROR;
             }
             if(emu_state_change.mem_mod[i])
             {
                 if(changes->mem_size[i] != emu_state_change.mem_size[i])
                 {
                     stream << "BEMU Checker Memory write size error (" << i << "). BEMU expects size is " << emu_state_change.mem_size[i] << " but DUT reported " << changes->mem_size[i] << std::endl;
-		    check_res = CHECKER_ERROR;
+                    check_res = CHECKER_ERROR;
                 }
                 if( (changes->mem_addr[i] & VA_M) != (emu_state_change.mem_addr[i] & VA_M))
                 {
                     stream << "BEMU Checker Memory write address error (" << i << "). BEMU expects addr is 0x" << std::hex << emu_state_change.mem_addr[i] << " & " << VA_M <<" but DUT reported 0x" << changes->mem_addr[i] <<" & "<< VA_M << std::dec << std::endl;
-		    check_res = CHECKER_ERROR;
+                    check_res = CHECKER_ERROR;
                 }
                 uint64_t rtl_mem_data = changes->mem_data[i] & mem_mask(changes->mem_size[i]);
                 uint64_t emu_mem_data = emu_state_change.mem_data[i] & mem_mask(changes->mem_size[i]);
@@ -676,7 +676,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 if((rtl_mem_data != emu_mem_data) && !inst.is_amo())
                 {
                     stream << "BEMU Checker Memory write data_error (" << i << "). BEMU expects data is 0x" << std::hex << emu_mem_data << " but DUT reported 0x" << rtl_mem_data << std::dec << std::endl;
-		    check_res = CHECKER_ERROR;
+                    check_res = CHECKER_ERROR;
                 }
             }
         }
@@ -695,9 +695,9 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             get_scratchpad_conv_list(&conv_list);
             auto conv_list_it = conv_list.begin();
 
-	    if (emu_state_change.tl_transform)
-	      aggregate_tl_data(thread);
-	    
+            if (emu_state_change.tl_transform)
+                aggregate_tl_data(thread);
+
             // For all the written entries
             for(int i = 0; i < size && emu_state_change.tensor_mod; i++)
             {
@@ -713,7 +713,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 auto it = scp_entry_list[thread].begin();
                 while(it != scp_entry_list[thread].end())
                 {
-		  if(it->entry == get_scratchpad_next_entry(entry+i)) { break; }
+                    if(it->entry == get_scratchpad_next_entry(entry+i)) { break; }
                     it++;
                 }
 
@@ -721,10 +721,10 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 if(it == scp_entry_list[thread].end())
                 {
                     stream << "BEMU Checker couldn't find scratchpad destination " << entry + i << " in the DUT reported scratchpad list!!" << std::endl;
-		    stream << "SCP Candidates: " << std::endl;
-		    for(auto e : scp_entry_list[thread]) {
-		      stream << "\tEntry : " << e.entry << std::endl;
-		    }
+                    stream << "SCP Candidates: " << std::endl;
+                    for(auto e : scp_entry_list[thread]) {
+                        stream << "\tEntry : " << e.entry << std::endl;
+                    }
                     check_res = CHECKER_ERROR;
                 }
                 else
@@ -779,7 +779,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                     if(it == tensorfma_list[thread].end())
                     {
                         stream << "BEMU Checker couldn't find TensorFMA destination " << entry << " in the DUT reported TensorFMA list for pass " << pass << "!!" << std::endl;
-			check_res = CHECKER_ERROR;
+                        check_res = CHECKER_ERROR;
                     }
                     else
                     {
@@ -821,9 +821,10 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
 
                     // Check next entry for regular operations, ignore 1 write for packs
                     int entries_checked = is_pack ? 2 : 1;
+                    auto it = tensorquant_list[thread].begin();
                     for(int i = 0; i < entries_checked; i++)
                     {
-                        auto it = tensorquant_list[thread].begin();
+                        it = tensorquant_list[thread].begin();
                         while(it != tensorquant_list[thread].end())
                         {
                             if(it->entry == entry) { break; }
@@ -842,10 +843,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                             tensorquant_list[thread].erase(it);
                         }
                     }
-
-                    // Looks for the 1st entry in the list of RTL written lines with same destination
-                    auto it = tensorquant_list[thread].begin();
-                    assert(it != tensorquant_list[thread].end());
 
                     // Compares the data for all the lanes (8 x 32b lanes)
                     for(int lane = 0; lane < VL; lane++)
@@ -885,7 +882,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                 if(it == reduce_list[thread].end())
                 {
                     stream << "BEMU Checker couldn't find Reduce destination " << entry << " in the DUT provided Reduce list!!" << std::endl;
-		    check_res = CHECKER_ERROR;
+                    check_res = CHECKER_ERROR;
                 }
                 else
                 {
@@ -896,7 +893,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                         if(data != it->data[lane])
                         {
                             stream << "BEMU Checker Reduce write data_error for register " << entry << " lane " << lane << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
-                            reduce_list[thread].erase(it);
                             check_res = CHECKER_ERROR;
                         }
                     }
@@ -978,7 +974,7 @@ void checker::aggregate_tl_data(uint32_t thread)
       entry.entry = addr_fhl;
       for( int i = 0 ; i < 4 ; ++i )
       {
-	entry.data[4+i] = entry.data[i];
+        entry.data[4+i] = entry.data[i];
       }
     }
 
@@ -990,21 +986,21 @@ void checker::aggregate_tl_data(uint32_t thread)
       auto entry2 = *it2;
       if ( entry2.entry == addr_fhl || entry2.entry == addr_shl )
       {
-	int offset = entry2.entry == addr_fhl ? 0 : 4;
-	for (int i = 0 ; i < 4 ; ++i)
-	{
-	  uint32_t valid = entry2.banks & (uint32_t(1) << i);
-	  if( valid )
-	  {
-	    entry.data[offset+i] = entry.data[i];
-	    entry.banks |= (valid << offset);
-	  }
-	}
-	log << LOG_DEBUG << "Merging and deleting entry " << std::hex << entry2.entry << std::dec << endm;
-	it2 = scp_entry_list[thread].erase(it2);
+        int offset = entry2.entry == addr_fhl ? 0 : 4;
+        for (int i = 0 ; i < 4 ; ++i)
+        {
+          uint32_t valid = entry2.banks & (uint32_t(1) << i);
+          if( valid )
+          {
+            entry.data[offset+i] = entry.data[i];
+            entry.banks |= (valid << offset);
+          }
+        }
+        log << LOG_DEBUG << "Merging and deleting entry " << std::hex << entry2.entry << std::dec << endm;
+        it2 = scp_entry_list[thread].erase(it2);
       } else
-      {	
-	++it2;
+      {
+        ++it2;
       }
     }
     entry.entry>>=6; //remove entry offset

@@ -14,7 +14,7 @@ class main_memory
 {
     public:
        // Constructors and destructors
-       main_memory(std::string logname, enum logLevel log_level);
+       main_memory(testLog& log_);
        ~main_memory();
 
        // Read and write
@@ -39,11 +39,6 @@ class main_memory
        // function to configure printf from RTL
        void setPrintfBase(const char* binary);
 
-       // rbox credits interface for sysemu
-       void decRboxCredit(uint16_t thread);
-       void incRboxCredit(uint16_t thread);
-       uint16_t getRboxCredit(uint16_t thread);
-
        // allow memory regions to be dynamically created
        void create_mem_at_runtime();
 
@@ -55,7 +50,7 @@ class main_memory
 
        rg_it_t find(uint64_t ad);
 
-       testLog log;
+       testLog& log;
        main_memory_region::func_ptr_get_thread getthread;
 
        main_memory_region_rbox *rbox;

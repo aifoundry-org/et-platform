@@ -6,9 +6,74 @@
 //#include <triangle_setup.h>
 //#include <tile_rast.h>
 #include <testLog.h>
-#include <emu_gio.h>
 #include <emu.h>
+#include <main_memory.h>
+#include <emu_memop.h>
 #include <rbox.h>
+#include <log.h>
+#include <emu_gio.h>
+
+static int32_t thread_id;
+
+static uint32_t get_thread_emu()
+{
+    return thread_id;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Functions to emulate the main memory
+////////////////////////////////////////////////////////////////////////////////
+
+static main_memory* memory;
+
+// This functions are called by emu. We should clean this to a nicer way...
+static uint8_t emu_memread8(uint64_t addr)
+{
+    uint8_t ret;
+    memory->read(addr, 1, &ret);
+    return ret;
+}
+
+static uint16_t emu_memread16(uint64_t addr)
+{
+    uint16_t ret;
+    memory->read(addr, 2, &ret);
+    return ret;
+}
+
+static uint32_t emu_memread32(uint64_t addr)
+{
+    uint32_t ret;
+    memory->read(addr, 4, &ret);
+    return ret;
+}
+
+static uint64_t emu_memread64(uint64_t addr)
+{
+    uint64_t ret;
+    memory->read(addr, 8, &ret);
+    return ret;
+}
+
+static void emu_memwrite8(uint64_t addr, uint8_t data)
+{
+    memory->write(addr, 1, &data);
+}
+
+static void emu_memwrite16(uint64_t addr, uint16_t data)
+{
+    memory->write(addr, 2, &data);
+}
+
+static void emu_memwrite32(uint64_t addr, uint32_t data)
+{
+    memory->write(addr, 4, &data);
+}
+
+static void emu_memwrite64(uint64_t addr, uint64_t data)
+{
+    memory->write(addr, 8, &data);
+}
 
 uint64_t get_abs_integral_fxp(int64_t v, uint32_t int_bits, uint32_t frac_bits)
 {
@@ -211,6 +276,19 @@ void flush_on_seg_signal(int signal, siginfo_t *si, void *arg)
 // Required by the log functionality
 uint64_t emu_cycle = 0;
 
+static const uint64_t input_buffer_addr    = 0x8101000000ULL;
+static const uint64_t input_buffer_sz      =     0x010000ULL;   // 64 KB
+static const uint64_t input_buffer_offset  =      0x01000ULL;   // +4KB
+static const uint64_t output_buffer_addr   = 0x8102000000ULL;
+static const uint64_t output_buffer_sz     =     0x010000ULL;   // 64 KB
+static const uint64_t output_buffer_offset =      0x02000ULL;   // +8KB
+static const uint64_t depth_buffer_addr    = 0x8103000000ULL;
+static const uint64_t depth_buffer_sz      =   0x01000000ULL;   // 16MB
+
+static const uint64_t depth_buffer_dim = 1024;
+
+static const uint64_t esr_rbox_region_base_addr = 0x13ff20000ULL;
+
 int main()
 {
     struct sigaction signal_action;
@@ -221,26 +299,43 @@ int main()
     sigaction(SIGSEGV, &signal_action, NULL);
 
     // Emulator infrastructure initialization
-    // Generates the main memory of the emulator
-    //memory = new main_memory("checker main memory", log_mem_en? LOG_DEBUG : LOG_INFO);
-    //memory->setGetThread(get_thread_emu);
-    //if (create_mem_at_runtime) {
-    //   memory->create_mem_at_runtime();
-    //}
+    emu::log.setLogLevel(LOG_DEBUG);
 
-    init_emu(LOG_DEBUG);
+    // Generates the main memory of the emulator
+    memory = new main_memory(emu::log);
+    memory->setGetThread(get_thread_emu);
+    memory->create_mem_at_runtime();
+
+    memory->new_region(input_buffer_addr, input_buffer_sz);
+    memory->new_region(output_buffer_addr, output_buffer_sz);
+    memory->new_region(depth_buffer_addr, depth_buffer_sz);
+
+    init_emu();
     log_only_minion(-1);
 
+    // Log state (needed to know PC changes)
+    inst_state_change emu_state_change;
+    setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
+
+    // Defines the memory access functions
+    set_memory_funcs(emu_memread8,
+                     emu_memread16,
+                     emu_memread32,
+                     emu_memread64,
+                     emu_memwrite8,
+                     emu_memwrite16,
+                     emu_memwrite32,
+                     emu_memwrite64);
+
+    thread_id = 0;
 
     printf("RBOX Basic Tester\n");
 
-    uint32_t depth_stencil_buffer[1024 * 1024];
-
     uint32_t in_buffer_ptr = 0;
 
-    for (uint32_t y = 0; y < 1024; y++)
-        for (uint32_t x = 0; x < 1024; x++)
-            depth_stencil_buffer[y * 1024 + x] = 0xFFFFFF;
+    for (uint32_t y = 0; y < depth_buffer_dim; y++)
+        for (uint32_t x = 0; x < depth_buffer_dim; x++)
+            pmemwrite32(depth_buffer_addr + (y * depth_buffer_dim + x) * 4, 0xFFFFFF);
 
     uint64_t in_buffer[1024];
     //uint64_t *out_buffer = new uint64_t[1024 * 1024];
@@ -272,7 +367,7 @@ int main()
 
     rbox_state_pckt.state.type = RBOX::INPCKT_RBOX_STATE;
     rbox_state_pckt.state.msaa_enable = 0;
-    rbox_state_pckt.state.depth_stencil_buffer_ptr = (uint64_t) depth_stencil_buffer;
+    rbox_state_pckt.state.depth_stencil_buffer_ptr = depth_buffer_addr;
     rbox_state_pckt.state.depth_stencil_buffer_format = RBOX::FORMAT_D24_UNORM_S8_UINT;
     rbox_state_pckt.state.depth_stencil_buffer_tile_mode = 1;
     rbox_state_pckt.state.depth_stencil_buffer_row_pitch = 256;
@@ -284,6 +379,14 @@ int main()
     rbox_state_pckt.state.early_frag_tests_enable = 1;
     rbox_state_pckt.state.stencil_test_enable = 0;
     rbox_state_pckt.state.fragment_shader_disabled = 0;
+    rbox_state_pckt.state.fragment_shader_reads_bary = 1;
+    rbox_state_pckt.state.fragment_shader_reads_depth = 1;
+    rbox_state_pckt.state.fragment_shader_reads_coverage = 0;
+    rbox_state_pckt.state.fragment_shader_per_sample = 0;
+    rbox_state_pckt.state.minion_tile_width = 1;
+    rbox_state_pckt.state.minion_tile_height = 2;
+    rbox_state_pckt.state.shire_layout_width = 3;
+    rbox_state_pckt.state.shire_layout_height = 2;
     rbox_state_pckt.state.depth_min = 0;
     rbox_state_pckt.state.depth_max = 0xFFFFFF;
     rbox_state_pckt.state.scissor_start_x = 0;
@@ -348,6 +451,9 @@ int main()
     for (uint32_t qw = 0; qw < (sizeof(end_of_input_buffer_pckt) / 8); qw++)
         in_buffer[in_buffer_ptr++] = end_of_input_buffer_pckt.qw[qw];
 
+    for (uint32_t qw = 0; qw < in_buffer_ptr; qw++)
+        pmemwrite64(input_buffer_addr + input_buffer_offset + qw * 8, in_buffer[qw]);
+
     printf("Input buffer :\n");
     for (uint32_t qw = 0; qw < in_buffer_ptr; qw++)
     {
@@ -379,11 +485,51 @@ int main()
 
     printf("\t};\n");
 
-    //rbox.reset();
-    //rbox.write_esr();
-    //rbox.write_esr();
-    //rbox.write_esr();
-    //rbox.run();
+    RBOX::ESRInBufPgT   in_buf_pg_esr;
+    RBOX::ESRInBufCfgT  in_buf_cfg_esr;
+    RBOX::ESROutBufPgT  out_buf_pg_esr;
+    RBOX::ESROutBufCfgT out_buf_cfg_esr;
+    RBOX::ESRStartT     start_esr;
+    RBOX::ESRConsumeT   consume_esr;
+
+    in_buf_pg_esr.value = 0;
+    in_buf_pg_esr.fields.page0        = input_buffer_addr >> 21;
+    in_buf_pg_esr.fields.page0_enable = 1;
+
+    in_buf_cfg_esr.value = 0;
+    in_buf_cfg_esr.fields.start_offset = input_buffer_offset >> 6;
+    in_buf_cfg_esr.fields.buffer_size  = (in_buffer_ptr / 8) + (((in_buffer_ptr % 8) != 0) ? 1 : 0);
+
+    out_buf_pg_esr.value = 0;
+    out_buf_pg_esr.fields.page = output_buffer_addr >> 21;
+    out_buf_pg_esr.fields.page_enable = 1;
+
+    out_buf_cfg_esr.value = 0;
+    out_buf_cfg_esr.fields.start_offset = output_buffer_offset >> 6;
+    out_buf_cfg_esr.fields.buffer_size  = 7;
+    out_buf_cfg_esr.fields.port_id      = 2;
+
+    start_esr.value = 0;
+    start_esr.fields.start = 1;
+
+    rbox[0].reset(0);
+
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::INPUT_BUFFER_PAGES_ESR   << 3), in_buf_pg_esr.value);
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::INPUT_BUFFER_CONFIG_ESR  << 3), in_buf_cfg_esr.value);
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::OUTPUT_BUFFER_PAGE_ESR   << 3), out_buf_pg_esr.value);
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::OUTPUT_BUFFER_CONFIG_ESR << 3), out_buf_cfg_esr.value);
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::START_ESR                << 3), start_esr.value);
+
+    rbox[0].run();
+
+    for (uint32_t m = 0; m < 32; m++)
+    {
+        consume_esr.value = 0;
+        consume_esr.fields.consumed = 7;
+        consume_esr.fields.minion_id = m;
+    
+        pmemwrite64(esr_rbox_region_base_addr + (RBOX::CONSUME_ESR << 3), consume_esr.value);
+    }
 
     /*RBOXOutPcktFrgShdrState out_frg_shdr_state_pckt;
     RBOXOutPcktQuadInfo     out_quad_info_pckt;
