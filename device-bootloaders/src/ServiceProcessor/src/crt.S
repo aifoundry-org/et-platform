@@ -15,7 +15,6 @@
 _start:
     # set the stack pointer
     la    sp, __stack_base
-    sub   sp, sp, a1
 
     # zero out the bss section
     la   x26, __bss_start
