@@ -13,14 +13,10 @@ using namespace std;
 using namespace ELFIO;
 
 // Constructor
-main_memory::main_memory(std::string logname, enum logLevel log_level)
-    : log(logname, log_level)
+main_memory::main_memory(testLog& log_)
+    : log(log_)
 {
     getthread = NULL;
-
-    // RBOX
-    rbox = new main_memory_region_rbox(0xFFF40000ULL, 8, log, getthread);
-    regions_.push_back((main_memory_region *) rbox);
 
     // For all the shires and the local shire mask
     for (int i = 0; i < (EMU_NUM_SHIRES + 1); i++)
@@ -54,7 +50,7 @@ main_memory::main_memory(std::string logname, enum logLevel log_level)
         }
 
         // RBOX
-        main_memory_region_esr * rbox_esrs  = new main_memory_region_esr(0x100310000ULL + shire*ESR_REGION_OFFSET, 131072, log, getthread);
+        main_memory_region_rbox * rbox_esrs  = new main_memory_region_rbox(0x100320000ULL + shire*ESR_REGION_OFFSET, 131072, log, getthread);
         regions_.push_back((main_memory_region *) rbox_esrs);
 
         // Shire ESRs
@@ -117,7 +113,6 @@ main_memory::~main_memory()
 // Read a bunch of bytes
 void main_memory::read(uint64_t ad, int size, void * data)
 {
-   log << LOG_DEBUG << "read(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
    rg_it_t r = find(ad);
 
    if (r == regions_.end()) {
@@ -168,7 +163,6 @@ void main_memory::read(uint64_t ad, int size, void * data)
 // Writes a bunch of bytes
 void main_memory::write(uint64_t ad, int size, const void * data)
 {
-   log << LOG_DEBUG << "write(" << std::hex << ad << ", " << std::dec << size << ")" << endm;
    rg_it_t r = find(ad);
 
    if (r == regions_.end()) {
@@ -378,16 +372,4 @@ void main_memory::create_mem_at_runtime()
 {
    runtime_mem_regions = true;
 }
-
-
  
-void main_memory::decRboxCredit(uint16_t thread) {
-   rbox->decCredit(thread);
-} 
-void main_memory::incRboxCredit(uint16_t thread) {
-   rbox->incCredit(thread);
-}
-
-uint16_t main_memory::getRboxCredit(uint16_t thread) { 
-   return rbox->getCredit(thread);
-}

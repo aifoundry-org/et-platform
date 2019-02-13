@@ -4,11 +4,11 @@
 
 // Local
 #include "net_emulator.h"
+#include "emu_gio.h"
 
 // Constructor
 net_emulator::net_emulator(main_memory * mem_)
 {
-    log = NULL;
     mem = mem_;
     enabled = false;
 }
@@ -24,7 +24,7 @@ void net_emulator::set_file(char * net_desc_file)
     FILE * f = fopen(net_desc_file, "r");
     if(f == NULL)
     {
-        * log << LOG_FTL << "Parse Network File Error -> Couldn't open file " << net_desc_file << " for reading!!" << endm;
+        LOG_NOTHREAD(FTL, "Parse Network File Error -> Couldn't open file '%s' for reading!!", net_desc_file);
     }
 
 
@@ -48,12 +48,6 @@ void net_emulator::set_file(char * net_desc_file)
 
     helper_done = false;
     enabled     = true;
-}
-
-// Set
-void net_emulator::set_log(testLog * log_)
-{
-    log = log_;
 }
 
 // Access

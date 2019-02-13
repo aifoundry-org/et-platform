@@ -17,6 +17,26 @@ extern xdata xregs[EMU_NUM_THREADS][32];
 extern fdata fregs[EMU_NUM_THREADS][32];
 extern mdata mregs[EMU_NUM_THREADS][8];
 
+namespace TBOX { class TBOXEmu; }
+namespace RBOX { class RBOXEmu; }
+
+// Accelerators
+#if (EMU_TBOXES_PER_SHIRE > 1)
+    extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
+    #define GET_TBOX(shire_id, rbox_id) tbox[shire_id][rbox_id]
+#else
+    extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
+    #define GET_TBOX(shire_id, tbox_id) tbox[shire_id]
+#endif
+
+#if (EMU_RBOXES_PER_SHIRE > 1)
+    extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+    #define GET_RBOX(shire_id, rbox_id) rbox[shire_id][rbox_id]
+#else
+    extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
+    #define GET_RBOX(shire_id, rbox_id) rbox[shire_id]
+#endif
+
 // Processor configuration
 extern uint8_t in_sysemu;
 extern uint32_t current_thread;
@@ -24,18 +44,18 @@ extern void set_core_type(et_core_t core);
 extern et_core_t get_core_type();
 
 // Configure the emulation environment
-extern void init_emu(enum logLevel log_level);
+extern void init_emu();
 
 // Helpers
 extern bool emu_done();
 extern std::stringstream dump_xregs(uint32_t thread_id);
 extern std::stringstream dump_fregs(uint32_t thread_id);
 extern void init_stack();
-extern void initcsr(uint32_t thread);           // init all CSRs
+extern void initcsr(uint32_t thread);             // init all CSRs
 extern uint64_t xget(uint64_t src1);
-extern void init(xreg dst, uint64_t val);       // init general purpose register
-extern void fpinit(freg dst, uint64_t val[2]);  // init vector register
-extern void minit(mreg dst, uint64_t val);      // init mask register
+extern void init(xreg dst, uint64_t val);         // init general purpose register
+extern void fpinit(freg dst, uint64_t val[VL/2]); // init vector register
+extern void minit(mreg dst, uint64_t val);        // init mask register
 
 // Processor state manipulation
 extern void set_pc(uint64_t pc);
@@ -44,10 +64,14 @@ extern uint32_t get_thread();
 extern uint32_t get_mask(unsigned maskNr);
 
 // Main memory accessors
-extern void set_memory_funcs(void * func_memread8_, void * func_memread16_,
-                             void * func_memread32_, void * func_memread64_,
-                             void * func_memwrite8_, void * func_memwrite16_,
-                             void * func_memwrite32_, void * func_memwrite64_);
+extern void set_memory_funcs(uint8_t  (*func_memread8_ ) (uint64_t),
+                             uint16_t (*func_memread16_) (uint64_t),
+                             uint32_t (*func_memread32_) (uint64_t),
+                             uint64_t (*func_memread64_) (uint64_t),
+                             void (*func_memwrite8_ ) (uint64_t, uint8_t ),
+                             void (*func_memwrite16_) (uint64_t, uint16_t),
+                             void (*func_memwrite32_) (uint64_t, uint32_t),
+                             void (*func_memwrite64_) (uint64_t, uint64_t));
 extern void set_msg_funcs(void * func_msg_to_thread);
 
 // Traps
