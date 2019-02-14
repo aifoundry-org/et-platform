@@ -978,13 +978,57 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
     return (diff > err_1ulp);
 }
 
+void check_pending_interrupts()
+{
+    // Are there any non-masked pending interrupts?
+    uint64_t xip = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mie];
+    if (!xip) return;
+
+    // If there are any pending interrupts for the current privilege level
+    // 'x', they are only taken if mstatus.xIE=1. If there are any pending
+    // interrupts for a higher privilege level 'y>x' they must be taken
+    // independently of the value in mstatus.yIE. Pending interrupts for a
+    // lower privilege level 'w<x' are not taken.
+    uint64_t mideleg = csrregs[current_thread][csr_mideleg];
+    uint64_t mip = xip & ~mideleg;
+    uint64_t sip = xip & mideleg;
+    uint64_t mie = csrregs[current_thread][csr_mstatus] & 8;
+    uint64_t sie = csrregs[current_thread][csr_mstatus] & 2;
+    switch (prvget())
+    {
+        case CSR_PRV_M:
+            if (!mip || !mie) return;
+            xip = mip;
+            break;
+        case CSR_PRV_S:
+            if (!mip && !sie) return;
+            xip = mip | (sie ? sip : 0);
+            break;
+        default:
+            /* nothing */
+            break;
+    }
+
+    if (xip & 0x0800) throw trap_machine_external_interrupt();
+    if (xip & 0x0008) throw trap_machine_software_interrupt();
+    if (xip & 0x0080) throw trap_machine_timer_interrupt();
+    if (xip & 0x0200) throw trap_supervisor_external_interrupt();
+    if (xip & 0x0002) throw trap_supervisor_software_interrupt();
+    if (xip & 0x0020) throw trap_supervisor_timer_interrupt();
+#if 0
+    if (xip & 0x0100) throw trap_user_external_interrupt();
+    if (xip & 0x0001) throw trap_user_software_interrupt();
+    if (xip & 0x0010) throw trap_user_timer_interrupt();
+#endif
+}
+
 static void trap_to_smode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
     uint64_t curprv = prvget();
     assert(curprv <= CSR_PRV_S);
 
-    LOG(DEBUG, "\tTrapping to S-mode with cause %" PRIu64, cause);
+    LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64, cause);
 
     // Take sie
     uint64_t mstatus = csrget(csr_mstatus);
@@ -1009,7 +1053,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     //  if tvec[0]==0 (direct mode) => jump to tvec
     //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_stvec);
-    if ((tvec & 1) == 1 && (cause >> 31) == 1)
+    if ((tvec & 1) && (cause & 0x8000000000000000ULL))
     {
         // vectored mode and interrupt => add +4 * cause
         tvec &=  ~0x1ULL;
@@ -1034,7 +1078,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
         return;
     }
 
-    LOG(DEBUG, "\tTrapping to M-mode with cause %" PRIu64 " and tval %" PRIx64, cause, val);
+    LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval %" PRIx64, cause, val);
 
     // Take mie
     uint64_t mstatus = csrget(csr_mstatus);
@@ -1059,7 +1103,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     //  if tvec[0]==0 (direct mode) => jump to tvec
     //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_mtvec);
-    if ((tvec & 1) == 1 && (cause >> 31) == 1)
+    if ((tvec & 1) && (cause & 0x8000000000000000ULL))
     {
         // vectored mode and interrupt => add +4 * cause
         tvec &=  ~0x1ULL;
@@ -2957,10 +3001,10 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][csr_mstatus] = val;
             break;
         case csr_sie:
-            // Preserve meie, mtie, msie
+            // Only ssie, stie, and seie are writeable, and only if they are delegated
             // if mideleg[sei,sti,ssi]==1 then seie, stie, ssie is writeable, otherwise they are reserved
-            msk = csrregs[current_thread][csr_mideleg];
-            val = (csrregs[current_thread][csr_mie] & (~msk) & 0x0000000000000888ULL) | (val & msk & 0x0000000000000222ULL);
+            msk = csrregs[current_thread][csr_mideleg] & 0x0000000000000222ULL;
+            val = (csrregs[current_thread][csr_mie] & ~msk) | (val & msk);
             csrregs[current_thread][csr_mie] = val;
             break;
         case csr_stvec:
@@ -2975,10 +3019,9 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             break;
         case csr_sip:
-            // Regist
-            // if mideleg[ssi]==1 then ssip is writeable, otherwise it is reserved
-            msk = csrregs[current_thread][csr_mideleg];
-            val = (csrregs[current_thread][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
+            // Only ssip is writeable, and only if it is delegated
+            msk = csrregs[current_thread][csr_mideleg] & 0x0000000000000002ULL;
+            val = (csrregs[current_thread][csr_mip] & ~msk) | (val & msk);
             csrregs[current_thread][csr_mip] = val;
             break;
         case csr_satp: // Shared register
@@ -3040,7 +3083,7 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_medeleg:
             // Not all exceptions can be delegated
-            val &= 0x0000000000000B109ULL;
+            val &= 0x00000000000003109ULL;
             csrregs[current_thread][src1] = val;
             break;
         case csr_mideleg:
@@ -3065,8 +3108,7 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             break;
         case csr_mip:
-            // Hard-wire ueip, utip, usip
-            // Write only seip, stip, ssip
+            // Only seip, stip, ssip are writeable
             val &= 0x0000000000000222ULL;
             csrregs[current_thread][src1] = val;
             break;
@@ -8549,4 +8591,40 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
                 update_tensor_error(1 << 3);
         }
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Esperanto IPI extension
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void raise_software_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] |= 0x8;
+}
+
+void clear_software_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] &= ~0x8;
+}
+
+void raise_timer_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] |= 0x80;
+}
+
+void clear_timer_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] &= ~0x80;
+}
+
+void raise_external_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] |= 0x800;
+}
+
+void clear_external_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] &= ~0x800;
 }

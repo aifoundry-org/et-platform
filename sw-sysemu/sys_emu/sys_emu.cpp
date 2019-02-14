@@ -734,6 +734,7 @@ int main(int argc, char * argv[])
                 clearlogstate();
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
+                check_pending_interrupts();
                 inst.fetch_and_decode(current_pc[thread_id]);
 
                 // In case of reduce, we need to make sure that the other minion is also in reduce state
