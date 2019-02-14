@@ -7825,6 +7825,9 @@ static void tensor_fma32(uint64_t tfmareg)
     arows = arows + 1;
     acols = acols + 1;
 
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols;
+
     // Check if L1 SCP is enabled
     if (csrregs[current_thread][csr_mcache_control] != 0x3)
     {
@@ -7943,6 +7946,9 @@ static void tensor_fma16a32(uint64_t tfmareg)
     arows = arows + 1;
     acols = (acols + 1) * 2;
     aoffset = aoffset * 2;
+
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols / 2;
 
     // // FIXME: Disabled until software update - JIRA RTLMIN-2096
     // // Check if L1 SCP is enabled
@@ -8069,6 +8075,9 @@ static void tensor_ima8a32(uint64_t tfmareg)
     arows = arows + 1;
     acols = (acols + 1) * 4;
     aoffset = aoffset * 4;
+
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols / 4;
 
     // // FIXME: Disabled until software update - JIRA RTLMIN-2096
     // // Check if L1 SCP is enabled
