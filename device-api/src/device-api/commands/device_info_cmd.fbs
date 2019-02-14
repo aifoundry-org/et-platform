@@ -1,4 +1,5 @@
-/// Device Info commands
+/// \ingroup Commands
+///Device Info commands
 
 include "common_types.fbs";
 

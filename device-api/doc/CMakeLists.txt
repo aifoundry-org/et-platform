@@ -17,7 +17,7 @@ configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
 message("Doxygen build started")
 
 # note the option ALL which allows to build the doc together with the application
-add_custom_target( doc ALL
+add_custom_target( doc-device-api ALL
     COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..
     COMMENT "Generating API documentation with Doxygen"
