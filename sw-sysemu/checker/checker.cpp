@@ -347,6 +347,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             clearlogstate();
             // Fetch new instruction (may trap)
             set_pc(current_pc[thread]);
+            check_pending_interrupts();
             inst.fetch_and_decode(current_pc[thread]);
 
             // In case that the instruction is a reduce:
