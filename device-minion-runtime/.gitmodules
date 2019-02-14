@@ -1,3 +1,6 @@
 [submodule "infra_tools"]
 	path = infra_tools
 	url = git@gitlab:software/infra-tools.git
+[submodule "firmware-tools"]
+	path = firmware-tools
+	url = git@gitlab:software/firmware-tools.git
