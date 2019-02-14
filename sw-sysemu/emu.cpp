@@ -5542,7 +5542,7 @@ void fsin_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: fsin.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FSIN, VL, dst, src1, rmdyn);
+    femu1src(FSIN, VL, dst, src1, rtz);
 }
 
 void fexp_ps(freg dst, freg src1, const char* comm)
@@ -5550,7 +5550,7 @@ void fexp_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: fexp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FEXP, VL, dst, src1, rmdyn);
+    femu1src(FEXP, VL, dst, src1, rtz);
 }
 
 void flog_ps(freg dst, freg src1, const char* comm)
@@ -5558,15 +5558,15 @@ void flog_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: flog.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FLOG, VL, dst, src1, rmdyn);
+    femu1src(FLOG, VL, dst, src1, rtz);
 }
 
-void ffrc_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void ffrc_ps(freg dst, freg src1, const char* comm)
 {
-    LOG(DEBUG, "I: ffrc.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: ffrc.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FFRC, VL, dst, src1, rm);
+    femu1src(FFRC, VL, dst, src1, rtz);
 }
 
 void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
@@ -5596,7 +5596,7 @@ void frcp_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: frcp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRCP, VL, dst, src1, rmdyn);
+    femu1src(FRCP, VL, dst, src1, rtz);
 }
 
 void frsq_ps(freg dst, freg src1, const char* comm)
@@ -5604,7 +5604,7 @@ void frsq_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: frsq.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRSQ, VL, dst, src1, rmdyn);
+    femu1src(FRSQ, VL, dst, src1, rtz);
 }
 
 // FIXME: THIS INSTRUCTION IS OBSOLETE
@@ -5613,7 +5613,7 @@ void frcpfxp_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: frcpfxp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRCPFXP, VL, dst, src1, rmdyn);
+    femu1src(FRCPFXP, VL, dst, src1, rtz);
 }
 
 void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
