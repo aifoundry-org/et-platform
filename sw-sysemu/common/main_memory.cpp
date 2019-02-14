@@ -121,13 +121,13 @@ void main_memory::read(uint64_t ad, int size, void * data)
          new_region(ad, size);
          r = find(ad);
          if (r == regions_.end()) {
-            log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region, something went wrong when trying to create region" << endm;
             dump_regions();
+            log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region, something went wrong when trying to create region" << endm;
          }
       }
       else {
-         log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
          dump_regions();
+         log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
       }
    }
 
@@ -139,8 +139,8 @@ void main_memory::read(uint64_t ad, int size, void * data)
             new_region(ad+size-1, 1);
             next_region = find(ad+size-1);
             if (next_region == regions_.end()) {
-               log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): something went wrong when trying to create region next region" << endm;
                dump_regions();
+               log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): something went wrong when trying to create region next region" << endm;
             }
          }
          if (next_region != regions_.end()) {
@@ -150,8 +150,8 @@ void main_memory::read(uint64_t ad, int size, void * data)
             (* r)->read(ad, size-next_size, data);
             (* next_region)->read(next_cl, next_size, (void*)((uint64_t)data+size-next_size));
          } else {
-            log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries and next region doesn't exist" << endm;
             dump_regions();
+            log << LOG_ERR << "read(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries and next region doesn't exist" << endm;
          }
       }
       else {
@@ -171,13 +171,13 @@ void main_memory::write(uint64_t ad, int size, const void * data)
          new_region(ad, size);
          r = find(ad);
          if (r == regions_.end()) {
-            log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region, something went wrong when trying to create region" << endm;
             dump_regions();
+            log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region, something went wrong when trying to create region" << endm;
          }
       }
       else {
-         log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
          dump_regions();
+         log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): ad not in region" << endm;
       }
    }
 
@@ -189,8 +189,8 @@ void main_memory::write(uint64_t ad, int size, const void * data)
             new_region(ad+size-1, 1);
             next_region = find(ad+size-1);
             if (next_region == regions_.end()) {
-               log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): something went wrong when trying to create region next region" << endm;
                dump_regions();
+               log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): something went wrong when trying to create region next region" << endm;
             }
          }
          if (next_region != regions_.end()) {
@@ -200,8 +200,8 @@ void main_memory::write(uint64_t ad, int size, const void * data)
             (* r)->write(ad, size-next_size, data);
             (* next_region)->write(next_cl, next_size, (void*)((uint64_t)data+size-next_size));
          } else {
-            log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries and next region doesn't exist" << endm;
             dump_regions();
+            log << LOG_ERR << "write(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries and next region doesn't exist" << endm;
          }
       }
       else {
@@ -243,7 +243,7 @@ bool main_memory::new_region(uint64_t base, uint64_t size, int flags)
                     + (find(top)  != regions_.end());
 
    if (overlap > 0) {
-     log << LOG_ERR << "new_region(base=0x" << std::hex << base << ", size=0x" << size << ", top=0x" << top << "): overlaps with existing region and won't be created" << endm;
+      log << LOG_ERR << "new_region(base=0x" << std::hex << base << ", size=0x" << size << ", top=0x" << top << "): overlaps with existing region and won't be created" << endm;
       return false;
    }
    else {

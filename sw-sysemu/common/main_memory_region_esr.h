@@ -23,8 +23,8 @@ private:
     {
         ESR_Prot_User       = 0,
         ESR_Prot_Supervisor = 1,
-        ESR_Prot_Machine    = 2,
-        ESR_Prot_Debug      = 3
+        ESR_Prot_Debug      = 2,
+        ESR_Prot_Machine    = 3
     } esr_protection_t;
 
     typedef enum
