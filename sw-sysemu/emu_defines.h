@@ -109,21 +109,41 @@
 #define ESR_RBOX_ESR_MASK      0x000001FFF8ULL  // On RBOX ESR Region the ESR is defined in bits [16:3]
 #define ESR_ESR_ID_SHIFT       3
 
+#define ESR_SHIRE(prot, shire, name) \
+    (ESR_SHIRE_REGION + \
+     (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
+     (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
+      uint64_t(ESR_SHIRE_ ## name))
+
+#define ESR_NEIGH(prot, shire, neigh, name) \
+    (ESR_NEIGH_REGION + \
+     (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
+     (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
+     (uint64_t(neigh) << ESR_NEIGH_SHIFT) + \
+      uint64_t(ESR_NEIGH_ ## name))
+
 // ESR Offsets
-#define ESR_SHIRE_IPI_REDIRECT_TRIGGER_OFFSET 0x080ULL
-#define ESR_SHIRE_FLB_OFFSET                  0x100ULL
-#define ESR_SHIRE_FCC0_OFFSET                 0x0C0ULL
-#define ESR_SHIRE_FCC1_OFFSET                 0x0C8ULL
-#define ESR_SHIRE_FCC2_OFFSET                 0x0D0ULL
-#define ESR_SHIRE_FCC3_OFFSET                 0x0D8ULL
+#define ESR_SHIRE_IPI_REDIRECT_TRIGGER  0x00080
+#define ESR_SHIRE_IPI_REDIRECT_FILTER   0x00088
+#define ESR_SHIRE_IPI_TRIGGER           0x00090
+#define ESR_SHIRE_IPI_TRIGGER_CLEAR     0x00098
+#define ESR_SHIRE_FCC0                  0x000C0
+#define ESR_SHIRE_FCC1                  0x000C8
+#define ESR_SHIRE_FCC2                  0x000D0
+#define ESR_SHIRE_FCC3                  0x000D8
+#define ESR_SHIRE_FLB                   0x00100
+#define ESR_SHIRE_BROADCAST0            0x1FFF0
+#define ESR_SHIRE_BROADCAST1            0x1FFF8
 
-#define ESR_HART_PORT0_OFFSET 0x800ULL
-#define ESR_HART_PORT1_OFFSET 0x810ULL
-#define ESR_HART_PORT2_OFFSET 0x820ULL
-#define ESR_HART_PORT3_OFFSET 0x830ULL
+#define ESR_NEIGH_IPI_REDIRECT_PC       0x00040
+#define ESR_NEIGH_TBOX_CONTROL          0x08000
+#define ESR_NEIGH_TBOX_STATUS           0x08008
+#define ESR_NEIGH_TBOX_IMGT_PTR         0x08010
 
-#define ESR_SHIRE_BROADCAST0_OFFSET  0x1FFF0L
-#define ESR_SHIRE_BROADCAST1_OFFSET  0x1FFF8L
+#define ESR_HART_PORT0                  0x800ULL
+#define ESR_HART_PORT1                  0x810ULL
+#define ESR_HART_PORT2                  0x820ULL
+#define ESR_HART_PORT3                  0x830ULL
 
 #define ESR_BROADCAST_PROT_MASK              0x1800000000000000ULL // Region protection is defined in bits [60:59] in esr broadcast data write.
 #define ESR_BROADCAST_PROT_SHIFT             59
@@ -132,13 +152,7 @@
 #define ESR_BROADCAST_ESR_ADDR_MASK          0x003FFF0000000000ULL // bits[17:3] in Memory Shire Esr Map. Esr address
 #define ESR_BROADCAST_ESR_ADDR_SHIFT         40
 #define ESR_BROADCAST_ESR_SHIRE_MASK         0x000000FFFFFFFFFFULL // bit mask Shire to spread the broadcast bits
-#define ESR_BROADCAST_ESR_MAX_SHIRES ESR_BROADCAST_ESR_ADDR_SHIFT
-
-
-#define ESR_NEIGH_TBOX_CONTROL  0x8000
-#define ESR_NEIGH_TBOX_STATUS   0x8008
-#define ESR_NEIGH_TBOX_IMGT_PTR 0x8010
-
+#define ESR_BROADCAST_ESR_MAX_SHIRES         ESR_BROADCAST_ESR_ADDR_SHIFT
 
 #define ESR_RBOX_CONFIG         0x00
 #define ESR_RBOX_IN_BUF_PG      0x01

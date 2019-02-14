@@ -8538,7 +8538,7 @@ static uint64_t flbarrier(uint64_t value)
     uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
 
     // Gets what is the address that the fast local barrier is mapped to
-    uint64_t addr = ESR_SHIRE_REGION + ESR_SHIRE_FLB_OFFSET + (barrier * 8) + shire * ESR_REGION_OFFSET; // Access is private per cache
+    uint64_t addr = ESR_SHIRE(0, shire, FLB) + (barrier * 8); // Access is private per cache
 
     // NB: No PMA checks here... we know it will pass ;-)
 
