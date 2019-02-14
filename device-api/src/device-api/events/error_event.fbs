@@ -1,0 +1,18 @@
+/// Device Info commands
+
+include "common_types.fbs";
+
+namespace Responses;
+
+enum ErrorType : uint16 {
+  None = 0,
+  KernelError,
+  MinionError
+}
+
+table DeviceInfoResponse {
+   /// Header
+   header:MessageHeader;
+}
+
+root_type DeviceInfoResponse;

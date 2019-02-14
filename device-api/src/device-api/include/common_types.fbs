@@ -1,0 +1,47 @@
+/// Common Type used across the Esperanto Device-API
+
+/// Emuneration of the message type
+enum MessageType : byte {
+  Unknown = 0,
+  Command,
+  Response,
+  Event
+}
+
+/// Enumeration of the different command priorities
+enum CommandPriority : byte {
+  LowPriority = 1,
+  HighPriority
+}
+
+/// Enumeration of all different commands the API supports
+enum CommandID : uint16 {
+  UnknownCommand = 0,
+  DeviceType,
+  LauchKernel
+}
+
+
+/// Enumeration of all different Responses
+enum ResponseID : uint16 {
+  UnknownRepsonse = 0,
+  DeviceInfo,
+  LauchKernel
+}
+
+/// Enumeraiton of all different Events
+enum EventID: uint16 {
+   UnknwonEvent = 0,
+   Error
+}
+
+/// Common header of all messages exchanged by the DeviceAPI
+struct MessageHeader {
+  message_type:MessageType;
+  command_id:CommandID;
+  response_id:ResponseID;
+  event_id:EventID;
+  time_stamp:uint64;
+  stread_id:uint64;
+  sequence_id:uint64;
+}

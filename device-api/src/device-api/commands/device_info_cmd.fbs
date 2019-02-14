@@ -1,0 +1,14 @@
+/// Device Info commands
+
+include "common_types.fbs";
+
+namespace Commands;
+
+///
+/// \brief DeviceInfoCommand documentation
+///
+table DeviceInfoCommand {
+   header:MessageHeader;
+}
+
+root_type DeviceInfoCommand;
