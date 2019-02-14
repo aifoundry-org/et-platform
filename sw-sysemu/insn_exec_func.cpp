@@ -810,7 +810,7 @@ FMT_FD_FS1_FS2        (insn_cubesgnsc_ps,   cubesgnsc_ps)
 FMT_FD_FS1_FS2        (insn_cubesgntc_ps,   cubesgntc_ps)
 FMT_FD_FS1_FS2        (insn_frcp_fix_rast,  frcp_fix_rast)
 FMT_FD_FS1_RM         (insn_fcvt_ps_rast,   fcvt_ps_rast)
-FMT_FD_FS1_RM         (insn_ffrc_ps,        ffrc_ps)
+FMT_FD_FS1            (insn_ffrc_ps,        ffrc_ps)
 FMT_FD_FS1_RM         (insn_fround_ps,      fround_ps)
 
 // ----- ET packed integer ---------------------------------
