@@ -7905,7 +7905,7 @@ static void tensor_fma32(uint64_t tfmareg)
                 else
                 {
                     float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
-                    float32_t c = fpu::f32_mulAdd(c0, a, b);
+                    float32_t c = fpu::f32_mulAdd(a, b, c0);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
 
                     //LOG(DEBUG, "\tTensorFMA32 f%d[%d]: %g = %g + %g * %g", i*TFMA_REGS_PER_ROW+j/VL, j%VL,
