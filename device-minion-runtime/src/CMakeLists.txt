@@ -10,12 +10,11 @@
 
 # add_subdirectory("lib")
 
+get_filename_component(SHARED_SRC_DIR "shared/src" ABSOLUTE)
+get_filename_component(SHARED_INC_DIR "shared/include" ABSOLUTE)
+
 add_subdirectory("MasterMinion")
 add_subdirectory("ServiceProcessor")
-
-#include_directories("${PROJECT_SOURCE_DIR}/include")
-
-#set (EXTRA_LIBS ${EXTRA_LIBS} lib)
 
 # add the executable
 #add_executable (test_repo test.cc)

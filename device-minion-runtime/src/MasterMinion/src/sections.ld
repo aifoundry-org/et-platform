@@ -34,7 +34,7 @@ SECTIONS
 
     /* We want the small data sections together, so single-instruction offsets
       can access them all, and initialized data all before uninitialized, so
-      we can shorten the on-disk segment size.  */
+      we can shorten the on-disk segment size. */
     .sdata :
     {
         /* the magic __global_pointer$ symbol is defined to point 0x800 bytes past the
