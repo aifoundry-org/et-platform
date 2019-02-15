@@ -7930,9 +7930,8 @@ static void tensor_fma32(uint64_t tfmareg)
     arows = arows + 1;
     acols = acols + 1;
 
-    // FIXME - Disabled until b4c tests pass again with this checking
-    /*tensorfma_size[current_thread]   = 0;
-    tensorfma_passes[current_thread] = 0;*/
+    tensorfma_size[current_thread]   = 0;
+    tensorfma_passes[current_thread] = 0;
 
     // Check if L1 SCP is enabled
     if (csrregs[current_thread][csr_mcache_control] != 3)
@@ -7952,9 +7951,8 @@ static void tensor_fma32(uint64_t tfmareg)
         return;
     }
 
-    // FIXME - Disabled until b4c tests pass again with this checking
-    /*tensorfma_size[current_thread] = arows * bcols / VL;
-    tensorfma_passes[current_thread] = acols;*/
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols;
 
     // Unpair a paired TensorLoad
     tensorload_setupb_topair[current_thread] = false;
@@ -8058,17 +8056,15 @@ static void tensor_fma16a32(uint64_t tfmareg)
     acols = (acols + 1) * 2;
     aoffset = aoffset * 2;
 
-    // FIXME - Disabled until b4c tests pass again with this checking
-    /*tensorfma_size[current_thread]   = 0;
-    tensorfma_passes[current_thread] = 0;*/
+    tensorfma_size[current_thread]   = 0;
+    tensorfma_passes[current_thread] = 0;
 
     // Check if L1 SCP is enabled
-    // FIXME - Disabled until b4c tests pass again with this checking
-    /*if (csrregs[current_thread][csr_mcache_control] != 3)
+    if (csrregs[current_thread][csr_mcache_control] != 3)
     {
         update_tensor_error(1 << 4);
         return;
-    }*/
+    }
 
     LOG(DEBUG, "\tStart TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));
@@ -8081,9 +8077,8 @@ static void tensor_fma16a32(uint64_t tfmareg)
         return;
     }
 
-    // FIXME - Disabled until b4c tests pass again with this checking
-    /*tensorfma_size[current_thread] = arows * bcols / VL;
-    tensorfma_passes[current_thread] = acols / 2;*/
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols / 2;
 
     // Unpair a paired TensorLoad
     tensorload_setupb_topair[current_thread] = false;
@@ -8193,17 +8188,15 @@ static void tensor_ima8a32(uint64_t tfmareg)
     acols = (acols + 1) * 4;
     aoffset = aoffset * 4;
 
-    // FIXME - Disabled until b4c tests pass again with this checking
-    /*tensorfma_size[current_thread]   = 0;
-    tensorfma_passes[current_thread] = 0;*/
+    tensorfma_size[current_thread]   = 0;
+    tensorfma_passes[current_thread] = 0;
 
     // Check if L1 SCP is enabled
-    // FIXME - Disabled until b4c tests pass again with this checking
-    /*if (csrregs[current_thread][csr_mcache_control] != 3)
+    if (csrregs[current_thread][csr_mcache_control] != 3)
     {
         update_tensor_error(1 << 4);
         return;
-    }*/
+    }
 
     LOG(DEBUG, "\tStart TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
         usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
@@ -8216,9 +8209,8 @@ static void tensor_ima8a32(uint64_t tfmareg)
         return;
     }
 
-    // FIXME - Disabled until b4c tests pass again with this checking
-    /*tensorfma_size[current_thread] = arows * bcols / VL;
-    tensorfma_passes[current_thread] = acols / 4;*/
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols / 4;
 
     // Unpair a paired TensorLoad
     tensorload_setupb_topair[current_thread] = false;
