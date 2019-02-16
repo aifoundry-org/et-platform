@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <list>
-#include <queue>
+#include <deque>
 #include <unordered_map>
 
 #include "emu.h"
@@ -292,7 +292,7 @@ int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
-std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
+std::deque<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 bool msg_port_delayed_write = false;
 std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
@@ -6868,13 +6868,13 @@ void set_delayed_msg_port_write(bool f)
     msg_port_delayed_write = f;
 }
 
-void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
+static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
 {
     // Drop the write if port not configured
     if(!msg_ports[thread][id].enabled) return;
 
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
-    base_addr += msg_ports[thread][id].rd_ptr << msg_ports[thread][id].logsize;
+    base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
 
     msg_ports[thread][id].size++;
     msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % msg_ports[thread][id].max_msgs;
@@ -6882,15 +6882,15 @@ void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, ui
 
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
 
-    LOG(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
+    LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
     for (int i = 0; i < wr_words; i++)
     {
-        LOG(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
+        LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
 
     if (msg_ports[thread][id].enable_oob)
-        msg_ports_oob[thread][id].push(oob);
+        msg_ports_oob[thread][id].push_back(oob);
 
     msg_to_thread(thread);
 }
@@ -6910,7 +6910,7 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
+        LOG_ALL_MINIONS(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6931,7 +6931,7 @@ void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_i
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
+        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6952,7 +6952,7 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
+        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6972,7 +6972,7 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
         {
             port_write = *it;
             if ((port_write.target_thread == target_thread) &&
-                (port_write.target_thread == port_id)       &&
+                (port_write.target_port   == port_id)       &&
                 (port_write.source_thread == source_thread) &&
                 !(port_write.is_tbox || port_write.is_rbox))
             {
@@ -7097,7 +7097,7 @@ static int64_t port_get(uint32_t id, bool block)
     if (msg_ports[current_thread][id].enable_oob)
     {
         uint8_t oob = msg_ports_oob[current_thread][id].front();
-        msg_ports_oob[current_thread][id].pop();
+        msg_ports_oob[current_thread][id].pop_front();
         offset|=oob;
     }
 
@@ -7136,8 +7136,7 @@ static void configure_port(uint32_t id, uint64_t wdata)
     msg_ports[current_thread][id].offset     = -1;
 
     //reset the monitor queue so we don't get incorrect oob if the user doesn't pull all msgs
-    std::queue<uint8_t> to_delete;
-    std::swap(msg_ports_oob[current_thread][id], to_delete);
+    msg_ports_oob[current_thread][id].clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
