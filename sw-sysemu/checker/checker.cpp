@@ -523,7 +523,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
           // Someone changed the flags
           std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
           stream << "BEMU Checker fflags changed by " << changer << ". BEMU expects new flags: " << std::hex <<  emu_state_change.fflags_value << " but DUT reported " << changes->fflags_value << std::dec << std::endl;
-          check_res = CHECKER_WARNING;
+          check_res = CHECKER_ERROR;
         }
         
         if ( emu_state_change.fflags_mod)
@@ -531,7 +531,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
           if ( changes->fflags_value != emu_state_change.fflags_value )
           {
             stream << "BEMU Checker fflags values change. BEMU expects new flags: " << std::hex << emu_state_change.fflags_value << " but DUT reported " << changes->fflags_value << std::dec << std::endl;
-            check_res = CHECKER_WARNING;
+            check_res = CHECKER_ERROR;
           }
         }
 
