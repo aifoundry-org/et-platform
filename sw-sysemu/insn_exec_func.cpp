@@ -239,17 +239,17 @@ static csr imm2csr(uint16_t imm)
     case 0x803 : return csr_tensor_conv_ctrl;
     case 0x804 : return csr_tensor_coop;
     case 0x805 : return csr_tensor_mask;
-    case 0x806 : return csr_tensor_quant;   /* TODO: add to binutils */
+    case 0x806 : return csr_tensor_quant;
     case 0x807 : return csr_tex_send;
     case 0x808 : return csr_tensor_error;
-    // TODO: case 0x810 : return csr_ucache_control;
+    case 0x810 : return csr_ucache_control;
     case 0x81f : return csr_prefetch_va;
     case 0x820 : return csr_flb0;
-    case 0x821 : return csr_fcc;            /* TODO: add to binutils */
-    case 0x822 : return csr_stall;          /* TODO: add to binutils */
+    case 0x821 : return csr_fcc;
+    case 0x822 : return csr_stall;
     case 0x830 : return csr_tensor_wait;
     case 0x83f : return csr_tensor_load;
-    // TODO: case 0x840 : return csr_gsc_progress;   /* TODO: add to binutils */
+    // TODO: case 0x840 : return csr_gsc_progress;
     case 0x85f : return csr_tensor_load_l2;
     case 0x87f : return csr_tensor_store;
     case 0x89f : return csr_evict_va;
@@ -258,7 +258,7 @@ static csr imm2csr(uint16_t imm)
     case 0x8d1 : return csr_validation1;
     case 0x8d2 : return csr_validation2;
     case 0x8d3 : return csr_validation3;
-    case 0x8d5 : return csr_sleep_txfma_27; /* TODO: add to binutils */
+    case 0x8d5 : return csr_sleep_txfma_27;
     case 0x8df : return csr_lock_va;
     case 0x8ff : return csr_unlock_va;
     case 0xcc0 : return csr_fccnb;
@@ -270,7 +270,7 @@ static csr imm2csr(uint16_t imm)
     case 0xccd : return csr_portheadnb1;
     case 0xcce : return csr_portheadnb2;
     case 0xccf : return csr_portheadnb3;
-    case 0xcd0 : return csr_hartid;         /* TODO: add to binutils */
+    case 0xcd0 : return csr_hartid;
     /* Esperanto supervisor CSRs */
     case 0x9cc : return csr_portctrl0;
     case 0x9cd : return csr_portctrl1;
@@ -282,9 +282,9 @@ static csr imm2csr(uint16_t imm)
     case 0x7ce : return csr_minstmatch;
     // TODO: case 0x7cf : return csr_amofence_ctrl;
     case 0x7d0 : return csr_cache_invalidate;
-    case 0x7d1 : return csr_msleep_txfma_27; /* TODO: rename in binutils */
-    case 0x7d2 : return csr_menable_shadows; /* TODO: add to binutils */
-    case 0x7d3 : return csr_excl_mode;       /* TODO: add to binutils */
+    case 0x7d1 : return csr_msleep_txfma_27;
+    case 0x7d2 : return csr_menable_shadows;
+    case 0x7d3 : return csr_excl_mode;
     case 0x7e0 : return csr_mcache_control;
     case 0x7f9 : return csr_evict_sw;
     case 0x7fb : return csr_flush_sw;
