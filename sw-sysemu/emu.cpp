@@ -367,6 +367,7 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_tensor_quant,      "tensor_quant"       },
    { csr_tex_send,          "tex_send"           },
    { csr_tensor_error,      "tensor_error"       },
+   { csr_ucache_control,    "ucache_control"     },
    { csr_prefetch_va,       "prefetch_va"        },
    { csr_flb0,              "flb0"               },
    { csr_fcc,               "fcc"                },
@@ -2669,9 +2670,9 @@ static uint64_t csrget(csr src1)
             if ( ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_scounteren] & csrregs[current_thread][csr_mcounteren] &
                                                (1 << (src1-csr_cycle))) == 0)) ||
                  ((prvget() == CSR_PRV_S) && ((csrregs[current_thread][csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
-                {
-                    throw trap_illegal_instruction(current_inst);
-                }
+            {
+                throw trap_illegal_instruction(current_inst);
+            }
             val = csrregs[current_thread][src1];
             break;
         case csr_fccnb:
@@ -2701,6 +2702,7 @@ static uint64_t csrget(csr src1)
             }
             val = port_get(src1 - csr_portheadnb0, false);
             break;
+        // ----- Shadow registers ----------------------------------------
         case csr_sleep_txfma_27:
           if (prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0)
           {
@@ -2709,7 +2711,6 @@ static uint64_t csrget(csr src1)
           val = csrregs[current_thread][csr_msleep_txfma_27];
           break;
         case csr_hartid:
-          //check shadow is allowed
           if (prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 1) == 0)
           {
                throw trap_illegal_instruction(current_inst);
@@ -2979,11 +2980,27 @@ static void csrset(csr src1, uint64_t val)
                 dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
             }
             break;
-        case csr_mcache_control: // Shared register
-            val &= 0x0000000000000003ULL;
-            csrregs[current_thread][src1] = val;
-            csrregs[current_thread^1][src1] = val;
-            num_sets = (val & 0x1) ? 4 : 16;
+        case csr_ucache_control:
+            msk = (csrregs[current_thread][csr_mcache_control] & 1) ? 1 : 3;
+            val = (csrregs[current_thread][csr_mcache_control] & msk) | (val & ~msk & 0x07df);
+            assert((val & 3) != 2);
+            csrregs[current_thread][csr_ucache_control] = val;
+            csrregs[current_thread][csr_mcache_control] = val & 3;
+            csrregs[current_thread^1][csr_ucache_control] = val;
+            csrregs[current_thread^1][csr_mcache_control] = val & 3;
+            break;
+        case csr_mcache_control:
+            msk = (csrregs[current_thread][csr_mcache_control] & 1) ? 3 : 1;
+            val = (val & msk) | (csrregs[current_thread][csr_ucache_control] & ~msk);
+            if ((val & 3) != 2)
+            {
+                csrregs[current_thread][csr_ucache_control] = val;
+                csrregs[current_thread][csr_mcache_control] = val & 3;
+                csrregs[current_thread^1][csr_ucache_control] = val;
+                csrregs[current_thread^1][csr_mcache_control] = val & 3;
+                num_sets = (val & 0x1) ? 4 : 16;
+            }
+            val &= 3;
             break;
         case csr_tex_send:
             val &= 0x00000000000000FFULL;
