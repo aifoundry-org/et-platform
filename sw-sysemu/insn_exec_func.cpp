@@ -261,7 +261,7 @@ static csr imm2csr(uint16_t imm)
     case 0x8d5 : return csr_sleep_txfma_27; /* TODO: add to binutils */
     case 0x8df : return csr_lock_va;
     case 0x8ff : return csr_unlock_va;
-    // TODO: case 0xcc0 : return csr_fccnb;
+    case 0xcc0 : return csr_fccnb;
     case 0xcc8 : return csr_porthead0;
     case 0xcc9 : return csr_porthead1;
     case 0xcca : return csr_porthead2;
