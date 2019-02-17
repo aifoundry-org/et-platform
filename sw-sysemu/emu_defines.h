@@ -248,7 +248,7 @@ typedef enum {
     csr_sleep_txfma_27,
     csr_lock_va,
     csr_unlock_va,
-    // TODO: csr_fccnb,
+    csr_fccnb,
     csr_porthead0,
     csr_porthead1,
     csr_porthead2,
