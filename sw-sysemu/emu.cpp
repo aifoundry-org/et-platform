@@ -384,6 +384,7 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_sleep_txfma_27,    "sleep_txfma_27"     },
    { csr_lock_va,           "lock_va"            },
    { csr_unlock_va,         "unlock_va"          },
+   { csr_fccnb,             "fccnb"              },
    { csr_porthead0,         "porthead0"          },
    { csr_porthead1,         "porthead1"          },
    { csr_porthead2,         "porthead2"          },
@@ -2673,6 +2674,9 @@ static uint64_t csrget(csr src1)
                 }
             val = csrregs[current_thread][src1];
             break;
+        case csr_fccnb:
+            val = (uint64_t(fcc[current_thread][1]) << 16) + uint64_t(fcc[current_thread][0]);
+            break;
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
@@ -2787,6 +2791,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_mimpid:
         case csr_mhartid:
         case csr_hartid:
+        case csr_fccnb:
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
