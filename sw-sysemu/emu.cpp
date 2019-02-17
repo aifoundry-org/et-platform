@@ -48,7 +48,6 @@ typedef fdata_array_t<L1D_LINE_SIZE/4> cache_line_t;
                      (1ull << 23) | /* "X": Non-standard extensions present */          \
                      (2ull << 62))  /* XLEN = 64-bit */
 
-
 typedef enum {
     MSG_ENABLE = 7,
     MSG_DISABLE = 3,
@@ -1026,6 +1025,8 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
     uint64_t curprv = prvget();
+    bool interrupt = (cause & 0x8000000000000000ULL);
+    int code = (cause & 63);
     assert(curprv <= CSR_PRV_S);
 
     LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64, cause);
@@ -1051,18 +1052,13 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 
     // compute address where to jump to:
     //  if tvec[0]==0 (direct mode) => jump to tvec
-    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_stvec);
-    if ((tvec & 1) && (cause & 0x8000000000000000ULL))
+    if ((tvec & 1) && interrupt)
     {
-        // vectored mode and interrupt => add +4 * cause
-        tvec &=  ~0x1ULL;
-        tvec += (cause & 0xF) << 2;
+        tvec += code * 4;
     }
-    else
-    {
-        tvec &=  ~0x1ULL;
-    }
+    tvec &= ~0x1ULL;
     logpcchange(tvec);
 }
 
@@ -1070,9 +1066,11 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
     uint64_t curprv = prvget();
+    bool interrupt = (cause & 0x8000000000000000ULL);
+    int code = (cause & 63);
 
     // Check if we should deletegate the trap to S-mode
-    if ((curprv < CSR_PRV_M) && (csrget(csr_medeleg) & (1ull << cause)))
+    if ((curprv < CSR_PRV_M) && (csrget(interrupt ? csr_mideleg : csr_medeleg) & (1ull << code)))
     {
         trap_to_smode(cause, val);
         return;
@@ -1101,18 +1099,13 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 
     // compute address where to jump to
     //  if tvec[0]==0 (direct mode) => jump to tvec
-    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_mtvec);
-    if ((tvec & 1) && (cause & 0x8000000000000000ULL))
+    if ((tvec & 1) && interrupt)
     {
-        // vectored mode and interrupt => add +4 * cause
-        tvec &=  ~0x1ULL;
-        tvec += (cause & 0xF) << 2;
+        tvec += code * 4;
     }
-    else
-    {
-        tvec &=  ~0x1ULL;
-    }
+    tvec &= ~0x1ULL;
     logpcchange(tvec);
 }
 
