@@ -15,6 +15,7 @@
 #undef FPU_DEBUG
 #endif
 
+
 #include <cmath> // FIXME: remove this when we fix f32_frac()
 
 // Extend softfloat arithmetic flags
@@ -482,6 +483,13 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
         std::cout << "z_adj1: " << Float32<4>(signZ,expZ,sigZ) << '\n';
 #endif
     }
+    if ( sigZ >= 0x10000000 ) {
+        expZ += 1;
+        sigZ >>= 1;
+#ifdef FPU_DEBUG
+        std::cout << "z_adj2: " << Float32<4>(signZ,expZ,sigZ) << '\n';
+#endif
+    }
     if ( (subB || subC) && !sigZ ) {
         uiZ =
             packToF32UI(
@@ -496,14 +504,14 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
         --expZ;
     	sigZ = ((sigZ & ~1) << 1) | (sigZ & 1);
 #ifdef FPU_DEBUG
-        std::cout << "z_adj1: " << Float32<7>(signZ,expZ,sigZ) << '\n';
+        std::cout << "z_adj3: " << Float32<7>(signZ,expZ,sigZ) << '\n';
 #endif
     }
     shiftDist = softfloat_countLeadingZeros32( sigZ ) - 1;
     expZ -= shiftDist;
     sigZ = ((sigZ & ~1) << shiftDist) | (sigZ & 1);
 #ifdef FPU_DEBUG
-    std::cout << "z_adj2: " << Float32<7>(signZ,expZ,sigZ) << '\n';
+    std::cout << "z_adj4: " << Float32<7>(signZ,expZ,sigZ) << '\n';
 #endif
 #ifdef FPU_DEBUG
     {

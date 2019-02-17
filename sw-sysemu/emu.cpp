@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <list>
-#include <queue>
+#include <deque>
 #include <unordered_map>
 
 #include "emu.h"
@@ -47,7 +47,6 @@ typedef fdata_array_t<L1D_LINE_SIZE/4> cache_line_t;
                      (1ull << 20) | /* "U" User mode implemented */                     \
                      (1ull << 23) | /* "X": Non-standard extensions present */          \
                      (2ull << 62))  /* XLEN = 64-bit */
-
 
 typedef enum {
     MSG_ENABLE = 7,
@@ -292,7 +291,7 @@ int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
-std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
+std::deque<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 bool msg_port_delayed_write = false;
 std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
@@ -385,6 +384,7 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_sleep_txfma_27,    "sleep_txfma_27"     },
    { csr_lock_va,           "lock_va"            },
    { csr_unlock_va,         "unlock_va"          },
+   { csr_fccnb,             "fccnb"              },
    { csr_porthead0,         "porthead0"          },
    { csr_porthead1,         "porthead1"          },
    { csr_porthead2,         "porthead2"          },
@@ -1026,6 +1026,8 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
     uint64_t curprv = prvget();
+    bool interrupt = (cause & 0x8000000000000000ULL);
+    int code = (cause & 63);
     assert(curprv <= CSR_PRV_S);
 
     LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64, cause);
@@ -1051,18 +1053,13 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 
     // compute address where to jump to:
     //  if tvec[0]==0 (direct mode) => jump to tvec
-    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_stvec);
-    if ((tvec & 1) && (cause & 0x8000000000000000ULL))
+    if ((tvec & 1) && interrupt)
     {
-        // vectored mode and interrupt => add +4 * cause
-        tvec &=  ~0x1ULL;
-        tvec += (cause & 0xF) << 2;
+        tvec += code * 4;
     }
-    else
-    {
-        tvec &=  ~0x1ULL;
-    }
+    tvec &= ~0x1ULL;
     logpcchange(tvec);
 }
 
@@ -1070,9 +1067,11 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
     uint64_t curprv = prvget();
+    bool interrupt = (cause & 0x8000000000000000ULL);
+    int code = (cause & 63);
 
     // Check if we should deletegate the trap to S-mode
-    if ((curprv < CSR_PRV_M) && (csrget(csr_medeleg) & (1ull << cause)))
+    if ((curprv < CSR_PRV_M) && (csrget(interrupt ? csr_mideleg : csr_medeleg) & (1ull << code)))
     {
         trap_to_smode(cause, val);
         return;
@@ -1101,18 +1100,13 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 
     // compute address where to jump to
     //  if tvec[0]==0 (direct mode) => jump to tvec
-    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_mtvec);
-    if ((tvec & 1) && (cause & 0x8000000000000000ULL))
+    if ((tvec & 1) && interrupt)
     {
-        // vectored mode and interrupt => add +4 * cause
-        tvec &=  ~0x1ULL;
-        tvec += (cause & 0xF) << 2;
+        tvec += code * 4;
     }
-    else
-    {
-        tvec &=  ~0x1ULL;
-    }
+    tvec &= ~0x1ULL;
     logpcchange(tvec);
 }
 
@@ -2680,6 +2674,9 @@ static uint64_t csrget(csr src1)
                 }
             val = csrregs[current_thread][src1];
             break;
+        case csr_fccnb:
+            val = (uint64_t(fcc[current_thread][1]) << 16) + uint64_t(fcc[current_thread][0]);
+            break;
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
@@ -2794,6 +2791,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_mimpid:
         case csr_mhartid:
         case csr_hartid:
+        case csr_fccnb:
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
@@ -2826,10 +2824,24 @@ static void csrset(csr src1, uint64_t val)
         case csr_tensor_load:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            tensorload(val);
+            try
+            {
+                tensorload(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_tensor_load_l2:
-            tensorloadl2(val);
+            try
+            {
+                tensorloadl2(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_tensor_mask:
             val &= 0x000000000000FFFFULL;
@@ -2875,7 +2887,14 @@ static void csrset(csr src1, uint64_t val)
         case csr_tensor_store:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            tensorstore(val);
+            try
+            {
+                tensorstore(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_fcc:
             fcc_cnt = val & 0x01;
@@ -6868,13 +6887,13 @@ void set_delayed_msg_port_write(bool f)
     msg_port_delayed_write = f;
 }
 
-void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
+static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
 {
     // Drop the write if port not configured
     if(!msg_ports[thread][id].enabled) return;
 
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
-    base_addr += msg_ports[thread][id].rd_ptr << msg_ports[thread][id].logsize;
+    base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
 
     msg_ports[thread][id].size++;
     msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % msg_ports[thread][id].max_msgs;
@@ -6882,15 +6901,15 @@ void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, ui
 
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
 
-    LOG(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
+    LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
     for (int i = 0; i < wr_words; i++)
     {
-        LOG(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
+        LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
 
     if (msg_ports[thread][id].enable_oob)
-        msg_ports_oob[thread][id].push(oob);
+        msg_ports_oob[thread][id].push_back(oob);
 
     msg_to_thread(thread);
 }
@@ -6910,7 +6929,7 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
+        LOG_ALL_MINIONS(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6931,7 +6950,7 @@ void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_i
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
+        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6952,7 +6971,7 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
+        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6972,7 +6991,7 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
         {
             port_write = *it;
             if ((port_write.target_thread == target_thread) &&
-                (port_write.target_thread == port_id)       &&
+                (port_write.target_port   == port_id)       &&
                 (port_write.source_thread == source_thread) &&
                 !(port_write.is_tbox || port_write.is_rbox))
             {
@@ -7097,7 +7116,7 @@ static int64_t port_get(uint32_t id, bool block)
     if (msg_ports[current_thread][id].enable_oob)
     {
         uint8_t oob = msg_ports_oob[current_thread][id].front();
-        msg_ports_oob[current_thread][id].pop();
+        msg_ports_oob[current_thread][id].pop_front();
         offset|=oob;
     }
 
@@ -7136,8 +7155,7 @@ static void configure_port(uint32_t id, uint64_t wdata)
     msg_ports[current_thread][id].offset     = -1;
 
     //reset the monitor queue so we don't get incorrect oob if the user doesn't pull all msgs
-    std::queue<uint8_t> to_delete;
-    std::swap(msg_ports_oob[current_thread][id], to_delete);
+    msg_ports_oob[current_thread][id].clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -7315,16 +7333,7 @@ void tensorload(uint64_t control)
                 }
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
-                    try
-                    {
-                        SCP[dst + i].u[j] = pmemread32(paddr + j*4);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    SCP[dst + i].u[j] = pmemread32(paddr + j*4);
                     LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08x" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, dst+i, j, SCP[dst+i].u[j], addr+j*4);
                 }
             }
@@ -7353,16 +7362,7 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        try
-                        {
-                            SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = pmemread8(paddr + c);
-                        }
-                        catch (const trap_t& t)
-                        {
-                            // Memory exception
-                            update_tensor_error(1 << 7);
-                            return;
-                        }
+                        SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = pmemread8(paddr + c);
                         LOG(DEBUG, "SCP[%d].b[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]",
                             (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].b[c*4+r], vaddr + c);
                     }
@@ -7391,16 +7391,7 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        try
-                        {
-                            SCP[(dst+i)%L1_SCP_ENTRIES].h[c*2 + r] = pmemread16(paddr + c*2);
-                        }
-                        catch (const trap_t& t)
-                        {
-                            // Memory exception
-                            update_tensor_error(1 << 7);
-                            return;
-                        }
+                        SCP[(dst+i)%L1_SCP_ENTRIES].h[c*2 + r] = pmemread16(paddr + c*2);
                         LOG(DEBUG, "SCP[%d].h[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
                             (dst+i)%L1_SCP_ENTRIES, c*2+r, SCP[dst+i].h[c*4+r], vaddr + c*2);
                     }
@@ -7440,17 +7431,7 @@ void tensorload(uint64_t control)
             {
                 for (int k = 0; k < 8; k++)
                 {
-                    uint8_t val = 0;
-                    try
-                    {
-                        val = pmemread8(paddr + j*8 + k);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    uint8_t val = pmemread8(paddr + j*8 + k);
                     tmp_buffer[elem][j*8+k] = val;
                     LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, paddr+j*8+k, elem, j*8+k, val);
                 }
@@ -7497,7 +7478,6 @@ void tensorload(uint64_t control)
                 for (int x = 0; x < L1D_LINE_SIZE/4; ++x)
                     LOG(DEBUG, "SCP[%d].u[%d] = 0x%08" PRIx32, dst+i, x, SCP[dst+i].u[x]);
             }
-
         }
     }
     int op = 0;
@@ -7865,16 +7845,7 @@ static void tensorstore(uint64_t tstorereg)
             {
                 uint32_t val = SCP[src].u[i];
                 LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, addr + i*4);
-                try
-                {
-                    pmemwrite32(paddr + i*4, val);
-                }
-                catch (const trap_t& t)
-                {
-                    // Memory exception
-                    update_tensor_error(1 << 7);
-                    return;
-                }
+                pmemwrite32(paddr + i*4, val);
                 //logmemwchange(0, 4, addr + i*4, val); => Don't log mem changes!
             }
             src += srcinc;
@@ -7931,16 +7902,7 @@ static void tensorstore(uint64_t tstorereg)
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u[idx];
                     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
-                    try
-                    {
-                        pmemwrite32(paddr + i*4, val);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    pmemwrite32(paddr + i*4, val);
                     //logmemwchange(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
                 }
                 if (cols == 1)    src += srcinc; // For 128b stores, move to next desired register
