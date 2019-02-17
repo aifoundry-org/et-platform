@@ -2826,10 +2826,24 @@ static void csrset(csr src1, uint64_t val)
         case csr_tensor_load:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            tensorload(val);
+            try
+            {
+                tensorload(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_tensor_load_l2:
-            tensorloadl2(val);
+            try
+            {
+                tensorloadl2(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_tensor_mask:
             val &= 0x000000000000FFFFULL;
@@ -2875,7 +2889,14 @@ static void csrset(csr src1, uint64_t val)
         case csr_tensor_store:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            tensorstore(val);
+            try
+            {
+                tensorstore(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_fcc:
             fcc_cnt = val & 0x01;
@@ -7314,16 +7335,7 @@ void tensorload(uint64_t control)
                 }
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
-                    try
-                    {
-                        SCP[dst + i].u[j] = pmemread32(paddr + j*4);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    SCP[dst + i].u[j] = pmemread32(paddr + j*4);
                     LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08x" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, dst+i, j, SCP[dst+i].u[j], addr+j*4);
                 }
             }
@@ -7352,16 +7364,7 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        try
-                        {
-                            SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = pmemread8(paddr + c);
-                        }
-                        catch (const trap_t& t)
-                        {
-                            // Memory exception
-                            update_tensor_error(1 << 7);
-                            return;
-                        }
+                        SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = pmemread8(paddr + c);
                         LOG(DEBUG, "SCP[%d].b[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]",
                             (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].b[c*4+r], vaddr + c);
                     }
@@ -7390,16 +7393,7 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        try
-                        {
-                            SCP[(dst+i)%L1_SCP_ENTRIES].h[c*2 + r] = pmemread16(paddr + c*2);
-                        }
-                        catch (const trap_t& t)
-                        {
-                            // Memory exception
-                            update_tensor_error(1 << 7);
-                            return;
-                        }
+                        SCP[(dst+i)%L1_SCP_ENTRIES].h[c*2 + r] = pmemread16(paddr + c*2);
                         LOG(DEBUG, "SCP[%d].h[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
                             (dst+i)%L1_SCP_ENTRIES, c*2+r, SCP[dst+i].h[c*4+r], vaddr + c*2);
                     }
@@ -7439,17 +7433,7 @@ void tensorload(uint64_t control)
             {
                 for (int k = 0; k < 8; k++)
                 {
-                    uint8_t val = 0;
-                    try
-                    {
-                        val = pmemread8(paddr + j*8 + k);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    uint8_t val = pmemread8(paddr + j*8 + k);
                     tmp_buffer[elem][j*8+k] = val;
                     LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, paddr+j*8+k, elem, j*8+k, val);
                 }
@@ -7496,7 +7480,6 @@ void tensorload(uint64_t control)
                 for (int x = 0; x < L1D_LINE_SIZE/4; ++x)
                     LOG(DEBUG, "SCP[%d].u[%d] = 0x%08" PRIx32, dst+i, x, SCP[dst+i].u[x]);
             }
-
         }
     }
     int op = 0;
@@ -7864,16 +7847,7 @@ static void tensorstore(uint64_t tstorereg)
             {
                 uint32_t val = SCP[src].u[i];
                 LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, addr + i*4);
-                try
-                {
-                    pmemwrite32(paddr + i*4, val);
-                }
-                catch (const trap_t& t)
-                {
-                    // Memory exception
-                    update_tensor_error(1 << 7);
-                    return;
-                }
+                pmemwrite32(paddr + i*4, val);
                 //logmemwchange(0, 4, addr + i*4, val); => Don't log mem changes!
             }
             src += srcinc;
@@ -7930,16 +7904,7 @@ static void tensorstore(uint64_t tstorereg)
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u[idx];
                     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
-                    try
-                    {
-                        pmemwrite32(paddr + i*4, val);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    pmemwrite32(paddr + i*4, val);
                     //logmemwchange(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
                 }
                 if (cols == 1)    src += srcinc; // For 128b stores, move to next desired register
