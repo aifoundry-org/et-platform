@@ -588,7 +588,7 @@ class trap_t {
 
     virtual bool has_tval() const = 0;
     virtual uint64_t get_tval() const = 0;
-    virtual const char* what() = 0;
+    virtual const char* what() const = 0;
 
   private:
     const uint64_t cause;
@@ -601,7 +601,7 @@ class trap_t {
         x() : trap_t(n) {} \
         virtual bool has_tval() const override { return false; } \
         virtual uint64_t get_tval() const override { return 0; } \
-        virtual const char* what() override { return #x; } \
+        virtual const char* what() const override { return #x; } \
     };
 
 // define a trap type with tval
@@ -611,7 +611,7 @@ class trap_t {
         x(uint64_t v) : trap_t(n), tval(v) {} \
         virtual bool has_tval() const override { return true; } \
         virtual uint64_t get_tval() const override { return tval; } \
-        virtual const char* what() override { return #x; } \
+        virtual const char* what() const override { return #x; } \
       private: \
         const uint64_t tval; \
     };
@@ -642,5 +642,21 @@ DECLARE_TRAP_TVAL_N(CAUSE_USER_EXTERNAL_INTERRUPT,       trap_user_external_inte
 DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_EXTERNAL_INTERRUPT, trap_supervisor_external_interrupt)
 DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_EXTERNAL_INTERRUPT,    trap_machine_external_interrupt)
 
+
+class checker_wait_t {
+public:
+  virtual const char * what () const = 0;
+};
+
+// define a checker wait exception
+#define DECLARE_CHECKER_WAIT(x)                                  \
+  class x : public checker_wait_t {                              \
+  public:                                                        \
+  virtual const char* what() const override { return #x; }             \
+  };
+
+DECLARE_CHECKER_WAIT(checker_wait_fcc)
+
+#endif // _EMU_DEFINES_H
 
 #endif // _EMU_DEFINES_H
