@@ -746,7 +746,7 @@ static insn_exec_funct_t dec_custom3(uint32_t bits, uint32_t& flags)
     case 0x2c: switch (rs2) {
                case 0x00: return (funct3 == 0) ? insn_fsqrt_ps : insn_unknown;
                case 0x01: return insn_fround_ps;
-               case 0x02: return insn_ffrc_ps;
+               case 0x02: return (funct3 == 0) ? insn_ffrc_ps : insn_unknown;
                case 0x03: flags |= insn_t::flag_1ULP; return (funct3 == 0) ? insn_flog_ps : insn_unknown;
                case 0x04: flags |= insn_t::flag_1ULP; return (funct3 == 0) ? insn_fexp_ps : insn_unknown;
                case 0x06: flags |= insn_t::flag_1ULP; return (funct3 == 0) ? insn_fsin_ps : insn_unknown;

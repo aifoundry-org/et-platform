@@ -155,17 +155,20 @@ void msg_to_thread(int thread_id)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Sends an IPI_REDIRECT to thee desired minions specified in thread mask
-// of the specified shire id.
+// Send IPI_REDIRECT or IPI (or clear pending IPIs) to the minions specified in
+// thread mask of the specified shire id.
 ////////////////////////////////////////////////////////////////////////////////
 
-void ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
+void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
 {
     // Get IPI_REDIRECT_FILTER ESR for the shire
     uint64_t ipi_redirect_filter;
-    memory->read(0x1C0340088ULL + (shire_id << 22), 8, &ipi_redirect_filter);
+    memory->read(ESR_SHIRE(3, shire_id, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
 
-    for(int t = 0; t < EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION; t++)
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    for(int t = 0; t < EMU_THREADS_PER_SHIRE; t++)
     {
         // If both IPI_REDIRECT_TRIGGER and IPI_REDIRECT_FILTER has bit set
         if(((thread_mask >> t) & 1) && ((ipi_redirect_filter >> t) & 1))
@@ -174,13 +177,13 @@ void ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
             uint64_t new_pc;
             uint64_t neigh_id;
             neigh_id = t / EMU_THREADS_PER_NEIGH;
-            memory->read(0x0100100040ULL + (neigh_id << 16) + (shire_id << 22), 8, &new_pc);
-            int thread_id = shire_id * EMU_THREADS_PER_SHIRE + t;
+            memory->read(ESR_NEIGH(0, shire_id, neigh_id, IPI_REDIRECT_PC), 8, &new_pc);
+            int thread_id = thread0 + t;
             LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
             // If thread sleeping, wakes up and changes PC
             if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
             {
-                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due IPI_REDIRECT");
+                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI_REDIRECT");
                 enabled_threads.push_back(thread_id);
                 current_pc[thread_id] = new_pc;
             }
@@ -189,6 +192,47 @@ void ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
             {
                 LOG_OTHER(DEBUG, thread_id, "%s", "WARNING => IPI_REDIRECT dropped");
             }
+        }
+    }
+}
+
+void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    // Write mip.msip to all selected threads
+    for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
+    {
+        if ((thread_mask >> t) & 1)
+        {
+            unsigned thread_id = thread0 + t;
+            LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
+            raise_software_interrupt(thread_id);
+            // If thread sleeping, wakes up
+            if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+            {
+                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI");
+                enabled_threads.push_back(thread_id);
+            }
+        }
+    }
+}
+
+void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    // Clear mip.msip to all selected threads
+    for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
+    {
+        if ((thread_mask >> t) & 1)
+        {
+            unsigned thread_id = thread0 + t;
+            clear_software_interrupt(thread_id);
         }
     }
 }
@@ -734,6 +778,7 @@ int main(int argc, char * argv[])
                 clearlogstate();
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
+                check_pending_interrupts();
                 inst.fetch_and_decode(current_pc[thread_id]);
 
                 // In case of reduce, we need to make sure that the other minion is also in reduce state

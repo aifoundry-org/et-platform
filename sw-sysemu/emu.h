@@ -77,6 +77,9 @@ extern void set_msg_funcs(void * func_msg_to_thread);
 // Traps
 extern void take_trap(const trap_t& t);
 
+// Interrupts
+extern void check_pending_interrupts();
+
 // Illegal instruction encodings will execute this
 extern void unknown(const char* comm = 0);
 
@@ -405,7 +408,7 @@ extern void fsin_ps   (freg dst, freg src1, const char* comm = 0);
 //extern void fcos_ps   (freg dst, freg src1, const char* comm = 0);
 extern void fexp_ps   (freg dst, freg src1, const char* comm = 0);
 extern void flog_ps   (freg dst, freg src1, const char* comm = 0);
-extern void ffrc_ps   (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
+extern void ffrc_ps   (freg dst, freg src1, const char* comm = 0);
 extern void fround_ps (freg dst, freg src1, rounding_mode rm, const char* comm = 0);
 extern void frcp_ps   (freg dst, freg src1, const char* comm = 0);
 extern void frsq_ps   (freg dst, freg src1, const char* comm = 0);
@@ -496,6 +499,7 @@ extern void packb(xreg dst, xreg src1, xreg src2, const char* comm = 0);
 extern void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm = 0);
 
 // ----- Esperanto atomic extension --------------------------------------------
+
 extern void amoswapl_w (xreg dst, xreg src1, xreg src2, const char* comm = 0);
 extern void amoaddl_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
 extern void amoxorl_w  (xreg dst, xreg src1, xreg src2, const char* comm = 0);
@@ -593,7 +597,7 @@ extern uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, i
 
 // TensorQuant
 
-extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms, bool * is_pack);
+extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * reg, int * size, int * transforms, bool * skip_entry);
 
 // TensorReduce
 
@@ -606,5 +610,17 @@ extern uint64_t get_reduce_value(int entry, int block, int * size, int * start_e
 
 extern uint64_t get_fcc_cnt();
 extern void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id);
+
+// ----- Esperanto IPI extension ------------------------------------------------
+
+extern void raise_software_interrupt(int thread);
+extern void clear_software_interrupt(int thread);
+
+extern void raise_timer_interrupt(int thread);
+extern void clear_timer_interrupt(int thread);
+
+extern void raise_external_interrupt(int thread);
+extern void clear_external_interrupt(int thread);
+
 
 #endif // _EMU_H

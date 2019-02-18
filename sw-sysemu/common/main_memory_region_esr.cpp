@@ -15,7 +15,9 @@ extern uint32_t current_thread;
 
 #ifdef SYS_EMU
 extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest);
-extern void ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
+extern void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
+extern void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask);
+extern void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask);
 #endif
 
 extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
@@ -55,16 +57,16 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                 switch(esr_info.address)
                 {
-                    case ESR_HART_PORT0_OFFSET :
+                    case ESR_HART_PORT0 :
                         write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 0, (uint32_t *) data, 0);
                         break;               
-                    case ESR_HART_PORT1_OFFSET :
+                    case ESR_HART_PORT1 :
                         write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 1, (uint32_t *) data, 0);
                         break;               
-                    case ESR_HART_PORT2_OFFSET :
+                    case ESR_HART_PORT2 :
                         write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 2, (uint32_t *) data, 0);
                         break;               
-                    case ESR_HART_PORT3_OFFSET :
+                    case ESR_HART_PORT3 :
                         write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 3, (uint32_t *) data, 0);
                         break;               
                 }
@@ -109,17 +111,36 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                 switch(esr_info.address)
                 {
-                    case ESR_SHIRE_IPI_REDIRECT_TRIGGER_OFFSET:
+                    case ESR_SHIRE_IPI_REDIRECT_TRIGGER:
                     {
 #ifdef SYS_EMU
-                        ipi_redirect_to_threads(esr_info.shire, *((uint64_t *) data));
+                        send_ipi_redirect_to_threads(esr_info.shire, *((uint64_t *) data));
 #endif
                         break;
                     }
-                    case ESR_SHIRE_FLB_OFFSET  : break;
-                    case ESR_SHIRE_FCC0_OFFSET :
+
+                    case ESR_SHIRE_IPI_TRIGGER:
                     {
-                        LOG(DEBUG, "Write to FCC0_OFFSET value %016" PRIx64, *((uint64_t *) data));
+#ifdef SYS_EMU
+                        raise_software_interrupt(esr_info.shire, *((uint64_t*) data));
+#endif
+                    }
+
+                    case ESR_SHIRE_IPI_TRIGGER_CLEAR:
+                    {
+#ifdef SYS_EMU
+                        clear_software_interrupt(esr_info.shire, *((uint64_t*) data));
+#endif
+                    }
+
+                    case ESR_SHIRE_FLB  :
+                    {
+                        break;
+                    }
+
+                    case ESR_SHIRE_FCC0 :
+                    {
+                        LOG(DEBUG, "Write to FCC0 value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 0);
 #endif
@@ -127,9 +148,10 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                         break;
                     }
-                    case ESR_SHIRE_FCC1_OFFSET :
+
+                    case ESR_SHIRE_FCC1 :
                     {
-                        LOG(DEBUG, "Write to FCC1_OFFSET value %016" PRIx64, *((uint64_t *) data));
+                        LOG(DEBUG, "Write to FCC1 value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 1);
 #endif
@@ -138,9 +160,9 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                         break;
                     }
 
-                    case ESR_SHIRE_FCC2_OFFSET :
+                    case ESR_SHIRE_FCC2 :
                     {
-                        LOG(DEBUG, "Write to FCC2_OFFSET value %016" PRIx64, *((uint64_t *) data));
+                        LOG(DEBUG, "Write to FCC2 value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data), 0);
 #endif
@@ -149,9 +171,9 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                         break;
                     }
 
-                    case ESR_SHIRE_FCC3_OFFSET : ;
+                    case ESR_SHIRE_FCC3 :
                     {
-                        LOG(DEBUG, "Write to FCC2_OFFSET value %016" PRIx64, *((uint64_t *) data));
+                        LOG(DEBUG, "Write to FCC2 value %016" PRIx64, *((uint64_t *) data));
 #ifdef SYS_EMU
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data), 1);
 #endif
@@ -159,7 +181,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
                         break;
                     }
-                    case ESR_SHIRE_BROADCAST0_OFFSET:
+                    case ESR_SHIRE_BROADCAST0:
                     {
                       if (brcst0_received == 0)
                       {
@@ -170,7 +192,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                       break;
                         
                     }
-                    case ESR_SHIRE_BROADCAST1_OFFSET:
+                    case ESR_SHIRE_BROADCAST1:
                     {
                       if (brcst0_received == 1)
                       {

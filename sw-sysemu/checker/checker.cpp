@@ -231,7 +231,7 @@ void checker::set_et_core(int core_type)
 void checker::start_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
-        log << LOG_ERR << "start pc with thread invalid (" << std::hex << thread << ")" << endm;
+        log << LOG_ERR << "start pc with thread invalid (" << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 
@@ -239,7 +239,7 @@ void checker::start_pc(uint32_t thread, uint64_t pc)
 void checker::ipi_pc(uint32_t thread, uint64_t pc)
 {
     if(thread >= EMU_NUM_THREADS)
-        log << LOG_ERR << "IPI pc with thread invalid (" << std::hex << thread << ")" << endm;
+        log << LOG_ERR << "IPI pc with thread invalid (" << thread << ")" << endm;
     current_pc[thread] = pc;
 }
 
@@ -320,7 +320,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
 {
     checker_result check_res = CHECKER_OK;
     if (thread >= EMU_NUM_THREADS )
-       log << LOG_ERR << "emu_inst with thread invalid (" << std::hex << thread << ")" << endm;
+       log << LOG_ERR << "emu_inst with thread invalid (" << thread << ")" << endm;
 
     if (!threadEnabled[thread])
        log << LOG_ERR << "emu_inst called for thread " << thread << ", which is disabled" << endm;
@@ -347,6 +347,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             clearlogstate();
             // Fetch new instruction (may trap)
             set_pc(current_pc[thread]);
+            check_pending_interrupts();
             inst.fetch_and_decode(current_pc[thread]);
 
             // In case that the instruction is a reduce:
@@ -573,7 +574,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                         stream << "[" << (2*i+1) << ", " << (2*i) << "]";
                     else
                         stream << "[" << (errlo ? (2*i) : (2*i+1)) << "]";
-                    stream << ". BEMU expects data is " << std::hex;
+                    stream << ". BEMU expects data is ";
                     if (errlo && errhi)
                         stream << "{0x" << std::hex << emu_datahi << ", 0x" << emu_datalo << "}";
                     else
@@ -604,7 +605,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                             stream << "[" << (2*i+1) << ", " << (2*i) << "]";
                         else
                             stream << "[" << (errlo ? (2*i) : (2*i+1)) << "]";
-                        stream << ". BEMU expects data is " << std::hex;
+                        stream << ". BEMU expects data is ";
                         if (errlo && errhi)
                             stream << "{0x" << std::hex << emu_datahi << ", 0x" << emu_datalo << "}";
                         else
@@ -803,54 +804,42 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         // TensorQuant
         if(inst.is_tensor_quant())
         {
+            int freg;
             int size;
             int transforms;
-            bool is_pack;
+            bool skip_entry;
             uint32_t data;
-            data = get_tensorquant_value(0, 0, 0, &size, &transforms, &is_pack);
+            data = get_tensorquant_value(0, 0, 0, &freg, &size, &transforms, &skip_entry);
             // For all the transforms
             for(int trans = 0; trans < transforms; trans++)
             {
                 // For all the written entries
                 for(int entry = 0; entry < size; entry++)
                 {
-                    // Pack 128b writes two times same destination (even) and doesn't write odd
-                    data = get_tensorquant_value(entry, trans, 0, &size, &transforms, &is_pack);
-                    // Ignore odd entries
-                    if(is_pack && (entry & 1)) continue;
-
-                    // Check next entry for regular operations, ignore 1 write for packs
-                    int entries_checked = is_pack ? 2 : 1;
-                    auto it = tensorquant_list[thread].begin();
-                    for(int i = 0; i < entries_checked; i++)
+                    data = get_tensorquant_value(entry, trans, 0, &freg, &size, &transforms, &skip_entry);
+                    auto it = std::find_if(tensorquant_list[thread].begin(), tensorquant_list[thread].end(),
+                                           [=] (const tensorfma_entry& x) { return x.entry == freg; });
+                    if (skip_entry && it != tensorquant_list[entry].end())
                     {
-                        it = tensorquant_list[thread].begin();
-                        while(it != tensorquant_list[thread].end())
-                        {
-                            if(it->entry == entry) { break; }
-                            it++;
-                        }
-                        // Checks that an entry was actually found
-                        if(it == tensorquant_list[thread].end())
-                        {
-                            stream << "BEMU Checker couldn't find TensorQuant destination " << entry << " in the DUT reported TensorQuant list for trans " << trans << "!!" << std::endl;
-                            check_res = CHECKER_ERROR;
-                            goto finished_checking;
-                        }
-                        // Ignore first write for pack 128b
-                        if(is_pack && (i == 0))
-                        {
-                            tensorquant_list[thread].erase(it);
-                        }
+                        // Pack 128b writes the destination once or twice depending on number of columns
+                        tensorquant_list[thread].erase(it);
+                        it = std::find_if(tensorquant_list[thread].begin(), tensorquant_list[thread].end(),
+                                          [=] (const tensorfma_entry& x) { return x.entry == freg; });
                     }
-
-                    // Compares the data for all the lanes (8 x 32b lanes)
+                    // Checks that an entry was actually found
+                    if(it == tensorquant_list[thread].end())
+                    {
+                        stream << "BEMU Checker couldn't find TensorQuant destination " << freg << " in the DUT reported TensorQuant list for trans " << trans << "!!" << std::endl;
+                        check_res = CHECKER_ERROR;
+                        goto finished_checking;
+                    }
+                    // Compares the data for all the lanes (VL x 32b lanes)
                     for(int lane = 0; lane < VL; lane++)
                     {
-                        data = get_tensorquant_value(entry, trans, lane, &size, &transforms, &is_pack);
+                        data = get_tensorquant_value(entry, trans, lane, &freg, &size, &transforms, &skip_entry);
                         if(data != it->data[lane])
                         {
-                            stream << "BEMU Checker TensorQuant write data_error for register f" << entry << "[" << lane << "] trans " << trans << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
+                            stream << "BEMU Checker TensorQuant write data_error for register f" << freg << "[" << lane << "] trans " << trans << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
                             check_res = CHECKER_ERROR;
                         }
                     }
@@ -979,7 +968,7 @@ void checker::aggregate_tl_data(uint32_t thread)
     }
 
     // Search for all mergeable entries
-    log << LOG_DEBUG << "Merging Entry: " << std::hex << entry.entry << " Banks: " << entry.banks << " addr_fhl: " << addr_fhl << " addr_shl: " << addr_shl << endm;
+    log << LOG_DEBUG << "Merging Entry: " << std::hex << entry.entry << " Banks: " << entry.banks << " addr_fhl: " << addr_fhl << " addr_shl: " << addr_shl << std::dec << endm;
     auto it2 = scp_entry_list[thread].begin();
     while (it2 != scp_entry_list[thread].end())
     {
