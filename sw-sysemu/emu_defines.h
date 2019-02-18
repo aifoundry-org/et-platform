@@ -658,5 +658,3 @@ public:
 DECLARE_CHECKER_WAIT(checker_wait_fcc)
 
 #endif // _EMU_DEFINES_H
-
-#endif // _EMU_DEFINES_H
