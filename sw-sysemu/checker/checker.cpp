@@ -7,6 +7,7 @@
 #include "checker.h"
 #include "emu_casts.h"
 #include "emu.h"
+#include "rbox.h"
 #include "insn.h"
 #include "common/riscv_disasm.h"
 
@@ -385,6 +386,14 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
         {
             log << LOG_ERR << e.what() << endm;
         }
+
+        // Emulate the RBOXes
+        for (uint32_t s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++)
+        {
+            for (uint32_t r = 0; r < EMU_RBOXES_PER_SHIRE; r++)
+                GET_RBOX(s, r).run(true);
+        }
+        
     }
     while (retry);
 
