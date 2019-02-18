@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 #include <list>
-#include <queue>
+#include <deque>
 #include <unordered_map>
 
 #include "emu.h"
@@ -47,7 +47,6 @@ typedef fdata_array_t<L1D_LINE_SIZE/4> cache_line_t;
                      (1ull << 20) | /* "U" User mode implemented */                     \
                      (1ull << 23) | /* "X": Non-standard extensions present */          \
                      (2ull << 62))  /* XLEN = 64-bit */
-
 
 typedef enum {
     MSG_ENABLE = 7,
@@ -288,19 +287,23 @@ fdata tensorfma_tenc[EMU_NUM_THREADS][32];
 uint32_t tensorfma_data[EMU_NUM_THREADS][32][VL][TFMA_MAX_ACOLS];
 bool tensorfma_mask_skip[TFMA_MAX_ACOLS][TFMA_MAX_AROWS];
 bool tensorfma_zero_skip[TFMA_MAX_ACOLS][32][VL];
-int tensorquant_size[EMU_NUM_THREADS];
-int tensorquant_trans[EMU_NUM_THREADS];
-bool tensorquant_is_pack[EMU_NUM_THREADS][TQUANT_MAX_TRANS];
-uint32_t tensorquant_data[EMU_NUM_THREADS][32][VL][TQUANT_MAX_TRANS];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
-std::queue<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
+std::deque<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 bool msg_port_delayed_write = false;
 std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
 std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
+
+int tensorquant_trans[EMU_NUM_THREADS];
+struct {
+    bool     skip_entry;
+    uint32_t regs;
+    uint32_t data[32][VL];
+} tensorquant_values[EMU_NUM_THREADS][TQUANT_MAX_TRANS];
+
 
 // Accelerators
 #if (EMU_TBOXES_PER_SHIRE > 1)
@@ -364,6 +367,7 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_tensor_quant,      "tensor_quant"       },
    { csr_tex_send,          "tex_send"           },
    { csr_tensor_error,      "tensor_error"       },
+   { csr_ucache_control,    "ucache_control"     },
    { csr_prefetch_va,       "prefetch_va"        },
    { csr_flb0,              "flb0"               },
    { csr_fcc,               "fcc"                },
@@ -381,6 +385,7 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_sleep_txfma_27,    "sleep_txfma_27"     },
    { csr_lock_va,           "lock_va"            },
    { csr_unlock_va,         "unlock_va"          },
+   { csr_fccnb,             "fccnb"              },
    { csr_porthead0,         "porthead0"          },
    { csr_porthead1,         "porthead1"          },
    { csr_porthead2,         "porthead2"          },
@@ -974,13 +979,59 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
     return (diff > err_1ulp);
 }
 
+void check_pending_interrupts()
+{
+    // Are there any non-masked pending interrupts?
+    uint64_t xip = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mie];
+    if (!xip) return;
+
+    // If there are any pending interrupts for the current privilege level
+    // 'x', they are only taken if mstatus.xIE=1. If there are any pending
+    // interrupts for a higher privilege level 'y>x' they must be taken
+    // independently of the value in mstatus.yIE. Pending interrupts for a
+    // lower privilege level 'w<x' are not taken.
+    uint64_t mideleg = csrregs[current_thread][csr_mideleg];
+    uint64_t mip = xip & ~mideleg;
+    uint64_t sip = xip & mideleg;
+    uint64_t mie = csrregs[current_thread][csr_mstatus] & 8;
+    uint64_t sie = csrregs[current_thread][csr_mstatus] & 2;
+    switch (prvget())
+    {
+        case CSR_PRV_M:
+            if (!mip || !mie) return;
+            xip = mip;
+            break;
+        case CSR_PRV_S:
+            if (!mip && !sie) return;
+            xip = mip | (sie ? sip : 0);
+            break;
+        default:
+            /* nothing */
+            break;
+    }
+
+    if (xip & 0x0800) throw trap_machine_external_interrupt();
+    if (xip & 0x0008) throw trap_machine_software_interrupt();
+    if (xip & 0x0080) throw trap_machine_timer_interrupt();
+    if (xip & 0x0200) throw trap_supervisor_external_interrupt();
+    if (xip & 0x0002) throw trap_supervisor_software_interrupt();
+    if (xip & 0x0020) throw trap_supervisor_timer_interrupt();
+#if 0
+    if (xip & 0x0100) throw trap_user_external_interrupt();
+    if (xip & 0x0001) throw trap_user_software_interrupt();
+    if (xip & 0x0010) throw trap_user_timer_interrupt();
+#endif
+}
+
 static void trap_to_smode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
     uint64_t curprv = prvget();
+    bool interrupt = (cause & 0x8000000000000000ULL);
+    int code = (cause & 63);
     assert(curprv <= CSR_PRV_S);
 
-    LOG(DEBUG, "\tTrapping to S-mode with cause %" PRIu64, cause);
+    LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64, cause);
 
     // Take sie
     uint64_t mstatus = csrget(csr_mstatus);
@@ -1003,18 +1054,13 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 
     // compute address where to jump to:
     //  if tvec[0]==0 (direct mode) => jump to tvec
-    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_stvec);
-    if ((tvec & 1) == 1 && (cause >> 31) == 1)
+    if ((tvec & 1) && interrupt)
     {
-        // vectored mode and interrupt => add +4 * cause
-        tvec &=  ~0x1ULL;
-        tvec += (cause & 0xF) << 2;
+        tvec += code * 4;
     }
-    else
-    {
-        tvec &=  ~0x1ULL;
-    }
+    tvec &= ~0x1ULL;
     logpcchange(tvec);
 }
 
@@ -1022,15 +1068,17 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 {
     // Get current privilege mode
     uint64_t curprv = prvget();
+    bool interrupt = (cause & 0x8000000000000000ULL);
+    int code = (cause & 63);
 
     // Check if we should deletegate the trap to S-mode
-    if ((curprv < CSR_PRV_M) && (csrget(csr_medeleg) & (1ull << cause)))
+    if ((curprv < CSR_PRV_M) && (csrget(interrupt ? csr_mideleg : csr_medeleg) & (1ull << code)))
     {
         trap_to_smode(cause, val);
         return;
     }
 
-    LOG(DEBUG, "\tTrapping to M-mode with cause %" PRIu64 " and tval %" PRIx64, cause, val);
+    LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval %" PRIx64, cause, val);
 
     // Take mie
     uint64_t mstatus = csrget(csr_mstatus);
@@ -1053,18 +1101,13 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 
     // compute address where to jump to
     //  if tvec[0]==0 (direct mode) => jump to tvec
-    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause[3:0] for interrupts, tvec for exceptions
+    //  if tvec[0]==1 (vectored mode) => jump to tvec + 4*cause for interrupts, tvec for exceptions
     uint64_t tvec = csrget(csr_mtvec);
-    if ((tvec & 1) == 1 && (cause >> 31) == 1)
+    if ((tvec & 1) && interrupt)
     {
-        // vectored mode and interrupt => add +4 * cause
-        tvec &=  ~0x1ULL;
-        tvec += (cause & 0xF) << 2;
+        tvec += code * 4;
     }
-    else
-    {
-        tvec &=  ~0x1ULL;
-    }
+    tvec &= ~0x1ULL;
     logpcchange(tvec);
 }
 
@@ -2627,10 +2670,13 @@ static uint64_t csrget(csr src1)
             if ( ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_scounteren] & csrregs[current_thread][csr_mcounteren] &
                                                (1 << (src1-csr_cycle))) == 0)) ||
                  ((prvget() == CSR_PRV_S) && ((csrregs[current_thread][csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
-                {
-                    throw trap_illegal_instruction(current_inst);
-                }
+            {
+                throw trap_illegal_instruction(current_inst);
+            }
             val = csrregs[current_thread][src1];
+            break;
+        case csr_fccnb:
+            val = (uint64_t(fcc[current_thread][1]) << 16) + uint64_t(fcc[current_thread][0]);
             break;
         case csr_porthead0:
         case csr_porthead1:
@@ -2656,6 +2702,7 @@ static uint64_t csrget(csr src1)
             }
             val = port_get(src1 - csr_portheadnb0, false);
             break;
+        // ----- Shadow registers ----------------------------------------
         case csr_sleep_txfma_27:
           if (prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0)
           {
@@ -2664,7 +2711,6 @@ static uint64_t csrget(csr src1)
           val = csrregs[current_thread][csr_msleep_txfma_27];
           break;
         case csr_hartid:
-          //check shadow is allowed
           if (prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 1) == 0)
           {
                throw trap_illegal_instruction(current_inst);
@@ -2746,6 +2792,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_mimpid:
         case csr_mhartid:
         case csr_hartid:
+        case csr_fccnb:
         case csr_porthead0:
         case csr_porthead1:
         case csr_porthead2:
@@ -2778,10 +2825,24 @@ static void csrset(csr src1, uint64_t val)
         case csr_tensor_load:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            tensorload(val);
+            try
+            {
+                tensorload(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_tensor_load_l2:
-            tensorloadl2(val);
+            try
+            {
+                tensorloadl2(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_tensor_mask:
             val &= 0x000000000000FFFFULL;
@@ -2827,7 +2888,14 @@ static void csrset(csr src1, uint64_t val)
         case csr_tensor_store:
             if (current_thread % EMU_THREADS_PER_MINION)
                 throw trap_illegal_instruction(current_inst);
-            tensorstore(val);
+            try
+            {
+                tensorstore(val);
+            }
+            catch (const trap_t&)
+            {
+                update_tensor_error(1 << 7);
+            }
             break;
         case csr_fcc:
             fcc_cnt = val & 0x01;
@@ -2912,11 +2980,27 @@ static void csrset(csr src1, uint64_t val)
                 dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
             }
             break;
-        case csr_mcache_control: // Shared register
-            val &= 0x0000000000000003ULL;
-            csrregs[current_thread][src1] = val;
-            csrregs[current_thread^1][src1] = val;
-            num_sets = (val & 0x1) ? 4 : 16;
+        case csr_ucache_control:
+            msk = (csrregs[current_thread][csr_mcache_control] & 1) ? 1 : 3;
+            val = (csrregs[current_thread][csr_mcache_control] & msk) | (val & ~msk & 0x07df);
+            assert((val & 3) != 2);
+            csrregs[current_thread][csr_ucache_control] = val;
+            csrregs[current_thread][csr_mcache_control] = val & 3;
+            csrregs[current_thread^1][csr_ucache_control] = val;
+            csrregs[current_thread^1][csr_mcache_control] = val & 3;
+            break;
+        case csr_mcache_control:
+            msk = (csrregs[current_thread][csr_mcache_control] & 1) ? 3 : 1;
+            val = (val & msk) | (csrregs[current_thread][csr_ucache_control] & ~msk);
+            if ((val & 3) != 2)
+            {
+                csrregs[current_thread][csr_ucache_control] = val;
+                csrregs[current_thread][csr_mcache_control] = val & 3;
+                csrregs[current_thread^1][csr_ucache_control] = val;
+                csrregs[current_thread^1][csr_mcache_control] = val & 3;
+                num_sets = (val & 0x1) ? 4 : 16;
+            }
+            val &= 3;
             break;
         case csr_tex_send:
             val &= 0x00000000000000FFULL;
@@ -2953,10 +3037,10 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][csr_mstatus] = val;
             break;
         case csr_sie:
-            // Preserve meie, mtie, msie
+            // Only ssie, stie, and seie are writeable, and only if they are delegated
             // if mideleg[sei,sti,ssi]==1 then seie, stie, ssie is writeable, otherwise they are reserved
-            msk = csrregs[current_thread][csr_mideleg];
-            val = (csrregs[current_thread][csr_mie] & (~msk) & 0x0000000000000888ULL) | (val & msk & 0x0000000000000222ULL);
+            msk = csrregs[current_thread][csr_mideleg] & 0x0000000000000222ULL;
+            val = (csrregs[current_thread][csr_mie] & ~msk) | (val & msk);
             csrregs[current_thread][csr_mie] = val;
             break;
         case csr_stvec:
@@ -2971,10 +3055,9 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             break;
         case csr_sip:
-            // Regist
-            // if mideleg[ssi]==1 then ssip is writeable, otherwise it is reserved
-            msk = csrregs[current_thread][csr_mideleg];
-            val = (csrregs[current_thread][csr_mip] & (~msk) & 0x0000000000000BB8ULL) | (val & msk & 0x0000000000000002ULL);
+            // Only ssip is writeable, and only if it is delegated
+            msk = csrregs[current_thread][csr_mideleg] & 0x0000000000000002ULL;
+            val = (csrregs[current_thread][csr_mip] & ~msk) | (val & msk);
             csrregs[current_thread][csr_mip] = val;
             break;
         case csr_satp: // Shared register
@@ -3036,7 +3119,7 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_medeleg:
             // Not all exceptions can be delegated
-            val &= 0x0000000000000B109ULL;
+            val &= 0x00000000000003109ULL;
             csrregs[current_thread][src1] = val;
             break;
         case csr_mideleg:
@@ -3061,8 +3144,7 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             break;
         case csr_mip:
-            // Hard-wire ueip, utip, usip
-            // Write only seip, stip, ssip
+            // Only seip, stip, ssip are writeable
             val &= 0x0000000000000222ULL;
             csrregs[current_thread][src1] = val;
             break;
@@ -5542,7 +5624,7 @@ void fsin_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: fsin.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FSIN, VL, dst, src1, rmdyn);
+    femu1src(FSIN, VL, dst, src1, rtz);
 }
 
 void fexp_ps(freg dst, freg src1, const char* comm)
@@ -5550,7 +5632,7 @@ void fexp_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: fexp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FEXP, VL, dst, src1, rmdyn);
+    femu1src(FEXP, VL, dst, src1, rtz);
 }
 
 void flog_ps(freg dst, freg src1, const char* comm)
@@ -5558,15 +5640,15 @@ void flog_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: flog.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FLOG, VL, dst, src1, rmdyn);
+    femu1src(FLOG, VL, dst, src1, rtz);
 }
 
-void ffrc_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void ffrc_ps(freg dst, freg src1, const char* comm)
 {
-    LOG(DEBUG, "I: ffrc.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: ffrc.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FFRC, VL, dst, src1, rm);
+    femu1src(FFRC, VL, dst, src1, rtz);
 }
 
 void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
@@ -5596,7 +5678,7 @@ void frcp_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: frcp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRCP, VL, dst, src1, rmdyn);
+    femu1src(FRCP, VL, dst, src1, rtz);
 }
 
 void frsq_ps(freg dst, freg src1, const char* comm)
@@ -5604,7 +5686,7 @@ void frsq_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: frsq.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRSQ, VL, dst, src1, rmdyn);
+    femu1src(FRSQ, VL, dst, src1, rtz);
 }
 
 // FIXME: THIS INSTRUCTION IS OBSOLETE
@@ -5613,7 +5695,7 @@ void frcpfxp_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: frcpfxp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu1src(FRCPFXP, VL, dst, src1, rmdyn);
+    femu1src(FRCPFXP, VL, dst, src1, rtz);
 }
 
 void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -6822,13 +6904,13 @@ void set_delayed_msg_port_write(bool f)
     msg_port_delayed_write = f;
 }
 
-void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
+static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
 {
     // Drop the write if port not configured
     if(!msg_ports[thread][id].enabled) return;
 
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
-    base_addr += msg_ports[thread][id].rd_ptr << msg_ports[thread][id].logsize;
+    base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
 
     msg_ports[thread][id].size++;
     msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % msg_ports[thread][id].max_msgs;
@@ -6836,15 +6918,15 @@ void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *data, ui
 
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
 
-    LOG(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
+    LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
     for (int i = 0; i < wr_words; i++)
     {
-        LOG(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
+        LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
 
     if (msg_ports[thread][id].enable_oob)
-        msg_ports_oob[thread][id].push(oob);
+        msg_ports_oob[thread][id].push_back(oob);
 
     msg_to_thread(thread);
 }
@@ -6864,7 +6946,7 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
+        LOG_ALL_MINIONS(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6885,7 +6967,7 @@ void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_i
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
+        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6906,7 +6988,7 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
-        LOG(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
+        LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -6926,7 +7008,7 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
         {
             port_write = *it;
             if ((port_write.target_thread == target_thread) &&
-                (port_write.target_thread == port_id)       &&
+                (port_write.target_port   == port_id)       &&
                 (port_write.source_thread == source_thread) &&
                 !(port_write.is_tbox || port_write.is_rbox))
             {
@@ -7051,7 +7133,7 @@ static int64_t port_get(uint32_t id, bool block)
     if (msg_ports[current_thread][id].enable_oob)
     {
         uint8_t oob = msg_ports_oob[current_thread][id].front();
-        msg_ports_oob[current_thread][id].pop();
+        msg_ports_oob[current_thread][id].pop_front();
         offset|=oob;
     }
 
@@ -7090,8 +7172,7 @@ static void configure_port(uint32_t id, uint64_t wdata)
     msg_ports[current_thread][id].offset     = -1;
 
     //reset the monitor queue so we don't get incorrect oob if the user doesn't pull all msgs
-    std::queue<uint8_t> to_delete;
-    std::swap(msg_ports_oob[current_thread][id], to_delete);
+    msg_ports_oob[current_thread][id].clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -7269,16 +7350,7 @@ void tensorload(uint64_t control)
                 }
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
-                    try
-                    {
-                        SCP[dst + i].u[j] = pmemread32(paddr + j*4);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    SCP[dst + i].u[j] = pmemread32(paddr + j*4);
                     LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08x" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, dst+i, j, SCP[dst+i].u[j], addr+j*4);
                 }
             }
@@ -7307,16 +7379,7 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        try
-                        {
-                            SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = pmemread8(paddr + c);
-                        }
-                        catch (const trap_t& t)
-                        {
-                            // Memory exception
-                            update_tensor_error(1 << 7);
-                            return;
-                        }
+                        SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = pmemread8(paddr + c);
                         LOG(DEBUG, "SCP[%d].b[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]",
                             (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].b[c*4+r], vaddr + c);
                     }
@@ -7345,16 +7408,7 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        try
-                        {
-                            SCP[(dst+i)%L1_SCP_ENTRIES].h[c*2 + r] = pmemread16(paddr + c*2);
-                        }
-                        catch (const trap_t& t)
-                        {
-                            // Memory exception
-                            update_tensor_error(1 << 7);
-                            return;
-                        }
+                        SCP[(dst+i)%L1_SCP_ENTRIES].h[c*2 + r] = pmemread16(paddr + c*2);
                         LOG(DEBUG, "SCP[%d].h[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
                             (dst+i)%L1_SCP_ENTRIES, c*2+r, SCP[dst+i].h[c*4+r], vaddr + c*2);
                     }
@@ -7394,17 +7448,7 @@ void tensorload(uint64_t control)
             {
                 for (int k = 0; k < 8; k++)
                 {
-                    uint8_t val = 0;
-                    try
-                    {
-                        val = pmemread8(paddr + j*8 + k);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    uint8_t val = pmemread8(paddr + j*8 + k);
                     tmp_buffer[elem][j*8+k] = val;
                     LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, paddr+j*8+k, elem, j*8+k, val);
                 }
@@ -7451,7 +7495,6 @@ void tensorload(uint64_t control)
                 for (int x = 0; x < L1D_LINE_SIZE/4; ++x)
                     LOG(DEBUG, "SCP[%d].u[%d] = 0x%08" PRIx32, dst+i, x, SCP[dst+i].u[x]);
             }
-
         }
     }
     int op = 0;
@@ -7504,179 +7547,280 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
 
 // ----- TensorQuant emulation -------------------------------------------------
 
+static const char* get_quant_transform(int op)
+{
+    static const char* trans_int_to_str[16] = {
+        "LAST",
+        "INT32_TO_FP32",
+        "FP32_TO_INT32",
+        "INT32_RELU",
+        "INT32_ADD_ROW",
+        "INT32_ADD_COL",
+        "FP32_MUL_ROW",
+        "FP32_MUL_COL",
+        "SATINT8",
+        "SATUINT8",
+        "PACK_128B",
+        "Reserved(11)",
+        "Reserved(12)",
+        "Reserved(13)",
+        "Reserved(14)",
+        "Reserved(15)"
+    };
+    return trans_int_to_str[op&15];
+}
+
 static void tensorquant(uint64_t value)
 {
     if (!txfma_off_allowed(csr_tensor_quant, value))
         throw trap_txfma_off(current_inst);
 
-    int regstart =  (value & 0x3E00000000000000) >> 57;      // Start register to operate
-    int cols     = ((value & 0x0180000000000000) >> 55) + 1; // Number of register per col
-    int rows     = ((value & 0x0078000000000000) >> 51) + 1; // Number of rows to store
-    int scpsrc   =  (value & 0x0007E00000000000) >> 45;      // Scratchpad source where data is
+    int fstart = (value >> 57) & 0x1F;
+    int cols   = (value >> 55) & 0x3;
+    int rows   = (value >> 51) & 0xF;
+    int line   = (value >> 45) & 0x3F;
 
-    // Array that converts an integer to string to print transformation information
-    char trans_int_to_str[32][128] = { "LAST",
-                                       "INT32 to FP32",
-                                       "FP32 to INT32",
-                                       "INT32 ReLU",
-                                       "INT32 add row-wise",
-                                       "INT32 add col-wise",
-                                       "FP32 mul row-wise",
-                                       "FP32 mul col-wise",
-                                       "INT8 saturate",
-                                       "UINT8 saturate",
-                                       "Pack to 128b" };
+    cols = (cols + 1) * 4;
+    rows = rows + 1;
+    line = line % L1_SCP_ENTRIES;
 
-    tensorquant_size[current_thread] = (cols / 2) * rows;
-    tensorquant_trans[current_thread] = 0;
+    tensorquant_trans[current_thread] = -1;
 
-    // Gets all the transformations done by the tensorquant operation
-    uint64_t transformations[TQUANT_MAX_TRANS];
-    for (int i = 0; i < TQUANT_MAX_TRANS; i++)
-        transformations[i] = (value >> (i * 4)) & 0xF;
+    set_rounding_mode(rmdyn);
+    clear_arithmetic_flags();
 
-    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", scpsrc, rows, cols, regstart);
-    for (int trans = 0; trans < TQUANT_MAX_TRANS; trans++)
+    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", line, rows, cols, fstart);
+    for (int k = 0; k < TQUANT_MAX_TRANS; k++)
     {
-        tensorquant_is_pack[current_thread][trans] = (transformations[trans] >= 10);
-        LOG(DEBUG, "\t\tTransformation %d: %s", trans, trans_int_to_str[transformations[trans]]);
-        if (transformations[trans] == 0) break;
+        int trans = (value >> (k*4)) & 0xF;
+        LOG(DEBUG, "\t\tTransformation %d: %s", k, get_quant_transform(trans));
+
         tensorquant_trans[current_thread]++;
-        bool scp_inc = false;
+        tensorquant_values[current_thread][k].skip_entry = false;
+        tensorquant_values[current_thread][k].regs = 0;
 
-        if ((transformations[trans] == 4) || (transformations[trans] == 5) ||
-            (transformations[trans] == 6) || (transformations[trans] == 7))
+        switch (trans)
         {
-            // Check if SCP is enabled
-            if (csrregs[current_thread][csr_mcache_control] != 0x3)
-            {
-                update_tensor_error(1 << 4);
+            case 0: // NONE
                 return;
-            }
-        }
-
-        // For all the rows
-        for (int row = 0; row < rows; row++)
-        {
-            // For all the blocks of 128b
-            for (int col = 0; col < cols; col++)
-            {
-                // For all the 32 elements of the 128b block
-                for (int elem = 0; elem < 4; elem++)
+            case 1: // INT32_TO_FP32
+                for (int i = 0; i < rows; ++i)
                 {
-                    int src = regstart + row * 2 + (col / 2);
-                    int idx = (col & 1) * 4 + elem;
-                    iufval32 val, val2, res;
-                    val.u = FREGS[src].u[idx];
-                    res.u = val.u;
-
-                    // INT32 to FP32
-                    if (transformations[trans] == 1)
+                    for (int j = 0; j < cols; ++j)
                     {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
                         res.f = fpu::i32_to_f32(val.i);
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)", src, idx, res.u, res.flt, val.u, val.i);
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)", freg, j%VL, res.u, res.flt, val.u, val.i);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
                     }
-                    // FP32 to INT32
-                    else if (transformations[trans] == 2)
-                    {
-                        res.i = fpu::f32_to_i32(val.f);
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)", src, idx, res.u, res.i, val.u, val.flt);
-                    }
-                    // INT32 ReLU
-                    else if (transformations[trans] == 3)
-                    {
-                        res.i = (val.i < 0) ? 0 : val.i;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- MAX_INT32(0x%08x, 0x00000000)",src,idx,res.i,val.i);
-                    }
-                    // INT32 add row-wise
-                    else if (transformations[trans] == 4)
-                    {
-                        int col_pos = col * 4 + elem;
-                        val2.i = SCP[scpsrc].i[col_pos];
-                        res.i = val.i + val2.i;
-                        scp_inc = true;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", src, idx, res.u, val.u, val2.u);
-                    }
-                    // INT32 add col-wise
-                    else if (transformations[trans] == 5)
-                    {
-                        int row_pos = row;
-                        val2.i = SCP[scpsrc].i[row_pos];
-                        res.i = val.i + val2.i;
-                        scp_inc = true;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", src, idx, res.u, val.u, val2.u);
-                    }
-                    // FP32 mul row-wise
-                    else if (transformations[trans] == 6)
-                    {
-                        int col_pos = col * 4 + elem;
-                        val2.u = SCP[scpsrc].u[col_pos];
-                        res.f = fpu::f32_mul(val.f, val2.f);
-                        scp_inc = true;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", src, idx, res.u, res.flt, val.u, val.flt, val2.u, val2.flt);
-                    }
-                    // FP32 mul col-wise
-                    else if (transformations[trans] == 7)
-                    {
-                        int row_pos = row;
-                        val2.u = SCP[scpsrc].u[row_pos];
-                        res.f = fpu::f32_mul(val.f, val2.f);
-                        scp_inc = true;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", src, idx, res.u, res.flt, val.u, val.flt, val2.u, val2.flt);
-                    }
-                    // INT8 saturate
-                    else if (transformations[trans] == 8)
-                    {
-                        res.i = ((val.i > 127) ? 127 :(val.i < -128 ? -128 : val.i)) & 0x0FF;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", src, idx, res.u, val.u);
-                    }
-                    // UINT8 saturate
-                    else if (transformations[trans] == 9)
-                    {
-                        res.u = ((val.i > 255) ? 255u :(val.i < 0 ? 0u : val.u)) & 0x0FFu;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", src, idx, res.u, val.u);
-                    }
-                    // Pack to 128b
-                    else
-                    {
-                        // Only first col gets updated
-                        if ((col == 0) && ((cols >= 2) || (elem < 2)))
-                        {
-                            for (int elem_pack = 0; elem_pack < 4; elem_pack++)
-                            {
-                                int src_pack = regstart + row * 2 + (elem * 4 + elem_pack) / VL;
-                                int idx_pack = (elem * 4 + elem_pack) % VL;
-                                int byte_offset = elem_pack;
-                                iufval32 val_pack;
-                                val_pack.u = FREGS[src_pack].u[idx_pack];
-
-                                // Clears the byte offset
-                                res.i = res.i & ~(0xFF << (byte_offset * 8));
-                                // Puts the byte value
-                                res.i = res.i | ((val_pack.u & 0xFF) << (byte_offset * 8));
-                            }
-                            LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", src, idx, res.u, val.u);
-                        }
-                    }
-
-                    // Updates RF
-                    FREGS[src].u[idx] = res.u;
-
-                    // Checker
-                    tensorquant_data[current_thread][src][idx][trans] = res.u;
                 }
-            }
+                break;
+            case 2: // FP32_TO_INT32
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
+                        res.i = fpu::f32_to_i32(val.f);
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)", freg, j%VL, res.u, res.i, val.u, val.flt);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                break;
+            case 3: // INT32_RELU
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
+                        res.i = (val.i < 0) ? 0 : val.i;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- MAX_INT32(0x%08x, 0x0)", freg, j%VL, res.i, val.i);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                break;
+            case 4: // INT32_ADD_ROW
+                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                {
+                    update_tensor_error(1 << 4);
+                    return;
+                }
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val1, val2, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u[j%VL];
+                        val2.u = SCP[line].u[j];
+                        res.i = val1.i + val2.i;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                line = (line + 1) % L1_SCP_ENTRIES;
+                break;
+            case 5: // INT32_ADD_COL
+                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                {
+                    update_tensor_error(1 << 4);
+                    return;
+                }
+                for (int i = 0; i < rows; ++i)
+                {
+                    iufval32 val2;
+                    val2.u = SCP[line].u[i];
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val1, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u[j%VL];
+                        res.i = val1.i + val2.i;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                line = (line + 1) % L1_SCP_ENTRIES;
+                break;
+            case 6: // FP32_MUL_ROW
+                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                {
+                    update_tensor_error(1 << 4);
+                    return;
+                }
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val1, val2, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u[j%VL];
+                        val2.u = SCP[line].u[j];
+                        res.f = fpu::f32_mul(val1.f, val2.f);
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                line = (line + 1) % L1_SCP_ENTRIES;
+                break;
+            case 7: // FP32_MUL_COL
+                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                {
+                    update_tensor_error(1 << 4);
+                    return;
+                }
+                for (int i = 0; i < rows; ++i)
+                {
+                    iufval32 val2;
+                    val2.u = SCP[line].u[i];
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val1, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u[j%VL];
+                        res.f = fpu::f32_mul(val1.f, val2.f);
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                line = (line + 1) % L1_SCP_ENTRIES;
+                break;
+            case 8: // SATINT8
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
+                        res.i = (val.i > 127 ? 127 : (val.i < -128 ? -128 : val.i)) & 0xFF;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                break;
+            case 9: // SATUINT8
+                for (int i = 0; i < rows; ++i)
+                {
+                    for (int j = 0; j < cols; ++j)
+                    {
+                        iufval32 val, res;
+                        int freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u[j%VL];
+                        res.i = (val.i > 255 ? 255 : (val.i < 0 ? 0 : val.i)) & 0xFF;
+                        FREGS[freg].u[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
+                        tensorquant_values[current_thread][k].regs |= (1 << freg);
+                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                    }
+                }
+                break;
+            case 10: // PACK_128B
+                // RTL operates on even registers first, and then on odd
+                // registers, so it generates two writes to the destination
+                // register when a row spans a vector.
+                tensorquant_values[current_thread][k].skip_entry = (cols >= VL);
+                for (int i = 0; i < rows; ++i)
+                {
+                    int fdst = (fstart + i*2) % 32;
+                    for (int j = 0; j < cols; j += 4)
+                    {
+                        int fsrc = (fstart + i*2 + j/VL) % 32;
+                        uint32_t val0 = FREGS[fsrc].u[(j+0)%VL];
+                        uint32_t val1 = FREGS[fsrc].u[(j+1)%VL];
+                        uint32_t val2 = FREGS[fsrc].u[(j+2)%VL];
+                        uint32_t val3 = FREGS[fsrc].u[(j+3)%VL];
+                        FREGS[fdst].b[j+0] = uint8_t(val0 & 0xFF);
+                        FREGS[fdst].b[j+1] = uint8_t(val1 & 0xFF);
+                        FREGS[fdst].b[j+2] = uint8_t(val2 & 0xFF);
+                        FREGS[fdst].b[j+3] = uint8_t(val3 & 0xFF);
+                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x}", fdst, j/4, FREGS[fdst].u[j/4], val0, val1, val2, val3);
+                    }
+                    tensorquant_values[current_thread][k].regs |= (1 << fdst);
+                    for (int j = 0; j < VL; ++j)
+                        tensorquant_values[current_thread][k].data[fdst][j] = FREGS[fdst].u[j];
+                }
+                break;
+            default:
+                assert(0);
+                break;
         }
-        if (scp_inc) scpsrc = (scpsrc + 1) % L1_SCP_ENTRIES;
     }
 }
 
-uint32_t get_tensorquant_value(int entry, int transform, int lane, int * size, int * transforms, bool * is_pack)
+uint32_t get_tensorquant_value(int entry, int transform, int lane, int * reg, int * size, int * transforms, bool * skip_entry)
 {
-    * size       = tensorquant_size[current_thread];
-    * transforms = tensorquant_trans[current_thread];
-    * is_pack    = tensorquant_is_pack[current_thread][transform];
-    return tensorquant_data[current_thread][entry][lane][transform];
+    uint32_t regs = tensorquant_values[current_thread][transform].regs;
+    while (entry-- > 0) {
+        regs = regs & (regs - 1);
+    }
+    * reg         = __builtin_ffs(regs) - 1;
+    * size        = __builtin_popcount(tensorquant_values[current_thread][transform].regs);
+    * transforms  = tensorquant_trans[current_thread];
+    * skip_entry  = tensorquant_values[current_thread][transform].skip_entry;
+    return tensorquant_values[current_thread][transform].data[*reg][lane];
 }
 
 // ----- TensorStore emulation -------------------------------------------------
@@ -7718,16 +7862,7 @@ static void tensorstore(uint64_t tstorereg)
             {
                 uint32_t val = SCP[src].u[i];
                 LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, addr + i*4);
-                try
-                {
-                    pmemwrite32(paddr + i*4, val);
-                }
-                catch (const trap_t& t)
-                {
-                    // Memory exception
-                    update_tensor_error(1 << 7);
-                    return;
-                }
+                pmemwrite32(paddr + i*4, val);
                 //logmemwchange(0, 4, addr + i*4, val); => Don't log mem changes!
             }
             src += srcinc;
@@ -7784,16 +7919,7 @@ static void tensorstore(uint64_t tstorereg)
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u[idx];
                     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
-                    try
-                    {
-                        pmemwrite32(paddr + i*4, val);
-                    }
-                    catch (const trap_t& t)
-                    {
-                        // Memory exception
-                        update_tensor_error(1 << 7);
-                        return;
-                    }
+                    pmemwrite32(paddr + i*4, val);
                     //logmemwchange(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
                 }
                 if (cols == 1)    src += srcinc; // For 128b stores, move to next desired register
@@ -7825,8 +7951,11 @@ static void tensor_fma32(uint64_t tfmareg)
     arows = arows + 1;
     acols = acols + 1;
 
+    tensorfma_size[current_thread]   = 0;
+    tensorfma_passes[current_thread] = 0;
+
     // Check if L1 SCP is enabled
-    if (csrregs[current_thread][csr_mcache_control] != 0x3)
+    if (csrregs[current_thread][csr_mcache_control] != 3)
     {
         update_tensor_error(1 << 4);
         return;
@@ -7842,6 +7971,10 @@ static void tensor_fma32(uint64_t tfmareg)
         update_tensor_error(1 << 6);
         return;
     }
+
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols;
+
     // Unpair a paired TensorLoad
     tensorload_setupb_topair[current_thread] = false;
     tensorload_setupb_topair[current_thread^1] = false;
@@ -7898,7 +8031,7 @@ static void tensor_fma32(uint64_t tfmareg)
                 else
                 {
                     float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
-                    float32_t c = fpu::f32_mulAdd(c0, a, b);
+                    float32_t c = fpu::f32_mulAdd(a, b, c0);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
 
                     //LOG(DEBUG, "\tTensorFMA32 f%d[%d]: %g = %g + %g * %g", i*TFMA_REGS_PER_ROW+j/VL, j%VL,
@@ -7944,13 +8077,15 @@ static void tensor_fma16a32(uint64_t tfmareg)
     acols = (acols + 1) * 2;
     aoffset = aoffset * 2;
 
-    // // FIXME: Disabled until software update - JIRA RTLMIN-2096
-    // // Check if L1 SCP is enabled
-    // if (csrregs[current_thread][csr_mcache_control] != 3))
-    // {
-    //     update_tensor_error(1 << 4);
-    //     return;
-    // }
+    tensorfma_size[current_thread]   = 0;
+    tensorfma_passes[current_thread] = 0;
+
+    // Check if L1 SCP is enabled
+    if (csrregs[current_thread][csr_mcache_control] != 3)
+    {
+        update_tensor_error(1 << 4);
+        return;
+    }
 
     LOG(DEBUG, "\tStart TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));
@@ -7962,6 +8097,10 @@ static void tensor_fma16a32(uint64_t tfmareg)
         update_tensor_error(1 << 6);
         return;
     }
+
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols / 2;
+
     // Unpair a paired TensorLoad
     tensorload_setupb_topair[current_thread] = false;
     tensorload_setupb_topair[current_thread^1] = false;
@@ -8070,13 +8209,15 @@ static void tensor_ima8a32(uint64_t tfmareg)
     acols = (acols + 1) * 4;
     aoffset = aoffset * 4;
 
-    // // FIXME: Disabled until software update - JIRA RTLMIN-2096
-    // // Check if L1 SCP is enabled
-    // if (csrregs[current_thread][csr_mcache_control] != 3)
-    // {
-    //     update_tensor_error(1 << 4);
-    //     return;
-    // }
+    tensorfma_size[current_thread]   = 0;
+    tensorfma_passes[current_thread] = 0;
+
+    // Check if L1 SCP is enabled
+    if (csrregs[current_thread][csr_mcache_control] != 3)
+    {
+        update_tensor_error(1 << 4);
+        return;
+    }
 
     LOG(DEBUG, "\tStart TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
         usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
@@ -8088,6 +8229,9 @@ static void tensor_ima8a32(uint64_t tfmareg)
         update_tensor_error(1 << 6);
         return;
     }
+
+    tensorfma_size[current_thread] = arows * bcols / VL;
+    tensorfma_passes[current_thread] = acols / 4;
 
     // Unpair a paired TensorLoad
     tensorload_setupb_topair[current_thread] = false;
@@ -8373,7 +8517,7 @@ static uint64_t flbarrier(uint64_t value)
     uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
 
     // Gets what is the address that the fast local barrier is mapped to
-    uint64_t addr = ESR_SHIRE_REGION + ESR_SHIRE_FLB_OFFSET + (barrier * 8) + shire * ESR_REGION_OFFSET; // Access is private per cache
+    uint64_t addr = ESR_SHIRE(0, shire, FLB) + (barrier * 8); // Access is private per cache
 
     // NB: No PMA checks here... we know it will pass ;-)
 
@@ -8428,4 +8572,40 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
                 update_tensor_error(1 << 3);
         }
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Esperanto IPI extension
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void raise_software_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] |= 0x8;
+}
+
+void clear_software_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] &= ~0x8;
+}
+
+void raise_timer_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] |= 0x80;
+}
+
+void clear_timer_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] &= ~0x80;
+}
+
+void raise_external_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] |= 0x800;
+}
+
+void clear_external_interrupt(int thread)
+{
+    csrregs[thread][csr_mip] &= ~0x800;
 }

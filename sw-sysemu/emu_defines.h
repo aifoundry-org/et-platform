@@ -109,21 +109,41 @@
 #define ESR_RBOX_ESR_MASK      0x000001FFF8ULL  // On RBOX ESR Region the ESR is defined in bits [16:3]
 #define ESR_ESR_ID_SHIFT       3
 
+#define ESR_SHIRE(prot, shire, name) \
+    (ESR_SHIRE_REGION + \
+     (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
+     (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
+      uint64_t(ESR_SHIRE_ ## name))
+
+#define ESR_NEIGH(prot, shire, neigh, name) \
+    (ESR_NEIGH_REGION + \
+     (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
+     (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
+     (uint64_t(neigh) << ESR_NEIGH_SHIFT) + \
+      uint64_t(ESR_NEIGH_ ## name))
+
 // ESR Offsets
-#define ESR_SHIRE_IPI_REDIRECT_TRIGGER_OFFSET 0x080ULL
-#define ESR_SHIRE_FLB_OFFSET                  0x100ULL
-#define ESR_SHIRE_FCC0_OFFSET                 0x0C0ULL
-#define ESR_SHIRE_FCC1_OFFSET                 0x0C8ULL
-#define ESR_SHIRE_FCC2_OFFSET                 0x0D0ULL
-#define ESR_SHIRE_FCC3_OFFSET                 0x0D8ULL
+#define ESR_SHIRE_IPI_REDIRECT_TRIGGER  0x00080
+#define ESR_SHIRE_IPI_REDIRECT_FILTER   0x00088
+#define ESR_SHIRE_IPI_TRIGGER           0x00090
+#define ESR_SHIRE_IPI_TRIGGER_CLEAR     0x00098
+#define ESR_SHIRE_FCC0                  0x000C0
+#define ESR_SHIRE_FCC1                  0x000C8
+#define ESR_SHIRE_FCC2                  0x000D0
+#define ESR_SHIRE_FCC3                  0x000D8
+#define ESR_SHIRE_FLB                   0x00100
+#define ESR_SHIRE_BROADCAST0            0x1FFF0
+#define ESR_SHIRE_BROADCAST1            0x1FFF8
 
-#define ESR_HART_PORT0_OFFSET 0x800ULL
-#define ESR_HART_PORT1_OFFSET 0x810ULL
-#define ESR_HART_PORT2_OFFSET 0x820ULL
-#define ESR_HART_PORT3_OFFSET 0x830ULL
+#define ESR_NEIGH_IPI_REDIRECT_PC       0x00040
+#define ESR_NEIGH_TBOX_CONTROL          0x08000
+#define ESR_NEIGH_TBOX_STATUS           0x08008
+#define ESR_NEIGH_TBOX_IMGT_PTR         0x08010
 
-#define ESR_SHIRE_BROADCAST0_OFFSET  0x1FFF0L
-#define ESR_SHIRE_BROADCAST1_OFFSET  0x1FFF8L
+#define ESR_HART_PORT0                  0x800ULL
+#define ESR_HART_PORT1                  0x810ULL
+#define ESR_HART_PORT2                  0x820ULL
+#define ESR_HART_PORT3                  0x830ULL
 
 #define ESR_BROADCAST_PROT_MASK              0x1800000000000000ULL // Region protection is defined in bits [60:59] in esr broadcast data write.
 #define ESR_BROADCAST_PROT_SHIFT             59
@@ -132,13 +152,7 @@
 #define ESR_BROADCAST_ESR_ADDR_MASK          0x003FFF0000000000ULL // bits[17:3] in Memory Shire Esr Map. Esr address
 #define ESR_BROADCAST_ESR_ADDR_SHIFT         40
 #define ESR_BROADCAST_ESR_SHIRE_MASK         0x000000FFFFFFFFFFULL // bit mask Shire to spread the broadcast bits
-#define ESR_BROADCAST_ESR_MAX_SHIRES ESR_BROADCAST_ESR_ADDR_SHIFT
-
-
-#define ESR_NEIGH_TBOX_CONTROL  0x8000
-#define ESR_NEIGH_TBOX_STATUS   0x8008
-#define ESR_NEIGH_TBOX_IMGT_PTR 0x8010
-
+#define ESR_BROADCAST_ESR_MAX_SHIRES         ESR_BROADCAST_ESR_ADDR_SHIFT
 
 #define ESR_RBOX_CONFIG         0x00
 #define ESR_RBOX_IN_BUF_PG      0x01
@@ -215,7 +229,7 @@ typedef enum {
     csr_tensor_quant,
     csr_tex_send,
     csr_tensor_error,
-    // TODO: csr_ucache_control,
+    csr_ucache_control,
     csr_prefetch_va,
     csr_flb0,
     csr_fcc,
@@ -234,7 +248,7 @@ typedef enum {
     csr_sleep_txfma_27,
     csr_lock_va,
     csr_unlock_va,
-    // TODO: csr_fccnb,
+    csr_fccnb,
     csr_porthead0,
     csr_porthead1,
     csr_porthead2,
@@ -550,13 +564,21 @@ struct mdata {
 #define CAUSE_STORE_ACCESS          0x07
 #define CAUSE_USER_ECALL            0x08
 #define CAUSE_SUPERVISOR_ECALL      0x09
-#define CAUSE_HYPERVISOR_ECALL      0x0a
 #define CAUSE_MACHINE_ECALL         0x0b
 #define CAUSE_FETCH_PAGE_FAULT      0x0c
 #define CAUSE_LOAD_PAGE_FAULT       0x0d
 #define CAUSE_STORE_PAGE_FAULT      0x0f
 #define CAUSE_MCODE_INSTRUCTION     0x1e
 #define CAUSE_TXFMA_OFF             0x1f
+#define CAUSE_USER_SOFTWARE_INTERRUPT       0x8000000000000000ULL
+#define CAUSE_SUPERVISOR_SOFTWARE_INTERRUPT 0x8000000000000001ULL
+#define CAUSE_MACHINE_SOFTWARE_INTERRUPT    0x8000000000000003ULL
+#define CAUSE_USER_TIMER_INTERRUPT          0x8000000000000004ULL
+#define CAUSE_SUPERVISOR_TIMER_INTERRUPT    0x8000000000000005ULL
+#define CAUSE_MACHINE_TIMER_INTERRUPT       0x8000000000000007ULL
+#define CAUSE_USER_EXTERNAL_INTERRUPT       0x8000000000000008ULL
+#define CAUSE_SUPERVISOR_EXTERNAL_INTERRUPT 0x8000000000000009ULL
+#define CAUSE_MACHINE_EXTERNAL_INTERRUPT    0x800000000000000bULL
 
 // base class for all traps
 class trap_t {
@@ -604,13 +626,21 @@ DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_ACCESS,          trap_load_access_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_ACCESS,         trap_store_access_fault)
 DECLARE_TRAP_TVAL_N(CAUSE_USER_ECALL,           trap_user_ecall)
 DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_ECALL,     trap_supervisor_ecall)
-DECLARE_TRAP_TVAL_N(CAUSE_HYPERVISOR_ECALL,     trap_hypervisor_ecall)
 DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_ECALL,        trap_machine_ecall)
 DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_PAGE_FAULT,     trap_instruction_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,      trap_load_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,     trap_store_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_MCODE_INSTRUCTION,    trap_mcode_instruction)
 DECLARE_TRAP_TVAL_Y(CAUSE_TXFMA_OFF,            trap_txfma_off)
+DECLARE_TRAP_TVAL_N(CAUSE_USER_SOFTWARE_INTERRUPT,       trap_user_software_interrupt)
+DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_SOFTWARE_INTERRUPT, trap_supervisor_software_interrupt)
+DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_SOFTWARE_INTERRUPT,    trap_machine_software_interrupt)
+DECLARE_TRAP_TVAL_N(CAUSE_USER_TIMER_INTERRUPT,          trap_user_timer_interrupt)
+DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_TIMER_INTERRUPT,    trap_supervisor_timer_interrupt)
+DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_TIMER_INTERRUPT,       trap_machine_timer_interrupt)
+DECLARE_TRAP_TVAL_N(CAUSE_USER_EXTERNAL_INTERRUPT,       trap_user_external_interrupt)
+DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_EXTERNAL_INTERRUPT, trap_supervisor_external_interrupt)
+DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_EXTERNAL_INTERRUPT,    trap_machine_external_interrupt)
+
 
 #endif // _EMU_DEFINES_H
-
