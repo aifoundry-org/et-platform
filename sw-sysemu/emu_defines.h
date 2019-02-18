@@ -229,7 +229,7 @@ typedef enum {
     csr_tensor_quant,
     csr_tex_send,
     csr_tensor_error,
-    // TODO: csr_ucache_control,
+    csr_ucache_control,
     csr_prefetch_va,
     csr_flb0,
     csr_fcc,
