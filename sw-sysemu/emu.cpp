@@ -320,6 +320,11 @@ struct {
 
 uint64_t fcc_cnt;
 uint16_t fcc[EMU_NUM_THREADS][2] ={{0}};
+bool fcc_wait[EMU_NUM_THREADS] = {false};
+
+// only for checker, list of minions to awake (e.g. waiting for FCC that has just been written)
+std::queue<uint32_t> minions_to_awake; 
+std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
 
 std::unordered_map<int, char const*> csr_names = {
    { csr_prv,               "prv"                },
@@ -2907,10 +2912,15 @@ static void csrset(csr src1, uint64_t val)
             }
             else
             {
-                //fcc underflow
-                if (fcc[current_thread][fcc_cnt] == 0)
-                    LOG(DEBUG, "%s", "FCC underflow. You shouldn't be here...");
-                fcc[current_thread][fcc_cnt]--;
+                // block if no credits
+                if (fcc[current_thread][fcc_cnt] == 0 ) {
+                    fcc_wait[current_thread] = true;
+                    throw checker_wait_fcc();
+                }
+                else {
+                    // else, decrement
+                    fcc[current_thread][fcc_cnt]--;
+                }
             }
             break;
         case csr_stall:
@@ -8560,14 +8570,28 @@ uint64_t get_fcc_cnt()
 
 void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id)
 {
+    LOG(DEBUG,"fcc_inc(%" PRIu64 ", %" PRIu64 ", %" PRIx64 ", %" PRIu64 ")",
+        thread, shire, minion_mask, fcc_id);
+    
     for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion)
     {
         if (minion_mask & (1 << minion))
         {
             size_t fcc_addr = shire*EMU_THREADS_PER_SHIRE + EMU_THREADS_PER_MINION*minion + thread;
-            fcc[fcc_addr][fcc_id] += 1;
-            if (fcc[fcc_addr][fcc_id] == 0)
+            LOG(DEBUG, "Incrementing FCC[ %" PRIu64 "][%" PRIu64 "]=%" PRId32, fcc_addr, fcc_id, fcc[fcc_addr][fcc_id] + 1);
+            fcc[fcc_addr][fcc_id] ++;
+
+            // wake up waiting threads (only for checker, not sysemu)
+            if (!in_sysemu && fcc_wait[fcc_addr]){
+                fcc_wait[fcc_addr] = false;
+                minions_to_awake.push(fcc_addr>>1);
+            }
+            
+            //check for overflow
+            if (fcc[fcc_addr][fcc_id] == 0x000) {
                 update_tensor_error(1 << 3);
+                fcc[fcc_addr][fcc_id] = 0;
+            }
         }
     }
 }
