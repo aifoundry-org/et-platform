@@ -77,9 +77,10 @@ typedef struct
     uint32_t source_thread;
     uint32_t target_thread;
     uint32_t target_port;
+    bool     is_remote;
     bool     is_tbox;
     bool     is_rbox;
-    uint8_t  data[(1 << PORT_LOG2_MAX_SIZE)];
+    uint32_t  data[(1 << PORT_LOG2_MAX_SIZE)/4];
     uint8_t  oob;
 } msg_port_write_t;
 
@@ -285,6 +286,7 @@ fdata tensorfma_tenc[EMU_NUM_THREADS][32];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
+
 msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 std::deque<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 bool msg_port_delayed_write = false;
@@ -6980,18 +6982,21 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     // Drop the write if port not configured
     if(!msg_ports[thread][id].enabled) return;
 
+    if ( !scp_locked[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way] ) {
+	LOG(DEBUG, "PORT_WRITE Port cache line (s%d w%d)  unlocked!\n", msg_ports[thread][id].scp_set, msg_ports[thread][id].scp_way);
+    }
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
 
     msg_ports[thread][id].stall  = false;
 
-    int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
+    int wr_words = (1 << (msg_ports[thread][id].logsize))/4;
 
     LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
     for (int i = 0; i < wr_words; i++)
     {
         LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
-        vmemwrite32(base_addr + 4 * i, data[i]);
+        pmemwrite32(base_addr + 4 * i, data[i]);
     }
 
     msg_ports[thread][id].size++;
@@ -7013,12 +7018,16 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         port_write.target_port   = id;
         port_write.is_tbox       = false;
         port_write.is_rbox       = false;
-        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+	
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
         LOG_ALL_MINIONS(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
+	int wr_words = 1 << (msg_ports[thread][id].logsize)/4;
+	for(int i = 0 ; i < wr_words ; ++i)
+	    LOG_ALL_MINIONS(DEBUG, "                              data[%d] 0x%08" PRIx32, i, data[i]);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -7034,7 +7043,7 @@ void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_i
         port_write.target_port   = id;
         port_write.is_tbox       = true;
         port_write.is_rbox       = false;
-        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
@@ -7055,7 +7064,7 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
         port_write.target_port   = id;
         port_write.is_tbox       = false;
         port_write.is_rbox       = true;
-        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
