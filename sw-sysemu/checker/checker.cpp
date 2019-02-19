@@ -1110,16 +1110,18 @@ void checker::add_ignored_mem_region(uint64_t base, uint64_t top)
    ignored_mem_regions.push_back(region);
 }
 
-void checker::tbox_port_write(uint32_t thread, uint32_t port_id)
-{
-    // The TBOX can only send messages to Minions on their own neighbourhood so
-    // we use the own thread ID that receives the message write to determine the
-    // source TBOX ID.
-    uint32_t shire_id = thread / EMU_THREADS_PER_SHIRE;
-    uint32_t tbox_id = tbox_id_from_thread(thread);
 
-    // The number of TBOXes per Shire may not match the number of Neighbourhoods in the Shire.
-    // The absolute TBOX ID in the SOC is : Shire ID * EMU_TBOXES_PER_SHIRE + TBOX ID
-    commit_msg_port_data_from_tbox(thread, port_id, shire_id * EMU_TBOXES_PER_SHIRE + tbox_id);
+void checker::thread_port_write(uint32_t target_thread, uint32_t port_id, uint32_t source_thread)
+{
+  commit_msg_port_data(target_thread, port_id, source_thread);
 }
 
+void checker::tbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id)
+{
+  commit_msg_port_data_from_tbox(target_thread, port_id, tbox_id);
+}
+
+void checker::rbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id)
+{
+  commit_msg_port_data_from_rbox(target_thread, port_id, rbox_id);
+}
