@@ -531,7 +531,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
             // Writes to X0/Zero are ignored
             if((changes->int_reg_data != emu_state_change.int_reg_data) && (emu_state_change.int_reg_rd != 0))
             {
-	    	LOG(ERR, "\tBEMU Checker Int Register data error. BEMU expects data is: 0x%lu but DUT reported: 0x%lu ",emu_state_change.int_reg_data , changes->int_reg_data);	
+	    	LOG(ERR, "\tBEMU Checker Int Register data error. BEMU expects data is: 0x%lx but DUT reported: 0x%lx ",emu_state_change.int_reg_data , changes->int_reg_data);	
                 check_res = CHECKER_ERROR;
                 //Set EMU state to what RTL says
                 init(inst.rd(), emu_state_change.int_reg_data);
