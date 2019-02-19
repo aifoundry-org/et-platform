@@ -5,6 +5,7 @@
 #include <string>
 #include <list>
 #include <iostream>
+#include <queue>
 
 // Local
 #include "common/main_memory.h"
@@ -62,7 +63,7 @@ class checker
         void start_pc(uint32_t thread, uint64_t pc);
         void ipi_pc(uint32_t thread, uint64_t pc);
         // Emulates current instruction and compares the state changes
-        checker_result emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion);
+        checker_result emu_inst(uint32_t thread, inst_state_change * changes, std::queue<uint32_t> &wake_minions);
         // Decoder Helper functions
         void emu_disasm(char* str, size_t size, uint32_t bits);
         // Gets an error in string format
