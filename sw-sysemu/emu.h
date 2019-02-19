@@ -2,6 +2,7 @@
 #define _EMU_H
 
 #include <list>
+#include <queue>
 #include <iomanip>
 
 #include "emu_defines.h"
@@ -632,5 +633,8 @@ extern void clear_timer_interrupt(int thread);
 extern void raise_external_interrupt(int thread);
 extern void clear_external_interrupt(int thread);
 
+
+// ----- Get list of minions awaken by the last instruction (checker only) ----------------------------
+std::queue<uint32_t> &get_minions_to_awake();
 
 #endif // _EMU_H
