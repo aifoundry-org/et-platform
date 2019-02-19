@@ -7,6 +7,16 @@
 #include "emu_defines.h"
 #include "testLog.h"
 
+#include "log.h"
+#include "emu_casts.h"
+#include "emu_gio.h"
+#include "emu_memop.h"
+
+#include "fpu/fpu.h"
+#include "fpu/fpu_casts.h"
+#include "tbox_emu.h"
+#include "rbox.h"
+
 // Used to access different threads transparently
 #define XREGS xregs[current_thread]
 #define FREGS fregs[current_thread]
