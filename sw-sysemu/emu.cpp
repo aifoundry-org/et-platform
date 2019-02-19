@@ -6922,8 +6922,6 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
 
-    msg_ports[thread][id].size++;
-    msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % msg_ports[thread][id].max_msgs;
     msg_ports[thread][id].stall  = false;
 
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
@@ -6934,6 +6932,9 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
         LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
+
+    msg_ports[thread][id].size++;
+    msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % (msg_ports[thread][id].max_msgs +1);
 
     if (msg_ports[thread][id].enable_oob)
         msg_ports_oob[thread][id].push_back(oob);
