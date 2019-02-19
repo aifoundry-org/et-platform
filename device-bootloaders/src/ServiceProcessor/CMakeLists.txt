@@ -1,4 +1,4 @@
-set(SOURCES ${SHARED_SRC_DIR}/boot.S src/crt.S src/main.c ${SHARED_SRC_DIR}/serial.c ${SHARED_SRC_DIR}/trap_handler.c ${SHARED_SRC_DIR}/trap_handler.S)
+set(SOURCES ${SHARED_SRC_DIR}/boot.S src/crt.S src/main.c ${SHARED_SRC_DIR}/stubs.c ${SHARED_SRC_DIR}/serial.c ${SHARED_SRC_DIR}/backtrace.c ${SHARED_SRC_DIR}/trap_handler.c ${SHARED_SRC_DIR}/trap_handler.S)
 
 set(TARGET_NAME ServiceProcessor)
 set(LINKER_SCRIPT src/sections.ld)

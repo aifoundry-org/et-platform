@@ -1,4 +1,7 @@
+#include "et_cru.h"
 #include "serial.h"
+
+#include <stdio.h>
 
 // Select SPIO peripherals for initial SP use
 #define SPIO_NOC_SPIO_REGBUS_BASE_ADDRESS    0x0040100000ULL
@@ -10,12 +13,9 @@
 #define SPIO_PLIC_BASE_ADDRESS               0x0050000000ULL
 #define SPIO_UART0_BASE_ADDRESS              0x0052022000ULL
 
-#define UART0 ((SPIO_UART_t*)SPIO_UART0_BASE_ADDRESS)
-
 int main(void)
 {
     SERIAL_init(UART0);
-    SERIAL_write(UART0, "alive\r\n", 7);
-
+    printf("alive\r\n");
     while (1) {}
 }
