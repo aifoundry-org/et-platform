@@ -29,24 +29,25 @@ void init_txs(uint64_t imgTableAddr)
     tbox_emulator.texture_cache_initialize();
 }
 
+// Computes the TBOX ID inside the Shire.
 uint32_t tbox_id_from_thread(uint32_t current_thread)
 {
     uint32_t neigh_id = current_thread / EMU_THREADS_PER_NEIGH;
 
-    LOG_NOTHREAD(DEBUG, "\tCurrent thread %u, EMU_THREADS_PER_NEIGH %u, neigh_id %u", current_thread, EMU_THREADS_PER_NEIGH, neigh_id);
+    LOG_NOTHREAD(DEBUG, "\t[TBOX ID from Thread] Current thread %u, EMU_THREADS_PER_NEIGH %u, neigh_id %u", current_thread, EMU_THREADS_PER_NEIGH, neigh_id);
 
     if ((EMU_TBOXES_PER_SHIRE == 4) ||
         (EMU_TBOXES_PER_SHIRE == 2) ||
         (EMU_TBOXES_PER_SHIRE == 1))
     {
-        if ((neigh_id % 4) > EMU_TBOXES_PER_SHIRE)
+        if ((neigh_id % EMU_NEIGH_PER_SHIRE) > EMU_TBOXES_PER_SHIRE)
         {
             LOG_NOTHREAD(FTL, "Neighborhood %d has no TBOX configured", neigh_id);
             return 0;
         }
         else
         {
-            return neigh_id;
+            return neigh_id % EMU_TBOXES_PER_SHIRE;
         }
     }
     else
@@ -113,7 +114,10 @@ void new_sample_request(uint32_t current_thread, uint32_t port_id, uint32_t numb
     for (uint32_t channel = 0; channel < num_channels; channel++)
     {
         LOG_NOTHREAD(DEBUG, "\t[Channel %d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data[channel].u[0], data[channel].u[1], data[channel].u[2], data[channel].u[3]);
-        /* Put result in port */
+
+        // The number of TBOXes per Shire may not match the number of Neighbourhoods in the Shire.
+        // The absolute TBOX ID in the SOC is : Shire ID * EMU_TBOXES_PER_SHIRE + TBOX ID
+        // Put result in port
         write_msg_port_data_from_tbox(current_thread, port_id, shire_id * EMU_TBOXES_PER_SHIRE + tbox_id, &(data[channel].u[0]), 1);
     }
 }

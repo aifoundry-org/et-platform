@@ -2,6 +2,7 @@
 #include <cmath>
 #include <exception>
 #include <assert.h>
+#include <queue>
 
 // Local
 #include "checker.h"
@@ -17,6 +18,8 @@
 
 #define ESR_SHIRE_REGION_START 0x100340000L
 #define ESR_SHIRE_REGION_END   0x1FFF5FFF8L
+
+uint32_t tbox_id_from_thread(uint32_t current_thread);
 
 #ifdef DEBUG_STATE_CHANGES
 // Used for debugging the checker
@@ -317,7 +320,7 @@ void checker::emu_disasm(char* str, size_t size, uint32_t bits)
 
 // Emulates next instruction in the flow and compares state changes against the changes
 // passed as a parameter
-checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, int * wake_minion)
+checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, std::queue<uint32_t> &wake_minions)
 {
     checker_result check_res = CHECKER_OK;
     if (thread >= EMU_NUM_THREADS )
@@ -360,12 +363,22 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
             {
                 // Gets the source used for the reduce
                 uint64_t value = xget(inst.rs1());
-                checker_result res = do_reduce(thread, value, wake_minion);
+                int  wake_minion=-1;
+                checker_result res = do_reduce(thread, value, &wake_minion);
+                if (wake_minion >=0) wake_minions.push(wake_minion);
                 if(res == CHECKER_WAIT) return CHECKER_WAIT;
             }
 
             // Execute the instruction (may trap)
             inst.execute();
+
+            // check if we have to wake any minions
+            std::queue<uint32_t> &minions_to_awake = get_minions_to_awake();
+            while( ! minions_to_awake.empty() ) {
+              wake_minions.push(minions_to_awake.front());
+              minions_to_awake.pop();
+            }
+            
             retry = false;
         }
         catch (const trap_t& t)
@@ -381,6 +394,12 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, i
                log << LOG_ERR << "Sad, looks like we are stuck in an infinite trap recursion. Giving up." << endm;
                retry = false;
             }
+        }
+        catch (const checker_wait_t &t)
+        {
+
+          log<<LOG_INFO<<"Delaying retire because of: " << t.what() << endm;
+          return CHECKER_WAIT;
         }
         catch (const std::exception& e)
         {
@@ -1080,9 +1099,14 @@ void checker::add_ignored_mem_region(uint64_t base, uint64_t top)
 
 void checker::tbox_port_write(uint32_t thread, uint32_t port_id)
 {
-    // TBOXes can only send writes to the message ports of Minions in their own
-    // neighborhood.  The thread identifier can bue used to identify the
-    // neighborhood and the neighborhood the TBOX.
-    commit_msg_port_data_from_tbox(thread, port_id, thread / EMU_THREADS_PER_NEIGH);
+    // The TBOX can only send messages to Minions on their own neighbourhood so
+    // we use the own thread ID that receives the message write to determine the
+    // source TBOX ID.
+    uint32_t shire_id = thread / EMU_THREADS_PER_SHIRE;
+    uint32_t tbox_id = tbox_id_from_thread(thread);
+
+    // The number of TBOXes per Shire may not match the number of Neighbourhoods in the Shire.
+    // The absolute TBOX ID in the SOC is : Shire ID * EMU_TBOXES_PER_SHIRE + TBOX ID
+    commit_msg_port_data_from_tbox(thread, port_id, shire_id * EMU_TBOXES_PER_SHIRE + tbox_id);
 }
 
