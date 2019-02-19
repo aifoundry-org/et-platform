@@ -935,6 +935,11 @@ finished_checking:
     return check_res;
 }
 
+void checker::raise_interrupt(unsigned minionId) 
+{
+    raise_external_interrupt(minionId);
+}
+
 // Return the last error message
 std::string checker::get_error_msg()
 {
