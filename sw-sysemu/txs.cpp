@@ -33,11 +33,13 @@ uint32_t tbox_id_from_thread(uint32_t current_thread)
 {
     uint32_t neigh_id = current_thread / EMU_THREADS_PER_NEIGH;
 
+    LOG_NOTHREAD(DEBUG, "\tCurrent thread %u, EMU_THREADS_PER_NEIGH %u, neigh_id %u", current_thread, EMU_THREADS_PER_NEIGH, neigh_id);
+
     if ((EMU_TBOXES_PER_SHIRE == 4) ||
         (EMU_TBOXES_PER_SHIRE == 2) ||
         (EMU_TBOXES_PER_SHIRE == 1))
     {
-        if (neigh_id > EMU_TBOXES_PER_SHIRE)
+        if ((neigh_id % 4) > EMU_TBOXES_PER_SHIRE)
         {
             LOG_NOTHREAD(FTL, "Neighborhood %d has no TBOX configured", neigh_id);
             return 0;

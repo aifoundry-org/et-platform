@@ -514,13 +514,13 @@ int main()
 
     rbox[0].reset(0);
 
-    pmemwrite64(esr_rbox_region_base_addr + (RBOX::INPUT_BUFFER_PAGES_ESR   << 3), in_buf_pg_esr.value);
-    pmemwrite64(esr_rbox_region_base_addr + (RBOX::INPUT_BUFFER_CONFIG_ESR  << 3), in_buf_cfg_esr.value);
-    pmemwrite64(esr_rbox_region_base_addr + (RBOX::OUTPUT_BUFFER_PAGE_ESR   << 3), out_buf_pg_esr.value);
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::INPUT_BUFFER_PAGES_ESR   << 3),   in_buf_pg_esr.value);
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::INPUT_BUFFER_CONFIG_ESR  << 3),  in_buf_cfg_esr.value);
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::OUTPUT_BUFFER_PAGE_ESR   << 3),  out_buf_pg_esr.value);
     pmemwrite64(esr_rbox_region_base_addr + (RBOX::OUTPUT_BUFFER_CONFIG_ESR << 3), out_buf_cfg_esr.value);
-    pmemwrite64(esr_rbox_region_base_addr + (RBOX::START_ESR                << 3), start_esr.value);
+    pmemwrite64(esr_rbox_region_base_addr + (RBOX::START_ESR                << 3),       start_esr.value);
 
-    rbox[0].run();
+    rbox[0].run(false);
 
     for (uint32_t m = 0; m < 32; m++)
     {

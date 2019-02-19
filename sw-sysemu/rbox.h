@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <vector>
+#include <utility>
 
 #include "emu.h"
 #include "emu_defines.h"
@@ -108,7 +109,8 @@ namespace RBOX
         TriangleInfoT        current_triangle;
         bool                 new_frag_shader_state;
 
-        std::vector<QuadInfoT> output_quads;
+        std::vector<QuadInfoT>                      output_quads;
+        std::vector<std::pair<uint64_t, uint64_t>>  output_packets;
 
         uint32_t process_packet(uint64_t packet);
         void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], uint32_t depth_sample, TileSizeT tile_sz);
@@ -130,8 +132,8 @@ namespace RBOX
         uint64_t compute_minion_out_addr(uint32_t target_minion);
         uint64_t compute_minion_out_off(uint32_t target_minion);
         void update_minion_out_ptr(uint32_t target_minion);
-        bool send_frag_shader_state_packet(uint32_t target_minion);
-        bool send_quad_packet();
+        bool send_frag_shader_state_packet(uint32_t target_minion, bool step_mode);
+        bool send_quad_packet(bool step_mode);
 
     public:
 
@@ -139,7 +141,7 @@ namespace RBOX
         uint64_t read_esr(uint32_t esr_id);
 
         void reset(uint32_t id);
-        void run();
+        void run(bool step_mode);
     
     }; // class RBOXEmu
 
