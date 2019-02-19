@@ -2,8 +2,9 @@
 .extern __bss_end
 
 #ifndef STACK_BASE
-#define STACK_BASE 0x80A2000000
+#define STACK_BASE 0x8002000000 // ZeBu mini-SoC image only has 32MB of RAM total
 #endif
+
 #ifndef STACK_SIZE_LOG2
 #define STACK_SIZE_LOG2 14
 #endif

@@ -14,16 +14,10 @@
 
 // Select PU peripherals for initial master minion use
 #define PU_PLIC_BASE_ADDRESS  0x0010000000ULL
-#define PU_UART_BASE_ADDRESS  0x0012002000ULL
 #define PU_TIMER_BASE_ADDRESS 0x0012005000ULL
-
-#define UART0 ((SPIO_UART_t*)PU_UART_BASE_ADDRESS)
 
 int main(void)
 {
-    SERIAL_init(UART0);
-    SERIAL_write(UART0, "alive\r\n", 7);
-
     __asm__ __volatile__ (
        // enable shadow registers for hartid and sleep txfma
        "csrwi 0x7d2, 0x3\n"
@@ -36,7 +30,7 @@ int main(void)
     unsigned int minion_id = get_minion_id();
 
     // Master shire, go to master code
-    if(minion_id >= 1024)
+    if(minion_id >= 32)
     {
         fw_master_code();
     }

@@ -30,7 +30,10 @@ set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "e
 #
 # Explicitly set -march and -mabi to disable compressed instructions in A0
 #
-set(CMAKE_C_FLAGS "-g3 -mcmodel=medany -march=rv64imaf -mabi=lp64f -Wall -Wextra -Werror \
+# Worker minion will likely be freestanding without libc, -ffreestanding
+# may need -funwind-tables for backtrace
+set(CMAKE_C_FLAGS "-g3 --specs=nano.specs -mcmodel=medany -march=rv64imaf -mabi=lp64f \
+-flto -ffunction-sections -fdata-sections -Wall -Wextra -Werror -Wdouble-promotion -Wformat \
 -Wnull-dereference -Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith \
 -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations" CACHE STRING "c flags" FORCE)
@@ -47,10 +50,14 @@ macro(add_riscv_executable TARGET_NAME LINKER_SCRIPT ZEBU_TARGET)
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
 
     # Get the absolute path to the linker script
-    get_filename_component(LINKER_SCRIPT_ABS_PATH "src/sections.ld" ABSOLUTE)
+    get_filename_component(LINKER_SCRIPT_ABS_PATH ${LINKER_SCRIPT} ABSOLUTE)
 
     # Use custom linker script and generate a map file
-    set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -lc -lm -lgcc -Xlinker -Map=${MAP_FILE} -T ${LINKER_SCRIPT_ABS_PATH}")
+    set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE} -T ${LINKER_SCRIPT_ABS_PATH}")
+
+    # Must use target_link_libraries() to add libraries to get correct symbol resolution -
+    # putting libraries in CMAKE_EXE_LINKER_FLAGS is too early
+    target_link_libraries(${ELF_FILE} c m gcc)
 
     # Add explicit dependency on linker script when linking target
     set_target_properties(${ELF_FILE} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_ABS_PATH})

@@ -1,8 +1,8 @@
 #include "serial.h"
 
-static unsigned int calc_baud_divisor(unsigned int baudRate, unsigned int clkFreq);
+static void set_baud_divisor(volatile SPIO_UART_t* const uartRegs, unsigned int baudRate, unsigned int clkFreq);
 
-int SERIAL_init(SPIO_UART_t* const uartRegs)
+int SERIAL_init(volatile SPIO_UART_t* const uartRegs)
 {
     /* Steps from Figure 6-1 "Flowchart for DW_apb_uart Transmit Programming Example"
        from Synopsys DesignWare DW_apb_uart Databook 4.02a July 2018 */
@@ -20,10 +20,11 @@ int SERIAL_init(SPIO_UART_t* const uartRegs)
     /* Write "1" to LCR[7] (DLAB) bit */
     uartRegs->LCR.B.DLAB = 1;
 
-    /* Write to DLL, DLH to set up divisor for required baud rate */
-    const unsigned int baud_divisor = calc_baud_divisor(57600U, 100000000U);
-    uartRegs->RBR_THR_DLL.R = (SPIO_UART_RBR_THR_DLL_t){.B = {.RBR_THR_DLL = baud_divisor & 0xff}}.R;
-	uartRegs->IER_DLH.R = (SPIO_UART_IER_DLH_t){.B_DLH = {.DLH = (baud_divisor >> 8) & 0xff}}.R;
+    // For ZeBu, clk_100 is forced to 1GHz for now - it will reduce to 100MHz eventually.
+    // UART SCLK = clk_100/4 = 250MHz out of reset for now, 25MHz when clk_100 reduces to 100MHz.
+    // configuring UART to 1.5Mbaud - fastest possible with 25MHz SCLK, doable with 250Mhz SCLK.
+    // 1GHz / 1500000 = 667 so use setRatio(667) for ZeBu transactor
+    set_baud_divisor(uartRegs, 1500000, 250000000); // for now
 
     /* Write "0" to LCR[7] (DLAB) bit */
     uartRegs->LCR.B.DLAB = 0;
@@ -59,9 +60,9 @@ int SERIAL_init(SPIO_UART_t* const uartRegs)
 }
 
 // Blocks until the entire string has been written to the fifo
-void SERIAL_write(SPIO_UART_t* const uartRegs, const char* const string, unsigned int length)
+void SERIAL_write(volatile SPIO_UART_t* const uartRegs, const char* const string, int length)
 {
-    for (unsigned int i = 0; i < length; i++)
+    for (int i = 0; i < length; i++)
     {
         /* if THRE_MODE_USER == Enabled AND FIFO_MODE != NONE and both modes are active
            (IER[7] set to one and FCR[0] set to one respectively), the functionality is
@@ -74,7 +75,17 @@ void SERIAL_write(SPIO_UART_t* const uartRegs, const char* const string, unsigne
     }
 }
 
-static unsigned int calc_baud_divisor(unsigned int baudRate, unsigned int clkFreq)
+static void set_baud_divisor(volatile SPIO_UART_t* const uartRegs, unsigned int baudRate, unsigned int clkFreq)
 {
-    return clkFreq/(16U*baudRate);
+    // See Synopsys DesignWare DW_apb_uart Databook 4.02a July 2018 section 2.4 Fractional Baud Rate Support
+
+    // Divisor
+    const unsigned int baud_divisor = clkFreq/(16U*baudRate);
+
+    // Divisor Latch Fractional Value, rounded to nearest 16th given DLF_SIZE = 4
+    const unsigned int baud_dlf = ((((2U*clkFreq)/baudRate) + 1U) / 2U) - (16U*baud_divisor);
+
+    uartRegs->RBR_THR_DLL.R = (SPIO_UART_RBR_THR_DLL_t){.B = {.RBR_THR_DLL = baud_divisor & 0xff}}.R;
+	uartRegs->IER_DLH.R = (SPIO_UART_IER_DLH_t){.B_DLH = {.DLH = (baud_divisor >> 8) & 0xff}}.R;
+    uartRegs->DLF.R = (SPIO_UART_DLF_t){.B = {.DLF = baud_dlf & 0xf}}.R;
 }
