@@ -103,141 +103,6 @@ static void emu_memwrite64(uint64_t addr, uint64_t data)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Sends an FCC to the desired minions specified in thread mask to the 1st or
-// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
-// of thread_src
-////////////////////////////////////////////////////////////////////////////////
-
-void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
-{
-    for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
-    {
-        if((thread_mask >> m) & 1)
-        {
-            int thread_id = shire_id * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + thread_dest;
-            LOG_OTHER(DEBUG, thread_id, "Receiving FCC on counter %u", cnt_dest);
-
-            auto thread = std::find(fcc_wait_threads.begin(), fcc_wait_threads.end(), thread_id);
-            // Checks if is already awaken
-            if(thread == fcc_wait_threads.end())
-            {
-                // Pushes to pending FCC
-                pending_fcc[thread_id][cnt_dest]++;
-            }
-            // Otherwise wakes up thread
-            else
-            {
-                LOG_OTHER(DEBUG, thread_id, "Waking up due sent FCC on counter %u", cnt_dest);
-                enabled_threads.push_back(thread_id);
-                fcc_wait_threads.erase(thread);
-            }
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Sends an FCC to the desired minions specified in thread mask to the 1st or
-// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
-// of thread_src
-////////////////////////////////////////////////////////////////////////////////
-
-void msg_to_thread(int thread_id)
-{
-    auto thread = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
-    LOG_NOTHREAD(INFO, "Message to thread %i with log %i", thread_id, global_log_min);
-    // Checks if in port wait state
-    if(thread != port_wait_threads.end())
-    {
-        LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due msg");
-        enabled_threads.push_back(thread_id);
-        port_wait_threads.erase(thread);
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// Send IPI_REDIRECT or IPI (or clear pending IPIs) to the minions specified in
-// thread mask of the specified shire id.
-////////////////////////////////////////////////////////////////////////////////
-
-void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
-{
-    // Get IPI_REDIRECT_FILTER ESR for the shire
-    uint64_t ipi_redirect_filter;
-    memory->read(ESR_SHIRE(3, shire_id, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
-
-    unsigned thread0 =
-        EMU_THREADS_PER_SHIRE * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
-
-    for(int t = 0; t < EMU_THREADS_PER_SHIRE; t++)
-    {
-        // If both IPI_REDIRECT_TRIGGER and IPI_REDIRECT_FILTER has bit set
-        if(((thread_mask >> t) & 1) && ((ipi_redirect_filter >> t) & 1))
-        {
-            // Get PC
-            uint64_t new_pc;
-            uint64_t neigh_id;
-            neigh_id = t / EMU_THREADS_PER_NEIGH;
-            memory->read(ESR_NEIGH(0, shire_id, neigh_id, IPI_REDIRECT_PC), 8, &new_pc);
-            int thread_id = thread0 + t;
-            LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
-            // If thread sleeping, wakes up and changes PC
-            if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
-            {
-                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI_REDIRECT");
-                enabled_threads.push_back(thread_id);
-                current_pc[thread_id] = new_pc;
-            }
-            // Otherwise IPI is dropped
-            else
-            {
-                LOG_OTHER(DEBUG, thread_id, "%s", "WARNING => IPI_REDIRECT dropped");
-            }
-        }
-    }
-}
-
-void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
-{
-    unsigned thread0 =
-        EMU_THREADS_PER_SHIRE
-        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
-
-    // Write mip.msip to all selected threads
-    for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
-    {
-        if ((thread_mask >> t) & 1)
-        {
-            unsigned thread_id = thread0 + t;
-            LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
-            raise_software_interrupt(thread_id);
-            // If thread sleeping, wakes up
-            if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
-            {
-                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI");
-                enabled_threads.push_back(thread_id);
-            }
-        }
-    }
-}
-
-void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
-{
-    unsigned thread0 =
-        EMU_THREADS_PER_SHIRE
-        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
-
-    // Clear mip.msip to all selected threads
-    for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
-    {
-        if ((thread_mask >> t) & 1)
-        {
-            unsigned thread_id = thread0 + t;
-            clear_software_interrupt(thread_id);
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Parses a file that defines the memory regions plus contents to be
 // loaded in the different regions
 ////////////////////////////////////////////////////////////////////////////////
@@ -432,6 +297,146 @@ bool get_pc_break() {
    return false;
 }
 #endif
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Sends an FCC to the desired minions specified in thread mask to the 1st or
+// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
+// of thread_src
+////////////////////////////////////////////////////////////////////////////////
+
+void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
+{
+    for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
+    {
+        // Skip disabled minion
+        if (((minions_en >> m) & 1) == 0) continue;
+
+        if ((thread_mask >> m) & 1)
+        {
+            int thread_id = shire_id * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + thread_dest;
+            LOG_OTHER(DEBUG, thread_id, "Receiving FCC on counter %u", cnt_dest);
+
+            auto thread = std::find(fcc_wait_threads.begin(), fcc_wait_threads.end(), thread_id);
+            // Checks if is already awaken
+            if(thread == fcc_wait_threads.end())
+            {
+                // Pushes to pending FCC
+                pending_fcc[thread_id][cnt_dest]++;
+            }
+            // Otherwise wakes up thread
+            else
+            {
+                LOG_OTHER(DEBUG, thread_id, "Waking up due sent FCC on counter %u", cnt_dest);
+                enabled_threads.push_back(thread_id);
+                fcc_wait_threads.erase(thread);
+            }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Sends an FCC to the desired minions specified in thread mask to the 1st or
+// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
+// of thread_src
+////////////////////////////////////////////////////////////////////////////////
+
+void msg_to_thread(int thread_id)
+{
+    auto thread = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
+    LOG_NOTHREAD(INFO, "Message to thread %i with log %i", thread_id, global_log_min);
+    // Checks if in port wait state
+    if(thread != port_wait_threads.end())
+    {
+        LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due msg");
+        enabled_threads.push_back(thread_id);
+        port_wait_threads.erase(thread);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Send IPI_REDIRECT or IPI (or clear pending IPIs) to the minions specified in
+// thread mask of the specified shire id.
+////////////////////////////////////////////////////////////////////////////////
+
+void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
+{
+    // Get IPI_REDIRECT_FILTER ESR for the shire
+    uint64_t ipi_redirect_filter;
+    memory->read(ESR_SHIRE(3, shire_id, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
+
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    for(int t = 0; t < EMU_THREADS_PER_SHIRE; t++)
+    {
+        // If both IPI_REDIRECT_TRIGGER and IPI_REDIRECT_FILTER has bit set
+        if(((thread_mask >> t) & 1) && ((ipi_redirect_filter >> t) & 1))
+        {
+            // Get PC
+            uint64_t new_pc;
+            uint64_t neigh_id;
+            neigh_id = t / EMU_THREADS_PER_NEIGH;
+            memory->read(ESR_NEIGH(0, shire_id, neigh_id, IPI_REDIRECT_PC), 8, &new_pc);
+            int thread_id = thread0 + t;
+            LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
+            // If thread sleeping, wakes up and changes PC
+            if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+            {
+                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI_REDIRECT");
+                enabled_threads.push_back(thread_id);
+                current_pc[thread_id] = new_pc;
+            }
+            // Otherwise IPI is dropped
+            else
+            {
+                LOG_OTHER(DEBUG, thread_id, "%s", "WARNING => IPI_REDIRECT dropped");
+            }
+        }
+    }
+}
+
+void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    // Write mip.msip to all selected threads
+    for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
+    {
+        if ((thread_mask >> t) & 1)
+        {
+            unsigned thread_id = thread0 + t;
+            LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
+            raise_software_interrupt(thread_id);
+            // If thread sleeping, wakes up
+            if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+            {
+                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI");
+                enabled_threads.push_back(thread_id);
+            }
+        }
+    }
+}
+
+void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    // Clear mip.msip to all selected threads
+    for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
+    {
+        if ((thread_mask >> t) & 1)
+        {
+            unsigned thread_id = thread0 + t;
+            clear_software_interrupt(thread_id);
+        }
+    }
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main

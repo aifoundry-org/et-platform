@@ -892,8 +892,8 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mimpid] = 0x0;
     if (thread == ((EMU_IO_SHIRE_SP*EMU_MINIONS_PER_SHIRE) << 1))
     {
-        csrregs[thread][csr_mhartid] = ((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1);
-        LOG(INFO, "Repurposing Shire 33 for Service Process : Thread %u Original MHartID %" PRIu64 " New MHartID %u" , thread, csrregs[thread][csr_mhartid],((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1));
+        LOG(INFO, "Repurposing Shire 33 for Service Process : Thread %u Original MHartID %" PRIu64 " New MHartID %u" , thread, csrregs[thread][csr_mhartid],(IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE));
+        csrregs[thread][csr_mhartid] = IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE;
     }
     else
     {
@@ -3103,7 +3103,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_portctrl1:
         case csr_portctrl2:
         case csr_portctrl3:
-            val &= 0x00000000FFFF0FF3ULL;
+            val &= 0x00000000030F0FF3ULL;
             val |= 0x0000000000008000ULL;
             csrregs[current_thread][src1] = val;
             configure_port(src1 - csr_portctrl0, val);
@@ -3129,7 +3129,7 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_medeleg:
             // Not all exceptions can be delegated
-            val &= 0x00000000000003109ULL;
+            val &= 0x0000000000000B109ULL;
             csrregs[current_thread][src1] = val;
             break;
         case csr_mideleg:
@@ -6922,8 +6922,6 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
 
-    msg_ports[thread][id].size++;
-    msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % msg_ports[thread][id].max_msgs;
     msg_ports[thread][id].stall  = false;
 
     int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
@@ -6934,6 +6932,9 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
         LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
         vmemwrite32(base_addr + 4 * i, data[i]);
     }
+
+    msg_ports[thread][id].size++;
+    msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % (msg_ports[thread][id].max_msgs +1);
 
     if (msg_ports[thread][id].enable_oob)
         msg_ports_oob[thread][id].push_back(oob);
