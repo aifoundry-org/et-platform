@@ -892,8 +892,8 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mimpid] = 0x0;
     if (thread == ((EMU_IO_SHIRE_SP*EMU_MINIONS_PER_SHIRE) << 1))
     {
-        csrregs[thread][csr_mhartid] = ((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1);
-        LOG(INFO, "Repurposing Shire 33 for Service Process : Thread %u Original MHartID %" PRIu64 " New MHartID %u" , thread, csrregs[thread][csr_mhartid],((IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE) << 1));
+        LOG(INFO, "Repurposing Shire 33 for Service Process : Thread %u Original MHartID %" PRIu64 " New MHartID %u" , thread, csrregs[thread][csr_mhartid],(IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE));
+        csrregs[thread][csr_mhartid] = IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE;
     }
     else
     {
@@ -3103,7 +3103,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_portctrl1:
         case csr_portctrl2:
         case csr_portctrl3:
-            val &= 0x00000000FFFF0FF3ULL;
+            val &= 0x00000000030F0FF3ULL;
             val |= 0x0000000000008000ULL;
             csrregs[current_thread][src1] = val;
             configure_port(src1 - csr_portctrl0, val);
@@ -3129,7 +3129,7 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_medeleg:
             // Not all exceptions can be delegated
-            val &= 0x00000000000003109ULL;
+            val &= 0x0000000000000B109ULL;
             csrregs[current_thread][src1] = val;
             break;
         case csr_mideleg:
