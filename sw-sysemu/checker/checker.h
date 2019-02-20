@@ -66,8 +66,8 @@ class checker
         checker_result emu_inst(uint32_t thread, inst_state_change * changes, std::queue<uint32_t> &wake_minions);
         // Decoder Helper functions
         void emu_disasm(char* str, size_t size, uint32_t bits);
-	// Function to CoSIM to tell BEMU an Interrupt was taken by HW
-	void raise_interrupt(unsigned minionId, uint32_t cause);
+        // Function to CoSIM to tell BEMU an Interrupt was taken by HW
+        void raise_interrupt(unsigned minionId, int cause);
         // Gets an error in string format
         std::string get_error_msg();
 
