@@ -435,7 +435,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         // Check PC
         if(changes->pc != current_pc[thread])
         {
-	    LOG(ERR, "\tBEMU Checker PC error. BEMU expects PC: 0x%lu but DUT reported PC: 0x%lu ",current_pc[thread] ,changes->pc);	
+	    LOG(ERR, "\tBEMU Checker PC error. BEMU expects PC: 0x%lx but DUT reported PC: 0x%lx ",current_pc[thread] ,changes->pc);	
             // don't check anything else when PC mismatches... everything would mismatch
             check_res = CHECKER_ERROR;
             goto finished_checking;
