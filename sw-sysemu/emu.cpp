@@ -3103,7 +3103,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_portctrl1:
         case csr_portctrl2:
         case csr_portctrl3:
-            val &= 0x00000000FFFF0FF3ULL;
+            val &= 0x00000000030F0FF3ULL;
             val |= 0x0000000000008000ULL;
             csrregs[current_thread][src1] = val;
             configure_port(src1 - csr_portctrl0, val);
