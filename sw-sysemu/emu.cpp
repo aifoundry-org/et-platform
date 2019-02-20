@@ -1035,6 +1035,16 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 
     LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64, cause);
 
+    // if checking against RTL, clear the correspoding MIP bit
+    // it will be set to 1 again if the pending bit was not really cleared
+    // just before entering the interrupt again
+    // TODO: you won't be able to read the MIP CSR from code or you'll get
+    // checker errors (you would have errors if the interrupt is cleared by
+    // a memory mapped store)
+    if (interrupt && !in_sysemu) {
+        csrregs[current_thread][csr_mip] &= ~(1ULL<<code);
+    }
+    
     // Take sie
     uint64_t mstatus = csrget(csr_mstatus);
     uint64_t sie = (mstatus >> 1) & 0x1;
@@ -1079,6 +1089,18 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
         trap_to_smode(cause, val);
         return;
     }
+
+    
+    // if checking against RTL, clear the correspoding MIP bit
+    // it will be set to 1 again if the pending bit was not really cleared
+    // just before entering the interrupt again
+    // TODO: you won't be able to read the MIP CSR from code or you'll get
+    // checker errors (you would have errors if the interrupt is cleared by
+    // a memory mapped store)
+    if (interrupt && !in_sysemu) {
+        csrregs[current_thread][csr_mip] &= ~(1ULL<<code);
+    }
+    
 
     LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval %" PRIx64, cause, val);
 
@@ -8567,6 +8589,12 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 // Esperanto IPI extension
 //
 ////////////////////////////////////////////////////////////////////////////////
+
+void raise_interrupt(int thread, int cause)
+{
+    csrregs[thread][csr_mip] |= 1<<cause;
+}
+
 
 void raise_software_interrupt(int thread)
 {
