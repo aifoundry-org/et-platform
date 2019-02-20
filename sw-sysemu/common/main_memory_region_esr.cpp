@@ -125,6 +125,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         raise_software_interrupt(esr_info.shire, *((uint64_t*) data));
 #endif
+                        break;
                     }
 
                     case ESR_SHIRE_IPI_TRIGGER_CLEAR:
@@ -132,6 +133,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         clear_software_interrupt(esr_info.shire, *((uint64_t*) data));
 #endif
+                        break;
                     }
 
                     case ESR_SHIRE_FLB  :
