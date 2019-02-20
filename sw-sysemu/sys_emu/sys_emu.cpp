@@ -112,7 +112,10 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
 {
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
-        if((thread_mask >> m) & 1)
+        // Skip disabled minion
+        if (((minions_en >> m) & 1) == 0) continue;
+
+        if ((thread_mask >> m) & 1)
         {
             int thread_id = shire_id * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + thread_dest;
             LOG_OTHER(DEBUG, thread_id, "Receiving FCC on counter %u", cnt_dest);
