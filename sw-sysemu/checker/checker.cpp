@@ -549,7 +549,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         {
           // Someone changed the flags
           std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
-	  LOG(WARN, "\tBEMU Checker fflags changed by %s. BEMU expects new flags: 0x%lu but DUT reported: 0x%lu ",changer.c_str(), emu_state_change.fflags_value , changes->fflags_value);	
+	  LOG(WARN, "\tBEMU Checker fflags changed by %s. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",changer.c_str(), emu_state_change.fflags_value , changes->fflags_value);	
           check_res = CHECKER_WARNING;
         }
         
@@ -557,7 +557,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         {
           if ( changes->fflags_value != emu_state_change.fflags_value )
           {
-	  LOG(WARN, "\tBEMU Checker fflags values change. BEMU expects new flags: 0x%lu but DUT reported: 0x%lu ",emu_state_change.fflags_value , changes->fflags_value);	
+	  LOG(WARN, "\tBEMU Checker fflags values change. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",emu_state_change.fflags_value , changes->fflags_value);	
             check_res = CHECKER_WARNING;
           }
         }
@@ -943,9 +943,20 @@ finished_checking:
     return check_res;
 }
 
-void checker::raise_interrupt(unsigned minionId) 
+void checker::raise_interrupt(unsigned minionId, uint32_t cause ) 
 {
-    raise_external_interrupt(minionId);
+   //std::array<std::string, 13> intr_type[] = {"USIP", "SSIP", "WIRI", "MSIP", "UTIP", "STIP", "WIRI", "MTIP", "UEIP", "SEIP", "WIRI", "MEIP", "WIRI"};
+    switch(cause)
+    {
+	case 2 :  raise_software_interrupt(minionId);
+		break;	
+  	case 7  :  raise_timer_interrupt(minionId);
+		break;
+        case 11 :  raise_external_interrupt(minionId);
+		break;
+	//default :  LOG(WARN, "Unsupported Interrupt type: %d(%s)", cause, intr_type[cause].c_str());
+	default :  LOG(WARN, "Unsupported Interrupt type: %d", cause);
+    }
 }
 
 // Return the last error message
