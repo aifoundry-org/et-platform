@@ -981,6 +981,7 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
 
 void check_pending_interrupts()
 {
+    LOG(INFO, "Check Pending Interrupt (MtVec set(%d): Mtvec:0x%016" PRIx64 ":> mip 0x%016" PRIx64 " :mie 0x%016" PRIx64 , mtvec_is_set[current_thread], csrregs[current_thread][csr_mtvec], csrregs[current_thread][csr_mip], csrregs[current_thread][csr_mie]);	
     // Are there any non-masked pending interrupts?
     uint64_t xip = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mie];
     if (!xip) return;
