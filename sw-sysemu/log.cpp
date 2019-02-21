@@ -1,115 +1,111 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "log.h"
 #include "emu.h"
 
 inst_state_change * log_info = NULL;
 
-// Clears the log
 void clearlogstate()
 {
-    if(log_info == NULL) return;
-    log_info->pc_mod = false;
-    log_info->pc = 0;
-    log_info->inst_bits = 0;
-    log_info->int_reg_mod = false;
-    log_info->int_reg_rd = 0;
-    log_info->int_reg_data = 0;
-    log_info->fflags_mod = false;
-    log_info->fflags_value = 0;
-    log_info->tensor_mod = false;
-    log_info->tl_transform = 0;
-    for(int m = 0; m < 8; m++)
-    {
-        log_info->m_reg_mod[m] = false;
-        for(int i = 0; i < VL; i++)
-        {
-           log_info->m_reg_data[m][i] = 0;
-        }
-    }
-    log_info->fp_reg_mod = false;
-    log_info->fp_reg_rd = 0;
-    for(int i = 0; i < (VL/2); i++)
-    {
-        log_info->fp_reg_data[i] = 0;
-    }
-    for(int i = 0; i < VL; i++)
-    {
-        log_info->mem_mod[i]  = false;
-        log_info->mem_size[i] = 0;
-        log_info->mem_addr[i] = 0;
-        log_info->mem_data[i] = 0;
-    }
+    if (log_info == NULL) return;
+    memset(log_info, 0, sizeof(inst_state_change));
 }
 
-// Sets the log info pointer
 void setlogstate(inst_state_change * log_info_)
 {
     log_info = log_info_;
 }
 
-// Jump
-void logpcchange(uint64_t new_pc)
+void log_pc_update(uint64_t new_pc)
 {
-    if(log_info == NULL) return;
-    // As we support the C extension the PC must be aligned to 2B
-    assert((new_pc & 1ULL) == 0ULL);
+    assert(~new_pc & 1);
+    if (log_info == NULL) return;
     log_info->pc_mod = true;
     log_info->pc = new_pc;
 }
 
-// Adds an int register change
-void logxregchange(int xdst)
+void log_xreg_write(int xdst)
 {
     assert(xdst < 32);
-    if(log_info == NULL) return;
+    if (log_info == NULL) return;
     log_info->int_reg_mod = true;
     log_info->int_reg_rd = xdst;
     log_info->int_reg_data = XREGS[xdst].x;
 }
 
-// Adds a float register change
-void logfregchange(int fdst)
+void log_freg_write(int fdst)
 {
     assert(fdst < 32);
-    if(log_info == NULL) return;
+    if (log_info == NULL) return;
     log_info->fp_reg_mod = true;
     log_info->fp_reg_rd = fdst;
     for(int i = 0; i < (VL/2); i++)
         log_info->fp_reg_data[i] = FREGS[fdst].x[i];
 }
 
-// Adds a mask register change
-void logmregchange(int mdst)
+void log_mreg_write(int mdst)
 {
     assert(mdst < 8);
-    if(log_info == NULL) return;
+    if (log_info == NULL) return;
     log_info->m_reg_mod[mdst] = true;
     for(int i = 0; i < VL; i++)
         log_info->m_reg_data[mdst][i] = MREGS[mdst].b[i];
 }
 
-void logmemwchange(int pos, int size, uint64_t addr, uint64_t val)
+void log_mem_write(int pos, int size, uint64_t addr, uint64_t val)
 {
     assert(pos < VL);
-    if(log_info == NULL) return;
+    if (log_info == NULL) return;
     log_info->mem_mod[pos] = true;
     log_info->mem_size[pos] = size;
     log_info->mem_addr[pos] = addr;
     log_info->mem_data[pos] = val;
 }
 
-void logfflagschange(uint64_t new_flags)
+void log_fflags_write(uint64_t new_flags)
 {
-    if(log_info == NULL) return;
+    if (log_info == NULL) return;
     log_info->fflags_mod = true;
     log_info->fflags_value = new_flags;
 }
 
-void logtensorchange(int trans)
+void log_tensor_load(int trans)
 {
-  log_info->tensor_mod = true;
-  log_info->tl_transform = trans;
+    if (log_info == NULL) return;
+    log_info->tensor_mod = true;
+    log_info->tl_transform = trans;
+}
+
+void log_tensor_fma_new_pass()
+{
+    if (log_info == NULL) return;
+    log_info->tensorfma_passes++;
+}
+
+void log_tensor_fma_skip_row(int pass, int row)
+{
+    if (log_info == NULL) return;
+    for (int freg = row*TFMA_REGS_PER_ROW; freg < (row+1) * TFMA_REGS_PER_ROW; ++freg)
+    {
+        for (int elem = 0; elem < VL; ++elem)
+        {
+            log_info->tensorfma_skip[pass][freg][elem] = true;
+        }
+    }
+}
+
+void log_tensor_fma_skip_elem(int pass, int freg, int elem)
+{
+    if (log_info == NULL) return;
+    log_info->tensorfma_skip[pass][freg][elem] = true;
+}
+
+void log_tensor_fma_write(int pass, int freg, int elem, uint32_t value)
+{
+    if (log_info == NULL) return;
+    log_info->tensorfma_data[pass][freg][elem] = value;
+    log_info->tensorfma_mod[pass] |= 1u << freg;
 }
