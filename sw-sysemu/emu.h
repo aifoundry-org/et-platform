@@ -624,6 +624,7 @@ extern void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint6
 
 // ----- Esperanto IPI extension ------------------------------------------------
 
+extern void raise_interrupt(int thread, int cause);
 extern void raise_software_interrupt(int thread);
 extern void clear_software_interrupt(int thread);
 
