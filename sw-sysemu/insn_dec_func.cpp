@@ -76,9 +76,9 @@ static insn_exec_funct_t dec_custom0(uint32_t bits, uint32_t& flags __attribute_
               case 0x0b: return insn_famoandl_pi;
               case 0x0f: return insn_famoorl_pi;
               case 0x13: return insn_famoxorl_pi;
-              case 0x14: return insn_famominl_ps;
+              case 0x14: return insn_famomaxl_ps;
               case 0x17: return insn_famominl_pi;
-              case 0x18: return insn_famomaxl_ps;
+              case 0x18: return insn_famominl_ps;
               case 0x1b: return insn_famomaxl_pi;
               case 0x1f: return insn_famominul_pi;
               case 0x23: return insn_famomaxul_pi;
@@ -87,9 +87,9 @@ static insn_exec_funct_t dec_custom0(uint32_t bits, uint32_t& flags __attribute_
               case 0x4b: return insn_famoandg_pi;
               case 0x4f: return insn_famoorg_pi;
               case 0x53: return insn_famoxorg_pi;
-              case 0x54: return insn_famoming_ps;
+              case 0x54: return insn_famomaxg_ps;
               case 0x57: return insn_famoming_pi;
-              case 0x58: return insn_famomaxg_ps;
+              case 0x58: return insn_famoming_ps;
               case 0x5b: return insn_famomaxg_pi;
               case 0x5f: return insn_famominug_pi;
               case 0x63: return insn_famomaxug_pi;
