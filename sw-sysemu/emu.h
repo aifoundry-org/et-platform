@@ -2,10 +2,21 @@
 #define _EMU_H
 
 #include <list>
+#include <queue>
 #include <iomanip>
 
 #include "emu_defines.h"
 #include "testLog.h"
+
+#include "log.h"
+#include "emu_casts.h"
+#include "emu_gio.h"
+#include "emu_memop.h"
+
+#include "fpu/fpu.h"
+#include "fpu/fpu_casts.h"
+#include "tbox_emu.h"
+#include "rbox.h"
 
 // Used to access different threads transparently
 #define XREGS xregs[current_thread]
@@ -613,6 +624,7 @@ extern void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint6
 
 // ----- Esperanto IPI extension ------------------------------------------------
 
+extern void raise_interrupt(int thread, int cause);
 extern void raise_software_interrupt(int thread);
 extern void clear_software_interrupt(int thread);
 
@@ -622,5 +634,8 @@ extern void clear_timer_interrupt(int thread);
 extern void raise_external_interrupt(int thread);
 extern void clear_external_interrupt(int thread);
 
+
+// ----- Get list of minions awaken by the last instruction (checker only) ----------------------------
+std::queue<uint32_t> &get_minions_to_awake();
 
 #endif // _EMU_H

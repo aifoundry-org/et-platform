@@ -39,7 +39,7 @@ main_memory_region_esr::~main_memory_region_esr()
 void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 {
     static uint8_t brcst0_received = 0;
-
+    bool write_data = true; // set to false for the ESRs that return 0 when reading ( storage is bzeroed in ctor)
     esr_info_t esr_info;
     decode_ESR_address(ad, &esr_info);
 
@@ -116,6 +116,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 #ifdef SYS_EMU
                         send_ipi_redirect_to_threads(esr_info.shire, *((uint64_t *) data));
 #endif
+                        write_data = false;
                         break;
                     }
 
@@ -145,7 +146,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 0);
 #endif
                         fcc_inc(0, esr_info.shire, *((uint64_t*)data), 0);
-
+                        write_data = false;
                         break;
                     }
 
@@ -156,7 +157,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                         fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 1);
 #endif
                         fcc_inc(0, esr_info.shire, *((uint64_t*)data), 1);
-
+                        write_data = false;
                         break;
                     }
 
@@ -167,7 +168,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data), 0);
 #endif
                         fcc_inc(1, esr_info.shire, *((uint64_t*)data), 0);
-
+                        write_data = false;
                         break;
                     }
 
@@ -178,7 +179,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                         fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data), 1);
 #endif
                         fcc_inc(1, esr_info.shire, *((uint64_t*)data), 1);
-
+                        write_data = false;
                         break;
                     }
                     case ESR_SHIRE_BROADCAST0:
@@ -232,7 +233,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
     if (brcst0_received != 2) {
         // Fast local barriers implementation is using the ESR space storage!! 
-         if(data_ != NULL)
+         if(data_ != NULL && write_data)
             memcpy(data_ + (ad - base_), data, size);
     }
     else
