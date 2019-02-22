@@ -943,22 +943,6 @@ finished_checking:
     return check_res;
 }
 
-/*
-void checker::raise_interrupt(unsigned minionId, uint32_t cause ) 
-{
-   //std::array<std::string, 13> intr_type[] = {"USIP", "SSIP", "WIRI", "MSIP", "UTIP", "STIP", "WIRI", "MTIP", "UEIP", "SEIP", "WIRI", "MEIP", "WIRI"};
-    switch(cause)
-    {
-	case 2 :  raise_software_interrupt(minionId);
-		break;	
-  	case 7  :  raise_timer_interrupt(minionId);
-		break;
-        case 11 :  raise_external_interrupt(minionId);
-		break;
-	//default :  LOG(WARN, "Unsupported Interrupt type: %d(%s)", cause, intr_type[cause].c_str());
-	default :  LOG(WARN, "Unsupported Interrupt type: %d", cause);
-    }
-*/
 void checker::raise_interrupt(unsigned minionId, int cause) 
 {
   ::raise_interrupt(minionId, cause); //note, using :: to call the one from the checker, not itself
