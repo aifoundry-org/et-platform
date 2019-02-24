@@ -8044,7 +8044,7 @@ static void tensor_fma32(uint64_t tfmareg)
 
                 // If all products are 0, we can skip the operation, except if first_pass is set and this
                 // is the first iteration
-                if (!(first_pass && !k) && !((fpu::UI32(a) & fpu::UI32(b))))
+                if (!(first_pass && !k) && (fpu::UI32(a)==0 || fpu::UI32(b)==0))
                 {
                     log_tensor_fma_skip_elem(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL);
                 }
