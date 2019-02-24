@@ -6496,11 +6496,11 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- maxu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MINPS:
-              res.f = fpu::f32_minNum(val1.f, val2.f);
+              res.f = fpu::f32_lexicographicalMinimum(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmin(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MAXPS:
-              res.f = fpu::f32_maxNum(val1.f, val2.f);
+              res.f = fpu::f32_lexicographicalMaximum(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmax(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            default:
