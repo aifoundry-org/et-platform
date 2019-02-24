@@ -7400,7 +7400,7 @@ void tensorload(uint64_t control)
             {
                 for (int r = 0; r < 4; ++r)
                 {
-                    uint64_t vaddr = addr + boffset + r*stride;
+                    uint64_t vaddr = addr + boffset + (4*i+r)*stride;
                     assert(access_is_size_aligned(vaddr, 16));
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 16, Mem_Access_TxLoad))
@@ -7429,7 +7429,7 @@ void tensorload(uint64_t control)
             {
                 for (int r = 0; r < 2; ++r)
                 {
-                    uint64_t vaddr = addr + boffset + r*stride;
+                    uint64_t vaddr = addr + boffset + (2*i+r)*stride;
                     assert(access_is_size_aligned(vaddr, 32));
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 32, Mem_Access_TxLoad))
@@ -7459,29 +7459,26 @@ void tensorload(uint64_t control)
             LOG(DEBUG, "%s", "Exit Condition Broken");
             return;
         }
-        uint8_t tmp_buffer[64][64];
+        uint8_t tmp_buffer[64][L1D_LINE_SIZE];
         int size = (trans & 0x03);
-        int offset = (size==1) ?  (control & 0x30) : (control & 0x20) ;
-        int elements = 64 >> (size-1);
+        int offset = (size==1) ? (control & 0x30) : (control & 0x20) ;
+        int elements = L1D_LINE_SIZE >> (size-1);
         size = 1 << (size-1);
         LOG(DEBUG, "TensorLoad: Transpose - elements:%d size:%d offset:%d", elements, size, offset);
         for (int elem = 0; elem < elements; ++elem)
         {
             //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
-            assert(access_is_size_aligned(addr, 64));
+            assert(access_is_size_aligned(addr, L1D_LINE_SIZE));
             uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
-            if (!pma_check_data_access(paddr, 64, Mem_Access_TxLoad))
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
             {
                 throw trap_load_access_fault(addr);
             }
-            for (int j = 0; j < 8; j++)
+            for (int j = 0; j < L1D_LINE_SIZE; j++)
             {
-                for (int k = 0; k < 8; k++)
-                {
-                    uint8_t val = pmemread8(paddr + j*8 + k);
-                    tmp_buffer[elem][j*8+k] = val;
-                    LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, paddr+j*8+k, elem, j*8+k, val);
-                }
+                uint8_t val = pmemread8(paddr + j);
+                tmp_buffer[elem][j] = val;
+                LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, addr+j, elem, j, val);
             }
             addr += stride;
         }
