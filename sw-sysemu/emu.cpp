@@ -1326,6 +1326,14 @@ static inline bool access_is_size_aligned(uint64_t addr, size_t size)
     return !(addr % size);
 }
 
+static inline bool access_is_cacheable(uint64_t addr)
+{
+    return paddr_is_dram(addr)
+        || paddr_is_scratchpad(addr)
+        || paddr_is_sp_rom(addr)
+        || paddr_is_sp_sram(addr);
+}
+
 static bool pma_check_data_access(uint64_t addr, size_t size, mem_access_type macc)
 {
     bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
@@ -1433,6 +1441,10 @@ static uint16_t vmemread16(uint64_t addr)
     {
         throw trap_load_access_fault(addr);
     }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 2))
+    {
+        throw trap_load_address_misaligned(addr);
+    }
     return pmemread16(paddr);
 }
 
@@ -1443,6 +1455,10 @@ static uint32_t vmemread32(uint64_t addr)
     {
         throw trap_load_access_fault(addr);
     }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 4))
+    {
+        throw trap_load_address_misaligned(addr);
+    }
     return pmemread32(paddr);
 }
 
@@ -1452,6 +1468,10 @@ static uint64_t vmemread64(uint64_t addr)
     if (!pma_check_data_access(paddr, 8, Mem_Access_Load))
     {
         throw trap_load_access_fault(addr);
+    }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 8))
+    {
+        throw trap_load_address_misaligned(addr);
     }
     return pmemread64(paddr);
 }
@@ -1473,6 +1493,10 @@ static void vmemwrite16(uint64_t addr, uint16_t data)
     {
         throw trap_store_access_fault(addr);
     }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 2))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     pmemwrite16(paddr, data);
 }
 
@@ -1483,6 +1507,10 @@ static void vmemwrite32(uint64_t addr, uint32_t data)
     {
         throw trap_store_access_fault(addr);
     }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 4))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     pmemwrite32(paddr, data);
 }
 
@@ -1492,6 +1520,10 @@ static void vmemwrite64(uint64_t addr, uint64_t data)
     if (!pma_check_data_access(paddr, 8, Mem_Access_Store))
     {
         throw trap_store_access_fault(addr);
+    }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 8))
+    {
+        throw trap_store_address_misaligned(addr);
     }
     pmemwrite64(paddr, data);
 }
@@ -2445,8 +2477,10 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     uint64_t addr = XREGS[src1].x;
 
     // Check misaligned access
-    if (addr % 4) throw trap_store_address_misaligned(addr);
-
+    if (!access_is_size_aligned(addr, 4))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     uint64_t paddr = vmemtranslate(addr, macc);
     if (!pma_check_data_access(paddr, 4, macc))
     {
@@ -2520,8 +2554,10 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     uint64_t addr = XREGS[src1].x;
 
     // Check misaligned access
-    if (addr % 8) throw trap_store_address_misaligned(addr);
-
+    if (!access_is_size_aligned(addr, 8))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     uint64_t paddr = vmemtranslate(addr, macc);
     if (!pma_check_data_access(paddr, 8, macc))
     {
@@ -6406,8 +6442,10 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
         uint64_t addr = XREGS[src2].x + FREGS[src1].i[el];
 
         // Check misaligned access
-        if (addr % 4) throw trap_store_address_misaligned(addr);
-
+        if (!access_is_size_aligned(addr, 4))
+        {
+            throw trap_store_address_misaligned(addr);
+        }
         uint64_t paddr = vmemtranslate(addr, macc);
         if (!pma_check_data_access(paddr, 4, macc))
         {
