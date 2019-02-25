@@ -788,7 +788,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
                     if (skip) continue;
 
                     // Looks for the 1st entry in the list of RTL written lines with same destination
-                    auto it = std::find_if(tensorfma_list[thread].begin(), tensorquant_list[thread].end(),
+                    auto it = std::find_if(tensorfma_list[thread].begin(), tensorfma_list[thread].end(),
                                            [=] (const tensorfma_entry& x) { return x.entry == freg; });
                     // Checks that an entry was actually found
                     if(it == tensorfma_list[thread].end())
