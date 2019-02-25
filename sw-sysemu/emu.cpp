@@ -3975,13 +3975,13 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 break;
             case FMIN:
                 {
-                    res.f = fpu::f32_minNum(val1.f, val2.f);
+                    res.f = fpu::f32_minimumNumber(val1.f, val2.f);
                     LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                 }
                 break;
             case FMAX:
                 {
-                    res.f = fpu::f32_maxNum(val1.f, val2.f);
+                    res.f = fpu::f32_maximumNumber(val1.f, val2.f);
                     LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                 }
                 break;
@@ -6496,11 +6496,11 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- maxu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MINPS:
-              res.f = fpu::f32_lexicographicalMinimum(val1.f, val2.f);
+              res.f = fpu::f32_minNum(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmin(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MAXPS:
-              res.f = fpu::f32_lexicographicalMaximum(val1.f, val2.f);
+              res.f = fpu::f32_maxNum(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmax(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            default:
@@ -8429,7 +8429,7 @@ static void tensorreduce(uint64_t value)
                 iufval32 src1, src2, rslt;
                 src1.u = FREGS[op_reg].u[j];
                 src2.u = fregs[other_min<<1][op_reg].u[j];
-                rslt.f = fpu::f32_maxNum(src1.f,src2.f);//src1.u > src2.u ? src1.u : src2.u;
+                rslt.f = fpu::f32_maximumNumber(src1.f,src2.f);//src1.u > src2.u ? src1.u : src2.u;
                 FREGS[op_reg].u[j] = rslt.u;
                 LOG(DEBUG, "\tReduce (fmax) f%d[%d]: %g = %g > %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,src2.flt,other_min);
                 LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x > 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
