@@ -1326,6 +1326,14 @@ static inline bool access_is_size_aligned(uint64_t addr, size_t size)
     return !(addr % size);
 }
 
+static inline bool access_is_cacheable(uint64_t addr)
+{
+    return paddr_is_dram(addr)
+        || paddr_is_scratchpad(addr)
+        || paddr_is_sp_rom(addr)
+        || paddr_is_sp_sram(addr);
+}
+
 static bool pma_check_data_access(uint64_t addr, size_t size, mem_access_type macc)
 {
     bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
@@ -1433,6 +1441,10 @@ static uint16_t vmemread16(uint64_t addr)
     {
         throw trap_load_access_fault(addr);
     }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 2))
+    {
+        throw trap_load_address_misaligned(addr);
+    }
     return pmemread16(paddr);
 }
 
@@ -1443,6 +1455,10 @@ static uint32_t vmemread32(uint64_t addr)
     {
         throw trap_load_access_fault(addr);
     }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 4))
+    {
+        throw trap_load_address_misaligned(addr);
+    }
     return pmemread32(paddr);
 }
 
@@ -1452,6 +1468,10 @@ static uint64_t vmemread64(uint64_t addr)
     if (!pma_check_data_access(paddr, 8, Mem_Access_Load))
     {
         throw trap_load_access_fault(addr);
+    }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 8))
+    {
+        throw trap_load_address_misaligned(addr);
     }
     return pmemread64(paddr);
 }
@@ -1473,6 +1493,10 @@ static void vmemwrite16(uint64_t addr, uint16_t data)
     {
         throw trap_store_access_fault(addr);
     }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 2))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     pmemwrite16(paddr, data);
 }
 
@@ -1483,6 +1507,10 @@ static void vmemwrite32(uint64_t addr, uint32_t data)
     {
         throw trap_store_access_fault(addr);
     }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 4))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     pmemwrite32(paddr, data);
 }
 
@@ -1492,6 +1520,10 @@ static void vmemwrite64(uint64_t addr, uint64_t data)
     if (!pma_check_data_access(paddr, 8, Mem_Access_Store))
     {
         throw trap_store_access_fault(addr);
+    }
+    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 8))
+    {
+        throw trap_store_address_misaligned(addr);
     }
     pmemwrite64(paddr, data);
 }
@@ -2445,8 +2477,10 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     uint64_t addr = XREGS[src1].x;
 
     // Check misaligned access
-    if (addr % 4) throw trap_store_address_misaligned(addr);
-
+    if (!access_is_size_aligned(addr, 4))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     uint64_t paddr = vmemtranslate(addr, macc);
     if (!pma_check_data_access(paddr, 4, macc))
     {
@@ -2520,8 +2554,10 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     uint64_t addr = XREGS[src1].x;
 
     // Check misaligned access
-    if (addr % 8) throw trap_store_address_misaligned(addr);
-
+    if (!access_is_size_aligned(addr, 8))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     uint64_t paddr = vmemtranslate(addr, macc);
     if (!pma_check_data_access(paddr, 8, macc))
     {
@@ -4821,7 +4857,7 @@ static void femuscat32(int size, freg src3, xreg src1, xreg src2)
         switch (size)
         {
             case 1:
-                LOG(DEBUG, "\t[%d] 0x%04" PRIx8 " --> MEM8[0x%08" PRIx64 "]", i, uint8_t(val.u), addr);
+                LOG(DEBUG, "\t[%d] 0x%02" PRIx8 " --> MEM8[0x%08" PRIx64 "]", i, uint8_t(val.u), addr);
                 vmemwrite8(addr, uint8_t(val.u));
                 break;
             case 2:
@@ -6406,8 +6442,10 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
         uint64_t addr = XREGS[src2].x + FREGS[src1].i[el];
 
         // Check misaligned access
-        if (addr % 4) throw trap_store_address_misaligned(addr);
-
+        if (!access_is_size_aligned(addr, 4))
+        {
+            throw trap_store_address_misaligned(addr);
+        }
         uint64_t paddr = vmemtranslate(addr, macc);
         if (!pma_check_data_access(paddr, 4, macc))
         {
@@ -6458,11 +6496,11 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- maxu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MINPS:
-              res.f = fpu::f32_minNum(val1.f, val2.f);
+              res.f = fpu::f32_lexicographicalMinimum(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmin(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MAXPS:
-              res.f = fpu::f32_maxNum(val1.f, val2.f);
+              res.f = fpu::f32_lexicographicalMaximum(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmax(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            default:
@@ -7400,7 +7438,7 @@ void tensorload(uint64_t control)
             {
                 for (int r = 0; r < 4; ++r)
                 {
-                    uint64_t vaddr = addr + boffset + r*stride;
+                    uint64_t vaddr = addr + boffset + (4*i+r)*stride;
                     assert(access_is_size_aligned(vaddr, 16));
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 16, Mem_Access_TxLoad))
@@ -7429,7 +7467,7 @@ void tensorload(uint64_t control)
             {
                 for (int r = 0; r < 2; ++r)
                 {
-                    uint64_t vaddr = addr + boffset + r*stride;
+                    uint64_t vaddr = addr + boffset + (2*i+r)*stride;
                     assert(access_is_size_aligned(vaddr, 32));
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 32, Mem_Access_TxLoad))
@@ -7459,29 +7497,26 @@ void tensorload(uint64_t control)
             LOG(DEBUG, "%s", "Exit Condition Broken");
             return;
         }
-        uint8_t tmp_buffer[64][64];
+        uint8_t tmp_buffer[64][L1D_LINE_SIZE];
         int size = (trans & 0x03);
-        int offset = (size==1) ?  (control & 0x30) : (control & 0x20) ;
-        int elements = 64 >> (size-1);
+        int offset = (size==1) ? (control & 0x30) : (control & 0x20) ;
+        int elements = L1D_LINE_SIZE >> (size-1);
         size = 1 << (size-1);
         LOG(DEBUG, "TensorLoad: Transpose - elements:%d size:%d offset:%d", elements, size, offset);
         for (int elem = 0; elem < elements; ++elem)
         {
             //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
-            assert(access_is_size_aligned(addr, 64));
+            assert(access_is_size_aligned(addr, L1D_LINE_SIZE));
             uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
-            if (!pma_check_data_access(paddr, 64, Mem_Access_TxLoad))
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
             {
                 throw trap_load_access_fault(addr);
             }
-            for (int j = 0; j < 8; j++)
+            for (int j = 0; j < L1D_LINE_SIZE; j++)
             {
-                for (int k = 0; k < 8; k++)
-                {
-                    uint8_t val = pmemread8(paddr + j*8 + k);
-                    tmp_buffer[elem][j*8+k] = val;
-                    LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, paddr+j*8+k, elem, j*8+k, val);
-                }
+                uint8_t val = pmemread8(paddr + j);
+                tmp_buffer[elem][j] = val;
+                LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, addr+j, elem, j, val);
             }
             addr += stride;
         }
@@ -8044,7 +8079,7 @@ static void tensor_fma32(uint64_t tfmareg)
 
                 // If all products are 0, we can skip the operation, except if first_pass is set and this
                 // is the first iteration
-                if (!(first_pass && !k) && !((fpu::UI32(a) & fpu::UI32(b))))
+                if (!(first_pass && !k) && (fpu::UI32(a)==0 || fpu::UI32(b)==0))
                 {
                     log_tensor_fma_skip_elem(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL);
                 }
