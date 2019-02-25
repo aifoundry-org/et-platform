@@ -667,6 +667,38 @@ namespace fpu {
     }
 
 
+    float32_t f32_lexicographicalMinimum(float32_t a, float32_t b)
+    {
+        uint_fast32_t uiA = UI32(a);
+        uint_fast32_t uiB = UI32(b);
+        bool signA = signF32UI(uiA);
+        bool signB = signF32UI(uiB);
+        bool isNanA = isNaNF32UI(uiA);
+        bool isNanB = isNaNF32UI(uiB);
+        if (isNanA != isNanB)
+            return isNanB ? a : b;
+        if (signA != signB)
+            return signA ? a : b;
+        return ((uiA != uiB) && (signA ^ (uiA < uiB))) ? a : b;
+    }
+
+
+    float32_t f32_lexicographicalMaximum(float32_t a, float32_t b)
+    {
+        uint_fast32_t uiA = UI32(a);
+        uint_fast32_t uiB = UI32(b);
+        bool signA = signF32UI(uiA);
+        bool signB = signF32UI(uiB);
+        bool isNanA = isNaNF32UI(uiA);
+        bool isNanB = isNaNF32UI(uiB);
+        if (isNanA != isNanB)
+            return isNanB ? a : b;
+        if (signA != signB)
+            return signB ? a : b;
+        return ((uiA != uiB) && (signB ^ (uiB < uiA))) ? a : b;
+    }
+
+
     bool f32_eq(float32_t a, float32_t b)
     {
         return ::f32_eq(daz(a), daz(b));
