@@ -50,6 +50,9 @@ namespace fpu {
     float32_t f32_minNum(float32_t, float32_t);
     float32_t f32_maxNum(float32_t, float32_t);
 
+    float32_t f32_lexicographicalMinimum(float32_t, float32_t);
+    float32_t f32_lexicographicalMaximum(float32_t, float32_t);
+
     bool f32_eq(float32_t, float32_t);
     bool f32_lt(float32_t, float32_t);
     bool f32_le(float32_t, float32_t);

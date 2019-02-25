@@ -1000,7 +1000,7 @@ void checker::aggregate_tl_data(uint32_t thread)
     int addr_shl = entry.entry |  (1 << 5);
     if ( entry.entry == addr_shl )
     {
-      // This entry addres writes to a second half-line.
+      // This entry address writes to a second half-line.
       entry.entry = addr_fhl;
       for( int i = 0 ; i < 4 ; ++i )
       {
@@ -1022,7 +1022,7 @@ void checker::aggregate_tl_data(uint32_t thread)
           uint32_t valid = entry2.banks & (uint32_t(1) << i);
           if( valid )
           {
-            entry.data[offset+i] = entry.data[i];
+            entry.data[offset+i] = entry2.data[i];
             entry.banks |= (valid << offset);
           }
         }
