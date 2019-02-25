@@ -4857,7 +4857,7 @@ static void femuscat32(int size, freg src3, xreg src1, xreg src2)
         switch (size)
         {
             case 1:
-                LOG(DEBUG, "\t[%d] 0x%04" PRIx8 " --> MEM8[0x%08" PRIx64 "]", i, uint8_t(val.u), addr);
+                LOG(DEBUG, "\t[%d] 0x%02" PRIx8 " --> MEM8[0x%08" PRIx64 "]", i, uint8_t(val.u), addr);
                 vmemwrite8(addr, uint8_t(val.u));
                 break;
             case 2:
