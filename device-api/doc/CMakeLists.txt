@@ -21,4 +21,5 @@ add_custom_target( doc ALL
     COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..
     COMMENT "Generating API documentation with Doxygen"
+    DEPENDS parse-device-api
     VERBATIM )

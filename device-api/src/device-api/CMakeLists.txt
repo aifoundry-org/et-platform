@@ -12,12 +12,14 @@ file(GLOB COMMAND_ETAPI "commands/*.fbs" "include/*.fbs" "responses/*.fbs" "even
 
 set(FLATBUFFERS_FLATC_SCHEMA_EXTRA_ARGS --scoped-enums --gen-mutable --gen-object-api --gen-compare)
 
-build_flatbuffers(
+build_et_flatbuffers(
   "${COMMAND_ETAPI}"
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
   flatc-fbs-parse
   ""
   ${CMAKE_CURRENT_BINARY_DIR}/flatc-gen-code/
+  ${CMAKE_CURRENT_BINARY_DIR}/flatc-jsonschema/
+  ${CMAKE_CURRENT_BINARY_DIR}/flatc-gen-cpp-raw/
   ${CMAKE_CURRENT_BINARY_DIR}/schemas
   ${CMAKE_CURRENT_BINARY_DIR}/text-schemas
   )

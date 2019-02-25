@@ -14,6 +14,8 @@ project(DeviceAPI LANGUAGES C CXX)
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
+include(CMake/BuildFlatBuffers.cmake)
+
 add_subdirectory(tools/flatbuffers
                  ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build
                  EXCLUDE_FROM_ALL)
