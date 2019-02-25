@@ -173,6 +173,19 @@ softfloat_ignoreNaNF32UI( uint_fast32_t uiA, uint_fast32_t uiB )
 }
 
 
+static uint_fast32_t
+softfloat_ignoreQNaNF32UI( uint_fast32_t uiA, uint_fast32_t uiB )
+{
+    if ( softfloat_isSigNaNF32UI( uiA ) || softfloat_isSigNaNF32UI( uiB ) ) {
+        softfloat_raiseFlags( softfloat_flag_invalid );
+        return defaultNaNF32UI;
+    }
+    return isNaNF32UI( uiA )
+        ? ( isNaNF32UI( uiB ) ? defaultNaNF32UI : uiB )
+        : uiA;
+}
+
+
 static uint_fast32_t softfloat_propagateNaNF32UI(
     uint_fast32_t uiA, uint_fast32_t uiB, uint_fast32_t uiC )
 {
@@ -229,6 +242,62 @@ static float32_t f32_maximumNumber( float32_t a, float32_t b )
         union ui32_f32 uZ;
         uint_fast32_t uiZ;
         uiZ = softfloat_ignoreNaNF32UI( uiA, uiB );
+        uZ.ui = uiZ;
+        return uZ.f;
+    }
+    signA = signF32UI( uiA );
+    signB = signF32UI( uiB );
+
+    return ( signA != signB )
+        ? ( signB ? a : b )
+        : ( ((uiA != uiB) && (signB ^ (uiB < uiA))) ? a : b );
+}
+
+
+static float32_t f32_minNum( float32_t a, float32_t b )
+{
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    union ui32_f32 uB;
+    uint_fast32_t uiB;
+    bool signA, signB;
+
+    uA.f = a;
+    uiA = uA.ui;
+    uB.f = b;
+    uiB = uB.ui;
+    if ( isNaNF32UI( uiA ) || isNaNF32UI( uiB ) ) {
+        union ui32_f32 uZ;
+        uint_fast32_t uiZ;
+        uiZ = softfloat_ignoreQNaNF32UI( uiA, uiB );
+        uZ.ui = uiZ;
+        return uZ.f;
+    }
+    signA = signF32UI( uiA );
+    signB = signF32UI( uiB );
+
+    return ( signA != signB )
+        ? ( signA ? a : b )
+        : ( ((uiA != uiB) && (signA ^ (uiA < uiB))) ? a : b );
+}
+
+
+static float32_t f32_maxNum( float32_t a, float32_t b )
+{
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    union ui32_f32 uB;
+    uint_fast32_t uiB;
+    bool signA, signB;
+
+    uA.f = a;
+    uiA = uA.ui;
+    uB.f = b;
+    uiB = uB.ui;
+    if ( isNaNF32UI( uiA ) || isNaNF32UI( uiB ) ) {
+        union ui32_f32 uZ;
+        uint_fast32_t uiZ;
+        uiZ = softfloat_ignoreQNaNF32UI( uiA, uiB );
         uZ.ui = uiZ;
         return uZ.f;
     }
@@ -654,48 +723,30 @@ namespace fpu {
 
 
     // NB: IEEE 754-201x compatible
-    float32_t f32_minNum(float32_t a, float32_t b)
+    float32_t f32_minimumNumber(float32_t a, float32_t b)
     {
         return ::f32_minimumNumber(daz(a), daz(b));
     }
 
 
     // NB: IEEE 754-201x compatible
-    float32_t f32_maxNum(float32_t a, float32_t b)
+    float32_t f32_maximumNumber(float32_t a, float32_t b)
     {
         return ::f32_maximumNumber(daz(a), daz(b));
     }
 
 
-    float32_t f32_lexicographicalMinimum(float32_t a, float32_t b)
+    // NB: IEEE 754-2008 compatible
+    float32_t f32_minNum(float32_t a, float32_t b)
     {
-        uint_fast32_t uiA = UI32(a);
-        uint_fast32_t uiB = UI32(b);
-        bool signA = signF32UI(uiA);
-        bool signB = signF32UI(uiB);
-        bool isNanA = isNaNF32UI(uiA);
-        bool isNanB = isNaNF32UI(uiB);
-        if (isNanA != isNanB)
-            return isNanB ? a : b;
-        if (signA != signB)
-            return signA ? a : b;
-        return ((uiA != uiB) && (signA ^ (uiA < uiB))) ? a : b;
+        return ::f32_minNum(a, b);
     }
 
 
-    float32_t f32_lexicographicalMaximum(float32_t a, float32_t b)
+    // NB: IEEE 754-2008 compatible
+    float32_t f32_maxNum(float32_t a, float32_t b)
     {
-        uint_fast32_t uiA = UI32(a);
-        uint_fast32_t uiB = UI32(b);
-        bool signA = signF32UI(uiA);
-        bool signB = signF32UI(uiB);
-        bool isNanA = isNaNF32UI(uiA);
-        bool isNanB = isNaNF32UI(uiB);
-        if (isNanA != isNanB)
-            return isNanB ? a : b;
-        if (signA != signB)
-            return signB ? a : b;
-        return ((uiA != uiB) && (signB ^ (uiB < uiA))) ? a : b;
+        return ::f32_maxNum(a, b);
     }
 
 

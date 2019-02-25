@@ -47,11 +47,12 @@ namespace fpu {
     float32_t f32_copySignXor(float32_t, float32_t);
 
     // NB: IEEE 754-201x compatible
+    float32_t f32_minimumNumber(float32_t, float32_t);
+    float32_t f32_maximumNumber(float32_t, float32_t);
+
+    // NB: IEEE 754-2008 compatible
     float32_t f32_minNum(float32_t, float32_t);
     float32_t f32_maxNum(float32_t, float32_t);
-
-    float32_t f32_lexicographicalMinimum(float32_t, float32_t);
-    float32_t f32_lexicographicalMaximum(float32_t, float32_t);
 
     bool f32_eq(float32_t, float32_t);
     bool f32_lt(float32_t, float32_t);
