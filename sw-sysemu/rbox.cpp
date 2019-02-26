@@ -33,7 +33,7 @@ void RBOX::RBOXEmu::run(bool step_mode)
                           || (   ((in_buf_cfg_esr.fields.start_offset + in_buf_cfg_esr.fields.buffer_size - 1) > 0x8000)
                               && !in_buf_pg_esr.fields.page0_enable)
                           || !out_buf_pg_esr.fields.page_enable
-                          || ((out_buf_cfg_esr.fields.start_offset + (1 << out_buf_cfg_esr.fields.buffer_size) * MINIONS_PER_RBOX) > 0x8000);
+                          || ((out_buf_cfg_esr.fields.start_offset + (1 << out_buf_cfg_esr.fields.buffer_size) * MINION_HARTS_PER_RBOX) > 0x8000);
 
         if (!config_error)
         {
@@ -52,11 +52,18 @@ void RBOX::RBOXEmu::run(bool step_mode)
 
             last_in_pckt = false;
 
-            for (uint32_t m = 0; m < MINIONS_PER_RBOX; m++)
+            for (uint32_t m = 0; m < MINION_HARTS_PER_RBOX; m++)
             {
-                minion_credits[m] = (1 << out_buf_cfg_esr.fields.buffer_size);
-                minion_ptr[m] = 0;
+                hart_packet_credits[m] = (1 << out_buf_cfg_esr.fields.buffer_size);
+                hart_msg_credits[m] = out_buf_cfg_esr.fields.max_msgs;
+                hart_ptr[m] = 0;
+                hart_sent_packets[m] = 0;
+                hart_sent_ptr[m] = 0;
+                end_of_phase_sent[m] = false;
+                send_message[m] = false;
             }
+            
+            flush_drawcall = false;
             
             status_esr.fields.status = WORKING;
 
@@ -76,7 +83,7 @@ void RBOX::RBOXEmu::run(bool step_mode)
     // Send quads to minions as long as credits are available
     while (started && !stall)
     {
-        while (output_quads.empty() && !last_in_pckt)
+        while (output_quads.empty() && !last_in_pckt && (!flush_drawcall || output_packets.empty()))
         {
             // Process input packets to get quads.
             uint32_t packet_size = process_packet(next_in_pckt_addr);
@@ -86,21 +93,63 @@ void RBOX::RBOXEmu::run(bool step_mode)
 
         bool stall_for_credits = false;
 
-        while (!stall_for_credits && (!step_mode || output_packets.empty()))
+        while (!stall_for_credits && !output_quads.empty() && (!step_mode || output_packets.empty()))
             stall_for_credits = send_quad_packet(step_mode);
 
-        stall = stall_for_credits || (step_mode && !output_packets.empty());
-
-        if (!output_packets.empty())
+        if (flush_drawcall && !output_quads.empty())
         {
-            for (uint32_t p = 0; p < 4; p++)
+            flush_drawcall = false;
+            for (uint32_t m = 0; m < MINION_HARTS_PER_RBOX; m++)
             {
-                pmemwrite64(output_packets[0].first, output_packets[0].second);
-                output_packets.erase(output_packets.begin());
+                if (hart_sent_packets[m] > 0)
+                {
+                    LOG_NOTHREAD(DEBUG, "RBOX [%02d] Force send on drawcall flush message port write for remaining packets for Minion HART %02d", rbox_id, m);
+                    send_message[m] =  true;
+                }
             }
         }
 
-        if (last_in_pckt && output_quads.empty() && output_packets.empty())
+        stall = stall_for_credits || (step_mode && !output_packets.empty());
+
+        bool end_of_phase_pending = stall || !last_in_pckt || !output_quads.empty();
+
+        if (last_in_pckt && output_quads.empty())
+        {
+            for (uint32_t m = 0; (m < MINION_HARTS_PER_RBOX) && !stall; m++)
+            {
+                if (!end_of_phase_sent[m])
+                {
+                    end_of_phase_pending = true;
+                    stall = !send_end_of_phase_packet(m, step_mode);
+                    end_of_phase_sent[m] = !stall;
+                }
+            }
+        }
+
+        if (!output_packets.empty())
+            write_next_packet();
+
+        for (uint32_t m = 0; m < MINION_HARTS_PER_RBOX; m++)
+        {
+            if (!end_of_phase_pending && (hart_sent_packets[m] > 0))
+            {
+                LOG_NOTHREAD(DEBUG, "RBOX [%02d] Force send last message port write for remaining packets for Minion HART %02d", rbox_id, m);
+                send_message[m] =  true;
+            }
+        }
+
+        bool sent_message = false;
+
+        for (uint32_t m = 0; (m < MINION_HARTS_PER_RBOX) && !sent_message; m++)
+        {
+            if (send_message[m])
+            {
+                send_message[m] = !report_packets(m);
+                sent_message = step_mode;
+            }
+        }
+
+        if (!end_of_phase_pending && !sent_message)
         {
             started = false;
             status_esr.fields.status = FINISHED;
@@ -145,9 +194,11 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
                                         {
                                             out_buf_cfg_esr.value = data;
                                             LOG_NOTHREAD(DEBUG, "RBOX %d Output Buffer Config = {.start_offset = %08" PRIx64
-                                                       ", .buffer_size = %08" PRIx64 ", .port_id = %" PRId64 "}", rbox_id,
+                                                       ", .buffer_size = %08" PRIx64 ", .port_id = %" PRId64
+                                                       ", .max_msgs = %" PRId64 ", .max_pckts_msg = %02" PRId64 "}", rbox_id,
                                                        out_buf_cfg_esr.fields.start_offset, out_buf_cfg_esr.fields.buffer_size,
-                                                       out_buf_cfg_esr.fields.port_id);
+                                                       out_buf_cfg_esr.fields.port_id, out_buf_cfg_esr.fields.max_msgs,
+                                                       out_buf_cfg_esr.fields.max_pckts_msg);
                                             break;
                                         }
         case STATUS_ESR               : /* Read Only */ break;
@@ -160,12 +211,18 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
         case CONSUME_ESR              :
                                         {
                                             consume_esr.value = data;
-                                            LOG_NOTHREAD(DEBUG, "RBOX %d Consume = {.consumed = %03" PRId64 ", .minion_id = %02" PRId64 "}", rbox_id,
-                                                        consume_esr.fields.consumed, consume_esr.fields.minion_id);
-                                            LOG_NOTHREAD(DEBUG, "RBOX %d Minion %02" PRId64 " Credits %03d -> %03d", rbox_id,
-                                                        consume_esr.fields.minion_id, minion_credits[consume_esr.fields.minion_id],
-                                                        minion_credits[consume_esr.fields.minion_id] + consume_esr.fields.consumed);
-                                            minion_credits[consume_esr.fields.minion_id] += consume_esr.fields.consumed;
+                                            LOG_NOTHREAD(DEBUG, "RBOX %d Consume = {.packet_credits = %03" PRId64 ", .msg_credits = %" PRId64
+                                                                ", .hart_id = %02" PRId64 "}", rbox_id,
+                                                        consume_esr.fields.packet_credits, consume_esr.fields.msg_credits, consume_esr.fields.hart_id);
+                                            LOG_NOTHREAD(DEBUG, "RBOX %d Minion HART %02" PRId64 " Packet Credits %03d -> %03d "
+                                                                " Message Credits %d -> %d",
+                                                        rbox_id, consume_esr.fields.hart_id,
+                                                        hart_packet_credits[consume_esr.fields.hart_id],
+                                                        hart_packet_credits[consume_esr.fields.hart_id] + consume_esr.fields.packet_credits,
+                                                        hart_msg_credits[consume_esr.fields.hart_id],
+                                                        hart_msg_credits[consume_esr.fields.hart_id]    + consume_esr.fields.msg_credits);
+                                            hart_packet_credits[consume_esr.fields.hart_id] += consume_esr.fields.packet_credits;
+                                            hart_msg_credits[consume_esr.fields.hart_id]    += consume_esr.fields.msg_credits;
                                             break;
                                         }
         default                       :
@@ -403,8 +460,10 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 frag_shader_state = frag_shader_state_pckt.state;
                 packet_size = 4;
 
-                for (uint32_t m = 0; m < MINIONS_PER_RBOX; m++)
+                for (uint32_t m = 0; m < MINION_HARTS_PER_RBOX; m++)
                     fsh_state_sent[m] = false;
+
+                flush_drawcall = true;
             }
             break;
         case INPCKT_END_OF_INPUT_BUFFER:
@@ -447,13 +506,13 @@ void RBOX::RBOXEmu::generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge
 
             if (quad_coverage)
             {
-                uint32_t target_minion = compute_target_minion(tile_x + x, tile_y + y);
+                uint32_t target_minion_hart = compute_target_minion_hart(tile_x + x, tile_y + y);
 
                 output_quads.push_back(quad);
 
                 generated_quads_in_tile++;
 
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] : Generated packet for quad at (%d, %d) for minion %d", rbox_id, tile_x + x, tile_y + y, target_minion);
+                LOG_NOTHREAD(DEBUG, "RBOX [%d] : Generated packet for quad at (%d, %d) for minion hart %d", rbox_id, tile_x + x, tile_y + y, target_minion_hart);
             }
 
             sample_next_quad(quad_sample);
@@ -744,12 +803,12 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
 
         if (output_quads.size() > 1)
         {
-            uint32_t target_minion[2];
+            uint32_t target_minion_hart[2];
 
-            target_minion[0] = compute_target_minion(output_quads[0].x, output_quads[0].y);
-            target_minion[1] = compute_target_minion(output_quads[1].x, output_quads[1].y);
+            target_minion_hart[0] = compute_target_minion_hart(output_quads[0].x, output_quads[0].y);
+            target_minion_hart[1] = compute_target_minion_hart(output_quads[1].x, output_quads[1].y);
 
-            insert_fake_quad = (target_minion[0] == target_minion[1]);
+            insert_fake_quad = (target_minion_hart[0] == target_minion_hart[1]);
         }
         else 
             insert_fake_quad = true;
@@ -773,13 +832,16 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
             output_quads.erase(output_quads.begin());
         }
 
-        uint32_t target_minion = compute_target_minion(quad[0].x, quad[1].y);
+        uint32_t target_minion_hart = compute_target_minion_hart(quad[0].x, quad[1].y);
     
-        if (!fsh_state_sent[target_minion])
-            fsh_state_sent[target_minion] = send_frag_shader_state_packet(target_minion, step_mode);
+        if (!fsh_state_sent[target_minion_hart])
+            fsh_state_sent[target_minion_hart] = send_frag_shader_state_packet(target_minion_hart, step_mode);
 
-        if (!fsh_state_sent[target_minion])
-            return false;
+        if (!fsh_state_sent[target_minion_hart])
+        {
+            LOG_NOTHREAD(DEBUG, "RBOX [%d] => For Minion HART %02d STALL : Drawcall state packet couldn't be send", rbox_id, target_minion_hart);
+            return true;
+        }
 
         uint32_t packets_per_sample = rbox_state.fragment_shader_reads_bary * 2
                                     + rbox_state.fragment_shader_reads_depth 
@@ -787,10 +849,11 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
         uint32_t num_packets = ((rbox_state.fragment_shader_per_sample && rbox_state.msaa_enable) ? (packets_per_sample * rbox_state.msaa_samples)
                                                                                                    :  packets_per_sample) + 1;
     
-        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Target Minion %02d Credits %03d Required Packets Per Sample %d Total Packets per Quad Message %d",
-                   rbox_id, target_minion, minion_credits[target_minion], packets_per_sample, num_packets);
+        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Target Minion HART %02d Packet Credits %03d Required Packets Per Sample %d Total Packets per Quad Message %d",
+                   rbox_id, target_minion_hart, hart_packet_credits[target_minion_hart], packets_per_sample, num_packets);
 
-        if (minion_credits[target_minion] >= num_packets)
+        if ((hart_packet_credits[target_minion_hart] >= num_packets) &&
+            ((hart_sent_packets[target_minion_hart] + num_packets) <= (1U << out_buf_cfg_esr.fields.max_pckts_msg)))
         {
             OutPcktQuadInfoT quad_info_pckt;
             
@@ -798,7 +861,7 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
             
             for (uint32_t qw = 0; qw < 4; qw++)
                 quad_info_pckt.qw[qw] = 0;
-            
+           
             quad_info_pckt.quad_info.type = OUTPCKT_QUAD_INFO;
             for (uint32_t q = 0; q < 2; q++)
             {
@@ -810,20 +873,11 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
             for (uint32_t f = 0; f < (2 * 4); f++)
                 quad_info_pckt.quad_info.mask = quad[f / 4].fragment[f % 4].coverage ? (quad_info_pckt.quad_info.mask | (1 << f)) : quad_info_pckt.quad_info.mask;
     
-            uint64_t minion_out_off = compute_minion_out_off(target_minion);
-            uint64_t minion_out_addr = compute_minion_out_addr(target_minion);
+            uint64_t minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
 
-            for (uint32_t qw = 0; qw < 4; qw++)
-            {
-                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, quad_info_pckt.qw[qw], minion_out_addr);
-                if (step_mode)
-                    output_packets.push_back(std::make_pair(minion_out_addr, quad_info_pckt.qw[qw]));
-                else
-                    pmemwrite64(minion_out_addr, quad_info_pckt.qw[qw]);
-                minion_out_addr = minion_out_addr + 8;
-            }
+            send_packet(target_minion_hart, quad_info_pckt.qw, minion_hart_out_addr, step_mode);
 
-            update_minion_out_ptr(target_minion);
+            update_minion_hart_out_ptr(target_minion_hart);
             
             if (rbox_state.fragment_shader_reads_bary)
             {
@@ -832,36 +886,20 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
                 for (uint32_t f = 0; f < (4 * 2); f++)
                     quad_data_pckt.ps[f] = convert_edge_to_fp32(quad[f / 4].fragment[f % 4].sample.edge[1]);
                 
-                minion_out_addr = compute_minion_out_addr(target_minion);
+                minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
 
-                for (uint32_t qw = 0; qw < 4; qw++)
-                {
-                    LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, quad_data_pckt.qw[qw], minion_out_addr);
-                    if (step_mode)
-                        output_packets.push_back(std::make_pair(minion_out_addr, quad_data_pckt.qw[qw]));
-                    else
-                        pmemwrite64(minion_out_addr, quad_data_pckt.qw[qw]);
-                    minion_out_addr = minion_out_addr + 8;
-                }
-                
-                update_minion_out_ptr(target_minion);
+                send_packet(target_minion_hart, quad_data_pckt.qw, minion_hart_out_addr, step_mode);
+
+                update_minion_hart_out_ptr(target_minion_hart);
 
                 for (uint32_t f = 0; f < (4 * 2); f++)
                     quad_data_pckt.ps[f] = convert_edge_to_fp32(quad[f / 4].fragment[f % 4].sample.edge[2]);
                 
-                minion_out_addr = compute_minion_out_addr(target_minion);
+                minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
 
-                for (uint32_t qw = 0; qw < 4; qw++)
-                {
-                    LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, quad_data_pckt.qw[qw], minion_out_addr);
-                    if (step_mode)
-                        output_packets.push_back(std::make_pair(minion_out_addr, quad_data_pckt.qw[qw]));
-                    else
-                        pmemwrite64(minion_out_addr, quad_data_pckt.qw[qw]);
-                    minion_out_addr = minion_out_addr + 8;
-                }
-                
-                update_minion_out_ptr(target_minion);
+                send_packet(target_minion_hart, quad_data_pckt.qw, minion_hart_out_addr, step_mode);
+
+                update_minion_hart_out_ptr(target_minion_hart);
             }
 
             if (rbox_state.fragment_shader_reads_depth)
@@ -871,36 +909,99 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
                 for (uint32_t f = 0; f < (4 * 2); f++)
                     quad_data_pckt.ps[f] = convert_depth_to_fp32(quad[f / 4].fragment[f % 4].sample.depth);
                 
-                minion_out_addr = compute_minion_out_addr(target_minion);
+                minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
 
-                for (uint32_t qw = 0; qw < 4; qw++)
-                {
-                    LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, quad_data_pckt.qw[qw], minion_out_addr);
-                    if (step_mode)
-                        output_packets.push_back(std::make_pair(minion_out_addr, quad_data_pckt.qw[qw]));
-                    else
-                        pmemwrite64(minion_out_addr, quad_data_pckt.qw[qw]);
-                    minion_out_addr = minion_out_addr + 8;
+                send_packet(target_minion_hart, quad_data_pckt.qw, minion_hart_out_addr, step_mode);
 
-                }
-                
-                update_minion_out_ptr(target_minion);
+                update_minion_hart_out_ptr(target_minion_hart);
             }
 
-            minion_credits[target_minion] -= num_packets;
+            hart_packet_credits[target_minion_hart] -= num_packets;
 
-            uint64_t msg_data = (minion_out_off << 16) | num_packets;
-
-            write_msg_port_data_from_rbox(target_minion, out_buf_cfg_esr.fields.port_id, rbox_id, (uint32_t*) &msg_data, 0);
-         
             return false;   
         }
+        else
+        {
+            if (hart_packet_credits[target_minion_hart] < num_packets) 
+                LOG_NOTHREAD(DEBUG, "RBOX [%d] => For Minion HART %02d STALL : No packet credits available for next quad", rbox_id, target_minion_hart);
+
+            if ((hart_sent_packets[target_minion_hart] + num_packets) > (1U << out_buf_cfg_esr.fields.max_pckts_msg))
+                LOG_NOTHREAD(DEBUG, "RBOX [%d] => For Minion HART %02d STALL : Pending message port write", rbox_id, target_minion_hart);
+
+            send_message[target_minion_hart] = ((hart_sent_packets[target_minion_hart] + num_packets) > (1U << out_buf_cfg_esr.fields.max_pckts_msg));
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool RBOX::RBOXEmu::send_frag_shader_state_packet(uint32_t target_minion_hart, bool step_mode)
+{
+    if ((hart_packet_credits[target_minion_hart] > 0) &&
+        (hart_sent_packets[target_minion_hart] < (1U << out_buf_cfg_esr.fields.max_pckts_msg)))
+    {
+        OutPcktFrgShdrStateT f_sh_pckt;
+
+        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generate Fragment Shader State Packet", rbox_id);
+
+        for (uint32_t qw = 0; qw < 4; qw++)
+            f_sh_pckt.qw[qw] = 0;
+
+        f_sh_pckt.state.type = OUTPCKT_STATE_INFO;
+        f_sh_pckt.state.frg_shdr_func_ptr = frag_shader_state.frag_shader_function_ptr;
+        f_sh_pckt.state.frg_shdr_state_ptr = frag_shader_state.frag_shader_state_ptr;
+
+        uint64_t minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
+
+        send_packet(target_minion_hart, f_sh_pckt.qw, minion_hart_out_addr, step_mode);
+        
+        update_minion_hart_out_ptr(target_minion_hart);
+
+        hart_packet_credits[target_minion_hart]--;
 
         return true;
     }
+    else
+    {
+        send_message[target_minion_hart] = (hart_sent_packets[target_minion_hart] >= (1U << out_buf_cfg_esr.fields.max_pckts_msg));
 
-    return true;
+        return false;
+    }
 }
+
+bool RBOX::RBOXEmu::send_end_of_phase_packet(uint32_t target_minion_hart, bool step_mode)
+{
+    if ((hart_packet_credits[target_minion_hart] > 0) &&
+        (hart_sent_packets[target_minion_hart] < (1U << out_buf_cfg_esr.fields.max_pckts_msg)))
+    {
+        OutPckt256bT end_phase_pckt;
+
+        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generate End of Phase Packet", rbox_id);
+
+        for (uint32_t qw = 0; qw < 4; qw++)
+            end_phase_pckt.qw[qw] = 0;
+
+        end_phase_pckt.header.type = OUTPCKT_END_PHASE;
+
+        uint64_t minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
+
+        send_packet(target_minion_hart, end_phase_pckt.qw, minion_hart_out_addr, step_mode);
+        
+        update_minion_hart_out_ptr(target_minion_hart);
+
+        hart_packet_credits[target_minion_hart]--;
+
+        return true;
+    }
+    else
+    {
+        send_message[target_minion_hart] = (hart_sent_packets[target_minion_hart] >= (1U << out_buf_cfg_esr.fields.max_pckts_msg));
+
+        return false;
+    }
+}
+
 
 float RBOX::RBOXEmu::convert_edge_to_fp32(int64_t edge)
 {
@@ -914,49 +1015,6 @@ float RBOX::RBOXEmu::convert_depth_to_fp32(uint32_t depth)
 {
     return float(depth) / float((1 << 24) - 1);
 }
-
-bool RBOX::RBOXEmu::send_frag_shader_state_packet(uint32_t target_minion, bool step_mode)
-{
-
-    if (minion_credits[target_minion] > 0)
-    {
-        OutPcktFrgShdrStateT f_sh_pckt;
-
-        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generate Fragment Shader State Packet", rbox_id);
-
-        for (uint32_t qw = 0; qw < 4; qw++)
-            f_sh_pckt.qw[qw] = 0;
-
-        f_sh_pckt.state.type = OUTPCKT_STATE_INFO;
-        f_sh_pckt.state.frg_shdr_func_ptr = frag_shader_state.frag_shader_function_ptr;
-        f_sh_pckt.state.frg_shdr_state_ptr = frag_shader_state.frag_shader_state_ptr;
-
-        uint64_t minion_out_addr = compute_minion_out_addr(target_minion);
-        uint64_t minion_out_off  = compute_minion_out_off(target_minion);
-
-        for (uint32_t qw = 0; qw < 4; qw++)
-        {
-            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, f_sh_pckt.qw[qw], minion_out_addr + qw * 8);
-            if (step_mode)
-                output_packets.push_back(std::make_pair(minion_out_addr + qw * 8, f_sh_pckt.qw[qw]));
-            else
-                pmemwrite64(minion_out_addr + qw * 8, f_sh_pckt.qw[qw]);
-        }
-
-        update_minion_out_ptr(target_minion);
-
-        minion_credits[target_minion]--;
-
-        uint64_t msg_data = (minion_out_off << 16) | 1;
-
-        write_msg_port_data_from_rbox(target_minion, out_buf_cfg_esr.fields.port_id, rbox_id, (uint32_t*) &msg_data, 0);
-
-        return true;
-    }
-    else
-        return false;
-}
-
 
 void RBOX::RBOXEmu::tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, TileSizeT tile_size)
 {
@@ -995,36 +1053,102 @@ void RBOX::RBOXEmu::tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, 
     }
 }
 
-uint32_t RBOX::RBOXEmu::compute_target_minion(uint32_t x, uint32_t y)
+uint32_t RBOX::RBOXEmu::compute_target_minion_hart(uint32_t x, uint32_t y)
 {
     // Minions in a Shire are distributed in rows of Shire Layout With.
     
-    return    ((x >> (rbox_state.minion_tile_width  + 1)) & ((1 << rbox_state.shire_layout_width)  - 1)) +
-           (  ((y >> (rbox_state.minion_tile_height + 1)) & ((1 << rbox_state.shire_layout_height) - 1))
+    return    ((x >> (rbox_state.minion_hart_tile_width  + 1)) & ((1 << rbox_state.shire_layout_width)  - 1)) +
+           (  ((y >> (rbox_state.minion_hart_tile_height + 1)) & ((1 << rbox_state.shire_layout_height) - 1))
             * (1 << rbox_state.shire_layout_width));
 }
 
-uint64_t RBOX::RBOXEmu::compute_minion_out_off(uint32_t target_minion)
+uint64_t RBOX::RBOXEmu::compute_minion_hart_out_off(uint32_t target_minion_hart)
 {
-    uint64_t minion_out_offset = target_minion * (out_buf_cfg_esr.fields.buffer_size << 5)
-                               + (minion_ptr[target_minion] << 5);
+    uint64_t minion_hart_out_offset = target_minion_hart * (out_buf_cfg_esr.fields.buffer_size << 5)
+                                    + (hart_ptr[target_minion_hart] << 5);
 
-    return minion_out_offset;
+    return minion_hart_out_offset;
 }
 
-uint64_t RBOX::RBOXEmu::compute_minion_out_addr(uint32_t target_minion)
+uint64_t RBOX::RBOXEmu::compute_minion_hart_out_addr(uint32_t target_minion_hart)
 {
-    uint64_t minion_out_addr = uint64_t(out_buf_pg_esr.fields.page << 21)
+    uint64_t minion_hart_out_addr = uint64_t(out_buf_pg_esr.fields.page << 21)
                              + uint64_t(out_buf_cfg_esr.fields.start_offset << 6)
-                             + target_minion * (out_buf_cfg_esr.fields.buffer_size << 5)
-                             + (minion_ptr[target_minion] << 5);
+                             + target_minion_hart * (out_buf_cfg_esr.fields.buffer_size << 5)
+                             + (hart_sent_ptr[target_minion_hart] << 5);
 
-    return minion_out_addr;
+    return minion_hart_out_addr;
 }
 
-void RBOX::RBOXEmu::update_minion_out_ptr(uint32_t target_minion)
+void RBOX::RBOXEmu::update_minion_hart_out_ptr(uint32_t target_minion_hart)
 {
-    minion_ptr[target_minion] = (minion_ptr[target_minion] + 1) % out_buf_cfg_esr.fields.buffer_size;
+    hart_ptr[target_minion_hart] = (hart_ptr[target_minion_hart] + 1) % out_buf_cfg_esr.fields.buffer_size;
 }
 
+void RBOX::RBOXEmu::send_packet(uint32_t minion_hart_id, uint64_t packet[4], uint64_t &out_addr, bool step_mode)
+{
+    if (step_mode)
+    {
+        for (uint32_t qw = 0; qw < 4; qw++)
+            output_packets.push_back(std::make_pair(minion_hart_id, packet[qw]));
+    }
+    else
+    {
+        for (uint32_t qw = 0; qw < 4; qw++)
+        {
+            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, packet[qw], out_addr);
+            pmemwrite64(out_addr, packet[qw]);
+            out_addr = out_addr + 8;
+        }
+
+        hart_sent_packets[minion_hart_id]++;
+    }
+}
+
+bool RBOX::RBOXEmu::report_packets(uint32_t minion_hart_id)
+{
+    if (hart_sent_packets[minion_hart_id] > 0)
+    {
+        if (hart_msg_credits[minion_hart_id] > 0)
+        {
+            uint64_t minion_hart_out_off = compute_minion_hart_out_off(minion_hart_id);
+            uint32_t msg_data = (minion_hart_out_off && ~0x1F) | hart_sent_packets[minion_hart_id];
+            
+            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Report Packets %02d to Minion HART %d", rbox_id, hart_sent_packets[minion_hart_id], minion_hart_id);
+
+            hart_sent_ptr[minion_hart_id] = (hart_sent_ptr[minion_hart_id] + hart_sent_packets[minion_hart_id]) % out_buf_cfg_esr.fields.buffer_size;
+            hart_sent_packets[minion_hart_id] = 0;
+
+            write_msg_port_data_from_rbox(minion_hart_id, out_buf_cfg_esr.fields.port_id, rbox_id, (uint32_t*) &msg_data, 0);
+            
+            hart_msg_credits[minion_hart_id]--;
+        
+            return true;
+        }
+        else
+        {
+            LOG_NOTHREAD(DEBUG, "RBOX[%02d] => For Minion HART %02d STALL : No message credits", rbox_id, minion_hart_id);
+            return false;
+        }
+    }
+    else
+        return true;
+    
+}
+
+void RBOX::RBOXEmu::write_next_packet()
+{
+    uint32_t packet_hart_id = output_packets[0].first;
+    uint64_t minion_hart_out_addr = compute_minion_hart_out_addr(packet_hart_id);
+
+    for (uint32_t p = 0; p < 4; p++)
+    {
+        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, output_packets[0].second, minion_hart_out_addr);
+        pmemwrite64(minion_hart_out_addr, output_packets[0].second);
+        output_packets.erase(output_packets.begin());
+        minion_hart_out_addr += 8;
+    }
+
+    hart_sent_packets[packet_hart_id]++;
+}
 
