@@ -383,8 +383,8 @@ int main()
     rbox_state_pckt.state.fragment_shader_reads_depth = 1;
     rbox_state_pckt.state.fragment_shader_reads_coverage = 0;
     rbox_state_pckt.state.fragment_shader_per_sample = 0;
-    rbox_state_pckt.state.minion_tile_width = 1;
-    rbox_state_pckt.state.minion_tile_height = 2;
+    rbox_state_pckt.state.minion_hart_tile_width = 1;
+    rbox_state_pckt.state.minion_hart_tile_height = 2;
     rbox_state_pckt.state.shire_layout_width = 3;
     rbox_state_pckt.state.shire_layout_height = 2;
     rbox_state_pckt.state.depth_min = 0;
@@ -505,9 +505,11 @@ int main()
     out_buf_pg_esr.fields.page_enable = 1;
 
     out_buf_cfg_esr.value = 0;
-    out_buf_cfg_esr.fields.start_offset = output_buffer_offset >> 6;
-    out_buf_cfg_esr.fields.buffer_size  = 7;
-    out_buf_cfg_esr.fields.port_id      = 2;
+    out_buf_cfg_esr.fields.start_offset  = output_buffer_offset >> 6;
+    out_buf_cfg_esr.fields.buffer_size   = 7;
+    out_buf_cfg_esr.fields.port_id       = 2;
+    out_buf_cfg_esr.fields.max_msgs      = 3;
+    out_buf_cfg_esr.fields.max_pckts_msg = 5;
 
     start_esr.value = 0;
     start_esr.fields.start = 1;
@@ -525,8 +527,9 @@ int main()
     for (uint32_t m = 0; m < 32; m++)
     {
         consume_esr.value = 0;
-        consume_esr.fields.consumed = 7;
-        consume_esr.fields.minion_id = m;
+        consume_esr.fields.packet_credits = 128;
+        consume_esr.fields.msg_credits    = 3;
+        consume_esr.fields.hart_id        = m;
     
         pmemwrite64(esr_rbox_region_base_addr + (RBOX::CONSUME_ESR << 3), consume_esr.value);
     }
