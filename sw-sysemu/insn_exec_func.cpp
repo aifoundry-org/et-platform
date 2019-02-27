@@ -249,7 +249,7 @@ static csr imm2csr(uint16_t imm)
     case 0x822 : return csr_stall;
     case 0x830 : return csr_tensor_wait;
     case 0x83f : return csr_tensor_load;
-    // TODO: case 0x840 : return csr_gsc_progress;
+    case 0x840 : return csr_gsc_progress;
     case 0x85f : return csr_tensor_load_l2;
     case 0x87f : return csr_tensor_store;
     case 0x89f : return csr_evict_va;
