@@ -1,3 +1,6 @@
+.extern __data_load_start
+.extern __data_start
+.extern __data_end
 .extern __bss_start
 .extern __bss_end
 .extern __stack_base
@@ -14,16 +17,28 @@
 
 _start:
     # set the stack pointer
-    la    sp, __stack_base
+    la   sp,  __stack_base
 
+    # copy the data section into RAM
+    la   x25, __data_load_start
+    la   x26, __data_start
+    la   x27, __data_end
+    bge  x26, x27, data_loop_end
+1:  lw   x24, 0(x25)
+    addi x25, x25, 4
+    sw   x24, 0(x26)
+    addi x26, x26, 4
+    blt  x26, x27, 1b
+
+data_loop_end:
     # zero out the bss section
     la   x26, __bss_start
     la   x27, __bss_end
     bge  x26, x27, bss_loop_end
 1:  sw   x0,  0(x26)
     addi x26, x26, 4
-    ble  x26, x27, 1b
+    blt  x26, x27, 1b
 
 bss_loop_end:
-    la   a1, main
-    jalr x0, a1
+    la   a1,  main
+    jalr x0,  a1
