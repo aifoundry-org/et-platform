@@ -88,8 +88,11 @@ class checker
         bool address_is_in_ignored_region(uint64_t addr);
 
         // TBOX write to Minion Message Port
-        void tbox_port_write(uint32_t thread, uint32_t port_id);
+       void thread_port_write(uint32_t target_thread, uint32_t port_id, uint32_t source_thread);
+       void tbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id);
+       void rbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id);
 
+	 
     private:
         checker_result do_reduce(uint32_t thread, uint64_t value, int * wake_thread);
 

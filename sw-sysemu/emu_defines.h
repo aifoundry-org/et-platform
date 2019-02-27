@@ -163,6 +163,9 @@
 #define ESR_RBOX_START          0x06
 #define ESR_RBOX_CONSUME        0x07
 
+// L2
+#define SC_NUM_BANKS  4
+
 // L2 scratchpad
 #define L2_SCP_BASE   0x80000000ULL
 #define L2_SCP_OFFSET 0x00800000ULL

@@ -78,7 +78,7 @@ namespace RBOX
         static const uint32_t EDGE_EQ_COEF_INT_BITS    =  9;
         static const uint32_t EDGE_EQ_COEF_FRAC_BITS   = 25;
 
-        static const uint32_t MINIONS_PER_RBOX = 32;
+        static const uint32_t MINION_HARTS_PER_RBOX = 32;
 
         static const uint32_t tile_dimensions[6][2];
 
@@ -95,22 +95,29 @@ namespace RBOX
 
         bool                 started;
         bool                 last_in_pckt;
+        bool                 flush_drawcall;
         uint32_t             in_pckt_count;
         uint32_t             out_pckt_count;
         uint64_t             next_in_pckt_addr;
         uint64_t             base_out_buf_addr;
+    
 
-        uint32_t             minion_credits[MINIONS_PER_RBOX];
-        uint32_t             minion_ptr[MINIONS_PER_RBOX];
-        bool                 fsh_state_sent[MINIONS_PER_RBOX];
+        uint32_t             hart_packet_credits[MINION_HARTS_PER_RBOX];
+        uint32_t             hart_msg_credits[MINION_HARTS_PER_RBOX];
+        uint32_t             hart_ptr[MINION_HARTS_PER_RBOX];
+        bool                 fsh_state_sent[MINION_HARTS_PER_RBOX];
+        bool                 end_of_phase_sent[MINION_HARTS_PER_RBOX];
+        uint32_t             hart_sent_packets[MINION_HARTS_PER_RBOX];
+        uint32_t             hart_sent_ptr[MINION_HARTS_PER_RBOX];
+        bool                 send_message[MINION_HARTS_PER_RBOX];
 
         StateT               rbox_state;
         FragmentShaderStateT frag_shader_state;
         TriangleInfoT        current_triangle;
         bool                 new_frag_shader_state;
 
-        std::vector<QuadInfoT>                      output_quads;
-        std::vector<std::pair<uint64_t, uint64_t>>  output_packets;
+        std::vector<QuadInfoT>                     output_quads;
+        std::vector<std::pair<uint32_t, uint64_t>> output_packets;
 
         uint32_t process_packet(uint64_t packet);
         void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], uint32_t depth_sample, TileSizeT tile_sz);
@@ -128,12 +135,16 @@ namespace RBOX
         float convert_edge_to_fp32(int64_t edge);
         float convert_depth_to_fp32(uint32_t depth);
         void tile_position_to_pixels(uint32_t &tile_x, uint32_t &tile_y, TileSizeT tile_size);
-        uint32_t compute_target_minion(uint32_t x, uint32_t y);
-        uint64_t compute_minion_out_addr(uint32_t target_minion);
-        uint64_t compute_minion_out_off(uint32_t target_minion);
-        void update_minion_out_ptr(uint32_t target_minion);
-        bool send_frag_shader_state_packet(uint32_t target_minion, bool step_mode);
+        uint32_t compute_target_minion_hart(uint32_t x, uint32_t y);
+        uint64_t compute_minion_hart_out_addr(uint32_t target_minion_hart);
+        uint64_t compute_minion_hart_out_off(uint32_t target_minion_hart);
+        void update_minion_hart_out_ptr(uint32_t target_minion_hart);
+        bool send_frag_shader_state_packet(uint32_t target_minion_hart, bool step_mode);
+        bool send_end_of_phase_packet(uint32_t target_minion_hart, bool step_mode);
         bool send_quad_packet(bool step_mode);
+        void send_packet(uint32_t minion_hart_id, uint64_t packet[4], uint64_t &out_addr, bool step_mode);
+        bool report_packets(uint32_t minion_hart_id);
+        void write_next_packet();
 
     public:
 
