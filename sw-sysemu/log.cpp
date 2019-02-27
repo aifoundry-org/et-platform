@@ -92,3 +92,15 @@ void log_tensor_fma_write(int pass, int freg, int elem, uint32_t value)
     log_info->tensorfma_data[pass][freg][elem] = value;
     log_info->tensorfma_mod[pass] |= 1u << freg;
 }
+
+
+void log_trap()
+{
+  log_info->trap_mod = true;
+}
+
+void log_gsc_progress(uint64_t gsc_progress, bool success)
+{
+  log_info->gsc_progress_mod = !success; // don't check it for success requests
+  log_info->gsc_progress = gsc_progress;  
+}

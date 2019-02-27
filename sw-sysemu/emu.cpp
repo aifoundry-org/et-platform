@@ -377,6 +377,7 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_stall,             "stall"              },
    { csr_tensor_wait,       "tensor_wait"        },
    { csr_tensor_load,       "tensor_load"        },
+   { csr_gsc_progress,      "gsc_progress"       },
    { csr_tensor_load_l2,    "tensor_load_l2"     },
    { csr_tensor_store,      "tensor_store"       },
    { csr_evict_va,          "evict_va"           },
@@ -959,6 +960,8 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_portctrl3] = 0x0000000000008000ULL;
 
     csrregs[thread][csr_minstmask] = 0x0ULL;
+
+    csrregs[thread][csr_gsc_progress] = 0x0ULL;
 }
 
 void minit(mreg dst, uint64_t val)
@@ -4928,8 +4931,12 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
 static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
 {
     uint64_t baddr = XREGS[base].x;
-    for (int i = 0; i < VL; i++)
+    uint64_t progress = csrregs[current_thread][csr_gsc_progress];
+    
+    for (int i = progress; i < VL; i++)
     {
+	csrregs[current_thread][csr_gsc_progress] = (uint64_t) i;
+	log_gsc_progress(i);
         if (!MREGS[0].b[i]) continue;
 
         iufval32 val;
@@ -4967,21 +4974,37 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
                 break;
         }
         FREGS[dst].u[i] = val.u;
+	// This should be processed like individual loads.
+	// If one of the loads traps, the previous ones should finish eventally (in the meantime, the trap is resolved)
+	// That's why we need to save the result in every iteration
+	dirty_fp_state();
+	log_freg_write(dst);
+	
     }
+    csrregs[current_thread][csr_gsc_progress] = 0;
+    log_gsc_progress(0,true);
     dirty_fp_state();
     log_freg_write(dst);
+	
+
 }
 
 static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
 {
     uint64_t baddr = sextVA(XREGS[src2].x);
     uint64_t index = XREGS[src1].x;
+
     if (MREGS[0].b.any())
     {
         check_load_breakpoint(baddr);
     }
-    for (int i = 0; i < VL; i++)
+
+    uint64_t progress = csrregs[current_thread][csr_gsc_progress];
+    
+    for (int i = progress; i < VL; i++)
     {
+	csrregs[current_thread][csr_gsc_progress] = (uint64_t) i;
+	log_gsc_progress(i);
         if (!MREGS[0].b[i]) continue;
 
         uint64_t off;
@@ -5014,16 +5037,25 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
                 break;
         }
         FREGS[dst].u[i] = val.u;
+	dirty_fp_state();
+	log_freg_write(dst);
     }
+    csrregs[current_thread][csr_gsc_progress] = 0;
     dirty_fp_state();
     log_freg_write(dst);
+    log_gsc_progress(0,true);
+
 }
 
 static void femuscat(opcode opc, freg src1, freg src2, xreg base)
 {
     uint64_t baddr = XREGS[base].x;
-    for (int i = 0; i < VL; i++)
+    uint64_t progress = csrregs[current_thread][csr_gsc_progress];
+    
+    for (int i = progress; i < VL; i++)
     {
+	csrregs[current_thread][csr_gsc_progress] = (uint64_t) i;
+	log_gsc_progress(i);
         if (!MREGS[0].b[i]) continue;
 
         int32_t  off  = FREGS[src2].i[i];
@@ -5068,18 +5100,26 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
                 break;
         }
     }
+    csrregs[current_thread][csr_gsc_progress] = 0;
+    log_gsc_progress(0,true);
 }
 
 static void femuscat32(int size, freg src3, xreg src1, xreg src2)
 {
     uint64_t baddr = sextVA(XREGS[src2].x);
     uint64_t index = XREGS[src1].x;
+    
     if (MREGS[0].b.any())
     {
         check_store_breakpoint(baddr);
     }
-    for (int i = 0; i < VL; i++)
+
+    uint64_t progress = csrregs[current_thread][csr_gsc_progress];
+    
+    for (int i = progress; i < VL; i++)
     {
+	csrregs[current_thread][csr_gsc_progress] = (uint64_t) i;
+	log_gsc_progress(i);
         if (!MREGS[0].b[i]) continue;
 
         uint64_t off;
@@ -5115,6 +5155,9 @@ static void femuscat32(int size, freg src3, xreg src1, xreg src2)
         // Do not track store swizzles?  Same with scatters.
         log_mem_write(i, size, addr, val.u);
     }
+    csrregs[current_thread][csr_gsc_progress] = 0;
+    log_gsc_progress(0,true);
+
 }
 
 void fgb_ps(freg dst, freg src1, xreg base, const char* comm)
