@@ -291,8 +291,8 @@ namespace RBOX
                  fragment_shader_reads_depth    :  1,
                  fragment_shader_reads_coverage :  1,
                  fragment_shader_per_sample     :  1,
-                 minion_tile_width              :  2,
-                 minion_tile_height             :  2,
+                 minion_hart_tile_width         :  2,
+                 minion_hart_tile_height        :  2,
                  shire_layout_width             :  2,
                  shire_layout_height            :  2,
                  unused2                        : 20;
@@ -355,7 +355,8 @@ namespace RBOX
     typedef enum
     {
         OUTPCKT_STATE_INFO = 0,
-        OUTPCKT_QUAD_INFO  = 1
+        OUTPCKT_QUAD_INFO  = 1,
+        OUTPCKT_END_PHASE  = 2
     } OutPcktTypeT;
     
     typedef union
@@ -471,11 +472,13 @@ namespace RBOX
         uint64_t value;
         struct
         {
-            uint64_t start_offset : 15,
-                     reserved0    : 17,
-                     buffer_size  :  3,
-                     port_id      :  2,
-                     reserved1    : 27;
+            uint64_t start_offset  : 15,
+                     reserved0     : 17,
+                     buffer_size   :  3,
+                     port_id       :  2,
+                     max_msgs      :  2,
+                     max_pckts_msg :  3,
+                     reserved1     : 22;
         } fields;
     } ESROutBufCfgT;
     
@@ -512,9 +515,11 @@ namespace RBOX
         uint64_t value;
         struct
         {
-            uint64_t consumed  :  8,
-                     minion_id :  8,
-                     reserved  : 48;
+            uint64_t packet_credits :  8,
+                     msg_credits    :  2,
+                     reserved0      :  6,
+                     hart_id        :  8,
+                     reserved1      :  8;
         } fields;
     } ESRConsumeT;
 

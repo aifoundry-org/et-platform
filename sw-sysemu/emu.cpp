@@ -77,9 +77,10 @@ typedef struct
     uint32_t source_thread;
     uint32_t target_thread;
     uint32_t target_port;
+    bool     is_remote;
     bool     is_tbox;
     bool     is_rbox;
-    uint8_t  data[(1 << PORT_LOG2_MAX_SIZE)];
+    uint32_t  data[(1 << PORT_LOG2_MAX_SIZE)/4];
     uint8_t  oob;
 } msg_port_write_t;
 
@@ -285,6 +286,7 @@ fdata tensorfma_tenc[EMU_NUM_THREADS][32];
 int reduce_entry[EMU_NUM_THREADS];
 int reduce_size[EMU_NUM_THREADS];
 uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
+
 msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
 std::deque<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
 bool msg_port_delayed_write = false;
@@ -610,32 +612,12 @@ static inline const char* get_fp_flags(uint_fast8_t flags)
     return fnames[(flags & 0x1f) | ((flags >> 2) & 0x20)];
 }
 
-static uint64_t sext32(uint32_t val)
+template<size_t N>
+static inline uint64_t sext(uint64_t val)
 {
-    uint32_t s = val & 0x80000000;
-    uint64_t r = s ? (0xffffffff00000000ull | val) : val;
-    return r;
-}
-
-static uint64_t sext16(uint32_t val)
-{
-    uint32_t s = val & 0x00008000;
-    uint64_t r = s ? (0xffffffffffff0000ull | val) : val;
-    return r;
-}
-
-static uint64_t sext10(uint32_t val)
-{
-    uint32_t s = val & 0x0000200;
-    uint64_t r = s ? (0xfffffffffffffc00ull | val) : val;
-    return r;
-}
-
-static uint64_t sext8(uint32_t val)
-{
-    uint32_t s = val & 0x0000080;
-    uint64_t r = s ? (0xffffffffffffff00ull | val) : val;
-    return r;
+    return (N >= 64)
+        ? val
+        : uint64_t((int64_t(val) << (64-N)) >> (64-N));
 }
 
 static int32_t sext8_2(uint8_t val)
@@ -643,6 +625,22 @@ static int32_t sext8_2(uint8_t val)
     uint32_t s = val & 0x80;
     int32_t r = s ? (0xffffff00 | val) : val;
     return r;
+}
+
+static uint64_t sextVA(uint64_t addr)
+{
+    // if bits addr[63:VA-1] are not all the same then set bits addr[63:VA] to
+    // ~addr[VA-1], else leave as is
+    enum : int64_t {
+        sha47 = 63 - VA_SIZE,
+        sha48 = 64 - VA_SIZE,
+        bit63 = 1ll << 63,
+    };
+    int64_t sign = int64_t(addr) >> (VA_SIZE-1);
+    return (sign == 0 || ~sign == 0)
+        ? addr
+        : uint64_t(int64_t(((addr << sha47) & ~bit63) |
+                           (~(addr << sha48) & bit63)) >> sha47);
 }
 
 static void check_sp_out_of_range(uint64_t val)
@@ -1090,7 +1088,6 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
         return;
     }
 
-    
     // if checking against RTL, clear the correspoding MIP bit
     // it will be set to 1 again if the pending bit was not really cleared
     // just before entering the interrupt again
@@ -1100,7 +1097,6 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     if (interrupt && !in_sysemu) {
         csrregs[current_thread][csr_mip] &= ~(1ULL<<code);
     }
-    
 
     LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval %" PRIx64, cause, val);
 
@@ -1590,42 +1586,42 @@ void beq(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: beq x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
     if (XREGS[src1].x == XREGS[src2].x)
-        log_pc_update(current_pc + imm);
+        log_pc_update(sextVA(current_pc + imm));
 }
 
 void bne(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: bne x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
     if (XREGS[src1].x != XREGS[src2].x)
-        log_pc_update(current_pc + imm);
+        log_pc_update(sextVA(current_pc + imm));
 }
 
 void blt(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: blt x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
     if (XREGS[src1].xs < XREGS[src2].xs)
-        log_pc_update(current_pc + imm);
+        log_pc_update(sextVA(current_pc + imm));
 }
 
 void bltu(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: bltu x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
     if (XREGS[src1].x < XREGS[src2].x)
-        log_pc_update(current_pc + imm);
+        log_pc_update(sextVA(current_pc + imm));
 }
 
 void bge(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: bge x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
     if (XREGS[src1].xs >= XREGS[src2].xs)
-        log_pc_update(current_pc + imm);
+        log_pc_update(sextVA(current_pc + imm));
 }
 
 void bgeu(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: bgeu x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
     if (XREGS[src1].x >= XREGS[src2].x)
-        log_pc_update(current_pc + imm);
+        log_pc_update(sextVA(current_pc + imm));
 }
 
 void c_jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -1638,7 +1634,7 @@ void c_jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
     }
     log_xreg_write(dst);
-    log_pc_update((val1 + imm) & 0xFFFFFFFFFFFFFFFE);
+    log_pc_update(sextVA((val1 + imm) & ~1ull));
 }
 
 void c_jal(xreg dst, int64_t imm, const char* comm)
@@ -1651,7 +1647,7 @@ void c_jal(xreg dst, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
     }
     log_xreg_write(dst);
-    log_pc_update(current_pc + imm);
+    log_pc_update(sextVA(current_pc + imm));
 }
 
 void jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -1664,7 +1660,7 @@ void jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
     }
     log_xreg_write(dst);
-    log_pc_update((val1 + imm) & 0xFFFFFFFFFFFFFFFE);
+    log_pc_update(sextVA((val1 + imm) & ~1ull));
 }
 
 void jal(xreg dst, int64_t imm, const char* comm)
@@ -1677,7 +1673,7 @@ void jal(xreg dst, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
     }
     log_xreg_write(dst);
-    log_pc_update(current_pc + imm);
+    log_pc_update(sextVA(current_pc + imm));
 }
 
 void lui(xreg dst, int64_t imm, const char* comm)
@@ -1942,7 +1938,7 @@ void addiw(xreg dst, xreg src1, int64_t imm, const char* comm)
     LOG(DEBUG, "I: addiw x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = sext32(XREGS[src1].w[0] + imm);
+        uint64_t val = sext<32>(XREGS[src1].w[0] + imm);
         if (dst == x2 && check_stack)
         {
            check_sp_out_of_range(val);
@@ -1959,7 +1955,7 @@ void slliw(xreg dst, xreg src1, unsigned imm, const char* comm)
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext32(val1.w[0] << imm);
+        XREGS[dst].x = sext<32>(val1.w[0] << imm);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %u", XREGS[dst].x, val1.w[0], imm);
     }
     log_xreg_write(dst);
@@ -1971,7 +1967,7 @@ void srliw(xreg dst, xreg src1, unsigned imm, const char* comm)
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext32(val1.w[0] >> imm);
+        XREGS[dst].x = sext<32>(val1.w[0] >> imm);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst].x, val1.w[0], imm);
     }
     log_xreg_write(dst);
@@ -1983,7 +1979,7 @@ void sraiw(xreg dst, xreg src1, unsigned imm, const char* comm)
     if (dst != x0)
     {
         xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext32(val1.ws[0] >> imm);
+        XREGS[dst].x = sext<32>(val1.ws[0] >> imm);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst].x, val1.w[0], imm);
     }
     log_xreg_write(dst);
@@ -1994,7 +1990,7 @@ void addw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: addw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = sext32(XREGS[src1].w[0] + XREGS[src2].w[0]);
+        uint64_t val = sext<32>(XREGS[src1].w[0] + XREGS[src2].w[0]);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val;
     }
@@ -2006,7 +2002,7 @@ void subw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: subw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = sext32(XREGS[src1].w[0] - XREGS[src2].w[0]);
+        uint64_t val = sext<32>(XREGS[src1].w[0] - XREGS[src2].w[0]);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x - 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val;
     }
@@ -2020,7 +2016,7 @@ void sllw(xreg dst, xreg src1, xreg src2, const char* comm)
     {
         xdata val1 = XREGS[src1];
         xdata val2 = XREGS[src2];
-        XREGS[dst].x = sext32(val1.w[0] << (val2.w[0] & 0x1F));
+        XREGS[dst].x = sext<32>(val1.w[0] << (val2.w[0] & 0x1F));
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1f);
     }
     log_xreg_write(dst);
@@ -2033,7 +2029,7 @@ void srlw(xreg dst, xreg src1, xreg src2, const char* comm)
     {
         xdata val1 = XREGS[src1];
         xdata val2 = XREGS[src2];
-        XREGS[dst].x = sext32(val1.w[0] >> (val2.w[0] & 0x1F));
+        XREGS[dst].x = sext<32>(val1.w[0] >> (val2.w[0] & 0x1F));
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1f);
     }
     log_xreg_write(dst);
@@ -2046,7 +2042,7 @@ void sraw(xreg dst, xreg src1, xreg src2, const char* comm)
     {
         xdata val1 = XREGS[src1];
         xdata val2 = XREGS[src2];
-        XREGS[dst].x = sext32(val1.ws[0] >> (val2.ws[0] & 0x1F));
+        XREGS[dst].x = sext<32>(val1.ws[0] >> (val2.ws[0] & 0x1F));
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1F);
     }
     log_xreg_write(dst);
@@ -2055,8 +2051,9 @@ void sraw(xreg dst, xreg src1, xreg src2, const char* comm)
 void lb(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lb x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t val = sext8(vmemread8(XREGS[base].x + off));
-    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM8[0x%016" PRIx64 " + 0x%016" PRIx64 "]", val, XREGS[base].x, off);
+    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t val = sext<8>(vmemread8(addr));
+    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM8[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
         XREGS[dst].x = val;
@@ -2067,8 +2064,9 @@ void lb(xreg dst, xreg base, int64_t off, const char* comm)
 void lh(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lh x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t val = sext16(vmemread16(XREGS[base].x + off));
-    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM16[0x%016" PRIx64 " + 0x%016" PRIx64 "]", val, XREGS[base].x, off);
+    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t val = sext<16>(vmemread16(addr));
+    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM16[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
         XREGS[dst].x = val;
@@ -2079,8 +2077,9 @@ void lh(xreg dst, xreg base, int64_t off, const char* comm)
 void lw(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lw x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t val = sext32(vmemread32(XREGS[base].x + off));
-    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 " + 0x%016" PRIx64 "]", val, XREGS[base].x, off);
+    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t val = sext<32>(vmemread32(addr));
+    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
         XREGS[dst].x = val;
@@ -2091,8 +2090,9 @@ void lw(xreg dst, xreg base, int64_t off, const char* comm)
 void ld(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: ld x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t val = vmemread64(XREGS[base].x + off);
-    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM64[0x%016" PRIx64 " + 0x%016" PRIx64 "]", val, XREGS[base].x, off);
+    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t val = vmemread64(addr);
+    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM64[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
         XREGS[dst].x  = val;
@@ -2103,8 +2103,9 @@ void ld(xreg dst, xreg base, int64_t off, const char* comm)
 void lbu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lbu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t val = vmemread8(XREGS[base].x + off);
-    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM8[0x%016" PRIx64 " + 0x%016" PRIx64 "]", val, XREGS[base].x, off);
+    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t val = vmemread8(addr);
+    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM8[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
         XREGS[dst].x = val;
@@ -2115,8 +2116,9 @@ void lbu(xreg dst, xreg base, int64_t off, const char* comm)
 void lhu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lhu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t val = vmemread16(XREGS[base].x + off);
-    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM16[0x%016" PRIx64 " + 0x%016" PRIx64 "]", val, XREGS[base].x, off);
+    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t val = vmemread16(addr);
+    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM16[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
         XREGS[dst].x = val;
@@ -2127,8 +2129,9 @@ void lhu(xreg dst, xreg base, int64_t off, const char* comm)
 void lwu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lwu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t val = vmemread32(XREGS[base].x + off);
-    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 " + 0x%016" PRIx64 "]", val, XREGS[base].x, off);
+    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t val = vmemread32(addr);
+    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
         XREGS[dst].x = val;
@@ -2139,7 +2142,7 @@ void lwu(xreg dst, xreg base, int64_t off, const char* comm)
 void sd(xreg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: sd x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     uint64_t val  = XREGS[src1].x;
     LOG(DEBUG, "\t%016" PRIx64 " --> MEM64[0x%016" PRIx64 "]", val, addr);
     vmemwrite64(addr, val);
@@ -2149,7 +2152,7 @@ void sd(xreg src1, xreg base, int64_t off, const char* comm)
 void sw(xreg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: sw x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     uint32_t val  = XREGS[src1].w[0];
     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr);
     vmemwrite32(addr, val);
@@ -2159,7 +2162,7 @@ void sw(xreg src1, xreg base, int64_t off, const char* comm)
 void sh(xreg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: sh x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     uint16_t val  = XREGS[src1].h[0];
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
     vmemwrite16(addr, val);
@@ -2169,8 +2172,8 @@ void sh(xreg src1, xreg base, int64_t off, const char* comm)
 void sb(xreg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: sb x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = XREGS[base].x + off;
-    uint8_t val   = XREGS[src1].b[0];
+    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint8_t  val  = XREGS[src1].b[0];
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
     vmemwrite8(addr, val);
     log_mem_write(0, 1, addr, val);
@@ -2179,8 +2182,8 @@ void sb(xreg src1, xreg base, int64_t off, const char* comm)
 void sbl(xreg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: sbl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = XREGS[base].x;
-    uint8_t val   = XREGS[src1].b[0];
+    uint64_t addr = sextVA(XREGS[base].x);
+    uint8_t  val  = XREGS[src1].b[0];
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
     vmemwrite8(addr, val);
     log_mem_write(0, 1, addr, val);
@@ -2189,8 +2192,8 @@ void sbl(xreg src1, xreg base, const char* comm)
 void sbg(xreg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: sbg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = XREGS[base].x;
-    uint8_t val   = XREGS[src1].b[0];
+    uint64_t addr = sextVA(XREGS[base].x);
+    uint8_t  val  = XREGS[src1].b[0];
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
     vmemwrite8(addr, val);
     log_mem_write(0, 1, addr, val);
@@ -2199,7 +2202,7 @@ void sbg(xreg src1, xreg base, const char* comm)
 void shl(xreg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: shl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = XREGS[base].x;
+    uint64_t addr = sextVA(XREGS[base].x);
     uint16_t val  = XREGS[src1].h[0];
     vmemwrite16(addr, val);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
@@ -2209,7 +2212,7 @@ void shl(xreg src1, xreg base, const char* comm)
 void shg(xreg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: shg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = XREGS[base].x;
+    uint64_t addr = sextVA(XREGS[base].x);
     uint16_t val  = XREGS[src1].h[0];
     vmemwrite16(addr, val);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
@@ -2373,7 +2376,7 @@ void mulw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: mulw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = sext32(XREGS[src1].x * XREGS[src2].x);
+        uint64_t val = sext<32>(XREGS[src1].x * XREGS[src2].x);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x * 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val;
     }
@@ -2392,7 +2395,7 @@ void divw(xreg dst, xreg src1, xreg src2, const char* comm)
             val = XREGS[src1].ws[0]; // Divide is out of range, return src1
         else
             val = XREGS[src1].ws[0] / XREGS[src2].ws[0];
-        uint64_t val64 = sext32(val);
+        uint64_t val64 = sext<32>(val);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val64;
     }
@@ -2409,7 +2412,7 @@ void divuw(xreg dst, xreg src1, xreg src2, const char* comm)
             val = -1;
         else
             val = XREGS[src1].w[0] / XREGS[src2].w[0];
-        uint64_t val64 = sext32(val);
+        uint64_t val64 = sext<32>(val);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val64;
     }
@@ -2428,7 +2431,7 @@ void remw(xreg dst, xreg src1, xreg src2, const char* comm)
             val = 0;                 // Divide is out of range in x86, return 0 straight
         else
             val = XREGS[src1].ws[0] % XREGS[src2].ws[0];
-        uint64_t val64 = sext32(val);
+        uint64_t val64 = sext<32>(val);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val64;
     }
@@ -2445,7 +2448,7 @@ void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
             val = XREGS[src1].w[0];
         else
             val = XREGS[src1].w[0] % XREGS[src2].w[0];
-        uint64_t val64 = sext32(val);
+        uint64_t val64 = sext<32>(val);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val64;
     }
@@ -2474,7 +2477,7 @@ void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 
 static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type macc)
 {
-    uint64_t addr = XREGS[src1].x;
+    uint64_t addr = sextVA(XREGS[src1].x);
 
     // Check misaligned access
     if (!access_is_size_aligned(addr, 4))
@@ -2490,10 +2493,10 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     uint32_t val2 = XREGS[src2].w[0];
 
     // Save the loaded data
-    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", sext32(val1), addr);
+    LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", sext<32>(val1), addr);
     if (dst != x0)
     {
-        XREGS[dst].x = sext32(val1);
+        XREGS[dst].x = sext<32>(val1);
     }
     log_xreg_write(dst);
 
@@ -2551,7 +2554,7 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
 
 static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type macc)
 {
-    uint64_t addr = XREGS[src1].x;
+    uint64_t addr = sextVA(XREGS[src1].x);
 
     // Check misaligned access
     if (!access_is_size_aligned(addr, 8))
@@ -2674,7 +2677,6 @@ static void dcache_unlock_paddr(int, uint64_t);
 static uint64_t csrget(csr src1)
 {
     uint64_t val;
-    uint64_t msk;
 
     switch (src1)
     {
@@ -2789,9 +2791,8 @@ static uint64_t csrget(csr src1)
             val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
             break;
         case csr_sepc:
-            // sepc[1] is masked if C extension is disabled (misa[2])
-            msk = 0x0000FFFFFFFFFFFCULL | ((csrregs[current_thread][csr_misa] & 4) >> 1);
-            val = csrregs[current_thread][csr_sepc] & msk;
+            // sepc[1] is 0 when C extension is not supported (misa[2])
+            val = csrregs[current_thread][csr_sepc] & ~1ULL;
             break;
         // ----- Tensor, barrier, cacheop instructions -------------------
         case csr_tensor_load:
@@ -2826,9 +2827,8 @@ static uint64_t csrget(csr src1)
             val = 0;
             break;
         case csr_mepc:
-            // sepc[1] is masked if C extension is disabled (misa[2])
-            msk = 0x0000FFFFFFFFFFFCULL | ((csrregs[current_thread][csr_misa] & 4) >> 1);
-            val = csrregs[current_thread][csr_mepc] & msk;
+            // sepc[1] is 0 when C extension is not supported (misa[2])
+            val = csrregs[current_thread][csr_mepc] & ~1ULL;
             break;
         // ----- All other registers -------------------------------------
         default:
@@ -3109,14 +3109,13 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][csr_mie] = val;
             break;
         case csr_stvec:
-            val &= 0xFFFFFFFFF001ULL;
+            val = sextVA(val & ~0xFFEULL);
             csrregs[current_thread][src1] = val;
             stvec_is_set[current_thread] = true;
             break;
         case csr_sepc:
             // sepc[0] = 0 always
-            // keep only valid virtual or pysical addresses
-            val &= 0x0000FFFFFFFFFFFEULL;
+            val = sextVA(val & ~1ULL);
             csrregs[current_thread][src1] = val;
             break;
         case csr_sip:
@@ -3198,14 +3197,13 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             break;
         case csr_mtvec:
-            val &= 0xFFFFFFFFF001ULL;
+            val = sextVA(val & ~0xFFEULL);
             csrregs[current_thread][src1] = val;
             mtvec_is_set[current_thread] = true;
             break;
         case csr_mepc:
             // mepc[0] = 0 always
-            // keep only valid virtual or pysical addresses
-            val &= 0x0000FFFFFFFFFFFEULL;
+            val = sextVA(val & ~1ULL);
             csrregs[current_thread][src1] = val;
             break;
         case csr_mip:
@@ -3728,7 +3726,7 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
     }
     set_fp_exceptions();
     if (dst != x0)
-        XREGS[dst].x = sext32(res.u);
+        XREGS[dst].x = sext<32>(res.u);
     log_xreg_write(dst);
 }
 
@@ -3975,13 +3973,13 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 break;
             case FMIN:
                 {
-                    res.f = fpu::f32_minNum(val1.f, val2.f);
+                    res.f = fpu::f32_minimumNumber(val1.f, val2.f);
                     LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                 }
                 break;
             case FMAX:
                 {
-                    res.f = fpu::f32_maxNum(val1.f, val2.f);
+                    res.f = fpu::f32_maximumNumber(val1.f, val2.f);
                     LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                 }
                 break;
@@ -4136,7 +4134,7 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
     }
     set_fp_exceptions();
     if (dst != x0)
-        XREGS[dst].x = sext32(res.u);
+        XREGS[dst].x = sext<32>(res.u);
     log_xreg_write(dst);
 }
 
@@ -4277,7 +4275,7 @@ void fmv_x_w(xreg dst, freg src1, const char* comm)
     require_fp_active();
     if (dst != x0)
     {
-        XREGS[dst].x = sext32(FREGS[src1].u[0]);
+        XREGS[dst].x = sext<32>(FREGS[src1].u[0]);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x (%g)", XREGS[dst].x, FREGS[src1].u[0], cast_uint32_to_float(FREGS[src1].u[0]));
     }
     log_xreg_write(dst);
@@ -4292,7 +4290,7 @@ void fclass_s(xreg dst, freg src1, const char* comm)
     res.u = fpu::f32_classify(val.f);
     if (dst != x0)
     {
-        XREGS[dst].x = sext32(res.u);
+        XREGS[dst].x = sext<32>(res.u);
         LOG(DEBUG, "\t0x%08x <-- 0x%08x (%g)", res.u, val.u, val.flt);
     }
     log_xreg_write(dst);
@@ -4350,7 +4348,7 @@ void flw(freg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: flw f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     femuld(1, dst, addr, false);
 }
 
@@ -4358,7 +4356,7 @@ void fsw(freg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: fsw f%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     femust(1, src1, addr, 0);
 }
 
@@ -4544,7 +4542,7 @@ void flq2(freg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: flq2 f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     femuld(VL, dst, addr, false);
 }
 
@@ -4553,7 +4551,7 @@ void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: flw.ps f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     femuld(VL, dst, addr, true);
 }
 
@@ -4562,9 +4560,11 @@ void flwl_ps(freg dst, xreg base, const char* comm)
     LOG(DEBUG, "I: flwl.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = XREGS[base].x;
-    if (MREGS[0].b.any() && (addr % (VL*4)))
+    uint64_t addr = sextVA(XREGS[base].x);
+    if (MREGS[0].b.any() && !access_is_size_aligned(addr, VL*4))
+    {
         throw trap_load_address_misaligned(addr);
+    }
     femuld(VL, dst, addr, true);
 }
 
@@ -4573,9 +4573,11 @@ void flwg_ps(freg dst, xreg base, const char* comm)
     LOG(DEBUG, "I: flwg.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = XREGS[base].x;
-    if (MREGS[0].b.any() && (addr % (VL*4)))
+    uint64_t addr = sextVA(XREGS[base].x);
+    if (MREGS[0].b.any() && !access_is_size_aligned(addr, VL*4))
+    {
         throw trap_load_address_misaligned(addr);
+    }
     femuld(VL, dst, addr, true);
 }
 
@@ -4583,7 +4585,7 @@ void fsq2(freg src, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: fsq2 f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     femust(VL, src, addr, 0);
 }
 
@@ -4592,7 +4594,7 @@ void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: fsw.ps f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     femust(VL, src, addr, 1);
 }
 
@@ -4601,9 +4603,11 @@ void fswl_ps(freg src, xreg base, const char* comm)
     LOG(DEBUG, "I: fswl.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = XREGS[base].x;
-    if (MREGS[0].b.any() && (addr % (VL*4)))
+    uint64_t addr = sextVA(XREGS[base].x);
+    if (MREGS[0].b.any() && !access_is_size_aligned(addr, VL*4))
+    {
         throw trap_load_address_misaligned(addr);
+    }
     femust(VL, src, addr, 1);
 }
 
@@ -4612,9 +4616,11 @@ void fswg_ps(freg src, xreg base, const char* comm)
     LOG(DEBUG, "I: fswg.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = XREGS[base].x;
-    if (MREGS[0].b.any() && (addr % (VL*4)))
+    uint64_t addr = sextVA(XREGS[base].x);
+    if (MREGS[0].b.any() && !access_is_size_aligned(addr, VL*4))
+    {
         throw trap_load_address_misaligned(addr);
+    }
     femust(VL, src, addr, 1);
 }
 
@@ -4627,7 +4633,7 @@ void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
     DEBUG_MASK(MREGS[0]);
 
     iufval32 val;
-    uint64_t addr = XREGS[base].x + off;
+    uint64_t addr = sextVA(XREGS[base].x + off);
     val.u = 0;
     if (MREGS[0].b.any())
     {
@@ -4696,7 +4702,7 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
 
         iufval32 val;
         int32_t off   = FREGS[src1].i[i];
-        uint64_t addr = baddr + off;
+        uint64_t addr = sextVA(baddr + off);
         switch (opc)
         {
             case FGW:
@@ -4704,13 +4710,13 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             case FGH:
-                val.u = sext16(vmemread16(addr));
+                val.u = sext<16>(vmemread16(addr));
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             case FGBL:
             case FGBG:
             case FGB:
-                val.u = sext8(vmemread8(addr));
+                val.u = sext<8>(vmemread8(addr));
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             case FGWL:
@@ -4724,7 +4730,7 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
             case FGHG:
                 if (addr % 2)
                     throw trap_load_address_misaligned(addr);
-                val.u = sext16(vmemread16(addr));
+                val.u = sext<16>(vmemread16(addr));
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             default:
@@ -4739,7 +4745,7 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
 
 static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
 {
-    uint64_t baddr = XREGS[src2].x;
+    uint64_t baddr = sextVA(XREGS[src2].x);
     uint64_t index = XREGS[src1].x;
     for (int i = 0; i < VL; i++)
     {
@@ -4759,11 +4765,11 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
         switch (size)
         {
             case 1:
-                val.u = sext8(vmemread8(addr));
+                val.u = sext<8>(vmemread8(addr));
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             case 2:
-                val.u = sext16(vmemread16(addr));
+                val.u = sext<16>(vmemread16(addr));
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             case 4:
@@ -4788,7 +4794,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
         if (!MREGS[0].b[i]) continue;
 
         int32_t  off  = FREGS[src2].i[i];
-        uint64_t addr = baddr + off;
+        uint64_t addr = sextVA(baddr + off);
         iufval32 val;
         val.u = FREGS[src1].u[i];
 
@@ -4836,7 +4842,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
 
 static void femuscat32(int size, freg src3, xreg src1, xreg src2)
 {
-    uint64_t baddr = XREGS[src2].x;
+    uint64_t baddr = sextVA(XREGS[src2].x);
     uint64_t index = XREGS[src1].x;
     for (int i = 0; i < VL; i++)
     {
@@ -5321,7 +5327,7 @@ void fmvs_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
 
     index = index % VL;
     if (dst != x0)
-        XREGS[dst].x = sext32(FREGS[src1].u[index]);
+        XREGS[dst].x = sext<32>(FREGS[src1].u[index]);
 
     LOG(DEBUG, "\t 0x%016" PRIx64 " <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}", XREGS[dst].x,
         FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3],
@@ -6017,7 +6023,7 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
 
         iufval32 val1, val2, res;
         val1.u = FREGS[src1].u[i];
-        val2.u = sext10(imm); // sign extend the 10-low order bits of imm
+        val2.u = sext<10>(imm); // sign extend the 10-low order bits of imm
 
         switch (opc)
         {
@@ -6439,7 +6445,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
 
         if (!MREGS[0].b[el]) continue;
 
-        uint64_t addr = XREGS[src2].x + FREGS[src1].i[el];
+        uint64_t addr = sextVA(XREGS[src2].x + FREGS[src1].i[el]);
 
         // Check misaligned access
         if (!access_is_size_aligned(addr, 4))
@@ -6496,11 +6502,11 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- maxu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MINPS:
-              res.f = fpu::f32_lexicographicalMinimum(val1.f, val2.f);
+              res.f = fpu::f32_minNum(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmin(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MAXPS:
-              res.f = fpu::f32_lexicographicalMaximum(val1.f, val2.f);
+              res.f = fpu::f32_maxNum(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmax(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            default:
@@ -6976,18 +6982,21 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     // Drop the write if port not configured
     if(!msg_ports[thread][id].enabled) return;
 
+    if ( !scp_locked[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way] ) {
+	LOG(DEBUG, "PORT_WRITE Port cache line (s%d w%d)  unlocked!\n", msg_ports[thread][id].scp_set, msg_ports[thread][id].scp_way);
+    }
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
 
     msg_ports[thread][id].stall  = false;
 
-    int wr_words = 1 << (msg_ports[thread][id].logsize - 2);
+    int wr_words = (1 << (msg_ports[thread][id].logsize))/4;
 
     LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) wr_words %d, logsize %d",  thread, id, wr_words, msg_ports[thread][id].logsize);
     for (int i = 0; i < wr_words; i++)
     {
         LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
-        vmemwrite32(base_addr + 4 * i, data[i]);
+        pmemwrite32(base_addr + 4 * i, data[i]);
     }
 
     msg_ports[thread][id].size++;
@@ -7009,12 +7018,16 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         port_write.target_port   = id;
         port_write.is_tbox       = false;
         port_write.is_rbox       = false;
-        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+	
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
 
         LOG_ALL_MINIONS(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
+	int wr_words = 1 << (msg_ports[thread][id].logsize)/4;
+	for(int i = 0 ; i < wr_words ; ++i)
+	    LOG_ALL_MINIONS(DEBUG, "                              data[%d] 0x%08" PRIx32, i, data[i]);
     }
     else
         write_msg_port_data_to_scp(thread, id, data, oob);
@@ -7030,7 +7043,7 @@ void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_i
         port_write.target_port   = id;
         port_write.is_tbox       = true;
         port_write.is_rbox       = false;
-        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
@@ -7051,7 +7064,7 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
         port_write.target_port   = id;
         port_write.is_tbox       = false;
         port_write.is_rbox       = true;
-        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize); b++)
+        for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
         msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
@@ -7376,7 +7389,7 @@ void tensorload(uint64_t control)
     int      boffset            = (control >>  4) & 0x03;
     int      rows               = ((control      ) & 0xF) + 1;
 
-    uint64_t addr             = base;
+    uint64_t addr             = sext<48>(base);
     scp_tm                    = tm;
 
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
@@ -7423,7 +7436,7 @@ void tensorload(uint64_t control)
                 }
             }
             LOG(DEBUG, "\t\tAddress = 0x%016" PRIx64 " - Stride = 0x%016" PRIx64, addr, stride);
-            addr += stride;
+            addr = sextVA(addr + stride);
         }
     }
     //INTERLEAVE8
@@ -7438,7 +7451,7 @@ void tensorload(uint64_t control)
             {
                 for (int r = 0; r < 4; ++r)
                 {
-                    uint64_t vaddr = addr + boffset + (4*i+r)*stride;
+                    uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
                     assert(access_is_size_aligned(vaddr, 16));
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 16, Mem_Access_TxLoad))
@@ -7467,7 +7480,7 @@ void tensorload(uint64_t control)
             {
                 for (int r = 0; r < 2; ++r)
                 {
-                    uint64_t vaddr = addr + boffset + (2*i+r)*stride;
+                    uint64_t vaddr = sextVA(addr + boffset + (2*i+r)*stride);
                     assert(access_is_size_aligned(vaddr, 32));
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 32, Mem_Access_TxLoad))
@@ -7518,16 +7531,12 @@ void tensorload(uint64_t control)
                 tmp_buffer[elem][j] = val;
                 LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, addr+j, elem, j, val);
             }
-            addr += stride;
+            addr = sextVA(addr + stride);
         }
         for (int i = 0; i < rows; ++i)
         {
             if (!tm || tmask_pass(i))
             {
-                if (addr & 0x3F)
-                {
-                    LOG(DEBUG, "%s", "ERROR Tensor Load not aligned to cache line!!");
-                }
                 for (int j = 0; j < elements; ++j)
                 {
                     if (size == 4)
@@ -7580,7 +7589,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
     int      dst     = ((control >> 46) & 0x1FFFC)  + ((control >> 4)  & 0x3);
     uint64_t base    = control & 0xFFFFFFFFFFC0ULL;
     int      rows    = ((control     ) & 0xF) + 1;
-    uint64_t addr    = base;
+    uint64_t addr    = sext<48>(base);
 
     LOG(DEBUG, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%16" PRIx64, rows, tm,  dst,  addr);
 
@@ -7606,7 +7615,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             }
         }
         LOG(DEBUG, "\t\tVaddr = 0x%016" PRIx64 " Paddr = 0x%016" PRIx64 " - Stride = 0x%016" PRIx64 "- line %d", addr, l2scp_addr, stride, dst+i);
-        addr += stride;
+        addr = sextVA(addr + stride);
     }
 }
 
@@ -7896,12 +7905,12 @@ static void tensorstore(uint64_t tstorereg)
 
     if (tstore_scp)
     {
-        int      srcinc   = ((tstorereg & 0xC00000000000000C) >> 62) + 1; // Increment done to scratchpad source
-        int      scpstart =  (tstorereg & 0x3F00000000000000) >> 56;      // Start scratchpad entry to store
-        int      rows     = ((tstorereg & 0x0078000000000000) >> 51) + 1; // Number of rows to store
-        uint64_t addr     =  (tstorereg & 0x00FFFFFFFFFFC0);              // Address where to store the results
+        int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to scratchpad source
+        int      scpstart =  (tstorereg & 0x3F00000000000000ULL) >> 56;      // Start scratchpad entry to store
+        int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
+        uint64_t addr     = sext<48>(tstorereg & 0x00FFFFFFFFFFC0ULL);       // Address where to store the results
 
-        uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFFFUL;
+        uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFFFULL;
 
         int src = scpstart % L1_SCP_ENTRIES;
         LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
@@ -7932,19 +7941,19 @@ static void tensorstore(uint64_t tstorereg)
             }
             src += srcinc;
             src = src % L1_SCP_ENTRIES;
-            addr += stride;
+            addr = sextVA(addr + stride);
         }
     }
     else
     {
-        int      srcinc   = ((tstorereg & 0xC00000000000000C) >> 62) + 1; // Increment done to register source
-        int      regstart =  (tstorereg & 0x3E00000000000000) >> 57;      // Start register to store
-        int      cols     = ((tstorereg & 0x0180000000000000) >> 55) + 1; // Number of register per col
-        int      rows     = ((tstorereg & 0x0078000000000000) >> 51) + 1; // Number of rows to store
-        int      coop     = ((tstorereg & 0x0006000000000000) >> 49) + 1; // Number of cooperative minions
-        uint64_t addr     =  (tstorereg & 0x0000FFFFFFFFFFF0);            // Address where to store the results
+        int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to register source
+        int      regstart =  (tstorereg & 0x3E00000000000000ULL) >> 57;      // Start register to store
+        int      cols     = ((tstorereg & 0x0180000000000000ULL) >> 55) + 1; // Number of register per col
+        int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
+        int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
+        uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFF0UL;
+        uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFF0ULL;
 
         LOG(DEBUG, "\tStart Tensor Store with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
@@ -7990,7 +7999,7 @@ static void tensorstore(uint64_t tstorereg)
                 if (cols == 1)    src += srcinc; // For 128b stores, move to next desired register
                 else if (col & 1) src += srcinc; // For 256b and 512b stores, move to next desired register when 256b are written
             }
-            addr += stride;
+            addr = sextVA(addr + stride);
         }
     }
 }
@@ -8429,7 +8438,7 @@ static void tensorreduce(uint64_t value)
                 iufval32 src1, src2, rslt;
                 src1.u = FREGS[op_reg].u[j];
                 src2.u = fregs[other_min<<1][op_reg].u[j];
-                rslt.f = fpu::f32_maxNum(src1.f,src2.f);//src1.u > src2.u ? src1.u : src2.u;
+                rslt.f = fpu::f32_maximumNumber(src1.f,src2.f);//src1.u > src2.u ? src1.u : src2.u;
                 FREGS[op_reg].u[j] = rslt.u;
                 LOG(DEBUG, "\tReduce (fmax) f%d[%d]: %g = %g > %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,src2.flt,other_min);
                 LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x > 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
@@ -8557,8 +8566,10 @@ static uint64_t flbarrier(uint64_t value)
     uint64_t orig_value = pmemread64(addr);
     uint64_t result = -1;
 
-    LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
-        (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit);
+    // LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
+    //     (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit);
+    LOG(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
+         (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit);
     // Last guy, return 1 and zero barrier
     if (orig_value == limit)
     {
