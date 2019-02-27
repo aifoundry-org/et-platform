@@ -31,6 +31,10 @@ _boot:
     csrrw x0, fcsr, x0 # clear floating point status
     csrrw x0, mip, x0 # clear all pending interrupts
 
+    # initialize trap vector
+    # la    t0, mtrap_vector
+    # csrw  mtvec, t0
+
 ###################################################################\\
 #  * FIXME *                                                        #
 #####################################################################

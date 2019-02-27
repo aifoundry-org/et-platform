@@ -7,6 +7,7 @@
 #include "cacheops.h"
 //#include "tensors.h"
 #include "fw_master_code.h"
+#include "serial.h"
 
 // Struct that stores information for a layer
 typedef struct{
@@ -29,16 +30,39 @@ typedef struct{
 void fw_master_code()
 {
 	uint64_t mid, tid;
-	uint64_t num_shires = 32;
+	uint64_t num_shires = 2;
 
 	// Get minion and thread
 	mid = get_minion_id();
 	tid = get_thread_id();
 
 	// Only minion 0 thread 0 of master shire doing something
-	if ((mid != 1024) || tid) {
+	if ((mid != 32) || tid) {
 	    WFI;
 	}
+
+    // need to configure neighborhood MPROT ESR to allow access to IO region
+    // ESR spreadsheet: https://docs.google.com/spreadsheets/d/1HdYfPNeET3YZFI0SN69rizUj2PexYvW0aGiHlD-e1pM/edit?usp=sharing
+    // mprot register address = 4
+    // 3 bits:
+    // 0: disable_pcie_access
+    // 1: disable_osbox_access
+    // 2: disable_io_access
+    // so write 0 to clear all bits.
+    //
+    // PRM-19 Memory Map, PMA and PMP: https://docs.google.com/document/d/1TSwXIr99uG2ZFVJbmRnrbF4Ren1JY3qprLsLV-725xE/edit?usp=sharing
+    // MPROT ESR address per section 2.4.1 Minion Shire ESR Map:
+    // 39:32 = b00000001
+    // 31:30 = b11 (? table just says "PP" instead of specifying minimum privilege level)
+    // 29:22 = shire ID = 1
+    // 21:20 = b01 (neighborhood ESR)
+    // 19:16 = neighborhood = b1111 (broadcast to all neigborhoods)
+    // 15:3 = register = 4 = b0100
+    // 2:0 = 0
+    *((volatile uint64_t*)0x01C05F0020ULL) = 0ULL;
+
+    SERIAL_init(UART0);
+    printf("alive\r\n");
 
 	// Get data from net description
 	uint64_t    count    = (* (uint64_t *) 0x8200000000ULL);

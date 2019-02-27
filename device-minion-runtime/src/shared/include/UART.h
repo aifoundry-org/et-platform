@@ -105,6 +105,17 @@ typedef struct SPIO_UART_LSR_s
     };
 } SPIO_UART_LSR_t;
 
+typedef struct SPIO_UART_DLF_s
+{
+    union {
+        uint32_t R;
+        struct {
+            uint32_t DLF:4;
+            uint32_t RESERVED:28;
+        } B;
+    };
+} SPIO_UART_DLF_t;
+
 typedef struct SPIO_UART_s
 {
     SPIO_UART_RBR_THR_DLL_t RBR_THR_DLL; // 0X0
@@ -113,6 +124,8 @@ typedef struct SPIO_UART_s
     SPIO_UART_LCR_t LCR;                 // 0XC
     SPIO_UART_MCR_t MCR;                 // 0X10
     SPIO_UART_LSR_t LSR;                 // 0X14
+    uint32_t unused[42];                 // 0x18 - 0xBC
+    SPIO_UART_DLF_t DLF;                 // 0xC0
 } SPIO_UART_t;
 
 #endif // SPIO_UART_H

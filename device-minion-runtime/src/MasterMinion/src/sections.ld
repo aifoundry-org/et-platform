@@ -13,18 +13,34 @@ ENTRY(_boot)
 
 SECTIONS
 {
-    /* DRAM Linux region R_L3_Linux */
-    . = 0x8000200000;
+    /* Starting at ESR_NEIGH_MINION_BOOT_RESET_VAL for now */
+    . = 0x8000001000;
     .text :
     {
         /* Place boot code first */
         *(.text.init)
-        *(.text .text.* .gnu.linkonce.t.*)
+        *(SORT_BY_ALIGNMENT(.text) SORT_BY_ALIGNMENT(.text.*) SORT_BY_ALIGNMENT(.gnu.linkonce.t.*))
     }
 
     .rodata :
     {
-        *(.rodata .rodata.* .gnu.linkonce.r.*)
+        *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
+    }
+
+    .rodata1 :
+    {
+        *(SORT_BY_ALIGNMENT(.rodata1))
+    }
+
+    .sdata2 :
+    {
+        *(SORT_BY_ALIGNMENT(.sdata2) SORT_BY_ALIGNMENT(.sdata2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s2.*))
+    }
+
+    .sbss2 :
+    {
+        *(SORT_BY_ALIGNMENT(.sbss2) SORT_BY_ALIGNMENT(.sbss2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.sb2.*))
+
     }
 
     .data :
@@ -49,21 +65,34 @@ SECTIONS
         *(.sdata .sdata.* .gnu.linkonce.s.*)
     }
 
-    /* Align here to ensure crt.S bss init asm has an aligned start address */
-    . = ALIGN(4);
-    __bss_start = .;
-
     .bss :
     {
+        /* Align here to ensure crt.S bss init asm has an aligned start address */
+        . = ALIGN(4);
+        __bss_start = .;
+
         *(.bss .bss.* .gnu.linkonce.b.*)
     }
 
     .sbss :
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
+
+        /* Align here to ensure crt.S bss init asm has an aligned end address */
+        . = ALIGN(4);
+        __bss_end = .;
     }
 
-    /* Align here to ensure crt.S bss init asm has an aligned end address */
-    . = ALIGN(4);
-    __bss_end = .;
+    /* The default stack alignment is 16 bytes in RV32I and RV64I */
+    . = ALIGN(16);
+
+    stack :
+    {
+        KEEP(*(stack stack.*))
+        __stack_base = .;
+    }
+
+    __heap_start = .;
+    __heap_end = . + 1M;
+
 }

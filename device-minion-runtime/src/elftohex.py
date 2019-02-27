@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Utility to convert an elf file to ZeBu hex files to preload SP RAM (inc. parity) or ROM
+# Utility to convert an elf file to ZeBu hex files to preload SP RAM (inc. parity), SP ROM or DRAM
 #
 # The 1MB of SP RAM is organized into 4 contiguous 256KB blocks
 # Each 256KB block is organized into 4 panels that store 18 bytes each
@@ -13,7 +13,7 @@
 # The 64BK of ROM is organized into one contiguous block
 # A 64-byte cache line is spread across 8 panels: bytes 0-7 in panel 0, 8-15 in 1, etc.
 # addr[2:0] byte in panel
-# addr[4:2] panel
+# addr[5:3] panel
 #
 # DRAM is spread across 16 memory controllers in 8 memory shires
 # Each memory controller deals with 64-byte cache line sized transactions
@@ -74,19 +74,58 @@ def calc_parity_byte(x):
         if even_parity(x[i]) : parityByte |= (1 << i)
     return parityByte
 
-def write_seg(baseAddress, addr, size, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, parity):
+def write_hex(baseAddress, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, parity):
+    inputBytesPerLine = inputBytesPerPanel * panelsPerLine
+    bytes = []
+    firstSegment = True
+
+    # Accumulate segments on contiguous lines. When a gap is detected, write out lines for accumulated segments.
+    for seg in elfFile.iter_segments():
+        segAddr = seg['p_paddr']
+        segSize = seg['p_filesz']
+        segEndAddress = segAddr + segSize
+        print("Segment start: %x size: %x" % (segAddr, segSize))
+
+        # If this segment starts on a later line than the previous segment ended on,
+        # write out the lines for the previous segment(s) and start a new group of lines
+        if (not firstSegment and ((segAddr // inputBytesPerLine) > (prevSegEndAddress // inputBytesPerLine))):
+            write_lines(bytes, baseAddress, lineAddress, inputBytesPerPanel, panelsPerLine, parity)
+            bytes = []
+            firstSegment = True
+
+        # The first segment may start unaligned: zero-pad the lineAddress to segAddr gap, if any.
+        if (firstSegment):
+            lineAddress = (segAddr // inputBytesPerLine) * inputBytesPerLine
+            bytes.extend([0] * (segAddr - lineAddress))
+            firstSegment = False
+
+        # Subsequent segments that start on the same line aren't necessarily contiguous: zero-pad the gap, if any.
+        elif (segAddr > prevSegEndAddress):
+            bytes.extend([0] * (segAddr - prevSegEndAddress))
+
+        bytes.extend(seg.data())
+        prevSegEndAddress = segEndAddress
+
+    # write out lines after last segment
+    write_lines(bytes, baseAddress, lineAddress, inputBytesPerPanel, panelsPerLine, parity)
+
+# requires address is aligned to the beginning of a line - will not zero pad before
+# will zero pad the end of a line
+def write_lines(bytes, baseAddress, address, inputBytesPerPanel, panelsPerLine, parity):
     inputBytesPerLine = inputBytesPerPanel * panelsPerLine
 
+    print("Writing lines from %08x to %08x" % (address, address + len(bytes)))
+
     # For each output row, set all panels including parity even if input data isn't available
-    for offset in range(0, size, inputBytesPerLine):
+    for offset in range(0, len(bytes), inputBytesPerLine):
         for panel in range(panelsPerLine):
             # ZeBu style address. Address 0 is at base of memory, address 1 is the next line, etc.
-            wl = "@%010x " % ((addr + offset - baseAddress) // inputBytesPerLine)
+            wl = "@%010x " % ((address + offset - baseAddress) // inputBytesPerLine)
 
             # For SP RAM, bytes 0-15 for panel 0, 16-31 for panel 1, etc.
             # For SP ROM, bytes 0-7 for panel 0, 8-15 for panel 1, etc.
             # If we've run out of input data, substitute 0.
-            outputBytes = [seg.data()[offset + x] if (offset + x) < size else 0 for x in range(panel*inputBytesPerPanel, (panel+1)*inputBytesPerPanel)]
+            outputBytes = [bytes[offset + x] if (offset + x) < len(bytes) else 0 for x in range(panel*inputBytesPerPanel, (panel+1)*inputBytesPerPanel)]
 
             if parity:
                 outputBytes.append(calc_parity_byte(outputBytes[0:8])) # parity for lower 8 bytes
@@ -100,38 +139,33 @@ def write_seg(baseAddress, addr, size, inputBytesPerPanel, outputBytesPerPanel, 
             outFiles[panel].write(wl)
     return
 
-def sp_rom_write_seg(addr, size):
+def sp_rom_write_hex():
     open_output_files("ROM", "", 8)
-    write_seg(0x40000000, addr, size, 8, 8, 8, False)
+    write_hex(0x40000000, 8, 8, 8, False)
     return
 
-def sp_ram_write_seg(addr, size):
+def sp_ram_write_hex():
     open_output_files("SP_RAM", "", 4)
-    write_seg(0x40400000, addr, size, 16, 18, 4, True)
+    write_hex(0x40400000, 16, 18, 4, True)
     return
 
-def dram_write_seg(addr, size):
+def dram_write_hex():
     open_output_files("DRAM_W_", "_even", 4) # memshire 0-3 "west 0-3" addr[9] = 0 "even"
     open_output_files("DRAM_E_", "_even", 4) # memshire 4-7 "east 0-3" addr[9] = 0 "even"
     open_output_files("DRAM_W_", "_odd", 4)  # memshire 0-3 "west 0-3" addr[9] = 1 "odd"
     open_output_files("DRAM_E_", "_odd", 4)  # memshire 4-7 "east 0-3" addr[9] = 1 "odd"
-    write_seg(0x8000000000, addr, size, 64, 64, 16, False)
+    write_hex(0x8000000000, 64, 64, 16, False)
     return
 
-for seg in elfFile.iter_segments():
-    addr = seg['p_paddr']
-    size = seg['p_filesz']
-    print("Segment start: %x size: %x" % (addr, size))
-
-    if (sys.argv[1]) == "ROM":
-        sp_rom_write_seg(addr, size)
-    elif (sys.argv[1]) == "SP_RAM":
-        sp_ram_write_seg(addr, size)
-    elif (sys.argv[1]) == "PU_RAM":
-        print("PU_RAM support not yet implemented")
-        sys.exit(-1)
-    elif (sys.argv[1]) == "DRAM":
-        dram_write_seg(addr, size)
-    else:
-        print("Unsupported argument", sys.argv[1])
-        sys.exit(-1)
+if (sys.argv[1]) == "ROM":
+    sp_rom_write_hex()
+elif (sys.argv[1]) == "SP_RAM":
+    sp_ram_write_hex()
+elif (sys.argv[1]) == "PU_RAM":
+    print("PU_RAM support not yet implemented")
+    sys.exit(-1)
+elif (sys.argv[1]) == "DRAM":
+    dram_write_hex()
+else:
+    print("Unsupported argument", sys.argv[1])
+    sys.exit(-1)
