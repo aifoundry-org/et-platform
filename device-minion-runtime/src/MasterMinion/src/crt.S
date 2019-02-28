@@ -6,7 +6,7 @@
 #endif
 
 #ifndef STACK_SIZE_LOG2
-#define STACK_SIZE_LOG2 14
+#define STACK_SIZE_LOG2 12 // upper 8MB of DRAM reserved for stacks
 #endif
 
 .section .text.init, "ax", @progbits
