@@ -3042,6 +3042,10 @@ static void csrset(csr src1, uint64_t val)
             {
                 tensorload(val);
             }
+            catch (const trap_illegal_instruction&)
+            {
+                throw;
+            }
             catch (const trap_t&)
             {
                 update_tensor_error(1 << 7);
@@ -3104,6 +3108,10 @@ static void csrset(csr src1, uint64_t val)
             try
             {
                 tensorstore(val);
+            }
+            catch (const trap_illegal_instruction&)
+            {
+                throw;
             }
             catch (const trap_t&)
             {
@@ -7237,7 +7245,7 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
-        msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
+        msg_port_pending_writes[thread / EMU_THREADS_PER_SHIRE].push_back(port_write);
 
         LOG_ALL_MINIONS(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
 	int wr_words = 1 << (msg_ports[thread][id].logsize)/4;
@@ -7261,7 +7269,7 @@ void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_i
         for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
-        msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
+        msg_port_pending_writes[thread / EMU_THREADS_PER_SHIRE].push_back(port_write);
 
         LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
     }
@@ -7282,7 +7290,7 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
         for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
-        msg_port_pending_writes[thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION)].push_back(port_write);
+        msg_port_pending_writes[thread / EMU_THREADS_PER_SHIRE].push_back(port_write);
 
         LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
     }
@@ -7292,7 +7300,7 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
 
 void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t source_thread)
 {
-    uint32_t shire = target_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    uint32_t shire = target_thread / EMU_THREADS_PER_SHIRE;
     if (!msg_port_pending_writes[shire].empty())
     {
         msg_port_write_t port_write;
@@ -7329,7 +7337,7 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
 
 void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id)
 {
-    uint32_t shire = target_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    uint32_t shire = target_thread / EMU_THREADS_PER_SHIRE;
     if (!msg_port_pending_writes[shire].empty())
     {
         msg_port_write_t port_write;
@@ -7365,7 +7373,7 @@ void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, ui
 
 void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id)
 {
-    uint32_t shire = target_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    uint32_t shire = target_thread / EMU_THREADS_PER_SHIRE;
     if (!msg_port_pending_writes[shire].empty())
     {
         msg_port_write_t port_write;
@@ -7609,6 +7617,18 @@ void tensorload(uint64_t control)
 
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
 
+#if 0 // FIXME: Implements ARCHSIM-178 but cannot be enabled until SW sets shire_coop_mode
+    // Cooperative tensor loads require the shire to be in cooperative mode
+    if (use_coop)
+    {
+        uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+        assert(shire != EMU_IO_SHIRE_SP);
+        uint64_t shire_coop_mode = pmemread64(ESR_SHIRE(CSR_PRV_S, shire, COOP_MODE));
+        if (!shire_coop_mode)
+            throw trap_illegal_instruction(current_inst);
+    }
+#endif
+
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if (tenb)
     {
@@ -7808,7 +7828,8 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
 
     LOG(DEBUG, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%16" PRIx64, rows, tm,  dst,  addr);
 
-    uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+    assert(shire != EMU_IO_SHIRE_SP);
 
     for (int i = 0; i < rows; ++i)
     {
@@ -8177,11 +8198,11 @@ static void tensorstore(uint64_t tstorereg)
 
         // Check legal coop combination
         // xs[50:49]/xs[56:55]
-        const char coop_comb[4*4] = {
-            1, 1, 0, 1,
-            1, 1, 0, 0,
-            0, 0, 0, 0,
-            1, 0, 0, 0
+        static const bool coop_comb[4*4] = {
+            true,  true,  false, true,
+            true,  true,  false, false,
+            false, false, false, false,
+            true,  false, false, false
         };
 
         if (!coop_comb[4*(coop-1)+(cols-1)])
@@ -8189,6 +8210,18 @@ static void tensorstore(uint64_t tstorereg)
             update_tensor_error(1 << 8);
             return;
         }
+
+#if 0 // FIXME: Implements ARCHSIM-178 but cannot be enabled until SW sets shire_coop_mode
+        // Cooperative tensor stores require the shire to be in cooperative mode
+        if (coop)
+        {
+            uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+            assert(shire != EMU_IO_SHIRE_SP);
+            uint64_t shire_coop_mode = pmemread64(ESR_SHIRE(CSR_PRV_S, shire, COOP_MODE));
+            if (!shire_coop_mode)
+                throw trap_illegal_instruction(current_inst);
+        }
+#endif
 
         // For all the rows
         for (int row = 0; row < rows; row++)
@@ -8771,10 +8804,12 @@ static uint64_t flbarrier(uint64_t value)
 {
     uint64_t barrier = value % FAST_LOCAL_BARRIERS;
     uint64_t limit   = (value / FAST_LOCAL_BARRIERS) & 0x7F;
-    uint64_t shire   = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
+    uint64_t shire   = current_thread / EMU_THREADS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP)
+        shire = IO_SHIRE_ID;
 
     // Gets what is the address that the fast local barrier is mapped to
-    uint64_t addr = ESR_SHIRE(0, shire, FLB0) + (barrier * 8); // Access is private per cache
+    uint64_t addr = ESR_SHIRE(CSR_PRV_U, shire, FLB0) + (barrier * 8); // Access is private per cache
 
     // NB: No PMA checks here... we know it will pass ;-)
 
