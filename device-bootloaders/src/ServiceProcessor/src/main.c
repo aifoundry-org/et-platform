@@ -17,5 +17,15 @@ int main(void)
 {
     SERIAL_init(UART0);
     printf("alive\r\n");
+
+    SERIAL_init(UART1);
+    SERIAL_write(UART1, "alive\r\n", 7);
+
+    SERIAL_init(PU_UART0);
+    SERIAL_write(PU_UART0, "alive\r\n", 7);
+
+    SERIAL_init(PU_UART1);
+    SERIAL_write(PU_UART1, "alive\r\n", 7);
+
     while (1) {}
 }
