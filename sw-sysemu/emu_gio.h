@@ -15,7 +15,7 @@ namespace emu {
 #define _LOG_IMPL(severity, cond, thread, format, ...) do { \
     if ((LOG_##severity >= emu::log.getLogLevel()) && (cond)) \
     { \
-        emu::lprintf(LOG_##severity, "[H%u S%u:N%u:M%u:T%u] " format, \
+        emu::lprintf(LOG_##severity, "[H%u S%u:N%u:C%u:T%u] " format, \
                      thread, \
                      thread / EMU_THREADS_PER_SHIRE, \
                      (thread / EMU_THREADS_PER_NEIGH) % EMU_NEIGH_PER_SHIRE, \
