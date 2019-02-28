@@ -276,7 +276,7 @@ checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_mi
         }
         else
         {
-	    LOG(ERR, "\tReduce error: Minion: 0x%08x found pairing receiver minion: 0x%lu in Reduce_Ready_To_Send!!", (thread>>1),other_min);	
+            LOG(ERR, "\tReduce error: Minion: 0x%08x found pairing receiver minion: 0x%lu in Reduce_Ready_To_Send!!", (thread>>1),other_min);
         }
     }
     // Receiver
@@ -307,7 +307,7 @@ checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_mi
         }
         else
         {
-	    LOG(ERR, "\tReduce error: Minion: 0x%08x found pairing sender minion: 0x%lu in Reduce_Data_Consumed!!", (thread>>1),other_min);	
+            LOG(ERR, "\tReduce error: Minion: 0x%08x found pairing sender minion: 0x%lu in Reduce_Data_Consumed!!", (thread>>1),other_min);
         }
     }
     return CHECKER_OK;
@@ -430,12 +430,12 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
 #endif
         char insn_disasm[128];
         riscv_disasm(insn_disasm, 128, inst.bits);
-        stream << "BEMU Checker mismatch @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << insn_disasm << ") -> ";
+        stream << "BEMU Checker mismatch for thread " << thread << " @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << insn_disasm << ") -> ";
 
         // Check PC
         if(changes->pc != current_pc[thread])
         {
-	    LOG(ERR, "\tBEMU Checker PC error. BEMU expects PC: 0x%lx but DUT reported PC: 0x%lx ",current_pc[thread] ,changes->pc);	
+            LOG(ERR, "\tBEMU Checker PC error. BEMU expects PC: 0x%lx but DUT reported PC: 0x%lx ",current_pc[thread] ,changes->pc);
             // don't check anything else when PC mismatches... everything would mismatch
             check_res = CHECKER_ERROR;
             goto finished_checking;
@@ -454,14 +454,14 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         // Changing integer register
         if(changes->int_reg_mod != emu_state_change.int_reg_mod)
         {
-	    stream << "BEMU Checker Int Register write error. BEMU expects register write is " << emu_state_change.int_reg_mod << " but DUT reported " << changes->int_reg_mod << std::endl;
+            stream << "BEMU Checker Int Register write error. BEMU expects register write is " << emu_state_change.int_reg_mod << " but DUT reported " << changes->int_reg_mod << std::endl;
             check_res = CHECKER_ERROR;
         }
         if(emu_state_change.int_reg_mod)
         {
             if(changes->int_reg_rd != emu_state_change.int_reg_rd)
             {
-	    LOG(ERR, "\tBEMU Checker Int Register dest error. BEMU expects register dest is: %d but DUT reported: %d ",emu_state_change.int_reg_rd , changes->int_reg_rd);	
+                LOG(ERR, "\tBEMU Checker Int Register dest error. BEMU expects register dest is: %d but DUT reported: %d ",emu_state_change.int_reg_rd , changes->int_reg_rd);
                 check_res = CHECKER_ERROR;
             }
 
@@ -530,7 +530,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
             // Writes to X0/Zero are ignored
             if((changes->int_reg_data != emu_state_change.int_reg_data) && (emu_state_change.int_reg_rd != 0))
             {
-	    	LOG(ERR, "\tBEMU Checker Int Register data error. BEMU expects data is: 0x%lx but DUT reported: 0x%lx ",emu_state_change.int_reg_data , changes->int_reg_data);	
+                LOG(ERR, "\tBEMU Checker Int Register data error. BEMU expects data is: 0x%lx but DUT reported: 0x%lx ",emu_state_change.int_reg_data , changes->int_reg_data);
                 check_res = CHECKER_ERROR;
                 //Set EMU state to what RTL says
                 init(inst.rd(), emu_state_change.int_reg_data);
@@ -547,26 +547,26 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         // Changing fflags
         if ( changes->fflags_mod != emu_state_change.fflags_mod )
         {
-          // Someone changed the flags
-          std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
-	  LOG(WARN, "\tBEMU Checker fflags changed by %s. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",changer.c_str(), emu_state_change.fflags_value , changes->fflags_value);	
-          check_res = CHECKER_WARNING;
+            // Someone changed the flags
+            std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
+            LOG(WARN, "\tBEMU Checker fflags changed by %s. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",changer.c_str(), emu_state_change.fflags_value , changes->fflags_value);
+            check_res = CHECKER_WARNING;
         }
         
         if ( emu_state_change.fflags_mod)
         {
-          if ( changes->fflags_value != emu_state_change.fflags_value )
-          {
-	  LOG(WARN, "\tBEMU Checker fflags values change. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",emu_state_change.fflags_value , changes->fflags_value);	
-            check_res = CHECKER_WARNING;
-          }
+            if ( changes->fflags_value != emu_state_change.fflags_value )
+            {
+                LOG(WARN, "\tBEMU Checker fflags values change. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",emu_state_change.fflags_value , changes->fflags_value);
+                check_res = CHECKER_WARNING;
+            }
         }
 
         if(emu_state_change.fp_reg_mod)
         {
             if(changes->fp_reg_rd != emu_state_change.fp_reg_rd)
             {
-	  	LOG(ERR, "\tBEMU Checker FP Register dest error. BEMU expects dest is f%d but DUT reported f%d ",emu_state_change.fp_reg_rd , changes->fp_reg_rd);	
+                LOG(ERR, "\tBEMU Checker FP Register dest error. BEMU expects dest is f%d but DUT reported f%d ",emu_state_change.fp_reg_rd , changes->fp_reg_rd);
                 check_res = CHECKER_ERROR;
             }
 
@@ -659,7 +659,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         {
             if(changes->m_reg_mod[m] != emu_state_change.m_reg_mod[m])
             {
-	  	LOG(ERR, "\tBEMU Checker Mask Register write error for entry %d. BEMU expects write is %d but DUT reported %d ",m, emu_state_change.m_reg_mod[m] , changes->m_reg_mod[m]);	
+                LOG(ERR, "\tBEMU Checker Mask Register write error for entry %d. BEMU expects write is %d but DUT reported %d ",m, emu_state_change.m_reg_mod[m] , changes->m_reg_mod[m]);
                 check_res = CHECKER_ERROR;
             }
             if(emu_state_change.m_reg_mod[m])
@@ -668,7 +668,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
                 {
                     if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
                     {
-	  		stream << "BEMU Checker Mask Register data_error m" << m << "[" << i << "]. BEMU expects data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but DUT reported " << (uint32_t) changes->m_reg_data[m][i] << std::dec << std::endl;
+                        stream << "BEMU Checker Mask Register data_error m" << m << "[" << i << "]. BEMU expects data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but DUT reported " << (uint32_t) changes->m_reg_data[m][i] << std::dec << std::endl;
                         check_res = CHECKER_ERROR;
                     }
                 }
