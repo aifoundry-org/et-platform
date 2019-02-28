@@ -30,7 +30,7 @@ int main(void)
     unsigned int minion_id = get_minion_id();
 
     // Master shire, go to master code
-    if(minion_id >= 32)
+    if(minion_id >= 1024)
     {
         fw_master_code();
     }

@@ -37,7 +37,7 @@ void fw_master_code()
 	tid = get_thread_id();
 
 	// Only minion 0 thread 0 of master shire doing something
-	if ((mid != 32) || tid) {
+	if ((mid != 1024) || tid) {
 	    WFI;
 	}
 
