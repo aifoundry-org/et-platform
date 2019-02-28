@@ -14,11 +14,10 @@ public:
     ~main_memory_region_esr();
     
     // read and write
-    void write(uint64_t ad, int size, const void* data);
-    void read(uint64_t ad, int size, void* data);
+    void write(uint64_t ad, int size, const void* data) override;
+    void read(uint64_t ad, int size, void* data) override;
 
 private:
-
     typedef enum
     {
         ESR_Prot_User       = 0,
@@ -46,7 +45,6 @@ private:
         uint64_t         hart;
         uint64_t         bank;
         uint64_t         address;
-        bool             valid;
     } esr_info_t;
 
     typedef struct {

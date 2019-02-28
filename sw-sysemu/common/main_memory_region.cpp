@@ -1,65 +1,49 @@
 // Global
-#include <string.h>
+#include <algorithm>
 
 // Local
+#include "emu_defines.h"
 #include "main_memory_region.h"
 
-using namespace std;
-
 // Creator
-main_memory_region::main_memory_region(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread & get_thread, int flags)
-  : base_(base), size_(size), data_(new char[size]),
-    flags_(flags), log(l), get_thread(get_thread)
-{
-    bzero(data_, size);
-}
- 
+main_memory_region::main_memory_region(uint64_t base, uint64_t size, testLog & l,
+                                       func_ptr_get_thread & get_thread, int flags)
+    : base_(base), size_(size), data_(new char[size]()),
+      flags_(flags), log(l), get_thread(get_thread)
+{ }
+
 // Destructor: free allocated mem
 main_memory_region::~main_memory_region()
 {
-    if(data_ != NULL )
+    if (data_)
         delete[] data_;
 }
 
-// operators to compare, used when searching the correct main_memory_region in a memory access
-bool main_memory_region::operator==(uint64_t ad)
-{ 
-    return ad >= base_ && ad < base_ + size_;
-}
-
-// operators to compare, used when searching the correct main_memory_region in a memory access
-bool main_memory_region::operator!=(uint64_t ad)
-{
-    return !(*this == ad);
-}
-    
 // Write to memory region
 void main_memory_region::write(uint64_t ad, int size, const void * data)
 {
-  if ( ( flags_ & MEM_REGION_WRITE_ALLOWED ) == 0) {
-    log<<LOG_ERR<<"writing to address "<<hex<<ad<<dec<<" is not allowed"<<endm;
-    return;
-  }
-  
-  if(data_ != NULL)
-    memcpy(data_ + (ad - base_), data, size);
+    if ((flags_ & MEM_REGION_WRITE_ALLOWED) == 0) {
+        log<<LOG_ERR<<"writing to address 0x"<<std::hex<<ad<<std::dec<<" is not allowed"<<endm;
+        return;
+    }
+    if (data_)
+        std::copy_n(reinterpret_cast<const char*>(data), size, data_ + (ad - base_));
 }
 
 // Read from memory region
 void main_memory_region::read(uint64_t ad, int size, void * data)
 {
-  if ( ( flags_ & MEM_REGION_READ_ALLOWED ) == 0) {
-    log<<LOG_ERR<<"reading from address "<<hex<<ad<<dec<<" is not allowed"<<endm;
-    return;
-  }
-  
-  if(data_ != NULL)
-    memcpy(data, data_ + (ad - base_), size);
+    if ((flags_ & MEM_REGION_READ_ALLOWED) == 0) {
+        log<<LOG_ERR<<"reading from address 0x"<<std::hex<<ad<<std::dec<<" is not allowed"<<endm;
+        return;
+    }
+    if (data_)
+        std::copy_n(data_ + (ad - base_), size, reinterpret_cast<char*>(data));
 }
 
 // Dumps the region
 void main_memory_region::dump()
 {
-    log << LOG_DEBUG << "\tBase: 0x" << hex << base_ << ", Size: 0x" << size_ << dec << endm;
+    log << LOG_DEBUG << "\tBase: 0x" << std::hex << base_ << ", Size: 0x" << size_ << std::dec << endm;
 }
 
