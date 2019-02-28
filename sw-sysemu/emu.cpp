@@ -276,6 +276,10 @@ mdata mregs[EMU_NUM_THREADS][8];
 uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
 bool mtvec_is_set[EMU_NUM_THREADS] = {};
 bool stvec_is_set[EMU_NUM_THREADS] = {};
+bool break_on_load[EMU_NUM_THREADS] = {};
+bool break_on_store[EMU_NUM_THREADS] = {};
+bool break_on_fetch[EMU_NUM_THREADS] = {};
+bool debug_mode[EMU_NUM_THREADS] = {};
 bool tensorload_setupb_topair[EMU_NUM_THREADS] = {false};
 int tensorload_setupb_numlines[EMU_NUM_THREADS];
 cache_line_t scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS];
@@ -487,6 +491,13 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_mhpmevent29,       "mhpmevent29"        },
    { csr_mhpmevent30,       "mhpmevent30"        },
    { csr_mhpmevent31,       "mhpmevent31"        },
+   { csr_tselect,           "tselect"            },
+   { csr_tdata1,            "tdata1"             },
+   { csr_tdata2,            "tdata2"             },
+   { csr_tdata3,            "tdata3"             },
+   //{ csr_dcsr,              "dcsr"               },
+   //{ csr_dpc,               "dpc"                },
+   //{ csr_dscratch,          "dscratch"           },
    { csr_minstmask,         "minstmask"          },
    { csr_minstmatch,        "minstmatch"         },
    { csr_cache_invalidate,  "cache_invalidate"   },
@@ -690,6 +701,26 @@ static inline int frm()
     return ((csrregs[current_thread][csr_fcsr] >> 5) & 0x7);
 }
 
+// internal accessor to tdata1; this is faster than doing csrget(csr_tdata1)
+static inline uint64_t tdata1()
+{
+    return csrregs[current_thread][csr_tdata1];
+}
+
+// internal accessor to tdata2; this is faster than doing csrget(csr_tdata2)
+static inline uint64_t tdata2()
+{
+    return csrregs[current_thread][csr_tdata2];
+}
+
+static void activate_breakpoints(int prv)
+{
+    uint64_t mcontrol = tdata1();
+    break_on_load[current_thread]  = !(~mcontrol & ((8 << prv) | 1));
+    break_on_store[current_thread] = !(~mcontrol & ((8 << prv) | 2));
+    break_on_fetch[current_thread] = !(~mcontrol & ((8 << prv) | 4));
+}
+
 // internal accessor to tensor_error; this is faster than doing csrset()
 static inline void update_tensor_error(uint64_t value)
 {
@@ -879,6 +910,7 @@ void initcsr(uint32_t thread)
 {
     // Exit reset at M-mode
     csrregs[thread][csr_prv] = CSR_PRV_M;
+    debug_mode[thread] = false;
     // Read-only registers
     csrregs[thread][csr_mvendorid] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity)
     csrregs[thread][csr_marchid] = 0x8000000000000001ULL;
@@ -907,7 +939,11 @@ void initcsr(uint32_t thread)
     csrregs[thread][csr_mcounteren] = 0x0ULL;
     csrregs[thread][csr_scounteren] = 0x0ULL;
     // Debug-mode registers with reset
+    csrregs[thread][csr_tdata1] = 0x20C0000000000000ULL;
     // TODO: csrregs[thread][csr_dcsr] <= xdebugver=1, prv=3;
+
+    // Cached information
+    activate_breakpoints(CSR_PRV_M);
 
     // Ports
     for (int i = 0; i < NR_MSG_PORTS; ++i)
@@ -1237,6 +1273,46 @@ void (*pmemwrite64) (uint64_t addr, uint64_t data) = host_memwrite64;
 
 uint64_t (*vmemtranslate) (uint64_t addr, mem_access_type macc) = virt_to_phys_host;
 
+// Breakpoints and watchpoints
+
+static bool matches_breakpoint_address(uint64_t addr)
+{
+    uint64_t mcontrol = tdata1();
+    uint64_t mvalue = tdata2();
+    bool exact = (~mcontrol & 0x80);
+    uint64_t mask = exact ? 0 : (((~mvalue & (mvalue + 1)) - 1) & 0x3f);
+    return (mvalue == ((addr & VA_M) | mask));
+}
+
+bool halt_on_breakpoint()
+{
+    return (~tdata1() & 0x0800000000001000ull) == 0;
+}
+
+__attribute__((noreturn)) void throw_trap_breakpoint(uint64_t addr)
+{
+    if (halt_on_breakpoint())
+        throw std::runtime_error("Debug mode not supported yet!");
+    throw trap_breakpoint(addr);
+}
+
+static inline void check_load_breakpoint(uint64_t addr)
+{
+    if (break_on_load[current_thread] && matches_breakpoint_address(addr))
+        throw_trap_breakpoint(addr);
+}
+
+static inline void check_store_breakpoint(uint64_t addr)
+{
+    if (break_on_store[current_thread] && matches_breakpoint_address(addr))
+        throw_trap_breakpoint(addr);
+}
+
+bool matches_fetch_breakpoint(uint64_t addr)
+{
+    return break_on_fetch[current_thread] && matches_breakpoint_address(addr);
+}
+
 // PMA checks
 
 // Minion Memory map
@@ -1437,7 +1513,21 @@ static uint16_t vmemread16(uint64_t addr)
     {
         throw trap_load_access_fault(addr);
     }
-    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 2))
+    if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 2))
+    {
+        throw trap_load_address_misaligned(addr);
+    }
+    return pmemread16(paddr);
+}
+
+static uint16_t aligned_vmemread16(uint64_t addr)
+{
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Load);
+    if (!pma_check_data_access(paddr, 2, Mem_Access_Load))
+    {
+        throw trap_load_access_fault(addr);
+    }
+    if (!access_is_size_aligned(addr, 2))
     {
         throw trap_load_address_misaligned(addr);
     }
@@ -1451,7 +1541,21 @@ static uint32_t vmemread32(uint64_t addr)
     {
         throw trap_load_access_fault(addr);
     }
-    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 4))
+    if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 4))
+    {
+        throw trap_load_address_misaligned(addr);
+    }
+    return pmemread32(paddr);
+}
+
+static uint32_t aligned_vmemread32(uint64_t addr)
+{
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Load);
+    if (!pma_check_data_access(paddr, 4, Mem_Access_Load))
+    {
+        throw trap_load_access_fault(addr);
+    }
+    if (!access_is_size_aligned(addr, 4))
     {
         throw trap_load_address_misaligned(addr);
     }
@@ -1465,7 +1569,7 @@ static uint64_t vmemread64(uint64_t addr)
     {
         throw trap_load_access_fault(addr);
     }
-    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 8))
+    if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 8))
     {
         throw trap_load_address_misaligned(addr);
     }
@@ -1489,7 +1593,21 @@ static void vmemwrite16(uint64_t addr, uint16_t data)
     {
         throw trap_store_access_fault(addr);
     }
-    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 2))
+    if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 2))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
+    pmemwrite16(paddr, data);
+}
+
+static void aligned_vmemwrite16(uint64_t addr, uint16_t data)
+{
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
+    if (!pma_check_data_access(paddr, 2, Mem_Access_Store))
+    {
+        throw trap_store_access_fault(addr);
+    }
+    if (!access_is_size_aligned(addr, 2))
     {
         throw trap_store_address_misaligned(addr);
     }
@@ -1503,7 +1621,21 @@ static void vmemwrite32(uint64_t addr, uint32_t data)
     {
         throw trap_store_access_fault(addr);
     }
-    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 4))
+    if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 4))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
+    pmemwrite32(paddr, data);
+}
+
+static void aligned_vmemwrite32(uint64_t addr, uint32_t data)
+{
+    uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
+    if (!pma_check_data_access(paddr, 4, Mem_Access_Store))
+    {
+        throw trap_store_access_fault(addr);
+    }
+    if (!access_is_size_aligned(addr, 4))
     {
         throw trap_store_address_misaligned(addr);
     }
@@ -1517,7 +1649,7 @@ static void vmemwrite64(uint64_t addr, uint64_t data)
     {
         throw trap_store_access_fault(addr);
     }
-    if (!access_is_cacheable(addr) && !access_is_size_aligned(addr, 8))
+    if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 8))
     {
         throw trap_store_address_misaligned(addr);
     }
@@ -2052,6 +2184,7 @@ void lb(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lb x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x + off);
+    check_load_breakpoint(addr);
     uint64_t val = sext<8>(vmemread8(addr));
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM8[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
@@ -2065,6 +2198,7 @@ void lh(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lh x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x + off);
+    check_load_breakpoint(addr);
     uint64_t val = sext<16>(vmemread16(addr));
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM16[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
@@ -2078,6 +2212,7 @@ void lw(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lw x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x + off);
+    check_load_breakpoint(addr);
     uint64_t val = sext<32>(vmemread32(addr));
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
@@ -2091,6 +2226,7 @@ void ld(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: ld x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x + off);
+    check_load_breakpoint(addr);
     uint64_t val = vmemread64(addr);
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM64[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
@@ -2104,6 +2240,7 @@ void lbu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lbu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x + off);
+    check_load_breakpoint(addr);
     uint64_t val = vmemread8(addr);
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM8[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
@@ -2117,6 +2254,7 @@ void lhu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lhu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x + off);
+    check_load_breakpoint(addr);
     uint64_t val = vmemread16(addr);
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM16[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
@@ -2130,6 +2268,7 @@ void lwu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lwu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x + off);
+    check_load_breakpoint(addr);
     uint64_t val = vmemread32(addr);
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
@@ -2145,6 +2284,7 @@ void sd(xreg src1, xreg base, int64_t off, const char* comm)
     uint64_t addr = sextVA(XREGS[base].x + off);
     uint64_t val  = XREGS[src1].x;
     LOG(DEBUG, "\t%016" PRIx64 " --> MEM64[0x%016" PRIx64 "]", val, addr);
+    check_store_breakpoint(addr);
     vmemwrite64(addr, val);
     log_mem_write(0, 8, addr, val);
 }
@@ -2155,6 +2295,7 @@ void sw(xreg src1, xreg base, int64_t off, const char* comm)
     uint64_t addr = sextVA(XREGS[base].x + off);
     uint32_t val  = XREGS[src1].w[0];
     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr);
+    check_store_breakpoint(addr);
     vmemwrite32(addr, val);
     log_mem_write(0, 4, addr, val);
 }
@@ -2165,6 +2306,7 @@ void sh(xreg src1, xreg base, int64_t off, const char* comm)
     uint64_t addr = sextVA(XREGS[base].x + off);
     uint16_t val  = XREGS[src1].h[0];
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
+    check_store_breakpoint(addr);
     vmemwrite16(addr, val);
     log_mem_write(0, 2, addr, val);
 }
@@ -2175,6 +2317,7 @@ void sb(xreg src1, xreg base, int64_t off, const char* comm)
     uint64_t addr = sextVA(XREGS[base].x + off);
     uint8_t  val  = XREGS[src1].b[0];
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
+    check_store_breakpoint(addr);
     vmemwrite8(addr, val);
     log_mem_write(0, 1, addr, val);
 }
@@ -2185,6 +2328,7 @@ void sbl(xreg src1, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base].x);
     uint8_t  val  = XREGS[src1].b[0];
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
+    check_store_breakpoint(addr);
     vmemwrite8(addr, val);
     log_mem_write(0, 1, addr, val);
 }
@@ -2195,6 +2339,7 @@ void sbg(xreg src1, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base].x);
     uint8_t  val  = XREGS[src1].b[0];
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
+    check_store_breakpoint(addr);
     vmemwrite8(addr, val);
     log_mem_write(0, 1, addr, val);
 }
@@ -2204,6 +2349,7 @@ void shl(xreg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: shl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x);
     uint16_t val  = XREGS[src1].h[0];
+    check_store_breakpoint(addr);
     vmemwrite16(addr, val);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
     log_mem_write(0, 2, addr, val);
@@ -2214,6 +2360,7 @@ void shg(xreg src1, xreg base, const char* comm)
     LOG(DEBUG, "I: shg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
     uint64_t addr = sextVA(XREGS[base].x);
     uint16_t val  = XREGS[src1].h[0];
+    check_store_breakpoint(addr);
     vmemwrite16(addr, val);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
     log_mem_write(0, 2, addr, val);
@@ -2479,7 +2626,7 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
 {
     uint64_t addr = sextVA(XREGS[src1].x);
 
-    // Check misaligned access
+    check_store_breakpoint(addr);
     if (!access_is_size_aligned(addr, 4))
     {
         throw trap_store_address_misaligned(addr);
@@ -2556,7 +2703,7 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
 {
     uint64_t addr = sextVA(XREGS[src1].x);
 
-    // Check misaligned access
+    check_store_breakpoint(addr);
     if (!access_is_size_aligned(addr, 8))
     {
         throw trap_store_address_misaligned(addr);
@@ -2830,6 +2977,11 @@ static uint64_t csrget(csr src1)
             // sepc[1] is 0 when C extension is not supported (misa[2])
             val = csrregs[current_thread][csr_mepc] & ~1ULL;
             break;
+        // ----- Debug registers -----------------------------------------
+        case csr_tselect:
+        case csr_tdata3:
+            val = 0;
+            break;
         // ----- All other registers -------------------------------------
         default:
             val = csrregs[current_thread][src1];
@@ -2867,6 +3019,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_prv:
             val &= 0x0000000000000003ULL;
             csrregs[current_thread][src1] = val;
+            activate_breakpoints(val);
             break;
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
@@ -3222,6 +3375,24 @@ static void csrset(csr src1, uint64_t val)
             csrregs[current_thread][src1] = val;
             csrregs[current_thread^1][src1] = val;
             break;
+        // ----- Debug registers -----------------------------------------
+        case csr_tselect:
+        case csr_tdata3:
+            break;
+        case csr_tdata1:
+            if ((~val & 0x0800000000000000ull) || debug_mode[current_thread])
+            {
+                // Preserve type, maskmax, timing
+                val = (val & 0x08000000000010DFULL) | (csrregs[current_thread][src1] & 0xF7E0000000040000ULL);
+                csrregs[current_thread][src1] = val;
+                activate_breakpoints(prvget());
+            }
+            break;
+        case csr_tdata2:
+            // keep only valid virtual or pysical addresses
+            val &= VA_M;
+            csrregs[current_thread][src1] = val;
+            break;
         // ----- Verification registers ----------------------------------------
         case csr_validation1:
             // EOT signals end of test
@@ -3334,7 +3505,6 @@ static void throw_access_fault(uint64_t addr, mem_access_type macc)
 
 static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
 {
-
     // Read mstatus
     const uint64_t mstatus = csrget(csr_mstatus);
     const int      mxr     = (mstatus >> MSTATUS_MXR ) & 0x1;
@@ -3662,35 +3832,77 @@ void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void femuld(int count, freg dst, uint64_t base_addr, bool use_mask)
+template<size_t Nelems, bool Mask>
+static void femuld(freg dst, uint64_t vaddr)
 {
-    assert(count <= VL);
+    static_assert(Nelems <= VL, "Number of elements must be not be greater than VL");
 
-    for (int i = 0; i < count; i++)
+    if (!Mask || MREGS[0].b.any())
     {
-        if (use_mask && !MREGS[0].b[i]) continue;
-        uint64_t addr = base_addr + i * 4;
-        uint32_t val = vmemread32(addr);
-        FREGS[dst].u[i] = val;
-        LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val, addr);
+        check_load_breakpoint(vaddr);
+        uint64_t paddr = vmemtranslate(vaddr, Mem_Access_Load);
+        if (!pma_check_data_access(paddr, 4*Nelems, Mem_Access_Load))
+        {
+            throw trap_load_access_fault(vaddr);
+        }
+        if (!access_is_cacheable(paddr) && !access_is_size_aligned(vaddr, 4*Nelems))
+        {
+            throw trap_load_address_misaligned(vaddr);
+        }
+        uint64_t next_line = paddr & (L1D_LINE_SIZE - (paddr % L1D_LINE_SIZE));
+        for (unsigned i = 0; i < Nelems; i++)
+        {
+            if (Mask && !MREGS[0].b[i]) continue;
+            if (paddr >= next_line)
+            {
+                check_load_breakpoint(vaddr + i*4);
+                paddr = vmemtranslate(vaddr + i*4, Mem_Access_Load);
+                next_line += L1D_LINE_SIZE;
+            }
+            uint32_t val = pmemread32(paddr);
+            FREGS[dst].u[i] = val;
+            LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val, vaddr + i*4);
+            paddr += 4;
+        }
     }
-    ZERO_UNUSED_FREG_BITS(dst, count);
+    ZERO_UNUSED_FREG_BITS(dst, Nelems);
     dirty_fp_state();
     log_freg_write(dst);
 }
 
-static void femust(int count, freg src1, uint64_t base_addr, int use_mask)
+template<size_t Nelems, bool Mask>
+static void femust(freg src1, uint64_t vaddr)
 {
-    assert(count <= VL);
+    static_assert(Nelems <= VL, "Number of elements must be not be greater than VL");
 
-    for (int i = 0; i < count; i++)
+    if (Mask && MREGS[0].b.none())
+        return;
+
+    check_store_breakpoint(vaddr);
+    uint64_t paddr = vmemtranslate(vaddr, Mem_Access_Store);
+    if (!pma_check_data_access(paddr, 4*Nelems, Mem_Access_Store))
     {
-        if (use_mask && !MREGS[0].b[i]) continue;
-        uint64_t addr = base_addr + i * 4;
+        throw trap_store_access_fault(vaddr);
+    }
+    if (!access_is_cacheable(paddr) && !access_is_size_aligned(vaddr, 4*Nelems))
+    {
+        throw trap_store_address_misaligned(vaddr);
+    }
+    uint64_t next_line = paddr & (L1D_LINE_SIZE - (paddr % L1D_LINE_SIZE));
+    for (unsigned i = 0; i < Nelems; i++)
+    {
+        if (Mask && !MREGS[0].b[i]) continue;
+        if (paddr >= next_line)
+        {
+            check_store_breakpoint(vaddr + i*4);
+            paddr = vmemtranslate(vaddr + i*4, Mem_Access_Store);
+            next_line += L1D_LINE_SIZE;
+        }
         uint32_t val = FREGS[src1].u[i];
-        LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val, addr);
-        vmemwrite32(addr, val);
-        log_mem_write(i, 4, addr, val);
+        LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val, vaddr + i*4);
+        pmemwrite32(paddr, val);
+        log_mem_write(i, 4, vaddr + i*4, val);
+        paddr += 4;
     }
 }
 
@@ -4349,7 +4561,7 @@ void flw(freg dst, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: flw f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     uint64_t addr = sextVA(XREGS[base].x + off);
-    femuld(1, dst, addr, false);
+    femuld<1,false>(dst, addr);
 }
 
 void fsw(freg src1, xreg base, int64_t off, const char* comm)
@@ -4357,7 +4569,7 @@ void fsw(freg src1, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: fsw f%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     uint64_t addr = sextVA(XREGS[base].x + off);
-    femust(1, src1, addr, 0);
+    femust<1,false>(src1, addr);
 }
 
 void fmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
@@ -4543,7 +4755,7 @@ void flq2(freg dst, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: flq2 f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     uint64_t addr = sextVA(XREGS[base].x + off);
-    femuld(VL, dst, addr, false);
+    femuld<VL,false>(dst, addr);
 }
 
 void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
@@ -4552,7 +4764,7 @@ void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     uint64_t addr = sextVA(XREGS[base].x + off);
-    femuld(VL, dst, addr, true);
+    femuld<VL,true>(dst, addr);
 }
 
 void flwl_ps(freg dst, xreg base, const char* comm)
@@ -4565,7 +4777,7 @@ void flwl_ps(freg dst, xreg base, const char* comm)
     {
         throw trap_load_address_misaligned(addr);
     }
-    femuld(VL, dst, addr, true);
+    femuld<VL,true>(dst, addr);
 }
 
 void flwg_ps(freg dst, xreg base, const char* comm)
@@ -4578,7 +4790,7 @@ void flwg_ps(freg dst, xreg base, const char* comm)
     {
         throw trap_load_address_misaligned(addr);
     }
-    femuld(VL, dst, addr, true);
+    femuld<VL,true>(dst, addr);
 }
 
 void fsq2(freg src, xreg base, int64_t off, const char* comm)
@@ -4586,7 +4798,7 @@ void fsq2(freg src, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: fsq2 f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     uint64_t addr = sextVA(XREGS[base].x + off);
-    femust(VL, src, addr, 0);
+    femust<VL,false>(src, addr);
 }
 
 void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
@@ -4595,7 +4807,7 @@ void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     uint64_t addr = sextVA(XREGS[base].x + off);
-    femust(VL, src, addr, 1);
+    femust<VL,true>(src, addr);
 }
 
 void fswl_ps(freg src, xreg base, const char* comm)
@@ -4608,7 +4820,7 @@ void fswl_ps(freg src, xreg base, const char* comm)
     {
         throw trap_load_address_misaligned(addr);
     }
-    femust(VL, src, addr, 1);
+    femust<VL,true>(src, addr);
 }
 
 void fswg_ps(freg src, xreg base, const char* comm)
@@ -4621,7 +4833,7 @@ void fswg_ps(freg src, xreg base, const char* comm)
     {
         throw trap_load_address_misaligned(addr);
     }
-    femust(VL, src, addr, 1);
+    femust<VL,true>(src, addr);
 }
 
 // ----- Broadcast -----------------------------------------
@@ -4637,6 +4849,7 @@ void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
     val.u = 0;
     if (MREGS[0].b.any())
     {
+        check_load_breakpoint(addr);
         val.u = vmemread32(addr);
     }
     for (int i = 0; i < VL; i++)
@@ -4703,6 +4916,7 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
         iufval32 val;
         int32_t off   = FREGS[src1].i[i];
         uint64_t addr = sextVA(baddr + off);
+        check_load_breakpoint(addr);
         switch (opc)
         {
             case FGW:
@@ -4721,16 +4935,12 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
                 break;
             case FGWL:
             case FGWG:
-                if (addr % 4)
-                    throw trap_load_address_misaligned(addr);
-                val.u = vmemread32(addr);
+                val.u = aligned_vmemread32(addr);
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             case FGHL:
             case FGHG:
-                if (addr % 2)
-                    throw trap_load_address_misaligned(addr);
-                val.u = sext<16>(vmemread16(addr));
+                val.u = sext<16>(aligned_vmemread16(addr));
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", i, val.u, addr);
                 break;
             default:
@@ -4747,6 +4957,10 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
 {
     uint64_t baddr = sextVA(XREGS[src2].x);
     uint64_t index = XREGS[src1].x;
+    if (MREGS[0].b.any())
+    {
+        check_load_breakpoint(baddr);
+    }
     for (int i = 0; i < VL; i++)
     {
         if (!MREGS[0].b[i]) continue;
@@ -4798,6 +5012,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
         iufval32 val;
         val.u = FREGS[src1].u[i];
 
+        check_store_breakpoint(addr);
         switch (opc)
         {
             case FSCW:
@@ -4820,17 +5035,13 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
             case FSCWL:
             case FSCWG:
                 LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val.u, addr);
-                if (addr % 4)
-                    throw trap_load_address_misaligned(addr);
-                vmemwrite32(addr, val.u);
+                aligned_vmemwrite32(addr, val.u);
                 log_mem_write(i, 4, addr, val.u);
                 break;
             case FSCHL:
             case FSCHG:
                 LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", i, uint16_t(val.u), addr);
-                if (addr % 2)
-                    throw trap_load_address_misaligned(addr);
-                vmemwrite16(addr, uint16_t(val.u));
+                aligned_vmemwrite16(addr, uint16_t(val.u));
                 log_mem_write(i, 2, addr, val.u);
                 break;
             default:
@@ -4844,6 +5055,10 @@ static void femuscat32(int size, freg src3, xreg src1, xreg src2)
 {
     uint64_t baddr = sextVA(XREGS[src2].x);
     uint64_t index = XREGS[src1].x;
+    if (MREGS[0].b.any())
+    {
+        check_store_breakpoint(baddr);
+    }
     for (int i = 0; i < VL; i++)
     {
         if (!MREGS[0].b[i]) continue;
@@ -6447,7 +6662,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
 
         uint64_t addr = sextVA(XREGS[src2].x + FREGS[src1].i[el]);
 
-        // Check misaligned access
+        check_store_breakpoint(addr);
         if (!access_is_size_aligned(addr, 4))
         {
             throw trap_store_address_misaligned(addr);

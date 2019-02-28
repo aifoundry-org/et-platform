@@ -225,10 +225,10 @@ static csr imm2csr(uint16_t imm)
     //case 0x33e : return csr_mhpmevent30;
     //case 0x33f : return csr_mhpmevent31;
     /* RISCV debug registers */
-    //case 0x7a0 : return csr_tselect;
-    //case 0x7a1 : return csr_tdata1;
-    //case 0x7a2 : return csr_tdata2;
-    //case 0x7a3 : return csr_tdata3;
+    case 0x7a0 : return csr_tselect;
+    case 0x7a1 : return csr_tdata1;
+    case 0x7a2 : return csr_tdata2;
+    case 0x7a3 : return csr_tdata3;
     //case 0x7b0 : return csr_dcsr;
     //case 0x7b1 : return csr_dpc;
     //case 0x7b2 : return csr_dscratch;

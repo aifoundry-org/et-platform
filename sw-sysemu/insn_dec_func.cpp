@@ -6,6 +6,10 @@
 // program state
 extern uint32_t current_inst;
 
+// from emu.cpp
+extern bool matches_fetch_breakpoint(uint64_t);
+extern __attribute__((noreturn)) void throw_trap_breakpoint(uint64_t);
+
 // re-define the type
 typedef void (*insn_exec_funct_t)(insn_t);
 
@@ -1103,8 +1107,24 @@ void insn_t::fetch_and_decode(uint64_t vaddr)
 
     // Fetch two 16b words; don't translate the address twice if both words
     // are in the same 4KiB area
-    uint64_t paddr = vmemtranslate(vaddr, Mem_Access_Fetch);
-    uint16_t low = pmemfetch16(paddr);
+    // Trap priority (highest to lowest): access fault, breakpoint, page fault
+    uint64_t paddr;
+    uint16_t low;
+    bool should_break = matches_fetch_breakpoint(vaddr);
+    try
+    {
+        paddr = vmemtranslate(vaddr, Mem_Access_Fetch);
+        low = pmemfetch16(paddr);
+    }
+    catch (const trap_instruction_page_fault& t)
+    {
+        if (!should_break) throw;
+    }
+    if (should_break)
+    {
+        throw_trap_breakpoint(vaddr);
+    }
+
     if ((low & 0x3) != 0x3) {
         _bits = uint32_t(low);
         LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64 ": 0x%04x", vaddr, low);
