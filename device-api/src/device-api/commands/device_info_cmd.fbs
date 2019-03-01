@@ -1,0 +1,26 @@
+/// \ingroup Commands
+///Device Info commands
+
+include "common_types.fbs";
+
+namespace Commands;
+
+
+/// Specify the type of an info query
+enum DeviceInfoQuery : uint8 {
+    Unknown = 0,
+    ///< Return all device related information
+    All,
+    ///< Return the list of active minions.
+    ActiveMinions
+}
+
+///
+/// \brief DeviceInfoCommand documentation
+///
+table DeviceInfoCommand {
+   header:MessageHeader;
+   queryType : DeviceInfoQuery;
+}
+
+root_type DeviceInfoCommand;
