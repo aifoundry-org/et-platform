@@ -15,6 +15,11 @@ FROM $ET_SW_BASE
 
 LABEL Description="This image contains any build dependencies for the SW Platform project"
 
+# Install json-c-devel library
+RUN yum install -y \
+    json-c-devel \
+    openssl-devel \
+  && yum clean all
 
 RUN pip install pyelftools
 
