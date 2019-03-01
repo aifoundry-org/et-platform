@@ -41,7 +41,7 @@ uint64_t               emu_cycle = 0;
 static std::list<int>  enabled_threads;                                               // List of enabled threads
 static std::list<int>  fcc_wait_threads;                                              // List of threads waiting for an FCC
 static std::list<int>  port_wait_threads;                                             // List of threads waiting for a port write
-uint32_t               pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list 
+uint32_t               pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 static uint64_t        current_pc[EMU_NUM_THREADS];                                   // PC for each thread
 static reduce_state    reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
 static uint32_t        reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
@@ -195,6 +195,7 @@ static const char * help_dbg =
 "help|h:\t\tPrint this message\n\
 run|r:\t\tExecute until the end or a breakpoint is reached\n\
 step|s [n]:\tExecute n cycles (or 1 if not specified)\n\
+pc <N>:\t\tDump PC of thread N (0 <= N < 2048)\n\
 xdump|x <N>:\tDump GPRs of thread N (0 <= N < 2048)\n\
 fdump|f <N>:\tDump FPRs of thread N (0 <= N < 2048)\n\
 break|b <PC>:\tSet a breakpoint for the provided PC\n\
@@ -266,6 +267,9 @@ bool process_dbg_cmd(std::string cmd) {
    } else if ((command[0] == "clear_breaks")) {
       pc_breakpoints.clear();
    // Architectural State Dumping
+   } else if (command[0] == "pc") {
+      uint32_t thid = (num_args > 1) ? std::stoi(command[1]) : 0;
+      printf("PC[%d] = 0x%lx\n", thid, current_pc[thid]);
    } else if ((command[0] == "x") || (command[0] == "xdump")) {
       std::string str = dump_xregs((num_args > 1) ? std::stoi(command[1]) : 0).str();
       printf("%s\n", str.c_str());
@@ -301,7 +305,7 @@ bool get_pc_break() {
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
-// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
+// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire
 // of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -337,7 +341,7 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
-// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire 
+// second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire
 // of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
