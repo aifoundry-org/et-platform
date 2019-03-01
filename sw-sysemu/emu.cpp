@@ -8298,17 +8298,6 @@ static void tensor_fma32(uint64_t tfmareg)
     set_rounding_mode(rmdyn);
     clear_arithmetic_flags();
 
-    if (first_pass)
-    {
-        for (int i = 0; i < arows; ++i)
-        {
-            for (int j = 0; j < bcols; ++j)
-            {
-                FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
-            }
-        }
-    }
-
     for (int k = 0; k < acols; ++k)
     {
         log_tensor_fma_new_pass();
@@ -8318,6 +8307,17 @@ static void tensor_fma32(uint64_t tfmareg)
 
         for (int i = 0; i < arows; ++i)
         {
+            // NB: RTL does an FMUL instead of an FMA when first_pass==1 and
+            // k==0. Instead we set f[i] to 0.0 and do an FMA. This is OK
+            // because we will overwrite f[i] with the FMA results.
+            if (first_pass && !k)
+            {
+                for (int j = 0; j < bcols; ++j)
+                {
+                    FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
+                    log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                }
+            }
             // Skip computation for this row
             if (usemsk && !tmask_pass(i))
             {
@@ -8346,10 +8346,8 @@ static void tensor_fma32(uint64_t tfmareg)
                     float32_t c = fpu::f32_mulAdd(a, b, c0);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
 
-                    //LOG(DEBUG, "\tTensorFMA32 f%d[%d]: %g = %g + %g * %g", i*TFMA_REGS_PER_ROW+j/VL, j%VL,
-                    //    fpu::FLT(c), fpu::FLT(c0), fpu::FLT(a), fpu::FLT(b));
-                    LOG(DEBUG, "\tTensorFMA32 f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
-                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
+                    LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
+                        k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
                 }
                 // For checker purposes we keep the data of all the passes
                 log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
@@ -8414,17 +8412,6 @@ static void tensor_fma16a32(uint64_t tfmareg)
     set_rounding_mode(rmdyn);
     clear_arithmetic_flags();
 
-    if (first_pass)
-    {
-        for (int i = 0; i < arows; ++i)
-        {
-            for (int j = 0; j < bcols; ++j)
-            {
-                FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
-            }
-        }
-    }
-
     for (int k = 0; k < acols; k += 2)
     {
         log_tensor_fma_new_pass();
@@ -8434,6 +8421,17 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
         for (int i = 0; i < arows; ++i)
         {
+            // NB: RTL does an FMUL instead of an FMA when first_pass==1 and
+            // k==0. Instead we set f[i] to 0.0 and do an FMA. This is OK
+            // because we will overwrite f[i] with the FMA results.
+            if (first_pass && !k)
+            {
+                for (int j = 0; j < bcols; ++j)
+                {
+                    FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
+                    log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                }
+            }
             // Skip computation for this row
             if (usemsk && !tmask_pass(i))
             {
@@ -8465,10 +8463,8 @@ static void tensor_fma16a32(uint64_t tfmareg)
                     float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
 
-                    //LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: %g = %g + (%g * %g) + (%g * %g)", i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::FLT(c), fpu::FLT(c0),
-                    //    fpu::FLT(fpu::f16_to_f32(a1)), fpu::FLT(fpu::f16_to_f32(b1)), fpu::FLT(fpu::f16_to_f32(a2)), fpu::FLT(fpu::f16_to_f32(b2)));
-                    LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
-                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
+                    LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
+                        k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
                 }
                 // For checker purposes we keep the data of all the passes
                 log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
@@ -8554,24 +8550,25 @@ static void tensor_ima8a32(uint64_t tfmareg)
         for (int i = 0; i < arows; ++i)
         {
             // We should skip computation for this row, but if tenc2rf is set,
-            // then we must copy TenC to FREGS even for this row (but we can
-            // do this the first time around this loop since there will be no
-            // writes to TenC for this row).
+            // and we are in the last pass then we must copy TenC to FREGS even
+            // for this row.
             if (usemsk && !tmask_pass(i))
             {
-                if (tenc2rf && k == 0)
+                if (tenc2rf && (k+4 == acols))
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW + j/VL].u[j%VL];
-                        LOG(DEBUG, "\tC[%d][%d]: f%d[%d] = 0x%08" PRIx32, i, j, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                        log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL]);
+                        LOG(DEBUG, "\tTensorIMA8A32(%d) f%d[%d] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                        log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL]);
                     }
                 }
                 // Mark this iteration as skipped for the checker, except if
                 // it is the first iteration and first_pass is set.
                 else if (!first_pass || k)
+                {
                     log_tensor_fma_skip_row(k/4, i);
+                }
                 continue;
             }
 
@@ -8596,8 +8593,8 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 int32_t c0 = tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW+j/VL].i[j%VL];
                 int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
                 dst[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL] = c;
-                LOG(DEBUG, "\tTensorIMA8A32 %s%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
-                    dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
+                LOG(DEBUG, "\tTensorIMA8A32(%d) %s%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
+                    k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
                 log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
 
                 // If all products are 0, we can skip the operation, except if first_pass is set and this
