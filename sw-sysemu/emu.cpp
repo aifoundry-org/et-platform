@@ -8320,13 +8320,7 @@ static void tensor_fma32(uint64_t tfmareg)
             }
             // Skip computation for this row
             if (usemsk && !tmask_pass(i))
-            {
-                // Mark this iteration as skipped for the checker, except if
-                // it is the first iteration and first_pass is set.
-                if (!first_pass || k)
-                    log_tensor_fma_skip_row(k, i);
                 continue;
-            }
 
             float32_t a = fpu::F32(SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+k) % (L1D_LINE_SIZE/4)]);
 
@@ -8334,23 +8328,17 @@ static void tensor_fma32(uint64_t tfmareg)
             {
                 float32_t b = fpu::F32(tmpb.u[j]);
 
-                // If all products are 0, we can skip the operation, except if first_pass is set and this
+                // If the product is 0, we can skip the operation, except if first_pass is set and this
                 // is the first iteration
                 if (!(first_pass && !k) && (fpu::UI32(a)==0 || fpu::UI32(b)==0))
-                {
-                    log_tensor_fma_skip_elem(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL);
-                }
-                else
-                {
-                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
-                    float32_t c = fpu::f32_mulAdd(a, b, c0);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+                    continue;
 
-                    LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
-                        k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
-                }
-                // For checker purposes we keep the data of all the passes
+                float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                float32_t c = fpu::f32_mulAdd(a, b, c0);
+                FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
                 log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
+                    k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
             }
         }
     }
@@ -8434,13 +8422,7 @@ static void tensor_fma16a32(uint64_t tfmareg)
             }
             // Skip computation for this row
             if (usemsk && !tmask_pass(i))
-            {
-                // Mark this iteration as skipped for the checker, except if
-                // it is the first iteration and first_pass is set.
-                if (!first_pass || k)
-                    log_tensor_fma_skip_row(k/2, i);
                 continue;
-            }
 
             float16_t a1 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+0) % (L1D_LINE_SIZE/2)]);
             float16_t a2 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+1) % (L1D_LINE_SIZE/2)]);
@@ -8452,22 +8434,16 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
                 // If all products are 0, we can skip the operation, except if first_pass is set and this
                 // is the first iteration
-                if (!(first_pass && !k) && ((fpu::UI16(a1)==0 || fpu::UI16(b1)==0) &&
-                                            (fpu::UI16(a2)==0 || fpu::UI16(b2)==0)))
-                {
-                    log_tensor_fma_skip_elem(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL);
-                }
-                else
-                {
-                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
-                    float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+                if (!(first_pass && !k) && (fpu::UI16(a1)==0 || fpu::UI16(b1)==0)
+                                        && (fpu::UI16(a2)==0 || fpu::UI16(b2)==0))
+                    continue;
 
-                    LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
-                        k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
-                }
-                // For checker purposes we keep the data of all the passes
+                float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
+                FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
                 log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
+                    k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
             }
         }
     }
@@ -8563,17 +8539,11 @@ static void tensor_ima8a32(uint64_t tfmareg)
                         log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL]);
                     }
                 }
-                // Mark this iteration as skipped for the checker, except if
-                // it is the first iteration and first_pass is set.
-                else if (!first_pass || k)
-                {
-                    log_tensor_fma_skip_row(k/4, i);
-                }
                 continue;
             }
 
-            fdata* dst = ((k+4 == acols) && tenc2rf) ? FREGS : tensorfma_tenc[current_thread];
-            const char* dname = ((k+4 == acols) && tenc2rf) ? "f" : "TenC";
+            fdata* dst = (tenc2rf && (k+4 == acols)) ? FREGS : tensorfma_tenc[current_thread];
+            const char* dname = (tenc2rf && (k+4 == acols)) ? "f" : "TenC";
 
 #define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].b[(aoffset+k+(x)) % L1D_LINE_SIZE]
             int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
@@ -8590,20 +8560,19 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
                 int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
 #undef BSRC
+                // If all products are 0, we can skip the operation, except if first_pass is set and this
+                // is the first iteration, or TenC must be copied to FREGS and this is the last iteration
+                if (!(first_pass && !k) && !(tenc2rf && (k+4 == acols))
+                                        && (a1==0 || b1==0) && (a2==0 || b2==0)
+                                        && (a3==0 || b3==0) && (a4==0 || b4==0))
+                    continue;
+
                 int32_t c0 = tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW+j/VL].i[j%VL];
                 int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
                 dst[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL] = c;
+                log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
                 LOG(DEBUG, "\tTensorIMA8A32(%d) %s%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
                     k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
-                log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
-
-                // If all products are 0, we can skip the operation, except if first_pass is set and this
-                // is the first iteration, or TenC must be copied to FREGS and this is the last iteration
-                if (!(first_pass && !k) && !(tenc2rf && (k+4 == acols)))
-                {
-                    if ((a1==0 || b1==0) && (a2==0 || b2==0) && (a3==0 || b3==0) && (a4==0 || b4==0))
-                        log_tensor_fma_skip_elem(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL);
-                }
             }
         }
     }
