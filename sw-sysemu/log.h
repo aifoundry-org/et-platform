@@ -35,7 +35,7 @@ struct inst_state_change {
     // TensorFMA state changes
     int      tensorfma_passes;
     uint32_t tensorfma_mod[TFMA_MAX_ACOLS];
-    bool     tensorfma_skip[TFMA_MAX_ACOLS][MAXFREG][VL];
+    bool     tensorfma_mask[TFMA_MAX_ACOLS][MAXFREG][VL];
     uint32_t tensorfma_data[TFMA_MAX_ACOLS][MAXFREG][VL];
 };
 
@@ -48,8 +48,6 @@ void log_mem_write(int pos, int size, uint64_t addr, uint64_t val);
 void log_fflags_write(uint64_t new_fflags);
 void log_tensor_load(int trans);
 void log_tensor_fma_new_pass();
-void log_tensor_fma_skip_row(int pass, int row);
-void log_tensor_fma_skip_elem(int pass, int freg, int elem);
 void log_tensor_fma_write(int pass, int freg, int elem, uint32_t value);
 
 // Support for log state
