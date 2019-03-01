@@ -144,9 +144,6 @@ typedef enum {
     FCMOV, // PS conversion and move
     FCVTPWPS,
     FCVTPWUPS,
-    FSGNJ,
-    FSGNJN,
-    FSGNJX,
     FMVZXPS,  // warning: unimplemented
     FMVSXPS,  // warning: unimplemented
     FEQ, // Floating point compare
@@ -4221,24 +4218,6 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                     LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
                 }
                 break;
-            case FSGNJ:
-                {
-                    res.f = fpu::f32_copySign(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FSGNJN:
-                {
-                    res.f = fpu::f32_copySignNot(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FSGNJX:
-                {
-                    res.f = fpu::f32_copySignXor(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
             case FRCP_FIX_RAST:
                 {
                     res.i = fpu::fxp1714_rcpStep(val1.i, val2.i);
@@ -4393,21 +4372,45 @@ void fsgnj_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnj.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJ, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySign(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnjn.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJN, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySignNot(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnjx.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJX, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySignXor(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fmin_s(freg dst, freg src1, freg src2, const char* comm)
@@ -5396,7 +5399,18 @@ void fsgnj_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnj.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJ, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySign(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5404,7 +5418,18 @@ void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjn.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJN, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySignNot(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5412,7 +5437,18 @@ void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjx.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJX, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySignXor(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
