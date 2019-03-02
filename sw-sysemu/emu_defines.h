@@ -486,6 +486,7 @@ enum mem_access_type {
     Mem_Access_AtomicG,
     Mem_Access_TxLoad,
     Mem_Access_TxStore,
+    Mem_Access_Prefetch,
     Mem_Access_CacheOp
 };
 
