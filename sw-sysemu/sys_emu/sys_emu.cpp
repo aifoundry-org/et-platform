@@ -195,10 +195,11 @@ static const char * help_dbg =
 "help|h:\t\tPrint this message\n\
 run|r:\t\tExecute until the end or a breakpoint is reached\n\
 step|s [n]:\tExecute n cycles (or 1 if not specified)\n\
-pc <N>:\t\tDump PC of thread N (0 <= N < 2048)\n\
-xdump|x <N>:\tDump GPRs of thread N (0 <= N < 2048)\n\
-fdump|f <N>:\tDump FPRs of thread N (0 <= N < 2048)\n\
-break|b <PC>:\tSet a breakpoint for the provided PC\n\
+pc [N]:\t\tDump PC of thread N (0 <= N < 2048)\n\
+xdump|x [N]:\tDump GPRs of thread N (0 <= N < 2048)\n\
+fdump|f [N]:\tDump FPRs of thread N (0 <= N < 2048)\n\
+csr [N] <off>:\tDump the CSR at offset \"off\" of thread N (0 <= N < 2048)\n\
+break|b [PC]:\tSet a breakpoint for the provided PC\n\
 list_breaks:\tList the currently active breakpoints\n\
 clear_breaks:\tClear all the breakpoints previously set\n\
 quit|q:\t\tTerminate the program\n\
@@ -276,6 +277,20 @@ bool process_dbg_cmd(std::string cmd) {
    } else if ((command[0] == "f") || command[0] == "fdump") {
       std::string str = dump_fregs((num_args > 1) ? std::stoi(command[1]) : 0).str();
       printf("%s\n", str.c_str());
+   } else if (command[0] == "csr") {
+      uint32_t thid = 0, offset = 0;
+      if (num_args > 2) {
+        thid = std::stoi(command[1]);
+        offset = std::stoul(command[2], nullptr, 0);
+      } else if (num_args > 1) {
+        offset = std::stoi(command[1], nullptr, 0);
+      }
+      csr c = get_csr_enum(offset);
+      if (c == csr_unknown) {
+        printf("Unrecognized CSR register\n");
+      } else {
+        printf("CSR[%d][0x%x] = 0x%lx\n", thid, offset, get_csr(thid, c));
+      }
    } else {
       printf("Unknown command\n\n");
       printf("%s", help_dbg);
