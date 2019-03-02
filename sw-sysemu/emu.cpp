@@ -144,9 +144,6 @@ typedef enum {
     FCMOV, // PS conversion and move
     FCVTPWPS,
     FCVTPWUPS,
-    FSGNJ,
-    FSGNJN,
-    FSGNJX,
     FMVZXPS,  // warning: unimplemented
     FMVSXPS,  // warning: unimplemented
     FEQ, // Floating point compare
@@ -2814,10 +2811,10 @@ AMO_EMU_D_FUNC(amomaxu_d, MAXU)
 
 // forward declarations
 static void dcache_evict_flush_set_way(bool, bool, int, int, int, int);
-static int dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
-static int dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
-static int dcache_lock_vaddr(bool, int, uint64_t, int, int, uint64_t);
-static int dcache_unlock_vaddr(bool, bool, uint64_t, int, int, uint64_t);
+static void dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
+static void dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
+static void dcache_lock_vaddr(bool, int, uint64_t, int, int, uint64_t);
+static void dcache_unlock_vaddr(bool, bool, uint64_t, int, int, uint64_t);
 static void dcache_lock_paddr(int, uint64_t);
 static void dcache_unlock_paddr(int, uint64_t);
 
@@ -3469,6 +3466,7 @@ static void throw_page_fault(uint64_t addr, mem_access_type macc)
     {
         case Mem_Access_Load:
         case Mem_Access_TxLoad:
+        case Mem_Access_Prefetch:
             throw trap_load_page_fault(addr);
             break;
         case Mem_Access_Store:
@@ -3493,6 +3491,7 @@ static void throw_access_fault(uint64_t addr, mem_access_type macc)
     {
         case Mem_Access_Load:
         case Mem_Access_TxLoad:
+        case Mem_Access_Prefetch:
             throw trap_load_access_fault(addr);
             break;
         case Mem_Access_Store:
@@ -3638,6 +3637,7 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     {
         case Mem_Access_Load:
         case Mem_Access_TxLoad:
+        case Mem_Access_Prefetch:
             if (!(pte_r || (mxr && pte_x)) ||
                 ((prv == CSR_PRV_U) && !pte_u) ||
                 ((prv == CSR_PRV_S) && pte_u && !sum))
@@ -4221,24 +4221,6 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                     LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
                 }
                 break;
-            case FSGNJ:
-                {
-                    res.f = fpu::f32_copySign(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FSGNJN:
-                {
-                    res.f = fpu::f32_copySignNot(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FSGNJX:
-                {
-                    res.f = fpu::f32_copySignXor(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
             case FRCP_FIX_RAST:
                 {
                     res.i = fpu::fxp1714_rcpStep(val1.i, val2.i);
@@ -4393,21 +4375,45 @@ void fsgnj_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnj.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJ, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySign(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnjn.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJN, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySignNot(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnjx.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJX, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySignXor(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fmin_s(freg dst, freg src1, freg src2, const char* comm)
@@ -5396,7 +5402,18 @@ void fsgnj_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnj.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJ, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySign(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5404,7 +5421,18 @@ void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjn.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJN, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySignNot(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5412,7 +5440,18 @@ void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjx.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJX, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySignXor(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -6919,13 +6958,13 @@ static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, i
     }
 }
 
-static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
 {
     (void)(id);
 
     // Skip all if dest is L1
     if (dest == 0)
-        return 0;
+        return;
 
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -6936,14 +6975,18 @@ static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vadd
         uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, Mem_Access_Load);
+            paddr = vmemtranslate(vaddr, Mem_Access_CacheOp);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_CacheOp))
+            {
+                throw_access_fault(vaddr, Mem_Access_CacheOp);
+            }
         }
         catch (const trap_t& t)
         {
             LOG(DEBUG, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
                 evict ? "EvictVA" : "FlushVA", vaddr, dest);
             update_tensor_error(1 << 7);
-            return 1;
+            return;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
         bool skip = false;
@@ -6956,16 +6999,15 @@ static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vadd
         LOG(DEBUG, "\tDoing %s: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x",
             evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest);
     }
-    return 0;
 }
 
-static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
 {
     (void)(id);
 
     // Skip all if dest is MEM
     if (dest == 3)
-        return 0;
+        return;
 
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -6976,14 +7018,18 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
         uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, Mem_Access_Load);
+            paddr = vmemtranslate(vaddr, Mem_Access_Prefetch);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_Prefetch))
+            {
+                throw_access_fault(vaddr, Mem_Access_Prefetch);
+            }
         }
         catch (const trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
             update_tensor_error(1 << 7);
-            return 1;
+            return;
         }
         // If target level is L1 check if the line is locked
         bool skip = false;
@@ -6999,7 +7045,6 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
             continue;
         LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
     }
-    return 0;
 }
 
 static void dcache_lock_paddr(int way, uint64_t paddr)
@@ -7049,13 +7094,13 @@ static void dcache_unlock_paddr(int way __attribute__((unused)), uint64_t paddr)
     }
 }
 
-static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static void dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
 {
     (void)(id);
 
     // Skip all if way is outside the cache limits
     if ((way >= L1D_NUM_WAYS) && (way != 255))
-        return 0;
+        return;
 
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -7067,13 +7112,17 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         try
         {
             paddr = vmemtranslate(vaddr, Mem_Access_Store);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_CacheOp))
+            {
+                throw_access_fault(vaddr, Mem_Access_CacheOp);
+            }
         }
         catch (const trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tLockVA %016" PRIx64 ", Way: %d generated exception (suppressed)", vaddr, way);
             update_tensor_error(1 << 7);
-            return 1;
+            return;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
@@ -7095,7 +7144,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
             if (!way_found)
             {
                 update_tensor_error(1 << 5);
-                return 1;
+                return;
             }
         }
         if (way == 255)
@@ -7103,7 +7152,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
             // All ways are locked; stop the operation
             LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d no unlocked ways", vaddr, way);
             update_tensor_error(1 << 5);
-            return 1;
+            return;
         }
 
         // Check if paddr already locked in the cache
@@ -7114,7 +7163,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
                 // Line already locked; stop the operation
                 LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d double-locking on way %d", vaddr, way, w);
                 update_tensor_error(1 << 5);
-                return 1;
+                return;
             }
         }
         // FIXME: We should check if PA exists, unlocked, in another set in the cache
@@ -7123,17 +7172,16 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         if (scp_locked[current_thread >> 1][set][way])
         {
             update_tensor_error(1 << 5);
-            return 1;
+            return;
         }
 
         scp_locked[current_thread >> 1][set][way] = true;
         scp_trans[current_thread >> 1][set][way] = paddr;
         LOG(DEBUG, "\tDoing LockVA: %016" PRIx64 " (%016" PRIx64 "), Way: %d, Set: %d", vaddr, paddr, way, set);
     }
-    return 0;
 }
 
-static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
+static void dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
 {
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -7145,13 +7193,17 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
         try
         {
             paddr = vmemtranslate(vaddr, Mem_Access_Store);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_CacheOp))
+            {
+                throw_access_fault(vaddr, Mem_Access_CacheOp);
+            }
         }
         catch (const trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tUnlockVA: %016" PRIx64 " generated exception (suppressed)", vaddr);
             update_tensor_error(1 << 7);
-            return 1;
+            return;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
@@ -7160,13 +7212,12 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
         {
             if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
             {
-              LOG(DEBUG, "\tDoing UnlockVA: %016" PRIx64 " (%016" PRIx64 "), Way: %d, Set: %d, FinalState: %s",
-                         vaddr, paddr, w, set, keep_valid ? "valid" : "invalid");
-              scp_locked[current_thread >> 1][set][w] = false;
+                LOG(DEBUG, "\tDoing UnlockVA: %016" PRIx64 " (%016" PRIx64 "), Way: %d, Set: %d, FinalState: %s",
+                    vaddr, paddr, w, set, keep_valid ? "valid" : "invalid");
+                scp_locked[current_thread >> 1][set][w] = false;
             }
         }
     }
-    return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -7662,7 +7713,7 @@ void tensorload(uint64_t control)
                 uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
                 if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
                 {
-                    throw trap_load_access_fault(addr);
+                    throw_access_fault(addr, Mem_Access_TxLoad);
                 }
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
@@ -7691,7 +7742,7 @@ void tensorload(uint64_t control)
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 16, Mem_Access_TxLoad))
                     {
-                        throw trap_load_access_fault(vaddr);
+                        throw_access_fault(vaddr, Mem_Access_TxLoad);
                     }
                     for (int c = 0; c < 16; ++c)
                     {
@@ -7720,7 +7771,7 @@ void tensorload(uint64_t control)
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 32, Mem_Access_TxLoad))
                     {
-                        throw trap_load_access_fault(vaddr);
+                        throw_access_fault(vaddr, Mem_Access_TxLoad);
                     }
                     for (int c = 0; c < 16; ++c)
                     {
@@ -7758,7 +7809,7 @@ void tensorload(uint64_t control)
             uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
             if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
             {
-                throw trap_load_access_fault(addr);
+                throw_access_fault(addr, Mem_Access_TxLoad);
             }
             for (int j = 0; j < L1D_LINE_SIZE; j++)
             {
@@ -7840,7 +7891,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
             if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
             {
-                throw trap_load_access_fault(addr);
+                throw_access_fault(addr, Mem_Access_TxLoad);
             }
             for (int j = 0; j < L1D_LINE_SIZE/4; j++)
             {
@@ -8165,7 +8216,7 @@ static void tensorstore(uint64_t tstorereg)
             uint64_t paddr = vmemtranslate(addr, Mem_Access_TxStore);
             if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxStore))
             {
-                throw trap_store_access_fault(addr);
+                throw_access_fault(addr, Mem_Access_TxStore);
             }
             // For all the elements of the lane
             for (int i = 0; i < L1D_LINE_SIZE/4; i++)
@@ -8233,7 +8284,7 @@ static void tensorstore(uint64_t tstorereg)
                 uint64_t paddr = vmemtranslate(addr + col*16, Mem_Access_TxStore);
                 if (!pma_check_data_access(paddr, 16, Mem_Access_TxStore))
                 {
-                    throw trap_store_access_fault(addr);
+                    throw_access_fault(addr, Mem_Access_TxStore);
                 }
                 // For all the 32 elements of the 128b block
                 for (uint64_t i = 0; i < 4; i++)
