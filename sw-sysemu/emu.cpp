@@ -144,9 +144,6 @@ typedef enum {
     FCMOV, // PS conversion and move
     FCVTPWPS,
     FCVTPWUPS,
-    FSGNJ,
-    FSGNJN,
-    FSGNJX,
     FMVZXPS,  // warning: unimplemented
     FMVSXPS,  // warning: unimplemented
     FEQ, // Floating point compare
@@ -324,7 +321,7 @@ uint16_t fcc[EMU_NUM_THREADS][2] ={{0}};
 bool fcc_wait[EMU_NUM_THREADS] = {false};
 
 // only for checker, list of minions to awake (e.g. waiting for FCC that has just been written)
-std::queue<uint32_t> minions_to_awake; 
+std::queue<uint32_t> minions_to_awake;
 std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
 
 std::unordered_map<int, char const*> csr_names = {
@@ -683,6 +680,11 @@ uint64_t xget(uint64_t src1)
     return val;
 }
 
+uint64_t get_csr(uint32_t thread, csr c)
+{
+    return csrregs[thread][c];
+}
+
 void fpinit(freg dst, uint64_t val[VL/2])
 {
     for (int i = 0; i < VL/2; ++i)
@@ -1020,7 +1022,7 @@ void check_pending_interrupts()
     if (!xip) return;
 
     LOG(DEBUG, "Check Pending Interrupt (MtVec set(%d): Mtvec:0x%016" PRIx64 ":> mip 0x%016" PRIx64 " :mie 0x%016" PRIx64 , mtvec_is_set[current_thread], csrregs[current_thread][csr_mtvec], csrregs[current_thread][csr_mip], csrregs[current_thread][csr_mie]);
-	
+
     // If there are any pending interrupts for the current privilege level
     // 'x', they are only taken if mstatus.xIE=1. If there are any pending
     // interrupts for a higher privilege level 'y>x' they must be taken
@@ -1078,7 +1080,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     if (interrupt && !in_sysemu) {
         csrregs[current_thread][csr_mip] &= ~(1ULL<<code);
     }
-    
+
     // Take sie
     uint64_t mstatus = csrget(csr_mstatus);
     uint64_t sie = (mstatus >> 1) & 0x1;
@@ -2814,10 +2816,10 @@ AMO_EMU_D_FUNC(amomaxu_d, MAXU)
 
 // forward declarations
 static void dcache_evict_flush_set_way(bool, bool, int, int, int, int);
-static int dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
-static int dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
-static int dcache_lock_vaddr(bool, int, uint64_t, int, int, uint64_t);
-static int dcache_unlock_vaddr(bool, bool, uint64_t, int, int, uint64_t);
+static void dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
+static void dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
+static void dcache_lock_vaddr(bool, int, uint64_t, int, int, uint64_t);
+static void dcache_unlock_vaddr(bool, bool, uint64_t, int, int, uint64_t);
 static void dcache_lock_paddr(int, uint64_t);
 static void dcache_unlock_paddr(int, uint64_t);
 
@@ -3469,6 +3471,7 @@ static void throw_page_fault(uint64_t addr, mem_access_type macc)
     {
         case Mem_Access_Load:
         case Mem_Access_TxLoad:
+        case Mem_Access_Prefetch:
             throw trap_load_page_fault(addr);
             break;
         case Mem_Access_Store:
@@ -3493,6 +3496,7 @@ static void throw_access_fault(uint64_t addr, mem_access_type macc)
     {
         case Mem_Access_Load:
         case Mem_Access_TxLoad:
+        case Mem_Access_Prefetch:
             throw trap_load_access_fault(addr);
             break;
         case Mem_Access_Store:
@@ -3638,6 +3642,7 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     {
         case Mem_Access_Load:
         case Mem_Access_TxLoad:
+        case Mem_Access_Prefetch:
             if (!(pte_r || (mxr && pte_x)) ||
                 ((prv == CSR_PRV_U) && !pte_u) ||
                 ((prv == CSR_PRV_S) && pte_u && !sum))
@@ -4221,24 +4226,6 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                     LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
                 }
                 break;
-            case FSGNJ:
-                {
-                    res.f = fpu::f32_copySign(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FSGNJN:
-                {
-                    res.f = fpu::f32_copySignNot(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FSGNJX:
-                {
-                    res.f = fpu::f32_copySignXor(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
             case FRCP_FIX_RAST:
                 {
                     res.i = fpu::fxp1714_rcpStep(val1.i, val2.i);
@@ -4393,21 +4380,45 @@ void fsgnj_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnj.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJ, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySign(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnjn.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJN, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySignNot(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fsgnjx.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FSGNJX, 1, dst, src1, src2, rmdyn);
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_copySignXor(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fmin_s(freg dst, freg src1, freg src2, const char* comm)
@@ -5396,7 +5407,18 @@ void fsgnj_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnj.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJ, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySign(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5404,7 +5426,18 @@ void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjn.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJN, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySignNot(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5412,7 +5445,18 @@ void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjx.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FSGNJX, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_copySignXor(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst);
 }
 
 void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -6919,13 +6963,13 @@ static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, i
     }
 }
 
-static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
 {
     (void)(id);
 
     // Skip all if dest is L1
     if (dest == 0)
-        return 0;
+        return;
 
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -6936,14 +6980,18 @@ static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vadd
         uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, Mem_Access_Load);
+            paddr = vmemtranslate(vaddr, Mem_Access_CacheOp);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_CacheOp))
+            {
+                throw_access_fault(vaddr, Mem_Access_CacheOp);
+            }
         }
         catch (const trap_t& t)
         {
             LOG(DEBUG, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
                 evict ? "EvictVA" : "FlushVA", vaddr, dest);
             update_tensor_error(1 << 7);
-            return 1;
+            return;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
         bool skip = false;
@@ -6956,16 +7004,15 @@ static int dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vadd
         LOG(DEBUG, "\tDoing %s: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x",
             evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest);
     }
-    return 0;
 }
 
-static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
 {
     (void)(id);
 
     // Skip all if dest is MEM
     if (dest == 3)
-        return 0;
+        return;
 
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -6976,14 +7023,18 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
         uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, Mem_Access_Load);
+            paddr = vmemtranslate(vaddr, Mem_Access_Prefetch);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_Prefetch))
+            {
+                throw_access_fault(vaddr, Mem_Access_Prefetch);
+            }
         }
         catch (const trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
             update_tensor_error(1 << 7);
-            return 1;
+            return;
         }
         // If target level is L1 check if the line is locked
         bool skip = false;
@@ -6999,7 +7050,6 @@ static int dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines
             continue;
         LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
     }
-    return 0;
 }
 
 static void dcache_lock_paddr(int way, uint64_t paddr)
@@ -7049,13 +7099,13 @@ static void dcache_unlock_paddr(int way __attribute__((unused)), uint64_t paddr)
     }
 }
 
-static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static void dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
 {
     (void)(id);
 
     // Skip all if way is outside the cache limits
     if ((way >= L1D_NUM_WAYS) && (way != 255))
-        return 0;
+        return;
 
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -7067,13 +7117,17 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         try
         {
             paddr = vmemtranslate(vaddr, Mem_Access_Store);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_CacheOp))
+            {
+                throw_access_fault(vaddr, Mem_Access_CacheOp);
+            }
         }
         catch (const trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tLockVA %016" PRIx64 ", Way: %d generated exception (suppressed)", vaddr, way);
             update_tensor_error(1 << 7);
-            return 1;
+            return;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
@@ -7095,7 +7149,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
             if (!way_found)
             {
                 update_tensor_error(1 << 5);
-                return 1;
+                return;
             }
         }
         if (way == 255)
@@ -7103,7 +7157,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
             // All ways are locked; stop the operation
             LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d no unlocked ways", vaddr, way);
             update_tensor_error(1 << 5);
-            return 1;
+            return;
         }
 
         // Check if paddr already locked in the cache
@@ -7114,7 +7168,7 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
                 // Line already locked; stop the operation
                 LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d double-locking on way %d", vaddr, way, w);
                 update_tensor_error(1 << 5);
-                return 1;
+                return;
             }
         }
         // FIXME: We should check if PA exists, unlocked, in another set in the cache
@@ -7123,17 +7177,16 @@ static int dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int
         if (scp_locked[current_thread >> 1][set][way])
         {
             update_tensor_error(1 << 5);
-            return 1;
+            return;
         }
 
         scp_locked[current_thread >> 1][set][way] = true;
         scp_trans[current_thread >> 1][set][way] = paddr;
         LOG(DEBUG, "\tDoing LockVA: %016" PRIx64 " (%016" PRIx64 "), Way: %d, Set: %d", vaddr, paddr, way, set);
     }
-    return 0;
 }
 
-static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
+static void dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
 {
     for (int i = 0; i <= numlines; i++, vaddr += stride)
     {
@@ -7145,13 +7198,17 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
         try
         {
             paddr = vmemtranslate(vaddr, Mem_Access_Store);
+            if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_CacheOp))
+            {
+                throw_access_fault(vaddr, Mem_Access_CacheOp);
+            }
         }
         catch (const trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tUnlockVA: %016" PRIx64 " generated exception (suppressed)", vaddr);
             update_tensor_error(1 << 7);
-            return 1;
+            return;
         }
         int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
@@ -7160,13 +7217,12 @@ static int dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int num
         {
             if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
             {
-              LOG(DEBUG, "\tDoing UnlockVA: %016" PRIx64 " (%016" PRIx64 "), Way: %d, Set: %d, FinalState: %s",
-                         vaddr, paddr, w, set, keep_valid ? "valid" : "invalid");
-              scp_locked[current_thread >> 1][set][w] = false;
+                LOG(DEBUG, "\tDoing UnlockVA: %016" PRIx64 " (%016" PRIx64 "), Way: %d, Set: %d, FinalState: %s",
+                    vaddr, paddr, w, set, keep_valid ? "valid" : "invalid");
+                scp_locked[current_thread >> 1][set][w] = false;
             }
         }
     }
-    return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -7241,7 +7297,7 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         port_write.target_port   = id;
         port_write.is_tbox       = false;
         port_write.is_rbox       = false;
-	
+
         for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
@@ -7660,7 +7716,7 @@ void tensorload(uint64_t control)
                 uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
                 if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
                 {
-                    throw trap_load_access_fault(addr);
+                    throw_access_fault(addr, Mem_Access_TxLoad);
                 }
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
@@ -7689,7 +7745,7 @@ void tensorload(uint64_t control)
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 16, Mem_Access_TxLoad))
                     {
-                        throw trap_load_access_fault(vaddr);
+                        throw_access_fault(vaddr, Mem_Access_TxLoad);
                     }
                     for (int c = 0; c < 16; ++c)
                     {
@@ -7718,7 +7774,7 @@ void tensorload(uint64_t control)
                     uint64_t paddr = vmemtranslate(vaddr, Mem_Access_TxLoad);
                     if (!pma_check_data_access(paddr, 32, Mem_Access_TxLoad))
                     {
-                        throw trap_load_access_fault(vaddr);
+                        throw_access_fault(vaddr, Mem_Access_TxLoad);
                     }
                     for (int c = 0; c < 16; ++c)
                     {
@@ -7756,7 +7812,7 @@ void tensorload(uint64_t control)
             uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
             if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
             {
-                throw trap_load_access_fault(addr);
+                throw_access_fault(addr, Mem_Access_TxLoad);
             }
             for (int j = 0; j < L1D_LINE_SIZE; j++)
             {
@@ -7838,7 +7894,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
             if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
             {
-                throw trap_load_access_fault(addr);
+                throw_access_fault(addr, Mem_Access_TxLoad);
             }
             for (int j = 0; j < L1D_LINE_SIZE/4; j++)
             {
@@ -8163,7 +8219,7 @@ static void tensorstore(uint64_t tstorereg)
             uint64_t paddr = vmemtranslate(addr, Mem_Access_TxStore);
             if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxStore))
             {
-                throw trap_store_access_fault(addr);
+                throw_access_fault(addr, Mem_Access_TxStore);
             }
             // For all the elements of the lane
             for (int i = 0; i < L1D_LINE_SIZE/4; i++)
@@ -8229,7 +8285,7 @@ static void tensorstore(uint64_t tstorereg)
                 uint64_t paddr = vmemtranslate(addr + col*16, Mem_Access_TxStore);
                 if (!pma_check_data_access(paddr, 16, Mem_Access_TxStore))
                 {
-                    throw trap_store_access_fault(addr);
+                    throw_access_fault(addr, Mem_Access_TxStore);
                 }
                 // For all the 32 elements of the 128b block
                 for (uint64_t i = 0; i < 4; i++)
@@ -8294,17 +8350,6 @@ static void tensor_fma32(uint64_t tfmareg)
     set_rounding_mode(rmdyn);
     clear_arithmetic_flags();
 
-    if (first_pass)
-    {
-        for (int i = 0; i < arows; ++i)
-        {
-            for (int j = 0; j < bcols; ++j)
-            {
-                FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
-            }
-        }
-    }
-
     for (int k = 0; k < acols; ++k)
     {
         log_tensor_fma_new_pass();
@@ -8314,15 +8359,20 @@ static void tensor_fma32(uint64_t tfmareg)
 
         for (int i = 0; i < arows; ++i)
         {
+            // NB: RTL does an FMUL instead of an FMA when first_pass==1 and
+            // k==0. Instead we set f[i] to 0.0 and do an FMA. This is OK
+            // because we will overwrite f[i] with the FMA results.
+            if (first_pass && !k)
+            {
+                for (int j = 0; j < bcols; ++j)
+                {
+                    FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
+                    log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                }
+            }
             // Skip computation for this row
             if (usemsk && !tmask_pass(i))
-            {
-                // Mark this iteration as skipped for the checker, except if
-                // it is the first iteration and first_pass is set.
-                if (!first_pass || k)
-                    log_tensor_fma_skip_row(k, i);
                 continue;
-            }
 
             float32_t a = fpu::F32(SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+k) % (L1D_LINE_SIZE/4)]);
 
@@ -8330,25 +8380,17 @@ static void tensor_fma32(uint64_t tfmareg)
             {
                 float32_t b = fpu::F32(tmpb.u[j]);
 
-                // If all products are 0, we can skip the operation, except if first_pass is set and this
+                // If the product is 0, we can skip the operation, except if first_pass is set and this
                 // is the first iteration
                 if (!(first_pass && !k) && (fpu::UI32(a)==0 || fpu::UI32(b)==0))
-                {
-                    log_tensor_fma_skip_elem(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL);
-                }
-                else
-                {
-                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
-                    float32_t c = fpu::f32_mulAdd(a, b, c0);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+                    continue;
 
-                    //LOG(DEBUG, "\tTensorFMA32 f%d[%d]: %g = %g + %g * %g", i*TFMA_REGS_PER_ROW+j/VL, j%VL,
-                    //    fpu::FLT(c), fpu::FLT(c0), fpu::FLT(a), fpu::FLT(b));
-                    LOG(DEBUG, "\tTensorFMA32 f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
-                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
-                }
-                // For checker purposes we keep the data of all the passes
+                float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                float32_t c = fpu::f32_mulAdd(a, b, c0);
+                FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
                 log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
+                    k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
             }
         }
     }
@@ -8410,17 +8452,6 @@ static void tensor_fma16a32(uint64_t tfmareg)
     set_rounding_mode(rmdyn);
     clear_arithmetic_flags();
 
-    if (first_pass)
-    {
-        for (int i = 0; i < arows; ++i)
-        {
-            for (int j = 0; j < bcols; ++j)
-            {
-                FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
-            }
-        }
-    }
-
     for (int k = 0; k < acols; k += 2)
     {
         log_tensor_fma_new_pass();
@@ -8430,15 +8461,20 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
         for (int i = 0; i < arows; ++i)
         {
+            // NB: RTL does an FMUL instead of an FMA when first_pass==1 and
+            // k==0. Instead we set f[i] to 0.0 and do an FMA. This is OK
+            // because we will overwrite f[i] with the FMA results.
+            if (first_pass && !k)
+            {
+                for (int j = 0; j < bcols; ++j)
+                {
+                    FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
+                    log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                }
+            }
             // Skip computation for this row
             if (usemsk && !tmask_pass(i))
-            {
-                // Mark this iteration as skipped for the checker, except if
-                // it is the first iteration and first_pass is set.
-                if (!first_pass || k)
-                    log_tensor_fma_skip_row(k/2, i);
                 continue;
-            }
 
             float16_t a1 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+0) % (L1D_LINE_SIZE/2)]);
             float16_t a2 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+1) % (L1D_LINE_SIZE/2)]);
@@ -8450,24 +8486,16 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
                 // If all products are 0, we can skip the operation, except if first_pass is set and this
                 // is the first iteration
-                if (!(first_pass && !k) && ((fpu::UI16(a1)==0 || fpu::UI16(b1)==0) &&
-                                            (fpu::UI16(a2)==0 || fpu::UI16(b2)==0)))
-                {
-                    log_tensor_fma_skip_elem(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL);
-                }
-                else
-                {
-                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
-                    float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+                if (!(first_pass && !k) && (fpu::UI16(a1)==0 || fpu::UI16(b1)==0)
+                                        && (fpu::UI16(a2)==0 || fpu::UI16(b2)==0))
+                    continue;
 
-                    //LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: %g = %g + (%g * %g) + (%g * %g)", i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::FLT(c), fpu::FLT(c0),
-                    //    fpu::FLT(fpu::f16_to_f32(a1)), fpu::FLT(fpu::f16_to_f32(b1)), fpu::FLT(fpu::f16_to_f32(a2)), fpu::FLT(fpu::f16_to_f32(b2)));
-                    LOG(DEBUG, "\tTensorFMA16A32 f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
-                        i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
-                }
-                // For checker purposes we keep the data of all the passes
+                float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
+                FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
                 log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
+                    k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
             }
         }
     }
@@ -8550,29 +8578,24 @@ static void tensor_ima8a32(uint64_t tfmareg)
         for (int i = 0; i < arows; ++i)
         {
             // We should skip computation for this row, but if tenc2rf is set,
-            // then we must copy TenC to FREGS even for this row (but we can
-            // do this the first time around this loop since there will be no
-            // writes to TenC for this row).
+            // and we are in the last pass then we must copy TenC to FREGS even
+            // for this row.
             if (usemsk && !tmask_pass(i))
             {
-                if (tenc2rf && k == 0)
+                if (tenc2rf && (k+4 == acols))
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW + j/VL].u[j%VL];
-                        LOG(DEBUG, "\tC[%d][%d]: f%d[%d] = 0x%08" PRIx32, i, j, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                        log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL]);
+                        LOG(DEBUG, "\tTensorIMA8A32(%d) f%d[%d] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                        log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL]);
                     }
                 }
-                // Mark this iteration as skipped for the checker, except if
-                // it is the first iteration and first_pass is set.
-                else if (!first_pass || k)
-                    log_tensor_fma_skip_row(k/4, i);
                 continue;
             }
 
-            fdata* dst = ((k+4 == acols) && tenc2rf) ? FREGS : tensorfma_tenc[current_thread];
-            const char* dname = ((k+4 == acols) && tenc2rf) ? "f" : "TenC";
+            fdata* dst = (tenc2rf && (k+4 == acols)) ? FREGS : tensorfma_tenc[current_thread];
+            const char* dname = (tenc2rf && (k+4 == acols)) ? "f" : "TenC";
 
 #define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].b[(aoffset+k+(x)) % L1D_LINE_SIZE]
             int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
@@ -8589,20 +8612,19 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
                 int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
 #undef BSRC
+                // If all products are 0, we can skip the operation, except if first_pass is set and this
+                // is the first iteration, or TenC must be copied to FREGS and this is the last iteration
+                if (!(first_pass && !k) && !(tenc2rf && (k+4 == acols))
+                                        && (a1==0 || b1==0) && (a2==0 || b2==0)
+                                        && (a3==0 || b3==0) && (a4==0 || b4==0))
+                    continue;
+
                 int32_t c0 = tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW+j/VL].i[j%VL];
                 int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
                 dst[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL] = c;
-                LOG(DEBUG, "\tTensorIMA8A32 %s%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
-                    dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
                 log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
-
-                // If all products are 0, we can skip the operation, except if first_pass is set and this
-                // is the first iteration, or TenC must be copied to FREGS and this is the last iteration
-                if (!(first_pass && !k) && !(tenc2rf && (k+4 == acols)))
-                {
-                    if ((a1==0 || b1==0) && (a2==0 || b2==0) && (a3==0 || b3==0) && (a4==0 || b4==0))
-                        log_tensor_fma_skip_elem(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL);
-                }
+                LOG(DEBUG, "\tTensorIMA8A32(%d) %s%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
+                    k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
             }
         }
     }
@@ -8852,7 +8874,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 {
     LOG(DEBUG,"fcc_inc(%" PRIu64 ", %" PRIu64 ", %" PRIx64 ", %" PRIu64 ")",
         thread, shire, minion_mask, fcc_id);
-    
+
     for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion)
     {
         if (minion_mask & (1 << minion))
@@ -8866,7 +8888,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
                 fcc_wait[fcc_addr] = false;
                 minions_to_awake.push(fcc_addr>>1);
             }
-            
+
             //check for overflow
             if (fcc[fcc_addr][fcc_id] == 0x000) {
                 update_tensor_error(1 << 3);

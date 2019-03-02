@@ -779,14 +779,6 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
                     if (~emu_state_change.tensorfma_mod[pass] & (1u<<freg))
                         continue;
 
-                    // Move to next entry if this pass for this entry was skipped due conv CSR
-                    bool skip = true;
-                    for(int lane = 0; lane < VL; lane++)
-                    {
-                        skip = skip && emu_state_change.tensorfma_skip[pass][freg][lane];
-                    }
-                    if (skip) continue;
-
                     // Looks for the 1st entry in the list of RTL written lines with same destination
                     auto it = std::find_if(tensorfma_list[thread].begin(), tensorfma_list[thread].end(),
                                            [=] (const tensorfma_entry& x) { return x.entry == freg; });
@@ -795,36 +787,24 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
                     {
                         stream << "BEMU Checker couldn't find TensorFMA destination " << freg << " in the DUT reported TensorFMA list for pass " << pass << "!!" << std::endl;
                         check_res = CHECKER_ERROR;
+                        continue;
                     }
-                    else
+
+                    // Compares the data for all the lanes (8 x 32b lanes)
+                    for(int lane = 0; lane < VL; lane++)
                     {
-                        // Compares the data for all the lanes (8 x 32b lanes)
-                        for(int lane = 0; lane < VL; lane++)
+                        if (!emu_state_change.tensorfma_mask[pass][freg][lane])
+                            continue;
+                        uint32_t data = emu_state_change.tensorfma_data[pass][freg][lane];
+                        if(data != it->data[lane])
                         {
-                            if(emu_state_change.tensorfma_skip[pass][freg][lane]) continue;
-                            uint32_t data = emu_state_change.tensorfma_data[pass][freg][lane];
-                            if(data != it->data[lane])
-                            {
-                                stream << "BEMU Checker TensorFMA write data_error for register f" << freg << "[" << lane << "] pass " << pass << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
-                                check_res = CHECKER_ERROR;
-                            }
+                            stream << "BEMU Checker TensorFMA write data_error for register f" << freg << "[" << lane << "] pass " << pass << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
+                            check_res = CHECKER_ERROR;
                         }
-                        tensorfma_list[thread].erase(it);
                     }
+                    tensorfma_list[thread].erase(it);
                 }
             }
-#if 0 /* FIXME: Re-enable this when the TIMA RTL is fixed */
-            while (!tensorfma_list[thread].empty())
-            {
-                const auto& front = tensorfma_list[thread].front();
-                if (front.tensorfma_regfile_wmask)
-                {
-                    stream << "BEMU Checker missing TensorFMA destination " << tensorfma_list[thread].front().entry << std::endl;
-                    check_res = CHECKER_ERROR;
-                }
-                tensorfma_list[thread].pop_front();
-            }
-#endif
         }
 
         // TensorQuant

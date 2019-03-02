@@ -63,6 +63,7 @@ extern std::stringstream dump_xregs(uint32_t thread_id);
 extern std::stringstream dump_fregs(uint32_t thread_id);
 extern void init_stack();
 extern void initcsr(uint32_t thread);             // init all CSRs
+extern uint64_t get_csr(uint32_t thread, csr c);
 extern uint64_t xget(uint64_t src1);
 extern void init(xreg dst, uint64_t val);         // init general purpose register
 extern void fpinit(freg dst, uint64_t val[VL/2]); // init vector register
