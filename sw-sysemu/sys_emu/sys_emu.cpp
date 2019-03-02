@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <list>
 #include <exception>
+#include <algorithm>
 
 #include "emu.h"
 #include "emu_gio.h"
@@ -189,20 +190,80 @@ static uint64_t shires_en  = 1;
 
 #ifdef SYSEMU_DEBUG
 static int  steps          = 0;
-static std::vector<uint64_t> pc_breakpoints;
+
+struct pc_breakpoint_t {
+    uint64_t pc;
+    int      thread; // -1 == all threads
+};
+
+static std::list<pc_breakpoint_t> pc_breakpoints;
+
+bool pc_breakpoints_exists(uint64_t pc, int thread)
+{
+    return pc_breakpoints.end() !=
+        std::find_if(pc_breakpoints.begin(), pc_breakpoints.end(),
+            [&](const pc_breakpoint_t &b) {
+                return (b.pc == pc) && ((b.thread == -1) || b.thread == thread);
+            }
+        );
+}
+
+bool pc_breakpoints_add(uint64_t pc, int thread)
+{
+    if (pc_breakpoints_exists(pc, thread))
+        return false;
+
+    // If the breakpoint we are adding is global, remove all the local
+    // breakpoints with the same pc
+    if (thread == -1) {
+        pc_breakpoints.remove_if(
+            [&](const pc_breakpoint_t &b) {
+                return b.pc == pc;
+            }
+        );
+    }
+
+    pc_breakpoints.push_back({pc, thread});
+    return true;
+}
+
+void pc_breakpoints_dump(int thread)
+{
+    for (auto &it: pc_breakpoints) {
+        if (it.thread == -1) // Global breakpoint
+            printf("Breakpoint set for all threads at PC 0x%lx\n", it.pc);
+        else if ((thread == -1) || (thread == it.thread))
+            printf("Breakpoint set for thread %d at PC 0x%lx\n", it.thread, it.pc);
+    }
+}
+
+void pc_breakpoints_clear_for_thread(int thread)
+{
+    pc_breakpoints.remove_if(
+        [&](const pc_breakpoint_t &b) {
+            return b.thread == thread;
+        }
+    );
+}
+
+void pc_breakpoints_clear(void)
+{
+    pc_breakpoints.clear();
+}
 
 static const char * help_dbg =
-"help|h:\t\tPrint this message\n\
-run|r:\t\tExecute until the end or a breakpoint is reached\n\
-step|s [n]:\tExecute n cycles (or 1 if not specified)\n\
-pc [N]:\t\tDump PC of thread N (0 <= N < 2048)\n\
-xdump|x [N]:\tDump GPRs of thread N (0 <= N < 2048)\n\
-fdump|f [N]:\tDump FPRs of thread N (0 <= N < 2048)\n\
-csr [N] <off>:\tDump the CSR at offset \"off\" of thread N (0 <= N < 2048)\n\
-break|b [PC]:\tSet a breakpoint for the provided PC\n\
-list_breaks:\tList the currently active breakpoints\n\
-clear_breaks:\tClear all the breakpoints previously set\n\
-quit|q:\t\tTerminate the program\n\
+"\
+help|h:           Print this message\n\
+run|r:            Execute until the end or a breakpoint is reached\n\
+step|s [n]:       Execute n cycles (or 1 if not specified)\n\
+pc [N]:           Dump PC of thread N (0 <= N < 2048)\n\
+xdump|x [N]:      Dump GPRs of thread N (0 <= N < 2048)\n\
+fdump|f [N]:      Dump FPRs of thread N (0 <= N < 2048)\n\
+csr [N] <off>:    Dump the CSR at offset \"off\" of thread N (0 <= N < 2048)\n\
+break|b [N] <PC>: Set a breakpoint for the provided PC and thread N\n\
+list_breaks [N]:  List the currently active breakpoints for a given thread N, or all if N == 0.\n\
+clear_breaks [N]: Clear all the breakpoints previously set if no N, or for thread N\n\
+quit|q:           Terminate the program\n\
 ";
 
 size_t split(const std::string &txt, std::vector<std::string> &strs, char ch = ' ')
@@ -241,32 +302,32 @@ bool process_dbg_cmd(std::string cmd) {
    } else if ((command[0] == "") || (command[0] == "s") || (command[0] == "step")) {
       steps = (num_args > 1) ? std::stoi(command[1]) : 1;
       prompt = false;
+   // Breakpoints
    } else if ((command[0] == "b") || (command[0] == "break")) {
-      if (num_args > 1) {
-         uint64_t pc_break;
-         std::stringstream ss;
-         bool found = false;
-         ss << std::hex << command[1];
-         ss >> pc_break;
-         auto it = pc_breakpoints.begin();
-         while (it != pc_breakpoints.end()) {
-            if (*it == pc_break) {
-               found = true;
-               break;
-            }
-            it++;
-         }
-         if (!found) pc_breakpoints.push_back(pc_break);
-         printf("Set breakpoint for PC 0x%lx", pc_break);
+      uint64_t pc_break = current_pc[0];
+      int thread = -1;
+      if (num_args == 2) {
+        pc_break = std::stoull(command[1], nullptr, 0);
+      } else if (num_args > 2) {
+        thread = std::stoi(command[1]);
+        pc_break = std::stoull(command[2], nullptr, 0);
       }
+      if (pc_breakpoints_add(pc_break, thread)) {
+        if (thread == -1)
+          printf("Set breakpoint for all threads at PC 0x%lx\n", pc_break);
+        else
+          printf("Set breakpoint for thread %d at PC 0x%lx\n", thread, pc_break);
+     }
    } else if ((command[0] == "list_breaks")) {
-      auto it = pc_breakpoints.begin();
-      while (it != pc_breakpoints.end()) {
-         printf("Breakpoint set for PC 0x%lx\n", *it);
-         it++;
-      }
+      int thread = -1;
+      if (num_args > 1)
+        thread = std::stoi(command[1]);
+      pc_breakpoints_dump(thread);
    } else if ((command[0] == "clear_breaks")) {
-      pc_breakpoints.clear();
+      if (num_args > 1)
+        pc_breakpoints_clear_for_thread(std::stoi(command[1]));
+      else
+        pc_breakpoints_clear();
    // Architectural State Dumping
    } else if (command[0] == "pc") {
       uint32_t thid = (num_args > 1) ? std::stoi(command[1]) : 0;
@@ -283,7 +344,7 @@ bool process_dbg_cmd(std::string cmd) {
         thid = std::stoi(command[1]);
         offset = std::stoul(command[2], nullptr, 0);
       } else if (num_args > 1) {
-        offset = std::stoi(command[1], nullptr, 0);
+        offset = std::stoul(command[1], nullptr, 0);
       }
       csr c = get_csr_enum(offset);
       if (c == csr_unknown) {
@@ -298,7 +359,7 @@ bool process_dbg_cmd(std::string cmd) {
    return prompt;
 }
 
-bool get_pc_break() {
+bool get_pc_break(uint64_t &pc, int &thread) {
    for (int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
    {
       if (((shires_en >> s) & 1) == 0) continue;
@@ -307,7 +368,9 @@ bool get_pc_break() {
          if (((minions_en >> m) & 1) == 0) continue;
          for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
             thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
-            if ( std::find(pc_breakpoints.begin(), pc_breakpoints.end(), current_pc[thread_id]) != pc_breakpoints.end() ) {
+            if ( pc_breakpoints_exists(current_pc[thread_id], thread_id)) {
+               pc = current_pc[thread_id];
+               thread = thread_id;
                return true;
             }
          }
@@ -766,7 +829,14 @@ int main(int argc, char * argv[])
     )
     {
 #ifdef SYSEMU_DEBUG
-        if ((debug == true) && ((get_pc_break() == true) || (steps == 0))) {
+        // Check if any thread has reached a breakpoint
+        int break_thread;
+        uint64_t break_pc;
+        bool break_reached = get_pc_break(break_pc, break_thread);
+        if (break_reached)
+            printf("Thread %d reached breakpoint at PC 0x%lx\n", break_thread, break_pc);
+
+        if ((debug == true) && ((break_reached == true) || (steps == 0))) {
            bool retry = false;
            bool prompt = true;
            std::string line;
