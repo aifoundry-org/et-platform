@@ -85,27 +85,10 @@ void log_tensor_fma_new_pass()
     log_info->tensorfma_passes++;
 }
 
-void log_tensor_fma_skip_row(int pass, int row)
-{
-    if (log_info == NULL) return;
-    for (int freg = row*TFMA_REGS_PER_ROW; freg < (row+1) * TFMA_REGS_PER_ROW; ++freg)
-    {
-        for (int elem = 0; elem < VL; ++elem)
-        {
-            log_info->tensorfma_skip[pass][freg][elem] = true;
-        }
-    }
-}
-
-void log_tensor_fma_skip_elem(int pass, int freg, int elem)
-{
-    if (log_info == NULL) return;
-    log_info->tensorfma_skip[pass][freg][elem] = true;
-}
-
 void log_tensor_fma_write(int pass, int freg, int elem, uint32_t value)
 {
     if (log_info == NULL) return;
+    log_info->tensorfma_mask[pass][freg][elem] = true;
     log_info->tensorfma_data[pass][freg][elem] = value;
     log_info->tensorfma_mod[pass] |= 1u << freg;
 }
