@@ -321,7 +321,7 @@ uint16_t fcc[EMU_NUM_THREADS][2] ={{0}};
 bool fcc_wait[EMU_NUM_THREADS] = {false};
 
 // only for checker, list of minions to awake (e.g. waiting for FCC that has just been written)
-std::queue<uint32_t> minions_to_awake; 
+std::queue<uint32_t> minions_to_awake;
 std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
 
 std::unordered_map<int, char const*> csr_names = {
@@ -680,6 +680,11 @@ uint64_t xget(uint64_t src1)
     return val;
 }
 
+uint64_t get_csr(uint32_t thread, csr c)
+{
+    return csrregs[thread][c];
+}
+
 void fpinit(freg dst, uint64_t val[VL/2])
 {
     for (int i = 0; i < VL/2; ++i)
@@ -1017,7 +1022,7 @@ void check_pending_interrupts()
     if (!xip) return;
 
     LOG(DEBUG, "Check Pending Interrupt (MtVec set(%d): Mtvec:0x%016" PRIx64 ":> mip 0x%016" PRIx64 " :mie 0x%016" PRIx64 , mtvec_is_set[current_thread], csrregs[current_thread][csr_mtvec], csrregs[current_thread][csr_mip], csrregs[current_thread][csr_mie]);
-	
+
     // If there are any pending interrupts for the current privilege level
     // 'x', they are only taken if mstatus.xIE=1. If there are any pending
     // interrupts for a higher privilege level 'y>x' they must be taken
@@ -1075,7 +1080,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     if (interrupt && !in_sysemu) {
         csrregs[current_thread][csr_mip] &= ~(1ULL<<code);
     }
-    
+
     // Take sie
     uint64_t mstatus = csrget(csr_mstatus);
     uint64_t sie = (mstatus >> 1) & 0x1;
@@ -7292,7 +7297,7 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         port_write.target_port   = id;
         port_write.is_tbox       = false;
         port_write.is_rbox       = false;
-	
+
         for (uint32_t b = 0; b < (1UL << msg_ports[thread][id].logsize)/4; b++)
             port_write.data[b] = data[b];
         port_write.oob = oob;
@@ -8873,7 +8878,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 {
     LOG(DEBUG,"fcc_inc(%" PRIu64 ", %" PRIu64 ", %" PRIx64 ", %" PRIu64 ")",
         thread, shire, minion_mask, fcc_id);
-    
+
     for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion)
     {
         if (minion_mask & (1 << minion))
@@ -8887,7 +8892,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
                 fcc_wait[fcc_addr] = false;
                 minions_to_awake.push(fcc_addr>>1);
             }
-            
+
             //check for overflow
             if (fcc[fcc_addr][fcc_id] == 0x000) {
                 update_tensor_error(1 << 3);
