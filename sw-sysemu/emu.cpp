@@ -7716,7 +7716,6 @@ void tensorload(uint64_t control)
 
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
 
-#if 0 // FIXME: Implements ARCHSIM-178 but cannot be enabled until SW sets shire_coop_mode
     // Cooperative tensor loads require the shire to be in cooperative mode
     if (use_coop)
     {
@@ -7726,7 +7725,6 @@ void tensorload(uint64_t control)
         if (!shire_coop_mode)
             throw trap_illegal_instruction(current_inst);
     }
-#endif
 
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if (tenb)
@@ -8310,7 +8308,6 @@ static void tensorstore(uint64_t tstorereg)
             return;
         }
 
-#if 0 // FIXME: Implements ARCHSIM-178 but cannot be enabled until SW sets shire_coop_mode
         // Cooperative tensor stores require the shire to be in cooperative mode
         if (coop)
         {
@@ -8320,7 +8317,6 @@ static void tensorstore(uint64_t tstorereg)
             if (!shire_coop_mode)
                 throw trap_illegal_instruction(current_inst);
         }
-#endif
 
         // For all the rows
         for (int row = 0; row < rows; row++)
