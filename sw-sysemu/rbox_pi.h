@@ -65,10 +65,16 @@ namespace RBOX
     static const uint32_t EDGE_EQ_LARGE_TRI_COEF_INT_BITS  =  9;
     static const uint32_t EDGE_EQ_LARGE_TRI_COEF_FRAC_BITS = 25;
     
+    typedef union
+    {   
+        uint32_t u;
+        float    f;
+    } DepthT;
+
     typedef struct
     {
-        uint32_t a;   // UNORM24 or FLOAT32
-        uint32_t b;   // UNORM24 or FLOAT32
+        DepthT a;   // FLOAT32
+        DepthT b;   // FLOAT32
     } DepthEqT;
     
     typedef struct
@@ -140,7 +146,7 @@ namespace RBOX
             DepthEqT         depth_eq;
             uint64_t         triangle_data_ptr;
             EdgeSample64x64T edge[3];
-            uint32_t         depth;
+            DepthT           depth;
         } tri_with_tile_64x64;
         uint64_t qw[8];
     } InPcktTriWithTile64x64T;
@@ -160,7 +166,7 @@ namespace RBOX
             DepthEqT           depth_eq;
             uint64_t           triangle_data_ptr;
             EdgeSample128x128T edge[3];
-            uint32_t           depth;
+            DepthT             depth;
         } tri_with_tile_128x128;
         uint64_t qw[8];
     } InPcktTriWithTile128x128T;
@@ -186,13 +192,13 @@ namespace RBOX
     {
         struct
         {
-            uint32_t        type      :  3,
-                            tile_left : 13,
-                            tile_top  : 13,
-                            tile_size :  3;
+            uint32_t         type      :  3,
+                             tile_left : 13,
+                             tile_top  : 13,
+                             tile_size :  3;
             EdgeSample64x64T edge[3];
-            uint32_t        depth;
-            uint32_t        unused2[2];
+            DepthT           depth;
+            uint32_t         unused2[2];
         } tile;
         uint64_t qw[4];
     } InPcktFullyCoveredTileT;
@@ -202,11 +208,11 @@ namespace RBOX
     {
         struct
         {
-            uint32_t           type      :  3,
-                               tile_left : 13,
-                               tile_top  : 13,
-                               tile_size :  3;
-            uint32_t           depth;
+            uint32_t            type      :  3,
+                                tile_left : 13,
+                                tile_top  : 13,
+                                tile_size :  3;
+            DepthT              depth;
             EdgeSampleLargeTriT edge[3];
         } tile;
         uint64_t qw[4];

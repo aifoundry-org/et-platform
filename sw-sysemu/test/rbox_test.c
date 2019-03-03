@@ -435,10 +435,19 @@ int main()
         tri_with_tile_64x64_pckt.tri_with_tile_64x64.edge_eqs[eq].b = (uint64_t) (b[eq] >> 11);
         tri_with_tile_64x64_pckt.tri_with_tile_64x64.edge[eq].e     = (uint64_t) (c[eq] >> 11);
     }
-    printf("Depth eq => a = %016" PRIx64 " b = %016" PRIx64 " c = %08" PRIx64 "\n", a[3], b[3], c[3]);
-    tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth_eq.a = uint32_t(a[3]);
-    tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth_eq.b = uint32_t(b[3]);
-    tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth      = uint32_t(c[3]);
+
+    float depth_eq[3];
+
+    depth_eq[0] = float(a[3]) * (1.0 / float((1 << 24) - 1));
+    depth_eq[1] = float(b[3]) * (1.0 / float((1 << 24) - 1));
+    depth_eq[2] = float(c[3]) * (1.0 / float((1 << 24) - 1));
+
+    printf("Depth eq (unorm24) => a = %016" PRIx64 " b = %016" PRIx64 " c = %08" PRIx64 "\n", a[3], b[3], c[3]);
+    printf("Depth eq (unorm24) => a = %016" PRIx64 " b = %016" PRIx64 " c = %08" PRIx64 "\n", a[3], b[3], c[3]);
+
+    tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth_eq.a.f = depth_eq[0];
+    tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth_eq.b.f = depth_eq[1];
+    tri_with_tile_64x64_pckt.tri_with_tile_64x64.depth.f      = depth_eq[2];
     tri_with_tile_64x64_pckt.tri_with_tile_64x64.triangle_data_ptr = 0;
 
     for (uint32_t qw = 0; qw < (sizeof(tri_with_tile_64x64_pckt) / 8); qw++)
