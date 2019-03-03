@@ -126,6 +126,14 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
         case ESR_Region_Shire:
             LOG(DEBUG, "Write to ESR Region Shire at ESR address 0x%" PRIx64, esr_info.address);
+            if(esr_info.shire == (ESR_REGION_LOCAL_SHIRE >> ESR_REGION_SHIRE_SHIFT))
+            {
+                uint64_t new_ad = ad & ~ESR_REGION_SHIRE_MASK;
+                new_ad = new_ad | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
+                pmemwrite64(new_ad, * ((uint64_t *) data));
+                write_data = false;
+                break;
+            }
             switch(esr_info.address)
             {
                 case ESR_SHIRE_IPI_REDIRECT_TRIGGER:
@@ -253,6 +261,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 void main_memory_region_esr::read(uint64_t ad, int size, void * data)
 {
     esr_info_t esr_info;
+    bool read_data = true;
     decode_ESR_address(ad, &esr_info);
 
     LOG(DEBUG, "Read from Shire ESR Region @=0x%" PRIx64, ad);
@@ -316,6 +325,14 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
 
         case ESR_Region_Shire:
             LOG(DEBUG, "Read from ESR Region Shire at ESR address 0x%" PRIx64, esr_info.address);
+            if(esr_info.shire == (ESR_REGION_LOCAL_SHIRE >> ESR_REGION_SHIRE_SHIFT))
+            {
+                uint64_t new_ad = ad & ~ESR_REGION_SHIRE_MASK;
+                new_ad = new_ad | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
+                * ((uint64_t *) data) = pmemread64(new_ad);
+                read_data = false;
+                break;
+            }
             switch(esr_info.address)
             {
                 case ESR_SHIRE_IPI_REDIRECT_TRIGGER:
@@ -373,7 +390,7 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
             throw trap_bus_error(ad);
     }
 
-    if (data_)
+    if (data_ && read_data)
         memcpy(data, data_ + (ad - base_), size);
 }
 
@@ -384,10 +401,7 @@ void main_memory_region_esr::decode_ESR_address(uint64_t address, esr_info_t *in
 
     info->protection = esr_protection_t((address & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT);
 
-    if ((address & ESR_REGION_SHIRE_MASK) == ESR_REGION_LOCAL_SHIRE)
-        info->shire = current_thread / (EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION);
-    else
-        info->shire = ((address & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
+    info->shire = ((address & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
 
     switch((address & ESR_SREGION_MASK) >> ESR_SREGION_SHIFT)
     {
