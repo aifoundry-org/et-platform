@@ -4450,21 +4450,21 @@ void fsqrt_s(freg dst, freg src1, rounding_mode rm, const char* comm)
 
 void feq_s(xreg dst, freg src1, freg src2, const char* comm)
 {
-    LOG(DEBUG, "I: feq.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: feq.s x%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femucmp(FEQ, dst, src1, src2);
 }
 
 void fle_s(xreg dst, freg src1, freg src2, const char* comm)
 {
-    LOG(DEBUG, "I: fle.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fle.s x%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femucmp(FLE, dst, src1, src2);
 }
 
 void flt_s(xreg dst, freg src1, freg src2, const char* comm)
 {
-    LOG(DEBUG, "I: flt.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: flt.s x%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     femucmp(FLT, dst, src1, src2);
 }
