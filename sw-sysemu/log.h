@@ -37,6 +37,18 @@ struct inst_state_change {
     uint32_t tensorfma_mod[TFMA_MAX_ACOLS];
     bool     tensorfma_mask[TFMA_MAX_ACOLS][MAXFREG][VL];
     uint32_t tensorfma_data[TFMA_MAX_ACOLS][MAXFREG][VL];
+
+    // Trap CSR changes
+    bool     trap_mod;      // The instruction trap    
+    uint64_t mstatus;       // mstatus
+    uint64_t cause;         // [m|s]cause
+    uint64_t mip;           // mip
+    uint64_t tval;          // [m|s]tval
+    uint64_t epc;           // [m|s]epc
+    uint64_t prv;           // prv
+  //uint64_t tvec;          // vec
+    bool     gsc_progress_mod;
+    uint64_t gsc_progress;  // in case that we trap during a gather/scatter we need to save gsc_progress csr to check it
 };
 
 // Notify changes to state by an instruction
@@ -49,6 +61,8 @@ void log_fflags_write(uint64_t new_fflags);
 void log_tensor_load(int trans);
 void log_tensor_fma_new_pass();
 void log_tensor_fma_write(int pass, int freg, int elem, uint32_t value);
+void log_trap();
+void log_gsc_progress(uint64_t gsc_progress, bool success = false);
 
 // Support for log state
 extern void setlogstate(inst_state_change * log_info_);

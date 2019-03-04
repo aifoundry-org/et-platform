@@ -10,6 +10,7 @@
 // Local
 #include "common/main_memory.h"
 #include "log.h"
+#include "insn.h"
 
 extern uint8_t checker_memread8(uint64_t addr);
 extern void checker_memwrite64(uint64_t addr, uint64_t data);
@@ -82,7 +83,7 @@ class checker
         void aggregate_tl_data(uint32_t thread);
 
         void update_fcsr_flags(unsigned minionId, unsigned flags);
-
+  
         // Register a region to ignore checks on
         void add_ignored_mem_region(uint64_t base, uint64_t top);
         bool address_is_in_ignored_region(uint64_t addr);
@@ -94,6 +95,7 @@ class checker
 
 	 
     private:
+        checker_result check_state_changes(uint32_t thread, inst_state_change * changes, const insn_t& inst);
         checker_result do_reduce(uint32_t thread, uint64_t value, int * wake_thread);
 
         uint64_t                      current_pc[EMU_NUM_THREADS];         // Current PC
