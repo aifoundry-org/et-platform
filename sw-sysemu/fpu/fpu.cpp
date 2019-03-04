@@ -455,7 +455,11 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     *------------------------------------------------------------------------*/
     sigA <<= 3;
     sigB <<= 3;
-    if ( expC ) { sigC |= 0x00800000; } else { expC = ( sigC != 0 ); }
+    if ( expC ) {
+        if ( expC != 0xFF) sigC |= 0x00800000;
+    } else {
+        expC = ( sigC != 0 );
+    }
 #ifdef FPU_DEBUG
     std::cout << "a_orig: " << Float32<0>(signA,expA,sigA) << '\n';
     std::cout << "b_orig: " << Float32<0>(signB,expB,sigB) << '\n';
