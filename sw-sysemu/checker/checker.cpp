@@ -468,7 +468,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
         // Check PC
         if(changes->pc != current_pc[thread])
         {
-            LOG(ERR, "\tBEMU Checker PC error. BEMU expects PC: 0x%lx but DUT reported PC: 0x%lx ",current_pc[thread] ,changes->pc);
+            stream << "BEMU Checker PC error. BEMU expects PC: 0x" << std::hex << current_pc[thread] << " but DUT reported PC: 0x" << changes->pc << std::dec << std::endl;
             // don't check anything else when PC mismatches... everything would mismatch
             check_res = CHECKER_ERROR;
             goto finished_checking;
@@ -490,11 +490,11 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             stream << "BEMU Checker Int Register write error. BEMU expects register write is " << emu_state_change.int_reg_mod << " but DUT reported " << changes->int_reg_mod << std::endl;
             check_res = CHECKER_ERROR;
         }
-        if(emu_state_change.int_reg_mod)
+        else if(emu_state_change.int_reg_mod)
         {
             if(changes->int_reg_rd != emu_state_change.int_reg_rd)
             {
-                LOG(ERR, "\tBEMU Checker Int Register dest error. BEMU expects register dest is: %d but DUT reported: %d ",emu_state_change.int_reg_rd , changes->int_reg_rd);
+                stream << "BEMU Checker Int Register dest error. BEMU expects register dest is x" << emu_state_change.int_reg_rd << " but DUT reported x" << changes->int_reg_rd << std::endl;
                 check_res = CHECKER_ERROR;
             }
 
@@ -563,10 +563,27 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             // Writes to X0/Zero are ignored
             if((changes->int_reg_data != emu_state_change.int_reg_data) && (emu_state_change.int_reg_rd != 0))
             {
-                LOG(ERR, "\tBEMU Checker Int Register data error. BEMU expects data is: 0x%lx but DUT reported: 0x%lx ",emu_state_change.int_reg_data , changes->int_reg_data);
+                stream << "EMU Checker Int Register data error. BEMU expects data is 0x" << std::hex << emu_state_change.int_reg_data << " but DUT reported 0x" << changes->int_reg_data << std::dec << std::endl;
                 check_res = CHECKER_ERROR;
                 //Set EMU state to what RTL says
                 init(inst.rd(), emu_state_change.int_reg_data);
+            }
+        }
+
+        // Changing fflags
+        if(changes->fflags_mod != emu_state_change.fflags_mod)
+        {
+            // Someone changed the flags
+            std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
+            stream << "BEMU Checker fflags changed by " << changer << ". BEMU expects new flags 0x" << std::hex << emu_state_change.fflags_value << " but DUT reported 0x" << changes->fflags_value << std::dec << std::endl;
+            check_res = (check_res != CHECKER_ERROR) ? CHECKER_WARNING : CHECKER_ERROR;
+        }
+        else if(emu_state_change.fflags_mod)
+        {
+            if ( changes->fflags_value != emu_state_change.fflags_value )
+            {
+                stream << "BEMU Checker fflags values change. BEMU expects new flags 0x" << std::hex << emu_state_change.fflags_value << " but DUT reported 0x" << changes->fflags_value << std::dec << std::endl;
+                check_res = (check_res != CHECKER_ERROR) ? CHECKER_WARNING : CHECKER_ERROR;
             }
         }
 
@@ -576,32 +593,11 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             stream << "BEMU Checker FP Register write error. BEMU expects write is " << emu_state_change.fp_reg_mod << " but DUT reported " << changes->fp_reg_mod << std::endl;
             check_res = CHECKER_ERROR;
         }
-
-        // Changing fflags
-        if(changes->fflags_mod != emu_state_change.fflags_mod)
-        {
-            // Someone changed the flags
-            std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
-            LOG(WARN, "\tBEMU Checker fflags changed by %s. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",changer.c_str(), emu_state_change.fflags_value , changes->fflags_value);
-            check_res = CHECKER_WARNING;
-        }
-        
-        if(emu_state_change.fflags_mod)
-        {
-
-            if ( changes->fflags_value != emu_state_change.fflags_value )
-            {
-                LOG(WARN, "\tBEMU Checker fflags values change. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",emu_state_change.fflags_value , changes->fflags_value);
-                check_res = CHECKER_WARNING;
-            }
-
-        }
-
-        if(emu_state_change.fp_reg_mod)
+        else if(emu_state_change.fp_reg_mod)
         {
             if(changes->fp_reg_rd != emu_state_change.fp_reg_rd)
             {
-                LOG(ERR, "\tBEMU Checker FP Register dest error. BEMU expects dest is f%d but DUT reported f%d ",emu_state_change.fp_reg_rd , changes->fp_reg_rd);
+                stream << "BEMU Checker FP Register dest error. BEMU expects dest is f" << emu_state_change.fp_reg_rd << " but DUT reported f" << changes->fp_reg_rd << std::endl;
                 check_res = CHECKER_ERROR;
             }
 
@@ -694,16 +690,15 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
         {
             if(changes->m_reg_mod[m] != emu_state_change.m_reg_mod[m])
             {
-                LOG(ERR, "\tBEMU Checker Mask Register write error for entry %d. BEMU expects write is %d but DUT reported %d ",m, emu_state_change.m_reg_mod[m] , changes->m_reg_mod[m]);
+                stream << "BEMU Checker Mask Register write error. BEMU expects write is " << emu_state_change.m_reg_mod[m] << " but DUT reported " << changes->m_reg_mod[m] << std::endl;
                 check_res = CHECKER_ERROR;
-            }
-            if(emu_state_change.m_reg_mod[m])
+            } else if(emu_state_change.m_reg_mod[m])
             {
                 for(int i = 0; i < VL; i++)
                 {
                     if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
                     {
-                        stream << "BEMU Checker Mask Register data_error m" << m << "[" << i << "]. BEMU expects data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but DUT reported " << (uint32_t) changes->m_reg_data[m][i] << std::dec << std::endl;
+                        stream << "BEMU Checker Mask Register data error m" << m << "[" << i << "]. BEMU expects data is " << std::hex << (uint32_t) emu_state_change.m_reg_data[m][i] << " but DUT reported " << (uint32_t) changes->m_reg_data[m][i] << std::dec << std::endl;
                         check_res = CHECKER_ERROR;
                     }
                 }
@@ -718,7 +713,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                 stream << "BEMU Checker Memory write error (" << i << "). BEMU expects write is " << emu_state_change.mem_mod[i] << " but DUT reported " << changes->mem_mod[i] << std::endl;
                 check_res = CHECKER_ERROR;
             }
-            if(emu_state_change.mem_mod[i])
+            else if(emu_state_change.mem_mod[i])
             {
                 if(changes->mem_size[i] != emu_state_change.mem_size[i])
                 {
@@ -845,6 +840,17 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
         // TensorQuant
         if(inst.is_tensor_quant())
         {
+#if 0
+            for (auto it = tensorquant_list[thread].cbegin(); it != tensorquant_list[thread].cend(); it++)
+            {
+                for (int j = 0; j < VL; ++j)
+                {
+                    if (~it->tensorfma_regfile_wmask & (1<<j))
+                        continue;
+                    LOG(DEBUG, "DUT TensorQuant reports write to f%d[%d] = 0x%08" PRIx32, it->entry, j, it->data[j]);
+                }
+            }
+#endif
             int freg;
             int size;
             int transforms;
@@ -887,6 +893,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                     tensorquant_list[thread].erase(it);
                 }
             }
+#if 0
             while (!tensorquant_list[thread].empty())
             {
                 const auto& front = tensorquant_list[thread].front();
@@ -897,6 +904,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                 }
                 tensorquant_list[thread].pop_front();
             }
+#endif
         }
 
         // Reduce
