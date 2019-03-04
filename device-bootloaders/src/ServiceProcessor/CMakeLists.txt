@@ -9,14 +9,17 @@
 #------------------------------------------------------------------------------
 
 set(SOURCES
-  ${SHARED_SRC_DIR}/boot.S
-  src/crt.S
-  src/main.c
-  ${SHARED_SRC_DIR}/stubs.c
-  ${SHARED_SRC_DIR}/serial.c
-  ${SHARED_SRC_DIR}/backtrace.c
-  ${SHARED_SRC_DIR}/trap_handler.c
-  ${SHARED_SRC_DIR}/trap_handler.S)
+    ${FREERTOS_SRC_FILES}
+    ${SHARED_SRC_DIR}/boot.S
+    src/crt.S
+    ${SHARED_SRC_DIR}/interrupt.c
+    src/dummy_isr.c
+    src/main.c
+    src/stubs.c
+    ${SHARED_SRC_DIR}/serial.c
+    ${SHARED_SRC_DIR}/backtrace.c
+    ${SHARED_SRC_DIR}/trap_handler.c
+    ${SHARED_SRC_DIR}/trap_handler.S)
 
 set(TARGET_NAME ServiceProcessor)
 set(LINKER_SCRIPT src/sections.ld)
@@ -25,5 +28,6 @@ set(ZEBU_FILENAME romImage)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIR})
+include_directories(${FREERTOS_INC_DIRS})
 
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
