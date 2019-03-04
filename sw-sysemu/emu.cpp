@@ -8009,6 +8009,11 @@ static void tensorquant(uint64_t value)
         switch (trans)
         {
             case 0: // NONE
+                if (k)
+                {
+                    set_fp_exceptions();
+                    dirty_fp_state();
+                }
                 return;
             case 1: // INT32_TO_FP32
                 for (int i = 0; i < rows; ++i)
