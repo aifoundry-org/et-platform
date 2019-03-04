@@ -319,7 +319,7 @@ typedef enum {
     csr_stall,
     csr_tensor_wait,
     csr_tensor_load,
-    // TODO: csr_gsc_progress,
+    csr_gsc_progress,
     csr_tensor_load_l2,
     csr_tensor_store,
     csr_evict_va,

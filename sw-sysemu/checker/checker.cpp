@@ -335,88 +335,91 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
     setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
 
     insn_t inst;
-    std::ostringstream stream;
-    error_msg = "";
 
-    // As trapped instructions do not retire in the minion, we need to keep
-    // executing until the first non-trapping instruction.  We do this by
-    // setting retry to true until the first instruction that does not trap.
-    bool retry = false;
-    int retry_count = 10;
-    do
+    // Initialize emu_state_change
+    clearlogstate();
+    
+    set_pc(current_pc[thread]);
+   
+    try
     {
-        try
-        {
-            // Initialize emu_state_change
-            clearlogstate();
-            // Fetch new instruction (may trap)
-            set_pc(current_pc[thread]);
-            check_pending_interrupts();
-            inst.fetch_and_decode(current_pc[thread]);
 
-            // In case that the instruction is a reduce:
-            //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
-            //     otherwise the sender thread could advance and update the VRF contents
-            //   - The thread that is the receiver has to wait until the sender is also in the reduce
-            //     operation
-            if(inst.is_reduce())
-            {
-                // Gets the source used for the reduce
-                uint64_t value = xget(inst.rs1());
-                int  wake_minion=-1;
-                checker_result res = do_reduce(thread, value, &wake_minion);
-                if (wake_minion >=0) wake_minions.push(wake_minion);
-                if(res == CHECKER_WAIT) return CHECKER_WAIT;
-            }
+      check_pending_interrupts(); // This need to be here because it can trap
+      // Fetch new instruction (may trap)
+      inst.fetch_and_decode(current_pc[thread]);
 
-            // Execute the instruction (may trap)
-            inst.execute();
+      // In case that the instruction is a reduce:
+      //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
+      //     otherwise the sender thread could advance and update the VRF contents
+      //   - The thread that is the receiver has to wait until the sender is also in the reduce
+      //     operation
+      if(inst.is_reduce())
+      {
+	  // Gets the source used for the reduce
+	  uint64_t value = xget(inst.rs1());
+	  int  wake_minion=-1;
+	  checker_result res = do_reduce(thread, value, &wake_minion);
+	  if (wake_minion >=0) wake_minions.push(wake_minion);
+	  if(res == CHECKER_WAIT) return CHECKER_WAIT;
+      }
 
-            // check if we have to wake any minions
-            std::queue<uint32_t> &minions_to_awake = get_minions_to_awake();
-            while( ! minions_to_awake.empty() ) {
-              wake_minions.push(minions_to_awake.front());
-              minions_to_awake.pop();
-            }
+      // Execute the instruction (may trap)
+      inst.execute();
+
+      // check if we have to wake any minions
+      std::queue<uint32_t> &minions_to_awake = get_minions_to_awake();
+      while( ! minions_to_awake.empty() )
+      {
+	  wake_minions.push(minions_to_awake.front());
+	  minions_to_awake.pop();
+      }
             
-            retry = false;
-        }
-        catch (const trap_t& t)
-        {
-            take_trap(t);
-            current_pc[thread] = emu_state_change.pc; // Go to target
-            retry = true;
-            retry_count--;
-            // If the trap takes us to the current instruction, most likely the trap vector was not defined
-            // and we are about to loop forever because {m,s}tvec point to an illegal instruction
-            // Loop a few times for the sake of it to make it clear in the log.
-            if ((current_pc[thread] == emu_state_change.pc) && (retry_count < 0)) {
-               log << LOG_ERR << "Sad, looks like we are stuck in an infinite trap recursion. Giving up." << endm;
-               retry = false;
-            }
-        }
-        catch (const checker_wait_t &t)
-        {
-
-          log<<LOG_INFO<<"Delaying retire because of: " << t.what() << endm;
-          return CHECKER_WAIT;
-        }
-        catch (const std::exception& e)
-        {
-            log << LOG_ERR << e.what() << endm;
-        }
-
-        // Emulate the RBOXes
-        for (uint32_t s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++)
-        {
-            for (uint32_t r = 0; r < EMU_RBOXES_PER_SHIRE; r++)
-                GET_RBOX(s, r).run(true);
-        }
-        
     }
-    while (retry);
+    catch (const trap_t& t)
+    {
+      log_trap(); // Mark the trap before taking it so we can check partial results
+      check_res = check_state_changes(thread, changes, inst); // Check partial results here before the trap. Traping will create mismatches
+      take_trap(t); // PC is updated later
+    }
+    catch (const checker_wait_t &t)
+    {
+	log<<LOG_INFO<<"Delaying retire because of: " << t.what() << endm;
+	return CHECKER_WAIT;
+    }
+    catch (const std::exception& e)
+    {
+	log << LOG_ERR << e.what() << endm;
+    }
 
-    // Checks modified fields
+    // Emulate the RBOXes
+    for (uint32_t s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++)
+    {
+	for (uint32_t r = 0; r < EMU_RBOXES_PER_SHIRE; r++)
+	  GET_RBOX(s, r).run(true);
+    }
+        
+
+    // Check results unless we did trap
+    if (!emu_state_change.trap_mod)
+      check_res = check_state_changes(thread, changes, inst);
+
+    // PC update
+    if(emu_state_change.pc_mod)
+       current_pc[thread] = emu_state_change.pc;
+    else
+       current_pc[thread] += inst.size();
+
+
+    return check_res;
+}
+
+checker_result checker::check_state_changes(uint32_t thread, inst_state_change * changes, const insn_t& inst)
+{
+  checker_result check_res = CHECKER_OK;
+  std::ostringstream stream;
+  error_msg = "";
+  
+   // Checks modified fields
     if(changes != NULL)
     {
 #ifdef DEBUG_STATE_CHANGES
@@ -432,6 +435,36 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         riscv_disasm(insn_disasm, 128, inst.bits);
         stream << "BEMU Checker mismatch for thread " << thread << " @ PC 0x" << std::hex << current_pc[thread] << std::dec << " (" << insn_disasm << ") -> ";
 
+	// The instruction trap
+	if(changes->trap_mod != emu_state_change.trap_mod)
+	{
+	  stream << "BEMU Checker TRAP error. BEMU expects to " << (emu_state_change.trap_mod ? "TRAP" : "NOT TRAP")  << " : but DUT " << (changes->trap_mod ? "TRAP" : "DIDN'T TRAP") << std::endl;
+	  check_res = CHECKER_ERROR;
+	  // don't change anthing else. More than likelly to find mismatches everywhere
+	  goto finished_checking;
+	} else if(changes->trap_mod)
+	{ // Check system registers
+	  // TODO: Renable this when JIRA RTLMIN-3000  is fixed
+	  // if (changes->gsc_progress_mod != emu_state_change.gsc_progress)
+	  // {
+	  //   stream << "BEMU Checker GSC_PROGRESS CSR error. BEMU expects  " << emu_state_change.gsc_progress_mod  << " : but DUT " << changes->gsc_progress_mod << std::endl;
+	  //   check_res = CHECKER_ERROR;
+	  // }
+	  // if (changes->gsc_progress_mod )
+	  // {
+	    
+	  //   // if ( changes->gsc_progress != emu_state_change.gsc_progress )
+	  //   // {
+	  //   //   stream << "BEMU Checker GSC_PROGRESS CSR error. BEMU expects  " << emu_state_change.gsc_progress  << " : but DUT " << changes->gsc_progress << std::endl;
+	  //   //   check_res = CHECKER_ERROR;
+	  //   // }
+	  // }
+
+	  // TODO: Add checkers for system registers (mstatus,mcause...). Everything that changes at trapping
+
+	}
+	
+	
         // Check PC
         if(changes->pc != current_pc[thread])
         {
@@ -545,7 +578,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         }
 
         // Changing fflags
-        if ( changes->fflags_mod != emu_state_change.fflags_mod )
+        if(changes->fflags_mod != emu_state_change.fflags_mod)
         {
             // Someone changed the flags
             std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
@@ -553,13 +586,15 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
             check_res = CHECKER_WARNING;
         }
         
-        if ( emu_state_change.fflags_mod)
+        if(emu_state_change.fflags_mod)
         {
+
             if ( changes->fflags_value != emu_state_change.fflags_value )
             {
                 LOG(WARN, "\tBEMU Checker fflags values change. BEMU expects new flags: 0x%lx but DUT reported: 0x%lx ",emu_state_change.fflags_value , changes->fflags_value);
                 check_res = CHECKER_WARNING;
             }
+
         }
 
         if(emu_state_change.fp_reg_mod)
@@ -907,25 +942,21 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
         }
     }
 
-finished_checking:
-    // PC update
-    if(emu_state_change.pc_mod)
-       current_pc[thread] = emu_state_change.pc;
-    else
-       current_pc[thread] += inst.size();
+ finished_checking:
 
     if (check_res != CHECKER_OK)
     {
         error_msg += stream.str();
         if (!fail_on_check)
-            check_res = CHECKER_WARNING;
+	  check_res = CHECKER_WARNING;
     }
     return check_res;
+
 }
 
 void checker::raise_interrupt(unsigned minionId, int cause) 
 {
-  ::raise_interrupt(minionId, cause); //note, using :: to call the one from the checker, not itself
+  ::raise_interrupt(minionId, cause); //note, using :: to call the one from the emu, not itself
 }
 
 // Return the last error message

@@ -28,17 +28,17 @@ namespace RBOX
         
         typedef struct
         {
-            EdgeEqT edge_eqs[3];
+            EdgeEqT  edge_eqs[3];
             DepthEqT depth_eq;
-            bool back_facing;
+            bool     back_facing;
             uint64_t triangle_data_ptr;
-            bool top_or_left_edge[3];
+            bool     top_or_left_edge[3];
         } TriangleInfoT;
         
         typedef struct
         {
             int64_t edge[3];     // Evaluation adder precision is 2's complement 18.24
-            uint32_t depth;
+            DepthT  depth;
         } TriangleSampleT;
         
         typedef struct
@@ -120,7 +120,7 @@ namespace RBOX
         std::vector<std::pair<uint32_t, uint64_t>> output_packets;
 
         uint32_t process_packet(uint64_t packet);
-        void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], uint32_t depth_sample, TileSizeT tile_sz);
+        void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], DepthT depth_sample, TileSizeT tile_sz);
         void sample_next_row(TriangleSampleT &sample);
         void sample_next_quad(TriangleSampleT &sample);
         void sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sample, QuadInfoT &quad);
