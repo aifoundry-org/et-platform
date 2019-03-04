@@ -46,6 +46,13 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     decode_ESR_address(ad, &esr_info);
 
     LOG(DEBUG, "Writing to ESR Region with address 0x%016" PRIx64, ad);
+    if(esr_info.shire == (ESR_REGION_LOCAL_SHIRE >> ESR_REGION_SHIRE_SHIFT))
+    {
+        uint64_t new_ad = ad & ~ESR_REGION_SHIRE_MASK;
+        new_ad = new_ad | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
+        pmemwrite64(new_ad, * ((uint64_t *) data));
+        return;
+    }
 
     switch(esr_info.region)
     {
@@ -126,14 +133,6 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
         case ESR_Region_Shire:
             LOG(DEBUG, "Write to ESR Region Shire at ESR address 0x%" PRIx64, esr_info.address);
-            if(esr_info.shire == (ESR_REGION_LOCAL_SHIRE >> ESR_REGION_SHIRE_SHIFT))
-            {
-                uint64_t new_ad = ad & ~ESR_REGION_SHIRE_MASK;
-                new_ad = new_ad | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
-                pmemwrite64(new_ad, * ((uint64_t *) data));
-                write_data = false;
-                break;
-            }
             switch(esr_info.address)
             {
                 case ESR_SHIRE_IPI_REDIRECT_TRIGGER:
@@ -265,6 +264,13 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
     decode_ESR_address(ad, &esr_info);
 
     LOG(DEBUG, "Read from Shire ESR Region @=0x%" PRIx64, ad);
+    if(esr_info.shire == (ESR_REGION_LOCAL_SHIRE >> ESR_REGION_SHIRE_SHIFT))
+    {
+        uint64_t new_ad = ad & ~ESR_REGION_SHIRE_MASK;
+        new_ad = new_ad | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
+        * ((uint64_t *) data) = pmemread64(new_ad);
+        return;
+    }
 
     switch(esr_info.region)
     {
@@ -325,14 +331,6 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
 
         case ESR_Region_Shire:
             LOG(DEBUG, "Read from ESR Region Shire at ESR address 0x%" PRIx64, esr_info.address);
-            if(esr_info.shire == (ESR_REGION_LOCAL_SHIRE >> ESR_REGION_SHIRE_SHIFT))
-            {
-                uint64_t new_ad = ad & ~ESR_REGION_SHIRE_MASK;
-                new_ad = new_ad | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
-                * ((uint64_t *) data) = pmemread64(new_ad);
-                read_data = false;
-                break;
-            }
             switch(esr_info.address)
             {
                 case ESR_SHIRE_IPI_REDIRECT_TRIGGER:
