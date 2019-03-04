@@ -1,5 +1,5 @@
 // Global
-#include <string.h>
+#include <cassert>
 #include <cstdio>
 
 // Local
@@ -25,6 +25,15 @@ static inline void clear_software_interrupt(unsigned, uint64_t) {}
 #endif
 extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
 
+inline uint64_t read64(const void* data)
+{
+    return *reinterpret_cast<const uint64_t*>(data);
+}
+
+inline void write64(void* data, uint64_t value)
+{
+    *reinterpret_cast<uint64_t*>(data) = value;
+}
 
 // Creator
 main_memory_region_esr::main_memory_region_esr(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
@@ -45,6 +54,9 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     esr_info_t esr_info;
     decode_ESR_address(ad, &esr_info);
 
+    assert(size == 8);
+    uint64_t value = read64(data);
+
     LOG(DEBUG, "Writing to ESR Region with address 0x%016" PRIx64, ad);
     if(esr_info.shire == (ESR_REGION_LOCAL_SHIRE >> ESR_REGION_SHIRE_SHIFT))
     {
@@ -61,16 +73,16 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             switch(esr_info.address)
             {
                 case ESR_HART_PORT0:
-                    write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 0, (uint32_t *) data, 0);
+                    write_msg_port_data(esr_info.hart + esr_info.shire * EMU_THREADS_PER_SHIRE, 0, (uint32_t *) data, 0);
                     break;
                 case ESR_HART_PORT1:
-                    write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 1, (uint32_t *) data, 0);
+                    write_msg_port_data(esr_info.hart + esr_info.shire * EMU_THREADS_PER_SHIRE, 1, (uint32_t *) data, 0);
                     break;
                 case ESR_HART_PORT2:
-                    write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 2, (uint32_t *) data, 0);
+                    write_msg_port_data(esr_info.hart + esr_info.shire * EMU_THREADS_PER_SHIRE, 2, (uint32_t *) data, 0);
                     break;
                 case ESR_HART_PORT3:
-                    write_msg_port_data(esr_info.hart + esr_info.shire * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION, 3, (uint32_t *) data, 0);
+                    write_msg_port_data(esr_info.hart + esr_info.shire * EMU_THREADS_PER_SHIRE, 3, (uint32_t *) data, 0);
                     break;
                 default:
                     throw trap_bus_error(ad);
@@ -84,7 +96,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 uint64_t neigh_addr = (ad & ~ESR_NEIGH_MASK);
                 for (int neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
                 {
-                    pmemwrite64(neigh_addr, *((uint64_t *) data));
+                    pmemwrite64(neigh_addr, value);
                     neigh_addr += ESR_NEIGH_OFFSET;
                 }
             }
@@ -101,7 +113,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                         break;
                     case ESR_NEIGH_TBOX_IMGT_PTR:
                         tbox_id = tbox_id_from_thread(current_thread);
-                        GET_TBOX(esr_info.shire, tbox_id).set_image_table_address(*((uint64_t *) data));
+                        GET_TBOX(esr_info.shire, tbox_id).set_image_table_address(value);
                         break;
                     default:
                         throw trap_bus_error(ad);
@@ -135,42 +147,45 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             LOG(DEBUG, "Write to ESR Region Shire at ESR address 0x%" PRIx64, esr_info.address);
             switch(esr_info.address)
             {
+                case ESR_SHIRE_MINION_FEATURE:
+                    /* do nothing */
+                    break;
                 case ESR_SHIRE_IPI_REDIRECT_TRIGGER:
-                    send_ipi_redirect_to_threads(esr_info.shire, *((uint64_t *) data));
+                    send_ipi_redirect_to_threads(esr_info.shire, value);
                     write_data = false;
                     break;
                 case ESR_SHIRE_IPI_REDIRECT_FILTER:
                     /* do nothing */
                     break;
                 case ESR_SHIRE_IPI_TRIGGER:
-                    raise_software_interrupt(esr_info.shire, *((uint64_t*) data));
+                    raise_software_interrupt(esr_info.shire, value);
                     break;
                 case ESR_SHIRE_IPI_TRIGGER_CLEAR:
-                    clear_software_interrupt(esr_info.shire, *((uint64_t*) data));
+                    clear_software_interrupt(esr_info.shire, value);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC0:
-                    LOG(DEBUG, "Write to FCC0 value %016" PRIx64, *((uint64_t *) data));
-                    fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 0);
-                    fcc_inc(0, esr_info.shire, *((uint64_t*)data), 0);
+                    LOG(DEBUG, "Write to FCC0 value %016" PRIx64, value);
+                    fcc_to_threads(esr_info.shire, 0, value, 0);
+                    fcc_inc(0, esr_info.shire, value, 0);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC1:
-                    LOG(DEBUG, "Write to FCC1 value %016" PRIx64, *((uint64_t *) data));
-                    fcc_to_threads(esr_info.shire, 0, *((uint64_t *) data), 1);
-                    fcc_inc(0, esr_info.shire, *((uint64_t*)data), 1);
+                    LOG(DEBUG, "Write to FCC1 value %016" PRIx64, value);
+                    fcc_to_threads(esr_info.shire, 0, value, 1);
+                    fcc_inc(0, esr_info.shire, value, 1);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC2:
-                    LOG(DEBUG, "Write to FCC2 value %016" PRIx64, *((uint64_t *) data));
-                    fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data), 0);
-                    fcc_inc(1, esr_info.shire, *((uint64_t*)data), 0);
+                    LOG(DEBUG, "Write to FCC2 value %016" PRIx64, value);
+                    fcc_to_threads(esr_info.shire, 1, value, 0);
+                    fcc_inc(1, esr_info.shire, value, 0);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC3:
-                    LOG(DEBUG, "Write to FCC2 value %016" PRIx64, *((uint64_t *) data));
-                    fcc_to_threads(esr_info.shire, 1, *((uint64_t *) data), 1);
-                    fcc_inc(1, esr_info.shire, *((uint64_t*)data), 1);
+                    LOG(DEBUG, "Write to FCC2 value %016" PRIx64, value);
+                    fcc_to_threads(esr_info.shire, 1, value, 1);
+                    fcc_inc(1, esr_info.shire, value, 1);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FLB0:
@@ -205,13 +220,24 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 case ESR_SHIRE_FLB29:
                 case ESR_SHIRE_FLB30:
                 case ESR_SHIRE_FLB31:
-                case ESR_SHIRE_COOP_MODE:
                     /* do nothing */
+                    break;
+                case ESR_SHIRE_ICACHE_PREFETCH_ENABLE:
+                    write_icache_prefetch_enable(esr_info.shire, value);
+                    write_data = false;
+                    break;
+                case ESR_SHIRE_ICACHE_PREFETCH_TRIGGER:
+                    write_icache_prefetch_trigger(esr_info.shire, value);
+                    write_data = false;
+                    break;
+                case ESR_SHIRE_COOP_MODE:
+                    write_shire_coop_mode(esr_info.shire, value);
+                    write_data = false;
                     break;
                 case ESR_SHIRE_BROADCAST0:
                     if (brcst0_received == 0)
                     {
-                        LOG(DEBUG, "Write to BROADCAST0 value %016" PRIx64, *((uint64_t *) data));
+                        LOG(DEBUG, "Write to BROADCAST0 value %016" PRIx64, value);
                         brcst0_received= 1;
                     }
                     break;
@@ -219,9 +245,9 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     if (brcst0_received == 1)
                     {
                         uint64_t minion_mask = pmemread64(ad-8);
-                        LOG(DEBUG, "Write to BROADCAST1 value %016" PRIx64, *((uint64_t *) data));
+                        LOG(DEBUG, "Write to BROADCAST1 value %016" PRIx64, value);
                         esr_info_data_t esr_info_data;
-                        decode_ESR_data(*((uint64_t *)data), &esr_info_data);
+                        decode_ESR_data(value, &esr_info_data);
                         //broadcast(esr_data_info, minion_mask);
                         for (long shire_id = 0; shire_id < ESR_BROADCAST_ESR_MAX_SHIRES; shire_id++)
                         {
@@ -248,7 +274,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     if (brcst0_received != 2)
     {
         if (data_ && write_data)
-            memcpy(data_ + (ad - base_), data, size);
+            write64(data_ + (ad - base_), value);
     }
     else
     {
@@ -263,12 +289,15 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
     bool read_data = true;
     decode_ESR_address(ad, &esr_info);
 
+    assert(size == 8);
+    uint64_t* ptr = reinterpret_cast<uint64_t*>(data);
+
     LOG(DEBUG, "Read from Shire ESR Region @=0x%" PRIx64, ad);
     if(esr_info.shire == (ESR_REGION_LOCAL_SHIRE >> ESR_REGION_SHIRE_SHIFT))
     {
         uint64_t new_ad = ad & ~ESR_REGION_SHIRE_MASK;
         new_ad = new_ad | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
-        * ((uint64_t *) data) = pmemread64(new_ad);
+        *ptr = pmemread64(new_ad);
         return;
     }
 
@@ -333,6 +362,7 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
             LOG(DEBUG, "Read from ESR Region Shire at ESR address 0x%" PRIx64, esr_info.address);
             switch(esr_info.address)
             {
+                case ESR_SHIRE_MINION_FEATURE:
                 case ESR_SHIRE_IPI_REDIRECT_TRIGGER:
                 case ESR_SHIRE_IPI_REDIRECT_FILTER:
                 case ESR_SHIRE_IPI_TRIGGER:
@@ -373,10 +403,21 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
                 case ESR_SHIRE_FLB29:
                 case ESR_SHIRE_FLB30:
                 case ESR_SHIRE_FLB31:
-                case ESR_SHIRE_COOP_MODE:
                 case ESR_SHIRE_BROADCAST0:
                 case ESR_SHIRE_BROADCAST1:
                     /* do nothing */
+                    break;
+                case ESR_SHIRE_ICACHE_PREFETCH_ENABLE:
+                    *ptr = read_icache_prefetch_enable(esr_info.shire);
+                    read_data = false;
+                    break;
+                case ESR_SHIRE_ICACHE_PREFETCH_TRIGGER:
+                    *ptr = read_icache_prefetch_trigger(esr_info.shire);
+                    read_data = false;
+                    break;
+                case ESR_SHIRE_COOP_MODE:
+                    *ptr = read_shire_coop_mode(esr_info.shire);
+                    read_data = false;
                     break;
                 default:
                     throw trap_bus_error(ad);
@@ -389,7 +430,7 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
     }
 
     if (data_ && read_data)
-        memcpy(data, data_ + (ad - base_), size);
+        *ptr = read64(data_ + (ad - base_));
 }
 
 void main_memory_region_esr::decode_ESR_address(uint64_t address, esr_info_t *info)

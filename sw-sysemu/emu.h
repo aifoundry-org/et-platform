@@ -616,6 +616,11 @@ extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * 
 extern void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action);
 extern uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry);
 
+// Shire cooperative mode
+
+extern void write_shire_coop_mode(unsigned shire, uint64_t val);
+extern uint64_t read_shire_coop_mode(unsigned shire);
+
 // ----- Esperanto fast local barrier extension --------------------------------
 
 // ----- Esperanto fast credit counter extension --------------------------------
@@ -635,6 +640,15 @@ extern void clear_timer_interrupt(int thread);
 extern void raise_external_interrupt(int thread);
 extern void clear_external_interrupt(int thread);
 
+// ----- Esperanto code prefetching extension -----------------------------------
+
+extern void write_icache_prefetch_enable(unsigned shire, uint64_t val);
+extern void write_icache_prefetch_trigger(unsigned shire, uint64_t val);
+
+extern uint64_t read_icache_prefetch_enable(unsigned shire);
+extern uint64_t read_icache_prefetch_trigger(unsigned shire);
+
+extern void finish_icache_prefetch(unsigned shire);
 
 // ----- Get list of minions awaken by the last instruction (checker only) ----------------------------
 std::queue<uint32_t> &get_minions_to_awake();
