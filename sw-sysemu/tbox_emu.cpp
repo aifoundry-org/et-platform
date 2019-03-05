@@ -1,6 +1,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <stdexcept>
 
 #include "tbox_emu.h"
 #include "emu_gio.h"
