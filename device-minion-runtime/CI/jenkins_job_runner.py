@@ -14,7 +14,7 @@
 """ Helper script to be used for running a jobs regression steps
 
 This is a helper script that consumes a job specification json file,
-e.g. maxion-riscvemu.json and executes the different sections
+e.g. Software/device-fw/checkin-regression.json and executes the different sections
 specified in that file: e.g. BUILD_STEPS or TEST_STEPS etc
 """
 

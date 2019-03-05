@@ -50,7 +50,7 @@ pipeline {
         updateGitlabCommitStatus name: JOB_NAME, state: 'success'
         }
         always {
-            sh "./device-firmware.py et-sw-device-fw artifacts.py --push ./build/artifacts/ et-maxion-ci/${NAME}/${ID}/${GIT_COMMIT}"
+            sh "./device-firmware.py et-sw-device-fw artifacts.py --push ./build/artifacts/ et-sw-ci/${NAME}/${ID}/${GIT_COMMIT}"
         }
     }
     options {
@@ -71,7 +71,7 @@ pipeline {
                     submoduleCfg: [],
                     userRemoteConfigs: [[
                         credentialsId: 'jennkis_aws_centos',
-                        url: 'git@gitlab:maxion/boom-template.git'
+                        url: 'git@gitlab:software/device-firmware.git'
                     ]]
                 ])
 

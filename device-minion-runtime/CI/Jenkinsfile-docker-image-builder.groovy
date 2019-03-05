@@ -58,7 +58,7 @@ pipeline {
                     submoduleCfg: [],
                     userRemoteConfigs: [[
                         credentialsId: 'jennkis_aws_centos',
-                        url: 'git@gitlab:maxion/boom-template.git'
+                        url: 'git@gitlab:software/device-firmware.git'
                     ]]
                 ])
 
