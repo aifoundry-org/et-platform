@@ -113,7 +113,7 @@ def run(args, unknown_args):
        args (Namespace): Namespace object returned after parsing the
          command line arguments
        unknown_args ([]): List of unknown args the parser did not recognize
-         used only when integrated with maxion.py
+         used only when integrated with device-firmware.py
     """
     server = jenkins.Jenkins(JENKINS_SERVER)
     branch_name = args.branch
