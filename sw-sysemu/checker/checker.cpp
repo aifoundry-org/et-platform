@@ -566,7 +566,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                 stream << "EMU Checker Int Register data error. BEMU expects data is 0x" << std::hex << emu_state_change.int_reg_data << " but DUT reported 0x" << changes->int_reg_data << std::dec << std::endl;
                 check_res = CHECKER_ERROR;
                 //Set EMU state to what RTL says
-                init(inst.rd(), emu_state_change.int_reg_data);
+                init(inst.rd(), changes->int_reg_data);
             }
         }
 
