@@ -6969,16 +6969,20 @@ int get_scratchpad_next_entry(int entry)
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
         48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     };
-    if (csrregs[current_thread][csr_mcache_control] == 0x3)
+    if (csrregs[current_thread][csr_mcache_control] != 0x3)
     {
-        if (entry > 47 || entry < 0)
-        {
-            LOG(DEBUG,"SCP entry out of range : %d", entry);
-            return entry;
-        }
-        return row_to_scp[entry];
+	LOG(DEBUG,"ERROR: SCP operation without SCP enabled!. mcache_control: %lu", csrregs[current_thread][csr_mcache_control] );
+	return entry;
     }
-    return entry;
+    if (entry > 47 || entry < 0)
+    {
+	LOG(DEBUG,"ERROR: SCP entry out of range : %d", entry);
+	return entry;
+    }
+    return row_to_scp[entry];
+    
+    
+    // return entry;
 }
 
 // ----- CacheOp emulation -----------------------------------------------------
