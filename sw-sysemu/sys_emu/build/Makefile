@@ -8,6 +8,7 @@ sysemu_hdrs := \
 	common/main_memory_region_rbox.h \
 	sys_emu/api_communicate.h \
 	sys_emu/et_emulator.h \
+	sys_emu/log.h \
 	sys_emu/testLog.h
 
 sysemu_cpp_srcs := \
@@ -17,6 +18,7 @@ sysemu_cpp_srcs := \
 	common/main_memory_region_esr.cpp \
 	common/main_memory_region_rbox.cpp \
 	sys_emu/api_communicate.cpp \
+	sys_emu/log.cpp \
 	sys_emu/net_emulator.cpp \
 	sys_emu/sys_emu.cpp \
 	sys_emu/sys_emu_log.cpp
@@ -28,8 +30,8 @@ sysemu_OBJS := $(addprefix obj/,$(addsuffix .o,$(basename $(sysemu_SRCS))))
 sysemu_DEPS := $(addsuffix .d,$(basename $(sysemu_OBJS)))
 sysemu_DIRS := $(sort $(dir $(sysemu_OBJS)))
 
-CC	 := gcc
-CXX 	 := g++
+CC       := gcc
+CXX      := g++
 CPPFLAGS := -I../.. -I.. -DSYS_EMU
 CXXFLAGS := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c11

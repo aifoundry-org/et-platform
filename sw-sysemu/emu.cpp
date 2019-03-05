@@ -23,17 +23,11 @@
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 #include <emmintrin.h> // FIXME: remove this when we fix the TXFMA code
 
-// L1 Dcache configuration, used by the cache management operations
-#define L1D_NUM_SETS  16
-#define L1D_NUM_WAYS  4
-#define L1D_LINE_SIZE 64
-
 // MsgPort defines
 #define PORT_LOG2_MIN_SIZE   2
 #define PORT_LOG2_MAX_SIZE   5
 
 // Scratchpad defines
-#define L1_ENTRIES        (L1D_NUM_SETS * L1D_NUM_WAYS)
 #define L1_SCP_ENTRIES    48
 #define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
 typedef fdata_array_t<L1D_LINE_SIZE/4> cache_line_t;
@@ -264,56 +258,56 @@ typedef enum {
 // Neede by fence.i
 extern void flush_insn_cache();
 
-// State declaration
-std::ostringstream uart_stream[EMU_NUM_THREADS];
-int buflen = 0;
-xdata xregs[EMU_NUM_THREADS][32];
-fdata fregs[EMU_NUM_THREADS][32];
-mdata mregs[EMU_NUM_THREADS][8];
-uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
-bool mtvec_is_set[EMU_NUM_THREADS] = {};
-bool stvec_is_set[EMU_NUM_THREADS] = {};
-bool break_on_load[EMU_NUM_THREADS] = {};
-bool break_on_store[EMU_NUM_THREADS] = {};
-bool break_on_fetch[EMU_NUM_THREADS] = {};
-bool debug_mode[EMU_NUM_THREADS] = {};
-bool tensorload_setupb_topair[EMU_NUM_THREADS] = {false};
-int tensorload_setupb_numlines[EMU_NUM_THREADS];
+// UART
+static std::ostringstream uart_stream[EMU_NUM_THREADS];
+
+// Register files
+static xdata xregs[EMU_NUM_THREADS][MAXXREG];
+static fdata fregs[EMU_NUM_THREADS][MAXFREG];
+static mdata mregs[EMU_NUM_THREADS][MAXMREG];
+static fdata tensorfma_tenc[EMU_NUM_THREADS][MAXFREG];
+static uint64_t csrregs[EMU_NUM_THREADS][CSR_MAX];
+
+// Other processor state
+static bool mtvec_is_set[EMU_NUM_THREADS] = {};
+static bool stvec_is_set[EMU_NUM_THREADS] = {};
+static bool break_on_load[EMU_NUM_THREADS] = {};
+static bool break_on_store[EMU_NUM_THREADS] = {};
+static bool break_on_fetch[EMU_NUM_THREADS] = {};
+static bool debug_mode[EMU_NUM_THREADS] = {};
+static bool tensorload_setupb_topair[EMU_NUM_THREADS] = {false};
+static int tensorload_setupb_numlines[EMU_NUM_THREADS];
+
+// Scratchpad
 cache_line_t scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS];
-int scp_entry[EMU_NUM_THREADS];
-int scp_size[EMU_NUM_THREADS];
-bool scp_tm;
-fdata tensorfma_tenc[EMU_NUM_THREADS][32];
-int reduce_entry[EMU_NUM_THREADS];
-int reduce_size[EMU_NUM_THREADS];
-uint32_t reduce_data[EMU_NUM_THREADS][32][VL];
 
-msg_port_conf_t msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
-std::deque<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
-bool msg_port_delayed_write = false;
-std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
-std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
-std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
+// Used to access different threads transparently
+#define XREGS xregs[current_thread]
+#define FREGS fregs[current_thread]
+#define MREGS mregs[current_thread]
+#define TENC  tensorfma_tenc[current_thread]
+#define CSRS  csrregs[current_thread]
+#define SCP   scp[current_thread]
 
-// Send this information to the checker
-int tensorquant_trans[EMU_NUM_THREADS];
-struct {
-    bool     skip_entry;
-    uint32_t regs;
-    uint32_t data[32][VL];
-} tensorquant_values[EMU_NUM_THREADS][TQUANT_MAX_TRANS];
+// Message ports
+static msg_port_conf_t     msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
+static std::deque<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
+static bool                msg_port_delayed_write = false;
+static std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
+static std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
+static std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
 
 // Accelerators
 #if (EMU_TBOXES_PER_SHIRE > 1)
-    TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
+TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
 #else
-    TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
+TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
 #endif
 
 #if (EMU_RBOXES_PER_SHIRE > 1)
-    RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
 #else
-    RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
+RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
 #endif
 
 uint64_t fcc_cnt;
@@ -515,9 +509,6 @@ std::unordered_map<int, char const*> csr_names = {
    { csr_mtxfma_sleep_traps,"mtxfma_sleep_traps" }
 };
 
-// Used to access different threads transparently
-#define SCP   scp[current_thread]
-
 static et_core_t core_type = ET_MINION;
 uint64_t current_pc = 0;
 uint32_t current_inst = 0;
@@ -537,7 +528,7 @@ bool emu_done()
    return m_emu_done;
 }
 
-std::stringstream dump_xregs(uint32_t thread_id)
+std::string dump_xregs(uint32_t thread_id)
 {
    std::stringstream str;
    if (thread_id < EMU_NUM_THREADS)
@@ -547,10 +538,10 @@ std::stringstream dump_xregs(uint32_t thread_id)
          str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << xregs[thread_id][ii].x << "\n";
       }
    }
-   return str;
+   return str.str();
 }
 
-std::stringstream dump_fregs(uint32_t thread_id)
+std::string dump_fregs(uint32_t thread_id)
 {
    std::stringstream str;
    if (thread_id < EMU_NUM_THREADS)
@@ -564,7 +555,7 @@ std::stringstream dump_fregs(uint32_t thread_id)
          str << "\n";
       }
    }
-   return str;
+   return str.str();
 }
 
 void init_emu()
@@ -700,25 +691,25 @@ void fpinit(freg dst, uint64_t val[VL/2])
 // internal accessor to prv; this is faster than doing csrget(csr_prv)
 static inline int prvget()
 {
-    return csrregs[current_thread][csr_prv];
+    return CSRS[csr_prv];
 }
 
 // internal accessor to frm; this is faster than doing csrget(csr_frm)
 static inline int frm()
 {
-    return ((csrregs[current_thread][csr_fcsr] >> 5) & 0x7);
+    return ((CSRS[csr_fcsr] >> 5) & 0x7);
 }
 
 // internal accessor to tdata1; this is faster than doing csrget(csr_tdata1)
 static inline uint64_t tdata1()
 {
-    return csrregs[current_thread][csr_tdata1];
+    return CSRS[csr_tdata1];
 }
 
 // internal accessor to tdata2; this is faster than doing csrget(csr_tdata2)
 static inline uint64_t tdata2()
 {
-    return csrregs[current_thread][csr_tdata2];
+    return CSRS[csr_tdata2];
 }
 
 static void activate_breakpoints(int prv)
@@ -732,9 +723,9 @@ static void activate_breakpoints(int prv)
 // internal accessor to tensor_error; this is faster than doing csrset()
 static inline void update_tensor_error(uint64_t value)
 {
-    csrregs[current_thread][csr_tensor_error] |= value;
+    CSRS[csr_tensor_error] |= value;
     if (value)
-        LOG(DEBUG, "\tTensorError = 0x%016" PRIx64 " (0x%016" PRIx64 ")", csrregs[current_thread][csr_tensor_error], value);
+        LOG(DEBUG, "\tTensorError = 0x%016" PRIx64 " (0x%016" PRIx64 ")", CSRS[csr_tensor_error], value);
 }
 
 // internal accessor to fflags; this is faster than doing
@@ -743,19 +734,19 @@ static inline void update_fflags(uint_fast8_t flags)
 {
     uint32_t newval = (flags & 0x1F) | (uint32_t(flags & 0x80) << 24);
     log_fflags_write(newval);
-    csrregs[current_thread][csr_fcsr] |= newval;
+    CSRS[csr_fcsr] |= newval;
     LOG(DEBUG, "\tfpu flags = 0x%02x (%s)", flags, get_fp_flags(flags));
 }
 
 // internal accessor to mstatus.fs; this is faster than using csrset()
 static inline void dirty_fp_state()
 {
-    csrregs[current_thread][csr_mstatus] |= 0x8000000000006000ULL;
+    CSRS[csr_mstatus] |= 0x8000000000006000ULL;
 }
 
 static inline void require_fp_active()
 {
-    if ((csrregs[current_thread][csr_mstatus] & 0x0006000ULL) == 0)
+    if ((CSRS[csr_mstatus] & 0x0006000ULL) == 0)
         throw trap_illegal_instruction(current_inst);
 }
 
@@ -1026,21 +1017,21 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
 void check_pending_interrupts()
 {
     // Are there any non-masked pending interrupts?
-    uint64_t xip = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mie];
+    uint64_t xip = CSRS[csr_mip] & CSRS[csr_mie];
     if (!xip) return;
 
-    LOG(DEBUG, "Check Pending Interrupt (MtVec set(%d): Mtvec:0x%016" PRIx64 ":> mip 0x%016" PRIx64 " :mie 0x%016" PRIx64 , mtvec_is_set[current_thread], csrregs[current_thread][csr_mtvec], csrregs[current_thread][csr_mip], csrregs[current_thread][csr_mie]);
+    LOG(DEBUG, "Check Pending Interrupt (MtVec set(%d): Mtvec:0x%016" PRIx64 ":> mip 0x%016" PRIx64 " :mie 0x%016" PRIx64 , mtvec_is_set[current_thread], CSRS[csr_mtvec], CSRS[csr_mip], CSRS[csr_mie]);
 
     // If there are any pending interrupts for the current privilege level
     // 'x', they are only taken if mstatus.xIE=1. If there are any pending
     // interrupts for a higher privilege level 'y>x' they must be taken
     // independently of the value in mstatus.yIE. Pending interrupts for a
     // lower privilege level 'w<x' are not taken.
-    uint64_t mideleg = csrregs[current_thread][csr_mideleg];
+    uint64_t mideleg = CSRS[csr_mideleg];
     uint64_t mip = xip & ~mideleg;
     uint64_t sip = xip & mideleg;
-    uint64_t mie = csrregs[current_thread][csr_mstatus] & 8;
-    uint64_t sie = csrregs[current_thread][csr_mstatus] & 2;
+    uint64_t mie = CSRS[csr_mstatus] & 8;
+    uint64_t sie = CSRS[csr_mstatus] & 2;
     switch (prvget())
     {
         case CSR_PRV_M:
@@ -1086,7 +1077,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     // checker errors (you would have errors if the interrupt is cleared by
     // a memory mapped store)
     if (interrupt && !in_sysemu) {
-        csrregs[current_thread][csr_mip] &= ~(1ULL<<code);
+        CSRS[csr_mip] &= ~(1ULL<<code);
     }
 
     // Take sie
@@ -1141,7 +1132,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     // checker errors (you would have errors if the interrupt is cleared by
     // a memory mapped store)
     if (interrupt && !in_sysemu) {
-        csrregs[current_thread][csr_mip] &= ~(1ULL<<code);
+        CSRS[csr_mip] &= ~(1ULL<<code);
     }
 
     LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval %" PRIx64, cause, val);
@@ -1234,7 +1225,7 @@ extern inst_state_change * log_info;
 static inline int effective_execution_mode(mem_access_type macc)
 {
     // Read mstatus
-    const uint64_t mstatus = csrregs[current_thread][csr_mstatus];
+    const uint64_t mstatus = CSRS[csr_mstatus];
     const int      mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
     const int      mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
     return (macc == Mem_Access_Fetch || macc == Mem_Access_PTW)
@@ -1702,13 +1693,11 @@ void def_msg_to_thread(int thread_id __attribute__((unused)))
 {
 }
 
-typedef void (*msg_to_thread_t) (int thread_id);
+void (*msg_to_thread) (int) = def_msg_to_thread;
 
-void (*msg_to_thread) (int thread_id) = def_msg_to_thread;
-
-void set_msg_funcs(void * func_msg_to_thread)
+void set_msg_funcs(void (*func_msg_to_thread) (int))
 {
-    msg_to_thread = (msg_to_thread_t) func_msg_to_thread;
+    msg_to_thread = func_msg_to_thread;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1775,7 +1764,7 @@ void c_jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
         XREGS[dst].x = current_pc + 2;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
     log_pc_update(sextVA((val1 + imm) & ~1ull));
 }
 
@@ -1788,7 +1777,7 @@ void c_jal(xreg dst, int64_t imm, const char* comm)
         XREGS[dst].x = current_pc + 2;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
     log_pc_update(sextVA(current_pc + imm));
 }
 
@@ -1801,7 +1790,7 @@ void jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
         XREGS[dst].x = current_pc + 4;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
     log_pc_update(sextVA((val1 + imm) & ~1ull));
 }
 
@@ -1814,7 +1803,7 @@ void jal(xreg dst, int64_t imm, const char* comm)
         XREGS[dst].x = current_pc + 4;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
     log_pc_update(sextVA(current_pc + imm));
 }
 
@@ -1826,7 +1815,7 @@ void lui(xreg dst, int64_t imm, const char* comm)
         XREGS[dst].x = imm;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64, XREGS[dst].x, imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void auipc(xreg dst, int64_t imm, const char* comm)
@@ -1837,7 +1826,7 @@ void auipc(xreg dst, int64_t imm, const char* comm)
         XREGS[dst].x = current_pc + imm;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64, XREGS[dst].x, imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void addi(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -1853,7 +1842,7 @@ void addi(xreg dst, xreg src1, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1].x, imm);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void slli(xreg dst, xreg src1, unsigned imm, const char* comm)
@@ -1865,7 +1854,7 @@ void slli(xreg dst, xreg src1, unsigned imm, const char* comm)
         XREGS[dst].x = val1.x << imm;
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst].x, val1.x, imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void slti(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -1877,7 +1866,7 @@ void slti(xreg dst, xreg src1, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1].x, imm);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sltiu(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -1889,7 +1878,7 @@ void sltiu(xreg dst, xreg src1, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1].x, imm);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void xori(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -1901,7 +1890,7 @@ void xori(xreg dst, xreg src1, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, val, XREGS[src1].x, imm);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void srli(xreg dst, xreg src1, unsigned imm, const char* comm)
@@ -1913,7 +1902,7 @@ void srli(xreg dst, xreg src1, unsigned imm, const char* comm)
         XREGS[dst].x = val1.x >> imm;
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void srai(xreg dst, xreg src1, unsigned imm, const char* comm)
@@ -1925,7 +1914,7 @@ void srai(xreg dst, xreg src1, unsigned imm, const char* comm)
         XREGS[dst].xs = val1.xs >> imm;
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void ori(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -1937,7 +1926,7 @@ void ori(xreg dst, xreg src1, int64_t imm, const char* comm)
         XREGS[dst].x = val1.x | imm;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, XREGS[dst].x, val1.x, imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void andi(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -1949,7 +1938,7 @@ void andi(xreg dst, xreg src1, int64_t imm, const char* comm)
         XREGS[dst].x = val1.x & imm;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, XREGS[dst].x, val1.x, imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void add(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -1961,7 +1950,7 @@ void add(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sub(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -1973,7 +1962,7 @@ void sub(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " - 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sll(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -1986,7 +1975,7 @@ void sll(xreg dst, xreg src1, xreg src2, const char* comm)
         XREGS[dst].x = val1.x << (val2.x & 0x3F);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst].x, val1.x, unsigned(val2.x & 0x3f));
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void slt(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -1998,7 +1987,7 @@ void slt(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sltu(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2010,7 +1999,7 @@ void sltu(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void xor_(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2022,7 +2011,7 @@ void xor_(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void srl(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2035,7 +2024,7 @@ void srl(xreg dst, xreg src1, xreg src2, const char* comm)
         XREGS[dst].x = val1.x >> (val2.x & 0x3F);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, unsigned(val2.x & 0x3f));
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sra(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2048,7 +2037,7 @@ void sra(xreg dst, xreg src1, xreg src2, const char* comm)
         XREGS[dst].x = val1.xs >> (val2.xs & 0x3F);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, unsigned(val2.x & 0x3f));
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void or_(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2060,7 +2049,7 @@ void or_(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void and_(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2072,7 +2061,7 @@ void and_(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void addiw(xreg dst, xreg src1, int64_t imm, const char* comm)
@@ -2088,7 +2077,7 @@ void addiw(xreg dst, xreg src1, int64_t imm, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, XREGS[src1].w[0], uint32_t(imm));
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void slliw(xreg dst, xreg src1, unsigned imm, const char* comm)
@@ -2100,7 +2089,7 @@ void slliw(xreg dst, xreg src1, unsigned imm, const char* comm)
         XREGS[dst].x = sext<32>(val1.w[0] << imm);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %u", XREGS[dst].x, val1.w[0], imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void srliw(xreg dst, xreg src1, unsigned imm, const char* comm)
@@ -2112,7 +2101,7 @@ void srliw(xreg dst, xreg src1, unsigned imm, const char* comm)
         XREGS[dst].x = sext<32>(val1.w[0] >> imm);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst].x, val1.w[0], imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sraiw(xreg dst, xreg src1, unsigned imm, const char* comm)
@@ -2124,7 +2113,7 @@ void sraiw(xreg dst, xreg src1, unsigned imm, const char* comm)
         XREGS[dst].x = sext<32>(val1.ws[0] >> imm);
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst].x, val1.w[0], imm);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void addw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2136,7 +2125,7 @@ void addw(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void subw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2148,7 +2137,7 @@ void subw(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x - 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sllw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2161,7 +2150,7 @@ void sllw(xreg dst, xreg src1, xreg src2, const char* comm)
         XREGS[dst].x = sext<32>(val1.w[0] << (val2.w[0] & 0x1F));
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1f);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void srlw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2174,7 +2163,7 @@ void srlw(xreg dst, xreg src1, xreg src2, const char* comm)
         XREGS[dst].x = sext<32>(val1.w[0] >> (val2.w[0] & 0x1F));
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1f);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sraw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2187,7 +2176,7 @@ void sraw(xreg dst, xreg src1, xreg src2, const char* comm)
         XREGS[dst].x = sext<32>(val1.ws[0] >> (val2.ws[0] & 0x1F));
         LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1F);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void lb(xreg dst, xreg base, int64_t off, const char* comm)
@@ -2201,7 +2190,7 @@ void lb(xreg dst, xreg base, int64_t off, const char* comm)
     {
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void lh(xreg dst, xreg base, int64_t off, const char* comm)
@@ -2215,7 +2204,7 @@ void lh(xreg dst, xreg base, int64_t off, const char* comm)
     {
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void lw(xreg dst, xreg base, int64_t off, const char* comm)
@@ -2229,7 +2218,7 @@ void lw(xreg dst, xreg base, int64_t off, const char* comm)
     {
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void ld(xreg dst, xreg base, int64_t off, const char* comm)
@@ -2243,7 +2232,7 @@ void ld(xreg dst, xreg base, int64_t off, const char* comm)
     {
         XREGS[dst].x  = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void lbu(xreg dst, xreg base, int64_t off, const char* comm)
@@ -2257,7 +2246,7 @@ void lbu(xreg dst, xreg base, int64_t off, const char* comm)
     {
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void lhu(xreg dst, xreg base, int64_t off, const char* comm)
@@ -2271,7 +2260,7 @@ void lhu(xreg dst, xreg base, int64_t off, const char* comm)
     {
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void lwu(xreg dst, xreg base, int64_t off, const char* comm)
@@ -2285,7 +2274,7 @@ void lwu(xreg dst, xreg base, int64_t off, const char* comm)
     {
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void sd(xreg src1, xreg base, int64_t off, const char* comm)
@@ -2406,7 +2395,7 @@ void mul(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void mulh(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2421,7 +2410,7 @@ void mulh(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 "s", val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void mulhsu(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2436,7 +2425,7 @@ void mulhsu(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void mulhu(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2451,7 +2440,7 @@ void mulhu(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void div_(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2475,7 +2464,7 @@ void div_(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " / 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = uint64_t(val);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void divu(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2491,7 +2480,7 @@ void divu(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " / 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void rem(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2509,7 +2498,7 @@ void rem(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " %% 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = uint64_t(val);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void remu(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2525,7 +2514,7 @@ void remu(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " %% 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void mulw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2537,7 +2526,7 @@ void mulw(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x * 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void divw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2556,7 +2545,7 @@ void divw(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val64;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void divuw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2573,7 +2562,7 @@ void divuw(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val64;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void remw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2592,7 +2581,7 @@ void remw(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val64;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -2609,7 +2598,7 @@ void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
         XREGS[dst].x = val64;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2655,7 +2644,7 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     {
         XREGS[dst].x = sext<32>(val1);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 
     uint32_t res;
     switch (op)
@@ -2732,7 +2721,7 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     {
         XREGS[dst].x = val1;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 
     uint64_t res;
     switch (op)
@@ -2842,16 +2831,16 @@ static uint64_t csrget(csr src1)
             throw trap_illegal_instruction(current_inst);
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
-            val = csrregs[current_thread][csr_fcsr] & 0x8000001f;
+            val = CSRS[csr_fcsr] & 0x8000001f;
             break;
         case csr_frm:
-            val = (csrregs[current_thread][csr_fcsr] >> 5) & 0x7;
+            val = (CSRS[csr_fcsr] >> 5) & 0x7;
             break;
         case csr_cycle:
         case csr_instret:
-            if ( ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_scounteren] & csrregs[current_thread][csr_mcounteren] &
+            if ( ((prvget() == CSR_PRV_U) && ((CSRS[csr_scounteren] & CSRS[csr_mcounteren] &
                                                (1 << (src1-csr_cycle))) == 0)) ||
-                 ((prvget() == CSR_PRV_S) && ((csrregs[current_thread][csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
+                 ((prvget() == CSR_PRV_S) && ((CSRS[csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
             {
                 throw trap_illegal_instruction(current_inst);
             }
@@ -2886,13 +2875,13 @@ static uint64_t csrget(csr src1)
         case csr_hpmcounter29:
         case csr_hpmcounter30:
         case csr_hpmcounter31:
-            if ( ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_scounteren] & csrregs[current_thread][csr_mcounteren] &
+            if ( ((prvget() == CSR_PRV_U) && ((CSRS[csr_scounteren] & CSRS[csr_mcounteren] &
                                                (1 << (src1-csr_cycle))) == 0)) ||
-                 ((prvget() == CSR_PRV_S) && ((csrregs[current_thread][csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
+                 ((prvget() == CSR_PRV_S) && ((CSRS[csr_mcounteren] & (1 << (src1-csr_cycle))) == 0)))
             {
                 throw trap_illegal_instruction(current_inst);
             }
-            val = csrregs[current_thread][src1];
+            val = CSRS[src1];
             break;
         case csr_fccnb:
             val = (uint64_t(fcc[current_thread][1]) << 16) + uint64_t(fcc[current_thread][0]);
@@ -2902,8 +2891,8 @@ static uint64_t csrget(csr src1)
         case csr_porthead2:
         case csr_porthead3:
             // Check that port is enabled and configured to be legally accessed by U-mode otherwise exception
-            if (   (((csrregs[current_thread][csr_portctrl0 + src1 - csr_porthead0]) & 0x1) == 0)
-                || ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_portctrl0 + src1 - csr_porthead0] & 0x0000000000000008ULL) == 0)))
+            if (   (((CSRS[csr_portctrl0 + src1 - csr_porthead0]) & 0x1) == 0)
+                || ((prvget() == CSR_PRV_U) && ((CSRS[csr_portctrl0 + src1 - csr_porthead0] & 0x0000000000000008ULL) == 0)))
             {
                throw trap_illegal_instruction(current_inst);
             }
@@ -2914,8 +2903,8 @@ static uint64_t csrget(csr src1)
         case csr_portheadnb2:
         case csr_portheadnb3:
             // Check that port is enabled and configured to be legally accessed by U-mode otherwise exception
-            if (   (((csrregs[current_thread][csr_portctrl0 + src1 - csr_portheadnb0]) & 0x1) == 0)
-                || ((prvget() == CSR_PRV_U) && ((csrregs[current_thread][csr_portctrl0 + src1 - csr_portheadnb0] & 0x0000000000000008ULL) == 0)))
+            if (   (((CSRS[csr_portctrl0 + src1 - csr_portheadnb0]) & 0x1) == 0)
+                || ((prvget() == CSR_PRV_U) && ((CSRS[csr_portctrl0 + src1 - csr_portheadnb0] & 0x0000000000000008ULL) == 0)))
             {
                throw trap_illegal_instruction(current_inst);
             }
@@ -2923,33 +2912,33 @@ static uint64_t csrget(csr src1)
             break;
         // ----- Shadow registers ----------------------------------------
         case csr_sleep_txfma_27:
-          if (prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0)
+          if (prvget() != CSR_PRV_M && (CSRS[csr_menable_shadows] & 2) == 0)
           {
                throw trap_illegal_instruction(current_inst);
           }
-          val = csrregs[current_thread][csr_msleep_txfma_27];
+          val = CSRS[csr_msleep_txfma_27];
           break;
         case csr_hartid:
-          if (prvget() != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 1) == 0)
+          if (prvget() != CSR_PRV_M && (CSRS[csr_menable_shadows] & 1) == 0)
           {
                throw trap_illegal_instruction(current_inst);
           }
-          val = csrregs[current_thread][csr_mhartid];
+          val = CSRS[csr_mhartid];
           break;
         // ----- S-mode registers ----------------------------------------
         case csr_sstatus:
             // Hide sxl, tsr, tw, tvm, mprv, mpp, mpie, mie
-            val = csrregs[current_thread][csr_mstatus] & 0x80000003000DE133ULL;
+            val = CSRS[csr_mstatus] & 0x80000003000DE133ULL;
             break;
         case csr_sie:
-            val = csrregs[current_thread][csr_mie] & csrregs[current_thread][csr_mideleg];
+            val = CSRS[csr_mie] & CSRS[csr_mideleg];
             break;
         case csr_sip:
-            val = csrregs[current_thread][csr_mip] & csrregs[current_thread][csr_mideleg];
+            val = CSRS[csr_mip] & CSRS[csr_mideleg];
             break;
         case csr_sepc:
             // sepc[1] is 0 when C extension is not supported (misa[2])
-            val = csrregs[current_thread][csr_sepc] & ~1ULL;
+            val = CSRS[csr_sepc] & ~1ULL;
             break;
         // ----- Tensor, barrier, cacheop instructions -------------------
         case csr_tensor_load:
@@ -2985,7 +2974,7 @@ static uint64_t csrget(csr src1)
             break;
         case csr_mepc:
             // sepc[1] is 0 when C extension is not supported (misa[2])
-            val = csrregs[current_thread][csr_mepc] & ~1ULL;
+            val = CSRS[csr_mepc] & ~1ULL;
             break;
         // ----- Debug registers -----------------------------------------
         case csr_tselect:
@@ -2994,7 +2983,7 @@ static uint64_t csrget(csr src1)
             break;
         // ----- All other registers -------------------------------------
         default:
-            val = csrregs[current_thread][src1];
+            val = CSRS[src1];
             break;
     }
     return val;
@@ -3028,21 +3017,21 @@ static void csrset(csr src1, uint64_t val)
         // ----- Internal registers --------------------------------------
         case csr_prv:
             val &= 0x0000000000000003ULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             activate_breakpoints(val);
             break;
         // ----- U-mode registers ----------------------------------------
         case csr_fflags:
-            val = (csrregs[current_thread][csr_fcsr] & 0x000000E0) | (val & 0x8000001F);
-            csrregs[current_thread][csr_fcsr] = val;
+            val = (CSRS[csr_fcsr] & 0x000000E0) | (val & 0x8000001F);
+            CSRS[csr_fcsr] = val;
             break;
         case csr_frm:
-            val = (csrregs[current_thread][csr_fcsr] & 0x8000001F) | ((val & 0x7) << 5);
-            csrregs[current_thread][csr_fcsr] = val;
+            val = (CSRS[csr_fcsr] & 0x8000001F) | ((val & 0x7) << 5);
+            CSRS[csr_fcsr] = val;
             break;
         case csr_fcsr:
             val &= 0x800000FF;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         // ----- U-mode ET registers ---------------------------------------------
         case csr_tensor_load:
@@ -3073,16 +3062,16 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_tensor_mask:
             val &= 0x000000000000FFFFULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         case csr_tensor_conv_size:
             val &= 0xFF00FFFFFF00FFFFULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             tmask_conv();
             break;
         case csr_tensor_conv_ctrl:
             val &= 0x0000FFFF0000FFFFULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             tmask_conv();
             break;
         case csr_tensor_coop:
@@ -3217,21 +3206,21 @@ static void csrset(csr src1, uint64_t val)
             }
             break;
         case csr_ucache_control:
-            msk = (csrregs[current_thread][csr_mcache_control] & 1) ? 1 : 3;
-            val = (csrregs[current_thread][csr_mcache_control] & msk) | (val & ~msk & 0x07df);
+            msk = (CSRS[csr_mcache_control] & 1) ? 1 : 3;
+            val = (CSRS[csr_mcache_control] & msk) | (val & ~msk & 0x07df);
             assert((val & 3) != 2);
-            csrregs[current_thread][csr_ucache_control] = val;
-            csrregs[current_thread][csr_mcache_control] = val & 3;
+            CSRS[csr_ucache_control] = val;
+            CSRS[csr_mcache_control] = val & 3;
             csrregs[current_thread^1][csr_ucache_control] = val;
             csrregs[current_thread^1][csr_mcache_control] = val & 3;
             break;
         case csr_mcache_control:
-            msk = (csrregs[current_thread][csr_mcache_control] & 1) ? 3 : 1;
-            val = (val & msk) | (csrregs[current_thread][csr_ucache_control] & ~msk);
+            msk = (CSRS[csr_mcache_control] & 1) ? 3 : 1;
+            val = (val & msk) | (CSRS[csr_ucache_control] & ~msk);
             if ((val & 3) != 2)
             {
-                csrregs[current_thread][csr_ucache_control] = val;
-                csrregs[current_thread][csr_mcache_control] = val & 3;
+                CSRS[csr_ucache_control] = val;
+                CSRS[csr_mcache_control] = val & 3;
                 csrregs[current_thread^1][csr_ucache_control] = val;
                 csrregs[current_thread^1][csr_mcache_control] = val & 3;
                 num_sets = (val & 0x1) ? 4 : 16;
@@ -3240,60 +3229,60 @@ static void csrset(csr src1, uint64_t val)
             break;
         case csr_tex_send:
             val &= 0x00000000000000FFULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             // Notify to TBOX that a Sample Request is ready
             // Thanks for making the code unreadable
             new_sample_request(current_thread,
-                               csrregs[current_thread][src1] & 0x0000000F,          // port_id
-                               (csrregs[current_thread][src1] >> 4) & 0x0000000F,   // num_packets
-                               read_port_base_address(current_thread, csrregs[current_thread][src1] & 0x0000000F /* port id */ ));
+                               CSRS[src1] & 0x0000000F,          // port_id
+                               (CSRS[src1] >> 4) & 0x0000000F,   // num_packets
+                               read_port_base_address(current_thread, CSRS[src1] & 0x0000000F /* port id */ ));
             break;
         case csr_sleep_txfma_27:
-            if (csrregs[current_thread][csr_prv] != CSR_PRV_M && (csrregs[current_thread][csr_menable_shadows] & 2) == 0)
+            if (CSRS[csr_prv] != CSR_PRV_M && (CSRS[csr_menable_shadows] & 2) == 0)
             {
                 throw trap_illegal_instruction(current_inst);
             }
-            csrregs[current_thread][csr_msleep_txfma_27] = val;
+            CSRS[csr_msleep_txfma_27] = val;
             csrregs[current_thread ^ 1][csr_msleep_txfma_27] = val;
             break;
         // ----- S-mode registers ----------------------------------------
         case csr_scause:
             // Maks all bits excepts the ones we care about
             val &= 0x800000000000001FULL;
-            csrregs[current_thread][csr_scause] = val;
+            CSRS[csr_scause] = val;
             break;
         case csr_sstatus:
             // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
-            val = (val & 0x00000000000C6133ULL) | (csrregs[current_thread][csr_mstatus] & 0x0000000F00739800ULL);
+            val = (val & 0x00000000000C6133ULL) | (CSRS[csr_mstatus] & 0x0000000F00739800ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
                 val |= 0x8000000000000000ULL;
             }
-            csrregs[current_thread][csr_mstatus] = val;
+            CSRS[csr_mstatus] = val;
             break;
         case csr_sie:
             // Only ssie, stie, and seie are writeable, and only if they are delegated
             // if mideleg[sei,sti,ssi]==1 then seie, stie, ssie is writeable, otherwise they are reserved
-            msk = csrregs[current_thread][csr_mideleg] & 0x0000000000000222ULL;
-            val = (csrregs[current_thread][csr_mie] & ~msk) | (val & msk);
-            csrregs[current_thread][csr_mie] = val;
+            msk = CSRS[csr_mideleg] & 0x0000000000000222ULL;
+            val = (CSRS[csr_mie] & ~msk) | (val & msk);
+            CSRS[csr_mie] = val;
             break;
         case csr_stvec:
             val = sextVA(val & ~0xFFEULL);
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             stvec_is_set[current_thread] = true;
             break;
         case csr_sepc:
             // sepc[0] = 0 always
             val = sextVA(val & ~1ULL);
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         case csr_sip:
             // Only ssip is writeable, and only if it is delegated
-            msk = csrregs[current_thread][csr_mideleg] & 0x0000000000000002ULL;
-            val = (csrregs[current_thread][csr_mip] & ~msk) | (val & msk);
-            csrregs[current_thread][csr_mip] = val;
+            msk = CSRS[csr_mideleg] & 0x0000000000000002ULL;
+            val = (CSRS[csr_mip] & ~msk) | (val & msk);
+            CSRS[csr_mip] = val;
             break;
         case csr_satp: // Shared register
             // MODE is 4 bits, ASID is 0bits, PPN is PPN_M bits
@@ -3303,7 +3292,7 @@ static void csrset(csr src1, uint64_t val)
                 case SATP_MODE_BARE:
                 case SATP_MODE_SV39:
                 case SATP_MODE_SV48:
-                    csrregs[current_thread][src1] = val;
+                    CSRS[src1] = val;
                     csrregs[current_thread^1][src1] = val;
                     break;
                 default: // reserved
@@ -3330,24 +3319,24 @@ static void csrset(csr src1, uint64_t val)
         case csr_portctrl3:
             val &= 0x00000000030F0FF3ULL;
             val |= 0x0000000000008000ULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             configure_port(src1 - csr_portctrl0, val);
             break;
         // ----- M-mode registers ----------------------------------------
         case csr_mcause:
             // Maks all bits excepts the ones we care about
             val &= 0x800000000000001FULL;
-            csrregs[current_thread][csr_mcause] = val;
+            CSRS[csr_mcause] = val;
             break;
         case csr_mstatus:
             // Preserve sd, sxl, uxl, xs
-            val = (val & 0x00000000007E79BBULL) | (csrregs[current_thread][src1] & 0x8000000F00018000ULL);
+            val = (val & 0x00000000007E79BBULL) | (CSRS[src1] & 0x8000000F00018000ULL);
             // Set sd if fs==3 or xs==3
             if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
             {
                 val |= 0x8000000000000000ULL;
             }
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         case csr_misa:
             // misa is a 0-length register, cannot be modified
@@ -3355,32 +3344,32 @@ static void csrset(csr src1, uint64_t val)
         case csr_medeleg:
             // Not all exceptions can be delegated
             val &= 0x0000000000000B109ULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         case csr_mideleg:
             // Not all interrupts can be delegated
             val &= 0x0000000000000222ULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         case csr_mie:
             // Hard-wire ueie, utie, usie
             val &= 0x0000000000000AAAULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         case csr_mtvec:
             val = sextVA(val & ~0xFFEULL);
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             mtvec_is_set[current_thread] = true;
             break;
         case csr_mepc:
             // mepc[0] = 0 always
             val = sextVA(val & ~1ULL);
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         case csr_mip:
             // Only seip, stip, ssip are writeable
             val &= 0x0000000000000222ULL;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         case csr_mcycle:
         case csr_minstret:
@@ -3390,7 +3379,7 @@ static void csrset(csr src1, uint64_t val)
         case csr_msleep_txfma_27:
         case csr_menable_shadows:
         case csr_mtxfma_sleep_traps:
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             csrregs[current_thread^1][src1] = val;
             break;
         // ----- Debug registers -----------------------------------------
@@ -3401,15 +3390,15 @@ static void csrset(csr src1, uint64_t val)
             if ((~val & 0x0800000000000000ull) || debug_mode[current_thread])
             {
                 // Preserve type, maskmax, timing
-                val = (val & 0x08000000000010DFULL) | (csrregs[current_thread][src1] & 0xF7E0000000040000ULL);
-                csrregs[current_thread][src1] = val;
+                val = (val & 0x08000000000010DFULL) | (CSRS[src1] & 0xF7E0000000040000ULL);
+                CSRS[src1] = val;
                 activate_breakpoints(prvget());
             }
             break;
         case csr_tdata2:
             // keep only valid virtual or pysical addresses
             val &= VA_M;
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
         // ----- Verification registers ----------------------------------------
         case csr_validation1:
@@ -3434,7 +3423,7 @@ static void csrset(csr src1, uint64_t val)
             break;
         // ----- All other registers -------------------------------------
         default:
-            csrregs[current_thread][src1] = val;
+            CSRS[src1] = val;
             break;
     }
 }
@@ -3470,7 +3459,7 @@ static void csr_insn(xreg dst, csr src1, uint64_t oldval, uint64_t newval, bool 
     {
         LOG(DEBUG, "\t0x%016" PRIx64 " --> CSR[%s]", newval, csr_names[src1]);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 static void throw_page_fault(uint64_t addr, mem_access_type macc)
@@ -3888,7 +3877,7 @@ static void femuld(freg dst, uint64_t vaddr)
     }
     ZERO_UNUSED_FREG_BITS(dst, Nelems);
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 template<size_t Nelems, bool Mask>
@@ -3960,7 +3949,7 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
     set_fp_exceptions();
     if (dst != x0)
         XREGS[dst].x = sext<32>(res.u);
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
@@ -4001,7 +3990,7 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
     ZERO_UNUSED_FREG_BITS(dst, 1);
     set_fp_exceptions();
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode rm)
@@ -4161,7 +4150,7 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
     ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, rounding_mode rm)
@@ -4259,7 +4248,7 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
     ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg src3, rounding_mode rm)
@@ -4319,7 +4308,7 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
     ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
@@ -4350,7 +4339,7 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
     set_fp_exceptions();
     if (dst != x0)
         XREGS[dst].x = sext<32>(res.u);
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void fadd_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
@@ -4396,7 +4385,7 @@ void fsgnj_s(freg dst, freg src1, freg src2, const char* comm)
     FREGS[dst].u[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
@@ -4411,7 +4400,7 @@ void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
     FREGS[dst].u[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
@@ -4426,7 +4415,7 @@ void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
     FREGS[dst].u[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fmin_s(freg dst, freg src1, freg src2, const char* comm)
@@ -4517,7 +4506,7 @@ void fmv_x_w(xreg dst, freg src1, const char* comm)
         XREGS[dst].x = sext<32>(FREGS[src1].u[0]);
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x (%g)", XREGS[dst].x, FREGS[src1].u[0], cast_uint32_to_float(FREGS[src1].u[0]));
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void fclass_s(xreg dst, freg src1, const char* comm)
@@ -4532,7 +4521,7 @@ void fclass_s(xreg dst, freg src1, const char* comm)
         XREGS[dst].x = sext<32>(res.u);
         LOG(DEBUG, "\t0x%08x <-- 0x%08x (%g)", res.u, val.u, val.flt);
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void fcvt_s_w(freg dst, xreg src1, rounding_mode rm, const char* comm)
@@ -4580,7 +4569,7 @@ void fmv_w_x(freg dst, xreg src1, const char* comm)
     LOG(DEBUG, "\t0x%08x (%g) <-- 0x%08x", res.u, res.flt, val.u);
     ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void flw(freg dst, xreg base, int64_t off, const char* comm)
@@ -4659,7 +4648,7 @@ static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
             assert(0);
             break;
     }
-    log_mreg_write(dst);
+    log_mreg_write(dst, MREGS[dst]);
 }
 
 void maskand(mreg dst, mreg src1, mreg src2, const char* comm)
@@ -4699,7 +4688,7 @@ void mova_x_m(xreg dst, const char* comm)
         }
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void mova_m_x(xreg src1, const char* comm)
@@ -4714,7 +4703,7 @@ void mova_m_x(xreg src1, const char* comm)
         MREGS[m].b = std::bitset<VL>(val);
         LOG(DEBUG, "\tm%d = 0x%02lx", m, MREGS[m].b.to_ulong());
         val >>= VL;
-        log_mreg_write(m);
+        log_mreg_write(m, MREGS[m]);
     }
 }
 
@@ -4726,7 +4715,7 @@ void mov_m_x(mreg dst, xreg src1, unsigned imm, const char* comm)
     uint32_t val = XREGS[src1].w[0] | (imm & ((1u<<VL) - 1u));
     MREGS[dst].b = std::bitset<VL>(val);
     LOG(DEBUG, "\tm%d = 0x%02lx (from val=0x%08" PRIx32 ")", dst, MREGS[dst].b.to_ulong(), val);
-    log_mreg_write(dst);
+    log_mreg_write(dst, MREGS[dst]);
 }
 
 void maskpopc(xreg dst, mreg src1, const char* comm)
@@ -4736,7 +4725,7 @@ void maskpopc(xreg dst, mreg src1, const char* comm)
     LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].b.to_ulong());
     if (dst != x0)
         XREGS[dst].x = count;
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void maskpopcz(xreg dst, mreg src1, const char* comm)
@@ -4746,7 +4735,7 @@ void maskpopcz(xreg dst, mreg src1, const char* comm)
     LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].b.to_ulong());
     if (dst != x0)
         XREGS[dst].x = count;
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void maskpopc_rast(xreg dst, mreg src1, mreg src2, unsigned imm, const char* comm)
@@ -4766,7 +4755,7 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, unsigned imm, const char* com
     LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src2].b.to_ulong());
     if (dst != x0)
         XREGS[dst].x = count;
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4888,7 +4877,7 @@ void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
         }
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fbci_ps(freg dst, uint32_t imm, const char* comm)
@@ -4908,7 +4897,7 @@ void fbci_ps(freg dst, uint32_t imm, const char* comm)
         }
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fbcx_ps(freg dst, xreg src, const char* comm)
@@ -4928,7 +4917,7 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
         }
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 // ----- Gather and scatter --------------------------------
@@ -4936,233 +4925,245 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
 static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
 {
     uint64_t baddr = XREGS[base].x;
-    uint64_t progress = csrregs[current_thread][csr_gsc_progress];
-    
-    for (int i = progress; i < VL; i++)
+    int elem = CSRS[csr_gsc_progress];
+    try
     {
-	csrregs[current_thread][csr_gsc_progress] = (uint64_t) i;
-	log_gsc_progress(i);
-        if (!MREGS[0].b[i]) continue;
-
-        iufval32 val;
-        int32_t off   = FREGS[src1].i[i];
-        uint64_t addr = sextVA(baddr + off);
-        check_load_breakpoint(addr);
-        switch (opc)
+        while (elem < VL)
         {
-            case FGW:
-                val.u = vmemread32(addr);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", i, val.u, addr);
-                break;
-            case FGH:
-                val.u = sext<16>(vmemread16(addr));
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", i, val.u, addr);
-                break;
-            case FGBL:
-            case FGBG:
-            case FGB:
-                val.u = sext<8>(vmemread8(addr));
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", i, val.u, addr);
-                break;
-            case FGWL:
-            case FGWG:
-                val.u = aligned_vmemread32(addr);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val.u, addr);
-                break;
-            case FGHL:
-            case FGHG:
-                val.u = sext<16>(aligned_vmemread16(addr));
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", i, val.u, addr);
-                break;
-            default:
-                assert(0);
-                break;
+            if (MREGS[0].b[elem])
+            {
+                iufval32 val;
+                int32_t off   = FREGS[src1].i[elem];
+                uint64_t addr = sextVA(baddr + off);
+                check_load_breakpoint(addr);
+                switch (opc)
+                {
+                case FGW:
+                    val.u = vmemread32(addr);
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
+                    break;
+                case FGH:
+                    val.u = sext<16>(vmemread16(addr));
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
+                    break;
+                case FGBL:
+                case FGBG:
+                case FGB:
+                    val.u = sext<8>(vmemread8(addr));
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
+                    break;
+                case FGWL:
+                case FGWG:
+                    val.u = aligned_vmemread32(addr);
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    break;
+                case FGHL:
+                case FGHG:
+                    val.u = sext<16>(aligned_vmemread16(addr));
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
+                    break;
+                default:
+                    assert(0);
+                    break;
+                }
+                FREGS[dst].u[elem] = val.u;
+                dirty_fp_state();
+            }
+            ++elem;
         }
-        FREGS[dst].u[i] = val.u;
-	// This should be processed like individual loads.
-	// If one of the loads traps, the previous ones should finish eventally (in the meantime, the trap is resolved)
-	// That's why we need to save the result in every iteration
-	dirty_fp_state();
-	log_freg_write(dst);
-	
     }
-    csrregs[current_thread][csr_gsc_progress] = 0;
-    log_gsc_progress(0,true);
-    dirty_fp_state();
-    log_freg_write(dst);
-	
-
+    catch (const trap_t&)
+    {
+        CSRS[csr_gsc_progress] = elem;
+        log_gsc_progress(elem, false);
+        log_freg_write(dst, FREGS[dst]);
+        throw;
+    }
+    CSRS[csr_gsc_progress] = 0;
+    log_gsc_progress(0, true);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
 {
     uint64_t baddr = sextVA(XREGS[src2].x);
     uint64_t index = XREGS[src1].x;
-
-    if (MREGS[0].b.any())
+    int elem = CSRS[csr_gsc_progress];
+    try
     {
-        check_load_breakpoint(baddr);
+        while (elem < VL)
+        {
+            if (MREGS[0].b[elem])
+            {
+                check_store_breakpoint(baddr);
+                uint64_t off;
+                uint64_t addr;
+                switch(size)
+                {
+                case 1 : off =  (index >> (elem * 5)) & 0x01f      ; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01f); break;
+                case 2 : off = ((index >> (elem * 4)) & 0x00f) << 1; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01e); break;
+                case 4 : off = ((index >> (elem * 3)) & 0x007) << 2; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01c); break;
+                default: assert(0); break;
+                }
+                iufval32 val;
+                switch (size)
+                {
+                case 1:
+                    val.u = sext<8>(vmemread8(addr));
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
+                    break;
+                case 2:
+                    val.u = sext<16>(vmemread16(addr));
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
+                    break;
+                case 4:
+                    val.u = vmemread32(addr);
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    break;
+                default:
+                    assert(0);
+                    break;
+                }
+                FREGS[dst].u[elem] = val.u;
+                dirty_fp_state();
+            }
+            ++elem;
+        }
     }
-
-    uint64_t progress = csrregs[current_thread][csr_gsc_progress];
-    
-    for (int i = progress; i < VL; i++)
+    catch (const trap_t&)
     {
-	csrregs[current_thread][csr_gsc_progress] = (uint64_t) i;
-	log_gsc_progress(i);
-        if (!MREGS[0].b[i]) continue;
-
-        uint64_t off;
-        uint64_t addr;
-        switch(size)
-        {
-            case 1 : off =  (index >> (i * 5)) & 0x01f      ; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01f); break;
-            case 2 : off = ((index >> (i * 4)) & 0x00f) << 1; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01e); break;
-            case 4 : off = ((index >> (i * 3)) & 0x007) << 2; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01c); break;
-            default: assert(0); break;
-        }
-
-        iufval32 val;
-        switch (size)
-        {
-            case 1:
-                val.u = sext<8>(vmemread8(addr));
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", i, val.u, addr);
-                break;
-            case 2:
-                val.u = sext<16>(vmemread16(addr));
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", i, val.u, addr);
-                break;
-            case 4:
-                val.u = vmemread32(addr);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val.u, addr);
-                break;
-            default:
-                assert(0);
-                break;
-        }
-        FREGS[dst].u[i] = val.u;
-	dirty_fp_state();
-	log_freg_write(dst);
+        CSRS[csr_gsc_progress] = elem;
+        log_gsc_progress(elem, false);
+        log_freg_write(dst, FREGS[dst]);
+        throw;
     }
-    csrregs[current_thread][csr_gsc_progress] = 0;
-    dirty_fp_state();
-    log_freg_write(dst);
-    log_gsc_progress(0,true);
-
+    CSRS[csr_gsc_progress] = 0;
+    log_gsc_progress(0, true);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 static void femuscat(opcode opc, freg src1, freg src2, xreg base)
 {
     uint64_t baddr = XREGS[base].x;
-    uint64_t progress = csrregs[current_thread][csr_gsc_progress];
-    
-    for (int i = progress; i < VL; i++)
+    int elem = CSRS[csr_gsc_progress];
+    try
     {
-	csrregs[current_thread][csr_gsc_progress] = (uint64_t) i;
-	log_gsc_progress(i);
-        if (!MREGS[0].b[i]) continue;
-
-        int32_t  off  = FREGS[src2].i[i];
-        uint64_t addr = sextVA(baddr + off);
-        iufval32 val;
-        val.u = FREGS[src1].u[i];
-
-        check_store_breakpoint(addr);
-        switch (opc)
+        while (elem < VL)
         {
-            case FSCW:
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val.u, addr);
-                vmemwrite32(addr, val.u);
-                log_mem_write(i, 4, addr, val.u);
-                break;
-            case FSCH:
-                LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", i, uint16_t(val.u), addr);
-                vmemwrite16(addr, uint16_t(val.u));
-                log_mem_write(i, 2, addr, val.u);
-                break;
-            case FSCBL:
-            case FSCBG:
-            case FSCB:
-                LOG(DEBUG, "\t[%d] 0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", i, uint8_t(val.u), addr);
-                vmemwrite8(addr, uint8_t(val.u));
-                log_mem_write(i, 1, addr, val.u);
-                break;
-            case FSCWL:
-            case FSCWG:
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val.u, addr);
-                aligned_vmemwrite32(addr, val.u);
-                log_mem_write(i, 4, addr, val.u);
-                break;
-            case FSCHL:
-            case FSCHG:
-                LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", i, uint16_t(val.u), addr);
-                aligned_vmemwrite16(addr, uint16_t(val.u));
-                log_mem_write(i, 2, addr, val.u);
-                break;
-            default:
-                assert(0);
-                break;
+            if (MREGS[0].b[elem])
+            {
+                int32_t  off  = FREGS[src2].i[elem];
+                uint64_t addr = sextVA(baddr + off);
+                iufval32 val;
+                val.u = FREGS[src1].u[elem];
+
+                check_store_breakpoint(addr);
+                switch (opc)
+                {
+                case FSCW:
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    vmemwrite32(addr, val.u);
+                    log_mem_write(elem, 4, addr, val.u);
+                    break;
+                case FSCH:
+                    LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
+                    vmemwrite16(addr, uint16_t(val.u));
+                    log_mem_write(elem, 2, addr, val.u);
+                    break;
+                case FSCBL:
+                case FSCBG:
+                case FSCB:
+                    LOG(DEBUG, "\t[%d] 0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", elem, uint8_t(val.u), addr);
+                    vmemwrite8(addr, uint8_t(val.u));
+                    log_mem_write(elem, 1, addr, val.u);
+                    break;
+                case FSCWL:
+                case FSCWG:
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    aligned_vmemwrite32(addr, val.u);
+                    log_mem_write(elem, 4, addr, val.u);
+                    break;
+                case FSCHL:
+                case FSCHG:
+                    LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
+                    aligned_vmemwrite16(addr, uint16_t(val.u));
+                    log_mem_write(elem, 2, addr, val.u);
+                    break;
+                default:
+                    assert(0);
+                    break;
+                }
+            }
+            ++elem;
         }
     }
-    csrregs[current_thread][csr_gsc_progress] = 0;
-    log_gsc_progress(0,true);
+    catch (const trap_t&)
+    {
+        CSRS[csr_gsc_progress] = elem;
+        log_gsc_progress(elem, false);
+        throw;
+    }
+    CSRS[csr_gsc_progress] = 0;
+    log_gsc_progress(0, true);
 }
 
 static void femuscat32(int size, freg src3, xreg src1, xreg src2)
 {
     uint64_t baddr = sextVA(XREGS[src2].x);
     uint64_t index = XREGS[src1].x;
-    
-    if (MREGS[0].b.any())
+    int elem = CSRS[csr_gsc_progress];
+    try
     {
-        check_store_breakpoint(baddr);
-    }
+        while (elem < VL)
+        {
+            if (MREGS[0].b[elem])
+            {
+                check_store_breakpoint(baddr);
+                uint64_t off;
+                uint64_t addr;
+                switch(size)
+                {
+                case 1 : off =  (index >> (elem * 5)) & 0x01f      ; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01f); break;
+                case 2 : off = ((index >> (elem * 4)) & 0x00f) << 1; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01e); break;
+                case 4 : off = ((index >> (elem * 3)) & 0x007) << 2; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01c); break;
+                default: assert(0); break;
+                }
 
-    uint64_t progress = csrregs[current_thread][csr_gsc_progress];
-    
-    for (int i = progress; i < VL; i++)
+                iufval32 val;
+                val.u = FREGS[src3].u[elem];
+                switch (size)
+                {
+                case 1:
+                    LOG(DEBUG, "\t[%d] 0x%02" PRIx8 " --> MEM8[0x%08" PRIx64 "]", elem, uint8_t(val.u), addr);
+                    vmemwrite8(addr, uint8_t(val.u));
+                    log_mem_write(elem, 1, addr, val.u);
+                    break;
+                case 2:
+                    LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
+                    vmemwrite16(addr, uint16_t(val.u));
+                    log_mem_write(elem, 2, addr, val.u);
+                    break;
+                case 4:
+                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    vmemwrite32(addr, val.u);
+                    log_mem_write(elem, 4, addr, val.u);
+                    break;
+                default:
+                    assert(0);
+                    break;
+                }
+            }
+            ++elem;
+        }
+    }
+    catch (const trap_t&)
     {
-	csrregs[current_thread][csr_gsc_progress] = (uint64_t) i;
-	log_gsc_progress(i);
-        if (!MREGS[0].b[i]) continue;
-
-        uint64_t off;
-        uint64_t addr;
-        switch(size)
-        {
-            case 1 : off =  (index >> (i * 5)) & 0x01f      ; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01f); break;
-            case 2 : off = ((index >> (i * 4)) & 0x00f) << 1; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01e); break;
-            case 4 : off = ((index >> (i * 3)) & 0x007) << 2; addr = (baddr & ~0x01f) | ((baddr + off) & 0x01c); break;
-            default: assert(0); break;
-        }
-
-        iufval32 val;
-        val.u = FREGS[src3].u[i];
-        switch (size)
-        {
-            case 1:
-                LOG(DEBUG, "\t[%d] 0x%02" PRIx8 " --> MEM8[0x%08" PRIx64 "]", i, uint8_t(val.u), addr);
-                vmemwrite8(addr, uint8_t(val.u));
-                break;
-            case 2:
-                LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", i, uint16_t(val.u), addr);
-                vmemwrite16(addr, uint16_t(val.u));
-                break;
-            case 4:
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val.u, addr);
-                vmemwrite32(addr, val.u);
-                break;
-            default:
-                assert(0);
-                break;
-        }
-        // Do not track store swizzles?  Same with scatters.
-        log_mem_write(i, size, addr, val.u);
+        CSRS[csr_gsc_progress] = elem;
+        log_gsc_progress(elem, false);
+        throw;
     }
-    csrregs[current_thread][csr_gsc_progress] = 0;
-    log_gsc_progress(0,true);
-
+    CSRS[csr_gsc_progress] = 0;
+    log_gsc_progress(0, true);
 }
 
 void fgb_ps(freg dst, freg src1, xreg base, const char* comm)
@@ -5397,7 +5398,7 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
         MREGS[dst].b[i] = res.u;
     }
     set_fp_exceptions();
-    log_mreg_write(dst);
+    log_mreg_write(dst, MREGS[dst]);
 }
 
 static void fswizz(freg dst, freg src1, uint8_t imm)
@@ -5412,7 +5413,7 @@ static void fswizz(freg dst, freg src1, uint8_t imm)
         LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (chan %d)", i, FREGS[dst].u[i], val.u[sel], sel);
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fadd_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
@@ -5466,7 +5467,7 @@ void fsgnj_ps(freg dst, freg src1, freg src2, const char* comm)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5485,7 +5486,7 @@ void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5504,7 +5505,7 @@ void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5616,7 +5617,7 @@ void fcmovm_ps(freg dst, freg src1, freg src2, const char* comm)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fmvz_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
@@ -5632,7 +5633,7 @@ void fmvz_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
         FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3],
         FREGS[src1].u[4], FREGS[src1].u[5], FREGS[src1].u[6], FREGS[src1].u[7]);
 
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void fmvs_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
@@ -5648,7 +5649,7 @@ void fmvs_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
         FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3],
         FREGS[src1].u[4], FREGS[src1].u[5], FREGS[src1].u[6], FREGS[src1].u[7]);
 
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void fswizz_ps(freg dst, freg src1, unsigned imm, const char* comm)
@@ -5690,7 +5691,7 @@ void fclass_ps(freg dst, freg src1, const char* comm)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fcvt_ps_pw(freg dst, freg src1, rounding_mode rm, const char* comm)
@@ -5805,7 +5806,7 @@ static void ucvtemu(opcode opc, freg dst, freg src1)
     }
     set_fp_exceptions();
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fcvt_ps_f16(freg dst, freg src1, const char* comm)
@@ -5920,7 +5921,7 @@ static void dcvtemu(opcode opc, freg dst, freg src1)
     }
     set_fp_exceptions();
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fcvt_f16_ps(freg dst, freg src1, const char* comm)
@@ -6056,7 +6057,7 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     }
     set_fp_exceptions();
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void frcp_ps(freg dst, freg src1, const char* comm)
@@ -6106,7 +6107,7 @@ void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
     }
 
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -6130,7 +6131,7 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
     }
     set_fp_exceptions();
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -6152,7 +6153,7 @@ void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -6174,7 +6175,7 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fcvt_ps_rast(freg dst, freg src1, rounding_mode rm, const char* comm)
@@ -6224,7 +6225,7 @@ void fbci_pi(freg dst, int32_t imm, const char* comm)
         }
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 // ----- Computational (follows RV64I/F/M) -----------------
@@ -6326,7 +6327,7 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
@@ -6363,7 +6364,7 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
         FREGS[dst].u[i] = res.u;
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 static void packrep(opcode opc, freg dst, freg src1)
@@ -6400,7 +6401,7 @@ static void packrep(opcode opc, freg dst, freg src1)
         LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x", i, FREGS[dst].u[i], val.u[i]);
 
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void feq_pi(freg dst, freg src1, freg src2, const char* comm)
@@ -6702,7 +6703,7 @@ void packb(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
@@ -6731,7 +6732,7 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
         XREGS[dst].x = val;
     }
-    log_xreg_write(dst);
+    log_xreg_write(dst, XREGS[dst]);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6838,7 +6839,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
         log_mem_write(el, 4, addr, val2.u);
     }
     dirty_fp_state();
-    log_freg_write(dst);
+    log_freg_write(dst, FREGS[dst]);
 }
 
 
@@ -6945,46 +6946,6 @@ static bool scp_locked[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
 // Which PA a locked cacheline is mapped to
 static uint64_t scp_trans[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
 
-uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size)
-{
-    * last_entry = scp_entry[current_thread];
-    * size = scp_size[current_thread];
-    return SCP[entry].x[block];
-}
-
-void get_scratchpad_conv_list(std::list<bool> * list)
-{
-    for (int i = 0; i < 16; i++)
-        list->push_back(scp_tm && !tmask_pass(i));
-}
-
-// This is a temporal fix until all the software is migrated to the new SCP.
-// When migration is complete, BEMU tensor operations should only operate with
-// SCP ranges
-int get_scratchpad_next_entry(int entry)
-{
-    const static int row_to_scp[48] = {
-        0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
-        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
-        32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
-        48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
-    };
-    if (csrregs[current_thread][csr_mcache_control] != 0x3)
-    {
-	LOG(DEBUG,"ERROR: SCP operation without SCP enabled!. mcache_control: %lu", csrregs[current_thread][csr_mcache_control] );
-	return entry;
-    }
-    if (entry > 47 || entry < 0)
-    {
-	LOG(DEBUG,"ERROR: SCP entry out of range : %d", entry);
-	return entry;
-    }
-    return row_to_scp[entry];
-    
-    
-    // return entry;
-}
-
 // ----- CacheOp emulation -----------------------------------------------------
 
 static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, int way, int numlines)
@@ -6998,9 +6959,9 @@ static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, i
         // If cacheline is locked or not passing tensor mask condition, skip operation
         if (!scp_locked[current_thread >> 1][set][way] && (!tm || tmask_pass(i)))
         {
-          LOG(DEBUG, "\tDoing %s (%d.%d) to Set: %d, Way: %d, DestLevel: %d",
-              evict ? "EvictSW" : "FlushSW", current_thread >> 1, current_thread & 1,
-              set, way, dest);
+            LOG(DEBUG, "\tDoing %s (%d.%d) to Set: %d, Way: %d, DestLevel: %d",
+                evict ? "EvictSW" : "FlushSW", current_thread >> 1, current_thread & 1,
+                set, way, dest);
         }
 
         // Increment set and way with wrap-around
@@ -7314,7 +7275,7 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     if(!msg_ports[thread][id].enabled) return;
 
     if ( !scp_locked[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way] ) {
-	LOG(DEBUG, "PORT_WRITE Port cache line (s%d w%d)  unlocked!\n", msg_ports[thread][id].scp_set, msg_ports[thread][id].scp_way);
+        LOG(DEBUG, "PORT_WRITE Port cache line (s%d w%d)  unlocked!\n", msg_ports[thread][id].scp_set, msg_ports[thread][id].scp_way);
     }
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
@@ -7356,12 +7317,14 @@ void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t o
         msg_port_pending_writes[thread / EMU_THREADS_PER_SHIRE].push_back(port_write);
 
         LOG_ALL_MINIONS(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from m%d", thread, id, current_thread);
-	int wr_words = 1 << (msg_ports[thread][id].logsize)/4;
-	for(int i = 0 ; i < wr_words ; ++i)
-	    LOG_ALL_MINIONS(DEBUG, "                              data[%d] 0x%08" PRIx32, i, data[i]);
+        int wr_words = 1 << (msg_ports[thread][id].logsize)/4;
+        for(int i = 0 ; i < wr_words ; ++i)
+            LOG_ALL_MINIONS(DEBUG, "                              data[%d] 0x%08" PRIx32, i, data[i]);
     }
     else
+    {
         write_msg_port_data_to_scp(thread, id, data, oob);
+    }
 }
 
 void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_id, uint32_t *data, uint8_t oob)
@@ -7382,7 +7345,9 @@ void write_msg_port_data_from_tbox(uint32_t thread, uint32_t id, uint32_t tbox_i
         LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from tbox%d", thread, id, tbox_id);
     }
     else
+    {
         write_msg_port_data_to_scp(thread, id, data, oob);
+    }
 }
 
 void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_id, uint32_t *data, uint8_t oob)
@@ -7403,7 +7368,9 @@ void write_msg_port_data_from_rbox(uint32_t thread, uint32_t id, uint32_t rbox_i
         LOG_NOTHREAD(DEBUG, "Delayed write on MSG_PORT (m%d p%d) from rbox%d", thread, id, rbox_id);
     }
     else
+    {
         write_msg_port_data_to_scp(thread, id, data, oob);
+    }
 }
 
 void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t source_thread)
@@ -7436,11 +7403,14 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
             write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
         }
         else
+        {
             LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from m%d not found!!", target_thread, port_id, source_thread);
-
+        }
     }
     else
+    {
         LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from m%d not found!!", target_thread, port_id, source_thread);
+    }
 }
 
 void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id)
@@ -7473,10 +7443,14 @@ void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, ui
             write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
         }
         else
+        {
             LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from tbox%d not found!!", target_thread, port_id, tbox_id);
+        }
     }
     else
+    {
         LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from tbox%d not found!!", target_thread, port_id, tbox_id);
+    }
 }
 
 void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id)
@@ -7509,10 +7483,14 @@ void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, ui
             write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
         }
         else
+        {
             LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from rbox%d not found!!", target_thread, port_id, rbox_id);
+        }
     }
     else
+    {
         LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from rbox%d not found!!", target_thread, port_id, rbox_id);
+    }
 }
 
 static int64_t port_get(uint32_t id, bool block)
@@ -7596,12 +7574,12 @@ static void configure_port(uint32_t id, uint64_t wdata)
 static bool txfma_off_allowed(csr src1, uint64_t val)
 {
     // if txfma is not sleep, allow
-    if (csrregs[current_thread][csr_msleep_txfma_27] == 0)
+    if (CSRS[csr_msleep_txfma_27] == 0)
         return true;
 
     // and for each csr, allow if corresponding bit in txfma_sleep_traps is 0
     // and do not allow if using the txfma
-    uint32_t trap_conf = csrregs[current_thread][csr_mtxfma_sleep_traps];
+    uint32_t trap_conf = CSRS[csr_mtxfma_sleep_traps];
     switch (src1)
     {
         case csr_tensor_fma:
@@ -7721,8 +7699,6 @@ void tensorload(uint64_t control)
     int      rows               = ((control      ) & 0xF) + 1;
 
     uint64_t addr             = sext<48>(base);
-    scp_tm                    = tm;
-
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
 
     // Cooperative tensor loads require the shire to be in cooperative mode
@@ -7744,16 +7720,15 @@ void tensorload(uint64_t control)
         tensorload_setupb_numlines[current_thread^1] = rows;
     }
 
-    scp_entry[current_thread] = dst;
-    scp_size[current_thread]  = rows;
-
     // Check if SCP is enabled
-    if (csrregs[current_thread][csr_mcache_control] != 0x3)
+    if (CSRS[csr_mcache_control] != 0x3)
     {
         LOG(DEBUG, "%s", "Tensor_Error TensorLoad with SCP disabled!!");
         update_tensor_error(1 << 4);
         return;
     }
+
+    log_tensor_load(trans, dst, rows, tm ? csrget(csr_tensor_mask) : 0);
 
     //NO TRANS
     if (trans == 0x00)
@@ -7774,6 +7749,7 @@ void tensorload(uint64_t control)
                     SCP[dst + i].u[j] = pmemread32(paddr + j*4);
                     LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, dst+i, j, SCP[dst+i].u[j], addr+j*4);
                 }
+                log_tensor_load_scp_write(i, &SCP[dst+i].x[0]);
             }
             LOG(DEBUG, "\t\tAddress = 0x%016" PRIx64 " - Stride = 0x%016" PRIx64, addr, stride);
             addr = sextVA(addr + stride);
@@ -7805,6 +7781,7 @@ void tensorload(uint64_t control)
                             (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].b[c*4+r], vaddr + c);
                     }
                 }
+                log_tensor_load_scp_write(i, &SCP[(dst+i)%L1_SCP_ENTRIES].x[0]);
             }
         }
     }
@@ -7834,6 +7811,7 @@ void tensorload(uint64_t control)
                             (dst+i)%L1_SCP_ENTRIES, c*2+r, SCP[dst+i].h[c*4+r], vaddr + c*2);
                     }
                 }
+                log_tensor_load_scp_write(i, &SCP[(dst+i)%L1_SCP_ENTRIES].x[0]);
             }
         }
     }
@@ -7904,19 +7882,13 @@ void tensorload(uint64_t control)
                         update_tensor_error(1 << 1);
                         return;
                     }
-
                 }
+                log_tensor_load_scp_write(i, &SCP[dst+i].x[0]);
                 for (int x = 0; x < L1D_LINE_SIZE/4; ++x)
                     LOG(DEBUG, "SCP[%d].u[%d] = 0x%08" PRIx32, dst+i, x, SCP[dst+i].u[x]);
             }
         }
     }
-    int op = 0;
-    if (trans == 0x05 || trans == 0x06 || trans==0x07)
-        op = 1;
-    else if (trans == 0x01 || trans == 0x02)
-        op = 2;
-    log_tensor_load(op);
 }
 
 // ----- TensorLoadL2Scp emulation --------------------------------------------------
@@ -7999,8 +7971,6 @@ static void tensorquant(uint64_t value)
     rows = rows + 1;
     line = line % L1_SCP_ENTRIES;
 
-    tensorquant_trans[current_thread] = -1;
-
     set_rounding_mode(rmdyn);
     clear_arithmetic_flags();
 
@@ -8009,10 +7979,6 @@ static void tensorquant(uint64_t value)
     {
         int trans = (value >> (k*4)) & 0xF;
         LOG(DEBUG, "\t\tTransformation %d: %s", k, get_quant_transform(trans));
-
-        tensorquant_trans[current_thread]++;
-        tensorquant_values[current_thread][k].skip_entry = false;
-        tensorquant_values[current_thread][k].regs = 0;
 
         switch (trans)
         {
@@ -8024,6 +7990,7 @@ static void tensorquant(uint64_t value)
                 }
                 return;
             case 1: // INT32_TO_FP32
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     for (int j = 0; j < cols; ++j)
@@ -8034,12 +8001,12 @@ static void tensorquant(uint64_t value)
                         res.f = fpu::i32_to_f32(val.i);
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)", freg, j%VL, res.u, res.flt, val.u, val.i);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 break;
             case 2: // FP32_TO_INT32
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     for (int j = 0; j < cols; ++j)
@@ -8050,12 +8017,12 @@ static void tensorquant(uint64_t value)
                         res.i = fpu::f32_to_i32(val.f);
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)", freg, j%VL, res.u, res.i, val.u, val.flt);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 break;
             case 3: // INT32_RELU
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     for (int j = 0; j < cols; ++j)
@@ -8066,17 +8033,17 @@ static void tensorquant(uint64_t value)
                         res.i = (val.i < 0) ? 0 : val.i;
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- MAX_INT32(0x%08x, 0x0)", freg, j%VL, res.i, val.i);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 break;
             case 4: // INT32_ADD_ROW
-                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                if (CSRS[csr_mcache_control] != 0x3)
                 {
                     update_tensor_error(1 << 4);
                     return;
                 }
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     for (int j = 0; j < cols; ++j)
@@ -8088,18 +8055,18 @@ static void tensorquant(uint64_t value)
                         res.i = val1.i + val2.i;
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
                 break;
             case 5: // INT32_ADD_COL
-                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                if (CSRS[csr_mcache_control] != 0x3)
                 {
                     update_tensor_error(1 << 4);
                     return;
                 }
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     iufval32 val2;
@@ -8112,18 +8079,18 @@ static void tensorquant(uint64_t value)
                         res.i = val1.i + val2.i;
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
                 break;
             case 6: // FP32_MUL_ROW
-                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                if (CSRS[csr_mcache_control] != 0x3)
                 {
                     update_tensor_error(1 << 4);
                     return;
                 }
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     for (int j = 0; j < cols; ++j)
@@ -8135,18 +8102,18 @@ static void tensorquant(uint64_t value)
                         res.f = fpu::f32_mul(val1.f, val2.f);
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
                 break;
             case 7: // FP32_MUL_COL
-                if (csrregs[current_thread][csr_mcache_control] != 0x3)
+                if (CSRS[csr_mcache_control] != 0x3)
                 {
                     update_tensor_error(1 << 4);
                     return;
                 }
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     iufval32 val2;
@@ -8159,13 +8126,13 @@ static void tensorquant(uint64_t value)
                         res.f = fpu::f32_mul(val1.f, val2.f);
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
                 break;
             case 8: // SATINT8
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     for (int j = 0; j < cols; ++j)
@@ -8176,12 +8143,12 @@ static void tensorquant(uint64_t value)
                         res.i = (val.i > 127 ? 127 : (val.i < -128 ? -128 : val.i)) & 0xFF;
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 break;
             case 9: // SATUINT8
+                log_tensor_quant_new_transform();
                 for (int i = 0; i < rows; ++i)
                 {
                     for (int j = 0; j < cols; ++j)
@@ -8192,8 +8159,7 @@ static void tensorquant(uint64_t value)
                         res.i = (val.i > 255 ? 255 : (val.i < 0 ? 0 : val.i)) & 0xFF;
                         FREGS[freg].u[j%VL] = res.u;
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
-                        tensorquant_values[current_thread][k].regs |= (1 << freg);
-                        tensorquant_values[current_thread][k].data[freg][j%VL] = res.u;
+                        log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 break;
@@ -8201,7 +8167,7 @@ static void tensorquant(uint64_t value)
                 // RTL operates on even registers first, and then on odd
                 // registers, so it generates two writes to the destination
                 // register when a row spans a vector.
-                tensorquant_values[current_thread][k].skip_entry = (cols >= VL);
+                log_tensor_quant_new_transform(cols >= VL);
                 for (int i = 0; i < rows; ++i)
                 {
                     int fdst = (fstart + i*2) % 32;
@@ -8217,10 +8183,8 @@ static void tensorquant(uint64_t value)
                         FREGS[fdst].b[j+2] = uint8_t(val2 & 0xFF);
                         FREGS[fdst].b[j+3] = uint8_t(val3 & 0xFF);
                         LOG(DEBUG, "\tf%d[%d] 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x}", fdst, j/4, FREGS[fdst].u[j/4], val0, val1, val2, val3);
+                        log_tensor_quant_write(k, fdst, j/4, FREGS[fdst].u[j/4]);
                     }
-                    tensorquant_values[current_thread][k].regs |= (1 << fdst);
-                    for (int j = 0; j < VL; ++j)
-                        tensorquant_values[current_thread][k].data[fdst][j] = FREGS[fdst].u[j];
                 }
                 break;
             default:
@@ -8228,19 +8192,6 @@ static void tensorquant(uint64_t value)
                 break;
         }
     }
-}
-
-uint32_t get_tensorquant_value(int entry, int transform, int lane, int * reg, int * size, int * transforms, bool * skip_entry)
-{
-    uint32_t regs = tensorquant_values[current_thread][transform].regs;
-    while (entry-- > 0) {
-        regs = regs & (regs - 1);
-    }
-    * reg         = __builtin_ffs(regs) - 1;
-    * size        = __builtin_popcount(tensorquant_values[current_thread][transform].regs);
-    * transforms  = tensorquant_trans[current_thread];
-    * skip_entry  = tensorquant_values[current_thread][transform].skip_entry;
-    return tensorquant_values[current_thread][transform].data[*reg][lane];
 }
 
 // ----- TensorStore emulation -------------------------------------------------
@@ -8262,7 +8213,7 @@ static void tensorstore(uint64_t tstorereg)
         LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
 
         // Check if L1 SCP is enabled
-        if (csrregs[current_thread][csr_mcache_control] != 0x3)
+        if (CSRS[csr_mcache_control] != 0x3)
         {
             update_tensor_error(1 << 4);
             return;
@@ -8381,7 +8332,7 @@ static void tensor_fma32(uint64_t tfmareg)
     acols = acols + 1;
 
     // Check if L1 SCP is enabled
-    if (csrregs[current_thread][csr_mcache_control] != 3)
+    if (CSRS[csr_mcache_control] != 3)
     {
         update_tensor_error(1 << 4);
         return;
@@ -8502,7 +8453,7 @@ static void tensor_fma16a32(uint64_t tfmareg)
     aoffset = aoffset * 2;
 
     // Check if L1 SCP is enabled
-    if (csrregs[current_thread][csr_mcache_control] != 3)
+    if (CSRS[csr_mcache_control] != 3)
     {
         update_tensor_error(1 << 4);
         return;
@@ -8626,7 +8577,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
     aoffset = aoffset * 4;
 
     // Check if L1 SCP is enabled
-    if (csrregs[current_thread][csr_mcache_control] != 3)
+    if (CSRS[csr_mcache_control] != 3)
     {
         update_tensor_error(1 << 4);
         return;
@@ -8653,7 +8604,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
         {
             for (int j = 0; j < bcols; ++j)
             {
-                tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = 0;
+                TENC[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = 0;
             }
         }
     }
@@ -8676,7 +8627,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW + j/VL].u[j%VL];
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = TENC[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL];
                         LOG(DEBUG, "\tTensorIMA8A32(%d) f%d[%d] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
                         log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL]);
                     }
@@ -8684,7 +8635,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 continue;
             }
 
-            fdata* dst = (tenc2rf && (k+4 == acols)) ? FREGS : tensorfma_tenc[current_thread];
+            fdata* dst = (tenc2rf && (k+4 == acols)) ? FREGS : TENC;
             const char* dname = (tenc2rf && (k+4 == acols)) ? "f" : "TenC";
 
 #define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].b[(aoffset+k+(x)) % L1D_LINE_SIZE]
@@ -8709,7 +8660,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
                                         && (a3==0 || b3==0) && (a4==0 || b4==0))
                     continue;
 
-                int32_t c0 = tensorfma_tenc[current_thread][i*TFMA_REGS_PER_ROW+j/VL].i[j%VL];
+                int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL];
                 int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
                 dst[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL] = c;
                 log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
@@ -8724,7 +8675,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
     // logging
     for (int i = 0; i < arows; ++i)
     {
-        const fdata* dst = tenc2rf ? FREGS : tensorfma_tenc[current_thread];
+        const fdata* dst = tenc2rf ? FREGS : TENC;
         const char* dname = tenc2rf ? "f" : "TenC";
         for (int j = 0; j < bcols; ++j)
             LOG(DEBUG, "\tC[%d][%d]: %s%d[%d] = 0x%08" PRIx32, i, j, dname,
@@ -8742,9 +8693,7 @@ static void tensorreduce(uint64_t value)
     if (!txfma_off_allowed(csr_tensor_reduce, value))
         throw trap_txfma_off(current_inst);
 
-    get_reduce_info(value, &other_min, &action);
-
-    reduce_size[current_thread] = 0;
+    tensor_reduce_decode(value, &other_min, &action);
 
     // Do nothing
     if (action == 2) return;
@@ -8757,16 +8706,15 @@ static void tensorreduce(uint64_t value)
     uint32_t operation = (value >> 24) & 0xF;
     int      num_reg   = (value >> 16) & 0xFF;
 
-    // Info for checker
-    reduce_size[current_thread]  = num_reg;
-    reduce_entry[current_thread] = start_reg;
-
     // Sending and receiving from the same minion
     if (other_min == (current_thread>>1))
     {
         update_tensor_error(1 << 9);
         return;
     }
+
+    // Info for checker
+    log_tensor_reduce(start_reg, num_reg);
 
     clear_arithmetic_flags();
     if (operation == 0) // FADD
@@ -8786,18 +8734,16 @@ static void tensorreduce(uint64_t value)
                 src2.u = fregs[other_min<<1][op_reg].u[j];
                 rslt.f = fpu::f32_add(src1.f, src2.f);
                 FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fadd) f%d[%d]: %g = %g + %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,src2.flt,other_min);
-                LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
+                LOG(DEBUG, "\tReduce (fadd) f%d[%d]: 0x%08x = 0x%08x + 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
             }
             else if (operation == 2) // FMAX
             {
                 iufval32 src1, src2, rslt;
                 src1.u = FREGS[op_reg].u[j];
                 src2.u = fregs[other_min<<1][op_reg].u[j];
-                rslt.f = fpu::f32_maximumNumber(src1.f,src2.f);//src1.u > src2.u ? src1.u : src2.u;
+                rslt.f = fpu::f32_maximumNumber(src1.f,src2.f);
                 FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fmax) f%d[%d]: %g = %g > %g(m%" PRId64 ")",op_reg,j,rslt.flt,src1.flt,src2.flt,other_min);
-                LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x > 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
+                LOG(DEBUG, "\tReduce (fmax) f%d[%d]: 0x%08x = 0x%08x > 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
             }
             else if (operation == 4) // IADD
             {
@@ -8806,24 +8752,20 @@ static void tensorreduce(uint64_t value)
                 src2.u = fregs[other_min<<1][op_reg].u[j];
                 rslt.u = src1.u + src2.u;
                 FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (iadd) f%d[%d]: %d = %d + %d(m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
-                LOG(DEBUG, "\t              f%d[%d]: 0x%08x = 0x%08x + 0x%08x",op_reg,j,rslt.u,src1.u,src2.u);
+                LOG(DEBUG, "\tReduce (iadd) f%d[%d]: 0x%08x = 0x%08x + 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
             }
             else if (operation == 8) // FGET
             {
                 iufval32 tmp;
                 tmp.u = fregs[other_min<<1][op_reg].u[j];
                 FREGS[op_reg].u[j] = tmp.u;
-                LOG(DEBUG, "\tReduce (get) f%d[%d]: <= %g(m%" PRId64 ")",op_reg,j,tmp.flt,other_min);
-                LOG(DEBUG, "\t             f%d[%d]: <= 0x%08x",op_reg,j,tmp.u);
+                LOG(DEBUG, "\tReduce (get) f%d[%d]: <= 0x%08x (m%" PRId64 ")",op_reg,j,tmp.u,other_min);
             }
             else
             {
-                LOG(DEBUG, "ERROR reduce/broadcast operation = %d not yet supported in emu", operation);
+                LOG(ERR, "Reduce/broadcast operation = %d not yet supported in emu", operation);
             }
-
-            // Checker
-            reduce_data[current_thread][op_reg][j] = FREGS[op_reg].u[j];
+            log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u[j]);
         }
     }
     set_fp_exceptions();
@@ -8833,7 +8775,7 @@ static void tensorreduce(uint64_t value)
 // Helper function that given the written value to the CSR, returns:
 //   - what is the ID of the other minion of the reduce
 //   - what is the action taken by the minion (send, receive, do nothing)
-void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action)
+void tensor_reduce_decode(uint64_t value, uint64_t* other_min, uint64_t* action)
 {
     uint64_t level = (value >> 3) & 0xF;
     uint64_t type  = value & 3;
@@ -8891,13 +8833,6 @@ void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action)
             * action    = 2; // do nothing
         }
     }
-}
-
-uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry)
-{
-    * size = reduce_size[current_thread];
-    * start_entry = reduce_entry[current_thread];
-    return reduce_data[current_thread][entry][block];
 }
 
 // ----- Shire cooperative mode ------------------------------------------------

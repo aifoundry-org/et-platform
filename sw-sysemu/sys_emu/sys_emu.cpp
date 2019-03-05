@@ -767,10 +767,6 @@ int main(int argc, char * argv[])
 
     in_sysemu = true;
 
-    // Log state (needed to know PC changes)
-    inst_state_change emu_state_change;
-    setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
-
     // Defines the memory access functions
     set_memory_funcs(emu_memread8,
                      emu_memread16,
@@ -782,7 +778,7 @@ int main(int argc, char * argv[])
                      emu_memwrite64);
 
     // Callbacks for port writes
-    set_msg_funcs((void *) msg_to_thread);
+    set_msg_funcs(msg_to_thread);
 
     // Parses the memory description
     if (elf_file != NULL) {
@@ -913,7 +909,7 @@ int main(int argc, char * argv[])
                     uint64_t other_min, action;
                     // Gets the source used for the reduce
                     uint64_t value = xget(inst.rs1());
-                    get_reduce_info(value, &other_min, &action);
+                    tensor_reduce_decode(value, &other_min, &action);
                     // Sender
                     if(action == 0)
                     {

@@ -1,6 +1,7 @@
 // Global
 #include <cassert>
 #include <cstdio>
+#include <stdexcept>
 
 // Local
 #include "main_memory_region_esr.h"
