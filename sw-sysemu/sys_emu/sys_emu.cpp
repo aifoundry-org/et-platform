@@ -4,6 +4,7 @@
 #include <list>
 #include <exception>
 #include <algorithm>
+#include <locale>
 
 #include "emu.h"
 #include "emu_gio.h"
@@ -253,17 +254,18 @@ void pc_breakpoints_clear(void)
 
 static const char * help_dbg =
 "\
-help|h:           Print this message\n\
-run|r:            Execute until the end or a breakpoint is reached\n\
-step|s [n]:       Execute n cycles (or 1 if not specified)\n\
-pc [N]:           Dump PC of thread N (0 <= N < 2048)\n\
-xdump|x [N]:      Dump GPRs of thread N (0 <= N < 2048)\n\
-fdump|f [N]:      Dump FPRs of thread N (0 <= N < 2048)\n\
-csr [N] <off>:    Dump the CSR at offset \"off\" of thread N (0 <= N < 2048)\n\
-break|b [N] <PC>: Set a breakpoint for the provided PC and thread N\n\
-list_breaks [N]:  List the currently active breakpoints for a given thread N, or all if N == 0.\n\
-clear_breaks [N]: Clear all the breakpoints previously set if no N, or for thread N\n\
-quit|q:           Terminate the program\n\
+help|h:                Print this message\n\
+run|r:                 Execute until the end or a breakpoint is reached\n\
+step|s [n]:            Execute n cycles (or 1 if not specified)\n\
+pc [N]:                Dump PC of thread N (0 <= N < 2048)\n\
+xdump|x [N]:           Dump GPRs of thread N (0 <= N < 2048)\n\
+fdump|f [N]:           Dump FPRs of thread N (0 <= N < 2048)\n\
+csr [N] <off>:         Dump the CSR at offset \"off\" of thread N (0 <= N < 2048)\n\
+mdump|m <addr> <size>: Dump size bytes of memory at addr\n\
+break|b [N] <PC>:      Set a breakpoint for the provided PC and thread N\n\
+list_breaks [N]:       List the currently active breakpoints for a given thread N, or all if N == 0.\n\
+clear_breaks [N]:      Clear all the breakpoints previously set if no N, or for thread N\n\
+quit|q:                Terminate the program\n\
 ";
 
 size_t split(const std::string &txt, std::vector<std::string> &strs, char ch = ' ')
@@ -284,6 +286,29 @@ size_t split(const std::string &txt, std::vector<std::string> &strs, char ch = '
    strs.push_back( txt.substr( initialPos, std::min( pos, txt.size() ) - initialPos + 1 ) );
 
    return strs.size();
+}
+
+static void memdump(uint64_t addr, uint64_t size)
+{
+    char ascii[17] = {0};
+    for (uint64_t i = 0; i < size; i++) {
+        uint8_t data = emu_memread8(addr + i);
+        printf("%02X ", data);
+        ascii[i % 16] = std::isprint(data) ? data : '.';
+        if ((i + 1) % 8 == 0 || (i + 1) == size) {
+            printf(" ");
+            if ((i + 1) % 16 == 0) {
+                printf("|  %s \n", ascii);
+            } else if (i+1 == size) {
+                ascii[(i+1) % 16] = '\0';
+                if ((i + 1) % 16 <= 8)
+                    printf(" ");
+                for (uint64_t j = (i+1) % 16; j < 16; j++)
+                    printf("   ");
+                printf("|  %s \n", ascii);
+            }
+        }
+    }
 }
 
 bool process_dbg_cmd(std::string cmd) {
@@ -351,6 +376,12 @@ bool process_dbg_cmd(std::string cmd) {
         printf("Unrecognized CSR register\n");
       } else {
         printf("CSR[%d][0x%x] = 0x%lx\n", thid, offset, get_csr(thid, c));
+      }
+   } else if ((command[0] == "m") || (command[0] == "mdump")) {
+      if (num_args > 2) {
+          uint64_t addr = std::stoull(command[1], nullptr, 0);
+          uint64_t size = std::stoull(command[2], nullptr, 0);
+          memdump(addr, size);
       }
    } else {
       printf("Unknown command\n\n");
