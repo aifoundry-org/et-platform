@@ -320,6 +320,11 @@ uint64_t fcc_cnt;
 uint16_t fcc[EMU_NUM_THREADS][2] ={{0}};
 bool fcc_wait[EMU_NUM_THREADS] = {false};
 
+// Shire ESRs
+bool esr_shire_coop_mode[EMU_NUM_SHIRES] = {};
+uint8_t esr_icache_prefetch_enable[EMU_NUM_SHIRES] = {};
+bool esr_icache_prefetch_active[EMU_NUM_SHIRES] = {};
+
 // only for checker, list of minions to awake (e.g. waiting for FCC that has just been written)
 std::queue<uint32_t> minions_to_awake;
 std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
@@ -6964,16 +6969,20 @@ int get_scratchpad_next_entry(int entry)
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
         48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     };
-    if (csrregs[current_thread][csr_mcache_control] == 0x3)
+    if (csrregs[current_thread][csr_mcache_control] != 0x3)
     {
-        if (entry > 47 || entry < 0)
-        {
-            LOG(DEBUG,"SCP entry out of range : %d", entry);
-            return entry;
-        }
-        return row_to_scp[entry];
+	LOG(DEBUG,"ERROR: SCP operation without SCP enabled!. mcache_control: %lu", csrregs[current_thread][csr_mcache_control] );
+	return entry;
     }
-    return entry;
+    if (entry > 47 || entry < 0)
+    {
+	LOG(DEBUG,"ERROR: SCP entry out of range : %d", entry);
+	return entry;
+    }
+    return row_to_scp[entry];
+    
+    
+    // return entry;
 }
 
 // ----- CacheOp emulation -----------------------------------------------------
@@ -7721,8 +7730,7 @@ void tensorload(uint64_t control)
     {
         uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
         assert(shire != EMU_IO_SHIRE_SP);
-        uint64_t shire_coop_mode = pmemread64(ESR_SHIRE(CSR_PRV_S, shire, COOP_MODE));
-        if (!shire_coop_mode)
+        if (!esr_shire_coop_mode[shire])
             throw trap_illegal_instruction(current_inst);
     }
 
@@ -8318,8 +8326,7 @@ static void tensorstore(uint64_t tstorereg)
         {
             uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
             assert(shire != EMU_IO_SHIRE_SP);
-            uint64_t shire_coop_mode = pmemread64(ESR_SHIRE(CSR_PRV_S, shire, COOP_MODE));
-            if (!shire_coop_mode)
+            if (!esr_shire_coop_mode[shire])
                 throw trap_illegal_instruction(current_inst);
         }
 
@@ -8858,6 +8865,22 @@ uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry)
     return reduce_data[current_thread][entry][block];
 }
 
+// ----- Shire cooperative mode ------------------------------------------------
+
+void write_shire_coop_mode(unsigned shire, uint64_t val)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+    esr_shire_coop_mode[shire] = !!(val & 1);
+    if (!esr_shire_coop_mode[shire])
+        esr_icache_prefetch_active[shire] = false;
+}
+
+uint64_t read_shire_coop_mode(unsigned shire)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+    return esr_shire_coop_mode[shire] ? 1ull : 0ull;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Esperanto fast local barrier extension emulation
@@ -8957,7 +8980,6 @@ void raise_interrupt(int thread, int cause)
     csrregs[thread][csr_mip] |= 1<<cause;
 }
 
-
 void raise_software_interrupt(int thread)
 {
     csrregs[thread][csr_mip] |= 0x8;
@@ -8986,4 +9008,49 @@ void raise_external_interrupt(int thread)
 void clear_external_interrupt(int thread)
 {
     csrregs[thread][csr_mip] &= ~0x800;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+// Esperanto code prefetching extension emulation
+//
+////////////////////////////////////////////////////////////////////////////////
+
+void write_icache_prefetch_enable(unsigned shire, uint64_t val)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+    esr_icache_prefetch_enable[shire] = val & ((1 << EMU_NEIGH_PER_SHIRE) - 1);
+    if (!esr_icache_prefetch_enable[shire])
+        esr_icache_prefetch_active[shire] = false;
+}
+
+void write_icache_prefetch_trigger(unsigned shire, uint64_t val)
+{
+    (void)(val);
+    assert(shire <= EMU_MASTER_SHIRE);
+#ifdef SYS_EMU
+    // NB: Prefetches finish instantaneously in sys_emu
+    esr_icache_prefetch_active[shire] = false;
+#else
+    bool enabled = esr_icache_prefetch_enable[shire] && esr_shire_coop_mode[shire];
+    esr_icache_prefetch_active[shire] = enabled;
+#endif
+}
+
+uint64_t read_icache_prefetch_enable(unsigned shire)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+    return esr_icache_prefetch_enable[shire];
+}
+
+uint64_t read_icache_prefetch_trigger(unsigned shire)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+    return esr_icache_prefetch_active[shire] ? 0ull : 1ull;
+}
+
+void finish_icache_prefetch(unsigned shire)
+{
+    assert(shire <= EMU_MASTER_SHIRE);
+    esr_icache_prefetch_active[shire] = false;
 }
