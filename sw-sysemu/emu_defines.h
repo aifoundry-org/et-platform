@@ -125,34 +125,34 @@
 // Helper macros to construct ESR addresses in the various subregions
 
 #define ESR_HART(prot, shire, hart, name) \
-    (ESR_HART_REGION + \
+    (uint64_t(ESR_HART_REGION) + \
      (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
      (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
      (uint64_t(hart) << ESR_HART_SHIFT) + \
       uint64_t(ESR_HART_ ## name))
 
 #define ESR_NEIGH(prot, shire, neigh, name) \
-    (ESR_NEIGH_REGION + \
+    (uint64_t(ESR_NEIGH_REGION) + \
      (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
      (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
      (uint64_t(neigh) << ESR_NEIGH_SHIFT) + \
       uint64_t(ESR_NEIGH_ ## name))
 
 #define ESR_CACHE(prot, shire, bank, name) \
-    (ESR_CACHE_REGION + \
+    (uint64_t(ESR_CACHE_REGION) + \
      (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
      (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
      (uint64_t(bank) << ESR_BANK_SHIFT) + \
       uint64_t(ESR_CACHE_ ## name))
 
 #define ESR_RBOX(prot, shire, name) \
-    (ESR_RBOX_REGION + \
+    (uint64_t(ESR_RBOX_REGION) + \
      (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
      (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
       uint64_t(ESR_RBOX_ ## name))
 
 #define ESR_SHIRE(prot, shire, name) \
-    (ESR_SHIRE_REGION + \
+    (uint64_t(ESR_SHIRE_REGION) + \
      (uint64_t(prot) << ESR_REGION_PROT_SHIFT) + \
      (uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
       uint64_t(ESR_SHIRE_ ## name))
@@ -188,50 +188,53 @@
 #define ESR_RBOX_CONSUME                0x00007 /* PP = 0b00 */
 
 // Shire ESRs
-#define ESR_SHIRE_0                     0x00000 /* PP = 0b00 */
-#define ESR_SHIRE_IPI_REDIRECT_TRIGGER  0x00080
-#define ESR_SHIRE_IPI_REDIRECT_FILTER   0x00088
-#define ESR_SHIRE_IPI_TRIGGER           0x00090
-#define ESR_SHIRE_IPI_TRIGGER_CLEAR     0x00098
-#define ESR_SHIRE_FCC0                  0x000C0
-#define ESR_SHIRE_FCC1                  0x000C8
-#define ESR_SHIRE_FCC2                  0x000D0
-#define ESR_SHIRE_FCC3                  0x000D8
-#define ESR_SHIRE_FLB0                  0x00100
-#define ESR_SHIRE_FLB1                  0x00108
-#define ESR_SHIRE_FLB2                  0x00110
-#define ESR_SHIRE_FLB3                  0x00118
-#define ESR_SHIRE_FLB4                  0x00120
-#define ESR_SHIRE_FLB5                  0x00128
-#define ESR_SHIRE_FLB6                  0x00130
-#define ESR_SHIRE_FLB7                  0x00138
-#define ESR_SHIRE_FLB8                  0x00140
-#define ESR_SHIRE_FLB9                  0x00148
-#define ESR_SHIRE_FLB10                 0x00150
-#define ESR_SHIRE_FLB11                 0x00158
-#define ESR_SHIRE_FLB12                 0x00160
-#define ESR_SHIRE_FLB13                 0x00168
-#define ESR_SHIRE_FLB14                 0x00170
-#define ESR_SHIRE_FLB15                 0x00178
-#define ESR_SHIRE_FLB16                 0x00180
-#define ESR_SHIRE_FLB17                 0x00188
-#define ESR_SHIRE_FLB18                 0x00190
-#define ESR_SHIRE_FLB19                 0x00198
-#define ESR_SHIRE_FLB20                 0x001A0
-#define ESR_SHIRE_FLB21                 0x001A8
-#define ESR_SHIRE_FLB22                 0x001B0
-#define ESR_SHIRE_FLB23                 0x001B8
-#define ESR_SHIRE_FLB24                 0x001C0
-#define ESR_SHIRE_FLB25                 0x001C8
-#define ESR_SHIRE_FLB26                 0x001D0
-#define ESR_SHIRE_FLB27                 0x001D8
-#define ESR_SHIRE_FLB28                 0x001E0
-#define ESR_SHIRE_FLB29                 0x001E8
-#define ESR_SHIRE_FLB30                 0x001F0
-#define ESR_SHIRE_FLB31                 0x001F8
-#define ESR_SHIRE_COOP_MODE             0x00290
-#define ESR_SHIRE_BROADCAST0            0x1FFF0
-#define ESR_SHIRE_BROADCAST1            0x1FFF8
+#define ESR_SHIRE_0                         0x00000 /* PP = 0b00 */
+#define ESR_SHIRE_MINION_FEATURE            0x00000
+#define ESR_SHIRE_IPI_REDIRECT_TRIGGER      0x00080
+#define ESR_SHIRE_IPI_REDIRECT_FILTER       0x00088
+#define ESR_SHIRE_IPI_TRIGGER               0x00090
+#define ESR_SHIRE_IPI_TRIGGER_CLEAR         0x00098
+#define ESR_SHIRE_FCC0                      0x000C0
+#define ESR_SHIRE_FCC1                      0x000C8
+#define ESR_SHIRE_FCC2                      0x000D0
+#define ESR_SHIRE_FCC3                      0x000D8
+#define ESR_SHIRE_FLB0                      0x00100
+#define ESR_SHIRE_FLB1                      0x00108
+#define ESR_SHIRE_FLB2                      0x00110
+#define ESR_SHIRE_FLB3                      0x00118
+#define ESR_SHIRE_FLB4                      0x00120
+#define ESR_SHIRE_FLB5                      0x00128
+#define ESR_SHIRE_FLB6                      0x00130
+#define ESR_SHIRE_FLB7                      0x00138
+#define ESR_SHIRE_FLB8                      0x00140
+#define ESR_SHIRE_FLB9                      0x00148
+#define ESR_SHIRE_FLB10                     0x00150
+#define ESR_SHIRE_FLB11                     0x00158
+#define ESR_SHIRE_FLB12                     0x00160
+#define ESR_SHIRE_FLB13                     0x00168
+#define ESR_SHIRE_FLB14                     0x00170
+#define ESR_SHIRE_FLB15                     0x00178
+#define ESR_SHIRE_FLB16                     0x00180
+#define ESR_SHIRE_FLB17                     0x00188
+#define ESR_SHIRE_FLB18                     0x00190
+#define ESR_SHIRE_FLB19                     0x00198
+#define ESR_SHIRE_FLB20                     0x001A0
+#define ESR_SHIRE_FLB21                     0x001A8
+#define ESR_SHIRE_FLB22                     0x001B0
+#define ESR_SHIRE_FLB23                     0x001B8
+#define ESR_SHIRE_FLB24                     0x001C0
+#define ESR_SHIRE_FLB25                     0x001C8
+#define ESR_SHIRE_FLB26                     0x001D0
+#define ESR_SHIRE_FLB27                     0x001D8
+#define ESR_SHIRE_FLB28                     0x001E0
+#define ESR_SHIRE_FLB29                     0x001E8
+#define ESR_SHIRE_FLB30                     0x001F0
+#define ESR_SHIRE_FLB31                     0x001F8
+#define ESR_SHIRE_ICACHE_PREFETCH_ENABLE    0x00200
+#define ESR_SHIRE_ICACHE_PREFETCH_TRIGGER   0x00208
+#define ESR_SHIRE_COOP_MODE                 0x00290
+#define ESR_SHIRE_BROADCAST0                0x1FFF0
+#define ESR_SHIRE_BROADCAST1                0x1FFF8
 
 // Broadcast ESR fields
 #define ESR_BROADCAST_PROT_MASK              0x1800000000000000ULL // Region protection is defined in bits [60:59] in esr broadcast data write.
