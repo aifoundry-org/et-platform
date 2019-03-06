@@ -292,7 +292,7 @@ static void memdump(uint64_t addr, uint64_t size)
 {
     char ascii[17] = {0};
     for (uint64_t i = 0; i < size; i++) {
-        uint8_t data = emu_memread8(addr + i);
+        uint8_t data = pmemread8(vmemtranslate(addr + i, Mem_Access_Load));
         printf("%02X ", data);
         ascii[i % 16] = std::isprint(data) ? data : '.';
         if ((i + 1) % 8 == 0 || (i + 1) == size) {
