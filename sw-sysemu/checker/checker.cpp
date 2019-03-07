@@ -576,14 +576,14 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             // Someone changed the flags
             std::string changer =  emu_state_change.fflags_mod ? "EMU" : "RTL";
             stream << "BEMU Checker fflags changed by " << changer << ". BEMU expects new flags 0x" << std::hex << emu_state_change.fflags_value << " but DUT reported 0x" << changes->fflags_value << std::dec << std::endl;
-            check_res = (check_res != CHECKER_ERROR) ? CHECKER_WARNING : CHECKER_ERROR;
+            check_res = ((check_res != CHECKER_ERROR) && (inst.is_tensor_fma() || inst.is_reduce() || inst.is_tensor_quant())) ? CHECKER_WARNING : CHECKER_ERROR;
         }
         else if(emu_state_change.fflags_mod)
         {
             if ( changes->fflags_value != emu_state_change.fflags_value )
             {
                 stream << "BEMU Checker fflags values change. BEMU expects new flags 0x" << std::hex << emu_state_change.fflags_value << " but DUT reported 0x" << changes->fflags_value << std::dec << std::endl;
-                check_res = (check_res != CHECKER_ERROR) ? CHECKER_WARNING : CHECKER_ERROR;
+                check_res = ((check_res != CHECKER_ERROR)  && (inst.is_tensor_fma() || inst.is_reduce() || inst.is_tensor_quant())) ? CHECKER_WARNING : CHECKER_ERROR;
             }
         }
 
