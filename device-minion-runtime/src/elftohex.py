@@ -61,6 +61,9 @@ def even_parity(x):
     x &= 0xf
     return (0x6996 >> x) & 1
 
+# basic operation on a bitfield
+# bitfield - an array of 18 bytes
+# offset - which bit (0-143) in the bitfield should be set to 1
 def set_bit_in_bitfield(bfield, offset):
     if not len(bfield) == 18:
         print("set_bit_in_bitfield: illegal list length", x)
@@ -74,6 +77,11 @@ def set_bit_in_bitfield(bfield, offset):
 
     bfield[byte_index] |= (1 << bit_index)
 
+#basic operation on a bitfield
+# bitfield - an array of 18 bytes
+# offset - bit offset (0-137) where the 8-bit byte value should be written to the bitfield
+# val - value to be written
+# the function assumes that the bitfield was initially set to ALL ZEROS!  It does NOT clear any bits, only sets bits to 1.
 def set_byte_in_bitfield(bfield, offset, val):
     if not len(bfield) == 18:
         print("set_byte_in_bitfield: illegal list length", x)
@@ -87,6 +95,9 @@ def set_byte_in_bitfield(bfield, offset, val):
         if 0 != bit_val:
             set_bit_in_bitfield(bfield, offset + bit_index)
 
+# adds parity bits to an array of bytes
+# x - array of 16 bytes
+# return value - array of 18 bytes where each original 8 bits has a 1 parity bit added
 def add_parity_bytes(x):
     if not len(x) == 16:
         print("add_parity: illegal list length", x)
