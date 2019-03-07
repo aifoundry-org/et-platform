@@ -15,7 +15,7 @@
     ],
     "BUILD_STEPS": [
         "echo \"BUILD START\"",
-        "./device-firmware.py et-sw-device-fw \"mkdir -p build && cd build && cmake .. && make all -j $(nproc) \" ",
+        "./device-firmware.py et-sw-device-fw --mount-home \"mkdir -p build && cd build && cmake .. && make all -j $(nproc) \" ",
         "echo sync the documenation",
 
         "echo \"BUILD DONE\""
