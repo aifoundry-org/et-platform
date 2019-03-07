@@ -61,18 +61,46 @@ def even_parity(x):
     x &= 0xf
     return (0x6996 >> x) & 1
 
-# Given a list of 8 bytes, calculates a parity bit for each byte
-# and packs the 8 parity bits into a new byte where:
-# lsb = parity of bytes[0]
-# msb = parity of bytes[7]
-def calc_parity_byte(x):
-    if not len(x) == 8:
-        print("illegal list length", x)
+def set_bit_in_bitfield(bfield, offset):
+    if not len(bfield) == 18:
+        print("set_bit_in_bitfield: illegal list length", x)
         sys.exit(-1)
-    parityByte = 0
-    for i in range(8):
-        if even_parity(x[i]) : parityByte |= (1 << i)
-    return parityByte
+    if offset < 0 or 144 <= offset:
+        print("set_bit_in_bitfield: illegal offset", offset)
+        sys.exit(-1)
+    
+    byte_index = int(offset / 8)
+    bit_index = offset % 8
+
+    bfield[byte_index] |= (1 << bit_index)
+
+def set_byte_in_bitfield(bfield, offset, val):
+    if not len(bfield) == 18:
+        print("set_byte_in_bitfield: illegal list length", x)
+        sys.exit(-1)
+    if offset < 0 or (144-7) <= offset:
+        print("set_byte_in_bitfield: illegal offset", offset)
+        sys.exit(-1)
+
+    for bit_index in range(8):
+        bit_val = val & (1 << bit_index)
+        if 0 != bit_val:
+            set_bit_in_bitfield(bfield, offset + bit_index)
+
+def add_parity_bytes(x):
+    if not len(x) == 16:
+        print("add_parity: illegal list length", x)
+        sys.exit(-1)
+    
+    result = [0] * 18
+    offset = 0
+    for i in x:
+        set_byte_in_bitfield(result, offset, i)
+        if even_parity(i):
+            set_bit_in_bitfield(result, offset + 8)
+        offset += 9
+
+    return result
 
 def write_hex(baseAddress, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, parity):
     inputBytesPerLine = inputBytesPerPanel * panelsPerLine
@@ -128,8 +156,7 @@ def write_lines(bytes, baseAddress, address, inputBytesPerPanel, panelsPerLine, 
             outputBytes = [bytes[offset + x] if (offset + x) < len(bytes) else 0 for x in range(panel*inputBytesPerPanel, (panel+1)*inputBytesPerPanel)]
 
             if parity:
-                outputBytes.append(calc_parity_byte(outputBytes[0:8])) # parity for lower 8 bytes
-                outputBytes.append(calc_parity_byte(outputBytes[8:16])) # parity for upper 8 bytes
+                outputBytes = add_parity_bytes(outputBytes)
 
             # Append outputBytes in reverse order, parity first then MSByte to LSByte
             for byte in reversed(outputBytes):
