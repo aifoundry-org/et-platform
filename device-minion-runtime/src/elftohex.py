@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-# Utility to convert an elf file to ZeBu hex files to preload SP RAM (inc. parity), SP ROM or DRAM
+# Utility to convert an elf file to ZeBu hex files to preload SP RAM (inc. parity), SP ROM, AXI DRAM or DDR DRAM
 #
 # The 1MB of SP RAM is organized into 4 contiguous 256KB blocks
 # Each 256KB block is organized into 4 panels that store 18 bytes each
@@ -19,13 +19,61 @@
 # Each memory controller deals with 64-byte cache line sized transactions
 # addr[5:0] byte in panel
 # addr[8:6] memshire
-# addr[9] controller (0=even, 1= odd)
+# addr[9] controller (0=even, 1=odd)
+#
+# If using DDR DRAM models, additional address bit swizzling is implemented:
+# Mesh  Synopsys DDR    Comment
+# addr  dword addr
+# bit   bit
+# 0     -               Byte address bit 0
+# 1     -               Byte address bit 1
+# 2     -               Byte address bit 2
+# 3     0               Byte address bit 3 (double-word address bit 0)
+# 4     1               Byte address bit 4 (double-word address bit 1)
+# 5     24              DDR bank address bit 0
+# 6     -               Memshire number (bit 0) 000 = dwrow[0], 100 = derow[0]
+# 7     -               Memshire number (bit 1) 001 = dwrow[1], 101 = derow[1]
+# 8     -               Memshire number (bit 2) 010 = dwrow[2], 110 = derow[2]
+# 9     even/odd        Memory controller
+# 10    25              DDR bank address bit 1
+# 11    2
+# 12    3
+# 13    4
+# 14    26              DDR bank address bit 2
+# 15    8
+# 16    9
+# 17    10
+# 18    11
+# 19    12
+# 20    13
+# 21    14
+# 22    15
+# 23    16
+# 24    17
+# 25    18
+# 26    19
+# 27    20
+# 28    21
+# 29    5
+# 30    6
+# 31    7
+# 32    22
+# 33    23
 
 import sys, os
-from elftools.elf.elffile import ELFFile
+
+try:
+    from elftools.elf.elffile import ELFFile
+except ImportError as error:
+        print("You don't have pyelftools installed. pip3 install pyelftools")
+
+try:
+    from bitstring import BitArray
+except ImportError as error:
+        print("You don't have bitstring installed. pip3 install bitstring")
 
 if len(sys.argv) < 3:
-    print("Usage:", sys.argv[0], "ROM|SP_RAM|PU_RAM|DRAM infile [outfile]")
+    print("Usage:", sys.argv[0], "ROM|SP_RAM|PU_RAM|DRAM|DDR infile [outfile]")
     sys.exit(-1)
 
 try:
@@ -45,7 +93,7 @@ def open_output_files(prefix, suffix, files):
 
     try:
         for i in range(files):
-            outFiles.append(open("%s_%s%d%s.hex" % (name, prefix, i, suffix), 'w'))
+            outFiles.append(open("%s%s%d%s.hex" % (name, prefix, i, suffix), 'w'))
     except:
         print("Could not open output files")
         sys.exit(-1)
@@ -71,13 +119,13 @@ def set_bit_in_bitfield(bfield, offset):
     if offset < 0 or 144 <= offset:
         print("set_bit_in_bitfield: illegal offset", offset)
         sys.exit(-1)
-    
+
     byte_index = int(offset / 8)
     bit_index = offset % 8
 
     bfield[byte_index] |= (1 << bit_index)
 
-#basic operation on a bitfield
+# basic operation on a bitfield
 # bitfield - an array of 18 bytes
 # offset - bit offset (0-137) where the 8-bit byte value should be written to the bitfield
 # val - value to be written
@@ -102,7 +150,7 @@ def add_parity_bytes(x):
     if not len(x) == 16:
         print("add_parity: illegal list length", x)
         sys.exit(-1)
-    
+
     result = [0] * 18
     offset = 0
     for i in x:
@@ -113,7 +161,7 @@ def add_parity_bytes(x):
 
     return result
 
-def write_hex(baseAddress, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, parity):
+def write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, parity, ddr):
     inputBytesPerLine = inputBytesPerPanel * panelsPerLine
     bytes = []
     firstSegment = True
@@ -146,53 +194,98 @@ def write_hex(baseAddress, inputBytesPerPanel, outputBytesPerPanel, panelsPerLin
         prevSegEndAddress = segEndAddress
 
     # write out lines after last segment
-    write_lines(bytes, baseAddress, lineAddress, inputBytesPerPanel, panelsPerLine, parity)
+    write_lines(bytes, baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, parity, ddr)
 
 # requires address is aligned to the beginning of a line - will not zero pad before
 # will zero pad the end of a line
-def write_lines(bytes, baseAddress, address, inputBytesPerPanel, panelsPerLine, parity):
+def write_lines(bytes, baseAddress, address, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, parity, ddr):
     inputBytesPerLine = inputBytesPerPanel * panelsPerLine
 
     print("Writing lines from %08x to %08x" % (address, address + len(bytes)))
 
-    # For each output row, set all panels including parity even if input data isn't available
-    for offset in range(0, len(bytes), inputBytesPerLine):
-        for panel in range(panelsPerLine):
-            # ZeBu style address. Address 0 is at base of memory, address 1 is the next line, etc.
-            wl = "@%010x " % ((address + offset - baseAddress) // inputBytesPerLine)
+    # For each line, set all panel bytes including parity even if input data isn't available
+    for lineIndex in range(0, len(bytes), inputBytesPerLine):
 
-            # For SP RAM, bytes 0-15 for panel 0, 16-31 for panel 1, etc.
-            # For SP ROM, bytes 0-7 for panel 0, 8-15 for panel 1, etc.
-            # If we've run out of input data, substitute 0.
-            outputBytes = [bytes[offset + x] if (offset + x) < len(bytes) else 0 for x in range(panel*inputBytesPerPanel, (panel+1)*inputBytesPerPanel)]
+        # For each panel in the line, generate the .hex file output lines
+        for panel in range(0, panelsPerLine):
+            panelIndex = panel * inputBytesPerPanel
 
-            if parity:
-                outputBytes = add_parity_bytes(outputBytes)
+            # Some panels require multiple ZeBu output rows per line, e.g. when using DDR DRAM each memory
+            # controller is a 64 byte panel but the memory init hex file requires 8 bytes per row.
+            for rowIndex in range(0, inputBytesPerPanel, bytesPerZebuRow):
+                # ZeBu style address. Address 0 is at base of memory
+                if (ddr):
+                    # DDR DRAM models require swizzled address bits
+                    writeAddress = mesh_addr_to_synopsys_ddr_addr(address + lineIndex + rowIndex - baseAddress)
+                else:
+                    writeAddress = (address + lineIndex + rowIndex - baseAddress) // inputBytesPerLine
 
-            # Append outputBytes in reverse order, parity first then MSByte to LSByte
-            for byte in reversed(outputBytes):
-                wl += ("%02x" % byte)
+                wl = "@%010x " % (writeAddress)
 
-            wl += "\n"
-            outFiles[panel].write(wl)
+                startIndex = lineIndex + panelIndex + rowIndex
+                stopIndex = startIndex + bytesPerZebuRow
+
+                # For SP RAM, bytes 0-15 for panel 0, 16-31 for panel 1, etc.
+                # For SP ROM, bytes 0-7 for panel 0, 8-15 for panel 1, etc.
+                # If we've run out of input data, substitute 0.
+                outputBytes = [bytes[x] if (x) < len(bytes) else 0 for x in range(startIndex, stopIndex)]
+
+                if parity:
+                    outputBytes = add_parity_bytes(outputBytes)
+
+                # Append outputBytes in reverse order MSByte to LSByte
+                for byte in reversed(outputBytes):
+                    wl += ("%02x" % byte)
+
+                wl += "\n"
+                outFiles[panel].write(wl)
     return
 
+def mesh_addr_to_synopsys_ddr_addr(addr):
+    mesh_addr = BitArray(uint=addr, length=36)
+    ddr_addr = BitArray(uint=0, length=36)
+
+    # BitArray insists on indexing the MSB as 0, so reverse for natural indexing
+    mesh_addr.reverse()
+
+    # python slice indices are [m:n+1] for bits [m:n]
+    ddr_addr[0:2]   = mesh_addr[3:5]
+    ddr_addr[2:5]   = mesh_addr[11:14]
+    ddr_addr[5:8]   = mesh_addr[29:32]
+    ddr_addr[8:10]  = mesh_addr[15:17]
+    ddr_addr[10:22] = mesh_addr[17:29]
+    ddr_addr[22:24] = mesh_addr[32:34]
+    ddr_addr[24]    = mesh_addr[5]
+    ddr_addr[25]    = mesh_addr[10]
+    ddr_addr[26]    = mesh_addr[14]
+
+    # Undo previous reverse before converting back to int
+    ddr_addr.reverse()
+
+    return ddr_addr.int
+
 def sp_rom_write_hex():
-    open_output_files("ROM", "", 8)
-    write_hex(0x40000000, 8, 8, 8, False)
+    open_output_files("", "", 8)
+    write_hex(0x40000000, 8, 8, 8, 8, False, False)
     return
 
 def sp_ram_write_hex():
     open_output_files("SP_RAM", "", 4)
-    write_hex(0x40400000, 16, 18, 4, True)
+    write_hex(0x40400000, 16, 16, 18, 4, True, False)
     return
 
-def dram_write_hex():
-    open_output_files("DRAM_W_", "_even", 4) # memshire 0-3 "west 0-3" addr[9] = 0 "even"
-    open_output_files("DRAM_E_", "_even", 4) # memshire 4-7 "east 0-3" addr[9] = 0 "even"
-    open_output_files("DRAM_W_", "_odd", 4)  # memshire 0-3 "west 0-3" addr[9] = 1 "odd"
-    open_output_files("DRAM_E_", "_odd", 4)  # memshire 4-7 "east 0-3" addr[9] = 1 "odd"
-    write_hex(0x8000000000, 64, 64, 16, False)
+def dram_write_hex(ddr):
+    open_output_files("_dwrow", "_even", 4) # memshire 0-3 "west 0-3" addr[9] = 0 "even"
+    open_output_files("_derow", "_even", 4) # memshire 4-7 "east 0-3" addr[9] = 0 "even"
+    open_output_files("_dwrow", "_odd", 4)  # memshire 0-3 "west 0-3" addr[9] = 1 "odd"
+    open_output_files("_derow", "_odd", 4)  # memshire 4-7 "east 0-3" addr[9] = 1 "odd"
+
+    if (ddr):
+        # DDR models with address swizzling and 8-bytes per ZeBu hex line
+        write_hex(0x8000000000,  8, 64, 64, 16, False, True)
+    else:
+        # AXI models with 64-bytes per ZeBu hex line
+        write_hex(0x8000000000, 64, 64, 64, 16, False, False)
     return
 
 if (sys.argv[1]) == "ROM":
@@ -203,7 +296,9 @@ elif (sys.argv[1]) == "PU_RAM":
     print("PU_RAM support not yet implemented")
     sys.exit(-1)
 elif (sys.argv[1]) == "DRAM":
-    dram_write_hex()
+    dram_write_hex(False)
+elif (sys.argv[1]) == "DDR":
+    dram_write_hex(True)
 else:
     print("Unsupported argument", sys.argv[1])
     sys.exit(-1)

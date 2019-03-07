@@ -2,9 +2,10 @@ set(SOURCES ${SHARED_SRC_DIR}/boot.S src/crt.S src/main.c ${SHARED_SRC_DIR}/stub
 
 set(TARGET_NAME MasterMinion)
 set(LINKER_SCRIPT src/sections.ld)
-set(ZEBU_TARGET DRAM)
+set(ZEBU_TARGET DDR)
+set(ZEBU_FILENAME memImage)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIR})
 
-add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${SOURCES})
+add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
