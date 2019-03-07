@@ -414,6 +414,152 @@ static uint_fast32_t f16_mulExt( float16_t a, float16_t b )
 }
 
 
+static float32_t f32_add2( uint_fast32_t uiA, uint_fast32_t uiB )
+{
+    bool signA;
+    int_fast16_t expA;
+    uint_fast32_t sigA;
+    bool signB;
+    int_fast16_t expB;
+    uint_fast32_t sigB;
+    int_fast8_t subB;
+    int_fast16_t expDiff;
+    union ui32_f32 uZ;
+    uint_fast32_t uiZ;
+    bool signZ;
+    int_fast16_t expZ;
+    uint_fast32_t sigZ;
+    int_fast8_t shiftDist;
+
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    signA = signF32UI( uiA );
+    expA  = expF32UI( uiA );
+    sigA  = fracF32UI( uiA );
+    signB = signF32UI( uiB );
+    expB  = expF32UI( uiB );
+    sigB  = fracF32UI( uiB );
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    sigA <<= 7;
+    sigB <<= 7;
+#ifdef FPU_DEBUG
+    std::cout << "a_orig: " << Float32<4>(signA,expA,sigA) << '\n';
+    std::cout << "b_orig: " << Float32<4>(signB,expB,sigB) << '\n';
+#endif
+    if ( ( expA < expB ) || ( expA == expB && sigA < sigB ) ) {
+        std::swap(signA, signB);
+        std::swap(expA, expB);
+        std::swap(sigA, sigB);
+    }
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    if ( expA == 0xFF ) {
+        if ( sigA ) goto propagateNaN;
+        if ( expB == 0xFF ) {
+            if ( sigB ) goto propagateNaN;
+            if ( signA ^ signB ) goto generateNaN;
+        }
+        uiZ = packToF32UI( signA, 0xFF, 0 );
+        goto uiZ;
+    }
+#ifdef FPU_DEBUG
+    std::cout << "H_norm: " << Float32<4>(signA,expA,sigA) << '\n';
+    std::cout << "M_norm: " << Float32<4>(signB,expB,sigB) << '\n';
+#endif
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    expDiff = expA - expB;
+#ifdef FPU_DEBUG
+    std::cout << "H_shft: " << Float32<4>(signA,expA,sigA) << " (shft: 0)\n";
+#endif
+    if ( expDiff ) {
+        sigB = softfloat_shiftRightJam32( sigB, expDiff );
+        sigB = (sigB & ~2) | ((sigB & 2) >> 1);
+    }
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    subB = signA ^ signB;
+#ifdef FPU_DEBUG
+    std::cout << "M_shft: " << Float32<4>(signB,expA,sigB) << " (shft: " << expDiff << ")\n";
+#endif
+    signZ = signA;
+    expZ = expA;
+    sigZ = sigA + (subB ? -sigB : sigB);
+#ifdef FPU_DEBUG
+    std::cout << "H_add : " << Float32<4>(signA,expZ,sigA) << '\n';
+    std::cout << "M_add : " << Float32<4>(signB,expZ,(subB ? -sigB : sigB)) << " (inv: " << (!!subB) << ")\n";
+    std::cout << "z_sum : " << Float32<4>(signZ,expZ,sigZ) << "\n\n";
+#endif
+    if ( sigZ >= 0x80000000 ) {
+        signZ = !signZ;
+        sigZ = -sigZ;
+#ifdef FPU_DEBUG
+        std::cout << "z_neg : " << Float32<4>(signZ,expZ,sigZ) << '\n';
+#endif
+    }
+    if ( sigZ >= 0x10000000 ) {
+        expZ += 1;
+        sigZ >>= 1;
+#ifdef FPU_DEBUG
+        std::cout << "z_adj1: " << Float32<4>(signZ,expZ,sigZ) << '\n';
+#endif
+    }
+    if ( sigZ >= 0x10000000 ) {
+        expZ += 1;
+        sigZ >>= 1;
+#ifdef FPU_DEBUG
+        std::cout << "z_adj2: " << Float32<4>(signZ,expZ,sigZ) << '\n';
+#endif
+    }
+    if ( subB && !sigZ ) {
+        uiZ =
+            packToF32UI(
+                (softfloat_roundingMode == softfloat_round_min), 0, 0 );
+#ifdef FPU_DEBUG
+        std::cout << "z_cncl: " << Float32<4>(signF32UI(uiZ),expF32UI(uiZ),fracF32UI(uiZ)) << '\n';
+#endif
+        goto uiZ;
+    }
+    sigZ = ((sigZ & ~1) << 2) | (sigZ & 1);
+    if ( sigZ < 0x40000000 ) {
+        --expZ;
+        sigZ = ((sigZ & ~1) << 1) | (sigZ & 1);
+#ifdef FPU_DEBUG
+        std::cout << "z_adj3: " << Float32<7>(signZ,expZ,sigZ) << '\n';
+#endif
+    }
+    shiftDist = softfloat_countLeadingZeros32( sigZ ) - 1;
+    expZ -= shiftDist;
+    sigZ = ((sigZ & ~1) << shiftDist) | (sigZ & 1);
+#ifdef FPU_DEBUG
+    std::cout << "z_adj4: " << Float32<7>(signZ,expZ,sigZ) << '\n';
+    {
+        float32_t fZ;
+        fZ = softfloat_roundPackToF32( signZ, expZ, sigZ );
+        std::cout << "z_rslt: " << fZ << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
+    }
+#endif
+    return softfloat_roundPackToF32( signZ, expZ, sigZ );
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+ generateNaN:
+    softfloat_raiseFlags( softfloat_flag_invalid );
+    uiZ = defaultNaNF32UI;
+    goto uiZ;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+ propagateNaN:
+    uiZ = softfloat_propagateNaNF32UI( uiA, uiB );
+ uiZ:
+    uZ.ui = uiZ;
+#ifdef FPU_DEBUG
+    std::cout << "z_rslt: " << uZ.f << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
+#endif
+    return uZ.f;
+}
+
+
 static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
 {
     bool signA;
@@ -575,7 +721,7 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     sigZ = ((sigZ & ~1) << 2) | (sigZ & 1);
     if ( sigZ < 0x40000000 ) {
         --expZ;
-    	sigZ = ((sigZ & ~1) << 1) | (sigZ & 1);
+        sigZ = ((sigZ & ~1) << 1) | (sigZ & 1);
 #ifdef FPU_DEBUG
         std::cout << "z_adj3: " << Float32<7>(signZ,expZ,sigZ) << '\n';
 #endif
@@ -585,19 +731,9 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     sigZ = ((sigZ & ~1) << shiftDist) | (sigZ & 1);
 #ifdef FPU_DEBUG
     std::cout << "z_adj4: " << Float32<7>(signZ,expZ,sigZ) << '\n';
-#endif
-#ifdef FPU_DEBUG
     {
         float32_t fZ;
-        int_fast8_t shiftDist;
-        shiftDist = softfloat_countLeadingZeros32(sigZ) - 1;
-        std::cout << "z_prnd: " << Float32<>(signZ,expZ,sigZ) << " (" << int(shiftDist) << ")\n";
-        if ( (7 <= shiftDist) && ((unsigned int) (expZ-shiftDist) < 0xFD) ) {
-            std::cout << "z_pack: " << Float32<>(signZ,sigZ ? (expZ-shiftDist) : 0,sigZ<<(shiftDist-7)) << '\n';
-        } else {
-            std::cout << "z_rnd : " << Float32<>(signZ,expZ-shiftDist,sigZ<<shiftDist) << " [" << SOFTFLOAT_FLAGS << "]\n";
-        }
-        fZ = softfloat_normRoundPackToF32( signZ, expZ, sigZ );
+        fZ = softfloat_roundPackToF32( signZ, expZ, sigZ );
         std::cout << "z_rslt: " << fZ << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
     }
 #endif
@@ -621,7 +757,28 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
 }
 
 
-static float32_t f16_mulMulAdd3(
+static float32_t f16_mulAdd2(
+    float16_t a1, float16_t b1, float16_t a2, float16_t b2 )
+{
+    uint_fast32_t p1;
+    uint_fast32_t p2;
+
+#ifdef FPU_DEBUG
+    std::cout << "\n----- p1 = a1 * b1 --------------------------------------------------------\n";
+#endif
+    p1 = f16_mulExt( a1, b1 );
+#ifdef FPU_DEBUG
+    std::cout << "\n----- p2 = a2 * b2 --------------------------------------------------------\n";
+#endif
+    p2 = f16_mulExt( a2, b2 );
+#ifdef FPU_DEBUG
+    std::cout << "\n----- z = p1 + p2 + c -----------------------------------------------------\n";
+#endif
+    return f32_add2( p1, p2 );
+}
+
+
+static float32_t f16_mulAdd3(
     float32_t c, float16_t a1, float16_t b1, float16_t a2, float16_t b2 )
 {
     uint_fast32_t p1;
@@ -1142,13 +1299,18 @@ namespace fpu {
 
     // ----- Esperanto tensor extension --------------------------------------
 
+    float32_t f32_tensorMulF16(float16_t a1, float16_t b1,
+                               float16_t a2, float16_t b2)
+    {
+        return ftz(f16_mulAdd2(daz(a1), daz(b1), daz(a2), daz(b2)));
+    }
+
+
     float32_t f32_tensorMulAddF16(float32_t acc,
                                   float16_t a1, float16_t b1,
                                   float16_t a2, float16_t b2)
     {
-        return ftz(f16_mulMulAdd3(daz(acc),
-                                  daz(a1), daz(b1),
-                                  daz(a2), daz(b2)));
+        return ftz(f16_mulAdd3(daz(acc), daz(a1), daz(b1), daz(a2), daz(b2)));
     }
 
 } // namespace fpu

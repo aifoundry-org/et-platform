@@ -8414,38 +8414,57 @@ static void tensor_fma32(uint64_t tfmareg)
 
         for (int i = 0; i < arows; ++i)
         {
-            // NB: RTL does an FMUL instead of an FMA when first_pass==1 and
-            // k==0. Instead we set f[i] to 0.0 and do an FMA. This is OK
-            // because we will overwrite f[i] with the FMA results.
+            // Skip computation for this row
+            if (usemsk && !tmask_pass(i))
+            {
+                // If first_pass is 1 and this is the first iteration we skip
+                // the computation but we still set f[i] to 0.0
+                if (first_pass && !k)
+                {
+                    for (int j = 0; j < bcols; ++j)
+                    {
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
+                        log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                    }
+                }
+                continue;
+            }
+
+            float32_t a = fpu::F32(SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+k) % (L1D_LINE_SIZE/4)]);
+
+            // If first_pass is 1 and this is the first iteration we do FMUL
+            // instead of FMA
             if (first_pass && !k)
             {
                 for (int j = 0; j < bcols; ++j)
                 {
-                    FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
-                    log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                    float32_t b = fpu::F32(tmpb.u[j]);
+                    float32_t c = fpu::f32_mul(a, b);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+                    log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                    LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " * 0x%08" PRIx32,
+                        k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(a), fpu::UI32(b));
                 }
             }
-            // Skip computation for this row
-            if (usemsk && !tmask_pass(i))
-                continue;
-
-            float32_t a = fpu::F32(SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+k) % (L1D_LINE_SIZE/4)]);
-
-            for (int j = 0; j < bcols; ++j)
+            else
             {
-                float32_t b = fpu::F32(tmpb.u[j]);
-
-                // If the product is 0, we can skip the operation, except if first_pass is set and this
-                // is the first iteration
-                if (!(first_pass && !k) && (fpu::UI32(a)==0 || fpu::UI32(b)==0))
+                // If the product will be 0, we can skip the operation
+                if (fpu::UI32(a) == 0)
                     continue;
 
-                float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
-                float32_t c = fpu::f32_mulAdd(a, b, c0);
-                FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
-                log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
-                    k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
+                for (int j = 0; j < bcols; ++j)
+                {
+                    float32_t b = fpu::F32(tmpb.u[j]);
+                    // If the product will be 0, we can skip the operation
+                    if (fpu::UI32(b)==0)
+                        continue;
+                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                    float32_t c = fpu::f32_mulAdd(a, b, c0);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+                    log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                    LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
+                        k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
+                }
             }
         }
     }
@@ -8516,41 +8535,57 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
         for (int i = 0; i < arows; ++i)
         {
-            // NB: RTL does an FMUL instead of an FMA when first_pass==1 and
-            // k==0. Instead we set f[i] to 0.0 and do an FMA. This is OK
-            // because we will overwrite f[i] with the FMA results.
-            if (first_pass && !k)
-            {
-                for (int j = 0; j < bcols; ++j)
-                {
-                    FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
-                    log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
-                }
-            }
             // Skip computation for this row
             if (usemsk && !tmask_pass(i))
+            {
+                // If first_pass is 1 and this is the first iteration we skip
+                // the computation but we still set f[i] to 0.0
+                if (first_pass && !k)
+                {
+                    for (int j = 0; j < bcols; ++j)
+                    {
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
+                        log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
+                    }
+                }
                 continue;
+            }
 
             float16_t a1 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+0) % (L1D_LINE_SIZE/2)]);
             float16_t a2 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+1) % (L1D_LINE_SIZE/2)]);
 
-            for (int j = 0; j < bcols; ++j)
+            // If first_pass is 1 and this is the first iteration we do
+            // a1*b1+a2*b2 instead of a1*b1+a2*b2+c0
+            if (first_pass && !k)
             {
-                float16_t b1 = fpu::F16(tmpb.h[2*j+0]);
-                float16_t b2 = fpu::F16(tmpb.h[2*j+1]);
-
-                // If all products are 0, we can skip the operation, except if first_pass is set and this
-                // is the first iteration
-                if (!(first_pass && !k) && (fpu::UI16(a1)==0 || fpu::UI16(b1)==0)
-                                        && (fpu::UI16(a2)==0 || fpu::UI16(b2)==0))
-                    continue;
-
-                float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
-                float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
-                FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
-                log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
-                    k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
+                for (int j = 0; j < bcols; ++j)
+                {
+                    float16_t b1 = fpu::F16(tmpb.h[2*j+0]);
+                    float16_t b2 = fpu::F16(tmpb.h[2*j+1]);
+                    float32_t c = fpu::f32_tensorMulF16(a1, b1, a2, b2);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+                    log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                    LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
+                        k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
+                }
+            }
+            else
+            {
+                for (int j = 0; j < bcols; ++j)
+                {
+                    float16_t b1 = fpu::F16(tmpb.h[2*j+0]);
+                    float16_t b2 = fpu::F16(tmpb.h[2*j+1]);
+                    // If all products will be 0, we can skip the operation
+                    if ((fpu::UI16(a1)==0 || fpu::UI16(b1)==0) &&
+                        (fpu::UI16(a2)==0 || fpu::UI16(b2)==0))
+                        continue;
+                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                    float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
+                    log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                    LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
+                        k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
+                }
             }
         }
     }
