@@ -660,8 +660,8 @@ struct mdata {
 #define CAUSE_FETCH_PAGE_FAULT          0x0c
 #define CAUSE_LOAD_PAGE_FAULT           0x0d
 #define CAUSE_STORE_PAGE_FAULT          0x0f
-#define CAUSE_LOAD_PAGE_SPLIT_FAULT     0x10
-#define CAUSE_STORE_PAGE_SPLIT_FAULT    0x11
+#define CAUSE_LOAD_PAGE_SPLIT_FAULT     0x1b
+#define CAUSE_STORE_PAGE_SPLIT_FAULT    0x1c
 #define CAUSE_BUS_ERROR                 0x1d
 #define CAUSE_MCODE_INSTRUCTION         0x1e
 #define CAUSE_TXFMA_OFF                 0x1f
