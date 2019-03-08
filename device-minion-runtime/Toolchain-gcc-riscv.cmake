@@ -40,7 +40,7 @@ set(CMAKE_C_FLAGS "-g3 --specs=nano.specs -mcmodel=medany -march=rv64imaf -mabi=
 
 # macro to create an executable .elf plus .bin, .hex, .lst and .map files
 # if LINKER_SCRIPT is defined, uses it instead of the default
-macro(add_riscv_executable TARGET_NAME LINKER_SCRIPT ZEBU_TARGET)
+macro(add_riscv_executable TARGET_NAME LINKER_SCRIPT ZEBU_TARGET ZEBU_FILENAME)
     set(ELF_FILE ${TARGET_NAME}.elf)
     set(BIN_FILE ${TARGET_NAME}.bin)
     set(HEX_FILE ${TARGET_NAME}.hex)
@@ -72,7 +72,7 @@ macro(add_riscv_executable TARGET_NAME LINKER_SCRIPT ZEBU_TARGET)
     # custom command to generate a ZeBu hex file from the elf
     add_custom_command(
         OUTPUT ${HEX_FILE}
-        COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} ${HEX_FILE}
+        COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} ${ZEBU_FILENAME}
         DEPENDS ${ELF_FILE}
     )
 

@@ -16,12 +16,15 @@ FROM $ET_SW_BASE
 LABEL Description="This image contains any build dependencies for the SW Platform project"
 
 # Install json-c-devel library
-RUN yum install -y \
+RUN yum install -y --setopt=skip_missing_names_on_install=False \
     json-c-devel \
     openssl-devel \
+    python36-devel \
   && yum clean all
 
-RUN pip install pyelftools
+RUN pip install \
+    pyelftools \
+    bitstring
 
 ARG GIT_SHA
 LABEL git_sha="$GIT_SHA"
