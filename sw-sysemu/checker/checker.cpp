@@ -468,21 +468,20 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
         else if(changes->trap_mod)
         {
             // Check system registers
-            // TODO: Renable this when JIRA RTLMIN-3000  is fixed
-            // if (changes->gsc_progress_mod != emu_state_change.gsc_progress)
-            // {
-            //   stream << "BEMU Checker GSC_PROGRESS CSR error. BEMU expects  " << emu_state_change.gsc_progress_mod  << " : but DUT " << changes->gsc_progress_mod << std::endl;
-            //   check_res = CHECKER_ERROR;
-            // }
-            // if (changes->gsc_progress_mod )
-            // {
+             if (changes->gsc_progress_mod != emu_state_change.gsc_progress_mod)
+             {
+               stream << "BEMU Checker GSC_PROGRESS CSR error. BEMU expects  " << emu_state_change.gsc_progress_mod  << " : but DUT " << changes->gsc_progress_mod << std::endl;
+               check_res = CHECKER_ERROR;
+             }
+             if (changes->gsc_progress_mod )
+             {
 
-            //   // if ( changes->gsc_progress != emu_state_change.gsc_progress )
-            //   // {
-            //   //   stream << "BEMU Checker GSC_PROGRESS CSR error. BEMU expects  " << emu_state_change.gsc_progress  << " : but DUT " << changes->gsc_progress << std::endl;
-            //   //   check_res = CHECKER_ERROR;
-            //   // }
-            // }
+                if ( changes->gsc_progress != emu_state_change.gsc_progress )
+                {
+                  stream << "BEMU Checker GSC_PROGRESS CSR error. BEMU expects  " << emu_state_change.gsc_progress  << " : but DUT " << changes->gsc_progress << std::endl;
+                  check_res = CHECKER_ERROR;
+                }
+             }
 
             // TODO: Add checkers for system registers (mstatus,mcause...). Everything that changes at trapping
         }
