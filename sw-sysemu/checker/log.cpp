@@ -169,6 +169,7 @@ void log_trap()
 void log_gsc_progress(uint64_t gsc_progress, bool success)
 {
     if (!log_info) return;
-    log_info->gsc_progress_mod = !success; // don't check it for success requests
+    LOG(DEBUG, "log_gsc_progress(%lu,%d)", gsc_progress, success);
+    log_info->gsc_progress_mod = true;
     log_info->gsc_progress = gsc_progress;
 }
