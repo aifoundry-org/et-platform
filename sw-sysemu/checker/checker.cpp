@@ -123,31 +123,38 @@ checker* checker_instance = NULL; // this is used when enabling the second threa
 bool fail_on_check = false;       // Option to still emulation instruction but dont fail test
 
 
-// These functions are called by emu. We should clean this to a nicer way...
 uint8_t checker_memread8(uint64_t addr)
 {
+    extern inst_state_change* log_info;
     uint8_t ret;
+    if (log_info) log_info->mem_addr[0] = addr; // for address_is_in_ignored_region()
     memory_instance->read(addr, 1, &ret);
     return ret;
 }
 
 uint16_t checker_memread16(uint64_t addr)
 {
+    extern inst_state_change* log_info;
     uint16_t ret;
+    if (log_info) log_info->mem_addr[0] = addr; // for address_is_in_ignored_region()
     memory_instance->read(addr, 2, &ret);
     return ret;
 }
 
 uint32_t checker_memread32(uint64_t addr)
 {
+    extern inst_state_change* log_info;
     uint32_t ret;
+    if (log_info) log_info->mem_addr[0] = addr; // for address_is_in_ignored_region()
     memory_instance->read(addr, 4, &ret);
     return ret;
 }
 
 uint64_t checker_memread64(uint64_t addr)
 {
+    extern inst_state_change* log_info;
     uint64_t ret;
+    if (log_info) log_info->mem_addr[0] = addr; // for address_is_in_ignored_region()
     memory_instance->read(addr, 8, &ret);
     return ret;
 }
