@@ -127,7 +127,7 @@ uint8_t checker_memread8(uint64_t addr)
 {
     extern inst_state_change* log_info;
     uint8_t ret;
-    if (log_info) log_info->mem_addr[0] = addr; // for address_is_in_ignored_region()
+    if (log_info) log_info->mem_paddr = addr; // for address_is_in_ignored_region()
     memory_instance->read(addr, 1, &ret);
     return ret;
 }
@@ -136,7 +136,7 @@ uint16_t checker_memread16(uint64_t addr)
 {
     extern inst_state_change* log_info;
     uint16_t ret;
-    if (log_info) log_info->mem_addr[0] = addr; // for address_is_in_ignored_region()
+    if (log_info) log_info->mem_paddr = addr; // for address_is_in_ignored_region()
     memory_instance->read(addr, 2, &ret);
     return ret;
 }
@@ -145,7 +145,7 @@ uint32_t checker_memread32(uint64_t addr)
 {
     extern inst_state_change* log_info;
     uint32_t ret;
-    if (log_info) log_info->mem_addr[0] = addr; // for address_is_in_ignored_region()
+    if (log_info) log_info->mem_paddr = addr; // for address_is_in_ignored_region()
     memory_instance->read(addr, 4, &ret);
     return ret;
 }
@@ -154,7 +154,7 @@ uint64_t checker_memread64(uint64_t addr)
 {
     extern inst_state_change* log_info;
     uint64_t ret;
-    if (log_info) log_info->mem_addr[0] = addr; // for address_is_in_ignored_region()
+    if (log_info) log_info->mem_paddr = addr; // for address_is_in_ignored_region()
     memory_instance->read(addr, 8, &ret);
     return ret;
 }
@@ -520,7 +520,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             }
 
             // Check if load comes from an unpredictible memory region, accept RTL value if so.
-            if (inst.is_load() && address_is_in_ignored_region(emu_state_change.mem_addr[0]))
+            if (inst.is_load() && address_is_in_ignored_region(emu_state_change.mem_paddr))
             {
                log << LOG_INFO << "Access to an ignored memory region (" << insn_disasm << ")" << endm;
                emu_state_change.int_reg_data = changes->int_reg_data;
@@ -623,7 +623,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             }
 
             // Check if load comes from an unpredictible memory region, accept RTL value if so.
-            if (inst.is_load() && address_is_in_ignored_region(emu_state_change.mem_addr[0]))
+            if (inst.is_load() && address_is_in_ignored_region(emu_state_change.mem_paddr))
             {
                log << LOG_INFO << "Access to an ignored memory region (" << insn_disasm << ")" << endm;
                for (int i = 0; i < (VL/2); i++) {

@@ -29,6 +29,7 @@ struct inst_state_change {
     uint8_t  m_reg_data[MAXMREG][VL]; // Value written to the mask register
     uint64_t mem_addr[VL];            // Address being updated
     uint64_t mem_data[VL];            // New contents
+    uint64_t mem_paddr;               // Physical address (used to check for ignored regions)
 
     // TensorLoad state changes
     bool      tensor_mod;    // Tensor load produced new values
