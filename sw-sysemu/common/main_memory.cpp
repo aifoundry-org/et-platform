@@ -341,6 +341,28 @@ bool main_memory::dump_file(std::string filename, uint64_t ad, uint64_t size, un
    }
 }
 
+// Dumps all memory contents into a file
+bool main_memory::dump_file(std::string filename)
+{
+   std::ofstream f(filename.c_str(), std::ios_base::binary);
+
+   if (!f.is_open()) {
+      log << LOG_ERR << "cannot open " << filename << endm;
+      return false;
+   }
+
+   for(auto &r:regions_)
+      r->dump_file(&f);
+
+   if (f.good()) {
+      return true;
+   }
+   else {
+      log << LOG_ERR << "error when writing into " << filename << endm;
+      return false;
+   }
+}
+
 // Dumps all the regions
 void main_memory::dump_regions()
 {
