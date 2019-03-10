@@ -1,9 +1,16 @@
 // Global
+#include <string.h>
+
+// STD
 #include <algorithm>
+#include <fstream>
 
 // Local
 #include "emu_defines.h"
 #include "main_memory_region.h"
+
+// Namespaces
+using namespace std;
 
 // Creator
 main_memory_region::main_memory_region(uint64_t base, uint64_t size, testLog & l,
@@ -45,5 +52,27 @@ void main_memory_region::read(uint64_t ad, int size, void * data)
 void main_memory_region::dump()
 {
     log << LOG_DEBUG << "\tBase: 0x" << std::hex << base_ << ", Size: 0x" << size_ << std::dec << endm;
+}
+
+// Dumps the region contents in a file
+void main_memory_region::dump_file(std::ofstream * f)
+{
+    if(size_ % 4)
+    {
+        log << LOG_FTL << "Can't dump with sizes not multiple of dword" << endm;
+        return;
+    }
+
+    // Dump all the dwords
+    uint64_t address = base_;
+    char str[128];
+    uint32_t * data = (uint32_t *) data_;
+    for(uint64_t dword = 0; dword < (size_ / 4); dword++)
+    {
+        if((address >> 39) == 0) continue; // Only cacheable
+        sprintf(str, "%010llX %08X\n", (long long unsigned int) address, data[dword]);
+        f->write(str, strlen(str));
+        address += 4;
+    }
 }
 
