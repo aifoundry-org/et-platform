@@ -86,7 +86,7 @@ except:
 outFiles = []
 
 def open_output_files(prefix, suffix, files):
-    if len(sys.argv) >= 3:
+    if len(sys.argv) > 3:
         (name,ext) = os.path.splitext(sys.argv[3]) # Use outfile arg for output filename
     else:
         (name,ext) = os.path.splitext(sys.argv[2]) # Use infile arg for output filename
@@ -176,7 +176,7 @@ def write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPa
         # If this segment starts on a later line than the previous segment ended on,
         # write out the lines for the previous segment(s) and start a new group of lines
         if (not firstSegment and ((segAddr // inputBytesPerLine) > (prevSegEndAddress // inputBytesPerLine))):
-            write_lines(bytes, baseAddress, lineAddress, inputBytesPerPanel, panelsPerLine, parity)
+            write_lines(bytes, baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, parity, ddr)
             bytes = []
             firstSegment = True
 
