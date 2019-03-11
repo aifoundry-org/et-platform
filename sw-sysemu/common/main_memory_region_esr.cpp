@@ -1,6 +1,7 @@
 // Global
 #include <cassert>
 #include <cstdio>
+#include <stdexcept>
 
 // Local
 #include "main_memory_region_esr.h"
@@ -244,7 +245,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 case ESR_SHIRE_BROADCAST1:
                     if (brcst0_received == 1)
                     {
-                        uint64_t minion_mask = pmemread64(ad-8);
+                        uint64_t minion_mask = pmemread64((ad & ~ESR_REGION_PROT_MASK) - 8);
                         LOG(DEBUG, "Write to BROADCAST1 value %016" PRIx64, value);
                         esr_info_data_t esr_info_data;
                         decode_ESR_data(value, &esr_info_data);

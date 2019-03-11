@@ -23,7 +23,12 @@
 #define EMU_NUM_TBOXES          (EMU_NUM_COMPUTE_SHIRES*EMU_TBOXES_PER_SHIRE)
 #define EMU_NUM_RBOXES          (EMU_NUM_COMPUTE_SHIRES*EMU_RBOXES_PER_SHIRE)
 
-#define NR_MSG_PORTS            4
+#define NR_MSG_PORTS    4
+
+// L1 Dcache configuration
+#define L1D_NUM_SETS    16
+#define L1D_NUM_WAYS    4
+#define L1D_LINE_SIZE   64
 
 // Some TensorFMA defines
 #define TFMA_MAX_AROWS    16
@@ -655,8 +660,10 @@ struct mdata {
 #define CAUSE_FETCH_PAGE_FAULT          0x0c
 #define CAUSE_LOAD_PAGE_FAULT           0x0d
 #define CAUSE_STORE_PAGE_FAULT          0x0f
-#define CAUSE_LOAD_PAGE_SPLIT_FAULT     0x10
-#define CAUSE_STORE_PAGE_SPLIT_FAULT    0x11
+#define CAUSE_FETCH_BUS_ERROR           0x19
+#define CAUSE_FETCH_ECC_ERROR           0x1a
+#define CAUSE_LOAD_PAGE_SPLIT_FAULT     0x1b
+#define CAUSE_STORE_PAGE_SPLIT_FAULT    0x1c
 #define CAUSE_BUS_ERROR                 0x1d
 #define CAUSE_MCODE_INSTRUCTION         0x1e
 #define CAUSE_TXFMA_OFF                 0x1f
@@ -726,6 +733,9 @@ DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_SPLIT_FAULT, trap_store_split_page_fault)
 DECLARE_TRAP_TVAL_Y(CAUSE_BUS_ERROR,              trap_bus_error)
 DECLARE_TRAP_TVAL_Y(CAUSE_MCODE_INSTRUCTION,      trap_mcode_instruction)
 DECLARE_TRAP_TVAL_Y(CAUSE_TXFMA_OFF,              trap_txfma_off)
+DECLARE_TRAP_TVAL_N(CAUSE_FETCH_BUS_ERROR,        trap_fetch_bus_error)
+DECLARE_TRAP_TVAL_N(CAUSE_FETCH_ECC_ERROR,        trap_fetch_ecc_error)
+
 // Interrupts
 DECLARE_TRAP_TVAL_N(CAUSE_USER_SOFTWARE_INTERRUPT,       trap_user_software_interrupt)
 DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_SOFTWARE_INTERRUPT, trap_supervisor_software_interrupt)

@@ -43,6 +43,7 @@ class main_memory_region
 
         // Dump
         void dump();
+        void dump_file(std::ofstream * f);
 
     protected:
         // members

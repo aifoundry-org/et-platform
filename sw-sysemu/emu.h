@@ -1,7 +1,6 @@
 #ifndef _EMU_H
 #define _EMU_H
 
-#include <list>
 #include <queue>
 #include <iomanip>
 
@@ -18,34 +17,24 @@
 #include "tbox_emu.h"
 #include "rbox.h"
 
-// Used to access different threads transparently
-#define XREGS xregs[current_thread]
-#define FREGS fregs[current_thread]
-#define MREGS mregs[current_thread]
-
-// Processor state
-extern xdata xregs[EMU_NUM_THREADS][32];
-extern fdata fregs[EMU_NUM_THREADS][32];
-extern mdata mregs[EMU_NUM_THREADS][8];
-
 namespace TBOX { class TBOXEmu; }
 namespace RBOX { class RBOXEmu; }
 
 // Accelerators
 #if (EMU_TBOXES_PER_SHIRE > 1)
-    extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
-    #define GET_TBOX(shire_id, rbox_id) tbox[shire_id][rbox_id]
+extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
+#define GET_TBOX(shire_id, rbox_id) tbox[shire_id][rbox_id]
 #else
-    extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
-    #define GET_TBOX(shire_id, tbox_id) tbox[shire_id]
+extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
+#define GET_TBOX(shire_id, tbox_id) tbox[shire_id]
 #endif
 
 #if (EMU_RBOXES_PER_SHIRE > 1)
-    extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
-    #define GET_RBOX(shire_id, rbox_id) rbox[shire_id][rbox_id]
+extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+#define GET_RBOX(shire_id, rbox_id) rbox[shire_id][rbox_id]
 #else
-    extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
-    #define GET_RBOX(shire_id, rbox_id) rbox[shire_id]
+extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
+#define GET_RBOX(shire_id, rbox_id) rbox[shire_id]
 #endif
 
 // Processor configuration
@@ -59,8 +48,8 @@ extern void init_emu();
 
 // Helpers
 extern bool emu_done();
-extern std::stringstream dump_xregs(uint32_t thread_id);
-extern std::stringstream dump_fregs(uint32_t thread_id);
+extern std::string dump_xregs(uint32_t thread_id);
+extern std::string dump_fregs(uint32_t thread_id);
 extern void init_stack();
 extern void initcsr(uint32_t thread);             // init all CSRs
 extern uint64_t get_csr(uint32_t thread, csr c);
@@ -84,7 +73,7 @@ extern void set_memory_funcs(uint8_t  (*func_memread8_ ) (uint64_t),
                              void (*func_memwrite16_) (uint64_t, uint16_t),
                              void (*func_memwrite32_) (uint64_t, uint32_t),
                              void (*func_memwrite64_) (uint64_t, uint64_t));
-extern void set_msg_funcs(void * func_msg_to_thread);
+extern void set_msg_funcs(void (*func_msg_to_thread) (int));
 
 // Traps
 extern void take_trap(const trap_t& t);
@@ -597,24 +586,9 @@ extern void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port
 
 // ----- Esperanto tensor extension --------------------------------------------
 
-// Scratchpad
-
-extern uint64_t get_scratchpad_value(int entry, int block, int * last_entry, int * size);
-extern void get_scratchpad_conv_list(std::list<bool> * list);
-extern int  get_scratchpad_next_entry(int entry);
-
-// TensorFMA
-
-extern uint32_t get_tensorfma_value(int entry, int pass, int lane, int * size, int * passes, bool * conv_skip);
-
-// TensorQuant
-
-extern uint32_t get_tensorquant_value(int entry, int transform, int lane, int * reg, int * size, int * transforms, bool * skip_entry);
-
 // TensorReduce
 
-extern void get_reduce_info(uint64_t value, uint64_t * other_min, uint64_t * action);
-extern uint64_t get_reduce_value(int entry, int block, int * size, int * start_entry);
+extern void tensor_reduce_decode(uint64_t value, uint64_t* other_min, uint64_t* action);
 
 // Shire cooperative mode
 
@@ -627,6 +601,7 @@ extern uint64_t read_shire_coop_mode(unsigned shire);
 
 extern uint64_t get_fcc_cnt();
 extern void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id);
+std::queue<uint32_t> &get_minions_to_awake();
 
 // ----- Esperanto IPI extension ------------------------------------------------
 
@@ -649,8 +624,5 @@ extern uint64_t read_icache_prefetch_enable(unsigned shire);
 extern uint64_t read_icache_prefetch_trigger(unsigned shire);
 
 extern void finish_icache_prefetch(unsigned shire);
-
-// ----- Get list of minions awaken by the last instruction (checker only) ----------------------------
-std::queue<uint32_t> &get_minions_to_awake();
 
 #endif // _EMU_H

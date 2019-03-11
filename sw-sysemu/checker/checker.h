@@ -28,7 +28,7 @@ typedef struct
 {
     uint32_t banks;
     int      entry;
-    uint64_t data[8];
+    uint64_t data[L1D_LINE_SIZE/8];
 } scratchpad_entry;
 
 typedef struct
@@ -48,70 +48,69 @@ typedef enum
 
 typedef struct
 {
-   uint64_t base;
-   uint64_t top;
+    uint64_t base;
+    uint64_t top;
 } ignored_mem_region;
 
 class checker
 {
- public:
-        // Constructor and destructor
-        checker(main_memory * memory_, testLog& log, bool checker_en);
-        ~checker();
+public:
+    // Constructor and destructor
+    checker(main_memory * memory_, testLog& log, bool checker_en);
+    ~checker();
 
-        void set_et_core(int core_type);
-        // Sets the PC
-        void start_pc(uint32_t thread, uint64_t pc);
-        void ipi_pc(uint32_t thread, uint64_t pc);
-        // Emulates current instruction and compares the state changes
-        checker_result emu_inst(uint32_t thread, inst_state_change * changes, std::queue<uint32_t> &wake_minions);
-        // Decoder Helper functions
-        void emu_disasm(char* str, size_t size, uint32_t bits);
-        // Function to CoSIM to tell BEMU an Interrupt was taken by HW
-        void raise_interrupt(unsigned minionId, int cause);
-        // Gets an error in string format
-        std::string get_error_msg();
+    void set_et_core(int core_type);
+    // Sets the PC
+    void start_pc(uint32_t thread, uint64_t pc);
+    void ipi_pc(uint32_t thread, uint64_t pc);
+    // Emulates current instruction and compares the state changes
+    checker_result emu_inst(uint32_t thread, inst_state_change * changes, std::queue<uint32_t> &wake_minions);
+    // Decoder Helper functions
+    void emu_disasm(char* str, size_t size, uint32_t bits);
+    // Function to CoSIM to tell BEMU an Interrupt was taken by HW
+    void raise_interrupt(unsigned minionId, int cause);
+    // Gets an error in string format
+    std::string get_error_msg();
 
-        // enable or disable 2nd thread
-        void thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc);
+    // enable or disable 2nd thread
+    void thread1_enabled ( unsigned minionId, uint64_t en, uint64_t pc);
 
-        // Tensor operations
-        void tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data, uint32_t banks);
-        void tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorfma_regfile_wmask);
-        void tensorquant_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorquant_regfile_wmask);
-        void reduce_write(uint32_t thread, uint32_t entry, uint32_t * data);
-        void aggregate_tl_data(uint32_t thread);
+    // Tensor operations
+    void tensorload_write(uint32_t thread, uint32_t entry, uint64_t * data, uint32_t banks);
+    void tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorfma_regfile_wmask);
+    void tensorquant_write(uint32_t thread, uint32_t entry, uint32_t * data, uint32_t tensorquant_regfile_wmask);
+    void reduce_write(uint32_t thread, uint32_t entry, uint32_t * data);
+    void aggregate_tl_data(uint32_t thread);
 
-        void update_fcsr_flags(unsigned minionId, unsigned flags);
-  
-        // Register a region to ignore checks on
-        void add_ignored_mem_region(uint64_t base, uint64_t top);
-        bool address_is_in_ignored_region(uint64_t addr);
+    void update_fcsr_flags(unsigned minionId, unsigned flags);
 
-        // TBOX write to Minion Message Port
-       void thread_port_write(uint32_t target_thread, uint32_t port_id, uint32_t source_thread);
-       void tbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id);
-       void rbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id);
+    // Register a region to ignore checks on
+    void add_ignored_mem_region(uint64_t base, uint64_t top);
+    bool address_is_in_ignored_region(uint64_t addr);
 
-	 
-    private:
-        checker_result check_state_changes(uint32_t thread, inst_state_change * changes, const insn_t& inst);
-        checker_result do_reduce(uint32_t thread, uint64_t value, int * wake_thread);
+    // TBOX write to Minion Message Port
+    void thread_port_write(uint32_t target_thread, uint32_t port_id, uint32_t source_thread);
+    void tbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id);
+    void rbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id);
 
-        uint64_t                      current_pc[EMU_NUM_THREADS];         // Current PC
-        reduce_state                  reduce_state_array[EMU_NUM_THREADS]; // Reduce state
-        uint32_t                      reduce_pair_array[EMU_NUM_THREADS];  // Reduce pairing minion
-        main_memory                 * memory;                              // Pointer to the memory of the simulation
-        inst_state_change             emu_state_change;                    // Struct that holds the state change for the emu
-        std::string                   error_msg;                           // Stores the error message
-        testLog&                      log;                                 // Logger
-        uint64_t                      threadEnabled[EMU_NUM_THREADS];      // thread is enabled / disabled
-        std::list<scratchpad_entry>   scp_entry_list[EMU_NUM_THREADS];     // List of RTL written scratchpad entries
-        std::list<tensorfma_entry>    tensorfma_list[EMU_NUM_THREADS];     // List of RTL written tensorfma entries
-        std::list<tensorfma_entry>    tensorquant_list[EMU_NUM_THREADS];   // List of RTL written tensorquant entries
-        std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];        // List of RTL written reduce entries
-        std::list<csr>                waived_csrs;                         // List of CSRs whose checking is waived
-        std::list<ignored_mem_region> ignored_mem_regions;                 // List of memory regions whose data won't be checked
+private:
+    checker_result check_state_changes(uint32_t thread, inst_state_change * changes, const insn_t& inst);
+    checker_result do_reduce(uint32_t thread, uint64_t value, int * wake_thread);
+
+    uint64_t                      current_pc[EMU_NUM_THREADS];         // Current PC
+    reduce_state                  reduce_state_array[EMU_NUM_THREADS]; // Reduce state
+    uint32_t                      reduce_pair_array[EMU_NUM_THREADS];  // Reduce pairing minion
+    main_memory                 * memory;                              // Pointer to the memory of the simulation
+    inst_state_change             emu_state_change;                    // Struct that holds the state change for the emu
+    std::string                   error_msg;                           // Stores the error message
+    testLog&                      log;                                 // Logger
+    uint64_t                      threadEnabled[EMU_NUM_THREADS];      // thread is enabled / disabled
+    std::list<scratchpad_entry>   scp_entry_list[EMU_NUM_THREADS];     // List of RTL written scratchpad entries
+    std::list<tensorfma_entry>    tensorfma_list[EMU_NUM_THREADS];     // List of RTL written tensorfma entries
+    std::list<tensorfma_entry>    tensorquant_list[EMU_NUM_THREADS];   // List of RTL written tensorquant entries
+    std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];        // List of RTL written reduce entries
+    std::list<csr>                waived_csrs;                         // List of CSRs whose checking is waived
+    std::list<ignored_mem_region> ignored_mem_regions;                 // List of memory regions whose data won't be checked
 };
 
 #endif // _CHECKER_
