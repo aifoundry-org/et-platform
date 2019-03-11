@@ -219,8 +219,5 @@ inline void execute(insn_t inst) {
     (inst.exec_fn) (inst);
 }
 
-// NB: "slow", try to avoid
-extern csr get_csr_enum(uint16_t);
-
 
 #endif // __INSN_H__
