@@ -93,6 +93,9 @@ public:
     void tbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id);
     void rbox_port_write(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id);
 
+    // Is this checker enabled or disabled
+    bool is_enabled() {return checker_enabled;}
+
 private:
     checker_result check_state_changes(uint32_t thread, inst_state_change * changes, const insn_t& inst);
     checker_result do_reduce(uint32_t thread, uint64_t value, int * wake_thread);
@@ -111,6 +114,7 @@ private:
     std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];        // List of RTL written reduce entries
     std::list<csr>                waived_csrs;                         // List of CSRs whose checking is waived
     std::list<ignored_mem_region> ignored_mem_regions;                 // List of memory regions whose data won't be checked
+    bool                          checker_enabled = false;              // If false, this checkers ERRORS are downgraded to WARNINGS
 };
 
 #endif // _CHECKER_
