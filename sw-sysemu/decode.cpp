@@ -113,7 +113,7 @@ static insn_exec_funct_t dec_custom0(uint32_t bits, uint32_t& flags __attribute_
 	      case 0x41: return insn_fgbg_ps;
               case 0x68: return insn_fscwl_ps;
 	      case 0x64: return insn_fschl_ps;
-	      case 0x60: return insn_fscbl_ps; 
+	      case 0x60: return insn_fscbl_ps;
               case 0x69: return insn_fscwg_ps;
 	      case 0x65: return insn_fschg_ps;
 	      case 0x61: return insn_fscbg_ps;
@@ -1069,13 +1069,7 @@ static insn_exec_funct_t dec_c_sdsp(uint32_t bits __attribute__((unused)),
 //
 // -----------------------------------------------------------------------------
 
-// NB: placeholder for flushing any cached decoding results we may have
-// to synchronize when fence_i() is executed
-void flush_insn_cache()
-{
-}
-
-void insn_t::fetch_and_decode(uint64_t vaddr)
+insn_t fetch_and_decode(uint64_t vaddr)
 {
     // Opcode map inst[1:0]=11b, indexed using inst[6:2]
     // See RV64
@@ -1101,9 +1095,9 @@ void insn_t::fetch_and_decode(uint64_t vaddr)
     };
 
     // local copy of the class members
-    uint32_t _bits = 0;
-    uint32_t _flags = 0;
-    insn_exec_funct_t _exec_fn = nullptr;
+    uint32_t bits = 0;
+    uint32_t flags = 0;
+    insn_exec_funct_t exec_fn = nullptr;
 
     // Fetch two 16b words; don't translate the address twice if both words
     // are in the same 4KiB area
@@ -1126,29 +1120,29 @@ void insn_t::fetch_and_decode(uint64_t vaddr)
     }
 
     if ((low & 0x3) != 0x3) {
-        _bits = uint32_t(low);
+        bits = uint32_t(low);
         LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64 ": 0x%04x", vaddr, low);
     } else if ((paddr & 4095) <= 4092) {
         uint16_t high = pmemfetch16(paddr + 2);
-        _bits = uint32_t(low) + (uint32_t(high) << 16);
-        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, _bits);
+        bits = uint32_t(low) + (uint32_t(high) << 16);
+        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
     } else {
         uint64_t paddr2 = vmemtranslate(vaddr + 2, Mem_Access_Fetch);
         uint16_t high = pmemfetch16(paddr2);
-        _bits = uint32_t(low) + (uint32_t(high) << 16);
-        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, _bits);
+        bits = uint32_t(low) + (uint32_t(high) << 16);
+        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
     }
-    current_inst = _bits;
+    current_inst = bits;
 
     // Decode the fetched bits
-    if ((_bits & 0x3) == 0x3) {
-        int idx = ((_bits >> 2) & 0x1f);
-        _exec_fn = functab32b[idx](_bits, _flags);
+    if ((bits & 0x3) == 0x3) {
+        int idx = ((bits >> 2) & 0x1f);
+        exec_fn = functab32b[idx](bits, flags);
     } else {
-        int idx = ((_bits >> 11) & 0x1c) | (_bits & 0x03);
-        _exec_fn = functab16b[idx](_bits, _flags);
+        int idx = ((bits >> 11) & 0x1c) | (bits & 0x03);
+        exec_fn = functab16b[idx](bits, flags);
     }
 
     // overwrite const members
-    ::new (this) insn_t(_bits, _flags, _exec_fn);
+    return insn_t { bits, flags, exec_fn };
 }

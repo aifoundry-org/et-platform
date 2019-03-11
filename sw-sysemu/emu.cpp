@@ -253,9 +253,6 @@ typedef enum {
    MAXAMOOP
 } amoop;
 
-// Neede by fence.i
-extern void flush_insn_cache();
-
 // UART
 static std::ostringstream uart_stream[EMU_NUM_THREADS];
 
@@ -2375,7 +2372,9 @@ void fence_i(const char* comm)
     if (core_type == ET_MINION)
         throw trap_mcode_instruction(current_inst);
 
-    flush_insn_cache();
+    // NB: placeholder for flushing any cached decoding results we may have
+    // to synchronize when fence_i() is executed
+    // flush_insn_cache();
 }
 
 ////////////////////////////////////////////////////////////////////////////////

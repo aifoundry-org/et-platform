@@ -906,12 +906,11 @@ int main(int argc, char * argv[])
             try
             {
                 // Gets instruction and sets state
-                insn_t inst;
                 clearlogstate();
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
                 check_pending_interrupts();
-                inst.fetch_and_decode(current_pc[thread_id]);
+                insn_t inst = fetch_and_decode(current_pc[thread_id]);
 
                 // In case of reduce, we need to make sure that the other minion is also in reduce state
                 bool reduce_wait = false;
@@ -967,7 +966,7 @@ int main(int argc, char * argv[])
                 // Executes the instruction
                 if(!reduce_wait)
                 {
-                    inst.execute();
+                    execute(inst);
 
                     if (get_msg_port_stall(thread_id, 0) ){
                         thread = enabled_threads.erase(thread);
