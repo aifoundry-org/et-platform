@@ -370,7 +370,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
     {
         check_pending_interrupts(); // This need to be here because it can trap
         // Fetch new instruction (may trap)
-        inst.fetch_and_decode(current_pc[thread]);
+        inst = fetch_and_decode(current_pc[thread]);
 
         // In case that the instruction is a reduce:
         //   - The thread that is the sender has to wait until the receiver has copied the reduce data,
@@ -384,11 +384,11 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
             int  wake_minion=-1;
             checker_result res = do_reduce(thread, value, &wake_minion);
             if (wake_minion >=0) wake_minions.push(wake_minion);
-            if(res == CHECKER_WAIT) return CHECKER_WAIT;
+            if (res == CHECKER_WAIT) return CHECKER_WAIT;
         }
 
         // Execute the instruction (may trap)
-        inst.execute();
+        execute(inst);
 
         // check if we have to wake any minions
         std::queue<uint32_t> &minions_to_awake = get_minions_to_awake();
