@@ -6,6 +6,7 @@ include ../../build/emu.mk
 
 checker_hdrs := \
 	checker/checker.h \
+	checker/log.h \
 	common/main_memory.h \
 	common/main_memory_region.h \
 	common/main_memory_region_atomic.h \
@@ -15,12 +16,13 @@ checker_hdrs := \
 
 checker_cpp_srcs := \
 	checker/checker.cpp \
-        common/main_memory.cpp \
-        common/main_memory_region.cpp \
-        common/main_memory_region_atomic.cpp \
-        common/main_memory_region_esr.cpp \
-        common/main_memory_region_rbox.cpp \
-        common/riscv_disasm.cpp
+	checker/log.cpp \
+	common/main_memory.cpp \
+	common/main_memory_region.cpp \
+	common/main_memory_region_atomic.cpp \
+	common/main_memory_region_esr.cpp \
+	common/main_memory_region_rbox.cpp \
+	common/riscv_disasm.cpp
 
 checker_SRCS := $(checker_cpp_srcs) \
 		$(emu_cpp_srcs)
@@ -31,8 +33,8 @@ checker_DIRS := $(sort $(dir $(checker_OBJS)))
 
 BFDROOT := $(RISCV)/x86_64-pc-linux-gnu/riscv64-unknown-elf
 
-CC	 := gcc
-CXX 	 := g++
+CC       := gcc
+CXX      := g++
 CPPFLAGS := -I../.. -I.. -I$(TESTROOT)/libs -I$(TESTROOT)/shire/shiretop/csrc
 CXXFLAGS := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c11

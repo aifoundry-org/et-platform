@@ -2,6 +2,9 @@ include emu.mk
 include fpu.mk
 include softfloat.mk
 
+emu_cpp_hdrs += sys_emu/log.h
+emu_cpp_srcs += sys_emu/log.cpp
+
 libemu_SRCS := $(emu_cpp_srcs)
 
 libfpu_SRCS := $(fpu_cpp_srcs) \
@@ -11,7 +14,7 @@ AR       := ar
 CC       := gcc
 CXX      := g++
 ARFLAGS  := rvs
-common_CPPFLAGS := -I..
+common_CPPFLAGS := -I.. -I../sys_emu
 CXXFLAGS := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Werror -fPIC -g -O2 -std=c11
 LDFLAGS  := -shared

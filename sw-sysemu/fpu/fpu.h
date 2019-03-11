@@ -136,6 +136,9 @@ namespace fpu {
 
     // ----- Esperanto tensor extension --------------------------------------
 
+    float32_t f32_tensorMulF16(float16_t, float16_t,
+                               float16_t, float16_t);
+
     float32_t f32_tensorMulAddF16(float32_t,
                                   float16_t, float16_t,
                                   float16_t, float16_t);

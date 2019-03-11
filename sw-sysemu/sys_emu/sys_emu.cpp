@@ -183,6 +183,7 @@ static const char * help_msg =
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
  -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
  -mins_dis    Minions start disabled\n\
+ -dump_mem    Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n\
 ";
 
 
@@ -576,6 +577,7 @@ int main(int argc, char * argv[])
     int dump             = 0;
     uint64_t dump_addr   = 0;
     uint64_t dump_size   = 0;
+    char *   dump_mem    = NULL;
     uint64_t reset_pc    = RESET_PC;
     bool reset_pc_flag   = false;
     bool debug           = false;
@@ -645,6 +647,11 @@ int main(int argc, char * argv[])
             log_min = atoi(argv[i]);
             dump = 0;
         }
+        else if(dump == 5)
+        {
+            dump_mem = argv[i];
+            dump = 0;
+        }
         else if(strcmp(argv[i], "-max_cycles") == 0)
         {
             max_cycle = true;
@@ -696,6 +703,10 @@ int main(int argc, char * argv[])
         else if(strcmp(argv[i], "-lm") == 0)
         {
             dump = 4;
+        }
+        else if(strcmp(argv[i], "-dump_mem") == 0)
+        {
+            dump = 5;
         }
         else if(strcmp(argv[i], "-m") == 0)
         {
@@ -767,10 +778,6 @@ int main(int argc, char * argv[])
 
     in_sysemu = true;
 
-    // Log state (needed to know PC changes)
-    inst_state_change emu_state_change;
-    setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
-
     // Defines the memory access functions
     set_memory_funcs(emu_memread8,
                      emu_memread16,
@@ -782,7 +789,7 @@ int main(int argc, char * argv[])
                      emu_memwrite64);
 
     // Callbacks for port writes
-    set_msg_funcs((void *) msg_to_thread);
+    set_msg_funcs(msg_to_thread);
 
     // Parses the memory description
     if (elf_file != NULL) {
@@ -913,7 +920,7 @@ int main(int argc, char * argv[])
                     uint64_t other_min, action;
                     // Gets the source used for the reduce
                     uint64_t value = xget(inst.rs1());
-                    get_reduce_info(value, &other_min, &action);
+                    tensor_reduce_decode(value, &other_min, &action);
                     // Sender
                     if(action == 0)
                     {
@@ -1063,9 +1070,10 @@ int main(int argc, char * argv[])
 
     // Dumping
     if(dump_file != NULL)
-    {
         memory->dump_file(dump_file, dump_addr, dump_size);
-    }
+
+    if(dump_mem)
+        memory->dump_file(dump_mem);
 
     return 0;
 }

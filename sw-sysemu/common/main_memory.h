@@ -33,6 +33,9 @@ class main_memory
        // dump memory contents into file
        bool dump_file(std::string filename, uint64_t ad, uint64_t size, unsigned buf_size = 256);
 
+       // dump all memory contents into file
+       bool dump_file(std::string filename);
+
        // sets function to retrieve current thread from emu (in case it is required to known which minion accesses the mem)
        void setGetThread(main_memory_region::func_ptr_get_thread f) { getthread = f; }
 
