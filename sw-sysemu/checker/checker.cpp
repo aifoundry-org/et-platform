@@ -212,10 +212,10 @@ checker::checker(main_memory * memory_, testLog& log_, bool checker_en)
     }
     memory = memory_;
 
-    waived_csrs.push_back(csr_validation0);
-    waived_csrs.push_back(csr_validation1);
-    waived_csrs.push_back(csr_validation2);
-    waived_csrs.push_back(csr_validation3);
+    waived_csrs.push_back(CSR_VALIDATION0);
+    waived_csrs.push_back(CSR_VALIDATION1);
+    waived_csrs.push_back(CSR_VALIDATION2);
+    waived_csrs.push_back(CSR_VALIDATION3);
 
     checker_instance = this;
     checker_enabled = checker_en;
@@ -527,7 +527,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             }
 
             // Check if we read a CSR that we want to waive checking for
-            if (inst.is_csr_read() && (std::find(waived_csrs.begin(), waived_csrs.end(), get_csr_enum(inst.csrimm())) != waived_csrs.end()))
+            if (inst.is_csr_read() && (std::find(waived_csrs.begin(), waived_csrs.end(), inst.csrimm()) != waived_csrs.end()))
             {
                 log << LOG_INFO << "Waived CSR value (" << insn_disasm << ")" << endm;
                 emu_state_change.int_reg_data = changes->int_reg_data;
@@ -535,8 +535,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             }
 
             // Check if we just read a cycle register, in which case the RTL drives value
-            if (inst.is_csr_read() && ((get_csr_enum(inst.csrimm()) == csr_cycle  )||
-                                       (get_csr_enum(inst.csrimm()) == csr_mcycle )))
+            if (inst.is_csr_read() && ((inst.csrimm() == CSR_CYCLE)|| (inst.csrimm() == CSR_MCYCLE)))
             {
                 log << LOG_INFO << "CYCLE CSR value (" << insn_disasm << ")" << endm;
                 emu_state_change.int_reg_data = changes->int_reg_data;

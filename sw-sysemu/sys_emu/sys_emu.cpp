@@ -365,18 +365,19 @@ bool process_dbg_cmd(std::string cmd) {
       std::string str = dump_fregs((num_args > 1) ? std::stoi(command[1]) : 0).str();
       printf("%s\n", str.c_str());
    } else if (command[0] == "csr") {
-      uint32_t thid = 0, offset = 0;
+      uint32_t thid = 0;
+      uint16_t offset = 0;
       if (num_args > 2) {
         thid = std::stoi(command[1]);
         offset = std::stoul(command[2], nullptr, 0);
       } else if (num_args > 1) {
         offset = std::stoul(command[1], nullptr, 0);
       }
-      csr c = get_csr_enum(offset);
-      if (c == csr_unknown) {
+      try {
+        printf("CSR[%d][0x%x] = 0x%lx\n", thid, offset & 0xfff, get_csr(thid, offset & 0xfff));
+      }
+      catch (const trap_t&) {
         printf("Unrecognized CSR register\n");
-      } else {
-        printf("CSR[%d][0x%x] = 0x%lx\n", thid, offset, get_csr(thid, c));
       }
    } else if ((command[0] == "m") || (command[0] == "mdump")) {
       if (num_args > 2) {
