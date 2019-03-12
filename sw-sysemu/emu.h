@@ -415,9 +415,6 @@ extern void frcp_ps   (freg dst, freg src1, const char* comm = 0);
 extern void frsq_ps   (freg dst, freg src1, const char* comm = 0);
 //extern void fltabs_ps (freg dst, freg src1, freg src2, rounding_mode rm, const char* comm = 0);
 
-// FIXME: THIS INSTRUCTION IS OBSOLETE
-extern void frcpfxp_ps (freg dst, freg src1, const char* comm = 0);
-
 extern void cubeface_ps    (freg dst, freg src1, freg src2, const char* comm = 0);
 extern void cubefaceidx_ps (freg dst, freg src1, freg src2, const char* comm = 0);
 extern void cubesgnsc_ps   (freg dst, freg src1, freg src2, const char* comm = 0);

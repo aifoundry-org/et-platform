@@ -80,24 +80,12 @@ typedef struct
 
 typedef enum {
     // PS memory instructions
-    FLW,
-    FSW,
-    FSWB,
-    FSWH,
-    FBC,
-    FBCI,
     FGW,
     FGH,
     FGB,
     FSCW,
     FSCH,
     FSCB,
-    FG32W,
-    FG32H,
-    FG32B,
-    FSC32W,
-    FSC32H,
-    FSC32B,
     FGWL,
     FGHL,
     FGBL,
@@ -123,31 +111,18 @@ typedef enum {
     FSQRT,
     FRSQ,
     FSIN,
-    //FCOS,
     FEXP,
     FLOG,
     FRCP,
-    FRCPFXP,
     FCVTPSPW,
     FCVTPSPWU,
     FFRC,
-    FROUND,
-    FSWIZZ,
     FCMOV, // PS conversion and move
     FCVTPWPS,
     FCVTPWUPS,
-    FMVZXPS,  // warning: unimplemented
-    FMVSXPS,  // warning: unimplemented
     FEQ, // Floating point compare
     FLE,
     FLT,
-    //FLTABS,
-    CUBEFACE,
-    CUBEFACEIDX,
-    CUBESGNSC,
-    CUBESGNTC,
-    FCLASS,
-    FCLASSPS,
     FCVTPSF16, // Graphics Upconvert to PS
     FCVTPSF11,
     FCVTPSF10,
@@ -158,11 +133,8 @@ typedef enum {
     FCVTPSUN2,
     FCVTPSRAST,
     FCVTRASTPS,
-    //FCVTPSSN24,
     FCVTPSSN16,
-    //FCVTPSSN10,
     FCVTPSSN8,
-    //FCVTPSSN2,
     FCVTF16PS, // Graphics DownConvert from PS
     FCVTF11PS,
     FCVTF10PS,
@@ -171,7 +143,6 @@ typedef enum {
     FCVTUN10PS,
     FCVTUN8PS,
     FCVTUN2PS,
-    //FCVTSN24PS,
     FCVTSN16PS,
     FCVTSN8PS,
     MAND, // Mask operations
@@ -179,14 +150,11 @@ typedef enum {
     MXOR,
     MNOT,
     FSET,
-    MOVAMX,
-    MOVAXM,
     FADDPI, // Packed Integer extension
     FSUBPI,
     FMULPI,
     FMULHPI,
     FMULHUPI,
-    //FMULHSUPI,
     FDIVPI,
     FDIVUPI,
     FREMPI,
@@ -225,16 +193,7 @@ typedef enum {
     FCVTSW,
     FCVTSWU,
     FCVTSL,
-    FCVTSLU,
-    SIMPLE_INT, // Integer ISA
-    MUL_INT,
-    DIV_INT,
-    REM_INT,
-    MASKOP,     // Mask ops
-    LD,
-    STORE_INT,
-    // Please keep me last at all times!
-    MAXOPCODE
+    FCVTSLU
 } opcode;
 
 typedef enum {
@@ -4176,19 +4135,6 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                     LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
                 }
                 break;
-            case FRCPFXP:
-                // FIXME: THIS INSTRUCTION IS OBSOLETE
-                {
-                    // Input value is 2xtriArea with 15.16 precision
-                    double tmp = double(val.i) / double(1 << 16);
-
-                    // Result value is 17.14
-                    double tmp_rcp = (1.0 / tmp) * double(1 << 14);
-
-                    res.i = int32_t(tmp_rcp);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%d) <-- 1 / 0x%08x (%d)", i, res.u, res.i, val.u, val.i);
-                }
-                break;
             case FCVTPSPW:
                 {
                     res.f = fpu::i32_to_f32(val.i);
@@ -5461,9 +5407,6 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
                 LOG(DEBUG, "\t[%d] %d <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
                 break;
             case FSET:
-                // NB: should this be a !feq() comparison?
-                // softfloat: res.u = !f32_eq(val1.f, {0});
-                // hardfloat: res.u = (val1.f == 0.0) ? 0 : 1;
                 res.u = (val1.u) ? 1 : 0;
                 LOG(DEBUG, "\t[%d] %d <-- 0x%08x ? 1 : 0", i, res.u, val1.u);
                 break;
@@ -6218,15 +6161,6 @@ void frsq_ps(freg dst, freg src1, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femu1src(FRSQ, VL, dst, src1, rtz);
-}
-
-// FIXME: THIS INSTRUCTION IS OBSOLETE
-void frcpfxp_ps(freg dst, freg src1, const char* comm)
-{
-    LOG(DEBUG, "I: frcpfxp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FRCPFXP, VL, dst, src1, rtz);
 }
 
 void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
