@@ -367,13 +367,21 @@ std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
 
 const char* csr_name(uint16_t num)
 {
+    static thread_local char unknown_name[60];
+    static thread_local int  unknown_name_start = 0;
     static const std::unordered_map<uint16_t, const char*> csr_names = {
 #define CSRDEF(num, lower, upper)       { num, #lower },
 #include "csrs.h"
 #undef CSRDEF
     };
     auto it = csr_names.find(num);
-    return (it == csr_names.cend()) ? "unknown" : it->second;
+    if (it == csr_names.cend()) {
+        (void) snprintf(&unknown_name[unknown_name_start], 6, "0x%03" PRIx16, num & 0xfff);
+        const char * ptr = &unknown_name[unknown_name_start];
+        unknown_name_start = (unknown_name_start + 5) % 60;
+        return ptr;
+    }
+    return it->second;
 }
 
 static et_core_t core_type = ET_MINION;
@@ -3358,8 +3366,11 @@ static void csrset(uint16_t src1, uint64_t val)
         }
         break;
     case CSR_STALL:
+        // FIXME: Do something here?
         break;
-    // CSR_TENSOR_WAIT
+    case CSR_TENSOR_WAIT:
+        // FIXME: Do something here?
+        break;
     case CSR_TENSOR_LOAD:
         if (current_thread % EMU_THREADS_PER_MINION)
             throw trap_illegal_instruction(current_inst);
@@ -3532,11 +3543,11 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
     if (dst != x0)
     {
         XREGS[dst].x = oldval;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- CSR[%s]", oldval, csr_name(src1));
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- %s", oldval, csr_name(src1));
     }
     if (write)
     {
-        LOG(DEBUG, "\t0x%016" PRIx64 " --> CSR[%s]", newval, csr_name(src1));
+        LOG(DEBUG, "\t0x%016" PRIx64 " --> %s", newval, csr_name(src1));
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -3869,7 +3880,7 @@ void sfence_vma(xreg src1, xreg src2, const char* comm)
 
 void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: csrrw x%d, csrreg[%s], x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: csrrw x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
     uint64_t newval = XREGS[src2].x;
     csr_insn(dst, src1, oldval, newval, true);
@@ -3877,7 +3888,7 @@ void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm)
 
 void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: csrrs x%d, csrreg[%s], x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: csrrs x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | XREGS[src2].x;
     csr_insn(dst, src1, oldval, newval, src2 != x0);
@@ -3885,7 +3896,7 @@ void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm)
 
 void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm)
 {
-    LOG(DEBUG, "I: csrrc x%d, csrreg[%s], x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: csrrc x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~XREGS[src2].x);
     csr_insn(dst, src1, oldval, newval, src2 != x0);
@@ -3893,7 +3904,7 @@ void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm)
 
 void csrrwi(xreg dst, uint16_t src1, uint64_t imm, const char* comm)
 {
-    LOG(DEBUG, "I: csrrwi x%d, csrreg[%s], 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: csrrwi x%d, %s, 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
     uint64_t newval = imm;
     csr_insn(dst, src1, oldval, newval, true);
@@ -3901,7 +3912,7 @@ void csrrwi(xreg dst, uint16_t src1, uint64_t imm, const char* comm)
 
 void csrrsi(xreg dst, uint16_t src1, uint64_t imm, const char* comm)
 {
-    LOG(DEBUG, "I: csrrsi x%d, csrreg[%s], 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: csrrsi x%d, %s, 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | imm;
     csr_insn(dst, src1, oldval, newval, imm != 0);
@@ -3909,7 +3920,7 @@ void csrrsi(xreg dst, uint16_t src1, uint64_t imm, const char* comm)
 
 void csrrci(xreg dst, uint16_t src1, uint64_t imm, const char* comm)
 {
-    LOG(DEBUG, "I: csrrci x%d, csrreg[%s], 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: csrrci x%d, %s, 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~imm);
     csr_insn(dst, src1, oldval, newval, imm != 0);
