@@ -120,7 +120,6 @@ uint64_t mem_mask(int32_t size)
 main_memory * memory_instance = NULL;
 checker* checker_instance = NULL; // this is used when enabling the second thread from the emu, to have an object to handle the call
                                   // if there is more than 1 checker instance (e.g. one per shire), this will have to be an array
-bool fail_on_check = false;       // Option to still emulation instruction but dont fail test
 
 
 uint8_t checker_memread8(uint64_t addr)
@@ -219,7 +218,7 @@ checker::checker(main_memory * memory_, testLog& log_, bool checker_en)
     waived_csrs.push_back(csr_validation3);
 
     checker_instance = this;
-    fail_on_check = checker_en;
+    checker_enabled = checker_en;
     memory_instance = memory;
     init_emu();
 
@@ -931,13 +930,13 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
         }
     }
 
- finished_checking:
+finished_checking:
 
-    if (check_res != CHECKER_OK)
-    {
+    if (check_res != CHECKER_OK) {
         error_msg += stream.str();
-        if (!fail_on_check)
+        if (!checker_enabled) {
             check_res = CHECKER_WARNING;
+        }
     }
     return check_res;
 }

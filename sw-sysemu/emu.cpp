@@ -115,8 +115,6 @@ typedef enum {
     FSUB,
     FMUL,
     FDIV,
-    FMIN,
-    FMAX,
     FMADD,
     FMSUB,
     FNMADD,
@@ -4193,36 +4191,6 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                     LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g) / 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                 }
                 break;
-            case FMIN:
-                {
-                    res.f = fpu::f32_minimumNumber(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FMAX:
-                {
-                    res.f = fpu::f32_maximumNumber(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FLT:
-                {
-                    res.u = fpu::f32_lt(val1.f, val2.f) ? 0xffffffff : 0;
-                    LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FLE:
-                {
-                    res.u = fpu::f32_le(val1.f, val2.f) ? 0xffffffff : 0;
-                    LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FEQ:
-                {
-                    res.u = fpu::f32_eq(val1.f, val2.f) ? 0xffffffff : 0;
-                    LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
             case FRCP_FIX_RAST:
                 {
                     res.i = fpu::fxp1714_rcpStep(val1.i, val2.i);
@@ -4422,14 +4390,34 @@ void fmin_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fmin.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FMIN, 1, dst, src1, src2, rmdyn);
+    clear_arithmetic_flags();
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_minimumNumber(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    set_fp_exceptions();
+    dirty_fp_state();
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fmax_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fmax.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FMAX, 1, dst, src1, src2, rmdyn);
+    clear_arithmetic_flags();
+    iufval32 val1, val2, res;
+    val1.u = FREGS[src1].u[0];
+    val2.u = FREGS[src2].u[0];
+    res.f = fpu::f32_maximumNumber(val1.f, val2.f);
+    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+    FREGS[dst].u[0] = res.u;
+    ZERO_UNUSED_FREG_BITS(dst, 1);
+    set_fp_exceptions();
+    dirty_fp_state();
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fsqrt_s(freg dst, freg src1, rounding_mode rm, const char* comm)
@@ -5513,7 +5501,20 @@ void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fmin.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FMIN, VL, dst, src1, src2, rmdyn);
+    clear_arithmetic_flags();
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_minimumNumber(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    set_fp_exceptions();
+    dirty_fp_state();
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fmax_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5521,7 +5522,20 @@ void fmax_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fmax.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FMAX, VL, dst, src1, src2, rmdyn);
+    clear_arithmetic_flags();
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.f = fpu::f32_maximumNumber(val1.f, val2.f);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    set_fp_exceptions();
+    dirty_fp_state();
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fsqrt_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
@@ -5540,7 +5554,20 @@ void feq_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: feq.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FEQ, VL, dst, src1, src2, rmdyn);
+    clear_arithmetic_flags();
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.u = fpu::f32_eq(val1.f, val2.f) ? 0xffffffff : 0;
+        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    set_fp_exceptions();
+    dirty_fp_state();
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fle_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5548,7 +5575,20 @@ void fle_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fle.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FLE, VL, dst, src1, src2, rmdyn);
+    clear_arithmetic_flags();
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.u = fpu::f32_le(val1.f, val2.f) ? 0xffffffff : 0;
+        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    set_fp_exceptions();
+    dirty_fp_state();
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void flt_ps(freg dst, freg src1, freg src2, const char* comm)
@@ -5556,7 +5596,19 @@ void flt_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: flt.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu2src(FLT, VL, dst, src1, src2, rmdyn);
+    for (int i = 0; i < VL; ++i)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        res.u = fpu::f32_lt(val1.f, val2.f) ? 0xffffffff : 0;
+        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    set_fp_exceptions();
+    dirty_fp_state();
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void feqm_ps(mreg dst, freg src1, freg src2, const char* comm)
