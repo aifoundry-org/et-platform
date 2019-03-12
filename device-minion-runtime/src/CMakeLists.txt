@@ -8,18 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-# add_subdirectory("lib")
-
 get_filename_component(SHARED_SRC_DIR "shared/src" ABSOLUTE)
 get_filename_component(SHARED_INC_DIR "shared/include" ABSOLUTE)
 
 add_subdirectory("MasterMinion")
 add_subdirectory("ServiceProcessor")
-
-# add the executable
-#add_executable (test_repo test.cc)
-#target_link_libraries (test_repo
-#                       PRIVATE
-#                         TestLib)
-
-#install(TARGETS test_repo DESTINATION bin)

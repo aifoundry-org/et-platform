@@ -4,3 +4,6 @@
 [submodule "firmware-tools"]
 	path = firmware-tools
 	url = git@gitlab:software/firmware-tools.git
+[submodule "src/MasterMinion/device_api"]
+	path = src/MasterMinion/device_api
+	url = git@gitlab:software/device-api.git

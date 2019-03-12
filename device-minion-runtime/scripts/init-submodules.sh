@@ -1,4 +1,5 @@
 #!/bin/bash
 
 git submodule update --init --recursive \
-    infra_tools
+    infra_tools \
+    src/MasterMinion/device_api
