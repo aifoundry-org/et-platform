@@ -33,7 +33,7 @@ typedef struct
 
 typedef struct
 {
-    int    entry;
+    int      entry;
     uint32_t data[VL];
     uint32_t tensorfma_regfile_wmask;
 } tensorfma_entry;

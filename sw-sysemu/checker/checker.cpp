@@ -187,18 +187,14 @@ static int scp_index_to_cache_index(int entry)
 {
     assert(L1D_NUM_SETS == 16);
     assert(L1D_NUM_WAYS == 4);
+    assert(entry >= 0);
     const static int scp_to_l1[48] = {
         0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
         16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
         32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
         48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59
     };
-    if (entry > 47 || entry < 0)
-    {
-        LOG(DEBUG,"ERROR: SCP entry out of range : %d", entry);
-        return entry;
-    }
-    return scp_to_l1[entry];
+    return (entry >= 48) ? entry : scp_to_l1[entry];
 }
 
 // Creates a new checker
@@ -763,6 +759,12 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
 
             // For all the written entries
             int start = emu_state_change.tl_scp_first;
+            int adj = 0;
+            if (start == 48)
+            {
+                adj = 48;
+                start = 0;
+            }
             for(int i = 0; i < emu_state_change.tl_scp_count && emu_state_change.tensor_mod; i++)
             {
                 // Load was skipped due conv CSR, ignore check
@@ -770,14 +772,15 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                     continue;
 
                 // Looks for the 1st entry in the list of RTL written lines with same destination
-                int line_index = scp_index_to_cache_index(start+i);
+                int scp_index = adj + ((start + i) % 48);
+                int cache_index = scp_index_to_cache_index(scp_index);
                 auto it = std::find_if(scp_entry_list[thread].begin(), scp_entry_list[thread].end(),
-                                       [=] (const scratchpad_entry& x) { return x.entry == line_index; });
+                                       [=] (const scratchpad_entry& x) { return x.entry == cache_index; });
 
                 // Checks that an entry was actually found
                 if(it == scp_entry_list[thread].end())
                 {
-                    stream << "BEMU Checker couldn't find scratchpad destination " << start + i << " in the DUT reported scratchpad list!!" << std::endl;
+                    stream << "BEMU Checker couldn't find scratchpad destination " << scp_index << " in the DUT reported scratchpad list!!" << std::endl;
                     stream << "SCP Candidates: " << std::endl;
                     for(auto e : scp_entry_list[thread]) {
                         stream << "\tEntry : " << e.entry << std::endl;
