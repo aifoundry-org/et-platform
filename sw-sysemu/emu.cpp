@@ -7774,6 +7774,7 @@ void tensorload(uint64_t control)
     uint64_t base               = control & 0xFFFFFFFFFFC0ULL;
     int      boffset            = (control >>  4) & 0x03;
     int      rows               = ((control      ) & 0xF) + 1;
+    int      adj                = 0;
 
     uint64_t addr             = sext<48>(base);
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
@@ -7790,7 +7791,8 @@ void tensorload(uint64_t control)
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if (tenb)
     {
-        dst = L1_SCP_ENTRIES;
+        dst = 0;
+        adj = L1_SCP_ENTRIES;
         tensorload_setupb_topair[current_thread] = true;
         tensorload_setupb_topair[current_thread^1] = true;
         tensorload_setupb_numlines[current_thread] = rows;
@@ -7805,7 +7807,7 @@ void tensorload(uint64_t control)
         return;
     }
 
-    log_tensor_load(trans, dst, rows, tm ? csr_tensor_mask[current_thread] : 0);
+    log_tensor_load(trans, dst + adj, rows, tm ? csr_tensor_mask[current_thread] : 0);
 
     //NO TRANS
     if (trans == 0x00)
@@ -7816,6 +7818,7 @@ void tensorload(uint64_t control)
             if (!tm || tmask_pass(i))
             {
                 assert(access_is_size_aligned(addr, L1D_LINE_SIZE));
+                int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
                 uint64_t paddr = vmemtranslate(addr, Mem_Access_TxLoad);
                 if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_TxLoad))
                 {
@@ -7823,10 +7826,10 @@ void tensorload(uint64_t control)
                 }
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
-                    SCP[dst + i].u[j] = pmemread32(paddr + j*4);
-                    LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, dst+i, j, SCP[dst+i].u[j], addr+j*4);
+                    SCP[idx].u[j] = pmemread32(paddr + j*4);
+                    LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, idx, j, SCP[idx].u[j], addr+j*4);
                 }
-                log_tensor_load_scp_write(i, &SCP[dst+i].x[0]);
+                log_tensor_load_scp_write(i, &SCP[idx].x[0]);
             }
             LOG(DEBUG, "\t\tAddress = 0x%016" PRIx64 " - Stride = 0x%016" PRIx64, addr, stride);
             addr = sextVA(addr + stride);
@@ -7842,6 +7845,7 @@ void tensorload(uint64_t control)
         {
             if (!tm || tmask_pass(i))
             {
+                int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
                 for (int r = 0; r < 4; ++r)
                 {
                     uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
@@ -7853,12 +7857,11 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        SCP[(dst+i)%L1_SCP_ENTRIES].b[c*4 + r] = pmemread8(paddr + c);
-                        LOG(DEBUG, "SCP[%d].b[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]",
-                            (dst+i)%L1_SCP_ENTRIES, c*4+r, SCP[dst+i].b[c*4+r], vaddr + c);
+                        SCP[idx].b[c*4 + r] = pmemread8(paddr + c);
+                        LOG(DEBUG, "SCP[%d].b[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]", idx, c*4+r, SCP[idx].b[c*4+r], vaddr + c);
                     }
                 }
-                log_tensor_load_scp_write(i, &SCP[(dst+i)%L1_SCP_ENTRIES].x[0]);
+                log_tensor_load_scp_write(i, &SCP[idx].x[0]);
             }
         }
     }
@@ -7872,6 +7875,7 @@ void tensorload(uint64_t control)
         {
             if (!tm || tmask_pass(i))
             {
+                int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
                 for (int r = 0; r < 2; ++r)
                 {
                     uint64_t vaddr = sextVA(addr + boffset + (2*i+r)*stride);
@@ -7883,12 +7887,12 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        SCP[(dst+i)%L1_SCP_ENTRIES].h[c*2 + r] = pmemread16(paddr + c*2);
+                        SCP[idx].h[c*2 + r] = pmemread16(paddr + c*2);
                         LOG(DEBUG, "SCP[%d].h[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
-                            (dst+i)%L1_SCP_ENTRIES, c*2+r, SCP[dst+i].h[c*4+r], vaddr + c*2);
+                            idx, c*2+r, SCP[idx].h[c*4+r], vaddr + c*2);
                     }
                 }
-                log_tensor_load_scp_write(i, &SCP[(dst+i)%L1_SCP_ENTRIES].x[0]);
+                log_tensor_load_scp_write(i, &SCP[idx].x[0]);
             }
         }
     }
@@ -7932,26 +7936,29 @@ void tensorload(uint64_t control)
         {
             if (!tm || tmask_pass(i))
             {
+                int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
                 for (int j = 0; j < elements; ++j)
                 {
                     if (size == 4)
                     {
-                        SCP[dst+i].b[j*4  ] = tmp_buffer[j][i*4+offset  ];
-                        SCP[dst+i].b[j*4+1] = tmp_buffer[j][i*4+offset+1];
-                        SCP[dst+i].b[j*4+2] = tmp_buffer[j][i*4+offset+2];
-                        SCP[dst+i].b[j*4+3] = tmp_buffer[j][i*4+offset+3];
-                        LOG(DEBUG, "\tI'm size 4 - b[0]=0x%02" PRIx8 " b[1]=0x%02" PRIx8, tmp_buffer[j][(i)*size+offset], tmp_buffer[j][(i)*size+offset+1]);
+                        SCP[idx].b[j*4  ] = tmp_buffer[j][i*4+offset  ];
+                        SCP[idx].b[j*4+1] = tmp_buffer[j][i*4+offset+1];
+                        SCP[idx].b[j*4+2] = tmp_buffer[j][i*4+offset+2];
+                        SCP[idx].b[j*4+3] = tmp_buffer[j][i*4+offset+3];
+                        LOG(DEBUG, "\tI'm size 4 - b[0]=0x%02" PRIx8 " b[1]=0x%02" PRIx8 " b[2]=0x%02" PRIx8 " b[3]=0x%02" PRIx8,
+                            tmp_buffer[j][i*4+offset], tmp_buffer[j][i*4+offset+1], tmp_buffer[j][i*4+offset+2], tmp_buffer[j][i*4+offset+3]);
                     }
                     else if (size == 2)
                     {
-                        SCP[dst+i].b[j*2  ] = tmp_buffer[j][i*2+offset  ];
-                        SCP[dst+i].b[j*2+1] = tmp_buffer[j][i*2+offset+1];
-                        LOG(DEBUG, "\tI'm size 2 - b[0]=0x%02" PRIx8 " b[1]=0x%02" PRIx8, tmp_buffer[j][(i)*size+offset], tmp_buffer[j][(i)*size+offset+1]);
+                        SCP[idx].b[j*2  ] = tmp_buffer[j][i*2+offset  ];
+                        SCP[idx].b[j*2+1] = tmp_buffer[j][i*2+offset+1];
+                        LOG(DEBUG, "\tI'm size 2 - b[0]=0x%02" PRIx8 " b[1]=0x%02" PRIx8,
+                            tmp_buffer[j][i*2+offset], tmp_buffer[j][i*2+offset+1]);
                     }
                     else if (size == 1)
                     {
-                        SCP[dst+i].b[j] = tmp_buffer[j][i+offset];
-                        LOG(DEBUG, "\tI'm size 1 - b[0]=0x%02" PRIx8 " b[1]=0x%02" PRIx8, tmp_buffer[j][dst+(i)*size+offset], tmp_buffer[j][dst+(i)*size+offset+1]);
+                        SCP[idx].b[j] = tmp_buffer[j][i+offset];
+                        LOG(DEBUG, "\tI'm size 1 - b[0]=0x%02" PRIx8, tmp_buffer[j][i+offset]);
                     }
                     else
                     {
@@ -7960,9 +7967,9 @@ void tensorload(uint64_t control)
                         return;
                     }
                 }
-                log_tensor_load_scp_write(i, &SCP[dst+i].x[0]);
+                log_tensor_load_scp_write(i, &SCP[idx].x[0]);
                 for (int x = 0; x < L1D_LINE_SIZE/4; ++x)
-                    LOG(DEBUG, "SCP[%d].u[%d] = 0x%08" PRIx32, dst+i, x, SCP[dst+i].u[x]);
+                    LOG(DEBUG, "SCP[%d].u[%d] = 0x%08" PRIx32, idx, x, SCP[idx].u[x]);
             }
         }
     }
