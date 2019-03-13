@@ -91,13 +91,13 @@ void new_sample_request(uint32_t current_thread, uint32_t port_id, uint32_t numb
     // Parse header and send coordinates
     for(unsigned char i = 0; i < header.info.packets; i++)
     {
-        fdata coordinates;
-        memcpy(&coordinates, &(val[((i+1)<<2)]), sizeof(fdata));
+        freg_t coordinates;
+        memcpy(&coordinates, &(val[((i+1)<<2)]), sizeof(freg_t));
         tbox[shire_id][tbox_id].set_request_coordinates(current_thread, i, coordinates);
         LOG_NOTHREAD(DEBUG, "\t Set *%c* texture coordinates", coord_name[i]);
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
-            LOG_NOTHREAD(DEBUG, "\t[%d] 0x%08x (%f)", c, coordinates.u[c], cast_uint32_to_float(coordinates.u[c]));
+            LOG_NOTHREAD(DEBUG, "\t[%d] 0x%08x (%f)", c, coordinates.u32[c], cast_uint32_to_float(coordinates.u32[c]));
         }
     }
 
@@ -107,23 +107,23 @@ void new_sample_request(uint32_t current_thread, uint32_t port_id, uint32_t numb
     GET_TBOX(shire_id, tbox_id).sample_quad(current_thread, true); // Performs Sample Request
 
     /* Get result */
-    fdata data[4]; // Space for 4 channels
+    freg_t data[4]; // Space for 4 channels
 
     unsigned num_channels = GET_TBOX(shire_id, tbox_id).get_request_results(current_thread, data);
     
     for (uint32_t channel = 0; channel < num_channels; channel++)
     {
-        LOG_NOTHREAD(DEBUG, "\t[Channel %d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data[channel].u[0], data[channel].u[1], data[channel].u[2], data[channel].u[3]);
+        LOG_NOTHREAD(DEBUG, "\t[Channel %d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data[channel].u32[0], data[channel].u32[1], data[channel].u32[2], data[channel].u32[3]);
 
         // The number of TBOXes per Shire may not match the number of Neighbourhoods in the Shire.
         // The absolute TBOX ID in the SOC is : Shire ID * EMU_TBOXES_PER_SHIRE + TBOX ID
         // Put result in port
-        write_msg_port_data_from_tbox(current_thread, port_id, shire_id * EMU_TBOXES_PER_SHIRE + tbox_id, &(data[channel].u[0]), 1);
+        write_msg_port_data_from_tbox(current_thread, port_id, shire_id * EMU_TBOXES_PER_SHIRE + tbox_id, &(data[channel].u32[0]), 1);
     }
 }
 
 void checker_sample_quad(uint32_t thread __attribute__((unused)), uint64_t basePtr,
-                         TBOX::SampleRequest currentRequest_, fdata input[], fdata output[])
+                         TBOX::SampleRequest currentRequest_, freg_t input[], freg_t output[])
 {
     uint64_t base_copy = tbox_emulator.get_image_table_address();
     if ( base_copy != basePtr )

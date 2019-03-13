@@ -30,7 +30,7 @@
 // Scratchpad defines
 #define L1_SCP_ENTRIES    48
 #define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
-typedef fdata_array_t<L1D_LINE_SIZE/4> cache_line_t;
+typedef Packed<L1D_LINE_SIZE*8> cache_line_t;
 
 // MISA initial value
 #define CSR_ISA_MAX ((1ull << 2)  | /* "C" Compressed extension */                      \
@@ -215,10 +215,10 @@ typedef enum {
 static std::ostringstream uart_stream[EMU_NUM_THREADS];
 
 // Register files
-static xdata xregs[EMU_NUM_THREADS][MAXXREG];
-static fdata fregs[EMU_NUM_THREADS][MAXFREG];
-static mdata mregs[EMU_NUM_THREADS][MAXMREG];
-static fdata tensorfma_tenc[EMU_NUM_THREADS][MAXFREG];
+static uint64_t xregs[EMU_NUM_THREADS][MAXXREG];
+static freg_t   fregs[EMU_NUM_THREADS][MAXFREG];
+static mreg_t   mregs[EMU_NUM_THREADS][MAXMREG];
+static freg_t   tensorfma_tenc[EMU_NUM_THREADS][MAXFREG];
 
 // RISCV CSR registers
 static uint32_t csr_fcsr[EMU_NUM_THREADS];
@@ -369,7 +369,7 @@ std::string dump_xregs(uint32_t thread_id)
    {
       for (int ii = 0; ii < 32; ++ii)
       {
-         str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << xregs[thread_id][ii].x << "\n";
+         str << "XREG[" << std::dec << ii << "] = 0x" << std::hex << xregs[thread_id][ii] << "\n";
       }
    }
    return str.str();
@@ -380,11 +380,11 @@ std::string dump_fregs(uint32_t thread_id)
    std::stringstream str;
    if (thread_id < EMU_NUM_THREADS)
    {
-      for (int ii = 0; ii < 32; ++ii)
+      for (int ii = 0; ii < MAXFREG; ++ii)
       {
-         for (int jj = 0; jj < VL; ++jj)
+         for (size_t jj = 0; jj < VL; ++jj)
          {
-            str << "FREG[" << std::dec << ii << "][" << jj <<  "] = 0x" << std::hex << fregs[thread_id][ii].u[jj] << "\t";
+            str << "FREG[" << std::dec << ii << "][" << jj <<  "] = 0x" << std::hex << fregs[thread_id][ii].u32[jj] << "\t";
          }
          str << "\n";
       }
@@ -394,7 +394,7 @@ std::string dump_fregs(uint32_t thread_id)
 
 void init_emu()
 {
-   XREGS[x0].x  = 0;
+   XREGS[x0]  = 0;
    // FIXME: remove '#include <cfenv>' when we purge this function from the code
    std::fesetround(FE_TONEAREST); // set rne for host
 }
@@ -424,8 +424,8 @@ static uint64_t read_port_base_address(unsigned thread, unsigned id);
 ////////////////////////////////////////////////////////////////////////////////
 
 #define ZERO_UNUSED_FREG_BITS(regid, start) do { \
-    for (int _zeufb_index = start; _zeufb_index < VL; ++_zeufb_index) \
-        FREGS[regid].u[_zeufb_index] = 0; \
+    for (size_t _zeufb_index = start; _zeufb_index < VL; ++_zeufb_index) \
+        FREGS[regid].u32[_zeufb_index] = 0; \
 } while (0)
 
 static inline const char* get_fp_flags(uint_fast8_t flags)
@@ -494,7 +494,7 @@ void init(xreg dst, uint64_t val)
 {
     if (dst != x0)
     {
-       XREGS[dst].x = val;
+       XREGS[dst] = val;
        LOG(DEBUG, "init x%d <-- 0x%016" PRIx64, dst, val);
     }
 }
@@ -507,8 +507,7 @@ void init_stack()
 
 uint64_t xget(uint64_t src1)
 {
-    uint64_t val = XREGS[src1].x;
-    return val;
+    return XREGS[src1];
 }
 
 uint64_t get_csr(uint32_t thread, uint16_t cnum)
@@ -522,8 +521,8 @@ uint64_t get_csr(uint32_t thread, uint16_t cnum)
 
 void fpinit(freg dst, uint64_t val[VL/2])
 {
-    for (int i = 0; i < VL/2; ++i)
-        FREGS[dst].x[i] = val[i];
+    for (size_t i = 0; i < VL/2; ++i)
+        FREGS[dst].u64[i] = val[i];
 }
 
 // internal accessor to frm
@@ -805,8 +804,8 @@ void initcsr(uint32_t thread)
 
 void minit(mreg dst, uint64_t val)
 {
-    MREGS[dst].b = std::bitset<VL>(val);
-    LOG(DEBUG, "init m[%d] <-- 0x%02lx", int(dst), MREGS[dst].b.to_ulong());
+    MREGS[dst] = std::bitset<VL>(val);
+    LOG(DEBUG, "init m[%d] <-- 0x%02lx", int(dst), MREGS[dst].to_ulong());
 }
 
 static bool tmask_pass(int bit)
@@ -1055,7 +1054,7 @@ uint32_t get_thread()
 
 uint32_t get_mask(unsigned maskNr)
 {
-    return MREGS[maskNr].b.to_ulong();
+    return MREGS[maskNr].to_ulong();
 }
 
 extern inst_state_change * log_info;
@@ -1560,53 +1559,53 @@ void unknown(const char* comm)
 void beq(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: beq x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1].x == XREGS[src2].x)
+    if (XREGS[src1] == XREGS[src2])
         log_pc_update(sextVA(current_pc + imm));
 }
 
 void bne(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: bne x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1].x != XREGS[src2].x)
+    if (XREGS[src1] != XREGS[src2])
         log_pc_update(sextVA(current_pc + imm));
 }
 
 void blt(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: blt x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1].xs < XREGS[src2].xs)
+    if (int64_t(XREGS[src1]) < int64_t(XREGS[src2]))
         log_pc_update(sextVA(current_pc + imm));
 }
 
 void bltu(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: bltu x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1].x < XREGS[src2].x)
+    if (XREGS[src1] < XREGS[src2])
         log_pc_update(sextVA(current_pc + imm));
 }
 
 void bge(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: bge x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1].xs >= XREGS[src2].xs)
+    if (int64_t(XREGS[src1]) >= int64_t(XREGS[src2]))
         log_pc_update(sextVA(current_pc + imm));
 }
 
 void bgeu(xreg src1, xreg src2, int64_t imm, const char* comm)
 {
     LOG(DEBUG, "I: bgeu x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1].x >= XREGS[src2].x)
+    if (XREGS[src1] >= XREGS[src2])
         log_pc_update(sextVA(current_pc + imm));
 }
 
 void c_jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    uint64_t val1 = XREGS[src1].x; // in case dst == src1
+    uint64_t val1 = XREGS[src1]; // in case dst == src1
     LOG(DEBUG, "I: jalr x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        XREGS[dst].x = current_pc + 2;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
+        XREGS[dst] = current_pc + 2;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst]);
     }
     log_xreg_write(dst, XREGS[dst]);
     log_pc_update(sextVA((val1 + imm) & ~1ull));
@@ -1618,8 +1617,8 @@ void c_jal(xreg dst, int64_t imm, const char* comm)
     LOG(DEBUG, "I: jal x%d, %" PRId64 "%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        XREGS[dst].x = current_pc + 2;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
+        XREGS[dst] = current_pc + 2;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst]);
     }
     log_xreg_write(dst, XREGS[dst]);
     log_pc_update(sextVA(current_pc + imm));
@@ -1627,12 +1626,12 @@ void c_jal(xreg dst, int64_t imm, const char* comm)
 
 void jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
 {
-    uint64_t val1 = XREGS[src1].x; // in case dst == src1
+    uint64_t val1 = XREGS[src1]; // in case dst == src1
     LOG(DEBUG, "I: jalr x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        XREGS[dst].x = current_pc + 4;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
+        XREGS[dst] = current_pc + 4;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst]);
     }
     log_xreg_write(dst, XREGS[dst]);
     log_pc_update(sextVA((val1 + imm) & ~1ull));
@@ -1644,8 +1643,8 @@ void jal(xreg dst, int64_t imm, const char* comm)
     LOG(DEBUG, "I: jal x%d, %" PRId64 "%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        XREGS[dst].x = current_pc + 4;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst].x);
+        XREGS[dst] = current_pc + 4;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst]);
     }
     log_xreg_write(dst, XREGS[dst]);
     log_pc_update(sextVA(current_pc + imm));
@@ -1656,8 +1655,8 @@ void lui(xreg dst, int64_t imm, const char* comm)
     LOG(DEBUG, "I: lui x%d, 0x%016" PRIx64 "%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        XREGS[dst].x = imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64, XREGS[dst].x, imm);
+        XREGS[dst] = imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64, XREGS[dst], imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1667,8 +1666,8 @@ void auipc(xreg dst, int64_t imm, const char* comm)
     LOG(DEBUG, "I: auipc x%d, 0x%016" PRIx64 "%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        XREGS[dst].x = current_pc + imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64, XREGS[dst].x, imm);
+        XREGS[dst] = current_pc + imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64, XREGS[dst], imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1678,13 +1677,13 @@ void addi(xreg dst, xreg src1, int64_t imm, const char* comm)
     LOG(DEBUG, "I: addi x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x + imm;
+        uint64_t val = XREGS[src1] + imm;
         if (dst == x2 && check_stack)
         {
            check_sp_out_of_range(val);
         }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1].x, imm);
-        XREGS[dst].x = val;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1], imm);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1694,9 +1693,9 @@ void slli(xreg dst, xreg src1, unsigned imm, const char* comm)
     LOG(DEBUG, "I: slli x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.x << imm;
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst].x, val1.x, imm);
+        uint64_t val1 = XREGS[src1];
+        XREGS[dst] = val1 << imm;
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst], val1, imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1706,9 +1705,9 @@ void slti(xreg dst, xreg src1, int64_t imm, const char* comm)
     LOG(DEBUG, "I: slti x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = (XREGS[src1].xs < imm) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1].x, imm);
-        XREGS[dst].x = val;
+        uint64_t val = (int64_t(XREGS[src1]) < imm) ? 1 : 0;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1], imm);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1718,9 +1717,9 @@ void sltiu(xreg dst, xreg src1, int64_t imm, const char* comm)
     LOG(DEBUG, "I: sltiu x%d, x%d, %" PRIu64 "%s%s", dst, src1, uint64_t(imm), (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = (XREGS[src1].x < uint64_t(imm)) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1].x, imm);
-        XREGS[dst].x = val;
+        uint64_t val = (XREGS[src1] < uint64_t(imm)) ? 1 : 0;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1], imm);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1730,9 +1729,9 @@ void xori(xreg dst, xreg src1, int64_t imm, const char* comm)
     LOG(DEBUG, "I: xori x%d, x%d, 0x%016" PRIx64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x ^ imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, val, XREGS[src1].x, imm);
-        XREGS[dst].x = val;
+        uint64_t val = XREGS[src1] ^ imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, val, XREGS[src1], imm);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1742,9 +1741,9 @@ void srli(xreg dst, xreg src1, unsigned imm, const char* comm)
     LOG(DEBUG, "I: srli x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.x >> imm;
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, imm);
+        uint64_t val1 = XREGS[src1];
+        XREGS[dst] = val1 >> imm;
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst], val1, imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1754,9 +1753,9 @@ void srai(xreg dst, xreg src1, unsigned imm, const char* comm)
     LOG(DEBUG, "I: srai x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        XREGS[dst].xs = val1.xs >> imm;
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, imm);
+        int64_t val1 = int64_t(XREGS[src1]);
+        XREGS[dst] = val1 >> imm;
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst], val1, imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1766,9 +1765,9 @@ void ori(xreg dst, xreg src1, int64_t imm, const char* comm)
     LOG(DEBUG, "I: ori x%d, x%d, 0x%016" PRIx64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.x | imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, XREGS[dst].x, val1.x, imm);
+        uint64_t val1 = XREGS[src1];
+        XREGS[dst] = val1 | imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, XREGS[dst], val1, imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1778,9 +1777,9 @@ void andi(xreg dst, xreg src1, int64_t imm, const char* comm)
     LOG(DEBUG, "I: andi x%d, x%d, 0x%016" PRIx64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        XREGS[dst].x = val1.x & imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, XREGS[dst].x, val1.x, imm);
+        uint64_t val1 = XREGS[src1];
+        XREGS[dst] = val1 & imm;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, XREGS[dst], val1, imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1790,9 +1789,9 @@ void add(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: add x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x + XREGS[src2].x;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = XREGS[src1] + XREGS[src2];
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1802,9 +1801,9 @@ void sub(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: sub x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x - XREGS[src2].x;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " - 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = XREGS[src1] - XREGS[src2];
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " - 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1814,10 +1813,10 @@ void sll(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: sll x%d, x%d, %d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        xdata val2 = XREGS[src2];
-        XREGS[dst].x = val1.x << (val2.x & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst].x, val1.x, unsigned(val2.x & 0x3f));
+        uint64_t val1 = XREGS[src1];
+        uint64_t val2 = XREGS[src2];
+        XREGS[dst] = val1 << (val2 & 0x3F);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst], val1, unsigned(val2 & 0x3f));
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1827,9 +1826,9 @@ void slt(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: slt x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = (XREGS[src1].xs < XREGS[src2].xs) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = (int64_t(XREGS[src1]) < int64_t(XREGS[src2])) ? 1 : 0;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1839,9 +1838,9 @@ void sltu(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: sltu x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = (XREGS[src1].x < XREGS[src2].x) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = (XREGS[src1] < XREGS[src2]) ? 1 : 0;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1851,9 +1850,9 @@ void xor_(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: xor x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x ^ XREGS[src2].x;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = XREGS[src1] ^ XREGS[src2];
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1863,10 +1862,10 @@ void srl(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: srl x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        xdata val2 = XREGS[src2];
-        XREGS[dst].x = val1.x >> (val2.x & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, unsigned(val2.x & 0x3f));
+        uint64_t val1 = XREGS[src1];
+        uint64_t val2 = XREGS[src2];
+        XREGS[dst] = val1 >> (val2 & 0x3F);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst], val1, unsigned(val2 & 0x3f));
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1876,10 +1875,10 @@ void sra(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: sra x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        xdata val2 = XREGS[src2];
-        XREGS[dst].x = val1.xs >> (val2.xs & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst].x, val1.x, unsigned(val2.x & 0x3f));
+        int64_t val1 = int64_t(XREGS[src1]);
+        uint64_t val2 = XREGS[src2];
+        XREGS[dst] = val1 >> int(val2 & 0x3F);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst], val1, unsigned(val2 & 0x3f));
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1889,9 +1888,9 @@ void or_(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: or x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x | XREGS[src2].x;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = XREGS[src1] | XREGS[src2];
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1901,9 +1900,9 @@ void and_(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: and x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x & XREGS[src2].x;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = XREGS[src1] & XREGS[src2];
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1913,13 +1912,13 @@ void addiw(xreg dst, xreg src1, int64_t imm, const char* comm)
     LOG(DEBUG, "I: addiw x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = sext<32>(XREGS[src1].w[0] + imm);
+        uint64_t val = sext<32>(XREGS[src1] + imm);
         if (dst == x2 && check_stack)
         {
            check_sp_out_of_range(val);
         }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, XREGS[src1].w[0], uint32_t(imm));
-        XREGS[dst].x = val;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, uint32_t(XREGS[src1]), uint32_t(imm));
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1929,9 +1928,9 @@ void slliw(xreg dst, xreg src1, unsigned imm, const char* comm)
     LOG(DEBUG, "I: slliw x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext<32>(val1.w[0] << imm);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %u", XREGS[dst].x, val1.w[0], imm);
+        uint32_t val1 = uint32_t(XREGS[src1]);
+        XREGS[dst] = sext<32>(val1 << imm);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %u", XREGS[dst], val1, imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1941,9 +1940,9 @@ void srliw(xreg dst, xreg src1, unsigned imm, const char* comm)
     LOG(DEBUG, "I: srliw x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext<32>(val1.w[0] >> imm);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst].x, val1.w[0], imm);
+        uint32_t val1 = uint32_t(XREGS[src1]);
+        XREGS[dst] = sext<32>(val1 >> imm);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst], val1, imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1953,9 +1952,9 @@ void sraiw(xreg dst, xreg src1, unsigned imm, const char* comm)
     LOG(DEBUG, "I: sraiw x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        XREGS[dst].x = sext<32>(val1.ws[0] >> imm);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst].x, val1.w[0], imm);
+        int32_t val1 = int32_t(XREGS[src1]);
+        XREGS[dst] = sext<32>(val1 >> imm);
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst], val1, imm);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1965,9 +1964,9 @@ void addw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: addw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = sext<32>(XREGS[src1].w[0] + XREGS[src2].w[0]);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
-        XREGS[dst].x = val;
+        uint64_t val = sext<32>(XREGS[src1] + XREGS[src2]);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1977,9 +1976,9 @@ void subw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: subw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = sext<32>(XREGS[src1].w[0] - XREGS[src2].w[0]);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x - 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
-        XREGS[dst].x = val;
+        uint64_t val = sext<32>(XREGS[src1] - XREGS[src2]);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x - 0x%08x", val, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -1989,10 +1988,10 @@ void sllw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: sllw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        xdata val2 = XREGS[src2];
-        XREGS[dst].x = sext<32>(val1.w[0] << (val2.w[0] & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1f);
+        uint32_t val1 = uint32_t(XREGS[src1]);
+        uint32_t val2 = uint32_t(XREGS[src2]);
+        XREGS[dst] = sext<32>(val1 << (val2 & 0x1F));
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %d", XREGS[dst], val1, val2 & 0x1f);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2002,10 +2001,10 @@ void srlw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: srlw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        xdata val2 = XREGS[src2];
-        XREGS[dst].x = sext<32>(val1.w[0] >> (val2.w[0] & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1f);
+        uint32_t val1 = uint32_t(XREGS[src1]);
+        uint32_t val2 = uint32_t(XREGS[src2]);
+        XREGS[dst] = sext<32>(val1 >> (val2 & 0x1F));
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst], val1, val2 & 0x1f);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2015,10 +2014,10 @@ void sraw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: sraw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        xdata val1 = XREGS[src1];
-        xdata val2 = XREGS[src2];
-        XREGS[dst].x = sext<32>(val1.ws[0] >> (val2.ws[0] & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst].x, val1.w[0], val2.w[0] & 0x1F);
+        int32_t val1 = int32_t(XREGS[src1]);
+        uint64_t val2 = XREGS[src2];
+        XREGS[dst] = sext<32>(val1 >> int(val2 & 0x1F));
+        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst], val1, int(val2 & 0x1F));
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2026,13 +2025,13 @@ void sraw(xreg dst, xreg src1, xreg src2, const char* comm)
 void lb(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lb x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = sext<8>(vmemread8(addr));
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM8[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
-        XREGS[dst].x = val;
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2040,13 +2039,13 @@ void lb(xreg dst, xreg base, int64_t off, const char* comm)
 void lh(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lh x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = sext<16>(vmemread16(addr));
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM16[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
-        XREGS[dst].x = val;
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2054,13 +2053,13 @@ void lh(xreg dst, xreg base, int64_t off, const char* comm)
 void lw(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lw x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = sext<32>(vmemread32(addr));
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
-        XREGS[dst].x = val;
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2068,13 +2067,13 @@ void lw(xreg dst, xreg base, int64_t off, const char* comm)
 void ld(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: ld x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = vmemread64(addr);
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM64[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
-        XREGS[dst].x  = val;
+        XREGS[dst]  = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2082,13 +2081,13 @@ void ld(xreg dst, xreg base, int64_t off, const char* comm)
 void lbu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lbu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = vmemread8(addr);
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM8[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
-        XREGS[dst].x = val;
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2096,13 +2095,13 @@ void lbu(xreg dst, xreg base, int64_t off, const char* comm)
 void lhu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lhu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = vmemread16(addr);
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM16[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
-        XREGS[dst].x = val;
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2110,13 +2109,13 @@ void lhu(xreg dst, xreg base, int64_t off, const char* comm)
 void lwu(xreg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: lwu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = vmemread32(addr);
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", val, addr);
     if (dst != x0)
     {
-        XREGS[dst].x = val;
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2124,8 +2123,8 @@ void lwu(xreg dst, xreg base, int64_t off, const char* comm)
 void sd(xreg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: sd x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
-    uint64_t val  = XREGS[src1].x;
+    uint64_t addr = sextVA(XREGS[base] + off);
+    uint64_t val  = XREGS[src1];
     LOG(DEBUG, "\t%016" PRIx64 " --> MEM64[0x%016" PRIx64 "]", val, addr);
     check_store_breakpoint(addr);
     vmemwrite64(addr, val);
@@ -2135,8 +2134,8 @@ void sd(xreg src1, xreg base, int64_t off, const char* comm)
 void sw(xreg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: sw x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
-    uint32_t val  = XREGS[src1].w[0];
+    uint64_t addr = sextVA(XREGS[base] + off);
+    uint32_t val  = uint32_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr);
     check_store_breakpoint(addr);
     vmemwrite32(addr, val);
@@ -2146,8 +2145,8 @@ void sw(xreg src1, xreg base, int64_t off, const char* comm)
 void sh(xreg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: sh x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
-    uint16_t val  = XREGS[src1].h[0];
+    uint64_t addr = sextVA(XREGS[base] + off);
+    uint16_t val  = uint16_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
     check_store_breakpoint(addr);
     vmemwrite16(addr, val);
@@ -2157,8 +2156,8 @@ void sh(xreg src1, xreg base, int64_t off, const char* comm)
 void sb(xreg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: sb x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x + off);
-    uint8_t  val  = XREGS[src1].b[0];
+    uint64_t addr = sextVA(XREGS[base] + off);
+    uint8_t  val  = uint8_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
     check_store_breakpoint(addr);
     vmemwrite8(addr, val);
@@ -2168,8 +2167,8 @@ void sb(xreg src1, xreg base, int64_t off, const char* comm)
 void sbl(xreg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: sbl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x);
-    uint8_t  val  = XREGS[src1].b[0];
+    uint64_t addr = sextVA(XREGS[base]);
+    uint8_t  val  = uint8_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
     check_store_breakpoint(addr);
     vmemwrite8(addr, val);
@@ -2179,8 +2178,8 @@ void sbl(xreg src1, xreg base, const char* comm)
 void sbg(xreg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: sbg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x);
-    uint8_t  val  = XREGS[src1].b[0];
+    uint64_t addr = sextVA(XREGS[base]);
+    uint8_t  val  = uint8_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
     check_store_breakpoint(addr);
     vmemwrite8(addr, val);
@@ -2190,8 +2189,8 @@ void sbg(xreg src1, xreg base, const char* comm)
 void shl(xreg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: shl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x);
-    uint16_t val  = XREGS[src1].h[0];
+    uint64_t addr = sextVA(XREGS[base]);
+    uint16_t val  = uint16_t(XREGS[src1]);
     check_store_breakpoint(addr);
     vmemwrite16(addr, val);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
@@ -2201,8 +2200,8 @@ void shl(xreg src1, xreg base, const char* comm)
 void shg(xreg src1, xreg base, const char* comm)
 {
     LOG(DEBUG, "I: shg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
-    uint64_t addr = sextVA(XREGS[base].x);
-    uint16_t val  = XREGS[src1].h[0];
+    uint64_t addr = sextVA(XREGS[base]);
+    uint16_t val  = uint16_t(XREGS[src1]);
     check_store_breakpoint(addr);
     vmemwrite16(addr, val);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
@@ -2237,9 +2236,9 @@ void mul(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: mul x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = XREGS[src1].x * XREGS[src2].x;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = XREGS[src1] * XREGS[src2];
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2249,12 +2248,12 @@ void mulh(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: mulh x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        __int128_t val1 = XREGS[src1].xs;
-        __int128_t val2 = XREGS[src2].xs;
+        __int128_t val1 = int64_t(XREGS[src1]);
+        __int128_t val2 = int64_t(XREGS[src2]);
         __int128_t val3 = val1 * val2;
         int64_t val = val3 >> 64;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 "s", val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 "s", val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2264,12 +2263,12 @@ void mulhsu(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: mulhsu x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        __int128_t  val1 = XREGS[src1].xs;
-        __uint128_t val2 = XREGS[src2].x;
+        __int128_t  val1 = int64_t(XREGS[src1]);
+        __uint128_t val2 = XREGS[src2];
         __int128_t  val3 = val1 * val2;
         uint64_t val = val3 >> 64;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2279,12 +2278,12 @@ void mulhu(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: mulhu x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        __uint128_t val1 = XREGS[src1].x;
-        __uint128_t val2 = XREGS[src2].x;
+        __uint128_t val1 = XREGS[src1];
+        __uint128_t val2 = XREGS[src2];
         __uint128_t val3 = val1 * val2;
         uint64_t val = val3 >> 64;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2295,20 +2294,20 @@ void div_(xreg dst, xreg src1, xreg src2, const char* comm)
     if (dst != x0)
     {
         int64_t val;
-        if (XREGS[src2].x == 0)
+        if (XREGS[src2] == 0)
         {
             val = -1;
         }
-        else if ((XREGS[src2].xs == -1) && (XREGS[src1].x == 0x8000000000000000ULL))
+        else if ((int64_t(XREGS[src2]) == -1) && (XREGS[src1] == 0x8000000000000000ULL))
         {
-            val = XREGS[src1].xs; // Divide is out of range, return src1
+            val = int64_t(XREGS[src1]); // Divide is out of range, return src1
         }
         else
         {
-            val = XREGS[src1].xs / XREGS[src2].xs;
+            val = int64_t(XREGS[src1]) / int64_t(XREGS[src2]);
         }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " / 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = uint64_t(val);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " / 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = uint64_t(val);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2319,12 +2318,12 @@ void divu(xreg dst, xreg src1, xreg src2, const char* comm)
     if (dst != x0)
     {
         uint64_t val;
-        if (XREGS[src2].x == 0)
+        if (XREGS[src2] == 0)
             val = 0xFFFFFFFFFFFFFFFFULL;
         else
-            val = XREGS[src1].x / XREGS[src2].x;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " / 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+            val = XREGS[src1] / XREGS[src2];
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " / 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2335,14 +2334,14 @@ void rem(xreg dst, xreg src1, xreg src2, const char* comm)
     if (dst != x0)
     {
         int64_t val;
-        if (XREGS[src2].x == 0)
-            val = XREGS[src1].xs;
-        else if ((XREGS[src2].xs == -1) && (XREGS[src1].x == 0x8000000000000000ULL))
-            val = 0; // Divide is out of range in x86, return 0 straight
+        if (XREGS[src2] == 0)
+            val = int64_t(XREGS[src1]);
+        else if ((int64_t(XREGS[src2]) == -1) && (XREGS[src1] == 0x8000000000000000ULL))
+            val = 0; // Divide is out of range, return 0
         else
-            val = XREGS[src1].xs % XREGS[src2].xs;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " %% 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = uint64_t(val);
+            val = int64_t(XREGS[src1]) % int64_t(XREGS[src2]);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " %% 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = uint64_t(val);
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2353,12 +2352,12 @@ void remu(xreg dst, xreg src1, xreg src2, const char* comm)
     if (dst != x0)
     {
         uint64_t val;
-        if (XREGS[src2].x == 0)
-            val = XREGS[src1].x;
+        if (XREGS[src2] == 0)
+            val = XREGS[src1];
         else
-            val = XREGS[src1].x % XREGS[src2].x;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " %% 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+            val = XREGS[src1] % XREGS[src2];
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " %% 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2368,9 +2367,9 @@ void mulw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: mulw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = sext<32>(XREGS[src1].x * XREGS[src2].x);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x * 0x%08x", val, XREGS[src1].w[0], XREGS[src2].w[0]);
-        XREGS[dst].x = val;
+        uint64_t val = sext<32>(XREGS[src1] * XREGS[src2]);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x * 0x%08x", val, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2381,15 +2380,15 @@ void divw(xreg dst, xreg src1, xreg src2, const char* comm)
     if (dst != x0)
     {
         int32_t val;
-        if (XREGS[src2].ws[0] == 0)
+        if (uint32_t(XREGS[src2]) == 0)
             val = -1;
-        else if ((XREGS[src2].ws[0] == -1) && (XREGS[src1].w[0] == 0x80000000))
-            val = XREGS[src1].ws[0]; // Divide is out of range, return src1
+        else if ((int32_t(XREGS[src2]) == -1) && (uint32_t(XREGS[src1]) == 0x80000000))
+            val = int32_t(XREGS[src1]); // Divide is out of range, return src1
         else
-            val = XREGS[src1].ws[0] / XREGS[src2].ws[0];
+            val = int32_t(XREGS[src1]) / int32_t(XREGS[src2]);
         uint64_t val64 = sext<32>(val);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
-        XREGS[dst].x = val64;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
+        XREGS[dst] = val64;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2400,13 +2399,13 @@ void divuw(xreg dst, xreg src1, xreg src2, const char* comm)
     if (dst != x0)
     {
         int32_t val;
-        if (XREGS[src2].w[0] == 0)
+        if (uint32_t(XREGS[src2]) == 0)
             val = -1;
         else
-            val = XREGS[src1].w[0] / XREGS[src2].w[0];
+            val = uint32_t(XREGS[src1]) / uint32_t(XREGS[src2]);
         uint64_t val64 = sext<32>(val);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
-        XREGS[dst].x = val64;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
+        XREGS[dst] = val64;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2417,15 +2416,15 @@ void remw(xreg dst, xreg src1, xreg src2, const char* comm)
     if (dst != x0)
     {
         int32_t val;
-        if (XREGS[src2].ws[0] == 0)
-            val = XREGS[src1].ws[0]; // Divide by 0
-        else if ((XREGS[src2].ws[0] == -1) && (XREGS[src1].w[0] == 0x80000000))
-            val = 0;                 // Divide is out of range in x86, return 0 straight
+        if (uint32_t(XREGS[src2]) == 0)
+            val = int32_t(XREGS[src1]); // Divide by 0
+        else if ((int32_t(XREGS[src2]) == -1) && (uint32_t(XREGS[src1]) == 0x80000000))
+            val = 0;                 // Divide is out of range, return 0
         else
-            val = XREGS[src1].ws[0] % XREGS[src2].ws[0];
+            val = int32_t(XREGS[src1]) % int32_t(XREGS[src2]);
         uint64_t val64 = sext<32>(val);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
-        XREGS[dst].x = val64;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
+        XREGS[dst] = val64;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2435,14 +2434,14 @@ void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: remuw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        int32_t val;
-        if (XREGS[src2].w[0] == 0)
-            val = XREGS[src1].w[0];
+        uint32_t val;
+        if (uint32_t(XREGS[src2]) == 0)
+            val = uint32_t(XREGS[src1]);
         else
-            val = XREGS[src1].w[0] % XREGS[src2].w[0];
+            val = uint32_t(XREGS[src1]) % uint32_t(XREGS[src2]);
         uint64_t val64 = sext<32>(val);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, XREGS[src1].w[0], XREGS[src2].w[0]);
-        XREGS[dst].x = val64;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
+        XREGS[dst] = val64;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -2469,7 +2468,7 @@ void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
 
 static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type macc)
 {
-    uint64_t addr = sextVA(XREGS[src1].x);
+    uint64_t addr = sextVA(XREGS[src1]);
 
     check_store_breakpoint(addr);
     if (!access_is_size_aligned(addr, 4))
@@ -2482,13 +2481,13 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
         throw trap_store_access_fault(addr);
     }
     uint32_t val1 = pmemread32(paddr);
-    uint32_t val2 = XREGS[src2].w[0];
+    uint32_t val2 = uint32_t(XREGS[src2]);
 
     // Save the loaded data
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM32[0x%016" PRIx64 "]", sext<32>(val1), addr);
     if (dst != x0)
     {
-        XREGS[dst].x = sext<32>(val1);
+        XREGS[dst] = sext<32>(val1);
     }
     log_xreg_write(dst, XREGS[dst]);
 
@@ -2546,7 +2545,7 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
 
 static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type macc)
 {
-    uint64_t addr = sextVA(XREGS[src1].x);
+    uint64_t addr = sextVA(XREGS[src1]);
 
     check_store_breakpoint(addr);
     if (!access_is_size_aligned(addr, 8))
@@ -2559,13 +2558,13 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
         throw trap_store_access_fault(addr);
     }
     uint64_t val1 = pmemread64(paddr);
-    uint64_t val2 = XREGS[src2].x;
+    uint64_t val2 = XREGS[src2];
 
     // Save the loaded data
     LOG(DEBUG, "\t0x%016" PRIx64 " <-- MEM64[0x%016" PRIx64 "]", val1, addr);
     if (dst != x0)
     {
-        XREGS[dst].x = val1;
+        XREGS[dst] = val1;
     }
     log_xreg_write(dst, XREGS[dst]);
 
@@ -3293,8 +3292,8 @@ static void csrset(uint16_t src1, uint64_t val)
             int  dest       = (val >> 58) & 0x3;
             uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
             int  count      = (val & 0xF) + 1;
-            uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
-            int      id     = XREGS[31].x & 0x0000000000000001ULL;
+            uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
+            int      id     = XREGS[31] & 0x0000000000000001ULL;
             dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
         }
         break;
@@ -3379,8 +3378,8 @@ static void csrset(uint16_t src1, uint64_t val)
             int      dest   = (val >> 58) & 0x3;
             uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
             int      count  = (val & 0x0F) + 1;
-            uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
-            int      id     = XREGS[31].x & 0x0000000000000001ULL;
+            uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
+            int      id     = XREGS[31] & 0x0000000000000001ULL;
             dcache_evict_flush_vaddr(src1 == CSR_EVICT_VA, tm, dest, vaddr, count, id, stride);
         }
         break;
@@ -3427,8 +3426,8 @@ static void csrset(uint16_t src1, uint64_t val)
             bool     tm     = (val >> 63) & 0x1;
             uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
             int      count  = (val & 0xF) + 1;
-            uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
-            int      id     = XREGS[31].x & 0x0000000000000001ULL;
+            uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
+            int      id     = XREGS[31] & 0x0000000000000001ULL;
             dcache_lock_vaddr(tm, vaddr, count, id, stride);
         }
         break;
@@ -3438,8 +3437,8 @@ static void csrset(uint16_t src1, uint64_t val)
             bool     tm     = (val >> 63) & 0x1;
             uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
             int      count  = (val & 0xF) + 1;
-            uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
-            int      id     = XREGS[31].x & 0x0000000000000001ULL;
+            uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
+            int      id     = XREGS[31] & 0x0000000000000001ULL;
             dcache_unlock_vaddr(tm, vaddr, count, id, stride);
         }
         break;
@@ -3493,7 +3492,7 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
     }
     if (dst != x0)
     {
-        XREGS[dst].x = oldval;
+        XREGS[dst] = oldval;
         LOG(DEBUG, "\t0x%016" PRIx64 " <-- %s", oldval, csr_name(src1));
     }
     if (write)
@@ -3833,7 +3832,7 @@ void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm)
 {
     LOG(DEBUG, "I: csrrw x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
-    uint64_t newval = XREGS[src2].x;
+    uint64_t newval = XREGS[src2];
     csr_insn(dst, src1, oldval, newval, true);
 }
 
@@ -3841,7 +3840,7 @@ void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm)
 {
     LOG(DEBUG, "I: csrrs x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
-    uint64_t newval = oldval | XREGS[src2].x;
+    uint64_t newval = oldval | XREGS[src2];
     csr_insn(dst, src1, oldval, newval, src2 != x0);
 }
 
@@ -3849,7 +3848,7 @@ void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm)
 {
     LOG(DEBUG, "I: csrrc x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
     uint64_t oldval = csrget(src1);
-    uint64_t newval = oldval & (~XREGS[src2].x);
+    uint64_t newval = oldval & (~XREGS[src2]);
     csr_insn(dst, src1, oldval, newval, src2 != x0);
 }
 
@@ -3888,7 +3887,7 @@ static void femuld(freg dst, uint64_t vaddr)
 {
     static_assert(Nelems <= VL, "Number of elements must be not be greater than VL");
 
-    if (!Mask || MREGS[0].b.any())
+    if (!Mask || MREGS[0].any())
     {
         check_load_breakpoint(vaddr);
         uint64_t paddr = vmemtranslate(vaddr, Mem_Access_Load);
@@ -3903,7 +3902,7 @@ static void femuld(freg dst, uint64_t vaddr)
         uint64_t next_line = paddr & (L1D_LINE_SIZE - (paddr % L1D_LINE_SIZE));
         for (unsigned i = 0; i < Nelems; i++)
         {
-            if (Mask && !MREGS[0].b[i]) continue;
+            if (Mask && !MREGS[0][i]) continue;
             if (paddr >= next_line)
             {
                 check_load_breakpoint(vaddr + i*4);
@@ -3911,7 +3910,7 @@ static void femuld(freg dst, uint64_t vaddr)
                 next_line += L1D_LINE_SIZE;
             }
             uint32_t val = pmemread32(paddr);
-            FREGS[dst].u[i] = val;
+            FREGS[dst].u32[i] = val;
             LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val, vaddr + i*4);
             paddr += 4;
         }
@@ -3926,7 +3925,7 @@ static void femust(freg src1, uint64_t vaddr)
 {
     static_assert(Nelems <= VL, "Number of elements must be not be greater than VL");
 
-    if (Mask && MREGS[0].b.none())
+    if (Mask && MREGS[0].none())
         return;
 
     check_store_breakpoint(vaddr);
@@ -3942,14 +3941,14 @@ static void femust(freg src1, uint64_t vaddr)
     uint64_t next_line = paddr & (L1D_LINE_SIZE - (paddr % L1D_LINE_SIZE));
     for (unsigned i = 0; i < Nelems; i++)
     {
-        if (Mask && !MREGS[0].b[i]) continue;
+        if (Mask && !MREGS[0][i]) continue;
         if (paddr >= next_line)
         {
             check_store_breakpoint(vaddr + i*4);
             paddr = vmemtranslate(vaddr + i*4, Mem_Access_Store);
             next_line += L1D_LINE_SIZE;
         }
-        uint32_t val = FREGS[src1].u[i];
+        uint32_t val = FREGS[src1].u32[i];
         LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", i, val, vaddr + i*4);
         pmemwrite32(paddr, val);
         log_mem_write(i, 4, vaddr + i*4, val);
@@ -3964,7 +3963,7 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
 
     set_rounding_mode(rm);
     clear_arithmetic_flags();
-    val.u = FREGS[src1].u[0];
+    val.u = FREGS[src1].u32[0];
     switch (opc)
     {
         case FCVTWS:
@@ -3989,7 +3988,7 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
     }
     set_fp_exceptions();
     if (dst != x0)
-        XREGS[dst].x = sext<32>(res.u);
+        XREGS[dst] = sext<32>(res.u);
     log_xreg_write(dst, XREGS[dst]);
 }
 
@@ -4004,22 +4003,22 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
     switch (opc)
     {
         case FCVTSW:
-            val.u = XREGS[src1].w[0];
+            val.u = uint32_t(XREGS[src1]);
             res.f = fpu::i32_to_f32(val.i);
             LOG(DEBUG, "\t0x%08x (%g) <-- 0x%08x (%d)", res.u, res.flt, val.u, val.i);
             break;
         case FCVTSWU:
-            val.u = XREGS[src1].w[0];
+            val.u = uint32_t(XREGS[src1]);
             res.f = fpu::ui32_to_f32(val.u);
             LOG(DEBUG, "\t0x%08x (%g) <-- 0x%08x (%u)", res.u, res.flt, val.u, val.u);
             break;
         case FCVTSL:
-            val.lu = XREGS[src1].x;
+            val.lu = XREGS[src1];
             res.f = fpu::i64_to_f32(val.l);
             LOG(DEBUG, "\t0x%08x (%g) <-- 0x%016" PRIx64 " (%" PRId64 ")", res.u, res.flt, val.lu, val.l);
             break;
         case FCVTSLU:
-            val.lu = XREGS[src1].x;
+            val.lu = XREGS[src1];
             res.f = fpu::ui64_to_f32(val.lu);
             LOG(DEBUG, "\t0x%08x (%g) <-- 0x%016" PRIx64 " (%" PRIu64 ")", res.u, res.flt, val.lu, val.lu);
             break;
@@ -4027,7 +4026,7 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
             assert(0);
             break;
     }
-    FREGS[dst].u[0] = res.u;
+    FREGS[dst].u32[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     set_fp_exceptions();
     dirty_fp_state();
@@ -4036,17 +4035,17 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
 
 static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode rm)
 {
-    assert(count <= VL);
+    assert(unsigned(count) <= VL);
 
     set_rounding_mode(rm);
     clear_arithmetic_flags();
 
     for (int i = 0; i < count; ++i)
     {
-        if (count == VL && !MREGS[0].b[i]) continue;
+        if (count == VL && !MREGS[0][i]) continue;
 
         iufval32 val, res;
-        val.u = FREGS[src1].u[i];
+        val.u = FREGS[src1].u32[i];
         switch (opc)
         {
             case FSQRT:
@@ -4173,7 +4172,7 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
                 assert(0);
                 break;
         }
-        FREGS[dst].u[i] = res.u;
+        FREGS[dst].u32[i] = res.u;
     }
     ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
@@ -4183,18 +4182,18 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
 
 static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, rounding_mode rm)
 {
-    assert(count <= VL);
+    assert(unsigned(count) <= VL);
 
     set_rounding_mode(rm);
     clear_arithmetic_flags();
 
     for (int i = 0; i < count; i++)
     {
-        if (count == VL && !MREGS[0].b[i]) continue;
+        if (count == VL && !MREGS[0][i]) continue;
 
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
+        val1.u = FREGS[src1].u32[i];
+        val2.u = (src2 != fnone) ? FREGS[src2].u32[i] : 0;
         switch (opc)
         {
             case FADD:
@@ -4241,7 +4240,7 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
                 assert(0);
                 break;
         }
-        FREGS[dst].u[i] = res.u;
+        FREGS[dst].u32[i] = res.u;
     }
     ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
@@ -4251,20 +4250,20 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
 
 static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg src3, rounding_mode rm)
 {
-    assert(count <= VL);
+    assert(unsigned(count) <= VL);
 
     set_rounding_mode(rm);
     clear_arithmetic_flags();
 
     for (int i = 0; i < count; i++)
     {
-        if (count == VL && !MREGS[0].b[i]) continue;
+        if (count == VL && !MREGS[0][i]) continue;
 
         iufval32 val1, val2, val3, res;
 
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
-        val3.u = FREGS[src3].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
+        val3.u = FREGS[src3].u32[i];
         switch (opc)
         {
             case FMADD:
@@ -4295,7 +4294,7 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                 assert(0);
                 break;
         }
-        FREGS[dst].u[i] = res.u;
+        FREGS[dst].u32[i] = res.u;
     }
     ZERO_UNUSED_FREG_BITS(dst, count);
     set_fp_exceptions();
@@ -4308,8 +4307,8 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
     iufval32 val1, val2, res;
 
     clear_arithmetic_flags();
-    val1.u = FREGS[src1].u[0];
-    val2.u = FREGS[src2].u[0];
+    val1.u = FREGS[src1].u32[0];
+    val2.u = FREGS[src2].u32[0];
     switch (opc)
     {
         case FLT:
@@ -4330,7 +4329,7 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
     }
     set_fp_exceptions();
     if (dst != x0)
-        XREGS[dst].x = sext<32>(res.u);
+        XREGS[dst] = sext<32>(res.u);
     log_xreg_write(dst, XREGS[dst]);
 }
 
@@ -4370,11 +4369,11 @@ void fsgnj_s(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnj.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u[0];
-    val2.u = FREGS[src2].u[0];
+    val1.u = FREGS[src1].u32[0];
+    val2.u = FREGS[src2].u32[0];
     res.f = fpu::f32_copySign(val1.f, val2.f);
     LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u[0] = res.u;
+    FREGS[dst].u32[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -4385,11 +4384,11 @@ void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjn.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u[0];
-    val2.u = FREGS[src2].u[0];
+    val1.u = FREGS[src1].u32[0];
+    val2.u = FREGS[src2].u32[0];
     res.f = fpu::f32_copySignNot(val1.f, val2.f);
     LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u[0] = res.u;
+    FREGS[dst].u32[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -4400,11 +4399,11 @@ void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjx.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u[0];
-    val2.u = FREGS[src2].u[0];
+    val1.u = FREGS[src1].u32[0];
+    val2.u = FREGS[src2].u32[0];
     res.f = fpu::f32_copySignXor(val1.f, val2.f);
     LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u[0] = res.u;
+    FREGS[dst].u32[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -4416,11 +4415,11 @@ void fmin_s(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     clear_arithmetic_flags();
     iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u[0];
-    val2.u = FREGS[src2].u[0];
+    val1.u = FREGS[src1].u32[0];
+    val2.u = FREGS[src2].u32[0];
     res.f = fpu::f32_minimumNumber(val1.f, val2.f);
     LOG(DEBUG, "\t[0] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u[0] = res.u;
+    FREGS[dst].u32[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     set_fp_exceptions();
     dirty_fp_state();
@@ -4433,11 +4432,11 @@ void fmax_s(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     clear_arithmetic_flags();
     iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u[0];
-    val2.u = FREGS[src2].u[0];
+    val1.u = FREGS[src1].u32[0];
+    val2.u = FREGS[src2].u32[0];
     res.f = fpu::f32_maximumNumber(val1.f, val2.f);
     LOG(DEBUG, "\t[0] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u[0] = res.u;
+    FREGS[dst].u32[0] = res.u;
     ZERO_UNUSED_FREG_BITS(dst, 1);
     set_fp_exceptions();
     dirty_fp_state();
@@ -4515,8 +4514,8 @@ void fmv_x_w(xreg dst, freg src1, const char* comm)
     require_fp_active();
     if (dst != x0)
     {
-        XREGS[dst].x = sext<32>(FREGS[src1].u[0]);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x (%g)", XREGS[dst].x, FREGS[src1].u[0], cast_uint32_to_float(FREGS[src1].u[0]));
+        XREGS[dst] = sext<32>(FREGS[src1].u32[0]);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x (%g)", XREGS[dst], FREGS[src1].u32[0], cast_uint32_to_float(FREGS[src1].u32[0]));
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -4526,11 +4525,11 @@ void fclass_s(xreg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: fclass.s x%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     iufval32 val, res;
-    val.u = FREGS[src1].u[0];
+    val.u = FREGS[src1].u32[0];
     res.u = fpu::f32_classify(val.f);
     if (dst != x0)
     {
-        XREGS[dst].x = sext<32>(res.u);
+        XREGS[dst] = sext<32>(res.u);
         LOG(DEBUG, "\t0x%08x <-- 0x%08x (%g)", res.u, val.u, val.flt);
     }
     log_xreg_write(dst, XREGS[dst]);
@@ -4575,9 +4574,9 @@ void fmv_w_x(freg dst, xreg src1, const char* comm)
     LOG(DEBUG, "I: fmv.w.x f%d, x%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     iufval32 val, res;
-    val.u = XREGS[src1].w[0];
+    val.u = uint32_t(XREGS[src1]);
     res.u = val.u;
-    FREGS[dst].u[0] = res.u;
+    FREGS[dst].u32[0] = res.u;
     LOG(DEBUG, "\t0x%08x (%g) <-- 0x%08x", res.u, res.flt, val.u);
     ZERO_UNUSED_FREG_BITS(dst, 1);
     dirty_fp_state();
@@ -4588,7 +4587,7 @@ void flw(freg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: flw f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     femuld<1,false>(dst, addr);
 }
 
@@ -4596,7 +4595,7 @@ void fsw(freg src1, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: fsw f%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     femust<1,false>(src1, addr);
 }
 
@@ -4636,25 +4635,25 @@ void fnmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 
 static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
 {
-    std::bitset<VL> m1 = MREGS[src1].b;
-    std::bitset<VL> m2 = (src2 == mnone) ? 0 : MREGS[src2].b;
+    std::bitset<VL> m1 = MREGS[src1];
+    std::bitset<VL> m2 = (src2 == mnone) ? 0 : MREGS[src2];
     switch (opc)
     {
         case MAND:
-            MREGS[dst].b = m1 & m2;
-            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx & 0x%02lx", MREGS[dst].b.to_ulong(), m1.to_ulong(), m2.to_ulong());
+            MREGS[dst] = m1 & m2;
+            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx & 0x%02lx", MREGS[dst].to_ulong(), m1.to_ulong(), m2.to_ulong());
             break;
         case MOR:
-            MREGS[dst].b = m1 | m2;
-            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx | 0x%02lx", MREGS[dst].b.to_ulong(), m1.to_ulong(), m2.to_ulong());
+            MREGS[dst] = m1 | m2;
+            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx | 0x%02lx", MREGS[dst].to_ulong(), m1.to_ulong(), m2.to_ulong());
             break;
         case MXOR:
-            MREGS[dst].b = m1 ^ m2;
-            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx ^ 0x%02lx", MREGS[dst].b.to_ulong(), m1.to_ulong(), m2.to_ulong());
+            MREGS[dst] = m1 ^ m2;
+            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx ^ 0x%02lx", MREGS[dst].to_ulong(), m1.to_ulong(), m2.to_ulong());
             break;
         case MNOT:
-            MREGS[dst].b = ~m1;
-            LOG(DEBUG, "\t0x%02lx <-- ~0x%02lx", MREGS[dst].b.to_ulong(), m1.to_ulong());
+            MREGS[dst] = ~m1;
+            LOG(DEBUG, "\t0x%02lx <-- ~0x%02lx", MREGS[dst].to_ulong(), m1.to_ulong());
             break;
         default:
             assert(0);
@@ -4695,10 +4694,10 @@ void mova_x_m(xreg dst, const char* comm)
         uint64_t val = 0;
         for (int m = 7; m >= 0; m--)
         {
-            val = (val << VL) | MREGS[m].b.to_ulong();
+            val = (val << VL) | MREGS[m].to_ulong();
             LOG(DEBUG, "\taccumulating into 0x%016" PRIx64 " reg m%d = 0x%016" PRIx64, val, m, (val&((1u<<VL)-1)));
         }
-        XREGS[dst].x = val;
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -4707,13 +4706,13 @@ void mova_m_x(xreg src1, const char* comm)
 {
     LOG(DEBUG, "I: mova.m.x allmasks, x%d%s%s", src1, (comm?" # ":""), (comm?comm:""));
 
-    uint64_t val = XREGS[src1].x;
+    uint64_t val = XREGS[src1];
 
     LOG(DEBUG, "\tallmasks <-- 0x%016" PRIx64, val);
     for (int m = 0; m < 8; m++)
     {
-        MREGS[m].b = std::bitset<VL>(val);
-        LOG(DEBUG, "\tm%d = 0x%02lx", m, MREGS[m].b.to_ulong());
+        MREGS[m] = std::bitset<VL>(val);
+        LOG(DEBUG, "\tm%d = 0x%02lx", m, MREGS[m].to_ulong());
         val >>= VL;
         log_mreg_write(m, MREGS[m]);
     }
@@ -4724,29 +4723,29 @@ void mov_m_x(mreg dst, xreg src1, unsigned imm, const char* comm)
     LOG(DEBUG, "I: mov.m.x m%d, x%d, 0x%02x%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     DEBUG_MASK(MREGS[0]);
 
-    uint32_t val = XREGS[src1].w[0] | (imm & ((1u<<VL) - 1u));
-    MREGS[dst].b = std::bitset<VL>(val);
-    LOG(DEBUG, "\tm%d = 0x%02lx (from val=0x%08" PRIx32 ")", dst, MREGS[dst].b.to_ulong(), val);
+    uint32_t val = uint32_t(XREGS[src1]) | (imm & ((1u<<VL) - 1u));
+    MREGS[dst] = std::bitset<VL>(val);
+    LOG(DEBUG, "\tm%d = 0x%02lx (from val=0x%08" PRIx32 ")", dst, MREGS[dst].to_ulong(), val);
     log_mreg_write(dst, MREGS[dst]);
 }
 
 void maskpopc(xreg dst, mreg src1, const char* comm)
 {
     LOG(DEBUG, "I: maskpopc x%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    uint64_t count = MREGS[src1].b.count();
-    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].b.to_ulong());
+    uint64_t count = MREGS[src1].count();
+    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].to_ulong());
     if (dst != x0)
-        XREGS[dst].x = count;
+        XREGS[dst] = count;
     log_xreg_write(dst, XREGS[dst]);
 }
 
 void maskpopcz(xreg dst, mreg src1, const char* comm)
 {
     LOG(DEBUG, "I: maskpopcz x%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    uint64_t count = MREGS[src1].b.size() - MREGS[src1].b.count();
-    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].b.to_ulong());
+    uint64_t count = MREGS[src1].size() - MREGS[src1].count();
+    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].to_ulong());
     if (dst != x0)
-        XREGS[dst].x = count;
+        XREGS[dst] = count;
     log_xreg_write(dst, XREGS[dst]);
 }
 
@@ -4761,12 +4760,12 @@ void maskpopc_rast(xreg dst, mreg src1, mreg src2, unsigned imm, const char* com
         case 2  : m2 = 0xf0; m1 = 0xf0; break;
         default : m2 = 0xff; m1 = 0xff; break;
     }
-    uint64_t count = (MREGS[src1].b & m1).count();
-    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].b.to_ulong());
-    count += (MREGS[src2].b & m2).count();
-    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src2].b.to_ulong());
+    uint64_t count = (MREGS[src1] & m1).count();
+    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].to_ulong());
+    count += (MREGS[src2] & m2).count();
+    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src2].to_ulong());
     if (dst != x0)
-        XREGS[dst].x = count;
+        XREGS[dst] = count;
     log_xreg_write(dst, XREGS[dst]);
 }
 
@@ -4782,7 +4781,7 @@ void flq2(freg dst, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: flq2 f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     femuld<VL,false>(dst, addr);
 }
 
@@ -4791,7 +4790,7 @@ void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: flw.ps f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     femuld<VL,true>(dst, addr);
 }
 
@@ -4800,8 +4799,8 @@ void flwl_ps(freg dst, xreg base, const char* comm)
     LOG(DEBUG, "I: flwl.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = sextVA(XREGS[base].x);
-    if (MREGS[0].b.any() && !access_is_size_aligned(addr, VL*4))
+    uint64_t addr = sextVA(XREGS[base]);
+    if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
         throw trap_load_address_misaligned(addr);
     }
@@ -4813,8 +4812,8 @@ void flwg_ps(freg dst, xreg base, const char* comm)
     LOG(DEBUG, "I: flwg.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = sextVA(XREGS[base].x);
-    if (MREGS[0].b.any() && !access_is_size_aligned(addr, VL*4))
+    uint64_t addr = sextVA(XREGS[base]);
+    if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
         throw trap_load_address_misaligned(addr);
     }
@@ -4825,7 +4824,7 @@ void fsq2(freg src, xreg base, int64_t off, const char* comm)
 {
     LOG(DEBUG, "I: fsq2 f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     femust<VL,false>(src, addr);
 }
 
@@ -4834,7 +4833,7 @@ void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
     LOG(DEBUG, "I: fsw.ps f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     femust<VL,true>(src, addr);
 }
 
@@ -4843,8 +4842,8 @@ void fswl_ps(freg src, xreg base, const char* comm)
     LOG(DEBUG, "I: fswl.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = sextVA(XREGS[base].x);
-    if (MREGS[0].b.any() && !access_is_size_aligned(addr, VL*4))
+    uint64_t addr = sextVA(XREGS[base]);
+    if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
         throw trap_load_address_misaligned(addr);
     }
@@ -4856,8 +4855,8 @@ void fswg_ps(freg src, xreg base, const char* comm)
     LOG(DEBUG, "I: fswg.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    uint64_t addr = sextVA(XREGS[base].x);
-    if (MREGS[0].b.any() && !access_is_size_aligned(addr, VL*4))
+    uint64_t addr = sextVA(XREGS[base]);
+    if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
         throw trap_load_address_misaligned(addr);
     }
@@ -4873,19 +4872,19 @@ void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
     DEBUG_MASK(MREGS[0]);
 
     iufval32 val;
-    uint64_t addr = sextVA(XREGS[base].x + off);
+    uint64_t addr = sextVA(XREGS[base] + off);
     val.u = 0;
-    if (MREGS[0].b.any())
+    if (MREGS[0].any())
     {
         check_load_breakpoint(addr);
         val.u = vmemread32(addr);
     }
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i])
+        if (MREGS[0][i])
         {
-            FREGS[dst].u[i] = val.u;
-            LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val.u, addr);
+            FREGS[dst].u32[i] = val.u;
+            LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", i, val.u, addr);
         }
     }
     dirty_fp_state();
@@ -4900,12 +4899,12 @@ void fbci_ps(freg dst, uint32_t imm, const char* comm)
 
     iufval32 val;
     val.u = imm;
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i])
+        if (MREGS[0][i])
         {
-            FREGS[dst].u[i] = val.u;
-            LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- 0x%08" PRIx32, i, val.u, imm);
+            FREGS[dst].u32[i] = val.u;
+            LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- 0x%08" PRIx32, i, val.u, imm);
         }
     }
     dirty_fp_state();
@@ -4919,13 +4918,13 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
     DEBUG_MASK(MREGS[0]);
 
     iufval32 val;
-    val.u = XREGS[src].w[0];
-    for (int i = 0; i < VL; i++)
+    val.u = uint32_t(XREGS[src]);
+    for (unsigned i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i])
+        if (MREGS[0][i])
         {
-            FREGS[dst].u[i] = val.u;
-            LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- 0x%08" PRIx32, i, val.u, val.u);
+            FREGS[dst].u32[i] = val.u;
+            LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- 0x%08" PRIx32, i, val.u, val.u);
         }
     }
     dirty_fp_state();
@@ -4936,49 +4935,49 @@ void fbcx_ps(freg dst, xreg src, const char* comm)
 
 static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
 {
-    uint64_t baddr = XREGS[base].x;
-    int elem = csr_gsc_progress[current_thread];
+    uint64_t baddr = XREGS[base];
+    unsigned elem = csr_gsc_progress[current_thread];
     try
     {
         while (elem < VL)
         {
-            if (MREGS[0].b[elem])
+            if (MREGS[0][elem])
             {
                 iufval32 val;
-                int32_t off   = FREGS[src1].i[elem];
+                int32_t off   = FREGS[src1].s32[elem];
                 uint64_t addr = sextVA(baddr + off);
                 check_load_breakpoint(addr);
                 switch (opc)
                 {
                 case FGW:
                     val.u = vmemread32(addr);
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
                     break;
                 case FGH:
                     val.u = sext<16>(vmemread16(addr));
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
                     break;
                 case FGBL:
                 case FGBG:
                 case FGB:
                     val.u = sext<8>(vmemread8(addr));
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
                     break;
                 case FGWL:
                 case FGWG:
                     val.u = aligned_vmemread32(addr);
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
                     break;
                 case FGHL:
                 case FGHG:
                     val.u = sext<16>(aligned_vmemread16(addr));
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
                     break;
                 default:
                     assert(0);
                     break;
                 }
-                FREGS[dst].u[elem] = val.u;
+                FREGS[dst].u32[elem] = val.u;
                 dirty_fp_state();
             }
             ++elem;
@@ -4998,14 +4997,14 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
 
 static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
 {
-    uint64_t baddr = sextVA(XREGS[src2].x);
-    uint64_t index = XREGS[src1].x;
-    int elem = csr_gsc_progress[current_thread];
+    uint64_t baddr = sextVA(XREGS[src2]);
+    uint64_t index = XREGS[src1];
+    unsigned elem = csr_gsc_progress[current_thread];
     try
     {
         while (elem < VL)
         {
-            if (MREGS[0].b[elem])
+            if (MREGS[0][elem])
             {
                 check_store_breakpoint(baddr);
                 uint64_t off;
@@ -5022,21 +5021,21 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
                 {
                 case 1:
                     val.u = sext<8>(vmemread8(addr));
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM8[0x%016" PRIx64 "]", elem, val.u, addr);
                     break;
                 case 2:
                     val.u = sext<16>(vmemread16(addr));
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM16[0x%016" PRIx64 "]", elem, val.u, addr);
                     break;
                 case 4:
                     val.u = vmemread32(addr);
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
                     break;
                 default:
                     assert(0);
                     break;
                 }
-                FREGS[dst].u[elem] = val.u;
+                FREGS[dst].u32[elem] = val.u;
                 dirty_fp_state();
             }
             ++elem;
@@ -5056,48 +5055,48 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
 
 static void femuscat(opcode opc, freg src1, freg src2, xreg base)
 {
-    uint64_t baddr = XREGS[base].x;
-    int elem = csr_gsc_progress[current_thread];
+    uint64_t baddr = XREGS[base];
+    unsigned elem = csr_gsc_progress[current_thread];
     try
     {
         while (elem < VL)
         {
-            if (MREGS[0].b[elem])
+            if (MREGS[0][elem])
             {
-                int32_t  off  = FREGS[src2].i[elem];
+                int32_t  off  = FREGS[src2].s32[elem];
                 uint64_t addr = sextVA(baddr + off);
                 iufval32 val;
-                val.u = FREGS[src1].u[elem];
+                val.u = FREGS[src1].u32[elem];
 
                 check_store_breakpoint(addr);
                 switch (opc)
                 {
                 case FSCW:
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
                     vmemwrite32(addr, val.u);
                     log_mem_write(elem, 4, addr, val.u);
                     break;
                 case FSCH:
-                    LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
+                    LOG(DEBUG, "\t[%u] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
                     vmemwrite16(addr, uint16_t(val.u));
                     log_mem_write(elem, 2, addr, val.u);
                     break;
                 case FSCBL:
                 case FSCBG:
                 case FSCB:
-                    LOG(DEBUG, "\t[%d] 0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", elem, uint8_t(val.u), addr);
+                    LOG(DEBUG, "\t[%u] 0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", elem, uint8_t(val.u), addr);
                     vmemwrite8(addr, uint8_t(val.u));
                     log_mem_write(elem, 1, addr, val.u);
                     break;
                 case FSCWL:
                 case FSCWG:
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
                     aligned_vmemwrite32(addr, val.u);
                     log_mem_write(elem, 4, addr, val.u);
                     break;
                 case FSCHL:
                 case FSCHG:
-                    LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
+                    LOG(DEBUG, "\t[%u] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
                     aligned_vmemwrite16(addr, uint16_t(val.u));
                     log_mem_write(elem, 2, addr, val.u);
                     break;
@@ -5121,14 +5120,14 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
 
 static void femuscat32(int size, freg src3, xreg src1, xreg src2)
 {
-    uint64_t baddr = sextVA(XREGS[src2].x);
-    uint64_t index = XREGS[src1].x;
-    int elem = csr_gsc_progress[current_thread];
+    uint64_t baddr = sextVA(XREGS[src2]);
+    uint64_t index = XREGS[src1];
+    unsigned elem = csr_gsc_progress[current_thread];
     try
     {
         while (elem < VL)
         {
-            if (MREGS[0].b[elem])
+            if (MREGS[0][elem])
             {
                 check_store_breakpoint(baddr);
                 uint64_t off;
@@ -5142,21 +5141,21 @@ static void femuscat32(int size, freg src3, xreg src1, xreg src2)
                 }
 
                 iufval32 val;
-                val.u = FREGS[src3].u[elem];
+                val.u = FREGS[src3].u32[elem];
                 switch (size)
                 {
                 case 1:
-                    LOG(DEBUG, "\t[%d] 0x%02" PRIx8 " --> MEM8[0x%08" PRIx64 "]", elem, uint8_t(val.u), addr);
+                    LOG(DEBUG, "\t[%u] 0x%02" PRIx8 " --> MEM8[0x%08" PRIx64 "]", elem, uint8_t(val.u), addr);
                     vmemwrite8(addr, uint8_t(val.u));
                     log_mem_write(elem, 1, addr, val.u);
                     break;
                 case 2:
-                    LOG(DEBUG, "\t[%d] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
+                    LOG(DEBUG, "\t[%u] 0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", elem, uint16_t(val.u), addr);
                     vmemwrite16(addr, uint16_t(val.u));
                     log_mem_write(elem, 2, addr, val.u);
                     break;
                 case 4:
-                    LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
+                    LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", elem, val.u, addr);
                     vmemwrite32(addr, val.u);
                     log_mem_write(elem, 4, addr, val.u);
                     break;
@@ -5369,42 +5368,42 @@ void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
 static void fmask(opcode opc, mreg dst, freg src1, freg src2)
 {
     clear_arithmetic_flags();
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         iufval32 val1, val2, res;
 
-        val1.u = FREGS[src1].u[i];
-        val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
+        val1.u = FREGS[src1].u32[i];
+        val2.u = (src2 != fnone) ? FREGS[src2].u32[i] : 0;
         switch (opc)
         {
             case FLT:
                 res.u = fpu::f32_lt(val1.f, val2.f) ? 1 : 0;
-                LOG(DEBUG, "\t[%d] %d <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+                LOG(DEBUG, "\t[%u] %d <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
                 break;
             case FLE:
                 res.u = fpu::f32_le(val1.f, val2.f) ? 1 : 0;
-                LOG(DEBUG, "\t[%d] %d <-- 0x%08x (%g) <= 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+                LOG(DEBUG, "\t[%u] %d <-- 0x%08x (%g) <= 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
                 break;
             case FEQ:
                 res.u = fpu::f32_eq(val1.f, val2.f) ? 1 : 0;
-                LOG(DEBUG, "\t[%d] %d <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+                LOG(DEBUG, "\t[%u] %d <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
                 break;
             case FSET:
                 res.u = (val1.u) ? 1 : 0;
-                LOG(DEBUG, "\t[%d] %d <-- 0x%08x ? 1 : 0", i, res.u, val1.u);
+                LOG(DEBUG, "\t[%u] %d <-- 0x%08x ? 1 : 0", i, res.u, val1.u);
                 break;
             case FLTPI:
                 res.u = (val1.i < val2.i) ? 1 : 0;
-                LOG(DEBUG, "\t[%d] %d <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+                LOG(DEBUG, "\t[%u] %d <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
                 break;
             default:
                 assert(0);
                 break;
         }
-        MREGS[dst].b[i] = res.u;
+        MREGS[dst][i] = res.u;
     }
     set_fp_exceptions();
     log_mreg_write(dst, MREGS[dst]);
@@ -5412,14 +5411,14 @@ static void fmask(opcode opc, mreg dst, freg src1, freg src2)
 
 static void fswizz(freg dst, freg src1, uint8_t imm)
 {
-    fdata val = FREGS[src1];
-    for (int i = 0; i < VL; i++)
+    freg_t val = FREGS[src1];
+    for (unsigned i = 0; i < VL; i++)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         int sel = (i & ~0x3) | ((imm >> ((2*i) % 8)) & 0x03);
-        FREGS[dst].u[i] = val.u[sel];
-        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (chan %d)", i, FREGS[dst].u[i], val.u[sel], sel);
+        FREGS[dst].u32[i] = val.u32[sel];
+        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (chan %d)", i, FREGS[dst].u32[i], val.u32[sel], sel);
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -5465,15 +5464,15 @@ void fsgnj_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnj.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.f = fpu::f32_copySign(val1.f, val2.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -5484,15 +5483,15 @@ void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjn.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.f = fpu::f32_copySignNot(val1.f, val2.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -5503,15 +5502,15 @@ void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fsgnjx.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.f = fpu::f32_copySignXor(val1.f, val2.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -5523,15 +5522,15 @@ void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     clear_arithmetic_flags();
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.f = fpu::f32_minimumNumber(val1.f, val2.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5544,15 +5543,15 @@ void fmax_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     clear_arithmetic_flags();
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.f = fpu::f32_maximumNumber(val1.f, val2.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5576,15 +5575,15 @@ void feq_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     clear_arithmetic_flags();
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.u = fpu::f32_eq(val1.f, val2.f) ? 0xffffffff : 0;
-        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5597,15 +5596,15 @@ void fle_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     clear_arithmetic_flags();
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.u = fpu::f32_le(val1.f, val2.f) ? 0xffffffff : 0;
-        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5617,16 +5616,15 @@ void flt_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: flt.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    clear_arithmetic_flags();
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.u = fpu::f32_lt(val1.f, val2.f) ? 0xffffffff : 0;
-        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5670,16 +5668,16 @@ void fcmov_ps(freg dst, freg src1, freg src2, freg src3, const char* comm)
     LOG(DEBUG, "I: fcmov.ps f%d, f%d, f%d, f%d%s%s", dst, src1, src2, src3, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val1, val2, val3, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
-        val3.u = FREGS[src3].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
+        val3.u = FREGS[src3].u32[i];
         res.u = val1.u ? val2.u : val3.u;
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- %u ? 0x%08x (%g) : 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt, val3.u, val3.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- %u ? 0x%08x (%g) : 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt, val3.u, val3.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -5690,15 +5688,15 @@ void fcmovm_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fcmovm.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         iufval32 val1, val2, res;
-        val1.u  = FREGS[src1].u[i];
-        val2.u  = FREGS[src2].u[i];
-        int sel = MREGS[0].b[i];
+        val1.u  = FREGS[src1].u32[i];
+        val2.u  = FREGS[src2].u32[i];
+        int sel = MREGS[0][i];
         res.u   = sel ? val1.u : val2.u;
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- %d ? 0x%08x (%g) : 0x%08x (%g)", i, res.u, res.flt, sel, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- %d ? 0x%08x (%g) : 0x%08x (%g)", i, res.u, res.flt, sel, val1.u, val1.flt, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -5711,11 +5709,11 @@ void fmvz_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
 
     index = index % VL;
     if (dst != x0)
-        XREGS[dst].x = FREGS[src1].u[index];
+        XREGS[dst] = FREGS[src1].u32[index];
 
-    LOG(DEBUG, "\t 0x%016" PRIx64 " <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}", XREGS[dst].x,
-        FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3],
-        FREGS[src1].u[4], FREGS[src1].u[5], FREGS[src1].u[6], FREGS[src1].u[7]);
+    LOG(DEBUG, "\t 0x%016" PRIx64 " <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}", XREGS[dst],
+        FREGS[src1].u32[0], FREGS[src1].u32[1], FREGS[src1].u32[2], FREGS[src1].u32[3],
+        FREGS[src1].u32[4], FREGS[src1].u32[5], FREGS[src1].u32[6], FREGS[src1].u32[7]);
 
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -5727,11 +5725,11 @@ void fmvs_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
 
     index = index % VL;
     if (dst != x0)
-        XREGS[dst].x = sext<32>(FREGS[src1].u[index]);
+        XREGS[dst] = sext<32>(FREGS[src1].u32[index]);
 
-    LOG(DEBUG, "\t 0x%016" PRIx64 " <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}", XREGS[dst].x,
-        FREGS[src1].u[0], FREGS[src1].u[1], FREGS[src1].u[2], FREGS[src1].u[3],
-        FREGS[src1].u[4], FREGS[src1].u[5], FREGS[src1].u[6], FREGS[src1].u[7]);
+    LOG(DEBUG, "\t 0x%016" PRIx64 " <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}", XREGS[dst],
+        FREGS[src1].u32[0], FREGS[src1].u32[1], FREGS[src1].u32[2], FREGS[src1].u32[3],
+        FREGS[src1].u32[4], FREGS[src1].u32[5], FREGS[src1].u32[6], FREGS[src1].u32[7]);
 
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -5765,14 +5763,14 @@ void fclass_ps(freg dst, freg src1, const char* comm)
     LOG(DEBUG, "I: fclass.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    for (int i = 0; i < VL; ++i)
+    for (unsigned i = 0; i < VL; ++i)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
         iufval32 val, res;
-        val.u = FREGS[src1].u[i];
+        val.u = FREGS[src1].u32[i];
         res.u = fpu::f32_classify(val.f);
-        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (%g)", i, res.u, val.u, val.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (%g)", i, res.u, val.u, val.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -5831,61 +5829,61 @@ void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 static void ucvtemu(opcode opc, freg dst, freg src1)
 {
     clear_arithmetic_flags();
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
-        uint32_t val = FREGS[src1].u[i];
+        uint32_t val = FREGS[src1].u32[i];
         iufval32 res;
         switch (opc)
         {
             case FCVTPSF16:
                 res.f = fpu::f16_to_f32( fpu::F16(val) );
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val), res.flt);
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val), res.flt);
                 break;
             case FCVTPSF11:
                 res.f = fpu::f11_to_f32( fpu::F11(val) );
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val & 0x7ff), res.flt);
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val & 0x7ff), res.flt);
                 break;
             case FCVTPSF10:
                 res.f = fpu::f10_to_f32( fpu::F10(val) );
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val & 0x3ff), res.flt);
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val & 0x3ff), res.flt);
                 break;
             case FCVTPSUN24:
                 res.f = fpu::un24_to_f32(val);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%06" PRIx32 " (%u)", i, res.u, res.flt, val & 0xffffff, val & 0xffffffff);
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%06" PRIx32 " (%u)", i, res.u, res.flt, val & 0xffffff, val & 0xffffffff);
                 break;
             case FCVTPSUN16:
                 res.f = fpu::un16_to_f32(val);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%u)", i, res.u, res.flt, uint16_t(val), uint16_t(val));
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%u)", i, res.u, res.flt, uint16_t(val), uint16_t(val));
                 break;
             case FCVTPSUN10:
                 res.f = fpu::un10_to_f32(val);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%u)", i, res.u, res.flt, uint16_t(val & 0xfff), val & 0xfff);
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%u)", i, res.u, res.flt, uint16_t(val & 0xfff), val & 0xfff);
                 break;
             case FCVTPSUN8:
                 res.f = fpu::un8_to_f32(val);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%02" PRIx8 " (%u)", i, res.u, res.flt, uint8_t(val), uint8_t(val));
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%02" PRIx8 " (%u)", i, res.u, res.flt, uint8_t(val), uint8_t(val));
                 break;
             case FCVTPSUN2:
                 res.f = fpu::un2_to_f32(val);
                 res.f = fpu::un8_to_f32(val);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%1" PRIx8 " (%u)", i, res.u, res.flt, uint8_t(val & 0x3), uint8_t(val & 0x3));
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%1" PRIx8 " (%u)", i, res.u, res.flt, uint8_t(val & 0x3), uint8_t(val & 0x3));
                 break;
             case FCVTPSSN16:
                 res.f = fpu::sn16_to_f32(val);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%s%u)", i, res.u, res.flt, uint16_t(val), (val & 0x8000) ? "-" : "", uint16_t(val & 0x7fff));
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%s%u)", i, res.u, res.flt, uint16_t(val), (val & 0x8000) ? "-" : "", uint16_t(val & 0x7fff));
                 break;
             case FCVTPSSN8:
                 res.f = fpu::sn8_to_f32(val);
-                LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " (%g) <-- 0x%02" PRIx8 " (%s%u)", i, res.u, res.flt, uint8_t(val), (val & 0x80) ? "-" : "", uint8_t(val & 0x7f));
+                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%02" PRIx8 " (%s%u)", i, res.u, res.flt, uint8_t(val), (val & 0x80) ? "-" : "", uint8_t(val & 0x7f));
                 break;
             default:
                 assert(0);
                 break;
         }
-        FREGS[dst].u[i] = res.u;
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -5978,13 +5976,13 @@ static void dcvtemu(opcode opc, freg dst, freg src1)
 {
     set_rounding_mode(rmdyn);
     clear_arithmetic_flags();
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         iufval32 val, res;
-        val.u = FREGS[src1].u[i];
+        val.u = FREGS[src1].u32[i];
         switch (opc)
         {
             case FCVTF10PS:  res.u = cast_float10_to_uint16(fpu::f32_to_f10(val.f));  break;
@@ -5999,8 +5997,8 @@ static void dcvtemu(opcode opc, freg dst, freg src1)
             case FCVTSN8PS:  res.u = fpu::f32_to_sn8(val.f);  break;
             default: assert(0); break;
         }
-        LOG(DEBUG, "\t[%d] 0x%08x (%d) <-- down- 0x%08x (%g)", i, res.u, res.i, val.u, val.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%d) <-- down- 0x%08x (%g)", i, res.u, res.i, val.u, val.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -6128,15 +6126,15 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     set_rounding_mode(rm);
     clear_arithmetic_flags();
     DEBUG_MASK(MREGS[0]);
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         iufval32 val, res;
-        val.u = FREGS[src1].u[i];
+        val.u = FREGS[src1].u32[i];
         res.f = fpu::f32_roundToInt(val.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -6165,19 +6163,19 @@ void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
-        uint8_t rz_lt_ry = (FREGS[ dst].u[i] & 0x1);
-        uint8_t rz_lt_rx = (FREGS[src1].u[i] & 0x1);
-        uint8_t ry_lt_rx = (FREGS[src2].u[i] & 0x1);
+        uint8_t rz_lt_ry = (FREGS[ dst].u32[i] & 0x1);
+        uint8_t rz_lt_rx = (FREGS[src1].u32[i] & 0x1);
+        uint8_t ry_lt_rx = (FREGS[src2].u32[i] & 0x1);
         uint32_t res = rz_lt_ry ? (ry_lt_rx ? 0 : 1) : (rz_lt_rx ? 0 : 2);
 
-        LOG(DEBUG, "\t[%d] %d <-- %d %d %d", i, res, rz_lt_ry, rz_lt_rx, ry_lt_rx);
+        LOG(DEBUG, "\t[%u] %d <-- %d %d %d", i, res, rz_lt_ry, rz_lt_rx, ry_lt_rx);
 
-        FREGS[dst].u[i] = res;
+        FREGS[dst].u32[i] = res;
     }
 
     dirty_fp_state();
@@ -6191,17 +6189,17 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
     clear_arithmetic_flags();
     DEBUG_MASK(MREGS[0]);
 
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.f  = fpu::f32_cubeFaceIdx(val1.u, val2.f);
-        LOG(DEBUG, "\t[%d] %g <-- %u %g", i, res.flt, val1.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] %g <-- %u %g", i, res.flt, val1.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     set_fp_exceptions();
     dirty_fp_state();
@@ -6214,17 +6212,17 @@ void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.f  = fpu::f32_cubeFaceSignS(val1.u, val2.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%x 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%x 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -6236,17 +6234,17 @@ void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = FREGS[src2].u[i];
+        val1.u = FREGS[src1].u32[i];
+        val2.u = FREGS[src2].u32[i];
         res.f  = fpu::f32_cubeFaceSignT(val1.u, val2.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%x 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt);
-        FREGS[dst].u[i] = res.u;
+        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%x 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt);
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -6290,12 +6288,12 @@ void fbci_pi(freg dst, int32_t imm, const char* comm)
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
-        if (MREGS[0].b[i])
+        if (MREGS[0][i])
         {
-            FREGS[dst].i[i] = imm;
-            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x", i, FREGS[dst].i[i], imm);
+            FREGS[dst].s32[i] = imm;
+            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x", i, FREGS[dst].s32[i], imm);
         }
     }
     dirty_fp_state();
@@ -6306,99 +6304,99 @@ void fbci_pi(freg dst, int32_t imm, const char* comm)
 
 static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
 {
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
-        val2.u = (src2 != fnone) ? FREGS[src2].u[i] : 0;
+        val1.u = FREGS[src1].u32[i];
+        val2.u = (src2 != fnone) ? FREGS[src2].u32[i] : 0;
 
         switch (opc)
         {
             case FADDPI :   res.u = val1.u + val2.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x + 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x + 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FSUBPI :   res.u = val1.u - val2.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x - 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x - 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FMULPI :   res.u = val1.u * val2.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FMULHPI :  res.i = ((int64_t(val1.i) * int64_t(val2.i)) >> 32) & 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FMULHUPI : res.u = ((uint64_t(val1.u) * uint64_t(val2.u)) >> 32) & 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FDIVPI :   res.i = val1.i / val2.i;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x / 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x / 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FDIVUPI :  res.u = val2.u ? (val1.u / val2.u) : 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x /u 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x /u 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FREMPI  :  res.i = val2.i ? (val1.i % val2.i) : 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x %% 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x %% 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FREMUPI :  res.u = val2.u ? (val1.u % val2.u) : 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x %%u 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x %%u 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FMAXPI :   res.i = (val1.i >= val2.i) ? val1.i : val2.i;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- max(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- max(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
                             break;
             case FMINPI :   res.i = (val1.i < val2.i) ? val1.i : val2.i;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- min(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- min(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
                             break;
             case FMAXUPI :  res.u = (val1.u >= val2.u) ? val1.u : val2.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- maxu(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- maxu(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
                             break;
             case FMINUPI :  res.u = (val1.u < val2.u) ? val1.u : val2.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- minu(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- minu(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
                             break;
             case FANDPI :   res.u = val1.u & val2.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x & 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x & 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FORPI :    res.u = val1.u | val2.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x | 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x | 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FXORPI :   res.u = val1.u ^ val2.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x ^ 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x ^ 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FNOTPI :   res.u = ~val1.u;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- ~ 0x%08x", i, res.u, val1.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- ~ 0x%08x", i, res.u, val1.u);
                             break;
             case FSAT8PI :  res.i = ((val1.i > 127) ? 127 :(val1.i < -128 ? -128 : val1.i)) & 0x0FF;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- sat8(0x%08x)", i, res.u, val1.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- sat8(0x%08x)", i, res.u, val1.u);
                             break;
             case FSATU8PI : res.u = ((val1.i > 255) ? 255u :(val1.i < 0 ? 0u : val1.u)) & 0x0FFu;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- sat8u(0x%08x)", i, res.u, val1.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- sat8u(0x%08x)", i, res.u, val1.u);
                             break;
             case FSLLPI :   res.u = (val2.u >= 32) ? 0 : (val1.u << val2.u);
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x << %d", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x << %d", i, res.u, val1.u, val2.u);
                             break;
             case FSRLPI :   res.u = (val2.u >= 32) ? 0 : (val1.u >> val2.u);
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x >> %u", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x >> %u", i, res.u, val1.u, val2.u);
                             break;
             case FSRAPI :   res.u = (val2.u >= 32) ? (val1.i >> 31) : (val1.i >> val2.i);
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x >>a %d", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x >>a %d", i, res.u, val1.u, val2.u);
                             break;
             case FLTPI :    res.u = (val1.i < val2.i) ? 0xFFFFFFFF : 0;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x < 0x%08x ", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x < 0x%08x ", i, res.u, val1.u, val2.u);
                             break;
             case FLTUPI :   res.u = (val1.u < val2.u) ? 0xFFFFFFFF : 0;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x < 0x%08x ", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x < 0x%08x ", i, res.u, val1.u, val2.u);
                             break;
             case FLEPI :    res.u = (val1.i <= val2.i) ? 0xFFFFFFFF : 0;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x <= 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x <= 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             case FEQPI :    res.u = (val1.u == val2.u) ? 0xFFFFFFFF : 0;
-                            LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x == 0x%08x", i, res.u, val1.u, val2.u);
+                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x == 0x%08x", i, res.u, val1.u, val2.u);
                             break;
             default:        assert(0);
                             break;
         }
-        FREGS[dst].u[i] = res.u;
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -6406,36 +6404,36 @@ static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
 
 static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
 {
-    for (int i = 0; i < VL; i++)
+    for (unsigned i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0].b[i]) continue;
+        if (!MREGS[0][i]) continue;
 
         iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u[i];
+        val1.u = FREGS[src1].u32[i];
         val2.u = sext<10>(imm); // sign extend the 10-low order bits of imm
 
         switch (opc)
         {
             case FADDIPI: res.u = val1.u + val2.u;
-                          LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x + 0x%08x", i, res.u, val1.u, val2.u);
+                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x + 0x%08x", i, res.u, val1.u, val2.u);
                           break;
             case FANDIPI: res.u = val1.u & val2.u;
-                          LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x & 0x%08x", i, res.u, val1.u, val2.u);
+                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x & 0x%08x", i, res.u, val1.u, val2.u);
                           break;
             case FSLLIPI: res.u = val1.u << val2.u;
-                          LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x << %u", i, res.u, val1.u, val2.u);
+                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x << %u", i, res.u, val1.u, val2.u);
                           break;
             case FSRLIPI: res.u = val1.u >> val2.u;
-                          LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x >> %u", i, res.u, val1.u, val2.u);
+                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x >> %u", i, res.u, val1.u, val2.u);
                           break;
             case FSRAIPI: res.i = val1.i >> val2.i;
-                          LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x >>a %u", i, res.u, val1.u, val2.u);
+                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x >>a %u", i, res.u, val1.u, val2.u);
                           break;
             default:      assert(0);
                           break;
         }
-        FREGS[dst].u[i] = res.u;
+        FREGS[dst].u32[i] = res.u;
     }
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -6443,27 +6441,27 @@ static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
 
 static void packrep(opcode opc, freg dst, freg src1)
 {
-    fdata val = FREGS[src1];
+    freg_t val = FREGS[src1];
     switch (opc)
     {
         case FPACKREPHPI :
-            for (int i = 0; i < VL; i++)
+            for (unsigned i = 0; i < VL; i++)
             {
-                if (!MREGS[0].b[i]) continue;
+                if (!MREGS[0][i]) continue;
 
-                int j = (4 * i) % (VL*2);
-                FREGS[dst].u[i] = uint32_t(val.h[j]) | (uint32_t(val.h[j+2]) << 16);
-                //LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (chan %d, %d)", i, FREGS[dst].u[i], FREGS[dst].u[i], j, j+2);
+                unsigned j = (4 * i) % (VL*2);
+                FREGS[dst].u32[i] = uint32_t(val.u16[j]) | (uint32_t(val.u16[j+2]) << 16);
+                //LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (chan %d, %d)", i, FREGS[dst].u32[i], FREGS[dst].u32[i], j, j+2);
             }
             break;
         case FPACKREPBPI:
-            for (int i = 0; i < VL; i++)
+            for (unsigned i = 0; i < VL; i++)
             {
-                if (!MREGS[0].b[i]) continue;
+                if (!MREGS[0][i]) continue;
 
-                int j = (16 * i) % (VL*4);
-                FREGS[dst].u[i] = uint32_t(val.b[j]) | (uint32_t(val.b[j+4]) << 8) | (uint32_t(val.b[j+8]) << 16) | (uint32_t(val.b[j+12]) << 24);
-                //LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (chan %d, %d, %d, %d)", i, FREGS[dst].u[i], FREGS[dst].u[i], j, j+4, j+8, j+12);
+                unsigned j = (16 * i) % (VL*4);
+                FREGS[dst].u32[i] = uint32_t(val.u8[j]) | (uint32_t(val.u8[j+4]) << 8) | (uint32_t(val.u8[j+8]) << 16) | (uint32_t(val.u8[j+12]) << 24);
+                //LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (chan %d, %d, %d, %d)", i, FREGS[dst].u32[i], FREGS[dst].u32[i], j, j+4, j+8, j+12);
             }
             break;
         default:
@@ -6471,8 +6469,8 @@ static void packrep(opcode opc, freg dst, freg src1)
             break;
     }
 
-    for (int i = 0; i < VL; i++)
-        LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x", i, FREGS[dst].u[i], val.u[i]);
+    for (unsigned i = 0; i < VL; i++)
+        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x", i, FREGS[dst].u32[i], val.u32[i]);
 
     dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
@@ -6773,9 +6771,9 @@ void packb(xreg dst, xreg src1, xreg src2, const char* comm)
     LOG(DEBUG, "I: packb x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     if (dst != x0)
     {
-        uint64_t val = (XREGS[src1].x & 0x0FF) | ((XREGS[src2].x << 8) & 0x0FF00);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        uint64_t val = (XREGS[src1] & 0x0FF) | ((XREGS[src2] << 8) & 0x0FF00);
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -6786,9 +6784,9 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
     if (dst != x0)
     {
         uint64_t val = 0;
-        uint64_t mask = XREGS[src1].x;
-        uint64_t in0 = XREGS[src2].x;
-        uint64_t in1 = XREGS[src2].x >> 8;
+        uint64_t mask = XREGS[src1];
+        uint64_t in0 = XREGS[src2];
+        uint64_t in1 = XREGS[src2] >> 8;
         for (uint32_t b = 0; b < 16; b++)
         {
             if (mask & 0x01)
@@ -6803,8 +6801,8 @@ void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
             }
             mask = mask >> 1;
         }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64 , val, XREGS[src1].x, XREGS[src2].x);
-        XREGS[dst].x = val;
+        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
+        XREGS[dst] = val;
     }
     log_xreg_write(dst, XREGS[dst]);
 }
@@ -6829,13 +6827,13 @@ void NAME(freg dst, freg src1, xreg src2, const char* comm)\
 
 void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
 {
-    for (int el = 0; el < VL; el++)
+    for (unsigned el = 0; el < VL; el++)
     {
         iufval32 res, val1, val2;
 
-        if (!MREGS[0].b[el]) continue;
+        if (!MREGS[0][el]) continue;
 
-        uint64_t addr = sextVA(XREGS[src2].x + FREGS[src1].i[el]);
+        uint64_t addr = sextVA(XREGS[src2] + FREGS[src1].s32[el]);
 
         check_store_breakpoint(addr);
         if (!access_is_size_aligned(addr, 4))
@@ -6848,11 +6846,11 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
             throw trap_store_access_fault(addr);
         }
         val1.u = pmemread32(paddr);
-        val2.u = FREGS[dst].u[el];
+        val2.u = FREGS[dst].u32[el];
 
         // Save the loaded data
-        FREGS[dst].u[el] = val1.u;
-        LOG(DEBUG, "\t[%d] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", el, val1.u, addr);
+        FREGS[dst].u32[el] = val1.u;
+        LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", el, val1.u, addr);
 
         switch (op)
         {
@@ -7676,7 +7674,7 @@ static void tcoop(uint64_t value)
 
 void tensorload(uint64_t control)
 {
-    uint64_t stride  = XREGS[31].x & 0xFFFFFFFFFFC0ULL;
+    uint64_t stride  = XREGS[31] & 0xFFFFFFFFFFC0ULL;
 
     int      tm                 = (control >> 63) & 0x1;
     int      use_coop           = (control >> 62) & 0x1;
@@ -7739,10 +7737,10 @@ void tensorload(uint64_t control)
                 }
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
-                    SCP[idx].u[j] = pmemread32(paddr + j*4);
-                    LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, idx, j, SCP[idx].u[j], addr+j*4);
+                    SCP[idx].u32[j] = pmemread32(paddr + j*4);
+                    LOG(DEBUG, "\tSCP[%d].u32[%d] = 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, idx, j, SCP[idx].u32[j], addr+j*4);
                 }
-                log_tensor_load_scp_write(i, &SCP[idx].x[0]);
+                log_tensor_load_scp_write(i, &SCP[idx].u64[0]);
             }
             LOG(DEBUG, "\t\tAddress = 0x%016" PRIx64 " - Stride = 0x%016" PRIx64, addr, stride);
             addr = sextVA(addr + stride);
@@ -7770,11 +7768,11 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        SCP[idx].b[c*4 + r] = pmemread8(paddr + c);
-                        LOG(DEBUG, "SCP[%d].b[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]", idx, c*4+r, SCP[idx].b[c*4+r], vaddr + c);
+                        SCP[idx].u8[c*4 + r] = pmemread8(paddr + c);
+                        LOG(DEBUG, "SCP[%d].u8[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]", idx, c*4+r, SCP[idx].u8[c*4+r], vaddr + c);
                     }
                 }
-                log_tensor_load_scp_write(i, &SCP[idx].x[0]);
+                log_tensor_load_scp_write(i, &SCP[idx].u64[0]);
             }
         }
     }
@@ -7800,12 +7798,12 @@ void tensorload(uint64_t control)
                     }
                     for (int c = 0; c < 16; ++c)
                     {
-                        SCP[idx].h[c*2 + r] = pmemread16(paddr + c*2);
-                        LOG(DEBUG, "SCP[%d].h[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
-                            idx, c*2+r, SCP[idx].h[c*4+r], vaddr + c*2);
+                        SCP[idx].u16[c*2 + r] = pmemread16(paddr + c*2);
+                        LOG(DEBUG, "SCP[%d].u16[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
+                            idx, c*2+r, SCP[idx].u16[c*4+r], vaddr + c*2);
                     }
                 }
-                log_tensor_load_scp_write(i, &SCP[idx].x[0]);
+                log_tensor_load_scp_write(i, &SCP[idx].u64[0]);
             }
         }
     }
@@ -7854,23 +7852,23 @@ void tensorload(uint64_t control)
                 {
                     if (size == 4)
                     {
-                        SCP[idx].b[j*4  ] = tmp_buffer[j][i*4+offset  ];
-                        SCP[idx].b[j*4+1] = tmp_buffer[j][i*4+offset+1];
-                        SCP[idx].b[j*4+2] = tmp_buffer[j][i*4+offset+2];
-                        SCP[idx].b[j*4+3] = tmp_buffer[j][i*4+offset+3];
+                        SCP[idx].u8[j*4  ] = tmp_buffer[j][i*4+offset  ];
+                        SCP[idx].u8[j*4+1] = tmp_buffer[j][i*4+offset+1];
+                        SCP[idx].u8[j*4+2] = tmp_buffer[j][i*4+offset+2];
+                        SCP[idx].u8[j*4+3] = tmp_buffer[j][i*4+offset+3];
                         LOG(DEBUG, "\tI'm size 4 - b[0]=0x%02" PRIx8 " b[1]=0x%02" PRIx8 " b[2]=0x%02" PRIx8 " b[3]=0x%02" PRIx8,
                             tmp_buffer[j][i*4+offset], tmp_buffer[j][i*4+offset+1], tmp_buffer[j][i*4+offset+2], tmp_buffer[j][i*4+offset+3]);
                     }
                     else if (size == 2)
                     {
-                        SCP[idx].b[j*2  ] = tmp_buffer[j][i*2+offset  ];
-                        SCP[idx].b[j*2+1] = tmp_buffer[j][i*2+offset+1];
+                        SCP[idx].u8[j*2  ] = tmp_buffer[j][i*2+offset  ];
+                        SCP[idx].u8[j*2+1] = tmp_buffer[j][i*2+offset+1];
                         LOG(DEBUG, "\tI'm size 2 - b[0]=0x%02" PRIx8 " b[1]=0x%02" PRIx8,
                             tmp_buffer[j][i*2+offset], tmp_buffer[j][i*2+offset+1]);
                     }
                     else if (size == 1)
                     {
-                        SCP[idx].b[j] = tmp_buffer[j][i+offset];
+                        SCP[idx].u8[j] = tmp_buffer[j][i+offset];
                         LOG(DEBUG, "\tI'm size 1 - b[0]=0x%02" PRIx8, tmp_buffer[j][i+offset]);
                     }
                     else
@@ -7880,9 +7878,9 @@ void tensorload(uint64_t control)
                         return;
                     }
                 }
-                log_tensor_load_scp_write(i, &SCP[idx].x[0]);
+                log_tensor_load_scp_write(i, &SCP[idx].u64[0]);
                 for (int x = 0; x < L1D_LINE_SIZE/4; ++x)
-                    LOG(DEBUG, "SCP[%d].u[%d] = 0x%08" PRIx32, idx, x, SCP[idx].u[x]);
+                    LOG(DEBUG, "SCP[%d].u32[%d] = 0x%08" PRIx32, idx, x, SCP[idx].u32[x]);
             }
         }
     }
@@ -7892,7 +7890,7 @@ void tensorload(uint64_t control)
 
 void tensorloadl2(uint64_t control)//TranstensorloadL2
 {
-    uint64_t stride  = XREGS[31].x & 0xFFFFFFFFFFC0ULL;
+    uint64_t stride  = XREGS[31] & 0xFFFFFFFFFFC0ULL;
 
     int      tm      = (control >> 63) & 0x1;
     int      dst     = ((control >> 46) & 0x1FFFC)  + ((control >> 4)  & 0x3);
@@ -7959,10 +7957,10 @@ static void tensorquant(uint64_t value)
     if (!txfma_off_allowed(CSR_TENSOR_QUANT, value))
         throw trap_txfma_off(current_inst);
 
-    int fstart = (value >> 57) & 0x1F;
-    int cols   = (value >> 55) & 0x3;
-    int rows   = (value >> 51) & 0xF;
-    int line   = (value >> 45) & 0x3F;
+    unsigned fstart = (value >> 57) & 0x1F;
+    unsigned cols   = (value >> 55) & 0x3;
+    unsigned rows   = (value >> 51) & 0xF;
+    unsigned line   = (value >> 45) & 0x3F;
 
     cols = (cols + 1) * 4;
     rows = rows + 1;
@@ -7971,7 +7969,7 @@ static void tensorquant(uint64_t value)
     set_rounding_mode(rmdyn);
     clear_arithmetic_flags();
 
-    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %d, rows: %d, cols: %d, regstart: %d", line, rows, cols, fstart);
+    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %u, rows: %u, cols: %u, regstart: %u", line, rows, cols, fstart);
     for (int k = 0; k < TQUANT_MAX_TRANS; k++)
     {
         int trans = (value >> (k*4)) & 0xF;
@@ -7988,48 +7986,48 @@ static void tensorquant(uint64_t value)
                 return;
             case 1: // INT32_TO_FP32
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
-                    for (int j = 0; j < cols; ++j)
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val.u = FREGS[freg].u[j%VL];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u32[j%VL];
                         res.f = fpu::i32_to_f32(val.i);
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%d)", freg, j%VL, res.u, res.flt, val.u, val.i);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x (%g) <-- 0x%08x (%d)", freg, j%VL, res.u, res.flt, val.u, val.i);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 break;
             case 2: // FP32_TO_INT32
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
-                    for (int j = 0; j < cols; ++j)
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val.u = FREGS[freg].u[j%VL];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u32[j%VL];
                         res.i = fpu::f32_to_i32(val.f);
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%d) <-- 0x%08x (%g)", freg, j%VL, res.u, res.i, val.u, val.flt);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x (%d) <-- 0x%08x (%g)", freg, j%VL, res.u, res.i, val.u, val.flt);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 break;
             case 3: // INT32_RELU
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
-                    for (int j = 0; j < cols; ++j)
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val.u = FREGS[freg].u[j%VL];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u32[j%VL];
                         res.i = (val.i < 0) ? 0 : val.i;
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- MAX_INT32(0x%08x, 0x0)", freg, j%VL, res.i, val.i);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- MAX_INT32(0x%08x, 0x0)", freg, j%VL, res.i, val.i);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
@@ -8041,17 +8039,17 @@ static void tensorquant(uint64_t value)
                     return;
                 }
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
-                    for (int j = 0; j < cols; ++j)
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val1, val2, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val1.u = FREGS[freg].u[j%VL];
-                        val2.u = SCP[line].u[j];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u32[j%VL];
+                        val2.u = SCP[line].u32[j];
                         res.i = val1.i + val2.i;
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
@@ -8064,18 +8062,18 @@ static void tensorquant(uint64_t value)
                     return;
                 }
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
                     iufval32 val2;
-                    val2.u = SCP[line].u[i];
-                    for (int j = 0; j < cols; ++j)
+                    val2.u = SCP[line].u32[i];
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val1, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val1.u = FREGS[freg].u[j%VL];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u32[j%VL];
                         res.i = val1.i + val2.i;
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
@@ -8088,17 +8086,17 @@ static void tensorquant(uint64_t value)
                     return;
                 }
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
-                    for (int j = 0; j < cols; ++j)
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val1, val2, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val1.u = FREGS[freg].u[j%VL];
-                        val2.u = SCP[line].u[j];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u32[j%VL];
+                        val2.u = SCP[line].u32[j];
                         res.f = fpu::f32_mul(val1.f, val2.f);
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
@@ -8111,18 +8109,18 @@ static void tensorquant(uint64_t value)
                     return;
                 }
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
                     iufval32 val2;
-                    val2.u = SCP[line].u[i];
-                    for (int j = 0; j < cols; ++j)
+                    val2.u = SCP[line].u32[i];
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val1, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val1.u = FREGS[freg].u[j%VL];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val1.u = FREGS[freg].u32[j%VL];
                         res.f = fpu::f32_mul(val1.f, val2.f);
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
@@ -8130,32 +8128,32 @@ static void tensorquant(uint64_t value)
                 break;
             case 8: // SATINT8
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
-                    for (int j = 0; j < cols; ++j)
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val.u = FREGS[freg].u[j%VL];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u32[j%VL];
                         res.i = (val.i > 127 ? 127 : (val.i < -128 ? -128 : val.i)) & 0xFF;
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
                 break;
             case 9: // SATUINT8
                 log_tensor_quant_new_transform();
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
-                    for (int j = 0; j < cols; ++j)
+                    for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
-                        int freg = (fstart + i*2 + j/VL) % 32;
-                        val.u = FREGS[freg].u[j%VL];
+                        unsigned freg = (fstart + i*2 + j/VL) % 32;
+                        val.u = FREGS[freg].u32[j%VL];
                         res.i = (val.i > 255 ? 255 : (val.i < 0 ? 0 : val.i)) & 0xFF;
-                        FREGS[freg].u[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
+                        FREGS[freg].u32[j%VL] = res.u;
+                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
                 }
@@ -8165,22 +8163,22 @@ static void tensorquant(uint64_t value)
                 // registers, so it generates two writes to the destination
                 // register when a row spans a vector.
                 log_tensor_quant_new_transform(cols >= VL);
-                for (int i = 0; i < rows; ++i)
+                for (unsigned i = 0; i < rows; ++i)
                 {
-                    int fdst = (fstart + i*2) % 32;
-                    for (int j = 0; j < cols; j += 4)
+                    unsigned fdst = (fstart + i*2) % 32;
+                    for (unsigned j = 0; j < cols; j += 4)
                     {
-                        int fsrc = (fstart + i*2 + j/VL) % 32;
-                        uint32_t val0 = FREGS[fsrc].u[(j+0)%VL];
-                        uint32_t val1 = FREGS[fsrc].u[(j+1)%VL];
-                        uint32_t val2 = FREGS[fsrc].u[(j+2)%VL];
-                        uint32_t val3 = FREGS[fsrc].u[(j+3)%VL];
-                        FREGS[fdst].b[j+0] = uint8_t(val0 & 0xFF);
-                        FREGS[fdst].b[j+1] = uint8_t(val1 & 0xFF);
-                        FREGS[fdst].b[j+2] = uint8_t(val2 & 0xFF);
-                        FREGS[fdst].b[j+3] = uint8_t(val3 & 0xFF);
-                        LOG(DEBUG, "\tf%d[%d] 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x}", fdst, j/4, FREGS[fdst].u[j/4], val0, val1, val2, val3);
-                        log_tensor_quant_write(k, fdst, j/4, FREGS[fdst].u[j/4]);
+                        unsigned fsrc = (fstart + i*2 + j/VL) % 32;
+                        uint32_t val0 = FREGS[fsrc].u32[(j+0)%VL];
+                        uint32_t val1 = FREGS[fsrc].u32[(j+1)%VL];
+                        uint32_t val2 = FREGS[fsrc].u32[(j+2)%VL];
+                        uint32_t val3 = FREGS[fsrc].u32[(j+3)%VL];
+                        FREGS[fdst].u8[j+0] = uint8_t(val0 & 0xFF);
+                        FREGS[fdst].u8[j+1] = uint8_t(val1 & 0xFF);
+                        FREGS[fdst].u8[j+2] = uint8_t(val2 & 0xFF);
+                        FREGS[fdst].u8[j+3] = uint8_t(val3 & 0xFF);
+                        LOG(DEBUG, "\tf%u[%u] 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x}", fdst, j/4, FREGS[fdst].u32[j/4], val0, val1, val2, val3);
+                        log_tensor_quant_write(k, fdst, j/4, FREGS[fdst].u32[j/4]);
                     }
                 }
                 break;
@@ -8204,7 +8202,7 @@ static void tensorstore(uint64_t tstorereg)
         int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
         uint64_t addr     = sext<48>(tstorereg & 0x00FFFFFFFFFFC0ULL);       // Address where to store the results
 
-        uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFFFULL;
+        uint64_t stride   = XREGS[31] & 0xFFFFFFFFFFFFULL;
 
         int src = scpstart % L1_SCP_ENTRIES;
         LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
@@ -8228,8 +8226,8 @@ static void tensorstore(uint64_t tstorereg)
             // For all the elements of the lane
             for (int i = 0; i < L1D_LINE_SIZE/4; i++)
             {
-                uint32_t val = SCP[src].u[i];
-                LOG(DEBUG, "\tSCP[%d].u[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, addr + i*4);
+                uint32_t val = SCP[src].u32[i];
+                LOG(DEBUG, "\tSCP[%d].u32[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, addr + i*4);
                 pmemwrite32(paddr + i*4, val);
                 //log_mem_write(0, 4, addr + i*4, val); => Don't log mem changes!
             }
@@ -8246,7 +8244,7 @@ static void tensorstore(uint64_t tstorereg)
         int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride   = XREGS[31].x & 0xFFFFFFFFFFF0ULL;
+        uint64_t stride   = XREGS[31] & 0xFFFFFFFFFFF0ULL;
 
         LOG(DEBUG, "\tStart Tensor Store with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
@@ -8293,7 +8291,7 @@ static void tensorstore(uint64_t tstorereg)
                 for (uint64_t i = 0; i < 4; i++)
                 {
                     uint32_t idx = (col & 1) * 4 + i;
-                    uint32_t val = FREGS[src].u[idx];
+                    uint32_t val = FREGS[src].u32[idx];
                     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
                     pmemwrite32(paddr + i*4, val);
                     //log_mem_write(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
@@ -8370,14 +8368,14 @@ static void tensor_fma32(uint64_t tfmareg)
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = 0;
                         log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
                     }
                 }
                 continue;
             }
 
-            float32_t a = fpu::F32(SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+k) % (L1D_LINE_SIZE/4)]);
+            float32_t a = fpu::F32(SCP[(astart+i) % L1_SCP_ENTRIES].u32[(aoffset+k) % (L1D_LINE_SIZE/4)]);
 
             // If first_pass is 1 and this is the first iteration we do FMUL
             // instead of FMA
@@ -8385,11 +8383,11 @@ static void tensor_fma32(uint64_t tfmareg)
             {
                 for (int j = 0; j < bcols; ++j)
                 {
-                    float32_t b = fpu::F32(tmpb.u[j]);
+                    float32_t b = fpu::F32(tmpb.u32[j]);
                     float32_t c = fpu::f32_mul(a, b);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
-                    log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                    LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " * 0x%08" PRIx32,
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
+                    log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                    LOG(DEBUG, "\tTensorFMA32(%d) f%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " * 0x%08" PRIx32,
                         k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(a), fpu::UI32(b));
                 }
             }
@@ -8401,15 +8399,15 @@ static void tensor_fma32(uint64_t tfmareg)
 
                 for (int j = 0; j < bcols; ++j)
                 {
-                    float32_t b = fpu::F32(tmpb.u[j]);
+                    float32_t b = fpu::F32(tmpb.u32[j]);
                     // If the product will be 0, we can skip the operation
                     if (fpu::UI32(b)==0)
                         continue;
-                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] );
                     float32_t c = fpu::f32_mulAdd(a, b, c0);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
-                    log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                    LOG(DEBUG, "\tTensorFMA32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
+                    log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                    LOG(DEBUG, "\tTensorFMA32(%d) f%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + 0x%08" PRIx32 " * 0x%08" PRIx32,
                         k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI32(a), fpu::UI32(b));
                 }
             }
@@ -8420,8 +8418,8 @@ static void tensor_fma32(uint64_t tfmareg)
     for (int i = 0; i < arows; ++i)
     {
         for (int j = 0; j < bcols; ++j)
-            LOG(DEBUG, "\tC[%d][%d]: f%d[%d] = 0x%08" PRIx32, i, j,
-                i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+            LOG(DEBUG, "\tC[%d][%d]: f%zu[%zu] = 0x%08" PRIx32, i, j,
+                i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
     }
 
     set_fp_exceptions();
@@ -8491,15 +8489,15 @@ static void tensor_fma16a32(uint64_t tfmareg)
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = 0;
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = 0;
                         log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
                     }
                 }
                 continue;
             }
 
-            float16_t a1 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+0) % (L1D_LINE_SIZE/2)]);
-            float16_t a2 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].h[(aoffset+k+1) % (L1D_LINE_SIZE/2)]);
+            float16_t a1 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].u16[(aoffset+k+0) % (L1D_LINE_SIZE/2)]);
+            float16_t a2 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].u16[(aoffset+k+1) % (L1D_LINE_SIZE/2)]);
 
             // If first_pass is 1 and this is the first iteration we do
             // a1*b1+a2*b2 instead of a1*b1+a2*b2+c0
@@ -8507,12 +8505,12 @@ static void tensor_fma16a32(uint64_t tfmareg)
             {
                 for (int j = 0; j < bcols; ++j)
                 {
-                    float16_t b1 = fpu::F16(tmpb.h[2*j+0]);
-                    float16_t b2 = fpu::F16(tmpb.h[2*j+1]);
+                    float16_t b1 = fpu::F16(tmpb.u16[2*j+0]);
+                    float16_t b2 = fpu::F16(tmpb.u16[2*j+1]);
                     float32_t c = fpu::f32_tensorMulF16(a1, b1, a2, b2);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
-                    log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                    LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
+                    log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                    LOG(DEBUG, "\tTensorFMA16A32(%d) f%zu[%zu]: 0x%08" PRIx32 " = (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
                         k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
                 }
             }
@@ -8522,18 +8520,18 @@ static void tensor_fma16a32(uint64_t tfmareg)
             {
                 for (int j = 0; j < bcols; ++j)
                 {
-                    float16_t b1 = fpu::F16(tmpb.h[2*j+0]);
-                    float16_t b2 = fpu::F16(tmpb.h[2*j+1]);
+                    float16_t b1 = fpu::F16(tmpb.u16[2*j+0]);
+                    float16_t b2 = fpu::F16(tmpb.u16[2*j+1]);
                     // If all products will be 0, we can skip the operation.
                     // NB: The detection is done at 32-bit granularity, not at
                     // element (16-bit) granularity.
                     if ((fpu::UI16(b1)==0) && (fpu::UI16(b2)==0))
                         continue;
-                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
+                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] );
                     float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
-                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = fpu::UI32(c);
-                    log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                    LOG(DEBUG, "\tTensorFMA16A32(%d) f%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
+                    FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
+                    log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                    LOG(DEBUG, "\tTensorFMA16A32(%d) f%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
                         k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI32(c0), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
                 }
             }
@@ -8544,8 +8542,8 @@ static void tensor_fma16a32(uint64_t tfmareg)
     for (int i = 0; i < arows; ++i)
     {
         for (int j = 0; j < bcols; ++j)
-            LOG(DEBUG, "\tC[%d][%d]: f%d[%d] = 0x%08" PRIx32, i, j,
-                i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+            LOG(DEBUG, "\tC[%d][%d]: f%zu[%zu] = 0x%08" PRIx32, i, j,
+                i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
     }
 
     set_fp_exceptions();
@@ -8603,7 +8601,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
         {
             for (int j = 0; j < bcols; ++j)
             {
-                TENC[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] = 0;
+                TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = 0;
             }
         }
     }
@@ -8626,32 +8624,32 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL] = TENC[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL];
-                        LOG(DEBUG, "\tTensorIMA8A32(%d) f%d[%d] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
-                        log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL]);
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = TENC[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL];
+                        LOG(DEBUG, "\tTensorIMA8A32(%d) f%zu[%zu] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
+                        log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL]);
                     }
                 }
                 else if (first_pass && (k == 0))
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, TENC[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                        log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
                     }
                 }
                 continue;
             }
 
-            fdata* dst = (tenc2rf && (k+4 == acols)) ? FREGS : TENC;
+            freg_t* dst = (tenc2rf && (k+4 == acols)) ? FREGS : TENC;
             const char* dname = (tenc2rf && (k+4 == acols)) ? "f" : "TenC";
 
             // If all products are 0, we can skip the operation, except if first_pass is set and this
             // is the first iteration, or TenC must be copied to FREGS and this is the last iteration.
             // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity.
             if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
-                (SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+(k/4)) % (L1D_LINE_SIZE/4)] == 0))
+                (SCP[(astart+i) % L1_SCP_ENTRIES].u32[(aoffset+(k/4)) % (L1D_LINE_SIZE/4)] == 0))
                 continue;
 
-#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].b[(aoffset+k+(x)) % L1D_LINE_SIZE]
+#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
             int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
             int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
             int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
@@ -8660,7 +8658,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
             for (int j = 0; j < bcols; ++j)
             {
-#define BSRC(x) tmpb.b[j*4+(x)]
+#define BSRC(x) tmpb.u8[j*4+(x)]
                 int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
                 int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
                 int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
@@ -8669,14 +8667,14 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 // If all products are 0, we can skip the operation, except if first_pass is set and this
                 // is the first iteration, or TenC must be copied to FREGS and this is the last iteration
                 // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
-                if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) && (tmpb.u[j] == 0))
+                if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) && (tmpb.u32[j] == 0))
                     continue;
 
-                int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL];
+                int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].s32[j%VL];
                 int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
-                dst[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL] = c;
+                dst[i*TFMA_REGS_PER_ROW+j/VL].s32[j%VL] = c;
                 log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
-                LOG(DEBUG, "\tTensorIMA8A32(%d) %s%d[%d]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
+                LOG(DEBUG, "\tTensorIMA8A32(%d) %s%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
                     k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
             }
         }
@@ -8687,11 +8685,11 @@ static void tensor_ima8a32(uint64_t tfmareg)
     // logging
     for (int i = 0; i < arows; ++i)
     {
-        const fdata* dst = tenc2rf ? FREGS : TENC;
+        const freg_t* dst = tenc2rf ? FREGS : TENC;
         const char* dname = tenc2rf ? "f" : "TenC";
         for (int j = 0; j < bcols; ++j)
-            LOG(DEBUG, "\tC[%d][%d]: %s%d[%d] = 0x%08" PRIx32, i, j, dname,
-                i*TFMA_REGS_PER_ROW+j/VL, j%VL, dst[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+            LOG(DEBUG, "\tC[%d][%d]: %s%zu[%zu] = 0x%08" PRIx32, i, j, dname,
+                i*TFMA_REGS_PER_ROW+j/VL, j%VL, dst[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
     }
 }
 
@@ -8736,48 +8734,48 @@ static void tensorreduce(uint64_t value)
     }
     for (int i = 0; i < num_reg; i++)
     {
-        for (int j = 0; j < VL; j++)
+        for (unsigned j = 0; j < VL; j++)
         {
             int op_reg = (i + start_reg) % 32;
             if (operation == 0) // FADD
             {
                 iufval32 src1, src2, rslt;
-                src1.u = FREGS[op_reg].u[j];
-                src2.u = fregs[other_min<<1][op_reg].u[j];
+                src1.u = FREGS[op_reg].u32[j];
+                src2.u = fregs[other_min<<1][op_reg].u32[j];
                 rslt.f = fpu::f32_add(src1.f, src2.f);
-                FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fadd) f%d[%d]: 0x%08x = 0x%08x + 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
+                FREGS[op_reg].u32[j] = rslt.u;
+                LOG(DEBUG, "\tReduce (fadd) f%d[%u]: 0x%08x = 0x%08x + 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
             }
             else if (operation == 2) // FMAX
             {
                 iufval32 src1, src2, rslt;
-                src1.u = FREGS[op_reg].u[j];
-                src2.u = fregs[other_min<<1][op_reg].u[j];
+                src1.u = FREGS[op_reg].u32[j];
+                src2.u = fregs[other_min<<1][op_reg].u32[j];
                 rslt.f = fpu::f32_maximumNumber(src1.f,src2.f);
-                FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fmax) f%d[%d]: 0x%08x = 0x%08x > 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
+                FREGS[op_reg].u32[j] = rslt.u;
+                LOG(DEBUG, "\tReduce (fmax) f%d[%u]: 0x%08x = 0x%08x > 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
             }
             else if (operation == 4) // IADD
             {
                 iufval32 src1, src2, rslt;
-                src1.u = FREGS[op_reg].u[j];
-                src2.u = fregs[other_min<<1][op_reg].u[j];
+                src1.u = FREGS[op_reg].u32[j];
+                src2.u = fregs[other_min<<1][op_reg].u32[j];
                 rslt.u = src1.u + src2.u;
-                FREGS[op_reg].u[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (iadd) f%d[%d]: 0x%08x = 0x%08x + 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
+                FREGS[op_reg].u32[j] = rslt.u;
+                LOG(DEBUG, "\tReduce (iadd) f%d[%u]: 0x%08x = 0x%08x + 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
             }
             else if (operation == 8) // FGET
             {
                 iufval32 tmp;
-                tmp.u = fregs[other_min<<1][op_reg].u[j];
-                FREGS[op_reg].u[j] = tmp.u;
-                LOG(DEBUG, "\tReduce (get) f%d[%d]: <= 0x%08x (m%" PRId64 ")",op_reg,j,tmp.u,other_min);
+                tmp.u = fregs[other_min<<1][op_reg].u32[j];
+                FREGS[op_reg].u32[j] = tmp.u;
+                LOG(DEBUG, "\tReduce (get) f%d[%u]: <= 0x%08x (m%" PRId64 ")",op_reg,j,tmp.u,other_min);
             }
             else
             {
                 LOG(ERR, "Reduce/broadcast operation = %d not yet supported in emu", operation);
             }
-            log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u[j]);
+            log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
         }
     }
     set_fp_exceptions();

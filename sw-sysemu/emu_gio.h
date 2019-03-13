@@ -1,6 +1,7 @@
 #ifndef _EMU_GIO_H
 #define _EMU_GIO_H
 
+#include <cinttypes>
 #include "testLog.h"
 #include "emu_defines.h"
 
@@ -53,7 +54,7 @@ namespace emu {
 } while (0)
 
 
-#define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02lx",(_MR).b.to_ulong())
+#define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02lx",(_MR).to_ulong())
 
 
 extern uint32_t current_thread;

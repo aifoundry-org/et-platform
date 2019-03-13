@@ -71,9 +71,9 @@ struct inst_state_change {
 
 // Notify changes to state by an instruction
 void log_pc_update(uint64_t new_pc);
-void log_xreg_write(int xdst, const xdata& xval);
-void log_freg_write(int fdst, const fdata& fval);
-void log_mreg_write(int mdst, const mdata& mval);
+void log_xreg_write(int xdst, uint64_t xval);
+void log_freg_write(int fdst, const freg_t& fval);
+void log_mreg_write(int mdst, const mreg_t& mval);
 void log_fflags_write(uint64_t new_fflags);
 void log_mem_write(int pos, int size, uint64_t addr, uint64_t val);
 void log_trap();
