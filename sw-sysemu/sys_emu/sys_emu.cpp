@@ -359,10 +359,10 @@ bool process_dbg_cmd(std::string cmd) {
       uint32_t thid = (num_args > 1) ? std::stoi(command[1]) : 0;
       printf("PC[%d] = 0x%lx\n", thid, current_pc[thid]);
    } else if ((command[0] == "x") || (command[0] == "xdump")) {
-      std::string str = dump_xregs((num_args > 1) ? std::stoi(command[1]) : 0).str();
+      std::string str = dump_xregs((num_args > 1) ? std::stoi(command[1]) : 0);
       printf("%s\n", str.c_str());
    } else if ((command[0] == "f") || command[0] == "fdump") {
-      std::string str = dump_fregs((num_args > 1) ? std::stoi(command[1]) : 0).str();
+      std::string str = dump_fregs((num_args > 1) ? std::stoi(command[1]) : 0);
       printf("%s\n", str.c_str());
    } else if (command[0] == "csr") {
       uint32_t thid = 0;
