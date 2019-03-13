@@ -11,9 +11,9 @@ emu_hdrs := \
 	txs.h
 
 emu_cpp_srcs := \
+	decode.cpp \
 	emu.cpp \
 	emu_gio.cpp \
-	insn_dec_func.cpp \
 	insn_exec_func.cpp \
 	tbox_emu.cpp \
 	txs.cpp \

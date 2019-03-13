@@ -152,6 +152,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     /* do nothing */
                     break;
                 case ESR_SHIRE_IPI_REDIRECT_TRIGGER:
+                    LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI_REDIRECT");
                     send_ipi_redirect_to_threads(esr_info.shire, value);
                     write_data = false;
                     break;
@@ -159,6 +160,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     /* do nothing */
                     break;
                 case ESR_SHIRE_IPI_TRIGGER:
+                    LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI");
                     raise_software_interrupt(esr_info.shire, value);
                     break;
                 case ESR_SHIRE_IPI_TRIGGER_CLEAR:
@@ -166,25 +168,25 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC0:
-                    LOG(DEBUG, "Write to FCC0 value %016" PRIx64, value);
+                    LOG_ALL_MINIONS(DEBUG, "Write to FCC0 value %016" PRIx64, value);
                     fcc_to_threads(esr_info.shire, 0, value, 0);
                     fcc_inc(0, esr_info.shire, value, 0);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC1:
-                    LOG(DEBUG, "Write to FCC1 value %016" PRIx64, value);
+                    LOG_ALL_MINIONS(DEBUG, "Write to FCC1 value %016" PRIx64, value);
                     fcc_to_threads(esr_info.shire, 0, value, 1);
                     fcc_inc(0, esr_info.shire, value, 1);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC2:
-                    LOG(DEBUG, "Write to FCC2 value %016" PRIx64, value);
+                    LOG_ALL_MINIONS(DEBUG, "Write to FCC2 value %016" PRIx64, value);
                     fcc_to_threads(esr_info.shire, 1, value, 0);
                     fcc_inc(1, esr_info.shire, value, 0);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC3:
-                    LOG(DEBUG, "Write to FCC2 value %016" PRIx64, value);
+                    LOG_ALL_MINIONS(DEBUG, "Write to FCC2 value %016" PRIx64, value);
                     fcc_to_threads(esr_info.shire, 1, value, 1);
                     fcc_inc(1, esr_info.shire, value, 1);
                     write_data = false;

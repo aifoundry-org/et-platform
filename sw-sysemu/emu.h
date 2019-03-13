@@ -52,7 +52,7 @@ extern std::string dump_xregs(uint32_t thread_id);
 extern std::string dump_fregs(uint32_t thread_id);
 extern void init_stack();
 extern void initcsr(uint32_t thread);             // init all CSRs
-extern uint64_t get_csr(uint32_t thread, csr c);
+extern uint64_t get_csr(uint32_t thread, uint16_t cnum);
 extern uint64_t xget(uint64_t src1);
 extern void init(xreg dst, uint64_t val);         // init general purpose register
 extern void fpinit(freg dst, uint64_t val[VL/2]); // init vector register
@@ -202,12 +202,12 @@ extern void sret(const char* comm = 0);
 extern void mret(const char* comm = 0);
 extern void wfi(const char* comm = 0);
 extern void sfence_vma(xreg src1, xreg src2, const char* comm = 0);
-extern void csrrw(xreg dst, csr src1, xreg src2, const char* comm = 0);
-extern void csrrs(xreg dst, csr src1, xreg src2, const char* comm = 0);
-extern void csrrc(xreg dst, csr src1, xreg src2, const char* comm = 0);
-extern void csrrwi(xreg dst, csr src1, uint64_t imm, const char* comm = 0);
-extern void csrrsi(xreg dst, csr src1, uint64_t imm, const char* comm = 0);
-extern void csrrci(xreg dst, csr src1, uint64_t imm, const char* comm = 0);
+extern void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm = 0);
+extern void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm = 0);
+extern void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm = 0);
+extern void csrrwi(xreg dst, uint16_t src1, uint64_t imm, const char* comm = 0);
+extern void csrrsi(xreg dst, uint16_t src1, uint64_t imm, const char* comm = 0);
+extern void csrrci(xreg dst, uint16_t src1, uint64_t imm, const char* comm = 0);
 
 // ----- RV64C emulation -------------------------------------------------------
 
@@ -414,9 +414,6 @@ extern void fround_ps (freg dst, freg src1, rounding_mode rm, const char* comm =
 extern void frcp_ps   (freg dst, freg src1, const char* comm = 0);
 extern void frsq_ps   (freg dst, freg src1, const char* comm = 0);
 //extern void fltabs_ps (freg dst, freg src1, freg src2, rounding_mode rm, const char* comm = 0);
-
-// FIXME: THIS INSTRUCTION IS OBSOLETE
-extern void frcpfxp_ps (freg dst, freg src1, const char* comm = 0);
 
 extern void cubeface_ps    (freg dst, freg src1, freg src2, const char* comm = 0);
 extern void cubefaceidx_ps (freg dst, freg src1, freg src2, const char* comm = 0);
