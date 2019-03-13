@@ -7,7 +7,6 @@ sysemu_hdrs := \
 	common/main_memory_region_esr.h \
 	common/main_memory_region_rbox.h \
 	sys_emu/api_communicate.h \
-	sys_emu/et_emulator.h \
 	sys_emu/log.h \
 	sys_emu/testLog.h
 
@@ -21,12 +20,15 @@ sysemu_cpp_srcs := \
 	sys_emu/log.cpp \
 	sys_emu/net_emulator.cpp \
 	sys_emu/sys_emu.cpp \
+	sys_emu/sys_emu_main.cpp \
 	sys_emu/sys_emu_log.cpp
 
 sysemu_SRCS := $(sysemu_cpp_srcs) \
 	       $(emu_cpp_srcs)
 
 sysemu_OBJS := $(addprefix obj/,$(addsuffix .o,$(basename $(sysemu_SRCS))))
+# Remove the file that implements the main function
+libsysemu_OBJS := $(filter-out obj/sys_emu/sys_emu_main.o,$(sysemu_OBJS))
 sysemu_DEPS := $(addsuffix .d,$(basename $(sysemu_OBJS)))
 sysemu_DIRS := $(sort $(dir $(sysemu_OBJS)))
 
@@ -41,7 +43,7 @@ LDLIBS   := ../../build/libfpu.a -lm
 CXXFLAGS += -mf16c -fno-fast-math
 
 .PHONY: all
-all: sys_emu
+all: sys_emu libsysemu.a sysemu-artifacts.tar.gz
 
 .PHONY: static
 static: LDFLAGS := -static
@@ -59,6 +61,14 @@ clean:
 
 ../../build/libfpu.a: force
 	$(MAKE) -C ../../build $(notdir $@)
+
+sysemu-artifacts.tar.gz: libsysemu.a sys_emu $(addprefix ../../,$(sysemu_hdrs)) ../../build/libfpu.a
+	mkdir -p sysemu-artifacts
+	for i in $^; do cp $$i sysemu-artifacts/ ; done
+	tar zcvf sysemu-artifacts.tar.gz sysemu-artifacts
+
+libsysemu.a:  $(libsysemu_OBJS)
+	$(AR) $(ARFLAGS) $@ $^
 
 sys_emu: $(sysemu_OBJS) ../../build/libfpu.a
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $(sysemu_OBJS) $(LOADLIBES) $(LDLIBS) -o $@
