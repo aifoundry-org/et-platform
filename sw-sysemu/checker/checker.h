@@ -33,7 +33,7 @@ typedef struct
 
 typedef struct
 {
-    int    entry;
+    int      entry;
     uint32_t data[VL];
     uint32_t tensorfma_regfile_wmask;
 } tensorfma_entry;
@@ -112,7 +112,7 @@ private:
     std::list<tensorfma_entry>    tensorfma_list[EMU_NUM_THREADS];     // List of RTL written tensorfma entries
     std::list<tensorfma_entry>    tensorquant_list[EMU_NUM_THREADS];   // List of RTL written tensorquant entries
     std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];        // List of RTL written reduce entries
-    std::list<csr>                waived_csrs;                         // List of CSRs whose checking is waived
+    std::list<uint16_t>           waived_csrs;                         // List of CSRs whose checking is waived
     std::list<ignored_mem_region> ignored_mem_regions;                 // List of memory regions whose data won't be checked
     bool                          checker_enabled = false;              // If false, this checkers ERRORS are downgraded to WARNINGS
 };
