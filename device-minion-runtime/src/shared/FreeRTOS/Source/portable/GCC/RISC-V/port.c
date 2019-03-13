@@ -182,8 +182,3 @@ void vPortEndScheduler( void )
 	/* Not implemented. */
 	for( ;; );
 }
-
-
-
-
-

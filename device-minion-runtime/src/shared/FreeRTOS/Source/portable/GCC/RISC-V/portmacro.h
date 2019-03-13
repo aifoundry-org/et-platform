@@ -44,16 +44,22 @@ extern "C" {
  */
 
 /* Type definitions. */
-#define portSTACK_TYPE	uint32_t
-#define portBASE_TYPE	long
+
+#if __riscv_xlen != 64
+	#error This port only supports RV64
+#endif
+
+#define portSTACK_TYPE	uint64_t
+#define portBASE_TYPE	long long
+#define portPOINTER_SIZE_TYPE uintptr_t
 
 typedef portSTACK_TYPE StackType_t;
-typedef long BaseType_t;
-typedef unsigned long UBaseType_t;
-typedef uint32_t TickType_t;
-#define portMAX_DELAY ( TickType_t ) 0xffffffffUL
+typedef long long BaseType_t;
+typedef unsigned long long UBaseType_t;
+typedef uint64_t TickType_t;
+#define portMAX_DELAY ( TickType_t ) 0xffffffffffffffffULL
 
-/* 32-bit tick type on a 32-bit architecture, so reads of the tick count do
+/* 64-bit tick type on a 64-bit architecture, so reads of the tick count do
 not need to be guarded with a critical section. */
 #define portTICK_TYPE_IS_ATOMIC 1
 /*-----------------------------------------------------------*/
@@ -61,12 +67,8 @@ not need to be guarded with a critical section. */
 /* Architecture specifics. */
 #define portSTACK_GROWTH			( -1 )
 #define portTICK_PERIOD_MS			( ( TickType_t ) 1000 / configTICK_RATE_HZ )
-#ifdef __riscv64
-	#error This is the RV32 port that has not yet been adapted for 64.
-	#define portBYTE_ALIGNMENT			16
-#else
-	#define portBYTE_ALIGNMENT 8
-#endif
+#define portBYTE_ALIGNMENT 16
+#define portHAS_STACK_OVERFLOW_CHECKING 0
 /*-----------------------------------------------------------*/
 
 
@@ -138,4 +140,3 @@ not necessary for to use this port.  They are defined so the common demo files
 #endif
 
 #endif /* PORTMACRO_H */
-
