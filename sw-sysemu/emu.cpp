@@ -3798,7 +3798,7 @@ void sret(const char* comm)
     // Clean sie, spie and spp
     uint64_t mstatus_clean = mstatus & 0xFFFFFFFFFFFFFEDDULL;
     // Set sie = spie, spie = 1, spp = U (0), prv = spp
-    csrset(CSR_MSTATUS, mstatus_clean | (spie << 1) | (1 << 8));
+    csrset(CSR_MSTATUS, mstatus_clean | (spie << 1) | (1 << 5));
     prvset(spp);
     LOG(DEBUG, "Now running in %s mode", (spp == CSR_PRV_M) ? "M" : (spp == CSR_PRV_S) ? "S" : "U");
 }
