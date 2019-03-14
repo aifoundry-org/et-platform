@@ -554,10 +554,10 @@ void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Main
+// Main function implementation
 ////////////////////////////////////////////////////////////////////////////////
 
-int main(int argc, char * argv[])
+int main_internal(int argc, char * argv[])
 {
     char * elf_file      = NULL;
     char * mem_desc_file = NULL;
@@ -1077,4 +1077,3 @@ int main(int argc, char * argv[])
 
     return 0;
 }
-
