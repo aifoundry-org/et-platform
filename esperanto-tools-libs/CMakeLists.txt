@@ -85,7 +85,7 @@ if(ETSOC)
         #Empty custom target
     )
 else()
-    add_custom_target(kernels-elf ALL make TOOLCHAIN=${RV_TOOLCHAIN} OUTDIR=${CMAKE_CURRENT_BINARY_DIR}
+    add_custom_target(kernels-elf ALL MAKEFLAGS= make TOOLCHAIN=${RV_TOOLCHAIN} OUTDIR=${CMAKE_CURRENT_BINARY_DIR}
             WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/kernels"
             COMMENT "Building kernels ELF file: ${kernels_elf_file}")
 endif()
