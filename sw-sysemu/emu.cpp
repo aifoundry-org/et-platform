@@ -5833,7 +5833,6 @@ void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 
 static void ucvtemu(opcode opc, freg dst, freg src1)
 {
-    set_rounding_mode(rmdyn);
     clear_arithmetic_flags();
     for (int i = 0; i < VL; i++)
     {
@@ -6139,7 +6138,7 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
         iufval32 val, res;
         val.u = FREGS[src1].u[i];
         res.f = fpu::f32_roundToInt(val.f);
-        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g) ", i, res.u, res.flt, val.u, val.flt);
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
         FREGS[dst].u[i] = res.u;
     }
     set_fp_exceptions();
