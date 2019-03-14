@@ -1,5 +1,7 @@
 #include "testLog.h"
 
+#include "sys_emu.h"
+
 // static members of testLog
 logLevel testLog::globalLogLevel_ = LOG_DEBUG;
 logLevel testLog::defaultLogLevel_ = LOG_INFO;
@@ -28,8 +30,7 @@ bool simEnded()
 
 uint64_t testLog::simTime()
 {
-    extern uint64_t emu_cycle;
-    return emu_cycle;
+    return sys_emu::get_emu_cycle();
 }
 
 void testLog::setLogLevels()

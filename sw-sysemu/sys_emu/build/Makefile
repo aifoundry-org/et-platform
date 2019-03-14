@@ -8,6 +8,7 @@ sysemu_hdrs := \
 	common/main_memory_region_rbox.h \
 	common/main_memory_region_scp_linear.h \
 	sys_emu/api_communicate.h \
+	sys_emu/sys_emu.h \
 	sys_emu/log.h \
 	sys_emu/testLog.h
 
@@ -59,14 +60,29 @@ debug: sys_emu
 .PHONY: clean
 clean:
 	$(MAKE) -C ../../build clean_libfpu
-	$(RM) -r sys_emu obj/
+	$(RM) -r sys_emu obj/ *.a sysemu-artifacts*
 
 ../../build/libfpu.a: force
 	$(MAKE) -C ../../build $(notdir $@)
 
-sysemu-artifacts.tar.gz: libsysemu.a sys_emu $(addprefix ../../,$(sysemu_hdrs)) ../../build/libfpu.a
+
+artifacts_dir:
 	mkdir -p sysemu-artifacts
-	for i in $^; do cp $$i sysemu-artifacts/ ; done
+
+.PHONY: install_headers
+install_headers : $(addprefix ../../,$(sysemu_hdrs)) | artifacts_dir
+	for i in $^; do \
+	  FILE=sysemu-artifacts/`echo $$i | sed -e 's/..\/..\///' ` ; \
+	    mkdir -p `dirname $$FILE` \
+	  && cp -f $$i $$FILE  \
+	; done
+
+.PHONY: install_binaries
+install_binaries: libsysemu.a sys_emu ../../build/libfpu.a | artifacts_dir
+	for i in $^; do cp -f $$i sysemu-artifacts/; done
+
+
+sysemu-artifacts.tar.gz: install_binaries install_headers | artifacts_dir
 	tar zcvf sysemu-artifacts.tar.gz sysemu-artifacts
 
 libsysemu.a:  $(libsysemu_OBJS)

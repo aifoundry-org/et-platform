@@ -14,10 +14,26 @@
 extern uint32_t current_pc;
 extern uint32_t current_thread;
 #ifdef SYS_EMU
-extern void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest);
-extern void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
-extern void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask);
-extern void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask);
+// FIXME the following needs to be cleaned up l
+#include "../sys_emu/sys_emu.h"
+void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
+{
+    sys_emu::fcc_to_threads(shire_id, thread_dest, thread_mask, cnt_dest);
+}
+
+void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask) {
+    sys_emu::send_ipi_redirect_to_threads(shire_id, thread_mask);
+}
+
+void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    sys_emu::raise_software_interrupt(shire_id, thread_mask);
+}
+
+void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    sys_emu::clear_software_interrupt(shire_id, thread_mask);
+}
 #else
 static inline void fcc_to_threads(unsigned, unsigned, uint64_t, unsigned) {}
 static inline void send_ipi_redirect_to_threads(unsigned, uint64_t) {}

@@ -34,6 +34,7 @@ class net_emulator
 {
     public:
         // Constructor and destructor
+        net_emulator() = default;
         net_emulator(main_memory * mem_);
         ~net_emulator();
 
@@ -54,4 +55,3 @@ class net_emulator
 };
 
 #endif // _INSTRUCTION_
-

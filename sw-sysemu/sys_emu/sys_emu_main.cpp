@@ -9,9 +9,9 @@
 *-------------------------------------------------------------------------
 */
 
-#include <cstdlib>
+#include "sys_emu.h"
 
-extern int main_internal(int argc, char * argv[]);
+#include <cstdlib>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Main function
@@ -21,5 +21,6 @@ extern int main_internal(int argc, char * argv[]);
 
 int main(int argc, char * argv[])
 {
-    return main_internal(argc, argv);
+    sys_emu emu;
+    return emu.main_internal(argc, argv);
 }

@@ -1,3 +1,5 @@
+#include "sys_emu.h"
+
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
@@ -5,6 +7,7 @@
 #include <exception>
 #include <algorithm>
 #include <locale>
+#include <tuple>
 
 #include "emu.h"
 #include "emu_gio.h"
@@ -15,39 +18,19 @@
 #include "api_communicate.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-// Defines
+// Static Member variables
 ////////////////////////////////////////////////////////////////////////////////
 
-#define RESET_PC    0x8000001000ULL
-#define FCC_T0_ADDR 0x01003400C0ULL
-#define FCC_T1_ADDR 0x01003400D0ULL
-#define FLB_ADDR    0x0100340100ULL
+uint64_t        sys_emu::emu_cycle = 0;
+std::list<int>  sys_emu::enabled_threads;                                               // List of enabled threads
+std::list<int>  sys_emu::fcc_wait_threads;                                              // List of threads waiting for an FCC
+std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
+uint32_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
+uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                                   // PC for each thread
+reduce_state    sys_emu::reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
+uint32_t        sys_emu::reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
+int             sys_emu::global_log_min;
 
-////////////////////////////////////////////////////////////////////////////////
-// Types
-////////////////////////////////////////////////////////////////////////////////
-
-// Reduce state
-typedef enum
-{
-    Reduce_Idle,
-    Reduce_Ready_To_Send,
-    Reduce_Data_Consumed
-} reduce_state;
-
-////////////////////////////////////////////////////////////////////////////////
-// Global variables
-////////////////////////////////////////////////////////////////////////////////
-
-uint64_t               emu_cycle = 0;
-static std::list<int>  enabled_threads;                                               // List of enabled threads
-static std::list<int>  fcc_wait_threads;                                              // List of threads waiting for an FCC
-static std::list<int>  port_wait_threads;                                             // List of threads waiting for a port write
-uint32_t               pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
-static uint64_t        current_pc[EMU_NUM_THREADS];                                   // PC for each thread
-static reduce_state    reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
-static uint32_t        reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
-static int             global_log_min;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Functions to emulate the main memory
@@ -420,7 +403,8 @@ bool get_pc_break(uint64_t &pc, int &thread) {
 // of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
-void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
+void
+sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
 {
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
@@ -456,7 +440,8 @@ void fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mas
 // of thread_src
 ////////////////////////////////////////////////////////////////////////////////
 
-void msg_to_thread(int thread_id)
+void
+sys_emu::msg_to_thread(int thread_id)
 {
     auto thread = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
     LOG_NOTHREAD(INFO, "Message to thread %i with log %i", thread_id, global_log_min);
@@ -474,7 +459,8 @@ void msg_to_thread(int thread_id)
 // thread mask of the specified shire id.
 ////////////////////////////////////////////////////////////////////////////////
 
-void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
+void
+sys_emu::send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
 {
     // Get IPI_REDIRECT_FILTER ESR for the shire
     uint64_t ipi_redirect_filter;
@@ -511,7 +497,8 @@ void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
     }
 }
 
-void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+void
+sys_emu::raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
 {
     unsigned thread0 =
         EMU_THREADS_PER_SHIRE
@@ -524,7 +511,7 @@ void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
         {
             unsigned thread_id = thread0 + t;
             LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
-            raise_software_interrupt(thread_id);
+            ::raise_software_interrupt(thread_id);
             // If thread sleeping, wakes up
             if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
             {
@@ -535,7 +522,8 @@ void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
     }
 }
 
-void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+void
+sys_emu::clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
 {
     unsigned thread0 =
         EMU_THREADS_PER_SHIRE
@@ -547,193 +535,165 @@ void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
         if ((thread_mask >> t) & 1)
         {
             unsigned thread_id = thread0 + t;
-            clear_software_interrupt(thread_id);
+            ::clear_software_interrupt(thread_id);
         }
     }
 }
 
-
-////////////////////////////////////////////////////////////////////////////////
-// Main function implementation
-////////////////////////////////////////////////////////////////////////////////
-
-int main_internal(int argc, char * argv[])
+std::tuple<bool, struct sys_emu_cmd_options>
+parse_command_line_arguments(int argc, char* argv[])
 {
-    char * elf_file      = NULL;
-    char * mem_desc_file = NULL;
-    char * net_desc_file = NULL;
-    char * api_comm_path = NULL;
-    bool elf             = false;
-    bool mem_desc        = false;
-    bool net_desc        = false;
-    bool api_comm        = false;
-    bool master_min      = false;
-    bool minions         = false;
-    bool second_thread   = true;
-    bool shires          = false;
-    bool log_en          = false;
-    bool create_mem_at_runtime = false;
-    int  log_min         = -1;
-    char * dump_file     = NULL;
-    int dump             = 0;
-    uint64_t dump_addr   = 0;
-    uint64_t dump_size   = 0;
-    char *   dump_mem    = NULL;
-    uint64_t reset_pc    = RESET_PC;
-    bool reset_pc_flag   = false;
-    bool debug           = false;
-    uint64_t max_cycles  = 10000000;
-    bool max_cycle       = false;
-    bool mins_dis        = false;
+        sys_emu_cmd_options cmd_options;
 
     for(int i = 1; i < argc; i++)
     {
-        if (max_cycle)
+        if (cmd_options.max_cycle)
         {
-            max_cycle = false;
-            sscanf(argv[i], "%" SCNu64, &max_cycles);
+            cmd_options.max_cycle = false;
+            sscanf(argv[i], "%" SCNu64, &cmd_options.max_cycles);
         }
-        else if (elf)
+        else if (cmd_options.elf)
         {
-            elf = false;
-            elf_file = argv[i];
+            cmd_options.elf = false;
+            cmd_options.elf_file = argv[i];
         }
-        else if(mem_desc)
+        else if(cmd_options.mem_desc)
         {
-            mem_desc = false;
-            mem_desc_file = argv[i];
+            cmd_options.mem_desc = false;
+            cmd_options.mem_desc_file = argv[i];
         }
-        else if(net_desc)
+        else if(cmd_options.net_desc)
         {
-            net_desc = false;
-            net_desc_file = argv[i];
+            cmd_options.net_desc = false;
+            cmd_options.net_desc_file = argv[i];
         }
-        else if(api_comm)
+        else if(cmd_options.api_comm)
         {
-            api_comm = false;
-            api_comm_path = argv[i];
+            cmd_options.api_comm = false;
+            cmd_options.api_comm_path = argv[i];
         }
-        else if(minions)
+        else if(cmd_options.minions)
         {
             sscanf(argv[i], "%" PRIx64, &minions_en);
-            minions = 0;
+            cmd_options.minions = 0;
         }
-        else if(shires)
+        else if(cmd_options.shires)
         {
             sscanf(argv[i], "%" PRIx64, &shires_en);
-            shires = 0;
+            cmd_options.shires = 0;
         }
-        else if(reset_pc_flag)
+        else if(cmd_options.reset_pc_flag)
         {
-          sscanf(argv[i], "%" PRIx64, &reset_pc);
-          reset_pc_flag = false;
+          sscanf(argv[i], "%" PRIx64, &cmd_options.reset_pc);
+          cmd_options.reset_pc_flag = false;
         }
-        else if(dump == 1)
+        else if(cmd_options.dump == 1)
         {
-            sscanf(argv[i], "%" PRIx64, &dump_addr);
-            dump = 0;
+            sscanf(argv[i], "%" PRIx64, &cmd_options.dump_addr);
+            cmd_options.dump = 0;
         }
-        else if(dump == 2)
+        else if(cmd_options.dump == 2)
         {
-            dump_size = atoi(argv[i]);
-            dump = 0;
+            cmd_options.dump_size = atoi(argv[i]);
+            cmd_options.dump = 0;
         }
-        else if(dump == 3)
+        else if(cmd_options.dump == 3)
         {
-            dump_file = argv[i];
-            dump = 0;
+            cmd_options.dump_file = argv[i];
+            cmd_options.dump = 0;
         }
-        else if(dump == 4)
+        else if(cmd_options.dump == 4)
         {
-            log_min = atoi(argv[i]);
-            dump = 0;
+            cmd_options.log_min = atoi(argv[i]);
+            cmd_options.dump = 0;
         }
-        else if(dump == 5)
+        else if(cmd_options.dump == 5)
         {
-            dump_mem = argv[i];
-            dump = 0;
+            cmd_options.dump_mem = argv[i];
+            cmd_options.dump = 0;
         }
         else if(strcmp(argv[i], "-max_cycles") == 0)
         {
-            max_cycle = true;
+            cmd_options.max_cycle = true;
         }
         else if(strcmp(argv[i], "-elf") == 0)
         {
-            elf = true;
+            cmd_options.elf = true;
         }
         else if(strcmp(argv[i], "-mem_desc") == 0)
         {
-            mem_desc = true;
+            cmd_options.mem_desc = true;
         }
         else if(strcmp(argv[i], "-net_desc") == 0)
         {
-            net_desc = true;
+            cmd_options.net_desc = true;
         }
         else if(strcmp(argv[i], "-api_comm") == 0)
         {
-            api_comm = true;
+            cmd_options.api_comm = true;
         }
         else if(strcmp(argv[i], "-master_min") == 0)
         {
-            master_min = true;
+            cmd_options.master_min = true;
         }
         else if(strcmp(argv[i], "-minions") == 0)
         {
-            minions = true;
+            cmd_options.minions = true;
         }
         else if(strcmp(argv[i], "-shires") == 0)
         {
-            shires = true;
+            cmd_options.shires = true;
         }
         else if(strcmp(argv[i], "-reset_pc") == 0)
         {
-            reset_pc_flag = true;
+            cmd_options.reset_pc_flag = true;
         }
         else if(strcmp(argv[i], "-dump_addr") == 0)
         {
-            dump = 1;
+            cmd_options.dump = 1;
         }
         else if(strcmp(argv[i], "-dump_size") == 0)
         {
-            dump = 2;
+            cmd_options.dump = 2;
         }
         else if(strcmp(argv[i], "-dump_file") == 0)
         {
-            dump = 3;
+            cmd_options.dump = 3;
         }
         else if(strcmp(argv[i], "-lm") == 0)
         {
-            dump = 4;
+            cmd_options.dump = 4;
         }
         else if(strcmp(argv[i], "-dump_mem") == 0)
         {
-            dump = 5;
+            cmd_options.dump = 5;
         }
         else if(strcmp(argv[i], "-m") == 0)
         {
-            create_mem_at_runtime = true;
+            cmd_options.create_mem_at_runtime = true;
         }
         else if(strcmp(argv[i], "-l") == 0)
         {
-            log_en = true;
+            cmd_options.log_en = true;
         }
         else if (  (strcmp(argv[i], "-h") == 0)
                  ||(strcmp(argv[i], "-help") == 0)
                  ||(strcmp(argv[i], "--help") == 0)) {
            printf("%s", help_msg);
-           return 0;
+           std::tuple<bool, sys_emu_cmd_options> ret_value(false, sys_emu_cmd_options());
+           return ret_value;
         }
         else if (strcmp(argv[i], "-single_thread") == 0)
         {
-            second_thread = false;
+            cmd_options.second_thread = false;
         }
         else if(strcmp(argv[i], "-d") == 0)
         {
-            debug = true;
+            cmd_options.debug = true;
         }
         else if(strcmp(argv[i], "-mins_dis") == 0)
         {
-            mins_dis = true;
+            cmd_options.mins_dis = true;
         }
         else
         {
@@ -741,21 +701,37 @@ int main_internal(int argc, char * argv[])
         }
     }
 
-    if ((elf_file == NULL) && (mem_desc_file == NULL) && (api_comm_path == NULL))
+    std::tuple<bool, sys_emu_cmd_options> ret_value(true, cmd_options);
+    return ret_value;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+/// Main initialization function.
+///
+/// The initialization function is separate by the constructor because we need
+/// to overwrite specific parts of the initialization in subclasses
+////////////////////////////////////////////////////////////////////////////////
+
+void
+sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
+{
+    if ((cmd_options.elf_file == NULL) && (cmd_options.mem_desc_file == NULL)
+        && (cmd_options.api_comm_path == NULL))
     {
         LOG_NOTHREAD(FTL, "%s", "Need an elf file or a mem_desc file or runtime API!");
     }
 
     uint64_t drivers_enabled = 0;
-    if (net_desc_file != NULL) drivers_enabled++;
-    if (master_min)            drivers_enabled++;
+    if (cmd_options.net_desc_file != NULL) drivers_enabled++;
+    if (cmd_options.master_min)            drivers_enabled++;
 
     if (drivers_enabled > 1)
     {
         LOG_NOTHREAD(FTL, "%s", "Can't have net_desc and master_min set at same time!");
     }
 
-    if (debug == true) {
+    if (cmd_options.debug == true) {
 #ifdef SYSEMU_DEBUG
        LOG_NOTHREAD(INFO, "%s", "Starting in interactive mode.");
 #else
@@ -763,19 +739,19 @@ int main_internal(int argc, char * argv[])
 #endif
     }
 
-    emu::log.setLogLevel(log_en ? LOG_DEBUG : LOG_INFO);
+    emu::log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
 
     // Generates the main memory of the emulator
     memory = new main_memory(emu::log);
     memory->setGetThread(get_thread_emu);
-    if (create_mem_at_runtime) {
+    if (cmd_options.create_mem_at_runtime) {
        memory->create_mem_at_runtime();
     }
 
     // Init emu
     init_emu();
-    log_only_minion(log_min);
-    global_log_min = log_min;
+    log_only_minion(cmd_options.log_min);
+    global_log_min = cmd_options.log_min;
 
     in_sysemu = true;
 
@@ -793,25 +769,26 @@ int main_internal(int argc, char * argv[])
     set_msg_funcs(msg_to_thread);
 
     // Parses the memory description
-    if (elf_file != NULL) {
-       memory->load_elf(elf_file);
+    if (cmd_options.elf_file != NULL) {
+       memory->load_elf(cmd_options.elf_file);
     }
-    if (mem_desc_file != NULL) {
-       parse_mem_file(mem_desc_file, memory);
-    }
-
-    net_emulator net_emu(memory);
-    // Parses the net description (it emulates a Maxion sending interrupts to minions)
-    if(net_desc_file != NULL)
-    {
-        net_emu.set_file(net_desc_file);
+    if (cmd_options.mem_desc_file != NULL) {
+       parse_mem_file(cmd_options.mem_desc_file, memory);
     }
 
-    api_communicate api_listener(memory);
+    // Initialize network
+    net_emu = net_emulator(memory);
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
-    if(api_comm_path != NULL)
+    if(cmd_options.net_desc_file != NULL)
     {
-        api_listener.set_comm_path(api_comm_path);
+        net_emu.set_file(cmd_options.net_desc_file);
+    }
+
+    api_listener = allocate_api_listener(memory);
+    // Parses the net description (it emulates a Maxion sending interrupts to minions)
+    if(cmd_options.api_comm_path != NULL)
+    {
+        api_listener->set_comm_path(cmd_options.api_comm_path);
     }
 
     bzero(pending_fcc, sizeof(pending_fcc));
@@ -829,7 +806,7 @@ int main_internal(int argc, char * argv[])
        // Skip disabled shire
        if (((shires_en >> s) & 1) == 0) continue;
        // Skip master shire if not enabled
-       if ((master_min == 0) && (s >= EMU_NUM_COMPUTE_SHIRES)) continue;
+       if ((cmd_options.master_min == 0) && (s >= EMU_NUM_COMPUTE_SHIRES)) continue;
 
        // For all the minions
        for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
@@ -841,18 +818,36 @@ int main_internal(int argc, char * argv[])
           for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
              thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
              LOG_OTHER(DEBUG, thread_id, "%s", "Resetting");
-             current_pc[thread_id] = reset_pc;
+             current_pc[thread_id] = cmd_options.reset_pc;
              reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
              set_thread(thread_id);
              init(x0, 0);
              minit(m0, 255);
              initcsr(thread_id);
              // Puts thread id in the active list
-             if(!mins_dis) enabled_threads.push_back(thread_id);
-             if(!second_thread) break; // single thread per minion
+             if(!cmd_options.mins_dis) enabled_threads.push_back(thread_id);
+             if(!cmd_options.second_thread) break; // single thread per minion
           }
        }
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Main function implementation
+////////////////////////////////////////////////////////////////////////////////
+
+int
+sys_emu::main_internal(int argc, char * argv[])
+{
+    auto result = parse_command_line_arguments(argc, argv);
+    bool status = std::get<0>(result);
+    sys_emu_cmd_options cmd_options = std::get<1>(result);
+
+    if (!status) {
+        return 0;
+    }
+
+    init_simulator(cmd_options);
 
     LOG_NOTHREAD(INFO, "%s", "Starting emulation");
 
@@ -862,9 +857,9 @@ int main_internal(int argc, char * argv[])
              || fcc_wait_threads.size()
              || port_wait_threads.size()
              || (net_emu.is_enabled() && !net_emu.done())
-             || (api_listener.is_enabled() && !api_listener.is_done())
+             || (api_listener->is_enabled() && !api_listener->is_done())
             )
-         && (emu_cycle < max_cycles)
+         && (emu_cycle < cmd_options.max_cycles)
     )
     {
 #ifdef SYSEMU_DEBUG
@@ -1040,7 +1035,7 @@ int main_internal(int argc, char * argv[])
         std::list<int> ipi_threads, ipi_threads_t1; // List of threads with an IPI with PC from network emu
         uint64_t       new_pc,      new_pc_t1;      // New PC for the IPI
         net_emu.get_new_ipi(&enabled_threads, &ipi_threads, &new_pc);
-        api_listener.get_next_cmd(&enabled_threads, &ipi_threads, &new_pc, &ipi_threads_t1, &new_pc_t1);
+        api_listener->get_next_cmd(&enabled_threads, &ipi_threads, &new_pc, &ipi_threads_t1, &new_pc_t1);
 
         // Sets the PC for all the minions that got an IPI with PC
         auto it = ipi_threads.begin();
@@ -1063,17 +1058,18 @@ int main_internal(int argc, char * argv[])
         }
         emu_cycle++;
     }
-    if (emu_cycle == max_cycles) {
-       LOG(ERR, "Error, max cycles reached (%" SCNd64 ")", max_cycles);
+    if (emu_cycle == cmd_options.max_cycles) {
+       LOG(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
     }
     LOG_NOTHREAD(INFO, "%s", "Finishing emulation");
 
     // Dumping
-    if(dump_file != NULL)
-        memory->dump_file(dump_file, dump_addr, dump_size);
+    if(cmd_options.dump_file != NULL)
+        memory->dump_file(cmd_options.dump_file, cmd_options.dump_addr,
+                          cmd_options.dump_size);
 
-    if(dump_mem)
-        memory->dump_file(dump_mem);
+    if(cmd_options.dump_mem)
+        memory->dump_file(cmd_options.dump_mem);
 
     return 0;
 }
