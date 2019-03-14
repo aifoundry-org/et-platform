@@ -601,11 +601,7 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     *------------------------------------------------------------------------*/
     sigA <<= 3;
     sigB <<= 3;
-    if ( expC ) {
-        if ( expC != 0xFF) sigC |= 0x00800000;
-    } else {
-        expC = ( sigC != 0 );
-    }
+    if ( expC ) { sigC |= 0x00800000; } else { expC = ( sigC != 0 ); }
 #ifdef FPU_DEBUG
     std::cout << "a_orig: " << Float32<0>(signA,expA,sigA) << '\n';
     std::cout << "b_orig: " << Float32<0>(signB,expB,sigB) << '\n';
@@ -674,23 +670,26 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     std::cout << "M_shft: " << Float32<4>(signB,expA,sigB) << " (shft: " << expDiffB << ")\n";
     std::cout << "L_shft: " << Float32<4>(signC,expA,sigC) << " (shft: " << expDiffC << ")\n\n";
 #endif
-    if ( subB && !subC && (sigB & sigC & 1) ) {
+#if 0
+    if ( subB && /*!subC &&*/ (sigB & sigC & 1) ) {
         --sigC;
     } else if ( !subB && (sigB & sigC & 1) ) {
         --sigB;
     }
+#endif
     signZ = signA;
     expZ = expA;
-    sigZ = sigA + (subB ? -sigB : sigB) + (subC ? -sigC : sigC);
+    sigZ = sigA + (subB ? (-sigB & ~2) : sigB) + (subC ? (-sigC & ~2) : sigC);
+
 #ifdef FPU_DEBUG
     std::cout << "H_add : " << Float32<4>(signA,expZ,sigA) << '\n';
-    std::cout << "M_add : " << Float32<4>(signB,expZ,(subB ? -sigB : sigB)) << " (inv: " << (!!subB) << ")\n";
-    std::cout << "L_add : " << Float32<4>(signC,expZ,(subC ? -sigC : sigC)) << " (inv: " << (!!subC) << ")\n\n";
+    std::cout << "M_add : " << Float32<4>(signB,expZ,(subB ? (-sigB & ~2) : sigB)) << " (inv: " << (!!subB) << ")\n";
+    std::cout << "L_add : " << Float32<4>(signC,expZ,(subC ? (-sigC & ~2) : sigC)) << " (inv: " << (!!subC) << ")\n\n";
     std::cout << "z_sum : " << Float32<4>(signZ,expZ,sigZ) << "\n\n";
 #endif
     if ( sigZ >= 0x80000000 ) {
         signZ = !signZ;
-        sigZ = -sigZ;
+        sigZ = (-sigZ & ~2);        
 #ifdef FPU_DEBUG
         std::cout << "z_neg : " << Float32<4>(signZ,expZ,sigZ) << '\n';
 #endif
@@ -730,10 +729,20 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     expZ -= shiftDist;
     sigZ = ((sigZ & ~1) << shiftDist) | (sigZ & 1);
 #ifdef FPU_DEBUG
-    std::cout << "z_adj4: " << Float32<7>(signZ,expZ,sigZ) << '\n';
+    std::cout << "z_adj4: " << Float32<7>(signZ,expZ,sigZ) << " (" << int(shiftDist) << ")\n";
+#endif
+#ifdef FPU_DEBUG
     {
         float32_t fZ;
-        fZ = softfloat_roundPackToF32( signZ, expZ, sigZ );
+        int_fast8_t shiftDist;
+        shiftDist = softfloat_countLeadingZeros32(sigZ) - 1;
+        std::cout << "z_prnd: " << Float32<>(signZ,expZ,sigZ) << " (" << int(shiftDist) << ")\n";
+        if ( (7 <= shiftDist) && ((unsigned int) (expZ-shiftDist) < 0xFD) ) {
+            std::cout << "z_pack: " << Float32<>(signZ,sigZ ? (expZ-shiftDist) : 0,sigZ<<(shiftDist-7)) << '\n';
+        } else {
+            std::cout << "z_rnd : " << Float32<>(signZ,expZ-shiftDist,sigZ<<shiftDist) << " [" << SOFTFLOAT_FLAGS << "]\n";
+        }
+        fZ = softfloat_normRoundPackToF32( signZ, expZ, sigZ );
         std::cout << "z_rslt: " << fZ << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
     }
 #endif
