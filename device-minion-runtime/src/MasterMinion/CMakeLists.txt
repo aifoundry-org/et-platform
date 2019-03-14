@@ -9,7 +9,7 @@
 #------------------------------------------------------------------------------
 
 # Add the device_api submodule as an external project. The code-generator code needs to always
-# compile for the host. CmakeE does not support having different targets use
+# compile for the host. CMake does not support having different targets use
 # different toolchains in the same build. For simplicity submodules that are self
 # contained build as external projects, otherwise a two-step process would be needded.
 include(ExternalProject)
