@@ -448,7 +448,7 @@ static inline const char* get_fp_flags(uint_fast8_t flags)
         "ID,NV,DZ",    "ID,NV,DZ,NX",    "ID,NV,DZ,UF",    "ID,NV,DZ,UF,NX",
         "ID,NV,DZ,OF", "ID,NV,DZ,OF,NX", "ID,NV,DZ,OF,UF", "ID,NV,DZ,OF,UF,NX"
     };
-    return fnames[(flags & 0x1f) | ((flags >> 2) & 0x20)];
+    return fnames[flags % 64];
 }
 
 template<size_t N>
@@ -575,7 +575,7 @@ static inline void update_tensor_error(uint16_t value)
 // internal accessor to fflags
 static inline void update_fflags(uint_fast8_t flags)
 {
-    uint32_t newval = (flags & 0x1F) | (uint32_t(flags & 0x80) << 24);
+    uint32_t newval = (flags & 0x1F) | (uint32_t(flags & 0x20) << 26);
     log_fflags_write(newval);
     csr_fcsr[current_thread] |= newval;
     LOG(DEBUG, "\tfpu flags = 0x%02x (%s)", flags, get_fp_flags(flags));
@@ -610,17 +610,12 @@ static inline void handle_nan_default(iufval32& a)
         a.u = 0x7FC00000;
 }
 
-static inline void clear_arithmetic_flags()
-{
-    fpu::flags(0);
-}
-
 static inline void set_rounding_mode(rounding_mode mode)
 {
     uint_fast8_t round = (mode == rmdyn) ? frm() : mode;
     if (round > 4)
         throw trap_illegal_instruction(current_inst);
-    fpu::rm(round);
+    softfloat_roundingMode = round;
 }
 
 static inline const char* get_rounding_mode(rounding_mode mode)
@@ -637,11 +632,11 @@ static inline const char* get_rounding_mode(rounding_mode mode)
 
 static inline void set_fp_exceptions()
 {
-    if (fpu::flags())
+    if (softfloat_exceptionFlags)
     {
         dirty_fp_state();
-        update_fflags(fpu::flags());
-        fpu::flags(0);
+        update_fflags(softfloat_exceptionFlags);
+        softfloat_exceptionFlags = 0;
     }
 }
 
@@ -3962,7 +3957,6 @@ static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
     u32_i32_u64_i64 res;
 
     set_rounding_mode(rm);
-    clear_arithmetic_flags();
     val.u = FREGS[src1].u32[0];
     switch (opc)
     {
@@ -3998,7 +3992,6 @@ static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
     u32_i32_u64_i64 val;
 
     set_rounding_mode(rm);
-    clear_arithmetic_flags();
 
     switch (opc)
     {
@@ -4038,7 +4031,6 @@ static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode r
     assert(unsigned(count) <= VL);
 
     set_rounding_mode(rm);
-    clear_arithmetic_flags();
 
     for (int i = 0; i < count; ++i)
     {
@@ -4185,7 +4177,6 @@ static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, roun
     assert(unsigned(count) <= VL);
 
     set_rounding_mode(rm);
-    clear_arithmetic_flags();
 
     for (int i = 0; i < count; i++)
     {
@@ -4253,7 +4244,6 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
     assert(unsigned(count) <= VL);
 
     set_rounding_mode(rm);
-    clear_arithmetic_flags();
 
     for (int i = 0; i < count; i++)
     {
@@ -4306,7 +4296,6 @@ static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
 {
     iufval32 val1, val2, res;
 
-    clear_arithmetic_flags();
     val1.u = FREGS[src1].u32[0];
     val2.u = FREGS[src2].u32[0];
     switch (opc)
@@ -4413,7 +4402,6 @@ void fmin_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fmin.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    clear_arithmetic_flags();
     iufval32 val1, val2, res;
     val1.u = FREGS[src1].u32[0];
     val2.u = FREGS[src2].u32[0];
@@ -4430,7 +4418,6 @@ void fmax_s(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fmax.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    clear_arithmetic_flags();
     iufval32 val1, val2, res;
     val1.u = FREGS[src1].u32[0];
     val2.u = FREGS[src2].u32[0];
@@ -5367,7 +5354,6 @@ void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
 
 static void fmask(opcode opc, mreg dst, freg src1, freg src2)
 {
-    clear_arithmetic_flags();
     for (unsigned i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -5521,7 +5507,6 @@ void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fmin.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    clear_arithmetic_flags();
     for (unsigned i = 0; i < VL; ++i)
     {
         if (!MREGS[0][i]) continue;
@@ -5542,7 +5527,6 @@ void fmax_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fmax.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    clear_arithmetic_flags();
     for (unsigned i = 0; i < VL; ++i)
     {
         if (!MREGS[0][i]) continue;
@@ -5574,7 +5558,6 @@ void feq_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: feq.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    clear_arithmetic_flags();
     for (unsigned i = 0; i < VL; ++i)
     {
         if (!MREGS[0][i]) continue;
@@ -5595,7 +5578,6 @@ void fle_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: fle.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    clear_arithmetic_flags();
     for (unsigned i = 0; i < VL; ++i)
     {
         if (!MREGS[0][i]) continue;
@@ -5828,7 +5810,6 @@ void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, cons
 
 static void ucvtemu(opcode opc, freg dst, freg src1)
 {
-    clear_arithmetic_flags();
     for (unsigned i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -5975,7 +5956,6 @@ void fcvt_ps_sn8(freg dst, freg src1, const char* comm)
 static void dcvtemu(opcode opc, freg dst, freg src1)
 {
     set_rounding_mode(rmdyn);
-    clear_arithmetic_flags();
     for (unsigned i = 0; i < VL; i++)
     {
         // for packed single, check the corresponding mask bit. If not set, skip this lane
@@ -6124,7 +6104,6 @@ void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
     LOG(DEBUG, "I: fround.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     set_rounding_mode(rm);
-    clear_arithmetic_flags();
     DEBUG_MASK(MREGS[0]);
     for (unsigned i = 0; i < VL; i++)
     {
@@ -6186,7 +6165,6 @@ void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: cubefaceidx.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    clear_arithmetic_flags();
     DEBUG_MASK(MREGS[0]);
 
     for (unsigned i = 0; i < VL; i++)
@@ -7967,7 +7945,6 @@ static void tensorquant(uint64_t value)
     line = line % L1_SCP_ENTRIES;
 
     set_rounding_mode(rmdyn);
-    clear_arithmetic_flags();
 
     LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %u, rows: %u, cols: %u, regstart: %u", line, rows, cols, fstart);
     for (int k = 0; k < TQUANT_MAX_TRANS; k++)
@@ -8348,7 +8325,6 @@ static void tensor_fma32(uint64_t tfmareg)
     tensorload_setupb_topair[current_thread^1] = false;
 
     set_rounding_mode(rmdyn);
-    clear_arithmetic_flags();
 
     for (int k = 0; k < acols; ++k)
     {
@@ -8469,7 +8445,6 @@ static void tensor_fma16a32(uint64_t tfmareg)
     tensorload_setupb_topair[current_thread^1] = false;
 
     set_rounding_mode(rmdyn);
-    clear_arithmetic_flags();
 
     for (int k = 0; k < acols; k += 2)
     {
@@ -8507,7 +8482,7 @@ static void tensor_fma16a32(uint64_t tfmareg)
                 {
                     float16_t b1 = fpu::F16(tmpb.u16[2*j+0]);
                     float16_t b2 = fpu::F16(tmpb.u16[2*j+1]);
-                    float32_t c = fpu::f32_tensorMulF16(a1, b1, a2, b2);
+                    float32_t c = fpu::f1632_mulAdd2(a1, b1, a2, b2);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
                     log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
                     LOG(DEBUG, "\tTensorFMA16A32(%d) f%zu[%zu]: 0x%08" PRIx32 " = (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
@@ -8528,7 +8503,7 @@ static void tensor_fma16a32(uint64_t tfmareg)
                     if ((fpu::UI16(b1)==0) && (fpu::UI16(b2)==0))
                         continue;
                     float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] );
-                    float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
+                    float32_t c = fpu::f1632_mulAdd3(a1, b1, a2, b2, c0);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
                     log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
                     LOG(DEBUG, "\tTensorFMA16A32(%d) f%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%04" PRIx16 " * 0x%04" PRIx16 ") + (0x%04" PRIx16 " * 0x%04" PRIx16 ")",
@@ -8726,7 +8701,6 @@ static void tensorreduce(uint64_t value)
     // Info for checker
     log_tensor_reduce(start_reg, num_reg);
 
-    clear_arithmetic_flags();
     if (operation == 0) // FADD
     {
         set_rounding_mode(rmdyn);
