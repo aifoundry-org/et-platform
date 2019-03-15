@@ -117,7 +117,6 @@ typedef enum {
     FCVTPSPW,
     FCVTPSPWU,
     FFRC,
-    FCMOV, // PS conversion and move
     FCVTPWPS,
     FCVTPWUPS,
     FEQ, // Floating point compare
@@ -4299,12 +4298,6 @@ static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg
                     LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt, val3.u, val3.flt);
                 }
                 break;
-            case FCMOV:
-                {
-                    res.u = (val1.u ? val2.u : val3.u);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- %u ? 0x%08x (%g) : 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt, val3.u, val3.flt);
-                }
-                break;
             default:
                 assert(0);
                 break;
@@ -5683,16 +5676,26 @@ void fcmov_ps(freg dst, freg src1, freg src2, freg src3, const char* comm)
     LOG(DEBUG, "I: fcmov.ps f%d, f%d, f%d, f%d%s%s", dst, src1, src2, src3, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
-    femu3src(FCMOV, VL, dst, src1, src2, src3, rmdyn);
+    for (int i = 0; i < VL; i++)
+    {
+        if (!MREGS[0].b[i]) continue;
+        iufval32 val1, val2, val3, res;
+        val1.u = FREGS[src1].u[i];
+        val2.u = FREGS[src2].u[i];
+        val3.u = FREGS[src3].u[i];
+        res.u = val1.u ? val2.u : val3.u;
+        LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- %u ? 0x%08x (%g) : 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt, val3.u, val3.flt);
+        FREGS[dst].u[i] = res.u;
+    }
+    dirty_fp_state();
+    log_freg_write(dst, FREGS[dst]);
 }
 
 void fcmovm_ps(freg dst, freg src1, freg src2, const char* comm)
 {
     LOG(DEBUG, "I: fcmovm.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-
     DEBUG_MASK(MREGS[0]);
-
     for (int i = 0; i < VL; i++)
     {
         iufval32 val1, val2, res;
