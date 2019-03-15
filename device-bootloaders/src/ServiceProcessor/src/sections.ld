@@ -102,13 +102,16 @@ SECTIONS
         __bss_end = .;
     } > RAM
 
-    /* The default stack alignment is 16 bytes in RV32I and RV64I */
-    . = ALIGN(16);
-
+    /* Only used by main() before scheduler starts and ISRs */
     stack (NOLOAD) :
     {
+        /* The default stack alignment is 16 bytes in RV32I and RV64I */
+        . = ALIGN(16);
+
         KEEP(*(stack stack.*))
         __stack_base = .;
+        __freertos_irq_stack_top = .;
+        ASSERT(. == ALIGN(16), "stack must be 16-byte aligned");
     } > RAM
 
     . = ALIGN(4);
