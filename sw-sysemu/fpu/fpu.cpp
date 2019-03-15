@@ -133,7 +133,7 @@ namespace fpu {
         uint_fast32_t src = UI32(x);
         uint_fast32_t dst = subnormalToZeroF32UI(src);
         if (src != dst)
-            softfloat_raiseFlags(softfloat_flag_underflow);
+            softfloat_raiseFlags(softfloat_flag_underflow | softfloat_flag_inexact);
         return F32(dst);
 #else
         return x;
@@ -147,7 +147,7 @@ namespace fpu {
         uint_fast16_t src = UI16(x);
         uint_fast16_t dst = subnormalToZeroF16UI(src);
         if (src != dst)
-            softfloat_raiseFlags(softfloat_flag_underflow);
+            softfloat_raiseFlags(softfloat_flag_underflow | softfloat_flag_inexact);
         return F16(dst);
 #else
         return x;
