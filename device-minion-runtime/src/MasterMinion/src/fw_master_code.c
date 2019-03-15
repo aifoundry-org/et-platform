@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 // Auxiliar functions
 #include "shire.h"
 #include "macros.h"
@@ -8,6 +6,8 @@
 //#include "tensors.h"
 #include "fw_master_code.h"
 #include "serial.h"
+
+#include <stdint.h>
 
 // Struct that stores information for a layer
 typedef struct{
@@ -62,7 +62,7 @@ void fw_master_code()
     *((volatile uint64_t*)0x01C05F0020ULL) = 0ULL;
 
     SERIAL_init(UART0);
-    printf("alive\r\n");
+    SERIAL_write(UART0, "alive\r\n", 7);
 
 	// Get data from net description
 	uint64_t    count    = (* (uint64_t *) 0x8200000000ULL);

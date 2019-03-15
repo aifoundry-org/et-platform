@@ -58,7 +58,7 @@ interrupt stack after the scheduler has started. */
 	static __attribute__ ((aligned(16))) StackType_t xISRStack[ configISR_STACK_SIZE_WORDS ] = { 0 };
 	const StackType_t xISRStackTop = ( StackType_t ) &( xISRStack[ ( configISR_STACK_SIZE_WORDS & ~portBYTE_ALIGNMENT_MASK ) - 1 ] );
 #else
-	extern const uint32_t __freertos_irq_stack_top[];
+	extern const uint64_t __freertos_irq_stack_top[];
 	const StackType_t xISRStackTop = ( StackType_t ) __freertos_irq_stack_top;
 #endif
 
@@ -71,11 +71,14 @@ void vPortSetupTimerInterrupt( void ) __attribute__(( weak ));
 
 /*-----------------------------------------------------------*/
 
-/* Used to program the machine timer compare register. */
+/* Used by vPortSetupTimerInterrupt() and portASM.s test_if_mtimer: */
 uint64_t ullNextTime = 0ULL;
-const uint64_t *pullNextTime = &ullNextTime;
-const uint32_t ulTimerIncrementsForOneTick = ( uint32_t ) ( configCPU_CLOCK_HZ / configTICK_RATE_HZ ); /* Assumes increment won't go over 32-bits. */
-volatile uint64_t * const pullMachineTimerCompareRegister = ( volatile uint64_t * const ) ( configCLINT_BASE_ADDRESS + 0x4000 );
+uint64_t *  const pullNextTime = &ullNextTime;
+const uint64_t ullTimerIncrementsForOneTick = ( uint64_t ) ( configCPU_CLOCK_HZ / configTICK_RATE_HZ );
+volatile uint64_t * const pullMachineTimerCompareRegister = ( volatile uint64_t * const ) ( configCLINT_BASE_ADDRESS + 0x8 );
+
+/* Used to service external interrupts */
+volatile uint32_t * const pulMaxID = (volatile uint32_t* const)(configPLIC_BASE_ADDRESS + 0x200004U);
 
 /* Set configCHECK_FOR_STACK_OVERFLOW to 3 to add ISR stack checking to task
 stack checking.  A problem in the ISR stack will trigger an assert, not call the
@@ -89,11 +92,11 @@ task stack, not the ISR stack). */
 	#define portISR_STACK_FILL_BYTE	0xee
 
 	static const uint8_t ucExpectedStackBytes[] = {
-									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
-									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
-									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
-									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
-									portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE };	\
+		portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
+		portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
+		portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
+		portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE,		\
+		portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE, portISR_STACK_FILL_BYTE };	\
 
 	#define portCHECK_ISR_STACK() configASSERT( ( memcmp( ( void * ) xISRStack, ( void * ) ucExpectedStackBytes, sizeof( ucExpectedStackBytes ) ) == 0 ) )
 #else
@@ -105,27 +108,18 @@ task stack, not the ISR stack). */
 
 #if( configCLINT_BASE_ADDRESS != 0 )
 
-	void vPortSetupTimerInterrupt( void )
-	{
-	uint32_t ulCurrentTimeHigh, ulCurrentTimeLow;
-	volatile uint32_t * const pulTimeHigh = ( volatile uint32_t * const ) ( configCLINT_BASE_ADDRESS + 0xBFFC );
-	volatile uint32_t * const pulTimeLow = ( volatile uint32_t * const ) ( configCLINT_BASE_ADDRESS + 0xBFF8 );
+void vPortSetupTimerInterrupt( void )
+{
+	uint64_t ullCurrentTime;
+	volatile const uint64_t * const pullTime = (volatile const uint64_t * const)(configCLINT_BASE_ADDRESS + 0x0);
 
-		do
-		{
-			ulCurrentTimeHigh = *pulTimeHigh;
-			ulCurrentTimeLow = *pulTimeLow;
-		} while( ulCurrentTimeHigh != *pulTimeHigh );
+	ullCurrentTime = *pullTime;
+	ullNextTime = ullCurrentTime + ullTimerIncrementsForOneTick;
+	*pullMachineTimerCompareRegister = ullNextTime;
 
-		ullNextTime = ( uint64_t ) ulCurrentTimeHigh;
-		ullNextTime <<= 32ULL;
-		ullNextTime |= ( uint64_t ) ulCurrentTimeLow;
-		ullNextTime += ( uint64_t ) ulTimerIncrementsForOneTick;
-		*pullMachineTimerCompareRegister = ullNextTime;
-
-		/* Prepare the time to use after the next tick interrupt. */
-		ullNextTime += ( uint64_t ) ulTimerIncrementsForOneTick;
-	}
+	/* Prepare the time to use after the next tick interrupt. */
+	ullNextTime += ullTimerIncrementsForOneTick;
+}
 
 #endif /* ( configCLINT_BASE_ADDRESS != 0 ) */
 /*-----------------------------------------------------------*/
@@ -158,8 +152,7 @@ extern void xPortStartFirstTask( void );
 	#if( configCLINT_BASE_ADDRESS != 0 )
 	{
 		/* Enable mtime and external interrupts.  1<<7 for timer interrupt, 1<<11
-		for external interrupt.  _RB_ What happens here when mtime is not present as
-		with pulpino? */
+		for external interrupt. */
 		__asm volatile( "csrs mie, %0" :: "r"(0x880) );
 	}
 	#else
