@@ -5624,6 +5624,7 @@ void flt_ps(freg dst, freg src1, freg src2, const char* comm)
     LOG(DEBUG, "I: flt.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
+    clear_arithmetic_flags();
     for (int i = 0; i < VL; ++i)
     {
         if (!MREGS[0].b[i]) continue;
