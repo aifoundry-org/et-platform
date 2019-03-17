@@ -37,3 +37,4 @@ endif (DOXYGEN_FOUND)
 include_directories("${PROJECT_BINARY_DIR}/include")
 
 add_subdirectory(src)
+add_subdirectory(tools)

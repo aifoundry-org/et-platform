@@ -7,3 +7,6 @@
 [submodule "src/MasterMinion/device_api"]
 	path = src/MasterMinion/device_api
 	url = git@gitlab:software/device-api.git
+[submodule "tools/sw-sysemu"]
+	path = tools/sw-sysemu
+	url = git@gitlab:software/sw-sysemu.git
