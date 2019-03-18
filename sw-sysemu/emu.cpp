@@ -8268,7 +8268,7 @@ static void tensorstore(uint64_t tstorereg)
         }
 
         // Cooperative tensor stores require the shire to be in cooperative mode
-        if (coop)
+        if (coop > 1)
         {
             uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
             assert(shire != EMU_IO_SHIRE_SP);
