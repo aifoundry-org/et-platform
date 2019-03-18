@@ -1446,14 +1446,14 @@ static void vmemwrite16(uint64_t addr, uint16_t data)
 
 static void aligned_vmemwrite16(uint64_t addr, uint16_t data)
 {
+    if (!access_is_size_aligned(addr, 2))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
     if (!pma_check_data_access(paddr, 2, Mem_Access_Store))
     {
         throw trap_store_access_fault(addr);
-    }
-    if (!access_is_size_aligned(addr, 2))
-    {
-        throw trap_store_address_misaligned(addr);
     }
     pmemwrite16(paddr, data);
 }
@@ -1474,14 +1474,14 @@ static void vmemwrite32(uint64_t addr, uint32_t data)
 
 static void aligned_vmemwrite32(uint64_t addr, uint32_t data)
 {
+    if (!access_is_size_aligned(addr, 4))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
     if (!pma_check_data_access(paddr, 4, Mem_Access_Store))
     {
         throw trap_store_access_fault(addr);
-    }
-    if (!access_is_size_aligned(addr, 4))
-    {
-        throw trap_store_address_misaligned(addr);
     }
     pmemwrite32(paddr, data);
 }
@@ -2473,7 +2473,7 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     check_store_breakpoint(addr);
     if (!access_is_size_aligned(addr, 4))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     uint64_t paddr = vmemtranslate(addr, macc);
     if (!pma_check_data_access(paddr, 4, macc))
@@ -2550,7 +2550,7 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     check_store_breakpoint(addr);
     if (!access_is_size_aligned(addr, 8))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     uint64_t paddr = vmemtranslate(addr, macc);
     if (!pma_check_data_access(paddr, 8, macc))
@@ -6847,7 +6847,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
         check_store_breakpoint(addr);
         if (!access_is_size_aligned(addr, 4))
         {
-            throw trap_store_address_misaligned(addr);
+            throw trap_store_access_fault(addr);
         }
         uint64_t paddr = vmemtranslate(addr, macc);
         if (!pma_check_data_access(paddr, 4, macc))
