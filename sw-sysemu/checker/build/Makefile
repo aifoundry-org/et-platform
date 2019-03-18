@@ -12,6 +12,7 @@ checker_hdrs := \
 	common/main_memory_region_atomic.h \
 	common/main_memory_region_esr.h \
 	common/main_memory_region_rbox.h \
+	common/main_memory_region_scp_linear.h \
 	common/riscv_disasm.h
 
 checker_cpp_srcs := \
@@ -22,6 +23,7 @@ checker_cpp_srcs := \
 	common/main_memory_region_atomic.cpp \
 	common/main_memory_region_esr.cpp \
 	common/main_memory_region_rbox.cpp \
+	common/main_memory_region_scp_linear.cpp \
 	common/riscv_disasm.cpp
 
 checker_SRCS := $(checker_cpp_srcs) \
