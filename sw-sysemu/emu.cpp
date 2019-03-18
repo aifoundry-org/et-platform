@@ -8607,15 +8607,18 @@ static void tensor_fma16a32(uint64_t tfmareg)
                         k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, fpu::UI32(c), fpu::UI16(a1), fpu::UI16(b1), fpu::UI16(a2), fpu::UI16(b2));
                 }
             }
-            else
+            // If all products will be 0, we can skip the operation. NB: The detection
+            // is done at 32-bit granularity, not at element (16-bit) granularity.
+            else if ((fpu::UI16(a1) != 0) || (fpu::UI16(a2) != 0))
             {
                 for (int j = 0; j < bcols; ++j)
                 {
                     float16_t b1 = fpu::F16(tmpb.h[2*j+0]);
                     float16_t b2 = fpu::F16(tmpb.h[2*j+1]);
-                    // If all products will be 0, we can skip the operation
-                    if ((fpu::UI16(a1)==0 || fpu::UI16(b1)==0) &&
-                        (fpu::UI16(a2)==0 || fpu::UI16(b2)==0))
+                    // If all products will be 0, we can skip the operation.
+                    // NB: The detection is done at 32-bit granularity, not at
+                    // element (16-bit) granularity.
+                    if ((fpu::UI16(b1)==0) && (fpu::UI16(b2)==0))
                         continue;
                     float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL] );
                     float32_t c = fpu::f32_tensorMulAddF16(c0, a1, b1, a2, b2);
@@ -8727,7 +8730,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
             // If all products are 0, we can skip the operation, except if first_pass is set and this
             // is the first iteration, or TenC must be copied to FREGS and this is the last iteration.
-            // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
+            // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity.
             if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
                 (SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+(k/4)) % (L1D_LINE_SIZE/4)] == 0))
                 continue;
