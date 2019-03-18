@@ -6,6 +6,7 @@ sysemu_hdrs := \
 	common/main_memory_region_atomic.h \
 	common/main_memory_region_esr.h \
 	common/main_memory_region_rbox.h \
+	common/main_memory_region_scp_linear.h \
 	sys_emu/api_communicate.h \
 	sys_emu/log.h \
 	sys_emu/testLog.h
@@ -16,6 +17,7 @@ sysemu_cpp_srcs := \
 	common/main_memory_region_atomic.cpp \
 	common/main_memory_region_esr.cpp \
 	common/main_memory_region_rbox.cpp \
+	common/main_memory_region_scp_linear.cpp \
 	sys_emu/api_communicate.cpp \
 	sys_emu/log.cpp \
 	sys_emu/net_emulator.cpp \

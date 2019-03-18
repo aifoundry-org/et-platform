@@ -7,6 +7,7 @@
 #include "main_memory_region_rbox.h"
 #include "main_memory_region_esr.h"
 #include "main_memory_region_printf.h"
+#include "main_memory_region_scp_linear.h"
 
 // Namespaces
 using namespace std;
@@ -70,12 +71,17 @@ main_memory::main_memory(testLog& log_)
             // L2 scratchpad
             main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + shire*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
             regions_.push_front((main_memory_region *) l2_scp);
+            // L2 scratchpad linear
         }
 
         // HART ESRs (U-mode)
         main_memory_region_esr * hart_esrs = new main_memory_region_esr(ESR_HART(CSR_PRV_U, shire, 0, 0), 1024 * 1024, log, getthread);
         regions_.push_back((main_memory_region *) hart_esrs);
     }
+
+    // L2 scratchpad as a linear memory
+    main_memory_region_scp_linear * l2_scp_linear = new main_memory_region_scp_linear(L2_SCP_LINEAR_BASE, L2_SCP_LINEAR_SIZE, log, getthread);
+    regions_.push_front((main_memory_region *) l2_scp_linear);
 }
 
 void main_memory::setPrintfBase(const char* binary)

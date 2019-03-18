@@ -14,8 +14,9 @@ using namespace std;
 
 // Creator
 main_memory_region::main_memory_region(uint64_t base, uint64_t size, testLog & l,
-                                       func_ptr_get_thread & get_thread, int flags)
-    : base_(base), size_(size), data_(new char[size]()),
+                                       func_ptr_get_thread & get_thread, int flags,
+                                       bool allocate_data)
+    : base_(base), size_(size), data_(allocate_data ? new char[size]() : nullptr),
       flags_(flags), log(l), get_thread(get_thread)
 { }
 

@@ -26,7 +26,8 @@ class main_memory_region
         // Constructors and destructors
         main_memory_region(uint64_t base, uint64_t size, testLog & l,
                            func_ptr_get_thread & get_thread,
-                           int flags = MEM_REGION_RW);
+                           int flags = MEM_REGION_RW,
+                           bool allocate_data = true);
         virtual ~main_memory_region();
 
         // operators to compare, used when searching the correct region in a memory access
