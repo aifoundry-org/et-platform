@@ -8725,6 +8725,13 @@ static void tensor_ima8a32(uint64_t tfmareg)
             fdata* dst = (tenc2rf && (k+4 == acols)) ? FREGS : TENC;
             const char* dname = (tenc2rf && (k+4 == acols)) ? "f" : "TenC";
 
+            // If all products are 0, we can skip the operation, except if first_pass is set and this
+            // is the first iteration, or TenC must be copied to FREGS and this is the last iteration.
+            // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
+            if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
+                (SCP[(astart+i) % L1_SCP_ENTRIES].u[(aoffset+(k/4)) % (L1D_LINE_SIZE/4)] == 0))
+                continue;
+
 #define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].b[(aoffset+k+(x)) % L1D_LINE_SIZE]
             int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
             int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
@@ -8742,9 +8749,8 @@ static void tensor_ima8a32(uint64_t tfmareg)
 #undef BSRC
                 // If all products are 0, we can skip the operation, except if first_pass is set and this
                 // is the first iteration, or TenC must be copied to FREGS and this is the last iteration
-                if (!(first_pass && !k) && !(tenc2rf && (k+4 == acols))
-                                        && (a1==0 || b1==0) && (a2==0 || b2==0)
-                                        && (a3==0 || b3==0) && (a4==0 || b4==0))
+                // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
+                if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) && (tmpb.u[j] == 0))
                     continue;
 
                 int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i[j%VL];
