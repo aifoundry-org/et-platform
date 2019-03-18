@@ -15,6 +15,18 @@ message(STATUS "CMAKE_CURRENT_BINARY_DIR=" ${CMAKE_CURRENT_BINARY_DIR})
 
 include(ExternalProject)
 
+# Add the device-api as an external project that we build from source
+include(ExternalProject)
+
+# FIXME device-api disabled in esperanto-soc because of cloning permision
+# issues
+# ExternalProject_Add(device-api
+#  PREFIX device-api
+#  GIT_REPOSITORY git@gitlab:software/device-api.git
+#  GIT_TAG 29f910a5744dfdfe1f0f5e408382117b5cb6f44d
+#  )
+
+
 # FIXME Remove external dependency to the SDK
 ExternalProject_Add(sdk
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk
