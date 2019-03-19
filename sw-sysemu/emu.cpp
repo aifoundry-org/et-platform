@@ -316,8 +316,9 @@ bool fcc_wait[EMU_NUM_THREADS] = {false};
 
 // Shire ESRs
 bool esr_shire_coop_mode[EMU_NUM_SHIRES] = {};
-uint8_t esr_icache_prefetch_enable[EMU_NUM_SHIRES] = {};
+#ifndef SYS_EMU
 bool esr_icache_prefetch_active[EMU_NUM_SHIRES] = {};
+#endif
 
 // only for checker, list of minions to awake (e.g. waiting for FCC that has just been written)
 std::queue<uint32_t> minions_to_awake;
@@ -8937,8 +8938,10 @@ void write_shire_coop_mode(unsigned shire, uint64_t val)
 {
     assert(shire <= EMU_MASTER_SHIRE);
     esr_shire_coop_mode[shire] = !!(val & 1);
+#ifndef SYS_EMU
     if (!esr_shire_coop_mode[shire])
         esr_icache_prefetch_active[shire] = false;
+#endif
 }
 
 uint64_t read_shire_coop_mode(unsigned shire)
@@ -9082,41 +9085,37 @@ void clear_external_interrupt(int thread)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void write_icache_prefetch_enable(unsigned shire, uint64_t val)
+void write_icache_prefetch(int privilege, unsigned shire, uint64_t val)
 {
     assert(shire <= EMU_MASTER_SHIRE);
-    esr_icache_prefetch_enable[shire] = val & ((1 << EMU_NEIGH_PER_SHIRE) - 1);
-    if (!esr_icache_prefetch_enable[shire])
-        esr_icache_prefetch_active[shire] = false;
-}
-
-void write_icache_prefetch_trigger(unsigned shire, uint64_t val)
-{
-    (void)(val);
-    assert(shire <= EMU_MASTER_SHIRE);
+    (void)(privilege);
 #ifdef SYS_EMU
-    // NB: Prefetches finish instantaneously in sys_emu
-    esr_icache_prefetch_active[shire] = false;
+    (void)(shire);
+    (void)(val);
 #else
-    bool enabled = esr_icache_prefetch_enable[shire] && esr_shire_coop_mode[shire];
-    esr_icache_prefetch_active[shire] = enabled;
+    if (!esr_icache_prefetch_active[shire])
+    {
+        bool active = ((val >> 48) & 0xF) && esr_shire_coop_mode[shire];
+        esr_icache_prefetch_active[shire] = active;
+    }
 #endif
 }
 
-uint64_t read_icache_prefetch_enable(unsigned shire)
+uint64_t read_icache_prefetch(int privilege __attribute__((unused)), unsigned shire)
 {
     assert(shire <= EMU_MASTER_SHIRE);
-    return esr_icache_prefetch_enable[shire];
-}
-
-uint64_t read_icache_prefetch_trigger(unsigned shire)
-{
-    assert(shire <= EMU_MASTER_SHIRE);
+#ifdef SYS_EMU
+    // NB: Prefetches finish instantaneously in sys_emu
+    return esr_shire_coop_mode[shire];
+#else
     return esr_icache_prefetch_active[shire] ? 0ull : 1ull;
+#endif
 }
 
 void finish_icache_prefetch(unsigned shire)
 {
     assert(shire <= EMU_MASTER_SHIRE);
+#ifndef SYS_EMU
     esr_icache_prefetch_active[shire] = false;
+#endif
 }
