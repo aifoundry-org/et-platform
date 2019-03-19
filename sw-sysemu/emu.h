@@ -614,11 +614,9 @@ extern void clear_external_interrupt(int thread);
 
 // ----- Esperanto code prefetching extension -----------------------------------
 
-extern void write_icache_prefetch_enable(unsigned shire, uint64_t val);
-extern void write_icache_prefetch_trigger(unsigned shire, uint64_t val);
+extern void write_icache_prefetch(int privilege, unsigned shire, uint64_t val);
 
-extern uint64_t read_icache_prefetch_enable(unsigned shire);
-extern uint64_t read_icache_prefetch_trigger(unsigned shire);
+extern uint64_t read_icache_prefetch(int privilege, unsigned shire);
 
 extern void finish_icache_prefetch(unsigned shire);
 
