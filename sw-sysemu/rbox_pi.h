@@ -383,8 +383,7 @@ namespace RBOX
         struct
         {
             uint64_t type      :  2,
-                     state_idx :  3,
-                     unused1   : 59;
+                     unused1   : 62;
             uint64_t frg_shdr_func_ptr;
             uint64_t frg_shdr_state_ptr;
             uint64_t unused2;
@@ -401,8 +400,8 @@ namespace RBOX
             uint16_t y[2];
             uint8_t  smpl_idx;
             uint8_t  mask;
-            uint64_t triangle_data_ptr[2];
             uint32_t unused;
+            uint64_t triangle_data_ptr[2];
         } quad_info;
         uint64_t qw[4];
     } OutPcktQuadInfoT;
