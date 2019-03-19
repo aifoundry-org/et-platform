@@ -1447,14 +1447,14 @@ static void vmemwrite16(uint64_t addr, uint16_t data)
 
 static void aligned_vmemwrite16(uint64_t addr, uint16_t data)
 {
+    if (!access_is_size_aligned(addr, 2))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
     if (!pma_check_data_access(paddr, 2, Mem_Access_Store))
     {
         throw trap_store_access_fault(addr);
-    }
-    if (!access_is_size_aligned(addr, 2))
-    {
-        throw trap_store_address_misaligned(addr);
     }
     pmemwrite16(paddr, data);
 }
@@ -1475,14 +1475,14 @@ static void vmemwrite32(uint64_t addr, uint32_t data)
 
 static void aligned_vmemwrite32(uint64_t addr, uint32_t data)
 {
+    if (!access_is_size_aligned(addr, 4))
+    {
+        throw trap_store_address_misaligned(addr);
+    }
     uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
     if (!pma_check_data_access(paddr, 4, Mem_Access_Store))
     {
         throw trap_store_access_fault(addr);
-    }
-    if (!access_is_size_aligned(addr, 4))
-    {
-        throw trap_store_address_misaligned(addr);
     }
     pmemwrite32(paddr, data);
 }
@@ -2474,7 +2474,7 @@ static void amo_emu_w(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     check_store_breakpoint(addr);
     if (!access_is_size_aligned(addr, 4))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     uint64_t paddr = vmemtranslate(addr, macc);
     if (!pma_check_data_access(paddr, 4, macc))
@@ -2551,7 +2551,7 @@ static void amo_emu_d(amoop op, xreg dst, xreg src1, xreg src2, mem_access_type 
     check_store_breakpoint(addr);
     if (!access_is_size_aligned(addr, 8))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     uint64_t paddr = vmemtranslate(addr, macc);
     if (!pma_check_data_access(paddr, 8, macc))
@@ -2661,10 +2661,10 @@ AMO_EMU_D_FUNC(amomaxu_d, MAXU)
 static void dcache_evict_flush_set_way(bool, bool, int, int, int, int);
 static void dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
 static void dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
-static void dcache_lock_vaddr(bool, int, uint64_t, int, int, uint64_t);
-static void dcache_unlock_vaddr(bool, bool, uint64_t, int, int, uint64_t);
+static void dcache_lock_vaddr(bool, uint64_t, int, int, uint64_t);
+static void dcache_unlock_vaddr(bool, uint64_t, int, int, uint64_t);
 static void dcache_lock_paddr(int, uint64_t);
-static void dcache_unlock_paddr(int, uint64_t);
+static void dcache_unlock_set_way(int, int);
 
 static void check_counter_is_enabled(int cnt)
 {
@@ -3201,30 +3201,27 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_EVICT_SW:
     case CSR_FLUSH_SW:
-        val &= 0x8C0000000003C0CFULL;
         {
-            bool tm    = (val & 0x8000000000000000ULL);
-            int  dest  = (val >> 58) & 0x03;
-            int  set   = (val >> 14) & 0x0F;
-            int  way   = (val >>  6) & 0x03;
-            int  count = (val >>  0) & 0x0F;
+            bool tm    = (val >> 63) & 0x1;
+            int  dest  = (val >> 58) & 0x3;
+            int  set   = (val >> 14) & 0xF;
+            int  way   = (val >>  6) & 0x3;
+            int  count = (val & 0xF) + 1;
             dcache_evict_flush_set_way(src1 == CSR_EVICT_SW, tm, dest, set, way, count);
         }
         break;
     case CSR_LOCK_SW:
-        val &= 0xFF80FFFFFFFFFFCFULL;
         {
-            int      way    = (val >> 55) & 0xFF;
-            uint64_t paddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+            int      way   = (val >> 55) & 0x3;
+            uint64_t paddr = val & 0x0000FFFFFFFFFFC0ULL;
             dcache_lock_paddr(way, paddr);
         }
         break;
     case CSR_UNLOCK_SW:
-        val &= 0xC000FFFFFFFFFFCFULL;
         {
-            int      way    = (val >> 55) & 0xFF;
-            uint64_t paddr  = val         & 0x0000FFFFFFFFFFC0ULL;
-            dcache_unlock_paddr(way, paddr);
+            int way = (val >> 55) & 0x3;
+            int set = (val >>  6) & 0xF;
+            dcache_unlock_set_way(set, way);
         }
         break;
     case CSR_TENSOR_REDUCE:
@@ -3291,12 +3288,11 @@ static void csrset(uint16_t src1, uint64_t val)
         csr_mcache_control[current_thread^1] = val & 3;
         break;
     case CSR_PREFETCH_VA:
-        val &= 0x8C00FFFFFFFFFFCFULL;
         {
-            bool tm         = (val & 0x8000000000000000ULL);
-            int  dest       = (val >> 58) & 0x03;
-            int  count      = (val >>  0) & 0x0F;
-            uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+            bool tm         = (val >> 63) & 0x1;
+            int  dest       = (val >> 58) & 0x3;
+            uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
+            int  count      = (val & 0xF) + 1;
             uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
             int      id     = XREGS[31].x & 0x0000000000000001ULL;
             dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
@@ -3378,12 +3374,11 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_EVICT_VA:
     case CSR_FLUSH_VA:
-        val &= 0x8C00FFFFFFFFFFCFULL;
         {
-            bool     tm     = (val & 0x8000000000000000ULL);
-            int      dest   = (val >> 58) & 0x03;
-            int      count  = (val >>  0) & 0x0F;
-            uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+            bool     tm     = (val >> 63) & 0x1;
+            int      dest   = (val >> 58) & 0x3;
+            uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
+            int      count  = (val & 0x0F) + 1;
             uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
             int      id     = XREGS[31].x & 0x0000000000000001ULL;
             dcache_evict_flush_vaddr(src1 == CSR_EVICT_VA, tm, dest, vaddr, count, id, stride);
@@ -3428,27 +3423,24 @@ static void csrset(uint16_t src1, uint64_t val)
         csr_msleep_txfma_27[current_thread^1] = val;
         break;
     case CSR_LOCK_VA:
-        val &= 0xFF80FFFFFFFFFFCFULL;
         {
-            bool     tm     = (val & 0x8000000000000000ULL);
-            int      way    = (val >> 55) & 0xFF;
-            int      count  = (val >>  0) & 0x0F;
-            uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+            bool     tm     = (val >> 63) & 0x1;
+            uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
+            int      count  = (val & 0xF) + 1;
             uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
             int      id     = XREGS[31].x & 0x0000000000000001ULL;
-            dcache_lock_vaddr(tm, way, vaddr, count, id, stride);
+            dcache_lock_vaddr(tm, vaddr, count, id, stride);
         }
         break;
     case CSR_UNLOCK_VA:
         val &= 0xC000FFFFFFFFFFCFULL;
         {
-            bool     tm     = (val & 0x8000000000000000ULL);
-            bool     valid  = (val >> 55) & 0xFF;
-            int      count  = (val >>  0) & 0x0F;
-            uint64_t vaddr  = val         & 0x0000FFFFFFFFFFC0ULL;
+            bool     tm     = (val >> 63) & 0x1;
+            uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
+            int      count  = (val & 0xF) + 1;
             uint64_t stride = XREGS[31].x & 0x0000FFFFFFFFFFC0ULL;
             int      id     = XREGS[31].x & 0x0000000000000001ULL;
-            dcache_unlock_vaddr(tm, valid, vaddr, count, id, stride);
+            dcache_unlock_vaddr(tm, vaddr, count, id, stride);
         }
         break;
     case CSR_PORTCTRL0:
@@ -6848,7 +6840,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
         check_store_breakpoint(addr);
         if (!access_is_size_aligned(addr, 4))
         {
-            throw trap_store_address_misaligned(addr);
+            throw trap_store_access_fault(addr);
         }
         uint64_t paddr = vmemtranslate(addr, macc);
         if (!pma_check_data_access(paddr, 4, macc))
@@ -7032,19 +7024,18 @@ static uint64_t scp_trans[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
 
 static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, int way, int numlines)
 {
-    // Skip all if dest is L1, or if set/way is outside the cache limits
-    if ((dest == 0) || (set >= L1D_NUM_SETS) || (way >= L1D_NUM_WAYS))
+    // Skip all if dest is L1, or if set is outside the cache limits
+    if ((dest == 0) || (set >= L1D_NUM_SETS))
         return;
 
-    for (int i = 0; i <= numlines; i++)
+    for (int i = 0; i < numlines; i++)
     {
-        // If cacheline is locked or not passing tensor mask condition, skip operation
-        if (!scp_locked[current_thread >> 1][set][way] && (!tm || tmask_pass(i)))
-        {
-            LOG(DEBUG, "\tDoing %s (%d.%d) to Set: %d, Way: %d, DestLevel: %d",
-                evict ? "EvictSW" : "FlushSW", current_thread >> 1, current_thread & 1,
-                set, way, dest);
-        }
+        // skip if masked
+        if (tm && !tmask_pass(i))
+            continue;
+
+        LOG(DEBUG, "\tDoing %s: Set: %d, Way: %d, DestLevel: %d",
+            evict ? "EvictSW" : "FlushSW", set, way, dest);
 
         // Increment set and way with wrap-around
         if (++set >= L1D_NUM_SETS)
@@ -7066,7 +7057,7 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
     if (dest == 0)
         return;
 
-    for (int i = 0; i <= numlines; i++, vaddr += stride)
+    for (int i = 0; i < numlines; i++, vaddr += stride)
     {
         // skip if masked
         if (tm && !tmask_pass(i))
@@ -7088,28 +7079,18 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
             update_tensor_error(1 << 7);
             return;
         }
-        int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
-        bool skip = false;
-        for (int j = 0; j < L1D_NUM_WAYS; ++j)
-        {
-            skip = skip || (scp_locked[current_thread >> 1][set][j] && (scp_trans[current_thread >> 1][set][j] == paddr));
-        }
-        if (skip)
-            continue;
         LOG(DEBUG, "\tDoing %s: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x",
             evict ? "EvictVA" : "FlushVA", vaddr, paddr, dest);
     }
 }
 
-static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
 {
-    (void)(id);
-
     // Skip all if dest is MEM
     if (dest == 3)
         return;
 
-    for (int i = 0; i <= numlines; i++, vaddr += stride)
+    for (int i = 0; i < numlines; i++, vaddr += stride)
     {
         // Skip if masked
         if (tm && !tmask_pass(i))
@@ -7131,44 +7112,36 @@ static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numline
             update_tensor_error(1 << 7);
             return;
         }
-        // If target level is L1 check if the line is locked
-        bool skip = false;
-        if (dest == 0)
-        {
-            int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
-            for (int j = 0; j < L1D_NUM_WAYS; ++j)
-            {
-                skip = skip || (scp_locked[current_thread >> 1][set][j] && (scp_trans[current_thread >> 1][set][j] == paddr));
-            }
-        }
-        if (skip)
-            continue;
         LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
     }
 }
 
 static void dcache_lock_paddr(int way, uint64_t paddr)
 {
-    // Only keep lower bits to target a valid way
-    way %= 4;
-
+    // FIXME: This should take mcache_control into account!!!
     int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
     // Check if paddr already locked in the cache
+    int nlocked = 0;
     for (int w = 0; w < L1D_NUM_WAYS; ++w)
     {
-        if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
+        if (scp_locked[current_thread >> 1][set][w])
         {
-            // Line already locked; stop the operation
-            LOG(DEBUG, "\tLockSW: %016" PRIx64 ", Way: %d double-locking on way %d", paddr, way, w);
-            update_tensor_error(1 << 5);
-            return;
+            ++nlocked;
+            if ((w == way) || (scp_trans[current_thread >> 1][set][w] == paddr))
+            {
+                // Requested line or requested way already locked; stop the operation
+                LOG(DEBUG, "\tLockSW: 0x%016" PRIx64 ", Way: %d double-locking on way %d (addr: 0x%016" PRIx64 ")",
+                    paddr, way, w, scp_trans[current_thread >> 1][set][w]);
+                update_tensor_error(1 << 5);
+                return;
+            }
         }
     }
     // FIXME: We should check if PA exists, unlocked, in another set in the cache
 
-    // check if the way is locked
-    if (scp_locked[current_thread >> 1][set][way])
+    // Cannot lock any more lines in this set; stop the operation
+    if (nlocked >= (L1D_NUM_WAYS-1))
     {
         update_tensor_error(1 << 5);
         return;
@@ -7176,33 +7149,24 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
 
     scp_locked[current_thread >> 1][set][way] = true;
     scp_trans[current_thread >> 1][set][way] = paddr;
+    for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+    {
+        pmemwrite64(addr, 0);
+    }
     LOG(DEBUG, "\tDoing LockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
 }
 
-static void dcache_unlock_paddr(int way __attribute__((unused)), uint64_t paddr)
+static void dcache_unlock_set_way(int set, int way)
 {
-    int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
-
-    // Check if paddr is locked in the cache
-    for (int w = 0; w < L1D_NUM_WAYS; ++w)
+    if (set < L1D_NUM_SETS)
     {
-        if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
-        {
-            LOG(DEBUG, "\tDoing UnlockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, w, set);
-            scp_locked[current_thread >> 1][set][w] = false;
-        }
+        scp_locked[current_thread >> 1][set][way] = false;
     }
 }
 
-static void dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, int id, uint64_t stride)
+static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
 {
-    (void)(id);
-
-    // Skip all if way is outside the cache limits
-    if ((way >= L1D_NUM_WAYS) && (way != 255))
-        return;
-
-    for (int i = 0; i <= numlines; i++, vaddr += stride)
+    for (int i = 0; i < numlines; i++, vaddr += stride)
     {
         // Skip if masked
         if (tm && !tmask_pass(i))
@@ -7220,70 +7184,24 @@ static void dcache_lock_vaddr(bool tm, int way, uint64_t vaddr, int numlines, in
         catch (const trap_t& t)
         {
             // Stop the operation if there is an exception
-            LOG(DEBUG, "\tLockVA %016" PRIx64 ", Way: %d generated exception (suppressed)", vaddr, way);
+            LOG(DEBUG, "\tLockVA 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
             update_tensor_error(1 << 7);
             return;
         }
-        int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
-        if (way == 255)
+        // LockVA is a hint, so no need to model soft-locking of the cache.
+        // We just need to make sure we zero the cache line.
+        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
         {
-            // Lock the first available way
-            // FIXME: or if the line exists unlocked in the cache use the way of the existing line.
-            bool way_found = false;
-            for (int w = 0; w < L1D_NUM_WAYS; ++w)
-            {
-                if (!scp_locked[current_thread >> 1][set][w])
-                {
-                    way = w;
-                    way_found = true;
-                    break;
-                }
-            }
-            // No free way found to lock
-            if (!way_found)
-            {
-                update_tensor_error(1 << 5);
-                return;
-            }
+            pmemwrite64(addr, 0);
         }
-        if (way == 255)
-        {
-            // All ways are locked; stop the operation
-            LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d no unlocked ways", vaddr, way);
-            update_tensor_error(1 << 5);
-            return;
-        }
-
-        // Check if paddr already locked in the cache
-        for (int w = 0; w < L1D_NUM_WAYS; ++w)
-        {
-            if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
-            {
-                // Line already locked; stop the operation
-                LOG(DEBUG, "\tLockVA: %016" PRIx64 ", Way: %d double-locking on way %d", vaddr, way, w);
-                update_tensor_error(1 << 5);
-                return;
-            }
-        }
-        // FIXME: We should check if PA exists, unlocked, in another set in the cache
-
-        // check if the way is locked
-        if (scp_locked[current_thread >> 1][set][way])
-        {
-            update_tensor_error(1 << 5);
-            return;
-        }
-
-        scp_locked[current_thread >> 1][set][way] = true;
-        scp_trans[current_thread >> 1][set][way] = paddr;
-        LOG(DEBUG, "\tDoing LockVA: %016" PRIx64 " (%016" PRIx64 "), Way: %d, Set: %d", vaddr, paddr, way, set);
+        LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
     }
 }
 
-static void dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
+static void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
 {
-    for (int i = 0; i <= numlines; i++, vaddr += stride)
+    for (int i = 0; i < numlines; i++, vaddr += stride)
     {
         // Skip if masked
         if (tm && !tmask_pass(i))
@@ -7301,22 +7219,13 @@ static void dcache_unlock_vaddr(bool tm, bool keep_valid, uint64_t vaddr, int nu
         catch (const trap_t& t)
         {
             // Stop the operation if there is an exception
-            LOG(DEBUG, "\tUnlockVA: %016" PRIx64 " generated exception (suppressed)", vaddr);
+            LOG(DEBUG, "\tUnlockVA: 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
             update_tensor_error(1 << 7);
             return;
         }
-        int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
-
-        // Check if paddr is locked in the cache
-        for (int w = 0; w < L1D_NUM_WAYS; ++w)
-        {
-            if (scp_locked[current_thread >> 1][set][w] && (scp_trans[current_thread >> 1][set][w] == paddr))
-            {
-                LOG(DEBUG, "\tDoing UnlockVA: %016" PRIx64 " (%016" PRIx64 "), Way: %d, Set: %d, FinalState: %s",
-                    vaddr, paddr, w, set, keep_valid ? "valid" : "invalid");
-                scp_locked[current_thread >> 1][set][w] = false;
-            }
-        }
+        // Soft-locking of the cache is not modeled, so there is nothing more
+        // to do here.
+        LOG(DEBUG, "\tDoing UnlockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
     }
 }
 
@@ -8324,8 +8233,7 @@ static void tensorstore(uint64_t tstorereg)
                 pmemwrite32(paddr + i*4, val);
                 //log_mem_write(0, 4, addr + i*4, val); => Don't log mem changes!
             }
-            src += srcinc;
-            src = src % L1_SCP_ENTRIES;
+            src = (src + srcinc) % L1_SCP_ENTRIES;
             addr = sextVA(addr + stride);
         }
     }
@@ -8361,7 +8269,7 @@ static void tensorstore(uint64_t tstorereg)
         }
 
         // Cooperative tensor stores require the shire to be in cooperative mode
-        if (coop)
+        if (coop > 1)
         {
             uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
             assert(shire != EMU_IO_SHIRE_SP);
