@@ -106,6 +106,13 @@ add_dependencies(kernels-offsets kernels-elf)
 add_dependencies(kernels-cdescr kernels-elf)
 add_dependencies(bootrom-cdescr kernels-elf)
 
+if (HOST_SW)
+  add_library(etrpc STATIC IMPORTED)
+  set_property(TARGET etrpc
+    PROPERTY IMPORTED_LOCATION
+    ${CMAKE_CURRENT_SOURCE_DIR}/../artifacts/sdk-build/build/libetrpc.a)
+endif(HOST_SW)
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden -fPIC -std=c++11 -Wall")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
@@ -127,14 +134,17 @@ set(ETRT_SOURCES
 add_library(etrt SHARED ${ETRT_SOURCES})
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-## FIXME remove external SDK dependencies
-target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../sdk")
+if (HOST_SW)
+  target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../artifacts/sdk-build/build")
+else()
+  target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../sdk")
+  add_dependencies(etrt sdk)
+endif(HOST_SW)
 target_link_libraries(etrt pthread)
 target_link_libraries(etrt etrpc)
 add_dependencies(etrt kernels-offsets)
 add_dependencies(etrt kernels-cdescr)
 add_dependencies(etrt bootrom-cdescr)
-add_dependencies(etrt sdk)
 
 set(ETCUDA_SOURCES
     src/interceptors.cc
