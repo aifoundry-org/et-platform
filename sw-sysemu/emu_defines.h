@@ -235,9 +235,10 @@
 #define ESR_SHIRE_FLB29                     0x001E8
 #define ESR_SHIRE_FLB30                     0x001F0
 #define ESR_SHIRE_FLB31                     0x001F8
-#define ESR_SHIRE_ICACHE_PREFETCH_ENABLE    0x00200
-#define ESR_SHIRE_ICACHE_PREFETCH_TRIGGER   0x00208
 #define ESR_SHIRE_COOP_MODE                 0x00290
+#define ESR_SHIRE_ICACHE_UPREFETCH          0x002F8
+#define ESR_SHIRE_ICACHE_SPREFETCH          0x00300
+#define ESR_SHIRE_ICACHE_MPREFETCH          0x00308
 #define ESR_SHIRE_BROADCAST0                0x1FFF0
 #define ESR_SHIRE_BROADCAST1                0x1FFF8
 
