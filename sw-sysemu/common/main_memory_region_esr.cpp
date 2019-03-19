@@ -225,16 +225,20 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 case ESR_SHIRE_FLB31:
                     /* do nothing */
                     break;
-                case ESR_SHIRE_ICACHE_PREFETCH_ENABLE:
-                    write_icache_prefetch_enable(esr_info.shire, value);
-                    write_data = false;
-                    break;
-                case ESR_SHIRE_ICACHE_PREFETCH_TRIGGER:
-                    write_icache_prefetch_trigger(esr_info.shire, value);
-                    write_data = false;
-                    break;
                 case ESR_SHIRE_COOP_MODE:
                     write_shire_coop_mode(esr_info.shire, value);
+                    write_data = false;
+                    break;
+                case ESR_SHIRE_ICACHE_UPREFETCH:
+                    write_icache_prefetch(CSR_PRV_U, esr_info.shire, value);
+                    write_data = false;
+                    break;
+                case ESR_SHIRE_ICACHE_SPREFETCH:
+                    write_icache_prefetch(CSR_PRV_S, esr_info.shire, value);
+                    write_data = false;
+                    break;
+                case ESR_SHIRE_ICACHE_MPREFETCH:
+                    write_icache_prefetch(CSR_PRV_M, esr_info.shire, value);
                     write_data = false;
                     break;
                 case ESR_SHIRE_BROADCAST0:
@@ -410,16 +414,20 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
                 case ESR_SHIRE_BROADCAST1:
                     /* do nothing */
                     break;
-                case ESR_SHIRE_ICACHE_PREFETCH_ENABLE:
-                    *ptr = read_icache_prefetch_enable(esr_info.shire);
-                    read_data = false;
-                    break;
-                case ESR_SHIRE_ICACHE_PREFETCH_TRIGGER:
-                    *ptr = read_icache_prefetch_trigger(esr_info.shire);
-                    read_data = false;
-                    break;
                 case ESR_SHIRE_COOP_MODE:
                     *ptr = read_shire_coop_mode(esr_info.shire);
+                    read_data = false;
+                    break;
+                case ESR_SHIRE_ICACHE_UPREFETCH:
+                    *ptr = read_icache_prefetch(CSR_PRV_U, esr_info.shire);
+                    read_data = false;
+                    break;
+                case ESR_SHIRE_ICACHE_SPREFETCH:
+                    *ptr = read_icache_prefetch(CSR_PRV_S, esr_info.shire);
+                    read_data = false;
+                    break;
+                case ESR_SHIRE_ICACHE_MPREFETCH:
+                    *ptr = read_icache_prefetch(CSR_PRV_M, esr_info.shire);
                     read_data = false;
                     break;
                 default:
