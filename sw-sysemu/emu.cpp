@@ -8631,6 +8631,13 @@ static void tensor_ima8a32(uint64_t tfmareg)
                         log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u[j%VL]);
                     }
                 }
+                else if (first_pass && (k == 0))
+                {
+                    for (int j = 0; j < bcols; ++j)
+                    {
+                        log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, TENC[i*TFMA_REGS_PER_ROW+j/VL].u[j%VL]);
+                    }
+                }
                 continue;
             }
 
