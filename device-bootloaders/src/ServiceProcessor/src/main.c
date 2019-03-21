@@ -45,8 +45,7 @@ int main(void)
     SERIAL_init(PU_UART1);
     SERIAL_write(PU_UART1, "alive\r\n", 7);
 
-    //INT_enableInterrupt(INTERRUPT_INT1, 1, dummy_isr1);
-    //INT_enableInterrupt(INTERRUPT_INT2, 2, dummy_isr2);
+    INT_init();
 
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];
