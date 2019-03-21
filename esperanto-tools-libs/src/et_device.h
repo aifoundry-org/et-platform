@@ -23,7 +23,7 @@ struct EtMemRegion
 
     EtMemRegion(void *ptr, size_t size) : region_base(ptr), region_size(size) {}
 
-    static constexpr size_t kAlign = 1 << 12;  // 4K
+    static constexpr size_t kAlign = 1 << 20;  // 1M
     bool isPtrAlloced(const void *ptr);
     void *alloc(size_t size);
     void free(void *ptr);
