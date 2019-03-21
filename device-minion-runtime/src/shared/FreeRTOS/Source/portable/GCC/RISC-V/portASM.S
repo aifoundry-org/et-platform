@@ -91,7 +91,7 @@ at the top of this file. */
 .extern ullTimerIncrementsForOneTick
 .extern xISRStackTop
 .extern pulMaxID
-.extern vectorTable
+.extern pullVectorTable
 
 /*-----------------------------------------------------------*/
 
@@ -175,7 +175,7 @@ handle_asynchronous:
 
 handle_external_interupt:
 	ld s0, pulMaxID						/* Load the address of ulMaxID into s0. */
-	ld t0, vectorTable					/* Load base address of vector table into t0 */
+	ld t0, pullVectorTable				/* Load base address of vector table into t0. */
 	ld sp, xISRStackTop					/* Switch to ISR stack before function call. */
 	lwu s1, 0(s0)						/* Load ulMaxID into s1 to claim the interrupt */
 	beqz s1, processed_source       	/* If ulMaxID is zero, the interrupt has already been claimed (unlikely) */
