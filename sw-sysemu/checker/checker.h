@@ -52,6 +52,12 @@ typedef struct
     uint64_t top;
 } ignored_mem_region;
 
+typedef struct
+{
+    uint64_t match;
+    uint64_t mask;
+} ignored_mem_mask;
+
 class checker
 {
 public:
@@ -86,6 +92,7 @@ public:
 
     // Register a region to ignore checks on
     void add_ignored_mem_region(uint64_t base, uint64_t top);
+    void add_ignored_mem_mask(uint64_t match, uint64_t mask);
     bool address_is_in_ignored_region(uint64_t addr);
 
     // TBOX write to Minion Message Port
@@ -114,7 +121,8 @@ private:
     std::list<tensorfma_entry>    reduce_list[EMU_NUM_THREADS];        // List of RTL written reduce entries
     std::list<uint16_t>           waived_csrs;                         // List of CSRs whose checking is waived
     std::list<ignored_mem_region> ignored_mem_regions;                 // List of memory regions whose data won't be checked
-    bool                          checker_enabled = false;              // If false, this checkers ERRORS are downgraded to WARNINGS
+    std::list<ignored_mem_mask>   ignored_mem_masks;                   // List of masks for which a matching address would not be checked
+    bool                          checker_enabled = false;             // If false, this checkers ERRORS are downgraded to WARNINGS
 };
 
 #endif // _CHECKER_

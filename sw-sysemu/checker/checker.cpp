@@ -239,6 +239,10 @@ checker::checker(main_memory * memory_, testLog& log_, bool checker_en)
         initcsr(i);
         threadEnabled[i] = true;
     }
+
+    // Do not check addresses falling in some unpredictable ESR regions
+    add_ignored_mem_mask(0x100300000ULL, 0xFF003E0000ULL); // Shire Cache ESRs
+    add_ignored_mem_mask(0x100320000ULL, 0xFF003E0000ULL); // Shire Rbox  ESRs
 }
 
 // Destroys the checker
@@ -285,14 +289,14 @@ checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_mi
         {
             return CHECKER_WAIT;
         }
-        // If it has consumed the data, move both threads to Idle
+        // If it_mask has consumed the data, move both threads to Idle
         else if(reduce_state_array[other_min] == Reduce_Data_Consumed)
         {
             reduce_state_array[thread>>1] = Reduce_Idle;
             reduce_state_array[other_min] = Reduce_Idle;
-            // Wakes up the thread0 of the other minion to guarantee it checks the reduce instruction
+            // Wakes up the thread0 of the other minion to guarantee it_mask checks the reduce instruction
             // If this is not done, the thread might not get any other event from the minion monitor to
-            // wake it up
+            // wake it_mask up
             * wake_minion = (int) other_min;
         }
         else
@@ -310,7 +314,7 @@ checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_mi
             return CHECKER_WAIT;
         }
 
-        // Previous reduce done, set with which minion it is doing the reduce
+        // Previous reduce done, set with which minion it_mask is doing the reduce
         reduce_pair_array[thread>>1] = other_min;
         // If the sender minion other minion hasn't arrived yet, wait
         if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != (thread>>1)))
@@ -321,9 +325,9 @@ checker_result checker::do_reduce(uint32_t thread, uint64_t value, int * wake_mi
         else if(reduce_state_array[other_min] == Reduce_Ready_To_Send)
         {
             reduce_state_array[thread>>1] = Reduce_Data_Consumed;
-            // Wakes up the thread0 of the other minion to guarantee it checks the reduce instruction
+            // Wakes up the thread0 of the other minion to guarantee it_mask checks the reduce instruction
             // If this is not done, the thread might not get any other event from the minion monitor to
-            // wake it up
+            // wake it_mask up
             * wake_minion = other_min;
         }
         else
@@ -364,7 +368,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
 
     try
     {
-        check_pending_interrupts(); // This need to be here because it can trap
+        check_pending_interrupts(); // This need to be here because it_mask can trap
         // Fetch new instruction (may trap)
         inst = fetch_and_decode(current_pc[thread]);
 
@@ -396,7 +400,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
     }
     catch (const trap_t& t)
     {
-        log_trap(); // Mark the trap before taking it so we can check partial results
+        log_trap(); // Mark the trap before taking it_mask so we can check partial results
         check_res = check_state_changes(thread, changes, inst); // Check partial results here before the trap. Traping will create mismatches
         take_trap(t); // PC is updated later
     }
@@ -538,7 +542,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                 init(inst.rd(), emu_state_change.int_reg_data);
             }
 
-            // Check if it is an AMO (special case where RTL drives value)
+            // Check if it_mask is an AMO (special case where RTL drives value)
             if(inst.is_amo() && (emu_state_change.int_reg_rd != 0))
             {
                 log << LOG_INFO << "AMO value (" << insn_disasm << ")" << endm;
@@ -547,7 +551,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                 init(inst.rd(), emu_state_change.int_reg_data);
             }
 
-            // Check if it is an Fast Local Barrier (special case where RTL drives value)
+            // Check if it_mask is an Fast Local Barrier (special case where RTL drives value)
             if(inst.is_flb() && (emu_state_change.int_reg_rd != 0))
             {
                 log << LOG_INFO << "FastLocalBarrier value (" << insn_disasm << ")" << endm;
@@ -774,11 +778,11 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                 // Looks for the 1st entry in the list of RTL written lines with same destination
                 int scp_index = adj + ((start + i) % 48);
                 int cache_index = scp_index_to_cache_index(scp_index);
-                auto it = std::find_if(scp_entry_list[thread].begin(), scp_entry_list[thread].end(),
+                auto it_mask = std::find_if(scp_entry_list[thread].begin(), scp_entry_list[thread].end(),
                                        [=] (const scratchpad_entry& x) { return x.entry == cache_index; });
 
                 // Checks that an entry was actually found
-                if(it == scp_entry_list[thread].end())
+                if(it_mask == scp_entry_list[thread].end())
                 {
                     stream << "BEMU Checker couldn't find scratchpad destination " << scp_index << " in the DUT reported scratchpad list!!" << std::endl;
                     stream << "SCP Candidates: " << std::endl;
@@ -795,13 +799,13 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                         uint32_t lo = emu_state_change.tensordata[0][2*i+(j+0)/VL][(j+0)%VL];
                         uint32_t hi = emu_state_change.tensordata[0][2*i+(j+1)/VL][(j+1)%VL];
                         uint64_t data = uint64_t(lo) + (uint64_t(hi) << 32);
-                        if(data != it->data[j/2])
+                        if(data != it_mask->data[j/2])
                         {
-                            stream << "BEMU Checker TensorLoad write data_error for cacheline " << i << " written in entry " << start + i << " data lane " << j << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[j] << std::dec << std::endl;
+                            stream << "BEMU Checker TensorLoad write data_error for cacheline " << i << " written in entry " << start + i << " data lane " << j << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it_mask->data[j] << std::dec << std::endl;
                             check_res = CHECKER_ERROR;
                         }
                     }
-                    scp_entry_list[thread].erase(it);
+                    scp_entry_list[thread].erase(it_mask);
                 }
             }
         }
@@ -819,10 +823,10 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                         continue;
 
                     // Looks for the 1st entry in the list of RTL written lines with same destination
-                    auto it = std::find_if(tensorfma_list[thread].begin(), tensorfma_list[thread].end(),
+                    auto it_mask = std::find_if(tensorfma_list[thread].begin(), tensorfma_list[thread].end(),
                                            [=] (const tensorfma_entry& x) { return x.entry == freg; });
                     // Checks that an entry was actually found
-                    if(it == tensorfma_list[thread].end())
+                    if(it_mask == tensorfma_list[thread].end())
                     {
                         stream << "BEMU Checker couldn't find TensorFMA destination " << freg << " in the DUT reported TensorFMA list for pass " << pass << "!!" << std::endl;
                         check_res = CHECKER_ERROR;
@@ -835,13 +839,13 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                         if (!emu_state_change.tensorfma_mask[pass][freg][lane])
                             continue;
                         uint32_t data = emu_state_change.tensordata[pass][freg][lane];
-                        if(data != it->data[lane])
+                        if(data != it_mask->data[lane])
                         {
-                            stream << "BEMU Checker TensorFMA write data_error for register f" << freg << "[" << lane << "] pass " << pass << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
+                            stream << "BEMU Checker TensorFMA write data_error for register f" << freg << "[" << lane << "] pass " << pass << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it_mask->data[lane] << std::dec << std::endl;
                             check_res = CHECKER_ERROR;
                         }
                     }
-                    tensorfma_list[thread].erase(it);
+                    tensorfma_list[thread].erase(it_mask);
                 }
             }
         }
@@ -858,17 +862,17 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                     if (~emu_state_change.tensorquant_mod[trans] & (1u<<freg))
                         continue;
 
-                    auto it = std::find_if(tensorquant_list[thread].begin(), tensorquant_list[thread].end(),
+                    auto it_mask = std::find_if(tensorquant_list[thread].begin(), tensorquant_list[thread].end(),
                                            [=] (const tensorfma_entry& x) { return x.entry == freg; });
-                    if (emu_state_change.tensorquant_skip_write[trans] && it != tensorquant_list[thread].end())
+                    if (emu_state_change.tensorquant_skip_write[trans] && it_mask != tensorquant_list[thread].end())
                     {
                         // Pack 128b writes the destination once or twice depending on number of columns
-                        tensorquant_list[thread].erase(it);
-                        it = std::find_if(tensorquant_list[thread].begin(), tensorquant_list[thread].end(),
+                        tensorquant_list[thread].erase(it_mask);
+                        it_mask = std::find_if(tensorquant_list[thread].begin(), tensorquant_list[thread].end(),
                                           [=] (const tensorfma_entry& x) { return x.entry == freg; });
                     }
                     // Checks that an entry was actually found
-                    if(it == tensorquant_list[thread].end())
+                    if(it_mask == tensorquant_list[thread].end())
                     {
                         stream << "BEMU Checker couldn't find TensorQuant destination " << freg << " in the DUT reported TensorQuant list for trans " << trans << "!!" << std::endl;
                         check_res = CHECKER_ERROR;
@@ -880,13 +884,13 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                         if (!emu_state_change.tensorquant_mask[trans][freg][lane])
                             continue;
                         uint32_t data = emu_state_change.tensordata[trans][freg][lane];
-                        if(data != it->data[lane])
+                        if(data != it_mask->data[lane])
                         {
-                            stream << "BEMU Checker TensorQuant write data_error for register f" << freg << "[" << lane << "] trans " << trans << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
+                            stream << "BEMU Checker TensorQuant write data_error for register f" << freg << "[" << lane << "] trans " << trans << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it_mask->data[lane] << std::dec << std::endl;
                             check_res = CHECKER_ERROR;
                         }
                     }
-                    tensorquant_list[thread].erase(it);
+                    tensorquant_list[thread].erase(it_mask);
                 }
             }
         }
@@ -901,15 +905,15 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             for(int entry = start_entry; entry < (start_entry + size); entry++)
             {
                 // Looks for the 1st entry in the list of RTL written lines with same destination
-                auto it = reduce_list[thread].begin();
-                while(it != reduce_list[thread].end())
+                auto it_mask = reduce_list[thread].begin();
+                while(it_mask != reduce_list[thread].end())
                 {
-                    if(it->entry == entry) { break; }
-                    it++;
+                    if(it_mask->entry == entry) { break; }
+                    it_mask++;
                 }
 
                 // Checks that an entry was actually found
-                if(it == reduce_list[thread].end())
+                if(it_mask == reduce_list[thread].end())
                 {
                     stream << "BEMU Checker couldn't find Reduce destination " << entry << " in the DUT provided Reduce list!!" << std::endl;
                     check_res = CHECKER_ERROR;
@@ -920,13 +924,13 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                     for(int lane = 0; lane < 4; lane++)
                     {
                         uint32_t data = emu_state_change.tensordata[0][entry][lane];
-                        if(data != it->data[lane])
+                        if(data != it_mask->data[lane])
                         {
-                            stream << "BEMU Checker Reduce write data_error for register " << entry << " lane " << lane << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it->data[lane] << std::dec << std::endl;
+                            stream << "BEMU Checker Reduce write data_error for register " << entry << " lane " << lane << ". BEMU expects data is 0x" << std::hex << data << " but DUT reported 0x" << it_mask->data[lane] << std::dec << std::endl;
                             check_res = CHECKER_ERROR;
                         }
                     }
-                    reduce_list[thread].erase(it);
+                    reduce_list[thread].erase(it_mask);
                 }
             }
         }
@@ -991,10 +995,10 @@ void checker::aggregate_tl_data(uint32_t thread)
 
     // empty the queue, merge all that can be merged
     while ( !scp_entry_list[thread].empty() ) {
-        auto it = scp_entry_list[thread].begin();
-        // Get the entry and copy it. Move data to next half-line if it's needed
-        scratchpad_entry entry = *it;
-        it = scp_entry_list[thread].erase(it);
+        auto it_mask = scp_entry_list[thread].begin();
+        // Get the entry and copy it_mask. Move data to next half-line if it_mask's needed
+        scratchpad_entry entry = *it_mask;
+        it_mask = scp_entry_list[thread].erase(it_mask);
         int addr_fhl = entry.entry & ~(1 << 5);
         int addr_shl = entry.entry |  (1 << 5);
         if ( entry.entry == addr_shl )
@@ -1091,11 +1095,21 @@ void checker::reduce_write(uint32_t thread, uint32_t entry, uint32_t * data)
 
 bool checker::address_is_in_ignored_region(uint64_t addr)
 {
-   auto it = ignored_mem_regions.begin();
-   while (it != ignored_mem_regions.end())
+   auto it_region = ignored_mem_regions.begin();
+   while (it_region != ignored_mem_regions.end())
    {
-      if ((addr >= it->base) && (addr <= it->top)) return true;
-      it++;
+      if ((addr >= it_region->base) && (addr <= it_region->top)) return true;
+      it_region++;
+   }
+
+   auto it_mask = ignored_mem_masks.begin();
+   while (it_mask != ignored_mem_masks.end())
+   {
+      log << LOG_INFO << "Ignored memory mask: (" << std::hex << it_mask->mask << ", " << it_mask->match << ")" << endm;
+      log << LOG_INFO << "Ignored memory mask: (" << std::hex << it_mask->mask << ", " << it_mask->match << ")" << endm;
+      log << LOG_INFO << "(addr & it_mask->mask) ^ it_mask->match) = " << std::hex << ((addr & it_mask->mask) ^ it_mask->match) << endm;
+      if (((addr & it_mask->mask) ^ it_mask->match) == 0) return true;
+      it_mask++;
    }
    return false;
 }
@@ -1106,6 +1120,15 @@ void checker::add_ignored_mem_region(uint64_t base, uint64_t top)
    region.base = base;
    region.top  = top;
    ignored_mem_regions.push_back(region);
+}
+
+
+void checker::add_ignored_mem_mask(uint64_t match, uint64_t mask)
+{
+   ignored_mem_mask ignored_mask;
+   ignored_mask.match = match;
+   ignored_mask.mask  = mask;
+   ignored_mem_masks.push_back(ignored_mask);
 }
 
 
