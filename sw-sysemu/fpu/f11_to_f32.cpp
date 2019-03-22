@@ -8,12 +8,12 @@ float32_t f11_to_f32(float11_t a)
 {
     uint32_t mantissa;
     int32_t  exponent;
-    uint32_t output;
     uint32_t normbits = 0;
     bool denorm;
     bool infinite;
     bool nan;
     bool zero;
+    ui32_f32 uZ;
     uint16_t val = fpu::UI16(a);
 
     //  Read the float11 exponent.
@@ -29,8 +29,10 @@ float32_t f11_to_f32(float11_t a)
     nan = (exponent == 0x1f) && (mantissa != 0);
 
     //  Return zeros.
-    if (zero)
-       return fpu::F32(0);
+    if (zero) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
 
     //  Convert exponent and mantissa to float32_t.  Convert from excess 15 and convert to excess 127.
     if (infinite || nan)
@@ -39,8 +41,10 @@ float32_t f11_to_f32(float11_t a)
         exponent = denorm ? (-14 + 127) : (exponent - 15) + 127;
 
     //  Convert mantissa to float32_t.  Mantissa goes from 6+1 bits to 23+1 bits.
-    if (nan)
-        return fpu::F32(defaultNaNF32UI);
+    if (nan) {
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
+    }
     if (!infinite)
         mantissa = (mantissa << 17);
 
@@ -61,7 +65,7 @@ float32_t f11_to_f32(float11_t a)
         else if ((mantissa & 0x00020000) != 0)
             normbits = 6;
         //else
-            //panic("GPUMath", "convertFP16ToFP32", "Error normalizing denormalized float16 mantissa.");
+        //panic("GPUMath", "convertFP16ToFP32", "Error normalizing denormalized float16 mantissa.");
 
         //  Decrease exponent 1 bit.
         exponent = exponent - normbits;
@@ -71,7 +75,6 @@ float32_t f11_to_f32(float11_t a)
     }
 
     //  Assemble the float32_t value with the obtained sign, exponent and mantissa.
-    output = (uint32_t(exponent & 0xff) << 23) | mantissa;
-
-    return fpu::F32(output);
+    uZ.ui = (uint32_t(exponent & 0xff) << 23) | mantissa;
+    return uZ.f;
 }

@@ -250,12 +250,6 @@ checker::~checker()
 {
 }
 
-// Sets the core type
-void checker::set_et_core(int core_type)
-{
-   set_core_type((et_core_t)core_type);
-}
-
 // Sets the PC
 void checker::start_pc(uint32_t thread, uint64_t pc)
 {

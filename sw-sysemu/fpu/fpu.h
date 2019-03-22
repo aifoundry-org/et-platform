@@ -256,7 +256,7 @@ float32_t un10_to_f32(uint16_t);
 float32_t un8_to_f32(uint8_t);
 float32_t un2_to_f32(uint8_t);
 
-float32_t sn24_to_f32(uint32_t);
+//float32_t sn24_to_f32(uint32_t);
 float32_t sn16_to_f32(uint16_t);
 float32_t sn10_to_f32(uint16_t);
 float32_t sn8_to_f32(uint8_t);

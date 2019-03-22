@@ -15,7 +15,9 @@ float32_t f32_cubeFaceIdx(uint8_t a, float32_t b)
     a &= 0x3;
     if (a == 0x3) {
         softfloat_raiseFlags(softfloat_flag_invalid);
-        return F32(defaultNaNF32UI);
+        ui32_f32 uZ;
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     uint_fast32_t signB = signF32UI(UI32(b)) ? 1 : 0;
     return ::ui32_to_f32( (a << 1) | signB );
@@ -24,32 +26,39 @@ float32_t f32_cubeFaceIdx(uint8_t a, float32_t b)
 
 float32_t f32_cubeFaceSignS(uint8_t a, float32_t b)
 {
+    ui32_f32 uZ;
     a &= 0x7;
-    return F32( ((a == 0) || (a == 5)) ? (0x80000000 | UI32(b))
-                                       : (0x7FFFFFFF & UI32(b)) );
+    uZ.ui = ((a == 0) || (a == 5))
+            ? (0x80000000 | UI32(b))
+            : (0x7FFFFFFF & UI32(b));
+    return uZ.f;
 }
 
 
 float32_t f32_cubeFaceSignT(uint8_t a, float32_t b)
 {
+    ui32_f32 uZ;
     a &= 0x7;
-    return F32( (a == 2) ? (0x7FFFFFFF & UI32(b))
-                         : (0x80000000 | UI32(b)) );
+    uZ.ui = (a == 2) ? (0x7FFFFFFF & UI32(b)) : (0x80000000 | UI32(b));
+    return uZ.f;
 }
 
 
 float32_t fxp1516_to_f32(int32_t a)
 {
+    ui32_f32 uZ;
     // convert int32 to float32 and then scale by 2^-16
     float32_t z = ::i32_to_f32(a);
     uint32_t t = UI32(z);
-    return t ? F32( packToF32UI(signF32UI(t), expF32UI(t) - 16, fracF32UI(t)) )
-             : z;
+    uZ.ui = t ? packToF32UI(signF32UI(t), expF32UI(t) - 16, fracF32UI(t)) : 0;
+    return uZ.f;
 }
 
 
 int32_t f32_to_fxp1714(float32_t a)
 {
+    ui32_f32 uA;
+    ui32_f32 uB;
     uint32_t v = UI32(a);
 
     // NaN converts to 0
@@ -69,8 +78,9 @@ int32_t f32_to_fxp1714(float32_t a)
         return 0;
     }
     // all others are converted as int(val*16384.0+0.5)
-    v = v ? packToF32UI(signF32UI(v), expF32UI(v) + 14, fracF32UI(v)) : 0;
-    float32_t z = ::f32_add(F32(v), { 0x3f000000 /*0.5*/ });
+    uA.ui = v ? packToF32UI(signF32UI(v), expF32UI(v) + 14, fracF32UI(v)) : 0;
+    uB.ui = 0x3f000000 /*0.5*/;
+    float32_t z = ::f32_add(uA.f, uB.f);
     return ::f32_to_i32(z, softfloat_roundingMode, true);
 }
 

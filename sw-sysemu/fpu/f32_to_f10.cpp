@@ -22,6 +22,7 @@ float10_t f32_to_f10(float32_t val)
     bool nan;
     bool zero;
     bool infinity;
+    ui16_f10 uZ;
 
     inputAux = fpu::UI32(val);
 
@@ -44,20 +45,24 @@ float10_t f32_to_f10(float32_t val)
 
     //  Flush float32_t denorms to 0
     if (denorm || zero || (sign != 0)) {
-        return fpu::F10(0);
+        uZ.ui = 0;
+        return uZ.f;
     }
     if (nan) {
         if (softfloat_isSigNaNF32UI(inputAux))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F10(0x03f0);
+        uZ.ui = 0x03f0;
+        return uZ.f;
     }
     //  Flush numbers with an exponent not representable in float10 to infinite.
     if (infinity) {
-        return fpu::F10(0x03e0);
+        uZ.ui = 0x03e0;
+        return uZ.f;
     }
     if (exponent > (127 + 15)) {
         softfloat_raiseFlags(softfloat_flag_overflow);
-        return fpu::F10(0x03df);
+        uZ.ui = 0x03df;
+        return uZ.f;
     }
 
     //  Convert exponent to float10.  Excess 127 to excess 15.
@@ -111,5 +116,6 @@ float10_t f32_to_f10(float32_t val)
     }
 
     //  Assemble the float10 value.
-    return fpu::F10((uint16_t(exponent & 0x1f) << 5) | mantissa10);
+    uZ.ui = (uint16_t(exponent & 0x1f) << 5) | mantissa10;
+    return uZ.f;
 }

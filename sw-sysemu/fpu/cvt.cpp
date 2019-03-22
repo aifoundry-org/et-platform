@@ -49,6 +49,7 @@ float32_t un2_to_f32(uint8_t val)
 }
 
 
+#if 0
 float32_t sn24_to_f32(uint32_t val)
 {
     if (val == (1 << 23)) val = (1 << 23) + 1;
@@ -58,6 +59,7 @@ float32_t sn24_to_f32(uint32_t val)
     float res = float(sign) * (float(value) / float(maxrange));
     return fpu::F2F32(res);
 }
+#endif
 
 
 float32_t sn16_to_f32(uint16_t val)
@@ -71,6 +73,7 @@ float32_t sn16_to_f32(uint16_t val)
 }
 
 
+// Used by the TBOX
 float32_t sn10_to_f32(uint16_t val)
 {
     if (val == (1 << 9)) val = (1 << 9) + 1;
@@ -93,6 +96,7 @@ float32_t sn8_to_f32(uint8_t val)
 }
 
 
+// Used by the TBOX
 float32_t sn2_to_f32(uint8_t val)
 {
     if (val == (1 << 1)) val = (1 << 1) + 1;

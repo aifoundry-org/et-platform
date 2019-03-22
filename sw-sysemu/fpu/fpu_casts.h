@@ -1,6 +1,9 @@
-#ifndef _FPU_CASTS_H
-#define _FPU_CASTS_H
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
+#ifndef FPU_CASTS_H
+#define FPU_CASTS_H
+
+#include <type_traits>
 #include "fpu_types.h"
 #include "softfloat/internals.h"
 
@@ -9,98 +12,169 @@ union ui16_f10 { uint16_t ui; float10_t f; };
 
 namespace fpu {
 
-    static inline float FLT(uint32_t x)
-    {
-        union { uint32_t ui; float flt; } uZ;
-        uZ.ui = x;
-        return uZ.flt;
-    }
+namespace detail {
 
+template<typename T>
+inline uint32_t UI32(std::true_type, const T& x) {
+    return uint32_t(x);
+}
 
-    static inline float FLT(float32_t x)
-    {
-        union { float32_t f; float flt; } uZ;
-        uZ.f = x;
-        return uZ.flt;
-    }
+template<typename T>
+inline uint32_t UI32(std::false_type, const T& x) {
+    static_assert(sizeof(T) != sizeof(T),
+                  "fpu::UI32() only accepts integral types");
+    return 0;
+}
 
-    static inline float32_t F32(uint32_t x)
-    {
-        ui32_f32 uZ;
-        uZ.ui = x;
-        return uZ.f;
-    }
+template<typename T>
+inline float32_t F32(std::true_type, const T& x) {
+    ui32_f32 uZ;
+    uZ.ui = uint32_t(x);
+    return uZ.f;
+}
 
-    static inline float32_t F2F32(float x)
-    {
-        union { float32_t f; float flt; } uZ;
-        uZ.flt = x;
-        return uZ.f;
-    }
+template<typename T>
+inline float32_t F32(std::false_type, const T& x) {
+    static_assert(sizeof(T) != sizeof(T),
+                  "fpu::F32() only accepts integral types");
+    return float32_t {};
+}
 
-    static inline float16_t F16(uint16_t x)
-    {
-        ui16_f16 uZ;
-        uZ.ui = x;
-        return uZ.f;
-    }
+template<typename T>
+inline float16_t F16(std::true_type, const T& x) {
+    ui16_f16 uZ;
+    uZ.ui = uint16_t(x);
+    return uZ.f;
+}
 
+template<typename T>
+inline float16_t F16(std::false_type, const T& x) {
+    static_assert(sizeof(T) != sizeof(T),
+                  "fpu::F16() only accepts integral types");
+    return float16_t {};
+}
 
-    static inline float11_t F11(uint16_t x)
-    {
-        ui16_f11 uZ;
-        uZ.ui = x;
-        return uZ.f;
-    }
+template<typename T>
+inline float11_t F11(std::true_type, const T& x) {
+    ui16_f11 uZ;
+    uZ.ui = uint16_t(x);
+    return uZ.f;
+}
 
+template<typename T>
+inline float11_t F11(std::false_type, const T& x) {
+    static_assert(sizeof(T) != sizeof(T),
+                  "fpu::F11() only accepts integral types");
+    return float11_t {};
+}
 
-    static inline float10_t F10(uint16_t x)
-    {
-        ui16_f10 uZ;
-        uZ.ui = x;
-        return uZ.f;
-    }
+template<typename T>
+inline float10_t F10(std::true_type, const T& x) {
+    ui16_f10 uZ;
+    uZ.ui = uint16_t(x);
+    return uZ.f;
+}
 
+template<typename T>
+inline float10_t F10(std::false_type, const T& x) {
+    static_assert(sizeof(T) != sizeof(T),
+                  "fpu::F10() only accepts integral types");
+    return float10_t {};
+}
 
-    static inline uint32_t UI32(float x)
-    {
-        union { uint32_t ui; float flt; } uZ;
-        uZ.flt = x;
-        return uZ.ui;
-    }
+} // namespace detail
 
+inline float FLT(uint32_t x) {
+    union { uint32_t ui; float flt; } uZ;
+    uZ.ui = x;
+    return uZ.flt;
+}
 
-    static inline uint32_t UI32(float32_t x)
-    {
-        ui32_f32 uZ;
-        uZ.f = x;
-        return uZ.ui;
-    }
+inline float FLT(float32_t x) {
+    union { float32_t f; float flt; } uZ;
+    uZ.f = x;
+    return uZ.flt;
+}
 
+inline float32_t F2F32(float x) {
+    union { float32_t f; float flt; } uZ;
+    uZ.flt = x;
+    return uZ.f;
+}
 
-    static inline uint16_t UI16(float16_t x)
-    {
-        ui16_f16 uZ;
-        uZ.f = x;
-        return uZ.ui;
-    }
+inline uint32_t F2UI32(float x) {
+    union { uint32_t ui; float flt; } uZ;
+    uZ.flt = x;
+    return uZ.ui;
+}
 
+template<typename T>
+inline float32_t F32(const T& x) {
+    return detail::F32(std::is_integral<T>{}, x);
+}
 
-    static inline uint16_t UI16(float11_t x)
-    {
-        ui16_f11 uZ;
-        uZ.f = x;
-        return uZ.ui;
-    }
+template<typename T>
+inline float16_t F16(const T& x) {
+    return detail::F16(std::is_integral<T>{}, x);
+}
 
+template<typename T>
+inline float11_t F11(const T& x) {
+    return detail::F11(std::is_integral<T>{}, x);
+}
 
-    static inline uint16_t UI16(float10_t x)
-    {
-        ui16_f10 uZ;
-        uZ.f = x;
-        return uZ.ui;
-    }
+template<typename T>
+inline float10_t F10(const T& x) {
+    return detail::F10(std::is_integral<T>{}, x);
+}
+
+inline uint32_t UI32(float10_t x) {
+    ui16_f10 uZ;
+    uZ.f = x;
+    return uint32_t(uZ.ui);
+}
+
+inline uint32_t UI32(float11_t x) {
+    ui16_f11 uZ;
+    uZ.f = x;
+    return uint32_t(uZ.ui);
+}
+
+inline uint32_t UI32(float16_t x) {
+    ui16_f16 uZ;
+    uZ.f = x;
+    return uint32_t(uZ.ui);
+}
+
+inline uint32_t UI32(float32_t x) {
+    ui32_f32 uZ;
+    uZ.f = x;
+    return uZ.ui;
+}
+
+template<typename T>
+inline uint32_t UI32(const T& x) {
+    return detail::UI32(std::is_integral<T>{}, x);
+}
+
+inline uint16_t UI16(float16_t x) {
+    ui16_f16 uZ;
+    uZ.f = x;
+    return uZ.ui;
+}
+
+inline uint16_t UI16(float11_t x) {
+    ui16_f11 uZ;
+    uZ.f = x;
+    return uZ.ui;
+}
+
+inline uint16_t UI16(float10_t x) {
+    ui16_f10 uZ;
+    uZ.f = x;
+    return uZ.ui;
+}
 
 } // namespace fpu
 
-#endif // _FPU_CASTS_H
+#endif // FPU_CASTS_H

@@ -60,28 +60,36 @@ static uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0)
 
 float32_t f32_rcp(float32_t a)
 {
+    ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
     switch (val) {
       case minusInfinityF32UI:
-          return fpu::F32(minusZeroF32UI);
+          uZ.ui = minusZeroF32UI;
+          return uZ.f;
       case infinityF32UI:
-          return fpu::F32(zeroF32UI);
+          uZ.ui = zeroF32UI;
+          return uZ.f;
       case minusZeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
-          return fpu::F32(minusInfinityF32UI);
+          uZ.ui = minusInfinityF32UI;
+          return uZ.f;
       case zeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
-          return fpu::F32(infinityF32UI);
+          uZ.ui = infinityF32UI;
+          return uZ.f;
       default:
           break;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
-    if((val & 0x7fffffff) > 0x7e800000)
-        return fpu::F32((val & 0x80000000) ? minusZeroF32UI : zeroF32UI);
+    if((val & 0x7fffffff) > 0x7e800000) {
+        uZ.ui = (val & 0x80000000) ? minusZeroF32UI : zeroF32UI;
+        return uZ.f;
+    }
 
     uint32_t idx = GET(val, 22, 16); // input bits [22:16]
 
@@ -101,36 +109,41 @@ float32_t f32_rcp(float32_t a)
 
     uint16_t res_exp = 254 - exp - (mantissa != 0);
 
-    uint32_t result = MERGE(GET(val, 31, 31), res_exp, fraction_res);
+    uZ.ui = MERGE(GET(val, 31, 31), res_exp, fraction_res);
     //printf("EMU FMA2: %08x\n", result);
-
-    return fpu::F32(result);
+    return uZ.f;
 }
 
 
 float32_t f32_rsqrt(float32_t a)
 {
+    ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
     switch (val) {
       case minusZeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
-          return fpu::F32(minusInfinityF32UI);
+          uZ.ui = minusInfinityF32UI;
+          return uZ.f;
       case zeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
-          return fpu::F32(infinityF32UI);
+          uZ.ui = infinityF32UI;
+          return uZ.f;
       case infinityF32UI:
-          return fpu::F32(zeroF32UI);
+          uZ.ui = zeroF32UI;
+          return uZ.f;
       default:
           break;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     if (val & 0x80000000) {
         softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
 
     uint16_t idx = GET(val,23, 16);
@@ -153,30 +166,33 @@ float32_t f32_rsqrt(float32_t a)
 
     //printf("E: 0x%04x\tES: 0x%04x\tER: 0x%04x\tM: %04x\n", exponent, exponent_shifted, exponent_res, mantissa);
 
-    uint32_t output = MERGE(0, exponent_res, fraction_res);
-    return fpu::F32(output);
+    uZ.ui = MERGE(0, exponent_res, fraction_res);
+    return uZ.f;
 }
 
 
 float32_t f32_log2(float32_t a)
 {
+    ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
 
     switch (val) {
-    case minusZeroF32UI: return fpu::F32(minusInfinityF32UI);
-    case zeroF32UI     : return fpu::F32(minusInfinityF32UI);
-    case oneF32UI      : return fpu::F32(zeroF32UI);
-    case infinityF32UI : return fpu::F32(infinityF32UI);
+    case minusZeroF32UI: uZ.ui = minusInfinityF32UI; return uZ.f;
+    case zeroF32UI     : uZ.ui = minusInfinityF32UI; return uZ.f;
+    case oneF32UI      : uZ.ui = zeroF32UI; return uZ.f;
+    case infinityF32UI : uZ.ui = infinityF32UI; return uZ.f;
     default: break;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     if (val & 0x80000000) {
         softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
 
     uint32_t x2 = (val % (1 << (23-6)));
@@ -251,26 +267,28 @@ float32_t f32_log2(float32_t a)
     uint32_t top_exp = 142 - (64 - i);
     //printf("TOP_EXP: %d, %08x\n", i, top_exp);
 
-    uint32_t full_result = (merged_result >> (i - 23)) % ((uint64_t) 1 << 23);
-    //printf("FULL_RESULT: %d, %08x\n", i, full_result);
+    uZ.ui = (merged_result >> (i - 23)) % ((uint64_t) 1 << 23);
+    //printf("FULL_RESULT: %d, %08x\n", i, uZ.ui);
 
-    full_result = full_result + (top_exp << 23) + ((~(sign_exp ? 1 : 0)) << 31);
+    uZ.ui = uZ.ui + (top_exp << 23) + ((~(sign_exp ? 1 : 0)) << 31);
 
     if(sign)
-        full_result = (0x1ff << 22);
+        uZ.ui = (0x1ff << 22);
 
-    return fpu::F32(full_result);
+    return uZ.f;
 }
 
 
 float32_t f32_exp2(float32_t a)
 {
+    ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
 
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     uint32_t exp = ((val >> 23) % (1 << 8));
     bool sign = (val >> 31) != 0;
@@ -279,13 +297,15 @@ float32_t f32_exp2(float32_t a)
     // val < -126.0
     if (val > 0xc2fc0000) {
         softfloat_raiseFlags(softfloat_flag_underflow);
-        return fpu::F32(0);
+        uZ.ui = 0;
+        return uZ.f;
     }
 
     // val >= 128.0
     if (val >= 0x43000000 && val < 0x80000000) {
         softfloat_raiseFlags(softfloat_flag_overflow);
-        return fpu::F32(infinityF32UI);
+        uZ.ui = infinityF32UI;
+        return uZ.f;
     }
 
     ////printf("Sign: %d\n", sign);
@@ -362,34 +382,29 @@ float32_t f32_exp2(float32_t a)
     //printf("MUL2: 0x%016lx\tFMA2: 0x%016lx\n", mul2, fma2);
 
     uint32_t full_result = (fma2 >> 21) % (1 << 24);
-
     if(in_Denorm && (in_integer >= 126) && (in_integer <= 148)){
         full_result = ((fma2 >> ((in_integer - 125) + 21)) + (1 << (24 - (in_integer - 125)))) % (1 << 24);
     }
-
     ////printf("FULL_RESULT: 0x%016lx\n", full_result);
-    uint32_t output = 0;
 
-    if(in_Inf) {
-        output = 0xff << 23;
-    } else if(in_Zero || in_Denorm){
-        output = 0;
-        if(!in_Zero){
-            if(or_mantissa)
-                output += ((full_result >> 1) + (full_result % 2)) % (1 << 23);
+    if (in_Inf) {
+        uZ.ui = 0xff << 23;
+    } else if (in_Zero || in_Denorm) {
+        if (!in_Zero) {
+            if (or_mantissa)
+                uZ.ui = ((full_result >> 1) + (full_result % 2)) % (1 << 23);
             else
-                output += full_result % (1 << 23);
+                uZ.ui = full_result % (1 << 23);
+        } else {
+            uZ.ui = 0;
         }
     } else {
-
         uint32_t out_exp = (sign? (0x7f - in_integer - or_mantissa) : (0x7f + in_integer)) % (1 << 8);
         ////printf("OUT_EXP: 0x%08x\n", out_exp);
 
-        output += (out_exp << 23);
-        output += ((full_result >> 1) + (full_result % 2)) % (1 << 23);
-
+        uZ.ui = (out_exp << 23) + (((full_result >> 1) + (full_result % 2)) % (1 << 23));
     }
-    return fpu::F32(output);
+    return uZ.f;
 }
 
 
@@ -432,12 +447,13 @@ static uint32_t ttrans_sin_convert(uint32_t ux)
     }
 
     ////printf("[SIN TRANS] O: 0x%08x (%.10f)\tR: 0x%08x (%.10f)\n", *((uint32_t*)&x), x, *((uint32_t*)&y), y);
-    return fpu::UI32(y);
+    return fpu::F2UI32(y);
 }
 
 
 float32_t f32_sin2pi(float32_t a)
 {
+    ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
 
     switch (val) {
@@ -447,12 +463,14 @@ float32_t f32_sin2pi(float32_t a)
     case infinityF32UI:
     case minusInfinityF32UI:
         softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     //printf("VAL: 0x%08x\t\n", val);
 
@@ -460,10 +478,10 @@ float32_t f32_sin2pi(float32_t a)
     //printf("VAL: 0x%08x\n", val);
 
     switch (val) {
-    case 0xbe800000: return fpu::F32(minusOneF32UI);
-    case 0x00000000: return fpu::F32(zeroF32UI);
-    case 0x80000000: return fpu::F32(minusZeroF32UI);
-    case 0x3e800000: return fpu::F32(oneF32UI);
+    case 0xbe800000: uZ.ui = minusOneF32UI; return uZ.f;
+    case 0x00000000: uZ.ui = zeroF32UI; return uZ.f;
+    case 0x80000000: uZ.ui = minusZeroF32UI; return uZ.f;
+    case 0x3e800000: uZ.ui = oneF32UI; return uZ.f;
     default: break;
     }
 
@@ -742,6 +760,6 @@ float32_t f32_sin2pi(float32_t a)
     else if (get(norm_result, 58, 58) == 1) out_m = get(norm_result, 34, 57) + 1;
     ////printf("OUT_M: 0x%08x\n", out_m);
 
-    uint32_t output = (get(out_s, 0, 0) << 31) + (get(out_e, 0, 7) << 23) + get(out_m, 1, 23);
-    return fpu::F32(output);
+    uZ.ui = (get(out_s, 0, 0) << 31) + (get(out_e, 0, 7) << 23) + get(out_m, 1, 23);
+    return uZ.f;
 }

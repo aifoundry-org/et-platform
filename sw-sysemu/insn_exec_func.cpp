@@ -69,11 +69,6 @@
         (exec) (inst.rd(), inst.u_imm()); \
     }
 
-#define FMT_RD_RS1_SHAMT6(name, exec) \
-    void name(insn_t inst) { \
-        (exec) (inst.rd(), inst.rs1(), inst.shamt6()); \
-    }
-
 #define FMT_RS1(name, exec) \
     void name(insn_t inst) { \
         (exec) (inst.rs1()); \
@@ -133,8 +128,6 @@
     void name(insn_t inst) { \
         (exec) (inst.rd(), inst.ms1(), inst.ms2(), inst.umsk4()); \
     }
-
-//////////////////////////////////////////////////
 
 #define FMT_FD_F32IMM(name, exec) \
     void name(insn_t inst) { \
@@ -327,7 +320,7 @@ FMT_RD_RS1_RS2 (insn_remu,    remu)
 FMT_RD_RS1_RS2 (insn_remuw,   remuw)
 FMT_RD_RS1_RS2 (insn_remw,    remw)
 
-/// ----- RV64F ---------------------------------------------
+// ----- RV64F ---------------------------------------------
 // loads
 FMT_FD_RS1_IIMM       (insn_flw,        flw)
 // stores

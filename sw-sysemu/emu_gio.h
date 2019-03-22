@@ -54,6 +54,14 @@ namespace emu {
 } while (0)
 
 
+#define LOG_IF(severity, cond, format, ...) do { \
+    _LOG_IMPL(severity, \
+              ((minion_only_log < 0) || int32_t(current_thread / EMU_THREADS_PER_MINION) == minion_only_log) \
+               && (cond), \
+               current_thread, format, ##__VA_ARGS__); \
+} while (0)
+
+
 #define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02lx",(_MR).to_ulong())
 
 

@@ -9,11 +9,13 @@
 
 float32_t f32_frac(float32_t a)
 {
+    ui32_f32 uZ;
     uint32_t uiA = fpu::UI32(a);
     if (isNaNF32UI(uiA)) {
         if (softfloat_isSigNaNF32UI(uiA))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F32(defaultNaNF32UI);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
 
     // FIXME: We should not use floating-point here, we should
@@ -22,9 +24,7 @@ float32_t f32_frac(float32_t a)
     // According to Khronos f32_frac() behaves like:
     //   fint = trunc(value);
     //   return copysign(isinf(value) ? 0.0 : value - fint, value);
-    union { uint32_t ui; float f; } uA, uZ;
     double intpart;
-    uA.ui = uiA;
-    uZ.f = float(modf(double(uA.f), &intpart));
-    return fpu::F32(uZ.ui);
+    float res = float(modf(double(fpu::FLT(uiA)), &intpart));
+    return fpu::F2F32(res);
 }

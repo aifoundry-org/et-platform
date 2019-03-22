@@ -22,6 +22,7 @@ float11_t f32_to_f11(float32_t val)
     bool nan;
     bool zero;
     bool infinity;
+    ui16_f11 uZ;
 
     inputAux = fpu::UI32(val);
 
@@ -44,20 +45,24 @@ float11_t f32_to_f11(float32_t val)
 
     //  Flush float32_t denorms to 0
     if (denorm || zero || (sign != 0)) {
-        return fpu::F11(0);
+        uZ.ui = 0;
+        return uZ.f;
     }
     if (nan) {
         if (softfloat_isSigNaNF32UI(inputAux))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return fpu::F11(0x07e0);
+        uZ.ui = 0x07e0;
+        return uZ.f;
     }
     if (infinity) {
-        return fpu::F11(0x07c0);
+        uZ.ui = 0x07c0;
+        return uZ.f;
     }
     //  Flush numbers with an exponent not representable in float11 to infinite.
     if (exponent > (127 + 15)) {
         softfloat_raiseFlags(softfloat_flag_overflow);
-        return fpu::F11(0x07bf);
+        uZ.ui = 0x07bf;
+        return uZ.f;
     }
 
     //  Convert exponent to float11.  Excess 127 to excess 15.
@@ -111,5 +116,6 @@ float11_t f32_to_f11(float32_t val)
     }
 
     //  Assemble the float11 value.
-    return fpu::F11((uint16_t(exponent & 0x3f) << 6) | mantissa11);
+    uZ.ui = (uint16_t(exponent & 0x3f) << 6) | mantissa11;
+    return uZ.f;
 }

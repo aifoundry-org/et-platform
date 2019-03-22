@@ -9,19 +9,20 @@
 #include <deque>
 #include <unordered_map>
 
+#include "decode.h"
 #include "emu.h"
-#include "log.h"
 #include "emu_casts.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
-#include "tbox_emu.h"
+#include "gold.h"
+#include "log.h"
 #include "rbox.h"
+#include "tbox_emu.h"
+#include "txs.h"
 
-#include <cmath>       // FIXME: remove this when we purge "gold" versions of the code
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
-#include <emmintrin.h> // FIXME: remove this when we fix the TXFMA code
 
 // MsgPort defines
 #define PORT_LOG2_MIN_SIZE   2
@@ -98,101 +99,6 @@ typedef enum {
     FSCWG,
     FSCHG,
     FSCBG,
-    // PS computation instructions
-    FADD,
-    FSUB,
-    FMUL,
-    FDIV,
-    FMADD,
-    FMSUB,
-    FNMADD,
-    FNMSUB,
-    // PS 1-source
-    FSQRT,
-    FRSQ,
-    FSIN,
-    FEXP,
-    FLOG,
-    FRCP,
-    FCVTPSPW,
-    FCVTPSPWU,
-    FFRC,
-    FCVTPWPS,
-    FCVTPWUPS,
-    FEQ, // Floating point compare
-    FLE,
-    FLT,
-    FCVTPSF16, // Graphics Upconvert to PS
-    FCVTPSF11,
-    FCVTPSF10,
-    FCVTPSUN24,
-    FCVTPSUN16,
-    FCVTPSUN10,
-    FCVTPSUN8,
-    FCVTPSUN2,
-    FCVTPSRAST,
-    FCVTRASTPS,
-    FCVTPSSN16,
-    FCVTPSSN8,
-    FCVTF16PS, // Graphics DownConvert from PS
-    FCVTF11PS,
-    FCVTF10PS,
-    FCVTUN24PS,
-    FCVTUN16PS,
-    FCVTUN10PS,
-    FCVTUN8PS,
-    FCVTUN2PS,
-    FCVTSN16PS,
-    FCVTSN8PS,
-    MAND, // Mask operations
-    MOR,
-    MXOR,
-    MNOT,
-    FSET,
-    FADDPI, // Packed Integer extension
-    FSUBPI,
-    FMULPI,
-    FMULHPI,
-    FMULHUPI,
-    FDIVPI,
-    FDIVUPI,
-    FREMPI,
-    FREMUPI,
-    FMINPI,
-    FMAXPI,
-    FMINUPI,
-    FMAXUPI,
-    FANDPI,
-    FORPI,
-    FXORPI,
-    FNOTPI,
-    FSAT8PI,
-    FSATU8PI,
-    FSLLPI,
-    FSRLPI,
-    FSRAPI,
-    FLTPI,
-    FLTUPI,
-    FLEPI,
-    FEQPI,
-    FRCP_FIX_RAST,
-    FADDIPI, // Packed Integer with Immediate
-    FANDIPI,
-    FORIPI,
-    FXORIPI,
-    FSLLIPI,
-    FSRLIPI,
-    FSRAIPI,
-    FPACKREPBPI,
-    FPACKREPHPI,
-    FCVTWS, // integer opcodes that should not really be here :-)
-    FCVTWUS,
-    FCVTLS,
-    FCVTLUS,
-    FCVTSW,
-    FCVTSWU,
-    FCVTSL,
-    FCVTSLU
 } opcode;
 
 typedef enum {
@@ -343,7 +249,6 @@ const char* csr_name(uint16_t num)
     return it->second;
 }
 
-static et_core_t core_type = ET_MINION;
 uint64_t current_pc = 0;
 uint32_t current_inst = 0;
 uint32_t current_thread = 0;
@@ -454,9 +359,7 @@ static inline const char* get_fp_flags(uint_fast8_t flags)
 template<size_t N>
 static inline uint64_t sext(uint64_t val)
 {
-    return (N >= 64)
-        ? val
-        : uint64_t((int64_t(val) << (64-N)) >> (64-N));
+    return (N >= 64) ? val : uint64_t((int64_t(val) << (64-N)) >> (64-N));
 }
 
 static int32_t sext8_2(uint8_t val)
@@ -480,14 +383,6 @@ static uint64_t sextVA(uint64_t addr)
         ? addr
         : uint64_t(int64_t(((addr << sha47) & ~bit63) |
                            (~(addr << sha48) & bit63)) >> sha47);
-}
-
-static void check_sp_out_of_range(uint64_t val)
-{
-    uint64_t lo = uint64_t(&shaderstack[current_thread][0]);
-    uint64_t hi = uint64_t(&shaderstack[current_thread][MAXSTACK]);
-    if (val < lo || val > hi)
-        throw std::runtime_error("stack pointer is out-of-range");
 }
 
 void init(xreg dst, uint64_t val)
@@ -593,23 +488,6 @@ static inline void require_fp_active()
         throw trap_illegal_instruction(current_inst);
 }
 
-static inline void handle_denormal(iufval32& a)
-{
-    if ((a.u & 0x7f800000) == 0)
-        a.u &= 0x80000000; // preserve sign
-}
-
-static inline bool isNaN(uint32_t a)
-{
-    return (((~(a) & 0x7F800000) == 0) && ((a) & 0x007FFFFF));
-}
-
-static inline void handle_nan_default(iufval32& a)
-{
-    if (isNaN(a.u))
-        a.u = 0x7FC00000;
-}
-
 static inline void set_rounding_mode(rounding_mode mode)
 {
     uint_fast8_t round = (mode == rmdyn) ? frm() : mode;
@@ -638,109 +516,6 @@ static inline void set_fp_exceptions()
         update_fflags(softfloat_exceptionFlags);
         softfloat_exceptionFlags = 0;
     }
-}
-
-static float gold_frsq(float a)
-{
-    iufval32 res, val;
-
-    val.flt =a ;
-    handle_denormal(val);
-    res.flt = float(double(1.0) / sqrt(double(val.flt)));
-    handle_nan_default(res);
-    handle_denormal(res);
-    return res.flt;
-}
-
-//TODO: Erase this once Grigoris does his refactor
-static float gold_fsin(float a)
-{
-    double dummy;
-    iufval32 res, val, tmp;
-
-    val.flt = a;
-    handle_denormal(val);
-
-#define infinityF32UI      0x7F800000
-#define minusInfinityF32UI 0xFF800000
-    //Take care of special cases ruined by modf
-    switch (val.u) {
-      case minusInfinityF32UI:
-          val.u = 0x7fc00000;
-          return val.flt;
-          break;
-      case infinityF32UI     :
-          val.u = 0x7fc00000;
-          return val.flt;
-          break;
-    }
-
-    tmp.flt = float(modf(double(val.flt), &dummy));
-    tmp.flt =
-          tmp.flt <= -0.75 ?  tmp.flt + 1.0 // -IV  Quartile
-        : tmp.flt <= -0.5  ? -tmp.flt - 0.5 // -III Quartile
-        : tmp.flt <= -0.25 ? -tmp.flt - 0.5 // -II  Quartile
-        : tmp.flt <= -0.0  ?  tmp.flt       // -I   Quartile
-        : tmp.flt >= 0.75  ?  tmp.flt - 1.0 // +IV  Quartile
-        : tmp.flt >= 0.5   ? -tmp.flt + 0.5 // +III Quartile
-        : tmp.flt >= 0.25  ? -tmp.flt + 0.5 // +II  Quartile
-        : tmp.flt;                          // +I   Quartile
-
-    if (tmp.flt == 0.25) res.flt = 1.0;
-    else if (tmp.flt == -0.25) res.flt = -1.0;
-    else if (tmp.flt == 0.0) res.flt = 0.0;
-    else if (tmp.flt == -0.0) res.flt = -0.0;
-    else res.flt = float(sin(2.0 * M_PI * double(tmp.flt)));
-
-    handle_nan_default(res);
-    handle_denormal(res);
-    return res.flt;
-}
-
-static float gold_fexp(float a)
-{
-    iufval32 res, val;
-
-    val.flt = a;
-    handle_denormal(val);
-    res.flt = exp2f(val.flt);
-    handle_nan_default(res);
-    handle_denormal(res);
-    return res.flt;
-}
-
-static float gold_flog(float a)
-{
-    iufval32 res, val;
-
-    val.flt = a;
-    handle_denormal(val);
-    res.flt = float(log2(double(val.flt)));
-    handle_nan_default(res);
-    handle_denormal(res);
-    return res.flt;
-}
-
-static float gold_frcp(float a)
-{
-    iufval32 res, val;
-
-    val.flt = a;
-    handle_denormal(val);
-    res.flt = float(double(1.0) / double(val.flt));
-    handle_nan_default(res);
-    handle_denormal(res);
-    return res.flt;
-}
-
-static int32_t gold_frcp_fix_rast(int32_t a, int32_t b)
-{
-    // Input value is 2xtriArea with 15.16 precision
-    double fval_a = double(a) / double(1 << 16);
-    double fval_b = double(b) / double(1 << 14);
-    // Result value is 17.14
-    double fres = (2*fval_b - fval_b*fval_b*fval_a) * double(1 << 14);
-    return int32_t(fres);
 }
 
 void initcsr(uint32_t thread)
@@ -816,8 +591,8 @@ static uint8_t security_ulp_check(uint32_t gold, uint32_t table)
         return 0;
 
     // Detect NaNs
-    bool gold_is_nan  = isNaN(gold);
-    bool table_is_nan = isNaN(table);
+    bool gold_is_nan  = gld::isNaN(gold);
+    bool table_is_nan = gld::isNaN(table);
 
     assert((gold_is_nan == table_is_nan) && "Trans mismatch error. Please open a jira to jordi.sola@esperantotech.com.");
 
@@ -1020,16 +795,6 @@ void check_minst_match(uint32_t bits)
         if (((bits ^ csr_minstmatch[current_thread]) & mask) == 0)
             throw trap_mcode_instruction(bits);
     }
-}
-
-void set_core_type(et_core_t core)
-{
-   core_type = core;
-}
-
-et_core_t get_core_type()
-{
-   return core_type;
 }
 
 void set_pc(uint64_t pc)
@@ -1545,476 +1310,262 @@ void set_msg_funcs(void (*func_msg_to_thread) (int))
 ////////////////////////////////////////////////////////////////////////////////
 
 // ILLEGAL INSTRUCTION
-void unknown(const char* comm)
+void unknown(const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: unknown @%016" PRIx64 "(0x%04x)%s%s", current_pc, current_inst, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: unknown @%016" PRIx64 "(0x%04x)", PC, current_inst);
     throw trap_illegal_instruction(current_inst);
 }
 
-void beq(xreg src1, xreg src2, int64_t imm, const char* comm)
+void beq(xreg rs1, xreg rs2, int64_t b_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: beq x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1] == XREGS[src2])
-        log_pc_update(sextVA(current_pc + imm));
+    DISASM_RS1_RS2_BIMM("beq");
+    if (RS1 == RS2)
+        WRITE_PC(PC + BIMM);
 }
 
-void bne(xreg src1, xreg src2, int64_t imm, const char* comm)
+void bne(xreg rs1, xreg rs2, int64_t b_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: bne x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1] != XREGS[src2])
-        log_pc_update(sextVA(current_pc + imm));
+    DISASM_RS1_RS2_BIMM("bne");
+    if (RS1 != RS2)
+        WRITE_PC(PC + BIMM);
 }
 
-void blt(xreg src1, xreg src2, int64_t imm, const char* comm)
+void blt(xreg rs1, xreg rs2, int64_t b_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: blt x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (int64_t(XREGS[src1]) < int64_t(XREGS[src2]))
-        log_pc_update(sextVA(current_pc + imm));
+    DISASM_RS1_RS2_BIMM("blt");
+    if (int64_t(RS1) < int64_t(RS2))
+        WRITE_PC(PC + BIMM);
 }
 
-void bltu(xreg src1, xreg src2, int64_t imm, const char* comm)
+void bltu(xreg rs1, xreg rs2, int64_t b_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: bltu x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1] < XREGS[src2])
-        log_pc_update(sextVA(current_pc + imm));
+    DISASM_RS1_RS2_BIMM("bltu");
+    if (RS1 < RS2)
+        WRITE_PC(PC + BIMM);
 }
 
-void bge(xreg src1, xreg src2, int64_t imm, const char* comm)
+void bge(xreg rs1, xreg rs2, int64_t b_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: bge x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (int64_t(XREGS[src1]) >= int64_t(XREGS[src2]))
-        log_pc_update(sextVA(current_pc + imm));
+    DISASM_RS1_RS2_BIMM("bge");
+    if (int64_t(RS1) >= int64_t(RS2))
+        WRITE_PC(PC + BIMM);
 }
 
-void bgeu(xreg src1, xreg src2, int64_t imm, const char* comm)
+void bgeu(xreg rs1, xreg rs2, int64_t b_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: bgeu x%d, x%d, %" PRId64 "%s%s", src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    if (XREGS[src1] >= XREGS[src2])
-        log_pc_update(sextVA(current_pc + imm));
+    DISASM_RS1_RS2_BIMM("bgeu");
+    if (RS1 >= RS2)
+        WRITE_PC(PC + BIMM);
 }
 
-void c_jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
+void c_jalr(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    uint64_t val1 = XREGS[src1]; // in case dst == src1
-    LOG(DEBUG, "I: jalr x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        XREGS[dst] = current_pc + 2;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst]);
-    }
-    log_xreg_write(dst, XREGS[dst]);
-    log_pc_update(sextVA((val1 + imm) & ~1ull));
+    DISASM_RD_RS1_IIMM("jalr");
+    uint64_t tmp = (RS1 + IIMM) & ~1ull;
+    WRITE_RD(C_NPC);
+    WRITE_PC(tmp);
 }
 
-void c_jal(xreg dst, int64_t imm, const char* comm)
+void c_jal(xreg rd, int64_t j_imm, const char* comm __attribute__((unused)))
 {
-    // NB: spike-dasm already multiplies the immediate operand by 2
-    LOG(DEBUG, "I: jal x%d, %" PRId64 "%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        XREGS[dst] = current_pc + 2;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst]);
-    }
-    log_xreg_write(dst, XREGS[dst]);
-    log_pc_update(sextVA(current_pc + imm));
+    DISASM_RD_JIMM("jal");
+    WRITE_RD(C_NPC);
+    WRITE_PC(PC + JIMM);
 }
 
-void jalr(xreg dst, xreg src1, int64_t imm, const char* comm)
+void jalr(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    uint64_t val1 = XREGS[src1]; // in case dst == src1
-    LOG(DEBUG, "I: jalr x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        XREGS[dst] = current_pc + 4;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst]);
-    }
-    log_xreg_write(dst, XREGS[dst]);
-    log_pc_update(sextVA((val1 + imm) & ~1ull));
+    DISASM_RD_RS1_IIMM("jalr");
+    uint64_t tmp = (RS1 + IIMM) & ~1ull;
+    WRITE_RD(NPC);
+    WRITE_PC(tmp);
 }
 
-void jal(xreg dst, int64_t imm, const char* comm)
+void jal(xreg rd, int64_t j_imm, const char* comm __attribute__((unused)))
 {
-    // NB: spike-dasm already multiplies the immediate operand by 2
-    LOG(DEBUG, "I: jal x%d, %" PRId64 "%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        XREGS[dst] = current_pc + 4;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- ", XREGS[dst]);
-    }
-    log_xreg_write(dst, XREGS[dst]);
-    log_pc_update(sextVA(current_pc + imm));
+    DISASM_RD_JIMM("jal");
+    WRITE_RD(NPC);
+    WRITE_PC(PC + JIMM);
 }
 
-void lui(xreg dst, int64_t imm, const char* comm)
+void lui(xreg rd, int64_t u_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: lui x%d, 0x%016" PRIx64 "%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        XREGS[dst] = imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64, XREGS[dst], imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_UIMM("lui");
+    WRITE_RD(UIMM);
 }
 
-void auipc(xreg dst, int64_t imm, const char* comm)
+void auipc(xreg rd, int64_t u_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: auipc x%d, 0x%016" PRIx64 "%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        XREGS[dst] = current_pc + imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64, XREGS[dst], imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_UIMM("auipc");
+    WRITE_RD(PC + UIMM);
 }
 
-void addi(xreg dst, xreg src1, int64_t imm, const char* comm)
+void addi(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: addi x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = XREGS[src1] + imm;
-        if (dst == x2 && check_stack)
-        {
-           check_sp_out_of_range(val);
-        }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1], imm);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_IIMM("addi");
+    WRITE_RD(RS1 + IIMM);
 }
 
-void slli(xreg dst, xreg src1, unsigned imm, const char* comm)
+void slli(xreg rd, xreg rs1, unsigned shamt6, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: slli x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val1 = XREGS[src1];
-        XREGS[dst] = val1 << imm;
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst], val1, imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_SHAMT6("slli");
+    WRITE_RD(RS1 << SHAMT6);
 }
 
-void slti(xreg dst, xreg src1, int64_t imm, const char* comm)
+void slti(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: slti x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = (int64_t(XREGS[src1]) < imm) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1], imm);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_IIMM("slti");
+    WRITE_RD(int64_t(RS1) < IIMM);
 }
 
-void sltiu(xreg dst, xreg src1, int64_t imm, const char* comm)
+void sltiu(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sltiu x%d, x%d, %" PRIu64 "%s%s", dst, src1, uint64_t(imm), (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = (XREGS[src1] < uint64_t(imm)) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1], imm);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_IIMM("sltiu");
+    WRITE_RD(RS1 < uint64_t(IIMM));
 }
 
-void xori(xreg dst, xreg src1, int64_t imm, const char* comm)
+void xori(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: xori x%d, x%d, 0x%016" PRIx64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = XREGS[src1] ^ imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, val, XREGS[src1], imm);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_IIMM("xori");
+    WRITE_RD(RS1 ^ IIMM);
 }
 
-void srli(xreg dst, xreg src1, unsigned imm, const char* comm)
+void srli(xreg rd, xreg rs1, unsigned shamt6, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: srli x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val1 = XREGS[src1];
-        XREGS[dst] = val1 >> imm;
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst], val1, imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_SHAMT6("srli");
+    WRITE_RD(RS1 >> SHAMT6);
 }
 
-void srai(xreg dst, xreg src1, unsigned imm, const char* comm)
+void srai(xreg rd, xreg rs1, unsigned shamt6, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: srai x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int64_t val1 = int64_t(XREGS[src1]);
-        XREGS[dst] = val1 >> imm;
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst], val1, imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_SHAMT6("srai");
+    WRITE_RD(int64_t(RS1) >> SHAMT6);
 }
 
-void ori(xreg dst, xreg src1, int64_t imm, const char* comm)
+void ori(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: ori x%d, x%d, 0x%016" PRIx64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val1 = XREGS[src1];
-        XREGS[dst] = val1 | imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, XREGS[dst], val1, imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_IIMM("ori");
+    WRITE_RD(RS1 | IIMM);
 }
 
-void andi(xreg dst, xreg src1, int64_t imm, const char* comm)
+void andi(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: andi x%d, x%d, 0x%016" PRIx64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val1 = XREGS[src1];
-        XREGS[dst] = val1 & imm;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64, XREGS[dst], val1, imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_IIMM("andi");
+    WRITE_RD(RS1 & IIMM);
 }
 
-void add(xreg dst, xreg src1, xreg src2, const char* comm)
+void add(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: add x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = XREGS[src1] + XREGS[src2];
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("add");
+    WRITE_RD(RS1 + RS2);
 }
 
-void sub(xreg dst, xreg src1, xreg src2, const char* comm)
+void sub(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sub x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = XREGS[src1] - XREGS[src2];
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " - 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("sub");
+    WRITE_RD(RS1 - RS2);
 }
 
-void sll(xreg dst, xreg src1, xreg src2, const char* comm)
+void sll(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sll x%d, x%d, %d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val1 = XREGS[src1];
-        uint64_t val2 = XREGS[src2];
-        XREGS[dst] = val1 << (val2 & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " << %u", XREGS[dst], val1, unsigned(val2 & 0x3f));
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("sll");
+    WRITE_RD(RS1 << (RS2 % 64));
 }
 
-void slt(xreg dst, xreg src1, xreg src2, const char* comm)
+void slt(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: slt x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = (int64_t(XREGS[src1]) < int64_t(XREGS[src2])) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("slt");
+    WRITE_RD(int64_t(RS1) < int64_t(RS2));
 }
 
-void sltu(xreg dst, xreg src1, xreg src2, const char* comm)
+void sltu(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sltu x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = (XREGS[src1] < XREGS[src2]) ? 1 : 0;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " < 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("sltu");
+    WRITE_RD(RS1 < RS2);
 }
 
-void xor_(xreg dst, xreg src1, xreg src2, const char* comm)
+void xor_(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: xor x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = XREGS[src1] ^ XREGS[src2];
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("xor");
+    WRITE_RD(RS1 ^ RS2);
 }
 
-void srl(xreg dst, xreg src1, xreg src2, const char* comm)
+void srl(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: srl x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val1 = XREGS[src1];
-        uint64_t val2 = XREGS[src2];
-        XREGS[dst] = val1 >> (val2 & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst], val1, unsigned(val2 & 0x3f));
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("srl");
+    WRITE_RD(RS1 >> (RS2 % 64));
 }
 
-void sra(xreg dst, xreg src1, xreg src2, const char* comm)
+void sra(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sra x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int64_t val1 = int64_t(XREGS[src1]);
-        uint64_t val2 = XREGS[src2];
-        XREGS[dst] = val1 >> int(val2 & 0x3F);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%016" PRIx64 " >> %u", XREGS[dst], val1, unsigned(val2 & 0x3f));
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("sra");
+    WRITE_RD(int64_t(RS1) >> (RS2 % 64));
 }
 
-void or_(xreg dst, xreg src1, xreg src2, const char* comm)
+void or_(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: or x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = XREGS[src1] | XREGS[src2];
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " | 0x%016" PRIx64, val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("or");
+    WRITE_RD(RS1 | RS2);
 }
 
-void and_(xreg dst, xreg src1, xreg src2, const char* comm)
+void and_(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: and x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = XREGS[src1] & XREGS[src2];
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " & 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("and");
+    WRITE_RD(RS1 & RS2);
 }
 
-void addiw(xreg dst, xreg src1, int64_t imm, const char* comm)
+void addiw(xreg rd, xreg rs1, int64_t i_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: addiw x%d, x%d, %" PRId64 "%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = sext<32>(XREGS[src1] + imm);
-        if (dst == x2 && check_stack)
-        {
-           check_sp_out_of_range(val);
-        }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, uint32_t(XREGS[src1]), uint32_t(imm));
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_IIMM("addiw");
+    WRITE_RD(sext<32>(RS1 + IIMM));
 }
 
-void slliw(xreg dst, xreg src1, unsigned imm, const char* comm)
+void slliw(xreg rd, xreg rs1, unsigned shamt5, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: slliw x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint32_t val1 = uint32_t(XREGS[src1]);
-        XREGS[dst] = sext<32>(val1 << imm);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %u", XREGS[dst], val1, imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_SHAMT5("slliw");
+    WRITE_RD(sext<32>(RS1 << SHAMT5));
 }
 
-void srliw(xreg dst, xreg src1, unsigned imm, const char* comm)
+void srliw(xreg rd, xreg rs1, unsigned shamt5, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: srliw x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint32_t val1 = uint32_t(XREGS[src1]);
-        XREGS[dst] = sext<32>(val1 >> imm);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst], val1, imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_SHAMT5("srliw");
+    WRITE_RD(sext<32>(uint32_t(RS1) >> SHAMT5));
 }
 
-void sraiw(xreg dst, xreg src1, unsigned imm, const char* comm)
+void sraiw(xreg rd, xreg rs1, unsigned shamt5, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sraiw x%d, x%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int32_t val1 = int32_t(XREGS[src1]);
-        XREGS[dst] = sext<32>(val1 >> imm);
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %u", XREGS[dst], val1, imm);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_SHAMT5("sraiw");
+    WRITE_RD(sext<32>(int32_t(RS1) >> SHAMT5));
 }
 
-void addw(xreg dst, xreg src1, xreg src2, const char* comm)
+void addw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: addw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = sext<32>(XREGS[src1] + XREGS[src2]);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x + 0x%08x", val, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("addw");
+    WRITE_RD(sext<32>(RS1 + RS2));
 }
 
-void subw(xreg dst, xreg src1, xreg src2, const char* comm)
+void subw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: subw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = sext<32>(XREGS[src1] - XREGS[src2]);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x - 0x%08x", val, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("subw");
+    WRITE_RD(sext<32>(RS1 - RS2));
 }
 
-void sllw(xreg dst, xreg src1, xreg src2, const char* comm)
+void sllw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sllw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint32_t val1 = uint32_t(XREGS[src1]);
-        uint32_t val2 = uint32_t(XREGS[src2]);
-        XREGS[dst] = sext<32>(val1 << (val2 & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x << %d", XREGS[dst], val1, val2 & 0x1f);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("sllw");
+    WRITE_RD(sext<32>(RS1 << (RS2 % 32)));
 }
 
-void srlw(xreg dst, xreg src1, xreg src2, const char* comm)
+void srlw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: srlw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint32_t val1 = uint32_t(XREGS[src1]);
-        uint32_t val2 = uint32_t(XREGS[src2]);
-        XREGS[dst] = sext<32>(val1 >> (val2 & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst], val1, val2 & 0x1f);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("srlw");
+    WRITE_RD(sext<32>(uint32_t(RS1) >> (RS2 % 32)));
 }
 
-void sraw(xreg dst, xreg src1, xreg src2, const char* comm)
+void sraw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sraw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int32_t val1 = int32_t(XREGS[src1]);
-        uint64_t val2 = XREGS[src2];
-        XREGS[dst] = sext<32>(val1 >> int(val2 & 0x1F));
-        LOG(DEBUG, "\t 0x%016" PRIx64 " <-- 0x%08x >> %d", XREGS[dst], val1, int(val2 & 0x1F));
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("sraw");
+    WRITE_RD(sext<32>(int32_t(RS1) >> (RS2 % 32)));
 }
 
 void lb(xreg dst, xreg base, int64_t off, const char* comm)
@@ -2212,9 +1763,7 @@ void fence(const char* comm)
 void fence_i(const char* comm)
 {
     LOG(DEBUG, "I: fence_i%s%s", (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
+    throw trap_mcode_instruction(current_inst);
     // NB: placeholder for flushing any cached decoding results we may have
     // to synchronize when fence_i() is executed
     // flush_insn_cache();
@@ -2226,219 +1775,137 @@ void fence_i(const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void mul(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline int64_t mulh(int64_t a, int64_t b)
 {
-    LOG(DEBUG, "I: mul x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = XREGS[src1] * XREGS[src2];
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (__int128_t(a) * __int128_t(b)) >> 64;
 }
 
-void mulh(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline uint64_t mulhu(uint64_t a, uint64_t b)
 {
-    LOG(DEBUG, "I: mulh x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        __int128_t val1 = int64_t(XREGS[src1]);
-        __int128_t val2 = int64_t(XREGS[src2]);
-        __int128_t val3 = val1 * val2;
-        int64_t val = val3 >> 64;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 "s", val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (__uint128_t(a) * __uint128_t(b)) >> 64;
 }
 
-void mulhsu(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline int64_t mulhsu(int64_t a, uint64_t b)
 {
-    LOG(DEBUG, "I: mulhsu x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        __int128_t  val1 = int64_t(XREGS[src1]);
-        __uint128_t val2 = XREGS[src2];
-        __int128_t  val3 = val1 * val2;
-        uint64_t val = val3 >> 64;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (__int128_t(a) * __uint128_t(b)) >> 64;
 }
 
-void mulhu(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline int64_t idiv(int64_t a, int64_t b)
 {
-    LOG(DEBUG, "I: mulhu x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        __uint128_t val1 = XREGS[src1];
-        __uint128_t val2 = XREGS[src2];
-        __uint128_t val3 = val1 * val2;
-        uint64_t val = val3 >> 64;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " * 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (b == 0) ? UINT64_MAX : ((a == INT64_MIN && b == -1LL) ? a : (a / b));
 }
 
-void div_(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline uint64_t udiv(uint64_t a, uint64_t b)
 {
-    LOG(DEBUG, "I: div x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int64_t val;
-        if (XREGS[src2] == 0)
-        {
-            val = -1;
-        }
-        else if ((int64_t(XREGS[src2]) == -1) && (XREGS[src1] == 0x8000000000000000ULL))
-        {
-            val = int64_t(XREGS[src1]); // Divide is out of range, return src1
-        }
-        else
-        {
-            val = int64_t(XREGS[src1]) / int64_t(XREGS[src2]);
-        }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " / 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = uint64_t(val);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (b == 0) ? UINT64_MAX : (a / b);
 }
 
-void divu(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline int64_t idivw(int64_t a, int64_t b)
 {
-    LOG(DEBUG, "I: divu x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val;
-        if (XREGS[src2] == 0)
-            val = 0xFFFFFFFFFFFFFFFFULL;
-        else
-            val = XREGS[src1] / XREGS[src2];
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " / 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (b == 0) ? UINT64_MAX : sext<32>(a / b);
 }
 
-void rem(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline uint64_t udivw(uint64_t a, uint64_t b)
 {
-    LOG(DEBUG, "I: rem x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int64_t val;
-        if (XREGS[src2] == 0)
-            val = int64_t(XREGS[src1]);
-        else if ((int64_t(XREGS[src2]) == -1) && (XREGS[src1] == 0x8000000000000000ULL))
-            val = 0; // Divide is out of range, return 0
-        else
-            val = int64_t(XREGS[src1]) % int64_t(XREGS[src2]);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " %% 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = uint64_t(val);
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (b == 0) ? UINT64_MAX : sext<32>(a / b);
 }
 
-void remu(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline int64_t irem(int64_t a, int64_t b)
 {
-    LOG(DEBUG, "I: remu x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val;
-        if (XREGS[src2] == 0)
-            val = XREGS[src1];
-        else
-            val = XREGS[src1] % XREGS[src2];
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " %% 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (b == 0) ? a : ((a == INT64_MIN && b == -1LL) ? 0 : (a % b));
 }
 
-void mulw(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline uint64_t urem(uint64_t a, uint64_t b)
 {
-    LOG(DEBUG, "I: mulw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = sext<32>(XREGS[src1] * XREGS[src2]);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x * 0x%08x", val, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (b == 0) ? a : (a % b);
 }
 
-void divw(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline int64_t iremw(int64_t a, int64_t b)
 {
-    LOG(DEBUG, "I: divw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int32_t val;
-        if (uint32_t(XREGS[src2]) == 0)
-            val = -1;
-        else if ((int32_t(XREGS[src2]) == -1) && (uint32_t(XREGS[src1]) == 0x80000000))
-            val = int32_t(XREGS[src1]); // Divide is out of range, return src1
-        else
-            val = int32_t(XREGS[src1]) / int32_t(XREGS[src2]);
-        uint64_t val64 = sext<32>(val);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
-        XREGS[dst] = val64;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (b == 0) ? a : sext<32>(a % b);
 }
 
-void divuw(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline uint64_t uremw(uint64_t a, uint64_t b)
 {
-    LOG(DEBUG, "I: divuw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int32_t val;
-        if (uint32_t(XREGS[src2]) == 0)
-            val = -1;
-        else
-            val = uint32_t(XREGS[src1]) / uint32_t(XREGS[src2]);
-        uint64_t val64 = sext<32>(val);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x / 0x%08x", val64, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
-        XREGS[dst] = val64;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    return (b == 0) ? sext<32>(a) : sext<32>(a % b);
 }
 
-void remw(xreg dst, xreg src1, xreg src2, const char* comm)
+void mul(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: remw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        int32_t val;
-        if (uint32_t(XREGS[src2]) == 0)
-            val = int32_t(XREGS[src1]); // Divide by 0
-        else if ((int32_t(XREGS[src2]) == -1) && (uint32_t(XREGS[src1]) == 0x80000000))
-            val = 0;                 // Divide is out of range, return 0
-        else
-            val = int32_t(XREGS[src1]) % int32_t(XREGS[src2]);
-        uint64_t val64 = sext<32>(val);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
-        XREGS[dst] = val64;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("mul");
+    WRITE_RD(RS1 * RS2);
 }
 
-void remuw(xreg dst, xreg src1, xreg src2, const char* comm)
+void mulh(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: remuw x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint32_t val;
-        if (uint32_t(XREGS[src2]) == 0)
-            val = uint32_t(XREGS[src1]);
-        else
-            val = uint32_t(XREGS[src1]) % uint32_t(XREGS[src2]);
-        uint64_t val64 = sext<32>(val);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x %% 0x%08x", val64, uint32_t(XREGS[src1]), uint32_t(XREGS[src2]));
-        XREGS[dst] = val64;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("mulh");
+    WRITE_RD(mulh(RS1, RS2));
+}
+
+void mulhsu(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("mulhsu");
+    WRITE_RD(mulhsu(RS1, RS2));
+}
+
+void mulhu(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("mulhu");
+    WRITE_RD(mulhu(RS1, RS2));
+}
+
+void div_(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("div");
+    WRITE_RD(idiv(RS1, RS2));
+}
+
+void divu(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("divu");
+    WRITE_RD(udiv(RS1, RS2));
+}
+
+void rem(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("rem");
+    WRITE_RD(irem(RS1, RS2));
+}
+
+void remu(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("remu");
+    WRITE_RD(urem(RS1, RS2));
+}
+
+void mulw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("mulw");
+    WRITE_RD(sext<32>(RS1 * RS2));
+}
+
+void divw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("divw");
+    WRITE_RD(idivw(sext<32>(RS1), sext<32>(RS2)));
+}
+
+void divuw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("divuw");
+    WRITE_RD(udivw(uint32_t(RS1), uint32_t(RS2)));
+}
+
+void remw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("remw");
+    WRITE_RD(iremw(sext<32>(RS1), sext<32>(RS2)));
+}
+
+void remuw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("remuw");
+    WRITE_RD(uremw(uint32_t(RS1), uint32_t(RS2)));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3815,12 +3282,10 @@ void wfi(const char* comm)
     LOG(DEBUG, "I: wfi%s%s", (comm?" # ":""), (comm?comm:""));
 }
 
-// TODO
 void sfence_vma(xreg src1, xreg src2, const char* comm)
 {
     LOG(DEBUG, "I: sfence_vma x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
+    throw trap_mcode_instruction(current_inst);
 }
 
 void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm)
@@ -3951,623 +3416,190 @@ static void femust(freg src1, uint64_t vaddr)
     }
 }
 
-static void femucvtf2x(opcode opc, xreg dst, freg src1, rounding_mode rm)
+void fadd_s(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    iufval32 val;
-    u32_i32_u64_i64 res;
-
+    require_fp_active();
+    DISASM_FD_FS1_FS2_RM("fadd.s");
     set_rounding_mode(rm);
-    val.u = FREGS[src1].u32[0];
-    switch (opc)
-    {
-        case FCVTWS:
-            res.i = fpu::f32_to_i32(val.f);
-            LOG(DEBUG, "\t0x%08x (%d) <-- 0x%08x (%g)", res.u, res.i, val.u, val.flt);
-            break;
-        case FCVTWUS:
-            res.u = fpu::f32_to_ui32(val.f);
-            LOG(DEBUG, "\t0x%08x (%u) <-- 0x%08x (%g)", res.u, res.u, val.u, val.flt);
-            break;
-        case FCVTLS:
-            res.l = fpu::f32_to_i64(val.f);
-            LOG(DEBUG, "\t0x%08x (%d) <-- 0x%08x (%g)", res.u, res.i, val.u, val.flt);
-            break;
-        case FCVTLUS:
-            res.lu = fpu::f32_to_ui64(val.f);
-            LOG(DEBUG, "\t0x%08x (%u) <-- 0x%08x (%g)", res.u, res.u, val.u, val.flt);
-            break;
-        default:
-            assert(0);
-            break;
-    }
+    WRITE_FD( fpu::f32_add(FS1.f32[0], FS2.f32[0]) );
     set_fp_exceptions();
-    if (dst != x0)
-        XREGS[dst] = sext<32>(res.u);
-    log_xreg_write(dst, XREGS[dst]);
 }
 
-static void femucvtx2f(opcode opc, freg dst, xreg src1, rounding_mode rm)
+void fsub_s(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    iufval32 res;
-    u32_i32_u64_i64 val;
-
+    require_fp_active();
+    DISASM_FD_FS1_FS2_RM("fsub.s");
     set_rounding_mode(rm);
-
-    switch (opc)
-    {
-        case FCVTSW:
-            val.u = uint32_t(XREGS[src1]);
-            res.f = fpu::i32_to_f32(val.i);
-            LOG(DEBUG, "\t0x%08x (%g) <-- 0x%08x (%d)", res.u, res.flt, val.u, val.i);
-            break;
-        case FCVTSWU:
-            val.u = uint32_t(XREGS[src1]);
-            res.f = fpu::ui32_to_f32(val.u);
-            LOG(DEBUG, "\t0x%08x (%g) <-- 0x%08x (%u)", res.u, res.flt, val.u, val.u);
-            break;
-        case FCVTSL:
-            val.lu = XREGS[src1];
-            res.f = fpu::i64_to_f32(val.l);
-            LOG(DEBUG, "\t0x%08x (%g) <-- 0x%016" PRIx64 " (%" PRId64 ")", res.u, res.flt, val.lu, val.l);
-            break;
-        case FCVTSLU:
-            val.lu = XREGS[src1];
-            res.f = fpu::ui64_to_f32(val.lu);
-            LOG(DEBUG, "\t0x%08x (%g) <-- 0x%016" PRIx64 " (%" PRIu64 ")", res.u, res.flt, val.lu, val.lu);
-            break;
-        default:
-            assert(0);
-            break;
-    }
-    FREGS[dst].u32[0] = res.u;
-    ZERO_UNUSED_FREG_BITS(dst, 1);
+    WRITE_FD( fpu::f32_sub(FS1.f32[0], FS2.f32[0]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-static void femu1src(opcode opc, int count, freg dst, freg src1, rounding_mode rm)
+void fmul_s(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    assert(unsigned(count) <= VL);
-
+    require_fp_active();
+    DISASM_FD_FS1_FS2_RM("fmul.s");
     set_rounding_mode(rm);
-
-    for (int i = 0; i < count; ++i)
-    {
-        if (count == VL && !MREGS[0][i]) continue;
-
-        iufval32 val, res;
-        val.u = FREGS[src1].u32[i];
-        switch (opc)
-        {
-            case FSQRT:
-                {
-                    res.f = fpu::f32_sqrt(val.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-                }
-                break;
-            case FRSQ:
-                {
-                    iufval32 res_gold;
-                    res_gold.flt = gold_frsq(val.flt);
-                    res.f = fpu::f32_rsqrt(val.f);
-                    // security ulp check
-                    if (security_ulp_check(res_gold.u,res.u))
-                    {
-                        LOG(DEBUG, "RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", val.u, res.u, res_gold.u);
-                        LOG(DEBUG, "WARNING. Don't panic. Trans mismatch error for operation RSQ with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u);
-                    }
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-                }
-                break;
-            case FSIN:
-                {
-                    iufval32 res_gold;
-                    res_gold.flt = gold_fsin(val.flt);
-                    res.f = fpu::f32_sin2pi(val.f);
-                    // security ulp check
-
-                    LOG(DEBUG, "SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", val.u, res.u, res_gold.u);
-                    if (security_ulp_check(res_gold.u,res.u))
-                    {
-                        LOG(DEBUG, "SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", val.u, res.u, res_gold.u);
-                        LOG(DEBUG, "WARNING. Don't panic. Trans mismatch error for operation FSIN with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u);
-                    }
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-                }
-                break;
-            case FEXP:
-                {
-                    iufval32 res_gold;
-                    res_gold.flt = gold_fexp(val.flt);
-                    res.f = fpu::f32_exp2(val.f);
-                    // security ulp check
-                    if (security_ulp_check(res_gold.u,res.u))
-                    {
-                        LOG(DEBUG, "EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", val.u, res.u, res_gold.u);
-                        LOG(DEBUG, "WARNING. Don't panic. Trans mismatch error for operation FEXP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u);
-                    }
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-                }
-                break;
-            case FLOG:
-                {
-                    iufval32 res_gold;
-                    res_gold.flt = gold_flog(val.flt);
-                    res.f = fpu::f32_log2(val.f);
-                    // security ulp check
-                    if (security_ulp_check(res_gold.u,res.u))
-                    {
-                        LOG(DEBUG, "LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", val.u, res.u, res_gold.u);
-                        LOG(DEBUG, "WARNING. Don't panic. Trans mismatch error for operation FLOG with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u);
-                    }
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-                }
-                break;
-            case FRCP:
-                {
-                    iufval32 res_gold;
-                    res_gold.flt = gold_frcp(val.flt);
-                    res.f = fpu::f32_rcp(val.f);
-                    // security ulp check
-                    if (security_ulp_check(res_gold.u,res.u))
-                    {
-                        LOG(DEBUG, "RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", val.u, res.u, res_gold.u);
-                        LOG(DEBUG, "WARNING. Don't panic. Trans mismatch error for operation FRCP with input: 0x%08X. This might happen, report to jordi.sola@esperantotech.com if needed.", val.u);
-                    }
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-                }
-                break;
-            case FCVTPSPW:
-                {
-                    res.f = fpu::i32_to_f32(val.i);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%d)", i, res.u, res.flt, val.u, val.i);
-                }
-                break;
-            case FCVTPSRAST:
-                {
-                    res.f = fpu::fxp1516_to_f32(val.i);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%d)", i, res.u, res.flt, val.u, val.i);
-                }
-                break;
-            case FCVTRASTPS:
-                {
-                    res.i = fpu::f32_to_fxp1714(val.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%d) <-- 0x%08x (%g)", i, res.u, res.i, val.u, val.flt);
-                }
-                break;
-            case FCVTPSPWU:
-                {
-                    res.f = fpu::ui32_to_f32(val.u);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%u)", i, res.u, res.flt, val.u, val.u);
-                }
-                break;
-            case FCVTPWPS:
-                {
-                    res.i = fpu::f32_to_i32(val.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%d) <-- 0x%08x (%g)", i, res.u, res.i, val.u, val.flt);
-                }
-                break;
-            case FCVTPWUPS:
-                {
-                    res.u = fpu::f32_to_ui32(val.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%u) <-- 0x%08x (%g)", i, res.u, res.u, val.u, val.flt);
-                }
-                break;
-            case FFRC:
-                {
-                    res.f = fpu::f32_frac(val.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-                }
-                break;
-            default:
-                assert(0);
-                break;
-        }
-        FREGS[dst].u32[i] = res.u;
-    }
-    ZERO_UNUSED_FREG_BITS(dst, count);
+    WRITE_FD( fpu::f32_mul(FS1.f32[0], FS2.f32[0]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-static void femu2src(opcode opc, int count, freg dst, freg src1, freg src2, rounding_mode rm)
+void fdiv_s(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    assert(unsigned(count) <= VL);
+    LOG(DEBUG, "I: fdiv.s f%d,f%d,f%d,%s", fd, fs1, fs2, get_rounding_mode(rm));
+    throw trap_mcode_instruction(current_inst);
+}
 
+void fsgnj_s(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fsgnj.s");
+    WRITE_FD( fpu::f32_copySign(FS1.f32[0], FS2.f32[0]) );
+}
+
+void fsgnjn_s(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fsgnjn.s");
+    WRITE_FD( fpu::f32_copySignNot(FS1.f32[0], FS2.f32[0]) );
+}
+
+void fsgnjx_s(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fsgnjx.s");
+    WRITE_FD( fpu::f32_copySignXor(FS1.f32[0], FS2.f32[0]) );
+}
+
+void fmin_s(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fmin.s");
+    WRITE_FD( fpu::f32_minimumNumber(FS1.f32[0], FS2.f32[0]) );
+    set_fp_exceptions();
+}
+
+void fmax_s(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fmax.s");
+    WRITE_FD( fpu::f32_maximumNumber(FS1.f32[0], FS2.f32[0]) );
+    set_fp_exceptions();
+}
+
+void fsqrt_s(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
+{
+    LOG(DEBUG, "I: fsqrt.s f%d,f%d,%s", fd, fs1, get_rounding_mode(rm));
+    throw trap_mcode_instruction(current_inst);
+}
+
+void feq_s(xreg rd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_RD_FS1_FS2("feq.s");
+    bool tmp = fpu::f32_eq(FS1.f32[0], FS2.f32[0]);
+    WRITE_RD(tmp);
+    set_fp_exceptions();
+}
+
+void fle_s(xreg rd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_RD_FS1_FS2("fle.s");
+    bool tmp = fpu::f32_le(FS1.f32[0], FS2.f32[0]);
+    WRITE_RD(tmp);
+    set_fp_exceptions();
+}
+
+void flt_s(xreg rd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_RD_FS1_FS2("flt.s");
+    bool tmp = fpu::f32_lt(FS1.f32[0], FS2.f32[0]);
+    WRITE_RD(tmp);
+    set_fp_exceptions();
+}
+
+void fcvt_w_s(xreg rd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_RD_FS1_RM("fcvt.w.s");
     set_rounding_mode(rm);
-
-    for (int i = 0; i < count; i++)
-    {
-        if (count == VL && !MREGS[0][i]) continue;
-
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = (src2 != fnone) ? FREGS[src2].u32[i] : 0;
-        switch (opc)
-        {
-            case FADD:
-                {
-                    res.f = fpu::f32_add(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g) + 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FSUB:
-                {
-                    res.f = fpu::f32_sub(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g) - 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FMUL:
-                {
-                    res.f = fpu::f32_mul(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FDIV:
-                {
-                    res.f = fpu::f32_div(val1.f, val2.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g) / 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-                }
-                break;
-            case FRCP_FIX_RAST:
-                {
-                    res.i = fpu::fxp1714_rcpStep(val1.i, val2.i);
-
-                    LOG(DEBUG, "\t[%d] 0x%08x (%d) <-- 0x%08x (%d), 0x%08x (%d)", i, res.u, res.i, val1.u, val1.i, val2.u, val2.i);
-
-                    //Check 1ulp
-                    iufval32 res_gold;
-                    res_gold.i = gold_frcp_fix_rast(val1.i, val2.i);
-                    if (abs(res.i - res_gold.i) > 1)
-                    {
-                        LOG(DEBUG, "\t\tEXPECTED: 0x%08x (%g) RESULT: 0x%08x (%g)", res_gold.u, res_gold.flt, res.u, res.flt);
-                        assert(0 && "Trans mismatch error. Please open jira to jordi.sola@esperantotech.com.");
-                    }
-                }
-                break;
-            default:
-                assert(0);
-                break;
-        }
-        FREGS[dst].u32[i] = res.u;
-    }
-    ZERO_UNUSED_FREG_BITS(dst, count);
+    int32_t tmp = fpu::f32_to_i32(FS1.f32[0]);
+    WRITE_RD(sext<32>(tmp));
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-static void femu3src(opcode opc, int count, freg dst, freg src1, freg src2, freg src3, rounding_mode rm)
+void fcvt_wu_s(xreg rd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    assert(unsigned(count) <= VL);
-
+    require_fp_active();
+    DISASM_RD_FS1_RM("fcvt.wu.s");
     set_rounding_mode(rm);
-
-    for (int i = 0; i < count; i++)
-    {
-        if (count == VL && !MREGS[0][i]) continue;
-
-        iufval32 val1, val2, val3, res;
-
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        val3.u = FREGS[src3].u32[i];
-        switch (opc)
-        {
-            case FMADD:
-                {
-                    res.f = fpu::f32_mulAdd(val1.f, val2.f, val3.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g) + 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt, val3.u, val3.flt);
-                }
-                break;
-            case FNMADD:
-                {
-                    res.f = fpu::f32_negMulAdd(val1.f, val2.f, val3.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) + 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt, val3.u, val3.flt);
-                }
-                break;
-            case FMSUB:
-                {
-                    res.f = fpu::f32_mulSub(val1.f, val2.f, val3.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt, val3.u, val3.flt);
-                }
-                break;
-            case FNMSUB:
-                {
-                    res.f = fpu::f32_negMulSub(val1.f, val2.f, val3.f);
-                    LOG(DEBUG, "\t[%d] 0x%08x (%g) <-- -(0x%08x (%g) * 0x%08x (%g) - 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt, val3.u, val3.flt);
-                }
-                break;
-            default:
-                assert(0);
-                break;
-        }
-        FREGS[dst].u32[i] = res.u;
-    }
-    ZERO_UNUSED_FREG_BITS(dst, count);
+    uint32_t tmp = fpu::f32_to_ui32(FS1.f32[0]);
+    WRITE_RD(sext<32>(tmp));
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-static void femucmp(opcode opc, xreg dst, freg src1, freg src2)
+void fcvt_l_s(xreg rd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    iufval32 val1, val2, res;
+    LOG(DEBUG, "I: fcvt.l.s x%d,f%d,%s", rd, fs1, get_rounding_mode(rm));
+    throw trap_mcode_instruction(current_inst);
+}
 
-    val1.u = FREGS[src1].u32[0];
-    val2.u = FREGS[src2].u32[0];
-    switch (opc)
-    {
-        case FLT:
-            res.u = fpu::f32_lt(val1.f, val2.f) ? 1 : 0;
-            LOG(DEBUG, "\t0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?", res.u, val1.u, val1.flt, val2.u, val2.flt);
-            break;
-        case FLE:
-            res.u = fpu::f32_le(val1.f, val2.f) ? 1 : 0;
-            LOG(DEBUG, "\t0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?", res.u, val1.u, val1.flt, val2.u, val2.flt);
-            break;
-        case FEQ:
-            res.u = fpu::f32_eq(val1.f, val2.f) ? 1 : 0;
-            LOG(DEBUG, "\t0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", res.u, val1.u, val1.flt, val2.u, val2.flt);
-            break;
-        default:
-            assert(0);
-            break;
-    }
+void fcvt_lu_s(xreg rd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
+{
+    LOG(DEBUG, "I: fcvt.lu.s x%d,f%d,%s", rd, fs1, get_rounding_mode(rm));
+    throw trap_mcode_instruction(current_inst);
+}
+
+void fmv_x_w(xreg rd, freg fs1, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_RD_FS1("fmv.x.w");
+    WRITE_RD(sext<32>(FS1.u32[0]));
+}
+
+void fclass_s(xreg rd, freg fs1, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_RD_FS1("fclass.s");
+    WRITE_RD(sext<32>(fpu::f32_classify(FS1.f32[0])));
+}
+
+void fcvt_s_w(freg fd, xreg rs1, rounding_mode rm, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_RS1_RM("fcvt.s.w");
+    set_rounding_mode(rm);
+    WRITE_FD( fpu::i32_to_f32(RS1) );
     set_fp_exceptions();
-    if (dst != x0)
-        XREGS[dst] = sext<32>(res.u);
-    log_xreg_write(dst, XREGS[dst]);
 }
 
-void fadd_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
+void fcvt_s_wu(freg fd, xreg rs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fadd.s f%d, f%d, f%d, %s%s%s", dst, src1, src2, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu2src(FADD, 1, dst, src1, src2, rm);
-}
-
-void fsub_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fsub.s f%d, f%d, f%d, %s%s%s", dst, src1, src2, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    femu2src(FSUB, 1, dst, src1, src2, rm);
-}
-
-void fmul_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fmul.s f%d, f%d, f%d, %s%s%s", dst, src1, src2, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    femu2src(FMUL, 1, dst, src1, src2, rm);
-}
-
-void fdiv_s(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fdiv.s f%d, f%d, f%d, %s%s%s", dst, src1, src2, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    femu2src(FDIV, 1, dst, src1, src2, rm);
-}
-
-void fsgnj_s(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fsgnj.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u32[0];
-    val2.u = FREGS[src2].u32[0];
-    res.f = fpu::f32_copySign(val1.f, val2.f);
-    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u32[0] = res.u;
-    ZERO_UNUSED_FREG_BITS(dst, 1);
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void fsgnjn_s(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fsgnjn.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u32[0];
-    val2.u = FREGS[src2].u32[0];
-    res.f = fpu::f32_copySignNot(val1.f, val2.f);
-    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u32[0] = res.u;
-    ZERO_UNUSED_FREG_BITS(dst, 1);
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void fsgnjx_s(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fsgnjx.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u32[0];
-    val2.u = FREGS[src2].u32[0];
-    res.f = fpu::f32_copySignXor(val1.f, val2.f);
-    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u32[0] = res.u;
-    ZERO_UNUSED_FREG_BITS(dst, 1);
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void fmin_s(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fmin.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u32[0];
-    val2.u = FREGS[src2].u32[0];
-    res.f = fpu::f32_minimumNumber(val1.f, val2.f);
-    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u32[0] = res.u;
-    ZERO_UNUSED_FREG_BITS(dst, 1);
+    DISASM_FD_RS1_RM("fcvt.s.wu");
+    set_rounding_mode(rm);
+    WRITE_FD( fpu::ui32_to_f32(RS1) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void fmax_s(freg dst, freg src1, freg src2, const char* comm)
+void fcvt_s_l(freg fd, xreg rs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmax.s f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    iufval32 val1, val2, res;
-    val1.u = FREGS[src1].u32[0];
-    val2.u = FREGS[src2].u32[0];
-    res.f = fpu::f32_maximumNumber(val1.f, val2.f);
-    LOG(DEBUG, "\t[0] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-    FREGS[dst].u32[0] = res.u;
-    ZERO_UNUSED_FREG_BITS(dst, 1);
-    set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    LOG(DEBUG, "I: fcvt.s.l f%d,x%d,%s", fd, rs1, get_rounding_mode(rm));
+    throw trap_mcode_instruction(current_inst);
 }
 
-void fsqrt_s(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_s_lu(freg fd, xreg rs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsqrt.s f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    femu1src(FSQRT, 1, dst, src1, rm);
+    LOG(DEBUG, "I: fcvt.s.lu f%d,x%d,%s", fd, rs1, get_rounding_mode(rm));
+    throw trap_mcode_instruction(current_inst);
 }
 
-void feq_s(xreg dst, freg src1, freg src2, const char* comm)
+void fmv_w_x(freg fd, xreg rs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: feq.s x%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femucmp(FEQ, dst, src1, src2);
-}
-
-void fle_s(xreg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fle.s x%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    femucmp(FLE, dst, src1, src2);
-}
-
-void flt_s(xreg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: flt.s x%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    femucmp(FLT, dst, src1, src2);
-}
-
-void fcvt_w_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.w.s x%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    femucvtf2x(FCVTWS, dst, src1, rm);
-}
-
-void fcvt_wu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.wu.s x%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    femucvtf2x(FCVTWUS, dst, src1, rm);
-}
-
-void fcvt_l_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.l.s x%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    femucvtf2x(FCVTLS, dst, src1, rm);
-}
-
-void fcvt_lu_s(xreg dst, freg src1, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.lu.s x%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    femucvtf2x(FCVTLUS, dst, src1, rm);
-}
-
-void fmv_x_w(xreg dst, freg src1, const char* comm)
-{
-    LOG(DEBUG, "I: fmv.x.w x%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    if (dst != x0)
-    {
-        XREGS[dst] = sext<32>(FREGS[src1].u32[0]);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%08x (%g)", XREGS[dst], FREGS[src1].u32[0], cast_uint32_to_float(FREGS[src1].u32[0]));
-    }
-    log_xreg_write(dst, XREGS[dst]);
-}
-
-void fclass_s(xreg dst, freg src1, const char* comm)
-{
-    LOG(DEBUG, "I: fclass.s x%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    iufval32 val, res;
-    val.u = FREGS[src1].u32[0];
-    res.u = fpu::f32_classify(val.f);
-    if (dst != x0)
-    {
-        XREGS[dst] = sext<32>(res.u);
-        LOG(DEBUG, "\t0x%08x <-- 0x%08x (%g)", res.u, val.u, val.flt);
-    }
-    log_xreg_write(dst, XREGS[dst]);
-}
-
-void fcvt_s_w(freg dst, xreg src1, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.s.w f%d, x%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    femucvtx2f(FCVTSW, dst, src1, rm);
-}
-
-void fcvt_s_wu(freg dst, xreg src1, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.s.wu f%d, x%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    femucvtx2f(FCVTSWU, dst, src1, rm);
-}
-
-void fcvt_s_l(freg dst, xreg src1, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.s.l f%d, x%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    femucvtx2f(FCVTSL, dst, src1, rm);
-}
-
-void fcvt_s_lu(freg dst, xreg src1, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.s.lu f%d, x%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    femucvtx2f(FCVTSLU, dst, src1, rm);
-}
-
-void fmv_w_x(freg dst, xreg src1, const char* comm)
-{
-    LOG(DEBUG, "I: fmv.w.x f%d, x%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    iufval32 val, res;
-    val.u = uint32_t(XREGS[src1]);
-    res.u = val.u;
-    FREGS[dst].u32[0] = res.u;
-    LOG(DEBUG, "\t0x%08x (%g) <-- 0x%08x", res.u, res.flt, val.u);
-    ZERO_UNUSED_FREG_BITS(dst, 1);
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_FD_RS1("fmv.w.x");
+    WRITE_FD( uint32_t(RS1) );
 }
 
 void flw(freg dst, xreg base, int64_t off, const char* comm)
@@ -4586,32 +3618,40 @@ void fsw(freg src1, xreg base, int64_t off, const char* comm)
     femust<1,false>(src1, addr);
 }
 
-void fmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
+void fmadd_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmadd.s f%d, f%d, f%d, f%d, %s%s%s", dst, src1, src2, src3, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu3src(FMADD, 1, dst, src1, src2, src3, rm);
+    DISASM_FD_FS1_FS2_RM("fmadd.s");
+    set_rounding_mode(rm);
+    WRITE_FD( fpu::f32_mulAdd(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
+    set_fp_exceptions();
 }
 
-void fmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
+void fmsub_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmsub.s f%d, f%d, f%d, f%d, %s%s%s", dst, src1, src2, src3, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu3src(FMSUB, 1, dst, src1, src2, src3, rm);
+    DISASM_FD_FS1_FS2_RM("fmsub.s");
+    set_rounding_mode(rm);
+    WRITE_FD( fpu::f32_mulSub(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
+    set_fp_exceptions();
 }
 
-void fnmsub_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
+void fnmsub_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fnmsub.s f%d, f%d, f%d, f%d, %s%s%s", dst, src1, src2, src3, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu3src(FNMSUB, 1, dst, src1, src2, src3, rm);
+    DISASM_FD_FS1_FS2_RM("fnmsub.s");
+    set_rounding_mode(rm);
+    WRITE_FD( fpu::f32_negMulSub(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
+    set_fp_exceptions();
 }
 
-void fnmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
+void fnmadd_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fnmadd.s f%d, f%d, f%d, f%d, %s%s%s", dst, src1, src2, src3, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    femu3src(FNMADD, 1, dst, src1, src2, src3, rm);
+    DISASM_FD_FS1_FS2_RM("fnmadd.s");
+    set_rounding_mode(rm);
+    WRITE_FD( fpu::f32_negMulAdd(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
+    set_fp_exceptions();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4620,140 +3660,96 @@ void fnmadd_s(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static void maskop(opcode opc, mreg dst, mreg src1, mreg src2)
+static inline size_t popcount1(const mreg_t& m)
 {
-    std::bitset<VL> m1 = MREGS[src1];
-    std::bitset<VL> m2 = (src2 == mnone) ? 0 : MREGS[src2];
-    switch (opc)
-    {
-        case MAND:
-            MREGS[dst] = m1 & m2;
-            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx & 0x%02lx", MREGS[dst].to_ulong(), m1.to_ulong(), m2.to_ulong());
-            break;
-        case MOR:
-            MREGS[dst] = m1 | m2;
-            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx | 0x%02lx", MREGS[dst].to_ulong(), m1.to_ulong(), m2.to_ulong());
-            break;
-        case MXOR:
-            MREGS[dst] = m1 ^ m2;
-            LOG(DEBUG, "\t0x%02lx <-- 0x%02lx ^ 0x%02lx", MREGS[dst].to_ulong(), m1.to_ulong(), m2.to_ulong());
-            break;
-        case MNOT:
-            MREGS[dst] = ~m1;
-            LOG(DEBUG, "\t0x%02lx <-- ~0x%02lx", MREGS[dst].to_ulong(), m1.to_ulong());
-            break;
-        default:
-            assert(0);
-            break;
+    return m.count();
+}
+
+static inline size_t popcount0(const mreg_t& m)
+{
+    return MLEN - m.count();
+}
+
+void maskand(mreg md, mreg ms1, mreg ms2, const char* comm __attribute__((unused)))
+{
+    DISASM_MD_MS1_MS2("maskand");
+    WRITE_MD(MS1 & MS2);
+}
+
+void maskor(mreg md, mreg ms1, mreg ms2, const char* comm __attribute__((unused)))
+{
+    DISASM_MD_MS1_MS2("maskor");
+    WRITE_MD(MS1 | MS2);
+}
+
+void maskxor(mreg md, mreg ms1, mreg ms2, const char* comm __attribute__((unused)))
+{
+    DISASM_MD_MS1_MS2("maskxor");
+    WRITE_MD(MS1 ^ MS2);
+}
+
+void masknot(mreg md, mreg ms1, const char* comm __attribute__((unused)))
+{
+    DISASM_MD_MS1("masknot");
+    WRITE_MD(~MS1);
+}
+
+void mova_x_m(xreg rd, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_ALLMASK("mova.x.m");
+    WRITE_RD((MREGS[0].to_ullong() << (0*MLEN)) +
+             (MREGS[1].to_ullong() << (1*MLEN)) +
+             (MREGS[2].to_ullong() << (2*MLEN)) +
+             (MREGS[3].to_ullong() << (3*MLEN)) +
+             (MREGS[4].to_ullong() << (4*MLEN)) +
+             (MREGS[5].to_ullong() << (5*MLEN)) +
+             (MREGS[6].to_ullong() << (6*MLEN)) +
+             (MREGS[7].to_ullong() << (7*MLEN)));
+}
+
+void mova_m_x(xreg rs1, const char* comm __attribute__((unused)))
+{
+    DISASM_RS1("mova.m.x");
+    uint64_t tmp = RS1;
+    WRITE_MREG(0, tmp >> (0*MLEN));
+    WRITE_MREG(1, tmp >> (1*MLEN));
+    WRITE_MREG(2, tmp >> (2*MLEN));
+    WRITE_MREG(3, tmp >> (3*MLEN));
+    WRITE_MREG(4, tmp >> (4*MLEN));
+    WRITE_MREG(5, tmp >> (5*MLEN));
+    WRITE_MREG(6, tmp >> (6*MLEN));
+    WRITE_MREG(7, tmp >> (7*MLEN));
+}
+
+void mov_m_x(mreg md, xreg rs1, unsigned uimm8, const char* comm __attribute__((unused)))
+{
+    DISASM_MD_RS1_UIMM8("mov.m.x");
+    WRITE_MD(uint32_t(RS1) | UIMM8);
+}
+
+void maskpopc(xreg rd, mreg ms1, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_MS1("maskpopc");
+    WRITE_RD(popcount1(MS1));
+}
+
+void maskpopcz(xreg rd, mreg ms1, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_MS1("maskpopcz");
+    WRITE_RD(popcount0(MS1));
+}
+
+void maskpopc_rast(xreg rd, mreg ms1, mreg ms2, unsigned umsk4, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_MS1_MS2_UMSK4("maskpopc.rast");
+    mreg_t m1, m2;
+    switch (UMSK4) {
+    case 0  : m2 = 0x0f; m1 = 0x0f; break;
+    case 1  : m2 = 0x3c; m1 = 0x3c; break;
+    case 2  : m2 = 0xf0; m1 = 0xf0; break;
+    default : m2 = 0xff; m1 = 0xff; break;
     }
-    log_mreg_write(dst, MREGS[dst]);
-}
-
-void maskand(mreg dst, mreg src1, mreg src2, const char* comm)
-{
-    LOG(DEBUG, "I: maskand m%d, m%d, m%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    maskop(MAND, dst, src1, src2);
-}
-
-void maskor(mreg dst, mreg src1, mreg src2, const char* comm)
-{
-    LOG(DEBUG, "I: maskor m%d, m%d, m%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    maskop(MOR, dst, src1, src2);
-}
-
-void maskxor(mreg dst, mreg src1, mreg src2, const char* comm)
-{
-    LOG(DEBUG, "I: maskxor m%d, m%d, m%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    maskop(MXOR, dst, src1, src2);
-}
-
-void masknot(mreg dst, mreg src1, const char* comm)
-{
-    LOG(DEBUG, "I: masknot m%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    maskop(MNOT, dst, src1, mnone);
-}
-
-void mova_x_m(xreg dst, const char* comm)
-{
-    LOG(DEBUG, "I: mova.x.m x%d, allmasks%s%s", dst, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = 0;
-        for (int m = 7; m >= 0; m--)
-        {
-            val = (val << VL) | MREGS[m].to_ulong();
-            LOG(DEBUG, "\taccumulating into 0x%016" PRIx64 " reg m%d = 0x%016" PRIx64, val, m, (val&((1u<<VL)-1)));
-        }
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
-}
-
-void mova_m_x(xreg src1, const char* comm)
-{
-    LOG(DEBUG, "I: mova.m.x allmasks, x%d%s%s", src1, (comm?" # ":""), (comm?comm:""));
-
-    uint64_t val = XREGS[src1];
-
-    LOG(DEBUG, "\tallmasks <-- 0x%016" PRIx64, val);
-    for (int m = 0; m < 8; m++)
-    {
-        MREGS[m] = std::bitset<VL>(val);
-        LOG(DEBUG, "\tm%d = 0x%02lx", m, MREGS[m].to_ulong());
-        val >>= VL;
-        log_mreg_write(m, MREGS[m]);
-    }
-}
-
-void mov_m_x(mreg dst, xreg src1, unsigned imm, const char* comm)
-{
-    LOG(DEBUG, "I: mov.m.x m%d, x%d, 0x%02x%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
-    DEBUG_MASK(MREGS[0]);
-
-    uint32_t val = uint32_t(XREGS[src1]) | (imm & ((1u<<VL) - 1u));
-    MREGS[dst] = std::bitset<VL>(val);
-    LOG(DEBUG, "\tm%d = 0x%02lx (from val=0x%08" PRIx32 ")", dst, MREGS[dst].to_ulong(), val);
-    log_mreg_write(dst, MREGS[dst]);
-}
-
-void maskpopc(xreg dst, mreg src1, const char* comm)
-{
-    LOG(DEBUG, "I: maskpopc x%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    uint64_t count = MREGS[src1].count();
-    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].to_ulong());
-    if (dst != x0)
-        XREGS[dst] = count;
-    log_xreg_write(dst, XREGS[dst]);
-}
-
-void maskpopcz(xreg dst, mreg src1, const char* comm)
-{
-    LOG(DEBUG, "I: maskpopcz x%d, m%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    uint64_t count = MREGS[src1].size() - MREGS[src1].count();
-    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].to_ulong());
-    if (dst != x0)
-        XREGS[dst] = count;
-    log_xreg_write(dst, XREGS[dst]);
-}
-
-void maskpopc_rast(xreg dst, mreg src1, mreg src2, unsigned imm, const char* comm)
-{
-    LOG(DEBUG, "I: maskpopc.rast x%d, m%d, m%d, %d%s%s", dst, src1, src2, imm, (comm?" # ":""), (comm?comm:""));
-    std::bitset<VL> m1, m2;
-    switch(imm)
-    {
-        case 0  : m2 = 0x0f; m1 = 0x0f; break;
-        case 1  : m2 = 0x3c; m1 = 0x3c; break;
-        case 2  : m2 = 0xf0; m1 = 0xf0; break;
-        default : m2 = 0xff; m1 = 0xff; break;
-    }
-    uint64_t count = (MREGS[src1] & m1).count();
-    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src1].to_ulong());
-    count += (MREGS[src2] & m2).count();
-    LOG(DEBUG, "\tcount = %" PRIu64 " from m%d = 0x%02lx", count, src1, MREGS[src2].to_ulong());
-    if (dst != x0)
-        XREGS[dst] = count;
-    log_xreg_write(dst, XREGS[dst]);
+    WRITE_RD(popcount1(MS1 & m1) + popcount1(MS2 & m2));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -4878,44 +3874,18 @@ void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
     log_freg_write(dst, FREGS[dst]);
 }
 
-void fbci_ps(freg dst, uint32_t imm, const char* comm)
+void fbci_ps(freg fd, uint32_t f32imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fbci_ps f%d, 0x%08x%s%s", dst, (imm&0xfffff), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-
-    iufval32 val;
-    val.u = imm;
-    for (unsigned i = 0; i < VL; i++)
-    {
-        if (MREGS[0][i])
-        {
-            FREGS[dst].u32[i] = val.u;
-            LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- 0x%08" PRIx32, i, val.u, imm);
-        }
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_FD_F32IMM("fbci.ps");
+    WRITE_VD( F32IMM );
 }
 
-void fbcx_ps(freg dst, xreg src, const char* comm)
+void fbcx_ps(freg fd, xreg rs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fbcx_ps f%d, x%d%s%s", dst, src, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-
-    iufval32 val;
-    val.u = uint32_t(XREGS[src]);
-    for (unsigned i = 0; i < VL; i++)
-    {
-        if (MREGS[0][i])
-        {
-            FREGS[dst].u32[i] = val.u;
-            LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- 0x%08" PRIx32, i, val.u, val.u);
-        }
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_FD_RS1("fbcx.ps");
+    WRITE_VD( uint32_t(RS1) );
 }
 
 // ----- Gather and scatter --------------------------------
@@ -4931,7 +3901,7 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
             if (MREGS[0][elem])
             {
                 iufval32 val;
-                int32_t off   = FREGS[src1].s32[elem];
+                int32_t off   = FREGS[src1].i32[elem];
                 uint64_t addr = sextVA(baddr + off);
                 check_load_breakpoint(addr);
                 switch (opc)
@@ -5050,7 +4020,7 @@ static void femuscat(opcode opc, freg src1, freg src2, xreg base)
         {
             if (MREGS[0][elem])
             {
-                int32_t  off  = FREGS[src2].s32[elem];
+                int32_t  off  = FREGS[src2].i32[elem];
                 uint64_t addr = sextVA(baddr + off);
                 iufval32 val;
                 val.u = FREGS[src1].u32[elem];
@@ -5352,904 +4322,615 @@ void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
 
 // ----- Computational (follows RV64F) ---------------------
 
-static void fmask(opcode opc, mreg dst, freg src1, freg src2)
+void fadd_ps(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        iufval32 val1, val2, res;
-
-        val1.u = FREGS[src1].u32[i];
-        val2.u = (src2 != fnone) ? FREGS[src2].u32[i] : 0;
-        switch (opc)
-        {
-            case FLT:
-                res.u = fpu::f32_lt(val1.f, val2.f) ? 1 : 0;
-                LOG(DEBUG, "\t[%u] %d <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-                break;
-            case FLE:
-                res.u = fpu::f32_le(val1.f, val2.f) ? 1 : 0;
-                LOG(DEBUG, "\t[%u] %d <-- 0x%08x (%g) <= 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-                break;
-            case FEQ:
-                res.u = fpu::f32_eq(val1.f, val2.f) ? 1 : 0;
-                LOG(DEBUG, "\t[%u] %d <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-                break;
-            case FSET:
-                res.u = (val1.u) ? 1 : 0;
-                LOG(DEBUG, "\t[%u] %d <-- 0x%08x ? 1 : 0", i, res.u, val1.u);
-                break;
-            case FLTPI:
-                res.u = (val1.i < val2.i) ? 1 : 0;
-                LOG(DEBUG, "\t[%u] %d <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-                break;
-            default:
-                assert(0);
-                break;
-        }
-        MREGS[dst][i] = res.u;
-    }
+    require_fp_active();
+    DISASM_FD_FS1_FS2_RM("fadd.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_add(FS1.f32[e], FS2.f32[e]) );
     set_fp_exceptions();
-    log_mreg_write(dst, MREGS[dst]);
 }
 
-static void fswizz(freg dst, freg src1, uint8_t imm)
+void fsub_ps(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    freg_t val = FREGS[src1];
-    for (unsigned i = 0; i < VL; i++)
-    {
-        if (!MREGS[0][i]) continue;
-
-        int sel = (i & ~0x3) | ((imm >> ((2*i) % 8)) & 0x03);
-        FREGS[dst].u32[i] = val.u32[sel];
-        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (chan %d)", i, FREGS[dst].u32[i], val.u32[sel], sel);
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void fadd_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fadd.ps f%d, f%d, f%d, %s%s%s", dst, src1, src2, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu2src(FADD, VL, dst, src1, src2, rm);
-}
-
-void fsub_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fsub.ps f%d, f%d, f%d, %s%s%s", dst, src1, src2, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu2src(FSUB, VL, dst, src1, src2, rm);
-}
-
-void fmul_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fmul.ps f%d, f%d, f%d, %s%s%s", dst, src1, src2, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu2src(FMUL, VL, dst, src1, src2, rm);
-}
-
-void fdiv_ps(freg dst, freg src1, freg src2, rounding_mode rm, const char* comm)
-{
-    LOG(DEBUG, "I: fdiv.ps f%d, f%d, f%d, %s%s%s", dst, src1, src2, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu2src(FDIV, VL, dst, src1, src2, rm);
-}
-
-void fsgnj_ps(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fsgnj.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.f = fpu::f32_copySign(val1.f, val2.f);
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void fsgnjn_ps(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fsgnjn.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.f = fpu::f32_copySignNot(val1.f, val2.f);
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void fsgnjx_ps(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fsgnjx.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.f = fpu::f32_copySignXor(val1.f, val2.f);
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%08x (%g), 0x%08x (%g)", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void fmin_ps(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: fmin.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.f = fpu::f32_minimumNumber(val1.f, val2.f);
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- min(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
+    DISASM_FD_FS1_FS2_RM("fsub.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_sub(FS1.f32[e], FS2.f32[e]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void fmax_ps(freg dst, freg src1, freg src2, const char* comm)
+void fmul_ps(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmax.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.f = fpu::f32_maximumNumber(val1.f, val2.f);
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- max(0x%08x (%g), 0x%08x (%g))", i, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
+    DISASM_FD_FS1_FS2_RM("fmul.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_mul(FS1.f32[e], FS2.f32[e]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void fsqrt_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fdiv_ps(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsqrt.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FSQRT, VL, dst, src1, rm);
+    LOG(DEBUG, "I: fdiv.ps f%d,f%d,f%d,%s", fd, fs1, fs2, get_rounding_mode(rm));
+    throw trap_mcode_instruction(current_inst);
 }
 
-void feq_ps(freg dst, freg src1, freg src2, const char* comm)
+void fsgnj_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: feq.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.u = fpu::f32_eq(val1.f, val2.f) ? 0xffffffff : 0;
-        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (%g) == 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
+    DISASM_FD_FS1_FS2("fsgnj.ps");
+    WRITE_VD( fpu::f32_copySign(FS1.f32[e], FS2.f32[e]) );
+}
+
+void fsgnjn_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fsgnjn.ps");
+    WRITE_VD( fpu::f32_copySignNot(FS1.f32[e], FS2.f32[e]) );
+}
+
+void fsgnjx_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fsgnjx.ps");
+    WRITE_VD( fpu::f32_copySignXor(FS1.f32[e], FS2.f32[e]) );
+}
+
+void fmin_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fmin.ps");
+    WRITE_VD( fpu::f32_minimumNumber(FS1.f32[e], FS2.f32[e]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void fle_ps(freg dst, freg src1, freg src2, const char* comm)
+void fmax_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fle.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.u = fpu::f32_le(val1.f, val2.f) ? 0xffffffff : 0;
-        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (%g) <= 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
+    DISASM_FD_FS1_FS2("fmax.ps");
+    WRITE_VD( fpu::f32_maximumNumber(FS1.f32[e], FS2.f32[e]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void flt_ps(freg dst, freg src1, freg src2, const char* comm)
+void fsqrt_ps(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: flt.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I: fsqrt.ps f%d,f%d,%s", fd, fs1, get_rounding_mode(rm));
+    throw trap_mcode_instruction(current_inst);
+}
+
+void feq_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.u = fpu::f32_lt(val1.f, val2.f) ? 0xffffffff : 0;
-        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (%g) < 0x%08x (%g)?", i, res.u, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
+    DISASM_FD_FS1_FS2("feq.ps");
+    WRITE_VD( fpu::f32_eq(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void feqm_ps(mreg dst, freg src1, freg src2, const char* comm)
+void fle_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: feqm.ps m%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    fmask(FEQ, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fle.ps");
+    WRITE_VD( fpu::f32_le(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
+    set_fp_exceptions();
 }
 
-void flem_ps(mreg dst, freg src1, freg src2, const char* comm)
+void flt_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: flem.ps m%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    fmask(FLE, dst, src1, src2);
+    DISASM_FD_FS1_FS2("flt.ps");
+    WRITE_VD( fpu::f32_lt(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
+    set_fp_exceptions();
 }
 
-void fltm_ps(mreg dst, freg src1, freg src2, const char* comm)
+void feqm_ps(mreg md, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fltm.ps m%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    fmask(FLT, dst, src1, src2);
+    DISASM_MD_FS1_FS2("feqm.ps");
+    WRITE_VMD( fpu::f32_eq(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fsetm_pi(mreg dst, freg src1, const char* comm)
+void flem_ps(mreg md, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsetm.pi m%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    fmask(FSET, dst, src1, fnone);
+    DISASM_MD_FS1_FS2("flem.ps");
+    WRITE_VMD( fpu::f32_le(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcmov_ps(freg dst, freg src1, freg src2, freg src3, const char* comm)
+void fltm_ps(mreg md, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcmov.ps f%d, f%d, f%d, f%d%s%s", dst, src1, src2, src3, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; i++)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val1, val2, val3, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        val3.u = FREGS[src3].u32[i];
-        res.u = val1.u ? val2.u : val3.u;
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- %u ? 0x%08x (%g) : 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt, val3.u, val3.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_MD_FS1_FS2("fltm.ps");
+    WRITE_VMD( fpu::f32_lt(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcmovm_ps(freg dst, freg src1, freg src2, const char* comm)
+void fsetm_pi(mreg md, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcmovm.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; i++)
-    {
-        iufval32 val1, val2, res;
-        val1.u  = FREGS[src1].u32[i];
-        val2.u  = FREGS[src2].u32[i];
-        int sel = MREGS[0][i];
-        res.u   = sel ? val1.u : val2.u;
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- %d ? 0x%08x (%g) : 0x%08x (%g)", i, res.u, res.flt, sel, val1.u, val1.flt, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_MD_FS1("fsetm.pi");
+    WRITE_VMD( !!FS1.u32[e] );
+    set_fp_exceptions();
 }
 
-void fmvz_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
+void fcmov_ps(freg fd, freg fs1, freg fs2, freg fs3, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmvz.x.ps x%d, f%d, %d%s%s", dst, src1, index, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-
-    index = index % VL;
-    if (dst != x0)
-        XREGS[dst] = FREGS[src1].u32[index];
-
-    LOG(DEBUG, "\t 0x%016" PRIx64 " <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}", XREGS[dst],
-        FREGS[src1].u32[0], FREGS[src1].u32[1], FREGS[src1].u32[2], FREGS[src1].u32[3],
-        FREGS[src1].u32[4], FREGS[src1].u32[5], FREGS[src1].u32[6], FREGS[src1].u32[7]);
-
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_FD_FS1_FS2_FS3("fcmov.ps");
+    WRITE_VD( FS1.u32[e] ? FS2.u32[e] : FS3.u32[e] );
 }
 
-void fmvs_x_ps(xreg dst, freg src1, unsigned index, const char* comm)
+void fcmovm_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmvs.x.ps x%d, f%d, %d %s%s", dst, src1, index, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-
-    index = index % VL;
-    if (dst != x0)
-        XREGS[dst] = sext<32>(FREGS[src1].u32[index]);
-
-    LOG(DEBUG, "\t 0x%016" PRIx64 " <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x}", XREGS[dst],
-        FREGS[src1].u32[0], FREGS[src1].u32[1], FREGS[src1].u32[2], FREGS[src1].u32[3],
-        FREGS[src1].u32[4], FREGS[src1].u32[5], FREGS[src1].u32[6], FREGS[src1].u32[7]);
-
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_FD_FS1_FS2("fcmovm.ps");
+    LOG_MREG0;
+    WRITE_VD_NOMASK( M0[e] ? FS1.u32[e] : FS2.u32[e] );
 }
 
-void fswizz_ps(freg dst, freg src1, unsigned imm, const char* comm)
+void fmvz_x_ps(xreg rd, freg fs1, unsigned uimm3, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fswizz.ps f%d, f%d, %u%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    fswizz(dst, src1, imm);
+    DISASM_RD_FS1_UIMM3("fmvz.x.ps");
+    WRITE_RD(FS1.u32[UIMM3]);
 }
 
-void fcvt_pw_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fmvs_x_ps(xreg rd, freg fs1, unsigned uimm3, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.pw.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FCVTPWPS, VL, dst, src1, rm);
+    DISASM_RD_FS1_UIMM3("fmvs.x.ps");
+    WRITE_RD(sext<32>(FS1.u32[UIMM3]));
 }
 
-void fcvt_pwu_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fswizz_ps(freg fd, freg fs1, unsigned uimm8, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.pwu.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FCVTPWUPS, VL, dst, src1, rm);
+    DISASM_FD_FS1_UIMM8("fswizz.ps");
+    freg_t tmp = FS1;
+    WRITE_VD( tmp.u32[(e & ~3) | ((UIMM8 >> ((2*e) % 8)) & 3)] );
 }
 
-void fclass_ps(freg dst, freg src1, const char* comm)
+void fcvt_pw_ps(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fclass.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; ++i)
-    {
-        if (!MREGS[0][i]) continue;
-        iufval32 val, res;
-        val.u = FREGS[src1].u32[i];
-        res.u = fpu::f32_classify(val.f);
-        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x (%g)", i, res.u, val.u, val.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_FD_FS1_RM("fcvt.pw.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_to_i32(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_pw(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fcvt_pwu_ps(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.pw f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FCVTPSPW, VL, dst, src1, rm);
+    DISASM_FD_FS1_RM("fcvt.pwu.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_to_ui32(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_pwu(freg dst, freg src1, rounding_mode rm, const char* comm)
+void fclass_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.pwu f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FCVTPSPWU, VL, dst, src1, rm);
+    DISASM_FD_FS1("fclass.ps");
+    WRITE_VD( fpu::f32_classify(FS1.f32[e]) );
 }
 
-void fmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
+void fcvt_ps_pw(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmadd.ps f%d, f%d, f%d, f%d, %s%s%s", dst, src1, src2, src3, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu3src(FMADD, VL, dst, src1, src2, src3, rm);
+    DISASM_FD_FS1_RM("fcvt.ps.pw");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::i32_to_f32(FS1.i32[e]) );
+    set_fp_exceptions();
 }
 
-void fmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
+void fcvt_ps_pwu(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmsub.ps f%d, f%d, f%d, f%d, %s%s%s", dst, src1, src2, src3, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu3src(FMSUB, VL, dst, src1, src2, src3, rm);
+    DISASM_FD_FS1_RM("fcvt.ps.pwu");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::ui32_to_f32(FS1.u32[e]) );
+    set_fp_exceptions();
 }
 
-void fnmsub_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
+void fmadd_ps(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fnmsub.ps f%d, f%d, f%d, f%d, %s%s%s", dst, src1, src2, src3, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu3src(FNMSUB, VL, dst, src1, src2, src3, rm);
+    DISASM_FD_FS1_FS2_FS3_RM("fmadd.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_mulAdd(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fnmadd_ps(freg dst, freg src1, freg src2, freg src3, rounding_mode rm, const char* comm)
+void fmsub_ps(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fnmadd.ps f%d, f%d, f%d, f%d, %s%s%s", dst, src1, src2, src3, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu3src(FNMADD, VL, dst, src1, src2, src3, rm);
+    DISASM_FD_FS1_FS2_FS3_RM("fmsub.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_mulSub(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    set_fp_exceptions();
+}
+
+void fnmsub_ps(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_FS3_RM("fnmsub.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_negMulSub(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    set_fp_exceptions();
+}
+
+void fnmadd_ps(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_FS3_RM("fnmadd.ps");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::f32_negMulAdd(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    set_fp_exceptions();
 }
 
 // ----- Graphics upconvert --------------------------------
 
-static void ucvtemu(opcode opc, freg dst, freg src1)
+void fcvt_ps_f16(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        uint32_t val = FREGS[src1].u32[i];
-        iufval32 res;
-        switch (opc)
-        {
-            case FCVTPSF16:
-                res.f = fpu::f16_to_f32( fpu::F16(val) );
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val), res.flt);
-                break;
-            case FCVTPSF11:
-                res.f = fpu::f11_to_f32( fpu::F11(val) );
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val & 0x7ff), res.flt);
-                break;
-            case FCVTPSF10:
-                res.f = fpu::f10_to_f32( fpu::F10(val) );
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%g)", i, res.u, res.flt, uint16_t(val & 0x3ff), res.flt);
-                break;
-            case FCVTPSUN24:
-                res.f = fpu::un24_to_f32(val);
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%06" PRIx32 " (%u)", i, res.u, res.flt, val & 0xffffff, val & 0xffffffff);
-                break;
-            case FCVTPSUN16:
-                res.f = fpu::un16_to_f32(val);
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%u)", i, res.u, res.flt, uint16_t(val), uint16_t(val));
-                break;
-            case FCVTPSUN10:
-                res.f = fpu::un10_to_f32(val);
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%03" PRIx16 " (%u)", i, res.u, res.flt, uint16_t(val & 0xfff), val & 0xfff);
-                break;
-            case FCVTPSUN8:
-                res.f = fpu::un8_to_f32(val);
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%02" PRIx8 " (%u)", i, res.u, res.flt, uint8_t(val), uint8_t(val));
-                break;
-            case FCVTPSUN2:
-                res.f = fpu::un2_to_f32(val);
-                res.f = fpu::un8_to_f32(val);
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%1" PRIx8 " (%u)", i, res.u, res.flt, uint8_t(val & 0x3), uint8_t(val & 0x3));
-                break;
-            case FCVTPSSN16:
-                res.f = fpu::sn16_to_f32(val);
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%04" PRIx16 " (%s%u)", i, res.u, res.flt, uint16_t(val), (val & 0x8000) ? "-" : "", uint16_t(val & 0x7fff));
-                break;
-            case FCVTPSSN8:
-                res.f = fpu::sn8_to_f32(val);
-                LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " (%g) <-- 0x%02" PRIx8 " (%s%u)", i, res.u, res.flt, uint8_t(val), (val & 0x80) ? "-" : "", uint8_t(val & 0x7f));
-                break;
-            default:
-                assert(0);
-                break;
-        }
-        FREGS[dst].u32[i] = res.u;
-    }
+    require_fp_active();
+    DISASM_FD_FS1("fcvt.ps.f16");
+    WRITE_VD( fpu::f16_to_f32(FS1.f16[2*e]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void fcvt_ps_f16(freg dst, freg src1, const char* comm)
+void fcvt_ps_f11(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.f16 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF16, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.f11");
+    WRITE_VD( fpu::f11_to_f32(FS1.f11[2*e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_f11(freg dst, freg src1, const char* comm)
+void fcvt_ps_f10(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.f11 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF11, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.f10");
+    WRITE_VD( fpu::f10_to_f32(FS1.f10[2*e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_f10(freg dst, freg src1, const char* comm)
+void fcvt_ps_un24(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.f10 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSF10, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.un24");
+    WRITE_VD( fpu::un24_to_f32(FS1.u32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_un24(freg dst, freg src1, const char* comm)
+void fcvt_ps_un16(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.un24 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN24, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.un16");
+    WRITE_VD( fpu::un16_to_f32(FS1.u16[2*e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_un16(freg dst, freg src1, const char* comm)
+void fcvt_ps_un10(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.un16 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN16, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.un10");
+    WRITE_VD( fpu::un10_to_f32(FS1.u16[2*e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_un10(freg dst, freg src1, const char* comm)
+void fcvt_ps_un8(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.un10 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN10, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.un8");
+    WRITE_VD( fpu::un8_to_f32(FS1.u8[4*e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_un8(freg dst, freg src1, const char* comm)
+void fcvt_ps_un2(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.un8 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN8, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.un2");
+    WRITE_VD( fpu::un2_to_f32(FS1.u8[4*e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_un2(freg dst, freg src1, const char* comm)
+void fcvt_ps_sn16(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.un2 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSUN2, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.sn16");
+    WRITE_VD( fpu::sn16_to_f32(FS1.i16[2*e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_ps_sn16(freg dst, freg src1, const char* comm)
+void fcvt_ps_sn8(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.sn16 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSSN16, dst, src1);
-}
-
-void fcvt_ps_sn8(freg dst, freg src1, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.ps.sn8 f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    ucvtemu(FCVTPSSN8, dst, src1);
+    DISASM_FD_FS1("fcvt.ps.sn8");
+    WRITE_VD( fpu::sn8_to_f32(FS1.i8[4*e]) );
+    set_fp_exceptions();
 }
 
 // ----- Graphics downconvert ------------------------------
 
-static void dcvtemu(opcode opc, freg dst, freg src1)
+void fcvt_f16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
+    require_fp_active();
+    DISASM_FD_FS1("fcvt.f16.ps");
     set_rounding_mode(rmdyn);
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        iufval32 val, res;
-        val.u = FREGS[src1].u32[i];
-        switch (opc)
-        {
-            case FCVTF10PS:  res.u = cast_float10_to_uint16(fpu::f32_to_f10(val.f));  break;
-            case FCVTF11PS:  res.u = cast_float11_to_uint16(fpu::f32_to_f11(val.f));  break;
-            case FCVTF16PS:  res.u = cast_float16_to_uint16(fpu::f32_to_f16(val.f));  break;
-            case FCVTUN24PS: res.u = fpu::f32_to_un24(val.f); break;
-            case FCVTUN16PS: res.u = fpu::f32_to_un16(val.f); break;
-            case FCVTUN10PS: res.u = fpu::f32_to_un10(val.f); break;
-            case FCVTUN8PS:  res.u = fpu::f32_to_un8(val.f);  break;
-            case FCVTUN2PS:  res.u = fpu::f32_to_un2(val.f);  break;
-            case FCVTSN16PS: res.u = fpu::f32_to_sn16(val.f); break;
-            case FCVTSN8PS:  res.u = fpu::f32_to_sn8(val.f);  break;
-            default: assert(0); break;
-        }
-        LOG(DEBUG, "\t[%u] 0x%08x (%d) <-- down- 0x%08x (%g)", i, res.u, res.i, val.u, val.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
+    WRITE_VD( fpu::f32_to_f16(FS1.f32[e]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void fcvt_f16_ps(freg dst, freg src1, const char* comm)
+void fcvt_f11_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.f16.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF16PS, dst, src1);
+    DISASM_FD_FS1("fcvt.f11.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_f11(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_f11_ps(freg dst, freg src1, const char* comm)
+void fcvt_f10_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.f11.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF11PS, dst, src1);
+    DISASM_FD_FS1("fcvt.f10.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_f10(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_f10_ps(freg dst, freg src1, const char* comm)
+void fcvt_un24_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.f10.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTF10PS, dst, src1);
+    DISASM_FD_FS1("fcvt.un24.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_un24(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_un24_ps(freg dst, freg src1, const char* comm)
+void fcvt_un16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.un24.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN24PS, dst, src1);
+    DISASM_FD_FS1("fcvt.un16.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_un16(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_un16_ps(freg dst, freg src1, const char* comm)
+void fcvt_un10_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.un16.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN16PS, dst, src1);
+    DISASM_FD_FS1("fcvt.un10.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_un10(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_un10_ps(freg dst, freg src1, const char* comm)
+void fcvt_un8_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.un10.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN10PS, dst, src1);
+    DISASM_FD_FS1("fcvt.un8.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_un8(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_un8_ps(freg dst, freg src1, const char* comm)
+void fcvt_un2_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.un8.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN8PS, dst, src1);
+    DISASM_FD_FS1("fcvt.un2.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_un2(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_un2_ps(freg dst, freg src1, const char* comm)
+void fcvt_sn16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.un2.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTUN2PS, dst, src1);
+    DISASM_FD_FS1("fcvt.sn16.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_sn16(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_sn16_ps(freg dst, freg src1, const char* comm)
+void fcvt_sn8_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.sn16.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTSN16PS, dst, src1);
-}
-
-void fcvt_sn8_ps(freg dst, freg src1, const char* comm)
-{
-    LOG(DEBUG, "I: fcvt.sn8.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rmdyn), (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    dcvtemu(FCVTSN8PS, dst, src1);
+    DISASM_FD_FS1("fcvt.sn8.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_sn8(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
 // ----- Graphics additional -------------------------------
 
-void fsin_ps(freg dst, freg src1, const char* comm)
+static inline float32_t fsin_vs_gold(float32_t x)
 {
-    LOG(DEBUG, "I: fsin.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FSIN, VL, dst, src1, rtz);
+    float32_t fpuval = fpu::f32_sin2pi(x);
+    float32_t gldval = gld::f32_sin2pi(x);
+    if (security_ulp_check(gldval.v, fpuval.v))
+    {
+        LOG(DEBUG, "SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
+        LOG(WARN, "Trans mismatch error for operation FSIN with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+    }
+    return fpuval;
 }
 
-void fexp_ps(freg dst, freg src1, const char* comm)
+static inline float32_t fexp_vs_gold(float32_t x)
 {
-    LOG(DEBUG, "I: fexp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FEXP, VL, dst, src1, rtz);
+    float32_t fpuval = fpu::f32_exp2(x);
+    float32_t gldval = gld::f32_exp2(x);
+    if (security_ulp_check(gldval.v, fpuval.v))
+    {
+        LOG(DEBUG, "EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
+        LOG(WARN, "Trans mismatch error for operation FEXP with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+    }
+    return fpuval;
 }
 
-void flog_ps(freg dst, freg src1, const char* comm)
+static inline float32_t flog_vs_gold(float32_t x)
 {
-    LOG(DEBUG, "I: flog.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FLOG, VL, dst, src1, rtz);
+    float32_t fpuval = fpu::f32_log2(x);
+    float32_t gldval = gld::f32_log2(x);
+    if (security_ulp_check(gldval.v, fpuval.v))
+    {
+        LOG(DEBUG, "LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
+        LOG(WARN, "Trans mismatch error for operation FLOG with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+    }
+    return fpuval;
 }
 
-void ffrc_ps(freg dst, freg src1, const char* comm)
+static inline float32_t frcp_vs_gold(float32_t x)
 {
-    LOG(DEBUG, "I: ffrc.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FFRC, VL, dst, src1, rtz);
+    float32_t fpuval = fpu::f32_rcp(x);
+    float32_t gldval = gld::f32_rcp(x);
+    if (security_ulp_check(gldval.v, fpuval.v))
+    {
+        LOG(DEBUG, "RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
+        LOG(WARN, "Trans mismatch error for operation FRCP with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+    }
+    return fpuval;
 }
 
-void fround_ps(freg dst, freg src1, rounding_mode rm, const char* comm)
+static inline float32_t frsq_vs_gold(float32_t x)
 {
-    LOG(DEBUG, "I: fround.ps f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
+    float32_t fpuval = fpu::f32_rsqrt(x);
+    float32_t gldval = gld::f32_rsqrt(x);
+    if (security_ulp_check(gldval.v, fpuval.v))
+    {
+        LOG(DEBUG, "RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
+        LOG(WARN, "Trans mismatch error for operation FRSQ with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+    }
+    return fpuval;
+}
+
+static inline int32_t frcp_fix_rast_vs_gold(int32_t x, int32_t y)
+{
+    int32_t fpuval = fpu::fxp1714_rcpStep(x, y);
+    int32_t gldval = gld::fxp1714_rcpStep(x, y);
+    if (abs(fpuval - gldval) > 1)
+    {
+        LOG(DEBUG, "FRCP_FIX_RAST TRANS\tIN: 0x%08x,0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x, y, fpuval, gldval);
+        LOG(WARN, "Trans mismatch error for operation FRCP_FIX_RAST with input: 0x%08x,0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x, y);
+    }
+    return fpuval;
+}
+
+void fsin_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
+{
     require_fp_active();
+    DISASM_FD_FS1("fsin.ps");
+    WRITE_VD( fsin_vs_gold(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+void fexp_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1("fexp.ps");
+    WRITE_VD( fexp_vs_gold(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+void flog_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1("flog.ps");
+    WRITE_VD( flog_vs_gold(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+void ffrc_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1("ffrc.ps");
+    WRITE_VD( fpu::f32_frac(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+void fround_ps(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_RM("fround.ps");
     set_rounding_mode(rm);
-    DEBUG_MASK(MREGS[0]);
-    for (unsigned i = 0; i < VL; i++)
-    {
-        if (!MREGS[0][i]) continue;
-
-        iufval32 val, res;
-        val.u = FREGS[src1].u32[i];
-        res.f = fpu::f32_roundToInt(val.f);
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%08x (%g)", i, res.u, res.flt, val.u, val.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
+    WRITE_VD( fpu::f32_roundToInt(FS1.f32[e]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void frcp_ps(freg dst, freg src1, const char* comm)
+void frcp_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: frcp.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FRCP, VL, dst, src1, rtz);
-}
-
-void frsq_ps(freg dst, freg src1, const char* comm)
-{
-    LOG(DEBUG, "I: frsq.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FRSQ, VL, dst, src1, rtz);
-}
-
-void cubeface_ps(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: cubeface.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        uint8_t rz_lt_ry = (FREGS[ dst].u32[i] & 0x1);
-        uint8_t rz_lt_rx = (FREGS[src1].u32[i] & 0x1);
-        uint8_t ry_lt_rx = (FREGS[src2].u32[i] & 0x1);
-        uint32_t res = rz_lt_ry ? (ry_lt_rx ? 0 : 1) : (rz_lt_rx ? 0 : 2);
-
-        LOG(DEBUG, "\t[%u] %d <-- %d %d %d", i, res, rz_lt_ry, rz_lt_rx, ry_lt_rx);
-
-        FREGS[dst].u32[i] = res;
-    }
-
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void cubefaceidx_ps(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: cubefaceidx.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.f  = fpu::f32_cubeFaceIdx(val1.u, val2.f);
-        LOG(DEBUG, "\t[%u] %g <-- %u %g", i, res.flt, val1.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
+    DISASM_FD_FS1("frcp.ps");
+    WRITE_VD( frcp_vs_gold(FS1.f32[e]) );
     set_fp_exceptions();
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
 }
 
-void cubesgnsc_ps(freg dst, freg src1, freg src2, const char* comm)
+void frsq_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: cubesgnsc.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.f  = fpu::f32_cubeFaceSignS(val1.u, val2.f);
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%x 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_FD_FS1("frsq.ps");
+    WRITE_VD( frsq_vs_gold(FS1.f32[e]) );
+    set_fp_exceptions();
 }
 
-void cubesgntc_ps(freg dst, freg src1, freg src2, const char* comm)
+void cubeface_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: cubesgntc.ps f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = FREGS[src2].u32[i];
-        res.f  = fpu::f32_cubeFaceSignT(val1.u, val2.f);
-        LOG(DEBUG, "\t[%u] 0x%08x (%g) <-- 0x%x 0x%08x (%g)", i, res.u, res.flt, val1.u, val2.u, val2.flt);
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_FDS0_FS1_FS2("cubeface.ps");
+    WRITE_VD( (FD.u32[e] & 1)
+              ? ((FS2.u32[e] & 1) ? 0 : 1)
+              : ((FS1.u32[e] & 1) ? 0 : 2) );
 }
 
-void fcvt_ps_rast(freg dst, freg src1, rounding_mode rm, const char* comm)
+void cubefaceidx_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.ps.rast f%d, f%d, %s%s%s", dst, src1, get_rounding_mode(rm), (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FCVTPSRAST, VL, dst, src1, rm);
+    DISASM_FD_FS1_FS2("cubefaceidx.ps");
+    WRITE_VD( fpu::f32_cubeFaceIdx(uint8_t(FS1.u32[e]), FS2.f32[e]) );
+    set_fp_exceptions();
 }
 
-void fcvt_rast_ps(freg dst, freg src1, const char* comm)
+void cubesgnsc_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.rast.ps f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu1src(FCVTRASTPS, VL, dst, src1, rmdyn);
+    DISASM_FD_FS1_FS2("cubesgnsc.ps");
+    WRITE_VD( fpu::f32_cubeFaceSignS(uint8_t(FS1.u32[e]), FS2.f32[e]) );
 }
 
-void frcp_fix_rast(freg dst, freg src1, freg src2, const char* comm)
+void cubesgntc_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: frcp.fix.rast f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    femu2src(FRCP_FIX_RAST, VL, dst, src1, src2, rmdyn);
+    DISASM_FD_FS1_FS2("cubesgntc.ps");
+    WRITE_VD( fpu::f32_cubeFaceSignT(uint8_t(FS1.u32[e]), FS2.f32[e]) );
+}
+
+void fcvt_ps_rast(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_RM("fcvt.ps.rast");
+    set_rounding_mode(rm);
+    WRITE_VD( fpu::fxp1516_to_f32(FS1.i32[e]) );
+    set_fp_exceptions();
+}
+
+void fcvt_rast_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1("fcvt.rast.ps");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( fpu::f32_to_fxp1714(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+void frcp_fix_rast(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("frcp.fix.rast");
+    set_rounding_mode(rmdyn);
+    WRITE_VD( frcp_fix_rast_vs_gold(FS1.i32[e], FS2.i32[e]) );
+    set_fp_exceptions();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6258,484 +4939,261 @@ void frcp_fix_rast(freg dst, freg src1, freg src2, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-// ----- Broadcast -----------------------------------------
-
-void fbci_pi(freg dst, int32_t imm, const char* comm)
+static inline uint8_t sat8(int32_t x)
 {
-    LOG(DEBUG, "I: fbci.pi f%d, 0x%08x%s%s", dst, imm, (comm?" # ":""), (comm?comm:""));
+    return std::min(INT8_MAX, std::max(INT8_MIN, x));
+}
+
+static inline uint8_t satu8(int32_t x)
+{
+    return std::min(UINT8_MAX, std::max(0, x));
+}
+
+void fbci_pi(freg fd, int32_t i32imm, const char* comm __attribute__((unused)))
+{
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-
-    for (unsigned i = 0; i < VL; i++)
-    {
-        if (MREGS[0][i])
-        {
-            FREGS[dst].s32[i] = imm;
-            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x", i, FREGS[dst].s32[i], imm);
-        }
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
+    DISASM_FD_I32IMM("fbci.pi");
+    WRITE_VD( I32IMM );
 }
 
-// ----- Computational (follows RV64I/F/M) -----------------
-
-static void iemu2src(opcode opc, freg dst, freg src1, freg src2)
+void feq_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = (src2 != fnone) ? FREGS[src2].u32[i] : 0;
-
-        switch (opc)
-        {
-            case FADDPI :   res.u = val1.u + val2.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x + 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FSUBPI :   res.u = val1.u - val2.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x - 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FMULPI :   res.u = val1.u * val2.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FMULHPI :  res.i = ((int64_t(val1.i) * int64_t(val2.i)) >> 32) & 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FMULHUPI : res.u = ((uint64_t(val1.u) * uint64_t(val2.u)) >> 32) & 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x * 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FDIVPI :   res.i = val1.i / val2.i;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x / 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FDIVUPI :  res.u = val2.u ? (val1.u / val2.u) : 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x /u 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FREMPI  :  res.i = val2.i ? (val1.i % val2.i) : 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x %% 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FREMUPI :  res.u = val2.u ? (val1.u % val2.u) : 0xFFFFFFFF;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x %%u 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FMAXPI :   res.i = (val1.i >= val2.i) ? val1.i : val2.i;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- max(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
-                            break;
-            case FMINPI :   res.i = (val1.i < val2.i) ? val1.i : val2.i;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- min(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
-                            break;
-            case FMAXUPI :  res.u = (val1.u >= val2.u) ? val1.u : val2.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- maxu(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
-                            break;
-            case FMINUPI :  res.u = (val1.u < val2.u) ? val1.u : val2.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- minu(0x%08x, 0x%08x )", i, res.u, val1.u, val2.u);
-                            break;
-            case FANDPI :   res.u = val1.u & val2.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x & 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FORPI :    res.u = val1.u | val2.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x | 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FXORPI :   res.u = val1.u ^ val2.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x ^ 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FNOTPI :   res.u = ~val1.u;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- ~ 0x%08x", i, res.u, val1.u);
-                            break;
-            case FSAT8PI :  res.i = ((val1.i > 127) ? 127 :(val1.i < -128 ? -128 : val1.i)) & 0x0FF;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- sat8(0x%08x)", i, res.u, val1.u);
-                            break;
-            case FSATU8PI : res.u = ((val1.i > 255) ? 255u :(val1.i < 0 ? 0u : val1.u)) & 0x0FFu;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- sat8u(0x%08x)", i, res.u, val1.u);
-                            break;
-            case FSLLPI :   res.u = (val2.u >= 32) ? 0 : (val1.u << val2.u);
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x << %d", i, res.u, val1.u, val2.u);
-                            break;
-            case FSRLPI :   res.u = (val2.u >= 32) ? 0 : (val1.u >> val2.u);
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x >> %u", i, res.u, val1.u, val2.u);
-                            break;
-            case FSRAPI :   res.u = (val2.u >= 32) ? (val1.i >> 31) : (val1.i >> val2.i);
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x >>a %d", i, res.u, val1.u, val2.u);
-                            break;
-            case FLTPI :    res.u = (val1.i < val2.i) ? 0xFFFFFFFF : 0;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x < 0x%08x ", i, res.u, val1.u, val2.u);
-                            break;
-            case FLTUPI :   res.u = (val1.u < val2.u) ? 0xFFFFFFFF : 0;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x < 0x%08x ", i, res.u, val1.u, val2.u);
-                            break;
-            case FLEPI :    res.u = (val1.i <= val2.i) ? 0xFFFFFFFF : 0;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x <= 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            case FEQPI :    res.u = (val1.u == val2.u) ? 0xFFFFFFFF : 0;
-                            LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x == 0x%08x", i, res.u, val1.u, val2.u);
-                            break;
-            default:        assert(0);
-                            break;
-        }
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-static void iemu2srcimm(opcode opc, freg dst, freg src1, uint32_t imm)
-{
-    for (unsigned i = 0; i < VL; i++)
-    {
-        // for packed single, check the corresponding mask bit. If not set, skip this lane
-        if (!MREGS[0][i]) continue;
-
-        iufval32 val1, val2, res;
-        val1.u = FREGS[src1].u32[i];
-        val2.u = sext<10>(imm); // sign extend the 10-low order bits of imm
-
-        switch (opc)
-        {
-            case FADDIPI: res.u = val1.u + val2.u;
-                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x + 0x%08x", i, res.u, val1.u, val2.u);
-                          break;
-            case FANDIPI: res.u = val1.u & val2.u;
-                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x & 0x%08x", i, res.u, val1.u, val2.u);
-                          break;
-            case FSLLIPI: res.u = val1.u << val2.u;
-                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x << %u", i, res.u, val1.u, val2.u);
-                          break;
-            case FSRLIPI: res.u = val1.u >> val2.u;
-                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x >> %u", i, res.u, val1.u, val2.u);
-                          break;
-            case FSRAIPI: res.i = val1.i >> val2.i;
-                          LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x >>a %u", i, res.u, val1.u, val2.u);
-                          break;
-            default:      assert(0);
-                          break;
-        }
-        FREGS[dst].u32[i] = res.u;
-    }
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-static void packrep(opcode opc, freg dst, freg src1)
-{
-    freg_t val = FREGS[src1];
-    switch (opc)
-    {
-        case FPACKREPHPI :
-            for (unsigned i = 0; i < VL; i++)
-            {
-                if (!MREGS[0][i]) continue;
-
-                unsigned j = (4 * i) % (VL*2);
-                FREGS[dst].u32[i] = uint32_t(val.u16[j]) | (uint32_t(val.u16[j+2]) << 16);
-                //LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (chan %d, %d)", i, FREGS[dst].u32[i], FREGS[dst].u32[i], j, j+2);
-            }
-            break;
-        case FPACKREPBPI:
-            for (unsigned i = 0; i < VL; i++)
-            {
-                if (!MREGS[0][i]) continue;
-
-                unsigned j = (16 * i) % (VL*4);
-                FREGS[dst].u32[i] = uint32_t(val.u8[j]) | (uint32_t(val.u8[j+4]) << 8) | (uint32_t(val.u8[j+8]) << 16) | (uint32_t(val.u8[j+12]) << 24);
-                //LOG(DEBUG, "\t[%d] 0x%08x <-- 0x%08x (chan %d, %d, %d, %d)", i, FREGS[dst].u32[i], FREGS[dst].u32[i], j, j+4, j+8, j+12);
-            }
-            break;
-        default:
-            assert(0);
-            break;
-    }
-
-    for (unsigned i = 0; i < VL; i++)
-        LOG(DEBUG, "\t[%u] 0x%08x <-- 0x%08x", i, FREGS[dst].u32[i], val.u32[i]);
-
-    dirty_fp_state();
-    log_freg_write(dst, FREGS[dst]);
-}
-
-void feq_pi(freg dst, freg src1, freg src2, const char* comm)
-{
-    LOG(DEBUG, "I: feq.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FEQPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("feq.pi");
+    WRITE_VD( (FS1.u32[e] == FS2.u32[e]) ? UINT32_MAX : 0 );
 }
 
-void fle_pi(freg dst, freg src1, freg src2, const char* comm)
+void fle_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fle.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FLEPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fle.pi");
+    WRITE_VD( (FS1.i32[e] <= FS2.i32[e]) ? UINT32_MAX : 0 );
 }
 
-void flt_pi(freg dst, freg src1, freg src2, const char* comm)
+void flt_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: flt.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FLTPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("flt.pi");
+    WRITE_VD( (FS1.i32[e] < FS2.i32[e]) ? UINT32_MAX : 0 );
 }
 
-void fltu_pi(freg dst, freg src1, freg src2, const char* comm)
+void fltu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fltu.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FLTUPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fltu.pi");
+    WRITE_VD( (FS1.u32[e] < FS2.u32[e]) ? UINT32_MAX : 0 );
 }
 
-void fltm_pi(mreg dst, freg src1, freg src2, const char* comm)
+void fltm_pi(mreg md, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fltm.pi m%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    fmask(FLTPI, dst, src1, src2);
+    DISASM_MD_FS1_FS2("fltm.pi");
+    WRITE_VMD( FS1.i32[e] < FS2.i32[e] );
 }
 
-void faddi_pi(freg dst, freg src1, int32_t imm, const char* comm)
+void faddi_pi(freg fd, freg fs1, int32_t v_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: faddi.pi f%d, f%d, 0x%08x%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2srcimm(FADDIPI, dst, src1, imm);
+    DISASM_FD_FS1_VIMM("faddi.pi");
+    WRITE_VD( FS1.u32[e] + VIMM );
 }
 
-void fslli_pi(freg dst, freg src1, unsigned imm, const char* comm)
+void fslli_pi(freg fd, freg fs1, int32_t v_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fslli.pi f%d, f%d, 0x%08x%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2srcimm(FSLLIPI, dst, src1, imm);
+    DISASM_FD_FS1_UVIMM("fslli.pi");
+    WRITE_VD( FS1.u32[e] << uint32_t(VIMM) );
 }
 
-void fsrli_pi(freg dst, freg src1, unsigned imm, const char* comm)
+void fsrli_pi(freg fd, freg fs1, int32_t v_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsrli.pi f%d, f%d, 0x%08x%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2srcimm(FSRLIPI, dst, src1, imm);
+    DISASM_FD_FS1_UVIMM("fsrli.pi");
+    WRITE_VD( FS1.u32[e] >> uint32_t(VIMM) );
 }
 
-void fsrai_pi(freg dst, freg src1, unsigned imm, const char* comm)
+void fsrai_pi(freg fd, freg fs1, int32_t v_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsrai.pi f%d, f%d, 0x%08x%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2srcimm(FSRAIPI, dst, src1, imm);
+    DISASM_FD_FS1_UVIMM("fsrai.pi");
+    WRITE_VD( FS1.i32[e] >> uint32_t(VIMM) );
 }
 
-void fandi_pi(freg dst, freg src1, int32_t imm, const char* comm)
+void fandi_pi(freg fd, freg fs1, int32_t v_imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fandi.pi f%d, f%d, 0x%08x%s%s", dst, src1, imm, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2srcimm(FANDIPI, dst, src1, imm);
+    DISASM_FD_FS1_UVIMM("fandi.pi");
+    WRITE_VD( FS1.u32[e] & uint32_t(VIMM) );
 }
 
-void fadd_pi(freg dst, freg src1, freg src2, const char* comm)
+void fadd_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fadd.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FADDPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fadd.pi");
+    WRITE_VD( FS1.u32[e] + FS2.u32[e] );
 }
 
-void fsub_pi(freg dst, freg src1, freg src2, const char* comm)
+void fsub_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsub.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FSUBPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fsub.pi");
+    WRITE_VD( FS1.u32[e] - FS2.u32[e] );
 }
 
-void fsll_pi(freg dst, freg src1, freg src2, const char* comm)
+void fsll_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsll.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FSLLPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fsll.pi");
+    WRITE_VD( (FS2.u32[e] >= 32) ? 0 : (FS1.u32[e] << FS2.u32[e]) );
 }
 
-void fxor_pi(freg dst, freg src1, freg src2, const char* comm)
+void fxor_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fxor.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FXORPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fxor.pi");
+    WRITE_VD( FS1.u32[e] ^ FS2.u32[e] );
 }
 
-void fsrl_pi(freg dst, freg src1, freg src2, const char* comm)
+void fsrl_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsrl.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FSRLPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fsrl.pi");
+    WRITE_VD( (FS2.u32[e] >= 32) ? 0 : (FS1.u32[e] >> FS2.u32[e]) );
 }
 
-void fsra_pi(freg dst, freg src1, freg src2, const char* comm)
+void fsra_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsra.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FSRAPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fsra.pi");
+    WRITE_VD( FS1.i32[e] >> std::min(FS2.u32[e], 31u) );
 }
 
-void for_pi(freg dst, freg src1, freg src2, const char* comm)
+void for_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: for.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FORPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("for.pi");
+    WRITE_VD( FS1.u32[e] | FS2.u32[e] );
 }
 
-void fand_pi(freg dst, freg src1, freg src2, const char* comm)
+void fand_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fand.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FANDPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fand.pi");
+    WRITE_VD( FS1.u32[e] & FS2.u32[e] );
 }
 
-void fnot_pi(freg dst, freg src1, const char* comm)
+void fnot_pi(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fnot.pi f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FNOTPI, dst, src1, fnone);
+    DISASM_FD_FS1("fnot.pi");
+    WRITE_VD( ~FS1.u32[e] );
 }
 
-void fsat8_pi(freg dst, freg src1, const char* comm)
+void fsat8_pi(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsat8.pi f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FSAT8PI, dst, src1, fnone);
+    DISASM_FD_FS1("fsat8.pi");
+    WRITE_VD( sat8(FS1.i32[e]) );
 }
 
-void fsatu8_pi(freg dst, freg src1, const char* comm)
+void fsatu8_pi(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsatu8.pi f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FSATU8PI, dst, src1, fnone);
+    DISASM_FD_FS1("fsatu8.pi");
+    WRITE_VD( satu8(FS1.i32[e]) );
 }
 
-void fpackreph_pi(freg dst, freg src1, const char* comm)
+void fpackreph_pi(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fpackreph.pi f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    packrep(FPACKREPHPI, dst, src1);
+    DISASM_FD_FS1("fpackreph.pi");
+    freg_t tmp = FS1;
+    WRITE_VD( uint32_t(tmp.u16[(4*e+0)%(VLEN/16)])
+              | (uint32_t(tmp.u16[(4*e+2)%(VLEN/16)]) << 16) );
 }
 
-void fpackrepb_pi(freg dst, freg src1, const char* comm)
+void fpackrepb_pi(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fpackrepb.pi f%d, f%d%s%s", dst, src1, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    packrep(FPACKREPBPI, dst, src1);
+    DISASM_FD_FS1("fpackrepb.pi");
+    freg_t tmp = FS1;
+    WRITE_VD( uint32_t(tmp.u8[(16*e+0)%(VLEN/8)])
+              | (uint32_t(tmp.u8[(16*e+4)%(VLEN/8)]) << 8)
+              | (uint32_t(tmp.u8[(16*e+8)%(VLEN/8)]) << 16)
+              | (uint32_t(tmp.u8[(16*e+12)%(VLEN/8)]) << 24) );
 }
 
-void fmul_pi(freg dst, freg src1, freg src2, const char* comm)
+void fmul_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmul.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FMULPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fmul.pi");
+    WRITE_VD( FS1.u32[e] * FS2.u32[e] );
 }
 
-void fmulh_pi(freg dst, freg src1, freg src2, const char* comm)
+void fmulh_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmulh.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FMULHPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fmulh.pi");
+    WRITE_VD( (int64_t(FS1.i32[e]) * int64_t(FS2.i32[e]) >> 32) );
 }
 
-void fmulhu_pi(freg dst, freg src1, freg src2, const char* comm)
+void fmulhu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmulhu.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FMULHUPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fmulhu.pi");
+    WRITE_VD( (uint64_t(FS1.u32[e]) * uint64_t(FS2.u32[e]) >> 32) );
 }
 
-void fdiv_pi(freg dst, freg src1, freg src2, const char* comm)
+void fdiv_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fdiv.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FDIVPI, dst, src1, src2);
+    LOG(DEBUG, "I: fdiv.pi f%d,f%d,f%d", fd, fs1, fs2);
+    throw trap_mcode_instruction(current_inst);
 }
 
-void fdivu_pi(freg dst, freg src1, freg src2, const char* comm)
+void fdivu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fdivu.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FDIVUPI, dst, src1, src2);
+    LOG(DEBUG, "I: fdivu.pi f%d,f%d,f%d", fd, fs1, fs2);
+    throw trap_mcode_instruction(current_inst);
 }
 
-void frem_pi(freg dst, freg src1, freg src2, const char* comm)
+void frem_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: frem.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FREMPI, dst, src1, src2);
+    LOG(DEBUG, "I: frem.pi f%d,f%d,f%d", fd, fs1, fs2);
+    throw trap_mcode_instruction(current_inst);
 }
 
-void fremu_pi(freg dst, freg src1, freg src2, const char* comm)
+void fremu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fremu.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (core_type == ET_MINION)
-        throw trap_mcode_instruction(current_inst);
-
-    require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FREMUPI, dst, src1, src2);
+    LOG(DEBUG, "I: fremu.pi f%d,f%d,f%d", fd, fs1, fs2);
+    throw trap_mcode_instruction(current_inst);
 }
 
-void fmin_pi(freg dst, freg src1, freg src2, const char* comm)
+void fmin_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmin.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FMINPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fmin.pi");
+    WRITE_VD( std::min(FS1.i32[e], FS2.i32[e]) );
 }
 
-void fmax_pi(freg dst, freg src1, freg src2, const char* comm)
+void fmax_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmax.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FMAXPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fmax.pi");
+    WRITE_VD( std::max(FS1.i32[e], FS2.i32[e]) );
 }
 
-void fminu_pi(freg dst, freg src1, freg src2, const char* comm)
+void fminu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fminu.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FMINUPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fminu.pi");
+    WRITE_VD( std::min(FS1.u32[e], FS2.u32[e]) );
 }
 
-void fmaxu_pi(freg dst, freg src1, freg src2, const char* comm)
+void fmaxu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fmaxu.pi f%d, f%d, f%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
     require_fp_active();
-    DEBUG_MASK(MREGS[0]);
-    iemu2src(FMAXUPI, dst, src1, src2);
+    DISASM_FD_FS1_FS2("fmaxu.pi");
+    WRITE_VD( std::max(FS1.u32[e], FS2.u32[e]) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6744,45 +5202,32 @@ void fmaxu_pi(freg dst, freg src1, freg src2, const char* comm)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void packb(xreg dst, xreg src1, xreg src2, const char* comm)
+static inline uint_fast16_t bitmixb(uint_fast16_t sel, uint_fast16_t val0, uint_fast16_t val1)
 {
-    LOG(DEBUG, "I: packb x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = (XREGS[src1] & 0x0FF) | ((XREGS[src2] << 8) & 0x0FF00);
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
+    uint_fast16_t val = 0;
+    for (unsigned pos = 0; pos < 16; ++pos) {
+        if (sel & 1) {
+            val |= ((val1 & 1) << pos);
+            val1 >>= 1;
+        } else {
+            val |= ((val0 & 1) << pos);
+            val0 >>= 1;
+        }
+        sel >>= 1;
     }
-    log_xreg_write(dst, XREGS[dst]);
+    return val;
 }
 
-void bitmixb(xreg dst, xreg src1, xreg src2, const char* comm)
+void packb(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: bitmixb x%d, x%d, x%d%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
-    if (dst != x0)
-    {
-        uint64_t val = 0;
-        uint64_t mask = XREGS[src1];
-        uint64_t in0 = XREGS[src2];
-        uint64_t in1 = XREGS[src2] >> 8;
-        for (uint32_t b = 0; b < 16; b++)
-        {
-            if (mask & 0x01)
-            {
-                val = val | ((in1 & 0x01) << b);
-                in1 = in1 >> 1;
-            }
-            else
-            {
-                val = val | ((in0 & 0x01) << b);
-                in0 = in0 >> 1;
-            }
-            mask = mask >> 1;
-        }
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- 0x%016" PRIx64 " + 0x%016" PRIx64 , val, XREGS[src1], XREGS[src2]);
-        XREGS[dst] = val;
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    DISASM_RD_RS1_RS2("packb");
+    WRITE_RD( (RS1 & 0xff) | ((RS2 & 0xff) << 8) );
+}
+
+void bitmixb(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
+{
+    DISASM_RD_RS1_RS2("bitmixb");
+    WRITE_RD( bitmixb(uint16_t(RS1), uint16_t(RS2), uint16_t(RS2 >> 8)) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6811,7 +5256,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
 
         if (!MREGS[0][el]) continue;
 
-        uint64_t addr = sextVA(XREGS[src2] + FREGS[src1].s32[el]);
+        uint64_t addr = sextVA(XREGS[src2] + FREGS[src1].i32[el]);
 
         check_store_breakpoint(addr);
         if (!access_is_size_aligned(addr, 4))
@@ -8351,7 +6796,7 @@ static void tensor_fma32(uint64_t tfmareg)
                 continue;
             }
 
-            float32_t a = fpu::F32(SCP[(astart+i) % L1_SCP_ENTRIES].u32[(aoffset+k) % (L1D_LINE_SIZE/4)]);
+            float32_t a = SCP[(astart+i) % L1_SCP_ENTRIES].f32[(aoffset+k) % (L1D_LINE_SIZE/4)];
 
             // If first_pass is 1 and this is the first iteration we do FMUL
             // instead of FMA
@@ -8359,7 +6804,7 @@ static void tensor_fma32(uint64_t tfmareg)
             {
                 for (int j = 0; j < bcols; ++j)
                 {
-                    float32_t b = fpu::F32(tmpb.u32[j]);
+                    float32_t b = tmpb.f32[j];
                     float32_t c = fpu::f32_mul(a, b);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
                     log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
@@ -8375,11 +6820,11 @@ static void tensor_fma32(uint64_t tfmareg)
 
                 for (int j = 0; j < bcols; ++j)
                 {
-                    float32_t b = fpu::F32(tmpb.u32[j]);
+                    float32_t b = tmpb.f32[j];
                     // If the product will be 0, we can skip the operation
                     if (fpu::UI32(b)==0)
                         continue;
-                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] );
+                    float32_t c0 = FREGS[i*TFMA_REGS_PER_ROW+j/VL].f32[j%VL];
                     float32_t c = fpu::f32_mulAdd(a, b, c0);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
                     log_tensor_fma_write(k, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
@@ -8471,8 +6916,8 @@ static void tensor_fma16a32(uint64_t tfmareg)
                 continue;
             }
 
-            float16_t a1 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].u16[(aoffset+k+0) % (L1D_LINE_SIZE/2)]);
-            float16_t a2 = fpu::F16(SCP[(astart+i) % L1_SCP_ENTRIES].u16[(aoffset+k+1) % (L1D_LINE_SIZE/2)]);
+            float16_t a1 = SCP[(astart+i) % L1_SCP_ENTRIES].f16[(aoffset+k+0) % (L1D_LINE_SIZE/2)];
+            float16_t a2 = SCP[(astart+i) % L1_SCP_ENTRIES].f16[(aoffset+k+1) % (L1D_LINE_SIZE/2)];
 
             // If first_pass is 1 and this is the first iteration we do
             // a1*b1+a2*b2 instead of a1*b1+a2*b2+c0
@@ -8480,8 +6925,8 @@ static void tensor_fma16a32(uint64_t tfmareg)
             {
                 for (int j = 0; j < bcols; ++j)
                 {
-                    float16_t b1 = fpu::F16(tmpb.u16[2*j+0]);
-                    float16_t b2 = fpu::F16(tmpb.u16[2*j+1]);
+                    float16_t b1 = tmpb.f16[2*j+0];
+                    float16_t b2 = tmpb.f16[2*j+1];
                     float32_t c = fpu::f1632_mulAdd2(a1, b1, a2, b2);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
                     log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
@@ -8495,14 +6940,14 @@ static void tensor_fma16a32(uint64_t tfmareg)
             {
                 for (int j = 0; j < bcols; ++j)
                 {
-                    float16_t b1 = fpu::F16(tmpb.u16[2*j+0]);
-                    float16_t b2 = fpu::F16(tmpb.u16[2*j+1]);
+                    float16_t b1 = tmpb.f16[2*j+0];
+                    float16_t b2 = tmpb.f16[2*j+1];
                     // If all products will be 0, we can skip the operation.
                     // NB: The detection is done at 32-bit granularity, not at
                     // element (16-bit) granularity.
                     if ((fpu::UI16(b1)==0) && (fpu::UI16(b2)==0))
                         continue;
-                    float32_t c0 = fpu::F32( FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] );
+                    float32_t c0 = FREGS[i*TFMA_REGS_PER_ROW+j/VL].f32[j%VL];
                     float32_t c = fpu::f1632_mulAdd3(a1, b1, a2, b2, c0);
                     FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = fpu::UI32(c);
                     log_tensor_fma_write(k/2, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
@@ -8645,9 +7090,9 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) && (tmpb.u32[j] == 0))
                     continue;
 
-                int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].s32[j%VL];
+                int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL];
                 int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
-                dst[i*TFMA_REGS_PER_ROW+j/VL].s32[j%VL] = c;
+                dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
                 log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
                 LOG(DEBUG, "\tTensorIMA8A32(%d) %s%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
                     k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));

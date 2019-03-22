@@ -2503,10 +2503,10 @@ void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], f
     alpha   = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzlea, alpha_swz, red_swz,
                                     green_swz, blue_swz, alpha_swz);
 
-    output[0].u32[quad * 4 + pixel] = fpu::UI32(red);
-    output[1].u32[quad * 4 + pixel] = fpu::UI32(green);
-    output[2].u32[quad * 4 + pixel] = fpu::UI32(blue);
-    output[3].u32[quad * 4 + pixel] = fpu::UI32(alpha);
+    output[0].u32[quad * 4 + pixel] = fpu::F2UI32(red);
+    output[1].u32[quad * 4 + pixel] = fpu::F2UI32(green);
+    output[2].u32[quad * 4 + pixel] = fpu::F2UI32(blue);
+    output[3].u32[quad * 4 + pixel] = fpu::F2UI32(alpha);
 }
 
 /*
@@ -2904,8 +2904,8 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg
 
     if (output_result) {
         LOG(DEBUG, "\tResult = {0x%08x (%f), 0x%08x (%f), 0x%08x (%f), 0x%08x (%f)}",
-            fpu::UI32(red), red, fpu::UI32(green), green,
-            fpu::UI32(blue), blue, fpu::UI32(alpha), alpha);
+            fpu::F2UI32(red), red, fpu::F2UI32(green), green,
+            fpu::F2UI32(blue), blue, fpu::F2UI32(alpha), alpha);
     }
 }
 
