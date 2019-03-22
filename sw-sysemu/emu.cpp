@@ -7283,7 +7283,7 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     }
 
     msg_ports[thread][id].size++;
-    msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % (msg_ports[thread][id].max_msgs +1);
+    msg_ports[thread][id].wr_ptr = (msg_ports[thread][id].wr_ptr + 1) % (msg_ports[thread][id].max_msgs + 1);
 
     if (msg_ports[thread][id].enable_oob)
         msg_ports_oob[thread][id].push_back(oob);
@@ -7390,17 +7390,17 @@ void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t sou
 
         if (found)
         {
-            LOG(DEBUG, "Commit write on MSG_PORT (m%d p%d) from m%d", target_thread, port_id, source_thread);
+            LOG(DEBUG, "Commit write on MSG_PORT (h%d p%d) from h%d", target_thread, port_id, source_thread);
             write_msg_port_data_to_scp(target_thread, port_id, (uint32_t *) port_write.data, port_write.oob);
         }
         else
         {
-            LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from m%d not found!!", target_thread, port_id, source_thread);
+            LOG(DEBUG, "ERROR Commit write on MSG_PORT (h%d p%d) from h%d not found!!", target_thread, port_id, source_thread);
         }
     }
     else
     {
-        LOG(DEBUG, "ERROR Commit write on MSG_PORT (m%d p%d) from m%d not found!!", target_thread, port_id, source_thread);
+        LOG(DEBUG, "ERROR Commit write on MSG_PORT (h%d p%d) from h%d not found!!", target_thread, port_id, source_thread);
     }
 }
 
