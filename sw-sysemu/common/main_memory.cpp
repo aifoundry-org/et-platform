@@ -33,14 +33,12 @@ main_memory::main_memory(testLog& log_)
             regions_.push_back((main_memory_region *) neigh_esrs);
         }
 
-#if 0
         // Shire cache ESRs (M-mode)
         for (int n = 0; n < 4; n++)
         {
             main_memory_region_esr * cb_esrs  = new main_memory_region_esr(ESR_CACHE(CSR_PRV_M, shire, n, IDX_COP_SM_CTL), 8, log, getthread);
             regions_.push_back((main_memory_region *) cb_esrs);
         }
-#endif
 
         // RBOX ESRs (U-mode)
         main_memory_region_rbox * rbox_esrs  = new main_memory_region_rbox(ESR_RBOX(CSR_PRV_U, shire, 0), 128*1024, log, getthread);
@@ -393,4 +391,4 @@ void main_memory::create_mem_at_runtime()
 {
    runtime_mem_regions = true;
 }
- 
+

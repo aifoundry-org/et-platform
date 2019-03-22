@@ -124,7 +124,15 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
         case ESR_Region_Shire_Cache:
             LOG(WARN, "Write to ESR Region ShireCache at ESR address 0x%" PRIx64, esr_info.address);
-            throw trap_bus_error(ad);
+            switch(esr_info.address)
+            {
+                case ESR_CACHE_IDX_COP_SM_CTL:
+                    /* do nothing */
+                    break;
+                default:
+                    throw trap_bus_error(ad);
+            }
+            break;
 
         case ESR_Region_Shire_RBOX:
             LOG(DEBUG, "Write to ESR Region RBOX at ESR address 0x%" PRIx64, esr_info.address);
@@ -345,7 +353,16 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
 
         case ESR_Region_Shire_Cache:
             LOG(WARN, "Read from ESR Region ShireCache at ESR address 0x%" PRIx64, esr_info.address);
-            throw trap_bus_error(ad);
+            switch(esr_info.address)
+            {
+                case ESR_CACHE_IDX_COP_SM_CTL:
+                    *ptr = 4 << 24; // idx_cop_sm_state = IDLE
+                    read_data = false;
+                    break;
+                default:
+                    throw trap_bus_error(ad);
+            }
+            break;
 
         case ESR_Region_Shire_RBOX:
             LOG(DEBUG, "Read from ESR Region RBOX at ESR address 0x%" PRIx64, esr_info.address);
