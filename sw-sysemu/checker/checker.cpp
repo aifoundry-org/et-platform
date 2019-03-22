@@ -1105,9 +1105,6 @@ bool checker::address_is_in_ignored_region(uint64_t addr)
    auto it_mask = ignored_mem_masks.begin();
    while (it_mask != ignored_mem_masks.end())
    {
-      log << LOG_INFO << "Ignored memory mask: (" << std::hex << it_mask->mask << ", " << it_mask->match << ")" << endm;
-      log << LOG_INFO << "Ignored memory mask: (" << std::hex << it_mask->mask << ", " << it_mask->match << ")" << endm;
-      log << LOG_INFO << "(addr & it_mask->mask) ^ it_mask->match) = " << std::hex << ((addr & it_mask->mask) ^ it_mask->match) << endm;
       if (((addr & it_mask->mask) ^ it_mask->match) == 0) return true;
       it_mask++;
    }
