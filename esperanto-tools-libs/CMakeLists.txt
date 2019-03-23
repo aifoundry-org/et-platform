@@ -29,17 +29,33 @@ include(ExternalProject)
 #  )
 
 
-if (NOT HOST_SW)
+if (HOST_SW)
+  # HACK the following should be removed in the future and the runtime should have
+  # no dependency on the binary artifacts.
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/artifacts.done
+      ${CMAKE_CURRENT_BINARY_DIR}/esperanto-soc-artifacts/artifacts/sdk-build/build/libetrpc.a
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../tools/artifacts/manifest.json
+       ${CMAKE_CURRENT_SOURCE_DIR}/../tools/artifacts/getArtifacts.py
+    COMMAND rm -rf esperanto-soc-artifacts && mkdir -p esperanto-soc-artifacts
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../tools/artifacts/getArtifacts.py ${CMAKE_CURRENT_BINARY_DIR}/esperanto-soc-artifacts
+    COMMAND date > ${CMAKE_CURRENT_BINARY_DIR}/artifacts.done
+    COMMENT "Download the build artifacts"
+    VERBATIM)
+  add_custom_target(download_esperanto_soc_artifacts
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/artifacts.done)
 
-# FIXME Remove external dependency to the SDK
-ExternalProject_Add(sdk
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk
-  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdk
-  INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdk-install
-  CMAKE_ARGS all
-  INSTALL_COMMAND ""
-  )
-LINK_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/sdk)
+else(HOST_SW)
+
+    # FIXME Remove external dependency to the SDK
+    ExternalProject_Add(sdk
+      SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk
+      BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdk
+      INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdk-install
+      CMAKE_ARGS all
+      INSTALL_COMMAND ""
+      )
+    LINK_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/sdk)
 
 endif()
 
@@ -116,7 +132,8 @@ if (HOST_SW)
   add_library(etrpc STATIC IMPORTED)
   set_property(TARGET etrpc
     PROPERTY IMPORTED_LOCATION
-    ${CMAKE_CURRENT_SOURCE_DIR}/../artifacts/sdk-build/build/libetrpc.a)
+    ${CMAKE_CURRENT_BINARY_DIR}/esperanto-soc-artifacts/artifacts/sdk-build/build/libetrpc.a)
+  add_dependencies(etrpc download_esperanto_soc_artifacts)
 endif(HOST_SW)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden -fPIC -std=c++11 -Wall")
@@ -141,7 +158,7 @@ add_library(etrt SHARED ${ETRT_SOURCES})
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 if (HOST_SW)
-  target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../artifacts/sdk-build/build")
+  target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/esperanto-soc-artifacts/artifacts/sdk-build/build")
 else()
   target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../sdk")
   add_dependencies(etrt sdk)
