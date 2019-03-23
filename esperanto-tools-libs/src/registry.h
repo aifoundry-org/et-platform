@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <stddef.h>
+#include <unordered_map>
 
 // Registry internal interface.
 

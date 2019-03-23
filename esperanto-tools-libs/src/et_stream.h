@@ -1,7 +1,15 @@
 #ifndef ETTEE_ET_STREAM_H
 #define ETTEE_ET_STREAM_H
 
+// clang-format off
+// et-rpc is an external dependency to be deprecated
+// unfortunately the et-card-proxy.h header is not self
+// contained and misisng includes
+#include <stddef.h>
+#include <stdint.h>
 #include "et-rpc/et-card-proxy.h"
+// clang-format on
+
 #include "etrt.h"
 #include "utils.h"
 #include <atomic>
@@ -10,7 +18,6 @@
 #include <memory>
 #include <mutex>
 #include <queue>
-#include <stddef.h>
 
 class EtAction {
   std::atomic<int> ref_counter;

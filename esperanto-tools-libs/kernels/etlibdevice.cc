@@ -1,6 +1,11 @@
+// clang-format off
+
+// Note include order matters sys_inc.h is not self contained
+#include <stdint.h>
 #include "etlibdevice.h"
 #include "sys_inc.h"
-#include <stdint.h>
+
+// clang-format on
 
 extern "C" void KernelDispatchFunction(void *args,
                                        KernelRuntimeState_t *state_p,

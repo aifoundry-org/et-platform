@@ -23,6 +23,8 @@ THE SOFTWARE.
 #ifndef ELF_HEADER_HPP
 #define ELF_HEADER_HPP
 
+#include "elfio_utils.hpp"
+
 #include <iostream>
 
 namespace ELFIO {

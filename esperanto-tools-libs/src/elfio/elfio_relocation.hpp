@@ -23,6 +23,8 @@ THE SOFTWARE.
 #ifndef ELFIO_RELOCATION_HPP
 #define ELFIO_RELOCATION_HPP
 
+#include "elfio_symbols.hpp"
+
 namespace ELFIO {
 
 template <typename T> struct get_sym_and_type;

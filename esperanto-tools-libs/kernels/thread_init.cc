@@ -1,6 +1,9 @@
-#include "etlibdevice.h"
-#include "sys_inc.h"
+// clang-format off
+// Note include order matters
 #include <stdint.h>
+#include "sys_inc.h"
+#include "etlibdevice.h"
+// clang-format on
 
 ///////////////////////////////////////////////////////////////////////////////
 // This is the function called after the threads finish the bootrom. They set

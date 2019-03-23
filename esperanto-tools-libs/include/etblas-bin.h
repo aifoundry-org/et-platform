@@ -1,6 +1,8 @@
 #ifndef ETBLAS_BIN_H
 #define ETBLAS_BIN_H
 
+#include "etrt-bin.h"
+
 /****** /usr/local/cuda/include/cublas_api.h ******/
 
 /* CUBLAS status type returns */
