@@ -98,11 +98,16 @@ pipeline {
         }
         stage("Docker remove old images") {
             steps {
-            // Remove any old images that have not been used for a long time
-            // Do it here instead of the beginning to avoid throwing away
-            // any usefull cached layers
-            echo "Docker remove old images"
-            sh 'docker image prune -a --force --filter "until=240h"'
+                // Remove any old images that have not been used for a long time
+                // Do it here instead of the beginning to avoid throwing away
+                // any usefull cached layers
+                echo "Docker remove old images"
+                // The follow statement removes images that are created x days ago
+                // Instead what we need is to remove images that were last used x days
+                // ago. Currently Docker does not provide such a filter
+                // sh 'docker image prune -a --force --filter "until=240h"'
+                // The following command will remove only the build cache
+                sh 'docker builder prune -a --force --filter "until=240h"'
                 sh 'docker system prune -f'
             }
         }
