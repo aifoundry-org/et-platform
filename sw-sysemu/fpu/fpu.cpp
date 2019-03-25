@@ -10,7 +10,6 @@
 #include "debug.h"
 
 
-
 #ifdef FPU_DEBUG
 #undef FPU_DEBUG
 #endif
@@ -493,33 +492,34 @@ static float32_t f32_add2( uint_fast32_t uiA, uint_fast32_t uiB )
 #endif
     if ( sigZ >= 0x80000000 ) {
         signZ = !signZ;
-        sigZ = -sigZ;
+        sigZ = (-sigZ & ~2);
 #ifdef FPU_DEBUG
         std::cout << "z_neg : " << Float32<4>(signZ,expZ,sigZ) << '\n';
 #endif
     }
     if ( sigZ >= 0x10000000 ) {
         expZ += 1;
-        sigZ >>= 1;
+        sigZ = ((sigZ >> 1) & ~2) | ((sigZ >> 2) & 1) | (sigZ & 1);
 #ifdef FPU_DEBUG
         std::cout << "z_adj1: " << Float32<4>(signZ,expZ,sigZ) << '\n';
 #endif
     }
     if ( sigZ >= 0x10000000 ) {
         expZ += 1;
-        sigZ >>= 1;
+        sigZ = ((sigZ >> 1) & ~2) | ((sigZ >> 2) & 1) | (sigZ & 1);
 #ifdef FPU_DEBUG
         std::cout << "z_adj2: " << Float32<4>(signZ,expZ,sigZ) << '\n';
 #endif
     }
-    if ( subB && !sigZ ) {
-        uiZ =
-            packToF32UI(
-                (softfloat_roundingMode == softfloat_round_min), 0, 0 );
-#ifdef FPU_DEBUG
-        std::cout << "z_cncl: " << Float32<4>(signF32UI(uiZ),expF32UI(uiZ),fracF32UI(uiZ)) << '\n';
-#endif
-        goto uiZ;
+    if ( !sigZ ) {
+        if ( subB ) {
+            uiZ =
+                packToF32UI(
+                    (softfloat_roundingMode == softfloat_round_min), 0, 0 );
+        } else if ( !expDiff ) {
+            uiZ = packToF32UI(signZ, expZ, 0);
+            goto uiZ;
+        }
     }
     sigZ = ((sigZ & ~1) << 2) | (sigZ & 1);
     if ( sigZ < 0x40000000 ) {
@@ -674,13 +674,6 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     std::cout << "M_shft: " << Float32<4>(signB,expA,sigB) << " (shft: " << expDiffB << ")\n";
     std::cout << "L_shft: " << Float32<4>(signC,expA,sigC) << " (shft: " << expDiffC << ")\n\n";
 #endif
-#if 0
-    if ( subB && /*!subC &&*/ (sigB & sigC & 1) ) {
-        --sigC;
-    } else if ( !subB && (sigB & sigC & 1) ) {
-        --sigB;
-    }
-#endif
     signZ = signA;
     expZ = expA;
     sigZ = sigA + (subB ? (-sigB & ~2) : sigB) + (subC ? (-sigC & ~2) : sigC);
@@ -699,26 +692,28 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     }
     if ( sigZ >= 0x10000000 ) {
         expZ += 1;
-        sigZ >>= 1;
+        sigZ = ((sigZ >> 1) & ~2) | ((sigZ >> 2) & 1) | (sigZ & 1);
 #ifdef FPU_DEBUG
         std::cout << "z_adj1: " << Float32<4>(signZ,expZ,sigZ) << '\n';
 #endif
     }
     if ( sigZ >= 0x10000000 ) {
         expZ += 1;
-        sigZ >>= 1;
+        sigZ = ((sigZ >> 1) & ~2) | ((sigZ >> 2) & 1) | (sigZ & 1);
 #ifdef FPU_DEBUG
         std::cout << "z_adj2: " << Float32<4>(signZ,expZ,sigZ) << '\n';
 #endif
     }
-    if ( (subB || subC) && !sigZ ) {
-        uiZ =
-            packToF32UI(
-                (softfloat_roundingMode == softfloat_round_min), 0, 0 );
-#ifdef FPU_DEBUG
-        std::cout << "z_cncl: " << Float32<4>(signF32UI(uiZ),expF32UI(uiZ),fracF32UI(uiZ)) << '\n';
-#endif
-        goto uiZ;
+    if ( !sigZ ) {
+        if ( subB || subC ) {
+            uiZ =
+                packToF32UI(
+                    (softfloat_roundingMode == softfloat_round_min), 0, 0 );
+            goto uiZ;
+        } else if ( !expDiffC ) {
+            uiZ = packToF32UI(signZ, expZ, 0);
+            goto uiZ;
+        }
     }
     sigZ = ((sigZ & ~1) << 2) | (sigZ & 1);
     if ( sigZ < 0x40000000 ) {
