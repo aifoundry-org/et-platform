@@ -22,12 +22,12 @@
 #define REGION_SIZE_KEY "size"
 #define REGION_FILE_KEY "file"
 
-typedef struct REGION_INFO {
+typedef struct REGION_NAME_INFO {
     ESPERANTO_FLASH_REGION_ID_t id;
     const char * name;
-} REGION_INFO_t;
+} REGION_NAME_INFO_t;
 
-static REGION_INFO_t regions_info[] = {
+static REGION_NAME_INFO_t regions_info[] = {
     { ESPERANTO_FLASH_REGION_ID_PRIORITY_DESIGNATOR, "PRIORITY_DESIGNATOR" },
     { ESPERANTO_FLASH_REGION_ID_BOOT_COUNTERS, "BOOT_COUNTERS" },
     { ESPERANTO_FLASH_REGION_ID_SP_CERTIFICATES, "SP_CERTIFICATES" },
@@ -42,7 +42,7 @@ static REGION_INFO_t regions_info[] = {
     { ESPERANTO_FLASH_REGION_ID_WORKER_MINION_EXEC, "WORKER_MINION_EXEC" },
     { ESPERANTO_FLASH_REGION_ID_MAXION_BL1, "MAXION_BL1" }
 };
-static const uint32_t regions_count = sizeof(regions_info) / sizeof(REGION_INFO_t);
+static const uint32_t regions_count = sizeof(regions_info) / sizeof(REGION_NAME_INFO_t);
 
 static ESPERANTO_FLASH_REGION_ID_t region_name_to_id(const char * name) {
     uint32_t n;
@@ -52,6 +52,13 @@ static ESPERANTO_FLASH_REGION_ID_t region_name_to_id(const char * name) {
         }
     }
     return ESPERANTO_FLASH_REGION_ID_INVALID;
+}
+
+const char * region_id_to_name(ESPERANTO_FLASH_REGION_ID_t id) {
+    if (ESPERANTO_FLASH_REGION_ID_INVALID <= id && id < ESPERANTO_FLASH_REGION_ID_AFTER_LAST_SUPPORTED_VALUE) {
+        return regions_info[id - 1].name;
+    }
+    return NULL;
 }
 
 static int process_integer(json_object * value, uint32_t * num) {
@@ -95,17 +102,14 @@ static int process_region_id(json_object * value, ESPERANTO_FLASH_REGION_ID_t * 
             *pid = id;
             return 0;
         }
-
-    } else {
-        return process_integer(value, pid);
     }
-
+    return process_integer(value, pid);
 }
 
 static void free_region(REGION_INFO_t * pregion) {
-    if (NULL != pregion->name) {
-        free(pregion->name);
-        pregion->name = NULL;
+    if (NULL != pregion->file_path) {
+        free(pregion->file_path);
+        pregion->file_path = NULL;
     }
 }
 static int process_region(json_object * jobj, REGION_INFO_t * pregion) {
@@ -135,18 +139,18 @@ static int process_region(json_object * jobj, REGION_INFO_t * pregion) {
                 fprintf(stderr, "ERROR in process_region: FILE PATH is a NULL string!\n");
                 return -1;
             }
-            pregion->name = (char*)malloc(1 + strlen(str));
-            if (NULL == pregion->name) {
+            pregion->file_path = (char*)malloc(1 + strlen(str));
+            if (NULL == pregion->file_path) {
                 fprintf(stderr, "ERROR in process_region: malloc(0 failed!\n");
                 return -1;
             }
-            strcpy(pregion->name, str);
+            strcpy(pregion->file_path, str);
         } else {
             fprintf(stderr, "ERROR in process_region: '" REGION_FILE_KEY "' is not a string type!\n");
             return -1;
         }
     } else {
-        pregion->name = NULL;
+        pregion->file_path = NULL;
     }
 
     return 0;
@@ -174,7 +178,7 @@ static int process_regions_list(json_object * jobj, REGION_INFO_t ** ppregions, 
     memset(regions, 0, count * sizeof(REGION_INFO_t));
 
     for (index = 0; index < count; index++) {
-        jelement = json_object_array_get_idx(jobj, index);
+        jelement = json_object_array_get_idx(jobj, (int)index);
         if (NULL == jelement) {
             fprintf(stderr, "ERROR in process_regions_list: json_object_array_get_idx(%u) returned NULL!\n", index);
             rv = -1;
@@ -217,7 +221,7 @@ static void free_partition(PARTITION_INFO_t * ppartition) {
     for (n = 0; n < ppartition->regions_count; n++) {
         free_region(&ppartition->regions[n]);
     }
-    free(ppartition->regions[n]);
+    free(ppartition->regions);
 }
 static int process_partition(json_object * jobj, PARTITION_INFO_t * ppartition) {
     int rv;
@@ -293,7 +297,7 @@ static int process_image(json_object * jobj, IMAGE_INFO_t * pimage) {
     uint32_t count;
     uint32_t index = 0;
 
-    if (TRUE == json_object_object_get_ex(jobj, PARTITION_SIZE_KEY, &value)) {
+    if (TRUE == json_object_object_get_ex(jobj, IMAGE_SIZE_KEY, &value)) {
         if (0 != process_integer(value, &(pimage->image_size))) {
             fprintf(stderr, "ERROR in process_image: process_integer() failed to parse image size!\n");
             rv = -1;
@@ -309,13 +313,13 @@ static int process_image(json_object * jobj, IMAGE_INFO_t * pimage) {
         goto DONE;
     }
 
-    if (json_type_array != json_object_get_type(jobj)) {
+    if (json_type_array != json_object_get_type(value)) {
         fprintf(stderr, "ERROR in process_image: json object '" IMAGE_PARTITIONS_KEY "' is not an ARRAY type!\n");
         rv = -1;
         goto DONE;
     }
 
-    count = (uint32_t)json_object_array_length(jobj);
+    count = (uint32_t)json_object_array_length(value);
     if (2 != count) {
         fprintf(stderr, "ERROR in process_image: partitions list is not of size 2!\n");
         rv = -1;
@@ -323,7 +327,7 @@ static int process_image(json_object * jobj, IMAGE_INFO_t * pimage) {
     }
 
     for (; index < 2; index++) {
-        partition = json_object_array_get_idx(jobj, index);
+        partition = json_object_array_get_idx(value, (int)index);
         if (NULL == partition) {
             fprintf(stderr, "ERROR in process_image: json_object_array_get_idx(%u) returned NULL!\n", index);
             rv = -1;
@@ -345,7 +349,7 @@ DONE:
     return rv;
 }
 
-static int load_file(const char * file_path, char ** buffer, size_t * buffer_size) {
+int load_file(const char * file_path, char ** buffer, size_t * buffer_size) {
     int rval = 0;
     long offset;
     size_t size;
@@ -416,7 +420,13 @@ FAILED1:
 }
 
 void free_template_info(TEMPLATE_INFO_t * template) {
-
+    if (template->image_type) {
+        free_image(template->image);
+        template->image = NULL;
+    } else {
+        free_partition(template->partition);
+        template->partition = NULL;
+    }
 }
 
 int parse_template_file(const char * filename, TEMPLATE_INFO_t * template) {

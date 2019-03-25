@@ -9,50 +9,56 @@
                 "completed_boot_count" : 0,
                 "regions" : [
                     {
-                        "id" : "0x1231",
-                        "size" : 64,
-                        "file" : "file_path"
+                        "id" : "PRIORITY_DESIGNATOR",
+                        "size" : 4
                     },
                     {
-                        "id" : "0x1234",
-                        "size" : 64,
-                        "file" : "file_path"
+                        "id" : "BOOT_COUNTERS",
+                        "size" : 4
                     },
                     {
-                        "id" : "0x1235",
-                        "size" : 64,
-                        "file" : "file_path"
+                        "id" : "SP_CERTIFICATES",
+                        "size" : 4,
+                        "file" : "files/a/sp.crt"
                     },
                     {
-                        "id" : "0x1236",
-                        "size" : 64
+                        "id" : "SP_BL1",
+                        "size" : 128,
+                        "file" : "files/a/bl1.img"
                     },
                     {
-                        "id" : "0x1237",
-                        "file" : "file_path"
+                        "id" : "SP_BL2",
+                        "size" : 384,
+                        "file" : "files/a/bl2.img"
+                    },
+                    {
+                        "id" : "DRAM_TRAINING",
+                        "size" : 32,
+                        "file" : "files/a/dram.img"
                     }
                 ]
             },
             {
                 "partition_size" : 1024,
+                "priority" : 3,
+                "attempted_boot_count" : 27,
+                "completed_boot_count" : 26,
                 "regions" : [
                     {
-                        "id" : "0x1234",
-                        "size" : 64,
-                        "file" : "file_path"
+                        "id" : "SP_CERTIFICATES",
+                        "file" : "files/b/sp.crt"
                     },
                     {
-                        "id" : "0x1235",
-                        "size" : 64,
-                        "file" : "file_path"
+                        "id" : "SP_BL1",
+                        "file" : "files/b/bl1.img"
                     },
                     {
-                        "id" : "0x1236",
-                        "size" : 64
+                        "id" : "SP_BL2",
+                        "file" : "files/b/bl2.img"
                     },
                     {
-                        "id" : "0x1237",
-                        "file" : "file_path"
+                        "id" : "DRAM_TRAINING",
+                        "file" : "files/b/dram.img"
                     }
                 ]
             }

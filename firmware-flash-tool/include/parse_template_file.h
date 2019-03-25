@@ -26,13 +26,15 @@ typedef struct IMAGE_INFO {
 } IMAGE_INFO_t;
 
 typedef struct TEMPLATE_INFO {
-    bool image;
+    bool image_type;
     union {
         IMAGE_INFO_t * image;
         PARTITION_INFO_t * partition;
     };
 } TEMPLATE_INFO_t;
 
+const char * region_id_to_name(ESPERANTO_FLASH_REGION_ID_t id);
+int load_file(const char * file_path, char ** buffer, size_t * buffer_size);
 void free_template_info(TEMPLATE_INFO_t * template);
 int parse_template_file(const char * filename, TEMPLATE_INFO_t * template);
 
