@@ -46,7 +46,7 @@ LDLIBS   := ../../build/libfpu.a -lm
 CXXFLAGS += -mf16c -fno-fast-math
 
 .PHONY: all
-all: sys_emu libsysemu.a sysemu-artifacts.tar.gz
+all: sys_emu libsysemu.a
 
 .PHONY: static
 static: LDFLAGS := -static
@@ -65,7 +65,6 @@ clean:
 ../../build/libfpu.a: force
 	$(MAKE) -C ../../build $(notdir $@)
 
-
 artifacts_dir:
 	mkdir -p sysemu-artifacts
 
@@ -80,7 +79,6 @@ install_headers : $(addprefix ../../,$(sysemu_hdrs)) | artifacts_dir
 .PHONY: install_binaries
 install_binaries: libsysemu.a sys_emu ../../build/libfpu.a | artifacts_dir
 	for i in $^; do cp -f $$i sysemu-artifacts/; done
-
 
 sysemu-artifacts.tar.gz: install_binaries install_headers | artifacts_dir
 	tar zcvf sysemu-artifacts.tar.gz sysemu-artifacts
