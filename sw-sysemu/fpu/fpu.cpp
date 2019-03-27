@@ -516,6 +516,7 @@ static float32_t f32_add2( uint_fast32_t uiA, uint_fast32_t uiB )
             uiZ =
                 packToF32UI(
                     (softfloat_roundingMode == softfloat_round_min), 0, 0 );
+            goto uiZ;
         } else if ( !expDiff ) {
             uiZ = packToF32UI(signZ, expZ, 0);
             goto uiZ;
@@ -769,7 +770,7 @@ static float32_t f16_mulAdd2(
 #endif
     p2 = f16_mulExt( a2, b2 );
 #ifdef FPU_DEBUG
-    std::cout << "\n----- z = p1 + p2 + c -----------------------------------------------------\n";
+    std::cout << "\n----- z = p1 + p2 ---------------------------------------------------------\n";
 #endif
     return f32_add2( p1, p2 );
 }
