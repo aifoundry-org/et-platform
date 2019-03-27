@@ -83,8 +83,8 @@ libemu.so libemu.a: LDLIBS := -L. -Wl,-rpath=$(shell readlink -f .) -lfpu
 libemu.so: $(libemu_OBJS) libfpu.so
 	$(CC) $(LDFLAGS) $(TARGET_ARCH) $(libemu_OBJS) $(LOADLIBES) $(LDLIBS) -o $@
 
-libemu.a: $(libemu_OBJS) libfpu.a
-	$(AR) $(ARFLAGS) $@ $(OBJS) 
+libemu.a: $(libemu_OBJS) $(libfpu_OBJS)
+	$(AR) $(ARFLAGS) $@ $^
 
 $(libemu_DIRS):
 	mkdir -p $@
