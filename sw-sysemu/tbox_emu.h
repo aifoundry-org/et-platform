@@ -52,9 +52,9 @@ namespace TBOX
         void set_request_header(uint32_t thread, uint64_t src1, uint64_t src2); // Obsolete method
         void set_request_header(uint32_t thread, SampleRequest header);
     
-        void set_request_coordinates(uint32_t thread, uint32_t index, fdata coord);
-        fdata get_request_results(uint32_t thread, uint32_t index);
-        unsigned get_request_results(uint32_t thread, fdata* data);
+        void set_request_coordinates(uint32_t thread, uint32_t index, freg_t coord);
+        freg_t get_request_results(uint32_t thread, uint32_t index);
+        unsigned get_request_results(uint32_t thread, freg_t* data);
         void set_request_pending(uint32_t thread, bool v);
         bool check_request_pending(uint32_t thread);
         void set_image_table_address(uint64_t addr);
@@ -67,8 +67,8 @@ namespace TBOX
         void sample_quad(uint32_t thread, bool output_result);
         bool get_image_info(uint32_t thread, ImageInfo &currentImage);
         bool get_image_info(SampleRequest request, ImageInfo &currentImage);
-        void sample_quad(SampleRequest currentRequest, fdata input[], fdata output[]);
-        void sample_quad(SampleRequest currentRequest, ImageInfo currentImage, fdata input[], fdata output[], bool output_result);
+        void sample_quad(SampleRequest currentRequest, freg_t input[], freg_t output[]);
+        void sample_quad(SampleRequest currentRequest, ImageInfo currentImage, freg_t input[], freg_t output[], bool output_result);
         void decompress_texture_cache_line_data(ImageInfo currentImage, uint32_t startTexel,
                                                 uint64_t inData[TEXTURE_CACHE_QWORDS_PER_LINE], uint64_t outData[TEXTURE_CACHE_QWORDS_PER_LINE]);
     
@@ -108,9 +108,9 @@ namespace TBOX
     
         bool request_pending[EMU_NUM_THREADS];
     
-        fdata input[EMU_NUM_THREADS][5];
+        freg_t input[EMU_NUM_THREADS][5];
     
-        fdata output[EMU_NUM_THREADS][4];
+        freg_t output[EMU_NUM_THREADS][4];
     
         uint32_t request_hart;
     
@@ -152,12 +152,12 @@ namespace TBOX
     
         void create_l2_request(uint64_t);
     
-        void sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fdata r,
+        void sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, freg_t r,
                              uint32_t req, ImageInfo currentImage, FilterType filter,
                              uint32_t slice, uint32_t sample_mip_level, float sample_mip_beta,
                              uint32_t aniso_sample, float aniso_weight, float aniso_deltas, float aniso_deltat,
                              float &red, float &green, float &blue, float &alpha, bool output_result);
-        void sample_pixel(SampleRequest currentRequest, fdata input[], fdata output[],
+        void sample_pixel(SampleRequest currentRequest, freg_t input[], freg_t output[],
                           uint32_t quad, uint32_t pixel,
                           ImageInfo currentImage, FilterType filter, uint32_t mip_level,
                           uint32_t mip_beta, bool output_result);

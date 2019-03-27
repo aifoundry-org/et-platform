@@ -11,7 +11,7 @@ extern uint32_t tbox_id_from_thread(uint32_t current_trhead);
 
 extern void new_sample_request(uint32_t current_thread, uint32_t port_id, uint32_t number_packets, uint64_t base_address);
 
-extern void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOX::SampleRequest currentRequest, fdata input[], fdata output[]);
+extern void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOX::SampleRequest currentRequest, freg_t input[], freg_t output[]);
 
 extern void decompress_texture_cache_line_data(TBOX::ImageInfo currentImage, uint32_t startTexel, uint64_t inData[], uint64_t outData[]);
 
