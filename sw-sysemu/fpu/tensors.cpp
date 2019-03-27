@@ -23,15 +23,11 @@ static uint_fast32_t softfloat_propagateNaNF32UI(
 }
 
 
-static uint_fast32_t f16_mulExt( float16_t a, float16_t b )
+static uint_fast32_t f16_mulExt( uint_fast16_t uiA, uint_fast16_t uiB )
 {
-    union ui16_f16 uA;
-    uint_fast16_t uiA;
     bool signA;
     int_fast8_t expA;
     uint_fast16_t sigA;
-    union ui16_f16 uB;
-    uint_fast16_t uiB;
     bool signB;
     int_fast8_t expB;
     uint_fast16_t sigB;
@@ -45,13 +41,9 @@ static uint_fast32_t f16_mulExt( float16_t a, float16_t b )
 
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
-    uA.f = a;
-    uiA = uA.ui;
     signA = signF16UI( uiA );
     expA  = expF16UI( uiA );
     sigA  = fracF16UI( uiA );
-    uB.f = b;
-    uiB = uB.ui;
     signB = signF16UI( uiB );
     expB  = expF16UI( uiB );
     sigB  = fracF16UI( uiB );
@@ -275,7 +267,7 @@ static float32_t f32_add2( uint_fast32_t uiA, uint_fast32_t uiB )
 }
 
 
-static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
+static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, uint_fast32_t uiC )
 {
     bool signA;
     int_fast16_t expA;
@@ -283,8 +275,6 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
     bool signB;
     int_fast16_t expB;
     uint_fast32_t sigB;
-    union ui32_f32 uC;
-    uint_fast32_t uiC;
     bool signC;
     int_fast16_t expC;
     uint_fast32_t sigC;
@@ -301,8 +291,6 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
 
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
-    uC.f = c;
-    uiC = uC.ui;
     signA = signF32UI( uiA );
     expA  = expF32UI( uiA );
     sigA  = fracF32UI( uiA );
@@ -495,6 +483,24 @@ float32_t f1632_mulAdd2(
     uiB1 = uB1.ui;
     uB2.f = b2;
     uiB2 = uB2.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF16UI( uiA1 ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA1 = softfloat_zeroExpSigF16UI( uiA1 );
+    }
+    if ( isSubnormalF16UI( uiB1 ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB1 = softfloat_zeroExpSigF16UI( uiB1 );
+    }
+    if ( isSubnormalF16UI( uiA2 ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA2 = softfloat_zeroExpSigF16UI( uiA2 );
+    }
+    if ( isSubnormalF16UI( uiB2 ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB2 = softfloat_zeroExpSigF16UI( uiB2 );
+    }
+#endif
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     if ( isNaNF16UI( uiA1 ) || isNaNF16UI( uiB1 ) ||
@@ -505,11 +511,11 @@ float32_t f1632_mulAdd2(
 #ifdef FPU_DEBUG
     std::cout << "\n----- p1 = a1 * b1 --------------------------------------------------------\n";
 #endif
-    uiP1 = f16_mulExt( a1, b1 );
+    uiP1 = f16_mulExt( uiA1, uiB1 );
 #ifdef FPU_DEBUG
     std::cout << "\n----- p2 = a2 * b2 --------------------------------------------------------\n";
 #endif
-    uiP2 = f16_mulExt( a2, b2 );
+    uiP2 = f16_mulExt( uiA2, uiB2 );
 #ifdef FPU_DEBUG
     std::cout << "\n----- z = p1 + p2 ---------------------------------------------------------\n";
 #endif
@@ -564,6 +570,28 @@ float32_t f1632_mulAdd3(
     uiB2 = uB2.ui;
     uC.f = c;
     uiC = uC.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF16UI( uiA1 ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA1 = softfloat_zeroExpSigF16UI( uiA1 );
+    }
+    if ( isSubnormalF16UI( uiB1 ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB1 = softfloat_zeroExpSigF16UI( uiB1 );
+    }
+    if ( isSubnormalF16UI( uiA2 ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA2 = softfloat_zeroExpSigF16UI( uiA2 );
+    }
+    if ( isSubnormalF16UI( uiB2 ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB2 = softfloat_zeroExpSigF16UI( uiB2 );
+    }
+    if ( isSubnormalF32UI( uiC ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiC = softfloat_zeroExpSigF32UI( uiC );
+    }
+#endif
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     if ( isNaNF16UI( uiA1 ) || isNaNF16UI( uiB1 ) ||
@@ -574,15 +602,15 @@ float32_t f1632_mulAdd3(
 #ifdef FPU_DEBUG
     std::cout << "\n----- p1 = a1 * b1 --------------------------------------------------------\n";
 #endif
-    uiP1 = f16_mulExt( a1, b1 );
+    uiP1 = f16_mulExt( uiA1, uiB1 );
 #ifdef FPU_DEBUG
     std::cout << "\n----- p2 = a2 * b2 --------------------------------------------------------\n";
 #endif
-    uiP2 = f16_mulExt( a2, b2 );
+    uiP2 = f16_mulExt( uiA2, uiB2 );
 #ifdef FPU_DEBUG
     std::cout << "\n----- z = p1 + p2 + c -----------------------------------------------------\n";
 #endif
-    return f32_add3( uiP1, uiP2, c );
+    return f32_add3( uiP1, uiP2, uiC );
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
 propagateNaN:
@@ -593,7 +621,7 @@ propagateNaN:
     uiZ = defaultNaNF32UI;
     uZ.ui = uiZ;
 #ifdef FPU_DEBUG
-    std::cout << "\n----- z = a1 * b1 + a2 * b2 -----------------------------------------------\n";
+    std::cout << "\n----- z = a1 * b1 + a2 * b2 + c -------------------------------------------\n";
     std::cout << "a1: " << a1 << '\n';
     std::cout << "b1: " << b1 << '\n';
     std::cout << "a2: " << a2 << '\n';

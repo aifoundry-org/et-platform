@@ -3641,7 +3641,7 @@ void fnmsub_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const cha
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3_RM("fnmsub.s");
     set_rounding_mode(rm);
-    WRITE_FD( fpu::f32_negMulSub(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
+    WRITE_FD( fpu::f32_subMulSub(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
     set_fp_exceptions();
 }
 
@@ -3650,7 +3650,7 @@ void fnmadd_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const cha
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3_RM("fnmadd.s");
     set_rounding_mode(rm);
-    WRITE_FD( fpu::f32_negMulAdd(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
+    WRITE_FD( fpu::f32_subMulAdd(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
     set_fp_exceptions();
 }
 
@@ -4557,7 +4557,7 @@ void fnmsub_ps(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const ch
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3_RM("fnmsub.ps");
     set_rounding_mode(rm);
-    WRITE_VD( fpu::f32_negMulSub(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    WRITE_VD( fpu::f32_subMulSub(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
     set_fp_exceptions();
 }
 
@@ -4566,7 +4566,7 @@ void fnmadd_ps(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const ch
     require_fp_active();
     DISASM_FD_FS1_FS2_FS3_RM("fnmadd.ps");
     set_rounding_mode(rm);
-    WRITE_VD( fpu::f32_negMulAdd(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    WRITE_VD( fpu::f32_subMulAdd(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
     set_fp_exceptions();
 }
 

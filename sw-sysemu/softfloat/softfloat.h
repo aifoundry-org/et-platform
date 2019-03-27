@@ -90,7 +90,12 @@ enum {
     softfloat_flag_underflow =  2,
     softfloat_flag_overflow  =  4,
     softfloat_flag_infinite  =  8,
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    softfloat_flag_invalid   = 16,
+    softfloat_flag_denormal  = 32
+#else
     softfloat_flag_invalid   = 16
+#endif
 };
 
 /*----------------------------------------------------------------------------
@@ -208,6 +213,16 @@ bool f32_le_quiet( float32_t, float32_t );
 bool f32_lt_quiet( float32_t, float32_t );
 bool f32_isSignalingNaN( float32_t );
 uint_fast16_t f32_classify( float32_t );
+float32_t f32_mulSub( float32_t, float32_t, float32_t );
+float32_t f32_subMulAdd( float32_t, float32_t, float32_t );
+float32_t f32_subMulSub( float32_t, float32_t, float32_t );
+float32_t f32_maxNum( float32_t, float32_t );
+float32_t f32_minNum( float32_t, float32_t );
+float32_t f32_maximumNumber( float32_t, float32_t );
+float32_t f32_minimumNumber( float32_t, float32_t );
+float32_t f32_copySign( float32_t, float32_t );
+float32_t f32_copySignNot( float32_t, float32_t );
+float32_t f32_copySignXor( float32_t, float32_t );
 
 /*----------------------------------------------------------------------------
 | 64-bit (double-precision) floating-point operations.

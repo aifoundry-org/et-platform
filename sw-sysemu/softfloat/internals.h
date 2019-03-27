@@ -91,6 +91,10 @@ int_fast64_t softfloat_roundMToI64( bool, uint32_t *, uint_fast8_t, bool );
 
 #define isNaNF16UI( a ) (((~(a) & 0x7C00) == 0) && ((a) & 0x03FF))
 
+#define isSubnormalF16UI( a ) ((((a) & 0x7C00) == 0) && ((a) & 0x03FF))
+
+#define softfloat_zeroExpSigF16UI( a ) ((a) & 0x8000)
+
 struct exp8_sig16 { int_fast8_t exp; uint_fast16_t sig; };
 struct exp8_sig16 softfloat_normSubnormalF16Sig( uint_fast16_t );
 
@@ -111,6 +115,10 @@ float16_t
 #define packToF32UI( sign, exp, sig ) (((uint32_t) (sign)<<31) + ((uint32_t) (exp)<<23) + (sig))
 
 #define isNaNF32UI( a ) (((~(a) & 0x7F800000) == 0) && ((a) & 0x007FFFFF))
+
+#define isSubnormalF32UI( a ) ((((a) & 0x7F800000) == 0) && ((a) & 0x007FFFFF))
+
+#define softfloat_zeroExpSigF32UI( a ) ((a) & 0x80000000)
 
 struct exp16_sig32 { int_fast16_t exp; uint_fast32_t sig; };
 struct exp16_sig32 softfloat_normSubnormalF32Sig( uint_fast32_t );
