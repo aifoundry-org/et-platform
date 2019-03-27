@@ -1,7 +1,6 @@
 #include <cmath>
-#include <cstdio>
-#include <cstdint>
 
+#include "fpu_types.h"
 #include "fpu_casts.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
@@ -12,12 +11,6 @@
 #include "texp.h"
 #include "tsin.h"
 
-// FRCP   (input bit [31:0] x);      // ROM: ready!
-// FRSQ   (input bit [31:0] x);      // ROM: ready!
-// FSIN   (input bit [31:0] x);      // ROM: ready!
-// FEXP   (input bit [31:0] x);      // ROM: ready!
-// FLOG   (input bit [31:0] x);      // ROM: ready!
-
 #define GET(in, a, b) ((in >> b) % (((uint64_t)1) << (a-b+1)))
 #define MERGE(s, e, m) (((s % 2) << 31) + ((e % (1 << 8)) << 23) + (m % (1 << 23)))
 
@@ -27,6 +20,7 @@
 #define minusZeroF32UI     0x80000000
 #define minusOneF32UI      0xBF800000
 #define minusInfinityF32UI 0xFF800000
+
 
 static uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0)
 {
@@ -63,28 +57,39 @@ static uint64_t trans_fma(uint32_t val, uint32_t c2, uint32_t c1, uint32_t c0)
     return fma_result;
 }
 
-uint32_t ttrans_frcp(uint32_t val)
+
+float32_t f32_rcp(float32_t a)
 {
+    ui32_f32 uZ;
+    uint32_t val = fpu::UI32(a);
     switch (val) {
       case minusInfinityF32UI:
-          return minusZeroF32UI;
+          uZ.ui = minusZeroF32UI;
+          return uZ.f;
       case infinityF32UI:
-          return zeroF32UI;
+          uZ.ui = zeroF32UI;
+          return uZ.f;
       case minusZeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
-          return minusInfinityF32UI;
+          uZ.ui = minusInfinityF32UI;
+          return uZ.f;
       case zeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
-          return infinityF32UI;
+          uZ.ui = infinityF32UI;
+          return uZ.f;
       default:
           break;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return defaultNaNF32UI;
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
-    if((val & 0x7fffffff) > 0x7e800000) return (val & 0x80000000) ? minusZeroF32UI : zeroF32UI;
+    if((val & 0x7fffffff) > 0x7e800000) {
+        uZ.ui = (val & 0x80000000) ? minusZeroF32UI : zeroF32UI;
+        return uZ.f;
+    }
 
     uint32_t idx = GET(val, 22, 16); // input bits [22:16]
 
@@ -104,34 +109,41 @@ uint32_t ttrans_frcp(uint32_t val)
 
     uint16_t res_exp = 254 - exp - (mantissa != 0);
 
-    uint32_t result = MERGE(GET(val, 31, 31), res_exp, fraction_res);
+    uZ.ui = MERGE(GET(val, 31, 31), res_exp, fraction_res);
     //printf("EMU FMA2: %08x\n", result);
-
-    return result;
+    return uZ.f;
 }
 
-uint32_t ttrans_frsq(uint32_t val)
+
+float32_t f32_rsqrt(float32_t a)
 {
+    ui32_f32 uZ;
+    uint32_t val = fpu::UI32(a);
     switch (val) {
       case minusZeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
-          return minusInfinityF32UI;
+          uZ.ui = minusInfinityF32UI;
+          return uZ.f;
       case zeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
-          return infinityF32UI;
+          uZ.ui = infinityF32UI;
+          return uZ.f;
       case infinityF32UI:
-          return zeroF32UI;
+          uZ.ui = zeroF32UI;
+          return uZ.f;
       default:
           break;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return defaultNaNF32UI;
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     if (val & 0x80000000) {
         softfloat_raiseFlags(softfloat_flag_invalid);
-        return defaultNaNF32UI;
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
 
     uint16_t idx = GET(val,23, 16);
@@ -154,27 +166,33 @@ uint32_t ttrans_frsq(uint32_t val)
 
     //printf("E: 0x%04x\tES: 0x%04x\tER: 0x%04x\tM: %04x\n", exponent, exponent_shifted, exponent_res, mantissa);
 
-    uint32_t output = MERGE(0, exponent_res, fraction_res);
-    return output;
+    uZ.ui = MERGE(0, exponent_res, fraction_res);
+    return uZ.f;
 }
 
-uint32_t ttrans_flog2(uint32_t val)
+
+float32_t f32_log2(float32_t a)
 {
+    ui32_f32 uZ;
+    uint32_t val = fpu::UI32(a);
+
     switch (val) {
-      case minusZeroF32UI: return minusInfinityF32UI;
-      case zeroF32UI     : return minusInfinityF32UI;
-      case oneF32UI      : return zeroF32UI;
-      case infinityF32UI : return infinityF32UI;
-      default: break;
+    case minusZeroF32UI: uZ.ui = minusInfinityF32UI; return uZ.f;
+    case zeroF32UI     : uZ.ui = minusInfinityF32UI; return uZ.f;
+    case oneF32UI      : uZ.ui = zeroF32UI; return uZ.f;
+    case infinityF32UI : uZ.ui = infinityF32UI; return uZ.f;
+    default: break;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return defaultNaNF32UI;
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     if (val & 0x80000000) {
         softfloat_raiseFlags(softfloat_flag_invalid);
-        return defaultNaNF32UI;
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
 
     uint32_t x2 = (val % (1 << (23-6)));
@@ -194,19 +212,15 @@ uint32_t ttrans_flog2(uint32_t val)
     uint64_t c2 = tlog[idx][0];
     uint64_t c1 = ((uint64_t)tlog[idx][1] * (1 << 18));
     uint64_t c0 = ( ((uint64_t)tlog[idx][2]) << 31);
-
     //printf("C2: 0x%016lx\tC1: 0x%016lx\tC0: 0x%016lx\n", c2, c1, c0);
 
     uint64_t fma1 = - c2*x2 + c1;
-
     //printf("FMA1: 0x%016lx\n", fma1);
 
     uint64_t signed_mul = fma1*x2;
-
     //printf("SIGNED_MUL: 0x%016lx\n", signed_mul);
 
     uint64_t fma2 = -signed_mul + c0;
-
     //printf("FMA2: 0x%016lx\n", fma2);
 
     uint64_t pre_result = 0;
@@ -214,7 +228,6 @@ uint32_t ttrans_flog2(uint32_t val)
     if(or_mantissa) {
         pre_result = (fma2 + ((uint64_t)1<<31));
     }
-
     //printf("PRE_RESULT: 0x%016lx\n", pre_result);
 
     uint32_t x_minus_1 = (((~x) %(1<<23)) + 1 )%(1<<23);
@@ -222,17 +235,14 @@ uint32_t ttrans_flog2(uint32_t val)
     if(!high){
         x_minus_1 = (val % (1 << 23))<< 1;
     }
-
     //printf("X_MINUS_1: 0x%016lx\n", x_minus_1);
 
     uint64_t mult_result = ((((uint64_t)1)<< 25) + (pre_result >> 32))* x_minus_1;
-
     //printf("MULT_RESULT: 0x%016lx\n", mult_result);
 
     uint64_t sign_result = ~mult_result+1;
 
     if((sign_exp) ^ (high)) sign_result = mult_result;
-
     //printf("SIGN_RESULT: 0x%016lx\n", sign_result);
 
     int i = 47;
@@ -241,140 +251,44 @@ uint32_t ttrans_flog2(uint32_t val)
     i++;
 
     uint64_t round_result = sign_result + (1 << (i - 24));
-
     //printf("ROUND_RESULT: %d, 0x%016lx\n", i, round_result);
 
     uint64_t exponent = (~exp - or_mantissa) % (1 << 7);
 
     if(sign_exp) exponent = (exp+1) % (1 << 7);
-
     //printf("EXPONENT: 0x%016lx\n", exponent);
 
     uint64_t merged_result = (exponent << 49) + (round_result % ((uint64_t)1<<49));
 
     i = 64;
-
     //printf("0x%016lx\n", (merged_result >> i));
     while((merged_result >> i) == 0 && i > 22) --i;
 
     uint32_t top_exp = 142 - (64 - i);
-
     //printf("TOP_EXP: %d, %08x\n", i, top_exp);
 
-    uint32_t full_result = (merged_result >> (i - 23)) % ((uint64_t) 1 << 23);
+    uZ.ui = (merged_result >> (i - 23)) % ((uint64_t) 1 << 23);
+    //printf("FULL_RESULT: %d, %08x\n", i, uZ.ui);
 
-    //printf("FULL_RESULT: %d, %08x\n", i, full_result);
-
-    full_result = full_result + (top_exp << 23) + ((~(sign_exp ? 1 : 0)) << 31);
+    uZ.ui = uZ.ui + (top_exp << 23) + ((~(sign_exp ? 1 : 0)) << 31);
 
     if(sign)
-        full_result = (0x1ff << 22);
+        uZ.ui = (0x1ff << 22);
 
-    return full_result;
-
-
-/*
-    uint32_t idx = ((~(val >> (23 - 1)) % 2) << 5)+ ((val >> (23-6)) % (1 << 5));
-    //printf("IDX: %d\n", idx);
-    uint32_t c2 = tlog[idx][0] << 1;
-    uint32_t c1 = ((uint32_t)tlog[idx][1]) * (1 << 1);
-    uint32_t c0 = ( ((uint32_t)tlog[idx][2]) << 2);
-
-    //printf("c2: %d c1: %d c0: %d\n", tlog[idx][0], tlog[idx][1], tlog[idx][2]);
-
-    uint32_t masked_val = 0x1ffff & val;
-    //uint64_t fma_result = trans_fma(masked_val, c2, c1, c0);
-    uint32_t shifted_c2 = GET(c2, 10, 0) << 21;
-    uint64_t shifted_c1 = ((uint64_t)(GET(c1, 18,0) << 13)) << 32;
-    uint32_t shifted_x  = GET(val, 16, 0) << 6;
-
-    //printf("Original C2: %04x\tShifted C2: %08x\n", c2, shifted_c2);
-    //printf("Original C1: %04x\tShifted C1: %016lx\n", c1, shifted_c1);
-    //printf("Original X: %08x\tShifted X: %08x\n", val, shifted_x);
-
-    uint64_t mul1 = ((uint64_t)shifted_c2)*((uint64_t) shifted_x);
-    //uint32_t shifted_mul1 = GET(mul1, 63, 32);
-
-    ////printf("Original mul: %016lx\tShifted mul: %08x\n", mul1, shifted_mul1);
-    //printf("Original mul: %016lx\n", mul1);
-
-    uint64_t fma1 =  - mul1 + shifted_c1;
-
-    //printf("EMU FMA1: %016lx\n", fma1);
-
-    uint32_t shifted_fma1 = GET(fma1 + (((uint64_t)1)<<30), 62, 31);
-    uint64_t shifted_c0 =((uint64_t) GET(c0, 27,0)) << 32;
-
-    //printf("Original FMA1: %08x\tShifted FMA1: %08x\n", fma1, shifted_fma1);
-    //printf("Original C0: %04x\tShifted C0: %016lx\n", c0, shifted_c0);
-    //printf("Original X: %08x\tShifted X: %08x\n", val, shifted_x);
-
-    uint64_t mul2 = ((uint64_t)shifted_fma1 )*((uint64_t) shifted_x);
-
-    uint64_t fma_result = -mul2 + shifted_c0;
-
-
-    //printf("FMA RESULT: %016lx\n", fma_result);
-
-    //printf("FMA RESULT: %016lx\n", fma_result);
-    uint64_t fma_rounded = fma_result + (((uint64_t)1) << 32);
-
-    uint64_t ufma2= GET(fma_rounded, 57,33) + (1 << 25);
-
-    uint8_t high = GET(val, 22,22) != 0;
-
-    uint32_t x_m1 = (GET(val, 22, 0)) << 1;
-    if(high){
-        x_m1 = GET((~GET(val, 22, 0))+ 1, 22, 0);
-    }
-
-    if(GET(val, 31, 31)){
-        uint32_t output = 0x7fc00000;
-        return *((float*)&output);
-    }
-
-    double nfma = ((double)ufma2)/(1 << 25);
-    double nx_m1 = ((double)x_m1)/(1 << 24);
-
-    //printf("Op1: 0x%08x (%.10f)\tOp2:0x%08x (%.10f)\n", ufma2, nfma, x_m1, nx_m1);
-
-    double mul = nx_m1 * nfma;
-
-    //printf("Mul: 0x%016lx (%.10f)\n", *((uint32_t*)&mul), mul);
-
-    uint8_t exp_positive = GET(val, 30, 23) >= 127;
-
-    int32_t exp = GET(val, 30, 23) - 127;
-
-    //printf("Exp: %d\n", exp);
-
-    double frac;
-
-    frac = mul;
-
-    double result = frac + exp;
-
-uint64_t ures = *((uint64_t*)&result) + (1 << 28);
-
-    result = *((double*)&ures);
-
-    //printf("Frac: %.10f\nRes %.10f\n", frac, result);
-
-    float res2 = result;
-
-    //printf("Res2: %.10f\n", res2);
-
-    return (float) res2;
-
-    */
+    return uZ.f;
 }
 
-uint32_t ttrans_fexp2(uint32_t val)
+
+float32_t f32_exp2(float32_t a)
 {
+    ui32_f32 uZ;
+    uint32_t val = fpu::UI32(a);
+
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return defaultNaNF32UI;
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     uint32_t exp = ((val >> 23) % (1 << 8));
     bool sign = (val >> 31) != 0;
@@ -383,13 +297,15 @@ uint32_t ttrans_fexp2(uint32_t val)
     // val < -126.0
     if (val > 0xc2fc0000) {
         softfloat_raiseFlags(softfloat_flag_underflow);
-        return 0;
+        uZ.ui = 0;
+        return uZ.f;
     }
 
     // val >= 128.0
     if (val >= 0x43000000 && val < 0x80000000) {
         softfloat_raiseFlags(softfloat_flag_overflow);
-        return infinityF32UI;
+        uZ.ui = infinityF32UI;
+        return uZ.f;
     }
 
     ////printf("Sign: %d\n", sign);
@@ -448,66 +364,53 @@ uint32_t ttrans_fexp2(uint32_t val)
 
     uint32_t x2 = in_rev % (1 << 18);
     uint32_t idx = (in_rev >> 18) % ( 1 << 6);
-
     //printf("IDX: 0x%08x\n", idx);
     //printf("X2: 0x%08x\n", x2);
 
     uint64_t c2 = texp[idx][0];
     uint64_t c1 = texp[idx][1] * (1 << 19);
     uint64_t c0 = ( ((uint64_t)texp[idx][2]) << 19);
-
     //printf("C2: 0x%016lx\tC1: 0x%016lx\tC0: 0x%016lx\n", c2, c1, c0);
 
     uint64_t mul1 = c2*x2;
-
     uint64_t fma1 = mul1 + c1 + (1 << 14);
-
     //printf("MUL1: 0x%016lx\tFMA1: 0x%016lx\n", mul1, fma1);
 
     uint64_t mul2 = ((fma1 >> 15) % (1 << 23))*x2;
-
-    //printf("FMA1_part: 0x%016lx\n", ((fma1>>15) % (1 << 23)));
-
     uint64_t fma2 = mul2 + c0;
-
+    //printf("FMA1_part: 0x%016lx\n", ((fma1>>15) % (1 << 23)));
     //printf("MUL2: 0x%016lx\tFMA2: 0x%016lx\n", mul2, fma2);
 
     uint32_t full_result = (fma2 >> 21) % (1 << 24);
-
     if(in_Denorm && (in_integer >= 126) && (in_integer <= 148)){
         full_result = ((fma2 >> ((in_integer - 125) + 21)) + (1 << (24 - (in_integer - 125)))) % (1 << 24);
     }
-
     ////printf("FULL_RESULT: 0x%016lx\n", full_result);
-    uint32_t output = 0;
 
-    if(in_Inf) {
-        output = 0xff << 23;
-    } else if(in_Zero || in_Denorm){
-        output = 0;
-        if(!in_Zero){
-            if(or_mantissa)
-                output += ((full_result >> 1) + (full_result % 2)) % (1 << 23);
+    if (in_Inf) {
+        uZ.ui = 0xff << 23;
+    } else if (in_Zero || in_Denorm) {
+        if (!in_Zero) {
+            if (or_mantissa)
+                uZ.ui = ((full_result >> 1) + (full_result % 2)) % (1 << 23);
             else
-                output += full_result % (1 << 23);
+                uZ.ui = full_result % (1 << 23);
+        } else {
+            uZ.ui = 0;
         }
     } else {
-
         uint32_t out_exp = (sign? (0x7f - in_integer - or_mantissa) : (0x7f + in_integer)) % (1 << 8);
-
         ////printf("OUT_EXP: 0x%08x\n", out_exp);
 
-        output += (out_exp << 23);
-
-        output += ((full_result >> 1) + (full_result % 2)) % (1 << 23);
-
+        uZ.ui = (out_exp << 23) + (((full_result >> 1) + (full_result % 2)) % (1 << 23));
     }
-    return output;
+    return uZ.f;
 }
+
 
 #define get(v, s, e) (((v) >> (s)) % (((uint64_t)1) << ((e) - (s) + 1)))
 
-uint32_t ttrans_sin_convert(uint32_t ux)
+static uint32_t ttrans_sin_convert(uint32_t ux)
 {
     float x = fpu::FLT(ux);
     double filler;
@@ -544,25 +447,30 @@ uint32_t ttrans_sin_convert(uint32_t ux)
     }
 
     ////printf("[SIN TRANS] O: 0x%08x (%.10f)\tR: 0x%08x (%.10f)\n", *((uint32_t*)&x), x, *((uint32_t*)&y), y);
-
-    return fpu::UI32(y);
+    return fpu::F2UI32(y);
 }
 
-uint32_t ttrans_fsin(uint32_t val)
+
+float32_t f32_sin2pi(float32_t a)
 {
+    ui32_f32 uZ;
+    uint32_t val = fpu::UI32(a);
+
     switch (val) {
-      case minusZeroF32UI:
-      case zeroF32UI:
-          return val;
-      case infinityF32UI:
-      case minusInfinityF32UI:
-          softfloat_raiseFlags(softfloat_flag_invalid);
-          return defaultNaNF32UI;
+    case minusZeroF32UI:
+    case zeroF32UI:
+        return a;
+    case infinityF32UI:
+    case minusInfinityF32UI:
+        softfloat_raiseFlags(softfloat_flag_invalid);
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
             softfloat_raiseFlags(softfloat_flag_invalid);
-        return defaultNaNF32UI;
+        uZ.ui = defaultNaNF32UI;
+        return uZ.f;
     }
     //printf("VAL: 0x%08x\t\n", val);
 
@@ -570,11 +478,11 @@ uint32_t ttrans_fsin(uint32_t val)
     //printf("VAL: 0x%08x\n", val);
 
     switch (val) {
-      case 0xbe800000: return minusOneF32UI;
-      case 0x00000000: return zeroF32UI;
-      case 0x80000000: return minusZeroF32UI;
-      case 0x3e800000: return oneF32UI;
-      default: break;
+    case 0xbe800000: uZ.ui = minusOneF32UI; return uZ.f;
+    case 0x00000000: uZ.ui = zeroF32UI; return uZ.f;
+    case 0x80000000: uZ.ui = minusZeroF32UI; return uZ.f;
+    case 0x3e800000: uZ.ui = oneF32UI; return uZ.f;
+    default: break;
     }
 
     //bool ex0 = get(val, 23, 25) == 0x7;
@@ -585,23 +493,19 @@ uint32_t ttrans_fsin(uint32_t val)
     bool ex5 = get(val, 23, 25) == 0x2;
     bool ex6 = get(val, 23, 25) == 0x1;
     bool ex7 = get(val, 23, 25) == 0x0;
-
     ////printf("Ex: %d %d %d %d %d %d %d %d\n", ex0, ex1, ex2, ex3, ex4, ex5, ex6, ex7);
 
     bool exq = get(val, 26, 29) == 0xf;
     bool ext2 = get(val, 26, 29) == 0xe;
     bool ext1 = get(val, 26, 29) != 0xf;
-
     ////printf("Exq: %d\tExt1: %d\tExt2: %d\n", exq, ext1, ext2);
 
     bool b0 = exq && ex1;
     bool b1 = (exq && ex2) || (b0 && get(val, 22, 22));
-
     ////printf("B0: %d\tB1: %d\n", b0, b1);
 
     uint32_t rev_in = get(val, 0, 22);
     if(b1) rev_in = get((~val+1), 0, 22);
-
     ////printf("REV_IN: 0x%08x\n", rev_in);
 
     bool fast = ext2 || ext1;
@@ -611,7 +515,6 @@ uint32_t ttrans_fsin(uint32_t val)
     bool fast2 = exq && ex2 && !(get(rev_in, 18, 22) != 0x0);
 
     bool f_appr = fast | fast1 | fast2;
-
     //printf("Fast: %d %d %d\tNormal: %d\tF_APPR: %d\n", fast, fast1, fast2, normal, f_appr);
 
     bool exin1_3 = ex1 && (get(rev_in, 21, 21) == 1);
@@ -646,7 +549,6 @@ uint32_t ttrans_fsin(uint32_t val)
     }
     //printf("X2: 0x%016lx\n", x2);
 
-
     uint32_t idx = 0;
 
     if(normal){
@@ -668,7 +570,6 @@ uint32_t ttrans_fsin(uint32_t val)
     }
     //printf("IDX: 0x%016lx\n", idx);
 
-
     uint64_t c2 =  tsin[idx][0];
     uint64_t c1 = ((uint64_t)tsin[idx][1]) * (1 << 22);
     uint64_t c0 = ((uint64_t)tsin[idx][2]) * (((uint64_t)1) << 31);
@@ -679,14 +580,12 @@ uint32_t ttrans_fsin(uint32_t val)
     uint64_t fma1 = mul1 + c1 + (1 << 12);
     //printf("FMA1: 0x%08x\n", get(fma1, 13, 42));
     uint64_t mul2 = (~get(fma1, 13, 42)+1)*x2;
-
     //printf("IN2: 0x%08x\tMUL2: 0x%016lx\n", (~get(fma1, 13, 42)+1), mul2);
-    uint64_t fma2 = mul2 + c0 + (1 << 23);
 
+    uint64_t fma2 = mul2 + c0 + (1 << 23);
     //printf("FMA2: 0x%016lx\n", fma2);
 
     uint64_t filtered_fma2 = get((get(fma2, 33, 57) + 1), 1, 24) << 10;
-
     //printf("FMA2 FILTERED: 0x%08x\n", (filtered_fma2>>10) );
 
     uint64_t norm_result = (((uint64_t)1 << 34) + filtered_fma2) * ((1 << 23) + get(rev_in, 0, 22));
@@ -701,7 +600,6 @@ uint32_t ttrans_fsin(uint32_t val)
     else if( exin2_5 ) norm_result = (((uint64_t)1 << 34) + filtered_fma2) * ((1 << 23) + (get(rev_in, 0, 19) << 3));
     else if( exin2_6 ) norm_result = (((uint64_t)1 << 34) + filtered_fma2) * ((1 << 23) + (get(rev_in, 0, 18) << 4));
     else if( exin2_7 ) norm_result = (((uint64_t)1 << 34) + filtered_fma2) * ((1 << 23) + (get(rev_in, 0, 17) << 5));
-
     //printf("NORM_RESULT: 0x%016lx\n", norm_result);
 
     uint32_t norm_exp = get(val, 23, 30);
@@ -716,7 +614,6 @@ uint32_t ttrans_fsin(uint32_t val)
     else if(exin2_5) norm_exp = 0x7a;
     else if(exin2_6) norm_exp = 0x79;
     else if(exin2_7) norm_exp = 0x78;
-
     ////printf("NORM_EXP: 0x%016lx\n", norm_exp);
 
     uint64_t x = get(rev_in, 0, 22);
@@ -758,11 +655,9 @@ uint32_t ttrans_fsin(uint32_t val)
         else if(get(rev_in, 1, 1) == 1) x = (get(rev_in, 0, 0) << 22);
         else x = 0;
     }
-
     //printf("X: 0x%016lx\n", x);
 
     uint32_t in_ex = get(val, 23, 30);
-
     if(fast1){
         if(get(rev_in,16,16) == 1) in_ex = 0x77;
         else if(get(rev_in,15,15) == 1) in_ex = 0x76;
@@ -801,18 +696,15 @@ uint32_t ttrans_fsin(uint32_t val)
         else if(get(rev_in,1,1) == 1) in_ex = 0x67;
         else in_ex = 0x66;
     }
-
     //printf("IN_EX: 0x%08x\n", in_ex);
 
     uint64_t in_squared = ((uint64_t)((1 << 23) + get(x, 0, 22)))*((uint64_t)((1 << 23) + get(x, 0, 22)));
-
     //printf("IN_SQUARED: 0x%016lx\n", in_squared);
 
     uint64_t twopi = 0xc90fdb00000000;
     uint64_t piCube = 0x52af;
 
     uint64_t interm = twopi;
-
     if(ext2) {
         if(get(val, 23, 25) == 0x7) interm = twopi - (piCube << 14) * get(in_squared, 32, 47);
         else if(ex1) interm = twopi - (piCube << 12) * get(in_squared, 32, 47);
@@ -840,11 +732,9 @@ uint32_t ttrans_fsin(uint32_t val)
         else if(get(rev_in, 12, 12) == 1) interm = twopi - (piCube << 4) * get(in_squared, 32, 47);
         else interm = twopi - (piCube << 2) * get(in_squared, 32, 47);
     }
-
     //printf("INTERM: 0x%016lx\n", interm);
 
     uint64_t fast_result = get(interm, 29, 55) * ((1<<23) + get(x, 0, 22));
-
     //printf("FAST_RESULT: 0x%016lx\n", fast_result);
 
     uint32_t out_s = get(val, 31, 31) ^ b0;
@@ -859,7 +749,6 @@ uint32_t ttrans_fsin(uint32_t val)
     else if(fast2 && (get(fast_result, 50, 50) == 0)) out_e = get(in_ex, 0, 7) + 2;
     else if(get(norm_result + (((uint64_t)1)<<34), 58, 58) == 1) out_e = get(norm_exp, 0, 7) + 3;
     else if(get(norm_result, 58, 58) == 1) out_e = get(norm_exp, 0, 7) + 3;
-
     ////printf("OUT_S: 0x%08x\tOUT_E: 0x%08x\n", out_s, out_e);
 
     uint32_t out_m = get(norm_result, 33, 56) + 1;
@@ -869,9 +758,8 @@ uint32_t ttrans_fsin(uint32_t val)
         else if(get(fast_result, 50, 50) == 0) out_m = get(fast_result, 25, 48) + 1;
     } else if (get(norm_result + (((uint64_t) 1 )<<34), 58, 58) == 1) out_m = get(norm_result, 34, 57) + 1;
     else if (get(norm_result, 58, 58) == 1) out_m = get(norm_result, 34, 57) + 1;
-
     ////printf("OUT_M: 0x%08x\n", out_m);
 
-    uint32_t output = (get(out_s, 0, 0) << 31) + (get(out_e, 0, 7) << 23) + get(out_m, 1, 23);
-    return output;
+    uZ.ui = (get(out_s, 0, 0) << 31) + (get(out_e, 0, 7) << 23) + get(out_m, 1, 23);
+    return uZ.f;
 }

@@ -740,7 +740,7 @@ void TBOX::TBOXEmu::set_request_header(uint32_t thread, SampleRequest header)
     currentRequest[thread] = header;
 }
 
-void TBOX::TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, fdata coord)
+void TBOX::TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, freg_t coord)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -752,7 +752,7 @@ void TBOX::TBOXEmu::set_request_coordinates(uint32_t thread, uint32_t idx, fdata
 }
 
 /* idx == component R (0), G (1), B (2) or A (3)*/
-fdata TBOX::TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
+freg_t TBOX::TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -766,7 +766,7 @@ fdata TBOX::TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
 /* 
     This function return the TBOX results with packed channels 
 */
-unsigned TBOX::TBOXEmu::get_request_results(uint32_t thread, fdata* data)
+unsigned TBOX::TBOXEmu::get_request_results(uint32_t thread, freg_t* data)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
@@ -2261,7 +2261,7 @@ void TBOX::TBOXEmu::sample_quad(uint32_t thread, bool output_result)
     sample_quad(currentRequest[thread], currentImage, input[thread], output[thread], output_result);
 }
 
-void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, fdata input[], fdata output[])
+void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, freg_t input[], freg_t output[])
 {
     LOG(DEBUG, "%s", "\tTBOX => Sample Quad");
 
@@ -2323,7 +2323,7 @@ bool TBOX::TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImag
     return true;
 }
 
-void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, fdata input[], fdata output[], bool output_result)
+void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentImage, freg_t input[], freg_t output[], bool output_result)
 {
     // Checks.
     if (((currentRequest.info.operation == SAMPLE_OP_SAMPLE)
@@ -2344,7 +2344,7 @@ void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentI
     }
 
     // set unused bytes to 0, so that it can be compared with RTL
-    bzero(output, sizeof(fdata)*4);
+    bzero(output, sizeof(freg_t)*4);
 
     for (uint32_t quad = 0; quad < 2; quad++)
     {
@@ -2415,7 +2415,7 @@ void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentI
     }
 }
 
-void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fdata output[],
+void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], freg_t output[],
                                  uint32_t quad, uint32_t pixel,
                                  ImageInfo currentImage, FilterType filter, uint32_t mip_level,
                                  uint32_t mip_beta, bool output_result)
@@ -2466,9 +2466,9 @@ void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fd
             if (num_mips > 1) LOG(DEBUG, "\tmip sample %d", mip);
             uint32_t num_slices = (currentImage.info.type == IMAGE_TYPE_3D) ? 2 : 1;
 
-            fdata s = input[0];
-            fdata t = input[1];
-            fdata r = input[2];
+            freg_t s = input[0];
+            freg_t t = input[1];
+            freg_t r = input[2];
 
             for (uint32_t slice = 0; slice < num_slices; slice++)
             {
@@ -2503,10 +2503,10 @@ void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fd
     alpha   = apply_component_swizzle((ComponentSwizzle)currentRequest.info.swizzlea, alpha_swz, red_swz,
                                     green_swz, blue_swz, alpha_swz);
 
-    output[0].u[quad * 4 + pixel] = fpu::UI32(red);
-    output[1].u[quad * 4 + pixel] = fpu::UI32(green);
-    output[2].u[quad * 4 + pixel] = fpu::UI32(blue);
-    output[3].u[quad * 4 + pixel] = fpu::UI32(alpha);
+    output[0].u32[quad * 4 + pixel] = fpu::F2UI32(red);
+    output[1].u32[quad * 4 + pixel] = fpu::F2UI32(green);
+    output[2].u32[quad * 4 + pixel] = fpu::F2UI32(blue);
+    output[3].u32[quad * 4 + pixel] = fpu::F2UI32(alpha);
 }
 
 /*
@@ -2517,7 +2517,7 @@ void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, fdata input[], fd
             a) From Texture Cache or b) From Main Memory (thought Virtual Address module)
 
 */
-void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata t, fdata r, uint32_t req,
+void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg_t t, freg_t r, uint32_t req,
                                     ImageInfo currentImage, FilterType filter, uint32_t slice,
                                     uint32_t sample_mip_level, float sample_mip_beta, uint32_t aniso_sample,
                                     float aniso_weight, float aniso_deltas, float aniso_deltat, float &red,
@@ -2538,13 +2538,13 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata
     // 1: Compute i, j, k texel coordinates and their corresponding betas
     if (currentRequest.info.operation == SAMPLE_OP_LD)
     {
-        i[0] = s.u[req];
+        i[0] = s.u32[req];
         out_of_bounds = (i[0] >= mip_width);
 
         if ((currentImage.info.type == IMAGE_TYPE_2D) || (currentImage.info.type == IMAGE_TYPE_3D) ||
              (currentImage.info.type == IMAGE_TYPE_2D_ARRAY))
         {
-            j[0] = t.u[req];
+            j[0] = t.u32[req];
             out_of_bounds = out_of_bounds || (j[0] >= mip_height);
         }
         else
@@ -2552,7 +2552,7 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata
 
         if (currentImage.info.type == IMAGE_TYPE_3D)
         {
-            k[0] = r.u[req];
+            k[0] = r.u32[req];
             out_of_bounds = out_of_bounds || (k[0] >= mip_depth);
         }
         else
@@ -2560,12 +2560,12 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata
 
         if (currentImage.info.type == IMAGE_TYPE_1D_ARRAY)
         {
-            l = t.u[req];
+            l = t.u32[req];
             out_of_bounds = out_of_bounds || (l < currentImage.info.arraybase) || (l >= currentImage.info.arraycount);
         }
         else if (currentImage.info.type == IMAGE_TYPE_2D_ARRAY)
         {
-            l = r.u[req];
+            l = r.u32[req];
             out_of_bounds = out_of_bounds || (l < currentImage.info.arraybase) || (l >= currentImage.info.arraycount);
         }
         else
@@ -2605,27 +2605,27 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata
         */
         int side_step_sign = (aniso_sample & 0x1)? -1: 1;
 
-        u = fpu::FLT(s.u[req]) * mip_width + (aniso_sample>>1)*side_step_sign*aniso_deltas;
+        u = fpu::FLT(s.u32[req]) * mip_width + (aniso_sample>>1)*side_step_sign*aniso_deltas;
 
         if ((currentImage.info.type == IMAGE_TYPE_2D) || (currentImage.info.type == IMAGE_TYPE_CUBE)
             || (currentImage.info.type == IMAGE_TYPE_3D) || (currentImage.info.type == IMAGE_TYPE_2D_ARRAY)
             || (currentImage.info.type == IMAGE_TYPE_CUBE_ARRAY))
 
-            v = fpu::FLT(t.u[req]) * mip_height + (aniso_sample>>1)*side_step_sign*aniso_deltat;
+            v = fpu::FLT(t.u32[req]) * mip_height + (aniso_sample>>1)*side_step_sign*aniso_deltat;
         else
             v = 0.0;
 
         if (currentImage.info.type == IMAGE_TYPE_3D)
-            w = fpu::FLT(r.u[req]) * mip_depth;
+            w = fpu::FLT(r.u32[req]) * mip_depth;
         else
             w = 0;
 
         if (currentImage.info.type == IMAGE_TYPE_1D_ARRAY)
-            a = uint32_t(fpu::FLT(t.u[req]));
+            a = uint32_t(fpu::FLT(t.u32[req]));
         else if ((currentImage.info.type == IMAGE_TYPE_2D_ARRAY) ||
                  (currentImage.info.type == IMAGE_TYPE_CUBE) ||
                  (currentImage.info.type == IMAGE_TYPE_CUBE_ARRAY))
-            a = uint32_t(fpu::FLT(r.u[req]));
+            a = uint32_t(fpu::FLT(r.u32[req]));
         else
             a = 0;
 
@@ -2738,7 +2738,7 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata
                 || (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C_L)
                 || (currentRequest.info.operation == SAMPLE_OP_GATHER4_C))
             {
-                texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_ul[0]);
+                texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u32[req]), texel_ul[0]);
                 texel_ul[1] = 0.0;
                 texel_ul[2] = 0.0;
                 texel_ul[3] = 0.0;
@@ -2835,10 +2835,10 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata
             (currentRequest.info.operation == SAMPLE_OP_SAMPLE_C_L) ||
             (currentRequest.info.operation == SAMPLE_OP_GATHER4_C))
         {
-            texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_ul[0]);
-            texel_ur[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_ur[0]);
-            texel_ll[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_ll[0]);
-            texel_lr[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u[req]), texel_lr[0]);
+            texel_ul[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u32[req]), texel_ul[0]);
+            texel_ur[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u32[req]), texel_ur[0]);
+            texel_ll[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u32[req]), texel_ll[0]);
+            texel_lr[0] = compare_texel((CompareOperation)currentRequest.info.compop, fpu::FLT(t.u32[req]), texel_lr[0]);
             texel_ul[1] = 0.0;
             texel_ur[1] = 0.0;
             texel_ll[1] = 0.0;
@@ -2904,8 +2904,8 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, fdata s, fdata
 
     if (output_result) {
         LOG(DEBUG, "\tResult = {0x%08x (%f), 0x%08x (%f), 0x%08x (%f), 0x%08x (%f)}",
-            fpu::UI32(red), red, fpu::UI32(green), green,
-            fpu::UI32(blue), blue, fpu::UI32(alpha), alpha);
+            fpu::F2UI32(red), red, fpu::F2UI32(green), green,
+            fpu::F2UI32(blue), blue, fpu::F2UI32(alpha), alpha);
     }
 }
 

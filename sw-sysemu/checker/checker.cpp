@@ -250,12 +250,6 @@ checker::~checker()
 {
 }
 
-// Sets the core type
-void checker::set_et_core(int core_type)
-{
-   set_core_type((et_core_t)core_type);
-}
-
 // Sets the PC
 void checker::start_pc(uint32_t thread, uint64_t pc)
 {
@@ -624,14 +618,14 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
             if (inst.is_load() && address_is_in_ignored_region(emu_state_change.mem_paddr))
             {
                log << LOG_INFO << "Access to an ignored memory region (" << insn_disasm << ")" << endm;
-               for (int i = 0; i < (VL/2); i++) {
+               for (size_t i = 0; i < (VL/2); i++) {
                   emu_state_change.fp_reg_data[i] = changes->fp_reg_data[i];
                }
                fpinit(inst.fd(), emu_state_change.fp_reg_data);
             }
 
             bool fp_reg_data_mismatch = false;
-            for(int i = 0; i < (VL/2); i++)
+            for(size_t i = 0; i < (VL/2); i++)
             {
               if(inst.is_1ulp())
               {
@@ -713,7 +707,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                 check_res = CHECKER_ERROR;
             } else if(emu_state_change.m_reg_mod[m])
             {
-                for(int i = 0; i < VL; i++)
+                for(size_t i = 0; i < VL; i++)
                 {
                     if(changes->m_reg_data[m][i] != emu_state_change.m_reg_data[m][i])
                     {
@@ -725,7 +719,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
         }
 
         // Memory changes
-        for(int i = 0; i < VL; i++)
+        for(size_t i = 0; i < VL; i++)
         {
             if(changes->mem_mod[i] != emu_state_change.mem_mod[i])
             {
@@ -834,7 +828,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                     }
 
                     // Compares the data for all the lanes (8 x 32b lanes)
-                    for(int lane = 0; lane < VL; lane++)
+                    for(size_t lane = 0; lane < VL; lane++)
                     {
                         if (!emu_state_change.tensorfma_mask[pass][freg][lane])
                             continue;
@@ -879,7 +873,7 @@ checker_result checker::check_state_changes(uint32_t thread, inst_state_change *
                         goto finished_checking;
                     }
                     // Compares the data for all the lanes (VL x 32b lanes)
-                    for(int lane = 0; lane < VL; lane++)
+                    for(size_t lane = 0; lane < VL; lane++)
                     {
                         if (!emu_state_change.tensorquant_mask[trans][freg][lane])
                             continue;
@@ -1056,7 +1050,7 @@ void checker::tensorfma_write(uint32_t thread, uint32_t entry, uint32_t * data, 
     tensorfma_entry tensorfma;
 
     tensorfma.entry = entry;
-    for(int i = 0; i < VL; i++)
+    for(size_t i = 0; i < VL; i++)
     {
         tensorfma.data[i] = data[i];
     }
@@ -1071,7 +1065,7 @@ void checker::tensorquant_write(uint32_t thread, uint32_t entry, uint32_t * data
     tensorfma_entry tensorquant;
 
     tensorquant.entry = entry;
-    for(int i = 0; i < VL; i++)
+    for(size_t i = 0; i < VL; i++)
     {
         tensorquant.data[i] = data[i];
     }

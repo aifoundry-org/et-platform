@@ -1,8 +1,7 @@
-#ifndef _EMU_DEFINES_H
-#define _EMU_DEFINES_H
+#ifndef BEMU_DEFINES_H
+#define BEMU_DEFINES_H
 
-#include <cinttypes>
-#include <bitset>
+#include "state.h"
 
 // Maximum number of threads
 #define EMU_NUM_SHIRES          34 // 32 Compute + Master + IO Shire SP
@@ -34,7 +33,7 @@
 #define TFMA_MAX_AROWS    16
 #define TFMA_MAX_ACOLS    16
 #define TFMA_MAX_BCOLS    16
-#define TFMA_REGS_PER_ROW (TFMA_MAX_BCOLS / VL)
+#define TFMA_REGS_PER_ROW (TFMA_MAX_BCOLS / (VLEN/32))
 // FastLocalBarrier
 #define FAST_LOCAL_BARRIERS 32
 // TensorQuant defines
@@ -386,43 +385,11 @@ enum et_core_t {
 
 // Number of 32-bit lanes in a vector register
 #ifndef VL
-#define VL  8
-#endif
-
-#if (VL != 8)
-#error "Only 256-bit vectors supported"
+#define VL  (VLEN/32)
 #endif
 
 /* Obsolete texsnd/texrcv instuctions use the low 128b of the fregs for data transfers */
 #define VL_TBOX 4
-
-// generic array of aliased types
-template<size_t N> union fdata_array_t {
-    uint8_t   b[N*4];
-    uint16_t  h[N*2];
-    uint32_t  u[N];
-    int32_t   i[N];
-    uint64_t  x[N/2];
-    int64_t   q[N/2];
-};
-
-// vector register value type
-typedef fdata_array_t<VL> fdata;
-
-// general purpose register value type
-union xdata {
-    uint8_t   b[8];
-    uint16_t  h[4];
-    uint32_t  w[2];
-    int32_t   ws[2];
-    uint64_t  x;
-    int64_t   xs;
-};
-
-// mask register value type
-struct mdata {
-    std::bitset<VL>  b;
-};
 
 // Privilege levels
 #define CSR_PRV_U  0
@@ -546,4 +513,4 @@ public:
 
 DECLARE_CHECKER_WAIT(checker_wait_fcc)
 
-#endif // _EMU_DEFINES_H
+#endif // BEMU_DEFINES_H

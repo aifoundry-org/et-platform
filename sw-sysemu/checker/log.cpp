@@ -27,37 +27,37 @@ void log_pc_update(uint64_t new_pc)
     log_info->pc = new_pc;
 }
 
-void log_xreg_write(int xdst, const xdata& xval)
+void log_xreg_write(int xdst, uint64_t xval)
 {
     assert(xdst < MAXXREG);
     if (!log_info) return;
     log_info->int_reg_mod = true;
     log_info->int_reg_rd = xdst;
-    log_info->int_reg_data = xval.x;
+    log_info->int_reg_data = xval;
 }
 
-void log_freg_write(int fdst, const fdata& fval)
+void log_freg_write(int fdst, const freg_t& fval)
 {
     assert(fdst < MAXFREG);
     if (!log_info) return;
     log_info->fp_reg_mod = true;
     log_info->fp_reg_rd = fdst;
-    for(int i = 0; i < (VL/2); i++)
-        log_info->fp_reg_data[i] = fval.x[i];
+    for(size_t i = 0; i < (VL/2); i++)
+        log_info->fp_reg_data[i] = fval.u64[i];
 }
 
-void log_mreg_write(int mdst, const mdata& mval)
+void log_mreg_write(int mdst, const mreg_t& mval)
 {
     assert(mdst < MAXMREG);
     if (!log_info) return;
     log_info->m_reg_mod[mdst] = true;
-    for(int i = 0; i < VL; i++)
-        log_info->m_reg_data[mdst][i] = mval.b[i];
+    for(size_t i = 0; i < VL; i++)
+        log_info->m_reg_data[mdst][i] = mval[i];
 }
 
 void log_mem_write(int pos, int size, uint64_t addr, uint64_t val)
 {
-    assert(pos < VL);
+    assert(unsigned(pos) < VL);
     if (!log_info) return;
     log_info->mem_mod[pos] = true;
     log_info->mem_size[pos] = size;
@@ -117,7 +117,7 @@ void log_tensor_fma_write(int pass, int freg, int elem, uint32_t value)
 {
     assert(pass < TFMA_MAX_ACOLS);
     assert(freg < MAXFREG);
-    assert(elem < VL);
+    assert(unsigned(elem) < VL);
     if (!log_info) return;
     log_info->tensorfma_mask[pass][freg][elem] = true;
     log_info->tensorfma_mod[pass] |= 1u << freg;
@@ -136,7 +136,7 @@ void log_tensor_quant_write(int trans, int freg, int elem, uint32_t value)
 {
     assert(trans < TQUANT_MAX_TRANS);
     assert(freg < MAXFREG);
-    assert(elem < VL);
+    assert(unsigned(elem) < VL);
     if (!log_info) return;
     log_info->tensorquant_mask[trans][freg][elem] = true;
     log_info->tensorquant_mod[trans] |= 1u << freg;
