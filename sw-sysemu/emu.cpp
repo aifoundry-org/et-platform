@@ -6875,7 +6875,7 @@ static void tensor_fma16a32(uint64_t tfmareg)
     }
 
     LOG(DEBUG, "\tStart TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
-        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));
+        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rtz));
 
     if (tenb && (!tensorload_setupb_topair[current_thread] ||
                  (tensorload_setupb_numlines[current_thread] != acols/2)))
@@ -6889,7 +6889,7 @@ static void tensor_fma16a32(uint64_t tfmareg)
     tensorload_setupb_topair[current_thread] = false;
     tensorload_setupb_topair[current_thread^1] = false;
 
-    set_rounding_mode(rmdyn);
+    set_rounding_mode(rtz);
 
     for (int k = 0; k < acols; k += 2)
     {
