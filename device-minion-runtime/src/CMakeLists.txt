@@ -28,3 +28,7 @@ set(FREERTOS_INC_DIRS ${FREERTOS_INC_DIR} ${FREERTOS_PORT_INC_DIR} ${FREERTOS_CH
 
 add_subdirectory("MasterMinion")
 add_subdirectory("ServiceProcessor")
+if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ServiceProcessorROM")
+    add_subdirectory("ServiceProcessorROM")
+endif()
+
