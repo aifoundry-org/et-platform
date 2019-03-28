@@ -1,6 +1,7 @@
 /* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
 #include "fpu_types.h"
+#include "softfloat/platform.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 #include "debug.h"
@@ -229,6 +230,7 @@ static float32_t f32_add2( uint_fast32_t uiA, uint_fast32_t uiB )
             uiZ =
                 packToF32UI(
                     (softfloat_roundingMode == softfloat_round_min), 0, 0 );
+            goto uiZ;
         } else if ( !expDiff ) {
             uiZ = packToF32UI(signZ, expZ, 0);
             goto uiZ;
@@ -470,40 +472,135 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, float32_t c )
 float32_t f1632_mulAdd2(
     float16_t a1, float16_t b1, float16_t a2, float16_t b2 )
 {
-    uint_fast32_t p1;
-    uint_fast32_t p2;
+    union ui16_f16 uA1;
+    uint_fast16_t uiA1;
+    union ui16_f16 uA2;
+    uint_fast16_t uiA2;
+    union ui16_f16 uB1;
+    uint_fast16_t uiB1;
+    union ui16_f16 uB2;
+    uint_fast16_t uiB2;
+    uint_fast32_t uiP1;
+    uint_fast32_t uiP2;
+    union ui32_f32 uZ;
+    uint_fast32_t uiZ;
 
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    uA1.f = a1;
+    uiA1 = uA1.ui;
+    uA2.f = a2;
+    uiA2 = uA2.ui;
+    uB1.f = b1;
+    uiB1 = uB1.ui;
+    uB2.f = b2;
+    uiB2 = uB2.ui;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    if ( isNaNF16UI( uiA1 ) || isNaNF16UI( uiB1 ) ||
+         isNaNF16UI( uiA2 ) || isNaNF16UI( uiB2 ) )
+        goto propagateNaN;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
 #ifdef FPU_DEBUG
     std::cout << "\n----- p1 = a1 * b1 --------------------------------------------------------\n";
 #endif
-    p1 = f16_mulExt( a1, b1 );
+    uiP1 = f16_mulExt( a1, b1 );
 #ifdef FPU_DEBUG
     std::cout << "\n----- p2 = a2 * b2 --------------------------------------------------------\n";
 #endif
-    p2 = f16_mulExt( a2, b2 );
+    uiP2 = f16_mulExt( a2, b2 );
 #ifdef FPU_DEBUG
-    std::cout << "\n----- z = p1 + p2 + c -----------------------------------------------------\n";
+    std::cout << "\n----- z = p1 + p2 ---------------------------------------------------------\n";
 #endif
-    return f32_add2( p1, p2 );
+    return f32_add2( uiP1, uiP2 );
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+propagateNaN:
+    if ( softfloat_isSigNaNF16UI( uiA1 ) || softfloat_isSigNaNF16UI( uiA2 ) ||
+         softfloat_isSigNaNF16UI( uiB1 ) || softfloat_isSigNaNF16UI( uiB2 ) )
+        softfloat_raiseFlags( softfloat_flag_invalid );
+    uiZ = defaultNaNF32UI;
+    uZ.ui = uiZ;
+#ifdef FPU_DEBUG
+    std::cout << "\n----- z = a1 * b1 + a2 * b2 -----------------------------------------------\n";
+    std::cout << "a1: " << a1 << '\n';
+    std::cout << "b1: " << b1 << '\n';
+    std::cout << "a2: " << a2 << '\n';
+    std::cout << "b2: " << b2 << '\n';
+    std::cout << "z_rslt: " << uZ.f << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
+#endif
+    return uZ.f;
 }
 
 
 float32_t f1632_mulAdd3(
     float16_t a1, float16_t b1, float16_t a2, float16_t b2, float32_t c )
 {
-    uint_fast32_t p1;
-    uint_fast32_t p2;
+    union ui16_f16 uA1;
+    uint_fast16_t uiA1;
+    union ui16_f16 uA2;
+    uint_fast16_t uiA2;
+    union ui16_f16 uB1;
+    uint_fast16_t uiB1;
+    union ui16_f16 uB2;
+    uint_fast16_t uiB2;
+    union ui32_f32 uC;
+    uint_fast32_t uiC;
+    uint_fast32_t uiP1;
+    uint_fast32_t uiP2;
+    union ui32_f32 uZ;
+    uint_fast32_t uiZ;
 
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    uA1.f = a1;
+    uiA1 = uA1.ui;
+    uA2.f = a2;
+    uiA2 = uA2.ui;
+    uB1.f = b1;
+    uiB1 = uB1.ui;
+    uB2.f = b2;
+    uiB2 = uB2.ui;
+    uC.f = c;
+    uiC = uC.ui;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    if ( isNaNF16UI( uiA1 ) || isNaNF16UI( uiB1 ) ||
+         isNaNF16UI( uiA2 ) || isNaNF16UI( uiB2 ) || isNaNF32UI( uiC ) )
+        goto propagateNaN;
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
 #ifdef FPU_DEBUG
     std::cout << "\n----- p1 = a1 * b1 --------------------------------------------------------\n";
 #endif
-    p1 = f16_mulExt( a1, b1 );
+    uiP1 = f16_mulExt( a1, b1 );
 #ifdef FPU_DEBUG
     std::cout << "\n----- p2 = a2 * b2 --------------------------------------------------------\n";
 #endif
-    p2 = f16_mulExt( a2, b2 );
+    uiP2 = f16_mulExt( a2, b2 );
 #ifdef FPU_DEBUG
     std::cout << "\n----- z = p1 + p2 + c -----------------------------------------------------\n";
 #endif
-    return f32_add3( p1, p2, c );
+    return f32_add3( uiP1, uiP2, c );
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+propagateNaN:
+    if ( softfloat_isSigNaNF16UI( uiA1 ) || softfloat_isSigNaNF16UI( uiA2 ) ||
+         softfloat_isSigNaNF16UI( uiB1 ) || softfloat_isSigNaNF16UI( uiB2 ) ||
+         softfloat_isSigNaNF32UI( uiC ) )
+        softfloat_raiseFlags( softfloat_flag_invalid );
+    uiZ = defaultNaNF32UI;
+    uZ.ui = uiZ;
+#ifdef FPU_DEBUG
+    std::cout << "\n----- z = a1 * b1 + a2 * b2 -----------------------------------------------\n";
+    std::cout << "a1: " << a1 << '\n';
+    std::cout << "b1: " << b1 << '\n';
+    std::cout << "a2: " << a2 << '\n';
+    std::cout << "b2: " << b2 << '\n';
+    std::cout << "c : " << c << '\n';
+    std::cout << "z_rslt: " << uZ.f << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
+#endif
+    return uZ.f;
 }
+
