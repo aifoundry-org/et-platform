@@ -1,7 +1,5 @@
 #include <stdlib.h>
 
-#include "PLIC.h"
-
 #include "cacheops.h"
 #include "macros.h"
 #include "shire.h"
