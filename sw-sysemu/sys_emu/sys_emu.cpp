@@ -1060,6 +1060,36 @@ sys_emu::main_internal(int argc, char * argv[])
     }
     if (emu_cycle == cmd_options.max_cycles) {
        LOG(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
+       // Dumps awaken threads
+       LOG_NOTHREAD(INFO, "%s", "Dumping awaken threads:");
+       auto thread = enabled_threads.begin();
+       while(thread != enabled_threads.end())
+       {
+          thread_id = * thread;
+          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
+          thread++;
+       }
+
+       // Dumps FCC wait threads
+       LOG_NOTHREAD(INFO, "%s", "Dumping FCC wait threads:");
+       thread = fcc_wait_threads.begin();
+       while(thread != fcc_wait_threads.end())
+       {
+          thread_id = * thread;
+          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
+          thread++;
+       }
+
+       // Dumps Port wait threads
+       LOG_NOTHREAD(INFO, "%s", "Dumping port wait threads:");
+       thread = port_wait_threads.begin();
+       while(thread != port_wait_threads.end())
+       {
+          thread_id = * thread;
+          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
+          thread++;
+       }
+       LOG_NOTHREAD(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
     }
     LOG_NOTHREAD(INFO, "%s", "Finishing emulation");
 
