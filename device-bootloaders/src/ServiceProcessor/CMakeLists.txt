@@ -12,8 +12,8 @@ set(SOURCES
     ${FREERTOS_SRC_FILES}
     ${SHARED_SRC_DIR}/boot.S
     src/crt.S
-    ${SHARED_SRC_DIR}/interrupt.c
     src/dummy_isr.c
+    src/interrupt.c
     src/main.c
     src/stubs.c
     ${SHARED_SRC_DIR}/serial.c
