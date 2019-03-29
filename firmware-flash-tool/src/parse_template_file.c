@@ -44,7 +44,7 @@ static REGION_NAME_INFO_t regions_info[] = {
 };
 static const uint32_t regions_count = sizeof(regions_info) / sizeof(REGION_NAME_INFO_t);
 
-static ESPERANTO_FLASH_REGION_ID_t region_name_to_id(const char * name) {
+ESPERANTO_FLASH_REGION_ID_t region_name_to_id(const char * name) {
     uint32_t n;
     for (n = 0; n < regions_count; n++) {
         if (0 == strcasecmp(regions_info[n].name, name)) {
@@ -347,76 +347,6 @@ DONE:
         free_partition(&(pimage->partitions[0]));
     }
     return rv;
-}
-
-int load_file(const char * file_path, char ** buffer, size_t * buffer_size) {
-    int rval = 0;
-    long offset;
-    size_t size;
-    FILE * f;
-    char * ptr;
-
-    if (NULL == buffer || NULL == buffer_size) {
-        fprintf(stderr, "ERROR in load_file: INVALID ARGUMENTS!\n");
-        rval = -1;
-        goto FAILED1;
-    }
-    
-    f = fopen(file_path, "r");
-    if (NULL == f) {
-        fprintf(stderr, "ERROR in load_file: fopen(\"%s\", \"r\") failed!\n", file_path);
-        rval = -1;
-        goto FAILED1;
-    }
-
-    if (-1 == fseek(f, 0L, SEEK_END)) {
-        fprintf(stderr, "ERROR in load_file: fseek(SEEK_END) failed!\n");
-        fclose(f);
-        rval = -1;
-        goto FAILED2;
-    }
-
-    offset = ftell(f);
-    if (-1 == offset) {
-        fprintf(stderr, "ERROR in load_file: ftell() failed!\n");
-        rval = -1;
-        goto FAILED2;
-    }
-    size = (size_t)offset;
-
-    if (-1 == fseek(f, 0L, SEEK_SET)) {
-        fprintf(stderr, "ERROR in load_file: fseek(SEEK_SET) failed!\n");
-        fclose(f);
-        rval = -1;
-        goto FAILED2;
-    }
-
-    ptr = (char*)malloc(size);
-    if (NULL == ptr) {
-        fprintf(stderr, "ERROR in load_file: malloc(%lu) failed!\n", size);
-        rval = -1;
-        goto FAILED2;
-    }
-
-    if (size != fread(ptr, 1, size, f)) {
-        fprintf(stderr, "ERROR in load_file: fread(%lu) failed!\n", size);
-        rval = -1;
-        goto FAILED3;
-    }
-
-    *buffer_size = size;
-    *buffer = ptr;
-    fclose(f);
-    return 0;
-
-FAILED3:
-    free(ptr);
-
-FAILED2:
-    fclose(f);
-
-FAILED1:
-    return rval;
 }
 
 void free_template_info(TEMPLATE_INFO_t * template) {

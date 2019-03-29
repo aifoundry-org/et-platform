@@ -34,6 +34,7 @@ typedef struct TEMPLATE_INFO {
 } TEMPLATE_INFO_t;
 
 const char * region_id_to_name(ESPERANTO_FLASH_REGION_ID_t id);
+ESPERANTO_FLASH_REGION_ID_t region_name_to_id(const char * name);
 int load_file(const char * file_path, char ** buffer, size_t * buffer_size);
 void free_template_info(TEMPLATE_INFO_t * template);
 int parse_template_file(const char * filename, TEMPLATE_INFO_t * template);

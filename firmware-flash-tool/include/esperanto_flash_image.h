@@ -29,10 +29,10 @@ typedef enum ESPERANTO_FLASH_REGION_ID {
 
 typedef struct ESPERANTO_FLASH_PARTITION_HEADER {
     uint32_t partition_tag;
-    uint32_t partition_header_size;
-    uint32_t partition_size;
+    uint32_t partition_header_size;     // size of the partition header (struct ESPERANTO_FLASH_PARTITION_HEADER) in bytes
+    uint32_t partition_size;            // size of the partition in FLASH_PAGE_SIZE blocks
     uint32_t partition_image_version;
-    uint32_t region_info_size;
+    uint32_t region_info_size;          // size of the region info (struct ESPERANTO_REGION_INFO) in bytes
     uint32_t regions_count;
     uint32_t reserved;
     uint32_t partition_header_checksum;

@@ -22,6 +22,17 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g \
 -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations")
 
-ADD_EXECUTABLE( esperanto_flash_tool src/esperanto_flash_tool.c src/parse_template_file.c )
+set(SOURCES 
+    src/esperanto_flash_tool.c 
+    src/esperanto_flash_image_create.c 
+    src/esperanto_flash_image_extract_all.c 
+    src/esperanto_flash_image_extract.c 
+    src/esperanto_flash_image_view.c 
+    src/esperanto_flash_image_replace.c 
+    src/esperanto_flash_image_util.c 
+    src/esperanto_flash_tool.c 
+    src/parse_template_file.c)
+
+ADD_EXECUTABLE( esperanto_flash_tool ${SOURCES} )
 target_link_libraries (esperanto_flash_tool json-c)
 #set_target_properties (esperanto_flash_tool PROPERTIES OUTPUT_NAME tools/esperanto_generate_certificate_request)

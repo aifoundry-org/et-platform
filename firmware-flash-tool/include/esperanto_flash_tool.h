@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+//#define offsetof(st, m) ((size_t)&(((st *)0)->m))
+
 typedef enum ESPERANTO_FLASH_TOOL_COMMAND {
     ESPERANTO_FLASH_TOOL_COMMAND_INVALID = 0,
     ESPERANTO_FLASH_TOOL_COMMAND_CREATE,
@@ -48,13 +50,13 @@ typedef enum REPLACE_FILE_ARGS {
 typedef struct ARGUMENTS {
     ESPERANTO_FLASH_TOOL_COMMAND_t command;
     uint32_t args_max_count;
+    uint32_t args_count;
     char **args;
     bool silent;
     bool verbose;
     bool partition_mode;
     bool use_region_ids;
     char * partition_index;
-    uint32_t args_list_size;
 } ARGUMENTS_t;
 
 extern ARGUMENTS_t g_arguments;
