@@ -412,7 +412,7 @@ checker_result checker::emu_inst(uint32_t thread, inst_state_change * changes, s
     for (uint32_t s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++)
     {
         for (uint32_t r = 0; r < EMU_RBOXES_PER_SHIRE; r++)
-            GET_RBOX(s, r).run(true);
+            GET_RBOX(s, r).run(false);
     }
 
     // Check results unless we did trap

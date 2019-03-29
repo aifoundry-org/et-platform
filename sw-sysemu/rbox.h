@@ -108,7 +108,6 @@ namespace RBOX
         bool                 fsh_state_sent[MINION_HARTS_PER_RBOX];
         bool                 end_of_phase_sent[MINION_HARTS_PER_RBOX];
         uint32_t             hart_sent_packets[MINION_HARTS_PER_RBOX];
-        uint32_t             hart_sent_ptr[MINION_HARTS_PER_RBOX];
         bool                 send_message[MINION_HARTS_PER_RBOX];
 
         StateT               rbox_state;
