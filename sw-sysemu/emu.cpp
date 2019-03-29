@@ -3621,7 +3621,7 @@ void fsw(freg src1, xreg base, int64_t off, const char* comm)
 void fmadd_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1_FS2_RM("fmadd.s");
+    DISASM_FD_FS1_FS2_FS3_RM("fmadd.s");
     set_rounding_mode(rm);
     WRITE_FD( fpu::f32_mulAdd(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
     set_fp_exceptions();
@@ -3630,7 +3630,7 @@ void fmadd_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char
 void fmsub_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1_FS2_RM("fmsub.s");
+    DISASM_FD_FS1_FS2_FS3_RM("fmsub.s");
     set_rounding_mode(rm);
     WRITE_FD( fpu::f32_mulSub(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
     set_fp_exceptions();
@@ -3639,7 +3639,7 @@ void fmsub_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char
 void fnmsub_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1_FS2_RM("fnmsub.s");
+    DISASM_FD_FS1_FS2_FS3_RM("fnmsub.s");
     set_rounding_mode(rm);
     WRITE_FD( fpu::f32_negMulSub(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
     set_fp_exceptions();
@@ -3648,7 +3648,7 @@ void fnmsub_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const cha
 void fnmadd_s(freg fd, freg fs1, freg fs2, freg fs3, rounding_mode rm, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1_FS2_RM("fnmadd.s");
+    DISASM_FD_FS1_FS2_FS3_RM("fnmadd.s");
     set_rounding_mode(rm);
     WRITE_FD( fpu::f32_negMulAdd(FS1.f32[0], FS2.f32[0], FS3.f32[0]) );
     set_fp_exceptions();
