@@ -1,14 +1,6 @@
-#include <stdlib.h>
-
-#include "cacheops.h"
-#include "macros.h"
+#include "master.h"
 #include "shire.h"
-#include "fw_master_code.h"
-#include "fw_compute_code.h"
-#include "serial.h"
-
-#define DRAM_BASE_ADDRESS 0x8000000000ULL
-#define DRAM_SIZE 0x800000000ULL
+#include "worker.h"
 
 // Select PU peripherals for initial master minion use
 #define PU_PLIC_BASE_ADDRESS  0x0010000000ULL
@@ -16,26 +8,20 @@
 
 int main(void)
 {
-    __asm__ __volatile__ (
-       // enable shadow registers for hartid and sleep txfma
-       "csrwi 0x7d2, 0x3\n"
-       :
-       :
-       : "t0"
-    );
+    // Setup trap handler
+    asm volatile ("la t0, trap_handler\n"
+	              "csrw mtvec, t0" : : : "t0");
 
-    // Gets the minion id
-    unsigned int minion_id = get_minion_id();
+    // enable shadow registers for hartid and sleep txfma
+    asm volatile ("csrwi menable_shadows, 0x3");
 
-    // Master shire, go to master code
-    if(minion_id >= 1024)
+    if (get_shire_id() == 32)
     {
-        fw_master_code();
+        MASTER_thread();
     }
-    // Compute shire, go to compute code
     else
     {
-        fw_compute_code();
+        WORKER_thread();
     }
 
     return 0;
