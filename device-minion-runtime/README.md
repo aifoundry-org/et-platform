@@ -24,7 +24,7 @@ Run:
 
 In the repo's TOT run the following command:
 
-    ./device-firmware.py docker prompt et-sw-device-fw
+    ./device-firmware.py docker prompt --mount-home et-sw-device-fw
 
 The above should automatically compute the correct version of the et-sw-platform docker image
 to use, instantiate a container for the user and return an active prompt for the user to use.
