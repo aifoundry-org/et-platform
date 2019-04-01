@@ -13,6 +13,8 @@ cmake_minimum_required(VERSION 2.8)
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR=" ${CMAKE_CURRENT_SOURCE_DIR})
 message(STATUS "CMAKE_CURRENT_BINARY_DIR=" ${CMAKE_CURRENT_BINARY_DIR})
 
+option(HOST_SW "Enable buildiong for the host-sw repo" ON)
+
 include(ExternalProject)
 
 # Add the device-api as an external project that we build from source
@@ -27,6 +29,8 @@ include(ExternalProject)
 #  )
 
 
+if (NOT HOST_SW)
+
 # FIXME Remove external dependency to the SDK
 ExternalProject_Add(sdk
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk
@@ -36,6 +40,8 @@ ExternalProject_Add(sdk
   INSTALL_COMMAND ""
   )
 LINK_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/sdk)
+
+endif()
 
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
