@@ -22,6 +22,10 @@
 #include "tbox_emu.h"
 #include "txs.h"
 
+#include "softfloat/platform.h"
+#include "softfloat/internals.h"
+#include "softfloat/specialize.h"
+
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 
 // MsgPort defines
@@ -5248,6 +5252,72 @@ void NAME(freg dst, freg src1, xreg src2, const char* comm)\
    amo_emu_f(OPC, dst, src1, src2, Mem_Access_Atomic ## LG);\
 }
 
+static float32_t amo_max_f32(float32_t a, float32_t b)
+{
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool signA;
+    union ui32_f32 uB;
+    uint_fast32_t uiB;
+    bool signB;
+    union ui32_f32 uZ;
+    uint_fast32_t uiZ;
+
+    uA.f = a;
+    uiA = uA.ui;
+    uB.f = b;
+    uiB = uB.ui;
+    if (isNaNF32UI(uiA) || isNaNF32UI(uiB)) {
+        if (softfloat_isSigNaNF32UI(uiA) || softfloat_isSigNaNF32UI(uiB)) {
+            uiZ = defaultNaNF32UI;
+            goto uiZ;
+        }
+        uiZ = isNaNF32UI(uiA) ? (isNaNF32UI(uiB) ? defaultNaNF32UI : uiB) : uiA;
+        goto uiZ;
+    }
+    signA = signF32UI(uiA);
+    signB = signF32UI(uiB);
+    uiZ = (signA != signB)
+        ? (signB ? uiA : uiB)
+        : (((uiA != uiB) && (signB ^ (uiB < uiA))) ? uiA : uiB);
+ uiZ:
+    uZ.ui = uiZ;
+    return uZ.f;
+}
+
+static float32_t amo_min_f32(float32_t a, float32_t b)
+{
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool signA;
+    union ui32_f32 uB;
+    uint_fast32_t uiB;
+    bool signB;
+    union ui32_f32 uZ;
+    uint_fast32_t uiZ;
+
+    uA.f = a;
+    uiA = uA.ui;
+    uB.f = b;
+    uiB = uB.ui;
+    if (isNaNF32UI(uiA) || isNaNF32UI(uiB)) {
+        if (softfloat_isSigNaNF32UI(uiA) || softfloat_isSigNaNF32UI(uiB)) {
+            uiZ = defaultNaNF32UI;
+            goto uiZ;
+        }
+        uiZ = isNaNF32UI(uiA) ? (isNaNF32UI(uiB) ? defaultNaNF32UI : uiB) : uiA;
+        goto uiZ;
+    }
+    signA = signF32UI( uiA );
+    signB = signF32UI( uiB );
+    uiZ = (signA != signB)
+        ? (signA ? uiA : uiB)
+        : (((uiA != uiB) && (signA ^ (uiA < uiB))) ? uiA : uiB );
+ uiZ:
+    uZ.ui = uiZ;
+    return uZ.f;
+}
+
 void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
 {
     for (unsigned el = 0; el < VL; el++)
@@ -5313,11 +5383,11 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- maxu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MINPS:
-              res.f = fpu::f32_minNum(val1.f, val2.f);
+              res.f = amo_min_f32(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmin(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            case MAXPS:
-              res.f = fpu::f32_maxNum(val1.f, val2.f);
+              res.f = amo_max_f32(val1.f, val2.f);
               LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmax(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
               break;
            default:
