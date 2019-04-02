@@ -36,8 +36,9 @@ static struct argp_option options[] = {
     { "verbose",    'v', NULL,                  0,                      "Produce verbose output",                                           0 },
     { "quiet",      'q', NULL,                  0,                      "Don't produce any output",                                         0 },
     { "silent",     's', NULL,                  OPTION_ALIAS,           NULL,                                                               0 },
-    { "partition",  'P', "partition index",     OPTION_ARG_OPTIONAL,    "Create partition instead of image, or\nUse specified partition",   0 },
+    { "partition",  'P', "partition_index",     OPTION_ARG_OPTIONAL,    "Create partition instead of image, or\nUse specified partition",   0 },
     { "id",         'I', NULL,                  0,                      "Use region IDs instead of indexes",                                0 },
+    { "output",     'O', "output_path",         0,                      "Write the image to specified path (REPLACE command only)",         0 },
     { 0 }
 };
 
@@ -59,6 +60,9 @@ static error_t parse_opt(int key, char * arg, struct argp_state * state) {
     case 'P':
         arguments->partition_mode = true;
         arguments->partition_index = arg;
+        break;
+    case 'O':
+        arguments->output_path = arg;
         break;
     
     case ARGP_KEY_ARG:
@@ -187,6 +191,7 @@ int main(int argc, char ** argv) {
     g_arguments.partition_index = 0;
     g_arguments.partition_mode = false;
     g_arguments.use_region_ids = false;
+    g_arguments.output_path = NULL;
 
 
     argp_parse(&argp, argc, argv, 0, 0, &g_arguments);

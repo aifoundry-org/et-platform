@@ -88,6 +88,7 @@ int extract_file_from_partition(const ESPERANTO_FLASH_PARTITION_HEADER_t * parti
 static int extract_files_from_partition(const ESPERANTO_FLASH_PARTITION_HEADER_t * partition_header, bool use_region_ids, uint32_t args_count, char ** args, bool silent, bool verbose) {
     uint32_t n;
 	ESPERANTO_FLASH_REGION_ID_t region_id;
+    const char * file_path;
 	const char * region_name;
 	uint32_t region_index;
 	unsigned long int ul;
@@ -96,6 +97,7 @@ static int extract_files_from_partition(const ESPERANTO_FLASH_PARTITION_HEADER_t
     (void)verbose;
 
     for (n = EXTRACT_FILE_ARGS_BASE_COUNT; n < args_count; n += 2) {
+        file_path = args[n + 1];
         region_id = region_name_to_id(args[n]);
         if (ESPERANTO_FLASH_REGION_ID_INVALID != region_id) {
             region_name = region_id_to_name(region_id);
@@ -114,15 +116,15 @@ static int extract_files_from_partition(const ESPERANTO_FLASH_PARTITION_HEADER_t
             }
         }
 
-        if (0 != extract_file_from_partition(partition_header, region_id, region_index, args[n + 1])) {
+        if (0 != extract_file_from_partition(partition_header, region_id, region_index, file_path)) {
             fprintf(stderr, "Error in extract_files_from_partition: extract_file_from_partition() failed!\n");
             return -1;
         } else {
             if (!silent) {
                 if (ESPERANTO_FLASH_REGION_ID_INVALID != region_id) {
-                    printf("Extracted region 0x%x (%s) to file '%s'\n", region_id, region_name, args[n + 1]);
+                    printf("Extracted region 0x%x (%s) to file '%s'\n", region_id, region_name, file_path);
                 } else {
-                    printf("Extracted region %u to file '%s'\n", region_index, args[n + 1]);
+                    printf("Extracted region %u to file '%s'\n", region_index, file_path);
                 }
             }
         }

@@ -57,6 +57,7 @@ typedef struct ARGUMENTS {
     bool partition_mode;
     bool use_region_ids;
     char * partition_index;
+    char * output_path;
 } ARGUMENTS_t;
 
 extern ARGUMENTS_t g_arguments;
