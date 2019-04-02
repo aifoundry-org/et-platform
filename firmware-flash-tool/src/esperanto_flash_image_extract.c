@@ -236,7 +236,7 @@ int extract_file(const ARGUMENTS_t * arguments) {
                 fprintf(stderr, "Error in extract_file: verify_partition_header() failed on 2nd partition!\n");
                 return -1;
             }
-            if (0 != extract_files_from_partition(partition_header, arguments->use_region_ids, arguments->args_count, arguments->args + EXTRACT_FILE_ARGS_BASE_COUNT, arguments->silent, arguments->verbose)) {
+            if (0 != extract_files_from_partition(partition_header, arguments->use_region_ids, arguments->args_count, arguments->args, arguments->silent, arguments->verbose)) {
                 fprintf(stderr, "Error in extract_file: extract_files_from_partition() failed!\n");
                 rv = -1;
                 goto DONE;
