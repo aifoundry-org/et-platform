@@ -1,5 +1,6 @@
 #include "fpu_types.h"
 #include "fpu_casts.h"
+#include "softfloat/platform.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 
@@ -11,31 +12,37 @@ template<typename T> T rshift(T v, unsigned int s) {
 }
 
 
-float10_t f32_to_f10(float32_t val)
+float10_t f32_to_f10(float32_t a)
 {
+    ui32_f32 uA;
+    uint_fast32_t uiA;
     uint8_t  sign;
     uint32_t mantissa32;
     uint32_t mantissa10;
     int32_t  exponent;
-    uint32_t inputAux;
     bool denorm;
     bool nan;
     bool zero;
     bool infinity;
     ui16_f10 uZ;
 
-    inputAux = fpu::UI32(val);
+    uA.f = a;
+    uiA = uA.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(uiA))
+        uiA = softfloat_zeroExpSigF32UI(uiA);
+#endif
 
     //  Disassemble float32_t value into sign, exponent and mantissa.
 
     //  Extract sign.
-    sign = ((inputAux & 0x80000000) == 0) ? 0 : 1;
+    sign = ((uiA & 0x80000000) == 0) ? 0 : 1;
 
     //  Extract exponent.
-    exponent = (inputAux >> 23) & 0xff;
+    exponent = (uiA >> 23) & 0xff;
 
     //  Extract mantissa.
-    mantissa32 = inputAux & 0x007fffff;
+    mantissa32 = uiA & 0x007fffff;
 
     //  Compute flags.
     denorm = (exponent == 0) && (mantissa32 != 0);
@@ -49,7 +56,7 @@ float10_t f32_to_f10(float32_t val)
         return uZ.f;
     }
     if (nan) {
-        if (softfloat_isSigNaNF32UI(inputAux))
+        if (softfloat_isSigNaNF32UI(uiA))
             softfloat_raiseFlags(softfloat_flag_invalid);
         uZ.ui = 0x03f0;
         return uZ.f;

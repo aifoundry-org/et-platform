@@ -53,6 +53,14 @@ float32_t f32_roundToInt( float32_t a, uint_fast8_t roundingMode, bool exact )
     *------------------------------------------------------------------------*/
     uA.f = a;
     uiA = uA.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF32UI( uiA ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA = softfloat_zeroExpSigF32UI( uiA );
+        uA.ui = uiA;
+        a = uA.f;
+    }
+#endif
     exp = expF32UI( uiA );
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/

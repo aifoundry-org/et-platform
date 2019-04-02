@@ -42,6 +42,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define SOFTFLOAT_FAST_INT64
 #define SOFTFLOAT_FAST_DIV64TO32
 
+#define SOFTFLOAT_DENORMALS_TO_ZERO
+
 /*----------------------------------------------------------------------------
 *----------------------------------------------------------------------------*/
 #define INLINE static inline

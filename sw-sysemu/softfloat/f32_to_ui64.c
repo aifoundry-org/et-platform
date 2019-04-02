@@ -60,6 +60,12 @@ uint_fast64_t f32_to_ui64( float32_t a, uint_fast8_t roundingMode, bool exact )
     *------------------------------------------------------------------------*/
     uA.f = a;
     uiA = uA.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF32UI( uiA ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA = softfloat_zeroExpSigF32UI( uiA );
+    }
+#endif
     sign = signF32UI( uiA );
     exp  = expF32UI( uiA );
     sig  = fracF32UI( uiA );

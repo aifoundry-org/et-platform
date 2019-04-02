@@ -55,7 +55,9 @@ float32_t f32_mul( float32_t a, float32_t b )
     uint_fast32_t sigB;
     bool signZ;
     uint_fast32_t magBits;
+#ifndef SOFTFLOAT_DENORMALS_TO_ZERO
     struct exp16_sig32 normExpSig;
+#endif
     int_fast16_t expZ;
     uint_fast32_t sigZ, uiZ;
     union ui32_f32 uZ;
@@ -64,11 +66,23 @@ float32_t f32_mul( float32_t a, float32_t b )
     *------------------------------------------------------------------------*/
     uA.f = a;
     uiA = uA.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF32UI( uiA ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA = softfloat_zeroExpSigF32UI( uiA );
+    }
+#endif
     signA = signF32UI( uiA );
     expA  = expF32UI( uiA );
     sigA  = fracF32UI( uiA );
     uB.f = b;
     uiB = uB.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF32UI( uiB ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB = softfloat_zeroExpSigF32UI( uiB );
+    }
+#endif
     signB = signF32UI( uiB );
     expB  = expF32UI( uiB );
     sigB  = fracF32UI( uiB );
@@ -87,6 +101,9 @@ float32_t f32_mul( float32_t a, float32_t b )
     }
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( ! expA || ! expB ) goto zero;
+#else
     if ( ! expA ) {
         if ( ! sigA ) goto zero;
         normExpSig = softfloat_normSubnormalF32Sig( sigA );
@@ -99,6 +116,7 @@ float32_t f32_mul( float32_t a, float32_t b )
         expB = normExpSig.exp;
         sigB = normExpSig.sig;
     }
+#endif
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     expZ = expA + expB - 0x7F;

@@ -3,8 +3,9 @@
 #include <iomanip>
 #include <cstring>
 
-#include "softfloat/softfloat.h"
+#include "softfloat/platform.h"
 #include "softfloat/internals.h"
+#include "softfloat/softfloat.h"
 
 
 struct Float16 {
@@ -124,11 +125,14 @@ static inline std::ostream& operator<<(std::ostream& os, Float32<N> x)
 
 static inline std::ostream& operator<<(std::ostream& os, float16_t x)
 {
+    os << "0x"
+       << std::hex << std::setw(4) << std::setfill('0') << x.v
+       << std::dec <<  ' ' << Float16(x) << ' ';
+    if (isNaNF16UI(x.v)) {
+        return os << (softfloat_isSigNaNF16UI(x.v) ? "SNaN" : "QNaN");
+    }
     float32_t y = f16_to_f32(x);
-    return os
-        << "0x"
-        << std::hex << std::setw(4) << std::setfill('0') << x.v
-        << std::dec <<  ' ' << Float16(x) << ' ' << u2f(y.v);
+    return os << u2f(y.v);
 }
 
 
@@ -141,10 +145,13 @@ static inline std::ostream& operator<<(std::ostream& os, float32_t x)
     std::bitset<1> sign(signF32UI(ui));
     std::bitset<8> exp(expF32UI(ui));
     std::bitset<23> frac(fracF32UI(ui));
-    return os
-        << "0x"
-        << std::hex << std::setw(8) << std::setfill('0') << x.v
-        << std::dec <<  " (" << sign << ' ' << exp << ' ' << frac << ") " << u2f(x.v);
+    os << "0x"
+       << std::hex << std::setw(8) << std::setfill('0') << x.v
+       << std::dec <<  " (" << sign << ' ' << exp << ' ' << frac << ") ";
+    if (isNaNF32UI(ui)) {
+        return os << (softfloat_isSigNaNF32UI(ui) ? "SNaN" : "QNaN");
+    }
+    return os << u2f(x.v);
 }
 
 

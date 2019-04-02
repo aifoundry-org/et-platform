@@ -1,11 +1,14 @@
 #include "fpu_types.h"
 #include "fpu_casts.h"
+#include "softfloat/platform.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 
 
 float32_t f10_to_f32(float10_t a)
 {
+    ui16_f10 uA;
+    uint_fast16_t uiA;
     uint32_t mantissa;
     int32_t  exponent;
     uint32_t normbits = 0;
@@ -14,13 +17,19 @@ float32_t f10_to_f32(float10_t a)
     bool nan;
     bool zero;
     ui32_f32 uZ;
-    uint16_t val = fpu::UI16(a);
+
+    uA.f = a;
+    uiA = uA.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF10UI(uiA))
+        uiA = softfloat_zeroExpSigF10UI(uiA);
+#endif
 
     //  Read the float10 exponent.
-    exponent = ((val & 0x03e0) >> 5);
+    exponent = ((uiA & 0x03e0) >> 5);
 
     //  Read the float10 mantissa (explicit bits).
-    mantissa = (val & 0x001f);
+    mantissa = (uiA & 0x001f);
 
     //  Compute flags.
     denorm = (exponent == 0) && (mantissa != 0);

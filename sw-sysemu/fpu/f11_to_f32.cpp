@@ -1,11 +1,14 @@
 #include "fpu_types.h"
 #include "fpu_casts.h"
+#include "softfloat/platform.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 
 
 float32_t f11_to_f32(float11_t a)
 {
+    ui16_f11 uA;
+    uint_fast16_t uiA;
     uint32_t mantissa;
     int32_t  exponent;
     uint32_t normbits = 0;
@@ -14,13 +17,19 @@ float32_t f11_to_f32(float11_t a)
     bool nan;
     bool zero;
     ui32_f32 uZ;
-    uint16_t val = fpu::UI16(a);
+
+    uA.f = a;
+    uiA = uA.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF11UI(uiA))
+        uiA = softfloat_zeroExpSigF11UI(uiA);
+#endif
 
     //  Read the float11 exponent.
-    exponent = ((val & 0x07c0) >> 6);
+    exponent = ((uiA & 0x07c0) >> 6);
 
     //  Read the float11 mantissa (explicit bits).
-    mantissa = (val & 0x003f);
+    mantissa = (uiA & 0x003f);
 
     //  Compute flags.
     denorm = (exponent == 0) && (mantissa != 0);

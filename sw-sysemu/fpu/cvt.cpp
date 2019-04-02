@@ -3,6 +3,7 @@
 #include <cmath>
 #include "fpu_types.h"
 #include "fpu_casts.h"
+#include "softfloat/platform.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 

@@ -48,7 +48,9 @@ float32_t f32_sqrt( float32_t a )
     bool signA;
     int_fast16_t expA;
     uint_fast32_t sigA, uiZ;
+#ifndef SOFTFLOAT_DENORMALS_TO_ZERO
     struct exp16_sig32 normExpSig;
+#endif
     int_fast16_t expZ;
     uint_fast32_t sigZ, shiftedSigZ;
     uint32_t negRem;
@@ -71,6 +73,16 @@ float32_t f32_sqrt( float32_t a )
         if ( ! signA ) return a;
         goto invalid;
     }
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    /*------------------------------------------------------------------------
+    *------------------------------------------------------------------------*/
+    if ( ! expA ) {
+        if ( sigA ) softfloat_raiseFlags( softfloat_flag_denormal );
+        uiZ = packToF32UI( signA, 0, 0 );
+        goto uiZ;
+    }
+    if ( signA ) goto invalid;
+#else
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     if ( signA ) {
@@ -85,6 +97,7 @@ float32_t f32_sqrt( float32_t a )
         expA = normExpSig.exp;
         sigA = normExpSig.sig;
     }
+#endif
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     expZ = ((expA - 0x7F)>>1) + 0x7E;
