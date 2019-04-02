@@ -20,13 +20,17 @@ float32_t f32_cubeFaceIdx(uint8_t a, float32_t b)
 
     a &= 0x3;
     if (a == 0x3) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         uiZ = defaultNaNF32UI;
         uZ.ui = uiZ;
         return uZ.f;
     }
     uiZ = (a << 1) | (signF32UI(uiB) ? 1 : 0);
-    return ::ui32_to_f32( uiZ );
+    float32_t z = ::ui32_to_f32( uiZ );
+
+    // this instruction does not generate exceptions, but ui32_to_f32() may
+    // generate exceptions
+    softfloat_exceptionFlags = 0;
+    return z;
 }
 
 

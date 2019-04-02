@@ -56,8 +56,6 @@ float11_t f32_to_f11(float32_t a)
         return uZ.f;
     }
     if (nan) {
-        /*if (softfloat_isSigNaNF32UI(uiA))
-            softfloat_raiseFlags(softfloat_flag_invalid);*/
         uZ.ui = 0x07e0;
         return uZ.f;
     }
@@ -67,7 +65,6 @@ float11_t f32_to_f11(float32_t a)
     }
     //  Flush numbers with an exponent not representable in float11 to infinite.
     if (exponent > (127 + 15)) {
-        /*softfloat_raiseFlags(softfloat_flag_overflow);*/
         uZ.ui = 0x07bf;
         return uZ.f;
     }

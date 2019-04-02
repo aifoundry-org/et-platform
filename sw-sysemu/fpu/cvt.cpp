@@ -113,7 +113,6 @@ uint32_t f32_to_un24(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
     if (isNaNF32UI(val.v)) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x00ffffff;
     }
     if (val_i >= 0x3f800000) {
@@ -132,7 +131,6 @@ uint16_t f32_to_un16(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
     if (isNaNF32UI(val.v)) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0xffff;
     }
     if (val_i >= 0x3f800000) {
@@ -151,7 +149,6 @@ uint16_t f32_to_un10(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
     if (isNaNF32UI(val.v)) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x03ff;
     }
     if (val_i >= 0x3f800000) {
@@ -170,7 +167,6 @@ uint8_t f32_to_un8(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
     if (isNaNF32UI(val.v)) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0xff;
     }
     if (val_i >= 0x3f800000) {
@@ -189,7 +185,6 @@ uint8_t f32_to_un2(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
     if (isNaNF32UI(val.v)) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x03;
     }
     if (val_i >= 0x3f800000) {
@@ -208,7 +203,6 @@ uint32_t f32_to_sn24(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
     if (isNaNF32UI(val.v)) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x007fffff;
     }
     if (val_i >= 0x3f800000) {
@@ -227,7 +221,6 @@ uint16_t f32_to_sn16(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
     if (isNaNF32UI(val.v)) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x7fff;
     }
     if (val_i >= 0x3f800000) {
@@ -246,7 +239,6 @@ uint8_t f32_to_sn8(float32_t val)
 {
     int32_t val_i = int32_t(val.v);
     if (isNaNF32UI(val.v)) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
         return 0x7f;
     }
     if (val_i >= 0x3f800000) {
