@@ -2943,6 +2943,10 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
     {
         throw trap_illegal_instruction(current_inst);
     }
+    if ((src1 == CSR_SATP) && ((csr_mstatus[current_thread] >> 20) & 1) && (prv == CSR_PRV_S))
+    {
+        throw trap_illegal_instruction(current_inst);
+    }
     if (write)
     {
         switch (src1)
