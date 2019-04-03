@@ -1,0 +1,44 @@
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+
+#include "softfloat/platform.h"
+#include "softfloat/internals.h"
+#include "softfloat/specialize.h"
+
+
+namespace fpu {
+
+
+int32_t f32_to_fxp1714(float32_t a)
+{
+    ui32_f32 uA;
+    ui32_f32 uB;
+    uint_fast32_t uiA;
+    
+    uA.f = a;
+    uiA = uA.ui;
+
+    // NaN converts to 0
+    if (isNaNF32UI(uiA)) {
+        if (softfloat_isSigNaNF32UI(uiA))
+            softfloat_raiseFlags(softfloat_flag_invalid);
+        return 0;
+    }
+    // denormals and +/-0.0 convert to 0
+    if ((uiA & 0x7f800000) == 0) {
+        if (uiA) softfloat_raiseFlags(softfloat_flag_denormal);
+        return 0;
+    }
+    // abs(val) >= 2.0769187e+34, including +/-infinity, converts to 0
+    if ((uiA & 0x7fffffff) >= 0x78800000) {
+        softfloat_raiseFlags(softfloat_flag_inexact);
+        return 0;
+    }
+    // all others are converted as int(val*16384.0+0.5)
+    uA.ui = uiA ? packToF32UI(signF32UI(uiA), expF32UI(uiA) + 14, fracF32UI(uiA)) : 0;
+    uB.ui = 0x3f000000 /*0.5*/;
+    float32_t z = ::f32_add(uA.f, uB.f);
+    return ::f32_to_i32(z, softfloat_roundingMode, true);
+}
+
+
+} // namespace fpu

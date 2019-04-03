@@ -57,6 +57,12 @@ float32_t f16_to_f32( float16_t a )
     *------------------------------------------------------------------------*/
     uA.f = a;
     uiA = uA.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF16UI( uiA ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA = softfloat_zeroExpSigF16UI( uiA );
+    }
+#endif
     sign = signF16UI( uiA );
     exp  = expF16UI( uiA );
     frac = fracF16UI( uiA );

@@ -55,6 +55,16 @@ float32_t softfloat_addMagsF32( uint_fast32_t uiA, uint_fast32_t uiB )
 
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF32UI( uiA ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA = softfloat_zeroExpSigF32UI( uiA );
+    }
+    if ( isSubnormalF32UI( uiB ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB = softfloat_zeroExpSigF32UI( uiB );
+    }
+#endif
     expA = expF32UI( uiA );
     sigA = fracF32UI( uiA );
     expB = expF32UI( uiB );

@@ -2,6 +2,7 @@
 
 #include "fpu_types.h"
 #include "fpu_casts.h"
+#include "softfloat/platform.h"
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 
@@ -62,6 +63,12 @@ float32_t f32_rcp(float32_t a)
 {
     ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(val)) {
+        softfloat_raiseFlags(softfloat_flag_denormal);
+        val = softfloat_zeroExpSigF32UI(val);
+    }
+#endif
     switch (val) {
       case minusInfinityF32UI:
           uZ.ui = minusZeroF32UI;
@@ -111,6 +118,13 @@ float32_t f32_rcp(float32_t a)
 
     uZ.ui = MERGE(GET(val, 31, 31), res_exp, fraction_res);
     //printf("EMU FMA2: %08x\n", result);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(uZ.ui)) {
+        softfloat_raiseFlags(
+            softfloat_flag_underflow | softfloat_flag_inexact);
+        uZ.ui = softfloat_zeroExpSigF32UI(uZ.ui);
+    }
+#endif
     return uZ.f;
 }
 
@@ -119,6 +133,12 @@ float32_t f32_rsqrt(float32_t a)
 {
     ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(val)) {
+        softfloat_raiseFlags(softfloat_flag_denormal);
+        val = softfloat_zeroExpSigF32UI(val);
+    }
+#endif
     switch (val) {
       case minusZeroF32UI:
           softfloat_raiseFlags(softfloat_flag_infinite);
@@ -167,6 +187,13 @@ float32_t f32_rsqrt(float32_t a)
     //printf("E: 0x%04x\tES: 0x%04x\tER: 0x%04x\tM: %04x\n", exponent, exponent_shifted, exponent_res, mantissa);
 
     uZ.ui = MERGE(0, exponent_res, fraction_res);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(uZ.ui)) {
+        softfloat_raiseFlags(
+            softfloat_flag_underflow | softfloat_flag_inexact);
+        uZ.ui = softfloat_zeroExpSigF32UI(uZ.ui);
+    }
+#endif
     return uZ.f;
 }
 
@@ -175,6 +202,12 @@ float32_t f32_log2(float32_t a)
 {
     ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(val)) {
+        softfloat_raiseFlags(softfloat_flag_denormal);
+        val = softfloat_zeroExpSigF32UI(val);
+    }
+#endif
 
     switch (val) {
     case minusZeroF32UI: uZ.ui = minusInfinityF32UI; return uZ.f;
@@ -275,6 +308,13 @@ float32_t f32_log2(float32_t a)
     if(sign)
         uZ.ui = (0x1ff << 22);
 
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(uZ.ui)) {
+        softfloat_raiseFlags(
+            softfloat_flag_underflow | softfloat_flag_inexact);
+        uZ.ui = softfloat_zeroExpSigF32UI(uZ.ui);
+    }
+#endif
     return uZ.f;
 }
 
@@ -283,6 +323,12 @@ float32_t f32_exp2(float32_t a)
 {
     ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(val)) {
+        softfloat_raiseFlags(softfloat_flag_denormal);
+        val = softfloat_zeroExpSigF32UI(val);
+    }
+#endif
 
     if (isNaNF32UI(val)) {
         if (softfloat_isSigNaNF32UI(val))
@@ -404,6 +450,13 @@ float32_t f32_exp2(float32_t a)
 
         uZ.ui = (out_exp << 23) + (((full_result >> 1) + (full_result % 2)) % (1 << 23));
     }
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(uZ.ui)) {
+        softfloat_raiseFlags(
+            softfloat_flag_underflow | softfloat_flag_inexact);
+        uZ.ui = softfloat_zeroExpSigF32UI(uZ.ui);
+    }
+#endif
     return uZ.f;
 }
 
@@ -455,11 +508,18 @@ float32_t f32_sin2pi(float32_t a)
 {
     ui32_f32 uZ;
     uint32_t val = fpu::UI32(a);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(val)) {
+        softfloat_raiseFlags(softfloat_flag_denormal);
+        val = softfloat_zeroExpSigF32UI(val);
+    }
+#endif
 
     switch (val) {
     case minusZeroF32UI:
     case zeroF32UI:
-        return a;
+        uZ.ui = val;
+        return uZ.f;
     case infinityF32UI:
     case minusInfinityF32UI:
         softfloat_raiseFlags(softfloat_flag_invalid);
@@ -761,5 +821,12 @@ float32_t f32_sin2pi(float32_t a)
     ////printf("OUT_M: 0x%08x\n", out_m);
 
     uZ.ui = (get(out_s, 0, 0) << 31) + (get(out_e, 0, 7) << 23) + get(out_m, 1, 23);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if (isSubnormalF32UI(uZ.ui)) {
+        softfloat_raiseFlags(
+            softfloat_flag_underflow | softfloat_flag_inexact);
+        uZ.ui = softfloat_zeroExpSigF32UI(uZ.ui);
+    }
+#endif
     return uZ.f;
 }

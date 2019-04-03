@@ -58,6 +58,16 @@ float32_t softfloat_subMagsF32( uint_fast32_t uiA, uint_fast32_t uiB )
 
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF32UI( uiA ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA = softfloat_zeroExpSigF32UI( uiA );
+    }
+    if ( isSubnormalF32UI( uiB ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB = softfloat_zeroExpSigF32UI( uiB );
+    }
+#endif
     expA = expF32UI( uiA );
     sigA = fracF32UI( uiA );
     expB = expF32UI( uiB );
@@ -89,10 +99,19 @@ float32_t softfloat_subMagsF32( uint_fast32_t uiA, uint_fast32_t uiB )
         }
         shiftDist = softfloat_countLeadingZeros32( sigDiff ) - 8;
         expZ = expA - shiftDist;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+        if ( expZ < 0 ) {
+            softfloat_raiseFlags(
+                softfloat_flag_underflow | softfloat_flag_inexact );
+            sigDiff = 0;
+            expZ = 0;
+        }
+#else
         if ( expZ < 0 ) {
             shiftDist = expA;
             expZ = 0;
         }
+#endif
         uiZ = packToF32UI( signZ, expZ, sigDiff<<shiftDist );
         goto uiZ;
     } else {

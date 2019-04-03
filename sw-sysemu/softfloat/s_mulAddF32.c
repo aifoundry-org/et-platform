@@ -56,7 +56,9 @@ float32_t
     uint_fast32_t sigC;
     bool signProd;
     uint_fast32_t magBits, uiZ;
+#ifndef SOFTFLOAT_DENORMALS_TO_ZERO
     struct exp16_sig32 normExpSig;
+#endif
     int_fast16_t expProd;
     uint_fast64_t sigProd;
     bool signZ;
@@ -69,6 +71,20 @@ float32_t
 
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF32UI( uiA ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA = softfloat_zeroExpSigF32UI( uiA );
+    }
+    if ( isSubnormalF32UI( uiB ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB = softfloat_zeroExpSigF32UI( uiB );
+    }
+    if ( isSubnormalF32UI( uiC ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiC = softfloat_zeroExpSigF32UI( uiC );
+    }
+#endif
     signA = signF32UI( uiA );
     expA  = expF32UI( uiA );
     sigA  = fracF32UI( uiA );
@@ -101,6 +117,9 @@ float32_t
     }
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( ! expA || ! expB ) goto zeroProd;
+#else
     if ( ! expA ) {
         if ( ! sigA ) goto zeroProd;
         normExpSig = softfloat_normSubnormalF32Sig( sigA );
@@ -113,6 +132,7 @@ float32_t
         expB = normExpSig.exp;
         sigB = normExpSig.sig;
     }
+#endif
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     expProd = expA + expB - 0x7E;
@@ -125,6 +145,11 @@ float32_t
     }
     signZ = signProd;
     if ( ! expC ) {
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+        expZ = expProd - 1;
+        sigZ = softfloat_shortShiftRightJam64( sigProd, 31 );
+        goto roundPack;
+#else
         if ( ! sigC ) {
             expZ = expProd - 1;
             sigZ = softfloat_shortShiftRightJam64( sigProd, 31 );
@@ -133,6 +158,7 @@ float32_t
         normExpSig = softfloat_normSubnormalF32Sig( sigC );
         expC = normExpSig.exp;
         sigC = normExpSig.sig;
+#endif
     }
     sigC = (sigC | 0x00800000)<<6;
     /*------------------------------------------------------------------------

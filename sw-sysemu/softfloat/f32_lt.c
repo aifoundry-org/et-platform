@@ -52,6 +52,16 @@ bool f32_lt( float32_t a, float32_t b )
     uiA = uA.ui;
     uB.f = b;
     uiB = uB.ui;
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+    if ( isSubnormalF32UI( uiA ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiA = softfloat_zeroExpSigF32UI( uiA );
+    }
+    if ( isSubnormalF32UI( uiB ) ) {
+        softfloat_raiseFlags( softfloat_flag_denormal );
+        uiB = softfloat_zeroExpSigF32UI( uiB );
+    }
+#endif
     if ( isNaNF32UI( uiA ) || isNaNF32UI( uiB ) ) {
         softfloat_raiseFlags( softfloat_flag_invalid );
         return false;

@@ -72,6 +72,14 @@ float32_t
             isTiny =
                 (softfloat_detectTininess == softfloat_tininess_beforeRounding)
                     || (exp < -1) || (sig + roundIncrement < 0x80000000);
+#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
+            if ( isTiny ) {
+                softfloat_raiseFlags(
+                    softfloat_flag_underflow | softfloat_flag_inexact );
+                uiZ = packToF32UI( sign, 0, 0 );
+                goto uiZ;
+            }
+#endif
             sig = softfloat_shiftRightJam32( sig, -exp );
             exp = 0;
             roundBits = sig & 0x7F;
