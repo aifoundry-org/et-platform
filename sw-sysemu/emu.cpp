@@ -3266,6 +3266,9 @@ void sret(const char* comm)
 
 void mret(const char* comm)
 {
+    if (prvget() != CSR_PRV_M)
+      throw trap_illegal_instruction(current_inst);
+
     LOG(DEBUG, "I: mret%s%s", (comm?" # ":""), (comm?comm:""));
     log_pc_update(csr_mepc[current_thread]);
     // Take mpie and mpp
