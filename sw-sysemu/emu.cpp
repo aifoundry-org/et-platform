@@ -3266,6 +3266,9 @@ void sret(const char* comm)
 
 void mret(const char* comm)
 {
+    if (prvget() != CSR_PRV_M)
+      throw trap_illegal_instruction(current_inst);
+
     LOG(DEBUG, "I: mret%s%s", (comm?" # ":""), (comm?comm:""));
     log_pc_update(csr_mepc[current_thread]);
     // Take mpie and mpp
@@ -3902,6 +3905,7 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
 {
     uint64_t baddr = XREGS[base];
     unsigned elem = csr_gsc_progress[current_thread];
+    bool dirty = false;
     try
     {
         while (elem < VL)
@@ -3943,7 +3947,7 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
                     break;
                 }
                 FREGS[dst].u32[elem] = val.u;
-                dirty_fp_state();
+                dirty = true;
             }
             ++elem;
         }
@@ -3952,11 +3956,17 @@ static void gatheremu(opcode opc, freg dst, freg src1, xreg base)
     {
         csr_gsc_progress[current_thread] = elem;
         log_gsc_progress(elem, false);
-        log_freg_write(dst, FREGS[dst]);
+        if (dirty)
+        {
+            dirty_fp_state();
+            log_freg_write(dst, FREGS[dst]);
+        }
         throw;
     }
     csr_gsc_progress[current_thread] = 0;
     log_gsc_progress(0, true);
+    if (dirty)
+        dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
 }
 
@@ -3965,6 +3975,7 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
     uint64_t baddr = sextVA(XREGS[src2]);
     uint64_t index = XREGS[src1];
     unsigned elem = csr_gsc_progress[current_thread];
+    bool dirty = false;
     try
     {
         while (elem < VL)
@@ -4001,7 +4012,7 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
                     break;
                 }
                 FREGS[dst].u32[elem] = val.u;
-                dirty_fp_state();
+                dirty = true;
             }
             ++elem;
         }
@@ -4010,11 +4021,17 @@ static void gatheremu32(int size, freg dst, xreg src1, xreg src2)
     {
         csr_gsc_progress[current_thread] = elem;
         log_gsc_progress(elem, false);
-        log_freg_write(dst, FREGS[dst]);
+        if (dirty)
+        {
+            dirty_fp_state();
+            log_freg_write(dst, FREGS[dst]);
+        }
         throw;
     }
     csr_gsc_progress[current_thread] = 0;
     log_gsc_progress(0, true);
+    if (dirty)
+        dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
 }
 
@@ -5324,93 +5341,114 @@ static float32_t amo_min_f32(float32_t a, float32_t b)
 
 void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
 {
-    for (unsigned el = 0; el < VL; el++)
+    unsigned el = csr_gsc_progress[current_thread];
+    bool dirty = false;
+    try
     {
-        iufval32 res, val1, val2;
-
-        if (!MREGS[0][el]) continue;
-
-        uint64_t addr = sextVA(XREGS[src2] + FREGS[src1].i32[el]);
-
-        check_store_breakpoint(addr);
-        if (!access_is_size_aligned(addr, 4))
+        while (el < VL)
         {
-            throw trap_store_access_fault(addr);
+            iufval32 res, val1, val2;
+
+            if (!MREGS[0][el]) continue;
+
+            uint64_t addr = sextVA(XREGS[src2] + FREGS[src1].i32[el]);
+
+            check_store_breakpoint(addr);
+            if (!access_is_size_aligned(addr, 4))
+            {
+                throw trap_store_access_fault(addr);
+            }
+            uint64_t paddr = vmemtranslate(addr, macc);
+            if (!pma_check_data_access(paddr, 4, macc))
+            {
+                throw trap_store_access_fault(addr);
+            }
+            val1.u = pmemread32(paddr);
+            val2.u = FREGS[dst].u32[el];
+
+            // Save the loaded data
+            FREGS[dst].u32[el] = val1.u;
+            LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", el, val1.u, addr);
+            dirty = true;
+
+            switch (op)
+            {
+            case SWAP:
+                res.u = val2.u;
+                break;
+            case AND:
+                res.u = val1.u & val2.u;
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- 0x%08" PRIx32 " & 0x%08" PRIx32 "", res.u, val1.u, val2.u);
+                break;
+            case OR:
+                res.u = val1.u | val2.u;
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- 0x%08" PRIx32 " | 0x%08" PRIx32 "", res.u, val1.u, val2.u);
+                break;
+            case XOR:
+                res.u = val1.u ^ val2.u;
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- 0x%08" PRIx32 " ^ 0x%08" PRIx32 "", res.u, val1.u, val2.u);
+                break;
+            case ADD:
+                res.u = val1.i + val2.i;
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- 0x%08" PRIx32 " + 0x%08" PRIx32 "", res.u, val1.u, val2.u);
+                break;
+            case MIN:
+                res.u = (val1.i < val2.i) ? val1.u : val2.u;
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- min(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
+                break;
+            case MAX:
+                res.u = (val1.i > val2.i) ? val1.u : val2.u;
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- max(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
+                break;
+            case MINU:
+                res.u = (val1.u < val2.u) ? val1.u : val2.u;
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- minu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
+                break;
+            case MAXU:
+                res.u = (val1.u > val2.u) ? val1.u : val2.u;
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- maxu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
+                break;
+            case MINPS:
+                res.f = amo_min_f32(val1.f, val2.f);
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmin(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
+                break;
+            case MAXPS:
+                res.f = amo_max_f32(val1.f, val2.f);
+                LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmax(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
+                break;
+            default:
+                res.u = 0;
+                LOG(FTL, "Unknown atomic op %d", op);
+            }
+
+            // Stores the operated data
+            LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", res.u, addr);
+            pmemwrite32(paddr, res.u);
+
+            // note: for logging purposes, sending val2.u instead of res.u => we want to check what the
+            // dcache outputs to the shire caches, not the actual value written in memory
+            log_mem_write(el, 4, addr, val2.u);
+
+            ++el;
         }
-        uint64_t paddr = vmemtranslate(addr, macc);
-        if (!pma_check_data_access(paddr, 4, macc))
-        {
-            throw trap_store_access_fault(addr);
-        }
-        val1.u = pmemread32(paddr);
-        val2.u = FREGS[dst].u32[el];
-
-        // Save the loaded data
-        FREGS[dst].u32[el] = val1.u;
-        LOG(DEBUG, "\t[%u] 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]", el, val1.u, addr);
-
-        switch (op)
-        {
-           case SWAP:
-              res.u = val2.u;
-              break;
-           case AND:
-              res.u = val1.u & val2.u;
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- 0x%08" PRIx32 " & 0x%08" PRIx32 "", res.u, val1.u, val2.u);
-              break;
-           case OR:
-              res.u = val1.u | val2.u;
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- 0x%08" PRIx32 " | 0x%08" PRIx32 "", res.u, val1.u, val2.u);
-              break;
-           case XOR:
-              res.u = val1.u ^ val2.u;
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- 0x%08" PRIx32 " ^ 0x%08" PRIx32 "", res.u, val1.u, val2.u);
-              break;
-           case ADD:
-              res.u = val1.i + val2.i;
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- 0x%08" PRIx32 " + 0x%08" PRIx32 "", res.u, val1.u, val2.u);
-              break;
-           case MIN:
-              res.u = (val1.i < val2.i) ? val1.u : val2.u;
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- min(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
-              break;
-           case MAX:
-              res.u = (val1.i > val2.i) ? val1.u : val2.u;
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- max(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
-              break;
-           case MINU:
-              res.u = (val1.u < val2.u) ? val1.u : val2.u;
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- minu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
-              break;
-           case MAXU:
-              res.u = (val1.u > val2.u) ? val1.u : val2.u;
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- maxu(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
-              break;
-           case MINPS:
-              res.f = amo_min_f32(val1.f, val2.f);
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmin(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
-              break;
-           case MAXPS:
-              res.f = amo_max_f32(val1.f, val2.f);
-              LOG(DEBUG, "\t0x%08" PRIx32 " <-- fmax(0x%08" PRIx32 ", 0x%08" PRIx32 ")", res.u, val1.u, val2.u);
-              break;
-           default:
-              res.u = 0;
-              LOG(FTL, "Unknown atomic op %d", op);
-        }
-
-        // Stores the operated data
-        LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", res.u, addr);
-        pmemwrite32(paddr, res.u);
-
-        // note: for logging purposes, sending val2.u instead of res.u => we want to check what the
-        // dcache outputs to the shire caches, not the actual value written in memory
-        log_mem_write(el, 4, addr, val2.u);
     }
-    dirty_fp_state();
+    catch (const trap_t&)
+    {
+        csr_gsc_progress[current_thread] = el;
+        log_gsc_progress(el, false);
+        if (dirty)
+        {
+            dirty_fp_state();
+            log_freg_write(dst, FREGS[dst]);
+        }
+        throw;
+    }
+    csr_gsc_progress[current_thread] = 0;
+    log_gsc_progress(0, true);
+    if (dirty)
+        dirty_fp_state();
     log_freg_write(dst, FREGS[dst]);
 }
-
 
 //
 // Local Scalar 32 bits Atomics
