@@ -6198,11 +6198,11 @@ static void tmask_conv()
 
 static void tcoop(uint64_t value)
 {
-    int     timeout   = (value >> 16) & 0x1FF;
-    uint8_t coop_mask = (value >>  8) & 0xFF;
-    int     coop_id   = (value >>  0) & 0xFF;
+    uint8_t neigh_mask  = (value >> 16) & 0xF;
+    uint8_t minion_mask = (value >>  8) & 0xFF;
+    int     coop_id     = (value >>  0) & 0xFF;
     // TODO: implement functionality checking the addresses and tcoop of every use of Tensor Load
-    LOG(DEBUG, "\tSetting Tensor Cooperation:  Timeout %d. Coop Mask %02X. Coop ID: %d", timeout, coop_mask, coop_id);
+    LOG(DEBUG, "\tSetting Tensor Cooperation: coopneighmask=%02X, coopminmask=%02X, coopid=%d", neigh_mask, minion_mask, coop_id);
 }
 
 // ----- TensorLoad emulation --------------------------------------------------
