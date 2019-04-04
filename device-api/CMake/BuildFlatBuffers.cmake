@@ -169,7 +169,7 @@ function(build_et_flatbuffers flatbuffers_schemas
 
   # Register the include directory we are using.
   if (NOT ${generated_includes_dir} STREQUAL "")
-    include_directories(${generated_includes_dir})
+#    include_directories(${generated_includes_dir})
     set_property(TARGET ${custom_target_name}
       PROPERTY GENERATED_INCLUDES_DIR
       ${generated_includes_dir})
@@ -183,7 +183,7 @@ function(build_et_flatbuffers flatbuffers_schemas
 
   # Register the include raw directory we are using.
   if (NOT ${generated_includes_cppraw_dir} STREQUAL "")
-    include_directories(${generated_includes_cppraw_dir})
+#    include_directories(${generated_includes_cppraw_dir})
     set_property(TARGET ${custom_target_name}
       PROPERTY GENERATED_INCLUDES_CPPRAW_DIR
       ${generated_includes_cppraw_dir})

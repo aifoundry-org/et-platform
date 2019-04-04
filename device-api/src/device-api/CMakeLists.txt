@@ -62,3 +62,5 @@ endforeach()
 add_custom_target(parse-device-api ALL
   DEPENDS flatc-fbs-parse ${ETAPI_C_PARSED}
   VERBATIM)
+
+add_subdirectory(tests)
