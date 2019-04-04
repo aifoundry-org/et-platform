@@ -510,8 +510,10 @@ namespace RBOX
         uint64_t value;
         struct
         {
-            uint64_t start    :  1,
-                     reserved : 63;
+            uint64_t start     :  1,
+                     reserved0 : 15,
+                     flush     :  1,
+                     reserved  : 47;
         } fields;
     } ESRStartT;
     
