@@ -2,11 +2,66 @@
 
 include "common_types.fbs";
 
-namespace Responses;
+namespace ETDevAPIResponses;
 
-table DeviceInfoResponse {
-   header:MessageHeader;
+/// @ingroup ET_DEVICE_API_RESPONSES
+/// @{
 
+///
+/// \brief API Version information
+///
+struct APIVersionInfo {
+    ///< API Major version
+    major:uint64;
+    ///< API Minor version
+    minor:uint64;
+    ///< API Patch Version
+    patch:uint64;
 }
 
-root_type DeviceInfoResponse;
+///
+/// \brief Device Master Minion API Version
+///
+table DeviceInfoAPIVersionResponse {
+    header:MessageHeader;
+    api_version:APIVersionInfo;
+    ///< Git commit of device-api repo
+    git_sha:[ubyte];
+}
+
+///
+/// \brief Minion Device information
+///
+table DeviceInfoActiveMinionsResponse {
+    header:MessageHeader;
+    ///< Number of total minions in the system
+    minions:uint16;
+    ///< Number of active minions on the device
+    active_minions:uint16;
+}
+
+///
+/// \brief Device memory region configuration
+///
+/// \todo the following API should be revisitted
+/// the host-runtime should separate the kernel weights from the
+/// activatons
+table DeviceInfoMemoryInfoResponse {
+    header:MessageHeader;
+    ///< Base addres where kernel code can be allocated
+    kernel_base_addr:uint64;
+    ///< Kernel code area size
+    kernel_arrea_size:uint64;
+    ///< Kernel data base address
+    data_base_addr:uint64;
+    ///< Kernel data size;
+    data_size:uint64;
+    ///< Actication base address
+    activation_base_addr:uint64;
+    ///< Activation size
+    activation_size:uint64;
+}
+
+/// @}
+
+root_type DeviceInfoAPIVersionResponse;

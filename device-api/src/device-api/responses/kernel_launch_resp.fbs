@@ -1,0 +1,24 @@
+/// Device Info commands
+
+include "common_types.fbs";
+
+namespace ETDevAPIResponses;
+
+/// @ingroup ET_DEVICE_API_RESPONSES
+/// @{
+
+enum KernelStatus:byte {
+    StatusNone = 0,
+    StatusSuccess
+}
+
+///
+/// \brief Device Master Minion API Version
+///
+table KernelLaunchResponse {
+    header:MessageHeader;
+}
+
+/// @}
+
+root_type KernelLaunchResponse;
