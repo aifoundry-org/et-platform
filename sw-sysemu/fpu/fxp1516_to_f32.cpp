@@ -17,6 +17,9 @@ float32_t fxp1516_to_f32(int32_t a)
     uZ.f = ::i32_to_f32(a);
     uiZ = uZ.ui;
     uZ.ui = uiZ ? packToF32UI(signF32UI(uiZ), expF32UI(uiZ) - 16, fracF32UI(uiZ)) : 0;
+    // this instruction does not generate exceptions, but i32_to_f32() may
+    // generate exceptions
+    softfloat_exceptionFlags = 0;
     return uZ.f;
 }
 

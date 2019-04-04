@@ -56,8 +56,6 @@ float10_t f32_to_f10(float32_t a)
         return uZ.f;
     }
     if (nan) {
-        if (softfloat_isSigNaNF32UI(uiA))
-            softfloat_raiseFlags(softfloat_flag_invalid);
         uZ.ui = 0x03f0;
         return uZ.f;
     }
@@ -67,7 +65,6 @@ float10_t f32_to_f10(float32_t a)
         return uZ.f;
     }
     if (exponent > (127 + 15)) {
-        softfloat_raiseFlags(softfloat_flag_overflow);
         uZ.ui = 0x03df;
         return uZ.f;
     }
