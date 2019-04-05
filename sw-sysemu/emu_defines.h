@@ -164,9 +164,9 @@
 // Hart ESRs
 #define ESR_HART_0                      0x000   /* PP = 0b00 */
 #define ESR_HART_PORT0                  0x800   /* PP = 0b00 */
-#define ESR_HART_PORT1                  0x810   /* PP = 0b00 */
-#define ESR_HART_PORT2                  0x820   /* PP = 0b00 */
-#define ESR_HART_PORT3                  0x830   /* PP = 0b00 */
+#define ESR_HART_PORT1                  0x840   /* PP = 0b00 */
+#define ESR_HART_PORT2                  0x880   /* PP = 0b00 */
+#define ESR_HART_PORT3                  0x8c0   /* PP = 0b00 */
 
 // Neighborhood ESRs
 #define ESR_NEIGH_0                     0x0000  /* PP = 0b00 */
