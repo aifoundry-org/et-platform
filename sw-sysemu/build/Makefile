@@ -1,3 +1,5 @@
+BEMU_BUILD_DIR?=
+
 include emu.mk
 include fpu.mk
 include softfloat.mk
@@ -30,34 +32,34 @@ clean: clean_libfpu clean_libemu
 
 # ---------- libfpu -----------------------------------------------------------
 
-libfpu_OBJS := $(addprefix libfpu/,$(addsuffix .o,$(basename $(libfpu_SRCS))))
+libfpu_OBJS := $(addprefix $(BEMU_BUILD_DIR)libfpu/,$(addsuffix .o,$(basename $(libfpu_SRCS))))
 libfpu_DEPS := $(addsuffix .d,$(basename $(libfpu_OBJS)))
 
 libfpu_DIRS := $(sort $(dir $(libfpu_OBJS)))
 
 .PHONY: libfpu
-libfpu: libfpu.so libfpu.a
+libfpu: $(BEMU_BUILD_DIR)libfpu.so $(BEMU_BUILD_DIR)libfpu.a
 
 .PHONY: clean_libfpu
 clean_libfpu:
-	$(RM) -r libfpu.* libfpu/
+	$(RM) -r $(BEMU_BUILD_DIR)libfpu.* $(BEMU_BUILD_DIR)libfpu/
 
-libfpu.so libfpu.a: CPPFLAGS := $(common_CPPFLAGS)
-libfpu.so libfpu.a: LDLIBS :=
+$(BEMU_BUILD_DIR)libfpu.so $(BEMU_BUILD_DIR)libfpu.a: CPPFLAGS := $(common_CPPFLAGS)
+$(BEMU_BUILD_DIR)libfpu.so $(BEMU_BUILD_DIR)libfpu.a: LDLIBS :=
 
-libfpu.so: $(libfpu_OBJS)
+$(BEMU_BUILD_DIR)libfpu.so: $(libfpu_OBJS)
 	$(CC) $(LDFLAGS) $(TARGET_ARCH) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-libfpu.a: $(libfpu_OBJS)
+$(BEMU_BUILD_DIR)libfpu.a: $(libfpu_OBJS)
 	$(AR) $(ARFLAGS) $@ $^ 
 
 $(libfpu_DIRS):
 	mkdir -p $@
 
-libfpu/%.o: ../%.cpp | $(libfpu_DIRS)
+$(BEMU_BUILD_DIR)libfpu/%.o: ../%.cpp | $(libfpu_DIRS)
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
-libfpu/%.o: ../%.c | $(libfpu_DIRS)
+$(BEMU_BUILD_DIR)libfpu/%.o: ../%.c | $(libfpu_DIRS)
 	$(COMPILE.c) $(OUTPUT_OPTION) $<
 
 $(libfpu_OBJS): Makefile
@@ -66,30 +68,30 @@ $(libfpu_OBJS): Makefile
 
 # ---------- libemu -----------------------------------------------------------
 
-libemu_OBJS := $(addprefix libemu/,$(addsuffix .o,$(basename $(libemu_SRCS))))
+libemu_OBJS := $(addprefix $(BEMU_BUILD_DIR)libemu/,$(addsuffix .o,$(basename $(libemu_SRCS))))
 libemu_DEPS := $(addsuffix .d,$(basename $(libemu_OBJS)))
 libemu_DIRS := $(sort $(dir $(libemu_OBJS)))
 
 .PHONY: libemu
-libemu: libemu.so libemu.a
+libemu: $(BEMU_BUILD_DIR)libemu.so $(BEMU_BUILD_DIR)libemu.a
 
 .PHONY: clean_libemu
 clean_libemu:
-	$(RM) -r libemu.* libemu/
+	$(RM) -r $(BEMU_BUILD_DIR)libemu.* $(BEMU_BUILD_DIR)libemu/
 
-libemu.so libemu.a: CPPFLAGS := $(common_CPPFLAGS) -I$(TESTROOT)/libs -I$(TESTROOT)/shire/shiretop/csrc
-libemu.so libemu.a: LDLIBS := -L. -Wl,-rpath=$(shell readlink -f .) -lfpu
+$(BEMU_BUILD_DIR)libemu.so $(BEMU_BUILD_DIR)libemu.a: CPPFLAGS := $(common_CPPFLAGS) -I$(TESTROOT)/libs -I$(TESTROOT)/shire/shiretop/csrc
+$(BEMU_BUILD_DIR)libemu.so $(BEMU_BUILD_DIR)libemu.a: LDLIBS := -L. -Wl,-rpath=$(shell readlink -f .) -lfpu
 
-libemu.so: $(libemu_OBJS) libfpu.so
+$(BEMU_BUILD_DIR)libemu.so: $(libemu_OBJS) $(BEMU_BUILD_DIR)libfpu.so
 	$(CC) $(LDFLAGS) $(TARGET_ARCH) $(libemu_OBJS) $(LOADLIBES) $(LDLIBS) -o $@
 
-libemu.a: $(libemu_OBJS) $(libfpu_OBJS)
+$(BEMU_BUILD_DIR)libemu.a: $(libemu_OBJS) $(libfpu_OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
 $(libemu_DIRS):
 	mkdir -p $@
 
-libemu/%.o: ../%.cpp | $(libemu_DIRS)
+$(BEMU_BUILD_DIR)libemu/%.o: ../%.cpp | $(libemu_DIRS)
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
 $(libemu_OBJS): Makefile

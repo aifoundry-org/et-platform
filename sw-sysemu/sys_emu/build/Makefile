@@ -1,3 +1,6 @@
+SYSEMU_REL_LIB_DIR?=../../build
+BEMU_BUILD_DIR?=
+
 include ../../build/emu.mk
 
 sysemu_hdrs := \
@@ -29,9 +32,9 @@ sysemu_cpp_srcs := \
 sysemu_SRCS := $(sysemu_cpp_srcs) \
 	       $(emu_cpp_srcs)
 
-sysemu_OBJS := $(addprefix obj/,$(addsuffix .o,$(basename $(sysemu_SRCS))))
+sysemu_OBJS := $(addprefix $(BEMU_BUILD_DIR)sys_emu_obj/,$(addsuffix .o,$(basename $(sysemu_SRCS))))
 # Remove the file that implements the main function
-libsysemu_OBJS := $(filter-out obj/sys_emu/sys_emu_main.o,$(sysemu_OBJS))
+libsysemu_OBJS := $(filter-out $(BEMU_BUILD_DIR)sys_emu_obj/sys_emu/sys_emu_main.o,$(sysemu_OBJS))
 sysemu_DEPS := $(addsuffix .d,$(basename $(sysemu_OBJS)))
 sysemu_DIRS := $(sort $(dir $(sysemu_OBJS)))
 
@@ -40,13 +43,13 @@ CXX      := g++
 CPPFLAGS := -I../.. -I.. -DSYS_EMU
 CXXFLAGS := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c11
-LDLIBS   := ../../build/libfpu.a -lm
+LDLIBS   := $(SYSEMU_REL_LIB_DIR)/libfpu.a -lm
 
 # FIXME: Remove the following when we convert everything away from C++ floats
 CXXFLAGS += -mf16c -fno-fast-math
 
 .PHONY: all
-all: sys_emu libsysemu.a
+all: $(BEMU_BUILD_DIR)sys_emu $(BEMU_BUILD_DIR)libsysemu.a
 
 .PHONY: static
 static: LDFLAGS := -static
@@ -59,11 +62,11 @@ debug: sys_emu
 
 .PHONY: clean
 clean:
-	$(MAKE) -C ../../build clean_libfpu
-	$(RM) -r sys_emu obj/ *.a sysemu-artifacts*
+	$(MAKE) -C ../../build BEMU_BUILD_DIR=$(BEMU_BUILD_DIR) clean_libfpu
+	$(RM) -r $(BEMU_BUILD_DIR)sys_emu $(BEMU_BUILD_DIR)sys_emu_obj/ *.a sysemu-artifacts*
 
-../../build/libfpu.a: force
-	$(MAKE) -C ../../build $(notdir $@)
+$(SYSEMU_REL_LIB_DIR)/libfpu.a: force
+	$(MAKE) -C ../../build BEMU_BUILD_DIR=$(BEMU_BUILD_DIR) $(addprefix $(BEMU_BUILD_DIR),$(notdir $@))
 
 artifacts_dir:
 	mkdir -p sysemu-artifacts
@@ -77,22 +80,23 @@ install_headers : $(addprefix ../../,$(sysemu_hdrs)) | artifacts_dir
 	; done
 
 .PHONY: install_binaries
-install_binaries: libsysemu.a sys_emu ../../build/libfpu.a | artifacts_dir
+install_binaries: $(BEMU_BUILD_DIR)libsysemu.a $(BEMU_BUILD_DIR)sys_emu $(SYSEMU_REL_LIB_DIR)/libfpu.a | artifacts_dir
 	for i in $^; do cp -f $$i sysemu-artifacts/; done
 
 sysemu-artifacts.tar.gz: install_binaries install_headers | artifacts_dir
 	tar zcvf sysemu-artifacts.tar.gz sysemu-artifacts
 
-libsysemu.a:  $(libsysemu_OBJS)
+$(BEMU_BUILD_DIR)libsysemu.a:  $(libsysemu_OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
-sys_emu: $(sysemu_OBJS) ../../build/libfpu.a
+$(BEMU_BUILD_DIR)sys_emu: $(sysemu_OBJS) $(SYSEMU_REL_LIB_DIR)/libfpu.a
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(TARGET_ARCH) $(sysemu_OBJS) $(LOADLIBES) $(LDLIBS) -o $@
+	-if [ "$(BEMU_BUILD_DIR)sys_emu" != "sys_emu" ]  ; then /bin/cp -n $(BEMU_BUILD_DIR)sys_emu sys_emu; fi
 
 $(sysemu_DIRS):
 	mkdir -p $@
 
-obj/%.o: ../../%.cpp | $(sysemu_DIRS)
+$(BEMU_BUILD_DIR)sys_emu_obj/%.o: ../../%.cpp | $(sysemu_DIRS)
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
 $(sysemu_OBJS): Makefile
