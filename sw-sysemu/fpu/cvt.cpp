@@ -7,105 +7,305 @@
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 
-namespace fpu {
-
-
-float32_t un24_to_f32(uint32_t val)
-{
-    uint32_t maxrange = (1 << 24) - 1;
-    float res = float(val & 0xFFFFFF) / float(maxrange);
-    return fpu::F2F32(res);
-}
-
-
-float32_t un16_to_f32(uint16_t val)
-{
-    uint32_t maxrange = (1 << 16) - 1;
-    float res = float(val & 0xFFFF) / float(maxrange);
-    return fpu::F2F32(res);
-}
-
-
-float32_t un10_to_f32(uint16_t val)
-{
-    uint32_t maxrange = (1 << 10) - 1;
-    float res = float(val & 0x3FF) / float(maxrange);
-    return fpu::F2F32(res);
-}
-
-
-float32_t un8_to_f32(uint8_t val)
-{
-    uint32_t maxrange = (1 << 8 ) - 1;
-    float res = float(val & 0xFF) / float(maxrange);
-    return fpu::F2F32(res);
-}
-
-
-float32_t un2_to_f32(uint8_t val)
-{
-    uint32_t maxrange = (1 << 2) - 1;
-    float res = float(val & 0x3) / float(maxrange);
-    return fpu::F2F32(res);
-}
-
-
 #if 0
-float32_t sn24_to_f32(uint32_t val)
+#include "debug.h"
+
+void debug_cvt(bool sign, int_fast16_t exp, uint_fast32_t sig)
 {
-    if (val == (1 << 23)) val = (1 << 23) + 1;
-    int sign = ((val & 0x00800000) == 0) ? 1 : -1;
-    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x007fffff;
-    uint32_t maxrange = (1 << 23) - 1;
-    float res = float(sign) * (float(value) / float(maxrange));
-    return fpu::F2F32(res);
+    uint_fast8_t roundIncrement, roundBits;
+    bool roundNearEven;
+    roundIncrement = 0x40;
+    roundNearEven = (softfloat_roundingMode == softfloat_round_near_even);
+    if ( ! roundNearEven && (softfloat_roundingMode != softfloat_round_near_maxMag) ) {
+        roundIncrement = (softfloat_roundingMode == (sign ? softfloat_round_min : softfloat_round_max))
+                ? 0x7F
+                : 0;
+    }
+    roundBits = sig & 0x7F;
+    std::cout << "\tnumber       : " << Float32<7>(sign, exp, sig) << "\n";
+    std::cout << "\trounIncrement: " << Float32<7>(sign, 0, roundIncrement) << "\n";
+    std::cout << "\troundBits    : " << Float32<7>(sign, 0, roundBits) << "\n";
+    sig = (sig + roundIncrement) >> 7;
+    std::cout << "\tsig_shft     : " << Float32<0>(sign, exp, sig) << "\n";
+    sig &= ~(uint_fast32_t) (! (roundBits ^ 0x40) & roundNearEven);
+    std::cout << "\tsig_adj      : " << Float32<0>(sign, exp, sig) << "\n";
 }
 #endif
 
+#if 0
+    {
+        bool sign = false;
+        uint_fast8_t roundIncrement, roundBits;
+        bool roundNearEven;
+        uint_fast32_t sigZ = sig;
+        roundIncrement = 0x40;
+        roundNearEven = (softfloat_roundingMode == softfloat_round_near_even);
+        if ( ! roundNearEven && (softfloat_roundingMode != softfloat_round_near_maxMag) ) {
+            roundIncrement = (softfloat_roundingMode == (sign ? softfloat_round_min : softfloat_round_max))
+                    ? 0x7F
+                    : 0;
+        }
+        roundBits = sigZ & 0x7F;
+        std::cout << "un16_to_f32: number       : " << Float32<7>(0, exp, sigZ) << "\n";
+        std::cout << "un16_to_f32: rounIncrement: " << Float32<7>(0, 0, roundIncrement) << "\n";
+        std::cout << "un16_to_f32: roundBits    : " << Float32<7>(0, 0, roundBits) << "\n";
+        sigZ = (sigZ + roundIncrement) >> 7;
+        std::cout << "un16_to_f32: sig_shft     : " << Float32<0>(0, exp, sigZ) << "\n";
+        sigZ &= ~(uint_fast32_t) (! (roundBits ^ 0x40) & roundNearEven);
+        std::cout << "un16_to_f32: sig_adj      : " << Float32<0>(0, exp, sigZ) << "\n";
+    }
+#endif
 
-float32_t sn16_to_f32(uint16_t val)
+namespace fpu {
+
+
+float32_t un24_to_f32(uint32_t a)
 {
-    if (val == (1 << 15)) val = (1 << 15) + 1;
-    int sign = ((val & 0x00008000) == 0) ? 1 : -1;
-    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00007fff;
-    uint32_t maxrange = (1 << 15) - 1;
-    float res = float(sign) * (float(value) / float(maxrange));
-    return fpu::F2F32(res);
+    ui32_f32 uZ;
+    int_fast8_t shiftDist;
+    int_fast16_t exp;
+    uint_fast64_t sig;
+
+    a &= 0xFFFFFF;
+    if ( !a ) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
+    if ( a == 0xFFFFFF ) {
+        uZ.ui = packToF32UI(0, 0x7F, 0);
+        return uZ.f;
+    }
+    sig = ( (uint_fast64_t)a << 40 )
+        | ( (uint_fast64_t)a << 16 )
+        | softfloat_shiftRightJam32(a, 8);
+    if ( a & 0x800000 ) {
+        sig = softfloat_shiftRightJam64( sig, 33 );
+        exp = 0x7D;
+    } else {
+        shiftDist = softfloat_countLeadingZeros32( a ) - 9;
+        exp = 0x7C - shiftDist;
+        sig = softfloat_shiftRightJam64( sig, 32 - shiftDist );
+    }
+    uZ.f = softfloat_roundPackToF32( 0, exp, (uint_fast32_t)sig );
+    softfloat_exceptionFlags = 0;
+    return uZ.f;
+}
+
+
+float32_t un16_to_f32(uint16_t a)
+{
+    ui32_f32 uZ;
+    int_fast8_t shiftDist;
+    int_fast16_t exp;
+    uint_fast64_t sig;
+
+    if ( !a ) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
+    if ( a == 0xFFFF ) {
+        uZ.ui = packToF32UI(0, 0x7F, 0);
+        return uZ.f;
+    }
+    sig = ( (uint_fast64_t)a << 32 ) | ( (uint_fast64_t)a << 16 ) | a;
+    if ( a & 0x8000 ) {
+        sig = softfloat_shiftRightJam64( sig, 17 );
+        exp = 0x7D;
+    } else {
+        shiftDist = softfloat_countLeadingZeros16( a ) - 1;
+        exp = 0x7C - shiftDist;
+        sig = softfloat_shiftRightJam64( sig, 16 - shiftDist );
+    }
+    uZ.f = softfloat_roundPackToF32( 0, exp, (uint_fast32_t)sig );
+    softfloat_exceptionFlags = 0;
+    return uZ.f;
+}
+
+
+float32_t un10_to_f32(uint16_t a)
+{
+    ui32_f32 uZ;
+    int_fast8_t shiftDist;
+    int_fast16_t exp;
+    uint_fast64_t sig;
+
+    a &= 0x3FF;
+    if ( !a ) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
+    if ( a == 0x3FF ) {
+        uZ.ui = packToF32UI(0, 0x7F, 0);
+        return uZ.f;
+    }
+    sig = ( (uint_fast64_t)a << 20 ) | ( (uint_fast64_t)a << 10 ) | a;
+    sig = ( sig << 30 ) | sig;
+    if ( a & 0x200 ) {
+        sig = softfloat_shiftRightJam64( sig, 29 );
+        exp = 0x7D;
+    } else {
+        shiftDist = softfloat_countLeadingZeros16( a ) - 7;
+        exp = 0x7C - shiftDist;
+        sig = softfloat_shiftRightJam64( sig, 28 - shiftDist );
+    }
+    uZ.f = softfloat_roundPackToF32( 0, exp, (uint_fast32_t)sig );
+    softfloat_exceptionFlags = 0;
+    return uZ.f;
+}
+
+
+float32_t un8_to_f32(uint8_t a)
+{
+    ui32_f32 uZ;
+    int_fast8_t shiftDist;
+    int_fast16_t exp;
+    uint_fast64_t sig;
+
+    if ( !a ) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
+    if ( a == 0xFF ) {
+        uZ.ui = packToF32UI(0, 0x7F, 0);
+        return uZ.f;
+    }
+    sig = ( (uint_fast64_t)a << 8 ) | a;
+    sig = ( sig << 32 ) | ( sig << 16 ) | sig;
+    if ( a & 0x80 ) {
+        sig = softfloat_shiftRightJam64( sig, 17 );
+        exp = 0x7D;
+    } else {
+        shiftDist = softfloat_countLeadingZeros16( a ) - 9;
+        exp = 0x7C - shiftDist;
+        sig = softfloat_shiftRightJam64( sig, 16 - shiftDist );
+    }
+    uZ.f = softfloat_roundPackToF32( 0, exp, (uint_fast32_t)sig );
+    softfloat_exceptionFlags = 0;
+    return uZ.f;
+}
+
+
+float32_t un2_to_f32(uint8_t a)
+{
+    ui32_f32 uZ;
+    int_fast16_t exp;
+
+    a &= 0x3;
+    if ( !a ) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
+    if ( a == 3 ) {
+        uZ.ui = packToF32UI(0, 0x7F, 0);
+        return uZ.f;
+    }
+    exp = 0x7C + ( a >> 1 );
+    uZ.f = softfloat_roundPackToF32( 0, exp, 0x55555555 );
+    softfloat_exceptionFlags = 0;
+    return uZ.f;
+}
+
+
+float32_t sn16_to_f32(uint16_t a)
+{
+    ui32_f32 uZ;
+    int_fast8_t shiftDist;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast64_t sig;
+
+    if ( !a ) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
+    sign = (bool)( a >> 15 );
+    if ( sign ) {
+        a = ( a == 0x8000 ) ? 0x7FFF : ( -a & 0x7FFF );
+    }
+    if ( a == 0x7FFF ) {
+        uZ.ui = packToF32UI(sign, 0x7F, 0);
+        return uZ.f;
+    }
+    sig = ( (uint_fast64_t)a << 30 ) | ( (uint_fast64_t)a << 15 ) | a;
+    shiftDist = softfloat_countLeadingZeros16( a ) - 1;
+    exp = 0x7D - shiftDist;
+    sig = softfloat_shiftRightJam64( sig, 14 - shiftDist );
+    uZ.f = softfloat_roundPackToF32( sign, exp, (uint_fast32_t)sig );
+    softfloat_exceptionFlags = 0;
+    return uZ.f;
 }
 
 
 // Used by the TBOX
-float32_t sn10_to_f32(uint16_t val)
+float32_t sn10_to_f32(uint16_t a)
 {
-    if (val == (1 << 9)) val = (1 << 9) + 1;
-    int sign = ((val & 0x000200) == 0) ? 1 : -1;
-    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000001ff;
-    uint32_t maxrange = (1 << 9) - 1;
-    float res = float(sign) * (float(value) / float(maxrange));
-    return fpu::F2F32(res);
+    ui32_f32 uZ;
+    int_fast8_t shiftDist;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast64_t sig;
+
+    if ( !a ) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
+    sign = (bool)( a >> 9 );
+    if ( sign ) {
+        a = ( a == 0x200 ) ? 0x1FF : ( -a & 0x1FF );
+    }
+    if ( a == 0x1FF ) {
+        uZ.ui = packToF32UI(sign, 0x7F, 0);
+        return uZ.f;
+    }
+    sig = ( (uint_fast64_t)a << 36 ) | ( (uint_fast64_t)a << 27 )
+        | ( (uint_fast64_t)a << 18 ) | ( (uint_fast64_t)a << 9 ) | a;
+    shiftDist = softfloat_countLeadingZeros16( a ) - 7;
+    exp = 0x7D - shiftDist;
+    sig = softfloat_shiftRightJam64( sig, 14 - shiftDist );
+    uZ.f = softfloat_roundPackToF32( sign, exp, (uint_fast32_t)sig );
+    softfloat_exceptionFlags = 0;
+    return uZ.f;
 }
 
 
-float32_t sn8_to_f32(uint8_t val)
+float32_t sn8_to_f32(uint8_t a)
 {
-    if (val == (1 << 7)) val = (1 << 7) + 1;
-    int sign = ((val & 0x000080) == 0) ? 1 : -1;
-    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x0000007f;
-    uint32_t maxrange = (1 << 7) - 1;
-    float res = float(sign) * (float(value) / float(maxrange));
-    return fpu::F2F32(res);
+    ui32_f32 uZ;
+    int_fast8_t shiftDist;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast64_t sig;
+
+    if ( !a ) {
+        uZ.ui = 0;
+        return uZ.f;
+    }
+    sign = (bool)( a >> 7 );
+    if ( sign ) {
+        a = ( a == 0x80 ) ? 0x7F : ( -a & 0x7F );
+    }
+    if ( a == 0x7F ) {
+        uZ.ui = packToF32UI(sign, 0x7F, 0);
+        return uZ.f;
+    }
+    sig = ( (uint_fast64_t)a << 14 ) | ( (uint_fast64_t)a << 7 ) | a;
+    sig = ( sig << 21 ) | sig;
+    shiftDist = softfloat_countLeadingZeros16( a ) - 9;
+    exp = 0x7D - shiftDist;
+    sig = softfloat_shiftRightJam64( sig, 11 - shiftDist );
+    uZ.f = softfloat_roundPackToF32( sign, exp, (uint_fast32_t)sig );
+    softfloat_exceptionFlags = 0;
+    return uZ.f;
 }
 
 
 // Used by the TBOX
-float32_t sn2_to_f32(uint8_t val)
+float32_t sn2_to_f32(uint8_t a)
 {
-    if (val == (1 << 1)) val = (1 << 1) + 1;
-    int sign = ((val & 0x00000002) == 0) ? 1 : -1;
-    uint32_t value = ((sign < 0) ? (~val + 1) : val) & 0x00000001;
-    uint32_t maxrange = (1 << 1) - 1;
-    float res = float(sign) * (float(value) / float(maxrange));
-    return fpu::F2F32(res);
+    ui32_f32 uZ;
+    a &= 3;
+    uZ.ui = packToF32UI( (bool)(a >> 1), (a ? 0x7F : 0), 0 );
+    return uZ.f;
 }
 
 

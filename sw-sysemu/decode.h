@@ -232,8 +232,19 @@
     LOG_FREG(":", fs1); \
 } while (0)
 
+#define DISASM_FD_FS1_FRM(name) do { \
+    LOG(DEBUG, "I: " name " f%d,f%d [%s]", fd, fs1, get_rounding_mode(frm())); \
+    LOG_FREG(":", fs1); \
+} while (0)
+
 #define DISASM_FD_FS1_FS2(name) do { \
     LOG(DEBUG, "I: " name " f%d,f%d,f%d", fd, fs1, fs2); \
+    LOG_FREG(":", fs1); \
+    LOG_FREG(":", fs2); \
+} while (0)
+
+#define DISASM_FD_FS1_FS2_FRM(name) do { \
+    LOG(DEBUG, "I: " name " f%d,f%d,f%d [%s]", fd, fs1, fs2, get_rounding_mode(frm())); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
 } while (0)

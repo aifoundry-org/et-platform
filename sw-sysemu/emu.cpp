@@ -492,7 +492,7 @@ static inline void require_fp_active()
         throw trap_illegal_instruction(current_inst);
 }
 
-static inline void set_rounding_mode(rounding_mode mode)
+static inline void set_rounding_mode(int mode)
 {
     uint_fast8_t round = (mode == rmdyn) ? frm() : mode;
     if (round > 4)
@@ -500,7 +500,7 @@ static inline void set_rounding_mode(rounding_mode mode)
     softfloat_roundingMode = round;
 }
 
-static inline const char* get_rounding_mode(rounding_mode mode)
+static inline const char* get_rounding_mode(int mode)
 {
     static const char* rmnames[] = {
         "rne",      "rtz",       "rdn",       "rup",
@@ -509,7 +509,7 @@ static inline const char* get_rounding_mode(rounding_mode mode)
         "dyn(rmm)", "dyn(res5)", "dyn(res6)", "dyn(res7)",
     };
 
-    return rmnames[(mode == rmdyn) ? (8 + frm()) : mode];
+    return rmnames[(mode == rmdyn) ? (8 + frm()) : (mode & 7)];
 }
 
 static inline void set_fp_exceptions()
@@ -4624,7 +4624,8 @@ void fcvt_ps_f10(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_ps_un24(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.ps.un24");
+    DISASM_FD_FS1_FRM("fcvt.ps.un24");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::un24_to_f32(FS1.u32[e]) );
     set_fp_exceptions();
 }
@@ -4632,7 +4633,8 @@ void fcvt_ps_un24(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_ps_un16(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.ps.un16");
+    DISASM_FD_FS1_FRM("fcvt.ps.un16");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::un16_to_f32(FS1.u16[2*e]) );
     set_fp_exceptions();
 }
@@ -4640,7 +4642,8 @@ void fcvt_ps_un16(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_ps_un10(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.ps.un10");
+    DISASM_FD_FS1_FRM("fcvt.ps.un10");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::un10_to_f32(FS1.u16[2*e]) );
     set_fp_exceptions();
 }
@@ -4648,7 +4651,8 @@ void fcvt_ps_un10(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_ps_un8(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.ps.un8");
+    DISASM_FD_FS1_FRM("fcvt.ps.un8");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::un8_to_f32(FS1.u8[4*e]) );
     set_fp_exceptions();
 }
@@ -4656,7 +4660,8 @@ void fcvt_ps_un8(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_ps_un2(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.ps.un2");
+    DISASM_FD_FS1_FRM("fcvt.ps.un2");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::un2_to_f32(FS1.u8[4*e]) );
     set_fp_exceptions();
 }
@@ -4682,8 +4687,8 @@ void fcvt_ps_sn8(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_f16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.f16.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.f16.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_f16(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4691,8 +4696,8 @@ void fcvt_f16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_f11_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.f11.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.f11.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_f11(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4700,8 +4705,8 @@ void fcvt_f11_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_f10_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.f10.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.f10.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_f10(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4709,8 +4714,8 @@ void fcvt_f10_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_un24_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.un24.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.un24.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un24(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4718,8 +4723,8 @@ void fcvt_un24_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_un16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.un16.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.un16.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un16(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4727,8 +4732,8 @@ void fcvt_un16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_un10_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.un10.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.un10.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un10(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4736,8 +4741,8 @@ void fcvt_un10_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_un8_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.un8.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.un8.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un8(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4745,8 +4750,8 @@ void fcvt_un8_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_un2_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.un2.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.un2.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un2(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4754,8 +4759,8 @@ void fcvt_un2_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_sn16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.sn16.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.sn16.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_sn16(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4763,8 +4768,8 @@ void fcvt_sn16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void fcvt_sn8_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.sn8.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.sn8.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_sn8(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4943,8 +4948,8 @@ void fcvt_ps_rast(freg fd, freg fs1, rounding_mode rm, const char* comm __attrib
 void fcvt_rast_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1("fcvt.rast.ps");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FRM("fcvt.rast.ps");
+    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_fxp1714(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4952,8 +4957,8 @@ void fcvt_rast_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 void frcp_fix_rast(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
     require_fp_active();
-    DISASM_FD_FS1_FS2("frcp.fix.rast");
-    set_rounding_mode(rmdyn);
+    DISASM_FD_FS1_FS2_FRM("frcp.fix.rast");
+    set_rounding_mode(frm());
     WRITE_VD( frcp_fix_rast_vs_gold(FS1.i32[e], FS2.i32[e]) );
     set_fp_exceptions();
 }
@@ -6198,11 +6203,11 @@ static void tmask_conv()
 
 static void tcoop(uint64_t value)
 {
-    int     timeout   = (value >> 16) & 0x1FF;
-    uint8_t coop_mask = (value >>  8) & 0xFF;
-    int     coop_id   = (value >>  0) & 0xFF;
+    uint8_t neigh_mask  = (value >> 16) & 0xF;
+    uint8_t minion_mask = (value >>  8) & 0xFF;
+    int     coop_id     = (value >>  0) & 0xFF;
     // TODO: implement functionality checking the addresses and tcoop of every use of Tensor Load
-    LOG(DEBUG, "\tSetting Tensor Cooperation:  Timeout %d. Coop Mask %02X. Coop ID: %d", timeout, coop_mask, coop_id);
+    LOG(DEBUG, "\tSetting Tensor Cooperation: coopneighmask=%02X, coopminmask=%02X, coopid=%d", neigh_mask, minion_mask, coop_id);
 }
 
 // ----- TensorLoad emulation --------------------------------------------------
@@ -6501,7 +6506,7 @@ static void tensorquant(uint64_t value)
     rows = rows + 1;
     line = line % L1_SCP_ENTRIES;
 
-    set_rounding_mode(rmdyn);
+    set_rounding_mode(frm());
 
     LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %u, rows: %u, cols: %u, regstart: %u", line, rows, cols, fstart);
     for (int k = 0; k < TQUANT_MAX_TRANS; k++)
@@ -6867,7 +6872,7 @@ static void tensor_fma32(uint64_t tfmareg)
     }
 
     LOG(DEBUG, "\tStart TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
-        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rmdyn));
+        usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(frm()));
 
     if (tenb && (!tensorload_setupb_topair[current_thread] ||
                  (tensorload_setupb_numlines[current_thread] != acols)))
@@ -6881,7 +6886,7 @@ static void tensor_fma32(uint64_t tfmareg)
     tensorload_setupb_topair[current_thread] = false;
     tensorload_setupb_topair[current_thread^1] = false;
 
-    set_rounding_mode(rmdyn);
+    set_rounding_mode(frm());
 
     for (int k = 0; k < acols; ++k)
     {
@@ -7260,8 +7265,8 @@ static void tensorreduce(uint64_t value)
 
     if (operation == 0) // FADD
     {
-        set_rounding_mode(rmdyn);
-        LOG(DEBUG, "\tReduce (fadd) with rounding mode: %s", get_rounding_mode(rmdyn));
+        set_rounding_mode(frm());
+        LOG(DEBUG, "\tReduce (fadd) with rounding mode: %s", get_rounding_mode(frm()));
     }
     for (int i = 0; i < num_reg; i++)
     {
