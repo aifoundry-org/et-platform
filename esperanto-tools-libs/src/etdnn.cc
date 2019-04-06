@@ -1,8 +1,8 @@
 #include "etdnn.h"
 #include "../kernels/kernel_args.h"
+#include "C-API/etrt.h"
 #include "et_device.h"
 #include "eti.h"
-#include "etrt.h"
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>

@@ -1,9 +1,9 @@
 #ifndef ETTEE_ET_DEVICE_H
 #define ETTEE_ET_DEVICE_H
 
+#include "C-API/etrt.h"
 #include "et_event.h"
 #include "et_stream.h"
-#include "etrt.h"
 #include <condition_variable>
 #include <map>
 #include <memory>

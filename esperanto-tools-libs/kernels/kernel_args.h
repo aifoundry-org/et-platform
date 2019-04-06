@@ -3,7 +3,6 @@
 
 #include "../include/etblas.h"
 #include "../include/etdnn.h"
-#include "../include/etrt.h"
 
 typedef struct {
   etblasOperation_t transa;

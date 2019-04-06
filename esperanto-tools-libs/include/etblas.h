@@ -3,7 +3,6 @@
 
 #include "et-misc.h"
 #include "etblas-bin.h"
-#include "etrt.h"
 #include <stdint.h>
 
 EXAPI etblasStatus_t etblasCreate_v2(etblasHandle_t *handle);

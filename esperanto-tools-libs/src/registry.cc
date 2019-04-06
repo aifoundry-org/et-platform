@@ -2,7 +2,7 @@
 #include "demangle.h"
 #include "elfio/elfio.hpp"
 #include "elfio/elfio_dump.hpp"
-#include "etrt.h"
+#include "etrt-bin.h"
 #include "utils.h"
 #include <assert.h>
 #include <memory>

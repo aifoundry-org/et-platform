@@ -6,10 +6,10 @@
 #include <stdio.h>
 #include <unordered_map>
 
+#include "C-API/etrt.h"
 #include "et-misc.h"
 #include "etblas.h"
 #include "etdnn.h"
-#include "etrt.h"
 
 static bool is_interceptor_log_print() {
   static const char *s = getenv("ETT_INTERCEPTOR_LOG");

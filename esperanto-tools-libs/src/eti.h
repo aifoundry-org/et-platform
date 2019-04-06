@@ -1,7 +1,8 @@
 #ifndef ETI_H
 #define ETI_H
 
-#include "etrt.h"
+#include "etrt-bin.h"
+
 #include <memory>
 #include <stddef.h>
 

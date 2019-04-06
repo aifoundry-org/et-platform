@@ -10,7 +10,8 @@
 #include "et-rpc/et-card-proxy.h"
 // clang-format on
 
-#include "etrt.h"
+#include "etrt-bin.h"
+
 #include "utils.h"
 #include <atomic>
 #include <condition_variable>

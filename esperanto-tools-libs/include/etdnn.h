@@ -3,7 +3,7 @@
 
 #include "et-misc.h"
 #include "etdnn-bin.h"
-#include "etrt.h"
+#include "etrt-bin.h"
 #include <stddef.h>
 #include <stdint.h>
 
