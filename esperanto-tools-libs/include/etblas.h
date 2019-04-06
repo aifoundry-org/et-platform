@@ -2,8 +2,49 @@
 #define ETBLAS_H
 
 #include "et-misc.h"
-#include "etblas-bin.h"
+#include "C-API/etrt.h"
 #include <stdint.h>
+
+
+/****** /usr/local/cuda/include/cublas_api.h ******/
+
+/* CUBLAS status type returns */
+typedef enum {
+  ETBLAS_STATUS_SUCCESS = 0,
+  ETBLAS_STATUS_NOT_INITIALIZED = 1,
+  ETBLAS_STATUS_ALLOC_FAILED = 3,
+  ETBLAS_STATUS_INVALID_VALUE = 7,
+  ETBLAS_STATUS_ARCH_MISMATCH = 8,
+  ETBLAS_STATUS_MAPPING_ERROR = 11,
+  ETBLAS_STATUS_EXECUTION_FAILED = 13,
+  ETBLAS_STATUS_INTERNAL_ERROR = 14,
+  ETBLAS_STATUS_NOT_SUPPORTED = 15,
+  ETBLAS_STATUS_LICENSE_ERROR = 16
+} etblasStatus_t;
+
+
+/**
+ * indicates which operation needs to be performed with the dense matrix
+ * Its values correspond to Fortran characters ‘N’ or ‘n’ (non-transpose), ‘T’
+ * or ‘t’ (transpose) and ‘C’ or ‘c’ (conjugate transpose) that are often used
+ * as parameters to legacy BLAS implementations.
+ */
+typedef enum {
+  ETBLAS_OP_N = 0,
+  ETBLAS_OP_T = 1,
+  ETBLAS_OP_C = 2
+} etblasOperation_t;
+
+typedef enum {
+  ETBLAS_POINTER_MODE_HOST = 0,
+  ETBLAS_POINTER_MODE_DEVICE = 1
+} etblasPointerMode_t;
+
+
+/* Opaque structure holding CUBLAS library context */
+struct etblasContext;
+typedef struct etblasContext *etblasHandle_t;
+
 
 EXAPI etblasStatus_t etblasCreate_v2(etblasHandle_t *handle);
 EXAPI etblasStatus_t etblasDestroy_v2(etblasHandle_t handle);

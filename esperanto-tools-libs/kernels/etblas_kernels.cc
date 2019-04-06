@@ -1,6 +1,7 @@
 #include <stdint.h>
 
 #include "etlibdevice.h"
+#include "etblas-bin.h"
 #include "kernel_args.h"
 
 #define KERNEL_ENTRY extern "C" __attribute__((visibility("default")))
