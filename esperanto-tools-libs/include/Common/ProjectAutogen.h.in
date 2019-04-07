@@ -1,0 +1,33 @@
+//******************************************************************************
+// Copyright (C) 2019, Esperanto Technologies Inc.
+// The copyright to the computer program(s) herein is the
+// property of Esperanto Technologies, Inc. All Rights Reserved.
+// The program(s) may be used and/or copied only with
+// the written permission of Esperanto Technologies and
+// in accordance with the terms and conditions stipulated in the
+// agreement/contract under which the program(s) have been supplied.
+//------------------------------------------------------------------------------
+
+#ifndef PROJECT_AUTOGEN_H_
+#define PROJECT_AUTOGEN_H_
+
+// the configured options and settings for Tutorial
+
+#define ESPERANTO_RUNTIME_VERSION_MAJOR @EsperantoRuntime_VERSION_MAJOR@
+#define ESPERANTO_RUNTIME_VERSION_MINOR @EsperantoRuntime_VERSION_MINOR@
+#define ESPERANTO_RUNTIME_VERSION_PATCH @EsperantoRuntime_VERSION_PATCH@
+
+
+/*
+ * @brief ET Runtime Library Properties
+ *
+ * Fields that make up the library's properties struct
+ */
+typedef enum libraryPropertyType_t {
+  MAJOR_VERSION = ESPERANTO_RUNTIME_VERSION_MAJOR,
+  MINOR_VERSION = ESPERANTO_RUNTIME_VERSION_MINOR,
+  PATCH_LEVEL = ESPERANTO_RUNTIME_VERSION_PATCH
+} libraryPropertyType;
+
+
+#endif //PROJECT_AUTOGEN_H_

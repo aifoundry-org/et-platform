@@ -1,7 +1,7 @@
 RV_CXX = $(TOOLCHAIN)/bin/riscv64-unknown-elf-g++
 RV_LD = $(TOOLCHAIN)/bin/riscv64-unknown-elf-ld
 RV_OBJCOPY = $(TOOLCHAIN)/bin/riscv64-unknown-elf-objcopy
-RV_FLAGS = -O3 -std=c++11 -nostdlib -fPIC -fno-rtti -fno-exceptions -fvisibility=hidden -fno-builtin -Wl,-Ttext-segment,0x8100000000 -mcmodel=medany -I ../include
+RV_FLAGS = -O3 -std=c++11 -nostdlib -fPIC -fno-rtti -fno-exceptions -fvisibility=hidden -fno-builtin -Wl,-Ttext-segment,0x8100000000 -mcmodel=medany -I ../include -I ${INC_DIR}
 ETT_INCLUDE_HEADERS = $(wildcard ../include/*.h) # dependencies from kernel_args.h
 OUTDIR ?= .
 

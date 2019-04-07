@@ -25,6 +25,8 @@
 #ifndef ETRT_BIN_H
 #define ETRT_BIN_H
 
+#include "Common/ProjectAutogen.h"
+
 #include <stddef.h>
 
 #define etrtHostAllocDefault 0x00 /**< Default page-locked allocation flag */
@@ -917,16 +919,5 @@ typedef enum etrtDataType_t {
   ETRT_R_32U = 12, /* real as a unsigned int */
   ETRT_C_32U = 13  /* complex as a pair of unsigned int numbers */
 } etrtDataType;
-
-/*
- * @brief ET Runtime Library Properties
- *
- * Fields that make up the library's properties struct
- */
-typedef enum libraryPropertyType_t {
-  MAJOR_VERSION,
-  MINOR_VERSION,
-  PATCH_LEVEL
-} libraryPropertyType;
 
 #endif // ETRT_BIN_H
