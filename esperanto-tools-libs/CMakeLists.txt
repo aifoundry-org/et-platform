@@ -18,11 +18,13 @@ option(HOST_SW "Enable building for the host-sw repo")
 
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ETSOC "Build for the ETSOC")
+option(ENABLE_TESTS "Enable tests" ON)
 
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR=" ${CMAKE_CURRENT_SOURCE_DIR})
 message(STATUS "CMAKE_CURRENT_BINARY_DIR=" ${CMAKE_CURRENT_BINARY_DIR})
 message(STATUS "HOST_SW=" ${HOST_SW})
 message(STATUS "ETSOC=" ${ETSOC})
+message(STATUS "ENABLE_TESTS=" ${ENABLE_TESTS})
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "No build type selected, default to Debug")
@@ -99,3 +101,6 @@ set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 
 add_subdirectory(docs)
 add_subdirectory(src)
+if (ENABLE_TESTS)
+  add_subdirectory(tests)
+endif(ENABLE_TESTS)
