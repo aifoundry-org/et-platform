@@ -1,8 +1,8 @@
 #ifndef ETTEE_KERNEL_ARGS_H
 #define ETTEE_KERNEL_ARGS_H
 
-#include "../include/etblas.h"
-#include "../include/etdnn.h"
+#include "../include/BLAS/etblas.h"
+#include "../include/DNN/etdnn.h"
 
 typedef struct {
   etblasOperation_t transa;

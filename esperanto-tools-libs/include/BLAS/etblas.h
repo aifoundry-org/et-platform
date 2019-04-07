@@ -1,10 +1,9 @@
 #ifndef ETBLAS_H
 #define ETBLAS_H
 
-#include "et-misc.h"
 #include "C-API/etrt.h"
+#include "et-misc.h"
 #include <stdint.h>
-
 
 /****** /usr/local/cuda/include/cublas_api.h ******/
 
@@ -21,7 +20,6 @@ typedef enum {
   ETBLAS_STATUS_NOT_SUPPORTED = 15,
   ETBLAS_STATUS_LICENSE_ERROR = 16
 } etblasStatus_t;
-
 
 /**
  * indicates which operation needs to be performed with the dense matrix
@@ -40,11 +38,9 @@ typedef enum {
   ETBLAS_POINTER_MODE_DEVICE = 1
 } etblasPointerMode_t;
 
-
 /* Opaque structure holding CUBLAS library context */
 struct etblasContext;
 typedef struct etblasContext *etblasHandle_t;
-
 
 EXAPI etblasStatus_t etblasCreate_v2(etblasHandle_t *handle);
 EXAPI etblasStatus_t etblasDestroy_v2(etblasHandle_t handle);

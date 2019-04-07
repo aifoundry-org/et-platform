@@ -1,6 +1,7 @@
-#include "etblas.h"
-#include "etblas-bin.h"
+#include "BLAS/etblas.h"
 #include "../kernels/kernel_args.h"
+
+#include "BLAS/etblas-bin.h"
 #include "C-API/etrt.h"
 #include "et_device.h"
 #include "eti.h"

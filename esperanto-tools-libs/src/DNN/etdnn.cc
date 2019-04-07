@@ -1,4 +1,4 @@
-#include "etdnn.h"
+#include "DNN/etdnn.h"
 #include "../kernels/kernel_args.h"
 #include "C-API/etrt.h"
 #include "et_device.h"

@@ -78,7 +78,6 @@ typedef enum {
 /* For backward compatibility purposes */
 typedef etrtDataType etblasDataType_t;
 
-
 /****** ******/
 
 #endif // ETBLAS_BIN_H
