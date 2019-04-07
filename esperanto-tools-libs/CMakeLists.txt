@@ -84,4 +84,5 @@ add_dependencies(kernels-offsets kernels-elf)
 add_dependencies(kernels-cdescr kernels-elf)
 add_dependencies(bootrom-cdescr kernels-elf)
 
+add_subdirectory(docs)
 add_subdirectory(src)
