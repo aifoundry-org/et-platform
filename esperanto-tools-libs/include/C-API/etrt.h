@@ -81,7 +81,7 @@
 #ifndef ETRT_H
 #define ETRT_H
 
-#include "et-misc.h"
+#include "Common/et-misc.h"
 #include "etrt-bin.h"
 
 // Registry public interface.

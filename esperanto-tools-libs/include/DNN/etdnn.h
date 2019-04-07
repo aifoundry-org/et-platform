@@ -1,7 +1,7 @@
 #ifndef ETDNN_H
 #define ETDNN_H
 
-#include "et-misc.h"
+#include "Common/et-misc.h"
 #include "etdnn-bin.h"
 #include "etrt-bin.h"
 #include <stddef.h>

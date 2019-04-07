@@ -8,8 +8,8 @@
 
 #include "BLAS/etblas.h"
 #include "C-API/etrt.h"
+#include "Common/et-misc.h"
 #include "DNN/etdnn.h"
-#include "et-misc.h"
 
 static bool is_interceptor_log_print() {
   static const char *s = getenv("ETT_INTERCEPTOR_LOG");

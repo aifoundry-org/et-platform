@@ -2,7 +2,7 @@
 #define ETBLAS_H
 
 #include "C-API/etrt.h"
-#include "et-misc.h"
+#include "Common/et-misc.h"
 #include <stdint.h>
 
 /****** /usr/local/cuda/include/cublas_api.h ******/
