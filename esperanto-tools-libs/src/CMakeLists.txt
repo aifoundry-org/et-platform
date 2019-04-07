@@ -68,19 +68,24 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 set(ETRT_SOURCES
-    etrt.cc
-    etblas.cc
-    etdnn.cc
-    et_device.cc
-    et_stream.cc
-    et_event.cc
-    cpu_algo.cc
-    cpu_algo_launch.cc
+    C-API/etrt.cc
+    BLAS/etblas.cc
+    DNN/etdnn.cc
+    Core/et_device.cc
+    Core/et_stream.cc
+    Core/et_event.cc
+    Core/registry.cc
+    et_device.h
+    et_stream.h
+    et_event.h
+    Cpu/cpu_algo.cc
+    Cpu/cpu_algo_launch.cc
+    cpu_algo.h
     registry.h
-    registry.cc
     eti.h
-    eti.cc
-    et_bootrom.cc
+    ComputeCommon/eti.cc
+    Target/et_bootrom.cc
+    et_socket_addr.cc
 )
 add_library(etrt SHARED ${ETRT_SOURCES})
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
