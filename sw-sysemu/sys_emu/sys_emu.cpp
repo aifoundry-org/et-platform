@@ -23,7 +23,7 @@
 
 uint64_t        sys_emu::emu_cycle = 0;
 std::list<int>  sys_emu::enabled_threads;                                               // List of enabled threads
-std::list<int>  sys_emu::fcc_wait_threads;                                              // List of threads waiting for an FCC
+std::list<int>  sys_emu::fcc_wait_threads[2];                                           // List of threads waiting for an FCC
 std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
 uint32_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                                   // PC for each thread
@@ -406,6 +406,8 @@ bool get_pc_break(uint64_t &pc, int &thread) {
 void
 sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
 {
+    assert(thread_dest < 2);
+    assert(cnt_dest < 2);
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
     {
         // Skip disabled minion
@@ -414,11 +416,13 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
         if ((thread_mask >> m) & 1)
         {
             int thread_id = shire_id * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + thread_dest;
-            LOG_OTHER(DEBUG, thread_id, "Receiving FCC on counter %u", cnt_dest);
+            LOG_OTHER(DEBUG, thread_id, "Receiving FCC%u write", thread_dest*2 + cnt_dest);
 
-            auto thread = std::find(fcc_wait_threads.begin(), fcc_wait_threads.end(), thread_id);
+            auto thread = std::find(fcc_wait_threads[cnt_dest].begin(),
+                                    fcc_wait_threads[cnt_dest].end(),
+                                    thread_id);
             // Checks if is already awaken
-            if(thread == fcc_wait_threads.end())
+            if(thread == fcc_wait_threads[cnt_dest].end())
             {
                 // Pushes to pending FCC
                 pending_fcc[thread_id][cnt_dest]++;
@@ -426,9 +430,9 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
             // Otherwise wakes up thread
             else
             {
-                LOG_OTHER(DEBUG, thread_id, "Waking up due sent FCC on counter %u", cnt_dest);
+                LOG_OTHER(DEBUG, thread_id, "Waking up due to received FCC%u", thread_dest*2 + cnt_dest);
                 enabled_threads.push_back(thread_id);
-                fcc_wait_threads.erase(thread);
+                fcc_wait_threads[cnt_dest].erase(thread);
             }
         }
     }
@@ -853,9 +857,10 @@ sys_emu::main_internal(int argc, char * argv[])
 
     // While there are active threads or the network emulator is still not done
     while(  (emu_done() == false)
-         && (   enabled_threads.size()
-             || fcc_wait_threads.size()
-             || port_wait_threads.size()
+         && (   !enabled_threads.empty()
+             || !fcc_wait_threads[0].empty()
+             || !fcc_wait_threads[1].empty()
+             || !port_wait_threads.empty()
              || (net_emu.is_enabled() && !net_emu.done())
              || (api_listener->is_enabled() && !api_listener->is_done())
             )
@@ -983,18 +988,18 @@ sys_emu::main_internal(int argc, char * argv[])
                 if(inst.is_fcc() && !reduce_wait)
                 {
                     unsigned cnt = get_fcc_cnt();
-                    LOG(DEBUG, "Going to sleep (FCC) blocking on counter %u", cnt);
+                    LOG(DEBUG, "Going to sleep (FCC%u)", 2*(thread_id & 1) + cnt);
                     int old_thread = *thread;
 
                     // Checks if there's a pending FCC and wakes up thread again
                     if(pending_fcc[old_thread][cnt]==0)
                     {
                         thread = enabled_threads.erase(thread);
-                        fcc_wait_threads.push_back(thread_id);
+                        fcc_wait_threads[cnt].push_back(thread_id);
                     }
                     else
                     {
-                        LOG(DEBUG, "Waking up due present FCC on counter %u", cnt);
+                        LOG(DEBUG, "Waking up due to present FCC%u", 2*(old_thread & 1) + cnt);
                         pending_fcc[old_thread][cnt]--;
                     }
                 }
@@ -1005,7 +1010,7 @@ sys_emu::main_internal(int argc, char * argv[])
                 }
                 else if(inst.is_stall() && !reduce_wait)
                 {
-                    LOG(DEBUG, "%s", "Going to sleep (CSR STALL)");
+                    LOG(DEBUG, "%s", "Going to sleep (STALL)");
                     thread = enabled_threads.erase(thread);
                 }
                 else
@@ -1058,7 +1063,8 @@ sys_emu::main_internal(int argc, char * argv[])
         }
         emu_cycle++;
     }
-    if (emu_cycle == cmd_options.max_cycles) {
+    if (emu_cycle == cmd_options.max_cycles)
+    {
        LOG(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
        // Dumps awaken threads
        LOG_NOTHREAD(INFO, "%s", "Dumping awaken threads:");
@@ -1071,13 +1077,16 @@ sys_emu::main_internal(int argc, char * argv[])
        }
 
        // Dumps FCC wait threads
-       LOG_NOTHREAD(INFO, "%s", "Dumping FCC wait threads:");
-       thread = fcc_wait_threads.begin();
-       while(thread != fcc_wait_threads.end())
+       for (int i = 0; i < 2; ++i)
        {
-          thread_id = * thread;
-          LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
-          thread++;
+           LOG_NOTHREAD(INFO, "Dumping FCC%d wait threads:", i);
+           thread = fcc_wait_threads[i].begin();
+           while(thread != fcc_wait_threads[i].end())
+           {
+               thread_id = * thread;
+               LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
+               thread++;
+           }
        }
 
        // Dumps Port wait threads
