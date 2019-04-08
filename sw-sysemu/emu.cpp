@@ -2458,14 +2458,17 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_FFLAGS:
         val = (csr_fcsr[current_thread] & 0x000000E0) | (val & 0x8000001F);
         csr_fcsr[current_thread] = val;
+        LOG(DEBUG, "Updating FFLAGS, new CSR is %08lx \n", val);
         break;
     case CSR_FRM:
         val = (csr_fcsr[current_thread] & 0x8000001F) | ((val & 0x7) << 5);
         csr_fcsr[current_thread] = val;
+        LOG(DEBUG, "Updating FRM, new CSR is %08lx \n", val);
         break;
     case CSR_FCSR:
         val &= 0x800000FF;
         csr_fcsr[current_thread] = val;
+        LOG(DEBUG, "Updating FCSR, new CSR is %08lx \n", val);
         break;
     case CSR_SSTATUS:
         // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
