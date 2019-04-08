@@ -27,6 +27,16 @@
 #define LOG_MREG0 \
     LOG(DEBUG, "\tm0 : 0x%02lx", mregs[current_thread][0].to_ulong())
 
+#define LOG_SCP(str, row, col) \
+    LOG(DEBUG, "\tSCP[%d] " str " {" \
+        " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 \
+        " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 " %d:0x%08" PRIx32 \
+        " }", row, \
+        (col)+0, SCP[row].u32[(col)+0], (col)+1, SCP[row].u32[(col)+1], \
+        (col)+2, SCP[row].u32[(col)+2], (col)+3, SCP[row].u32[(col)+3], \
+        (col)+4, SCP[row].u32[(col)+4], (col)+5, SCP[row].u32[(col)+5], \
+        (col)+6, SCP[row].u32[(col)+6], (col)+7, SCP[row].u32[(col)+7])
+
 
 // Access instruction fields and program state
 

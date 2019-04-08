@@ -6527,6 +6527,8 @@ static void tensorquant(uint64_t value)
                 log_tensor_quant_new_transform();
                 for (unsigned i = 0; i < rows; ++i)
                 {
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
@@ -6534,15 +6536,18 @@ static void tensorquant(uint64_t value)
                         val.u = FREGS[freg].u32[j%VL];
                         res.f = fpu::i32_to_f32(val.i);
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x (%g) <-- 0x%08x (%d)", freg, j%VL, res.u, res.flt, val.u, val.i);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 break;
             case 2: // FP32_TO_INT32
                 log_tensor_quant_new_transform();
                 for (unsigned i = 0; i < rows; ++i)
                 {
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
@@ -6550,15 +6555,18 @@ static void tensorquant(uint64_t value)
                         val.u = FREGS[freg].u32[j%VL];
                         res.i = fpu::f32_to_i32(val.f);
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x (%d) <-- 0x%08x (%g)", freg, j%VL, res.u, res.i, val.u, val.flt);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 break;
             case 3: // INT32_RELU
                 log_tensor_quant_new_transform();
                 for (unsigned i = 0; i < rows; ++i)
                 {
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
@@ -6566,9 +6574,10 @@ static void tensorquant(uint64_t value)
                         val.u = FREGS[freg].u32[j%VL];
                         res.i = (val.i < 0) ? 0 : val.i;
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- MAX_INT32(0x%08x, 0x0)", freg, j%VL, res.i, val.i);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 break;
             case 4: // INT32_ADD_ROW
@@ -6578,8 +6587,12 @@ static void tensorquant(uint64_t value)
                     return;
                 }
                 log_tensor_quant_new_transform();
+                for (unsigned j = 0; j < cols; j += VL)
+                    LOG_SCP(":", line, j);
                 for (unsigned i = 0; i < rows; ++i)
                 {
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val1, val2, res;
@@ -6588,9 +6601,10 @@ static void tensorquant(uint64_t value)
                         val2.u = SCP[line].u32[j];
                         res.i = val1.i + val2.i;
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
                 break;
@@ -6601,10 +6615,14 @@ static void tensorquant(uint64_t value)
                     return;
                 }
                 log_tensor_quant_new_transform();
+                for (unsigned i = 0; i < rows; i += VL)
+                    LOG_SCP(":", line, i);
                 for (unsigned i = 0; i < rows; ++i)
                 {
                     iufval32 val2;
                     val2.u = SCP[line].u32[i];
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val1, res;
@@ -6612,9 +6630,10 @@ static void tensorquant(uint64_t value)
                         val1.u = FREGS[freg].u32[j%VL];
                         res.i = val1.i + val2.i;
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- 0x%08x + 0x%08x", freg, j%VL, res.u, val1.u, val2.u);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
                 break;
@@ -6625,8 +6644,12 @@ static void tensorquant(uint64_t value)
                     return;
                 }
                 log_tensor_quant_new_transform();
+                for (unsigned j = 0; j < cols; j += VL)
+                    LOG_SCP(":", line, j);
                 for (unsigned i = 0; i < rows; ++i)
                 {
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val1, val2, res;
@@ -6635,9 +6658,10 @@ static void tensorquant(uint64_t value)
                         val2.u = SCP[line].u32[j];
                         res.f = fpu::f32_mul(val1.f, val2.f);
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
                 break;
@@ -6648,10 +6672,14 @@ static void tensorquant(uint64_t value)
                     return;
                 }
                 log_tensor_quant_new_transform();
+                for (unsigned i = 0; i < rows; i += VL)
+                    LOG_SCP(":", line, i);
                 for (unsigned i = 0; i < rows; ++i)
                 {
                     iufval32 val2;
                     val2.u = SCP[line].u32[i];
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val1, res;
@@ -6659,9 +6687,10 @@ static void tensorquant(uint64_t value)
                         val1.u = FREGS[freg].u32[j%VL];
                         res.f = fpu::f32_mul(val1.f, val2.f);
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x (%g) <-- 0x%08x (%g) * 0x%08x (%g)", freg, j%VL, res.u, res.flt, val1.u, val1.flt, val2.u, val2.flt);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
                 break;
@@ -6669,6 +6698,8 @@ static void tensorquant(uint64_t value)
                 log_tensor_quant_new_transform();
                 for (unsigned i = 0; i < rows; ++i)
                 {
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
@@ -6676,15 +6707,18 @@ static void tensorquant(uint64_t value)
                         val.u = FREGS[freg].u32[j%VL];
                         res.i = (val.i > 127 ? 127 : (val.i < -128 ? -128 : val.i)) & 0xFF;
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 break;
             case 9: // SATUINT8
                 log_tensor_quant_new_transform();
                 for (unsigned i = 0; i < rows; ++i)
                 {
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; ++j)
                     {
                         iufval32 val, res;
@@ -6692,19 +6726,22 @@ static void tensorquant(uint64_t value)
                         val.u = FREGS[freg].u32[j%VL];
                         res.i = (val.i > 255 ? 255 : (val.i < 0 ? 0 : val.i)) & 0xFF;
                         FREGS[freg].u32[j%VL] = res.u;
-                        LOG(DEBUG, "\tf%u[%zu] 0x%08x <-- 0x%08x", freg, j%VL, res.u, val.u);
                         log_tensor_quant_write(k, freg, j%VL, res.u);
                     }
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG("=", (fstart + i*2 + j) % 32);
                 }
                 break;
             case 10: // PACK_128B
                 // RTL operates on even registers first, and then on odd
                 // registers, so it generates two writes to the destination
                 // register when a row spans a vector.
-                log_tensor_quant_new_transform(cols >= VL);
+                log_tensor_quant_new_transform(cols > VL);
                 for (unsigned i = 0; i < rows; ++i)
                 {
                     unsigned fdst = (fstart + i*2) % 32;
+                    for (unsigned j = 0; j < cols/VL; j++)
+                        LOG_FREG(":", (fstart + i*2 + j) % 32);
                     for (unsigned j = 0; j < cols; j += 4)
                     {
                         unsigned fsrc = (fstart + i*2 + j/VL) % 32;
@@ -6716,9 +6753,9 @@ static void tensorquant(uint64_t value)
                         FREGS[fdst].u8[j+1] = uint8_t(val1 & 0xFF);
                         FREGS[fdst].u8[j+2] = uint8_t(val2 & 0xFF);
                         FREGS[fdst].u8[j+3] = uint8_t(val3 & 0xFF);
-                        LOG(DEBUG, "\tf%u[%u] 0x%08x <-- {0x%08x, 0x%08x, 0x%08x, 0x%08x}", fdst, j/4, FREGS[fdst].u32[j/4], val0, val1, val2, val3);
                         log_tensor_quant_write(k, fdst, j/4, FREGS[fdst].u32[j/4]);
                     }
+                    LOG_FREG("=", fdst);
                 }
                 break;
             default:
