@@ -228,7 +228,7 @@ namespace RBOX
                  compare_mask  :  8,
                  write_mask    :  8,
                  ref           :  8,
-                 unused3       : 28;
+                 unused        : 28;
     } StencilStateT; 
     
     typedef enum
@@ -301,7 +301,7 @@ namespace RBOX
                  minion_hart_tile_height        :  2,
                  shire_layout_width             :  2,
                  shire_layout_height            :  2,
-                 unused2                        : 20;
+                 unused2                        : 19;
         // QW3
         uint32_t depth_bound_min;
         uint32_t depth_bound_max;
@@ -312,9 +312,11 @@ namespace RBOX
         uint64_t scissor_start_x : 14,
                  scissor_start_y : 14,
                  scissor_height  : 14,
-                 scissor_width   : 14;
+                 scissor_width   : 14,
+                 unused3         :  8;
         // QW6
         StencilStateT stencil_front_state;
+
         // QW7
         StencilStateT stencil_back_state;
     } StateT;
@@ -431,7 +433,9 @@ namespace RBOX
         uint64_t value;
         struct
         {
-            uint64_t unused;
+            uint64_t enable   :  1,
+                     reserved : 63;
+            
         } fields;
     } ESRCfgT;
 
