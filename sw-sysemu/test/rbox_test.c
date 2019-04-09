@@ -5,6 +5,8 @@
 
 //#include <triangle_setup.h>
 //#include <tile_rast.h>
+
+#include <sys_emu.h>
 #include <testLog.h>
 #include <emu.h>
 #include <main_memory.h>
@@ -274,7 +276,7 @@ void flush_on_seg_signal(int signal, siginfo_t *si, void *arg)
 }
 
 // Required by the log functionality
-uint64_t emu_cycle = 0;
+uint64_t sys_emu::emu_cycle = 0;
 
 static const uint64_t input_buffer_addr    = 0x8101000000ULL;
 static const uint64_t input_buffer_sz      =     0x010000ULL;   // 64 KB
@@ -312,10 +314,6 @@ int main()
 
     init_emu();
     log_only_minion(-1);
-
-    // Log state (needed to know PC changes)
-    inst_state_change emu_state_change;
-    setlogstate(&emu_state_change); // This is done every time just in case we have several checkers
 
     // Defines the memory access functions
     set_memory_funcs(emu_memread8,
@@ -388,11 +386,13 @@ int main()
     rbox_state_pckt.state.shire_layout_width = 3;
     rbox_state_pckt.state.shire_layout_height = 2;
     rbox_state_pckt.state.depth_min = 0;
-    rbox_state_pckt.state.depth_max = 0xFFFFFF;
+    rbox_state_pckt.state.depth_max = 0x3f800000;
+    rbox_state_pckt.state.depth_bound_min = 0;
+    rbox_state_pckt.state.depth_bound_max = 0;
     rbox_state_pckt.state.scissor_start_x = 0;
     rbox_state_pckt.state.scissor_start_y = 0;
-    rbox_state_pckt.state.scissor_height = 1024;
-    rbox_state_pckt.state.scissor_width  = 1024;
+    rbox_state_pckt.state.scissor_height = 14;
+    rbox_state_pckt.state.scissor_width  = 14;
 
     for (uint32_t qw = 0; qw < (sizeof(rbox_state_pckt) / 8); qw++)
         in_buffer[in_buffer_ptr++] = rbox_state_pckt.qw[qw];

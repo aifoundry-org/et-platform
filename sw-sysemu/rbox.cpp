@@ -162,66 +162,89 @@ void RBOX::RBOXEmu::write_esr(uint32_t esr_id, uint64_t data)
 {
     switch (esr_id)
     {
-        case CONFIG_ESR               : cfg_esr.value = data; break;
+        case CONFIG_ESR               : {
+                                            cfg_esr.value = data;
+                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Config = {.enable = %d}",
+                                                         rbox_id, (uint32_t) cfg_esr.fields.enable);
+                                            break;
+                                        }
         case INPUT_BUFFER_PAGES_ESR   :
                                         {
-                                            in_buf_pg_esr.value = data;
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Input Buffer Pages = {.page0 = %08" PRIx64
-                                                       ", .page0_enable = %" PRId64 ", .page1 = %08" PRIx64
-                                                       ", .page1_enable = %" PRId64 "}", rbox_id,
-                                                       in_buf_pg_esr.fields.page0, in_buf_pg_esr.fields.page0_enable,
-                                                       in_buf_pg_esr.fields.page1, in_buf_pg_esr.fields.page1_enable);
+                                            if (cfg_esr.fields.enable)
+                                            {
+                                                in_buf_pg_esr.value = data;
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Input Buffer Pages = {.page0 = %08" PRIx64
+                                                           ", .page0_enable = %" PRId64 ", .page1 = %08" PRIx64
+                                                           ", .page1_enable = %" PRId64 "}", rbox_id,
+                                                           in_buf_pg_esr.fields.page0, in_buf_pg_esr.fields.page0_enable,
+                                                           in_buf_pg_esr.fields.page1, in_buf_pg_esr.fields.page1_enable);
+                                            }
                                             break;
                                         }
         case INPUT_BUFFER_CONFIG_ESR  : 
                                         {
-                                            in_buf_cfg_esr.value = data;
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Input Buffer Config = {.start_offset = %08" PRIx64
-                                                       ", .buffer_size = %08" PRIx64 "}", rbox_id,
-                                                       in_buf_cfg_esr.fields.start_offset, in_buf_cfg_esr.fields.buffer_size);
+                                            if (cfg_esr.fields.enable)
+                                            {
+                                                in_buf_cfg_esr.value = data;
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Input Buffer Config = {.start_offset = %08" PRIx64
+                                                           ", .buffer_size = %08" PRIx64 "}", rbox_id,
+                                                           in_buf_cfg_esr.fields.start_offset, in_buf_cfg_esr.fields.buffer_size);
+                                            }
                                             break;
                                         }
         case OUTPUT_BUFFER_PAGE_ESR   :
                                         {
-                                            out_buf_pg_esr.value = data;
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Output Buffer Page = {.page = %08" PRIx64
-                                                       ", .page_enable = %" PRId64 "}", rbox_id,
-                                                       out_buf_pg_esr.fields.page, out_buf_pg_esr.fields.page_enable);
+                                            if (cfg_esr.fields.enable)
+                                            {
+                                                out_buf_pg_esr.value = data;
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Output Buffer Page = {.page = %08" PRIx64
+                                                           ", .page_enable = %" PRId64 "}", rbox_id,
+                                                           out_buf_pg_esr.fields.page, out_buf_pg_esr.fields.page_enable);
+                                            }
                                             break;
                                         }
         case OUTPUT_BUFFER_CONFIG_ESR :
                                         {
-                                            out_buf_cfg_esr.value = data;
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Output Buffer Config = {.start_offset = %08" PRIx64
-                                                       ", .buffer_size = %08" PRIx64 ", .port_id = %" PRId64
-                                                       ", .max_msgs = %" PRId64 ", .max_pckts_msg = %02" PRId64 "}", rbox_id,
-                                                       out_buf_cfg_esr.fields.start_offset, out_buf_cfg_esr.fields.buffer_size,
-                                                       out_buf_cfg_esr.fields.port_id, out_buf_cfg_esr.fields.max_msgs,
-                                                       out_buf_cfg_esr.fields.max_pckts_msg);
+                                            if (cfg_esr.fields.enable)
+                                            {
+                                                out_buf_cfg_esr.value = data;
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Output Buffer Config = {.start_offset = %08" PRIx64
+                                                           ", .buffer_size = %08" PRIx64 ", .port_id = %" PRId64
+                                                           ", .max_msgs = %" PRId64 ", .max_pckts_msg = %02" PRId64 "}", rbox_id,
+                                                           out_buf_cfg_esr.fields.start_offset, out_buf_cfg_esr.fields.buffer_size,
+                                                           out_buf_cfg_esr.fields.port_id, out_buf_cfg_esr.fields.max_msgs,
+                                                           out_buf_cfg_esr.fields.max_pckts_msg);
+                                            }
                                             break;
                                         }
         case STATUS_ESR               : /* Read Only */ break;
         case START_ESR                : 
                                         {
-                                            start_esr.value = data;
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Start = {.start = %d}", rbox_id, (uint32_t) start_esr.fields.start);
+                                            if (cfg_esr.fields.enable)
+                                            {
+                                                start_esr.value = data;
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Start = {.start = %d}", rbox_id, (uint32_t) start_esr.fields.start);
+                                            }
                                             break;
                                         }
         case CONSUME_ESR              :
                                         {
-                                            consume_esr.value = data;
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Consume = {.packet_credits = %03" PRId64 ", .msg_credits = %" PRId64
-                                                                ", .hart_id = %02" PRId64 "}", rbox_id,
-                                                        consume_esr.fields.packet_credits, consume_esr.fields.msg_credits, consume_esr.fields.hart_id);
-                                            LOG_NOTHREAD(DEBUG, "RBOX [%d] => Minion HART %02" PRId64 " Packet Credits %03d -> %03d "
-                                                                " Message Credits %d -> %d",
-                                                        rbox_id, consume_esr.fields.hart_id,
-                                                        hart_packet_credits[consume_esr.fields.hart_id],
-                                                        hart_packet_credits[consume_esr.fields.hart_id] + consume_esr.fields.packet_credits,
-                                                        hart_msg_credits[consume_esr.fields.hart_id],
-                                                        hart_msg_credits[consume_esr.fields.hart_id]    + consume_esr.fields.msg_credits);
-                                            hart_packet_credits[consume_esr.fields.hart_id] += consume_esr.fields.packet_credits;
-                                            hart_msg_credits[consume_esr.fields.hart_id]    += consume_esr.fields.msg_credits;
+                                            if (cfg_esr.fields.enable)
+                                            {
+                                                consume_esr.value = data;
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Consume = {.packet_credits = %03" PRId64 ", .msg_credits = %" PRId64
+                                                                    ", .hart_id = %02" PRId64 "}", rbox_id,
+                                                            consume_esr.fields.packet_credits, consume_esr.fields.msg_credits, consume_esr.fields.hart_id);
+                                                LOG_NOTHREAD(DEBUG, "RBOX [%d] => Minion HART %02" PRId64 " Packet Credits %03d -> %03d "
+                                                                    " Message Credits %d -> %d",
+                                                            rbox_id, consume_esr.fields.hart_id,
+                                                            hart_packet_credits[consume_esr.fields.hart_id],
+                                                            hart_packet_credits[consume_esr.fields.hart_id] + consume_esr.fields.packet_credits,
+                                                            hart_msg_credits[consume_esr.fields.hart_id],
+                                                            hart_msg_credits[consume_esr.fields.hart_id]    + consume_esr.fields.msg_credits);
+                                                hart_packet_credits[consume_esr.fields.hart_id] += consume_esr.fields.packet_credits;
+                                                hart_msg_credits[consume_esr.fields.hart_id]    += consume_esr.fields.msg_credits;
+                                            }
                                             break;
                                         }
         default                       :
