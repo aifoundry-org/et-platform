@@ -1,4 +1,5 @@
 #include "worker.h"
+#include "interrupt.h"
 #include "shire.h"
 #include "sync.h"
 #include "syscall.h"
@@ -11,8 +12,11 @@ static void post_kernel_cleanup(void);
 
 void WORKER_thread(void)
 {
-    // enable software interrupts
-    asm volatile ("csrsi mie, 0xA"); // Set MSIP and SSIP to enable machine and supervisor software interrupts
+    // Set MIE.MSIE to enable machine software interrupts
+    asm volatile ("csrsi mie, 0x8");
+
+    // Enable global interrupts
+    INT_enableInterrupts();
 
     while (1)
     {
@@ -58,6 +62,12 @@ static void pre_kernel_setup(void)
     {
         // Enable minion 0 thread 1
         SET_THREAD1_DISABLE(0xFFFFFFFE);
+
+        // Init all FLBs
+        for (unsigned int barrier = 0; barrier < 64; barrier++)
+        {
+            INIT_FLB(THIS_SHIRE, barrier);
+        }
     }
 
     // Thread 0 in each minion
@@ -65,12 +75,6 @@ static void pre_kernel_setup(void)
     {
         // Enable L1 split and scratchpad
         syscall(SYSCALL_ENABLE_L1_SCRATCHPAD);
-
-        // Empty all FLBs
-        for (unsigned int barrier = 0; barrier < 64; barrier++)
-        {
-            INIT_FLB(THIS_SHIRE, barrier);
-        }
     }
 
     // Every thread of every minion

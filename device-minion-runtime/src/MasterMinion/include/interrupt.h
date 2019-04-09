@@ -38,3 +38,13 @@ typedef enum {
     PU_PLIC_PCIE_RADM_INTD_INTR,
     PU_PLIC_INTR_CNT
 } interrupt_t;
+
+static inline void INT_enableInterrupts(void)
+{
+    asm volatile ("csrsi mstatus, 0x8"); // Set MIE to enable machine interrupts
+}
+
+static inline void INT_disableInterrupts(void)
+{
+    asm volatile ("csrci mstatus, 0x8"); // Clear MIE to disable machine interrupts
+}

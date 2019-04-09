@@ -1,10 +1,21 @@
 #include "master.h"
+#include "interrupt.h"
+#include "ipi.h"
 #include "net_desc.h"
 #include "shire.h"
 #include "sync.h"
 
 void MASTER_thread(void)
 {
+    unsigned int temp;
+
+    // Set MIE.MEIE and MIE.MSIE to enable machine external and software interrupts
+    asm volatile ("li %0, 0x808\n"
+                  "csrs mie, %0\n" : "=&r" (temp));
+
+    // Enable global interrupts
+    INT_enableInterrupts();
+
     // TODO FIXME hangs on UART access, waiting for RTLMIN-2778
     //SERIAL_init(UART0);
     //SERIAL_write(UART0, "alive\r\n", 7);
@@ -29,8 +40,8 @@ void MASTER_thread(void)
     // from the Esperanto RISV-V IPI Extension. Writes to this register will cause a software trap
     // on the Master Minion (MSIP bit).
 
-    //  R_PU_MBOX_PC_MM 0x0020007000 4K Mailbox shared memory
-
+    // Sending ourselves an IPI works: swi_handler is called and we return
+    IPI_TRIGGER(THIS_SHIRE, 1U);
 
     // Start with some credits to store tensor ops of data in memory
     SEND_FCC(0, THREAD_0, FCC_0, 1);
