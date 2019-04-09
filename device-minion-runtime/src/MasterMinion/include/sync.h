@@ -39,10 +39,12 @@ static inline unsigned int read_fcc(unsigned int fcc)
 // barrier = fast local barrier to use, 0-31
 #define INIT_FLB(shire, barrier) (*(volatile uint64_t* const)(0x100340100ULL + (shire << 22) + (barrier << 3)) = 0U)
 
+#define READ_FLB(shire, barrier) (*(volatile uint64_t* const)(0x100340100ULL + (shire << 22) + (barrier << 3)))
+
 #define WAIT_FLB(threads, barrier, result) do \
 { \
     const uint64_t val = ((threads - 1U) << 5U) + barrier; \
-    asm volatile ("1: csrrw %0, flb0, %1" : "=r" (result) : "r" (val)); \
+    asm volatile ("csrrw %0, flb0, %1" : "=r" (result) : "r" (val)); \
 } while (0)
 
 #endif // SYNC_H

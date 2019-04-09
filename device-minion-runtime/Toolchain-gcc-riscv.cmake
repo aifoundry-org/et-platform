@@ -32,7 +32,7 @@ set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "e
 #
 # Worker minion will likely be freestanding without libc, -ffreestanding
 # may need -funwind-tables for backtrace
-set(CMAKE_C_FLAGS "-g3 --specs=nano.specs -mcmodel=medany -march=rv64imaf -mabi=lp64f \
+set(CMAKE_C_FLAGS "-g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=rv64imaf -mabi=lp64f \
 -flto -ffunction-sections -fdata-sections -Wall -Wextra -Werror -Wdouble-promotion -Wformat \
 -Wnull-dereference -Wduplicated-branches -Wduplicated-cond -Wshadow -Wpointer-arith \
 -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
