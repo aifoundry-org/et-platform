@@ -1,0 +1,34 @@
+include "common_types.fbs";
+
+namespace ETDevAPICommands;
+
+/// @ingroup ET_DEVICE_API_COMMANDS
+/// @{
+
+///
+/// @brief A three element array type;
+///
+struct dim3 {
+    x:uint32;
+    y:uint32;
+    z:uint32;
+}
+
+///
+/// @brief Kernel Lauch Command
+///
+table KernelLaunchCommand {
+    header:MessageHeader;
+    ///< Grid Dimensions
+    gidDim:dim3;
+    ///< Block dimentions
+    blockDim:dim3;
+    ///< PC of the kernel on the device
+    kernel_pc:uint64;
+    ///< Vector with the kernel launch parameters
+    params:[uint8];
+}
+
+root_type KernelLaunchCommand;
+
+/// @}

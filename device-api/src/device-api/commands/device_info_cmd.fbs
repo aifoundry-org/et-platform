@@ -1,22 +1,32 @@
-/// \ingroup Commands
-///Device Info commands
-
 include "common_types.fbs";
 
-namespace Commands;
+namespace ETDevAPICommands;
 
+/// @ingroup ET_DEVICE_API_COMMANDS
+/// @{
 
-/// Specify the type of an info query
+/// Device Info commands
+
+/// @brief Specify the type of an info query
 enum DeviceInfoQuery : uint8 {
     Unknown = 0,
+
     ///< Return all device related information
     All,
+
+    ///< Return API Version information
+    APIVersion,
+
     ///< Return the list of active minions.
-    ActiveMinions
+    ActiveMinions,
+
+    ///< Memory info, map of the different memory locations
+    ///< and offsets
+    MemoryInfo
 }
 
 ///
-/// \brief DeviceInfoCommand documentation
+/// @brief DeviceInfoCommand documentation
 ///
 table DeviceInfoCommand {
    header:MessageHeader;
@@ -24,3 +34,5 @@ table DeviceInfoCommand {
 }
 
 root_type DeviceInfoCommand;
+
+/// @}

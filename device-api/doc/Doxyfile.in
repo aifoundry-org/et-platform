@@ -795,7 +795,7 @@ INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/../README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/../include \
                          @CMAKE_CURRENT_SOURCE_DIR@/ \
                          @CMAKE_CURRENT_BINARY_DIR@/../include/ \
-                         @CMAKE_CURRENT_BINARY_DIR@/../src/device-api/flatc-gen-cpp-raw/
+                         @CMAKE_CURRENT_BINARY_DIR@/../src/device-api/flatc-gen-code/
 
 
 # This tag can be used to specify the character encoding of the source files
@@ -864,8 +864,7 @@ FILE_PATTERNS          = *.c \
                          *.vhd \
                          *.vhdl \
                          *.ucf \
-                         *.qsf \
-                         *.fbs
+                         *.qsf
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.
@@ -1002,7 +1001,7 @@ USE_MDFILE_AS_MAINPAGE = @CMAKE_CURRENT_SOURCE_DIR@/../README.md
 # also VERBATIM_HEADERS is set to NO.
 # The default value is: NO.
 
-SOURCE_BROWSER         = NO
+SOURCE_BROWSER         = YES
 
 # Setting the INLINE_SOURCES tag to YES will include the body of functions,
 # classes and enums directly into the documentation.
