@@ -7,6 +7,8 @@
 
 #include <stdbool.h>
 
+#define MASTER_SHIRE 32U
+
 static void pre_kernel_setup(void);
 static void post_kernel_cleanup(void);
 
@@ -28,6 +30,11 @@ void WORKER_thread(void)
         // Wait for FCC1 from master indicating the kernel should start
         WAIT_FCC(1);
 
+        // Put parameters in registers before calling kernel entry point
+
+        // jal kernel entry point
+
+        // Test kernel:
         // // thread 0s run compute kernel
         // if (get_thread_id() == 0)
         // {
@@ -51,12 +58,10 @@ void WORKER_thread(void)
 
 static void pre_kernel_setup(void)
 {
-    const unsigned int hart_id = get_hart_id();
-    const unsigned int thread_id = get_thread_id();
     bool result;
 
     // First HART in the shire
-    if (hart_id % 64U == 0U)
+    if (get_hart_id() % 64U == 0U)
     {
         // Enable all thread 1s
         SET_THREAD1_DISABLE(0);
@@ -75,7 +80,7 @@ static void pre_kernel_setup(void)
     }
 
     // Thread 0 in each minion
-    if (thread_id == 0U)
+    if (get_thread_id() == 0U)
     {
         // Enable L1 split and scratchpad
         syscall(SYSCALL_ENABLE_L1_SCRATCHPAD);
@@ -83,90 +88,83 @@ static void pre_kernel_setup(void)
 
     // Every thread of every minion
 
-    // // Empty all FCCs TODO FIXME these hang
-    // while (read_fcc(0) > 0)
-    // {
-    //     wait_fcc(0);
-    // }
+    // Empty all FCCs
+    while (read_fcc(0) > 0)
+    {
+        WAIT_FCC(0);
+    }
 
-    // while (read_fcc(1) > 0)
-    // {
-    //     wait_fcc(1);
-    // }
+    while (read_fcc(1) > 0)
+    {
+        WAIT_FCC(1);
+    }
 
-//     // Disable message ports
-//     {
-//         // TODO
-//     }
+    // Disable message ports
+    {
+        // TODO
+    }
 
-//     // Unlock all cachelines
-//     {
-//         // TODO
-//     }
+    // Unlock all cachelines
+    {
+        // TODO
+    }
 
-//     // Zero out TenC
-//     {
-//         // TODO
-//     }
+    // Zero out TenC
+    {
+        // TODO
+    }
 
-//     // TensorExtensionCSRs all 0
-//     {
-//         // TODO
-//     }
+    // TensorExtensionCSRs all 0
+    {
+        // TODO
+    }
 
-//     // GPR and VPU set to 0s
-//     {
-//         // TODO
-//     }
+    // GPR and VPU set to 0s
+    {
+        // TODO
+    }
 
-//     // stack pointer initialized
-//     {
-//         // TODO for now, crt.S is doing this per hartID to fit in ZeBu mini-SoC 32MB DRAM
-//     }
+    // Initialize stack pointer
+    {
+        // TODO for now, crt.S is doing this per hartID to fit in ZeBu mini-SoC 32MB DRAM
+    }
 
-        WAIT_FLB(64, 31, result);
+    WAIT_FLB(64, 31, result);
 
-        if (result)
-        {
-            // send FCC1 to master to let it know this shire is ready
-            SEND_FCC(32, 0, 1, 1);
-        }
+    if (result)
+    {
+        // send FCC1 to master to let it know this shire is ready
+        SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_1, 1);
+    }
 }
 
 static void post_kernel_cleanup(void)
 {
-    const unsigned int hart_id = get_hart_id();
-    const unsigned int thread_id = get_thread_id();
     bool result;
 
-    // First HART in each shire
-    // if (hart_id % 64U == 0U)
-    // {
-    //     // Disable all thread1s
-    //     SET_THREAD1_DISABLE(0xFFFFFFFF);
-    // }
-
     // First HART in each neighborhood
-    if (hart_id % 16U == 0U)
+    if (get_hart_id() % 16U == 0U)
     {
         syscall(SYSCALL_DRAIN_COALESCING_BUFFER);
     }
 
-    // thread 0 in each minion
-    if (thread_id == 0U)
+    // Thread 0 in each minion
+    if (get_thread_id() == 0U)
     {
         syscall(SYSCALL_FLUSH_L1_TO_L2);
     }
 
     // Wait for all L1 to L2 flushes to complete before flushing L2 to L3
-    WAIT_FLB(64, 31, result); // TODO FIXME which barrier is safe to use here? Can't use one the kernel left in an unknown state.
+    // TODO FIXME which barrier is safe to use here? Can't use one the kernel left in an unknown state.
+    // using FLB31 as a reserved FLB for now
+    WAIT_FLB(64, 31, result);
 
-    // Last minion to finish flushing L1
+    // Last thread to join barrier
     if (result)
     {
         syscall(SYSCALL_FLUSH_L2_TO_L3);
 
         // send FCC1 to master indicating the kernel is complete
-        SEND_FCC(32, 0, 1, 1);
+        SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_1, 1);
     }
 }

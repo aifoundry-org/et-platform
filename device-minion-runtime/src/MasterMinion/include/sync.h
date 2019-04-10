@@ -19,7 +19,6 @@
 #define SEND_FCC(shire, thread, fcc, bitmask) (*(volatile uint64_t* const)(0x1003400C0ULL + (shire << 22) + (((thread * 2) + fcc) << 3)) = bitmask)
 
 // fcc = fast credit counter to block on, 0 or 1
-//#define WAIT_FCC(fcc) asm volatile ("csrw fcc, %0" : : "r" (fcc))
 #define WAIT_FCC(fcc) asm volatile ("csrwi fcc, %0" : : "I" (fcc))
 
 static inline void wait_fcc(unsigned int fcc)
@@ -29,10 +28,21 @@ static inline void wait_fcc(unsigned int fcc)
 
 static inline unsigned int read_fcc(unsigned int fcc)
 {
+    unsigned int temp;
     unsigned int val;
-    asm volatile ("csrr %0, fccnb" : "=r" (val));
-    // TODO FIXME more inline asm for shifting and masking
-    return (fcc == 1 ? val >> 16U : val) & 0xFFFFU;
+
+    asm volatile (
+        "      csrr  %0, fccnb  \n" // read FCCNB
+        "      beqz  %2, mask   \n" // if FCC1, shift FCCNB 31:16 down to 15:0
+        "      srli  %0, %0, 16 \n"
+        "mask: lui   %1, 0x10   \n" // mask with 0xFFFF
+        "      addiw %1, %1, -1 \n"
+        "      and   %0, %0, %1 \n"
+        : "=r" (val), "=&r" (temp)
+        : "r" (fcc)
+    );
+
+    return val;
 }
 
 // shire = shire to send the credit to, 0-32 or 0xFF for "this shire"

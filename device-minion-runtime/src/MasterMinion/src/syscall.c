@@ -8,6 +8,10 @@ static void flush_l1_to_l2(void);
 static void flush_l2_to_l3(void);
 static void enable_l1_scratchpad(void);
 
+// TODO FIXME RTLMIN-3596 CSR mcache_control should return the last written value instead of 0s
+// for now, keeping track of L1 scratchpad state internally to work around this bug
+static bool l1_scratchpad_mode;
+
 int syscall_handler(int syscall)
 {
     switch (syscall)
@@ -44,38 +48,59 @@ int syscall_handler(int syscall)
     return 0;
 }
 
-
 // Can only be run from M-mode
 static void flush_l1_to_l2(void)
 {
-    excl_mode(1);                // Write 1 into `EXCL_MODE` to gain exclusive access to the processor.
-    evict_sw(0, 1, 0, 0, 15, 0); // Use EvictSW to evict all cache lines from the L1 way 0 to L2
-    evict_sw(0, 1, 1, 0, 15, 0); // Use EvictSW to evict all cache lines from the L1 way 1 to L2
-    evict_sw(0, 1, 2, 0, 15, 0); // Use EvictSW to evict all cache lines from the L1 way 2 to L2
-    evict_sw(0, 1, 3, 0, 15, 0); // Use EvictSW to evict all cache lines from the L1 way 3 to L2
-    excl_mode(0);                // Write 0 into `EXCL_MODE` to release the hold of the processor.
-    FENCE // Wait for all evictions to complete (FIXME is FENCE correct?)
+    // The number of lines depends on the D1Split
+    // TODO FIXME RTLMIN-3596 CSR mcache_control should return the last written value instead of 0s
+    //const unsigned int num_lines = (mcache_control_get() & 1U) ? 3 : 15;
+    const unsigned int num_lines = l1_scratchpad_mode ? 3 : 15;
+
+    excl_mode(1);                       // Write 1 into `EXCL_MODE` to gain exclusive access to the processor.
+    evict_sw(0, 1, 0, 0, num_lines, 0); // Use EvictSW to evict all cache lines from the L1 way 0 to L2
+    evict_sw(0, 1, 1, 0, num_lines, 0); // Use EvictSW to evict all cache lines from the L1 way 1 to L2
+    evict_sw(0, 1, 2, 0, num_lines, 0); // Use EvictSW to evict all cache lines from the L1 way 2 to L2
+    evict_sw(0, 1, 3, 0, num_lines, 0); // Use EvictSW to evict all cache lines from the L1 way 3 to L2
+    WAIT_CACHEOPS
+    excl_mode(0);                       // Write 0 into `EXCL_MODE` to release the hold of the processor.
 }
 
 static void flush_l2_to_l3(void)
 {
     // TODO
-    FENCE // Wait for all evictions to complete (FIXME is FENCE correct?)
 }
 
 // Can only be run from M-mode
+// TODO FIXME BROKEN, CPU hangs on ret from this function
 static void enable_l1_scratchpad(void)
 {
-    // Enable L1 split and scratchpad per PRM-8 Cache Control Extension section 1.1.3
-    // "Changing configuration from shared to split" and "Enabling/Disabling the Scratchpad"
-    excl_mode(1);                // Write 1 into `EXCL_MODE` to gain exclusive access to the processor.
-    evict_sw(0, 1, 0, 0, 15, 0); // Use EvictSW to evict all cache lines from the L1 way 0 to L2
-    evict_sw(0, 1, 1, 0, 15, 0); // Use EvictSW to evict all cache lines from the L1 way 1 to L2
-    evict_sw(0, 1, 2, 0, 15, 0); // Use EvictSW to evict all cache lines from the L1 way 2 to L2
-    evict_sw(0, 1, 3, 0, 15, 0); // Use EvictSW to evict all cache lines from the L1 way 3 to L2
-    mcache_control(1, 0, 0);     // Write 1 into mcache_control.D1Split
-    FENCE                        // Execute a FENCE and a TensorWait to wait for all pending memory operations by this hart to complete.
-    mcache_control(1, 1, 0);     // Write 1 into mcache_control.SCPEnable
-    excl_mode(0);                // Write 0 into `EXCL_MODE` to release the hold of the processor.
-    FENCE                        // Wait for all evictions to complete (FIXME is FENCE correct?)
+    // TODO FIXME RTLMIN-3596 CSR mcache_control should return the last written value instead of 0s
+    //const unsigned int mcache_control = mcache_control_get();
+
+    // If the dcache isn't already split with scratchpad enabled
+    // TODO FIXME RTLMIN-3596 CSR mcache_control should return the last written value instead of 0s
+    //if (mcache_control & 0x3 != 0x3)
+    if (!l1_scratchpad_mode)
+    {
+        // The number of lines depends on the D1Split
+        // TODO FIXME RTLMIN-3596 CSR mcache_control should return the last written value instead of 0s
+        //const unsigned int num_lines = mcache_control & 1U ? 3 : 15;
+        const unsigned int num_lines = l1_scratchpad_mode ? 3 : 15;
+
+        // Enable L1 split and scratchpad per PRM-8 Cache Control Extension section 1.1.3
+        // "Changing configuration from shared to split" and "Enabling/Disabling the Scratchpad"
+        excl_mode(1);                       // Write 1 into `EXCL_MODE` to gain exclusive access to the processor.
+        evict_sw(0, 1, 0, 0, num_lines, 0); // Use EvictSW to evict all cache lines from the L1 way 0 to L2
+        evict_sw(0, 1, 1, 0, num_lines, 0); // Use EvictSW to evict all cache lines from the L1 way 1 to L2
+        evict_sw(0, 1, 2, 0, num_lines, 0); // Use EvictSW to evict all cache lines from the L1 way 2 to L2
+        evict_sw(0, 1, 3, 0, num_lines, 0); // Use EvictSW to evict all cache lines from the L1 way 3 to L2
+        WAIT_CACHEOPS
+        mcache_control(1, 0, 0);            // Write 1 into mcache_control.D1Split
+        WAIT_CACHEOPS
+        mcache_control(1, 1, 0);            // Write 1 into mcache_control.SCPEnable
+        WAIT_CACHEOPS
+        excl_mode(0);                       // Write 0 into `EXCL_MODE` to release the hold of the processor.
+
+        l1_scratchpad_mode = true;
+    }
 }
