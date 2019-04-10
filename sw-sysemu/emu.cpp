@@ -7370,13 +7370,13 @@ void tensor_reduce_decode(uint64_t value, uint64_t* other_min, uint64_t* action)
     // SENDER
     if (type == 0)
     {
-        * action = 1;
+        * action = 0;
         * other_min = (value >> 3) & 0x1FFF;
     }
     // RECEIVER
     else if (type == 1)
     {
-        * action = 0;
+        * action = 1;
         * other_min = (value >> 3) & 0x1FFF;
     }
     // BROADCAST: Compute sender/receiver assuming recursive halving
@@ -7386,12 +7386,12 @@ void tensor_reduce_decode(uint64_t value, uint64_t* other_min, uint64_t* action)
         uint64_t minion_mask = (1 << (level + 1)) - 1;
         if ((minion_id & minion_mask) == distance)
         {
-            * action    = 1; // sender
+            * action    = 1; // receiver
             * other_min = minion_id - distance;
         }
         else if ((minion_id & minion_mask) == 0)
         {
-            * action    = 0; // receiver
+            * action    = 0; // sender
             * other_min = minion_id + distance;
         }
         else
