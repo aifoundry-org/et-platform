@@ -261,6 +261,11 @@
 #define L2_SCP_LINEAR_BASE 0xC0000000ULL
 #define L2_SCP_LINEAR_SIZE 0x40000000ULL
 
+// Message ports
+#define ESR_HART_PORT_ADDR_VALID(x)         (((x) & 0xF38) == 0x800)
+#define ESR_HART_PORT_NUM_MASK              0xC0ULL
+#define ESR_HART_PORT_NUM_SHIFT             6
+
 // CSRs
 enum : uint16_t {
 #define CSRDEF(num, lower, upper)       CSR_##upper = num,
