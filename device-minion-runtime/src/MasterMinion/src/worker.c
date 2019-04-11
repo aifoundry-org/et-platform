@@ -1,5 +1,6 @@
 #include "worker.h"
 #include "interrupt.h"
+#include "macros.h"
 #include "shire.h"
 #include "sync.h"
 #include "syscall.h"
@@ -33,6 +34,8 @@ void WORKER_thread(void)
         // Put parameters in registers before calling kernel entry point
 
         // jal kernel entry point
+
+        // How do we make sure we end up here if the kernel traps?
 
         // Test kernel:
         // // thread 0s run compute kernel
@@ -82,41 +85,44 @@ static void pre_kernel_setup(void)
     // Thread 0 in each minion
     if (get_thread_id() == 0U)
     {
-        // Enable L1 split and scratchpad
-        syscall(SYSCALL_ENABLE_L1_SCRATCHPAD);
+        // Disable L1 split and scratchpad. Unlocks and evicts all lines.
+        syscall(SYSCALL_INIT_L1);
     }
 
     // Every thread of every minion
 
     // Empty all FCCs
-    while (read_fcc(0) > 0)
+    for (uint64_t i = read_fcc(0); i > 0; i--)
     {
         WAIT_FCC(0);
     }
 
-    while (read_fcc(1) > 0)
+    for (uint64_t i = read_fcc(1); i > 0; i--)
     {
         WAIT_FCC(1);
     }
 
     // Disable message ports
     {
-        // TODO
-    }
-
-    // Unlock all cachelines
-    {
-        // TODO
+        // portctrl0(0);
+        // portctrl1(0);
+        // portctrl2(0);
+        // portctrl3(0);
     }
 
     // Zero out TenC
     {
-        // TODO
+        // TODO (perform a 0*0 operation)
     }
 
     // TensorExtensionCSRs all 0
     {
         // TODO
+        // tensormask_write(0);
+        // tensorerror_write(0);
+        // for (tmp = 0; tmp <= 255; tmp++)
+        //     tensorcooperation_write(tmp);
+
     }
 
     // GPR and VPU set to 0s
@@ -142,6 +148,18 @@ static void post_kernel_cleanup(void)
 {
     bool result;
 
+    // Wait for all tensor ops to complete
+    WAIT_TENSOR_LOAD_0
+    WAIT_TENSOR_LOAD_1
+    WAIT_TENSOR_LOAD_L2_0
+    WAIT_TENSOR_LOAD_L2_1
+    WAIT_PREFETCH_0
+    WAIT_PREFETCH_1
+    WAIT_CACHEOPS
+    WAIT_TENSOR_FMA
+    WAIT_TENSOR_STORE
+    WAIT_TENSOR_REDUCE
+
     // First HART in each neighborhood
     if (get_hart_id() % 16U == 0U)
     {
@@ -151,10 +169,10 @@ static void post_kernel_cleanup(void)
     // Thread 0 in each minion
     if (get_thread_id() == 0U)
     {
-        syscall(SYSCALL_FLUSH_L1_TO_L2);
+        syscall(SYSCALL_EVICT_L1_TO_L2);
     }
 
-    // Wait for all L1 to L2 flushes to complete before flushing L2 to L3
+    // Wait for all L1 to L2 evicts to complete before evicting L2 to L3
     // TODO FIXME which barrier is safe to use here? Can't use one the kernel left in an unknown state.
     // using FLB31 as a reserved FLB for now
     WAIT_FLB(64, 31, result);
@@ -162,7 +180,7 @@ static void post_kernel_cleanup(void)
     // Last thread to join barrier
     if (result)
     {
-        syscall(SYSCALL_FLUSH_L2_TO_L3);
+        syscall(SYSCALL_EVICT_L2_TO_L3);
 
         // send FCC1 to master indicating the kernel is complete
         SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_1, 1);
