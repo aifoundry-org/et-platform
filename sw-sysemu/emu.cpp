@@ -4718,7 +4718,6 @@ void fcvt_un24_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
     DISASM_FD_FS1_FRM("fcvt.un24.ps");
-    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un24(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4727,7 +4726,6 @@ void fcvt_un16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
     DISASM_FD_FS1_FRM("fcvt.un16.ps");
-    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un16(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4736,7 +4734,6 @@ void fcvt_un10_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
     DISASM_FD_FS1_FRM("fcvt.un10.ps");
-    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un10(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4745,7 +4742,6 @@ void fcvt_un8_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
     DISASM_FD_FS1_FRM("fcvt.un8.ps");
-    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un8(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4754,7 +4750,6 @@ void fcvt_un2_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
     DISASM_FD_FS1_FRM("fcvt.un2.ps");
-    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_un2(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4763,7 +4758,6 @@ void fcvt_sn16_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
     DISASM_FD_FS1_FRM("fcvt.sn16.ps");
-    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_sn16(FS1.f32[e]) );
     set_fp_exceptions();
 }
@@ -4772,7 +4766,6 @@ void fcvt_sn8_ps(freg fd, freg fs1, const char* comm __attribute__((unused)))
 {
     require_fp_active();
     DISASM_FD_FS1_FRM("fcvt.sn8.ps");
-    set_rounding_mode(frm());
     WRITE_VD( fpu::f32_to_sn8(FS1.f32[e]) );
     set_fp_exceptions();
 }
