@@ -6770,10 +6770,14 @@ static void tensorquant(uint64_t value)
                 }
                 break;
             default:
-                assert(0);
+                throw std::runtime_error("Illegal TensorQuant transform!");
                 break;
         }
     }
+
+    // Executed TQUANT_MAX_TRANS transforms without early exit
+    set_fp_exceptions();
+    dirty_fp_state();
 }
 
 // ----- TensorStore emulation -------------------------------------------------
