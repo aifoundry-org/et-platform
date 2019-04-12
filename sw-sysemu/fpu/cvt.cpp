@@ -7,61 +7,12 @@
 #include "softfloat/internals.h"
 #include "softfloat/specialize.h"
 
-#if 0
-#include "debug.h"
-
-void debug_cvt(bool sign, int_fast16_t exp, uint_fast32_t sig)
-{
-    uint_fast8_t roundIncrement, roundBits;
-    bool roundNearEven;
-    roundIncrement = 0x40;
-    roundNearEven = (softfloat_roundingMode == softfloat_round_near_even);
-    if ( ! roundNearEven && (softfloat_roundingMode != softfloat_round_near_maxMag) ) {
-        roundIncrement = (softfloat_roundingMode == (sign ? softfloat_round_min : softfloat_round_max))
-                ? 0x7F
-                : 0;
-    }
-    roundBits = sig & 0x7F;
-    std::cout << "\tnumber       : " << Float32<7>(sign, exp, sig) << "\n";
-    std::cout << "\trounIncrement: " << Float32<7>(sign, 0, roundIncrement) << "\n";
-    std::cout << "\troundBits    : " << Float32<7>(sign, 0, roundBits) << "\n";
-    sig = (sig + roundIncrement) >> 7;
-    std::cout << "\tsig_shft     : " << Float32<0>(sign, exp, sig) << "\n";
-    sig &= ~(uint_fast32_t) (! (roundBits ^ 0x40) & roundNearEven);
-    std::cout << "\tsig_adj      : " << Float32<0>(sign, exp, sig) << "\n";
-}
-#endif
-
-#if 0
-    {
-        bool sign = false;
-        uint_fast8_t roundIncrement, roundBits;
-        bool roundNearEven;
-        uint_fast32_t sigZ = sig;
-        roundIncrement = 0x40;
-        roundNearEven = (softfloat_roundingMode == softfloat_round_near_even);
-        if ( ! roundNearEven && (softfloat_roundingMode != softfloat_round_near_maxMag) ) {
-            roundIncrement = (softfloat_roundingMode == (sign ? softfloat_round_min : softfloat_round_max))
-                    ? 0x7F
-                    : 0;
-        }
-        roundBits = sigZ & 0x7F;
-        std::cout << "un16_to_f32: number       : " << Float32<7>(0, exp, sigZ) << "\n";
-        std::cout << "un16_to_f32: rounIncrement: " << Float32<7>(0, 0, roundIncrement) << "\n";
-        std::cout << "un16_to_f32: roundBits    : " << Float32<7>(0, 0, roundBits) << "\n";
-        sigZ = (sigZ + roundIncrement) >> 7;
-        std::cout << "un16_to_f32: sig_shft     : " << Float32<0>(0, exp, sigZ) << "\n";
-        sigZ &= ~(uint_fast32_t) (! (roundBits ^ 0x40) & roundNearEven);
-        std::cout << "un16_to_f32: sig_adj      : " << Float32<0>(0, exp, sigZ) << "\n";
-    }
-#endif
-
 namespace fpu {
 
 
 float32_t un24_to_f32(uint32_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     int_fast8_t shiftDist;
     int_fast16_t exp;
     uint_fast64_t sig;
@@ -94,7 +45,7 @@ float32_t un24_to_f32(uint32_t a)
 
 float32_t un16_to_f32(uint16_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     int_fast8_t shiftDist;
     int_fast16_t exp;
     uint_fast64_t sig;
@@ -124,7 +75,7 @@ float32_t un16_to_f32(uint16_t a)
 
 float32_t un10_to_f32(uint16_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     int_fast8_t shiftDist;
     int_fast16_t exp;
     uint_fast64_t sig;
@@ -156,7 +107,7 @@ float32_t un10_to_f32(uint16_t a)
 
 float32_t un8_to_f32(uint8_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     int_fast8_t shiftDist;
     int_fast16_t exp;
     uint_fast64_t sig;
@@ -187,7 +138,7 @@ float32_t un8_to_f32(uint8_t a)
 
 float32_t un2_to_f32(uint8_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     int_fast16_t exp;
 
     a &= 0x3;
@@ -208,7 +159,7 @@ float32_t un2_to_f32(uint8_t a)
 
 float32_t sn16_to_f32(uint16_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     int_fast8_t shiftDist;
     bool sign;
     int_fast16_t exp;
@@ -239,7 +190,7 @@ float32_t sn16_to_f32(uint16_t a)
 // Used by the TBOX
 float32_t sn10_to_f32(uint16_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     int_fast8_t shiftDist;
     bool sign;
     int_fast16_t exp;
@@ -270,7 +221,7 @@ float32_t sn10_to_f32(uint16_t a)
 
 float32_t sn8_to_f32(uint8_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     int_fast8_t shiftDist;
     bool sign;
     int_fast16_t exp;
@@ -302,154 +253,229 @@ float32_t sn8_to_f32(uint8_t a)
 // Used by the TBOX
 float32_t sn2_to_f32(uint8_t a)
 {
-    ui32_f32 uZ;
+    union ui32_f32 uZ;
     a &= 3;
     uZ.ui = packToF32UI( (bool)(a >> 1), (a ? 0x7F : 0), 0 );
     return uZ.f;
 }
 
 
-uint32_t f32_to_un24(float32_t val)
+uint_fast32_t f32_to_un24(float32_t a)
 {
-    int32_t val_i = int32_t(val.v);
-    if (isNaNF32UI(val.v)) {
-        return 0x00ffffff;
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast32_t sig;
+    uint_fast64_t sig64;
+
+    uA.f = a;
+    uiA = uA.ui;
+    sign = signF32UI( uiA );
+    exp = expF32UI( uiA );
+    sig = fracF32UI( uiA );
+
+    if ( exp >= 0x7F ) {
+        return ( sign && ((exp != 0xFF) || !sig) ) ? 0 : 0xFFFFFF;
     }
-    if (val_i >= 0x3f800000) {
-        return 0x00ffffff;
-    }
-    if (val_i <= 0) {
-        return 0x00000000;
-    }
-    uint32_t delta = (1 << 24) - 1;
-    double ratio = double(fpu::FLT(val)) * double(delta);
-    return uint32_t(ratio + 0.5f);
+    if ( sign || !exp ) return 0;
+
+    sig64 = (uint_fast64_t) (sig | 0x00800000) * 0xFFFFFF00;
+    sig64 = softfloat_shiftRightJam64( sig64, 0x92 - exp );
+    return softfloat_roundToUI32(
+            sign, sig64, softfloat_round_near_maxMag, false );
 }
 
 
-uint16_t f32_to_un16(float32_t val)
+uint_fast16_t f32_to_un16(float32_t a)
 {
-    int32_t val_i = int32_t(val.v);
-    if (isNaNF32UI(val.v)) {
-        return 0xffff;
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast32_t sig;
+    uint_fast64_t sig64;
+
+    uA.f = a;
+    uiA = uA.ui;
+    sign = signF32UI( uiA );
+    exp = expF32UI( uiA );
+    sig = fracF32UI( uiA );
+
+    if ( exp >= 0x7F ) {
+        return ( sign && ((exp != 0xFF) || !sig) ) ? 0 : 0xFFFF;
     }
-    if (val_i >= 0x3f800000) {
-        return 0xffff;
-    }
-    if (val_i <= 0) {
-        return 0x0000;
-    }
-    uint32_t delta = (1 << 16) - 1;
-    double ratio = double(fpu::FLT(val)) * double(delta);
-    return uint16_t(ratio + 0.5f);
+    if ( sign || !exp ) return 0;
+
+    sig64 = (uint_fast64_t) (sig | 0x00800000) * 0xFFFF0000;
+    sig64 = softfloat_shiftRightJam64( sig64, 0x9A - exp );
+    return softfloat_roundToUI32(
+            sign, sig64, softfloat_round_near_maxMag, false );
 }
 
 
-uint16_t f32_to_un10(float32_t val)
+uint_fast16_t f32_to_un10(float32_t a)
 {
-    int32_t val_i = int32_t(val.v);
-    if (isNaNF32UI(val.v)) {
-        return 0x03ff;
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast32_t sig;
+    uint_fast64_t sig64;
+
+    uA.f = a;
+    uiA = uA.ui;
+    sign = signF32UI( uiA );
+    exp = expF32UI( uiA );
+    sig = fracF32UI( uiA );
+
+    if ( exp >= 0x7F ) {
+        return ( sign && ((exp != 0xFF) || !sig) ) ? 0 : 0x3FF;
     }
-    if (val_i >= 0x3f800000) {
-        return 0x03ff;
-    }
-    if (val_i <= 0) {
-        return 0x0000;
-    }
-    uint32_t delta = (1 << 10) - 1;
-    double ratio = double(fpu::FLT(val)) * double(delta);
-    return uint16_t(ratio + 0.5f);
+    if ( sign || !exp ) return 0;
+
+    sig64 = (uint_fast64_t) (sig | 0x00800000) * 0xFFC00000;
+    sig64 = softfloat_shiftRightJam64( sig64, 0xA0 - exp );
+    return softfloat_roundToUI32(
+            sign, sig64, softfloat_round_near_maxMag, false );
 }
 
 
-uint8_t f32_to_un8(float32_t val)
+uint_fast8_t f32_to_un8(float32_t a)
 {
-    int32_t val_i = int32_t(val.v);
-    if (isNaNF32UI(val.v)) {
-        return 0xff;
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast32_t sig;
+    uint_fast64_t sig64;
+
+    uA.f = a;
+    uiA = uA.ui;
+    sign = signF32UI( uiA );
+    exp = expF32UI( uiA );
+    sig = fracF32UI( uiA );
+
+    if ( exp >= 0x7F ) {
+        return ( sign && ((exp != 0xFF) || !sig) ) ? 0 : 0xFF;
     }
-    if (val_i >= 0x3f800000) {
-        return 0xff;
-    }
-    if (val_i <= 0) {
-        return 0x00;
-    }
-    uint32_t delta = (1 << 8) - 1;
-    double ratio = double(fpu::FLT(val)) * double(delta);
-    return uint8_t(ratio + 0.5f);
+    if ( sign || !exp ) return 0;
+
+    sig64 = (uint_fast64_t) (sig | 0x00800000) * 0xFF000000;
+    sig64 = softfloat_shiftRightJam64( sig64, 0xA2 - exp );
+    return softfloat_roundToUI32(
+            sign, sig64, softfloat_round_near_maxMag, false );
 }
 
 
-uint8_t f32_to_un2(float32_t val)
+uint_fast8_t f32_to_un2(float32_t a)
 {
-    int32_t val_i = int32_t(val.v);
-    if (isNaNF32UI(val.v)) {
-        return 0x03;
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast32_t sig;
+    uint_fast64_t sig64;
+
+    uA.f = a;
+    uiA = uA.ui;
+    sign = signF32UI( uiA );
+    exp = expF32UI( uiA );
+    sig = fracF32UI( uiA );
+
+    if ( exp >= 0x7F ) {
+        return ( sign && ((exp != 0xFF) || !sig) ) ? 0 : 0x3;
     }
-    if (val_i >= 0x3f800000) {
-        return 0x03;
-    }
-    if (val_i <= 0) {
-        return 0x00;
-    }
-    uint32_t delta = (1 << 2) - 1;
-    double ratio = double(fpu::FLT(val)) * double(delta);
-    return uint8_t(ratio + 0.5f);
+    if ( sign || !exp ) return 0;
+
+    sig64 = (uint_fast64_t) (sig | 0x00800000) * 0xC0000000;
+    sig64 = softfloat_shiftRightJam64( sig64, 0xA8 - exp );
+    return softfloat_roundToUI32(
+            sign, sig64, softfloat_round_near_maxMag, false );
 }
 
 
-uint32_t f32_to_sn24(float32_t val)
+uint_fast32_t f32_to_sn24(float32_t a)
 {
-    int32_t val_i = int32_t(val.v);
-    if (isNaNF32UI(val.v)) {
-        return 0x007fffff;
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast32_t sig;
+    uint_fast64_t sig64;
+
+    uA.f = a;
+    uiA = uA.ui;
+    sign = signF32UI( uiA );
+    exp = expF32UI( uiA );
+    sig = fracF32UI( uiA );
+
+    if ( !exp ) return 0;
+    if ( exp >= 0x7F ) {
+        if ( exp == 0xFF ) return ( !sig && sign ) ? 0x800001 : 0x7FFFFF;
+        return sign ? 0x800001 : 0x7FFFFF;
     }
-    if (val_i >= 0x3f800000) {
-        return 0x007fffff;
-    }
-    if (val.v >= 0xbf800000) {
-        return 0x00800001;
-    }
-    float int_val = round(fpu::FLT(val) * float((1 << 23) - 1));
-    int32_t res = int32_t(int_val);
-    return uint32_t(res & 0x00ffffff);
+
+    sig64 = (uint_fast64_t) (sig | 0x00800000) * 0xFFFFFE00;
+    sig64 = softfloat_shiftRightJam64( sig64, 0x93 - exp );
+    return softfloat_roundToI32(
+            sign, sig64, softfloat_round_near_maxMag, false ) & 0xFFFFFF;
 }
 
 
-uint16_t f32_to_sn16(float32_t val)
+uint_fast16_t f32_to_sn16(float32_t a)
 {
-    int32_t val_i = int32_t(val.v);
-    if (isNaNF32UI(val.v)) {
-        return 0x7fff;
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast32_t sig;
+    uint_fast64_t sig64;
+
+    uA.f = a;
+    uiA = uA.ui;
+    sign = signF32UI( uiA );
+    exp = expF32UI( uiA );
+    sig = fracF32UI( uiA );
+
+    if ( !exp ) return 0;
+    if ( exp >= 0x7F ) {
+        if ( exp == 0xFF ) return ( !sig && sign ) ? 0x8001 : 0x7FFF;
+        return sign ? 0x8001 : 0x7FFF;
     }
-    if (val_i >= 0x3f800000) {
-        return 0x7fff;
-    }
-    if (val.v >= 0xbf800000) {
-        return 0x8001;
-    }
-    float int_val = round(fpu::FLT(val) * float((1 << 15) - 1));
-    int32_t res = int32_t(int_val);
-    return uint16_t(res & 0x0000ffff);
+
+    sig64 = (uint_fast64_t) (sig | 0x00800000) * 0xFFFE0000;
+    sig64 = softfloat_shiftRightJam64( sig64, 0x9B - exp );
+    return softfloat_roundToI32(
+            sign, sig64, softfloat_round_near_maxMag, false ) & 0xFFFF;
 }
 
 
-uint8_t f32_to_sn8(float32_t val)
+uint_fast8_t f32_to_sn8(float32_t a)
 {
-    int32_t val_i = int32_t(val.v);
-    if (isNaNF32UI(val.v)) {
-        return 0x7f;
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    bool sign;
+    int_fast16_t exp;
+    uint_fast32_t sig;
+    uint_fast64_t sig64;
+
+    uA.f = a;
+    uiA = uA.ui;
+    sign = signF32UI( uiA );
+    exp = expF32UI( uiA );
+    sig = fracF32UI( uiA );
+
+    if ( !exp ) return 0;
+    if ( exp >= 0x7F ) {
+        if ( exp == 0xFF ) return ( !sig && sign ) ? 0x81 : 0x7F;
+        return sign ? 0x81 : 0x7F;
     }
-    if (val_i >= 0x3f800000) {
-        return 0x7f;
-    }
-    if (val.v >= 0xbf800000) {
-        return 0x81;
-    }
-    float int_val = round(fpu::FLT(val) * float((1 << 7) - 1));
-    int32_t res = int32_t(int_val);
-    return uint8_t(res & 0x000000ff);
+
+    sig64 = (uint_fast64_t) (sig | 0x00800000) * 0xFE000000;
+    sig64 = softfloat_shiftRightJam64( sig64, 0xA3 - exp );
+    return softfloat_roundToI32(
+            sign, sig64, softfloat_round_near_maxMag, false ) & 0xFF;
 }
 
 

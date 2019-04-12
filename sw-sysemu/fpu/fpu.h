@@ -106,15 +106,15 @@ using ::f32_to_f10;
 using ::f32_to_f11;
 using ::f32_to_f16;
 
-uint32_t f32_to_un24(float32_t);
-uint16_t f32_to_un16(float32_t);
-uint16_t f32_to_un10(float32_t);
-uint8_t  f32_to_un8(float32_t);
-uint8_t  f32_to_un2(float32_t);
+uint_fast32_t f32_to_un24(float32_t);
+uint_fast16_t f32_to_un16(float32_t);
+uint_fast16_t f32_to_un10(float32_t);
+uint_fast8_t  f32_to_un8(float32_t);
+uint_fast8_t  f32_to_un2(float32_t);
 
-uint32_t f32_to_sn24(float32_t);
-uint16_t f32_to_sn16(float32_t);
-uint8_t  f32_to_sn8(float32_t);
+uint_fast32_t f32_to_sn24(float32_t);
+uint_fast16_t f32_to_sn16(float32_t);
+uint_fast8_t  f32_to_sn8(float32_t);
 
 float32_t un24_to_f32(uint32_t);
 float32_t un16_to_f32(uint16_t);
