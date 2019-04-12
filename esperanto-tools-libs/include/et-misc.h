@@ -6,4 +6,3 @@
 #define EXAPI extern "C" __attribute__((visibility("default")))
 
 #endif // MISC_H
-

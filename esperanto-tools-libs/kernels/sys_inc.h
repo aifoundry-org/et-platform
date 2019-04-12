@@ -57,7 +57,7 @@
 
 #define CAUSE_ILLEGAL_INSTRUCTION 2
 
-//                                  mhartid  |    rs1=0     |        csrrs    
+//                                  mhartid  |    rs1=0     |        csrrs
 #define INST_READ_MHARTID_MASK  ((0xFFFULL<<20) | (0x1f << 15) | (0x7<<12) | (0x7f))
 #define INST_READ_MHARTID_MATCH ((0xF14ULL<<20) | (0<<15)      | (0x2<<12) | (0x73))
 
