@@ -10,6 +10,9 @@
 
 #define MASTER_SHIRE 32U
 
+static void kernel_return_function(void) __attribute__ ((used, section ("kernel")));
+static void dummy_kernel_function(void) __attribute__ ((used, section ("kernel")));
+
 static void pre_kernel_setup(void);
 static void post_kernel_cleanup(void);
 
@@ -31,9 +34,38 @@ void WORKER_thread(void)
         // Wait for FCC1 from master indicating the kernel should start
         WAIT_FCC(1);
 
-        // Put parameters in registers before calling kernel entry point
+        // TODO FIXME put parameters in registers before calling kernel entry point
 
-        // jal kernel entry point
+        // Setup mstatus and mpec and ra=springboard, then mret to kernel entry point in U-mode
+        // kernel will ret to springboard which will syscall done
+
+        const uint64_t* const kernel_entry_addr  = (uint64_t*)0x8100001000; //dummy_kernel_function;
+        const uint64_t* const kernel_return_addr = (uint64_t*)0x8100001000; //kernel_return_function;
+        const uint64_t* const kernel_stack_addr  = (uint64_t*)0x8100001000; // TODO FIXME dangerous
+        uint64_t temp;
+
+	    asm volatile (
+            // Switch to fresh user mode stack initialized to ret to kernel_return_addr
+            // TODO FIXME probably need to wipe stack between kernels?
+            "mv ra, %1              \n" // set ra to kernel_return_addr
+            "mv s0, %2              \n" // set s0 (frame pointer) to kernel_stack_addr
+            "addi sp, s0, -32       \n" // set sp and store frame *** TODO FIXME what stack alignment is required? ***
+            "sd	ra, 24(sp)          \n" // push ra
+            "sd	s0, 16(sp)          \n" // push s0
+            "li %0, 0x1800          \n" // bitmask to clear mstatus MPP
+            //"li %0, 0x100           \n" // bitmask to clear mstatus SPP *** TODO FIXME change from mret to sret ***
+            "csrc mstatus, %0       \n" // clear mstatus xPP
+	        "csrsi mstatus, 0x10    \n" // set mstatus UPIE
+            "csrw mepc, %3          \n" // kernel address to jump to in user mode
+            //"csrw sepc, %3          \n" // kernel address to jump to in user mode *** TODO FIXME change from mret to sret ***
+            "mret                   \n" // mstatus.mpp => privilege mode, sepc => pc
+            //"sret                   \n" // mstatus.mpp => privilege mode, sepc => pc *** TODO FIXME change from mret to sret ***
+            : "=&r" (temp)
+            : "r" (kernel_return_addr), "r" (kernel_stack_addr), "r" (kernel_entry_addr)
+        );
+
+        // Should never get here!
+
 
         // How do we make sure we end up here if the kernel traps?
 
@@ -57,6 +89,16 @@ void WORKER_thread(void)
 
         post_kernel_cleanup();
     }
+}
+
+static void kernel_return_function(void)
+{
+
+}
+
+static void dummy_kernel_function(void)
+{
+
 }
 
 static void pre_kernel_setup(void)
@@ -159,6 +201,8 @@ static void post_kernel_cleanup(void)
     WAIT_TENSOR_FMA
     WAIT_TENSOR_STORE
     WAIT_TENSOR_REDUCE
+
+    // TODO FIXME wait for all the tensor ops to complete in each neighborhood before draining coalescing buffer
 
     // First HART in each neighborhood
     if (get_hart_id() % 16U == 0U)

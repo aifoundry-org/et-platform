@@ -117,11 +117,6 @@ static void init_l1(void)
             evict_sw(0, 1, 1, 12, 3, 0);
             evict_sw(0, 1, 2, 12, 3, 0);
             evict_sw(0, 1, 3, 12, 3, 0);
-
-            WAIT_CACHEOPS
-            FENCE
-
-            mcache_control(1, 0, 0); // Write 0 into mcache_control.SCPEnable
         }
         else if ((mcache_control_reg & 0x3) == 1)
         {
@@ -138,10 +133,15 @@ static void init_l1(void)
             evict_sw(0, 1, 1, 14, 1, 0);
             evict_sw(0, 1, 2, 14, 1, 0);
             evict_sw(0, 1, 3, 14, 1, 0);
-
-            WAIT_CACHEOPS
-            FENCE
         }
+        else
+        {
+            // This should never happen
+            asm volatile ("ebreak");
+        }
+
+        WAIT_CACHEOPS
+        FENCE
 
         // Comments in PRM-8 section 1.1.1:
         // "Missing specification of what happens when going from shared to split mode and vice versa. Do we clear the whole cache?

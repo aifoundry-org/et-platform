@@ -95,4 +95,20 @@ SECTIONS
     __heap_start = .;
     __heap_end = . + 1M;
 
+    . = 0x8100000000; /* Beginning of user space */
+
+    kernel_stack :
+    {
+        /* stack first so overflow runs into Linux region and triggers an access fault */
+        KEEP(*(kernel_stack kernel_stack.*))
+        . += 0x1000;
+        __kernel_stack_base = .;
+    }
+
+    kernel :
+    {
+        __kernel_entry_addr = .;
+        KEEP(*(kernel kernel.*))
+    }
+
 }
