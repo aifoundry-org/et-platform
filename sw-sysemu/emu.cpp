@@ -6242,6 +6242,22 @@ void tensorload(uint64_t control)
             throw trap_illegal_instruction(current_inst);
     }
 
+    // Check if SCP is enabled
+    if (csr_mcache_control[current_thread] != 0x3)
+    {
+        LOG(DEBUG, "%s", "Tensor_Error TensorLoad with SCP disabled!!");
+        update_tensor_error(1 << 4);
+        return;
+    }
+
+    // Check if transform is valid
+    if (trans == 0x3 || trans == 0x4)
+    {
+        LOG(DEBUG, "%s", "Tensor_Error TensorLoad with illegal transform!!");
+        update_tensor_error(1 << 1);
+        return;
+    }
+
     // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if (tenb)
     {
@@ -6251,14 +6267,6 @@ void tensorload(uint64_t control)
         tensorload_setupb_topair[current_thread^1] = true;
         tensorload_setupb_numlines[current_thread] = rows;
         tensorload_setupb_numlines[current_thread^1] = rows;
-    }
-
-    // Check if SCP is enabled
-    if (csr_mcache_control[current_thread] != 0x3)
-    {
-        LOG(DEBUG, "%s", "Tensor_Error TensorLoad with SCP disabled!!");
-        update_tensor_error(1 << 4);
-        return;
     }
 
     log_tensor_load(trans, dst + adj, rows, tm ? csr_tensor_mask[current_thread] : 0);
