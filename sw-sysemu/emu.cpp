@@ -2683,7 +2683,7 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_LOCK_SW:
         {
             int      way   = (val >> 55) & 0x3;
-            uint64_t paddr = val & 0x0000FFFFFFFFFFC0ULL;
+            uint64_t paddr = val & 0x000000FFFFFFFFC0ULL;
             dcache_lock_paddr(way, paddr);
         }
         break;
