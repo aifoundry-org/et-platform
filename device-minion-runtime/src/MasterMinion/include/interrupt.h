@@ -1,0 +1,50 @@
+//TODO FIXME generate these. Shamlessly copied by dcrowder from written by hand by wearle 3/20/2019.
+//See esperanto-soc/rtl/../dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
+//and esperanto-soc/rtl/../dv/tests/ioshire/sw/inc/spio_plic_intr_device.h
+
+typedef enum {
+    PU_PLIC_NO_INTERRUPT_INTR = 0,
+    PU_PLIC_I2C_INTR,
+    PU_PLIC_SPI_INTR,
+    PU_PLIC_UART0_INTR,
+    PU_PLIC_GPIO_INTR,
+    PU_PLIC_WDT_INTR,
+    PU_PLIC_TIMER0_INTR,
+    PU_PLIC_TIMER1_INTR,
+    PU_PLIC_TIMER2_INTR,
+    PU_PLIC_TIMER3_INTR,
+    PU_PLIC_TIMER4_INTR,
+    PU_PLIC_TIMER5_INTR,
+    PU_PLIC_TIMER6_INTR,
+    PU_PLIC_TIMER7_INTR,
+    PU_PLIC_I3C_INTR,
+    PU_PLIC_UART1_INTR,
+    PU_PLIC_PCIE0_DMA_DONE0_INTR,
+    PU_PLIC_PCIE0_DMA_DONE1_INTR,
+    PU_PLIC_PCIE0_DMA_DONE2_INTR,
+    PU_PLIC_PCIE0_DMA_DONE3_INTR,
+    PU_PLIC_PCIE0_DMA_DONE4_INTR,
+    PU_PLIC_PCIE0_DMA_DONE5_INTR,
+    PU_PLIC_PCIE0_DMA_DONE6_INTR,
+    PU_PLIC_PCIE0_DMA_DONE7_INTR,
+    PU_PLIC_PCIE_MSI_INTR,
+    PU_PLIC_USB20_INTR,
+    PU_PLIC_USB21_INTR,
+    PU_PLIC_DMA_INTR,
+    PU_PLIC_EMMC_INTR,
+    PU_PLIC_PCIE_RADM_INTA_INTR,
+    PU_PLIC_PCIE_RADM_INTB_INTR,
+    PU_PLIC_PCIE_RADM_INTC_INTR,
+    PU_PLIC_PCIE_RADM_INTD_INTR,
+    PU_PLIC_INTR_CNT
+} interrupt_t;
+
+static inline void INT_enableInterrupts(void)
+{
+    asm volatile ("csrsi mstatus, 0x8"); // Set MIE to enable machine interrupts
+}
+
+static inline void INT_disableInterrupts(void)
+{
+    asm volatile ("csrci mstatus, 0x8"); // Clear MIE to disable machine interrupts
+}

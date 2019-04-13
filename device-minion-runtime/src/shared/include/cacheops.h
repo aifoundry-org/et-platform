@@ -20,6 +20,8 @@
 #include <inttypes.h>
 #endif
 
+#include <stdbool.h>
+
 enum cop_dest {
    to_L1  = 0x0ULL,
    to_L2  = 0x1ULL,
@@ -264,6 +266,20 @@ inline void __attribute__((always_inline)) mcache_control(uint64_t d1_split, uin
    );
 }
 
+//
+// MCACHE_CONTROL
+//
+inline uint64_t __attribute__((always_inline)) mcache_control_get(void)
+{
+    uint64_t ret;
+
+    __asm__ __volatile__ (
+        "csrr %0, 0x7e0\n"
+        : "=r" (ret)
+   );
+
+    return ret;
+}
 
 //
 // UCACHE_CONTROL
