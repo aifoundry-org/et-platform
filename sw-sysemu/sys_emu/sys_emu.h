@@ -92,6 +92,11 @@ protected:
 
 private:
 
+#ifdef SYSEMU_DEBUG
+    bool process_dbg_cmd(std::string cmd);
+    bool get_pc_break(uint64_t &pc, int &thread);
+#endif
+
     static uint64_t        emu_cycle;
     static std::list<int>  enabled_threads; // List of enabled threads
     static std::list<int>  fcc_wait_threads[2]; // List of threads waiting for an FCC

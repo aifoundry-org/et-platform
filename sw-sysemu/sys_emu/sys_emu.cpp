@@ -295,7 +295,7 @@ static void memdump(uint64_t addr, uint64_t size)
     }
 }
 
-bool process_dbg_cmd(std::string cmd) {
+bool sys_emu::process_dbg_cmd(std::string cmd) {
    bool prompt = true;
    std::vector<std::string> command;
    size_t num_args = split(cmd, command);
@@ -375,7 +375,7 @@ bool process_dbg_cmd(std::string cmd) {
    return prompt;
 }
 
-bool get_pc_break(uint64_t &pc, int &thread) {
+bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
    for (int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
    {
       if (((shires_en >> s) & 1) == 0) continue;
@@ -875,7 +875,7 @@ sys_emu::main_internal(int argc, char * argv[])
         if (break_reached)
             printf("Thread %d reached breakpoint at PC 0x%lx\n", break_thread, break_pc);
 
-        if ((debug == true) && ((break_reached == true) || (steps == 0))) {
+        if ((cmd_options.debug == true) && ((break_reached == true) || (steps == 0))) {
            bool retry = false;
            bool prompt = true;
            std::string line;
