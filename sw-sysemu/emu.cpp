@@ -725,6 +725,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
         tvec += code * 4;
     }
     tvec &= ~0x1ULL;
+    log_trap(csr_mstatus[current_thread], csr_scause[current_thread], csr_stval[current_thread], csr_sepc[current_thread]);
     log_pc_update(tvec);
 }
 
@@ -782,6 +783,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
         tvec += code * 4;
     }
     tvec &= ~0x1ULL;
+    log_trap(csr_mstatus[current_thread], csr_mcause[current_thread], csr_mtval[current_thread], csr_mepc[current_thread]);
     log_pc_update(tvec);
 }
 
