@@ -1,5 +1,6 @@
 #include "C-API/etrt.h"
 #include "Core/Commands.h"
+#include "EsperantoRuntime.h"
 #include "demangle.h"
 #include "et_device.h"
 #include "registry.h"
@@ -10,8 +11,7 @@
 using namespace et_runtime;
 
 EXAPI const char *etrtGetErrorString(etrtError_t error) {
-  // CUDA returns "unrecognized error code" if the error code is not recognized.
-  return error == etrtSuccess ? "no error" : "etrt unrecognized error code";
+  return et_runtime::Error::errorString(error);
 }
 
 EXAPI etrtError_t etrtGetDeviceCount(int *count) {
