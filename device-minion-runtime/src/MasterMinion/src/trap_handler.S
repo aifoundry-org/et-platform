@@ -9,8 +9,9 @@
 
 .align 12 /* Minion requires machine trap vector to be 4K aligned, mtvec[11:0] = 0 */
 .func
+
 trap_handler:
-    addi sp, sp, -( 29 * 8 )
+    addi sp, sp, -( 28 * 8 )
     sd x1,  1  * 8( sp )
     sd x5,  2  * 8( sp )
     sd x6,  3  * 8( sp )
@@ -72,9 +73,9 @@ handle_software_interrupt:
     j processed_source
 
 handle_synchronous:
-    addi t3, t3, 4                      /* Synchronous so update exception return address to the instruction after the instruction that generated the exeption. */
+    addi t3, t3, 4                      /* Synchronous so update exception return address to the instruction after the instruction that generated the exception. */
 
-test_if_environment_call:
+test_if_environment_call:               /* TODO FIXME handle U/S calls in supervisor handler, M calls in separate machine handler */
     li t0, 0x8                          /* 0x8,9,B == environment call from U,S,M-mode. 0xA is reserved, so check bits 3:2. */
     andi t1, t2, 0xC
     bne t0, t1, is_exception            /* Not an environment call, so some other exception. */
@@ -121,7 +122,7 @@ processed_source:
     ld  x29, 26 * 8( sp )
     ld  x30, 27 * 8( sp )
     ld  x31, 28 * 8( sp )
-    addi sp, sp, 29 * 8
+    addi sp, sp, 28 * 8
 
     mret                                /* mstatus.mpp => privilege mode, mstatus.mpie -> mstatus.mie, mepc => pc */
     .endfunc

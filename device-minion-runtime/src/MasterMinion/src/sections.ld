@@ -95,7 +95,8 @@ SECTIONS
     __heap_start = .;
     __heap_end = . + 1M;
 
-    . = 0x8100000000; /* Beginning of user space */
+    . = 0x8000200000; /* R_L3_Linux */
+    /*. = 0x8100000000; */ /* R_L3_DRAM */
 
     kernel_stack :
     {

@@ -16,58 +16,36 @@ static void dummy_kernel_function(void) __attribute__ ((used, section ("kernel")
 static void pre_kernel_setup(void);
 static void post_kernel_cleanup(void);
 
+// Runs in S-mode
 void WORKER_thread(void)
 {
     // Set MIE.MSIE to enable machine software interrupts
     asm volatile ("csrsi mie, 0x8");
 
+    // TODO FIXME all traps and firmware run in M-mode for now
+    //asm volatile("csrrsi x0, mideleg, 0x2") // Delegate SSIP so supervisor syscalls are handled in supervisor mode
+
     // Enable global interrupts
     INT_enableInterrupts();
+
+    // TODO FIXME drop to S-mode here
 
     while (1)
     {
         pre_kernel_setup();
 
-        // Drop to U-mode before calling kernel code
-        //syscall(SYSCALL_U_MODE);
-
         // Wait for FCC1 from master indicating the kernel should start
         WAIT_FCC(1);
 
+        // TODO FIXME right now all threads are waiting and synchronizing in setup/cleanup, but what if we don't want all?
+        // Do we need to track which N are active per shire instead of assuming 64?
+
         // TODO FIXME put parameters in registers before calling kernel entry point
 
-        // Setup mstatus and mpec and ra=springboard, then mret to kernel entry point in U-mode
-        // kernel will ret to springboard which will syscall done
-
-        const uint64_t* const kernel_entry_addr  = (uint64_t*)0x8100001000; //dummy_kernel_function;
-        const uint64_t* const kernel_return_addr = (uint64_t*)0x8100001000; //kernel_return_function;
-        const uint64_t* const kernel_stack_addr  = (uint64_t*)0x8100001000; // TODO FIXME dangerous
-        uint64_t temp;
-
-	    asm volatile (
-            // Switch to fresh user mode stack initialized to ret to kernel_return_addr
-            // TODO FIXME probably need to wipe stack between kernels?
-            "mv ra, %1              \n" // set ra to kernel_return_addr
-            "mv s0, %2              \n" // set s0 (frame pointer) to kernel_stack_addr
-            "addi sp, s0, -32       \n" // set sp and store frame *** TODO FIXME what stack alignment is required? ***
-            "sd	ra, 24(sp)          \n" // push ra
-            "sd	s0, 16(sp)          \n" // push s0
-            "li %0, 0x1800          \n" // bitmask to clear mstatus MPP
-            //"li %0, 0x100           \n" // bitmask to clear mstatus SPP *** TODO FIXME change from mret to sret ***
-            "csrc mstatus, %0       \n" // clear mstatus xPP
-	        "csrsi mstatus, 0x10    \n" // set mstatus UPIE
-            "csrw mepc, %3          \n" // kernel address to jump to in user mode
-            //"csrw sepc, %3          \n" // kernel address to jump to in user mode *** TODO FIXME change from mret to sret ***
-            "mret                   \n" // mstatus.mpp => privilege mode, sepc => pc
-            //"sret                   \n" // mstatus.mpp => privilege mode, sepc => pc *** TODO FIXME change from mret to sret ***
-            : "=&r" (temp)
-            : "r" (kernel_return_addr), "r" (kernel_stack_addr), "r" (kernel_entry_addr)
-        );
-
-        // Should never get here!
-
-
-        // How do we make sure we end up here if the kernel traps?
+        if (get_thread_id() == 0U)
+        {
+            syscall(SYSCALL_LAUNCH_KERNEL);
+        }
 
         // Test kernel:
         // // thread 0s run compute kernel
@@ -91,9 +69,10 @@ void WORKER_thread(void)
     }
 }
 
+// This must to a a RX function in user space, no W from user!
 static void kernel_return_function(void)
 {
-
+    syscall(SYSCALL_RETURN_FROM_KERNEL);
 }
 
 static void dummy_kernel_function(void)
@@ -101,6 +80,7 @@ static void dummy_kernel_function(void)
 
 }
 
+// Runs in S-mode, only need to syscall for M-mode services
 static void pre_kernel_setup(void)
 {
     bool result;
@@ -109,7 +89,7 @@ static void pre_kernel_setup(void)
     if (get_hart_id() % 64U == 0U)
     {
         // Enable all thread 1s
-        SET_THREAD1_DISABLE(0);
+        syscall(SYSCALL_ENABLE_THREAD1);
 
         // Init all kernel FLBs except reserved FLB 31
         for (unsigned int barrier = 0; barrier < 31; barrier++)
@@ -172,9 +152,9 @@ static void pre_kernel_setup(void)
         // TODO
     }
 
-    // Initialize stack pointer
+    // Wipe kernel stack
     {
-        // TODO for now, crt.S is doing this per hartID to fit in ZeBu mini-SoC 32MB DRAM
+        // TODO
     }
 
     WAIT_FLB(64, 31, result);
