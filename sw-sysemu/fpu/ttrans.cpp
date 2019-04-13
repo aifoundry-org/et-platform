@@ -419,7 +419,7 @@ float32_t f32_exp2(float32_t a)
     //printf("C2: 0x%016lx\tC1: 0x%016lx\tC0: 0x%016lx\n", c2, c1, c0);
 
     uint64_t mul1 = c2*x2;
-    uint64_t fma1 = mul1 + c1 + (1 << 14);
+    uint64_t fma1 = mul1 + c1 + (1 << 5); //TODO: check rounding at bit 5, used to be at bit 14
     //printf("MUL1: 0x%016lx\tFMA1: 0x%016lx\n", mul1, fma1);
 
     uint64_t mul2 = ((fma1 >> 15) % (1 << 23))*x2;
