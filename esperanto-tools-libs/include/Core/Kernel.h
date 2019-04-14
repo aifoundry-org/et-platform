@@ -11,11 +11,14 @@
 #ifndef ET_RUNTIME_KERNEL_H
 #define ET_RUNTIME_KERNEL_H
 
+#include "etrt-bin.h"
+
 #include <string>
 
 namespace et_runtime {
 
-struct dim3;
+// FIXME move dim3 in this header
+//struct dim3;
 
 ///
 /// The whole purpose of the ET SoC is to run many instances of Kernels in
