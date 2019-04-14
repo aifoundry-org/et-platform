@@ -18,7 +18,7 @@
 //#include "bootrom_cdescr.inc"
 #include "et_bootrom.h"
 
-EXAPI bool static_kernels = false;
+static bool static_kernels = false;
 
 void EtActionEvent::execute(CardProxy *card_proxy) {
   std::lock_guard<std::mutex> lk(observer_mutex);
