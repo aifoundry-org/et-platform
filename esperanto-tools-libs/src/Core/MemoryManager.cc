@@ -114,10 +114,10 @@ void MemoryManager::initMemRegions() {
   EtActionConfigure *actionConfigure = nullptr;
   EtActionEvent *actionEvent = nullptr;
   {
-    std::lock_guard<std::mutex> lk(device_.mutex);
+    std::lock_guard<std::mutex> lk(device_.mutex_);
 
-    assert(device_.defaultStream == nullptr);
-    device_.defaultStream = device_.createStream(false);
+    assert(device_.defaultStream_ == nullptr);
+    device_.defaultStream_ = device_.createStream(false);
 
     actionConfigure =
         new EtActionConfigure(dev_base, kDevMemRegionSize, kernels_dev_base,
@@ -127,8 +127,8 @@ void MemoryManager::initMemRegions() {
     actionEvent = new EtActionEvent();
     actionEvent->incRefCounter();
 
-    device_.addAction(device_.defaultStream, actionConfigure);
-    device_.addAction(device_.defaultStream, actionEvent);
+    device_.addAction(device_.defaultStream_, actionConfigure);
+    device_.addAction(device_.defaultStream_, actionEvent);
   }
 
   actionEvent->observerWait();

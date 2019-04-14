@@ -308,193 +308,36 @@ EXAPI etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim,
   launch_conf.blockDim = blockDim;
   launch_conf.etStream = et_stream;
 
-  dev->launch_confs.push_back(launch_conf);
+  dev->appendLaunchConf(launch_conf);
   return etrtSuccess;
 }
 
 EXAPI etrtError_t etrtSetupArgument(const void *arg, size_t size,
                                     size_t offset) {
   GetDev dev;
-
-  std::vector<uint8_t> &buff = dev->launch_confs.back().args_buff;
-  THROW_IF(offset && offset != align_up(buff.size(), size),
-           "kernel code relies on argument natural alignment");
-  size_t new_buff_size = std::max(buff.size(), offset + size);
-  buff.resize(new_buff_size, 0);
-  memcpy(&buff[offset], arg, size);
-
-  return etrtSuccess;
+  return dev->setupArgument(arg, size, offset);
 }
 
 EXAPI etrtError_t etrtLaunch(const void *func, const char *kernel_name) {
   GetDev dev;
-
-  EtLaunchConf launch_conf = std::move(dev->launch_confs.back());
-  dev->launch_confs.pop_back();
-
-  uintptr_t kernel_entry_point = 0;
-  if (func) {
-    EtKernelInfo kernel_info = etrtGetKernelInfoByHostFun(func);
-    assert(kernel_info.name == kernel_name);
-    if (kernel_info.elf_p) {
-      // We have kernel from registered Esperanto ELF binary, incorporated into
-      // host binary. First, ensure ELF binary is loaded to device. Second, we
-      // will launch kernel not by name, but by kernel entry point address.
-
-      EtLoadedKernelsBin &loaded_kernels_bin =
-          dev->loaded_kernels_bin[kernel_info.elf_p];
-
-      if (loaded_kernels_bin.devPtr == nullptr) {
-        dev->malloc(&loaded_kernels_bin.devPtr, kernel_info.elf_size);
-
-        dev->addAction(dev->defaultStream,
-                       new EtActionWrite(loaded_kernels_bin.devPtr,
-                                         kernel_info.elf_p,
-                                         kernel_info.elf_size));
-
-        assert(loaded_kernels_bin.actionEvent == nullptr);
-        loaded_kernels_bin.actionEvent = new EtActionEvent();
-        loaded_kernels_bin.actionEvent->incRefCounter();
-
-        dev->addAction(dev->defaultStream, loaded_kernels_bin.actionEvent);
-      }
-
-      if (loaded_kernels_bin.actionEvent) {
-        if (loaded_kernels_bin.actionEvent->isExecuted()) {
-          // ELF is already loaded, free actionEvent
-          EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
-          loaded_kernels_bin.actionEvent = nullptr;
-        } else {
-          // ELF loading is in process, insert EtActionEventWaiter before
-          // EtActionLaunch
-          dev->addAction(
-              launch_conf.etStream,
-              new EtActionEventWaiter(loaded_kernels_bin.actionEvent));
-        }
-      }
-
-      kernel_entry_point =
-          (uintptr_t)loaded_kernels_bin.devPtr + kernel_info.offset;
-    } else {
-      // For this kernel we have no registered Esperanto ELF binary,
-      // incorporated into host binary. Try map kernel into builtin kernel and
-      // call it by name.
-
-      static const std::map<std::string, const char *> kKernelRemapTable = {
-          {"void caffe2::math::(anonymous namespace)::SetKernel<float>(int, "
-           "float, float*)",
-           "SetKernel_Float"},
-          {"void caffe2::SigmoidKernel<float>(int, float const*, float*)",
-           "SigmoidKernel_Float"},
-          {"void caffe2::MulBroadcast2Kernel<float, float>(float const*, float "
-           "const*, float*, int, int, int)",
-           "MulBroadcast2Kernel_Float_Float"},
-          {"void caffe2::(anonymous "
-           "namespace)::binary_add_kernel_broadcast<false, float, float>(float "
-           "const*, float const*, float*, int, int, int)",
-           "BinAddKernelBroadcast_False_Float_Float"},
-          {"caffe2::math::_Kernel_float_Add(int, float const*, float const*, "
-           "float*)",
-           "AddKernel_Float"}};
-
-      kernel_name = kKernelRemapTable.at(demangle(kernel_name));
-    }
-  }
-
-  dev->addAction(launch_conf.etStream,
-                 new EtActionLaunch(launch_conf.gridDim, launch_conf.blockDim,
-                                    launch_conf.args_buff, kernel_entry_point,
-                                    kernel_name));
-  return etrtSuccess;
+  return dev->launch(func, kernel_name);
 }
 
 EXAPI etrtError_t etrtModuleLoad(etrtModule_t *module, const void *image,
                                  size_t image_size) {
-  {
-    GetDev dev;
 
-    EtModule *new_module = dev->createModule();
-    *module = reinterpret_cast<etrtModule_t>(new_module);
-
-    size_t parsed_elf_size;
-    parse_elf(image, &parsed_elf_size, &new_module->kernel_offset,
-              &new_module->raw_kernel_offset);
-    assert(parsed_elf_size <= image_size);
-
-    assert(!dev->loaded_kernels_bin.count(new_module));
-    EtLoadedKernelsBin &loaded_kernels_bin =
-        dev->loaded_kernels_bin[new_module];
-
-    dev->malloc(&loaded_kernels_bin.devPtr, image_size);
-
-    dev->addAction(
-        dev->defaultStream,
-        new EtActionWrite(loaded_kernels_bin.devPtr, image, image_size));
-
-    loaded_kernels_bin.actionEvent = new EtActionEvent();
-    loaded_kernels_bin.actionEvent->incRefCounter();
-
-    dev->addAction(dev->defaultStream, loaded_kernels_bin.actionEvent);
-  }
-
-  etrtStreamSynchronize(nullptr);
-
-  {
-    GetDev dev;
-
-    EtModule *et_module = dev->getModule(*module);
-
-    EtLoadedKernelsBin &loaded_kernels_bin = dev->loaded_kernels_bin[et_module];
-    assert(loaded_kernels_bin.devPtr);
-    assert(loaded_kernels_bin.actionEvent);
-    assert(loaded_kernels_bin.actionEvent->isExecuted());
-    // ELF is already loaded, free actionEvent
-    EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
-    loaded_kernels_bin.actionEvent = nullptr;
-  }
-
-  return etrtSuccess;
+  GetDev dev;
+  return dev->moduleLoad(module, image, image_size);
 }
 
 EXAPI etrtError_t etrtModuleUnload(etrtModule_t module) {
   GetDev dev;
-
-  EtModule *et_module = dev->getModule(module);
-
-  // It is expected that user synchronize on all streams in which kernels from
-  // this module was launched. So we just correct out data structures without
-  // stream synchronization.
-  EtLoadedKernelsBin &loaded_kernels_bin = dev->loaded_kernels_bin[et_module];
-  assert(loaded_kernels_bin.devPtr);
-  assert(loaded_kernels_bin.actionEvent == nullptr);
-
-  dev->free(loaded_kernels_bin.devPtr);
-  dev->loaded_kernels_bin.erase(et_module);
-  dev->destroyModule(et_module);
-  return etrtSuccess;
+  return dev->moduleUnload(module);
 }
 
 EXAPI etrtError_t etrtRawLaunch(etrtModule_t module, const char *kernel_name,
                                 const void *args, size_t args_size,
                                 etrtStream_t stream) {
   GetDev dev;
-
-  EtModule *et_module = dev->getModule(module);
-
-  EtLoadedKernelsBin &loaded_kernels_bin = dev->loaded_kernels_bin[et_module];
-  assert(loaded_kernels_bin.devPtr);
-  assert(loaded_kernels_bin.actionEvent == nullptr);
-
-  THROW_IF(et_module->raw_kernel_offset.count(kernel_name) == 0,
-           "No raw kernel found in module by kernel name.");
-  uintptr_t kernel_entry_point = (uintptr_t)loaded_kernels_bin.devPtr +
-                                 et_module->raw_kernel_offset.at(kernel_name);
-
-  std::vector<uint8_t> args_buff(args_size);
-  memcpy(&args_buff[0], args, args_size);
-
-  dev->addAction(dev->getStream(stream),
-                 new EtActionLaunch(dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
-                                    kernel_entry_point, kernel_name));
-  return etrtSuccess;
+  return dev->rawLaunch(module, kernel_name, args, args_size, stream);
 }
