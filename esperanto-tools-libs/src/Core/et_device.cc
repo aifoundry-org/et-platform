@@ -107,43 +107,23 @@ void EtDevice::uninitDeviceThread() {
 }
 
 etrtError_t EtDevice::mallocHost(void **ptr, size_t size) {
-  *ptr = mem_manager_->host_mem_region->alloc(size);
-  return etrtSuccess;
+  return mem_manager_->mallocHost(ptr, size);
 }
 
 etrtError_t EtDevice::freeHost(void *ptr) {
-  mem_manager_->host_mem_region->free(ptr);
-  return etrtSuccess;
+  return mem_manager_->freeHost(ptr);
 }
 
 etrtError_t EtDevice::malloc(void **devPtr, size_t size) {
-  *devPtr = mem_manager_->dev_mem_region->alloc(size);
-  return etrtSuccess;
+  return mem_manager_->malloc(devPtr, size);
 }
 
-etrtError_t EtDevice::free(void *devPtr) {
-  mem_manager_->dev_mem_region->free(devPtr);
-  return etrtSuccess;
-}
+etrtError_t EtDevice::free(void *devPtr) { return mem_manager_->free(devPtr); }
 
 etrtError_t
 EtDevice::pointerGetAttributes(struct etrtPointerAttributes *attributes,
                                const void *ptr) {
-  void *p = (void *)ptr;
-  attributes->device = 0;
-  attributes->isManaged = false;
-  if (this->isPtrAllocedHost(p)) {
-    attributes->memoryType = etrtMemoryTypeHost;
-    attributes->devicePointer = nullptr;
-    attributes->hostPointer = p;
-  } else if (this->isPtrAllocedDev(p)) {
-    attributes->memoryType = etrtMemoryTypeDevice;
-    attributes->devicePointer = p;
-    attributes->hostPointer = nullptr;
-  } else {
-    THROW("Unexpected pointer");
-  }
-  return etrtSuccess;
+  return mem_manager_->pointerGetAttributes(attributes, ptr);
 }
 
 etrtError_t EtDevice::setupArgument(const void *arg, size_t size,

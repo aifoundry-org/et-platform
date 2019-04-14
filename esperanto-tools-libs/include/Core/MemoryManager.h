@@ -11,11 +11,14 @@
 #ifndef ET_RUNTIME_MEMORY_MANAGER_H
 #define ET_RUNTIME_MEMORY_MANAGER_H
 
+#include "Common/ErrorTypes.h"
+
 #include <cstddef>
 #include <map>
 #include <memory>
 
 class EtDevice;
+struct etrtPointerAttributes;
 
 namespace et_runtime {
 
@@ -49,12 +52,37 @@ public:
   MemoryManager(EtDevice &dev) : device_(dev) { initMemRegions(); }
   ~MemoryManager() { uninitMemRegions(); }
 
-  // private:
+  /// @brief Allocate pinned memory on the host
+  etrtError mallocHost(void **ptr, size_t size);
+  /// @brief Deallocate host memory
+  etrtError freeHost(void *ptr);
+  /// @brief Allocate memory on the device
+  etrtError malloc(void **devPtr, size_t size);
+  /// @brief Free device memory.
+  etrtError free(void *devPtr);
+  /// @brief For a given pointer get its attributes
+  etrtError pointerGetAttributes(struct etrtPointerAttributes *attributes,
+                                 const void *ptr);
+
+  /// @brief Return true iff this is a host pointer
+  bool isPtrAllocedHost(const void *ptr) {
+    return host_mem_region_->isPtrAlloced(ptr);
+  }
+  /// @brief Return true iff this is a device pointer
+  bool isPtrAllocedDev(const void *ptr) {
+    return dev_mem_region_->isPtrAlloced(ptr);
+  }
+  /// @brief Return true iff this points in a device region
+  bool isPtrInDevRegion(const void *ptr) {
+    return dev_mem_region_->isPtrInRegion(ptr);
+  }
+
+private:
   void initMemRegions();
   void uninitMemRegions();
-  std::unique_ptr<EtMemRegion> host_mem_region;
-  std::unique_ptr<EtMemRegion> dev_mem_region;
-  std::unique_ptr<EtMemRegion> kernels_dev_mem_region;
+  std::unique_ptr<EtMemRegion> host_mem_region_;
+  std::unique_ptr<EtMemRegion> dev_mem_region_;
+  std::unique_ptr<EtMemRegion> kernels_dev_mem_region_;
   EtDevice &device_;
 };
 } // namespace device

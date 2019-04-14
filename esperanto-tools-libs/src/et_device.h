@@ -76,14 +76,14 @@ public:
   }
 
   bool isPtrAllocedHost(const void *ptr) {
-    return mem_manager_->host_mem_region->isPtrAlloced(ptr);
+    return mem_manager_->isPtrAllocedHost(ptr);
   }
   bool isPtrAllocedDev(const void *ptr) {
-    return mem_manager_->dev_mem_region->isPtrAlloced(ptr);
+    return mem_manager_->isPtrAllocedDev(ptr);
   }
 
   bool isPtrInDevRegion(const void *ptr) {
-    return mem_manager_->dev_mem_region->isPtrInRegion(ptr);
+    return mem_manager_->isPtrInDevRegion(ptr);
   }
 
   EtStream *getStream(etrtStream_t stream) {
@@ -177,6 +177,7 @@ private:
   std::vector<std::unique_ptr<EtStream>> stream_storage_;
   std::vector<std::unique_ptr<EtEvent>> event_storage_;
   std::vector<EtLaunchConf> launch_confs_;
+  // FIXME SW-257
   std::vector<std::unique_ptr<EtModule>> module_storage_;
   std::map<const void *, EtLoadedKernelsBin>
       loaded_kernels_bin_; // key is id; there are 2 cases now:

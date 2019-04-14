@@ -89,7 +89,7 @@ void MemoryManager::initMemRegions() {
   void *host_base = mmap(nullptr, kHostMemRegionSize, PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   PERROR_IF(host_base == MAP_FAILED);
-  this->host_mem_region.reset(new EtMemRegion(host_base, kHostMemRegionSize));
+  host_mem_region_.reset(new EtMemRegion(host_base, kHostMemRegionSize));
 
   void *kDevMemBaseAddr = (void *)GLOBAL_MEM_REGION_BASE;
   size_t kDevMemRegionSize = GLOBAL_MEM_REGION_SIZE;
@@ -100,7 +100,7 @@ void MemoryManager::initMemRegions() {
                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   PERROR_IF(dev_base == MAP_FAILED);
   THROW_IF(dev_base != kDevMemBaseAddr, "Cannot allocate dev memory.");
-  this->dev_mem_region.reset(new EtMemRegion(dev_base, kDevMemRegionSize));
+  dev_mem_region_.reset(new EtMemRegion(dev_base, kDevMemRegionSize));
 
   void *kernels_dev_base =
       mmap(kKernelsDevMemBaseAddr, kKernelsDevMemRegionSize, PROT_NONE,
@@ -108,7 +108,7 @@ void MemoryManager::initMemRegions() {
   PERROR_IF(kernels_dev_base == MAP_FAILED);
   THROW_IF(kernels_dev_base != kKernelsDevMemBaseAddr,
            "Cannot allocate kernels dev memory.");
-  this->kernels_dev_mem_region.reset(
+  kernels_dev_mem_region_.reset(
       new EtMemRegion(kernels_dev_base, kKernelsDevMemRegionSize));
 
   EtActionConfigure *actionConfigure = nullptr;
@@ -145,12 +145,51 @@ void MemoryManager::initMemRegions() {
 }
 
 void MemoryManager::uninitMemRegions() {
-  munmap(this->host_mem_region->region_base,
-         this->host_mem_region->region_size);
-  this->host_mem_region.reset(nullptr);
+  munmap(host_mem_region_->region_base, host_mem_region_->region_size);
+  host_mem_region_.reset(nullptr);
 
-  munmap(this->dev_mem_region->region_base, this->dev_mem_region->region_size);
-  this->dev_mem_region.reset(nullptr);
+  munmap(dev_mem_region_->region_base, dev_mem_region_->region_size);
+  dev_mem_region_.reset(nullptr);
+}
+
+etrtError MemoryManager::mallocHost(void **ptr, size_t size) {
+  *ptr = host_mem_region_->alloc(size);
+  return etrtSuccess;
+}
+
+etrtError MemoryManager::freeHost(void *ptr) {
+  host_mem_region_->free(ptr);
+  return etrtSuccess;
+}
+
+etrtError MemoryManager::malloc(void **devPtr, size_t size) {
+  *devPtr = dev_mem_region_->alloc(size);
+  return etrtSuccess;
+}
+
+etrtError MemoryManager::free(void *devPtr) {
+  dev_mem_region_->free(devPtr);
+  return etrtSuccess;
+}
+
+etrtError
+MemoryManager::pointerGetAttributes(struct etrtPointerAttributes *attributes,
+                                    const void *ptr) {
+  void *p = (void *)ptr;
+  attributes->device = 0;
+  attributes->isManaged = false;
+  if (host_mem_region_->isPtrAlloced(ptr)) {
+    attributes->memoryType = etrtMemoryTypeHost;
+    attributes->devicePointer = nullptr;
+    attributes->hostPointer = p;
+  } else if (dev_mem_region_->isPtrAlloced(ptr)) {
+    attributes->memoryType = etrtMemoryTypeDevice;
+    attributes->devicePointer = p;
+    attributes->hostPointer = nullptr;
+  } else {
+    THROW("Unexpected pointer");
+  }
+  return etrtSuccess;
 }
 
 } // namespace device
