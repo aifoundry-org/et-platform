@@ -141,9 +141,9 @@ public:
   void addAction(EtStream *et_stream, et_runtime::EtAction *et_action) {
     // FIXME: all blocking streams can synchronize through EtActionEventWaiter
     if (et_stream->isBlocking()) {
-      defaultStream_->actions.push(et_action);
+      defaultStream_->addCommand(et_action);
     } else {
-      et_stream->actions.push(et_action);
+      et_stream->addCommand(et_action);
     }
     notifyDeviceThread();
   }

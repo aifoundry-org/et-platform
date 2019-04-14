@@ -57,11 +57,11 @@ void EtDevice::deviceThread() {
       EtAction *actionToExecute = nullptr;
       for (auto &it : stream_storage_) {
         EtStream *stream = it.get();
-        if (!stream->actions.empty()) {
-          EtAction *action = stream->actions.front();
+        if (!stream->noCommands()) {
+          EtAction *action = stream->frontCommand();
           if (action->readyForExecution()) {
             actionToExecute = action;
-            stream->actions.pop();
+            stream->popCommand();
             break;
           }
         }
@@ -89,9 +89,9 @@ void EtDevice::deviceThread() {
 void EtDevice::uninitObjects() {
   for (auto &it : stream_storage_) {
     EtStream *stream = it.get();
-    while (!stream->actions.empty()) {
-      EtAction *act = stream->actions.front();
-      stream->actions.pop();
+    while (!stream->noCommands()) {
+      EtAction *act = stream->frontCommand();
+      stream->popCommand();
       EtAction::decRefCounter(act);
     }
   }
