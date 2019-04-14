@@ -1,10 +1,13 @@
 #include "C-API/etrt.h"
+#include "Core/Commands.h"
 #include "demangle.h"
 #include "et_device.h"
 #include "registry.h"
 #include "utils.h"
 #include <assert.h>
 #include <stdlib.h>
+
+using namespace et_runtime;
 
 EXAPI const char *etrtGetErrorString(etrtError_t error) {
   // CUDA returns "unrecognized error code" if the error code is not recognized.

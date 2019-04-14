@@ -1,4 +1,5 @@
 #include "et_device.h"
+#include "Core/Commands.h"
 #include "Core/MemoryManager.h"
 #include "demangle.h"
 #include "registry.h"
@@ -13,6 +14,16 @@
 #include "../kernels/sys_inc.h"
 #undef INCLUDE_FOR_HOST
 
+// clang-format off
+// et-rpc is an external dependency to be deprecated
+// unfortunately the et-card-proxy.h header is not self
+// contained and misisng includes
+#include <stddef.h>
+#include <stdint.h>
+#include "et-rpc/et-card-proxy.h"
+// clang-format on
+
+using namespace et_runtime;
 using namespace et_runtime::device;
 
 void EtDevice::deviceThread() {

@@ -11,13 +11,17 @@
 #include <queue>
 #include <stddef.h>
 
+namespace et_runtime {
+class EtActionEvent;
+}
+
 /*
  * Event object like Event in CUDA Runtime.
  */
 class EtEvent {
   bool disable_timing_;
   bool blocking_sync_;
-  EtActionEvent *action_event_ = nullptr;
+  et_runtime::EtActionEvent *action_event_ = nullptr;
 
 public:
   EtEvent(bool disable_timing, bool blocking_sync)
@@ -25,8 +29,8 @@ public:
 
   ~EtEvent() { assert(action_event_ == nullptr); }
 
-  EtActionEvent *getAction() { return action_event_; }
-  void resetAction(EtActionEvent *action = nullptr);
+  et_runtime::EtActionEvent *getAction() { return action_event_; }
+  void resetAction(et_runtime::EtActionEvent *action = nullptr);
 
   bool isDisableTiming() { return disable_timing_; }
   bool isBlockingSync() { return blocking_sync_; }

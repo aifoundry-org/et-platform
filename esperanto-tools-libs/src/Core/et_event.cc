@@ -1,7 +1,10 @@
 #include "et_event.h"
+#include "Core/Commands.h"
 #include <assert.h>
 #include <memory.h>
 #include <stdio.h>
+
+using namespace et_runtime;
 
 void EtEvent::resetAction(EtActionEvent *action /*= nullptr*/) {
   if (action_event_) {

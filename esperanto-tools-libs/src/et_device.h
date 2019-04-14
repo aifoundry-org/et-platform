@@ -2,6 +2,8 @@
 #define ETTEE_ET_DEVICE_H
 
 #include "C-API/etrt.h"
+// FIXME remove this header and use forward declarations
+#include "Core/Commands.h"
 #include "Core/MemoryManager.h"
 #include "et_event.h"
 #include "et_stream.h"
@@ -14,6 +16,10 @@
 #include <unordered_map>
 #include <vector>
 
+namespace et_runtime {
+class EtActionEvent;
+class EtActionWrite;
+} // namespace et_runtime
 
 // Launch Configuration.
 struct EtLaunchConf {
@@ -34,7 +40,7 @@ struct EtModule {
 // Loaded to device kernels ELF binary descriptor.
 struct EtLoadedKernelsBin {
   void *devPtr = nullptr; // base device address of loaded binary
-  EtActionEvent *actionEvent =
+  et_runtime::EtActionEvent *actionEvent =
       nullptr; // used for synchronize with load completion
 };
 
@@ -132,7 +138,7 @@ public:
     stl_remove(module_storage_, et_module);
   }
 
-  void addAction(EtStream *et_stream, EtAction *et_action) {
+  void addAction(EtStream *et_stream, et_runtime::EtAction *et_action) {
     // FIXME: all blocking streams can synchronize through EtActionEventWaiter
     if (et_stream->isBlocking()) {
       defaultStream_->actions.push(et_action);
