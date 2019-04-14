@@ -11,6 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_H
 #define ET_RUNTIME_DEVICE_H
 
+#include "Core/DeviceInformation.h"
 #include "Support/ErrorOr.h"
 
 #include <memory>

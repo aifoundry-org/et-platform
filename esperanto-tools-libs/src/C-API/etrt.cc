@@ -5,40 +5,65 @@
 #include "et_device.h"
 #include "registry.h"
 #include "utils.h"
+
 #include <assert.h>
+#include <memory>
 #include <stdlib.h>
 
+using namespace std;
 using namespace et_runtime;
+
+/// @brief Return pointer to the DeviceManager
+///
+/// Avoid creating static objects as the constructor call order is not
+/// guaranteed. Wrap the static object in a function that returns a pointer
+/// to it.
+static DeviceManager *getDeviceManager() {
+  static unique_ptr<DeviceManager> deviceManager;
+
+  if (!deviceManager) {
+    deviceManager = make_unique<DeviceManager>();
+  }
+  return deviceManager.get();
+}
 
 EXAPI const char *etrtGetErrorString(etrtError_t error) {
   return et_runtime::Error::errorString(error);
 }
 
 EXAPI etrtError_t etrtGetDeviceCount(int *count) {
-  *count = 1;
+  auto deviceManager = getDeviceManager();
+  auto ret = deviceManager->getDeviceCount();
+  if (!ret) {
+    return ret.getError();
+  }
+  *count = *ret;
   return etrtSuccess;
 }
 
 EXAPI etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop,
                                           int device) {
-  assert(device == 0);
-  *prop = etrtDevicePropDontCare;
-  // some values from CUDA Runtime 9.1 on GTX1060 (sm_61)
-  prop->major = 6;
-  prop->minor = 1;
-  strcpy(prop->name, "Esperanto emulation of GeForce GTX 1060 6GB");
-  prop->totalGlobalMem = 6371475456;
-  prop->maxThreadsPerBlock = 1024;
+  auto deviceManager = getDeviceManager();
+  auto ret = deviceManager->getDeviceInformation(device);
+  if (!ret) {
+    return ret.getError();
+  }
+  *prop = ret.get();
   return etrtSuccess;
 }
 
 EXAPI etrtError_t etrtGetDevice(int *device) {
-  *device = 0;
+  // FIXME SW-256
+  auto deviceManager = getDeviceManager();
+  *device = deviceManager->getActiveDevice();
   return etrtSuccess;
 }
 
 EXAPI etrtError_t etrtSetDevice(int device) {
+  // FIXME SW-256
   assert(device == 0);
+  auto deviceManager = getDeviceManager();
+  deviceManager->setActiveDevice(device);
   return etrtSuccess;
 }
 

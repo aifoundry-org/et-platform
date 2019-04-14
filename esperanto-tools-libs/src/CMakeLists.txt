@@ -72,6 +72,7 @@ set(ETRT_SOURCES
     BLAS/etblas.cc
     DNN/etdnn.cc
     Core/Commands.cc
+    Core/DeviceManager.cc
     Core/Error.cc
     Core/MemoryManager.cc
     Core/et_device.cc

@@ -11,6 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_MANAGER_H
 #define ET_RUNTIME_DEVICE_MANAGER_H
 
+#include "Core/DeviceInformation.h"
 #include "Support/ErrorOr.h"
 
 #include <memory>
@@ -53,7 +54,7 @@ public:
   /// to be queried.
   /// @return  etrtErrorInvalidDevice or struct @ref DeviceInformation
   ///
-  ErrorOr<DeviceInformation> getDeviceInfomation(int device);
+  ErrorOr<DeviceInformation> getDeviceInformation(int device);
 
   ///
   /// @brief Register the current process with a specific device
@@ -78,11 +79,22 @@ public:
   /// Returns a string containing the (SemVer 2.0) version number for the ET
   /// Device Driver that is currently being used.
   ///
-  /// @return  etrtSuccess
+  /// @return  String of the driver version.
   ///
   const char *getDriverVersion();
 
+  /// @brief Get the device the c-api is actively interacting with.
+  ///
+  /// @return Index of the active device
+  int getActiveDevice() const { return active_device_; }
+
+  /// @brief Set the device c-api is actively interacting with.
+  ///
+  /// @param[in] device  Index of active device to set.
+  void setActiveDevice(int device) { active_device_ = device; }
+
 private:
+  int active_device_;
 };
 
 }; // namespace et_runtime
