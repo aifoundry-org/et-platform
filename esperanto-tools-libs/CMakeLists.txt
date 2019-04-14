@@ -12,6 +12,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(EsperantoRuntime VERSION 0.1.0 LANGUAGES CXX C)
 
+set(CMAKE_CXX_STANDARD 14)
+
 option(HOST_SW "Enable building for the host-sw repo")
 
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
