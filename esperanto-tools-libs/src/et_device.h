@@ -2,6 +2,7 @@
 #define ETTEE_ET_DEVICE_H
 
 #include "C-API/etrt.h"
+#include "Core/MemoryManager.h"
 #include "et_event.h"
 #include "et_stream.h"
 #include <condition_variable>
@@ -13,25 +14,6 @@
 #include <unordered_map>
 #include <vector>
 
-// Region of host or device memory region.
-struct EtMemRegion {
-  void *region_base;
-  size_t region_size;
-  std::map<const void *, size_t>
-      alloced_ptrs; // alloced ptr -> size of alloced area
-
-  EtMemRegion(void *ptr, size_t size) : region_base(ptr), region_size(size) {}
-
-  static constexpr size_t kAlign = 1 << 20; // 1M
-  bool isPtrAlloced(const void *ptr);
-  void *alloc(size_t size);
-  void free(void *ptr);
-  void print();
-  bool isPtrInRegion(const void *ptr) {
-    return ptr >= region_base &&
-           (uintptr_t)ptr < (uintptr_t)region_base + region_size;
-  }
-};
 
 // Launch Configuration.
 struct EtLaunchConf {
@@ -61,26 +43,25 @@ struct EtLoadedKernelsBin {
  */
 class EtDevice {
 public:
-  EtDevice() {
+  EtDevice()
+      : mem_manager_(std::unique_ptr<et_runtime::device::MemoryManager>(
+            new et_runtime::device::MemoryManager(*this))) {
     initDeviceThread();
-    initMemRegions();
   }
 
   void initDeviceThread();
   void uninitDeviceThread();
-  void initMemRegions();
-  void uninitMemRegions();
   void uninitObjects();
 
   virtual ~EtDevice() {
     // Must stop device thread first in case it have non-empty streams
     uninitDeviceThread();
     uninitObjects();
-    uninitMemRegions();
   }
 
   void deviceThread();
 
+  std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
   bool device_thread_exit_requested = false;
   std::thread device_thread;
   std::mutex mutex;
@@ -101,11 +82,7 @@ public:
     cond_var.notify_one();
   }
 
-  static constexpr size_t kHostMemRegionSize = (1 << 20) * 256;
 
-  std::unique_ptr<EtMemRegion> host_mem_region;
-  std::unique_ptr<EtMemRegion> dev_mem_region;
-  std::unique_ptr<EtMemRegion> kernels_dev_mem_region;
 
   EtStream *defaultStream = nullptr;
   std::vector<std::unique_ptr<EtStream>> stream_storage;
@@ -118,14 +95,14 @@ public:
                           // - dynamically loaded module
 
   bool isPtrAllocedHost(const void *ptr) {
-    return host_mem_region->isPtrAlloced(ptr);
+    return mem_manager_->host_mem_region->isPtrAlloced(ptr);
   }
   bool isPtrAllocedDev(const void *ptr) {
-    return dev_mem_region->isPtrAlloced(ptr);
+    return mem_manager_->dev_mem_region->isPtrAlloced(ptr);
   }
 
   bool isPtrInDevRegion(const void *ptr) {
-    return dev_mem_region->isPtrInRegion(ptr);
+    return mem_manager_->dev_mem_region->isPtrInRegion(ptr);
   }
 
   EtStream *getStream(etrtStream_t stream) {
@@ -183,6 +160,13 @@ public:
     }
     notifyDeviceThread();
   }
+
+  etrtError_t mallocHost(void **ptr, size_t size);
+  etrtError_t freeHost(void *ptr);
+  etrtError_t malloc(void **devPtr, size_t size);
+  etrtError_t free(void *devPtr);
+  etrtError_t pointerGetAttributes(struct etrtPointerAttributes *attributes,
+                                   const void *ptr);
 };
 
 /*

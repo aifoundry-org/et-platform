@@ -41,46 +41,28 @@ EXAPI etrtError_t etrtSetDevice(int device) {
 
 EXAPI etrtError_t etrtMallocHost(void **ptr, size_t size) {
   GetDev dev;
-  *ptr = dev->host_mem_region->alloc(size);
-  return etrtSuccess;
+  return dev->mallocHost(ptr, size);
 }
 
 EXAPI etrtError_t etrtFreeHost(void *ptr) {
   GetDev dev;
-  dev->host_mem_region->free(ptr);
-  return etrtSuccess;
+  return dev->freeHost(ptr);
 }
 
 EXAPI etrtError_t etrtMalloc(void **devPtr, size_t size) {
   GetDev dev;
-  *devPtr = dev->dev_mem_region->alloc(size);
-  return etrtSuccess;
+  return dev->malloc(devPtr, size);
 }
 
 EXAPI etrtError_t etrtFree(void *devPtr) {
   GetDev dev;
-  dev->dev_mem_region->free(devPtr);
-  return etrtSuccess;
+  return dev->free(devPtr);
 }
 
 EXAPI etrtError_t etrtPointerGetAttributes(
     struct etrtPointerAttributes *attributes, const void *ptr) {
   GetDev dev;
-  void *p = (void *)ptr;
-  attributes->device = 0;
-  attributes->isManaged = false;
-  if (dev->isPtrAllocedHost(p)) {
-    attributes->memoryType = etrtMemoryTypeHost;
-    attributes->devicePointer = nullptr;
-    attributes->hostPointer = p;
-  } else if (dev->isPtrAllocedDev(p)) {
-    attributes->memoryType = etrtMemoryTypeDevice;
-    attributes->devicePointer = p;
-    attributes->hostPointer = nullptr;
-  } else {
-    THROW("Unexpected pointer");
-  }
-  return etrtSuccess;
+  return dev->pointerGetAttributes(attributes, ptr);
 }
 
 EXAPI etrtError_t etrtStreamCreateWithFlags(etrtStream_t *pStream,
@@ -363,8 +345,7 @@ EXAPI etrtError_t etrtLaunch(const void *func, const char *kernel_name) {
           dev->loaded_kernels_bin[kernel_info.elf_p];
 
       if (loaded_kernels_bin.devPtr == nullptr) {
-        loaded_kernels_bin.devPtr =
-            dev->kernels_dev_mem_region->alloc(kernel_info.elf_size);
+        dev->malloc(&loaded_kernels_bin.devPtr, kernel_info.elf_size);
 
         dev->addAction(dev->defaultStream,
                        new EtActionWrite(loaded_kernels_bin.devPtr,
@@ -444,7 +425,7 @@ EXAPI etrtError_t etrtModuleLoad(etrtModule_t *module, const void *image,
     EtLoadedKernelsBin &loaded_kernels_bin =
         dev->loaded_kernels_bin[new_module];
 
-    loaded_kernels_bin.devPtr = dev->kernels_dev_mem_region->alloc(image_size);
+    dev->malloc(&loaded_kernels_bin.devPtr, image_size);
 
     dev->addAction(
         dev->defaultStream,
@@ -487,7 +468,7 @@ EXAPI etrtError_t etrtModuleUnload(etrtModule_t module) {
   assert(loaded_kernels_bin.devPtr);
   assert(loaded_kernels_bin.actionEvent == nullptr);
 
-  dev->kernels_dev_mem_region->free(loaded_kernels_bin.devPtr);
+  dev->free(loaded_kernels_bin.devPtr);
   dev->loaded_kernels_bin.erase(et_module);
   dev->destroyModule(et_module);
   return etrtSuccess;

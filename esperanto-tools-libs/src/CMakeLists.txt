@@ -71,6 +71,7 @@ set(ETRT_SOURCES
     C-API/etrt.cc
     BLAS/etblas.cc
     DNN/etdnn.cc
+    Core/MemoryManager.cc
     Core/et_device.cc
     Core/et_stream.cc
     Core/et_event.cc
