@@ -1123,7 +1123,7 @@ static uint16_t vmemread16(uint64_t addr)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 2))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread16(paddr);
 }
@@ -1137,7 +1137,7 @@ static uint16_t aligned_vmemread16(uint64_t addr)
     }
     if (!access_is_size_aligned(addr, 2))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread16(paddr);
 }
@@ -1151,7 +1151,7 @@ static uint32_t vmemread32(uint64_t addr)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread32(paddr);
 }
@@ -1165,7 +1165,7 @@ static uint32_t aligned_vmemread32(uint64_t addr)
     }
     if (!access_is_size_aligned(addr, 4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread32(paddr);
 }
@@ -1179,7 +1179,7 @@ static uint64_t vmemread64(uint64_t addr)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 8))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread64(paddr);
 }
@@ -1203,7 +1203,7 @@ static void vmemwrite16(uint64_t addr, uint16_t data)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 2))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     pmemwrite16(paddr, data);
 }
@@ -1212,7 +1212,7 @@ static void aligned_vmemwrite16(uint64_t addr, uint16_t data)
 {
     if (!access_is_size_aligned(addr, 2))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
     if (!pma_check_data_access(paddr, 2, Mem_Access_Store))
@@ -1231,7 +1231,7 @@ static void vmemwrite32(uint64_t addr, uint32_t data)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 4))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     pmemwrite32(paddr, data);
 }
@@ -1240,7 +1240,7 @@ static void aligned_vmemwrite32(uint64_t addr, uint32_t data)
 {
     if (!access_is_size_aligned(addr, 4))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
     if (!pma_check_data_access(paddr, 4, Mem_Access_Store))
@@ -1259,7 +1259,7 @@ static void vmemwrite64(uint64_t addr, uint64_t data)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 8))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     pmemwrite64(paddr, data);
 }
@@ -3371,7 +3371,7 @@ static void femuld(freg dst, uint64_t vaddr)
         }
         if (!access_is_cacheable(paddr) && !access_is_size_aligned(vaddr, 4*Nelems))
         {
-            throw trap_load_address_misaligned(vaddr);
+            throw trap_load_access_fault(vaddr);
         }
         uint64_t next_line = paddr & (L1D_LINE_SIZE - (paddr % L1D_LINE_SIZE));
         for (unsigned i = 0; i < Nelems; i++)
@@ -3410,7 +3410,7 @@ static void femust(freg src1, uint64_t vaddr)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(vaddr, 4*Nelems))
     {
-        throw trap_store_address_misaligned(vaddr);
+        throw trap_store_access_fault(vaddr);
     }
     uint64_t next_line = paddr & (L1D_LINE_SIZE - (paddr % L1D_LINE_SIZE));
     for (unsigned i = 0; i < Nelems; i++)
@@ -3799,7 +3799,7 @@ void flwl_ps(freg dst, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base]);
     if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     femuld<VL,true>(dst, addr);
 }
@@ -3812,7 +3812,7 @@ void flwg_ps(freg dst, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base]);
     if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     femuld<VL,true>(dst, addr);
 }
@@ -3842,7 +3842,7 @@ void fswl_ps(freg src, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base]);
     if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     femust<VL,true>(src, addr);
 }
@@ -3855,7 +3855,7 @@ void fswg_ps(freg src, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base]);
     if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     femust<VL,true>(src, addr);
 }
