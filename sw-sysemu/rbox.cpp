@@ -854,10 +854,14 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
             quad[1].x = 0;
             quad[1].y = 0;
             quad[1].triangle_data_ptr = 0;
-            quad[1].fragment[0].coverage = false;
-            quad[1].fragment[1].coverage = false;
-            quad[1].fragment[2].coverage = false;
-            quad[1].fragment[3].coverage = false;
+
+            for (uint32_t f = 0; f < 4; f++)
+            {
+                quad[1].fragment[f].coverage = false;
+                for (uint32_t e = 0; e < 3; e++)
+                    quad[1].fragment[f].sample.edge[e] = 0;
+                quad[1].fragment[f].sample.depth.u = 0;
+            }
 
             output_quads.erase(output_quads.begin());
         }
@@ -923,14 +927,14 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
                 OutPcktQuadDataT quad_data_pckt;
                 
                 for (uint32_t f = 0; f < (4 * 2); f++)
-                    quad_data_pckt.ps[f] = convert_edge_to_fp32(quad[f / 4].fragment[f % 4].sample.edge[1]);
+                    quad_data_pckt.ps[f] = convert_edge_to_fp32(quad[f / 4].fragment[f % 4].sample.edge[0]);
                 
                 minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
 
                 send_packet(target_minion_hart, quad_data_pckt.qw, minion_hart_out_addr, step_mode);
 
                 for (uint32_t f = 0; f < (4 * 2); f++)
-                    quad_data_pckt.ps[f] = convert_edge_to_fp32(quad[f / 4].fragment[f % 4].sample.edge[2]);
+                    quad_data_pckt.ps[f] = convert_edge_to_fp32(quad[f / 4].fragment[f % 4].sample.edge[1]);
                 
                 minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
 
@@ -942,8 +946,7 @@ bool RBOX::RBOXEmu::send_quad_packet(bool step_mode)
                 OutPcktQuadDataT quad_data_pckt;
                 
                 for (uint32_t f = 0; f < (4 * 2); f++)
-                    //quad_data_pckt.ps[f] = convert_depth_to_fp32(quad[f / 4].fragment[f % 4].sample.depth);
-                    quad_data_pckt.ps[f] = quad[f / 4].fragment[f % 4].sample.depth.u;
+                    quad_data_pckt.ps[f] = quad[f / 4].fragment[f % 4].sample.depth.f;
                 
                 minion_hart_out_addr = compute_minion_hart_out_addr(target_minion_hart);
 
@@ -1035,7 +1038,7 @@ bool RBOX::RBOXEmu::send_end_of_phase_packet(uint32_t target_minion_hart, bool s
 
 float RBOX::RBOXEmu::convert_edge_to_fp32(int64_t edge)
 {
-    uint8_t sign = edge & EDGE_EQ_SAMPLE_SIGN_MASK;
+    bool sign = ((edge & EDGE_EQ_SAMPLE_SIGN_MASK) != 0);
     uint64_t edge_abs = sign ? -edge : edge;
     float edge_abs_fp32 = float(edge_abs) / float(1 << EDGE_EQ_SAMPLE_FRAC_BITS);
     return (sign ? -edge_abs_fp32 : edge_abs_fp32);
