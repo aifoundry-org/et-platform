@@ -2,6 +2,8 @@
 #ifndef BEMU_DECODE_H
 #define BEMU_DECODE_H
 
+#include "profiling.h"
+
 // -----------------------------------------------------------------------------
 // Convenience macros to simplify instruction emulation sequences
 // -----------------------------------------------------------------------------
@@ -83,8 +85,11 @@
 
 // Write destination registers
 
-#define WRITE_PC(expr) \
-    log_pc_update(sextVA(expr))
+#define WRITE_PC(expr) do { \
+    uint64_t pc = sextVA(expr); \
+    PROFILING_WRITE_PC(current_thread, pc); \
+    log_pc_update(pc); \
+} while (0)
 
 #define WRITE_RD(expr) do { \
     if (rd != x0) { \
