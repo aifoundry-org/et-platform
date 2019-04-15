@@ -1125,7 +1125,7 @@ static uint16_t vmemread16(uint64_t addr)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 2))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread16(paddr);
 }
@@ -1139,7 +1139,7 @@ static uint16_t aligned_vmemread16(uint64_t addr)
     }
     if (!access_is_size_aligned(addr, 2))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread16(paddr);
 }
@@ -1153,7 +1153,7 @@ static uint32_t vmemread32(uint64_t addr)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread32(paddr);
 }
@@ -1167,7 +1167,7 @@ static uint32_t aligned_vmemread32(uint64_t addr)
     }
     if (!access_is_size_aligned(addr, 4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread32(paddr);
 }
@@ -1181,7 +1181,7 @@ static uint64_t vmemread64(uint64_t addr)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 8))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     return pmemread64(paddr);
 }
@@ -1205,7 +1205,7 @@ static void vmemwrite16(uint64_t addr, uint16_t data)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 2))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     pmemwrite16(paddr, data);
 }
@@ -1214,7 +1214,7 @@ static void aligned_vmemwrite16(uint64_t addr, uint16_t data)
 {
     if (!access_is_size_aligned(addr, 2))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
     if (!pma_check_data_access(paddr, 2, Mem_Access_Store))
@@ -1233,7 +1233,7 @@ static void vmemwrite32(uint64_t addr, uint32_t data)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 4))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     pmemwrite32(paddr, data);
 }
@@ -1242,7 +1242,7 @@ static void aligned_vmemwrite32(uint64_t addr, uint32_t data)
 {
     if (!access_is_size_aligned(addr, 4))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     uint64_t paddr = vmemtranslate(addr, Mem_Access_Store);
     if (!pma_check_data_access(paddr, 4, Mem_Access_Store))
@@ -1261,7 +1261,7 @@ static void vmemwrite64(uint64_t addr, uint64_t data)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(addr, 8))
     {
-        throw trap_store_address_misaligned(addr);
+        throw trap_store_access_fault(addr);
     }
     pmemwrite64(paddr, data);
 }
@@ -3373,7 +3373,7 @@ static void femuld(freg dst, uint64_t vaddr)
         }
         if (!access_is_cacheable(paddr) && !access_is_size_aligned(vaddr, 4*Nelems))
         {
-            throw trap_load_address_misaligned(vaddr);
+            throw trap_load_access_fault(vaddr);
         }
         uint64_t next_line = paddr & (L1D_LINE_SIZE - (paddr % L1D_LINE_SIZE));
         for (unsigned i = 0; i < Nelems; i++)
@@ -3412,7 +3412,7 @@ static void femust(freg src1, uint64_t vaddr)
     }
     if (!access_is_cacheable(paddr) && !access_is_size_aligned(vaddr, 4*Nelems))
     {
-        throw trap_store_address_misaligned(vaddr);
+        throw trap_store_access_fault(vaddr);
     }
     uint64_t next_line = paddr & (L1D_LINE_SIZE - (paddr % L1D_LINE_SIZE));
     for (unsigned i = 0; i < Nelems; i++)
@@ -3801,7 +3801,7 @@ void flwl_ps(freg dst, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base]);
     if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     femuld<VL,true>(dst, addr);
 }
@@ -3814,7 +3814,7 @@ void flwg_ps(freg dst, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base]);
     if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     femuld<VL,true>(dst, addr);
 }
@@ -3844,7 +3844,7 @@ void fswl_ps(freg src, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base]);
     if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     femust<VL,true>(src, addr);
 }
@@ -3857,7 +3857,7 @@ void fswg_ps(freg src, xreg base, const char* comm)
     uint64_t addr = sextVA(XREGS[base]);
     if (MREGS[0].any() && !access_is_size_aligned(addr, VL*4))
     {
-        throw trap_load_address_misaligned(addr);
+        throw trap_load_access_fault(addr);
     }
     femust<VL,true>(src, addr);
 }
@@ -4780,8 +4780,8 @@ static inline float32_t fsin_vs_gold(float32_t x)
     float32_t gldval = gld::f32_sin2pi(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FSIN with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FSIN mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4792,8 +4792,8 @@ static inline float32_t fexp_vs_gold(float32_t x)
     float32_t gldval = gld::f32_exp2(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FEXP with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FEXP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4804,8 +4804,8 @@ static inline float32_t flog_vs_gold(float32_t x)
     float32_t gldval = gld::f32_log2(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FLOG with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FLOG mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4816,8 +4816,8 @@ static inline float32_t frcp_vs_gold(float32_t x)
     float32_t gldval = gld::f32_rcp(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FRCP with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FRCP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4828,8 +4828,8 @@ static inline float32_t frsq_vs_gold(float32_t x)
     float32_t gldval = gld::f32_rsqrt(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FRSQ with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FRSQ mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4840,8 +4840,8 @@ static inline int32_t frcp_fix_rast_vs_gold(int32_t x, int32_t y)
     int32_t gldval = gld::fxp1714_rcpStep(x, y);
     if (abs(fpuval - gldval) > 1)
     {
-        LOG(DEBUG, "FRCP_FIX_RAST TRANS\tIN: 0x%08x,0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x, y, fpuval, gldval);
-        LOG(WARN, "Trans mismatch error for operation FRCP_FIX_RAST with input: 0x%08x,0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x, y);
+        LOG(WARN, "FRCP_FIX_RAST mismatch with input: 0x%08x,0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x, y, gldval, fpuval);
     }
     return fpuval;
 }
