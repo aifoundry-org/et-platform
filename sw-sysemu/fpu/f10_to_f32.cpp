@@ -55,7 +55,7 @@ float32_t f10_to_f32(float10_t a)
         return uZ.f;
     }
     if (!infinite)
-        mantissa = (mantissa << 17);
+        mantissa = (mantissa << 18);
 
     //  Check for denormalized float16 values.
     if (denorm)
