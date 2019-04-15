@@ -60,6 +60,10 @@ static: sys_emu
 debug: CPPFLAGS += -DSYSEMU_DEBUG
 debug: sys_emu
 
+.PHONY: profiling
+profiling: CPPFLAGS += -DBEMU_PROFILING -DSYSEMU_PROFILING
+profiling: sys_emu
+
 .PHONY: clean
 clean:
 	$(MAKE) -C ../../build BEMU_BUILD_DIR=$(BEMU_BUILD_DIR) clean_libfpu

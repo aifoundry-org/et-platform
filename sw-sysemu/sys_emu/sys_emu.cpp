@@ -14,6 +14,7 @@
 #include "insn.h"
 #include "common/main_memory.h"
 #include "log.h"
+#include "profiling.h"
 #include "net_emulator.h"
 #include "api_communicate.h"
 
@@ -166,8 +167,12 @@ static const char * help_msg =
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
  -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
  -mins_dis    Minions start disabled\n\
- -dump_mem    Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n\
-";
+ -dump_mem    Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n"
+#ifdef SYSEMU_PROFILING
+"\
+ -dump_prof   Path to the file in which to dump the profiling content at the end of the simulation\n"
+#endif
+;
 
 
 static uint64_t minions_en = 1;
@@ -616,6 +621,13 @@ parse_command_line_arguments(int argc, char* argv[])
             cmd_options.dump_mem = argv[i];
             cmd_options.dump = 0;
         }
+#ifdef SYSEMU_PROFILING
+        else if(cmd_options.dump_prof == 1)
+        {
+            cmd_options.dump_prof_file = argv[i];
+            cmd_options.dump_prof = 0;
+        }
+#endif
         else if(strcmp(argv[i], "-max_cycles") == 0)
         {
             cmd_options.max_cycle = true;
@@ -664,6 +676,12 @@ parse_command_line_arguments(int argc, char* argv[])
         {
             cmd_options.dump = 3;
         }
+#ifdef SYSEMU_PROFILING
+        else if(strcmp(argv[i], "-dump_prof") == 0)
+        {
+            cmd_options.dump_prof = 1;
+        }
+#endif
         else if(strcmp(argv[i], "-lm") == 0)
         {
             cmd_options.dump = 4;
@@ -853,6 +871,10 @@ sys_emu::main_internal(int argc, char * argv[])
 
     init_simulator(cmd_options);
 
+#ifdef SYSEMU_PROFILING
+    profiling_init();
+#endif
+
     LOG_NOTHREAD(INFO, "%s", "Starting emulation");
 
     // While there are active threads or the network emulator is still not done
@@ -917,7 +939,7 @@ sys_emu::main_internal(int argc, char * argv[])
                 bool reduce_wait = false;
                 if(inst.is_reduce())
                 {
-                    uint64_t other_min, action;
+                    unsigned other_min, action;
                     // Gets the source used for the reduce
                     uint64_t value = xget(inst.rs1());
                     tensor_reduce_decode(value, &other_min, &action);
@@ -940,7 +962,7 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                         else
                         {
-                            LOG(FTL, "Reduce error: Found pairing receiver minion: %" PRIu64 " in Reduce_Ready_To_Send!!", other_min);
+                            LOG(FTL, "Reduce error: Found pairing receiver minion: %u in Reduce_Ready_To_Send!!", other_min);
                         }
                     }
                     // Receiver
@@ -959,7 +981,7 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                         else
                         {
-                            LOG(FTL, "Reduce error: Found pairing sender minion: %" PRIu64 " in Reduce_Data_Consumed!!", other_min);
+                            LOG(FTL, "Reduce error: Found pairing sender minion: %u in Reduce_Data_Consumed!!", other_min);
                         }
                     }
                 }
@@ -1109,6 +1131,12 @@ sys_emu::main_internal(int argc, char * argv[])
 
     if(cmd_options.dump_mem)
         memory->dump_file(cmd_options.dump_mem);
+
+#ifdef SYSEMU_PROFILING
+    if (cmd_options.dump_prof_file != NULL)
+        profiling_dump(cmd_options.dump_prof_file);
+    profiling_fini();
+#endif
 
     return 0;
 }

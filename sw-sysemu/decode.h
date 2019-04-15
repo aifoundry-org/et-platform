@@ -2,6 +2,8 @@
 #ifndef BEMU_DECODE_H
 #define BEMU_DECODE_H
 
+#include "profiling.h"
+
 // -----------------------------------------------------------------------------
 // Convenience macros to simplify instruction emulation sequences
 // -----------------------------------------------------------------------------
@@ -36,6 +38,16 @@
         (col)+2, SCP[row].u32[(col)+2], (col)+3, SCP[row].u32[(col)+3], \
         (col)+4, SCP[row].u32[(col)+4], (col)+5, SCP[row].u32[(col)+5], \
         (col)+6, SCP[row].u32[(col)+6], (col)+7, SCP[row].u32[(col)+7])
+
+#define LOG_FREG_OTHER(other_thread, str, n) \
+    LOG(DEBUG, "\tf%d " str " {" \
+        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
+        " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
+        " }", n, \
+        fregs[other_thread][n].u32[0], fregs[other_thread][n].u32[1], \
+        fregs[other_thread][n].u32[2], fregs[other_thread][n].u32[3], \
+        fregs[other_thread][n].u32[4], fregs[other_thread][n].u32[5], \
+        fregs[other_thread][n].u32[6], fregs[other_thread][n].u32[7])
 
 
 // Access instruction fields and program state
@@ -73,8 +85,11 @@
 
 // Write destination registers
 
-#define WRITE_PC(expr) \
-    log_pc_update(sextVA(expr))
+#define WRITE_PC(expr) do { \
+    uint64_t pc = sextVA(expr); \
+    PROFILING_WRITE_PC(current_thread, pc); \
+    log_pc_update(pc); \
+} while (0)
 
 #define WRITE_RD(expr) do { \
     if (rd != x0) { \
