@@ -39,6 +39,10 @@ struct sys_emu_cmd_options {
     bool create_mem_at_runtime = false;
     int  log_min         = -1;
     char * dump_file     = nullptr;
+#ifdef SYSEMU_PROFILING
+    char * dump_prof_file = nullptr;
+    int dump_prof        = 0;
+#endif
     int dump             = 0;
     uint64_t dump_addr   = 0;
     uint64_t dump_size   = 0;
