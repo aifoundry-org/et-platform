@@ -4778,8 +4778,8 @@ static inline float32_t fsin_vs_gold(float32_t x)
     float32_t gldval = gld::f32_sin2pi(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "SIN TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FSIN with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FSIN mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4790,8 +4790,8 @@ static inline float32_t fexp_vs_gold(float32_t x)
     float32_t gldval = gld::f32_exp2(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "EXP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FEXP with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FEXP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4802,8 +4802,8 @@ static inline float32_t flog_vs_gold(float32_t x)
     float32_t gldval = gld::f32_log2(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "LOG TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FLOG with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FLOG mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4814,8 +4814,8 @@ static inline float32_t frcp_vs_gold(float32_t x)
     float32_t gldval = gld::f32_rcp(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "RCP TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FRCP with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FRCP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4826,8 +4826,8 @@ static inline float32_t frsq_vs_gold(float32_t x)
     float32_t gldval = gld::f32_rsqrt(x);
     if (security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(DEBUG, "RSQ TRANS\tIN: 0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x.v, fpuval.v, gldval.v);
-        LOG(WARN, "Trans mismatch error for operation FRSQ with input: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x.v);
+        LOG(WARN, "FRSQ mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x.v, gldval.v, fpuval.v);
     }
     return fpuval;
 }
@@ -4838,8 +4838,8 @@ static inline int32_t frcp_fix_rast_vs_gold(int32_t x, int32_t y)
     int32_t gldval = gld::fxp1714_rcpStep(x, y);
     if (abs(fpuval - gldval) > 1)
     {
-        LOG(DEBUG, "FRCP_FIX_RAST TRANS\tIN: 0x%08x,0x%08x\tOUT: 0x%08x\tEXPECTED: 0x%08x", x, y, fpuval, gldval);
-        LOG(WARN, "Trans mismatch error for operation FRCP_FIX_RAST with input: 0x%08x,0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.", x, y);
+        LOG(WARN, "FRCP_FIX_RAST mismatch with input: 0x%08x,0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
+            x, y, gldval, fpuval);
     }
     return fpuval;
 }
