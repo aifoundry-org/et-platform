@@ -7281,8 +7281,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
 static void tensorreduce(uint64_t value)
 {
-    uint64_t other_min;
-    uint64_t action;
+    unsigned other_min, action;
 
     if (!txfma_off_allowed(CSR_TENSOR_REDUCE, value))
         throw trap_txfma_off(current_inst);
@@ -7297,7 +7296,7 @@ static void tensorreduce(uint64_t value)
 
     //op = rs[35:32]
     int      start_reg = (value >> 57) & 0x1F;
-    uint32_t operation = (value >> 24) & 0xF;
+    uint8_t  operation = (value >> 24) & 0xF;
     int      num_reg   = (value >> 16) & 0xFF;
 
     // Sending and receiving from the same minion
@@ -7310,65 +7309,158 @@ static void tensorreduce(uint64_t value)
     // Info for checker
     log_tensor_reduce(start_reg, num_reg);
 
-    if (operation == 0) // FADD
+    switch (operation)
     {
-        set_rounding_mode(frm());
-        LOG(DEBUG, "\tReduce (fadd) with rounding mode: %s", get_rounding_mode(frm()));
+        case 0x0: // fadd
+            set_rounding_mode(frm());
+            LOG(DEBUG, "\tReduce op: fadd, other_minion: %u, rounding_mode: %s", other_min, get_rounding_mode(frm()));
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG("(this) :", op_reg);
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                for (unsigned j = 0; j < VL; j++)
+                {
+                    FREGS[op_reg].f32[j] = fpu::f32_add(FREGS[op_reg].f32[j], fregs[other_min<<1][op_reg].f32[j]);
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                }
+                LOG_FREG("(this) =", op_reg);
+            }
+            set_fp_exceptions();
+            break;
+        case 0x1: // fsub
+            set_rounding_mode(frm());
+            LOG(DEBUG, "\tReduce op: fsub, other_minion: %u, rounding_mode: %s", other_min, get_rounding_mode(frm()));
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG("(this) :", op_reg);
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                for (unsigned j = 0; j < VL; j++)
+                {
+                    FREGS[op_reg].f32[j] = fpu::f32_sub(FREGS[op_reg].f32[j], fregs[other_min<<1][op_reg].f32[j]);
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                }
+                LOG_FREG("(this) =", op_reg);
+            }
+            set_fp_exceptions();
+            break;
+        case 0x2: // fmax
+            LOG(DEBUG, "\tReduce op: fmax, other_minion: %u", other_min);
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG("(this) :", op_reg);
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                for (unsigned j = 0; j < VL; j++)
+                {
+                    FREGS[op_reg].f32[j] = fpu::f32_maximumNumber(FREGS[op_reg].f32[j], fregs[other_min<<1][op_reg].f32[j]);
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                }
+                LOG_FREG("(this) =", op_reg);
+            }
+            set_fp_exceptions();
+            break;
+        case 0x3: // fmin
+            LOG(DEBUG, "\tReduce op: fmax, other_minion: %u", other_min);
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG("(this) :", op_reg);
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                for (unsigned j = 0; j < VL; j++)
+                {
+                    FREGS[op_reg].f32[j] = fpu::f32_minimumNumber(FREGS[op_reg].f32[j], fregs[other_min<<1][op_reg].f32[j]);
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                }
+                LOG_FREG("(this) =", op_reg);
+            }
+            set_fp_exceptions();
+            break;
+        case 0x4: // iadd
+            LOG(DEBUG, "\tReduce op: iadd, other_minion: %u", other_min);
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG("(this) :", op_reg);
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                for (unsigned j = 0; j < VL; j++)
+                {
+                    FREGS[op_reg].u32[j] = FREGS[op_reg].u32[j] + fregs[other_min<<1][op_reg].u32[j];
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                }
+                LOG_FREG("(this) =", op_reg);
+            }
+            break;
+        case 0x5: // isub
+            LOG(DEBUG, "\tReduce op: isub, other_minion: %u", other_min);
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG("(this) :", op_reg);
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                for (unsigned j = 0; j < VL; j++)
+                {
+                    FREGS[op_reg].u32[j] = FREGS[op_reg].u32[j] - fregs[other_min<<1][op_reg].u32[j];
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                }
+                LOG_FREG("(this) =", op_reg);
+            }
+            break;
+        case 0x6: // imax
+            LOG(DEBUG, "\tReduce op: imax, other_minion: %u", other_min);
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG("(this) :", op_reg);
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                for (unsigned j = 0; j < VL; j++)
+                {
+                    FREGS[op_reg].i32[j] = std::max(FREGS[op_reg].i32[j], fregs[other_min<<1][op_reg].i32[j]);
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                }
+                LOG_FREG("(this) =", op_reg);
+            }
+            break;
+        case 0x7: // imin
+            LOG(DEBUG, "\tReduce op: imin, other_minion: %u", other_min);
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG("(this) :", op_reg);
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                for (unsigned j = 0; j < VL; j++)
+                {
+                    FREGS[op_reg].i32[j] = std::min(FREGS[op_reg].i32[j], fregs[other_min<<1][op_reg].i32[j]);
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                }
+                LOG_FREG("(this) =", op_reg);
+            }
+            break;
+        case 0x8: // fget
+            LOG(DEBUG, "\tReduce op: fget, other_minion: %u", other_min);
+            for (int i = 0; i < num_reg; i++)
+            {
+                int op_reg = (i + start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                FREGS[op_reg] = fregs[other_min<<1][op_reg];
+                for (unsigned j = 0; j < VL; j++)
+                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                LOG_FREG("(this) =", op_reg);
+            }
+            break;
+        default:
+            throw std::runtime_error("TensorReduce with illegal operation code!");
+            break;
     }
-    for (int i = 0; i < num_reg; i++)
-    {
-        for (unsigned j = 0; j < VL; j++)
-        {
-            int op_reg = (i + start_reg) % 32;
-            if (operation == 0) // FADD
-            {
-                iufval32 src1, src2, rslt;
-                src1.u = FREGS[op_reg].u32[j];
-                src2.u = fregs[other_min<<1][op_reg].u32[j];
-                rslt.f = fpu::f32_add(src1.f, src2.f);
-                FREGS[op_reg].u32[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fadd) f%d[%u]: 0x%08x = 0x%08x + 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
-            }
-            else if (operation == 2) // FMAX
-            {
-                iufval32 src1, src2, rslt;
-                src1.u = FREGS[op_reg].u32[j];
-                src2.u = fregs[other_min<<1][op_reg].u32[j];
-                rslt.f = fpu::f32_maximumNumber(src1.f,src2.f);
-                FREGS[op_reg].u32[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (fmax) f%d[%u]: 0x%08x = 0x%08x > 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
-            }
-            else if (operation == 4) // IADD
-            {
-                iufval32 src1, src2, rslt;
-                src1.u = FREGS[op_reg].u32[j];
-                src2.u = fregs[other_min<<1][op_reg].u32[j];
-                rslt.u = src1.u + src2.u;
-                FREGS[op_reg].u32[j] = rslt.u;
-                LOG(DEBUG, "\tReduce (iadd) f%d[%u]: 0x%08x = 0x%08x + 0x%08x (m%" PRId64 ")",op_reg,j,rslt.u,src1.u,src2.u,other_min);
-            }
-            else if (operation == 8) // FGET
-            {
-                iufval32 tmp;
-                tmp.u = fregs[other_min<<1][op_reg].u32[j];
-                FREGS[op_reg].u32[j] = tmp.u;
-                LOG(DEBUG, "\tReduce (get) f%d[%u]: <= 0x%08x (m%" PRId64 ")",op_reg,j,tmp.u,other_min);
-            }
-            else
-            {
-                LOG(ERR, "Reduce/broadcast operation = %d not yet supported in emu", operation);
-            }
-            log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
-        }
-    }
-    set_fp_exceptions();
-    dirty_fp_state();
+    if (num_reg)
+        dirty_fp_state();
 }
 
 // Helper function that given the written value to the CSR, returns:
 //   - what is the ID of the other minion of the reduce
 //   - what is the action taken by the minion (send, receive, do nothing)
-void tensor_reduce_decode(uint64_t value, uint64_t* other_min, uint64_t* action)
+void tensor_reduce_decode(uint64_t value, unsigned* other_min, unsigned* action)
 {
     uint64_t level = (value >> 3) & 0xF;
     uint64_t type  = value & 3;

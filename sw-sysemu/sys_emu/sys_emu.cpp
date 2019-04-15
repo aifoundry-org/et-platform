@@ -917,7 +917,7 @@ sys_emu::main_internal(int argc, char * argv[])
                 bool reduce_wait = false;
                 if(inst.is_reduce())
                 {
-                    uint64_t other_min, action;
+                    unsigned other_min, action;
                     // Gets the source used for the reduce
                     uint64_t value = xget(inst.rs1());
                     tensor_reduce_decode(value, &other_min, &action);
@@ -940,7 +940,7 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                         else
                         {
-                            LOG(FTL, "Reduce error: Found pairing receiver minion: %" PRIu64 " in Reduce_Ready_To_Send!!", other_min);
+                            LOG(FTL, "Reduce error: Found pairing receiver minion: %u in Reduce_Ready_To_Send!!", other_min);
                         }
                     }
                     // Receiver
@@ -959,7 +959,7 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                         else
                         {
-                            LOG(FTL, "Reduce error: Found pairing sender minion: %" PRIu64 " in Reduce_Data_Consumed!!", other_min);
+                            LOG(FTL, "Reduce error: Found pairing sender minion: %u in Reduce_Data_Consumed!!", other_min);
                         }
                     }
                 }
