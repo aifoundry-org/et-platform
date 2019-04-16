@@ -17,9 +17,7 @@ set(SOURCES
     src/main.c
     src/stubs.c
     ${SHARED_SRC_DIR}/serial.c
-    ${SHARED_SRC_DIR}/backtrace.c
-    ${SHARED_SRC_DIR}/trap_handler.c
-    ${SHARED_SRC_DIR}/trap_handler.S)
+    ${SHARED_SRC_DIR}/backtrace.c)
 
 set(TARGET_NAME ServiceProcessor)
 set(LINKER_SCRIPT src/sections.ld)
