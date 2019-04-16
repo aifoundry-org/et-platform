@@ -1,28 +1,33 @@
 #include "master.h"
 #include "shire.h"
-#include "worker.h"
+
+#include <stdint.h>
 
 // Select PU peripherals for initial master minion use
 #define PU_PLIC_BASE_ADDRESS  0x0010000000ULL
 #define PU_TIMER_BASE_ADDRESS 0x0012005000ULL
 
-int main(void)
+void __attribute__((noreturn)) main(void)
 {
-    // Setup trap handler
-    asm volatile ("la t0, trap_handler\n"
-	              "csrw mtvec, t0" : : : "t0");
+    uint64_t temp;
 
-    // enable shadow registers for hartid and sleep txfma
-    asm volatile ("csrwi menable_shadows, 0x3");
+    *(volatile uint64_t*)(0x12002010) = 0;
 
-    if (get_shire_id() == 32)
-    {
-        MASTER_thread();
-    }
-    else
-    {
-        WORKER_thread();
-    }
+    // Configure supervisor trap vector and sscratch (supervisor stack pointer)
+    asm volatile (
+        "la    %0, trap_handler \n"
+        "csrw  stvec, %0        \n" // supervisor trap vector
+        "csrw  sscratch, sp     \n" // initial saved stack pointer
+        : "=&r" (temp)
+    );
 
-    return 0;
+    // Enable supervisor external and software interrupts
+    asm volatile (
+        "li    %0, 0x202    \n"
+        "csrs  sie, %0      \n" // Enable supervisor external and software interrupts
+        "csrsi sstatus, 0x2 \n" // Enable interrupts
+        : "=&r" (temp)
+    );
+
+    MASTER_thread();
 }

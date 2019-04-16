@@ -26,11 +26,13 @@ get_filename_component(FREERTOS_PORT_INC_DIR "${FREERTOS_DIR}/Source/portable/GC
 get_filename_component(FREERTOS_CHIP_SPECIFIC_INC_DIR "${FREERTOS_DIR}/Source/portable/GCC/RISC-V/chip_specific_extensions/etsoc_RV64IMF" ABSOLUTE)
 set(FREERTOS_INC_DIRS ${FREERTOS_INC_DIR} ${FREERTOS_PORT_INC_DIR} ${FREERTOS_CHIP_SPECIFIC_INC_DIR})
 
+add_subdirectory("MachineMinion")
 add_subdirectory("MasterMinion")
-add_subdirectory("ServiceProcessor")
+add_subdirectory("WorkerMinion")
+
 if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ServiceProcessorROM")
     add_subdirectory("ServiceProcessorROM")
 endif()
 
 add_subdirectory("ServiceProcessorBL1")
-
+add_subdirectory("ServiceProcessor")

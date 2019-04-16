@@ -8,30 +8,18 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-# Add the device_api submodule as an external project. The code-generator code needs to always
-# compile for the host. CMake does not support having different targets use
-# different toolchains in the same build. For simplicity submodules that are self
-# contained build as external projects, otherwise a two-step process would be needded.
-include(ExternalProject)
-
-#ExternalProject_Add(device-api
-#    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/device_api
-#    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/device_api
-#    CMAKE_ARGS parse-device-api)
-
 set(SOURCES
-    src/crt.S
+    ${SHARED_SRC_DIR}/boot.S
     src/trap_handler.S
+    src/crt.S
     src/syscall.c
-    src/interrupt.c
     src/swi.c
     src/exception.c
     src/main.c
     ${SHARED_SRC_DIR}/serial.c
-    src/master.c
     )
 
-set(TARGET_NAME MasterMinion)
+set(TARGET_NAME MachineMinion)
 set(LINKER_SCRIPT src/sections.ld)
 set(ZEBU_TARGET DDR)
 set(ZEBU_FILENAME memImage)

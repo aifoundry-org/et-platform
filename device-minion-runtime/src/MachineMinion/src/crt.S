@@ -2,7 +2,7 @@
 .extern __bss_end
 
 #ifndef STACK_BASE
-#define STACK_BASE 0x81003FFE00
+#define STACK_BASE 0x80001FFE00
 #endif
 
 #ifndef STACK_OFFSET
@@ -14,7 +14,7 @@
 
 _start:
     # set the stack pointer, different for each thread
-    csrr  a0, hartid
+    csrr  a0, mhartid
     slli  a0, a0, STACK_OFFSET
     li    sp, STACK_BASE
     sub   sp, sp, a0

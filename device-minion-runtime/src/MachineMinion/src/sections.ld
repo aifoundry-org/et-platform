@@ -9,14 +9,12 @@
 *-------------------------------------------------------------------------
 */
 
-ENTRY(_start)
+ENTRY(_boot)
 
 SECTIONS
 {
-    /* TODO FIXME can't fetch instructions from L3_DRAM see RTLMIN-3674
-        Working around this for now by placing all code in L3_Linux region starting at 0x8000200000 */
-    /*. = 0x8100000000; */ /* R_L3_DRAM */
-    . = 0x8000200000; /* R_Linux */
+    /* Starting at ESR_NEIGH_MINION_BOOT_RESET_VAL for now */
+    . = 0x8000001000;
 
     .text :
     {
@@ -94,7 +92,4 @@ SECTIONS
         KEEP(*(stack stack.*))
         __stack_base = .;
     }
-
-    __heap_start = .;
-    __heap_end = . + 1M;
 }

@@ -13,7 +13,7 @@ static inline unsigned int __attribute__((always_inline)) get_hart_id(void)
 {
     unsigned int ret;
 
-    __asm__ __volatile__ ("csrr %0, mhartid" : "=r" (ret) );
+    __asm__ __volatile__ ("csrr %0, hartid" : "=r" (ret) );
 
     return ret;
 }
