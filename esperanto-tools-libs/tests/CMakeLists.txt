@@ -18,6 +18,7 @@ link_directories(${GTEST_DIR}/lib64)
 
 add_compile_options(-g3 -std=c++11 -O0)
 set(COMMON_TEST_LIBRARIES
+  etrt
   libgtest_main.a
   libgtest.a
   pthread)

@@ -77,6 +77,11 @@ set(ETRT_SOURCES
     Core/et_stream.cc
     Core/et_event.cc
     Core/registry.cc
+    Device/DeviceTarget.cc
+    Device/PCIeDevice.cc
+    Device/TargetCardProxy.cc
+    Device/TargetRPC.cc
+    Device/TargetSysEmu.cc
     et_device.h
     et_stream.h
     et_event.h
@@ -92,8 +97,13 @@ set(ETRT_SOURCES
 add_library(etrt SHARED ${ETRT_SOURCES})
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
+target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Device")
 target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../include")
+
+MESSAGE("GLOG: " ${GLOG_INCLUDE_DIRS})
+
+target_include_directories(etrt PUBLIC ${GLOG_INCLUDE_DIRS})
 if (HOST_SW)
   target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/esperanto-soc-artifacts/artifacts/sdk-build/build")
 else()
@@ -104,6 +114,8 @@ target_link_libraries(etrt pthread)
 target_link_libraries(etrt etrpc)
 add_dependencies(etrt kernels-elf-file)
 add_dependencies(etrt bootrom-file)
+add_dependencies(etrt glog)
+target_link_libraries(etrt ${GLOG_LIBRARIES})
 add_dependencies(etrt kernels-offsets)
 add_dependencies(etrt kernels-cdescr)
 add_dependencies(etrt bootrom-cdescr)
