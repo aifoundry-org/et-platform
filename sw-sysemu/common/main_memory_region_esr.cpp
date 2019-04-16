@@ -193,26 +193,26 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     break;
                 case ESR_SHIRE_FCC0:
                     LOG_ALL_MINIONS(DEBUG, "Write to FCC0 value %016" PRIx64, value);
-                    fcc_to_threads(esr_info.shire, 0, value, 0);
                     fcc_inc(0, esr_info.shire, value, 0);
+                    fcc_to_threads(esr_info.shire, 0, value, 0);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC1:
                     LOG_ALL_MINIONS(DEBUG, "Write to FCC1 value %016" PRIx64, value);
-                    fcc_to_threads(esr_info.shire, 0, value, 1);
                     fcc_inc(0, esr_info.shire, value, 1);
+                    fcc_to_threads(esr_info.shire, 0, value, 1);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC2:
                     LOG_ALL_MINIONS(DEBUG, "Write to FCC2 value %016" PRIx64, value);
-                    fcc_to_threads(esr_info.shire, 1, value, 0);
                     fcc_inc(1, esr_info.shire, value, 0);
+                    fcc_to_threads(esr_info.shire, 1, value, 0);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FCC3:
                     LOG_ALL_MINIONS(DEBUG, "Write to FCC2 value %016" PRIx64, value);
-                    fcc_to_threads(esr_info.shire, 1, value, 1);
                     fcc_inc(1, esr_info.shire, value, 1);
+                    fcc_to_threads(esr_info.shire, 1, value, 1);
                     write_data = false;
                     break;
                 case ESR_SHIRE_FLB0:
