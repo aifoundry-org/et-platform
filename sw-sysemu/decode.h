@@ -2,7 +2,12 @@
 #ifndef BEMU_DECODE_H
 #define BEMU_DECODE_H
 
+#ifdef BEMU_PROFILING
+// sys_emu's profiling
 #include "profiling.h"
+#else
+#define PROFILING_WRITE_PC(thread_id, pc) do {} while(0)
+#endif
 
 // -----------------------------------------------------------------------------
 // Convenience macros to simplify instruction emulation sequences

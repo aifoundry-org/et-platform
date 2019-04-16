@@ -29,6 +29,12 @@ sysemu_cpp_srcs := \
 	sys_emu/sys_emu_main.cpp \
 	sys_emu/sys_emu_log.cpp
 
+ifeq ($(PROFILING), 1)
+sysemu_hdrs     += sys_emu/profiling.h
+sysemu_cpp_srcs += sys_emu/profiling.cpp
+BASE_CPPFLAGS   += -DBEMU_PROFILING -DSYSEMU_PROFILING
+endif
+
 sysemu_SRCS := $(sysemu_cpp_srcs) \
 	       $(emu_cpp_srcs)
 
@@ -40,7 +46,7 @@ sysemu_DIRS := $(sort $(dir $(sysemu_OBJS)))
 
 CC       := gcc
 CXX      := g++
-CPPFLAGS := -I../.. -I.. -DSYS_EMU
+CPPFLAGS := -I../.. -I.. -DSYS_EMU $(BASE_CPPFLAGS)
 CXXFLAGS := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c++11
 CFLAGS   := -MMD -MP -Wall -Wextra -Wpedantic -Werror -fPIC -g -O2 -std=c11
 LDLIBS   := $(SYSEMU_REL_LIB_DIR)/libfpu.a -lm
@@ -59,10 +65,6 @@ static: sys_emu
 .PHONY: debug
 debug: CPPFLAGS += -DSYSEMU_DEBUG
 debug: sys_emu
-
-.PHONY: profiling
-profiling: CPPFLAGS += -DBEMU_PROFILING -DSYSEMU_PROFILING
-profiling: sys_emu
 
 .PHONY: clean
 clean:

@@ -7,7 +7,6 @@ emu_hdrs := \
 	gold.h \
 	insn.h \
 	insn_exec_func.h \
-	profiling.h \
 	rbox.h \
 	tbox_emu.h \
 	txs.h
@@ -18,7 +17,6 @@ emu_cpp_srcs := \
 	emu_gio.cpp \
 	gold.cpp \
 	insn_exec_func.cpp \
-	profiling.cpp \
 	tbox_emu.cpp \
 	txs.cpp \
 	rbox.cpp
