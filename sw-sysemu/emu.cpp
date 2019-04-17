@@ -158,6 +158,8 @@ static uint32_t csr_mvendorid[EMU_NUM_THREADS]; // could be hardcoded
 static uint64_t csr_marchid[EMU_NUM_THREADS]; // could be hardcoded
 static uint64_t csr_mimpid[EMU_NUM_THREADS]; // could be hardcoded
 static uint16_t csr_mhartid[EMU_NUM_THREADS];
+// PMU
+static uint64_t csr_mhpmevent[6][EMU_NUM_THREADS];
 
 // Esperanto CSR registers
 static uint64_t csr_minstmask[EMU_NUM_THREADS];
@@ -2253,29 +2255,12 @@ static uint64_t csrget(uint16_t src1)
     case CSR_HPMCOUNTER6:
     case CSR_HPMCOUNTER7:
     case CSR_HPMCOUNTER8:
-    case CSR_HPMCOUNTER9:
-    case CSR_HPMCOUNTER10:
-    case CSR_HPMCOUNTER11:
-    case CSR_HPMCOUNTER12:
-    case CSR_HPMCOUNTER13:
-    case CSR_HPMCOUNTER14:
-    case CSR_HPMCOUNTER15:
-    case CSR_HPMCOUNTER16:
-    case CSR_HPMCOUNTER17:
-    case CSR_HPMCOUNTER18:
-    case CSR_HPMCOUNTER19:
-    case CSR_HPMCOUNTER20:
-    case CSR_HPMCOUNTER21:
-    case CSR_HPMCOUNTER22:
-    case CSR_HPMCOUNTER23:
-    case CSR_HPMCOUNTER24:
-    case CSR_HPMCOUNTER25:
-    case CSR_HPMCOUNTER26:
-    case CSR_HPMCOUNTER27:
-    case CSR_HPMCOUNTER28:
-    case CSR_HPMCOUNTER29:
-    case CSR_HPMCOUNTER30:
-    case CSR_HPMCOUNTER31:
+    case CSR_MHPMCOUNTER3:
+    case CSR_MHPMCOUNTER4:
+    case CSR_MHPMCOUNTER5:
+    case CSR_MHPMCOUNTER6:
+    case CSR_MHPMCOUNTER7:
+    case CSR_MHPMCOUNTER8:
         check_counter_is_enabled(src1 - CSR_CYCLE);
         val = 0;
         break;
@@ -2444,6 +2429,14 @@ static uint64_t csrget(uint16_t src1)
         }
         val = csr_mhartid[current_thread];
         break;
+    case CSR_MHPMEVENT3:
+    case CSR_MHPMEVENT4:
+    case CSR_MHPMEVENT5:
+    case CSR_MHPMEVENT6:
+    case CSR_MHPMEVENT7:
+    case CSR_MHPMEVENT8:
+	val = csr_mhpmevent[src1 - CSR_MHPMEVENT3][current_thread];
+	break;
     // ----- All other registers -------------------------------------
     default:
         throw trap_illegal_instruction(current_inst);
@@ -2933,6 +2926,23 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_PORTHEADNB3:
     case CSR_HARTID:
         throw trap_illegal_instruction(current_inst);
+	
+    case CSR_MHPMEVENT3:
+    case CSR_MHPMEVENT4:
+    case CSR_MHPMEVENT5:
+    case CSR_MHPMEVENT6:
+    case CSR_MHPMEVENT7:
+    case CSR_MHPMEVENT8:
+	csr_mhpmevent[src1 - CSR_MHPMEVENT3][current_thread] = val;
+	break;
+    case CSR_MHPMCOUNTER3:
+    case CSR_MHPMCOUNTER4:
+    case CSR_MHPMCOUNTER5:
+    case CSR_MHPMCOUNTER6:
+    case CSR_MHPMCOUNTER7:
+    case CSR_MHPMCOUNTER8:
+	// Waived registers. The value is taken from the RTL
+	break;
     // ----- All other registers -------------------------------------
     default:
         throw trap_illegal_instruction(current_inst);
