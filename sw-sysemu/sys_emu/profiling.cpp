@@ -28,6 +28,18 @@ void profiling_fini(void)
         histogram[i].clear();
 }
 
+void profiling_flush()
+{
+    uint64_t event_time = sys_emu::get_emu_cycle();
+
+    for (int i = 0; i < EMU_NUM_THREADS; i++) {
+        if (last_event_time[i] != UINT64_MAX) {
+            uint64_t delta = event_time - last_event_time[i];
+            histogram[i][last_event_pc[i]].duration += delta;
+        }
+    }
+}
+
 void profiling_dump(const char *filename)
 {
     std::ofstream file(filename);

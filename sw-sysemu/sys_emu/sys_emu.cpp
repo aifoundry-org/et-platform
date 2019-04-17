@@ -1139,8 +1139,10 @@ sys_emu::main_internal(int argc, char * argv[])
         memory->dump_file(cmd_options.dump_mem);
 
 #ifdef SYSEMU_PROFILING
-    if (cmd_options.dump_prof_file != NULL)
+    if (cmd_options.dump_prof_file != NULL) {
+        profiling_flush();
         profiling_dump(cmd_options.dump_prof_file);
+    }
     profiling_fini();
 #endif
 

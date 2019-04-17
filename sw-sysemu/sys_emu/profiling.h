@@ -9,6 +9,7 @@
 
 void profiling_init();
 void profiling_fini();
+void profiling_flush();
 void profiling_dump(const char *filename);
 void profiling_write_pc(int thread_id, uint64_t pc);
 
