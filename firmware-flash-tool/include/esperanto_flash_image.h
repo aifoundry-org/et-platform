@@ -10,10 +10,11 @@ typedef enum ESPERANTO_FLASH_REGION_ID {
     ESPERANTO_FLASH_REGION_ID_INVALID = 0,
     ESPERANTO_FLASH_REGION_ID_PRIORITY_DESIGNATOR,
     ESPERANTO_FLASH_REGION_ID_BOOT_COUNTERS,
+    ESPERANTO_FLASH_REGION_ID_CONFIGURATION_DATA,
+    ESPERANTO_FLASH_REGION_ID_VAULTIP_FW,
     ESPERANTO_FLASH_REGION_ID_SP_CERTIFICATES,
     ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES,
     ESPERANTO_FLASH_REGION_ID_COMM_CERTIFICATES,
-    ESPERANTO_FLASH_REGION_ID_CONFIGURATION_DATA,
     ESPERANTO_FLASH_REGION_ID_SP_BL1,
     ESPERANTO_FLASH_REGION_ID_SP_BL2,
     ESPERANTO_FLASH_REGION_ID_DRAM_TRAINING,
@@ -45,7 +46,7 @@ static_assert(32 == sizeof(ESPERANTO_FLASH_PARTITION_HEADER_t), "sizeof(ESPERANT
 typedef struct ESPERANTO_REGION_INFO {
     ESPERANTO_FLASH_REGION_ID_t region_id;
     uint32_t region_offset;
-    uint32_t region_reserved_size;
+    uint32_t region_reserved_size;      // size of the region in FLASH_PAGE_SIZE blocks
     uint32_t region_info_checksum;
 } ESPERANATO_REGION_INFO_t;
 
@@ -58,7 +59,7 @@ static_assert(16 == sizeof(ESPERANATO_REGION_INFO_t), "sizeof(ESPERANATO_REGION_
 typedef struct ESPERANTO_FILE_INFO {
     uint32_t file_header_tag;
     uint32_t file_header_size;
-    uint32_t file_size;
+    uint32_t file_size;                 // size of the file in bytes
     uint32_t file_header_crc;
 } ESPERANATO_FILE_INFO_t;
 
