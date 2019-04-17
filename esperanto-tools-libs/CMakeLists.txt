@@ -12,6 +12,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(EsperantoRuntime VERSION 0.1.0 LANGUAGES CXX C)
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
 set(CMAKE_CXX_STANDARD 14)
 
 option(HOST_SW "Enable building for the host-sw repo")
@@ -30,6 +32,8 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "No build type selected, default to Debug")
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type." FORCE)
 endif()
+
+set(external_project_dependencies "" CACHE STRING "External project list")
 
 # Add rules for auto-generated headers.
 add_subdirectory(include)
@@ -106,7 +110,9 @@ set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
 ################################################################################
 
 add_subdirectory(docs)
+add_subdirectory(external)
 add_subdirectory(src)
 if (ENABLE_TESTS)
   add_subdirectory(tests)
+  add_subdirectory(tools)
 endif(ENABLE_TESTS)
