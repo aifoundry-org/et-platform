@@ -10,3 +10,6 @@
 [submodule "tools/sw-sysemu"]
 	path = tools/sw-sysemu
 	url = git@gitlab:software/sw-sysemu.git
+[submodule "src/ServiceProcessorROM"]
+	path = src/ServiceProcessorROM
+	url = git@gitlab:software/ServiceProcessorROM.git
