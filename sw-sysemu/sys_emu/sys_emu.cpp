@@ -411,6 +411,8 @@ bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
 void
 sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread_mask, unsigned cnt_dest)
 {
+    extern uint16_t fcc[EMU_NUM_THREADS][2];
+
     assert(thread_dest < 2);
     assert(cnt_dest < 2);
     for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
@@ -438,6 +440,7 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
                 LOG_OTHER(DEBUG, thread_id, "Waking up due to received FCC%u", thread_dest*2 + cnt_dest);
                 enabled_threads.push_back(thread_id);
                 fcc_wait_threads[cnt_dest].erase(thread);
+                --fcc[thread_id][cnt_dest];
             }
         }
     }
@@ -991,12 +994,45 @@ sys_emu::main_internal(int argc, char * argv[])
                 {
                     execute(inst);
 
-                    if (get_msg_port_stall(thread_id, 0) ){
+                    if (get_msg_port_stall(thread_id, 0))
+                    {
                         thread = enabled_threads.erase(thread);
                         port_wait_threads.push_back(thread_id);
                         if (thread == enabled_threads.end()) break;
                     }
-                    else {
+                    else
+                    {
+                        if (inst.is_fcc())
+                        {
+                            unsigned cnt = get_fcc_cnt();
+                            int old_thread = *thread;
+
+                            // Checks if there's a pending FCC and wakes up thread again
+                            if (pending_fcc[old_thread][cnt]==0)
+                            {
+                                LOG(DEBUG, "Going to sleep (FCC%u)", 2*(thread_id & 1) + cnt);
+                                thread = enabled_threads.erase(thread);
+                                fcc_wait_threads[cnt].push_back(thread_id);
+                            }
+                            else
+                            {
+                                pending_fcc[old_thread][cnt]--;
+                            }
+                        }
+                        else if (inst.is_wfi())
+                        {
+                            LOG(DEBUG, "%s", "Going to sleep (WFI)");
+                            thread = enabled_threads.erase(thread);
+                        }
+                        else if (inst.is_stall())
+                        {
+                            LOG(DEBUG, "%s", "Going to sleep (STALL)");
+                            thread = enabled_threads.erase(thread);
+                        }
+                        else
+                        {
+                            ++thread;
+                        }
                         // Updates PC
                         if(emu_state_change.pc_mod) {
                             current_pc[thread_id] = emu_state_change.pc;
@@ -1005,39 +1041,9 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                     }
                 }
-
-                // Thread is going to sleep
-                if(inst.is_fcc() && !reduce_wait)
-                {
-                    unsigned cnt = get_fcc_cnt();
-                    LOG(DEBUG, "Going to sleep (FCC%u)", 2*(thread_id & 1) + cnt);
-                    int old_thread = *thread;
-
-                    // Checks if there's a pending FCC and wakes up thread again
-                    if(pending_fcc[old_thread][cnt]==0)
-                    {
-                        thread = enabled_threads.erase(thread);
-                        fcc_wait_threads[cnt].push_back(thread_id);
-                    }
-                    else
-                    {
-                        LOG(DEBUG, "Waking up due to present FCC%u", 2*(old_thread & 1) + cnt);
-                        pending_fcc[old_thread][cnt]--;
-                    }
-                }
-                else if(inst.is_wfi() && !reduce_wait)
-                {
-                    LOG(DEBUG, "%s", "Going to sleep (WFI)");
-                    thread = enabled_threads.erase(thread);
-                }
-                else if(inst.is_stall() && !reduce_wait)
-                {
-                    LOG(DEBUG, "%s", "Going to sleep (STALL)");
-                    thread = enabled_threads.erase(thread);
-                }
                 else
                 {
-                    thread++;
+                    ++thread;
                 }
             }
             catch (const trap_t& t)
@@ -1133,8 +1139,10 @@ sys_emu::main_internal(int argc, char * argv[])
         memory->dump_file(cmd_options.dump_mem);
 
 #ifdef SYSEMU_PROFILING
-    if (cmd_options.dump_prof_file != NULL)
+    if (cmd_options.dump_prof_file != NULL) {
+        profiling_flush();
         profiling_dump(cmd_options.dump_prof_file);
+    }
     profiling_fini();
 #endif
 
