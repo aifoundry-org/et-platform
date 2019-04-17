@@ -6,13 +6,27 @@
 #include "../../firmware-tools/esperanto-flash-tool/include/esperanto_flash_image.h"
 
 typedef struct ESPERANTO_PARTITION_INFO_s {
+    // partition header loaded from flash
     ESPERANTO_FLASH_PARTITION_HEADER_t header;
+
+    // regions table loaded from flash
     ESPERANATO_REGION_INFO_t regions_table[ESPERANTO_MAX_REGIONS_COUNT];
-    uint32_t priority_designator_region_address;
+
+    // indexes of regions used by the SP ROM
+    uint32_t priority_designator_region_index;
+    uint32_t boot_counters_region_index;
+    uint32_t configuration_data_region_index;
+    uint32_t vaultip_fw_region_index;
+    uint32_t sp_certificates_region_index;
+    uint32_t sp_bl1_region_index;
+
+    // partition priority counter value read from the PRIORITY DESIGNATOR region
     uint32_t priority_counter;
-    uint32_t boot_counters_region_address;
+    // attempted and completed boot counters values read from the BOOT COUNTERS region
     uint32_t attempted_boot_counter;
     uint32_t completed_boot_counter;
+
+    bool partition_valid; // if true, no errors were encountered when scanning the partition
 } ESPERANTO_PARTITION_INFO_t;
 
 typedef struct FLASH_FS_ROM_INFO_s {
