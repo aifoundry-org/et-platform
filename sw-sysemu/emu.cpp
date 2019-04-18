@@ -685,7 +685,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     int code = (cause & 63);
     assert(curprv <= CSR_PRV_S);
 
-    LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64, cause);
+    LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
 
     // if checking against RTL, clear the correspoding MIP bit
     // it will be set to 1 again if the pending bit was not really cleared
@@ -753,7 +753,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
         csr_mip[current_thread] &= ~(1ull<<code);
     }
 
-    LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval %" PRIx64, cause, val);
+    LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
 
     // Take mie
     uint64_t mstatus = csr_mstatus[current_thread];
@@ -2474,7 +2474,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_SSTATUS:
         // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
-        val = (val & 0x00000000000C6133ULL) | (csr_mstatus[current_thread] & 0x0000000F00739800ULL);
+        val = (val & 0x00000000000C6133ULL) | (csr_mstatus[current_thread] & 0x0000000F00739888ULL);
         // Set sd if fs==3 or xs==3
         if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
         {
@@ -2723,7 +2723,7 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_TENSOR_COOP:
         if (current_thread % EMU_THREADS_PER_MINION)
             throw trap_illegal_instruction(current_inst);
-        val &= 0x0000000000FFFFFFULL;
+        val &= 0x0000000000FFFF0FULL;
         tcoop(val);
         break;
     case CSR_TENSOR_MASK:
@@ -6136,64 +6136,37 @@ static bool txfma_off_allowed(uint16_t src1, uint64_t val)
 
 // ----- TensorConvolution emulation -------------------------------------------
 
-// Returns if there something that needs to be processed or not based on current position and configuration
-static bool conv_skip_pass(int conv_row_pos, int conv_col_pos, int conv_row_size, int conv_col_size)
-{
-    LOG(DEBUG, "%s", "Doing Conv skip pass check for:");
-    LOG(DEBUG, "\tRow Pos:  %d", conv_row_pos);
-    LOG(DEBUG, "\tCol Pos:  %d", conv_col_pos);
-    LOG(DEBUG, "\tRow Size: %d", conv_row_size);
-    LOG(DEBUG, "\tCol Size: %d", conv_col_size);
-    // Negative position
-    bool skip = 0;
-    if (conv_col_pos < 0) skip = 1;
-    if (conv_row_pos < 0) skip = 1;
-    // Outside position
-    if (conv_col_pos >= int64_t(conv_col_size)) skip = 1;
-    if (conv_row_pos >= int64_t(conv_row_size)) skip = 1;
-
-    if (skip)
-    {
-        LOG(DEBUG, "\tSkip conv_row_pos %d conv_col_pos %d conv_row_size %d conv_col_size %d",
-            conv_row_pos, conv_col_pos, conv_row_size, conv_col_size);
-    }
-    return skip;
-}
-
 // Update to the tensor Mask due a convolution CSR write
 static void tmask_conv()
 {
     uint16_t tmask_value = 0;
 
-    // Gets the sizes of the convolution
-    uint64_t tconvsizereg         = csr_tensor_conv_size[current_thread];
-    int      conv_row_step_offset = (tconvsizereg & 0xFF00000000000000ULL) >> 56;
-    int      conv_row_size        = (tconvsizereg & 0x0000FFFF00000000ULL) >> 32; // Convolution size in rows
-    int      conv_col_step_offset = (tconvsizereg & 0x00000000FF000000ULL) >> 24;
-    int      conv_col_size        = (tconvsizereg & 0x000000000000FFFFULL);       // Convolution size in cols
+    // Get the sizes of the convolution
+    uint64_t tconvsizereg = csr_tensor_conv_size[current_thread];
+    int16_t srow = (tconvsizereg >> 56) & 0xFF;
+    int16_t nrow = (tconvsizereg >> 32) & 0xFFFF;
+    int16_t scol = (tconvsizereg >> 24) & 0xFF;
+    int16_t ncol = (tconvsizereg >>  0) & 0xFFFFU;
 
-    // Gets the positions of the convolution
+    // Get the positions of the convolution
     uint64_t tconvctrlreg = csr_tensor_conv_ctrl[current_thread];
-    int      conv_row_pos = (tconvctrlreg & 0x0000FFFF00000000ULL) >> 32; // Convolution pos in rows
-    int      conv_col_pos = (tconvctrlreg & 0x000000000000FFFFULL);       // Convolution pos in cols
+    int16_t  rowstart = (tconvctrlreg >> 32) & 0xFFFF;
+    int16_t  colstart = (tconvctrlreg >>  0) & 0xFFFF;
 
-    // Sign extend
-    if (conv_row_pos & 0x8000) conv_row_pos = conv_row_pos | 0xFFFFFFFFFFFF0000ULL;
-    if (conv_col_pos & 0x8000) conv_col_pos = conv_col_pos | 0xFFFFFFFFFFFF0000ULL;
-
-    // Goes through the 16 elements of the tensormap
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 16; ++i, rowstart += srow, colstart += scol)
     {
-        // Sets a 1 if convolution passes
-        if (!conv_skip_pass(conv_row_pos, conv_col_pos, conv_row_size, conv_col_size))
+        if ((rowstart >= 0) && (rowstart < nrow) && (colstart >= 0) && (colstart < ncol))
         {
-            tmask_value |= (1 << i);
+            LOG(DEBUG, "TensorMask[%d] pass for row: %d, col: %d, nrow: %d, ncol %d",
+                i, rowstart, colstart, nrow, ncol);
+            tmask_value |= (1u << i);
         }
-        // Move the position of the convolution sampling based on the configuration register
-        conv_row_pos += conv_row_step_offset;
-        conv_col_pos += conv_col_step_offset;
+        else
+        {
+            LOG(DEBUG, "TensorMask[%d] skip for row: %d, col: %d, nrow: %d, ncol %d",
+                i, rowstart, colstart, nrow, ncol);
+        }
     }
-
     csr_tensor_mask[current_thread] = tmask_value;
 }
 
