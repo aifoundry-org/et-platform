@@ -6757,9 +6757,9 @@ static void tensorstore(uint64_t tstorereg)
         int      srcinc   = ((tstorereg & 0xC00000000000000CULL) >> 62) + 1; // Increment done to scratchpad source
         int      scpstart =  (tstorereg & 0x3F00000000000000ULL) >> 56;      // Start scratchpad entry to store
         int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
-        uint64_t addr     = sext<48>(tstorereg & 0x00FFFFFFFFFFC0ULL);       // Address where to store the results
+        uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFC0ULL);     // Address where to store the results
 
-        uint64_t stride   = XREGS[31] & 0xFFFFFFFFFFFFULL;
+        uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
 
         int src = scpstart % L1_SCP_ENTRIES;
         LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
@@ -6801,7 +6801,7 @@ static void tensorstore(uint64_t tstorereg)
         int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride   = XREGS[31] & 0xFFFFFFFFFFF0ULL;
+        uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFF0ULL;
 
         LOG(DEBUG, "\tStart Tensor Store with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
