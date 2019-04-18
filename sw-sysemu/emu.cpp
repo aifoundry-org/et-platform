@@ -5348,7 +5348,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
     bool dirty = false;
     try
     {
-        while (el < VL)
+        for (; el < VL; ++el)
         {
             iufval32 res, val1, val2;
 
@@ -5431,8 +5431,6 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
             // note: for logging purposes, sending val2.u instead of res.u => we want to check what the
             // dcache outputs to the shire caches, not the actual value written in memory
             log_mem_write(el, 4, addr, val2.u);
-
-            ++el;
         }
     }
     catch (const trap_t&)
