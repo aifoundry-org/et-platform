@@ -44,7 +44,7 @@ exhale_args = {
     "containmentFolder":     "@CMAKE_CURRENT_BINARY_DIR@/api",
     "rootFileName":          "runtime_root.rst",
     "rootFileTitle":         "Esperanto Runtime API",
-    "doxygenStripFromPath":  "..",
+    "doxygenStripFromPath":  "@PROJECT_SOURCE_DIR@/include",
     # Suggested optional arguments
     "createTreeView":        True,
     "treeViewIsBootstrap": True,

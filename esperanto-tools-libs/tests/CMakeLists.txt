@@ -13,6 +13,7 @@ include(GoogleTest)
 
 include_directories(${GTEST_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 
 link_directories(${GTEST_DIR}/lib64)
 
@@ -28,3 +29,9 @@ add_executable(test-error-or test_error_or.cc)
 add_dependencies(test-error-or googletest)
 target_link_libraries(test-error-or ${COMMON_TEST_LIBRARIES})
 gtest_discover_tests(test-error-or TEST_PREFIX runtime:)
+
+
+add_executable(test-device-manager test_device_manager.cc)
+add_dependencies(test-device-manager googletest)
+target_link_libraries(test-device-manager ${COMMON_TEST_LIBRARIES})
+gtest_discover_tests(test-device-manager TEST_PREFIX runtime:device_manager:)
