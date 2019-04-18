@@ -7553,7 +7553,7 @@ static uint64_t flbarrier(uint64_t value)
         shire = IO_SHIRE_ID;
 
     // Gets what is the address that the fast local barrier is mapped to
-    uint64_t addr = ESR_SHIRE(CSR_PRV_U, shire, FLB0) + (barrier * 8); // Access is private per cache
+    uint64_t addr = ESR_SHIRE(shire, FAST_LOCAL_BARRIER0) + (barrier * 8); // Access is private per cache
 
     // NB: No PMA checks here... we know it will pass ;-)
 
