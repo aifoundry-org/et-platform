@@ -188,7 +188,7 @@ namespace TBOX
             ImageFormat format;     // Decompressed format
         };
     
-        void decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer);
+        void decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer, bool hasAlpha);
         void decode_BC2(uint8_t *inBuffer, uint8_t *outBuffer);
         void decode_BC3(uint8_t *inBuffer, uint8_t *outBuffer);
         void decode_BC4_UNORM(uint8_t *inBuffer, uint8_t *outBuffer);
