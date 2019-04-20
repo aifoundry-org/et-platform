@@ -84,6 +84,12 @@ add_custom_command(OUTPUT ${bootrom_cdescr_file}
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         COMMENT "Generating ${bootrom_cdescr_file}")
 
+add_custom_target(kernels-elf-file ALL
+  DEPENDS ${kernels_elf_file})
+
+add_custom_target(bootrom-file ALL
+  DEPENDS ${bootrom_file})
+
 add_custom_target(kernels-offsets ALL
   DEPENDS ${kernels_offsets_hdr})
 
