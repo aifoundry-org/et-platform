@@ -12,6 +12,7 @@ file(GLOB COMMAND_ETAPI "commands/*.fbs" "include/*.fbs" "responses/*.fbs" "even
 
 set(FLATBUFFERS_FLATC_SCHEMA_EXTRA_ARGS --scoped-enums --gen-mutable --gen-object-api --gen-compare)
 
+############################### C++ library ###################################
 build_et_flatbuffers(
   "${COMMAND_ETAPI}"
   "${CMAKE_CURRENT_SOURCE_DIR}/include"
@@ -23,6 +24,20 @@ build_et_flatbuffers(
   ${CMAKE_CURRENT_BINARY_DIR}/schemas
   ${CMAKE_CURRENT_BINARY_DIR}/text-schemas
   )
+
+get_target_property(DEVICE_API_CXX_HDRS_DIR flatc-fbs-parse GENERATED_INCLUDES_DIR)
+
+install(DIRECTORY ${DEVICE_API_CXX_HDRS_DIR}
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-api-cxx)
+
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/tools/flatbuffers/include/flatbuffers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(TARGETS flatbuffers
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
+
+################################ C library ####################################
 
 # Making a submodule  flatcc has proven to be pain just clone from source
 set(FLATCC_VERSION aa5bf0e2592ec251b0b684ecfa5ab066f090f283)
@@ -41,13 +56,19 @@ add_custom_command(
   && date > ${FLATCC_BUILD_DONE}
   VERBATIM)
 
+install(DIRECTORY ${FLATCC_FOLDER}/include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${FLATCC_FOLDER}/lib/
+  DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 set(FLATCC_OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/flatcc-output)
 file(MAKE_DIRECTORY ${FLATCC_OUTPUT})
 
 foreach(ETAPI_FILE ${COMMAND_ETAPI})
   get_filename_component(ETAPI_BASENAME ${ETAPI_FILE} NAME_WE)
-  set(ETAPI_C_HDR "${FLATCC_OUTPUT}/${ETAPI_BASENAME}_reader.h")
+  set(ETAPI_C_HDR "${FLATCC_OUTPUT}/${ETAPI_BASENAME}_reader.h"
+                  "${FLATCC_OUTPUT}/${ETAPI_BASENAME}_verifier.h"
+                  "${FLATCC_OUTPUT}/${ETAPI_BASENAME}_builder.h")
   list(APPEND ETAPI_C_PARSED ${ETAPI_C_HDR})
 
   add_custom_command(
@@ -56,6 +77,9 @@ foreach(ETAPI_FILE ${COMMAND_ETAPI})
     MAIN_DEPENDENCY ${ETAPI_FILE}
     DEPENDS ${FLATCC_BUILD_DONE} ${FLATCC}
     VERBATIM)
+
+  install(FILES ${ETAPI_C_HDR}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-api-c)
 
 endforeach()
 
