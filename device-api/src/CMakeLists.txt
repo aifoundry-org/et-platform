@@ -9,4 +9,3 @@
 #------------------------------------------------------------------------------
 
 add_subdirectory(device-api)
-add_subdirectory(simulator-api)
