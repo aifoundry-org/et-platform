@@ -17,7 +17,6 @@ project(DeviceAPI LANGUAGES C CXX)
 enable_testing()
 
 include(CMake/BuildFlatBuffers.cmake)
-include(CMake/FindProtobuf-c.cmake)
 
 add_subdirectory(tools/flatbuffers
                  ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build
