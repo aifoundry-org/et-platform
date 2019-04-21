@@ -167,4 +167,28 @@ ExternalProject_Add(sw-sysemu
 
 list(APPEND external_project_dependencies sw-sysemu)
 
+
+set(device_api_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/device_api)
+ExternalProject_Add(device-api
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/device_api
+  INSTALL_DIR ${device_api_INSTALL}
+  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${device_api_INSTALL}
+             "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -fPIC"
+             -DFLATBUFFERS_BUILD_FLATLIB=ON
+             -DFLATBUFFERS_INSTALL=ON
+#  BUILD_BYPRODUCTS ${device_api_INSTALL}/lib/libfmt.a
+  )
+
+list(APPEND external_project_dependencies device-api)
+
+set(simulator_api_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/simulator_api)
+ExternalProject_Add(simulator-api
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/simulator_api
+  INSTALL_DIR ${simulator_api_INSTALL}
+  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${simulator_api_INSTALL}
+  #  BUILD_BYPRODUCTS ${device_api_INSTALL}/lib/libfmt.a
+  )
+
+list(APPEND external_project_dependencies simulator-api)
+
 set(external_project_dependencies ${external_project_dependencies}  PARENT_SCOPE)
