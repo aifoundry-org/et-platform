@@ -2,6 +2,7 @@
 #define __VAULTIP_SW_H__
 
 #include <stdint.h>
+#include <assert.h>
 
 typedef struct VAULTIP_INPUT_TOKEN_WORD_0_s {
     uint32_t TokenID : 16;
@@ -516,6 +517,67 @@ typedef union VAULTIP_OUTPUT_TOKEN_s {
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+typedef struct VAULTIP_FIRMWARE_RAM_TOKEN_WORD_0_s {
+    uint32_t TokenID : 16;
+    uint32_t Reserved : 8;
+    uint32_t OpCode : 4;
+    uint32_t SubCode : 4;
+} VAULTIP_FIRMWARE_RAM_TOKEN_WORD_0_t;
+
+typedef struct VAULTIP_FIRMWARE_RAM_TOKEN_WORD_1_s {
+    uint32_t ImageType : 24;
+    uint32_t ImageVersionNumber : 8;
+} VAULTIP_FIRMWARE_RAM_TOKEN_WORD_1_t;
+
+typedef struct VAULTIP_FIRMWARE_RAM_TOKEN_WORD_3_18_s {
+    uint8_t Signature[4];
+} VAULTIP_FIRMWARE_RAM_TOKEN_WORD_3_18_t;
+
+typedef struct VAULTIP_FIRMWARE_RAM_TOKEN_WORD_19_28_s {
+    uint8_t WrappedKey[4];
+} VAULTIP_FIRMWARE_RAM_TOKEN_WORD_19_28_t;
+
+typedef struct VAULTIP_FIRMWARE_RAM_TOKEN_WORD_29_44_s {
+    uint8_t PublicKey[4];
+} VAULTIP_FIRMWARE_RAM_TOKEN_WORD_29_44_t;
+
+typedef struct VAULTIP_FIRMWARE_RAM_TOKEN_WORD_45_48_s {
+    uint8_t IV[4];
+} VAULTIP_FIRMWARE_RAM_TOKEN_WORD_45_48_t;
+
+typedef struct VAULTIP_FIRMWARE_RAM_TOKEN_WORD_49_s {
+    uint32_t ImageSize : 17;
+    uint32_t Reserved : 15;
+} VAULTIP_FIRMWARE_RAM_TOKEN_WORD_49_t;
+
+typedef union VAULTIP_FIRMWARE_RAM_TOKEN_s {
+    uint32_t dw[64];
+    struct {
+        VAULTIP_FIRMWARE_RAM_TOKEN_WORD_0_t             dw_00;
+        VAULTIP_FIRMWARE_RAM_TOKEN_WORD_1_t             dw_01;
+        uint32_t reserved;
+        VAULTIP_FIRMWARE_RAM_TOKEN_WORD_3_18_t          dw_03_18[16];
+        VAULTIP_FIRMWARE_RAM_TOKEN_WORD_19_28_t         dw_19_28[10];
+        VAULTIP_FIRMWARE_RAM_TOKEN_WORD_29_44_t         dw_29_44[16];
+        VAULTIP_FIRMWARE_RAM_TOKEN_WORD_45_48_t         dw_45_48[4];
+        VAULTIP_FIRMWARE_RAM_TOKEN_WORD_49_t            dw_49;
+        uint32_t reserved2[14];
+    };
+} VAULTIP_FIRMWARE_RAM_TOKEN_t;
+
+static_assert(256 == sizeof(VAULTIP_FIRMWARE_RAM_TOKEN_t), "sizeof(VAULTIP_FIRMWARE_RAM_TOKEN_s) is not 256!");
+
+#define VAULTIP_FIRMWARE_IMAGE_TYPE_FWp 0x705746 // 'FWp' // plain text image, only allowed if VaultIP OTP is all zero
+#define VAULTIP_FIRMWARE_IMAGE_TYPE_FWw 0x775746 // 'FWw' // encrypted image
+#define VAULTIP_FIRMWARE_IMAGE_VERSION_NUMBER 2 // first released version number
+
+#define VAULTIP_FIRMWARE_HEADER_SIZE 256
+#define VAULTIP_FIRMWARE_IMAGE_MAX_FILE_SIZE (VAULTIP_MAXIMUM_FIRMWARE_SIZE + VAULTIP_FIRMWARE_HEADER_SIZE)
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
 #define VAULTIP_TOKEN_OPCODE_NOP                    0x0
 #define VAULTIP_TOKEN_OPCODE_ENCRYPTION             0x1
 #define VAULTIP_TOKEN_OPCODE_HASH                   0x2
@@ -555,7 +617,7 @@ typedef union VAULTIP_OUTPUT_TOKEN_s {
 #define VAULTIP_TOKEN_SYSTEM_SUBCODE_HIBERNATION                0x6
 #define VAULTIP_TOKEN_SYSTEM_SUBCODE_RESUME_FROM_HIBERNATION    0x7
 #define VAULTIP_TOKEN_SYSTEM_SUBCODE_SET_SYSTEM_TIME            0x8
-#define VAULTIP_TOKEN_SYSTEM_SUBCODE_RAM_FIRMWARE_BOOT          0x9
+#define VAULTIP_TOKEN_SYSTEM_SUBCODE_RAM_FIRMWARE_BOOT          0xC
 
 #define VAULTIP_TOKEN_SERVICE_SUBCODE_REGISTER_READ                         0x0
 #define VAULTIP_TOKEN_SERVICE_SUBCODE_REGISTER_WRITE                        0x1
