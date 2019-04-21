@@ -153,4 +153,18 @@ set(FMTLIB_INCLUDE_DIRS ${fmtlib_INSTALL}/include CACHE PATH "fmtlib include dir
 set(FMTLIB_LIBRARIES ${fmtlib_INSTALL}/lib64/libfmt.a CACHE PATH "fmtlib libraries")
 set(FMTLIB_LIBRARY_DIRS ${fmtlib_INSTALL}/lib64 CACHE PATH "fmtlib library path")
 
-set(external_project_dependencies ${external_project_dependencies}  fmtlib  PARENT_SCOPE)
+list(APPEND external_project_dependencies fmtlib)
+
+ExternalProject_Add(sw-sysemu
+  PREFIX sw-sysemu
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu
+  CONFIGURE_COMMAND ""
+  BUILD_IN_SOURCE ON  # Really sad :(
+  BUILD_COMMAND make -C sys_emu/build
+  BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
+  INSTALL_COMMAND cp sys_emu/build/sys_emu ${CMAKE_CURRENT_BINARY_DIR}/
+  )
+
+list(APPEND external_project_dependencies sw-sysemu)
+
+set(external_project_dependencies ${external_project_dependencies}  PARENT_SCOPE)
