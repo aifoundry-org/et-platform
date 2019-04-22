@@ -320,8 +320,10 @@ typedef struct _VAULTIP_HW_REGS_s {
     uint32_t reserved8[(0x20000 - 0x1C000) / sizeof(uint32_t)];
 } VAULTIP_HW_REGS_t;
 
+#define VAULTIP_MAXIMUM_FIRMWARE_SIZE       0x18000
+
 #define VAULTIP_DMAC_MST_RUNPARAMS          0xF878
-#define VAULTIP_DMAC_OPTIONS2               0xF8EC
+#define VAULTIP_DMAC_OPTIONS2               0xF8DC
 
 #define VAULTIP_BASE 0x52000000
 #define VAULTIP_REGISTERS (volatile VAULTIP_HW_REGS_t*)VAULTIP_BASE

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "service_processor_spi_flash.h"
 #include "../../firmware-tools/esperanto-flash-tool/include/esperanto_flash_image.h"
+#include "../../firmware-tools/code-signing-tools/crypto_library/include/esperanto_executable_image.h"
 
 typedef struct ESPERANTO_PARTITION_INFO_s {
     // partition header loaded from flash
@@ -30,10 +31,14 @@ typedef struct ESPERANTO_PARTITION_INFO_s {
 } ESPERANTO_PARTITION_INFO_t;
 
 typedef struct FLASH_FS_ROM_INFO_s {
-    SPI_FLASH_ID_t flash_id;
+    union {
+        SPI_FLASH_ID_t flash_id;
+        uint32_t flash_id_u32;
+    };
     uint32_t flash_size;
     ESPERANTO_PARTITION_INFO_t partition_info[2];
     uint32_t active_partition;
+    uint32_t other_partition_valid;
     uint32_t configuration_region_address;
     ESPERANATO_FILE_INFO_t vaultip_firmware_file_info;
     ESPERANATO_FILE_INFO_t sp_certificates_file_info;
@@ -44,6 +49,9 @@ typedef struct SERVICE_PROCESSOR_ROM_DATA_s {
     uint32_t service_processor_rom_data_size;
     uint32_t service_processor_rom_version;
     FLASH_FS_ROM_INFO_t flash_fs_rom_info;
+    uint32_t * vaultip_firmware_image;
+    ESPERANTO_CERTIFICATE_t sp_certificates[2];
+    ESPERANTO_IMAGE_FILE_HEADER_t sp_bl1_header;
 } SERVICE_PROCESSOR_ROM_DATA_t;
 
 #endif
