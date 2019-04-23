@@ -9,49 +9,47 @@
 *-------------------------------------------------------------------------
 */
 
-ENTRY(_reset_handler)
+ENTRY(bl1_entry)
 
-ROM_BASE_ADDR = 0x40000000;
-RAM_BASE_ADDR = 0x40400000;
+CODE_BASE_ADDR = 0x404E0000;
+DATA_BASE_ADDR = 0x404F0000;
 
-ROM_SIZE = 64K; /* limit Service Processor ROM code to 64 KB */
-RAM_SIZE = 64K; /* limit Service Processor ROM zero-initialized data and stack to 64 KB */
+CODE_SIZE = 64K; /* limit Service Processor BL1 code to 64 KB */
+DATA_SIZE = 64K; /* limit Service Processor BL1 zero-initialized data and stack to 64 KB */
 
 MEMORY
 {
-    ROM (rx)  : org = ROM_BASE_ADDR, l = ROM_SIZE
-    RAM (!rx) : org = RAM_BASE_ADDR, l = RAM_SIZE
+    CODE (rx)  : org = CODE_BASE_ADDR, l = CODE_SIZE
+    DATA (!rx) : org = DATA_BASE_ADDR, l = DATA_SIZE
 }
 
 SECTIONS
 {
     .text :
     {
-        /* Place boot code first */
-        *(.text.init)
         *(SORT_BY_ALIGNMENT(.text) SORT_BY_ALIGNMENT(.text.*) SORT_BY_ALIGNMENT(.gnu.linkonce.t.*))
-    } > ROM
+    } > CODE
 
     .rodata :
     {
         *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
-    } > ROM
+    } > CODE
 
     .rodata1 :
     {
         *(SORT_BY_ALIGNMENT(.rodata1))
-    } > ROM
+    } > CODE
 
     .sdata2 :
     {
         *(SORT_BY_ALIGNMENT(.sdata2) SORT_BY_ALIGNMENT(.sdata2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s2.*))
-    } > ROM
+    } > CODE
 
     .sbss2 :
     {
         *(SORT_BY_ALIGNMENT(.sbss2) SORT_BY_ALIGNMENT(.sbss2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.sb2.*))
-
-    } > ROM
+        . = ALIGN(128);
+    } > CODE
 
     .data :
     {
@@ -60,7 +58,7 @@ SECTIONS
         __data_start = .;
 
         *(SORT_BY_ALIGNMENT(.data) SORT_BY_ALIGNMENT(.data.*) SORT_BY_ALIGNMENT(.gnu.linkonce.d.*))
-    } > RAM AT > ROM /* Copying data from ROM to RAM for now */
+    } > DATA
 
     /* We want the small data sections together, so single-instruction offsets
       can access them all, and initialized data all before uninitialized, so
@@ -79,10 +77,10 @@ SECTIONS
         *(SORT_BY_ALIGNMENT(.sdata) SORT_BY_ALIGNMENT(.sdata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s.*))
 
         /* Align here to ensure crt.S data init asm has aligned end address */
-        . = ALIGN(4);
+        /*. = ALIGN(4);*/
+        . = ALIGN(128);
         __data_end = .;
-
-    } > RAM AT > ROM
+    } > DATA
 
     .bss (NOLOAD) :
     {
@@ -91,7 +89,7 @@ SECTIONS
         __bss_start = .;
 
         *(.bss .bss.* .gnu.linkonce.b.*)
-    } > RAM
+    } > DATA
 
     .sbss (NOLOAD) :
     {
@@ -100,7 +98,7 @@ SECTIONS
         /* Align here to ensure crt.S bss init asm has an aligned end address */
         . = ALIGN(4);
         __bss_end = .;
-    } > RAM
+    } > DATA
 
     /* The default stack alignment is 16 bytes in RV32I and RV64I */
     . = ALIGN(16);
@@ -109,6 +107,5 @@ SECTIONS
     {
         KEEP(*(stack stack.*))
         __stack_base = .;
-    } > RAM
+    } > DATA
 }
-__data_load_start = LOADADDR(.data);
