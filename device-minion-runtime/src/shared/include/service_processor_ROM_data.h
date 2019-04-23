@@ -2,6 +2,7 @@
 #define __SERVICE_PROCESSOR_ROM_DATA_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "service_processor_spi_flash.h"
 #include "../../firmware-tools/esperanto-flash-tool/include/esperanto_flash_image.h"
 #include "../../firmware-tools/code-signing-tools/crypto_library/include/esperanto_executable_image.h"
