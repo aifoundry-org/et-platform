@@ -2946,10 +2946,13 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
     int csrprv = (src1 >> 8) & 3;
     if (csrprv > prv)
     {
+        LOG(DEBUG, "Accessing a %c-mode CSR while in %c-mode", "USHM"[csrprv], "USHM"[prv]);
         throw trap_illegal_instruction(current_inst);
     }
     if ((src1 == CSR_SATP) && ((csr_mstatus[current_thread] >> 20) & 1) && (prv == CSR_PRV_S))
     {
+        LOG(DEBUG, "Accessing SATP while in %c-mode and mstatus.tvm = %d (mstatus = 0x%016" PRIx64 ")",
+            "USHM"[prv], int((csr_mstatus[current_thread] >> 20) & 1), csr_mstatus[current_thread]);
         throw trap_illegal_instruction(current_inst);
     }
     if (write)
