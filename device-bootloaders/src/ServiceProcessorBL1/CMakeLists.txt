@@ -1,17 +1,14 @@
 set(SOURCES 
-    src/reset_handler.S
-    src/init_handler.S
-    src/main.c
-    src/printx.c
+    src/bl1_entry.S
+    src/bl1_init_handler.S
+    src/bl1_main.c
+    src/bl1_printx.c
     ${SHARED_SRC_DIR}/serial.c
-    src/trap_handler.c
-    src/trap_handler.S
-    src/spi_controller.c
-    src/spi_flash.c
-    src/flash_fs.c)
+    src/bl1_trap_handler.c
+    src/bl1_trap_handler.S)
 
 set(TARGET_NAME ServiceProcessorBL1)
-set(LINKER_SCRIPT src/sections.ld)
+set(LINKER_SCRIPT src/bl1_sections.ld)
 set(ZEBU_TARGET ROM) # change to SP_RAM eventually
 set(ZEBU_FILENAME ServiceProcessorBL1)
 
