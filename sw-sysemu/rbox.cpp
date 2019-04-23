@@ -3,6 +3,7 @@
 #include <cstdio>
 
 #include "rbox.h"
+#include "emu.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
 
