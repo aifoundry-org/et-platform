@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <cmath>
 #include <cstring>
 #include <stdexcept>
@@ -2353,7 +2352,7 @@ void TBOX::TBOXEmu::sample_quad(SampleRequest currentRequest, ImageInfo currentI
     }
 
     // set unused bytes to 0, so that it can be compared with RTL
-    bzero(output, sizeof(freg_t)*4);
+    memset(output, 0, sizeof(freg_t)*4);
 
     for (uint32_t quad = 0; quad < 2; quad++)
     {
