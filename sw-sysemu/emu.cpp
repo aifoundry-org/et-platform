@@ -1318,7 +1318,7 @@ void set_msg_funcs(void (*func_msg_to_thread) (int))
 // ILLEGAL INSTRUCTION
 void unknown(const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: unknown @%016" PRIx64 "(0x%04x)", PC, current_inst);
+    LOG(DEBUG, "I(%c): unknown @%016" PRIx64 "(0x%04x)", PRVNAME, PC, current_inst);
     throw trap_illegal_instruction(current_inst);
 }
 
@@ -1574,9 +1574,9 @@ void sraw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused)))
     WRITE_RD(sext<32>(int32_t(RS1) >> (RS2 % 32)));
 }
 
-void lb(xreg dst, xreg base, int64_t off, const char* comm)
+void lb(xreg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: lb x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): lb x%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = sext<8>(vmemread8(addr));
@@ -1588,9 +1588,9 @@ void lb(xreg dst, xreg base, int64_t off, const char* comm)
     log_xreg_write(dst, XREGS[dst]);
 }
 
-void lh(xreg dst, xreg base, int64_t off, const char* comm)
+void lh(xreg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: lh x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): lh x%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = sext<16>(vmemread16(addr));
@@ -1602,9 +1602,9 @@ void lh(xreg dst, xreg base, int64_t off, const char* comm)
     log_xreg_write(dst, XREGS[dst]);
 }
 
-void lw(xreg dst, xreg base, int64_t off, const char* comm)
+void lw(xreg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: lw x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): lw x%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = sext<32>(vmemread32(addr));
@@ -1616,9 +1616,9 @@ void lw(xreg dst, xreg base, int64_t off, const char* comm)
     log_xreg_write(dst, XREGS[dst]);
 }
 
-void ld(xreg dst, xreg base, int64_t off, const char* comm)
+void ld(xreg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: ld x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): ld x%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = vmemread64(addr);
@@ -1630,9 +1630,9 @@ void ld(xreg dst, xreg base, int64_t off, const char* comm)
     log_xreg_write(dst, XREGS[dst]);
 }
 
-void lbu(xreg dst, xreg base, int64_t off, const char* comm)
+void lbu(xreg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: lbu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): lbu x%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = vmemread8(addr);
@@ -1644,9 +1644,9 @@ void lbu(xreg dst, xreg base, int64_t off, const char* comm)
     log_xreg_write(dst, XREGS[dst]);
 }
 
-void lhu(xreg dst, xreg base, int64_t off, const char* comm)
+void lhu(xreg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: lhu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): lhu x%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = vmemread16(addr);
@@ -1658,9 +1658,9 @@ void lhu(xreg dst, xreg base, int64_t off, const char* comm)
     log_xreg_write(dst, XREGS[dst]);
 }
 
-void lwu(xreg dst, xreg base, int64_t off, const char* comm)
+void lwu(xreg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: lwu x%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): lwu x%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     check_load_breakpoint(addr);
     uint64_t val = vmemread32(addr);
@@ -1672,9 +1672,9 @@ void lwu(xreg dst, xreg base, int64_t off, const char* comm)
     log_xreg_write(dst, XREGS[dst]);
 }
 
-void sd(xreg src1, xreg base, int64_t off, const char* comm)
+void sd(xreg src1, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sd x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): sd x%d, %" PRId64 "(x%d)", PRVNAME, src1, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     uint64_t val  = XREGS[src1];
     LOG(DEBUG, "\t%016" PRIx64 " --> MEM64[0x%016" PRIx64 "]", val, addr);
@@ -1683,9 +1683,9 @@ void sd(xreg src1, xreg base, int64_t off, const char* comm)
     log_mem_write(0, 8, addr, val);
 }
 
-void sw(xreg src1, xreg base, int64_t off, const char* comm)
+void sw(xreg src1, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sw x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): sw x%d, %" PRId64 "(x%d)", PRVNAME, src1, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     uint32_t val  = uint32_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr);
@@ -1694,9 +1694,9 @@ void sw(xreg src1, xreg base, int64_t off, const char* comm)
     log_mem_write(0, 4, addr, val);
 }
 
-void sh(xreg src1, xreg base, int64_t off, const char* comm)
+void sh(xreg src1, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sh x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): sh x%d, %" PRId64 "(x%d)", PRVNAME, src1, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     uint16_t val  = uint16_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%04" PRIx16 " --> MEM16[0x%016" PRIx64 "]", val, addr);
@@ -1705,9 +1705,9 @@ void sh(xreg src1, xreg base, int64_t off, const char* comm)
     log_mem_write(0, 2, addr, val);
 }
 
-void sb(xreg src1, xreg base, int64_t off, const char* comm)
+void sb(xreg src1, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sb x%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): sb x%d, %" PRId64 "(x%d)", PRVNAME, src1, off, base);
     uint64_t addr = sextVA(XREGS[base] + off);
     uint8_t  val  = uint8_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
@@ -1716,9 +1716,9 @@ void sb(xreg src1, xreg base, int64_t off, const char* comm)
     log_mem_write(0, 1, addr, val);
 }
 
-void sbl(xreg src1, xreg base, const char* comm)
+void sbl(xreg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sbl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): sbl x%d, (x%d)", PRVNAME, src1, base);
     uint64_t addr = sextVA(XREGS[base]);
     uint8_t  val  = uint8_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
@@ -1727,9 +1727,9 @@ void sbl(xreg src1, xreg base, const char* comm)
     log_mem_write(0, 1, addr, val);
 }
 
-void sbg(xreg src1, xreg base, const char* comm)
+void sbg(xreg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sbg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): sbg x%d, (x%d)", PRVNAME, src1, base);
     uint64_t addr = sextVA(XREGS[base]);
     uint8_t  val  = uint8_t(XREGS[src1]);
     LOG(DEBUG, "\t0x%02" PRIx8 " --> MEM8[0x%016" PRIx64 "]", val, addr);
@@ -1738,9 +1738,9 @@ void sbg(xreg src1, xreg base, const char* comm)
     log_mem_write(0, 1, addr, val);
 }
 
-void shl(xreg src1, xreg base, const char* comm)
+void shl(xreg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: shl x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): shl x%d, (x%d)", PRVNAME, src1, base);
     uint64_t addr = sextVA(XREGS[base]);
     uint16_t val  = uint16_t(XREGS[src1]);
     check_store_breakpoint(addr);
@@ -1749,9 +1749,9 @@ void shl(xreg src1, xreg base, const char* comm)
     log_mem_write(0, 2, addr, val);
 }
 
-void shg(xreg src1, xreg base, const char* comm)
+void shg(xreg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: shg x%d, (x%d)%s%s", src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): shg x%d, (x%d)", PRVNAME, src1, base);
     uint64_t addr = sextVA(XREGS[base]);
     uint16_t val  = uint16_t(XREGS[src1]);
     check_store_breakpoint(addr);
@@ -1761,14 +1761,14 @@ void shg(xreg src1, xreg base, const char* comm)
 }
 
 
-void fence(const char* comm)
+void fence(const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fence%s%s", (comm?" # ":""), (comm?comm:""));
+    DISASM_NOARG("fence");
 }
 
-void fence_i(const char* comm)
+void fence_i(const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fence_i%s%s", (comm?" # ":""), (comm?comm:""));
+    DISASM_NOARG("fence.i");
     throw trap_mcode_instruction(current_inst);
     // NB: placeholder for flushing any cached decoding results we may have
     // to synchronize when fence_i() is executed
@@ -1921,16 +1921,16 @@ void remuw(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused))
 ////////////////////////////////////////////////////////////////////////////////
 
 #define AMO_EMU_W_FUNC(NAME, LG, OPC) \
-void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
+void NAME(xreg dst, xreg src1, xreg src2, const char* comm __attribute__((unused)))\
 {\
-   LOG(DEBUG, "I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src2, src1, comm ? " # " : "", comm ? comm : "");\
+   LOG(DEBUG, "I(%c): " #NAME " x%d, x%d, (x%d)", PRVNAME, dst, src2, src1);\
    amo_emu_w(OPC, dst, src1, src2, Mem_Access_Atomic ## LG);\
 }
 
 #define AMO_EMU_D_FUNC(NAME, LG, OPC) \
-void NAME(xreg dst, xreg src1, xreg src2, const char* comm)\
+void NAME(xreg dst, xreg src1, xreg src2, const char* comm __attribute__((unused)))\
 {\
-   LOG(DEBUG, "I: " #NAME " x%d, x%d, (x%d)%s%s", dst, src2, src1, comm ? " # " : "", comm ? comm : "");\
+   LOG(DEBUG, "I(%c): " #NAME " x%d, x%d, (x%d)", PRVNAME, dst, src2, src1);\
    amo_emu_d(OPC, dst, src1, src2, Mem_Access_Atomic ## LG);\
 }
 
@@ -3228,9 +3228,9 @@ static uint64_t virt_to_phys_emu(uint64_t addr, mem_access_type macc)
     return paddr;
 }
 
-void ecall(const char* comm)
+void ecall(const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: ecall%s%s", (comm?" # ":""), (comm?comm:""));
+    DISASM_NOARG("ecall");
     switch (prvget())
     {
         case CSR_PRV_U: throw trap_user_ecall(); break;
@@ -3240,23 +3240,23 @@ void ecall(const char* comm)
     }
 }
 
-void ebreak(const char* comm)
+void ebreak(const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: ebreak%s%s", (comm?" # ":""), (comm?comm:""));
+    DISASM_NOARG("ebreak");
     // The spec says that hardware breakpoint sets mtval/stval to the current
     // PC but ebreak is a software breakpoint; should it also set mtval/stval
     // to the current PC or set it to 0?
     throw trap_breakpoint(current_pc);
 }
 
-void sret(const char* comm)
+void sret(const char* comm __attribute__((unused)))
 {
     uint64_t curprv = prvget();
     uint64_t mstatus = csr_mstatus[current_thread];
     if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && (((mstatus >> 22) & 1) == 1)))
       throw trap_illegal_instruction(current_inst);
 
-    LOG(DEBUG, "I: sret%s%s", (comm?" # ":""), (comm?comm:""));
+    DISASM_NOARG("sret");
     log_pc_update(csr_sepc[current_thread]);
     // Take spie and spp
     uint64_t spie = (mstatus >> 5) & 0x1;
@@ -3269,12 +3269,12 @@ void sret(const char* comm)
     LOG(DEBUG, "Now running in %s mode", (spp == CSR_PRV_M) ? "M" : (spp == CSR_PRV_S) ? "S" : "U");
 }
 
-void mret(const char* comm)
+void mret(const char* comm __attribute__((unused)))
 {
     if (prvget() != CSR_PRV_M)
       throw trap_illegal_instruction(current_inst);
 
-    LOG(DEBUG, "I: mret%s%s", (comm?" # ":""), (comm?comm:""));
+    DISASM_NOARG("mret");
     log_pc_update(csr_mepc[current_thread]);
     // Take mpie and mpp
     uint64_t mstatus = csr_mstatus[current_thread];
@@ -3288,65 +3288,65 @@ void mret(const char* comm)
     LOG(DEBUG, "Now running in %s mode", (mpp == CSR_PRV_M) ? "M" : (mpp == CSR_PRV_S) ? "S" : "U");
 }
 
-void wfi(const char* comm)
+void wfi(const char* comm __attribute__((unused)))
 {
     uint64_t curprv = prvget();
     uint64_t mstatus = csr_mstatus[current_thread];
     if (curprv == CSR_PRV_U || (curprv == CSR_PRV_S && (((mstatus >> 21) & 1) == 1)))
       throw trap_illegal_instruction(current_inst);
 
-    LOG(DEBUG, "I: wfi%s%s", (comm?" # ":""), (comm?comm:""));
+    DISASM_NOARG("wfi");
 }
 
-void sfence_vma(xreg src1, xreg src2, const char* comm)
+void sfence_vma(xreg src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: sfence_vma x%d, x%d%s%s", src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): sfence.vma x%d, x%d", PRVNAME, src1, src2);
     throw trap_mcode_instruction(current_inst);
 }
 
-void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm)
+void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: csrrw x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): csrrw x%d, %s, x%d", PRVNAME, dst, csr_name(src1), src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = XREGS[src2];
     csr_insn(dst, src1, oldval, newval, true);
 }
 
-void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm)
+void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: csrrs x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): csrrs x%d, %s, x%d", PRVNAME, dst, csr_name(src1), src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | XREGS[src2];
     csr_insn(dst, src1, oldval, newval, src2 != x0);
 }
 
-void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm)
+void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: csrrc x%d, %s, x%d%s%s", dst, csr_name(src1), src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): csrrc x%d, %s, x%d", PRVNAME, dst, csr_name(src1), src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~XREGS[src2]);
     csr_insn(dst, src1, oldval, newval, src2 != x0);
 }
 
-void csrrwi(xreg dst, uint16_t src1, uint64_t imm, const char* comm)
+void csrrwi(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: csrrwi x%d, %s, 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): csrrwi x%d, %s, 0x%016" PRIx64, PRVNAME, dst, csr_name(src1), imm);
     uint64_t oldval = csrget(src1);
     uint64_t newval = imm;
     csr_insn(dst, src1, oldval, newval, true);
 }
 
-void csrrsi(xreg dst, uint16_t src1, uint64_t imm, const char* comm)
+void csrrsi(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: csrrsi x%d, %s, 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): csrrsi x%d, %s, 0x%016" PRIx64, PRVNAME, dst, csr_name(src1), imm);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | imm;
     csr_insn(dst, src1, oldval, newval, imm != 0);
 }
 
-void csrrci(xreg dst, uint16_t src1, uint64_t imm, const char* comm)
+void csrrci(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: csrrci x%d, %s, 0x%016" PRIx64 "%s%s", dst, csr_name(src1), imm, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): csrrci x%d, %s, 0x%016" PRIx64, PRVNAME, dst, csr_name(src1), imm);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~imm);
     csr_insn(dst, src1, oldval, newval, imm != 0);
@@ -3461,7 +3461,7 @@ void fmul_s(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __at
 
 void fdiv_s(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fdiv.s f%d,f%d,f%d,%s", fd, fs1, fs2, get_rounding_mode(rm));
+    DISASM_FD_FS1_FS2_RM("fdiv.s");
     throw trap_mcode_instruction(current_inst);
 }
 
@@ -3504,7 +3504,7 @@ void fmax_s(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)
 
 void fsqrt_s(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsqrt.s f%d,f%d,%s", fd, fs1, get_rounding_mode(rm));
+    DISASM_FD_FS1_RM("fsqrt.s");
     throw trap_mcode_instruction(current_inst);
 }
 
@@ -3557,13 +3557,13 @@ void fcvt_wu_s(xreg rd, freg fs1, rounding_mode rm, const char* comm __attribute
 
 void fcvt_l_s(xreg rd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.l.s x%d,f%d,%s", rd, fs1, get_rounding_mode(rm));
+    DISASM_RD_FS1_RM("fcvt.l.s");
     throw trap_mcode_instruction(current_inst);
 }
 
 void fcvt_lu_s(xreg rd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.lu.s x%d,f%d,%s", rd, fs1, get_rounding_mode(rm));
+    DISASM_RD_FS1_RM("fcvt.l.s");
     throw trap_mcode_instruction(current_inst);
 }
 
@@ -3601,13 +3601,13 @@ void fcvt_s_wu(freg fd, xreg rs1, rounding_mode rm, const char* comm __attribute
 
 void fcvt_s_l(freg fd, xreg rs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.s.l f%d,x%d,%s", fd, rs1, get_rounding_mode(rm));
+    DISASM_FD_RS1_RM("fcvt.s.l");
     throw trap_mcode_instruction(current_inst);
 }
 
 void fcvt_s_lu(freg fd, xreg rs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fcvt.s.lu f%d,x%d,%s", fd, rs1, get_rounding_mode(rm));
+    DISASM_FD_RS1_RM("fcvt.s.lu");
     throw trap_mcode_instruction(current_inst);
 }
 
@@ -3618,17 +3618,17 @@ void fmv_w_x(freg fd, xreg rs1, const char* comm __attribute__((unused)))
     WRITE_FD( uint32_t(RS1) );
 }
 
-void flw(freg dst, xreg base, int64_t off, const char* comm)
+void flw(freg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: flw f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): flw f%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     require_fp_active();
     uint64_t addr = sextVA(XREGS[base] + off);
     femuld<1,false>(dst, addr);
 }
 
-void fsw(freg src1, xreg base, int64_t off, const char* comm)
+void fsw(freg src1, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsw f%d, %" PRId64 "(x%d)%s%s", src1, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fsw f%d, %" PRId64 "(x%d)", PRVNAME, src1, off, base);
     require_fp_active();
     uint64_t addr = sextVA(XREGS[base] + off);
     femust<1,false>(src1, addr);
@@ -3776,26 +3776,26 @@ void maskpopc_rast(xreg rd, mreg ms1, mreg ms2, unsigned umsk4, const char* comm
 
 // ----- Load and store ------------------------------------
 
-void flq2(freg dst, xreg base, int64_t off, const char* comm)
+void flq2(freg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: flq2 f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): flq2 f%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     require_fp_active();
     uint64_t addr = sextVA(XREGS[base] + off);
     femuld<VL,false>(dst, addr);
 }
 
-void flw_ps(freg dst, xreg base, int64_t off, const char* comm)
+void flw_ps(freg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: flw.ps f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): flw.ps f%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     uint64_t addr = sextVA(XREGS[base] + off);
     femuld<VL,true>(dst, addr);
 }
 
-void flwl_ps(freg dst, xreg base, const char* comm)
+void flwl_ps(freg dst, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: flwl.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): flwl.ps f%d, (x%d)", PRVNAME, dst, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     uint64_t addr = sextVA(XREGS[base]);
@@ -3806,9 +3806,9 @@ void flwl_ps(freg dst, xreg base, const char* comm)
     femuld<VL,true>(dst, addr);
 }
 
-void flwg_ps(freg dst, xreg base, const char* comm)
+void flwg_ps(freg dst, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: flwg.ps f%d, (x%d)%s%s", dst, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): flwg.ps f%d, (x%d)", PRVNAME, dst, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     uint64_t addr = sextVA(XREGS[base]);
@@ -3819,26 +3819,26 @@ void flwg_ps(freg dst, xreg base, const char* comm)
     femuld<VL,true>(dst, addr);
 }
 
-void fsq2(freg src, xreg base, int64_t off, const char* comm)
+void fsq2(freg src, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsq2 f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fsq2 f%d, %" PRId64 "(x%d)", PRVNAME, src, off, base);
     require_fp_active();
     uint64_t addr = sextVA(XREGS[base] + off);
     femust<VL,false>(src, addr);
 }
 
-void fsw_ps(freg src, xreg base, int64_t off, const char* comm)
+void fsw_ps(freg src, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsw.ps f%d, %" PRId64 "(x%d)%s%s", src, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fsw.ps f%d, %" PRId64 "(x%d)", PRVNAME, src, off, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     uint64_t addr = sextVA(XREGS[base] + off);
     femust<VL,true>(src, addr);
 }
 
-void fswl_ps(freg src, xreg base, const char* comm)
+void fswl_ps(freg src, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fswl.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fswl.ps f%d, (x%d)", PRVNAME, src, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     uint64_t addr = sextVA(XREGS[base]);
@@ -3849,9 +3849,9 @@ void fswl_ps(freg src, xreg base, const char* comm)
     femust<VL,true>(src, addr);
 }
 
-void fswg_ps(freg src, xreg base, const char* comm)
+void fswg_ps(freg src, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fswg.ps f%d, (x%d)%s%s", src, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fswg.ps f%d, (x%d)", PRVNAME, src, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     uint64_t addr = sextVA(XREGS[base]);
@@ -3864,9 +3864,9 @@ void fswg_ps(freg src, xreg base, const char* comm)
 
 // ----- Broadcast -----------------------------------------
 
-void fbc_ps(freg dst, xreg base, int64_t off, const char* comm)
+void fbc_ps(freg dst, xreg base, int64_t off, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fbc_ps f%d, %" PRId64 "(x%d)%s%s", dst, off, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fbc_ps f%d, %" PRId64 "(x%d)", PRVNAME, dst, off, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
 
@@ -4164,187 +4164,187 @@ static void femuscat32(int size, freg src3, xreg src1, xreg src2)
     log_gsc_progress(0, true);
 }
 
-void fgb_ps(freg dst, freg src1, xreg base, const char* comm)
+void fgb_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fgb.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fgb.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGB, dst, src1, base);
 }
 
-void fgh_ps(freg dst, freg src1, xreg base, const char* comm)
+void fgh_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fgh.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fgh.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGH, dst, src1, base);
 }
 
-void fgw_ps(freg dst, freg src1, xreg base, const char* comm)
+void fgw_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fgw.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fgw.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGW, dst, src1, base);
 }
 
-void fgwl_ps(freg dst, freg src1, xreg base, const char* comm)
+void fgwl_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fgwl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fgwl.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGWL, dst, src1, base);
 }
 
-void fghl_ps(freg dst, freg src1, xreg base, const char* comm)
+void fghl_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fghl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fghl.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGHL, dst, src1, base);
 }
 
-void fgbl_ps(freg dst, freg src1, xreg base, const char* comm)
+void fgbl_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fgbl.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fgbl.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGBL, dst, src1, base);
 }
 
-void fgwg_ps(freg dst, freg src1, xreg base, const char* comm)
+void fgwg_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fgwg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fgwg.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGWG, dst, src1, base);
 }
 
-void fghg_ps(freg dst, freg src1, xreg base, const char* comm)
+void fghg_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fghg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fghg.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGHG, dst, src1, base);
 }
 
-void fgbg_ps(freg dst, freg src1, xreg base, const char* comm)
+void fgbg_ps(freg dst, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fgbg.ps f%d, f%d(x%d)%s%s", dst, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fgbg.ps f%d, f%d(x%d)", PRVNAME, dst, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu(FGBG, dst, src1, base);
 }
 
-void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm)
+void fg32b_ps(freg dst, xreg src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fg32b.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fg32b.ps f%d, x%d(x%d)", PRVNAME, dst, src1, src2);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu32(1, dst, src1, src2);
 }
 
-void fg32h_ps(freg dst, xreg src1, xreg src2, const char* comm)
+void fg32h_ps(freg dst, xreg src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fg32h.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fg32h.ps f%d, x%d(x%d)", PRVNAME, dst, src1, src2);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu32(2, dst, src1, src2);
 }
 
-void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm)
+void fg32w_ps(freg dst, xreg src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fg32w.ps f%d, x%d(x%d)%s%s", dst, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fg32w.ps f%d, x%d(x%d)", PRVNAME, dst, src1, src2);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     gatheremu32(4, dst, src1, src2);
 }
 
-void fscb_ps(freg src, freg src1, xreg base, const char* comm)
+void fscb_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fscb.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fscb.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat(FSCB, src, src1, base);
 }
 
-void fsch_ps(freg src, freg src1, xreg base, const char* comm)
+void fsch_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsch.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fsch.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat(FSCH, src, src1, base);
 }
 
-void fscw_ps(freg src, freg src1, xreg base, const char* comm)
+void fscw_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fscw.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fscw.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat(FSCW, src, src1, base);
 }
 
-void fscwl_ps(freg src, freg src1, xreg base, const char* comm)
+void fscwl_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fscwl.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fscwl.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     femuscat(FSCWL, src, src1, base);
 }
 
-void fschl_ps(freg src, freg src1, xreg base, const char* comm)
+void fschl_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fschl.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fschl.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     femuscat(FSCHL, src, src1, base);
 }
 
-void fscbl_ps(freg src, freg src1, xreg base, const char* comm)
+void fscbl_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fscbl.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fscbl.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     femuscat(FSCBL, src, src1, base);
 }
 
-void fscwg_ps(freg src, freg src1, xreg base, const char* comm)
+void fscwg_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fscwg.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fscwg.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     femuscat(FSCWG, src, src1, base);
 }
 
-void fschg_ps(freg src, freg src1, xreg base, const char* comm)
+void fschg_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fschg.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fschg.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     femuscat(FSCHG, src, src1, base);
 }
 
-void fscbg_ps(freg src, freg src1, xreg base, const char* comm)
+void fscbg_ps(freg src, freg src1, xreg base, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fscbg.ps f%d, f%d(x%d)%s%s", src, src1, base, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fscbg.ps f%d, f%d(x%d)", PRVNAME, src, src1, base);
     require_fp_active();
     femuscat(FSCBG, src, src1, base);
 }
 
-void fsc32b_ps(freg src, xreg src1, xreg src2, const char* comm)
+void fsc32b_ps(freg src, xreg src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsc32b.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fsc32b.ps f%d, x%d(x%d)", PRVNAME, src, src1, src2);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat32(1, src, src1, src2);
 }
 
-void fsc32h_ps(freg src, xreg src1, xreg src2, const char* comm)
+void fsc32h_ps(freg src, xreg src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsc32h.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fsc32h.ps f%d, x%d(x%d)", PRVNAME, src, src1, src2);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat32(2, src, src1, src2);
 }
 
-void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm)
+void fsc32w_ps(freg src, xreg src1, xreg src2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsc32w.ps f%d, x%d(x%d)%s%s", src, src1, src2, (comm?" # ":""), (comm?comm:""));
+    LOG(DEBUG, "I(%c): fsc32w.ps f%d, x%d(x%d)", PRVNAME, src, src1, src2);
     require_fp_active();
     DEBUG_MASK(MREGS[0]);
     femuscat32(4, src, src1, src2);
@@ -4381,7 +4381,7 @@ void fmul_ps(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __a
 
 void fdiv_ps(freg fd, freg fs1, freg fs2, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fdiv.ps f%d,f%d,f%d,%s", fd, fs1, fs2, get_rounding_mode(rm));
+    DISASM_FD_FS1_FS2_RM("fdiv.ps");
     throw trap_mcode_instruction(current_inst);
 }
 
@@ -4424,7 +4424,7 @@ void fmax_ps(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused
 
 void fsqrt_ps(freg fd, freg fs1, rounding_mode rm, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fsqrt.ps f%d,f%d,%s", fd, fs1, get_rounding_mode(rm));
+    DISASM_FD_FS1_RM("fsqrt.ps");
     throw trap_mcode_instruction(current_inst);
 }
 
@@ -5174,25 +5174,25 @@ void fmulhu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unus
 
 void fdiv_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fdiv.pi f%d,f%d,f%d", fd, fs1, fs2);
+    DISASM_FD_FS1_FS2("fdiv.pi");
     throw trap_mcode_instruction(current_inst);
 }
 
 void fdivu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fdivu.pi f%d,f%d,f%d", fd, fs1, fs2);
+    DISASM_FD_FS1_FS2("fdivu.pi");
     throw trap_mcode_instruction(current_inst);
 }
 
 void frem_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: frem.pi f%d,f%d,f%d", fd, fs1, fs2);
+    DISASM_FD_FS1_FS2("frem.pi");
     throw trap_mcode_instruction(current_inst);
 }
 
 void fremu_pi(freg fd, freg fs1, freg fs2, const char* comm __attribute__((unused)))
 {
-    LOG(DEBUG, "I: fremu.pi f%d,f%d,f%d", fd, fs1, fs2);
+    DISASM_FD_FS1_FS2("fremu.pi");
     throw trap_mcode_instruction(current_inst);
 }
 
@@ -5270,9 +5270,9 @@ void bitmixb(xreg rd, xreg rs1, xreg rs2, const char* comm __attribute__((unused
 //
 
 #define AMO_EMU_F_FUNC(NAME, LG, OPC) \
-void NAME(freg dst, freg src1, xreg src2, const char* comm)\
+void NAME(freg dst, freg src1, xreg src2, const char* comm __attribute__((unused)))\
 {\
-   LOG(DEBUG, "I: " #NAME " f%d, f%d(x%d)%s%s", dst, src1, src2, comm ? " # " : "", comm ? comm : "");\
+   LOG(DEBUG, "I(%c): " #NAME " f%d, f%d(x%d)", PRVNAME, dst, src1, src2);\
    amo_emu_f(OPC, dst, src1, src2, Mem_Access_Atomic ## LG);\
 }
 

@@ -165,8 +165,14 @@
 
 // Disassemble instruction, and input operands
 
+#define PRVNAME ("USHM"[csr_prv[current_thread] & 3])
+
+#define DISASM_NOARG(name) do { \
+    LOG(DEBUG, "I(%c): " name, PRVNAME); \
+} while (0)
+
 #define DISASM_RD_ALLMASK(name) do { \
-    LOG(DEBUG, "I: %s", name); \
+    LOG(DEBUG, "I(%c): " name, PRVNAME); \
     LOG_MREG(":", 0); \
     LOG_MREG(":", 1); \
     LOG_MREG(":", 2); \
@@ -178,186 +184,186 @@
 } while (0)
 
 #define DISASM_RS1_RS2_BIMM(name) do { \
-    LOG(DEBUG, "I: " name " x%d,x%d,%" PRId64, rs1, rs2, b_imm); \
+    LOG(DEBUG, "I(%c): " name " x%d,x%d,%" PRId64, PRVNAME, rs1, rs2, b_imm); \
     LOG_REG(":", rs1); \
     LOG_REG(":", rs2); \
 } while (0)
 
 #define DISASM_RD_JIMM(name) \
-    LOG(DEBUG, "I: " name " x%d,%" PRId64, rd, j_imm)
+    LOG(DEBUG, "I(%c): " name " x%d,%" PRId64, PRVNAME, rd, j_imm)
 
 #define DISASM_RD_RS1_IIMM(name) do { \
-    LOG(DEBUG, "I: " name " x%d,x%d,%" PRId64, rd, rs1, i_imm); \
+    LOG(DEBUG, "I(%c): " name " x%d,x%d,%" PRId64, PRVNAME, rd, rs1, i_imm); \
     LOG_REG(":", rs1); \
 } while (0)
 
 #define DISASM_RD_RS1_RS2(name) do { \
-    LOG(DEBUG, "I: " name " x%d,x%d,x%d", rd, rs1, rs2); \
+    LOG(DEBUG, "I(%c): " name " x%d,x%d,x%d", PRVNAME, rd, rs1, rs2); \
     LOG_REG(":", rs1); \
     LOG_REG(":", rs2); \
 } while (0)
 
 #define DISASM_RD_RS1_SHAMT5(name) do { \
-    LOG(DEBUG, "I: " name " x%d,x%d,0x%x", rd, rs1, shamt5); \
+    LOG(DEBUG, "I(%c): " name " x%d,x%d,0x%x", PRVNAME, rd, rs1, shamt5); \
     LOG_REG(":", rs1); \
 } while (0)
 
 #define DISASM_RD_RS1_SHAMT6(name) do { \
-    LOG(DEBUG, "I: " name " x%d,x%d,0x%x", rd, rs1, shamt6); \
+    LOG(DEBUG, "I(%c): " name " x%d,x%d,0x%x", PRVNAME, rd, rs1, shamt6); \
     LOG_REG(":", rs1); \
 } while (0)
 
 #define DISASM_RD_UIMM(name) \
-    LOG(DEBUG, "I: " name " x%d,0x%" PRIx64, rd, u_imm)
+    LOG(DEBUG, "I(%c): " name " x%d,0x%" PRIx64, PRVNAME, rd, u_imm)
 
 #define DISASM_RS1(name) do { \
-    LOG(DEBUG, "I: " name " x%d", rs1); \
+    LOG(DEBUG, "I(%c): " name " x%d", PRVNAME, rs1); \
     LOG_REG(":", rs1); \
 } while (0)
 
 #define DISASM_MD_FS1(name) do { \
-    LOG(DEBUG, "I: " name " m%d,f%d", md, fs1); \
+    LOG(DEBUG, "I(%c): " name " m%d,f%d", PRVNAME, md, fs1); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_MD_FS1_FS2(name) do { \
-    LOG(DEBUG, "I: " name " m%d,f%d,f%d", md, fs1, fs2); \
+    LOG(DEBUG, "I(%c): " name " m%d,f%d,f%d", PRVNAME, md, fs1, fs2); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
 } while (0)
 
 #define DISASM_MD_MS1(name) do { \
-    LOG(DEBUG, "I: " name " m%d,m%d", md, ms1); \
+    LOG(DEBUG, "I(%c): " name " m%d,m%d", PRVNAME, md, ms1); \
     LOG_MREG(":", ms1); \
 } while (0)
 
 #define DISASM_MD_MS1_MS2(name) do { \
-    LOG(DEBUG, "I: " name " m%d,m%d,m%d", md, ms1, ms2); \
+    LOG(DEBUG, "I(%c): " name " m%d,m%d,m%d", PRVNAME, md, ms1, ms2); \
     LOG_MREG(":", ms1); \
     LOG_MREG(":", ms2); \
 } while (0)
 
 #define DISASM_MD_RS1_UIMM8(name) do { \
-    LOG(DEBUG, "I: " name " m%d,x%d,0x%x", md, rs1, uimm8); \
+    LOG(DEBUG, "I(%c): " name " m%d,x%d,0x%x", PRVNAME, md, rs1, uimm8); \
     LOG_REG(":", rs1); \
 } while (0)
 
 #define DISASM_RD_MS1(name) do { \
-    LOG(DEBUG, "I: " name " x%d,m%d", rd, ms1); \
+    LOG(DEBUG, "I(%c): " name " x%d,m%d", PRVNAME, rd, ms1); \
     LOG_MREG(":", ms1); \
 } while (0)
 
 #define DISASM_RD_MS1_MS2_UMSK4(name) do { \
-    LOG(DEBUG, "I: " name " x%d,m%d,m%d,0x%x", rd, ms1, ms2, umsk4); \
+    LOG(DEBUG, "I(%c): " name " x%d,m%d,m%d,0x%x", PRVNAME, rd, ms1, ms2, umsk4); \
     LOG_MREG(":", ms1); \
     LOG_MREG(":", ms2); \
 } while (0)
 
 #define DISASM_FD_F32IMM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,0x%x", fd, f32imm); \
+    LOG(DEBUG, "I(%c): " name " f%d,0x%x", PRVNAME, fd, f32imm); \
 } while (0)
 
 #define DISASM_FD_FS1(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d", fd, fs1); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d", PRVNAME, fd, fs1); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_FD_FS1_FRM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d [%s]", fd, fs1, get_rounding_mode(frm())); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d [%s]", PRVNAME, fd, fs1, get_rounding_mode(frm())); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,f%d", fd, fs1, fs2); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d", PRVNAME, fd, fs1, fs2); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FRM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,f%d [%s]", fd, fs1, fs2, get_rounding_mode(frm())); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d [%s]", PRVNAME, fd, fs1, fs2, get_rounding_mode(frm())); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
 } while (0)
 
 #define DISASM_FDS0_FS1_FS2(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,f%d", fd, fs1, fs2); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d", PRVNAME, fd, fs1, fs2); \
     LOG_FREG(":", fd); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FS3(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,f%d,f%d", fd, fs1, fs2, fs3); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d,f%d", PRVNAME, fd, fs1, fs2, fs3); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
     LOG_FREG(":", fs3); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FS3_RM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,f%d,f%d,%s", fd, fs1, fs2, fs3, get_rounding_mode(rm)); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d,f%d,%s", PRVNAME, fd, fs1, fs2, fs3, get_rounding_mode(rm)); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
     LOG_FREG(":", fs3); \
 } while (0)
 
 #define DISASM_FD_FS1_FS2_RM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,f%d,%s", fd, fs1, fs2, get_rounding_mode(rm)); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d,%s", PRVNAME, fd, fs1, fs2, get_rounding_mode(rm)); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
 } while (0)
 
 #define DISASM_FD_FS1_RM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,%s", fd, fs1, get_rounding_mode(rm)); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,%s", PRVNAME, fd, fs1, get_rounding_mode(rm)); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_FD_FS1_UIMM8(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,0x%x", fd, fs1, uimm8); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,0x%x", PRVNAME, fd, fs1, uimm8); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_FD_FS1_VIMM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,%d", fd, fs1, v_imm); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,%d", PRVNAME, fd, fs1, v_imm); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_FD_FS1_UVIMM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,f%d,0x%x", fd, fs1, v_imm); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,0x%x", PRVNAME, fd, fs1, v_imm); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_FD_I32IMM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,%d", fd, i32imm); \
+    LOG(DEBUG, "I(%c): " name " f%d,%d", PRVNAME, fd, i32imm); \
 } while (0)
 
 #define DISASM_FD_RS1(name) do { \
-    LOG(DEBUG, "I: " name " f%d,x%d", fd, rs1); \
+    LOG(DEBUG, "I(%c): " name " f%d,x%d", PRVNAME, fd, rs1); \
     LOG_REG(":", rs1); \
 } while (0)
 
 #define DISASM_FD_RS1_RM(name) do { \
-    LOG(DEBUG, "I: " name " f%d,x%d,%s", fd, rs1, get_rounding_mode(rm)); \
+    LOG(DEBUG, "I(%c): " name " f%d,x%d,%s", PRVNAME, fd, rs1, get_rounding_mode(rm)); \
     LOG_REG(":", rs1); \
 } while (0)
 
 #define DISASM_RD_FS1(name) do { \
-    LOG(DEBUG, "I: " name " x%d,f%d", rd, fs1); \
+    LOG(DEBUG, "I(%c): " name " x%d,f%d", PRVNAME, rd, fs1); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_RD_FS1_FS2(name) do { \
-    LOG(DEBUG, "I: " name " x%d,f%d,f%d", rd, fs1, fs2); \
+    LOG(DEBUG, "I(%c): " name " x%d,f%d,f%d", PRVNAME, rd, fs1, fs2); \
     LOG_FREG(":", fs1); \
     LOG_FREG(":", fs2); \
 } while (0)
 
 #define DISASM_RD_FS1_RM(name) do { \
-    LOG(DEBUG, "I: " name " x%d,f%d,%s", rd, fs1, get_rounding_mode(rm)); \
+    LOG(DEBUG, "I(%c): " name " x%d,f%d,%s", PRVNAME, rd, fs1, get_rounding_mode(rm)); \
     LOG_FREG(":", fs1); \
 } while (0)
 
 #define DISASM_RD_FS1_UIMM3(name) do { \
-    LOG(DEBUG, "I: " name " x%d,f%d,0x%x", rd, fs1, uimm3); \
+    LOG(DEBUG, "I(%c): " name " x%d,f%d,0x%x", PRVNAME, rd, fs1, uimm3); \
     LOG_FREG(":", fs1); \
 } while (0)
 
