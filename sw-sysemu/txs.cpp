@@ -10,7 +10,6 @@
 #include "emu_memop.h"
 #include "tbox_emu.h"
 #include "rbox.h"
-#include "log.h"
 #include "fpu/fpu.h"
 #include "emu_gio.h"
 #include "emu_casts.h"

@@ -6,7 +6,6 @@
 #include <vector>
 #include <utility>
 
-#include "emu.h"
 #include "emu_defines.h"
 
 #include "rbox_pi.h"
