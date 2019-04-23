@@ -1,4 +1,4 @@
-
+#include <stdio.h>
 #include <cmath>
 #include <cstring>
 #include <stdexcept>
@@ -1409,9 +1409,17 @@ void TBOX::TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, u
     switch (fmt)
     {
         case FORMAT_BC1_RGB_UNORM_BLOCK:
+            {
+                bool hasAlpha = false;
+                decode_BC1((uint8_t *) inData, (uint8_t *) outData, hasAlpha);
+                break;
+            }
         case FORMAT_BC1_RGBA_UNORM_BLOCK:
-            decode_BC1((uint8_t *) inData, (uint8_t *) outData);
-            break;
+            {
+                bool hasAlpha = true;
+                decode_BC1((uint8_t *) inData, (uint8_t *) outData, hasAlpha);
+                break;
+            }
         case FORMAT_BC2_UNORM_BLOCK:
             decode_BC2((uint8_t *) inData, (uint8_t *) outData);
             break;
@@ -1434,7 +1442,8 @@ void TBOX::TBOXEmu::decompress_texture_cache_line_data(ImageInfo currentImage, u
         case FORMAT_BC1_RGBA_SRGB_BLOCK:
             {
                 uint8_t decompressedData[64];
-                decode_BC1((uint8_t *) inData, (uint8_t *) decompressedData);
+                bool hasAlpha = fmt == FORMAT_BC1_RGBA_SRGB_BLOCK;
+                decode_BC1((uint8_t *) inData, (uint8_t *) decompressedData, hasAlpha);
                 for (uint32_t l = 0; l < 4; l++)
                     for (uint32_t t = 0; t < 2; t++)
                     {
@@ -4195,7 +4204,7 @@ void TBOX::TBOXEmu::print_image_info(ImageInfo in)
 }
 
 //  Decode BC1.
-void TBOX::TBOXEmu::decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer)
+void TBOX::TBOXEmu::decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer, bool hasAlpha)
 {
     uint32_t color0, color1;
     float RGBA0[4], RGBA1[4];
@@ -4243,7 +4252,7 @@ void TBOX::TBOXEmu::decode_BC1(uint8_t *inBuffer, uint8_t *outBuffer)
                 decode2BitRGBTransparent(code, RGBA0, RGBA1, decodedColor);
 
                 //  Patch special non transparent case.
-                if (code != 0x03)
+                if (code != 0x03 || !hasAlpha)
                     decodedColor[3] = 1.0f;
                 else
                     decodedColor[3] = 0.0f;
@@ -4704,10 +4713,12 @@ uint32_t TBOX::TBOXEmu::convertTo_R8G8B8A8_UNORM(float decodedColor[])
 {
     uint8_t color[4];
 
-    color[0] = fpu::f32_to_un8(fpu::F2F32(decodedColor[0]));
-    color[1] = fpu::f32_to_un8(fpu::F2F32(decodedColor[1]));
-    color[2] = fpu::f32_to_un8(fpu::F2F32(decodedColor[2]));
-    color[3] = fpu::f32_to_un8(fpu::F2F32(decodedColor[3]));
+    static const float eps = 1.f / float(1<<16);
+
+    color[0] = fpu::f32_to_un8(fpu::F2F32(decodedColor[0] + eps));
+    color[1] = fpu::f32_to_un8(fpu::F2F32(decodedColor[1] + eps));
+    color[2] = fpu::f32_to_un8(fpu::F2F32(decodedColor[2] + eps));
+    color[3] = fpu::f32_to_un8(fpu::F2F32(decodedColor[3] + eps));
 
     return (color[0] | (color[1] << 8) | (color[2] << 16) | (color[3] << 24));
 }
@@ -4926,11 +4937,20 @@ void TBOX::TBOXEmu::getCompressedTexel(ImageFormat format, uint32_t comprBlockI,
     {
         case FORMAT_BC1_RGB_UNORM_BLOCK:
         case FORMAT_BC1_RGB_SRGB_BLOCK:
+            {
+                bool hasAlpha = false;
+                decode_BC1(compressedData, decompressedData, hasAlpha);
+                ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+                break;
+            }
         case FORMAT_BC1_RGBA_UNORM_BLOCK:
         case FORMAT_BC1_RGBA_SRGB_BLOCK:
-            decode_BC1(compressedData, decompressedData);
-            ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
-            break;
+            {
+                bool hasAlpha = true;
+                decode_BC1(compressedData, decompressedData, hasAlpha);
+                ((uint32_t *)data)[0] = ((uint32_t *)decompressedData)[comprBlockJ * 4 + comprBlockI];
+                break;
+            }
         case FORMAT_BC2_UNORM_BLOCK:
         case FORMAT_BC2_SRGB_BLOCK:
             decode_BC2(compressedData, decompressedData);

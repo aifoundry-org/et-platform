@@ -476,7 +476,7 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
 {
     // Get IPI_REDIRECT_FILTER ESR for the shire
     uint64_t ipi_redirect_filter;
-    memory->read(ESR_SHIRE(3, shire_id, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
+    memory->read(ESR_SHIRE(shire_id, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
 
     unsigned thread0 =
         EMU_THREADS_PER_SHIRE * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
@@ -490,7 +490,7 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
             uint64_t new_pc;
             uint64_t neigh_id;
             neigh_id = t / EMU_THREADS_PER_NEIGH;
-            memory->read(ESR_NEIGH(0, shire_id, neigh_id, IPI_REDIRECT_PC), 8, &new_pc);
+            memory->read(ESR_NEIGH(shire_id, neigh_id, IPI_REDIRECT_PC), 8, &new_pc);
             int thread_id = thread0 + t;
             LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
             // If thread sleeping, wakes up and changes PC
@@ -519,7 +519,7 @@ sys_emu::raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
     // Write mip.msip to all selected threads
     for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
     {
-        if ((thread_mask >> t) & 1)
+        if (thread_mask & (1ull << t))
         {
             unsigned thread_id = thread0 + t;
             LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");

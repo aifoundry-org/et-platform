@@ -28,44 +28,39 @@ main_memory::main_memory(testLog& log_)
         // For all the neighs in each shire and the neighborhood broadcast mask
         for (int n = 0; n <= EMU_NEIGH_PER_SHIRE; n++)
         {
-            int neigh = (n == EMU_NEIGH_PER_SHIRE) ? ESR_NEIGH_BROADCAST : n;
-            main_memory_region_esr * neigh_esrs = new main_memory_region_esr(ESR_NEIGH(CSR_PRV_U, shire, neigh, 0), 64*1024, log, getthread);
+            int neigh = (n == EMU_NEIGH_PER_SHIRE) ? (ESR_REGION_NEIGH_BROADCAST >> ESR_REGION_NEIGH_SHIFT) : n;
+            main_memory_region_esr * neigh_esrs = new main_memory_region_esr(this, ESR_NEIGH(shire, neigh, NEIGH_U0), 64*1024, log, getthread);
             regions_.push_back((main_memory_region *) neigh_esrs);
         }
 
         // Shire cache ESRs (M-mode)
         for (int n = 0; n < 4; n++)
         {
-            main_memory_region_esr * cb_esrs  = new main_memory_region_esr(ESR_CACHE(CSR_PRV_M, shire, n, IDX_COP_SM_CTL), 8, log, getthread);
+            main_memory_region_esr * cb_esrs  = new main_memory_region_esr(this, ESR_CACHE(shire, n, SC_IDX_COP_SM_CTL), 8, log, getthread);
             regions_.push_back((main_memory_region *) cb_esrs);
         }
 
         // RBOX ESRs (U-mode)
-        main_memory_region_rbox * rbox_esrs  = new main_memory_region_rbox(ESR_RBOX(CSR_PRV_U, shire, 0), 128*1024, log, getthread);
+        main_memory_region_rbox * rbox_esrs  = new main_memory_region_rbox(ESR_RBOX(shire, RBOX_U0), 128*1024, log, getthread);
         regions_.push_back((main_memory_region *) rbox_esrs);
 
         main_memory_region_esr * shire_esrs;
 
         // Shire ESRs (U-mode)
-        shire_esrs = new main_memory_region_esr(ESR_SHIRE(CSR_PRV_U, shire, 0), 128*1024, log, getthread);
+        shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_U0), 128*1024, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
 
         // Shire ESRs (M-mode)
-        shire_esrs = new main_memory_region_esr(ESR_SHIRE(CSR_PRV_M, shire, 0), 128*1024, log, getthread);
+        shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_M0), 128*1024, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
 
         // Shire ESRs (S-mode)
-        shire_esrs = new main_memory_region_esr(ESR_SHIRE(CSR_PRV_S, shire, 0), 128*1024, log, getthread);
+        shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_S0), 128*1024, log, getthread);
         regions_.push_back((main_memory_region *) shire_esrs);
 
         // Probably this doesn't exist for the local shire?
         if (shire != 255)
         {
-#if 0
-            // Shire cache ESRs ???
-            main_memory_region * mtm = new main_memory_region(ESR_CACHE_REGION + (CSR_PRV_M << ESR_REGION_PRO_SHIFT) + 0x1d8ULL + shire*ESR_REGION_OFFSET, 64, log, getthread);
-            regions_.push_back((main_memory_region *) mtm);
-#endif
             // L2 scratchpad
             main_memory_region * l2_scp = new main_memory_region(L2_SCP_BASE + shire*L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread);
             regions_.push_front((main_memory_region *) l2_scp);
@@ -73,7 +68,7 @@ main_memory::main_memory(testLog& log_)
         }
 
         // HART ESRs (U-mode)
-        main_memory_region_esr * hart_esrs = new main_memory_region_esr(ESR_HART(CSR_PRV_U, shire, 0, 0), 1024 * 1024, log, getthread);
+        main_memory_region_esr * hart_esrs = new main_memory_region_esr(this, ESR_HART(shire, 0, HART_U0), 1024 * 1024, log, getthread);
         regions_.push_back((main_memory_region *) hart_esrs);
     }
 
@@ -373,18 +368,6 @@ void main_memory::dump_regions()
     log << LOG_DEBUG << "dumping regions:" << endm;
     for(auto &r:regions_)
         r->dump();
-}
-
-// Finds a region
-main_memory::rg_it_t main_memory::find(uint64_t ad)
-{
-    rg_it_t ret = regions_.begin();
-    while(ret != regions_.end())
-    {
-        if((* (* ret)) == ad) { return ret; }
-        ret++;
-    }
-    return ret;
 }
 
 void main_memory::create_mem_at_runtime()

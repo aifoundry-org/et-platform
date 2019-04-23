@@ -17,7 +17,7 @@ public:
 
 private:
 
-    void decode_esr(uint64_t ad, uint32_t &rbox_id, uint32_t &reg_id);
+    void decode_esr(uint64_t ad, unsigned &rbox_id, uint64_t &reg_id);
 };
 
 #endif // _MAIN_MEMORY_REGION_RBOX_

@@ -45,13 +45,26 @@ class main_memory
        // allow memory regions to be dynamically created
        void create_mem_at_runtime();
 
+       main_memory_region* find_region_containing(uint64_t ad) {
+           rg_it_t it = find(ad);
+           return (it == regions_.end()) ? nullptr : *it;
+       }
+
     private:
        void dump_regions();
 
        std::list<main_memory_region *> regions_;
        typedef std::list<main_memory_region *>::iterator rg_it_t;
 
-       rg_it_t find(uint64_t ad);
+       rg_it_t find(uint64_t ad) {
+           rg_it_t ret = regions_.begin();
+           while(ret != regions_.end())
+           {
+               if((* (* ret)) == ad) { return ret; }
+               ret++;
+           }
+           return ret;
+       }
 
        testLog& log;
        main_memory_region::func_ptr_get_thread getthread;
