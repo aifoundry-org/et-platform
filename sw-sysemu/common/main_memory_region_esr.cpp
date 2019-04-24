@@ -25,6 +25,8 @@
 #define ESR_BROADCAST_ESR_SHIRE_MASK         0x000000FFFFFFFFFFULL // bit mask Shire to spread the broadcast bits
 #define ESR_BROADCAST_ESR_MAX_SHIRES         ESR_BROADCAST_ESR_ADDR_SHIFT
 
+#define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000
+#define ESR_ICACHE_ERR_LOG_CTL_RESET_VAL  0x6
 
 extern uint32_t current_pc;
 extern uint32_t current_thread;
@@ -56,6 +58,17 @@ inline void write64(void* data, uint64_t value)
 main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
     : main_memory_region(base, size, l, get_thr), mem_(parent)
 {
+    uint64_t addr_sregion = base_ & ESR_SREGION_MASK;
+
+    if (data_ && (addr_sregion == ESR_NEIGH_REGION))
+    {
+        // Initialize Neigh ESRs
+        if (((base_ & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT) == 3)
+        {
+            write64(data_ + (ESR_MINION_BOOT - base_), ESR_NEIGH_MINION_BOOT_RESET_VAL);
+            write64(data_ + (ESR_ICACHE_ERR_LOG_CTL - base_), ESR_ICACHE_ERR_LOG_CTL_RESET_VAL);
+        }
+    }
 }
 
 // Destructor: free allocated mem
@@ -175,12 +188,54 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             LOG(DEBUG, "Write to ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
             switch(esr_addr)
             {
+                case ESR_DUMMY0:
+                case ESR_DUMMY1:
+                    value &= 0xffffffff;
+                    break;
+                case ESR_MINION_BOOT:
+                    value &= VA_M;
+                    break;
+                case ESR_DUMMY2:
+                case ESR_DUMMY3:
+                    value &= 1;
+                    break;
+                case ESR_VMSPAGESIZE:
+                    /* TODO: to be cached into the minions of the neighborhood (for performance) */
+                    value &= 0x3;
+                    break;
                 case ESR_IPI_REDIRECT_PC:
+                    value &= VA_M;
+                    break;
+                case ESR_PMU_CTRL:
+                    value &= 1;
+                    break;
+                case ESR_NEIGH_CHICKEN:
+                    value &= 0xff;
+                    break;
+                case ESR_ICACHE_ERR_LOG_CTL:
+                    value &= 0xf;
+                    break;
+                case ESR_ICACHE_ERR_LOG_INFO:
+                    value &= 0x0010ff000003ffffull;
+                    break;
+                case ESR_ICACHE_ERR_LOG_ADDRESS:
+                    value &= 0xffffffffc0ull;
+                    break;
+                case ESR_ICACHE_SBE_DBE_COUNTS:
+                    value &= 0x7ff;
+                    break;
                 case ESR_TEXTURE_CONTROL:
+                    value &= 0xff80;
+                    break;
                 case ESR_TEXTURE_STATUS:
-                    /* do nothing */
+                    value &= 0xffe0;
+                    break;
+                case ESR_MPROT:
+                    /* TODO: to be cached into the minions of the neighborhood (for performance) */
+                    value &= 0x7;
                     break;
                 case ESR_TEXTURE_IMAGE_TABLE_PTR:
+                    value &= 0xffffffffffffull;
                     tbox_id = tbox_id_from_thread(current_thread);
                     GET_TBOX(shire, tbox_id).set_image_table_address(value);
                     break;
@@ -396,7 +451,19 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
             LOG(DEBUG, "Read from ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
             switch(esr_addr)
             {
+                case ESR_DUMMY0:
+                case ESR_DUMMY1:
+                case ESR_MINION_BOOT:
+                case ESR_DUMMY2:
+                case ESR_DUMMY3:
+                case ESR_VMSPAGESIZE:
                 case ESR_IPI_REDIRECT_PC:
+                case ESR_PMU_CTRL:
+                case ESR_NEIGH_CHICKEN:
+                case ESR_ICACHE_ERR_LOG_CTL:
+                case ESR_ICACHE_ERR_LOG_INFO:
+                case ESR_ICACHE_ERR_LOG_ADDRESS:
+                case ESR_ICACHE_SBE_DBE_COUNTS:
                 case ESR_TEXTURE_CONTROL:
                 case ESR_TEXTURE_STATUS:
                 case ESR_TEXTURE_IMAGE_TABLE_PTR:

@@ -7,7 +7,6 @@
 #include "emu_defines.h"
 #include "testLog.h"
 
-#include "log.h"
 #include "emu_casts.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
