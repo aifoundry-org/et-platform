@@ -64,7 +64,8 @@ if (HOST_SW)
   add_dependencies(etrpc download_esperanto_soc_artifacts)
 endif(HOST_SW)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden -fPIC -std=c++11 -Wall -Werror")
+# FIXME : disable for now hidden visibility by default: -fvisibility=hidden -fvisibility-inlines-hidden
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++11 -Wall -Werror")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 set(ETRT_SOURCES

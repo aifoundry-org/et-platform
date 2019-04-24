@@ -63,7 +63,7 @@ public:
   /// process with
   /// @return Error-code or pointer to @ref Device class representing the
   /// device we registered with and its associated state.
-  ErrorOr<std::unique_ptr<Device>> registerDevice(int device);
+  ErrorOr<std::shared_ptr<Device>> registerDevice(int device);
 
   ///
   /// @brief get pointer to \ref Device class associated with a specific device
@@ -71,7 +71,7 @@ public:
   /// @param[in] device Ordinal of the device
   /// @return Error-code or pointer to @ref Device object holding the device's
   /// state.
-  ErrorOr<std::unique_ptr<Device>> getRegisteredDevice(int device);
+  ErrorOr<std::shared_ptr<Device>> getRegisteredDevice(int device);
 
   ///
   /// @brief  Return the version of the ET Device Driver that is being used.

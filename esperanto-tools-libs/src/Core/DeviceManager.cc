@@ -128,14 +128,14 @@ ErrorOr<DeviceInformation> DeviceManager::getDeviceInformation(int device) {
   prop.maxThreadsPerBlock = 1024;
   return prop;
 }
-ErrorOr<std::unique_ptr<Device>> DeviceManager::registerDevice(int device) {
+ErrorOr<std::shared_ptr<Device>> DeviceManager::registerDevice(int device) {
   // FIXME SW-256
-  return make_unique<Device>();
+  return make_shared<Device>();
 }
-ErrorOr<std::unique_ptr<Device>>
+ErrorOr<std::shared_ptr<Device>>
 DeviceManager::getRegisteredDevice(int device) {
   // FIXME SW-256
-  return make_unique<Device>();
+  return make_shared<Device>();
 }
 const char *DeviceManager::getDriverVersion() {
   // FIXME SW-256
