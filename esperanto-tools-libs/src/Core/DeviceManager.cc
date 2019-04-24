@@ -102,6 +102,15 @@ static const struct etrtDeviceProp etrtDevicePropDontCare = {
 
 namespace et_runtime {
 
+shared_ptr<DeviceManager> getDeviceManager() {
+  static shared_ptr<DeviceManager> deviceManager;
+
+  if (!deviceManager) {
+    deviceManager = make_shared<DeviceManager>();
+  }
+  return deviceManager;
+}
+
 ErrorOr<int> DeviceManager::getDeviceCount() {
   // FIXME SW-256
   return 1;

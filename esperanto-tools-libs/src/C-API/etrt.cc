@@ -13,20 +13,6 @@
 using namespace std;
 using namespace et_runtime;
 
-/// @brief Return pointer to the DeviceManager
-///
-/// Avoid creating static objects as the constructor call order is not
-/// guaranteed. Wrap the static object in a function that returns a pointer
-/// to it.
-static DeviceManager *getDeviceManager() {
-  static unique_ptr<DeviceManager> deviceManager;
-
-  if (!deviceManager) {
-    deviceManager = make_unique<DeviceManager>();
-  }
-  return deviceManager.get();
-}
-
 EXAPI const char *etrtGetErrorString(etrtError_t error) {
   return et_runtime::Error::errorString(error);
 }

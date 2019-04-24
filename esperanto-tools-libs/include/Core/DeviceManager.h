@@ -97,6 +97,14 @@ private:
   int active_device_;
 };
 
+/// @brief Return pointer to the DeviceManager
+///
+/// Avoid creating static objects as the constructor call order is not
+/// guaranteed. Wrap the static object in a function that returns a pointer
+/// to it.
+__attribute__((visibility("default"))) std::shared_ptr<DeviceManager>
+getDeviceManager();
+
 }; // namespace et_runtime
 
 #endif // ET_RUNTIME_DEVICE_MANAGER_H
