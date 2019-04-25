@@ -1,0 +1,153 @@
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+
+#include "decode.h"
+#include "emu_gio.h"
+#include "insn.h"
+#include "insn_func.h"
+#include "log.h"
+#include "utility.h"
+
+// FIXME: Replace with "state.h"
+#include "emu_defines.h"
+extern uint64_t xregs[EMU_NUM_THREADS][NXREGS];
+extern uint8_t csr_prv[EMU_NUM_THREADS];
+
+//namespace bemu {
+
+
+static inline int64_t idiv(int64_t a, int64_t b)
+{ return b ? ((a == INT64_MIN && b == -1LL) ? a : (a / b)) : UINT64_MAX; }
+
+
+static inline uint64_t udiv(uint64_t a, uint64_t b)
+{ return b ? (a / b) : UINT64_MAX; }
+
+
+static inline uint64_t udivw(uint64_t a, uint64_t b)
+{ return b ? sext<32>(a / b) : UINT64_MAX; }
+
+
+static inline int64_t idivw(int64_t a, int64_t b)
+{ return b ? sext<32>(a / b) : UINT64_MAX; }
+
+
+static inline int64_t mulh(int64_t a, int64_t b)
+{ return (__int128_t(a) * __int128_t(b)) >> 64; }
+
+
+static inline int64_t mulhsu(int64_t a, uint64_t b)
+{ return (__int128_t(a) * __uint128_t(b)) >> 64; }
+
+
+static inline uint64_t mulhu(uint64_t a, uint64_t b)
+{ return (__uint128_t(a) * __uint128_t(b)) >> 64; }
+
+
+static inline int64_t irem(int64_t a, int64_t b)
+{ return b ? ((a == INT64_MIN && b == -1LL) ? 0 : (a % b)) : a; }
+
+
+static inline uint64_t urem(uint64_t a, uint64_t b)
+{ return b ? (a % b) : a; }
+
+
+static inline uint64_t uremw(uint64_t a, uint64_t b)
+{ return b ? sext<32>(a % b) : sext<32>(a); }
+
+
+static inline int64_t iremw(int64_t a, int64_t b)
+{ return (b == 0) ? a : sext<32>(a % b); }
+
+
+void insn_div(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("div");
+    WRITE_RD(idiv(RS1, RS2));
+}
+
+
+void insn_divu(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("divu");
+    WRITE_RD(udiv(RS1, RS2));
+}
+
+
+void insn_divuw(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("divuw");
+    WRITE_RD(udivw(uint32_t(RS1), uint32_t(RS2)));
+}
+
+
+void insn_divw(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("divw");
+    WRITE_RD(idivw(sext<32>(RS1), sext<32>(RS2)));
+}
+
+
+void insn_mul(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("mul");
+    WRITE_RD(RS1 * RS2);
+}
+
+
+void insn_mulh(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("mulh");
+    WRITE_RD(mulh(RS1, RS2));
+}
+
+
+void insn_mulhsu(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("mulhsu");
+    WRITE_RD(mulhsu(RS1, RS2));
+}
+
+
+void insn_mulhu(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("mulhu");
+    WRITE_RD(mulhu(RS1, RS2));
+}
+
+
+void insn_mulw(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("mulw");
+    WRITE_RD(sext<32>(RS1 * RS2));
+}
+
+
+void insn_rem(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("rem");
+    WRITE_RD(irem(RS1, RS2));
+}
+
+
+void insn_remu(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("remu");
+    WRITE_RD(urem(RS1, RS2));
+}
+
+
+void insn_remuw(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("remuw");
+    WRITE_RD(uremw(uint32_t(RS1), uint32_t(RS2)));
+}
+
+
+void insn_remw(insn_t inst)
+{
+    DISASM_RD_RS1_RS2("remw");
+    WRITE_RD(iremw(sext<32>(RS1), sext<32>(RS2)));
+}
+
+
+//} namespace bemu

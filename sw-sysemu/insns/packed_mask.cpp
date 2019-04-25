@@ -1,0 +1,126 @@
+#include "insn.h"
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+
+#include "decode.h"
+#include "emu_gio.h"
+#include "gold.h"
+#include "insn.h"
+#include "insn_func.h"
+#include "log.h"
+#include "traps.h"
+#include "utility.h"
+#include "fpu/fpu.h"
+#include "fpu/fpu_casts.h"
+
+// FIXME: Replace with "state.h"
+#include "emu_defines.h"
+extern uint64_t xregs[EMU_NUM_THREADS][NXREGS];
+extern freg_t   fregs[EMU_NUM_THREADS][NFREGS];
+extern mreg_t   mregs[EMU_NUM_THREADS][NMREGS];
+extern uint8_t  csr_prv[EMU_NUM_THREADS];
+extern uint64_t csr_mstatus[EMU_NUM_THREADS];
+
+//namespace bemu {
+
+
+static inline size_t popcount1(const mreg_t& m)
+{ return m.count(); }
+
+
+static inline size_t popcount0(const mreg_t& m)
+{ return MLEN - m.count(); }
+
+
+void insn_maskand(insn_t inst)
+{
+    DISASM_MD_MS1_MS2("maskand");
+    WRITE_MD(MS1 & MS2);
+}
+
+
+void insn_masknot(insn_t inst)
+{
+    DISASM_MD_MS1("masknot");
+    WRITE_MD(~MS1);
+}
+
+
+void insn_maskor(insn_t inst)
+{
+    DISASM_MD_MS1_MS2("maskor");
+    WRITE_MD(MS1 | MS2);
+}
+
+
+void insn_maskpopc(insn_t inst)
+{
+    DISASM_RD_MS1("maskpopc");
+    WRITE_RD(popcount1(MS1));
+}
+
+
+void insn_maskpopc_rast(insn_t inst)
+{
+    DISASM_RD_MS1_MS2_UMSK4("maskpopc.rast");
+    mreg_t m1, m2;
+    switch (UMSK4) {
+    case 0  : m2 = 0x0f; m1 = 0x0f; break;
+    case 1  : m2 = 0x3c; m1 = 0x3c; break;
+    case 2  : m2 = 0xf0; m1 = 0xf0; break;
+    default : m2 = 0xff; m1 = 0xff; break;
+    }
+    WRITE_RD(popcount1(MS1 & m1) + popcount1(MS2 & m2));
+}
+
+
+void insn_maskpopcz(insn_t inst)
+{
+    DISASM_RD_MS1("maskpopcz");
+    WRITE_RD(popcount0(MS1));
+}
+
+
+void insn_maskxor(insn_t inst)
+{
+    DISASM_MD_MS1_MS2("maskxor");
+    WRITE_MD(MS1 ^ MS2);
+}
+
+
+void insn_mov_m_x(insn_t inst)
+{
+    DISASM_MD_RS1_UIMM8("mov.m.x");
+    WRITE_MD(uint32_t(RS1) | UIMM8);
+}
+
+
+void insn_mova_m_x(insn_t inst)
+{
+    DISASM_RS1("mova.m.x");
+    uint64_t tmp = RS1;
+    WRITE_MREG(0, tmp >> (0*MLEN));
+    WRITE_MREG(1, tmp >> (1*MLEN));
+    WRITE_MREG(2, tmp >> (2*MLEN));
+    WRITE_MREG(3, tmp >> (3*MLEN));
+    WRITE_MREG(4, tmp >> (4*MLEN));
+    WRITE_MREG(5, tmp >> (5*MLEN));
+    WRITE_MREG(6, tmp >> (6*MLEN));
+    WRITE_MREG(7, tmp >> (7*MLEN));
+}
+
+
+void insn_mova_x_m(insn_t inst)
+{
+    DISASM_RD_ALLMASK("mova.x.m");
+    WRITE_RD((mregs[current_thread][0].to_ullong() << (0*MLEN)) +
+             (mregs[current_thread][1].to_ullong() << (1*MLEN)) +
+             (mregs[current_thread][2].to_ullong() << (2*MLEN)) +
+             (mregs[current_thread][3].to_ullong() << (3*MLEN)) +
+             (mregs[current_thread][4].to_ullong() << (4*MLEN)) +
+             (mregs[current_thread][5].to_ullong() << (5*MLEN)) +
+             (mregs[current_thread][6].to_ullong() << (6*MLEN)) +
+             (mregs[current_thread][7].to_ullong() << (7*MLEN)));
+}
+
+
+//} // namespace bemu

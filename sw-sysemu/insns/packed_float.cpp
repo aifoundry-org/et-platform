@@ -1,0 +1,349 @@
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+
+#include "decode.h"
+#include "emu_gio.h"
+#include "insn.h"
+#include "insn_func.h"
+#include "log.h"
+#include "traps.h"
+#include "utility.h"
+#include "fpu/fpu.h"
+#include "fpu/fpu_casts.h"
+
+// FIXME: Replace with "state.h"
+#include "emu_defines.h"
+extern uint64_t xregs[EMU_NUM_THREADS][NXREGS];
+extern freg_t   fregs[EMU_NUM_THREADS][NFREGS];
+extern mreg_t   mregs[EMU_NUM_THREADS][NMREGS];
+extern uint8_t  csr_prv[EMU_NUM_THREADS];
+extern uint32_t csr_fcsr[EMU_NUM_THREADS];
+extern uint64_t csr_mstatus[EMU_NUM_THREADS];
+
+//namespace bemu {
+
+
+void insn_fadd_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_RM("fadd.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_add(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fbci_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_F32IMM("fbci.ps");
+    WRITE_VD( F32IMM );
+}
+
+
+void insn_fbcx_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_RS1("fbcx.ps");
+    WRITE_VD( uint32_t(RS1) );
+}
+
+
+void insn_fclass_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1("fclass.ps");
+    WRITE_VD( fpu::f32_classify(FS1.f32[e]) );
+}
+
+
+void insn_fcmov_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_FS3("fcmov.ps");
+    WRITE_VD( FS1.u32[e] ? FS2.u32[e] : FS3.u32[e] );
+}
+
+
+void insn_fcmovm_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fcmovm.ps");
+    LOG_MREG(":", 0);
+    WRITE_VD_NOMASK( M0[e] ? FS1.u32[e] : FS2.u32[e] );
+}
+
+
+void insn_fcvt_f16_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FRM("fcvt.f16.ps");
+    set_rounding_mode(FRM);
+    WRITE_VD( fpu::f32_to_f16(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fcvt_ps_f16(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1("fcvt.ps.f16");
+    WRITE_VD( fpu::f16_to_f32(FS1.f16[2*e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fcvt_ps_pw(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_RM("fcvt.ps.pw");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::i32_to_f32(FS1.i32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fcvt_ps_pwu(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_RM("fcvt.ps.pwu");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::ui32_to_f32(FS1.u32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fcvt_pw_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_RM("fcvt.pw.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_to_i32(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fcvt_pwu_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_RM("fcvt.pwu.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_to_ui32(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fdiv_ps(insn_t inst)
+{
+    DISASM_FD_FS1_FS2_RM("fdiv.ps");
+    throw trap_mcode_instruction(inst.bits);
+}
+
+
+void insn_feq_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("feq.ps");
+    WRITE_VD( fpu::f32_eq(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
+    set_fp_exceptions();
+}
+
+
+void insn_feqm_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_MD_FS1_FS2("feqm.ps");
+    WRITE_VMD( fpu::f32_eq(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_ffrc_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1("ffrc.ps");
+    WRITE_VD( fpu::f32_frac(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fle_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fle.ps");
+    WRITE_VD( fpu::f32_le(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
+    set_fp_exceptions();
+}
+
+
+void insn_flem_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_MD_FS1_FS2("flem.ps");
+    WRITE_VMD( fpu::f32_le(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_flt_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("flt.ps");
+    WRITE_VD( fpu::f32_lt(FS1.f32[e], FS2.f32[e]) ? UINT32_MAX : 0 );
+    set_fp_exceptions();
+}
+
+
+void insn_fltm_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_MD_FS1_FS2("fltm.ps");
+    WRITE_VMD( fpu::f32_lt(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fmadd_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_FS3_RM("fmadd.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_mulAdd(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fmax_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fmax.ps");
+    WRITE_VD( fpu::f32_maximumNumber(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fmin_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fmin.ps");
+    WRITE_VD( fpu::f32_minimumNumber(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fmsub_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_FS3_RM("fmsub.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_mulSub(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fmul_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_RM("fmul.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_mul(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fmvs_x_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_RD_FS1_UIMM3("fmvs.x.ps");
+    WRITE_RD(sext<32>(FS1.u32[UIMM3]));
+}
+
+
+void insn_fmvz_x_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_RD_FS1_UIMM3("fmvz.x.ps");
+    WRITE_RD(FS1.u32[UIMM3]);
+}
+
+
+void insn_fnmadd_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_FS3_RM("fnmadd.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_subMulAdd(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fnmsub_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_FS3_RM("fnmsub.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_subMulSub(FS1.f32[e], FS2.f32[e], FS3.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fround_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_RM("fround.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_roundToInt(FS1.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fsgnj_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fsgnj.ps");
+    WRITE_VD( fpu::f32_copySign(FS1.f32[e], FS2.f32[e]) );
+}
+
+
+void insn_fsgnjn_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fsgnjn.ps");
+    WRITE_VD( fpu::f32_copySignNot(FS1.f32[e], FS2.f32[e]) );
+}
+
+
+void insn_fsgnjx_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2("fsgnjx.ps");
+    WRITE_VD( fpu::f32_copySignXor(FS1.f32[e], FS2.f32[e]) );
+}
+
+
+void insn_fsqrt_ps(insn_t inst)
+{
+    DISASM_FD_FS1_RM("fsqrt.ps");
+    throw trap_mcode_instruction(inst.bits);
+}
+
+
+void insn_fsub_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_FS2_RM("fsub.ps");
+    set_rounding_mode(RM);
+    WRITE_VD( fpu::f32_sub(FS1.f32[e], FS2.f32[e]) );
+    set_fp_exceptions();
+}
+
+
+void insn_fswizz_ps(insn_t inst)
+{
+    require_fp_active();
+    DISASM_FD_FS1_UIMM8("fswizz.ps");
+    freg_t tmp = FS1;
+    WRITE_VD( tmp.u32[(e & ~3) | ((UIMM8 >> ((2*e) % 8)) & 3)] );
+}
+
+
+//} // namespace bemu

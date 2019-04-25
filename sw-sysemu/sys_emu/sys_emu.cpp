@@ -11,6 +11,7 @@
 
 #include "emu.h"
 #include "emu_gio.h"
+#include "emu_memop.h"
 #include "insn.h"
 #include "common/main_memory.h"
 #include "log.h"

@@ -1,7 +1,12 @@
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+
 #include "insn.h"
-#include "insn_exec_func.h"
+#include "insn_func.h"
 #include "emu_gio.h"
-#include "emu_memop.h"
+#include "mmu.h"
+
+//namespace bemu {
+
 
 // program state
 extern uint32_t current_inst;
@@ -13,7 +18,7 @@ extern __attribute__((noreturn)) void throw_trap_breakpoint(uint64_t);
 // re-define the type
 typedef void (*insn_exec_funct_t)(insn_t);
 
-typedef insn_exec_funct_t (*insn_decode_func_t)(uint32_t, uint32_t&);
+typedef insn_exec_funct_t (*insn_decode_func_t)(uint32_t, uint16_t&);
 
 
 // -----------------------------------------------------------------------------
@@ -22,7 +27,7 @@ typedef insn_exec_funct_t (*insn_decode_func_t)(uint32_t, uint32_t&);
 //
 // -----------------------------------------------------------------------------
 
-static insn_exec_funct_t dec_load(uint32_t bits, uint32_t& flags)
+static insn_exec_funct_t dec_load(uint32_t bits, uint16_t& flags)
 {
     static const insn_exec_funct_t functab[8] = {
         /* 000 */ insn_lb,
@@ -40,7 +45,7 @@ static insn_exec_funct_t dec_load(uint32_t bits, uint32_t& flags)
 }
 
 
-static insn_exec_funct_t dec_load_fp(uint32_t bits, uint32_t& flags)
+static insn_exec_funct_t dec_load_fp(uint32_t bits, uint16_t& flags)
 {
     unsigned funct3 = (bits >> 12) & 7;
     switch (funct3) {
@@ -51,7 +56,8 @@ static insn_exec_funct_t dec_load_fp(uint32_t bits, uint32_t& flags)
 }
 
 
-static insn_exec_funct_t dec_custom0(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_custom0(uint32_t bits,
+                                     uint16_t& flags __attribute__((unused)))
 {
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct7 = (bits >> 25);
@@ -124,7 +130,8 @@ static insn_exec_funct_t dec_custom0(uint32_t bits, uint32_t& flags __attribute_
 }
 
 
-static insn_exec_funct_t dec_misc_mem(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_misc_mem(uint32_t bits,
+                                      uint16_t& flags __attribute__((unused)))
 {
     unsigned funct3 = (bits >> 12) & 7;
     unsigned fm = (bits >> 28);
@@ -136,7 +143,8 @@ static insn_exec_funct_t dec_misc_mem(uint32_t bits, uint32_t& flags __attribute
 }
 
 
-static insn_exec_funct_t dec_op_imm(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_op_imm(uint32_t bits,
+                                    uint16_t& flags __attribute__((unused)))
 {
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct6 = (bits >> 26);
@@ -159,13 +167,14 @@ static insn_exec_funct_t dec_op_imm(uint32_t bits, uint32_t& flags __attribute__
 
 
 static insn_exec_funct_t dec_auipc(uint32_t bits __attribute__((unused)),
-                                   uint32_t& flags __attribute__((unused)))
+                                   uint16_t& flags __attribute__((unused)))
 {
     return insn_auipc;
 }
 
 
-static insn_exec_funct_t dec_op_imm_32(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_op_imm_32(uint32_t bits,
+                                       uint16_t& flags __attribute__((unused)))
 {
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct7 = (bits >> 25);
@@ -183,13 +192,14 @@ static insn_exec_funct_t dec_op_imm_32(uint32_t bits, uint32_t& flags __attribut
 
 
 static insn_exec_funct_t dec_insn_48b_0(uint32_t bits __attribute__((unused)),
-                                        uint32_t& flags __attribute__((unused)))
+                                        uint16_t& flags __attribute__((unused)))
 {
     return insn_fbci_ps;
 }
 
 
-static insn_exec_funct_t dec_store(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_store(uint32_t bits,
+                                   uint16_t& flags __attribute__((unused)))
 {
     static const insn_exec_funct_t functab[8] = {
         /* 000 */ insn_sb,
@@ -206,7 +216,8 @@ static insn_exec_funct_t dec_store(uint32_t bits, uint32_t& flags __attribute__(
 }
 
 
-static insn_exec_funct_t dec_store_fp(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_store_fp(uint32_t bits,
+                                      uint16_t& flags __attribute__((unused)))
 {
     unsigned funct3 = (bits >> 12) & 7;
     switch (funct3) {
@@ -218,14 +229,14 @@ static insn_exec_funct_t dec_store_fp(uint32_t bits, uint32_t& flags __attribute
 
 
 static insn_exec_funct_t dec_custom1(uint32_t bits __attribute__((unused)),
-                                     uint32_t& flags __attribute__((unused)))
+                                     uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown;
 }
 
 
 static insn_exec_funct_t dec_amo(uint32_t bits __attribute__((unused)),
-                                 uint32_t& flags __attribute__((unused)))
+                                 uint16_t& flags __attribute__((unused)))
 {
 #if 0
     unsigned funct3 = (bits >> 12) & 7;
@@ -267,7 +278,8 @@ static insn_exec_funct_t dec_amo(uint32_t bits __attribute__((unused)),
 }
 
 
-static insn_exec_funct_t dec_op(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_op(uint32_t bits,
+                                uint16_t& flags __attribute__((unused)))
 {
     static const insn_exec_funct_t functab00[8] = {
         /* 000 */ insn_add,
@@ -311,13 +323,14 @@ static insn_exec_funct_t dec_op(uint32_t bits, uint32_t& flags __attribute__((un
 
 
 static insn_exec_funct_t dec_lui(uint32_t bits __attribute__((unused)),
-                                 uint32_t& flags __attribute__((unused)))
+                                 uint16_t& flags __attribute__((unused)))
 {
     return insn_lui;
 }
 
 
-static insn_exec_funct_t dec_op_32(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_op_32(uint32_t bits,
+                                   uint16_t& flags __attribute__((unused)))
 {
 #if 0
     static const insn_exec_funct_t functab00[8] = {
@@ -438,7 +451,8 @@ static insn_exec_funct_t dec_op_32(uint32_t bits, uint32_t& flags __attribute__(
 }
 
 
-static insn_exec_funct_t dec_insn_64b(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_insn_64b(uint32_t bits,
+                                      uint16_t& flags __attribute__((unused)))
 {
     static const insn_exec_funct_t functab0[4] = {
         /* 00 */ insn_unknown,
@@ -469,35 +483,40 @@ static insn_exec_funct_t dec_insn_64b(uint32_t bits, uint32_t& flags __attribute
 }
 
 
-static insn_exec_funct_t dec_madd(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_madd(uint32_t bits,
+                                  uint16_t& flags __attribute__((unused)))
 {
     unsigned funct2 = (bits >> 25) & 2;
     return (funct2 == 0) ? insn_fmadd_s : insn_unknown;
 }
 
 
-static insn_exec_funct_t dec_msub(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_msub(uint32_t bits,
+                                  uint16_t& flags __attribute__((unused)))
 {
     unsigned funct2 = (bits >> 25) & 2;
     return (funct2 == 0) ? insn_fmsub_s : insn_unknown;
 }
 
 
-static insn_exec_funct_t dec_nmsub(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_nmsub(uint32_t bits,
+                                   uint16_t& flags __attribute__((unused)))
 {
     unsigned funct2 = (bits >> 25) & 2;
     return (funct2 == 0) ? insn_fnmsub_s : insn_unknown;
 }
 
 
-static insn_exec_funct_t dec_nmadd(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_nmadd(uint32_t bits,
+                                   uint16_t& flags __attribute__((unused)))
 {
     unsigned funct2 = (bits >> 25) & 2;
     return (funct2 == 0) ? insn_fnmadd_s : insn_unknown;
 }
 
 
-static insn_exec_funct_t dec_op_fp(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_op_fp(uint32_t bits,
+                                   uint16_t& flags __attribute__((unused)))
 {
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct7 = (bits >> 25);
@@ -551,13 +570,14 @@ static insn_exec_funct_t dec_op_fp(uint32_t bits, uint32_t& flags __attribute__(
 
 
 static insn_exec_funct_t dec_reserved0(uint32_t bits __attribute__((unused)),
-                                       uint32_t& flags __attribute__((unused)))
+                                       uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown;
 }
 
 
-static insn_exec_funct_t dec_custom2(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_custom2(uint32_t bits,
+                                     uint16_t& flags __attribute__((unused)))
 {
     static const insn_exec_funct_t functab[4] = {
         /* 00 */ insn_fmadd_ps,
@@ -571,13 +591,14 @@ static insn_exec_funct_t dec_custom2(uint32_t bits, uint32_t& flags __attribute_
 
 
 static insn_exec_funct_t dec_insn_48b_1(uint32_t bits __attribute__((unused)),
-                                        uint32_t& flags __attribute__((unused)))
+                                        uint16_t& flags __attribute__((unused)))
 {
     return insn_fbci_pi;
 }
 
 
-static insn_exec_funct_t dec_branch(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_branch(uint32_t bits,
+                                    uint16_t& flags __attribute__((unused)))
 {
     static const insn_exec_funct_t functab[8] = {
         /* 000 */ insn_beq,
@@ -595,7 +616,7 @@ static insn_exec_funct_t dec_branch(uint32_t bits, uint32_t& flags __attribute__
 
 
 static insn_exec_funct_t dec_jalr(uint32_t bits __attribute__((unused)),
-                                  uint32_t& flags __attribute__((unused)))
+                                  uint16_t& flags __attribute__((unused)))
 {
     unsigned funct3 = (bits >> 12) & 7;
     if (funct3 != 0) return insn_unknown;
@@ -604,20 +625,20 @@ static insn_exec_funct_t dec_jalr(uint32_t bits __attribute__((unused)),
 
 
 static insn_exec_funct_t dec_reserved1(uint32_t bits __attribute__((unused)),
-                                       uint32_t& flags __attribute__((unused)))
+                                       uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown;
 }
 
 
 static insn_exec_funct_t dec_jal(uint32_t bits __attribute__((unused)),
-                                 uint32_t& flags __attribute__((unused)))
+                                 uint16_t& flags __attribute__((unused)))
 {
     return insn_jal;
 }
 
 
-static insn_exec_funct_t dec_system(uint32_t bits, uint32_t& flags)
+static insn_exec_funct_t dec_system(uint32_t bits, uint16_t& flags)
 {
     static const insn_exec_funct_t functab[8] = {
         /* 000 */ nullptr,
@@ -662,7 +683,8 @@ static insn_exec_funct_t dec_system(uint32_t bits, uint32_t& flags)
 }
 
 
-static insn_exec_funct_t dec_reserved2(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_reserved2(uint32_t bits,
+                                       uint16_t& flags __attribute__((unused)))
 {
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct7 = (bits >> 25);
@@ -670,7 +692,7 @@ static insn_exec_funct_t dec_reserved2(uint32_t bits, uint32_t& flags __attribut
 }
 
 
-static insn_exec_funct_t dec_custom3(uint32_t bits, uint32_t& flags)
+static insn_exec_funct_t dec_custom3(uint32_t bits, uint16_t& flags)
 {
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct7 = (bits >> 25);
@@ -841,7 +863,7 @@ static insn_exec_funct_t dec_custom3(uint32_t bits, uint32_t& flags)
 
 
 static insn_exec_funct_t dec_insn_80b(uint32_t bits __attribute__((unused)),
-                                      uint32_t& flags __attribute__((unused)))
+                                      uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown;
 }
@@ -855,7 +877,8 @@ static insn_exec_funct_t dec_insn_80b(uint32_t bits __attribute__((unused)),
 
 // ----- Quadrant 0 -----
 
-static insn_exec_funct_t dec_c_addi4spn(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_c_addi4spn(uint32_t bits,
+                                        uint16_t& flags __attribute__((unused)))
 {
     if (bits != 0) {
         uint16_t nzuimm = (bits >> 5) & 0xff;
@@ -866,20 +889,22 @@ static insn_exec_funct_t dec_c_addi4spn(uint32_t bits, uint32_t& flags __attribu
 
 
 static insn_exec_funct_t dec_c_fld(uint32_t bits __attribute__((unused)),
-                                   uint32_t& flags __attribute__((unused)))
+                                   uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown; // RV64D: insn_fld
 }
 
 
-static insn_exec_funct_t dec_c_lw(uint32_t bits __attribute__((unused)), uint32_t& flags)
+static insn_exec_funct_t dec_c_lw(uint32_t bits __attribute__((unused)),
+                                  uint16_t& flags)
 {
     flags |= insn_t::flag_LOAD;
     return insn_c_lw;
 }
 
 
-static insn_exec_funct_t dec_c_ld(uint32_t bits __attribute__((unused)), uint32_t& flags)
+static insn_exec_funct_t dec_c_ld(uint32_t bits __attribute__((unused)),
+                                  uint16_t& flags)
 {
     flags |= insn_t::flag_LOAD;
     return insn_c_ld;
@@ -887,28 +912,28 @@ static insn_exec_funct_t dec_c_ld(uint32_t bits __attribute__((unused)), uint32_
 
 
 static insn_exec_funct_t dec_c_reserved(uint32_t bits __attribute__((unused)),
-                                        uint32_t& flags __attribute__((unused)))
+                                        uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown;
 }
 
 
 static insn_exec_funct_t dec_c_fsd(uint32_t bits __attribute__((unused)),
-                                   uint32_t& flags __attribute__((unused)))
+                                   uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown; // RV64D: insn_fsd
 }
 
 
 static insn_exec_funct_t dec_c_sw(uint32_t bits __attribute__((unused)),
-                                  uint32_t& flags __attribute__((unused)))
+                                  uint16_t& flags __attribute__((unused)))
 {
     return insn_c_sw;
 }
 
 
 static insn_exec_funct_t dec_c_sd(uint32_t bits __attribute__((unused)),
-                                  uint32_t& flags __attribute__((unused)))
+                                  uint16_t& flags __attribute__((unused)))
 {
     return insn_c_sd;
 }
@@ -917,13 +942,14 @@ static insn_exec_funct_t dec_c_sd(uint32_t bits __attribute__((unused)),
 // ----- Quadrant 1 -----
 
 static insn_exec_funct_t dec_c_addi(uint32_t bits __attribute__((unused)),
-                                    uint32_t& flags __attribute__((unused)))
+                                    uint16_t& flags __attribute__((unused)))
 {
     return insn_c_addi;
 }
 
 
-static insn_exec_funct_t dec_c_addiw(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_c_addiw(uint32_t bits,
+                                     uint16_t& flags __attribute__((unused)))
 {
     uint16_t rs1_rd = (bits >> 7) & 31;
     return (rs1_rd == 0) ? insn_unknown : insn_c_addiw;
@@ -931,13 +957,14 @@ static insn_exec_funct_t dec_c_addiw(uint32_t bits, uint32_t& flags __attribute_
 
 
 static insn_exec_funct_t dec_c_li(uint32_t bits __attribute__((unused)),
-                                  uint32_t& flags __attribute__((unused)))
+                                  uint16_t& flags __attribute__((unused)))
 {
     return insn_c_li;
 }
 
 
-static insn_exec_funct_t dec_c_lui_addi16sp(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_c_lui_addi16sp(uint32_t bits,
+                                            uint16_t& flags __attribute__((unused)))
 {
     uint16_t nzimm = ((bits >> 7) & 0x20) | ((bits >> 2) & 0x1f);
     if (nzimm != 0) {
@@ -948,7 +975,8 @@ static insn_exec_funct_t dec_c_lui_addi16sp(uint32_t bits, uint32_t& flags __att
 }
 
 
-static insn_exec_funct_t dec_c_misc_alu(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_c_misc_alu(uint32_t bits,
+                                        uint16_t& flags __attribute__((unused)))
 {
     // bits 12|11:10|6:5
     static const insn_exec_funct_t functab[32] = {
@@ -968,21 +996,21 @@ static insn_exec_funct_t dec_c_misc_alu(uint32_t bits, uint32_t& flags __attribu
 
 
 static insn_exec_funct_t dec_c_j(uint32_t bits __attribute__((unused)),
-                                 uint32_t& flags __attribute__((unused)))
+                                 uint16_t& flags __attribute__((unused)))
 {
     return insn_c_j;
 }
 
 
 static insn_exec_funct_t dec_c_beqz(uint32_t bits __attribute__((unused)),
-                                    uint32_t& flags __attribute__((unused)))
+                                    uint16_t& flags __attribute__((unused)))
 {
     return insn_c_beqz;
 }
 
 
 static insn_exec_funct_t dec_c_bnez(uint32_t bits __attribute__((unused)),
-                                    uint32_t& flags __attribute__((unused)))
+                                    uint16_t& flags __attribute__((unused)))
 {
     return insn_c_bnez;
 }
@@ -991,20 +1019,20 @@ static insn_exec_funct_t dec_c_bnez(uint32_t bits __attribute__((unused)),
 // ----- Quadrant 2 -----
 
 static insn_exec_funct_t dec_c_slli(uint32_t bits __attribute__((unused)),
-                                    uint32_t& flags __attribute__((unused)))
+                                    uint16_t& flags __attribute__((unused)))
 {
     return insn_c_slli;
 }
 
 
 static insn_exec_funct_t dec_c_fldsp(uint32_t bits __attribute__((unused)),
-                                     uint32_t& flags __attribute__((unused)))
+                                     uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown; // RV64D: insn_fldsp
 }
 
 
-static insn_exec_funct_t dec_c_lwsp(uint32_t bits, uint32_t& flags)
+static insn_exec_funct_t dec_c_lwsp(uint32_t bits, uint16_t& flags)
 {
     uint16_t rs1_rd = (bits >> 7) & 31;
     flags |= insn_t::flag_LOAD;
@@ -1012,7 +1040,7 @@ static insn_exec_funct_t dec_c_lwsp(uint32_t bits, uint32_t& flags)
 }
 
 
-static insn_exec_funct_t dec_c_ldsp(uint32_t bits, uint32_t& flags)
+static insn_exec_funct_t dec_c_ldsp(uint32_t bits, uint16_t& flags)
 {
     uint16_t rs1_rd = (bits >> 7) & 31;
     flags |= insn_t::flag_LOAD;
@@ -1020,7 +1048,8 @@ static insn_exec_funct_t dec_c_ldsp(uint32_t bits, uint32_t& flags)
 }
 
 
-static insn_exec_funct_t dec_c_jalr_mv_add(uint32_t bits, uint32_t& flags __attribute__((unused)))
+static insn_exec_funct_t dec_c_jalr_mv_add(uint32_t bits,
+                                           uint16_t& flags __attribute__((unused)))
 {
     // idx[2] = bits[12]
     // idx[1] = (rs1_rd != 0)
@@ -1043,21 +1072,21 @@ static insn_exec_funct_t dec_c_jalr_mv_add(uint32_t bits, uint32_t& flags __attr
 
 
 static insn_exec_funct_t dec_c_fsdsp(uint32_t bits __attribute__((unused)),
-                                     uint32_t& flags __attribute__((unused)))
+                                     uint16_t& flags __attribute__((unused)))
 {
     return insn_unknown;
 }
 
 
 static insn_exec_funct_t dec_c_swsp(uint32_t bits __attribute__((unused)),
-                                    uint32_t& flags __attribute__((unused)))
+                                    uint16_t& flags __attribute__((unused)))
 {
     return insn_c_swsp;
 }
 
 
 static insn_exec_funct_t dec_c_sdsp(uint32_t bits __attribute__((unused)),
-                                    uint32_t& flags __attribute__((unused)))
+                                    uint16_t& flags __attribute__((unused)))
 {
     return insn_c_sdsp;
 }
@@ -1096,7 +1125,7 @@ insn_t fetch_and_decode(uint64_t vaddr)
 
     // local copy of the class members
     uint32_t bits = 0;
-    uint32_t flags = 0;
+    uint16_t flags = 0;
     insn_exec_funct_t exec_fn = nullptr;
 
     // Fetch two 16b words; don't translate the address twice if both words
@@ -1107,8 +1136,8 @@ insn_t fetch_and_decode(uint64_t vaddr)
     bool should_break = matches_fetch_breakpoint(vaddr);
     try
     {
-        paddr = vmemtranslate(vaddr, Mem_Access_Fetch);
-        low = pmemfetch16(paddr);
+        paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch);
+        low = pmemread16(paddr);
     }
     catch (const trap_instruction_page_fault& t)
     {
@@ -1123,12 +1152,12 @@ insn_t fetch_and_decode(uint64_t vaddr)
         bits = uint32_t(low);
         LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64 ": 0x%04x", vaddr, low);
     } else if ((paddr & 4095) <= 4092) {
-        uint16_t high = pmemfetch16(paddr + 2);
+        uint16_t high = pmemread16(paddr + 2);
         bits = uint32_t(low) + (uint32_t(high) << 16);
         LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
     } else {
-        uint64_t paddr2 = vmemtranslate(vaddr + 2, Mem_Access_Fetch);
-        uint16_t high = pmemfetch16(paddr2);
+        uint64_t paddr2 = vmemtranslate(vaddr + 2, 2, Mem_Access_Fetch);
+        uint16_t high = pmemread16(paddr2);
         bits = uint32_t(low) + (uint32_t(high) << 16);
         LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
     }
@@ -1146,3 +1175,6 @@ insn_t fetch_and_decode(uint64_t vaddr)
     // overwrite const members
     return insn_t { bits, flags, exec_fn };
 }
+
+
+//} // namespace bemu
