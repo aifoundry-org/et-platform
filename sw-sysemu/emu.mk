@@ -1,4 +1,7 @@
 emu_hdrs := \
+	atomics.h \
+	csrs.h \
+	decode.h \
 	emu.h \
 	emu_casts.h \
 	emu_defines.h \
@@ -6,10 +9,17 @@ emu_hdrs := \
 	emu_memop.h \
 	gold.h \
 	insn.h \
-	insn_exec_func.h \
+	insn_func.h \
+	memmap.h \
+	mmu.h \
 	rbox.h \
+	rbox_pi.h \
+	state.h \
 	tbox_emu.h \
+	tbox_pi.h \
+	traps.h \
 	txs.h \
+	utility.h \
 	common/main_memory.h \
 	common/main_memory_region.h \
 	common/main_memory_region_atomic.h \
@@ -21,11 +31,34 @@ emu_cpp_srcs := \
 	decode.cpp \
 	emu.cpp \
 	emu_gio.cpp \
+	emu_memop.cpp \
 	gold.cpp \
 	insn_exec_func.cpp \
+	mmu.cpp \
+	rbox.cpp \
 	tbox_emu.cpp \
 	txs.cpp \
-	rbox.cpp \
+	insns/arith.cpp \
+	insns/arith_atomic.cpp \
+	insns/arith_graphics.cpp \
+	insns/arith_loadstore.cpp \
+	insns/branch.cpp \
+	insns/c_arith.cpp \
+	insns/c_branch.cpp \
+	insns/c_loadstore.cpp \
+	insns/coherent_arith_loadstore.cpp \
+	insns/coherent_packed_loadstore.cpp \
+	insns/float.cpp \
+	insns/float_loadstore.cpp \
+	insns/muldiv.cpp \
+	insns/packed_arith.cpp \
+	insns/packed_atomic.cpp \
+	insns/packed_float.cpp \
+	insns/packed_graphics.cpp \
+	insns/packed_loadstore.cpp \
+	insns/packed_mask.cpp \
+	insns/packed_trans.cpp \
+	insns/zifencei.cpp \
 	common/main_memory.cpp \
 	common/main_memory_region.cpp \
 	common/main_memory_region_atomic.cpp \

@@ -1,0 +1,96 @@
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+
+#ifndef BEMU_ATOMICS_H
+#define BEMU_ATOMICS_H
+
+#include <cstdint>
+#include <algorithm>
+#include <functional>
+
+#include "softfloat/platform.h"
+#include "softfloat/internals.h"
+#include "softfloat/specialize.h"
+
+// namespace bemu {
+
+template<typename T>
+struct replace
+{
+    T operator() (const T& x __attribute__((unused)), const T& y) const {
+        return y;
+    }
+    typedef T first_argument_type;
+    typedef T second_argument_type;
+    typedef T result_type;
+};
+
+
+template<typename T>
+struct maximum
+{
+    T operator() (const T& x, const T& y) const {
+        return std::max(x, y);
+    }
+    typedef T first_argument_type;
+    typedef T second_argument_type;
+    typedef T result_type;
+};
+
+
+template<typename T>
+struct minimum
+{
+    T operator() (const T& x, const T& y) const {
+        return std::min(x, y);
+    }
+    typedef T first_argument_type;
+    typedef T second_argument_type;
+    typedef T result_type;
+};
+
+
+struct f32_maximum
+{
+    uint32_t operator() (const uint32_t& x, const uint32_t& y) const {
+        if (isNaNF32UI(x) || isNaNF32UI(y)) {
+            if (softfloat_isSigNaNF32UI(x) || softfloat_isSigNaNF32UI(y)) {
+                return defaultNaNF32UI;
+            }
+            return isNaNF32UI(x) ? (isNaNF32UI(y) ? defaultNaNF32UI : y) : x;
+        }
+        bool signX = signF32UI(x);
+        bool signY = signF32UI(y);
+        return (signX != signY)
+                ? (signY ? x : y)
+                : (((x != y) && (signY ^ (y < x))) ? x : y);
+    }
+    typedef uint32_t first_argument_type;
+    typedef uint32_t second_argument_type;
+    typedef uint32_t result_type;
+};
+
+
+struct f32_minimum
+{
+    uint32_t operator() (const uint32_t& x, const uint32_t& y) const {
+        if (isNaNF32UI(x) || isNaNF32UI(y)) {
+            if (softfloat_isSigNaNF32UI(x) || softfloat_isSigNaNF32UI(y)) {
+                return defaultNaNF32UI;
+            }
+            return isNaNF32UI(x) ? (isNaNF32UI(y) ? defaultNaNF32UI : y) : x;
+        }
+        bool signX = signF32UI( x );
+        bool signY = signF32UI( y );
+        return (signX != signY)
+                ? (signX ? x : y)
+                : (((x != y) && (signX ^ (x < y))) ? x : y );
+    }
+    typedef uint32_t first_argument_type;
+    typedef uint32_t second_argument_type;
+    typedef uint32_t result_type;
+};
+
+
+//} namespace bemu
+
+#endif // BEMU_ATOMICS_H

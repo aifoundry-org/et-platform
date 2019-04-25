@@ -2,6 +2,7 @@
 #define BEMU_DEFINES_H
 
 #include "state.h"
+#include "traps.h"
 
 // Maximum number of threads
 #define EMU_NUM_SHIRES          34 // 32 Compute + Master + IO Shire SP
@@ -327,7 +328,11 @@ enum mem_access_type {
     Mem_Access_CacheOp
 };
 
-enum mreg {
+using mreg = unsigned;
+using xreg = unsigned;
+using freg = unsigned;
+
+enum : mreg {
     m0 = 0,
     m1 = 1,
     m2 = 2,
@@ -336,11 +341,9 @@ enum mreg {
     m5 = 5,
     m6 = 6,
     m7 = 7,
-    MAXMREG = 8,
-    mnone = -1
 };
 
-enum xreg {
+enum : xreg {
     x0 = 0,
     x1 = 1,
     x2 = 2,
@@ -373,11 +376,9 @@ enum xreg {
     x29 = 29,
     x30 = 30,
     x31 = 31,
-    MAXXREG = 32,
-    xnone = -1
 };
 
-enum freg {
+enum : freg {
     f0 = 0,
     f1 = 1,
     f2 = 2,
@@ -410,8 +411,6 @@ enum freg {
     f29 = 29,
     f30 = 30,
     f31 = 31,
-    MAXFREG = 32,
-    fnone = -1
 };
 
 enum rounding_mode {
@@ -441,125 +440,5 @@ enum et_core_t {
 #define CSR_PRV_S  1
 #define CSR_PRV_H  2
 #define CSR_PRV_M  3
-
-// Traps
-#define CAUSE_MISALIGNED_FETCH          0x00
-#define CAUSE_FETCH_ACCESS              0x01
-#define CAUSE_ILLEGAL_INSTRUCTION       0x02
-#define CAUSE_BREAKPOINT                0x03
-#define CAUSE_MISALIGNED_LOAD           0x04
-#define CAUSE_LOAD_ACCESS               0x05
-#define CAUSE_MISALIGNED_STORE          0x06
-#define CAUSE_STORE_ACCESS              0x07
-#define CAUSE_USER_ECALL                0x08
-#define CAUSE_SUPERVISOR_ECALL          0x09
-#define CAUSE_MACHINE_ECALL             0x0b
-#define CAUSE_FETCH_PAGE_FAULT          0x0c
-#define CAUSE_LOAD_PAGE_FAULT           0x0d
-#define CAUSE_STORE_PAGE_FAULT          0x0f
-#define CAUSE_FETCH_BUS_ERROR           0x19
-#define CAUSE_FETCH_ECC_ERROR           0x1a
-#define CAUSE_LOAD_PAGE_SPLIT_FAULT     0x1b
-#define CAUSE_STORE_PAGE_SPLIT_FAULT    0x1c
-#define CAUSE_BUS_ERROR                 0x1d
-#define CAUSE_MCODE_INSTRUCTION         0x1e
-#define CAUSE_TXFMA_OFF                 0x1f
-#define CAUSE_USER_SOFTWARE_INTERRUPT               0x8000000000000000ULL
-#define CAUSE_SUPERVISOR_SOFTWARE_INTERRUPT         0x8000000000000001ULL
-#define CAUSE_MACHINE_SOFTWARE_INTERRUPT            0x8000000000000003ULL
-#define CAUSE_USER_TIMER_INTERRUPT                  0x8000000000000004ULL
-#define CAUSE_SUPERVISOR_TIMER_INTERRUPT            0x8000000000000005ULL
-#define CAUSE_MACHINE_TIMER_INTERRUPT               0x8000000000000007ULL
-#define CAUSE_USER_EXTERNAL_INTERRUPT               0x8000000000000008ULL
-#define CAUSE_SUPERVISOR_EXTERNAL_INTERRUPT         0x8000000000000009ULL
-#define CAUSE_MACHINE_EXTERNAL_INTERRUPT            0x800000000000000bULL
-#define CAUSE_BAD_IPI_REDICERT_INTERRUPT            0x800000000000000fULL
-#define CAUSE_ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT 0x8000000000000013ULL
-
-// base class for all traps
-class trap_t {
-  public:
-    trap_t(uint64_t n) : cause(n) {}
-    uint64_t get_cause() const { return cause; }
-
-    virtual bool has_tval() const = 0;
-    virtual uint64_t get_tval() const = 0;
-    virtual const char* what() const = 0;
-
-  private:
-    const uint64_t cause;
-};
-
-// define a trap type without tval
-#define DECLARE_TRAP_TVAL_N(n, x) \
-    class x : public trap_t { \
-      public: \
-        x() : trap_t(n) {} \
-        virtual bool has_tval() const override { return false; } \
-        virtual uint64_t get_tval() const override { return 0; } \
-        virtual const char* what() const override { return #x; } \
-    };
-
-// define a trap type with tval
-#define DECLARE_TRAP_TVAL_Y(n, x) \
-    class x : public trap_t { \
-      public: \
-        x(uint64_t v) : trap_t(n), tval(v) {} \
-        virtual bool has_tval() const override { return true; } \
-        virtual uint64_t get_tval() const override { return tval; } \
-        virtual const char* what() const override { return #x; } \
-      private: \
-        const uint64_t tval; \
-    };
-
-// Exceptions
-DECLARE_TRAP_TVAL_Y(CAUSE_MISALIGNED_FETCH,       trap_instruction_address_misaligned)
-DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_ACCESS,           trap_instruction_access_fault)
-DECLARE_TRAP_TVAL_Y(CAUSE_ILLEGAL_INSTRUCTION,    trap_illegal_instruction)
-DECLARE_TRAP_TVAL_Y(CAUSE_BREAKPOINT,             trap_breakpoint)
-DECLARE_TRAP_TVAL_Y(CAUSE_MISALIGNED_LOAD,        trap_load_address_misaligned)
-DECLARE_TRAP_TVAL_Y(CAUSE_MISALIGNED_STORE,       trap_store_address_misaligned)
-DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_ACCESS,            trap_load_access_fault)
-DECLARE_TRAP_TVAL_Y(CAUSE_STORE_ACCESS,           trap_store_access_fault)
-DECLARE_TRAP_TVAL_N(CAUSE_USER_ECALL,             trap_user_ecall)
-DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_ECALL,       trap_supervisor_ecall)
-DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_ECALL,          trap_machine_ecall)
-DECLARE_TRAP_TVAL_Y(CAUSE_FETCH_PAGE_FAULT,       trap_instruction_page_fault)
-DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_FAULT,        trap_load_page_fault)
-DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_FAULT,       trap_store_page_fault)
-DECLARE_TRAP_TVAL_Y(CAUSE_LOAD_PAGE_SPLIT_FAULT,  trap_load_split_page_fault)
-DECLARE_TRAP_TVAL_Y(CAUSE_STORE_PAGE_SPLIT_FAULT, trap_store_split_page_fault)
-DECLARE_TRAP_TVAL_Y(CAUSE_BUS_ERROR,              trap_bus_error)
-DECLARE_TRAP_TVAL_Y(CAUSE_MCODE_INSTRUCTION,      trap_mcode_instruction)
-DECLARE_TRAP_TVAL_Y(CAUSE_TXFMA_OFF,              trap_txfma_off)
-DECLARE_TRAP_TVAL_N(CAUSE_FETCH_BUS_ERROR,        trap_fetch_bus_error)
-DECLARE_TRAP_TVAL_N(CAUSE_FETCH_ECC_ERROR,        trap_fetch_ecc_error)
-
-// Interrupts
-DECLARE_TRAP_TVAL_N(CAUSE_USER_SOFTWARE_INTERRUPT,                trap_user_software_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_SOFTWARE_INTERRUPT,          trap_supervisor_software_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_SOFTWARE_INTERRUPT,             trap_machine_software_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_USER_TIMER_INTERRUPT,                   trap_user_timer_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_TIMER_INTERRUPT,             trap_supervisor_timer_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_TIMER_INTERRUPT,                trap_machine_timer_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_USER_EXTERNAL_INTERRUPT,                trap_user_external_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_SUPERVISOR_EXTERNAL_INTERRUPT,          trap_supervisor_external_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_MACHINE_EXTERNAL_INTERRUPT,             trap_machine_external_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_BAD_IPI_REDICERT_INTERRUPT,             trap_bad_ipi_redirect_interrupt)
-DECLARE_TRAP_TVAL_N(CAUSE_ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT,  trap_icache_ecc_counter_overflow_interrupt)
-
-class checker_wait_t {
-public:
-  virtual const char * what () const = 0;
-};
-
-// define a checker wait exception
-#define DECLARE_CHECKER_WAIT(x)                                  \
-  class x : public checker_wait_t {                              \
-  public:                                                        \
-  virtual const char* what() const override { return #x; }             \
-  };
-
-DECLARE_CHECKER_WAIT(checker_wait_fcc)
 
 #endif // BEMU_DEFINES_H

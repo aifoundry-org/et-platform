@@ -1,20 +1,21 @@
-#ifndef __INSN_H__
-#define __INSN_H__
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+
+#ifndef BEMU_INSN_H
+#define BEMU_INSN_H
 
 #include <cstdint>
 #include <cstddef>
 #include <new>
-#include "emu_defines.h"
 
-// Instruction encodings that match minstmatch/minstmask will execute this
-extern void check_minst_match(uint32_t bits);
+//namespace bemu {
+
 
 class insn_t
 {
 public:
     typedef void (*insn_exec_func_t)(insn_t);
 
-    enum : uint32_t {
+    enum : uint16_t {
         flag_1ULP         = 0x0001,
         flag_AMO          = 0x0002,
         flag_CSR_READ     = 0x0004,
@@ -30,11 +31,12 @@ public:
     };
 
     uint32_t          bits;
-    uint32_t          flags;
+    uint16_t          flags;
     insn_exec_func_t  exec_fn;
 
 public:
     constexpr size_t size() const       { return ((bits & 3) == 3) ? 4 : 2; }
+
     constexpr bool is_1ulp() const      { return (flags & flag_1ULP); }
     constexpr bool is_amo() const       { return (flags & flag_AMO); }
     constexpr bool is_csr_read() const  { return (flags & flag_CSR_READ); }
@@ -50,20 +52,20 @@ public:
 
     /* extract RV64IMAF+ET fields */
 
-    constexpr xreg  rd() const { return xreg((bits >>  7) & 31); }
-    constexpr xreg rs1() const { return xreg((bits >> 15) & 31); }
-    constexpr xreg rs2() const { return xreg((bits >> 20) & 31); }
-    //int aqrl() const { return (bits >> 24) & 3; }
+    constexpr unsigned  rd() const { return (bits >>  7) & 31; }
+    constexpr unsigned rs1() const { return (bits >> 15) & 31; }
+    constexpr unsigned rs2() const { return (bits >> 20) & 31; }
+    //constexpr unsigned aqrl() const { return (bits >> 24) & 3; }
 
-    constexpr freg  fd() const { return freg((bits >>  7) & 31); }
-    constexpr freg fs1() const { return freg((bits >> 15) & 31); }
-    constexpr freg fs2() const { return freg((bits >> 20) & 31); }
-    constexpr freg fs3() const { return freg((bits >> 27) & 31); }
-    constexpr rounding_mode rm() const { return rounding_mode((bits >> 12) & 7); }
+    constexpr unsigned  fd() const { return (bits >>  7) & 31; }
+    constexpr unsigned fs1() const { return (bits >> 15) & 31; }
+    constexpr unsigned fs2() const { return (bits >> 20) & 31; }
+    constexpr unsigned fs3() const { return (bits >> 27) & 31; }
+    constexpr unsigned  rm() const { return (bits >> 12) &  7; }
 
-    constexpr mreg  md() const { return mreg((bits >>  7) & 7); };
-    constexpr mreg ms1() const { return mreg((bits >> 15) & 7); };
-    constexpr mreg ms2() const { return mreg((bits >> 20) & 7); };
+    constexpr unsigned  md() const { return (bits >>  7) & 7; };
+    constexpr unsigned ms1() const { return (bits >> 15) & 7; };
+    constexpr unsigned ms2() const { return (bits >> 20) & 7; };
 
     constexpr int64_t i_imm() const {
         return sx<12>((bits >> 20) & 0xFFF);
@@ -132,10 +134,10 @@ public:
 
     /* extract RV64C fields */
 
-    constexpr xreg rvc_rs1()  const { return xreg((bits >> 7) & 31); }
-    constexpr xreg rvc_rs2()  const { return xreg((bits >> 2) & 31); }
-    constexpr xreg rvc_rs1p() const { return xreg(8 + ((bits >> 7) & 7)); }
-    constexpr xreg rvc_rs2p() const { return xreg(8 + ((bits >> 2) & 7)); }
+    constexpr unsigned rvc_rs1()  const { return (bits >> 7) & 31; }
+    constexpr unsigned rvc_rs2()  const { return (bits >> 2) & 31; }
+    constexpr unsigned rvc_rs1p() const { return 8 + ((bits >> 7) & 7); }
+    constexpr unsigned rvc_rs2p() const { return 8 + ((bits >> 2) & 7); }
 
     constexpr int64_t rvc_imm6() const {
         return sx<6>( ((bits >> 2) & 0x1F) | ((bits >> 7) & 0x20) );
@@ -215,9 +217,12 @@ private:
 extern insn_t fetch_and_decode(uint64_t vaddr);
 
 inline void execute(insn_t inst) {
+    extern void check_minst_match(uint32_t bits);
     check_minst_match(inst.bits);
     (inst.exec_fn) (inst);
 }
 
 
-#endif // __INSN_H__
+//} // namespace bemu
+
+#endif // BEMU_INSN_H
