@@ -5,6 +5,7 @@
 // FIXME remove this header and use forward declarations
 #include "Core/Commands.h"
 #include "Core/MemoryManager.h"
+#include "Core/CodeModule.h"
 #include "et_event.h"
 #include "et_stream.h"
 #include <condition_variable>
@@ -27,14 +28,6 @@ struct EtLaunchConf {
   dim3 blockDim;
   EtStream *etStream = nullptr;
   std::vector<uint8_t> args_buff;
-};
-
-// Dynamically loaded module descriptor.
-struct EtModule {
-  std::unordered_map<std::string, size_t>
-      kernel_offset; // kernel name -> kernel entry point offset
-  std::unordered_map<std::string, size_t>
-      raw_kernel_offset; // raw-kernel name -> kernel entry point offset
 };
 
 // Loaded to device kernels ELF binary descriptor.
@@ -105,10 +98,10 @@ public:
     assert(stl_count(event_storage_, et_event));
     return et_event;
   }
-  EtModule *getModule(etrtModule_t module) {
-    EtModule *et_module = reinterpret_cast<EtModule *>(module);
-    assert(stl_count(module_storage_, et_module));
-    return et_module;
+  // FIXME create a module_id stop passing pointers arround
+  et_runtime::Module *getModule(et_runtime::Module* module) {
+    assert(stl_count(module_storage_, module));
+    return module;
   }
   EtStream *createStream(bool is_blocking) {
     EtStream *new_stream = new EtStream(is_blocking);
@@ -128,12 +121,12 @@ public:
     assert(stl_count(event_storage_, et_event) == 1);
     stl_remove(event_storage_, et_event);
   }
-  EtModule *createModule() {
-    EtModule *new_module = new EtModule();
+  et_runtime::Module *createModule() {
+    auto new_module = new et_runtime::Module();
     module_storage_.emplace_back(new_module);
     return new_module;
   }
-  void destroyModule(EtModule *et_module) {
+  void destroyModule(et_runtime::Module *et_module) {
     assert(stl_count(module_storage_, et_module) == 1);
     stl_remove(module_storage_, et_module);
   }
@@ -161,12 +154,14 @@ public:
 
   etrtError_t setupArgument(const void *arg, size_t size, size_t offset);
   etrtError_t launch(const void *func, const char *kernel_name);
-  etrtError_t rawLaunch(etrtModule_t module, const char *kernel_name,
+  // FIXME pass module_id
+  etrtError_t rawLaunch(et_runtime::Module *module, const char *kernel_name,
                         const void *args, size_t args_size,
                         etrtStream_t stream);
-  etrtError_t moduleLoad(etrtModule_t *module, const void *image,
+  // FIXME pass module_id
+  etrtError_t moduleLoad(et_runtime::Module *module, const void *image,
                          size_t image_size);
-  etrtError_t moduleUnload(etrtModule_t module);
+  etrtError_t moduleUnload(et_runtime::Module *module);
 
 private:
   void initDeviceThread();
@@ -184,7 +179,7 @@ private:
   std::vector<std::unique_ptr<EtEvent>> event_storage_;
   std::vector<EtLaunchConf> launch_confs_;
   // FIXME SW-257
-  std::vector<std::unique_ptr<EtModule>> module_storage_;
+  std::vector<std::unique_ptr<et_runtime::Module>> module_storage_;
   std::map<const void *, EtLoadedKernelsBin>
       loaded_kernels_bin_; // key is id; there are 2 cases now:
                            // - Esperanto registered ELF (from fat binary)

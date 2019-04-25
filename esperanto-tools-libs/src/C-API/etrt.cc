@@ -337,21 +337,21 @@ EXAPI etrtError_t etrtLaunch(const void *func, const char *kernel_name) {
   return dev->launch(func, kernel_name);
 }
 
-EXAPI etrtError_t etrtModuleLoad(etrtModule_t *module, const void *image,
+EXAPI etrtError_t etrtModuleLoad(et_runtime::Module *module, const void *image,
                                  size_t image_size) {
 
   GetDev dev;
   return dev->moduleLoad(module, image, image_size);
 }
 
-EXAPI etrtError_t etrtModuleUnload(etrtModule_t module) {
+EXAPI etrtError_t etrtModuleUnload(et_runtime::Module *module) {
   GetDev dev;
   return dev->moduleUnload(module);
 }
 
-EXAPI etrtError_t etrtRawLaunch(etrtModule_t module, const char *kernel_name,
-                                const void *args, size_t args_size,
-                                etrtStream_t stream) {
+EXAPI etrtError_t etrtRawLaunch(et_runtime::Module *module,
+                                const char *kernel_name, const void *args,
+                                size_t args_size, etrtStream_t stream) {
   GetDev dev;
   return dev->rawLaunch(module, kernel_name, args, args_size, stream);
 }

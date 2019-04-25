@@ -84,6 +84,12 @@
 #include "Common/et-misc.h"
 #include "etrt-bin.h"
 
+// FIXME this header is poluted with C++ code for a period of active refactoring
+// in the future restore it back to a pure C-API
+
+// FIXME this header is going to be polluted with c++ code, in the future we
+// should clean it to return it back to be a pure C-API
+
 // Registry public interface.
 EXAPI void **__etrtRegisterFatBinary(void *fatCubin);
 EXAPI void __etrtUnregisterFatBinary(void **fatCubinHandle);
@@ -958,13 +964,15 @@ EXAPI etrtError_t etrtProfileStop();
  * @}
  */
 
-typedef struct ETmodule_st *etrtModule_t;
+namespace et_runtime {
+class Module;
+}
 
-EXAPI etrtError_t etrtModuleLoad(etrtModule_t *module, const void *image,
+EXAPI etrtError_t etrtModuleLoad(et_runtime::Module *module, const void *image,
                                  size_t image_size);
-EXAPI etrtError_t etrtModuleUnload(etrtModule_t module);
-EXAPI etrtError_t etrtRawLaunch(etrtModule_t module, const char *kernel_name,
-                                const void *args, size_t args_size,
-                                etrtStream_t stream);
+EXAPI etrtError_t etrtModuleUnload(et_runtime::Module *module);
+EXAPI etrtError_t etrtRawLaunch(et_runtime::Module *module,
+                                const char *kernel_name, const void *args,
+                                size_t args_size, etrtStream_t stream);
 
 #endif // ETRT_H

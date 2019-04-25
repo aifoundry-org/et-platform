@@ -232,12 +232,12 @@ etrtError_t EtDevice::launch(const void *func, const char *kernel_name) {
   return etrtSuccess;
 }
 
-etrtError_t EtDevice::rawLaunch(etrtModule_t module, const char *kernel_name,
-                                const void *args, size_t args_size,
-                                etrtStream_t stream) {
+etrtError_t EtDevice::rawLaunch(et_runtime::Module *module,
+                                const char *kernel_name, const void *args,
+                                size_t args_size, etrtStream_t stream) {
   GetDev dev;
 
-  EtModule *et_module = dev->getModule(module);
+  auto et_module = dev->getModule(module);
 
   EtLoadedKernelsBin &loaded_kernels_bin = dev->loaded_kernels_bin_[et_module];
   assert(loaded_kernels_bin.devPtr);
@@ -257,12 +257,11 @@ etrtError_t EtDevice::rawLaunch(etrtModule_t module, const char *kernel_name,
   return etrtSuccess;
 }
 
-etrtError_t EtDevice::moduleLoad(etrtModule_t *module, const void *image,
+etrtError_t EtDevice::moduleLoad(et_runtime::Module *module, const void *image,
                                  size_t image_size) {
   {
 
-    EtModule *new_module = this->createModule();
-    *module = reinterpret_cast<etrtModule_t>(new_module);
+    auto new_module = this->createModule();
 
     size_t parsed_elf_size;
     parse_elf(image, &parsed_elf_size, &new_module->kernel_offset,
@@ -287,7 +286,7 @@ etrtError_t EtDevice::moduleLoad(etrtModule_t *module, const void *image,
 
   {
 
-    EtModule *et_module = this->getModule(*module);
+    auto et_module = this->getModule(module);
 
     EtLoadedKernelsBin &loaded_kernels_bin = loaded_kernels_bin_[et_module];
     assert(loaded_kernels_bin.devPtr);
@@ -301,8 +300,8 @@ etrtError_t EtDevice::moduleLoad(etrtModule_t *module, const void *image,
   return etrtSuccess;
 }
 
-etrtError_t EtDevice::moduleUnload(etrtModule_t module) {
-  EtModule *et_module = this->getModule(module);
+etrtError_t EtDevice::moduleUnload(et_runtime::Module *module) {
+  auto et_module = this->getModule(module);
 
   // It is expected that user synchronize on all streams in which kernels from
   // this module was launched. So we just correct out data structures without
