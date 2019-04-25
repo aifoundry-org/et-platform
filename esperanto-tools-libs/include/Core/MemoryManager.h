@@ -17,10 +17,11 @@
 #include <map>
 #include <memory>
 
-class EtDevice;
 struct etrtPointerAttributes;
 
 namespace et_runtime {
+
+class Device;
 
 namespace device {
 
@@ -49,7 +50,7 @@ class MemoryManager {
 public:
   static constexpr size_t kHostMemRegionSize = (1 << 20) * 256;
 
-  MemoryManager(EtDevice &dev) : device_(dev) { initMemRegions(); }
+  MemoryManager(Device &dev) : device_(dev) { initMemRegions(); }
   ~MemoryManager() { uninitMemRegions(); }
 
   /// @brief Allocate pinned memory on the host
@@ -83,7 +84,7 @@ private:
   std::unique_ptr<EtMemRegion> host_mem_region_;
   std::unique_ptr<EtMemRegion> dev_mem_region_;
   std::unique_ptr<EtMemRegion> kernels_dev_mem_region_;
-  EtDevice &device_;
+  Device &device_;
 };
 } // namespace device
 } // namespace et_runtime

@@ -1,4 +1,4 @@
-#include "et_device.h"
+#include "Core/Device.h"
 #include "Core/Commands.h"
 #include "Core/MemoryManager.h"
 #include "demangle.h"
@@ -9,6 +9,9 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
+// FIXME remove the follwing
+#include "C-API/etrt.h"
 
 #define INCLUDE_FOR_HOST
 #include "../kernels/sys_inc.h"
@@ -26,8 +29,8 @@
 using namespace et_runtime;
 using namespace et_runtime::device;
 
-void EtDevice::deviceThread() {
-  // fprintf(stderr, "Hello from EtDevice::deviceThread()\n");
+void Device::deviceThread() {
+  // fprintf(stderr, "Hello from Device::deviceThread()\n");
 
   CardProxy card_proxy_s;
   CardProxy *card_proxy = &card_proxy_s;
@@ -86,7 +89,7 @@ void EtDevice::deviceThread() {
 /**
  * Reset internal objects if user code has not destroyed them
  */
-void EtDevice::uninitObjects() {
+void Device::uninitObjects() {
   for (auto &it : stream_storage_) {
     EtStream *stream = it.get();
     while (!stream->noCommands()) {
@@ -101,13 +104,13 @@ void EtDevice::uninitObjects() {
   }
 }
 
-void EtDevice::initDeviceThread() {
-  std::thread th(&EtDevice::deviceThread, this); // starting new thread
+void Device::initDeviceThread() {
+  std::thread th(&Device::deviceThread, this); // starting new thread
   device_thread_.swap(th); // move thread handler to class field
   assert(!device_thread_exit_requested_);
 }
 
-void EtDevice::uninitDeviceThread() {
+void Device::uninitDeviceThread() {
   assert(!isLocked());
   {
     std::lock_guard<std::mutex> lk(mutex_);
@@ -117,28 +120,25 @@ void EtDevice::uninitDeviceThread() {
   device_thread_.join();
 }
 
-etrtError_t EtDevice::mallocHost(void **ptr, size_t size) {
+etrtError_t Device::mallocHost(void **ptr, size_t size) {
   return mem_manager_->mallocHost(ptr, size);
 }
 
-etrtError_t EtDevice::freeHost(void *ptr) {
-  return mem_manager_->freeHost(ptr);
-}
+etrtError_t Device::freeHost(void *ptr) { return mem_manager_->freeHost(ptr); }
 
-etrtError_t EtDevice::malloc(void **devPtr, size_t size) {
+etrtError_t Device::malloc(void **devPtr, size_t size) {
   return mem_manager_->malloc(devPtr, size);
 }
 
-etrtError_t EtDevice::free(void *devPtr) { return mem_manager_->free(devPtr); }
+etrtError_t Device::free(void *devPtr) { return mem_manager_->free(devPtr); }
 
 etrtError_t
-EtDevice::pointerGetAttributes(struct etrtPointerAttributes *attributes,
-                               const void *ptr) {
+Device::pointerGetAttributes(struct etrtPointerAttributes *attributes,
+                             const void *ptr) {
   return mem_manager_->pointerGetAttributes(attributes, ptr);
 }
 
-etrtError_t EtDevice::setupArgument(const void *arg, size_t size,
-                                    size_t offset) {
+etrtError_t Device::setupArgument(const void *arg, size_t size, size_t offset) {
 
   std::vector<uint8_t> &buff = launch_confs_.back().args_buff;
   THROW_IF(offset && offset != align_up(buff.size(), size),
@@ -150,7 +150,7 @@ etrtError_t EtDevice::setupArgument(const void *arg, size_t size,
   return etrtSuccess;
 }
 
-etrtError_t EtDevice::launch(const void *func, const char *kernel_name) {
+etrtError_t Device::launch(const void *func, const char *kernel_name) {
   GetDev dev;
 
   EtLaunchConf launch_conf = std::move(dev->launch_confs_.back());
@@ -232,9 +232,9 @@ etrtError_t EtDevice::launch(const void *func, const char *kernel_name) {
   return etrtSuccess;
 }
 
-etrtError_t EtDevice::rawLaunch(et_runtime::Module *module,
-                                const char *kernel_name, const void *args,
-                                size_t args_size, etrtStream_t stream) {
+etrtError_t Device::rawLaunch(et_runtime::Module *module,
+                              const char *kernel_name, const void *args,
+                              size_t args_size, etrtStream_t stream) {
   GetDev dev;
 
   auto et_module = dev->getModule(module);
@@ -257,8 +257,8 @@ etrtError_t EtDevice::rawLaunch(et_runtime::Module *module,
   return etrtSuccess;
 }
 
-etrtError_t EtDevice::moduleLoad(et_runtime::Module *module, const void *image,
-                                 size_t image_size) {
+etrtError_t Device::moduleLoad(et_runtime::Module *module, const void *image,
+                               size_t image_size) {
   {
 
     auto new_module = this->createModule();
@@ -300,7 +300,7 @@ etrtError_t EtDevice::moduleLoad(et_runtime::Module *module, const void *image,
   return etrtSuccess;
 }
 
-etrtError_t EtDevice::moduleUnload(et_runtime::Module *module) {
+etrtError_t Device::moduleUnload(et_runtime::Module *module) {
   auto et_module = this->getModule(module);
 
   // It is expected that user synchronize on all streams in which kernels from

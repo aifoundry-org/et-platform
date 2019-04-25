@@ -3,7 +3,7 @@
 
 #include "BLAS/etblas-bin.h"
 #include "C-API/etrt.h"
-#include "et_device.h"
+#include "EsperantoRuntime.h"
 #include "eti.h"
 #include <assert.h>
 #include <stdlib.h>

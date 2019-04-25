@@ -1,9 +1,8 @@
 #ifndef ETTEE_ET_EVENT_H
 #define ETTEE_ET_EVENT_H
 
-#include "et_stream.h"
-#include "utils.h"
 #include <atomic>
+#include <cassert>
 #include <condition_variable>
 #include <map>
 #include <memory>

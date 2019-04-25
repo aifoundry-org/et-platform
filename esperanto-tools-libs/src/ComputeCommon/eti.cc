@@ -1,6 +1,6 @@
 #include "eti.h"
 #include "../kernels/kernel_args.h"
-#include "et_device.h"
+#include "EsperantoRuntime.h"
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>

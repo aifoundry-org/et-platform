@@ -11,11 +11,15 @@
 #ifndef ET_RUNTIME_MEMORY_COMMANDS_H
 #define ET_RUNTIME_MEMORY_COMMANDS_H
 
+#include "Support/HelperMacros.h"
+
 #include "etrt-bin.h"
-#include "utils.h"
+//#include "utils.h"
 
 #include <atomic>
+#include <cassert>
 #include <condition_variable>
+#include <vector>
 
 class CardProxy;
 

@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "Core/Commands.h"
+#include "Support/STLHelpers.h"
 #include "et_bootrom.h"
 #include "etrt-bin.h"
 
@@ -21,6 +22,7 @@
 #include "demangle.h"
 #include "et_bootrom.h"
 #include "kernels_offsets.h"
+#include "utils.h"
 
 // clang-format off
 // et-rpc is an external dependency to be deprecated

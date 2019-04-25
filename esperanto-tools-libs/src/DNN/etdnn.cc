@@ -1,9 +1,11 @@
 #include "DNN/etdnn.h"
 #include "../kernels/kernel_args.h"
 #include "C-API/etrt.h"
-#include "et_device.h"
+#include "EsperantoRuntime.h"
+#include "Support/HelperMacros.h"
 #include "eti.h"
 #include <assert.h>
+#include <cstring>
 #include <math.h>
 #include <stdlib.h>
 

@@ -1,4 +1,4 @@
-#include "et_stream.h"
+#include "Core/et_stream.h"
 #include "Core/Commands.h"
 
 void EtStream::init() {

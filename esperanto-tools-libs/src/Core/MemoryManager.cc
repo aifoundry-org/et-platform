@@ -9,7 +9,8 @@
 //------------------------------------------------------------------------------
 
 #include "Core/MemoryManager.h"
-#include "et_device.h"
+#include "Core/Commands.h"
+#include "EsperantoRuntime.h"
 
 #include <sys/mman.h>
 #include <unistd.h>

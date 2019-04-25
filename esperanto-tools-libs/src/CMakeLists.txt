@@ -76,7 +76,7 @@ set(ETRT_SOURCES
     Core/DeviceManager.cc
     Core/Error.cc
     Core/MemoryManager.cc
-    Core/et_device.cc
+    Core/Device.cc
     Core/et_stream.cc
     Core/et_event.cc
     Core/registry.cc
@@ -85,9 +85,6 @@ set(ETRT_SOURCES
     Device/TargetCardProxy.cc
     Device/TargetRPC.cc
     Device/TargetSysEmu.cc
-    et_device.h
-    et_stream.h
-    et_event.h
     Cpu/cpu_algo.cc
     Cpu/cpu_algo_launch.cc
     cpu_algo.h
