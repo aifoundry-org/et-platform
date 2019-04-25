@@ -1,6 +1,7 @@
 /* -*- Mode:C++; c-basic-offset: 4; -*- */
 
 #include <cstdio>
+#include <cfenv>
 
 #include "rbox.h"
 #include "emu.h"
@@ -511,13 +512,24 @@ void RBOX::RBOXEmu::generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge
         tile_sample.edge[eq] = edge_samples[eq];
     tile_sample.depth = depth_sample;
 
-    TriangleSampleT row_sample = tile_sample;
+    TriangleSampleT row_sample[4];
+
+    row_sample[0] = tile_sample;
+    row_sample[1] = tile_sample;
+    row_sample[2] = tile_sample;
+    row_sample[3] = tile_sample;
+
+    sample_first_quad(row_sample);
 
     uint32_t generated_quads_in_tile = 0;
 
     for (uint32_t y = 0; y < tile_dimensions[tile_sz][1]; y += 2)
     {
-        TriangleSampleT quad_sample = row_sample;
+        TriangleSampleT quad_sample[4];
+        quad_sample[0] = row_sample[0];
+        quad_sample[1] = row_sample[1];
+        quad_sample[2] = row_sample[2];
+        quad_sample[3] = row_sample[3];
 
         for (uint32_t x = 0; x < tile_dimensions[tile_sz][0]; x += 2)
         {
@@ -546,21 +558,52 @@ void RBOX::RBOXEmu::generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge
     LOG_NOTHREAD(DEBUG, "RBOX [%d] => Generated %d quads in tile", rbox_id, generated_quads_in_tile);
 }
 
-void RBOX::RBOXEmu::sample_next_row(TriangleSampleT &sample)
+void RBOX::RBOXEmu::sample_next_row(TriangleSampleT sample[4])
 {
-    for (uint32_t eq = 0; eq < 3; eq++)
-        sample.edge[eq] += 2 * current_triangle.edge_eqs[eq].b;
-    sample.depth.f += 2 * current_triangle.depth_eq.b.f;
+    for (uint32_t fr = 0; fr < 4; fr++)
+    {
+        for (uint32_t eq = 0; eq < 3; eq++)
+            sample[fr].edge[eq] += 2 * current_triangle.edge_eqs[eq].b;
+
+        int saved_round_mode = std::fegetround();
+        std::fesetround(FE_TOWARDZERO);
+        sample[fr].depth.f += 2 * current_triangle.depth_eq.b.f;
+        std::fesetround(saved_round_mode);
+    }
 }
 
-void RBOX::RBOXEmu::sample_next_quad(TriangleSampleT &sample)
+void RBOX::RBOXEmu::sample_next_quad(TriangleSampleT sample[4])
 {
-    for (uint32_t eq = 0; eq < 3; eq++)
-        sample.edge[eq] += 2 * current_triangle.edge_eqs[eq].a;
-    sample.depth.f += 2.0 * current_triangle.depth_eq.a.f;
+    for(uint32_t fr = 0; fr < 4; fr++)
+    {
+        for (uint32_t eq = 0; eq < 3; eq++)
+            sample[fr].edge[eq] += 2 * current_triangle.edge_eqs[eq].a;
+
+        int saved_round_mode = std::fegetround();
+        std::fesetround(FE_TOWARDZERO);
+        sample[fr].depth.f += 2.0f * current_triangle.depth_eq.a.f;
+        std::fesetround(saved_round_mode);
+    }
 }
 
-void RBOX::RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sample, QuadInfoT &quad)
+void RBOX::RBOXEmu::sample_first_quad(TriangleSampleT sample[4])
+{
+    for (uint32_t eq = 0; eq < 3; eq++)
+    {
+        sample[1].edge[eq] +=  current_triangle.edge_eqs[eq].a;
+        sample[2].edge[eq] +=  current_triangle.edge_eqs[eq].b;
+        sample[3].edge[eq] += (current_triangle.edge_eqs[eq].a + current_triangle.edge_eqs[eq].b);
+    }
+
+    int saved_round_mode = std::fegetround();
+    std::fesetround(FE_TOWARDZERO);
+    sample[1].depth.f +=  current_triangle.depth_eq.a.f;
+    sample[2].depth.f +=  current_triangle.depth_eq.b.f;
+    sample[3].depth.f += (current_triangle.depth_eq.a.f + current_triangle.depth_eq.b.f);
+    std::fesetround(saved_round_mode);
+}
+
+void RBOX::RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sample[4], QuadInfoT &quad)
 {
     LOG_NOTHREAD(DEBUG, "RBOX [%d] => Sampling quad at (%d, %d) -> start sample = (%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %f [%08x] )\n"
                         "                          Edge 0 Equation = {%016" PRIx64 ", %016" PRIx64 "}\n"
@@ -569,8 +612,8 @@ void RBOX::RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sam
                         "                          Depth Equation  = {%f [%08x], %f [%08x]}\n"
                         "                          top_or_left_edges = (%d, %d, %d)",
                        rbox_id, x, y,
-                       quad_sample.edge[0], quad_sample.edge[1], quad_sample.edge[2],
-                       quad_sample.depth.f, quad_sample.depth.u,
+                       quad_sample[0].edge[0], quad_sample[0].edge[1], quad_sample[0].edge[2],
+                       quad_sample[0].depth.f, quad_sample[0].depth.u,
                        current_triangle.edge_eqs[0].a, current_triangle.edge_eqs[0].b,
                        current_triangle.edge_eqs[1].a, current_triangle.edge_eqs[1].b,
                        current_triangle.edge_eqs[2].a, current_triangle.edge_eqs[2].b,
@@ -580,23 +623,16 @@ void RBOX::RBOXEmu::sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sam
                        current_triangle.top_or_left_edge[1],
                        current_triangle.top_or_left_edge[2]);
 
-    quad.fragment[0].sample = quad_sample;
-    for (uint32_t eq = 0; eq < 3; eq++)
+    for (uint32_t fr = 0; fr < 4; fr++)
     {
-        quad.fragment[1].sample.edge[eq] = quad.fragment[0].sample.edge[eq] + current_triangle.edge_eqs[eq].a;
-        quad.fragment[2].sample.edge[eq] = quad.fragment[0].sample.edge[eq] + current_triangle.edge_eqs[eq].b;
-        quad.fragment[3].sample.edge[eq] = quad.fragment[1].sample.edge[eq] + current_triangle.edge_eqs[eq].b;
-    }
-    quad.fragment[1].sample.depth.f = quad.fragment[0].sample.depth.f + current_triangle.depth_eq.a.f;
-    quad.fragment[2].sample.depth.f = quad.fragment[0].sample.depth.f + current_triangle.depth_eq.b.f;
-    quad.fragment[3].sample.depth.f = quad.fragment[1].sample.depth.f + current_triangle.depth_eq.b.f;
+        for (uint32_t eq = 0; eq < 3; eq++)
+            quad.fragment[fr].sample.edge[eq] = quad_sample[fr].edge[eq];
+        quad.fragment[fr].sample.depth.f = quad_sample[fr].depth.f;
 
-    for (uint32_t f = 0; f < 4; f++)
-    {
-        quad.fragment[f].coverage = sample_inside_triangle(quad.fragment[f].sample);
-        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Fragment %d Sample (%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %f [%08x]) Coverage = %d", rbox_id, f,
-                          quad.fragment[f].sample.edge[0], quad.fragment[f].sample.edge[1], quad.fragment[f].sample.edge[2],
-                          quad.fragment[f].sample.depth.f, quad.fragment[f].sample.depth.u, quad.fragment[f].coverage);
+        quad.fragment[fr].coverage = sample_inside_triangle(quad.fragment[fr].sample);
+        LOG_NOTHREAD(DEBUG, "RBOX [%d] => Fragment %d Sample (%016" PRIx64 ", %016" PRIx64 ", %016" PRIx64 ", %f [%08x]) Coverage = %d", rbox_id, fr,
+                          quad.fragment[fr].sample.edge[0], quad.fragment[fr].sample.edge[1], quad.fragment[fr].sample.edge[2],
+                          quad.fragment[fr].sample.depth.f, quad.fragment[fr].sample.depth.u, quad.fragment[fr].coverage);
     }
 
     quad.x = x;

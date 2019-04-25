@@ -119,9 +119,10 @@ namespace RBOX
 
         uint32_t process_packet(uint64_t packet);
         void generate_tile(uint32_t tile_x, uint32_t tile_y, int64_t edge_samples[3], DepthT depth_sample, TileSizeT tile_sz);
-        void sample_next_row(TriangleSampleT &sample);
-        void sample_next_quad(TriangleSampleT &sample);
-        void sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sample, QuadInfoT &quad);
+        void sample_next_row(TriangleSampleT sample[4]);
+        void sample_next_quad(TriangleSampleT sample[4]);
+        void sample_first_quad(TriangleSampleT sample[4]);
+        void sample_quad(uint32_t x, uint32_t y, TriangleSampleT quad_sample[4], QuadInfoT &quad);
         bool test_quad(QuadInfoT &quad);
         bool sample_inside_triangle(TriangleSampleT sample);
         uint64_t compute_depth_stencil_buffer_address(uint32_t x, uint32_t y);
