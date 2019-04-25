@@ -3,9 +3,10 @@
 
 #include "C-API/etrt.h"
 // FIXME remove this header and use forward declarations
-#include "Core/Commands.h"
-#include "Core/MemoryManager.h"
 #include "Core/CodeModule.h"
+#include "Core/Commands.h"
+#include "Core/Kernel.h"
+#include "Core/MemoryManager.h"
 #include "et_event.h"
 #include "et_stream.h"
 #include <condition_variable>
@@ -20,15 +21,8 @@
 namespace et_runtime {
 class EtActionEvent;
 class EtActionWrite;
-} // namespace et_runtime
 
-// Launch Configuration.
-struct EtLaunchConf {
-  dim3 gridDim;
-  dim3 blockDim;
-  EtStream *etStream = nullptr;
-  std::vector<uint8_t> args_buff;
-};
+} // namespace et_runtime
 
 // Loaded to device kernels ELF binary descriptor.
 struct EtLoadedKernelsBin {
@@ -148,7 +142,7 @@ public:
   etrtError_t pointerGetAttributes(struct etrtPointerAttributes *attributes,
                                    const void *ptr);
 
-  void appendLaunchConf(const EtLaunchConf &conf) {
+  void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
     launch_confs_.push_back(conf);
   }
 
@@ -177,7 +171,7 @@ private:
   EtStream *defaultStream_ = nullptr;
   std::vector<std::unique_ptr<EtStream>> stream_storage_;
   std::vector<std::unique_ptr<EtEvent>> event_storage_;
-  std::vector<EtLaunchConf> launch_confs_;
+  std::vector<et_runtime::EtLaunchConf> launch_confs_;
   // FIXME SW-257
   std::vector<std::unique_ptr<et_runtime::Module>> module_storage_;
   std::map<const void *, EtLoadedKernelsBin>

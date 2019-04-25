@@ -15,10 +15,20 @@
 
 #include <string>
 
+class EtStream;
+
 namespace et_runtime {
 
 // FIXME move dim3 in this header
 //struct dim3;
+
+/// @brief Kernel Launch Configuration.
+struct EtLaunchConf {
+  dim3 gridDim;
+  dim3 blockDim;
+  EtStream *etStream = nullptr;
+  std::vector<uint8_t> args_buff;
+};
 
 ///
 /// The whole purpose of the ET SoC is to run many instances of Kernels in
