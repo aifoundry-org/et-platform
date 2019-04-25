@@ -33,6 +33,7 @@ SECTIONS
     .rodata :
     {
         *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
+        . = ALIGN(128);
     } > CODE
 
     .rodata1 :
@@ -48,7 +49,6 @@ SECTIONS
     .sbss2 :
     {
         *(SORT_BY_ALIGNMENT(.sbss2) SORT_BY_ALIGNMENT(.sbss2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.sb2.*))
-        . = ALIGN(128);
     } > CODE
 
     .data :

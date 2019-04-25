@@ -22,7 +22,7 @@ uint64_t mtrap_handler(uint64_t cause, uint64_t epc, uint64_t mtval, uint64_t *r
     {
         uint64_t rd, id;
 
-        printx("mtrap_handler: illegal instruction MHARTID\r\n");
+        printx("SP BL1 mtrap_handler: illegal instruction MHARTID\r\n");
 
         rd = (mtval >> 7 ) & 0x1F;
 
@@ -37,7 +37,7 @@ uint64_t mtrap_handler(uint64_t cause, uint64_t epc, uint64_t mtval, uint64_t *r
     {
         uint64_t rd, rs, val;
 
-        printx("mtrap_handler: illegal instruction txsleep27\r\n");
+        printx("SP BL1 mtrap_handler: illegal instruction txsleep27\r\n");
 
         rd = (mtval >> 7 ) & 0x1F;
         rs = (mtval >> 15 ) & 0x1F;
@@ -52,7 +52,7 @@ uint64_t mtrap_handler(uint64_t cause, uint64_t epc, uint64_t mtval, uint64_t *r
     }
     else
     {
-        printx("mtrap_handler: other cause (cause=0x%x, epc=0x%x, mtval=0x%x)\r\n", cause, epc, mtval);
+        printx("SP BL1 mtrap_handler: other cause (cause=0x%x, epc=0x%x, mtval=0x%x)\r\n", cause, epc, mtval);
 
         // any other cause => wfi and expect timeout in test
         __asm__ __volatile__ ("wfi\n");
