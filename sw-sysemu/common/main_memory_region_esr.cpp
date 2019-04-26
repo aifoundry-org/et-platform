@@ -65,8 +65,8 @@ main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t bas
         // Initialize Neigh ESRs
         if (((base_ & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT) == 3)
         {
-            write64(data_ + (ESR_MINION_BOOT - base_), ESR_NEIGH_MINION_BOOT_RESET_VAL);
-            write64(data_ + (ESR_ICACHE_ERR_LOG_CTL - base_), ESR_ICACHE_ERR_LOG_CTL_RESET_VAL);
+            write64(data_ + (ESR_MINION_BOOT - ESR_NEIGH_M0), ESR_NEIGH_MINION_BOOT_RESET_VAL);
+            write64(data_ + (ESR_ICACHE_ERR_LOG_CTL - ESR_NEIGH_M0), ESR_ICACHE_ERR_LOG_CTL_RESET_VAL);
         }
     }
 }
@@ -83,8 +83,6 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
     assert(size == 8);
     uint64_t value = read64(data);
-
-    LOG(DEBUG, "Writing to ESR Region with address 0x%016" PRIx64, ad);
 
     // Broadcast is special...
     switch (ad)
@@ -133,10 +131,11 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 
     // Redirect local shire requests to the corresponding shire
     if ((ad & ESR_REGION_SHIRE_MASK) == ESR_REGION_LOCAL_SHIRE) {
+        LOG(DEBUG, "Writing to local shire ESR Region with address 0x%016" PRIx64, ad);
         uint64_t shire_addr =
             (ad & ~ESR_REGION_SHIRE_MASK) |
             ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
-        pmemwrite64(shire_addr, * ((uint64_t *) data));
+        pmemwrite64(shire_addr, value);
         return;
     }
 
@@ -177,7 +176,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             uint64_t neigh_addr = (ad & ~ESR_REGION_NEIGH_MASK);
             for (int neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
             {
-                this->write(neigh_addr, 8, data);
+                pmemwrite64(neigh_addr, value);
                 neigh_addr += (1ull << ESR_REGION_NEIGH_SHIFT);
             }
             write_data = false;
@@ -397,8 +396,6 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
     assert(size == 8);
     uint64_t* ptr = reinterpret_cast<uint64_t*>(data);
 
-    LOG(DEBUG, "Read from Shire ESR Region @=0x%" PRIx64, ad);
-
     // Broadcast is special...
     switch (ad)
     {
@@ -406,6 +403,7 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
         case ESR_UBROADCAST:
         case ESR_SBROADCAST:
         case ESR_MBROADCAST:
+            LOG(DEBUG, "Read from broadcast register at ESR address 0x%016" PRIx64, ad);
             *ptr = 0;
             return;
         default:
@@ -414,6 +412,8 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
 
     // Redirect local shire requests to the corresponding shire
     if ((ad & ESR_REGION_SHIRE_MASK) == ESR_REGION_LOCAL_SHIRE) {
+        LOG(DEBUG, "Read from local shire ESR Region at ESR address 0x%" PRIx64, ad);
+
         uint64_t shire_addr =
             (ad & ~ESR_REGION_SHIRE_MASK) |
             ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
@@ -446,9 +446,9 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
     {
         //unsigned neigh = (ad & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
         uint64_t esr_addr = ad & ESR_NEIGH_ESR_MASK;
+        LOG(DEBUG, "Read from ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
         if ((ad & ESR_REGION_NEIGH_MASK) != ESR_REGION_NEIGH_BROADCAST)
         {
-            LOG(DEBUG, "Read from ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
             switch(esr_addr)
             {
                 case ESR_DUMMY0:

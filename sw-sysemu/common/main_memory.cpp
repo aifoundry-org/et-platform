@@ -29,7 +29,14 @@ main_memory::main_memory(testLog& log_)
         for (int n = 0; n <= EMU_NEIGH_PER_SHIRE; n++)
         {
             int neigh = (n == EMU_NEIGH_PER_SHIRE) ? (ESR_REGION_NEIGH_BROADCAST >> ESR_REGION_NEIGH_SHIFT) : n;
-            main_memory_region_esr * neigh_esrs = new main_memory_region_esr(this, ESR_NEIGH(shire, neigh, NEIGH_U0), 64*1024, log, getthread);
+            main_memory_region_esr * neigh_esrs;
+
+            // Neigh ESRs (U-mode)
+            neigh_esrs = new main_memory_region_esr(this, ESR_NEIGH(shire, neigh, NEIGH_U0), 48*1024, log, getthread);
+            regions_.push_back((main_memory_region *) neigh_esrs);
+
+            // Neigh ESRs (M-mode)
+            neigh_esrs = new main_memory_region_esr(this, ESR_NEIGH(shire, neigh, NEIGH_M0), 256, log, getthread);
             regions_.push_back((main_memory_region *) neigh_esrs);
         }
 
