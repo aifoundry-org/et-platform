@@ -29,5 +29,4 @@ typedef enum libraryPropertyType_t {
   PATCH_LEVEL = ESPERANTO_RUNTIME_VERSION_PATCH
 } libraryPropertyType;
 
-
 #endif //PROJECT_AUTOGEN_H_

@@ -12,13 +12,24 @@
 #define ET_RUNTIME_DEVICE_CARD_PROXY_H
 
 #include "Core/DeviceTarget.h"
+#include "et-rpc/et-card-proxy.h"
 
 #include <cassert>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
+#include <vector>
 
 namespace et_runtime {
 namespace device {
 
+///
+/// @brief Connect to the SysEMU using the CardProxy
+///
+/// This class is a uses the CardProxy struct and socket
+/// mechanism to connext to SysEMU. This class will be deprecated
+/// once we move to the new gPRC mechanism
 class CardProxyTarget final : public DeviceTarget {
 public:
   /// @brief Construct the Card Proxy target
@@ -36,6 +47,19 @@ public:
   bool registerDeviceEventCallback() override;
 
 private:
+  const std::string name_ = "CardProxy";
+  std::unique_ptr<CardProxy> card_proxy_;
+  std::thread simulator_thread_; ///< Thread forking and executing the simulator
+  std::mutex simulator_end_mutex_; ///< Mutex to block terminating the simulator
+  std::unique_lock<std::mutex>
+      simulator_end_lock_; ///< Lock to prevent simulator from starting
+  std::string connection_;
+  std::vector<std::string> execute_args_;
+
+  /// @brief Wait for a connectio from SysEmu
+  void waitForConnection();
+  /// @brief Fork SysEmu processs and wait until we are requested to stop
+  void launchSimulator();
 };
 
 } // namespace device

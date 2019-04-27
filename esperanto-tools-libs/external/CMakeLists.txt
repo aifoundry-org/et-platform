@@ -44,15 +44,16 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
       CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release
                  # -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
                  -DCMAKE_INSTALL_PREFIX=${gflags_INSTALL}
-                 -DBUILD_SHARED_LIBS=OFF
+                 -DBUILD_SHARED_LIBS=ON
                  -DBUILD_STATIC_LIBS=ON
+                 -DBUILD_gflags_LIB=ON
                  -DBUILD_PACKAGING=OFF
                  -DBUILD_TESTING=OFF
                  -DBUILD_NC_TESTS=OFF
                  -DBUILD_CONFIG_TESTS=OFF
                  -DINSTALL_HEADERS=ON
-                 -DCMAKE_C_FLAGS=${GFLAGS_C_FLAGS}
-                 -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS}
+                 -DCMAKE_C_FLAGS=${GFLAGS_C_FLAGS} -fPIC
+                 -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS} -fPIC
                  -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON
        # Do not install the package cause it tries to write to the cmake registry
        # in the user's home directory
@@ -143,7 +144,7 @@ ExternalProject_Add(fmtlib
   INSTALL_DIR ${fmtlib_INSTALL}
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${fmtlib_INSTALL}
              "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -fPIC"
-  BUILD_BYPRODUCTS ${fmtlib_INSTALL}/lib/libfmt.a
+  BUILD_BYPRODUCTS ${fmtlib_INSTALL}/lib64/libfmt.a
   LOG_DOWNLOAD 1
   LOG_CONFIGURE 1
   LOG_INSTALL 1
@@ -165,8 +166,9 @@ ExternalProject_Add(sw-sysemu
   INSTALL_COMMAND cp sys_emu/build/sys_emu ${CMAKE_CURRENT_BINARY_DIR}/
   )
 
-list(APPEND external_project_dependencies sw-sysemu)
+set(SYSEMU_PATH  ${CMAKE_CURRENT_BINARY_DIR}/sys_emu PARENT_SCOPE)
 
+list(APPEND external_project_dependencies sw-sysemu)
 
 set(device_api_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/device_api)
 ExternalProject_Add(device-api

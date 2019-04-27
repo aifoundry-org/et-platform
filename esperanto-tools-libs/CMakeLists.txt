@@ -14,8 +14,6 @@ project(EsperantoRuntime VERSION 0.1.0 LANGUAGES CXX C)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-set(CMAKE_CXX_STANDARD 14)
-
 option(HOST_SW "Enable building for the host-sw repo")
 
 option(BUILD_SHARED_LIBS "Build shared libs." ON)

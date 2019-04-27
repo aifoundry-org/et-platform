@@ -14,24 +14,29 @@ include(GoogleTest)
 include_directories(${GTEST_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src/esperanto-soc-artifacts/artifacts/sdk-build/build)
 
 link_directories(${GTEST_DIR}/lib64)
 
-add_compile_options(-g3 -std=c++11 -O0)
+add_compile_options(-g3 -O0 -std=c++17)
 set(COMMON_TEST_LIBRARIES
   etrt
   libgtest_main.a
   libgtest.a
   pthread)
 
+set(TEST_LIST test_error_or.cc
+  test_device_manager.cc
+  test_device_target_card_proxy.cc
+  )
 
-add_executable(test-error-or test_error_or.cc)
-add_dependencies(test-error-or googletest)
-target_link_libraries(test-error-or ${COMMON_TEST_LIBRARIES})
-gtest_discover_tests(test-error-or TEST_PREFIX runtime:)
 
+foreach(TEST_FILE ${TEST_LIST})
+  get_filename_component(TEST_TARGET ${TEST_FILE} NAME_WE)
+  add_executable(${TEST_TARGET} ${TEST_FILE})
+  add_dependencies(${TEST_TARGET} googletest)
+  add_dependencies(${TEST_TARGET} ${external_project_dependencies})
+  target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
+  gtest_discover_tests(${TEST_TARGET} TEST_PREFIX runtime:)
 
-add_executable(test-device-manager test_device_manager.cc)
-add_dependencies(test-device-manager googletest)
-target_link_libraries(test-device-manager ${COMMON_TEST_LIBRARIES})
-gtest_discover_tests(test-device-manager TEST_PREFIX runtime:device_manager:)
+endforeach(TEST_FILE)

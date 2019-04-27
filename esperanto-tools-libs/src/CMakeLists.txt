@@ -19,6 +19,11 @@ include(ExternalProject)
 #  GIT_TAG 29f910a5744dfdfe1f0f5e408382117b5cb6f44d
 #  )
 
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/Device/TargetDeviceInfo.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/Device/TargetDeviceInfo.h"
+  )
+
 
 if (HOST_SW)
   # HACK the following should be removed in the future and the runtime should have
@@ -65,7 +70,7 @@ if (HOST_SW)
 endif(HOST_SW)
 
 # FIXME : disable for now hidden visibility by default: -fvisibility=hidden -fvisibility-inlines-hidden
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++11 -Wall -Werror")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall -Werror")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 set(ETRT_SOURCES
@@ -98,12 +103,14 @@ add_library(etrt SHARED ${ETRT_SOURCES})
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Device")
+target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/")
 target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../include")
 
 MESSAGE("GLOG: " ${GLOG_INCLUDE_DIRS})
 
 target_include_directories(etrt PUBLIC ${GLOG_INCLUDE_DIRS})
+target_include_directories(etrt PUBLIC ${FMTLIB_INCLUDE_DIRS})
 if (HOST_SW)
   target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/esperanto-soc-artifacts/artifacts/sdk-build/build")
 else()
@@ -115,10 +122,16 @@ target_link_libraries(etrt etrpc)
 add_dependencies(etrt kernels-elf-file)
 add_dependencies(etrt bootrom-file)
 add_dependencies(etrt glog)
+add_dependencies(etrt ${external_project_dependencies})
 target_link_libraries(etrt ${GLOG_LIBRARIES})
+add_dependencies(etrt fmtlib)
+target_link_libraries(etrt ${FMTLIB_LIBRARIES})
+add_dependencies(etrt gflags)
+target_link_libraries(etrt ${GFLAGS_LIBRARIES})
 add_dependencies(etrt kernels-offsets)
 add_dependencies(etrt kernels-cdescr)
 add_dependencies(etrt bootrom-cdescr)
+
 
 set(ETCUDA_SOURCES
     ETCuda/interceptors.cc
