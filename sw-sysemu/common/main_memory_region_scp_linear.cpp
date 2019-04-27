@@ -2,13 +2,13 @@
 #include <cassert>
 
 // Local
-#include "main_memory_region_scp_linear.h"
 #include "emu_defines.h"
-#include "emu_memop.h"
+#include "main_memory_region_scp.h"
+#include "main_memory_region_scp_linear.h"
 
 // Creator
-main_memory_region_scp_linear::main_memory_region_scp_linear(uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
-    : main_memory_region(base, size, l, get_thr, MEM_REGION_RW, false)
+main_memory_region_scp_linear::main_memory_region_scp_linear(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
+    : main_memory_region(base, size, l, get_thr, MEM_REGION_RW, false), mem_(parent)
 {
 }
 
@@ -20,23 +20,23 @@ main_memory_region_scp_linear::~main_memory_region_scp_linear()
 // Write to memory region
 void main_memory_region_scp_linear::write(uint64_t ad, int size, const void * data)
 {
-    assert((size == 8) || (size == 4));
-
     // Forwards write to correct memory
-    uint64_t new_ad = ad_to_l2_scp_ad(ad);
-    if(size == 4) pmemwrite32(new_ad, * ((uint32_t *) data));
-    else          pmemwrite64(new_ad, * ((uint64_t *) data));
+    uint64_t addr = ad_to_l2_scp_ad(ad);
+    main_memory_region_scp* scp = static_cast<main_memory_region_scp*>(mem_->find_region_containing(addr));
+    if (!scp)
+        throw trap_bus_error(ad);
+    scp->write(addr, size, data);
 }
 
 // Read from memory region
 void main_memory_region_scp_linear::read(uint64_t ad, int size, void * data)
 {
-    assert((size == 8) || (size == 4));
-
     // Forwards write to correct memory
-    uint64_t new_ad = ad_to_l2_scp_ad(ad);
-    if(size == 4) * ((uint32_t *) data) = pmemread32(new_ad);
-    else          * ((uint64_t *) data) = pmemread64(new_ad);
+    uint64_t addr = ad_to_l2_scp_ad(ad);
+    main_memory_region_scp* scp = static_cast<main_memory_region_scp*>(mem_->find_region_containing(addr));
+    if (!scp)
+        throw trap_bus_error(ad);
+    scp->read(addr, size, data);
 }
 
 // Converts from linear addressing to offset addressing

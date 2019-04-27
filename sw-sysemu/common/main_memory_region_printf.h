@@ -10,7 +10,7 @@
 // Defines
 #define PRINTF_THREADS 128
 
-class main_memory_region_printf : main_memory_region
+class main_memory_region_printf : public main_memory_region
 {
 public:
   // Constructors and destructors

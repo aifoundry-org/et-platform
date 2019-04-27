@@ -191,6 +191,9 @@
 #define ESR_CACHE_U0            0x0100300000ULL /* PP = 0b00 */
 #define ESR_CACHE_S0            0x0140300000ULL /* PP = 0b01 */
 #define ESR_CACHE_M0            0x01C0300000ULL /* PP = 0b11 */
+#define ESR_SC_L2_CACHE_CTL     0x01C0300018ULL /* PP = 0b11 */
+#define ESR_SC_L3_CACHE_CTL     0x01C0300020ULL /* PP = 0b11 */
+#define ESR_SC_SCP_CACHE_CTL    0x01C0300028ULL /* PP = 0b11 */
 #define ESR_SC_IDX_COP_SM_CTL   0x01C0300030ULL /* PP = 0b11 */
 
 // RBOX ESRs

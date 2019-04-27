@@ -7,7 +7,7 @@
 // This class behaves as an atomic region, that is private per L2
 #define NUMBER_L2 64
 
-class main_memory_region_atomic : main_memory_region
+class main_memory_region_atomic : public main_memory_region
 {
 public:
   // Constructors and destructors

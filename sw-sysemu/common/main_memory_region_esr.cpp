@@ -28,6 +28,10 @@
 #define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000
 #define ESR_ICACHE_ERR_LOG_CTL_RESET_VAL  0x6
 
+#define ESR_SC_L2_CACHE_CTL_RESET_VAL   0x028002FF007F007FULL
+#define ESR_SC_L3_CACHE_CTL_RESET_VAL   0x030003FF00FF00FFULL
+#define ESR_SC_SCP_CACHE_CTL_RESET_VAL  0x0000027F03FF01FFULL
+
 extern uint32_t current_pc;
 extern uint32_t current_thread;
 
@@ -55,10 +59,11 @@ inline void write64(void* data, uint64_t value)
 }
 
 // Creator
-main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
-    : main_memory_region(base, size, l, get_thr), mem_(parent)
+main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr, bool allocate_data)
+    : main_memory_region(base, size, l, get_thr, MEM_REGION_RW, allocate_data), mem_(parent)
 {
     uint64_t addr_sregion = base_ & ESR_SREGION_MASK;
+    uint64_t addr_sregion_ext = base_ & ESR_SREGION_EXT_MASK;
 
     if (data_ && (addr_sregion == ESR_NEIGH_REGION))
     {
@@ -67,6 +72,16 @@ main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t bas
         {
             write64(data_ + (ESR_MINION_BOOT - ESR_NEIGH_M0), ESR_NEIGH_MINION_BOOT_RESET_VAL);
             write64(data_ + (ESR_ICACHE_ERR_LOG_CTL - ESR_NEIGH_M0), ESR_ICACHE_ERR_LOG_CTL_RESET_VAL);
+        }
+    }
+    else if (addr_sregion_ext == ESR_CACHE_REGION)
+    {
+        // Initialize ShireCache ESRs
+        if (((base_ & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT) == 3)
+        {
+            write64(data_ + (ESR_SC_L2_CACHE_CTL - ESR_CACHE_M0), ESR_SC_L2_CACHE_CTL_RESET_VAL);
+            write64(data_ + (ESR_SC_L3_CACHE_CTL - ESR_CACHE_M0), ESR_SC_L3_CACHE_CTL_RESET_VAL);
+            write64(data_ + (ESR_SC_SCP_CACHE_CTL - ESR_CACHE_M0), ESR_SC_SCP_CACHE_CTL_RESET_VAL);
         }
     }
 }

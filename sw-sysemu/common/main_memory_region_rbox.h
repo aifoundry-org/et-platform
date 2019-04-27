@@ -4,7 +4,7 @@
 #include "main_memory_region.h"
 #include "emu_defines.h"
 
-class main_memory_region_rbox : main_memory_region
+class main_memory_region_rbox : public main_memory_region
 {
 public:
     // Constructors and destructors

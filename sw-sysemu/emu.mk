@@ -31,4 +31,5 @@ emu_cpp_srcs := \
 	common/main_memory_region_atomic.cpp \
 	common/main_memory_region_esr.cpp \
 	common/main_memory_region_rbox.cpp \
+	common/main_memory_region_scp.cpp \
 	common/main_memory_region_scp_linear.cpp
