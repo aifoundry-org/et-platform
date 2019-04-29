@@ -2435,8 +2435,8 @@ static uint64_t csrget(uint16_t src1)
     case CSR_MHPMEVENT6:
     case CSR_MHPMEVENT7:
     case CSR_MHPMEVENT8:
-	val = csr_mhpmevent[src1 - CSR_MHPMEVENT3][current_thread];
-	break;
+        val = csr_mhpmevent[src1 - CSR_MHPMEVENT3][current_thread];
+        break;
     // ----- All other registers -------------------------------------
     default:
         throw trap_illegal_instruction(current_inst);
@@ -2926,23 +2926,22 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_PORTHEADNB3:
     case CSR_HARTID:
         throw trap_illegal_instruction(current_inst);
-	
     case CSR_MHPMEVENT3:
     case CSR_MHPMEVENT4:
     case CSR_MHPMEVENT5:
     case CSR_MHPMEVENT6:
     case CSR_MHPMEVENT7:
     case CSR_MHPMEVENT8:
-	csr_mhpmevent[src1 - CSR_MHPMEVENT3][current_thread] = val;
-	break;
+        csr_mhpmevent[src1 - CSR_MHPMEVENT3][current_thread] = val;
+        break;
     case CSR_MHPMCOUNTER3:
     case CSR_MHPMCOUNTER4:
     case CSR_MHPMCOUNTER5:
     case CSR_MHPMCOUNTER6:
     case CSR_MHPMCOUNTER7:
     case CSR_MHPMCOUNTER8:
-	// Waived registers. The value is taken from the RTL
-	break;
+        // Waived registers. The value is taken from the RTL
+        break;
     // ----- All other registers -------------------------------------
     default:
         throw trap_illegal_instruction(current_inst);
@@ -7214,7 +7213,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
             // is the first iteration, or TenC must be copied to FREGS and this is the last iteration.
             // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity.
             if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
-                (SCP[(astart+i) % L1_SCP_ENTRIES].u32[(aoffset+(k/4)) % (L1D_LINE_SIZE/4)] == 0))
+                (SCP[(astart+i) % L1_SCP_ENTRIES].u32[((aoffset+k)/4) % (L1D_LINE_SIZE/4)] == 0))
                 continue;
 
 #define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
