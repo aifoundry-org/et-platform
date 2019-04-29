@@ -945,13 +945,14 @@ sys_emu::main_internal(int argc, char * argv[])
                     unsigned other_min, action;
                     // Gets the source used for the reduce
                     uint64_t value = xget(inst.rs1());
-                    tensor_reduce_decode(value, &other_min, &action);
+                    tensor_reduce_decode(thread_id / EMU_THREADS_PER_MINION, value, &other_min, &action);
                     // Sender
                     if(action == 0)
                     {
                         // Moves to ready to send
                         reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Ready_To_Send;
-                        reduce_pair_array[thread_id / EMU_THREADS_PER_MINION]  = other_min;
+                        reduce_pair_array[thread_id / EMU_THREADS_PER_MINION] = other_min;
+                        tensor_reduce_send_prepare(thread_id / EMU_THREADS_PER_MINION, value);
                         // If the other minion hasn't arrived yet, wait
                         if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != uint32_t(thread_id / EMU_THREADS_PER_MINION)))
                         {
@@ -961,11 +962,11 @@ sys_emu::main_internal(int argc, char * argv[])
                         else if(reduce_state_array[other_min] == Reduce_Data_Consumed)
                         {
                             reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
-                            reduce_state_array[other_min]    = Reduce_Idle;
+                            reduce_state_array[other_min] = Reduce_Idle;
                         }
                         else
                         {
-                            LOG(FTL, "Reduce error: Found pairing receiver minion: %u in Reduce_Ready_To_Send!!", other_min);
+                            LOG_ALL_MINIONS(FTL, "Reduce error: Found pairing receiver minion: %u in Reduce_Ready_To_Send!!", other_min);
                         }
                     }
                     // Receiver
@@ -984,7 +985,7 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                         else
                         {
-                            LOG(FTL, "Reduce error: Found pairing sender minion: %u in Reduce_Data_Consumed!!", other_min);
+                            LOG_ALL_MINIONS(FTL, "Reduce error: Found pairing sender minion: %u in Reduce_Data_Consumed!!", other_min);
                         }
                     }
                 }
@@ -1052,15 +1053,15 @@ sys_emu::main_internal(int argc, char * argv[])
                 //LOG(DEBUG, "%s", "Taking a trap");
                 if (current_pc[thread_id] == emu_state_change.pc)
                 {
-                    LOG(FTL, "Trapping to the same address that caused a trap (0x%" PRIx64 "). Avoiding infinite trap recursion.",
-                        current_pc[thread_id]);
+                    LOG_ALL_MINIONS(FTL, "Trapping to the same address that caused a trap (0x%" PRIx64 "). Avoiding infinite trap recursion.",
+                                    current_pc[thread_id]);
                 }
                 current_pc[thread_id] = emu_state_change.pc;
                 thread++;
             }
             catch (const std::exception& e)
             {
-                LOG(FTL, "%s", e.what());
+                LOG_ALL_MINIONS(FTL, "%s", e.what());
             }
         }
 

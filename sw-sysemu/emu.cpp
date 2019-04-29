@@ -190,6 +190,7 @@ static bool break_on_fetch[EMU_NUM_THREADS] = {};
 static bool debug_mode[EMU_NUM_THREADS] = {};
 static bool tensorload_setupb_topair[EMU_NUM_THREADS] = {false};
 static int tensorload_setupb_numlines[EMU_NUM_THREADS];
+static uint64_t tensorreduce_value[EMU_NUM_MINIONS];
 
 // Scratchpad
 cache_line_t scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS];
@@ -5433,7 +5434,7 @@ void amo_emu_f(amoop op, freg dst, freg src1, xreg src2, mem_access_type macc)
                 break;
             default:
                 res.u = 0;
-                LOG(FTL, "Unknown atomic op %d", op);
+                throw std::runtime_error("Unknown atomic opcode");
             }
 
             // Stores the operated data
@@ -7264,23 +7265,50 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
 static void tensorreduce(uint64_t value)
 {
-    unsigned other_min, action;
+    unsigned other_min, this_min, action;
 
     if (!txfma_off_allowed(CSR_TENSOR_REDUCE, value))
         throw trap_txfma_off(current_inst);
 
-    tensor_reduce_decode(value, &other_min, &action);
+    tensor_reduce_decode(current_thread>>1, value, &other_min, &action);
 
     // Do nothing
-    if (action == 2) return;
-    // Send
-    if (action == 0) return;
-    // Receive
+    if (action == 2)
+    {
+#ifndef SYS_EMU
+        unsigned level = (value >> 3) & 0xF;
+        unsigned type = value & 3;
+        uint64_t distance = 1ull << level;
+        uint64_t minmask = (1ull << (level + 1)) - 1ull;
+        LOG(DEBUG, "%s with level: %u, distance: %" PRId64 ", minmask: 0x%016" PRIx64,
+            (type == 2) ? "TensorBroadcast" : "TensorReduceAuto", level, distance, minmask);
+#endif
+        return;
+    }
 
     //op = rs[35:32]
-    int      start_reg = (value >> 57) & 0x1F;
-    uint8_t  operation = (value >> 24) & 0xF;
-    int      num_reg   = (value >> 16) & 0xFF;
+    int      this_start_reg = (value >> 57) & 0x1F;
+    uint8_t  this_operation = (value >> 24) & 0xF;
+    int      this_num_reg   = (value >> 16) & 0xFF;
+
+    // Send
+    if (action == 0)
+    {
+#ifndef SYS_EMU
+        tensor_reduce_send_prepare(current_thread>>1, value);
+        LOG(DEBUG, "\t%s other_minion: %u, start_reg: %d, num_reg: %d",
+            ((value & 3) == 2) ? "TensorBroadcast(send)" : (((value & 3) == 3) ? "TensorReduceAuto(send)" : "TensorReduceSend"),
+            other_min, this_start_reg, this_num_reg);
+        for (int i = 0; i < this_num_reg; ++i)
+        {
+            int this_op_reg = (i + this_start_reg) % 32;
+            LOG_FREG("(this) :", this_op_reg);
+        }
+#endif
+        return;
+    }
+
+    // Receive
 
     // Sending and receiving from the same minion
     if (other_min == (current_thread>>1))
@@ -7289,177 +7317,235 @@ static void tensorreduce(uint64_t value)
         return;
     }
 
-    // Info for checker
-    log_tensor_reduce(start_reg, num_reg);
+    // Get information from sender
+    tensor_reduce_decode(other_min, tensorreduce_value[other_min], &this_min, &action);
 
-    switch (operation)
+    int other_start_reg = (tensorreduce_value[other_min] >> 57) & 0x1F;
+    int other_num_reg   = (tensorreduce_value[other_min] >> 16) & 0xFF;
+    if (other_num_reg != this_num_reg)
+    {
+        LOG_ALL_MINIONS(WARN, "%s with sender num_reg=%d and receiver num_reg=%d",
+                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                        other_num_reg, this_num_reg);
+    }
+
+    if (this_min != (current_thread>>1))
+    {
+        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d action=%u",
+                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                        other_min, this_min, other_start_reg, other_num_reg, action);
+        throw std::runtime_error("Mismatched tensor sender target minion");
+    }
+    if (action != 0)
+    {
+        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d and sender_num_reg=%d action=%u",
+                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                        other_min, this_min, other_start_reg, other_num_reg, action);
+        throw std::runtime_error("Mismatched tensor sender action");
+    }
+
+    // Info for checker
+    log_tensor_reduce(this_start_reg, this_num_reg);
+
+    switch (this_operation)
     {
         case 0x0: // fadd
             set_rounding_mode(frm());
-            LOG(DEBUG, "\tReduce op: fadd, other_minion: %u, rounding_mode: %s", other_min, get_rounding_mode(frm()));
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: fadd, other_minion: %u, rounding_mode: %s",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min, get_rounding_mode(frm()));
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG("(this) :", op_reg);
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
                 {
-                    FREGS[op_reg].f32[j] = fpu::f32_add(FREGS[op_reg].f32[j], fregs[other_min<<1][op_reg].f32[j]);
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                    FREGS[this_op_reg].f32[j] = fpu::f32_add(fregs[other_min<<1][other_op_reg].f32[j], FREGS[this_op_reg].f32[j]);
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
                 }
-                LOG_FREG("(this) =", op_reg);
+                LOG_FREG("(this) =", this_op_reg);
             }
             set_fp_exceptions();
             break;
         case 0x1: // fsub
             set_rounding_mode(frm());
-            LOG(DEBUG, "\tReduce op: fsub, other_minion: %u, rounding_mode: %s", other_min, get_rounding_mode(frm()));
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: fsub, other_minion: %u, rounding_mode: %s",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min, get_rounding_mode(frm()));
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG("(this) :", op_reg);
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
                 {
-                    FREGS[op_reg].f32[j] = fpu::f32_sub(FREGS[op_reg].f32[j], fregs[other_min<<1][op_reg].f32[j]);
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                    FREGS[this_op_reg].f32[j] = fpu::f32_sub(fregs[other_min<<1][other_op_reg].f32[j], FREGS[this_op_reg].f32[j]);
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
                 }
-                LOG_FREG("(this) =", op_reg);
+                LOG_FREG("(this) =", this_op_reg);
             }
             set_fp_exceptions();
             break;
         case 0x2: // fmax
-            LOG(DEBUG, "\tReduce op: fmax, other_minion: %u", other_min);
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: fmax, other_minion: %u",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min);
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG("(this) :", op_reg);
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
                 {
-                    FREGS[op_reg].f32[j] = fpu::f32_maximumNumber(FREGS[op_reg].f32[j], fregs[other_min<<1][op_reg].f32[j]);
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                    FREGS[this_op_reg].f32[j] = fpu::f32_maximumNumber(fregs[other_min<<1][other_op_reg].f32[j], FREGS[this_op_reg].f32[j]);
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
                 }
-                LOG_FREG("(this) =", op_reg);
+                LOG_FREG("(this) =", this_op_reg);
             }
             set_fp_exceptions();
             break;
         case 0x3: // fmin
-            LOG(DEBUG, "\tReduce op: fmax, other_minion: %u", other_min);
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: fmax, other_minion: %u",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min);
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG("(this) :", op_reg);
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
                 {
-                    FREGS[op_reg].f32[j] = fpu::f32_minimumNumber(FREGS[op_reg].f32[j], fregs[other_min<<1][op_reg].f32[j]);
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                    FREGS[this_op_reg].f32[j] = fpu::f32_minimumNumber(fregs[other_min<<1][other_op_reg].f32[j], FREGS[this_op_reg].f32[j]);
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
                 }
-                LOG_FREG("(this) =", op_reg);
+                LOG_FREG("(this) =", this_op_reg);
             }
             set_fp_exceptions();
             break;
         case 0x4: // iadd
-            LOG(DEBUG, "\tReduce op: iadd, other_minion: %u", other_min);
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: iadd, other_minion: %u",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min);
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG("(this) :", op_reg);
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
                 {
-                    FREGS[op_reg].u32[j] = FREGS[op_reg].u32[j] + fregs[other_min<<1][op_reg].u32[j];
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                    FREGS[this_op_reg].u32[j] = fregs[other_min<<1][other_op_reg].u32[j] + FREGS[this_op_reg].u32[j];
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
                 }
-                LOG_FREG("(this) =", op_reg);
+                LOG_FREG("(this) =", this_op_reg);
             }
             break;
         case 0x5: // isub
-            LOG(DEBUG, "\tReduce op: isub, other_minion: %u", other_min);
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: isub, other_minion: %u",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min);
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG("(this) :", op_reg);
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
                 {
-                    FREGS[op_reg].u32[j] = FREGS[op_reg].u32[j] - fregs[other_min<<1][op_reg].u32[j];
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                    FREGS[this_op_reg].u32[j] = fregs[other_min<<1][other_op_reg].u32[j] - FREGS[this_op_reg].u32[j];
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
                 }
-                LOG_FREG("(this) =", op_reg);
+                LOG_FREG("(this) =", this_op_reg);
             }
             break;
         case 0x6: // imax
-            LOG(DEBUG, "\tReduce op: imax, other_minion: %u", other_min);
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: imax, other_minion: %u",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min);
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG("(this) :", op_reg);
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
                 {
-                    FREGS[op_reg].i32[j] = std::max(FREGS[op_reg].i32[j], fregs[other_min<<1][op_reg].i32[j]);
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                    FREGS[this_op_reg].i32[j] = std::max(fregs[other_min<<1][other_op_reg].i32[j], FREGS[this_op_reg].i32[j]);
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
                 }
-                LOG_FREG("(this) =", op_reg);
+                LOG_FREG("(this) =", this_op_reg);
             }
             break;
         case 0x7: // imin
-            LOG(DEBUG, "\tReduce op: imin, other_minion: %u", other_min);
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: imin, other_minion: %u",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min);
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG("(this) :", op_reg);
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
                 {
-                    FREGS[op_reg].i32[j] = std::min(FREGS[op_reg].i32[j], fregs[other_min<<1][op_reg].i32[j]);
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
+                    FREGS[this_op_reg].i32[j] = std::min(fregs[other_min<<1][other_op_reg].i32[j], FREGS[this_op_reg].i32[j]);
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
                 }
-                LOG_FREG("(this) =", op_reg);
+                LOG_FREG("(this) =", this_op_reg);
             }
             break;
         case 0x8: // fget
-            LOG(DEBUG, "\tReduce op: fget, other_minion: %u", other_min);
-            for (int i = 0; i < num_reg; i++)
+            LOG(DEBUG, "\t%s op: fget, other_minion: %u",
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                other_min);
+            for (int i = 0; i < this_num_reg; i++)
             {
-                int op_reg = (i + start_reg) % 32;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", op_reg);
-                FREGS[op_reg] = fregs[other_min<<1][op_reg];
+                int this_op_reg = (i + this_start_reg) % 32;
+                int other_op_reg = (i + other_start_reg) % 32;
+                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
+                FREGS[this_op_reg] = fregs[other_min<<1][other_op_reg];
                 for (unsigned j = 0; j < VL; j++)
-                    log_tensor_reduce_write(op_reg, j, FREGS[op_reg].u32[j]);
-                LOG_FREG("(this) =", op_reg);
+                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
+                LOG_FREG("(this) =", this_op_reg);
             }
             break;
         default:
             throw std::runtime_error("TensorReduce with illegal operation code!");
             break;
     }
-    if (num_reg)
+    if (this_num_reg)
         dirty_fp_state();
+}
+
+void tensor_reduce_send_prepare(uint64_t minion_id, uint64_t value)
+{
+    tensorreduce_value[minion_id] = value;
 }
 
 // Helper function that given the written value to the CSR, returns:
 //   - what is the ID of the other minion of the reduce
 //   - what is the action taken by the minion (send, receive, do nothing)
-void tensor_reduce_decode(uint64_t value, unsigned* other_min, unsigned* action)
+void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_min, unsigned* action)
 {
     uint64_t level = (value >> 3) & 0xF;
     uint64_t type  = value & 3;
-    uint64_t minion_id = current_thread >> 1;
 
     // SENDER
     if (type == 0)
     {
-        * action = 0;
-        * other_min = (value >> 3) & 0x1FFF;
+        *action = 0;
+        *other_min = (value >> 3) & 0x1FFF;
     }
     // RECEIVER
     else if (type == 1)
     {
-        * action = 1;
-        * other_min = (value >> 3) & 0x1FFF;
+        *action = 1;
+        *other_min = (value >> 3) & 0x1FFF;
     }
     // BROADCAST: Compute sender/receiver assuming recursive halving
     else if (type == 2)
@@ -7468,17 +7554,17 @@ void tensor_reduce_decode(uint64_t value, unsigned* other_min, unsigned* action)
         uint64_t minion_mask = (1 << (level + 1)) - 1;
         if ((minion_id & minion_mask) == distance)
         {
-            * action    = 1; // receiver
-            * other_min = minion_id - distance;
+            *action = 1; // receiver
+            *other_min = minion_id - distance;
         }
         else if ((minion_id & minion_mask) == 0)
         {
-            * action    = 0; // sender
-            * other_min = minion_id + distance;
+            *action = 0; // sender
+            *other_min = minion_id + distance;
         }
         else
         {
-            * action    = 2; // do nothing
+            *action = 2; // do nothing
         }
     }
     // REDUCE: Compute sender/receiver assuming recursive halving
@@ -7488,17 +7574,17 @@ void tensor_reduce_decode(uint64_t value, unsigned* other_min, unsigned* action)
         uint64_t minion_mask = (1 << (level + 1)) - 1;
         if ((minion_id & minion_mask) == distance)
         {
-            * action    = 0; // sender
-            * other_min = minion_id - distance;
+            *action = 0; // sender
+            *other_min = minion_id - distance;
         }
         else if ((minion_id & minion_mask) == 0)
         {
-            * action    = 1; // receiver
-            * other_min = minion_id + distance;
+            *action = 1; // receiver
+            *other_min = minion_id + distance;
         }
         else
         {
-            * action    = 2; // do nothing
+            *action = 2; // do nothing
         }
     }
 }
