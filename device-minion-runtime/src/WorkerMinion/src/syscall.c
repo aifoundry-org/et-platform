@@ -14,8 +14,8 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
 
     switch (number)
     {
-        case SYSCALL_EVICT_L1_TO_L2:
-        case SYSCALL_EVICT_L2_TO_L3:
+        case SYSCALL_EVICT_L1:
+        case SYSCALL_EVICT_L2:
         case SYSCALL_INIT_L1:
         case SYSCALL_DRAIN_COALESCING_BUFFER:
         case SYSCALL_ENABLE_THREAD1:
