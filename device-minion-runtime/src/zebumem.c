@@ -17,7 +17,7 @@ int main(void)
     for (int i = 0; i <= 33; i++)
     {
         get_mem_address(input, &memShire, &memController, &memAddress);
-        printf("bit %2i input = %010llx memShire = %010llx memController = %010llx memAddress = %010llx\r\n", i, input, memShire, memController, memAddress);
+        printf("bit %2i input = %010lx memShire = %010lx memController = %010lx memAddress = %010lx\r\n", i, input, memShire, memController, memAddress);
         input <<= 1ULL;
     }
 }
@@ -29,24 +29,40 @@ int main(void)
 // output memAddress = memAddress for ZeBu DDR model with bits swizzled
 int get_mem_address(const uint64_t address, uint64_t* const memShire, uint64_t* const memController, uint64_t* memAddress)
 {
+    int result;
+
     if ((memShire != NULL) && (memController != NULL) && (memAddress != NULL))
     {
         switch (address)
         {
             // R_L3_Mcode, R_L3_Linux, R_L3_DRAM
             case 0x8000000000ULL ... (0x8800000000ULL - 1U):
+                get_ddr_address(address, memShire, memController, memAddress);
+                result = 0;
+            break;
+
             // R_DRCT_Mcode, R_DRCT_Linux, R_DRCT_DRAM
             case 0xC000000000ULL ... (0xC800000000ULL - 1U):
-                get_ddr_address(address, memShire, memController, memAddress);
+                get_ddr_address(address - 0x4000000000ULL, memShire, memController, memAddress);
+                result = 0;
             break;
 
             default:
 #ifdef STANDALONE_TESTING
                 get_ddr_address(address, memShire, memController, memAddress);
+                result = 0;
+#else
+                result = -1;
 #endif
             break;
         }
     }
+    else
+    {
+        result = -1;
+    }
+
+    return result;
 }
 
 // DRAM is spread across 16 memory controllers in 8 memory shires
