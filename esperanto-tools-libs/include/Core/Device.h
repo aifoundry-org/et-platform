@@ -303,27 +303,4 @@ private:
 };
 } // namespace et_runtime
 
-/*
- * Helper class to get device object and lock it in RAII manner.
- *
- * FIXME The following should move inside the device-manager where we should be
- * returning the actively used device as set by the C api
- */
-class GetDev {
-public:
-  GetDev() : dev(getEtDevice()) { dev.mutex_.lock(); }
-
-  ~GetDev() { dev.mutex_.unlock(); }
-
-  et_runtime::Device *operator->() { return &dev; }
-
-private:
-  et_runtime::Device &getEtDevice() {
-    static et_runtime::Device et_device_;
-    return et_device_;
-  }
-
-  et_runtime::Device &dev;
-};
-
 #endif // ET_RUNTIME_DEVICE_H

@@ -1,6 +1,7 @@
 #include "C-API/etrt.h"
 #include "Core/Commands.h"
 #include "EsperantoRuntime.h"
+#include "Support/DeviceGuard.h"
 #include "Support/HelperMacros.h"
 #include "demangle.h"
 #include "registry.h"

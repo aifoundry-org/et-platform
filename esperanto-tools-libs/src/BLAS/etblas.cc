@@ -1,10 +1,12 @@
 #include "BLAS/etblas.h"
 #include "../kernels/kernel_args.h"
+#include "Support/DeviceGuard.h"
 
 #include "BLAS/etblas-bin.h"
 #include "C-API/etrt.h"
 #include "EsperantoRuntime.h"
 #include "eti.h"
+
 #include <assert.h>
 #include <stdlib.h>
 

@@ -1,6 +1,7 @@
 #include "Core/Device.h"
 #include "Core/Commands.h"
 #include "Core/MemoryManager.h"
+#include "Support/DeviceGuard.h"
 #include "demangle.h"
 #include "registry.h"
 #include "utils.h"

@@ -2,6 +2,7 @@
 #include "../kernels/kernel_args.h"
 #include "C-API/etrt.h"
 #include "EsperantoRuntime.h"
+#include "Support/DeviceGuard.h"
 #include "Support/HelperMacros.h"
 #include "eti.h"
 #include <assert.h>

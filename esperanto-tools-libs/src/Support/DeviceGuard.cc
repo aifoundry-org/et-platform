@@ -1,6 +1,6 @@
 //******************************************************************************
 // Copyright (C) 2019, Esperanto Technologies Inc.
-// The copyright to the computer program(s) herein is the
+// The copyright to the computer program(s) herein is the2
 // property of Esperanto Technologies, Inc. All Rights Reserved.
 // The program(s) may be used and/or copied only with
 // the written permission of Esperanto Technologies and
@@ -10,24 +10,14 @@
 
 #include "Support/DeviceGuard.h"
 
-#include <chrono>
-#include <cstdio>
-#include <glog/logging.h>
-#include <gtest/gtest.h>
-#include <string>
-#include <thread>
+#include "Core/Device.h"
+#include "Core/DeviceManager.h"
 
-using namespace std;
+GetDev::GetDev() : dev(getEtDevice()) { dev.mutex_.lock(); }
 
-namespace {
+GetDev::~GetDev() { dev.mutex_.unlock(); }
 
-TEST(DeviceManager, GetDev) {}
-
-int main(int argc, char **argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+et_runtime::Device &GetDev::getEtDevice() {
+  static et_runtime::Device et_device_;
+  return et_device_;
 }
-
-} // namespace
