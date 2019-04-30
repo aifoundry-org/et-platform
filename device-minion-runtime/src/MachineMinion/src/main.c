@@ -1,13 +1,15 @@
 #include "shire.h"
+#include "esr_defines.h"
 #include "layout.h"
+#include "message.h"
 
 #include <stdint.h>
 
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
-    const uint64_t* const master_entry = (uint64_t*)FW_MASTER_SMODE_ENTRY; /* R_L3_DRAM */
-    const uint64_t* const worker_entry = (uint64_t*)FW_WORKER_SMODE_ENTRY; /* R_L3_DRAM */
+    const uint64_t* const master_entry = (uint64_t*)FW_MASTER_SMODE_ENTRY;
+    const uint64_t* const worker_entry = (uint64_t*)FW_WORKER_SMODE_ENTRY;
 
     // "Upon reset, a hart's privilege mode is set to M. The mstatus fields MIE and MPRV are reset to 0.
     // The pc is set to an implementation-defined reset vector. The mcause register is set to a value
@@ -20,7 +22,7 @@ void __attribute__((noreturn)) main(void)
         "csrs  mideleg, %0      \n"
         "li    %0, 0x100        \n" // Delegate user environment calls to supervisor mode
         "csrs  medeleg, %0      \n"
-        "csrw  mscratch, sp     \n" // initial saved stack pointer
+        "csrw  mscratch, sp     \n" // Initial saved stack pointer points to M-mode stack scratch region
         : "=&r" (temp)
     );
 
@@ -37,6 +39,8 @@ void __attribute__((noreturn)) main(void)
     // TODO read OTP table of which minion shires are healthy and usable? Or are 0-32 logical always usable?
     // TODO file ticket to track this.
 
+    const uint64_t shire = get_shire_id();
+
     asm volatile (
         "li    %0, 0x1020  \n" // Setup for mret into S-mode: bitmask for mstatus MPP[1] and SPIE
         "csrc  mstatus, %0 \n" // clear mstatus MPP[1] = supervisor mode, SPIE = interrupts disabled
@@ -45,8 +49,23 @@ void __attribute__((noreturn)) main(void)
         : "=&r" (temp)
     );
 
-    if (get_shire_id() == 32)
+    if (shire == 32)
     {
+        // Set MPROT[2] for neighborhood 0 in master shire to disable access to Linux region
+        volatile uint64_t* mprot_ptr = (uint64_t*)ESR_NEIGH(3, 0xFF, 0, MPROT);
+        *mprot_ptr = 0x4U;
+
+        // Set MPROT[0:2] for neighborhoods 1-3 in master shire to disable access to Linux, PCI-E and IO regions
+        // TODO FIXME master shire only has 1 neighborhood in mini-SoC Zebu image
+        // mprot_ptr = (uint64_t*)ESR_NEIGH(3, 0xFF, 1, MPROT);
+        // *mprot_ptr = 0x7U;
+
+        // mprot_ptr = (uint64_t*)ESR_NEIGH(3, 0xFF, 2, MPROT);
+        // *mprot_ptr = 0x7U;
+
+        // mprot_ptr = (uint64_t*)ESR_NEIGH(3, 0xFF, 3, MPROT);
+        // *mprot_ptr = 0x7U;
+
         // Jump to master firmware in supervisor mode
         asm volatile (
             "csrw  mepc, %0 \n" // write return address
@@ -57,6 +76,10 @@ void __attribute__((noreturn)) main(void)
     }
     else
     {
+        // Set MPROT[2:0] for all neighborhoods in worker shires to disable access to Linux, PCI-E and IO regions
+        volatile uint64_t* mprot_ptr = (uint64_t*)ESR_NEIGH(3, 0xFF, 0xF, MPROT);
+        *mprot_ptr = 0x7U;
+
         // Jump to worker firmware in supervisor mode
         asm volatile (
             "csrw  mepc, %0 \n" // write return address

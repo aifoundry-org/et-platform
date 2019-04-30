@@ -9,10 +9,10 @@
 *-------------------------------------------------------------------------
 */
 
-#include <stdint.h>
-
 #ifndef _TRAP_HANDLER_H_
 #define _TRAP_HANDLER_H_
+
+#include <stdint.h>
 
 #define CAUSE_ILLEGAL_INSTRUCTION 2
 

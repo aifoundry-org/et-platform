@@ -1,12 +1,12 @@
 .extern __bss_start
 .extern __bss_end
 
-#ifndef STACK_BASE
-#define STACK_BASE 0x80001FFE00
+#ifndef STACK_SIZE
+#define STACK_SIZE 768
 #endif
 
-#ifndef STACK_OFFSET
-#define STACK_OFFSET 9 // 512 bytes
+#ifndef STACK_BASE
+#define STACK_BASE 0x8000200000 - STACK_SIZE
 #endif
 
 .section .text.init, "ax", @progbits
@@ -15,7 +15,8 @@
 _start:
     # set the stack pointer, different for each thread
     csrr  a0, mhartid
-    slli  a0, a0, STACK_OFFSET
+    li    a1, STACK_SIZE
+    mul   a0, a0, a1
     li    sp, STACK_BASE
     sub   sp, sp, a0
 

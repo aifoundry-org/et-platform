@@ -1,6 +1,8 @@
 #include "syscall.h"
 #include "cacheops.h"
 #include "esr_defines.h"
+#include "ipi.h"
+#include "printf.h"
 #include "shire.h"
 #include "sync.h"
 
@@ -24,7 +26,7 @@ static int64_t evict_l2(void);
 
 static int64_t enable_thread1(uint64_t hart_disable_mask);
 static int64_t broadcast(uint64_t value, uint64_t shire_mask, uint64_t parameters);
-static int64_t ipi_trigger(uint64_t value, uint64_t shire_id);
+static int64_t ipi_trigger(uint64_t shire_id, uint64_t hart_mask);
 
 int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
@@ -46,6 +48,10 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
 
         case SYSCALL_EVICT_L2:
             rv = evict_l2();
+        break;
+
+        case SYSCALL_EVICT_L2_WAIT:
+            rv = evict_l2_wait();
         break;
 
         case SYSCALL_INIT_L1:
@@ -73,7 +79,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         break;
 
         default:
-            rv = -1; // unhandled syscall! Igoring for now.
+            rv = -1; // unhandled syscall! Ignoring for now.
         break;
     }
 
@@ -106,15 +112,6 @@ static int64_t post_kernel_cleanup(void)
 {
     bool result;
 
-    // TODO FIXME not draining coalescing buffer for now, see SW-280
-    // const uint64_t hart_id = get_hart_id();
-
-    // First HART in each neighborhood drains the neighborhood's coalescing buffer
-    // if (hart_id % 16U == 0U)
-    // {
-    //     drain_coalescing_buffer(THIS_SHIRE, hart_id / 16U);
-    // }
-
     // Thread 0 in each minion evicts the L1 cache
     if (get_thread_id() == 0U)
     {
@@ -125,6 +122,7 @@ static int64_t post_kernel_cleanup(void)
     WAIT_FLB(64, 31, result);
 
     // Last thread to join barrier evicts L2
+    // A full L2 evict includes flushing the coalescing buffer
     if (result)
     {
         evict_l2();
@@ -246,7 +244,6 @@ static int64_t init_l1(void)
 {
     int64_t rv = 0;
 
-    // TODO FIXME RTLMIN-3596 CSR mcache_control should return the last written value instead of 0s
     const uint64_t mcache_control_reg = mcache_control_get();
 
     // If the cache has split or scratchpad enabled, reset to shared mode
@@ -320,10 +317,13 @@ static int64_t evict_l2_start(void)
         volatile uint64_t* const idx_cop_sm_ctl_addr = (uint64_t*)ESR_CACHE(3, 0xFF, i, IDX_COP_SM_CTL);
 
         idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_addr);
-
-        *idx_cop_sm_ctl_addr = (1 << 0) | // Go bit = 1
-                               (3 << 8);  // Opcode = L2_Evict (Evicts all L2 indexes)
     }
+
+    // Broadcast L2 evict to all 4 banks
+    volatile uint64_t* const idx_cop_sm_ctl_addr = (uint64_t*)ESR_CACHE(3, 0xFF, 0xF, IDX_COP_SM_CTL);
+
+    *idx_cop_sm_ctl_addr = (1 << 0) | // Go bit = 1
+                            (3 << 8);  // Opcode = L2_Evict (Evicts all L2 indexes)
 
     return 0;
 }
@@ -385,19 +385,11 @@ static int64_t broadcast(uint64_t value, uint64_t shire_mask, uint64_t parameter
     return 0;
 }
 
-static int64_t ipi_trigger(uint64_t value, uint64_t shire_id)
+// hart_mask = bit 0 in the mask corresponds to hart 0 in the shire (minion 0, thread 0), bit 1 to hart 1 (minion 0, thread 1) and bit 63 corresponds to hart 63 (minion 31, thread 1).
+// shire_id = shire to send the credit to, 0-32 or 0xFF for "this shire"
+static int64_t ipi_trigger(uint64_t shire_id, uint64_t hart_mask)
 {
-    shire_id &= 0x3F;
-
-    volatile uint64_t* const ipi_trigger_addr = (uint64_t*)(
-        (1ULL << 32)     + // ESR region
-        (3ULL << 30)     + // PP bits = m-mode
-        (shire_id << 22) + // Going to shire_id
-        (0x1AULL << 17)  + // Shire other ESRs
-        (0x12ULL << 3)     // IPI trigger
-    );
-
-    *ipi_trigger_addr = value;
+    IPI_TRIGGER(shire_id, hart_mask);
 
     return 0;
 }

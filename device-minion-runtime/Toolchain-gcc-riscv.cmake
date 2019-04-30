@@ -37,7 +37,7 @@ set(CMAKE_GET_GIT_VERSION ${GET_GIT_VERSION_ABS_PATH}            CACHE PATH   "g
 # Worker minion will likely be freestanding without libc, -ffreestanding
 # may need -funwind-tables for backtrace
 # FreeRTOS is not compatible with -Wduplicated-cond and -Wduplicated-branches at -Og or higher
-set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=rv64imaf -mabi=lp64f \
+set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=rv64imf -mabi=lp64f \
 -flto -ffunction-sections -fdata-sections -fstack-usage -Wall -Wextra -Werror -Wdouble-promotion -Wformat \
 -Wnull-dereference -Wswitch-enum -Wshadow -Wstack-usage=256 \
 -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \

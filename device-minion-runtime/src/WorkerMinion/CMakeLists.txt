@@ -21,6 +21,7 @@ set(SOURCES
     src/main.c
     src/worker.c
     src/test_kernels.c
+    ${SHARED_SRC_DIR}/message.c
     )
 
 set(TARGET_NAME WorkerMinion)

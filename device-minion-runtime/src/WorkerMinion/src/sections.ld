@@ -13,10 +13,7 @@ ENTRY(_start)
 
 SECTIONS
 {
-    /* TODO FIXME can't fetch instructions from L3_DRAM see RTLMIN-3674
-        Working around this for now by placing all code in L3_Linux region starting at 0x8000200000 */
-    /*. = 0x8100200000; */ /* R_L3_DRAM + 2MB, MasterMinion has first 2MB */
-    . = 0x8000400000; /* R_Linux + 2MB */
+    . = 0x8100400000;  /* R_L3_DRAM + 4MB */
 
     .text :
     {

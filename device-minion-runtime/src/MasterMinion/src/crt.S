@@ -6,7 +6,7 @@
 #endif
 
 #ifndef STACK_OFFSET
-#define STACK_OFFSET 9 // 512 bytes
+#define STACK_OFFSET 10 // 1024 bytes
 #endif
 
 .section .text.init, "ax", @progbits

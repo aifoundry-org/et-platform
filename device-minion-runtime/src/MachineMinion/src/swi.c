@@ -1,16 +1,23 @@
+#include "exception.h"
 #include "ipi.h"
+#include "message.h"
 #include "shire.h"
+#include "sync.h"
+
+#include <inttypes.h>
 
 void swi_handler(void);
 
 void swi_handler(void)
 {
-    // Clear the IPI first: any interrupts that arrived by now had their
-    // messages placed in memory fist. Any interrupts that arrive after
-    // here will be handled on a subsequent IPI.
-    IPI_TRIGGER_CLEAR(get_shire_id(), 1U << (get_hart_id() % 64));
+    const uint64_t hart_id = get_hart_id();
 
-    // Ensure the write to clear happens before any mailbox reads
+    // Clear the IPI first: any interrupts that arrived by now had their
+    // messages placed in memory first. Any interrupts that arrive after
+    // here will be handled on a subsequent IPI.
+    IPI_TRIGGER_CLEAR(THIS_SHIRE, 1U << (hart_id % 64));
+
+    // Ensure the write to clear happens before any message reads
     asm volatile ("fence");
 
     // Forward to supervisor mode

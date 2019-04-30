@@ -1,27 +1,31 @@
 #include "worker.h"
 #include "layout.h"
 #include "macros.h"
+#include "message.h"
 #include "shire.h"
 #include "sync.h"
 #include "syscall.h"
 #include "test_kernels.h"
 
 #include <stdbool.h>
-#include <stdint.h>
-
-#define MASTER_SHIRE 32U
+#include <inttypes.h>
 
 uint64_t fw_sp[2048];
 
-static void pre_kernel_setup(void) __attribute__ ((used));
-static int launch_kernel(const uint64_t* const kernel_entry_addr, const uint64_t* const kernel_stack_addr);
+static const uint8_t tensorZeros[64] __attribute__ ((aligned (64))) = {0};
+
+static void pre_kernel_setup(void);
+static int launch_kernel(const uint64_t* const kernel_entry_addr, const uint64_t* const kernel_stack_addr, const uint64_t* const argument_ptr, const uint64_t* const grid_ptr) __attribute__ ((used));
 static void kernel_function(void) __attribute__ ((used));
 static void kernel_return_function(void) __attribute__ ((used));
-static void post_kernel_cleanup(void) __attribute__ ((used));
+static void post_kernel_cleanup(void);
 
 void WORKER_thread(void)
 {
+    const uint64_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();
+
+    message_init_worker(shire_id, hart_id);
 
     while (1)
     {
@@ -35,10 +39,12 @@ void WORKER_thread(void)
 
         const uint64_t* const kernel_entry_addr = (uint64_t*)kernel_function; // TODO FIXME parameter
         const uint64_t* const kernel_stack_addr = (uint64_t*)(KERNEL_STACK_BASE - (hart_id * KERNEL_STACK_SIZE)); // 4K per kernel TODO FIXME parameter
+        const uint64_t* const argument_ptr = 0;
+        const uint64_t* const grid_ptr = 0;
 
         // TODO FIXME be clever with kernel stack addresses to keep stacks on local memshires
 
-        launch_kernel(kernel_entry_addr, kernel_stack_addr);
+        launch_kernel(kernel_entry_addr, kernel_stack_addr, argument_ptr, grid_ptr);
 
         post_kernel_cleanup();
     }
@@ -75,30 +81,50 @@ static void pre_kernel_setup(void)
 
     // Disable message ports
     {
-        // portctrl0(0);
-        // portctrl1(0);
-        // portctrl2(0);
-        // portctrl3(0);
+        // "Attempting to write a value lower than 2 sets LogMsgSize to the value 2."
+        asm volatile (
+            "csrwi portctrl0, 0 \n"
+            "csrwi portctrl1, 0 \n"
+            "csrwi portctrl2, 0 \n"
+            "csrwi portctrl3, 0 \n"
+        );
     }
 
-    // Zero out TenC
+    if (get_thread_id() == 0)
     {
-        // TODO (perform a 0*0 operation)
-    }
+        uint64_t temp, temp2;
 
-    // TensorExtensionCSRs all 0
-    {
-        // TODO
-        // tensormask_write(0);
-        // tensorerror_write(0);
-        // for (tmp = 0; tmp <= 255; tmp++)
-        //     tensorcooperation_write(tmp);
+        // Zero out TensorExtensionCSRs
+        asm volatile (
+            "csrwi tensor_mask,  0 \n"
+            "csrwi tensor_error, 0 \n"
+            "csrwi tensor_coop,  0 \n"
+        );
 
-    }
+        // Zero out TenC
+        asm volatile (
+            "la    %0, tensorZeros        \n"
+            "li    x31, 0                 \n" // 0-byte stride, ID 0
+            "li    %1, 0x000000000000000F \n" // Load 16 lines to L1SP lines 0-15
+            "or    %1, %0, %1             \n" // Set address of tensorLoad to tensorZeros
+            "csrw  tensor_load, %1        \n"
+            "csrwi tensor_wait, 0         \n"
+            "li    %1, 0x020000000000000F \n" // Load 16 lines to L1SP lines 16-31
+            "or    %1, %0, %1             \n" // Set address of tensorLoad to tensorZeros
+            "csrw  tensor_load, %1        \n"
+            "csrwi tensor_wait, 0         \n"
+			"li    %1, 0x01FF800000610007 \n" // 16x16 TenC = 16x64 A in L1 SP lines 0-15 * 64x16 B in L1SP lines 16-31
+			"csrw  tensor_fma, %1         \n"
+			"csrwi tensor_wait, 7         \n"
+            : "=&r" (temp), "=&r" (temp2)
+            : "m" (tensorZeros[64])
+            : "x31"
+        );
 
-    // GPR and VPU set to 0s
-    {
-        // TODO
+        // Set rounding mode to 0 (round near even)
+        asm volatile (
+            "csrw frm, x0"
+        );
     }
 
     WAIT_FLB(64, 31, result);
@@ -111,7 +137,7 @@ static void pre_kernel_setup(void)
 }
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
-static int launch_kernel(const uint64_t* const kernel_entry_addr, const uint64_t* const kernel_stack_addr)
+static int launch_kernel(const uint64_t* const kernel_entry_addr, const uint64_t* const kernel_stack_addr, const uint64_t* const argument_ptr, const uint64_t* const grid_ptr)
 {
     // Test kernel:
     // // thread 0s run compute kernel
@@ -143,42 +169,40 @@ static int launch_kernel(const uint64_t* const kernel_entry_addr, const uint64_t
         // -Wipe register state (no leakage from S to U mode)
         // -sret to kernel_entry_addr in user mode
         asm volatile (
-            "addi  sp, sp, -( 29 * 8 )  \n" // save context on stack
-            "sd    x1,  1  * 8( sp )    \n"
-            "sd    x3,  2  * 8( sp )    \n"
-            "sd    x5,  3  * 8( sp )    \n"
-            "sd    x6,  4  * 8( sp )    \n"
-            "sd    x7,  5  * 8( sp )    \n"
-            "sd    x8,  6  * 8( sp )    \n"
-            "sd    x9,  7  * 8( sp )    \n"
-            "sd    x10, 8  * 8( sp )    \n"
-            "sd    x11, 9  * 8( sp )    \n"
-            "sd    x12, 10 * 8( sp )    \n"
-            "sd    x13, 11 * 8( sp )    \n"
-            "sd    x14, 12 * 8( sp )    \n"
-            "sd    x15, 13 * 8( sp )    \n"
-            "sd    x16, 14 * 8( sp )    \n"
-            "sd    x17, 15 * 8( sp )    \n"
-            "sd    x18, 16 * 8( sp )    \n"
-            "sd    x19, 17 * 8( sp )    \n"
-            "sd    x20, 18 * 8( sp )    \n"
-            "sd    x21, 19 * 8( sp )    \n"
-            "sd    x22, 20 * 8( sp )    \n"
-            "sd    x23, 21 * 8( sp )    \n"
-            "sd    x24, 22 * 8( sp )    \n"
-            "sd    x25, 23 * 8( sp )    \n"
-            "sd    x26, 24 * 8( sp )    \n"
-            "sd    x27, 25 * 8( sp )    \n"
-            "sd    x28, 26 * 8( sp )    \n"
-            "sd    x29, 27 * 8( sp )    \n"
-            "sd    x30, 28 * 8( sp )    \n"
-            "sd    x31, 29 * 8( sp )    \n"
-            "la    x1, 1f               \n" // load address of instruction after sret
-            "addi  sp, sp, -8           \n"
-            "sd    x1,   1 * 8( sp )    \n" // push address
+            "addi  sp, sp, -( 29 * 8 )  \n" // save context on stack (except ra, which is in clobber list)
+            "la    x1,  1f              \n" // set return address to instruction after sret
+            "sd    x1,  0  * 8( sp )    \n"
+            "sd    x3,  1  * 8( sp )    \n"
+            "sd    x5,  2  * 8( sp )    \n"
+            "sd    x6,  3  * 8( sp )    \n"
+            "sd    x7,  4  * 8( sp )    \n"
+            "sd    x8,  5  * 8( sp )    \n"
+            "sd    x9,  6  * 8( sp )    \n"
+            "sd    x10, 7  * 8( sp )    \n"
+            "sd    x11, 8  * 8( sp )    \n"
+            "sd    x12, 9  * 8( sp )    \n"
+            "sd    x13, 10 * 8( sp )    \n"
+            "sd    x14, 11 * 8( sp )    \n"
+            "sd    x15, 12 * 8( sp )    \n"
+            "sd    x16, 13 * 8( sp )    \n"
+            "sd    x17, 14 * 8( sp )    \n"
+            "sd    x18, 15 * 8( sp )    \n"
+            "sd    x19, 16 * 8( sp )    \n"
+            "sd    x20, 17 * 8( sp )    \n"
+            "sd    x21, 18 * 8( sp )    \n"
+            "sd    x22, 19 * 8( sp )    \n"
+            "sd    x23, 20 * 8( sp )    \n"
+            "sd    x24, 21 * 8( sp )    \n"
+            "sd    x25, 22 * 8( sp )    \n"
+            "sd    x26, 23 * 8( sp )    \n"
+            "sd    x27, 24 * 8( sp )    \n"
+            "sd    x28, 25 * 8( sp )    \n"
+            "sd    x29, 26 * 8( sp )    \n"
+            "sd    x30, 27 * 8( sp )    \n"
+            "sd    x31, 28 * 8( sp )    \n"
             "sd    sp, %0               \n" // save sp to fw_sp[hart_id]
             "csrw  sscratch, sp         \n" // save sp to sscratch so subsequent S-mode traps use correct SP
-            "mv    ra, %1               \n" // set ra to kernel_return_function
+            "mv    ra, %1               \n" // set return address to kernel_return_function
             "mv    s0, %2               \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
             "addi  sp, s0, -32          \n" // switch to kernel stack: set sp to kernel stack after stack frame
             "sd    ra, 24(sp)           \n" // push ra
@@ -187,40 +211,74 @@ static int launch_kernel(const uint64_t* const kernel_entry_addr, const uint64_t
             "csrc  sstatus, x5          \n" // clear sstatus SPP
             "csrsi sstatus, 0x10        \n" // set sstatus UPIE
             "csrw  sepc, %3             \n" // kernel address to jump to in user mode
-            "mv    x3, x0               \n" // kernel_entry_addr must set its own gp
-            "mv    x4, x0               \n" // Wipe registers: don't leak state from S to U
-            "mv    x5, x0               \n"
-            "mv    x6, x0               \n"
-            "mv    x7, x0               \n"
-            "mv    x8, x0               \n"
-            "mv    x9, x0               \n"
-            "mv    x10, x0              \n" // TODO pass arguments in a0, etc.
-            "mv    x11, x0              \n"
-            "mv    x12, x0              \n"
-            "mv    x13, x0              \n"
-            "mv    x14, x0              \n"
-            "mv    x15, x0              \n"
-            "mv    x16, x0              \n"
-            "mv    x17, x0              \n"
-            "mv    x18, x0              \n"
-            "mv    x19, x0              \n"
-            "mv    x20, x0              \n"
-            "mv    x21, x0              \n"
-            "mv    x22, x0              \n"
-            "mv    x23, x0              \n"
-            "mv    x24, x0              \n"
-            "mv    x25, x0              \n"
-            "mv    x26, x0              \n"
-            "mv    x27, x0              \n"
-            "mv    x28, x0              \n"
-            "mv    x29, x0              \n"
-            "mv    x30, x0              \n"
-            "mv    x31, x0              \n"
+            "mv    x3, zero             \n" // kernel_entry_addr must set its own gp if it uses it
+            "mv    x4, zero             \n" // Wipe registers: don't leak state from S to U
+            "mv    x5, zero             \n"
+            "mv    x6, zero             \n"
+            "mv    x7, zero             \n"
+            "mv    x8, zero             \n"
+            "mv    x9, zero             \n"
+            "mv    x10, %4              \n" // a0 = argument_ptr
+            "mv    x11, %5              \n" // a1 = grid_ptr
+            "mv    x12, zero            \n"
+            "mv    x13, zero            \n"
+            "mv    x14, zero            \n"
+            "mv    x15, zero            \n"
+            "mv    x16, zero            \n"
+            "mv    x17, zero            \n"
+            "mv    x18, zero            \n"
+            "mv    x19, zero            \n"
+            "mv    x20, zero            \n"
+            "mv    x21, zero            \n"
+            "mv    x22, zero            \n"
+            "mv    x23, zero            \n"
+            "mv    x24, zero            \n"
+            "mv    x25, zero            \n"
+            "mv    x26, zero            \n"
+            "mv    x27, zero            \n"
+            "mv    x28, zero            \n"
+            "mv    x29, zero            \n"
+            "mv    x30, zero            \n"
+            "mv    x31, zero            \n"
+#ifdef __riscv_flen
+            "fcvt.s.w f0,  x0           \n"
+            "fcvt.s.w f1,  x0           \n"
+            "fcvt.s.w f2,  x0           \n"
+            "fcvt.s.w f3,  x0           \n"
+            "fcvt.s.w f4,  x0           \n"
+            "fcvt.s.w f5,  x0           \n"
+            "fcvt.s.w f6,  x0           \n"
+            "fcvt.s.w f7,  x0           \n"
+            "fcvt.s.w f8,  x0           \n"
+            "fcvt.s.w f9,  x0           \n"
+            "fcvt.s.w f10, x0           \n"
+            "fcvt.s.w f11, x0           \n"
+            "fcvt.s.w f12, x0           \n"
+            "fcvt.s.w f13, x0           \n"
+            "fcvt.s.w f14, x0           \n"
+            "fcvt.s.w f15, x0           \n"
+            "fcvt.s.w f16, x0           \n"
+            "fcvt.s.w f17, x0           \n"
+            "fcvt.s.w f18, x0           \n"
+            "fcvt.s.w f19, x0           \n"
+            "fcvt.s.w f20, x0           \n"
+            "fcvt.s.w f21, x0           \n"
+            "fcvt.s.w f22, x0           \n"
+            "fcvt.s.w f23, x0           \n"
+            "fcvt.s.w f24, x0           \n"
+            "fcvt.s.w f25, x0           \n"
+            "fcvt.s.w f26, x0           \n"
+            "fcvt.s.w f27, x0           \n"
+            "fcvt.s.w f28, x0           \n"
+            "fcvt.s.w f29, x0           \n"
+            "fcvt.s.w f30, x0           \n"
+            "fcvt.s.w f31, x0           \n"
+#endif
             "sret                       \n"
             "1:                         \n"
             : "=m" (fw_sp[hart_id])
-            : "r" (kernel_return_function), "r" (kernel_stack_addr), "r" (kernel_entry_addr)
-            : "ra" // RETURN_FROM_KERNEL syscall rets back to 1: so ra is clobbered. Rest of context is preserved.
+            : "r" (kernel_return_function), "r" (kernel_stack_addr), "r" (kernel_entry_addr), "r" (argument_ptr), "r" (grid_ptr)
+            : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
         );
     }
 
