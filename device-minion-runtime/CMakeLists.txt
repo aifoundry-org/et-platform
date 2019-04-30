@@ -8,6 +8,8 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+get_filename_component(FIRMWARE_TOOLS_DIR "firmware-tools" ABSOLUTE)
+
 cmake_minimum_required(VERSION 3.5)
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
