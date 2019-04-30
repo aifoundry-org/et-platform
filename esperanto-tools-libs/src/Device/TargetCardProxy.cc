@@ -13,8 +13,8 @@
 #include "Support/Logging.h"
 #include "et-rpc.h"
 
-#include "et-rpc/et-card-proxy.h"
 #include "et_socket_addr.h"
+#include "etrpc/et-card-proxy.h"
 
 #include <csignal>
 #include <fcntl.h>

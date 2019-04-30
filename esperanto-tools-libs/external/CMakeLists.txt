@@ -143,7 +143,7 @@ ExternalProject_Add(fmtlib
   GIT_TAG "5.3.0"
   INSTALL_DIR ${fmtlib_INSTALL}
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${fmtlib_INSTALL}
-             "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -fPIC"
+             -DCMAKE_CXX_FLAGS=-fPIC
   BUILD_BYPRODUCTS ${fmtlib_INSTALL}/lib64/libfmt.a
   LOG_DOWNLOAD 1
   LOG_CONFIGURE 1

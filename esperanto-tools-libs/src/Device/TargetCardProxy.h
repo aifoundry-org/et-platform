@@ -12,7 +12,7 @@
 #define ET_RUNTIME_DEVICE_CARD_PROXY_H
 
 #include "Core/DeviceTarget.h"
-#include "et-rpc/et-card-proxy.h"
+#include "etrpc/et-card-proxy.h"
 
 #include <cassert>
 #include <memory>

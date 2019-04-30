@@ -23,6 +23,7 @@ set(COMMON_TEST_LIBRARIES
   etrt
   libgtest_main.a
   libgtest.a
+  ${FMTLIB_LIBRARIES}
   pthread)
 
 set(TEST_LIST test_error_or.cc

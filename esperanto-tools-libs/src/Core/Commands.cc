@@ -30,7 +30,7 @@
 // contained and misisng includes
 #include <stddef.h>
 #include <stdint.h>
-#include "et-rpc/et-card-proxy.h"
+#include "etrpc/et-card-proxy.h"
 // clang-format on
 
 using namespace et_runtime;
