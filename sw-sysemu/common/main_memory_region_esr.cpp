@@ -28,9 +28,14 @@
 #define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000
 #define ESR_ICACHE_ERR_LOG_CTL_RESET_VAL  0x6
 
-#define ESR_SC_L2_CACHE_CTL_RESET_VAL   0x028002FF007F007FULL
-#define ESR_SC_L3_CACHE_CTL_RESET_VAL   0x030003FF00FF00FFULL
-#define ESR_SC_SCP_CACHE_CTL_RESET_VAL  0x0000027F03FF01FFULL
+#define ESR_SC_L3_SHIRE_SWIZZLE_CTL_RESET_VAL   0x0000987765543210ULL
+#define ESR_SC_REQQ_CTL_RESET_VAL               0x00038A80
+#define ESR_SC_PIPE_CTL_RESET_VAL               0x0000005CFFFFFFFFULL
+#define ESR_SC_L2_CACHE_CTL_RESET_VAL           0x02800080007F007FULL
+#define ESR_SC_L3_CACHE_CTL_RESET_VAL           0x0300010000FF00FFULL
+#define ESR_SC_SCP_CACHE_CTL_RESET_VAL          0x0000028003FF01FFULL
+#define ESR_SC_ERR_LOG_CTL_RESET_VAL            0x1FE
+
 
 extern uint32_t current_pc;
 extern uint32_t current_thread;
@@ -79,9 +84,13 @@ main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t bas
         // Initialize ShireCache ESRs
         if (((base_ & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT) == 3)
         {
+            write64(data_ + (ESR_SC_L3_SHIRE_SWIZZLE_CTL - ESR_CACHE_M0), ESR_SC_L3_SHIRE_SWIZZLE_CTL_RESET_VAL);
+            write64(data_ + (ESR_SC_REQQ_CTL - ESR_CACHE_M0), ESR_SC_REQQ_CTL_RESET_VAL);
+            write64(data_ + (ESR_SC_PIPE_CTL - ESR_CACHE_M0), ESR_SC_PIPE_CTL_RESET_VAL);
             write64(data_ + (ESR_SC_L2_CACHE_CTL - ESR_CACHE_M0), ESR_SC_L2_CACHE_CTL_RESET_VAL);
             write64(data_ + (ESR_SC_L3_CACHE_CTL - ESR_CACHE_M0), ESR_SC_L3_CACHE_CTL_RESET_VAL);
             write64(data_ + (ESR_SC_SCP_CACHE_CTL - ESR_CACHE_M0), ESR_SC_SCP_CACHE_CTL_RESET_VAL);
+            write64(data_ + (ESR_SC_ERR_LOG_CTL - ESR_CACHE_M0), ESR_SC_ERR_LOG_CTL_RESET_VAL);
         }
     }
 }
@@ -265,11 +274,29 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
         LOG(DEBUG, "Write to ESR Region ShireCache at ESR address 0x%" PRIx64, esr_addr);
         switch(esr_addr)
         {
-        case ESR_SC_IDX_COP_SM_CTL:
-            /* do nothing */
-            break;
-        default:
-            throw trap_bus_error(ad);
+            case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
+            case ESR_SC_REQQ_CTL:
+            case ESR_SC_PIPE_CTL:
+            case ESR_SC_L2_CACHE_CTL:
+            case ESR_SC_L3_CACHE_CTL:
+            case ESR_SC_SCP_CACHE_CTL:
+            case ESR_SC_IDX_COP_SM_CTL:
+            case ESR_SC_IDX_COP_SM_PHYSICAL_INDEX:
+            case ESR_SC_IDX_COP_SM_DATA0:
+            case ESR_SC_IDX_COP_SM_DATA1:
+            case ESR_SC_IDX_COP_SM_ECC:
+            case ESR_SC_ERR_LOG_CTL:
+            case ESR_SC_ERR_LOG_INFO:
+            case ESR_SC_ERR_LOG_ADDRESS:
+            case ESR_SC_SBE_DBE_COUNTS:
+            case ESR_SC_REQQ_DEBUG_CTL:
+            case ESR_SC_REQQ_DEBUG0:
+            case ESR_SC_REQQ_DEBUG1:
+            case ESR_SC_REQQ_DEBUG2:
+            case ESR_SC_REQQ_DEBUG3:
+                break;
+            default:
+                throw trap_bus_error(ad);
         }
     }
     else if (addr_sregion_ext == ESR_RBOX_REGION)
@@ -496,6 +523,26 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
         LOG(DEBUG, "Read from ESR Region ShireCache at ESR address 0x%" PRIx64, esr_addr);
         switch(esr_addr)
         {
+            case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
+            case ESR_SC_REQQ_CTL:
+            case ESR_SC_PIPE_CTL:
+            case ESR_SC_L2_CACHE_CTL:
+            case ESR_SC_L3_CACHE_CTL:
+            case ESR_SC_SCP_CACHE_CTL:
+            case ESR_SC_IDX_COP_SM_PHYSICAL_INDEX:
+            case ESR_SC_IDX_COP_SM_DATA0:
+            case ESR_SC_IDX_COP_SM_DATA1:
+            case ESR_SC_IDX_COP_SM_ECC:
+            case ESR_SC_ERR_LOG_CTL:
+            case ESR_SC_ERR_LOG_INFO:
+            case ESR_SC_ERR_LOG_ADDRESS:
+            case ESR_SC_SBE_DBE_COUNTS:
+            case ESR_SC_REQQ_DEBUG_CTL:
+            case ESR_SC_REQQ_DEBUG0:
+            case ESR_SC_REQQ_DEBUG1:
+            case ESR_SC_REQQ_DEBUG2:
+            case ESR_SC_REQQ_DEBUG3:
+                break;
             case ESR_SC_IDX_COP_SM_CTL:
                 *ptr = 4ull << 24; // idx_cop_sm_state = IDLE
                 read_data = false;

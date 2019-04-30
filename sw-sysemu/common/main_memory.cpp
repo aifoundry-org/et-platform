@@ -41,7 +41,7 @@ main_memory::main_memory(testLog& log_)
             regions_.push_back(neigh_esrs);
         }
 
-        // Shire cache ESRs (M-mode)
+        // ShireCache ESRs (M-mode)
         main_memory_region_esr* cb_esrs[4];
         for (int n = 0; n < 4; n++)
         {

@@ -59,7 +59,7 @@ void main_memory_region_scp::read(uint64_t ad, int size, void * data)
 size_t main_memory_region_scp::l2_scp_size() const
 {
     uint64_t esr_sc_cache_ctl = sc_regs_->read(ESR_SC_SCP_CACHE_CTL - ESR_CACHE_M0);
-    unsigned set_size = 1 + ((esr_sc_cache_ctl >> 32) & 0x1FFF);
+    unsigned set_size = ((esr_sc_cache_ctl >> 32) & 0x1FFF);
     // total_size = set_size x 64 bytes/line x 4 lines/set x 4 subbanks x 4 banks
     return std::min(set_size * 4096, 1024u * 4096);
 }

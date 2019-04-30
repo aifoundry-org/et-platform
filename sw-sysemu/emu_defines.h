@@ -188,13 +188,39 @@
 #define ESR_TEXTURE_IMAGE_TABLE_PTR 0x0100108010ULL /* PP = 0b00 */
 
 // ShireCache ESRs
-#define ESR_CACHE_U0            0x0100300000ULL /* PP = 0b00 */
-#define ESR_CACHE_S0            0x0140300000ULL /* PP = 0b01 */
-#define ESR_CACHE_M0            0x01C0300000ULL /* PP = 0b11 */
-#define ESR_SC_L2_CACHE_CTL     0x01C0300018ULL /* PP = 0b11 */
-#define ESR_SC_L3_CACHE_CTL     0x01C0300020ULL /* PP = 0b11 */
-#define ESR_SC_SCP_CACHE_CTL    0x01C0300028ULL /* PP = 0b11 */
-#define ESR_SC_IDX_COP_SM_CTL   0x01C0300030ULL /* PP = 0b11 */
+#define ESR_CACHE_U0                      0x0100300000ULL /* PP = 0b00 */
+#define ESR_CACHE_S0                      0x0140300000ULL /* PP = 0b01 */
+#define ESR_CACHE_M0                      0x01C0300000ULL /* PP = 0b11 */
+#define ESR_SC_L3_SHIRE_SWIZZLE_CTL       0x01C0300000ULL /* PP = 0b11 */
+#define ESR_SC_REQQ_CTL                   0x01C0300008ULL /* PP = 0b11 */
+#define ESR_SC_PIPE_CTL                   0x01C0300010ULL /* PP = 0b11 */
+#define ESR_SC_L2_CACHE_CTL               0x01C0300018ULL /* PP = 0b11 */
+#define ESR_SC_L3_CACHE_CTL               0x01C0300020ULL /* PP = 0b11 */
+#define ESR_SC_SCP_CACHE_CTL              0x01C0300028ULL /* PP = 0b11 */
+#define ESR_SC_IDX_COP_SM_CTL             0x01C0300030ULL /* PP = 0b11 */
+#define ESR_SC_IDX_COP_SM_PHYSICAL_INDEX  0x01C0300038ULL /* PP = 0b11 */
+#define ESR_SC_IDX_COP_SM_DATA0           0x01C0300040ULL /* PP = 0b11 */
+#define ESR_SC_IDX_COP_SM_DATA1           0x01C0300048ULL /* PP = 0b11 */
+#define ESR_SC_IDX_COP_SM_ECC             0x01C0300050ULL /* PP = 0b11 */
+#define ESR_SC_ERR_LOG_CTL                0x01C0300058ULL /* PP = 0b11 */
+#define ESR_SC_ERR_LOG_INFO               0x01C0300060ULL /* PP = 0b11 */
+#define ESR_SC_ERR_LOG_ADDRESS            0x01C0300068ULL /* PP = 0b11 */
+#define ESR_SC_SBE_DBE_COUNTS             0x01C0300070ULL /* PP = 0b11 */
+#define ESR_SC_REQQ_DEBUG_CTL             0x01C0300078ULL /* PP = 0b11 */
+#define ESR_SC_REQQ_DEBUG0                0x01C0300080ULL /* PP = 0b11 */
+#define ESR_SC_REQQ_DEBUG1                0x01C0300088ULL /* PP = 0b11 */
+#define ESR_SC_REQQ_DEBUG2                0x01C0300090ULL /* PP = 0b11 */
+#define ESR_SC_REQQ_DEBUG3                0x01C0300098ULL /* PP = 0b11 */
+//#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
+//#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
+//#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
+//#define ESR_SC_PERFMON_CTL_STATUS       /* PP = 0b11 */
+//#define ESR_SC_PERFMON_CYC_CNTR         /* PP = 0b11 */
+//#define ESR_SC_PERFMON_P0_CNTR          /* PP = 0b11 */
+//#define ESR_SC_PERFMON_P1_CNTR          /* PP = 0b11 */
+//#define ESR_SC_PERFMON_P0_QUAL          /* PP = 0b11 */
+//#define ESR_SC_PERFMON_P1_QUAL          /* PP = 0b11 */
+
 
 // RBOX ESRs
 #define ESR_RBOX_U0             0x0100320000ULL /* PP = 0b00 */
