@@ -55,7 +55,7 @@ _boot:
 
     addi x1,  x0, 0
     # sp set later by loader
-    # gp set later
+    # gp set later by crt.S
     addi x4,  x0, 0
     addi x5,  x0, 0
     addi x6,  x0, 0
@@ -119,12 +119,6 @@ _boot:
     fcvt.s.w f30, x0
     fcvt.s.w f31, x0
 #endif
-
-# initialize global pointer
-.option push
-.option norelax
-    la gp, __global_pointer$
-.option pop
 
     la a1, _start
     jalr x0, a1

@@ -15,8 +15,8 @@ SECTIONS
 {
     /* TODO FIXME can't fetch instructions from L3_DRAM see RTLMIN-3674
         Working around this for now by placing all code in L3_Linux region starting at 0x8000200000 */
-    /*. = 0x8100000000; */ /* R_L3_DRAM */
-    . = 0x8000200000; /* R_Linux */
+    /*. = 0x8100200000; */ /* R_L3_DRAM + 2MB, MasterMinion has first 2MB */
+    . = 0x8000400000; /* R_Linux + 2MB */
 
     .text :
     {
@@ -94,7 +94,4 @@ SECTIONS
         KEEP(*(stack stack.*))
         __stack_base = .;
     }
-
-    __heap_start = .;
-    __heap_end = . + 1M;
 }

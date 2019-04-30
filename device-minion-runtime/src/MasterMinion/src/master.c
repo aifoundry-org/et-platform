@@ -2,26 +2,22 @@
 #include "interrupt.h"
 #include "ipi.h"
 #include "net_desc.h"
+#include "serial.h"
 #include "shire.h"
 #include "sync.h"
 
+#include <stdint.h>
+
 #define NUM_WORKER_SHIRES 1
+
+#define FW_MCODE_STACK_BASE   0x80001FFE00ULL
+#define FW_MCODE_STACK_OFFSET 9                 // 512 bytes per thread
+#define FW_SCODE_STACK_BASE   0x80003FFE00ULL
+#define FW_SCODE_STACK_OFFSET 9                 // 512 bytes per thread
+#define FW_SCODE_IPI_INFO     0x8000500000ULL
 
 void MASTER_thread(void)
 {
-    unsigned int temp;
-
-    // Set MIE.MEIE and MIE.MSIE to enable machine external and software interrupts
-    asm volatile ("li %0, 0x808\n"
-                  "csrs mie, %0\n" : "=&r" (temp));
-
-    // Enable global interrupts
-    INT_enableInterrupts();
-
-    // TODO FIXME hangs on UART access, waiting for RTLMIN-2778
-    //SERIAL_init(UART0);
-    //SERIAL_write(UART0, "alive\r\n", 7);
-
     // TODO FIXME hangs on RVTimer access, waiting for RTLMIN-2778
     //volatile const uint64_t * const pullTime = (volatile const uint64_t * const)(0x01FF800000 + 0x0);
 
@@ -31,8 +27,13 @@ void MASTER_thread(void)
         while (1) {} // in case wfi isn't working
     }
 
+    SERIAL_init(UART0);
+    SERIAL_write(UART0, "alive\r\n", 7);
+
     //const uint64_t before = *pullTime;
-    register unsigned int masterCycles = 0;
+
+    // TODO FIXME convenient counter location for zebu inspection
+    register volatile unsigned int masterCycles asm("ra") = 0;
 
     while (1)
     {
