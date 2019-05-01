@@ -6866,8 +6866,10 @@ static void tensorstore(uint64_t tstorereg)
                     pmemwrite32(paddr + i*4, val);
                     //log_mem_write(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
                 }
-                if (cols == 1)    src += srcinc; // For 128b stores, move to next desired register
-                else if (col & 1) src += srcinc; // For 256b and 512b stores, move to next desired register when 256b are written
+                // For 128b stores, move to next desired register immediately.
+                // For 256b and 512b stores, move to next desired register
+                // when 256b are written
+                if ((cols == 1) || (col & 1)) src = (src + srcinc) % MAXFREG;
             }
             addr = sextVA(addr + stride);
         }
