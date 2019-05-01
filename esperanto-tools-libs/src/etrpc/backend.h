@@ -47,6 +47,8 @@ public:
 
   virtual void startup(const char *work_dir) = 0;
   virtual void boot(uint64_t init_pc, uint64_t trap_pc) = 0;
+  void setupCommunicationSocket(const char *path);
+  void acceptCommunicationSocket();
 
 protected:
   virtual const char *getCommunicationFile() = 0;
@@ -55,8 +57,6 @@ protected:
   ssize_t writeBytesIntoFd(const void *buf, size_t count);
 
   void createEmuProcess(const char *path, const std::vector<std::string> &argv);
-  void setupCommunicationSocket(const char *path);
-  void acceptCommunicationSocket();
 
   int comm_socket_; // communication socket for accepting connections
   int comm_fd_;     // FD for data transfer

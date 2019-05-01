@@ -1,4 +1,5 @@
 #include "et-rpc.h"
+#include "Support/Logging.h"
 #include "et_socket_addr.h"
 #include <assert.h>
 #include <malloc.h>
@@ -25,13 +26,14 @@ static MessageType unpackMessageHeader(MessageHeader msg_hdr,
 
 void sendMessage(int fd, const void *msg_p, MessageType msg_type,
                  size_t msg_size) {
+  RTINFO << "Sending Message " << msg_type;
   ssize_t r;
   MessageHeader msg_hdr = packMessageHeader(msg_type, msg_size);
 
-  r = send(fd, &msg_hdr, sizeof(msg_hdr), MSG_MORE);
+  r = write(fd, &msg_hdr, sizeof(msg_hdr));
   assert(r == sizeof(msg_hdr));
 
-  r = send(fd, msg_p, msg_size, 0);
+  r = write(fd, msg_p, msg_size);
   assert((size_t)r == msg_size);
 }
 
@@ -44,7 +46,7 @@ void *recvMessage(int fd, MessageType *msg_type_p) {
   ssize_t r;
   MessageHeader msg_hdr;
 
-  r = recv(fd, &msg_hdr, sizeof(msg_hdr), MSG_WAITALL);
+  r = read(fd, &msg_hdr, sizeof(msg_hdr));
   if (r == 0) {
     return NULL;
   }
@@ -56,7 +58,7 @@ void *recvMessage(int fd, MessageType *msg_type_p) {
   void *msg_p = malloc(msg_size);
   assert(msg_p);
 
-  r = recv(fd, msg_p, msg_size, MSG_WAITALL);
+  r = read(fd, msg_p, msg_size);
   assert((size_t)r == msg_size);
 
   return msg_p;

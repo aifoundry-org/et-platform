@@ -12,6 +12,7 @@
 #define ET_RUNTIME_DEVICE_CARD_PROXY_H
 
 #include "Core/DeviceTarget.h"
+#include "etrpc/card-emu.h"
 #include "etrpc/et-card-proxy.h"
 
 #include <cassert>
@@ -36,7 +37,7 @@ public:
   ///
   /// @param[in] path  Path card proxy socket
   CardProxyTarget(const std::string &path);
-  virtual ~CardProxyTarget() = default;
+  virtual ~CardProxyTarget();
 
   bool init() override;
   bool deinit() override;
@@ -49,6 +50,8 @@ public:
 private:
   const std::string name_ = "CardProxy";
   std::unique_ptr<CardProxy> card_proxy_;
+  std::unique_ptr<CardEmu> card_emu_;
+
   std::thread simulator_thread_; ///< Thread forking and executing the simulator
   std::mutex simulator_end_mutex_; ///< Mutex to block terminating the simulator
   std::unique_lock<std::mutex>

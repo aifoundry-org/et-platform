@@ -24,7 +24,7 @@
 // contained and misisng includes
 #include <stddef.h>
 #include <stdint.h>
-#include "et-rpc/et-card-proxy.h"
+#include "etrpc/et-card-proxy.h"
 // clang-format on
 
 using namespace et_runtime;
@@ -35,26 +35,12 @@ void Device::deviceThread() {
 
   CardProxy card_proxy_s;
   CardProxy *card_proxy = &card_proxy_s;
-  const char *mode = getenv("ETT_MODE");
-  mode = mode ? mode : "";
-  if (!strcmp(mode, "0") || !strcmp(mode, "local")) {
-    card_proxy = nullptr; // i.e. local mode
-  } else if (!strcmp(mode, "dev") || !strcmp(mode, "device")) {
-    cpOpen(card_proxy, true); // i.e. use real device
-  } else if (!strcmp(mode, "card-emu")) {
-    cpOpen(card_proxy, false); // i.e. connect to card-emu
-  } else {
-    cpOpen(card_proxy, false); // by default connect to card-emu for now
-  }
 
   while (true) {
     std::unique_lock<std::mutex> lk(mutex_);
 
     while (true) {
       if (device_thread_exit_requested_) {
-        if (card_proxy) {
-          cpClose(card_proxy);
-        }
         return;
       }
 

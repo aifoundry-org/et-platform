@@ -34,11 +34,7 @@ using namespace std;
 namespace et_runtime {
 namespace device {
 
-CardProxyTarget::CardProxyTarget(const std::string &path)
-    : DeviceTarget(path), card_proxy_(std::make_unique<CardProxy>()),
-      simulator_thread_(), simulator_end_mutex_() {
-  simulator_end_lock_ =
-      std::unique_lock<std::mutex>(simulator_end_mutex_, std::defer_lock);
+CardProxyTarget::CardProxyTarget(const std::string &path) : DeviceTarget(path) {
   connection_ = fmt::format("/tmp/card_emu_socket_{}", getpid());
   execute_args_ = {
       SYSEMU_PATH, //
@@ -52,7 +48,10 @@ CardProxyTarget::CardProxyTarget(const std::string &path)
       "-max_cycles", "800000", // Limiting number of virtual simulation cycles.
                                // Increase if needed
   };
+  card_proxy_ = std::make_unique<CardProxy>(connection_);
 }
+
+CardProxyTarget::~CardProxyTarget() {}
 
 /* Process */
 static void createProcess(const char *path,
@@ -118,9 +117,7 @@ void CardProxyTarget::waitForConnection() {
   // HACK use initSocket directlry and start a server that SysEmu can connect
   // to This eliminates the card-proxy from the middle.
   RTINFO << "Waiting for SysEmu to connect";
-  card_proxy_->fd = initSocket(true);
-  card_proxy_->is_use_dev = false;
-  assert(card_proxy_->fd > 0);
+  card_emu_->init();
   RTINFO << "SysEmu connected.";
   return;
 }
@@ -154,7 +151,6 @@ bool CardProxyTarget::deinit() {
   simulator_end_lock_.unlock();
   // Wait until we have killed the simulator
   simulator_thread_.join();
-  cpClose(card_proxy_.get());
   return true;
 }
 

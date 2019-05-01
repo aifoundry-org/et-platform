@@ -1,4 +1,6 @@
 #include "backend.h"
+#include "Support/Logging.h"
+
 #include <assert.h>
 #include <fcntl.h>
 #include <memory>
@@ -14,6 +16,10 @@
 #include <vector>
 
 ssize_t Backend::readBytesFromFd(void *buf, size_t count) {
+  //  RTINFO << "Backend Read bytes: " << count;
+  if (count == 0) {
+    return count;
+  }
   size_t n_bytes_read = 0;
   do {
     ssize_t r = TEMP_FAILURE_RETRY(
@@ -30,6 +36,10 @@ ssize_t Backend::readBytesFromFd(void *buf, size_t count) {
 }
 
 ssize_t Backend::writeBytesIntoFd(const void *buf, size_t count) {
+  //  RTINFO << "Backend write bytes: " << count;
+  if (count == 0) {
+    return count;
+  }
   size_t n_bytes_written = 0;
   do {
     ssize_t w = TEMP_FAILURE_RETRY(write(
