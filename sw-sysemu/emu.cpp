@@ -577,6 +577,7 @@ void initcsr(uint32_t thread)
 
     csr_minstmask[thread] = 0;
     csr_gsc_progress[thread] = 0;
+    csr_ucache_control[thread] = 0x200;
 }
 
 void minit(mreg dst, uint64_t val)
