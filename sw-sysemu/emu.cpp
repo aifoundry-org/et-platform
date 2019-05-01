@@ -546,7 +546,7 @@ void initcsr(uint32_t thread)
 
     // misa is a 0-length register
     csr_misa[thread] = CSR_ISA_MAX;
-    // M-mode registers with reset
+    // CSR registers with reset
     csr_mstatus[thread] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csr_mcause[thread] = 0;
     csr_mip[thread] = 0;
@@ -557,6 +557,7 @@ void initcsr(uint32_t thread)
     csr_mcache_control[thread] = 0;
     csr_mcounteren[thread] = 0;
     csr_scounteren[thread] = 0;
+    csr_ucache_control[thread] = 0x200; // CacheOp_MAx=8
     // Debug-mode registers with reset
     csr_tdata1[thread] = 0x20C0000000000000ULL;
     // TODO: csr_dcsr[thread] <= xdebugver=1, prv=3;
