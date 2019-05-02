@@ -5584,13 +5584,22 @@ static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, i
 
     for (int i = 0; i < numlines; i++)
     {
-        // skip if masked
-        if (tm && !tmask_pass(i))
-            continue;
-
-        LOG(DEBUG, "\tDoing %s: Set: %d, Way: %d, DestLevel: %d",
-            evict ? "EvictSW" : "FlushSW", set, way, dest);
-
+        // skip if masked or evicting and hard-locked
+        if ((!tm || tmask_pass(i)) && !(evict && scp_locked[current_thread>>1][set][way]))
+        {
+            // NB: Hardware sets TensorError[7] if the PA in the set/way
+            // corresponds to L2SCP and dest > L2, but we do not keep track of
+            // unlocked cache lines.
+            if ((dest >= 2) && scp_locked[current_thread>>1][set][way] && paddr_is_scratchpad(scp_trans[current_thread>>1][set][way]))
+            {
+                LOG(DEBUG, "\tFlushSW: Set: %d, Way: %d, DestLevel: %d cannot flush L2 scratchpad address 0x%016" PRIx64,
+                    set, way, dest, scp_trans[current_thread>>1][set][way]);
+                update_tensor_error(1 << 7);
+                return;
+            }
+            LOG(DEBUG, "\tDoing %s: Set: %d, Way: %d, DestLevel: %d",
+                evict ? "EvictSW" : "FlushSW", set, way, dest);
+        }
         // Increment set and way with wrap-around
         if (++set >= L1D_NUM_SETS)
         {
@@ -5672,6 +5681,13 @@ static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numline
 
 static void dcache_lock_paddr(int way, uint64_t paddr)
 {
+    if (!pma_check_data_access(paddr, L1D_LINE_SIZE, Mem_Access_CacheOp))
+    {
+        LOG(DEBUG, "\tLockSW: 0x%016" PRIx64 ", Way: %d access fault", paddr, way);
+        update_tensor_error(1 << 7);
+        return;
+    }
+
     // FIXME: This should take mcache_control into account!!!
     int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
 
@@ -5684,7 +5700,11 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
             ++nlocked;
             if ((w == way) || (scp_trans[current_thread >> 1][set][w] == paddr))
             {
-                // Requested line or requested way already locked; stop the operation
+                // Requested PA already locked in a different way, or requested
+                // way already locked with a different PA; stop the operation.
+                // NB: Hardware sets TensorError[5] also when the PA is
+                // in the L1 cache on a different set/way but we do not keep
+                // track of unlocked cache lines.
                 LOG(DEBUG, "\tLockSW: 0x%016" PRIx64 ", Way: %d double-locking on way %d (addr: 0x%016" PRIx64 ")",
                     paddr, way, w, scp_trans[current_thread >> 1][set][w]);
                 update_tensor_error(1 << 5);
@@ -5692,7 +5712,6 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
             }
         }
     }
-    // FIXME: We should check if PA exists, unlocked, in another set in the cache
 
     // Cannot lock any more lines in this set; stop the operation
     if (nlocked >= (L1D_NUM_WAYS-1))
@@ -5712,7 +5731,7 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
 
 static void dcache_unlock_set_way(int set, int way)
 {
-    if (set < L1D_NUM_SETS)
+    if ((set < L1D_NUM_SETS) && (way < L1D_NUM_WAYS))
     {
         scp_locked[current_thread >> 1][set][way] = false;
     }
