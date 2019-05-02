@@ -190,7 +190,12 @@ static bool break_on_fetch[EMU_NUM_THREADS] = {};
 static bool debug_mode[EMU_NUM_THREADS] = {};
 static bool tensorload_setupb_topair[EMU_NUM_THREADS] = {false};
 static int tensorload_setupb_numlines[EMU_NUM_THREADS];
-static uint64_t tensorreduce_value[EMU_NUM_MINIONS];
+static struct {
+    uint16_t minion_id;
+    uint8_t  start_reg;
+    uint8_t  num_reg;
+    uint8_t  action;
+} tensorreduce_info[EMU_NUM_MINIONS];
 
 // Scratchpad
 cache_line_t scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS];
@@ -7269,7 +7274,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
 static void tensorreduce(uint64_t value)
 {
-    unsigned other_min, this_min, action;
+    unsigned other_min, action;
 
     if (!txfma_off_allowed(CSR_TENSOR_REDUCE, value))
         throw trap_txfma_off(current_inst);
@@ -7299,7 +7304,6 @@ static void tensorreduce(uint64_t value)
     if (action == 0)
     {
 #ifndef SYS_EMU
-        tensor_reduce_send_prepare(current_thread>>1, value);
         LOG(DEBUG, "\t%s other_minion: %u, start_reg: %d, num_reg: %d",
             ((value & 3) == 2) ? "TensorBroadcast(send)" : (((value & 3) == 3) ? "TensorReduceAuto(send)" : "TensorReduceSend"),
             other_min, this_start_reg, this_num_reg);
@@ -7322,30 +7326,29 @@ static void tensorreduce(uint64_t value)
     }
 
     // Get information from sender
-    tensor_reduce_decode(other_min, tensorreduce_value[other_min], &this_min, &action);
-
-    int other_start_reg = (tensorreduce_value[other_min] >> 57) & 0x1F;
-    int other_num_reg   = (tensorreduce_value[other_min] >> 16) & 0xFF;
-    if (other_num_reg != this_num_reg)
-    {
-        LOG_ALL_MINIONS(WARN, "%s with sender num_reg=%d and receiver num_reg=%d",
-                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
-                        other_num_reg, this_num_reg);
-    }
-
+    unsigned this_min   = tensorreduce_info[other_min].minion_id;
+    int other_start_reg = tensorreduce_info[other_min].start_reg;
+    int other_num_reg   = tensorreduce_info[other_min].num_reg;
+    int other_action    = tensorreduce_info[other_min].action;
     if (this_min != (current_thread>>1))
     {
-        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d action=%u",
+        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
                         ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
-                        other_min, this_min, other_start_reg, other_num_reg, action);
-        throw std::runtime_error("Mismatched tensor sender target minion");
+                        other_min, this_min, other_start_reg, other_num_reg, other_action);
+        throw std::runtime_error("Mismatched tensor reduce sender target minion");
     }
-    if (action != 0)
+    if (other_action != 0)
     {
-        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d and sender_num_reg=%d action=%u",
+        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
                         ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
-                        other_min, this_min, other_start_reg, other_num_reg, action);
-        throw std::runtime_error("Mismatched tensor sender action");
+                        other_min, this_min, other_start_reg, other_num_reg, other_action);
+        throw std::runtime_error("Mismatched tensor reduce sender action");
+    }
+    if (other_num_reg != this_num_reg)
+    {
+        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
+                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                        other_min, this_min, other_start_reg, other_num_reg, other_action);
     }
 
     // Info for checker
@@ -7526,11 +7529,6 @@ static void tensorreduce(uint64_t value)
         dirty_fp_state();
 }
 
-void tensor_reduce_send_prepare(uint64_t minion_id, uint64_t value)
-{
-    tensorreduce_value[minion_id] = value;
-}
-
 // Helper function that given the written value to the CSR, returns:
 //   - what is the ID of the other minion of the reduce
 //   - what is the action taken by the minion (send, receive, do nothing)
@@ -7590,6 +7588,15 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
         {
             *action = 2; // do nothing
         }
+    }
+
+    // Update sender information so it can be used by the receiver
+    if (*action == 0)
+    {
+        tensorreduce_info[current_thread>>1].minion_id = *other_min;
+        tensorreduce_info[current_thread>>1].start_reg = (value >> 57) & 0x1F;
+        tensorreduce_info[current_thread>>1].num_reg   = (value >> 16) & 0xFF;
+        tensorreduce_info[current_thread>>1].action    = *action;
     }
 }
 

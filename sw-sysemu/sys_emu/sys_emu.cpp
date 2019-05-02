@@ -952,7 +952,6 @@ sys_emu::main_internal(int argc, char * argv[])
                         // Moves to ready to send
                         reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Ready_To_Send;
                         reduce_pair_array[thread_id / EMU_THREADS_PER_MINION] = other_min;
-                        tensor_reduce_send_prepare(thread_id / EMU_THREADS_PER_MINION, value);
                         // If the other minion hasn't arrived yet, wait
                         if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != uint32_t(thread_id / EMU_THREADS_PER_MINION)))
                         {
