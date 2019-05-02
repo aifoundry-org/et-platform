@@ -6336,8 +6336,8 @@ void tensorload(uint64_t control)
     else if (trans == 0x02)
     {
         LOG(DEBUG, "%s", "TensorLoad: Interleave");
-        boffset *= 32;
-        LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/32);
+        boffset *= 16;
+        LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/16);
         for (int i = 0; i < rows; ++i)
         {
             if (!tm || tmask_pass(i))
@@ -6378,7 +6378,8 @@ void tensorload(uint64_t control)
         }
         uint8_t tmp_buffer[64][L1D_LINE_SIZE];
         int size = (trans & 0x03);
-        int offset = (size==1) ? (control & 0x30) : (control & 0x20) ;
+	int offset = (trans == 0x7) ? 0 :             // Transpose32 (no offset)
+	                             boffset*16;     // Transpose8/16
         int elements = L1D_LINE_SIZE >> (size-1);
         size = 1 << (size-1);
         LOG(DEBUG, "TensorLoad: Transpose - elements:%d size:%d offset:%d", elements, size, offset);
