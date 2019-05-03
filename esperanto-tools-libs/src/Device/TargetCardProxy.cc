@@ -86,7 +86,7 @@ static void createProcess(const char *path,
   int exec_errno = 0;
   if (TEMP_FAILURE_RETRY(
           read(error_report_pipe_fd[0], &exec_errno, sizeof(int))) != 0) {
-    fprintf(stderr, "Failed to start card-emu: %s (%s)\n", path,
+    fprintf(stderr, "Failed to start sys-emu: %s (%s)\n", path,
             strerror(exec_errno));
     exit(EXIT_FAILURE);
   }
