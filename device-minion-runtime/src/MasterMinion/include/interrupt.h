@@ -1,6 +1,5 @@
-//TODO FIXME generate these. Shamlessly copied by dcrowder from written by hand by wearle 3/20/2019.
-//See esperanto-soc/rtl/../dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
-//and esperanto-soc/rtl/../dv/tests/ioshire/sw/inc/spio_plic_intr_device.h
+//TODO FIXME generate these. Copied by hand by wearle 5/3/2019.
+//See esperanto-soc/dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
 
 typedef enum {
     PU_PLIC_NO_INTERRUPT_INTR = 0,
@@ -36,5 +35,14 @@ typedef enum {
     PU_PLIC_PCIE_RADM_INTB_INTR,
     PU_PLIC_PCIE_RADM_INTC_INTR,
     PU_PLIC_PCIE_RADM_INTD_INTR,
+    PU_PLIC_PCIE_MESSAGE_INTR,
+    PU_PLIC_RESERVED0_INTR,
+    PU_PLIC_RESERVED1_INTR,
+    PU_PLIC_RESERVED2_INTR,
+    PU_PLIC_RESERVED3_INTR,
+    PU_PLIC_RESERVED4_INTR,
+    PU_PLIC_RESERVED5_INTR,
+    PU_PLIC_RESERVED6_INTR,
+    PU_PLIC_RESERVED7_INTR,
     PU_PLIC_INTR_CNT
 } interrupt_t;
