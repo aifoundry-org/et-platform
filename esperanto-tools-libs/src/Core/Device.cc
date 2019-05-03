@@ -263,6 +263,7 @@ etrtError_t Device::moduleLoad(et_runtime::Module *module, const void *image,
   {
 
     auto new_module = this->createModule();
+    module = new_module;
 
     size_t parsed_elf_size;
     parse_elf(image, &parsed_elf_size, &new_module->kernel_offset,
