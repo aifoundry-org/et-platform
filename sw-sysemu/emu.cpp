@@ -6274,7 +6274,7 @@ void tensorload(uint64_t control)
         tensorload_setupb_numlines[current_thread^1] = rows;
     }
 
-    log_tensor_load(trans, dst + adj, rows, tm ? csr_tensor_mask[current_thread] : 0xFFFF);
+    log_tensor_load(trans, adj + (dst % L1_SCP_ENTRIES) , rows, tm ? csr_tensor_mask[current_thread] : 0xFFFF);
 
     //NO TRANS
     if (trans == 0x00)
