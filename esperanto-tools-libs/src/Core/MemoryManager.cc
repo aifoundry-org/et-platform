@@ -128,8 +128,6 @@ void MemoryManager::initMemRegions() {
   EtActionConfigure *actionConfigure = nullptr;
   EtActionEvent *actionEvent = nullptr;
   {
-    std::lock_guard<std::mutex> lk(device_.mutex_);
-
     assert(device_.defaultStream_ == nullptr);
     device_.defaultStream_ = device_.createStream(false);
 

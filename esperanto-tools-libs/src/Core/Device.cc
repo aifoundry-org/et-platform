@@ -61,27 +61,8 @@ etrtError Device::resetDevice() {
 
 bool Device::deviceAlive() { return target_device_->alive(); }
 
-void Device::deviceThread() {
-  RTINFO << "Starting Device Thread";
-  if (!target_device_->init()) {
-    RTERROR << "Failed to initialize device";
-    std::terminate();
-  }
-
-  while (true) {
-    std::unique_lock<std::mutex> lk(mutex_);
-
+void Device::deviceExecute() {
     while (true) {
-      if (device_thread_exit_requested_) {
-        if (target_device_->alive()) {
-          if (!target_device_->deinit()) {
-            RTERROR << "Failed to terminate device";
-            std::terminate();
-          }
-        }
-        return;
-      }
-
       EtAction *actionToExecute = nullptr;
       for (auto &it : stream_storage_) {
         EtStream *stream = it.get();
@@ -101,18 +82,14 @@ void Device::deviceThread() {
       }
 
       // execute action without mutex
-      lk.unlock();
       actionToExecute->execute(this);
       EtAction::decRefCounter(actionToExecute);
-      lk.lock();
     }
 
     if (!target_device_->alive()) {
       return;
     }
 
-    cond_var_.wait(lk);
-  }
 }
 
 bool Device::setBootRom(const std::string &path) {
@@ -144,22 +121,18 @@ void Device::uninitObjects() {
 }
 
 void Device::initDeviceThread() {
-  std::thread th(&Device::deviceThread, this); // starting new thread
-  device_thread_.swap(th); // move thread handler to class field
-  assert(!device_thread_exit_requested_);
+
+  RTINFO << "Starting Device Thread";
+  if (!target_device_->init()) {
+    RTERROR << "Failed to initialize device";
+    std::terminate();
+  }
+
+
 }
 
 void Device::uninitDeviceThread() {
-  assert(!isLocked());
-  {
-    std::lock_guard<std::mutex> lk(mutex_);
-    target_device_->deinit();
-    device_thread_exit_requested_ = true;
-  }
-  cond_var_.notify_one();
-  if (device_thread_.joinable()) {
-    device_thread_.join();
-  }
+  target_device_->deinit();
 }
 
 etrtError_t Device::mallocHost(void **ptr, size_t size) {

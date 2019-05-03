@@ -182,20 +182,8 @@ public:
   /// @brief Return true if the device is alive and we can execute commands
   bool deviceAlive();
 
-  void deviceThread();
-  bool isLocked() {
-    if (mutex_.try_lock()) {
-      mutex_.unlock();
-      return false;
-    } else {
-      return true;
-    }
-  }
+  void deviceExecute();
 
-  void notifyDeviceThread() {
-    assert(isLocked());
-    cond_var_.notify_one();
-  }
 
   /// @brief Set the path the the bootrom and load its contents
   ///
@@ -281,7 +269,7 @@ public:
     } else {
       et_stream->addCommand(et_action);
     }
-    notifyDeviceThread();
+    deviceExecute();
   }
 
   etrtError_t mallocHost(void **ptr, size_t size);
@@ -315,10 +303,6 @@ private:
   std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
   bool device_thread_exit_requested_ = false;
-  std::thread device_thread_;
-  std::mutex mutex_;
-  std::condition_variable
-      cond_var_; // used to inform deviceThread about new requests
   EtStream *defaultStream_ = nullptr;
   std::vector<std::unique_ptr<EtStream>> stream_storage_;
   std::vector<std::unique_ptr<EtEvent>> event_storage_;
