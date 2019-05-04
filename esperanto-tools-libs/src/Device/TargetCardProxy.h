@@ -16,6 +16,7 @@
 #include "etrpc/et-card-proxy.h"
 
 #include <cassert>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -46,22 +47,27 @@ public:
   bool submitCommand() override;
   bool registerResponseCallback() override;
   bool registerDeviceEventCallback() override;
+  bool alive() override;
   CardProxy *getCardProxy() override { return card_proxy_.get(); }
 
 private:
   const std::string name_ = "CardProxy";
   std::unique_ptr<CardProxy> card_proxy_; ///< CardProxy used by the current API
-  std::thread simulator_thread_; ///< Thread forking and executing the simulator
+  std::future<bool>
+      simulator_status_; ///< Future holding the simulator thread status;
   std::mutex simulator_end_mutex_; ///< Mutex to block terminating the simulator
   std::unique_lock<std::mutex>
       simulator_end_lock_; ///< Lock to prevent simulator from starting
-  std::string connection_;
-  std::vector<std::string> execute_args_;
+  std::string connection_; ///< Path fo the socket used to talk to sysemu
+  std::vector<std::string>
+      execute_args_; ///< Arguments we are going to use to instantiate sysemu
 
   /// @brief Wait for a connectio from SysEmu
   void waitForConnection();
   /// @brief Fork SysEmu processs and wait until we are requested to stop
-  void launchSimulator();
+  bool launchSimulator();
+
+  bool simulator_running();
 };
 
 } // namespace device

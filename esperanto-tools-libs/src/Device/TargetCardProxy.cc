@@ -93,7 +93,7 @@ static void createProcess(const char *path,
   close(error_report_pipe_fd[0]);
 }
 
-void CardProxyTarget::launchSimulator() {
+bool CardProxyTarget::launchSimulator() {
   std::string sys_emu_cmd = "";
   for (auto &i : execute_args_) {
     sys_emu_cmd += i + " ";
@@ -105,12 +105,12 @@ void CardProxyTarget::launchSimulator() {
   createProcess(execute_args_[0].c_str(), execute_args_, &pid);
   RTINFO << "SysEmu process started with pid: " << pid;
 
-  // Block wairning for request to terminate the simulator
-  std::lock_guard<std::mutex> lk(simulator_end_mutex_);
-
-  RTINFO << "Killing SysEmu Process: " << pid;
-  kill(pid, SIGKILL);
-  waitpid(pid, NULL, WNOHANG);
+  // We are expecting that we have sent a shutdown command to the simulator
+  // and the simulator terminates gracefully.
+  // FIXME we are not checking the exit code this is sad
+  RTINFO << "Wait for SysEmu process to terminate: " << pid;
+  waitpid(pid, NULL, 0);
+  return true;
 }
 
 void CardProxyTarget::waitForConnection() {
@@ -124,6 +124,9 @@ void CardProxyTarget::waitForConnection() {
 
 bool CardProxyTarget::init() {
 
+  if (device_alive_) {
+    return false;
+  }
   RTINFO << "Starting SysEmu Process";
   RTINFO << "SysEmu socket: " << path_;
 
@@ -134,25 +137,27 @@ bool CardProxyTarget::init() {
   // Start thread that will wait for SysEMU to connect.
   thread connection_listener = thread([this]() { this->waitForConnection(); });
 
-  // Lock the simulator-mutex to prevent the launching thread from terminating
-  // until deinit is called
-  simulator_end_lock_.lock();
   // Launch the simulator
-  simulator_thread_ = thread([this]() { this->launchSimulator(); });
+  simulator_status_ = async(
+      launch::async, [this]() -> auto { return this->launchSimulator(); });
+
+  // simulator_thread_ = thread([this]() { this->launchSimulator(); });
 
   // Wait until sysemu has connected to the socket
   connection_listener.join();
+  device_alive_ = true;
   return true;
 }
 
 bool CardProxyTarget::deinit() {
-  // Unlock the mutex to allow the simulator launch thread to proceed and
-  // terminate the simulator.
-  simulator_end_lock_.unlock();
+  /// If the simulator is not alive any more return
+  if (!this->alive()) {
+    return false;
+  }
   // If ti is alive then send a shut down command
   card_proxy_->card_emu().shutdown();
   // Wait until we have killed the simulator
-  simulator_thread_.join();
+  simulator_status_.wait();
   return true;
 }
 
@@ -179,6 +184,16 @@ bool CardProxyTarget::registerResponseCallback() {
 bool CardProxyTarget::registerDeviceEventCallback() {
   assert(true);
   return false;
+}
+
+bool CardProxyTarget::alive() {
+  auto status = simulator_status_.wait_for(0ms);
+
+  if (status == std::future_status::ready) {
+    simulator_status_.wait();
+    return false;
+  }
+  return true;
 }
 
 } // namespace device
