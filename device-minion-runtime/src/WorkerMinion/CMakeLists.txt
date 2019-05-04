@@ -21,7 +21,7 @@ set(SOURCES
 
 set(TARGET_NAME WorkerMinion)
 set(LINKER_SCRIPT src/sections.ld)
-set(ZEBU_TARGET DDR)
+set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
 
 include_directories(include)
