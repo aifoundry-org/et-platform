@@ -67,7 +67,6 @@ set(ETRT_SOURCES
     eti.h
     ComputeCommon/eti.cc
     Support/DeviceGuard.cc
-    Target/et_bootrom.cc
 #     et_socket_addr.cc
 )
 if(BUILD_KERNELS)

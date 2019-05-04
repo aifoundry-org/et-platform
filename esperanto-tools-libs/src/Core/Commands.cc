@@ -11,7 +11,6 @@
 #include "Core/Commands.h"
 #include "Core/Device.h"
 #include "Support/STLHelpers.h"
-#include "et_bootrom.h"
 #include "etrt-bin.h"
 
 #define INCLUDE_FOR_HOST
