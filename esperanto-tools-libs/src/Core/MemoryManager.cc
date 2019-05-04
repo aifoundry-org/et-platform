@@ -86,6 +86,19 @@ void EtMemRegion::print() {
   printf("end: %p\n", (uint8_t *)region_base + region_size);
 }
 
+MemoryManager::MemoryManager(Device &dev) : device_(dev) {}
+MemoryManager::~MemoryManager() {}
+
+bool MemoryManager::init() {
+  initMemRegions();
+  return true;
+}
+
+bool MemoryManager::deInit() {
+  uninitMemRegions();
+  return true;
+}
+
 void MemoryManager::initMemRegions() {
   void *host_base = mmap(nullptr, kHostMemRegionSize, PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);

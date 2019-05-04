@@ -13,6 +13,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 
@@ -40,10 +41,12 @@ public:
   enum class TargetType : uint8_t {
     None = 0,
     PCIe,
-    SysEmu,
-    CardProxy,
-    DeviceRPC,
+    SysEmuCardProxy,
+    SysEmuGRPC,
+    DeviceGRPC,
   };
+
+  static const std::map<std::string, TargetType> Str2TargetType;
 
   /// @brief Callback function type for device responses
   using ResponseCallback = std::function<bool()>;
@@ -85,12 +88,29 @@ public:
   /// @brief Register callback for when an event arrives from the device
   virtual bool registerDeviceEventCallback() = 0;
 
+
+  virtual bool alive() { return device_alive_; }
+
   /// @brief Factory function that will generate the appropriate target device
   static std::unique_ptr<DeviceTarget> deviceFactory(TargetType target,
                                                      const std::string &path);
+  /// @brief Return the type of device to allocate as specified by the command
+  /// line arguments
+  /// FIXME this functions should not be released in production
+  static TargetType deviceToCreate();
+
+  /// @brief Force the type of device to create
+  ///
+  /// @param[in] String with the device type, allowed values are: pcie,
+  /// sysemu_card_proxy, sysemu_grpc, device_grpc
+  /// @returns True if valid value was passed
+  static bool setDeviceType(const std::string &device_type);
 
 protected:
-  std::string path_;
+  std::string path_; ///< Path of the device to initialize
+  bool device_alive_ =
+      false; ///< Flag to guard that the device has been initlize correctly and
+             ///< gate any incorrect re-initialization or de-initialization
 };
 } // namespace device
 } // namespace et_runtime

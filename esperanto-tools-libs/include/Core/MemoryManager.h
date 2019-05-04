@@ -50,9 +50,14 @@ class MemoryManager {
 public:
   static constexpr size_t kHostMemRegionSize = (1 << 20) * 256;
 
-  MemoryManager(Device &dev) : device_(dev) { initMemRegions(); }
-  ~MemoryManager() { uninitMemRegions(); }
+  MemoryManager(Device &dev);
+  ~MemoryManager();
 
+  /// For now have separate init/deinit functions we need to delegate to the
+  /// device the responsibility to initialize the different components in the
+  /// right order
+  bool init();
+  bool deInit();
   /// @brief Allocate pinned memory on the host
   etrtError mallocHost(void **ptr, size_t size);
   /// @brief Deallocate host memory

@@ -13,6 +13,7 @@
 
 #include "Core/CodeModule.h"
 #include "Core/DeviceInformation.h"
+#include "Core/DeviceTarget.h"
 #include "Core/Kernel.h"
 #include "Core/MemoryManager.h"
 #include "Support/ErrorOr.h"
@@ -26,6 +27,7 @@
 #include <thread>
 
 // Fixme this class shold be removed.
+class CardProxy;
 class EtStream;
 class EtEvent;
 class GetDev;
@@ -49,17 +51,20 @@ class Device {
   friend class et_runtime::device::MemoryManager;
 
 public:
-  Device()
-      : mem_manager_(std::unique_ptr<et_runtime::device::MemoryManager>(
-            new et_runtime::device::MemoryManager(*this))) {
-    initDeviceThread();
-  }
+  Device();
 
-  virtual ~Device() {
-    // Must stop device thread first in case it have non-empty streams
-    uninitDeviceThread();
-    uninitObjects();
-  }
+  virtual ~Device();
+
+  ///
+  /// @brief Initialize the underlying target device
+  ///
+  /// Interact and initalize the target device. This is not done as part of the
+  /// contructor because it is an operation that can return errors and currently
+  /// we want to avoid having to throw exceptions as part of the constructor.
+  /// In the future this function could be deprecated
+  ///
+  /// @return Return etrtSuccess or any other possbile error.
+  etrtError init();
 
   ///
   /// @brief  Detach the currently connected Device from the caller's process.
@@ -72,7 +77,7 @@ public:
   ///
   /// @return  etrtSuccess
   ////
-  etrtError resetDevice(int deviceID);
+  etrtError resetDevice();
 
   ///
   /// @brief  Allocate memory on the Host.
@@ -175,6 +180,9 @@ public:
   ////
   ErrorOr<std::unique_ptr<Stream>> streamCreateWithFlags(unsigned int flags);
 
+  /// @brief Return true if the device is alive and we can execute commands
+  bool deviceAlive();
+
   void deviceThread();
   bool isLocked() {
     if (mutex_.try_lock()) {
@@ -189,6 +197,26 @@ public:
     assert(isLocked());
     cond_var_.notify_one();
   }
+
+  /// @brief Set the path the the bootrom and load its contents
+  ///
+  /// @params[in] path  Path to the bootrom file
+  ///
+  /// @todo This function "violates" the RIIA principle that all setup
+  /// information should be passed throug the constructor. If were to do that
+  /// now that would require passing the path in the DeviceManager class as
+  /// well. @idoud I would like to revisit and clear this once we have the real
+  /// Device-FW in the picture where we should be passsing as a runtime argument
+  /// its location.
+  bool setBootRom(const std::string &path);
+
+  /// @brief Return reference to the underlying bootrom data
+  std::vector<uint8_t> &getBootRom() { return bootrom_data_; }
+
+  /// @brief Return reference to the underlying target specific device
+  /// @todo This interface is currently used by the commands and we should find
+  /// a way to hide it.
+  device::DeviceTarget &getTargetDevice() { return *target_device_; }
 
   bool isPtrAllocedHost(const void *ptr) {
     return mem_manager_->isPtrAllocedHost(ptr);
@@ -284,6 +312,10 @@ private:
   void uninitDeviceThread();
   void uninitObjects();
 
+  // FIXME remove this field currently not functional
+  CardProxy* card_proxy_;
+  std::vector<uint8_t> bootrom_;
+  std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
   bool device_thread_exit_requested_ = false;
   std::thread device_thread_;
@@ -300,6 +332,8 @@ private:
       loaded_kernels_bin_; // key is id; there are 2 cases now:
                            // - Esperanto registered ELF (from fat binary)
                            // - dynamically loaded module
+  std::string bootrom_path_;                ///< Path to the bootrom file
+  std::vector<unsigned char> bootrom_data_; ///< Data of the bootrom file
 };
 } // namespace et_runtime
 

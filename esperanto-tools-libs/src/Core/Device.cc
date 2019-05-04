@@ -1,11 +1,17 @@
 #include "Core/Device.h"
+#include "Common/ErrorTypes.h"
 #include "Core/Commands.h"
 #include "Core/MemoryManager.h"
 #include "Support/DeviceGuard.h"
+#include "Support/Logging.h"
 #include "demangle.h"
 #include "registry.h"
 #include "utils.h"
+
 #include <assert.h>
+#include <exception>
+#include <fstream>
+#include <iterator>
 #include <memory.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -18,29 +24,62 @@
 #include "../kernels/sys_inc.h"
 #undef INCLUDE_FOR_HOST
 
-// clang-format off
-// et-rpc is an external dependency to be deprecated
-// unfortunately the et-card-proxy.h header is not self
-// contained and misisng includes
-#include <stddef.h>
-#include <stdint.h>
-#include "etrpc/et-card-proxy.h"
-// clang-format on
-
 using namespace et_runtime;
 using namespace et_runtime::device;
 
-void Device::deviceThread() {
-  // fprintf(stderr, "Hello from Device::deviceThread()\n");
+namespace et_runtime {
+namespace device {
 
-  CardProxy card_proxy_s;
-  CardProxy *card_proxy = &card_proxy_s;
+DECLARE_string(dev_target);
+
+}
+} // namespace et_runtime
+
+Device::Device()
+    : mem_manager_(std::unique_ptr<et_runtime::device::MemoryManager>(
+          new et_runtime::device::MemoryManager(*this))) {
+  auto target_type = DeviceTarget::deviceToCreate();
+  target_device_ = DeviceTarget::deviceFactory(target_type, "test_path");
+}
+
+Device::~Device() {
+  // Must stop device thread first in case it have non-empty streams
+  mem_manager_->deInit();
+  uninitDeviceThread();
+  uninitObjects();
+}
+
+etrtError Device::init() {
+  initDeviceThread();
+  mem_manager_->init();
+  return etrtSuccess;
+}
+
+etrtError Device::resetDevice() {
+  uninitDeviceThread();
+  return etrtSuccess;
+}
+
+bool Device::deviceAlive() { return target_device_->alive(); }
+
+void Device::deviceThread() {
+  RTINFO << "Starting Device Thread";
+  if (!target_device_->init()) {
+    RTERROR << "Failed to initialize device";
+    std::terminate();
+  }
 
   while (true) {
     std::unique_lock<std::mutex> lk(mutex_);
 
     while (true) {
       if (device_thread_exit_requested_) {
+        if (target_device_->alive()) {
+          if (!target_device_->deinit()) {
+            RTERROR << "Failed to terminate device";
+            std::terminate();
+          }
+        }
         return;
       }
 
@@ -64,13 +103,27 @@ void Device::deviceThread() {
 
       // execute action without mutex
       lk.unlock();
-      actionToExecute->execute(card_proxy);
+      actionToExecute->execute(card_proxy_);
       EtAction::decRefCounter(actionToExecute);
       lk.lock();
     }
 
+    if (!target_device_->alive()) {
+      return;
+    }
+
     cond_var_.wait(lk);
   }
+}
+
+bool Device::setBootRom(const std::string &path) {
+  bootrom_path_ = path;
+  std::ifstream input(path.c_str(), std::ios::binary);
+  // Read the input file in binary-form in the holder buffer.
+  // Use the stread iterator to read out all the file data
+  bootrom_data_ =
+      decltype(bootrom_data_)(std::istreambuf_iterator<char>(input), {});
+  return true;
 }
 
 /**
@@ -101,10 +154,13 @@ void Device::uninitDeviceThread() {
   assert(!isLocked());
   {
     std::lock_guard<std::mutex> lk(mutex_);
+    target_device_->deinit();
     device_thread_exit_requested_ = true;
   }
   cond_var_.notify_one();
-  device_thread_.join();
+  if (device_thread_.joinable()) {
+    device_thread_.join();
+  }
 }
 
 etrtError_t Device::mallocHost(void **ptr, size_t size) {
