@@ -21,7 +21,7 @@
 # addr[8:6] memshire
 # addr[9] controller (0=even, 1=odd)
 #
-# If using DDR DRAM models, additional address bit swizzling is implemented:
+# If using old DDR DRAM models, additional address bit swizzling is implemented:
 # Mesh  Synopsys DDR    Comment
 # addr  dword addr
 # bit   bit
@@ -60,6 +60,44 @@
 # 32    22
 # 33    23
 
+# If using new DDR DRAM models, additional address bit swizzling is implemented:
+# Mesh  Synopsys DDR    Comment
+# addr  dword addr
+# bit   bit
+# 0     -               Byte address bit 0
+# 1     -               Byte address bit 1
+# 2     -               Byte address bit 2
+# 3     0               Byte address bit 3 (double-word address bit 0)
+# 4     1               Byte address bit 4 (double-word address bit 1)
+# 5     2               Byte address bit 5 (double-word address bit 2)
+# 6     -               Memshire number (bit 0) 000 = dwrow[0], 100 = derow[0]
+# 7     -               Memshire number (bit 1) 001 = dwrow[1], 101 = derow[1]
+# 8     -               Memshire number (bit 2) 010 = dwrow[2], 110 = derow[2]
+# 9     even/odd        Memory controller
+# 10    24              DDR bank address bit 0
+# 11    25              DDR bank address bit 1
+# 12    26              DDR bank address bit 2
+# 13    3
+# 14    4
+# 15    5
+# 16    6
+# 17    7
+# 18    8
+# 19    9
+# 20    10
+# 21    11
+# 22    12
+# 23    13
+# 24    14
+# 25    15
+# 26    16
+# 27    17
+# 28    18
+# 29    19
+# 30    20
+# 31    21
+# 32    22
+# 33    23
 import sys, os
 
 try:
@@ -214,9 +252,12 @@ def write_lines(bytes, baseAddress, address, bytesPerZebuRow, inputBytesPerPanel
             # controller is a 64 byte panel but the memory init hex file requires 8 bytes per row.
             for rowIndex in range(0, inputBytesPerPanel, bytesPerZebuRow):
                 # ZeBu style address. Address 0 is at base of memory
-                if (ddr):
+                if (ddr == "DDR"):
                     # DDR DRAM models require swizzled address bits
                     writeAddress = mesh_addr_to_synopsys_ddr_addr(address + lineIndex + rowIndex - baseAddress)
+                elif (ddr == "DDR_NEW"):
+                    # Newer DDR DRAM models require different swizzled address bits
+                    writeAddress = mesh_addr_to_new_synopsys_ddr_addr(address + lineIndex + rowIndex - baseAddress)
                 else:
                     writeAddress = (address + lineIndex + rowIndex - baseAddress) // inputBytesPerLine
 
@@ -264,6 +305,23 @@ def mesh_addr_to_synopsys_ddr_addr(addr):
 
     return ddr_addr.int
 
+def mesh_addr_to_new_synopsys_ddr_addr(addr):
+    mesh_addr = BitArray(uint=addr, length=36)
+    ddr_addr = BitArray(uint=0, length=36)
+
+    # BitArray insists on indexing the MSB as 0, so reverse for natural indexing
+    mesh_addr.reverse()
+
+    # python slice indices are [m:n+1] for bits [m:n]
+    ddr_addr[0:3]   = mesh_addr[3:6]
+    ddr_addr[3:24]   = mesh_addr[13:34]
+    ddr_addr[24:27]   = mesh_addr[10:13]
+
+    # Undo previous reverse before converting back to int
+    ddr_addr.reverse()
+
+    return ddr_addr.int
+
 def sp_rom_write_hex():
     open_output_files("", "", 8)
     write_hex(0x40000000, 8, 8, 8, 8, False, False)
@@ -280,12 +338,12 @@ def dram_write_hex(ddr):
     open_output_files("_dwrow", "_odd", 4)  # memshire 0-3 "west 0-3" addr[9] = 1 "odd"
     open_output_files("_derow", "_odd", 4)  # memshire 4-7 "east 0-3" addr[9] = 1 "odd"
 
-    if (ddr):
-        # DDR models with address swizzling and 8-bytes per ZeBu hex line
-        write_hex(0x8000000000,  8, 64, 64, 16, False, True)
+    if (ddr == "DDR") or (ddr == "DDR_NEW"):
+        # DDR models with address swizzling and 8 bytes per ZeBu hex line
+        write_hex(0x8000000000,  8, 64, 64, 16, False, ddr)
     else:
-        # AXI models with 64-bytes per ZeBu hex line
-        write_hex(0x8000000000, 64, 64, 64, 16, False, False)
+        # AXI models with 64 bytes per ZeBu hex line
+        write_hex(0x8000000000, 64, 64, 64, 16, False, ddr)
     return
 
 if (sys.argv[1]) == "ROM":
@@ -296,9 +354,11 @@ elif (sys.argv[1]) == "PU_RAM":
     print("PU_RAM support not yet implemented")
     sys.exit(-1)
 elif (sys.argv[1]) == "DRAM":
-    dram_write_hex(False)
+    dram_write_hex(sys.argv[1])
 elif (sys.argv[1]) == "DDR":
-    dram_write_hex(True)
+    dram_write_hex(sys.argv[1])
+elif (sys.argv[1]) == "DDR_NEW":
+    dram_write_hex(sys.argv[1])
 else:
     print("Unsupported argument", sys.argv[1])
     sys.exit(-1)
