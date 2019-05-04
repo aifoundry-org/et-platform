@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "Core/Commands.h"
+#include "Core/Device.h"
 #include "Support/STLHelpers.h"
 #include "et_bootrom.h"
 #include "etrt-bin.h"
@@ -37,7 +38,7 @@ using namespace et_runtime;
 
 static bool static_kernels = false;
 
-void EtActionEvent::execute(CardProxy *card_proxy) {
+void EtActionEvent::execute(Device *device) {
   std::lock_guard<std::mutex> lk(observer_mutex);
   executed = true;
   observer_cond_var.notify_all();
@@ -49,7 +50,8 @@ void EtActionEvent::observerWait() {
   // EtAction::decRefCounter(this);
 }
 
-void EtActionConfigure::execute(CardProxy *card_proxy) {
+void EtActionConfigure::execute(Device *device) {
+  auto card_proxy = device->getTargetDevice().getCardProxy();
   if (!card_proxy) // i.e. local mode
   {
     res_is_local_mode = true;
@@ -69,8 +71,9 @@ void EtActionConfigure::execute(CardProxy *card_proxy) {
 
   // const void *kernels_file_p = gEtKernelsElf;
   // size_t kernels_file_size = sizeof(gEtKernelsElf);
-  const void *bootrom_file_p = *(etrtGetEtBootrom());
-  size_t bootrom_file_size = *(etrtGetEtBootromSize());
+  const auto &bootrom = device->getBootRom();
+  const void *bootrom_file_p = reinterpret_cast<const void *>(bootrom.data());
+  size_t bootrom_file_size = bootrom.size();
 
   // cpDefineDevMem(card_proxy, RAM_MEMORY_REGION, align_up(kernels_file_size,
   // 0x10000), true); cpWriteDevMem(card_proxy, RAM_MEMORY_REGION,
@@ -101,7 +104,8 @@ void EtActionConfigure::execute(CardProxy *card_proxy) {
                  kernelsDevMemRegionSize, true);
 }
 
-void EtActionRead::execute(CardProxy *card_proxy) {
+void EtActionRead::execute(Device *device) {
+  auto card_proxy = device->getTargetDevice().getCardProxy();
   if (!card_proxy) // i.e. local mode
   {
     memcpy(dstHostPtr, srcDevPtr, count);
@@ -111,7 +115,8 @@ void EtActionRead::execute(CardProxy *card_proxy) {
   cpReadDevMem(card_proxy, (uintptr_t)srcDevPtr, count, dstHostPtr);
 }
 
-void EtActionWrite::execute(CardProxy *card_proxy) {
+void EtActionWrite::execute(Device *device) {
+  auto card_proxy = device->getTargetDevice().getCardProxy();
   if (!card_proxy) // i.e. local mode
   {
     memcpy(dstDevPtr, srcHostPtr, count);
@@ -121,7 +126,8 @@ void EtActionWrite::execute(CardProxy *card_proxy) {
   cpWriteDevMem(card_proxy, (uintptr_t)dstDevPtr, count, srcHostPtr);
 }
 
-void EtActionLaunch::execute(CardProxy *card_proxy) {
+void EtActionLaunch::execute(Device *device) {
+  auto card_proxy = device->getTargetDevice().getCardProxy();
   fprintf(stderr,
           "Going to execute kernel {0x%lx} %s [%s] grid_dim=(%d,%d,%d) "
           "block_dim=(%d,%d,%d)\n",

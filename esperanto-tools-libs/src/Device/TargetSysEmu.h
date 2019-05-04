@@ -58,6 +58,11 @@ public:
     return false;
   }
 
+  CardProxy *getCardProxy() override {
+    assert(true);
+    return nullptr;
+  }
+
 private:
 };
 

@@ -21,9 +21,11 @@
 #include <condition_variable>
 #include <vector>
 
-class CardProxy;
 
 namespace et_runtime {
+
+class Device;
+
 class EtAction {
   std::atomic<int> ref_counter;
 
@@ -32,7 +34,7 @@ public:
   virtual ~EtAction() {
     assert(ref_counter.load(std::memory_order_relaxed) == 0);
   }
-  virtual void execute(CardProxy *card_proxy) {
+  virtual void execute(et_runtime::Device *device_target) {
     THROW("Unexpected EtAction::execute()");
   }
   virtual bool readyForExecution() { return true; }
@@ -50,7 +52,7 @@ class EtActionEvent : public EtAction {
   std::condition_variable observer_cond_var;
 
 public:
-  virtual void execute(CardProxy *card_proxy);
+  virtual void execute(et_runtime::Device *device_target);
   void observerWait();
   bool isExecuted() {
     std::lock_guard<std::mutex> lk(observer_mutex);
@@ -68,7 +70,7 @@ public:
   }
   ~EtActionEventWaiter() { EtAction::decRefCounter(event_to_wait_); }
   virtual bool readyForExecution() { return event_to_wait_->isExecuted(); }
-  virtual void execute(CardProxy *card_proxy) {}
+  virtual void execute(et_runtime::Device *device_target) {}
 };
 
 class EtActionConfigure : public EtAction {
@@ -85,7 +87,7 @@ public:
       : devMemRegionPtr(devMemRegionPtr), devMemRegionSize(devMemRegionSize),
         kernelsDevMemRegionPtr(kernelsDevMemRegionPtr),
         kernelsDevMemRegionSize(kernelsDevMemRegionSize) {}
-  virtual void execute(CardProxy *card_proxy);
+  virtual void execute(et_runtime::Device *device_target);
   bool isLocalMode() { return res_is_local_mode; }
 };
 
@@ -97,7 +99,7 @@ class EtActionRead : public EtAction {
 public:
   EtActionRead(void *dstHostPtr, const void *srcDevPtr, size_t count)
       : dstHostPtr(dstHostPtr), srcDevPtr(srcDevPtr), count(count) {}
-  virtual void execute(CardProxy *card_proxy);
+  virtual void execute(et_runtime::Device *device_target);
 };
 
 class EtActionWrite : public EtAction {
@@ -108,7 +110,7 @@ class EtActionWrite : public EtAction {
 public:
   EtActionWrite(void *dstDevPtr, const void *srcHostPtr, size_t count)
       : dstDevPtr(dstDevPtr), srcHostPtr(srcHostPtr), count(count) {}
-  virtual void execute(CardProxy *card_proxy);
+  virtual void execute(et_runtime::Device *device_target);
 };
 
 class EtActionLaunch : public EtAction {
@@ -124,7 +126,7 @@ public:
                  const std::string &kernel_name)
       : gridDim(gridDim), blockDim(blockDim), args_buff(args_buff),
         kernel_pc(kernel_pc), kernel_name(kernel_name) {}
-  virtual void execute(CardProxy *card_proxy);
+  virtual void execute(et_runtime::Device *device_target);
 };
 
 } // namespace et_runtime

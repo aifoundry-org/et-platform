@@ -17,6 +17,10 @@
 #include <memory>
 #include <string>
 
+// FIXME the following should be removed once we remove CardProxy gets
+// eliminated
+class CardProxy;
+
 namespace et_runtime {
 namespace device {
 
@@ -88,6 +92,8 @@ public:
   /// @brief Register callback for when an event arrives from the device
   virtual bool registerDeviceEventCallback() = 0;
 
+  // FIXME the following shouhd be removed once we get rid of the CardProxy
+  virtual CardProxy *getCardProxy() = 0;
 
   virtual bool alive() { return device_alive_; }
 

@@ -27,7 +27,6 @@
 #include <thread>
 
 // Fixme this class shold be removed.
-class CardProxy;
 class EtStream;
 class EtEvent;
 class GetDev;
@@ -312,8 +311,6 @@ private:
   void uninitDeviceThread();
   void uninitObjects();
 
-  // FIXME remove this field currently not functional
-  CardProxy* card_proxy_;
   std::vector<uint8_t> bootrom_;
   std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;

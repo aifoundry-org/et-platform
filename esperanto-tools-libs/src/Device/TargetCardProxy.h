@@ -46,12 +46,11 @@ public:
   bool submitCommand() override;
   bool registerResponseCallback() override;
   bool registerDeviceEventCallback() override;
+  CardProxy *getCardProxy() override { return card_proxy_.get(); }
 
 private:
   const std::string name_ = "CardProxy";
-  std::unique_ptr<CardProxy> card_proxy_;
-  std::unique_ptr<CardEmu> card_emu_;
-
+  std::unique_ptr<CardProxy> card_proxy_; ///< CardProxy used by the current API
   std::thread simulator_thread_; ///< Thread forking and executing the simulator
   std::mutex simulator_end_mutex_; ///< Mutex to block terminating the simulator
   std::unique_lock<std::mutex>

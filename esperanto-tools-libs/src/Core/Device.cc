@@ -103,7 +103,7 @@ void Device::deviceThread() {
 
       // execute action without mutex
       lk.unlock();
-      actionToExecute->execute(card_proxy_);
+      actionToExecute->execute(this);
       EtAction::decRefCounter(actionToExecute);
       lk.lock();
     }

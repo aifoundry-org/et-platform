@@ -117,7 +117,7 @@ void CardProxyTarget::waitForConnection() {
   // HACK use initSocket directlry and start a server that SysEmu can connect
   // to This eliminates the card-proxy from the middle.
   RTINFO << "Waiting for SysEmu to connect";
-  card_emu_->init();
+  card_proxy_->card_emu().init();
   RTINFO << "SysEmu connected.";
   return;
 }
@@ -149,6 +149,8 @@ bool CardProxyTarget::deinit() {
   // Unlock the mutex to allow the simulator launch thread to proceed and
   // terminate the simulator.
   simulator_end_lock_.unlock();
+  // If ti is alive then send a shut down command
+  card_proxy_->card_emu().shutdown();
   // Wait until we have killed the simulator
   simulator_thread_.join();
   return true;
