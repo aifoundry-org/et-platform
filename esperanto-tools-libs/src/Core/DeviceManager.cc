@@ -18,8 +18,6 @@
 
 using namespace std;
 
-// FIXME SW-256 start iterating on the implementation.
-
 /*
  * @brief Initalization values for an empty Device properties struct
  */
@@ -102,6 +100,8 @@ static const struct etrtDeviceProp etrtDevicePropDontCare = {
 
 namespace et_runtime {
 
+DeviceManager::DeviceManager() : active_device_(0), devices_(MAX_DEVICE_NUM) {}
+
 shared_ptr<DeviceManager> getDeviceManager() {
   static shared_ptr<DeviceManager> deviceManager;
 
@@ -111,10 +111,7 @@ shared_ptr<DeviceManager> getDeviceManager() {
   return deviceManager;
 }
 
-ErrorOr<int> DeviceManager::getDeviceCount() {
-  // FIXME SW-256
-  return 1;
-}
+ErrorOr<int> DeviceManager::getDeviceCount() { return devices_.size(); }
 
 ErrorOr<DeviceInformation> DeviceManager::getDeviceInformation(int device) {
   // FIXME SW-256
@@ -128,17 +125,41 @@ ErrorOr<DeviceInformation> DeviceManager::getDeviceInformation(int device) {
   prop.maxThreadsPerBlock = 1024;
   return prop;
 }
+
 ErrorOr<std::shared_ptr<Device>> DeviceManager::registerDevice(int device) {
-  // FIXME SW-256
-  return make_shared<Device>();
+  // FIXME Implement the real registration functionality that will depend on the
+  // target device.
+  if (static_cast<decltype(devices_)::size_type>(device) > devices_.size()) {
+    return etrtErrorInvalidDevice;
+  }
+
+  devices_[device] = make_shared<Device>();
+
+  return devices_[device];
 }
+
 ErrorOr<std::shared_ptr<Device>>
-DeviceManager::getRegisteredDevice(int device) {
-  // FIXME SW-256
-  return make_shared<Device>();
+DeviceManager::getRegisteredDevice(int device) const {
+  if (static_cast<decltype(devices_)::size_type>(device) > devices_.size()) {
+    return etrtErrorInvalidDevice;
+  }
+
+  if (devices_[device].get() == nullptr) {
+    return etrtErrorInvalidDevice;
+  }
+
+  return devices_[device];
 }
-const char *DeviceManager::getDriverVersion() {
-  // FIXME SW-256
+
+ErrorOr<std::shared_ptr<Device>> DeviceManager::getActiveDevice() const {
+  if (active_device_ > etrtErrorInvalidDevice) {
+    return etrtErrorInvalidDevice;
+  }
+  return devices_[active_device_];
+}
+
+const char *DeviceManager::getDriverVersion() const {
+  // FIXME Add support for queriing the device
   return "";
 }
 

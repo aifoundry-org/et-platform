@@ -31,7 +31,7 @@ class DeviceInformation;
 class DeviceManager {
 
 public:
-  DeviceManager() = default;
+  DeviceManager();
 
   ///
   /// @brief  Return the number of Devices found on this Host.
@@ -62,16 +62,19 @@ public:
   /// @param[in] device Ordinal to the device we want to register the current
   /// process with
   /// @return Error-code or pointer to @ref Device class representing the
-  /// device we registered with and its associated state.
+  /// device we registered with and its associated state. Errors
+  /// etrtErrorInvalidDevice;
+  ///
   ErrorOr<std::shared_ptr<Device>> registerDevice(int device);
 
   ///
   /// @brief get pointer to \ref Device class associated with a specific device
   ///
   /// @param[in] device Ordinal of the device
+  ///
   /// @return Error-code or pointer to @ref Device object holding the device's
   /// state.
-  ErrorOr<std::shared_ptr<Device>> getRegisteredDevice(int device);
+  ErrorOr<std::shared_ptr<Device>> getRegisteredDevice(int device) const;
 
   ///
   /// @brief  Return the version of the ET Device Driver that is being used.
@@ -81,20 +84,40 @@ public:
   ///
   /// @return  String of the driver version.
   ///
-  const char *getDriverVersion();
+  const char *getDriverVersion() const;
 
   /// @brief Get the device the c-api is actively interacting with.
   ///
-  /// @return Index of the active device
-  int getActiveDevice() const { return active_device_; }
+  /// @return Error or shared pointer
+  ErrorOr<std::shared_ptr<Device>> getActiveDevice() const;
 
   /// @brief Set the device c-api is actively interacting with.
   ///
-  /// @param[in] device  Index of active device to set.
-  void setActiveDevice(int device) { active_device_ = device; }
+  /// @param[in] device  Index of active device to set. The
+  /// @return etrtErrorInvalidDevice if this is not a valid device index.
+  etrtError setActiveDevice(int device) {
+    if (static_cast<decltype(devices_)::size_type>(device) > devices_.size()) {
+      return etrtErrorInvalidDevice;
+    }
+    active_device_ = device;
+    return etrtSuccess;
+  }
+
+  /// @brief Get the device the c-api is actively interacting with.
+  ///
+  /// @return Integer with the ID of the current active device
+  ErrorOr<int> getActiveDeviceID() const {
+    if (active_device_ < 0) {
+      return etrtErrorInvalidDevice;
+    }
+    return active_device_;
+  }
 
 private:
-  int active_device_;
+  static const int MAX_DEVICE_NUM = 6;
+  static std::string bootrom_path;
+  int active_device_ = -1;
+  std::vector<std::shared_ptr<Device>> devices_;
 };
 
 /// @brief Return pointer to the DeviceManager

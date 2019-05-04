@@ -42,7 +42,11 @@ EXAPI etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop,
 EXAPI etrtError_t etrtGetDevice(int *device) {
   // FIXME SW-256
   auto deviceManager = getDeviceManager();
-  *device = deviceManager->getActiveDevice();
+  auto device_res = deviceManager->getActiveDeviceID();
+  if (!device_res) {
+    return device_res.getError();
+  }
+  *device = *device_res;
   return etrtSuccess;
 }
 

@@ -225,11 +225,11 @@ private:
     return reinterpret_cast<const storage_type *>(&TStorage);
   }
 
+  bool HasError : 1;
   union {
     storage_type TStorage;
     etrtError error_type_;
   };
-  bool HasError : 1;
 };
 
 template <class T, class E>

@@ -13,11 +13,21 @@
 #include "Core/Device.h"
 #include "Core/DeviceManager.h"
 
-GetDev::GetDev() : dev(getEtDevice()) { dev.mutex_.lock(); }
+#include <cassert>
 
-GetDev::~GetDev() { dev.mutex_.unlock(); }
+using namespace et_runtime;
 
-et_runtime::Device &GetDev::getEtDevice() {
-  static et_runtime::Device et_device_;
-  return et_device_;
+GetDev::GetDev() : dev(getEtDevice()) {
+  assert(dev->deviceAlive());
+  dev->mutex_.lock();
+}
+
+GetDev::~GetDev() { dev->mutex_.unlock(); }
+
+std::shared_ptr<et_runtime::Device> GetDev::getEtDevice() {
+  auto device_manager = getDeviceManager();
+  assert(device_manager);
+  auto deviceRet = device_manager->getActiveDevice();
+  assert(deviceRet);
+  return deviceRet.get();
 }

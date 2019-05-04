@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_SUPPORT_DEVICE_GUARD_H
 #define ET_RUNTIME_SUPPORT_DEVICE_GUARD_H
 
+#include <memory>
+
 namespace et_runtime {
 class DeviceManager;
 class Device;
@@ -28,12 +30,12 @@ public:
 
   ~GetDev();
 
-  et_runtime::Device *operator->() { return &dev; }
+  et_runtime::Device *operator->() { return dev.get(); }
 
 private:
-  et_runtime::Device &getEtDevice();
+  std::shared_ptr<et_runtime::Device> getEtDevice();
 
-  et_runtime::Device &dev;
+  std::shared_ptr<et_runtime::Device> dev;
 };
 
 #endif // ET_RUNTIME_SUPPORT_DEVICE_GUARD_H

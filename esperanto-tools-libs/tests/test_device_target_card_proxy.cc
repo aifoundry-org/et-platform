@@ -11,6 +11,7 @@
 #include "Device/TargetCardProxy.h"
 #include "gtest/gtest.h"
 
+#include <gflags/gflags.h>
 #include <glog/logging.h>
 
 #include <chrono>
@@ -34,6 +35,8 @@ TEST(TargetCardProxy, StartStopSysEmu) {
   // Stop the simulator
   ASSERT_TRUE(device.deinit());
 }
+
+extern std::string FLAGS_dev_target;
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);

@@ -44,8 +44,6 @@ Device::Device()
 
 Device::~Device() {
   // Must stop device thread first in case it have non-empty streams
-  mem_manager_->deInit();
-  uninitDeviceThread();
   uninitObjects();
 }
 
@@ -57,6 +55,7 @@ etrtError Device::init() {
 
 etrtError Device::resetDevice() {
   uninitDeviceThread();
+  mem_manager_->deInit();
   return etrtSuccess;
 }
 
