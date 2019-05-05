@@ -43,7 +43,7 @@ TEST(DeviceManager, deviceFactory) {
   ASSERT_TRUE(dynamic_cast<CardProxyTarget *>(dev_target.get()) != nullptr);
 }
 
-/* FIXME disable the test
+
 TEST(DeviceManager, RegisteAndAccessDevice) {
 
   et_runtime::device::FLAGS_dev_target = "sysemu_card_proxy";
@@ -56,7 +56,7 @@ TEST(DeviceManager, RegisteAndAccessDevice) {
   ASSERT_EQ(dev->init(), etrtSuccess);
   ASSERT_EQ(dev->resetDevice(), etrtSuccess);
 }
-*/
+
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
