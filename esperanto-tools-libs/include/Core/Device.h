@@ -289,9 +289,9 @@ public:
   etrtError_t rawLaunch(et_runtime::Module *module, const char *kernel_name,
                         const void *args, size_t args_size,
                         etrtStream_t stream);
-  // FIXME pass module_id
-  etrtError_t moduleLoad(et_runtime::Module *module, const void *image,
-                         size_t image_size);
+
+  ErrorOr<et_runtime::Module *> moduleLoad(const void *image,
+                                           size_t image_size);
   etrtError_t moduleUnload(et_runtime::Module *module);
 
 private:
