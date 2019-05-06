@@ -7320,6 +7320,21 @@ static void tensorreduce(uint64_t value)
     uint8_t  this_operation = (value >> 24) & 0xF;
     int      this_num_reg   = (value >> 16) & 0x7F;
 
+    // Send or receive to/from the same minion
+    if (action == 3)
+    {
+#ifndef SYS_EMU
+        static const char* reducecmd[4] = {
+            "TensorReduceSend", "TensorReduceRecv",
+            "TensorBroadcast", "TensorReduceAuto"
+        };
+        LOG(DEBUG, "\t%s other_minion: %u, start_reg: %d, num_reg: %d",
+            reducecmd[value & 3], other_min, this_start_reg, this_num_reg);
+#endif
+        update_tensor_error(1 << 9);
+        return;
+    }
+
     // Send
     if (action == 0)
     {
@@ -7337,13 +7352,6 @@ static void tensorreduce(uint64_t value)
     }
 
     // Receive
-
-    // Sending and receiving from the same minion
-    if (other_min == (current_thread>>1))
-    {
-        update_tensor_error(1 << 9);
-        return;
-    }
 
     // Get information from sender
     unsigned this_min   = tensorreduce_info[other_min].minion_id;
@@ -7608,6 +7616,16 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
         {
             *action = 2; // do nothing
         }
+    }
+
+    if (*action == 2)
+        return;
+
+    // Sending and receiving from the same minion should fail immediately
+    if (*other_min == (current_thread>>1))
+    {
+        *action = 3;
+        return;
     }
 
     // Update sender information so it can be used by the receiver
