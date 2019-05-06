@@ -2563,7 +2563,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_MIE:
         // Hard-wire ueie, utie, usie
-        val &= 0x0000000000000AAAULL;
+        val &= 0x0000000000088AAAULL;
         csr_mie[current_thread] = val;
         break;
     case CSR_MTVEC:
