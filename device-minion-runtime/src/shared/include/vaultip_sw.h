@@ -911,4 +911,168 @@ static_assert(256 == sizeof(VAULTIP_FIRMWARE_RAM_TOKEN_t), "sizeof(VAULTIP_FIRMW
 #define VAULTIP_PUBLIC_KEY_COMMAND_ECDSA_VERIFY_INITIAL                             0x30
 #define VAULTIP_PUBLIC_KEY_COMMAND_ECDSA_VERIFY_FINAL                               0x31
 
+typedef struct VAULTIP_SUBVECTOR_HEADER_s {
+    uint32_t SubVectorLength : 16;
+    uint32_t SubVectorIndex : 8;
+    uint32_t NrOfSubVectors : 8;
+} VAULTIP_SUBVECTOR_HEADER_t;
+
+#define VAULTIP_SUBVECTOR_64_ENTRIES ((64 + 31) / 32)
+typedef struct VAULTIP_SUBVECTOR_64_s {
+    VAULTIP_SUBVECTOR_HEADER_t header;
+    union {
+        uint32_t u32[VAULTIP_SUBVECTOR_64_ENTRIES];
+        uint32_t u8[4 * VAULTIP_SUBVECTOR_64_ENTRIES];
+    } data;
+} VAULTIP_SUBVECTOR_64_t;
+
+#define VAULTIP_SUBVECTOR_256_ENTRIES ((256 + 31) / 32)
+typedef struct VAULTIP_SUBVECTOR_256_s {
+    VAULTIP_SUBVECTOR_HEADER_t header;
+    union {
+        uint32_t u32[VAULTIP_SUBVECTOR_256_ENTRIES];
+        uint32_t u8[4 * VAULTIP_SUBVECTOR_256_ENTRIES];
+    } data;
+} VAULTIP_SUBVECTOR_256_t;
+
+#define VAULTIP_SUBVECTOR_384_ENTRIES ((384 + 31) / 32)
+typedef struct VAULTIP_SUBVECTOR_384_s {
+    VAULTIP_SUBVECTOR_HEADER_t header;
+    union {
+        uint32_t u32[VAULTIP_SUBVECTOR_384_ENTRIES];
+        uint32_t u8[4 * VAULTIP_SUBVECTOR_384_ENTRIES];
+    } data;
+} VAULTIP_SUBVECTOR_384_t;
+
+#define VAULTIP_SUBVECTOR_521_ENTRIES ((521 + 31) / 32)
+typedef struct VAULTIP_SUBVECTOR_521_s {
+    VAULTIP_SUBVECTOR_HEADER_t header;
+    union {
+        uint32_t u32[VAULTIP_SUBVECTOR_521_ENTRIES];
+        uint32_t u8[4 * VAULTIP_SUBVECTOR_521_ENTRIES];
+    } data;
+} VAULTIP_SUBVECTOR_521_t;
+
+typedef struct VAULTIP_EC_256_DOMAIN_PARAMETERS_s {
+    VAULTIP_SUBVECTOR_256_t curve_modulus_p;
+    VAULTIP_SUBVECTOR_256_t curve_constant_a;
+    VAULTIP_SUBVECTOR_256_t curve_constant_b;
+    VAULTIP_SUBVECTOR_256_t curve_order_n;
+    VAULTIP_SUBVECTOR_256_t curve_base_point_x;
+    VAULTIP_SUBVECTOR_256_t curve_base_point_y;
+    VAULTIP_SUBVECTOR_64_t curve_cofactor;
+} VAULTIP_EC_256_DOMAIN_PARAMETERS_t;
+
+typedef struct VAULTIP_EC_384_DOMAIN_PARAMETERS_s {
+    VAULTIP_SUBVECTOR_384_t curve_modulus_p;
+    VAULTIP_SUBVECTOR_384_t curve_constant_a;
+    VAULTIP_SUBVECTOR_384_t curve_constant_b;
+    VAULTIP_SUBVECTOR_384_t curve_order_n;
+    VAULTIP_SUBVECTOR_384_t curve_base_point_x;
+    VAULTIP_SUBVECTOR_384_t curve_base_point_y;
+    VAULTIP_SUBVECTOR_64_t curve_cofactor;
+} VAULTIP_EC_384_DOMAIN_PARAMETERS_t;
+
+typedef struct VAULTIP_EC_521_DOMAIN_PARAMETERS_s {
+    VAULTIP_SUBVECTOR_521_t curve_modulus_p;
+    VAULTIP_SUBVECTOR_521_t curve_constant_a;
+    VAULTIP_SUBVECTOR_521_t curve_constant_b;
+    VAULTIP_SUBVECTOR_521_t curve_order_n;
+    VAULTIP_SUBVECTOR_521_t curve_base_point_x;
+    VAULTIP_SUBVECTOR_521_t curve_base_point_y;
+    VAULTIP_SUBVECTOR_64_t curve_cofactor;
+} VAULTIP_EC_521_DOMAIN_PARAMETERS_t;
+
+typedef struct VAULTIP_PUBLIC_KEY_ECDSA_P256_s {
+    VAULTIP_SUBVECTOR_256_t point_x;
+    VAULTIP_SUBVECTOR_256_t point_y;
+} VAULTIP_PUBLIC_KEY_ECDSA_P256_t;
+
+typedef struct VAULTIP_PRIVATE_KEY_ECDSA_P256_s {
+    VAULTIP_SUBVECTOR_256_t modulus;
+} VAULTIP_PRIVATE_KEY_ECDSA_P256_t;
+
+typedef struct VAULTIP_PUBLIC_KEY_ECDSA_P384_s {
+    VAULTIP_SUBVECTOR_384_t point_x;
+    VAULTIP_SUBVECTOR_384_t point_y;
+} VAULTIP_PUBLIC_KEY_ECDSA_P384_t;
+
+typedef struct VAULTIP_PRIVATE_KEY_ECDSA_P384_s {
+    VAULTIP_SUBVECTOR_384_t modulus;
+} VAULTIP_PRIVATE_KEY_ECDSA_P384_t;
+
+typedef struct VAULTIP_PUBLIC_KEY_ECDSA_P521_s {
+    VAULTIP_SUBVECTOR_521_t point_x;
+    VAULTIP_SUBVECTOR_521_t point_y;
+} VAULTIP_PUBLIC_KEY_ECDSA_P521_t;
+
+typedef struct VAULTIP_PRIVATE_KEY_ECDSA_P521_s {
+    VAULTIP_SUBVECTOR_521_t modulus;
+} VAULTIP_PRIVATE_KEY_ECDSA_P521_t;
+
+typedef struct VAULTIP_PUBLIC_KEY_ECDSA_25519_s {
+    VAULTIP_SUBVECTOR_256_t point_x;
+} VAULTIP_PUBLIC_KEY_ECDSA_25519_t;
+
+typedef struct VAULTIP_PRIVATE_KEY_ECDSA_25519_s {
+    VAULTIP_SUBVECTOR_256_t modulus;
+} VAULTIP_PRIVATE_KEY_ECDSA_25519_t;
+
+#define VAULTIP_SUBVECTOR_2048_ENTRIES (2048 / 32)
+typedef struct VAULTIP_SUBVECTOR_2048_s {
+    VAULTIP_SUBVECTOR_HEADER_t header;
+    union {
+        uint32_t u32[VAULTIP_SUBVECTOR_2048_ENTRIES];
+        uint32_t u8[4 * VAULTIP_SUBVECTOR_2048_ENTRIES];
+    } data;
+} VAULTIP_SUBVECTOR_2048_t;
+
+#define VAULTIP_SUBVECTOR_3072_ENTRIES (3072 / 32)
+typedef struct VAULTIP_SUBVECTOR_3072_s {
+    VAULTIP_SUBVECTOR_HEADER_t header;
+    union {
+        uint32_t u32[VAULTIP_SUBVECTOR_3072_ENTRIES];
+        uint32_t u8[4 * VAULTIP_SUBVECTOR_3072_ENTRIES];
+    } data;
+} VAULTIP_SUBVECTOR_3072_t;
+
+#define VAULTIP_SUBVECTOR_4096_ENTRIES (4096 / 32)
+typedef struct VAULTIP_SUBVECTOR_4096_s {
+    VAULTIP_SUBVECTOR_HEADER_t header;
+    union {
+        uint32_t u32[VAULTIP_SUBVECTOR_4096_ENTRIES];
+        uint32_t u8[4 * VAULTIP_SUBVECTOR_4096_ENTRIES];
+    } data;
+} VAULTIP_SUBVECTOR_4096_t;
+
+typedef struct VAULTIP_PUBLIC_KEY_RSA_2048_s {
+    VAULTIP_SUBVECTOR_2048_t modulus;
+    VAULTIP_SUBVECTOR_64_t exponent;
+} VAULTIP_PUBLIC_KEY_RSA_2048_t;
+
+typedef struct VAULTIP_PRIVATE_KEY_RSA_2048_s {
+    VAULTIP_SUBVECTOR_2048_t modulus;
+    VAULTIP_SUBVECTOR_2048_t exponent;
+} VAULTIP_PRIVATE_KEY_RSA_2048_t;
+
+typedef struct VAULTIP_PUBLIC_KEY_RSA_3072_s {
+    VAULTIP_SUBVECTOR_3072_t modulus;
+    VAULTIP_SUBVECTOR_64_t exponent;
+} VAULTIP_PUBLIC_KEY_RSA_3072_t;
+
+typedef struct VAULTIP_PRIVATE_KEY_RSA_3072_s {
+    VAULTIP_SUBVECTOR_3072_t modulus;
+    VAULTIP_SUBVECTOR_3072_t exponent;
+} VAULTIP_PRIVATE_KEY_RSA_3072_t;
+
+typedef struct VAULTIP_PUBLIC_KEY_RSA_4096_s {
+    VAULTIP_SUBVECTOR_4096_t modulus;
+    VAULTIP_SUBVECTOR_64_t exponent;
+} VAULTIP_PUBLIC_KEY_RSA_4096_t;
+
+typedef struct VAULTIP_PRIVATE_KEY_RSA_4096_s {
+    VAULTIP_SUBVECTOR_4096_t modulus;
+    VAULTIP_SUBVECTOR_4096_t exponent;
+} VAULTIP_PRIVATE_KEY_RSA_4096_t;
+
 #endif
