@@ -43,17 +43,14 @@ void EtActionConfigure::execute(CardProxy *card_proxy)
     }
 
     cpDefineDevMem(card_proxy, LAUNCH_PARAMS_AREA_BASE, LAUNCH_PARAMS_AREA_SIZE, false);
-
     cpDefineDevMem(card_proxy, BLOCK_SHARED_REGION, BLOCK_SHARED_REGION_TOTAL_SIZE, false);
-
     cpDefineDevMem(card_proxy, STACK_REGION, STACK_REGION_TOTAL_SIZE << 3, false);
 
-
-
-    cpDefineDevMem(card_proxy, 0x8000100000, 0x100000, false);
-    cpDefineDevMem(card_proxy, 0x8000300000, 0x100000, false);
-
-
+    // Stack regions in glow fw defined in fw_common.h
+    // M-mode stack: 2^9 bytes/thread * 64 threads/shire * 33 shires
+    cpDefineDevMem(card_proxy, 0x8000300000ULL, 0x108000, false);
+    // S-mode stack: 2^9 bytes/thread * 64 threads/shire * 33 shires
+    cpDefineDevMem(card_proxy, 0x8000408000ULL, 0x108000, false);
 
     //const void *kernels_file_p = gEtKernelsElf;
     //size_t kernels_file_size = sizeof(gEtKernelsElf);
