@@ -16,5 +16,5 @@ int constant_time_memory_compare(volatile const void * s1, volatile const void *
         p2++;
     }
 
-    return ((0 == c) && (0 == size)) ? 0 : 1;
+    return ((0 == c) || (0 == size)) ? 0 : 1;
 }
