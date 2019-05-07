@@ -25,7 +25,7 @@ class api_communicate
         bool is_enabled();
 
         // Execution
-        void get_next_cmd(std::list<int> * enabled_threads, std::list<int> * ipi_threads_t0, uint64_t * new_pc_t0, std::list<int> * ipi_threads_t1, uint64_t * new_pc_t1);
+        void get_next_cmd(std::list<int> * enabled_threads);
 
     private:
         main_memory * mem;                   // Pointer to the memory
@@ -49,7 +49,7 @@ class api_communicate
             kIPISync,
             kIPIContinue
         } CmdTypes;
-        
+
         typedef struct
         {
             long long mem_addr;
@@ -63,6 +63,12 @@ class api_communicate
             unsigned long long shire_mask;
             unsigned long long minion_mask;
         } LaunchDescMsg;
+
+        // Struct that stores kernel launch information copied by the Host when using runtime
+        typedef struct {
+            uint64_t unused;
+            uint64_t compute_pc;
+        } __attribute__((packed)) rt_host_kernel_launch_info_t;
 };
 
 #endif // _API_COMMUNICATE_

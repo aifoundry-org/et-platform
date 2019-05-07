@@ -4,10 +4,12 @@
 #include <sys/un.h>
 #include <assert.h>
 #include <unistd.h>
+#include <endian.h>
 
 // Local
 #include "api_communicate.h"
 #include "emu_gio.h"
+#include "sys_emu.h"
 
 // Constructor
 api_communicate::api_communicate(main_memory * mem_)
@@ -54,7 +56,7 @@ bool api_communicate::is_enabled(){
 }
 
 // Execution
-void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<int> * ipi_threads_t0, uint64_t * new_pc_t0, std::list<int> * ipi_threads_t1, uint64_t * new_pc_t1)
+void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
 {
     // Waits until all minions are idle
     if(!enabled || (enabled_threads->size() != 0)) return;
@@ -121,28 +123,16 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
                 read_bytes( communication_channel, &launch_def, sizeof(LaunchDescMsg));
                 LOG_NOTHREAD(INFO, "api_communicate: Execute 0x%llx, 0x%llx", launch_def.thread0_pc, launch_def.thread1_pc);
 
-                // Gets the PCs
-                * new_pc_t0 = launch_def.thread0_pc;
-                * new_pc_t1 = launch_def.thread1_pc;
+                rt_host_kernel_launch_info_t launch_info;
+                launch_info.compute_pc = htole64(launch_def.thread0_pc);
 
-                // Generate list of IPI based on masks for compute minions
-                for(int s = 0; s < 32; s++)
-                {
-                    // If shire enabled
-                    if((launch_def.shire_mask >> s) & 1)
-                    {
-                        for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
-                        {
-                            // If minion enabled
-                            if((launch_def.minion_mask >> m) & 1)
-                            {
-                                int minion_id = s * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION + m * EMU_THREADS_PER_MINION;
-                                ipi_threads_t0->push_back(minion_id);
-                                ipi_threads_t1->push_back(minion_id+1);
-                            }
-                        }
-                    }
-                }
+                // Write the kernel launch parameters to memory (FW_SCODE_KERNEL_INFO in fw_common.h)
+                mem->write(0x8200000000ULL, sizeof(launch_info), &launch_info);
+
+                LOG_NOTHREAD(DEBUG, "api_communicate: Execute: %s", "Sending IPI to Master Shire thread 0");
+
+                // Send an IPI to the thread 0 of Master Shire
+                sys_emu::raise_software_interrupt(32, 1);
             }
             break;
         case kIPISync:
@@ -153,20 +143,33 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads, std::list<i
             }
             break;
         case kIPIContinue:
-            LOG_NOTHREAD(INFO, "%s", "api_communicate: continue");
-            assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
-
-            // PC 0 means continue
-            * new_pc_t0 = 0;
-            * new_pc_t1 = 0;
-            // Resume operation on all compute minions
-            for(int s = 0; s < 32; s++)
             {
-                for(int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
-                {
-                    int minion_id = s * EMU_MINIONS_PER_SHIRE * EMU_THREADS_PER_MINION + m * EMU_THREADS_PER_MINION;
-                    ipi_threads_t0->push_back(minion_id);
-                    ipi_threads_t1->push_back(minion_id+1);
+                LOG_NOTHREAD(INFO, "%s", "api_communicate: continue");
+                assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
+
+                // Set "unused" (count) to 0 to tell we are in runtime mode (see fw_master_scode.cc)
+                rt_host_kernel_launch_info_t launch_info;
+                launch_info.unused = htole64(0);
+
+                // Write the kernel launch parameters to memory (FW_SCODE_KERNEL_INFO in fw_common.h)
+                mem->write(0x8200000000ULL, sizeof(launch_info), &launch_info);
+
+                // Boot all compute shire minions
+                for (int s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++) {
+                    for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++) {
+                            int minion_id = s * EMU_THREADS_PER_SHIRE +
+                                            m * EMU_THREADS_PER_MINION;
+                            enabled_threads->push_back(minion_id);
+                            enabled_threads->push_back(minion_id + 1);
+                    }
+                }
+
+                // Boot all master shire minions
+                for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++) {
+                        int minion_id = EMU_MASTER_SHIRE * EMU_THREADS_PER_SHIRE +
+                                        m * EMU_THREADS_PER_MINION;
+                        enabled_threads->push_back(minion_id);
+                        enabled_threads->push_back(minion_id + 1);
                 }
             }
             break;
