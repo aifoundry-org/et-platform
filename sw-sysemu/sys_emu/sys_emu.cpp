@@ -1066,31 +1066,22 @@ sys_emu::main_internal(int argc, char * argv[])
             }
         }
 
-        // Once all threads done this cycle, check for new IPIs from net emu/runtime API
-        std::list<int> ipi_threads, ipi_threads_t1; // List of threads with an IPI with PC from network emu
-        uint64_t       new_pc,      new_pc_t1;      // New PC for the IPI
-        net_emu.get_new_ipi(&enabled_threads, &ipi_threads, &new_pc);
-        api_listener->get_next_cmd(&enabled_threads, &ipi_threads, &new_pc, &ipi_threads_t1, &new_pc_t1);
+        // Net emu: check pending IPIs
+        std::list<int> net_emu_ipi_threads;
+        uint64_t net_emu_new_pc;
+        net_emu.get_new_ipi(&enabled_threads, &net_emu_ipi_threads, &net_emu_new_pc);
 
-        // Sets the PC for all the minions that got an IPI with PC
-        auto it = ipi_threads.begin();
-        while(it != ipi_threads.end())
-        {
-            LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, new_pc);
-            if(new_pc != 0) current_pc[* it] = new_pc; // 0 means resume
-            enabled_threads.push_back(* it);
-            it++;
+        // Net emu: sets the PC for all the minions that got an IPI with PC
+        for (auto it = net_emu_ipi_threads.begin(); it != net_emu_ipi_threads.end(); it++) {
+            LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, net_emu_new_pc);
+            if(net_emu_new_pc != 0) current_pc[*it] = net_emu_new_pc; // 0 means resume
+            enabled_threads.push_back(*it);
+
         }
 
-        // Sets the PC for all the minions that got an IPI with PC
-        it = ipi_threads_t1.begin();
-        while(it != ipi_threads_t1.end())
-        {
-            LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, new_pc_t1);
-            if(new_pc_t1 != 0) current_pc[* it] = new_pc_t1; // 0 means resume
-            enabled_threads.push_back(* it);
-            it++;
-        }
+        // Runtime API: check for new commands
+        api_listener->get_next_cmd(&enabled_threads);
+
         emu_cycle++;
     }
     if (emu_cycle == cmd_options.max_cycles)
