@@ -11,10 +11,7 @@ endif()
 
 file(MAKE_DIRECTORY build)
 
-# add the binary tree to the search path for include files
-# so that we will find TutorialConfig.h
-include_directories("${PROJECT_BINARY_DIR}")
-include_directories("${PROJECT_BINARY_DIR}/include")
+include_directories("include")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g \
 -Wall -Wextra -Werror -Wnull-dereference \
