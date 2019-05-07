@@ -20,3 +20,6 @@ include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/pkcs11/published/2-
 
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
 
+install(TARGETS ${TARGET_NAME}.elf
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/sp
+  COMPONENT service-processor)

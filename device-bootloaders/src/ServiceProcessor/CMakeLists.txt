@@ -29,3 +29,7 @@ include_directories(${SHARED_INC_DIR})
 include_directories(${FREERTOS_INC_DIRS})
 
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
+
+install(TARGETS ${TARGET_NAME}.elf
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/sp
+  COMPONENT service-processor)
