@@ -7317,7 +7317,7 @@ static void tensorreduce(uint64_t value)
     //op = rs[35:32]
     int      this_start_reg = (value >> 57) & 0x1F;
     uint8_t  this_operation = (value >> 24) & 0xF;
-    int      this_num_reg   = (value >> 16) & 0xFF;
+    int      this_num_reg   = (value >> 16) & 0x7F;
 
     // Send
     if (action == 0)
@@ -7328,7 +7328,7 @@ static void tensorreduce(uint64_t value)
             other_min, this_start_reg, this_num_reg);
         for (int i = 0; i < this_num_reg; ++i)
         {
-            int this_op_reg = (i + this_start_reg) % 32;
+            int this_op_reg = (i + this_start_reg) % MAXFREG;
             LOG_FREG("(this) :", this_op_reg);
         }
 #endif
@@ -7382,8 +7382,8 @@ static void tensorreduce(uint64_t value)
                 other_min, get_rounding_mode(frm()));
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
@@ -7402,8 +7402,8 @@ static void tensorreduce(uint64_t value)
                 other_min, get_rounding_mode(frm()));
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
@@ -7421,8 +7421,8 @@ static void tensorreduce(uint64_t value)
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
@@ -7440,8 +7440,8 @@ static void tensorreduce(uint64_t value)
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
@@ -7459,8 +7459,8 @@ static void tensorreduce(uint64_t value)
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
@@ -7477,8 +7477,8 @@ static void tensorreduce(uint64_t value)
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
@@ -7495,8 +7495,8 @@ static void tensorreduce(uint64_t value)
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
@@ -7513,8 +7513,8 @@ static void tensorreduce(uint64_t value)
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 LOG_FREG("(this) :", this_op_reg);
                 for (unsigned j = 0; j < VL; j++)
@@ -7531,8 +7531,8 @@ static void tensorreduce(uint64_t value)
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
-                int this_op_reg = (i + this_start_reg) % 32;
-                int other_op_reg = (i + other_start_reg) % 32;
+                int this_op_reg = (i + this_start_reg) % MAXFREG;
+                int other_op_reg = (i + other_start_reg) % MAXFREG;
                 LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
                 FREGS[this_op_reg] = fregs[other_min<<1][other_op_reg];
                 for (unsigned j = 0; j < VL; j++)
@@ -7614,7 +7614,7 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
     {
         tensorreduce_info[current_thread>>1].minion_id = *other_min;
         tensorreduce_info[current_thread>>1].start_reg = (value >> 57) & 0x1F;
-        tensorreduce_info[current_thread>>1].num_reg   = (value >> 16) & 0xFF;
+        tensorreduce_info[current_thread>>1].num_reg   = (value >> 16) & 0x7F;
         tensorreduce_info[current_thread>>1].action    = *action;
     }
 }
