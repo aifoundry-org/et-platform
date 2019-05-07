@@ -52,6 +52,12 @@ void EtActionConfigure::execute(CardProxy *card_proxy)
     // S-mode stack: 2^9 bytes/thread * 64 threads/shire * 33 shires
     cpDefineDevMem(card_proxy, 0x8000408000ULL, 0x108000, false);
 
+    // Contains the kernel launch parameters for both running with runtime and net_desc (FW_SCODE_KERNEL_INFO in fw_common.h)
+    cpDefineDevMem(card_proxy, 0x8200000000ULL, 64, false);
+
+    // Scratch area to share information when MM sends an IPI to Compute Minions (FW_SCODE_IPI_INFO in fw_common.h)
+    cpDefineDevMem(card_proxy, 0x8000600000ULL, 64, false);
+
     //const void *kernels_file_p = gEtKernelsElf;
     //size_t kernels_file_size = sizeof(gEtKernelsElf);
     const void *bootrom_file_p = *(etrtGetEtBootrom());
