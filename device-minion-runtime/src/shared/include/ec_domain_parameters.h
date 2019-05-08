@@ -21,6 +21,7 @@ typedef struct ECC_DOMAIN_PARAMETERS {
     const uint8_t Cofactor;
 } ECC_DOMAIN_PARAMETERS_t;
 
+#ifdef SUPPORT_EC_P256
 /* NIST P-256 curve (p = 2^224(2^32-1) + 2^192 + 2^96 - 1) */
 static const uint8_t ECurve_NIST_P256_p[] =
 {
@@ -75,8 +76,9 @@ static const ECC_DOMAIN_PARAMETERS_t ECurve_NIST_P256 =
     ECurve_NIST_P256_n,  sizeof(ECurve_NIST_P256_n),
     1
 };
+#endif
 
-
+#ifdef SUPPORT_EC_P384
 /* NIST P-384 curve (p = 2^384 - 2^128 - 2^96 + 2^32 - 1) */
 static const uint8_t ECurve_NIST_P384_p[] =
 {
@@ -143,8 +145,9 @@ static const ECC_DOMAIN_PARAMETERS_t ECurve_NIST_P384 =
     ECurve_NIST_P384_n,  sizeof(ECurve_NIST_P384_n),
     1
 };
+#endif
 
-
+#ifdef SUPPORT_EC_P521
 /* NIST P-521 curve (p = 2^521 - 1) */
 static const uint8_t ECurve_NIST_P521_p[] =
 {
@@ -229,8 +232,9 @@ static const ECC_DOMAIN_PARAMETERS_t ECurve_NIST_P521 =
     ECurve_NIST_P521_n,  sizeof(ECurve_NIST_P521_n),
     1
 };
+#endif
 
-
+#if defined(SUPPORT_EC_CURVE25519) || defined(SUPPORT_EC_EDWARDS25519)
 /* Curve25519
  * Montgomery elliptic curves are defined by:
  *
@@ -254,6 +258,8 @@ static const uint8_t ECurve_25519_p[] =
     0x7F, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xED
 };
+#endif
+#ifdef SUPPORT_EC_CURVE25519
 static const uint8_t ECurve_25519_a[] =
 {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -274,11 +280,15 @@ static const uint8_t ECurve_25519_Gy[] =
     0x5F, 0x51, 0xE6, 0x5E, 0x47, 0x5F, 0x79, 0x4B, 0x1F, 0xE1, 0x22, 0xD3, 0x88, 0xB7, 0x2E, 0xB3,
     0x6D, 0xC2, 0xB2, 0x81, 0x92, 0x83, 0x9E, 0x4D, 0xD6, 0x16, 0x3A, 0x5D, 0x81, 0x31, 0x2C, 0x14
 };
+#endif
+#if defined(SUPPORT_EC_CURVE25519) || defined(SUPPORT_EC_EDWARDS25519)
 static const uint8_t ECurve_25519_n[] =
 {
     0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x14, 0xDE, 0xF9, 0xDE, 0xA2, 0xF7, 0x9C, 0xD6, 0x58, 0x12, 0x63, 0x1A, 0x5C, 0xF5, 0xD3, 0xED
 };
+#endif
+#ifdef SUPPORT_EC_CURVE25519
 static const ECC_DOMAIN_PARAMETERS_t ECurve_25519 =
 {
     255,
@@ -290,8 +300,9 @@ static const ECC_DOMAIN_PARAMETERS_t ECurve_25519 =
     ECurve_25519_n,  sizeof(ECurve_25519_n),
     8
 };
+#endif
 
-
+#ifdef SUPPORT_EC_EDWARDS25519
 /* CurveEd25519
  * The twisted Edwards curves are defined by:
  *
@@ -344,6 +355,7 @@ static const ECC_DOMAIN_PARAMETERS_t ECurve_Ed25519 =
     ECurve_25519_n,    sizeof(ECurve_25519_n),      // Order.Data_p, Order.ByteDataSize
     8                                               // CoFactor
 };
+#endif
 
 #endif
 

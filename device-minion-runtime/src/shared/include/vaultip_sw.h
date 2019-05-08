@@ -916,42 +916,47 @@ typedef struct VAULTIP_SUBVECTOR_HEADER_s {
     uint32_t SubVectorIndex : 8;
     uint32_t NrOfSubVectors : 8;
 } VAULTIP_SUBVECTOR_HEADER_t;
+static_assert(4 == sizeof(VAULTIP_SUBVECTOR_HEADER_t), "sizeof(VAULTIP_SUBVECTOR_HEADER_t) is not 4!");
 
 #define VAULTIP_SUBVECTOR_64_ENTRIES ((64 + 31) / 32)
 typedef struct VAULTIP_SUBVECTOR_64_s {
     VAULTIP_SUBVECTOR_HEADER_t header;
     union {
         uint32_t u32[VAULTIP_SUBVECTOR_64_ENTRIES];
-        uint32_t u8[4 * VAULTIP_SUBVECTOR_64_ENTRIES];
+        uint8_t u8[4 * VAULTIP_SUBVECTOR_64_ENTRIES];
     } data;
 } VAULTIP_SUBVECTOR_64_t;
+static_assert((4 + 8) == sizeof(VAULTIP_SUBVECTOR_64_t), "sizeof(VAULTIP_SUBVECTOR_64_t) is not 12!");
 
 #define VAULTIP_SUBVECTOR_256_ENTRIES ((256 + 31) / 32)
 typedef struct VAULTIP_SUBVECTOR_256_s {
     VAULTIP_SUBVECTOR_HEADER_t header;
     union {
         uint32_t u32[VAULTIP_SUBVECTOR_256_ENTRIES];
-        uint32_t u8[4 * VAULTIP_SUBVECTOR_256_ENTRIES];
+        uint8_t u8[4 * VAULTIP_SUBVECTOR_256_ENTRIES];
     } data;
 } VAULTIP_SUBVECTOR_256_t;
+static_assert((4 + 32) == sizeof(VAULTIP_SUBVECTOR_256_t), "sizeof(VAULTIP_SUBVECTOR_256_t) is not 36!");
 
 #define VAULTIP_SUBVECTOR_384_ENTRIES ((384 + 31) / 32)
 typedef struct VAULTIP_SUBVECTOR_384_s {
     VAULTIP_SUBVECTOR_HEADER_t header;
     union {
         uint32_t u32[VAULTIP_SUBVECTOR_384_ENTRIES];
-        uint32_t u8[4 * VAULTIP_SUBVECTOR_384_ENTRIES];
+        uint8_t u8[4 * VAULTIP_SUBVECTOR_384_ENTRIES];
     } data;
 } VAULTIP_SUBVECTOR_384_t;
+static_assert((4 + 48) == sizeof(VAULTIP_SUBVECTOR_384_t), "sizeof(VAULTIP_SUBVECTOR_384_t) is not 52!");
 
 #define VAULTIP_SUBVECTOR_521_ENTRIES ((521 + 31) / 32)
 typedef struct VAULTIP_SUBVECTOR_521_s {
     VAULTIP_SUBVECTOR_HEADER_t header;
     union {
         uint32_t u32[VAULTIP_SUBVECTOR_521_ENTRIES];
-        uint32_t u8[4 * VAULTIP_SUBVECTOR_521_ENTRIES];
+        uint8_t u8[4 * VAULTIP_SUBVECTOR_521_ENTRIES];
     } data;
 } VAULTIP_SUBVECTOR_521_t;
+static_assert((4 + 68) == sizeof(VAULTIP_SUBVECTOR_521_t), "sizeof(VAULTIP_SUBVECTOR_521_t) is not 72!");
 
 typedef struct VAULTIP_EC_256_DOMAIN_PARAMETERS_s {
     VAULTIP_SUBVECTOR_256_t curve_modulus_p;
@@ -1023,27 +1028,30 @@ typedef struct VAULTIP_SUBVECTOR_2048_s {
     VAULTIP_SUBVECTOR_HEADER_t header;
     union {
         uint32_t u32[VAULTIP_SUBVECTOR_2048_ENTRIES];
-        uint32_t u8[4 * VAULTIP_SUBVECTOR_2048_ENTRIES];
+        uint8_t u8[4 * VAULTIP_SUBVECTOR_2048_ENTRIES];
     } data;
 } VAULTIP_SUBVECTOR_2048_t;
+static_assert((4 + 256) == sizeof(VAULTIP_SUBVECTOR_2048_t), "sizeof(VAULTIP_SUBVECTOR_2048_t) is not 260!");
 
 #define VAULTIP_SUBVECTOR_3072_ENTRIES (3072 / 32)
 typedef struct VAULTIP_SUBVECTOR_3072_s {
     VAULTIP_SUBVECTOR_HEADER_t header;
     union {
         uint32_t u32[VAULTIP_SUBVECTOR_3072_ENTRIES];
-        uint32_t u8[4 * VAULTIP_SUBVECTOR_3072_ENTRIES];
+        uint8_t u8[4 * VAULTIP_SUBVECTOR_3072_ENTRIES];
     } data;
 } VAULTIP_SUBVECTOR_3072_t;
+static_assert((4 + 384) == sizeof(VAULTIP_SUBVECTOR_3072_t), "sizeof(VAULTIP_SUBVECTOR_3072_t) is not 384!");
 
 #define VAULTIP_SUBVECTOR_4096_ENTRIES (4096 / 32)
 typedef struct VAULTIP_SUBVECTOR_4096_s {
     VAULTIP_SUBVECTOR_HEADER_t header;
     union {
         uint32_t u32[VAULTIP_SUBVECTOR_4096_ENTRIES];
-        uint32_t u8[4 * VAULTIP_SUBVECTOR_4096_ENTRIES];
+        uint8_t u8[4 * VAULTIP_SUBVECTOR_4096_ENTRIES];
     } data;
 } VAULTIP_SUBVECTOR_4096_t;
+static_assert((4 + 512) == sizeof(VAULTIP_SUBVECTOR_4096_t), "sizeof(VAULTIP_SUBVECTOR_4096_t) is not 516!");
 
 typedef struct VAULTIP_PUBLIC_KEY_RSA_2048_s {
     VAULTIP_SUBVECTOR_2048_t modulus;
@@ -1074,5 +1082,36 @@ typedef struct VAULTIP_PRIVATE_KEY_RSA_4096_s {
     VAULTIP_SUBVECTOR_4096_t modulus;
     VAULTIP_SUBVECTOR_4096_t exponent;
 } VAULTIP_PRIVATE_KEY_RSA_4096_t;
+
+typedef struct VAULTIP_SIGNATURE_EC_P256_s {
+    VAULTIP_SUBVECTOR_256_t r;
+    VAULTIP_SUBVECTOR_256_t s;
+} VAULTIP_SIGNATURE_EC_P256_t;
+
+typedef struct VAULTIP_SIGNATURE_EC_P384_s {
+    VAULTIP_SUBVECTOR_384_t r;
+    VAULTIP_SUBVECTOR_384_t s;
+} VAULTIP_SIGNATURE_EC_P384_t;
+
+typedef struct VAULTIP_SIGNATURE_EC_P521_s {
+    VAULTIP_SUBVECTOR_521_t r;
+    VAULTIP_SUBVECTOR_521_t s;
+} VAULTIP_SIGNATURE_EC_P521_t;
+
+typedef struct VAULTIP_SIGNATURE_EC_25519_s {
+    VAULTIP_SUBVECTOR_256_t r;
+} VAULTIP_SIGNATURE_EC_25519_t;
+
+typedef struct VAULTIP_SIGNATURE_RSA_2048_s {
+    VAULTIP_SUBVECTOR_2048_t s;
+} VAULTIP_SIGNATURE_RSA_2048_t;
+
+typedef struct VAULTIP_SIGNATURE_RSA_3072_s {
+    VAULTIP_SUBVECTOR_3072_t s;
+} VAULTIP_SIGNATURE_RSA_3072_t;
+
+typedef struct VAULTIP_SIGNATURE_RSA_4096_s {
+    VAULTIP_SUBVECTOR_4096_t s;
+} VAULTIP_SIGNATURE_RSA_4096_t;
 
 #endif
