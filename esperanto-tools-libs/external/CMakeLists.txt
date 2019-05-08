@@ -163,14 +163,15 @@ ExternalProject_Add(sw-sysemu
   BUILD_IN_SOURCE ON  # Really sad :(
   BUILD_COMMAND make -C sys_emu/build
   BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
-  INSTALL_COMMAND cp sys_emu/build/sys_emu ${CMAKE_CURRENT_BINARY_DIR}/
+  INSTALL_COMMAND mkdir -p ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
+                  && cp sys_emu/build/sys_emu ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
   )
 
-set(SYSEMU_PATH  ${CMAKE_CURRENT_BINARY_DIR}/sys_emu PARENT_SCOPE)
+set(SYSEMU_PATH  ${RT_EXTERNAL_INSTALL_PREFIX}/bin/sys_emu PARENT_SCOPE)
 
 list(APPEND external_project_dependencies sw-sysemu)
 
-set(device_api_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/device_api)
+set(device_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 ExternalProject_Add(device-api
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/device_api
   INSTALL_DIR ${device_api_INSTALL}
@@ -183,8 +184,9 @@ ExternalProject_Add(device-api
 
 list(APPEND external_project_dependencies device-api)
 
-set(simulator_api_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/simulator_api)
+set(simulator_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 ExternalProject_Add(simulator-api
+  PREFIX simulator-api
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/simulator_api
   INSTALL_DIR ${simulator_api_INSTALL}
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${simulator_api_INSTALL}

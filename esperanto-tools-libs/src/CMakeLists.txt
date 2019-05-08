@@ -88,12 +88,9 @@ target_include_directories(etrt PUBLIC ${FMTLIB_INCLUDE_DIRS})
 target_link_libraries(etrt pthread)
 add_dependencies(etrt kernels-elf-file)
 add_dependencies(etrt bootrom-file)
-add_dependencies(etrt glog)
 add_dependencies(etrt ${external_project_dependencies})
 target_link_libraries(etrt ${GLOG_LIBRARIES})
-add_dependencies(etrt fmtlib)
 target_link_libraries(etrt ${FMTLIB_LIBRARIES})
-add_dependencies(etrt gflags)
 target_link_libraries(etrt ${GFLAGS_LIBRARIES})
 add_dependencies(etrt kernels-offsets)
 add_dependencies(etrt kernels-cdescr)
@@ -112,6 +109,7 @@ target_link_libraries(etcuda dl)
 
 
 install(TARGETS etrt
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib)
-install(DIRECTORY include DESTINATION ".")
+  RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  COMPONENT et-runtime
+  )

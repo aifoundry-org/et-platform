@@ -19,6 +19,10 @@ option(HOST_SW "Enable building for the host-sw repo")
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ETSOC "Build for the ETSOC")
 option(ENABLE_TESTS "Enable tests" ON)
+# To be overwritten in cases where we want to also "release" the external tools
+# used by the runtime
+set(RT_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
+  CACHE PATH "Instalatin path of external dependencies")
 
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR=" ${CMAKE_CURRENT_SOURCE_DIR})
 message(STATUS "CMAKE_CURRENT_BINARY_DIR=" ${CMAKE_CURRENT_BINARY_DIR})
