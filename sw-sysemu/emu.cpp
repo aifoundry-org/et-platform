@@ -1043,9 +1043,7 @@ static bool pma_check_data_access(uint64_t addr, size_t size, mem_access_type ma
         return spio && !amo && !ts_tl_co;
 
     if (paddr_is_scratchpad(addr))
-        return ts_tl_co
-            || amo_g
-            || access_is_size_aligned(addr, size);
+        return !amo || amo_g;
 
     if (paddr_is_esr_space(addr))
         return !amo
