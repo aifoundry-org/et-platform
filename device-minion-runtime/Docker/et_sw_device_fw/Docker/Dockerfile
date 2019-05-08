@@ -26,6 +26,18 @@ RUN pip install \
     pyelftools \
     bitstring
 
+ENV OPENSSL=1.1.1b
+
+RUN cd /tmp \
+  && wget https://www.openssl.org/source/openssl-${OPENSSL}.tar.gz \
+  && tar zxvf openssl-${OPENSSL}.tar.gz  \
+  && cd openssl-${OPENSSL} \
+  && ./config --prefix=/usr  \
+  && make \
+  && make install_sw \
+  && rm -rf /tmp/*
+
+
 ARG GIT_SHA
 LABEL git_sha="$GIT_SHA"
 
