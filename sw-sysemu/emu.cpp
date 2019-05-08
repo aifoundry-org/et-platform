@@ -8,6 +8,7 @@
 #include <list>
 #include <deque>
 #include <unordered_map>
+#include <math.h>
 
 #include "decode.h"
 #include "emu.h"
