@@ -18,7 +18,11 @@ message("Doxygen build started")
 
 # note the option ALL which allows to build the doc together with the application
 add_custom_target( doc ALL
-    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..
-    COMMENT "Generating API documentation with Doxygen"
-    VERBATIM )
+  COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..
+  COMMENT "Generating API documentation with Doxygen"
+  VERBATIM )
+
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs/html
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/doc
+  COMPONENT doc)
