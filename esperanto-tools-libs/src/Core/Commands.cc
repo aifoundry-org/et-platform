@@ -21,8 +21,12 @@
 
 #include "cpu_algo.h"
 #include "demangle.h"
+
+#if 0
 #include "et_bootrom.h"
 #include "kernels_offsets.h"
+#endif
+
 #include "utils.h"
 
 // clang-format off
@@ -36,7 +40,9 @@
 
 using namespace et_runtime;
 
+#if 0
 static bool static_kernels = false;
+#endif
 
 void EtActionEvent::execute(Device *device) {
   std::lock_guard<std::mutex> lk(observer_mutex);
@@ -84,6 +90,8 @@ void EtActionConfigure::execute(Device *device) {
   cpWriteDevMem(card_proxy, BOOTROM_START_IP, bootrom_file_size,
                 bootrom_file_p);
 
+// FIXME deprecate the following eventually
+#if 0
   {
     struct BootromInitDescr_t {
       uint64_t init_pc;
@@ -97,6 +105,9 @@ void EtActionConfigure::execute(Device *device) {
   }
 
   cpBoot(card_proxy, ETSOC_init, ETSOC_mtrap);
+#else
+  cpBoot(card_proxy, 0, 0);
+#endif
 
   cpDefineDevMem(card_proxy, (uintptr_t)devMemRegionPtr, devMemRegionSize,
                  false);
@@ -133,7 +144,8 @@ void EtActionLaunch::execute(Device *device) {
           "block_dim=(%d,%d,%d)\n",
           kernel_pc, kernel_name.c_str(), demangle(kernel_name).c_str(),
           gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y, blockDim.z);
-
+// FIXME remove the following
+#if 0
   if (kernel_pc == 0) {
     // this is for builtin kernels (calling kernel by name, i.e. kernel_pc == 0)
     kernel_pc = getBuiltinKernelPcByName(kernel_name);
@@ -144,6 +156,7 @@ void EtActionLaunch::execute(Device *device) {
     cpuLaunch(kernel_name, kernel_pc, args_buff);
     return;
   }
+#endif
 
   {
     size_t args_size = args_buff.size();
@@ -168,9 +181,11 @@ void EtActionLaunch::execute(Device *device) {
     cpWriteDevMem(card_proxy, LAUNCH_PARAMS_AREA_BASE, params_size, params_p);
   }
 
+#if 0
   // b4c hack
   if (static_kernels)
     cpLaunch(card_proxy, ETSOC_launch); // b4c - precompiled kernels
   else
-    cpLaunch(card_proxy, kernel_pc); // ETSOC backend - JIT, not covered by b4c
+#endif
+  cpLaunch(card_proxy, kernel_pc); // ETSOC backend - JIT, not covered by b4c
 }

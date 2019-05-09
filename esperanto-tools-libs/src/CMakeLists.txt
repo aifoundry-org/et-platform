@@ -62,8 +62,6 @@ set(ETRT_SOURCES
     Device/TargetCardProxy.cc
     Device/TargetRPC.cc
     Device/TargetSysEmu.cc
-    Cpu/cpu_algo.cc
-    Cpu/cpu_algo_launch.cc
     cpu_algo.h
     registry.h
     eti.h
@@ -71,7 +69,13 @@ set(ETRT_SOURCES
     Support/DeviceGuard.cc
     Target/et_bootrom.cc
 #     et_socket_addr.cc
+)
+if(BUILD_KERNELS)
+  list(APPEND ETRT_SOURCES
+    Cpu/cpu_algo.cc
+    Cpu/cpu_algo_launch.cc
     )
+endif(BUILD_KERNELS)
 
 add_library(etrt SHARED ${ETRT_SOURCES})
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -86,15 +90,18 @@ MESSAGE("GLOG: " ${GLOG_INCLUDE_DIRS})
 target_include_directories(etrt PUBLIC ${GLOG_INCLUDE_DIRS})
 target_include_directories(etrt PUBLIC ${FMTLIB_INCLUDE_DIRS})
 target_link_libraries(etrt pthread)
-add_dependencies(etrt kernels-elf-file)
-add_dependencies(etrt bootrom-file)
 add_dependencies(etrt ${external_project_dependencies})
 target_link_libraries(etrt ${GLOG_LIBRARIES})
 target_link_libraries(etrt ${FMTLIB_LIBRARIES})
 target_link_libraries(etrt ${GFLAGS_LIBRARIES})
-add_dependencies(etrt kernels-offsets)
-add_dependencies(etrt kernels-cdescr)
-add_dependencies(etrt bootrom-cdescr)
+
+if(BUILD_KERNELS)
+  add_dependencies(etrt kernels-elf-file)
+  add_dependencies(etrt bootrom-file)
+  add_dependencies(etrt kernels-offsets)
+  add_dependencies(etrt kernels-cdescr)
+  add_dependencies(etrt bootrom-cdescr)
+endif(BUILD_KERNELS)
 
 
 set(ETCUDA_SOURCES
