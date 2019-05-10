@@ -39,7 +39,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 set(ETRT_SOURCES
   # FIXME the following should be deprecated once we move to the simulator API
-    et_socket_addr.cc
+    etrpc/et_socket_addr.cc
     etrpc/backend.cc
     etrpc/backend-sysemu.cc
     etrpc/et-card-proxy.cc
@@ -67,7 +67,6 @@ set(ETRT_SOURCES
     eti.h
     ComputeCommon/eti.cc
     Support/DeviceGuard.cc
-#     et_socket_addr.cc
 )
 if(BUILD_KERNELS)
   list(APPEND ETRT_SOURCES
@@ -80,6 +79,7 @@ add_library(etrt SHARED ${ETRT_SOURCES})
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Device")
+target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/etrpc")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/")
 target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
 target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../include")
