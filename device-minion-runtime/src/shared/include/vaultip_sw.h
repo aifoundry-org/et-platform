@@ -918,6 +918,15 @@ typedef struct VAULTIP_SUBVECTOR_HEADER_s {
 } VAULTIP_SUBVECTOR_HEADER_t;
 static_assert(4 == sizeof(VAULTIP_SUBVECTOR_HEADER_t), "sizeof(VAULTIP_SUBVECTOR_HEADER_t) is not 4!");
 
+typedef struct VAULTIP_SUBVECTOR_32_s {
+    VAULTIP_SUBVECTOR_HEADER_t header;
+    union {
+        uint32_t u32[1];
+        uint8_t u8[4];
+    } data;
+} VAULTIP_SUBVECTOR_32_t;
+static_assert((4 + 4) == sizeof(VAULTIP_SUBVECTOR_32_t), "sizeof(VAULTIP_SUBVECTOR_32_t) is not 8!");
+
 #define VAULTIP_SUBVECTOR_64_ENTRIES ((64 + 31) / 32)
 typedef struct VAULTIP_SUBVECTOR_64_s {
     VAULTIP_SUBVECTOR_HEADER_t header;
@@ -965,7 +974,7 @@ typedef struct VAULTIP_EC_256_DOMAIN_PARAMETERS_s {
     VAULTIP_SUBVECTOR_256_t curve_order_n;
     VAULTIP_SUBVECTOR_256_t curve_base_point_x;
     VAULTIP_SUBVECTOR_256_t curve_base_point_y;
-    VAULTIP_SUBVECTOR_64_t curve_cofactor;
+    VAULTIP_SUBVECTOR_32_t curve_cofactor;
 } VAULTIP_EC_256_DOMAIN_PARAMETERS_t;
 
 typedef struct VAULTIP_EC_384_DOMAIN_PARAMETERS_s {
@@ -975,7 +984,7 @@ typedef struct VAULTIP_EC_384_DOMAIN_PARAMETERS_s {
     VAULTIP_SUBVECTOR_384_t curve_order_n;
     VAULTIP_SUBVECTOR_384_t curve_base_point_x;
     VAULTIP_SUBVECTOR_384_t curve_base_point_y;
-    VAULTIP_SUBVECTOR_64_t curve_cofactor;
+    VAULTIP_SUBVECTOR_32_t curve_cofactor;
 } VAULTIP_EC_384_DOMAIN_PARAMETERS_t;
 
 typedef struct VAULTIP_EC_521_DOMAIN_PARAMETERS_s {
@@ -985,7 +994,7 @@ typedef struct VAULTIP_EC_521_DOMAIN_PARAMETERS_s {
     VAULTIP_SUBVECTOR_521_t curve_order_n;
     VAULTIP_SUBVECTOR_521_t curve_base_point_x;
     VAULTIP_SUBVECTOR_521_t curve_base_point_y;
-    VAULTIP_SUBVECTOR_64_t curve_cofactor;
+    VAULTIP_SUBVECTOR_32_t curve_cofactor;
 } VAULTIP_EC_521_DOMAIN_PARAMETERS_t;
 
 typedef struct VAULTIP_PUBLIC_KEY_ECDSA_P256_s {
