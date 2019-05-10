@@ -14,11 +14,11 @@
 #include "etrt-bin.h"
 
 #define INCLUDE_FOR_HOST
-#include "../kernels/etlibdevice.h"
+#include "../etlibdevice.h"
 #include "../kernels/sys_inc.h"
 #undef INCLUDE_FOR_HOST
 
-#include "cpu_algo.h"
+//#include "cpu_algo.h"
 #include "demangle.h"
 
 #if 0

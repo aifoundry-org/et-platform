@@ -19,7 +19,6 @@ option(HOST_SW "Enable building for the host-sw repo")
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ETSOC "Build for the ETSOC")
 option(ENABLE_TESTS "Enable tests" ON)
-option(BUILD_KERNELS "Enabling building the old kernels" OFF)
 # To be overwritten in cases where we want to also "release" the external tools
 # used by the runtime
 set(RT_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"

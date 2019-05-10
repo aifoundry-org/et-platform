@@ -47,8 +47,6 @@ set(ETRT_SOURCES
     etrpc/et-rpc.cc
     # --------
     C-API/etrt.cc
-    BLAS/etblas.cc
-    DNN/etdnn.cc
     Core/Commands.cc
     Core/DeviceManager.cc
     Core/Error.cc
@@ -62,10 +60,8 @@ set(ETRT_SOURCES
     Device/TargetCardProxy.cc
     Device/TargetRPC.cc
     Device/TargetSysEmu.cc
-    cpu_algo.h
     registry.h
     eti.h
-    ComputeCommon/eti.cc
     Support/DeviceGuard.cc
 )
 if(BUILD_KERNELS)
@@ -101,18 +97,6 @@ if(BUILD_KERNELS)
   add_dependencies(etrt kernels-cdescr)
   add_dependencies(etrt bootrom-cdescr)
 endif(BUILD_KERNELS)
-
-
-set(ETCUDA_SOURCES
-    ETCuda/interceptors.cc
-)
-
-add_library(etcuda SHARED ${ETCUDA_SOURCES})
-target_include_directories(etcuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
-target_include_directories(etcuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/")
-target_link_libraries(etcuda etrt)
-target_link_libraries(etcuda dl)
-
 
 install(TARGETS etrt
   RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
