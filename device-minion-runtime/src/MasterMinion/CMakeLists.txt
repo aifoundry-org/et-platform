@@ -40,3 +40,7 @@ include_directories(include)
 include_directories(${SHARED_INC_DIR})
 
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
+
+install(TARGETS ${TARGET_NAME}.elf
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware
+  COMPONENT master-minion)
