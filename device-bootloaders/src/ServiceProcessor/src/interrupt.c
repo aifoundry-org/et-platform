@@ -12,24 +12,28 @@
 #include "interrupt.h"
 
 #include "FreeRTOS.h"
-#include "pu_plic.h"
-#include "spio_plic.h"
+#include "etsoc_hal/pu_plic.h"
+#include "etsoc_hal/spio_plic.h"
 #include "task.h"
 
-//TODO FIXME generate these. Copied by hand by wearle 3/20/2019.
-#define SPIO_PLIC_INTR_SRC_CNT                142
-#define PU_PLIC_INTR_SRC_CNT                   33
+#include <stdio.h>
+#include <inttypes.h>
+
+//TODO FIXME generate these. Copied by hand by wearle 5/3/2019.
+#define SPIO_PLIC_INTR_SRC_CNT                156
+#define PU_PLIC_INTR_SRC_CNT                   42
 
 #define SPIO_PLIC_BASE_ADDRESS 0x0050000000ULL
 #define PL_PLIC_BASE_ADDRESS   0x0010000000ULL
 
-#define SPIO_PLIC ((volatile Spio_plic* const)SPIO_PLIC_BASE_ADDRESS)
-#define PU_PLIC ((volatile Pu_plic* const)PL_PLIC_BASE_ADDRESS)
+#define SPIO_PLIC ((volatile Spio_plic_t* const)SPIO_PLIC_BASE_ADDRESS)
+#define PU_PLIC ((volatile Pu_plic_t* const)PL_PLIC_BASE_ADDRESS)
 
 #define PRIORITY_MASK 0x7U
 
 void (*vectorTable[SPIO_PLIC_INTR_SRC_CNT])(void);
 void* pullVectorTable = vectorTable;
+
 static void (*pu_plicVectorTable[PU_PLIC_INTR_SRC_CNT])(void);
 static uint16_t pu_plicEnabledIntCnt;
 
@@ -54,10 +58,10 @@ void INT_init(void)
     //Set thresholds to not mask any interrupts
 
     //SPIO PLIC target 0 is the SP HART0 machine-mode external interrupt
-    SPIO_PLIC->threshold_t0 = 0;
+    SPIO_PLIC->threshold_t0.R = 0;
 
     //PU PLIC target 0 is the SPIO PLIC SPIO_PLIC_PU_PLIC0_INTR input
-    PU_PLIC->threshold_t0 = 0;
+    PU_PLIC->threshold_t0.R = 0;
 
     taskEXIT_CRITICAL();
 }
@@ -71,7 +75,7 @@ void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(v
         //Interrupt comes from SPIO_PLIC. FreeRTOS's freertos_risc_v_trap_handler will call ISR by indexing into vectorTable.
         vectorTable[interrupt] = isr;
 
-        plicEnableInterrupt(&SPIO_PLIC->priority_0, &SPIO_PLIC->enable_t0_r0, (uint32_t)interrupt, priority);
+        plicEnableInterrupt(&SPIO_PLIC->priority_0.R, &SPIO_PLIC->enable_t0_r0.R, (uint32_t)interrupt, priority);
     }
     else
     {
@@ -79,10 +83,10 @@ void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(v
         uint32_t pu_plicIntID = (uint32_t)interrupt - PU_PLIC_NO_INTERRUPT_INTR;
 
         pu_plicVectorTable[pu_plicIntID] = isr;
-        plicEnableInterrupt(&PU_PLIC->priority_0, &PU_PLIC->enable_t0_r0, pu_plicIntID, priority);
+        plicEnableInterrupt(&PU_PLIC->priority_0.R, &PU_PLIC->enable_t0_r0.R, pu_plicIntID, priority);
 
         vectorTable[SPIO_PLIC_PU_PLIC0_INTR] = &pu_plicISR;
-        plicEnableInterrupt(&SPIO_PLIC->priority_0, &SPIO_PLIC->enable_t0_r0, SPIO_PLIC_PU_PLIC0_INTR, 7); //TODO: appropriate priority?
+        plicEnableInterrupt(&SPIO_PLIC->priority_0.R, &SPIO_PLIC->enable_t0_r0.R, SPIO_PLIC_PU_PLIC0_INTR, 7); //TODO: appropriate priority?
 
         ++pu_plicEnabledIntCnt;
     }
@@ -97,7 +101,7 @@ void INT_disableInterrupt(interrupt_t interrupt)
     if (interrupt < PU_PLIC_NO_INTERRUPT_INTR)
     {
         //Interrupt comes from SPIO_PLIC 
-        plicDisableInterrupt(&SPIO_PLIC->priority_0, &SPIO_PLIC->enable_t0_r0, (uint32_t)interrupt);
+        plicDisableInterrupt(&SPIO_PLIC->priority_0.R, &SPIO_PLIC->enable_t0_r0.R, (uint32_t)interrupt);
         vectorTable[interrupt] = NULL;
     }
     else
@@ -105,14 +109,14 @@ void INT_disableInterrupt(interrupt_t interrupt)
         //Interrupt comes from PU_PLIC
         uint32_t pu_plicIntID = (uint32_t)interrupt - PU_PLIC_NO_INTERRUPT_INTR;
 
-        plicDisableInterrupt(&PU_PLIC->priority_0, &PU_PLIC->enable_t0_r0, (uint32_t)pu_plicIntID);
+        plicDisableInterrupt(&PU_PLIC->priority_0.R, &PU_PLIC->enable_t0_r0.R, (uint32_t)pu_plicIntID);
         pu_plicVectorTable[pu_plicIntID] = NULL;
 
         --pu_plicEnabledIntCnt;
 
         if (pu_plicEnabledIntCnt == 0)
         {
-            plicDisableInterrupt(&SPIO_PLIC->priority_0, &SPIO_PLIC->enable_t0_r0, SPIO_PLIC_PU_PLIC0_INTR);
+            plicDisableInterrupt(&SPIO_PLIC->priority_0.R, &SPIO_PLIC->enable_t0_r0.R, SPIO_PLIC_PU_PLIC0_INTR);
             vectorTable[SPIO_PLIC_PU_PLIC0_INTR] = NULL;
         }
     }
@@ -154,7 +158,7 @@ static void pu_plicISR(void)
     //Assumption: FreeRTOS's freertos_risc_v_trap_handler reads SP_PLIC's maxID reg before vectoring here, claiming the SP_PLIC int
 
     //The SP PLIC got an IRQ from the PU PLIC. Claim it.
-    uint32_t pu_plicIntID = PU_PLIC->maxID_t0;
+    uint32_t pu_plicIntID = PU_PLIC->maxID_t0.R;
     
     //An ID of 0 means the PLIC signaled with no interrupts pending
     if (pu_plicIntID == 0) return;
@@ -163,8 +167,8 @@ static void pu_plicISR(void)
     (*pu_plicVectorTable[pu_plicIntID])();
 
     //Tell the PU_PLIC the interrupt is complete and it can signal again
-    //Important: Ignore the Roa Logic docs that say the value doesn't matter; it needs to be the int ID
-    PU_PLIC->maxID_t0 = pu_plicIntID;
+    //Important: it needs to match the int ID read above
+    PU_PLIC->maxID_t0.R = pu_plicIntID;
 
     //Assumption: FreeRTOS's freertos_risc_v_trap_handler will write the SP_PLIC's maxID reg after this returns, 
 }

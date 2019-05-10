@@ -13,9 +13,9 @@
 
 #include <stdint.h>
 
-//TODO FIXME generate these. Copied by hand by wearle 3/20/2019.
-//See esperanto-soc/rtl/../dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
-//and esperanto-soc/rtl/../dv/tests/ioshire/sw/inc/spio_plic_intr_device.h
+//TODO FIXME generate these. Copied by hand by wearle 5/3/2019.
+//See esperanto-soc/dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
+//and esperanto-soc/dv/tests/ioshire/sw/inc/spio_plic_intr_device.h
 
 typedef enum {
     SPIO_PLIC_NO_INTERRUPT_INTR = 0,
@@ -142,6 +142,7 @@ typedef enum {
     SPIO_PLIC_UART1_INTR,
     SPIO_PLIC_GPIO_INTR,
     SPIO_PLIC_WDT_INTR,
+    SPIO_PLIC_PU_WDT_INTR,
     SPIO_PLIC_TIMER0_INTR,
     SPIO_PLIC_TIMER1_INTR,
     SPIO_PLIC_TIMER2_INTR,
@@ -151,6 +152,7 @@ typedef enum {
     SPIO_PLIC_TIMER6_INTR,
     SPIO_PLIC_TIMER7_INTR,
     SPIO_PLIC_CRU_INTR,
+    SPIO_PLIC_CRU_SW_INTR,
     SPIO_PLIC_PVTC0_INTR,
     SPIO_PLIC_PVTC1_INTR,
     SPIO_PLIC_PVTC2_INTR,
@@ -160,6 +162,18 @@ typedef enum {
     SPIO_PLIC_VAULT_INTR,
     SPIO_PLIC_US_DBG_UPSTR_INTR,
     SPIO_PLIC_US_DBG_DOWNSTR_INTR,
+    SPIO_PLIC_SMS_SFP_READY_INTR,
+    SPIO_PLIC_SMS_SFP_FAIL_INTR,
+    SPIO_PLIC_PERSTN_ASSERT_INTR,
+    SPIO_PLIC_PERSTN_DEASSERT_INTR,
+    SPIO_PLIC_RESERVED0_INTR,
+    SPIO_PLIC_RESERVED1_INTR,
+    SPIO_PLIC_RESERVED2_INTR,
+    SPIO_PLIC_RESERVED3_INTR,
+    SPIO_PLIC_RESERVED4_INTR,
+    SPIO_PLIC_RESERVED5_INTR,
+    SPIO_PLIC_RESERVED6_INTR,
+    SPIO_PLIC_RESERVED7_INTR,
     PU_PLIC_NO_INTERRUPT_INTR,
     PU_PLIC_I2C_INTR,
     PU_PLIC_SPI_INTR,
@@ -192,7 +206,16 @@ typedef enum {
     PU_PLIC_PCIE_RADM_INTA_INTR,
     PU_PLIC_PCIE_RADM_INTB_INTR,
     PU_PLIC_PCIE_RADM_INTC_INTR,
-    PU_PLIC_PCIE_RADM_INTD_INTR
+    PU_PLIC_PCIE_RADM_INTD_INTR,
+    PU_PLIC_PCIE_MESSAGE_INTR,
+    PU_PLIC_RESERVED0_INTR,
+    PU_PLIC_RESERVED1_INTR,
+    PU_PLIC_RESERVED2_INTR,
+    PU_PLIC_RESERVED3_INTR,
+    PU_PLIC_RESERVED4_INTR,
+    PU_PLIC_RESERVED5_INTR,
+    PU_PLIC_RESERVED6_INTR,
+    PU_PLIC_RESERVED7_INTR,
 } interrupt_t;
 
 void INT_init(void);
