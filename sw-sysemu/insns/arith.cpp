@@ -61,6 +61,7 @@ void insn_andi(insn_t inst)
 void insn_auipc(insn_t inst)
 {
     DISASM_RD_UIMM("auipc");
+    LOG_PC(":");
     WRITE_RD(PC + UIMM);
 }
 

@@ -60,6 +60,9 @@
 #define LOG_FFLAGS(str, n) \
     LOG(DEBUG, "\tfflags " str " 0x%" PRIx8, uint8_t(n))
 
+#define LOG_PC(str) \
+    LOG(DEBUG, "\tpc " str " 0x%" PRIx64, PC)
+
 #define LOG_GSC_PROGRESS(str) \
     LOG(DEBUG, "\tgsc_progress " str " %u", unsigned(csr_gsc_progress[current_thread]))
 
@@ -403,7 +406,7 @@
 } while (0)
 
 #define DISASM_RD_UIMM(name) \
-    LOG(DEBUG, "I(%c): " name " x%d,0x%" PRIx64, PRVNAME, inst.rd(), UIMM)
+    LOG(DEBUG, "I(%c): " name " x%d,0x%x", PRVNAME, inst.rd(), unsigned((UIMM>>12) & 0xFFFFF))
 
 #define DISASM_RS1(name) do { \
     LOG(DEBUG, "I(%c): " name " x%d", PRVNAME, inst.rs1()); \
