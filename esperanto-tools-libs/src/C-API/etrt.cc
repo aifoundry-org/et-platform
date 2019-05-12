@@ -9,7 +9,6 @@
 
 #include <assert.h>
 #include <memory>
-#include <stdio.h>
 #include <stdlib.h>
 
 using namespace std;
@@ -347,12 +346,7 @@ EXAPI etrtError_t etrtModuleLoad(et_runtime::Module *module, const void *image,
                                  size_t image_size) {
 
   GetDev dev;
-  auto load_res = dev->moduleLoad(image, image_size);
-  if (!load_res) {
-    return load_res.getError();
-  }
-  *module = *load_res.get();
-  return etrtSuccess;
+  return dev->moduleLoad(module, image, image_size);
 }
 
 EXAPI etrtError_t etrtModuleUnload(et_runtime::Module *module) {

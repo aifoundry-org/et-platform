@@ -14,9 +14,7 @@
 #include "Core/DeviceInformation.h"
 #include "Support/ErrorOr.h"
 
-#include <cstdint>
 #include <memory>
-#include <string>
 #include <vector>
 
 namespace et_runtime {

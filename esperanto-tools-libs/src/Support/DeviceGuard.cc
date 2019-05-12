@@ -19,9 +19,10 @@ using namespace et_runtime;
 
 GetDev::GetDev() : dev(getEtDevice()) {
   assert(dev->deviceAlive());
+  dev->mutex_.lock();
 }
 
-GetDev::~GetDev() {  }
+GetDev::~GetDev() { dev->mutex_.unlock(); }
 
 std::shared_ptr<et_runtime::Device> GetDev::getEtDevice() {
   auto device_manager = getDeviceManager();

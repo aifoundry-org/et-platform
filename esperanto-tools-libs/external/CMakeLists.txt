@@ -161,7 +161,7 @@ ExternalProject_Add(sw-sysemu
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu
   CONFIGURE_COMMAND ""
   BUILD_IN_SOURCE ON  # Really sad :(
-  BUILD_COMMAND make -C sys_emu/
+  BUILD_COMMAND make -C sys_emu/build
   BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
   INSTALL_COMMAND mkdir -p ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
                   && cp sys_emu/build/sys_emu ${RT_EXTERNAL_INSTALL_PREFIX}/bin/

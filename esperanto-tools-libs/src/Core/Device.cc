@@ -61,8 +61,27 @@ etrtError Device::resetDevice() {
 
 bool Device::deviceAlive() { return target_device_->alive(); }
 
-void Device::deviceExecute() {
+void Device::deviceThread() {
+  RTINFO << "Starting Device Thread";
+  if (!target_device_->init()) {
+    RTERROR << "Failed to initialize device";
+    std::terminate();
+  }
+
+  while (true) {
+    std::unique_lock<std::mutex> lk(mutex_);
+
     while (true) {
+      if (device_thread_exit_requested_) {
+        if (target_device_->alive()) {
+          if (!target_device_->deinit()) {
+            RTERROR << "Failed to terminate device";
+            std::terminate();
+          }
+        }
+        return;
+      }
+
       EtAction *actionToExecute = nullptr;
       for (auto &it : stream_storage_) {
         EtStream *stream = it.get();
@@ -82,14 +101,18 @@ void Device::deviceExecute() {
       }
 
       // execute action without mutex
+      lk.unlock();
       actionToExecute->execute(this);
       EtAction::decRefCounter(actionToExecute);
+      lk.lock();
     }
 
     if (!target_device_->alive()) {
       return;
     }
 
+    cond_var_.wait(lk);
+  }
 }
 
 bool Device::setBootRom(const std::string &path) {
@@ -121,18 +144,22 @@ void Device::uninitObjects() {
 }
 
 void Device::initDeviceThread() {
-
-  RTINFO << "Starting Device Thread";
-  if (!target_device_->init()) {
-    RTERROR << "Failed to initialize device";
-    std::terminate();
-  }
-
-
+  std::thread th(&Device::deviceThread, this); // starting new thread
+  device_thread_.swap(th); // move thread handler to class field
+  assert(!device_thread_exit_requested_);
 }
 
 void Device::uninitDeviceThread() {
-  target_device_->deinit();
+  assert(!isLocked());
+  {
+    std::lock_guard<std::mutex> lk(mutex_);
+    target_device_->deinit();
+    device_thread_exit_requested_ = true;
+  }
+  cond_var_.notify_one();
+  if (device_thread_.joinable()) {
+    device_thread_.join();
+  }
 }
 
 etrtError_t Device::mallocHost(void **ptr, size_t size) {
@@ -272,39 +299,48 @@ etrtError_t Device::rawLaunch(et_runtime::Module *module,
   return etrtSuccess;
 }
 
-ErrorOr<et_runtime::Module *> Device::moduleLoad(const void *image,
-                                                 size_t image_size) {
+etrtError_t Device::moduleLoad(et_runtime::Module *module, const void *image,
+                               size_t image_size) {
+  {
 
-  auto new_module = this->createModule();
+    auto new_module = this->createModule();
+    module = new_module;
 
-  size_t parsed_elf_size;
-  parse_elf(image, &parsed_elf_size, &new_module->kernel_offset,
-            &new_module->raw_kernel_offset);
-  assert(parsed_elf_size <= image_size);
+    size_t parsed_elf_size;
+    parse_elf(image, &parsed_elf_size, &new_module->kernel_offset,
+              &new_module->raw_kernel_offset);
+    assert(parsed_elf_size <= image_size);
 
-  assert(!loaded_kernels_bin_.count(new_module));
-  EtLoadedKernelsBin &loaded_kernels_bin = loaded_kernels_bin_[new_module];
+    assert(!loaded_kernels_bin_.count(new_module));
+    EtLoadedKernelsBin &loaded_kernels_bin = loaded_kernels_bin_[new_module];
 
-  this->malloc(&loaded_kernels_bin.devPtr, image_size);
+    this->malloc(&loaded_kernels_bin.devPtr, image_size);
 
-  this->addAction(defaultStream_, new EtActionWrite(loaded_kernels_bin.devPtr,
-                                                    image, image_size));
+    this->addAction(defaultStream_, new EtActionWrite(loaded_kernels_bin.devPtr,
+                                                      image, image_size));
 
-  loaded_kernels_bin.actionEvent = new EtActionEvent();
-  loaded_kernels_bin.actionEvent->incRefCounter();
+    loaded_kernels_bin.actionEvent = new EtActionEvent();
+    loaded_kernels_bin.actionEvent->incRefCounter();
 
-  this->addAction(defaultStream_, loaded_kernels_bin.actionEvent);
+    this->addAction(defaultStream_, loaded_kernels_bin.actionEvent);
+  }
 
   etrtStreamSynchronize(nullptr);
 
+  {
+
+    auto et_module = this->getModule(module);
+
+    EtLoadedKernelsBin &loaded_kernels_bin = loaded_kernels_bin_[et_module];
     assert(loaded_kernels_bin.devPtr);
     assert(loaded_kernels_bin.actionEvent);
     assert(loaded_kernels_bin.actionEvent->isExecuted());
     // ELF is already loaded, free actionEvent
     EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
     loaded_kernels_bin.actionEvent = nullptr;
+  }
 
-    return new_module;
+  return etrtSuccess;
 }
 
 etrtError_t Device::moduleUnload(et_runtime::Module *module) {
