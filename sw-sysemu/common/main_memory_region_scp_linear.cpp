@@ -43,15 +43,11 @@ void main_memory_region_scp_linear::read(uint64_t ad, int size, void * data)
 uint64_t main_memory_region_scp_linear::ad_to_l2_scp_ad(uint64_t ad)
 {
     // Gets the L2 Scp offset and shire id
-    uint64_t l2_scp_offset = (((ad >> 11) & 0x1FFFF) << 6)
-                           | (ad & 0x3F);
-    uint64_t shire_id = (((ad >> 28) & 0x3) << 5)
-                      | ((ad >> 6) & 0x1F);
+    uint64_t l2_scp_offset = (((ad >> 11) & 0x1FFFF) << 6) | (ad & 0x3F);
+    uint64_t shire_id = (((ad >> 28) & 0x3) << 5) | ((ad >> 6) & 0x1F);
 
     // Generates new address on regular l2 scp region
-    uint64_t new_ad = L2_SCP_BASE
-                    | (shire_id << 23)
-                    | l2_scp_offset;
+    uint64_t new_ad = L2_SCP_BASE | (shire_id << 23) | l2_scp_offset;
 
     //printf("Original offset is %llx, shire_id %llx\n", (long long unsigned int) l2_scp_offset, (long long unsigned int) shire_id);
     //printf("L2 SCP from %010llx to %010llx\n", (long long unsigned int) ad, (long long unsigned int) new_ad);
