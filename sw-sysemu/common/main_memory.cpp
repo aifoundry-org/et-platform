@@ -24,7 +24,7 @@ main_memory::main_memory(testLog& log_)
     for (int i = 0; i <= EMU_NUM_SHIRES; i++)
     {
         // Need to add the ESR space for the Local Shire.
-        int shire = (i == EMU_NUM_SHIRES) ? 255 : i;
+        int shire = (i == EMU_NUM_SHIRES) ? 255 : ((i == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : i);
 
         // For all the neighs in each shire and the neighborhood broadcast mask
         for (int n = 0; n <= EMU_NEIGH_PER_SHIRE; n++)
