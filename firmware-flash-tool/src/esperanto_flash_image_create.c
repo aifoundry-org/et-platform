@@ -211,13 +211,13 @@ static int create_partition(const PARTITION_INFO_t * partition_info, uint8_t * p
     }
 
     if (partition_info->priority > 0) {
-        set_counter_field(partition_data + regions_map[priority_designator_region_index].region_offset, FLASH_PAGE_SIZE, partition_info->priority);
+        set_counter_field(partition_data + regions_map[priority_designator_region_index].region_offset * FLASH_PAGE_SIZE, FLASH_PAGE_SIZE, partition_info->priority);
     }
     if (partition_info->attempted_boot_counter > 0) {
-        set_counter_field(partition_data + regions_map[boot_counters_region_index].region_offset, FLASH_PAGE_SIZE/2, partition_info->priority);
+        set_counter_field(partition_data + regions_map[boot_counters_region_index].region_offset * FLASH_PAGE_SIZE, FLASH_PAGE_SIZE/2, partition_info->attempted_boot_counter);
     }
     if (partition_info->completed_boot_counter > 0) {
-        set_counter_field(partition_data + regions_map[boot_counters_region_index].region_offset + FLASH_PAGE_SIZE/2, FLASH_PAGE_SIZE/2, partition_info->priority);
+        set_counter_field(partition_data + regions_map[boot_counters_region_index].region_offset * FLASH_PAGE_SIZE + FLASH_PAGE_SIZE/2, FLASH_PAGE_SIZE/2, partition_info->completed_boot_counter);
     }
 
     partition_header.partition_tag = ESPERANTO_PARTITION_TAG;
