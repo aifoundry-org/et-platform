@@ -7,6 +7,12 @@
 #include "esperanto_flash_image.h"
 #include "esperanto_executable_image.h"
 
+#define ULL_PER_PAGE (FLASH_PAGE_SIZE / sizeof(unsigned long long))
+typedef union PAGE_DATA_u {
+    unsigned long long ull[ULL_PER_PAGE];
+    uint8_t b[FLASH_PAGE_SIZE];
+} PAGE_DATA_t;
+
 typedef struct ESPERANTO_PARTITION_INFO_s {
     // partition header loaded from flash
     ESPERANTO_FLASH_PARTITION_HEADER_t header;
@@ -21,6 +27,10 @@ typedef struct ESPERANTO_PARTITION_INFO_s {
     uint32_t vaultip_fw_region_index;
     uint32_t sp_certificates_region_index;
     uint32_t sp_bl1_region_index;
+
+    // priority and boot counters data
+    PAGE_DATA_t priority_designator_region_data;
+    PAGE_DATA_t boot_counters_region_data;
 
     // partition priority counter value read from the PRIORITY DESIGNATOR region
     uint32_t priority_counter;
