@@ -415,21 +415,21 @@ float32_t f32_exp2(float32_t a)
 
     uint64_t c2 = texp[idx][0];
     uint64_t c1 = texp[idx][1] * (1 << 19);
-    uint64_t c0 = ( ((uint64_t)texp[idx][2]) << 19);
+    uint64_t c0 = ( ((uint64_t)texp[idx][2]) << 28); // Previously shifted 19, adjusted to 28 to match RTL
     //printf("C2: 0x%016lx\tC1: 0x%016lx\tC0: 0x%016lx\n", c2, c1, c0);
 
     uint64_t mul1 = c2*x2;
     uint64_t fma1 = mul1 + c1 + (1 << 5); //TODO: check rounding at bit 5, used to be at bit 14
     //printf("MUL1: 0x%016lx\tFMA1: 0x%016lx\n", mul1, fma1);
 
-    uint64_t mul2 = ((fma1 >> 15) % (1 << 23))*x2;
+    uint64_t mul2 = ((fma1 >> 6) % (((uint64_t)1) << 32))*x2; //Previously shifted 15 & cut 23, adjusted to 6 & 32 to match RTL
     uint64_t fma2 = mul2 + c0;
-    //printf("FMA1_part: 0x%016lx\n", ((fma1>>15) % (1 << 23)));
+    //printf("FMA1_part: 0x%016lx\n", ((fma1>> 6) % (((uint64_t)1) << 32))); 
     //printf("MUL2: 0x%016lx\tFMA2: 0x%016lx\n", mul2, fma2);
 
-    uint32_t full_result = (fma2 >> 21) % (1 << 24);
+    uint32_t full_result = (fma2 >> 30) % (1 << 24); //Previously shifted 21, adjusted to 30 to match RTL
     if(in_Denorm && (in_integer >= 126) && (in_integer <= 148)){
-        full_result = ((fma2 >> ((in_integer - 125) + 21)) + (1 << (24 - (in_integer - 125)))) % (1 << 24);
+        full_result = ((fma2 >> ((in_integer - 125) + 30)) + (1 << (24 - (in_integer - 125)))) % (1 << 24); //Previously +21, adjusted to 30 to match RTL
     }
     ////printf("FULL_RESULT: 0x%016lx\n", full_result);
 
