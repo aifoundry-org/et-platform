@@ -19,7 +19,7 @@ set(SOURCES
     src/swi.c
     src/exception.c
     src/main.c
-    src/worker.c
+    src/kernel.c
     src/test_kernels.c
     ${SHARED_SRC_DIR}/message.c
     )
@@ -30,7 +30,7 @@ set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
 
 include_directories(include)
-include_directories(${SHARED_INC_DIR})
+include_directories(${SHARED_INC_DIRS})
 
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
 

@@ -1,13 +1,7 @@
 .extern __bss_start
 .extern __bss_end
 
-#ifndef STACK_SIZE
-#define STACK_SIZE 768
-#endif
-
-#ifndef STACK_BASE
-#define STACK_BASE 0x8000200000 - STACK_SIZE
-#endif
+#include "layout.h"
 
 .section .text.init, "ax", @progbits
 .global _start
@@ -21,9 +15,10 @@ _start:
 
     # set the stack pointer, different for each thread
     csrr  a0, mhartid
-    li    a1, STACK_SIZE
+    li    a1, FW_MMODE_STACK_SIZE
     mul   a0, a0, a1
-    li    sp, STACK_BASE
+    addi  a0, a0, 8 # 1st stack element reserved as scratch region for traps, init sp to point ot it
+    li    sp, FW_MMODE_STACK_BASE
     sub   sp, sp, a0
 
     # zero out the bss section

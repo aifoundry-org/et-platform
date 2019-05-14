@@ -17,7 +17,7 @@ void test_prefetch_kernel(void)
 #ifdef NO_CREDITS
     asm volatile ("wfi");
 #else
-    const unsigned int this_minion_id_bitmask = 1U << get_minion_id();
+    const uint64_t this_minion_id_bitmask = 1ULL << get_minion_id();
     //register unsigned int cycles = 0;
 
 #ifndef NO_CREDITS
