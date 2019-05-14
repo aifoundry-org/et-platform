@@ -29,7 +29,7 @@ set(ZEBU_TARGET ROM) # change to SP_RAM eventually
 set(ZEBU_FILENAME romImage)
 
 include_directories(include)
-include_directories(${SHARED_INC_DIR})
+include_directories(${SHARED_INC_DIRS})
 include_directories(${FREERTOS_INC_DIRS})
 
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
