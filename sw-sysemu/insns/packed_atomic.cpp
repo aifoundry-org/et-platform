@@ -46,7 +46,7 @@ void insn_famoandg_pi(insn_t inst)
 void insn_famoandl_pi(insn_t inst)
 {
     DISASM_AMO_FD_FS1_RS2("famoandl.pi");
-    GSCAMO(mmu_local_atomic64(RS2 + FS1.i32[e], FD.u32[e], std::bit_and<uint64_t>()));
+    GSCAMO(mmu_local_atomic32(RS2 + FS1.i32[e], FD.u32[e], std::bit_and<uint32_t>()));
 }
 
 
@@ -158,7 +158,7 @@ void insn_famoswapg_pi(insn_t inst)
 void insn_famoswapl_pi(insn_t inst)
 {
     DISASM_AMO_FD_FS1_RS2("famoswapl.pi");
-    GSCAMO(mmu_local_atomic64(RS2 + FS1.i32[e], FD.u32[e], replace<uint64_t>()));
+    GSCAMO(mmu_local_atomic32(RS2 + FS1.i32[e], FD.u32[e], replace<uint32_t>()));
 }
 
 
