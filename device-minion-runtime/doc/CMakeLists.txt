@@ -25,4 +25,6 @@ add_custom_target( doc ALL
 
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/docs/html
   DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/doc
-  COMPONENT doc)
+  COMPONENT doc
+  EXCLUDE_FROM_ALL
+  )
