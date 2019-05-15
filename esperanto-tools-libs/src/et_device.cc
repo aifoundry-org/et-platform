@@ -10,6 +10,8 @@
 #include "../kernels/sys_inc.h"
 #undef INCLUDE_FOR_HOST
 
+EtDevice *my_et_device = NULL;
+
 bool EtMemRegion::isPtrAlloced(const void *ptr)
 {
     if ( alloced_ptrs.count( ptr) > 0 )
@@ -246,5 +248,8 @@ void EtDevice::uninitMemRegions()
 
     munmap(dev_mem_region->region_base, dev_mem_region->region_size);
     dev_mem_region.reset(nullptr);
+
+    munmap(kernels_dev_mem_region->region_base, kernels_dev_mem_region->region_size);
+    kernels_dev_mem_region.reset(nullptr);
 }
 
