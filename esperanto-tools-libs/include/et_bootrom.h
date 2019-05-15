@@ -6,5 +6,6 @@
 
 EXAPI unsigned char** etrtGetEtBootrom();
 EXAPI size_t* etrtGetEtBootromSize();
+EXAPI void etrtKillDevice();
 
 #endif //ET_BOOTROM_H
