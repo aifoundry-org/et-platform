@@ -11,7 +11,7 @@ class main_memory_region_esr : public main_memory_region
 {
 public:
     // Constructors and destructors
-    main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_th, bool allocate_data = true);
+    main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_th);
     ~main_memory_region_esr();
 
     // read and write

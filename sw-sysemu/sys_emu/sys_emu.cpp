@@ -12,6 +12,7 @@
 #include "emu.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
+#include "esrs.h"
 #include "mmu.h"
 #include "insn.h"
 #include "common/main_memory.h"
@@ -828,12 +829,14 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     // Setup for all minions
 
     // For all the shires
-    for (int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
+    for (int s = 0; s < EMU_NUM_SHIRES; s++)
     {
+       reset_esrs_for_shire(s);
+
        // Skip disabled shire
        if (((shires_en >> s) & 1) == 0) continue;
        // Skip master shire if not enabled
-       if ((cmd_options.master_min == 0) && (s >= EMU_NUM_COMPUTE_SHIRES)) continue;
+       if ((cmd_options.master_min == 0) && (s >= EMU_MASTER_SHIRE)) continue;
 
        // For all the minions
        for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
@@ -843,16 +846,15 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 
           // Inits threads
           for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
-             thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-             LOG_OTHER(DEBUG, thread_id, "%s", "Resetting");
-             current_pc[thread_id] = cmd_options.reset_pc;
-             reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
-             set_thread(thread_id);
-             init(x0, 0);
+             int t = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+             LOG_OTHER(DEBUG, t, "%s", "Resetting");
+             current_pc[t] = cmd_options.reset_pc;
+             reduce_state_array[t / EMU_THREADS_PER_MINION] = Reduce_Idle;
+             reset_hart(t);
+             set_thread(t);
              minit(m0, 255);
-             initcsr(thread_id);
              // Puts thread id in the active list
-             if(!cmd_options.mins_dis) enabled_threads.push_back(thread_id);
+             if(!cmd_options.mins_dis) enabled_threads.push_back(t);
              if(!cmd_options.second_thread) break; // single thread per minion
           }
        }

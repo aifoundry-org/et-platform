@@ -8,7 +8,6 @@
 // Local
 #include "elfio/elfio.hpp"
 #include "main_memory_region.h"
-#include "main_memory_region_rbox.h"
 
 class main_memory
 {
@@ -68,8 +67,6 @@ class main_memory
 
        testLog& log;
        main_memory_region::func_ptr_get_thread getthread;
-
-       main_memory_region_rbox *rbox;
 
        bool runtime_mem_regions = false;
 };

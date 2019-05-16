@@ -2,9 +2,9 @@
 #include <fstream>
 
 // Local
+#include "esrs.h"
 #include "main_memory.h"
 #include "main_memory_region_atomic.h"
-#include "main_memory_region_rbox.h"
 #include "main_memory_region_esr.h"
 #include "main_memory_region_printf.h"
 #include "main_memory_region_scp.h"
@@ -29,7 +29,7 @@ main_memory::main_memory(testLog& log_)
         // For all the neighs in each shire and the neighborhood broadcast mask
         for (int n = 0; n <= EMU_NEIGH_PER_SHIRE; n++)
         {
-            int neigh = (n == EMU_NEIGH_PER_SHIRE) ? (ESR_REGION_NEIGH_BROADCAST >> ESR_REGION_NEIGH_SHIFT) : n;
+            int neigh = (n == EMU_NEIGH_PER_SHIRE) ? ESR_REGION_NEIGH_BROADCAST : n;
             main_memory_region_esr * neigh_esrs;
 
             // Neigh ESRs (U-mode)
@@ -50,7 +50,7 @@ main_memory::main_memory(testLog& log_)
         }
 
         // RBOX ESRs (U-mode)
-        main_memory_region_rbox * rbox_esrs  = new main_memory_region_rbox(ESR_RBOX(shire, RBOX_U0), 128*1024, log, getthread);
+        main_memory_region_esr* rbox_esrs = new main_memory_region_esr(this, ESR_RBOX(shire, RBOX_U0), 128*1024, log, getthread);
         regions_.push_back(rbox_esrs);
 
         main_memory_region_esr* shire_esrs;
@@ -70,12 +70,13 @@ main_memory::main_memory(testLog& log_)
         // L2 scratchpad
         // NB: Here we assume that all banks have the same ESR value!
         //log << LOG_DEBUG << "S" << shire << ": Creating L2SCP region [0x" << hex << (L2_SCP_BASE + (shire & 0x7F)*L2_SCP_OFFSET) << ", 0x" << (L2_SCP_BASE + (shire & 0x7F)*L2_SCP_OFFSET + L2_SCP_SIZE) << ")" << dec << endm;
-        main_memory_region_scp* l2_scp = new main_memory_region_scp(this, L2_SCP_BASE + (shire & 0x7F) *L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread, cb_esrs[0], (shire != 255));
+        main_memory_region_scp* l2_scp = new main_memory_region_scp(this, L2_SCP_BASE + (shire & 0x7F) * L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread,
+                                                                    (shire != 255) ? &shire_cache_esrs[shire] : nullptr, (shire != 255));
         regions_.push_front(l2_scp);
 
         // HART ESRs (U-mode)
         // NB: This only maps message ports, there are no other ESRs
-        main_memory_region_esr* hart_esrs = new main_memory_region_esr(this, ESR_HART(shire, 0, HART_U0), 1024 * 1024, log, getthread, false);
+        main_memory_region_esr* hart_esrs = new main_memory_region_esr(this, ESR_HART(shire, 0, HART_U0), 1024 * 1024, log, getthread);
         regions_.push_back(hart_esrs);
     }
 
