@@ -9,19 +9,11 @@
 *-------------------------------------------------------------------------
 */
 
-// printx.h
+#ifndef __BL1_MAIN_H__
+#define __BL1_MAIN_H__
 
-#ifndef __PRINTX_H__
-#define __PRINTX_H__
+#include "service_processor_BL1_data.h"
 
-#include <stdint.h>
-#include <stdarg.h>
-#include <stdlib.h>
-
-int printx(const char *format, ...);
-int snprintx(char *str, size_t size, const char *format, ...);
-
-//int vprintx(const char *format, va_list ap);
-//int vsnprintx(char *str, size_t size, const char *format, va_list ap);
+SERVICE_PROCESSOR_BL1_DATA_t * get_service_processor_bl1_data(void);
 
 #endif

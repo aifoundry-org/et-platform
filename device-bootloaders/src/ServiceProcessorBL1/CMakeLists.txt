@@ -6,14 +6,24 @@ set(SOURCES
     src/bl1_entry.S
     src/bl1_init_handler.S
     src/bl1_main.c
-    src/bl1_printx.c
+    src/printx.c
     ${SHARED_SRC_DIR}/serial.c
     src/bl1_trap_handler.c
-    src/bl1_trap_handler.S)
+    src/bl1_trap_handler.S
+    src/bl1_spi_controller.c
+    src/bl1_spi_flash.c
+    src/bl1_flash_fs.c
+    src/crc32.c
+    ${SHARED_SRC_DIR}/constant_memory_compare.c
+    src/memory_copy_8x32.S
+    src/bl1_crypto.c
+    src/bl1_sp_certificates.c
+    src/bl1_sp_firmware_loader.c
+    src/bl1_vaultip_controller.c)
 
 set(TARGET_NAME ServiceProcessorBL1)
 set(LINKER_SCRIPT src/bl1_sections.ld)
-set(ZEBU_TARGET ROM) # change to SP_RAM eventually
+set(ZEBU_TARGET SP_RAM)
 set(ZEBU_FILENAME ServiceProcessorBL1)
 
 include_directories(include)

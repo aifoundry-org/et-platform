@@ -9,19 +9,15 @@
 *-------------------------------------------------------------------------
 */
 
-// printx.h
-
-#ifndef __PRINTX_H__
-#define __PRINTX_H__
+#ifndef __BL1_SP_CERTIFICATES_H__
+#define __BL1_SP_CERTIFICATES_H__
 
 #include <stdint.h>
-#include <stdarg.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
-int printx(const char *format, ...);
-int snprintx(char *str, size_t size, const char *format, ...);
+#include "service_processor_BL1_data.h"
 
-//int vprintx(const char *format, va_list ap);
-//int vsnprintx(char *str, size_t size, const char *format, va_list ap);
+int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
 
 #endif
