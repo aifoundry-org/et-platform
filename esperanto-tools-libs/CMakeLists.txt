@@ -8,155 +8,116 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
+
+project(EsperantoRuntime VERSION 0.1.0 LANGUAGES CXX C)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+option(HOST_SW "Enable building for the host-sw repo")
+
+option(BUILD_SHARED_LIBS "Build shared libs." ON)
+option(ETSOC "Build for the ETSOC")
+option(ENABLE_TESTS "Enable tests" ON)
+# To be overwritten in cases where we want to also "release" the external tools
+# used by the runtime
+set(RT_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
+  CACHE PATH "Instalatin path of external dependencies")
 
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR=" ${CMAKE_CURRENT_SOURCE_DIR})
 message(STATUS "CMAKE_CURRENT_BINARY_DIR=" ${CMAKE_CURRENT_BINARY_DIR})
+message(STATUS "HOST_SW=" ${HOST_SW})
+message(STATUS "ETSOC=" ${ETSOC})
+message(STATUS "ENABLE_TESTS=" ${ENABLE_TESTS})
 
-include(ExternalProject)
-
-# Add the device-api as an external project that we build from source
-include(ExternalProject)
-
-# FIXME device-api disabled in esperanto-soc because of cloning permision
-# issues
-# ExternalProject_Add(device-api
-#  PREFIX device-api
-#  GIT_REPOSITORY git@gitlab:software/device-api.git
-#  GIT_TAG 29f910a5744dfdfe1f0f5e408382117b5cb6f44d
-#  )
-
-
-# FIXME Remove external dependency to the SDK
-ExternalProject_Add(sdk
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../sdk
-  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdk
-  INSTALL_DIR ${CMAKE_CURRENT_BINARY_DIR}/sdk-install
-  CMAKE_ARGS all
-  INSTALL_COMMAND ""
-  )
-LINK_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/sdk)
-
-option(BUILD_SHARED_LIBS "Build shared libs." ON)
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "No build type selected, default to Debug")
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type." FORCE)
 endif()
 
-set(kernels_elf_file "${CMAKE_CURRENT_BINARY_DIR}/net_test")
-set(kernels_offsets_hdr "${CMAKE_CURRENT_BINARY_DIR}/kernels_offsets.h")
-set(kernels_cdescr_file "${CMAKE_CURRENT_BINARY_DIR}/kernels_cdescr.inc")
-set(kernels_symbol_name "gEtKernelsElf")
+set(external_project_dependencies "" CACHE STRING "External project list")
 
-set(bootrom_file "${CMAKE_CURRENT_BINARY_DIR}/bootrom")
-set(bootrom_cdescr_file "${CMAKE_CURRENT_BINARY_DIR}/bootrom_cdescr.inc")
-set(bootrom_symbol_name "gEtBootrom")
+# Add rules for auto-generated headers.
+add_subdirectory(include)
 
-set(GEN_KERNELS_OFFSETS_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_entry_points.sh")
-set(GEN_KERNELS_CDESCR_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_cdescr.sh")
+################################################################################
+#                           Kernel build rules
+################################################################################
 
-#message(STATUS "GEN_KERNELS_OFFSETS_SCRIPT=${GEN_KERNELS_OFFSETS_SCRIPT}")
-#message(STATUS "GEN_KERNELS_CDESCR_SCRIPT=${GEN_KERNELS_CDESCR_SCRIPT}")
+if (BUILD_KERNELS)
+  set(kernels_elf_file "${CMAKE_CURRENT_BINARY_DIR}/net_test")
+  set(kernels_offsets_hdr "${CMAKE_CURRENT_BINARY_DIR}/kernels_offsets.h")
+  set(kernels_cdescr_file "${CMAKE_CURRENT_BINARY_DIR}/kernels_cdescr.inc")
+  set(kernels_symbol_name "gEtKernelsElf")
 
-add_custom_command(OUTPUT ${kernels_offsets_hdr}
-        COMMAND ${GEN_KERNELS_OFFSETS_SCRIPT} ${kernels_elf_file} ${kernels_offsets_hdr}
-        DEPENDS ${GEN_KERNELS_OFFSETS_SCRIPT} ${kernels_elf_file}
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        COMMENT "Generating ${kernels_offsets_hdr}")
-add_custom_command(OUTPUT ${kernels_cdescr_file}
-        COMMAND ${GEN_KERNELS_CDESCR_SCRIPT} ${kernels_elf_file} ${kernels_cdescr_file} ${kernels_symbol_name}
-        DEPENDS ${GEN_KERNELS_CDESCR_SCRIPT} ${kernels_elf_file}
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        COMMENT "Generating ${kernels_cdescr_file}")
-add_custom_command(OUTPUT ${bootrom_cdescr_file}
-        COMMAND ${GEN_KERNELS_CDESCR_SCRIPT} ${bootrom_file} ${bootrom_cdescr_file} ${bootrom_symbol_name}
-        DEPENDS ${GEN_KERNELS_CDESCR_SCRIPT} ${bootrom_file}
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        COMMENT "Generating ${bootrom_cdescr_file}")
-add_custom_target(kernels-offsets ALL
-        DEPENDS ${kernels_offsets_hdr})
-add_custom_target(kernels-cdescr ALL
-        DEPENDS ${kernels_cdescr_file})
-add_custom_target(bootrom-cdescr ALL
-        DEPENDS ${bootrom_cdescr_file})
+  set(bootrom_file "${CMAKE_CURRENT_BINARY_DIR}/bootrom")
+  set(bootrom_cdescr_file "${CMAKE_CURRENT_BINARY_DIR}/bootrom_cdescr.inc")
+  set(bootrom_symbol_name "gEtBootrom")
 
-if(NOT RV_TOOLCHAIN)
+  set(GEN_KERNELS_OFFSETS_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_entry_points.sh")
+  set(GEN_KERNELS_CDESCR_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_cdescr.sh")
+
+
+  if(NOT RV_TOOLCHAIN)
     set(RV_TOOLCHAIN "$ENV{RISCV}" CACHE FILEPATH "RISCV toolchain location")
-endif()
-if(NOT RV_TOOLCHAIN)
+  endif()
+  if(NOT RV_TOOLCHAIN)
     message(FATAL_ERROR "RISCV toolchain location not set\n"
-                        "Use RV_TOOLCHAIN parameter (cmake <path> -DRV_TOOLCHAIN=<path>)\n"
-                        "Or use RISCV environment variable (RISCV=<path> cmake <path>)")
-endif()
-message(STATUS "RISCV toolchain location: ${RV_TOOLCHAIN}")
+      "Use RV_TOOLCHAIN parameter (cmake <path> -DRV_TOOLCHAIN=<path>)\n"
+      "Or use RISCV environment variable (RISCV=<path> cmake <path>)")
+  endif()
+  message(STATUS "RISCV toolchain location: ${RV_TOOLCHAIN}")
 
-set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
-if(ETSOC)
-    #Neuralizer-produced ELF file copied already to the build dir
-    add_custom_target(kernels-elf
-        #Empty custom target
-    )
-else()
-    add_custom_target(kernels-elf ALL MAKEFLAGS= make TOOLCHAIN=${RV_TOOLCHAIN} OUTDIR=${CMAKE_CURRENT_BINARY_DIR}
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/kernels"
-            COMMENT "Building kernels ELF file: ${kernels_elf_file}")
-endif()
+  add_custom_command(OUTPUT ${kernels_elf_file} ${bootrom_file}
+    COMMAND MAKEFLAGS=  make TOOLCHAIN=${RV_TOOLCHAIN} OUTDIR=${CMAKE_CURRENT_BINARY_DIR} INC_DIR=${CMAKE_CURRENT_BINARY_DIR}/include
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/kernels"
+    COMMENT "Building kernels ELF file: ${kernels_elf_file}")
 
-add_dependencies(kernels-offsets kernels-elf)
-add_dependencies(kernels-cdescr kernels-elf)
-add_dependencies(bootrom-cdescr kernels-elf)
+  add_custom_command(OUTPUT ${kernels_offsets_hdr}
+    COMMAND ${GEN_KERNELS_OFFSETS_SCRIPT} ${kernels_elf_file} ${kernels_offsets_hdr}
+    DEPENDS ${GEN_KERNELS_OFFSETS_SCRIPT} ${kernels_elf_file}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Generating ${kernels_offsets_hdr}")
 
-if (HOST_SW)
-  add_library(etrpc STATIC IMPORTED)
-  set_property(TARGET etrpc
-    PROPERTY IMPORTED_LOCATION
-    ${CMAKE_CURRENT_SOURCE_DIR}/../artifacts/sdk-build/build/libetrpc.a)
-endif(HOST_SW)
+  add_custom_command(OUTPUT ${kernels_cdescr_file}
+    COMMAND ${GEN_KERNELS_CDESCR_SCRIPT} ${kernels_elf_file} ${kernels_cdescr_file} ${kernels_symbol_name}
+    DEPENDS ${GEN_KERNELS_CDESCR_SCRIPT} ${kernels_elf_file}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Generating ${kernels_cdescr_file}")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden -fPIC -std=c++11 -Wall")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
+  add_custom_command(OUTPUT ${bootrom_cdescr_file}
+    COMMAND ${GEN_KERNELS_CDESCR_SCRIPT} ${bootrom_file} ${bootrom_cdescr_file} ${bootrom_symbol_name}
+    DEPENDS ${GEN_KERNELS_CDESCR_SCRIPT} ${bootrom_file}
+    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMENT "Generating ${bootrom_cdescr_file}")
 
-set(ETRT_SOURCES
-    src/etrt.cc
-    src/etblas.cc
-    src/etdnn.cc
-    src/et_device.cc
-    src/et_stream.cc
-    src/et_event.cc
-    src/cpu_algo.cc
-    src/cpu_algo_launch.cc
-    src/registry.h
-    src/registry.cc
-    src/eti.h
-    src/eti.cc
-    src/et_bootrom.cc
-)
-add_library(etrt SHARED ${ETRT_SOURCES})
-target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
-if (HOST_SW)
-  target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../artifacts/sdk-build/build")
-else()
-  target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../sdk")
-  add_dependencies(etrt sdk)
-endif(HOST_SW)
-target_link_libraries(etrt pthread)
-target_link_libraries(etrt etrpc)
-add_dependencies(etrt kernels-offsets)
-add_dependencies(etrt kernels-cdescr)
-add_dependencies(etrt bootrom-cdescr)
+  add_custom_target(kernels-elf-file ALL
+    DEPENDS ${kernels_elf_file})
 
-set(ETCUDA_SOURCES
-    src/interceptors.cc
-)
+  add_custom_target(bootrom-file ALL
+    DEPENDS ${bootrom_file})
 
-add_library(etcuda SHARED ${ETCUDA_SOURCES})
-target_include_directories(etcuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(etcuda etrt)
-target_link_libraries(etcuda dl)
+  add_custom_target(kernels-offsets ALL
+    DEPENDS ${kernels_offsets_hdr})
 
+  add_custom_target(kernels-cdescr ALL
+    DEPENDS ${kernels_cdescr_file})
 
-install(TARGETS etrt
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib)
-install(DIRECTORY include DESTINATION ".")
+  add_custom_target(bootrom-cdescr ALL
+    DEPENDS ${bootrom_cdescr_file})
+
+  set(ALLOW_DUPLICATE_CUSTOM_TARGETS TRUE)
+
+endif(BUILD_KERNELS)
+
+################################################################################
+#                           Add Other subdirectories
+################################################################################
+
+add_subdirectory(docs)
+add_subdirectory(external)
+add_subdirectory(src)
+if (ENABLE_TESTS)
+  add_subdirectory(tests)
+  add_subdirectory(tools)
+endif(ENABLE_TESTS)
