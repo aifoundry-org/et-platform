@@ -8,6 +8,10 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+set (FILE_VERSION_MAJOR 0)
+set (FILE_VERSION_MINOR 0)
+set (FILE_REVISION_NUMBER 1)
+
 # Add the device_api submodule as an external project. The code-generator code needs to always
 # compile for the host. CMake does not support having different targets use
 # different toolchains in the same build. For simplicity submodules that are self
