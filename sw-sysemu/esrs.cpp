@@ -14,6 +14,10 @@
 
 #define ESR_FILTER_IPI_RESET_VAL                0xFFFFFFFFFFFFFFFFULL
 #define ESR_SHIRE_CONFIG_CONST_RESET_VAL        0x392A000
+#define ESR_SHIRE_CACHE_RAM_CFG1_RESET_VAL      0xE800340
+#define ESR_SHIRE_CACHE_RAM_CFG2_RESET_VAL      0x3A0
+#define ESR_SHIRE_CACHE_RAM_CFG3_RESET_VAL      0xD000340
+#define ESR_SHIRE_CACHE_RAM_CFG4_RESET_VAL      0xD0003A0
 
 
 neigh_esrs_t        neigh_esrs[EMU_NUM_NEIGHS];
@@ -58,6 +62,10 @@ void shire_other_esrs_t::reset(unsigned shire)
     }
     ipi_redirect_filter = ESR_FILTER_IPI_RESET_VAL;
     ipi_trigger = 0;
+    shire_cache_ram_cfg1 = ESR_SHIRE_CACHE_RAM_CFG1_RESET_VAL;
+    shire_cache_ram_cfg3 = ESR_SHIRE_CACHE_RAM_CFG3_RESET_VAL;
+    shire_cache_ram_cfg4 = ESR_SHIRE_CACHE_RAM_CFG4_RESET_VAL;
+    shire_cache_ram_cfg2 = ESR_SHIRE_CACHE_RAM_CFG2_RESET_VAL;
     shire_config = ESR_SHIRE_CONFIG_CONST_RESET_VAL | shire;
     minion_feature = 0;
 }

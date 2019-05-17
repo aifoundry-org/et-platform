@@ -193,6 +193,7 @@
 #define ESR_SHIRE_S0              0x0140340000ULL /* PP = 0b01 */
 #define ESR_SHIRE_M0              0x01C0340000ULL /* PP = 0b11 */
 #define ESR_MINION_FEATURE        0x01C0340000ULL /* PP = 0b11 */
+#define ESR_SHIRE_CONFIG          0x01C0340008ULL /* PP = 0b11 */
 #define ESR_IPI_REDIRECT_TRIGGER  0x0100340080ULL /* PP = 0b00 */
 #define ESR_IPI_REDIRECT_FILTER   0x01C0340088ULL /* PP = 0b11 */
 #define ESR_IPI_TRIGGER           0x01C0340090ULL /* PP = 0b11 */
@@ -234,6 +235,10 @@
 #define ESR_FAST_LOCAL_BARRIER30  0x01003401F0ULL /* PP = 0b00 */
 #define ESR_FAST_LOCAL_BARRIER31  0x01003401F8ULL /* PP = 0b00 */
 #define ESR_SHIRE_COOP_MODE       0x0140340290ULL /* PP = 0b01 */
+#define ESR_SHIRE_CACHE_RAM_CFG1  0x01C03402A0ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_RAM_CFG2  0x01C03402A8ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_RAM_CFG3  0x01C03402B0ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_RAM_CFG4  0x01C03402B8ULL /* PP = 0b11 */
 #define ESR_ICACHE_UPREFETCH      0x01003402F8ULL /* PP = 0b00 */
 #define ESR_ICACHE_SPREFETCH      0x0140340300ULL /* PP = 0b01 */
 #define ESR_ICACHE_MPREFETCH      0x01C0340308ULL /* PP = 0b11 */
@@ -318,6 +323,10 @@ struct shire_other_esrs_t {
     //uint64_t icache_uprefetch;
     uint64_t ipi_redirect_filter;
     uint64_t ipi_trigger;
+    uint64_t shire_cache_ram_cfg1;
+    uint64_t shire_cache_ram_cfg3;
+    uint64_t shire_cache_ram_cfg4;
+    uint32_t shire_cache_ram_cfg2;
     uint32_t shire_config;
     uint8_t  minion_feature;
     //bool     shire_coop_mode;

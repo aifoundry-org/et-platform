@@ -347,6 +347,10 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 value &= 0x3f;
                 shire_other_esrs[idx].minion_feature = uint8_t(value);
                 break;
+            case ESR_SHIRE_CONFIG:
+                value &= 0x3ffffff;
+                shire_other_esrs[idx].shire_config = uint32_t(value);
+                break;
             case ESR_IPI_REDIRECT_TRIGGER:
                 LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI_REDIRECT");
                 sys_emu::send_ipi_redirect_to_threads(shire, value);
@@ -418,6 +422,22 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 break;
             case ESR_SHIRE_COOP_MODE:
                 write_shire_coop_mode(shire, value);
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG1:
+                value &= 0xfffffffffull;
+                shire_other_esrs[idx].shire_cache_ram_cfg1 = value;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG2:
+                value &= 0x3ffff;
+                shire_other_esrs[idx].shire_cache_ram_cfg2 = uint32_t(value);
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG3:
+                value &= 0xfffffffffull;
+                shire_other_esrs[idx].shire_cache_ram_cfg3 = value;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG4:
+                value &= 0xfffffffffull;
+                shire_other_esrs[idx].shire_cache_ram_cfg4 = value;
                 break;
             case ESR_ICACHE_UPREFETCH:
                 write_icache_prefetch(CSR_PRV_U, shire, value);
@@ -660,6 +680,9 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
             case ESR_MINION_FEATURE:
                 *ptr = shire_other_esrs[idx].minion_feature;
                 break;
+            case ESR_SHIRE_CONFIG:
+                *ptr = shire_other_esrs[idx].shire_config;
+                break;
             case ESR_IPI_REDIRECT_TRIGGER:
                 *ptr = 0;
                 break;
@@ -712,6 +735,18 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
                 break;
             case ESR_SHIRE_COOP_MODE:
                 *ptr = read_shire_coop_mode(shire);
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG1:
+                *ptr = shire_other_esrs[idx].shire_cache_ram_cfg1;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG2:
+                *ptr = shire_other_esrs[idx].shire_cache_ram_cfg2;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG3:
+                *ptr = shire_other_esrs[idx].shire_cache_ram_cfg3;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG4:
+                *ptr = shire_other_esrs[idx].shire_cache_ram_cfg4;
                 break;
             case ESR_ICACHE_UPREFETCH:
                 *ptr = read_icache_prefetch(CSR_PRV_U, shire);
