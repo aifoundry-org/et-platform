@@ -14,6 +14,8 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
 # TODO FIXME move this to a shared dir that isn't project specific
 get_filename_component(ELFTOHEX_ABS_PATH "src/elftohex.py" ABSOLUTE)
+get_filename_component(GET_GIT_HASH_ABS_PATH "src/get_git_hash.sh" ABSOLUTE)
+get_filename_component(GET_GIT_VERSION_ABS_PATH "src/get_git_version.sh" ABSOLUTE)
 
 set(CMAKE_AR         ${GCC_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
 set(CMAKE_RANLIB     ${GCC_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
@@ -21,6 +23,8 @@ set(CMAKE_C_COMPILER ${GCC_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH   "g
 set(CMAKE_OBJCOPY    ${GCC_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH   "objcopy"  FORCE)
 set(CMAKE_OBJDUMP    ${GCC_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH   "objdump"  FORCE)
 set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "elftohex" FORCE)
+set(CMAKE_GET_GIT_HASH ${GET_GIT_HASH_ABS_PATH}                  CACHE PATH   "get-git-hash" FORCE)
+set(CMAKE_GET_GIT_VERSION ${GET_GIT_VERSION_ABS_PATH}            CACHE PATH   "get-git-version" FORCE)
 
 # Our gcc has -fdelete-null-pointer-checks enabled by default, needed for -Wnull-dereference
 #
@@ -47,6 +51,18 @@ macro(add_riscv_executable TARGET_NAME LINKER_SCRIPT ZEBU_TARGET ZEBU_FILENAME)
     set(HEX_FILE ${TARGET_NAME}.hex)
     set(MAP_FILE ${TARGET_NAME}.map)
     set(LST_FILE ${TARGET_NAME}.lst)
+
+if (NOT DEFINED GIT_HASH_STRING)
+    execute_process(COMMAND ${CMAKE_GET_GIT_HASH} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_STRING)
+endif()
+if (NOT DEFINED GIT_VERSION_STRING)
+    execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_STRING)
+endif()
+
+configure_file (
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h.in"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h"
+    )
 
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
 

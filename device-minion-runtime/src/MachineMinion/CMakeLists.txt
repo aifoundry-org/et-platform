@@ -8,6 +8,10 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+set (FILE_VERSION_MAJOR 0)
+set (FILE_VERSION_MINOR 0)
+set (FILE_REVISION_NUMBER 1)
+
 set(SOURCES
     ${SHARED_SRC_DIR}/boot.S
     src/trap_handler.S
