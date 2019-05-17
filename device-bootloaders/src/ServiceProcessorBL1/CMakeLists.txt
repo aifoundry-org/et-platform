@@ -1,3 +1,7 @@
+set (FILE_VERSION_MAJOR 0)
+set (FILE_VERSION_MINOR 0)
+set (FILE_REVISION_NUMBER 1)
+
 set(SOURCES 
     src/bl1_entry.S
     src/bl1_init_handler.S
