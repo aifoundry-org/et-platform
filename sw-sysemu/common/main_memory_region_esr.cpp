@@ -8,6 +8,7 @@
 #include "emu_gio.h"
 #include "emu_memop.h"
 #include "emu.h"
+#include "esrs.h"
 #include "txs.h"
 #include "tbox_emu.h"
 
@@ -24,18 +25,6 @@
 #define ESR_BROADCAST_ESR_ADDR_SHIFT         40
 #define ESR_BROADCAST_ESR_SHIRE_MASK         0x000000FFFFFFFFFFULL // bit mask Shire to spread the broadcast bits
 #define ESR_BROADCAST_ESR_MAX_SHIRES         ESR_BROADCAST_ESR_ADDR_SHIFT
-
-#define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000
-#define ESR_ICACHE_ERR_LOG_CTL_RESET_VAL  0x6
-
-#define ESR_SC_L3_SHIRE_SWIZZLE_CTL_RESET_VAL   0x0000987765543210ULL
-#define ESR_SC_REQQ_CTL_RESET_VAL               0x00038A80
-#define ESR_SC_PIPE_CTL_RESET_VAL               0x0000005CFFFFFFFFULL
-#define ESR_SC_L2_CACHE_CTL_RESET_VAL           0x02800080007F007FULL
-#define ESR_SC_L3_CACHE_CTL_RESET_VAL           0x0300010000FF00FFULL
-#define ESR_SC_SCP_CACHE_CTL_RESET_VAL          0x0000028003FF01FFULL
-#define ESR_SC_ERR_LOG_CTL_RESET_VAL            0x1FE
-
 
 extern uint32_t current_pc;
 extern uint32_t current_thread;
@@ -64,35 +53,9 @@ inline void write64(void* data, uint64_t value)
 }
 
 // Creator
-main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr, bool allocate_data)
-    : main_memory_region(base, size, l, get_thr, MEM_REGION_RW, allocate_data), mem_(parent)
+main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
+    : main_memory_region(base, size, l, get_thr, MEM_REGION_RW, false), mem_(parent)
 {
-    uint64_t addr_sregion = base_ & ESR_SREGION_MASK;
-    uint64_t addr_sregion_ext = base_ & ESR_SREGION_EXT_MASK;
-
-    if (data_ && (addr_sregion == ESR_NEIGH_REGION))
-    {
-        // Initialize Neigh ESRs
-        if (((base_ & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT) == 3)
-        {
-            write64(data_ + (ESR_MINION_BOOT - ESR_NEIGH_M0), ESR_NEIGH_MINION_BOOT_RESET_VAL);
-            write64(data_ + (ESR_ICACHE_ERR_LOG_CTL - ESR_NEIGH_M0), ESR_ICACHE_ERR_LOG_CTL_RESET_VAL);
-        }
-    }
-    else if (addr_sregion_ext == ESR_CACHE_REGION)
-    {
-        // Initialize ShireCache ESRs
-        if (((base_ & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT) == 3)
-        {
-            write64(data_ + (ESR_SC_L3_SHIRE_SWIZZLE_CTL - ESR_CACHE_M0), ESR_SC_L3_SHIRE_SWIZZLE_CTL_RESET_VAL);
-            write64(data_ + (ESR_SC_REQQ_CTL - ESR_CACHE_M0), ESR_SC_REQQ_CTL_RESET_VAL);
-            write64(data_ + (ESR_SC_PIPE_CTL - ESR_CACHE_M0), ESR_SC_PIPE_CTL_RESET_VAL);
-            write64(data_ + (ESR_SC_L2_CACHE_CTL - ESR_CACHE_M0), ESR_SC_L2_CACHE_CTL_RESET_VAL);
-            write64(data_ + (ESR_SC_L3_CACHE_CTL - ESR_CACHE_M0), ESR_SC_L3_CACHE_CTL_RESET_VAL);
-            write64(data_ + (ESR_SC_SCP_CACHE_CTL - ESR_CACHE_M0), ESR_SC_SCP_CACHE_CTL_RESET_VAL);
-            write64(data_ + (ESR_SC_ERR_LOG_CTL - ESR_CACHE_M0), ESR_SC_ERR_LOG_CTL_RESET_VAL);
-        }
-    }
 }
 
 // Destructor: free allocated mem
@@ -103,8 +66,6 @@ main_memory_region_esr::~main_memory_region_esr()
 // Write to memory region
 void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 {
-    bool write_data = true;
-
     assert(size == 8);
     uint64_t value = read64(data);
 
@@ -113,18 +74,13 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     {
         case ESR_BROADCAST_DATA:
             LOG(DEBUG, "Write to BROADCAST_DATA value 0x%016" PRIx64, value);
-            // FIXME: This is a hack, and it assumes that the region has at
-            // least 8*EMU_NUM_SHIRES bytes allocated
-            if (data_)
-                write64(data_ + 8*(current_thread / EMU_THREADS_PER_SHIRE), value);
+            broadcast_esrs[current_thread / EMU_THREADS_PER_SHIRE].data = value;
             return;
         case ESR_UBROADCAST:
         case ESR_SBROADCAST:
         case ESR_MBROADCAST:
             {
-                main_memory_region_esr* region = static_cast<main_memory_region_esr*>(mem_->find_region_containing(ESR_BROADCAST_DATA));
-                assert(region);
-                uint64_t minion_mask = region->data_ ? read64(region->data_ + 8*(current_thread / EMU_THREADS_PER_SHIRE)) : 0;
+                uint64_t minion_mask = broadcast_esrs[current_thread / EMU_THREADS_PER_SHIRE].data;
                 LOG(DEBUG, "Write to %cBROADCAST value 0x%016" PRIx64,
                     (ad == ESR_UBROADCAST) ? 'U' : ((ad == ESR_SBROADCAST) ? 'S' : 'M'), value);
                 unsigned prot = (value & ESR_BROADCAST_PROT_MASK) >> ESR_BROADCAST_PROT_SHIFT;
@@ -192,9 +148,9 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     }
     else if (addr_sregion == ESR_NEIGH_REGION)
     {
-        //unsigned neigh = (ad & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
+        unsigned neigh = (ad & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
         uint64_t esr_addr = ad & ESR_NEIGH_ESR_MASK;
-        if ((ad & ESR_REGION_NEIGH_MASK) == ESR_REGION_NEIGH_BROADCAST)
+        if (neigh == ESR_REGION_NEIGH_BROADCAST)
         {
             LOG(DEBUG, "Broadcast to ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
             uint64_t neigh_addr = (ad & ~ESR_REGION_NEIGH_MASK);
@@ -203,62 +159,82 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 pmemwrite64(neigh_addr, value);
                 neigh_addr += (1ull << ESR_REGION_NEIGH_SHIFT);
             }
-            write_data = false;
         }
         else
         {
-            uint32_t tbox_id;
             LOG(DEBUG, "Write to ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
+            if (neigh >= EMU_NEIGH_PER_SHIRE) throw trap_bus_error(ad);
+            unsigned idx = EMU_NEIGH_PER_SHIRE * ((shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire) + neigh;
+            uint32_t tbox_id;
             switch(esr_addr)
             {
                 case ESR_DUMMY0:
+                    value &= 0xffffffff;
+                    neigh_esrs[idx].dummy0 = uint32_t(value);
+                    break;
                 case ESR_DUMMY1:
                     value &= 0xffffffff;
+                    neigh_esrs[idx].dummy1 = uint32_t(value);
                     break;
                 case ESR_MINION_BOOT:
                     value &= VA_M;
+                    neigh_esrs[idx].minion_boot = value;
                     break;
                 case ESR_DUMMY2:
+                    value &= 1;
+                    neigh_esrs[idx].dummy2 = value;
+                    break;
                 case ESR_DUMMY3:
                     value &= 1;
+                    neigh_esrs[idx].dummy3 = value;
                     break;
                 case ESR_VMSPAGESIZE:
-                    /* TODO: to be cached into the minions of the neighborhood (for performance) */
                     value &= 0x3;
+                    neigh_esrs[idx].vmspagesize = value;
                     break;
                 case ESR_IPI_REDIRECT_PC:
                     value &= VA_M;
+                    neigh_esrs[idx].ipi_redirect_pc = value;
                     break;
                 case ESR_PMU_CTRL:
                     value &= 1;
+                    neigh_esrs[idx].pmu_ctrl = value;
                     break;
                 case ESR_NEIGH_CHICKEN:
                     value &= 0xff;
+                    neigh_esrs[idx].neigh_chicken = uint8_t(value);
                     break;
                 case ESR_ICACHE_ERR_LOG_CTL:
                     value &= 0xf;
+                    neigh_esrs[idx].icache_err_log_ctl = uint8_t(value);
                     break;
                 case ESR_ICACHE_ERR_LOG_INFO:
                     value &= 0x0010ff000003ffffull;
+                    neigh_esrs[idx].icache_err_log_info = value;
                     break;
                 case ESR_ICACHE_ERR_LOG_ADDRESS:
                     value &= 0xffffffffc0ull;
+                    neigh_esrs[idx].icache_err_log_address = value;
                     break;
                 case ESR_ICACHE_SBE_DBE_COUNTS:
                     value &= 0x7ff;
+                    neigh_esrs[idx].icache_sbe_dbe_counts = uint16_t(value);
                     break;
                 case ESR_TEXTURE_CONTROL:
                     value &= 0xff80;
+                    neigh_esrs[idx].texture_control = uint16_t(value);
                     break;
                 case ESR_TEXTURE_STATUS:
                     value &= 0xffe0;
+                    neigh_esrs[idx].texture_status = uint16_t(value);
                     break;
                 case ESR_MPROT:
-                    /* TODO: to be cached into the minions of the neighborhood (for performance) */
                     value &= 0x7;
+                    neigh_esrs[idx].mprot = uint8_t(value);
                     break;
                 case ESR_TEXTURE_IMAGE_TABLE_PTR:
                     value &= 0xffffffffffffull;
+                    neigh_esrs[idx].texture_image_table_ptr = value;
                     tbox_id = tbox_id_from_thread(current_thread);
                     GET_TBOX(shire, tbox_id).set_image_table_address(value);
                     break;
@@ -269,31 +245,72 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     }
     else if (addr_sregion_ext == ESR_CACHE_REGION)
     {
-        /*unsigned bank = (ad & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;*/
+        unsigned idx = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
+        unsigned bank = (ad & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
         uint64_t esr_addr = ad & ESR_CACHE_ESR_MASK;
         LOG(DEBUG, "Write to ESR Region ShireCache at ESR address 0x%" PRIx64, esr_addr);
+        if (bank >= 4) throw trap_bus_error(ad);
         switch(esr_addr)
         {
             case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_l3_shire_swizzle_ctl = value;
+                break;
             case ESR_SC_REQQ_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_reqq_ctl = value;
+                break;
             case ESR_SC_PIPE_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_pipe_ctl = value;
+                break;
             case ESR_SC_L2_CACHE_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_l2_cache_ctl = value;
+                break;
             case ESR_SC_L3_CACHE_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_l3_cache_ctl = value;
+                break;
             case ESR_SC_SCP_CACHE_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_scp_cache_ctl = value;
+                break;
             case ESR_SC_IDX_COP_SM_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_ctl = value;
+                break;
             case ESR_SC_IDX_COP_SM_PHYSICAL_INDEX:
+                shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_physical_index = value;
+                break;
             case ESR_SC_IDX_COP_SM_DATA0:
+                shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_data0 = value;
+                break;
             case ESR_SC_IDX_COP_SM_DATA1:
+                shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_data1 = value;
+                break;
             case ESR_SC_IDX_COP_SM_ECC:
+                shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_ecc = value;
+                break;
             case ESR_SC_ERR_LOG_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_err_log_ctl = value;
+                break;
             case ESR_SC_ERR_LOG_INFO:
+                shire_cache_esrs[idx].bank[bank].sc_err_log_info = value;
+                break;
             case ESR_SC_ERR_LOG_ADDRESS:
+                shire_cache_esrs[idx].bank[bank].sc_err_log_address = value;
+                break;
             case ESR_SC_SBE_DBE_COUNTS:
+                shire_cache_esrs[idx].bank[bank].sc_sbe_dbe_counts = value;
+                break;
             case ESR_SC_REQQ_DEBUG_CTL:
+                shire_cache_esrs[idx].bank[bank].sc_reqq_debug_ctl = value;
+                break;
             case ESR_SC_REQQ_DEBUG0:
+                shire_cache_esrs[idx].bank[bank].sc_reqq_debug0 = value;
+                break;
             case ESR_SC_REQQ_DEBUG1:
+                shire_cache_esrs[idx].bank[bank].sc_reqq_debug1 = value;
+                break;
             case ESR_SC_REQQ_DEBUG2:
+                shire_cache_esrs[idx].bank[bank].sc_reqq_debug2 = value;
+                break;
             case ESR_SC_REQQ_DEBUG3:
+                shire_cache_esrs[idx].bank[bank].sc_reqq_debug3 = value;
                 break;
             default:
                 throw trap_bus_error(ad);
@@ -303,6 +320,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     {
         uint64_t esr_addr = ad & ESR_RBOX_ESR_MASK;
         LOG(DEBUG, "Write to ESR Region RBOX at ESR address 0x%" PRIx64, esr_addr);
+        if (shire > EMU_NUM_COMPUTE_SHIRES) throw trap_bus_error(ad);
         switch(esr_addr)
         {
             case ESR_RBOX_CONFIG:
@@ -312,7 +330,7 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             case ESR_RBOX_OUT_BUF_CFG:
             case ESR_RBOX_START:
             case ESR_RBOX_CONSUME:
-                /* do nothing */
+                GET_RBOX(shire, 0).write_esr((esr_addr >> 3) & 0x3FFF, value);
                 break;
             default:
                 throw trap_bus_error(ad);
@@ -320,52 +338,53 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     }
     else if (addr_sregion_ext == ESR_SHIRE_REGION)
     {
+        unsigned idx = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
         uint64_t esr_addr = ad & ESR_SHIRE_ESR_MASK;
         LOG(DEBUG, "Write to ESR Region Shire at ESR address 0x%" PRIx64, esr_addr);
         switch(esr_addr)
         {
             case ESR_MINION_FEATURE:
-                /* do nothing */
+                value &= 0x3f;
+                shire_other_esrs[idx].minion_feature = uint8_t(value);
+                break;
+            case ESR_SHIRE_CONFIG:
+                value &= 0x3ffffff;
+                shire_other_esrs[idx].shire_config = uint32_t(value);
                 break;
             case ESR_IPI_REDIRECT_TRIGGER:
                 LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI_REDIRECT");
                 sys_emu::send_ipi_redirect_to_threads(shire, value);
-                write_data = false;
                 break;
             case ESR_IPI_REDIRECT_FILTER:
-                /* do nothing */
+                shire_other_esrs[idx].ipi_redirect_filter = value;
                 break;
             case ESR_IPI_TRIGGER:
                 LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI");
+                shire_other_esrs[idx].ipi_trigger = value;
                 sys_emu::raise_software_interrupt(shire, value);
                 break;
             case ESR_IPI_TRIGGER_CLEAR:
                 sys_emu::clear_software_interrupt(shire, value);
-                write_data = false;
                 break;
             case ESR_FCC_CREDINC_0:
                 LOG_ALL_MINIONS(DEBUG, "Write to FCC0 value %016" PRIx64, value);
                 fcc_inc(0, shire, value, 0);
                 sys_emu::fcc_to_threads(shire, 0, value, 0);
-                write_data = false;
                 break;
             case ESR_FCC_CREDINC_1:
                 LOG_ALL_MINIONS(DEBUG, "Write to FCC1 value %016" PRIx64, value);
                 fcc_inc(0, shire, value, 1);
                 sys_emu::fcc_to_threads(shire, 0, value, 1);
-                write_data = false;
                 break;
             case ESR_FCC_CREDINC_2:
                 LOG_ALL_MINIONS(DEBUG, "Write to FCC2 value %016" PRIx64, value);
                 fcc_inc(1, shire, value, 0);
                 sys_emu::fcc_to_threads(shire, 1, value, 0);
-                write_data = false;
                 break;
             case ESR_FCC_CREDINC_3:
                 LOG_ALL_MINIONS(DEBUG, "Write to FCC2 value %016" PRIx64, value);
                 fcc_inc(1, shire, value, 1);
                 sys_emu::fcc_to_threads(shire, 1, value, 1);
-                write_data = false;
                 break;
             case ESR_FAST_LOCAL_BARRIER0:
             case ESR_FAST_LOCAL_BARRIER1:
@@ -399,23 +418,35 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             case ESR_FAST_LOCAL_BARRIER29:
             case ESR_FAST_LOCAL_BARRIER30:
             case ESR_FAST_LOCAL_BARRIER31:
-                /* do nothing */
+                shire_other_esrs[idx].fast_local_barrier[(esr_addr - ESR_FAST_LOCAL_BARRIER0)>>3] = value;
                 break;
             case ESR_SHIRE_COOP_MODE:
                 write_shire_coop_mode(shire, value);
-                write_data = false;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG1:
+                value &= 0xfffffffffull;
+                shire_other_esrs[idx].shire_cache_ram_cfg1 = value;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG2:
+                value &= 0x3ffff;
+                shire_other_esrs[idx].shire_cache_ram_cfg2 = uint32_t(value);
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG3:
+                value &= 0xfffffffffull;
+                shire_other_esrs[idx].shire_cache_ram_cfg3 = value;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG4:
+                value &= 0xfffffffffull;
+                shire_other_esrs[idx].shire_cache_ram_cfg4 = value;
                 break;
             case ESR_ICACHE_UPREFETCH:
                 write_icache_prefetch(CSR_PRV_U, shire, value);
-                write_data = false;
                 break;
             case ESR_ICACHE_SPREFETCH:
                 write_icache_prefetch(CSR_PRV_S, shire, value);
-                write_data = false;
                 break;
             case ESR_ICACHE_MPREFETCH:
                 write_icache_prefetch(CSR_PRV_M, shire, value);
-                write_data = false;
                 break;
             default:
                 throw trap_bus_error(ad);
@@ -426,15 +457,11 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
         LOG(WARN, "Write to ESR Region UNDEFINED at address 0x%" PRIx64, ad);
         throw trap_bus_error(ad);
     }
-    if (data_ && write_data)
-        write64(data_ + (ad - base_), value);
 }
 
 // Read from memory region
 void main_memory_region_esr::read(uint64_t ad, int size, void * data)
 {
-    bool read_data = true;
-
     assert(size == 8);
     uint64_t* ptr = reinterpret_cast<uint64_t*>(data);
 
@@ -472,6 +499,7 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
         /*unsigned hart = (ad & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;*/
         uint64_t esr_addr = ad & ESR_HART_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region HART at ESR address 0x%" PRIx64, esr_addr);
+#if 0
         switch(esr_addr)
         {
             case ESR_PORT0:
@@ -483,69 +511,139 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
             default:
                 throw trap_bus_error(ad);
         }
+#else
+        throw trap_bus_error(ad);
+#endif
     }
     else if (addr_sregion == ESR_NEIGH_REGION)
     {
-        //unsigned neigh = (ad & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
+        unsigned neigh = (ad & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
         uint64_t esr_addr = ad & ESR_NEIGH_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
-        if ((ad & ESR_REGION_NEIGH_MASK) != ESR_REGION_NEIGH_BROADCAST)
+        if (neigh >= EMU_NEIGH_PER_SHIRE) throw trap_bus_error(ad);
+        unsigned idx = EMU_NEIGH_PER_SHIRE * ((shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire) + neigh;
+        switch(esr_addr)
         {
-            switch(esr_addr)
-            {
-                case ESR_DUMMY0:
-                case ESR_DUMMY1:
-                case ESR_MINION_BOOT:
-                case ESR_DUMMY2:
-                case ESR_DUMMY3:
-                case ESR_VMSPAGESIZE:
-                case ESR_IPI_REDIRECT_PC:
-                case ESR_PMU_CTRL:
-                case ESR_NEIGH_CHICKEN:
-                case ESR_ICACHE_ERR_LOG_CTL:
-                case ESR_ICACHE_ERR_LOG_INFO:
-                case ESR_ICACHE_ERR_LOG_ADDRESS:
-                case ESR_ICACHE_SBE_DBE_COUNTS:
-                case ESR_TEXTURE_CONTROL:
-                case ESR_TEXTURE_STATUS:
-                case ESR_TEXTURE_IMAGE_TABLE_PTR:
-                    /* do nothing */
-                    break;
-                default :
-                    throw trap_bus_error(ad);
-            }
+            case ESR_DUMMY0:
+                *ptr = neigh_esrs[idx].dummy0;
+                break;
+            case ESR_DUMMY1:
+                *ptr = neigh_esrs[idx].dummy1;
+                break;
+            case ESR_MINION_BOOT:
+                *ptr = neigh_esrs[idx].minion_boot;
+                break;
+            case ESR_DUMMY2:
+                *ptr = neigh_esrs[idx].dummy2;
+                break;
+            case ESR_DUMMY3:
+                *ptr = neigh_esrs[idx].dummy3;
+                break;
+            case ESR_VMSPAGESIZE:
+                *ptr = neigh_esrs[idx].vmspagesize;
+                break;
+            case ESR_IPI_REDIRECT_PC:
+                *ptr = neigh_esrs[idx].ipi_redirect_pc;
+                break;
+            case ESR_PMU_CTRL:
+                *ptr = neigh_esrs[idx].pmu_ctrl;
+                break;
+            case ESR_NEIGH_CHICKEN:
+                *ptr = neigh_esrs[idx].neigh_chicken;
+                break;
+            case ESR_ICACHE_ERR_LOG_CTL:
+                *ptr = neigh_esrs[idx].icache_err_log_ctl;
+                break;
+            case ESR_ICACHE_ERR_LOG_INFO:
+                *ptr = neigh_esrs[idx].icache_err_log_info;
+                break;
+            case ESR_ICACHE_ERR_LOG_ADDRESS:
+                *ptr = neigh_esrs[idx].icache_err_log_address;
+                break;
+            case ESR_ICACHE_SBE_DBE_COUNTS:
+                *ptr = neigh_esrs[idx].icache_sbe_dbe_counts;
+                break;
+            case ESR_TEXTURE_CONTROL:
+                *ptr = neigh_esrs[idx].texture_control;
+                break;
+            case ESR_TEXTURE_STATUS:
+                *ptr = neigh_esrs[idx].texture_status;
+                break;
+            case ESR_TEXTURE_IMAGE_TABLE_PTR:
+                *ptr = neigh_esrs[idx].texture_image_table_ptr;
+                break;
+            default :
+                throw trap_bus_error(ad);
         }
     }
     else if (addr_sregion_ext == ESR_CACHE_REGION)
     {
-        /*unsigned bank = (ad & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;*/
+        unsigned idx = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
+        unsigned bank = (ad & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
         uint64_t esr_addr = ad & ESR_CACHE_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region ShireCache at ESR address 0x%" PRIx64, esr_addr);
+        if (bank >= 4) throw trap_bus_error(ad);
         switch(esr_addr)
         {
             case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_l3_shire_swizzle_ctl;
+                break;
             case ESR_SC_REQQ_CTL:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_reqq_ctl;
+                break;
             case ESR_SC_PIPE_CTL:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_pipe_ctl;
+                break;
             case ESR_SC_L2_CACHE_CTL:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_l2_cache_ctl;
+                break;
             case ESR_SC_L3_CACHE_CTL:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_l3_cache_ctl;
+                break;
             case ESR_SC_SCP_CACHE_CTL:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_scp_cache_ctl;
+                break;
             case ESR_SC_IDX_COP_SM_PHYSICAL_INDEX:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_physical_index;
+                break;
             case ESR_SC_IDX_COP_SM_DATA0:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_data0;
+                break;
             case ESR_SC_IDX_COP_SM_DATA1:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_data1;
+                break;
             case ESR_SC_IDX_COP_SM_ECC:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_idx_cop_sm_ecc;
+                break;
             case ESR_SC_ERR_LOG_CTL:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_err_log_ctl;
+                break;
             case ESR_SC_ERR_LOG_INFO:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_err_log_info;
+                break;
             case ESR_SC_ERR_LOG_ADDRESS:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_err_log_address;
+                break;
             case ESR_SC_SBE_DBE_COUNTS:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_sbe_dbe_counts;
+                break;
             case ESR_SC_REQQ_DEBUG_CTL:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_reqq_debug_ctl;
+                break;
             case ESR_SC_REQQ_DEBUG0:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_reqq_debug0;
+                break;
             case ESR_SC_REQQ_DEBUG1:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_reqq_debug1;
+                break;
             case ESR_SC_REQQ_DEBUG2:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_reqq_debug2;
+                break;
             case ESR_SC_REQQ_DEBUG3:
+                *ptr = shire_cache_esrs[idx].bank[bank].sc_reqq_debug3;
                 break;
             case ESR_SC_IDX_COP_SM_CTL:
                 *ptr = 4ull << 24; // idx_cop_sm_state = IDLE
-                read_data = false;
                 break;
             default:
                 throw trap_bus_error(ad);
@@ -555,6 +653,7 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
     {
         uint64_t esr_addr = ad & ESR_RBOX_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region RBOX at ESR address 0x%" PRIx64, esr_addr);
+        if (shire > EMU_NUM_COMPUTE_SHIRES) throw trap_bus_error(ad);
         switch(esr_addr)
         {
             case ESR_RBOX_CONFIG:
@@ -564,7 +663,8 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
             case ESR_RBOX_OUT_BUF_CFG:
             case ESR_RBOX_START:
             case ESR_RBOX_CONSUME:
-                /* do nothing */
+            case ESR_RBOX_STATUS:
+                *ptr = GET_RBOX(shire, 0).read_esr((esr_addr >> 3) & 0x3FFF);
                 break;
             default:
                 throw trap_bus_error(ad);
@@ -572,19 +672,33 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
     }
     else if (addr_sregion_ext == ESR_SHIRE_REGION)
     {
+        unsigned idx = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
         uint64_t esr_addr = ad & ESR_SHIRE_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region Shire at ESR address 0x%" PRIx64, esr_addr);
         switch(esr_addr)
         {
             case ESR_MINION_FEATURE:
+                *ptr = shire_other_esrs[idx].minion_feature;
+                break;
+            case ESR_SHIRE_CONFIG:
+                *ptr = shire_other_esrs[idx].shire_config;
+                break;
             case ESR_IPI_REDIRECT_TRIGGER:
+                *ptr = 0;
+                break;
             case ESR_IPI_REDIRECT_FILTER:
+                *ptr = shire_other_esrs[idx].ipi_redirect_filter;
+                break;
             case ESR_IPI_TRIGGER:
+                *ptr = shire_other_esrs[idx].ipi_trigger;
+                break;
             case ESR_IPI_TRIGGER_CLEAR:
             case ESR_FCC_CREDINC_0:
             case ESR_FCC_CREDINC_1:
             case ESR_FCC_CREDINC_2:
             case ESR_FCC_CREDINC_3:
+                *ptr = 0;
+                break;
             case ESR_FAST_LOCAL_BARRIER0:
             case ESR_FAST_LOCAL_BARRIER1:
             case ESR_FAST_LOCAL_BARRIER2:
@@ -617,23 +731,31 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
             case ESR_FAST_LOCAL_BARRIER29:
             case ESR_FAST_LOCAL_BARRIER30:
             case ESR_FAST_LOCAL_BARRIER31:
-                /* do nothing */
+                *ptr = shire_other_esrs[idx].fast_local_barrier[(esr_addr - ESR_FAST_LOCAL_BARRIER0)>>3];
                 break;
             case ESR_SHIRE_COOP_MODE:
                 *ptr = read_shire_coop_mode(shire);
-                read_data = false;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG1:
+                *ptr = shire_other_esrs[idx].shire_cache_ram_cfg1;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG2:
+                *ptr = shire_other_esrs[idx].shire_cache_ram_cfg2;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG3:
+                *ptr = shire_other_esrs[idx].shire_cache_ram_cfg3;
+                break;
+            case ESR_SHIRE_CACHE_RAM_CFG4:
+                *ptr = shire_other_esrs[idx].shire_cache_ram_cfg4;
                 break;
             case ESR_ICACHE_UPREFETCH:
                 *ptr = read_icache_prefetch(CSR_PRV_U, shire);
-                read_data = false;
                 break;
             case ESR_ICACHE_SPREFETCH:
                 *ptr = read_icache_prefetch(CSR_PRV_S, shire);
-                read_data = false;
                 break;
             case ESR_ICACHE_MPREFETCH:
                 *ptr = read_icache_prefetch(CSR_PRV_M, shire);
-                read_data = false;
                 break;
             default:
                 throw trap_bus_error(ad);
@@ -644,6 +766,4 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
         LOG(WARN, "Read from ESR Region UNDEFINED at address 0x%" PRIx64, ad);
         throw trap_bus_error(ad);
     }
-    if (data_ && read_data)
-        *ptr = read64(data_ + (ad - base_));
 }
