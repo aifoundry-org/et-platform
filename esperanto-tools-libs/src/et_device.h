@@ -182,7 +182,9 @@ public:
     }
 };
 
+#include <memory>
 
+extern EtDevice* my_et_device;
 /*
  * Helper class to get device object and lock it in RAII manner.
  */
@@ -190,25 +192,33 @@ class GetDev
 {
 public:
     GetDev() : dev(getEtDevice()) {
-        dev.mutex.lock();
+        dev->mutex.lock();
     }
 
     ~GetDev() {
-        dev.mutex.unlock();
+        dev->mutex.unlock();
+    }
+
+    void destroy() {
+        dev->mutex.unlock();
+        delete my_et_device;
+        my_et_device = NULL;
     }
 
     EtDevice *operator->() {
-        return &dev;
+        return dev;
     }
 
 private:
-    EtDevice &getEtDevice()
+    EtDevice* getEtDevice()
     {
-        static EtDevice et_device;
-        return et_device;
+        if(my_et_device == NULL) {
+            my_et_device = new EtDevice();
+        }
+        return my_et_device;
     }
 
-    EtDevice &dev;
+    EtDevice *dev;
 };
 
 
