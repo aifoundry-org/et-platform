@@ -91,6 +91,7 @@ void main_memory::setPrintfBase(const char* binary)
    std::ostringstream command;
    command << "nm " << binary << " 2>/dev/null | grep rtlPrintf_buf | cut -d' ' -f 1";
    FILE *p = popen(command.str().c_str(), "r");
+   if(p == NULL) log << LOG_ERR << command.str() << " Failed " << endm;
    int c = fscanf(p, "%" PRIx64, &symbolAddress);
    pclose(p);
 
