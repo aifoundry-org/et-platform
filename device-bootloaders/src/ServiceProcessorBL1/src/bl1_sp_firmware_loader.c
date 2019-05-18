@@ -34,7 +34,7 @@ static int verify_bl2_image_file_header(const ESPERANTO_IMAGE_FILE_HEADER_t * sp
         return -1;
     }
 
-    if (ESPERANTO_IMAGE_TYPE_SP_BL1 != sp_bl2_file_header->info.image_info_and_signaure.info.public_info.image_type) {
+    if (ESPERANTO_IMAGE_TYPE_SP_BL2 != sp_bl2_file_header->info.image_info_and_signaure.info.public_info.image_type) {
         printx("load_bl2_firmware: not a SP BL1 image type! (%08x)!\n", sp_bl2_file_header->info.image_info_and_signaure.info.public_info.image_type);
         return -1;
     }
@@ -83,7 +83,7 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_INFO_SECRET_t * load_inf
         printx("Region %u: load=0x%x, addr=0x%x, fsize=0x%x, msize=0x%x\n", region_no, load_offset, load_address.lo, load_info->load_regions[region_no].load_size, load_info->load_regions[region_no].memory_size);
 
         if (load_info->load_regions[region_no].load_size > 0) {
-            if (0 != flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_SP_BL1, load_offset, (void*)load_address.u64, load_info->load_regions[region_no].load_size)) {
+            if (0 != flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_SP_BL2, load_offset, (void*)load_address.u64, load_info->load_regions[region_no].load_size)) {
                 printx("load_bl2_firmware: flash_fs_read_file(code) failed!\n");
                 return -1;
             }
@@ -101,8 +101,8 @@ int load_bl2_firmware(void) {
     uint32_t sp_bl2_size;
     SERVICE_PROCESSOR_BL1_DATA_t * bl1_data = get_service_processor_bl1_data();
 
-    // load the SP BL1 image
-    if (0 != flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_SP_BL1, &sp_bl2_size)) {
+    // load the SP BL2 image
+    if (0 != flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_SP_BL2, &sp_bl2_size)) {
         printx("load_bl2_firmware: flash_fs_get_file_size(header) failed!\n");
         return -1;
     }
@@ -110,22 +110,22 @@ int load_bl2_firmware(void) {
         printx("load_bl2_firmware: SP_BL2 image file too small!");
         return -1;
     }
-    if (0 != flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_SP_BL1, 0, &(bl1_data->sp_bl1_header), sizeof(bl1_data->sp_bl1_header))) {
+    if (0 != flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_SP_BL2, 0, &(bl1_data->sp_bl2_header), sizeof(bl1_data->sp_bl2_header))) {
         printx("load_bl2_firmware: flash_fs_read_file(SP_BL2) failed!\n");
         return -1;
     }
 
-    if (0 != verify_bl2_image_file_header(&bl1_data->sp_bl1_header, sp_bl2_size)) {
-        printx("load_bl2_firmware: verify_bl1_image_file_header() failed!\n");
+    if (0 != verify_bl2_image_file_header(&bl1_data->sp_bl2_header, sp_bl2_size)) {
+        printx("load_bl2_firmware: verify_bl2_image_file_header() failed!\n");
         return -1;
     }
 
-    if (0 != load_bl2_code_and_data(&bl1_data->sp_bl1_header.info.image_info_and_signaure.info.secret_info)) {
-        printx("load_bl2_firmware: load_bl1_code_and_data() failed!\n");
+    if (0 != load_bl2_code_and_data(&bl1_data->sp_bl2_header.info.image_info_and_signaure.info.secret_info)) {
+        printx("load_bl2_firmware: load_bl2_code_and_data() failed!\n");
         return -1;
     }
 
-    printx("load_bl2_firmware: Loaded SP_BL1 image header.\n");
+    printx("load_bl2_firmware: Loaded SP_BL2 firmware.\n");
 
     return 0;
 }

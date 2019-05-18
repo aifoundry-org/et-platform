@@ -1,0 +1,157 @@
+#include "et_cru.h"
+#include "serial.h"
+#include "interrupt.h"
+#include "dummy_isr.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "service_processor_ROM_data.h"
+#include "service_processor_BL1_data.h"
+
+#include <stdio.h>
+
+// Select SPIO peripherals for initial SP use
+#define SPIO_NOC_SPIO_REGBUS_BASE_ADDRESS    0x0040100000ULL
+#define SPIO_NOC_PU_MAIN_REGBUS_BASE_ADDRESS 0x0040200000ULL
+#define SPIO_NOC_PSHIRE_REGBUS_BASE_ADDRESS  0x0040300000ULL
+#define SPIO_SRAM_BASE_ADDRESS               0x0040400000ULL
+#define SPIO_SRAM_SIZE                       0x100000UL // 1MB
+#define SPIO_MAIN_NOC_REGBUS_BASE_ADDRESS    0x0042000000ULL
+#define SPIO_PLIC_BASE_ADDRESS               0x0050000000ULL
+#define SPIO_UART0_BASE_ADDRESS              0x0052022000ULL
+
+#define TASK_STACK_SIZE 4096 // overkill for now
+
+void taskA(void *pvParameters);
+void taskB(void *pvParameters);
+
+void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
+void vApplicationIdleHook(void);
+void vApplicationTickHook(void);
+void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
+
+void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data);
+
+void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data) 
+{
+    // Disable buffering on stdout
+    setbuf(stdout, NULL);
+
+    //SERIAL_init(UART0);
+
+    printf("\n*** SP_BL2 started! ***\r\n");
+    printf("bl1_data @ %p\n", bl1_data);
+
+    SERIAL_init(UART1);
+    SERIAL_write(UART1, "alive\r\n", 7);
+
+    SERIAL_init(PU_UART0);
+    SERIAL_write(PU_UART0, "alive\r\n", 7);
+
+    SERIAL_init(PU_UART1);
+    SERIAL_write(PU_UART1, "alive\r\n", 7);
+
+    INT_init();
+
+    static TaskHandle_t taskHandleA;
+    static StackType_t stackA[TASK_STACK_SIZE];
+    static StaticTask_t taskBufferA;
+
+    static TaskHandle_t taskHandleB;
+    static StackType_t stackB[TASK_STACK_SIZE];
+    static StaticTask_t taskBufferB;
+
+    taskHandleA = xTaskCreateStatic(taskA,
+                                    "task A",
+                                    TASK_STACK_SIZE,
+                                    NULL,
+                                    1,
+                                    stackA,
+                                    &taskBufferA);
+
+    taskHandleB = xTaskCreateStatic(taskB,
+                                    "task B",
+                                    TASK_STACK_SIZE,
+                                    NULL,
+                                    1,
+                                    stackB,
+                                    &taskBufferB);
+
+    if ((taskHandleA == NULL) || (taskHandleB == NULL))
+    {
+        printf("taskHandle error\r\n");
+    }
+
+    vTaskStartScheduler();
+}
+
+void taskA(void *pvParameters)
+{
+    (void)pvParameters;
+
+    // Disable buffering on stdout
+    setbuf(stdout, NULL);
+
+    while (1)
+    {
+        printf("A");
+        vTaskDelay(2U);
+    }
+}
+
+void taskB(void *pvParameters)
+{
+    (void)pvParameters;
+
+    // Disable buffering on stdout
+    setbuf(stdout, NULL);
+
+    while (1)
+    {
+        printf("B");
+        vTaskDelay(3U);
+    }
+}
+
+/* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an
+implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
+used by the Idle task. */
+void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
+{
+    /* If the buffers to be provided to the Idle task are declared inside this
+    function then they must be declared static - otherwise they will be allocated on
+    the stack and so not exists after this function exits. */
+    static StaticTask_t xIdleTaskTCB;
+    static StackType_t uxIdleTaskStack[configMINIMAL_STACK_SIZE];
+
+    /* Pass out a pointer to the StaticTask_t structure in which the Idle task's
+    state will be stored. */
+    *ppxIdleTaskTCBBuffer = &xIdleTaskTCB;
+
+    /* Pass out the array that will be used as the Idle task's stack. */
+    *ppxIdleTaskStackBuffer = uxIdleTaskStack;
+
+    /* Pass out the size of the array pointed to by *ppxIdleTaskStackBuffer.
+    Note that, as the array is necessarily of type StackType_t,
+    configMINIMAL_STACK_SIZE is specified in words, not bytes. */
+    *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
+}
+
+void vApplicationIdleHook(void)
+{
+    // "WFI is available in all of the supported S and M privilege modes,
+    //  and optionally available to U-mode for implementations that support U-mode interrupts."
+    asm("wfi");
+}
+
+void vApplicationTickHook(void)
+{
+    // TODO FIXME watchdog checking goes here
+    SERIAL_write(UART0, ".", 1);
+}
+
+void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
+{
+    (void)xTask;
+    (void)pcTaskName;
+}
