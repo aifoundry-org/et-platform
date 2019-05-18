@@ -1,3 +1,3 @@
 [submodule "tools/flatbuffers"]
 	path = tools/flatbuffers
-	url = git@gitlab:software/flatbuffers-mirror.git
+	url = git@gitlab.esperanto.ai:software/flatbuffers-mirror.git
