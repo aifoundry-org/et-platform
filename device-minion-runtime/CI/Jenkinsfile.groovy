@@ -71,7 +71,7 @@ pipeline {
                     submoduleCfg: [],
                     userRemoteConfigs: [[
                         credentialsId: 'jennkis_aws_centos',
-                        url: 'git@gitlab:software/device-firmware.git'
+                        url: 'git@gitlab.esperanto.ai:software/device-firmware.git'
                     ]]
                 ])
 
