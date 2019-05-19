@@ -4,7 +4,6 @@
 // Local
 #include "esrs.h"
 #include "main_memory.h"
-#include "main_memory_region_atomic.h"
 #include "main_memory_region_esr.h"
 #include "main_memory_region_printf.h"
 #include "main_memory_region_scp.h"
