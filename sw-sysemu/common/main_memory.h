@@ -2,8 +2,9 @@
 #define _MAIN_MEMORY_H_
 
 // Global
-#include <inttypes.h>
+#include <cinttypes>
 #include <list>
+#include <memory>
 
 // Local
 #include "elfio/elfio.hpp"
@@ -11,6 +12,9 @@
 
 class main_memory
 {
+public:
+       typedef std::shared_ptr<main_memory_region>  region_pointer;
+
     public:
        // Constructors and destructors
        main_memory(testLog& log_);
@@ -44,19 +48,27 @@ class main_memory
        // allow memory regions to be dynamically created
        void create_mem_at_runtime();
 
-       main_memory_region* find_region_containing(uint64_t ad) {
-           rg_it_t it = find(ad);
-           return (it == regions_.end()) ? nullptr : *it;
+       region_pointer find_region_containing(uint64_t ad) {
+           region_iterator it = find(ad);
+           return (it == regions_.end()) ? region_pointer(nullptr) : *it;
        }
+
+    private:
+       typedef std::list<region_pointer>    region_list_type;
+       typedef region_list_type::iterator   region_iterator;
+
+       region_list_type regions_;
+
+       testLog& log;
+       main_memory_region::func_ptr_get_thread getthread;
+
+       bool runtime_mem_regions = false;
 
     private:
        void dump_regions();
 
-       std::list<main_memory_region *> regions_;
-       typedef std::list<main_memory_region *>::iterator rg_it_t;
-
-       rg_it_t find(uint64_t ad) {
-           rg_it_t ret = regions_.begin();
+       region_iterator find(uint64_t ad) {
+           region_iterator ret = regions_.begin();
            while(ret != regions_.end())
            {
                if((* (* ret)) == ad) { return ret; }
@@ -64,11 +76,6 @@ class main_memory
            }
            return ret;
        }
-
-       testLog& log;
-       main_memory_region::func_ptr_get_thread getthread;
-
-       bool runtime_mem_regions = false;
 };
 
 #endif // _MAIN_MEMORY_H_
