@@ -35,4 +35,5 @@ if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ServiceProcessorROM")
 endif()
 
 add_subdirectory("ServiceProcessorBL1")
+add_subdirectory("ServiceProcessorBL2")
 add_subdirectory("ServiceProcessor")
