@@ -7,6 +7,8 @@
 #include "task.h"
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
+#include "bl2_build_configuration.h"
+#include "build_configuration.h"
 
 #include <stdio.h>
 
@@ -34,13 +36,20 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data);
 
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data) 
 {
+    const IMAGE_VERSION_INFO_t * image_version_info = get_image_version_info();
+
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
     //SERIAL_init(UART0);
 
-    printf("\n*** SP_BL2 started! ***\r\n");
+    printf("\n*** SP BL2 STARTED ***\r\n");
+    printf("File version %u.%u.%u\n", image_version_info->file_version_major, image_version_info->file_version_minor, image_version_info->file_version_revision);
+    printf("GIT version: %s\n", GIT_VERSION_STRING);
+    printf("GIT hash: %s\n", GIT_HASH_STRING);
     printf("bl1_data @ %p\n", bl1_data);
+
+    //SERIAL_init(UART0);
 
     SERIAL_init(UART1);
     SERIAL_write(UART1, "alive\r\n", 7);

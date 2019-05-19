@@ -19,7 +19,8 @@ set(SOURCES
     src/bl1_crypto.c
     src/bl1_sp_certificates.c
     src/bl1_sp_firmware_loader.c
-    src/bl1_vaultip_controller.c)
+    src/bl1_vaultip_controller.c
+    src/bl1_build_configuration.c)
 
 set(TARGET_NAME ServiceProcessorBL1)
 set(LINKER_SCRIPT src/bl1_sections.ld)
