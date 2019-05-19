@@ -61,10 +61,12 @@ endif()
 
 configure_file (
     "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h.in"
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h"
+    "${CMAKE_CURRENT_BINARY_DIR}/include/build_configuration.h"
     )
 
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
+
+    target_include_directories(${ELF_FILE} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
 
     # Get the absolute path to the linker script
     get_filename_component(LINKER_SCRIPT_ABS_PATH ${LINKER_SCRIPT} ABSOLUTE)
