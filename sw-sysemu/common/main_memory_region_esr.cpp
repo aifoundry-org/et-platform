@@ -52,17 +52,6 @@ inline void write64(void* data, uint64_t value)
     *reinterpret_cast<uint64_t*>(data) = value;
 }
 
-// Creator
-main_memory_region_esr::main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
-    : main_memory_region(base, size, l, get_thr, MEM_REGION_RW, false), mem_(parent)
-{
-}
-
-// Destructor: free allocated mem
-main_memory_region_esr::~main_memory_region_esr()
-{
-}
-
 // Write to memory region
 void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
 {

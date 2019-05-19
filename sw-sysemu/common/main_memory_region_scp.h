@@ -14,8 +14,12 @@ class main_memory_region_scp : public main_memory_region
         main_memory_region_scp(main_memory* parent, uint64_t base, uint64_t size,
                                testLog& l, func_ptr_get_thread& get_thr,
                                const shire_cache_esrs_t* sc_regs,
-                               bool allocate_data = true);
-        ~main_memory_region_scp();
+                               bool allocate_data = true)
+        : main_memory_region(base, size, l, get_thr, MEM_REGION_RW, allocate_data),
+          mem_(parent), sc_regs_(sc_regs)
+        {}
+
+        ~main_memory_region_scp() {}
 
         // read and write
         void write(uint64_t ad, int size, const void* data) override;

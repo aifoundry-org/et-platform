@@ -6,23 +6,14 @@
 #include "main_memory_region_scp.h"
 #include "main_memory_region_scp_linear.h"
 
-// Creator
-main_memory_region_scp_linear::main_memory_region_scp_linear(main_memory* parent, uint64_t base, uint64_t size, testLog & l, func_ptr_get_thread& get_thr)
-    : main_memory_region(base, size, l, get_thr, MEM_REGION_RW, false), mem_(parent)
-{
-}
-
-// Destructor: free allocated mem
-main_memory_region_scp_linear::~main_memory_region_scp_linear()
-{
-}
+typedef std::shared_ptr<main_memory_region_scp> scp_region_pointer;
 
 // Write to memory region
 void main_memory_region_scp_linear::write(uint64_t ad, int size, const void * data)
 {
     // Forwards write to correct memory
     uint64_t addr = ad_to_l2_scp_ad(ad);
-    main_memory_region_scp* scp = static_cast<main_memory_region_scp*>(mem_->find_region_containing(addr));
+    scp_region_pointer scp = std::static_pointer_cast<main_memory_region_scp>(mem_->find_region_containing(addr));
     if (!scp)
         throw trap_bus_error(ad);
     scp->write(addr, size, data);
@@ -33,7 +24,7 @@ void main_memory_region_scp_linear::read(uint64_t ad, int size, void * data)
 {
     // Forwards write to correct memory
     uint64_t addr = ad_to_l2_scp_ad(ad);
-    main_memory_region_scp* scp = static_cast<main_memory_region_scp*>(mem_->find_region_containing(addr));
+    scp_region_pointer scp = std::static_pointer_cast<main_memory_region_scp>(mem_->find_region_containing(addr));
     if (!scp)
         throw trap_bus_error(ad);
     scp->read(addr, size, data);
