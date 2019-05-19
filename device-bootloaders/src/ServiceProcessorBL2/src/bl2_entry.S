@@ -1,5 +1,5 @@
 /*-------------------------------------------------------------------------
-* Copyright (C) 2018, Esperanto Technologies Inc.
+* Copyright (C) 2019, Esperanto Technologies Inc.
 * The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies, Inc. All Rights Reserved.
 * The program(s) may be used and/or copied only with
@@ -9,19 +9,16 @@
 *-------------------------------------------------------------------------
 */
 
-// printx.h
+#=========================================================================
+# Reset handler code for Service Processor core
+#=========================================================================
 
-#ifndef __PRINTX_H__
-#define __PRINTX_H__
+.global bl2_entry
 
-#include <stdint.h>
-#include <stdarg.h>
-#include <stdlib.h>
+bl2_entry:
+    # initialize trap vector
+    #la    t0, mtrap_vector
+    #csrw  mtvec, t0
 
-int printx(const char *format, ...);
-int snprintx(char *str, size_t size, const char *format, ...);
-
-//int vprintx(const char *format, va_list ap);
-//int vsnprintx(char *str, size_t size, const char *format, va_list ap);
-
-#endif
+    la a1, _init_handler
+    jalr x0, a1
