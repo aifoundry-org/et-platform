@@ -11,43 +11,48 @@
 
 ENTRY(_boot)
 
+MEMORY
+{
+    /* Mcode region is 2M from 0x8000000000 to 0x8000200000
+       stacks are 768B per HART, 2112 HARTs, descending from @0x80001FFD00
+       so ensure image fits in non-stack region */
+    MCODE (rwx) : org = 0x8000000000, l = 0x73D00
+}
+
 SECTIONS
 {
-    /* Starting at ESR_NEIGH_MINION_BOOT_RESET_VAL for now */
-    . = 0x8000001000;
-
     .text :
     {
-        /* Place boot code first */
+        /* Starting at ESR_NEIGH_MINION_BOOT_RESET_VAL */
+        . = 0x1000;
         *(.text.init)
         *(SORT_BY_ALIGNMENT(.text) SORT_BY_ALIGNMENT(.text.*) SORT_BY_ALIGNMENT(.gnu.linkonce.t.*))
-    }
+    } > MCODE
 
     .rodata :
     {
         *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
-    }
+    } > MCODE
 
     .rodata1 :
     {
         *(SORT_BY_ALIGNMENT(.rodata1))
-    }
+    } > MCODE
 
     .sdata2 :
     {
         *(SORT_BY_ALIGNMENT(.sdata2) SORT_BY_ALIGNMENT(.sdata2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s2.*))
-    }
+    } > MCODE
 
     .sbss2 :
     {
         *(SORT_BY_ALIGNMENT(.sbss2) SORT_BY_ALIGNMENT(.sbss2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.sb2.*))
-
-    }
+    } > MCODE
 
     .data :
     {
         *(.data .data.* .gnu.linkonce.d.*)
-    }
+    } > MCODE
 
     /* We want the small data sections together, so single-instruction offsets
       can access them all, and initialized data all before uninitialized, so
@@ -64,7 +69,7 @@ SECTIONS
         __global_pointer$ = . + 0x800;
         *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
         *(.sdata .sdata.* .gnu.linkonce.s.*)
-    }
+    } > MCODE
 
     .bss :
     {
@@ -73,7 +78,7 @@ SECTIONS
         __bss_start = .;
 
         *(.bss .bss.* .gnu.linkonce.b.*)
-    }
+    } > MCODE
 
     .sbss :
     {
@@ -82,14 +87,5 @@ SECTIONS
         /* Align here to ensure crt.S bss init asm has an aligned end address */
         . = ALIGN(4);
         __bss_end = .;
-    }
-
-    /* The default stack alignment is 16 bytes in RV32I and RV64I */
-    . = ALIGN(16);
-
-    stack :
-    {
-        KEEP(*(stack stack.*))
-        __stack_base = .;
-    }
+    } > MCODE
 }

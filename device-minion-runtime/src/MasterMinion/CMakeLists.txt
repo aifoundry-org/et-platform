@@ -31,7 +31,11 @@ set(SOURCES
     src/swi.c
     src/exception.c
     src/main.c
+    src/putchar.c
     ${SHARED_SRC_DIR}/serial.c
+    ${SHARED_SRC_DIR}/printf.c
+    ${SHARED_SRC_DIR}/message.c
+    ${SHARED_SRC_DIR}/print_exception.c
     src/master.c
     )
 

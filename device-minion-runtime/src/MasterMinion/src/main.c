@@ -11,8 +11,6 @@ void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
 
-    *(volatile uint64_t*)(0x12002010) = 0;
-
     // Configure supervisor trap vector and sscratch (supervisor stack pointer)
     asm volatile (
         "la    %0, trap_handler \n"

@@ -16,6 +16,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
     {
         case SYSCALL_EVICT_L1:
         case SYSCALL_EVICT_L2:
+        case SYSCALL_EVICT_L2_WAIT:
         case SYSCALL_INIT_L1:
         case SYSCALL_DRAIN_COALESCING_BUFFER:
         case SYSCALL_ENABLE_THREAD1:
@@ -57,37 +58,38 @@ static int64_t return_from_kernel(void)
             "li   x1, 0x120            \n" // bitmask to set sstatus SPP and SPIE
             "csrs sstatus, x1          \n" // set sstatus SPP and SPIE
             "ld   sp,  %0              \n" // load sp from fw_sp[hart_id]
-            "sd   x0,  %0              \n" // clear fw_sp[hart_id]
-            "ld   x1,  1  * 8( sp )    \n" // load pc from stack
-            "ld   x3,  3  * 8( sp )    \n" // restore context
-            "ld   x5,  4  * 8( sp )    \n"
-            "ld   x6,  5  * 8( sp )    \n"
-            "ld   x7,  6  * 8( sp )    \n"
-            "ld   x8,  7  * 8( sp )    \n"
-            "ld   x9,  8  * 8( sp )    \n"
-            "ld   x10, 9  * 8( sp )    \n"
-            "ld   x11, 10 * 8( sp )    \n"
-            "ld   x12, 11 * 8( sp )    \n"
-            "ld   x13, 12 * 8( sp )    \n"
-            "ld   x14, 13 * 8( sp )    \n"
-            "ld   x15, 14 * 8( sp )    \n"
-            "ld   x16, 15 * 8( sp )    \n"
-            "ld   x17, 16 * 8( sp )    \n"
-            "ld   x18, 17 * 8( sp )    \n"
-            "ld   x19, 18 * 8( sp )    \n"
-            "ld   x20, 19 * 8( sp )    \n"
-            "ld   x21, 20 * 8( sp )    \n"
-            "ld   x22, 21 * 8( sp )    \n"
-            "ld   x23, 22 * 8( sp )    \n"
-            "ld   x24, 23 * 8( sp )    \n"
-            "ld   x25, 24 * 8( sp )    \n"
-            "ld   x26, 25 * 8( sp )    \n"
-            "ld   x27, 26 * 8( sp )    \n"
-            "ld   x28, 27 * 8( sp )    \n"
-            "ld   x29, 28 * 8( sp )    \n"
-            "ld   x30, 29 * 8( sp )    \n"
-            "ld   x31, 30 * 8( sp )    \n"
-            "addi sp, sp, 30 * 8       \n"
+            "sd   zero, %0             \n" // clear fw_sp[hart_id]
+            "ld   x1,  0  * 8( sp )    \n" // restore context
+            "ld   x3,  1  * 8( sp )    \n"
+            "ld   x5,  2  * 8( sp )    \n"
+            "ld   x6,  3  * 8( sp )    \n"
+            "ld   x7,  4  * 8( sp )    \n"
+            "ld   x8,  5  * 8( sp )    \n"
+            "ld   x9,  6  * 8( sp )    \n"
+            "ld   x10, 7  * 8( sp )    \n"
+            "ld   x11, 8  * 8( sp )    \n"
+            "ld   x12, 9  * 8( sp )    \n"
+            "ld   x13, 10 * 8( sp )    \n"
+            "ld   x14, 11 * 8( sp )    \n"
+            "ld   x15, 12 * 8( sp )    \n"
+            "ld   x16, 13 * 8( sp )    \n"
+            "ld   x17, 14 * 8( sp )    \n"
+            "ld   x18, 15 * 8( sp )    \n"
+            "ld   x19, 16 * 8( sp )    \n"
+            "ld   x20, 17 * 8( sp )    \n"
+            "ld   x21, 18 * 8( sp )    \n"
+            "ld   x22, 19 * 8( sp )    \n"
+            "ld   x23, 20 * 8( sp )    \n"
+            "ld   x24, 21 * 8( sp )    \n"
+            "ld   x25, 22 * 8( sp )    \n"
+            "ld   x26, 23 * 8( sp )    \n"
+            "ld   x27, 24 * 8( sp )    \n"
+            "ld   x28, 25 * 8( sp )    \n"
+            "ld   x29, 26 * 8( sp )    \n"
+            "ld   x30, 27 * 8( sp )    \n"
+            "ld   x31, 28 * 8( sp )    \n"
+            "addi sp, sp, 29 * 8       \n"
+            "csrw  sscratch, sp        \n" // save sp to sscratch so subsequent S-mode traps use correct SP
             "ret                       \n"
             : "+m" (fw_sp[hart_id])
         );

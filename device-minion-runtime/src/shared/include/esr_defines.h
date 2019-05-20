@@ -109,6 +109,7 @@
 
 // Neighborhood ESRs
 #define ESR_NEIGH_0                     0x0000  /* PP = 0b00 */
+#define ESR_NEIGH_MPROT                 0x0020  /* PP = 0b03 */
 #define ESR_NEIGH_IPI_REDIRECT_PC       0x0040  /* PP = 0b00 */
 #define ESR_NEIGH_TBOX_CONTROL          0x8000  /* PP = 0b00 */
 #define ESR_NEIGH_TBOX_STATUS           0x8008  /* PP = 0b00 */

@@ -1,39 +1,37 @@
 #include "master.h"
 #include "interrupt.h"
 #include "ipi.h"
+#include "message.h"
 #include "net_desc.h"
+#include "printf.h"
 #include "serial.h"
 #include "shire.h"
 #include "sync.h"
+#include "syscall.h"
 
-#include <stdint.h>
+#include <inttypes.h>
 
 #define NUM_WORKER_SHIRES 1
-
-#define FW_MCODE_STACK_BASE   0x80001FFE00ULL
-#define FW_MCODE_STACK_OFFSET 9                 // 512 bytes per thread
-#define FW_SCODE_STACK_BASE   0x80003FFE00ULL
-#define FW_SCODE_STACK_OFFSET 9                 // 512 bytes per thread
-#define FW_SCODE_IPI_INFO     0x8000500000ULL
 
 void MASTER_thread(void)
 {
     // TODO FIXME hangs on RVTimer access, waiting for RTLMIN-2778
     //volatile const uint64_t * const pullTime = (volatile const uint64_t * const)(0x01FF800000 + 0x0);
 
-    if (get_minion_id() != 1024)
+    if (get_hart_id() != 2048)
     {
         asm volatile ("wfi");
-        while (1) {} // in case wfi isn't working
     }
 
     SERIAL_init(UART0);
-    SERIAL_write(UART0, "alive\r\n", 7);
+    printf("\r\nmaster minion\r\n");
+
+    message_init_master();
 
     //const uint64_t before = *pullTime;
 
     // TODO FIXME convenient counter location for zebu inspection
-    register volatile unsigned int masterCycles asm("ra") = 0;
+    register volatile uint64_t masterCycles asm("t0") = 0;
 
     while (1)
     {
@@ -43,9 +41,10 @@ void MASTER_thread(void)
             WAIT_FCC(1);
         }
 
-        // Sending ourselves an IPI works: swi_handler is called and we return
-        // This is how PCI-E notifications of writes from the host will arrive, so faking for now
-        IPI_TRIGGER(THIS_SHIRE, 1U);
+        printf("%" PRIu64 "\r\n", masterCycles);
+
+        message_t message = {.id = 0xDEADBEEF, .data = {0,0,0,0,0,0,0}};
+        message_send_master(0, masterCycles % 32U, &message);
 
         // Parse flatbuffer network description here
 
