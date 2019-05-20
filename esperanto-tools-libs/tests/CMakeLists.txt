@@ -14,7 +14,6 @@ include(GoogleTest)
 include_directories(${GTEST_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src/esperanto-soc-artifacts/artifacts/sdk-build/build)
 
 link_directories(${GTEST_DIR}/lib64)
 
@@ -23,6 +22,7 @@ set(COMMON_TEST_LIBRARIES
   etrt
   libgtest_main.a
   libgtest.a
+  ${GLOG_LIBRARIES}
   ${FMTLIB_LIBRARIES}
   pthread)
 
@@ -38,6 +38,8 @@ foreach(TEST_FILE ${TEST_LIST})
   add_dependencies(${TEST_TARGET} googletest)
   add_dependencies(${TEST_TARGET} ${external_project_dependencies})
   target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
+  target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
+  target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
   gtest_discover_tests(${TEST_TARGET} TEST_PREFIX runtime:)
 
 endforeach(TEST_FILE)

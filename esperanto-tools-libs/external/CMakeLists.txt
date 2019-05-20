@@ -13,7 +13,7 @@ include(ExternalProject)
 if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   set(__GFLAGS_INCLUDED TRUE)
 
-  # use the system-wide gflags if present
+  # FIXME use the system-wide gflags if present
   # find_package(GFlags)
   if (GFLAGS_FOUND)
     set(GFLAGS_EXTERNAL FALSE)
@@ -80,8 +80,8 @@ endif()
 if (NOT __GLOG_INCLUDED)
   set(__GLOG_INCLUDED TRUE)
 
-  # try the system-wide glog first
-  find_package(Glog)
+  # FIXME try the system-wide glog first
+  # find_package(Glog)
   if (GLOG_FOUND)
       set(GLOG_EXTERNAL FALSE)
   else()

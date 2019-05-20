@@ -31,7 +31,7 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 
-#set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
+set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 
 # FIXME : disable for now hidden visibility by default: -fvisibility=hidden -fvisibility-inlines-hidden
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall -Werror")
@@ -88,7 +88,6 @@ target_link_libraries(etrt pthread)
 add_dependencies(etrt ${external_project_dependencies})
 target_link_libraries(etrt ${GLOG_LIBRARIES})
 target_link_libraries(etrt ${FMTLIB_LIBRARIES})
-target_link_libraries(etrt ${GFLAGS_LIBRARIES})
 
 if(BUILD_KERNELS)
   add_dependencies(etrt kernels-elf-file)

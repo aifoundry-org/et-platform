@@ -18,7 +18,7 @@ include_directories(${GLOG_INCLUDE_DIRS})
 
 set(COMMON_LIBRARIES
   etrt
-#  ${GLOG_LIBRARIES}
+  ${GLOG_LIBRARIES}
   )
 
 add_executable(runtime-tester runtime_tester.cc)
