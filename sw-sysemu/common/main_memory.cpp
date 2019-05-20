@@ -5,7 +5,6 @@
 #include "esrs.h"
 #include "main_memory.h"
 #include "main_memory_region_esr.h"
-#include "main_memory_region_printf.h"
 #include "main_memory_region_scp.h"
 #include "main_memory_region_scp_linear.h"
 
@@ -41,27 +40,6 @@ main_memory::main_memory(testLog& log_)
     //log << LOG_DEBUG << "Creating linear L2SCP region [0x" << hex << L2_SCP_LINEAR_BASE << ", 0x" << (L2_SCP_LINEAR_BASE + L2_SCP_LINEAR_SIZE) << ")" << dec << endm;
     main_memory_region* l2_scp_linear = new main_memory_region_scp_linear(this, L2_SCP_LINEAR_BASE, L2_SCP_LINEAR_SIZE, log, getthread);
     regions_.push_front(region_pointer(l2_scp_linear));
-}
-
-void main_memory::setPrintfBase(const char* binary)
-{
-   uint64_t symbolAddress;
-   std::ostringstream command;
-   command << "nm " << binary << " 2>/dev/null | grep rtlPrintf_buf | cut -d' ' -f 1";
-   FILE *p = popen(command.str().c_str(), "r");
-   if(p == NULL) log << LOG_ERR << command.str() << " Failed " << endm;
-   int c = fscanf(p, "%" PRIx64, &symbolAddress);
-   pclose(p);
-
-   if (c==1) {
-      // Adds the printf region
-      log << LOG_DEBUG << "adding printf region (@=" << hex << symbolAddress << ") from " << binary << dec << endm;
-      main_memory_region* printf = new main_memory_region_printf(symbolAddress, getthread);
-      regions_.push_back(region_pointer(printf));
-   }
-   else {
-      log << LOG_DEBUG << "no printf region from " << binary << endm;
-   }
 }
 
 // Destructor
