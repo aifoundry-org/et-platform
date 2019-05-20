@@ -201,8 +201,9 @@ public:
 
     void destroy() {
         dev->mutex.unlock();
-        delete my_et_device;
+        EtDevice *ptr = my_et_device;
         my_et_device = NULL;
+        delete ptr;
     }
 
     EtDevice *operator->() {
