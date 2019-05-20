@@ -10,16 +10,17 @@
 #define EMU_MASTER_SHIRE        32
 #define EMU_IO_SHIRE_SP         33
 #define IO_SHIRE_ID             254
-#define EMU_NEIGH_PER_SHIRE     4
+#define EMU_THREADS_PER_MINION  2
 #define EMU_MINIONS_PER_NEIGH   8
+#define EMU_THREADS_PER_NEIGH   (EMU_THREADS_PER_MINION*EMU_MINIONS_PER_NEIGH)
+#define EMU_NEIGH_PER_SHIRE     4
+#define EMU_MINIONS_PER_SHIRE   (EMU_MINIONS_PER_NEIGH*EMU_NEIGH_PER_SHIRE)
+#define EMU_THREADS_PER_SHIRE   (EMU_THREADS_PER_NEIGH*EMU_NEIGH_PER_SHIRE)
 #define EMU_TBOXES_PER_SHIRE    2
 #define EMU_RBOXES_PER_SHIRE    1
-#define EMU_MINIONS_PER_SHIRE   (EMU_NEIGH_PER_SHIRE*EMU_MINIONS_PER_NEIGH)
+#define EMU_NUM_NEIGHS          (EMU_NUM_SHIRES*EMU_NEIGH_PER_SHIRE)
 #define EMU_NUM_MINIONS         (EMU_NUM_SHIRES*EMU_MINIONS_PER_SHIRE)
-#define EMU_THREADS_PER_MINION  2
-#define EMU_THREADS_PER_NEIGH   (EMU_THREADS_PER_MINION*EMU_MINIONS_PER_NEIGH)
-#define EMU_THREADS_PER_SHIRE   (EMU_THREADS_PER_NEIGH*EMU_NEIGH_PER_SHIRE)
-#define EMU_NUM_THREADS         (EMU_THREADS_PER_SHIRE*EMU_NUM_SHIRES)
+#define EMU_NUM_THREADS         (EMU_NUM_SHIRES*EMU_THREADS_PER_SHIRE)
 #define EMU_NUM_TBOXES          (EMU_NUM_COMPUTE_SHIRES*EMU_TBOXES_PER_SHIRE)
 #define EMU_NUM_RBOXES          (EMU_NUM_COMPUTE_SHIRES*EMU_RBOXES_PER_SHIRE)
 
@@ -75,223 +76,6 @@
 #define MSTATUS_MPP     11
 #define MSTATUS_SPP     8
 
-// ESR region 'pp' field in bits [31:30]
-#define ESR_REGION_PROT_MASK    0x00C0000000ULL // ESR Region Protection is defined in bits [31:30]
-#define ESR_REGION_PROT_SHIFT   30              // Bits to shift to get the ESR Region Protection defined in bits [31:30]
-
-// ESR region 'shireid' field in bits [29:22]
-// The local shire has bits [29:22] = 8'b11111111
-#define ESR_REGION_SHIRE_MASK   0x003FC00000ULL
-#define ESR_REGION_LOCAL_SHIRE  0x003FC00000ULL
-#define ESR_REGION_SHIRE_SHIFT  22
-
-// ESR region 'hart' field in bits [19:12] (when 'subregion' is 2'b00)
-#define ESR_REGION_HART_MASK    0x00000FF000ULL
-#define ESR_REGION_HART_SHIFT   12
-
-// ESR region 'neighborhood' field in bits [19:16] (when 'subregion' is 2'b01)
-// The broadcast neighborhood has bits [19:16] == 4'b1111
-#define ESR_REGION_NEIGH_MASK       0x00000F0000ULL
-#define ESR_REGION_NEIGH_BROADCAST  0x00000F0000ULL
-#define ESR_REGION_NEIGH_SHIFT      16
-
-// ESR region 'bank' field in bits [16:13] (when 'subregion' is 2'b11)
-#define ESR_REGION_BANK_MASK    0x000001E000ULL
-#define ESR_REGION_BANK_SHIFT   13
-
-// ESR region 'ESR' field in bits [xx:3] (depends on 'subregion' and
-// 'extregion' fields). The following masks have all the bits of the address
-// enabled, except the ones specifiying the 'shire', 'neigh', 'hart', and
-// 'bank' fields.
-#define ESR_HART_ESR_MASK       0xFFC0300FFFULL
-#define ESR_NEIGH_ESR_MASK      0xFFC030FFFFULL
-#define ESR_CACHE_ESR_MASK      0xFFC03E1FFFULL
-#define ESR_SHIRE_ESR_MASK      0xFFC03FFFFFULL
-#define ESR_RBOX_ESR_MASK       0xFFC03FFFFFULL
-
-// bits [21:20] and further limited by bits [19:12] depending on the region
-#define ESR_SREGION_MASK        0x0100300000ULL
-
-// The ESR Extended Region is defined by bits [21:17] (when 'subregion' is 2'b11)
-#define ESR_SREGION_EXT_MASK    0x01003E0000ULL
-#define ESR_SREGION_EXT_SHIFT   17
-
-// Base addresses for the various ESR subregions
-//  * Hart ESR Region is at region [21:20] == 2'b00
-//  * Neigh ESR Region is at region [21:20] == 2'b01
-//  * The ESR Region at region [21:20] == 2'b10 is reserved
-//  * ShireCache ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b000
-//  * RBOX ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b001
-//  * ShireOther ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b010
-#define ESR_HART_REGION        0x0100000000ULL
-#define ESR_NEIGH_REGION       0x0100100000ULL
-#define ESR_RSRVD_REGION       0x0100200000ULL
-#define ESR_CACHE_REGION       0x0100300000ULL
-#define ESR_RBOX_REGION        0x0100320000ULL
-#define ESR_SHIRE_REGION       0x0100340000ULL
-
-// Helper macros to construct ESR addresses in the various subregions
-
-#define ESR_HART(shire, hart, name) \
-    ((uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
-     (uint64_t(hart) << ESR_REGION_HART_SHIFT) + \
-      uint64_t(ESR_ ## name))
-
-#define ESR_NEIGH(shire, neigh, name) \
-    ((uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
-     (uint64_t(neigh) << ESR_REGION_NEIGH_SHIFT) + \
-      uint64_t(ESR_ ## name))
-
-#define ESR_CACHE(shire, bank, name) \
-    ((uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
-     (uint64_t(bank) << ESR_REGION_BANK_SHIFT) + \
-      uint64_t(ESR_ ## name))
-
-#define ESR_RBOX(shire, name) \
-    ((uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
-      uint64_t(ESR_ ## name))
-
-#define ESR_SHIRE(shire, name) \
-    ((uint64_t(shire) << ESR_REGION_SHIRE_SHIFT) + \
-      uint64_t(ESR_ ## name))
-
-// Hart ESRs
-#define ESR_HART_U0             0x0100000000ULL /* PP = 0b00 */
-#define ESR_HART_S0             0x0140000000ULL /* PP = 0b01 */
-#define ESR_HART_M0             0x01C0000000ULL /* PP = 0b11 */
-
-// Message Ports
-#define ESR_PORT0               0x0100000800ULL /* PP = 0b00 */
-#define ESR_PORT1               0x0100000840ULL /* PP = 0b00 */
-#define ESR_PORT2               0x0100000880ULL /* PP = 0b00 */
-#define ESR_PORT3               0x01000008c0ULL /* PP = 0b00 */
-
-// Neighborhood ESRs
-#define ESR_NEIGH_U0                0x0100100000ULL /* PP = 0b00 */
-#define ESR_NEIGH_S0                0x0140100000ULL /* PP = 0b01 */
-#define ESR_NEIGH_M0                0x01C0100000ULL /* PP = 0b11 */
-#define ESR_DUMMY0                  0x0100100000ULL /* PP = 0b00 */
-#define ESR_DUMMY1                  0x0100100008ULL /* PP = 0b00 */
-#define ESR_MINION_BOOT             0x01C0100018ULL /* PP = 0b11 */
-#define ESR_MPROT                   0x01C0100020ULL /* PP = 0b11 */
-#define ESR_DUMMY2                  0x01C0100028ULL /* PP = 0b11 */
-#define ESR_DUMMY3                  0x01C0100030ULL /* PP = 0b11 */
-#define ESR_VMSPAGESIZE             0x01C0100038ULL /* PP = 0b11 */
-#define ESR_IPI_REDIRECT_PC         0x0100100040ULL /* PP = 0b00 */
-#define ESR_PMU_CTRL                0x01C0100068ULL /* PP = 0b11 */
-#define ESR_NEIGH_CHICKEN           0x01C0100070ULL /* PP = 0b11 */
-#define ESR_ICACHE_ERR_LOG_CTL      0x01C0100078ULL /* PP = 0b11 */
-#define ESR_ICACHE_ERR_LOG_INFO     0x01C0100080ULL /* PP = 0b11 */
-#define ESR_ICACHE_ERR_LOG_ADDRESS  0x01C0100088ULL /* PP = 0b11 */
-#define ESR_ICACHE_SBE_DBE_COUNTS   0x01C0100090ULL /* PP = 0b11 */
-#define ESR_TEXTURE_CONTROL         0x0100108000ULL /* PP = 0b00 */
-#define ESR_TEXTURE_STATUS          0x0100108008ULL /* PP = 0b00 */
-#define ESR_TEXTURE_IMAGE_TABLE_PTR 0x0100108010ULL /* PP = 0b00 */
-
-// ShireCache ESRs
-#define ESR_CACHE_U0                      0x0100300000ULL /* PP = 0b00 */
-#define ESR_CACHE_S0                      0x0140300000ULL /* PP = 0b01 */
-#define ESR_CACHE_M0                      0x01C0300000ULL /* PP = 0b11 */
-#define ESR_SC_L3_SHIRE_SWIZZLE_CTL       0x01C0300000ULL /* PP = 0b11 */
-#define ESR_SC_REQQ_CTL                   0x01C0300008ULL /* PP = 0b11 */
-#define ESR_SC_PIPE_CTL                   0x01C0300010ULL /* PP = 0b11 */
-#define ESR_SC_L2_CACHE_CTL               0x01C0300018ULL /* PP = 0b11 */
-#define ESR_SC_L3_CACHE_CTL               0x01C0300020ULL /* PP = 0b11 */
-#define ESR_SC_SCP_CACHE_CTL              0x01C0300028ULL /* PP = 0b11 */
-#define ESR_SC_IDX_COP_SM_CTL             0x01C0300030ULL /* PP = 0b11 */
-#define ESR_SC_IDX_COP_SM_PHYSICAL_INDEX  0x01C0300038ULL /* PP = 0b11 */
-#define ESR_SC_IDX_COP_SM_DATA0           0x01C0300040ULL /* PP = 0b11 */
-#define ESR_SC_IDX_COP_SM_DATA1           0x01C0300048ULL /* PP = 0b11 */
-#define ESR_SC_IDX_COP_SM_ECC             0x01C0300050ULL /* PP = 0b11 */
-#define ESR_SC_ERR_LOG_CTL                0x01C0300058ULL /* PP = 0b11 */
-#define ESR_SC_ERR_LOG_INFO               0x01C0300060ULL /* PP = 0b11 */
-#define ESR_SC_ERR_LOG_ADDRESS            0x01C0300068ULL /* PP = 0b11 */
-#define ESR_SC_SBE_DBE_COUNTS             0x01C0300070ULL /* PP = 0b11 */
-#define ESR_SC_REQQ_DEBUG_CTL             0x01C0300078ULL /* PP = 0b11 */
-#define ESR_SC_REQQ_DEBUG0                0x01C0300080ULL /* PP = 0b11 */
-#define ESR_SC_REQQ_DEBUG1                0x01C0300088ULL /* PP = 0b11 */
-#define ESR_SC_REQQ_DEBUG2                0x01C0300090ULL /* PP = 0b11 */
-#define ESR_SC_REQQ_DEBUG3                0x01C0300098ULL /* PP = 0b11 */
-//#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
-//#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
-//#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
-//#define ESR_SC_PERFMON_CTL_STATUS       /* PP = 0b11 */
-//#define ESR_SC_PERFMON_CYC_CNTR         /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P0_CNTR          /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P1_CNTR          /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P0_QUAL          /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P1_QUAL          /* PP = 0b11 */
-
-
-// RBOX ESRs
-#define ESR_RBOX_U0             0x0100320000ULL /* PP = 0b00 */
-#define ESR_RBOX_S0             0x0140320000ULL /* PP = 0b01 */
-#define ESR_RBOX_M0             0x01C0320000ULL /* PP = 0b11 */
-#define ESR_RBOX_CONFIG         0x0100320000ULL /* PP = 0b00 */
-#define ESR_RBOX_IN_BUF_PG      0x0100320008ULL /* PP = 0b00 */
-#define ESR_RBOX_IN_BUF_CFG     0x0100320010ULL /* PP = 0b00 */
-#define ESR_RBOX_OUT_BUF_PG     0x0100320018ULL /* PP = 0b00 */
-#define ESR_RBOX_OUT_BUF_CFG    0x0100320020ULL /* PP = 0b00 */
-#define ESR_RBOX_STATUS         0x0100320028ULL /* PP = 0b00 */
-#define ESR_RBOX_START          0x0100320030ULL /* PP = 0b00 */
-#define ESR_RBOX_CONSUME        0x0100320038ULL /* PP = 0b00 */
-
-// Shire ESRs
-#define ESR_SHIRE_U0              0x0100340000ULL /* PP = 0b00 */
-#define ESR_SHIRE_S0              0x0140340000ULL /* PP = 0b01 */
-#define ESR_SHIRE_M0              0x01C0340000ULL /* PP = 0b11 */
-#define ESR_MINION_FEATURE        0x01C0340000ULL /* PP = 0b11 */
-#define ESR_IPI_REDIRECT_TRIGGER  0x0100340080ULL /* PP = 0b00 */
-#define ESR_IPI_REDIRECT_FILTER   0x01C0340088ULL /* PP = 0b11 */
-#define ESR_IPI_TRIGGER           0x01C0340090ULL /* PP = 0b11 */
-#define ESR_IPI_TRIGGER_CLEAR     0x01C0340098ULL /* PP = 0b11 */
-#define ESR_FCC_CREDINC_0         0x01003400C0ULL /* PP = 0b00 */
-#define ESR_FCC_CREDINC_1         0x01003400C8ULL /* PP = 0b00 */
-#define ESR_FCC_CREDINC_2         0x01003400D0ULL /* PP = 0b00 */
-#define ESR_FCC_CREDINC_3         0x01003400D8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER0   0x0100340100ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER1   0x0100340108ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER2   0x0100340110ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER3   0x0100340118ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER4   0x0100340120ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER5   0x0100340128ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER6   0x0100340130ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER7   0x0100340138ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER8   0x0100340140ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER9   0x0100340148ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER10  0x0100340150ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER11  0x0100340158ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER12  0x0100340160ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER13  0x0100340168ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER14  0x0100340170ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER15  0x0100340178ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER16  0x0100340180ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER17  0x0100340188ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER18  0x0100340190ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER19  0x0100340198ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER20  0x01003401A0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER21  0x01003401A8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER22  0x01003401B0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER23  0x01003401B8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER24  0x01003401C0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER25  0x01003401C8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER26  0x01003401D0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER27  0x01003401D8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER28  0x01003401E0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER29  0x01003401E8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER30  0x01003401F0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER31  0x01003401F8ULL /* PP = 0b00 */
-#define ESR_SHIRE_COOP_MODE       0x0140340290ULL /* PP = 0b01 */
-#define ESR_ICACHE_UPREFETCH      0x01003402F8ULL /* PP = 0b00 */
-#define ESR_ICACHE_SPREFETCH      0x0140340300ULL /* PP = 0b01 */
-#define ESR_ICACHE_MPREFETCH      0x01C0340308ULL /* PP = 0b11 */
-
-// Broadcast ESRs
-#define ESR_BROADCAST_DATA      0x013FF5FFF0ULL /* PP = 0b00 */
-#define ESR_UBROADCAST          0x013FF5FFF8ULL /* PP = 0b00 */
-#define ESR_SBROADCAST          0x017FF5FFF8ULL /* PP = 0b01 */
-#define ESR_MBROADCAST          0x01FFF5FFF8ULL /* PP = 0b11 */
-
 // L2
 #define SC_NUM_BANKS  4
 
@@ -301,11 +85,6 @@
 #define L2_SCP_SIZE        0x00400000ULL
 #define L2_SCP_LINEAR_BASE 0xC0000000ULL
 #define L2_SCP_LINEAR_SIZE 0x40000000ULL
-
-// Message ports
-#define ESR_HART_PORT_ADDR_VALID(x)         (((x) & 0xF38) == 0x800)
-#define ESR_HART_PORT_NUM_MASK              0xC0ULL
-#define ESR_HART_PORT_NUM_SHIFT             6
 
 // CSRs
 enum : uint16_t {

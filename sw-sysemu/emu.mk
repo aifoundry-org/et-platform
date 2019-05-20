@@ -7,6 +7,7 @@ emu_hdrs := \
 	emu_defines.h \
 	emu_gio.h \
 	emu_memop.h \
+	esrs.h \
 	gold.h \
 	insn.h \
 	insn_func.h \
@@ -24,7 +25,6 @@ emu_hdrs := \
 	common/main_memory_region.h \
 	common/main_memory_region_atomic.h \
 	common/main_memory_region_esr.h \
-	common/main_memory_region_rbox.h \
 	common/main_memory_region_scp_linear.h
 
 emu_cpp_srcs := \
@@ -32,6 +32,7 @@ emu_cpp_srcs := \
 	emu.cpp \
 	emu_gio.cpp \
 	emu_memop.cpp \
+	esrs.cpp \
 	gold.cpp \
 	insn_exec_func.cpp \
 	mmu.cpp \
@@ -63,6 +64,5 @@ emu_cpp_srcs := \
 	common/main_memory_region.cpp \
 	common/main_memory_region_atomic.cpp \
 	common/main_memory_region_esr.cpp \
-	common/main_memory_region_rbox.cpp \
 	common/main_memory_region_scp.cpp \
 	common/main_memory_region_scp_linear.cpp
