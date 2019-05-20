@@ -12,6 +12,7 @@
 #include "bl1_sp_firmware_loader.h"
 #include "bl1_flash_fs.h"
 #include "bl1_main.h"
+#include "bl1_build_configuration.h"
 #include "build_configuration.h"
 
 SERVICE_PROCESSOR_BL1_DATA_t g_service_processor_bl1_data;
@@ -60,9 +61,10 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data);
 
 int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
 {
+    const IMAGE_VERSION_INFO_t * image_version_info = get_image_version_info();
     //SERIAL_init(UART0);
     printx("\n*** SP BL1 STARTED ***\r\n");
-    printx("File version %u.%u.%u\n", FILE_VERSION_MAJOR, FILE_VERSION_MINOR, FILE_REVISION_NUMBER);
+    printx("File version %u.%u.%u\n", image_version_info->file_version_major, image_version_info->file_version_minor, image_version_info->file_version_revision);
     printx("GIT version: %s\n", GIT_VERSION_STRING);
     printx("GIT hash: %s\n", GIT_HASH_STRING);
 
@@ -70,7 +72,6 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
     g_service_processor_bl1_data.service_processor_bl1_data_size = sizeof(g_service_processor_bl1_data);
     g_service_processor_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
 
-    printx("SP ROM data address: %x\n", rom_data);
     if (0 != copy_rom_data(rom_data)) {
         printx("copy_rom_data() failed!!\n");
         goto FATAL_ERROR;
