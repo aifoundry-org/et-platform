@@ -14,8 +14,8 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 
 # TODO FIXME move this to a shared dir that isn't project specific
 get_filename_component(ELFTOHEX_ABS_PATH "src/elftohex.py" ABSOLUTE)
-get_filename_component(GET_GIT_HASH_ABS_PATH "src/get_git_hash.sh" ABSOLUTE)
-get_filename_component(GET_GIT_VERSION_ABS_PATH "src/get_git_version.sh" ABSOLUTE)
+get_filename_component(GET_GIT_HASH_ABS_PATH "src/get_git_hash.py" ABSOLUTE)
+get_filename_component(GET_GIT_VERSION_ABS_PATH "src/get_git_version.py" ABSOLUTE)
 
 set(CMAKE_AR         ${GCC_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
 set(CMAKE_RANLIB     ${GCC_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
@@ -55,8 +55,14 @@ macro(add_riscv_executable TARGET_NAME LINKER_SCRIPT ZEBU_TARGET ZEBU_FILENAME)
 if (NOT DEFINED GIT_HASH_STRING)
     execute_process(COMMAND ${CMAKE_GET_GIT_HASH} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_STRING)
 endif()
+if (NOT DEFINED GIT_HASH_ARRAY)
+    execute_process(COMMAND ${CMAKE_GET_GIT_HASH} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_ARRAY)
+endif()
 if (NOT DEFINED GIT_VERSION_STRING)
     execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_STRING)
+endif()
+if (NOT DEFINED GIT_VERSION_ARRAY)
+    execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_ARRAY)
 endif()
 
 configure_file (
