@@ -18,4 +18,5 @@ EXAPI void etrtKillDevice() {
 	std::cout << "etrt Killing device\n";
     GetDev dev;
     dev.destroy();
+    dev.~GetDev();
 }
