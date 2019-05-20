@@ -9,24 +9,6 @@
 #include "emu_defines.h"
 #include "main_memory_region.h"
 
-// Namespaces
-using namespace std;
-
-// Creator
-main_memory_region::main_memory_region(uint64_t base, uint64_t size, testLog & l,
-                                       func_ptr_get_thread & get_thread, int flags,
-                                       bool allocate_data)
-    : base_(base), size_(size), data_(allocate_data ? new char[size]() : nullptr),
-      flags_(flags), log(l), get_thread(get_thread)
-{ }
-
-// Destructor: free allocated mem
-main_memory_region::~main_memory_region()
-{
-    if (data_)
-        delete[] data_;
-}
-
 // Write to memory region
 void main_memory_region::write(uint64_t ad, int size, const void * data)
 {

@@ -14,6 +14,7 @@
 #include "emu.h"
 #include "emu_casts.h"
 #include "emu_gio.h"
+#include "esrs.h"
 #include "memmap.h"
 #include "mmu.h"
 #include "fpu/fpu.h"
@@ -273,9 +274,21 @@ std::string dump_fregs(uint32_t thread_id)
 
 void init_emu()
 {
-   XREGS[x0]  = 0;
    // FIXME: remove '#include <cfenv>' when we purge this function from the code
    std::fesetround(FE_TONEAREST); // set rne for host
+}
+
+void reset_esrs_for_shire(unsigned shireid)
+{
+    unsigned shire = (shireid == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shireid;
+
+    for (unsigned neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; ++neigh) {
+        unsigned idx = EMU_NEIGH_PER_SHIRE*shire + neigh;
+        neigh_esrs[idx].reset();
+    }
+    shire_cache_esrs[shire].reset();
+    shire_other_esrs[shire].reset(shireid);
+    broadcast_esrs[shire].reset();
 }
 
 // forward declarations
@@ -301,11 +314,6 @@ static uint64_t read_port_base_address(unsigned thread, unsigned id);
 // Helper routines
 //
 ////////////////////////////////////////////////////////////////////////////////
-
-#define ZERO_UNUSED_FREG_BITS(regid, start) do { \
-    for (size_t _zeufb_index = start; _zeufb_index < VL; ++_zeufb_index) \
-        FREGS[regid].u32[_zeufb_index] = 0; \
-} while (0)
 
 static inline const char* get_fp_flags(uint_fast8_t flags)
 {
@@ -424,42 +432,42 @@ static inline const char* get_rounding_mode(int mode)
     return rmnames[(mode == rmdyn) ? (8 + frm()) : (mode & 7)];
 }
 
-void initcsr(uint32_t thread)
+void reset_hart(unsigned thread)
 {
     // Exit reset at M-mode
     csr_prv[thread] = CSR_PRV_M;
     debug_mode[thread] = false;
+
     // Read-only registers
+    xregs[thread][0] = 0;
     csr_mvendorid[thread] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity)
     csr_marchid[thread] = 0x8000000000000001ULL;
     csr_mimpid[thread] = 0x0;
-    if (thread == ((EMU_IO_SHIRE_SP*EMU_MINIONS_PER_SHIRE) << 1))
-    {
-        LOG(INFO, "Repurposing Shire 33 for Service Process : Thread %u Original MHartID %" PRIu16 " New MHartID %u",thread,csr_mhartid[thread],(IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE));
-        csr_mhartid[thread] = IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE;
-    }
-    else
-    {
-        csr_mhartid[thread] = thread;
-    }
+    csr_mhartid[thread] = (thread == (EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE))
+        ? (IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE)
+        : thread;
 
     // misa is a 0-length register
     csr_misa[thread] = CSR_ISA_MAX;
+
     // CSR registers with reset
-    csr_mstatus[thread] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
+    // TODO: csr_excl_mode[thread] = 0;
+    csr_gsc_progress[thread] = 0;
+    csr_mcache_control[thread] = 0;
     csr_mcause[thread] = 0;
+    csr_mcounteren[thread] = 0;
+    csr_menable_shadows[thread] = 0;
+    csr_minstmask[thread] = 0;
     csr_mip[thread] = 0;
     csr_msleep_txfma_27[thread] = 0;
-    csr_menable_shadows[thread] = 0;
-    // TODO: csr_excl_mode[thread] = 0;
+    csr_mstatus[thread] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csr_mtxfma_sleep_traps[thread] = 0;
-    csr_mcache_control[thread] = 0;
-    csr_mcounteren[thread] = 0;
     csr_scounteren[thread] = 0;
-    csr_ucache_control[thread] = 0x200; // CacheOp_MAx=8
+    csr_ucache_control[thread] = 0x200;
+
     // Debug-mode registers with reset
-    csr_tdata1[thread] = 0x20C0000000000000ULL;
     // TODO: csr_dcsr[thread] <= xdebugver=1, prv=3;
+    csr_tdata1[thread] = 0x20C0000000000000ULL;
 
     // Cached information
     activate_breakpoints(CSR_PRV_M);
@@ -474,10 +482,6 @@ void initcsr(uint32_t thread)
     csr_portctrl[1][thread] = 0x0000000000008000ULL;
     csr_portctrl[2][thread] = 0x0000000000008000ULL;
     csr_portctrl[3][thread] = 0x0000000000008000ULL;
-
-    csr_minstmask[thread] = 0;
-    csr_gsc_progress[thread] = 0;
-    csr_ucache_control[thread] = 0x200;
 }
 
 void minit(mreg dst, uint64_t val)

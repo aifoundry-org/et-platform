@@ -27,13 +27,20 @@ class main_memory_region
         main_memory_region(uint64_t base, uint64_t size, testLog & l,
                            func_ptr_get_thread & get_thread,
                            int flags = MEM_REGION_RW,
-                           bool allocate_data = true);
-        virtual ~main_memory_region();
+                           bool allocate_data = true)
+        : base_(base), size_(size), data_(allocate_data ? new char[size]() : nullptr),
+          flags_(flags), log(l), get_thread(get_thread)
+        {}
+
+        virtual ~main_memory_region() {
+            delete[] data_;
+        }
 
         // operators to compare, used when searching the correct region in a memory access
         bool operator==(uint64_t ad) const {
             return ad >= base_ && ad < base_ + size_;
         }
+
         bool operator!=(uint64_t ad) const {
             return !(*this == ad);
         }

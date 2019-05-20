@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "emu_gio.h"
+#include "esrs.h"
 #include "log.h"
 #include "mmu.h"
 #include "traps.h"
@@ -144,11 +145,13 @@ static bool pma_data_access_permitted(uint64_t addr, size_t size, mem_access_typ
     bool amo_g    = (macc == Mem_Access_AtomicG);
     bool ts_tl_co = (macc >= Mem_Access_TxLoad && macc <= Mem_Access_CacheOp);
 
-    if (paddr_is_io_space(addr))
+    if (paddr_is_io_space(addr)) {
+        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
         return !amo
             && !ts_tl_co
             && addr_is_size_aligned(addr, size)
-            && (spio || /*!mprot.disable_io_access*/true);
+            && (spio || (~mprot & 0x1)/*!mprot.disable_io_access*/);
+    }
 
     if (paddr_is_sp_space(addr))
         return spio
@@ -168,17 +171,21 @@ static bool pma_data_access_permitted(uint64_t addr, size_t size, mem_access_typ
             && ( int((addr >> 30) & 0x3) <= effective_execution_mode(macc) )
             && ( int((addr >> 30) & 0x3) != 2 || spio );
 
-    if (paddr_is_pcie_space(addr))
+    if (paddr_is_pcie_space(addr)) {
+        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
         return !amo
             && !ts_tl_co
             && addr_is_size_aligned(addr, size)
-            && (spio || /*!mprot.disable_pcie_access*/true);
+            && (spio || (~mprot & 0x2)/*!mprot.disable_pcie_access*/);
+    }
 
     if (paddr_is_dram_mbox(addr))
         return effective_execution_mode(macc) == CSR_PRV_M;
 
-    if (paddr_is_dram_osbox(addr))
-        return spio || /*!mprot.disable_osbox_access*/true;
+    if (paddr_is_dram_osbox(addr)) {
+        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+        return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
+    }
 
     return paddr_is_dram(addr);
 }
@@ -197,8 +204,10 @@ static bool pma_check_ptw_access(uint64_t addr)
     if (paddr_is_dram_mbox(addr))
         return effective_execution_mode(Mem_Access_PTW) == CSR_PRV_M;
 
-    if (paddr_is_dram_osbox(addr))
-        return spio || /*!mprot.disable_osbox_access*/true;
+    if (paddr_is_dram_osbox(addr)) {
+        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+        return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
+    }
 
     return paddr_is_dram(addr);
 }
@@ -217,8 +226,10 @@ static bool pma_fetch_access_permitted(uint64_t addr)
     if (paddr_is_dram_mbox(addr))
         return effective_execution_mode(Mem_Access_Fetch) == CSR_PRV_M;
 
-    if (paddr_is_dram_osbox(addr))
-        return spio || /*!mprot.disable_osbox_access*/true;
+    if (paddr_is_dram_osbox(addr)) {
+        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+        return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
+    }
 
     return paddr_is_dram(addr);
 }
@@ -742,8 +753,10 @@ bool mmu_check_cacheop_access(uint64_t paddr)
     if (paddr_is_dram_mbox(paddr))
         return effective_execution_mode(Mem_Access_CacheOp) == CSR_PRV_M;
 
-    if (paddr_is_dram_osbox(paddr))
-        return spio || /*!mprot.disable_osbox_access*/true;
+    if (paddr_is_dram_osbox(paddr)) {
+        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+        return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
+    }
 
     return paddr_is_dram(paddr);
 }

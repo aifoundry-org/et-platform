@@ -2,9 +2,9 @@
 #include <fstream>
 
 // Local
+#include "esrs.h"
 #include "main_memory.h"
 #include "main_memory_region_atomic.h"
-#include "main_memory_region_rbox.h"
 #include "main_memory_region_esr.h"
 #include "main_memory_region_printf.h"
 #include "main_memory_region_scp.h"
@@ -29,60 +29,61 @@ main_memory::main_memory(testLog& log_)
         // For all the neighs in each shire and the neighborhood broadcast mask
         for (int n = 0; n <= EMU_NEIGH_PER_SHIRE; n++)
         {
-            int neigh = (n == EMU_NEIGH_PER_SHIRE) ? (ESR_REGION_NEIGH_BROADCAST >> ESR_REGION_NEIGH_SHIFT) : n;
-            main_memory_region_esr * neigh_esrs;
+            int neigh = (n == EMU_NEIGH_PER_SHIRE) ? ESR_REGION_NEIGH_BROADCAST : n;
+            main_memory_region* neigh_esrs;
 
             // Neigh ESRs (U-mode)
             neigh_esrs = new main_memory_region_esr(this, ESR_NEIGH(shire, neigh, NEIGH_U0), 48*1024, log, getthread);
-            regions_.push_back(neigh_esrs);
+            regions_.push_back(region_pointer(neigh_esrs));
 
             // Neigh ESRs (M-mode)
             neigh_esrs = new main_memory_region_esr(this, ESR_NEIGH(shire, neigh, NEIGH_M0), 256, log, getthread);
-            regions_.push_back(neigh_esrs);
+            regions_.push_back(region_pointer(neigh_esrs));
         }
 
         // ShireCache ESRs (M-mode)
-        main_memory_region_esr* cb_esrs[4];
         for (int n = 0; n < 4; n++)
         {
-            cb_esrs[n] = new main_memory_region_esr(this, ESR_CACHE(shire, n, CACHE_M0), 256, log, getthread);
-            regions_.push_back(cb_esrs[n]);
+            main_memory_region* cb_esrs;
+            cb_esrs = new main_memory_region_esr(this, ESR_CACHE(shire, n, CACHE_M0), 256, log, getthread);
+            regions_.push_back(region_pointer(cb_esrs));
         }
 
         // RBOX ESRs (U-mode)
-        main_memory_region_rbox * rbox_esrs  = new main_memory_region_rbox(ESR_RBOX(shire, RBOX_U0), 128*1024, log, getthread);
-        regions_.push_back(rbox_esrs);
+        main_memory_region* rbox_esrs = new main_memory_region_esr(this, ESR_RBOX(shire, RBOX_U0), 128*1024, log, getthread);
+        regions_.push_back(region_pointer(rbox_esrs));
 
-        main_memory_region_esr* shire_esrs;
+        main_memory_region* shire_esrs;
 
         // Shire ESRs (U-mode)
         shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_U0), 128*1024, log, getthread);
-        regions_.push_back(shire_esrs);
+        regions_.push_back(region_pointer(shire_esrs));
 
         // Shire ESRs (M-mode)
         shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_M0), 128*1024, log, getthread);
-        regions_.push_back(shire_esrs);
+        regions_.push_back(region_pointer(shire_esrs));
 
         // Shire ESRs (S-mode)
         shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_S0), 128*1024, log, getthread);
-        regions_.push_back(shire_esrs);
+        regions_.push_back(region_pointer(shire_esrs));
 
         // L2 scratchpad
         // NB: Here we assume that all banks have the same ESR value!
         //log << LOG_DEBUG << "S" << shire << ": Creating L2SCP region [0x" << hex << (L2_SCP_BASE + (shire & 0x7F)*L2_SCP_OFFSET) << ", 0x" << (L2_SCP_BASE + (shire & 0x7F)*L2_SCP_OFFSET + L2_SCP_SIZE) << ")" << dec << endm;
-        main_memory_region_scp* l2_scp = new main_memory_region_scp(this, L2_SCP_BASE + (shire & 0x7F) *L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread, cb_esrs[0], (shire != 255));
-        regions_.push_front(l2_scp);
+        main_memory_region* l2_scp = new main_memory_region_scp(this, L2_SCP_BASE + (shire & 0x7F) * L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread,
+                                                                (shire != 255) ? &shire_cache_esrs[shire] : nullptr, (shire != 255));
+        regions_.push_front(region_pointer(l2_scp));
 
         // HART ESRs (U-mode)
         // NB: This only maps message ports, there are no other ESRs
-        main_memory_region_esr* hart_esrs = new main_memory_region_esr(this, ESR_HART(shire, 0, HART_U0), 1024 * 1024, log, getthread, false);
-        regions_.push_back(hart_esrs);
+        main_memory_region* hart_esrs = new main_memory_region_esr(this, ESR_HART(shire, 0, HART_U0), 1024 * 1024, log, getthread);
+        regions_.push_back(region_pointer(hart_esrs));
     }
 
     // L2 scratchpad as a linear memory
     //log << LOG_DEBUG << "Creating linear L2SCP region [0x" << hex << L2_SCP_LINEAR_BASE << ", 0x" << (L2_SCP_LINEAR_BASE + L2_SCP_LINEAR_SIZE) << ")" << dec << endm;
-    main_memory_region_scp_linear* l2_scp_linear = new main_memory_region_scp_linear(this, L2_SCP_LINEAR_BASE, L2_SCP_LINEAR_SIZE, log, getthread);
-    regions_.push_front(l2_scp_linear);
+    main_memory_region* l2_scp_linear = new main_memory_region_scp_linear(this, L2_SCP_LINEAR_BASE, L2_SCP_LINEAR_SIZE, log, getthread);
+    regions_.push_front(region_pointer(l2_scp_linear));
 }
 
 void main_memory::setPrintfBase(const char* binary)
@@ -91,14 +92,15 @@ void main_memory::setPrintfBase(const char* binary)
    std::ostringstream command;
    command << "nm " << binary << " 2>/dev/null | grep rtlPrintf_buf | cut -d' ' -f 1";
    FILE *p = popen(command.str().c_str(), "r");
+   if(p == NULL) log << LOG_ERR << command.str() << " Failed " << endm;
    int c = fscanf(p, "%" PRIx64, &symbolAddress);
    pclose(p);
 
    if (c==1) {
       // Adds the printf region
       log << LOG_DEBUG << "adding printf region (@=" << hex << symbolAddress << ") from " << binary << dec << endm;
-      main_memory_region_printf * printf = new main_memory_region_printf(symbolAddress, getthread);
-      regions_.push_back(printf);
+      main_memory_region* printf = new main_memory_region_printf(symbolAddress, getthread);
+      regions_.push_back(region_pointer(printf));
    }
    else {
       log << LOG_DEBUG << "no printf region from " << binary << endm;
@@ -113,7 +115,7 @@ main_memory::~main_memory()
 // Read a bunch of bytes
 void main_memory::read(uint64_t ad, int size, void * data)
 {
-   rg_it_t r = find(ad);
+   region_iterator r = find(ad);
 
    if (r == regions_.end()) {
       if (runtime_mem_regions == true) {
@@ -133,7 +135,7 @@ void main_memory::read(uint64_t ad, int size, void * data)
 
    if (r != regions_.end()) {
       if ((*(* r)) != (ad + size - 1)) {
-         rg_it_t next_region = find(ad+size-1);
+         region_iterator next_region = find(ad+size-1);
          if ((next_region == regions_.end()) && (runtime_mem_regions == true)) {
             log << LOG_DEBUG << "read(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries, creating next section on the fly" << endm;
             new_region(ad+size-1, 1);
@@ -163,7 +165,7 @@ void main_memory::read(uint64_t ad, int size, void * data)
 // Writes a bunch of bytes
 void main_memory::write(uint64_t ad, int size, const void * data)
 {
-   rg_it_t r = find(ad);
+   region_iterator r = find(ad);
 
    if (r == regions_.end()) {
       if (runtime_mem_regions == true) {
@@ -183,7 +185,7 @@ void main_memory::write(uint64_t ad, int size, const void * data)
 
    if (r != regions_.end()) {
       if ((* (* r)) != (ad + size - 1)) {
-         rg_it_t next_region = find(ad+size-1);
+         region_iterator next_region = find(ad+size-1);
          if ((next_region == regions_.end()) && (runtime_mem_regions == true)) {
             log << LOG_DEBUG << "write(" << std::hex << ad << ", " << std::dec << size << "): crosses section boundaries, creating on the fly" << endm;
             new_region(ad+size-1, 1);
@@ -246,10 +248,10 @@ bool main_memory::new_region(uint64_t base, uint64_t size, int flags)
       log << LOG_ERR << "new_region(base=0x" << std::hex << base << ", size=0x" << size << ", top=0x" << top << "): overlaps with existing region and won't be created" << endm;
       return false;
    }
-   else {
-      regions_.push_front(new main_memory_region(base, size, log, getthread, flags));
-      return true;
-   }
+
+   main_memory_region* r = new main_memory_region(base, size, log, getthread, flags);
+   regions_.push_front(region_pointer(r));
+   return true;
 }
 
 // Loads a file to memory
