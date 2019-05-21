@@ -3679,12 +3679,14 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
     {
         *action = 0;
         *other_min = (value >> 3) & 0x1FFF;
+        //LOG_ALL_MINIONS(DEBUG, "TensorSend[0x%" PRIx64 "]: other_min=%d", value, *other_min);
     }
     // RECEIVER
     else if (type == 1)
     {
         *action = 1;
         *other_min = (value >> 3) & 0x1FFF;
+        //LOG_ALL_MINIONS(DEBUG, "TensorRecv[0x%" PRIx64 "]: other_min=%d", value, *other_min);
     }
     // BROADCAST: Compute sender/receiver assuming recursive halving
     else if (type == 2)
@@ -3705,6 +3707,8 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
         {
             *action = 2; // do nothing
         }
+        //LOG_ALL_MINIONS(DEBUG, "TensorBroadcast[0x%" PRIx64 "]: action=%s, other_min=%d", value,
+        //                (*action == 0 ? "SEND" : (*action == 1 ? "RECV" : "NONE")), *other_min);
     }
     // REDUCE: Compute sender/receiver assuming recursive halving
     else
@@ -3725,6 +3729,8 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
         {
             *action = 2; // do nothing
         }
+        //LOG_ALL_MINIONS(DEBUG, "TensorReduce[0x%" PRIx64 "]: action=%s, other_min=%d", value,
+        //                (*action == 0 ? "SEND" : (*action == 1 ? "RECV" : "NONE")), *other_min);
     }
 
     if (*action == 2)
