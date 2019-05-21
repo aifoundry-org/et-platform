@@ -210,6 +210,8 @@
 
 #define SCATTER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
+    for (size_t e = 0; e < csr_gsc_progress[current_thread]; ++e) \
+        log_mem_write(false, -1, 0, 0); \
     for (size_t e = csr_gsc_progress[current_thread]; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
@@ -267,6 +269,8 @@
 #define GSCAMO(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
+    for (size_t e = 0; e < csr_gsc_progress[current_thread]; ++e) \
+        log_mem_write(false, -1, 0, 0); \
     for (size_t e = csr_gsc_progress[current_thread]; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
