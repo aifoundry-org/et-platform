@@ -23,7 +23,6 @@ emu_hdrs := \
 	utility.h \
 	common/main_memory.h \
 	common/main_memory_region.h \
-	common/main_memory_region_atomic.h \
 	common/main_memory_region_esr.h \
 	common/main_memory_region_scp_linear.h
 
@@ -62,7 +61,6 @@ emu_cpp_srcs := \
 	insns/zifencei.cpp \
 	common/main_memory.cpp \
 	common/main_memory_region.cpp \
-	common/main_memory_region_atomic.cpp \
 	common/main_memory_region_esr.cpp \
 	common/main_memory_region_scp.cpp \
 	common/main_memory_region_scp_linear.cpp

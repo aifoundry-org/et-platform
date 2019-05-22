@@ -4,9 +4,7 @@
 // Local
 #include "esrs.h"
 #include "main_memory.h"
-#include "main_memory_region_atomic.h"
 #include "main_memory_region_esr.h"
-#include "main_memory_region_printf.h"
 #include "main_memory_region_scp.h"
 #include "main_memory_region_scp_linear.h"
 
@@ -20,52 +18,15 @@ main_memory::main_memory(testLog& log_)
 {
     getthread = NULL;
 
+    // ESRs
+    main_memory_region* esrs = new main_memory_region_esr(this, ESR_REGION_BASE, ESR_REGION_SIZE, log, getthread);
+    regions_.push_back(region_pointer(esrs));
+
     // For all the shires and the local shire mask
     for (int i = 0; i <= EMU_NUM_SHIRES; i++)
     {
         // Need to add the ESR space for the Local Shire.
         int shire = (i == EMU_NUM_SHIRES) ? 255 : ((i == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : i);
-
-        // For all the neighs in each shire and the neighborhood broadcast mask
-        for (int n = 0; n <= EMU_NEIGH_PER_SHIRE; n++)
-        {
-            int neigh = (n == EMU_NEIGH_PER_SHIRE) ? ESR_REGION_NEIGH_BROADCAST : n;
-            main_memory_region* neigh_esrs;
-
-            // Neigh ESRs (U-mode)
-            neigh_esrs = new main_memory_region_esr(this, ESR_NEIGH(shire, neigh, NEIGH_U0), 48*1024, log, getthread);
-            regions_.push_back(region_pointer(neigh_esrs));
-
-            // Neigh ESRs (M-mode)
-            neigh_esrs = new main_memory_region_esr(this, ESR_NEIGH(shire, neigh, NEIGH_M0), 256, log, getthread);
-            regions_.push_back(region_pointer(neigh_esrs));
-        }
-
-        // ShireCache ESRs (M-mode)
-        for (int n = 0; n < 4; n++)
-        {
-            main_memory_region* cb_esrs;
-            cb_esrs = new main_memory_region_esr(this, ESR_CACHE(shire, n, CACHE_M0), 256, log, getthread);
-            regions_.push_back(region_pointer(cb_esrs));
-        }
-
-        // RBOX ESRs (U-mode)
-        main_memory_region* rbox_esrs = new main_memory_region_esr(this, ESR_RBOX(shire, RBOX_U0), 128*1024, log, getthread);
-        regions_.push_back(region_pointer(rbox_esrs));
-
-        main_memory_region* shire_esrs;
-
-        // Shire ESRs (U-mode)
-        shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_U0), 128*1024, log, getthread);
-        regions_.push_back(region_pointer(shire_esrs));
-
-        // Shire ESRs (M-mode)
-        shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_M0), 128*1024, log, getthread);
-        regions_.push_back(region_pointer(shire_esrs));
-
-        // Shire ESRs (S-mode)
-        shire_esrs = new main_memory_region_esr(this, ESR_SHIRE(shire, SHIRE_S0), 128*1024, log, getthread);
-        regions_.push_back(region_pointer(shire_esrs));
 
         // L2 scratchpad
         // NB: Here we assume that all banks have the same ESR value!
@@ -73,38 +34,12 @@ main_memory::main_memory(testLog& log_)
         main_memory_region* l2_scp = new main_memory_region_scp(this, L2_SCP_BASE + (shire & 0x7F) * L2_SCP_OFFSET, L2_SCP_SIZE, log, getthread,
                                                                 (shire != 255) ? &shire_cache_esrs[shire] : nullptr, (shire != 255));
         regions_.push_front(region_pointer(l2_scp));
-
-        // HART ESRs (U-mode)
-        // NB: This only maps message ports, there are no other ESRs
-        main_memory_region* hart_esrs = new main_memory_region_esr(this, ESR_HART(shire, 0, HART_U0), 1024 * 1024, log, getthread);
-        regions_.push_back(region_pointer(hart_esrs));
     }
 
     // L2 scratchpad as a linear memory
     //log << LOG_DEBUG << "Creating linear L2SCP region [0x" << hex << L2_SCP_LINEAR_BASE << ", 0x" << (L2_SCP_LINEAR_BASE + L2_SCP_LINEAR_SIZE) << ")" << dec << endm;
     main_memory_region* l2_scp_linear = new main_memory_region_scp_linear(this, L2_SCP_LINEAR_BASE, L2_SCP_LINEAR_SIZE, log, getthread);
     regions_.push_front(region_pointer(l2_scp_linear));
-}
-
-void main_memory::setPrintfBase(const char* binary)
-{
-   uint64_t symbolAddress;
-   std::ostringstream command;
-   command << "nm " << binary << " 2>/dev/null | grep rtlPrintf_buf | cut -d' ' -f 1";
-   FILE *p = popen(command.str().c_str(), "r");
-   if(p == NULL) log << LOG_ERR << command.str() << " Failed " << endm;
-   int c = fscanf(p, "%" PRIx64, &symbolAddress);
-   pclose(p);
-
-   if (c==1) {
-      // Adds the printf region
-      log << LOG_DEBUG << "adding printf region (@=" << hex << symbolAddress << ") from " << binary << dec << endm;
-      main_memory_region* printf = new main_memory_region_printf(symbolAddress, getthread);
-      regions_.push_back(region_pointer(printf));
-   }
-   else {
-      log << LOG_DEBUG << "no printf region from " << binary << endm;
-   }
 }
 
 // Destructor

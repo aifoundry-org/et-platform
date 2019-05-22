@@ -65,6 +65,8 @@
 //  * ShireCache ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b000
 //  * RBOX ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b001
 //  * ShireOther ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b010
+#define ESR_REGION_BASE        0x0100000000ULL
+#define ESR_REGION_SIZE        0x0100000000ULL
 #define ESR_HART_REGION        0x0100000000ULL
 #define ESR_NEIGH_REGION       0x0100100000ULL
 #define ESR_RSRVD_REGION       0x0100200000ULL
