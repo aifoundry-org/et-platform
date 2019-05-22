@@ -52,13 +52,13 @@ inline void write64(void* data, uint64_t value)
 }
 
 // Write to memory region
-void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
+void main_memory_region_esr::write(uint64_t addr, size_t n, const void* source)
 {
-    assert(size == 8);
-    uint64_t value = read64(data);
+    assert(n == 8);
+    uint64_t value = read64(source);
 
     // Broadcast is special...
-    switch (ad)
+    switch (addr)
     {
         case ESR_BROADCAST_DATA:
             LOG(DEBUG, "Write to BROADCAST_DATA value 0x%016" PRIx64, value);
@@ -70,16 +70,16 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
             {
                 const void* data2 = &broadcast_esrs[current_thread / EMU_THREADS_PER_SHIRE].data;
                 LOG(DEBUG, "Write to %cBROADCAST value 0x%016" PRIx64,
-                    (ad == ESR_UBROADCAST) ? 'U' : ((ad == ESR_SBROADCAST) ? 'S' : 'M'), value);
+                    (addr == ESR_UBROADCAST) ? 'U' : ((addr == ESR_SBROADCAST) ? 'S' : 'M'), value);
                 unsigned prot = (value & ESR_BROADCAST_PROT_MASK) >> ESR_BROADCAST_PROT_SHIFT;
                 unsigned sregion = (value & ESR_BROADCAST_ESR_SREGION_MASK) >> ESR_BROADCAST_ESR_SREGION_MASK_SHIFT;
                 unsigned esraddr = (value & ESR_BROADCAST_ESR_ADDR_MASK) >> ESR_BROADCAST_ESR_ADDR_SHIFT;
                 unsigned shiremsk = value & ESR_BROADCAST_ESR_SHIRE_MASK;
-                if ((prot == 2) || (prot > ((ad & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT)))
+                if ((prot == 2) || (prot > ((addr & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT)))
                 {
                     LOG(WARN, "Request %cbroadcast to ESR with wrong permissions (%u)",
-                        (ad == ESR_UBROADCAST) ? 'u' : ((ad == ESR_SBROADCAST) ? 's' : 'm'), prot);
-                    throw trap_bus_error(ad);
+                        (addr == ESR_UBROADCAST) ? 'u' : ((addr == ESR_SBROADCAST) ? 's' : 'm'), prot);
+                    throw trap_bus_error(addr);
                 }
                 uint64_t new_ad = ESR_REGION
                     | uint64_t(prot) << ESR_REGION_PROT_SHIFT
@@ -99,56 +99,56 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
     }
 
     // Redirect local shire requests to the corresponding shire
-    if ((ad & ESR_REGION_SHIRE_MASK) == ESR_REGION_LOCAL_SHIRE) {
-        LOG(DEBUG, "Writing to local shire ESR Region with address 0x%016" PRIx64, ad);
-        ad = (ad & ~ESR_REGION_SHIRE_MASK) | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
+    if ((addr & ESR_REGION_SHIRE_MASK) == ESR_REGION_LOCAL_SHIRE) {
+        LOG(DEBUG, "Writing to local shire ESR Region with address 0x%016" PRIx64, addr);
+        addr = (addr & ~ESR_REGION_SHIRE_MASK) | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
     }
 
-    unsigned shire = ((ad & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
-    uint64_t addr_sregion = ad & ESR_SREGION_MASK;
-    uint64_t addr_sregion_ext = ad & ESR_SREGION_EXT_MASK;
+    unsigned shire = ((addr & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
+    uint64_t addr_sregion = addr & ESR_SREGION_MASK;
+    uint64_t addr_sregion_ext = addr & ESR_SREGION_EXT_MASK;
 
     if (addr_sregion == ESR_HART_REGION)
     {
-        unsigned hart = (ad & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;
-        uint64_t esr_addr = ad & ESR_HART_ESR_MASK;
+        unsigned hart = (addr & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;
+        uint64_t esr_addr = addr & ESR_HART_ESR_MASK;
         LOG(DEBUG, "Write to ESR Region HART at ESR address 0x%" PRIx64, esr_addr);
         switch (esr_addr)
         {
             case ESR_PORT0:
-                write_msg_port_data(hart + shire * EMU_THREADS_PER_SHIRE, 0, (uint32_t *) data, 0);
+                write_msg_port_data(hart + shire * EMU_THREADS_PER_SHIRE, 0, (uint32_t*) source, 0);
                 break;
             case ESR_PORT1:
-                write_msg_port_data(hart + shire * EMU_THREADS_PER_SHIRE, 1, (uint32_t *) data, 0);
+                write_msg_port_data(hart + shire * EMU_THREADS_PER_SHIRE, 1, (uint32_t*) source, 0);
                 break;
             case ESR_PORT2:
-                write_msg_port_data(hart + shire * EMU_THREADS_PER_SHIRE, 2, (uint32_t *) data, 0);
+                write_msg_port_data(hart + shire * EMU_THREADS_PER_SHIRE, 2, (uint32_t*) source, 0);
                 break;
             case ESR_PORT3:
-                write_msg_port_data(hart + shire * EMU_THREADS_PER_SHIRE, 3, (uint32_t *) data, 0);
+                write_msg_port_data(hart + shire * EMU_THREADS_PER_SHIRE, 3, (uint32_t*) source, 0);
                 break;
             default:
-                throw trap_bus_error(ad);
+                throw trap_bus_error(addr);
         }
     }
     else if (addr_sregion == ESR_NEIGH_REGION)
     {
-        unsigned neigh = (ad & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
-        uint64_t esr_addr = ad & ESR_NEIGH_ESR_MASK;
+        unsigned neigh = (addr & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
+        uint64_t esr_addr = addr & ESR_NEIGH_ESR_MASK;
         if (neigh == ESR_REGION_NEIGH_BROADCAST)
         {
             LOG(DEBUG, "Broadcast to ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
-            uint64_t neigh_addr = (ad & ~ESR_REGION_NEIGH_MASK);
+            uint64_t neigh_addr = (addr & ~ESR_REGION_NEIGH_MASK);
             for (int neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
             {
-                this->write(neigh_addr, 8, data);
+                this->write(neigh_addr, 8, source);
                 neigh_addr += (1ull << ESR_REGION_NEIGH_SHIFT);
             }
         }
         else
         {
             LOG(DEBUG, "Write to ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
-            if (neigh >= EMU_NEIGH_PER_SHIRE) throw trap_bus_error(ad);
+            if (neigh >= EMU_NEIGH_PER_SHIRE) throw trap_bus_error(addr);
             unsigned idx = EMU_NEIGH_PER_SHIRE * ((shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire) + neigh;
             uint32_t tbox_id;
             switch(esr_addr)
@@ -224,17 +224,17 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                     GET_TBOX(shire, tbox_id).set_image_table_address(value);
                     break;
                 default:
-                    throw trap_bus_error(ad);
+                    throw trap_bus_error(addr);
             }
         }
     }
     else if (addr_sregion_ext == ESR_CACHE_REGION)
     {
         unsigned idx = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
-        unsigned bank = (ad & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
-        uint64_t esr_addr = ad & ESR_CACHE_ESR_MASK;
+        unsigned bank = (addr & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
+        uint64_t esr_addr = addr & ESR_CACHE_ESR_MASK;
         LOG(DEBUG, "Write to ESR Region ShireCache at ESR address 0x%" PRIx64, esr_addr);
-        if (bank >= 4) throw trap_bus_error(ad);
+        if (bank >= 4) throw trap_bus_error(addr);
         switch(esr_addr)
         {
             case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
@@ -298,14 +298,14 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 shire_cache_esrs[idx].bank[bank].sc_reqq_debug3 = value;
                 break;
             default:
-                throw trap_bus_error(ad);
+                throw trap_bus_error(addr);
         }
     }
     else if (addr_sregion_ext == ESR_RBOX_REGION)
     {
-        uint64_t esr_addr = ad & ESR_RBOX_ESR_MASK;
+        uint64_t esr_addr = addr & ESR_RBOX_ESR_MASK;
         LOG(DEBUG, "Write to ESR Region RBOX at ESR address 0x%" PRIx64, esr_addr);
-        if (shire > EMU_NUM_COMPUTE_SHIRES) throw trap_bus_error(ad);
+        if (shire > EMU_NUM_COMPUTE_SHIRES) throw trap_bus_error(addr);
         switch(esr_addr)
         {
             case ESR_RBOX_CONFIG:
@@ -318,13 +318,13 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 GET_RBOX(shire, 0).write_esr((esr_addr >> 3) & 0x3FFF, value);
                 break;
             default:
-                throw trap_bus_error(ad);
+                throw trap_bus_error(addr);
         }
     }
     else if (addr_sregion_ext == ESR_SHIRE_REGION)
     {
         unsigned idx = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
-        uint64_t esr_addr = ad & ESR_SHIRE_ESR_MASK;
+        uint64_t esr_addr = addr & ESR_SHIRE_ESR_MASK;
         LOG(DEBUG, "Write to ESR Region Shire at ESR address 0x%" PRIx64, esr_addr);
         switch(esr_addr)
         {
@@ -434,30 +434,30 @@ void main_memory_region_esr::write(uint64_t ad, int size, const void * data)
                 write_icache_prefetch(CSR_PRV_M, shire, value);
                 break;
             default:
-                throw trap_bus_error(ad);
+                throw trap_bus_error(addr);
         }
     }
     else
     {
-        LOG(WARN, "Write to ESR Region UNDEFINED at address 0x%" PRIx64, ad);
-        throw trap_bus_error(ad);
+        LOG(WARN, "Write to ESR Region UNDEFINED at address 0x%" PRIx64, addr);
+        throw trap_bus_error(addr);
     }
 }
 
 // Read from memory region
-void main_memory_region_esr::read(uint64_t ad, int size, void * data)
+void main_memory_region_esr::read(uint64_t addr, size_t n, void* result)
 {
-    assert(size == 8);
-    uint64_t* ptr = reinterpret_cast<uint64_t*>(data);
+    assert(n == 8);
+    uint64_t* ptr = reinterpret_cast<uint64_t*>(result);
 
     // Broadcast is special...
-    switch (ad)
+    switch (addr)
     {
         case ESR_BROADCAST_DATA:
         case ESR_UBROADCAST:
         case ESR_SBROADCAST:
         case ESR_MBROADCAST:
-            LOG(DEBUG, "Read from broadcast register at ESR address 0x%016" PRIx64, ad);
+            LOG(DEBUG, "Read from broadcast register at ESR address 0x%016" PRIx64, addr);
             *ptr = 0;
             return;
         default:
@@ -465,28 +465,28 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
     }
 
     // Redirect local shire requests to the corresponding shire
-    if ((ad & ESR_REGION_SHIRE_MASK) == ESR_REGION_LOCAL_SHIRE) {
-        LOG(DEBUG, "Read from local shire ESR Region at ESR address 0x%" PRIx64, ad);
-        ad = (ad & ~ESR_REGION_SHIRE_MASK) | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
+    if ((addr & ESR_REGION_SHIRE_MASK) == ESR_REGION_LOCAL_SHIRE) {
+        LOG(DEBUG, "Read from local shire ESR Region at ESR address 0x%" PRIx64, addr);
+        addr = (addr & ~ESR_REGION_SHIRE_MASK) | ((current_thread / EMU_THREADS_PER_SHIRE) << ESR_REGION_SHIRE_SHIFT);
     }
 
-    unsigned shire = ((ad & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
-    uint64_t addr_sregion = ad & ESR_SREGION_MASK;
-    uint64_t addr_sregion_ext = ad & ESR_SREGION_EXT_MASK;
+    unsigned shire = ((addr & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
+    uint64_t addr_sregion = addr & ESR_SREGION_MASK;
+    uint64_t addr_sregion_ext = addr & ESR_SREGION_EXT_MASK;
 
     if (addr_sregion == ESR_HART_REGION)
     {
-        /*unsigned hart = (ad & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;*/
-        uint64_t esr_addr = ad & ESR_HART_ESR_MASK;
+        /*unsigned hart = (addr & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;*/
+        uint64_t esr_addr = addr & ESR_HART_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region HART at ESR address 0x%" PRIx64, esr_addr);
-        throw trap_bus_error(ad);
+        throw trap_bus_error(addr);
     }
     else if (addr_sregion == ESR_NEIGH_REGION)
     {
-        unsigned neigh = (ad & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
-        uint64_t esr_addr = ad & ESR_NEIGH_ESR_MASK;
+        unsigned neigh = (addr & ESR_REGION_NEIGH_MASK) >> ESR_REGION_NEIGH_SHIFT;
+        uint64_t esr_addr = addr & ESR_NEIGH_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region Neighborhood at ESR address 0x%" PRIx64, esr_addr);
-        if (neigh >= EMU_NEIGH_PER_SHIRE) throw trap_bus_error(ad);
+        if (neigh >= EMU_NEIGH_PER_SHIRE) throw trap_bus_error(addr);
         unsigned idx = EMU_NEIGH_PER_SHIRE * ((shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire) + neigh;
         switch(esr_addr)
         {
@@ -542,16 +542,16 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
                 *ptr = neigh_esrs[idx].texture_image_table_ptr;
                 break;
             default :
-                throw trap_bus_error(ad);
+                throw trap_bus_error(addr);
         }
     }
     else if (addr_sregion_ext == ESR_CACHE_REGION)
     {
         unsigned idx = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
-        unsigned bank = (ad & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
-        uint64_t esr_addr = ad & ESR_CACHE_ESR_MASK;
+        unsigned bank = (addr & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
+        uint64_t esr_addr = addr & ESR_CACHE_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region ShireCache at ESR address 0x%" PRIx64, esr_addr);
-        if (bank >= 4) throw trap_bus_error(ad);
+        if (bank >= 4) throw trap_bus_error(addr);
         switch(esr_addr)
         {
             case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
@@ -615,14 +615,14 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
                 *ptr = 4ull << 24; // idx_cop_sm_state = IDLE
                 break;
             default:
-                throw trap_bus_error(ad);
+                throw trap_bus_error(addr);
         }
     }
     else if (addr_sregion_ext == ESR_RBOX_REGION)
     {
-        uint64_t esr_addr = ad & ESR_RBOX_ESR_MASK;
+        uint64_t esr_addr = addr & ESR_RBOX_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region RBOX at ESR address 0x%" PRIx64, esr_addr);
-        if (shire > EMU_NUM_COMPUTE_SHIRES) throw trap_bus_error(ad);
+        if (shire > EMU_NUM_COMPUTE_SHIRES) throw trap_bus_error(addr);
         switch(esr_addr)
         {
             case ESR_RBOX_CONFIG:
@@ -636,13 +636,13 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
                 *ptr = GET_RBOX(shire, 0).read_esr((esr_addr >> 3) & 0x3FFF);
                 break;
             default:
-                throw trap_bus_error(ad);
+                throw trap_bus_error(addr);
         }
     }
     else if (addr_sregion_ext == ESR_SHIRE_REGION)
     {
         unsigned idx = (shire == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shire;
-        uint64_t esr_addr = ad & ESR_SHIRE_ESR_MASK;
+        uint64_t esr_addr = addr & ESR_SHIRE_ESR_MASK;
         LOG(DEBUG, "Read from ESR Region Shire at ESR address 0x%" PRIx64, esr_addr);
         switch(esr_addr)
         {
@@ -727,12 +727,12 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
                 *ptr = read_icache_prefetch(CSR_PRV_M, shire);
                 break;
             default:
-                throw trap_bus_error(ad);
+                throw trap_bus_error(addr);
         }
     }
     else
     {
-        LOG(WARN, "Read from ESR Region UNDEFINED at address 0x%" PRIx64, ad);
-        throw trap_bus_error(ad);
+        LOG(WARN, "Read from ESR Region UNDEFINED at address 0x%" PRIx64, addr);
+        throw trap_bus_error(addr);
     }
 }

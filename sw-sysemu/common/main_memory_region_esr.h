@@ -1,36 +1,31 @@
-#ifndef _MAIN_MEMORY_REGION_ESR_
-#define _MAIN_MEMORY_REGION_ESR_
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
-#include <cassert>
+#ifndef BEMU_MAIN_MEMORY_REGION_ESR_H
+#define BEMU_MAIN_MEMORY_REGION_ESR_H
+
 #include "main_memory.h"
 #include "main_memory_region.h"
 
-// Memory region used to implement the access to all ESRs defined in the memory map
+//namespace bemu {
 
-class main_memory_region_esr : public main_memory_region
+
+struct main_memory_region_esr : public main_memory_region
 {
-public:
-    // Constructors and destructors
-    main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size,
-                           testLog & l, func_ptr_get_thread& get_th)
-    : main_memory_region(base, size, l, get_th, MEM_REGION_RW, false),
-      mem_(parent)
+    main_memory_region_esr(main_memory* parent, uint64_t base, uint64_t size)
+    : main_memory_region(base, size, false), mem(parent)
     {}
 
     ~main_memory_region_esr() {}
 
-    // read and write
-    void write(uint64_t ad, int size, const void* data) override;
-    void read(uint64_t ad, int size, void* data) override;
+    void write(uint64_t addr, size_t n, const void* source) override;
+    void read(uint64_t addr, size_t n, void* result) override;
+    void dump_file(std::ofstream*) override {}
 
-    uint64_t read(uint64_t offset) const {
-        assert(data_);
-        return *reinterpret_cast<const uint64_t*>(data_ + offset);
-    }
-
-protected:
-    main_memory* mem_;
+    // for exposition only
+    main_memory* const mem;
 };
 
-#endif // _MAIN_MEMORY_REGION_ESR_
 
+//} // namespace bemu
+
+#endif // BEMU_MAIN_MEMORY_REGION_ESR_H
