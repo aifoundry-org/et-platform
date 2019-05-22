@@ -401,6 +401,8 @@ static insn_exec_funct_t dec_op_32(uint32_t bits,
               case 0x61: flags |= insn_t::flag_AMO; return insn_amominug_w;
               case 0x70: flags |= insn_t::flag_AMO; return insn_amomaxul_w;
               case 0x71: flags |= insn_t::flag_AMO; return insn_amomaxug_w;
+              case 0x78: flags |= insn_t::flag_AMO; return insn_amocmpswpl_w;
+              case 0x79: flags |= insn_t::flag_AMO; return insn_amocmpswpg_w;
               default  : return insn_unknown;
               }
     case 0x3: switch (funct7) {
@@ -426,6 +428,8 @@ static insn_exec_funct_t dec_op_32(uint32_t bits,
               case 0x61: flags |= insn_t::flag_AMO; return insn_amominug_d;
               case 0x70: flags |= insn_t::flag_AMO; return insn_amomaxul_d;
               case 0x71: flags |= insn_t::flag_AMO; return insn_amomaxug_d;
+              case 0x78: flags |= insn_t::flag_AMO; return insn_amocmpswpl_d;
+              case 0x79: flags |= insn_t::flag_AMO; return insn_amocmpswpg_d;
               default  : return insn_unknown;
               }
     case 0x4: return (funct7 == 0x01) ? insn_divw : insn_unknown;

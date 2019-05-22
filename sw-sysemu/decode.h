@@ -107,6 +107,7 @@
 // Access program state
 
 #define X2      xregs[current_thread][2]
+#define X31     xregs[current_thread][31]
 #define RD      xregs[current_thread][inst.rd()]
 #define RS1     xregs[current_thread][inst.rs1()]
 #define RS2     xregs[current_thread][inst.rs2()]

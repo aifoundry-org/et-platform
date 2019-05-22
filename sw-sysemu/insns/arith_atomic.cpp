@@ -81,6 +81,42 @@ void insn_amoandl_w(insn_t inst)
 }
 
 
+void insn_amocmpswpg_d (insn_t inst)
+{
+    DISASM_AMO_RD_RS1_RS2("amocmpswpg.d");
+    LOG_REG(":", 31);
+    uint64_t tmp = mmu_global_compare_exchange64(RS1, X31, RS2);
+    WRITE_RD(tmp);
+}
+
+
+void insn_amocmpswpg_w (insn_t inst)
+{
+    DISASM_AMO_RD_RS1_RS2("amocmpswpg.w");
+    LOG_REG(":", 31);
+    uint32_t tmp = mmu_global_compare_exchange32(RS1, uint32_t(X31), uint32_t(RS2));
+    WRITE_RD(sext<32>(tmp));
+}
+
+
+void insn_amocmpswpl_d (insn_t inst)
+{
+    DISASM_AMO_RD_RS1_RS2("amocmpswpl.d");
+    LOG_REG(":", 31);
+    uint64_t tmp = mmu_local_compare_exchange64(RS1, X31, RS2);
+    WRITE_RD(tmp);
+}
+
+
+void insn_amocmpswpl_w (insn_t inst)
+{
+    DISASM_AMO_RD_RS1_RS2("amocmpswpl.w");
+    LOG_REG(":", 31);
+    uint32_t tmp = mmu_local_compare_exchange32(RS1, uint32_t(X31), uint32_t(RS2));
+    WRITE_RD(sext<32>(tmp));
+}
+
+
 void insn_amomaxg_d(insn_t inst)
 {
     DISASM_AMO_RD_RS1_RS2("amomaxg.d");
