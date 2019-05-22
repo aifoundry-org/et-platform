@@ -444,7 +444,7 @@ void reset_hart(unsigned thread)
     csr_marchid[thread] = 0x8000000000000001ULL;
     csr_mimpid[thread] = 0x0;
     csr_mhartid[thread] = (thread == (EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE))
-        ? (IO_SHIRE_ID*EMU_MINIONS_PER_SHIRE)
+        ? (IO_SHIRE_ID*EMU_THREADS_PER_SHIRE)
         : thread;
 
     // misa is a 0-length register
