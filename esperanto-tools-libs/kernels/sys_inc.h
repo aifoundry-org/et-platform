@@ -207,7 +207,7 @@ AUX_FUN_ATTRS bool intra_shire_barrier(unsigned barrier_idx,  // index of the ba
 AUX_FUN_ATTRS uint64_t AmoAdd64Global(uint64_t addr, uint64_t val)
 {
     uint64_t ret;
-    asm volatile("amoaddg.d  %[ret], %[addr], %[val]\n"
+    asm volatile("amoaddg.d  %[ret], %[val], (%[addr])"
                  : [ret] "=r" (ret)
                  : [addr] "r" (addr),
                    [val] "r" (val)
@@ -219,7 +219,7 @@ AUX_FUN_ATTRS uint64_t AmoAdd64Global(uint64_t addr, uint64_t val)
 AUX_FUN_ATTRS uint64_t AmoLoad64Global(uint64_t addr)
 {
     uint64_t ret;
-    asm volatile("amoorg.d  %[ret], %[addr], zero\n"
+    asm volatile("amoorg.d  %[ret], zero, (%[addr])"
                  : [ret] "=r" (ret)
                  : [addr] "r" (addr)
                  :
@@ -229,7 +229,7 @@ AUX_FUN_ATTRS uint64_t AmoLoad64Global(uint64_t addr)
 
 AUX_FUN_ATTRS void AmoStore32Global(uint64_t addr, uint32_t val)
 {
-    asm volatile("amoswapg.w zero, %[addr], %[val]\n"
+    asm volatile("amoswapg.w zero, %[val], (%[addr])"
                  :
                  : [addr] "r" (addr),
                    [val] "r" (val)
@@ -239,7 +239,7 @@ AUX_FUN_ATTRS void AmoStore32Global(uint64_t addr, uint32_t val)
 
 AUX_FUN_ATTRS void AmoStore64Global(uint64_t addr, uint64_t val)
 {
-    asm volatile("amoswapg.d zero, %[addr], %[val]\n"
+    asm volatile("amoswapg.d zero, %[val], (%[addr])"
                  :
                  : [addr] "r" (addr),
                    [val] "r" (val)
@@ -249,7 +249,7 @@ AUX_FUN_ATTRS void AmoStore64Global(uint64_t addr, uint64_t val)
 
 AUX_FUN_ATTRS void AmoStore64Local(uint64_t addr, uint64_t val)
 {
-    asm volatile("amoswapl.d zero, %[addr], %[val]\n"
+    asm volatile("amoswapl.d zero, %[val], (%[addr])"
                  :
                  : [addr] "r" (addr),
                    [val] "r" (val)
