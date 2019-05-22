@@ -944,7 +944,10 @@ sys_emu::main_internal(int argc, char * argv[])
 
                 // In case of reduce, we need to make sure that the other minion is also in reduce state
                 bool reduce_wait = false;
-                if(inst.is_reduce())
+
+                // FIXME: This is a hack, because we do not call inst.execute() until the tensor_reduce
+                // has synchronized; but we should not wait if we are going to raise an exception
+                if(inst.is_reduce() && ((thread_id % EMU_THREADS_PER_MINION) == 0))
                 {
                     unsigned other_min, action;
                     // Gets the source used for the reduce
