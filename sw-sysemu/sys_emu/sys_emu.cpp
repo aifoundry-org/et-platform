@@ -777,11 +777,9 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     }
 
     // Init emu
-    init_emu();
+    init_emu(system_version_t::ETSOC1_A0);
     log_only_minion(cmd_options.log_min);
     global_log_min = cmd_options.log_min;
-
-    in_sysemu = true;
 
     // Defines the memory access functions
     set_memory_funcs(emu_memread8,

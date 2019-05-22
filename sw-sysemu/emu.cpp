@@ -38,7 +38,11 @@
 #define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
 typedef Packed<L1D_LINE_SIZE*8> cache_line_t;
 
-// MISA initial value
+// vendor, arch, imp, ISA values
+#define CSR_VENDOR_ID ((11<<7) |        /* bank 11 */ \
+                       (0xe5 & 0x7f))   /* 0xE5 (0x65 without parity) */
+#define CSR_ARCH_ID 0x8000000000000001ull
+#define CSR_IMP_ID  0x0
 #define CSR_ISA_MAX ((1ull << 2)  | /* "C" Compressed extension */                      \
                      (1ull << 5)  | /* "F" Single-precision floating-point extension */ \
                      (1ull << 8)  | /* "I" RV32I/64I/128I base ISA */                   \
@@ -224,6 +228,9 @@ const char* csr_name(uint16_t num)
     return it->second;
 }
 
+
+system_version_t sysver = system_version_t::UNKNOWN;
+
 uint64_t current_pc = 0;
 uint32_t current_inst = 0;
 uint32_t current_thread = 0;
@@ -234,7 +241,6 @@ uint32_t num_ways = 4;
 static uint32_t shaderstack[EMU_NUM_THREADS][MAXSTACK];
 static bool check_stack = false;
 
-uint8_t in_sysemu = 0;
 bool m_emu_done = false;
 
 bool emu_done()
@@ -272,8 +278,9 @@ std::string dump_fregs(uint32_t thread_id)
    return str.str();
 }
 
-void init_emu()
+void init_emu(system_version_t ver)
 {
+    sysver = ver;
    // FIXME: remove '#include <cfenv>' when we purge this function from the code
    std::fesetround(FE_TONEAREST); // set rne for host
 }
@@ -440,9 +447,9 @@ void reset_hart(unsigned thread)
 
     // Read-only registers
     xregs[thread][0] = 0;
-    csr_mvendorid[thread] = (11<<7) | ( 0xe5 & 0x7f); // bank 11, code=0xE5 (0x65 without parity)
-    csr_marchid[thread] = 0x8000000000000001ULL;
-    csr_mimpid[thread] = 0x0;
+    csr_mvendorid[thread] = CSR_VENDOR_ID;
+    csr_marchid[thread] = CSR_ARCH_ID;
+    csr_mimpid[thread] = CSR_IMP_ID;
     csr_mhartid[thread] = (thread == (EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE))
         ? (IO_SHIRE_ID*EMU_THREADS_PER_SHIRE)
         : thread;
@@ -559,9 +566,11 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     // TODO: you won't be able to read the MIP CSR from code or you'll get
     // checker errors (you would have errors if the interrupt is cleared by
     // a memory mapped store)
-    if (interrupt && !in_sysemu) {
+#ifndef SYS_EMU
+    if (interrupt) {
         csr_mip[current_thread] &= ~(1ULL<<code);
     }
+#endif
 
     // Take sie
     uint64_t mstatus = csr_mstatus[current_thread];
@@ -615,9 +624,11 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     // TODO: you won't be able to read the MIP CSR from code or you'll get
     // checker errors (you would have errors if the interrupt is cleared by
     // a memory mapped store)
-    if (interrupt && !in_sysemu) {
+#ifndef SYS_EMU
+    if (interrupt) {
         csr_mip[current_thread] &= ~(1ull<<code);
     }
+#endif
 
     LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
 
@@ -1365,24 +1376,19 @@ static void csrset(uint16_t src1, uint64_t val)
     // FLB0
     case CSR_FCC:
         fcc_cnt = val & 0x01;
-        if (in_sysemu)
-        {
-            // If you are not going to block decrement it
-            if (fcc[current_thread][fcc_cnt] != 0)
-                fcc[current_thread][fcc_cnt]--;
+#ifdef SYS_EMU
+        // If you are not going to block decrement it
+        if (fcc[current_thread][fcc_cnt] != 0)
+            fcc[current_thread][fcc_cnt]--;
+#else
+        // block if no credits, else decrement
+        if (fcc[current_thread][fcc_cnt] == 0 ) {
+            fcc_wait[current_thread] = true;
+            throw std::domain_error("FCC write with no credits");
+        } else {
+            fcc[current_thread][fcc_cnt]--;
         }
-        else
-        {
-            // block if no credits
-            if (fcc[current_thread][fcc_cnt] == 0 ) {
-                fcc_wait[current_thread] = true;
-                throw std::domain_error("FCC write with no credits");
-            }
-            else {
-                // else, decrement
-                fcc[current_thread][fcc_cnt]--;
-            }
-        }
+#endif 
         break;
     case CSR_STALL:
         // FIXME: Do something here?
@@ -2210,13 +2216,12 @@ static int64_t port_get(uint32_t id, bool block)
         if (!block)
             return -1;
 
-        if (in_sysemu)
-        {
-            // if in sysemu stop thread if no data for port.. comparing rd_ptr and wr_ptr
-            LOG(DEBUG, "Stalling MSG_PORT (m%d p%d)", current_thread, id);
-            msg_ports[current_thread][id].stall = true;
-            return 0;
-        }
+#ifdef SYS_EMU
+        // if in sysemu stop thread if no data for port.. comparing rd_ptr and wr_ptr
+        LOG(DEBUG, "Stalling MSG_PORT (m%d p%d)", current_thread, id);
+        msg_ports[current_thread][id].stall = true;
+        return 0;
+#endif
     }
 
     int32_t offset = msg_ports[current_thread][id].rd_ptr << msg_ports[current_thread][id].logsize;
@@ -3844,11 +3849,13 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
             LOG(DEBUG, "Incrementing FCC%" PRIu64 "[H%" PRIu64 "]=%" PRId32, thread*2 + fcc_id, fcc_addr, fcc[fcc_addr][fcc_id] + 1);
             fcc[fcc_addr][fcc_id] ++;
 
+#ifndef SYS_EMU
             // wake up waiting threads (only for checker, not sysemu)
-            if (!in_sysemu && fcc_wait[fcc_addr]){
+            if (fcc_wait[fcc_addr]){
                 fcc_wait[fcc_addr] = false;
                 minions_to_awake.push(fcc_addr>>1);
             }
+#endif
 
             //check for overflow
             if (fcc[fcc_addr][fcc_id] == 0x000) {
