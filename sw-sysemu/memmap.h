@@ -27,6 +27,10 @@
 // namespace bemu {
 
 
+inline bool paddr_is_maxion_space(uint64_t addr)
+{ return addr < 0x0010000000ULL; }
+
+
 inline bool paddr_is_io_space(uint64_t addr)
 { return addr < 0x0040000000ULL; }
 
