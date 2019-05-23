@@ -535,6 +535,9 @@ void main_memory_region_esr::read(uint64_t ad, int size, void * data)
             case ESR_TEXTURE_STATUS:
                 *ptr = neigh_esrs[idx].texture_status;
                 break;
+            case ESR_MPROT:
+                *ptr = neigh_esrs[idx].mprot;
+                break;
             case ESR_TEXTURE_IMAGE_TABLE_PTR:
                 *ptr = neigh_esrs[idx].texture_image_table_ptr;
                 break;
