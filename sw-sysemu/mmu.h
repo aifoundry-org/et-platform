@@ -44,12 +44,20 @@ uint32_t mmu_global_atomic32(uint64_t eaddr, uint32_t data,
                              std::function<uint32_t(uint32_t, uint32_t)> fn);
 uint64_t mmu_global_atomic64(uint64_t eaddr, uint64_t data,
                              std::function<uint64_t(uint64_t, uint64_t)> fn);
+uint32_t mmu_global_compare_exchange32(uint64_t eaddr, uint32_t expected,
+                                       uint32_t desired);
+uint64_t mmu_global_compare_exchange64(uint64_t eaddr, uint64_t expected,
+                                       uint64_t desired);
 
 // MMU local atomic memory accesses
 uint32_t mmu_local_atomic32(uint64_t eaddr, uint32_t data,
                             std::function<uint32_t(uint32_t, uint32_t)> fn);
 uint64_t mmu_local_atomic64(uint64_t eaddr, uint64_t data,
                             std::function<uint64_t(uint64_t, uint64_t)> fn);
+uint32_t mmu_local_compare_exchange32(uint64_t eaddr, uint32_t expected,
+                                      uint32_t desired);
+uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
+                                      uint64_t desired);
 
 // Breakpoints
 __attribute__((noreturn)) void throw_trap_breakpoint(uint64_t addr);

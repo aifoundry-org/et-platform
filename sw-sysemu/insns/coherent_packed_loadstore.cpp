@@ -11,6 +11,7 @@
 
 // FIXME: Replace with "state.h"
 #include "emu_defines.h"
+extern system_version_t sysver;
 extern uint64_t xregs[EMU_NUM_THREADS][NXREGS];
 extern freg_t   fregs[EMU_NUM_THREADS][NFREGS];
 extern mreg_t   mregs[EMU_NUM_THREADS][NMREGS];
@@ -142,7 +143,8 @@ void insn_fswg_ps(insn_t inst)
     require_fp_active();
     DISASM_STORE_FD_RS1("fswg.ps");
     LOG_MREG(":", 0);
-    mmu_aligned_storeVLEN(RS1, FD, M0);
+    mreg_t msk(sysver == system_version_t::ETSOC1_A0 ? mreg_t(-1) : M0);
+    mmu_aligned_storeVLEN(RS1, FD, msk);
 }
 
 
@@ -151,7 +153,8 @@ void insn_fswl_ps(insn_t inst)
     require_fp_active();
     DISASM_STORE_FD_RS1("fswl.ps");
     LOG_MREG(":", 0);
-    mmu_aligned_storeVLEN(RS1, FD, M0);
+    mreg_t msk(sysver == system_version_t::ETSOC1_A0 ? mreg_t(-1) : M0);
+    mmu_aligned_storeVLEN(RS1, FD, msk);
 }
 
 

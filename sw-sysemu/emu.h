@@ -37,11 +37,10 @@ extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
 #endif
 
 // Processor configuration
-extern uint8_t in_sysemu;
 extern uint32_t current_thread;
 
 // Configure the emulation environment
-extern void init_emu();
+extern void init_emu(system_version_t);
 
 // Reset state
 extern void reset_esrs_for_shire(unsigned shireid);

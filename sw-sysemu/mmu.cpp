@@ -147,10 +147,15 @@ static bool pma_data_access_permitted(uint64_t addr, size_t size, mem_access_typ
 
     if (paddr_is_io_space(addr)) {
         uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
-        return !amo
-            && !ts_tl_co
-            && addr_is_size_aligned(addr, size)
-            && (spio || (~mprot & 0x1)/*!mprot.disable_io_access*/);
+        bool ok = !amo
+                && !ts_tl_co
+                && addr_is_size_aligned(addr, size)
+                && (spio || (~mprot & 0x1)/*!mprot.disable_io_access*/);
+        // NB: This should not be part of the PMA logic...
+        if (ok && paddr_is_maxion_space(addr) && !spio) {
+            throw trap_bus_error(addr);
+        }
+        return ok;
     }
 
     if (paddr_is_sp_space(addr))
@@ -733,6 +738,86 @@ uint64_t mmu_local_atomic64(uint64_t eaddr, uint64_t data,
     pmemwrite64(paddr, newval);
     LOG_MEMWRITE(64, paddr, newval);
     log_mem_write(true, 8, vaddr, data);
+    return oldval;
+}
+
+
+uint32_t mmu_global_compare_exchange32(uint64_t eaddr, uint32_t expected,
+                                       uint32_t desired)
+{
+    uint64_t vaddr = sextVA(eaddr);
+    check_store_breakpoint(vaddr);
+    if (!addr_is_size_aligned(vaddr, 4)) {
+        throw trap_store_access_fault(vaddr);
+    }
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG);
+    uint32_t oldval = pmemread32(paddr);
+    LOG_MEMREAD(32, paddr, oldval);
+    if (oldval == expected) {
+        pmemwrite32(paddr, desired);
+        LOG_MEMWRITE(32, paddr, desired);
+        log_mem_write(true, 4, vaddr, desired);
+    }
+    return oldval;
+}
+
+
+uint64_t mmu_global_compare_exchange64(uint64_t eaddr, uint64_t expected,
+                                       uint64_t desired)
+{
+    uint64_t vaddr = sextVA(eaddr);
+    check_store_breakpoint(vaddr);
+    if (!addr_is_size_aligned(vaddr, 4)) {
+        throw trap_store_access_fault(vaddr);
+    }
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG);
+    uint64_t oldval = pmemread64(paddr);
+    LOG_MEMREAD(64, paddr, oldval);
+    if (oldval == expected) {
+        pmemwrite64(paddr, desired);
+        LOG_MEMWRITE(64, paddr, desired);
+        log_mem_write(true, 8, vaddr, desired);
+    }
+    return oldval;
+}
+
+
+uint32_t mmu_local_compare_exchange32(uint64_t eaddr, uint32_t expected,
+                                      uint32_t desired)
+{
+    uint64_t vaddr = sextVA(eaddr);
+    check_store_breakpoint(vaddr);
+    if (!addr_is_size_aligned(vaddr, 4)) {
+        throw trap_store_access_fault(vaddr);
+    }
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL);
+    uint32_t oldval = pmemread32(paddr);
+    LOG_MEMREAD(32, paddr, oldval);
+    if (oldval == expected) {
+        pmemwrite32(paddr, desired);
+        LOG_MEMWRITE(32, paddr, desired);
+        log_mem_write(true, 4, vaddr, desired);
+    }
+    return oldval;
+}
+
+
+uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
+                                      uint64_t desired)
+{
+    uint64_t vaddr = sextVA(eaddr);
+    check_store_breakpoint(vaddr);
+    if (!addr_is_size_aligned(vaddr, 4)) {
+        throw trap_store_access_fault(vaddr);
+    }
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL);
+    uint64_t oldval = pmemread64(paddr);
+    LOG_MEMREAD(64, paddr, oldval);
+    if (oldval == expected) {
+        pmemwrite64(paddr, desired);
+        LOG_MEMWRITE(64, paddr, desired);
+        log_mem_write(true, 8, vaddr, desired);
+    }
     return oldval;
 }
 

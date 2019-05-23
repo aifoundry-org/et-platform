@@ -86,6 +86,14 @@
 #define L2_SCP_LINEAR_BASE 0xC0000000ULL
 #define L2_SCP_LINEAR_SIZE 0x40000000ULL
 
+
+// System version
+enum class system_version_t {
+    UNKNOWN = 0,
+    ETSOC1_A0 = 1,
+};
+
+
 // CSRs
 enum : uint16_t {
 #define CSRDEF(num, lower, upper)       CSR_##upper = num,
