@@ -100,16 +100,13 @@ static inline bool halt_on_breakpoint()
     return (~csr_tdata1[current_thread] & 0x0800000000001000ull) == 0;
 }
 
-
 static bool matches_breakpoint_address(uint64_t addr)
 {
-    uint64_t mcontrol = csr_tdata1[current_thread];
-    uint64_t mvalue = csr_tdata2[current_thread];
-    bool exact = (~mcontrol & 0x80);
-    uint64_t mask = exact ? 0 : (((~mvalue & (mvalue + 1)) - 1) & 0x3f);
-    return (mvalue == ((addr & VA_M) | mask));
+  bool exact = ~csr_tdata1[current_thread] & 0x80;
+  uint64_t val = csr_tdata2[current_thread];
+  uint64_t msk = exact ? 0 : (((((~val & (val + 1)) - 1) & 0x3f) << 1) | 1); 
+  return (val == ((addr & VA_M) | msk));
 }
-
 
 static inline void check_load_breakpoint(uint64_t addr)
 {
