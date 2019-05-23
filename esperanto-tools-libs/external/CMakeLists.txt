@@ -195,4 +195,15 @@ ExternalProject_Add(simulator-api
 
 list(APPEND external_project_dependencies simulator-api)
 
+set(GTEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest-install CACHE INTERNAL "")
+ExternalProject_Add(googletest
+  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/googletest
+  GIT_REPOSITORY git@gitlab.esperanto.ai:software/gtest-mirror.git
+  GIT_TAG release-1.8.1
+  SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-src"
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-build"
+  INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest"
+  CMAKE_ARGS = "-DCMAKE_INSTALL_PREFIX=${GTEST_DIR}"
+  )
+
 set(external_project_dependencies ${external_project_dependencies}  PARENT_SCOPE)
