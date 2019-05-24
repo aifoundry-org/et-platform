@@ -11,6 +11,13 @@
 
 //namespace bemu {
 
+#define LOG_MEMWRITE(size, addr, value) do { \
+   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] = 0x%" PRIx ##size , addr, value); \
+} while (0)
+
+#define LOG_MEMREAD(size, addr, value) do { \
+   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] : 0x%" PRIx ##size , addr, value); \
+} while (0)
 
 // MMU virtual to physical address translation
 uint64_t vmemtranslate(uint64_t addr, size_t size, mem_access_type macc);

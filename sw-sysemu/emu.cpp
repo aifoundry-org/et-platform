@@ -1877,6 +1877,7 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
     for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
     {
         pmemwrite64(addr, 0);
+        LOG_MEMWRITE(64, addr, 0);
     }
     LOG(DEBUG, "\tDoing LockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
 }
@@ -1915,6 +1916,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
         {
             pmemwrite64(addr, 0);
+            LOG_MEMWRITE(64, addr, 0);
         }
         LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
     }

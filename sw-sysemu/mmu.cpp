@@ -22,17 +22,6 @@ extern bool break_on_load[EMU_NUM_THREADS];
 extern bool break_on_store[EMU_NUM_THREADS];
 extern bool break_on_fetch[EMU_NUM_THREADS];
 
-
-#define LOG_MEMWRITE(size, addr, value) do { \
-   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] = 0x%" PRIx ##size , addr, value); \
-} while (0)
-
-
-#define LOG_MEMREAD(size, addr, value) do { \
-   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] : 0x%" PRIx ##size , addr, value); \
-} while (0)
-
-
 //------------------------------------------------------------------------------
 // Exceptions
 
