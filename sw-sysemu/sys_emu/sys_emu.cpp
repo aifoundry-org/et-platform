@@ -384,14 +384,19 @@ bool sys_emu::process_dbg_cmd(std::string cmd) {
 }
 
 bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
-   for (int s = 0; s < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE); s++)
+   for (int s = 0; s < EMU_NUM_SHIRES; s++)
    {
       if (((shires_en >> s) & 1) == 0) continue;
-      for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
+
+      unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
+      unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+
+      for (int m = 0; m < shire_minion_count; m++)
       {
          if (((minions_en >> m) & 1) == 0) continue;
-         for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
-            thread_id = (s * EMU_MINIONS_PER_SHIRE + m) * EMU_THREADS_PER_MINION + ii;
+
+         for (int ii = 0; ii < minion_thread_count; ii++) {
+            thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
             if ( pc_breakpoints_exists(current_pc[thread_id], thread_id)) {
                pc = current_pc[thread_id];
                thread = thread_id;
@@ -426,6 +431,7 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
         if ((thread_mask >> m) & 1)
         {
             int thread_id = shire_id * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + thread_dest;
+            assert(thread_id < EMU_NUM_THREADS);
             LOG_OTHER(DEBUG, thread_id, "Receiving FCC%u write", thread_dest*2 + cnt_dest);
 
             auto thread = std::find(fcc_wait_threads[cnt_dest].begin(),
@@ -477,13 +483,14 @@ sys_emu::msg_to_thread(int thread_id)
 void
 sys_emu::send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
 {
+    if (shire_id == IO_SHIRE_ID)
+        throw std::runtime_error("IPI_REDIRECT to SvcProc");
+
     // Get IPI_REDIRECT_FILTER ESR for the shire
     uint64_t ipi_redirect_filter;
     memory->read(ESR_SHIRE(shire_id, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
 
-    unsigned thread0 =
-        EMU_THREADS_PER_SHIRE * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
-
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire_id;
     for(int t = 0; t < EMU_THREADS_PER_SHIRE; t++)
     {
         // If both IPI_REDIRECT_TRIGGER and IPI_REDIRECT_FILTER has bit set
@@ -519,8 +526,11 @@ sys_emu::raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
         EMU_THREADS_PER_SHIRE
         * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
 
+    unsigned shire_thread_count =
+        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+
     // Write mip.msip to all selected threads
-    for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
+    for (unsigned t = 0; t < shire_thread_count; ++t)
     {
         if (thread_mask & (1ull << t))
         {
@@ -544,8 +554,11 @@ sys_emu::clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
         EMU_THREADS_PER_SHIRE
         * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
 
+    unsigned shire_thread_count =
+        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+
     // Clear mip.msip to all selected threads
-    for (int t = 0; t < EMU_THREADS_PER_SHIRE; ++t)
+    for (unsigned t = 0; t < shire_thread_count; ++t)
     {
         if ((thread_mask >> t) & 1)
         {
@@ -558,7 +571,7 @@ sys_emu::clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
 std::tuple<bool, struct sys_emu_cmd_options>
 parse_command_line_arguments(int argc, char* argv[])
 {
-        sys_emu_cmd_options cmd_options;
+    sys_emu_cmd_options cmd_options;
 
     for(int i = 1; i < argc; i++)
     {
@@ -827,24 +840,30 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     // Setup for all minions
 
     // For all the shires
-    for (int s = 0; s < EMU_NUM_SHIRES; s++)
+    for (unsigned s = 0; s < EMU_NUM_SHIRES; s++)
     {
        reset_esrs_for_shire(s);
 
        // Skip disabled shire
        if (((shires_en >> s) & 1) == 0) continue;
+
        // Skip master shire if not enabled
        if ((cmd_options.master_min == 0) && (s >= EMU_MASTER_SHIRE)) continue;
 
+       unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
+       unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+
+       LOG_NOTHREAD(DEBUG, "s: %u, m: %u, t: %u", s, shire_minion_count, minion_thread_count);
+
        // For all the minions
-       for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++)
+       for (unsigned m = 0; m < shire_minion_count; m++)
        {
           // Skip disabled minion
           if (((minions_en >> m) & 1) == 0) continue;
 
           // Inits threads
-          for (int ii = 0; ii < EMU_THREADS_PER_MINION; ii++) {
-             int t = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+          for (unsigned ii = 0; ii < minion_thread_count; ii++) {
+             unsigned t = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
              LOG_OTHER(DEBUG, t, "%s", "Resetting");
              current_pc[t] = cmd_options.reset_pc;
              reduce_state_array[t / EMU_THREADS_PER_MINION] = Reduce_Idle;

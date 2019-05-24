@@ -1,6 +1,7 @@
 /* -*- Mode:C++; c-basic-offset: 4; -*- */
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdio>       // FIXME: Remove this, use "emu_gio.h" instead
 #include <cstring>
@@ -98,74 +99,76 @@ mreg_t   mregs[EMU_NUM_THREADS][NMREGS];
 freg_t   tensorfma_tenc[EMU_NUM_THREADS][NFREGS];
 
 // RISCV CSR registers
-uint32_t csr_fcsr[EMU_NUM_THREADS];
-uint64_t csr_stvec[EMU_NUM_THREADS];
-uint32_t csr_scounteren[EMU_NUM_THREADS];
-uint64_t csr_sscratch[EMU_NUM_THREADS];
-uint64_t csr_sepc[EMU_NUM_THREADS];
-uint64_t csr_scause[EMU_NUM_THREADS];
-uint64_t csr_stval[EMU_NUM_THREADS];
-uint64_t csr_satp[EMU_NUM_THREADS];
-uint64_t csr_mstatus[EMU_NUM_THREADS];
-uint64_t csr_misa[EMU_NUM_THREADS]; // could be hardcoded
-uint32_t csr_medeleg[EMU_NUM_THREADS];
-uint32_t csr_mideleg[EMU_NUM_THREADS];
-uint32_t csr_mie[EMU_NUM_THREADS];
-uint64_t csr_mtvec[EMU_NUM_THREADS];
-uint32_t csr_mcounteren[EMU_NUM_THREADS];
-uint64_t csr_mscratch[EMU_NUM_THREADS];
-uint64_t csr_mepc[EMU_NUM_THREADS];
-uint64_t csr_mcause[EMU_NUM_THREADS];
-uint64_t csr_mtval[EMU_NUM_THREADS];
-uint32_t csr_mip[EMU_NUM_THREADS];
-uint64_t csr_tdata1[EMU_NUM_THREADS];
-uint64_t csr_tdata2[EMU_NUM_THREADS];
+std::array<uint32_t,EMU_NUM_THREADS>    csr_fcsr;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_stvec;
+std::array<uint32_t,EMU_NUM_THREADS>    csr_scounteren;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_sscratch;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_sepc;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_scause;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_stval;
+std::array<uint64_t,EMU_NUM_THREADS+1>  csr_satp;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_mstatus;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_misa; // could be hardcoded
+std::array<uint32_t,EMU_NUM_THREADS>    csr_medeleg;
+std::array<uint32_t,EMU_NUM_THREADS>    csr_mideleg;
+std::array<uint32_t,EMU_NUM_THREADS>    csr_mie;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_mtvec;
+std::array<uint32_t,EMU_NUM_THREADS>    csr_mcounteren;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_mscratch;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_mepc;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_mcause;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_mtval;
+std::array<uint32_t,EMU_NUM_THREADS>    csr_mip;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_tdata1;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_tdata2;
 // dcsr, dpc, dscratch
-uint32_t csr_mvendorid[EMU_NUM_THREADS]; // could be hardcoded
-uint64_t csr_marchid[EMU_NUM_THREADS]; // could be hardcoded
-uint64_t csr_mimpid[EMU_NUM_THREADS]; // could be hardcoded
-uint16_t csr_mhartid[EMU_NUM_THREADS];
+std::array<uint32_t,EMU_NUM_THREADS>    csr_mvendorid; // could be hardcoded
+std::array<uint64_t,EMU_NUM_THREADS>    csr_marchid; // could be hardcoded
+std::array<uint64_t,EMU_NUM_THREADS>    csr_mimpid; // could be hardcoded
+std::array<uint16_t,EMU_NUM_THREADS>    csr_mhartid;
 // PMU
-uint64_t csr_mhpmevent[6][EMU_NUM_THREADS];
+std::array<std::array<uint64_t,6>,EMU_NUM_THREADS> csr_mhpmevent;
 
 // Esperanto CSR registers
-uint64_t csr_minstmask[EMU_NUM_THREADS];
-uint32_t csr_minstmatch[EMU_NUM_THREADS];
-uint8_t  csr_msleep_txfma_27[EMU_NUM_THREADS]; // 1b
-uint8_t  csr_menable_shadows[EMU_NUM_THREADS]; // 2b
-// TODO: uint8_t csr_excl_mode[EMU_NUM_THREADS]; // 1b
-uint8_t  csr_mtxfma_sleep_traps[EMU_NUM_THREADS]; // 5b
-uint8_t  csr_mcache_control[EMU_NUM_THREADS]; // 2b
-uint64_t csr_tensor_conv_size[EMU_NUM_THREADS]; // can we remove?
-uint64_t csr_tensor_conv_ctrl[EMU_NUM_THREADS]; // can we remove?
-uint16_t csr_tensor_mask[EMU_NUM_THREADS];
-uint16_t csr_tensor_error[EMU_NUM_THREADS];
-uint16_t csr_ucache_control[EMU_NUM_THREADS];
-uint8_t  csr_gsc_progress[EMU_NUM_THREADS]; // log2(VL)
-uint64_t csr_validation0[EMU_NUM_THREADS];
-uint64_t csr_validation2[EMU_NUM_THREADS];
-uint64_t csr_validation3[EMU_NUM_THREADS];
-uint64_t csr_portctrl[4][EMU_NUM_THREADS];
+std::array<uint64_t,EMU_NUM_THREADS>    csr_minstmask;
+std::array<uint32_t,EMU_NUM_THREADS>    csr_minstmatch;
+std::array<uint8_t, EMU_NUM_THREADS+1>  csr_msleep_txfma_27; // 1b
+std::array<uint8_t, EMU_NUM_THREADS+1>  csr_menable_shadows; // 2b
+// TODO: std::array<uint8_t,EMU_NUM_THREADS+1> csr_excl_mode; // 1b
+std::array<uint8_t, EMU_NUM_THREADS+1>  csr_mtxfma_sleep_traps; // 5b
+std::array<uint8_t, EMU_NUM_THREADS+1>  csr_mcache_control; // 2b
+std::array<uint64_t,EMU_NUM_THREADS>    csr_tensor_conv_size; // can we remove?
+std::array<uint64_t,EMU_NUM_THREADS>    csr_tensor_conv_ctrl; // can we remove?
+std::array<uint16_t,EMU_NUM_THREADS>    csr_tensor_mask;
+std::array<uint16_t,EMU_NUM_THREADS>    csr_tensor_error;
+std::array<uint16_t,EMU_NUM_THREADS+1>  csr_ucache_control;
+std::array<uint8_t, EMU_NUM_THREADS>    csr_gsc_progress; // log2(VL)
+std::array<uint64_t,EMU_NUM_THREADS>    csr_validation0;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_validation2;
+std::array<uint64_t,EMU_NUM_THREADS>    csr_validation3;
+std::array<std::array<uint64_t,EMU_NUM_THREADS>,4> csr_portctrl;
 
 // Other processor state
-uint8_t csr_prv[EMU_NUM_THREADS]; // FIXME: Drop 'csr_' prefix
-bool mtvec_is_set[EMU_NUM_THREADS] = {};
-bool stvec_is_set[EMU_NUM_THREADS] = {};
-bool break_on_load[EMU_NUM_THREADS] = {};
-bool break_on_store[EMU_NUM_THREADS] = {};
-bool break_on_fetch[EMU_NUM_THREADS] = {};
-bool debug_mode[EMU_NUM_THREADS] = {};
-static bool tensorload_setupb_topair[EMU_NUM_THREADS] = {false};
-static int tensorload_setupb_numlines[EMU_NUM_THREADS];
-static struct {
+std::array<uint8_t,EMU_NUM_THREADS>     csr_prv; // FIXME: Drop 'csr_' prefix
+std::array<bool,   EMU_NUM_THREADS>     mtvec_is_set;
+std::array<bool,   EMU_NUM_THREADS>     stvec_is_set;
+std::array<bool,   EMU_NUM_THREADS>     break_on_load;
+std::array<bool,   EMU_NUM_THREADS>     break_on_store;
+std::array<bool,   EMU_NUM_THREADS>     break_on_fetch;
+std::array<bool,   EMU_NUM_THREADS>     debug_mode;
+static std::array<bool,EMU_NUM_THREADS-1> tensorload_setupb_topair;
+static std::array<int, EMU_NUM_THREADS-1> tensorload_setupb_numlines;
+
+struct tensor_reduce_info_t {
     uint16_t minion_id;
     uint8_t  start_reg;
     uint8_t  num_reg;
     uint8_t  action;
-} tensorreduce_info[EMU_NUM_MINIONS];
+};
+static std::array<tensor_reduce_info_t,EMU_NUM_MINIONS-1> tensorreduce_info;
 
 // Scratchpad
-cache_line_t scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS];
+std::array<std::array<cache_line_t,L1_SCP_ENTRIES+TFMA_MAX_AROWS>,EMU_NUM_THREADS> scp;
 
 // Used to access different threads transparently
 #define XREGS xregs[current_thread]
@@ -175,12 +178,12 @@ cache_line_t scp[EMU_NUM_THREADS][L1_SCP_ENTRIES+TFMA_MAX_AROWS];
 #define SCP   scp[current_thread]
 
 // Message ports
-static msg_port_conf_t     msg_ports[EMU_NUM_THREADS][NR_MSG_PORTS];
-static std::deque<uint8_t> msg_ports_oob[EMU_NUM_THREADS][NR_MSG_PORTS];
-static bool                msg_port_delayed_write = false;
-static std::vector<msg_port_write_t> msg_port_pending_writes     [EMU_NUM_SHIRES];
-static std::vector<msg_port_write_t> msg_port_pending_writes_tbox[EMU_NUM_SHIRES];
-static std::vector<msg_port_write_t> msg_port_pending_writes_rbox[EMU_NUM_SHIRES];
+static std::array<std::array<msg_port_conf_t,NR_MSG_PORTS>,EMU_NUM_THREADS>      msg_ports;
+static std::array<std::array<std::deque<uint8_t>,NR_MSG_PORTS>,EMU_NUM_THREADS>  msg_ports_oob;
+static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes;
+static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes_tbox;
+static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes_rbox;
+static bool msg_port_delayed_write = false;
 
 // Accelerators
 #if (EMU_TBOXES_PER_SHIRE > 1)
@@ -195,19 +198,23 @@ RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
 RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
 #endif
 
-uint64_t fcc_cnt;
-uint16_t fcc[EMU_NUM_THREADS][2] ={{0}};
-bool fcc_wait[EMU_NUM_THREADS] = {false};
+// FCC: these are special ESRs that look like CSRs
+std::array<std::array<uint16_t,2>,EMU_NUM_THREADS> fcc;
+std::array<bool,EMU_NUM_THREADS> fcc_wait;
 
 // Shire ESRs
-bool esr_shire_coop_mode[EMU_NUM_SHIRES] = {};
+// FIXME: move all these into shire_other_esrs_t
+uint64_t fcc_cnt;
+std::array<bool,EMU_NUM_SHIRES> esr_shire_coop_mode;
 #ifndef SYS_EMU
-bool esr_icache_prefetch_active[EMU_NUM_SHIRES] = {};
+std::array<bool,EMU_NUM_SHIRES> esr_icache_prefetch_active;
 #endif
 
+#ifndef SYS_EMU
 // only for checker, list of minions to awake (e.g. waiting for FCC that has just been written)
 std::queue<uint32_t> minions_to_awake;
 std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
+#endif
 
 const char* csr_name(uint16_t num)
 {
@@ -238,7 +245,7 @@ uint32_t num_sets = 16;
 uint32_t num_ways = 4;
 
 #define MAXSTACK 2048
-static uint32_t shaderstack[EMU_NUM_THREADS][MAXSTACK];
+static std::array<std::array<uint32_t,MAXSTACK>,EMU_NUM_THREADS> shaderstack;
 static bool check_stack = false;
 
 bool m_emu_done = false;
@@ -296,6 +303,19 @@ void reset_esrs_for_shire(unsigned shireid)
     shire_cache_esrs[shire].reset();
     shire_other_esrs[shire].reset(shireid);
     broadcast_esrs[shire].reset();
+
+    esr_shire_coop_mode[shire] = false;
+#ifndef SYS_EMU
+    esr_icache_prefetch_active[shire] = 0;
+#endif
+
+    // reset FCC for all threads in shire
+    unsigned thread0 = shire * EMU_THREADS_PER_SHIRE;
+    unsigned threadN = thread0 + (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+    for (unsigned thread = thread0; thread < threadN; ++thread) {
+        fcc[thread][0] = 0;
+        fcc[thread][1] = 0;
+    }
 }
 
 // forward declarations
@@ -489,6 +509,18 @@ void reset_hart(unsigned thread)
     csr_portctrl[1][thread] = 0x0000000000008000ULL;
     csr_portctrl[2][thread] = 0x0000000000008000ULL;
     csr_portctrl[3][thread] = 0x0000000000008000ULL;
+
+    // other processor state
+    mtvec_is_set[thread] = false;
+    stvec_is_set[thread] = false;
+    break_on_load[thread] = false;
+    break_on_store[thread] = false;
+    break_on_fetch[thread] = false;
+    fcc_wait[thread] = false;
+    if (thread != EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE)
+    {
+        tensorload_setupb_topair[thread] = false;
+    }
 }
 
 void minit(mreg dst, uint64_t val)
@@ -1065,17 +1097,17 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_FFLAGS:
         val = (csr_fcsr[current_thread] & 0x000000E0) | (val & 0x8000001F);
         csr_fcsr[current_thread] = val;
-        LOG(DEBUG, "Updating FFLAGS, new CSR is %08lx \n", val);
+        LOG(DEBUG, "Updating FFLAGS, new CSR is %08lx", val);
         break;
     case CSR_FRM:
         val = (csr_fcsr[current_thread] & 0x8000001F) | ((val & 0x7) << 5);
         csr_fcsr[current_thread] = val;
-        LOG(DEBUG, "Updating FRM, new CSR is %08lx \n", val);
+        LOG(DEBUG, "Updating FRM, new CSR is %08lx", val);
         break;
     case CSR_FCSR:
         val &= 0x800000FF;
         csr_fcsr[current_thread] = val;
-        LOG(DEBUG, "Updating FCSR, new CSR is %08lx \n", val);
+        LOG(DEBUG, "Updating FCSR, new CSR is %08lx", val);
         break;
     case CSR_SSTATUS:
         // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
@@ -1987,7 +2019,7 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     if(!msg_ports[thread][id].enabled) return;
 
     if ( !scp_locked[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way] ) {
-        LOG(DEBUG, "PORT_WRITE Port cache line (s%d w%d)  unlocked!\n", msg_ports[thread][id].scp_set, msg_ports[thread][id].scp_way);
+        LOG(DEBUG, "PORT_WRITE Port cache line (s%d w%d)  unlocked!", msg_ports[thread][id].scp_set, msg_ports[thread][id].scp_way);
     }
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
@@ -2385,11 +2417,13 @@ void tensorload(uint64_t control)
     uint64_t addr             = sext<48>(base);
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
 
+    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP)
+        throw trap_illegal_instruction(current_inst);
+
     // Cooperative tensor loads require the shire to be in cooperative mode
     if (use_coop)
     {
-        uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-        assert(shire != EMU_IO_SHIRE_SP);
         if (!esr_shire_coop_mode[shire])
             throw trap_illegal_instruction(current_inst);
     }
@@ -2588,7 +2622,8 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
     LOG(DEBUG, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%16" PRIx64, rows, tm,  dst,  addr);
 
     uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-    assert(shire != EMU_IO_SHIRE_SP);
+    if (shire == EMU_IO_SHIRE_SP)
+        throw trap_illegal_instruction(current_inst);
 
     for (int i = 0; i < rows; ++i)
     {
@@ -2637,6 +2672,10 @@ static const char* get_quant_transform(int op)
 
 static void tensorquant(uint64_t value)
 {
+    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP)
+        throw trap_illegal_instruction(current_inst);
+
     if (!txfma_off_allowed(CSR_TENSOR_QUANT, value))
         throw trap_txfma_off(current_inst);
 
@@ -2916,6 +2955,10 @@ static void tensorquant(uint64_t value)
 
 static void tensorstore(uint64_t tstorereg)
 {
+    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP)
+        throw trap_illegal_instruction(current_inst);
+
     uint64_t tstore_scp = (tstorereg >> 48) & 0x1;
 
     if (tstore_scp)
@@ -2988,8 +3031,6 @@ static void tensorstore(uint64_t tstorereg)
         // Cooperative tensor stores require the shire to be in cooperative mode
         if (coop > 1)
         {
-            uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-            assert(shire != EMU_IO_SHIRE_SP);
             if (!esr_shire_coop_mode[shire])
                 throw trap_illegal_instruction(current_inst);
         }
@@ -3025,6 +3066,10 @@ static void tensorstore(uint64_t tstorereg)
 
 static void tensor_fma32(uint64_t tfmareg)
 {
+    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP)
+        throw trap_illegal_instruction(current_inst);
+
     if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
         throw trap_txfma_off(current_inst);
 
@@ -3144,6 +3189,10 @@ static void tensor_fma32(uint64_t tfmareg)
 
 static void tensor_fma16a32(uint64_t tfmareg)
 {
+    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP)
+        throw trap_illegal_instruction(current_inst);
+
     if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
         throw trap_txfma_off(current_inst);
 
@@ -3267,6 +3316,10 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
 static void tensor_ima8a32(uint64_t tfmareg)
 {
+    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP)
+        throw trap_illegal_instruction(current_inst);
+
     if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
         throw trap_txfma_off(current_inst);
 
@@ -3413,9 +3466,6 @@ static void tensor_ima8a32(uint64_t tfmareg)
 static void tensorreduce(uint64_t value)
 {
     unsigned other_min, action;
-
-    if (!txfma_off_allowed(CSR_TENSOR_REDUCE, value))
-        throw trap_txfma_off(current_inst);
 
     tensor_reduce_decode(current_thread>>1, value, &other_min, &action);
 
@@ -3683,6 +3733,13 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
     uint64_t level = (value >> 3) & 0xF;
     uint64_t type  = value & 3;
 
+    uint64_t shire = minion_id / EMU_MINIONS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP)
+        throw trap_illegal_instruction(current_inst);
+
+    if (!txfma_off_allowed(CSR_TENSOR_REDUCE, value))
+        throw trap_txfma_off(current_inst);
+
     // SENDER
     if (type == 0)
     {
@@ -3755,10 +3812,10 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
     // Update sender information so it can be used by the receiver
     if (*action == 0)
     {
-        tensorreduce_info[current_thread>>1].minion_id = *other_min;
-        tensorreduce_info[current_thread>>1].start_reg = (value >> 57) & 0x1F;
-        tensorreduce_info[current_thread>>1].num_reg   = (value >> 16) & 0x7F;
-        tensorreduce_info[current_thread>>1].action    = *action;
+        tensorreduce_info[minion_id].minion_id = *other_min;
+        tensorreduce_info[minion_id].start_reg = (value >> 57) & 0x1F;
+        tensorreduce_info[minion_id].num_reg   = (value >> 16) & 0x7F;
+        tensorreduce_info[minion_id].action    = *action;
     }
 }
 
@@ -3766,7 +3823,7 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
 
 void write_shire_coop_mode(unsigned shire, uint64_t val)
 {
-    assert(shire <= EMU_MASTER_SHIRE);
+    assert(shire < EMU_NUM_MINION_SHIRES);
     esr_shire_coop_mode[shire] = !!(val & 1);
 #ifndef SYS_EMU
     if (!esr_shire_coop_mode[shire])
@@ -3776,7 +3833,7 @@ void write_shire_coop_mode(unsigned shire, uint64_t val)
 
 uint64_t read_shire_coop_mode(unsigned shire)
 {
-    assert(shire <= EMU_MASTER_SHIRE);
+    assert(shire < EMU_NUM_MINION_SHIRES);
     return esr_shire_coop_mode[shire] ? 1ull : 0ull;
 }
 
@@ -3842,16 +3899,23 @@ uint64_t get_fcc_cnt()
 
 void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc_id)
 {
-    LOG(DEBUG,"fcc_inc(%" PRIu64 ", %" PRIu64 ", %" PRIx64 ", %" PRIu64 ")",
+    LOG(DEBUG,"fcc_inc(%" PRIu64 ", %" PRIu64 ", 0x%" PRIx64 ", %" PRIu64 ")",
         thread, shire, minion_mask, fcc_id);
 
-    for (int minion = 0; minion < EMU_MINIONS_PER_SHIRE; ++minion)
+    int minions_in_shire = EMU_MINIONS_PER_SHIRE;
+    if (shire == EMU_IO_SHIRE_SP) {
+        minions_in_shire = 1;
+        if (thread)
+            throw std::runtime_error("fcc_inc to SP for thread1");
+    }
+
+    for (int minion = 0; minion < minions_in_shire; ++minion)
     {
         if (minion_mask & (1ull << minion))
         {
             size_t fcc_addr = shire*EMU_THREADS_PER_SHIRE + EMU_THREADS_PER_MINION*minion + thread;
             LOG(DEBUG, "Incrementing FCC%" PRIu64 "[H%" PRIu64 "]=%" PRId32, thread*2 + fcc_id, fcc_addr, fcc[fcc_addr][fcc_id] + 1);
-            fcc[fcc_addr][fcc_id] ++;
+            fcc[fcc_addr][fcc_id]++;
 
 #ifndef SYS_EMU
             // wake up waiting threads (only for checker, not sysemu)
