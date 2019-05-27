@@ -71,34 +71,52 @@ if(BUILD_KERNELS)
     )
 endif(BUILD_KERNELS)
 
-add_library(etrt SHARED ${ETRT_SOURCES})
-target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
-target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Device")
-target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/etrpc")
-target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/")
-target_include_directories(etrt PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
-target_include_directories(etrt PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../include")
+add_library(etrt_obj OBJECT ${ETRT_SOURCES})
+target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
+target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Device")
+target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/etrpc")
+target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/")
+target_include_directories(etrt_obj PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
+target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../include")
 
 MESSAGE("GLOG: " ${GLOG_INCLUDE_DIRS})
 
-target_include_directories(etrt PUBLIC ${GLOG_INCLUDE_DIRS})
-target_include_directories(etrt PUBLIC ${FMTLIB_INCLUDE_DIRS})
-target_link_libraries(etrt pthread)
-add_dependencies(etrt ${external_project_dependencies})
+target_include_directories(etrt_obj PUBLIC ${GLOG_INCLUDE_DIRS})
+target_include_directories(etrt_obj PUBLIC ${FMTLIB_INCLUDE_DIRS})
+target_link_libraries(etrt_obj pthread)
+add_dependencies(etrt_obj ${external_project_dependencies})
+
+if(BUILD_KERNELS)
+  add_dependencies(etrt_obj kernels-elf-file)
+  add_dependencies(etrt_obj bootrom-file)
+  add_dependencies(etrt_obj kernels-offsets)
+  add_dependencies(etrt_obj kernels-cdescr)
+  add_dependencies(etrt_obj bootrom-cdescr)
+endif(BUILD_KERNELS)
+
+set_property(TARGET etrt_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
+
+# Generate both static and shared libraries
+add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj>)
 target_link_libraries(etrt ${GLOG_LIBRARIES})
 target_link_libraries(etrt ${FMTLIB_LIBRARIES})
 
-if(BUILD_KERNELS)
-  add_dependencies(etrt kernels-elf-file)
-  add_dependencies(etrt bootrom-file)
-  add_dependencies(etrt kernels-offsets)
-  add_dependencies(etrt kernels-cdescr)
-  add_dependencies(etrt bootrom-cdescr)
-endif(BUILD_KERNELS)
 
 install(TARGETS etrt
   RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
   LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  COMPONENT et-runtime
+  )
+
+add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj>)
+target_link_libraries(etrt_static ${GLOG_LIBRARIES})
+target_link_libraries(etrt_static ${FMTLIB_LIBRARIES})
+
+install(TARGETS etrt_static
+  RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
   COMPONENT et-runtime
   )

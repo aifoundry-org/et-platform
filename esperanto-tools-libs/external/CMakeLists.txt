@@ -24,7 +24,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
     # build directory
     set(gflags_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/gflags-prefix)
     # install directory
-    set(gflags_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/gflags-prefix/src/gflags-build)
+    set(gflags_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 
     # we build gflags statically, but want to link it into the caffe shared library
     # this requires position-independent code
@@ -55,10 +55,10 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
                  -DCMAKE_C_FLAGS=${GFLAGS_C_FLAGS} -fPIC
                  -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS} -fPIC
                  -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON
+                 -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON
        # Do not install the package cause it tries to write to the cmake registry
        # in the user's home directory
        BUILD_BYPRODUCTS ${gflags_INSTALL}/lib/libgflags.a
-       INSTALL_COMMAND ""
        LOG_DOWNLOAD 1
        LOG_CONFIGURE 1
 #      LOG_INSTALL 1
@@ -90,7 +90,7 @@ if (NOT __GLOG_INCLUDED)
     # build directory
     set(glog_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/glog-prefix)
     # install directory
-    set(glog_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/glog-install)
+    set(glog_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 
     # we build glog statically, but want to link it into the caffe shared library
     # this requires position-independent code
@@ -135,7 +135,7 @@ endif()
 
 
 set(fmtlib_BUILD ${CMAKE_CURRENT_BINARY_DIR}/fmtlib-build)
-set(fmtlib_INSTALL ${CMAKE_CURRENT_BINARY_DIR}/fmtlib-install)
+set(fmtlib_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 
 ExternalProject_Add(fmtlib
   PREFIX ${fmtlib_BUILD}
