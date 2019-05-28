@@ -64,12 +64,6 @@ set(ETRT_SOURCES
     eti.h
     Support/DeviceGuard.cc
 )
-if(BUILD_KERNELS)
-  list(APPEND ETRT_SOURCES
-    Cpu/cpu_algo.cc
-    Cpu/cpu_algo_launch.cc
-    )
-endif(BUILD_KERNELS)
 
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -87,14 +81,6 @@ target_include_directories(etrt_obj PUBLIC ${FMTLIB_INCLUDE_DIRS})
 target_link_libraries(etrt_obj pthread)
 add_dependencies(etrt_obj ${external_project_dependencies})
 
-if(BUILD_KERNELS)
-  add_dependencies(etrt_obj kernels-elf-file)
-  add_dependencies(etrt_obj bootrom-file)
-  add_dependencies(etrt_obj kernels-offsets)
-  add_dependencies(etrt_obj kernels-cdescr)
-  add_dependencies(etrt_obj bootrom-cdescr)
-endif(BUILD_KERNELS)
-
 set_property(TARGET etrt_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 # Generate both static and shared libraries
@@ -102,7 +88,7 @@ add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj>)
 target_link_libraries(etrt ${GLOG_LIBRARIES})
 target_link_libraries(etrt ${FMTLIB_LIBRARIES})
 
-
+## Build shared library
 install(TARGETS etrt
   RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
   LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
@@ -114,6 +100,7 @@ add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj>)
 target_link_libraries(etrt_static ${GLOG_LIBRARIES})
 target_link_libraries(etrt_static ${FMTLIB_LIBRARIES})
 
+## Build static library
 install(TARGETS etrt_static
   RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
   LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
