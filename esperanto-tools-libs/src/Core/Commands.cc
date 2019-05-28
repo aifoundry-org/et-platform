@@ -21,13 +21,6 @@
 //#include "cpu_algo.h"
 #include "demangle.h"
 
-#if 0
-#include "et_bootrom.h"
-#include "kernels_offsets.h"
-#endif
-
-#include "utils.h"
-
 // clang-format off
 // et-rpc is an external dependency to be deprecated
 // unfortunately the et-card-proxy.h header is not self
