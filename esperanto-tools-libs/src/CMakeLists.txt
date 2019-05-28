@@ -61,7 +61,6 @@ set(ETRT_SOURCES
     Device/TargetRPC.cc
     Device/TargetSysEmu.cc
     registry.h
-    eti.h
     Support/DeviceGuard.cc
 )
 
