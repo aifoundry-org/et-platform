@@ -105,7 +105,7 @@ private:
     static std::list<int>  enabled_threads; // List of enabled threads
     static std::list<int>  fcc_wait_threads[2]; // List of threads waiting for an FCC
     static std::list<int>  port_wait_threads; // List of threads waiting for a port write
-    static uint32_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
+    static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
     static uint64_t        current_pc[EMU_NUM_THREADS]; // PC for each thread
     static reduce_state    reduce_state_array[EMU_NUM_MINIONS]; // Reduce state
     static uint32_t        reduce_pair_array[EMU_NUM_MINIONS]; // Reduce pairing minion

@@ -29,7 +29,7 @@ uint64_t        sys_emu::emu_cycle = 0;
 std::list<int>  sys_emu::enabled_threads;                                               // List of enabled threads
 std::list<int>  sys_emu::fcc_wait_threads[2];                                           // List of threads waiting for an FCC
 std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
-uint32_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
+uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                                   // PC for each thread
 reduce_state    sys_emu::reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
 uint32_t        sys_emu::reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
