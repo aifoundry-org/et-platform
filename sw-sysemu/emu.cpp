@@ -133,7 +133,7 @@ std::array<std::array<uint64_t,6>,EMU_NUM_THREADS> csr_mhpmevent;
 std::array<uint64_t,EMU_NUM_THREADS>    csr_minstmask;
 std::array<uint32_t,EMU_NUM_THREADS>    csr_minstmatch;
 std::array<uint8_t, EMU_NUM_THREADS+1>  csr_menable_shadows; // 1b
-// TODO: std::array<uint8_t,EMU_NUM_THREADS+1> csr_excl_mode; // 1b
+std::array<uint8_t, EMU_NUM_THREADS+1>  csr_excl_mode; // 1b
 std::array<uint8_t, EMU_NUM_THREADS+1>  csr_mcache_control; // 2b
 std::array<uint64_t,EMU_NUM_THREADS>    csr_tensor_conv_size; // can we remove?
 std::array<uint64_t,EMU_NUM_THREADS>    csr_tensor_conv_ctrl; // can we remove?
@@ -238,7 +238,7 @@ system_version_t sysver = system_version_t::UNKNOWN;
 
 uint64_t current_pc = 0;
 uint32_t current_inst = 0;
-uint32_t current_thread = 0;
+unsigned current_thread = 0;
 uint32_t num_sets = 16;
 uint32_t num_ways = 4;
 
@@ -481,7 +481,7 @@ void reset_hart(unsigned thread)
     csr_misa[thread] = CSR_ISA_MAX;
 
     // CSR registers with reset
-    // TODO: csr_excl_mode[thread] = 0;
+    csr_excl_mode[thread] = 0;
     csr_gsc_progress[thread] = 0;
     csr_mcache_control[thread] = 0;
     csr_mcause[thread] = 0;
@@ -539,8 +539,11 @@ static bool tmask_pass(int bit)
 void check_pending_interrupts()
 {
     // Are there any non-masked pending interrupts?
+    // NB: If csr_excl_mode != 0 this thread is either in exclusive mode or
+    // blocked, but either way it cannot receive interrupts
     uint64_t xip = csr_mip[current_thread] & csr_mie[current_thread];
-    if (!xip) return;
+    if (!xip || csr_excl_mode[current_thread])
+        return;
 
     LOG(DEBUG, "Check Pending Interrupt mtvec:0x%016" PRIx64 " mip:0x%08" PRIx32 " mie:0x%08" PRIx32,
         csr_mtvec[current_thread], csr_mip[current_thread], csr_mie[current_thread]);
@@ -718,7 +721,7 @@ void set_pc(uint64_t pc)
     current_pc = pc;
 }
 
-void set_thread(uint32_t thread)
+void set_thread(unsigned thread)
 {
     current_thread = thread;
 }
@@ -726,6 +729,12 @@ void set_thread(uint32_t thread)
 uint32_t get_thread()
 {
     return current_thread;
+}
+
+bool thread_is_blocked(unsigned thread)
+{
+    unsigned other_excl = 1 + ((~thread & 1) << 1);
+    return csr_excl_mode[thread] == other_excl;
 }
 
 uint32_t get_mask(unsigned maskNr)
@@ -939,7 +948,9 @@ static uint64_t csrget(uint16_t src1)
     case CSR_MENABLE_SHADOWS:
         val = csr_menable_shadows[current_thread];
         break;
-    // TODO: CSR_EXCL_MODE
+    case CSR_EXCL_MODE:
+        val = csr_excl_mode[current_thread] & 1;
+        break;
     case CSR_MCACHE_CONTROL:
         val = csr_mcache_control[current_thread];
         break;
@@ -1282,7 +1293,19 @@ static void csrset(uint16_t src1, uint64_t val)
         csr_menable_shadows[current_thread] = val;
         csr_menable_shadows[current_thread^1] = val;
         break;
-    // TODO: CSR_EXCL_MODE:
+    case CSR_EXCL_MODE:
+        val &= 1;
+        if (val)
+        {
+            csr_excl_mode[current_thread] = 1 + ((current_thread & 1) << 1);
+            csr_excl_mode[current_thread^1] = 1 + ((current_thread & 1) << 1);
+        }
+        else
+        {
+            csr_excl_mode[current_thread] = 0;
+            csr_excl_mode[current_thread^1] = 0;
+        }
+        break;
     case CSR_MCACHE_CONTROL:
         msk = (csr_mcache_control[current_thread] & 1) ? 3 : 1;
         val = (val & msk) | (csr_ucache_control[current_thread] & ~msk);

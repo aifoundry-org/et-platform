@@ -980,6 +980,12 @@ sys_emu::main_internal(int argc, char * argv[])
         {
             auto thread_id = * thread;
 
+            if (thread_is_blocked(thread_id))
+            {
+                ++thread;
+                continue;
+            }
+
             // Try to execute one instruction, this may trap
             try
             {
