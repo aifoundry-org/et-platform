@@ -24,6 +24,7 @@ emu_hdrs := \
 	common/main_memory.h \
 	common/main_memory_region.h \
 	common/main_memory_region_esr.h \
+	common/main_memory_region_reserved.h \
 	common/main_memory_region_scp_linear.h
 
 emu_cpp_srcs := \
@@ -60,7 +61,5 @@ emu_cpp_srcs := \
 	insns/packed_trans.cpp \
 	insns/zifencei.cpp \
 	common/main_memory.cpp \
-	common/main_memory_region.cpp \
 	common/main_memory_region_esr.cpp \
-	common/main_memory_region_scp.cpp \
-	common/main_memory_region_scp_linear.cpp
+	common/main_memory_region_scp.cpp

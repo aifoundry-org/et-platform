@@ -1,66 +1,62 @@
-#ifndef _MAIN_MEMORY_REGION_
-#define _MAIN_MEMORY_REGION_
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
-#include <cstdint>
+#ifndef BEMU_MAIN_MEMORY_REGION
+#define BEMU_MAIN_MEMORY_REGION
 
-// Local
-#define CHECKER
-#include "testLog.h"
+#include <algorithm>
+#include <cinttypes>
+#include <cstdio>
+#include <fstream>
+#include <stdexcept>
 
-#define CACHE_LINE_MASK 0xFFFFFFFFC0ULL
-#define CACHE_LINE_SIZE (64)
+//namespace bemu {
 
-#define MEM_REGION_READ_ALLOWED 1
-#define MEM_REGION_WRITE_ALLOWED 2
-
-#define MEM_REGION_RO MEM_REGION_READ_ALLOWED
-#define MEM_REGION_WO MEM_REGION_WRITE_ALLOWED
-#define MEM_REGION_RW ( MEM_REGION_READ_ALLOWED | MEM_REGION_WRITE_ALLOWED )
 
 // Memory region of the main memory
-class main_memory_region
+struct main_memory_region
 {
-    public:
-        typedef uint32_t (*func_ptr_get_thread) ();
+    main_memory_region(uint64_t addr, size_t sz, bool alloc = true)
+            : buf(alloc ? new char[sz]() : nullptr), base(addr), count(sz)
+    {
+        if (sz % 4)
+            throw std::invalid_argument("main_memory_region: "
+                                        "size must be multiple of 4");
+    }
 
-        // Constructors and destructors
-        main_memory_region(uint64_t base, uint64_t size, testLog & l,
-                           func_ptr_get_thread & get_thread,
-                           int flags = MEM_REGION_RW,
-                           bool allocate_data = true)
-        : base_(base), size_(size), data_(allocate_data ? new char[size]() : nullptr),
-          flags_(flags), log(l), get_thread(get_thread)
-        {}
+    virtual ~main_memory_region()
+    { delete[] buf; }
 
-        virtual ~main_memory_region() {
-            delete[] data_;
+    // read and write
+    virtual void write(uint64_t addr, size_t n, const void* source)
+    { std::copy_n(reinterpret_cast<const char*>(source), n, buf + (addr-base)); }
+
+    virtual void read(uint64_t addr, size_t n, void* result)
+    { std::copy_n(buf + (addr-base), n, reinterpret_cast<char*>(result)); }
+
+    // operators to compare, used for finding the region of a memory access
+    bool operator==(uint64_t addr) const
+    { return (addr >= base) && ((addr - base) < count); }
+
+    bool operator!=(uint64_t addr) const
+    { return !(*this == addr); }
+
+    // dump region data to a file
+    virtual void dump_file(std::ofstream* f) {
+        static char str[32];
+        for (size_t offset = 0; offset < count; offset += 4) {
+            snprintf(str, 32, "%010" PRIX64 " %08" PRIX32,
+                    base + offset, *reinterpret_cast<uint32_t*>(buf + offset));
+            f->write(str, strlen(str));
         }
+    }
 
-        // operators to compare, used when searching the correct region in a memory access
-        bool operator==(uint64_t ad) const {
-            return ad >= base_ && ad < base_ + size_;
-        }
-
-        bool operator!=(uint64_t ad) const {
-            return !(*this == ad);
-        }
-
-        // read and write
-        virtual void write(uint64_t ad, int size, const void* data);
-        virtual void read(uint64_t ad, int size, void* data);
-
-        // Dump
-        void dump();
-        void dump_file(std::ofstream * f);
-
-    protected:
-        // members
-        const uint64_t base_;
-        const uint64_t size_;
-        char * const data_;
-        int  flags_;
-        testLog& log;
-        func_ptr_get_thread & get_thread;
+    // for exposition only
+    char* const    buf;
+    const uint64_t base;
+    const size_t   count;
 };
 
-#endif // _MAIN_MEMORY_REGION_
+
+//} // namespace bemu
+
+#endif // BEMU_MAIN_MEMORY_REGION
