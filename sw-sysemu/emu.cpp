@@ -2361,15 +2361,15 @@ static void tmask_conv()
 
     // Get the sizes of the convolution
     uint64_t tconvsizereg = csr_tensor_conv_size[current_thread];
-    int16_t srow = (tconvsizereg >> 56) & 0xFF;
-    int16_t nrow = (tconvsizereg >> 32) & 0xFFFF;
-    int16_t scol = (tconvsizereg >> 24) & 0xFF;
-    int16_t ncol = (tconvsizereg >>  0) & 0xFFFFU;
+    int srow =   int8_t((tconvsizereg >> 56) & 0xFF);
+    int nrow = uint16_t((tconvsizereg >> 32) & 0xFFFF);
+    int scol =   int8_t((tconvsizereg >> 24) & 0xFF);
+    int ncol = uint16_t((tconvsizereg >>  0) & 0xFFFF);
 
     // Get the positions of the convolution
     uint64_t tconvctrlreg = csr_tensor_conv_ctrl[current_thread];
-    int16_t  rowstart = (tconvctrlreg >> 32) & 0xFFFF;
-    int16_t  colstart = (tconvctrlreg >>  0) & 0xFFFF;
+    int rowstart = int16_t((tconvctrlreg >> 32) & 0xFFFF);
+    int colstart = int16_t((tconvctrlreg >>  0) & 0xFFFF);
 
     for (int i = 0; i < 16; ++i, rowstart += srow, colstart += scol)
     {
