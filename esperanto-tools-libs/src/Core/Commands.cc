@@ -72,7 +72,10 @@ void EtActionConfigure::execute(Device *device) {
   cpDefineDevMem(card_proxy, STACK_REGION, STACK_REGION_TOTAL_SIZE << 3, false);
 
   cpDefineDevMem(card_proxy, 0x8000100000, 0x100000, false);
-  cpDefineDevMem(card_proxy, 0x8000300000, 0x100000, false);
+  cpDefineDevMem(card_proxy, 0x8000300000, 0x108000, false);
+  cpDefineDevMem(card_proxy, 0x8000408000, 0x108000, false);
+  cpDefineDevMem(card_proxy, 0x8200000000, 64, false);
+  cpDefineDevMem(card_proxy, 0x8000600000, 64, false);
 
   // const void *kernels_file_p = gEtKernelsElf;
   // size_t kernels_file_size = sizeof(gEtKernelsElf);
@@ -90,7 +93,11 @@ void EtActionConfigure::execute(Device *device) {
                 bootrom_file_p);
 
 // FIXME deprecate the following eventually
-#if 0
+#if 1
+
+  static const long ETSOC_init  = 0x000000810000600c;
+  static const long ETSOC_mtrap = 0x0000008100007000;
+
   {
     struct BootromInitDescr_t {
       uint64_t init_pc;
@@ -182,6 +189,7 @@ void EtActionLaunch::execute(Device *device) {
 
 #if 0
   // b4c hack
+  static const long ETSOC_launch = 0x0000008100006038;
   if (static_kernels)
     cpLaunch(card_proxy, ETSOC_launch); // b4c - precompiled kernels
   else

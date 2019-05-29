@@ -40,12 +40,13 @@ CardProxyTarget::CardProxyTarget(const std::string &path) : DeviceTarget(path) {
       SYSEMU_PATH, //
       "-minions",
       "FFFFFFFF",            // All minions enabled
-      "-shires", "FFFFFFFF", // All shires enabled
+      "-shires", "1FFFFFFFF", // All shires enabled
+      "-master_min", // Enable master shire
       std::string("-api_comm"), connection_,
       "-mins_dis", // Disable minions by default as booting is done through an
-                   // exec command
-      // "-l","-lm","0" // Enable logging of minion0
-      "-max_cycles", "800000", // Limiting number of virtual simulation cycles.
+                   // exec commandi
+      // "-l","-lm","0", // Enable logging of minion0
+      "-max_cycles", "1250000", // Limiting number of virtual simulation cycles.
                                // Increase if needed
   };
   card_proxy_ = std::make_unique<CardProxy>(connection_);
