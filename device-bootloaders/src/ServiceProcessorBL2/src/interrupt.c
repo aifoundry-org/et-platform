@@ -14,6 +14,7 @@
 #include "FreeRTOS.h"
 #include "etsoc_hal/pu_plic.h"
 #include "etsoc_hal/spio_plic.h"
+#include "hal_device.h"
 #include "task.h"
 
 #include <stdio.h>
@@ -23,11 +24,8 @@
 #define SPIO_PLIC_INTR_SRC_CNT                156
 #define PU_PLIC_INTR_SRC_CNT                   42
 
-#define SPIO_PLIC_BASE_ADDRESS 0x0050000000ULL
-#define PL_PLIC_BASE_ADDRESS   0x0010000000ULL
-
-#define SPIO_PLIC ((volatile Spio_plic_t* const)SPIO_PLIC_BASE_ADDRESS)
-#define PU_PLIC ((volatile Pu_plic_t* const)PL_PLIC_BASE_ADDRESS)
+#define SPIO_PLIC ((volatile Spio_plic_t* const)R_SP_PLIC_BASEADDR)
+#define PU_PLIC ((volatile Pu_plic_t* const)R_PU_PLIC_BASEADDR)
 
 #define PRIORITY_MASK 0x7U
 
