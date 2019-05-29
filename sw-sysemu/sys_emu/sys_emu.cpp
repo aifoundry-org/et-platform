@@ -135,19 +135,6 @@ static bool parse_mem_file(const char * filename, main_memory * memory)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Instruction log
-////////////////////////////////////////////////////////////////////////////////
-
-// Returns current thread
-
-static int32_t thread_id;
-
-static uint32_t get_thread_emu()
-{
-    return thread_id;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // Help message
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
@@ -394,9 +381,8 @@ bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
       for (unsigned m = 0; m < shire_minion_count; m++)
       {
          if (((minions_en >> m) & 1) == 0) continue;
-
          for (unsigned ii = 0; ii < minion_thread_count; ii++) {
-            thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+            unsigned thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
             if ( pc_breakpoints_exists(current_pc[thread_id], thread_id)) {
                pc = current_pc[thread_id];
                thread = thread_id;
@@ -783,8 +769,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     emu::log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
 
     // Generates the main memory of the emulator
-    memory = new main_memory(emu::log);
-    memory->setGetThread(get_thread_emu);
+    memory = new main_memory();
     if (cmd_options.create_mem_at_runtime) {
        memory->create_mem_at_runtime();
     }
@@ -947,7 +932,7 @@ sys_emu::main_internal(int argc, char * argv[])
 
         while(thread != enabled_threads.end())
         {
-            thread_id = * thread;
+            auto thread_id = * thread;
 
             // Try to execute one instruction, this may trap
             try
@@ -1114,7 +1099,7 @@ sys_emu::main_internal(int argc, char * argv[])
        auto thread = enabled_threads.begin();
        while(thread != enabled_threads.end())
        {
-          thread_id = * thread;
+          auto thread_id = * thread;
           LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
           thread++;
        }
@@ -1126,7 +1111,7 @@ sys_emu::main_internal(int argc, char * argv[])
            thread = fcc_wait_threads[i].begin();
            while(thread != fcc_wait_threads[i].end())
            {
-               thread_id = * thread;
+               auto thread_id = * thread;
                LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
                thread++;
            }
@@ -1137,7 +1122,7 @@ sys_emu::main_internal(int argc, char * argv[])
        thread = port_wait_threads.begin();
        while(thread != port_wait_threads.end())
        {
-          thread_id = * thread;
+          auto thread_id = * thread;
           LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
           thread++;
        }
