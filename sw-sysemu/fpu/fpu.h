@@ -23,7 +23,7 @@ float32_t f32_frac(float32_t);
 
 float32_t f32_sin2pi(float32_t);
 float32_t f32_exp2(float32_t);
-float32_t f32_log2(float32_t);
+extern "C" float32_t f32_log2(float32_t);
 float32_t f32_rcp(float32_t);
 float32_t f32_rsqrt(float32_t);
 

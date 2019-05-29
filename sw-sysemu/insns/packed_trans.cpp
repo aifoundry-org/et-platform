@@ -42,9 +42,12 @@ static inline float32_t flog_vs_gold(float32_t x)
     float32_t gldval = gld::f32_log2(x);
     if (gld::security_ulp_check(gldval.v, fpuval.v))
     {
-        LOG(WARN, "FLOG mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x. This might happen, report to jordi.sola@esperantotech.com if needed.",
-            x.v, gldval.v, fpuval.v);
+        LOG(WARN, "FLOG 2ULP mismatch with input: 0x%08x golden: 0x%08x libfpu: 0x%08x", x.v, gldval.v, fpuval.v);
     }
+    /*else if (fpuval.v != gldval.v)
+    {
+        LOG(WARN, "FLOG 1ULP diff with input: 0x%08x golden: 0x%08x libfpu: 0x%08x", x.v, gldval.v, fpuval.v);
+    }*/
     return fpuval;
 }
 

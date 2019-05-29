@@ -18,9 +18,7 @@ inline bool security_ulp_check(uint32_t a, uint32_t b)
     uint32_t a_exp = (a & 0x7f800000);
     uint32_t b_exp = (b & 0x7f800000);
     if (a_exp == 0x7f800000 || b_exp == 0x7f800000) {
-        if (a != b)
-            throw std::runtime_error("1ULP mismatch error. Please open JIRA to jordi.sola@esperantotech.com");
-        return false;
+        return a != b;
     }
     return (a != b) && ((a+1) != b) && (a != (b+1));
 }

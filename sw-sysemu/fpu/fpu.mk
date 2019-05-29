@@ -24,3 +24,6 @@ fpu_cpp_srcs := \
 	fpu/fxp1714_rcpStep.cpp \
 	fpu/tensors.cpp \
 	fpu/ttrans.cpp
+
+fpu_c_srcs := \
+	fpu/f32_log2.c
