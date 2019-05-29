@@ -21,13 +21,15 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/prctl.h>
 
 using namespace std;
 
 namespace et_runtime {
 namespace device {
 
-SysEmuLauncher::SysEmuLauncher(const std::string &con)
+SysEmuLauncher::SysEmuLauncher(
+    const std::string &con, const std::vector<std::string> &additional_options)
     : connection_(con), device_alive_(false) {
   execute_args_ = {
       SYSEMU_PATH, //
@@ -42,7 +44,12 @@ SysEmuLauncher::SysEmuLauncher(const std::string &con)
       "-max_cycles", "1250000", // Limiting number of virtual simulation cycles.
                                 // Increase if needed
   };
+  execute_args_.insert(execute_args_.end(), additional_options.begin(),
+                       additional_options.end());
 }
+
+SysEmuLauncher::SysEmuLauncher(const std::string &con)
+    : SysEmuLauncher(con, {}) {}
 
 SysEmuLauncher::~SysEmuLauncher() {}
 
@@ -67,8 +74,15 @@ void SysEmuLauncher::createProcess(const char *path,
 
   if (*pid == 0) {
     // child
+    // kill when parent dies
+    prctl(PR_SET_PDEATHSIG, SIGHUP);
     close(error_report_pipe_fd[0]);
-    execv(path, const_cast<char *const *>(c_argv.get()));
+    const char* envp[] = {
+      // "GRPC_TRACE=api",
+      // "GRPC_VERBOSITY=DEBUG",
+      NULL
+    };
+    execvpe(path, const_cast<char *const *>(c_argv.get()), const_cast<char* const*>(envp)) ;
     int errno_val = errno;
 
     write(error_report_pipe_fd[1], &errno_val, sizeof(int));

@@ -16,20 +16,34 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 
-link_directories(${GTEST_DIR}/lib64)
+link_directories(${GTEST_DIR}/lib64
+  ${RT_EXTERNAL_INSTALL_PREFIX}/lib64
+  ${RT_EXTERNAL_INSTALL_PREFIX}/lib)
+
 
 add_compile_options(-g3 -O0 -std=c++17)
 set(COMMON_TEST_LIBRARIES
   etrt_static
+  etsim_api
+  protobuf
+  grpc++
+  grpc
+  gpr
+  z
+  cares
+  address_sorting
   libgtest_main.a
   libgtest.a
   ${GLOG_LIBRARIES}
   ${FMTLIB_LIBRARIES}
-  pthread)
+  pthread
+  stdc++fs
+  )
 
 set(TEST_LIST test_error_or.cc
   test_device_manager.cc
   test_device_target_card_proxy.cc
+  test_device_target_sysemu_grpc.cc
   )
 
 

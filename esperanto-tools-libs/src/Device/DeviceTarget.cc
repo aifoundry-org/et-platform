@@ -70,7 +70,7 @@ DeviceTarget::deviceFactory(TargetType target, const std::string &path) {
   case TargetType::PCIe:
     return make_unique<PCIeDevice>(path);
   case TargetType::SysEmuGRPC:
-    return make_unique<TargetSysEmu>();
+    return make_unique<TargetSysEmu>(path);
   case TargetType::SysEmuCardProxy:
     return make_unique<CardProxyTarget>(path);
   case TargetType::DeviceGRPC:

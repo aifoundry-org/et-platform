@@ -156,21 +156,6 @@ set(FMTLIB_LIBRARY_DIRS ${fmtlib_INSTALL}/lib64 CACHE PATH "fmtlib library path"
 
 list(APPEND external_project_dependencies fmtlib)
 
-ExternalProject_Add(sw-sysemu
-  PREFIX sw-sysemu
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu
-  CONFIGURE_COMMAND ""
-  BUILD_IN_SOURCE ON  # Really sad :(
-  BUILD_COMMAND make -C sys_emu/
-  BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
-  INSTALL_COMMAND mkdir -p ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
-                  && cp sys_emu/build/sys_emu ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
-  )
-
-set(SYSEMU_PATH  ${RT_EXTERNAL_INSTALL_PREFIX}/bin/sys_emu PARENT_SCOPE)
-
-list(APPEND external_project_dependencies sw-sysemu)
-
 set(device_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 ExternalProject_Add(device-api
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/device_api
@@ -191,9 +176,30 @@ ExternalProject_Add(simulator-api
   INSTALL_DIR ${simulator_api_INSTALL}
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${simulator_api_INSTALL}
   #  BUILD_BYPRODUCTS ${device_api_INSTALL}/lib/libfmt.a
+  BUILD_ALWAYS 1
   )
 
 list(APPEND external_project_dependencies simulator-api)
+
+ExternalProject_Add(sw-sysemu
+  PREFIX sw-sysemu
+  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND $(MAKE) -C <SOURCE_DIR>/sys_emu/
+                    sysemu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build
+                    libfpu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build-fpu
+                    external_SYSPATH=${RT_EXTERNAL_INSTALL_PREFIX}
+  BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
+  INSTALL_COMMAND mkdir -p ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
+                    && cp ${CMAKE_CURRENT_BINARY_DIR}/sysemu-build/sys_emu ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
+  DEPENDS simulator-api
+  BUILD_ALWAYS 1
+  )
+
+set(SYSEMU_PATH  ${RT_EXTERNAL_INSTALL_PREFIX}/bin/sys_emu PARENT_SCOPE)
+
+list(APPEND external_project_dependencies sw-sysemu)
+
 
 set(GTEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest-install CACHE INTERNAL "")
 ExternalProject_Add(googletest

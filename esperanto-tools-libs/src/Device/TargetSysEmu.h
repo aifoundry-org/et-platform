@@ -11,32 +11,50 @@
 #ifndef ET_RUNTIME_DEVICE_SYSEMU_H
 #define ET_RUNTIME_DEVICE_SYSEMU_H
 
-#include "Core/DeviceTarget.h"
+#include "Device/TargetRPC.h"
+
+#include "Device/SysEmuLauncher.h"
 
 #include <cassert>
+#include <future>
+#include <memory>
+#include <string>
 
 namespace et_runtime {
 namespace device {
 
-class TargetSysEmu final : public DeviceTarget {
+class SysEmuLauncher;
+
+class TargetSysEmu final : public RPCTarget {
 public:
-  TargetSysEmu();
-  virtual ~TargetSysEmu() = default;
+  TargetSysEmu(const std::string &path);
+  ~TargetSysEmu();
 
   bool init() override;
   bool deinit() override;
-  virtual bool getStatus() override;
-  virtual bool getStaticConfiguration() override;
-  virtual bool submitCommand() override;
-  virtual bool registerResponseCallback() override;
-  virtual bool registerDeviceEventCallback() override;
-  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override;
-  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override;
-  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override;
-  bool launch(uintptr_t launch_pc) override;
+  bool getStatus() override;
+  bool getStaticConfiguration() override;
+  bool submitCommand() override;
+  bool registerResponseCallback() override;
+  bool registerDeviceEventCallback() override;
   bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
 
 private:
+  std::future<bool>
+      simulator_status_; ///< Future holding the simulator thread status;
+  std::unique_ptr<SysEmuLauncher>
+      sys_emu_; ///< Object responsible for lauching and monitoring
+                /// the sysemu simulator
+  std::FILE *socket_file_ = nullptr;
+
+  std::string name_ = "SysEmuGRPC";
+  /// @brief Wait for a connectio from SysEmu
+  void waitForConnection();
+  /// @brief Fork SysEmu processs and wait until we are requested to stop
+  bool launchSimulator();
+
+  bool simulator_running();
+  bool alive();
 };
 
 } // namespace device

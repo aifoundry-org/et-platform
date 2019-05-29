@@ -13,13 +13,27 @@
 
 #include "Core/DeviceTarget.h"
 
+#include <esperanto/simulator-api.grpc.pb.h>
+#include <grpc/support/log.h>
+#include <grpcpp/grpcpp.h>
+
 #include <cassert>
+#include <memory>
 #include <string>
+
+using grpc::Channel;
+using grpc::ClientAsyncResponseReader;
+using grpc::ClientContext;
+using grpc::CompletionQueue;
+using grpc::Status;
+using simulator_api::Reply;
+using simulator_api::Request;
+using simulator_api::SimAPI;
 
 namespace et_runtime {
 namespace device {
 
-class RPCTarget final : public DeviceTarget {
+class RPCTarget : public DeviceTarget {
 public:
   RPCTarget(const std::string &path);
   virtual ~RPCTarget() = default;
@@ -32,13 +46,19 @@ public:
   virtual bool submitCommand() override;
   virtual bool registerResponseCallback() override;
   virtual bool registerDeviceEventCallback() override;
-  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override;
-  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override;
-  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override;
-  bool launch(uintptr_t launch_pc) override;
-  bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
+  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) final;
+  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) final;
+  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) final;
+  bool launch(uintptr_t launch_pc) final;
+  virtual bool boot(uintptr_t init_pc, uintptr_t trap_pc);
+  bool shutdown();
 
-private:
+protected:
+  std::shared_ptr<grpc::Channel> channel_;
+  std::unique_ptr<simulator_api::SimAPI::Stub> stub_;
+  grpc::CompletionQueue cq_;
+
+  simulator_api::Reply doRPC(const simulator_api::Request &req);
 };
 
 } // namespace device

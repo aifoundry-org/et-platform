@@ -15,9 +15,11 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 include_directories(${GLOG_INCLUDE_DIRS})
 
+link_directories(${RT_EXTERNAL_INSTALL_PREFIX}/lib64
+  ${RT_EXTERNAL_INSTALL_PREFIX}/lib)
 
 set(COMMON_LIBRARIES
-  etrt
+  etrt_static
   ${GLOG_LIBRARIES}
   )
 

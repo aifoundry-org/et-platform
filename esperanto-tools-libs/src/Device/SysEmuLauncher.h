@@ -24,6 +24,8 @@ namespace device {
 class SysEmuLauncher {
 
 public:
+  SysEmuLauncher(const std::string &con,
+                 const std::vector<std::string> &additional_options);
   SysEmuLauncher(const std::string &con);
   ~SysEmuLauncher();
 
