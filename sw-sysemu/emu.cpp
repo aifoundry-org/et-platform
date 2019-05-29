@@ -132,10 +132,8 @@ std::array<std::array<uint64_t,6>,EMU_NUM_THREADS> csr_mhpmevent;
 // Esperanto CSR registers
 std::array<uint64_t,EMU_NUM_THREADS>    csr_minstmask;
 std::array<uint32_t,EMU_NUM_THREADS>    csr_minstmatch;
-std::array<uint8_t, EMU_NUM_THREADS+1>  csr_msleep_txfma_27; // 1b
-std::array<uint8_t, EMU_NUM_THREADS+1>  csr_menable_shadows; // 2b
+std::array<uint8_t, EMU_NUM_THREADS+1>  csr_menable_shadows; // 1b
 // TODO: std::array<uint8_t,EMU_NUM_THREADS+1> csr_excl_mode; // 1b
-std::array<uint8_t, EMU_NUM_THREADS+1>  csr_mtxfma_sleep_traps; // 5b
 std::array<uint8_t, EMU_NUM_THREADS+1>  csr_mcache_control; // 2b
 std::array<uint64_t,EMU_NUM_THREADS>    csr_tensor_conv_size; // can we remove?
 std::array<uint64_t,EMU_NUM_THREADS>    csr_tensor_conv_ctrl; // can we remove?
@@ -491,9 +489,7 @@ void reset_hart(unsigned thread)
     csr_menable_shadows[thread] = 0;
     csr_minstmask[thread] = 0;
     csr_mip[thread] = 0;
-    csr_msleep_txfma_27[thread] = 0;
     csr_mstatus[thread] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
-    csr_mtxfma_sleep_traps[thread] = 0;
     csr_scounteren[thread] = 0;
     csr_ucache_control[thread] = 0x200;
 
@@ -940,16 +936,10 @@ static uint64_t csrget(uint16_t src1)
     case CSR_CACHE_INVALIDATE:
         val = 0;
         break;
-    case CSR_MSLEEP_TXFMA_27:
-        val = csr_msleep_txfma_27[current_thread];
-        break;
     case CSR_MENABLE_SHADOWS:
         val = csr_menable_shadows[current_thread];
         break;
     // TODO: CSR_EXCL_MODE
-    case CSR_MTXFMA_SLEEP_TRAPS:
-        val = csr_mtxfma_sleep_traps[current_thread];
-        break;
     case CSR_MCACHE_CONTROL:
         val = csr_mcache_control[current_thread];
         break;
@@ -1035,13 +1025,6 @@ static uint64_t csrget(uint16_t src1)
         break;
     case CSR_VALIDATION3:
         val = csr_validation3[current_thread];
-        break;
-    case CSR_SLEEP_TXFMA_27:
-        if (prvget() != CSR_PRV_M && (csr_menable_shadows[current_thread] & 2) == 0)
-        {
-            throw trap_illegal_instruction(current_inst);
-        }
-        val = csr_msleep_txfma_27[current_thread];
         break;
     case CSR_LOCK_VA:
     case CSR_UNLOCK_VA:
@@ -1294,22 +1277,12 @@ static void csrset(uint16_t src1, uint64_t val)
     // TODO: CSR_AMOFENCE_CTRL
     case CSR_CACHE_INVALIDATE:
         break;
-    case CSR_MSLEEP_TXFMA_27:
-        val &= 1;
-        csr_msleep_txfma_27[current_thread] = val;
-        csr_msleep_txfma_27[current_thread^1] = val;
-        break;
     case CSR_MENABLE_SHADOWS:
-        val &= 3;
+        val &= 1;
         csr_menable_shadows[current_thread] = val;
         csr_menable_shadows[current_thread^1] = val;
         break;
     // TODO: CSR_EXCL_MODE:
-    case CSR_MTXFMA_SLEEP_TRAPS:
-        val &= 0x1f;
-        csr_mtxfma_sleep_traps[current_thread] = val;
-        csr_mtxfma_sleep_traps[current_thread^1] = val;
-        break;
     case CSR_MCACHE_CONTROL:
         msk = (csr_mcache_control[current_thread] & 1) ? 3 : 1;
         val = (val & msk) | (csr_ucache_control[current_thread] & ~msk);
@@ -1537,15 +1510,6 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_VALIDATION3:
         csr_validation3[current_thread] = val;
-        break;
-    case CSR_SLEEP_TXFMA_27:
-        if (prvget() != CSR_PRV_M && (csr_menable_shadows[current_thread] & 2) == 0)
-        {
-            throw trap_illegal_instruction(current_inst);
-        }
-        val &= 1;
-        csr_msleep_txfma_27[current_thread] = val;
-        csr_msleep_txfma_27[current_thread^1] = val;
         break;
     case CSR_LOCK_VA:
         require_lock_unlock_enabled();
@@ -2339,45 +2303,6 @@ static void configure_port(uint32_t id, uint64_t wdata)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static bool txfma_off_allowed(uint16_t src1, uint64_t val)
-{
-    // if txfma is not sleep, allow
-    if (csr_msleep_txfma_27[current_thread] == 0)
-        return true;
-
-    // and for each CSR, allow if corresponding bit in txfma_sleep_traps is 0
-    // and do not allow if using the txfma
-    uint32_t trap_conf = csr_mtxfma_sleep_traps[current_thread];
-    switch (src1)
-    {
-        case CSR_TENSOR_FMA:
-            if (((trap_conf >> 4) & 1) == 0) return true;
-            return ((val & 0xE) == 6); // only allow for int8
-
-        case CSR_TENSOR_QUANT:
-            if ((( trap_conf >> 3) & 1) == 0) return true; //trap disabled
-            return false;
-
-        case CSR_TENSOR_REDUCE:
-            if (((trap_conf >> 2) & 1) == 0) return true;
-            // allow for int, do not allow for fp
-            switch ((val >> 24) & 0xF)
-            {
-                case 0:  // fadd
-                case 1:  // fsub
-                case 2:  // fmax
-                case 3:  // fmin
-                case 8:  // fget
-                    return false;
-                default:
-                    return true;
-            }
-
-        default:
-            return true;
-    }
-}
-
 // ----- TensorConvolution emulation -------------------------------------------
 
 // Update to the tensor Mask due a convolution CSR write
@@ -2692,9 +2617,6 @@ static const char* get_quant_transform(int op)
 
 static void tensorquant(uint64_t value)
 {
-    if (!txfma_off_allowed(CSR_TENSOR_QUANT, value))
-        throw trap_txfma_off(current_inst);
-
     unsigned fstart = (value >> 57) & 0x1F;
     unsigned cols   = (value >> 55) & 0x3;
     unsigned rows   = (value >> 51) & 0xF;
@@ -3079,9 +3001,6 @@ static void tensorstore(uint64_t tstorereg)
 
 static void tensor_fma32(uint64_t tfmareg)
 {
-    if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
-        throw trap_txfma_off(current_inst);
-
     bool usemsk     = (tfmareg >> 63) & 0x1;
     int  bcols      = (tfmareg >> 55) & 0x3;
     int  arows      = (tfmareg >> 51) & 0xF;
@@ -3198,9 +3117,6 @@ static void tensor_fma32(uint64_t tfmareg)
 
 static void tensor_fma16a32(uint64_t tfmareg)
 {
-    if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
-        throw trap_txfma_off(current_inst);
-
     bool usemsk     = (tfmareg >> 63) & 0x1;
     int  bcols      = (tfmareg >> 55) & 0x3;
     int  arows      = (tfmareg >> 51) & 0xF;
@@ -3321,9 +3237,6 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
 static void tensor_ima8a32(uint64_t tfmareg)
 {
-    if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
-        throw trap_txfma_off(current_inst);
-
     bool usemsk     = (tfmareg >> 63) & 0x1;
     int  bcols      = (tfmareg >> 55) & 0x3;
     int  arows      = (tfmareg >> 51) & 0xF;
@@ -3733,9 +3646,6 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
 {
     uint64_t level = (value >> 3) & 0xF;
     uint64_t type  = value & 3;
-
-    if (!txfma_off_allowed(CSR_TENSOR_REDUCE, value))
-        throw trap_txfma_off(current_inst);
 
     // SENDER
     if (type == 0)
