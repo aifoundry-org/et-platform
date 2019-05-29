@@ -391,11 +391,11 @@ bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
       unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
       unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
 
-      for (int m = 0; m < shire_minion_count; m++)
+      for (unsigned m = 0; m < shire_minion_count; m++)
       {
          if (((minions_en >> m) & 1) == 0) continue;
 
-         for (int ii = 0; ii < minion_thread_count; ii++) {
+         for (unsigned ii = 0; ii < minion_thread_count; ii++) {
             thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
             if ( pc_breakpoints_exists(current_pc[thread_id], thread_id)) {
                pc = current_pc[thread_id];
