@@ -2,6 +2,7 @@
 
 #include "decode.h"
 #include "emu_gio.h"
+#include "esrs.h"
 #include "insn.h"
 #include "insn_func.h"
 #include "log.h"
@@ -41,6 +42,7 @@ void insn_packb(insn_t inst)
 
 void insn_bitmixb(insn_t inst)
 {
+    require_feature_gfx();
     DISASM_RD_RS1_RS2("bitmixb");
     WRITE_RD( bitmixb(uint16_t(RS1), uint16_t(RS2), uint16_t(RS2 >> 8)) );
 }
