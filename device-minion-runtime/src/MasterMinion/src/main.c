@@ -3,10 +3,6 @@
 
 #include <stdint.h>
 
-// Select PU peripherals for initial master minion use
-#define PU_PLIC_BASE_ADDRESS  0x0010000000ULL
-#define PU_TIMER_BASE_ADDRESS 0x0012005000ULL
-
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
