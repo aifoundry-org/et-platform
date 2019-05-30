@@ -440,11 +440,16 @@ static inline void prvset(int val)
 }
 
 // internal accessor to tensor_error
+static inline void update_tensor_error(unsigned thread, uint16_t value)
+{
+    csr_tensor_error[thread] |= value;
+    if (value)
+        LOG_OTHER(DEBUG, thread, "\tTensorError = 0x%04" PRIx16 " (0x%04" PRIx16 ")", csr_tensor_error[thread], value);
+}
+
 static inline void update_tensor_error(uint16_t value)
 {
-    csr_tensor_error[current_thread] |= value;
-    if (value)
-        LOG(DEBUG, "\tTensorError = 0x%04" PRIx16 " (0x%04" PRIx16 ")", csr_tensor_error[current_thread], value);
+    update_tensor_error(current_thread, value);
 }
 
 static inline const char* get_rounding_mode(int mode)
@@ -3927,7 +3932,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 
             //check for overflow
             if (fcc[fcc_addr][fcc_id] == 0x000) {
-                update_tensor_error(1 << 3);
+                update_tensor_error(fcc_addr, 1 << 3);
                 fcc[fcc_addr][fcc_id] = 0;
             }
         }
