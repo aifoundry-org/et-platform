@@ -118,7 +118,7 @@ extern "C" void thread_launch(LaunchParams_t *launch_params_p)
 
 extern "C" uint64_t mtrap_handler(uint64_t cause, uint64_t epc, uint64_t mtval, uint64_t *regs)
 {
-    // only handling reading of mhartid
+#ifdef TXFMA_SLEEP_SUPPORTED
     if (cause == CAUSE_ILLEGAL_INSTRUCTION && (mtval & INST_WRITE_TXSLEEP27_MASK) == INST_WRITE_TXSLEEP27_MATCH )
     {
         uint64_t rd, rs, val;
@@ -127,10 +127,9 @@ extern "C" uint64_t mtrap_handler(uint64_t cause, uint64_t epc, uint64_t mtval, 
         __asm__ __volatile__ (  "csrrw %[val], 0x7d1, %[rs] \n" : [val] "=r" (val) : [rs] "r" (regs[rs]) );
         regs[rd] = val;
     } else
-    {
-        // any other cause => wfi and expect timeout in test
-        __asm__ __volatile__ ( "wfi\n");
-    }
+#endif
+      // any other cause => wfi and expect timeout in test
+      __asm__ __volatile__ ( "wfi\n");
 
     return epc + 4; // should return +2 if compressed... because only implementing csrXX, return 4 directly
 }
