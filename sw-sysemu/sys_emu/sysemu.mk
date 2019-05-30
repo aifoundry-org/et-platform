@@ -2,7 +2,8 @@ sysemu_hdrs := \
 	sys_emu/api_communicate.h \
 	sys_emu/sys_emu.h \
 	sys_emu/log.h \
-	sys_emu/testLog.h
+	sys_emu/testLog.h \
+	sys_emu/rvtimer.h
 
 sysemu_cpp_srcs := \
 	sys_emu/api_communicate.cpp \

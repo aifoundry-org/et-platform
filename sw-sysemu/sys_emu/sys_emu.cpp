@@ -20,6 +20,7 @@
 #include "profiling.h"
 #include "net_emulator.h"
 #include "api_communicate.h"
+#include "rvtimer.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Static Member variables
@@ -34,6 +35,7 @@ uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                           
 reduce_state    sys_emu::reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
 uint32_t        sys_emu::reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
 int             sys_emu::global_log_min;
+RVTimer         sys_emu::pu_rvtimer;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -506,6 +508,46 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
 }
 
 void
+sys_emu::raise_timer_interrupt()
+{
+    for (int s = 0; s < EMU_NUM_SHIRES; s++) {
+        unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
+        unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+
+        uint32_t target = shire_other_esrs[s].mtime_local_target;
+        for (unsigned m = 0; m < shire_minion_count; m++) {
+            if (target & (1ULL << m)) {
+                for (unsigned ii = 0; ii < minion_thread_count; ii++) {
+                    int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+                    ::raise_timer_interrupt(thread_id);
+                    if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+                        enabled_threads.push_back(thread_id);
+                }
+            }
+        }
+    }
+}
+
+void
+sys_emu::clear_timer_interrupt()
+{
+    for (int s = 0; s < EMU_NUM_SHIRES; s++) {
+        unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
+        unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+
+        uint32_t target = shire_other_esrs[s].mtime_local_target;
+        for (unsigned m = 0; m < shire_minion_count; m++) {
+            if (target & (1ULL << m)) {
+                for (unsigned ii = 0; ii < minion_thread_count; ii++) {
+                    int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+                    ::clear_timer_interrupt(thread_id);
+                }
+            }
+        }
+    }
+}
+
+void
 sys_emu::raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
 {
     unsigned thread0 =
@@ -892,6 +934,7 @@ sys_emu::main_internal(int argc, char * argv[])
              || !fcc_wait_threads[0].empty()
              || !fcc_wait_threads[1].empty()
              || !port_wait_threads.empty()
+             ||  pu_rvtimer.is_active()
              || (net_emu.is_enabled() && !net_emu.done())
              || (api_listener->is_enabled() && !api_listener->is_done())
             )
@@ -927,6 +970,9 @@ sys_emu::main_internal(int argc, char * argv[])
         }
         if (steps > 0) steps--;
 #endif
+
+        // Update devices
+        pu_rvtimer.update(emu_cycle);
 
         auto thread = enabled_threads.begin();
 
@@ -1071,6 +1117,13 @@ sys_emu::main_internal(int argc, char * argv[])
             {
                 LOG_ALL_MINIONS(FTL, "%s", e.what());
             }
+        }
+
+        // Check interrupts from devices
+        if (pu_rvtimer.interrupt_pending()) {
+            raise_timer_interrupt();
+        } else if (pu_rvtimer.clear_pending()) {
+            clear_timer_interrupt();
         }
 
         // Net emu: check pending IPIs

@@ -236,6 +236,7 @@
 #define ESR_FAST_LOCAL_BARRIER29  0x01003401E8ULL /* PP = 0b00 */
 #define ESR_FAST_LOCAL_BARRIER30  0x01003401F0ULL /* PP = 0b00 */
 #define ESR_FAST_LOCAL_BARRIER31  0x01003401F8ULL /* PP = 0b00 */
+#define ESR_MTIME_LOCAL_TARGET    0x01C0340218ULL /* PP = 0b11 */
 #define ESR_SHIRE_COOP_MODE       0x0140340290ULL /* PP = 0b01 */
 #define ESR_SHIRE_CACHE_RAM_CFG1  0x01C03402A0ULL /* PP = 0b11 */
 #define ESR_SHIRE_CACHE_RAM_CFG2  0x01C03402A8ULL /* PP = 0b11 */
@@ -319,6 +320,7 @@ extern shire_cache_esrs_t shire_cache_esrs[EMU_NUM_SHIRES];
 
 struct shire_other_esrs_t {
     uint64_t fast_local_barrier[32];
+    uint32_t mtime_local_target;
     //uint64_t fcc_credinc[4];
     //uint64_t icache_mprefetch;
     //uint64_t icache_sprefetch;
