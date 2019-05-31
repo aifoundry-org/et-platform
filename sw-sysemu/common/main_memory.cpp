@@ -7,6 +7,7 @@
 #include "emu_gio.h"
 #include "main_memory.h"
 #include "main_memory_region_esr.h"
+#include "main_memory_region_io.h"
 #include "main_memory_region_reserved.h"
 #include "main_memory_region_scp.h"
 #include "main_memory_region_scp_linear.h"
@@ -41,6 +42,10 @@ main_memory::main_memory()
 
     p = new main_memory_region_scp_linear(this, L2_SCP_LINEAR_BASE, L2_SCP_LINEAR_SIZE);
     regions.push_front(region_pointer(p));
+
+    // IO region
+    main_memory_region* io = new main_memory_region_io(IO_R_PU_TIMER_BASE, IO_R_PU_TIMER_SIZE);
+    regions.push_back(region_pointer(io));
 }
 
 

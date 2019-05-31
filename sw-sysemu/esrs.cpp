@@ -60,6 +60,7 @@ void shire_other_esrs_t::reset(unsigned shire)
     for (int i = 0; i < 32; ++i) {
         fast_local_barrier[i] = 0;
     }
+    mtime_local_target = 0;
     ipi_redirect_filter = ESR_FILTER_IPI_RESET_VAL;
     ipi_trigger = 0;
     shire_cache_ram_cfg1 = ESR_SHIRE_CACHE_RAM_CFG1_RESET_VAL;

@@ -405,6 +405,9 @@ void main_memory_region_esr::write(uint64_t addr, size_t n, const void* source)
             case ESR_FAST_LOCAL_BARRIER31:
                 shire_other_esrs[idx].fast_local_barrier[(esr_addr - ESR_FAST_LOCAL_BARRIER0)>>3] = value;
                 break;
+            case ESR_MTIME_LOCAL_TARGET:
+                shire_other_esrs[idx].mtime_local_target = value;
+                break;
             case ESR_SHIRE_COOP_MODE:
                 write_shire_coop_mode(shire, value);
                 break;
@@ -701,6 +704,9 @@ void main_memory_region_esr::read(uint64_t addr, size_t n, void* result)
             case ESR_FAST_LOCAL_BARRIER30:
             case ESR_FAST_LOCAL_BARRIER31:
                 *ptr = shire_other_esrs[idx].fast_local_barrier[(esr_addr - ESR_FAST_LOCAL_BARRIER0)>>3];
+                break;
+            case ESR_MTIME_LOCAL_TARGET:
+                *ptr = shire_other_esrs[idx].mtime_local_target;
                 break;
             case ESR_SHIRE_COOP_MODE:
                 *ptr = read_shire_coop_mode(shire);

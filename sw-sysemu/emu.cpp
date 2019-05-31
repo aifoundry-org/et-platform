@@ -440,11 +440,16 @@ static inline void prvset(int val)
 }
 
 // internal accessor to tensor_error
+static inline void update_tensor_error(unsigned thread, uint16_t value)
+{
+    csr_tensor_error[thread] |= value;
+    if (value)
+        LOG_OTHER(DEBUG, thread, "\tTensorError = 0x%04" PRIx16 " (0x%04" PRIx16 ")", csr_tensor_error[thread], value);
+}
+
 static inline void update_tensor_error(uint16_t value)
 {
-    csr_tensor_error[current_thread] |= value;
-    if (value)
-        LOG(DEBUG, "\tTensorError = 0x%04" PRIx16 " (0x%04" PRIx16 ")", csr_tensor_error[current_thread], value);
+    update_tensor_error(current_thread, value);
 }
 
 static inline const char* get_rounding_mode(int mode)
@@ -2361,15 +2366,15 @@ static void tmask_conv()
 
     // Get the sizes of the convolution
     uint64_t tconvsizereg = csr_tensor_conv_size[current_thread];
-    int16_t srow = (tconvsizereg >> 56) & 0xFF;
-    int16_t nrow = (tconvsizereg >> 32) & 0xFFFF;
-    int16_t scol = (tconvsizereg >> 24) & 0xFF;
-    int16_t ncol = (tconvsizereg >>  0) & 0xFFFFU;
+    int srow =   int8_t((tconvsizereg >> 56) & 0xFF);
+    int nrow = uint16_t((tconvsizereg >> 32) & 0xFFFF);
+    int scol =   int8_t((tconvsizereg >> 24) & 0xFF);
+    int ncol = uint16_t((tconvsizereg >>  0) & 0xFFFF);
 
     // Get the positions of the convolution
     uint64_t tconvctrlreg = csr_tensor_conv_ctrl[current_thread];
-    int16_t  rowstart = (tconvctrlreg >> 32) & 0xFFFF;
-    int16_t  colstart = (tconvctrlreg >>  0) & 0xFFFF;
+    int rowstart = int16_t((tconvctrlreg >> 32) & 0xFFFF);
+    int colstart = int16_t((tconvctrlreg >>  0) & 0xFFFF);
 
     for (int i = 0; i < 16; ++i, rowstart += srow, colstart += scol)
     {
@@ -3927,7 +3932,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 
             //check for overflow
             if (fcc[fcc_addr][fcc_id] == 0x000) {
-                update_tensor_error(1 << 3);
+                update_tensor_error(fcc_addr, 1 << 3);
                 fcc[fcc_addr][fcc_id] = 0;
             }
         }
