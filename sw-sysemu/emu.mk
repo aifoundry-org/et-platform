@@ -24,7 +24,6 @@ emu_hdrs := \
 	common/main_memory.h \
 	common/main_memory_region.h \
 	common/main_memory_region_esr.h \
-	common/main_memory_region_io.h \
 	common/main_memory_region_reserved.h \
 	common/main_memory_region_scp_linear.h
 

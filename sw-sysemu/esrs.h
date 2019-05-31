@@ -49,6 +49,10 @@
 #define ESR_RBOX_ESR_MASK       0xFFC03FFFFFULL
 
 
+// IOshire has a different mask from Minion shires
+#define ESR_IOSHIRE_ESR_MASK    0xFFC03FFFFFULL
+
+
 // bits [21:20] and further limited by bits [19:12] depending on the region
 #define ESR_SREGION_MASK        0x0100300000ULL
 
@@ -245,6 +249,11 @@
 #define ESR_ICACHE_UPREFETCH      0x01003402F8ULL /* PP = 0b00 */
 #define ESR_ICACHE_SPREFETCH      0x0140340300ULL /* PP = 0b01 */
 #define ESR_ICACHE_MPREFETCH      0x01C0340308ULL /* PP = 0b11 */
+
+
+// IOshire ESR addresses
+#define ESR_PU_RVTIM_MTIME        0x01C0000000ULL /* PP = 0b11 */
+#define ESR_PU_RVTIM_MTIMECMP     0x01C0000008ULL /* PP = 0b11 */
 
 
 // Broadcast ESR addresses

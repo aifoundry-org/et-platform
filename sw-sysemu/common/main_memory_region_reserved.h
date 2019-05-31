@@ -11,14 +11,12 @@
 
 struct main_memory_region_reserved : public main_memory_region
 {
-    // Constructors and destructors
     main_memory_region_reserved(uint64_t base, uint64_t size)
     : main_memory_region(base, size, false)
     {}
 
     ~main_memory_region_reserved() {}
 
-    // read and write
     void write(uint64_t addr, size_t, const void*) override {
         throw trap_bus_error(addr);
     }

@@ -90,8 +90,6 @@
 // IO region
 #define IO_REGION_BASE     0x0000000000ULL
 #define IO_REGION_SIZE     0x0040000000ULL
-#define IO_R_PU_TIMER_BASE 0x0012005000ULL
-#define IO_R_PU_TIMER_SIZE 0x0000001000ULL
 
 // System version
 enum class system_version_t {
