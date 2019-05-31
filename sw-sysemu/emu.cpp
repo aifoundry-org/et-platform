@@ -1401,7 +1401,8 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_UCACHE_CONTROL:
         require_feature_u_scratchpad();
-        msk = (csr_mcache_control[current_thread] & 1) ? 1 : 3;
+        msk = (!(current_thread % EMU_THREADS_PER_MINION)
+               && (csr_mcache_control[current_thread] & 1)) ? 1 : 3;
         val = (csr_mcache_control[current_thread] & msk) | (val & ~msk & 0x07df);
         assert((val & 3) != 2);
         csr_ucache_control[current_thread] = val;
