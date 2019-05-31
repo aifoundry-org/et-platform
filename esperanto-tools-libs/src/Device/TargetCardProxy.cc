@@ -197,5 +197,31 @@ bool CardProxyTarget::alive() {
   return true;
 }
 
+bool CardProxyTarget::defineDevMem(uintptr_t dev_addr, size_t size,
+                                   bool is_exec) {
+  cpDefineDevMem(card_proxy_.get(), dev_addr, size, is_exec);
+  return true;
+}
+
+bool CardProxyTarget::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
+  cpReadDevMem(card_proxy_.get(), dev_addr, size, buf);
+  return true;
+}
+
+bool CardProxyTarget::writeDevMem(uintptr_t dev_addr, size_t size,
+                                  const void *buf) {
+  cpWriteDevMem(card_proxy_.get(), dev_addr, size, buf);
+  return true;
+}
+bool CardProxyTarget::launch(uintptr_t launch_pc) {
+  cpLaunch(card_proxy_.get(), launch_pc);
+  return true;
+}
+
+bool CardProxyTarget::boot(uintptr_t init_pc, uintptr_t trap_pc) {
+  cpBoot(card_proxy_.get(), init_pc, trap_pc);
+  return true;
+}
+
 } // namespace device
 } // namespace et_runtime

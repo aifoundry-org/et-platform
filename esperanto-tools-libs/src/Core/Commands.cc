@@ -21,15 +21,6 @@
 //#include "cpu_algo.h"
 #include "demangle.h"
 
-// clang-format off
-// et-rpc is an external dependency to be deprecated
-// unfortunately the et-card-proxy.h header is not self
-// contained and misisng includes
-#include <stddef.h>
-#include <stdint.h>
-#include "etrpc/et-card-proxy.h"
-// clang-format on
-
 using namespace et_runtime;
 
 #if 0
@@ -49,26 +40,20 @@ void EtActionEvent::observerWait() {
 }
 
 void EtActionConfigure::execute(Device *device) {
-  auto card_proxy = device->getTargetDevice().getCardProxy();
-  if (!card_proxy) // i.e. local mode
-  {
-    res_is_local_mode = true;
-    return;
-  }
+  auto &target_device = device->getTargetDevice();
+  target_device.defineDevMem(LAUNCH_PARAMS_AREA_BASE, LAUNCH_PARAMS_AREA_SIZE,
+                             false);
 
-  cpDefineDevMem(card_proxy, LAUNCH_PARAMS_AREA_BASE, LAUNCH_PARAMS_AREA_SIZE,
-                 false);
+  target_device.defineDevMem(BLOCK_SHARED_REGION,
+                             BLOCK_SHARED_REGION_TOTAL_SIZE, false);
 
-  cpDefineDevMem(card_proxy, BLOCK_SHARED_REGION,
-                 BLOCK_SHARED_REGION_TOTAL_SIZE, false);
+  target_device.defineDevMem(STACK_REGION, STACK_REGION_TOTAL_SIZE << 3, false);
 
-  cpDefineDevMem(card_proxy, STACK_REGION, STACK_REGION_TOTAL_SIZE << 3, false);
-
-  cpDefineDevMem(card_proxy, 0x8000100000, 0x100000, false);
-  cpDefineDevMem(card_proxy, 0x8000300000, 0x108000, false);
-  cpDefineDevMem(card_proxy, 0x8000408000, 0x108000, false);
-  cpDefineDevMem(card_proxy, 0x8200000000, 64, false);
-  cpDefineDevMem(card_proxy, 0x8000600000, 64, false);
+  target_device.defineDevMem(0x8000100000, 0x100000, false);
+  target_device.defineDevMem(0x8000300000, 0x108000, false);
+  target_device.defineDevMem(0x8000408000, 0x108000, false);
+  target_device.defineDevMem(0x8200000000, 64, false);
+  target_device.defineDevMem(0x8000600000, 64, false);
 
   // const void *kernels_file_p = gEtKernelsElf;
   // size_t kernels_file_size = sizeof(gEtKernelsElf);
@@ -76,14 +61,14 @@ void EtActionConfigure::execute(Device *device) {
   const void *bootrom_file_p = reinterpret_cast<const void *>(bootrom.data());
   size_t bootrom_file_size = bootrom.size();
 
-  // cpDefineDevMem(card_proxy, RAM_MEMORY_REGION, align_up(kernels_file_size,
-  // 0x10000), true); cpWriteDevMem(card_proxy, RAM_MEMORY_REGION,
+  // target_device.defineDevMem( RAM_MEMORY_REGION, align_up(kernels_file_size,
+  // 0x10000), true); cpWriteDevMem( RAM_MEMORY_REGION,
   // kernels_file_size, kernels_file_p);
 
-  cpDefineDevMem(card_proxy, BOOTROM_START_IP,
-                 align_up(bootrom_file_size, 0x1000), true);
-  cpWriteDevMem(card_proxy, BOOTROM_START_IP, bootrom_file_size,
-                bootrom_file_p);
+  target_device.defineDevMem(BOOTROM_START_IP,
+                             align_up(bootrom_file_size, 0x1000), true);
+  target_device.writeDevMem(BOOTROM_START_IP, bootrom_file_size,
+                            bootrom_file_p);
 
 // FIXME deprecate the following eventually
 #if 1
@@ -100,44 +85,33 @@ void EtActionConfigure::execute(Device *device) {
     descr.init_pc = ETSOC_init;
     descr.trap_pc = ETSOC_mtrap;
 
-    cpWriteDevMem(card_proxy, LAUNCH_PARAMS_AREA_BASE, sizeof(descr), &descr);
+    target_device.writeDevMem(LAUNCH_PARAMS_AREA_BASE, sizeof(descr), &descr);
   }
 
-  cpBoot(card_proxy, ETSOC_init, ETSOC_mtrap);
+  target_device.boot(ETSOC_init, ETSOC_mtrap);
 #else
-  cpBoot(card_proxy, 0, 0);
+  target_device.boot(0, 0);
 #endif
 
-  cpDefineDevMem(card_proxy, (uintptr_t)devMemRegionPtr, devMemRegionSize,
-                 false);
-  cpDefineDevMem(card_proxy, (uintptr_t)kernelsDevMemRegionPtr,
-                 kernelsDevMemRegionSize, true);
+  target_device.defineDevMem((uintptr_t)devMemRegionPtr, devMemRegionSize,
+                             false);
+  target_device.defineDevMem((uintptr_t)kernelsDevMemRegionPtr,
+                             kernelsDevMemRegionSize, true);
 }
 
 void EtActionRead::execute(Device *device) {
-  auto card_proxy = device->getTargetDevice().getCardProxy();
-  if (!card_proxy) // i.e. local mode
-  {
-    memcpy(dstHostPtr, srcDevPtr, count);
-    return;
-  }
-
-  cpReadDevMem(card_proxy, (uintptr_t)srcDevPtr, count, dstHostPtr);
+  auto &target_device = device->getTargetDevice();
+  target_device.readDevMem((uintptr_t)srcDevPtr, count, dstHostPtr);
 }
 
 void EtActionWrite::execute(Device *device) {
-  auto card_proxy = device->getTargetDevice().getCardProxy();
-  if (!card_proxy) // i.e. local mode
-  {
-    memcpy(dstDevPtr, srcHostPtr, count);
-    return;
-  }
+  auto &target_device = device->getTargetDevice();
 
-  cpWriteDevMem(card_proxy, (uintptr_t)dstDevPtr, count, srcHostPtr);
+  target_device.writeDevMem((uintptr_t)dstDevPtr, count, srcHostPtr);
 }
 
 void EtActionLaunch::execute(Device *device) {
-  auto card_proxy = device->getTargetDevice().getCardProxy();
+  auto &target_device = device->getTargetDevice();
   fprintf(stderr,
           "Going to execute kernel {0x%lx} %s [%s] grid_dim=(%d,%d,%d) "
           "block_dim=(%d,%d,%d)\n",
@@ -152,7 +126,7 @@ void EtActionLaunch::execute(Device *device) {
 
   if (!card_proxy) // i.e. local mode
   {
-    cpuLaunch(kernel_name, kernel_pc, args_buff);
+    target_device.cpuLaunch(kernel_name, kernel_pc, args_buff);
     return;
   }
 #endif
@@ -177,15 +151,15 @@ void EtActionLaunch::execute(Device *device) {
 
     memcpy(&params_p->args[0], &args_buff[0], args_size);
 
-    cpWriteDevMem(card_proxy, LAUNCH_PARAMS_AREA_BASE, params_size, params_p);
+    target_device.writeDevMem(LAUNCH_PARAMS_AREA_BASE, params_size, params_p);
   }
 
 #if 0
   // b4c hack
   static const long ETSOC_launch = 0x0000008100006038;
   if (static_kernels)
-    cpLaunch(card_proxy, ETSOC_launch); // b4c - precompiled kernels
+    target_device.launch( ETSOC_launch); // b4c - precompiled kernels
   else
 #endif
-  cpLaunch(card_proxy, kernel_pc); // ETSOC backend - JIT, not covered by b4c
+  target_device.launch(kernel_pc); // ETSOC backend - JIT, not covered by b4c
 }

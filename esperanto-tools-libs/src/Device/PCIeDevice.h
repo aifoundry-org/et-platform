@@ -59,9 +59,28 @@ public:
     return false;
   }
 
-  CardProxy *getCardProxy() override {
+  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override {
     assert(true);
-    return nullptr;
+    return true;
+  }
+
+  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override {
+    assert(true);
+    return true;
+  }
+
+  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override {
+    assert(true);
+    return true;
+  }
+  bool launch(uintptr_t launch_pc) override {
+    assert(true);
+    return true;
+  }
+
+  bool boot(uintptr_t init_pc, uintptr_t trap_pc) override {
+    assert(true);
+    return true;
   }
 
 private:

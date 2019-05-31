@@ -92,10 +92,27 @@ public:
   /// @brief Register callback for when an event arrives from the device
   virtual bool registerDeviceEventCallback() = 0;
 
-  // FIXME the following shouhd be removed once we get rid of the CardProxy
-  virtual CardProxy *getCardProxy() = 0;
-
   virtual bool alive() { return device_alive_; }
+
+  /// @todo the following interface mimics the functionality of the origial card
+  /// proxy this is transitional code that probably could be removed in the
+  /// future.
+
+  /// @brief Define the properties of a specific device region
+  virtual bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) = 0;
+
+  /// @brief Read device memory
+  virtual bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) = 0;
+
+  /// @brief Write device memory
+  virtual bool writeDevMem(uintptr_t dev_addr, size_t size,
+                           const void *buf) = 0;
+
+  /// @brief Launch a specific PC on the device.
+  virtual bool launch(uintptr_t launch_pc) = 0;
+
+  /// @brief Boot the device
+  virtual bool boot(uintptr_t init_pc, uintptr_t trap_pc) = 0;
 
   /// @brief Factory function that will generate the appropriate target device
   static std::unique_ptr<DeviceTarget> deviceFactory(TargetType target,
