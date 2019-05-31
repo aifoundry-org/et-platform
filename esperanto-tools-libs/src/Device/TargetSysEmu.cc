@@ -14,5 +14,64 @@ namespace et_runtime {
 namespace device {
 TargetSysEmu::TargetSysEmu() : DeviceTarget(){};
 
+bool TargetSysEmu::init() {
+  assert(true);
+  return false;
+}
+
+bool TargetSysEmu::deinit() {
+  assert(true);
+  return false;
+}
+
+bool TargetSysEmu::getStatus() {
+  assert(true);
+  return false;
+}
+
+bool TargetSysEmu::getStaticConfiguration() {
+  assert(true);
+  return false;
+}
+
+bool TargetSysEmu::submitCommand() {
+  assert(true);
+  return false;
+}
+
+bool TargetSysEmu::registerResponseCallback() {
+  assert(true);
+  return false;
+}
+
+bool TargetSysEmu::registerDeviceEventCallback() {
+  assert(true);
+  return false;
+}
+
+bool TargetSysEmu::defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) {
+  assert(true);
+  return true;
+}
+
+bool TargetSysEmu::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
+  assert(true);
+  return true;
+}
+
+bool TargetSysEmu::writeDevMem(uintptr_t dev_addr, size_t size,
+                               const void *buf) {
+  assert(true);
+  return true;
+}
+bool TargetSysEmu::launch(uintptr_t launch_pc) {
+  assert(true);
+  return true;
+}
+
+bool TargetSysEmu::boot(uintptr_t init_pc, uintptr_t trap_pc) {
+  assert(true);
+  return true;
+}
 }
 } // namespace et_runtime

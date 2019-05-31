@@ -24,64 +24,19 @@ public:
   RPCTarget(const std::string &path);
   virtual ~RPCTarget() = default;
 
-  bool init() override {
-    assert(true);
-    return false;
-  }
+  bool init() override;
+  bool deinit() override;
 
-  bool deinit() override {
-    assert(true);
-    return false;
-  }
-
-  virtual bool getStatus() override {
-    assert(true);
-    return false;
-  }
-
-  virtual bool getStaticConfiguration() override {
-    assert(true);
-    return false;
-  }
-
-  virtual bool submitCommand() override {
-    assert(true);
-    return false;
-  }
-
-  virtual bool registerResponseCallback() override {
-    assert(true);
-    return false;
-  }
-
-  virtual bool registerDeviceEventCallback() override {
-    assert(true);
-    return false;
-  }
-
-  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override {
-    assert(true);
-    return true;
-  }
-
-  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override {
-    assert(true);
-    return true;
-  }
-
-  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override {
-    assert(true);
-    return true;
-  }
-  bool launch(uintptr_t launch_pc) override {
-    assert(true);
-    return true;
-  }
-
-  bool boot(uintptr_t init_pc, uintptr_t trap_pc) override {
-    assert(true);
-    return true;
-  }
+  virtual bool getStatus() override;
+  virtual bool getStaticConfiguration() override;
+  virtual bool submitCommand() override;
+  virtual bool registerResponseCallback() override;
+  virtual bool registerDeviceEventCallback() override;
+  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override;
+  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override;
+  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override;
+  bool launch(uintptr_t launch_pc) override;
+  bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
 
 private:
 };
