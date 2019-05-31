@@ -103,6 +103,7 @@ static int init_partition_info_data(ESPERANTO_PARTITION_BL1_INFO_t * restrict bl
     bl1_partition_info->boot_counters_region_index = rom_partition_info->boot_counters_region_index;
     bl1_partition_info->configuration_data_region_index = rom_partition_info->configuration_data_region_index;
     bl1_partition_info->vaultip_fw_region_index = rom_partition_info->vaultip_fw_region_index;
+    bl1_partition_info->pcie_config_region_index = rom_partition_info->pcie_config_region_index;
     bl1_partition_info->sp_certificates_region_index = rom_partition_info->sp_certificates_region_index;
     bl1_partition_info->sp_bl1_region_index = rom_partition_info->sp_bl1_region_index;
 
@@ -141,6 +142,7 @@ int flash_fs_init(FLASH_FS_BL1_INFO_t * restrict flash_fs_bl1_info, const FLASH_
     flash_fs_bl1_info->active_partition = flash_fs_rom_info->active_partition;
     flash_fs_bl1_info->other_partition_valid = flash_fs_rom_info->other_partition_valid;
     flash_fs_bl1_info->configuration_region_address = flash_fs_rom_info->configuration_region_address;
+    flash_fs_bl1_info->pcie_config_file_info = flash_fs_rom_info->pcie_config_file_info;
     flash_fs_bl1_info->vaultip_firmware_file_info = flash_fs_rom_info->vaultip_firmware_file_info;
     flash_fs_bl1_info->sp_certificates_file_info = flash_fs_rom_info->sp_certificates_file_info;
     flash_fs_bl1_info->sp_bl1_file_info = flash_fs_rom_info->sp_bl1_file_info;
