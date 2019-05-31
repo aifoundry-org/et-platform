@@ -68,5 +68,9 @@ void shire_other_esrs_t::reset(unsigned shire)
     shire_cache_ram_cfg4 = ESR_SHIRE_CACHE_RAM_CFG4_RESET_VAL;
     shire_cache_ram_cfg2 = ESR_SHIRE_CACHE_RAM_CFG2_RESET_VAL;
     shire_config = ESR_SHIRE_CONFIG_CONST_RESET_VAL | shire;
-    minion_feature = 0;
+    if (shire == IO_SHIRE_ID || shire == EMU_IO_SHIRE_SP) {
+        minion_feature = 0x3b;
+    } else {
+        minion_feature = 0;
+    }
 }
