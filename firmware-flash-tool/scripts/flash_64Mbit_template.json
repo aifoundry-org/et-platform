@@ -36,6 +36,11 @@
                         "file" : "firmware-tools/code-signing-tools/bl1.img"
                     },
                     {
+                        "id" : "PCIE_CONFIG",
+                        "size" : 44,
+                        "file" : "firmware-tools/test_files/test_pcie_config_data.img"
+                    },
+                    {
                         "id" : "SP_BL2",
                         "size" : 384,
                         "file" : "firmware-tools/code-signing-tools/bl2.img"
@@ -51,6 +56,11 @@
                     {
                         "id" : "SP_CERTIFICATES",
                         "file" : "firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp.crt"
+                    },
+                    {
+                        "id" : "PCIE_CONFIG",
+                        "size" : 44,
+                        "file" : "firmware-tools/test_files/test_pcie_config_data.img"
                     },
                     {
                         "id" : "SP_BL1",
