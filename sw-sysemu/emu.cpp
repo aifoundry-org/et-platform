@@ -1355,7 +1355,7 @@ static void csrset(uint16_t src1, uint64_t val)
         case 0: tensor_fma32(val); break;
         case 1: tensor_fma16a32(val); break;
         case 3: tensor_ima8a32(val); break;
-        default: /* nothing */ break;
+        default: throw trap_illegal_instruction(current_inst); break;
         }
         break;
     case CSR_TENSOR_CONV_SIZE:
