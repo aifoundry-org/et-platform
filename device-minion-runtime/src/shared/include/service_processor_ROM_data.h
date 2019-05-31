@@ -6,6 +6,7 @@
 #include "service_processor_spi_flash.h"
 #include "esperanto_flash_image.h"
 #include "esperanto_executable_image.h"
+#include "esperanto_raw_image.h"
 
 #define SERVICE_PROCESSOR_ROM_DATA_VERSION 0x00000001
 
@@ -26,6 +27,7 @@ typedef struct ESPERANTO_PARTITION_ROM_INFO_s {
     uint32_t priority_designator_region_index;
     uint32_t boot_counters_region_index;
     uint32_t configuration_data_region_index;
+    uint32_t pcie_config_region_index;
     uint32_t vaultip_fw_region_index;
     uint32_t sp_certificates_region_index;
     uint32_t sp_bl1_region_index;
@@ -53,6 +55,7 @@ typedef struct FLASH_FS_ROM_INFO_s {
     uint32_t active_partition;
     uint32_t other_partition_valid;
     uint32_t configuration_region_address;
+    ESPERANATO_FILE_INFO_t pcie_config_file_info;
     ESPERANATO_FILE_INFO_t vaultip_firmware_file_info;
     ESPERANATO_FILE_INFO_t sp_certificates_file_info;
     ESPERANATO_FILE_INFO_t sp_bl1_file_info;
@@ -62,6 +65,8 @@ typedef struct SERVICE_PROCESSOR_ROM_DATA_s {
     uint32_t service_processor_rom_data_size;
     uint32_t service_processor_rom_version;
     FLASH_FS_ROM_INFO_t flash_fs_rom_info;
+    ESPERANTO_RAW_IMAGE_FILE_HEADER_t pcie_config_header;
+    uint32_t * pcie_config_data;
     uint32_t * vaultip_firmware_image;
     ESPERANTO_CERTIFICATE_t sp_certificates[2];
     ESPERANTO_IMAGE_FILE_HEADER_t sp_bl1_header;

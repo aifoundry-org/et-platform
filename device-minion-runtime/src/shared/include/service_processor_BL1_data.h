@@ -23,6 +23,7 @@ typedef struct ESPERANTO_PARTITION_BL1_INFO_s {
     uint32_t boot_counters_region_index;
     uint32_t configuration_data_region_index;
     uint32_t vaultip_fw_region_index;
+    uint32_t pcie_config_region_index;
     uint32_t sp_certificates_region_index;
     uint32_t sp_bl1_region_index;
     uint32_t sp_bl2_region_index;
@@ -50,6 +51,7 @@ typedef struct FLASH_FS_BL1_INFO_s {
     uint32_t active_partition;
     uint32_t other_partition_valid;
     uint32_t configuration_region_address;
+    ESPERANATO_FILE_INFO_t pcie_config_file_info;
     ESPERANATO_FILE_INFO_t vaultip_firmware_file_info;
     ESPERANATO_FILE_INFO_t sp_certificates_file_info;
     ESPERANATO_FILE_INFO_t sp_bl1_file_info;
@@ -61,6 +63,7 @@ typedef struct SERVICE_PROCESSOR_BL1_DATA_s {
     uint32_t service_processor_bl1_version;
     uint32_t service_processor_rom_version;
     FLASH_FS_BL1_INFO_t flash_fs_bl1_info;
+    ESPERANTO_RAW_IMAGE_FILE_HEADER_t pcie_config_header;
     ESPERANTO_CERTIFICATE_t sp_certificates[2];
     ESPERANTO_IMAGE_FILE_HEADER_t sp_bl1_header;
     ESPERANTO_IMAGE_FILE_HEADER_t sp_bl2_header;
