@@ -342,14 +342,12 @@ float32_t f32_exp2(float32_t a)
 
     // val < -126.0
     if (val > 0xc2fc0000) {
-        softfloat_raiseFlags(softfloat_flag_underflow);
         uZ.ui = 0;
         return uZ.f;
     }
 
     // val >= 128.0
     if (val >= 0x43000000 && val < 0x80000000) {
-        softfloat_raiseFlags(softfloat_flag_overflow);
         uZ.ui = infinityF32UI;
         return uZ.f;
     }
