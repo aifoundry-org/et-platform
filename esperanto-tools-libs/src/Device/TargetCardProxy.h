@@ -26,6 +26,8 @@
 namespace et_runtime {
 namespace device {
 
+class SysEmuLauncher;
+
 ///
 /// @brief Connect to the SysEMU using the CardProxy
 ///
@@ -63,8 +65,9 @@ private:
   std::unique_lock<std::mutex>
       simulator_end_lock_; ///< Lock to prevent simulator from starting
   std::string connection_; ///< Path fo the socket used to talk to sysemu
-  std::vector<std::string>
-      execute_args_; ///< Arguments we are going to use to instantiate sysemu
+  std::unique_ptr<SysEmuLauncher>
+      sys_emu_; ///< Object responsible for lauching and monitoring
+                /// the sysemu simulator
 
   /// @brief Wait for a connectio from SysEmu
   void waitForConnection();

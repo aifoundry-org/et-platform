@@ -57,6 +57,7 @@ set(ETRT_SOURCES
     Core/registry.cc
     Device/DeviceTarget.cc
     Device/PCIeDevice.cc
+    Device/SysEmuLauncher.cpp
     Device/TargetCardProxy.cc
     Device/TargetRPC.cc
     Device/TargetSysEmu.cc

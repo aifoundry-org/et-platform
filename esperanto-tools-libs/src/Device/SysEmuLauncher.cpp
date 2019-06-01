@@ -1,0 +1,112 @@
+//******************************************************************************
+// Copyright (C) 2019, Esperanto Technologies Inc.
+// The copyright to the computer program(s) herein is the2
+// property of Esperanto Technologies, Inc. All Rights Reserved.
+// The program(s) may be used and/or copied only with
+// the written permission of Esperanto Technologies and
+// in accordance with the terms and conditions stipulated in the
+// agreement/contract under which the program(s) have been supplied.
+//------------------------------------------------------------------------------
+
+#include "SysEmuLauncher.h"
+
+#include "Device/TargetDeviceInfo.h"
+#include "Support/Logging.h"
+
+#include <fcntl.h>
+#include <fmt/format.h>
+#include <glog/logging.h>
+#include <memory>
+#include <stddef.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+
+using namespace std;
+
+namespace et_runtime {
+namespace device {
+
+SysEmuLauncher::SysEmuLauncher(const std::string &con)
+    : connection_(con), device_alive_(false) {
+  execute_args_ = {
+      SYSEMU_PATH, //
+      "-minions",
+      "FFFFFFFF",             // All minions enabled
+      "-shires", "1FFFFFFFF", // All shires enabled
+      "-master_min",          // Enable master shire
+      std::string("-api_comm"), connection_,
+      "-mins_dis", // Disable minions by default as booting is done through an
+                   // exec commandi
+      // "-l","-lm","0", // Enable logging of minion0
+      "-max_cycles", "1250000", // Limiting number of virtual simulation cycles.
+                                // Increase if needed
+  };
+}
+
+SysEmuLauncher::~SysEmuLauncher() {}
+
+/* Process */
+void SysEmuLauncher::createProcess(const char *path,
+                                   const std::vector<std::string> &argv,
+                                   pid_t *pid) {
+
+  // prepare C-style argv (wrapped however by std::unique_ptr) with last
+  // additional NULL
+  std::unique_ptr<const char *[]> c_argv(new const char *[argv.size() + 1]);
+  for (size_t i = 0; i < argv.size(); i++) {
+    c_argv[i] = argv[i].c_str();
+  }
+  c_argv[argv.size()] = NULL;
+
+  // pipe used to report error from execve call in child process
+  int error_report_pipe_fd[2];
+  pipe2(error_report_pipe_fd, O_CLOEXEC);
+
+  *pid = fork();
+
+  if (*pid == 0) {
+    // child
+    close(error_report_pipe_fd[0]);
+    execv(path, const_cast<char *const *>(c_argv.get()));
+    int errno_val = errno;
+
+    write(error_report_pipe_fd[1], &errno_val, sizeof(int));
+    exit(EXIT_FAILURE);
+  }
+
+  // parent
+  close(error_report_pipe_fd[1]);
+  int exec_errno = 0;
+  if (TEMP_FAILURE_RETRY(
+          read(error_report_pipe_fd[0], &exec_errno, sizeof(int))) != 0) {
+    fprintf(stderr, "Failed to start sys-emu: %s (%s)\n", path,
+            strerror(exec_errno));
+    exit(EXIT_FAILURE);
+  }
+  close(error_report_pipe_fd[0]);
+}
+
+bool SysEmuLauncher::launchSimulator() {
+  std::string sys_emu_cmd = "";
+  for (auto &i : execute_args_) {
+    sys_emu_cmd += i + " ";
+  }
+
+  RTINFO << "SysEmu invocation: " << sys_emu_cmd;
+  // Launch the Sysemu process
+  pid_t pid;
+  createProcess(execute_args_[0].c_str(), execute_args_, &pid);
+  RTINFO << "SysEmu process started with pid: " << pid;
+
+  // We are expecting that we have sent a shutdown command to the simulator
+  // and the simulator terminates gracefully.
+  // FIXME we are not checking the exit code this is sad
+  RTINFO << "Wait for SysEmu process to terminate: " << pid;
+  waitpid(pid, NULL, 0);
+  return true;
+}
+
+} // namespace device
+
+} // namespace et_runtime
