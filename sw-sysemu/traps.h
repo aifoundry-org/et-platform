@@ -69,7 +69,6 @@ DECLARE_TRAP_TVAL_Y(0x1b, trap_load_split_page_fault);
 DECLARE_TRAP_TVAL_Y(0x1c, trap_store_split_page_fault);
 DECLARE_TRAP_TVAL_Y(0x1d, trap_bus_error);
 DECLARE_TRAP_TVAL_Y(0x1e, trap_mcode_instruction);
-DECLARE_TRAP_TVAL_Y(0x1f, trap_txfma_off);
 
 // Interrupts
 DECLARE_TRAP_TVAL_N(0x00 + (1ull<<(XLEN-1)), trap_user_software_interrupt);

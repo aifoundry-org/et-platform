@@ -61,6 +61,7 @@ extern void minit(mreg dst, uint64_t val);        // init mask register
 extern void set_pc(uint64_t pc);
 extern void set_thread(uint32_t thread);
 extern uint32_t get_thread();
+extern bool thread_is_blocked(unsigned thread);
 extern uint32_t get_mask(unsigned maskNr);
 
 // Main memory accessors
