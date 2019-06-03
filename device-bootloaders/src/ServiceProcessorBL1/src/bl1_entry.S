@@ -16,15 +16,15 @@
 .global bl1_entry
 
 bl1_entry:
-    # initialize trap vector
-    la    t0, mtrap_vector
-    csrw  mtvec, t0
-
-# initialize global pointer
+    # initialize global pointer
 .option push
 .option norelax
     la gp, __global_pointer$
 .option pop
+
+    # initialize trap vector
+    la    t0, mtrap_vector
+    csrw  mtvec, t0
 
     la a1, _init_handler
     jalr x0, a1
