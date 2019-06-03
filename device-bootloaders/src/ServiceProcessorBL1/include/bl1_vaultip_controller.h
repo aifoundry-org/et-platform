@@ -32,9 +32,8 @@ int vaultip_provision_huk(void);
 int vaultip_reset(void);
 
 int vaultip_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash);
-int vaultip_hash_init(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size);
-int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size);
-int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, size_t total_msg_length, uint8_t * hash);
+int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init);
+int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init, size_t total_msg_length, uint8_t * hash);
 
 int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t policy_63_32, VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings, uint32_t lifetime, uint32_t * asset_id);
 int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const void * data, uint32_t data_size);

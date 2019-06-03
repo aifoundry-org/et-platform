@@ -186,11 +186,6 @@ void dump_vip_regs(void) {
     printx("MAILBOX_LOCKOUT: 0x%x\n", val);
 }
 
-//#pragma GCC push_options
-//#pragma GCC optimize ("O0")
-
-//bool suppress_token_send_diagnostics = false;
-
 int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
     volatile VAULTIP_HW_REGS_t * vaultip_regs = VAULTIP_REGISTERS;
     MODULE_STATUS_t module_status;
@@ -250,13 +245,6 @@ int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
 
     return 0;
 }
-
-//#pragma GCC push_options
-
-//#pragma GCC push_options
-//#pragma GCC optimize ("O0")
-
-//bool suppress_token_read_diagnostics = false;
 
 int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
     volatile VAULTIP_HW_REGS_t * vaultip_regs = VAULTIP_REGISTERS;
@@ -333,7 +321,14 @@ int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t t
     return 0;
 }
 
-//#pragma GCC push_options
+static void print_failed_input_token_info(const uint32_t * input_token_words, uint32_t words_count) {
+    uint32_t n;
+    printx("Input token:\n");
+    for (n = 0; n < words_count; n++) {
+        printx("  si[%u] = %08x\n", n, input_token_words[n]);
+    }
+    printx("\n");
+}
 
 int vaultip_get_system_information(VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info) {
     memset(&input_token, 0, sizeof(input_token));
@@ -621,11 +616,13 @@ int vaultip_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t
         memcpy(hash, &output_token.hash.dw_02_17, hash_size);
         return 0;
     } else {
+        printx("vaultip_hash: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 26);
         return -1;
     }
 }
 
-int vaultip_hash_init(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size) {
+int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init) {
     uint32_t hash_type;
 
     switch(hash_alg) {
@@ -639,7 +636,7 @@ int vaultip_hash_init(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void 
         hash_type = VAULTIP_HASH_ALGORITHM_SHA_512;
         break;
     default:
-        printx("vaultip_hash_init: invalid hash_alg!\n");
+        printx("vaultip_hash_update: invalid hash_alg!\n");
         return -1;
     }
 
@@ -653,79 +650,31 @@ int vaultip_hash_init(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void 
     input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
     input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
-    input_token.hash.dw_06.Mode = VAULTIP_HASH_MODE_INITIAL_NOT_FINAL;
+    input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_NOT_FINAL : VAULTIP_HASH_MODE_CONTINUED_NOT_FINAL;
     input_token.hash.dw_07.Digest_AS_ID = digest_asset_id;
     input_token.hash.dw_24.TotalMessageLength_31_00 = 0;
     input_token.hash.dw_25.TotalMessageLength_60_32 = 0;
 
     if (0 != vaultip_send_input_token(&input_token)) {
-        printx("vaultip_hash_init: vaultip_send_input_token() failed!\n");
+        printx("vaultip_hash_update: vaultip_send_input_token() failed!\n");
         return -1;
     }
 
     if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
-        printx("vaultip_hash_init: vaultip_read_output_token() failed!\n");
+        printx("vaultip_hash_update: vaultip_read_output_token() failed!\n");
         return -1;
     }
 
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
+        printx("vaultip_hash_update: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 26);
         return -1;
     }
 }
 
-int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size) {
-    uint32_t hash_type;
-
-    switch(hash_alg) {
-    case HASH_ALG_SHA2_256:
-        hash_type = VAULTIP_HASH_ALGORITHM_SHA_256;
-        break;
-    case HASH_ALG_SHA2_384:
-        hash_type = VAULTIP_HASH_ALGORITHM_SHA_384;
-        break;
-    case HASH_ALG_SHA2_512:
-        hash_type = VAULTIP_HASH_ALGORITHM_SHA_512;
-        break;
-    default:
-        printx("vaultip_hash_init: invalid hash_alg!\n");
-        return -1;
-    }
-
-    memset(&input_token, 0, sizeof(input_token));
-    memset(&output_token, 0, sizeof(output_token));
-
-    input_token.dw_00.TokenID = get_next_token_id();
-    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_HASH;
-    input_token.hash.dw_02.DataLength = (uint32_t)msg_size;
-    input_token.hash.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
-    input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
-    input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
-    input_token.hash.dw_06.Mode = VAULTIP_HASH_MODE_CONTINUED_NOT_FINAL;
-    input_token.hash.dw_07.Digest_AS_ID = digest_asset_id;
-    input_token.hash.dw_24.TotalMessageLength_31_00 = 0;
-    input_token.hash.dw_25.TotalMessageLength_60_32 = 0;
-
-    if (0 != vaultip_send_input_token(&input_token)) {
-        printx("vaultip_hash_init: vaultip_send_input_token() failed!\n");
-        return -1;
-    }
-
-    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
-        printx("vaultip_hash_init: vaultip_read_output_token() failed!\n");
-        return -1;
-    }
-
-    if (0 == output_token.dw_00.Error) {
-        return 0;
-    } else {
-        return -1;
-    }
-}
-
-int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, size_t total_msg_length, uint8_t * hash) {
+int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init, size_t total_msg_length, uint8_t * hash) {
     uint32_t hash_size;
     uint32_t hash_type;
 
@@ -743,7 +692,7 @@ int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void
         hash_size = 512 / 8;
         break;
     default:
-        printx("vaultip_hash_init: invalid hash_alg!\n");
+        printx("vaultip_hash_final: invalid hash_alg!\n");
         return -1;
     }
 
@@ -757,18 +706,18 @@ int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void
     input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
     input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
-    input_token.hash.dw_06.Mode = VAULTIP_HASH_MODE_CONTINUED_FINAL;
+    input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_FINAL : VAULTIP_HASH_MODE_CONTINUED_FINAL;
     input_token.hash.dw_07.Digest_AS_ID = digest_asset_id;
     input_token.hash.dw_24.TotalMessageLength_31_00 = (uint32_t)total_msg_length;
     input_token.hash.dw_25.TotalMessageLength_60_32 = (total_msg_length >> 32u) & 0x1FFFFFFFu;
 
     if (0 != vaultip_send_input_token(&input_token)) {
-        printx("vaultip_hash_init: vaultip_send_input_token() failed!\n");
+        printx("vaultip_hash_final: vaultip_send_input_token() failed!\n");
         return -1;
     }
 
     if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
-        printx("vaultip_hash_init: vaultip_read_output_token() failed!\n");
+        printx("vaultip_hash_final: vaultip_read_output_token() failed!\n");
         return -1;
     }
 
@@ -776,6 +725,8 @@ int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void
         memcpy(hash, output_token.hash.dw_02_17, hash_size);
         return 0;
     } else {
+        printx("vaultip_hash_final: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 26);
         return -1;
     }
 }
@@ -816,6 +767,8 @@ int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t poli
         printx("Created asset id 0x%08x\n", output_token.asset_create.dw_01.AS_ID);
         return 0;
     } else {
+        printx("vaultip_asset_create: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 6);
         return -1;
     }
 }
