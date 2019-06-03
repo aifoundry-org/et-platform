@@ -10,10 +10,12 @@
 # addr[17:6] line
 # addr[19:18] block
 #
-# The 64BK of ROM is organized into one contiguous block
+# The 128KB of ROM is organized into two contiguous 64KB blocks
 # A 64-byte cache line is spread across 8 panels: bytes 0-7 in panel 0, 8-15 in 1, etc.
 # addr[2:0] byte in panel
 # addr[5:3] panel
+# addr[15:6] line
+# addr[16] block
 #
 # DRAM is spread across 16 memory controllers in 8 memory shires
 # Each memory controller deals with 64-byte cache line sized transactions
@@ -199,7 +201,7 @@ def add_parity_bytes(x):
 
     return result
 
-def write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, parity, ddr):
+def write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr):
     inputBytesPerLine = inputBytesPerPanel * panelsPerLine
     bytes = []
     firstSegment = True
@@ -214,7 +216,8 @@ def write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPa
         # If this segment starts on a later line than the previous segment ended on,
         # write out the lines for the previous segment(s) and start a new group of lines
         if (not firstSegment and ((segAddr // inputBytesPerLine) > (prevSegEndAddress // inputBytesPerLine))):
-            write_lines(bytes, baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, parity, ddr)
+            print("1: write_lines(base_address=0x{0:x} line_address=0x{1:x} bytesPerZebuRow={2:d} inputBytesPerPanel={3:d} panelsPerLine={4:d}".format(baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine))
+            write_lines(bytes, baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr)
             bytes = []
             firstSegment = True
 
@@ -232,13 +235,13 @@ def write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPa
         prevSegEndAddress = segEndAddress
 
     # write out lines after last segment
-    write_lines(bytes, baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, parity, ddr)
+    print("2: write_lines(base_address=0x{0:x} line_address=0x{1:x} bytesPerZebuRow={2:d} inputBytesPerPanel={3:d} panelsPerLine={4:d}".format(baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine))
+    write_lines(bytes, baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr)
 
 # requires address is aligned to the beginning of a line - will not zero pad before
 # will zero pad the end of a line
-def write_lines(bytes, baseAddress, address, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, parity, ddr):
+def write_lines(bytes, baseAddress, address, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr):
     inputBytesPerLine = inputBytesPerPanel * panelsPerLine
-
     print("Writing lines from %08x to %08x" % (address, address + len(bytes)))
 
     # For each line, set all panel bytes including parity even if input data isn't available
@@ -261,6 +264,13 @@ def write_lines(bytes, baseAddress, address, bytesPerZebuRow, inputBytesPerPanel
                 else:
                     writeAddress = (address + lineIndex + rowIndex - baseAddress) // inputBytesPerLine
 
+                if maxLinesPerFile > 0:
+                    fileIndex = writeAddress // maxLinesPerFile
+                    writeAddress = writeAddress % maxLinesPerFile
+                    fileIndex = fileIndex * panelsPerLine
+                else:
+                    fileIndex = 0
+
                 wl = "@%010x " % (writeAddress)
 
                 startIndex = lineIndex + panelIndex + rowIndex
@@ -279,7 +289,7 @@ def write_lines(bytes, baseAddress, address, bytesPerZebuRow, inputBytesPerPanel
                     wl += ("%02x" % byte)
 
                 wl += "\n"
-                outFiles[panel].write(wl)
+                outFiles[fileIndex + panel].write(wl)
     return
 
 def mesh_addr_to_synopsys_ddr_addr(addr):
@@ -323,13 +333,15 @@ def mesh_addr_to_new_synopsys_ddr_addr(addr):
     return ddr_addr.int
 
 def sp_rom_write_hex():
-    open_output_files("", "", 8)
-    write_hex(0x40000000, 8, 8, 8, 8, False, False)
+    open_output_files("_lo_", "", 8)
+    open_output_files("_hi_", "", 8)
+    #write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr)
+    write_hex(0x40000000, 8, 8, 8, 8, 1024, False, False)
     return
 
 def sp_ram_write_hex():
     open_output_files("SP_RAM", "", 4)
-    write_hex(0x40400000, 16, 16, 18, 4, True, False)
+    write_hex(0x40400000, 16, 16, 18, 4, 0, True, False)
     return
 
 def dram_write_hex(ddr):
@@ -340,10 +352,10 @@ def dram_write_hex(ddr):
 
     if (ddr == "DDR") or (ddr == "DDR_NEW"):
         # DDR models with address swizzling and 8 bytes per ZeBu hex line
-        write_hex(0x8000000000,  8, 64, 64, 16, False, ddr)
+        write_hex(0x8000000000,  8, 64, 64, 16, 0, False, ddr)
     else:
         # AXI models with 64 bytes per ZeBu hex line
-        write_hex(0x8000000000, 64, 64, 64, 16, False, ddr)
+        write_hex(0x8000000000, 64, 64, 64, 16, 0, False, ddr)
     return
 
 if (sys.argv[1]) == "ROM":
