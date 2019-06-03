@@ -16,6 +16,12 @@
 .global bl2_entry
 
 bl2_entry:
+    # initialize global pointer
+.option push
+.option norelax
+    la gp, __global_pointer$
+.option pop
+
     # initialize trap vector
     #la    t0, mtrap_vector
     #csrw  mtvec, t0

@@ -25,12 +25,5 @@ _init_handler:
     blt  x26, x27, 1b
 
 bss_loop_end:
-
-# initialize global pointer
-.option push
-.option norelax
-    la gp, __global_pointer$
-.option pop
-
     la   a1,  bl2_main
     jalr x0,  a1
