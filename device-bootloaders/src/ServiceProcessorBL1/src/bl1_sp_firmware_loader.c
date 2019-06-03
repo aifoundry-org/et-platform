@@ -17,7 +17,10 @@
 #include "bl1_flash_fs.h"
 #include "bl1_sp_certificates.h"
 #include "bl1_sp_firmware_loader.h"
+#include "constant_memory_compare.h"
 #include "bl1_crypto.h"
+
+#pragma GCC diagnostic ignored "-Wswitch-enum"
 
 static int verify_bl2_image_file_header(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_file_header, uint32_t sp_bl2_size) {
     if (NULL == sp_bl2_file_header) {
@@ -64,7 +67,8 @@ static int verify_bl2_image_file_header(const ESPERANTO_IMAGE_FILE_HEADER_t * sp
     return 0;
 }
 
-static int load_bl2_code_and_data(const ESPERANTO_IMAGE_INFO_SECRET_t * load_info) {
+static int load_bl2_code_and_data(const ESPERANTO_IMAGE_INFO_t * image_info) {
+    uint32_t code_and_data_hash_size;
     uint32_t load_offset;
     union {
         uint64_t u64;
@@ -73,29 +77,77 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_INFO_SECRET_t * load_inf
             uint32_t hi;
         };
     } load_address;
-    uint32_t region_no;
-    //SERVICE_PROCESSOR_bl1_data_t * bl1_data = get_service_processor_bl1_data();
+    uint32_t region_no, n;
+    CRYPTO_HASH_CONTEXT_t hash_context;
+    uint8_t hash[64];
+    size_t total_length = 0;
 
-    for (region_no = 0; region_no < load_info->load_regions_count; region_no++) {
-        load_offset = (uint32_t)(sizeof(ESPERANTO_IMAGE_FILE_HEADER_t) + load_info->load_regions[region_no].region_offset);
-        load_address.lo = load_info->load_regions[region_no].load_address_lo;
-        load_address.hi = load_info->load_regions[region_no].load_address_hi;
-        printx("Region %u: load=0x%x, addr=0x%x, fsize=0x%x, msize=0x%x\n", region_no, load_offset, load_address.lo, load_info->load_regions[region_no].load_size, load_info->load_regions[region_no].memory_size);
+    switch (image_info->public_info.code_and_data_hash_algorithm) {
+    case HASH_ALG_SHA2_256:
+        code_and_data_hash_size = 256/8;
+        break;
+    case HASH_ALG_SHA2_384:
+        code_and_data_hash_size = 384/8;
+        break;
+    case HASH_ALG_SHA2_512:
+        code_and_data_hash_size = 512/8;
+        break;
+    default:
+        printx("load_bl2_code_and_data: Invalid hash algorithm!\n");
+        return -1;
+    }
 
-        if (load_info->load_regions[region_no].load_size > 0) {
-            if (0 != flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_SP_BL2, load_offset, (void*)load_address.u64, load_info->load_regions[region_no].load_size)) {
-                printx("load_bl2_firmware: flash_fs_read_file(code) failed!\n");
+    if (0 != crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm)) {
+        printx("load_bl2_code_and_data: crypto_hash_init() failed!\n");
+        return -1;
+    }
+
+    for (region_no = 0; region_no < image_info->secret_info.load_regions_count; region_no++) {
+        load_offset = (uint32_t)(sizeof(ESPERANTO_IMAGE_FILE_HEADER_t) + image_info->secret_info.load_regions[region_no].region_offset);
+        load_address.lo = image_info->secret_info.load_regions[region_no].load_address_lo;
+        load_address.hi = image_info->secret_info.load_regions[region_no].load_address_hi;
+        printx("Region %u: load=0x%x, addr=0x%x, fsize=0x%x, msize=0x%x\n", region_no, load_offset, load_address.lo, image_info->secret_info.load_regions[region_no].load_size, image_info->secret_info.load_regions[region_no].memory_size);
+
+        if (image_info->secret_info.load_regions[region_no].load_size > 0) {
+            if (0 != flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_SP_BL2, load_offset, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
+                printx("load_bl2_code_and_data: flash_fs_read_file(code) failed!\n");
                 return -1;
             }
-            printx("loaded 0x%x bytes at 0x%08x\n", load_info->load_regions[region_no].load_size, load_address.u64);
+            printx("loaded 0x%x bytes at 0x%08x\n", image_info->secret_info.load_regions[region_no].load_size, load_address.u64);
+            if (0 != crypto_hash_update(&hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
+                printx("load_bl2_code_and_data: crypto_hash_update() failed!\n");
+                goto CLEANUP_ON_ERROR;
+            }
+            total_length = total_length + image_info->secret_info.load_regions[region_no].load_size;
         }
-        if (load_info->load_regions[region_no].memory_size > load_info->load_regions[region_no].load_size) {
-            memset((void*)(load_address.u64 + load_info->load_regions[region_no].load_size), 0, load_info->load_regions[region_no].memory_size - load_info->load_regions[region_no].load_size);
-            printx("erased 0x%x bytes\n", load_info->load_regions[region_no].memory_size - load_info->load_regions[region_no].load_size);
+        if (image_info->secret_info.load_regions[region_no].memory_size > image_info->secret_info.load_regions[region_no].load_size) {
+            memset((void*)(load_address.u64 + image_info->secret_info.load_regions[region_no].load_size), 0, image_info->secret_info.load_regions[region_no].memory_size - image_info->secret_info.load_regions[region_no].load_size);
+            printx("erased 0x%x bytes\n", image_info->secret_info.load_regions[region_no].memory_size - image_info->secret_info.load_regions[region_no].load_size);
         }
     }
 
+    if (0 != crypto_hash_final(&hash_context, NULL, 0, total_length, hash)) {
+        printx("load_bl2_code_and_data: crypto_hash_final() failed!\n");
+        goto CLEANUP_ON_ERROR;
+    }
+
+    if (0 != constant_time_memory_compare(hash, image_info->public_info.code_and_data_hash, code_and_data_hash_size)) {
+        printx("load_bl2_code_and_data: code+data hash mismatch!\n");
+        goto CLEANUP_ON_ERROR;
+    }
+
     return 0;
+
+CLEANUP_ON_ERROR:
+    for (n = 0; n <= region_no; n++) {
+        load_address.lo = image_info->secret_info.load_regions[n].load_address_lo;
+        load_address.hi = image_info->secret_info.load_regions[n].load_address_hi;
+        memset((void*)load_address.u64, 0, image_info->secret_info.load_regions[n].memory_size);
+    }
+    if (0 != crypto_hash_abort(&hash_context)) {
+        printx("load_bl2_code_and_data: crypto_hash_abort() failed!\n");
+    }
+    return -1;
 }
 int load_bl2_firmware(void) {
     uint32_t sp_bl2_size;
@@ -120,7 +172,7 @@ int load_bl2_firmware(void) {
         return -1;
     }
 
-    if (0 != load_bl2_code_and_data(&bl1_data->sp_bl2_header.info.image_info_and_signaure.info.secret_info)) {
+    if (0 != load_bl2_code_and_data(&bl1_data->sp_bl2_header.info.image_info_and_signaure.info)) {
         printx("load_bl2_firmware: load_bl2_code_and_data() failed!\n");
         return -1;
     }

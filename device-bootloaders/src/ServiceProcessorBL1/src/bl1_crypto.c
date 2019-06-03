@@ -192,22 +192,6 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t * signature) {
     return 0;
 }
 
-int crypto_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash) {
-    return vaultip_hash(hash_alg, msg, msg_size, hash);
-}
-
-int crypto_hash_init(HASH_ALG_t hash_alg, uint32_t temp_digest_asset_id, const void * msg, size_t msg_size) {
-    return vaultip_hash_init(hash_alg, temp_digest_asset_id, msg, msg_size);
-}
-
-int crypto_hash_update(HASH_ALG_t hash_alg, uint32_t temp_digest_asset_id, const void * msg, size_t msg_size) {
-    return vaultip_hash_update(hash_alg, temp_digest_asset_id, msg, msg_size);
-}
-
-int crypto_hash_final(HASH_ALG_t hash_alg, uint32_t temp_digest_asset_id, const void * msg, size_t msg_size, size_t total_msg_length, uint8_t * hash) {
-    return vaultip_hash_final(hash_alg, temp_digest_asset_id, msg, msg_size, total_msg_length, hash);
-}
-
 typedef union ASSET_POLICY_u {
     uint64_t u64;
     struct {
@@ -215,6 +199,115 @@ typedef union ASSET_POLICY_u {
         uint32_t hi;
     };
 } ASSET_POLICY_t;
+
+int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) {
+    ASSET_POLICY_t temp_digest_asset_policy;
+    VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t temp_digest_asset_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
+        .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE
+    };
+
+    if (NULL == hash_context) {
+        printx("crypto_hash_init: invalid arguments!\n");
+        return -1;
+    }
+
+    hash_context->hash_alg = HASH_ALG_INVALID;
+    switch (hash_alg) {
+    case HASH_ALG_SHA2_256:
+        temp_digest_asset_policy.u64 = VAL_POLICY_SHA256 | VAL_POLICY_TEMP_MAC;
+        temp_digest_asset_other_settings.DataLength = 32;
+        break;
+    case HASH_ALG_SHA2_384:
+        temp_digest_asset_policy.u64 = VAL_POLICY_SHA384 | VAL_POLICY_TEMP_MAC;
+        temp_digest_asset_other_settings.DataLength = 64;
+        break;
+    case HASH_ALG_SHA2_512:
+        temp_digest_asset_policy.u64 = VAL_POLICY_SHA512 | VAL_POLICY_TEMP_MAC;
+        temp_digest_asset_other_settings.DataLength = 64;
+        break;
+    default:
+        printx("crypto_hash_init: invalid hash algorithm!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_asset_create(get_rom_identity(), 
+                                  temp_digest_asset_policy.lo, 
+                                  temp_digest_asset_policy.hi, 
+                                  temp_digest_asset_other_settings, 
+                                  0, // lifetime, 
+                                  &(hash_context->temp_digest_asset_id))) {
+        printx("crypto_hash_init: vaultip_asset_create() failed!\n");
+        return -1;
+    }
+
+    hash_context->hash_alg = hash_alg;
+    hash_context->init_done = false;
+    return 0;
+}
+
+int crypto_hash_abort(CRYPTO_HASH_CONTEXT_t * hash_context) {
+    if (NULL == hash_context) {
+        return -1;
+    }
+
+    if (hash_context->hash_alg != HASH_ALG_INVALID) {
+        if (0 != vaultip_asset_delete(get_rom_identity(), hash_context->temp_digest_asset_id)) {
+            printx("crypto_hash_abort: vaultip_asset_delete failed!");
+            return -1;
+        }
+    }
+
+    hash_context->hash_alg = HASH_ALG_INVALID;
+    hash_context->temp_digest_asset_id = 0;
+    hash_context->init_done = false;
+
+    return 0;
+}
+
+int crypto_hash_update(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, size_t msg_size) {
+    int rv;
+
+    if (NULL == hash_context) {
+        return -1;
+    }
+
+    if (hash_context->init_done) {
+        rv = vaultip_hash_update(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false);
+    } else {
+        rv = vaultip_hash_update(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true);
+        if (0 == rv) {
+            hash_context->init_done = true;
+        }
+    }
+    return rv;
+}
+
+int crypto_hash_final(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, size_t msg_size, size_t total_msg_length, uint8_t * hash) {
+    int rv;
+
+    if (NULL == hash_context) {
+        return -1;
+    }
+
+    if (hash_context->init_done) {
+        rv = vaultip_hash_final(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false, total_msg_length, hash);
+    } else {
+        rv = vaultip_hash_final(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true, total_msg_length, hash);
+    }
+
+    if (0 == rv) {
+        if (0 != vaultip_asset_delete(get_rom_identity(), hash_context->temp_digest_asset_id)) {
+            printx("crypto_hash_final: vaultip_asset_delete failed!");
+            rv = -1;
+        }
+
+        hash_context->hash_alg = HASH_ALG_INVALID;
+        hash_context->temp_digest_asset_id = 0;
+        hash_context->init_done = false;
+    }
+
+    return rv;
+}
 
 static void crypto_reverse_copy(void * dst, const void * src, size_t size) {
     uint8_t * pd = (uint8_t*)dst;
@@ -1446,7 +1539,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
         }
 
         // pre-hash the data
-        if (0 != vaultip_hash_init(signature->hashAlg, temp_digest_asset_id, data, prehash_length)) {
+        if (0 != vaultip_hash_update(signature->hashAlg, temp_digest_asset_id, data, prehash_length, true)) {
             printx("crypto_verify_pk_signature: vaultip_hash_init() failed!\n");
             rv = -1;
             goto DONE;
