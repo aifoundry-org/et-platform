@@ -13,6 +13,12 @@
 .global _start
 
 _start:
+    # initialize global pointer
+.option push
+.option norelax
+    la gp, __global_pointer$
+.option pop
+
     # set the stack pointer, different for each thread
     csrr  a0, hartid
     slli  a0, a0, STACK_OFFSET
@@ -28,12 +34,5 @@ _start:
     ble  x26, x27, 1b
 
 bss_loop_end:
-
-# initialize global pointer
-.option push
-.option norelax
-    la gp, __global_pointer$
-.option pop
-
     la   a1, main
     jalr x0, a1
