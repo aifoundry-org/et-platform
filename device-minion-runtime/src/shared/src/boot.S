@@ -120,5 +120,8 @@ _boot:
     fcvt.s.w f31, x0
 #endif
 
+.option push
+.option norelax
     la a1, _start
+.option pop
     jalr x0, a1
