@@ -696,7 +696,7 @@
 } while (0)
 
 #define DISASM_AMO_FD_FS1_RS2(name) do { \
-    LOG(DEBUG, "I(%c): " name " f%d,f%d,(x%d)", PRVNAME, inst.fd(), inst.fs1(), inst.rs2()); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d(x%d)", PRVNAME, inst.fd(), inst.fs1(), inst.rs2()); \
     LOG_FREG(":", inst.fd()); \
     LOG_FREG(":", inst.fs1()); \
     LOG_REG(":", inst.rs2()); \
