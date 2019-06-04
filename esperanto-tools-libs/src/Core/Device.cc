@@ -6,7 +6,6 @@
 #include "Support/Logging.h"
 #include "demangle.h"
 #include "registry.h"
-#include "utils.h"
 
 #include <assert.h>
 #include <exception>

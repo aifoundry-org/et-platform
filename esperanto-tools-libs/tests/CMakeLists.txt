@@ -13,13 +13,14 @@ include(GoogleTest)
 
 include_directories(${GTEST_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 
 link_directories(${GTEST_DIR}/lib64)
 
 add_compile_options(-g3 -O0 -std=c++17)
 set(COMMON_TEST_LIBRARIES
-  etrt
+  etrt_static
   libgtest_main.a
   libgtest.a
   ${GLOG_LIBRARIES}
