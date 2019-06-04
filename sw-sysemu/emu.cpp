@@ -1400,6 +1400,7 @@ static void csrset(uint16_t src1, uint64_t val)
         require_feature_ml();
         val &= 0x1ff;
         csr_tensor_error[current_thread] = val;
+        log_tensor_error_value(val);
         break;
     case CSR_UCACHE_CONTROL:
         require_feature_u_scratchpad();
@@ -1448,6 +1449,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_TENSOR_WAIT:
         require_feature_ml();
+        log_tensor_error_value(csr_tensor_error[current_thread]);
         // FIXME: Do something here?
         break;
     case CSR_TENSOR_LOAD:
