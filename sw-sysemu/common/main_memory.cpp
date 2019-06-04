@@ -27,6 +27,9 @@ main_memory::main_memory()
     // Reserved memory regions
     p = new main_memory_region_reserved(0x200000000, 248*1024*1024*1024ull);
     regions.push_back(region_pointer(p));
+    p = new main_memory_region_reserved(0x8800000000ull, 0x3800000000ull);
+    regions.push_back(region_pointer(p));
+    p = new main_memory_region_reserved(0xc800000000ull, 0x3800000000ull);
 
     // For all the shires and the local shire mask
     for (int i = 0; i <= EMU_NUM_SHIRES; i++)
