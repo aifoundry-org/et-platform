@@ -325,7 +325,4 @@ typedef struct _VAULTIP_HW_REGS_s {
 #define VAULTIP_DMAC_MST_RUNPARAMS          0xF878
 #define VAULTIP_DMAC_OPTIONS2               0xF8DC
 
-#define VAULTIP_BASE 0x52000000
-#define VAULTIP_REGISTERS (volatile VAULTIP_HW_REGS_t*)VAULTIP_BASE
-
 #endif // __VAULT_IP_H__
