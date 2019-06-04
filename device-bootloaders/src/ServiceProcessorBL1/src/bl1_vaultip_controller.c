@@ -27,6 +27,8 @@
 
 #include "bl1_vaultip_controller.h"
 
+#include "hal_device.h"
+
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
 //#define VAULTIP_CRYPTO_OFFICER_IDENTITY 0x4F435445
@@ -119,7 +121,7 @@ static int test_ram_firmware(const uint32_t * firmware_data, uint32_t firmware_s
 #endif
 
 int vaultip_test_initial_state(void) {
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = VAULTIP_REGISTERS;
+    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     EIP_VERSION_t eip_version;
     MODULE_STATUS_t module_status;
 
@@ -155,7 +157,7 @@ int vaultip_test_initial_state(void) {
 }
 
 void dump_vip_regs(void) {
-    volatile VAULTIP_HW_REGS_t* vaultip_regs = VAULTIP_REGISTERS;
+    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     uint32_t val;
 
     val = vaultip_regs->EIP_VERSION.R;
@@ -187,7 +189,7 @@ void dump_vip_regs(void) {
 }
 
 int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = VAULTIP_REGISTERS;
+    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
     //uint32_t n;
@@ -247,7 +249,7 @@ int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
 }
 
 int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = VAULTIP_REGISTERS;
+    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
 
