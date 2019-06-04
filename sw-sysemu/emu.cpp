@@ -147,13 +147,14 @@ std::array<uint64_t,EMU_NUM_THREADS>    csr_validation3;
 std::array<std::array<uint64_t,EMU_NUM_THREADS>,4> csr_portctrl;
 
 // Other processor state
-std::array<uint8_t,EMU_NUM_THREADS>     csr_prv; // FIXME: Drop 'csr_' prefix
-std::array<bool,   EMU_NUM_THREADS>     mtvec_is_set;
-std::array<bool,   EMU_NUM_THREADS>     stvec_is_set;
-std::array<bool,   EMU_NUM_THREADS>     break_on_load;
-std::array<bool,   EMU_NUM_THREADS>     break_on_store;
-std::array<bool,   EMU_NUM_THREADS>     break_on_fetch;
-std::array<bool,   EMU_NUM_THREADS>     debug_mode;
+std::array<uint8_t, EMU_NUM_THREADS>    csr_prv; // FIXME: Drop 'csr_' prefix
+std::array<bool,    EMU_NUM_THREADS>    mtvec_is_set;
+std::array<bool,    EMU_NUM_THREADS>    stvec_is_set;
+std::array<bool,    EMU_NUM_THREADS>    break_on_load;
+std::array<bool,    EMU_NUM_THREADS>    break_on_store;
+std::array<bool,    EMU_NUM_THREADS>    break_on_fetch;
+std::array<bool,    EMU_NUM_THREADS>    debug_mode;
+std::array<uint32_t,EMU_NUM_THREADS>    ext_seip;
 static std::array<bool,EMU_NUM_THREADS-1> tensorload_setupb_topair;
 static std::array<int, EMU_NUM_THREADS-1> tensorload_setupb_numlines;
 
@@ -512,6 +513,7 @@ void reset_hart(unsigned thread)
     csr_portctrl[3][thread] = 0x0000000000008000ULL;
 
     // other processor state
+    ext_seip[thread] = 0;
     mtvec_is_set[thread] = false;
     stvec_is_set[thread] = false;
     break_on_load[thread] = false;
@@ -541,12 +543,12 @@ void check_pending_interrupts()
     // Are there any non-masked pending interrupts?
     // NB: If csr_excl_mode != 0 this thread is either in exclusive mode or
     // blocked, but either way it cannot receive interrupts
-    uint64_t xip = csr_mip[current_thread] & csr_mie[current_thread];
+    uint64_t xip = (csr_mip[current_thread] | ext_seip[current_thread]) & csr_mie[current_thread];
     if (!xip || csr_excl_mode[current_thread])
         return;
 
     LOG(DEBUG, "Check Pending Interrupt mtvec:0x%016" PRIx64 " mip:0x%08" PRIx32 " mie:0x%08" PRIx32,
-        csr_mtvec[current_thread], csr_mip[current_thread], csr_mie[current_thread]);
+        csr_mtvec[current_thread], csr_mip[current_thread] | ext_seip[current_thread], csr_mie[current_thread]);
 
     // If there are any pending interrupts for the current privilege level
     // 'x', they are only taken if mstatus.xIE=1. If there are any pending
@@ -604,7 +606,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     // a memory mapped store)
 #ifndef SYS_EMU
     if (interrupt) {
-        csr_mip[current_thread] &= ~(1ULL<<code);
+        csr_mip[current_thread] &= ~(1<<code);
     }
 #endif
 
@@ -662,7 +664,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     // a memory mapped store)
 #ifndef SYS_EMU
     if (interrupt) {
-        csr_mip[current_thread] &= ~(1ull<<code);
+        csr_mip[current_thread] &= ~(1<<code);
     }
 #endif
 
@@ -842,35 +844,35 @@ static uint64_t csrget(uint16_t src1)
     case CSR_STVAL:
         val = csr_stval[current_thread];
         break;
-   case CSR_SIP:
+    case CSR_SIP:
         val = csr_mip[current_thread] & csr_mideleg[current_thread];
         break;
-   case CSR_SATP:
+    case CSR_SATP:
         val = csr_satp[current_thread];
         break;
-   case CSR_MSTATUS:
+    case CSR_MSTATUS:
         val = csr_mstatus[current_thread];
         break;
-   case CSR_MISA:
+    case CSR_MISA:
         val = csr_misa[current_thread];
         break;
-   case CSR_MEDELEG:
+    case CSR_MEDELEG:
         val = csr_medeleg[current_thread];
         break;
-   case CSR_MIDELEG:
+    case CSR_MIDELEG:
         val = csr_mideleg[current_thread];
         break;
-   case CSR_MIE:
+    case CSR_MIE:
         val = csr_mie[current_thread];
         break;
-   case CSR_MTVEC:
+    case CSR_MTVEC:
         val = csr_mtvec[current_thread];
         break;
-   case CSR_MCOUNTEREN:
+    case CSR_MCOUNTEREN:
         val = csr_mcounteren[current_thread];
         break;
-   // MHPMEVENT3...MHPMEVENT31
-   case CSR_MSCRATCH:
+    // MHPMEVENT3...MHPMEVENT31
+    case CSR_MSCRATCH:
         val = csr_mscratch[current_thread];
         break;
     case CSR_MEPC:
@@ -1438,7 +1440,7 @@ static void csrset(uint16_t src1, uint64_t val)
         } else {
             fcc[current_thread][fcc_cnt]--;
         }
-#endif 
+#endif
         break;
     case CSR_STALL:
         require_feature_ml();
@@ -1629,17 +1631,24 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
                 csrset(src1, newval);
                 break;
         }
+        LOG(DEBUG, "\t%s = 0x%" PRIx64, csr_name(src1), newval);
     }
-    if (dst != x0)
+
+    // the return value of mip.ssip should be set if external supervisor
+    // interrupts are pending, but the RMO part of the csrrw/s/c instruction
+    // should not take this into account
+    switch (src1)
     {
-        XREGS[dst] = oldval;
-        LOG(DEBUG, "\t0x%016" PRIx64 " <-- %s", oldval, csr_name(src1));
+        case CSR_SIP:
+            oldval |= ext_seip[current_thread] & csr_mideleg[current_thread];
+            break;
+        case CSR_MIP:
+            oldval |= ext_seip[current_thread];
+            break;
+        default:
+            break;
     }
-    if (write)
-    {
-        LOG(DEBUG, "\t0x%016" PRIx64 " --> %s", newval, csr_name(src1));
-    }
-    log_xreg_write(dst, XREGS[dst]);
+    WRITE_REG(dst, oldval);
 }
 
 void ecall(const char* comm __attribute__((unused)))
@@ -3869,7 +3878,14 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 
 void raise_interrupt(int thread, int cause)
 {
-    csr_mip[thread] |= 1<<cause;
+    if (cause == 9)
+    {
+        ext_seip[thread] |= 1<<cause;
+    }
+    else
+    {
+        csr_mip[thread] |= 1<<cause;
+    }
 }
 
 void raise_software_interrupt(int thread)
@@ -3892,14 +3908,24 @@ void clear_timer_interrupt(int thread)
     csr_mip[thread] &= ~0x80;
 }
 
-void raise_external_interrupt(int thread)
+void raise_external_machine_interrupt(int thread)
 {
     csr_mip[thread] |= 0x800;
 }
 
-void clear_external_interrupt(int thread)
+void clear_external_machine_interrupt(int thread)
 {
     csr_mip[thread] &= ~0x800;
+}
+
+void raise_external_supervisor_interrupt(int thread)
+{
+    ext_seip[thread] |= 0x200;
+}
+
+void clear_external_supervisor_interrupt(int thread)
+{
+    ext_seip[thread] &= ~0x200;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -72,6 +72,15 @@ extern void take_trap(const trap_t& t);
 
 // Interrupts
 extern void check_pending_interrupts();
+extern void raise_interrupt(int thread, int cause);
+extern void raise_software_interrupt(int thread);
+extern void clear_software_interrupt(int thread);
+extern void raise_timer_interrupt(int thread);
+extern void clear_timer_interrupt(int thread);
+extern void raise_external_machine_interrupt(int thread);
+extern void clear_external_machine_interrupt(int thread);
+extern void raise_external_supervisor_interrupt(int thread);
+extern void clear_external_supervisor_interrupt(int thread);
 
 // Illegal instruction encodings will execute this
 extern void unknown(const char* comm = 0);
@@ -130,16 +139,6 @@ extern void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint6
 std::queue<uint32_t> &get_minions_to_awake();
 
 // ----- Esperanto IPI extension ------------------------------------------------
-
-extern void raise_interrupt(int thread, int cause);
-extern void raise_software_interrupt(int thread);
-extern void clear_software_interrupt(int thread);
-
-extern void raise_timer_interrupt(int thread);
-extern void clear_timer_interrupt(int thread);
-
-extern void raise_external_interrupt(int thread);
-extern void clear_external_interrupt(int thread);
 
 // ----- Esperanto code prefetching extension -----------------------------------
 
