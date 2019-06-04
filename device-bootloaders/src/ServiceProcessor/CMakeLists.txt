@@ -35,5 +35,12 @@ include_directories(${FREERTOS_INC_DIRS})
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
 
 install(TARGETS ${TARGET_NAME}.elf
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/sp
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/ServiceProcessor
   COMPONENT service-processor)
+
+string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
+foreach(FILE ${OUTPUT_LIST})
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/ServiceProcessor
+    COMPONENT zebu)
+endforeach(FILE)
