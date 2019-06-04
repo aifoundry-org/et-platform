@@ -691,7 +691,14 @@ float32_t f32_sin2pi(float32_t a)
 
     if(f_appr) {
         if(get(fast_result, 50, 50) == 1) out_m = get(fast_result, 26, 49) + 1;
-        else if(get(fast_result, 50, 50) == 0) out_m = get(fast_result, 25, 48) + 1;
+        else if(get(fast_result, 50, 50) == 0) {
+            out_m = get(fast_result, 25, 48) + 1;
+            if(get(out_m, 24, 24)) {
+                // FIX ARCHSIM-379: unexpected output mantissa overflow
+                out_m = get(fast_result, 26, 49) + 1;
+                out_e = get(val, 23, 30) + 3;
+            }
+        }
     } else if (get(norm_result + (((uint64_t) 1 )<<34), 58, 58) == 1) out_m = get(norm_result, 34, 57) + 1;
     else if (get(norm_result, 58, 58) == 1) out_m = get(norm_result, 34, 57) + 1;
     ////printf("OUT_M: 0x%08x\n", out_m);
