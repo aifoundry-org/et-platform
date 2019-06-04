@@ -31,14 +31,11 @@ main_memory::main_memory()
     p = new main_memory_region_reserved(0xc800000000ull, 0x3800000000ull);
 
     // For all the shires and the local shire mask
-    for (int i = 0; i <= EMU_NUM_SHIRES; i++)
+    for (int shire = 0; shire <= EMU_NUM_SHIRES; shire++)
     {
-        // Need to add the ESR space for the Local Shire.
-        int shire = (i == EMU_NUM_SHIRES) ? 255 : ((i == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : i);
-
-        // NB: Here we assume that all banks have the same ESR value!
-        p = new main_memory_region_scp(this, L2_SCP_BASE + (shire & 0x7F) * L2_SCP_OFFSET, L2_SCP_SIZE,
-                                       (shire != 255) ? &shire_cache_esrs[shire] : nullptr, (shire != 255));
+        int shireid = (shire == EMU_NUM_SHIRES) ? 255 : ((shire == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : shire);
+        p = new main_memory_region_scp(this, L2_SCP_BASE + (shireid & 0x7F) * L2_SCP_OFFSET, L2_SCP_SIZE,
+                                       (shireid != 255) ? &shire_cache_esrs[shire] : nullptr, (shireid != 255));
         regions.push_front(region_pointer(p));
     }
 

@@ -13,7 +13,9 @@ void main_memory_region_scp::write(uint64_t addr, size_t n, const void* source)
     if ((addr & L2_SCP_SHIRE_MASK) == L2_SCP_SHIRE_MASK)
     {
         // Local shire, redirect to appropriate scratchpad region
-        uint64_t addr2 = (addr & ~L2_SCP_SHIRE_MASK) | ((current_thread / EMU_THREADS_PER_SHIRE) << L2_SCP_SHIRE_SHIFT);
+        uint64_t current_shire = current_thread / EMU_THREADS_PER_SHIRE;
+        uint64_t current_shireid = (current_shire == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : current_shire;
+        uint64_t addr2 = (addr & ~L2_SCP_SHIRE_MASK) | ((current_shireid << L2_SCP_SHIRE_SHIFT) & L2_SCP_SHIRE_MASK);
         auto scp = mem->find_region_containing(addr2);
         if (!scp)
             throw trap_bus_error(addr);
@@ -32,7 +34,9 @@ void main_memory_region_scp::read(uint64_t addr, size_t n, void* result)
     if ((addr & L2_SCP_SHIRE_MASK) == L2_SCP_SHIRE_MASK)
     {
         // Local shire, redirect to appropriate scratchpad region
-        uint64_t addr2 = (addr & ~L2_SCP_SHIRE_MASK) | ((current_thread / EMU_THREADS_PER_SHIRE) << L2_SCP_SHIRE_SHIFT);
+        uint64_t current_shire = current_thread / EMU_THREADS_PER_SHIRE;
+        uint64_t current_shireid = (current_shire == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : current_shire;
+        uint64_t addr2 = (addr & ~L2_SCP_SHIRE_MASK) | ((current_shireid << L2_SCP_SHIRE_SHIFT) & L2_SCP_SHIRE_MASK);
         auto scp = mem->find_region_containing(addr2);
         if (!scp)
             throw trap_bus_error(addr);
