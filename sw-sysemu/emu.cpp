@@ -132,10 +132,8 @@ std::array<std::array<uint64_t,6>,EMU_NUM_THREADS> csr_mhpmevent;
 // Esperanto CSR registers
 std::array<uint64_t,EMU_NUM_THREADS>    csr_minstmask;
 std::array<uint32_t,EMU_NUM_THREADS>    csr_minstmatch;
-std::array<uint8_t, EMU_NUM_THREADS+1>  csr_msleep_txfma_27; // 1b
-std::array<uint8_t, EMU_NUM_THREADS+1>  csr_menable_shadows; // 2b
-// TODO: std::array<uint8_t,EMU_NUM_THREADS+1> csr_excl_mode; // 1b
-std::array<uint8_t, EMU_NUM_THREADS+1>  csr_mtxfma_sleep_traps; // 5b
+std::array<uint8_t, EMU_NUM_THREADS+1>  csr_menable_shadows; // 1b
+std::array<uint8_t, EMU_NUM_THREADS+1>  csr_excl_mode; // 1b
 std::array<uint8_t, EMU_NUM_THREADS+1>  csr_mcache_control; // 2b
 std::array<uint64_t,EMU_NUM_THREADS>    csr_tensor_conv_size; // can we remove?
 std::array<uint64_t,EMU_NUM_THREADS>    csr_tensor_conv_ctrl; // can we remove?
@@ -240,7 +238,7 @@ system_version_t sysver = system_version_t::UNKNOWN;
 
 uint64_t current_pc = 0;
 uint32_t current_inst = 0;
-uint32_t current_thread = 0;
+unsigned current_thread = 0;
 uint32_t num_sets = 16;
 uint32_t num_ways = 4;
 
@@ -440,11 +438,16 @@ static inline void prvset(int val)
 }
 
 // internal accessor to tensor_error
+static inline void update_tensor_error(unsigned thread, uint16_t value)
+{
+    csr_tensor_error[thread] |= value;
+    if (value)
+        LOG_OTHER(DEBUG, thread, "\tTensorError = 0x%04" PRIx16 " (0x%04" PRIx16 ")", csr_tensor_error[thread], value);
+}
+
 static inline void update_tensor_error(uint16_t value)
 {
-    csr_tensor_error[current_thread] |= value;
-    if (value)
-        LOG(DEBUG, "\tTensorError = 0x%04" PRIx16 " (0x%04" PRIx16 ")", csr_tensor_error[current_thread], value);
+    update_tensor_error(current_thread, value);
 }
 
 static inline const char* get_rounding_mode(int mode)
@@ -478,7 +481,7 @@ void reset_hart(unsigned thread)
     csr_misa[thread] = CSR_ISA_MAX;
 
     // CSR registers with reset
-    // TODO: csr_excl_mode[thread] = 0;
+    csr_excl_mode[thread] = 0;
     csr_gsc_progress[thread] = 0;
     csr_mcache_control[thread] = 0;
     csr_mcause[thread] = 0;
@@ -486,9 +489,7 @@ void reset_hart(unsigned thread)
     csr_menable_shadows[thread] = 0;
     csr_minstmask[thread] = 0;
     csr_mip[thread] = 0;
-    csr_msleep_txfma_27[thread] = 0;
     csr_mstatus[thread] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
-    csr_mtxfma_sleep_traps[thread] = 0;
     csr_scounteren[thread] = 0;
     csr_ucache_control[thread] = 0x200;
 
@@ -538,8 +539,11 @@ static bool tmask_pass(int bit)
 void check_pending_interrupts()
 {
     // Are there any non-masked pending interrupts?
+    // NB: If csr_excl_mode != 0 this thread is either in exclusive mode or
+    // blocked, but either way it cannot receive interrupts
     uint64_t xip = csr_mip[current_thread] & csr_mie[current_thread];
-    if (!xip) return;
+    if (!xip || csr_excl_mode[current_thread])
+        return;
 
     LOG(DEBUG, "Check Pending Interrupt mtvec:0x%016" PRIx64 " mip:0x%08" PRIx32 " mie:0x%08" PRIx32,
         csr_mtvec[current_thread], csr_mip[current_thread], csr_mie[current_thread]);
@@ -717,7 +721,7 @@ void set_pc(uint64_t pc)
     current_pc = pc;
 }
 
-void set_thread(uint32_t thread)
+void set_thread(unsigned thread)
 {
     current_thread = thread;
 }
@@ -725,6 +729,12 @@ void set_thread(uint32_t thread)
 uint32_t get_thread()
 {
     return current_thread;
+}
+
+bool thread_is_blocked(unsigned thread)
+{
+    unsigned other_excl = 1 + ((~thread & 1) << 1);
+    return csr_excl_mode[thread] == other_excl;
 }
 
 uint32_t get_mask(unsigned maskNr)
@@ -796,12 +806,15 @@ static uint64_t csrget(uint16_t src1)
     switch (src1)
     {
     case CSR_FFLAGS:
+        require_fp_active();
         val = csr_fcsr[current_thread] & 0x8000001f;
         break;
     case CSR_FRM:
+        require_fp_active();
         val = (csr_fcsr[current_thread] >> 5) & 0x7;
         break;
     case CSR_FCSR:
+        require_fp_active();
         val = csr_fcsr[current_thread];
         break;
     case CSR_SSTATUS:
@@ -932,15 +945,11 @@ static uint64_t csrget(uint16_t src1)
     case CSR_CACHE_INVALIDATE:
         val = 0;
         break;
-    case CSR_MSLEEP_TXFMA_27:
-        val = csr_msleep_txfma_27[current_thread];
-        break;
     case CSR_MENABLE_SHADOWS:
         val = csr_menable_shadows[current_thread];
         break;
-    // TODO: CSR_EXCL_MODE
-    case CSR_MTXFMA_SLEEP_TRAPS:
-        val = csr_mtxfma_sleep_traps[current_thread];
+    case CSR_EXCL_MODE:
+        val = csr_excl_mode[current_thread] & 1;
         break;
     case CSR_MCACHE_CONTROL:
         val = csr_mcache_control[current_thread];
@@ -953,63 +962,67 @@ static uint64_t csrget(uint16_t src1)
         break;
     case CSR_TENSOR_REDUCE:
     case CSR_TENSOR_FMA:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         val = 0;
         break;
     case CSR_TENSOR_CONV_SIZE:
-        val = 0;
-        break;
     case CSR_TENSOR_CONV_CTRL:
+        require_feature_ml();
         val = 0;
         break;
     case CSR_TENSOR_COOP:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         val = 0;
         break;
     case CSR_TENSOR_MASK:
+        require_feature_ml();
         val = csr_tensor_mask[current_thread];
         break;
     case CSR_TENSOR_QUANT:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         val = 0;
         break;
     case CSR_TEX_SEND:
+        require_feature_gfx();
         val = 0;
         break;
     case CSR_TENSOR_ERROR:
+        require_feature_ml();
         val = csr_tensor_error[current_thread];
         break;
     case CSR_UCACHE_CONTROL:
+        require_feature_u_scratchpad();
         val = csr_ucache_control[current_thread];
         break;
     case CSR_PREFETCH_VA:
+        require_feature_u_cacheops();
+        val = 0;
+        break;
     case CSR_FLB:
     case CSR_FCC:
     case CSR_STALL:
     case CSR_TENSOR_WAIT:
+        require_feature_ml();
         val = 0;
         break;
     case CSR_TENSOR_LOAD:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         val = 0;
         break;
     case CSR_GSC_PROGRESS:
         val = csr_gsc_progress[current_thread];
         break;
     case CSR_TENSOR_LOAD_L2:
+        require_feature_ml();
         val = 0;
         break;
     case CSR_TENSOR_STORE:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         val = 0;
         break;
     case CSR_EVICT_VA:
     case CSR_FLUSH_VA:
+        require_feature_u_cacheops();
         val = 0;
         break;
     case CSR_VALIDATION0:
@@ -1024,15 +1037,9 @@ static uint64_t csrget(uint16_t src1)
     case CSR_VALIDATION3:
         val = csr_validation3[current_thread];
         break;
-    case CSR_SLEEP_TXFMA_27:
-        if (prvget() != CSR_PRV_M && (csr_menable_shadows[current_thread] & 2) == 0)
-        {
-            throw trap_illegal_instruction(current_inst);
-        }
-        val = csr_msleep_txfma_27[current_thread];
-        break;
     case CSR_LOCK_VA:
     case CSR_UNLOCK_VA:
+        require_lock_unlock_enabled();
         val = 0;
         break;
     case CSR_PORTCTRL0:
@@ -1042,6 +1049,7 @@ static uint64_t csrget(uint16_t src1)
         val = csr_portctrl[src1 - CSR_PORTCTRL0][current_thread];
         break;
     case CSR_FCCNB:
+        require_feature_ml();
         val = (uint64_t(fcc[current_thread][1]) << 16) + uint64_t(fcc[current_thread][0]);
         break;
     case CSR_PORTHEAD0:
@@ -1095,16 +1103,19 @@ static void csrset(uint16_t src1, uint64_t val)
     switch (src1)
     {
     case CSR_FFLAGS:
+        require_fp_active();
         val = (csr_fcsr[current_thread] & 0x000000E0) | (val & 0x8000001F);
         csr_fcsr[current_thread] = val;
         LOG(DEBUG, "Updating FFLAGS, new CSR is %08lx", val);
         break;
     case CSR_FRM:
+        require_fp_active();
         val = (csr_fcsr[current_thread] & 0x8000001F) | ((val & 0x7) << 5);
         csr_fcsr[current_thread] = val;
         LOG(DEBUG, "Updating FRM, new CSR is %08lx", val);
         break;
     case CSR_FCSR:
+        require_fp_active();
         val &= 0x800000FF;
         csr_fcsr[current_thread] = val;
         LOG(DEBUG, "Updating FCSR, new CSR is %08lx", val);
@@ -1277,21 +1288,23 @@ static void csrset(uint16_t src1, uint64_t val)
     // TODO: CSR_AMOFENCE_CTRL
     case CSR_CACHE_INVALIDATE:
         break;
-    case CSR_MSLEEP_TXFMA_27:
-        val &= 1;
-        csr_msleep_txfma_27[current_thread] = val;
-        csr_msleep_txfma_27[current_thread^1] = val;
-        break;
     case CSR_MENABLE_SHADOWS:
-        val &= 3;
+        val &= 1;
         csr_menable_shadows[current_thread] = val;
         csr_menable_shadows[current_thread^1] = val;
         break;
-    // TODO: CSR_EXCL_MODE:
-    case CSR_MTXFMA_SLEEP_TRAPS:
-        val &= 0x1f;
-        csr_mtxfma_sleep_traps[current_thread] = val;
-        csr_mtxfma_sleep_traps[current_thread^1] = val;
+    case CSR_EXCL_MODE:
+        val &= 1;
+        if (val)
+        {
+            csr_excl_mode[current_thread] = 1 + ((current_thread & 1) << 1);
+            csr_excl_mode[current_thread^1] = 1 + ((current_thread & 1) << 1);
+        }
+        else
+        {
+            csr_excl_mode[current_thread] = 0;
+            csr_excl_mode[current_thread^1] = 0;
+        }
         break;
     case CSR_MCACHE_CONTROL:
         msk = (csr_mcache_control[current_thread] & 1) ? 3 : 1;
@@ -1332,47 +1345,47 @@ static void csrset(uint16_t src1, uint64_t val)
         }
         break;
     case CSR_TENSOR_REDUCE:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         tensorreduce(val);
         break;
     case CSR_TENSOR_FMA:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         switch ((val >> 1) & 0x7)
         {
         case 0: tensor_fma32(val); break;
         case 1: tensor_fma16a32(val); break;
         case 3: tensor_ima8a32(val); break;
-        default: /* nothing */ break;
+        default: throw trap_illegal_instruction(current_inst); break;
         }
         break;
     case CSR_TENSOR_CONV_SIZE:
+        require_feature_ml();
         val &= 0xFF00FFFFFF00FFFFULL;
         csr_tensor_conv_size[current_thread] = val;
         tmask_conv();
         break;
     case CSR_TENSOR_CONV_CTRL:
+        require_feature_ml();
         val &= 0x0000FFFF0000FFFFULL;
         csr_tensor_conv_ctrl[current_thread] = val;
         tmask_conv();
         break;
     case CSR_TENSOR_COOP:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         val &= 0x0000000000FFFF0FULL;
         tcoop(val);
         break;
     case CSR_TENSOR_MASK:
+        require_feature_ml();
         val &= 0xffff;
         csr_tensor_mask[current_thread] = val;
         break;
     case CSR_TENSOR_QUANT:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         tensorquant(val);
         break;
     case CSR_TEX_SEND:
+        require_feature_gfx();
         //val &= 0xff;
         // Notify to TBOX that a Sample Request is ready
         // Thanks for making the code unreadable
@@ -1382,11 +1395,14 @@ static void csrset(uint16_t src1, uint64_t val)
                            read_port_base_address(current_thread, val & 0xf /* port id */));
         break;
     case CSR_TENSOR_ERROR:
+        require_feature_ml();
         val &= 0x1ff;
         csr_tensor_error[current_thread] = val;
         break;
     case CSR_UCACHE_CONTROL:
-        msk = (csr_mcache_control[current_thread] & 1) ? 1 : 3;
+        require_feature_u_scratchpad();
+        msk = (!(current_thread % EMU_THREADS_PER_MINION)
+               && (csr_mcache_control[current_thread] & 1)) ? 1 : 3;
         val = (csr_mcache_control[current_thread] & msk) | (val & ~msk & 0x07df);
         assert((val & 3) != 2);
         csr_ucache_control[current_thread] = val;
@@ -1395,6 +1411,7 @@ static void csrset(uint16_t src1, uint64_t val)
         csr_mcache_control[current_thread^1] = val & 3;
         break;
     case CSR_PREFETCH_VA:
+        require_feature_u_cacheops();
         {
             bool tm         = (val >> 63) & 0x1;
             int  dest       = (val >> 58) & 0x3;
@@ -1407,6 +1424,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     // FLB0
     case CSR_FCC:
+        require_feature_ml();
         fcc_cnt = val & 0x01;
 #ifdef SYS_EMU
         // If you are not going to block decrement it
@@ -1423,14 +1441,15 @@ static void csrset(uint16_t src1, uint64_t val)
 #endif 
         break;
     case CSR_STALL:
+        require_feature_ml();
         // FIXME: Do something here?
         break;
     case CSR_TENSOR_WAIT:
+        require_feature_ml();
         // FIXME: Do something here?
         break;
     case CSR_TENSOR_LOAD:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         try
         {
             tensorload(val);
@@ -1449,6 +1468,7 @@ static void csrset(uint16_t src1, uint64_t val)
         csr_gsc_progress[current_thread] = val;
         break;
     case CSR_TENSOR_LOAD_L2:
+        require_feature_ml();
         try
         {
             tensorloadl2(val);
@@ -1459,8 +1479,7 @@ static void csrset(uint16_t src1, uint64_t val)
         }
         break;
     case CSR_TENSOR_STORE:
-        if (current_thread % EMU_THREADS_PER_MINION)
-            throw trap_illegal_instruction(current_inst);
+        require_feature_ml_on_thread0();
         try
         {
             tensorstore(val);
@@ -1476,6 +1495,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_EVICT_VA:
     case CSR_FLUSH_VA:
+        require_feature_u_cacheops();
         {
             bool     tm     = (val >> 63) & 0x1;
             int      dest   = (val >> 58) & 0x3;
@@ -1515,16 +1535,8 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_VALIDATION3:
         csr_validation3[current_thread] = val;
         break;
-    case CSR_SLEEP_TXFMA_27:
-        if (prvget() != CSR_PRV_M && (csr_menable_shadows[current_thread] & 2) == 0)
-        {
-            throw trap_illegal_instruction(current_inst);
-        }
-        val &= 1;
-        csr_msleep_txfma_27[current_thread] = val;
-        csr_msleep_txfma_27[current_thread^1] = val;
-        break;
     case CSR_LOCK_VA:
+        require_lock_unlock_enabled();
         {
             bool     tm     = (val >> 63) & 0x1;
             uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
@@ -1535,6 +1547,7 @@ static void csrset(uint16_t src1, uint64_t val)
         }
         break;
     case CSR_UNLOCK_VA:
+        require_lock_unlock_enabled();
         val &= 0xC000FFFFFFFFFFCFULL;
         {
             bool     tm     = (val >> 63) & 0x1;
@@ -1609,6 +1622,7 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
         {
             // Fast local barrier instructions encoded in the CSR space
             case CSR_FLB:
+                require_feature_ml();
                 oldval = flbarrier(newval);
                 break;
             default:
@@ -2313,45 +2327,6 @@ static void configure_port(uint32_t id, uint64_t wdata)
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static bool txfma_off_allowed(uint16_t src1, uint64_t val)
-{
-    // if txfma is not sleep, allow
-    if (csr_msleep_txfma_27[current_thread] == 0)
-        return true;
-
-    // and for each CSR, allow if corresponding bit in txfma_sleep_traps is 0
-    // and do not allow if using the txfma
-    uint32_t trap_conf = csr_mtxfma_sleep_traps[current_thread];
-    switch (src1)
-    {
-        case CSR_TENSOR_FMA:
-            if (((trap_conf >> 4) & 1) == 0) return true;
-            return ((val & 0xE) == 6); // only allow for int8
-
-        case CSR_TENSOR_QUANT:
-            if ((( trap_conf >> 3) & 1) == 0) return true; //trap disabled
-            return false;
-
-        case CSR_TENSOR_REDUCE:
-            if (((trap_conf >> 2) & 1) == 0) return true;
-            // allow for int, do not allow for fp
-            switch ((val >> 24) & 0xF)
-            {
-                case 0:  // fadd
-                case 1:  // fsub
-                case 2:  // fmax
-                case 3:  // fmin
-                case 8:  // fget
-                    return false;
-                default:
-                    return true;
-            }
-
-        default:
-            return true;
-    }
-}
-
 // ----- TensorConvolution emulation -------------------------------------------
 
 // Update to the tensor Mask due a convolution CSR write
@@ -2361,15 +2336,15 @@ static void tmask_conv()
 
     // Get the sizes of the convolution
     uint64_t tconvsizereg = csr_tensor_conv_size[current_thread];
-    int16_t srow = (tconvsizereg >> 56) & 0xFF;
-    int16_t nrow = (tconvsizereg >> 32) & 0xFFFF;
-    int16_t scol = (tconvsizereg >> 24) & 0xFF;
-    int16_t ncol = (tconvsizereg >>  0) & 0xFFFFU;
+    int srow =   int8_t((tconvsizereg >> 56) & 0xFF);
+    int nrow = uint16_t((tconvsizereg >> 32) & 0xFFFF);
+    int scol =   int8_t((tconvsizereg >> 24) & 0xFF);
+    int ncol = uint16_t((tconvsizereg >>  0) & 0xFFFF);
 
     // Get the positions of the convolution
     uint64_t tconvctrlreg = csr_tensor_conv_ctrl[current_thread];
-    int16_t  rowstart = (tconvctrlreg >> 32) & 0xFFFF;
-    int16_t  colstart = (tconvctrlreg >>  0) & 0xFFFF;
+    int rowstart = int16_t((tconvctrlreg >> 32) & 0xFFFF);
+    int colstart = int16_t((tconvctrlreg >>  0) & 0xFFFF);
 
     for (int i = 0; i < 16; ++i, rowstart += srow, colstart += scol)
     {
@@ -2417,13 +2392,10 @@ void tensorload(uint64_t control)
     uint64_t addr             = sext<48>(base);
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
 
-    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        throw trap_illegal_instruction(current_inst);
-
     // Cooperative tensor loads require the shire to be in cooperative mode
     if (use_coop)
     {
+        uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
         if (!esr_shire_coop_mode[shire])
             throw trap_illegal_instruction(current_inst);
     }
@@ -2455,7 +2427,7 @@ void tensorload(uint64_t control)
         tensorload_setupb_numlines[current_thread^1] = rows;
     }
 
-    log_tensor_load(trans, adj + (dst % L1_SCP_ENTRIES) , rows, tm ? csr_tensor_mask[current_thread] : 0xFFFF);
+    log_tensor_load(trans, tenb, adj + (dst % L1_SCP_ENTRIES) , rows, tm ? csr_tensor_mask[current_thread] : 0xFFFF);
 
     //NO TRANS
     if (trans == 0x00)
@@ -2622,9 +2594,6 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
     LOG(DEBUG, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%16" PRIx64, rows, tm,  dst,  addr);
 
     uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        throw trap_illegal_instruction(current_inst);
-
     for (int i = 0; i < rows; ++i)
     {
         uint64_t l2scp_addr = L2_SCP_BASE + shire * L2_SCP_OFFSET + ((dst + i) * L1D_LINE_SIZE);
@@ -2672,13 +2641,6 @@ static const char* get_quant_transform(int op)
 
 static void tensorquant(uint64_t value)
 {
-    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        throw trap_illegal_instruction(current_inst);
-
-    if (!txfma_off_allowed(CSR_TENSOR_QUANT, value))
-        throw trap_txfma_off(current_inst);
-
     unsigned fstart = (value >> 57) & 0x1F;
     unsigned cols   = (value >> 55) & 0x3;
     unsigned rows   = (value >> 51) & 0xF;
@@ -2955,10 +2917,6 @@ static void tensorquant(uint64_t value)
 
 static void tensorstore(uint64_t tstorereg)
 {
-    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        throw trap_illegal_instruction(current_inst);
-
     uint64_t tstore_scp = (tstorereg >> 48) & 0x1;
 
     if (tstore_scp)
@@ -3031,6 +2989,7 @@ static void tensorstore(uint64_t tstorereg)
         // Cooperative tensor stores require the shire to be in cooperative mode
         if (coop > 1)
         {
+            uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
             if (!esr_shire_coop_mode[shire])
                 throw trap_illegal_instruction(current_inst);
         }
@@ -3066,13 +3025,6 @@ static void tensorstore(uint64_t tstorereg)
 
 static void tensor_fma32(uint64_t tfmareg)
 {
-    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        throw trap_illegal_instruction(current_inst);
-
-    if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
-        throw trap_txfma_off(current_inst);
-
     bool usemsk     = (tfmareg >> 63) & 0x1;
     int  bcols      = (tfmareg >> 55) & 0x3;
     int  arows      = (tfmareg >> 51) & 0xF;
@@ -3189,13 +3141,6 @@ static void tensor_fma32(uint64_t tfmareg)
 
 static void tensor_fma16a32(uint64_t tfmareg)
 {
-    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        throw trap_illegal_instruction(current_inst);
-
-    if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
-        throw trap_txfma_off(current_inst);
-
     bool usemsk     = (tfmareg >> 63) & 0x1;
     int  bcols      = (tfmareg >> 55) & 0x3;
     int  arows      = (tfmareg >> 51) & 0xF;
@@ -3316,13 +3261,6 @@ static void tensor_fma16a32(uint64_t tfmareg)
 
 static void tensor_ima8a32(uint64_t tfmareg)
 {
-    uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        throw trap_illegal_instruction(current_inst);
-
-    if (!txfma_off_allowed(CSR_TENSOR_FMA, tfmareg))
-        throw trap_txfma_off(current_inst);
-
     bool usemsk     = (tfmareg >> 63) & 0x1;
     int  bcols      = (tfmareg >> 55) & 0x3;
     int  arows      = (tfmareg >> 51) & 0xF;
@@ -3733,13 +3671,6 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
     uint64_t level = (value >> 3) & 0xF;
     uint64_t type  = value & 3;
 
-    uint64_t shire = minion_id / EMU_MINIONS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        throw trap_illegal_instruction(current_inst);
-
-    if (!txfma_off_allowed(CSR_TENSOR_REDUCE, value))
-        throw trap_txfma_off(current_inst);
-
     // SENDER
     if (type == 0)
     {
@@ -3861,14 +3792,11 @@ static uint64_t flbarrier(uint64_t value)
     uint64_t orig_value = pmemread64(addr);
     uint64_t result = -1;
 
-    // LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
-    //     (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit);
     LOG(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
          (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit);
     // Last guy, return 1 and zero barrier
     if (orig_value == limit)
     {
-        //LOG_ALL_MINIONS(DEBUG,"FastLocalBarrier: last minion Shire %i!!", (int) shire);
         LOG(DEBUG,"FastLocalBarrier: last minion Shire %i!!", (int) shire);
 
         pmemwrite64(addr, 0);
@@ -3877,7 +3805,6 @@ static uint64_t flbarrier(uint64_t value)
     // Not the last guy, return 0 and increment barrier
     else
     {
-        //LOG_ALL_MINIONS(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!", limit, orig_value + 1);
         LOG(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!", limit, orig_value + 1);
         pmemwrite64(addr, orig_value + 1);
         result = 0;
@@ -3927,7 +3854,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 
             //check for overflow
             if (fcc[fcc_addr][fcc_id] == 0x000) {
-                update_tensor_error(1 << 3);
+                update_tensor_error(fcc_addr, 1 << 3);
                 fcc[fcc_addr][fcc_id] = 0;
             }
         }

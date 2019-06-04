@@ -87,6 +87,11 @@
 #define L2_SCP_LINEAR_BASE 0xC0000000ULL
 #define L2_SCP_LINEAR_SIZE 0x40000000ULL
 
+// IO region
+#define IO_REGION_BASE     0x0000000000ULL
+#define IO_REGION_SIZE     0x0040000000ULL
+#define IO_R_PU_TIMER_BASE 0x0012005000ULL
+#define IO_R_PU_TIMER_SIZE 0x0000001000ULL
 
 // System version
 enum class system_version_t {

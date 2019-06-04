@@ -8,7 +8,6 @@
 
 #include "trcp.h"
 #include "trsqrt.h"
-#include "tlog.h"
 #include "texp.h"
 #include "tsin.h"
 
@@ -198,127 +197,6 @@ float32_t f32_rsqrt(float32_t a)
 }
 
 
-float32_t f32_log2(float32_t a)
-{
-    ui32_f32 uZ;
-    uint32_t val = fpu::UI32(a);
-#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
-    if (isSubnormalF32UI(val)) {
-        softfloat_raiseFlags(softfloat_flag_denormal);
-        val = softfloat_zeroExpSigF32UI(val);
-    }
-#endif
-
-    switch (val) {
-    case minusZeroF32UI: uZ.ui = minusInfinityF32UI; return uZ.f;
-    case zeroF32UI     : uZ.ui = minusInfinityF32UI; return uZ.f;
-    case oneF32UI      : uZ.ui = zeroF32UI; return uZ.f;
-    case infinityF32UI : uZ.ui = infinityF32UI; return uZ.f;
-    default: break;
-    }
-    if (isNaNF32UI(val)) {
-        if (softfloat_isSigNaNF32UI(val))
-            softfloat_raiseFlags(softfloat_flag_invalid);
-        uZ.ui = defaultNaNF32UI;
-        return uZ.f;
-    }
-    if (val & 0x80000000) {
-        softfloat_raiseFlags(softfloat_flag_invalid);
-        uZ.ui = defaultNaNF32UI;
-        return uZ.f;
-    }
-
-    uint32_t x2 = (val % (1 << (23-6)));
-    uint32_t x = (val % (1 << 23));
-    uint32_t idx = ((~(val >> (23 - 1)) % 2) << 5)+ ((val >> (23-6)) % (1 << 5));
-    uint32_t exp = ((val >> 23) % (1 << 8));
-    bool sign = val >> 31;
-    bool sign_exp = exp >= 127;
-    bool high =((val >> (23-1)) %2) != 0;
-    bool or_mantissa = (val % (1 << 23)) != 0;
-
-    ////printf("Sign: %d\n", sign);
-    ////printf("High: %d\n", high);
-    ////printf("Exp: 0x%08x\tSign: %d\n", exp, sign_exp);
-    ////printf("IDX: 0x%08x\n", idx);
-
-    uint64_t c2 = tlog[idx][0];
-    uint64_t c1 = ((uint64_t)tlog[idx][1] * (1 << 18));
-    uint64_t c0 = ( ((uint64_t)tlog[idx][2]) << 31);
-    //printf("C2: 0x%016lx\tC1: 0x%016lx\tC0: 0x%016lx\n", c2, c1, c0);
-
-    uint64_t fma1 = - c2*x2 + c1;
-    //printf("FMA1: 0x%016lx\n", fma1);
-
-    uint64_t signed_mul = fma1*x2;
-    //printf("SIGNED_MUL: 0x%016lx\n", signed_mul);
-
-    uint64_t fma2 = -signed_mul + c0;
-    //printf("FMA2: 0x%016lx\n", fma2);
-
-    uint64_t pre_result = 0;
-
-    if(or_mantissa) {
-        pre_result = (fma2 + ((uint64_t)1<<31));
-    }
-    //printf("PRE_RESULT: 0x%016lx\n", pre_result);
-
-    uint32_t x_minus_1 = (((~x) %(1<<23)) + 1 )%(1<<23);
-
-    if(!high){
-        x_minus_1 = (val % (1 << 23))<< 1;
-    }
-    //printf("X_MINUS_1: 0x%016lx\n", x_minus_1);
-
-    uint64_t mult_result = ((((uint64_t)1)<< 25) + (pre_result >> 32))* x_minus_1;
-    //printf("MULT_RESULT: 0x%016lx\n", mult_result);
-
-    uint64_t sign_result = ~mult_result+1;
-
-    if((sign_exp) ^ (high)) sign_result = mult_result;
-    //printf("SIGN_RESULT: 0x%016lx\n", sign_result);
-
-    int i = 47;
-
-    while(sign_result >> i == 0 && i > 23) --i;
-    i++;
-
-    uint64_t round_result = sign_result + (1 << (i - 24));
-    //printf("ROUND_RESULT: %d, 0x%016lx\n", i, round_result);
-
-    uint64_t exponent = (~exp - or_mantissa) % (1 << 7);
-
-    if(sign_exp) exponent = (exp+1) % (1 << 7);
-    //printf("EXPONENT: 0x%016lx\n", exponent);
-
-    uint64_t merged_result = (exponent << 49) + (round_result % ((uint64_t)1<<49));
-
-    i = 64;
-    //printf("0x%016lx\n", (merged_result >> i));
-    while((merged_result >> i) == 0 && i > 22) --i;
-
-    uint32_t top_exp = 142 - (64 - i);
-    //printf("TOP_EXP: %d, %08x\n", i, top_exp);
-
-    uZ.ui = (merged_result >> (i - 23)) % ((uint64_t) 1 << 23);
-    //printf("FULL_RESULT: %d, %08x\n", i, uZ.ui);
-
-    uZ.ui = uZ.ui + (top_exp << 23) + ((~(sign_exp ? 1 : 0)) << 31);
-
-    if(sign)
-        uZ.ui = (0x1ff << 22);
-
-#ifdef SOFTFLOAT_DENORMALS_TO_ZERO
-    if (isSubnormalF32UI(uZ.ui)) {
-        softfloat_raiseFlags(
-            softfloat_flag_underflow | softfloat_flag_inexact);
-        uZ.ui = softfloat_zeroExpSigF32UI(uZ.ui);
-    }
-#endif
-    return uZ.f;
-}
-
-
 float32_t f32_exp2(float32_t a)
 {
     ui32_f32 uZ;
@@ -342,14 +220,12 @@ float32_t f32_exp2(float32_t a)
 
     // val < -126.0
     if (val > 0xc2fc0000) {
-        softfloat_raiseFlags(softfloat_flag_underflow);
         uZ.ui = 0;
         return uZ.f;
     }
 
     // val >= 128.0
     if (val >= 0x43000000 && val < 0x80000000) {
-        softfloat_raiseFlags(softfloat_flag_overflow);
         uZ.ui = infinityF32UI;
         return uZ.f;
     }

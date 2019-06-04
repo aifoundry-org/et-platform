@@ -46,6 +46,9 @@ float32_t f32_sin2pi(float32_t a)
     case infinityF32UI:
         a.v = defaultNaNF32UI;
         return a;
+    case 0:
+    case 0x80000000:
+        return a;
     }
 
     double dummy;

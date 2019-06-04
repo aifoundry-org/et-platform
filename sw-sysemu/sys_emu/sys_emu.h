@@ -4,6 +4,7 @@
 #include "api_communicate.h"
 #include "emu_defines.h"
 #include "net_emulator.h"
+#include "rvtimer.h"
 
 #include <cstdint>
 #include <list>
@@ -81,11 +82,14 @@ public:
                                uint64_t thread_mask, unsigned cnt_dest);
     static void msg_to_thread(int thread_id);
     static void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
+    static void raise_timer_interrupt();
+    static void clear_timer_interrupt();
     static void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask);
     static void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask);
     int main_internal(int argc, char * argv[]);
 
-    static uint64_t get_emu_cycle() { return emu_cycle; }
+    static uint64_t get_emu_cycle()  { return emu_cycle; }
+    static RVTimer& get_pu_rvtimer() { return pu_rvtimer; }
 
 protected:
 
@@ -105,11 +109,12 @@ private:
     static std::list<int>  enabled_threads; // List of enabled threads
     static std::list<int>  fcc_wait_threads[2]; // List of threads waiting for an FCC
     static std::list<int>  port_wait_threads; // List of threads waiting for a port write
-    static uint32_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
+    static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
     static uint64_t        current_pc[EMU_NUM_THREADS]; // PC for each thread
     static reduce_state    reduce_state_array[EMU_NUM_MINIONS]; // Reduce state
     static uint32_t        reduce_pair_array[EMU_NUM_MINIONS]; // Reduce pairing minion
     static int             global_log_min;
+    static RVTimer         pu_rvtimer;
 
     net_emulator net_emu;
     std::unique_ptr<api_communicate> api_listener;

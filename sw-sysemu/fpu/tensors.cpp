@@ -332,15 +332,16 @@ static float32_t f32_add3( uint_fast32_t uiA, uint_fast32_t uiB, uint_fast32_t u
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
     if ( expA == 0xFF ) {
-        if ( sigA ) goto propagateNaN;
         if ( expB == 0xFF ) {
-            if ( sigB ) goto propagateNaN;
-            if ( signA ^ signB ) goto generateNaN;
+            if ( !sigA && !sigB && (signA ^ signB) ) goto generateNaN;
             if ( expC == 0xFF ) {
+                if ( !sigA && !sigC && (signA ^ signC) ) goto generateNaN;
+                if ( !sigB && !sigC && (signB ^ signC) ) goto generateNaN;
                 if ( sigC ) goto propagateNaN;
-                if ( signA ^ signC ) goto generateNaN;
             }
+            if ( sigB ) goto propagateNaN;
         }
+        if ( sigA ) goto propagateNaN;
         uiZ = packToF32UI( signA, 0xFF, 0 );
         goto uiZ;
     }
@@ -470,8 +471,6 @@ float32_t f1632_mulAdd2(
     uint_fast16_t uiB2;
     uint_fast32_t uiP1;
     uint_fast32_t uiP2;
-    union ui32_f32 uZ;
-    uint_fast32_t uiZ;
 
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
@@ -503,11 +502,6 @@ float32_t f1632_mulAdd2(
 #endif
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
-    if ( isNaNF16UI( uiA1 ) || isNaNF16UI( uiB1 ) ||
-         isNaNF16UI( uiA2 ) || isNaNF16UI( uiB2 ) )
-        goto propagateNaN;
-    /*------------------------------------------------------------------------
-    *------------------------------------------------------------------------*/
 #ifdef FPU_DEBUG
     std::cout << "\n----- p1 = a1 * b1 --------------------------------------------------------\n";
 #endif
@@ -520,23 +514,6 @@ float32_t f1632_mulAdd2(
     std::cout << "\n----- z = p1 + p2 ---------------------------------------------------------\n";
 #endif
     return f32_add2( uiP1, uiP2 );
-    /*------------------------------------------------------------------------
-    *------------------------------------------------------------------------*/
-propagateNaN:
-    if ( softfloat_isSigNaNF16UI( uiA1 ) || softfloat_isSigNaNF16UI( uiA2 ) ||
-         softfloat_isSigNaNF16UI( uiB1 ) || softfloat_isSigNaNF16UI( uiB2 ) )
-        softfloat_raiseFlags( softfloat_flag_invalid );
-    uiZ = defaultNaNF32UI;
-    uZ.ui = uiZ;
-#ifdef FPU_DEBUG
-    std::cout << "\n----- z = a1 * b1 + a2 * b2 -----------------------------------------------\n";
-    std::cout << "a1: " << a1 << '\n';
-    std::cout << "b1: " << b1 << '\n';
-    std::cout << "a2: " << a2 << '\n';
-    std::cout << "b2: " << b2 << '\n';
-    std::cout << "z_rslt: " << uZ.f << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
-#endif
-    return uZ.f;
 }
 
 
@@ -555,8 +532,6 @@ float32_t f1632_mulAdd3(
     uint_fast32_t uiC;
     uint_fast32_t uiP1;
     uint_fast32_t uiP2;
-    union ui32_f32 uZ;
-    uint_fast32_t uiZ;
 
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
@@ -594,11 +569,6 @@ float32_t f1632_mulAdd3(
 #endif
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
-    if ( isNaNF16UI( uiA1 ) || isNaNF16UI( uiB1 ) ||
-         isNaNF16UI( uiA2 ) || isNaNF16UI( uiB2 ) || isNaNF32UI( uiC ) )
-        goto propagateNaN;
-    /*------------------------------------------------------------------------
-    *------------------------------------------------------------------------*/
 #ifdef FPU_DEBUG
     std::cout << "\n----- p1 = a1 * b1 --------------------------------------------------------\n";
 #endif
@@ -611,24 +581,4 @@ float32_t f1632_mulAdd3(
     std::cout << "\n----- z = p1 + p2 + c -----------------------------------------------------\n";
 #endif
     return f32_add3( uiP1, uiP2, uiC );
-    /*------------------------------------------------------------------------
-    *------------------------------------------------------------------------*/
-propagateNaN:
-    if ( softfloat_isSigNaNF16UI( uiA1 ) || softfloat_isSigNaNF16UI( uiA2 ) ||
-         softfloat_isSigNaNF16UI( uiB1 ) || softfloat_isSigNaNF16UI( uiB2 ) ||
-         softfloat_isSigNaNF32UI( uiC ) )
-        softfloat_raiseFlags( softfloat_flag_invalid );
-    uiZ = defaultNaNF32UI;
-    uZ.ui = uiZ;
-#ifdef FPU_DEBUG
-    std::cout << "\n----- z = a1 * b1 + a2 * b2 + c -------------------------------------------\n";
-    std::cout << "a1: " << a1 << '\n';
-    std::cout << "b1: " << b1 << '\n';
-    std::cout << "a2: " << a2 << '\n';
-    std::cout << "b2: " << b2 << '\n';
-    std::cout << "c : " << c << '\n';
-    std::cout << "z_rslt: " << uZ.f << " [flags: " << SOFTFLOAT_FLAGS << "]\n";
-#endif
-    return uZ.f;
 }
-

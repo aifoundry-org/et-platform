@@ -3,7 +3,7 @@ include ../softfloat/softfloat.mk
 
 libfpu_OBJDIR ?= build
 
-libfpu_SRCS := $(fpu_cpp_srcs) $(softfloat_c_srcs)
+libfpu_SRCS := $(fpu_cpp_srcs) $(fpu_c_srcs) $(softfloat_c_srcs)
 libfpu_OBJS := $(patsubst %,$(libfpu_OBJDIR)/obj/%.o,$(basename $(libfpu_SRCS)))
 libfpu_DEPS := $(libfpu_OBJS:.o=.d)
 
