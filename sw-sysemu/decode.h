@@ -224,6 +224,7 @@
 #define WRITE_MREG(n, expr) do { \
     mregs[current_thread][n] = (expr); \
     LOG_MREG("=", n); \
+    dirty_fp_state(); \
     log_mreg_write(n, mregs[current_thread][n]); \
 } while (0)
 
@@ -380,6 +381,7 @@
             } \
         } \
         LOG_MREG("=", inst.md()); \
+        dirty_fp_state(); \
     } \
     log_mreg_write(inst.md(), MD); \
 } while (0)
