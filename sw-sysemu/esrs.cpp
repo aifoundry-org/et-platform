@@ -60,7 +60,6 @@ void shire_other_esrs_t::reset(unsigned shire)
     for (int i = 0; i < 32; ++i) {
         fast_local_barrier[i] = 0;
     }
-    mtime_local_target = 0;
     ipi_redirect_filter = ESR_FILTER_IPI_RESET_VAL;
     ipi_trigger = 0;
     shire_cache_ram_cfg1 = ESR_SHIRE_CACHE_RAM_CFG1_RESET_VAL;
@@ -68,9 +67,14 @@ void shire_other_esrs_t::reset(unsigned shire)
     shire_cache_ram_cfg4 = ESR_SHIRE_CACHE_RAM_CFG4_RESET_VAL;
     shire_cache_ram_cfg2 = ESR_SHIRE_CACHE_RAM_CFG2_RESET_VAL;
     shire_config = ESR_SHIRE_CONFIG_CONST_RESET_VAL | shire;
+    thread0_disable = 0xffffffff;
+    thread1_disable = 0xffffffff;
+    mtime_local_target = 0;
+    shire_pll_auto_config = 0;
     if (shire == IO_SHIRE_ID || shire == EMU_IO_SHIRE_SP) {
         minion_feature = 0x3b;
     } else {
         minion_feature = 0;
     }
+    shire_ctrl_clockmux = 0;
 }

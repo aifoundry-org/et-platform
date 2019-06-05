@@ -373,6 +373,10 @@ void main_memory_region_esr::write(uint64_t addr, size_t n, const void* source)
                 value &= 0x3ffffff;
                 shire_other_esrs[idx].shire_config = uint32_t(value);
                 break;
+            case ESR_THREAD1_DISABLE:
+                value &= 0xffffffff;
+                shire_other_esrs[idx].thread1_disable = uint32_t(value);
+                break;
             case ESR_IPI_REDIRECT_TRIGGER:
                 LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI_REDIRECT");
                 sys_emu::send_ipi_redirect_to_threads(shire, value);
@@ -445,8 +449,28 @@ void main_memory_region_esr::write(uint64_t addr, size_t n, const void* source)
             case ESR_MTIME_LOCAL_TARGET:
                 shire_other_esrs[idx].mtime_local_target = value;
                 break;
+            case ESR_THREAD0_DISABLE:
+                value &= 0xffffffff;
+                shire_other_esrs[idx].thread0_disable = uint32_t(value);
+                break;
+            case ESR_SHIRE_PLL_AUTO_CONFIG:
+                value &= 0x1ffff;
+                shire_other_esrs[idx].shire_pll_auto_config = uint32_t(value);
+                break;
+            case ESR_SHIRE_PLL_CONFIG_DATA_0:
+            case ESR_SHIRE_PLL_CONFIG_DATA_1:
+            case ESR_SHIRE_PLL_CONFIG_DATA_2:
+            case ESR_SHIRE_PLL_CONFIG_DATA_3:
+            case ESR_SHIRE_PLL_CONFIG_DATA_4:
+            case ESR_SHIRE_PLL_CONFIG_DATA_5:
+                shire_other_esrs[idx].shire_pll_config_data[(esr_addr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3] = value;
+                break;
             case ESR_SHIRE_COOP_MODE:
                 write_shire_coop_mode(shire, value);
+                break;
+            case ESR_SHIRE_CTRL_CLOCKMUX:
+                value &= 0x4f;
+                shire_other_esrs[idx].shire_ctrl_clockmux = value;
                 break;
             case ESR_SHIRE_CACHE_RAM_CFG1:
                 value &= 0xfffffffffull;
@@ -714,6 +738,9 @@ void main_memory_region_esr::read(uint64_t addr, size_t n, void* result)
             case ESR_SHIRE_CONFIG:
                 *ptr = shire_other_esrs[idx].shire_config;
                 break;
+            case ESR_THREAD1_DISABLE:
+                *ptr = shire_other_esrs[idx].thread1_disable;
+                break;
             case ESR_IPI_REDIRECT_TRIGGER:
                 *ptr = 0;
                 break;
@@ -767,8 +794,25 @@ void main_memory_region_esr::read(uint64_t addr, size_t n, void* result)
             case ESR_MTIME_LOCAL_TARGET:
                 *ptr = shire_other_esrs[idx].mtime_local_target;
                 break;
+            case ESR_THREAD0_DISABLE:
+                *ptr = shire_other_esrs[idx].thread0_disable;
+                break;
+            case ESR_SHIRE_PLL_AUTO_CONFIG:
+                *ptr = shire_other_esrs[idx].shire_pll_auto_config;
+                break;
+            case ESR_SHIRE_PLL_CONFIG_DATA_0:
+            case ESR_SHIRE_PLL_CONFIG_DATA_1:
+            case ESR_SHIRE_PLL_CONFIG_DATA_2:
+            case ESR_SHIRE_PLL_CONFIG_DATA_3:
+            case ESR_SHIRE_PLL_CONFIG_DATA_4:
+            case ESR_SHIRE_PLL_CONFIG_DATA_5:
+                *ptr = shire_other_esrs[idx].shire_pll_config_data[(esr_addr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3];
+                break;
             case ESR_SHIRE_COOP_MODE:
                 *ptr = read_shire_coop_mode(shire);
+                break;
+            case ESR_SHIRE_CTRL_CLOCKMUX:
+                *ptr = shire_other_esrs[idx].shire_ctrl_clockmux;
                 break;
             case ESR_SHIRE_CACHE_RAM_CFG1:
                 *ptr = shire_other_esrs[idx].shire_cache_ram_cfg1;
