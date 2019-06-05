@@ -14,7 +14,9 @@
 
 #include "printx.h"
 #include "bl1_spi_controller.h"
-#include "synopsys_spi.h"
+#include "etsoc_hal/DW_apb_ssi.h"
+#include "spio_DW_apb_ssi_config.h"
+#include "hal_device.h"
 
 #pragma GCC push_options
 //#pragma GCC optimize ("O3")
@@ -30,85 +32,82 @@
 #endif
 
 #if 1
-#define SCPOL_VALUE SPI_CTRLR0_SCPOL_SCLK_LOW
+#define SCPOL_VALUE SSI_CTRLR0_SCPOL_SCPOL_SCLK_LOW
 #else
-#define SCPOL_VALUE SPI_CTRLR0_SCPOL_SCLK_HIGH
+#define SCPOL_VALUE SSI_CTRLR0_SCPOL_SCPOL_SCLK_HIGH
 #endif
 
 #if 1
-#define SCPH_VALUE SPI_CTRLR0_SCPH_MIDDLE
+#define SCPH_VALUE SSI_CTRLR0_SCPH_SCPH_SCPH_MIDDLE
 #else
-#define SCPH_VALUE SPI_CTRLR0_SCPH_START
+#define SCPH_VALUE SSI_CTRLR0_SCPH_SCPH_SCPH_START
 #endif
-
-#define SPIO_SPI0_BASE_ADDR                 0x52021000
-#define SPIO_SPI1_BASE_ADDR                 0x54051000
 
 #define SLAVE_MASK ((1u << SPI_SSI_NUM_SLAVES) - 1)
 #define TX_TIMEOUT 0x1000
 #define RX_TIMEOUT 0x1000
 
-static volatile SPI_t * get_spi_registers(SPI_CONTROLLER_ID_t id) {
+static volatile Ssi_t * get_spi_registers(SPI_CONTROLLER_ID_t id) {
     switch (id) {
     case SPI_CONTROLLER_ID_SPI_0:
-        return (volatile SPI_t *)SPIO_SPI0_BASE_ADDR;
+        return (volatile Ssi_t *)R_SP_SPI0_BASEADDR;
     case SPI_CONTROLLER_ID_SPI_1:
-        return (volatile SPI_t *)SPIO_SPI1_BASE_ADDR;
+        return (volatile Ssi_t *)R_SP_SPI1_BASEADDR;
     default:
         return NULL;
     }
 }
 
 int spi_controller_init(SPI_CONTROLLER_ID_t id) {
-    volatile SPI_t * spi_regs = get_spi_registers(id);
+    volatile Ssi_t * spi_regs = get_spi_registers(id);
     if (NULL == spi_regs) {
         return -1;
     }
 
     // printx("SSI_VERSION_ID: 0x%08x\n", spi_regs->SSI_VERSION_ID);
 
-    spi_regs->SSIENR.R = (SPI_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
+    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
 
-    spi_regs->CTRLR0.R = (SPI_CTRLR0_t){ .B = { .DFS = SPI_CTRLR0_FRAME_08BITS,
-                                              .FRF = SPI_CTRLR0_FRF_MOTOROLA_SPI,
+    spi_regs->CTRLR0.R = (Ssi_CTRLR0_t){ .B = { .DFS = SSI_CTRLR0_DFS_DFS_FRAME_08BITS,
+                                              .FRF = SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI,
                                               .SCPH = SCPH_VALUE,
                                               .SCPOL = SCPOL_VALUE,
-                                              .TMOD = SPI_CTRLR0_TMOD_TX_AND_RX,
-                                              .SRL = SPI_CTRLR0_SRL_NORMAL_MODE,
-                                              .DFS_32 = SPI_CTRLR0_FRAME_08BITS,
-                                              .SPI_FRF = SPI_CGTRLR0_SPI_PERF_STD,
+                                              .TMOD = SSI_CTRLR0_TMOD_TMOD_TX_AND_RX,
+                                              .SRL = SSI_CTRLR0_SRL_SRL_NORMAL_MODE,
+                                              .DFS_32 = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS,
+                                              .SPI_FRF = SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF,
                                               .SSTE = 0 }}.R;
 
-    spi_regs->CTRLR1.R = (SPI_CTRLR1_t){ .B = { .NDF = 0 }}.R;
+    spi_regs->CTRLR1.R = (Ssi_CTRLR1_t){ .B = { .NDF = 0 }}.R;
 
-    spi_regs->BAUDR.R = (SPI_BAUDR_t){ .B = { .SCKDV = BAUD_RATE_DIVIDER_VALUE }}.R;
+    spi_regs->BAUDR.R = (Ssi_BAUDR_t){ .B = { .SCKDV = BAUD_RATE_DIVIDER_VALUE }}.R;
 
-    spi_regs->TXFTLR.R = (SPI_TXFTLR_t){ .B = { .TFT = SPI_TX_FIFO_MAX_DEPTH }}.R;
-    spi_regs->RXFTLR.R = (SPI_RXFTLR_t){ .B = { .RFT = SPI_RX_FIFO_MAX_DEPTH }}.R;
+    spi_regs->TXFTLR.R = (Ssi_TXFTLR_t){ .B = { .TFT = SPI_TX_FIFO_MAX_DEPTH }}.R;
+    spi_regs->RXFTLR.R = (Ssi_RXFTLR_t){ .B = { .RFT = SPI_RX_FIFO_MAX_DEPTH }}.R;
 
-    spi_regs->IMR.R = (SPI_IMR_t){ .B = { .TXEIM = 0,
+    spi_regs->IMR.R = (Ssi_IMR_t){ .B = { .TXEIM = 0,
                                         .TXOIM = 0,
                                         .RXUIM = 0,
                                         .RXOIM = 0,
                                         .RXFIM = 0,
                                         .MSTIM = 0 }}.R;
 
-    spi_regs->SSIENR.R = (SPI_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
+    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
 
     return 0;
 }
 
-static int spi_controller_tx_data(volatile SPI_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size) {
+static int spi_controller_tx_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size) {
 #ifdef US_TX_ONLY_MODE
     int rv;
-    SPI_TXFLR_t txflr;
+    Ssi_TXFLR_t txflr;
     uint32_t timeout;
 
     printx("spi_controller_tx_data: spi_command=0x%08x, spi_command_length=%u, tx_data=0x%x, tx_data_size=%u\n", spi_command, spi_command_length, tx_data, tx_data_size);
     
     // transmit the command, address and dummy bits
     while (spi_command_length > 0) {
-        spi_regs->DRx[0] = (uint32_t)*spi_command;
+        spi_regs->DR0.B.DR = (uint32_t)*spi_command;
         spi_command++;
         spi_command_length--;
     }
@@ -118,7 +117,7 @@ static int spi_controller_tx_data(volatile SPI_t * spi_regs, const uint8_t * spi
     while (tx_data_size > 0) {
         txflr.R = spi_regs->TXFLR.R;
         if (txflr.B.TXTFL < SPI_TX_FIFO_MAX_DEPTH) {
-            spi_regs->DRx[0] = (uint32_t)*tx_data;
+            spi_regs->DR0.B.DR = (uint32_t)*tx_data;
             tx_data++;
             tx_data_size--;
             timeout = 0;
@@ -146,14 +145,14 @@ static int spi_controller_tx_data(volatile SPI_t * spi_regs, const uint8_t * spi
 
     rv = 0;
 DONE:
-    spi_regs->SSIENR.R = (SPI_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (SPI_SER_t){ .B = { .SER = 0 }}.R;
+    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
+    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = 0 }}.R;
     return rv;
 #else
     int rv;
-    SPI_SR_t sr;
-    SPI_TXFLR_t txflr;
-    SPI_RXFLR_t rxflr;
+    Ssi_SR_t sr;
+    Ssi_TXFLR_t txflr;
+    Ssi_RXFLR_t rxflr;
     uint32_t timeout;
     uint32_t rx_data_size;
     uint8_t byte_value;
@@ -165,7 +164,7 @@ DONE:
     // transmit the command, address and dummy bits
     while (spi_command_length > 0) {
         //printx("[tx:%02x] ", *spi_command);
-        spi_regs->DRx[0] = (uint32_t)*spi_command;
+        spi_regs->DR0.B.DR = (uint32_t)*spi_command;
         spi_command++;
         spi_command_length--;
     }
@@ -176,14 +175,14 @@ DONE:
             txflr.R = spi_regs->TXFLR.R;
             if (txflr.B.TXTFL < SPI_TX_FIFO_MAX_DEPTH) {
                 //printx("[tx: %02x] ", *tx_data);
-                spi_regs->DRx[0] = *tx_data;
+                spi_regs->DR0.B.DR = *tx_data;
                 tx_data_size--;
                 tx_data++;
             }
         }
         rxflr.R = spi_regs->RXFLR.R;
         if (rxflr.B.RXTFL > 0) {
-            byte_value = spi_regs->DRx[0] & 0xFF;
+            byte_value = spi_regs->DR0.B.DR & 0xFF;
             (void)byte_value;
             //printx("[rx: %02x] ", byte_value);
             rx_data_size--;
@@ -203,17 +202,17 @@ DONE:
 
     rv = 0;
 DONE:
-    spi_regs->SSIENR.R = (SPI_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (SPI_SER_t){ .B = { .SER = 0 }}.R;
+    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
+    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = 0 }}.R;
     return rv;
 #endif
 }
 
-static int spi_controller_rx_data(volatile SPI_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * rx_data, uint32_t rx_data_size) {
+static int spi_controller_rx_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * rx_data, uint32_t rx_data_size) {
     int rv;
-    SPI_SR_t sr;
-    SPI_TXFLR_t txflr;
-    SPI_RXFLR_t rxflr;
+    Ssi_SR_t sr;
+    Ssi_TXFLR_t txflr;
+    Ssi_RXFLR_t rxflr;
     uint32_t timeout;
     uint32_t dummy_tx_count = rx_data_size;
     uint32_t skip_receive_data = spi_command_length;
@@ -232,7 +231,7 @@ static int spi_controller_rx_data(volatile SPI_t * spi_regs, const uint8_t * spi
     // transmit the command, address and dummy bits
     while (spi_command_length > 0) {
         //printx("{tx: %02x} ", *spi_command);
-        spi_regs->DRx[0] = (uint32_t)*spi_command;
+        spi_regs->DR0.B.DR = (uint32_t)*spi_command;
         spi_command++;
         spi_command_length--;
     }
@@ -243,13 +242,13 @@ static int spi_controller_rx_data(volatile SPI_t * spi_regs, const uint8_t * spi
             txflr.R = spi_regs->TXFLR.R;
             if (txflr.B.TXTFL < SPI_TX_FIFO_MAX_DEPTH) {
                 //printx("{tx: %02x} ", DUMMY_TX_BYTE_VALUE);
-                spi_regs->DRx[0] = DUMMY_TX_BYTE_VALUE;
+                spi_regs->DR0.B.DR = DUMMY_TX_BYTE_VALUE;
                 dummy_tx_count--;
             }
         }
         rxflr.R = spi_regs->RXFLR.R;
         if (rxflr.B.RXTFL > 0) {
-            byte_value = spi_regs->DRx[0] & 0xFF;
+            byte_value = spi_regs->DR0.B.DR & 0xFF;
             //printx("{rx: %02x} ", byte_value);
             if (skip_receive_data > 0) {
                 skip_receive_data--;
@@ -274,8 +273,8 @@ static int spi_controller_rx_data(volatile SPI_t * spi_regs, const uint8_t * spi
 
     rv = 0;
 DONE:
-    spi_regs->SSIENR.R = (SPI_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (SPI_SER_t){ .B = { .SER = 0 }}.R;
+    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
+    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = 0 }}.R;
     return rv;
 }
 
@@ -284,7 +283,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     uint8_t spi_command[1 + 3 + MAX_DUMMY_BYTES];
     uint32_t spi_command_length;
     uint32_t d;
-    volatile SPI_t * spi_regs = get_spi_registers(id);
+    volatile Ssi_t * spi_regs = get_spi_registers(id);
     if (NULL == spi_regs) {
         return -1;
     }
@@ -308,36 +307,36 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
         spi_command_length++;
     }
 
-    spi_regs->SSIENR.R = (SPI_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (SPI_SER_t){ .B = { .SER = (1u << slave_index) & SLAVE_MASK }}.R;
+    spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
+    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = (1u << slave_index) & SLAVE_MASK }}.R;
 
     if (command->data_receive) {
-        spi_regs->CTRLR0.R = (SPI_CTRLR0_t){ .B = { .DFS = SPI_CTRLR0_FRAME_08BITS,
-                                                .FRF = SPI_CTRLR0_FRF_MOTOROLA_SPI,
+        spi_regs->CTRLR0.R = (Ssi_CTRLR0_t){ .B = { .DFS = SSI_CTRLR0_DFS_DFS_FRAME_08BITS,
+                                                .FRF = SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI,
                                                 .SCPH = SCPH_VALUE,
                                                 .SCPOL = SCPOL_VALUE,
-                                                .TMOD = SPI_CTRLR0_TMOD_TX_AND_RX,
-                                                .SRL = SPI_CTRLR0_SRL_NORMAL_MODE,
-                                                .DFS_32 = SPI_CTRLR0_FRAME_08BITS,
-                                                .SPI_FRF = SPI_CGTRLR0_SPI_PERF_STD,
+                                                .TMOD = SSI_CTRLR0_TMOD_TMOD_TX_AND_RX,
+                                                .SRL = SSI_CTRLR0_SRL_SRL_NORMAL_MODE,
+                                                .DFS_32 = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS,
+                                                .SPI_FRF = SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF,
                                                 .SSTE = 0 }}.R;
-        spi_regs->SSIENR.R = (SPI_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
+        spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
         return spi_controller_rx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size);
     } else {
-        spi_regs->CTRLR0.R = (SPI_CTRLR0_t){ .B = { .DFS = SPI_CTRLR0_FRAME_08BITS,
-                                                .FRF = SPI_CTRLR0_FRF_MOTOROLA_SPI,
+        spi_regs->CTRLR0.R = (Ssi_CTRLR0_t){ .B = { .DFS = SSI_CTRLR0_DFS_DFS_FRAME_08BITS,
+                                                .FRF = SSI_CTRLR0_FRF_FRF_MOTOROLA_SPI,
                                                 .SCPH = SCPH_VALUE,
                                                 .SCPOL = SCPOL_VALUE,
 #ifdef US_TX_ONLY_MODE
-                                                .TMOD = SPI_CTRLR0_TMOD_TX_ONLY,
+                                                .TMOD = SSI_CTRLR0_TMOD_TMOD_TX_ONLY,
 #else
-                                                .TMOD = SPI_CTRLR0_TMOD_TX_AND_RX,
+                                                .TMOD = SSI_CTRLR0_TMOD_TMOD_TX_AND_RX,
 #endif
-                                                .SRL = SPI_CTRLR0_SRL_NORMAL_MODE,
-                                                .DFS_32 = SPI_CTRLR0_FRAME_08BITS,
-                                                .SPI_FRF = SPI_CGTRLR0_SPI_PERF_STD,
+                                                .SRL = SSI_CTRLR0_SRL_SRL_NORMAL_MODE,
+                                                .DFS_32 = SSI_CTRLR0_DFS_32_DFS_32_FRAME_08BITS,
+                                                .SPI_FRF = SSI_CTRLR0_SPI_FRF_SPI_FRF_STD_SPI_FRF,
                                                 .SSTE = 0 }}.R;
-        spi_regs->SSIENR.R = (SPI_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
+        spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
         return spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size);
     }
 }
