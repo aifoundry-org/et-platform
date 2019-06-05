@@ -1227,7 +1227,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_MEDELEG:
         // Not all exceptions can be delegated
-        val &= 0x0000000000000B109ULL;
+        val &= 0x0000000000000B108ULL;
         csr_medeleg[current_thread] = val;
         break;
     case CSR_MIDELEG:
