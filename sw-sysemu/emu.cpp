@@ -1195,6 +1195,9 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             val |= 0x8000000000000000ULL;
         }
+        // Attempting to set mpp to 2 will set it to 0 instead
+        if (((val >> 11) & 0x3) == 0x2)
+            val &= ~(0x3ULL << 11);
         csr_mstatus[current_thread] = val;
         break;
     case CSR_MISA:
