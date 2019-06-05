@@ -71,6 +71,7 @@ void shire_other_esrs_t::reset(unsigned shire)
     thread1_disable = 0xffffffff;
     mtime_local_target = 0;
     shire_pll_auto_config = 0;
+    shire_dll_auto_config = 0;
     if (shire == IO_SHIRE_ID || shire == EMU_IO_SHIRE_SP) {
         minion_feature = 0x3b;
     } else {

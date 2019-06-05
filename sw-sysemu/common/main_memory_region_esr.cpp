@@ -488,6 +488,13 @@ void main_memory_region_esr::write(uint64_t addr, size_t n, const void* source)
                 value &= 0xfffffffffull;
                 shire_other_esrs[idx].shire_cache_ram_cfg4 = value;
                 break;
+            case ESR_SHIRE_DLL_AUTO_CONFIG:
+                value &= 0x3fff;
+                shire_other_esrs[idx].shire_dll_auto_config = uint16_t(value);
+                break;
+            case ESR_SHIRE_DLL_CONFIG_DATA_0:
+                shire_other_esrs[idx].shire_dll_config_data_0 = value;
+                break;
             case ESR_ICACHE_UPREFETCH:
                 write_icache_prefetch(CSR_PRV_U, shire, value);
                 break;
@@ -825,6 +832,12 @@ void main_memory_region_esr::read(uint64_t addr, size_t n, void* result)
                 break;
             case ESR_SHIRE_CACHE_RAM_CFG4:
                 *ptr = shire_other_esrs[idx].shire_cache_ram_cfg4;
+                break;
+            case ESR_SHIRE_DLL_AUTO_CONFIG:
+                *ptr = shire_other_esrs[idx].shire_dll_auto_config;
+                break;
+            case ESR_SHIRE_DLL_CONFIG_DATA_0:
+                *ptr = shire_other_esrs[idx].shire_dll_config_data_0;
                 break;
             case ESR_ICACHE_UPREFETCH:
                 *ptr = read_icache_prefetch(CSR_PRV_U, shire);
