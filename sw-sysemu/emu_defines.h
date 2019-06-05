@@ -237,4 +237,14 @@ enum et_core_t {
 #define CSR_PRV_H  2
 #define CSR_PRV_M  3
 
+// ET DV environment commands
+#define ET_DIAG_NOP             (0x0)
+#define ET_DIAG_PUTCHAR         (0x1)
+#define ET_DIAG_RAND            (0x2)
+#define ET_DIAG_RAND_MEM_UPPER  (0x3)
+#define ET_DIAG_RAND_MEM_LOWER  (0x4)
+#define ET_DIAG_UEI             (0x5)
+#define ET_DIAG_ECC_INJ         (0x6)
+#define ET_DIAG_CYCLE           (0x7)
+
 #endif // BEMU_DEFINES_H

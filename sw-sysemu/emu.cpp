@@ -1540,23 +1540,55 @@ static void csrset(uint16_t src1, uint64_t val)
         csr_validation0[current_thread] = val;
         break;
     case CSR_VALIDATION1:
-        // EOT signals end of test
-        if ((char) val == 4)
+        switch ((val >> 56) & 0xFF)
         {
-            LOG(INFO, "%s", "Validation1 CSR received End Of Transmission.");
-            m_emu_done = true;
+        case ET_DIAG_PUTCHAR:
+            val = val & 0xFF;
+            // EOT signals end of test
+            if ((char) val == 4)
+            {
+                LOG(INFO, "%s", "Validation1 CSR received End Of Transmission.");
+                m_emu_done = true;
+                break;
+            }
+            if ((char) val != '\n')
+            {
+                uart_stream[current_thread] << (char) val;
+            }
+            else
+            {
+                // If line feed, flush to stdout
+                std::cout << uart_stream[current_thread].str() << std::endl;
+                uart_stream[current_thread].str("");
+                uart_stream[current_thread].clear();
+            }
             break;
-        }
-        if ((char) val != '\n')
-        {
-            uart_stream[current_thread] << (char) val;
-        }
-        else
-        {
-            // If line feed, flush to stdout
-            std::cout << uart_stream[current_thread].str() << std::endl;
-            uart_stream[current_thread].str("");
-            uart_stream[current_thread].clear();
+        case ET_DIAG_UEI:
+#ifdef SYS_EMU
+            {
+                uint64_t shire_mask = val & 0x3FFFFFFFFULL;
+                uint64_t thread_mask = csr_validation2[current_thread];
+                bool raise = (val >> 55) & 1;
+                for (uint64_t s = 0; s < EMU_NUM_SHIRES; s++) {
+                    if (!(shire_mask & (1ULL << s)))
+                        continue;
+
+                    unsigned shire = (s == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : s;
+                    for (uint64_t t = 0; t < EMU_THREADS_PER_SHIRE; t++) {
+                        if (!(thread_mask & (1ULL << t)))
+                            continue;
+
+                        unsigned thread = shire * EMU_THREADS_PER_SHIRE + t;
+                        if (raise)
+                            raise_external_machine_interrupt(thread);
+                        else
+                            clear_external_machine_interrupt(thread);
+                    }
+                }
+            }
+#endif
+            break;
+        default: break;
         }
         break;
     case CSR_VALIDATION2:
