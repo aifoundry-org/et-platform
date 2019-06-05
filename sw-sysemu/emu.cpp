@@ -107,6 +107,7 @@ std::array<uint64_t,EMU_NUM_THREADS>    csr_sepc;
 std::array<uint64_t,EMU_NUM_THREADS>    csr_scause;
 std::array<uint64_t,EMU_NUM_THREADS>    csr_stval;
 std::array<uint64_t,EMU_NUM_THREADS+1>  csr_satp;
+std::array<uint64_t,EMU_NUM_THREADS+1>  csr_matp;
 std::array<uint64_t,EMU_NUM_THREADS>    csr_mstatus;
 std::array<uint64_t,EMU_NUM_THREADS>    csr_misa; // could be hardcoded
 std::array<uint32_t,EMU_NUM_THREADS>    csr_medeleg;
@@ -490,6 +491,7 @@ void reset_hart(unsigned thread)
     csr_menable_shadows[thread] = 0;
     csr_minstmask[thread] = 0;
     csr_mip[thread] = 0;
+    csr_matp[thread] = 0;
     csr_mstatus[thread] = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
     csr_scounteren[thread] = 0;
     csr_ucache_control[thread] = 0x200;
@@ -936,7 +938,9 @@ static uint64_t csrget(uint16_t src1)
         val = csr_mhartid[current_thread];
         break;
     // ----- Esperanto registers -------------------------------------
-    // TODO: CSR_MATP
+    case CSR_MATP:
+        val = csr_matp[current_thread];
+        break;
     case CSR_MINSTMASK:
         val = csr_minstmask[current_thread];
         break;
@@ -1281,7 +1285,26 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_MHARTID:
         throw trap_illegal_instruction(current_inst);
     // ----- Esperanto registers -------------------------------------
-    // TODO: MATP
+    case CSR_MATP: // Shared register
+        // do not write the register if it is locked (L==1)
+        if (~csr_matp[current_thread] & 0x800000000000000ULL)
+        {
+            // MODE is 4 bits, L is 1 bits, ASID is 0bits, PPN is PPN_M bits
+            val &= 0xF800000000000000ULL | PPN_M;
+            switch (val >> 60)
+            {
+            case MATP_MODE_BARE:
+            case MATP_MODE_MV39:
+            case MATP_MODE_MV48:
+                csr_matp[current_thread] = val;
+                csr_matp[current_thread^1] = val;
+                break;
+            default: // reserved
+                // do not write the register if attempting to set an unsupported mode
+                break;
+            }
+        }
+        break;
     case CSR_MINSTMASK:
         val &= 0x1ffffffffULL;
         csr_minstmask[current_thread] = val;

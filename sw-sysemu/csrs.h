@@ -229,7 +229,7 @@ CSRDEF(0xf14, mhartid, MHARTID)
 // Esperanto registers
 //
 
-CSRDEF(0x7c0, matp, MATP) // TODO
+CSRDEF(0x7c0, matp, MATP)
 CSRDEF(0x7cd, minstmask, MINSTMASK)
 CSRDEF(0x7ce, minstmatch, MINSTMATCH)
 CSRDEF(0x7cf, amofence_ctrl, AMOFENCE_CTRL) // TODO

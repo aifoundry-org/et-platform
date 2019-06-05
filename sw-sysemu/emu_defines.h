@@ -68,6 +68,11 @@
 #define SATP_MODE_SV39  8
 #define SATP_MODE_SV48  9
 
+// MATP mode field values
+#define MATP_MODE_BARE  0
+#define MATP_MODE_MV39  8
+#define MATP_MODE_MV48  9
+
 // MSTATUS field offsets
 #define MSTATUS_MXR     19
 #define MSTATUS_SUM     18

@@ -14,6 +14,7 @@
 // FIXME: Replace with "state.h"
 extern uint32_t current_thread;
 extern uint64_t csr_satp[EMU_NUM_THREADS];
+extern uint64_t csr_matp[EMU_NUM_THREADS];
 extern uint64_t csr_mstatus[EMU_NUM_THREADS];
 extern uint64_t csr_tdata1[EMU_NUM_THREADS];
 extern uint64_t csr_tdata2[EMU_NUM_THREADS];
@@ -31,7 +32,7 @@ static inline int effective_execution_mode(mem_access_type macc)
     const uint64_t mstatus = csr_mstatus[current_thread];
     const int      mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
     const int      mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
-    return (macc == Mem_Access_Fetch || macc == Mem_Access_PTW)
+    return (macc == Mem_Access_Fetch)
             ? csr_prv[current_thread]
             : (mprv ? mpp : csr_prv[current_thread]);
 }
@@ -183,7 +184,7 @@ static bool pma_data_access_permitted(uint64_t addr, size_t size, mem_access_typ
 }
 
 
-static bool pma_check_ptw_access(uint64_t addr)
+static bool pma_check_ptw_access(uint64_t addr, int prv)
 {
     bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
 
@@ -194,7 +195,7 @@ static bool pma_check_ptw_access(uint64_t addr)
         return spio;
 
     if (paddr_is_dram_mbox(addr))
-        return effective_execution_mode(Mem_Access_PTW) == CSR_PRV_M;
+        return prv == CSR_PRV_M;
 
     if (paddr_is_dram_osbox(addr)) {
         uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
@@ -256,20 +257,23 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
     const int      mprv    = (mstatus >> MSTATUS_MPRV) & 0x1;
     const int      mpp     = (mstatus >> MSTATUS_MPP ) & 0x3;
 
-    // Read satp
-    const uint64_t satp      = csr_satp[current_thread];
-    const uint64_t satp_mode = (satp >> 60) & 0xF;
-    const uint64_t satp_ppn  = satp & PPN_M;
-
     // Calculate effective privilege level
     const int prv = (macc == Mem_Access_Fetch)
             ? csr_prv[current_thread]
             : (mprv ? mpp : csr_prv[current_thread]);
 
+    // Read matp/satp
+    // NB: Sv39/Mv39, Sv48/Mv48, etc. have the same behavior and encoding
+    const uint64_t atp = (prv == CSR_PRV_M)
+            ? csr_matp[current_thread]
+            : csr_satp[current_thread];
+    const uint64_t atp_mode = (atp >> 60) & 0xF;
+    const uint64_t atp_ppn  = atp & PPN_M;
+
     // V2P mappings are enabled when all of the following are true:
-    // - the effective execution mode is not 'M'
-    // - satp.mode is not "Bare"
-    bool vm_enabled = (prv < CSR_PRV_M) && (satp_mode != SATP_MODE_BARE);
+    // - the effective execution mode is 'M' and matp.mode is not "Bare"
+    // - the effective execution mode is not 'M' and satp.mode is not "Bare"
+    bool vm_enabled = (atp_mode != SATP_MODE_BARE);
 
     if (!vm_enabled) {
         uint64_t paddr = vaddr & PA_M;
@@ -281,12 +285,14 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
         return paddr;
     }
 
+    int ptw_prv = (prv == CSR_PRV_M) ? prv : CSR_PRV_S;
+
     int64_t sign;
     int Num_Levels;
     int PTE_top_Idx_Size;
     const int PTE_Size     = 8;
     const int PTE_Idx_Size = 9;
-    switch (satp_mode)
+    switch (atp_mode)
     {
     case SATP_MODE_SV39:
         Num_Levels = 3;
@@ -319,7 +325,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
     uint64_t pte_addr, pte;
     bool pte_v, pte_r, pte_w, pte_x, pte_u, pte_a, pte_d;
     int level    = Num_Levels;
-    uint64_t ppn = satp_ppn;
+    uint64_t ppn = atp_ppn;
     do {
         if (--level < 0)
             throw_page_fault(vaddr, macc);
@@ -328,7 +334,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
         uint64_t vpn = (vaddr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
         // Read PTE
         pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
-        if (!pma_check_ptw_access(pte_addr))
+        if (!pma_check_ptw_access(pte_addr, ptw_prv))
         {
             throw_access_fault(vaddr, macc);
         }
