@@ -8,8 +8,7 @@
 #include "main_memory.h"
 #include "main_memory_region_esr.h"
 #include "main_memory_region_reserved.h"
-#include "main_memory_region_scp.h"
-#include "main_memory_region_scp_linear.h"
+#include "main_memory_region_scratchpad.h"
 
 #define CACHE_LINE_MASK 0xFFFFFFFFC0ULL
 #define CACHE_LINE_SIZE (64)
@@ -18,6 +17,10 @@
 main_memory::main_memory()
 {
     main_memory_region* p;
+
+    // L2 Scratchpad
+    p = new main_memory_region_scratchpad(SCP_REGION_BASE, SCP_REGION_SIZE);
+    regions.push_front(region_pointer(p));
 
     // ESRs
     p = new main_memory_region_esr(this, ESR_REGION_BASE, ESR_REGION_SIZE);
@@ -31,18 +34,6 @@ main_memory::main_memory()
     regions.push_back(region_pointer(p));
     // Limit Non-cacheable memory region to 32 GB (physical memory available)
     p = new main_memory_region_reserved(0xc800000000ull, 0x3800000000ull);
-
-    // For all the shires and the local shire mask
-    for (int shire = 0; shire <= EMU_NUM_SHIRES; shire++)
-    {
-        int shireid = (shire == EMU_NUM_SHIRES) ? 255 : ((shire == EMU_IO_SHIRE_SP) ? IO_SHIRE_ID : shire);
-        p = new main_memory_region_scp(this, L2_SCP_BASE + (shireid & 0x7F) * L2_SCP_OFFSET, L2_SCP_SIZE,
-                                       (shireid != 255) ? &shire_cache_esrs[shire] : nullptr, (shireid != 255));
-        regions.push_front(region_pointer(p));
-    }
-
-    p = new main_memory_region_scp_linear(this, L2_SCP_LINEAR_BASE, L2_SCP_LINEAR_SIZE);
-    regions.push_front(region_pointer(p));
 }
 
 
