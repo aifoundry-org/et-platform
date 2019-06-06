@@ -1,8 +1,8 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
-#include "serial_device.h"
 #include "DW_apb_uart.h"
+#include "serial_device.h"
 
 #include <stdint.h>
 
