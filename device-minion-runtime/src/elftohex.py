@@ -214,7 +214,7 @@ def write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPa
         # If this segment starts on a later line than the previous segment ended on,
         # write out the lines for the previous segment(s) and start a new group of lines
         if (not firstSegment and ((segAddr // inputBytesPerLine) > (prevSegEndAddress // inputBytesPerLine))):
-            print("1: write_lines(base_address=0x{0:x} line_address=0x{1:x} bytesPerZebuRow={2:d} inputBytesPerPanel={3:d} panelsPerLine={4:d}".format(baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine))
+            #print("1: write_lines(base_address=0x{0:x} line_address=0x{1:x} bytesPerZebuRow={2:d} inputBytesPerPanel={3:d} panelsPerLine={4:d}".format(baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine))
             write_lines(bytes, baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr)
             bytes = []
             firstSegment = True
@@ -233,14 +233,14 @@ def write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPa
         prevSegEndAddress = segEndAddress
 
     # write out lines after last segment
-    print("2: write_lines(base_address=0x{0:x} line_address=0x{1:x} bytesPerZebuRow={2:d} inputBytesPerPanel={3:d} panelsPerLine={4:d}".format(baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine))
+    #print("2: write_lines(base_address=0x{0:x} line_address=0x{1:x} bytesPerZebuRow={2:d} inputBytesPerPanel={3:d} panelsPerLine={4:d}".format(baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine))
     write_lines(bytes, baseAddress, lineAddress, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr)
 
 # requires address is aligned to the beginning of a line - will not zero pad before
 # will zero pad the end of a line
 def write_lines(bytes, baseAddress, address, bytesPerZebuRow, inputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr):
     inputBytesPerLine = inputBytesPerPanel * panelsPerLine
-    print("Writing lines from %08x to %08x" % (address, address + len(bytes)))
+    #print("Writing lines from %08x to %08x" % (address, address + len(bytes)))
 
     # For each line, set all panel bytes including parity even if input data isn't available
     for lineIndex in range(0, len(bytes), inputBytesPerLine):

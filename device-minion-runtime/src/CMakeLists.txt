@@ -10,6 +10,8 @@
 
 get_filename_component(SHARED_SRC_DIR "shared/src" ABSOLUTE)
 get_filename_component(SHARED_INC_DIR "shared/include" ABSOLUTE)
+get_filename_component(SHARED_HAL_DIR "shared/include/etsoc_hal" ABSOLUTE)
+set(SHARED_INC_DIR ${SHARED_INC_DIR} ${SHARED_HAL_DIR})
 
 #FreeRTOS
 set(FREERTOS_DIR "shared/FreeRTOS")
