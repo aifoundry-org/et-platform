@@ -97,8 +97,15 @@ configure_file (
     # custom command to generate a ZeBu hex file from the elf
     add_custom_command(
         OUTPUT ${HEX_FILE}
-        COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} ${ZEBU_FILENAME}
+        COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} --output-file ${ZEBU_FILENAME}
         DEPENDS ${ELF_FILE}
+    )
+
+    # call elftohex and get the list of files it will generate per target
+    execute_process(
+         COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} --output-file ${ZEBU_FILENAME} --print-output-files
+         OUTPUT_VARIABLE "${TARGET_NAME}_OUTPUT"
+         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 
     # custom command to generate an assembly listing from the elf

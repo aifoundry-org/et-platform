@@ -50,5 +50,14 @@ include_directories(${SHARED_INC_DIR})
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
 
 install(TARGETS ${TARGET_NAME}.elf
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/MasterMinion
   COMPONENT master-minion)
+
+message("Master minion hex to install ${TARGET_NAME_OUTPUT}")
+
+string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
+foreach(FILE ${OUTPUT_LIST})
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/MasterMinion
+    COMPONENT zebu)
+endforeach(FILE)

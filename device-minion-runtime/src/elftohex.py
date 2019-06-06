@@ -100,40 +100,38 @@
 # 31    21
 # 32    22
 # 33    23
+import argparse
 import sys, os
 
 try:
     from elftools.elf.elffile import ELFFile
 except ImportError as error:
         print("You don't have pyelftools installed. pip3 install pyelftools")
+        raise error
 
 try:
     from bitstring import BitArray
 except ImportError as error:
         print("You don't have bitstring installed. pip3 install bitstring")
+        raise error
 
-if len(sys.argv) < 3:
-    print("Usage:", sys.argv[0], "ROM|SP_RAM|PU_RAM|DRAM|DDR infile [outfile]")
-    sys.exit(-1)
+inFile = None
+elfFile = None
 
-try:
-    inFile = open(sys.argv[2], 'rb')
-    elfFile = ELFFile(inFile)
-except:
-    print("Could not open", sys.argv[2])
-    sys.exit(-1)
-
+outFileNames = []
 outFiles = []
 
-def open_output_files(prefix, suffix, files):
-    if len(sys.argv) > 3:
-        (name,ext) = os.path.splitext(sys.argv[3]) # Use outfile arg for output filename
+def open_output_files(prefix, suffix, files, cmd_line_args):
+    if cmd_line_args.output_file:
+        (name,ext) = os.path.splitext(args.output_file) # Use outfile arg for output filename
     else:
-        (name,ext) = os.path.splitext(sys.argv[2]) # Use infile arg for output filename
+        (name,ext) = os.path.splitext(args.infile) # Use infile arg for output filename
 
     try:
         for i in range(files):
-            outFiles.append(open("%s%s%d%s.hex" % (name, prefix, i, suffix), 'w'))
+            filename = "%s%s%d%s.hex" % (name, prefix, i, suffix)
+            outFileNames.append(filename)
+            outFiles.append(open(filename, 'w'))
     except:
         print("Could not open output files")
         sys.exit(-1)
@@ -332,24 +330,32 @@ def mesh_addr_to_new_synopsys_ddr_addr(addr):
 
     return ddr_addr.int
 
-def sp_rom_write_hex():
-    open_output_files("_lo_", "", 8)
-    open_output_files("_hi_", "", 8)
+def sp_rom_write_hex(cmd_line_args):
+    open_output_files("_lo_", "", 8, cmd_line_args)
+    open_output_files("_hi_", "", 8, cmd_line_args)
+    if cmd_line_args.print_output_files:
+        print(" ".join(outFileNames))
+        return
     #write_hex(baseAddress, bytesPerZebuRow, inputBytesPerPanel, outputBytesPerPanel, panelsPerLine, maxLinesPerFile, parity, ddr)
     write_hex(0x40000000, 8, 8, 8, 8, 1024, False, False)
     return
 
-def sp_ram_write_hex():
-    open_output_files("SP_RAM", "", 4)
+def sp_ram_write_hex(cmd_line_args):
+    open_output_files("SP_RAM", "", 4, cmd_line_args)
+    if cmd_line_args.print_output_files:
+        print(" ".join(outFileNames))
+        return
     write_hex(0x40400000, 16, 16, 18, 4, 0, True, False)
     return
 
-def dram_write_hex(ddr):
-    open_output_files("_dwrow", "_even", 4) # memshire 0-3 "west 0-3" addr[9] = 0 "even"
-    open_output_files("_derow", "_even", 4) # memshire 4-7 "east 0-3" addr[9] = 0 "even"
-    open_output_files("_dwrow", "_odd", 4)  # memshire 0-3 "west 0-3" addr[9] = 1 "odd"
-    open_output_files("_derow", "_odd", 4)  # memshire 4-7 "east 0-3" addr[9] = 1 "odd"
-
+def dram_write_hex(ddr, cmd_line_args):
+    open_output_files("_dwrow", "_even", 4, cmd_line_args) # memshire 0-3 "west 0-3" addr[9] = 0 "even"
+    open_output_files("_derow", "_even", 4, cmd_line_args) # memshire 4-7 "east 0-3" addr[9] = 0 "even"
+    open_output_files("_dwrow", "_odd", 4, cmd_line_args)  # memshire 0-3 "west 0-3" addr[9] = 1 "odd"
+    open_output_files("_derow", "_odd", 4, cmd_line_args)  # memshire 4-7 "east 0-3" addr[9] = 1 "odd"
+    if cmd_line_args.print_output_files:
+        print(" ".join(outFileNames))
+        return
     if (ddr == "DDR") or (ddr == "DDR_NEW"):
         # DDR models with address swizzling and 8 bytes per ZeBu hex line
         write_hex(0x8000000000,  8, 64, 64, 16, 0, False, ddr)
@@ -358,19 +364,50 @@ def dram_write_hex(ddr):
         write_hex(0x8000000000, 64, 64, 64, 16, 0, False, ddr)
     return
 
-if (sys.argv[1]) == "ROM":
-    sp_rom_write_hex()
-elif (sys.argv[1]) == "SP_RAM":
-    sp_ram_write_hex()
-elif (sys.argv[1]) == "PU_RAM":
-    print("PU_RAM support not yet implemented")
-    sys.exit(-1)
-elif (sys.argv[1]) == "DRAM":
-    dram_write_hex(sys.argv[1])
-elif (sys.argv[1]) == "DDR":
-    dram_write_hex(sys.argv[1])
-elif (sys.argv[1]) == "DDR_NEW":
-    dram_write_hex(sys.argv[1])
-else:
-    print("Unsupported argument", sys.argv[1])
-    sys.exit(-1)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("ram_type",
+                        choices=["ROM", "SP_RAM","PU_RAM", "DRAM","DDR", "DDR_NEW"],
+                        help="Type of memory to generate the hex file for")
+    parser.add_argument("infile",
+                        help="Path to the input file")
+    parser.add_argument("--output-file",
+                        required=False,
+                        default=None,
+                        help="Path to output file")
+    parser.add_argument("--print-output-files",
+                        action='store_true',
+                        required=False,
+                        help="If set then only print the names of output that would be generated")
+    args = parser.parse_args()
+
+    if not args.print_output_files:
+        try:
+            inFile = open(sys.argv[2], 'rb')
+            elfFile = ELFFile(inFile)
+        except:
+            print("Could not open", sys.argv[2])
+            sys.exit(-1)
+
+    if args.ram_type == "ROM":
+        sp_rom_write_hex(args)
+    elif args.ram_type == "SP_RAM":
+        sp_ram_write_hex(args)
+    elif args.ram_type == "PU_RAM":
+        print("PU_RAM support not yet implemented")
+        sys.exit(-1)
+    elif args.ram_type == "DRAM":
+        dram_write_hex(args.ram_type, args)
+    elif args.ram_type == "DDR":
+        dram_write_hex(args.ram_type, args)
+    elif args.ram_type == "DDR_NEW":
+        dram_write_hex(args.ram_type, args)
+    else:
+        print("Unsupported argument {}".format(args.ram_type))
+        sys.exit(-1)
+
+    if not args.print_output_files:
+        inFile.close()
+        for i in outFiles:
+            i.close()
