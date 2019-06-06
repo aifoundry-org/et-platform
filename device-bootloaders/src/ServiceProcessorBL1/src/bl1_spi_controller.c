@@ -9,12 +9,11 @@
 *-------------------------------------------------------------------------
 */
 
-#include "et_cru.h"
 #include "serial.h"
 
 #include "printx.h"
 #include "bl1_spi_controller.h"
-#include "etsoc_hal/DW_apb_ssi.h"
+#include "DW_apb_ssi.h"
 #include "spio_DW_apb_ssi_config.h"
 #include "hal_device.h"
 
