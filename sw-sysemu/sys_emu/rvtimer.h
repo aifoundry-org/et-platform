@@ -12,7 +12,6 @@ struct RVTimer
     void reset() {
         mtime = 0;
         mtimecmp = std::numeric_limits<uint64_t>::max();
-        active = false;
         interrupt = false;
         clear = false;
     }
@@ -27,7 +26,7 @@ struct RVTimer
     }
 
     bool is_active() const {
-        return active;
+        return mtimecmp != std::numeric_limits<uint64_t>::max();
     }
 
     bool interrupt_pending() const {
@@ -48,7 +47,6 @@ struct RVTimer
         interrupt = (mtime >= mtimecmp);
         if (had_interrupt)
             clear = !interrupt;
-        active = true;
     }
 
     uint64_t read_mtime() const {
@@ -64,7 +62,6 @@ private:
     uint64_t mtimecmp;
     bool interrupt;
     bool clear;
-    bool active;
 };
 
 #endif
