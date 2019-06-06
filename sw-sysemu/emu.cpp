@@ -3122,8 +3122,8 @@ static void tensor_fma32(uint64_t tfmareg)
     int  acols      = (tfmareg >> 47) & 0xF;
     int  aoffset    = (tfmareg >> 43) & 0xF;
     bool tenb       = (tfmareg >> 20) & 0x1;
-    int  bstart     = (tfmareg >> 12) & 0xFF;
-    int  astart     = (tfmareg >>  4) & 0xFF;
+    int  bstart     = (tfmareg >> 12) & 0x3F;
+    int  astart     = (tfmareg >>  4) & 0x3F;
     bool first_pass = (tfmareg >>  0) & 1;
 
     bcols = (bcols + 1) * 4;
@@ -3238,8 +3238,8 @@ static void tensor_fma16a32(uint64_t tfmareg)
     int  acols      = (tfmareg >> 47) & 0xF;
     int  aoffset    = (tfmareg >> 43) & 0xF;
     bool tenb       = (tfmareg >> 20) & 0x1;
-    int  bstart     = (tfmareg >> 12) & 0xFF;
-    int  astart     = (tfmareg >>  4) & 0xFF;
+    int  bstart     = (tfmareg >> 12) & 0x3F;
+    int  astart     = (tfmareg >>  4) & 0x3F;
     bool first_pass = (tfmareg >>  0) & 1;
 
     bcols = (bcols + 1) * 4;
@@ -3361,8 +3361,8 @@ static void tensor_ima8a32(uint64_t tfmareg)
     bool ub         = (tfmareg >> 22) & 0x1;
     bool ua         = (tfmareg >> 21) & 0x1;
     bool tenb       = (tfmareg >> 20) & 0x1;
-    int  bstart     = (tfmareg >> 12) & 0xFF;
-    int  astart     = (tfmareg >>  4) & 0xFF;
+    int  bstart     = (tfmareg >> 12) & 0x3F;
+    int  astart     = (tfmareg >>  4) & 0x3F;
     bool first_pass = (tfmareg >>  0) & 1;
 
     bcols = (bcols + 1) * 4;
