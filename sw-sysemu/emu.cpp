@@ -27,6 +27,9 @@
 #include "traps.h"
 #include "txs.h"
 #include "utility.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 
 #include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 
@@ -143,6 +146,9 @@ std::array<uint16_t,EMU_NUM_THREADS>    csr_tensor_error;
 std::array<uint16_t,EMU_NUM_THREADS+1>  csr_ucache_control;
 std::array<uint8_t, EMU_NUM_THREADS>    csr_gsc_progress; // log2(VL)
 std::array<uint64_t,EMU_NUM_THREADS>    csr_validation0;
+#ifdef SYS_EMU
+std::array<uint8_t,EMU_NUM_THREADS> 	csr_validation1;
+#endif
 std::array<uint64_t,EMU_NUM_THREADS>    csr_validation2;
 std::array<uint64_t,EMU_NUM_THREADS>    csr_validation3;
 std::array<std::array<uint64_t,EMU_NUM_THREADS>,4> csr_portctrl;
@@ -1035,7 +1041,19 @@ static uint64_t csrget(uint16_t src1)
         val = csr_validation0[current_thread];
         break;
     case CSR_VALIDATION1:
-        val = 0;
+#ifdef SYS_EMU
+	switch (csr_validation1[current_thread])
+	{
+	    case ET_DIAG_CYCLE:
+		val = sys_emu::get_emu_cycle();
+		break;
+	    default:
+		val = 0;
+		break;
+	}
+#else
+	val = 0;
+#endif
         break;
     case CSR_VALIDATION2:
         val = csr_validation2[current_thread];
@@ -1540,56 +1558,60 @@ static void csrset(uint16_t src1, uint64_t val)
         csr_validation0[current_thread] = val;
         break;
     case CSR_VALIDATION1:
-        switch ((val >> 56) & 0xFF)
-        {
-        case ET_DIAG_PUTCHAR:
-            val = val & 0xFF;
-            // EOT signals end of test
-            if ((char) val == 4)
-            {
-                LOG(INFO, "%s", "Validation1 CSR received End Of Transmission.");
-                m_emu_done = true;
-                break;
-            }
-            if ((char) val != '\n')
-            {
-                uart_stream[current_thread] << (char) val;
-            }
-            else
-            {
-                // If line feed, flush to stdout
-                std::cout << uart_stream[current_thread].str() << std::endl;
-                uart_stream[current_thread].str("");
-                uart_stream[current_thread].clear();
-            }
-            break;
-        case ET_DIAG_UEI:
+	switch ((val >> 56) & 0xFF)
+	{
+	    case ET_DIAG_PUTCHAR:
+		val = val & 0xFF;
+		// EOT signals end of test
+		if (val == 4)
+		{
+		    LOG(INFO, "%s", "Validation1 CSR received End Of Transmission.");
+		    m_emu_done = true;
+		    break;
+		}
+		if (char(val) != '\n')
+		{
+		    uart_stream[current_thread] << (char) val;
+		}
+		else
+		{
+		    // If line feed, flush to stdout
+		    std::cout << uart_stream[current_thread].str() << std::endl;
+		    uart_stream[current_thread].str("");
+		    uart_stream[current_thread].clear();
+		}
+		break;
 #ifdef SYS_EMU
-            {
-                uint64_t shire_mask = val & 0x3FFFFFFFFULL;
-                uint64_t thread_mask = csr_validation2[current_thread];
-                bool raise = (val >> 55) & 1;
-                for (uint64_t s = 0; s < EMU_NUM_SHIRES; s++) {
-                    if (!(shire_mask & (1ULL << s)))
-                        continue;
+	    case ET_DIAG_UEI:
+		{
+		    uint64_t shire_mask = val & 0x3FFFFFFFFULL;
+		    uint64_t thread_mask = csr_validation2[current_thread];
+		    bool raise = (val >> 55) & 1;
+		    for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
+			if (!(shire_mask & (1ULL << s)))
+			    continue;
 
-                    unsigned shire = (s == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : s;
-                    for (uint64_t t = 0; t < EMU_THREADS_PER_SHIRE; t++) {
-                        if (!(thread_mask & (1ULL << t)))
-                            continue;
+			unsigned num_threads = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+			for (unsigned t = 0; t < num_threads; t++) {
+			    if (!(thread_mask & (1ULL << t)))
+				continue;
 
-                        unsigned thread = shire * EMU_THREADS_PER_SHIRE + t;
-                        if (raise)
-                            raise_external_machine_interrupt(thread);
-                        else
-                            clear_external_machine_interrupt(thread);
-                    }
-                }
-            }
+			    unsigned thread = s * EMU_THREADS_PER_SHIRE + t;
+			    if (raise)
+				raise_external_machine_interrupt(thread);
+			    else
+				clear_external_machine_interrupt(thread);
+			}
+		    }
+		}
+		break;
+	    case ET_DIAG_CYCLE:
+		csr_validation1[current_thread] = (val >> 56) & 0xFF;
+		break;
 #endif
-            break;
-        default: break;
-        }
+	    default:
+		break;
+	}
         break;
     case CSR_VALIDATION2:
         csr_validation2[current_thread] = val;
