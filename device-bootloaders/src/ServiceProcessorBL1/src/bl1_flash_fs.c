@@ -12,7 +12,6 @@
 #include <string.h>
 #include <stddef.h>
 
-#include "et_cru.h"
 #include "serial.h"
 #include "printx.h"
 #include "crc32.h"

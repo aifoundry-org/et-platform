@@ -1,4 +1,3 @@
-#include "et_cru.h"
 #include "serial.h"
 #include <stdint.h>
 #include <stdlib.h>

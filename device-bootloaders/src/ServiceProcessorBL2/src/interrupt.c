@@ -12,8 +12,8 @@
 #include "interrupt.h"
 
 #include "FreeRTOS.h"
-#include "etsoc_hal/pu_plic.h"
-#include "etsoc_hal/spio_plic.h"
+#include "pu_plic.h"
+#include "spio_plic.h"
 #include "hal_device.h"
 #include "task.h"
 
