@@ -26,8 +26,10 @@ main_memory::main_memory()
     // Reserved memory regions
     p = new main_memory_region_reserved(0x200000000, 248*1024*1024*1024ull);
     regions.push_back(region_pointer(p));
+    // Limit Cacheable memory region to 32 GB (physical memory available)
     p = new main_memory_region_reserved(0x8800000000ull, 0x3800000000ull);
     regions.push_back(region_pointer(p));
+    // Limit Non-cacheable memory region to 32 GB (physical memory available)
     p = new main_memory_region_reserved(0xc800000000ull, 0x3800000000ull);
 
     // For all the shires and the local shire mask
@@ -150,23 +152,118 @@ bool main_memory::new_region(uint64_t base, uint64_t size)
     top  = ((base + size + CACHE_LINE_SIZE - 1) & CACHE_LINE_MASK) - 1;
     base = base & CACHE_LINE_MASK;
 
-    while (find(base) != regions.end()) base += CACHE_LINE_SIZE;
-    while (find(top)  != regions.end()) top  -= CACHE_LINE_SIZE;
+    bool drop = false;
+    bool resize = false;
 
-    if (top <= base) return false;
-    size = top - base + 1;
+    uint64_t new_base = base;
+    uint64_t new_top  = top;
 
-    unsigned overlap = (find(base) != regions.end()) + (find(top)  != regions.end());
+    region_list_type deleted_regions;
 
-    if (overlap > 0) {
-        LOG_NOTHREAD(ERR, "new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): overlaps with existing region and won't be created", base, size, top);
-        return false;
+    for (auto it = regions.begin(); it != regions.end(); )
+    {
+        LOG_NOTHREAD(DEBUG, "checking old_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 ") for overlaps",
+                     (*it)->base, (*it)->count, (*it)->base + (*it)->count - 1);
+
+        if (   ((new_base >= (*it)->base) && (new_base < ((*it)->base + (*it)->count)))
+            && ((new_top  >= (*it)->base) && (new_top  < ((*it)->base + (*it)->count))))
+        {
+            drop = true;
+            LOG_NOTHREAD(DEBUG, "dropping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "):"
+                              "fully included in old_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 ")",
+                         base, top - base + 1, top, (*it)->base, (*it)->count, (*it)->base + (*it)->count - 1); 
+            break;
+        }
+
+        if (   (((*it)->base >= new_base) && ((*it)->base < top))
+            && ((((*it)->base + (*it)->count) > new_base) && (((*it)->base + (*it)->count) < top)))
+        {
+            if (new_base == (*it)->base)
+            {
+                resize = true;
+                new_base = (*it)->base + (*it)->count;
+                LOG_NOTHREAD(DEBUG, "clipping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): by old region to new_base=0x%" PRIx64,
+                             base, top - base + 1, top, new_base);
+                it++;
+            }
+            else if (new_top == ((*it)->base + (*it)->count - 1))
+            {
+                resize = true;
+                new_top = (*it)->base;
+                LOG_NOTHREAD(DEBUG, "clipping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): by old region to new_top=0x%" PRIx64,
+                             base, top - base + 1, top, new_top);
+                it++;
+            }
+            else
+            {
+                // Needs to copy data from old region to new region which doesn't exist yet!!!
+                LOG_NOTHREAD(DEBUG, "removing old_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): fully included in new region",
+                             (*it)->base, (*it)->count, (*it)->base + (*it)->count - 1);
+                deleted_regions.push_back(*it);
+                it = regions.erase(it);
+            }
+        }
+        else
+        {
+            if ((new_base >= (*it)->base) && (new_base < ((*it)->base + (*it)->count)))
+            {
+                resize = true;
+                new_base = (*it)->base + (*it)->count;
+                LOG_NOTHREAD(DEBUG, "clipping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): by old region to new_base=0x%" PRIx64,
+                             base, top - base + 1, top, new_base);
+            }
+
+            if ((new_top >= (*it)->base) && (new_top < ((*it)->base + (*it)->count)))
+            {
+                resize = true;
+                new_top = (*it)->base; 
+                LOG_NOTHREAD(DEBUG, "clipping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): by old region to new_top=0x%" PRIx64,
+                             base, top - base + 1, top, new_top);
+            }
+
+            if (new_base >= new_top)
+            {
+                drop = true;
+                LOG_NOTHREAD(DEBUG, "dropping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): fully included by other regions",
+                    base, top - base + 1, top); 
+                break;
+            }
+
+            it++;
+        }
     }
+
+    if (drop && !deleted_regions.empty())
+        LOG_NOTHREAD(FTL, "Shouldn't happen : new_region and old_regions (%zu) were dropped", deleted_regions.size());
+
+    if (drop)
+        return true;
+
+    if (resize)
+    {
+        base = new_base;
+        top  = new_top;
+    }
+
+    size = top - base + 1;
 
     LOG_NOTHREAD(DEBUG, "new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 ")", base, size, top);
     main_memory_region* r = new main_memory_region(base, size);
     assert(r);
     regions.push_front(region_pointer(r));
+
+    if (!deleted_regions.empty())
+    {
+        for (auto const &r: deleted_regions)
+        {
+            LOG_NOTHREAD(DEBUG, "copying data from old_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 ") to new_region",
+                r->base, r->count, r->base + r->count - 1);
+            write(r->base, r->count, r->buf);
+        }
+
+        deleted_regions.clear();
+    }
+
     //dump_regions();
     return true;
 }
