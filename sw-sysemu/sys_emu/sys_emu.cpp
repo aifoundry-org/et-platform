@@ -141,7 +141,7 @@ static bool parse_mem_file(const char * filename, main_memory * memory)
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-lm <minion]> [-m] [-reset_pc <addr>] [-sp_reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
@@ -156,6 +156,7 @@ static const char * help_msg =
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -reset_pc    Sets boot program counter (default 0x8000001000) \n\
+ -sp_reset_pc Sets Service Processor boot program counter (default 0x40000000) \n\
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
  -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
  -mins_dis    Minions start disabled\n\
@@ -643,6 +644,11 @@ parse_command_line_arguments(int argc, char* argv[])
           sscanf(argv[i], "%" PRIx64, &cmd_options.reset_pc);
           cmd_options.reset_pc_flag = false;
         }
+        else if(cmd_options.sp_reset_pc_flag)
+        {
+          sscanf(argv[i], "%" PRIx64, &cmd_options.sp_reset_pc);
+          cmd_options.sp_reset_pc_flag = false;
+        }
         else if(cmd_options.dump == 1)
         {
             sscanf(argv[i], "%" PRIx64, &cmd_options.dump_addr);
@@ -710,6 +716,10 @@ parse_command_line_arguments(int argc, char* argv[])
         else if(strcmp(argv[i], "-reset_pc") == 0)
         {
             cmd_options.reset_pc_flag = true;
+        }
+        else if(strcmp(argv[i], "-sp_reset_pc") == 0)
+        {
+            cmd_options.sp_reset_pc_flag = true;
         }
         else if(strcmp(argv[i], "-dump_addr") == 0)
         {
@@ -892,7 +902,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
           for (unsigned ii = 0; ii < minion_thread_count; ii++) {
              unsigned t = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
              LOG_OTHER(DEBUG, t, "%s", "Resetting");
-             current_pc[t] = cmd_options.reset_pc;
+             current_pc[t] = (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc;
              reduce_state_array[t / EMU_THREADS_PER_MINION] = Reduce_Idle;
              reset_hart(t);
              set_thread(t);
