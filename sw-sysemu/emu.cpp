@@ -3941,7 +3941,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
         if (minion_mask & (1ull << minion))
         {
             size_t fcc_addr = shire*EMU_THREADS_PER_SHIRE + EMU_THREADS_PER_MINION*minion + thread;
-            LOG(DEBUG, "Incrementing FCC%" PRIu64 "[H%" PRIu64 "]=%" PRId32, thread*2 + fcc_id, fcc_addr, fcc[fcc_addr][fcc_id] + 1);
+            LOG(DEBUG, "Incrementing FCC%" PRIu64 "[H%" PRIu64 "]=%" PRId32, thread*2 + fcc_id, fcc_addr, uint16_t(fcc[fcc_addr][fcc_id] + 1));
             fcc[fcc_addr][fcc_id]++;
 
 #ifndef SYS_EMU
