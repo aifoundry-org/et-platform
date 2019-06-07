@@ -597,6 +597,55 @@ sys_emu::clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
     }
 }
 
+void
+sys_emu::raise_external_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    unsigned shire_thread_count =
+        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Write mip.meip to all selected threads
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        if (thread_mask & (1ull << t))
+        {
+            unsigned thread_id = thread0 + t;
+            LOG_OTHER(DEBUG, thread_id, "%s", "Receiving External Interrupt");
+            ::raise_external_machine_interrupt(thread_id);
+            // If thread sleeping, wakes up
+            if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+            {
+                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to External Interrupt");
+                enabled_threads.push_back(thread_id);
+            }
+        }
+    }
+}
+
+void
+sys_emu::clear_external_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    unsigned shire_thread_count =
+        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Clear mip.meip to all selected threads
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        if ((thread_mask >> t) & 1)
+        {
+            unsigned thread_id = thread0 + t;
+            ::clear_external_machine_interrupt(thread_id);
+        }
+    }
+}
+
 std::tuple<bool, struct sys_emu_cmd_options>
 parse_command_line_arguments(int argc, char* argv[])
 {

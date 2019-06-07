@@ -1598,11 +1598,10 @@ static void csrset(uint16_t src1, uint64_t val)
 			    if (!(thread_mask & (1ULL << t)))
 				continue;
 
-			    unsigned thread = s * EMU_THREADS_PER_SHIRE + t;
 			    if (raise)
-				raise_external_machine_interrupt(thread);
+				sys_emu::raise_external_interrupt(s,thread_mask);
 			    else
-				clear_external_machine_interrupt(thread);
+				sys_emu::clear_external_interrupt(s,thread_mask);
 			}
 		    }
 		}
