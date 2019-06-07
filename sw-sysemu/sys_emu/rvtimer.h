@@ -9,6 +9,10 @@ struct RVTimer
         tick_freq = 100,
     };
 
+    RVTimer() {
+        reset();
+    }
+
     void reset() {
         mtime = 0;
         mtimecmp = std::numeric_limits<uint64_t>::max();
