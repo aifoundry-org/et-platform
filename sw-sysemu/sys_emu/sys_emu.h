@@ -16,6 +16,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 #define RESET_PC    0x8000001000ULL
+#define SP_RESET_PC 0x0040000000ULL
 #define FCC_T0_ADDR 0x01003400C0ULL
 #define FCC_T1_ADDR 0x01003400D0ULL
 #define FLB_ADDR    0x0100340100ULL
@@ -24,36 +25,38 @@
 /// \bried Struct holding the values of the parsed command line arguments
 ////////////////////////////////////////////////////////////////////////////////
 struct sys_emu_cmd_options {
-    char * elf_file      = nullptr;
-    char * mem_desc_file = nullptr;
-    char * net_desc_file = nullptr;
-    char * api_comm_path = nullptr;
-    bool elf             = false;
-    bool mem_desc        = false;
-    bool net_desc        = false;
-    bool api_comm        = false;
-    bool master_min      = false;
-    bool minions         = false;
-    bool second_thread   = true;
-    bool shires          = false;
-    bool log_en          = false;
+    char * elf_file            = nullptr;
+    char * mem_desc_file       = nullptr;
+    char * net_desc_file       = nullptr;
+    char * api_comm_path       = nullptr;
+    bool elf                   = false;
+    bool mem_desc              = false;
+    bool net_desc              = false;
+    bool api_comm              = false;
+    bool master_min            = false;
+    bool minions               = false;
+    bool second_thread         = true;
+    bool shires                = false;
+    bool log_en                = false;
     bool create_mem_at_runtime = false;
-    int  log_min         = -1;
-    char * dump_file     = nullptr;
+    int  log_min               = -1;
+    char * dump_file           = nullptr;
 #ifdef SYSEMU_PROFILING
-    char * dump_prof_file = nullptr;
-    int dump_prof        = 0;
+    char * dump_prof_file      = nullptr;
+    int dump_prof              = 0;
 #endif
-    int dump             = 0;
-    uint64_t dump_addr   = 0;
-    uint64_t dump_size   = 0;
-    char *   dump_mem    = nullptr;
-    uint64_t reset_pc    = RESET_PC;
-    bool reset_pc_flag   = false;
-    bool debug           = false;
-    uint64_t max_cycles  = 10000000;
-    bool max_cycle       = false;
-    bool mins_dis        = false;
+    int dump                   = 0;
+    uint64_t dump_addr         = 0;
+    uint64_t dump_size         = 0;
+    char *   dump_mem          = nullptr;
+    uint64_t reset_pc          = RESET_PC;
+    uint64_t sp_reset_pc       = SP_RESET_PC;
+    bool reset_pc_flag         = false;
+    bool sp_reset_pc_flag      = false;
+    bool debug                 = false;
+    uint64_t max_cycles        = 10000000;
+    bool max_cycle             = false;
+    bool mins_dis              = false;
 };
 
 /// Function used for parsing the command line arguments
