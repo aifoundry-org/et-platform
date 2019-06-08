@@ -103,7 +103,14 @@ bool SysEmuLauncher::launchSimulator() {
   // and the simulator terminates gracefully.
   // FIXME we are not checking the exit code this is sad
   RTINFO << "Wait for SysEmu process to terminate: " << pid;
-  waitpid(pid, NULL, 0);
+  int wstatus = 0;
+  auto ret_value = waitpid(pid, &wstatus, 0);
+  if (ret_value < 0) {
+    if (!WIFEXITED(wstatus)) {
+      RTERROR << "SysEmu terminated abnormally";
+      abort();
+    }
+  }
   return true;
 }
 
