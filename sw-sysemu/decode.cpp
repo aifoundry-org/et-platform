@@ -80,8 +80,8 @@ static insn_exec_funct_t dec_custom0(uint32_t bits,
               }
     case 0x2: return insn_flw_ps;
     case 0x3: return insn_fbcx_ps;
-    case 0x4: switch (funct7) {
-              flags |= insn_t::flag_CMO;
+    case 0x4: flags |= insn_t::flag_CMO;
+              switch (funct7) {
               case 0x03: return insn_famoaddl_pi;
               case 0x07: return insn_famoswapl_pi;
               case 0x0b: return insn_famoandl_pi;
@@ -107,8 +107,8 @@ static insn_exec_funct_t dec_custom0(uint32_t bits,
               default  : return insn_unknown;
               }
     case 0x6: return insn_fsw_ps;
-    case 0x7: switch (funct7) {
-              flags |= insn_t::flag_CMO;
+    case 0x7: flags |= insn_t::flag_CMO;
+              switch (funct7) {
               case 0x08: return (bits & 0x01f00000) ? insn_unknown : insn_flwl_ps; // rs2==0
               case 0x09: return (bits & 0x01f00000) ? insn_unknown : insn_flwg_ps; // rs2==0
               case 0x28: return (bits & 0x01f00000) ? insn_unknown : insn_fswl_ps; // rs2==0
@@ -244,8 +244,8 @@ static insn_exec_funct_t dec_amo(uint32_t bits __attribute__((unused)),
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct5 = (bits >> 27);
     switch (funct3) {
-    case 0x2: switch (funct5) {
-              flags |= insn_t::flag_CMO;
+    case 0x2: flags |= insn_t::flag_CMO;
+              switch (funct5) {
               case 0x00: return insn_amoadd_w;
               case 0x01: return insn_amoswap_w;
               case 0x02: return insn_lr_w;
@@ -259,8 +259,8 @@ static insn_exec_funct_t dec_amo(uint32_t bits __attribute__((unused)),
               case 0x1c: return insn_amomaxu_w;
               default  : return insn_unknown;
               }
-    case 0x3: switch (funct5) {
-              flags |= insn_t::flag_CMO;
+    case 0x3: flags |= insn_t::flag_CMO;
+              switch (funct5) {
               case 0x00: return insn_amoadd_d;
               case 0x01: return insn_amoswap_d;
               case 0x02: return insn_lr_d;
@@ -386,8 +386,8 @@ static insn_exec_funct_t dec_op_32(uint32_t bits,
               default  : return insn_unknown;
               }
     case 0x1: return (funct7 == 0) ? insn_sllw : insn_unknown;
-    case 0x2: switch (funct7) {
-              flags |= insn_t::flag_CMO;
+    case 0x2: flags |= insn_t::flag_CMO;
+              switch (funct7) {
               case 0x00: return insn_amoaddl_w;
               case 0x01: return insn_amoaddg_w;
               case 0x04: return insn_amoswapl_w;
@@ -410,8 +410,8 @@ static insn_exec_funct_t dec_op_32(uint32_t bits,
               case 0x79: return insn_amocmpswpg_w;
               default  : return insn_unknown;
               }
-    case 0x3: switch (funct7) {
-              flags |= insn_t::flag_CMO;
+    case 0x3: flags |= insn_t::flag_CMO;
+              switch (funct7) {
               case 0x00: return insn_amoaddl_d;
               case 0x01: return insn_amoaddg_d;
               case 0x04: return insn_amoswapl_d;
