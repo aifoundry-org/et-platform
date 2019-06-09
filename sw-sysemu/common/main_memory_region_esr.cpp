@@ -496,13 +496,13 @@ void main_memory_region_esr::write(uint64_t addr, size_t n, const void* source)
                 shire_other_esrs[idx].shire_dll_config_data_0 = value;
                 break;
             case ESR_ICACHE_UPREFETCH:
-                write_icache_prefetch(CSR_PRV_U, shire, value);
+                write_icache_prefetch(PRV_U, shire, value);
                 break;
             case ESR_ICACHE_SPREFETCH:
-                write_icache_prefetch(CSR_PRV_S, shire, value);
+                write_icache_prefetch(PRV_S, shire, value);
                 break;
             case ESR_ICACHE_MPREFETCH:
-                write_icache_prefetch(CSR_PRV_M, shire, value);
+                write_icache_prefetch(PRV_M, shire, value);
                 break;
             default:
                 throw trap_bus_error(addr);
@@ -840,13 +840,13 @@ void main_memory_region_esr::read(uint64_t addr, size_t n, void* result)
                 *ptr = shire_other_esrs[idx].shire_dll_config_data_0;
                 break;
             case ESR_ICACHE_UPREFETCH:
-                *ptr = read_icache_prefetch(CSR_PRV_U, shire);
+                *ptr = read_icache_prefetch(PRV_U, shire);
                 break;
             case ESR_ICACHE_SPREFETCH:
-                *ptr = read_icache_prefetch(CSR_PRV_S, shire);
+                *ptr = read_icache_prefetch(PRV_S, shire);
                 break;
             case ESR_ICACHE_MPREFETCH:
-                *ptr = read_icache_prefetch(CSR_PRV_M, shire);
+                *ptr = read_icache_prefetch(PRV_M, shire);
                 break;
             default:
                 throw trap_bus_error(addr);

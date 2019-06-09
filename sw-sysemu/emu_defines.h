@@ -233,12 +233,6 @@ enum et_core_t {
 /* Obsolete texsnd/texrcv instuctions use the low 128b of the fregs for data transfers */
 #define VL_TBOX 4
 
-// Privilege levels
-#define CSR_PRV_U  0
-#define CSR_PRV_S  1
-#define CSR_PRV_H  2
-#define CSR_PRV_M  3
-
 // ET DV environment commands
 #define ET_DIAG_NOP             (0x0)
 #define ET_DIAG_PUTCHAR         (0x1)

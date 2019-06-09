@@ -5,10 +5,12 @@
 #include "insn.h"
 #include "insn_func.h"
 #include "log.h"
+#include "processor.h"
 #include "utility.h"
 
 // FIXME: Replace with "state.h"
-extern uint8_t csr_prv[EMU_NUM_THREADS];
+#include "emu_defines.h"
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 //namespace bemu {
 

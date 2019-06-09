@@ -13,6 +13,7 @@ emu_hdrs := \
 	insn_func.h \
 	memmap.h \
 	mmu.h \
+	processor.h \
 	rbox.h \
 	rbox_pi.h \
 	state.h \
