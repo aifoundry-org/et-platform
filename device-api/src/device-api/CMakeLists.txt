@@ -48,7 +48,7 @@ set(FLATCC ${CMAKE_CURRENT_BINARY_DIR}/flatcc-build/bin/flatcc)
 add_custom_command(
   OUTPUT ${FLATCC_BUILD_DONE} ${FLATCC}
   COMMAND rm -rf ${FLATCC_FOLDER}
-  && git clone git@gitlab:software/flatcc-mirror.git ${FLATCC_FOLDER}
+  && git clone git@gitlab.esperanto.ai:software/flatcc-mirror.git ${FLATCC_FOLDER}
   && cd ${FLATCC_FOLDER}
   && git checkout -f ${FLATCC_VERSION}
   && scripts/initbuild.sh make # there is no ninja build tool
