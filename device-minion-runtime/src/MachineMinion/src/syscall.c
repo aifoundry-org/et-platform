@@ -2,9 +2,10 @@
 #include "broadcast.h"
 #include "cacheops.h"
 #include "esr_defines.h"
+#include "fcc.h"
+#include "flb.h"
 #include "printf.h"
 #include "shire.h"
-#include "sync.h"
 
 #include <stdint.h>
 

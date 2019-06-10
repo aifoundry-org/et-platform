@@ -1,5 +1,7 @@
-#ifndef SYNC_H
-#define SYNC_H
+#ifndef FCC_H
+#define FCC_H
+
+#include "esr_defines.h"
 
 #include <stdint.h>
 
@@ -13,7 +15,7 @@
 // thread = thread to send credit to, 0 or 1
 // fcc = fast credit counter to send credit to, 0 or 1
 // bitmask = which minion to send credit to. bit 0 = minion 0, bit 31 = minion 31
-#define SEND_FCC(shire, thread, fcc, bitmask) (*(volatile uint64_t* const)(0x1003400C0ULL + (shire << 22) + (((thread * 2) + fcc) << 3)) = bitmask)
+#define SEND_FCC(shire, thread, fcc, bitmask) (*(ESR_SHIRE(0, shire, FCC0) + (thread * 2) + fcc) = bitmask)
 
 // fcc = fast credit counter to block on, 0 or 1
 #define WAIT_FCC(fcc) asm volatile ("csrwi fcc, %0" : : "I" (fcc))
@@ -42,16 +44,4 @@ static inline uint64_t read_fcc(uint64_t fcc)
     return val;
 }
 
-// shire = shire to send the credit to, 0-32 or 0xFF for "this shire"
-// barrier = fast local barrier to use, 0-31
-#define INIT_FLB(shire, barrier) (*(volatile uint64_t* const)(0x100340100ULL + (shire << 22) + (barrier << 3)) = 0U)
-
-#define READ_FLB(shire, barrier) (*(volatile uint64_t* const)(0x100340100ULL + (shire << 22) + (barrier << 3)))
-
-#define WAIT_FLB(threads, barrier, result) do \
-{ \
-    const uint64_t val = ((threads - 1U) << 5U) + barrier; \
-    asm volatile ("csrrw %0, flb0, %1" : "=r" (result) : "r" (val)); \
-} while (0)
-
-#endif // SYNC_H
+#endif // FCC_H
