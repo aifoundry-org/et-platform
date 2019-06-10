@@ -30,7 +30,7 @@ set(ZEBU_TARGET SP_RAM)
 set(ZEBU_FILENAME ServiceProcessorBL2)
 
 include_directories(include)
-include_directories(${SHARED_INC_DIR})
+include_directories(${SHARED_INC_DIRS})
 include_directories(${FREERTOS_INC_DIRS})
 include_directories(${FIRMWARE_TOOLS_DIR}/esperanto-flash-tool/include)
 include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/crypto_library/include)
