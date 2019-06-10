@@ -1,9 +1,10 @@
 #include "kernel.h"
+#include "fcc.h"
+#include "flb.h"
 #include "layout.h"
 #include "macros.h"
 #include "message.h"
 #include "shire.h"
-#include "sync.h"
 #include "syscall.h"
 #include "test_kernels.h"
 

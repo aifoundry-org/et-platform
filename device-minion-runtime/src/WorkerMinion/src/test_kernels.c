@@ -1,8 +1,9 @@
 #include "test_kernels.h"
 #include "cacheops.h"
+#include "fcc.h"
+#include "flb.h"
 #include "macros.h"
 #include "shire.h"
-#include "sync.h"
 
 #include <stdint.h>
 #include <stdbool.h>

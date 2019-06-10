@@ -4,7 +4,6 @@
 #include "message.h"
 #include "printf.h"
 #include "shire.h"
-#include "sync.h"
 
 #include <stdbool.h>
 
