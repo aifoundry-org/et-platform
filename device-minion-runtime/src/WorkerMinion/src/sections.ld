@@ -9,11 +9,13 @@
 *-------------------------------------------------------------------------
 */
 
+INCLUDE layout.ld
+
 ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x8100400000;  /* R_L3_DRAM + 4MB */
+    . = FW_WORKER_SMODE_ENTRY;
 
     .text :
     {

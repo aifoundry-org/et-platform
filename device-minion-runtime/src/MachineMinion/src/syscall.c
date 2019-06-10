@@ -1,7 +1,7 @@
 #include "syscall.h"
+#include "broadcast.h"
 #include "cacheops.h"
 #include "esr_defines.h"
-#include "ipi.h"
 #include "printf.h"
 #include "shire.h"
 #include "sync.h"
@@ -13,7 +13,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
 static int64_t pre_kernel_setup(uint64_t arg1);
 static int64_t post_kernel_cleanup(void);
 
-static inline void idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_addr);
+static inline void idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_ptr);
 static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank);
 static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t hart_mask);
 
@@ -131,41 +131,41 @@ static int64_t post_kernel_cleanup(void)
     return 0;
 }
 
-static inline void idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_addr)
+static inline void idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_ptr)
 {
     uint64_t state;
 
     do {
-        state = (*idx_cop_sm_ctl_addr >> 24) & 0xFF;
+        state = (*idx_cop_sm_ctl_ptr >> 24) & 0xFF;
     } while (state != 4);
 }
 
 static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank)
 {
-    volatile uint64_t* const idx_cop_sm_ctl_addr = (uint64_t*)ESR_CACHE(3, shire, bank, IDX_COP_SM_CTL);
+    volatile uint64_t* const idx_cop_sm_ctl_ptr = ESR_CACHE(PRV_M, shire, bank, IDX_COP_SM_CTL);
 
-    idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_addr);
+    idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_ptr);
 
-    *idx_cop_sm_ctl_addr = (1 << 0) | // Go bit = 1
-                           (10 << 8); // Opcode = CB_Inv (Coalescing buffer invalidate)
+    *idx_cop_sm_ctl_ptr = (1ULL << 0) | // Go bit = 1
+                          (10ULL << 8); // Opcode = CB_Inv (Coalescing buffer invalidate)
 
-    idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_addr);
+    idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_ptr);
 }
 
 static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t hart_mask)
 {
-    const unsigned int before_fcc_consume = (params >> 0) & 1;
-    const unsigned int before_fcc_reg = (params >> 1) & 1;
-    const unsigned int drain_shire = (params >> 2) & 0xFF;
-    const unsigned int drain_bank = (params >> 10) & 3;
-    const unsigned int after_flb = (params >> 12) & 1;
-    const unsigned int after_flb_num = (params >> 13) & 0x1F;
-    const unsigned int after_flb_match = (params >> 18) & 0xFF;
-    const unsigned int after_fcc_send = (params >> 26) & 1;
-    const unsigned int after_fcc_shire = (params >> 27) & 0xFF;
-    const unsigned int after_fcc_reg = (params >> 35) & 1;
-    const unsigned int after_fcc_thread = (params >> 36) & 1;
-    unsigned int flb_last = 0;
+    const uint64_t before_fcc_consume = (params >> 0) & 1;
+    const uint64_t before_fcc_reg = (params >> 1) & 1;
+    const uint64_t drain_shire = (params >> 2) & 0xFF;
+    const uint64_t drain_bank = (params >> 10) & 3;
+    const uint64_t after_flb = (params >> 12) & 1;
+    const uint64_t after_flb_num = (params >> 13) & 0x1F;
+    const uint64_t after_flb_match = (params >> 18) & 0xFF;
+    const uint64_t after_fcc_send = (params >> 26) & 1;
+    const uint64_t after_fcc_shire = (params >> 27) & 0xFF;
+    const uint64_t after_fcc_reg = (params >> 35) & 1;
+    const uint64_t after_fcc_thread = (params >> 36) & 1;
+    uint64_t flb_last = 0;
 
     // Wait until we receive a FCC credit from the compute minions
     if (before_fcc_consume)
@@ -313,27 +313,27 @@ static int64_t init_l1(void)
 
 static int64_t evict_l2_start(void)
 {
-    for (uint64_t i = 0; i < 4; i++) {
-        volatile uint64_t* const idx_cop_sm_ctl_addr = (uint64_t*)ESR_CACHE(3, 0xFF, i, IDX_COP_SM_CTL);
-
-        idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_addr);
+    for (uint64_t i = 0; i < 4; i++)
+    {
+        volatile uint64_t* const idx_cop_sm_ctl_ptr = ESR_CACHE(PRV_M, 0xFF, i, IDX_COP_SM_CTL);
+        idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_ptr);
     }
 
     // Broadcast L2 evict to all 4 banks
-    volatile uint64_t* const idx_cop_sm_ctl_addr = (uint64_t*)ESR_CACHE(3, 0xFF, 0xF, IDX_COP_SM_CTL);
+    volatile uint64_t* const idx_cop_sm_ctl_ptr = ESR_CACHE(PRV_M, 0xFF, 0xF, IDX_COP_SM_CTL);
 
-    *idx_cop_sm_ctl_addr = (1 << 0) | // Go bit = 1
-                            (3 << 8);  // Opcode = L2_Evict (Evicts all L2 indexes)
+    *idx_cop_sm_ctl_ptr = (1ULL << 0) | // Go bit = 1
+                          (3ULL << 8);  // Opcode = L2_Evict (Evicts all L2 indexes)
 
     return 0;
 }
 
 static int64_t evict_l2_wait(void)
 {
-    for (uint64_t i = 0; i < 4; i++) {
-        volatile const uint64_t* const idx_cop_sm_ctl_addr = (uint64_t*)ESR_CACHE(3, 0xFF, i, IDX_COP_SM_CTL);
-
-        idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_addr);
+    for (uint64_t i = 0; i < 4; i++)
+    {
+        volatile const uint64_t* const idx_cop_sm_ctl_ptr = ESR_CACHE(PRV_M, 0xFF, i, IDX_COP_SM_CTL);
+        idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_ptr);
     }
 
     return 0;
@@ -353,34 +353,25 @@ static int64_t evict_l2(void)
     return rv;
 }
 
+// hart_disable_mask is a bitmask to DISABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
 static int64_t enable_thread1(uint64_t hart_disable_mask)
 {
-    // Set 1 to DISABLE a thread 1: bit 0 = minion 0, bit 31 = minion 31
-    *(volatile uint64_t* const)(0x1C0340010ULL) = hart_disable_mask;
+    volatile uint64_t* const enable_thread1_ptr = ESR_SHIRE(PRV_M, THIS_SHIRE, THREAD1_DISABLE);
+    *enable_thread1_ptr = hart_disable_mask;
 
     return 0;
 }
 
 static int64_t broadcast(uint64_t value, uint64_t shire_mask, uint64_t parameters)
 {
-    // parameters:
-    // pp (bits 35:34)
-    // region (bits 33:32)
-    // address (bits 16:0)
-    uint64_t pp      = (parameters >> 34) & 0x3;
-    uint64_t region  = (parameters >> 32) & 0x3;
-    uint64_t address = parameters & 0x1FFFF;
+    // privilege of write to BROADCAST1 ESR must match privilege encoded in parameters
+    const uint64_t priv = (parameters & ESR_BROADCAST_PROT_MASK) >> ESR_BROADCAST_PROT_SHIFT;
 
-    volatile uint64_t* const broadcast_esr_addr = (uint64_t*)0x013ff5fff0;
+    volatile uint64_t* const broadcast_esr_ptr = ESR_SHIRE(PRV_U, THIS_SHIRE, BROADCAST0);
+    volatile uint64_t* const broadcast_req_ptr = ESR_SHIRE(priv,  THIS_SHIRE, BROADCAST1);
 
-    *broadcast_esr_addr = value;
-
-    volatile uint64_t* const broadcast_req_addr = (uint64_t*)(0x013ff5fff8 | (pp << 30));
-
-    *broadcast_req_addr = (((pp & 0x03)         << 59) |
-                           ((region & 0x03)     << 57) |
-                           ((address & 0x1ffff) << 40) |
-                           (shire_mask & 0xFFFFFFFF  ));
+    *broadcast_esr_ptr = value;
+    *broadcast_req_ptr = parameters | (shire_mask & ESR_BROADCAST_ESR_SHIRE_MASK);
 
     return 0;
 }
@@ -389,7 +380,8 @@ static int64_t broadcast(uint64_t value, uint64_t shire_mask, uint64_t parameter
 // shire_id = shire to send the credit to, 0-32 or 0xFF for "this shire"
 static int64_t ipi_trigger(uint64_t shire_id, uint64_t hart_mask)
 {
-    IPI_TRIGGER(shire_id, hart_mask);
+    volatile uint64_t* const ipi_trigger_ptr = ESR_SHIRE(PRV_M, shire_id, IPI_TRIGGER);
+    *ipi_trigger_ptr = hart_mask;
 
     return 0;
 }

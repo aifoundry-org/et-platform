@@ -18,15 +18,15 @@
 // fcc = fast credit counter to block on, 0 or 1
 #define WAIT_FCC(fcc) asm volatile ("csrwi fcc, %0" : : "I" (fcc))
 
-static inline void wait_fcc(unsigned int fcc)
+static inline void wait_fcc(uint64_t fcc)
 {
     asm volatile ("csrw fcc, %0" : : "r" (fcc));
 }
 
-static inline unsigned int read_fcc(unsigned int fcc)
+static inline uint64_t read_fcc(uint64_t fcc)
 {
-    unsigned int temp;
-    unsigned int val;
+    uint64_t temp;
+    uint64_t val;
 
     asm volatile (
         "   csrr  %0, fccnb  \n" // read FCCNB

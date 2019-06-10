@@ -36,7 +36,6 @@ set(SOURCES
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/print_exception.c
-    src/master.c
     )
 
 set(TARGET_NAME MasterMinion)
@@ -45,7 +44,7 @@ set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
 
 include_directories(include)
-include_directories(${SHARED_INC_DIR})
+include_directories(${SHARED_INC_DIRS})
 
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
 

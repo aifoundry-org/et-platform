@@ -22,18 +22,12 @@
 .global _boot
 
 _boot:
-    # init some csr regs
-    csrwi satp, 0
-    csrr  t0, mstatus
-    li    t1, 0x6000
-    or    t0, t0, t1
-    csrw  mstatus, t0 # set fs=11 (dirty)
-    csrrw x0, fcsr, x0 # clear floating point status
-    csrrw x0, mip, x0 # clear all pending interrupts
-
-    # initialize trap vector
-    # la    t0, mtrap_vector
-    # csrw  mtvec, t0
+    csrwi matp, 0       # disable machine VM
+    csrwi satp, 0       # disable supervisor VM
+    li    t0, 0x6000
+    csrs  mstatus, t0   # set floating point status fs=11 (dirty)
+    csrwi fcsr, 0       # clear floating point status
+    #csrwi mip, 0        # clear all pending interrupts
 
 ###################################################################\\
 #  * FIXME *                                                        #

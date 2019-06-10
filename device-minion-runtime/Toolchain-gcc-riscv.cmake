@@ -65,9 +65,9 @@ if (NOT DEFINED GIT_VERSION_ARRAY)
     execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_ARRAY)
 endif()
 
-configure_file (
-    "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h.in"
-    "${CMAKE_CURRENT_BINARY_DIR}/include/build_configuration.h"
+    configure_file (
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/include/build_configuration.h"
     )
 
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
@@ -83,6 +83,9 @@ configure_file (
     # Must use target_link_libraries() to add libraries to get correct symbol resolution -
     # putting libraries in CMAKE_EXE_LINKER_FLAGS is too early
     target_link_libraries(${ELF_FILE} c m gcc)
+
+    # Pass -L{$SHARED_INC_DIR} to linker so linker scripts can INCLUDE shared defines
+    target_link_directories(${ELF_FILE} PRIVATE ${SHARED_INC_DIR})
 
     # Add explicit dependency on linker script when linking target
     set_target_properties(${ELF_FILE} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_ABS_PATH})

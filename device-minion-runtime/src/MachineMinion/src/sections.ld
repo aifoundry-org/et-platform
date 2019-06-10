@@ -9,14 +9,16 @@
 *-------------------------------------------------------------------------
 */
 
+INCLUDE layout.ld
+
 ENTRY(_boot)
 
 MEMORY
 {
     /* Mcode region is 2M from 0x8000000000 to 0x8000200000
-       stacks are 768B per HART, 2112 HARTs, descending from @0x80001FFD00
+       stacks are 768B per HART, 2112 HARTs, descending from @0x8000200000
        so ensure image fits in non-stack region */
-    MCODE (rwx) : org = 0x8000000000, l = 0x73D00
+    MCODE (rwx) : org = 0x8000000000, l = 0x74000
 }
 
 SECTIONS

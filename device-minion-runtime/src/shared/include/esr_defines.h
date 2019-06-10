@@ -68,37 +68,37 @@
 // Helper macros to construct ESR addresses in the various subregions
 
 #define ESR_HART(prot, shire, hart, name) \
-    ((uint64_t)(ESR_HART_REGION) + \
-     ((uint64_t)(prot) << ESR_REGION_PROT_SHIFT) + \
-     ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
-     ((uint64_t)(hart) << ESR_HART_SHIFT) + \
-      (uint64_t)(ESR_HART_ ## name))
+    (volatile uint64_t*)(ESR_HART_REGION + \
+                         ((uint64_t)(prot)  << ESR_REGION_PROT_SHIFT) + \
+                         ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
+                         ((uint64_t)(hart)  << ESR_HART_SHIFT) + \
+                         (ESR_HART_ ## name))
 
 #define ESR_NEIGH(prot, shire, neigh, name) \
-    ((uint64_t)(ESR_NEIGH_REGION) + \
-     ((uint64_t)(prot) << ESR_REGION_PROT_SHIFT) + \
-     ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
-     ((uint64_t)(neigh) << ESR_NEIGH_SHIFT) + \
-      (uint64_t)(ESR_NEIGH_ ## name))
+    (volatile uint64_t*)(ESR_NEIGH_REGION + \
+                         ((uint64_t)(prot)  << ESR_REGION_PROT_SHIFT) + \
+                         ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
+                         ((uint64_t)(neigh) << ESR_NEIGH_SHIFT) + \
+                         (ESR_NEIGH_ ## name))
 
 #define ESR_CACHE(prot, shire, bank, name) \
-    ((uint64_t)(ESR_CACHE_REGION) + \
-     ((uint64_t)(prot) << ESR_REGION_PROT_SHIFT) + \
-     ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
-     ((uint64_t)(bank) << ESR_BANK_SHIFT) + \
-      (uint64_t)(ESR_CACHE_ ## name))
+    (volatile uint64_t*)(ESR_CACHE_REGION + \
+                         ((uint64_t)(prot)  << ESR_REGION_PROT_SHIFT) + \
+                         ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
+                         ((uint64_t)(bank)  << ESR_BANK_SHIFT) + \
+                         (ESR_CACHE_ ## name))
 
 #define ESR_RBOX(prot, shire, name) \
-    ((uint64_t)(ESR_RBOX_REGION) + \
-     ((uint64_t)(prot) << ESR_REGION_PROT_SHIFT) + \
-     ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
-      (uint64_t)(ESR_RBOX_ ## name))
+    (volatile uint64_t*)(ESR_RBOX_REGION + \
+                         ((uint64_t)(prot)  << ESR_REGION_PROT_SHIFT) + \
+                         ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
+                         (ESR_RBOX_ ## name))
 
 #define ESR_SHIRE(prot, shire, name) \
-    ((uint64_t)(ESR_SHIRE_REGION) + \
-     ((uint64_t)(prot) << ESR_REGION_PROT_SHIFT) + \
-     ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
-      (uint64_t)(ESR_SHIRE_ ## name))
+    (volatile uint64_t*)(ESR_SHIRE_REGION + \
+                         ((uint64_t)(prot)  << ESR_REGION_PROT_SHIFT) + \
+                         ((uint64_t)(shire) << ESR_REGION_SHIRE_SHIFT) + \
+                         (ESR_SHIRE_ ## name))
 
 // Hart ESRs
 #define ESR_HART_0                      0x000   /* PP = 0b00 */
@@ -134,6 +134,7 @@
 // Shire ESRs
 #define ESR_SHIRE_0                         0x00000 /* PP = 0b00 */
 #define ESR_SHIRE_MINION_FEATURE            0x00000
+#define ESR_SHIRE_THREAD1_DISABLE           0x00010
 #define ESR_SHIRE_IPI_REDIRECT_TRIGGER      0x00080
 #define ESR_SHIRE_IPI_REDIRECT_FILTER       0x00088
 #define ESR_SHIRE_IPI_TRIGGER               0x00090
@@ -186,7 +187,7 @@
 #define ESR_BROADCAST_PROT_SHIFT             59
 #define ESR_BROADCAST_ESR_SREGION_MASK       0x07C0000000000000ULL // bits [21:17] in Memory Shire Esr Map. Esr region.
 #define ESR_BROADCAST_ESR_SREGION_MASK_SHIFT 54
-#define ESR_BROADCAST_ESR_ADDR_MASK          0x003FFF0000000000ULL // bits[17:3] in Memory Shire Esr Map. Esr address
+#define ESR_BROADCAST_ESR_ADDR_MASK          0x003FFF0000000000ULL // bits [16:3] in Memory Shire Esr Map. Esr address
 #define ESR_BROADCAST_ESR_ADDR_SHIFT         40
 #define ESR_BROADCAST_ESR_SHIRE_MASK         0x000000FFFFFFFFFFULL // bit mask Shire to spread the broadcast bits
 #define ESR_BROADCAST_ESR_MAX_SHIRES         ESR_BROADCAST_ESR_ADDR_SHIFT
