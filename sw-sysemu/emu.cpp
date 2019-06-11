@@ -1362,6 +1362,8 @@ static void csrset(uint16_t src1, uint64_t val)
             csr_mcache_control[current_thread] = val & 3;
             csr_mcache_control[current_thread^1] = val & 3;
             num_sets = (val & 0x1) ? 4 : 16;
+            if (~val & 2)
+                tensorload_setupb_topair[current_thread] = false;
         }
         val &= 3;
         break;
@@ -1596,11 +1598,10 @@ static void csrset(uint16_t src1, uint64_t val)
 			    if (!(thread_mask & (1ULL << t)))
 				continue;
 
-			    unsigned thread = s * EMU_THREADS_PER_SHIRE + t;
 			    if (raise)
-				raise_external_machine_interrupt(thread);
+				sys_emu::raise_external_interrupt(s,thread_mask);
 			    else
-				clear_external_machine_interrupt(thread);
+				sys_emu::clear_external_interrupt(s,thread_mask);
 			}
 		    }
 		}
@@ -3140,17 +3141,19 @@ static void tensor_fma32(uint64_t tfmareg)
     LOG(DEBUG, "\tStart TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(frm()));
 
-    if (tenb && (!tensorload_setupb_topair[current_thread] ||
-                 (tensorload_setupb_numlines[current_thread] != acols)))
+    // Unpair the last TensorLoadSetupB
+    bool load_tenb = tensorload_setupb_topair[current_thread];
+    int  brows_tenb = tensorload_setupb_numlines[current_thread];
+    tensorload_setupb_topair[current_thread] = false;
+    tensorload_setupb_topair[current_thread^1] = false;
+
+    // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
+    // rows/columns size, or not tenb and orphaned TensorLoadSetupB
+    if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb))
     {
-        // No TensorLoad to pair or incompatible combination of rows and columns length
         update_tensor_error(1 << 6);
         return;
     }
-
-    // Unpair a paired TensorLoad
-    tensorload_setupb_topair[current_thread] = false;
-    tensorload_setupb_topair[current_thread^1] = false;
 
     set_rounding_mode(frm());
 
@@ -3257,17 +3260,20 @@ static void tensor_fma16a32(uint64_t tfmareg)
     LOG(DEBUG, "\tStart TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rtz));
 
-    if (tenb && (!tensorload_setupb_topair[current_thread] ||
-                 (tensorload_setupb_numlines[current_thread] != acols/2)))
+    // Unpair the last TensorLoadSetupB
+    bool load_tenb = tensorload_setupb_topair[current_thread];
+    int  brows_tenb = 2 * tensorload_setupb_numlines[current_thread];
+    tensorload_setupb_topair[current_thread] = false;
+    tensorload_setupb_topair[current_thread^1] = false;
+
+    // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
+    // combination of rows and columns length, or not tenb and orphaned
+    // TensorLoadSetupB
+    if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb))
     {
-        // No TensorLoad to pair or incompatible combination of rows and columns length
         update_tensor_error(1 << 6);
         return;
     }
-
-    // Unpair a paired TensorLoad
-    tensorload_setupb_topair[current_thread] = false;
-    tensorload_setupb_topair[current_thread^1] = false;
 
     set_rounding_mode(rtz);
 
@@ -3380,17 +3386,20 @@ static void tensor_ima8a32(uint64_t tfmareg)
     LOG(DEBUG, "\tStart TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
         usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
 
-    if (tenb && (!tensorload_setupb_topair[current_thread] ||
-                 (tensorload_setupb_numlines[current_thread] != acols/4)))
+    // Unpair the last TensorLoadSetupB
+    bool load_tenb = tensorload_setupb_topair[current_thread];
+    int  brows_tenb = 4 * tensorload_setupb_numlines[current_thread];
+    tensorload_setupb_topair[current_thread] = false;
+    tensorload_setupb_topair[current_thread^1] = false;
+
+    // tenb and no TensorLoadSetupB to pair, or tenb and incompatible
+    // combination of rows and columns length, or not tenb and orphaned
+    // TensorLoadSetupB
+    if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb))
     {
-        // No TensorLoad to pair or incompatible combination of rows and columns length
         update_tensor_error(1 << 6);
         return;
     }
-
-    // Unpair a paired TensorLoad
-    tensorload_setupb_topair[current_thread] = false;
-    tensorload_setupb_topair[current_thread^1] = false;
 
     if (first_pass)
     {
@@ -3932,7 +3941,7 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
         if (minion_mask & (1ull << minion))
         {
             size_t fcc_addr = shire*EMU_THREADS_PER_SHIRE + EMU_THREADS_PER_MINION*minion + thread;
-            LOG(DEBUG, "Incrementing FCC%" PRIu64 "[H%" PRIu64 "]=%" PRId32, thread*2 + fcc_id, fcc_addr, fcc[fcc_addr][fcc_id] + 1);
+            LOG(DEBUG, "Incrementing FCC%" PRIu64 "[H%" PRIu64 "]=%" PRId32, thread*2 + fcc_id, fcc_addr, uint16_t(fcc[fcc_addr][fcc_id] + 1));
             fcc[fcc_addr][fcc_id]++;
 
 #ifndef SYS_EMU

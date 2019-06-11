@@ -80,49 +80,51 @@ static insn_exec_funct_t dec_custom0(uint32_t bits,
               }
     case 0x2: return insn_flw_ps;
     case 0x3: return insn_fbcx_ps;
-    case 0x4: switch (funct7) {
-              case 0x03: flags |= insn_t::flag_AMO; return insn_famoaddl_pi;
-              case 0x07: flags |= insn_t::flag_AMO; return insn_famoswapl_pi;
-              case 0x0b: flags |= insn_t::flag_AMO; return insn_famoandl_pi;
-              case 0x0f: flags |= insn_t::flag_AMO; return insn_famoorl_pi;
-              case 0x13: flags |= insn_t::flag_AMO; return insn_famoxorl_pi;
-              case 0x14: flags |= insn_t::flag_AMO; return insn_famomaxl_ps;
-              case 0x17: flags |= insn_t::flag_AMO; return insn_famominl_pi;
-              case 0x18: flags |= insn_t::flag_AMO; return insn_famominl_ps;
-              case 0x1b: flags |= insn_t::flag_AMO; return insn_famomaxl_pi;
-              case 0x1f: flags |= insn_t::flag_AMO; return insn_famominul_pi;
-              case 0x23: flags |= insn_t::flag_AMO; return insn_famomaxul_pi;
-              case 0x43: flags |= insn_t::flag_AMO; return insn_famoaddg_pi;
-              case 0x47: flags |= insn_t::flag_AMO; return insn_famoswapg_pi;
-              case 0x4b: flags |= insn_t::flag_AMO; return insn_famoandg_pi;
-              case 0x4f: flags |= insn_t::flag_AMO; return insn_famoorg_pi;
-              case 0x53: flags |= insn_t::flag_AMO; return insn_famoxorg_pi;
-              case 0x54: flags |= insn_t::flag_AMO; return insn_famomaxg_ps;
-              case 0x57: flags |= insn_t::flag_AMO; return insn_famoming_pi;
-              case 0x58: flags |= insn_t::flag_AMO; return insn_famoming_ps;
-              case 0x5b: flags |= insn_t::flag_AMO; return insn_famomaxg_pi;
-              case 0x5f: flags |= insn_t::flag_AMO; return insn_famominug_pi;
-              case 0x63: flags |= insn_t::flag_AMO; return insn_famomaxug_pi;
+    case 0x4: flags |= insn_t::flag_CMO;
+              switch (funct7) {
+              case 0x03: return insn_famoaddl_pi;
+              case 0x07: return insn_famoswapl_pi;
+              case 0x0b: return insn_famoandl_pi;
+              case 0x0f: return insn_famoorl_pi;
+              case 0x13: return insn_famoxorl_pi;
+              case 0x14: return insn_famomaxl_ps;
+              case 0x17: return insn_famominl_pi;
+              case 0x18: return insn_famominl_ps;
+              case 0x1b: return insn_famomaxl_pi;
+              case 0x1f: return insn_famominul_pi;
+              case 0x23: return insn_famomaxul_pi;
+              case 0x43: return insn_famoaddg_pi;
+              case 0x47: return insn_famoswapg_pi;
+              case 0x4b: return insn_famoandg_pi;
+              case 0x4f: return insn_famoorg_pi;
+              case 0x53: return insn_famoxorg_pi;
+              case 0x54: return insn_famomaxg_ps;
+              case 0x57: return insn_famoming_pi;
+              case 0x58: return insn_famoming_ps;
+              case 0x5b: return insn_famomaxg_pi;
+              case 0x5f: return insn_famominug_pi;
+              case 0x63: return insn_famomaxug_pi;
               default  : return insn_unknown;
               }
     case 0x6: return insn_fsw_ps;
-    case 0x7: switch (funct7) {
+    case 0x7: flags |= insn_t::flag_CMO;
+              switch (funct7) {
               case 0x08: return (bits & 0x01f00000) ? insn_unknown : insn_flwl_ps; // rs2==0
               case 0x09: return (bits & 0x01f00000) ? insn_unknown : insn_flwg_ps; // rs2==0
               case 0x28: return (bits & 0x01f00000) ? insn_unknown : insn_fswl_ps; // rs2==0
               case 0x29: return (bits & 0x01f00000) ? insn_unknown : insn_fswg_ps; // rs2==0
               case 0x48: return insn_fgwl_ps;
-	      case 0x44: return insn_fghl_ps;
-	      case 0x40: return insn_fgbl_ps;
+              case 0x44: return insn_fghl_ps;
+              case 0x40: return insn_fgbl_ps;
               case 0x49: return insn_fgwg_ps;
-	      case 0x45: return insn_fghg_ps;
-	      case 0x41: return insn_fgbg_ps;
+              case 0x45: return insn_fghg_ps;
+              case 0x41: return insn_fgbg_ps;
               case 0x68: return insn_fscwl_ps;
-	      case 0x64: return insn_fschl_ps;
-	      case 0x60: return insn_fscbl_ps;
+              case 0x64: return insn_fschl_ps;
+              case 0x60: return insn_fscbl_ps;
               case 0x69: return insn_fscwg_ps;
-	      case 0x65: return insn_fschg_ps;
-	      case 0x61: return insn_fscbg_ps;
+              case 0x65: return insn_fschg_ps;
+              case 0x61: return insn_fscbg_ps;
               default  : return insn_unknown;
               }
     default : return insn_unknown;
@@ -242,32 +244,34 @@ static insn_exec_funct_t dec_amo(uint32_t bits __attribute__((unused)),
     unsigned funct3 = (bits >> 12) & 7;
     unsigned funct5 = (bits >> 27);
     switch (funct3) {
-    case 0x2: switch (funct5) {
-              case 0x00: flags |= insn_t::flag_AMO; return insn_amoadd_w;
-              case 0x01: flags |= insn_t::flag_AMO; return insn_amoswap_w;
-              case 0x02: flags |= insn_t::flag_AMO; return insn_lr_w;
-              case 0x03: flags |= insn_t::flag_AMO; return insn_sc_w;
-              case 0x04: flags |= insn_t::flag_AMO; return insn_amoxor_w;
-              case 0x08: flags |= insn_t::flag_AMO; return insn_amoor_w;
-              case 0x0c: flags |= insn_t::flag_AMO; return insn_amoand_w;
-              case 0x10: flags |= insn_t::flag_AMO; return insn_amomin_w;
-              case 0x14: flags |= insn_t::flag_AMO; return insn_amomax_w;
-              case 0x18: flags |= insn_t::flag_AMO; return insn_amominu_w;
-              case 0x1c: flags |= insn_t::flag_AMO; return insn_amomaxu_w;
+    case 0x2: flags |= insn_t::flag_CMO;
+              switch (funct5) {
+              case 0x00: return insn_amoadd_w;
+              case 0x01: return insn_amoswap_w;
+              case 0x02: return insn_lr_w;
+              case 0x03: return insn_sc_w;
+              case 0x04: return insn_amoxor_w;
+              case 0x08: return insn_amoor_w;
+              case 0x0c: return insn_amoand_w;
+              case 0x10: return insn_amomin_w;
+              case 0x14: return insn_amomax_w;
+              case 0x18: return insn_amominu_w;
+              case 0x1c: return insn_amomaxu_w;
               default  : return insn_unknown;
               }
-    case 0x3: switch (funct5) {
-              case 0x00: flags |= insn_t::flag_AMO; return insn_amoadd_d;
-              case 0x01: flags |= insn_t::flag_AMO; return insn_amoswap_d;
-              case 0x02: flags |= insn_t::flag_AMO; return insn_lr_d;
-              case 0x03: flags |= insn_t::flag_AMO; return insn_sc_d;
-              case 0x04: flags |= insn_t::flag_AMO; return insn_amoxor_d;
-              case 0x08: flags |= insn_t::flag_AMO; return insn_amoor_d;
-              case 0x0c: flags |= insn_t::flag_AMO; return insn_amoand_d;
-              case 0x10: flags |= insn_t::flag_AMO; return insn_amomin_d;
-              case 0x14: flags |= insn_t::flag_AMO; return insn_amomax_d;
-              case 0x18: flags |= insn_t::flag_AMO; return insn_amominu_d;
-              case 0x1c: flags |= insn_t::flag_AMO; return insn_amomaxu_d;
+    case 0x3: flags |= insn_t::flag_CMO;
+              switch (funct5) {
+              case 0x00: return insn_amoadd_d;
+              case 0x01: return insn_amoswap_d;
+              case 0x02: return insn_lr_d;
+              case 0x03: return insn_sc_d;
+              case 0x04: return insn_amoxor_d;
+              case 0x08: return insn_amoor_d;
+              case 0x0c: return insn_amoand_d;
+              case 0x10: return insn_amomin_d;
+              case 0x14: return insn_amomax_d;
+              case 0x18: return insn_amominu_d;
+              case 0x1c: return insn_amomaxu_d;
               default  : return insn_unknown;
               }
     default : return insn_unknown;
@@ -382,54 +386,56 @@ static insn_exec_funct_t dec_op_32(uint32_t bits,
               default  : return insn_unknown;
               }
     case 0x1: return (funct7 == 0) ? insn_sllw : insn_unknown;
-    case 0x2: switch (funct7) {
-              case 0x00: flags |= insn_t::flag_AMO; return insn_amoaddl_w;
-              case 0x01: flags |= insn_t::flag_AMO; return insn_amoaddg_w;
-              case 0x04: flags |= insn_t::flag_AMO; return insn_amoswapl_w;
-              case 0x05: flags |= insn_t::flag_AMO; return insn_amoswapg_w;
-              case 0x10: flags |= insn_t::flag_AMO; return insn_amoxorl_w;
-              case 0x11: flags |= insn_t::flag_AMO; return insn_amoxorg_w;
-              case 0x20: flags |= insn_t::flag_AMO; return insn_amoorl_w;
-              case 0x21: flags |= insn_t::flag_AMO; return insn_amoorg_w;
-              case 0x30: flags |= insn_t::flag_AMO; return insn_amoandl_w;
-              case 0x31: flags |= insn_t::flag_AMO; return insn_amoandg_w;
-              case 0x40: flags |= insn_t::flag_AMO; return insn_amominl_w;
-              case 0x41: flags |= insn_t::flag_AMO; return insn_amoming_w;
-              case 0x50: flags |= insn_t::flag_AMO; return insn_amomaxl_w;
-              case 0x51: flags |= insn_t::flag_AMO; return insn_amomaxg_w;
-              case 0x60: flags |= insn_t::flag_AMO; return insn_amominul_w;
-              case 0x61: flags |= insn_t::flag_AMO; return insn_amominug_w;
-              case 0x70: flags |= insn_t::flag_AMO; return insn_amomaxul_w;
-              case 0x71: flags |= insn_t::flag_AMO; return insn_amomaxug_w;
-              case 0x78: flags |= insn_t::flag_AMO; return insn_amocmpswpl_w;
-              case 0x79: flags |= insn_t::flag_AMO; return insn_amocmpswpg_w;
+    case 0x2: flags |= insn_t::flag_CMO;
+              switch (funct7) {
+              case 0x00: return insn_amoaddl_w;
+              case 0x01: return insn_amoaddg_w;
+              case 0x04: return insn_amoswapl_w;
+              case 0x05: return insn_amoswapg_w;
+              case 0x10: return insn_amoxorl_w;
+              case 0x11: return insn_amoxorg_w;
+              case 0x20: return insn_amoorl_w;
+              case 0x21: return insn_amoorg_w;
+              case 0x30: return insn_amoandl_w;
+              case 0x31: return insn_amoandg_w;
+              case 0x40: return insn_amominl_w;
+              case 0x41: return insn_amoming_w;
+              case 0x50: return insn_amomaxl_w;
+              case 0x51: return insn_amomaxg_w;
+              case 0x60: return insn_amominul_w;
+              case 0x61: return insn_amominug_w;
+              case 0x70: return insn_amomaxul_w;
+              case 0x71: return insn_amomaxug_w;
+              case 0x78: return insn_amocmpswpl_w;
+              case 0x79: return insn_amocmpswpg_w;
               default  : return insn_unknown;
               }
-    case 0x3: switch (funct7) {
-              case 0x00: flags |= insn_t::flag_AMO; return insn_amoaddl_d;
-              case 0x01: flags |= insn_t::flag_AMO; return insn_amoaddg_d;
-              case 0x04: flags |= insn_t::flag_AMO; return insn_amoswapl_d;
-              case 0x05: flags |= insn_t::flag_AMO; return insn_amoswapg_d;
-              case 0x08: flags |= insn_t::flag_AMO; return insn_sbl;
-              case 0x09: flags |= insn_t::flag_AMO; return insn_sbg;
-              case 0x0C: flags |= insn_t::flag_AMO; return insn_shl;
-              case 0x0D: flags |= insn_t::flag_AMO; return insn_shg;
-              case 0x10: flags |= insn_t::flag_AMO; return insn_amoxorl_d;
-              case 0x11: flags |= insn_t::flag_AMO; return insn_amoxorg_d;
-              case 0x20: flags |= insn_t::flag_AMO; return insn_amoorl_d;
-              case 0x21: flags |= insn_t::flag_AMO; return insn_amoorg_d;
-              case 0x30: flags |= insn_t::flag_AMO; return insn_amoandl_d;
-              case 0x31: flags |= insn_t::flag_AMO; return insn_amoandg_d;
-              case 0x40: flags |= insn_t::flag_AMO; return insn_amominl_d;
-              case 0x41: flags |= insn_t::flag_AMO; return insn_amoming_d;
-              case 0x50: flags |= insn_t::flag_AMO; return insn_amomaxl_d;
-              case 0x51: flags |= insn_t::flag_AMO; return insn_amomaxg_d;
-              case 0x60: flags |= insn_t::flag_AMO; return insn_amominul_d;
-              case 0x61: flags |= insn_t::flag_AMO; return insn_amominug_d;
-              case 0x70: flags |= insn_t::flag_AMO; return insn_amomaxul_d;
-              case 0x71: flags |= insn_t::flag_AMO; return insn_amomaxug_d;
-              case 0x78: flags |= insn_t::flag_AMO; return insn_amocmpswpl_d;
-              case 0x79: flags |= insn_t::flag_AMO; return insn_amocmpswpg_d;
+    case 0x3: flags |= insn_t::flag_CMO;
+              switch (funct7) {
+              case 0x00: return insn_amoaddl_d;
+              case 0x01: return insn_amoaddg_d;
+              case 0x04: return insn_amoswapl_d;
+              case 0x05: return insn_amoswapg_d;
+              case 0x08: return insn_sbl;
+              case 0x09: return insn_sbg;
+              case 0x0C: return insn_shl;
+              case 0x0D: return insn_shg;
+              case 0x10: return insn_amoxorl_d;
+              case 0x11: return insn_amoxorg_d;
+              case 0x20: return insn_amoorl_d;
+              case 0x21: return insn_amoorg_d;
+              case 0x30: return insn_amoandl_d;
+              case 0x31: return insn_amoandg_d;
+              case 0x40: return insn_amominl_d;
+              case 0x41: return insn_amoming_d;
+              case 0x50: return insn_amomaxl_d;
+              case 0x51: return insn_amomaxg_d;
+              case 0x60: return insn_amominul_d;
+              case 0x61: return insn_amominug_d;
+              case 0x70: return insn_amomaxul_d;
+              case 0x71: return insn_amomaxug_d;
+              case 0x78: return insn_amocmpswpl_d;
+              case 0x79: return insn_amocmpswpg_d;
               default  : return insn_unknown;
               }
     case 0x4: return (funct7 == 0x01) ? insn_divw : insn_unknown;

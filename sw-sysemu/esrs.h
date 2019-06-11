@@ -169,15 +169,15 @@
 #define ESR_SC_REQQ_DEBUG1                0x01C0300088ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_DEBUG2                0x01C0300090ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_DEBUG3                0x01C0300098ULL /* PP = 0b11 */
-//#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
-//#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
-//#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
 //#define ESR_SC_PERFMON_CTL_STATUS       /* PP = 0b11 */
 //#define ESR_SC_PERFMON_CYC_CNTR         /* PP = 0b11 */
 //#define ESR_SC_PERFMON_P0_CNTR          /* PP = 0b11 */
 //#define ESR_SC_PERFMON_P1_CNTR          /* PP = 0b11 */
 //#define ESR_SC_PERFMON_P0_QUAL          /* PP = 0b11 */
 //#define ESR_SC_PERFMON_P1_QUAL          /* PP = 0b11 */
+//#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
+//#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
+//#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
 
 
 // RBOX ESR addresses
@@ -265,8 +265,8 @@
 #define ESR_SHIRE_CACHE_RAM_CFG3        0x01C03402B0ULL /* PP = 0b11 */
 #define ESR_SHIRE_CACHE_RAM_CFG4        0x01C03402B8ULL /* PP = 0b11 */
 //#define ESR_SHIRE_NOC_INTERRUPT_STATUS  0x01C03402C0ULL /* PP = 0b11 */
-//#define ESR_SHIRE_DLL_AUTO_CONFIG       0x01C03402C8ULL /* PP = 0b11 */
-//#define ESR_SHIRE_DLL_CONFIG_DATA_0     0x01C03402D0ULL /* PP = 0b11 */
+#define ESR_SHIRE_DLL_AUTO_CONFIG       0x01C03402C8ULL /* PP = 0b11 */
+#define ESR_SHIRE_DLL_CONFIG_DATA_0     0x01C03402D0ULL /* PP = 0b11 */
 //#define ESR_SHIRE_DLL_READ_DATA         0x01C03402D8ULL /* PP = 0b11 */
 //#define ESR_UC_CONFIG                   0x01403402E8ULL /* PP = 0b01 */
 #define ESR_ICACHE_UPREFETCH            0x01003402F8ULL /* PP = 0b00 */
@@ -361,6 +361,7 @@ struct shire_other_esrs_t {
     uint64_t ipi_redirect_filter;
     uint64_t ipi_trigger;
     uint64_t shire_pll_config_data[6];
+    uint64_t shire_dll_config_data_0;
     uint64_t shire_cache_ram_cfg1;
     uint64_t shire_cache_ram_cfg3;
     uint64_t shire_cache_ram_cfg4;
@@ -370,6 +371,7 @@ struct shire_other_esrs_t {
     uint32_t thread1_disable;
     uint32_t mtime_local_target;
     uint32_t shire_pll_auto_config;
+    uint16_t shire_dll_auto_config;
     uint8_t  minion_feature;
     uint8_t  shire_ctrl_clockmux;
     //bool     shire_coop_mode;
