@@ -3879,7 +3879,7 @@ uint64_t read_shire_coop_mode(unsigned shire)
 static uint64_t flbarrier(uint64_t value)
 {
     uint64_t barrier = value % FAST_LOCAL_BARRIERS;
-    uint64_t limit   = (value / FAST_LOCAL_BARRIERS) & 0x7F;
+    uint64_t limit   = (value / FAST_LOCAL_BARRIERS) & 0xFF;
     uint64_t shire   = current_thread / EMU_THREADS_PER_SHIRE;
     if (shire == EMU_IO_SHIRE_SP)
         shire = IO_SHIRE_ID;
