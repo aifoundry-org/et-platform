@@ -162,7 +162,7 @@ bool main_memory::new_region(uint64_t base, uint64_t size)
             drop = true;
             LOG_NOTHREAD(DEBUG, "dropping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "):"
                               "fully included in old_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 ")",
-                         base, top - base + 1, top, (*it)->base, (*it)->count, (*it)->base + (*it)->count - 1); 
+                         base, top - base + 1, top, (*it)->base, (*it)->count, (*it)->base + (*it)->count - 1);
             break;
         }
 
@@ -180,7 +180,7 @@ bool main_memory::new_region(uint64_t base, uint64_t size)
             else if (new_top == ((*it)->base + (*it)->count - 1))
             {
                 resize = true;
-                new_top = (*it)->base;
+                new_top = (*it)->base - 1;
                 LOG_NOTHREAD(DEBUG, "clipping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): by old region to new_top=0x%" PRIx64,
                              base, top - base + 1, top, new_top);
                 it++;
@@ -207,7 +207,7 @@ bool main_memory::new_region(uint64_t base, uint64_t size)
             if ((new_top >= (*it)->base) && (new_top < ((*it)->base + (*it)->count)))
             {
                 resize = true;
-                new_top = (*it)->base; 
+                new_top = (*it)->base - 1;
                 LOG_NOTHREAD(DEBUG, "clipping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): by old region to new_top=0x%" PRIx64,
                              base, top - base + 1, top, new_top);
             }
@@ -216,7 +216,7 @@ bool main_memory::new_region(uint64_t base, uint64_t size)
             {
                 drop = true;
                 LOG_NOTHREAD(DEBUG, "dropping new_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 "): fully included by other regions",
-                    base, top - base + 1, top); 
+                    base, top - base + 1, top);
                 break;
             }
 
