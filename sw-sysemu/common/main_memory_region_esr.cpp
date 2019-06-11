@@ -408,7 +408,7 @@ void main_memory_region_esr::write(uint64_t addr, size_t n, const void* source)
                 sys_emu::fcc_to_threads(shire, 1, value, 0);
                 break;
             case ESR_FCC_CREDINC_3:
-                LOG_ALL_MINIONS(DEBUG, "Write to FCC2 value %016" PRIx64, value);
+                LOG_ALL_MINIONS(DEBUG, "Write to FCC3 value %016" PRIx64, value);
                 fcc_inc(1, shire, value, 1);
                 sys_emu::fcc_to_threads(shire, 1, value, 1);
                 break;
