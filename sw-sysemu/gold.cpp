@@ -63,15 +63,26 @@ float32_t f32_sin2pi(float32_t a)
         : tmp >= 0.25  ? -tmp + 0.5 // +II  Quartile
         : tmp;                      // +I   Quartile
 
-    if (tmp == 0.25) tmp = 1.0;
-    else if (tmp == -0.25) tmp = -1.0;
-    else if (tmp == 0.0) tmp = 0.0;
-    else if (tmp == -0.0) tmp = -0.0;
-    else tmp = float(sin(2.0 * M_PI * double(tmp)));
-
-    float32_t z = fpu::F2F32(tmp);
-    handle_nan_default(z);
-    handle_denormal(z);
+    float32_t z;
+    switch (fpu::F2UI32(tmp)) {
+    case 0xbe800000:
+        z.v = 0xbf800000;
+        break;
+    case 0x00000000:
+        z.v = 0x00000000;
+        break;
+    case 0x80000000:
+        z.v = 0x80000000;
+        break;
+    case 0x3e800000:
+        z.v = 0x3f800000;
+        break;
+    default:
+        z = fpu::F2F32( float(sin(2.0 * M_PI * double(tmp))) );
+        handle_nan_default(z);
+        handle_denormal(z);
+        break;
+    }
     return z;
 }
 
