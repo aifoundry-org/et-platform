@@ -2537,16 +2537,6 @@ void tensorload(uint64_t control)
     //TRANSPOSE
     else if (trans == 0x05 || trans == 0x06 || trans==0x07)
     {
-        bool exist_conv = 0;
-        for (int i=0; (i<rows) & (!exist_conv);++i)
-        {
-            exist_conv = tmask_pass(i);
-        }
-        if (tm && !exist_conv)
-        {
-            LOG(DEBUG, "%s", "Exit Condition Broken");
-            return;
-        }
         uint8_t tmp_buffer[64][L1D_LINE_SIZE];
         int size = (trans & 0x03);
         int offset = (trans == 0x7) ? 0 : ((trans == 0x5) ? (boffset*16) : ((boffset & 0x2) * 16));
