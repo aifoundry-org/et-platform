@@ -2546,7 +2546,7 @@ void tensorload(uint64_t control)
     //INTERLEAVE8
     else if (trans == 0x01)
     {
-        LOG(DEBUG, "%s", "TensorLoad: Interleave");
+        LOG(DEBUG, "%s", "TensorLoad: Interleave8");
         boffset *= 16;
         LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/16);
         for (int i = 0; i < rows; ++i)
@@ -2572,7 +2572,7 @@ void tensorload(uint64_t control)
     //INTERLEAVE16
     else if (trans == 0x02)
     {
-        LOG(DEBUG, "%s", "TensorLoad: Interleave");
+        LOG(DEBUG, "%s", "TensorLoad: Interleave16");
         boffset = (boffset & 0x2) * 16;
         LOG(DEBUG, "#rows:%d - size:%d - start:%d - elements:%d - boffset:%d", rows, 1, boffset, 4, boffset/16);
         for (int i = 0; i < rows; ++i)
