@@ -214,7 +214,7 @@ private:
 };
 
 
-extern insn_t fetch_and_decode(uint64_t vaddr);
+extern insn_t fetch_and_decode();
 
 inline void execute(insn_t inst) {
     extern void check_minst_match(uint32_t bits);

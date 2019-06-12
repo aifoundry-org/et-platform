@@ -353,7 +353,7 @@ extern shire_cache_esrs_t shire_cache_esrs[EMU_NUM_SHIRES];
 // Shire Other ESRs
 
 struct shire_other_esrs_t {
-    uint64_t fast_local_barrier[32];
+    uint8_t  fast_local_barrier[32];
     //uint64_t fcc_credinc[4];
     //uint64_t icache_mprefetch;
     //uint64_t icache_sprefetch;

@@ -10,6 +10,7 @@
 
 // program state
 extern uint32_t current_inst;
+extern uint64_t current_pc;
 
 // from emu.cpp
 extern bool matches_fetch_breakpoint(uint64_t);
@@ -1108,7 +1109,7 @@ static insn_exec_funct_t dec_c_sdsp(uint32_t bits __attribute__((unused)),
 //
 // -----------------------------------------------------------------------------
 
-insn_t fetch_and_decode(uint64_t vaddr)
+insn_t fetch_and_decode()
 {
     // Opcode map inst[1:0]=11b, indexed using inst[6:2]
     // See RV64
@@ -1143,6 +1144,7 @@ insn_t fetch_and_decode(uint64_t vaddr)
     // Trap priority (highest to lowest): access fault, breakpoint, page fault
     uint64_t paddr;
     uint16_t low;
+    uint64_t vaddr = current_pc;
     bool should_break = matches_fetch_breakpoint(vaddr);
     try
     {

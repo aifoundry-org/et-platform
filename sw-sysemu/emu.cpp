@@ -403,58 +403,59 @@ static inline const char* get_rounding_mode(int mode)
 
 void reset_hart(unsigned thread)
 {
-    // Exit reset at M-mode
-    cpu[thread].prv = PRV_M;
-    debug_mode[thread] = false;
-
-    // Read-only registers
+    // Register files
     cpu[thread].xregs[0] = 0;
-    cpu[thread].mvendorid = CSR_VENDOR_ID;
-    cpu[thread].marchid = CSR_ARCH_ID;
-    cpu[thread].mimpid = CSR_IMP_ID;
-    cpu[thread].mhartid = (thread == (EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE))
-        ? (IO_SHIRE_ID*EMU_THREADS_PER_SHIRE)
-        : thread;
 
-    // misa is a 0-length register
-    cpu[thread].misa = CSR_ISA_MAX;
-
-    // CSR registers with reset
-    cpu[thread].excl_mode = 0;
-    cpu[thread].gsc_progress = 0;
-    cpu[thread].mcache_control = 0;
-    cpu[thread].mcause = 0;
-    cpu[thread].mcounteren = 0;
-    cpu[thread].menable_shadows = 0;
-    cpu[thread].minstmask = 0;
-    cpu[thread].mip = 0;
-    cpu[thread].matp = 0;
-    cpu[thread].mstatus = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
+    // RISCV control and status registers
     cpu[thread].scounteren = 0;
-    cpu[thread].ucache_control = 0x200;
-
-    // Debug-mode registers with reset
-    // TODO: cpu[thread].dcsr <= xdebugver=1, prv=3;
+    cpu[thread].mstatus = 0x0000000A00001800ULL; // mpp=11, sxl=uxl=10
+    cpu[thread].medeleg = 0;
+    cpu[thread].mideleg = 0;
+    cpu[thread].mie = 0;
+    cpu[thread].mcounteren = 0;
+    for (auto &elem : cpu[thread].mhpmevent) {
+        elem = 0;
+    }
+    cpu[thread].mcause = 0;
+    cpu[thread].mip = 0;
     cpu[thread].tdata1 = 0x20C0000000000000ULL;
+    // TODO: cpu[thread].dcsr <= xdebugver=1, prv=3;
+    cpu[thread].mhartid = (thread == (EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE))
+                        ? (IO_SHIRE_ID*EMU_THREADS_PER_SHIRE)
+                        : thread;
 
-    // Ports
+    // Esperanto control and status registers
+    cpu[thread].matp = 0;
+    cpu[thread].minstmask = 0;
+    cpu[thread].minstmatch = 0;
+    // TODO: cpu[thread].amofence_ctrl <= ...
+    cpu[thread].menable_shadows = 0;
+    cpu[thread].excl_mode = 0;
+    cpu[thread].mcache_control = 0;
+    cpu[thread].ucache_control = 0x200;
+    cpu[thread].gsc_progress = 0;
+    for (auto &elem : cpu[thread].portctrl) {
+        elem = 0x8000;
+    }
+
+    // Other hart internal (microarchitectural or hidden) state
+    cpu[thread].prv = PRV_M;
+
+    // Pre-computed state to improve simulation speed
+    cpu[thread].break_on_load = false;
+    cpu[thread].break_on_store = false;
+    cpu[thread].break_on_fetch = false;
+
+    // Other processor state outside of cpu[thread]
     for (int i = 0; i < NR_MSG_PORTS; ++i)
     {
         memset(&msg_ports[thread][i], 0, sizeof(msg_port_conf_t));
         msg_ports[thread][i].offset = -1;
     }
-    cpu[thread].portctrl[0] = 0x0000000000008000ULL;
-    cpu[thread].portctrl[1] = 0x0000000000008000ULL;
-    cpu[thread].portctrl[2] = 0x0000000000008000ULL;
-    cpu[thread].portctrl[3] = 0x0000000000008000ULL;
-
-    // other processor state
+    debug_mode[thread] = false;
     ext_seip[thread] = 0;
     mtvec_is_set[thread] = false;
     stvec_is_set[thread] = false;
-    cpu[thread].break_on_load = false;
-    cpu[thread].break_on_store = false;
-    cpu[thread].break_on_fetch = false;
     fcc_wait[thread] = false;
     if (thread != EMU_IO_SHIRE_SP*EMU_THREADS_PER_SHIRE)
     {
@@ -656,7 +657,7 @@ void check_minst_match(uint32_t bits)
 
 void set_pc(uint64_t pc)
 {
-    current_pc = pc;
+    current_pc = sextVA(pc);
 }
 
 void set_thread(unsigned thread)
@@ -790,7 +791,7 @@ static uint64_t csrget(uint16_t src1)
         val = cpu[current_thread].mstatus;
         break;
     case CSR_MISA:
-        val = cpu[current_thread].misa;
+        val = CSR_ISA_MAX;
         break;
     case CSR_MEDELEG:
         val = cpu[current_thread].medeleg;
@@ -807,7 +808,39 @@ static uint64_t csrget(uint16_t src1)
     case CSR_MCOUNTEREN:
         val = cpu[current_thread].mcounteren;
         break;
-    // MHPMEVENT3...MHPMEVENT31
+    case CSR_MHPMEVENT3:
+    case CSR_MHPMEVENT4:
+    case CSR_MHPMEVENT5:
+    case CSR_MHPMEVENT6:
+    case CSR_MHPMEVENT7:
+    case CSR_MHPMEVENT8:
+        val = cpu[current_thread].mhpmevent[src1 - CSR_MHPMEVENT3];
+        break;
+    case CSR_MHPMEVENT9:
+    case CSR_MHPMEVENT10:
+    case CSR_MHPMEVENT11:
+    case CSR_MHPMEVENT12:
+    case CSR_MHPMEVENT13:
+    case CSR_MHPMEVENT14:
+    case CSR_MHPMEVENT15:
+    case CSR_MHPMEVENT16:
+    case CSR_MHPMEVENT17:
+    case CSR_MHPMEVENT18:
+    case CSR_MHPMEVENT19:
+    case CSR_MHPMEVENT20:
+    case CSR_MHPMEVENT21:
+    case CSR_MHPMEVENT22:
+    case CSR_MHPMEVENT23:
+    case CSR_MHPMEVENT24:
+    case CSR_MHPMEVENT25:
+    case CSR_MHPMEVENT26:
+    case CSR_MHPMEVENT27:
+    case CSR_MHPMEVENT28:
+    case CSR_MHPMEVENT29:
+    case CSR_MHPMEVENT30:
+    case CSR_MHPMEVENT31:
+        val = 0;
+        break;
     case CSR_MSCRATCH:
         val = cpu[current_thread].mscratch;
         break;
@@ -840,6 +873,35 @@ static uint64_t csrget(uint16_t src1)
     // TODO: DSCRATCH
     case CSR_MCYCLE:
     case CSR_MINSTRET:
+    case CSR_MHPMCOUNTER3:
+    case CSR_MHPMCOUNTER4:
+    case CSR_MHPMCOUNTER5:
+    case CSR_MHPMCOUNTER6:
+    case CSR_MHPMCOUNTER7:
+    case CSR_MHPMCOUNTER8:
+    case CSR_MHPMCOUNTER9:
+    case CSR_MHPMCOUNTER10:
+    case CSR_MHPMCOUNTER11:
+    case CSR_MHPMCOUNTER12:
+    case CSR_MHPMCOUNTER13:
+    case CSR_MHPMCOUNTER14:
+    case CSR_MHPMCOUNTER15:
+    case CSR_MHPMCOUNTER16:
+    case CSR_MHPMCOUNTER17:
+    case CSR_MHPMCOUNTER18:
+    case CSR_MHPMCOUNTER19:
+    case CSR_MHPMCOUNTER20:
+    case CSR_MHPMCOUNTER21:
+    case CSR_MHPMCOUNTER22:
+    case CSR_MHPMCOUNTER23:
+    case CSR_MHPMCOUNTER24:
+    case CSR_MHPMCOUNTER25:
+    case CSR_MHPMCOUNTER26:
+    case CSR_MHPMCOUNTER27:
+    case CSR_MHPMCOUNTER28:
+    case CSR_MHPMCOUNTER29:
+    case CSR_MHPMCOUNTER30:
+    case CSR_MHPMCOUNTER31:
         val = 0;
         break;
     case CSR_CYCLE:
@@ -850,23 +912,40 @@ static uint64_t csrget(uint16_t src1)
     case CSR_HPMCOUNTER6:
     case CSR_HPMCOUNTER7:
     case CSR_HPMCOUNTER8:
-    case CSR_MHPMCOUNTER3:
-    case CSR_MHPMCOUNTER4:
-    case CSR_MHPMCOUNTER5:
-    case CSR_MHPMCOUNTER6:
-    case CSR_MHPMCOUNTER7:
-    case CSR_MHPMCOUNTER8:
+    case CSR_HPMCOUNTER9:
+    case CSR_HPMCOUNTER10:
+    case CSR_HPMCOUNTER11:
+    case CSR_HPMCOUNTER12:
+    case CSR_HPMCOUNTER13:
+    case CSR_HPMCOUNTER14:
+    case CSR_HPMCOUNTER15:
+    case CSR_HPMCOUNTER16:
+    case CSR_HPMCOUNTER17:
+    case CSR_HPMCOUNTER18:
+    case CSR_HPMCOUNTER19:
+    case CSR_HPMCOUNTER20:
+    case CSR_HPMCOUNTER21:
+    case CSR_HPMCOUNTER22:
+    case CSR_HPMCOUNTER23:
+    case CSR_HPMCOUNTER24:
+    case CSR_HPMCOUNTER25:
+    case CSR_HPMCOUNTER26:
+    case CSR_HPMCOUNTER27:
+    case CSR_HPMCOUNTER28:
+    case CSR_HPMCOUNTER29:
+    case CSR_HPMCOUNTER30:
+    case CSR_HPMCOUNTER31:
         check_counter_is_enabled(src1 - CSR_CYCLE);
         val = 0;
         break;
     case CSR_MVENDORID:
-        val = cpu[current_thread].mvendorid;
+        val = CSR_VENDOR_ID;
         break;
     case CSR_MARCHID:
-        val = cpu[current_thread].marchid;
+        val = CSR_ARCH_ID;
         break;
     case CSR_MIMPID:
-        val = cpu[current_thread].mimpid;
+        val = CSR_IMP_ID;
         break;
     case CSR_MHARTID:
         val = cpu[current_thread].mhartid;
@@ -1033,14 +1112,6 @@ static uint64_t csrget(uint16_t src1)
         }
         val = cpu[current_thread].mhartid;
         break;
-    case CSR_MHPMEVENT3:
-    case CSR_MHPMEVENT4:
-    case CSR_MHPMEVENT5:
-    case CSR_MHPMEVENT6:
-    case CSR_MHPMEVENT7:
-    case CSR_MHPMEVENT8:
-        val = cpu[current_thread].mhpmevent[src1 - CSR_MHPMEVENT3];
-        break;
     // ----- All other registers -------------------------------------
     default:
         throw trap_illegal_instruction(current_inst);
@@ -1073,8 +1144,9 @@ static void csrset(uint16_t src1, uint64_t val)
         LOG(DEBUG, "Updating FCSR, new CSR is %08lx", val);
         break;
     case CSR_SSTATUS:
-        // Preserve sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
-        val = (val & 0x00000000000C6133ULL) | (cpu[current_thread].mstatus & 0x0000000F00739888ULL);
+        // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
+        // Modify mxr, sum, fs, spp, spie, (upie=0), sie, (uie=0)
+        val = (val & 0x00000000000C6122ULL) | (cpu[current_thread].mstatus & 0x0000000F00739888ULL);
         // Set sd if fs==3 or xs==3
         if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
         {
@@ -1107,7 +1179,7 @@ static void csrset(uint16_t src1, uint64_t val)
         cpu[current_thread].sepc = val;
         break;
     case CSR_SCAUSE:
-        // Maks all bits excepts the ones we care about
+        // Maks all bits excepts the ones we implement
         val &= 0x800000000000001FULL;
         cpu[current_thread].scause = val;
         break;
@@ -1140,7 +1212,8 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_MSTATUS:
         // Preserve sd, sxl, uxl, xs
-        val = (val & 0x00000000007E79BBULL) | (cpu[current_thread].mstatus & 0x8000000F00018000ULL);
+        // Write all others (except upie=0, uie=0)
+        val = (val & 0x00000000007E79AAULL) | (cpu[current_thread].mstatus & 0x8000000F00018000ULL);
         // Set sd if fs==3 or xs==3
         if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
         {
@@ -1152,7 +1225,7 @@ static void csrset(uint16_t src1, uint64_t val)
         cpu[current_thread].mstatus = val;
         break;
     case CSR_MISA:
-        // misa is a 0-length register, cannot be modified
+        // Writeable but hardwired
         break;
     case CSR_MEDELEG:
         // Not all exceptions can be delegated
@@ -1175,8 +1248,41 @@ static void csrset(uint16_t src1, uint64_t val)
         mtvec_is_set[current_thread] = true;
         break;
     case CSR_MCOUNTEREN:
-        val &= 0xffffffff;
-        cpu[current_thread].mcounteren = val;
+        val &= 0x1ff;
+        cpu[current_thread].mcounteren = uint16_t(val);
+        break;
+    case CSR_MHPMEVENT3:
+    case CSR_MHPMEVENT4:
+    case CSR_MHPMEVENT5:
+    case CSR_MHPMEVENT6:
+    case CSR_MHPMEVENT7:
+    case CSR_MHPMEVENT8:
+        val &= 0x1F;
+        cpu[current_thread].mhpmevent[src1 - CSR_MHPMEVENT3] = val;
+        break;
+    case CSR_MHPMEVENT9:
+    case CSR_MHPMEVENT10:
+    case CSR_MHPMEVENT11:
+    case CSR_MHPMEVENT12:
+    case CSR_MHPMEVENT13:
+    case CSR_MHPMEVENT14:
+    case CSR_MHPMEVENT15:
+    case CSR_MHPMEVENT16:
+    case CSR_MHPMEVENT17:
+    case CSR_MHPMEVENT18:
+    case CSR_MHPMEVENT19:
+    case CSR_MHPMEVENT20:
+    case CSR_MHPMEVENT21:
+    case CSR_MHPMEVENT22:
+    case CSR_MHPMEVENT23:
+    case CSR_MHPMEVENT24:
+    case CSR_MHPMEVENT25:
+    case CSR_MHPMEVENT26:
+    case CSR_MHPMEVENT27:
+    case CSR_MHPMEVENT28:
+    case CSR_MHPMEVENT29:
+    case CSR_MHPMEVENT30:
+    case CSR_MHPMEVENT31:
         break;
     case CSR_MSCRATCH:
         cpu[current_thread].mscratch = val;
@@ -1187,7 +1293,7 @@ static void csrset(uint16_t src1, uint64_t val)
         cpu[current_thread].mepc = val;
         break;
     case CSR_MCAUSE:
-        // Maks all bits excepts the ones we care about
+        // Maks all bits excepts the ones we implement
         val &= 0x800000000000001FULL;
         cpu[current_thread].mcause = val;
         break;
@@ -1222,9 +1328,67 @@ static void csrset(uint16_t src1, uint64_t val)
     // DSCRATCH
     case CSR_MCYCLE:
     case CSR_MINSTRET:
+    case CSR_MHPMCOUNTER3:
+    case CSR_MHPMCOUNTER4:
+    case CSR_MHPMCOUNTER5:
+    case CSR_MHPMCOUNTER6:
+    case CSR_MHPMCOUNTER7:
+    case CSR_MHPMCOUNTER8:
+    case CSR_MHPMCOUNTER9:
+    case CSR_MHPMCOUNTER10:
+    case CSR_MHPMCOUNTER11:
+    case CSR_MHPMCOUNTER12:
+    case CSR_MHPMCOUNTER13:
+    case CSR_MHPMCOUNTER14:
+    case CSR_MHPMCOUNTER15:
+    case CSR_MHPMCOUNTER16:
+    case CSR_MHPMCOUNTER17:
+    case CSR_MHPMCOUNTER18:
+    case CSR_MHPMCOUNTER19:
+    case CSR_MHPMCOUNTER20:
+    case CSR_MHPMCOUNTER21:
+    case CSR_MHPMCOUNTER22:
+    case CSR_MHPMCOUNTER23:
+    case CSR_MHPMCOUNTER24:
+    case CSR_MHPMCOUNTER25:
+    case CSR_MHPMCOUNTER26:
+    case CSR_MHPMCOUNTER27:
+    case CSR_MHPMCOUNTER28:
+    case CSR_MHPMCOUNTER29:
+    case CSR_MHPMCOUNTER30:
+    case CSR_MHPMCOUNTER31:
         break;
     case CSR_CYCLE:
     case CSR_INSTRET:
+    case CSR_HPMCOUNTER3:
+    case CSR_HPMCOUNTER4:
+    case CSR_HPMCOUNTER5:
+    case CSR_HPMCOUNTER6:
+    case CSR_HPMCOUNTER7:
+    case CSR_HPMCOUNTER8:
+    case CSR_HPMCOUNTER9:
+    case CSR_HPMCOUNTER10:
+    case CSR_HPMCOUNTER11:
+    case CSR_HPMCOUNTER12:
+    case CSR_HPMCOUNTER13:
+    case CSR_HPMCOUNTER14:
+    case CSR_HPMCOUNTER15:
+    case CSR_HPMCOUNTER16:
+    case CSR_HPMCOUNTER17:
+    case CSR_HPMCOUNTER18:
+    case CSR_HPMCOUNTER19:
+    case CSR_HPMCOUNTER20:
+    case CSR_HPMCOUNTER21:
+    case CSR_HPMCOUNTER22:
+    case CSR_HPMCOUNTER23:
+    case CSR_HPMCOUNTER24:
+    case CSR_HPMCOUNTER25:
+    case CSR_HPMCOUNTER26:
+    case CSR_HPMCOUNTER27:
+    case CSR_HPMCOUNTER28:
+    case CSR_HPMCOUNTER29:
+    case CSR_HPMCOUNTER30:
+    case CSR_HPMCOUNTER31:
     case CSR_MVENDORID:
     case CSR_MARCHID:
     case CSR_MIMPID:
@@ -1407,7 +1571,7 @@ static void csrset(uint16_t src1, uint64_t val)
             dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
         }
         break;
-    // FLB0
+    // CSR_FLB is modelled outside this fuction!
     case CSR_FCC:
         require_feature_ml();
         fcc_cnt = val & 0x01;
@@ -1599,22 +1763,6 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_PORTHEADNB3:
     case CSR_HARTID:
         throw trap_illegal_instruction(current_inst);
-    case CSR_MHPMEVENT3:
-    case CSR_MHPMEVENT4:
-    case CSR_MHPMEVENT5:
-    case CSR_MHPMEVENT6:
-    case CSR_MHPMEVENT7:
-    case CSR_MHPMEVENT8:
-        cpu[current_thread].mhpmevent[src1 - CSR_MHPMEVENT3] = val;
-        break;
-    case CSR_MHPMCOUNTER3:
-    case CSR_MHPMCOUNTER4:
-    case CSR_MHPMCOUNTER5:
-    case CSR_MHPMCOUNTER6:
-    case CSR_MHPMCOUNTER7:
-    case CSR_MHPMCOUNTER8:
-        // Waived registers. The value is taken from the RTL
-        break;
     // ----- All other registers -------------------------------------
     default:
         throw trap_illegal_instruction(current_inst);
@@ -3809,39 +3957,28 @@ uint64_t read_shire_coop_mode(unsigned shire)
 // and also through the CSR that implement the fast local barrier function.
 static uint64_t flbarrier(uint64_t value)
 {
-    uint64_t barrier = value % FAST_LOCAL_BARRIERS;
-    uint64_t limit   = (value / FAST_LOCAL_BARRIERS) & 0xFF;
-    uint64_t shire   = current_thread / EMU_THREADS_PER_SHIRE;
-    if (shire == EMU_IO_SHIRE_SP)
-        shire = IO_SHIRE_ID;
+    unsigned barrier = value & 0x1F;
+    unsigned limit   = (value >> 5) & 0xFF;
 
-    // Gets what is the address that the fast local barrier is mapped to
-    uint64_t addr = ESR_SHIRE(shire, FAST_LOCAL_BARRIER0) + (barrier * 8); // Access is private per cache
+    unsigned shire = current_thread / EMU_THREADS_PER_SHIRE;
+    unsigned oldval = shire_other_esrs[shire].fast_local_barrier[barrier];
 
-    // NB: No PMA checks here... we know it will pass ;-)
+    LOG(DEBUG, "FastLocalBarrier: doing barrier %u with value %u, limit %u",
+        barrier, oldval, limit);
 
-    uint64_t orig_value = pmemread64(addr);
-    uint64_t result = -1;
-
-    LOG(DEBUG,"FastLocalBarrier: Shire %i: Minion %i Thread %i doing barrier %" PRIu64 " value  %" PRIu64 ", limit %" PRIu64 " ",
-         (int) shire, current_thread / EMU_THREADS_PER_MINION, current_thread % EMU_THREADS_PER_MINION, barrier, orig_value, limit);
-    // Last guy, return 1 and zero barrier
-    if (orig_value == limit)
+    if (oldval == limit)
     {
-        LOG(DEBUG,"FastLocalBarrier: last minion Shire %i!!", (int) shire);
-
-        pmemwrite64(addr, 0);
-        result = 1;
-    }
-    // Not the last guy, return 0 and increment barrier
-    else
-    {
-        LOG(DEBUG, "FastLocalBarrier: Limit %" PRIu64", Incrementing to %" PRIu64 "!!", limit, orig_value + 1);
-        pmemwrite64(addr, orig_value + 1);
-        result = 0;
+        // Last thread, zero barrier and return 1
+        LOG(DEBUG, "%s", "FastLocalBarrier: last hart, set barrier to 0");
+        shire_other_esrs[shire].fast_local_barrier[barrier] = 0;
+        return 1;
     }
 
-    return result;
+    // Not last thread, increment barrier and return 0
+    LOG(DEBUG, "FastLocalBarrier: not last hart, increment barrier to %u",
+        oldval + 1);
+    shire_other_esrs[shire].fast_local_barrier[barrier] = oldval + 1;
+    return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

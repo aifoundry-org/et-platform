@@ -33,13 +33,12 @@ struct Processor {
     uint64_t    stval;
     uint64_t    satp;           // TODO: this is per core not per hart
     uint64_t    mstatus;
-    uint64_t    misa;           // could be hardcoded
     uint32_t    medeleg;
     uint32_t    mideleg;
     uint32_t    mie;
     uint64_t    mtvec;
-    uint32_t    mcounteren;
-    std::array<uint64_t,6>  mhpmevent;
+    uint16_t    mcounteren;             // 9b
+    std::array<uint8_t,6>  mhpmevent;   // 5b
     uint64_t    mscratch;
     uint64_t    mepc;
     uint64_t    mcause;
@@ -48,9 +47,6 @@ struct Processor {
     uint64_t    tdata1;
     uint64_t    tdata2;
     // TODO: dcsr, dpc, dscratch
-    uint32_t    mvendorid;      // could be hardcoded
-    uint64_t    marchid;        // could be hardcoded
-    uint64_t    mimpid;         // could be hardcoded
     uint16_t    mhartid;
 
     // Esperanto control and status registers
