@@ -153,8 +153,8 @@ bool main_memory::new_region(uint64_t base, uint64_t size)
 
     for (auto it = regions.begin(); it != regions.end(); )
     {
-        LOG_NOTHREAD(DEBUG, "checking old_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 ") for overlaps",
-                     (*it)->base, (*it)->count, (*it)->base + (*it)->count - 1);
+        /* LOG_NOTHREAD(DEBUG, "checking old_region(base=0x%" PRIx64 ", size=%zu, top=0x%" PRIx64 ") for overlaps", */
+        /*              (*it)->base, (*it)->count, (*it)->base + (*it)->count - 1); */
 
         if (   ((new_base >= (*it)->base) && (new_base < ((*it)->base + (*it)->count)))
             && ((new_top  >= (*it)->base) && (new_top  < ((*it)->base + (*it)->count))))
