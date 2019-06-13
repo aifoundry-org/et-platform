@@ -1049,17 +1049,17 @@ static uint64_t csrget(uint16_t src1)
         break;
     case CSR_VALIDATION1:
 #ifdef SYS_EMU
-	switch (cpu[current_thread].validation1)
-	{
-	    case ET_DIAG_CYCLE:
-		val = sys_emu::get_emu_cycle();
-		break;
-	    default:
-		val = 0;
-		break;
-	}
+    switch (cpu[current_thread].validation1)
+    {
+    case ET_DIAG_CYCLE:
+        val = sys_emu::get_emu_cycle();
+        break;
+    default:
+        val = 0;
+        break;
+    }
 #else
-	val = 0;
+    val = 0;
 #endif
         break;
     case CSR_VALIDATION2:
@@ -1660,59 +1660,67 @@ static void csrset(uint16_t src1, uint64_t val)
         cpu[current_thread].validation0 = val;
         break;
     case CSR_VALIDATION1:
-	switch ((val >> 56) & 0xFF)
-	{
-	    case ET_DIAG_PUTCHAR:
-		val = val & 0xFF;
-		// EOT signals end of test
-		if (val == 4)
-		{
-		    LOG(INFO, "%s", "Validation1 CSR received End Of Transmission.");
-		    m_emu_done = true;
-		    break;
-		}
-		if (char(val) != '\n')
-		{
-		    uart_stream[current_thread] << (char) val;
-		}
-		else
-		{
-		    // If line feed, flush to stdout
-		    std::cout << uart_stream[current_thread].str() << std::endl;
-		    uart_stream[current_thread].str("");
-		    uart_stream[current_thread].clear();
-		}
-		break;
+        switch ((val >> 56) & 0xFF)
+        {
+        case ET_DIAG_PUTCHAR:
+            val = val & 0xFF;
+            // EOT signals end of test
+            if (val == 4)
+            {
+                LOG(INFO, "%s", "Validation1 CSR received End Of Transmission.");
+                m_emu_done = true;
+                break;
+            }
+            if (char(val) != '\n')
+            {
+                uart_stream[current_thread] << (char) val;
+            }
+            else
+            {
+                // If line feed, flush to stdout
+                std::cout << uart_stream[current_thread].str() << std::endl;
+                uart_stream[current_thread].str("");
+                uart_stream[current_thread].clear();
+            }
+            break;
 #ifdef SYS_EMU
-	    case ET_DIAG_UEI:
-		{
-		    uint64_t shire_mask = val & 0x3FFFFFFFFULL;
-		    uint64_t thread_mask = cpu[current_thread].validation2;
-		    bool raise = (val >> 55) & 1;
-		    for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
-			if (!(shire_mask & (1ULL << s)))
-			    continue;
+        case ET_DIAG_UEI:
+            {
+                uint64_t shire_mask = val & 0x3FFFFFFFFULL;
+                uint64_t thread_mask = cpu[current_thread].validation2;
+                bool raise = (val >> 55) & 1;
+                bool smode = (val >> 54) & 1;
+                for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
+                    if (!(shire_mask & (1ULL << s)))
+                        continue;
 
-			unsigned num_threads = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
-			for (unsigned t = 0; t < num_threads; t++) {
-			    if (!(thread_mask & (1ULL << t)))
-				continue;
+                    unsigned num_threads = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
+                    for (unsigned t = 0; t < num_threads; t++) {
+                        if (!(thread_mask & (1ULL << t)))
+                            continue;
 
-			    if (raise)
-				sys_emu::raise_external_interrupt(s,thread_mask);
-			    else
-				sys_emu::clear_external_interrupt(s,thread_mask);
-			}
-		    }
-		}
-		break;
-	    case ET_DIAG_CYCLE:
-		cpu[current_thread].validation1 = (val >> 56) & 0xFF;
-		break;
+                        if (raise) {
+                            if (smode)
+                                sys_emu::raise_external_supervisor_interrupt(s,thread_mask);
+                            else
+                                sys_emu::raise_external_interrupt(s,thread_mask);
+                        } else {
+                            if (smode)
+                                sys_emu::clear_external_supervisor_interrupt(s,thread_mask);
+                            else
+                                sys_emu::clear_external_interrupt(s,thread_mask);
+                        }
+                    }
+                }
+            }
+            break;
+        case ET_DIAG_CYCLE:
+            cpu[current_thread].validation1 = (val >> 56) & 0xFF;
+            break;
 #endif
-	    default:
-		break;
-	}
+        default:
+            break;
+        }
         break;
     case CSR_VALIDATION2:
         cpu[current_thread].validation2 = val;
