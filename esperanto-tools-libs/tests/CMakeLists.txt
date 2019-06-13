@@ -15,10 +15,11 @@ include_directories(${GTEST_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
+include_directories(${EXTERNAL_INCLUDE_DIRECTORIES})
 
 link_directories(${GTEST_DIR}/lib64
-  ${RT_EXTERNAL_INSTALL_PREFIX}/lib64
-  ${RT_EXTERNAL_INSTALL_PREFIX}/lib)
+  ${EXTERNAL_LINK_DIRECTORIES}
+  )
 
 
 add_compile_options(-g3 -O0 -std=c++17)

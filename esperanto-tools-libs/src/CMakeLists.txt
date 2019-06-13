@@ -75,14 +75,14 @@ target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/etrpc")
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/")
 target_include_directories(etrt_obj PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../include")
-target_include_directories(etrt_obj PUBLIC "${RT_EXTERNAL_INSTALL_PREFIX}/include")
+target_include_directories(etrt_obj PUBLIC ${EXTERNAL_INCLUDE_DIRECTORIES})
 target_include_directories(etrt_obj PUBLIC ${GLOG_INCLUDE_DIRS})
 target_include_directories(etrt_obj PUBLIC ${FMTLIB_INCLUDE_DIRS})
 
 # Library dependencies
 target_link_libraries(etrt_obj pthread)
 add_dependencies(etrt_obj ${external_project_dependencies})
-link_directories(${RT_EXTERNAL_INSTALL_PREFIX}/lib64 ${RT_EXTERNAL_INSTALL_PREFIX}/lib)
+link_directories(${EXTERNAL_LINK_DIRECTORIES})
 
 set_property(TARGET etrt_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 

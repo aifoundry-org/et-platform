@@ -156,6 +156,8 @@ set(FMTLIB_LIBRARY_DIRS ${fmtlib_INSTALL}/lib64 CACHE PATH "fmtlib library path"
 
 list(APPEND external_project_dependencies fmtlib)
 
+if("${runtime_DEVICE_API_PROVIDER}" STREQUAL "module")
+
 set(device_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 ExternalProject_Add(device-api
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/device_api
@@ -169,6 +171,10 @@ ExternalProject_Add(device-api
 
 list(APPEND external_project_dependencies device-api)
 
+endif()
+
+if("${runtime_SIMULATOR_API_PROVIDER}" STREQUAL "module")
+
 set(simulator_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 ExternalProject_Add(simulator-api
   PREFIX simulator-api
@@ -180,6 +186,10 @@ ExternalProject_Add(simulator-api
   )
 
 list(APPEND external_project_dependencies simulator-api)
+
+endif()
+
+if("${runtime_SW_SYSEMU_PROVIDER}" STREQUAL "module")
 
 ExternalProject_Add(sw-sysemu
   PREFIX sw-sysemu
@@ -199,6 +209,12 @@ ExternalProject_Add(sw-sysemu
 set(SYSEMU_PATH  ${RT_EXTERNAL_INSTALL_PREFIX}/bin/sys_emu PARENT_SCOPE)
 
 list(APPEND external_project_dependencies sw-sysemu)
+
+else()
+
+set(SYSEMU_PATH  ${DEPENDENCIES_PATH}/bin/sys_emu PARENT_SCOPE)
+
+endif(BUILD_SW_SYSEMU)
 
 
 set(GTEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest-install CACHE INTERNAL "")
