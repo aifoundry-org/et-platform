@@ -112,7 +112,7 @@ if (NOT __GLOG_INCLUDED)
       GIT_REPOSITORY "https://github.com/google/glog"
       GIT_TAG "v0.4.0"
       UPDATE_COMMAND ""
-      INSTALL_DIR ${gflags_INSTALL}
+      INSTALL_DIR ${glog_INSTALL}
       PATCH_COMMAND autoreconf -i ${glog_PREFIX}/src/glog
       CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${glog_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes --with-gflags=${GFLAGS_LIBRARY_DIRS}/..
       BUILD_BYPRODUCTS ${glog_INSTALL}/lib/libglog.a
@@ -214,7 +214,26 @@ else()
 
 set(SYSEMU_PATH  ${DEPENDENCIES_PATH}/bin/sys_emu PARENT_SCOPE)
 
-endif(BUILD_SW_SYSEMU)
+endif()
+
+if("${runtime_ELFIO_PROVIDER}" STREQUAL "module")
+
+  set(elfio_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/elfio)
+  set(elfio_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
+  ExternalProject_Add(elfio
+    PREFIX ${elfio_PREFIX}
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/elfio
+    PATCH_COMMAND autoreconf -i <SOURCE_DIR>
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix ${elfio_INSTALL}
+    BUILD_COMMAND $(MAKE) -j $(nproc)
+    INSTALL_COMMAND $(MAKE) install
+    BUILD_ALWAYS 1
+    )
+
+list(APPEND external_project_dependencies elfio)
+
+endif()
+
 
 
 set(GTEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest-install CACHE INTERNAL "")

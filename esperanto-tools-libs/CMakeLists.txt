@@ -32,6 +32,9 @@ set(runtime_SIMULATOR_API_PROVIDER "module" CACHE STRING "Provider of simualtor-
 set_property(CACHE runtime_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
 set(runtime_SW_SYSEMU_PROVIDER "module" CACHE STRING "Provider of the sw-sysemu executable")
 set_property(CACHE runtime_SW_SYSEMU_PROVIDER PROPERTY STRINGS "module" "package")
+set(runtime_ELFIO_PROVIDER "module" CACHE STRING "Provider of the sw-sysemu executable")
+set_property(CACHE runtime_ELFIO_PROVIDER PROPERTY STRINGS "module" "package")
+
 
 set(DEPENDENCIES_PATH "/usr" CACHE PATH "Path where runtime dependencies are installed")
 
