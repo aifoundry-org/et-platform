@@ -28,7 +28,7 @@ build_et_flatbuffers(
 get_target_property(DEVICE_API_CXX_HDRS_DIR flatc-fbs-parse GENERATED_INCLUDES_DIR)
 
 install(DIRECTORY ${DEVICE_API_CXX_HDRS_DIR}
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-api-cxx)
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto/device-api-cxx)
 
 install(DIRECTORY ${PROJECT_SOURCE_DIR}/tools/flatbuffers/include/flatbuffers DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 install(TARGETS flatbuffers
@@ -79,7 +79,7 @@ foreach(ETAPI_FILE ${COMMAND_ETAPI})
     VERBATIM)
 
   install(FILES ${ETAPI_C_HDR}
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/device-api-c)
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto/device-api-c)
 
 endforeach()
 
