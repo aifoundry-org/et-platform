@@ -18,6 +18,8 @@ enable_testing()
 
 include(CMake/BuildFlatBuffers.cmake)
 
+# Disable building flatbuffer tests
+set(FLATBUFFERS_BUILD_TESTS OFF)
 add_subdirectory(tools/flatbuffers
                  ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build
                  EXCLUDE_FROM_ALL)
