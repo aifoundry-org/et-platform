@@ -17,7 +17,7 @@ public:
 
     enum : uint16_t {
         flag_1ULP         = 0x0001,
-        flag_AMO          = 0x0002,
+        flag_CMO          = 0x0002, // Coherent Memory Operation (AMOs, etc)
         flag_CSR_READ     = 0x0004,
         flag_FCC          = 0x0008,
         flag_FLB          = 0x0010,
@@ -38,7 +38,7 @@ public:
     constexpr size_t size() const       { return ((bits & 3) == 3) ? 4 : 2; }
 
     constexpr bool is_1ulp() const      { return (flags & flag_1ULP); }
-    constexpr bool is_amo() const       { return (flags & flag_AMO); }
+    constexpr bool is_cmo() const       { return (flags & flag_CMO); }
     constexpr bool is_csr_read() const  { return (flags & flag_CSR_READ); }
     constexpr bool is_fcc() const       { return (flags & flag_FCC); }
     constexpr bool is_flb() const       { return (flags & flag_FLB); }
@@ -214,7 +214,7 @@ private:
 };
 
 
-extern insn_t fetch_and_decode(uint64_t vaddr);
+extern insn_t fetch_and_decode();
 
 inline void execute(insn_t inst) {
     extern void check_minst_match(uint32_t bits);

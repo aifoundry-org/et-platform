@@ -6,19 +6,15 @@
 #include "insn.h"
 #include "insn_func.h"
 #include "log.h"
+#include "processor.h"
 #include "traps.h"
 #include "utility.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
 
-// FIXME: Replace with "state.h"
+// FIXME: Replace with "processor.h"
 #include "emu_defines.h"
-extern uint64_t xregs[EMU_NUM_THREADS][NXREGS];
-extern freg_t   fregs[EMU_NUM_THREADS][NFREGS];
-extern mreg_t   mregs[EMU_NUM_THREADS][NMREGS];
-extern uint8_t  csr_prv[EMU_NUM_THREADS];
-extern uint32_t csr_fcsr[EMU_NUM_THREADS];
-extern uint64_t csr_mstatus[EMU_NUM_THREADS];
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 //namespace bemu {
 

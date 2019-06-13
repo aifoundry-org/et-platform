@@ -22,6 +22,7 @@
 #include "api_communicate.h"
 #include "rvtimer.h"
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Static Member variables
 ////////////////////////////////////////////////////////////////////////////////
@@ -36,6 +37,22 @@ reduce_state    sys_emu::reduce_state_array[EMU_NUM_MINIONS];                   
 uint32_t        sys_emu::reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
 int             sys_emu::global_log_min;
 RVTimer         sys_emu::pu_rvtimer;
+
+
+////////////////////////////////////////////////////////////////////////////////
+// Helper methods
+////////////////////////////////////////////////////////////////////////////////
+
+static inline bool multithreading_is_disabled(unsigned shire)
+{
+    return shire_other_esrs[shire].minion_feature & 0x10;
+}
+
+static inline bool thread_is_disabled(unsigned thread)
+{
+    unsigned shire = thread / EMU_THREADS_PER_SHIRE;
+    return (thread % EMU_THREADS_PER_MINION) && multithreading_is_disabled(shire);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -93,6 +110,7 @@ static void emu_memwrite64(uint64_t addr, uint64_t data)
     memory->write(addr, 8, &data);
 }
 
+
 ////////////////////////////////////////////////////////////////////////////////
 // Parses a file that defines the memory regions plus contents to be
 // loaded in the different regions
@@ -141,7 +159,7 @@ static bool parse_mem_file(const char * filename, main_memory * memory)
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-lm <minion]> [-m] [-reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-lm <minion]> [-m] [-reset_pc <addr>] [-sp_reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
@@ -156,6 +174,7 @@ static const char * help_msg =
  -lm          Log a given Minion ID only. Default: all Minions\n\
  -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -reset_pc    Sets boot program counter (default 0x8000001000) \n\
+ -sp_reset_pc Sets Service Processor boot program counter (default 0x40000000) \n\
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
  -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
  -mins_dis    Minions start disabled\n\
@@ -434,8 +453,12 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
             // Otherwise wakes up thread
             else
             {
-                LOG_OTHER(DEBUG, thread_id, "Waking up due to received FCC%u", thread_dest*2 + cnt_dest);
-                enabled_threads.push_back(thread_id);
+                if (thread_is_disabled(thread_id)) {
+                    LOG_OTHER(DEBUG, thread_id, "Disabled thread received FCC%u", thread_dest*2 + cnt_dest);
+                } else {
+                    LOG_OTHER(DEBUG, thread_id, "Waking up due to received FCC%u", thread_dest*2 + cnt_dest);
+                    enabled_threads.push_back(thread_id);
+                }
                 fcc_wait_threads[cnt_dest].erase(thread);
                 --fcc[thread_id][cnt_dest];
             }
@@ -457,8 +480,12 @@ sys_emu::msg_to_thread(int thread_id)
     // Checks if in port wait state
     if(thread != port_wait_threads.end())
     {
-        LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due msg");
-        enabled_threads.push_back(thread_id);
+        if (thread_is_disabled(thread_id)) {
+            LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received msg");
+        } else {
+            LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due msg");
+            enabled_threads.push_back(thread_id);
+        }
         port_wait_threads.erase(thread);
     }
 }
@@ -494,9 +521,13 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
             // If thread sleeping, wakes up and changes PC
             if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
             {
-                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI_REDIRECT");
-                enabled_threads.push_back(thread_id);
-                current_pc[thread_id] = new_pc;
+                if (thread_is_disabled(thread_id)) {
+                    LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received IPI_REDIRECT");
+                } else {
+                    LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI_REDIRECT");
+                    enabled_threads.push_back(thread_id);
+                    current_pc[thread_id] = new_pc;
+                }
             }
             // Otherwise IPI is dropped
             else
@@ -519,9 +550,11 @@ sys_emu::raise_timer_interrupt()
             if (target & (1ULL << m)) {
                 for (unsigned ii = 0; ii < minion_thread_count; ii++) {
                     int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-                    ::raise_timer_interrupt(thread_id);
-                    if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
-                        enabled_threads.push_back(thread_id);
+                    if (!thread_is_disabled(thread_id)) {
+                        ::raise_timer_interrupt(thread_id);
+                        if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+                            enabled_threads.push_back(thread_id);
+                    }
                 }
             }
         }
@@ -563,13 +596,17 @@ sys_emu::raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
         if (thread_mask & (1ull << t))
         {
             unsigned thread_id = thread0 + t;
-            LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
-            ::raise_software_interrupt(thread_id);
-            // If thread sleeping, wakes up
-            if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
-            {
-                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI");
-                enabled_threads.push_back(thread_id);
+            if (thread_is_disabled(thread_id)) {
+                LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received IPI");
+            } else {
+                LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
+                ::raise_software_interrupt(thread_id);
+                // If thread sleeping, wakes up
+                if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+                {
+                    LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI");
+                    enabled_threads.push_back(thread_id);
+                }
             }
         }
     }
@@ -592,6 +629,55 @@ sys_emu::clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
         {
             unsigned thread_id = thread0 + t;
             ::clear_software_interrupt(thread_id);
+        }
+    }
+}
+
+void
+sys_emu::raise_external_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    unsigned shire_thread_count =
+        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Write mip.meip to all selected threads
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        if (thread_mask & (1ull << t))
+        {
+            unsigned thread_id = thread0 + t;
+            LOG_OTHER(DEBUG, thread_id, "%s", "Receiving External Interrupt");
+            ::raise_external_machine_interrupt(thread_id);
+            // If thread sleeping, wakes up
+            if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+            {
+                LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to External Interrupt");
+                enabled_threads.push_back(thread_id);
+            }
+        }
+    }
+}
+
+void
+sys_emu::clear_external_interrupt(unsigned shire_id, uint64_t thread_mask)
+{
+    unsigned thread0 =
+        EMU_THREADS_PER_SHIRE
+        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+
+    unsigned shire_thread_count =
+        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+
+    // Clear mip.meip to all selected threads
+    for (unsigned t = 0; t < shire_thread_count; ++t)
+    {
+        if ((thread_mask >> t) & 1)
+        {
+            unsigned thread_id = thread0 + t;
+            ::clear_external_machine_interrupt(thread_id);
         }
     }
 }
@@ -642,6 +728,11 @@ parse_command_line_arguments(int argc, char* argv[])
         {
           sscanf(argv[i], "%" PRIx64, &cmd_options.reset_pc);
           cmd_options.reset_pc_flag = false;
+        }
+        else if(cmd_options.sp_reset_pc_flag)
+        {
+          sscanf(argv[i], "%" PRIx64, &cmd_options.sp_reset_pc);
+          cmd_options.sp_reset_pc_flag = false;
         }
         else if(cmd_options.dump == 1)
         {
@@ -710,6 +801,10 @@ parse_command_line_arguments(int argc, char* argv[])
         else if(strcmp(argv[i], "-reset_pc") == 0)
         {
             cmd_options.reset_pc_flag = true;
+        }
+        else if(strcmp(argv[i], "-sp_reset_pc") == 0)
+        {
+            cmd_options.sp_reset_pc_flag = true;
         }
         else if(strcmp(argv[i], "-dump_addr") == 0)
         {
@@ -857,51 +952,51 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
         api_listener->set_comm_path(cmd_options.api_comm_path);
     }
 
+    // Reset the SoC
+
     bzero(pending_fcc, sizeof(pending_fcc));
 
-    // initialize ports-----------------------------------
+    for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
+        reset_esrs_for_shire(s);
 
-    // end initialize ports-------------------------------
+        // Skip disabled shire
+        if (((shires_en >> s) & 1) == 0)
+            continue;
 
-    // Generates the mask of enabled minions
-    // Setup for all minions
+        // Skip master shire if not enabled
+        if ((cmd_options.master_min == 0) && (s >= EMU_MASTER_SHIRE))
+            continue;
 
-    // For all the shires
-    for (unsigned s = 0; s < EMU_NUM_SHIRES; s++)
-    {
-       reset_esrs_for_shire(s);
+        bool disable_multithreading =
+                !cmd_options.second_thread || multithreading_is_disabled(s);
 
-       // Skip disabled shire
-       if (((shires_en >> s) & 1) == 0) continue;
+        unsigned minion_thread_count =
+                disable_multithreading ? 1 : EMU_THREADS_PER_MINION;
 
-       // Skip master shire if not enabled
-       if ((cmd_options.master_min == 0) && (s >= EMU_MASTER_SHIRE)) continue;
+        unsigned shire_minion_count =
+                (s == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
 
-       unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
-       unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+        // For all the minions
+        for (unsigned m = 0; m < shire_minion_count; m++) {
+            // Skip disabled minion
+            if (((minions_en >> m) & 1) == 0)
+                continue;
 
-       LOG_NOTHREAD(DEBUG, "s: %u, m: %u, t: %u", s, shire_minion_count, minion_thread_count);
+            // Inits threads
+            for (unsigned t = 0; t < minion_thread_count; t++) {
+                unsigned tid = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + t;
+                LOG_OTHER(DEBUG, tid, "%s", "Resetting");
+                current_pc[tid] = (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc;
+                reduce_state_array[tid / EMU_THREADS_PER_MINION] = Reduce_Idle;
 
-       // For all the minions
-       for (unsigned m = 0; m < shire_minion_count; m++)
-       {
-          // Skip disabled minion
-          if (((minions_en >> m) & 1) == 0) continue;
+                reset_hart(tid);
+                set_thread(tid);
+                minit(m0, 255);
 
-          // Inits threads
-          for (unsigned ii = 0; ii < minion_thread_count; ii++) {
-             unsigned t = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-             LOG_OTHER(DEBUG, t, "%s", "Resetting");
-             current_pc[t] = cmd_options.reset_pc;
-             reduce_state_array[t / EMU_THREADS_PER_MINION] = Reduce_Idle;
-             reset_hart(t);
-             set_thread(t);
-             minit(m0, 255);
-             // Puts thread id in the active list
-             if(!cmd_options.mins_dis) enabled_threads.push_back(t);
-             if(!cmd_options.second_thread) break; // single thread per minion
-          }
-       }
+                // Puts thread id in the active list
+                if(!cmd_options.mins_dis) enabled_threads.push_back(tid);
+            }
+        }
     }
 }
 
@@ -980,6 +1075,14 @@ sys_emu::main_internal(int argc, char * argv[])
         {
             auto thread_id = * thread;
 
+            // lazily erase disabled threads from the active thread list
+            if (thread_is_disabled(thread_id))
+            {
+                thread = enabled_threads.erase(thread);
+                LOG_OTHER(DEBUG, thread_id, "%s", "Disabling thread");
+                continue;
+            }
+
             if (thread_is_blocked(thread_id))
             {
                 ++thread;
@@ -994,7 +1097,7 @@ sys_emu::main_internal(int argc, char * argv[])
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
                 check_pending_interrupts();
-                insn_t inst = fetch_and_decode(current_pc[thread_id]);
+                insn_t inst = fetch_and_decode();
 
                 // In case of reduce, we need to make sure that the other minion is also in reduce state
                 bool reduce_wait = false;
@@ -1139,10 +1242,13 @@ sys_emu::main_internal(int argc, char * argv[])
 
         // Net emu: sets the PC for all the minions that got an IPI with PC
         for (auto it = net_emu_ipi_threads.begin(); it != net_emu_ipi_threads.end(); it++) {
-            LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, net_emu_new_pc);
             if(net_emu_new_pc != 0) current_pc[*it] = net_emu_new_pc; // 0 means resume
-            enabled_threads.push_back(*it);
-
+            if (thread_is_disabled(*it)) {
+                LOG_OTHER(DEBUG, *it, "Disabled thread received IPI with PC 0x%" PRIx64, net_emu_new_pc);
+            } else {
+                enabled_threads.push_back(*it);
+                LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, net_emu_new_pc);
+            }
         }
 
         // Runtime API: check for new commands
@@ -1150,6 +1256,7 @@ sys_emu::main_internal(int argc, char * argv[])
 
         emu_cycle++;
     }
+
     if (emu_cycle == cmd_options.max_cycles)
     {
        LOG(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);

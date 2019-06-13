@@ -58,65 +58,12 @@ static_assert(VLEN == 256, "Only 256-bit vectors supported");
 
 
 // -----------------------------------------------------------------------------
-// Hart state
-
-struct state_t {
-
-    // Register files
-    uint64_t    xregs[NXREGS];
-    freg_t      fregs[NFREGS];
-    mreg_t      mregs[NMREGS];
-    freg_t      tenc[NFREGS];   // TODO: this is per core not per hart
-
-    // RISCV control and status registers
-    uint32_t    fcsr;
-    uint64_t    stvec;
-    uint32_t    scounteren;
-    uint64_t    sscratch;
-    uint64_t    sepc;
-    uint64_t    scause;
-    uint64_t    stval;
-    uint64_t    satp;           // TODO: this is per core not per hart
-    uint64_t    mstatus;
-    uint64_t    misa;           // could be hardcoded
-    uint32_t    medeleg;
-    uint32_t    mideleg;
-    uint32_t    mie;
-    uint64_t    mtvec;
-    uint32_t    mcounteren;
-    uint64_t    mscratch;
-    uint64_t    mepc;
-    uint64_t    mcause;
-    uint64_t    mtval;
-    uint32_t    mip;
-    uint64_t    tdata1;
-    uint64_t    tdata2;
-    // TODO: dcsr, dpc, dscratch
-    uint32_t    mvendorid;      // could be hardcoded
-    uint64_t    marchid;        // could be hardcoded
-    uint64_t    mimpid;         // could be hardcoded
-    uint16_t    mhartid;
-
-    // Esperanto control and status registers
-    uint64_t minstmask;           // 33b
-    uint32_t minstmatch;
-    uint8_t  msleep_txfma_27;     // 1b
-    uint8_t  menable_shadows;     // 2b
-    // TODO: uint8_t excl_mode;   // 1b
-    uint8_t  mtxfma_sleep_traps;  // 5b
-    uint8_t  mcache_control;      // 2b
-    uint16_t tensor_mask;
-    uint16_t tensor_error;
-    uint16_t ucache_control;
-    uint8_t  gsc_progress;        // log2(MLEN) bits
-    uint64_t validation0;
-    uint64_t validation2;
-    uint64_t validation3;
-    uint64_t portctrl[4];
-
-    // Other hart internal state
-    uint64_t tensor_conv_size;    // can we remove?
-    uint64_t tensor_conv_ctrl;    // can we remove?
+// Privilege levels
+enum prv_t : uint8_t {
+    PRV_U = 0,
+    PRV_S = 1,
+    PRV_H = 2,
+    PRV_M = 3
 };
 
 

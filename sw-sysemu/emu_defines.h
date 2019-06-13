@@ -68,6 +68,11 @@
 #define SATP_MODE_SV39  8
 #define SATP_MODE_SV48  9
 
+// MATP mode field values
+#define MATP_MODE_BARE  0
+#define MATP_MODE_MV39  8
+#define MATP_MODE_MV48  9
+
 // MSTATUS field offsets
 #define MSTATUS_MXR     19
 #define MSTATUS_SUM     18
@@ -86,12 +91,12 @@
 #define L2_SCP_SIZE        0x00400000ULL
 #define L2_SCP_LINEAR_BASE 0xC0000000ULL
 #define L2_SCP_LINEAR_SIZE 0x40000000ULL
+#define SCP_REGION_BASE    0x80000000ULL
+#define SCP_REGION_SIZE    0x80000000ULL
 
 // IO region
 #define IO_REGION_BASE     0x0000000000ULL
 #define IO_REGION_SIZE     0x0040000000ULL
-#define IO_R_PU_TIMER_BASE 0x0012005000ULL
-#define IO_R_PU_TIMER_SIZE 0x0000001000ULL
 
 // System version
 enum class system_version_t {
@@ -228,10 +233,14 @@ enum et_core_t {
 /* Obsolete texsnd/texrcv instuctions use the low 128b of the fregs for data transfers */
 #define VL_TBOX 4
 
-// Privilege levels
-#define CSR_PRV_U  0
-#define CSR_PRV_S  1
-#define CSR_PRV_H  2
-#define CSR_PRV_M  3
+// ET DV environment commands
+#define ET_DIAG_NOP             (0x0)
+#define ET_DIAG_PUTCHAR         (0x1)
+#define ET_DIAG_RAND            (0x2)
+#define ET_DIAG_RAND_MEM_UPPER  (0x3)
+#define ET_DIAG_RAND_MEM_LOWER  (0x4)
+#define ET_DIAG_UEI             (0x5)
+#define ET_DIAG_ECC_INJ         (0x6)
+#define ET_DIAG_CYCLE           (0x7)
 
 #endif // BEMU_DEFINES_H

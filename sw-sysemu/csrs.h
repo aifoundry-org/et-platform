@@ -2,20 +2,20 @@
 // RISCV registers
 //
 
-CSRDEF(0x000, ustatus, USTATUS)
+CSRDEF(0x000, ustatus, USTATUS)         // not implemented
 CSRDEF(0x001, fflags, FFLAGS)
 CSRDEF(0x002, frm, FRM)
 CSRDEF(0x003, fcsr, FCSR)
-CSRDEF(0x004, uie, UIE)
-CSRDEF(0x005, utvec, UTVEC)
-CSRDEF(0x040, uscratch, USCRATCH)
-CSRDEF(0x041, uepc, UEPC)
-CSRDEF(0x042, ucause, UCAUSE)
-CSRDEF(0x043, utval, UTVAL)
-CSRDEF(0x044, uip, UIP)
+CSRDEF(0x004, uie, UIE)                 // not implemented
+CSRDEF(0x005, utvec, UTVEC)             // not implemented
+CSRDEF(0x040, uscratch, USCRATCH)       // not implemented
+CSRDEF(0x041, uepc, UEPC)               // not implemented
+CSRDEF(0x042, ucause, UCAUSE)           // not implemented
+CSRDEF(0x043, utval, UTVAL)             // not implemented
+CSRDEF(0x044, uip, UIP)                 // not implemented
 CSRDEF(0x100, sstatus, SSTATUS)
-CSRDEF(0x102, sedeleg, SEDELEG)
-CSRDEF(0x103, sideleg, SIDELEG)
+CSRDEF(0x102, sedeleg, SEDELEG)         // not implemented
+CSRDEF(0x103, sideleg, SIDELEG)         // not implemented
 CSRDEF(0x104, sie, SIE)
 CSRDEF(0x105, stvec, STVEC)
 CSRDEF(0x106, scounteren, SCOUNTEREN)
@@ -67,33 +67,33 @@ CSRDEF(0x341, mepc, MEPC)
 CSRDEF(0x342, mcause, MCAUSE)
 CSRDEF(0x343, mtval, MTVAL)
 CSRDEF(0x344, mip, MIP)
-CSRDEF(0x3a0, pmpcfg0, PMPCFG0)
-CSRDEF(0x3a1, pmpcfg1, PMPCFG1)
-CSRDEF(0x3a2, pmpcfg2, PMPCFG2)
-CSRDEF(0x3a3, pmpcfg3, PMPCFG3)
-CSRDEF(0x3b0, pmpaddr0, PMPADDR0)
-CSRDEF(0x3b1, pmpaddr1, PMPADDR1)
-CSRDEF(0x3b2, pmpaddr2, PMPADDR2)
-CSRDEF(0x3b3, pmpaddr3, PMPADDR3)
-CSRDEF(0x3b4, pmpaddr4, PMPADDR4)
-CSRDEF(0x3b5, pmpaddr5, PMPADDR5)
-CSRDEF(0x3b6, pmpaddr6, PMPADDR6)
-CSRDEF(0x3b7, pmpaddr7, PMPADDR7)
-CSRDEF(0x3b8, pmpaddr8, PMPADDR8)
-CSRDEF(0x3b9, pmpaddr9, PMPADDR9)
-CSRDEF(0x3ba, pmpaddr10, PMPADDR10)
-CSRDEF(0x3bb, pmpaddr11, PMPADDR11)
-CSRDEF(0x3bc, pmpaddr12, PMPADDR12)
-CSRDEF(0x3bd, pmpaddr13, PMPADDR13)
-CSRDEF(0x3be, pmpaddr14, PMPADDR14)
-CSRDEF(0x3bf, pmpaddr15, PMPADDR15)
+CSRDEF(0x3a0, pmpcfg0, PMPCFG0)         // not implemented
+CSRDEF(0x3a1, pmpcfg1, PMPCFG1)         // not implemented
+CSRDEF(0x3a2, pmpcfg2, PMPCFG2)         // not implemented
+CSRDEF(0x3a3, pmpcfg3, PMPCFG3)         // not implemented
+CSRDEF(0x3b0, pmpaddr0, PMPADDR0)       // not implemented
+CSRDEF(0x3b1, pmpaddr1, PMPADDR1)       // not implemented
+CSRDEF(0x3b2, pmpaddr2, PMPADDR2)       // not implemented
+CSRDEF(0x3b3, pmpaddr3, PMPADDR3)       // not implemented
+CSRDEF(0x3b4, pmpaddr4, PMPADDR4)       // not implemented
+CSRDEF(0x3b5, pmpaddr5, PMPADDR5)       // not implemented
+CSRDEF(0x3b6, pmpaddr6, PMPADDR6)       // not implemented
+CSRDEF(0x3b7, pmpaddr7, PMPADDR7)       // not implemented
+CSRDEF(0x3b8, pmpaddr8, PMPADDR8)       // not implemented
+CSRDEF(0x3b9, pmpaddr9, PMPADDR9)       // not implemented
+CSRDEF(0x3ba, pmpaddr10, PMPADDR10)     // not implemented
+CSRDEF(0x3bb, pmpaddr11, PMPADDR11)     // not implemented
+CSRDEF(0x3bc, pmpaddr12, PMPADDR12)     // not implemented
+CSRDEF(0x3bd, pmpaddr13, PMPADDR13)     // not implemented
+CSRDEF(0x3be, pmpaddr14, PMPADDR14)     // not implemented
+CSRDEF(0x3bf, pmpaddr15, PMPADDR15)     // not implemented
 CSRDEF(0x7a0, tselect, TSELECT)
 CSRDEF(0x7a1, tdata1, TDATA1)
 CSRDEF(0x7a2, tdata2, TDATA2)
 CSRDEF(0x7a3, tdata3, TDATA3)
-CSRDEF(0x7b0, dcsr, DCSR) // TODO
-CSRDEF(0x7b1, dpc, DPC) // TODO
-CSRDEF(0x7b2, dscratch, DSCRATCH) // TODO
+CSRDEF(0x7b0, dcsr, DCSR)               // TODO
+CSRDEF(0x7b1, dpc, DPC)                 // TODO
+CSRDEF(0x7b2, dscratch, DSCRATCH)       // TODO
 CSRDEF(0xb00, mcycle, MCYCLE)
 CSRDEF(0xb02, minstret, MINSTRET)
 CSRDEF(0xb03, mhpmcounter3, MHPMCOUNTER3)
@@ -125,39 +125,39 @@ CSRDEF(0xb1c, mhpmcounter28, MHPMCOUNTER28)
 CSRDEF(0xb1d, mhpmcounter29, MHPMCOUNTER29)
 CSRDEF(0xb1e, mhpmcounter30, MHPMCOUNTER30)
 CSRDEF(0xb1f, mhpmcounter31, MHPMCOUNTER31)
-CSRDEF(0xb80, mcycleh, MCYCLEH)
-CSRDEF(0xb82, minstreth, MINSTRETH)
-CSRDEF(0xb83, mhpmcounter3h, MHPMCOUNTER3H)
-CSRDEF(0xb84, mhpmcounter4h, MHPMCOUNTER4H)
-CSRDEF(0xb85, mhpmcounter5h, MHPMCOUNTER5H)
-CSRDEF(0xb86, mhpmcounter6h, MHPMCOUNTER6H)
-CSRDEF(0xb87, mhpmcounter7h, MHPMCOUNTER7H)
-CSRDEF(0xb88, mhpmcounter8h, MHPMCOUNTER8H)
-CSRDEF(0xb89, mhpmcounter9h, MHPMCOUNTER9H)
-CSRDEF(0xb8a, mhpmcounter10h, MHPMCOUNTER10H)
-CSRDEF(0xb8b, mhpmcounter11h, MHPMCOUNTER11H)
-CSRDEF(0xb8c, mhpmcounter12h, MHPMCOUNTER12H)
-CSRDEF(0xb8d, mhpmcounter13h, MHPMCOUNTER13H)
-CSRDEF(0xb8e, mhpmcounter14h, MHPMCOUNTER14H)
-CSRDEF(0xb8f, mhpmcounter15h, MHPMCOUNTER15H)
-CSRDEF(0xb90, mhpmcounter16h, MHPMCOUNTER16H)
-CSRDEF(0xb91, mhpmcounter17h, MHPMCOUNTER17H)
-CSRDEF(0xb92, mhpmcounter18h, MHPMCOUNTER18H)
-CSRDEF(0xb93, mhpmcounter19h, MHPMCOUNTER19H)
-CSRDEF(0xb94, mhpmcounter20h, MHPMCOUNTER20H)
-CSRDEF(0xb95, mhpmcounter21h, MHPMCOUNTER21H)
-CSRDEF(0xb96, mhpmcounter22h, MHPMCOUNTER22H)
-CSRDEF(0xb97, mhpmcounter23h, MHPMCOUNTER23H)
-CSRDEF(0xb98, mhpmcounter24h, MHPMCOUNTER24H)
-CSRDEF(0xb99, mhpmcounter25h, MHPMCOUNTER25H)
-CSRDEF(0xb9a, mhpmcounter26h, MHPMCOUNTER26H)
-CSRDEF(0xb9b, mhpmcounter27h, MHPMCOUNTER27H)
-CSRDEF(0xb9c, mhpmcounter28h, MHPMCOUNTER28H)
-CSRDEF(0xb9d, mhpmcounter29h, MHPMCOUNTER29H)
-CSRDEF(0xb9e, mhpmcounter30h, MHPMCOUNTER30H)
-CSRDEF(0xb9f, mhpmcounter31h, MHPMCOUNTER31H)
+CSRDEF(0xb80, mcycleh, MCYCLEH)                 // not implemented
+CSRDEF(0xb82, minstreth, MINSTRETH)             // not implemented
+CSRDEF(0xb83, mhpmcounter3h, MHPMCOUNTER3H)     // not implemented
+CSRDEF(0xb84, mhpmcounter4h, MHPMCOUNTER4H)     // not implemented
+CSRDEF(0xb85, mhpmcounter5h, MHPMCOUNTER5H)     // not implemented
+CSRDEF(0xb86, mhpmcounter6h, MHPMCOUNTER6H)     // not implemented
+CSRDEF(0xb87, mhpmcounter7h, MHPMCOUNTER7H)     // not implemented
+CSRDEF(0xb88, mhpmcounter8h, MHPMCOUNTER8H)     // not implemented
+CSRDEF(0xb89, mhpmcounter9h, MHPMCOUNTER9H)     // not implemented
+CSRDEF(0xb8a, mhpmcounter10h, MHPMCOUNTER10H)   // not implemented
+CSRDEF(0xb8b, mhpmcounter11h, MHPMCOUNTER11H)   // not implemented
+CSRDEF(0xb8c, mhpmcounter12h, MHPMCOUNTER12H)   // not implemented
+CSRDEF(0xb8d, mhpmcounter13h, MHPMCOUNTER13H)   // not implemented
+CSRDEF(0xb8e, mhpmcounter14h, MHPMCOUNTER14H)   // not implemented
+CSRDEF(0xb8f, mhpmcounter15h, MHPMCOUNTER15H)   // not implemented
+CSRDEF(0xb90, mhpmcounter16h, MHPMCOUNTER16H)   // not implemented
+CSRDEF(0xb91, mhpmcounter17h, MHPMCOUNTER17H)   // not implemented
+CSRDEF(0xb92, mhpmcounter18h, MHPMCOUNTER18H)   // not implemented
+CSRDEF(0xb93, mhpmcounter19h, MHPMCOUNTER19H)   // not implemented
+CSRDEF(0xb94, mhpmcounter20h, MHPMCOUNTER20H)   // not implemented
+CSRDEF(0xb95, mhpmcounter21h, MHPMCOUNTER21H)   // not implemented
+CSRDEF(0xb96, mhpmcounter22h, MHPMCOUNTER22H)   // not implemented
+CSRDEF(0xb97, mhpmcounter23h, MHPMCOUNTER23H)   // not implemented
+CSRDEF(0xb98, mhpmcounter24h, MHPMCOUNTER24H)   // not implemented
+CSRDEF(0xb99, mhpmcounter25h, MHPMCOUNTER25H)   // not implemented
+CSRDEF(0xb9a, mhpmcounter26h, MHPMCOUNTER26H)   // not implemented
+CSRDEF(0xb9b, mhpmcounter27h, MHPMCOUNTER27H)   // not implemented
+CSRDEF(0xb9c, mhpmcounter28h, MHPMCOUNTER28H)   // not implemented
+CSRDEF(0xb9d, mhpmcounter29h, MHPMCOUNTER29H)   // not implemented
+CSRDEF(0xb9e, mhpmcounter30h, MHPMCOUNTER30H)   // not implemented
+CSRDEF(0xb9f, mhpmcounter31h, MHPMCOUNTER31H)   // not implemented
 CSRDEF(0xc00, cycle, CYCLE)
-CSRDEF(0xc01, time, TIME)
+CSRDEF(0xc01, time, TIME)                       // not implemented
 CSRDEF(0xc02, instret, INSTRET)
 CSRDEF(0xc03, hpmcounter3, HPMCOUNTER3)
 CSRDEF(0xc04, hpmcounter4, HPMCOUNTER4)
@@ -188,38 +188,38 @@ CSRDEF(0xc1c, hpmcounter28, HPMCOUNTER28)
 CSRDEF(0xc1d, hpmcounter29, HPMCOUNTER29)
 CSRDEF(0xc1e, hpmcounter30, HPMCOUNTER30)
 CSRDEF(0xc1f, hpmcounter31, HPMCOUNTER31)
-CSRDEF(0xc80, cycleh, CYCLEH)
-CSRDEF(0xc81, timeh, TIMEH)
-CSRDEF(0xc82, instreth, INSTRETH)
-CSRDEF(0xc83, hpmcounter3h, HPMCOUNTER3H)
-CSRDEF(0xc84, hpmcounter4h, HPMCOUNTER4H)
-CSRDEF(0xc85, hpmcounter5h, HPMCOUNTER5H)
-CSRDEF(0xc86, hpmcounter6h, HPMCOUNTER6H)
-CSRDEF(0xc87, hpmcounter7h, HPMCOUNTER7H)
-CSRDEF(0xc88, hpmcounter8h, HPMCOUNTER8H)
-CSRDEF(0xc89, hpmcounter9h, HPMCOUNTER9H)
-CSRDEF(0xc8a, hpmcounter10h, HPMCOUNTER10H)
-CSRDEF(0xc8b, hpmcounter11h, HPMCOUNTER11H)
-CSRDEF(0xc8c, hpmcounter12h, HPMCOUNTER12H)
-CSRDEF(0xc8d, hpmcounter13h, HPMCOUNTER13H)
-CSRDEF(0xc8e, hpmcounter14h, HPMCOUNTER14H)
-CSRDEF(0xc8f, hpmcounter15h, HPMCOUNTER15H)
-CSRDEF(0xc90, hpmcounter16h, HPMCOUNTER16H)
-CSRDEF(0xc91, hpmcounter17h, HPMCOUNTER17H)
-CSRDEF(0xc92, hpmcounter18h, HPMCOUNTER18H)
-CSRDEF(0xc93, hpmcounter19h, HPMCOUNTER19H)
-CSRDEF(0xc94, hpmcounter20h, HPMCOUNTER20H)
-CSRDEF(0xc95, hpmcounter21h, HPMCOUNTER21H)
-CSRDEF(0xc96, hpmcounter22h, HPMCOUNTER22H)
-CSRDEF(0xc97, hpmcounter23h, HPMCOUNTER23H)
-CSRDEF(0xc98, hpmcounter24h, HPMCOUNTER24H)
-CSRDEF(0xc99, hpmcounter25h, HPMCOUNTER25H)
-CSRDEF(0xc9a, hpmcounter26h, HPMCOUNTER26H)
-CSRDEF(0xc9b, hpmcounter27h, HPMCOUNTER27H)
-CSRDEF(0xc9c, hpmcounter28h, HPMCOUNTER28H)
-CSRDEF(0xc9d, hpmcounter29h, HPMCOUNTER29H)
-CSRDEF(0xc9e, hpmcounter30h, HPMCOUNTER30H)
-CSRDEF(0xc9f, hpmcounter31h, HPMCOUNTER31H)
+CSRDEF(0xc80, cycleh, CYCLEH)                   // not implemented
+CSRDEF(0xc81, timeh, TIMEH)                     // not implemented
+CSRDEF(0xc82, instreth, INSTRETH)               // not implemented
+CSRDEF(0xc83, hpmcounter3h, HPMCOUNTER3H)       // not implemented
+CSRDEF(0xc84, hpmcounter4h, HPMCOUNTER4H)       // not implemented
+CSRDEF(0xc85, hpmcounter5h, HPMCOUNTER5H)       // not implemented
+CSRDEF(0xc86, hpmcounter6h, HPMCOUNTER6H)       // not implemented
+CSRDEF(0xc87, hpmcounter7h, HPMCOUNTER7H)       // not implemented
+CSRDEF(0xc88, hpmcounter8h, HPMCOUNTER8H)       // not implemented
+CSRDEF(0xc89, hpmcounter9h, HPMCOUNTER9H)       // not implemented
+CSRDEF(0xc8a, hpmcounter10h, HPMCOUNTER10H)     // not implemented
+CSRDEF(0xc8b, hpmcounter11h, HPMCOUNTER11H)     // not implemented
+CSRDEF(0xc8c, hpmcounter12h, HPMCOUNTER12H)     // not implemented
+CSRDEF(0xc8d, hpmcounter13h, HPMCOUNTER13H)     // not implemented
+CSRDEF(0xc8e, hpmcounter14h, HPMCOUNTER14H)     // not implemented
+CSRDEF(0xc8f, hpmcounter15h, HPMCOUNTER15H)     // not implemented
+CSRDEF(0xc90, hpmcounter16h, HPMCOUNTER16H)     // not implemented
+CSRDEF(0xc91, hpmcounter17h, HPMCOUNTER17H)     // not implemented
+CSRDEF(0xc92, hpmcounter18h, HPMCOUNTER18H)     // not implemented
+CSRDEF(0xc93, hpmcounter19h, HPMCOUNTER19H)     // not implemented
+CSRDEF(0xc94, hpmcounter20h, HPMCOUNTER20H)     // not implemented
+CSRDEF(0xc95, hpmcounter21h, HPMCOUNTER21H)     // not implemented
+CSRDEF(0xc96, hpmcounter22h, HPMCOUNTER22H)     // not implemented
+CSRDEF(0xc97, hpmcounter23h, HPMCOUNTER23H)     // not implemented
+CSRDEF(0xc98, hpmcounter24h, HPMCOUNTER24H)     // not implemented
+CSRDEF(0xc99, hpmcounter25h, HPMCOUNTER25H)     // not implemented
+CSRDEF(0xc9a, hpmcounter26h, HPMCOUNTER26H)     // not implemented
+CSRDEF(0xc9b, hpmcounter27h, HPMCOUNTER27H)     // not implemented
+CSRDEF(0xc9c, hpmcounter28h, HPMCOUNTER28H)     // not implemented
+CSRDEF(0xc9d, hpmcounter29h, HPMCOUNTER29H)     // not implemented
+CSRDEF(0xc9e, hpmcounter30h, HPMCOUNTER30H)     // not implemented
+CSRDEF(0xc9f, hpmcounter31h, HPMCOUNTER31H)     // not implemented
 CSRDEF(0xf11, mvendorid, MVENDORID)
 CSRDEF(0xf12, marchid, MARCHID)
 CSRDEF(0xf13, mimpid, MIMPID)
@@ -229,10 +229,10 @@ CSRDEF(0xf14, mhartid, MHARTID)
 // Esperanto registers
 //
 
-CSRDEF(0x7c0, matp, MATP) // TODO
+CSRDEF(0x7c0, matp, MATP)
 CSRDEF(0x7cd, minstmask, MINSTMASK)
 CSRDEF(0x7ce, minstmatch, MINSTMATCH)
-CSRDEF(0x7cf, amofence_ctrl, AMOFENCE_CTRL) // TODO
+CSRDEF(0x7cf, amofence_ctrl, AMOFENCE_CTRL)     // TODO
 CSRDEF(0x7d0, cache_invalidate, CACHE_INVALIDATE)
 CSRDEF(0x7d2, menable_shadows, MENABLE_SHADOWS)
 CSRDEF(0x7d3, excl_mode, EXCL_MODE)

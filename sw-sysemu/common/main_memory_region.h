@@ -1,7 +1,7 @@
 /* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
-#ifndef BEMU_MAIN_MEMORY_REGION
-#define BEMU_MAIN_MEMORY_REGION
+#ifndef BEMU_MAIN_MEMORY_REGION_H
+#define BEMU_MAIN_MEMORY_REGION_H
 
 #include <algorithm>
 #include <cinttypes>
@@ -16,7 +16,7 @@
 struct main_memory_region
 {
     main_memory_region(uint64_t addr, size_t sz, bool alloc = true)
-            : buf(alloc ? new char[sz]() : nullptr), base(addr), count(sz)
+    : buf(alloc ? new char[sz]() : nullptr), base(addr), count(sz)
     {
         if (sz % 4)
             throw std::invalid_argument("main_memory_region: "
@@ -59,4 +59,4 @@ struct main_memory_region
 
 //} // namespace bemu
 
-#endif // BEMU_MAIN_MEMORY_REGION
+#endif // BEMU_MAIN_MEMORY_REGION_H

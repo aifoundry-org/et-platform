@@ -35,6 +35,9 @@ inline void log_mem_write(bool, int, uint64_t, uint64_t) {}
 inline void log_trap( uint64_t, uint64_t, uint64_t, uint64_t) {}
 inline void log_gsc_progress(uint64_t) {}
 
+// tensor_error
+inline void log_tensor_error_value(uint16_t) {}
+
 // TensorLoad
 inline void log_tensor_load(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t) {}
 inline void log_tensor_load_scp_write(uint8_t, const uint64_t*) {}

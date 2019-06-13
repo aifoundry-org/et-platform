@@ -49,6 +49,10 @@
 #define ESR_RBOX_ESR_MASK       0xFFC03FFFFFULL
 
 
+// IOshire has a different mask from Minion shires
+#define ESR_IOSHIRE_ESR_MASK    0xFFC03FFFFFULL
+
+
 // bits [21:20] and further limited by bits [19:12] depending on the region
 #define ESR_SREGION_MASK        0x0100300000ULL
 
@@ -165,15 +169,15 @@
 #define ESR_SC_REQQ_DEBUG1                0x01C0300088ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_DEBUG2                0x01C0300090ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_DEBUG3                0x01C0300098ULL /* PP = 0b11 */
-//#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
-//#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
-//#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
 //#define ESR_SC_PERFMON_CTL_STATUS       /* PP = 0b11 */
 //#define ESR_SC_PERFMON_CYC_CNTR         /* PP = 0b11 */
 //#define ESR_SC_PERFMON_P0_CNTR          /* PP = 0b11 */
 //#define ESR_SC_PERFMON_P1_CNTR          /* PP = 0b11 */
 //#define ESR_SC_PERFMON_P0_QUAL          /* PP = 0b11 */
 //#define ESR_SC_PERFMON_P1_QUAL          /* PP = 0b11 */
+//#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
+//#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
+//#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
 
 
 // RBOX ESR addresses
@@ -191,60 +195,90 @@
 
 
 // Shire Other ESR addresses
-#define ESR_SHIRE_U0              0x0100340000ULL /* PP = 0b00 */
-#define ESR_SHIRE_S0              0x0140340000ULL /* PP = 0b01 */
-#define ESR_SHIRE_M0              0x01C0340000ULL /* PP = 0b11 */
-#define ESR_MINION_FEATURE        0x01C0340000ULL /* PP = 0b11 */
-#define ESR_SHIRE_CONFIG          0x01C0340008ULL /* PP = 0b11 */
-#define ESR_IPI_REDIRECT_TRIGGER  0x0100340080ULL /* PP = 0b00 */
-#define ESR_IPI_REDIRECT_FILTER   0x01C0340088ULL /* PP = 0b11 */
-#define ESR_IPI_TRIGGER           0x01C0340090ULL /* PP = 0b11 */
-#define ESR_IPI_TRIGGER_CLEAR     0x01C0340098ULL /* PP = 0b11 */
-#define ESR_FCC_CREDINC_0         0x01003400C0ULL /* PP = 0b00 */
-#define ESR_FCC_CREDINC_1         0x01003400C8ULL /* PP = 0b00 */
-#define ESR_FCC_CREDINC_2         0x01003400D0ULL /* PP = 0b00 */
-#define ESR_FCC_CREDINC_3         0x01003400D8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER0   0x0100340100ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER1   0x0100340108ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER2   0x0100340110ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER3   0x0100340118ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER4   0x0100340120ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER5   0x0100340128ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER6   0x0100340130ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER7   0x0100340138ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER8   0x0100340140ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER9   0x0100340148ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER10  0x0100340150ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER11  0x0100340158ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER12  0x0100340160ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER13  0x0100340168ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER14  0x0100340170ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER15  0x0100340178ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER16  0x0100340180ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER17  0x0100340188ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER18  0x0100340190ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER19  0x0100340198ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER20  0x01003401A0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER21  0x01003401A8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER22  0x01003401B0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER23  0x01003401B8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER24  0x01003401C0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER25  0x01003401C8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER26  0x01003401D0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER27  0x01003401D8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER28  0x01003401E0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER29  0x01003401E8ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER30  0x01003401F0ULL /* PP = 0b00 */
-#define ESR_FAST_LOCAL_BARRIER31  0x01003401F8ULL /* PP = 0b00 */
-#define ESR_MTIME_LOCAL_TARGET    0x01C0340218ULL /* PP = 0b11 */
-#define ESR_SHIRE_COOP_MODE       0x0140340290ULL /* PP = 0b01 */
-#define ESR_SHIRE_CACHE_RAM_CFG1  0x01C03402A0ULL /* PP = 0b11 */
-#define ESR_SHIRE_CACHE_RAM_CFG2  0x01C03402A8ULL /* PP = 0b11 */
-#define ESR_SHIRE_CACHE_RAM_CFG3  0x01C03402B0ULL /* PP = 0b11 */
-#define ESR_SHIRE_CACHE_RAM_CFG4  0x01C03402B8ULL /* PP = 0b11 */
-#define ESR_ICACHE_UPREFETCH      0x01003402F8ULL /* PP = 0b00 */
-#define ESR_ICACHE_SPREFETCH      0x0140340300ULL /* PP = 0b01 */
-#define ESR_ICACHE_MPREFETCH      0x01C0340308ULL /* PP = 0b11 */
+#define ESR_SHIRE_U0                    0x0100340000ULL /* PP = 0b00 */
+#define ESR_SHIRE_S0                    0x0140340000ULL /* PP = 0b01 */
+#define ESR_SHIRE_M0                    0x01C0340000ULL /* PP = 0b11 */
+#define ESR_MINION_FEATURE              0x01C0340000ULL /* PP = 0b11 */
+#define ESR_SHIRE_CONFIG                0x01C0340008ULL /* PP = 0b11 */
+#define ESR_THREAD1_DISABLE             0x01C0340010ULL /* PP = 0b11 */
+//#define ESR_SHIRE_CACHE_BUILD_CONFIG    0x01C0340018ULL /* PP = 0b11 */
+//#define ESR_SHIRE_CACHE_REVISION_ID     0x01C0340020ULL /* PP = 0b11 */
+#define ESR_IPI_REDIRECT_TRIGGER        0x0100340080ULL /* PP = 0b00 */
+#define ESR_IPI_REDIRECT_FILTER         0x01C0340088ULL /* PP = 0b11 */
+#define ESR_IPI_TRIGGER                 0x01C0340090ULL /* PP = 0b11 */
+#define ESR_IPI_TRIGGER_CLEAR           0x01C0340098ULL /* PP = 0b11 */
+#define ESR_FCC_CREDINC_0               0x01003400C0ULL /* PP = 0b00 */
+#define ESR_FCC_CREDINC_1               0x01003400C8ULL /* PP = 0b00 */
+#define ESR_FCC_CREDINC_2               0x01003400D0ULL /* PP = 0b00 */
+#define ESR_FCC_CREDINC_3               0x01003400D8ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER0         0x0100340100ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER1         0x0100340108ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER2         0x0100340110ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER3         0x0100340118ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER4         0x0100340120ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER5         0x0100340128ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER6         0x0100340130ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER7         0x0100340138ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER8         0x0100340140ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER9         0x0100340148ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER10        0x0100340150ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER11        0x0100340158ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER12        0x0100340160ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER13        0x0100340168ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER14        0x0100340170ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER15        0x0100340178ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER16        0x0100340180ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER17        0x0100340188ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER18        0x0100340190ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER19        0x0100340198ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER20        0x01003401A0ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER21        0x01003401A8ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER22        0x01003401B0ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER23        0x01003401B8ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER24        0x01003401C0ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER25        0x01003401C8ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER26        0x01003401D0ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER27        0x01003401D8ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER28        0x01003401E0ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER29        0x01003401E8ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER30        0x01003401F0ULL /* PP = 0b00 */
+#define ESR_FAST_LOCAL_BARRIER31        0x01003401F8ULL /* PP = 0b00 */
+#define ESR_MTIME_LOCAL_TARGET          0x01C0340218ULL /* PP = 0b11 */
+//#define ESR_SHIRE_POWER_CTRL            0x01C0340220ULL /* PP = 0b11 */
+//#define ESR_POWER_CTRL_NEIGH_NSLEEPIN   0x01C0340228ULL /* PP = 0b11 */
+//#define ESR_POWER_CTRL_NEIGH_ISOLATION  0x01C0340230ULL /* PP = 0b11 */
+//#define ESR_POWER_CTRL_NEIGH_NSLEEPOUT  0x01C0340238ULL /* PP = 0b11 */
+#define ESR_THREAD0_DISABLE             0x01C0340240ULL /* PP = 0b11 */
+//#define ESR_SHIRE_ERROR_LOG             0x01C0340248ULL /* PP = 0b11 */
+#define ESR_SHIRE_PLL_AUTO_CONFIG       0x01C0340250ULL /* PP = 0b11 */
+#define ESR_SHIRE_PLL_CONFIG_DATA_0     0x01C0340258ULL /* PP = 0b11 */
+#define ESR_SHIRE_PLL_CONFIG_DATA_1     0x01C0340260ULL /* PP = 0b11 */
+#define ESR_SHIRE_PLL_CONFIG_DATA_2     0x01C0340268ULL /* PP = 0b11 */
+#define ESR_SHIRE_PLL_CONFIG_DATA_3     0x01C0340270ULL /* PP = 0b11 */
+#define ESR_SHIRE_PLL_CONFIG_DATA_4     0x01C0340278ULL /* PP = 0b11 */
+#define ESR_SHIRE_PLL_CONFIG_DATA_5     0x01C0340280ULL /* PP = 0b11 */
+//#define ESR_SHIRE_PLL_READ_DATA         0x01C0340288ULL /* PP = 0b11 */
+#define ESR_SHIRE_COOP_MODE             0x0140340290ULL /* PP = 0b01 */
+#define ESR_SHIRE_CTRL_CLOCKMUX         0x01C0340298ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_RAM_CFG1        0x01C03402A0ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_RAM_CFG2        0x01C03402A8ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_RAM_CFG3        0x01C03402B0ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_RAM_CFG4        0x01C03402B8ULL /* PP = 0b11 */
+//#define ESR_SHIRE_NOC_INTERRUPT_STATUS  0x01C03402C0ULL /* PP = 0b11 */
+#define ESR_SHIRE_DLL_AUTO_CONFIG       0x01C03402C8ULL /* PP = 0b11 */
+#define ESR_SHIRE_DLL_CONFIG_DATA_0     0x01C03402D0ULL /* PP = 0b11 */
+//#define ESR_SHIRE_DLL_READ_DATA         0x01C03402D8ULL /* PP = 0b11 */
+//#define ESR_UC_CONFIG                   0x01403402E8ULL /* PP = 0b01 */
+#define ESR_ICACHE_UPREFETCH            0x01003402F8ULL /* PP = 0b00 */
+#define ESR_ICACHE_SPREFETCH            0x0140340300ULL /* PP = 0b01 */
+#define ESR_ICACHE_MPREFETCH            0x01C0340308ULL /* PP = 0b11 */
+//#define ESR_CLK_GATE_CTRL               0x01C0340310ULL /* PP = 0b11 */
+//#define ESR_SHIRE_CHANNEL_ECO_CTL       0x01C0340340ULL /* PP = 0b11 */
+
+
+// IOshire ESR addresses
+#define ESR_PU_RVTIM_MTIME        0x01C0000000ULL /* PP = 0b11 */
+#define ESR_PU_RVTIM_MTIMECMP     0x01C0000008ULL /* PP = 0b11 */
 
 
 // Broadcast ESR addresses
@@ -319,20 +353,27 @@ extern shire_cache_esrs_t shire_cache_esrs[EMU_NUM_SHIRES];
 // Shire Other ESRs
 
 struct shire_other_esrs_t {
-    uint64_t fast_local_barrier[32];
-    uint32_t mtime_local_target;
+    uint8_t  fast_local_barrier[32];
     //uint64_t fcc_credinc[4];
     //uint64_t icache_mprefetch;
     //uint64_t icache_sprefetch;
     //uint64_t icache_uprefetch;
     uint64_t ipi_redirect_filter;
     uint64_t ipi_trigger;
+    uint64_t shire_pll_config_data[6];
+    uint64_t shire_dll_config_data_0;
     uint64_t shire_cache_ram_cfg1;
     uint64_t shire_cache_ram_cfg3;
     uint64_t shire_cache_ram_cfg4;
     uint32_t shire_cache_ram_cfg2;
     uint32_t shire_config;
+    uint32_t thread0_disable;
+    uint32_t thread1_disable;
+    uint32_t mtime_local_target;
+    uint32_t shire_pll_auto_config;
+    uint16_t shire_dll_auto_config;
     uint8_t  minion_feature;
+    uint8_t  shire_ctrl_clockmux;
     //bool     shire_coop_mode;
 
     void reset(unsigned shireid);

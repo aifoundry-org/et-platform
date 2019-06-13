@@ -22,20 +22,20 @@
 // Log operands
 
 #define LOG_REG(str, n) \
-    LOG_IF(DEBUG, n != 0, "\tx%d " str " 0x%" PRIx64, n, xregs[current_thread][n])
+    LOG_IF(DEBUG, n != 0, "\tx%d " str " 0x%" PRIx64, n, cpu[current_thread].xregs[n])
 
 #define LOG_FREG(str, n) \
     LOG(DEBUG, "\tf%d " str " {" \
         " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
         " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
         " }", n, \
-        fregs[current_thread][n].u32[0], fregs[current_thread][n].u32[1], \
-        fregs[current_thread][n].u32[2], fregs[current_thread][n].u32[3], \
-        fregs[current_thread][n].u32[4], fregs[current_thread][n].u32[5], \
-        fregs[current_thread][n].u32[6], fregs[current_thread][n].u32[7])
+        cpu[current_thread].fregs[n].u32[0], cpu[current_thread].fregs[n].u32[1], \
+        cpu[current_thread].fregs[n].u32[2], cpu[current_thread].fregs[n].u32[3], \
+        cpu[current_thread].fregs[n].u32[4], cpu[current_thread].fregs[n].u32[5], \
+        cpu[current_thread].fregs[n].u32[6], cpu[current_thread].fregs[n].u32[7])
 
 #define LOG_MREG(str, n) \
-    LOG(DEBUG, "\tm%d " str " 0x%02lx", n, mregs[current_thread][n].to_ulong())
+    LOG(DEBUG, "\tm%d " str " 0x%02lx", n, cpu[current_thread].mregs[n].to_ulong())
 
 #define LOG_SCP(str, row, col) \
     LOG(DEBUG, "\tSCP[%d] " str " {" \
@@ -52,10 +52,10 @@
         " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
         " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
         " }", n, \
-        fregs[other_thread][n].u32[0], fregs[other_thread][n].u32[1], \
-        fregs[other_thread][n].u32[2], fregs[other_thread][n].u32[3], \
-        fregs[other_thread][n].u32[4], fregs[other_thread][n].u32[5], \
-        fregs[other_thread][n].u32[6], fregs[other_thread][n].u32[7])
+        cpu[other_thread].fregs[n].u32[0], cpu[other_thread].fregs[n].u32[1], \
+        cpu[other_thread].fregs[n].u32[2], cpu[other_thread].fregs[n].u32[3], \
+        cpu[other_thread].fregs[n].u32[4], cpu[other_thread].fregs[n].u32[5], \
+        cpu[other_thread].fregs[n].u32[6], cpu[other_thread].fregs[n].u32[7])
 
 #define LOG_FFLAGS(str, n) \
     LOG(DEBUG, "\tfflags " str " 0x%" PRIx8, uint8_t(n))
@@ -64,7 +64,7 @@
     LOG(DEBUG, "\tpc " str " 0x%" PRIx64, PC)
 
 #define LOG_GSC_PROGRESS(str) \
-    LOG(DEBUG, "\tgsc_progress " str " %u", unsigned(csr_gsc_progress[current_thread]))
+    LOG(DEBUG, "\tgsc_progress " str " %u", unsigned(cpu[current_thread].gsc_progress))
 
 // -----------------------------------------------------------------------------
 // Access instruction fields
@@ -106,27 +106,29 @@
 // -----------------------------------------------------------------------------
 // Access program state
 
-#define X2      xregs[current_thread][2]
-#define X31     xregs[current_thread][31]
-#define RD      xregs[current_thread][inst.rd()]
-#define RS1     xregs[current_thread][inst.rs1()]
-#define RS2     xregs[current_thread][inst.rs2()]
-#define C_RS1   xregs[current_thread][inst.rvc_rs1()]
-#define C_RS1P  xregs[current_thread][inst.rvc_rs1p()]
-#define C_RS2   xregs[current_thread][inst.rvc_rs2()]
-#define C_RS2P  xregs[current_thread][inst.rvc_rs2p()]
+#define X2      cpu[current_thread].xregs[2]
+#define X31     cpu[current_thread].xregs[31]
+#define RD      cpu[current_thread].xregs[inst.rd()]
+#define RS1     cpu[current_thread].xregs[inst.rs1()]
+#define RS2     cpu[current_thread].xregs[inst.rs2()]
+#define C_RS1   cpu[current_thread].xregs[inst.rvc_rs1()]
+#define C_RS1P  cpu[current_thread].xregs[inst.rvc_rs1p()]
+#define C_RS2   cpu[current_thread].xregs[inst.rvc_rs2()]
+#define C_RS2P  cpu[current_thread].xregs[inst.rvc_rs2p()]
 
-#define M0      mregs[current_thread][0]
-#define MD      mregs[current_thread][inst.md()]
-#define MS1     mregs[current_thread][inst.ms1()]
-#define MS2     mregs[current_thread][inst.ms2()]
+#define M0      cpu[current_thread].mregs[0]
+#define MD      cpu[current_thread].mregs[inst.md()]
+#define MS1     cpu[current_thread].mregs[inst.ms1()]
+#define MS2     cpu[current_thread].mregs[inst.ms2()]
 
-#define FD      fregs[current_thread][inst.fd()]
-#define FS1     fregs[current_thread][inst.fs1()]
-#define FS2     fregs[current_thread][inst.fs2()]
-#define FS3     fregs[current_thread][inst.fs3()]
+#define FD      cpu[current_thread].fregs[inst.fd()]
+#define FS1     cpu[current_thread].fregs[inst.fs1()]
+#define FS2     cpu[current_thread].fregs[inst.fs2()]
+#define FS3     cpu[current_thread].fregs[inst.fs3()]
 
-#define FRM     ((csr_fcsr[current_thread] >> 5) & 7)
+#define FRM     ((cpu[current_thread].fcsr >> 5) & 7)
+
+#define PRV     cpu[current_thread].prv
 
 
 #define set_rounding_mode(expr) do { \
@@ -140,7 +142,7 @@
 
 #define require_fp_active() do { \
     extern uint32_t current_inst; \
-    if ((csr_mstatus[current_thread] & 0x0006000ULL) == 0) \
+    if ((cpu[current_thread].mstatus & 0x0006000ULL) == 0) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
@@ -205,10 +207,10 @@
 
 #define WRITE_REG(n, expr) do { \
     if (n != 0) { \
-        xregs[current_thread][n] = (expr); \
+        cpu[current_thread].xregs[n] = (expr); \
         LOG_REG("=", n); \
     } \
-    log_xreg_write(n, xregs[current_thread][n]); \
+    log_xreg_write(n, cpu[current_thread].xregs[n]); \
 } while (0)
 
 
@@ -222,9 +224,10 @@
 
 
 #define WRITE_MREG(n, expr) do { \
-    mregs[current_thread][n] = (expr); \
+    cpu[current_thread].mregs[n] = (expr); \
     LOG_MREG("=", n); \
-    log_mreg_write(n, mregs[current_thread][n]); \
+    dirty_fp_state(); \
+    log_mreg_write(n, cpu[current_thread].mregs[n]); \
 } while (0)
 
 
@@ -259,15 +262,15 @@
 
 #define SCATTER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
-    for (size_t e = 0; e < csr_gsc_progress[current_thread]; ++e) \
+    for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
         log_mem_write(false, -1, 0, 0); \
-    for (size_t e = csr_gsc_progress[current_thread]; e < MLEN; ++e) { \
+    for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
                 expr; \
             } \
             catch (const trap_t&) { \
-                csr_gsc_progress[current_thread] = e; \
+                cpu[current_thread].gsc_progress = e; \
                 LOG_GSC_PROGRESS("="); \
                 log_gsc_progress(e); \
                 throw; \
@@ -276,7 +279,7 @@
             log_mem_write(false, -1, 0, 0); \
         } \
     } \
-    csr_gsc_progress[current_thread] = 0; \
+    cpu[current_thread].gsc_progress = 0; \
     LOG_GSC_PROGRESS("="); \
     log_gsc_progress(0); \
 } while (0)
@@ -285,14 +288,14 @@
 #define GATHER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
-    for (size_t e = csr_gsc_progress[current_thread]; e < MLEN; ++e) { \
+    for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
                 FD.u32[e] = fpu::UI32(expr); \
                 dirty = true; \
             } \
             catch (const trap_t&) { \
-                csr_gsc_progress[current_thread] = e; \
+                cpu[current_thread].gsc_progress = e; \
                 LOG_GSC_PROGRESS("="); \
                 log_gsc_progress(e); \
                 if (dirty) { \
@@ -304,7 +307,7 @@
             } \
         } \
     } \
-    csr_gsc_progress[current_thread] = 0; \
+    cpu[current_thread].gsc_progress = 0; \
     LOG_GSC_PROGRESS("="); \
     log_gsc_progress(0); \
     if (dirty) { \
@@ -318,16 +321,16 @@
 #define GSCAMO(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
-    for (size_t e = 0; e < csr_gsc_progress[current_thread]; ++e) \
+    for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
         log_mem_write(false, -1, 0, 0); \
-    for (size_t e = csr_gsc_progress[current_thread]; e < MLEN; ++e) { \
+    for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
                 FD.u32[e] = fpu::UI32(expr); \
                 dirty = true; \
             } \
             catch (const trap_t&) { \
-                csr_gsc_progress[current_thread] = e; \
+                cpu[current_thread].gsc_progress = e; \
                 LOG_GSC_PROGRESS("="); \
                 log_gsc_progress(e); \
                 if (dirty) { \
@@ -341,7 +344,7 @@
             log_mem_write(false, -1, 0, 0); \
         } \
     } \
-    csr_gsc_progress[current_thread] = 0; \
+    cpu[current_thread].gsc_progress = 0; \
     LOG_GSC_PROGRESS("="); \
     log_gsc_progress(0); \
     if (dirty) { \
@@ -380,13 +383,14 @@
             } \
         } \
         LOG_MREG("=", inst.md()); \
+        dirty_fp_state(); \
     } \
     log_mreg_write(inst.md(), MD); \
 } while (0)
 
 
 #define dirty_fp_state() do { \
-    csr_mstatus[current_thread] |= 0x8000000000006000ULL; \
+    cpu[current_thread].mstatus |= 0x8000000000006000ULL; \
 } while (0)
 
 
@@ -396,7 +400,7 @@
         uint32_t newval = \
                 (softfloat_exceptionFlags & 0x1F) | \
                 (uint32_t(softfloat_exceptionFlags & 0x20) << 26); \
-        csr_fcsr[current_thread] |= newval; \
+        cpu[current_thread].fcsr |= newval; \
         LOG_FFLAGS("|=", newval); \
         log_fflags_write(newval); \
         softfloat_exceptionFlags = 0; \
@@ -407,7 +411,7 @@
 // -----------------------------------------------------------------------------
 // Disassemble instruction, and input operands
 
-#define PRVNAME ("USHM"[csr_prv[current_thread] & 3])
+#define PRVNAME ("USHM"[cpu[current_thread].prv])
 #define RMNAME  (&"rne\0rtz\0rdn\0rup\0rmm\0rm5\0rm6\0dyn"[((RM==7) ? FRM : RM) * 4])
 #define FRMNAME (&"rne\0rtz\0rdn\0rup\0rmm\0rm5\0rm6\0rm7"[FRM * 4])
 
@@ -694,7 +698,7 @@
 } while (0)
 
 #define DISASM_AMO_FD_FS1_RS2(name) do { \
-    LOG(DEBUG, "I(%c): " name " f%d,f%d,(x%d)", PRVNAME, inst.fd(), inst.fs1(), inst.rs2()); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d(x%d)", PRVNAME, inst.fd(), inst.fs1(), inst.rs2()); \
     LOG_FREG(":", inst.fd()); \
     LOG_FREG(":", inst.fs1()); \
     LOG_REG(":", inst.rs2()); \
