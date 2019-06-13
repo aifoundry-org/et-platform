@@ -91,6 +91,8 @@ public:
     static void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask);
     static void raise_external_interrupt(unsigned shire_id, uint64_t thread_mask);
     static void clear_external_interrupt(unsigned shire_id, uint64_t thread_mask);
+    static void raise_external_supervisor_interrupt(unsigned shire_id, uint64_t thread_mask);
+    static void clear_external_supervisor_interrupt(unsigned shire_id, uint64_t thread_mask);
     int main_internal(int argc, char * argv[]);
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
