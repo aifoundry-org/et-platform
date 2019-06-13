@@ -61,5 +61,4 @@ emu_cpp_srcs := \
 	insns/packed_mask.cpp \
 	insns/packed_trans.cpp \
 	insns/zifencei.cpp \
-	common/main_memory.cpp \
-	common/main_memory_region_esr.cpp
+	common/main_memory.cpp

@@ -323,7 +323,7 @@ struct shire_cache_esrs_t {
     struct {
         uint64_t sc_err_log_address;
         uint64_t sc_err_log_info;
-        uint64_t sc_idx_cop_sm_ctl;
+        //uint64_t sc_idx_cop_sm_ctl;
         uint64_t sc_idx_cop_sm_data0;
         uint64_t sc_idx_cop_sm_data1;
         uint64_t sc_idx_cop_sm_ecc;
@@ -392,6 +392,13 @@ struct broadcast_esrs_t {
 };
 
 extern broadcast_esrs_t broadcast_esrs[EMU_NUM_SHIRES];
+
+
+// -----------------------------------------------------------------------------
+// Access ESRs by address
+
+uint64_t esr_read(uint64_t addr);
+void esr_write(uint64_t addr, uint64_t value);
 
 
 //} // namespace bemu

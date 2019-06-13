@@ -2234,6 +2234,11 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     msg_to_thread(thread);
 }
 
+unsigned get_msg_port_write_width(unsigned thread, unsigned port)
+{
+    return 1 << msg_ports[thread][port].logsize;
+}
+
 void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob)
 {
     if (msg_port_delayed_write)

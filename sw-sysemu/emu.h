@@ -4,25 +4,20 @@
 #include <queue>
 #include <iomanip>
 
-#include "emu_defines.h"
-#include "testLog.h"
-
 #include "emu_casts.h"
+#include "emu_defines.h"
 #include "emu_gio.h"
 #include "emu_memop.h"
-
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
-#include "tbox_emu.h"
 #include "rbox.h"
-
-namespace TBOX { class TBOXEmu; }
-namespace RBOX { class RBOXEmu; }
+#include "tbox_emu.h"
+#include "testLog.h"
 
 // Accelerators
 #if (EMU_TBOXES_PER_SHIRE > 1)
 extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
-#define GET_TBOX(shire_id, rbox_id) tbox[shire_id][rbox_id]
+#define GET_TBOX(shire_id, tbox_id) tbox[shire_id][tbox_id]
 #else
 extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
 #define GET_TBOX(shire_id, tbox_id) tbox[shire_id]
@@ -108,6 +103,8 @@ extern void csrrci(xreg dst, uint16_t src1, uint64_t imm, const char* comm = 0);
 // ----- Esperanto cache control extension -------------------------------------
 
 // ----- Esperanto messaging extension -----------------------------------------
+
+extern unsigned get_msg_port_write_width(unsigned thread, unsigned port);
 
 extern void set_delayed_msg_port_write(bool f);
 extern bool get_msg_port_stall(uint32_t target_thread, uint32_t port_id);

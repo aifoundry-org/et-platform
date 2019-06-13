@@ -3,7 +3,6 @@
 #include <fstream>
 
 // Local
-#include "esrs.h"
 #include "emu_gio.h"
 #include "main_memory.h"
 #include "main_memory_region_esr.h"
@@ -23,7 +22,7 @@ main_memory::main_memory()
     regions.push_front(region_pointer(p));
 
     // ESRs
-    p = new main_memory_region_esr(this, ESR_REGION_BASE, ESR_REGION_SIZE);
+    p = new main_memory_region_esr();
     regions.push_back(region_pointer(p));
 
     // Reserved memory regions

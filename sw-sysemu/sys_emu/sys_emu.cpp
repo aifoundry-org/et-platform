@@ -496,16 +496,16 @@ sys_emu::msg_to_thread(int thread_id)
 ////////////////////////////////////////////////////////////////////////////////
 
 void
-sys_emu::send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
+sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
 {
-    if (shire_id == IO_SHIRE_ID)
+    if ((shire == IO_SHIRE_ID) || (shire == EMU_IO_SHIRE_SP))
         throw std::runtime_error("IPI_REDIRECT to SvcProc");
 
     // Get IPI_REDIRECT_FILTER ESR for the shire
     uint64_t ipi_redirect_filter;
-    memory->read(ESR_SHIRE(shire_id, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
+    memory->read(ESR_SHIRE(shire, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
 
-    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire_id;
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
     for(int t = 0; t < EMU_THREADS_PER_SHIRE; t++)
     {
         // If both IPI_REDIRECT_TRIGGER and IPI_REDIRECT_FILTER has bit set
@@ -513,9 +513,8 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask)
         {
             // Get PC
             uint64_t new_pc;
-            uint64_t neigh_id;
-            neigh_id = t / EMU_THREADS_PER_NEIGH;
-            memory->read(ESR_NEIGH(shire_id, neigh_id, IPI_REDIRECT_PC), 8, &new_pc);
+            uint64_t neigh = t / EMU_THREADS_PER_NEIGH;
+            memory->read(ESR_NEIGH(shire, neigh, IPI_REDIRECT_PC), 8, &new_pc);
             int thread_id = thread0 + t;
             LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
             // If thread sleeping, wakes up and changes PC
@@ -581,14 +580,13 @@ sys_emu::clear_timer_interrupt()
 }
 
 void
-sys_emu::raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+sys_emu::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
-    unsigned thread0 =
-        EMU_THREADS_PER_SHIRE
-        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+    if (shire == IO_SHIRE_ID)
+        shire = EMU_IO_SHIRE_SP;
 
-    unsigned shire_thread_count =
-        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
 
     // Write mip.msip to all selected threads
     for (unsigned t = 0; t < shire_thread_count; ++t)
@@ -613,14 +611,13 @@ sys_emu::raise_software_interrupt(unsigned shire_id, uint64_t thread_mask)
 }
 
 void
-sys_emu::clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
+sys_emu::clear_software_interrupt(unsigned shire, uint64_t thread_mask)
 {
-    unsigned thread0 =
-        EMU_THREADS_PER_SHIRE
-        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+    if (shire == IO_SHIRE_ID)
+        shire = EMU_IO_SHIRE_SP;
 
-    unsigned shire_thread_count =
-        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
 
     // Clear mip.msip to all selected threads
     for (unsigned t = 0; t < shire_thread_count; ++t)
@@ -634,14 +631,13 @@ sys_emu::clear_software_interrupt(unsigned shire_id, uint64_t thread_mask)
 }
 
 void
-sys_emu::raise_external_interrupt(unsigned shire_id)
+sys_emu::raise_external_interrupt(unsigned shire)
 {
-    unsigned thread0 =
-        EMU_THREADS_PER_SHIRE
-        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+    if (shire == IO_SHIRE_ID)
+        shire = EMU_IO_SHIRE_SP;
 
-    unsigned shire_thread_count =
-        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
 
     // Write mip.meip to all the threads of the shire
     for (unsigned t = 0; t < shire_thread_count; ++t)
@@ -659,14 +655,13 @@ sys_emu::raise_external_interrupt(unsigned shire_id)
 }
 
 void
-sys_emu::clear_external_interrupt(unsigned shire_id)
+sys_emu::clear_external_interrupt(unsigned shire)
 {
-    unsigned thread0 =
-        EMU_THREADS_PER_SHIRE
-        * (shire_id == IO_SHIRE_ID ? EMU_IO_SHIRE_SP : shire_id);
+    if (shire == IO_SHIRE_ID)
+        shire = EMU_IO_SHIRE_SP;
 
-    unsigned shire_thread_count =
-        (shire_id == IO_SHIRE_ID ? 1 : EMU_THREADS_PER_SHIRE);
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+    unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
 
     // Clear mip.meip to all the threads of the shire
     for (unsigned t = 0; t < shire_thread_count; ++t)
