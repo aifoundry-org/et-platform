@@ -6,18 +6,6 @@
 #include "net_emulator.h"
 #include "emu_gio.h"
 
-// Constructor
-net_emulator::net_emulator(main_memory * mem_)
-{
-    mem = mem_;
-    enabled = false;
-}
-
-// Destructor
-net_emulator::~net_emulator()
-{
-}
-
 // Set
 void net_emulator::set_file(char * net_desc_file)
 {

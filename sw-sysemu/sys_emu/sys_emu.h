@@ -102,7 +102,7 @@ public:
 protected:
 
     // Function to be overwritten by subclass to allocate custom
-    virtual std::unique_ptr<api_communicate> allocate_api_listener(main_memory* memory) {
+    virtual std::unique_ptr<api_communicate> allocate_api_listener(bemu::MainMemory* memory) {
         return std::unique_ptr<api_communicate>(new api_communicate(memory));
     }
 
