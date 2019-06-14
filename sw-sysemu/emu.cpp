@@ -1687,29 +1687,21 @@ static void csrset(uint16_t src1, uint64_t val)
         case ET_DIAG_UEI:
             {
                 uint64_t shire_mask = val & 0x3FFFFFFFFULL;
-                uint64_t thread_mask = cpu[current_thread].validation2;
                 bool raise = (val >> 55) & 1;
                 bool smode = (val >> 54) & 1;
                 for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
                     if (!(shire_mask & (1ULL << s)))
                         continue;
-
-                    unsigned num_threads = (s == EMU_IO_SHIRE_SP) ? 1 : EMU_THREADS_PER_SHIRE;
-                    for (unsigned t = 0; t < num_threads; t++) {
-                        if (!(thread_mask & (1ULL << t)))
-                            continue;
-
-                        if (raise) {
-                            if (smode)
-                                sys_emu::raise_external_supervisor_interrupt(s,thread_mask);
-                            else
-                                sys_emu::raise_external_interrupt(s,thread_mask);
-                        } else {
-                            if (smode)
-                                sys_emu::clear_external_supervisor_interrupt(s,thread_mask);
-                            else
-                                sys_emu::clear_external_interrupt(s,thread_mask);
-                        }
+                    if (raise) {
+                        if (smode)
+                            sys_emu::raise_external_supervisor_interrupt(s);
+                        else
+                            sys_emu::raise_external_interrupt(s);
+                    } else {
+                        if (smode)
+                            sys_emu::clear_external_supervisor_interrupt(s);
+                        else
+                            sys_emu::clear_external_interrupt(s);
                     }
                 }
             }
