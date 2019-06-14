@@ -21,6 +21,7 @@ link_directories(${GTEST_DIR}/lib64
   ${EXTERNAL_LINK_DIRECTORIES}
   )
 
+configure_file(convolution.elf ${CMAKE_CURRENT_BINARY_DIR}/convolution.elf COPYONLY)
 
 add_compile_options(-g3 -O0 -std=c++17)
 set(COMMON_TEST_LIBRARIES
@@ -45,6 +46,7 @@ set(TEST_LIST test_error_or.cc
   test_device_manager.cc
   test_device_target_card_proxy.cc
   test_device_target_sysemu_grpc.cc
+  test_elf_parsing.cc
   )
 
 
