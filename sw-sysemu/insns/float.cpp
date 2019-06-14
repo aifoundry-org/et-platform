@@ -129,7 +129,7 @@ void insn_fcvt_l_s(insn_t inst)
 
 void insn_fcvt_lu_s(insn_t inst)
 {
-    DISASM_RD_FS1_RM("fcvt.l.s");
+    DISASM_RD_FS1_RM("fcvt.lu.s");
     throw trap_mcode_instruction(inst.bits);
 }
 
