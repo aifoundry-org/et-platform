@@ -34,6 +34,7 @@ main_memory::main_memory()
     regions.push_back(region_pointer(p));
     // Limit Non-cacheable memory region to 32 GB (physical memory available)
     p = new main_memory_region_reserved(0xc800000000ull, 0x3800000000ull);
+    regions.push_back(region_pointer(p));
 }
 
 
