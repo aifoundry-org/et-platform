@@ -48,6 +48,7 @@ set(ETRT_SOURCES
     # --------
     C-API/etrt.cc
     Core/Commands.cc
+    Core/CodeModule.cc
     Core/DeviceManager.cc
     Core/Error.cc
     Core/MemoryManager.cc

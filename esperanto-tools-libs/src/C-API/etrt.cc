@@ -344,13 +344,13 @@ EXAPI etrtError_t etrtLaunch(const void *func, const char *kernel_name) {
 
 EXAPI etrtError_t etrtModuleLoad(et_runtime::Module *module, const void *image,
                                  size_t image_size) {
-
-  GetDev dev;
-  auto load_res = dev->moduleLoad(image, image_size);
-  if (!load_res) {
-    return load_res.getError();
-  }
-  *module = *load_res.get();
+  // FIXME enable
+  // GetDev dev;
+  // auto load_res = dev->moduleLoad(image, image_size);
+  // if (!load_res) {
+  //   return load_res.getError();
+  // }
+  // *module = *load_res.get();
   return etrtSuccess;
 }
 

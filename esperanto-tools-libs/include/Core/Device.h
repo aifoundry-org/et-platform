@@ -252,15 +252,10 @@ public:
     assert(stl_count(event_storage_, et_event) == 1);
     stl_remove(event_storage_, et_event);
   }
-  et_runtime::Module *createModule() {
-    auto new_module = new et_runtime::Module();
-    module_storage_.emplace_back(new_module);
-    return new_module;
-  }
-  void destroyModule(et_runtime::Module *et_module) {
-    assert(stl_count(module_storage_, et_module) == 1);
-    stl_remove(module_storage_, et_module);
-  }
+
+  et_runtime::Module *createModule(const std::string &name);
+
+  void destroyModule(et_runtime::Module *et_module);
 
   void addAction(EtStream *et_stream, et_runtime::EtAction *et_action) {
     // FIXME: all blocking streams can synchronize through EtActionEventWaiter
@@ -290,8 +285,8 @@ public:
                         const void *args, size_t args_size,
                         etrtStream_t stream);
 
-  ErrorOr<et_runtime::Module *> moduleLoad(const void *image,
-                                           size_t image_size);
+  ErrorOr<et_runtime::Module *> moduleLoad(const std::string &name,
+                                           const std::string &path);
   etrtError_t moduleUnload(et_runtime::Module *module);
 
 private:

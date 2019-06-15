@@ -11,18 +11,31 @@
 #ifndef ET_RUNTIME_CODE_MODULE_H
 #define ET_RUNTIME_CODE_MODULE_H
 
+#include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace et_runtime {
+
+// Forward declaration of the kernel-elf-info
+class KernelELFInfo;
 
 /// @brief Dynamically loaded module descriptor.
 class Module {
   // FIXME provide a proper interface to the module members
 public:
-  std::unordered_map<std::string, size_t>
-      kernel_offset; ///< kernel name -> kernel entry point offset
-  std::unordered_map<std::string, size_t>
-      raw_kernel_offset; ///< raw-kernel name -> kernel entry point offset
+  Module(const std::string &name);
+
+  bool loadELF(const std::string path);
+  const std::vector<char> &elfRawData() { return elf_raw_data_; }
+
+  bool rawKernelExists(const std::string &name);
+  size_t rawKernelOffset(const std::string &name);
+
+private:
+  std::unique_ptr<KernelELFInfo> elf_info_;
+  std::vector<char> elf_raw_data_;
 };
 
 } // namespace et_runtime

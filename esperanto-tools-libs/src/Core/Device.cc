@@ -1,6 +1,7 @@
 #include "Core/Device.h"
 #include "Common/ErrorTypes.h"
 #include "Core/Commands.h"
+#include "Core/ELFSupport.h"
 #include "Core/MemoryManager.h"
 #include "Support/DeviceGuard.h"
 #include "Support/Logging.h"
@@ -152,6 +153,17 @@ Device::pointerGetAttributes(struct etrtPointerAttributes *attributes,
   return mem_manager_->pointerGetAttributes(attributes, ptr);
 }
 
+et_runtime::Module *Device::createModule(const std::string &name) {
+  auto new_module = new et_runtime::Module(name);
+  module_storage_.emplace_back(new_module);
+  return new_module;
+}
+
+void Device::destroyModule(et_runtime::Module *et_module) {
+  assert(stl_count(module_storage_, et_module) == 1);
+  stl_remove(module_storage_, et_module);
+}
+
 etrtError_t Device::setupArgument(const void *arg, size_t size, size_t offset) {
 
   std::vector<uint8_t> &buff = launch_confs_.back().args_buff;
@@ -257,10 +269,10 @@ etrtError_t Device::rawLaunch(et_runtime::Module *module,
   assert(loaded_kernels_bin.devPtr);
   assert(loaded_kernels_bin.actionEvent == nullptr);
 
-  THROW_IF(et_module->raw_kernel_offset.count(kernel_name) == 0,
+  THROW_IF(!et_module->rawKernelExists(kernel_name),
            "No raw kernel found in module by kernel name.");
   uintptr_t kernel_entry_point = (uintptr_t)loaded_kernels_bin.devPtr +
-                                 et_module->raw_kernel_offset.at(kernel_name);
+                                 et_module->rawKernelOffset(kernel_name);
 
   std::vector<uint8_t> args_buff(args_size);
   memcpy(&args_buff[0], args, args_size);
@@ -271,23 +283,21 @@ etrtError_t Device::rawLaunch(et_runtime::Module *module,
   return etrtSuccess;
 }
 
-ErrorOr<et_runtime::Module *> Device::moduleLoad(const void *image,
-                                                 size_t image_size) {
+ErrorOr<et_runtime::Module *> Device::moduleLoad(const std::string &name,
+                                                 const std::string &path) {
 
-  auto new_module = this->createModule();
-
-  size_t parsed_elf_size;
-  parse_elf(image, &parsed_elf_size, &new_module->kernel_offset,
-            &new_module->raw_kernel_offset);
-  assert(parsed_elf_size <= image_size);
+  auto new_module = this->createModule(name);
+  new_module->loadELF(path);
 
   assert(!loaded_kernels_bin_.count(new_module));
   EtLoadedKernelsBin &loaded_kernels_bin = loaded_kernels_bin_[new_module];
 
-  this->malloc(&loaded_kernels_bin.devPtr, image_size);
+  auto &elf_data = new_module->elfRawData();
+  this->malloc(&loaded_kernels_bin.devPtr, elf_data.size());
 
-  this->addAction(defaultStream_, new EtActionWrite(loaded_kernels_bin.devPtr,
-                                                    image, image_size));
+  this->addAction(defaultStream_,
+                  new EtActionWrite(loaded_kernels_bin.devPtr, elf_data.data(),
+                                    elf_data.size()));
 
   loaded_kernels_bin.actionEvent = new EtActionEvent();
   loaded_kernels_bin.actionEvent->incRefCounter();
