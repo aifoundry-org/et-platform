@@ -21,8 +21,10 @@ struct main_memory_region_scratchpad : public main_memory_region
     // read and write
     void write(uint64_t addr, size_t n, const void* source) override {
         uint64_t addr2 = normalize(addr);
-        unsigned bank = addr_to_bank(addr2);
         unsigned shire = addr_to_shire(addr2);
+        if (shire >= EMU_NUM_SHIRES)
+            throw trap_bus_error(addr);
+        unsigned bank = addr_to_bank(addr2);
         unsigned pos = addr_to_offset(addr2);
         if (((pos + n) >> 12) > num_scp_sets(shire, bank))
             throw trap_bus_error(addr);
@@ -31,8 +33,10 @@ struct main_memory_region_scratchpad : public main_memory_region
 
     void read(uint64_t addr, size_t n, void* result) override {
         uint64_t addr2 = normalize(addr);
-        unsigned bank = addr_to_bank(addr2);
         unsigned shire = addr_to_shire(addr2);
+        if (shire >= EMU_NUM_SHIRES)
+            throw trap_bus_error(addr);
+        unsigned bank = addr_to_bank(addr2);
         unsigned pos = addr_to_offset(addr2);
         if (((pos + n) >> 12) > num_scp_sets(shire, bank))
             throw trap_bus_error(addr);
