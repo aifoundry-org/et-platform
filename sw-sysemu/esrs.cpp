@@ -189,6 +189,11 @@ uint64_t esr_read(uint64_t addr)
         throw trap_bus_error(addr);
     }
 
+    if (shire >= EMU_NUM_MINION_SHIRES) {
+        LOG(WARN, "Read illegal ESR S%u:0x%llx", shire, addr2 & ~ESR_REGION_SHIRE_MASK);
+        throw trap_bus_error(addr);
+    }
+
     uint64_t sregion = addr2 & ESR_SREGION_MASK;
 
     if (sregion == ESR_HART_REGION) {
@@ -471,6 +476,11 @@ void esr_write(uint64_t addr, uint64_t value)
         }
 #endif
         LOG(WARN, "Write unknown IOshire ESR 0x%" PRIx64, esr);
+        throw trap_bus_error(addr);
+    }
+
+    if (shire >= EMU_NUM_MINION_SHIRES) {
+        LOG(WARN, "Write illegal ESR S%u:0x%llx", shire, addr2 & ~ESR_REGION_SHIRE_MASK);
         throw trap_bus_error(addr);
     }
 
