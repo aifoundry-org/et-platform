@@ -23,7 +23,7 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
 
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data);
 
-void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data) 
+void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
 {
     const IMAGE_VERSION_INFO_t * image_version_info = get_image_version_info();
 
