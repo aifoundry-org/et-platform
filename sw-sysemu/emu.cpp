@@ -2105,7 +2105,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Store);
+            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
         }
         catch (const trap_t& t)
         {
@@ -2138,7 +2138,7 @@ static void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __
         uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Store);
+            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
         }
         catch (const trap_t& t)
         {
