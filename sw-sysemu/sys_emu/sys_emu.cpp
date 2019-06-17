@@ -538,9 +538,12 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
 }
 
 void
-sys_emu::raise_timer_interrupt()
+sys_emu::raise_timer_interrupt(uint64_t shire_mask)
 {
     for (int s = 0; s < EMU_NUM_SHIRES; s++) {
+        if (!(shire_mask & (1ULL << s)))
+            continue;
+
         unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
         unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
 
@@ -561,9 +564,12 @@ sys_emu::raise_timer_interrupt()
 }
 
 void
-sys_emu::clear_timer_interrupt()
+sys_emu::clear_timer_interrupt(uint64_t shire_mask)
 {
     for (int s = 0; s < EMU_NUM_SHIRES; s++) {
+        if (!(shire_mask & (1ULL << s)))
+            continue;
+
         unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
         unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
 
@@ -711,6 +717,40 @@ sys_emu::clear_external_supervisor_interrupt(unsigned shire_id)
     {
         unsigned thread_id = thread0 + t;
         ::clear_external_supervisor_interrupt(thread_id);
+    }
+}
+
+void
+sys_emu::evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask)
+{
+    switch (subopcode)
+    {
+    case ET_DIAG_IRQ_INJ_MEI:
+        for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
+            if (!(shire_mask & (1ULL << s)))
+                continue;
+            if (raise)
+                sys_emu::raise_external_interrupt(s);
+            else
+                sys_emu::clear_external_interrupt(s);
+        }
+        break;
+    case ET_DIAG_IRQ_INJ_SEI:
+        for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
+            if (!(shire_mask & (1ULL << s)))
+                continue;
+            if (raise)
+                sys_emu::raise_external_supervisor_interrupt(s);
+            else
+                sys_emu::clear_external_supervisor_interrupt(s);
+        }
+        break;
+    case ET_DIAG_IRQ_INJ_TI:
+        if (raise)
+            sys_emu::raise_timer_interrupt(shire_mask);
+        else
+            sys_emu::clear_timer_interrupt(shire_mask);
+        break;
     }
 }
 
@@ -1262,9 +1302,9 @@ sys_emu::main_internal(int argc, char * argv[])
 
         // Check interrupts from devices
         if (pu_rvtimer.interrupt_pending()) {
-            raise_timer_interrupt();
+            raise_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
         } else if (pu_rvtimer.clear_pending()) {
-            clear_timer_interrupt();
+            clear_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
         }
 
         // Net emu: check pending IPIs

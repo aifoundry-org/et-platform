@@ -1684,27 +1684,8 @@ static void csrset(uint16_t src1, uint64_t val)
             }
             break;
 #ifdef SYS_EMU
-        case ET_DIAG_UEI:
-            {
-                uint64_t shire_mask = val & 0x3FFFFFFFFULL;
-                bool raise = (val >> 55) & 1;
-                bool smode = (val >> 54) & 1;
-                for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
-                    if (!(shire_mask & (1ULL << s)))
-                        continue;
-                    if (raise) {
-                        if (smode)
-                            sys_emu::raise_external_supervisor_interrupt(s);
-                        else
-                            sys_emu::raise_external_interrupt(s);
-                    } else {
-                        if (smode)
-                            sys_emu::clear_external_supervisor_interrupt(s);
-                        else
-                            sys_emu::clear_external_interrupt(s);
-                    }
-                }
-            }
+        case ET_DIAG_IRQ_INJ:
+            sys_emu::evl_dv_handle_irq_inj((val >> 55) & 1, (val >> 53) & 3, val & 0x3FFFFFFFFULL);
             break;
         case ET_DIAG_CYCLE:
             cpu[current_thread].validation1 = (val >> 56) & 0xFF;

@@ -85,14 +85,15 @@ public:
                                uint64_t thread_mask, unsigned cnt_dest);
     static void msg_to_thread(int thread_id);
     static void send_ipi_redirect_to_threads(unsigned shire_id, uint64_t thread_mask);
-    static void raise_timer_interrupt();
-    static void clear_timer_interrupt();
+    static void raise_timer_interrupt(uint64_t shire_mask);
+    static void clear_timer_interrupt(uint64_t shire_mask);
     static void raise_software_interrupt(unsigned shire_id, uint64_t thread_mask);
     static void clear_software_interrupt(unsigned shire_id, uint64_t thread_mask);
     static void raise_external_interrupt(unsigned shire_id);
     static void clear_external_interrupt(unsigned shire_id);
     static void raise_external_supervisor_interrupt(unsigned shire_id);
     static void clear_external_supervisor_interrupt(unsigned shire_id);
+    static void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
     int main_internal(int argc, char * argv[]);
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }

@@ -240,8 +240,13 @@ enum et_core_t {
 #define ET_DIAG_RAND            (0x2)
 #define ET_DIAG_RAND_MEM_UPPER  (0x3)
 #define ET_DIAG_RAND_MEM_LOWER  (0x4)
-#define ET_DIAG_UEI             (0x5)
+#define ET_DIAG_IRQ_INJ         (0x5)
 #define ET_DIAG_ECC_INJ         (0x6)
 #define ET_DIAG_CYCLE           (0x7)
+
+// ET DV DIAG_IRQ_INJ sub-opcode
+#define ET_DIAG_IRQ_INJ_MEI     (0)
+#define ET_DIAG_IRQ_INJ_TI      (1)
+#define ET_DIAG_IRQ_INJ_SEI     (2)
 
 #endif // BEMU_DEFINES_H
