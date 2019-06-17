@@ -111,67 +111,9 @@ EXAPI etrtError_t etrtStreamDestroy(etrtStream_t stream) {
 EXAPI etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
                                   enum etrtMemcpyKind kind,
                                   etrtStream_t stream) {
-  EtStream *et_stream;
-
-  {
     GetDev dev;
-    et_stream = dev->getStream(stream);
 
-    if (kind == etrtMemcpyDefault) {
-      // All addresses not in device address space count as host address even if
-      // it was not created with MallocHost
-      bool is_dst_host =
-          dev->isPtrAllocedHost(dst) || !dev->isPtrInDevRegion(dst);
-      bool is_src_host =
-          dev->isPtrAllocedHost(src) || !dev->isPtrInDevRegion(src);
-      if (is_src_host) {
-        if (is_dst_host) {
-          kind = etrtMemcpyHostToHost;
-        } else {
-          kind = etrtMemcpyHostToDevice;
-        }
-      } else {
-        if (is_dst_host) {
-          kind = etrtMemcpyDeviceToHost;
-        } else {
-          kind = etrtMemcpyDeviceToDevice;
-        }
-      }
-    }
-  }
-
-  switch (kind) {
-  case etrtMemcpyHostToDevice: {
-    GetDev dev;
-    dev->addAction(et_stream, new EtActionWrite(dst, src, count));
-  } break;
-  case etrtMemcpyDeviceToHost: {
-    GetDev dev;
-    dev->addAction(et_stream, new EtActionRead(dst, src, count));
-  } break;
-  case etrtMemcpyDeviceToDevice: {
-    int dev_count = count;
-    const char *kern = "CopyKernel_Int8";
-
-    if ((dev_count % 4) == 0) {
-      dev_count /= 4;
-      kern = "CopyKernel_Int32";
-    }
-
-    dim3 gridDim(defaultGridDim1D(dev_count));
-    dim3 blockDim(defaultBlockDim1D());
-    etrtConfigureCall(gridDim, blockDim, 0, stream);
-
-    etrtSetupArgument(&dev_count, 4, 0);
-    etrtSetupArgument(&src, 8, 8);
-    etrtSetupArgument(&dst, 8, 16);
-    etrtLaunch(nullptr, kern);
-  } break;
-  default:
-    THROW("Unsupported Memcpy kind");
-  }
-
-  return etrtSuccess;
+    return dev->memcpyAsync(dst, src, count, kind, stream);
 }
 
 EXAPI etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
@@ -183,45 +125,13 @@ EXAPI etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
 }
 
 EXAPI etrtError_t etrtMemset(void *devPtr, int value, size_t count) {
-  const char *kern = "SetKernel_Int8";
-
-  if ((count % 4) == 0) {
-    count /= 4;
-    kern = "SetKernel_Int32";
-    value = (value & 0xff);
-    value = value | (value << 8);
-    value = value | (value << 16);
-  }
-
-  dim3 gridDim(defaultGridDim1D(count));
-  dim3 blockDim(defaultBlockDim1D());
-  etrtConfigureCall(gridDim, blockDim, 0, 0);
-
-  etrtSetupArgument(&count, 4, 0);
-  etrtSetupArgument(&value, 4, 4);
-  etrtSetupArgument(&devPtr, 8, 8);
-  etrtLaunch(nullptr, kern);
-  etrtStreamSynchronize(0);
-
-  return etrtSuccess;
+  GetDev dev;
+  return dev->memset(devPtr, value, count);
 }
 
 EXAPI etrtError_t etrtStreamSynchronize(etrtStream_t stream) {
-  EtActionEvent *actionEvent = nullptr;
-
-  {
-    GetDev dev;
-
-    EtStream *et_stream = dev->getStream(stream);
-
-    actionEvent = new EtActionEvent();
-    actionEvent->incRefCounter();
-    dev->addAction(et_stream, actionEvent);
-  }
-
-  actionEvent->observerWait();
-  EtAction::decRefCounter(actionEvent);
-  return etrtSuccess;
+  GetDev dev;
+  return dev->streamSynchronize(stream);
 }
 
 EXAPI etrtError_t etrtGetLastError(void) { return etrtSuccess; }

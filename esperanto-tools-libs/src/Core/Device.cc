@@ -139,6 +139,111 @@ etrtError_t Device::mallocHost(void **ptr, size_t size) {
   return mem_manager_->mallocHost(ptr, size);
 }
 
+etrtError_t Device::streamSynchronize(etrtStream_t stream) {
+  EtActionEvent *actionEvent = nullptr;
+
+  EtStream *et_stream = getStream(stream);
+
+  actionEvent = new EtActionEvent();
+  actionEvent->incRefCounter();
+  addAction(et_stream, actionEvent);
+  actionEvent->observerWait();
+  EtAction::decRefCounter(actionEvent);
+  return etrtSuccess;
+}
+
+etrtError_t Device::memcpyAsync(void *dst, const void *src, size_t count,
+                                enum etrtMemcpyKind kind, etrtStream_t stream) {
+  EtStream *et_stream;
+
+  et_stream = getStream(stream);
+
+  if (kind == etrtMemcpyDefault) {
+    // All addresses not in device address space count as host address even if
+    // it was not created with MallocHost
+    bool is_dst_host = isPtrAllocedHost(dst) || !isPtrInDevRegion(dst);
+    bool is_src_host = isPtrAllocedHost(src) || !isPtrInDevRegion(src);
+    if (is_src_host) {
+      if (is_dst_host) {
+        kind = etrtMemcpyHostToHost;
+      } else {
+        kind = etrtMemcpyHostToDevice;
+      }
+    } else {
+      if (is_dst_host) {
+        kind = etrtMemcpyDeviceToHost;
+      } else {
+        kind = etrtMemcpyDeviceToDevice;
+      }
+    }
+  }
+
+  switch (kind) {
+  case etrtMemcpyHostToDevice: {
+
+    addAction(et_stream, new EtActionWrite(dst, src, count));
+  } break;
+  case etrtMemcpyDeviceToHost: {
+
+    addAction(et_stream, new EtActionRead(dst, src, count));
+  } break;
+  case etrtMemcpyDeviceToDevice: {
+    int dev_count = count;
+    const char *kern = "CopyKernel_Int8";
+
+    if ((dev_count % 4) == 0) {
+      dev_count /= 4;
+      kern = "CopyKernel_Int32";
+    }
+
+    dim3 gridDim(defaultGridDim1D(dev_count));
+    dim3 blockDim(defaultBlockDim1D());
+    etrtConfigureCall(gridDim, blockDim, 0, stream);
+
+    etrtSetupArgument(&dev_count, 4, 0);
+    etrtSetupArgument(&src, 8, 8);
+    etrtSetupArgument(&dst, 8, 16);
+    etrtLaunch(nullptr, kern);
+  } break;
+  default:
+    THROW("Unsupported Memcpy kind");
+  }
+
+  return etrtSuccess;
+}
+
+etrtError_t Device::memcpy(void *dst, const void *src, size_t count,
+                           enum etrtMemcpyKind kind) {
+  etrtError_t res = etrtMemcpyAsync(dst, src, count, kind, 0);
+  etrtStreamSynchronize(0);
+
+  return res;
+}
+
+etrtError_t Device::memset(void *devPtr, int value, size_t count) {
+  const char *kern = "SetKernel_Int8";
+
+  if ((count % 4) == 0) {
+    count /= 4;
+    kern = "SetKernel_Int32";
+    value = (value & 0xff);
+    value = value | (value << 8);
+    value = value | (value << 16);
+  }
+
+  dim3 gridDim(defaultGridDim1D(count));
+  dim3 blockDim(defaultBlockDim1D());
+  etrtConfigureCall(gridDim, blockDim, 0, 0);
+
+  etrtSetupArgument(&count, 4, 0);
+  etrtSetupArgument(&value, 4, 4);
+  etrtSetupArgument(&devPtr, 8, 8);
+  etrtLaunch(nullptr, kern);
+  etrtStreamSynchronize(0);
+
+  return etrtSuccess;
+}
+
 etrtError_t Device::freeHost(void *ptr) { return mem_manager_->freeHost(ptr); }
 
 etrtError_t Device::malloc(void **devPtr, size_t size) {
@@ -171,7 +276,7 @@ etrtError_t Device::setupArgument(const void *arg, size_t size, size_t offset) {
            "kernel code relies on argument natural alignment");
   size_t new_buff_size = std::max(buff.size(), offset + size);
   buff.resize(new_buff_size, 0);
-  memcpy(&buff[offset], arg, size);
+  ::memcpy(&buff[offset], arg, size);
 
   return etrtSuccess;
 }
@@ -275,7 +380,7 @@ etrtError_t Device::rawLaunch(et_runtime::Module *module,
                                  et_module->rawKernelOffset(kernel_name);
 
   std::vector<uint8_t> args_buff(args_size);
-  memcpy(&args_buff[0], args, args_size);
+  ::memcpy(&args_buff[0], args, args_size);
 
   dev->addAction(dev->getStream(stream),
                  new EtActionLaunch(dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
@@ -304,16 +409,16 @@ ErrorOr<et_runtime::Module *> Device::moduleLoad(const std::string &name,
 
   this->addAction(defaultStream_, loaded_kernels_bin.actionEvent);
 
-  etrtStreamSynchronize(nullptr);
+  streamSynchronize(nullptr);
 
-    assert(loaded_kernels_bin.devPtr);
-    assert(loaded_kernels_bin.actionEvent);
-    assert(loaded_kernels_bin.actionEvent->isExecuted());
-    // ELF is already loaded, free actionEvent
-    EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
-    loaded_kernels_bin.actionEvent = nullptr;
+  assert(loaded_kernels_bin.devPtr);
+  assert(loaded_kernels_bin.actionEvent);
+  assert(loaded_kernels_bin.actionEvent->isExecuted());
+  // ELF is already loaded, free actionEvent
+  EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
+  loaded_kernels_bin.actionEvent = nullptr;
 
-    return new_module;
+  return new_module;
 }
 
 etrtError_t Device::moduleUnload(et_runtime::Module *module) {

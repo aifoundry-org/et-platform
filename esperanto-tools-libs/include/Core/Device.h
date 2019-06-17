@@ -248,6 +248,7 @@ public:
     event_storage_.emplace_back(new_event);
     return new_event;
   }
+  etrtError_t streamSynchronize(etrtStream_t stream);
   void destroyEvent(EtEvent *et_event) {
     assert(stl_count(event_storage_, et_event) == 1);
     stl_remove(event_storage_, et_event);
@@ -273,6 +274,12 @@ public:
   etrtError_t free(void *devPtr);
   etrtError_t pointerGetAttributes(struct etrtPointerAttributes *attributes,
                                    const void *ptr);
+
+  etrtError_t memcpyAsync(void *dst, const void *src, size_t count,
+                          enum etrtMemcpyKind kind, etrtStream_t stream);
+  etrtError_t memcpy(void *dst, const void *src, size_t count,
+                     enum etrtMemcpyKind kind);
+  etrtError_t memset(void *devPtr, int value, size_t count);
 
   void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
     launch_confs_.push_back(conf);
