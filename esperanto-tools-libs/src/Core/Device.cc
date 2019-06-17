@@ -259,7 +259,8 @@ Device::pointerGetAttributes(struct etrtPointerAttributes *attributes,
 }
 
 et_runtime::Module *Device::createModule(const std::string &name) {
-  auto new_module = new et_runtime::Module(name);
+  // FIXME pass the right ModuleID in the future
+  auto new_module = new et_runtime::Module(-1, name);
   module_storage_.emplace_back(new_module);
   return new_module;
 }
@@ -392,7 +393,7 @@ ErrorOr<et_runtime::Module *> Device::moduleLoad(const std::string &name,
                                                  const std::string &path) {
 
   auto new_module = this->createModule(name);
-  new_module->loadELF(path);
+  new_module->readELF(path);
 
   assert(!loaded_kernels_bin_.count(new_module));
   EtLoadedKernelsBin &loaded_kernels_bin = loaded_kernels_bin_[new_module];

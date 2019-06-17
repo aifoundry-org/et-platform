@@ -498,6 +498,10 @@ enum etrtError {
    */
   etrtErrorCooperativeLaunchTooLarge = 82,
 
+  etrtErrorRuntime = 83,
+
+  etrtErrorModuleNotOnDevice,
+
   /**
    * This indicates an internal startup failure in the ET Runtime.
    */

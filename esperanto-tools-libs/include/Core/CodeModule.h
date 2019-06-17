@@ -11,6 +11,9 @@
 #ifndef ET_RUNTIME_CODE_MODULE_H
 #define ET_RUNTIME_CODE_MODULE_H
 
+#include "Common/CommonTypes.h"
+#include "Support/ErrorOr.h"
+
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -20,22 +23,48 @@ namespace et_runtime {
 
 // Forward declaration of the kernel-elf-info
 class KernelELFInfo;
+class Device;
+class EtActionEvent;
 
 /// @brief Dynamically loaded module descriptor.
 class Module {
-  // FIXME provide a proper interface to the module members
 public:
-  Module(const std::string &name);
+  Module(const ModuleID mid, const std::string &name);
 
-  bool loadELF(const std::string path);
+  /// @brief Load the ELF file in path in host memory
+  bool readELF(const std::string path);
+
+  /// @brief Return a buffer containing the raw ELF data as read from the file
   const std::vector<char> &elfRawData() { return elf_raw_data_; }
 
+  /// @brief Return the nanme of the module.
+  const std::string &name() const;
+
+  /// @brief return true iff the "raw" kernel exists in the module
   bool rawKernelExists(const std::string &name);
+
+  /// @brief Retrn the offfset in the ELF of the raw kernel
   size_t rawKernelOffset(const std::string &name);
 
+  /// @brief Load the ELF on the device
+  bool loadOnDevice(Device *dev);
+
+  /// @brief True iff the module is loaded on the device
+  bool onDevice() { return onDevice_; }
+
+  /// @brief PC where the kernel entrypoint is located
+  ErrorOr<uintptr_t> onDeviceKernelEntryPoint(const std::string &kernel_name);
+
 private:
-  std::unique_ptr<KernelELFInfo> elf_info_;
-  std::vector<char> elf_raw_data_;
+  ModuleID module_id_;                      ///< ID of this module
+  std::unique_ptr<KernelELFInfo> elf_info_; ///< Pointer to the decoded ELF
+  std::vector<char>
+      elf_raw_data_;      ///< Buffer holding the whole ELF as read from file
+  bool onDevice_ = false; ///< True iff the module is loaded on the device
+  uintptr_t devPtr_ = 0;  ///< Base on device point of the loaded binary
+  et_runtime::EtActionEvent *actionEvent_ =
+      nullptr; ///<  Action used for synchronize with load completion on the
+               ///<  device
 };
 
 } // namespace et_runtime

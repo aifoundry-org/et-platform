@@ -26,6 +26,7 @@ public:
   ELFInfo(const std::string &name);
   virtual ~ELFInfo() = default;
 
+  const std::string &name() const { return name_; }
   virtual bool loadELF(const std::string &path);
   virtual bool loadELF(std::istream &stream);
   virtual bool loadELF(std::vector<char> &data);
@@ -37,7 +38,7 @@ protected:
   size_t elf_size_ = 0; // Size of the ELF as computed by the different sections
   size_t offset_ =
       0; // Kernel entry point offset inside the ELF, if it present.
-  const std::string &name_; // Kernel device name, exists for any valid hostFun.
+  const std::string name_; // Kernel device name, exists for any valid hostFun.
   ELFIO::elfio reader_;
 };
 

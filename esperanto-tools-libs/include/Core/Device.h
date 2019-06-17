@@ -11,6 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_H
 #define ET_RUNTIME_DEVICE_H
 
+#include "Common/CommonTypes.h"
 #include "Core/CodeModule.h"
 #include "Core/DeviceInformation.h"
 #include "Core/DeviceTarget.h"
@@ -216,6 +217,7 @@ public:
     return mem_manager_->isPtrInDevRegion(ptr);
   }
 
+  EtStream *defaultStream() const { return defaultStream_; }
   EtStream *getStream(etrtStream_t stream) {
     EtStream *et_stream = reinterpret_cast<EtStream *>(stream);
     if (et_stream == nullptr) {

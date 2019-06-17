@@ -21,7 +21,21 @@ link_directories(${GTEST_DIR}/lib64
   ${EXTERNAL_LINK_DIRECTORIES}
   )
 
-configure_file(convolution.elf ${CMAKE_CURRENT_BINARY_DIR}/convolution.elf COPYONLY)
+set(CI_DEPENDENCIES convolution.elf bootrom.mem)
+set(CI_DN_TARGETS "")
+
+foreach(CI_DEPENDENCY ${CI_DEPENDENCIES})
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY}
+    COMMAND wget http://sc-artifactory1.esperanto.ai/artifactory/sw-ci-inputs/runtime/${CI_DEPENDENCY} -O ${CI_DEPENDENCY}
+    )
+  list(APPEND CI_DN_TARGETS ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY})
+endforeach(CI_DEPENDENCY)
+
+add_custom_target(ci-dependencies
+  DEPENDS ${CI_DN_TARGETS}
+  )
+
 
 add_compile_options(-g3 -O0 -std=c++17)
 set(COMMON_TEST_LIBRARIES
@@ -47,6 +61,7 @@ set(TEST_LIST test_error_or.cc
   test_device_target_card_proxy.cc
   test_device_target_sysemu_grpc.cc
   test_elf_parsing.cc
+  test_module_load.cc
   )
 
 
@@ -55,6 +70,7 @@ foreach(TEST_FILE ${TEST_LIST})
   add_executable(${TEST_TARGET} ${TEST_FILE})
   add_dependencies(${TEST_TARGET} googletest)
   add_dependencies(${TEST_TARGET} ${external_project_dependencies})
+  add_dependencies(${TEST_TARGET} ci-dependencies)
   target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
   target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
   target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
