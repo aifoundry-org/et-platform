@@ -677,10 +677,10 @@ uint64_t mmu_global_atomic64(uint64_t eaddr, uint64_t data,
 {
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
-    if (!addr_is_size_aligned(vaddr, 4)) {
+    if (!addr_is_size_aligned(vaddr, 8)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG);
+    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicG);
     uint64_t oldval = pmemread64(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     uint64_t newval = fn(oldval, data);
@@ -715,10 +715,10 @@ uint64_t mmu_local_atomic64(uint64_t eaddr, uint64_t data,
 {
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
-    if (!addr_is_size_aligned(vaddr, 4)) {
+    if (!addr_is_size_aligned(vaddr, 8)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL);
+    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicL);
     uint64_t oldval = pmemread64(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     uint64_t newval = fn(oldval, data);
@@ -754,10 +754,10 @@ uint64_t mmu_global_compare_exchange64(uint64_t eaddr, uint64_t expected,
 {
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
-    if (!addr_is_size_aligned(vaddr, 4)) {
+    if (!addr_is_size_aligned(vaddr, 8)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG);
+    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicG);
     uint64_t oldval = pmemread64(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     if (oldval == expected) {
@@ -794,10 +794,10 @@ uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
 {
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
-    if (!addr_is_size_aligned(vaddr, 4)) {
+    if (!addr_is_size_aligned(vaddr, 8)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL);
+    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicL);
     uint64_t oldval = pmemread64(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     if (oldval == expected) {
