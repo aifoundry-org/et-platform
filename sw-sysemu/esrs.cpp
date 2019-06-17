@@ -145,6 +145,9 @@ void shire_other_esrs_t::reset(unsigned shire)
     thread0_disable = 0xffffffff;
     thread1_disable = 0xffffffff;
     mtime_local_target = 0;
+    shire_power_ctrl = 0;
+    power_ctrl_neigh_nsleepin = 0;
+    power_ctrl_neigh_isolation = 0;
     shire_pll_auto_config = 0;
     shire_dll_auto_config = 0;
     if (shire == IO_SHIRE_ID || shire == EMU_IO_SHIRE_SP) {
@@ -337,6 +340,10 @@ uint64_t esr_read(uint64_t addr)
             return shire_other_esrs[shire].shire_config;
         case ESR_THREAD1_DISABLE:
             return shire_other_esrs[shire].thread1_disable;
+        case ESR_SHIRE_CACHE_BUILD_CONFIG:
+            return 0x2040040404040400ull;
+        case ESR_SHIRE_CACHE_REVISION_ID:
+            return 0x0000000900000001ull;
         case ESR_IPI_REDIRECT_TRIGGER:
             return 0;
         case ESR_IPI_REDIRECT_FILTER:
@@ -384,8 +391,18 @@ uint64_t esr_read(uint64_t addr)
             return shire_other_esrs[shire].fast_local_barrier[(esr - ESR_FAST_LOCAL_BARRIER0)>>3];
         case ESR_MTIME_LOCAL_TARGET:
             return shire_other_esrs[shire].mtime_local_target;
+        case ESR_SHIRE_POWER_CTRL:
+            return shire_other_esrs[shire].shire_power_ctrl;
+        case ESR_POWER_CTRL_NEIGH_NSLEEPIN:
+            return shire_other_esrs[shire].power_ctrl_neigh_nsleepin;
+        case ESR_POWER_CTRL_NEIGH_ISOLATION:
+            return shire_other_esrs[shire].power_ctrl_neigh_isolation;
+        case ESR_POWER_CTRL_NEIGH_NSLEEPOUT:
+            return 0;
         case ESR_THREAD0_DISABLE:
             return shire_other_esrs[shire].thread0_disable;
+        case ESR_SHIRE_ERROR_LOG:
+            return 0;
         case ESR_SHIRE_PLL_AUTO_CONFIG:
             return shire_other_esrs[shire].shire_pll_auto_config;
         case ESR_SHIRE_PLL_CONFIG_DATA_0:
@@ -769,6 +786,15 @@ void esr_write(uint64_t addr, uint64_t value)
             return;
         case ESR_MTIME_LOCAL_TARGET:
             shire_other_esrs[shire].mtime_local_target = value;
+            return;
+        case ESR_SHIRE_POWER_CTRL:
+            shire_other_esrs[shire].shire_power_ctrl = uint16_t(value & 0xfff);
+            return;
+        case ESR_POWER_CTRL_NEIGH_NSLEEPIN:
+            shire_other_esrs[shire].power_ctrl_neigh_nsleepin = uint32_t(value);
+            return;
+        case ESR_POWER_CTRL_NEIGH_ISOLATION:
+            shire_other_esrs[shire].power_ctrl_neigh_isolation = uint32_t(value);
             return;
         case ESR_THREAD0_DISABLE:
             shire_other_esrs[shire].thread0_disable = uint32_t(value);

@@ -66,9 +66,9 @@
 //  * Hart ESR Region is at region [21:20] == 2'b00
 //  * Neigh ESR Region is at region [21:20] == 2'b01
 //  * The ESR Region at region [21:20] == 2'b10 is reserved
-//  * ShireCache ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b000
+//  * shire_cache ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b000
 //  * RBOX ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b001
-//  * ShireOther ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b010
+//  * shire_other ESR Region is at region [21:20] == 2'b11 and [19:17] == 2'b010
 #define ESR_REGION_BASE        0x0100000000ULL
 #define ESR_REGION_SIZE        0x0100000000ULL
 #define ESR_HART_REGION        0x0100000000ULL
@@ -145,7 +145,7 @@
 #define ESR_TEXTURE_STATUS          0x0100108008ULL /* PP = 0b00 */
 #define ESR_TEXTURE_IMAGE_TABLE_PTR 0x0100108010ULL /* PP = 0b00 */
 
-// ShireCache ESR addresses
+// shire_cache ESR addresses
 #define ESR_CACHE_U0                      0x0100300000ULL /* PP = 0b00 */
 #define ESR_CACHE_S0                      0x0140300000ULL /* PP = 0b01 */
 #define ESR_CACHE_M0                      0x01C0300000ULL /* PP = 0b11 */
@@ -169,12 +169,13 @@
 #define ESR_SC_REQQ_DEBUG1                0x01C0300088ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_DEBUG2                0x01C0300090ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_DEBUG3                0x01C0300098ULL /* PP = 0b11 */
-//#define ESR_SC_PERFMON_CTL_STATUS       /* PP = 0b11 */
-//#define ESR_SC_PERFMON_CYC_CNTR         /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P0_CNTR          /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P1_CNTR          /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P0_QUAL          /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P1_QUAL          /* PP = 0b11 */
+//#define ESR_SC_ECO_CTL                    0x01C03000A0ULL /* PP = 0b11 */
+//#define ESR_SC_PERFMON_CTL_STATUS         0x01C03000B8ULL /* PP = 0b11 */
+//#define ESR_SC_PERFMON_CYC_CNTR           0x01C03000C0ULL /* PP = 0b11 */
+//#define ESR_SC_PERFMON_P0_CNTR            0x01C03000C8ULL /* PP = 0b11 */
+//#define ESR_SC_PERFMON_P1_CNTR            0x01C03000D0ULL /* PP = 0b11 */
+//#define ESR_SC_PERFMON_P0_QUAL            0x01C03000D8ULL /* PP = 0b11 */
+//#define ESR_SC_PERFMON_P1_QUAL            0x01C03000E0ULL /* PP = 0b11 */
 //#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
 //#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
 //#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
@@ -194,15 +195,15 @@
 #define ESR_RBOX_CONSUME        0x0100320038ULL /* PP = 0b00 */
 
 
-// Shire Other ESR addresses
+// shire_other ESR addresses
 #define ESR_SHIRE_U0                    0x0100340000ULL /* PP = 0b00 */
 #define ESR_SHIRE_S0                    0x0140340000ULL /* PP = 0b01 */
 #define ESR_SHIRE_M0                    0x01C0340000ULL /* PP = 0b11 */
 #define ESR_MINION_FEATURE              0x01C0340000ULL /* PP = 0b11 */
 #define ESR_SHIRE_CONFIG                0x01C0340008ULL /* PP = 0b11 */
 #define ESR_THREAD1_DISABLE             0x01C0340010ULL /* PP = 0b11 */
-//#define ESR_SHIRE_CACHE_BUILD_CONFIG    0x01C0340018ULL /* PP = 0b11 */
-//#define ESR_SHIRE_CACHE_REVISION_ID     0x01C0340020ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_BUILD_CONFIG    0x01C0340018ULL /* PP = 0b11 */
+#define ESR_SHIRE_CACHE_REVISION_ID     0x01C0340020ULL /* PP = 0b11 */
 #define ESR_IPI_REDIRECT_TRIGGER        0x0100340080ULL /* PP = 0b00 */
 #define ESR_IPI_REDIRECT_FILTER         0x01C0340088ULL /* PP = 0b11 */
 #define ESR_IPI_TRIGGER                 0x01C0340090ULL /* PP = 0b11 */
@@ -244,12 +245,12 @@
 #define ESR_FAST_LOCAL_BARRIER30        0x01003401F0ULL /* PP = 0b00 */
 #define ESR_FAST_LOCAL_BARRIER31        0x01003401F8ULL /* PP = 0b00 */
 #define ESR_MTIME_LOCAL_TARGET          0x01C0340218ULL /* PP = 0b11 */
-//#define ESR_SHIRE_POWER_CTRL            0x01C0340220ULL /* PP = 0b11 */
-//#define ESR_POWER_CTRL_NEIGH_NSLEEPIN   0x01C0340228ULL /* PP = 0b11 */
-//#define ESR_POWER_CTRL_NEIGH_ISOLATION  0x01C0340230ULL /* PP = 0b11 */
-//#define ESR_POWER_CTRL_NEIGH_NSLEEPOUT  0x01C0340238ULL /* PP = 0b11 */
+#define ESR_SHIRE_POWER_CTRL            0x01C0340220ULL /* PP = 0b11 */
+#define ESR_POWER_CTRL_NEIGH_NSLEEPIN   0x01C0340228ULL /* PP = 0b11 */
+#define ESR_POWER_CTRL_NEIGH_ISOLATION  0x01C0340230ULL /* PP = 0b11 */
+#define ESR_POWER_CTRL_NEIGH_NSLEEPOUT  0x01C0340238ULL /* PP = 0b11 */
 #define ESR_THREAD0_DISABLE             0x01C0340240ULL /* PP = 0b11 */
-//#define ESR_SHIRE_ERROR_LOG             0x01C0340248ULL /* PP = 0b11 */
+#define ESR_SHIRE_ERROR_LOG             0x01C0340248ULL /* PP = 0b11 */
 #define ESR_SHIRE_PLL_AUTO_CONFIG       0x01C0340250ULL /* PP = 0b11 */
 #define ESR_SHIRE_PLL_CONFIG_DATA_0     0x01C0340258ULL /* PP = 0b11 */
 #define ESR_SHIRE_PLL_CONFIG_DATA_1     0x01C0340260ULL /* PP = 0b11 */
@@ -317,7 +318,7 @@ extern neigh_esrs_t neigh_esrs[EMU_NUM_NEIGHS];
 
 
 // -----------------------------------------------------------------------------
-// ShireCache ESRs
+// shire_cache ESRs
 
 struct shire_cache_esrs_t {
     struct {
@@ -350,7 +351,7 @@ extern shire_cache_esrs_t shire_cache_esrs[EMU_NUM_SHIRES];
 
 
 // -----------------------------------------------------------------------------
-// Shire Other ESRs
+// shire_other ESRs
 
 struct shire_other_esrs_t {
     uint8_t  fast_local_barrier[32];
@@ -370,6 +371,9 @@ struct shire_other_esrs_t {
     uint32_t thread0_disable;
     uint32_t thread1_disable;
     uint32_t mtime_local_target;
+    uint16_t shire_power_ctrl;
+    uint32_t power_ctrl_neigh_nsleepin;
+    uint32_t power_ctrl_neigh_isolation;
     uint32_t shire_pll_auto_config;
     uint16_t shire_dll_auto_config;
     uint8_t  minion_feature;
