@@ -69,8 +69,8 @@ float32_t f32_log2( float32_t a )
         c1 = tlog[index].c1;
         c0 = tlog[index].c0;
         x2 = sigA & 0x1FFFF;
-        fma1 = -c2*x2 + c1 - 0x10;
-        fma2 = -fma1*x2 + c0 + 0x80000000;
+        fma1 = (c2*x2 - c1 + 0x10) & 0xfffffffffffffff0;
+        fma2 = fma1*x2 + c0 + 0x80000000;
     } else {
         if ( expA == 0x7F ) {
             uiZ = 0;
