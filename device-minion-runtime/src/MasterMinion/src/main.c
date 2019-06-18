@@ -1,4 +1,3 @@
-#include "master.h"
 #include "build_configuration.h"
 #include "layout.h"
 #include "message.h"

@@ -310,9 +310,10 @@ static void pre_kernel_setup(void)
             : "x31"
         );
 
-        // Set rounding mode to 0 (round near even)
+
         asm volatile (
-            "csrw frm, x0"
+            "mov.m.x m0, zero, 0xF \n" // Enables 4 elements of FPU
+            "csrw    frm, zero     \n" // Set rounding mode to 0 (round near even)
         );
     }
 }

@@ -1,3 +1,6 @@
+#ifndef INTERRUPT_H
+#define INTERRUPT_H
+
 //TODO FIXME generate these. Copied by hand by wearle 5/3/2019.
 //See esperanto-soc/dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
 
@@ -46,3 +49,5 @@ typedef enum {
     PU_PLIC_RESERVED7_INTR,
     PU_PLIC_INTR_CNT
 } interrupt_t;
+
+#endif

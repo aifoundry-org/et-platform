@@ -1,11 +1,8 @@
 #include "swi.h"
 
-#include <inttypes.h>
-#include <stdbool.h>
-
 void swi_handler(void);
 
-uint64_t swi_flag;
+bool swi_flag;
 
 void swi_handler(void)
 {
