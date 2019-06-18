@@ -731,22 +731,22 @@ void esr_write(uint64_t addr, uint64_t value)
             sys_emu::clear_software_interrupt(shire, value);
             return;
         case ESR_FCC_CREDINC_0:
-            LOG_ALL_MINIONS(DEBUG, "Write to FCC0 value %016" PRIx64, value);
+            LOG_ALL_MINIONS(DEBUG, "Write to FCC0 shire %d value %016" PRIx64, shire, value);
             fcc_inc(0, shire, value, 0);
             sys_emu::fcc_to_threads(shire, 0, value, 0);
             return;
         case ESR_FCC_CREDINC_1:
-            LOG_ALL_MINIONS(DEBUG, "Write to FCC1 value %016" PRIx64, value);
+            LOG_ALL_MINIONS(DEBUG, "Write to FCC1 shire %d value %016" PRIx64, shire, value);
             fcc_inc(0, shire, value, 1);
             sys_emu::fcc_to_threads(shire, 0, value, 1);
             return;
         case ESR_FCC_CREDINC_2:
-            LOG_ALL_MINIONS(DEBUG, "Write to FCC2 value %016" PRIx64, value);
+            LOG_ALL_MINIONS(DEBUG, "Write to FCC2 shire %d value %016" PRIx64, shire, value);
             fcc_inc(1, shire, value, 0);
             sys_emu::fcc_to_threads(shire, 1, value, 0);
             return;
         case ESR_FCC_CREDINC_3:
-            LOG_ALL_MINIONS(DEBUG, "Write to FCC3 value %016" PRIx64, value);
+            LOG_ALL_MINIONS(DEBUG, "Write to FCC3 shire %d value %016" PRIx64, shire, value);
             fcc_inc(1, shire, value, 1);
             sys_emu::fcc_to_threads(shire, 1, value, 1);
             return;
