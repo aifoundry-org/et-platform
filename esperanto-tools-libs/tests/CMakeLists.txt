@@ -21,7 +21,7 @@ link_directories(${GTEST_DIR}/lib64
   ${EXTERNAL_LINK_DIRECTORIES}
   )
 
-set(CI_DEPENDENCIES convolution.elf bootrom.mem)
+set(CI_DEPENDENCIES convolution.elf bootrom.mem gpu_0_softmax_110.elf)
 set(CI_DN_TARGETS "")
 
 foreach(CI_DEPENDENCY ${CI_DEPENDENCIES})
@@ -62,6 +62,7 @@ set(TEST_LIST test_error_or.cc
   test_device_target_sysemu_grpc.cc
   test_elf_parsing.cc
   test_module_load.cc
+  test_module_manager.cc
   )
 
 

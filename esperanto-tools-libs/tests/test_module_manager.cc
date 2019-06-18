@@ -43,7 +43,7 @@ DECLARE_string(dev_target);
 
 namespace {
 
-TEST(Module, loadOnSysEMU) {
+TEST(ModuleManager, loadOnSysEMU) {
   // Send memory definition
   fs::path p = "/proc/self/exe";
   auto test_real_path = fs::read_symlink(p);
@@ -61,10 +61,24 @@ TEST(Module, loadOnSysEMU) {
 
   auto conv_elf = dir_name / "convolution.elf";
 
-  auto module = make_unique<Module>(1, "convolution.elf");
-  EXPECT_TRUE(module->readELF(conv_elf));
+  et_runtime::ModuleManager module_manager;
 
-  EXPECT_TRUE(module->loadOnDevice(dev.get()));
+  auto module_res = module_manager.createModule("convolution.elf");
+  auto conv_mid = get<0>(module_res);
+  auto load_res = module_manager.loadOnDevice(conv_mid, conv_elf, dev.get());
+  EXPECT_EQ(load_res.getError(), etrtSuccess);
+  EXPECT_EQ(load_res.get(), conv_mid);
+
+  auto softmax_elf = dir_name / "gpu_0_softmax_110.elf";
+  auto module_res2 = module_manager.createModule("softmax");
+  auto softmax_mid = get<0>(module_res2);
+  load_res = module_manager.loadOnDevice(softmax_mid, softmax_elf, dev.get());
+  EXPECT_EQ(load_res.getError(), etrtSuccess);
+  EXPECT_EQ(load_res.get(), softmax_mid);
+
+  //
+  module_manager.destroyModule(conv_mid);
+  module_manager.destroyModule(softmax_mid);
 
   // Stop the simulator
   EXPECT_EQ(etrtSuccess, dev->resetDevice());

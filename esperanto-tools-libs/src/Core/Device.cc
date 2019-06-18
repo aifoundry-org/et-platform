@@ -3,6 +3,7 @@
 #include "Core/Commands.h"
 #include "Core/ELFSupport.h"
 #include "Core/MemoryManager.h"
+#include "ModuleManager.h"
 #include "Support/DeviceGuard.h"
 #include "Support/Logging.h"
 #include "demangle.h"
@@ -36,8 +37,8 @@ DECLARE_string(dev_target);
 } // namespace et_runtime
 
 Device::Device()
-    : mem_manager_(std::unique_ptr<et_runtime::device::MemoryManager>(
-          new et_runtime::device::MemoryManager(*this))) {
+    : mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
+      module_manager_(std::make_unique<ModuleManager>()) {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, "test_path");
 }
@@ -258,16 +259,13 @@ Device::pointerGetAttributes(struct etrtPointerAttributes *attributes,
   return mem_manager_->pointerGetAttributes(attributes, ptr);
 }
 
-et_runtime::Module *Device::createModule(const std::string &name) {
-  // FIXME pass the right ModuleID in the future
-  auto new_module = new et_runtime::Module(-1, name);
-  module_storage_.emplace_back(new_module);
-  return new_module;
+et_runtime::Module &Device::createModule(const std::string &name) {
+  auto res = module_manager_->createModule(name);
+  return std::get<1>(res);
 }
 
-void Device::destroyModule(et_runtime::Module *et_module) {
-  assert(stl_count(module_storage_, et_module) == 1);
-  stl_remove(module_storage_, et_module);
+void Device::destroyModule(et_runtime::ModuleID module) {
+  module_manager_->destroyModule(module);
 }
 
 etrtError_t Device::setupArgument(const void *arg, size_t size, size_t offset) {
@@ -283,157 +281,143 @@ etrtError_t Device::setupArgument(const void *arg, size_t size, size_t offset) {
 }
 
 etrtError_t Device::launch(const void *func, const char *kernel_name) {
-  GetDev dev;
+  abort();
+  // FIXME disabled for now until this feature is used unit-tested and
+  // exercised.
+  /*
+    EtLaunchConf launch_conf = std::move(dev->launch_confs_.back());
+    launch_confs_.pop_back();
 
-  EtLaunchConf launch_conf = std::move(dev->launch_confs_.back());
-  dev->launch_confs_.pop_back();
+    uintptr_t kernel_entry_point = 0;
+    if (func) {
+      EtKernelInfo kernel_info = etrtGetKernelInfoByHostFun(func);
+      assert(kernel_info.name == kernel_name);
+      if (kernel_info.elf_p) {
+        // We have kernel from registered Esperanto ELF binary, incorporated
+    into
+        // host binary. First, ensure ELF binary is loaded to device. Second, we
+        // will launch kernel not by name, but by kernel entry point address.
 
-  uintptr_t kernel_entry_point = 0;
-  if (func) {
-    EtKernelInfo kernel_info = etrtGetKernelInfoByHostFun(func);
-    assert(kernel_info.name == kernel_name);
-    if (kernel_info.elf_p) {
-      // We have kernel from registered Esperanto ELF binary, incorporated into
-      // host binary. First, ensure ELF binary is loaded to device. Second, we
-      // will launch kernel not by name, but by kernel entry point address.
+        EtLoadedKernelsBin &loaded_kernels_bin =
+            dev->loaded_kernels_bin_[kernel_info.elf_p];
 
-      EtLoadedKernelsBin &loaded_kernels_bin =
-          dev->loaded_kernels_bin_[kernel_info.elf_p];
+        if (loaded_kernels_bin.devPtr == nullptr) {
+          dev->malloc(&loaded_kernels_bin.devPtr, kernel_info.elf_size);
 
-      if (loaded_kernels_bin.devPtr == nullptr) {
-        dev->malloc(&loaded_kernels_bin.devPtr, kernel_info.elf_size);
+          dev->addAction(dev->defaultStream_,
+                         new EtActionWrite(loaded_kernels_bin.devPtr,
+                                           kernel_info.elf_p,
+                                           kernel_info.elf_size));
 
-        dev->addAction(dev->defaultStream_,
-                       new EtActionWrite(loaded_kernels_bin.devPtr,
-                                         kernel_info.elf_p,
-                                         kernel_info.elf_size));
+          assert(loaded_kernels_bin.actionEvent == nullptr);
+          loaded_kernels_bin.actionEvent = new EtActionEvent();
+          loaded_kernels_bin.actionEvent->incRefCounter();
 
-        assert(loaded_kernels_bin.actionEvent == nullptr);
-        loaded_kernels_bin.actionEvent = new EtActionEvent();
-        loaded_kernels_bin.actionEvent->incRefCounter();
-
-        dev->addAction(dev->defaultStream_, loaded_kernels_bin.actionEvent);
-      }
-
-      if (loaded_kernels_bin.actionEvent) {
-        if (loaded_kernels_bin.actionEvent->isExecuted()) {
-          // ELF is already loaded, free actionEvent
-          EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
-          loaded_kernels_bin.actionEvent = nullptr;
-        } else {
-          // ELF loading is in process, insert EtActionEventWaiter before
-          // EtActionLaunch
-          dev->addAction(
-              launch_conf.etStream,
-              new EtActionEventWaiter(loaded_kernels_bin.actionEvent));
+          dev->addAction(dev->defaultStream_, loaded_kernels_bin.actionEvent);
         }
+
+        if (loaded_kernels_bin.actionEvent) {
+          if (loaded_kernels_bin.actionEvent->isExecuted()) {
+            // ELF is already loaded, free actionEvent
+            EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
+            loaded_kernels_bin.actionEvent = nullptr;
+          } else {
+            // ELF loading is in process, insert EtActionEventWaiter before
+            // EtActionLaunch
+            dev->addAction(
+                launch_conf.etStream,
+                new EtActionEventWaiter(loaded_kernels_bin.actionEvent));
+          }
+        }
+
+        kernel_entry_point =
+            (uintptr_t)loaded_kernels_bin.devPtr + kernel_info.offset;
+      } else {
+        // For this kernel we have no registered Esperanto ELF binary,
+        // incorporated into host binary. Try map kernel into builtin kernel and
+        // call it by name.
+
+        static const std::map<std::string, const char *> kKernelRemapTable = {
+            {"void caffe2::math::(anonymous namespace)::SetKernel<float>(int, "
+             "float, float*)",
+             "SetKernel_Float"},
+            {"void caffe2::SigmoidKernel<float>(int, float const*, float*)",
+             "SigmoidKernel_Float"},
+            {"void caffe2::MulBroadcast2Kernel<float, float>(float const*, float
+    " "const*, float*, int, int, int)", "MulBroadcast2Kernel_Float_Float"},
+            {"void caffe2::(anonymous "
+             "namespace)::binary_add_kernel_broadcast<false, float, float>(float
+    " "const*, float const*, float*, int, int, int)",
+             "BinAddKernelBroadcast_False_Float_Float"},
+            {"caffe2::math::_Kernel_float_Add(int, float const*, float const*, "
+             "float*)",
+             "AddKernel_Float"}};
+
+        kernel_name = kKernelRemapTable.at(demangle(kernel_name));
       }
-
-      kernel_entry_point =
-          (uintptr_t)loaded_kernels_bin.devPtr + kernel_info.offset;
-    } else {
-      // For this kernel we have no registered Esperanto ELF binary,
-      // incorporated into host binary. Try map kernel into builtin kernel and
-      // call it by name.
-
-      static const std::map<std::string, const char *> kKernelRemapTable = {
-          {"void caffe2::math::(anonymous namespace)::SetKernel<float>(int, "
-           "float, float*)",
-           "SetKernel_Float"},
-          {"void caffe2::SigmoidKernel<float>(int, float const*, float*)",
-           "SigmoidKernel_Float"},
-          {"void caffe2::MulBroadcast2Kernel<float, float>(float const*, float "
-           "const*, float*, int, int, int)",
-           "MulBroadcast2Kernel_Float_Float"},
-          {"void caffe2::(anonymous "
-           "namespace)::binary_add_kernel_broadcast<false, float, float>(float "
-           "const*, float const*, float*, int, int, int)",
-           "BinAddKernelBroadcast_False_Float_Float"},
-          {"caffe2::math::_Kernel_float_Add(int, float const*, float const*, "
-           "float*)",
-           "AddKernel_Float"}};
-
-      kernel_name = kKernelRemapTable.at(demangle(kernel_name));
     }
-  }
 
-  dev->addAction(launch_conf.etStream,
-                 new EtActionLaunch(launch_conf.gridDim, launch_conf.blockDim,
-                                    launch_conf.args_buff, kernel_entry_point,
+    dev->addAction(launch_conf.etStream,
+                   new EtActionLaunch(launch_conf.gridDim, launch_conf.blockDim,
+                                      launch_conf.args_buff, kernel_entry_point,
                                     kernel_name));
+  */
   return etrtSuccess;
 }
 
-etrtError_t Device::rawLaunch(et_runtime::Module *module,
+etrtError_t Device::rawLaunch(et_runtime::ModuleID module_id,
                               const char *kernel_name, const void *args,
                               size_t args_size, etrtStream_t stream) {
-  GetDev dev;
 
-  auto et_module = dev->getModule(module);
+  auto et_module_res = module_manager_->getModule(module_id);
+  if (!et_module_res) {
+    return et_module_res.getError();
+  }
 
-  EtLoadedKernelsBin &loaded_kernels_bin = dev->loaded_kernels_bin_[et_module];
-  assert(loaded_kernels_bin.devPtr);
-  assert(loaded_kernels_bin.actionEvent == nullptr);
+  auto module = et_module_res.get();
 
-  THROW_IF(!et_module->rawKernelExists(kernel_name),
+  if (!module->onDevice()) {
+    return etrtErrorModuleNotOnDevice;
+  }
+
+  THROW_IF(!module->rawKernelExists(kernel_name),
            "No raw kernel found in module by kernel name.");
-  uintptr_t kernel_entry_point = (uintptr_t)loaded_kernels_bin.devPtr +
-                                 et_module->rawKernelOffset(kernel_name);
+
+  auto entry_point_res = module->onDeviceKernelEntryPoint(kernel_name);
+  assert(entry_point_res);
+
+  uintptr_t kernel_entry_point = entry_point_res.get();
 
   std::vector<uint8_t> args_buff(args_size);
   ::memcpy(&args_buff[0], args, args_size);
 
-  dev->addAction(dev->getStream(stream),
-                 new EtActionLaunch(dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
-                                    kernel_entry_point, kernel_name));
+  addAction(getStream(stream),
+            new EtActionLaunch(dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
+                               kernel_entry_point, kernel_name));
+
   return etrtSuccess;
 }
 
-ErrorOr<et_runtime::Module *> Device::moduleLoad(const std::string &name,
-                                                 const std::string &path) {
-
-  auto new_module = this->createModule(name);
-  new_module->readELF(path);
-
-  assert(!loaded_kernels_bin_.count(new_module));
-  EtLoadedKernelsBin &loaded_kernels_bin = loaded_kernels_bin_[new_module];
-
-  auto &elf_data = new_module->elfRawData();
-  this->malloc(&loaded_kernels_bin.devPtr, elf_data.size());
-
-  this->addAction(defaultStream_,
-                  new EtActionWrite(loaded_kernels_bin.devPtr, elf_data.data(),
-                                    elf_data.size()));
-
-  loaded_kernels_bin.actionEvent = new EtActionEvent();
-  loaded_kernels_bin.actionEvent->incRefCounter();
-
-  this->addAction(defaultStream_, loaded_kernels_bin.actionEvent);
-
-  streamSynchronize(nullptr);
-
-  assert(loaded_kernels_bin.devPtr);
-  assert(loaded_kernels_bin.actionEvent);
-  assert(loaded_kernels_bin.actionEvent->isExecuted());
-  // ELF is already loaded, free actionEvent
-  EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
-  loaded_kernels_bin.actionEvent = nullptr;
-
-  return new_module;
+et_runtime::Module *Device::getModule(et_runtime::ModuleID mid) {
+  auto res = module_manager_->getModule(mid);
+  if (!res) {
+    return nullptr;
+  }
+  return res.get();
 }
 
-etrtError_t Device::moduleUnload(et_runtime::Module *module) {
-  auto et_module = this->getModule(module);
+ErrorOr<et_runtime::ModuleID> Device::moduleLoad(const std::string &name,
+                                                 const std::string &path) {
 
-  // It is expected that user synchronize on all streams in which kernels from
-  // this module was launched. So we just correct out data structures without
-  // stream synchronization.
-  EtLoadedKernelsBin &loaded_kernels_bin = loaded_kernels_bin_[et_module];
-  assert(loaded_kernels_bin.devPtr);
-  assert(loaded_kernels_bin.actionEvent == nullptr);
+  auto res = module_manager_->createModule(name);
+  return module_manager_->loadOnDevice(std::get<0>(res), path, this);
+}
 
-  this->free(loaded_kernels_bin.devPtr);
-  loaded_kernels_bin_.erase(et_module);
-  this->destroyModule(et_module);
+etrtError_t Device::moduleUnload(et_runtime::ModuleID mid) {
+  auto et_module_res = module_manager_->getModule(mid);
+  if (!et_module_res) {
+    return et_module_res.getError();
+  }
+  this->destroyModule(mid);
   return etrtSuccess;
 }

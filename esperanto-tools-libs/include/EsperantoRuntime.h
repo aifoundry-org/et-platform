@@ -11,6 +11,7 @@
 #ifndef ESPERANTO_RUNTIME_H
 #define ESPERANTO_RUNTIME_H
 
+#include "Common/CommonTypes.h"
 #include "Core/Device.h"
 #include "Core/DeviceInformation.h"
 #include "Core/DeviceManager.h"

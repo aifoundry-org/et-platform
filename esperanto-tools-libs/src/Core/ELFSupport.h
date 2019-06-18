@@ -26,11 +26,11 @@ public:
   ELFInfo(const std::string &name);
   virtual ~ELFInfo() = default;
 
-  const std::string &name() const { return name_; }
   virtual bool loadELF(const std::string &path);
   virtual bool loadELF(std::istream &stream);
   virtual bool loadELF(std::vector<char> &data);
 
+  const std::string &name() const { return name_; }
   size_t elfSize() { return elf_size_; }
 
 protected:

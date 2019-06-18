@@ -86,6 +86,7 @@ public:
 private:
   void initMemRegions();
   void uninitMemRegions();
+
   std::unique_ptr<EtMemRegion> host_mem_region_;
   std::unique_ptr<EtMemRegion> dev_mem_region_;
   std::unique_ptr<EtMemRegion> kernels_dev_mem_region_;

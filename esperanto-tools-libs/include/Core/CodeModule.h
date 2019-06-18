@@ -37,6 +37,9 @@ public:
   /// @brief Return a buffer containing the raw ELF data as read from the file
   const std::vector<char> &elfRawData() { return elf_raw_data_; }
 
+  /// @brief Return true iff we have read and decoded the elf file
+  const bool ELFRead() { return elf_raw_data_.size() != 0; }
+
   /// @brief Return the nanme of the module.
   const std::string &name() const;
 

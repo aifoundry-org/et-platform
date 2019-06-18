@@ -500,7 +500,20 @@ enum etrtError {
 
   etrtErrorRuntime = 83,
 
+  /**
+   * This indicates that the ELF data has already been read
+   */
+  etrtErrorModuleELFDataExists,
+
+  /**
+   * This error indicates that the module is not loaded on the device
+   */
   etrtErrorModuleNotOnDevice,
+
+  /**
+   * This error indicates that we failed to load a module on the device
+   */
+  etrtErrorModuleFailedToLoadOnDevice,
 
   /**
    * This indicates an internal startup failure in the ET Runtime.

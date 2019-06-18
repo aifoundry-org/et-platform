@@ -81,6 +81,7 @@
 #ifndef ETRT_H
 #define ETRT_H
 
+#include "Common/CommonTypes.h"
 #include "Common/et-misc.h"
 #include "etrt-bin.h"
 
@@ -968,10 +969,10 @@ namespace et_runtime {
 class Module;
 }
 
-EXAPI etrtError_t etrtModuleLoad(et_runtime::Module *module, const void *image,
+EXAPI etrtError_t etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
                                  size_t image_size);
-EXAPI etrtError_t etrtModuleUnload(et_runtime::Module *module);
-EXAPI etrtError_t etrtRawLaunch(et_runtime::Module *module,
+EXAPI etrtError_t etrtModuleUnload(et_runtime::ModuleID mid);
+EXAPI etrtError_t etrtRawLaunch(et_runtime::ModuleID mid,
                                 const char *kernel_name, const void *args,
                                 size_t args_size, etrtStream_t stream);
 

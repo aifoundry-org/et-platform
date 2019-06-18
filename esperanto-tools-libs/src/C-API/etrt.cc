@@ -248,12 +248,16 @@ EXAPI etrtError_t etrtSetupArgument(const void *arg, size_t size,
 }
 
 EXAPI etrtError_t etrtLaunch(const void *func, const char *kernel_name) {
-  GetDev dev;
-  return dev->launch(func, kernel_name);
+  // FIXME
+  //  GetDev dev;
+  //  return dev->launch(func, kernel_name);
+  abort();
+  return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtModuleLoad(et_runtime::Module *module, const void *image,
+EXAPI etrtError_t etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
                                  size_t image_size) {
+  abort();
   // FIXME enable
   // GetDev dev;
   // auto load_res = dev->moduleLoad(image, image_size);
@@ -264,14 +268,14 @@ EXAPI etrtError_t etrtModuleLoad(et_runtime::Module *module, const void *image,
   return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtModuleUnload(et_runtime::Module *module) {
+EXAPI etrtError_t etrtModuleUnload(et_runtime::ModuleID mid) {
   GetDev dev;
-  return dev->moduleUnload(module);
+  return dev->moduleUnload(mid);
 }
 
-EXAPI etrtError_t etrtRawLaunch(et_runtime::Module *module,
+EXAPI etrtError_t etrtRawLaunch(et_runtime::ModuleID mid,
                                 const char *kernel_name, const void *args,
                                 size_t args_size, etrtStream_t stream) {
   GetDev dev;
-  return dev->rawLaunch(module, kernel_name, args, args_size, stream);
+  return dev->rawLaunch(mid, kernel_name, args, args_size, stream);
 }

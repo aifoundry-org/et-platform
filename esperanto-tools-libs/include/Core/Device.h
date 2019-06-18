@@ -34,6 +34,7 @@ class GetDev;
 
 namespace et_runtime {
 
+class ModuleManager;
 class Stream;
 class AbstractMemoryPtr;
 class HostMemoryPtr;
@@ -226,16 +227,17 @@ public:
     assert(stl_count(stream_storage_, et_stream));
     return et_stream;
   }
+
+  EtStream *defaultStream() { return defaultStream_; }
+
   EtEvent *getEvent(etrtEvent_t event) {
     EtEvent *et_event = reinterpret_cast<EtEvent *>(event);
     assert(stl_count(event_storage_, et_event));
     return et_event;
   }
-  // FIXME create a module_id stop passing pointers arround
-  et_runtime::Module *getModule(et_runtime::Module *module) {
-    assert(stl_count(module_storage_, module));
-    return module;
-  }
+
+  et_runtime::Module *getModule(et_runtime::ModuleID mid);
+
   EtStream *createStream(bool is_blocking) {
     EtStream *new_stream = new EtStream(is_blocking);
     stream_storage_.emplace_back(new_stream);
@@ -255,10 +257,6 @@ public:
     assert(stl_count(event_storage_, et_event) == 1);
     stl_remove(event_storage_, et_event);
   }
-
-  et_runtime::Module *createModule(const std::string &name);
-
-  void destroyModule(et_runtime::Module *et_module);
 
   void addAction(EtStream *et_stream, et_runtime::EtAction *et_action) {
     // FIXME: all blocking streams can synchronize through EtActionEventWaiter
@@ -290,29 +288,32 @@ public:
   etrtError_t setupArgument(const void *arg, size_t size, size_t offset);
   etrtError_t launch(const void *func, const char *kernel_name);
   // FIXME pass module_id
-  etrtError_t rawLaunch(et_runtime::Module *module, const char *kernel_name,
+  etrtError_t rawLaunch(et_runtime::ModuleID module_id, const char *kernel_name,
                         const void *args, size_t args_size,
                         etrtStream_t stream);
 
-  ErrorOr<et_runtime::Module *> moduleLoad(const std::string &name,
+  ErrorOr<et_runtime::ModuleID> moduleLoad(const std::string &name,
                                            const std::string &path);
-  etrtError_t moduleUnload(et_runtime::Module *module);
+  etrtError_t moduleUnload(et_runtime::ModuleID mid);
 
 private:
   void initDeviceThread();
   void uninitDeviceThread();
   void uninitObjects();
 
+  et_runtime::Module &createModule(const std::string &name);
+  void destroyModule(et_runtime::ModuleID modue);
+
   std::vector<uint8_t> bootrom_;
   std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
+  std::unique_ptr<et_runtime::ModuleManager> module_manager_;
   bool device_thread_exit_requested_ = false;
   EtStream *defaultStream_ = nullptr;
   std::vector<std::unique_ptr<EtStream>> stream_storage_;
   std::vector<std::unique_ptr<EtEvent>> event_storage_;
   std::vector<et_runtime::EtLaunchConf> launch_confs_;
-  // FIXME SW-257
-  std::vector<std::unique_ptr<et_runtime::Module>> module_storage_;
+  // FIXME: remove the following
   std::map<const void *, EtLoadedKernelsBin>
       loaded_kernels_bin_; // key is id; there are 2 cases now:
                            // - Esperanto registered ELF (from fat binary)

@@ -52,6 +52,7 @@ set(ETRT_SOURCES
     Core/DeviceManager.cc
     Core/Error.cc
     Core/MemoryManager.cc
+    Core/ModuleManager.cc
     Core/Device.cc
     Core/ELFSupport.cc
     Core/et_stream.cc
