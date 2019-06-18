@@ -39,7 +39,7 @@ inline void log_gsc_progress(uint64_t) {}
 inline void log_tensor_error_value(uint16_t) {}
 
 // TensorLoad
-inline void log_tensor_load(uint8_t, uint8_t, uint8_t, uint8_t, uint64_t) {}
+inline void log_tensor_load(uint8_t, uint8_t, uint8_t, uint64_t) {}
 inline void log_tensor_load_scp_write(uint8_t, const uint64_t*) {}
 
 // TensorFMA

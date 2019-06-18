@@ -2591,7 +2591,7 @@ void tensorload(uint64_t control)
         }
     }
 
-    log_tensor_load(trans, tenb, adj + (dst % L1_SCP_ENTRIES) , rows, tm ? cpu[current_thread].tensor_mask : 0xFFFF);
+    log_tensor_load(trans, tenb, adj + (dst % L1_SCP_ENTRIES), tm ? cpu[current_thread].tensor_mask : 0xFFFF);
 
     //NO TRANS
     if (trans == 0x00)
@@ -2679,7 +2679,7 @@ void tensorload(uint64_t control)
         LOG(DEBUG, "TensorLoad: Transpose - elements:%d size:%d offset:%d", elements, size, offset);
         for (int elem = 0; elem < elements; ++elem)
         {
-            //Reading 512 bits ( 64 bytes - 16 passes reading 32 bits)
+            //Reading 512 bits (64 bytes - 16 passes reading 32 bits)
             assert(addr_is_size_aligned(addr, L1D_LINE_SIZE));
             uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxLoad);
             for (int j = 0; j < L1D_LINE_SIZE; j++)
