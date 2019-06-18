@@ -743,8 +743,11 @@ uint32_t mmu_global_compare_exchange32(uint64_t eaddr, uint32_t expected,
     if (oldval == expected) {
         pmemwrite32(paddr, desired);
         LOG_MEMWRITE(32, paddr, desired);
-        log_mem_write(true, 4, vaddr, desired);
+
     }
+    // call log_mem_write even if we don't end up writing into memory,
+    // because the minion will provide data to be written (if comparison is true) as a regular store
+    log_mem_write(true, 4, vaddr, desired);
     return oldval;
 }
 
@@ -763,8 +766,10 @@ uint64_t mmu_global_compare_exchange64(uint64_t eaddr, uint64_t expected,
     if (oldval == expected) {
         pmemwrite64(paddr, desired);
         LOG_MEMWRITE(64, paddr, desired);
-        log_mem_write(true, 8, vaddr, desired);
     }
+    // call log_mem_write even if we don't end up writing into memory,
+    // because the minion will provide data to be written (if comparison is true) as a regular store
+    log_mem_write(true, 8, vaddr, desired);
     return oldval;
 }
 
@@ -783,8 +788,10 @@ uint32_t mmu_local_compare_exchange32(uint64_t eaddr, uint32_t expected,
     if (oldval == expected) {
         pmemwrite32(paddr, desired);
         LOG_MEMWRITE(32, paddr, desired);
-        log_mem_write(true, 4, vaddr, desired);
     }
+    // call log_mem_write even if we don't end up writing into memory,
+    // because the minion will provide data to be written (if comparison is true) as a regular store
+    log_mem_write(true, 4, vaddr, desired);
     return oldval;
 }
 
@@ -803,8 +810,11 @@ uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
     if (oldval == expected) {
         pmemwrite64(paddr, desired);
         LOG_MEMWRITE(64, paddr, desired);
-        log_mem_write(true, 8, vaddr, desired);
     }
+    // call log_mem_write even if we don't end up writing into memory,
+    // because the minion will provide data to be written (if comparison is true) as a regular store
+    log_mem_write(true, 8, vaddr, desired);
+
     return oldval;
 }
 
