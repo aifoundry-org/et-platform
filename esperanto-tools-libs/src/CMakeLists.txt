@@ -64,6 +64,9 @@ set(ETRT_SOURCES
     Device/TargetCardProxy.cc
     Device/TargetRPC.cc
     Device/TargetSysEmu.cc
+    DeviceFW/FWManager.cc
+    DeviceFW/FakeFW.cc
+    DeviceFW/DeviceFW.cc
     registry.h
     Support/DeviceGuard.cc
 )

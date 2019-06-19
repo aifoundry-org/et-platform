@@ -1,8 +1,10 @@
 #include "Core/Device.h"
 #include "Common/ErrorTypes.h"
 #include "Core/Commands.h"
+#include "Core/DeviceTarget.h"
 #include "Core/ELFSupport.h"
 #include "Core/MemoryManager.h"
+#include "DeviceFW/FWManager.h"
 #include "ModuleManager.h"
 #include "Support/DeviceGuard.h"
 #include "Support/Logging.h"
@@ -37,7 +39,8 @@ DECLARE_string(dev_target);
 } // namespace et_runtime
 
 Device::Device()
-    : mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
+    : fw_manager_(std::make_unique<FWManager>("fake-fw")),
+      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
       module_manager_(std::make_unique<ModuleManager>()) {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, "test_path");
@@ -93,14 +96,17 @@ void Device::deviceExecute() {
 
 }
 
-bool Device::setBootRom(const std::string &path) {
-  bootrom_path_ = path;
-  std::ifstream input(path.c_str(), std::ios::binary);
-  // Read the input file in binary-form in the holder buffer.
-  // Use the stread iterator to read out all the file data
-  bootrom_data_ =
-      decltype(bootrom_data_)(std::istreambuf_iterator<char>(input), {});
-  return true;
+etrtError Device::loadFirmwareOnDevice() {
+  return fw_manager_->firmware().loadOnDevice(target_device_.get());
+}
+
+bool Device::setFWFilePaths(const std::vector<std::string> &paths) {
+  auto status = fw_manager_->firmware().setFWFilePaths(paths);
+  if (!status) {
+    return status;
+  }
+  status = fw_manager_->firmware().readFW();
+  return status;
 }
 
 /**

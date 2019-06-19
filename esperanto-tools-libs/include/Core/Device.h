@@ -35,6 +35,8 @@ class GetDev;
 namespace et_runtime {
 
 class ModuleManager;
+class Firmware;
+class FWManager;
 class Stream;
 class AbstractMemoryPtr;
 class HostMemoryPtr;
@@ -186,10 +188,12 @@ public:
 
   void deviceExecute();
 
+  /// @brief load the DeviceFW on the target device
+  etrtError loadFirmwareOnDevice();
 
-  /// @brief Set the path the the bootrom and load its contents
+  /// @brief Set the path the the bootrom files and load its contents
   ///
-  /// @params[in] path  Path to the bootrom file
+  /// @params[in] path Vector of path to the firmware files
   ///
   /// @todo This function "violates" the RIIA principle that all setup
   /// information should be passed throug the constructor. If were to do that
@@ -197,10 +201,7 @@ public:
   /// well. @idoud I would like to revisit and clear this once we have the real
   /// Device-FW in the picture where we should be passsing as a runtime argument
   /// its location.
-  bool setBootRom(const std::string &path);
-
-  /// @brief Return reference to the underlying bootrom data
-  std::vector<uint8_t> &getBootRom() { return bootrom_data_; }
+  bool setFWFilePaths(const std::vector<std::string> &paths);
 
   /// @brief Return reference to the underlying target specific device
   /// @todo This interface is currently used by the commands and we should find
@@ -304,8 +305,8 @@ private:
   et_runtime::Module &createModule(const std::string &name);
   void destroyModule(et_runtime::ModuleID modue);
 
-  std::vector<uint8_t> bootrom_;
   std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
+  std::unique_ptr<et_runtime::FWManager> fw_manager_;
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
   std::unique_ptr<et_runtime::ModuleManager> module_manager_;
   bool device_thread_exit_requested_ = false;
@@ -318,8 +319,6 @@ private:
       loaded_kernels_bin_; // key is id; there are 2 cases now:
                            // - Esperanto registered ELF (from fat binary)
                            // - dynamically loaded module
-  std::string bootrom_path_;                ///< Path to the bootrom file
-  std::vector<unsigned char> bootrom_data_; ///< Data of the bootrom file
 };
 } // namespace et_runtime
 

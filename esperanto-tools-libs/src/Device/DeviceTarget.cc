@@ -44,7 +44,7 @@ static string getDeviceTypesStr() {
 }
 
 /// @brief Command line option for specifying the type of device to initialize
-/// FIXME this option should not be availabl in production code.
+/// FIXME this option should not be available in production code.
 static bool validateDeviceTarget(const char *flagname, const string &value) {
   for (const auto &i : DeviceTarget::Str2TargetType) {
     if (i.first == value) {

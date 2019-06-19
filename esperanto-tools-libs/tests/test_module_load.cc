@@ -56,7 +56,7 @@ TEST(Module, loadOnSysEMU) {
 
   auto bootrom = dir_name / "bootrom.mem";
   // Start the simulator
-  dev->setBootRom(bootrom);
+  dev->setFWFilePaths({bootrom});
   ASSERT_EQ(dev->init(), etrtSuccess);
 
   auto conv_elf = dir_name / "convolution.elf";

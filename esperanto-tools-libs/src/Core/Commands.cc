@@ -55,21 +55,8 @@ void EtActionConfigure::execute(Device *device) {
   target_device.defineDevMem(0x8200000000, 64, false);
   target_device.defineDevMem(0x8000600000, 64, false);
 
-  // const void *kernels_file_p = gEtKernelsElf;
-  // size_t kernels_file_size = sizeof(gEtKernelsElf);
-  const auto &bootrom = device->getBootRom();
-  const void *bootrom_file_p = reinterpret_cast<const void *>(bootrom.data());
-  size_t bootrom_file_size = bootrom.size();
-
-  // target_device.defineDevMem( RAM_MEMORY_REGION, align_up(kernels_file_size,
-  // 0x10000), true); cpWriteDevMem( RAM_MEMORY_REGION,
-  // kernels_file_size, kernels_file_p);
-
-  target_device.defineDevMem(BOOTROM_START_IP,
-                             align_up(bootrom_file_size, 0x1000), true);
-  target_device.writeDevMem(BOOTROM_START_IP, bootrom_file_size,
-                            bootrom_file_p);
-
+  auto status = device->loadFirmwareOnDevice();
+  assert(status == etrtSuccess);
 // FIXME deprecate the following eventually
 #if 1
 
