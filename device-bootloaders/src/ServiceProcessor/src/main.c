@@ -1,5 +1,6 @@
 #include "serial.h"
 #include "interrupt.h"
+#include "pcie.h"
 #include "dummy_isr.h"
 
 #include "FreeRTOS.h"
@@ -28,13 +29,8 @@ int main(void)
     SERIAL_init(UART1);
     SERIAL_write(UART1, "alive\r\n", 7);
 
-    SERIAL_init(PU_UART0);
-    SERIAL_write(PU_UART0, "alive\r\n", 7);
-
-    SERIAL_init(PU_UART1);
-    SERIAL_write(PU_UART1, "alive\r\n", 7);
-
     INT_init();
+    PCIe_init();
 
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];

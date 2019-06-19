@@ -19,6 +19,7 @@ set(SOURCES
     src/dummy_isr.c
     src/interrupt.c
     src/main.c
+    src/pcie.c
     src/stubs.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/backtrace.c)
