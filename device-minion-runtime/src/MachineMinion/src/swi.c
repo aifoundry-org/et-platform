@@ -1,6 +1,4 @@
-#include "exception.h"
 #include "esr_defines.h"
-#include "message.h"
 #include "shire.h"
 
 #include <inttypes.h>

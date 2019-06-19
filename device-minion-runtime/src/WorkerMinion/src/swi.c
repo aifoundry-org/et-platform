@@ -1,8 +1,6 @@
 #include "kernel.h"
-#include "layout.h"
 #include "message.h"
 #include "shire.h"
-#include "syscall.h"
 
 void swi_handler(void);
 

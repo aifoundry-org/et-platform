@@ -1,6 +1,4 @@
 #include "syscall.h"
-#include "cacheops.h"
-#include "shire.h"
 #include "kernel.h"
 
 #include <stdint.h>
