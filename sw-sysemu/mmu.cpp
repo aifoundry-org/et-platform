@@ -32,7 +32,7 @@ static inline int effective_execution_mode(mem_access_type macc)
 }
 
 
-static void throw_page_fault(uint64_t addr, mem_access_type macc)
+[[noreturn]] static void throw_page_fault(uint64_t addr, mem_access_type macc)
 {
     switch (macc)
     {
@@ -49,12 +49,13 @@ static void throw_page_fault(uint64_t addr, mem_access_type macc)
     case Mem_Access_Fetch:
         throw trap_instruction_page_fault(addr);
     case Mem_Access_PTW:
-        assert(0);
+        break;
     }
+    throw std::invalid_argument("throw_page_fault()");
 }
 
 
-static void throw_access_fault(uint64_t addr, mem_access_type macc)
+[[noreturn]] static void throw_access_fault(uint64_t addr, mem_access_type macc)
 {
     switch (macc)
     {
@@ -71,8 +72,9 @@ static void throw_access_fault(uint64_t addr, mem_access_type macc)
     case Mem_Access_Fetch:
         throw trap_instruction_access_fault(addr);
     case Mem_Access_PTW:
-        assert(0);
+        break;
     }
+    throw std::invalid_argument("throw_access_fault()");
 }
 
 
@@ -89,7 +91,7 @@ static bool matches_breakpoint_address(uint64_t addr)
 {
   bool exact = ~cpu[current_thread].tdata1 & 0x80;
   uint64_t val = cpu[current_thread].tdata2;
-  uint64_t msk = exact ? 0 : (((((~val & (val + 1)) - 1) & 0x3f) << 1) | 1); 
+  uint64_t msk = exact ? 0 : (((((~val & (val + 1)) - 1) & 0x3f) << 1) | 1);
   LOG(DEBUG, "addr %10lx = bkp %10lx ", (addr | msk), ((addr & VA_M) | msk));
   return ((val | msk) == ((addr & VA_M) | msk));
 }
@@ -112,115 +114,186 @@ static inline void check_store_breakpoint(uint64_t addr)
 //------------------------------------------------------------------------------
 // PMA checks
 
-static inline bool paddr_is_cacheable(uint64_t addr)
+#define MPROT_DISABLE_IO_ACCESS    0x1
+#define MPROT_DISABLE_PCIE_ACCESS  0x2
+#define MPROT_DISABLE_OSBOX_ACCESS 0x4
+
+#define PP(x)   (int(((x) & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT))
+
+
+static inline bool paddr_is_sp_cacheable(uint64_t addr)
+{ return paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr); }
+
+
+static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
+                                      size_t size, mem_access_type macc)
 {
-    return paddr_is_dram(addr)
-        || paddr_is_scratchpad(addr)
-        || paddr_is_sp_rom(addr)
-        || paddr_is_sp_sram(addr);
-}
+    bool spio     = ((current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP);
+    bool amo      = (macc == Mem_Access_AtomicL) || (macc == Mem_Access_AtomicG);
+    bool amo_l    = (macc == Mem_Access_AtomicL);
+    bool ts_tl_co = (macc >= Mem_Access_TxLoad) && (macc <= Mem_Access_CacheOp);
 
+    if (paddr_is_dram(addr)) {
+        uint64_t addr2 = addr & ~0x4000000000ULL;
 
-static bool pma_data_access_permitted(uint64_t addr, size_t size, mem_access_type macc)
-{
-    bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
+        if (spio && (addr != addr2)) {
+            if (amo || ts_tl_co || !addr_is_size_aligned(addr, size))
+                throw_access_fault(vaddr, macc);
+            addr = addr2;
+        }
 
-    bool amo      = (macc == Mem_Access_AtomicL || macc == Mem_Access_AtomicG);
-    bool amo_g    = (macc == Mem_Access_AtomicG);
-    bool ts_tl_co = (macc >= Mem_Access_TxLoad && macc <= Mem_Access_CacheOp);
+        if (paddr_is_dram_mbox(addr2)) {
+            if (effective_execution_mode(macc) != PRV_M)
+                throw_access_fault(vaddr, macc);
+            return addr;
+        }
+
+        if (paddr_is_dram_osbox(addr2)) {
+            uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+            if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                throw_access_fault(vaddr, macc);
+            return addr;
+        }
+
+        // dram_other
+        return addr;
+    }
+
+    if (paddr_is_scratchpad(addr)) {
+        if (amo_l)
+            throw_access_fault(vaddr, macc);
+        return addr;
+    }
+
+    if (paddr_is_esr_space(addr)) {
+        if (amo
+            || ts_tl_co
+            || (size != 8)
+            || !addr_is_size_aligned(addr, size)
+            || (PP(addr) > effective_execution_mode(macc))
+            || (PP(addr) == 2 && !spio))
+            throw_access_fault(vaddr, macc);
+        return addr;
+    }
+
+    if (paddr_is_sp_space(addr)) {
+        if (!spio
+            || amo
+            || ts_tl_co
+            || (!paddr_is_sp_cacheable(addr) && !addr_is_size_aligned(addr, size)))
+            throw_access_fault(vaddr, macc);
+        return addr;
+    }
 
     if (paddr_is_io_space(addr)) {
         uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
-        bool ok = !amo
-                && !ts_tl_co
-                && addr_is_size_aligned(addr, size)
-                && (spio || (~mprot & 0x1)/*!mprot.disable_io_access*/);
+        if (amo
+            || ts_tl_co
+            || !addr_is_size_aligned(addr, size)
+            || (!spio && (mprot & MPROT_DISABLE_IO_ACCESS)))
+            throw_access_fault(vaddr, macc);
         // NB: This should not be part of the PMA logic...
-        if (ok && paddr_is_maxion_space(addr) && !spio) {
+        if (paddr_is_maxion_space(addr) && !spio)
             throw trap_bus_error(addr);
-        }
-        return ok;
+        return addr;
     }
-
-    if (paddr_is_sp_space(addr))
-        return spio
-            && !amo
-            && !ts_tl_co
-            && (paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr) ||
-                addr_is_size_aligned(addr, size));
-
-    if (paddr_is_scratchpad(addr))
-        return !amo || amo_g;
-
-    if (paddr_is_esr_space(addr))
-        return !amo
-            && !ts_tl_co
-            && (size == 8)
-            && addr_is_size_aligned(addr, size)
-            && ( int((addr >> 30) & 0x3) <= effective_execution_mode(macc) )
-            && ( int((addr >> 30) & 0x3) != 2 || spio );
 
     if (paddr_is_pcie_space(addr)) {
         uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
-        return !amo
-            && !ts_tl_co
-            && addr_is_size_aligned(addr, size)
-            && (spio || (~mprot & 0x2)/*!mprot.disable_pcie_access*/);
+        if (amo
+            || ts_tl_co
+            || !addr_is_size_aligned(addr, size)
+            || (!spio && (mprot & MPROT_DISABLE_PCIE_ACCESS)))
+            throw_access_fault(vaddr, macc);
+        return addr;
     }
 
-    if (paddr_is_dram_mbox(addr))
-        return effective_execution_mode(macc) == PRV_M;
-
-    if (paddr_is_dram_osbox(addr)) {
-        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
-        return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
-    }
-
-    return paddr_is_dram(addr);
+    throw_access_fault(vaddr, macc);
 }
 
 
-static bool pma_check_ptw_access(uint64_t addr, int prv)
+static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
+                                       mem_access_type macc)
 {
     bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
 
-    if (paddr_is_sp_rom(addr))
-        return spio;
+    if (paddr_is_dram(addr)) {
+        uint64_t addr2 = addr & ~0x4000000000ULL;
 
-    if (paddr_is_sp_sram(addr))
-        return spio;
+        if (spio)
+            addr = addr2;
 
-    if (paddr_is_dram_mbox(addr))
-        return prv == PRV_M;
+        if (paddr_is_dram_mbox(addr2)) {
+            if (effective_execution_mode(macc) != PRV_M)
+                throw_access_fault(vaddr, macc);
+            return addr;
+        }
 
-    if (paddr_is_dram_osbox(addr)) {
-        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
-        return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
+        if (paddr_is_dram_osbox(addr2)) {
+            uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+            if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                throw_access_fault(vaddr, macc);
+            return addr;
+        }
+
+        // dram_other
+        return addr;
     }
 
-    return paddr_is_dram(addr);
+    if (paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr)) {
+        if (!spio)
+            throw_access_fault(vaddr, macc);
+        return addr;
+    }
+
+    throw_access_fault(vaddr, macc);
 }
 
 
-static bool pma_fetch_access_permitted(uint64_t addr)
+static inline uint64_t pma_check_mem_access(uint64_t vaddr, uint64_t addr,
+                                            size_t size, mem_access_type macc)
+{
+    return (macc == Mem_Access_Fetch)
+            ? pma_check_fetch_access(vaddr, addr, macc)
+            : pma_check_data_access(vaddr, addr, size, macc);
+}
+
+
+static uint64_t pma_check_ptw_access(uint64_t vaddr, uint64_t addr,
+                                     mem_access_type macc)
 {
     bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
 
-    if (paddr_is_sp_rom(addr))
-        return spio;
+    if (paddr_is_dram(addr)) {
+        uint64_t addr2 = addr & ~0x4000000000ULL;
 
-    if (paddr_is_sp_sram(addr))
-        return spio;
+        if (spio)
+            addr = addr2;
 
-    if (paddr_is_dram_mbox(addr))
-        return effective_execution_mode(Mem_Access_Fetch) == PRV_M;
+        if (paddr_is_dram_mbox(addr2)) {
+            if (effective_execution_mode(macc) != PRV_M)
+                throw_access_fault(vaddr, macc);
+            return addr;
+        }
 
-    if (paddr_is_dram_osbox(addr)) {
-        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
-        return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
+        if (paddr_is_dram_osbox(addr2)) {
+            uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+            if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                throw_access_fault(vaddr, macc);
+            return addr;
+        }
+
+        // dram_other
+        return addr;
     }
 
-    return paddr_is_dram(addr);
+    if (paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr)) {
+        if (!spio)
+            throw_access_fault(vaddr, macc);
+        return addr;
+    }
+
+    throw_access_fault(vaddr, macc);
 }
 
 
@@ -270,16 +343,8 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
     bool vm_enabled = (atp_mode != SATP_MODE_BARE);
 
     if (!vm_enabled) {
-        uint64_t paddr = vaddr & PA_M;
-        bool okay = (macc == Mem_Access_Fetch)
-                ? pma_fetch_access_permitted(paddr)
-                : pma_data_access_permitted(paddr, size, macc);
-        if (!okay)
-            throw_access_fault(vaddr, macc);
-        return paddr;
+        return pma_check_mem_access(vaddr, vaddr & PA_M, size, macc);
     }
-
-    int ptw_prv = (curprv == PRV_M) ? curprv : PRV_S;
 
     int64_t sign;
     int Num_Levels;
@@ -328,11 +393,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
         uint64_t vpn = (vaddr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
         // Read PTE
         pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
-        if (!pma_check_ptw_access(pte_addr, ptw_prv))
-        {
-            throw_access_fault(vaddr, macc);
-        }
-        pte = pmemread64(pte_addr);
+        pte = pmemread64(pma_check_ptw_access(vaddr, pte_addr, macc));
         LOG(DEBUG, "\tPTW: %016" PRIx64 " <-- PMEM64[%016" PRIx64 "]", pte, pte_addr);
 
         // Read PTE fields
@@ -428,12 +489,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
     // Final physical address only uses 40 bits
     paddr &= PA_M;
     LOG(DEBUG, "\tPTW: Paddr = 0x%016" PRIx64, paddr);
-    bool okay = (macc == Mem_Access_Fetch)
-            ? pma_fetch_access_permitted(paddr)
-            : pma_data_access_permitted(paddr, size, macc);
-    if (!okay)
-        throw_access_fault(vaddr, macc);
-    return paddr;
+    return pma_check_mem_access(vaddr, paddr, size, macc);
 }
 
 
