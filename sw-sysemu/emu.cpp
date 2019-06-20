@@ -2570,17 +2570,10 @@ void tensorload(uint64_t control)
         return;
     }
 
-    // Check if transform is valid
-    if (trans == 0x3 || trans == 0x4)
-    {
-        LOG(DEBUG, "%s", "Tensor_Error TensorLoad with illegal transform!!");
-        update_tensor_error(1 << 1);
-        return;
-    }
-
-    // In case of loading data straight to tenb, we fake it by writing at position 64 and forth (not accessible otherwise)
     if (tenb)
     {
+        // TenB is modelled as an extension to the SCP (these entries are not
+        // accessible otherwise)
         dst = 0;
         adj = L1_SCP_ENTRIES;
         tensorload_setupb_topair[current_thread] = true;
@@ -2589,6 +2582,14 @@ void tensorload(uint64_t control)
             tensorload_setupb_topair[current_thread^1] = true;
             tensorload_setupb_numlines[current_thread^1] = rows;
         }
+        trans = 0x0;
+    }
+    else if (trans == 0x3 || trans == 0x4)
+    {
+        // Invalid transformation
+        LOG(DEBUG, "%s", "Tensor_Error TensorLoad with illegal transform!!");
+        update_tensor_error(1 << 1);
+        return;
     }
 
     log_tensor_load(trans, tenb, adj + (dst % L1_SCP_ENTRIES), tm ? cpu[current_thread].tensor_mask : 0xFFFF);
