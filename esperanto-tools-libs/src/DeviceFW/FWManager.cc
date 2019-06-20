@@ -10,12 +10,12 @@
 
 #include "FWManager.h"
 
+#include "Core/CommandLineOptions.h"
 #include "DeviceFW.h"
 #include "FakeFW.h"
 #include "Support/Logging.h"
 
 #include <cassert>
-#include <gflags/gflags.h>
 
 using namespace std;
 
@@ -45,7 +45,9 @@ static bool validateFWType(const char *flagname, const string &value) {
   return false;
 }
 
-DEFINE_string(fw_type, "", "Specify the type of FW to load on the target.");
+DEFINE_string(
+    fw_type, "",
+    "Specify the type of FW to load on the target: device-fw, fake-fw");
 DEFINE_validator(fw_type, validateFWType);
 
 std::unique_ptr<Firmware> Firmware::allocateFirmware(std::string type) {

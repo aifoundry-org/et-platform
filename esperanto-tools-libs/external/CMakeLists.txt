@@ -56,6 +56,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
                  -DCMAKE_CXX_FLAGS=${GFLAGS_CXX_FLAGS} -fPIC
                  -DCMAKE_EXPORT_NO_PACKAGE_REGISTRY=ON
                  -DCMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY=ON
+                 -DGFLAGS_STRIP_INTERNAL_FLAG_HELP=ON
        # Do not install the package cause it tries to write to the cmake registry
        # in the user's home directory
        BUILD_BYPRODUCTS ${gflags_INSTALL}/lib/libgflags.a

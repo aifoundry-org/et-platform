@@ -1,6 +1,6 @@
 //******************************************************************************
 // Copyright (C) 2019, Esperanto Technologies Inc.
-// The copyright to the computer program(s) herein is the
+// The copyright to the computer program(s) herein is the2
 // property of Esperanto Technologies, Inc. All Rights Reserved.
 // The program(s) may be used and/or copied only with
 // the written permission of Esperanto Technologies and
@@ -8,17 +8,18 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#ifndef ESPERANTO_RUNTIME_H
-#define ESPERANTO_RUNTIME_H
+#ifndef ET_RUNTIME_COMMAND_LINE_OPTIONS_H
+#define ET_RUNTIME_COMMAND_LINE_OPTIONS_H
 
-#include "Common/CommonTypes.h"
-#include "Core/CommandLineOptions.h"
-#include "Core/Device.h"
-#include "Core/DeviceInformation.h"
-#include "Core/DeviceManager.h"
-#include "Core/Error.h"
-#include "Core/Event.h"
-#include "Core/Kernel.h"
-#include "Core/Stream.h"
+#include <gflags/gflags.h>
 
-#endif // ESPERANTO_RUNTIME_H
+namespace et_runtime {
+DECLARE_string(fw_type);
+// extern std::string FLAGS_
+namespace device {
+
+DECLARE_string(dev_target);
+}
+} // namespace et_runtime
+
+#endif // ET_RUNTIME_COMMAND_LINE_OPTIONS_H

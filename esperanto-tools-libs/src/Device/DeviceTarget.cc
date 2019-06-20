@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "Core/DeviceTarget.h"
+#include "Core/CommandLineOptions.h"
 #include "PCIeDevice.h"
 #include "Support/Logging.h"
 #include "TargetCardProxy.h"
@@ -17,7 +18,6 @@
 
 #include <cassert>
 #include <cstdio>
-#include <gflags/gflags.h>
 #include <memory>
 #include <string>
 
@@ -56,9 +56,9 @@ static bool validateDeviceTarget(const char *flagname, const string &value) {
   return false;
 }
 
-DEFINE_string(
-    dev_target, "",
-    "Specify the target device or simulator we would like to talk to");
+DEFINE_string(dev_target, "",
+              "Specify the target device or simulator we would like to talk "
+              "to: pcie ,sysemu_card_proxy, sysemu_grpc, device_grpc");
 DEFINE_validator(dev_target, validateDeviceTarget);
 
 DeviceTarget::DeviceTarget(const string &path)

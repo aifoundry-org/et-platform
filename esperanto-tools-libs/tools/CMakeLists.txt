@@ -22,7 +22,19 @@ link_directories(${RT_EXTERNAL_INSTALL_PREFIX}/lib64
   )
 
 set(COMMON_LIBRARIES
-  etrt_static
+  # Link the whole archive so that we can pull the gflags symbols
+  # that define runtime command line options
+  -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
+  etsim_api
+  protobuf
+  grpc++
+  grpc
+  gpr
+  z
+  cares
+  address_sorting
+  pthread
+  stdc++fs
   ${GLOG_LIBRARIES}
   )
 
