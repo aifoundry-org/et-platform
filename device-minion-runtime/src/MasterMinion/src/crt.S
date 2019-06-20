@@ -27,7 +27,7 @@ _start:
     bge  x26, x27, bss_loop_end
 1:  sw   x0,  0(x26)
     addi x26, x26, 4
-    ble  x26, x27, 1b
+    blt  x26, x27, 1b
 
 bss_loop_end:
     la   a1, main
