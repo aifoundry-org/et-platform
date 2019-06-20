@@ -136,7 +136,7 @@ static bool parse_mem_file(const char * filename, main_memory * memory)
         if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
         {
             memory->new_region(base_addr, size);
-            LOG_NOTHREAD(INFO, "New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIu64, base_addr, size);
+            LOG_NOTHREAD(INFO, "New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIx64, base_addr, size);
         }
         else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
