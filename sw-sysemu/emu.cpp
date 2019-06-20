@@ -647,7 +647,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 
 void take_trap(const trap_t& t)
 {
-    trap_to_mmode(t.get_cause(), t.get_tval());
+    trap_to_mmode(t.cause(), t.tval());
 }
 
 void check_minst_match(uint32_t bits)
@@ -728,7 +728,7 @@ void unknown(const char* comm __attribute__((unused)))
 // forward declarations
 static void dcache_evict_flush_set_way(bool, bool, int, int, int, int);
 static void dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
-static void dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
+static void dcache_prefetch_vaddr(uint64_t);
 static void dcache_lock_vaddr(bool, uint64_t, int, int, uint64_t);
 static void dcache_unlock_vaddr(bool, uint64_t, int, int, uint64_t);
 static void dcache_lock_paddr(int, uint64_t);
@@ -1567,15 +1567,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_PREFETCH_VA:
         require_feature_u_cacheops();
-        {
-            bool tm         = (val >> 63) & 0x1;
-            int  dest       = (val >> 58) & 0x3;
-            uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
-            int  count      = (val & 0xF) + 1;
-            uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
-            int      id     = XREGS[31] & 0x0000000000000001ULL;
-            dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
-        }
+        dcache_prefetch_vaddr(val);
         break;
     // CSR_FLB is modelled outside this fuction!
     case CSR_FCC:
@@ -1614,7 +1606,7 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             throw;
         }
-        catch (const trap_t&)
+        catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
         }
@@ -1629,7 +1621,7 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             tensorloadl2(val);
         }
-        catch (const trap_t&)
+        catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
         }
@@ -1644,7 +1636,7 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             throw;
         }
-        catch (const trap_t&)
+        catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
         }
@@ -2000,7 +1992,7 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
         {
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
         }
-        catch (const trap_t& t)
+        catch (const sync_trap_t& t)
         {
             LOG(DEBUG, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
                 evict ? "EvictVA" : "FlushVA", vaddr, dest);
@@ -2012,13 +2004,20 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
     }
 }
 
-static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
+static void dcache_prefetch_vaddr(uint64_t val)
 {
+    bool tm         = (val >> 63) & 0x1;
+    int  dest       = (val >> 58) & 0x3;
+    uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
+    int  count      = (val & 0xF) + 1;
+    uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
+    //int      id   = XREGS[31] & 0x0000000000000001ULL;
+
     // Skip all if dest is MEM
     if (dest == 3)
         return;
 
-    for (int i = 0; i < numlines; i++, vaddr += stride)
+    for (int i = 0; i < count; i++, vaddr += stride)
     {
         // Skip if masked
         if (tm && !tmask_pass(i))
@@ -2029,12 +2028,17 @@ static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numline
         {
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch);
         }
-        catch (const trap_t& t)
+        catch (const sync_trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
             update_tensor_error(1 << 7);
             return;
+        }
+        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+        {
+            uint64_t value = bemu::pmemread64(addr);
+            LOG_MEMREAD(64, vaddr + (addr - paddr), value);
         }
         LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
     }
@@ -2113,7 +2117,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         {
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
         }
-        catch (const trap_t& t)
+        catch (const sync_trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tLockVA 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
@@ -2127,7 +2131,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         {
             bemu::pmemwrite64(addr, 0);
             uint64_t value = 0;
-            LOG_MEMWRITE(64, addr, value);
+            LOG_MEMWRITE(64, vaddr + (addr - paddr), value);
         }
         LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
     }
@@ -2146,7 +2150,7 @@ static void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __
         {
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
         }
-        catch (const trap_t& t)
+        catch (const sync_trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tUnlockVA: 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
