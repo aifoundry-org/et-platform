@@ -557,6 +557,92 @@ typedef struct VAULTIP_OUTPUT_TOKEN_PUBLIC_KEY_s {
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+typedef struct VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_2_s {
+    uint32_t AS_ID : 32;
+} VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_2_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_3_s {
+    uint32_t OutputDataLength : 10;
+    uint32_t Reserved : 22;
+} VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_3_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_4_s {
+    uint32_t OutputDataAddress_31_00;
+} VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_4_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_5_s {
+    uint32_t OutputDataAddress_63_32;
+} VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_5_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_s {
+    VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_2_t      dw_02;
+    VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_3_t      dw_03;
+    VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_4_t      dw_04;
+    VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_WORD_5_t      dw_05;
+} VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_t;
+
+typedef struct VAULTIP_OUTPUT_TOKEN_PUBLIC_DATA_READ_WORD_1_s {
+    uint32_t DataLength : 10;
+    uint32_t Reserved : 22;
+} VAULTIP_OUTPUT_TOKEN_PUBLIC_DATA_READ_WORD_1_t;
+
+typedef struct VAULTIP_OUTPUT_TOKEN_PUBLIC_DATA_READ_s {
+    VAULTIP_OUTPUT_TOKEN_PUBLIC_DATA_READ_WORD_1_t  dw_01;
+} VAULTIP_OUTPUT_TOKEN_PUBLIC_DATA_READ_t;
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+typedef struct VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_2_s {
+    uint32_t AS_ID : 32;
+} VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_2_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_3_s {
+    uint32_t OutputDataLength : 10;
+    uint32_t Reserved : 22;
+} VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_3_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_4_s {
+    uint32_t OutputDataAddress_31_00;
+} VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_4_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_5_s {
+    uint32_t OutputDataAddress_63_32;
+} VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_5_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_s {
+    VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_2_t      dw_02;
+    VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_3_t      dw_03;
+    VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_4_t      dw_04;
+    VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_5_t      dw_05;
+} VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_t;
+
+typedef struct VAULTIP_OUTPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_1_s {
+    uint32_t DataLength : 10;
+    uint32_t Reserved : 22;
+} VAULTIP_OUTPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_1_t;
+
+typedef struct VAULTIP_OUTPUT_TOKEN_MONOTONIC_COUNTER_READ_s {
+    VAULTIP_OUTPUT_TOKEN_MONOTONIC_COUNTER_READ_WORD_1_t  dw_01;
+} VAULTIP_OUTPUT_TOKEN_MONOTONIC_COUNTER_READ_t;
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+typedef struct VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_WORD_2_s {
+    uint32_t AS_ID : 32;
+} VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_WORD_2_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_s {
+    VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_WORD_2_t      dw_02;
+} VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_t;
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
 typedef struct VAULTIP_INPUT_TOKEN_REGISTER_READ_WORD_2_s {
     uint32_t Number : 6;
     uint32_t Mode : 1;
@@ -730,6 +816,9 @@ typedef union VAULTIP_INPUT_TOKEN_s {
             VAULTIP_INPUT_TOKEN_STATIC_ASSET_SEARCH_t   static_asset_search;
             VAULTIP_INPUT_TOKEN_ASSET_LOAD_t            asset_load;
             VAULTIP_INPUT_TOKEN_ASSET_DELETE_t          asset_delete;
+            VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_t      public_data_read;
+            VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_t monotonic_counter_read;
+            VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_t monotonic_counter_increment;
             VAULTIP_INPUT_TOKEN_PROVISION_HUK_t         provision_huk;
         };
     };
@@ -748,6 +837,8 @@ typedef union VAULTIP_OUTPUT_TOKEN_s {
             VAULTIP_OUTPUT_TOKEN_ASSET_CREATE_t         asset_create;
             VAULTIP_OUTPUT_TOKEN_STATIC_ASSET_SEARCH_t  static_asset_search;
             VAULTIP_OUTPUT_TOKEN_ASSET_LOAD_t           asset_load;
+            VAULTIP_OUTPUT_TOKEN_PUBLIC_DATA_READ_t     public_data_read;
+            VAULTIP_OUTPUT_TOKEN_MONOTONIC_COUNTER_READ_t monotonic_counter_read;
             VAULTIP_OUTPUT_TOKEN_PROVISION_HUK_t        provision_huk;
         };
     };
