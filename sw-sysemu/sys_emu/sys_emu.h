@@ -59,7 +59,6 @@ struct sys_emu_cmd_options {
     bool mins_dis              = false;
 };
 
-/// Function used for parsing the command line arguments
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
 
@@ -80,6 +79,9 @@ public:
     virtual ~sys_emu() = default;
 
     void init_simulator(const sys_emu_cmd_options& cmd_options);
+
+    /// Function used for parsing the command line arguments
+    static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
     static void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
                                uint64_t thread_mask, unsigned cnt_dest);
@@ -109,8 +111,26 @@ protected:
 private:
 
 #ifdef SYSEMU_DEBUG
-    bool process_dbg_cmd(std::string cmd);
-    bool get_pc_break(uint64_t &pc, int &thread);
+    struct pc_breakpoint_t {
+        uint64_t pc;
+        int      thread; // -1 == all threads
+    };
+
+    static std::list<pc_breakpoint_t> pc_breakpoints;
+    static int                        debug_steps;
+
+    static bool pc_breakpoints_exists(uint64_t pc, int thread);
+    static bool pc_breakpoints_add(uint64_t pc, int thread);
+    static void pc_breakpoints_dump(int thread);
+    static void pc_breakpoints_clear_for_thread(int thread);
+    static void pc_breakpoints_clear(void);
+
+    static void memdump(uint64_t addr, uint64_t size);
+
+    static bool process_dbg_cmd(std::string cmd);
+    static bool get_pc_break(uint64_t &pc, int &thread);
+    static void debug_init(void);
+    static void debug_check(void);
 #endif
 
     static uint64_t        emu_cycle;
@@ -123,6 +143,8 @@ private:
     static uint32_t        reduce_pair_array[EMU_NUM_MINIONS]; // Reduce pairing minion
     static int             global_log_min;
     static RVTimer         pu_rvtimer;
+    static uint64_t        minions_en;
+    static uint64_t        shires_en;
 
     net_emulator net_emu;
     std::unique_ptr<api_communicate> api_listener;

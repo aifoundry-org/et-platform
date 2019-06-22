@@ -40,6 +40,8 @@ reduce_state    sys_emu::reduce_state_array[EMU_NUM_MINIONS];                   
 uint32_t        sys_emu::reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
 int             sys_emu::global_log_min;
 RVTimer         sys_emu::pu_rvtimer;
+uint64_t        sys_emu::minions_en = 1;
+uint64_t        sys_emu::shires_en  = 1;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -185,238 +187,6 @@ static const char * help_msg =
  -dump_prof   Path to the file in which to dump the profiling content at the end of the simulation\n"
 #endif
 ;
-
-
-static uint64_t minions_en = 1;
-static uint64_t shires_en  = 1;
-
-#ifdef SYSEMU_DEBUG
-static int  steps          = 0;
-
-struct pc_breakpoint_t {
-    uint64_t pc;
-    int      thread; // -1 == all threads
-};
-
-static std::list<pc_breakpoint_t> pc_breakpoints;
-
-bool pc_breakpoints_exists(uint64_t pc, int thread)
-{
-    return pc_breakpoints.end() !=
-        std::find_if(pc_breakpoints.begin(), pc_breakpoints.end(),
-            [&](const pc_breakpoint_t &b) {
-                return (b.pc == pc) && ((b.thread == -1) || b.thread == thread);
-            }
-        );
-}
-
-bool pc_breakpoints_add(uint64_t pc, int thread)
-{
-    if (pc_breakpoints_exists(pc, thread))
-        return false;
-
-    // If the breakpoint we are adding is global, remove all the local
-    // breakpoints with the same pc
-    if (thread == -1) {
-        pc_breakpoints.remove_if(
-            [&](const pc_breakpoint_t &b) {
-                return b.pc == pc;
-            }
-        );
-    }
-
-    pc_breakpoints.push_back({pc, thread});
-    return true;
-}
-
-void pc_breakpoints_dump(int thread)
-{
-    for (auto &it: pc_breakpoints) {
-        if (it.thread == -1) // Global breakpoint
-            printf("Breakpoint set for all threads at PC 0x%lx\n", it.pc);
-        else if ((thread == -1) || (thread == it.thread))
-            printf("Breakpoint set for thread %d at PC 0x%lx\n", it.thread, it.pc);
-    }
-}
-
-void pc_breakpoints_clear_for_thread(int thread)
-{
-    pc_breakpoints.remove_if(
-        [&](const pc_breakpoint_t &b) {
-            return b.thread == thread;
-        }
-    );
-}
-
-void pc_breakpoints_clear(void)
-{
-    pc_breakpoints.clear();
-}
-
-static const char * help_dbg =
-"\
-help|h:                Print this message\n\
-run|r:                 Execute until the end or a breakpoint is reached\n\
-step|s [n]:            Execute n cycles (or 1 if not specified)\n\
-pc [N]:                Dump PC of thread N (0 <= N < 2048)\n\
-xdump|x [N]:           Dump GPRs of thread N (0 <= N < 2048)\n\
-fdump|f [N]:           Dump FPRs of thread N (0 <= N < 2048)\n\
-csr [N] <off>:         Dump the CSR at offset \"off\" of thread N (0 <= N < 2048)\n\
-mdump|m <addr> <size>: Dump size bytes of memory at addr\n\
-break|b [N] <PC>:      Set a breakpoint for the provided PC and thread N\n\
-list_breaks [N]:       List the currently active breakpoints for a given thread N, or all if N == 0.\n\
-clear_breaks [N]:      Clear all the breakpoints previously set if no N, or for thread N\n\
-quit|q:                Terminate the program\n\
-";
-
-size_t split(const std::string &txt, std::vector<std::string> &strs, char ch = ' ')
-{
-   size_t pos = txt.find( ch );
-   size_t initialPos = 0;
-   strs.clear();
-
-   // Decompose statement
-   while( pos != std::string::npos ) {
-      strs.push_back( txt.substr( initialPos, pos - initialPos ) );
-      initialPos = pos + 1;
-
-      pos = txt.find( ch, initialPos );
-   }
-
-   // Add the last one
-   strs.push_back( txt.substr( initialPos, std::min( pos, txt.size() ) - initialPos + 1 ) );
-
-   return strs.size();
-}
-
-static void memdump(uint64_t addr, uint64_t size)
-{
-    char ascii[17] = {0};
-    for (uint64_t i = 0; i < size; i++) {
-        uint8_t data = pmemread8(vmemtranslate(addr + i, 1, Mem_Access_Load));
-        printf("%02X ", data);
-        ascii[i % 16] = std::isprint(data) ? data : '.';
-        if ((i + 1) % 8 == 0 || (i + 1) == size) {
-            printf(" ");
-            if ((i + 1) % 16 == 0) {
-                printf("|  %s \n", ascii);
-            } else if (i+1 == size) {
-                ascii[(i+1) % 16] = '\0';
-                if ((i + 1) % 16 <= 8)
-                    printf(" ");
-                for (uint64_t j = (i+1) % 16; j < 16; j++)
-                    printf("   ");
-                printf("|  %s \n", ascii);
-            }
-        }
-    }
-}
-
-bool sys_emu::process_dbg_cmd(std::string cmd) {
-   bool prompt = true;
-   std::vector<std::string> command;
-   size_t num_args = split(cmd, command);
-   steps = -1;
-   // Miscellaneous
-   if ((cmd == "h") || (cmd == "help")) {
-      printf("%s", help_dbg);
-   } else if ((cmd == "q") || (cmd == "quit")) {
-      exit(0);
-   // Simulation control
-   } else if ((command[0] == "r") || (command[0] == "run")) {
-      prompt = false;
-   } else if ((command[0] == "") || (command[0] == "s") || (command[0] == "step")) {
-      steps = (num_args > 1) ? std::stoi(command[1]) : 1;
-      prompt = false;
-   // Breakpoints
-   } else if ((command[0] == "b") || (command[0] == "break")) {
-      uint64_t pc_break = current_pc[0];
-      int thread = -1;
-      if (num_args == 2) {
-        pc_break = std::stoull(command[1], nullptr, 0);
-      } else if (num_args > 2) {
-        thread = std::stoi(command[1]);
-        pc_break = std::stoull(command[2], nullptr, 0);
-      }
-      if (pc_breakpoints_add(pc_break, thread)) {
-        if (thread == -1)
-          printf("Set breakpoint for all threads at PC 0x%lx\n", pc_break);
-        else
-          printf("Set breakpoint for thread %d at PC 0x%lx\n", thread, pc_break);
-     }
-   } else if ((command[0] == "list_breaks")) {
-      int thread = -1;
-      if (num_args > 1)
-        thread = std::stoi(command[1]);
-      pc_breakpoints_dump(thread);
-   } else if ((command[0] == "clear_breaks")) {
-      if (num_args > 1)
-        pc_breakpoints_clear_for_thread(std::stoi(command[1]));
-      else
-        pc_breakpoints_clear();
-   // Architectural State Dumping
-   } else if (command[0] == "pc") {
-      uint32_t thid = (num_args > 1) ? std::stoi(command[1]) : 0;
-      printf("PC[%d] = 0x%lx\n", thid, current_pc[thid]);
-   } else if ((command[0] == "x") || (command[0] == "xdump")) {
-      std::string str = dump_xregs((num_args > 1) ? std::stoi(command[1]) : 0);
-      printf("%s\n", str.c_str());
-   } else if ((command[0] == "f") || command[0] == "fdump") {
-      std::string str = dump_fregs((num_args > 1) ? std::stoi(command[1]) : 0);
-      printf("%s\n", str.c_str());
-   } else if (command[0] == "csr") {
-      uint32_t thid = 0;
-      uint16_t offset = 0;
-      if (num_args > 2) {
-        thid = std::stoi(command[1]);
-        offset = std::stoul(command[2], nullptr, 0);
-      } else if (num_args > 1) {
-        offset = std::stoul(command[1], nullptr, 0);
-      }
-      try {
-        printf("CSR[%d][0x%x] = 0x%lx\n", thid, offset & 0xfff, get_csr(thid, offset & 0xfff));
-      }
-      catch (const trap_t&) {
-        printf("Unrecognized CSR register\n");
-      }
-   } else if ((command[0] == "m") || (command[0] == "mdump")) {
-      if (num_args > 2) {
-          uint64_t addr = std::stoull(command[1], nullptr, 0);
-          uint64_t size = std::stoull(command[2], nullptr, 0);
-          memdump(addr, size);
-      }
-   } else {
-      printf("Unknown command\n\n");
-      printf("%s", help_dbg);
-   }
-   return prompt;
-}
-
-bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
-   for (int s = 0; s < EMU_NUM_SHIRES; s++)
-   {
-      if (((shires_en >> s) & 1) == 0) continue;
-
-      unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
-      unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
-
-      for (unsigned m = 0; m < shire_minion_count; m++)
-      {
-         if (((minions_en >> m) & 1) == 0) continue;
-         for (unsigned ii = 0; ii < minion_thread_count; ii++) {
-            unsigned thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-            if ( pc_breakpoints_exists(current_pc[thread_id], thread_id)) {
-               pc = current_pc[thread_id];
-               thread = thread_id;
-               return true;
-            }
-         }
-      }
-   }
-   return false;
-}
-#endif
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
@@ -754,7 +524,7 @@ sys_emu::evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_ma
 }
 
 std::tuple<bool, struct sys_emu_cmd_options>
-parse_command_line_arguments(int argc, char* argv[])
+sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
     sys_emu_cmd_options cmd_options;
 
@@ -970,6 +740,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     if (cmd_options.debug == true) {
 #ifdef SYSEMU_DEBUG
        LOG_NOTHREAD(INFO, "%s", "Starting in interactive mode.");
+       debug_init();
 #else
        LOG_NOTHREAD(WARN, "%s", "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG.");
 #endif
@@ -1103,33 +874,8 @@ sys_emu::main_internal(int argc, char * argv[])
     )
     {
 #ifdef SYSEMU_DEBUG
-        // Check if any thread has reached a breakpoint
-        int break_thread;
-        uint64_t break_pc;
-        bool break_reached = get_pc_break(break_pc, break_thread);
-        if (break_reached)
-            printf("Thread %d reached breakpoint at PC 0x%lx\n", break_thread, break_pc);
-
-        if ((cmd_options.debug == true) && ((break_reached == true) || (steps == 0))) {
-           bool retry = false;
-           bool prompt = true;
-           std::string line;
-           do {
-              printf("\n$ ");
-              std::getline(std::cin, line);
-              try {
-                 prompt = process_dbg_cmd(line);
-                 retry = false;
-              }
-              catch (const std::exception& e)
-              {
-                 printf("\nError parsing command. Please retry\n\n");
-                 printf("%s", help_dbg);
-                 retry = true;
-              }
-           } while (prompt || retry);
-        }
-        if (steps > 0) steps--;
+        if (cmd_options.debug)
+            debug_check();
 #endif
 
         // Update devices
