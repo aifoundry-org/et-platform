@@ -144,6 +144,7 @@ ExternalProject_Add(fmtlib
   INSTALL_DIR ${fmtlib_INSTALL}
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${fmtlib_INSTALL}
              -DCMAKE_CXX_FLAGS=-fPIC
+             ${EXTERNAL_PROJECT_CCACHE}
   BUILD_BYPRODUCTS ${fmtlib_INSTALL}/lib64/libfmt.a
   LOG_DOWNLOAD 1
   LOG_CONFIGURE 1
@@ -158,65 +159,81 @@ list(APPEND external_project_dependencies fmtlib)
 
 if("${runtime_DEVICE_API_PROVIDER}" STREQUAL "module")
 
-set(device_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
-ExternalProject_Add(device-api
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/device_api
-  INSTALL_DIR ${device_api_INSTALL}
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${device_api_INSTALL}
-             "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -fPIC"
-             -DFLATBUFFERS_BUILD_FLATLIB=ON
-             -DFLATBUFFERS_INSTALL=ON
-#  BUILD_BYPRODUCTS ${device_api_INSTALL}/lib/libfmt.a
-  )
+  set(device_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
+  ExternalProject_Add(device-api
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/device_api
+    INSTALL_DIR ${device_api_INSTALL}
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${device_api_INSTALL}
+    "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS} -fPIC"
+    -DFLATBUFFERS_BUILD_FLATLIB=ON
+    -DFLATBUFFERS_INSTALL=ON
+    ${EXTERNAL_PROJECT_ENABLE_CCACHE}
+    ${EXTERNAL_PROJECT_CCACHE}
+    #  BUILD_BYPRODUCTS ${device_api_INSTALL}/lib/libfmt.a
+    )
 
-list(APPEND external_project_dependencies device-api)
+  list(APPEND external_project_dependencies device-api)
 
 endif()
 
 if("${runtime_SIMULATOR_API_PROVIDER}" STREQUAL "module")
 
-set(simulator_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
-ExternalProject_Add(simulator-api
-  PREFIX simulator-api
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/simulator_api
-  INSTALL_DIR ${simulator_api_INSTALL}
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${simulator_api_INSTALL}
-  #  BUILD_BYPRODUCTS ${device_api_INSTALL}/lib/libfmt.a
-  BUILD_ALWAYS 1
-  )
+  set(simulator_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
+  ExternalProject_Add(simulator-api
+    PREFIX simulator-api
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/simulator_api
+    INSTALL_DIR ${simulator_api_INSTALL}
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${simulator_api_INSTALL}
+    ${EXTERNAL_PROJECT_CCACHE}
+    ${EXTERNAL_PROJECT_ENABLE_CCACHE}
+    #  BUILD_BYPRODUCTS ${device_api_INSTALL}/lib/libfmt.a
+    BUILD_ALWAYS 1
+    )
 
-list(APPEND external_project_dependencies simulator-api)
+  list(APPEND external_project_dependencies simulator-api)
 
 endif()
 
 if("${runtime_SW_SYSEMU_PROVIDER}" STREQUAL "module")
 
-ExternalProject_Add(sw-sysemu
-  PREFIX sw-sysemu
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND $(MAKE) -C <SOURCE_DIR>/sys_emu/
-                    sysemu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build
-                    libfpu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build-fpu
-                    external_SYSPATH=${RT_EXTERNAL_INSTALL_PREFIX}
-  BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
-  INSTALL_COMMAND mkdir -p ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
-                    && cp ${CMAKE_CURRENT_BINARY_DIR}/sysemu-build/sys_emu ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
-  DEPENDS simulator-api
-  BUILD_ALWAYS 1
-  )
+  if(ENABLE_CCACHE)
+    set(SYSEMU_CCACHE  CC=ccache\ ${CMAKE_C_COMPILER} CXX=ccache\ ${CMAKE_CXX_COMPILER})
+  endif(ENABLE_CCACHE)
 
-set(SYSEMU_PATH  ${RT_EXTERNAL_INSTALL_PREFIX}/bin/sys_emu PARENT_SCOPE)
+  ExternalProject_Add(sw-sysemu
+    PREFIX sw-sysemu
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND $(MAKE) -C <SOURCE_DIR>/sys_emu/
+    ${SYSEMU_CCACHE}
+    sysemu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build
+    libfpu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build-fpu
+    external_SYSPATH=${RT_EXTERNAL_INSTALL_PREFIX}
 
-list(APPEND external_project_dependencies sw-sysemu)
+    BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
+    INSTALL_COMMAND mkdir -p ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
+    && cp ${CMAKE_CURRENT_BINARY_DIR}/sysemu-build/sys_emu ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
+    DEPENDS simulator-api
+    BUILD_ALWAYS 1
+    )
+
+  set(SYSEMU_PATH  ${RT_EXTERNAL_INSTALL_PREFIX}/bin/sys_emu PARENT_SCOPE)
+
+  list(APPEND external_project_dependencies sw-sysemu)
 
 else()
 
-set(SYSEMU_PATH  ${DEPENDENCIES_PATH}/bin/sys_emu PARENT_SCOPE)
+  set(SYSEMU_PATH  ${DEPENDENCIES_PATH}/bin/sys_emu PARENT_SCOPE)
 
 endif()
 
 if("${runtime_ELFIO_PROVIDER}" STREQUAL "module")
+
+
+  if(ENABLE_CCACHE)
+    set(ELFIO_CCACHE CC=ccache\ ${CMAKE_C_COMPILER} CXX=ccache\ ${CMAKE_CXX_COMPILER})
+  endif(ENABLE_CCACHE)
+
 
   set(elfio_PREFIX ${CMAKE_CURRENT_BINARY_DIR}/elfio)
   set(elfio_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
@@ -224,7 +241,7 @@ if("${runtime_ELFIO_PROVIDER}" STREQUAL "module")
     PREFIX ${elfio_PREFIX}
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/elfio
     PATCH_COMMAND autoreconf -i <SOURCE_DIR>
-    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix ${elfio_INSTALL}
+    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix ${elfio_INSTALL} ${ELFIO_CCACHE}
     BUILD_COMMAND $(MAKE) -j $(nproc)
     INSTALL_COMMAND $(MAKE) install
     BUILD_ALWAYS 1
@@ -233,8 +250,6 @@ if("${runtime_ELFIO_PROVIDER}" STREQUAL "module")
 list(APPEND external_project_dependencies elfio)
 
 endif()
-
-
 
 set(GTEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest-install CACHE INTERNAL "")
 ExternalProject_Add(googletest
@@ -245,6 +260,7 @@ ExternalProject_Add(googletest
   BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-build"
   INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest"
   CMAKE_ARGS = "-DCMAKE_INSTALL_PREFIX=${GTEST_DIR}"
+               ${EXTERNAL_PROJECT_ENABLE_CCACHE}
   )
 
 set(external_project_dependencies ${external_project_dependencies}  PARENT_SCOPE)

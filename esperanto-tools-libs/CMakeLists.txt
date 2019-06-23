@@ -20,6 +20,7 @@ option(HOST_SW "Enable building for the host-sw repo")
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ETSOC "Build for the ETSOC")
 option(ENABLE_TESTS "Enable tests" ON)
+option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):
 # "module": build the dependency using sources from git submodule under external
@@ -35,6 +36,15 @@ set_property(CACHE runtime_SW_SYSEMU_PROVIDER PROPERTY STRINGS "module" "package
 set(runtime_ELFIO_PROVIDER "module" CACHE STRING "Provider of the sw-sysemu executable")
 set_property(CACHE runtime_ELFIO_PROVIDER PROPERTY STRINGS "module" "package")
 
+if(ENABLE_CCACHE)
+  find_program(CCACHE_PROGRAM ccache)
+  if(CCACHE_PROGRAM)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK "${CCACHE_PROGRAM}")
+    set(EXTERNAL_PROJECT_CCACHE -DCMAKE_CXX_COMPILER_LAUNCHER=${CCACHE_PROGRAM} -DCMAKE_C_COMPILER_LAUNCHER=${CCACHE_PROGRAM})
+    set(EXTERNAL_PROJECT_ENABLE_CCACHE -DENABLE_CCACHE=ON)
+  endif(CCACHE_PROGRAM)
+endif(ENABLE_CCACHE)
 
 set(DEPENDENCIES_PATH "/usr" CACHE PATH "Path where runtime dependencies are installed")
 
