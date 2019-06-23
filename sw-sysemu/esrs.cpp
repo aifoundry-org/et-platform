@@ -604,7 +604,7 @@ void esr_write(uint64_t addr, uint64_t value)
         unsigned bnk = (addr2 & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
         unsigned frst = bnk;
         unsigned last = frst + 1;
-        if ((bnk << ESR_REGION_PROT_SHIFT) == ESR_REGION_BANK_MASK) {
+        if (bnk == (ESR_REGION_BANK_MASK >> ESR_REGION_BANK_SHIFT)) {
             frst = 0;
             last = frst + 4;
         } else if (bnk >= 4) {
