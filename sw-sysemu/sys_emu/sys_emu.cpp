@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <list>
 #include <exception>
 #include <algorithm>
@@ -15,7 +16,9 @@
 #include "esrs.h"
 #include "mmu.h"
 #include "insn.h"
-#include "common/main_memory.h"
+#include "memory/dump_data.h"
+#include "memory/load.h"
+#include "memory/main_memory.h"
 #include "log.h"
 #include "profiling.h"
 #include "net_emulator.h"
@@ -37,6 +40,8 @@ reduce_state    sys_emu::reduce_state_array[EMU_NUM_MINIONS];                   
 uint32_t        sys_emu::reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
 int             sys_emu::global_log_min;
 RVTimer         sys_emu::pu_rvtimer;
+uint64_t        sys_emu::minions_en = 1;
+uint64_t        sys_emu::shires_en  = 1;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -59,55 +64,55 @@ static inline bool thread_is_disabled(unsigned thread)
 // Functions to emulate the main memory
 ////////////////////////////////////////////////////////////////////////////////
 
-static main_memory* memory;
+static bemu::MainMemory memory;
 
 // This functions are called by emu. We should clean this to a nicer way...
 static uint8_t emu_memread8(uint64_t addr)
 {
     uint8_t ret;
-    memory->read(addr, 1, &ret);
+    memory.read(addr, 1, &ret);
     return ret;
 }
 
 static uint16_t emu_memread16(uint64_t addr)
 {
     uint16_t ret;
-    memory->read(addr, 2, &ret);
+    memory.read(addr, 2, &ret);
     return ret;
 }
 
 static uint32_t emu_memread32(uint64_t addr)
 {
     uint32_t ret;
-    memory->read(addr, 4, &ret);
+    memory.read(addr, 4, &ret);
     return ret;
 }
 
 static uint64_t emu_memread64(uint64_t addr)
 {
     uint64_t ret;
-    memory->read(addr, 8, &ret);
+    memory.read(addr, 8, &ret);
     return ret;
 }
 
 static void emu_memwrite8(uint64_t addr, uint8_t data)
 {
-    memory->write(addr, 1, &data);
+    memory.write(addr, 1, &data);
 }
 
 static void emu_memwrite16(uint64_t addr, uint16_t data)
 {
-    memory->write(addr, 2, &data);
+    memory.write(addr, 2, &data);
 }
 
 static void emu_memwrite32(uint64_t addr, uint32_t data)
 {
-    memory->write(addr, 4, &data);
+    memory.write(addr, 4, &data);
 }
 
 static void emu_memwrite64(uint64_t addr, uint64_t data)
 {
-    memory->write(addr, 8, &data);
+    memory.write(addr, 8, &data);
 }
 
 
@@ -116,7 +121,7 @@ static void emu_memwrite64(uint64_t addr, uint64_t data)
 // loaded in the different regions
 ////////////////////////////////////////////////////////////////////////////////
 
-static bool parse_mem_file(const char * filename, main_memory * memory)
+static bool parse_mem_file(const char * filename)
 {
     FILE * file = fopen(filename, "r");
     if (file == NULL)
@@ -135,18 +140,17 @@ static bool parse_mem_file(const char * filename, main_memory * memory)
         char str[1024];
         if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
         {
-            memory->new_region(base_addr, size);
-            LOG_NOTHREAD(INFO, "New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIx64, base_addr, size);
+            LOG_NOTHREAD(WARN, "Ignore: New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIu64, base_addr, size);
         }
         else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
-            memory->load_file(str, base_addr);
             LOG_NOTHREAD(INFO, "New File Load found: @ 0x%" PRIx64, base_addr);
+            bemu::load_raw(memory, str, base_addr);
         }
         else if(sscanf(buffer, "ELF Load: %s", str) == 1)
         {
-            memory->load_elf(str);
             LOG_NOTHREAD(INFO, "New ELF Load found: %s", str);
+            bemu::load_elf(memory, str);
         }
     }
     // Closes the file
@@ -159,7 +163,7 @@ static bool parse_mem_file(const char * filename, main_memory * memory)
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-lm <minion]> [-m] [-reset_pc <addr>] [-sp_reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
+     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-lm <minion]> [-reset_pc <addr>] [-sp_reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
  -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
  -elf         Path to an ELF file to load.\n\
  -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
@@ -172,7 +176,6 @@ static const char * help_msg =
  -dump_size   Size of the memory to dump. Only valid if -dump_file is used\n\
  -l           Enable Logging\n\
  -lm          Log a given Minion ID only. Default: all Minions\n\
- -m           Enable dynamic memory allocation. If a region of memory not specified in mem_desc is accessed, the model will create it instead of throwing an error.\n\
  -reset_pc    Sets boot program counter (default 0x8000001000) \n\
  -sp_reset_pc Sets Service Processor boot program counter (default 0x40000000) \n\
  -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
@@ -184,238 +187,6 @@ static const char * help_msg =
  -dump_prof   Path to the file in which to dump the profiling content at the end of the simulation\n"
 #endif
 ;
-
-
-static uint64_t minions_en = 1;
-static uint64_t shires_en  = 1;
-
-#ifdef SYSEMU_DEBUG
-static int  steps          = 0;
-
-struct pc_breakpoint_t {
-    uint64_t pc;
-    int      thread; // -1 == all threads
-};
-
-static std::list<pc_breakpoint_t> pc_breakpoints;
-
-bool pc_breakpoints_exists(uint64_t pc, int thread)
-{
-    return pc_breakpoints.end() !=
-        std::find_if(pc_breakpoints.begin(), pc_breakpoints.end(),
-            [&](const pc_breakpoint_t &b) {
-                return (b.pc == pc) && ((b.thread == -1) || b.thread == thread);
-            }
-        );
-}
-
-bool pc_breakpoints_add(uint64_t pc, int thread)
-{
-    if (pc_breakpoints_exists(pc, thread))
-        return false;
-
-    // If the breakpoint we are adding is global, remove all the local
-    // breakpoints with the same pc
-    if (thread == -1) {
-        pc_breakpoints.remove_if(
-            [&](const pc_breakpoint_t &b) {
-                return b.pc == pc;
-            }
-        );
-    }
-
-    pc_breakpoints.push_back({pc, thread});
-    return true;
-}
-
-void pc_breakpoints_dump(int thread)
-{
-    for (auto &it: pc_breakpoints) {
-        if (it.thread == -1) // Global breakpoint
-            printf("Breakpoint set for all threads at PC 0x%lx\n", it.pc);
-        else if ((thread == -1) || (thread == it.thread))
-            printf("Breakpoint set for thread %d at PC 0x%lx\n", it.thread, it.pc);
-    }
-}
-
-void pc_breakpoints_clear_for_thread(int thread)
-{
-    pc_breakpoints.remove_if(
-        [&](const pc_breakpoint_t &b) {
-            return b.thread == thread;
-        }
-    );
-}
-
-void pc_breakpoints_clear(void)
-{
-    pc_breakpoints.clear();
-}
-
-static const char * help_dbg =
-"\
-help|h:                Print this message\n\
-run|r:                 Execute until the end or a breakpoint is reached\n\
-step|s [n]:            Execute n cycles (or 1 if not specified)\n\
-pc [N]:                Dump PC of thread N (0 <= N < 2048)\n\
-xdump|x [N]:           Dump GPRs of thread N (0 <= N < 2048)\n\
-fdump|f [N]:           Dump FPRs of thread N (0 <= N < 2048)\n\
-csr [N] <off>:         Dump the CSR at offset \"off\" of thread N (0 <= N < 2048)\n\
-mdump|m <addr> <size>: Dump size bytes of memory at addr\n\
-break|b [N] <PC>:      Set a breakpoint for the provided PC and thread N\n\
-list_breaks [N]:       List the currently active breakpoints for a given thread N, or all if N == 0.\n\
-clear_breaks [N]:      Clear all the breakpoints previously set if no N, or for thread N\n\
-quit|q:                Terminate the program\n\
-";
-
-size_t split(const std::string &txt, std::vector<std::string> &strs, char ch = ' ')
-{
-   size_t pos = txt.find( ch );
-   size_t initialPos = 0;
-   strs.clear();
-
-   // Decompose statement
-   while( pos != std::string::npos ) {
-      strs.push_back( txt.substr( initialPos, pos - initialPos ) );
-      initialPos = pos + 1;
-
-      pos = txt.find( ch, initialPos );
-   }
-
-   // Add the last one
-   strs.push_back( txt.substr( initialPos, std::min( pos, txt.size() ) - initialPos + 1 ) );
-
-   return strs.size();
-}
-
-static void memdump(uint64_t addr, uint64_t size)
-{
-    char ascii[17] = {0};
-    for (uint64_t i = 0; i < size; i++) {
-        uint8_t data = pmemread8(vmemtranslate(addr + i, 1, Mem_Access_Load));
-        printf("%02X ", data);
-        ascii[i % 16] = std::isprint(data) ? data : '.';
-        if ((i + 1) % 8 == 0 || (i + 1) == size) {
-            printf(" ");
-            if ((i + 1) % 16 == 0) {
-                printf("|  %s \n", ascii);
-            } else if (i+1 == size) {
-                ascii[(i+1) % 16] = '\0';
-                if ((i + 1) % 16 <= 8)
-                    printf(" ");
-                for (uint64_t j = (i+1) % 16; j < 16; j++)
-                    printf("   ");
-                printf("|  %s \n", ascii);
-            }
-        }
-    }
-}
-
-bool sys_emu::process_dbg_cmd(std::string cmd) {
-   bool prompt = true;
-   std::vector<std::string> command;
-   size_t num_args = split(cmd, command);
-   steps = -1;
-   // Miscellaneous
-   if ((cmd == "h") || (cmd == "help")) {
-      printf("%s", help_dbg);
-   } else if ((cmd == "q") || (cmd == "quit")) {
-      exit(0);
-   // Simulation control
-   } else if ((command[0] == "r") || (command[0] == "run")) {
-      prompt = false;
-   } else if ((command[0] == "") || (command[0] == "s") || (command[0] == "step")) {
-      steps = (num_args > 1) ? std::stoi(command[1]) : 1;
-      prompt = false;
-   // Breakpoints
-   } else if ((command[0] == "b") || (command[0] == "break")) {
-      uint64_t pc_break = current_pc[0];
-      int thread = -1;
-      if (num_args == 2) {
-        pc_break = std::stoull(command[1], nullptr, 0);
-      } else if (num_args > 2) {
-        thread = std::stoi(command[1]);
-        pc_break = std::stoull(command[2], nullptr, 0);
-      }
-      if (pc_breakpoints_add(pc_break, thread)) {
-        if (thread == -1)
-          printf("Set breakpoint for all threads at PC 0x%lx\n", pc_break);
-        else
-          printf("Set breakpoint for thread %d at PC 0x%lx\n", thread, pc_break);
-     }
-   } else if ((command[0] == "list_breaks")) {
-      int thread = -1;
-      if (num_args > 1)
-        thread = std::stoi(command[1]);
-      pc_breakpoints_dump(thread);
-   } else if ((command[0] == "clear_breaks")) {
-      if (num_args > 1)
-        pc_breakpoints_clear_for_thread(std::stoi(command[1]));
-      else
-        pc_breakpoints_clear();
-   // Architectural State Dumping
-   } else if (command[0] == "pc") {
-      uint32_t thid = (num_args > 1) ? std::stoi(command[1]) : 0;
-      printf("PC[%d] = 0x%lx\n", thid, current_pc[thid]);
-   } else if ((command[0] == "x") || (command[0] == "xdump")) {
-      std::string str = dump_xregs((num_args > 1) ? std::stoi(command[1]) : 0);
-      printf("%s\n", str.c_str());
-   } else if ((command[0] == "f") || command[0] == "fdump") {
-      std::string str = dump_fregs((num_args > 1) ? std::stoi(command[1]) : 0);
-      printf("%s\n", str.c_str());
-   } else if (command[0] == "csr") {
-      uint32_t thid = 0;
-      uint16_t offset = 0;
-      if (num_args > 2) {
-        thid = std::stoi(command[1]);
-        offset = std::stoul(command[2], nullptr, 0);
-      } else if (num_args > 1) {
-        offset = std::stoul(command[1], nullptr, 0);
-      }
-      try {
-        printf("CSR[%d][0x%x] = 0x%lx\n", thid, offset & 0xfff, get_csr(thid, offset & 0xfff));
-      }
-      catch (const trap_t&) {
-        printf("Unrecognized CSR register\n");
-      }
-   } else if ((command[0] == "m") || (command[0] == "mdump")) {
-      if (num_args > 2) {
-          uint64_t addr = std::stoull(command[1], nullptr, 0);
-          uint64_t size = std::stoull(command[2], nullptr, 0);
-          memdump(addr, size);
-      }
-   } else {
-      printf("Unknown command\n\n");
-      printf("%s", help_dbg);
-   }
-   return prompt;
-}
-
-bool sys_emu::get_pc_break(uint64_t &pc, int &thread) {
-   for (int s = 0; s < EMU_NUM_SHIRES; s++)
-   {
-      if (((shires_en >> s) & 1) == 0) continue;
-
-      unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
-      unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
-
-      for (unsigned m = 0; m < shire_minion_count; m++)
-      {
-         if (((minions_en >> m) & 1) == 0) continue;
-         for (unsigned ii = 0; ii < minion_thread_count; ii++) {
-            unsigned thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-            if ( pc_breakpoints_exists(current_pc[thread_id], thread_id)) {
-               pc = current_pc[thread_id];
-               thread = thread_id;
-               return true;
-            }
-         }
-      }
-   }
-   return false;
-}
-#endif
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
@@ -502,8 +273,7 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
         throw std::runtime_error("IPI_REDIRECT to SvcProc");
 
     // Get IPI_REDIRECT_FILTER ESR for the shire
-    uint64_t ipi_redirect_filter;
-    memory->read(ESR_SHIRE(shire, IPI_REDIRECT_FILTER), 8, &ipi_redirect_filter);
+    uint64_t ipi_redirect_filter = esr_read(ESR_SHIRE(shire, IPI_REDIRECT_FILTER));
 
     unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
     for(int t = 0; t < EMU_THREADS_PER_SHIRE; t++)
@@ -512,9 +282,8 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
         if(((thread_mask >> t) & 1) && ((ipi_redirect_filter >> t) & 1))
         {
             // Get PC
-            uint64_t new_pc;
             uint64_t neigh = t / EMU_THREADS_PER_NEIGH;
-            memory->read(ESR_NEIGH(shire, neigh, IPI_REDIRECT_PC), 8, &new_pc);
+            uint64_t new_pc = esr_read(ESR_NEIGH(shire, neigh, IPI_REDIRECT_PC));
             int thread_id = thread0 + t;
             LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
             // If thread sleeping, wakes up and changes PC
@@ -755,7 +524,7 @@ sys_emu::evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_ma
 }
 
 std::tuple<bool, struct sys_emu_cmd_options>
-parse_command_line_arguments(int argc, char* argv[])
+sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
     sys_emu_cmd_options cmd_options;
 
@@ -907,6 +676,7 @@ parse_command_line_arguments(int argc, char* argv[])
         else if(strcmp(argv[i], "-m") == 0)
         {
             cmd_options.create_mem_at_runtime = true;
+            LOG_NOTHREAD(WARN, "%s", "Ignoring deprecated option '-m'");
         }
         else if(strcmp(argv[i], "-l") == 0)
         {
@@ -970,18 +740,13 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     if (cmd_options.debug == true) {
 #ifdef SYSEMU_DEBUG
        LOG_NOTHREAD(INFO, "%s", "Starting in interactive mode.");
+       debug_init();
 #else
        LOG_NOTHREAD(WARN, "%s", "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG.");
 #endif
     }
 
     emu::log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
-
-    // Generates the main memory of the emulator
-    memory = new main_memory();
-    if (cmd_options.create_mem_at_runtime) {
-       memory->create_mem_at_runtime();
-    }
 
     // Init emu
     init_emu(system_version_t::ETSOC1_A0);
@@ -1003,21 +768,21 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 
     // Parses the memory description
     if (cmd_options.elf_file != NULL) {
-       memory->load_elf(cmd_options.elf_file);
+        bemu::load_elf(memory, cmd_options.elf_file);
     }
     if (cmd_options.mem_desc_file != NULL) {
-       parse_mem_file(cmd_options.mem_desc_file, memory);
+       parse_mem_file(cmd_options.mem_desc_file);
     }
 
     // Initialize network
-    net_emu = net_emulator(memory);
+    net_emu = net_emulator(&memory);
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
     if(cmd_options.net_desc_file != NULL)
     {
         net_emu.set_file(cmd_options.net_desc_file);
     }
 
-    api_listener = allocate_api_listener(memory);
+    api_listener = allocate_api_listener(&memory);
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
     if(cmd_options.api_comm_path != NULL)
     {
@@ -1109,33 +874,8 @@ sys_emu::main_internal(int argc, char * argv[])
     )
     {
 #ifdef SYSEMU_DEBUG
-        // Check if any thread has reached a breakpoint
-        int break_thread;
-        uint64_t break_pc;
-        bool break_reached = get_pc_break(break_pc, break_thread);
-        if (break_reached)
-            printf("Thread %d reached breakpoint at PC 0x%lx\n", break_thread, break_pc);
-
-        if ((cmd_options.debug == true) && ((break_reached == true) || (steps == 0))) {
-           bool retry = false;
-           bool prompt = true;
-           std::string line;
-           do {
-              printf("\n$ ");
-              std::getline(std::cin, line);
-              try {
-                 prompt = process_dbg_cmd(line);
-                 retry = false;
-              }
-              catch (const std::exception& e)
-              {
-                 printf("\nError parsing command. Please retry\n\n");
-                 printf("%s", help_dbg);
-                 retry = true;
-              }
-           } while (prompt || retry);
-        }
-        if (steps > 0) steps--;
+        if (cmd_options.debug)
+            debug_check();
 #endif
 
         // Update devices
@@ -1370,11 +1110,10 @@ sys_emu::main_internal(int argc, char * argv[])
 
     // Dumping
     if(cmd_options.dump_file != NULL)
-        memory->dump_file(cmd_options.dump_file, cmd_options.dump_addr,
-                          cmd_options.dump_size);
+        bemu::dump_data(memory, cmd_options.dump_file, cmd_options.dump_addr, cmd_options.dump_size);
 
     if(cmd_options.dump_mem)
-        memory->dump_file(cmd_options.dump_mem);
+        bemu::dump_data(memory, cmd_options.dump_mem, memory.first(), (memory.last() - memory.first()) + 1);
 
 #ifdef SYSEMU_PROFILING
     if (cmd_options.dump_prof_file != NULL) {

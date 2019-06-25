@@ -11,20 +11,6 @@
 #include "emu_gio.h"
 #include "sys_emu.h"
 
-// Constructor
-api_communicate::api_communicate(main_memory * mem_)
-{
-    mem                   = mem_;
-    enabled               = false;
-    done                  = false;
-    communication_channel = -1;
-}
-
-// Destructor
-api_communicate::~api_communicate()
-{
-}
-
 // Set
 void api_communicate::set_comm_path(char * api_comm_path)
 {
@@ -77,8 +63,8 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
                 MemDescMsg mem_def;
 
                 read_bytes( communication_channel, &mem_def, sizeof(MemDescMsg));
-                LOG_NOTHREAD(INFO, "api_communicate: Init mem 0x%llx, 0x%llx", mem_def.mem_addr, mem_def.mem_size);
-                mem->new_region( mem_def.mem_addr, mem_def.mem_size);
+                LOG_NOTHREAD(WARN, "api_communicate: Init mem 0x%llx, 0x%llx command ignored",
+                             mem_def.mem_addr, mem_def.mem_size);
             }
             break;
         case kIPIInitExecMem:
@@ -86,8 +72,8 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
                 MemDescMsg mem_def;
 
                 read_bytes( communication_channel, &mem_def, sizeof(MemDescMsg));
-                LOG_NOTHREAD(INFO, "api_communicate: Init exec mem 0x%llx, 0x%llx", mem_def.mem_addr, mem_def.mem_size);
-                mem->new_region( mem_def.mem_addr, mem_def.mem_size);
+                LOG_NOTHREAD(WARN, "api_communicate: Init exec mem 0x%llx, 0x%llx command ignored",
+                             mem_def.mem_addr, mem_def.mem_size);
             }
             break;
         case kIPIReadMem:

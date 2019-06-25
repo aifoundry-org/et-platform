@@ -2460,11 +2460,16 @@ static void configure_port(uint32_t id, uint64_t wdata)
     int scp_way = (wdata >> 24) & 0xFF;
     int logsize = (wdata >> 5)  & 0x07;
 
-    if ((scp_set >= L1D_NUM_SETS) || (scp_way >= L1D_NUM_WAYS) ||
-        (logsize < PORT_LOG2_MIN_SIZE) || (logsize > PORT_LOG2_MAX_SIZE))
-    {
-        throw trap_illegal_instruction(current_inst);
-    }
+    if (scp_set >= L1D_NUM_SETS)
+        scp_set = scp_set % L1D_NUM_SETS;
+
+    if (scp_way >= L1D_NUM_WAYS)
+        scp_way = scp_way % L1D_NUM_WAYS;
+
+    if (logsize < PORT_LOG2_MIN_SIZE)
+        logsize = PORT_LOG2_MIN_SIZE;
+    else if (logsize > PORT_LOG2_MAX_SIZE)
+        logsize = PORT_LOG2_MAX_SIZE;
 
     msg_ports[current_thread][id].enabled    = wdata & 0x1;
     msg_ports[current_thread][id].stall      = false;

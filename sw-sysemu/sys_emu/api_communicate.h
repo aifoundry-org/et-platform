@@ -7,15 +7,16 @@
 // Global
 
 // Local
-#include "common/main_memory.h"
+#include "memory/main_memory.h"
 
 // Class that receives commands from the runtime API and forwards it to SoC
 class api_communicate
 {
     public:
         // Constructor and destructor
-        api_communicate(main_memory * mem_);
-        ~api_communicate();
+        api_communicate(bemu::MainMemory* mem_)
+        : mem(mem_), enabled(false), done(false), communication_channel(-1)
+        { }
 
         // Set
         void set_comm_path(char * api_comm_path);
@@ -28,10 +29,10 @@ class api_communicate
         void get_next_cmd(std::list<int> * enabled_threads);
 
     private:
-        main_memory * mem;                   // Pointer to the memory
-        bool          enabled;               // The communication through API has been enabled
-        bool          done;                  // Is there pending work to be done
-        int           communication_channel; // Opened descriptor for socket communication
+        bemu::MainMemory* mem;                   // Pointer to the memory
+        bool              enabled;               // The communication through API has been enabled
+        bool              done;                  // Is there pending work to be done
+        int               communication_channel; // Opened descriptor for socket communication
 
         // Socket auxiliar
         ssize_t read_bytes(int fd, void * buf, size_t count);

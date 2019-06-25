@@ -9,7 +9,7 @@
 #include <inttypes.h>
 
 // Local
-#include "common/main_memory.h"
+#include "memory/main_memory.h"
 
 typedef struct
 {
@@ -35,8 +35,7 @@ class net_emulator
     public:
         // Constructor and destructor
         net_emulator() = default;
-        net_emulator(main_memory * mem_);
-        ~net_emulator();
+        net_emulator(bemu::MainMemory* mem_) : mem(mem_), enabled(false) {}
 
         // Set
         void set_file(char * net_desc_file);
@@ -50,7 +49,7 @@ class net_emulator
     private:
         std::list<net_emulator_layer> layers;      // List of layers to do
         bool                          helper_done; // Helper IPI already sent
-        main_memory *                 mem;         // Pointer to the memory
+        bemu::MainMemory*             mem;         // Pointer to the memory
         bool                          enabled;     // net emu enabled only for nets
 };
 

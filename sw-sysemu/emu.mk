@@ -11,6 +11,8 @@ emu_hdrs := \
 	gold.h \
 	insn.h \
 	insn_func.h \
+	lazy_array.h \
+	literals.h \
 	memmap.h \
 	mmu.h \
 	processor.h \
@@ -22,11 +24,14 @@ emu_hdrs := \
 	traps.h \
 	txs.h \
 	utility.h \
-	common/main_memory.h \
-	common/main_memory_region.h \
-	common/main_memory_region_esr.h \
-	common/main_memory_region_reserved.h \
-	common/main_memory_region_scratchpad.h
+	memory/dense_region.h \
+	memory/dump_data.h \
+	memory/load.h \
+	memory/main_memory.h \
+	memory/memory_region.h \
+	memory/scratch_region.h \
+	memory/sparse_region.h \
+	memory/sysreg_region.h
 
 emu_cpp_srcs := \
 	decode.cpp \
@@ -61,4 +66,4 @@ emu_cpp_srcs := \
 	insns/packed_mask.cpp \
 	insns/packed_trans.cpp \
 	insns/zifencei.cpp \
-	common/main_memory.cpp
+	memory/load.cpp

@@ -1,9 +1,7 @@
 #include "rboxSysEmu.h"
 #include "trace.h"
 
-rboxSysEmu::rboxSysEmu(unsigned shireId, main_memory *mem,
-                       func_ptr_write_msg_port_data write_msg_port) :
-  mem_(mem),
+rboxSysEmu::rboxSysEmu(unsigned shireId, func_ptr_write_msg_port_data write_msg_port) :
   id_(shireId)
 {
   started_ = false;

@@ -1,7 +1,6 @@
 #ifndef _RBOX_SYSEMU_H_
 #define _RBOX_SYSEMU_H_
 
-#include "common/main_memory.h"
 #include <queue>
 #include <header.h>
 
@@ -22,7 +21,7 @@ class rboxSysEmu
 
  public:
 
-  rboxSysEmu(unsigned shireId, main_memory *mem, func_ptr_write_msg_port_data write_msg_port);
+  rboxSysEmu(unsigned shireId, func_ptr_write_msg_port_data write_msg_port);
   int tick();
   void dataRequest(unsigned thread);
   bool dataQuery(unsigned thread);
@@ -30,7 +29,6 @@ class rboxSysEmu
   bool done();
  private:
 
-  main_memory *mem_;
   const unsigned id_;
   bool started_;
   bool current_thread_[NUM_SHIRE_MIN];
