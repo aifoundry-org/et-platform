@@ -85,7 +85,7 @@ float32_t f32_log2( float32_t a )
     if ( expA >= 0x7F ) {
         product = ( sigA >> 22 ) ? -product : product;
     } else {
-        product = ( sigA >> 22 ) ? product : -product;
+        product = ( sigA >> 22 ) ? product : -(product & 0xffffffffffffff80);
     }
     exponent = ( (expA >= 0x7F) ? (expA + 1) : (~expA - !!sigA) ) & 0x7F;
     product = ( exponent << 49 ) | ( 0x1FFFFFFFFFFFFULL & product );
