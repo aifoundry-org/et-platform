@@ -3,10 +3,10 @@
 #include <cstdio>
 #include <cfenv>
 
-#include "rbox.h"
 #include "emu.h"
 #include "emu_gio.h"
-#include "emu_memop.h"
+#include "memop.h"
+#include "rbox.h"
 
 void RBOX::RBOXEmu::reset(uint32_t id)
 {
@@ -293,7 +293,7 @@ uint64_t RBOX::RBOXEmu::read_esr(uint32_t esr_id)
 uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
 {
     InPcktHeaderT header;
-    header.qw = pmemread64(packet);
+    header.qw = bemu::pmemread64(packet);
 
     uint32_t packet_size = 0;
 
@@ -307,7 +307,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    fully_covered_tile_pckt.qw[qw] = pmemread64(packet + qw * 8);
+                    fully_covered_tile_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, fully_covered_tile_pckt.qw[qw]);
                 }
 
@@ -332,7 +332,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    large_tri_tile_pckt.qw[qw] = pmemread64(packet + qw * 8);
+                    large_tri_tile_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, large_tri_tile_pckt.qw[qw]);
                 }
 
@@ -357,7 +357,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    tri_with_tile_64x64_pckt.qw[qw] = pmemread64(packet + qw * 8);
+                    tri_with_tile_64x64_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, tri_with_tile_64x64_pckt.qw[qw]);
                 }
 
@@ -396,7 +396,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    tri_with_tile_128x128_pckt.qw[qw] = pmemread64(packet + qw * 8);
+                    tri_with_tile_128x128_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, tri_with_tile_128x128_pckt.qw[qw]);
                 }
                 for (uint32_t eq = 0; eq < 3; eq++)
@@ -434,7 +434,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    large_tri_pckt.qw[qw] = pmemread64(packet + qw * 8);
+                    large_tri_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, large_tri_pckt.qw[qw]);
                 }
 
@@ -463,7 +463,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    rbox_state_pckt.qw[qw] = pmemread64(packet + qw * 8);
+                    rbox_state_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, rbox_state_pckt.qw[qw]);
                 }
                 rbox_state = rbox_state_pckt.state;
@@ -478,7 +478,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    frag_shader_state_pckt.qw[qw] = pmemread64(packet + qw * 8);
+                    frag_shader_state_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw,frag_shader_state_pckt.qw[qw]);
                 }
                 frag_shader_state = frag_shader_state_pckt.state;
@@ -658,7 +658,7 @@ bool RBOX::RBOXEmu::test_quad(QuadInfoT &quad)
         if (quad.fragment[f].coverage)
         {
             uint64_t frag_depth_stencil_address = compute_depth_stencil_buffer_address(x, y);
-            uint32_t frag_depth_stencil = pmemread32(frag_depth_stencil_address);
+            uint32_t frag_depth_stencil = bemu::pmemread32(frag_depth_stencil_address);
 
             uint8_t frag_stencil = frag_depth_stencil >> 24;
             uint32_t frag_depth = frag_depth_stencil & 0x00FFFFFF;
@@ -685,7 +685,7 @@ bool RBOX::RBOXEmu::test_quad(QuadInfoT &quad)
                     out_depth = frag_depth;
 
                 uint32_t out_depth_stencil = (out_stencil << 24) | out_depth;
-                pmemwrite32(frag_depth_stencil_address, out_depth_stencil);
+                bemu::pmemwrite32(frag_depth_stencil_address, out_depth_stencil);
             }
 
             quad.fragment[f].coverage = quad.fragment[f].coverage && depth_bound_test && stencil_test && depth_test;
@@ -1159,7 +1159,7 @@ void RBOX::RBOXEmu::send_packet(uint32_t minion_hart_id, uint64_t packet[4], uin
         for (uint32_t qw = 0; qw < 4; qw++)
         {
             LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, packet[qw], out_addr);
-            pmemwrite64(out_addr, packet[qw]);
+            bemu::pmemwrite64(out_addr, packet[qw]);
             out_addr = out_addr + 8;
         }
 
@@ -1206,7 +1206,7 @@ void RBOX::RBOXEmu::write_next_packet()
     for (uint32_t p = 0; p < 4; p++)
     {
         LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, output_packets[0].second, minion_hart_out_addr);
-        pmemwrite64(minion_hart_out_addr, output_packets[0].second);
+        bemu::pmemwrite64(minion_hart_out_addr, output_packets[0].second);
         output_packets.erase(output_packets.begin());
         minion_hart_out_addr += 8;
     }

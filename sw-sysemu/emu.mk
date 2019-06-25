@@ -37,7 +37,6 @@ emu_cpp_srcs := \
 	decode.cpp \
 	emu.cpp \
 	emu_gio.cpp \
-	emu_memop.cpp \
 	esrs.cpp \
 	gold.cpp \
 	insn_exec_func.cpp \

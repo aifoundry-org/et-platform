@@ -1,4 +1,4 @@
-/* -*- Mode:C++; c-basic-offset: 4; -*- */
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
 #include <algorithm>
 #include <array>
@@ -16,12 +16,13 @@
 #include "emu_casts.h"
 #include "emu_gio.h"
 #include "esrs.h"
-#include "memmap.h"
-#include "mmu.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
 #include "gold.h"
 #include "log.h"
+#include "memmap.h"
+#include "memop.h"
+#include "mmu.h"
 #include "processor.h"
 #include "rbox.h"
 #include "tbox_emu.h"
@@ -95,6 +96,11 @@ typedef struct
 
 // UART
 static std::ostringstream uart_stream[EMU_NUM_THREADS];
+
+// Memory state
+namespace bemu {
+MainMemory memory;
+}
 
 // Hart state
 std::array<Processor,EMU_NUM_THREADS>  cpu;
@@ -2079,7 +2085,7 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
     scp_trans[current_thread >> 1][set][way] = paddr;
     for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
     {
-        pmemwrite64(addr, 0);
+        bemu::pmemwrite64(addr, 0);
         uint64_t value = 0;
         LOG_MEMWRITE(64, addr, value);
     }
@@ -2119,7 +2125,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         // We just need to make sure we zero the cache line.
         for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
         {
-            pmemwrite64(addr, 0);
+            bemu::pmemwrite64(addr, 0);
             uint64_t value = 0;
             LOG_MEMWRITE(64, addr, value);
         }
@@ -2203,7 +2209,7 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     for (int i = 0; i < wr_words; i++)
     {
         LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
-        pmemwrite32(base_addr + 4 * i, data[i]);
+        bemu::pmemwrite32(base_addr + 4 * i, data[i]);
     }
 
     msg_ports[thread][id].size++;
@@ -2612,7 +2618,7 @@ void tensorload(uint64_t control)
                 uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxLoad);
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
-                    SCP[idx].u32[j] = pmemread32(paddr + j*4);
+                    SCP[idx].u32[j] = bemu::pmemread32(paddr + j*4);
                     LOG(DEBUG, "\tSCP[%d].u32[%d] = 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, idx, j, SCP[idx].u32[j], addr+j*4);
                 }
                 log_tensor_load_scp_write(i, &SCP[idx].u64[0]);
@@ -2639,7 +2645,7 @@ void tensorload(uint64_t control)
                     uint64_t paddr = vmemtranslate(vaddr, 16, Mem_Access_TxLoad);
                     for (int c = 0; c < 16; ++c)
                     {
-                        SCP[idx].u8[c*4 + r] = pmemread8(paddr + c);
+                        SCP[idx].u8[c*4 + r] = bemu::pmemread8(paddr + c);
                         LOG(DEBUG, "SCP[%d].u8[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]", idx, c*4+r, SCP[idx].u8[c*4+r], vaddr + c);
                     }
                 }
@@ -2665,7 +2671,7 @@ void tensorload(uint64_t control)
                     uint64_t paddr = vmemtranslate(vaddr, 32, Mem_Access_TxLoad);
                     for (int c = 0; c < 16; ++c)
                     {
-                        SCP[idx].u16[c*2 + r] = pmemread16(paddr + c*2);
+                        SCP[idx].u16[c*2 + r] = bemu::pmemread16(paddr + c*2);
                         LOG(DEBUG, "SCP[%d].u16[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
                             idx, c*2+r, SCP[idx].u16[c*4+r], vaddr + c*2);
                     }
@@ -2690,7 +2696,7 @@ void tensorload(uint64_t control)
             uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxLoad);
             for (int j = 0; j < L1D_LINE_SIZE; j++)
             {
-                uint8_t val = pmemread8(paddr + j);
+                uint8_t val = bemu::pmemread8(paddr + j);
                 tmp_buffer[elem][j] = val;
                 LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, addr+j, elem, j, val);
             }
@@ -2763,8 +2769,8 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxLoad);
             for (int j = 0; j < L1D_LINE_SIZE/4; j++)
             {
-                uint32_t val = pmemread32(paddr + j*4);
-                pmemwrite32(l2scp_addr + j*4, val);
+                uint32_t val = bemu::pmemread32(paddr + j*4);
+                bemu::pmemwrite32(l2scp_addr + j*4, val);
                 LOG(DEBUG, "\tTensorLoadL2SCP MEM32[0x%016" PRIx64 "] to PMEM32[0x%016" PRIx64 "] line %d, base 0x%016" PRIx64 " offset 0x%x <= 0x%08" PRIx32,
                     addr+j*4, l2scp_addr+j*4, dst+i, l2scp_addr, j*4, val);
             }
@@ -3108,7 +3114,7 @@ static void tensorstore(uint64_t tstorereg)
             {
                 uint32_t val = SCP[src].u32[i];
                 LOG(DEBUG, "\tSCP[%d].u32[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, addr + i*4);
-                pmemwrite32(paddr + i*4, val);
+                bemu::pmemwrite32(paddr + i*4, val);
                 //log_mem_write(0, 4, addr + i*4, val); => Don't log mem changes!
             }
             src = (src + srcinc) % L1_SCP_ENTRIES;
@@ -3168,7 +3174,7 @@ static void tensorstore(uint64_t tstorereg)
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u32[idx];
                     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
-                    pmemwrite32(paddr + i*4, val);
+                    bemu::pmemwrite32(paddr + i*4, val);
                     //log_mem_write(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
                 }
                 // For 128b stores, move to next desired register immediately.

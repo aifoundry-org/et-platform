@@ -7,9 +7,9 @@
 #include "emu_casts.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
-#include "emu_memop.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
+#include "memory/main_memory.h"
 #include "rbox.h"
 #include "tbox_emu.h"
 #include "testLog.h"
@@ -33,6 +33,9 @@ extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
 
 // Processor configuration
 extern uint32_t current_thread;
+namespace bemu {
+    extern MainMemory memory;
+}
 
 // Configure the emulation environment
 extern void init_emu(system_version_t);

@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "txs.h"
 #include "emu.h"
-#include "emu_memop.h"
-#include "tbox_emu.h"
-#include "rbox.h"
-#include "fpu/fpu.h"
-#include "emu_gio.h"
 #include "emu_casts.h"
+#include "emu_gio.h"
+#include "fpu/fpu.h"
+#include "memop.h"
+#include "rbox.h"
+#include "tbox_emu.h"
+#include "txs.h"
 
 static TBOX::TBOXEmu tbox_emulator;
 
@@ -75,7 +75,7 @@ void new_sample_request(uint32_t current_thread, uint32_t port_id, uint32_t numb
     /* Get data from port and send it to TBOX */
     for(unsigned i=0; i<number_packets*2; i++)
     {
-        val[i] = pmemread64(base_address);
+        val[i] = bemu::pmemread64(base_address);
         base_address+=8; // 8 bytes
     }    
     

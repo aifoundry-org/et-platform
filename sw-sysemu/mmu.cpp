@@ -8,11 +8,12 @@
 #include "emu_gio.h"
 #include "esrs.h"
 #include "log.h"
-#include "processor.h"
+#include "memmap.h"
+#include "memop.h"
 #include "mmu.h"
+#include "processor.h"
 #include "traps.h"
 #include "utility.h"
-#include "memmap.h"
 
 // FIXME: Replace with "processor.h"
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
@@ -87,6 +88,14 @@ static inline bool halt_on_breakpoint()
 }
 
 
+[[noreturn]] void throw_trap_breakpoint(uint64_t addr)
+{
+    if (halt_on_breakpoint())
+        throw std::runtime_error("Debug mode not supported yet!");
+    throw trap_breakpoint(addr);
+}
+
+
 static bool matches_breakpoint_address(uint64_t addr)
 {
   bool exact = ~cpu[current_thread].tdata1 & 0x80;
@@ -94,6 +103,13 @@ static bool matches_breakpoint_address(uint64_t addr)
   uint64_t msk = exact ? 0 : (((((~val & (val + 1)) - 1) & 0x3f) << 1) | 1);
   LOG(DEBUG, "addr %10lx = bkp %10lx ", (addr | msk), ((addr & VA_M) | msk));
   return ((val | msk) == ((addr & VA_M) | msk));
+}
+
+
+static inline void check_fetch_breakpoint(uint64_t addr)
+{
+    if (cpu[current_thread].break_on_fetch && matches_breakpoint_address(addr))
+        throw_trap_breakpoint(addr);
 }
 
 
@@ -303,20 +319,6 @@ static uint64_t pma_check_ptw_access(uint64_t vaddr, uint64_t addr,
 //
 //------------------------------------------------------------------------------
 
-__attribute__((noreturn)) void throw_trap_breakpoint(uint64_t addr)
-{
-    if (halt_on_breakpoint())
-        throw std::runtime_error("Debug mode not supported yet!");
-    throw trap_breakpoint(addr);
-}
-
-
-bool matches_fetch_breakpoint(uint64_t addr)
-{
-    return cpu[current_thread].break_on_fetch && matches_breakpoint_address(addr);
-}
-
-
 uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
 {
     // Read mstatus
@@ -393,7 +395,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
         uint64_t vpn = (vaddr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
         // Read PTE
         pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
-        pte = pmemread64(pma_check_ptw_access(vaddr, pte_addr, macc));
+        pte = bemu::pmemread64(pma_check_ptw_access(vaddr, pte_addr, macc));
         LOG(DEBUG, "\tPTW: %016" PRIx64 " <-- PMEM64[%016" PRIx64 "]", pte, pte_addr);
 
         // Read PTE fields
@@ -493,13 +495,41 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
 }
 
 
+uint32_t mmu_fetch(uint64_t vaddr)
+{
+    check_fetch_breakpoint(vaddr);
+    if (vaddr & 3) {
+        // 2B-aligned fetch
+        uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch);
+        uint16_t low = bemu::pmemread16(paddr);
+        if ((low & 3) != 3) {
+            LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64 ": 0x%04x", vaddr, low);
+            return low;
+        }
+        paddr = ((paddr & 4095) <= 4092)
+                ? (paddr + 2)
+                : vmemtranslate(vaddr + 2, 2, Mem_Access_Fetch);
+        uint16_t high = bemu::pmemread16(paddr);
+        uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
+        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
+        return bits;
+    }
+    // 4B-aligned fetch
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Fetch);
+    uint32_t bits = bemu::pmemread32(paddr);
+    LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
+    return bits;
+}
+
+
 uint8_t mmu_load8(uint64_t eaddr)
 {
     uint64_t vaddr = sextVA(eaddr);
     check_load_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, 1, Mem_Access_Load);
-    uint8_t value = pmemread8(paddr);
+    uint8_t value = bemu::pmemread8(paddr);
     LOG_MEMREAD(8, paddr, value);
+    log_mem_read(true, 1, vaddr, paddr);
     return value;
 }
 
@@ -509,8 +539,9 @@ uint16_t mmu_load16(uint64_t eaddr)
     uint64_t vaddr = sextVA(eaddr);
     check_load_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Load);
-    uint16_t value = pmemread16(paddr);
+    uint16_t value = bemu::pmemread16(paddr);
     LOG_MEMREAD(16, paddr, value);
+    log_mem_read(true, 2, vaddr, paddr);
     return value;
 }
 
@@ -523,8 +554,9 @@ uint16_t mmu_aligned_load16(uint64_t eaddr)
         throw trap_load_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Load);
-    uint16_t value = pmemread16(paddr);
+    uint16_t value = bemu::pmemread16(paddr);
     LOG_MEMREAD(16, paddr, value);
+    log_mem_read(true, 2, vaddr, paddr);
     return value;
 }
 
@@ -534,8 +566,9 @@ uint32_t mmu_load32(uint64_t eaddr)
     uint64_t vaddr = sextVA(eaddr);
     check_load_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Load);
-    uint32_t value = pmemread32(paddr);
+    uint32_t value = bemu::pmemread32(paddr);
     LOG_MEMREAD(32, paddr, value);
+    log_mem_read(true, 4, vaddr, paddr);
     return value;
 }
 
@@ -548,8 +581,9 @@ uint32_t mmu_aligned_load32(uint64_t eaddr)
         throw trap_load_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Load);
-    uint32_t value = pmemread32(paddr);
+    uint32_t value = bemu::pmemread32(paddr);
     LOG_MEMREAD(32, paddr, value);
+    log_mem_read(true, 4, vaddr, paddr);
     return value;
 }
 
@@ -559,8 +593,9 @@ uint64_t mmu_load64(uint64_t eaddr)
     uint64_t vaddr = sextVA(eaddr);
     check_load_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_Load);
-    uint64_t value = pmemread64(paddr);
+    uint64_t value = bemu::pmemread64(paddr);
     LOG_MEMREAD(64, paddr, value);
+    log_mem_read(true, 8, vaddr, paddr);
     return value;
 }
 
@@ -573,9 +608,10 @@ void mmu_loadVLEN(uint64_t eaddr, freg_t& data, mreg_t mask)
         uint64_t paddr = vmemtranslate(vaddr, VLEN/8, Mem_Access_Load);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
-                data.u32[e] = pmemread32(paddr + 4*e);
+                data.u32[e] = bemu::pmemread32(paddr + 4*e);
                 LOG_MEMREAD(32, paddr + 4*e, data.u32[e]);
             }
+            log_mem_read(mask[e], 4, vaddr + 4*e, paddr + 4*e);
         }
     }
 }
@@ -592,9 +628,10 @@ void mmu_aligned_loadVLEN(uint64_t eaddr, freg_t& data, mreg_t mask)
         uint64_t paddr = vmemtranslate(vaddr, VLEN/8, Mem_Access_Load);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
-                data.u32[e] = pmemread32(paddr + 4*e);
+                data.u32[e] = bemu::pmemread32(paddr + 4*e);
                 LOG_MEMREAD(32, paddr + 4*e, data.u32[e]);
             }
+            log_mem_read(mask[e], 4, vaddr + 4*e, paddr + 4*e);
         }
     }
 }
@@ -605,9 +642,9 @@ void mmu_store8(uint64_t eaddr, uint8_t data)
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, 1, Mem_Access_Store);
-    pmemwrite8(paddr, data);
+    bemu::pmemwrite8(paddr, data);
     LOG_MEMWRITE(8, paddr, data);
-    log_mem_write(true, 1, vaddr, data);
+    log_mem_write(true, 1, vaddr, paddr, data);
 }
 
 
@@ -616,9 +653,9 @@ void mmu_store16(uint64_t eaddr, uint16_t data)
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Store);
-    pmemwrite16(paddr, data);
+    bemu::pmemwrite16(paddr, data);
     LOG_MEMWRITE(16, paddr, data);
-    log_mem_write(true, 2, vaddr, data);
+    log_mem_write(true, 2, vaddr, paddr, data);
 }
 
 
@@ -630,9 +667,9 @@ void mmu_aligned_store16(uint64_t eaddr, uint16_t data)
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Store);
-    pmemwrite16(paddr, data);
+    bemu::pmemwrite16(paddr, data);
     LOG_MEMWRITE(16, paddr, data);
-    log_mem_write(true, 2, vaddr, data);
+    log_mem_write(true, 2, vaddr, paddr, data);
 }
 
 
@@ -641,9 +678,9 @@ void mmu_store32(uint64_t eaddr, uint32_t data)
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Store);
-    pmemwrite32(paddr, data);
+    bemu::pmemwrite32(paddr, data);
     LOG_MEMWRITE(32, paddr, data);
-    log_mem_write(true, 4, vaddr, data);
+    log_mem_write(true, 4, vaddr, paddr, data);
 }
 
 
@@ -655,9 +692,9 @@ void mmu_aligned_store32(uint64_t eaddr, uint32_t data)
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Store);
-    pmemwrite32(paddr, data);
+    bemu::pmemwrite32(paddr, data);
     LOG_MEMWRITE(32, paddr, data);
-    log_mem_write(true, 4, vaddr, data);
+    log_mem_write(true, 4, vaddr, paddr, data);
 }
 
 
@@ -666,9 +703,9 @@ void mmu_store64(uint64_t eaddr, uint64_t data)
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_Store);
-    pmemwrite64(paddr, data);
+    bemu::pmemwrite64(paddr, data);
     LOG_MEMWRITE(64, paddr, data);
-    log_mem_write(true, 8, vaddr, data);
+    log_mem_write(true, 8, vaddr, paddr, data);
 }
 
 
@@ -680,10 +717,10 @@ void mmu_storeVLEN(uint64_t eaddr, freg_t data, mreg_t mask)
         uint64_t paddr = vmemtranslate(vaddr, VLEN/8, Mem_Access_Store);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
-                pmemwrite32(paddr + 4*e, data.u32[e]);
+                bemu::pmemwrite32(paddr + 4*e, data.u32[e]);
                 LOG_MEMWRITE(32, paddr + 4*e, data.u32[e]);
             }
-            log_mem_write(mask[e], 4, vaddr + 4*e, data.u32[e]);
+            log_mem_write(mask[e], 4, vaddr + 4*e, paddr + 4*e, data.u32[e]);
         }
     }
 }
@@ -700,10 +737,10 @@ void mmu_aligned_storeVLEN(uint64_t eaddr, freg_t data, mreg_t mask)
         uint64_t paddr = vmemtranslate(vaddr, VLEN/8, Mem_Access_Store);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
-                pmemwrite32(paddr + 4*e, data.u32[e]);
+                bemu::pmemwrite32(paddr + 4*e, data.u32[e]);
                 LOG_MEMWRITE(32, paddr + 4*e, data.u32[e]);
             }
-            log_mem_write(mask[e], 4, vaddr + 4*e, data.u32[e]);
+            log_mem_write(mask[e], 4, vaddr + 4*e, paddr + 4*e, data.u32[e]);
         }
     }
 }
@@ -718,12 +755,12 @@ uint32_t mmu_global_atomic32(uint64_t eaddr, uint32_t data,
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG);
-    uint32_t oldval = pmemread32(paddr);
+    uint32_t oldval = bemu::pmemread32(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     uint32_t newval = fn(oldval, data);
-    pmemwrite32(paddr, newval);
+    bemu::pmemwrite32(paddr, newval);
     LOG_MEMWRITE(32, paddr, newval);
-    log_mem_write(true, 4, vaddr, data);
+    log_mem_read_write(true, 4, vaddr, paddr, data);
     return oldval;
 }
 
@@ -737,12 +774,12 @@ uint64_t mmu_global_atomic64(uint64_t eaddr, uint64_t data,
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicG);
-    uint64_t oldval = pmemread64(paddr);
+    uint64_t oldval = bemu::pmemread64(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     uint64_t newval = fn(oldval, data);
-    pmemwrite64(paddr, newval);
+    bemu::pmemwrite64(paddr, newval);
     LOG_MEMWRITE(64, paddr, newval);
-    log_mem_write(true, 8, vaddr, data);
+    log_mem_read_write(true, 8, vaddr, paddr, data);
     return oldval;
 }
 
@@ -756,12 +793,12 @@ uint32_t mmu_local_atomic32(uint64_t eaddr, uint32_t data,
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL);
-    uint32_t oldval = pmemread32(paddr);
+    uint32_t oldval = bemu::pmemread32(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     uint32_t newval = fn(oldval, data);
-    pmemwrite32(paddr, newval);
+    bemu::pmemwrite32(paddr, newval);
     LOG_MEMWRITE(32, paddr, newval);
-    log_mem_write(true, 4, vaddr, data);
+    log_mem_read_write(true, 4, vaddr, paddr, data);
     return oldval;
 }
 
@@ -775,12 +812,12 @@ uint64_t mmu_local_atomic64(uint64_t eaddr, uint64_t data,
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicL);
-    uint64_t oldval = pmemread64(paddr);
+    uint64_t oldval = bemu::pmemread64(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     uint64_t newval = fn(oldval, data);
-    pmemwrite64(paddr, newval);
+    bemu::pmemwrite64(paddr, newval);
     LOG_MEMWRITE(64, paddr, newval);
-    log_mem_write(true, 8, vaddr, data);
+    log_mem_read_write(true, 8, vaddr, paddr, data);
     return oldval;
 }
 
@@ -794,16 +831,14 @@ uint32_t mmu_global_compare_exchange32(uint64_t eaddr, uint32_t expected,
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG);
-    uint32_t oldval = pmemread32(paddr);
+    uint32_t oldval = bemu::pmemread32(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     if (oldval == expected) {
-        pmemwrite32(paddr, desired);
+        bemu::pmemwrite32(paddr, desired);
         LOG_MEMWRITE(32, paddr, desired);
 
     }
-    // call log_mem_write even if we don't end up writing into memory,
-    // because the minion will provide data to be written (if comparison is true) as a regular store
-    log_mem_write(true, 4, vaddr, desired);
+    log_mem_read_write(true, 4, vaddr, paddr, desired);
     return oldval;
 }
 
@@ -817,15 +852,13 @@ uint64_t mmu_global_compare_exchange64(uint64_t eaddr, uint64_t expected,
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicG);
-    uint64_t oldval = pmemread64(paddr);
+    uint64_t oldval = bemu::pmemread64(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     if (oldval == expected) {
-        pmemwrite64(paddr, desired);
+        bemu::pmemwrite64(paddr, desired);
         LOG_MEMWRITE(64, paddr, desired);
     }
-    // call log_mem_write even if we don't end up writing into memory,
-    // because the minion will provide data to be written (if comparison is true) as a regular store
-    log_mem_write(true, 8, vaddr, desired);
+    log_mem_read_write(true, 8, vaddr, paddr, desired);
     return oldval;
 }
 
@@ -839,15 +872,13 @@ uint32_t mmu_local_compare_exchange32(uint64_t eaddr, uint32_t expected,
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL);
-    uint32_t oldval = pmemread32(paddr);
+    uint32_t oldval = bemu::pmemread32(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     if (oldval == expected) {
-        pmemwrite32(paddr, desired);
+        bemu::pmemwrite32(paddr, desired);
         LOG_MEMWRITE(32, paddr, desired);
     }
-    // call log_mem_write even if we don't end up writing into memory,
-    // because the minion will provide data to be written (if comparison is true) as a regular store
-    log_mem_write(true, 4, vaddr, desired);
+    log_mem_read_write(true, 4, vaddr, paddr, desired);
     return oldval;
 }
 
@@ -861,16 +892,13 @@ uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicL);
-    uint64_t oldval = pmemread64(paddr);
+    uint64_t oldval = bemu::pmemread64(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     if (oldval == expected) {
-        pmemwrite64(paddr, desired);
+        bemu::pmemwrite64(paddr, desired);
         LOG_MEMWRITE(64, paddr, desired);
     }
-    // call log_mem_write even if we don't end up writing into memory,
-    // because the minion will provide data to be written (if comparison is true) as a regular store
-    log_mem_write(true, 8, vaddr, desired);
-
+    log_mem_read_write(true, 8, vaddr, paddr, desired);
     return oldval;
 }
 
