@@ -12,6 +12,7 @@
 
 #include "Core/CommandLineOptions.h"
 #include "Core/DeviceTarget.h"
+#include "Core/ELFSupport.h"
 #include "DeviceFW.h"
 #include "FakeFW.h"
 #include "Support/Logging.h"
@@ -47,7 +48,7 @@ static bool validateFWType(const char *flagname, const string &value) {
 }
 
 DEFINE_string(
-    fw_type, "",
+    fw_type, "fake-fw",
     "Specify the type of FW to load on the target: device-fw, fake-fw");
 DEFINE_validator(fw_type, validateFWType);
 
@@ -67,7 +68,6 @@ std::unique_ptr<Firmware> Firmware::allocateFirmware(std::string type) {
   return nullptr;
 }
 
-FWManager::FWManager(const std::string &type)
-    : firmware_(Firmware::allocateFirmware(type)) {}
+FWManager::FWManager() : firmware_(Firmware::allocateFirmware(FLAGS_fw_type)) {}
 
 } // namespace et_runtime

@@ -31,15 +31,23 @@ public:
   virtual bool loadELF(std::vector<char> &data);
 
   const std::string &name() const { return name_; }
+  const std::vector<char> &data() const { return data_; }
   size_t elfSize() { return elf_size_; }
 
+  /// @Brief return the address where we are expected to load the ELF
+  ///
+  /// Currently we are expecting to have a signle segment per ELF file, return
+  /// the physical address of that segment
+  size_t loadAddr();
+
 protected:
-  std::vector<uint8_t> data_; // ELF raw data
-  size_t elf_size_ = 0; // Size of the ELF as computed by the different sections
-  size_t offset_ =
-      0; // Kernel entry point offset inside the ELF, if it present.
-  const std::string name_; // Kernel device name, exists for any valid hostFun.
-  ELFIO::elfio reader_;
+  std::vector<char> data_; ///< ELF raw data
+  std::string path_;       ///< Path to the ELF
+  size_t elf_size_ =
+      0; ///< Size of the ELF as computed by the different sections
+  const std::string
+      name_;            ///< Kernel device name, exists for any valid hostFun.
+  ELFIO::elfio reader_; ///< elfio object that holds the parsed ELF information
 };
 
 /// @brief Clas that hold the information of the Kernel ELF file

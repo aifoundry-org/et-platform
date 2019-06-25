@@ -25,6 +25,7 @@ namespace et_runtime {
 ELFInfo::ELFInfo(const std::string &n) : name_(n), reader_() {}
 
 bool ELFInfo::loadELF(const std::string &path) {
+  path_ = path;
   std::ifstream stream;
   stream.open(path.c_str(), std::ios::in | std::ios::binary);
   if (!stream) {
@@ -34,6 +35,14 @@ bool ELFInfo::loadELF(const std::string &path) {
 }
 
 bool ELFInfo::loadELF(std::istream &stream) {
+
+  // Read the data in a file
+  auto stream_it = std::istream_iterator<char>(stream);
+  data_.insert(data_.begin(), stream_it, std::istream_iterator<char>());
+
+  // Rewind the stream clear the EOF error before calling seekg
+  stream.clear();
+  stream.seekg(0, stream.beg);
 
   if (!reader_.load(stream)) {
     THROW("Could not load an ELF file.");
@@ -56,6 +65,9 @@ bool ELFInfo::loadELF(std::istream &stream) {
   THROW_IF(reader_.get_class() != ELFCLASS64,
            "Kernels ELF class is not ELFCLASS64.");
 
+  THROW_IF(reader_.segments.size() > 1,
+           "Currently we support elf files that have a single segment");
+
   /*
    * Compute Elf File Size by formula: e_shoff + ( e_shentsize * e_shnum )
    * This assumes that the section header table (SHT) is the last part of the
@@ -64,7 +76,7 @@ bool ELFInfo::loadELF(std::istream &stream) {
    */
   size_t elf_size_ = reader_.get_sections_offset() +
                      reader_.get_section_entry_size() * reader_.sections.size();
-  RTINFO << "Esperanto kernels ELF file size = " << elf_size_ << "\n";
+  RTINFO << "Esperanto ELF file size = " << elf_size_ << "\n";
 
   return true;
 }
@@ -94,9 +106,14 @@ public:
 };
 
 bool ELFInfo::loadELF(std::vector<char> &data) {
+  data_ = data;
   vectorwrapbuf databuf(data);
   std::istream is(&databuf);
   return loadELF(is);
+}
+
+size_t ELFInfo::loadAddr() {
+  return reader_.segments[0]->get_physical_address();
 }
 
 //------------------------------------------------------------------------------
