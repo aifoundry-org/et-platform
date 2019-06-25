@@ -78,7 +78,7 @@ public:
     sys_emu() = default;
     virtual ~sys_emu() = default;
 
-    void init_simulator(const sys_emu_cmd_options& cmd_options);
+    bool init_simulator(const sys_emu_cmd_options& cmd_options);
 
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
