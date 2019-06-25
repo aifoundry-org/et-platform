@@ -145,6 +145,7 @@
 #define ESR_TEXTURE_STATUS          0x0100108008ULL /* PP = 0b00 */
 #define ESR_TEXTURE_IMAGE_TABLE_PTR 0x0100108010ULL /* PP = 0b00 */
 
+
 // shire_cache ESR addresses
 #define ESR_CACHE_U0                      0x0100300000ULL /* PP = 0b00 */
 #define ESR_CACHE_S0                      0x0140300000ULL /* PP = 0b01 */
@@ -293,13 +294,11 @@
 // Neighborhood ESRs
 
 struct neigh_esrs_t {
-    uint64_t icache_err_log_address;
     uint64_t icache_err_log_info;
     uint64_t ipi_redirect_pc;
     uint64_t minion_boot;
     uint64_t texture_image_table_ptr;
     uint32_t dummy0;
-    uint32_t dummy1;
     uint16_t icache_sbe_dbe_counts;
     uint16_t texture_control;
     uint16_t texture_status;
@@ -322,7 +321,6 @@ extern neigh_esrs_t neigh_esrs[EMU_NUM_NEIGHS];
 
 struct shire_cache_esrs_t {
     struct {
-        uint64_t sc_err_log_address;
         uint64_t sc_err_log_info;
         //uint64_t sc_idx_cop_sm_ctl;
         uint64_t sc_idx_cop_sm_data0;

@@ -145,12 +145,24 @@ static bool parse_mem_file(const char * filename)
         else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
             LOG_NOTHREAD(INFO, "New File Load found: @ 0x%" PRIx64, base_addr);
-            bemu::load_raw(memory, str, base_addr);
+            try {
+                bemu::load_raw(memory, str, base_addr);
+            } catch (...) {
+                LOG_NOTHREAD(ERR, "Error loading file \"%s\"", str);
+                fclose(file);
+                return false;
+            }
         }
         else if(sscanf(buffer, "ELF Load: %s", str) == 1)
         {
             LOG_NOTHREAD(INFO, "New ELF Load found: %s", str);
-            bemu::load_elf(memory, str);
+            try {
+                bemu::load_elf(memory, str);
+            } catch (...) {
+                LOG_NOTHREAD(ERR, "Error loading ELF \"%s\"", str);
+                fclose(file);
+                return false;
+            }
         }
     }
     // Closes the file
@@ -719,7 +731,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
 /// to overwrite specific parts of the initialization in subclasses
 ////////////////////////////////////////////////////////////////////////////////
 
-void
+bool
 sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 {
     if ((cmd_options.elf_file == NULL) && (cmd_options.mem_desc_file == NULL)
@@ -768,10 +780,16 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 
     // Parses the memory description
     if (cmd_options.elf_file != NULL) {
-        bemu::load_elf(memory, cmd_options.elf_file);
+        try {
+            bemu::load_elf(memory, cmd_options.elf_file);
+        } catch (...) {
+            LOG_NOTHREAD(ERR, "Error loading ELF \"%s\"", cmd_options.elf_file);
+            return false;
+        }
     }
     if (cmd_options.mem_desc_file != NULL) {
-       parse_mem_file(cmd_options.mem_desc_file);
+        if (!parse_mem_file(cmd_options.mem_desc_file))
+            return false;
     }
 
     // Initialize network
@@ -835,6 +853,8 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
             }
         }
     }
+
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -852,7 +872,8 @@ sys_emu::main_internal(int argc, char * argv[])
         return 0;
     }
 
-    init_simulator(cmd_options);
+    if (!init_simulator(cmd_options))
+        return EXIT_FAILURE;
 
 #ifdef SYSEMU_PROFILING
     profiling_init();
