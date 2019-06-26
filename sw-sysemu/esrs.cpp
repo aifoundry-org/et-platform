@@ -219,13 +219,13 @@ uint64_t esr_read(uint64_t addr)
         case ESR_DUMMY0:
             return neigh_esrs[pos].dummy0;
         case ESR_DUMMY1:
-            return neigh_esrs[pos].dummy1;
+            return 0;
         case ESR_MINION_BOOT:
             return neigh_esrs[pos].minion_boot;
         case ESR_DUMMY2:
             return neigh_esrs[pos].dummy2;
         case ESR_DUMMY3:
-            return neigh_esrs[pos].dummy3;
+            return 0;
         case ESR_VMSPAGESIZE:
             return neigh_esrs[pos].vmspagesize;
         case ESR_IPI_REDIRECT_PC:
@@ -239,7 +239,7 @@ uint64_t esr_read(uint64_t addr)
         case ESR_ICACHE_ERR_LOG_INFO:
             return neigh_esrs[pos].icache_err_log_info;
         case ESR_ICACHE_ERR_LOG_ADDRESS:
-            return neigh_esrs[pos].icache_err_log_address;
+            return 0;
         case ESR_ICACHE_SBE_DBE_COUNTS:
             return neigh_esrs[pos].icache_sbe_dbe_counts;
         case ESR_TEXTURE_CONTROL:
@@ -290,19 +290,16 @@ uint64_t esr_read(uint64_t addr)
         case ESR_SC_ERR_LOG_INFO:
             return shire_cache_esrs[shire].bank[bnk].sc_err_log_info;
         case ESR_SC_ERR_LOG_ADDRESS:
-            return shire_cache_esrs[shire].bank[bnk].sc_err_log_address;
+            return 0;
         case ESR_SC_SBE_DBE_COUNTS:
             return shire_cache_esrs[shire].bank[bnk].sc_sbe_dbe_counts;
         case ESR_SC_REQQ_DEBUG_CTL:
             return shire_cache_esrs[shire].bank[bnk].sc_reqq_debug_ctl;
         case ESR_SC_REQQ_DEBUG0:
-            return shire_cache_esrs[shire].bank[bnk].sc_reqq_debug0;
         case ESR_SC_REQQ_DEBUG1:
-            return shire_cache_esrs[shire].bank[bnk].sc_reqq_debug1;
         case ESR_SC_REQQ_DEBUG2:
-            return shire_cache_esrs[shire].bank[bnk].sc_reqq_debug2;
         case ESR_SC_REQQ_DEBUG3:
-            return shire_cache_esrs[shire].bank[bnk].sc_reqq_debug3;
+            return 0;
         case ESR_SC_IDX_COP_SM_CTL:
             return 4ull << 24; // idx_cop_sm_state = IDLE
         }
@@ -538,17 +535,11 @@ void esr_write(uint64_t addr, uint64_t value)
             case ESR_DUMMY0:
                 neigh_esrs[pos].dummy0 = uint32_t(value & 0xffffffff);
                 break;
-            case ESR_DUMMY1:
-                neigh_esrs[pos].dummy1 = uint32_t(value & 0xffffffff);
-                break;
             case ESR_MINION_BOOT:
                 neigh_esrs[pos].minion_boot = value & VA_M;
                 break;
             case ESR_DUMMY2:
                 neigh_esrs[pos].dummy2 = bool(value & 1);
-                break;
-            case ESR_DUMMY3:
-                neigh_esrs[pos].dummy3 = bool(value & 1);
                 break;
             case ESR_VMSPAGESIZE:
                 neigh_esrs[pos].vmspagesize = value & 0x3;
@@ -568,17 +559,11 @@ void esr_write(uint64_t addr, uint64_t value)
             case ESR_ICACHE_ERR_LOG_INFO:
                 neigh_esrs[pos].icache_err_log_info = value & 0x0010ff000003ffffull;
                 break;
-            case ESR_ICACHE_ERR_LOG_ADDRESS:
-                neigh_esrs[pos].icache_err_log_address = value & 0xffffffffc0ull;
-                break;
             case ESR_ICACHE_SBE_DBE_COUNTS:
                 neigh_esrs[pos].icache_sbe_dbe_counts = uint16_t(value & 0x7ff);
                 break;
             case ESR_TEXTURE_CONTROL:
                 neigh_esrs[pos].texture_control = uint16_t(value & 0xff80);
-                break;
-            case ESR_TEXTURE_STATUS:
-                neigh_esrs[pos].texture_status = uint16_t(value & 0xffe0);
                 break;
             case ESR_MPROT:
                 neigh_esrs[pos].mprot = uint8_t(value & 0x7);
@@ -604,7 +589,7 @@ void esr_write(uint64_t addr, uint64_t value)
         unsigned bnk = (addr2 & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
         unsigned frst = bnk;
         unsigned last = frst + 1;
-        if ((bnk << ESR_REGION_PROT_SHIFT) == ESR_REGION_BANK_MASK) {
+        if (bnk == (ESR_REGION_BANK_MASK >> ESR_REGION_BANK_SHIFT)) {
             frst = 0;
             last = frst + 4;
         } else if (bnk >= 4) {
@@ -652,26 +637,11 @@ void esr_write(uint64_t addr, uint64_t value)
             case ESR_SC_ERR_LOG_INFO:
                 shire_cache_esrs[shire].bank[b].sc_err_log_info = value;
                 break;
-            case ESR_SC_ERR_LOG_ADDRESS:
-                shire_cache_esrs[shire].bank[b].sc_err_log_address = value;
-                break;
             case ESR_SC_SBE_DBE_COUNTS:
                 shire_cache_esrs[shire].bank[b].sc_sbe_dbe_counts = value;
                 break;
             case ESR_SC_REQQ_DEBUG_CTL:
                 shire_cache_esrs[shire].bank[b].sc_reqq_debug_ctl = value;
-                break;
-            case ESR_SC_REQQ_DEBUG0:
-                shire_cache_esrs[shire].bank[b].sc_reqq_debug0 = value;
-                break;
-            case ESR_SC_REQQ_DEBUG1:
-                shire_cache_esrs[shire].bank[b].sc_reqq_debug1 = value;
-                break;
-            case ESR_SC_REQQ_DEBUG2:
-                shire_cache_esrs[shire].bank[b].sc_reqq_debug2 = value;
-                break;
-            case ESR_SC_REQQ_DEBUG3:
-                shire_cache_esrs[shire].bank[b].sc_reqq_debug3 = value;
                 break;
             default:
                 LOG(WARN, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
@@ -695,7 +665,6 @@ void esr_write(uint64_t addr, uint64_t value)
         case ESR_RBOX_OUT_BUF_CFG:
         case ESR_RBOX_START:
         case ESR_RBOX_CONSUME:
-        case ESR_RBOX_STATUS:
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         }
