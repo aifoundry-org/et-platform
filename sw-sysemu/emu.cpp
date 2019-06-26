@@ -1213,7 +1213,7 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_MSTATUS:
         // Preserve sd, sxl, uxl, xs
         // Write all others (except upie=0, uie=0)
-        val = (val & 0x00000000007E79AAULL) | (cpu[current_thread].mstatus & 0x8000000F00018000ULL);
+        val = (val & 0x00000000007E79AAULL) | (cpu[current_thread].mstatus & 0x0000000F00018000ULL);
         // Set sd if fs==3 or xs==3
         if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
         {
