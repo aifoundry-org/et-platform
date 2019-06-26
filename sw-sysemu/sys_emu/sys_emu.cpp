@@ -1092,7 +1092,6 @@ sys_emu::main_internal(int argc, char * argv[])
 
     if (emu_cycle == cmd_options.max_cycles)
     {
-       LOG(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
        // Dumps awaken threads
        LOG_NOTHREAD(INFO, "%s", "Dumping awaken threads:");
        auto thread = enabled_threads.begin();
