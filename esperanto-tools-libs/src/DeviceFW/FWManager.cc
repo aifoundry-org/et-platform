@@ -11,6 +11,7 @@
 #include "FWManager.h"
 
 #include "Core/CommandLineOptions.h"
+#include "Core/DeviceTarget.h"
 #include "DeviceFW.h"
 #include "FakeFW.h"
 #include "Support/Logging.h"

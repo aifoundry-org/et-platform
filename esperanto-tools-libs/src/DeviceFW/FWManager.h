@@ -23,6 +23,7 @@ namespace et_runtime {
 
 namespace device {
 class DeviceTarget;
+struct MemoryRegionConf;
 }
 
 /// @brief Toplevel abstract class that defines the interface for the different
@@ -43,6 +44,8 @@ public:
 
   virtual bool setFWFilePaths(const std::vector<std::string> &paths) = 0;
   virtual bool readFW() = 0;
+  virtual std::vector<device::MemoryRegionConf>
+  memoryRegionConfigurations() = 0;
   virtual etrtError loadOnDevice(device::DeviceTarget *dev) = 0;
 
   static std::unique_ptr<Firmware> allocateFirmware(std::string type);

@@ -501,6 +501,11 @@ enum etrtError {
   etrtErrorRuntime = 83,
 
   /**
+   * This error indicates that we encountered an error during device configuration
+   */
+  etrtErrorDeviceConfig,
+
+  /**
    * This indicates that the ELF data has already been read
    */
   etrtErrorModuleELFDataExists,

@@ -41,44 +41,10 @@ void EtActionEvent::observerWait() {
 
 void EtActionConfigure::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
-  target_device.defineDevMem(LAUNCH_PARAMS_AREA_BASE, LAUNCH_PARAMS_AREA_SIZE,
-                             false);
-
-  target_device.defineDevMem(BLOCK_SHARED_REGION,
-                             BLOCK_SHARED_REGION_TOTAL_SIZE, false);
-
-  target_device.defineDevMem(STACK_REGION, STACK_REGION_TOTAL_SIZE << 3, false);
-
-  target_device.defineDevMem(0x8000100000, 0x100000, false);
-  target_device.defineDevMem(0x8000300000, 0x108000, false);
-  target_device.defineDevMem(0x8000408000, 0x108000, false);
-  target_device.defineDevMem(0x8200000000, 64, false);
-  target_device.defineDevMem(0x8000600000, 64, false);
-
-  auto status = device->loadFirmwareOnDevice();
+  auto status = device->configureDevMemRegions();
   assert(status == etrtSuccess);
-// FIXME deprecate the following eventually
-#if 1
-
-  static const long ETSOC_init  = 0x000000810000600c;
-  static const long ETSOC_mtrap = 0x0000008100007000;
-
-  {
-    struct BootromInitDescr_t {
-      uint64_t init_pc;
-      uint64_t trap_pc;
-    } descr;
-
-    descr.init_pc = ETSOC_init;
-    descr.trap_pc = ETSOC_mtrap;
-
-    target_device.writeDevMem(LAUNCH_PARAMS_AREA_BASE, sizeof(descr), &descr);
-  }
-
-  target_device.boot(ETSOC_init, ETSOC_mtrap);
-#else
-  target_device.boot(0, 0);
-#endif
+  status = device->loadFirmwareOnDevice();
+  assert(status == etrtSuccess);
 
   target_device.defineDevMem((uintptr_t)devMemRegionPtr, devMemRegionSize,
                              false);

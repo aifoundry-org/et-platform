@@ -96,6 +96,18 @@ void Device::deviceExecute() {
 
 }
 
+etrtError Device::configureDevMemRegions() {
+  auto mem_regions = fw_manager_->firmware().memoryRegionConfigurations();
+  for (auto& mem_region : mem_regions) {
+    if (! target_device_->defineDevMem(mem_region.start_addr, mem_region.size,
+                                      mem_region.is_exec))
+    {
+      return etrtErrorDeviceConfig;
+    }
+  }
+  return etrtSuccess;
+}
+
 etrtError Device::loadFirmwareOnDevice() {
   return fw_manager_->firmware().loadOnDevice(target_device_.get());
 }

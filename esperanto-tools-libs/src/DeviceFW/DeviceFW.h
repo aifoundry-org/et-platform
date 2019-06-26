@@ -34,6 +34,10 @@ public:
     abort();
     return etrtSuccess;
   };
+  std::vector<device::MemoryRegionConf> memoryRegionConfigurations() override {
+    abort();
+    return {};
+  };
 };
 } // namespace device_fw
 } // namespace et_runtime

@@ -24,6 +24,14 @@ class CardProxy;
 namespace et_runtime {
 namespace device {
 
+/// @brief Struct holding the information for configuring a memory region in the
+/// target device
+struct MemoryRegionConf {
+  uintptr_t start_addr = 0;
+  size_t size = 0;
+  bool is_exec = false;
+};
+
 /// @brief Abtract class describing the interface to talk to different targets
 ///
 /// The runtime can talk to a number of underlying device targers beyond the

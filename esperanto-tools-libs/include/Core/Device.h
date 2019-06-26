@@ -188,6 +188,9 @@ public:
 
   void deviceExecute();
 
+  ///@ brief Configure device memory regions
+  etrtError configureDevMemRegions();
+
   /// @brief load the DeviceFW on the target device
   etrtError loadFirmwareOnDevice();
 
