@@ -4037,9 +4037,9 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void raise_interrupt(int thread, int cause)
+void raise_interrupt(int thread, int cause, uint64_t mip_reg)
 {
-    if (cause == 9)
+    if (cause == 9 && !(mip_reg & 0x200))
     {
         ext_seip[thread] |= 1<<cause;
     }
