@@ -12,16 +12,17 @@
 #define ET_RUNTIME_STREAM_H
 
 #include "Support/ErrorOr.h"
-#include "etrt-bin.h"
 
 #include <chrono>
 #include <memory>
+#include <queue>
 
 namespace et_runtime {
 
+class EtAction;
+class AbstractMemoryPtr;
 class Event;
 class Kernel;
-class AbstractMemoryPtr;
 
 ///
 /// @brief Class holding the information for a Stream
@@ -51,7 +52,13 @@ class AbstractMemoryPtr;
 /// semantics of CUDA (as opposed to CUDA's Legacy Stream semantics).
 class Stream {
 public:
-  Stream() = default;
+  Stream(bool is_blocking) : is_blocking_(is_blocking) { init(); }
+
+  ///
+  /// @brief initalize the stream
+  void init();
+
+  ~Stream() { assert(actions_.empty()); }
 
   ///
   /// @brief  Block until all of a Stream's operations have completed.
@@ -181,6 +188,20 @@ public:
 
   /// @brief Create a kernel that is going to be lauched as part of the
   ErrorOr<Kernel> createKernel();
+
+  bool isBlocking() { return is_blocking_; }
+  /// @brief Add a command to execute in the command Queue.
+  void addCommand(et_runtime::EtAction *action);
+  /// @brief Return True iff the command queue is empty
+  bool noCommands() const { return actions_.empty(); }
+  /// @brief Return pointer to the command in the front of the queue
+  et_runtime::EtAction *frontCommand() { return actions_.front(); }
+  /// @brief Remove front command
+  void popCommand() { actions_.pop(); }
+
+private:
+  bool is_blocking_;
+  std::queue<et_runtime::EtAction *> actions_;
 };
 } // namespace et_runtime
 

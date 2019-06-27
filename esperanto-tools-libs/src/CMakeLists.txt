@@ -55,9 +55,9 @@ set(ETRT_SOURCES
     Core/ModuleManager.cc
     Core/Device.cc
     Core/ELFSupport.cc
-    Core/et_stream.cc
     Core/et_event.cc
     Core/registry.cc
+    Core/Stream.cc
     Device/DeviceTarget.cc
     Device/PCIeDevice.cc
     Device/SysEmuLauncher.cpp

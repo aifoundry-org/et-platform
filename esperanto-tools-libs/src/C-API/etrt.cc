@@ -1,5 +1,6 @@
 #include "C-API/etrt.h"
 #include "Core/Commands.h"
+#include "Core/Stream.h"
 #include "EsperantoRuntime.h"
 #include "Support/DeviceGuard.h"
 #include "Support/HelperMacros.h"
@@ -84,36 +85,34 @@ EXAPI etrtError_t etrtPointerGetAttributes(
   return dev->pointerGetAttributes(attributes, ptr);
 }
 
-EXAPI etrtError_t etrtStreamCreateWithFlags(etrtStream_t *pStream,
+EXAPI etrtError_t etrtStreamCreateWithFlags(Stream **pStream,
                                             unsigned int flags) {
   assert((flags & ~(etrtStreamDefault | etrtStreamNonBlocking)) == 0);
 
   GetDev dev;
 
-  EtStream *new_stream =
-      dev->createStream((flags & etrtStreamNonBlocking) == 0);
-  *pStream = reinterpret_cast<etrtStream_t>(new_stream);
+  Stream *new_stream = dev->createStream((flags & etrtStreamNonBlocking) == 0);
+  *pStream = reinterpret_cast<Stream *>(new_stream);
   return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtStreamCreate(etrtStream_t *pStream) {
+EXAPI etrtError_t etrtStreamCreate(Stream **pStream) {
   return etrtStreamCreateWithFlags(pStream, etrtHostAllocDefault);
 }
 
-EXAPI etrtError_t etrtStreamDestroy(etrtStream_t stream) {
+EXAPI etrtError_t etrtStreamDestroy(Stream *stream) {
   GetDev dev;
 
-  EtStream *et_stream = dev->getStream(stream);
+  Stream *et_stream = dev->getStream(stream);
   dev->destroyStream(et_stream);
   return etrtSuccess;
 }
 
 EXAPI etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
-                                  enum etrtMemcpyKind kind,
-                                  etrtStream_t stream) {
-    GetDev dev;
+                                  enum etrtMemcpyKind kind, Stream *stream) {
+  GetDev dev;
 
-    return dev->memcpyAsync(dst, src, count, kind, stream);
+  return dev->memcpyAsync(dst, src, count, kind, stream);
 }
 
 EXAPI etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
@@ -129,7 +128,7 @@ EXAPI etrtError_t etrtMemset(void *devPtr, int value, size_t count) {
   return dev->memset(devPtr, value, count);
 }
 
-EXAPI etrtError_t etrtStreamSynchronize(etrtStream_t stream) {
+EXAPI etrtError_t etrtStreamSynchronize(Stream *stream) {
   GetDev dev;
   return dev->streamSynchronize(stream);
 }
@@ -166,10 +165,10 @@ EXAPI etrtError_t etrtEventQuery(etrtEvent_t event) {
   return actionEvent->isExecuted() ? etrtSuccess : etrtErrorNotReady;
 }
 
-EXAPI etrtError_t etrtEventRecord(etrtEvent_t event, etrtStream_t stream) {
+EXAPI etrtError_t etrtEventRecord(etrtEvent_t event, Stream *stream) {
   GetDev dev;
 
-  EtStream *et_stream = dev->getStream(stream);
+  Stream *et_stream = dev->getStream(stream);
   EtEvent *et_event = dev->getEvent(event);
   EtActionEvent *actionEvent = new EtActionEvent();
   et_event->resetAction(actionEvent);
@@ -177,14 +176,14 @@ EXAPI etrtError_t etrtEventRecord(etrtEvent_t event, etrtStream_t stream) {
   return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtStreamWaitEvent(etrtStream_t stream, etrtEvent_t event,
+EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, etrtEvent_t event,
                                       unsigned int flags) {
   // Must be zero by current API.
   assert(flags == 0);
 
   GetDev dev;
 
-  EtStream *et_stream = dev->getStream(stream);
+  Stream *et_stream = dev->getStream(stream);
   EtEvent *et_event = dev->getEvent(event);
   EtActionEvent *actionEvent = et_event->getAction();
   if (actionEvent != nullptr) {
@@ -224,13 +223,13 @@ EXAPI etrtError_t etrtEventDestroy(etrtEvent_t event) {
 }
 
 EXAPI etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim,
-                                    size_t sharedMem, etrtStream_t stream) {
+                                    size_t sharedMem, Stream *stream) {
   assert(sharedMem < 100 * 1024); // 100КВ; actually we allocate
                                   // BLOCK_SHARED_REGION_TOTAL_SIZE - 64B
 
   GetDev dev;
 
-  EtStream *et_stream = dev->getStream(stream);
+  Stream *et_stream = dev->getStream(stream);
 
   EtLaunchConf launch_conf;
   launch_conf.gridDim = gridDim;
@@ -275,7 +274,7 @@ EXAPI etrtError_t etrtModuleUnload(et_runtime::ModuleID mid) {
 
 EXAPI etrtError_t etrtRawLaunch(et_runtime::ModuleID mid,
                                 const char *kernel_name, const void *args,
-                                size_t args_size, etrtStream_t stream) {
+                                size_t args_size, Stream *stream) {
   GetDev dev;
   return dev->rawLaunch(mid, kernel_name, args, args_size, stream);
 }

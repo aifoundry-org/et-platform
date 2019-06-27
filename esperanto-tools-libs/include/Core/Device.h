@@ -22,25 +22,24 @@
 
 // FIXME the following should be removed
 #include "et_event.h"
-#include "et_stream.h"
 
 #include <memory>
 #include <thread>
 
 // Fixme this class shold be removed.
-class EtStream;
 class EtEvent;
 class GetDev;
 
 namespace et_runtime {
 
-class ModuleManager;
+class AbstractMemoryPtr;
+class DeviceMemoryPtr;
+class EtAction;
 class Firmware;
 class FWManager;
-class Stream;
-class AbstractMemoryPtr;
 class HostMemoryPtr;
-class DeviceMemoryPtr;
+class ModuleManager;
+class Stream;
 
 // Loaded to device kernels ELF binary descriptor.
 struct EtLoadedKernelsBin {
@@ -222,83 +221,48 @@ public:
     return mem_manager_->isPtrInDevRegion(ptr);
   }
 
-  EtStream *defaultStream() const { return defaultStream_; }
-  EtStream *getStream(etrtStream_t stream) {
-    EtStream *et_stream = reinterpret_cast<EtStream *>(stream);
-    if (et_stream == nullptr) {
-      return defaultStream_;
-    }
-    assert(stl_count(stream_storage_, et_stream));
-    return et_stream;
-  }
+  Stream *defaultStream() const;
+  Stream *getStream(Stream *stream);
 
-  EtStream *defaultStream() { return defaultStream_; }
+  Stream *defaultStream();
 
-  EtEvent *getEvent(etrtEvent_t event) {
-    EtEvent *et_event = reinterpret_cast<EtEvent *>(event);
-    assert(stl_count(event_storage_, et_event));
-    return et_event;
-  }
+  EtEvent *getEvent(etrtEvent_t event);
 
   et_runtime::Module *getModule(et_runtime::ModuleID mid);
 
-  EtStream *createStream(bool is_blocking) {
-    EtStream *new_stream = new EtStream(is_blocking);
-    stream_storage_.emplace_back(new_stream);
-    return new_stream;
-  }
-  void destroyStream(EtStream *et_stream) {
-    assert(stl_count(stream_storage_, et_stream) == 1);
-    stl_remove(stream_storage_, et_stream);
-  }
-  EtEvent *createEvent(bool disable_timing, bool blocking_sync) {
-    EtEvent *new_event = new EtEvent(disable_timing, blocking_sync);
-    event_storage_.emplace_back(new_event);
-    return new_event;
-  }
-  etrtError_t streamSynchronize(etrtStream_t stream);
-  void destroyEvent(EtEvent *et_event) {
-    assert(stl_count(event_storage_, et_event) == 1);
-    stl_remove(event_storage_, et_event);
-  }
+  Stream *createStream(bool is_blocking);
+  void destroyStream(Stream *et_stream);
+  EtEvent *createEvent(bool disable_timing, bool blocking_sync);
+  etrtError streamSynchronize(Stream *stream);
+  void destroyEvent(EtEvent *et_event);
+  void addAction(Stream *et_stream, et_runtime::EtAction *et_action);
 
-  void addAction(EtStream *et_stream, et_runtime::EtAction *et_action) {
-    // FIXME: all blocking streams can synchronize through EtActionEventWaiter
-    if (et_stream->isBlocking()) {
-      defaultStream_->addCommand(et_action);
-    } else {
-      et_stream->addCommand(et_action);
-    }
-    deviceExecute();
-  }
+  etrtError mallocHost(void **ptr, size_t size);
+  etrtError freeHost(void *ptr);
+  etrtError malloc(void **devPtr, size_t size);
+  etrtError free(void *devPtr);
+  etrtError pointerGetAttributes(struct etrtPointerAttributes *attributes,
+                                 const void *ptr);
 
-  etrtError_t mallocHost(void **ptr, size_t size);
-  etrtError_t freeHost(void *ptr);
-  etrtError_t malloc(void **devPtr, size_t size);
-  etrtError_t free(void *devPtr);
-  etrtError_t pointerGetAttributes(struct etrtPointerAttributes *attributes,
-                                   const void *ptr);
-
-  etrtError_t memcpyAsync(void *dst, const void *src, size_t count,
-                          enum etrtMemcpyKind kind, etrtStream_t stream);
-  etrtError_t memcpy(void *dst, const void *src, size_t count,
-                     enum etrtMemcpyKind kind);
-  etrtError_t memset(void *devPtr, int value, size_t count);
+  etrtError memcpyAsync(void *dst, const void *src, size_t count,
+                        enum etrtMemcpyKind kind, Stream *stream);
+  etrtError memcpy(void *dst, const void *src, size_t count,
+                   enum etrtMemcpyKind kind);
+  etrtError memset(void *devPtr, int value, size_t count);
 
   void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
     launch_confs_.push_back(conf);
   }
 
-  etrtError_t setupArgument(const void *arg, size_t size, size_t offset);
-  etrtError_t launch(const void *func, const char *kernel_name);
+  etrtError setupArgument(const void *arg, size_t size, size_t offset);
+  etrtError launch(const void *func, const char *kernel_name);
   // FIXME pass module_id
-  etrtError_t rawLaunch(et_runtime::ModuleID module_id, const char *kernel_name,
-                        const void *args, size_t args_size,
-                        etrtStream_t stream);
+  etrtError rawLaunch(et_runtime::ModuleID module_id, const char *kernel_name,
+                      const void *args, size_t args_size, Stream *stream);
 
   ErrorOr<et_runtime::ModuleID> moduleLoad(const std::string &name,
                                            const std::string &path);
-  etrtError_t moduleUnload(et_runtime::ModuleID mid);
+  etrtError moduleUnload(et_runtime::ModuleID mid);
 
 private:
   void initDeviceThread();
@@ -313,8 +277,8 @@ private:
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
   std::unique_ptr<et_runtime::ModuleManager> module_manager_;
   bool device_thread_exit_requested_ = false;
-  EtStream *defaultStream_ = nullptr;
-  std::vector<std::unique_ptr<EtStream>> stream_storage_;
+  Stream *defaultStream_ = nullptr;
+  std::vector<std::unique_ptr<Stream>> stream_storage_;
   std::vector<std::unique_ptr<EtEvent>> event_storage_;
   std::vector<et_runtime::EtLaunchConf> launch_confs_;
   // FIXME: remove the following

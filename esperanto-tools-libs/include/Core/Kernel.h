@@ -16,9 +16,9 @@
 #include <string>
 #include <vector>
 
-class EtStream;
-
 namespace et_runtime {
+
+class Stream;
 
 // FIXME move dim3 in this header
 //struct dim3;
@@ -27,7 +27,7 @@ namespace et_runtime {
 struct EtLaunchConf {
   dim3 gridDim;
   dim3 blockDim;
-  EtStream *etStream = nullptr;
+  Stream *etStream = nullptr;
   std::vector<uint8_t> args_buff;
 };
 

@@ -83,13 +83,13 @@
 
 #include "Common/CommonTypes.h"
 #include "Common/et-misc.h"
+#include "Core/Stream.h"
 #include "etrt-bin.h"
 
 // FIXME this header is poluted with C++ code for a period of active refactoring
 // in the future restore it back to a pure C-API
 
-// FIXME this header is going to be polluted with c++ code, in the future we
-// should clean it to return it back to be a pure C-API
+using namespace et_runtime;
 
 // Registry public interface.
 EXAPI void **__etrtRegisterFatBinary(void *fatCubin);
@@ -406,8 +406,7 @@ EXAPI etrtError_t etrtPointerGetAttributes(
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidMemoryDirection
  */
 EXAPI etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
-                                  enum etrtMemcpyKind kind,
-                                  etrtStream_t stream);
+                                  enum etrtMemcpyKind kind, Stream *stream);
 
 /**
  * @brief  Copy the contents of one region of allocated memory to another.
@@ -496,11 +495,11 @@ EXAPI etrtError_t etrtMemset(void *ptr, int value, size_t count);
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
 // @todo FIXME
-// EXAPI etrtError_t etrtStreamCreateWithFlags(etrtStream_t *pStream, unsigned
+// EXAPI etrtError_t etrtStreamCreateWithFlags(Stream * *pStream, unsigned
 // int flags);
 
-EXAPI etrtError_t etrtStreamCreate(etrtStream_t *pStream);
-EXAPI etrtError_t etrtStreamCreateWithFlags(etrtStream_t *pStream,
+EXAPI etrtError_t etrtStreamCreate(Stream **pStream);
+EXAPI etrtError_t etrtStreamCreateWithFlags(Stream **pStream,
                                             unsigned int flags);
 
 /**
@@ -517,7 +516,7 @@ EXAPI etrtError_t etrtStreamCreateWithFlags(etrtStream_t *pStream,
  * @param[in] stream  The handle for one of the calling process' Streams.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle
  */
-EXAPI etrtError_t etrtStreamDestroy(etrtStream_t stream);
+EXAPI etrtError_t etrtStreamDestroy(Stream *stream);
 
 /**
  * @brief  Block until all of a Stream's operations have completed.
@@ -531,7 +530,7 @@ EXAPI etrtError_t etrtStreamDestroy(etrtStream_t stream);
  * @param[in] stream  The handle for one of the calling process' Streams.
  * @return  etrtSuccess, etrtErrorInvalidResourceHandle
  */
-EXAPI etrtError_t etrtStreamSynchronize(etrtStream_t stream);
+EXAPI etrtError_t etrtStreamSynchronize(Stream *stream);
 
 /**
  * @brief  Have a Stream wait for an Event before continuing with its execution.
@@ -545,9 +544,9 @@ EXAPI etrtError_t etrtStreamSynchronize(etrtStream_t stream);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle
  */
 // @todo FIXME
-// EXAPI etrtError_t etrtStreamWaitEvent(etrtStream_t stream, etrtEvent_t
+// EXAPI etrtError_t etrtStreamWaitEvent(Stream * stream, etrtEvent_t
 // event);
-EXAPI etrtError_t etrtStreamWaitEvent(etrtStream_t stream, etrtEvent_t event,
+EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, etrtEvent_t event,
                                       unsigned int flags);
 
 /**
@@ -639,7 +638,7 @@ EXAPI etrtError_t etrtEventQuery(etrtEvent_t event);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle,
  * etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventRecord(etrtEvent_t event, etrtStream_t stream);
+EXAPI etrtError_t etrtEventRecord(etrtEvent_t event, Stream *stream);
 
 /**
  * @brief  Wait for all of the work captured in an Event to complete.
@@ -869,7 +868,7 @@ EXAPI etrtError_t etrtEventDestroy(etrtEvent_t event);
 // EXAPI etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
 // sharedMem, unsigned int flags);
 EXAPI etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim,
-                                    size_t sharedMem, etrtStream_t stream);
+                                    size_t sharedMem, Stream *stream);
 
 /**
  * @brief  Define the inputs to be given to all instances of the next Kernel to
@@ -919,7 +918,7 @@ EXAPI etrtError_t etrtSetupArgument(const void *arg, size_t size,
  */
 // @todo FIXME
 // EXAPI etrtError_t etrtLaunch(const void *kernel, const char *kernelName,
-// etrtStream_t stream);
+// Stream * stream);
 EXAPI etrtError_t etrtLaunch(const void *func, const char *kernel_name);
 
 /**
@@ -974,6 +973,6 @@ EXAPI etrtError_t etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
 EXAPI etrtError_t etrtModuleUnload(et_runtime::ModuleID mid);
 EXAPI etrtError_t etrtRawLaunch(et_runtime::ModuleID mid,
                                 const char *kernel_name, const void *args,
-                                size_t args_size, etrtStream_t stream);
+                                size_t args_size, Stream *stream);
 
 #endif // ETRT_H

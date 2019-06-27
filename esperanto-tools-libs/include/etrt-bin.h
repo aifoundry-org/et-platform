@@ -27,6 +27,7 @@
 
 #include "Common/ErrorTypes.h"
 #include "Common/ProjectAutogen.h"
+#include "Core/Stream.h"
 
 #include <stddef.h>
 
@@ -53,12 +54,12 @@
 /**
  * @brief Per-thread stream handle
  *
- * Stream handle that can be passed as a etrtStream_t to use an implicit stream
+ * Stream handle that can be passed as a Stream * to use an implicit stream
  * with per-thread synchronization behavior.
  *
  * See details of the @link_sync_behavior
  */
-#define etrtStreamPerThread ((etrtStream_t)0x2)
+#define etrtStreamPerThread ((Stream *)0x2)
 
 #define etrtEventDefault 0x00       /**< Default event flag */
 #define etrtEventBlockingSync 0x01  /**< Event uses blocking synchronization */
@@ -289,7 +290,8 @@ struct etrtDeviceProp {
 
 
 typedef enum etrtError etrtError_t;
-typedef struct ETstream_st *etrtStream_t;
+typedef class et_runtime::Stream *etrtStream_t;
+typedef class et_runtime::Stream EtStream;
 typedef struct ETevent_st *etrtEvent_t;
 
 /**

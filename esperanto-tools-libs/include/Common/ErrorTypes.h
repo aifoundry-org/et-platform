@@ -172,7 +172,7 @@ enum etrtError {
 
   /**
    * This indicates that a resource handle passed to the API call was not
-   * valid. Resource handles are opaque types like ::etrtStream_t and
+   * valid. Resource handles are opaque types like ::Stream * and
    * ::etrtEvent_t.
    */
   etrtErrorInvalidResourceHandle = 33,
@@ -501,7 +501,8 @@ enum etrtError {
   etrtErrorRuntime = 83,
 
   /**
-   * This error indicates that we encountered an error during device configuration
+   * This error indicates that we encountered an error during device
+   * configuration
    */
   etrtErrorDeviceConfig,
 

@@ -4,6 +4,7 @@
 #include "Core/DeviceTarget.h"
 #include "Core/ELFSupport.h"
 #include "Core/MemoryManager.h"
+#include "Core/Stream.h"
 #include "DeviceFW/FWManager.h"
 #include "ModuleManager.h"
 #include "Support/DeviceGuard.h"
@@ -69,7 +70,7 @@ void Device::deviceExecute() {
     while (true) {
       EtAction *actionToExecute = nullptr;
       for (auto &it : stream_storage_) {
-        EtStream *stream = it.get();
+        Stream *stream = it.get();
         if (!stream->noCommands()) {
           EtAction *action = stream->frontCommand();
           if (action->readyForExecution()) {
@@ -126,7 +127,7 @@ bool Device::setFWFilePaths(const std::vector<std::string> &paths) {
  */
 void Device::uninitObjects() {
   for (auto &it : stream_storage_) {
-    EtStream *stream = it.get();
+    Stream *stream = it.get();
     while (!stream->noCommands()) {
       EtAction *act = stream->frontCommand();
       stream->popCommand();
@@ -154,14 +155,62 @@ void Device::uninitDeviceThread() {
   target_device_->deinit();
 }
 
-etrtError_t Device::mallocHost(void **ptr, size_t size) {
+Stream *Device::defaultStream() const { return defaultStream_; }
+Stream *Device::getStream(Stream *stream) {
+  Stream *et_stream = reinterpret_cast<Stream *>(stream);
+  if (et_stream == nullptr) {
+    return defaultStream_;
+  }
+  assert(stl_count(stream_storage_, et_stream));
+  return et_stream;
+}
+
+Stream *Device::defaultStream() { return defaultStream_; }
+
+EtEvent *Device::getEvent(etrtEvent_t event) {
+  EtEvent *et_event = reinterpret_cast<EtEvent *>(event);
+  assert(stl_count(event_storage_, et_event));
+  return et_event;
+}
+
+Stream *Device::createStream(bool is_blocking) {
+  Stream *new_stream = new Stream(is_blocking);
+  stream_storage_.emplace_back(new_stream);
+  return new_stream;
+}
+void Device::destroyStream(Stream *et_stream) {
+  assert(stl_count(stream_storage_, et_stream) == 1);
+  stl_remove(stream_storage_, et_stream);
+}
+EtEvent *Device::createEvent(bool disable_timing, bool blocking_sync) {
+  EtEvent *new_event = new EtEvent(disable_timing, blocking_sync);
+  event_storage_.emplace_back(new_event);
+  return new_event;
+}
+
+void Device::destroyEvent(EtEvent *et_event) {
+  assert(stl_count(event_storage_, et_event) == 1);
+  stl_remove(event_storage_, et_event);
+}
+
+void Device::addAction(Stream *et_stream, et_runtime::EtAction *et_action) {
+  // FIXME: all blocking streams can synchronize through EtActionEventWaiter
+  if (et_stream->isBlocking()) {
+    defaultStream_->addCommand(et_action);
+  } else {
+    et_stream->addCommand(et_action);
+  }
+  deviceExecute();
+}
+
+etrtError Device::mallocHost(void **ptr, size_t size) {
   return mem_manager_->mallocHost(ptr, size);
 }
 
-etrtError_t Device::streamSynchronize(etrtStream_t stream) {
+etrtError Device::streamSynchronize(Stream *stream) {
   EtActionEvent *actionEvent = nullptr;
 
-  EtStream *et_stream = getStream(stream);
+  Stream *et_stream = getStream(stream);
 
   actionEvent = new EtActionEvent();
   actionEvent->incRefCounter();
@@ -171,9 +220,9 @@ etrtError_t Device::streamSynchronize(etrtStream_t stream) {
   return etrtSuccess;
 }
 
-etrtError_t Device::memcpyAsync(void *dst, const void *src, size_t count,
-                                enum etrtMemcpyKind kind, etrtStream_t stream) {
-  EtStream *et_stream;
+etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
+                              enum etrtMemcpyKind kind, Stream *stream) {
+  Stream *et_stream;
 
   et_stream = getStream(stream);
 
@@ -231,15 +280,15 @@ etrtError_t Device::memcpyAsync(void *dst, const void *src, size_t count,
   return etrtSuccess;
 }
 
-etrtError_t Device::memcpy(void *dst, const void *src, size_t count,
-                           enum etrtMemcpyKind kind) {
-  etrtError_t res = etrtMemcpyAsync(dst, src, count, kind, 0);
+etrtError Device::memcpy(void *dst, const void *src, size_t count,
+                         enum etrtMemcpyKind kind) {
+  etrtError res = etrtMemcpyAsync(dst, src, count, kind, 0);
   etrtStreamSynchronize(0);
 
   return res;
 }
 
-etrtError_t Device::memset(void *devPtr, int value, size_t count) {
+etrtError Device::memset(void *devPtr, int value, size_t count) {
   const char *kern = "SetKernel_Int8";
 
   if ((count % 4) == 0) {
@@ -263,17 +312,16 @@ etrtError_t Device::memset(void *devPtr, int value, size_t count) {
   return etrtSuccess;
 }
 
-etrtError_t Device::freeHost(void *ptr) { return mem_manager_->freeHost(ptr); }
+etrtError Device::freeHost(void *ptr) { return mem_manager_->freeHost(ptr); }
 
-etrtError_t Device::malloc(void **devPtr, size_t size) {
+etrtError Device::malloc(void **devPtr, size_t size) {
   return mem_manager_->malloc(devPtr, size);
 }
 
-etrtError_t Device::free(void *devPtr) { return mem_manager_->free(devPtr); }
+etrtError Device::free(void *devPtr) { return mem_manager_->free(devPtr); }
 
-etrtError_t
-Device::pointerGetAttributes(struct etrtPointerAttributes *attributes,
-                             const void *ptr) {
+etrtError Device::pointerGetAttributes(struct etrtPointerAttributes *attributes,
+                                       const void *ptr) {
   return mem_manager_->pointerGetAttributes(attributes, ptr);
 }
 
@@ -286,7 +334,7 @@ void Device::destroyModule(et_runtime::ModuleID module) {
   module_manager_->destroyModule(module);
 }
 
-etrtError_t Device::setupArgument(const void *arg, size_t size, size_t offset) {
+etrtError Device::setupArgument(const void *arg, size_t size, size_t offset) {
 
   std::vector<uint8_t> &buff = launch_confs_.back().args_buff;
   THROW_IF(offset && offset != align_up(buff.size(), size),
@@ -298,7 +346,7 @@ etrtError_t Device::setupArgument(const void *arg, size_t size, size_t offset) {
   return etrtSuccess;
 }
 
-etrtError_t Device::launch(const void *func, const char *kernel_name) {
+etrtError Device::launch(const void *func, const char *kernel_name) {
   abort();
   // FIXME disabled for now until this feature is used unit-tested and
   // exercised.
@@ -383,9 +431,9 @@ etrtError_t Device::launch(const void *func, const char *kernel_name) {
   return etrtSuccess;
 }
 
-etrtError_t Device::rawLaunch(et_runtime::ModuleID module_id,
-                              const char *kernel_name, const void *args,
-                              size_t args_size, etrtStream_t stream) {
+etrtError Device::rawLaunch(et_runtime::ModuleID module_id,
+                            const char *kernel_name, const void *args,
+                            size_t args_size, Stream *stream) {
 
   auto et_module_res = module_manager_->getModule(module_id);
   if (!et_module_res) {
@@ -431,7 +479,7 @@ ErrorOr<et_runtime::ModuleID> Device::moduleLoad(const std::string &name,
   return module_manager_->loadOnDevice(std::get<0>(res), path, this);
 }
 
-etrtError_t Device::moduleUnload(et_runtime::ModuleID mid) {
+etrtError Device::moduleUnload(et_runtime::ModuleID mid) {
   auto et_module_res = module_manager_->getModule(mid);
   if (!et_module_res) {
     return et_module_res.getError();
