@@ -544,9 +544,9 @@ EXAPI etrtError_t etrtStreamSynchronize(Stream *stream);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle
  */
 // @todo FIXME
-// EXAPI etrtError_t etrtStreamWaitEvent(Stream * stream, etrtEvent_t
+// EXAPI etrtError_t etrtStreamWaitEvent(Stream * stream, Event *
 // event);
-EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, etrtEvent_t event,
+EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
                                       unsigned int flags);
 
 /**
@@ -576,7 +576,7 @@ EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, etrtEvent_t event,
  *
  */
 
-EXAPI etrtError_t etrtEventCreate(etrtEvent_t *event);
+EXAPI etrtError_t etrtEventCreate(Event **event);
 
 /**
  * @brief  Create a new Event.
@@ -597,8 +597,7 @@ EXAPI etrtError_t etrtEventCreate(etrtEvent_t *event);
  * etrtErrorMemoryAllocation
  */
 // @todo FIXME
-EXAPI etrtError_t etrtEventCreateWithFlags(etrtEvent_t *event,
-                                           unsigned int flags);
+EXAPI etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags);
 
 /**
  * @brief  Return the state of an Event.
@@ -616,7 +615,7 @@ EXAPI etrtError_t etrtEventCreateWithFlags(etrtEvent_t *event,
  * @return  etrtSuccess, etrtErrorNotReady, etrtErrorInvalidValue,
  * etrtErrorInvalidResourceHandle, etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventQuery(etrtEvent_t event);
+EXAPI etrtError_t etrtEventQuery(Event *event);
 
 /**
  * @brief  Capture a snapshot of the state of a given Stream.
@@ -638,7 +637,7 @@ EXAPI etrtError_t etrtEventQuery(etrtEvent_t event);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle,
  * etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventRecord(etrtEvent_t event, Stream *stream);
+EXAPI etrtError_t etrtEventRecord(Event *event, Stream *stream);
 
 /**
  * @brief  Wait for all of the work captured in an Event to complete.
@@ -651,7 +650,7 @@ EXAPI etrtError_t etrtEventRecord(etrtEvent_t event, Stream *stream);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourcHandle,
  * etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventSynchronize(etrtEvent_t event);
+EXAPI etrtError_t etrtEventSynchronize(Event *event);
 
 /**
  * @brief  Returns the time between a starting and ending Event.
@@ -680,8 +679,7 @@ EXAPI etrtError_t etrtEventSynchronize(etrtEvent_t event);
  * @return  etrtSuccess, etrtErrorNotReady, etrtErrorInvalidValue,
  * etrtErrorInvalidResourceHandle, etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventElapsedTime(float *ms, etrtEvent_t start,
-                                       etrtEvent_t end);
+EXAPI etrtError_t etrtEventElapsedTime(float *ms, Event *start, Event *end);
 
 /**
  * @brief  Delete an Event.
@@ -693,7 +691,7 @@ EXAPI etrtError_t etrtEventElapsedTime(float *ms, etrtEvent_t start,
  * @param[in] event  The handle for an Event created by the calling process.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventDestroy(etrtEvent_t event);
+EXAPI etrtError_t etrtEventDestroy(Event *event);
 
 /**
  * @}

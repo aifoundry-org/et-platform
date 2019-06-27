@@ -173,7 +173,7 @@ enum etrtError {
   /**
    * This indicates that a resource handle passed to the API call was not
    * valid. Resource handles are opaque types like ::Stream * and
-   * ::etrtEvent_t.
+   * ::Event *.
    */
   etrtErrorInvalidResourceHandle = 33,
 

@@ -1,4 +1,5 @@
-#include "Core/et_event.h"
+#include "Core/Event.h"
+
 #include "Core/Commands.h"
 #include <assert.h>
 #include <memory.h>
@@ -6,7 +7,7 @@
 
 using namespace et_runtime;
 
-void EtEvent::resetAction(EtActionEvent *action /*= nullptr*/) {
+void Event::resetAction(EtActionEvent *action /*= nullptr*/) {
   if (action_event_) {
     EtAction::decRefCounter(action_event_);
   }

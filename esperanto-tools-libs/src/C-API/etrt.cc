@@ -135,28 +135,27 @@ EXAPI etrtError_t etrtStreamSynchronize(Stream *stream) {
 
 EXAPI etrtError_t etrtGetLastError(void) { return etrtSuccess; }
 
-EXAPI etrtError_t etrtEventCreateWithFlags(etrtEvent_t *event,
-                                           unsigned int flags) {
+EXAPI etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags) {
   assert((flags & ~(etrtEventDefault | etrtEventBlockingSync |
                     etrtEventDisableTiming | etrtEventInterprocess)) == 0);
   assert((flags & ~(etrtEventDisableTiming | etrtEventBlockingSync)) == 0);
 
   GetDev dev;
 
-  EtEvent *new_event = dev->createEvent((flags & etrtEventDisableTiming) != 0,
-                                        (flags & etrtEventBlockingSync) != 0);
-  *event = reinterpret_cast<etrtEvent_t>(new_event);
+  Event *new_event = dev->createEvent((flags & etrtEventDisableTiming) != 0,
+                                      (flags & etrtEventBlockingSync) != 0);
+  *event = reinterpret_cast<Event *>(new_event);
   return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtEventCreate(etrtEvent_t *event) {
+EXAPI etrtError_t etrtEventCreate(Event **event) {
   return etrtEventCreateWithFlags(event, etrtEventDefault);
 }
 
-EXAPI etrtError_t etrtEventQuery(etrtEvent_t event) {
+EXAPI etrtError_t etrtEventQuery(Event *event) {
   GetDev dev;
 
-  EtEvent *et_event = dev->getEvent(event);
+  Event *et_event = dev->getEvent(event);
   EtActionEvent *actionEvent = et_event->getAction();
   if (actionEvent == nullptr) {
     return etrtSuccess;
@@ -165,18 +164,18 @@ EXAPI etrtError_t etrtEventQuery(etrtEvent_t event) {
   return actionEvent->isExecuted() ? etrtSuccess : etrtErrorNotReady;
 }
 
-EXAPI etrtError_t etrtEventRecord(etrtEvent_t event, Stream *stream) {
+EXAPI etrtError_t etrtEventRecord(Event *event, Stream *stream) {
   GetDev dev;
 
   Stream *et_stream = dev->getStream(stream);
-  EtEvent *et_event = dev->getEvent(event);
+  Event *et_event = dev->getEvent(event);
   EtActionEvent *actionEvent = new EtActionEvent();
   et_event->resetAction(actionEvent);
   dev->addAction(et_stream, actionEvent);
   return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, etrtEvent_t event,
+EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
                                       unsigned int flags) {
   // Must be zero by current API.
   assert(flags == 0);
@@ -184,7 +183,7 @@ EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, etrtEvent_t event,
   GetDev dev;
 
   Stream *et_stream = dev->getStream(stream);
-  EtEvent *et_event = dev->getEvent(event);
+  Event *et_event = dev->getEvent(event);
   EtActionEvent *actionEvent = et_event->getAction();
   if (actionEvent != nullptr) {
     dev->addAction(et_stream, new EtActionEventWaiter(actionEvent));
@@ -192,12 +191,12 @@ EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, etrtEvent_t event,
   return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtEventSynchronize(etrtEvent_t event) {
+EXAPI etrtError_t etrtEventSynchronize(Event *event) {
   // TODO: current implementation uses blocking semantics regardless of
   // cudaEventBlockingSync flag
   GetDev dev;
 
-  EtEvent *et_event = dev->getEvent(event);
+  Event *et_event = dev->getEvent(event);
   EtActionEvent *actionEvent = et_event->getAction();
   if (actionEvent != nullptr) {
     actionEvent->observerWait();
@@ -206,17 +205,16 @@ EXAPI etrtError_t etrtEventSynchronize(etrtEvent_t event) {
   return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtEventElapsedTime(float *ms, etrtEvent_t start,
-                                       etrtEvent_t end) {
+EXAPI etrtError_t etrtEventElapsedTime(float *ms, Event *start, Event *end) {
   // TODO:
   assert(false);
   return etrtSuccess;
 }
 
-EXAPI etrtError_t etrtEventDestroy(etrtEvent_t event) {
+EXAPI etrtError_t etrtEventDestroy(Event *event) {
   GetDev dev;
 
-  EtEvent *et_event = dev->getEvent(event);
+  Event *et_event = dev->getEvent(event);
   et_event->resetAction();
   dev->destroyEvent(et_event);
   return etrtSuccess;

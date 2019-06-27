@@ -15,6 +15,8 @@
 
 namespace et_runtime {
 
+class EtActionEvent;
+
 ///
 /// @Brief Event holding class
 ///
@@ -36,7 +38,16 @@ namespace et_runtime {
 
 class Event {
 public:
-  Event() = default;
+  Event(bool disable_timing, bool blocking_sync)
+      : disable_timing_(disable_timing), blocking_sync_(blocking_sync) {}
+
+  ~Event() { assert(action_event_ == nullptr); }
+
+  et_runtime::EtActionEvent *getAction() { return action_event_; }
+  void resetAction(et_runtime::EtActionEvent *action = nullptr);
+
+  bool isDisableTiming() { return disable_timing_; }
+  bool isBlockingSync() { return blocking_sync_; }
 
   ///
   /// @brief  Return the state of an Event.
@@ -62,6 +73,11 @@ public:
   etrtError synchronize();
 
   etrtError update();
+
+private:
+  bool disable_timing_;
+  bool blocking_sync_;
+  et_runtime::EtActionEvent *action_event_ = nullptr;
 };
 } // namespace et_runtime
 

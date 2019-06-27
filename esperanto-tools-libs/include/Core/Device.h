@@ -20,20 +20,16 @@
 #include "Support/ErrorOr.h"
 #include "Support/STLHelpers.h"
 
-// FIXME the following should be removed
-#include "et_event.h"
-
 #include <memory>
 #include <thread>
 
-// Fixme this class shold be removed.
-class EtEvent;
 class GetDev;
 
 namespace et_runtime {
 
 class AbstractMemoryPtr;
 class DeviceMemoryPtr;
+class Event;
 class EtAction;
 class Firmware;
 class FWManager;
@@ -226,15 +222,15 @@ public:
 
   Stream *defaultStream();
 
-  EtEvent *getEvent(etrtEvent_t event);
+  Event *getEvent(Event *event);
 
   et_runtime::Module *getModule(et_runtime::ModuleID mid);
 
   Stream *createStream(bool is_blocking);
   void destroyStream(Stream *et_stream);
-  EtEvent *createEvent(bool disable_timing, bool blocking_sync);
+  Event *createEvent(bool disable_timing, bool blocking_sync);
   etrtError streamSynchronize(Stream *stream);
-  void destroyEvent(EtEvent *et_event);
+  void destroyEvent(Event *et_event);
   void addAction(Stream *et_stream, et_runtime::EtAction *et_action);
 
   etrtError mallocHost(void **ptr, size_t size);
@@ -279,7 +275,7 @@ private:
   bool device_thread_exit_requested_ = false;
   Stream *defaultStream_ = nullptr;
   std::vector<std::unique_ptr<Stream>> stream_storage_;
-  std::vector<std::unique_ptr<EtEvent>> event_storage_;
+  std::vector<std::unique_ptr<Event>> event_storage_;
   std::vector<et_runtime::EtLaunchConf> launch_confs_;
   // FIXME: remove the following
   std::map<const void *, EtLoadedKernelsBin>

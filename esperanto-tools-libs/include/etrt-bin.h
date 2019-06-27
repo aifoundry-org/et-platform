@@ -27,6 +27,7 @@
 
 #include "Common/ErrorTypes.h"
 #include "Common/ProjectAutogen.h"
+#include "Core/Event.h"
 #include "Core/Stream.h"
 
 #include <stddef.h>
@@ -292,7 +293,7 @@ struct etrtDeviceProp {
 typedef enum etrtError etrtError_t;
 typedef class et_runtime::Stream *etrtStream_t;
 typedef class et_runtime::Stream EtStream;
-typedef struct ETevent_st *etrtEvent_t;
+typedef class et_runtime::Event* etrtEvent_t;
 
 /**
  * A three-integer-element data type

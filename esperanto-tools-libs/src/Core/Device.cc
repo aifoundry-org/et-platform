@@ -1,8 +1,10 @@
 #include "Core/Device.h"
+
 #include "Common/ErrorTypes.h"
 #include "Core/Commands.h"
 #include "Core/DeviceTarget.h"
 #include "Core/ELFSupport.h"
+#include "Core/Event.h"
 #include "Core/MemoryManager.h"
 #include "Core/Stream.h"
 #include "DeviceFW/FWManager.h"
@@ -135,7 +137,7 @@ void Device::uninitObjects() {
     }
   }
   for (auto &it : event_storage_) {
-    EtEvent *event = it.get();
+    Event *event = it.get();
     event->resetAction();
   }
 }
@@ -167,8 +169,8 @@ Stream *Device::getStream(Stream *stream) {
 
 Stream *Device::defaultStream() { return defaultStream_; }
 
-EtEvent *Device::getEvent(etrtEvent_t event) {
-  EtEvent *et_event = reinterpret_cast<EtEvent *>(event);
+Event *Device::getEvent(Event *event) {
+  Event *et_event = reinterpret_cast<Event *>(event);
   assert(stl_count(event_storage_, et_event));
   return et_event;
 }
@@ -182,13 +184,13 @@ void Device::destroyStream(Stream *et_stream) {
   assert(stl_count(stream_storage_, et_stream) == 1);
   stl_remove(stream_storage_, et_stream);
 }
-EtEvent *Device::createEvent(bool disable_timing, bool blocking_sync) {
-  EtEvent *new_event = new EtEvent(disable_timing, blocking_sync);
+Event *Device::createEvent(bool disable_timing, bool blocking_sync) {
+  Event *new_event = new Event(disable_timing, blocking_sync);
   event_storage_.emplace_back(new_event);
   return new_event;
 }
 
-void Device::destroyEvent(EtEvent *et_event) {
+void Device::destroyEvent(Event *et_event) {
   assert(stl_count(event_storage_, et_event) == 1);
   stl_remove(event_storage_, et_event);
 }
