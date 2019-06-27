@@ -25,6 +25,7 @@
 static void PCIe_initPShire(void);
 static void PCIe_initBars(void);
 static void PCIe_initLink(void);
+static void PCIe_initATUs(void);
 
 void PCIe_init(void)
 {  
@@ -32,7 +33,8 @@ void PCIe_init(void)
 
     PCIe_initPShire();
     PCIe_initBars();
-    PCIe_initLink(); 
+    PCIe_initLink();
+    PCIe_initATUs();
 
     printf("PCIe link up at Gen %d\r\n", PCIE_CUST_SS->PE0_LINK_DBG_2.B.RATE + 1);
 }
@@ -158,4 +160,126 @@ static void PCIe_initLink(void)
     printf("Link training...");
     while (PCIE_CUST_SS->PE0_LINK_DBG_2.B.SMLH_LTSSM_STATE != SMLH_LTSSM_STATE_LINK_UP);
     printf(" done\r\n");
+}
+
+//See DWC_pcie_ctl_dm_databook section 3.10.11
+//Since the regmap codegen does not make an array of iATU registers, parameterize with macros
+#define CONFIG_INBOUND_IATU(num) static void config_inbound_iatu_##num(uint64_t baseAddr, uint64_t targetAddr, uint64_t size) { \
+    uint64_t limitAddr = baseAddr + size - 1; \
+\
+    PCIE0->PF0_ATU_CAP.IATU_REGION_CTRL_1_OFF_INBOUND_##num.R = \
+        (PE0_DWC_pcie_ctl_DBI_Slave_PF0_ATU_CAP_IATU_REGION_CTRL_1_OFF_INBOUND_ ## num ## _t){ .B = { \
+            .TYPE = 0, /*Watch to TLPs with TYPE field 0 (mem space)*/ \
+            .INCREASE_REGION_SIZE = 1 /*Use the UPPR_LIMIT_ADDR reg*/ \
+    }}.R; \
+\
+    PCIE0->PF0_ATU_CAP.IATU_LWR_BASE_ADDR_OFF_INBOUND_##num.R = (uint32_t)baseAddr; \
+    PCIE0->PF0_ATU_CAP.IATU_UPPER_BASE_ADDR_OFF_INBOUND_##num.R = (uint32_t)(baseAddr >> 32); \
+\
+    PCIE0->PF0_ATU_CAP.IATU_LIMIT_ADDR_OFF_INBOUND_##num.R = (uint32_t)limitAddr; \
+    PCIE0->PF0_ATU_CAP.IATU_UPPR_LIMIT_ADDR_OFF_INBOUND_##num.R = (uint32_t)(limitAddr >> 32); \
+\
+    PCIE0->PF0_ATU_CAP.IATU_LWR_TARGET_ADDR_OFF_INBOUND_##num.R = (uint32_t)targetAddr; \
+    PCIE0->PF0_ATU_CAP.IATU_UPPER_TARGET_ADDR_OFF_INBOUND_##num.R = (uint32_t)(targetAddr >> 32); \
+\
+    PCIE0->PF0_ATU_CAP.IATU_REGION_CTRL_2_OFF_INBOUND_##num.R = \
+        (PE0_DWC_pcie_ctl_DBI_Slave_PF0_ATU_CAP_IATU_REGION_CTRL_2_OFF_INBOUND_## num ## _t){ .B = { \
+            .MATCH_MODE = 0, /*Address match mode. Do NOT use BAR match mode.*/ \
+            .REGION_EN = 1 \
+    }}.R; \
+}
+
+CONFIG_INBOUND_IATU(0)
+CONFIG_INBOUND_IATU(1)
+CONFIG_INBOUND_IATU(2)
+CONFIG_INBOUND_IATU(3)
+CONFIG_INBOUND_IATU(4)
+
+static void PCIe_initATUs(void)
+{
+    //The config registers are protected by a write-enable bit
+    PE0_DWC_pcie_ctl_DBI_Slave_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_t miscControl1;
+    miscControl1.R = PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R;
+    miscControl1.B.DBI_RO_WR_EN = 1;
+    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
+
+    //The iATU has a "BAR Match Mode" feature where it can track BARs, but that mode does not allow
+    //any offset from the BAR, so we can't map multiple iATUs into one BAR. So, instead of using BAR
+    //match mode, wait until the BARs are programmed by the host, and program the iATUs manually.
+
+    //Note the initial BAR values assigned by the BIOS may be reassigned by the OS, so just waiting
+    //for the BARs to be assigned is not sufficient. However, the OS, not the BIOS, enables PCI
+    //memory space. Once the memory space is enabled, the BAR values cannot change anymore. So, it's
+    //critical to wait to program the iATUs until after memory space is enabled.
+
+    //TODO FIXME JIRA SW-330: Don't monopolize the HART to poll
+    //This wait could be long (tens of seconds), depending on when the OS enables PCIe
+    printf("Waiting for host to enable memory space...");
+    PE0_DWC_pcie_ctl_DBI_Slave_PF0_TYPE0_HDR_STATUS_COMMAND_REG_t status_command_reg;
+    do {
+        status_command_reg.R = PCIE0->PF0_TYPE0_HDR.STATUS_COMMAND_REG.R;
+    }
+    while (status_command_reg.B.PCI_TYPE0_MEM_SPACE_EN == 0);
+    printf(" done\r\n");
+
+    //TODO: I need to ensure the host does not try and send Mem Rd / Mem Wr before the iATUs
+    //are configured. The latency of a PCIe transaction (1-10s of uS) is probably long enough
+    //that the iATUs will always be programmed between the PCIe config TLP to enable mem 
+    //space and the first PCIe MRd/MWr. However, we should make sure. Send the host an interrupt 
+    //(once interrupts are implemented), make the  kernel driver block on receiving the first
+    //interrupt before doing MRd/MWr to these regions.
+
+    //Setup BAR0
+    //Name        Host Addr       SoC Addr      Size   Notes
+    //R_DRCT_DRAM BAR0 + 0x0000   0xC100000000  28G    DRAM with PCIe access permissions
+    
+    uint64_t bar0 = 
+        ((uint64_t)PCIE0->PF0_TYPE0_HDR.BAR1_REG.R << 32) |
+        ((uint64_t)PCIE0->PF0_TYPE0_HDR.BAR0_REG.R & 0xFFFFFFF0ULL);
+
+    config_inbound_iatu_0(
+        bar0,                 //baseAddr
+        R_DRCT_DRAM_BASEADDR, //targetAddr
+        R_DRCT_DRAM_SIZE);    //size
+
+    //Setup BAR2
+    //Name              Host Addr       SoC Addr      Size   Notes
+    //R_PU_MBOX_PC_MM   BAR2 + 0x0000   0x0020007000  4k     Mailbox shared memory
+    //R_PU_MBOX_PC_SP   BAR2 + 0x1000   0x0030003000  4k     Mailbox shared memory
+    //R_PU_TRG_PCIE     BAR2 + 0x2000   0x0030008000  8k     Mailbox interrupts
+    //R_PCIE_USRESR     BAR2 + 0x4000   0x7f80000000  4k     DMA control registers
+
+    //start on BAR2
+    uint64_t baseAddr = 
+        ((uint64_t)PCIE0->PF0_TYPE0_HDR.BAR3_REG.R << 32) |
+        ((uint64_t)PCIE0->PF0_TYPE0_HDR.BAR2_REG.R & 0xFFFFFFF0ULL); 
+
+    config_inbound_iatu_1(
+        baseAddr,
+        R_PU_MBOX_PC_MM_BASEADDR, //targetAddr
+        R_PU_MBOX_PC_MM_SIZE);    //size
+
+    baseAddr += R_PU_MBOX_PC_MM_SIZE;
+
+    config_inbound_iatu_2(
+        baseAddr, 
+        R_PU_MBOX_PC_SP_BASEADDR, //targetAddr
+        R_PU_MBOX_PC_SP_SIZE);    //size
+
+    baseAddr += R_PU_MBOX_PC_SP_SIZE;
+
+    config_inbound_iatu_3(
+        baseAddr,
+        R_PU_TRG_PCIE_BASEADDR, //targetAddr
+        R_PU_TRG_PCIE_SIZE);    //size
+
+    baseAddr += R_PU_TRG_PCIE_SIZE;
+
+    config_inbound_iatu_4(
+        baseAddr,
+        R_PCIE_USRESR_BASEADDR, //targetAddr
+        R_PCIE_USRESR_SIZE);    //size
+
+    miscControl1.B.DBI_RO_WR_EN = 0;
+    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
 }
