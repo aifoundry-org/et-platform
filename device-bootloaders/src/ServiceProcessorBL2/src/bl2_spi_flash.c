@@ -11,7 +11,6 @@
 
 #include <stdio.h>
 
-#include "et_cru.h"
 #include "serial.h"
 
 #include "bl2_spi_controller.h"
