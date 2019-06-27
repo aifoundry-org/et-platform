@@ -66,6 +66,13 @@
 #define LOG_GSC_PROGRESS(str) \
     LOG(DEBUG, "\tgsc_progress " str " %u", unsigned(cpu[current_thread].gsc_progress))
 
+#define LOG_MEMWRITE(size, addr, value) \
+   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] = 0x%" PRIx ##size , addr, value);
+
+#define LOG_MEMREAD(size, addr, value) \
+   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] : 0x%" PRIx ##size , addr, value);
+
+
 // -----------------------------------------------------------------------------
 // Access instruction fields
 
@@ -263,7 +270,7 @@
 #define SCATTER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
-        log_mem_write(false, -1, 0, 0); \
+        log_mem_write(false, -1, 0, 0, 0); \
     for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
@@ -276,7 +283,7 @@
                 throw; \
             } \
         } else { \
-            log_mem_write(false, -1, 0, 0); \
+            log_mem_write(false, -1, 0, 0, 0); \
         } \
     } \
     cpu[current_thread].gsc_progress = 0; \
@@ -288,6 +295,8 @@
 #define GATHER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
+    for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
+        log_mem_read(false, -1, 0, 0); \
     for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
@@ -305,6 +314,8 @@
                 } \
                 throw; \
             } \
+        } else { \
+            log_mem_read(false, -1, 0, 0); \
         } \
     } \
     cpu[current_thread].gsc_progress = 0; \
@@ -322,7 +333,7 @@
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
     for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
-        log_mem_write(false, -1, 0, 0); \
+        log_mem_read_write(false, -1, 0, 0, 0); \
     for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
         if (M0[e]) { \
             try { \
@@ -341,7 +352,7 @@
                 throw; \
             } \
         } else { \
-            log_mem_write(false, -1, 0, 0); \
+            log_mem_read_write(false, -1, 0, 0, 0); \
         } \
     } \
     cpu[current_thread].gsc_progress = 0; \

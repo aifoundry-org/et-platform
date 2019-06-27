@@ -31,7 +31,9 @@ inline void log_xreg_write(int, uint64_t) {}
 inline void log_freg_write(int, const freg_t&) {}
 inline void log_mreg_write(int, const mreg_t&) {}
 inline void log_fflags_write(uint64_t) {}
-inline void log_mem_write(bool, int, uint64_t, uint64_t) {}
+inline void log_mem_write(bool, int, uint64_t, uint64_t, uint64_t) {}
+inline void log_mem_read(bool, int, uint64_t, uint64_t) {}
+inline void log_mem_read_write(bool, int, uint64_t, uint64_t, uint64_t) {}
 inline void log_trap( uint64_t, uint64_t, uint64_t, uint64_t) {}
 inline void log_gsc_progress(uint64_t) {}
 

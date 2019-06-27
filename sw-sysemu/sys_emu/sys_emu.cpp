@@ -12,7 +12,6 @@
 
 #include "emu.h"
 #include "emu_gio.h"
-#include "emu_memop.h"
 #include "esrs.h"
 #include "mmu.h"
 #include "insn.h"
@@ -61,62 +60,6 @@ static inline bool thread_is_disabled(unsigned thread)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// Functions to emulate the main memory
-////////////////////////////////////////////////////////////////////////////////
-
-static bemu::MainMemory memory;
-
-// This functions are called by emu. We should clean this to a nicer way...
-static uint8_t emu_memread8(uint64_t addr)
-{
-    uint8_t ret;
-    memory.read(addr, 1, &ret);
-    return ret;
-}
-
-static uint16_t emu_memread16(uint64_t addr)
-{
-    uint16_t ret;
-    memory.read(addr, 2, &ret);
-    return ret;
-}
-
-static uint32_t emu_memread32(uint64_t addr)
-{
-    uint32_t ret;
-    memory.read(addr, 4, &ret);
-    return ret;
-}
-
-static uint64_t emu_memread64(uint64_t addr)
-{
-    uint64_t ret;
-    memory.read(addr, 8, &ret);
-    return ret;
-}
-
-static void emu_memwrite8(uint64_t addr, uint8_t data)
-{
-    memory.write(addr, 1, &data);
-}
-
-static void emu_memwrite16(uint64_t addr, uint16_t data)
-{
-    memory.write(addr, 2, &data);
-}
-
-static void emu_memwrite32(uint64_t addr, uint32_t data)
-{
-    memory.write(addr, 4, &data);
-}
-
-static void emu_memwrite64(uint64_t addr, uint64_t data)
-{
-    memory.write(addr, 8, &data);
-}
-
-
-////////////////////////////////////////////////////////////////////////////////
 // Parses a file that defines the memory regions plus contents to be
 // loaded in the different regions
 ////////////////////////////////////////////////////////////////////////////////
@@ -127,6 +70,7 @@ static bool parse_mem_file(const char * filename)
     if (file == NULL)
     {
         LOG_NOTHREAD(FTL, "Parse Mem File Error -> Couldn't open file %s for reading!!", filename);
+        return false;
     }
 
     // Parses the contents
@@ -145,22 +89,28 @@ static bool parse_mem_file(const char * filename)
         else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
         {
             LOG_NOTHREAD(INFO, "New File Load found: @ 0x%" PRIx64, base_addr);
-            try {
-                bemu::load_raw(memory, str, base_addr);
-            } catch (...) {
-                LOG_NOTHREAD(ERR, "Error loading file \"%s\"", str);
+            try
+            {
+                bemu::load_raw(bemu::memory, str, base_addr);
+            }
+            catch (...)
+            {
                 fclose(file);
+                LOG_NOTHREAD(FTL, "Error loading file \"%s\"", str);
                 return false;
             }
         }
         else if(sscanf(buffer, "ELF Load: %s", str) == 1)
         {
             LOG_NOTHREAD(INFO, "New ELF Load found: %s", str);
-            try {
-                bemu::load_elf(memory, str);
-            } catch (...) {
-                LOG_NOTHREAD(ERR, "Error loading ELF \"%s\"", str);
+            try
+            {
+                bemu::load_elf(bemu::memory, str);
+            }
+            catch (...)
+            {
                 fclose(file);
+                LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", str);
                 return false;
             }
         }
@@ -765,25 +715,16 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     log_only_minion(cmd_options.log_min);
     global_log_min = cmd_options.log_min;
 
-    // Defines the memory access functions
-    set_memory_funcs(emu_memread8,
-                     emu_memread16,
-                     emu_memread32,
-                     emu_memread64,
-                     emu_memwrite8,
-                     emu_memwrite16,
-                     emu_memwrite32,
-                     emu_memwrite64);
-
     // Callbacks for port writes
     set_msg_funcs(msg_to_thread);
 
     // Parses the memory description
     if (cmd_options.elf_file != NULL) {
         try {
-            bemu::load_elf(memory, cmd_options.elf_file);
-        } catch (...) {
-            LOG_NOTHREAD(ERR, "Error loading ELF \"%s\"", cmd_options.elf_file);
+            bemu::load_elf(bemu::memory, cmd_options.elf_file);
+        }
+        catch (...) {
+            LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", cmd_options.elf_file);
             return false;
         }
     }
@@ -793,14 +734,14 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     }
 
     // Initialize network
-    net_emu = net_emulator(&memory);
+    net_emu = net_emulator(&bemu::memory);
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
     if(cmd_options.net_desc_file != NULL)
     {
         net_emu.set_file(cmd_options.net_desc_file);
     }
 
-    api_listener = allocate_api_listener(&memory);
+    api_listener = allocate_api_listener(&bemu::memory);
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
     if(cmd_options.api_comm_path != NULL)
     {
@@ -1130,10 +1071,10 @@ sys_emu::main_internal(int argc, char * argv[])
 
     // Dumping
     if(cmd_options.dump_file != NULL)
-        bemu::dump_data(memory, cmd_options.dump_file, cmd_options.dump_addr, cmd_options.dump_size);
+        bemu::dump_data(bemu::memory, cmd_options.dump_file, cmd_options.dump_addr, cmd_options.dump_size);
 
     if(cmd_options.dump_mem)
-        bemu::dump_data(memory, cmd_options.dump_mem, memory.first(), (memory.last() - memory.first()) + 1);
+        bemu::dump_data(bemu::memory, cmd_options.dump_mem, bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);
 
 #ifdef SYSEMU_PROFILING
     if (cmd_options.dump_prof_file != NULL) {

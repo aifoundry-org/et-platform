@@ -1,4 +1,4 @@
-/* -*- Mode:C++; c-basic-offset: 4; -*- */
+/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
 #include <algorithm>
 #include <array>
@@ -16,12 +16,13 @@
 #include "emu_casts.h"
 #include "emu_gio.h"
 #include "esrs.h"
-#include "memmap.h"
-#include "mmu.h"
 #include "fpu/fpu.h"
 #include "fpu/fpu_casts.h"
 #include "gold.h"
 #include "log.h"
+#include "memmap.h"
+#include "memop.h"
+#include "mmu.h"
 #include "processor.h"
 #include "rbox.h"
 #include "tbox_emu.h"
@@ -95,6 +96,11 @@ typedef struct
 
 // UART
 static std::ostringstream uart_stream[EMU_NUM_THREADS];
+
+// Memory state
+namespace bemu {
+MainMemory memory;
+}
 
 // Hart state
 std::array<Processor,EMU_NUM_THREADS>  cpu;
@@ -641,7 +647,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 
 void take_trap(const trap_t& t)
 {
-    trap_to_mmode(t.get_cause(), t.get_tval());
+    trap_to_mmode(t.cause(), t.tval());
 }
 
 void check_minst_match(uint32_t bits)
@@ -722,7 +728,7 @@ void unknown(const char* comm __attribute__((unused)))
 // forward declarations
 static void dcache_evict_flush_set_way(bool, bool, int, int, int, int);
 static void dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
-static void dcache_prefetch_vaddr(bool, int, uint64_t, int, int, uint64_t);
+static void dcache_prefetch_vaddr(uint64_t);
 static void dcache_lock_vaddr(bool, uint64_t, int, int, uint64_t);
 static void dcache_unlock_vaddr(bool, uint64_t, int, int, uint64_t);
 static void dcache_lock_paddr(int, uint64_t);
@@ -1561,15 +1567,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_PREFETCH_VA:
         require_feature_u_cacheops();
-        {
-            bool tm         = (val >> 63) & 0x1;
-            int  dest       = (val >> 58) & 0x3;
-            uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
-            int  count      = (val & 0xF) + 1;
-            uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
-            int      id     = XREGS[31] & 0x0000000000000001ULL;
-            dcache_prefetch_vaddr(tm, dest, vaddr, count, id, stride);
-        }
+        dcache_prefetch_vaddr(val);
         break;
     // CSR_FLB is modelled outside this fuction!
     case CSR_FCC:
@@ -1608,7 +1606,7 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             throw;
         }
-        catch (const trap_t&)
+        catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
         }
@@ -1623,7 +1621,7 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             tensorloadl2(val);
         }
-        catch (const trap_t&)
+        catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
         }
@@ -1638,7 +1636,7 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             throw;
         }
-        catch (const trap_t&)
+        catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
         }
@@ -1994,7 +1992,7 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
         {
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
         }
-        catch (const trap_t& t)
+        catch (const sync_trap_t& t)
         {
             LOG(DEBUG, "\t%s: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)",
                 evict ? "EvictVA" : "FlushVA", vaddr, dest);
@@ -2006,13 +2004,20 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
     }
 }
 
-static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numlines, int id __attribute__((unused)), uint64_t stride)
+static void dcache_prefetch_vaddr(uint64_t val)
 {
+    bool tm         = (val >> 63) & 0x1;
+    int  dest       = (val >> 58) & 0x3;
+    uint64_t vaddr  = val & 0x0000FFFFFFFFFFC0ULL;
+    int  count      = (val & 0xF) + 1;
+    uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
+    //int      id   = XREGS[31] & 0x0000000000000001ULL;
+
     // Skip all if dest is MEM
     if (dest == 3)
         return;
 
-    for (int i = 0; i < numlines; i++, vaddr += stride)
+    for (int i = 0; i < count; i++, vaddr += stride)
     {
         // Skip if masked
         if (tm && !tmask_pass(i))
@@ -2023,12 +2028,17 @@ static void dcache_prefetch_vaddr(bool tm, int dest, uint64_t vaddr, int numline
         {
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch);
         }
-        catch (const trap_t& t)
+        catch (const sync_trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
             update_tensor_error(1 << 7);
             return;
+        }
+        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+        {
+            uint64_t value = bemu::pmemread64(addr);
+            LOG_MEMREAD(64, vaddr + (addr - paddr), value);
         }
         LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
     }
@@ -2079,7 +2089,7 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
     scp_trans[current_thread >> 1][set][way] = paddr;
     for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
     {
-        pmemwrite64(addr, 0);
+        bemu::pmemwrite64(addr, 0);
         uint64_t value = 0;
         LOG_MEMWRITE(64, addr, value);
     }
@@ -2107,7 +2117,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         {
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
         }
-        catch (const trap_t& t)
+        catch (const sync_trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tLockVA 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
@@ -2119,9 +2129,9 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         // We just need to make sure we zero the cache line.
         for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
         {
-            pmemwrite64(addr, 0);
+            bemu::pmemwrite64(addr, 0);
             uint64_t value = 0;
-            LOG_MEMWRITE(64, addr, value);
+            LOG_MEMWRITE(64, vaddr + (addr - paddr), value);
         }
         LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
     }
@@ -2140,7 +2150,7 @@ static void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __
         {
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
         }
-        catch (const trap_t& t)
+        catch (const sync_trap_t& t)
         {
             // Stop the operation if there is an exception
             LOG(DEBUG, "\tUnlockVA: 0x%016" PRIx64 " generated exception (suppressed)", vaddr);
@@ -2203,7 +2213,7 @@ static void write_msg_port_data_to_scp(uint32_t thread, uint32_t id, uint32_t *d
     for (int i = 0; i < wr_words; i++)
     {
         LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%d p%d) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
-        pmemwrite32(base_addr + 4 * i, data[i]);
+        bemu::pmemwrite32(base_addr + 4 * i, data[i]);
     }
 
     msg_ports[thread][id].size++;
@@ -2612,7 +2622,7 @@ void tensorload(uint64_t control)
                 uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxLoad);
                 for (int j = 0; j < L1D_LINE_SIZE/4; j++)
                 {
-                    SCP[idx].u32[j] = pmemread32(paddr + j*4);
+                    SCP[idx].u32[j] = bemu::pmemread32(paddr + j*4);
                     LOG(DEBUG, "\tSCP[%d].u32[%d] = 0x%08" PRIx32 " <-- MEM32[0x%016" PRIx64 "]" PRIx32, idx, j, SCP[idx].u32[j], addr+j*4);
                 }
                 log_tensor_load_scp_write(i, &SCP[idx].u64[0]);
@@ -2639,7 +2649,7 @@ void tensorload(uint64_t control)
                     uint64_t paddr = vmemtranslate(vaddr, 16, Mem_Access_TxLoad);
                     for (int c = 0; c < 16; ++c)
                     {
-                        SCP[idx].u8[c*4 + r] = pmemread8(paddr + c);
+                        SCP[idx].u8[c*4 + r] = bemu::pmemread8(paddr + c);
                         LOG(DEBUG, "SCP[%d].u8[%d] = 0x%02" PRIx8 " <-- MEM8[0x%016" PRIx64 "]", idx, c*4+r, SCP[idx].u8[c*4+r], vaddr + c);
                     }
                 }
@@ -2665,7 +2675,7 @@ void tensorload(uint64_t control)
                     uint64_t paddr = vmemtranslate(vaddr, 32, Mem_Access_TxLoad);
                     for (int c = 0; c < 16; ++c)
                     {
-                        SCP[idx].u16[c*2 + r] = pmemread16(paddr + c*2);
+                        SCP[idx].u16[c*2 + r] = bemu::pmemread16(paddr + c*2);
                         LOG(DEBUG, "SCP[%d].u16[%d] = 0x%04" PRIx16 " <-- MEM16[0x%016" PRIx64 "]",
                             idx, c*2+r, SCP[idx].u16[c*4+r], vaddr + c*2);
                     }
@@ -2690,7 +2700,7 @@ void tensorload(uint64_t control)
             uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxLoad);
             for (int j = 0; j < L1D_LINE_SIZE; j++)
             {
-                uint8_t val = pmemread8(paddr + j);
+                uint8_t val = bemu::pmemread8(paddr + j);
                 tmp_buffer[elem][j] = val;
                 LOG(DEBUG, "\tLoading into tmp_buffer - MEM8[0x%016" PRIx64 "]: Row%d-Elem%d <= 0x%02" PRIx8, addr+j, elem, j, val);
             }
@@ -2763,8 +2773,8 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxLoad);
             for (int j = 0; j < L1D_LINE_SIZE/4; j++)
             {
-                uint32_t val = pmemread32(paddr + j*4);
-                pmemwrite32(l2scp_addr + j*4, val);
+                uint32_t val = bemu::pmemread32(paddr + j*4);
+                bemu::pmemwrite32(l2scp_addr + j*4, val);
                 LOG(DEBUG, "\tTensorLoadL2SCP MEM32[0x%016" PRIx64 "] to PMEM32[0x%016" PRIx64 "] line %d, base 0x%016" PRIx64 " offset 0x%x <= 0x%08" PRIx32,
                     addr+j*4, l2scp_addr+j*4, dst+i, l2scp_addr, j*4, val);
             }
@@ -3108,7 +3118,7 @@ static void tensorstore(uint64_t tstorereg)
             {
                 uint32_t val = SCP[src].u32[i];
                 LOG(DEBUG, "\tSCP[%d].u32[%d] = 0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", src, i, val, addr + i*4);
-                pmemwrite32(paddr + i*4, val);
+                bemu::pmemwrite32(paddr + i*4, val);
                 //log_mem_write(0, 4, addr + i*4, val); => Don't log mem changes!
             }
             src = (src + srcinc) % L1_SCP_ENTRIES;
@@ -3168,7 +3178,7 @@ static void tensorstore(uint64_t tstorereg)
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u32[idx];
                     LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
-                    pmemwrite32(paddr + i*4, val);
+                    bemu::pmemwrite32(paddr + i*4, val);
                     //log_mem_write(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
                 }
                 // For 128b stores, move to next desired register immediately.
@@ -4027,9 +4037,9 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void raise_interrupt(int thread, int cause)
+void raise_interrupt(int thread, int cause, uint64_t mip_reg)
 {
-    if (cause == 9)
+    if (cause == 9 && !(mip_reg & 0x200))
     {
         ext_seip[thread] |= 1<<cause;
     }

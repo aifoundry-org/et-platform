@@ -1,5 +1,4 @@
 #include "emu.h"
-#include "mmu.h"
 #include "sys_emu.h"
 
 #ifdef SYSEMU_DEBUG

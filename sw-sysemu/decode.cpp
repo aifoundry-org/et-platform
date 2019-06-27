@@ -1134,45 +1134,9 @@ insn_t fetch_and_decode()
         /*111.xx*/  dec_c_sd,       dec_c_bnez,         dec_c_sdsp,        nullptr
     };
 
-    // local copy of the class members
-    uint32_t bits = 0;
     uint16_t flags = 0;
     insn_exec_funct_t exec_fn = nullptr;
-
-    // Fetch two 16b words; don't translate the address twice if both words
-    // are in the same 4KiB area
-    // Trap priority (highest to lowest): access fault, breakpoint, page fault
-    uint64_t paddr;
-    uint16_t low;
-    uint64_t vaddr = current_pc;
-    bool should_break = matches_fetch_breakpoint(vaddr);
-    try
-    {
-        paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch);
-        low = pmemread16(paddr);
-    }
-    catch (const trap_instruction_page_fault& t)
-    {
-        if (!should_break) throw;
-    }
-    if (should_break)
-    {
-        throw_trap_breakpoint(vaddr);
-    }
-
-    if ((low & 0x3) != 0x3) {
-        bits = uint32_t(low);
-        LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64 ": 0x%04x", vaddr, low);
-    } else if ((paddr & 4095) <= 4092) {
-        uint16_t high = pmemread16(paddr + 2);
-        bits = uint32_t(low) + (uint32_t(high) << 16);
-        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
-    } else {
-        uint64_t paddr2 = vmemtranslate(vaddr + 2, 2, Mem_Access_Fetch);
-        uint16_t high = pmemread16(paddr2);
-        bits = uint32_t(low) + (uint32_t(high) << 16);
-        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
-    }
+    uint32_t bits = mmu_fetch(current_pc);
     current_inst = bits;
 
     // Decode the fetched bits
