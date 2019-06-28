@@ -20,6 +20,10 @@ set(SOURCES
     src/interrupt.c
     src/main.c
     src/stubs.c
+    src/bl2_spi_controller.c
+    src/bl2_spi_flash.c
+    src/bl2_flash_fs.c
+    src/bl2_flashfs_driver.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/backtrace.c
     src/bl2_build_configuration.c)
@@ -30,7 +34,8 @@ set(ZEBU_TARGET SP_RAM)
 set(ZEBU_FILENAME ServiceProcessorBL2)
 
 include_directories(include)
-include_directories(${SHARED_INC_DIRS})
+include_directories(${SHARED_INC_DIR})
+include_directories(${SHARED_HAL_DIR})
 include_directories(${FREERTOS_INC_DIRS})
 include_directories(${FIRMWARE_TOOLS_DIR}/esperanto-flash-tool/include)
 include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/crypto_library/include)

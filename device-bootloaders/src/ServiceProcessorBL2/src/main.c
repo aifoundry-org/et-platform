@@ -66,6 +66,10 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
                                     1,
                                     stackA,
                                     &taskBufferA);
+    if ((taskHandleA == NULL) || (taskHandleB == NULL))
+    {
+        printf("taskHandle error\r\n");
+    }
 
     taskHandleB = xTaskCreateStatic(taskB,
                                     "task B",
