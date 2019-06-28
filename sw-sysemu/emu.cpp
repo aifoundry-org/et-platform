@@ -490,8 +490,8 @@ void check_pending_interrupts()
     if (!xip || cpu[current_thread].excl_mode)
         return;
 
-    LOG(DEBUG, "Check Pending Interrupt mtvec:0x%016" PRIx64 " mip:0x%08" PRIx32 " mie:0x%08" PRIx32,
-        cpu[current_thread].mtvec, cpu[current_thread].mip | ext_seip[current_thread], cpu[current_thread].mie);
+    LOG(DEBUG, "Check Pending Interrupt mtvec:0x%016" PRIx64 " mip:0x%08" PRIx32 " xseip:0x%08" PRIx32 " mie:0x%08" PRIx32,
+        cpu[current_thread].mtvec, cpu[current_thread].mip, ext_seip[current_thread], cpu[current_thread].mie);
 
     // If there are any pending interrupts for the current privilege level
     // 'x', they are only taken if mstatus.xIE=1. If there are any pending
