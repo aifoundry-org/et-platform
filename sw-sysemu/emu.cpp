@@ -1456,9 +1456,15 @@ static void csrset(uint16_t src1, uint64_t val)
         }
         break;
     case CSR_MCACHE_CONTROL:
-        msk = (cpu[current_thread].mcache_control & 1) ? 3 : 1;
+        switch (cpu[current_thread].mcache_control)
+        {
+        case 0: msk = ((val & 3) == 1) ? 3 : 0; break;
+        case 1: msk = ((val & 3) != 2) ? 3 : 0; break;
+        case 3: msk = ((val & 3) != 2) ? 3 : 0; break;
+        default: assert(0); break;
+        }
         val = (val & msk) | (cpu[current_thread].ucache_control & ~msk);
-        if ((val & 3) != 2)
+        if (msk)
         {
             cpu[current_thread].ucache_control = val;
             cpu[current_thread].mcache_control = val & 3;
