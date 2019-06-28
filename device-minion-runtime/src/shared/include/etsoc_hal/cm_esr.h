@@ -6,17 +6,17 @@
 /* Command Line:                                                           */
 /*    /home/cad/tools/semifore/csrCompile/LATEST/bin/x64_re6/csrCompile -v */
 /*    -c                                                                   */
-/*    /home/eng/wearle/repos/esperanto-soc/dv/common/scripts/semifore_css/bitfield_enum_doc.css */
+/*    /data/ssmith/work/repos/soc_hal/dv/common/scripts/semifore_css/bitfield_enum_doc.css */
 /*    -t h cm_esr.csr -o gen_sw/cm_esr                                     */
 /*                                                                         */
 /* Input files:                                                            */
 /*    cm_esr.csr                                                           */
 /*                                                                         */
 /* Configuration files:                                                    */
-/*    /home/eng/wearle/repos/esperanto-soc/dv/common/scripts/semifore_css/bitfield_enum_doc.css */
+/*    /data/ssmith/work/repos/soc_hal/dv/common/scripts/semifore_css/bitfield_enum_doc.css */
 /*                                                                         */
-/* Generated on: Mon May  6 13:53:44 2019                                  */
-/*           by: wearle                                                    */
+/* Generated on: Tue May 21 15:32:22 2019                                  */
+/*           by: ssmith                                                    */
 /*                                                                         */
 
 #ifndef _CM_ESR_H_
