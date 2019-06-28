@@ -24,7 +24,7 @@ namespace et_runtime {
 // Forward declaration of the kernel-elf-info
 class KernelELFInfo;
 class Device;
-class EtActionEvent;
+class EtAction;
 
 /// @brief Dynamically loaded module descriptor.
 class Module {
@@ -65,7 +65,7 @@ private:
       elf_raw_data_;      ///< Buffer holding the whole ELF as read from file
   bool onDevice_ = false; ///< True iff the module is loaded on the device
   uintptr_t devPtr_ = 0;  ///< Base on device point of the loaded binary
-  et_runtime::EtActionEvent *actionEvent_ =
+  std::shared_ptr<et_runtime::EtAction> actionEvent_ =
       nullptr; ///<  Action used for synchronize with load completion on the
                ///<  device
 };

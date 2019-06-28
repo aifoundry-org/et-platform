@@ -7,14 +7,6 @@
 
 using namespace et_runtime;
 
-void Event::resetAction(EtActionEvent *action /*= nullptr*/) {
-  if (action_event_) {
-    EtAction::decRefCounter(action_event_);
-  }
-
+void Event::resetAction(std::shared_ptr<EtActionEvent> action) {
   action_event_ = action;
-
-  if (action_event_) {
-    action_event_->incRefCounter();
-  }
 }

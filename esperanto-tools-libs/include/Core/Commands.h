@@ -27,23 +27,11 @@ namespace et_runtime {
 class Device;
 
 class EtAction {
-  std::atomic<int> ref_counter;
-
 public:
-  EtAction() : ref_counter(1) {}
-  virtual ~EtAction() {
-    assert(ref_counter.load(std::memory_order_relaxed) == 0);
-  }
-  virtual void execute(et_runtime::Device *device_target) {
-    THROW("Unexpected EtAction::execute()");
-  }
+  EtAction() = default;
+  virtual ~EtAction() = default;
+  virtual void execute(et_runtime::Device *device_target) = 0;
   virtual bool readyForExecution() { return true; }
-  void incRefCounter() { ref_counter.fetch_add(1); }
-  static void decRefCounter(EtAction *act) {
-    if (act->ref_counter.fetch_sub(1) == 1) {
-      delete act;
-    }
-  }
 };
 
 class EtActionEvent : public EtAction {
@@ -61,16 +49,21 @@ public:
 };
 
 class EtActionEventWaiter : public EtAction {
-  EtActionEvent *event_to_wait_;
-
 public:
-  EtActionEventWaiter(EtActionEvent *event) : event_to_wait_(event) {
-    assert(event_to_wait_ != nullptr);
-    event_to_wait_->incRefCounter();
+  EtActionEventWaiter(std::shared_ptr<EtActionEvent> event)
+      : event_to_wait_(event) {
+    assert(event_to_wait_.get() != nullptr);
   }
-  ~EtActionEventWaiter() { EtAction::decRefCounter(event_to_wait_); }
-  virtual bool readyForExecution() { return event_to_wait_->isExecuted(); }
-  virtual void execute(et_runtime::Device *device_target) {}
+  ~EtActionEventWaiter() = default;
+  bool readyForExecution() override {
+    auto event = dynamic_cast<EtActionEvent *>(event_to_wait_.get());
+    assert(event != nullptr);
+    return event_to_wait_->isExecuted();
+  }
+  void execute(et_runtime::Device *device_target) override {}
+
+private:
+  std::shared_ptr<EtActionEvent> event_to_wait_;
 };
 
 class EtActionConfigure : public EtAction {

@@ -191,17 +191,19 @@ public:
 
   bool isBlocking() { return is_blocking_; }
   /// @brief Add a command to execute in the command Queue.
-  void addCommand(et_runtime::EtAction *action);
+  void addCommand(std::shared_ptr<et_runtime::EtAction> action);
   /// @brief Return True iff the command queue is empty
   bool noCommands() const { return actions_.empty(); }
   /// @brief Return pointer to the command in the front of the queue
-  et_runtime::EtAction *frontCommand() { return actions_.front(); }
+  std::shared_ptr<et_runtime::EtAction> frontCommand() {
+    return actions_.front();
+  }
   /// @brief Remove front command
   void popCommand() { actions_.pop(); }
 
 private:
   bool is_blocking_;
-  std::queue<et_runtime::EtAction *> actions_;
+  std::queue<std::shared_ptr<et_runtime::EtAction>> actions_;
 };
 } // namespace et_runtime
 

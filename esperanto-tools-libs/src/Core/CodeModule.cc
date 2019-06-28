@@ -48,13 +48,13 @@ size_t Module::rawKernelOffset(const std::string &name) {
 bool Module::loadOnDevice(Device *dev) {
   dev->malloc((void **)&devPtr_, elf_raw_data_.size());
 
-  dev->addAction(dev->defaultStream(),
-                 new EtActionWrite((void *)devPtr_, elf_raw_data_.data(),
-                                   elf_raw_data_.size()));
+  dev->addAction(
+      dev->defaultStream(),
+      std::shared_ptr<EtAction>(new EtActionWrite(
+          (void *)devPtr_, elf_raw_data_.data(), elf_raw_data_.size())));
 
   assert(actionEvent_ == nullptr);
-  actionEvent_ = new EtActionEvent();
-  actionEvent_->incRefCounter();
+  actionEvent_ = std::shared_ptr<EtAction>(new EtActionEvent());
   dev->addAction(dev->defaultStream(), actionEvent_);
 
   // synchronize the default stream
@@ -62,9 +62,8 @@ bool Module::loadOnDevice(Device *dev) {
 
   assert(devPtr_ != 0);
   assert(actionEvent_ != nullptr);
-  assert(actionEvent_->isExecuted());
-  // ELF is already loaded, free actionEvent
-  EtAction::decRefCounter(actionEvent_);
+  auto event = dynamic_cast<EtActionEvent *>(actionEvent_.get());
+  assert(event->isExecuted());
   actionEvent_ = nullptr;
 
   onDevice_ = true;

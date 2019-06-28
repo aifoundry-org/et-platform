@@ -125,35 +125,30 @@ void MemoryManager::initMemRegions() {
   kernels_dev_mem_region_.reset(
       new EtMemRegion(kernels_dev_base, kKernelsDevMemRegionSize));
 
-  EtActionConfigure *actionConfigure = nullptr;
-  EtActionEvent *actionEvent = nullptr;
-  {
-    assert(device_.defaultStream_ == nullptr);
-    device_.defaultStream_ = device_.createStream(false);
+  std::shared_ptr<EtAction> actionConfigure = nullptr;
+  std::shared_ptr<EtAction> actionEvent = nullptr;
 
-    actionConfigure =
-        new EtActionConfigure(dev_base, kDevMemRegionSize, kernels_dev_base,
-                              kKernelsDevMemRegionSize);
-    actionConfigure->incRefCounter();
+  assert(device_.defaultStream_ == nullptr);
+  device_.defaultStream_ = device_.createStream(false);
 
-    actionEvent = new EtActionEvent();
-    actionEvent->incRefCounter();
+  actionConfigure.reset(new EtActionConfigure(
+      dev_base, kDevMemRegionSize, kernels_dev_base, kKernelsDevMemRegionSize));
 
-    device_.addAction(device_.defaultStream_, actionConfigure);
-    device_.addAction(device_.defaultStream_, actionEvent);
-  }
+  actionEvent.reset(new EtActionEvent());
 
-  actionEvent->observerWait();
+  device_.addAction(device_.defaultStream_, actionConfigure);
+  device_.addAction(device_.defaultStream_, actionEvent);
 
-  if (actionConfigure->isLocalMode()) {
+  auto aEvent = std::dynamic_pointer_cast<EtActionEvent>(actionEvent);
+  aEvent->observerWait();
+
+  if (std::dynamic_pointer_cast<EtActionConfigure>(actionConfigure)
+          ->isLocalMode()) {
     PERROR_IF(mprotect(dev_base, kDevMemRegionSize, PROT_READ | PROT_WRITE) ==
               -1);
     PERROR_IF(mprotect(kernels_dev_base, kKernelsDevMemRegionSize,
                        PROT_READ | PROT_WRITE) == -1);
   }
-
-  EtAction::decRefCounter(actionConfigure);
-  EtAction::decRefCounter(actionEvent);
 }
 
 void MemoryManager::uninitMemRegions() {

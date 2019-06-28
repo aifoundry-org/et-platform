@@ -70,11 +70,11 @@ bool Device::deviceAlive() { return target_device_->alive(); }
 
 void Device::deviceExecute() {
     while (true) {
-      EtAction *actionToExecute = nullptr;
+      std::shared_ptr<EtAction> actionToExecute;
       for (auto &it : stream_storage_) {
         Stream *stream = it.get();
         if (!stream->noCommands()) {
-          EtAction *action = stream->frontCommand();
+          auto action = stream->frontCommand();
           if (action->readyForExecution()) {
             actionToExecute = action;
             stream->popCommand();
@@ -84,13 +84,12 @@ void Device::deviceExecute() {
       }
 
       // if there is no action then we are going to wait on condition variable
-      if (actionToExecute == nullptr) {
+      if (!actionToExecute) {
         break;
       }
 
       // execute action without mutex
       actionToExecute->execute(this);
-      EtAction::decRefCounter(actionToExecute);
     }
 
     if (!target_device_->alive()) {
@@ -131,9 +130,8 @@ void Device::uninitObjects() {
   for (auto &it : stream_storage_) {
     Stream *stream = it.get();
     while (!stream->noCommands()) {
-      EtAction *act = stream->frontCommand();
+      auto act = stream->frontCommand();
       stream->popCommand();
-      EtAction::decRefCounter(act);
     }
   }
   for (auto &it : event_storage_) {
@@ -195,7 +193,8 @@ void Device::destroyEvent(Event *et_event) {
   stl_remove(event_storage_, et_event);
 }
 
-void Device::addAction(Stream *et_stream, et_runtime::EtAction *et_action) {
+void Device::addAction(Stream *et_stream,
+                       std::shared_ptr<et_runtime::EtAction> et_action) {
   // FIXME: all blocking streams can synchronize through EtActionEventWaiter
   if (et_stream->isBlocking()) {
     defaultStream_->addCommand(et_action);
@@ -210,15 +209,11 @@ etrtError Device::mallocHost(void **ptr, size_t size) {
 }
 
 etrtError Device::streamSynchronize(Stream *stream) {
-  EtActionEvent *actionEvent = nullptr;
-
   Stream *et_stream = getStream(stream);
 
-  actionEvent = new EtActionEvent();
-  actionEvent->incRefCounter();
+  auto actionEvent = std::shared_ptr<EtAction>(new EtActionEvent());
   addAction(et_stream, actionEvent);
-  actionEvent->observerWait();
-  EtAction::decRefCounter(actionEvent);
+  std::dynamic_pointer_cast<EtActionEvent>(actionEvent)->observerWait();
   return etrtSuccess;
 }
 
@@ -250,12 +245,10 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
 
   switch (kind) {
   case etrtMemcpyHostToDevice: {
-
-    addAction(et_stream, new EtActionWrite(dst, src, count));
+    addAction(et_stream, std::make_shared<EtActionWrite>(dst, src, count));
   } break;
   case etrtMemcpyDeviceToHost: {
-
-    addAction(et_stream, new EtActionRead(dst, src, count));
+    addAction(et_stream, std::make_shared<EtActionRead>(dst, src, count));
   } break;
   case etrtMemcpyDeviceToDevice: {
     int dev_count = count;
@@ -459,9 +452,9 @@ etrtError Device::rawLaunch(et_runtime::ModuleID module_id,
   std::vector<uint8_t> args_buff(args_size);
   ::memcpy(&args_buff[0], args, args_size);
 
-  addAction(getStream(stream),
-            new EtActionLaunch(dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
-                               kernel_entry_point, kernel_name));
+  addAction(getStream(stream), std::make_shared<EtActionLaunch>(
+                                   dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
+                                   kernel_entry_point, kernel_name));
 
   return etrtSuccess;
 }

@@ -156,7 +156,7 @@ EXAPI etrtError_t etrtEventQuery(Event *event) {
   GetDev dev;
 
   Event *et_event = dev->getEvent(event);
-  EtActionEvent *actionEvent = et_event->getAction();
+  auto actionEvent = et_event->getAction();
   if (actionEvent == nullptr) {
     return etrtSuccess;
   }
@@ -169,7 +169,7 @@ EXAPI etrtError_t etrtEventRecord(Event *event, Stream *stream) {
 
   Stream *et_stream = dev->getStream(stream);
   Event *et_event = dev->getEvent(event);
-  EtActionEvent *actionEvent = new EtActionEvent();
+  auto actionEvent = make_shared<EtActionEvent>();
   et_event->resetAction(actionEvent);
   dev->addAction(et_stream, actionEvent);
   return etrtSuccess;
@@ -184,9 +184,9 @@ EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
 
   Stream *et_stream = dev->getStream(stream);
   Event *et_event = dev->getEvent(event);
-  EtActionEvent *actionEvent = et_event->getAction();
+  auto actionEvent = et_event->getAction();
   if (actionEvent != nullptr) {
-    dev->addAction(et_stream, new EtActionEventWaiter(actionEvent));
+    dev->addAction(et_stream, make_shared<EtActionEventWaiter>(actionEvent));
   }
   return etrtSuccess;
 }
@@ -197,7 +197,7 @@ EXAPI etrtError_t etrtEventSynchronize(Event *event) {
   GetDev dev;
 
   Event *et_event = dev->getEvent(event);
-  EtActionEvent *actionEvent = et_event->getAction();
+  auto actionEvent = et_event->getAction();
   if (actionEvent != nullptr) {
     actionEvent->observerWait();
     et_event->resetAction();
