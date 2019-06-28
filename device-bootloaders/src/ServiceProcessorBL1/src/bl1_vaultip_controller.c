@@ -23,6 +23,7 @@
 #include "vaultip_static_assets.h"
 #include "system_registers.h"
 #include "bl1_flash_fs.h"
+#include "cache_flush_ops.h"
 
 #include "bl1_vaultip_controller.h"
 
@@ -603,6 +604,8 @@ int vaultip_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t
     input_token.hash.dw_24.TotalMessageLength_31_00 = (uint32_t)msg_size;
     input_token.hash.dw_25.TotalMessageLength_60_32 = 0;
 
+    l1_data_cache_flush_region(msg, msg_size);
+
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_hash: vaultip_send_input_token() failed!\n");
         return -1;
@@ -655,6 +658,8 @@ int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const voi
     input_token.hash.dw_07.Digest_AS_ID = digest_asset_id;
     input_token.hash.dw_24.TotalMessageLength_31_00 = 0;
     input_token.hash.dw_25.TotalMessageLength_60_32 = 0;
+
+    l1_data_cache_flush_region(msg, msg_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_hash_update: vaultip_send_input_token() failed!\n");
@@ -712,6 +717,8 @@ int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void
     input_token.hash.dw_24.TotalMessageLength_31_00 = (uint32_t)total_msg_length;
     input_token.hash.dw_25.TotalMessageLength_60_32 = (total_msg_length >> 32u) & 0x1FFFFFFFu;
 
+    l1_data_cache_flush_region(msg, msg_size);
+
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_hash_final: vaultip_send_input_token() failed!\n");
         return -1;
@@ -733,7 +740,7 @@ int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void
 }
 
 int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t policy_63_32, VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings, uint32_t lifetime, uint32_t * asset_id) {
-    //uint32_t n;
+    // uint32_t n;
 
     memset(&input_token, 0, sizeof(input_token));
     memset(&output_token, 0, sizeof(output_token));
@@ -775,7 +782,7 @@ int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t poli
 }
 
 int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const void * data, uint32_t data_size) {
-    //uint32_t n;
+    // uint32_t n;
 
     memset(&input_token, 0, sizeof(input_token));
     memset(&output_token, 0, sizeof(output_token));
@@ -795,7 +802,9 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     //     printx("asset_load[%u]=%08x\n", n, input_token.dw[n]);
     // }
 
-//    printx("vaultip_asset_load_plaintext: assetid=0x%08x, length=0x%08x\n", asset_id, data_size);
+    printx("vaultip_asset_load_plaintext: assetid=0x%08x, length=0x%08x\n", asset_id, data_size);
+
+    l1_data_cache_flush_region(data, data_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_send_input_token() failed!\n");
@@ -810,6 +819,7 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
+        printx("vaultip_asset_load_plaintext: output_token[0]=%08x\n", output_token.dw[0]);
         return -1;
     }
 }
@@ -835,6 +845,9 @@ int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk
     input_token.asset_load.dw_08.OutputDataLength = key_expansion_IV_length & 0x7FF;
     input_token.asset_load.dw_09.Key_AS_ID = kdk_asset_id;
     memcpy(input_token.asset_load.dw_10_63[0].AssociatedData, associated_data, associated_data_size);
+
+    l1_data_cache_flush_region(salt, salt_size);
+    l1_data_cache_flush_region(key_expansion_IV, key_expansion_IV_length);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_send_input_token() failed!\n");
@@ -915,7 +928,7 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
                                  const void * sig_data_address, uint32_t sig_data_size) {
     uint32_t modulus_size;
     uint32_t modulus_words;
-    //uint32_t n;
+    // uint32_t n;
 
     switch (curve_id) {
     case EC_KEY_CURVE_NIST_P256:
@@ -953,11 +966,15 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     input_token.public_key.dw_10.SigDataAddress_31_00 = PTR232LO(sig_data_address);
     input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
     input_token.public_key.dw_12_63.HashDataLength = hash_data_length;
-/*
-    for (n = 0; n < 13; n++) {
-        printx("ec_verify[%u]=%08x\n", n, input_token.dw[n]);
-    }
-*/
+
+    // for (n = 0; n < 13; n++) {
+    //     printx("ec_verify[%u]=%08x\n", n, input_token.dw[n]);
+    // }
+
+
+    l1_data_cache_flush_region(message, message_size);
+    l1_data_cache_flush_region(sig_data_address, sig_data_size);
+
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_send_input_token() failed!\n");
         return -1;
@@ -971,6 +988,7 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
+        printx("vaultip_public_key_ecdsa_verify: vaultip_read_output_token() output token[0] = 0x%08x\n", output_token.dw_00);
         return -1;
     }
 }
@@ -1017,6 +1035,10 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, 
     // for (n = 0; n < 13; n++) {
     //     printx("rsa_verify[%u]=%08x\n", n, input_token.dw[n]);
     // }
+
+    l1_data_cache_flush_all();
+    // l1_data_cache_flush_region(message, message_size);
+    // l1_data_cache_flush_region(sig_data_address, sig_data_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_send_input_token() failed!\n");
