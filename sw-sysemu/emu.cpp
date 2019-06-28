@@ -518,6 +518,7 @@ void check_pending_interrupts()
             break;
     }
 
+    if (xip & 0x8000) throw trap_bad_ipi_redirect_interrupt();
     if (xip & 0x0800) throw trap_machine_external_interrupt();
     if (xip & 0x0008) throw trap_machine_software_interrupt();
     if (xip & 0x0080) throw trap_machine_timer_interrupt();
