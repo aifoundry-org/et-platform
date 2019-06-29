@@ -34,6 +34,7 @@ SECTIONS
     .rodata :
     {
         *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
+        . = ALIGN(128);
     } > MCODE
 
     .rodata1 :

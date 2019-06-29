@@ -5,6 +5,7 @@
 #include "message.h"
 #include "shire.h"
 #include "syscall.h"
+#include "wm_build_configuration.h"
 
 #include <stdint.h>
 
@@ -22,6 +23,13 @@ void __attribute__((noreturn)) main(void)
         "csrw  sscratch, sp     \n" // sscratch points to S-mode stack scratch region
         : "=&r" (temp)
     );
+
+    const IMAGE_VERSION_INFO_t * image_version_info = get_image_version_info();
+    if (NULL == image_version_info)
+    {
+        for (;;);
+        // @todo:
+    }
 
     const uint64_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();

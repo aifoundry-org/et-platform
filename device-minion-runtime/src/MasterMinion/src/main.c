@@ -6,6 +6,7 @@
 #include "serial.h"
 #include "shire.h"
 #include "swi.h"
+#include "mm_build_configuration.h"
 
 #include <stdbool.h>
 #include <inttypes.h>
@@ -83,6 +84,14 @@ void __attribute__((noreturn)) main(void)
     );
 
     SERIAL_init(UART0);
+
+    const IMAGE_VERSION_INFO_t * image_version_info = get_image_version_info();
+    if (NULL == image_version_info)
+    {
+        for (;;);
+        // @todo:
+    }
+
     printf("\r\nMaster minion " GIT_VERSION_STRING "\r\n");
 
     printf("Initializing message buffers...");
