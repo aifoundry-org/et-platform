@@ -53,8 +53,7 @@ exhale_args = {
     "exhaleExecutesDoxygen": True,
     "exhaleDoxygenStdin":
     """INPUT = @CMAKE_CURRENT_SOURCE_DIR@/../include/ \
-               @CMAKE_CURRENT_BINARY_DIR@/../include \
-               @CMAKE_CURRENT_SOURCE_DIR@/../src/Device \
+               @CMAKE_CURRENT_SOURCE_DIR@/../src/ \
 
     FILE_PATTERN = *.h
     """
