@@ -1,6 +1,6 @@
 #include "Core/Event.h"
 
-#include "Core/Commands.h"
+#include "DeviceAPI/Commands.h"
 #include <assert.h>
 #include <memory.h>
 #include <stdio.h>

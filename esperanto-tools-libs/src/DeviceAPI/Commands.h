@@ -21,7 +21,6 @@
 #include <condition_variable>
 #include <vector>
 
-
 namespace et_runtime {
 
 class Device;

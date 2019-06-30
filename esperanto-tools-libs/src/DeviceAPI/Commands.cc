@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/Commands.h"
+#include "DeviceAPI/Commands.h"
 #include "Core/Device.h"
 #include "Support/STLHelpers.h"
 #include "etrt-bin.h"

@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "Core/MemoryManager.h"
-#include "Core/Commands.h"
+#include "DeviceAPI/Commands.h"
 #include "EsperantoRuntime.h"
 
 #include <sys/mman.h>

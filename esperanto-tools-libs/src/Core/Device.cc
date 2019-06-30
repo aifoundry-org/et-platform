@@ -1,12 +1,12 @@
 #include "Core/Device.h"
 
 #include "Common/ErrorTypes.h"
-#include "Core/Commands.h"
 #include "Core/DeviceTarget.h"
 #include "Core/ELFSupport.h"
 #include "Core/Event.h"
 #include "Core/MemoryManager.h"
 #include "Core/Stream.h"
+#include "DeviceAPI/Commands.h"
 #include "DeviceFW/FWManager.h"
 #include "ModuleManager.h"
 #include "Support/DeviceGuard.h"

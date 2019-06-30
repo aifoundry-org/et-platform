@@ -1,5 +1,5 @@
 #include "Core/Stream.h"
-#include "Core/Commands.h"
+#include "DeviceAPI/Commands.h"
 
 namespace et_runtime {
 

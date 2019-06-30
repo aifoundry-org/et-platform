@@ -47,7 +47,6 @@ set(ETRT_SOURCES
     etrpc/et-rpc.cc
     # --------
     C-API/etrt.cc
-    Core/Commands.cc
     Core/CodeModule.cc
     Core/DeviceManager.cc
     Core/Error.cc
@@ -64,6 +63,7 @@ set(ETRT_SOURCES
     Device/TargetCardProxy.cc
     Device/TargetRPC.cc
     Device/TargetSysEmu.cc
+    DeviceAPI/Commands.cc
     DeviceFW/FWManager.cc
     DeviceFW/FakeFW.cc
     DeviceFW/DeviceFW.cc

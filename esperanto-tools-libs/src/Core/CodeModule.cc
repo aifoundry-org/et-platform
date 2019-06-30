@@ -10,8 +10,8 @@
 
 #include "Core/CodeModule.h"
 
-#include "Core/Commands.h"
 #include "Core/Device.h"
+#include "DeviceAPI/Commands.h"
 #include "ELFSupport.h"
 
 #include <cassert>
