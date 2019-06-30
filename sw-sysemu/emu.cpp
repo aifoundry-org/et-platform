@@ -2568,12 +2568,11 @@ void tensorload(uint64_t control)
     int      dst                = (control >> 53) & 0x3F;
     int      tenb               = (control >> 52) & 0x1;
     //uint64_t virtual_addr_l2_sc = (control >>  6) & 0x3FFFFFFFFFF;
-    uint64_t base               = control & 0xFFFFFFFFFFC0ULL;
+    uint64_t addr               = sext<48>(control & 0xFFFFFFFFFFC0ULL);
     int      boffset            = (control >>  4) & 0x03;
     int      rows               = ((control      ) & 0xF) + 1;
     int      adj                = 0;
 
-    uint64_t addr             = sext<48>(base);
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
 
     // Cooperative tensor loads require the shire to be in cooperative mode
@@ -2605,6 +2604,7 @@ void tensorload(uint64_t control)
             tensorload_setupb_numlines[current_thread^1] = rows;
         }
         trans = 0x0;
+        tm = 0;
     }
     else if (trans == 0x3 || trans == 0x4)
     {
