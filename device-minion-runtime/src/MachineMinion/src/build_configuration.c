@@ -1,4 +1,3 @@
-#include "mm_build_configuration.h"
 #include "build_configuration.h"
 
 // the esperanto_sign_elf tool will search the elf binary for a
@@ -27,7 +26,7 @@
 // then the esperanto_sign_elf tool will use the file_version, git_hash and git_version
 // to automatically initialize the signed header structure
 
-const IMAGE_VERSION_INFO_t IMAGE_VERSION_INFO_SYMBOL __attribute__((used)) = {
+const IMAGE_VERSION_INFO_t IMAGE_VERSION_INFO_SYMBOL __attribute__((used, section(".rodata.keep"))) = {
     .prolog_tag = IMAGE_VERSION_INFO_PROLOG_TAG,
     .file_version_revision = FILE_REVISION_NUMBER,
     .file_version_minor = FILE_VERSION_MINOR,

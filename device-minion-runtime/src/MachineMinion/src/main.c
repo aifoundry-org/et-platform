@@ -2,7 +2,6 @@
 #include "esr_defines.h"
 #include "layout.h"
 #include "message.h"
-#include "mm_build_configuration.h"
 
 #include <stdint.h>
 
@@ -37,13 +36,6 @@ void __attribute__((noreturn)) main(void)
         "csrs  mstatus, %0 \n" // set mstatus MPP[0] = supervisor mode
         : "=&r" (temp)
     );
-
-    const IMAGE_VERSION_INFO_t * image_version_info = get_image_version_info();
-    if (NULL == image_version_info)
-    {
-        for (;;);
-        // @todo:
-    }
 
     // Block user-level PC redirection
     volatile uint64_t* const ipi_redirect_filter_ptr = ESR_SHIRE(PRV_M, 0xFF, IPI_REDIRECT_FILTER);

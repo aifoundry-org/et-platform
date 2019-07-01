@@ -21,7 +21,7 @@ set(SOURCES
     src/exception.c
     src/main.c
     src/putchar.c
-    src/mm_build_configuration.c
+    src/build_configuration.c
     ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c

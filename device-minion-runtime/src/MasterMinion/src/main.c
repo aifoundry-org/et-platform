@@ -1,7 +1,6 @@
 #include "build_configuration.h"
 #include "layout.h"
 #include "message.h"
-#include "mm_build_configuration.h"
 #include "printf.h"
 #include "print_exception.h"
 #include "serial.h"

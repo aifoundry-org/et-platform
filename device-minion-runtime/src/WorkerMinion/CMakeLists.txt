@@ -21,7 +21,7 @@ set(SOURCES
     src/main.c
     src/kernel.c
     src/test_kernels.c
-    src/wm_build_configuration.c
+    src/build_configuration.c
     ${SHARED_SRC_DIR}/message.c
     )
 

@@ -27,6 +27,7 @@ SECTIONS
     .rodata :
     {
         *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
+        KEEP(*(SORT_BY_ALIGNMENT(.rodata.keep)))
     }
 
     .rodata1 :
