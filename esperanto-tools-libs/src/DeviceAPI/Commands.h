@@ -14,7 +14,6 @@
 #include "Support/HelperMacros.h"
 
 #include "etrt-bin.h"
-//#include "utils.h"
 
 #include <atomic>
 #include <cassert>

@@ -8,6 +8,8 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
+#include "DeviceAPI/Command.h"
+
 #include "DeviceAPI/Commands.h"
 #include "Core/Device.h"
 #include "Support/STLHelpers.h"
@@ -26,6 +28,15 @@ using namespace et_runtime;
 #if 0
 static bool static_kernels = false;
 #endif
+
+namespace et_runtime {
+namespace device_api {
+
+CommandBase::IDty CommandBase::command_id_ = 0;
+
+CommandBase::CommandBase() { command_id_++; }
+} // namespace device_api
+} // namespace et_runtime
 
 void EtActionEvent::execute(Device *device) {
   std::lock_guard<std::mutex> lk(observer_mutex);
