@@ -490,8 +490,8 @@ void check_pending_interrupts()
     if (!xip || cpu[current_thread].excl_mode)
         return;
 
-    LOG(DEBUG, "Check Pending Interrupt mtvec:0x%016" PRIx64 " mip:0x%08" PRIx32 " mie:0x%08" PRIx32,
-        cpu[current_thread].mtvec, cpu[current_thread].mip | ext_seip[current_thread], cpu[current_thread].mie);
+    LOG(DEBUG, "Check Pending Interrupt mtvec:0x%016" PRIx64 " mip:0x%08" PRIx32 " xseip:0x%08" PRIx32 " mie:0x%08" PRIx32,
+        cpu[current_thread].mtvec, cpu[current_thread].mip, ext_seip[current_thread], cpu[current_thread].mie);
 
     // If there are any pending interrupts for the current privilege level
     // 'x', they are only taken if mstatus.xIE=1. If there are any pending
@@ -518,6 +518,7 @@ void check_pending_interrupts()
             break;
     }
 
+    if (xip & 0x8000) throw trap_bad_ipi_redirect_interrupt();
     if (xip & 0x0800) throw trap_machine_external_interrupt();
     if (xip & 0x0008) throw trap_machine_software_interrupt();
     if (xip & 0x0080) throw trap_machine_timer_interrupt();
@@ -1455,9 +1456,15 @@ static void csrset(uint16_t src1, uint64_t val)
         }
         break;
     case CSR_MCACHE_CONTROL:
-        msk = (cpu[current_thread].mcache_control & 1) ? 3 : 1;
+        switch (cpu[current_thread].mcache_control)
+        {
+        case 0: msk = ((val & 3) == 1) ? 3 : 0; break;
+        case 1: msk = ((val & 3) != 2) ? 3 : 0; break;
+        case 3: msk = ((val & 3) != 2) ? 3 : 0; break;
+        default: assert(0); break;
+        }
         val = (val & msk) | (cpu[current_thread].ucache_control & ~msk);
-        if ((val & 3) != 2)
+        if (msk)
         {
             cpu[current_thread].ucache_control = val;
             cpu[current_thread].mcache_control = val & 3;
@@ -2561,12 +2568,11 @@ void tensorload(uint64_t control)
     int      dst                = (control >> 53) & 0x3F;
     int      tenb               = (control >> 52) & 0x1;
     //uint64_t virtual_addr_l2_sc = (control >>  6) & 0x3FFFFFFFFFF;
-    uint64_t base               = control & 0xFFFFFFFFFFC0ULL;
+    uint64_t addr               = sext<48>(control & 0xFFFFFFFFFFC0ULL);
     int      boffset            = (control >>  4) & 0x03;
     int      rows               = ((control      ) & 0xF) + 1;
     int      adj                = 0;
 
-    uint64_t addr             = sext<48>(base);
     LOG(DEBUG, "Tensor Load: Trans:%d - rows:%d - tm:%d - use_coop:%d - dst:%d - tenb:%d - boffset:%d - addr:0x%016" PRIx64, trans, rows, tm, use_coop, dst, tenb, boffset, addr);
 
     // Cooperative tensor loads require the shire to be in cooperative mode
@@ -2598,6 +2604,7 @@ void tensorload(uint64_t control)
             tensorload_setupb_numlines[current_thread^1] = rows;
         }
         trans = 0x0;
+        tm = 0;
     }
     else if (trans == 0x3 || trans == 0x4)
     {
@@ -4037,9 +4044,9 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void raise_interrupt(int thread, int cause)
+void raise_interrupt(int thread, int cause, uint64_t mip_reg)
 {
-    if (cause == 9)
+    if (cause == 9 && !(mip_reg & 0x200))
     {
         ext_seip[thread] |= 1<<cause;
     }
