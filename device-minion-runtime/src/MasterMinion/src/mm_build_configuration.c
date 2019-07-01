@@ -1,7 +1,7 @@
 #include "mm_build_configuration.h"
 #include "build_configuration.h"
 
-// the esperanto_sign_elf tool will search the elf binary for a 
+// the esperanto_sign_elf tool will search the elf binary for a
 // symbol named 'g_image_version_info'.
 // The symbol is expected to be of type IMAGE_VERSION_INFO_t as defined in esperanto_executable_image.h
 //
@@ -27,7 +27,7 @@
 // then the esperanto_sign_elf tool will use the file_version, git_hash and git_version
 // to automatically initialize the signed header structure
 
-/*__attribute__((used))*/ static const IMAGE_VERSION_INFO_t IMAGE_VERSION_INFO_SYMBOL = {
+const IMAGE_VERSION_INFO_t IMAGE_VERSION_INFO_SYMBOL __attribute__((used)) = {
     .prolog_tag = IMAGE_VERSION_INFO_PROLOG_TAG,
     .file_version_revision = FILE_REVISION_NUMBER,
     .file_version_minor = FILE_VERSION_MINOR,
@@ -36,9 +36,3 @@
     .git_version = GIT_VERSION_ARRAY,
     .epilog_tag = IMAGE_VERSION_INFO_EPILOG_TAG
 };
-
-const IMAGE_VERSION_INFO_t * get_image_version_info(void);
-
-const IMAGE_VERSION_INFO_t * get_image_version_info(void) {
-    return &IMAGE_VERSION_INFO_SYMBOL;
-}

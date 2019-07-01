@@ -4,6 +4,6 @@
 #include <stdint.h>
 #include "crypto_api.h"
 
-const IMAGE_VERSION_INFO_t * get_image_version_info(void);
+extern const IMAGE_VERSION_INFO_t IMAGE_VERSION_INFO_SYMBOL;
 
 #endif
