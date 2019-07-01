@@ -3558,12 +3558,22 @@ static void tensor_ima8a32(uint64_t tfmareg)
                 int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
                 int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
 #undef BSRC
-                // If all products are 0, we can skip the operation, except if first_pass is set and this
-                // is the first iteration, or TenC must be copied to FREGS and this is the last iteration
+                // If all products are 0 for both column @j and column @j+8 or @j-8, we can skip the
+                // operation, except if first_pass is set and this is the first iteration, or TenC
+                // must be copied to FREGS and this is the last iteration.
                 // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
-                if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) && (tmpb.u32[j] == 0))
-                    continue;
-
+                if (j >= 8)
+                {
+                    if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
+                        (tmpb.u32[j] == 0) && (tmpb.u32[j-8] == 0))
+                        continue;
+                }
+                else
+                {
+                    if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
+                        (tmpb.u32[j] == 0) && ((j+8 >= bcols) || (tmpb.u32[j+8] == 0)))
+                        continue;
+                }
                 int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL];
                 int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
                 dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
