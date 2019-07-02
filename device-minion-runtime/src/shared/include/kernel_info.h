@@ -4,6 +4,7 @@
 #include "kernel_params.h"
 
 #include <stdint.h>
+
 typedef uint64_t grid_config_t; // TODO
 
 typedef struct {

@@ -79,7 +79,7 @@ static void handle_message(uint64_t shire_id, uint64_t hart_id, message_t* const
 {
     if (message_ptr->id == MESSAGE_ID_KERNEL_LAUNCH)
     {
-        const uint64_t* const kernel_entry_addr = (uint64_t*)kernel_function; // TODO FIXME HACK (uint64_t*)message_ptr->data[0];
+        const uint64_t* const kernel_entry_addr = (uint64_t*)message_ptr->data[0];
         const uint64_t* const kernel_stack_addr = (uint64_t*)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
         const kernel_params_t* const kernel_params_ptr = (kernel_params_t*)message_ptr->data[1];
         const grid_config_t* const grid_config_ptr = (grid_config_t*)message_ptr->data[2];
