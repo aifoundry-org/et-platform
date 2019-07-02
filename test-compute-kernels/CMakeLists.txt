@@ -10,3 +10,4 @@
 
 add_subdirectory("beef")
 add_subdirectory("crc32")
+add_subdirectory("empty")

@@ -15,6 +15,8 @@ set(SOURCES
 
 set(TARGET_NAME crc32)
 set(LINKER_SCRIPT sections.ld)
+set(ZEBU_TARGET DDR_NEW)
+set(ZEBU_FILENAME memImage)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})

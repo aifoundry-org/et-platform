@@ -10,10 +10,10 @@
 
 set(SOURCES
     crt.S
-    beef.c
+    empty.c
     )
 
-set(TARGET_NAME beef)
+set(TARGET_NAME empty)
 set(LINKER_SCRIPT sections.ld)
 set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
