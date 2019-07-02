@@ -13,12 +13,14 @@ INCLUDE layout.ld
 
 ENTRY(_boot)
 
+STACK_SIZE = 768;
+HART_COUNT = 2112;
+
 MEMORY
 {
-    /* Mcode region is 2M from 0x8000000000 to 0x8000200000
-       stacks are 768B per HART, 2112 HARTs, descending from @0x8000200000
+    /* stacks are STACK_SIZE bytes per HART, HART_COUNT HARTs, descending from the end of M_MODE_REGION
        so ensure image fits in non-stack region */
-    MCODE (rwx) : org = 0x8000000000, l = 0x74000
+    MCODE (rwx) : org = M_MODE_REGION_BASE, l = M_MODE_REGION_SIZE - (STACK_SIZE * HART_COUNT)
 }
 
 SECTIONS
@@ -34,6 +36,7 @@ SECTIONS
     .rodata :
     {
         *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
+        KEEP(*(SORT_BY_ALIGNMENT(.rodata.keep)))
     } > MCODE
 
     .rodata1 :
@@ -73,7 +76,7 @@ SECTIONS
         *(.sdata .sdata.* .gnu.linkonce.s.*)
     } > MCODE
 
-    .bss :
+    .bss (NOLOAD) :
     {
         /* Align here to ensure crt.S bss init asm has an aligned start address */
         . = ALIGN(4);
@@ -82,12 +85,21 @@ SECTIONS
         *(.bss .bss.* .gnu.linkonce.b.*)
     } > MCODE
 
-    .sbss :
+    .sbss (NOLOAD) :
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
 
         /* Align here to ensure crt.S bss init asm has an aligned end address */
         . = ALIGN(4);
         __bss_end = .;
+    } > MCODE
+
+    /* esperanto_sign_elf tool requires 128 byte aligned elf segment size,
+       so place fill section at end of each memory region and align to 128 bytes */
+    .fill :
+    {
+        FILL(0);
+        BYTE(0); /* Need a non-empty section. Unfortunately wastes 128 bytes if . was already aligned. */
+        . = ALIGN(128);
     } > MCODE
 }

@@ -1,3 +1,4 @@
+#include "build_configuration.h"
 #include "fcc.h"
 #include "flb.h"
 #include "kernel.h"

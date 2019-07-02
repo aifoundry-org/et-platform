@@ -27,6 +27,7 @@ SECTIONS
     .rodata :
     {
         *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
+        KEEP(*(SORT_BY_ALIGNMENT(.rodata.keep)))
     }
 
     .rodata1 :
@@ -67,7 +68,7 @@ SECTIONS
         *(.sdata .sdata.* .gnu.linkonce.s.*)
     }
 
-    .bss :
+    .bss (NOLOAD) :
     {
         /* Align here to ensure crt.S bss init asm has an aligned start address */
         . = ALIGN(4);
@@ -76,7 +77,7 @@ SECTIONS
         *(.bss .bss.* .gnu.linkonce.b.*)
     }
 
-    .sbss :
+    .sbss (NOLOAD) :
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
 
@@ -85,15 +86,12 @@ SECTIONS
         __bss_end = .;
     }
 
-    /* The default stack alignment is 16 bytes in RV32I and RV64I */
-    . = ALIGN(16);
-
-    stack :
+    /* esperanto_sign_elf tool requires 128 byte aligned elf segment size,
+       so place fill section at end of each memory region and align to 128 bytes */
+    .fill :
     {
-        KEEP(*(stack stack.*))
-        __stack_base = .;
+        FILL(0);
+        BYTE(0); /* Need a non-empty section. Unfortunately wastes 128 bytes if . was already aligned. */
+        . = ALIGN(128);
     }
-
-    __heap_start = .;
-    __heap_end = . + 1M;
 }

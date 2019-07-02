@@ -21,6 +21,7 @@ set(SOURCES
     src/exception.c
     src/main.c
     src/putchar.c
+    src/build_configuration.c
     ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
@@ -34,6 +35,7 @@ set(ZEBU_FILENAME memImage)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
+include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/crypto_library/include)
 
 add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
 

@@ -83,6 +83,7 @@ void __attribute__((noreturn)) main(void)
     );
 
     SERIAL_init(UART0);
+
     printf("\r\nMaster minion " GIT_VERSION_STRING "\r\n");
 
     printf("Initializing message buffers...");
