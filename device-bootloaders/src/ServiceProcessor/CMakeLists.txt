@@ -21,9 +21,11 @@ set(SOURCES
     src/main.c
     src/pcie.c
     src/stubs.c
+    src/mailbox.c
+    ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/backtrace.c
     ${SHARED_SRC_DIR}/pcie_int.c
-    ${SHARED_SRC_DIR}/serial.c)
+    ${SHARED_SRC_DIR}/ringbuffer.c)
 
 set(TARGET_NAME ServiceProcessor)
 set(LINKER_SCRIPT src/sections.ld)
