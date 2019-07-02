@@ -14,30 +14,26 @@
 #include "FWManager.h"
 
 #include <cstdlib>
+#include <memory>
 
 namespace et_runtime {
+
+class ELFInfo;
+
 namespace device_fw {
 
 /// @brief Class holding the information of the real DeviceFW
 class DeviceFW final : public Firmware {
 public:
   DeviceFW() = default;
-  bool setFWFilePaths(const std::vector<std::string> &paths) override {
-    abort();
-    return true;
-  }
-  bool readFW() override {
-    abort();
-    return true;
-  }
-  etrtError loadOnDevice(device::DeviceTarget *dev) override {
-    abort();
-    return etrtSuccess;
-  };
-  std::vector<device::MemoryRegionConf> memoryRegionConfigurations() override {
-    abort();
-    return {};
-  };
+
+  bool setFWFilePaths(const std::vector<std::string> &paths) override;
+  bool readFW() override;
+  etrtError loadOnDevice(device::DeviceTarget *dev) override;
+  std::vector<device::MemoryRegionConf> memoryRegionConfigurations() override;
+
+private:
+  std::unique_ptr<ELFInfo> master_minion_, machine_minion_, worker_minion_;
 };
 } // namespace device_fw
 } // namespace et_runtime

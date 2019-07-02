@@ -21,12 +21,19 @@ link_directories(${GTEST_DIR}/lib64
   ${EXTERNAL_LINK_DIRECTORIES}
   )
 
-set(CI_DEPENDENCIES convolution.elf bootrom.mem gpu_0_softmax_110.elf)
+set(CI_DEPENDENCIES convolution.elf
+                    bootrom.mem
+                    gpu_0_softmax_110.elf
+                    MachineMinion/MachineMinion.elf
+                    MasterMinion/MasterMinion.elf
+                    WorkerMinion/WorkerMinion.elf
+  )
 set(CI_DN_TARGETS "")
 
 foreach(CI_DEPENDENCY ${CI_DEPENDENCIES})
   add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY}
+    COMMAND mkdir -p `dirname ${CI_DEPENDENCY}`
     COMMAND wget http://sc-artifactory1.esperanto.ai/artifactory/sw-ci-inputs/runtime/${CI_DEPENDENCY} -O ${CI_DEPENDENCY}
     )
   list(APPEND CI_DN_TARGETS ${CMAKE_CURRENT_BINARY_DIR}/${CI_DEPENDENCY})
@@ -61,6 +68,7 @@ set(TEST_LIST test_error_or.cc
   test_device_target_card_proxy.cc
   test_device_target_sysemu_grpc.cc
   test_elf_parsing.cc
+  test_load_device_fw.cc
   test_module_load.cc
   test_module_manager.cc
   )

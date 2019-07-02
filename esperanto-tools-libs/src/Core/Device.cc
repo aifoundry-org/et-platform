@@ -42,7 +42,7 @@ DECLARE_string(dev_target);
 } // namespace et_runtime
 
 Device::Device()
-    : fw_manager_(std::make_unique<FWManager>("fake-fw")),
+    : fw_manager_(std::make_unique<FWManager>()),
       mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
       module_manager_(std::make_unique<ModuleManager>()) {
   auto target_type = DeviceTarget::deviceToCreate();

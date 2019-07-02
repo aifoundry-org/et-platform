@@ -53,7 +53,7 @@ public:
 
 class FWManager {
 public:
-  FWManager(const std::string &type);
+  FWManager();
   ~FWManager() = default;
 
   Firmware &firmware() { return *firmware_.get(); }

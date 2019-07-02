@@ -57,6 +57,24 @@ TEST(ELFInfo, load_elf_vector) {
   EXPECT_TRUE(elf_info.loadELF(fileContents));
 }
 
+// Test device-fw elf parsing functionality
+TEST(ELFInfo, parse_device_fw_elf) {
+
+  KernelELFInfo elf_info{"master_minion"};
+
+  // We expect that the elf we test with is installed next to the test-binary
+  // Find the absolute pasth of the test binary
+  fs::path p = "/proc/self/exe";
+  auto test_real_path = fs::read_symlink(p);
+  auto dir_name = test_real_path.remove_filename();
+  auto master_minion = dir_name / "MasterMinion/MasterMinion.elf";
+
+  EXPECT_TRUE(elf_info.loadELF(master_minion));
+
+  // Check the load address of the Masterminion
+  EXPECT_EQ(elf_info.loadAddr(), 0x8100200000);
+}
+
 // Test kernel elf parsing functionality
 TEST(KernelELFInfo, parse_kernel_elf) {
 

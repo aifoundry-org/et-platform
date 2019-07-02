@@ -18,6 +18,8 @@
 #include <cstring>
 #include <string>
 
+#include "Support/Logging.h"
+
 #define STRINGIFY(s) STRINGIFY_INTERNAL(s)
 #define STRINGIFY_INTERNAL(s) #s
 
@@ -30,10 +32,12 @@
     }                                                                          \
   } while (0)
 
-[[noreturn]] inline void THROW(std::string msg) {
-  fprintf(stderr, "There was an error: %s\n", msg.c_str());
-  abort();
-}
+#define THROW(msg)                                                             \
+  {                                                                            \
+    RTERROR << msg;                                                            \
+    abort();                                                                   \
+  }                                                                            \
+  while (0)
 
 inline void THROW_IF(bool fail_cond, std::string msg) {
   if (fail_cond) {
