@@ -131,19 +131,17 @@ void MemoryManager::initMemRegions() {
   assert(device_.defaultStream_ == nullptr);
   device_.defaultStream_ = device_.createStream(false);
 
-  actionConfigure.reset(new EtActionConfigure(
-      dev_base, kDevMemRegionSize, kernels_dev_base, kKernelsDevMemRegionSize));
+  auto configure_command = std::make_shared<device_api::ConfigureCommand>(
+      dev_base, kDevMemRegionSize, kernels_dev_base, kKernelsDevMemRegionSize);
 
-  actionEvent.reset(new EtActionEvent());
+  device_.addCommand(
+      device_.defaultStream_,
+      std::dynamic_pointer_cast<device_api::CommandBase>(configure_command));
 
-  device_.addAction(device_.defaultStream_, actionConfigure);
-  device_.addAction(device_.defaultStream_, actionEvent);
+  auto configure_future = configure_command->getFuture();
+  auto configure_resp = configure_future.get();
 
-  auto aEvent = std::dynamic_pointer_cast<EtActionEvent>(actionEvent);
-  aEvent->observerWait();
-
-  if (std::dynamic_pointer_cast<EtActionConfigure>(actionConfigure)
-          ->isLocalMode()) {
+  if (configure_command->isLocalMode()) {
     PERROR_IF(mprotect(dev_base, kDevMemRegionSize, PROT_READ | PROT_WRITE) ==
               -1);
     PERROR_IF(mprotect(kernels_dev_base, kKernelsDevMemRegionSize,

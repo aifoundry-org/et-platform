@@ -19,7 +19,9 @@
 
 namespace et_runtime {
 
-class EtAction;
+namespace device_api {
+class CommandBase;
+}
 class AbstractMemoryPtr;
 class Event;
 class Kernel;
@@ -191,11 +193,11 @@ public:
 
   bool isBlocking() { return is_blocking_; }
   /// @brief Add a command to execute in the command Queue.
-  void addCommand(std::shared_ptr<et_runtime::EtAction> action);
+  void addCommand(std::shared_ptr<et_runtime::device_api::CommandBase> action);
   /// @brief Return True iff the command queue is empty
   bool noCommands() const { return actions_.empty(); }
   /// @brief Return pointer to the command in the front of the queue
-  std::shared_ptr<et_runtime::EtAction> frontCommand() {
+  std::shared_ptr<et_runtime::device_api::CommandBase> frontCommand() {
     return actions_.front();
   }
   /// @brief Remove front command
@@ -203,7 +205,7 @@ public:
 
 private:
   bool is_blocking_;
-  std::queue<std::shared_ptr<et_runtime::EtAction>> actions_;
+  std::queue<std::shared_ptr<et_runtime::device_api::CommandBase>> actions_;
 };
 } // namespace et_runtime
 

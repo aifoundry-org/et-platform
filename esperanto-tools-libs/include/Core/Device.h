@@ -232,8 +232,9 @@ public:
   Event *createEvent(bool disable_timing, bool blocking_sync);
   etrtError streamSynchronize(Stream *stream);
   void destroyEvent(Event *et_event);
-  void addAction(Stream *et_stream,
-                 std::shared_ptr<et_runtime::EtAction> et_action);
+  void
+  addCommand(Stream *et_stream,
+             std::shared_ptr<et_runtime::device_api::CommandBase> et_action);
 
   etrtError mallocHost(void **ptr, size_t size);
   etrtError freeHost(void *ptr);

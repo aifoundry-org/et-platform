@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_MEMORY_COMMANDS_H
 #define ET_RUNTIME_MEMORY_COMMANDS_H
 
+#include "DeviceAPI/Command.h"
+
 #include "Support/HelperMacros.h"
 
 #include "etrt-bin.h"
@@ -24,47 +26,16 @@ namespace et_runtime {
 
 class Device;
 
-class EtAction {
+namespace device_api {
+
+/// @brief
+class ConfigureResponse final : public ResponseBase {
 public:
-  EtAction() = default;
-  virtual ~EtAction() = default;
-  virtual void execute(et_runtime::Device *device_target) = 0;
-  virtual bool readyForExecution() { return true; }
+  ConfigureResponse() = default;
 };
 
-class EtActionEvent : public EtAction {
-  bool executed = false;
-  std::mutex observer_mutex;
-  std::condition_variable observer_cond_var;
-
-public:
-  virtual void execute(et_runtime::Device *device_target);
-  void observerWait();
-  bool isExecuted() {
-    std::lock_guard<std::mutex> lk(observer_mutex);
-    return executed;
-  }
-};
-
-class EtActionEventWaiter : public EtAction {
-public:
-  EtActionEventWaiter(std::shared_ptr<EtActionEvent> event)
-      : event_to_wait_(event) {
-    assert(event_to_wait_.get() != nullptr);
-  }
-  ~EtActionEventWaiter() = default;
-  bool readyForExecution() override {
-    auto event = dynamic_cast<EtActionEvent *>(event_to_wait_.get());
-    assert(event != nullptr);
-    return event_to_wait_->isExecuted();
-  }
-  void execute(et_runtime::Device *device_target) override {}
-
-private:
-  std::shared_ptr<EtActionEvent> event_to_wait_;
-};
-
-class EtActionConfigure : public EtAction {
+/// @brief
+class ConfigureCommand final : public Command<ConfigureResponse> {
   const void *devMemRegionPtr;
   size_t devMemRegionSize;
   const void *kernelsDevMemRegionPtr;
@@ -72,53 +43,83 @@ class EtActionConfigure : public EtAction {
   bool res_is_local_mode = false;
 
 public:
-  EtActionConfigure(const void *devMemRegionPtr, size_t devMemRegionSize,
-                    const void *kernelsDevMemRegionPtr,
-                    size_t kernelsDevMemRegionSize)
+  ConfigureCommand(const void *devMemRegionPtr, size_t devMemRegionSize,
+                   const void *kernelsDevMemRegionPtr,
+                   size_t kernelsDevMemRegionSize)
       : devMemRegionPtr(devMemRegionPtr), devMemRegionSize(devMemRegionSize),
         kernelsDevMemRegionPtr(kernelsDevMemRegionPtr),
         kernelsDevMemRegionSize(kernelsDevMemRegionSize) {}
-  virtual void execute(et_runtime::Device *device_target);
+  etrtError execute(et_runtime::Device *device_target) override;
   bool isLocalMode() { return res_is_local_mode; }
 };
 
-class EtActionRead : public EtAction {
+/// @brief
+class ReadResponse final : public ResponseBase {
+public:
+  ReadResponse() = default;
+
+private:
+};
+
+/// @brief
+class ReadCommand final : public Command<ReadResponse> {
+
+public:
+  ReadCommand(void *dstHostPtr, const void *srcDevPtr, size_t count)
+      : dstHostPtr(dstHostPtr), srcDevPtr(srcDevPtr), count(count) {}
+  etrtError execute(et_runtime::Device *device_target) override;
+
+private:
   void *dstHostPtr;
   const void *srcDevPtr;
   size_t count;
-
-public:
-  EtActionRead(void *dstHostPtr, const void *srcDevPtr, size_t count)
-      : dstHostPtr(dstHostPtr), srcDevPtr(srcDevPtr), count(count) {}
-  virtual void execute(et_runtime::Device *device_target);
 };
 
-class EtActionWrite : public EtAction {
+/// @brief
+class WriteResponse final : public ResponseBase {
+public:
+  WriteResponse() = default;
+};
+
+class WriteCommand final : public Command<WriteResponse> {
+
+public:
+  WriteCommand(void *dstDevPtr, const void *srcHostPtr, size_t count)
+      : dstDevPtr(dstDevPtr), srcHostPtr(srcHostPtr), count(count) {}
+  etrtError execute(et_runtime::Device *device_target) override;
+
+private:
   void *dstDevPtr;
   const void *srcHostPtr;
   size_t count;
-
-public:
-  EtActionWrite(void *dstDevPtr, const void *srcHostPtr, size_t count)
-      : dstDevPtr(dstDevPtr), srcHostPtr(srcHostPtr), count(count) {}
-  virtual void execute(et_runtime::Device *device_target);
 };
 
-class EtActionLaunch : public EtAction {
+/// @brief
+class LaunchResponse final : public ResponseBase {
+public:
+  LaunchResponse() = default;
+};
+
+/// @brief
+class LaunchCommand final : public Command<LaunchResponse> {
+
+public:
+  LaunchCommand(dim3 gridDim, dim3 blockDim,
+                const std::vector<uint8_t> &args_buff, uintptr_t kernel_pc,
+                const std::string &kernel_name)
+      : gridDim(gridDim), blockDim(blockDim), args_buff(args_buff),
+        kernel_pc(kernel_pc), kernel_name(kernel_name) {}
+  etrtError execute(et_runtime::Device *device_target) override;
+
+private:
   dim3 gridDim;
   dim3 blockDim;
   std::vector<uint8_t> args_buff;
   uintptr_t kernel_pc;
   std::string kernel_name;
-
-public:
-  EtActionLaunch(dim3 gridDim, dim3 blockDim,
-                 const std::vector<uint8_t> &args_buff, uintptr_t kernel_pc,
-                 const std::string &kernel_name)
-      : gridDim(gridDim), blockDim(blockDim), args_buff(args_buff),
-        kernel_pc(kernel_pc), kernel_name(kernel_name) {}
-  virtual void execute(et_runtime::Device *device_target);
 };
+
+} // namespace device_api
 
 } // namespace et_runtime
 

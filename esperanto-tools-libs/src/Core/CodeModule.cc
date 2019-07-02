@@ -48,26 +48,17 @@ size_t Module::rawKernelOffset(const std::string &name) {
 bool Module::loadOnDevice(Device *dev) {
   dev->malloc((void **)&devPtr_, elf_raw_data_.size());
 
-  dev->addAction(
+  auto write_command = make_shared<device_api::WriteCommand>(
+      (void *)devPtr_, elf_raw_data_.data(), elf_raw_data_.size());
+
+  dev->addCommand(
       dev->defaultStream(),
-      std::shared_ptr<EtAction>(new EtActionWrite(
-          (void *)devPtr_, elf_raw_data_.data(), elf_raw_data_.size())));
+      std::dynamic_pointer_cast<device_api::CommandBase>(write_command));
 
-  assert(actionEvent_ == nullptr);
-  actionEvent_ = std::shared_ptr<EtAction>(new EtActionEvent());
-  dev->addAction(dev->defaultStream(), actionEvent_);
-
-  // synchronize the default stream
-  dev->streamSynchronize(nullptr);
-
-  assert(devPtr_ != 0);
-  assert(actionEvent_ != nullptr);
-  auto event = dynamic_cast<EtActionEvent *>(actionEvent_.get());
-  assert(event->isExecuted());
-  actionEvent_ = nullptr;
-
+  auto response_future = write_command->getFuture();
+  auto response = response_future.get();
   onDevice_ = true;
-  return true;
+  return response.error() == etrtSuccess;
 }
 
 ErrorOr<uintptr_t>

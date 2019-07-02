@@ -35,22 +35,8 @@ namespace device_api {
 CommandBase::IDty CommandBase::command_id_ = 0;
 
 CommandBase::CommandBase() { command_id_++; }
-} // namespace device_api
-} // namespace et_runtime
 
-void EtActionEvent::execute(Device *device) {
-  std::lock_guard<std::mutex> lk(observer_mutex);
-  executed = true;
-  observer_cond_var.notify_all();
-}
-
-void EtActionEvent::observerWait() {
-  std::unique_lock<std::mutex> lk(observer_mutex);
-  observer_cond_var.wait(lk, [this] { return this->executed; });
-  // EtAction::decRefCounter(this);
-}
-
-void EtActionConfigure::execute(Device *device) {
+etrtError ConfigureCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
   auto status = device->configureDevMemRegions();
   assert(status == etrtSuccess);
@@ -61,20 +47,26 @@ void EtActionConfigure::execute(Device *device) {
                              false);
   target_device.defineDevMem((uintptr_t)kernelsDevMemRegionPtr,
                              kernelsDevMemRegionSize, true);
+  setResponse(ConfigureResponse());
+  return etrtSuccess;
 }
 
-void EtActionRead::execute(Device *device) {
+etrtError ReadCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
   target_device.readDevMem((uintptr_t)srcDevPtr, count, dstHostPtr);
+  setResponse(ReadResponse());
+  return etrtSuccess;
 }
 
-void EtActionWrite::execute(Device *device) {
+etrtError WriteCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
 
   target_device.writeDevMem((uintptr_t)dstDevPtr, count, srcHostPtr);
+  setResponse(WriteResponse());
+  return etrtSuccess;
 }
 
-void EtActionLaunch::execute(Device *device) {
+etrtError LaunchCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
   fprintf(stderr,
           "Going to execute kernel {0x%lx} %s [%s] grid_dim=(%d,%d,%d) "
@@ -92,6 +84,7 @@ void EtActionLaunch::execute(Device *device) {
   {
     target_device.cpuLaunch(kernel_name, kernel_pc, args_buff);
     return;
+
   }
 #endif
 
@@ -126,4 +119,10 @@ void EtActionLaunch::execute(Device *device) {
   else
 #endif
   target_device.launch(kernel_pc); // ETSOC backend - JIT, not covered by b4c
+
+  setResponse(LaunchResponse());
+  return etrtSuccess;
 }
+
+} // namespace device_api
+} // namespace et_runtime

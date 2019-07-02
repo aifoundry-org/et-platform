@@ -13,11 +13,16 @@
 
 #include "Support/ErrorOr.h"
 
+#include "DeviceAPI/Command.h"
+
 #include <memory>
 
 namespace et_runtime {
 
-class EtActionEvent;
+class EventResponse final : public device_api::ResponseBase {
+public:
+  EventResponse() = default;
+};
 
 ///
 /// @Brief Event holding class
@@ -38,17 +43,17 @@ class EtActionEvent;
 /// In addition to being used as mechanisms for synchronization, Events are also
 /// used to capture the execution times associated with specific operations.
 
-class Event {
+// @todo the semantics of this class need to be changed currently not used
+// actively in the code
+/// base. It is broken as it is.
+class Event final : public device_api::Command<EventResponse> {
 public:
   Event(bool disable_timing, bool blocking_sync)
       : disable_timing_(disable_timing), blocking_sync_(blocking_sync) {}
 
-  ~Event() { assert(action_event_ == nullptr); }
+  Event() : Event(false, false) {}
 
-  std::shared_ptr<et_runtime::EtActionEvent> &getAction() {
-    return action_event_;
-  }
-  void resetAction(std::shared_ptr<et_runtime::EtActionEvent> action = nullptr);
+  ~Event() {}
 
   bool isDisableTiming() { return disable_timing_; }
   bool isBlockingSync() { return blocking_sync_; }
@@ -78,10 +83,12 @@ public:
 
   etrtError update();
 
+  /// @todo fixme the following will need to ve fixed at some point
+  etrtError execute(Device *dev);
+
 private:
   bool disable_timing_;
   bool blocking_sync_;
-  std::shared_ptr<et_runtime::EtActionEvent> action_event_ = nullptr;
 };
 } // namespace et_runtime
 

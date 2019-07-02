@@ -70,26 +70,24 @@ bool Device::deviceAlive() { return target_device_->alive(); }
 
 void Device::deviceExecute() {
     while (true) {
-      std::shared_ptr<EtAction> actionToExecute;
+      std::shared_ptr<device_api::CommandBase> commandToExecute;
       for (auto &it : stream_storage_) {
         Stream *stream = it.get();
         if (!stream->noCommands()) {
-          auto action = stream->frontCommand();
-          if (action->readyForExecution()) {
-            actionToExecute = action;
-            stream->popCommand();
-            break;
-          }
+          auto command = stream->frontCommand();
+          commandToExecute = command;
+          stream->popCommand();
+          break;
         }
       }
 
       // if there is no action then we are going to wait on condition variable
-      if (!actionToExecute) {
+      if (!commandToExecute) {
         break;
       }
 
       // execute action without mutex
-      actionToExecute->execute(this);
+      commandToExecute->execute(this);
     }
 
     if (!target_device_->alive()) {
@@ -133,10 +131,6 @@ void Device::uninitObjects() {
       auto act = stream->frontCommand();
       stream->popCommand();
     }
-  }
-  for (auto &it : event_storage_) {
-    Event *event = it.get();
-    event->resetAction();
   }
 }
 
@@ -193,14 +187,17 @@ void Device::destroyEvent(Event *et_event) {
   stl_remove(event_storage_, et_event);
 }
 
-void Device::addAction(Stream *et_stream,
-                       std::shared_ptr<et_runtime::EtAction> et_action) {
+void Device::addCommand(
+    Stream *et_stream,
+    std::shared_ptr<et_runtime::device_api::CommandBase> et_action) {
   // FIXME: all blocking streams can synchronize through EtActionEventWaiter
   if (et_stream->isBlocking()) {
     defaultStream_->addCommand(et_action);
   } else {
     et_stream->addCommand(et_action);
   }
+  /// @todo the following should be removed once we move to a multi-threaded
+  /// setup
   deviceExecute();
 }
 
@@ -211,10 +208,12 @@ etrtError Device::mallocHost(void **ptr, size_t size) {
 etrtError Device::streamSynchronize(Stream *stream) {
   Stream *et_stream = getStream(stream);
 
-  auto actionEvent = std::shared_ptr<EtAction>(new EtActionEvent());
-  addAction(et_stream, actionEvent);
-  std::dynamic_pointer_cast<EtActionEvent>(actionEvent)->observerWait();
-  return etrtSuccess;
+  auto event = std::make_shared<Event>();
+  addCommand(et_stream,
+             std::dynamic_pointer_cast<device_api::CommandBase>(event));
+  auto future = event->getFuture();
+  auto response = future.get();
+  return response.error();
 }
 
 etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
@@ -245,10 +244,12 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
 
   switch (kind) {
   case etrtMemcpyHostToDevice: {
-    addAction(et_stream, std::make_shared<EtActionWrite>(dst, src, count));
+    addCommand(et_stream, std::shared_ptr<device_api::CommandBase>(
+                              new device_api::WriteCommand(dst, src, count)));
   } break;
   case etrtMemcpyDeviceToHost: {
-    addAction(et_stream, std::make_shared<EtActionRead>(dst, src, count));
+    addCommand(et_stream, std::shared_ptr<device_api::CommandBase>(
+                              new device_api::ReadCommand(dst, src, count)));
   } break;
   case etrtMemcpyDeviceToDevice: {
     int dev_count = count;
@@ -452,9 +453,10 @@ etrtError Device::rawLaunch(et_runtime::ModuleID module_id,
   std::vector<uint8_t> args_buff(args_size);
   ::memcpy(&args_buff[0], args, args_size);
 
-  addAction(getStream(stream), std::make_shared<EtActionLaunch>(
-                                   dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
-                                   kernel_entry_point, kernel_name));
+  addCommand(getStream(stream), std::shared_ptr<device_api::CommandBase>(
+                                    new device_api::LaunchCommand(
+                                        dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
+                                        kernel_entry_point, kernel_name)));
 
   return etrtSuccess;
 }

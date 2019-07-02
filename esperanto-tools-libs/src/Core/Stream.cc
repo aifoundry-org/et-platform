@@ -7,7 +7,8 @@ void Stream::init() {
   // fprintf(stderr, "Hello from EtStream::init()\n");
 }
 
-void Stream::addCommand(std::shared_ptr<et_runtime::EtAction> action) {
+void Stream::addCommand(
+    std::shared_ptr<et_runtime::device_api::CommandBase> action) {
   actions_.push(action);
 }
 

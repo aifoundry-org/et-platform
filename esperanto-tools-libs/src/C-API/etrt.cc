@@ -156,22 +156,18 @@ EXAPI etrtError_t etrtEventQuery(Event *event) {
   GetDev dev;
 
   Event *et_event = dev->getEvent(event);
-  auto actionEvent = et_event->getAction();
-  if (actionEvent == nullptr) {
-    return etrtSuccess;
-  }
-
-  return actionEvent->isExecuted() ? etrtSuccess : etrtErrorNotReady;
+  auto event_future = et_event->getFuture();
+  auto event_response = event_future.get();
+  return event_response.error();
 }
 
+// @todo FIXME the following is not tested
 EXAPI etrtError_t etrtEventRecord(Event *event, Stream *stream) {
-  GetDev dev;
+  // GetDev dev;
 
-  Stream *et_stream = dev->getStream(stream);
-  Event *et_event = dev->getEvent(event);
-  auto actionEvent = make_shared<EtActionEvent>();
-  et_event->resetAction(actionEvent);
-  dev->addAction(et_stream, actionEvent);
+  // Stream *et_stream = dev->getStream(stream);
+  // Event *et_event = dev->getEvent(event);
+  // dev->addAction(et_stream, event);
   return etrtSuccess;
 }
 
@@ -182,12 +178,9 @@ EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
 
   GetDev dev;
 
-  Stream *et_stream = dev->getStream(stream);
   Event *et_event = dev->getEvent(event);
-  auto actionEvent = et_event->getAction();
-  if (actionEvent != nullptr) {
-    dev->addAction(et_stream, make_shared<EtActionEventWaiter>(actionEvent));
-  }
+  auto event_future = et_event->getFuture();
+  event_future.wait();
   return etrtSuccess;
 }
 
@@ -197,11 +190,8 @@ EXAPI etrtError_t etrtEventSynchronize(Event *event) {
   GetDev dev;
 
   Event *et_event = dev->getEvent(event);
-  auto actionEvent = et_event->getAction();
-  if (actionEvent != nullptr) {
-    actionEvent->observerWait();
-    et_event->resetAction();
-  }
+  auto event_future = et_event->getFuture();
+  event_future.wait();
   return etrtSuccess;
 }
 
@@ -215,7 +205,6 @@ EXAPI etrtError_t etrtEventDestroy(Event *event) {
   GetDev dev;
 
   Event *et_event = dev->getEvent(event);
-  et_event->resetAction();
   dev->destroyEvent(et_event);
   return etrtSuccess;
 }

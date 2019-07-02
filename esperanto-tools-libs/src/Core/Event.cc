@@ -7,6 +7,7 @@
 
 using namespace et_runtime;
 
-void Event::resetAction(std::shared_ptr<EtActionEvent> action) {
-  action_event_ = action;
+etrtError Event::execute(Device *dev) {
+  setResponse(EventResponse());
+  return etrtSuccess;
 }
