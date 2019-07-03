@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <functional>
 #include "dense_region.h"
+#include "devices/pu_uart.h"
 #include "emu_defines.h"
 #include "literals.h"
 #include "memory_region.h"
@@ -76,11 +77,19 @@ struct MainMemory {
         //pu_mbox_base   = 512_MiB,
         //pu_mbox_size   = 512_MiB,
         pu_dev0_base     =   0_GiB,
-        pu_dev0_size     = 512_MiB + 32_KiB,
-        pu_sram_base     = 512_MiB + 32_KiB,
+        pu_dev0_size     = 288_MiB + 8_KiB,
+        pu_uart_base     = 0x0012002000ULL,
+        pu_uart_size     = 4_KiB,
+        pu_dev1_base     = 0x0012003000ULL,
+        pu_dev1_size     = 16_KiB,
+        pu_uart1_base    = 0x0012007000ULL,
+        pu_uart1_size    = 4_KiB,
+        pu_dev2_base     = 0x0012008000ULL,
+        pu_dev2_size     = 224_MiB,
+        pu_sram_base     = 0x0020008000ULL,
         pu_sram_size     = 224_KiB,
-        pu_dev1_base     = 512_MiB + 256_KiB,
-        pu_dev1_size     = 512_MiB - 256_KiB,
+        pu_dev3_base     = 512_MiB + 256_KiB,
+        pu_dev3_size     = 512_MiB - 256_KiB,
         //sp_base        =   1_GiB,
         //sp_size        =   1_GiB,
         sp_rom_base      =   1_GiB,
@@ -140,8 +149,12 @@ struct MainMemory {
     // Members
 
     NullRegion    <pu_dev0_base, pu_dev0_size>         pu_dev0_space;
-    SparseRegion  <pu_sram_base, pu_sram_size, 16_KiB> pu_sram_space;
+    PU_Uart       <pu_uart_base, pu_uart_size>         pu_uart_space;
     NullRegion    <pu_dev1_base, pu_dev1_size>         pu_dev1_space;
+    PU_Uart       <pu_uart1_base, pu_uart1_size>       pu_uart1_space;
+    NullRegion    <pu_dev2_base, pu_dev2_size>         pu_dev2_space;
+    SparseRegion  <pu_sram_base, pu_sram_size, 16_KiB> pu_sram_space;
+    NullRegion    <pu_dev3_base, pu_dev3_size>         pu_dev3_space;
     DenseRegion   <sp_rom_base, sp_rom_size, false>    sp_rom_space;
     NullRegion    <sp_dev0_base, sp_dev0_size>         sp_dev0_space;
     SparseRegion  <sp_sram_base, sp_sram_size, 64_KiB> sp_sram_space;
@@ -166,10 +179,14 @@ protected:
     }
 
     // This array must be sorted by region base address
-    std::array<MemoryRegion*,11> regions = {{
+    std::array<MemoryRegion*,15> regions = {{
         &pu_dev0_space,
-        &pu_sram_space,
+        &pu_uart_space,
         &pu_dev1_space,
+        &pu_uart1_space,
+        &pu_dev2_space,
+        &pu_sram_space,
+        &pu_dev3_space,
         &sp_rom_space,
         &sp_dev0_space,
         &sp_sram_space,
