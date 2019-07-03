@@ -1613,6 +1613,10 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             throw;
         }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
+        }
         catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
@@ -1628,6 +1632,10 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             tensorloadl2(val);
         }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
+        }
         catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
@@ -1642,6 +1650,10 @@ static void csrset(uint16_t src1, uint64_t val)
         catch (const trap_illegal_instruction&)
         {
             throw;
+        }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
         }
         catch (const sync_trap_t&)
         {
@@ -2030,24 +2042,27 @@ static void dcache_prefetch_vaddr(uint64_t val)
         if (tm && !tmask_pass(i))
             continue;
 
-        uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch);
+            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch);
+            for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+            {
+                uint64_t value = bemu::pmemread64(addr);
+                LOG_MEMREAD(64, vaddr + (addr - paddr), value);
+            }
+            LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
+        }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
         }
         catch (const sync_trap_t& t)
         {
             // Stop the operation if there is an exception
-            LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
+            LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %d generated exception (suppressed)", vaddr, dest);
             update_tensor_error(1 << 7);
             return;
         }
-        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
-        {
-            uint64_t value = bemu::pmemread64(addr);
-            LOG_MEMREAD(64, vaddr + (addr - paddr), value);
-        }
-        LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
     }
 }
 
@@ -2092,14 +2107,27 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
         return;
     }
 
+    try
+    {
+        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+        {
+            bemu::pmemwrite64(addr, 0);
+            uint64_t value = 0;
+            LOG_MEMWRITE(64, addr, value);
+        }
+    }
+    catch (const trap_bus_error&)
+    {
+        throw trap_bus_error(0);
+    }
+    catch (const sync_trap_t&)
+    {
+        LOG(DEBUG, "\tLockSW: 0x%016" PRIx64 ", Way: %d access fault", paddr, way);
+        update_tensor_error(1 << 7);
+        return;
+    }
     scp_locked[current_thread >> 1][set][way] = true;
     scp_trans[current_thread >> 1][set][way] = paddr;
-    for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
-    {
-        bemu::pmemwrite64(addr, 0);
-        uint64_t value = 0;
-        LOG_MEMWRITE(64, addr, value);
-    }
     LOG(DEBUG, "\tDoing LockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
 }
 
@@ -2134,11 +2162,23 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
 
         // LockVA is a hint, so no need to model soft-locking of the cache.
         // We just need to make sure we zero the cache line.
-        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+        try
         {
-            bemu::pmemwrite64(addr, 0);
-            uint64_t value = 0;
-            LOG_MEMWRITE(64, vaddr + (addr - paddr), value);
+            for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+            {
+                bemu::pmemwrite64(addr, 0);
+                uint64_t value = 0;
+                LOG_MEMWRITE(64, vaddr + (addr - paddr), value);
+            }
+        }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
+        }
+        catch (const sync_trap_t&)
+        {
+            update_tensor_error(1 << 7);
+            return;
         }
         LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
     }
