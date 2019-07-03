@@ -3106,7 +3106,7 @@ static void tensorstore(uint64_t tstorereg)
         uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
 
         int src = scpstart % L1_SCP_ENTRIES;
-        LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
+        LOG(DEBUG, "\tStart TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
 
         // Check if L1 SCP is enabled
         if (cpu[current_thread].mcache_control != 0x3)
@@ -3141,9 +3141,16 @@ static void tensorstore(uint64_t tstorereg)
         int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFF0ULL;
+        uint64_t stride;
+        switch (cols)
+        {
+            case  1: stride = XREGS[31] & 0x0000FFFFFFFFFFF0ULL; break;
+            case  2: stride = XREGS[31] & 0x0000FFFFFFFFFFE0ULL; break;
+            case  4: stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL; break;
+            default: stride = 0; break;
+        }
 
-        LOG(DEBUG, "\tStart Tensor Store with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
+        LOG(DEBUG, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
 
         int src = regstart;
