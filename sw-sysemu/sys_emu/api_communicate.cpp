@@ -123,9 +123,12 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
             break;
         case kIPISync:
             {
-                char ret = 0;
+                int ret;
+                char val = 0;
                 LOG_NOTHREAD(INFO, "%s", "api_communicate: sync");
-                write( communication_channel, &ret, 1 );
+                if ((ret = write( communication_channel, &val, 1 )) < 0) {
+                    LOG_NOTHREAD(ERR, "Error, write() returned: %d", ret);
+                }
             }
             break;
         case kIPIContinue:
