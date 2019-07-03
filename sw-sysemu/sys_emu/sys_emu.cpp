@@ -733,6 +733,10 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
             return false;
     }
 
+    // Setup UART streams
+    bemu::memory.pu_uart_space.set_stream(&std::cout);
+    bemu::memory.pu_uart1_space.set_stream(&std::cout);
+
     // Initialize network
     net_emu = net_emulator(&bemu::memory);
     // Parses the net description (it emulates a Maxion sending interrupts to minions)
