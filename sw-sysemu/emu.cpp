@@ -1,5 +1,6 @@
 /* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
+// LCOV_EXCL_START
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -753,7 +754,7 @@ static void check_counter_is_enabled(int cnt)
         throw trap_illegal_instruction(current_inst);
     }
 }
-
+// LCOV_EXCL_STOP
 static uint64_t csrget(uint16_t src1)
 {
     uint64_t val;
@@ -1060,6 +1061,7 @@ static uint64_t csrget(uint16_t src1)
         require_feature_u_cacheops();
         val = 0;
         break;
+// LCOV_EXCL_START
     case CSR_VALIDATION0:
         val = cpu[current_thread].validation0;
         break;
@@ -1084,6 +1086,7 @@ static uint64_t csrget(uint16_t src1)
     case CSR_VALIDATION3:
         val = cpu[current_thread].validation3;
         break;
+// LCOV_EXCL_STOP
     case CSR_LOCK_VA:
     case CSR_UNLOCK_VA:
         require_lock_unlock_enabled();
@@ -1789,6 +1792,7 @@ static void csrset(uint16_t src1, uint64_t val)
     }
 }
 
+// LCOV_EXCL_START
 static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, bool write)
 {
     // Check if current privilege mode has access to the register
@@ -4227,3 +4231,4 @@ void finish_icache_prefetch(unsigned shire)
     esr_icache_prefetch_active[shire] = false;
 #endif
 }
+// LCOV_EXCL_STOP
