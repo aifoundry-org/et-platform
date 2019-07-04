@@ -19,6 +19,7 @@ extern std::array<Processor,EMU_NUM_THREADS> cpu;
 //namespace bemu {
 
 
+// LCOV_EXCL_START
 static inline float32_t fexp_vs_gold(float32_t x)
 {
     float32_t fpuval = fpu::f32_exp2(x);
@@ -30,7 +31,6 @@ static inline float32_t fexp_vs_gold(float32_t x)
     }
     return fpuval;
 }
-
 
 static inline float32_t flog_vs_gold(float32_t x)
 {
@@ -46,7 +46,6 @@ static inline float32_t flog_vs_gold(float32_t x)
     }*/
     return fpuval;
 }
-
 
 static inline float32_t frcp_vs_gold(float32_t x)
 {
@@ -85,7 +84,7 @@ static inline float32_t fsin_vs_gold(float32_t x)
     }
     return fpuval;
 }
-
+// LCOV_EXCL_STOP
 
 void insn_fexp_ps(insn_t inst)
 {
