@@ -2,11 +2,12 @@
 #define BEMU_PU_UART_H
 
 #include <cassert>
-#include <cstdint>
-#include <cstdio>
+#include <cerrno>
 #include <cinttypes>
+#include <cstdint>
+#include <unistd.h>
+#include <system_error>
 #include "memory/memory_region.h"
-#include <cstdio>
 
 namespace bemu {
 
@@ -20,7 +21,7 @@ struct PU_Uart : public MemoryRegion {
     typedef typename MemoryRegion::const_pointer  const_pointer;
 
     // Registers from DW_apb_uart.csr
-    enum : unsigned long long {
+    enum : size_type {
         DW_APB_UART_RBR         = 0x0,
         DW_APB_UART_IER         = 0x4,
         DW_APB_UART_IIR         = 0x8,
@@ -67,35 +68,116 @@ struct PU_Uart : public MemoryRegion {
         DW_APB_UART_CTR         = 0xfc
     };
 
-    PU_Uart() {
-        stream = nullptr;
-    }
-
     void read(size_type offset, size_type count, pointer result) const override {
-        (void) offset;
-        (void) count;
-        (void) result;
-
-        //printf("PU_Uart read: offset: 0x%" PRIx64 ", count: %" PRId64 "\n", offset, count);
-
         switch (offset) {
         case DW_APB_UART_LSR:
+            assert(count == 4);
             *reinterpret_cast<uint32_t *>(result) = 0;
             break;
+        case DW_APB_UART_RBR:
+        case DW_APB_UART_IER:
+        case DW_APB_UART_IIR:
+        case DW_APB_UART_LCR:
+        case DW_APB_UART_MCR:
+        case DW_APB_UART_MSR:
+        case DW_APB_UART_SCR:
+        case DW_APB_UART_SRBR0:
+        case DW_APB_UART_SRBR1:
+        case DW_APB_UART_SRBR2:
+        case DW_APB_UART_SRBR3:
+        case DW_APB_UART_SRBR4:
+        case DW_APB_UART_SRBR5:
+        case DW_APB_UART_SRBR6:
+        case DW_APB_UART_SRBR7:
+        case DW_APB_UART_SRBR8:
+        case DW_APB_UART_SRBR9:
+        case DW_APB_UART_SRBR10:
+        case DW_APB_UART_SRBR11:
+        case DW_APB_UART_SRBR12:
+        case DW_APB_UART_SRBR13:
+        case DW_APB_UART_SRBR14:
+        case DW_APB_UART_SRBR15:
+        case DW_APB_UART_FAR:
+        case DW_APB_UART_TFR:
+        case DW_APB_UART_RFW:
+        case DW_APB_UART_USR:
+        case DW_APB_UART_TFL:
+        case DW_APB_UART_RFL:
+        case DW_APB_UART_SRR:
+        case DW_APB_UART_SRTS:
+        case DW_APB_UART_SBCR:
+        case DW_APB_UART_SDMAM:
+        case DW_APB_UART_SFE:
+        case DW_APB_UART_SRT:
+        case DW_APB_UART_STET:
+        case DW_APB_UART_HTX:
+        case DW_APB_UART_DMASA:
+        case DW_APB_UART_DLF:
+        case DW_APB_UART_TIMEOUT_RST:
+        case DW_APB_UART_CPR:
+        case DW_APB_UART_UCV:
+        case DW_APB_UART_CTR:
+                break;
+        default:
+                throw trap_bus_error(first() + offset);
         }
     }
 
     void write(size_type offset, size_type count, const_pointer source) override {
-        (void) offset;
-        (void) count;
-        (void) source;
-
-        //printf("PU_Uart write: offset: 0x%" PRIx64 ", count: %" PRId64 "\n", offset, count);
-
         switch (offset) {
         case DW_APB_UART_RBR:
-            stream_write(*reinterpret_cast<const char *>(source));
+            assert(count == 4);
+            if (fd != -1) {
+                if (::write(fd, reinterpret_cast<const void *>(source), 1) < 0)
+                        throw std::system_error(std::error_code(errno, std::system_category()), "PU_Uart::write failed");
+            }
             break;
+        case DW_APB_UART_IER:
+        case DW_APB_UART_IIR:
+        case DW_APB_UART_LCR:
+        case DW_APB_UART_MCR:
+        case DW_APB_UART_LSR:
+        case DW_APB_UART_MSR:
+        case DW_APB_UART_SCR:
+        case DW_APB_UART_SRBR0:
+        case DW_APB_UART_SRBR1:
+        case DW_APB_UART_SRBR2:
+        case DW_APB_UART_SRBR3:
+        case DW_APB_UART_SRBR4:
+        case DW_APB_UART_SRBR5:
+        case DW_APB_UART_SRBR6:
+        case DW_APB_UART_SRBR7:
+        case DW_APB_UART_SRBR8:
+        case DW_APB_UART_SRBR9:
+        case DW_APB_UART_SRBR10:
+        case DW_APB_UART_SRBR11:
+        case DW_APB_UART_SRBR12:
+        case DW_APB_UART_SRBR13:
+        case DW_APB_UART_SRBR14:
+        case DW_APB_UART_SRBR15:
+        case DW_APB_UART_FAR:
+        case DW_APB_UART_TFR:
+        case DW_APB_UART_RFW:
+        case DW_APB_UART_USR:
+        case DW_APB_UART_TFL:
+        case DW_APB_UART_RFL:
+        case DW_APB_UART_SRR:
+        case DW_APB_UART_SRTS:
+        case DW_APB_UART_SBCR:
+        case DW_APB_UART_SDMAM:
+        case DW_APB_UART_SFE:
+        case DW_APB_UART_SRT:
+        case DW_APB_UART_STET:
+        case DW_APB_UART_HTX:
+        case DW_APB_UART_DMASA:
+        case DW_APB_UART_DLF:
+        case DW_APB_UART_TIMEOUT_RST:
+        case DW_APB_UART_CPR:
+        case DW_APB_UART_UCV:
+        case DW_APB_UART_CTR:
+                break;
+        default:
+                throw trap_bus_error(first() + offset);
         }
     }
 
@@ -108,18 +190,7 @@ struct PU_Uart : public MemoryRegion {
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 
-    void set_stream(std::ostream *s) {
-        stream = s;
-    }
-
-private:
-    std::ostream *stream;
-
-    void stream_write(char c) {
-        if (stream)
-            *stream << c;
-    }
-
+    int fd = -1;
 };
 
 

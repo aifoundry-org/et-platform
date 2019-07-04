@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unistd.h>
 #include <list>
 #include <exception>
 #include <algorithm>
@@ -734,8 +735,8 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     }
 
     // Setup UART streams
-    bemu::memory.pu_uart_space.set_stream(&std::cout);
-    bemu::memory.pu_uart1_space.set_stream(&std::cout);
+    bemu::memory.pu_uart_space.fd = STDOUT_FILENO;
+    bemu::memory.pu_uart1_space.fd = STDOUT_FILENO;
 
     // Initialize network
     net_emu = net_emulator(&bemu::memory);
