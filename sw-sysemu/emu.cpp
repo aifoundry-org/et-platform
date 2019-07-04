@@ -1684,6 +1684,19 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_VALIDATION0:
         cpu[current_thread].validation0 = val;
+#ifdef SYS_EMU
+        switch (val)
+        {
+        case 0x1FEED000:
+            LOG_ALL_MINIONS(INFO, "%s", "Signal end test with PASS");
+            m_emu_done = true;
+            break;
+        case 0x50BAD000:
+            LOG_ALL_MINIONS(INFO, "%s", "Signal end test with FAIL");
+            m_emu_done = true;
+            break;
+        }
+#endif
         break;
     case CSR_VALIDATION1:
         switch ((val >> 56) & 0xFF)
