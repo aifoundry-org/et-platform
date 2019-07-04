@@ -550,6 +550,11 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     // a memory mapped store)
 #ifndef SYS_EMU
     if (interrupt) {
+        // Clear external supervisor interrupt
+        if (code == 0x9 && !(cpu[current_thread].mip & 0x200)) {
+            clear_external_supervisor_interrupt(current_thread);
+            LOG(DEBUG, "%s", "\tClearing external supervisor interrupt");
+        }
         cpu[current_thread].mip &= ~(1<<code);
     }
 #endif
@@ -609,6 +614,10 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 #ifndef SYS_EMU
     if (interrupt) {
         cpu[current_thread].mip &= ~(1<<code);
+        // Clear external supervisor interrupt
+        if (cause == 9 && !(cpu[current_thread].mip & 0x200)) {
+            clear_external_supervisor_interrupt(current_thread);
+        }
     }
 #endif
 
