@@ -1613,6 +1613,10 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             throw;
         }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
+        }
         catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
@@ -1628,6 +1632,10 @@ static void csrset(uint16_t src1, uint64_t val)
         {
             tensorloadl2(val);
         }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
+        }
         catch (const sync_trap_t&)
         {
             update_tensor_error(1 << 7);
@@ -1642,6 +1650,10 @@ static void csrset(uint16_t src1, uint64_t val)
         catch (const trap_illegal_instruction&)
         {
             throw;
+        }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
         }
         catch (const sync_trap_t&)
         {
@@ -2030,24 +2042,27 @@ static void dcache_prefetch_vaddr(uint64_t val)
         if (tm && !tmask_pass(i))
             continue;
 
-        uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch);
+            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch);
+            for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+            {
+                uint64_t value = bemu::pmemread64(addr);
+                LOG_MEMREAD(64, vaddr + (addr - paddr), value);
+            }
+            LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
+        }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
         }
         catch (const sync_trap_t& t)
         {
             // Stop the operation if there is an exception
-            LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %01x generated exception (suppressed)", vaddr, dest);
+            LOG(DEBUG, "\tPrefetchVA: %016" PRIx64 ", DestLevel: %d generated exception (suppressed)", vaddr, dest);
             update_tensor_error(1 << 7);
             return;
         }
-        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
-        {
-            uint64_t value = bemu::pmemread64(addr);
-            LOG_MEMREAD(64, vaddr + (addr - paddr), value);
-        }
-        LOG(DEBUG, "\tDoing PrefetchVA: %016" PRIx64 " (%016" PRIx64 "), DestLevel: %01x", vaddr, paddr, dest);
     }
 }
 
@@ -2092,14 +2107,27 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
         return;
     }
 
+    try
+    {
+        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+        {
+            bemu::pmemwrite64(addr, 0);
+            uint64_t value = 0;
+            LOG_MEMWRITE(64, addr, value);
+        }
+    }
+    catch (const trap_bus_error&)
+    {
+        throw trap_bus_error(0);
+    }
+    catch (const sync_trap_t&)
+    {
+        LOG(DEBUG, "\tLockSW: 0x%016" PRIx64 ", Way: %d access fault", paddr, way);
+        update_tensor_error(1 << 7);
+        return;
+    }
     scp_locked[current_thread >> 1][set][way] = true;
     scp_trans[current_thread >> 1][set][way] = paddr;
-    for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
-    {
-        bemu::pmemwrite64(addr, 0);
-        uint64_t value = 0;
-        LOG_MEMWRITE(64, addr, value);
-    }
     LOG(DEBUG, "\tDoing LockSW: (%016" PRIx64 "), Way: %d, Set: %d", paddr, way, set);
 }
 
@@ -2134,11 +2162,23 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
 
         // LockVA is a hint, so no need to model soft-locking of the cache.
         // We just need to make sure we zero the cache line.
-        for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+        try
         {
-            bemu::pmemwrite64(addr, 0);
-            uint64_t value = 0;
-            LOG_MEMWRITE(64, vaddr + (addr - paddr), value);
+            for (uint64_t addr = paddr; addr < paddr + L1D_LINE_SIZE; addr += 8)
+            {
+                bemu::pmemwrite64(addr, 0);
+                uint64_t value = 0;
+                LOG_MEMWRITE(64, vaddr + (addr - paddr), value);
+            }
+        }
+        catch (const trap_bus_error&)
+        {
+            throw trap_bus_error(0);
+        }
+        catch (const sync_trap_t&)
+        {
+            update_tensor_error(1 << 7);
+            return;
         }
         LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
     }
@@ -3106,7 +3146,7 @@ static void tensorstore(uint64_t tstorereg)
         uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
 
         int src = scpstart % L1_SCP_ENTRIES;
-        LOG(DEBUG, "\tStart Tensor Store Scp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
+        LOG(DEBUG, "\tStart TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
 
         // Check if L1 SCP is enabled
         if (cpu[current_thread].mcache_control != 0x3)
@@ -3141,9 +3181,16 @@ static void tensorstore(uint64_t tstorereg)
         int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFF0ULL;
+        uint64_t stride;
+        switch (cols)
+        {
+            case  1: stride = XREGS[31] & 0x0000FFFFFFFFFFF0ULL; break;
+            case  2: stride = XREGS[31] & 0x0000FFFFFFFFFFE0ULL; break;
+            case  4: stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL; break;
+            default: stride = 0; break;
+        }
 
-        LOG(DEBUG, "\tStart Tensor Store with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
+        LOG(DEBUG, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
 
         int src = regstart;
@@ -3614,7 +3661,19 @@ static void tensorreduce(uint64_t value)
         uint64_t distance = 1ull << level;
         uint64_t minmask = (1ull << (level + 1)) - 1ull;
         LOG(DEBUG, "%s with level: %u, distance: %" PRId64 ", minmask: 0x%016" PRIx64,
-            (type == 2) ? "TensorBroadcast" : "TensorReduceAuto", level, distance, minmask);
+            (type == 2) ? "TensorBroadcast" : "TensorReduce", level, distance, minmask);
+#endif
+        return;
+    }
+
+    if (action == 4)
+    {
+#ifndef SYS_EMU
+        static const char* reducecmd[4] = {
+            "TensorSend", "TensorRecv",
+            "TensorBroadcast", "TensorReduce"
+        };
+        LOG(DEBUG, "\t%s with num_reg: 0", reducecmd[value & 3]);
 #endif
         return;
     }
@@ -3629,8 +3688,8 @@ static void tensorreduce(uint64_t value)
     {
 #ifndef SYS_EMU
         static const char* reducecmd[4] = {
-            "TensorReduceSend", "TensorReduceRecv",
-            "TensorBroadcast", "TensorReduceAuto"
+            "TensorSend", "TensorRecv",
+            "TensorBroadcast", "TensorReduce"
         };
         LOG(DEBUG, "\t%s other_minion: %u, start_reg: %d, num_reg: %d",
             reducecmd[value & 3], other_min, this_start_reg, this_num_reg);
@@ -3644,7 +3703,7 @@ static void tensorreduce(uint64_t value)
     {
 #ifndef SYS_EMU
         LOG(DEBUG, "\t%s other_minion: %u, start_reg: %d, num_reg: %d",
-            ((value & 3) == 2) ? "TensorBroadcast(send)" : (((value & 3) == 3) ? "TensorReduceAuto(send)" : "TensorReduceSend"),
+            ((value & 3) == 2) ? "TensorBroadcast(send)" : (((value & 3) == 3) ? "TensorReduce(send)" : "TensorSend"),
             other_min, this_start_reg, this_num_reg);
         for (int i = 0; i < this_num_reg; ++i)
         {
@@ -3665,21 +3724,21 @@ static void tensorreduce(uint64_t value)
     if (this_min != (current_thread>>1))
     {
         LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
-                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                         other_min, this_min, other_start_reg, other_num_reg, other_action);
         throw std::runtime_error("Mismatched tensor reduce sender target minion");
     }
     if (other_action != 0)
     {
         LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
-                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                         other_min, this_min, other_start_reg, other_num_reg, other_action);
         throw std::runtime_error("Mismatched tensor reduce sender action");
     }
     if (other_num_reg != this_num_reg)
     {
         LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
-                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                         other_min, this_min, other_start_reg, other_num_reg, other_action);
     }
 
@@ -3691,7 +3750,7 @@ static void tensorreduce(uint64_t value)
         case 0x0: // fadd
             set_rounding_mode(frm());
             LOG(DEBUG, "\t%s op: fadd, other_minion: %u, rounding_mode: %s",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min, get_rounding_mode(frm()));
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3711,7 +3770,7 @@ static void tensorreduce(uint64_t value)
         case 0x1: // fsub
             set_rounding_mode(frm());
             LOG(DEBUG, "\t%s op: fsub, other_minion: %u, rounding_mode: %s",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min, get_rounding_mode(frm()));
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3730,7 +3789,7 @@ static void tensorreduce(uint64_t value)
             break;
         case 0x2: // fmax
             LOG(DEBUG, "\t%s op: fmax, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3749,7 +3808,7 @@ static void tensorreduce(uint64_t value)
             break;
         case 0x3: // fmin
             LOG(DEBUG, "\t%s op: fmax, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3768,7 +3827,7 @@ static void tensorreduce(uint64_t value)
             break;
         case 0x4: // iadd
             LOG(DEBUG, "\t%s op: iadd, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3786,7 +3845,7 @@ static void tensorreduce(uint64_t value)
             break;
         case 0x5: // isub
             LOG(DEBUG, "\t%s op: isub, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3804,7 +3863,7 @@ static void tensorreduce(uint64_t value)
             break;
         case 0x6: // imax
             LOG(DEBUG, "\t%s op: imax, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3822,7 +3881,7 @@ static void tensorreduce(uint64_t value)
             break;
         case 0x7: // imin
             LOG(DEBUG, "\t%s op: imin, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3840,7 +3899,7 @@ static void tensorreduce(uint64_t value)
             break;
         case 0x8: // fget
             LOG(DEBUG, "\t%s op: fget, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduceAuto(recv)" : "TensorReduceRecv"),
+                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
                 other_min);
             for (int i = 0; i < this_num_reg; i++)
             {
@@ -3868,6 +3927,7 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
 {
     uint64_t level = (value >> 3) & 0xF;
     uint64_t type  = value & 3;
+    int      nreg  = (value >> 16) & 0x7F;
 
     // SENDER
     if (type == 0)
@@ -3935,6 +3995,15 @@ void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_mi
     if (*other_min == (current_thread>>1))
     {
         *action = 3;
+        return;
+    }
+
+    // Sending or receiving 0 registers means do nothing
+    // NB: This check has lower priority than "other_min == this_min" because
+    // tensor_error[[9] should be set even when "nreg == 0".
+    if (nreg == 0)
+    {
+        *action = 4;
         return;
     }
 
