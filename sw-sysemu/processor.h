@@ -53,9 +53,9 @@ struct Processor {
     uint64_t    matp;             // TODO: this is per core not per hart
     uint64_t    minstmask;        // 33b
     uint32_t    minstmatch;
-    // TODO: amofence_ctrl
     uint8_t     menable_shadows;  // 2b -- TODO: this is per core not per hart
     uint8_t     excl_mode;        // 1b -- TODO: this is per core not per hart
+    uint64_t    mbusaddr;
     uint8_t     mcache_control;   // 2b -- TODO: this is per core not per hart
     uint64_t    tensor_conv_size; // can we remove?
     uint64_t    tensor_conv_ctrl; // can we remove?

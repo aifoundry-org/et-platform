@@ -7,6 +7,7 @@
 #include <array>
 #include "dump_data.h"
 #include "lazy_array.h"
+#include "memory_error.h"
 #include "memory_region.h"
 #include "traps.h"
 
@@ -47,7 +48,7 @@ struct SparseRegion : public MemoryRegion
 
     void write(size_type pos, size_type n, const_pointer source) override {
         if (!Writeable)
-            throw trap_bus_error(first() + pos);
+            throw memory_error(first() + pos);
         init(pos, n, source);
     }
 

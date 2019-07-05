@@ -35,7 +35,7 @@ struct SysregRegion : public MemoryRegion {
     }
 
     void init(size_type, size_type, const_pointer) override {
-        std::runtime_error("bemu::SysregRegion::init()");
+        throw std::runtime_error("bemu::SysregRegion::init()");
     }
 
     addr_type first() const override { return Base; }

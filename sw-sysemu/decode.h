@@ -47,6 +47,18 @@
         (col)+4, SCP[row].u32[(col)+4], (col)+5, SCP[row].u32[(col)+5], \
         (col)+6, SCP[row].u32[(col)+6], (col)+7, SCP[row].u32[(col)+7])
 
+#define LOG_SCP_32x16(str, row) \
+    LOG(DEBUG, "\tSCP[%d] " str " {" \
+        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
+        " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
+        " 8:0x%08" PRIx32 " 9:0x%08" PRIx32 " 10:0x%08" PRIx32 " 11:0x%08" PRIx32 \
+        " 12:0x%08" PRIx32 " 13:0x%08" PRIx32 " 14:0x%08" PRIx32 " 15:0x%08" PRIx32 \
+        " }", row, \
+        SCP[row].u32[0], SCP[row].u32[1], SCP[row].u32[2], SCP[row].u32[3], \
+        SCP[row].u32[4], SCP[row].u32[5], SCP[row].u32[6], SCP[row].u32[7], \
+        SCP[row].u32[8], SCP[row].u32[9], SCP[row].u32[10], SCP[row].u32[11], \
+        SCP[row].u32[12], SCP[row].u32[13], SCP[row].u32[14], SCP[row].u32[15])
+
 #define LOG_FREG_OTHER(other_thread, str, n) \
     LOG(DEBUG, "\tf%d " str " {" \
         " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
@@ -67,10 +79,47 @@
     LOG(DEBUG, "\tgsc_progress " str " %u", unsigned(cpu[current_thread].gsc_progress))
 
 #define LOG_MEMWRITE(size, addr, value) \
-   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] = 0x%" PRIx ##size , addr, value);
+   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] = 0x%" PRIx ##size , addr, value)
+
+#define LOG_MEMWRITE128(addr, ptr) \
+   LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] : {" \
+       " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
+       " }", addr, \
+       ptr[0], ptr[1], ptr[2], ptr[3])
+
+#define LOG_MEMWRITE512(addr, ptr) \
+   LOG(DEBUG, "\tMEM512[0x%" PRIx64 "] : {" \
+       " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
+       " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
+       " 8:0x%08" PRIx32 " 9:0x%08" PRIx32 " 10:0x%08" PRIx32 " 11:0x%08" PRIx32 \
+       " 12:0x%08" PRIx32 " 13:0x%08" PRIx32 " 14:0x%08" PRIx32 " 15:0x%08" PRIx32 \
+       " }", addr, \
+       ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7], \
+       ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15])
 
 #define LOG_MEMREAD(size, addr, value) \
    LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] : 0x%" PRIx ##size , addr, value);
+
+#define LOG_MEMREAD128(addr, ptr) \
+   LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] : {" \
+       " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
+       " }", addr, ptr[0], ptr[1], ptr[2], ptr[3])
+
+#define LOG_MEMREAD256(addr, ptr) \
+   LOG(DEBUG, "\tMEM256[0x%" PRIx64 "] : {" \
+       " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
+       " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
+       " }", addr, ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7])
+
+#define LOG_MEMREAD512(addr, ptr) \
+   LOG(DEBUG, "\tMEM512[0x%" PRIx64 "] : {" \
+       " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
+       " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
+       " 8:0x%08" PRIx32 " 9:0x%08" PRIx32 " 10:0x%08" PRIx32 " 11:0x%08" PRIx32 \
+       " 12:0x%08" PRIx32 " 13:0x%08" PRIx32 " 14:0x%08" PRIx32 " 15:0x%08" PRIx32 \
+       " }", addr, \
+       ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7], \
+       ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15])
 
 
 // -----------------------------------------------------------------------------

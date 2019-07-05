@@ -61,11 +61,10 @@ DEF_TRAP_N(11, sync,  trap_machine_ecall);
 DEF_TRAP_Y(12, sync,  trap_instruction_page_fault);
 DEF_TRAP_Y(13, sync,  trap_load_page_fault);
 DEF_TRAP_Y(15, sync,  trap_store_page_fault);
-DEF_TRAP_N(25, async, trap_fetch_bus_error);
-DEF_TRAP_N(26, sync,  trap_fetch_ecc_error);
+DEF_TRAP_N(25, sync,  trap_instruction_bus_error);
+DEF_TRAP_N(26, sync,  trap_instruction_ecc_error);
 DEF_TRAP_Y(27, sync,  trap_load_split_page_fault);
 DEF_TRAP_Y(28, sync,  trap_store_split_page_fault);
-DEF_TRAP_Y(29, async, trap_bus_error);
 DEF_TRAP_Y(30, sync,  trap_mcode_instruction);
 
 // Interrupts
@@ -80,6 +79,7 @@ DEF_TRAP_N( 9 + (1ull<<63), async, trap_supervisor_external_interrupt);
 DEF_TRAP_N(11 + (1ull<<63), async, trap_machine_external_interrupt);
 DEF_TRAP_N(15 + (1ull<<63), async, trap_bad_ipi_redirect_interrupt);
 DEF_TRAP_N(19 + (1ull<<63), async, trap_icache_ecc_counter_overflow_interrupt);
+DEF_TRAP_N(23 + (1ull<<63), async, trap_bus_error_interrupt);
 
 
 //} // namespace bemu

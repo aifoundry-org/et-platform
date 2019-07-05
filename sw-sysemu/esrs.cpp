@@ -189,12 +189,12 @@ uint64_t esr_read(uint64_t addr)
         }
 #endif
         LOG(WARN, "Read unknown IOshire ESR 0x%" PRIx64, esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     if (shire >= EMU_NUM_MINION_SHIRES) {
         LOG(WARN, "Read illegal ESR S%u:0x%llx", shire, addr2 & ~ESR_REGION_SHIRE_MASK);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     uint64_t sregion = addr2 & ESR_SREGION_MASK;
@@ -204,7 +204,7 @@ uint64_t esr_read(uint64_t addr)
         unsigned hart = (addr2 & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;
         LOG(WARN, "Read unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
             SHIREID(shire), MINION(hart), THREAD(hart), esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     if (sregion == ESR_NEIGH_REGION) {
@@ -212,7 +212,7 @@ uint64_t esr_read(uint64_t addr)
         uint64_t esr = addr2 & ESR_NEIGH_ESR_MASK;
         if (neigh >= EMU_NEIGH_PER_SHIRE) {
             LOG(WARN, "Read illegal neigh ESR S%u:N%u:0x%" PRIx64, shire, neigh, esr);
-            throw trap_bus_error(addr);
+            throw bemu::memory_error(addr);
         }
         unsigned pos = neigh + EMU_NEIGH_PER_SHIRE * shire;
         switch (esr) {
@@ -252,7 +252,7 @@ uint64_t esr_read(uint64_t addr)
             return neigh_esrs[pos].texture_image_table_ptr;
         }
         LOG(WARN, "Read unknown neigh ESR S%u:N%u:0x%" PRIx64, shire, neigh, esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     uint64_t sregion_extra = addr2 & ESR_SREGION_EXT_MASK;
@@ -262,7 +262,7 @@ uint64_t esr_read(uint64_t addr)
         unsigned bnk = (addr2 & ESR_REGION_BANK_MASK) >> ESR_REGION_BANK_SHIFT;
         if (bnk >= 4) {
             LOG(WARN, "Read illegal shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
-            throw trap_bus_error(addr);
+            throw bemu::memory_error(addr);
         }
         switch (esr) {
         case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
@@ -304,14 +304,14 @@ uint64_t esr_read(uint64_t addr)
             return 4ull << 24; // idx_cop_sm_state = IDLE
         }
         LOG(WARN, "Read unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     if (sregion_extra == ESR_RBOX_REGION) {
         uint64_t esr = addr2 & ESR_RBOX_ESR_MASK;
         if (shire >= EMU_NUM_COMPUTE_SHIRES) {
             LOG(WARN, "Read illegal rbox ESR S%u:0x%" PRIx64, shire, esr);
-            throw trap_bus_error(addr);
+            throw bemu::memory_error(addr);
         }
         switch (esr) {
         case ESR_RBOX_CONFIG:
@@ -325,7 +325,7 @@ uint64_t esr_read(uint64_t addr)
             return GET_RBOX(shire, 0).read_esr((esr >> 3) & 0x3FFF);
         }
         LOG(WARN, "Read unknown rbox ESR S%u:0x%" PRIx64, shire, esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     if (sregion_extra == ESR_SHIRE_REGION) {
@@ -433,11 +433,11 @@ uint64_t esr_read(uint64_t addr)
             return read_icache_prefetch(PRV_M, shire);
         }
         LOG(WARN, "Read unknown shire_other ESR S%u:0x%" PRIx64, shire, esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     LOG(WARN, "Read illegal ESR 0x%" PRIx64, addr);
-    throw trap_bus_error(addr);
+    throw bemu::memory_error(addr);
 }
 
 
@@ -459,7 +459,7 @@ void esr_write(uint64_t addr, uint64_t value)
         if ((PP(addr2) == 2) || (PP(addr2) > PP(addr))) {
             LOG(WARN, "Request %cbroadcast to %c-mode ESR",
                 "uhsm"[PP(addr)], "UHSM"[PP(addr2)]);
-            throw trap_bus_error(addr);
+            throw bemu::memory_error(addr);
         }
         mask = value & ESR_BROADCAST_ESR_SHIRE_MASK;
         while (mask) {
@@ -490,12 +490,12 @@ void esr_write(uint64_t addr, uint64_t value)
         }
 #endif
         LOG(WARN, "Write unknown IOshire ESR 0x%" PRIx64, esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     if (shire >= EMU_NUM_MINION_SHIRES) {
         LOG(WARN, "Write illegal ESR S%u:0x%llx", shire, addr2 & ~ESR_REGION_SHIRE_MASK);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     uint64_t sregion = addr2 & ESR_SREGION_MASK;
@@ -514,7 +514,7 @@ void esr_write(uint64_t addr, uint64_t value)
         }
         LOG(WARN, "Write unknown hart ESR S%u:M%u:T%u:0x%" PRIx64,
             SHIREID(shire), MINION(hart), THREAD(hart), esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     if (sregion == ESR_NEIGH_REGION) {
@@ -527,7 +527,7 @@ void esr_write(uint64_t addr, uint64_t value)
             last = frst + EMU_NEIGH_PER_SHIRE;
         } else if (neigh >= EMU_NEIGH_PER_SHIRE) {
             LOG(WARN, "Write illegal neigh ESR S%u:N%u:0x%" PRIx64, shire, neigh, esr);
-            throw trap_bus_error(addr);
+            throw bemu::memory_error(addr);
         }
         for (unsigned pos = frst; pos < last; ++pos) {
             unsigned tbox_id;
@@ -576,7 +576,7 @@ void esr_write(uint64_t addr, uint64_t value)
                 break;
             default:
                 LOG(WARN, "Write unknown neigh ESR S%u:N%u:0x%" PRIx64, shire, neigh, esr);
-                throw trap_bus_error(addr);
+                throw bemu::memory_error(addr);
             }
         }
         return;
@@ -594,7 +594,7 @@ void esr_write(uint64_t addr, uint64_t value)
             last = frst + 4;
         } else if (bnk >= 4) {
             LOG(WARN, "Write illegal shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
-            throw trap_bus_error(addr);
+            throw bemu::memory_error(addr);
         }
         for (unsigned b = frst; b < last; ++b) {
             switch (esr) {
@@ -645,7 +645,7 @@ void esr_write(uint64_t addr, uint64_t value)
                 break;
             default:
                 LOG(WARN, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
-                throw trap_bus_error(addr);
+                throw bemu::memory_error(addr);
             }
         }
         return;
@@ -655,7 +655,7 @@ void esr_write(uint64_t addr, uint64_t value)
         uint64_t esr = addr2 & ESR_RBOX_ESR_MASK;
         if (shire >= EMU_NUM_COMPUTE_SHIRES) {
             LOG(WARN, "Write illegal rbox ESR S%u:0x%" PRIx64, shire, esr);
-            throw trap_bus_error(addr);
+            throw bemu::memory_error(addr);
         }
         switch (esr) {
         case ESR_RBOX_CONFIG:
@@ -669,7 +669,7 @@ void esr_write(uint64_t addr, uint64_t value)
             return;
         }
         LOG(WARN, "Write unknown rbox ESR S%u:0x%" PRIx64, shire, esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     if (sregion_extra == ESR_SHIRE_REGION) {
@@ -814,11 +814,11 @@ void esr_write(uint64_t addr, uint64_t value)
             return;
         }
         LOG(WARN, "Write unknown shire_other ESR S%u:0x%" PRIx64, shire, esr);
-        throw trap_bus_error(addr);
+        throw bemu::memory_error(addr);
     }
 
     LOG(WARN, "Write illegal ESR 0x%" PRIx64, addr);
-    throw trap_bus_error(addr);
+    throw bemu::memory_error(addr);
 }
 
 

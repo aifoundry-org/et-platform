@@ -8,6 +8,7 @@
 #include "dump_data.h"
 #include "esrs.h"
 #include "lazy_array.h"
+#include "memory_error.h"
 #include "memory_region.h"
 #include "traps.h"
 
@@ -41,7 +42,7 @@ struct ScratchRegion : public MemoryRegion
         size_type bucket = slice(index);
         size_type offset = index % 8_MiB;
         if (out_of_range(bucket, offset, n)) {
-            throw trap_bus_error(first() + pos);
+            throw memory_error(first() + pos);
         }
         if (storage[bucket].empty()) {
             std::fill_n(result, n, value_type());
@@ -52,7 +53,7 @@ struct ScratchRegion : public MemoryRegion
 
     void write(size_type pos, size_type n, const_pointer source) override {
         if (!Writeable)
-            throw trap_bus_error(first() + pos);
+            throw memory_error(first() + pos);
         init(pos, n, source);
     }
 
@@ -61,7 +62,7 @@ struct ScratchRegion : public MemoryRegion
         size_type bucket = slice(index);
         size_type offset = index % 8_MiB;
         if (out_of_range(bucket, offset, n)) {
-            throw trap_bus_error(first() + pos);
+            throw memory_error(first() + pos);
         }
         if (storage[bucket].empty()) {
             storage[bucket].allocate();
