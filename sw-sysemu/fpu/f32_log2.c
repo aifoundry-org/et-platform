@@ -82,12 +82,18 @@ float32_t f32_log2( float32_t a )
     *------------------------------------------------------------------------*/
     x1 = ( sigA >> 22 ) ? ( -sigA & 0x7FFFFF ) : ( sigA << 1 );
     product = ( 0x2000000 | (0x1FFFFFF & (fma2 >> 32)) ) * x1;
+
+    exponent = ( (expA >= 0x7F) ? (expA + 1) : (~expA - !!sigA) ) & 0x7F;
+
+      //cancel bits to match rtl datapath    
+    if (((exponent&0x7F)!=0x0) || (((exponent&0x7F)==0x0) && (expA+( sigA >> 22 )) != 0x7f))
+      product &= 0xffffffffffffff80;
+
     if ( expA >= 0x7F ) {
         product = ( sigA >> 22 ) ? -product : product;
     } else {
         product = ( sigA >> 22 ) ? product : -(product & 0xffffffffffffff80);
     }
-    exponent = ( (expA >= 0x7F) ? (expA + 1) : (~expA - !!sigA) ) & 0x7F;
     product = ( exponent << 49 ) | ( 0x1FFFFFFFFFFFFULL & product );
     /*------------------------------------------------------------------------
     *------------------------------------------------------------------------*/
