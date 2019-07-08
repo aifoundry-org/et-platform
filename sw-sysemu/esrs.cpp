@@ -483,6 +483,7 @@ void esr_write(uint64_t addr, uint64_t value)
     switch (addr) {
     case ESR_BROADCAST_DATA:
         broadcast_esrs[shire].data = value;
+        LOG_ALL_MINIONS(DEBUG, "broadcast_data = 0x%" PRIx64, value);
         return;
     case ESR_UBROADCAST:
     case ESR_SBROADCAST:
@@ -493,6 +494,7 @@ void esr_write(uint64_t addr, uint64_t value)
                 "uhsm"[PP(addr)], "UHSM"[PP(addr2)]);
             throw trap_bus_error(addr);
         }
+        LOG_ALL_MINIONS(DEBUG, "%cbroadcast = 0x%" PRIx64, "uhsm"[PP(addr)], value);
         mask = value & ESR_BROADCAST_ESR_SHIRE_MASK;
         while (mask) {
             if (mask & 1)
@@ -566,43 +568,69 @@ void esr_write(uint64_t addr, uint64_t value)
             switch (esr) {
             case ESR_DUMMY0:
                 neigh_esrs[pos].dummy0 = uint32_t(value & 0xffffffff);
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:dummy0 = 0x%" PRIx32,
+                                shire, neigh, neigh_esrs[pos].dummy0);
                 break;
             case ESR_MINION_BOOT:
                 neigh_esrs[pos].minion_boot = value & VA_M;
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:minion_boot = 0x%" PRIx64,
+                                shire, neigh, neigh_esrs[pos].minion_boot);
                 break;
             case ESR_DUMMY2:
                 neigh_esrs[pos].dummy2 = bool(value & 1);
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:dummy2 = 0x%x",
+                                shire, neigh, neigh_esrs[pos].dummy2 ? 1 : 0);
                 break;
             case ESR_VMSPAGESIZE:
                 neigh_esrs[pos].vmspagesize = value & 0x3;
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:vmspagesize = 0x%" PRIx8,
+                                shire, neigh, neigh_esrs[pos].vmspagesize);
                 break;
             case ESR_IPI_REDIRECT_PC:
                 neigh_esrs[pos].ipi_redirect_pc = value & VA_M;
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:ipi_redirect_pc = 0x%" PRIx64,
+                                shire, neigh, neigh_esrs[pos].ipi_redirect_pc);
                 break;
             case ESR_PMU_CTRL:
                 neigh_esrs[pos].pmu_ctrl = bool(value & 1);
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:pmu_ctrl = 0x%x",
+                                shire, neigh, neigh_esrs[pos].pmu_ctrl ? 1 : 0);
                 break;
             case ESR_NEIGH_CHICKEN:
                 neigh_esrs[pos].neigh_chicken = uint8_t(value & 0xff);
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:neigh_chicken = 0x%" PRIx8,
+                                shire, neigh, neigh_esrs[pos].neigh_chicken);
                 break;
             case ESR_ICACHE_ERR_LOG_CTL:
                 neigh_esrs[pos].icache_err_log_ctl = uint8_t(value & 0xf);
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_err_log_ctl = 0x%" PRIx8,
+                                shire, neigh, neigh_esrs[pos].icache_err_log_ctl);
                 break;
             case ESR_ICACHE_ERR_LOG_INFO:
                 neigh_esrs[pos].icache_err_log_info = value & 0x0010ff000003ffffull;
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_err_log_info = 0x%" PRIx64,
+                                shire, neigh, neigh_esrs[pos].icache_err_log_info);
                 break;
             case ESR_ICACHE_SBE_DBE_COUNTS:
                 neigh_esrs[pos].icache_sbe_dbe_counts = uint16_t(value & 0x7ff);
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:icache_sbe_dbe_counts = 0x%" PRIx16,
+                                shire, neigh, neigh_esrs[pos].icache_sbe_dbe_counts);
                 break;
             case ESR_TEXTURE_CONTROL:
                 neigh_esrs[pos].texture_control = uint16_t(value & 0xff80);
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:texture_control = 0x%" PRIx16,
+                                shire, neigh, neigh_esrs[pos].texture_control);
                 break;
             case ESR_MPROT:
                 neigh_esrs[pos].mprot = uint8_t(value & 0x7);
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:mprot = 0x%" PRIx8,
+                                shire, neigh, neigh_esrs[pos].mprot);
                 break;
             case ESR_TEXTURE_IMAGE_TABLE_PTR:
                 value &= VA_M;
                 neigh_esrs[pos].texture_image_table_ptr = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:N%u:texture_image_table_ptr = 0x%" PRIx64,
+                                shire, neigh, neigh_esrs[pos].texture_image_table_ptr);
                 tbox_id = tbox_id_from_thread(current_thread);
                 GET_TBOX(shire, tbox_id).set_image_table_address(value);
                 break;
@@ -632,48 +660,76 @@ void esr_write(uint64_t addr, uint64_t value)
             switch (esr) {
             case ESR_SC_L3_SHIRE_SWIZZLE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_l3_shire_swizzle_ctl = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_l3_shire_swizzle_ctl = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_l3_shire_swizzle_ctl);
                 break;
             case ESR_SC_REQQ_CTL:
-                shire_cache_esrs[shire].bank[b].sc_reqq_ctl = value;
+                shire_cache_esrs[shire].bank[b].sc_reqq_ctl = uint32_t(value);
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_reqq_ctl = 0x%" PRIx32,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_reqq_ctl);
                 break;
             case ESR_SC_PIPE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_pipe_ctl = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_pipe_ctl = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_pipe_ctl);
                 break;
             case ESR_SC_L2_CACHE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_l2_cache_ctl = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_l2_cache_ctl = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_l2_cache_ctl);
                 break;
             case ESR_SC_L3_CACHE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_l3_cache_ctl = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_l3_cache_ctl = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_l3_cache_ctl);
                 break;
             case ESR_SC_SCP_CACHE_CTL:
                 shire_cache_esrs[shire].bank[b].sc_scp_cache_ctl = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_scp_cache_ctl = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_scp_cache_ctl);
                 break;
             case ESR_SC_IDX_COP_SM_CTL:
                 // shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ctl = value;
                 break;
             case ESR_SC_IDX_COP_SM_PHYSICAL_INDEX:
                 shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_physical_index = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_idx_cop_sm_physical_index = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_physical_index);
                 break;
             case ESR_SC_IDX_COP_SM_DATA0:
                 shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_data0 = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_idx_cop_sm_data0 = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_data0);
                 break;
             case ESR_SC_IDX_COP_SM_DATA1:
                 shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_data1 = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_idx_cop_sm_data1 = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_data1);
                 break;
             case ESR_SC_IDX_COP_SM_ECC:
                 shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ecc = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_idx_cop_sm_ecc = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ecc);
                 break;
             case ESR_SC_ERR_LOG_CTL:
-                shire_cache_esrs[shire].bank[b].sc_err_log_ctl = value;
+                shire_cache_esrs[shire].bank[b].sc_err_log_ctl = uint16_t(value);
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_err_log_ctl = 0x%" PRIx16,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_err_log_ctl);
                 break;
             case ESR_SC_ERR_LOG_INFO:
                 shire_cache_esrs[shire].bank[b].sc_err_log_info = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_err_log_info = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_err_log_info);
                 break;
             case ESR_SC_SBE_DBE_COUNTS:
                 shire_cache_esrs[shire].bank[b].sc_sbe_dbe_counts = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_sbe_dbe_counts = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_sbe_dbe_counts);
                 break;
             case ESR_SC_REQQ_DEBUG_CTL:
                 shire_cache_esrs[shire].bank[b].sc_reqq_debug_ctl = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_reqq_debug_ctl = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_reqq_debug_ctl);
                 break;
             default:
                 LOG(WARN, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
@@ -691,12 +747,31 @@ void esr_write(uint64_t addr, uint64_t value)
         }
         switch (esr) {
         case ESR_RBOX_CONFIG:
+            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_config = 0x%" PRIx64, shire, value);
+            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            return;
         case ESR_RBOX_IN_BUF_PG:
+            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_in_buf_pg = 0x%" PRIx64, shire, value);
+            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            return;
         case ESR_RBOX_IN_BUF_CFG:
+            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_in_buf_cfg = 0x%" PRIx64, shire, value);
+            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            return;
         case ESR_RBOX_OUT_BUF_PG:
+            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_out_buf_pg = 0x%" PRIx64, shire, value);
+            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            return;
         case ESR_RBOX_OUT_BUF_CFG:
+            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_out_buf_cfg = 0x%" PRIx64, shire, value);
+            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            return;
         case ESR_RBOX_START:
+            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_start = 0x%" PRIx64, shire, value);
+            GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
+            return;
         case ESR_RBOX_CONSUME:
+            LOG_ALL_MINIONS(DEBUG, "S%u:rbox_consume = 0x%" PRIx64, shire, value);
             GET_RBOX(shire, 0).write_esr((esr >> 3) & 0x3FFF, value);
             return;
         }
@@ -709,45 +784,55 @@ void esr_write(uint64_t addr, uint64_t value)
         switch (esr) {
         case ESR_MINION_FEATURE:
             write_minion_feature(shire, uint8_t(value & 0x3f));
+            LOG_ALL_MINIONS(DEBUG, "S%u:minion_feature = 0x%" PRIx8,
+                            shire, shire_other_esrs[shire].minion_feature);
             return;
         case ESR_SHIRE_CONFIG:
             shire_other_esrs[shire].shire_config = uint32_t(value & 0x3ffffff);
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_config = 0x%" PRIx32,
+                            shire, shire_other_esrs[shire].shire_config);
             return;
         case ESR_THREAD1_DISABLE:
             write_thread1_disable(shire, uint32_t(value));
+            LOG_ALL_MINIONS(DEBUG, "S%u:thread1_disable = 0x%" PRIx32,
+                            shire, shire_other_esrs[shire].thread1_disable);
             return;
         case ESR_IPI_REDIRECT_TRIGGER:
-            LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI_REDIRECT");
+            LOG_ALL_MINIONS(DEBUG, "S%u:ipi_redirect_trigger = 0x%" PRIx64, shire, value);
             sys_emu::send_ipi_redirect_to_threads(shire, value);
             return;
         case ESR_IPI_REDIRECT_FILTER:
             shire_other_esrs[shire].ipi_redirect_filter = value;
+            LOG_ALL_MINIONS(DEBUG, "S%u:ipi_redirect_filter = 0x%" PRIx64,
+                            shire, shire_other_esrs[shire].ipi_redirect_filter);
             return;
         case ESR_IPI_TRIGGER:
-            LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI");
             shire_other_esrs[shire].ipi_trigger = value;
+            LOG_ALL_MINIONS(DEBUG, "S%u:ipi_trigger = 0x%" PRIx64,
+                            shire, shire_other_esrs[shire].ipi_trigger);
             sys_emu::raise_software_interrupt(shire, value);
             return;
         case ESR_IPI_TRIGGER_CLEAR:
+            LOG_ALL_MINIONS(DEBUG, "S%u:ipi_trigger_clear = 0x%" PRIx64, shire, value);
             sys_emu::clear_software_interrupt(shire, value);
             return;
         case ESR_FCC_CREDINC_0:
-            LOG_ALL_MINIONS(DEBUG, "Write to FCC0 shire %d value %016" PRIx64, shire, value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_0 = 0x%" PRIx64, shire, value);
             fcc_inc(0, shire, value, 0);
             sys_emu::fcc_to_threads(shire, 0, value, 0);
             return;
         case ESR_FCC_CREDINC_1:
-            LOG_ALL_MINIONS(DEBUG, "Write to FCC1 shire %d value %016" PRIx64, shire, value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_1 = 0x%" PRIx64, shire, value);
             fcc_inc(0, shire, value, 1);
             sys_emu::fcc_to_threads(shire, 0, value, 1);
             return;
         case ESR_FCC_CREDINC_2:
-            LOG_ALL_MINIONS(DEBUG, "Write to FCC2 shire %d value %016" PRIx64, shire, value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_2 = 0x%" PRIx64, shire, value);
             fcc_inc(1, shire, value, 0);
             sys_emu::fcc_to_threads(shire, 1, value, 0);
             return;
         case ESR_FCC_CREDINC_3:
-            LOG_ALL_MINIONS(DEBUG, "Write to FCC3 shire %d value %016" PRIx64, shire, value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:fcc_credinc_3 = 0x%" PRIx64, shire, value);
             fcc_inc(1, shire, value, 1);
             sys_emu::fcc_to_threads(shire, 1, value, 1);
             return;
@@ -784,24 +869,39 @@ void esr_write(uint64_t addr, uint64_t value)
         case ESR_FAST_LOCAL_BARRIER30:
         case ESR_FAST_LOCAL_BARRIER31:
             shire_other_esrs[shire].fast_local_barrier[(esr - ESR_FAST_LOCAL_BARRIER0)>>3] = uint8_t(value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:fast_local_barrier%llu = 0x%" PRIx8,
+                            shire, (esr - ESR_FAST_LOCAL_BARRIER0)>>3,
+                            shire_other_esrs[shire].fast_local_barrier[(esr - ESR_FAST_LOCAL_BARRIER0)>>3]);
             return;
         case ESR_MTIME_LOCAL_TARGET:
-            shire_other_esrs[shire].mtime_local_target = value;
+            shire_other_esrs[shire].mtime_local_target = uint32_t(value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:mtime_local_target = 0x%" PRIx32,
+                            shire, shire_other_esrs[shire].mtime_local_target);
             return;
         case ESR_SHIRE_POWER_CTRL:
             shire_other_esrs[shire].shire_power_ctrl = uint16_t(value & 0xfff);
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_power_ctrl = 0x%" PRIx16,
+                            shire, shire_other_esrs[shire].shire_power_ctrl);
             return;
         case ESR_POWER_CTRL_NEIGH_NSLEEPIN:
             shire_other_esrs[shire].power_ctrl_neigh_nsleepin = uint32_t(value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:power_ctrl_neigh_nsleepin = 0x%" PRIx32,
+                            shire, shire_other_esrs[shire].power_ctrl_neigh_nsleepin);
             return;
         case ESR_POWER_CTRL_NEIGH_ISOLATION:
             shire_other_esrs[shire].power_ctrl_neigh_isolation = uint32_t(value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:power_ctrl_neigh_isolation = 0x%" PRIx32,
+                            shire, shire_other_esrs[shire].power_ctrl_neigh_isolation);
             return;
         case ESR_THREAD0_DISABLE:
             write_thread0_disable(shire, uint32_t(value));
+            LOG_ALL_MINIONS(DEBUG, "S%u:thread0_disable = 0x%" PRIx32,
+                            shire, shire_other_esrs[shire].thread0_disable);
             return;
         case ESR_SHIRE_PLL_AUTO_CONFIG:
             shire_other_esrs[shire].shire_pll_auto_config = uint32_t(value & 0x1ffff);
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_pll_auto_config = 0x%" PRIx32,
+                            shire, shire_other_esrs[shire].shire_pll_auto_config);
             return;
         case ESR_SHIRE_PLL_CONFIG_DATA_0:
         case ESR_SHIRE_PLL_CONFIG_DATA_1:
@@ -810,38 +910,59 @@ void esr_write(uint64_t addr, uint64_t value)
         case ESR_SHIRE_PLL_CONFIG_DATA_4:
         case ESR_SHIRE_PLL_CONFIG_DATA_5:
             shire_other_esrs[shire].shire_pll_config_data[(esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3] = value;
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_pll_config_data_%llu = 0x%" PRIx64,
+                            shire, (esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3,
+                            shire_other_esrs[shire].shire_pll_config_data[(esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3]);
             return;
         case ESR_SHIRE_COOP_MODE:
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_coop_mode = 0x%x", shire, unsigned(value & 0x1));
             write_shire_coop_mode(shire, value);
             return;
         case ESR_SHIRE_CTRL_CLOCKMUX:
             shire_other_esrs[shire].shire_ctrl_clockmux = uint8_t(value & 0x4f);
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_ctrl_clockmux = 0x%" PRIx8,
+                            shire, shire_other_esrs[shire].shire_ctrl_clockmux);
             return;
         case ESR_SHIRE_CACHE_RAM_CFG1:
             shire_other_esrs[shire].shire_cache_ram_cfg1 = value & 0xfffffffffull;
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_cache_ram_cfg1 = 0x%" PRIx64,
+                            shire, shire_other_esrs[shire].shire_cache_ram_cfg1);
             return;
         case ESR_SHIRE_CACHE_RAM_CFG2:
             shire_other_esrs[shire].shire_cache_ram_cfg2 = uint32_t(value & 0x3ffff);
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_cache_ram_cfg2 = 0x%" PRIx32,
+                            shire, shire_other_esrs[shire].shire_cache_ram_cfg2);
             return;
         case ESR_SHIRE_CACHE_RAM_CFG3:
             shire_other_esrs[shire].shire_cache_ram_cfg3 = value & 0xfffffffffull;
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_cache_ram_cfg3 = 0x%" PRIx64,
+                            shire, shire_other_esrs[shire].shire_cache_ram_cfg3);
             return;
         case ESR_SHIRE_CACHE_RAM_CFG4:
             shire_other_esrs[shire].shire_cache_ram_cfg4 = value & 0xfffffffffull;
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_cache_ram_cfg4 = 0x%" PRIx64,
+                            shire, shire_other_esrs[shire].shire_cache_ram_cfg4);
             return;
         case ESR_SHIRE_DLL_AUTO_CONFIG:
             shire_other_esrs[shire].shire_dll_auto_config = uint16_t(value & 0x3fff);
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_dll_auto_config = 0x%" PRIx16,
+                            shire, shire_other_esrs[shire].shire_dll_auto_config);
             return;
         case ESR_SHIRE_DLL_CONFIG_DATA_0:
             shire_other_esrs[shire].shire_dll_config_data_0 = value;
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_dll_config_data_0 = 0x%" PRIx64,
+                            shire, shire_other_esrs[shire].shire_dll_config_data_0);
             return;
         case ESR_ICACHE_UPREFETCH:
+            LOG_ALL_MINIONS(DEBUG, "S%u:icache_uprefetch = 0x%" PRIx64, shire, value);
             write_icache_prefetch(PRV_U, shire, value);
             return;
         case ESR_ICACHE_SPREFETCH:
+            LOG_ALL_MINIONS(DEBUG, "S%u:icache_sprefetch = 0x%" PRIx64, shire, value);
             write_icache_prefetch(PRV_S, shire, value);
             return;
         case ESR_ICACHE_MPREFETCH:
+            LOG_ALL_MINIONS(DEBUG, "S%u:icache_mprefetch = 0x%" PRIx64, shire, value);
             write_icache_prefetch(PRV_M, shire, value);
             return;
         }
