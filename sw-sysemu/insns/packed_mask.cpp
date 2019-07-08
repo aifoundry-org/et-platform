@@ -60,7 +60,7 @@ void insn_maskpopc(insn_t inst)
     WRITE_RD(popcount1(MS1));
 }
 
-
+// LCOV_EXCL_START
 void insn_maskpopc_rast(insn_t inst)
 {
     require_feature_gfx();
@@ -75,7 +75,7 @@ void insn_maskpopc_rast(insn_t inst)
     }
     WRITE_RD(popcount1(MS1 & m1) + popcount1(MS2 & m2));
 }
-
+// LCOV_EXCL_STOP
 
 void insn_maskpopcz(insn_t inst)
 {

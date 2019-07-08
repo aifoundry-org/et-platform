@@ -208,9 +208,6 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
             || !addr_is_size_aligned(addr, size)
             || (!spio && (mprot & MPROT_DISABLE_IO_ACCESS)))
             throw_access_fault(vaddr, macc);
-        // NB: This should not be part of the PMA logic...
-        if (paddr_is_maxion_space(addr) && !spio)
-            throw trap_bus_error(addr);
         return addr;
     }
 

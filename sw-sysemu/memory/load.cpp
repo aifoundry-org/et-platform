@@ -24,6 +24,8 @@ void load_elf(MainMemory& mem, const char* filename)
         LOG_NOTHREAD(INFO, "Segment[%d] VA: 0x%" PRIx64 "\tType: 0x%" PRIx32 " (LOAD)",
                      seg->get_index(), seg->get_virtual_address(), seg->get_type());
 
+        uint64_t vma_offset = seg->get_virtual_address() - seg->get_physical_address();
+
         for (ELFIO::Elf_Half idx = 0; idx < seg->get_sections_num(); ++idx) {
             const ELFIO::section* sec =
                     elf.sections[seg->get_section_index_at(idx)];
@@ -34,12 +36,14 @@ void load_elf(MainMemory& mem, const char* filename)
             if (sec->get_type() == SHT_NOBITS)
                 continue;
 
-            LOG_NOTHREAD(INFO, "Section[%d] %s\tVA: 0x%" PRIx64 "\tSize: 0x%" PRIx64
+            uint64_t vma = sec->get_address();
+            uint64_t lma = vma - vma_offset;
+            LOG_NOTHREAD(INFO, "Section[%d] %s\tVMA: 0x%" PRIx64 "\tLMA: 0x%" PRIx64 "\tSize: 0x%" PRIx64
                          "\tType: 0x%" PRIx32 "\tFlags: 0x%" PRIx64,
-                         idx, sec->get_name().c_str(), sec->get_address(), sec->get_size(),
+                         idx, sec->get_name().c_str(), vma, lma, sec->get_size(),
                          sec->get_type(), sec->get_flags());
 
-            mem.init(sec->get_address(), sec->get_size(), sec->get_data());
+            mem.init(lma, sec->get_size(), sec->get_data());
         }
     }
 }
