@@ -24,10 +24,15 @@ CXXFLAGS := -Wall -Wextra -Werror -pedantic-errors -fPIC -g -O2 -std=c++11
 CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -g -O2 -std=c11
 LDLIBS   := -lm
 
+ifeq ($(COVERAGE), 1)
+  CXXFLAGS += --coverage
+  CFLAGS   += --coverage
+  LDLIBS   += --coverage
+endif
+
 ifeq ($(PROFILING), 1)
   CPPFLAGS += -DBEMU_PROFILING -DSYSEMU_PROFILING
 endif
-
 
 # ----- phony targets ---------------------------------------------------------
 
@@ -114,3 +119,38 @@ sysemu-artifacts/libsysemu.a: $(sysemu_OBJDIR)/libsysemu.a | $$(@D)/.
 
 sysemu-artifacts/sys_emu: $(sysemu_OBJDIR)/sys_emu | $$(@D)/.
 	cp -f $< $@
+
+# ----- rules for generating coverage report ----------------------------------
+
+coverage:
+	@echo "Make sure that you passed COVERAGE=1 when compiling"
+	@if [[ $$(which lcov) ]]; then \
+	  cd ..; \
+	  lcov --no-external -c --directory . --output-file sysemu.info; \
+	  genhtml sysemu.info --output-directory sysemu-coverage-full; \
+	  lcov -o sysemu-insns-regs.info -e sysemu.info \
+            '*bemu/insns/arith.cpp' \
+            '*bemu/insns/arith_atomic.cpp' \
+            '*bemu/insns/arith_loadstore.cpp' \
+            '*bemu/insns/branch.cpp' \
+            '*bemu/insns/coherent_arith_loadstore.cpp' \
+            '*bemu/insns/coherent_packed_loadstore.cpp' \
+            '*bemu/insns/float.cpp' \
+            '*bemu/insns/float_loadstore.cpp' \
+            '*bemu/insns/muldiv.cpp' \
+            '*bemu/insns/packed_arith.cpp' \
+            '*bemu/insns/packed_atomic.cpp' \
+            '*bemu/insns/packed_float.cpp' \
+            '*bemu/insns/packed_loadstore.cpp' \
+            '*bemu/insns/packed_mask.cpp' \
+            '*bemu/insns/packed_trans.cpp' \
+            '*bemu/insns/zifencei.cpp' \
+            '*bemu/emu.cpp'; \
+	  genhtml sysemu-insns-regs.info --output-directory sysemu-coverage-insns-regs; \
+	  ./sys_emu/augment-lcov-report.py > sysemu-csr-coverage.txt; \
+	  mkdir -p ~/public_html; \
+	  tar cf - sysemu-coverage-insns-regs | (cd ~/public_html && tar xf - && chmod -R go=u-w sysemu-coverage-insns-regs); \
+	  tar cf - sysemu-coverage-full | (cd ~/public_html && tar xf - && chmod -R go=u-w sysemu-coverage-full); \
+	else \
+	  echo "Cannot find lcov. Do you need to run 'yum install lcov'?"; \
+	fi
