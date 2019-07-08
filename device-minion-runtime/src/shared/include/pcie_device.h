@@ -9,7 +9,8 @@
 *------------------------------------------------------------------------- 
 */
 
-#pragma once
+#ifndef PCIE_DEVICE_H
+#define PCIE_DEVICE_H
 
 #include "DWC_pcie_subsystem_custom.h"
 #include "DWC_pcie_dbi_cpcie_usp_4x8.h"
@@ -31,3 +32,11 @@
 
 //PShire ESRs accessible only by the SP
 #define PCIE_ESR ((volatile Pshire_t* const)R_PCIE_ESR_BASEADDR)
+
+//TODO: Get update hal_device that includes this.
+#define R_PCIE_NOPCIESR_BASEADDR 0x7F80001000
+
+//PShire ESRs accessible to processors on the SoC (SP, MM, MX) but not PShire
+#define PCIE_NOPCIESR ((volatile Pshire_usr1_t* const)R_PCIE_NOPCIESR_BASEADDR)
+
+#endif
