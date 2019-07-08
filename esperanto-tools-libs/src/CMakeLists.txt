@@ -38,38 +38,88 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall -Werror")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 set(ETRT_SOURCES
+  ${PROJECT_BINARY_DIR}/include/Common/ProjectAutogen.h
+  ${PROJECT_SOURCE_DIR}/include/Support/Logging.h
+  ${PROJECT_SOURCE_DIR}/include/Support/ErrorOr.h
+  ${PROJECT_SOURCE_DIR}/include/Support/STLHelpers.h
+  ${PROJECT_SOURCE_DIR}/include/Support/RuntimeErrors.h
+  ${PROJECT_SOURCE_DIR}/include/Support/HelperMacros.h
+  ${PROJECT_SOURCE_DIR}/include/Support/DeviceGuard.h
+  ${PROJECT_SOURCE_DIR}/include/etrt-bin.h
+  ${PROJECT_SOURCE_DIR}/include/Common/ProjectAutogen.h.in
+  ${PROJECT_SOURCE_DIR}/include/Common/ErrorTypes.h
+  ${PROJECT_SOURCE_DIR}/include/Common/et-misc.h
+  ${PROJECT_SOURCE_DIR}/include/Common/CommonTypes.h
+  ${PROJECT_SOURCE_DIR}/include/C-API/etrt.h
+  ${PROJECT_SOURCE_DIR}/include/Core/DeviceTarget.h
+  ${PROJECT_SOURCE_DIR}/include/Core/DeviceManager.h
+  ${PROJECT_SOURCE_DIR}/include/Core/DeviceInformation.h
+  ${PROJECT_SOURCE_DIR}/include/Core/Memory.h
+  ${PROJECT_SOURCE_DIR}/include/Core/Kernel.h
+  ${PROJECT_SOURCE_DIR}/include/Core/Event.h
+  ${PROJECT_SOURCE_DIR}/include/Core/MemoryManager.h
+  ${PROJECT_SOURCE_DIR}/include/Core/Error.h
+  ${PROJECT_SOURCE_DIR}/include/Core/Device.h
+  ${PROJECT_SOURCE_DIR}/include/Core/Stream.h
+  ${PROJECT_SOURCE_DIR}/include/Core/CodeModule.h
+  ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptions.h
+  ${PROJECT_SOURCE_DIR}/include/DeviceAPI
+  ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Response.h
+  ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Command.h
+  ${PROJECT_SOURCE_DIR}/include/EsperantoRuntime.h
   # FIXME the following should be deprecated once we move to the simulator API
-    etrpc/et_socket_addr.cc
-    etrpc/backend.cc
-    etrpc/backend-sysemu.cc
-    etrpc/et-card-proxy.cc
-    etrpc/card-emu.cc
-    etrpc/et-rpc.cc
-    # --------
-    C-API/etrt.cc
-    Core/CodeModule.cc
-    Core/DeviceManager.cc
-    Core/Error.cc
-    Core/MemoryManager.cc
-    Core/ModuleManager.cc
-    Core/Device.cc
-    Core/ELFSupport.cc
-    Core/Event.cc
-    Core/registry.cc
-    Core/Stream.cc
-    Device/DeviceTarget.cc
-    Device/PCIeDevice.cc
-    Device/SysEmuLauncher.cpp
-    Device/TargetCardProxy.cc
-    Device/TargetRPC.cc
-    Device/TargetSysEmu.cc
-    DeviceAPI/Commands.cc
-    DeviceFW/FWManager.cc
-    DeviceFW/FakeFW.cc
-    DeviceFW/DeviceFW.cc
-    registry.h
-    Support/DeviceGuard.cc
-)
+  C-API/etrt.cc
+  Core/CodeModule.cc
+  Core/CommandQueue.h
+  Core/Device.cc
+  Core/DeviceManager.cc
+  Core/ELFSupport.cc
+  Core/ELFSupport.h
+  Core/Error.cc
+  Core/Event.cc
+  Core/MemoryManager.cc
+  Core/ModuleManager.cc
+  Core/ModuleManager.h
+  Core/registry.cc
+  Core/Stream.cc
+  demangle.h
+  DeviceAPI/Commands.cc
+  DeviceAPI/Commands.h
+  Device/DeviceTarget.cc
+  DeviceFW/DeviceFW.cc
+  DeviceFW/DeviceFW.h
+  DeviceFW/FakeFW.cc
+  DeviceFW/FakeFW.h
+  DeviceFW/FWManager.cc
+  DeviceFW/FWManager.h
+  Device/PCIeDevice.cc
+  Device/PCIeDevice.h
+  Device/SysEmuLauncher.cpp
+  Device/SysEmuLauncher.h
+  Device/TargetCardProxy.cc
+  Device/TargetCardProxy.h
+  Device/TargetDeviceInfo.h.in
+  Device/TargetRPC.cc
+  Device/TargetRPC.h
+  Device/TargetSysEmu.cc
+  Device/TargetSysEmu.h
+  etlibdevice.h
+  etrpc/backend.cc
+  etrpc/backend.h
+  etrpc/backend-sysemu.cc
+  etrpc/card-emu.cc
+  etrpc/card-emu.h
+  etrpc/esprt_iface.h
+  etrpc/et-card-proxy.cc
+  etrpc/et-card-proxy.h
+  etrpc/et-rpc.cc
+  etrpc/et-rpc.h
+  etrpc/et_socket_addr.cc
+  etrpc/et_socket_addr.h
+  registry.h
+  Support/DeviceGuard.cc
+
+  )
 
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})
 
@@ -111,6 +161,7 @@ target_link_libraries(etrt
 
 ## Build shared library
 install(TARGETS etrt
+  EXPORT EsperantoRuntimeTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
   LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
   ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
@@ -123,6 +174,7 @@ target_link_libraries(etrt_static ${FMTLIB_LIBRARIES})
 
 ## Build static library
 install(TARGETS etrt_static
+  EXPORT EsperantoRuntimeTargets
   RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
   LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
   ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib

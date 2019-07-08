@@ -13,22 +13,37 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/Common/ProjectAutogen.h"
   )
 
+foreach(FILE CommonTypes.h ErrorTypes.h)
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/Common/${FILE}"
+  "${CMAKE_CURRENT_BINARY_DIR}/Common/${FILE}"
+  COPYONLY
+  )
+endforeach()
+
+
+set(COPY_FOLDERS "Core;Support;DeviceAPI")
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/EsperantoRuntime.h
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/Core
-  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Core)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/etrt-bin.h
+  DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+foreach(FOLDER ${COPY_FOLDERS})
+  file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${FOLDER}
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/)
+endforeach()
 
 set(INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/et-runtime)
 # Install the headers
 # FIXME currently we are installing blindly all headers in the future we need to
 # separate the helpers for the different components and target libraries.
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntime.h
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntime.h ${CMAKE_CURRENT_BINARY_DIR}/etrt-bin.h
   DESTINATION ${INSTALL_DIR}
   COMPONENT et-runtime
   )
-foreach(INC_DIR Common Core)
-  install(DIRECTORY ${INC_DIR}
+foreach(INC_DIR Common;${COPY_FOLDERS})
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${INC_DIR}
   DESTINATION ${INSTALL_DIR}
   COMPONENT et-runtime
   )

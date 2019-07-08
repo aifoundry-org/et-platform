@@ -48,6 +48,18 @@ endif(ENABLE_CCACHE)
 
 set(DEPENDENCIES_PATH "/usr" CACHE PATH "Path where runtime dependencies are installed")
 
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/ CACHE STRING "Include install dir")
+set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install dir")
+set(SYSCONFIG_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc/et-runtime/ CACHE STRING "Config install dir")
+
+# Make relative paths absolute (needed later on)
+foreach(p LIB BIN INCLUDE CMAKE)
+  set(var INSTALL_${p}_DIR)
+  if(NOT IS_ABSOLUTE "${${var}}")
+    set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+  endif()
+endforeach()
+
 # To be overwritten in cases where we want to also "release" the external tools
 # used by the runtime
 set(RT_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
@@ -88,3 +100,36 @@ if (ENABLE_TESTS)
   add_subdirectory(tests)
   add_subdirectory(tools)
 endif(ENABLE_TESTS)
+
+
+### Add package information
+include(CMakePackageConfigHelpers)
+
+# Add all targets to the build-tree export set
+export(TARGETS etrt etrt_static
+  FILE "${PROJECT_BINARY_DIR}/EsperantoRuntimeTargets.cmake")
+
+# Export the package for use from the build-tree
+# (this registers the build-tree with a global CMake-registry)
+export(PACKAGE EsperantoRuntime)
+
+# Create the EsperantoRuntimeConfig.cmake and EsperantoRuntimeConfigVersion files
+configure_package_config_file(EsperantoRuntimeConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfig.cmake
+  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoRuntime/cmake
+  PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfigVersion.cmake
+  VERSION ${VERSION}
+  COMPATIBILITY SameMajorVersion )
+
+# Install the EsperantoRuntimeConfig.cmake and EsperantoRuntimeConfigVersion.cmake
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfigVersion.cmake"
+  DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoRuntime
+  COMPONENT runtime)
+
+# Install the export set for use with the install-tree
+install(EXPORT EsperantoRuntimeTargets DESTINATION
+  "${LIB_INSTALL_DIR}/cmake/EsperantoRuntime" COMPONENT runtime)
