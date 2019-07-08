@@ -559,7 +559,7 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev)
 	struct et_pci_dev *et_dev;
 	int i;
 
-	et_dev = kzalloc(sizeof(*new_dev), GFP_KERNEL);
+	et_dev = kzalloc(sizeof(struct et_pci_dev), GFP_KERNEL);
 	*new_dev = et_dev;
 
 	if (!et_dev) return -ENOMEM;
