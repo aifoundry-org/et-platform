@@ -33,7 +33,7 @@ include_directories(include)
 include_directories(${SHARED_INC_DIRS})
 include_directories(${FREERTOS_INC_DIRS})
 
-add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${SOURCES})
+add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 install(TARGETS ${TARGET_NAME}.elf
   DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/ServiceProcessor
