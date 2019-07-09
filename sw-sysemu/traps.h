@@ -78,7 +78,7 @@ DEF_TRAP_N( 7 + (1ull<<63), async, trap_machine_timer_interrupt);
 DEF_TRAP_N( 8 + (1ull<<63), async, trap_user_external_interrupt);
 DEF_TRAP_N( 9 + (1ull<<63), async, trap_supervisor_external_interrupt);
 DEF_TRAP_N(11 + (1ull<<63), async, trap_machine_external_interrupt);
-DEF_TRAP_N(15 + (1ull<<63), async, trap_bad_ipi_redirect_interrupt);
+DEF_TRAP_N(16 + (1ull<<63), async, trap_bad_ipi_redirect_interrupt);
 DEF_TRAP_N(19 + (1ull<<63), async, trap_icache_ecc_counter_overflow_interrupt);
 
 

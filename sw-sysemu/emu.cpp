@@ -519,17 +519,17 @@ void check_pending_interrupts()
             break;
     }
 
-    if (xip & 0x8000) throw trap_bad_ipi_redirect_interrupt();
-    if (xip & 0x0800) throw trap_machine_external_interrupt();
-    if (xip & 0x0008) throw trap_machine_software_interrupt();
-    if (xip & 0x0080) throw trap_machine_timer_interrupt();
-    if (xip & 0x0200) throw trap_supervisor_external_interrupt();
-    if (xip & 0x0002) throw trap_supervisor_software_interrupt();
-    if (xip & 0x0020) throw trap_supervisor_timer_interrupt();
+    if (xip & 0x10000) throw trap_bad_ipi_redirect_interrupt();
+    if (xip & 0x00800) throw trap_machine_external_interrupt();
+    if (xip & 0x00008) throw trap_machine_software_interrupt();
+    if (xip & 0x00080) throw trap_machine_timer_interrupt();
+    if (xip & 0x00200) throw trap_supervisor_external_interrupt();
+    if (xip & 0x00002) throw trap_supervisor_software_interrupt();
+    if (xip & 0x00020) throw trap_supervisor_timer_interrupt();
 #if 0
-    if (xip & 0x0100) throw trap_user_external_interrupt();
-    if (xip & 0x0001) throw trap_user_software_interrupt();
-    if (xip & 0x0010) throw trap_user_timer_interrupt();
+    if (xip & 0x00100) throw trap_user_external_interrupt();
+    if (xip & 0x00001) throw trap_user_software_interrupt();
+    if (xip & 0x00010) throw trap_user_timer_interrupt();
 #endif
 }
 
@@ -1258,7 +1258,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_MIE:
         // Hard-wire ueie, utie, usie
-        val &= 0x0000000000088AAAULL;
+        val &= 0x0000000000090AAAULL;
         cpu[current_thread].mie = val;
         break;
     case CSR_MTVEC:
