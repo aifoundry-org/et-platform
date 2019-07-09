@@ -65,8 +65,8 @@ bool ELFInfo::loadELF(std::istream &stream) {
   THROW_IF(reader_.get_class() != ELFCLASS64,
            "Kernels ELF class is not ELFCLASS64.");
 
-  THROW_IF(reader_.segments.size() > 1,
-           "Currently we support elf files that have a single segment");
+  THROW_IF(!checkELFSegments(),
+           "Currently we support elf files that have a single segment with non-zero size");
 
   /*
    * Compute Elf File Size by formula: e_shoff + ( e_shentsize * e_shnum )
@@ -116,6 +116,18 @@ size_t ELFInfo::loadAddr() {
   return reader_.segments[0]->get_physical_address();
 }
 
+bool ELFInfo::checkELFSegments() {
+  bool seg_ok = true;
+  size_t num = reader_.segments.size();
+  for (size_t i = 1; i < num; ++i) {
+    if ((reader_.segments[i]->get_file_size() > 0) ||
+        (reader_.segments[i]->get_memory_size() > 0))
+    {
+      seg_ok = false;
+    }
+  }
+  return seg_ok;
+}
 //------------------------------------------------------------------------------
 
 KernelELFInfo::KernelELFInfo(const std::string &name)

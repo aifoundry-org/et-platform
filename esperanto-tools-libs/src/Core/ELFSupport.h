@@ -48,6 +48,9 @@ protected:
   const std::string
       name_;            ///< Kernel device name, exists for any valid hostFun.
   ELFIO::elfio reader_; ///< elfio object that holds the parsed ELF information
+
+private:
+  bool checkELFSegments();
 };
 
 /// @brief Clas that hold the information of the Kernel ELF file
