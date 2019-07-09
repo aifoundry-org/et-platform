@@ -3,6 +3,7 @@
 #include "emu.h"
 #include "emu_gio.h"
 #include "esrs.h"
+#include "processor.h"
 #include "txs.h"
 
 //namespace bemu {
@@ -74,6 +75,33 @@ static inline void clear_software_interrupt(unsigned, uint64_t) {}
 #endif
 extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
 extern uint32_t current_thread;
+
+
+static void recalculate_thread0_enable(unsigned shire)
+{
+    extern std::array<Processor,EMU_NUM_THREADS>  cpu;
+
+    uint32_t value = shire_other_esrs[shire].thread0_disable;
+    for (unsigned m = 0; m < 32; ++m) {
+        unsigned thread = shire * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION;
+        cpu[thread].enabled = !((value >> m) & 1);
+    }
+}
+
+
+static void recalculate_thread1_enable(unsigned shire)
+{
+    extern std::array<Processor,EMU_NUM_THREADS>  cpu;
+
+    uint32_t value = (shire_other_esrs[shire].minion_feature & 0x10)
+            ? 0xffffffff
+            : shire_other_esrs[shire].thread1_disable;
+
+    for (unsigned m = 0; m < 32; ++m) {
+        unsigned thread = shire * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + 1;
+        cpu[thread].enabled = !((value >> m) & 1);
+    }
+}
 
 
 static uint64_t legalize_esr_address(uint64_t addr)
@@ -156,6 +184,10 @@ void shire_other_esrs_t::reset(unsigned shire)
         minion_feature = 0;
     }
     shire_ctrl_clockmux = 0;
+
+    if (shire == IO_SHIRE_ID) shire = EMU_IO_SHIRE_SP;
+    recalculate_thread0_enable(shire);
+    recalculate_thread1_enable(shire);
 }
 
 
@@ -676,13 +708,13 @@ void esr_write(uint64_t addr, uint64_t value)
         uint64_t esr = addr2 & ESR_SHIRE_ESR_MASK;
         switch (esr) {
         case ESR_MINION_FEATURE:
-            shire_other_esrs[shire].minion_feature = uint8_t(value & 0x3f);
+            write_minion_feature(shire, uint8_t(value & 0x3f));
             return;
         case ESR_SHIRE_CONFIG:
             shire_other_esrs[shire].shire_config = uint32_t(value & 0x3ffffff);
             return;
         case ESR_THREAD1_DISABLE:
-            shire_other_esrs[shire].thread1_disable = uint32_t(value);
+            write_thread1_disable(shire, uint32_t(value));
             return;
         case ESR_IPI_REDIRECT_TRIGGER:
             LOG_ALL_MINIONS(DEBUG, "%s", "Sending IPI_REDIRECT");
@@ -766,7 +798,7 @@ void esr_write(uint64_t addr, uint64_t value)
             shire_other_esrs[shire].power_ctrl_neigh_isolation = uint32_t(value);
             return;
         case ESR_THREAD0_DISABLE:
-            shire_other_esrs[shire].thread0_disable = uint32_t(value);
+            write_thread0_disable(shire, uint32_t(value));
             return;
         case ESR_SHIRE_PLL_AUTO_CONFIG:
             shire_other_esrs[shire].shire_pll_auto_config = uint32_t(value & 0x1ffff);
@@ -819,6 +851,27 @@ void esr_write(uint64_t addr, uint64_t value)
 
     LOG(WARN, "Write illegal ESR 0x%" PRIx64, addr);
     throw trap_bus_error(addr);
+}
+
+
+void write_thread0_disable(unsigned shire, uint32_t value)
+{
+    shire_other_esrs[shire].thread0_disable = value;
+    recalculate_thread0_enable(shire);
+}
+
+
+void write_thread1_disable(unsigned shire, uint32_t value)
+{
+    shire_other_esrs[shire].thread1_disable = value;
+    recalculate_thread1_enable(shire);
+}
+
+
+void write_minion_feature(unsigned shire, uint8_t value)
+{
+    shire_other_esrs[shire].minion_feature = value;
+    recalculate_thread1_enable(shire);
 }
 
 

@@ -402,6 +402,10 @@ extern broadcast_esrs_t broadcast_esrs[EMU_NUM_SHIRES];
 uint64_t esr_read(uint64_t addr);
 void esr_write(uint64_t addr, uint64_t value);
 
+void write_thread0_disable(unsigned shire, uint32_t value);
+void write_thread1_disable(unsigned shire, uint32_t value);
+void write_minion_feature(unsigned shire, uint8_t value);
+
 
 //} // namespace bemu
 

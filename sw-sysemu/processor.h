@@ -77,6 +77,7 @@ struct Processor {
     bool break_on_load;
     bool break_on_store;
     bool break_on_fetch;
+    bool enabled;
 };
 
 
