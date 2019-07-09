@@ -145,6 +145,12 @@ static u8 rw_buff[8192];
 
 #define RW_BUFF_DWORDS ARRAY_SIZE(rw_buff) / 4
 
+//The SoC supports MSI, MSI-X, and Legacy PCI IRQs. Legacy gives you exactly 1
+//interrupt vector. MSI is up to 32 in powers of 2. MSI-X is up to 2048 in any
+//step. We want two (one for each mbox).
+#define MIN_VECS 1
+#define REQ_VECS 2
+
 struct et_pci_minor_dev {
 	struct device *pdevice;
 	struct et_pci_dev *et_dev;
@@ -162,8 +168,20 @@ struct et_pci_dev {
 	void __iomem *r_pu_mbox_pc_sp;
 	void __iomem *r_pu_trg_pcie;
 	void __iomem *r_pcie_usresr;
+	int num_vecs;
 	struct et_pci_minor_dev et_minor_devs[MINORS_PER_SOC];
 };
+
+static uint32_t int_cnt = 0;
+
+static irqreturn_t et_mbox_isr(int irq, void *dev_id)
+{
+	//TODO
+	printk("Got mbox irq %d\n", int_cnt);
+	++int_cnt;
+	
+	return IRQ_HANDLED;
+}
 
 static int et_mmio_bounds_check(u64 max_size, size_t count, loff_t *pos)
 {
@@ -595,11 +613,33 @@ static void destory_et_pci_dev(struct et_pci_dev *et_dev)
 	kfree(et_dev);
 }
 
-static int esperanto_pcie_iomem_map(struct et_pci_dev *et_dev)
+static void et_unmap_bars(struct et_pci_dev *et_dev)
+{
+	if (et_dev->r_drct_dram)
+		iounmap(et_dev->r_drct_dram);
+	if (et_dev->r_pu_mbox_pc_mm)
+		iounmap(et_dev->r_pu_mbox_pc_mm);
+	if (et_dev->r_pu_mbox_pc_sp)
+		iounmap(et_dev->r_pu_mbox_pc_sp);
+	if (et_dev->r_pu_trg_pcie)
+		iounmap(et_dev->r_pu_trg_pcie);
+	if (et_dev->r_pcie_usresr)
+		iounmap(et_dev->r_pcie_usresr);
+
+	pci_release_regions(et_dev->pdev);
+}
+
+static int et_map_bars(struct et_pci_dev *et_dev)
 {
 	int rc;
 
 	struct pci_dev *pdev = et_dev->pdev;
+
+	rc = pci_request_regions(pdev, DRIVER_NAME);
+	if (rc) {
+		dev_err(&pdev->dev, "request regions failed\n");
+		return rc;
+	}
 
 	//Map all regions that are RAM with wc (write combining) for performance
 
@@ -612,7 +652,7 @@ static int esperanto_pcie_iomem_map(struct et_pci_dev *et_dev)
 	if (IS_ERR(et_dev->r_drct_dram)) {
 		dev_err(&pdev->dev, "mapping r_drct_dram failed\n");
 		rc = PTR_ERR(et_dev->r_drct_dram);
-		return rc;
+		goto error;
 	}
     
 	//Setup BAR2
@@ -629,7 +669,7 @@ static int esperanto_pcie_iomem_map(struct et_pci_dev *et_dev)
 	if (IS_ERR(et_dev->r_pu_mbox_pc_mm)) {
 		dev_err(&pdev->dev, "mapping r_pu_mbox_pc_mm failed\n");
 		rc = PTR_ERR(et_dev->r_pu_mbox_pc_mm);
-		return rc;
+		goto error;
 	}
 
 	et_dev->r_pu_mbox_pc_sp = pci_iomap_wc_range(pdev, 2,
@@ -639,7 +679,7 @@ static int esperanto_pcie_iomem_map(struct et_pci_dev *et_dev)
 	if (IS_ERR(et_dev->r_pu_mbox_pc_sp)) {
 		dev_err(&pdev->dev, "mapping r_pu_mbox_pc_sp failed\n");
 		rc = PTR_ERR(et_dev->r_pu_mbox_pc_mm);
-		return rc;
+		goto error;
 	}
 
 	//Important: This region maps registers. Do NOT mark as
@@ -651,7 +691,7 @@ static int esperanto_pcie_iomem_map(struct et_pci_dev *et_dev)
 	if (IS_ERR(et_dev->r_pu_trg_pcie)) {
 		dev_err(&pdev->dev, "mapping r_pu_trg_pcie failed\n");
 		rc = PTR_ERR(et_dev->r_pu_trg_pcie);
-		return rc;
+		goto error;
 	}
 
 	//Important: This region maps registers. Do NOT mark as
@@ -663,117 +703,13 @@ static int esperanto_pcie_iomem_map(struct et_pci_dev *et_dev)
 	if (IS_ERR(et_dev->r_pcie_usresr)) {
 		dev_err(&pdev->dev, "mapping r_pcie_usresr failed\n");
 		rc = PTR_ERR(et_dev->r_pcie_usresr);
-		return rc;
+		goto error;
 	}
 
 	return 0;
-}
-
-static const u32 test_patterns[] = {
-	0x00000001,
-	0x00000002,
-	0x00000004,
-	0x00000008,
-	0x00000010,
-	0x00000020,
-	0x00000040,
-	0x00000080,
-	0x00000100,
-	0x00000200,
-	0x00000400,
-	0x00000800,
-	0x00001000,
-	0x00002000,
-	0x00004000,
-	0x00008000,
-	0x00010000,
-	0x00020000,
-	0x00040000,
-	0x00080000,
-	0x00100000,
-	0x00200000,
-	0x00400000,
-	0x00800000,
-	0x01000000,
-	0x02000000,
-	0x04000000,
-	0x08000000,
-	0x10000000,
-	0x20000000,
-	0x40000000,
-	0x80000000,
-	0xAAAAAAAA,
-	0x55555555,
-	0x00000000,
-	0xFFFFFFFF,
-	0xAA55AA55,
-	0x55AA55AA
-};
-
-static int esperanto_pcie_self_test(struct et_pci_dev *et_dev)
-{
-	int i, offset;
-	u32 test_val;
-	u32 readback;
-
-	//Test r_drct_dram
-	for (offset = 0; offset < 16; offset += 4) {
-		for (i = 0; i < ARRAY_SIZE(test_patterns); ++i) {
-			test_val = test_patterns[i];
-
-			iowrite32(test_val, et_dev->r_drct_dram + offset);
-			readback = ioread32(et_dev->r_drct_dram + offset);
-
-			if (readback != test_val) {
-				dev_err(&et_dev->pdev->dev,
-					"test r_drct_dram + %d wrote 0x%08x "
-					"read 0x%08x\n", offset, test_val,
-					readback);
-				return -EIO;
-			}
-		}
-	}
-
-	//Test r_pu_mbox_pc_mm
-	for (offset = 0; offset < 16; offset += 4) {
-		for (i = 0; i < ARRAY_SIZE(test_patterns); ++i) {
-			test_val = test_patterns[i];
-
-			iowrite32(test_val, et_dev->r_pu_mbox_pc_mm + offset);
-			readback = ioread32(et_dev->r_pu_mbox_pc_mm + offset);
-
-			if (readback != test_val) {
-				dev_err(&et_dev->pdev->dev,
-					"test r_pu_mbox_pc_mm + %d wrote 0x%08x"
-					" read 0x%08x\n", offset, test_val,
-					readback);
-				return -EIO;
-			}
-		}
-	}
-
-	//Test r_pu_mbox_pc_sp
-	for (offset = 0; offset < 16; offset += 4) {
-		for (i = 0; i < ARRAY_SIZE(test_patterns); ++i) {
-			test_val = test_patterns[i];
-
-			iowrite32(test_val, et_dev->r_pu_mbox_pc_sp + offset);
-			readback = ioread32(et_dev->r_pu_mbox_pc_sp + offset);
-
-			if (readback != test_val) {
-				dev_err(&et_dev->pdev->dev,
-					"test r_pu_mbox_pc_sp + %d wrote 0x%08x"
-					" read 0x%08x\n", offset, test_val,
-					readback);
-				return -EIO;
-			}
-		}
-	}
-
-	//TODO: more test. Different sizes. Cross cache lines. Test min and
-	//max address. Try random addresses in the middle.
-
-	return 0;
+error:
+	et_unmap_bars(et_dev);
+	return rc;
 }
 
 static int esperanto_pcie_probe(struct pci_dev *pdev,
@@ -781,6 +717,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 {
 	int rc, i;
 	struct et_pci_dev *et_dev;
+	int irq_vec;
 
 	//Create instance data for this device, save it to drvdata
 	rc = create_et_pci_dev(&et_dev);
@@ -792,26 +729,49 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	et_dev->pdev = pdev;
 
-	rc = esperanto_pcie_iomem_map(et_dev);
-	if (rc != 0) {
-		return rc;
-	}
-
-	rc = pci_enable_device(pdev);
+	rc = pci_enable_device_mem(pdev);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "enable device failed\n");
-		return rc;
+		goto error_free_dev;
 	}
 
-	rc = esperanto_pcie_self_test(et_dev);
-	if (rc != 0) {
-		dev_err(&pdev->dev, "self test failed\n");
-		return rc;
+	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	if (rc < 0) {
+		dev_err(&pdev->dev, "set dma mask failed\n");
+		goto error_disable_dev;
 	}
 
-	//TODO: iounmap
+	pci_set_master(pdev);
 
-	printk("Creating character devices\n");
+	rc = et_map_bars(et_dev);
+	if (rc) {
+		dev_err(&pdev->dev, "mapping bars failed\n");
+		goto error_disable_dev;
+	}
+
+	rc = pci_alloc_irq_vectors(pdev, MIN_VECS, REQ_VECS, PCI_IRQ_MSI /*TODO: MSIX*/);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "alloc irq vectors failed\n");
+		goto error_unmap_bars;
+	}
+	else {
+		et_dev->num_vecs = rc;
+	}
+
+	//TODO: For now, only using one vec. In the future, take advantage of multi vec
+	irq_vec = pci_irq_vector(pdev, 0);
+	if (irq_vec < 0) {
+		rc = -ENODEV;
+		dev_err(&pdev->dev, "finding irq vector failed\n");
+		goto error_free_irq_vecs;
+	}
+
+	rc = request_irq(irq_vec, et_mbox_isr, IRQF_SHARED, DRIVER_NAME, 
+			 (void*)et_dev);
+	if (rc) {
+		dev_err(&pdev->dev, "request irq failed\n");
+		goto error_free_irq_vecs;
+	}
 
 	//Create minor character devices for this device
 	for (i = 0; i < MINORS_PER_SOC; ++i) {
@@ -820,21 +780,15 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		dev_t dev = MKDEV(major, curr_minor);
 		struct cdev *pcdev = &minor_dev->cdev;
 
-		printk("cdev_init %d\n", i);
-
 		//Add the device to the system
 		cdev_init(pcdev, &et_pcie_fops);
 		pcdev->owner = THIS_MODULE;
 
-		printk("cdev_add\n");
-
 		rc = cdev_add(pcdev, dev, 1);
 		if (rc) {
 			dev_err(&pdev->dev, "cdev_add failed\n");
-			goto error;
+			goto error_destory_devs;
 		}
-
-		printk("device_create\n");
 
 		//Make udev enumerate it to user mode
 		minor_dev->pdevice = device_create(pclass, NULL, dev, NULL,
@@ -842,7 +796,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		if (IS_ERR(minor_dev->pdevice)) {
 			dev_err(&pdev->dev, "device_create failed\n");
 			rc = PTR_ERR(minor_dev->pdevice);
-			goto error;
+			goto error_destory_devs;
 		}
 
 		++curr_minor;
@@ -851,7 +805,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 
 	return 0;
 
-error:
+error_destory_devs:
 	for (; i >= 0; --i) {
 		struct et_pci_minor_dev *minor_dev = &et_dev->et_minor_devs[i];
 
@@ -861,6 +815,23 @@ error:
 		}
 		cdev_del(&minor_dev->cdev);
 	}
+
+	free_irq(irq_vec, (void*)et_dev);
+
+error_free_irq_vecs:
+	pci_free_irq_vectors(pdev);
+
+error_unmap_bars:
+	et_unmap_bars(et_dev);
+
+error_disable_dev:
+	pci_clear_master(pdev);
+	pci_disable_device(pdev);
+
+error_free_dev:
+	destory_et_pci_dev(et_dev);
+	pci_set_drvdata(pdev, NULL);
+
 	return rc;
 }
 
@@ -868,6 +839,7 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 {
 	struct et_pci_dev *et_dev;
 	int i;
+	int irq_vec;
 
 	et_dev = pci_get_drvdata(pdev);
 	if (!et_dev) return;
@@ -881,6 +853,19 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 		}
 		cdev_del(&minor_dev->cdev);
 	}
+
+	irq_vec = pci_irq_vector(pdev, 0);
+
+	if (irq_vec >= 0) {
+		free_irq(irq_vec, (void*)et_dev);
+	}
+
+	pci_free_irq_vectors(pdev);
+
+	et_unmap_bars(et_dev);
+
+	pci_clear_master(pdev);
+	pci_disable_device(pdev);
 
 	destory_et_pci_dev(et_dev);
 	pci_set_drvdata(pdev, NULL);
