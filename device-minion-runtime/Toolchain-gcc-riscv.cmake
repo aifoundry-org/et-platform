@@ -45,25 +45,25 @@ set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=
 
 # macro to create an executable .elf plus .bin, .hex, .lst and .map files
 # if LINKER_SCRIPT is defined, uses it instead of the default
-macro(add_riscv_executable TARGET_NAME LINKER_SCRIPT ZEBU_TARGET ZEBU_FILENAME)
+macro(add_riscv_executable TARGET_NAME)
     set(ELF_FILE ${TARGET_NAME}.elf)
     set(BIN_FILE ${TARGET_NAME}.bin)
     set(HEX_FILE ${TARGET_NAME}.hex)
     set(MAP_FILE ${TARGET_NAME}.map)
     set(LST_FILE ${TARGET_NAME}.lst)
 
-if (NOT DEFINED GIT_HASH_STRING)
-    execute_process(COMMAND ${CMAKE_GET_GIT_HASH} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_STRING)
-endif()
-if (NOT DEFINED GIT_HASH_ARRAY)
-    execute_process(COMMAND ${CMAKE_GET_GIT_HASH} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_ARRAY)
-endif()
-if (NOT DEFINED GIT_VERSION_STRING)
-    execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_STRING)
-endif()
-if (NOT DEFINED GIT_VERSION_ARRAY)
-    execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_ARRAY)
-endif()
+    if (NOT DEFINED GIT_HASH_STRING)
+        execute_process(COMMAND ${CMAKE_GET_GIT_HASH} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_STRING)
+    endif()
+    if (NOT DEFINED GIT_HASH_ARRAY)
+        execute_process(COMMAND ${CMAKE_GET_GIT_HASH} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_ARRAY)
+    endif()
+    if (NOT DEFINED GIT_VERSION_STRING)
+        execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_STRING)
+    endif()
+    if (NOT DEFINED GIT_VERSION_ARRAY)
+        execute_process(COMMAND ${CMAKE_GET_GIT_VERSION} -a ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_VERSION_ARRAY)
+    endif()
 
     configure_file (
         "${CMAKE_CURRENT_SOURCE_DIR}/include/build_configuration.h.in"
@@ -74,11 +74,18 @@ endif()
 
     target_include_directories(${ELF_FILE} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-    # Get the absolute path to the linker script
-    get_filename_component(LINKER_SCRIPT_ABS_PATH ${LINKER_SCRIPT} ABSOLUTE)
+    if (DEFINED LINKER_SCRIPT)
+        # Get the absolute path to the linker script
+        get_filename_component(LINKER_SCRIPT_ABS_PATH ${LINKER_SCRIPT} ABSOLUTE)
 
-    # Use custom linker script and generate a map file
-    set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE} -T ${LINKER_SCRIPT_ABS_PATH}")
+        # Add explicit dependency on linker script when linking target
+        set_target_properties(${ELF_FILE} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_ABS_PATH})
+
+        # Use custom linker script
+        set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE} -T ${LINKER_SCRIPT_ABS_PATH}")
+    else()
+        set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE}")
+    endif()
 
     # Must use target_link_libraries() to add libraries to get correct symbol resolution -
     # putting libraries in CMAKE_EXE_LINKER_FLAGS is too early
@@ -87,9 +94,6 @@ endif()
     # Pass -L{$SHARED_INC_DIR} to linker so linker scripts can INCLUDE shared defines
     target_link_directories(${ELF_FILE} PRIVATE ${SHARED_INC_DIR})
 
-    # Add explicit dependency on linker script when linking target
-    set_target_properties(${ELF_FILE} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_ABS_PATH})
-
     # custom command to generate a bin from the elf
     add_custom_command(
         OUTPUT ${BIN_FILE}
@@ -97,19 +101,21 @@ endif()
         DEPENDS ${ELF_FILE}
     )
 
-    # custom command to generate a ZeBu hex file from the elf
-    add_custom_command(
-        OUTPUT ${HEX_FILE}
-        COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} --output-file ${ZEBU_FILENAME}
-        DEPENDS ${ELF_FILE}
-    )
+    if (DEFINED ZEBU_TARGET)
+        # custom command to generate a ZeBu hex file from the elf
+        add_custom_command(
+            OUTPUT ${HEX_FILE}
+            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} --output-file ${ZEBU_FILENAME}
+            DEPENDS ${ELF_FILE}
+        )
 
-    # call elftohex and get the list of files it will generate per target
-    execute_process(
-         COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} --output-file ${ZEBU_FILENAME} --print-output-files
-         OUTPUT_VARIABLE "${TARGET_NAME}_OUTPUT"
-         OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+        # call elftohex and get the list of files it will generate per target
+        execute_process(
+            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} --output-file ${ZEBU_FILENAME} --print-output-files
+            OUTPUT_VARIABLE "${TARGET_NAME}_OUTPUT"
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif()
 
     # custom command to generate an assembly listing from the elf
     add_custom_command(
@@ -129,12 +135,14 @@ endif()
         DEPENDS ${BIN_FILE}
     )
 
-    # Always generate the ZeBu hex file
-    add_custom_target(
-        "${TARGET_NAME}.hex.always"
-        ALL
-        DEPENDS ${ELFTOHEX_ABS_PATH} ${HEX_FILE}
-    )
+    if (DEFINED ZEBU_TARGET)
+        # Generate the ZeBu hex file
+        add_custom_target(
+            "${TARGET_NAME}.hex.always"
+            ALL
+            DEPENDS ${ELFTOHEX_ABS_PATH} ${HEX_FILE}
+        )
+    endif()
 
     # Always generate the assembly listing
     add_custom_target(

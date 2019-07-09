@@ -1,4 +1,5 @@
 #include "build_configuration.h"
+#include "kernel_info.h"
 #include "layout.h"
 #include "message.h"
 #include "printf.h"
@@ -8,6 +9,7 @@
 #include "swi.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <inttypes.h>
 
 typedef enum
@@ -63,8 +65,7 @@ static void update_shire_state(uint64_t shire, shire_state_t state);
 static void update_kernel_state(kernel_id_t kernel_id, uint64_t shire, shire_state_t shire_state);
 static void handle_pcie_events(void);
 static void handle_timer_events(void);
-static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t entry_addr, uint64_t argument_ptr, uint64_t grid_ptr);
-
+static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t entry_addr, const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
@@ -127,7 +128,28 @@ static void handle_message_from_host(void)
     // For now, fake host launches kernel 0 any time it's unused.
     if (kernel_status[0].kernel_state == KERNEL_STATE_UNUSED)
     {
-        launch_kernel(KERNEL_ID_0, 1, 0, 0, 0); // TODO FIXME fake entry_addr, argument_ptr, grid_ptr
+        kernel_params_t kernel_params = {
+            .tensor_a = 0,
+            .tensor_b = 0,
+            .tensor_c = 0,
+            .tensor_d = 0,
+            .tensor_e = 0,
+            .tensor_f = 0,
+            .tensor_g = 0,
+            .tensor_h = 0
+        };
+
+        kernel_info_t kernel_info = {
+            .compute_pc = 0, // TODO FIXME HACK worker firmware ignores this for now
+            .kernel_params_ptr = &kernel_params,
+            .grid_config_ptr = NULL
+        };
+
+        launch_kernel(KERNEL_ID_0,
+                      1,
+                      kernel_info.compute_pc,
+                      kernel_info.kernel_params_ptr,
+                      kernel_info.grid_config_ptr);
     }
 }
 
@@ -296,7 +318,7 @@ static void handle_timer_events(void)
     // gone wrong and trigger an abort/cleanup.
 }
 
-static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t entry_addr, uint64_t argument_ptr, uint64_t grid_ptr)
+static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t entry_addr, const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr)
 {
     kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_id];
     bool allShiresReady = true;
@@ -317,8 +339,8 @@ static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t e
     {
         message.id = MESSAGE_ID_KERNEL_LAUNCH;
         message.data[0] = entry_addr;
-        message.data[1] = argument_ptr;
-        message.data[2] = grid_ptr;
+        message.data[1] = (uint64_t)kernel_params_ptr;
+        message.data[2] = (uint64_t)grid_config_ptr;
 
         if (0 == broadcast_message_send_master(shire_mask, 0xFFFFFFFFFFFFFFFFU, &message))
         {

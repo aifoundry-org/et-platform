@@ -2,6 +2,7 @@
 #include "fcc.h"
 #include "flb.h"
 #include "kernel.h"
+#include "kernel_info.h"
 #include "layout.h"
 #include "message.h"
 #include "shire.h"
@@ -80,10 +81,10 @@ static void handle_message(uint64_t shire_id, uint64_t hart_id, message_t* const
     {
         const uint64_t* const kernel_entry_addr = (uint64_t*)kernel_function; // TODO FIXME HACK (uint64_t*)message_ptr->data[0];
         const uint64_t* const kernel_stack_addr = (uint64_t*)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
-        const uint64_t* const argument_ptr      = (uint64_t*)message_ptr->data[1];
-        const uint64_t* const grid_ptr          = (uint64_t*)message_ptr->data[2];
+        const kernel_params_t* const kernel_params_ptr = (kernel_params_t*)message_ptr->data[1];
+        const grid_config_t* const grid_config_ptr = (grid_config_t*)message_ptr->data[2];
 
-        if (0 < launch_kernel(kernel_entry_addr, kernel_stack_addr, argument_ptr, grid_ptr))
+        if (0 < launch_kernel(kernel_entry_addr, kernel_stack_addr, kernel_params_ptr, grid_config_ptr))
         {
             // TODO FIXME send an error message if the kernel returns an error
             message_ptr->id = MESSAGE_ID_KERNEL_LAUNCH_NACK;
