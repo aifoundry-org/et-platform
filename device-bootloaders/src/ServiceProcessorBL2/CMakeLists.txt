@@ -41,7 +41,7 @@ include_directories(${FIRMWARE_TOOLS_DIR}/esperanto-flash-tool/include)
 include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/crypto_library/include)
 include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/pkcs11/published/2-40-errata-1)
 
-add_riscv_executable(${TARGET_NAME} ${LINKER_SCRIPT} ${ZEBU_TARGET} ${ZEBU_FILENAME} ${CMAKE_CURRENT_LIST_DIR} ${SOURCES})
+add_riscv_executable(${TARGET_NAME} ${CMAKE_CURRENT_LIST_DIR} ${SOURCES})
 
 install(TARGETS ${TARGET_NAME}.elf
   DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/ServiceProcessor
