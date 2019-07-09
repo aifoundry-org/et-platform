@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "kernel_info.h"
 #include "fcc.h"
 #include "flb.h"
 #include "layout.h"
@@ -22,8 +23,8 @@ static void post_kernel_cleanup(void);
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
                       const uint64_t* const kernel_stack_addr,
-                      const uint64_t* const argument_ptr,
-                      const uint64_t* const grid_ptr)
+                      const kernel_params_t* const kernel_params_ptr,
+                      const grid_config_t* const grid_config_ptr)
 {
     uint64_t* firmware_sp;
 
@@ -89,8 +90,8 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         "mv    x7, zero            \n"
         "mv    x8, zero            \n"
         "mv    x9, zero            \n"
-        "mv    x10, %4             \n" // a0 = argument_ptr
-        "mv    x11, %5             \n" // a1 = grid_ptr
+        "mv    x10, %4             \n" // a0 = kernel_params_ptr
+        "mv    x11, %5             \n" // a1 = grid_config_ptr
         "mv    x12, zero           \n"
         "mv    x13, zero           \n"
         "mv    x14, zero           \n"
@@ -148,7 +149,7 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         "sret                      \n"
         "1:                        \n"
         : "=m" (*firmware_sp)
-        : "r" (kernel_return_function), "r" (kernel_stack_addr), "r" (kernel_entry_addr), "r" (argument_ptr), "r" (grid_ptr)
+        : "r" (kernel_return_function), "r" (kernel_stack_addr), "r" (kernel_entry_addr), "r" (kernel_params_ptr), "r" (grid_config_ptr)
         : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
     );
 

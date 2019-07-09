@@ -39,3 +39,5 @@ endif()
 add_subdirectory("ServiceProcessorBL1")
 add_subdirectory("ServiceProcessorBL2")
 add_subdirectory("ServiceProcessor")
+
+add_subdirectory("kernels")
