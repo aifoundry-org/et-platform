@@ -111,10 +111,27 @@ static int64_t pre_kernel_setup(uint64_t arg1)
 // to avoid the overhead of making multiple syscalls
 static int64_t post_kernel_cleanup(void)
 {
+    const uint64_t minion_id = get_minion_id() % 32U;
     bool result;
 
-    // TODO FIXME the last thread in each minion evicts the L1 cache
-    if (get_thread_id() == 0U)
+    // Thread 0 of each minion inits a non-reserved kernel FLB 0-27:
+    // Convenient to use them to manage L1 flush
+    // but the kernel leaves them in an unknown state
+    if ((minion_id < 28) && (get_thread_id() == 0))
+    {
+        INIT_FLB(THIS_SHIRE, minion_id);
+    }
+
+    // Ensure FLB init completes
+    asm volatile ("fence");
+
+    // Wait for all FLB init to complete before using FLBs 0-27 to evict L1
+    WAIT_FLB(64, 31, result);
+
+    // Last thread in each minion to join barrier evicts L1
+    WAIT_FLB(2, minion_id, result);
+
+    if (result)
     {
         evict_l1();
     }
@@ -122,7 +139,7 @@ static int64_t post_kernel_cleanup(void)
     // Wait for all L1 evicts to complete before evicting L2
     WAIT_FLB(64, 31, result);
 
-    // Last thread to join barrier evicts L2
+    // Last thread in shire to join barrier evicts L2
     // A full L2 evict includes flushing the coalescing buffer
     if (result)
     {

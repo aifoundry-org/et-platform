@@ -254,7 +254,7 @@ static void pre_kernel_setup(uint64_t kernel_id)
     if (get_hart_id() % 64U == 0U)
     {
         // Init all FLBs except reserved FLBs 28-31
-        for (unsigned int barrier = 0; barrier < 28; barrier++)
+        for (uint64_t barrier = 0; barrier < 28; barrier++)
         {
             INIT_FLB(THIS_SHIRE, barrier);
         }
