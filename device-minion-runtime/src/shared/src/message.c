@@ -1,4 +1,5 @@
 #include "message.h"
+#include "atomic.h"
 #include "broadcast.h"
 #include "cacheops.h"
 #include "esr_defines.h"
@@ -25,8 +26,6 @@ static messageBuffers_t* const master_to_worker_message_buffers = (messageBuffer
 
 static inline __attribute__((always_inline)) void set_message_flag(uint64_t shire, uint64_t hart);
 static inline __attribute__((always_inline)) void clear_message_flag(uint64_t shire, uint64_t hart);
-static inline __attribute__((always_inline)) uint64_t atomic_read(const volatile uint64_t* const address);
-static inline __attribute__((always_inline)) void atomic_write(volatile uint64_t* const address, uint64_t data);
 static inline __attribute__((always_inline)) void evict_message(const volatile message_t* const message);
 
 // Initializes message buffer
@@ -238,35 +237,6 @@ static inline __attribute__((always_inline)) void clear_message_flag(uint64_t sh
         "amoandg.d x0, %1, %0"
         : "+m" ((*worker_to_master_message_flags)[shire])
         : "r" (hart_mask)
-    );
-}
-
-static inline __attribute__((always_inline)) uint64_t atomic_read(const volatile uint64_t* const address)
-{
-    uint64_t result;
-
-    // Description: Global atomic 64-bit or operation between the value in integer register 'rs2'
-    // and the value in the memory address pointed by integer register 'rs1'.
-    // The original value in memory is returned in integer register 'rd'.
-    // Assembly: amoorg.d rd, rs2, (rs1)
-    asm volatile (
-        "amoorg.d %0, x0, %1"
-        : "=r" (result)
-        : "m" (*address)
-    );
-
-    return result;
-}
-
-static inline __attribute__((always_inline)) void atomic_write(volatile uint64_t* const address, uint64_t data)
-{
-    // Description: Global atomic 64-bit swap operation between the value in integer register 'rs2'
-    // and the value in the memory address pointed by integer register 'rs1'.
-    // Assembly: amoswapg.d rd, rs2, (rs1)
-    asm volatile (
-        "amoswapg.d x0, %1, %0 \n"
-        : "=m" (*address)
-        : "r" (data)
     );
 }
 

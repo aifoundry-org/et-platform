@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "atomic_barrier.h"
 #include "kernel_info.h"
 #include "fcc.h"
 #include "flb.h"
@@ -16,7 +17,7 @@
 
 static const uint8_t tensorZeros[64] __attribute__ ((aligned (64))) = {0};
 
-static void pre_kernel_setup(void);
+static void pre_kernel_setup(uint64_t kernel_id);
 static void kernel_return_function(void) __attribute__ ((used));
 static void post_kernel_cleanup(void);
 
@@ -34,7 +35,7 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         : "=r" (firmware_sp)
     );
 
-    pre_kernel_setup();
+    pre_kernel_setup(kernel_params_ptr->kernel_id);
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region
     // -Switch sp to kernel_stack_addr
@@ -244,7 +245,7 @@ int64_t return_from_kernel(void)
     }
 }
 
-static void pre_kernel_setup(void)
+static void pre_kernel_setup(uint64_t kernel_id)
 {
     // arg1 = 0 to enable all thread 1s
     syscall(SYSCALL_PRE_KERNEL_SETUP, 0, 0, 0);
@@ -252,8 +253,8 @@ static void pre_kernel_setup(void)
     // First HART in the shire
     if (get_hart_id() % 64U == 0U)
     {
-        // Init all kernel FLBs except reserved FLB 31
-        for (unsigned int barrier = 0; barrier < 31; barrier++)
+        // Init all FLBs except reserved FLBs 28-31
+        for (unsigned int barrier = 0; barrier < 28; barrier++)
         {
             INIT_FLB(THIS_SHIRE, barrier);
         }
@@ -311,12 +312,33 @@ static void pre_kernel_setup(void)
             : "x31"
         );
 
-
         asm volatile (
             "mov.m.x m0, zero, 0xF \n" // Enables 4 elements of FPU
             "csrw    frm, zero     \n" // Set rounding mode to 0 (round near even)
         );
     }
+
+    // Ensure all FLB and FCC init is complete
+    asm volatile("fence");
+
+    bool result;
+
+    WAIT_FLB(64, 28, result);
+
+    if (result)
+    {
+        // Last thread to join barrier sends FCC0 to all HARTs in this shire
+        SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, 0xFFFFFFFFU);
+        SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, 0xFFFFFFFFU);
+    }
+
+    // Wait for all HARTs to complete pre_kernel_setup
+    WAIT_FCC(0);
+
+    int64_t* const kernel_launch_barriers = (int64_t*)FW_MASTER_TO_WORKER_LAUNCH_BARRIERS;
+
+    // Wait for all shires to complete pre_kernel_setup
+    atomic_barrier(&kernel_launch_barriers[kernel_id]);
 }
 
 // This must to a a RX function in user space, no W from user!
@@ -346,7 +368,6 @@ static void post_kernel_cleanup(void)
     {
         WAIT_FCC(0);
     }
-
 
     WAIT_FLB(64, 31, result);
 

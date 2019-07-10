@@ -113,7 +113,7 @@ static int64_t post_kernel_cleanup(void)
 {
     bool result;
 
-    // Thread 0 in each minion evicts the L1 cache
+    // TODO FIXME the last thread in each minion evicts the L1 cache
     if (get_thread_id() == 0U)
     {
         evict_l1();
