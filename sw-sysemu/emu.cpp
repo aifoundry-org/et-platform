@@ -1822,7 +1822,7 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
                 csrset(src1, newval);
                 break;
         }
-        LOG(DEBUG, "\t%s = 0x%" PRIx64, csr_name(src1), newval);
+        LOG_CSR("=", src1, newval);
     }
 
     // the return value of mip.ssip should be set if external supervisor
@@ -2611,6 +2611,7 @@ static void tmask_conv()
         }
     }
     cpu[current_thread].tensor_mask = tmask_value;
+    LOG_TENSOR_MASK("=");
 }
 
 static void tcoop(uint64_t value)
@@ -3316,6 +3317,8 @@ static void tensor_fma32(uint64_t tfmareg)
 
     set_rounding_mode(frm());
 
+    LOG_TENSOR_MASK(":");
+
     for (int k = 0; k < acols; ++k)
     {
         log_tensor_fma_new_pass();
@@ -3436,6 +3439,8 @@ static void tensor_fma16a32(uint64_t tfmareg)
     }
 
     set_rounding_mode(rtz);
+
+    LOG_TENSOR_MASK(":");
 
     for (int k = 0; k < acols; k += 2)
     {
@@ -3561,6 +3566,8 @@ static void tensor_ima8a32(uint64_t tfmareg)
         update_tensor_error(1 << 6);
         return;
     }
+
+    LOG_TENSOR_MASK(":");
 
     if (first_pass)
     {
