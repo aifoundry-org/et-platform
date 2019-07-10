@@ -22,24 +22,30 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-static void PCIe_initPShire(void);
-static void PCIe_initBars(void);
-static void PCIe_initLink(void);
-static void PCIe_initATUs(void);
+static void pcie_init_pshire(void);
+static void pcie_init_caps_list(void);
+static void pcie_init_bars(void);
+static void pcie_init_ints(void);
+static void pcie_init_link(void);
+static void pcie_init_atus(void);
+static void pcie_wait_for_ints(void);
 
 void PCIe_init(void)
 {  
     printf("Initializing PCIe\r\n");
 
-    PCIe_initPShire();
-    PCIe_initBars();
-    PCIe_initLink();
-    PCIe_initATUs();
+    pcie_init_pshire();
+    pcie_init_caps_list();
+    pcie_init_bars();
+    pcie_init_ints();
+    pcie_init_link();
+    pcie_init_atus();
+    pcie_wait_for_ints();
 
     printf("PCIe link up at Gen %d\r\n", PCIE_CUST_SS->PE0_LINK_DBG_2.B.RATE + 1);
 }
 
-static void PCIe_initPShire(void)
+static void pcie_init_pshire(void)
 {
     //TODO: Reset manager config for pshire
 
@@ -63,6 +69,29 @@ static void PCIe_initPShire(void)
     while (PCIE_CUST_SS->PE0_LINK_DBG_2.B.CDM_IN_RESET != 0);
 }
 
+static void pcie_init_caps_list(void)
+{
+    //Init capabilities list. The compiled-in, default capabilities list looks like this:
+    //HEAD (0x34) -> Power Mgmt (0x40) -> MSI (0x50) -> PCIe (0x70) -> MSI-X (0xB0) -> NULL
+
+    //For now, the Linux host driver is not implementing the power management API,
+    //so don't advertise the power management capability.
+
+    //The config registers are protected by a write-enable bit
+    PE0_DWC_pcie_ctl_DBI_Slave_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_t miscControl1;
+    miscControl1.R = PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R;
+    miscControl1.B.DBI_RO_WR_EN = 1;
+    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
+
+    //Make HEAD point to MSI cap, skipping Power Mgmt Cap
+    PCIE0->PF0_TYPE0_HDR.PCI_CAP_PTR_REG.R = (PE0_DWC_pcie_ctl_DBI_Slave_PF0_TYPE0_HDR_PCI_CAP_PTR_REG_t){ .B = {
+        .CAP_POINTER = 0x50
+    }}.R;
+
+    miscControl1.B.DBI_RO_WR_EN = 0;
+    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
+}
+
 //BAR Sizes must be powers of 2 per the PCIe spec. Round up to next biggest power of 2.
 #define BAR0_SIZE 0x00000007FFFFFFFFULL /*32gb*/
 #define BAR2_SIZE 0x000000000000FFFFULL /*64kb*/
@@ -71,10 +100,13 @@ static void PCIe_initPShire(void)
 #define BAR_TYPE_64BIT 2
 #define BAR_ENABLE 1
 
-static void PCIe_initBars(void)
+static void pcie_init_bars(void)
 {
     //The BAR config registers are protected by a write-enable bit
-    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.B.DBI_RO_WR_EN = 1;
+    PE0_DWC_pcie_ctl_DBI_Slave_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_t miscControl1;
+    miscControl1.R = PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R;
+    miscControl1.B.DBI_RO_WR_EN = 1;
+    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
 
     //Write the BAR mask registers first. A BAR must be enabled for the other configuration
     //writes to take effect.
@@ -108,14 +140,40 @@ static void PCIe_initBars(void)
 
     //Wait to init iATUs until BAR addresses are assigned - see PCIe_initATUs.
 
-    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.B.DBI_RO_WR_EN = 0;
+    miscControl1.B.DBI_RO_WR_EN = 0;
+    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
+}
+
+#define MSI_TWO_VECTORS 1
+
+static void pcie_init_ints(void)
+{
+    //The config registers are protected by a write-enable bit
+    PE0_DWC_pcie_ctl_DBI_Slave_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_t miscControl1;
+    miscControl1.R = PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R;
+    miscControl1.B.DBI_RO_WR_EN = 1;
+    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
+
+    //Configure MSI
+
+    //Request 2 interrupt vectors (1 per pcie mailbox)
+    PE0_DWC_pcie_ctl_DBI_Slave_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_t msi_ctrl;
+    msi_ctrl.R = PCIE0->PF0_MSI_CAP.PCI_MSI_CAP_ID_NEXT_CTRL_REG.R;
+    msi_ctrl.B.PCI_MSI_MULTIPLE_MSG_CAP = MSI_TWO_VECTORS;
+    PCIE0->PF0_MSI_CAP.PCI_MSI_CAP_ID_NEXT_CTRL_REG.R = msi_ctrl.R;
+
+    //Configure MSI-X
+    //TODO
+
+    miscControl1.B.DBI_RO_WR_EN = 0;
+    PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
 }
 
 #define FB_MODE_FIGURE_OF_MERIT 1
 #define RATE_SHADOW_SEL_GEN4 1
 #define SMLH_LTSSM_STATE_LINK_UP 0x11
 
-static void PCIe_initLink(void)
+static void pcie_init_link(void)
 {
     // Setup FSM tracker per Synopsis testbench
     PCIE_CUST_SS->PE0_FSM_TRACK_1.R = 0xCC; //TODO in "PCIe Initialization Sequence" doc, this comes before polling CDM_IN_REST. Matching order from DV code.
@@ -195,7 +253,7 @@ CONFIG_INBOUND_IATU(2)
 CONFIG_INBOUND_IATU(3)
 CONFIG_INBOUND_IATU(4)
 
-static void PCIe_initATUs(void)
+static void pcie_init_atus(void)
 {
     //The config registers are protected by a write-enable bit
     PE0_DWC_pcie_ctl_DBI_Slave_PF0_PORT_LOGIC_MISC_CONTROL_1_OFF_t miscControl1;
@@ -282,4 +340,23 @@ static void PCIe_initATUs(void)
 
     miscControl1.B.DBI_RO_WR_EN = 0;
     PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
+}
+
+static void pcie_wait_for_ints(void)
+{
+    // Wait until the x86 host driver comes up and enables MSI
+    // See pci_alloc_irq_vectors on the host driver.
+    // TODO FIXME JIRA SW-330: Don't monopolize the HART to poll
+    // TODO Intentionally not supporting legacy ints at this time. Future feature?
+
+    PE0_DWC_pcie_ctl_DBI_Slave_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_t msi_ctrl;
+
+    printf("Waiting for host to enable MSI/MSI-X...");
+    do
+    {
+        msi_ctrl.R = PCIE0->PF0_MSI_CAP.PCI_MSI_CAP_ID_NEXT_CTRL_REG.R;
+        //TODO: MSI-X
+    }
+    while(msi_ctrl.B.PCI_MSI_ENABLE == 0);
+    printf(" done\r\n");
 }
