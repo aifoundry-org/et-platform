@@ -265,3 +265,7 @@ ExternalProject_Add(googletest
   )
 
 set(external_project_dependencies ${external_project_dependencies}  PARENT_SCOPE)
+
+
+### For now include abseil as a subdirectory we pull the targets directly
+add_subdirectory(abseil)
