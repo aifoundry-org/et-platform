@@ -27,6 +27,7 @@
 #define ESR_SHIRE_CACHE_RAM_CFG2_RESET_VAL      0x03A0
 #define ESR_SHIRE_CACHE_RAM_CFG3_RESET_VAL      0x0C8C0323
 #define ESR_SHIRE_CACHE_RAM_CFG4_RESET_VAL      0x34000C8C03A0
+#define ESR_SHIRE_CLK_GATE_CTRL_RESET_VAL       0x0
 
 
 neigh_esrs_t        neigh_esrs[EMU_NUM_NEIGHS];
@@ -154,6 +155,7 @@ void shire_cache_esrs_t::reset()
         bank[i].sc_scp_cache_ctl = ESR_SC_SCP_CACHE_CTL_RESET_VAL;
         bank[i].sc_reqq_ctl = ESR_SC_REQQ_CTL_RESET_VAL;
         bank[i].sc_err_log_ctl = ESR_SC_ERR_LOG_CTL_RESET_VAL;
+        bank[i].sc_eco_ctl = 0;
     }
 }
 
@@ -184,6 +186,9 @@ void shire_other_esrs_t::reset(unsigned shire)
         minion_feature = 0;
     }
     shire_ctrl_clockmux = 0;
+    uc_config = 0;
+    clk_gate_ctrl = ESR_SHIRE_CLK_GATE_CTRL_RESET_VAL;
+    shire_channel_eco_ctl = 0;
 
     if (shire == IO_SHIRE_ID) shire = EMU_IO_SHIRE_SP;
     recalculate_thread0_enable(shire);
@@ -309,6 +314,8 @@ uint64_t esr_read(uint64_t addr)
             return shire_cache_esrs[shire].bank[bnk].sc_l3_cache_ctl;
         case ESR_SC_SCP_CACHE_CTL:
             return shire_cache_esrs[shire].bank[bnk].sc_scp_cache_ctl;
+        case ESR_SC_IDX_COP_SM_CTL:
+            return 4ull << 24; // idx_cop_sm_state = IDLE
         case ESR_SC_IDX_COP_SM_PHYSICAL_INDEX:
             return shire_cache_esrs[shire].bank[bnk].sc_idx_cop_sm_physical_index;
         case ESR_SC_IDX_COP_SM_DATA0:
@@ -332,8 +339,20 @@ uint64_t esr_read(uint64_t addr)
         case ESR_SC_REQQ_DEBUG2:
         case ESR_SC_REQQ_DEBUG3:
             return 0;
-        case ESR_SC_IDX_COP_SM_CTL:
-            return 4ull << 24; // idx_cop_sm_state = IDLE
+        case ESR_SC_ECO_CTL:
+            return shire_cache_esrs[shire].bank[bnk].sc_eco_ctl;
+        case ESR_SC_PERFMON_CTL_STATUS:
+            return shire_cache_esrs[shire].bank[bnk].sc_perfmon_ctl_status;
+        case ESR_SC_PERFMON_CYC_CNTR:
+            return shire_cache_esrs[shire].bank[bnk].sc_perfmon_cyc_cntr;
+        case ESR_SC_PERFMON_P0_CNTR:
+            return shire_cache_esrs[shire].bank[bnk].sc_perfmon_p0_cntr;
+        case ESR_SC_PERFMON_P1_CNTR:
+            return shire_cache_esrs[shire].bank[bnk].sc_perfmon_p1_cntr;
+        case ESR_SC_PERFMON_P0_QUAL:
+            return shire_cache_esrs[shire].bank[bnk].sc_perfmon_p0_qual;
+        case ESR_SC_PERFMON_P1_QUAL:
+            return shire_cache_esrs[shire].bank[bnk].sc_perfmon_p1_qual;
         }
         LOG(WARN, "Read unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
         throw trap_bus_error(addr);
@@ -441,6 +460,8 @@ uint64_t esr_read(uint64_t addr)
         case ESR_SHIRE_PLL_CONFIG_DATA_4:
         case ESR_SHIRE_PLL_CONFIG_DATA_5:
             return shire_other_esrs[shire].shire_pll_config_data[(esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3];
+        case ESR_SHIRE_PLL_READ_DATA:
+            return 0x20000; /* PLL is locked */
         case ESR_SHIRE_COOP_MODE:
             return read_shire_coop_mode(shire);
         case ESR_SHIRE_CTRL_CLOCKMUX:
@@ -453,16 +474,26 @@ uint64_t esr_read(uint64_t addr)
             return shire_other_esrs[shire].shire_cache_ram_cfg3;
         case ESR_SHIRE_CACHE_RAM_CFG4:
             return shire_other_esrs[shire].shire_cache_ram_cfg4;
+        case ESR_SHIRE_NOC_INTERRUPT_STATUS:
+            return 0;
         case ESR_SHIRE_DLL_AUTO_CONFIG:
             return shire_other_esrs[shire].shire_dll_auto_config;
         case ESR_SHIRE_DLL_CONFIG_DATA_0:
             return shire_other_esrs[shire].shire_dll_config_data_0;
+        case ESR_SHIRE_DLL_READ_DATA:
+            return 0x10000; /* DLL is locked */
+        case ESR_UC_CONFIG:
+            return shire_other_esrs[shire].uc_config;
         case ESR_ICACHE_UPREFETCH:
             return read_icache_prefetch(PRV_U, shire);
         case ESR_ICACHE_SPREFETCH:
             return read_icache_prefetch(PRV_S, shire);
         case ESR_ICACHE_MPREFETCH:
             return read_icache_prefetch(PRV_M, shire);
+        case ESR_CLK_GATE_CTRL:
+            return shire_other_esrs[shire].clk_gate_ctrl;
+        case ESR_SHIRE_CHANNEL_ECO_CTL:
+            return shire_other_esrs[shire].shire_channel_eco_ctl;
         }
         LOG(WARN, "Read unknown shire_other ESR S%u:0x%" PRIx64, shire, esr);
         throw trap_bus_error(addr);
@@ -731,7 +762,42 @@ void esr_write(uint64_t addr, uint64_t value)
                 LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_reqq_debug_ctl = 0x%" PRIx64,
                                 shire, b, shire_cache_esrs[shire].bank[b].sc_reqq_debug_ctl);
                 break;
-            default:
+            case ESR_SC_ECO_CTL:
+                shire_cache_esrs[shire].bank[b].sc_eco_ctl = uint8_t(value);
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_eco_ctl = 0x%" PRIx8,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_eco_ctl);
+                break;
+            case ESR_SC_PERFMON_CTL_STATUS:
+                shire_cache_esrs[shire].bank[b].sc_perfmon_ctl_status = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_ctl_status = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_ctl_status);
+                break;
+            case ESR_SC_PERFMON_CYC_CNTR:
+                shire_cache_esrs[shire].bank[b].sc_perfmon_cyc_cntr = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_cyc_cntr = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_cyc_cntr);
+                break;
+            case ESR_SC_PERFMON_P0_CNTR:
+                shire_cache_esrs[shire].bank[b].sc_perfmon_p0_cntr = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p0_cntr = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_p0_cntr);
+                break;
+            case ESR_SC_PERFMON_P1_CNTR:
+                shire_cache_esrs[shire].bank[b].sc_perfmon_p1_cntr = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p1_cntr = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_p1_cntr);
+                break;
+            case ESR_SC_PERFMON_P0_QUAL:
+                shire_cache_esrs[shire].bank[b].sc_perfmon_p0_qual = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p0_qual = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_p0_qual);
+                break;
+            case ESR_SC_PERFMON_P1_QUAL:
+                shire_cache_esrs[shire].bank[b].sc_perfmon_p1_qual = value;
+                LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p1_qual = 0x%" PRIx64,
+                                shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_p1_qual);
+                break;
+             default:
                 LOG(WARN, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
                 throw trap_bus_error(addr);
             }
@@ -953,6 +1019,11 @@ void esr_write(uint64_t addr, uint64_t value)
             LOG_ALL_MINIONS(DEBUG, "S%u:shire_dll_config_data_0 = 0x%" PRIx64,
                             shire, shire_other_esrs[shire].shire_dll_config_data_0);
             return;
+        case ESR_UC_CONFIG:
+            shire_other_esrs[shire].uc_config = value & 1;
+            LOG_ALL_MINIONS(DEBUG, "S%u:uc_config = %d",
+                            shire, int(shire_other_esrs[shire].uc_config));
+            return;
         case ESR_ICACHE_UPREFETCH:
             LOG_ALL_MINIONS(DEBUG, "S%u:icache_uprefetch = 0x%" PRIx64, shire, value);
             write_icache_prefetch(PRV_U, shire, value);
@@ -964,6 +1035,16 @@ void esr_write(uint64_t addr, uint64_t value)
         case ESR_ICACHE_MPREFETCH:
             LOG_ALL_MINIONS(DEBUG, "S%u:icache_mprefetch = 0x%" PRIx64, shire, value);
             write_icache_prefetch(PRV_M, shire, value);
+            return;
+        case ESR_CLK_GATE_CTRL:
+            shire_other_esrs[shire].clk_gate_ctrl = uint16_t(value & 0x7ff);
+            LOG_ALL_MINIONS(DEBUG, "S%u:clk_gate_ctrl = 0x%" PRIx16,
+                            shire, shire_other_esrs[shire].clk_gate_ctrl);
+            return;
+        case ESR_SHIRE_CHANNEL_ECO_CTL:
+            shire_other_esrs[shire].shire_channel_eco_ctl = uint8_t(value);
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_channel_eco_ctl = 0x%" PRIx8,
+                            shire, shire_other_esrs[shire].shire_channel_eco_ctl);
             return;
         }
         LOG(WARN, "Write unknown shire_other ESR S%u:0x%" PRIx64, shire, esr);
