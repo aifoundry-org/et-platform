@@ -12,6 +12,7 @@ typedef struct {
     uint64_t tensor_f;
     uint64_t tensor_g;
     uint64_t tensor_h;
+    uint64_t kernel_id;
 } kernel_params_t;
 
 #endif

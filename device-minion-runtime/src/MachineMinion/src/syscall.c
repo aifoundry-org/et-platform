@@ -111,10 +111,27 @@ static int64_t pre_kernel_setup(uint64_t arg1)
 // to avoid the overhead of making multiple syscalls
 static int64_t post_kernel_cleanup(void)
 {
+    const uint64_t minion_id = get_minion_id() % 32U;
     bool result;
 
-    // Thread 0 in each minion evicts the L1 cache
-    if (get_thread_id() == 0U)
+    // Thread 0 of each minion inits a non-reserved kernel FLB 0-27:
+    // Convenient to use them to manage L1 flush
+    // but the kernel leaves them in an unknown state
+    if ((minion_id < 28) && (get_thread_id() == 0))
+    {
+        INIT_FLB(THIS_SHIRE, minion_id);
+    }
+
+    // Ensure FLB init completes
+    asm volatile ("fence");
+
+    // Wait for all FLB init to complete before using FLBs 0-27 to evict L1
+    WAIT_FLB(64, 31, result);
+
+    // Last thread in each minion to join barrier evicts L1
+    WAIT_FLB(2, minion_id, result);
+
+    if (result)
     {
         evict_l1();
     }
@@ -122,7 +139,7 @@ static int64_t post_kernel_cleanup(void)
     // Wait for all L1 evicts to complete before evicting L2
     WAIT_FLB(64, 31, result);
 
-    // Last thread to join barrier evicts L2
+    // Last thread in shire to join barrier evicts L2
     // A full L2 evict includes flushing the coalescing buffer
     if (result)
     {
@@ -245,62 +262,85 @@ static int64_t init_l1(void)
 {
     int64_t rv = 0;
 
-    const uint64_t mcache_control_reg = mcache_control_get();
+    uint64_t mcache_control_reg = mcache_control_get();
 
-    // If the cache has split or scratchpad enabled, reset to shared mode
-    if ((mcache_control_reg & 0x3) != 0)
+    // Enable L1 split and scratchpad per PRM-8 Cache Control Extension section 1.1.3
+    // "Changing configuration Shared to Split" and "Enabling/Disabling the Scratchpad"
+    excl_mode(1); // get exclusive access to the processor
+
+    // If the cache is not in split mode with scratchpad enabled, change configuration to split mode with scratchpad enabled
+    if ((mcache_control_reg & 0x3) != 3)
     {
-        // Disable L1 split and scratchpad per PRM-8 Cache Control Extension section 1.1.3
-        // "Changing configuration from Split back to Shared" and "Enabling/Disabling the Scratchpad"
-        excl_mode(1); // get exclusive access to the processor
+        bool allSetsReset = false;
 
-        if ((mcache_control_reg & 0x3) == 3)
+        // If split isn't enabled, enable it
+        if ((mcache_control_reg & 0x3) == 0)
         {
-            // Split mode with scratchpad enabled
-            // No need to unlock lines: we will turn D1Split off which resets all sets
-            // Evict sets 12-15 (12-13 for HART 0, 14-15 for HART1)
-            evict_sw(0, 1, 0, 12, 3, 0);
-            evict_sw(0, 1, 1, 12, 3, 0);
-            evict_sw(0, 1, 2, 12, 3, 0);
-            evict_sw(0, 1, 3, 12, 3, 0);
+            // Shared mode
+            // Comments in PRM-8 section 1.1.1:
+            // "Missing specification of what happens when going from shared to
+            //  split mode and vice versa. Do we clear the whole cache?
+            //  The RTL implements the correct behaviour that should be specified here,
+            //  which is to clear all sets when changing to/from shared mode."
+
+            // No need to unlock lines: we will set D1Split which resets all sets
+            // evict all sets (0-15 dynamically shared between HART0 and HART1)
+            evict_sw(0, 1, 0, 0, 15, 0);
+            evict_sw(0, 1, 1, 0, 15, 0);
+            evict_sw(0, 1, 2, 0, 15, 0);
+            evict_sw(0, 1, 3, 0, 15, 0);
+
+            WAIT_CACHEOPS
+            FENCE
+
+            mcache_control(1, 0, 0); // Enable split mode
+            allSetsReset = true; // No need to subsequently unlock lines - enabling split mode reset all sets
         }
-        else if ((mcache_control_reg & 0x3) == 1)
+
+        mcache_control_reg = mcache_control_get();
+
+        // If scratchpad isn't enabled, enable it
+        if ((mcache_control_reg & 0x3) == 1)
         {
             // Split mode with scratchpad disabled
-            // No need to unlock lines: we will turn D1Split off which resets all sets
-            // Evict sets 0-7 for HART0
-            evict_sw(0, 1, 0, 0, 7, 0);
-            evict_sw(0, 1, 1, 0, 7, 0);
-            evict_sw(0, 1, 2, 0, 7, 0);
-            evict_sw(0, 1, 3, 0, 7, 0);
+            // PRM-8 section 1.1.1:
+            // "When D1Split is 1 and the SCPEnable changes value (0->1 or 1->0),
+            //  sets 0-13 in the cache are unconditionally invalidated, i.e.,
+            //  all the cache contents for those 14 sets are lost.
+            //  If there were any soft- or hard- locked lines within those cache lines,
+            //  those locks are cleared. Additionally, all sets 0-13 are zeroed out.
+            //  If software wishes to preserve the contents of sets 0-13, it should use
+            //  some of the Evict/Flush instructions before enabling/disabling the scratchpad.""
 
-            // Evict sets 14-15 for HART1
-            evict_sw(0, 1, 0, 14, 1, 0);
-            evict_sw(0, 1, 1, 14, 1, 0);
-            evict_sw(0, 1, 2, 14, 1, 0);
-            evict_sw(0, 1, 3, 14, 1, 0);
+            if (!allSetsReset)
+            {
+                // Unlock sets 14-15: enabling scratchpad will reset sets 0-13
+                for (uint64_t set = 14; set < 16; set++)
+                {
+                    for (uint64_t way = 0; way < 4; way++)
+                    {
+                        unlock_sw(way, set, 0);
+                    }
+                }
+            }
+
+            // Evict sets 0-13 for HART0
+            evict_sw(0, 1, 0, 0, 13, 0);
+            evict_sw(0, 1, 1, 0, 13, 0);
+            evict_sw(0, 1, 2, 0, 13, 0);
+            evict_sw(0, 1, 3, 0, 13, 0);
+
+            WAIT_CACHEOPS
+            FENCE
+
+            mcache_control(1, 1, 0); // Enable scratchpad
         }
-        else
-        {
-            // This should never happen
-            rv = -1;
-        }
-
-        WAIT_CACHEOPS
-        FENCE
-
-        // Comments in PRM-8 section 1.1.1:
-        // "Missing specification of what happens when going from shared to split mode and vice versa. Do we clear the whole cache?
-        //  The RTL implements the correct behaviour that should be specified here, which is to clear all sets when changing to/from shared mode."
-        mcache_control(0, 0, 0); // Write 0 into mcache_control.D1Split
-
-        excl_mode(0); // release exclusive access to the processor
     }
     else
     {
-        // Cache is in shared mode
-        // Unlock sets 0-15
-        for (uint64_t set = 0; set < 16; set++)
+        // Split mode with scratchpad enabled
+        // Unlock sets 12-15 (12-13 for HART 0, 14-15 for HART1)
+        for (uint64_t set = 12; set < 16; set++)
         {
             for (uint64_t way = 0; way < 4; way++)
             {
@@ -308,6 +348,8 @@ static int64_t init_l1(void)
             }
         }
     }
+
+    excl_mode(0); // release exclusive access to the processor
 
     return rv;
 }

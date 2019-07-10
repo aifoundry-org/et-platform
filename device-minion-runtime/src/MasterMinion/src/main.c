@@ -1,3 +1,4 @@
+#include "atomic_barrier.h"
 #include "build_configuration.h"
 #include "kernel_info.h"
 #include "layout.h"
@@ -14,11 +15,11 @@
 
 typedef enum
 {
-    KERNEL_ID_NONE = 0,
-    KERNEL_ID_0,
+    KERNEL_ID_0 = 0,
     KERNEL_ID_1,
     KERNEL_ID_2,
     KERNEL_ID_3,
+    KERNEL_ID_NONE
 } kernel_id_t;
 
 typedef enum
@@ -65,7 +66,7 @@ static void update_shire_state(uint64_t shire, shire_state_t state);
 static void update_kernel_state(kernel_id_t kernel_id, uint64_t shire, shire_state_t shire_state);
 static void handle_pcie_events(void);
 static void handle_timer_events(void);
-static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t entry_addr, const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
+static void launch_kernel(uint64_t shire_mask, uint64_t entry_addr, const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
@@ -126,7 +127,7 @@ void __attribute__((noreturn)) main(void)
 static void handle_message_from_host(void)
 {
     // For now, fake host launches kernel 0 any time it's unused.
-    if (kernel_status[0].kernel_state == KERNEL_STATE_UNUSED)
+    if (kernel_status[KERNEL_ID_0].kernel_state == KERNEL_STATE_UNUSED)
     {
         kernel_params_t kernel_params = {
             .tensor_a = 0,
@@ -136,17 +137,18 @@ static void handle_message_from_host(void)
             .tensor_e = 0,
             .tensor_f = 0,
             .tensor_g = 0,
-            .tensor_h = 0
+            .tensor_h = 0,
+            .kernel_id = KERNEL_ID_0
         };
 
         kernel_info_t kernel_info = {
+            .shire_mask = 1,
             .compute_pc = 0, // TODO FIXME HACK worker firmware ignores this for now
             .kernel_params_ptr = &kernel_params,
             .grid_config_ptr = NULL
         };
 
-        launch_kernel(KERNEL_ID_0,
-                      1,
+        launch_kernel(kernel_info.shire_mask,
                       kernel_info.compute_pc,
                       kernel_info.kernel_params_ptr,
                       kernel_info.grid_config_ptr);
@@ -310,6 +312,10 @@ static void handle_pcie_events(void)
 {
     // Keep the PCI-E data pump going and update kernel state as needed, i.e. transitioning a kernel
     // from KERNEL_STATE_COMPLETE to KERNEL_STATE_UNUSED once all the device->host data transfer is complete.
+    if (kernel_status[KERNEL_ID_0].kernel_state == KERNEL_STATE_COMPLETE)
+    {
+        kernel_status[KERNEL_ID_0].kernel_state = KERNEL_STATE_UNUSED;
+    }
 }
 
 static void handle_timer_events(void)
@@ -318,9 +324,10 @@ static void handle_timer_events(void)
     // gone wrong and trigger an abort/cleanup.
 }
 
-static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t entry_addr, const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr)
+static void launch_kernel(uint64_t shire_mask, uint64_t entry_addr, const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr)
 {
-    kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_id];
+    kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_params_ptr->kernel_id];
+    int64_t num_shires = 0;
     bool allShiresReady = true;
 
     // Confirm that all the shires this kernel wants to use are ready
@@ -328,6 +335,8 @@ static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t e
     {
         if (shire_mask & (1ULL << shire))
         {
+            num_shires++;
+
             if (shire_status[shire].shire_state != SHIRE_STATE_READY)
             {
                 allShiresReady = false;
@@ -337,6 +346,11 @@ static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t e
 
     if (allShiresReady)
     {
+        int64_t* const kernel_launch_barriers = (int64_t*)FW_MASTER_TO_WORKER_LAUNCH_BARRIERS;
+
+        // initialize the barrier the shires will use to synchronize with each other before starting the kernel
+        atomic_barrier_init(&kernel_launch_barriers[KERNEL_ID_0], num_shires);
+
         message.id = MESSAGE_ID_KERNEL_LAUNCH;
         message.data[0] = entry_addr;
         message.data[1] = (uint64_t)kernel_params_ptr;
@@ -354,7 +368,7 @@ static void launch_kernel(kernel_id_t kernel_id, uint64_t shire_mask, uint64_t e
                 if (shire_mask & (1ULL << shire))
                 {
                     shire_status[shire].shire_state = SHIRE_STATE_RUNNING;
-                    shire_status[shire].kernel_id = kernel_id;
+                    shire_status[shire].kernel_id = kernel_params_ptr->kernel_id;
                 }
             }
         }
