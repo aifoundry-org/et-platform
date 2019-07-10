@@ -1262,7 +1262,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_MIE:
         // Hard-wire ueie, utie, usie
-        val &= 0x0000000000088AAAULL;
+        val &= 0x0000000000890AAAULL;
         cpu[current_thread].mie = val;
         break;
     case CSR_MTVEC:
@@ -1326,7 +1326,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_MIP:
         // Only seip, stip, ssip are writeable
-        val &= 0x0000000000000222ULL;
+        val &= 0x0000000000800222ULL;
         cpu[current_thread].mip = val;
         break;
     case CSR_TSELECT:
