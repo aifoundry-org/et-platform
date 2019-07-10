@@ -1,5 +1,6 @@
 #include "atomic_barrier.h"
 #include "build_configuration.h"
+#include "cacheops.h"
 #include "kernel_info.h"
 #include "layout.h"
 #include "message.h"
@@ -9,6 +10,7 @@
 #include "shire.h"
 #include "swi.h"
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <inttypes.h>
@@ -48,13 +50,22 @@ typedef enum
 typedef struct
 {
     kernel_state_t kernel_state;
-    uint64_t shire_mask; // bitmask of which shires are associated with this kernel
     uint64_t shire_error_mask;
     uint64_t shire_complete_mask;
 } kernel_status_t;
 
+typedef struct
+{
+    kernel_info_t kernel_info;
+    kernel_params_t kernel_params;
+} kernel_config_t;
+
+// Local state
 static shire_status_t shire_status[33];
-static kernel_status_t kernel_status[4];
+static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS];
+
+// Shared state - Worker minion fetch kernel parameters from these
+static kernel_config_t kernel_config[MAX_SIMULTANEOUS_KERNELS];
 
 static message_t message;
 
@@ -66,7 +77,7 @@ static void update_shire_state(uint64_t shire, shire_state_t state);
 static void update_kernel_state(kernel_id_t kernel_id, uint64_t shire, shire_state_t shire_state);
 static void handle_pcie_events(void);
 static void handle_timer_events(void);
-static void launch_kernel(uint64_t shire_mask, uint64_t entry_addr, const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
+static void launch_kernel(const kernel_config_t* const kernel_config_ptr);
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
@@ -126,32 +137,32 @@ void __attribute__((noreturn)) main(void)
 
 static void handle_message_from_host(void)
 {
+    const kernel_id_t kernel_id = KERNEL_ID_0;
+
     // For now, fake host launches kernel 0 any time it's unused.
-    if (kernel_status[KERNEL_ID_0].kernel_state == KERNEL_STATE_UNUSED)
+    if (kernel_status[kernel_id].kernel_state == KERNEL_STATE_UNUSED)
     {
-        kernel_params_t kernel_params = {
-            .tensor_a = 0,
-            .tensor_b = 0,
-            .tensor_c = 0,
-            .tensor_d = 0,
-            .tensor_e = 0,
-            .tensor_f = 0,
-            .tensor_g = 0,
-            .tensor_h = 0,
-            .kernel_id = KERNEL_ID_0
-        };
+        kernel_params_t* const kernel_params_ptr = &kernel_config[kernel_id].kernel_params;
 
-        kernel_info_t kernel_info = {
-            .shire_mask = 1,
-            .compute_pc = 0, // TODO FIXME HACK worker firmware ignores this for now
-            .kernel_params_ptr = &kernel_params,
-            .grid_config_ptr = NULL
-        };
+        kernel_params_ptr->kernel_id = kernel_id;
+        kernel_params_ptr->tensor_a = 0;
+        kernel_params_ptr->tensor_b = 0;
+        kernel_params_ptr->tensor_c = 0;
+        kernel_params_ptr->tensor_d = 0;
+        kernel_params_ptr->tensor_e = 0;
+        kernel_params_ptr->tensor_f = 0;
+        kernel_params_ptr->tensor_g = 0;
+        kernel_params_ptr->tensor_h = 0;
 
-        launch_kernel(kernel_info.shire_mask,
-                      kernel_info.compute_pc,
-                      kernel_info.kernel_params_ptr,
-                      kernel_info.grid_config_ptr);
+        kernel_info_t* const kernel_info_ptr = &kernel_config[kernel_id].kernel_info;
+
+        kernel_info_ptr->compute_pc = 0; // TODO FIXME HACK worker firmware ignores this for now
+        kernel_info_ptr->uber_kernel_nodes = 0; // unused
+        kernel_info_ptr->shire_mask = 1;
+        kernel_info_ptr->kernel_params_ptr = kernel_params_ptr;
+        kernel_info_ptr->grid_config_ptr = NULL; // TODO
+
+        launch_kernel(&kernel_config[kernel_id]);
     }
 }
 
@@ -292,7 +303,7 @@ static void update_kernel_state(kernel_id_t kernel_id, uint64_t shire, shire_sta
             kernel_status[kernel_id].shire_complete_mask |= (1ULL << shire);
 
             // If this was the final shire to complete, update kernel status.
-            if (kernel_status[kernel_id].shire_complete_mask == kernel_status[kernel_id].shire_mask)
+            if (kernel_status[kernel_id].shire_complete_mask == kernel_config[kernel_id].kernel_info.shire_mask)
             {
                 printf("All shires complete\r\n");
 
@@ -324,9 +335,12 @@ static void handle_timer_events(void)
     // gone wrong and trigger an abort/cleanup.
 }
 
-static void launch_kernel(uint64_t shire_mask, uint64_t entry_addr, const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr)
+static void launch_kernel(const kernel_config_t* const kernel_config_ptr)
 {
-    kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_params_ptr->kernel_id];
+    const kernel_info_t* const kernel_info_ptr = &kernel_config_ptr->kernel_info;
+    const kernel_id_t kernel_id = kernel_info_ptr->kernel_params_ptr->kernel_id;
+    const uint64_t shire_mask = kernel_info_ptr->shire_mask;
+    kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_id];
     int64_t num_shires = 0;
     bool allShiresReady = true;
 
@@ -346,21 +360,25 @@ static void launch_kernel(uint64_t shire_mask, uint64_t entry_addr, const kernel
 
     if (allShiresReady)
     {
+        // Evict kernel config to point of coherency - worker minion will read this
+        evict_va(0, to_L3, (uint64_t)kernel_config_ptr, (sizeof(kernel_config_t) + 63) / 64, 64, 0, 0);
+        WAIT_CACHEOPS
+
         int64_t* const kernel_launch_barriers = (int64_t*)FW_MASTER_TO_WORKER_LAUNCH_BARRIERS;
 
-        // initialize the barrier the shires will use to synchronize with each other before starting the kernel
-        atomic_barrier_init(&kernel_launch_barriers[KERNEL_ID_0], num_shires);
+        // Initialize the barrier the shires will use to synchronize with each other before launching the kernel
+        atomic_barrier_init(&kernel_launch_barriers[kernel_id], num_shires);
 
         message.id = MESSAGE_ID_KERNEL_LAUNCH;
-        message.data[0] = entry_addr;
-        message.data[1] = (uint64_t)kernel_params_ptr;
-        message.data[2] = (uint64_t)grid_config_ptr;
+        message.data[0] = kernel_info_ptr->compute_pc;
+        message.data[1] = (uint64_t)kernel_info_ptr->kernel_params_ptr;
+        message.data[2] = (uint64_t)kernel_info_ptr->grid_config_ptr;
 
         if (0 == broadcast_message_send_master(shire_mask, 0xFFFFFFFFFFFFFFFFU, &message))
         {
             printf("launching kernel\r\n");
 
-            kernel_status_ptr->shire_mask = shire_mask;
+            kernel_status_ptr->shire_complete_mask = 0;
             kernel_status_ptr->kernel_state = KERNEL_STATE_RUNNING;
 
             for (uint64_t shire = 0; shire < 33; shire++)
@@ -368,7 +386,7 @@ static void launch_kernel(uint64_t shire_mask, uint64_t entry_addr, const kernel
                 if (shire_mask & (1ULL << shire))
                 {
                     shire_status[shire].shire_state = SHIRE_STATE_RUNNING;
-                    shire_status[shire].kernel_id = kernel_params_ptr->kernel_id;
+                    shire_status[shire].kernel_id = kernel_id;
                 }
             }
         }
