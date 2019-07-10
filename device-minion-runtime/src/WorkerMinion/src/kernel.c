@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "atomic_barrier.h"
+#include "cacheops.h"
 #include "kernel_info.h"
 #include "fcc.h"
 #include "flb.h"
@@ -17,7 +18,7 @@
 
 static const uint8_t tensorZeros[64] __attribute__ ((aligned (64))) = {0};
 
-static void pre_kernel_setup(uint64_t kernel_id);
+static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
 static void kernel_return_function(void) __attribute__ ((used));
 static void post_kernel_cleanup(void);
 
@@ -35,7 +36,7 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         : "=r" (firmware_sp)
     );
 
-    pre_kernel_setup(kernel_params_ptr->kernel_id);
+    pre_kernel_setup(kernel_params_ptr, grid_config_ptr);
 
     // -Save firmware context on supervisor stack and sp to supervisor stack SP region
     // -Switch sp to kernel_stack_addr
@@ -245,7 +246,7 @@ int64_t return_from_kernel(void)
     }
 }
 
-static void pre_kernel_setup(uint64_t kernel_id)
+static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr)
 {
     // arg1 = 0 to enable all thread 1s
     syscall(SYSCALL_PRE_KERNEL_SETUP, 0, 0, 0);
@@ -285,6 +286,11 @@ static void pre_kernel_setup(uint64_t kernel_id)
     {
         uint64_t temp, temp2;
 
+        // Evict to invalidate kernel_params and grid_config
+        // These address must never be dirty, i.e. firmware must never write to addresses where parmeters are placed
+        evict_va(0, to_L3, (uint64_t)kernel_params_ptr, (sizeof(kernel_params_t) + 63) / 64, 64, 0, 0);
+        evict_va(0, to_L3, (uint64_t)grid_config_ptr, (sizeof(grid_config_t) + 63) / 64, 64, 0, 0);
+
         // Zero out TensorExtensionCSRs
         asm volatile (
             "csrwi tensor_mask,  0 \n"
@@ -316,6 +322,9 @@ static void pre_kernel_setup(uint64_t kernel_id)
             "mov.m.x m0, zero, 0xF \n" // Enables 4 elements of FPU
             "csrw    frm, zero     \n" // Set rounding mode to 0 (round near even)
         );
+
+        // Ensure all cache evicts are complete
+        WAIT_CACHEOPS
     }
 
     // Ensure all FLB and FCC init is complete
@@ -338,7 +347,7 @@ static void pre_kernel_setup(uint64_t kernel_id)
     int64_t* const kernel_launch_barriers = (int64_t*)FW_MASTER_TO_WORKER_LAUNCH_BARRIERS;
 
     // Wait for all shires to complete pre_kernel_setup
-    atomic_barrier(&kernel_launch_barriers[kernel_id]);
+    atomic_barrier(&kernel_launch_barriers[kernel_params_ptr->kernel_id]);
 }
 
 // This must to a a RX function in user space, no W from user!
@@ -369,7 +378,7 @@ static void post_kernel_cleanup(void)
         WAIT_FCC(0);
     }
 
-    WAIT_FLB(64, 31, result);
+    WAIT_FLB(64, 29, result);
 
     if (result)
     {
