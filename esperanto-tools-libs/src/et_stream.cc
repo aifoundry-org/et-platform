@@ -44,7 +44,6 @@ void EtActionConfigure::execute(CardProxy *card_proxy)
 
     cpDefineDevMem(card_proxy, LAUNCH_PARAMS_AREA_BASE, LAUNCH_PARAMS_AREA_SIZE, false);
     cpDefineDevMem(card_proxy, BLOCK_SHARED_REGION, BLOCK_SHARED_REGION_TOTAL_SIZE, false);
-    cpDefineDevMem(card_proxy, STACK_REGION, STACK_REGION_TOTAL_SIZE << 3, false);
 
     // Stack regions in glow fw defined in fw_common.h
     // M-mode stack: 2^9 bytes/thread * 64 threads/shire * 33 shires
@@ -58,34 +57,15 @@ void EtActionConfigure::execute(CardProxy *card_proxy)
     // Scratch area to share information when MM sends an IPI to Compute Minions (FW_SCODE_IPI_INFO in fw_common.h)
     cpDefineDevMem(card_proxy, 0x8000600000ULL, 64, false);
 
-    //const void *kernels_file_p = gEtKernelsElf;
-    //size_t kernels_file_size = sizeof(gEtKernelsElf);
     const void *bootrom_file_p = *(etrtGetEtBootrom());
     size_t bootrom_file_size = *(etrtGetEtBootromSize());
 
-    //cpDefineDevMem(card_proxy, RAM_MEMORY_REGION, align_up(kernels_file_size, 0x10000), true);
-    //cpWriteDevMem(card_proxy, RAM_MEMORY_REGION, kernels_file_size, kernels_file_p);
-
+    // Copy the bootrom/firmware
     cpDefineDevMem(card_proxy, BOOTROM_START_IP, align_up(bootrom_file_size, 0x1000), true);
     cpWriteDevMem(card_proxy, BOOTROM_START_IP, bootrom_file_size, bootrom_file_p);
 
-    {
-        struct BootromInitDescr_t {
-            uint64_t init_pc;
-            uint64_t trap_pc;
-        } descr;
-
-        descr.init_pc = ETSOC_init;
-        descr.trap_pc = ETSOC_mtrap;
-
-        cpWriteDevMem(card_proxy, LAUNCH_PARAMS_AREA_BASE, sizeof(descr), &descr);
-    }
-
-    cpBoot(card_proxy, ETSOC_init, ETSOC_mtrap);
-
-
-    cpDefineDevMem(card_proxy, (uintptr_t)devMemRegionPtr, devMemRegionSize, false);
-    cpDefineDevMem(card_proxy, (uintptr_t)kernelsDevMemRegionPtr, kernelsDevMemRegionSize, true);
+    // "Wake-up" minions (init_pc and trap_pc are not used)
+    cpBoot(card_proxy, 0, 0);
 }
 
 void EtActionRead::execute(CardProxy *card_proxy)
@@ -127,28 +107,8 @@ void EtActionLaunch::execute(CardProxy *card_proxy)
         return;
     }
 
-    {
-        size_t args_size = args_buff.size();
-        size_t params_size = sizeof(LaunchParams_t) + args_size;
-        assert( params_size < LAUNCH_PARAMS_AREA_SIZE );
-
-        std::vector<uint8_t> params(params_size);
-        LaunchParams_t* params_p = (LaunchParams_t*)&params[0];
-
-        params_p->state.grid_size_x = gridDim.x;
-        params_p->state.grid_size_y = gridDim.y;
-        params_p->state.grid_size_z = gridDim.z;
-        params_p->state.block_size_x = blockDim.x;
-        params_p->state.block_size_y = blockDim.y;
-        params_p->state.block_size_z = blockDim.z;
-
-        params_p->kernel_pc = kernel_pc;
-        params_p->args_size = args_size;
-
-        memcpy(&params_p->args[0], &args_buff[0], args_size);
-
-        cpWriteDevMem(card_proxy, LAUNCH_PARAMS_AREA_BASE, params_size, params_p);
-    }
+    // Contains the kernel launch parameters for both running with runtime and net_desc (FW_SCODE_KERNEL_INFO in fw_common.h)
+    cpWriteDevMem(card_proxy, 0x8200000000ULL + 2 * sizeof(uint64_t), args_buff.size(), &args_buff[0]);
 
     //b4c hack
     if(static_kernels)
