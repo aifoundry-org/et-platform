@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
+#include <inttypes.h>
 #include "et_stream.h"
 #include "utils.h"
 #include "demangle.h"
@@ -17,6 +18,11 @@
 //#include "kernels_cdescr.inc"
 //#include "bootrom_cdescr.inc"
 #include "et_bootrom.h"
+
+// Scratch area to share information when MM sends an IPI to Compute Minions
+#define FW_KERNEL_LAUNCH_IPI_INFO  0x8000600000ULL
+// Address where the host will place the kernel launch information (synced with fw_common.h)
+#define RT_HOST_KERNEL_LAUNCH_INFO 0x8200000000ULL
 
 EXAPI bool static_kernels = false;
 
@@ -51,11 +57,11 @@ void EtActionConfigure::execute(CardProxy *card_proxy)
     // S-mode stack: 2^9 bytes/thread * 64 threads/shire * 33 shires
     cpDefineDevMem(card_proxy, 0x8000408000ULL, 0x108000, false);
 
-    // Contains the kernel launch parameters for both running with runtime and net_desc (FW_SCODE_KERNEL_INFO in fw_common.h)
-    cpDefineDevMem(card_proxy, 0x8200000000ULL, 64, false);
+    // Contains the kernel launch parameters for both running with runtime and net_desc
+    cpDefineDevMem(card_proxy, RT_HOST_KERNEL_LAUNCH_INFO, 1024, false);
 
-    // Scratch area to share information when MM sends an IPI to Compute Minions (FW_SCODE_IPI_INFO in fw_common.h)
-    cpDefineDevMem(card_proxy, 0x8000600000ULL, 64, false);
+    // Scratch area to share information when MM sends an IPI to Compute Minions
+    cpDefineDevMem(card_proxy, FW_KERNEL_LAUNCH_IPI_INFO, 1024, false);
 
     const void *bootrom_file_p = *(etrtGetEtBootrom());
     size_t bootrom_file_size = *(etrtGetEtBootromSize());
@@ -64,8 +70,8 @@ void EtActionConfigure::execute(CardProxy *card_proxy)
     cpDefineDevMem(card_proxy, BOOTROM_START_IP, align_up(bootrom_file_size, 0x1000), true);
     cpWriteDevMem(card_proxy, BOOTROM_START_IP, bootrom_file_size, bootrom_file_p);
 
-    // "Wake-up" minions (init_pc and trap_pc are not used)
-    cpBoot(card_proxy, 0, 0);
+    // "Wake-up" minions
+    cpBoot(card_proxy);
 }
 
 void EtActionRead::execute(CardProxy *card_proxy)
@@ -92,9 +98,23 @@ void EtActionWrite::execute(CardProxy *card_proxy)
 
 void EtActionLaunch::execute(CardProxy *card_proxy)
 {
-    fprintf(stderr, "Going to execute kernel {0x%lx} %s [%s] grid_dim=(%d,%d,%d) block_dim=(%d,%d,%d)\n",
+    const layer_dynamic_info *params = (const layer_dynamic_info *)args_buff.data();
+
+    fprintf(stderr,
+            "Going to execute kernel {0x%lx} %s [%s]\n"
+            "  tensor_a = 0x%" PRIx64 "\n"
+            "  tensor_b = 0x%" PRIx64 "\n"
+            "  tensor_c = 0x%" PRIx64 "\n"
+            "  tensor_d = 0x%" PRIx64 "\n"
+            "  tensor_e = 0x%" PRIx64 "\n"
+            "  tensor_f = 0x%" PRIx64 "\n"
+            "  tensor_g = 0x%" PRIx64 "\n"
+            "  tensor_h = 0x%" PRIx64 "\n"
+            "  pc/id    = 0x%" PRIx64 "\n",
             kernel_pc, kernel_name.c_str(), demangle(kernel_name).c_str(),
-            gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y, blockDim.z);
+            params->tensor_a, params->tensor_b, params->tensor_c,
+            params->tensor_d, params->tensor_e, params->tensor_f,
+            params->tensor_g, params->tensor_h, params->kernel_id);
 
     if (kernel_pc == 0) {
         // this is for builtin kernels (calling kernel by name, i.e. kernel_pc == 0)
@@ -107,14 +127,11 @@ void EtActionLaunch::execute(CardProxy *card_proxy)
         return;
     }
 
-    // Contains the kernel launch parameters for both running with runtime and net_desc (FW_SCODE_KERNEL_INFO in fw_common.h)
-    cpWriteDevMem(card_proxy, 0x8200000000ULL + 2 * sizeof(uint64_t), args_buff.size(), &args_buff[0]);
-
     //b4c hack
     if(static_kernels)
-      cpLaunch(card_proxy, ETSOC_launch); //b4c - precompiled kernels
+      cpLaunch(card_proxy, ETSOC_launch, params); //b4c - precompiled kernels
     else
-      cpLaunch(card_proxy, kernel_pc); //ETSOC backend - JIT, not covered by b4c
+      cpLaunch(card_proxy, kernel_pc, params); //ETSOC backend - JIT, not covered by b4c
 }
 
 void EtStream::init()
