@@ -104,7 +104,7 @@ int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const messa
     evict_message(dest_message_ptr);
 
     // Send an IPI
-    syscall(SYSCALL_IPI_TRIGGER, dest_shire, (1ULL << dest_hart), 0);
+    syscall(SYSCALL_IPI_TRIGGER, (1ULL << dest_hart), dest_shire, 0);
 
     return 0;
 }
@@ -162,7 +162,7 @@ int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart, const m
     asm volatile ("fence");
 
     // Send an IPI to shire 32 HART 0
-    syscall(SYSCALL_IPI_TRIGGER, 32U, 1U, 0);
+    syscall(SYSCALL_IPI_TRIGGER, 1U, 32U, 0);
 
     return 0;
 }
