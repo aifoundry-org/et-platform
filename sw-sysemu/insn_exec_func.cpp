@@ -240,12 +240,6 @@
     }
 
 
-// ----- Unknown -------------------------------------------
-UNIMPL (insn_unknown)
-
-// ----- Zifencetso ----------------------------------------
-UNIMPL (insn_fence_tso)
-
 // ----- SYSTEM --------------------------------------------
 // control and status registers
 FMT_RD_CSR_RS1   (insn_csrrc,      csrrc)
@@ -266,12 +260,6 @@ FMT_NONE         (insn_wfi,        wfi)
 FMT_RS1_RS2      (insn_sfence_vma, sfence_vma)
 
 // ----- RV64C ---------------------------------------------
-
-// defined illegal instruction
-
-void insn_c_illegal(insn_t inst __attribute__((unused))) {
-    unknown();
-}
 
 // breakpoint instruction
 

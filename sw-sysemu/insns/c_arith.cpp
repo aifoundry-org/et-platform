@@ -68,6 +68,13 @@ void insn_c_andi(insn_t inst)
 }
 
 
+void insn_c_illegal(insn_t/*unused*/)
+{
+    DISASM_NOARG("illegal compressed opcode");
+    throw trap_illegal_instruction(0);
+}
+
+
 void insn_c_li(insn_t inst)
 {
     C_DISASM_RS1_IMM6("c.li");
@@ -91,6 +98,13 @@ void insn_c_mv(insn_t inst) {
 void insn_c_or(insn_t inst) {
     C_DISASM_RDS1P_RS2P("c.or");
     WRITE_C_RS1P(C_RS1P | C_RS2P);
+}
+
+
+void insn_c_reserved(insn_t/*unused*/)
+{
+    DISASM_NOARG("illegal compressed opcode");
+    throw trap_illegal_instruction(0);
 }
 
 
