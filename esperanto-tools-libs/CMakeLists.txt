@@ -12,6 +12,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(EsperantoRuntime VERSION 0.1.0 LANGUAGES CXX C)
 
+set(CMAKE_CXX_STANDARD 17)
+
 enable_testing()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -91,10 +93,25 @@ set(EXTERNAL_LINK_DIRECTORIES
   )
 
 
+# External dependencies
+add_subdirectory(external)
+list(APPEND CMAKE_PREFIX_PATH ${RT_EXTERNAL_INSTALL_PREFIX})
+
+find_package(absl REQUIRED)
+
+message("ABSEIL FOUND : '${absl_FOUND}'")
+
+
+if(TARGET absl::flags)
+  message(STATUS "Found Target: absl::flags")
+else()
+  message(FATAL_ERROR "Target absl::flags not found")
+endif()
+
+
 # Add rules for auto-generated headers.
 add_subdirectory(include)
 add_subdirectory(docs)
-add_subdirectory(external)
 add_subdirectory(src)
 if (ENABLE_TESTS)
   add_subdirectory(tests)

@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "Core/Device.h"
+#include "Core/CommandLineOptions.h"
 #include "Core/DeviceManager.h"
 #include "Core/DeviceTarget.h"
 #include "Device/TargetCardProxy.h"
@@ -16,8 +17,8 @@
 
 #include <chrono>
 #include <cstdio>
-#include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <glog/logging.h>
 #include <string>
 #include <thread>
 
@@ -25,19 +26,11 @@ using namespace std;
 
 using namespace et_runtime::device;
 
-namespace et_runtime {
-namespace device {
-
-DECLARE_string(dev_target);
-
-}
-} // namespace et_runtime
-
 namespace {
 
 TEST(DeviceManager, deviceFactory) {
-  et_runtime::device::FLAGS_dev_target = "sysemu_card_proxy";
-  ASSERT_TRUE(FLAGS_dev_target.find("sysemu_card_proxy") != string::npos);
+  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_card_proxy"));
+  ASSERT_TRUE(absl::GetFlag(FLAGS_dev_target).dev_target.find("sysemu_card_proxy") != string::npos);
   auto target_type = DeviceTarget::deviceToCreate();
   auto dev_target = DeviceTarget::deviceFactory(target_type, "test_path");
   ASSERT_TRUE(dynamic_cast<CardProxyTarget *>(dev_target.get()) != nullptr);
@@ -46,7 +39,7 @@ TEST(DeviceManager, deviceFactory) {
 
 TEST(DeviceManager, RegisteAndAccessDevice) {
 
-  et_runtime::device::FLAGS_dev_target = "sysemu_card_proxy";
+  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_card_proxy"));
   auto device_manager = et_runtime::getDeviceManager();
   auto ret_value = device_manager->registerDevice(0);
 
@@ -63,7 +56,7 @@ int main(int argc, char **argv) {
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   testing::InitGoogleTest(&argc, argv);
 
-  et_runtime::device::FLAGS_dev_target = "sysemu_card_proxy";
+  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_card_proxy"));
   google::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }

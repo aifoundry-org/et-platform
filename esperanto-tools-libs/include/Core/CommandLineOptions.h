@@ -11,15 +11,25 @@
 #ifndef ET_RUNTIME_COMMAND_LINE_OPTIONS_H
 #define ET_RUNTIME_COMMAND_LINE_OPTIONS_H
 
-#include <gflags/gflags.h>
+#include "absl/flags/flag.h"
 
-namespace et_runtime {
-DECLARE_string(fw_type);
-// extern std::string FLAGS_
-namespace device {
 
-DECLARE_string(dev_target);
-}
-} // namespace et_runtime
+struct FWType {
+  FWType(const std::string &t) : type(t) {}
+
+  std::string type;
+};
+
+
+ABSL_DECLARE_FLAG(FWType, fw_type);
+
+struct DeviceTargetOption {
+  DeviceTargetOption(const std::string &t) : dev_target(t) {}
+
+  std::string dev_target;
+};
+
+ABSL_DECLARE_FLAG(DeviceTargetOption, dev_target);
+
 
 #endif // ET_RUNTIME_COMMAND_LINE_OPTIONS_H

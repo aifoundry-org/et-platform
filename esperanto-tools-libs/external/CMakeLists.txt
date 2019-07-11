@@ -125,7 +125,7 @@ if (NOT __GLOG_INCLUDED)
     set(GLOG_FOUND TRUE)
     set(GLOG_INCLUDE_DIRS ${glog_INSTALL}/include ${GFLAGS_INCLUDE_DIRS}
       CACHE PATH "glog include dir")
-    set(GLOG_LIBRARIES ${GFLAGS_LIBRARIES} ${glog_INSTALL}/lib/libglog.a CACHE PATH "glog libraries")
+    set(GLOG_LIBRARIES ${glog_INSTALL}/lib/libglog.a ${GFLAGS_LIBRARIES} CACHE PATH "glog libraries")
     set(GLOG_LIBRARY_DIRS ${glog_INSTALL}/lib CACHE PATH "glog library path")
     set(GLOG_EXTERNAL TRUE)
 
@@ -264,8 +264,35 @@ ExternalProject_Add(googletest
                ${EXTERNAL_PROJECT_ENABLE_CCACHE}
   )
 
-set(external_project_dependencies ${external_project_dependencies}  PARENT_SCOPE)
-
-
 ### For now include abseil as a subdirectory we pull the targets directly
-add_subdirectory(abseil)
+
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(BUILD_SHARED_LIBS OFF)
+set(BUILD_TESTING OFF)
+
+##############
+##  ABSEIL  ##
+##############
+message(STATUS "Building: ABSEIL...")
+
+# Download, build, install abseil-cpp at configure time
+configure_file(
+	${CMAKE_CURRENT_SOURCE_DIR}/abseil.CMakeLists.txt
+	${CMAKE_BINARY_DIR}/abseil-cpp/CMakeLists.txt)
+
+execute_process(COMMAND ${CMAKE_COMMAND} -H. -Bproject_build -G "${CMAKE_GENERATOR}"
+  RESULT_VARIABLE result
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/abseil-cpp)
+if(result)
+  message(FATAL_ERROR "CMake step for abseil failed: ${result}")
+endif()
+
+execute_process(COMMAND ${CMAKE_COMMAND} --build project_build --config ${CMAKE_BUILD_TYPE}
+  RESULT_VARIABLE result
+  WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/abseil-cpp)
+if(result)
+  message(FATAL_ERROR "Build step for abseil failed: ${result}")
+endif()
+message(STATUS "Building: ABSEIL...DONE")
+
+set(external_project_dependencies ${external_project_dependencies}  PARENT_SCOPE)

@@ -1,20 +1,46 @@
 #include "EsperantoRuntime.h"
 
+#include <absl/flags/flag.h>
+#include <absl/flags/parse.h>
+#include <absl/flags/usage.h>
+#include <absl/flags/usage_config.h>
+#include <absl/strings/match.h>
+#include <absl/strings/str_cat.h>
+#include <absl/strings/string_view.h>
 #include <cstdlib>
-#define STRIP_FLAG_HELP 1
-#include <gflags/gflags.h>
-//#include <glog/logging.h>
+#include <experimental/filesystem>
 #include <iostream>
 
-DEFINE_bool(verbose, false, "Display program name before message");
-DEFINE_string(message, "Hello world!", "Message to print");
+namespace fs = std::experimental::filesystem;
+
+ABSL_FLAG(bool, list_devices, true,
+          "List all devices we can find in the system");
 
 int main(int argc, char *argv[]) {
-  gflags::SetUsageMessage("ET Runtime SystemTest helper");
-  gflags::SetVersionString("0.0.1");
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-  if (FLAGS_verbose)
-    std::cout << gflags::ProgramInvocationShortName() << ": ";
-  std::cout << FLAGS_message << std::endl;
+  absl::FlagsUsageConfig config;
+
+  auto main_help_files = [](absl::string_view path) -> bool {
+    for (auto &i : {"runtime_tester.cc", "DeviceTarget.cc", "FWManager.cc"}) {
+      auto fname = fs::path(path).filename().string();
+      if (fname == i) {
+
+        return true;
+      }
+    }
+    return false;
+  };
+
+  config.contains_helpshort_flags = config.contains_help_flags =
+      main_help_files;
+  config.version_string = []() { return "0.0.1"; };
+  config.normalize_filename = [](absl::string_view path) -> std::string {
+    return fs::path(path).filename().string();
+  };
+
+  absl::SetFlagsUsageConfig(config);
+
+  absl::SetProgramUsageMessage(
+      absl::StrCat("This program exercises the runtime library", argv[0]));
+  absl::ParseCommandLine(argc, argv);
   return 0;
 }

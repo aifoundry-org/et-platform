@@ -47,6 +47,7 @@ add_custom_target(ci-dependencies
 add_compile_options(-g3 -O0 -std=c++17)
 set(COMMON_TEST_LIBRARIES
   etrt_static
+  absl::flags
   etsim_api
   protobuf
   grpc++

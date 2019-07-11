@@ -131,6 +131,7 @@ target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/etrpc")
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/")
 target_include_directories(etrt_obj PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/..")
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/../include")
+include_directories(${PROJECT_SOURCE_DIR}/external/abseil)
 target_include_directories(etrt_obj PUBLIC ${EXTERNAL_INCLUDE_DIRECTORIES})
 target_include_directories(etrt_obj PUBLIC ${GLOG_INCLUDE_DIRS})
 target_include_directories(etrt_obj PUBLIC ${FMTLIB_INCLUDE_DIRS})
@@ -145,7 +146,10 @@ set_property(TARGET etrt_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 # Generate both static and shared libraries
 add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj>)
 target_link_libraries(etrt
+  absl::flags
+  absl::flags_internal
   ${GLOG_LIBRARIES}
+  ${GFLAGS_LIBRAIES}
   ${FMTLIB_LIBRARIES}
   etsim_api
   protobuf
@@ -169,8 +173,29 @@ install(TARGETS etrt
   )
 
 add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj>)
-target_link_libraries(etrt_static ${GLOG_LIBRARIES})
-target_link_libraries(etrt_static ${FMTLIB_LIBRARIES})
+
+# FIXME The static library as part of its targets should provide a list
+# of all the library dependencies it has. To be done correctly this requires
+# us to invoke find_package on all of the runtime's dependencies. Currently
+# this is not possible because the dependencies have not been built and installed
+# prior to configuring the cmake, and this results in calls to find_package to fail.
+target_link_libraries(etrt_static
+  absl::flags
+  absl::flags_internal
+  ${GLOG_LIBRARIES}
+  ${GFLAGS_LIBRAIES}
+  ${FMTLIB_LIBRARIES}
+  # libetsim_api_static.a
+  # libprotobuf.a
+  # libgrpc++.a
+  # libgrpc.a
+  # libgpr.a
+  # libz.a
+  # libcares.a
+  # libaddress_sorting.a
+  pthread
+  stdc++fs
+  )
 
 ## Build static library
 install(TARGETS etrt_static

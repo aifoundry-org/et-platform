@@ -14,6 +14,7 @@ include(GoogleTest)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 include_directories(${GLOG_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR}/external/abseil)
 
 link_directories(${RT_EXTERNAL_INSTALL_PREFIX}/lib64
   ${RT_EXTERNAL_INSTALL_PREFIX}/lib
@@ -25,6 +26,12 @@ set(COMMON_LIBRARIES
   # Link the whole archive so that we can pull the gflags symbols
   # that define runtime command line options
   -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
+  absl::flags
+  absl::flags_usage
+  absl::flags_parse
+  absl::flags_internal
+  absl::flags_marshalling
+  absl::strings
   etsim_api
   protobuf
   grpc++

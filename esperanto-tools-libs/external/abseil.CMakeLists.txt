@@ -1,0 +1,47 @@
+cmake_minimum_required(VERSION 3.5)
+
+# simplify variable expansion
+cmake_policy(SET CMP0053 NEW)
+cmake_policy(SET CMP0010 NEW)
+
+project(abseil-cpp-submodule NONE)
+
+include(ExternalProject)
+
+ExternalProject_Add(abseil-cpp_project
+  TMP_DIR "${CMAKE_BINARY_DIR}/abseil-cpp/tmp"
+  STAMP_DIR "${CMAKE_BINARY_DIR}/abseil-cpp/stamp"
+  #  SOURCE_DIR "${CMAKE_BINARY_DIR}/abseil-cpp/source"
+  SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/abseil"
+  BINARY_DIR "${CMAKE_BINARY_DIR}/abseil-cpp/build"
+
+#  GIT_REPOSITORY https://github.com/abseil/abseil-cpp
+#  GIT_TAG "master"
+#  LOG_DOWNLOAD TRUE
+
+  # UPDATE_COMMAND ""
+  LOG_UPDATE TRUE
+
+  # PATCH_COMMAND git apply "${CMAKE_SOURCE_DIR}/patches/abseil.patch"
+  LOG_PATCH TRUE
+
+  # CONFIGURE_COMMAND ""
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${RT_EXTERNAL_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DBUILD_TESTING=OFF
+    -DCMAKE_CXX_STANDARD=17
+    ${EXTERNAL_PROJECT_ENABLE_CCACHE}
+    ${EXTERNAL_PROJECT_CCACHE}
+
+  LOG_CONFIGURE TRUE
+
+  # BUILD_COMMAND ""
+  LOG_BUILD TRUE
+
+  # INSTALL_COMMAND ""
+  LOG_INSTALL TRUE
+
+  TEST_COMMAND ""
+  LOG_TEST TRUE
+)

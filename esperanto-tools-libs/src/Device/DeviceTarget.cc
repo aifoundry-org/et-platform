@@ -16,15 +16,17 @@
 #include "TargetRPC.h"
 #include "TargetSysEmu.h"
 
+#include <absl/flags/flag.h>
+#include <absl/flags/marshalling.h>
+#include <absl/strings/str_cat.h>
+#include <absl/strings/string_view.h>
 #include <cassert>
 #include <cstdio>
 #include <memory>
 #include <string>
 
 using namespace std;
-
-namespace et_runtime {
-namespace device {
+using namespace et_runtime::device;
 
 const std::map<std::string, DeviceTarget::TargetType>
     DeviceTarget::Str2TargetType = {
@@ -43,23 +45,31 @@ static string getDeviceTypesStr() {
   return res;
 }
 
+
+static std::string AbslUnparseFlag(DeviceTargetOption target) {
+  return absl::UnparseFlag(target.dev_target);
+}
+
 /// @brief Command line option for specifying the type of device to initialize
 /// FIXME this option should not be available in production code.
-static bool validateDeviceTarget(const char *flagname, const string &value) {
-  for (const auto &i : DeviceTarget::Str2TargetType) {
-    if (i.first == value) {
+static bool AbslParseFlag(absl::string_view text, DeviceTargetOption *target,
+                          std::string *error) {
+  if (!absl::ParseFlag(text, &target->dev_target, error)) {
+    return false;
+  }
+  for (const auto &i : et_runtime::device::DeviceTarget::Str2TargetType) {
+    if (i.first == target->dev_target) {
       return true;
     }
   }
-  RTERROR << "Option " << flagname << " invalid value: " << value << "\n"
-          << "Allowed values: " << getDeviceTypesStr() << "\n";
+  *error = absl::StrCat("Invalid value: ", text, "\n",
+                        "Allowed values: ", getDeviceTypesStr(), "\n");
   return false;
 }
 
-DEFINE_string(dev_target, "",
-              "Specify the target device or simulator we would like to talk "
-              "to: pcie ,sysemu_card_proxy, sysemu_grpc, device_grpc");
-DEFINE_validator(dev_target, validateDeviceTarget);
+ABSL_FLAG(DeviceTargetOption, dev_target, DeviceTargetOption("device_grpc"),
+          "Specify the target device or simulator we would like to talk "
+          "to: pcie ,sysemu_card_proxy, sysemu_grpc, device_grpc");
 
 DeviceTarget::DeviceTarget(const string &path)
     : path_(path), device_alive_(false) {}
@@ -84,8 +94,9 @@ DeviceTarget::deviceFactory(TargetType target, const std::string &path) {
 }
 
 DeviceTarget::TargetType DeviceTarget::deviceToCreate() {
+  auto target = absl::GetFlag(FLAGS_dev_target);
   for (const auto &i : Str2TargetType) {
-    if (FLAGS_dev_target.find(i.first) != string::npos) {
+    if (target.dev_target.find(i.first) != string::npos) {
       return i.second;
     }
   }
@@ -93,14 +104,6 @@ DeviceTarget::TargetType DeviceTarget::deviceToCreate() {
 }
 
 bool DeviceTarget::setDeviceType(const std::string &device_type) {
-  FLAGS_dev_target = device_type;
-  for (const auto &i : Str2TargetType) {
-    if (FLAGS_dev_target.find(i.first) != string::npos) {
-      return true;
-    }
-  }
-  return false;
+  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption(device_type));
+  return true;
 }
-
-} // namespace device
-} // namespace et_runtime

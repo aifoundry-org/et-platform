@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "Core/CodeModule.h"
+#include "Core/CommandLineOptions.h"
 #include "Core/Device.h"
 #include "Core/DeviceManager.h"
 #include "Core/DeviceTarget.h"
@@ -16,11 +17,9 @@
 #include "Core/ModuleManager.h"
 #include "Device/TargetSysEmu.h"
 
-#include <gflags/gflags.h>
 #include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
 #include <array>
 #include <chrono>
 #include <cstdio>
@@ -33,14 +32,6 @@ using namespace et_runtime::device;
 using namespace std;
 namespace fs = std::experimental::filesystem;
 
-namespace et_runtime {
-namespace device {
-
-DECLARE_string(dev_target);
-
-}
-} // namespace et_runtime
-
 namespace {
 
 TEST(Module, loadOnSysEMU) {
@@ -49,7 +40,7 @@ TEST(Module, loadOnSysEMU) {
   auto test_real_path = fs::read_symlink(p);
   auto dir_name = test_real_path.remove_filename();
 
-  et_runtime::device::FLAGS_dev_target = "sysemu_grpc";
+  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));
   auto device_manager = et_runtime::getDeviceManager();
   auto ret_value = device_manager->registerDevice(0);
   auto dev = ret_value.get();
