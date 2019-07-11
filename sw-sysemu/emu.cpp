@@ -4,14 +4,16 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cfenv>        // FIXME: remove this when we purge std::fesetround() from the code!
+#include <cmath>        // FIXME: remove this, we should not do any math here
 #include <cstdio>       // FIXME: Remove this, use "emu_gio.h" instead
 #include <cstring>
 #include <deque>
 #include <list>
 #include <stdexcept>
 #include <unordered_map>
-#include <math.h>
 
+#include "cache.h"
 #include "decode.h"
 #include "emu.h"
 #include "emu_casts.h"
@@ -26,24 +28,17 @@
 #include "mmu.h"
 #include "processor.h"
 #include "rbox.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 #include "tbox_emu.h"
 #include "traps.h"
 #include "txs.h"
 #include "utility.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
-
-#include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 
 // MsgPort defines
 #define PORT_LOG2_MIN_SIZE   2
 #define PORT_LOG2_MAX_SIZE   5
-
-// Scratchpad defines
-#define L1_SCP_ENTRIES    48
-#define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
-typedef Packed<L1D_LINE_SIZE*8> cache_line_t;
 
 // vendor, arch, imp, ISA values
 #define CSR_VENDOR_ID ((11<<7) |        /* bank 11 */ \
@@ -2088,8 +2083,25 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
         return;
     }
 
-    // FIXME: This should take mcache_control into account!!!
-    int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+    unsigned set;
+    switch (cpu[current_thread].mcache_control)
+    {
+        case 0:
+            set = shared_dcache_index(paddr);
+            break;
+        case 1:
+            set = (current_thread % EMU_THREADS_PER_MINION)
+                    ? hart1_split_dcache_index(paddr)
+                    : hart0_split_dcache_index(paddr);
+            break;
+        case 3:
+            set = (current_thread % EMU_THREADS_PER_MINION)
+                    ? hart1_split_dcache_index(paddr)
+                    : hart0_spltscp_dcache_index(paddr);
+            break;
+        default:
+            throw std::runtime_error("illegal mcache_control value");
+    }
 
     // Check if paddr already locked in the cache
     int nlocked = 0;
