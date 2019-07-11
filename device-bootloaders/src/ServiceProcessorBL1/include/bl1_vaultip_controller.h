@@ -35,6 +35,15 @@ int vaultip_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t
 int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init);
 int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init, size_t total_msg_length, uint8_t * hash);
 
+int vaultip_mac_generate(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id, const void * msg, size_t msg_size, uint8_t * mac);
+int vaultip_mac_verify(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id, const void * msg, size_t msg_size, const uint8_t * mac);
+int vaultip_mac_update(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, bool init);
+int vaultip_mac_final_generate(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, size_t total_msg_size, bool init, uint8_t * mac);
+int vaultip_mac_final_verify(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, size_t total_msg_size, bool init, const uint8_t * mac);
+
+int vaultip_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size);
+int vaultip_aes_cbc_decrypt(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size);
+
 int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t policy_63_32, VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings, uint32_t lifetime, uint32_t * asset_id);
 int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const void * data, uint32_t data_size);
 int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk_asset_id, const uint8_t * key_expansion_IV, uint32_t key_expansion_IV_length, const uint8_t * associated_data, uint32_t associated_data_size, const uint8_t * salt, uint32_t salt_size);
