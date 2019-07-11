@@ -311,10 +311,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         return -2;
     }
 
-    for (uint64_t i = 0; i < length; i += 8)
-    {
-        crc = crc32_8bytes(data_ptr, length, crc);
-    }
+    crc = crc32_8bytes(data_ptr, length, crc);
 
     *crc_ptr = crc;
     return 0;
