@@ -3569,17 +3569,6 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
     LOG_TENSOR_MASK(":");
 
-    if (first_pass)
-    {
-        for (int i = 0; i < arows; ++i)
-        {
-            for (int j = 0; j < bcols; ++j)
-            {
-                TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = 0;
-            }
-        }
-    }
-
     for (int k = 0; k < acols; k += 4)
     {
         log_tensor_fma_new_pass();
@@ -3589,24 +3578,27 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
         for (int i = 0; i < arows; ++i)
         {
-            // We should skip computation for this row, but if tenc2rf is set,
-            // and we are in the last pass then we must copy TenC to FREGS even
-            // for this row.
+            // We should skip computation for this row, but:
+            // * if first_pass is set and this is the first iteration then we
+            //   still set TenC to 0
+            // * if tenc2rf is set and we are in the last pass then we must
+            //   copy TenC to FREGS even for this row.
             if (usemsk && !tmask_pass(i))
             {
                 if (tenc2rf && (k+4 == acols))
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = TENC[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL];
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = (first_pass && !k) ? 0 : TENC[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL];
                         LOG(DEBUG, "\tTensorIMA8A32(%d) f%zu[%zu] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
                         log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL]);
                     }
                 }
-                else if (first_pass && (k == 0))
+                else if (first_pass && !k)
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
+                        TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = 0;
                         log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
                     }
                 }
@@ -3616,50 +3608,72 @@ static void tensor_ima8a32(uint64_t tfmareg)
             freg_t* dst = (tenc2rf && (k+4 == acols)) ? FREGS : TENC;
             const char* dname = (tenc2rf && (k+4 == acols)) ? "f" : "TenC";
 
-            // If all products are 0, we can skip the operation, except if first_pass is set and this
-            // is the first iteration, or TenC must be copied to FREGS and this is the last iteration.
-            // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity.
-            if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
-                (SCP[(astart+i) % L1_SCP_ENTRIES].u32[((aoffset+k)/4) % (L1D_LINE_SIZE/4)] == 0))
-                continue;
-
-#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
-            int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
-            int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
-            int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
-            int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
-#undef ASRC
-
-            for (int j = 0; j < bcols; ++j)
+            // If first_pass is 1 and this is the first iteration we do
+            // a1*b1+a2*b2+a3*b3+a4*b4 instead of c0+a1*b1+a2*b2+a3*b3+a4*b4
+            if (first_pass && !k)
             {
+#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
+                int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
+                int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
+                int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
+                int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
+#undef ASRC
+                for (int j = 0; j < bcols; ++j)
+                {
 #define BSRC(x) tmpb.u8[j*4+(x)]
-                int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
-                int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
-                int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
-                int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
+                    int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
+                    int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
+                    int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
+                    int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
 #undef BSRC
-                // If all products are 0 for both column @j and column @j+8 or @j-8, we can skip the
-                // operation, except if first_pass is set and this is the first iteration, or TenC
-                // must be copied to FREGS and this is the last iteration.
-                // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
-                if (j >= 8)
-                {
-                    if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
-                        (tmpb.u32[j] == 0) && (tmpb.u32[j-8] == 0))
-                        continue;
+                    int32_t c = (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
+                    dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
+                    log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
+                    LOG(DEBUG, "\tTensorIMA8A32(%d) %s%zu[%zu]: 0x%08" PRIx32 " = (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
+                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
                 }
-                else
+            }
+            // If all products are 0, we can skip the operation, except if TenC must
+            // be copied to FREGS and this is the last iteration. NB: The detection
+            // is done at 32-bit granularity, not at element (8-bit) granularity.
+            else if ((tenc2rf && (k+4 == acols)) || SCP[(astart+i) % L1_SCP_ENTRIES].u32[((aoffset+k)/4) % (L1D_LINE_SIZE/4)])
+            {
+#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
+                int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
+                int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
+                int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
+                int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
+#undef ASRC
+                for (int j = 0; j < bcols; ++j)
                 {
-                    if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
-                        (tmpb.u32[j] == 0) && ((j+8 >= bcols) || (tmpb.u32[j+8] == 0)))
-                        continue;
+#define BSRC(x) tmpb.u8[j*4+(x)]
+                    int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
+                    int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
+                    int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
+                    int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
+#undef BSRC
+                    // If all products are 0 for both column @j and column @j+8 or @j-8, we can skip the
+                    // operation, except if TenC must be copied to FREGS and this is the last iteration.
+                    // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
+                    if (j >= 8)
+                    {
+                        if (!(tenc2rf && (k+4 == acols)) &&
+                            (tmpb.u32[j] == 0) && (tmpb.u32[j-8] == 0))
+                            continue;
+                    }
+                    else
+                    {
+                        if (!(tenc2rf && (k+4 == acols)) &&
+                            (tmpb.u32[j] == 0) && ((j+8 >= bcols) || (tmpb.u32[j+8] == 0)))
+                            continue;
+                    }
+                    int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL];
+                    int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
+                    dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
+                    log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
+                    LOG(DEBUG, "\tTensorIMA8A32(%d) %s%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
+                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
                 }
-                int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL];
-                int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
-                dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
-                log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
-                LOG(DEBUG, "\tTensorIMA8A32(%d) %s%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
-                    k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
             }
         }
     }
