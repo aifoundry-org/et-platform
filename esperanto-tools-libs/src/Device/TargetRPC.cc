@@ -37,9 +37,9 @@ bool RPCTarget::getStatus() {
   return false;
 }
 
-bool RPCTarget::getStaticConfiguration() {
+DeviceInformation RPCTarget::getStaticConfiguration() {
   assert(true);
-  return false;
+  return {};
 }
 
 bool RPCTarget::submitCommand() {

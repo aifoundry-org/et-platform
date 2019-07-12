@@ -96,9 +96,9 @@ bool CardProxyTarget::getStatus() {
   return false;
 }
 
-bool CardProxyTarget::getStaticConfiguration() {
+DeviceInformation CardProxyTarget::getStaticConfiguration() {
   assert(true);
-  return false;
+  return {};
 }
 
 bool CardProxyTarget::submitCommand() {

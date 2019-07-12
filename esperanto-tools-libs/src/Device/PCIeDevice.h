@@ -26,6 +26,8 @@ public:
   PCIeDevice(const std::string &path);
   virtual ~PCIeDevice() = default;
 
+  static std::vector<DeviceInformation> enumerateDevices();
+
   bool init() override {
     assert(true);
     return false;
@@ -41,9 +43,9 @@ public:
     return false;
   }
 
-  virtual bool getStaticConfiguration() override {
+  virtual DeviceInformation getStaticConfiguration() override {
     assert(true);
-    return false;
+    return {};
   }
 
   virtual bool submitCommand() override {
@@ -86,6 +88,17 @@ public:
   }
 
 private:
+  // List of character devices created
+  // et0bulk
+  // et0mb_from_mm
+  // et0mb_to_mm
+  // et0mb_from_sp
+  // et0mb_to_sp
+  // et0pcie_useresr
+  // et0trg_pcie
+  // et0mbox_sp
+  // et0mbox_mm
+  // et0drct_dram
 };
 
 } // namespace device

@@ -11,15 +11,14 @@
 #ifndef ET_RUNTIME_DEVICE_TARGET_H
 #define ET_RUNTIME_DEVICE_TARGET_H
 
+#include "Core/DeviceInformation.h"
+
 #include <cstdint>
 #include <functional>
 #include <map>
 #include <memory>
 #include <string>
-
-// FIXME the following should be removed once we remove CardProxy gets
-// eliminated
-class CardProxy;
+#include <vector>
 
 namespace et_runtime {
 namespace device {
@@ -86,6 +85,19 @@ public:
   DeviceTarget(const std::string &path);
   virtual ~DeviceTarget() = default;
 
+  ///
+  /// @brief static function that should enumerate all devices and return
+  /// related information
+  ///
+  /// @return Vector with the DeviceInfomrmation of all devices we can detect on
+  /// the system
+  /// @todo Having it be a static function is not the best interface decision
+  /// this should be revisited
+  static std::vector<DeviceInformation> enumerateDevices() {
+    abort();
+    return {};
+  }
+
   /// @brief Initialize the target device
   virtual bool init() = 0;
   /// @brief De-Initialize the target device
@@ -98,7 +110,7 @@ public:
   /// Extract static configuration information from the device. The static
   /// information should be exposed at the level of the device driver and should
   /// not require exchanging dynamic commands with the device.
-  virtual bool getStaticConfiguration() = 0;
+  virtual DeviceInformation getStaticConfiguration() = 0;
   ///
   /// @brief Submit a command to the device.
   ///

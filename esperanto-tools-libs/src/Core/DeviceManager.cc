@@ -10,6 +10,8 @@
 
 #include "Core/DeviceManager.h"
 #include "Core/Device.h"
+#include "Device/PCIeDevice.h"
+#include "Support/Logging.h"
 
 #include "etrt-bin.h"
 
@@ -109,6 +111,19 @@ shared_ptr<DeviceManager> getDeviceManager() {
     deviceManager = make_shared<DeviceManager>();
   }
   return deviceManager;
+}
+
+ErrorOr<std::vector<DeviceInformation>> DeviceManager::enumerateDevices() {
+  std::vector<DeviceInformation> info;
+  switch (device::DeviceTarget::deviceToCreate()) {
+  case device::DeviceTarget::TargetType::PCIe:
+    return device::PCIeDevice::enumerateDevices();
+    break;
+  default:
+    RTERROR << "Device enumeration is supported only for PCIE type devices \n";
+    abort();
+  }
+  return etrtErrorDevicesUnavailable;
 }
 
 ErrorOr<int> DeviceManager::getDeviceCount() { return devices_.size(); }

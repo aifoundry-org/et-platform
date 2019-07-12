@@ -104,9 +104,9 @@ bool TargetSysEmu::getStatus() {
   return false;
 }
 
-bool TargetSysEmu::getStaticConfiguration() {
+DeviceInformation TargetSysEmu::getStaticConfiguration() {
   assert(true);
-  return false;
+  return {};
 }
 
 bool TargetSysEmu::submitCommand() {

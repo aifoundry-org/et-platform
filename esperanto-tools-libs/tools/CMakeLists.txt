@@ -32,7 +32,7 @@ set(COMMON_LIBRARIES
   absl::flags_internal
   absl::flags_marshalling
   absl::strings
-  etsim_api
+  etsim_api_static
   protobuf
   grpc++
   grpc

@@ -36,6 +36,13 @@ public:
   DeviceManager();
 
   ///
+  /// @brief Return all device information for all devices on the system
+  ///
+  /// @return Error if encountered or vector of DeviceInformation for all
+  /// devices present in the system
+  ErrorOr<std::vector<DeviceInformation>> enumerateDevices();
+
+  ///
   /// @brief  Return the number of Devices found on this Host.
   ///
   /// Returns a count of the number of Devices currently attached and accessible

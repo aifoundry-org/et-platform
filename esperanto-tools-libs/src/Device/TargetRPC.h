@@ -44,7 +44,7 @@ public:
   bool deinit() override;
 
   virtual bool getStatus() override;
-  virtual bool getStaticConfiguration() override;
+  virtual DeviceInformation getStaticConfiguration() override;
   virtual bool submitCommand() override;
   virtual bool registerResponseCallback() override;
   virtual bool registerDeviceEventCallback() override;

@@ -33,7 +33,7 @@ public:
   bool init() override;
   bool deinit() override;
   bool getStatus() override;
-  bool getStaticConfiguration() override;
+  DeviceInformation getStaticConfiguration() override;
   bool submitCommand() override;
   bool registerResponseCallback() override;
   bool registerDeviceEventCallback() override;

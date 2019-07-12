@@ -46,13 +46,13 @@ static string getDeviceTypesStr() {
 }
 
 
-static std::string AbslUnparseFlag(DeviceTargetOption target) {
+std::string AbslUnparseFlag(DeviceTargetOption target) {
   return absl::UnparseFlag(target.dev_target);
 }
 
 /// @brief Command line option for specifying the type of device to initialize
 /// FIXME this option should not be available in production code.
-static bool AbslParseFlag(absl::string_view text, DeviceTargetOption *target,
+ bool AbslParseFlag(absl::string_view text, DeviceTargetOption *target,
                           std::string *error) {
   if (!absl::ParseFlag(text, &target->dev_target, error)) {
     return false;
