@@ -37,10 +37,124 @@
 
 #include "ec_domain_parameters.h"
 
-uint32_t vaultip_firmware_image[VAULTIP_FIRMWARE_IMAGE_MAX_FILE_SIZE/sizeof(uint32_t)];
+typedef union ASSET_POLICY_u {
+    uint64_t u64;
+    struct {
+        uint32_t lo;
+        uint32_t hi;
+    };
+} ASSET_POLICY_t;
 
 static uint32_t get_rom_identity(void) {
     return 0x0;
+}
+
+int crypto_derive_kdk_key(const void * kdk_derivation_data, size_t kdk_derivation_data_size, uint32_t * kdk_asset_id) {
+    uint32_t huk_asset_id;
+    uint32_t huk_asset_length;
+    ASSET_POLICY_t kdk_policy = (ASSET_POLICY_t){
+        .u64 = VAL_POLICY_TRUSTED_KEY_DERIVE
+    };
+    VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t kdk_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
+        .DataLength = 256 / 8,
+        .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE
+    };
+    uint32_t kdk_lifetime = 0;
+
+    // find HUK
+    if (0 != vaultip_static_asset_search(get_rom_identity(), VAULTIP_STATIC_ASSET_HUK, &huk_asset_id, &huk_asset_length)) {
+        printx("derive_kdk: vaultip_static_asset_search(HUK) failed!\n");
+        return -1;
+    }
+
+    // create KDK
+    if (0 != vaultip_asset_create(get_rom_identity(), kdk_policy.lo, kdk_policy.hi, kdk_other_settings, kdk_lifetime, kdk_asset_id)) {
+        printx("derive_kdk: vaultip_asset_create() failed!\n");
+        return -1;
+    }
+ 
+    // derive KDK
+    if (0 != vaultip_asset_load_derive(get_rom_identity(), *kdk_asset_id, huk_asset_id, NULL, 0, (const uint8_t *)kdk_derivation_data, (uint32_t)kdk_derivation_data_size, NULL, 0)) {
+        printx("derive_kdk: vaultip_asset_load_derive() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_derive_mac_key(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t kdk_asset_id, const void * mack_derivation_data, size_t mack_derivation_data_size, uint32_t * mack_asset_id) {
+    ASSET_POLICY_t mack_policy = (ASSET_POLICY_t){
+        .u64 = VAL_POLICY_MAC_GENERATE | VAL_POLICY_MAC_VERIFY
+    };
+    VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t mack_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
+        .DataLength = 256 / 8,
+        .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE
+    };
+    uint32_t mack_lifetime = 0;
+
+    switch (mac_alg) {
+    case ESPERANTO_MAC_TYPE_AES_CMAC:
+        mack_policy.u64 = mack_policy.u64 | VAL_POLICY_CMAC | VAL_POLICY_ALGO_CIPHER_AES;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_256:
+        mack_policy.u64 = mack_policy.u64 | VAL_POLICY_SHA256;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_384:
+        mack_policy.u64 = mack_policy.u64 | VAL_POLICY_SHA384;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_512:
+        mack_policy.u64 = mack_policy.u64 | VAL_POLICY_SHA512;
+        break;
+    default:
+        return -1;
+    }
+
+    // create MACK
+    if (0 != vaultip_asset_create(get_rom_identity(), mack_policy.lo, mack_policy.hi, mack_other_settings, mack_lifetime, mack_asset_id)) {
+        printx("derive_mack: vaultip_asset_create() failed!\n");
+        return -1;
+    }
+ 
+    // derive MACK
+    if (0 != vaultip_asset_load_derive(get_rom_identity(), *mack_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)mack_derivation_data, (uint32_t)mack_derivation_data_size, NULL, 0)) {
+        printx("derive_mack: vaultip_asset_load_derive() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_derive_enc_key(uint32_t kdk_asset_id, const void * enck_derivation_data, size_t enck_derivation_data_size, uint32_t * enck_asset_id) {
+    ASSET_POLICY_t enck_policy = (ASSET_POLICY_t){
+        .u64 = VAL_POLICY_ENCRYPT | VAL_POLICY_DECRYPT | VAL_POLICY_ALGO_CIPHER_AES | VAL_POLICY_AES_MODE_CBC
+    };
+    VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t enck_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
+        .DataLength = 256 / 8,
+        .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE
+    };
+    uint32_t enck_lifetime = 0;
+
+    // create ENCK
+    if (0 != vaultip_asset_create(get_rom_identity(), enck_policy.lo, enck_policy.hi, enck_other_settings, enck_lifetime, enck_asset_id)) {
+        printx("derive_enck: vaultip_asset_create() failed!\n");
+        return -1;
+    }
+ 
+    // derive ENCK
+    if (0 != vaultip_asset_load_derive(get_rom_identity(), *enck_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)enck_derivation_data, (uint32_t)enck_derivation_data_size, NULL, 0)) {
+        printx("derive_enck: vaultip_asset_load_derive() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_delete_key(uint32_t key) {
+    if (0 != vaultip_asset_delete(get_rom_identity(), key)) {
+        printx("crypto_delete_key: vaultip_asset_delete() failed!\n");
+        return -1;
+    }
+    return 0;
 }
 
 int crypto_verify_public_key_params(const PUBLIC_KEY_t * public_key) {
@@ -192,14 +306,6 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t * signature) {
     return 0;
 }
 
-typedef union ASSET_POLICY_u {
-    uint64_t u64;
-    struct {
-        uint32_t lo;
-        uint32_t hi;
-    };
-} ASSET_POLICY_t;
-
 int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) {
     ASSET_POLICY_t temp_digest_asset_policy;
     VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t temp_digest_asset_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
@@ -319,6 +425,64 @@ static void crypto_reverse_copy(void * dst, const void * src, size_t size) {
         *pd = *p;
         pd++;
     }
+}
+
+int crypto_mac_verify(ESPERANTO_MAC_TYPE_t mac_alg, 
+                      const uint32_t mack_key,
+                      const void * data, size_t data_size,
+                      const void * mac) {
+    if (NULL == data || 0 == data_size) {
+        return -1;
+    }
+
+    // compute MAC
+    if (0 != vaultip_mac_verify(mac_alg, mack_key, data, data_size, mac)) {
+        printx("test_kdk: vaultip_mac_verify() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_aes_decrypt_init(CRYPTO_AES_CONTEXT_t * aes_context,
+                            const uint32_t enck_key,
+                            const uint8_t * IV) {
+    if (NULL == aes_context) {
+        return -1;
+    }
+
+    if (NULL == IV) {
+        return -1;
+    }
+
+
+    aes_context->aes_key_asset_id = enck_key;
+    memcpy(aes_context->IV, IV, 16);
+    return 0;
+}
+
+int crypto_aes_decrypt_update(CRYPTO_AES_CONTEXT_t * aes_context, void * data, size_t data_size) {
+    if (0 != vaultip_aes_cbc_decrypt(get_rom_identity(), aes_context->aes_key_asset_id, aes_context->IV, data, data_size)) {
+        printx("crypto_aes_decrypt_update: vaultip_aes_cbc_encrypt() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_aes_decrypt_final(CRYPTO_AES_CONTEXT_t * aes_context, void * data, size_t data_size, uint8_t * IV) {
+    if (NULL != data && data_size > 0) {
+        if (0 != vaultip_aes_cbc_decrypt(get_rom_identity(), aes_context->aes_key_asset_id, aes_context->IV, data, data_size)) {
+            printx("crypto_aes_decrypt_final: vaultip_aes_cbc_encrypt() failed!\n");
+            return -1;
+        }
+    }
+
+    if (NULL != IV) {
+        memcpy(IV, aes_context->IV, 16);
+    }
+
+    return 0;
 }
 
 static int crypto_write_subvector_32(VAULTIP_SUBVECTOR_32_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size, uint16_t bits) {
