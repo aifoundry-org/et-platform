@@ -38,8 +38,8 @@ class CardProxyTarget final : public DeviceTarget {
 public:
   /// @brief Construct the Card Proxy target
   ///
-  /// @param[in] path  Path card proxy socket
-  CardProxyTarget(const std::string &path);
+  /// @param[in] Index of the device
+  CardProxyTarget(int index);
   virtual ~CardProxyTarget();
 
   bool init() override;

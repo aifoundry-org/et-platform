@@ -34,7 +34,7 @@ using namespace std;
 namespace et_runtime {
 namespace device {
 
-CardProxyTarget::CardProxyTarget(const std::string &path) : DeviceTarget(path) {
+CardProxyTarget::CardProxyTarget(int index) : DeviceTarget(index) {
   connection_ = fmt::format("/tmp/card_emu_socket_{}", getpid());
   sys_emu_ = make_unique<SysEmuLauncher>(connection_);
   card_proxy_ = std::make_unique<CardProxy>(connection_);
@@ -57,7 +57,7 @@ bool CardProxyTarget::init() {
     return false;
   }
   RTINFO << "Starting SysEmu Process";
-  RTINFO << "SysEmu socket: " << path_;
+  RTINFO << "SysEmu socket: " << connection_;
 
   // Set the path that we will use for the socket.
   DLOG(INFO) << "Initializing " << name_ << " to socket path: " << connection_;

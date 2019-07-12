@@ -37,7 +37,7 @@ namespace device {
 
 class RPCTarget : public DeviceTarget {
 public:
-  RPCTarget(const std::string &path);
+  RPCTarget(int index, const std::string &str);
   virtual ~RPCTarget() = default;
 
   bool init() override;
@@ -56,6 +56,7 @@ public:
   bool shutdown();
 
 protected:
+  std::string path_;
   std::shared_ptr<grpc::Channel> channel_;
   std::unique_ptr<simulator_api::SimAPI::Stub> stub_;
   grpc::CompletionQueue cq_;

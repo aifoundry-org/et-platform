@@ -41,12 +41,12 @@ DECLARE_string(dev_target);
 }
 } // namespace et_runtime
 
-Device::Device()
-    : fw_manager_(std::make_unique<FWManager>()),
+Device::Device(int index)
+    : device_index_(index), fw_manager_(std::make_unique<FWManager>()),
       mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
       module_manager_(std::make_unique<ModuleManager>()) {
   auto target_type = DeviceTarget::deviceToCreate();
-  target_device_ = DeviceTarget::deviceFactory(target_type, "test_path");
+  target_device_ = DeviceTarget::deviceFactory(target_type, index);
 }
 
 Device::~Device() {
@@ -141,8 +141,6 @@ void Device::initDeviceThread() {
     RTERROR << "Failed to initialize device";
     std::terminate();
   }
-
-
 }
 
 void Device::uninitDeviceThread() {

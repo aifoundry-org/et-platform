@@ -13,6 +13,9 @@
 
 #include "Core/DeviceTarget.h"
 
+#include "CharDevice.h"
+#include "MailBoxDev.h"
+
 #include <cassert>
 #include <string>
 
@@ -23,82 +26,37 @@ namespace device {
 
 class PCIeDevice final : public DeviceTarget {
 public:
-  PCIeDevice(const std::string &path);
-  virtual ~PCIeDevice() = default;
+  PCIeDevice(int index);
+  ~PCIeDevice() = default;
 
   static std::vector<DeviceInformation> enumerateDevices();
 
-  bool init() override {
-    assert(true);
-    return false;
-  }
-
-  bool deinit() override {
-    assert(true);
-    return false;
-  }
-
-  virtual bool getStatus() override {
-    assert(true);
-    return false;
-  }
-
-  virtual DeviceInformation getStaticConfiguration() override {
-    assert(true);
-    return {};
-  }
-
-  virtual bool submitCommand() override {
-    assert(true);
-    return false;
-  }
-
-  virtual bool registerResponseCallback() override {
-    assert(true);
-    return false;
-  }
-
-  virtual bool registerDeviceEventCallback() override {
-    assert(true);
-    return false;
-  }
-
-  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override {
-    assert(true);
-    return true;
-  }
-
-  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override {
-    assert(true);
-    return true;
-  }
-
-  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override {
-    assert(true);
-    return true;
-  }
-  bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override {
-    assert(true);
-    return true;
-  }
-
-  bool boot(uintptr_t init_pc, uintptr_t trap_pc) override {
-    assert(true);
-    return true;
-  }
+  bool init() override;
+  bool deinit() override;
+  bool getStatus() override;
+  DeviceInformation getStaticConfiguration() override;
+  bool submitCommand() override;
+  bool registerResponseCallback() override;
+  bool registerDeviceEventCallback() override;
+  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override;
+  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override;
+  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override;
+  bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override;
+  bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
 
 private:
-  // List of character devices created
-  // et0bulk
-  // et0mb_from_mm
-  // et0mb_to_mm
-  // et0mb_from_sp
-  // et0mb_to_sp
-  // et0pcie_useresr
-  // et0trg_pcie
-  // et0mbox_sp
-  // et0mbox_mm
-  // et0drct_dram
+  int index_;
+  std::string prefix_;
+  CharacterDevice bulk_;
+  MailBoxDev from_mm_;
+  MailBoxDev to_mm_;
+  MailBoxDev from_sp_;
+  MailBoxDev to_sp_;
+  CharacterDevice pcie_userersr_;
+  CharacterDevice trg_pcie_;
+  CharacterDevice mbox_sp_;
+  CharacterDevice mbox_mm_;
+  CharacterDevice drct_dram_;
 };
 
 } // namespace device

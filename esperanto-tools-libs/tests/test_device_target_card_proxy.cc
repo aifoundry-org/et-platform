@@ -26,8 +26,7 @@ using namespace std;
 namespace {
 
 TEST(TargetCardProxy, StartStopSysEmu) {
-  string temp_file_name = tmpnam(nullptr);
-  CardProxyTarget device(temp_file_name);
+  CardProxyTarget device(0);
 
   // Start the simulator
   ASSERT_TRUE(device.init());

@@ -25,7 +25,7 @@ using namespace simulator_api;
 
 namespace et_runtime {
 namespace device {
-TargetSysEmu::TargetSysEmu(const std::string &path) : RPCTarget(path) {
+TargetSysEmu::TargetSysEmu(int index) : RPCTarget(index, "") {
   // Create a temporary file for the socket and overwrite the
   // one passed by the user. The following function opens the file and
   // immediately deletes as log as it is open by the process it is still

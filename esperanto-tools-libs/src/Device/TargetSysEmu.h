@@ -27,7 +27,7 @@ class SysEmuLauncher;
 
 class TargetSysEmu final : public RPCTarget {
 public:
-  TargetSysEmu(const std::string &path);
+  TargetSysEmu(int index);
   ~TargetSysEmu();
 
   bool init() override;

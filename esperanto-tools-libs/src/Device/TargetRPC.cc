@@ -18,8 +18,8 @@ using namespace simulator_api;
 namespace et_runtime {
 namespace device {
 
-RPCTarget::RPCTarget(const std::string &path) : DeviceTarget(path) {
-}
+RPCTarget::RPCTarget(int index, const std::string &p)
+    : DeviceTarget(index), path_(p) {}
 
 bool RPCTarget::init() {
   grpc::ChannelArguments ch_args;

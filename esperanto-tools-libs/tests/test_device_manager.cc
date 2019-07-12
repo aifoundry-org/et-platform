@@ -32,7 +32,7 @@ TEST(DeviceManager, deviceFactory) {
   absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_card_proxy"));
   ASSERT_TRUE(absl::GetFlag(FLAGS_dev_target).dev_target.find("sysemu_card_proxy") != string::npos);
   auto target_type = DeviceTarget::deviceToCreate();
-  auto dev_target = DeviceTarget::deviceFactory(target_type, "test_path");
+  auto dev_target = DeviceTarget::deviceFactory(target_type, 0);
   ASSERT_TRUE(dynamic_cast<CardProxyTarget *>(dev_target.get()) != nullptr);
 }
 

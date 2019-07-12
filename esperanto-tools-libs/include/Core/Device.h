@@ -50,7 +50,7 @@ class Device {
   friend class et_runtime::device::MemoryManager;
 
 public:
-  Device();
+  Device(int index);
 
   virtual ~Device();
 
@@ -271,6 +271,7 @@ private:
   et_runtime::Module &createModule(const std::string &name);
   void destroyModule(et_runtime::ModuleID modue);
 
+  int device_index_;
   std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
   std::unique_ptr<et_runtime::FWManager> fw_manager_;
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;

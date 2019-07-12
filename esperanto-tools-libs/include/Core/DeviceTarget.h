@@ -80,9 +80,8 @@ public:
   DeviceTarget() = default;
   /// @brief DeviceTargert contructor
   ///
-  /// @params[in] path  Path to the device target. This can be either
-  ///    the path to the pcie kernel device or that of a local socket.
-  DeviceTarget(const std::string &path);
+  /// @params[in] Index of the device we are using
+  DeviceTarget(int index);
   virtual ~DeviceTarget() = default;
 
   ///
@@ -149,7 +148,7 @@ public:
 
   /// @brief Factory function that will generate the appropriate target device
   static std::unique_ptr<DeviceTarget> deviceFactory(TargetType target,
-                                                     const std::string &path);
+                                                     int index);
   /// @brief Return the type of device to allocate as specified by the command
   /// line arguments
   /// FIXME this functions should not be released in production
@@ -163,7 +162,7 @@ public:
   static bool setDeviceType(const std::string &device_type);
 
 protected:
-  std::string path_; ///< Path of the device to initialize
+  int index_; ///< Index fo the device
   bool device_alive_ =
       false; ///< Flag to guard that the device has been initlize correctly and
              ///< gate any incorrect re-initialization or de-initialization

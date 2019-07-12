@@ -28,8 +28,7 @@ using namespace std;
 namespace {
 
 TEST(TargetGRPCSysEmu, StartStopSysEmu) {
-  string temp_file_name = string("unix://") + string(tmpnam(nullptr));
-  TargetSysEmu device(temp_file_name);
+  TargetSysEmu device(0);
 
   // Start the simulator
   ASSERT_TRUE(device.init());
@@ -38,8 +37,7 @@ TEST(TargetGRPCSysEmu, StartStopSysEmu) {
 }
 
 TEST(TargetGRPCSysEmu, GRPCCardEmu) {
-  string temp_file_name = string("unix://") + string(tmpnam(nullptr));
-  TargetSysEmu device(temp_file_name);
+  TargetSysEmu device(0);
 
   // Start the simulator
   ASSERT_TRUE(device.init());

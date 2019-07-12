@@ -148,7 +148,7 @@ ErrorOr<std::shared_ptr<Device>> DeviceManager::registerDevice(int device) {
     return etrtErrorInvalidDevice;
   }
 
-  devices_[device] = make_shared<Device>();
+  devices_[device] = make_shared<Device>(device);
 
   return devices_[device];
 }

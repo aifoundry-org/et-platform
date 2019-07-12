@@ -35,6 +35,8 @@ set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined"
 
 # FIXME : disable for now hidden visibility by default: -fvisibility=hidden -fvisibility-inlines-hidden
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall -Werror")
+## FIXME  should do a proper Debug release for now force the flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 set(ETRT_SOURCES
@@ -92,6 +94,10 @@ set(ETRT_SOURCES
   DeviceFW/FakeFW.h
   DeviceFW/FWManager.cc
   DeviceFW/FWManager.h
+  Device/CharDevice.cc
+  Device/CharDevice.h
+  Device/MailBoxDev.cc
+  Device/MailBoxDev.h
   Device/PCIeDevice.cc
   Device/PCIeDevice.h
   Device/SysEmuLauncher.cpp

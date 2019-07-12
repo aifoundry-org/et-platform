@@ -18,6 +18,7 @@
 
 #include <absl/flags/flag.h>
 #include <absl/flags/marshalling.h>
+#include <absl/strings/numbers.h>
 #include <absl/strings/str_cat.h>
 #include <absl/strings/string_view.h>
 #include <cassert>
@@ -71,20 +72,21 @@ ABSL_FLAG(DeviceTargetOption, dev_target, DeviceTargetOption("device_grpc"),
           "Specify the target device or simulator we would like to talk "
           "to: pcie ,sysemu_card_proxy, sysemu_grpc, device_grpc");
 
-DeviceTarget::DeviceTarget(const string &path)
-    : path_(path), device_alive_(false) {}
+DeviceTarget::DeviceTarget(int index) : index_(index), device_alive_(false) {}
 
-std::unique_ptr<DeviceTarget>
-DeviceTarget::deviceFactory(TargetType target, const std::string &path) {
+std::unique_ptr<DeviceTarget> DeviceTarget::deviceFactory(TargetType target,
+                                                          int index) {
   switch (target) {
-  case TargetType::PCIe:
-    return make_unique<PCIeDevice>(path);
+  case TargetType::PCIe: {
+    return make_unique<PCIeDevice>(index);
+  }
   case TargetType::SysEmuGRPC:
-    return make_unique<TargetSysEmu>(path);
+    return make_unique<TargetSysEmu>(index);
   case TargetType::SysEmuCardProxy:
-    return make_unique<CardProxyTarget>(path);
-  case TargetType::DeviceGRPC:
-    return make_unique<RPCTarget>(path);
+    return make_unique<CardProxyTarget>(index);
+    // FIXME we have no usecase yet where we instantite RPCTarget directly
+  // case TargetType::DeviceGRPC:
+  //   return make_unique<RPCTarget>(index, "");
   default:
     RTERROR << "Unknwon Device type";
     assert(true);

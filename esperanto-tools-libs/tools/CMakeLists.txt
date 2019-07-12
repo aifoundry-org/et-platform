@@ -11,6 +11,8 @@
 include(ExternalProject)
 include(GoogleTest)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -Werror -g3 -O0")
+
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 include_directories(${GLOG_INCLUDE_DIRS})
@@ -49,3 +51,12 @@ add_executable(runtime-tester runtime_tester.cc)
 message("External dependencies: " ${external_project_dependencies})
 add_dependencies(runtime-tester ${external_project_dependencies})
 target_link_libraries(runtime-tester ${COMMON_LIBRARIES})
+
+## Build static library
+install(TARGETS runtime-tester
+  EXPORT EsperantoRuntimeTargets
+  RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+  LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  COMPONENT et-runtime
+  )
