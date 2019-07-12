@@ -90,7 +90,7 @@ typedef struct VAULTIP_INPUT_TOKEN_ENCRYPTION_WORD_11_s {
     uint32_t Reserved : 1;
     uint32_t LoadParam : 1;
     uint32_t AS_SaveIV : 1;
-    uint32_t GCM_Mode : 1;
+    uint32_t GCM_Mode : 2;
     uint32_t Encrypt : 1;
     uint32_t KeyLength : 4;
     uint32_t NonceLength : 4;
@@ -106,8 +106,9 @@ typedef struct VAULTIP_INPUT_TOKEN_ENCRYPTION_WORD_13_16_s {
     uint8_t IV[4];
 } VAULTIP_INPUT_TOKEN_ENCRYPTION_WORD_13_16_t;
 
-typedef struct VAULTIP_INPUT_TOKEN_ENCRYPTION_WORD_24_17_s {
+typedef union VAULTIP_INPUT_TOKEN_ENCRYPTION_WORD_24_17_u {
     uint8_t Key[4];
+    uint32_t Key32;
 } VAULTIP_INPUT_TOKEN_ENCRYPTION_WORD_24_17_t;
 
 typedef struct VAULTIP_INPUT_TOKEN_ENCRYPTION_WORD_25_s {
@@ -247,6 +248,10 @@ typedef struct VAULTIP_INPUT_TOKEN_MAC_WORD_6_s {
     uint32_t Reserved3 : 8;
 } VAULTIP_INPUT_TOKEN_MAC_WORD_6_t;
 
+typedef struct VAULTIP_INPUT_TOKEN_MAC_WORD_7_s {
+    uint32_t MAC_AS_ID : 32;
+} VAULTIP_INPUT_TOKEN_MAC_WORD_7_t;
+
 typedef struct VAULTIP_INPUT_TOKEN_MAC_WORD_8_23_s {
     uint8_t MAC[4];
 } VAULTIP_INPUT_TOKEN_MAC_WORD_8_23_t;
@@ -270,12 +275,23 @@ typedef struct VAULTIP_INPUT_TOKEN_MAC_s {
     VAULTIP_INPUT_TOKEN_INPUT_DATA_ADDRESS_HI_t dw_04;
     VAULTIP_INPUT_TOKEN_INPUT_DATA_LENGTH_t     dw_05;
     VAULTIP_INPUT_TOKEN_MAC_WORD_6_t            dw_06;
+    VAULTIP_INPUT_TOKEN_MAC_WORD_7_t            dw_07;
     VAULTIP_INPUT_TOKEN_MAC_WORD_8_23_t         dw_23_08[16];
     VAULTIP_INPUT_TOKEN_MAC_WORD_24_t           dw_24;
     VAULTIP_INPUT_TOKEN_MAC_WORD_25_t           dw_25;
     uint32_t                                    reserved[2];
     VAULTIP_INPUT_TOKEN_MAC_WORD_28_59_t        dw_59_28[32];
 } VAULTIP_INPUT_TOKEN_MAC_t;
+
+typedef union VAULTIP_OUTPUT_TOKEN_MAC_WORD_2_17_u {
+    uint32_t u32;
+    uint8_t u8[4];
+} VAULTIP_OUTPUT_TOKEN_MAC_WORD_2_17_t;
+
+typedef struct VAULTIP_OUTPUT_TOKEN_MAC_s {
+    uint32_t                                    dw_01;
+    VAULTIP_OUTPUT_TOKEN_MAC_WORD_2_17_t       dw_02_17[16];
+} VAULTIP_OUTPUT_TOKEN_MAC_t;
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -831,6 +847,7 @@ typedef union VAULTIP_OUTPUT_TOKEN_s {
         union { 
             VAULTIP_OUTPUT_TOKEN_ENCRYPTION_t           encryption;
             VAULTIP_OUTPUT_TOKEN_HASH_t                 hash;
+            VAULTIP_OUTPUT_TOKEN_MAC_t                  mac;
             VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t          system_info;
             VAULTIP_OUTPUT_TOKEN_PUBLIC_KEY_t           public_key;
             VAULTIP_OUTPUT_TOKEN_REGISTER_READ_t        register_read;
@@ -960,6 +977,26 @@ static_assert(256 == sizeof(VAULTIP_FIRMWARE_RAM_TOKEN_t), "sizeof(VAULTIP_FIRMW
 #define VAULTIP_TOKEN_SERVICE_SUBCODE_SELECT_ONE_TIME_PROGRAMMABLE_ZEROIZE  0x4
 #define VAULTIP_TOKEN_SERVICE_SUBCODE_ZEROIZE_ONE_TIME_PROGRAMMABLE         0x5
 
+#define VAULTIP_ENCRYPT_ALGORITHM_AES    0x0
+
+#define VAULTIP_ENCRYPT_MODE_ECB    0x0
+#define VAULTIP_ENCRYPT_MODE_CBC    0x1
+#define VAULTIP_ENCRYPT_MODE_CTR    0x2
+#define VAULTIP_ENCRYPT_MODE_ICM    0x3
+#define VAULTIP_ENCRYPT_MODE_F8     0x4
+#define VAULTIP_ENCRYPT_MODE_CCM    0x5
+#define VAULTIP_ENCRYPT_MODE_XTS    0x6
+#define VAULTIP_ENCRYPT_MODE_GCM    0x7
+
+#define VAULTIP_ENCRYPT_GCM_MODE_GHASH          0x0
+#define VAULTIP_ENCRYPT_GCM_MODE_GCM_Y0_0       0x1
+#define VAULTIP_ENCRYPT_GCM_MODE_GCM_Y0_CALC    0x2
+#define VAULTIP_ENCRYPT_GCM_MODE_GCM_AUTO       0x3
+
+#define VAULTIP_ENCRYPT_KEY_LENGTH_128          0x1
+#define VAULTIP_ENCRYPT_KEY_LENGTH_192          0x2
+#define VAULTIP_ENCRYPT_KEY_LENGTH_256          0x3
+
 #define VAULTIP_HASH_ALGORITHM_SHA_1    0x1
 #define VAULTIP_HASH_ALGORITHM_SHA_224  0x2
 #define VAULTIP_HASH_ALGORITHM_SHA_256  0x3
@@ -970,6 +1007,19 @@ static_assert(256 == sizeof(VAULTIP_FIRMWARE_RAM_TOKEN_t), "sizeof(VAULTIP_FIRMW
 #define VAULTIP_HASH_MODE_CONTINUED_FINAL       0x1
 #define VAULTIP_HASH_MODE_INITIAL_NOT_FINAL     0x2
 #define VAULTIP_HASH_MODE_CONTINUED_NOT_FINAL   0x3
+
+#define VAULTIP_MAC_ALGORITHM_HMAC_SHA_1    0x1
+#define VAULTIP_MAC_ALGORITHM_HMAC_SHA_224  0x2
+#define VAULTIP_MAC_ALGORITHM_HMAC_SHA_256  0x3
+#define VAULTIP_MAC_ALGORITHM_HMAC_SHA_384  0x4
+#define VAULTIP_MAC_ALGORITHM_HMAC_SHA_512  0x5
+#define VAULTIP_MAC_ALGORITHM_AES_CMAC      0x8
+#define VAULTIP_MAC_ALGORITHM_AES_CBC_MAC   0x9
+
+#define VAULTIP_MAC_MODE_INITIAL_FINAL         0x0
+#define VAULTIP_MAC_MODE_CONTINUED_FINAL       0x1
+#define VAULTIP_MAC_MODE_INITIAL_NOT_FINAL     0x2
+#define VAULTIP_MAC_MODE_CONTINUED_NOT_FINAL   0x3
 
 #define VAULTIP_PUBLIC_KEY_COMMAND_ECC_KEY_CHECK                                    0x01
 #define VAULTIP_PUBLIC_KEY_COMMAND_DH_KEY_CHECK                                     0x02
