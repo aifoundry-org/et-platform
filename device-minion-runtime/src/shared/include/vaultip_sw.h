@@ -659,6 +659,45 @@ typedef struct VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_s {
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+typedef struct VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_2_s {
+    uint32_t AssetNumber : 5;
+    uint32_t Reserved : 11;
+    uint32_t PolicyNumber : 5;
+    uint32_t Reserved2 : 10;
+    uint32_t CRC : 1;
+} VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_2_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_3_s {
+    uint32_t InputDataLength : 10;
+    uint32_t Reserved : 6;
+    uint32_t AssociatedDataLength : 8;
+    uint32_t Reserved2 : 8;
+} VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_3_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_4_s {
+    uint32_t InputDataAddress_31_00 : 32;
+} VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_4_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_5_s {
+    uint32_t InputDataAddress_63_32 : 32;
+} VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_5_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORDS_6_63_s {
+    uint8_t AssociatedData[4];
+} VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORDS_6_63_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_s {
+    VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_2_t      dw_02;
+    VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_3_t      dw_03;
+    VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_4_t      dw_04;
+    VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORD_5_t      dw_05;
+    VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_WORDS_6_63_t  dw_63_06[58];
+} VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_t;
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
 typedef struct VAULTIP_INPUT_TOKEN_REGISTER_READ_WORD_2_s {
     uint32_t Number : 6;
     uint32_t Mode : 1;
@@ -762,6 +801,29 @@ typedef struct VAULTIP_INPUT_TOKEN_TRNG_CONFIGURATION_s {
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+typedef struct VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_2_s {
+    uint32_t Size : 16;
+    uint32_t RawKey : 16;
+} VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_2_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_3_s {
+    uint32_t OutputDataAddress_31_00;
+} VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_3_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_4_s {
+    uint32_t OutputDataAddress_63_32;
+} VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_4_t;
+
+typedef struct VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_s {
+    VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_2_t     dw_02;
+    VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_3_t     dw_03;
+    VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_WORD_4_t     dw_04;
+} VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_t;
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
 typedef struct VAULTIP_INPUT_TOKEN_PROVISION_HUK_WORD_2_s {
     uint32_t AssetNumber : 5;
     uint32_t Reserved : 3;
@@ -817,25 +879,27 @@ typedef struct VAULTIP_OUTPUT_TOKEN_PROVISION_HUK_s {
 typedef union VAULTIP_INPUT_TOKEN_s {
     uint32_t dw[64];
     struct {
-        VAULTIP_INPUT_TOKEN_WORD_0_t                    dw_00;
-        VAULTIP_INPUT_TOKEN_WORD_1_t                    dw_01;
+        VAULTIP_INPUT_TOKEN_WORD_0_t                                dw_00;
+        VAULTIP_INPUT_TOKEN_WORD_1_t                                dw_01;
         union {
-            VAULTIP_INPUT_TOKEN_NOP_t                   nop;
-            VAULTIP_INPUT_TOKEN_ENCRYPTION_t            encryption;
-            VAULTIP_INPUT_TOKEN_HASH_t                  hash;
-            VAULTIP_INPUT_TOKEN_MAC_t                   mac;
-            VAULTIP_INPUT_TOKEN_PUBLIC_KEY_t            public_key;
-            VAULTIP_INPUT_TOKEN_REGISTER_READ_t         register_read;
-            VAULTIP_INPUT_TOKEN_REGISTER_WRITE_t        register_write;
-            VAULTIP_INPUT_TOKEN_TRNG_CONFIGURATION_t    trng_configuration;
-            VAULTIP_INPUT_TOKEN_ASSET_CREATE_t          asset_create;
-            VAULTIP_INPUT_TOKEN_STATIC_ASSET_SEARCH_t   static_asset_search;
-            VAULTIP_INPUT_TOKEN_ASSET_LOAD_t            asset_load;
-            VAULTIP_INPUT_TOKEN_ASSET_DELETE_t          asset_delete;
-            VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_t      public_data_read;
-            VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_t monotonic_counter_read;
-            VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_t monotonic_counter_increment;
-            VAULTIP_INPUT_TOKEN_PROVISION_HUK_t         provision_huk;
+            VAULTIP_INPUT_TOKEN_NOP_t                               nop;
+            VAULTIP_INPUT_TOKEN_ENCRYPTION_t                        encryption;
+            VAULTIP_INPUT_TOKEN_HASH_t                              hash;
+            VAULTIP_INPUT_TOKEN_MAC_t                               mac;
+            VAULTIP_INPUT_TOKEN_PUBLIC_KEY_t                        public_key;
+            VAULTIP_INPUT_TOKEN_REGISTER_READ_t                     register_read;
+            VAULTIP_INPUT_TOKEN_REGISTER_WRITE_t                    register_write;
+            VAULTIP_INPUT_TOKEN_TRNG_CONFIGURATION_t                trng_configuration;
+            VAULTIP_INPUT_TOKEN_TRNG_GET_RANDOM_NUMBER_t            trn_get_random_number;
+            VAULTIP_INPUT_TOKEN_ASSET_CREATE_t                      asset_create;
+            VAULTIP_INPUT_TOKEN_STATIC_ASSET_SEARCH_t               static_asset_search;
+            VAULTIP_INPUT_TOKEN_ASSET_LOAD_t                        asset_load;
+            VAULTIP_INPUT_TOKEN_ASSET_DELETE_t                      asset_delete;
+            VAULTIP_INPUT_TOKEN_PUBLIC_DATA_READ_t                  public_data_read;
+            VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_READ_t            monotonic_counter_read;
+            VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_t       monotonic_counter_increment;
+            VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_t                    otp_data_write;
+            VAULTIP_INPUT_TOKEN_PROVISION_HUK_t                     provision_huk;
         };
     };
 } VAULTIP_INPUT_TOKEN_t;
@@ -843,20 +907,20 @@ typedef union VAULTIP_INPUT_TOKEN_s {
 typedef union VAULTIP_OUTPUT_TOKEN_s {
     uint32_t dw[64];
     struct {
-        VAULTIP_OUTPUT_TOKEN_WORD_0_t                   dw_00;
+        VAULTIP_OUTPUT_TOKEN_WORD_0_t                               dw_00;
         union { 
-            VAULTIP_OUTPUT_TOKEN_ENCRYPTION_t           encryption;
-            VAULTIP_OUTPUT_TOKEN_HASH_t                 hash;
-            VAULTIP_OUTPUT_TOKEN_MAC_t                  mac;
-            VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t          system_info;
-            VAULTIP_OUTPUT_TOKEN_PUBLIC_KEY_t           public_key;
-            VAULTIP_OUTPUT_TOKEN_REGISTER_READ_t        register_read;
-            VAULTIP_OUTPUT_TOKEN_ASSET_CREATE_t         asset_create;
-            VAULTIP_OUTPUT_TOKEN_STATIC_ASSET_SEARCH_t  static_asset_search;
-            VAULTIP_OUTPUT_TOKEN_ASSET_LOAD_t           asset_load;
-            VAULTIP_OUTPUT_TOKEN_PUBLIC_DATA_READ_t     public_data_read;
-            VAULTIP_OUTPUT_TOKEN_MONOTONIC_COUNTER_READ_t monotonic_counter_read;
-            VAULTIP_OUTPUT_TOKEN_PROVISION_HUK_t        provision_huk;
+            VAULTIP_OUTPUT_TOKEN_ENCRYPTION_t                       encryption;
+            VAULTIP_OUTPUT_TOKEN_HASH_t                             hash;
+            VAULTIP_OUTPUT_TOKEN_MAC_t                              mac;
+            VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t                      system_info;
+            VAULTIP_OUTPUT_TOKEN_PUBLIC_KEY_t                       public_key;
+            VAULTIP_OUTPUT_TOKEN_REGISTER_READ_t                    register_read;
+            VAULTIP_OUTPUT_TOKEN_ASSET_CREATE_t                     asset_create;
+            VAULTIP_OUTPUT_TOKEN_STATIC_ASSET_SEARCH_t              static_asset_search;
+            VAULTIP_OUTPUT_TOKEN_ASSET_LOAD_t                       asset_load;
+            VAULTIP_OUTPUT_TOKEN_PUBLIC_DATA_READ_t                 public_data_read;
+            VAULTIP_OUTPUT_TOKEN_MONOTONIC_COUNTER_READ_t           monotonic_counter_read;
+            VAULTIP_OUTPUT_TOKEN_PROVISION_HUK_t                    provision_huk;
         };
     };
 } VAULTIP_OUTPUT_TOKEN_t;
@@ -954,7 +1018,7 @@ static_assert(256 == sizeof(VAULTIP_FIRMWARE_RAM_TOKEN_t), "sizeof(VAULTIP_FIRMW
 #define VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_MONOTONIC_COUNTER_INCREMENT  0x6
 #define VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_OTP_DATA_WRITE               0x7
 #define VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_SECURE_TIMER                 0x8
-#define VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_PROVISION_RANDOM_HUK         0x0
+#define VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_PROVISION_RANDOM_HUK         0x9
 
 #define VAULTIP_TOKEN_SYSTEM_SUBCODE_SYSTEM_INFORMATION         0x0
 #define VAULTIP_TOKEN_SYSTEM_SUBCODE_SELF_TEST                  0x1
@@ -970,12 +1034,12 @@ static_assert(256 == sizeof(VAULTIP_FIRMWARE_RAM_TOKEN_t), "sizeof(VAULTIP_FIRMW
 #define VAULTIP_TOKEN_PUBLIC_KEY_SUBCODE_DOES_NOT_USE_ASSETS    0x0
 #define VAULTIP_TOKEN_PUBLIC_KEY_SUBCODE_USES_ASSETS            0x1
 
-#define VAULTIP_TOKEN_SERVICE_SUBCODE_REGISTER_READ                         0x0
-#define VAULTIP_TOKEN_SERVICE_SUBCODE_REGISTER_WRITE                        0x1
-#define VAULTIP_TOKEN_SERVICE_SUBCODE_CLOCK_SWITCH                          0x2
-#define VAULTIP_TOKEN_SERVICE_SUBCODE_ZEROISE_OUTPUT_MAILBOX                0x3
-#define VAULTIP_TOKEN_SERVICE_SUBCODE_SELECT_ONE_TIME_PROGRAMMABLE_ZEROIZE  0x4
-#define VAULTIP_TOKEN_SERVICE_SUBCODE_ZEROIZE_ONE_TIME_PROGRAMMABLE         0x5
+#define VAULTIP_TOKEN_SERVICE_SUBCODE_REGISTER_READ             0x0
+#define VAULTIP_TOKEN_SERVICE_SUBCODE_REGISTER_WRITE            0x1
+#define VAULTIP_TOKEN_SERVICE_SUBCODE_CLOCK_SWITCH              0x2
+#define VAULTIP_TOKEN_SERVICE_SUBCODE_ZEROISE_OUTPUT_MAILBOX    0x3
+#define VAULTIP_TOKEN_SERVICE_SUBCODE_SELECT_OTP_ZEROIZE        0x4
+#define VAULTIP_TOKEN_SERVICE_SUBCODE_ZEROIZE_OTP               0x5
 
 #define VAULTIP_ENCRYPT_ALGORITHM_AES    0x0
 
@@ -1051,6 +1115,9 @@ static_assert(256 == sizeof(VAULTIP_FIRMWARE_RAM_TOKEN_t), "sizeof(VAULTIP_FIRMW
 #define VAULTIP_PUBLIC_KEY_COMMAND_ECDSA_SIGN_FINAL                                 0x2F
 #define VAULTIP_PUBLIC_KEY_COMMAND_ECDSA_VERIFY_INITIAL                             0x30
 #define VAULTIP_PUBLIC_KEY_COMMAND_ECDSA_VERIFY_FINAL                               0x31
+
+#define VAULTIP_TRNG_NORMAL 0x0
+#define VAULTIP_TRNG_RAW 0x5244
 
 typedef struct VAULTIP_SUBVECTOR_HEADER_s {
     uint32_t SubVectorLength : 16;
