@@ -11,18 +11,19 @@
 #include <locale>
 #include <tuple>
 
+#include "api_communicate.h"
 #include "emu.h"
 #include "emu_gio.h"
 #include "esrs.h"
-#include "mmu.h"
 #include "insn.h"
+#include "log.h"
 #include "memory/dump_data.h"
 #include "memory/load.h"
 #include "memory/main_memory.h"
-#include "log.h"
-#include "profiling.h"
+#include "mmu.h"
 #include "net_emulator.h"
-#include "api_communicate.h"
+#include "processor.h"
+#include "profiling.h"
 #include "rvtimer.h"
 
 
@@ -34,6 +35,7 @@ uint64_t        sys_emu::emu_cycle = 0;
 std::list<int>  sys_emu::enabled_threads;                                               // List of enabled threads
 std::list<int>  sys_emu::fcc_wait_threads[2];                                           // List of threads waiting for an FCC
 std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
+std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
 uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                                   // PC for each thread
 reduce_state    sys_emu::reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
@@ -55,8 +57,8 @@ static inline bool multithreading_is_disabled(unsigned shire)
 
 static inline bool thread_is_disabled(unsigned thread)
 {
-    unsigned shire = thread / EMU_THREADS_PER_SHIRE;
-    return (thread % EMU_THREADS_PER_MINION) && multithreading_is_disabled(shire);
+    extern std::array<Processor,EMU_NUM_THREADS>  cpu;
+    return !cpu[thread].enabled;
 }
 
 
@@ -187,7 +189,7 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
             // Otherwise wakes up thread
             else
             {
-                if (thread_is_disabled(thread_id)) {
+                if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
                     LOG_OTHER(DEBUG, thread_id, "Disabled thread received FCC%u", thread_dest*2 + cnt_dest);
                 } else {
                     LOG_OTHER(DEBUG, thread_id, "Waking up due to received FCC%u", thread_dest*2 + cnt_dest);
@@ -214,7 +216,7 @@ sys_emu::msg_to_thread(int thread_id)
     // Checks if in port wait state
     if(thread != port_wait_threads.end())
     {
-        if (thread_is_disabled(thread_id)) {
+        if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
             LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received msg");
         } else {
             LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due msg");
@@ -252,7 +254,7 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
             // If thread sleeping, wakes up and changes PC
             if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
             {
-                if (thread_is_disabled(thread_id)) {
+                if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
                     LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received IPI_REDIRECT");
                 } else {
                     LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI_REDIRECT");
@@ -284,7 +286,7 @@ sys_emu::raise_timer_interrupt(uint64_t shire_mask)
             if (target & (1ULL << m)) {
                 for (unsigned ii = 0; ii < minion_thread_count; ii++) {
                     int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-                    if (!thread_is_disabled(thread_id)) {
+                    if (thread_is_active(thread_id) && !thread_is_disabled(thread_id)) {
                         ::raise_timer_interrupt(thread_id);
                         if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
                             enabled_threads.push_back(thread_id);
@@ -332,7 +334,7 @@ sys_emu::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
         if (thread_mask & (1ull << t))
         {
             unsigned thread_id = thread0 + t;
-            if (thread_is_disabled(thread_id)) {
+            if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
                 LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received IPI");
             } else {
                 LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
@@ -755,7 +757,13 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 
     // Reset the SoC
 
+    enabled_threads.clear();
+    fcc_wait_threads[0].clear();
+    fcc_wait_threads[1].clear();
+    port_wait_threads.clear();
+    active_threads.reset();
     bzero(pending_fcc, sizeof(pending_fcc));
+    bzero(reduce_state_array, sizeof(reduce_state_array));
 
     for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
         reset_esrs_for_shire(s);
@@ -777,6 +785,15 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
         unsigned shire_minion_count =
                 (s == EMU_IO_SHIRE_SP) ? 1 : EMU_MINIONS_PER_SHIRE;
 
+        // Enable threads
+        uint32_t minion_mask = minions_en & ((1ull << shire_minion_count) - 1);
+        write_thread0_disable(s, ~minion_mask);
+        if (disable_multithreading) {
+            write_thread1_disable(s, 0xffffffff);
+        } else {
+            write_thread1_disable(s, ~minion_mask);
+        }
+
         // For all the minions
         for (unsigned m = 0; m < shire_minion_count; m++) {
             // Skip disabled minion
@@ -795,7 +812,11 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
                 minit(m0, 255);
 
                 // Puts thread id in the active list
-                if(!cmd_options.mins_dis) enabled_threads.push_back(tid);
+                activate_thread(tid);
+                if (!cmd_options.mins_dis) {
+                    assert(!thread_is_disabled(tid));
+                    enabled_threads.push_back(tid);
+                }
             }
         }
     }
@@ -855,7 +876,7 @@ sys_emu::main_internal(int argc, char * argv[])
             auto thread_id = * thread;
 
             // lazily erase disabled threads from the active thread list
-            if (thread_is_disabled(thread_id))
+            if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
             {
                 thread = enabled_threads.erase(thread);
                 LOG_OTHER(DEBUG, thread_id, "%s", "Disabling thread");

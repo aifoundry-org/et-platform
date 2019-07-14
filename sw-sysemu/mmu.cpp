@@ -158,6 +158,13 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
             addr = addr2;
         }
 
+        if (!spio && !addr_is_size_aligned(addr, size)) {
+            // when data cache is in bypass mode all accesses should be aligned
+            uint8_t ctrl = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].neigh_chicken;
+            if (ctrl & 0x2)
+                throw_access_fault(vaddr, macc);
+        }
+
         if (paddr_is_dram_mbox(addr2)) {
             if (effective_execution_mode(macc) != PRV_M)
                 throw_access_fault(vaddr, macc);

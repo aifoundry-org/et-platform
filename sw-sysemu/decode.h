@@ -72,6 +72,11 @@
 #define LOG_MEMREAD(size, addr, value) \
    LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] : 0x%" PRIx ##size , addr, value);
 
+#define LOG_CSR(str, index, value) \
+    LOG(DEBUG, "\t%s " str " 0x%" PRIx64, csr_name(index), value)
+
+#define LOG_TENSOR_MASK(str) \
+    LOG(DEBUG, "\ttensor_mask " str " 0x%" PRIx16, cpu[current_thread].tensor_mask)
 
 // -----------------------------------------------------------------------------
 // Access instruction fields

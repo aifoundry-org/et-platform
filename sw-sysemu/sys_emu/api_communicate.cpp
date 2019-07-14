@@ -107,13 +107,15 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
                 assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
 
                 read_bytes( communication_channel, &launch_def, sizeof(LaunchDescMsg));
-                LOG_NOTHREAD(INFO, "api_communicate: Execute 0x%llx, 0x%llx", launch_def.thread0_pc, launch_def.thread1_pc);
+                LOG_NOTHREAD(INFO, "api_communicate: Execute: launch_pc: 0x%llx", launch_def.launch_pc);
 
                 rt_host_kernel_launch_info_t launch_info;
-                launch_info.compute_pc = htole64(launch_def.thread0_pc);
+                launch_info.compute_pc = htole64(launch_def.launch_pc);
+                // TODO: Endianness
+                launch_info.params = launch_def.params;
 
-                // Write the kernel launch parameters to memory (FW_SCODE_KERNEL_INFO in fw_common.h)
-                mem->write(0x8200000000ULL, sizeof(launch_info), &launch_info);
+                // Write the kernel launch parameters to memory (RT_HOST_KERNEL_LAUNCH_INFO in fw_common.h)
+                mem->write(RT_HOST_KERNEL_LAUNCH_INFO, sizeof(launch_info), &launch_info);
 
                 LOG_NOTHREAD(DEBUG, "api_communicate: Execute: %s", "Sending IPI to Master Shire thread 0");
 
@@ -140,8 +142,8 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
                 rt_host_kernel_launch_info_t launch_info;
                 launch_info.unused = htole64(0);
 
-                // Write the kernel launch parameters to memory (FW_SCODE_KERNEL_INFO in fw_common.h)
-                mem->write(0x8200000000ULL, sizeof(launch_info), &launch_info);
+                // Write the kernel launch parameters to memory (RT_HOST_KERNEL_LAUNCH_INFO in fw_common.h)
+                mem->write(RT_HOST_KERNEL_LAUNCH_INFO, sizeof(launch_info), &launch_info);
 
                 // Boot all compute shire minions
                 for (int s = 0; s < EMU_NUM_COMPUTE_SHIRES; s++) {
