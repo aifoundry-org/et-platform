@@ -177,6 +177,7 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
         printx("load_bl2_code_and_data: crypto_hash_init() failed!\n");
         return -1;
     }
+    hash_context_initialized = true;
 
     for (region_no = 0; region_no < image_info->secret_info.load_regions_count; region_no++) {
         load_offset = (uint32_t)(sizeof(ESPERANTO_IMAGE_FILE_HEADER_t) + image_info->secret_info.load_regions[region_no].region_offset);
@@ -187,7 +188,7 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
         if (image_info->secret_info.load_regions[region_no].load_size > 0) {
             if (0 != flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_SP_BL2, load_offset, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
                 printx("load_bl2_code_and_data: flash_fs_read_file(code) failed!\n");
-                return -1;
+                goto CLEANUP_ON_ERROR;
             }
             printx("loaded 0x%x bytes at 0x%08x\n", image_info->secret_info.load_regions[region_no].load_size, load_address.u64);
 
@@ -211,6 +212,7 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
             }
             total_length = total_length + image_info->secret_info.load_regions[region_no].load_size;
         }
+
         if (image_info->secret_info.load_regions[region_no].memory_size > image_info->secret_info.load_regions[region_no].load_size) {
             memset((void*)(load_address.u64 + image_info->secret_info.load_regions[region_no].load_size), 0, image_info->secret_info.load_regions[region_no].memory_size - image_info->secret_info.load_regions[region_no].load_size);
             printx("erased 0x%x bytes\n", image_info->secret_info.load_regions[region_no].memory_size - image_info->secret_info.load_regions[region_no].load_size);
@@ -240,6 +242,7 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
         printx("load_bl2_code_and_data: crypto_hash_final() failed!\n");
         goto CLEANUP_ON_ERROR;
     }
+    hash_context_initialized = false;
 
     if (0 != constant_time_memory_compare(hash, image_info->public_info.code_and_data_hash, code_and_data_hash_size)) {
         printx("load_bl2_code_and_data: code+data hash mismatch!\n");
