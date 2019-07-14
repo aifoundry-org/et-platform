@@ -1588,7 +1588,7 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
-        printx("vaultip_public_key_ecdsa_verify: vaultip_read_output_token() output token[0] = 0x%08x\n", output_token.dw_00);
+        printx("vaultip_public_key_ecdsa_verify: vaultip_read_output_token() output token[0] = 0x%08x\n", output_token.dw[0]);
         return -1;
     }
 }

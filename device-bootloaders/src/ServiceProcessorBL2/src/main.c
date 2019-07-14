@@ -4,12 +4,16 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
+#include "bl2_firmware_loader.h"
+#include "bl2_flash_fs.h"
 #include "bl2_build_configuration.h"
 #include "build_configuration.h"
 
 #include <stdio.h>
+#include "bl2_crypto.h"
 
 #define TASK_STACK_SIZE 4096 // overkill for now
 
@@ -50,6 +54,9 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     SERIAL_write(PU_UART1, "alive\r\n", 7);
 
     INT_init();
+    if (0 != crypto_init(bl1_data->vaultip_coid_set)) {
+        printf("crypto_init() failed!\n");
+    }
 
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];

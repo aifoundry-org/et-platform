@@ -20,27 +20,151 @@
 #include "vaultip_sw.h"
 #include "vaultip_sw_asset.h"
 #include "bl2_vaultip_controller.h"
-#include "bl2_flash_fs.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-//#define SUPPORT_RSA_2048
+#define SUPPORT_RSA_2048
 #define SUPPORT_RSA_3072
-//#define SUPPORT_RSA_4096
+#define SUPPORT_RSA_4096
 #define SUPPORT_EC_P256
-//#define SUPPORT_EC_P384
-//#define SUPPORT_EC_P521
+#define SUPPORT_EC_P384
+#define SUPPORT_EC_P521
 //#define SUPPORT_EC_CURVE25519
 #define SUPPORT_EC_EDWARDS25519
 
-//#define TRNG_ENABLED
+#define TRNG_ENABLED
 
 #include "ec_domain_parameters.h"
 
-uint32_t vaultip_firmware_image[VAULTIP_FIRMWARE_IMAGE_MAX_FILE_SIZE/sizeof(uint32_t)];
+typedef union ASSET_POLICY_u {
+    uint64_t u64;
+    struct {
+        uint32_t lo;
+        uint32_t hi;
+    };
+} ASSET_POLICY_t;
 
+static bool coid_provisioned;
+#define ESPERANTO_COID 0x4F435445 // 'ETCO'
 static uint32_t get_rom_identity(void) {
-    return 0x0;
+    if (coid_provisioned) {
+        return ESPERANTO_COID;
+    } else {
+        return 0x0;
+    }
+}
+
+int crypto_init(uint32_t vaultip_coid_set) {
+    coid_provisioned = vaultip_coid_set ? true : false;
+    return 0;
+}
+
+int crypto_derive_kdk_key(const void * kdk_derivation_data, size_t kdk_derivation_data_size, uint32_t * kdk_asset_id) {
+    uint32_t huk_asset_id;
+    uint32_t huk_asset_length;
+    ASSET_POLICY_t kdk_policy = (ASSET_POLICY_t){
+        .u64 = VAL_POLICY_TRUSTED_KEY_DERIVE
+    };
+    VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t kdk_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
+        .DataLength = 256 / 8,
+        .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE
+    };
+    uint32_t kdk_lifetime = 0;
+
+    // find HUK
+    if (0 != vaultip_static_asset_search(get_rom_identity(), VAULTIP_STATIC_ASSET_HUK, &huk_asset_id, &huk_asset_length)) {
+        printf("derive_kdk: vaultip_static_asset_search(HUK) failed!\n");
+        return -1;
+    }
+
+    // create KDK
+    if (0 != vaultip_asset_create(get_rom_identity(), kdk_policy.lo, kdk_policy.hi, kdk_other_settings, kdk_lifetime, kdk_asset_id)) {
+        printf("derive_kdk: vaultip_asset_create() failed!\n");
+        return -1;
+    }
+ 
+    // derive KDK
+    if (0 != vaultip_asset_load_derive(get_rom_identity(), *kdk_asset_id, huk_asset_id, NULL, 0, (const uint8_t *)kdk_derivation_data, (uint32_t)kdk_derivation_data_size, NULL, 0)) {
+        printf("derive_kdk: vaultip_asset_load_derive() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_derive_mac_key(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t kdk_asset_id, const void * mack_derivation_data, size_t mack_derivation_data_size, uint32_t * mack_asset_id) {
+    ASSET_POLICY_t mack_policy = (ASSET_POLICY_t){
+        .u64 = VAL_POLICY_MAC_GENERATE | VAL_POLICY_MAC_VERIFY
+    };
+    VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t mack_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
+        .DataLength = 256 / 8,
+        .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE
+    };
+    uint32_t mack_lifetime = 0;
+
+    switch (mac_alg) {
+    case ESPERANTO_MAC_TYPE_AES_CMAC:
+        mack_policy.u64 = mack_policy.u64 | VAL_POLICY_CMAC | VAL_POLICY_ALGO_CIPHER_AES;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_256:
+        mack_policy.u64 = mack_policy.u64 | VAL_POLICY_SHA256;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_384:
+        mack_policy.u64 = mack_policy.u64 | VAL_POLICY_SHA384;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_512:
+        mack_policy.u64 = mack_policy.u64 | VAL_POLICY_SHA512;
+        break;
+    default:
+        return -1;
+    }
+
+    // create MACK
+    if (0 != vaultip_asset_create(get_rom_identity(), mack_policy.lo, mack_policy.hi, mack_other_settings, mack_lifetime, mack_asset_id)) {
+        printf("derive_mack: vaultip_asset_create() failed!\n");
+        return -1;
+    }
+ 
+    // derive MACK
+    if (0 != vaultip_asset_load_derive(get_rom_identity(), *mack_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)mack_derivation_data, (uint32_t)mack_derivation_data_size, NULL, 0)) {
+        printf("derive_mack: vaultip_asset_load_derive() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_derive_enc_key(uint32_t kdk_asset_id, const void * enck_derivation_data, size_t enck_derivation_data_size, uint32_t * enck_asset_id) {
+    ASSET_POLICY_t enck_policy = (ASSET_POLICY_t){
+        .u64 = VAL_POLICY_ENCRYPT | VAL_POLICY_DECRYPT | VAL_POLICY_ALGO_CIPHER_AES | VAL_POLICY_AES_MODE_CBC
+    };
+    VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t enck_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
+        .DataLength = 256 / 8,
+        .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE
+    };
+    uint32_t enck_lifetime = 0;
+
+    // create ENCK
+    if (0 != vaultip_asset_create(get_rom_identity(), enck_policy.lo, enck_policy.hi, enck_other_settings, enck_lifetime, enck_asset_id)) {
+        printf("derive_enck: vaultip_asset_create() failed!\n");
+        return -1;
+    }
+ 
+    // derive ENCK
+    if (0 != vaultip_asset_load_derive(get_rom_identity(), *enck_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)enck_derivation_data, (uint32_t)enck_derivation_data_size, NULL, 0)) {
+        printf("derive_enck: vaultip_asset_load_derive() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_delete_key(uint32_t key) {
+    if (0 != vaultip_asset_delete(get_rom_identity(), key)) {
+        printf("crypto_delete_key: vaultip_asset_delete() failed!\n");
+        return -1;
+    }
+    return 0;
 }
 
 int crypto_verify_public_key_params(const PUBLIC_KEY_t * public_key) {
@@ -49,7 +173,7 @@ int crypto_verify_public_key_params(const PUBLIC_KEY_t * public_key) {
     switch (public_key->keyType) {
     case PUBLIC_KEY_TYPE_RSA:
         if (public_key->rsa.pubExpSize > sizeof(public_key->rsa.pubExp)) {
-            printx("verify_public_key_params: invalid RSA public exponent size!\n");
+            printf("verify_public_key_params: invalid RSA public exponent size!\n");
             return -1;
         }
 
@@ -58,12 +182,12 @@ int crypto_verify_public_key_params(const PUBLIC_KEY_t * public_key) {
         case 3072:
         case 4096:
             if (public_key->rsa.pubModSize > (public_key->rsa.keySize / 8)) {
-                printx("verify_public_key_params: invalid RSA public modulus size!\n");
+                printf("verify_public_key_params: invalid RSA public modulus size!\n");
                 return -1;
             }
             break;
         default:
-            printx("verify_public_key_params: invalid or not supported RSA key size!\n");
+            printf("verify_public_key_params: invalid or not supported RSA key size!\n");
             return -1;
         }
         break;
@@ -93,22 +217,22 @@ int crypto_verify_public_key_params(const PUBLIC_KEY_t * public_key) {
             maxYsize = 0;
             break;
         default:
-            printx("verify_public_key_params: invalid or not supported EC curve!\n");
+            printf("verify_public_key_params: invalid or not supported EC curve!\n");
             return -1;
         }
 
         if (public_key->ec.pXsize > maxXsize) {
-            printx("verify_public_key_params: invalid EC public point X component size!\n");
+            printf("verify_public_key_params: invalid EC public point X component size!\n");
             return -1;
         }
         if (public_key->ec.pYsize > maxYsize) {
-            printx("verify_public_key_params: invalid EC public point Y component size!\n");
+            printf("verify_public_key_params: invalid EC public point Y component size!\n");
             return -1;
         }
         break;
 
     default:
-        printx("verify_public_key_params: invalid or not supported key type!\n");
+        printf("verify_public_key_params: invalid or not supported key type!\n");
         return -1;
     }
 
@@ -124,7 +248,7 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t * signature) {
     case HASH_ALG_SHA2_512:
         break;
     default:
-        printx("verify_signature_params: invalid or not supported signature hash algorithm!\n");
+        printf("verify_signature_params: invalid or not supported signature hash algorithm!\n");
         return -1;
     }
 
@@ -135,12 +259,12 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t * signature) {
         case 3072:
         case 4096:
             if (signature->rsa.sigSize > (signature->rsa.keySize / 8)) {
-                printx("verify_signature_params: invalid RSA signature size!\n");
+                printf("verify_signature_params: invalid RSA signature size!\n");
                 return -1;
             }
             break;
         default:
-            printx("verify_signature_params: invalid or not supported RSA key size!\n");
+            printf("verify_signature_params: invalid or not supported RSA key size!\n");
             return -1;
         }
         break;
@@ -170,35 +294,31 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t * signature) {
             maxSsize = 0;
             break;
         default:
-            printx("verify_signature_params: invalid or not supported EC curve!\n");
+            printf("verify_signature_params: invalid or not supported EC curve!\n");
             return -1;
         }
 
         if (signature->ec.rSize > maxRsize) {
-            printx("verify_signature_params: invalid EC signature R component size!\n");
+            printf("verify_signature_params: invalid EC signature R component size!\n");
             return -1;
         }
         if (signature->ec.sSize > maxSsize) {
-            printx("verify_signature_params: invalid EC signature S component size!\n");
+            printf("verify_signature_params: invalid EC signature S component size!\n");
             return -1;
         }
         break;
 
     default:
-        printx("verify_signature_params: invalid or not supported signature key algorithm!\n");
+        printf("verify_signature_params: invalid or not supported signature key algorithm!\n");
         return -1;
     }
 
     return 0;
 }
 
-typedef union ASSET_POLICY_u {
-    uint64_t u64;
-    struct {
-        uint32_t lo;
-        uint32_t hi;
-    };
-} ASSET_POLICY_t;
+int crypto_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash) {
+    return vaultip_hash(get_rom_identity(), hash_alg, msg, msg_size, hash);
+}
 
 int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) {
     ASSET_POLICY_t temp_digest_asset_policy;
@@ -207,7 +327,7 @@ int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) 
     };
 
     if (NULL == hash_context) {
-        printx("crypto_hash_init: invalid arguments!\n");
+        printf("crypto_hash_init: invalid arguments!\n");
         return -1;
     }
 
@@ -226,7 +346,7 @@ int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) 
         temp_digest_asset_other_settings.DataLength = 64;
         break;
     default:
-        printx("crypto_hash_init: invalid hash algorithm!\n");
+        printf("crypto_hash_init: invalid hash algorithm!\n");
         return -1;
     }
 
@@ -236,7 +356,7 @@ int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) 
                                   temp_digest_asset_other_settings, 
                                   0, // lifetime, 
                                   &(hash_context->temp_digest_asset_id))) {
-        printx("crypto_hash_init: vaultip_asset_create() failed!\n");
+        printf("crypto_hash_init: vaultip_asset_create() failed!\n");
         return -1;
     }
 
@@ -252,7 +372,7 @@ int crypto_hash_abort(CRYPTO_HASH_CONTEXT_t * hash_context) {
 
     if (hash_context->hash_alg != HASH_ALG_INVALID) {
         if (0 != vaultip_asset_delete(get_rom_identity(), hash_context->temp_digest_asset_id)) {
-            printx("crypto_hash_abort: vaultip_asset_delete failed!");
+            printf("crypto_hash_abort: vaultip_asset_delete failed!");
             return -1;
         }
     }
@@ -272,9 +392,9 @@ int crypto_hash_update(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, s
     }
 
     if (hash_context->init_done) {
-        rv = vaultip_hash_update(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false);
+        rv = vaultip_hash_update(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false);
     } else {
-        rv = vaultip_hash_update(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true);
+        rv = vaultip_hash_update(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true);
         if (0 == rv) {
             hash_context->init_done = true;
         }
@@ -290,14 +410,14 @@ int crypto_hash_final(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, si
     }
 
     if (hash_context->init_done) {
-        rv = vaultip_hash_final(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false, total_msg_length, hash);
+        rv = vaultip_hash_final(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false, total_msg_length, hash);
     } else {
-        rv = vaultip_hash_final(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true, total_msg_length, hash);
+        rv = vaultip_hash_final(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true, total_msg_length, hash);
     }
 
     if (0 == rv) {
         if (0 != vaultip_asset_delete(get_rom_identity(), hash_context->temp_digest_asset_id)) {
-            printx("crypto_hash_final: vaultip_asset_delete failed!");
+            printf("crypto_hash_final: vaultip_asset_delete failed!");
             rv = -1;
         }
 
@@ -321,10 +441,68 @@ static void crypto_reverse_copy(void * dst, const void * src, size_t size) {
     }
 }
 
+int crypto_mac_verify(ESPERANTO_MAC_TYPE_t mac_alg, 
+                      const uint32_t mack_key,
+                      const void * data, size_t data_size,
+                      const void * mac) {
+    if (NULL == data || 0 == data_size) {
+        return -1;
+    }
+
+    // compute MAC
+    if (0 != vaultip_mac_verify(get_rom_identity(), mac_alg, mack_key, data, data_size, mac)) {
+        printf("test_kdk: vaultip_mac_verify() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_aes_decrypt_init(CRYPTO_AES_CONTEXT_t * aes_context,
+                            const uint32_t enck_key,
+                            const uint8_t * IV) {
+    if (NULL == aes_context) {
+        return -1;
+    }
+
+    if (NULL == IV) {
+        return -1;
+    }
+
+
+    aes_context->aes_key_asset_id = enck_key;
+    memcpy(aes_context->IV, IV, 16);
+    return 0;
+}
+
+int crypto_aes_decrypt_update(CRYPTO_AES_CONTEXT_t * aes_context, void * data, size_t data_size) {
+    if (0 != vaultip_aes_cbc_decrypt(get_rom_identity(), aes_context->aes_key_asset_id, aes_context->IV, data, data_size)) {
+        printf("crypto_aes_decrypt_update: vaultip_aes_cbc_encrypt() failed!\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int crypto_aes_decrypt_final(CRYPTO_AES_CONTEXT_t * aes_context, void * data, size_t data_size, uint8_t * IV) {
+    if (NULL != data && data_size > 0) {
+        if (0 != vaultip_aes_cbc_decrypt(get_rom_identity(), aes_context->aes_key_asset_id, aes_context->IV, data, data_size)) {
+            printf("crypto_aes_decrypt_final: vaultip_aes_cbc_encrypt() failed!\n");
+            return -1;
+        }
+    }
+
+    if (NULL != IV) {
+        memcpy(IV, aes_context->IV, 16);
+    }
+
+    return 0;
+}
+
 static int crypto_write_subvector_32(VAULTIP_SUBVECTOR_32_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size, uint16_t bits) {
     uint32_t bytes_remaining;
     if (NULL == subvector || NULL == data_addr || 0 == data_size || data_size > sizeof(subvector->data) || 0 == bits || bits > 32) {
-        printx("crypto_write_subvector_32: invalid arguments!\n");
+        printf("crypto_write_subvector_32: invalid arguments!\n");
         return -1;
     }
 
@@ -345,7 +523,7 @@ static int crypto_write_subvector_32(VAULTIP_SUBVECTOR_32_t * const subvector, u
 static int crypto_write_subvector_64(VAULTIP_SUBVECTOR_64_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size) {
     uint32_t bytes_remaining;
     if (NULL == subvector || NULL == data_addr || 0 == data_size || data_size > sizeof(subvector->data)) {
-        printx("crypto_write_subvector_64: invalid arguments!\n");
+        printf("crypto_write_subvector_64: invalid arguments!\n");
         return -1;
     }
 
@@ -367,7 +545,7 @@ static int crypto_write_subvector_64(VAULTIP_SUBVECTOR_64_t * const subvector, u
 static int crypto_write_subvector_256(VAULTIP_SUBVECTOR_256_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size) {
     uint32_t bytes_remaining;
     if (NULL == subvector || NULL == data_addr || 0 == data_size || data_size > sizeof(subvector->data)) {
-        printx("crypto_write_subvector_256: invalid arguments!\n");
+        printf("crypto_write_subvector_256: invalid arguments!\n");
         return -1;
     }
 
@@ -390,7 +568,7 @@ static int crypto_write_subvector_256(VAULTIP_SUBVECTOR_256_t * const subvector,
 static int crypto_write_subvector_384(VAULTIP_SUBVECTOR_384_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size) {
     uint32_t bytes_remaining;
     if (NULL == subvector || NULL == data_addr || 0 == data_size || data_size > sizeof(subvector->data)) {
-        printx("crypto_write_subvector_384: invalid arguments!\n");
+        printf("crypto_write_subvector_384: invalid arguments!\n");
         return -1;
     }
 
@@ -413,7 +591,7 @@ static int crypto_write_subvector_384(VAULTIP_SUBVECTOR_384_t * const subvector,
 static int crypto_write_subvector_521(VAULTIP_SUBVECTOR_521_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size) {
     uint32_t bytes_remaining;
     if (NULL == subvector || NULL == data_addr || 0 == data_size || data_size > sizeof(subvector->data)) {
-        printx("crypto_write_subvector_521: invalid arguments!\n");
+        printf("crypto_write_subvector_521: invalid arguments!\n");
         return -1;
     }
 
@@ -436,7 +614,7 @@ static int crypto_write_subvector_521(VAULTIP_SUBVECTOR_521_t * const subvector,
 static int crypto_write_subvector_2048(VAULTIP_SUBVECTOR_2048_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size) {
     uint32_t bytes_remaining;
     if (NULL == subvector || NULL == data_addr || 0 == data_size || data_size > sizeof(subvector->data)) {
-        printx("crypto_write_subvector_2048: invalid arguments!\n");
+        printf("crypto_write_subvector_2048: invalid arguments!\n");
         return -1;
     }
 
@@ -459,7 +637,7 @@ static int crypto_write_subvector_2048(VAULTIP_SUBVECTOR_2048_t * const subvecto
 static int crypto_write_subvector_3072(VAULTIP_SUBVECTOR_3072_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size) {
     uint32_t bytes_remaining;
     if (NULL == subvector || NULL == data_addr || 0 == data_size || data_size > sizeof(subvector->data)) {
-        printx("crypto_write_subvector_3072: invalid arguments!\n");
+        printf("crypto_write_subvector_3072: invalid arguments!\n");
         return -1;
     }
 
@@ -482,7 +660,7 @@ static int crypto_write_subvector_3072(VAULTIP_SUBVECTOR_3072_t * const subvecto
 static int crypto_write_subvector_4096(VAULTIP_SUBVECTOR_4096_t * const subvector, uint8_t nrOfSubvectors, uint8_t subvectorIndex, const void * data_addr, size_t data_size) {
     uint32_t bytes_remaining;
     if (NULL == subvector || NULL == data_addr || 0 == data_size || data_size > sizeof(subvector->data)) {
-        printx("crypto_write_subvector_4096: invalid arguments!\n");
+        printf("crypto_write_subvector_4096: invalid arguments!\n");
         return -1;
     }
 
@@ -507,43 +685,43 @@ static int crypto_create_ec_256_parameters_asset(VAULTIP_EC_256_DOMAIN_PARAMETER
     uint8_t CoFactor[4] = {0, 0, 0, 1};
 
     if (NULL == ec_256 || NULL == domain_parameters) {
-        printx("crypto_create_ec_256_parameters_asset: invalid arguments!\n");
+        printf("crypto_create_ec_256_parameters_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy curve modulus (p)
     if (0 != crypto_write_subvector_256(&(ec_256->curve_modulus_p), 7, 0, domain_parameters->P_p, domain_parameters->PLen)) {
-        printx("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(modulus_p) failed!\n");
+        printf("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(modulus_p) failed!\n");
         return -1;
     }
 
     // copy curve constant a
     if (0 != crypto_write_subvector_256(&(ec_256->curve_constant_a), 7, 1, domain_parameters->A_p, domain_parameters->ALen)) {
-        printx("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(const_A) failed!\n");
+        printf("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(const_A) failed!\n");
         return -1;
     }
 
     // copy curve constant b
     if (0 != crypto_write_subvector_256(&(ec_256->curve_constant_b), 7, 2, domain_parameters->B_p, domain_parameters->BLen)) {
-        printx("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(const_B) failed!\n");
+        printf("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(const_B) failed!\n");
         return -1;
     }
 
     // copy curve order (n)
     if (0 != crypto_write_subvector_256(&(ec_256->curve_order_n), 7, 3, domain_parameters->Order_p, domain_parameters->OrderLen)) {
-        printx("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(order_n) failed!\n");
+        printf("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(order_n) failed!\n");
         return -1;
     }
 
     // copy curve base point (g) coordinate X
     if (0 != crypto_write_subvector_256(&(ec_256->curve_base_point_x), 7, 4, domain_parameters->ECPointX_p, domain_parameters->ECPointXLen)) {
-        printx("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(point_x) failed!\n");
+        printf("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(point_x) failed!\n");
         return -1;
     }
 
     // copy curve base point (g) coordinate Y
     if (0 != crypto_write_subvector_256(&(ec_256->curve_base_point_y), 7, 5, domain_parameters->ECPointY_p, domain_parameters->ECPointYLen)) {
-        printx("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(point_y) failed!\n");
+        printf("crypto_create_ec_256_parameters_asset: crypto_write_subvector_256(point_y) failed!\n");
         return -1;
     }
 
@@ -560,7 +738,7 @@ static int crypto_create_ec_256_parameters_asset(VAULTIP_EC_256_DOMAIN_PARAMETER
         CoFactor[3] = domain_parameters->Cofactor;
     }
     if (0 != crypto_write_subvector_32(&(ec_256->curve_cofactor), 7, 6, CoFactor, sizeof(CoFactor), bits)) {
-        printx("crypto_create_ec_256_parameters_asset: crypto_write_subvector_32(cofactor) failed!\n");
+        printf("crypto_create_ec_256_parameters_asset: crypto_write_subvector_32(cofactor) failed!\n");
         return -1;
     }
 
@@ -574,43 +752,43 @@ static int crypto_create_ec_384_parameters_asset(VAULTIP_EC_384_DOMAIN_PARAMETER
     uint8_t CoFactor[4] = {0, 0, 0, 1};
 
     if (NULL == ec_384 || NULL == domain_parameters) {
-        printx("crypto_create_ec_384_parameters_asset: invalid arguments!\n");
+        printf("crypto_create_ec_384_parameters_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy curve modulus (p)
     if (0 != crypto_write_subvector_384(&(ec_384->curve_modulus_p), 7, 0, domain_parameters->P_p, domain_parameters->PLen)) {
-        printx("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(modulus_p) failed!\n");
+        printf("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(modulus_p) failed!\n");
         return -1;
     }
 
     // copy curve constant a
     if (0 != crypto_write_subvector_384(&(ec_384->curve_constant_a), 7, 1, domain_parameters->A_p, domain_parameters->ALen)) {
-        printx("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(const_A) failed!\n");
+        printf("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(const_A) failed!\n");
         return -1;
     }
 
     // copy curve constant b
     if (0 != crypto_write_subvector_384(&(ec_384->curve_constant_b), 7, 2, domain_parameters->B_p, domain_parameters->BLen)) {
-        printx("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(const_B) failed!\n");
+        printf("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(const_B) failed!\n");
         return -1;
     }
 
     // copy curve order (n)
     if (0 != crypto_write_subvector_384(&(ec_384->curve_order_n), 7, 3, domain_parameters->Order_p, domain_parameters->OrderLen)) {
-        printx("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(order_n) failed!\n");
+        printf("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(order_n) failed!\n");
         return -1;
     }
 
     // copy curve base point (g) coordinate X
     if (0 != crypto_write_subvector_384(&(ec_384->curve_base_point_x), 7, 4, domain_parameters->ECPointX_p, domain_parameters->ECPointXLen)) {
-        printx("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(point_x) failed!\n");
+        printf("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(point_x) failed!\n");
         return -1;
     }
 
     // copy curve base point (g) coordinate Y
     if (0 != crypto_write_subvector_384(&(ec_384->curve_base_point_y), 7, 5, domain_parameters->ECPointY_p, domain_parameters->ECPointYLen)) {
-        printx("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(point_y) failed!\n");
+        printf("crypto_create_ec_384_parameters_asset: crypto_write_subvector_384(point_y) failed!\n");
         return -1;
     }
 
@@ -627,7 +805,7 @@ static int crypto_create_ec_384_parameters_asset(VAULTIP_EC_384_DOMAIN_PARAMETER
         CoFactor[3] = domain_parameters->Cofactor;
     }
     if (0 != crypto_write_subvector_32(&(ec_384->curve_cofactor), 7, 6, CoFactor, sizeof(CoFactor), bits)) {
-        printx("crypto_create_ec_384_parameters_asset: crypto_write_subvector_32(cofactor) failed!\n");
+        printf("crypto_create_ec_384_parameters_asset: crypto_write_subvector_32(cofactor) failed!\n");
         return -1;
     }
 
@@ -641,43 +819,43 @@ static int crypto_create_ec_521_parameters_asset(VAULTIP_EC_521_DOMAIN_PARAMETER
     uint8_t CoFactor[4] = {0, 0, 0, 1};
 
     if (NULL == ec_521 || NULL == domain_parameters) {
-        printx("crypto_create_ec_521_parameters_asset: invalid arguments!\n");
+        printf("crypto_create_ec_521_parameters_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy curve modulus (p)
     if (0 != crypto_write_subvector_521(&(ec_521->curve_modulus_p), 7, 0, domain_parameters->P_p, domain_parameters->PLen)) {
-        printx("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(modulus_p) failed!\n");
+        printf("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(modulus_p) failed!\n");
         return -1;
     }
 
     // copy curve constant a
     if (0 != crypto_write_subvector_521(&(ec_521->curve_constant_a), 7, 1, domain_parameters->A_p, domain_parameters->ALen)) {
-        printx("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(const_A) failed!\n");
+        printf("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(const_A) failed!\n");
         return -1;
     }
 
     // copy curve constant b
     if (0 != crypto_write_subvector_521(&(ec_521->curve_constant_b), 7, 2, domain_parameters->B_p, domain_parameters->BLen)) {
-        printx("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(const_B) failed!\n");
+        printf("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(const_B) failed!\n");
         return -1;
     }
 
     // copy curve order (n)
     if (0 != crypto_write_subvector_521(&(ec_521->curve_order_n), 7, 3, domain_parameters->Order_p, domain_parameters->OrderLen)) {
-        printx("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(order_n) failed!\n");
+        printf("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(order_n) failed!\n");
         return -1;
     }
 
     // copy curve base point (g) coordinate X
     if (0 != crypto_write_subvector_521(&(ec_521->curve_base_point_x), 7, 4, domain_parameters->ECPointX_p, domain_parameters->ECPointXLen)) {
-        printx("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(point_x) failed!\n");
+        printf("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(point_x) failed!\n");
         return -1;
     }
 
     // copy curve base point (g) coordinate Y
     if (0 != crypto_write_subvector_521(&(ec_521->curve_base_point_y), 7, 5, domain_parameters->ECPointY_p, domain_parameters->ECPointYLen)) {
-        printx("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(point_y) failed!\n");
+        printf("crypto_create_ec_521_parameters_asset: crypto_write_subvector_521(point_y) failed!\n");
         return -1;
     }
 
@@ -694,7 +872,7 @@ static int crypto_create_ec_521_parameters_asset(VAULTIP_EC_521_DOMAIN_PARAMETER
         CoFactor[3] = domain_parameters->Cofactor;
     }
     if (0 != crypto_write_subvector_32(&(ec_521->curve_cofactor), 7, 6, CoFactor, sizeof(CoFactor), bits)) {
-        printx("crypto_create_ec_521_parameters_asset: crypto_write_subvector_32(cofactor) failed!\n");
+        printf("crypto_create_ec_521_parameters_asset: crypto_write_subvector_32(cofactor) failed!\n");
         return -1;
     }
 
@@ -705,13 +883,13 @@ static int crypto_create_ec_521_parameters_asset(VAULTIP_EC_521_DOMAIN_PARAMETER
 // static void dump_asset(const void * asset_addr, uint32_t asset_size) {
 //     const uint32_t * pwords = (const uint32_t *)asset_addr;
 //     uint32_t count = asset_size / 4;
-//     printx("Asset size: %08x, data:", asset_size);
+//     printf("Asset size: %08x, data:", asset_size);
 //     while (count > 0) {
-//         printx(" %08x", *pwords);
+//         printf(" %08x", *pwords);
 //         pwords++;
 //         count--;
 //     }
-//     printx("\n");
+//     printf("\n");
 // }
 
 static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_t * ec_parameters_asset_id) {
@@ -741,7 +919,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
 #if defined(SUPPORT_EC_P256)
     case EC_KEY_CURVE_NIST_P256:
         if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256), &ECurve_NIST_P256)) {
-            printx("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
+            printf("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
             return -1;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_256);
@@ -751,7 +929,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
 #if defined(SUPPORT_EC_P384)
     case EC_KEY_CURVE_NIST_P384:
         if (0 != crypto_create_ec_384_parameters_asset(&(domain_parameters_data.ec_384), &ECurve_NIST_P384)) {
-            printx("crypto_create_ec_parameters_asset: crypto_create_ec_384_parameters_asset() failed!\n");
+            printf("crypto_create_ec_parameters_asset: crypto_create_ec_384_parameters_asset() failed!\n");
             return -1;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_384);
@@ -761,7 +939,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
 #if defined(SUPPORT_EC_P521)
     case EC_KEY_CURVE_NIST_P521:
         if (0 != crypto_create_ec_521_parameters_asset(&(domain_parameters_data.ec_521), &ECurve_NIST_P521)) {
-            printx("crypto_create_ec_parameters_asset: crypto_create_ec_521_parameters_asset() failed!\n");
+            printf("crypto_create_ec_parameters_asset: crypto_create_ec_521_parameters_asset() failed!\n");
             return -1;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_521);
@@ -771,7 +949,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
 #if defined(SUPPORT_EC_CURVE25519)
     case EC_KEY_CURVE_CURVE25519:
         if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256), &ECurve_25519)) {
-            printx("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
+            printf("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
             return -1;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_256);
@@ -781,7 +959,7 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
 #if defined(SUPPORT_EC_EDWARDS25519)
     case EC_KEY_CURVE_EDWARDS25519:
         if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256), &ECurve_Ed25519)) {
-            printx("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
+            printf("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
             return -1;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_256);
@@ -789,26 +967,26 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
         break;
 #endif
     default:
-        printx("crypto_create_ec_parameters_asset: invalid curve_id!\n");
+        printf("crypto_create_ec_parameters_asset: invalid curve_id!\n");
         return -1;
     }
 
-    //printx("crypto_create_ec_parameters_asset: asset size = 0x%x\n", domain_parameters_size);
+    //printf("crypto_create_ec_parameters_asset: asset size = 0x%x\n", domain_parameters_size);
     public_key_parameters_asset_other_settings.DataLength = domain_parameters_size & 0x3FFu;
     if (0 != vaultip_asset_create(get_rom_identity(), public_key_parameters_asset_policy.lo, public_key_parameters_asset_policy.hi,
                   public_key_parameters_asset_other_settings, 0, &asset_id)) {
-        printx("crypto_create_ec_parameters_asset: vaultip_asset_create() failed!\n");
+        printf("crypto_create_ec_parameters_asset: vaultip_asset_create() failed!\n");
         return -1;
     }
 
     if (0 != vaultip_asset_load_plaintext(get_rom_identity(), asset_id, domain_parameters_data_ptr, domain_parameters_size)) {
-        printx("crypto_create_ec_parameters_asset: vaultip_asset_load_plaintext() failed!\n");
+        printf("crypto_create_ec_parameters_asset: vaultip_asset_load_plaintext() failed!\n");
         if (0 != vaultip_asset_delete(get_rom_identity(), asset_id)) {
-            printx("crypto_create_ec_parameters_asset: vaultip_asset_delete() failed!\n");
+            printf("crypto_create_ec_parameters_asset: vaultip_asset_delete() failed!\n");
         }
         return -1;
     }
-    // printx("Domain parameters asset data @%p:", domain_parameters_data_ptr);
+    // printf("Domain parameters asset data @%p:", domain_parameters_data_ptr);
     // dump_asset(domain_parameters_data_ptr, domain_parameters_size);
 
     *ec_parameters_asset_id = asset_id;
@@ -818,19 +996,19 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
 #if defined(SUPPORT_EC_P256)
 static int crypto_create_ec_p256_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P256_t * ec_256, const PUBLIC_KEY_EC_t * public_key) {
     if (NULL == ec_256 || NULL == public_key || EC_KEY_CURVE_NIST_P256 != public_key->curveID) {
-        printx("crypto_create_ec_p256_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_ec_p256_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy point X coordinate
     if (0 != crypto_write_subvector_256(&(ec_256->point_x), 2, 0, public_key->pX, public_key->pXsize)) {
-        printx("crypto_create_ec_p256_public_key_asset: crypto_write_subvector_256(pX) failed!\n");
+        printf("crypto_create_ec_p256_public_key_asset: crypto_write_subvector_256(pX) failed!\n");
         return -1;
     }
 
     // copy point Y coordinate
     if (0 != crypto_write_subvector_256(&(ec_256->point_y), 2, 1, public_key->pY, public_key->pYsize)) {
-        printx("crypto_create_ec_p256_public_key_asset: crypto_write_subvector_256(pY) failed!\n");
+        printf("crypto_create_ec_p256_public_key_asset: crypto_write_subvector_256(pY) failed!\n");
         return -1;
     }
 
@@ -841,19 +1019,19 @@ static int crypto_create_ec_p256_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P256_
 #if defined(SUPPORT_EC_P384)
 static int crypto_create_ec_p384_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P384_t * ec_384, const PUBLIC_KEY_EC_t * public_key) {
     if (NULL == ec_384 || NULL == public_key || EC_KEY_CURVE_NIST_P384 != public_key->curveID) {
-        printx("crypto_create_ec_p384_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_ec_p384_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy point X coordinate
     if (0 != crypto_write_subvector_384(&(ec_384->point_x), 2, 0, public_key->pX, public_key->pXsize)) {
-        printx("crypto_create_ec_p384_public_key_asset: crypto_write_subvector_384(pX) failed!\n");
+        printf("crypto_create_ec_p384_public_key_asset: crypto_write_subvector_384(pX) failed!\n");
         return -1;
     }
 
     // copy point Y coordinate
     if (0 != crypto_write_subvector_384(&(ec_384->point_y), 2, 1, public_key->pY, public_key->pYsize)) {
-        printx("crypto_create_ec_p384_public_key_asset: crypto_write_subvector_384(pY) failed!\n");
+        printf("crypto_create_ec_p384_public_key_asset: crypto_write_subvector_384(pY) failed!\n");
         return -1;
     }
 
@@ -864,19 +1042,19 @@ static int crypto_create_ec_p384_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P384_
 #if defined(SUPPORT_EC_P521)
 static int crypto_create_ec_p521_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P521_t * ec_521, const PUBLIC_KEY_EC_t * public_key) {
     if (NULL == ec_521 || NULL == public_key || EC_KEY_CURVE_NIST_P521 != public_key->curveID) {
-        printx("crypto_create_ec_p521_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_ec_p521_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy point X coordinate
     if (0 != crypto_write_subvector_521(&(ec_521->point_x), 2, 0, public_key->pX, public_key->pXsize)) {
-        printx("crypto_create_ec_p521_public_key_asset: crypto_write_subvector_521(pX) failed!\n");
+        printf("crypto_create_ec_p521_public_key_asset: crypto_write_subvector_521(pX) failed!\n");
         return -1;
     }
 
     // copy point Y coordinate
     if (0 != crypto_write_subvector_521(&(ec_521->point_y), 2, 1, public_key->pY, public_key->pYsize)) {
-        printx("crypto_create_ec_p521_public_key_asset: crypto_write_subvector_521(pY) failed!\n");
+        printf("crypto_create_ec_p521_public_key_asset: crypto_write_subvector_521(pY) failed!\n");
         return -1;
     }
 
@@ -887,13 +1065,13 @@ static int crypto_create_ec_p521_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_P521_
 #if defined(SUPPORT_EC_CURVE25519)
 static int crypto_create_ec_curve25519_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_25519_t * ec_25519, const PUBLIC_KEY_EC_t * public_key) {
     if (NULL == ec_25519 || NULL == public_key || EC_KEY_CURVE_CURVE25519 != public_key->curveID) {
-        printx("crypto_create_ec_curve25519_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_ec_curve25519_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy point X coordinate
     if (0 != crypto_write_subvector_256(&(ec_25519->point_x), 1, 0, public_key->pX, public_key->pXsize)) {
-        printx("crypto_create_ec_curve25519_public_key_asset: crypto_write_subvector_256(pX) failed!\n");
+        printf("crypto_create_ec_curve25519_public_key_asset: crypto_write_subvector_256(pX) failed!\n");
         return -1;
     }
 
@@ -904,13 +1082,13 @@ static int crypto_create_ec_curve25519_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA
 #if defined(SUPPORT_EC_EDWARDS25519)
 static int crypto_create_ec_edwards25519_public_key_asset(VAULTIP_PUBLIC_KEY_ECDSA_25519_t * ec_25519, const PUBLIC_KEY_EC_t * public_key) {
     if (NULL == ec_25519 || NULL == public_key || EC_KEY_CURVE_EDWARDS25519 != public_key->curveID) {
-        printx("crypto_create_ec_edwards25519_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_ec_edwards25519_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy point X coordinate
     if (0 != crypto_write_subvector_256(&(ec_25519->point_x), 1, 0, public_key->pX, public_key->pXsize)) {
-        printx("crypto_create_ec_edwards25519_public_key_asset: crypto_write_subvector_256(pX) failed!\n");
+        printf("crypto_create_ec_edwards25519_public_key_asset: crypto_write_subvector_256(pX) failed!\n");
         return -1;
     }
 
@@ -948,7 +1126,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
     };
 
     if (NULL == ec_public_key || NULL == ec_public_key_asset_id) {
-        printx("crypto_create_ec_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_ec_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
@@ -963,7 +1141,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
         public_key_asset_policy.u64 |= VAL_POLICY_SHA512;
         break;
     default:
-        printx("crypto_create_ec_public_key_asset: invalid hash algorithm!\n");
+        printf("crypto_create_ec_public_key_asset: invalid hash algorithm!\n");
         return -1;
     }
 
@@ -971,11 +1149,11 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
 #if defined(SUPPORT_EC_P256)
     case EC_KEY_CURVE_NIST_P256:
         if (HASH_ALG_SHA2_256 != hash_alg) {
-            printx("crypto_create_ec_public_key_asset: curve p256 can only be used with SHA256 hash!\n");
+            printf("crypto_create_ec_public_key_asset: curve p256 can only be used with SHA256 hash!\n");
             return -1;
         }
         if (0 != crypto_create_ec_p256_public_key_asset(&(public_key_data.p256), ec_public_key)) {
-            printx("crypto_create_ec_public_key_asset: crypto_create_ec_p256_public_key_asset() failed!\n");
+            printf("crypto_create_ec_public_key_asset: crypto_create_ec_p256_public_key_asset() failed!\n");
             return -1;
         }
         public_key_data_ptr = &(public_key_data.p256);
@@ -985,11 +1163,11 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
 #if defined(SUPPORT_EC_P384)
     case EC_KEY_CURVE_NIST_P384:
         if (HASH_ALG_SHA2_256 != hash_alg && HASH_ALG_SHA2_384 != hash_alg) {
-            printx("crypto_create_ec_public_key_asset: curve p384 can only be used with SHA256 or SHA384 hash!\n");
+            printf("crypto_create_ec_public_key_asset: curve p384 can only be used with SHA256 or SHA384 hash!\n");
             return -1;
         }
         if (0 != crypto_create_ec_p384_public_key_asset(&(public_key_data.p384), ec_public_key)) {
-            printx("crypto_create_ec_public_key_asset: crypto_create_ec_p384_public_key_asset() failed!\n");
+            printf("crypto_create_ec_public_key_asset: crypto_create_ec_p384_public_key_asset() failed!\n");
             return -1;
         }
         public_key_data_ptr = &(public_key_data.p384);
@@ -999,7 +1177,7 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
 #if defined(SUPPORT_EC_P521)
     case EC_KEY_CURVE_NIST_P521:
         if (0 != crypto_create_ec_p521_public_key_asset(&(public_key_data.p521), ec_public_key)) {
-            printx("crypto_create_ec_public_key_asset: crypto_create_ec_p521_public_key_asset() failed!\n");
+            printf("crypto_create_ec_public_key_asset: crypto_create_ec_p521_public_key_asset() failed!\n");
             return -1;
         }
         public_key_data_ptr = &(public_key_data.p521);
@@ -1010,11 +1188,11 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
     case EC_KEY_CURVE_CURVE25519:
         // todo: verify if this is true
         if (HASH_ALG_SHA2_256 != hash_alg) {
-            printx("crypto_create_ec_public_key_asset: curve 25519 can only be used with SHA256 hash!\n");
+            printf("crypto_create_ec_public_key_asset: curve 25519 can only be used with SHA256 hash!\n");
             return -1;
         }
         if (0 != crypto_create_ec_curve25519_public_key_asset(&(public_key_data.curve25519), ec_public_key)) {
-            printx("crypto_create_ec_public_key_asset: crypto_create_ec_curve25519_public_key_asset() failed!\n");
+            printf("crypto_create_ec_public_key_asset: crypto_create_ec_curve25519_public_key_asset() failed!\n");
             return -1;
         }
         public_key_data_ptr = &(public_key_data.curve25519);
@@ -1024,11 +1202,11 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
 #if defined(SUPPORT_EC_EDWARDS25519)
     case EC_KEY_CURVE_EDWARDS25519:
         if (HASH_ALG_SHA2_512 != hash_alg) {
-            printx("crypto_create_ec_public_key_asset: curve ed25519 can only be used with SHA512 hash!\n");
+            printf("crypto_create_ec_public_key_asset: curve ed25519 can only be used with SHA512 hash!\n");
             return -1;
         }
         if (0 != crypto_create_ec_edwards25519_public_key_asset(&(public_key_data.edwards25519), ec_public_key)) {
-            printx("crypto_create_ec_public_key_asset: crypto_create_ec_edwards25519_public_key_asset() failed!\n");
+            printf("crypto_create_ec_public_key_asset: crypto_create_ec_edwards25519_public_key_asset() failed!\n");
             return -1;
         }
         public_key_data_ptr = &(public_key_data.edwards25519);
@@ -1036,27 +1214,27 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
         break;
 #endif
     default:
-        printx("crypto_create_ec_public_key_asset: invalid curve_id!\n");
+        printf("crypto_create_ec_public_key_asset: invalid curve_id!\n");
         return -1;
     }
 
-    //printx("crypto_create_ec_public_key_asset: key_data_size=0x%x\n", public_key_data_size);
+    //printf("crypto_create_ec_public_key_asset: key_data_size=0x%x\n", public_key_data_size);
     public_key_asset_other_settings.DataLength = public_key_data_size & 0x3FFu;
     if (0 != vaultip_asset_create(get_rom_identity(), public_key_asset_policy.lo, public_key_asset_policy.hi,
                   public_key_asset_other_settings, 0, &asset_id)) {
-        printx("crypto_create_ec_public_key_asset: vaultip_asset_create() failed!\n");
+        printf("crypto_create_ec_public_key_asset: vaultip_asset_create() failed!\n");
         return -1;
     }
-    //printx("crypto_create_ec_public_key_asset: asset created.\n");
+    //printf("crypto_create_ec_public_key_asset: asset created.\n");
     if (0 != vaultip_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr, public_key_data_size)) {
-        printx("crypto_create_ec_public_key_asset: vaultip_asset_load_plaintext() failed!\n");
+        printf("crypto_create_ec_public_key_asset: vaultip_asset_load_plaintext() failed!\n");
         if (0 != vaultip_asset_delete(get_rom_identity(), asset_id)) {
-            printx("crypto_create_ec_public_key_asset: vaultip_asset_delete() failed!\n");
+            printf("crypto_create_ec_public_key_asset: vaultip_asset_delete() failed!\n");
         }
         return -1;
     }
-    // printx("crypto_create_ec_public_key_asset: asset loaded.\n");
-    // printx("Key asset data @ %p:", public_key_data_ptr);
+    // printf("crypto_create_ec_public_key_asset: asset loaded.\n");
+    // printf("Key asset data @ %p:", public_key_data_ptr);
     // dump_asset(public_key_data_ptr, public_key_data_size);
 
     *ec_public_key_asset_id = asset_id;
@@ -1086,7 +1264,7 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
     } signature_data;
 
     if (NULL == signature) {
-        printx("crypto_ecdsa_verify: invalid arguments!\n");
+        printf("crypto_ecdsa_verify: invalid arguments!\n");
         return -1;
     }
 
@@ -1094,11 +1272,11 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
 #if defined(SUPPORT_EC_P256)
     case EC_KEY_CURVE_NIST_P256:
         if (0 != crypto_write_subvector_256(&(signature_data.p256.r), 2, 0, signature->ec.r, signature->ec.rSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
             return -1;
         }
         if (0 != crypto_write_subvector_256(&(signature_data.p256.s), 2, 1, signature->ec.s, signature->ec.sSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
             return -1;
         }
         signature_data_ptr = &(signature_data.p256);
@@ -1108,11 +1286,11 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
 #if defined(SUPPORT_EC_P384)
     case EC_KEY_CURVE_NIST_P384:
         if (0 != crypto_write_subvector_384(&(signature_data.p384.r), 2, 0, signature->ec.r, signature->ec.rSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_384(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_384(r) failed!\n");
             return -1;
         }
         if (0 != crypto_write_subvector_384(&(signature_data.p384.s), 2, 1, signature->ec.s, signature->ec.sSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_384(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_384(r) failed!\n");
             return -1;
         }
         signature_data_ptr = &(signature_data.p384);
@@ -1122,11 +1300,11 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
 #if defined(SUPPORT_EC_P521)
     case EC_KEY_CURVE_NIST_P521:
         if (0 != crypto_write_subvector_521(&(signature_data.p521.r), 2, 0, signature->ec.r, signature->ec.rSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_521(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_521(r) failed!\n");
             return -1;
         }
         if (0 != crypto_write_subvector_521(&(signature_data.p521.s), 2, 1, signature->ec.s, signature->ec.sSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_521(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_521(r) failed!\n");
             return -1;
         }
         signature_data_ptr = &(signature_data.p521);
@@ -1141,7 +1319,7 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
 #endif
 #if defined(SUPPORT_EC_CURVE25519) || defined(SUPPORT_EC_EDWARDS25519)
         if (0 != crypto_write_subvector_256(&(signature_data.c25519.r), 1, 0, signature->ec.r, signature->ec.rSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
             return -1;
         }
         signature_data_ptr = &(signature_data.c25519);
@@ -1149,37 +1327,37 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
         break;
 #endif
     default:
-        printx("crypto_ecdsa_verify: invalid curve_id!\n");
+        printf("crypto_ecdsa_verify: invalid curve_id!\n");
         return -1;
     }
 
     // create the ecdsa parameters asset
     if (0 != crypto_create_ec_parameters_asset(ecdsa_public_key->curveID, &public_key_parameters_asset_id)) {
-        printx("crypto_ecdsa_verify: crypto_create_ec_parameters_asset() failed!\n");
+        printf("crypto_ecdsa_verify: crypto_create_ec_parameters_asset() failed!\n");
         rv = -1;
         goto DONE;
     }
-    printx("crypto_ecdsa_verify: ec parameters created and loaded.\n");
+    printf("crypto_ecdsa_verify: ec parameters created and loaded.\n");
 
     // create the ecdsa public key asset
     if (0 != crypto_create_ec_public_key_asset(signature->hashAlg, ecdsa_public_key, &public_key_asset_id)) {
-        printx("crypto_ecdsa_verify: crypto_create_ec_public_key_asset() failed!\n");
+        printf("crypto_ecdsa_verify: crypto_create_ec_public_key_asset() failed!\n");
         rv = -1;
         goto DONE;
     }
-//    printx("crypto_ecdsa_verify: ec public key created and loaded.\n");
+//    printf("crypto_ecdsa_verify: ec public key created and loaded.\n");
 
-    // printx("Signature data @ %p:", signature_data_ptr);
+    // printf("Signature data @ %p:", signature_data_ptr);
     // dump_asset(signature_data_ptr, signature_data_size);
 
-    // printx("Message data addr: %p, size: 0x%x\n", data, data_size);
+    // printf("Message data addr: %p, size: 0x%x\n", data, data_size);
 
     // verify the signature
     if (0 != vaultip_public_key_ecdsa_verify(ecdsa_public_key->curveID, get_rom_identity(), 
                                              public_key_asset_id, public_key_parameters_asset_id, temp_hash_asset_id,
                                              data, (uint32_t)data_size, total_data_size, 
                                              signature_data_ptr, signature_data_size)) {
-        printx("crypto_ecdsa_verify: vaultip_public_key_ecdsa_verify() failed!\n");
+        printf("crypto_ecdsa_verify: vaultip_public_key_ecdsa_verify() failed!\n");
         rv = -1;
         goto DONE;
     }
@@ -1191,12 +1369,12 @@ DONE:
     // delete the public key asset
     if (0 != public_key_parameters_asset_id) {
         if (0 != vaultip_asset_delete(get_rom_identity(), public_key_parameters_asset_id)) {
-            printx("crypto_ecdsa_verify: vaultip_asset_delete(public_key_parameters_asset_id) failed!\n");
+            printf("crypto_ecdsa_verify: vaultip_asset_delete(public_key_parameters_asset_id) failed!\n");
         }
     }
     if (0 != public_key_asset_id) {
         if (0 != vaultip_asset_delete(get_rom_identity(), public_key_asset_id)) {
-            printx("crypto_ecdsa_verify: vaultip_asset_delete(public_key_asset_id) failed!\n");
+            printf("crypto_ecdsa_verify: vaultip_asset_delete(public_key_asset_id) failed!\n");
         }
     }
     return rv;
@@ -1205,19 +1383,19 @@ DONE:
 #if defined(SUPPORT_RSA_2048)
 static int crypto_create_rsa_2048_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_2048_t * rsa_2048, const PUBLIC_KEY_RSA_t * public_key) {
     if (NULL == rsa_2048 || NULL == public_key || 2048 != public_key->keySize) {
-        printx("crypto_create_rsa_2048_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_rsa_2048_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy modulus
     if (0 != crypto_write_subvector_2048(&(rsa_2048->modulus), 2, 0, public_key->pubMod, public_key->pubModSize)) {
-        printx("crypto_create_rsa_2048_public_key_asset: crypto_write_subvector_2048(modulus) failed!\n");
+        printf("crypto_create_rsa_2048_public_key_asset: crypto_write_subvector_2048(modulus) failed!\n");
         return -1;
     }
 
     // copy exponent
     if (0 != crypto_write_subvector_64(&(rsa_2048->exponent), 2, 1, public_key->pubExp, public_key->pubExpSize)) {
-        printx("crypto_create_rsa_2048_public_key_asset: crypto_write_subvector_64(exponent) failed!\n");
+        printf("crypto_create_rsa_2048_public_key_asset: crypto_write_subvector_64(exponent) failed!\n");
         return -1;
     }
 
@@ -1228,19 +1406,19 @@ static int crypto_create_rsa_2048_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_2048_t
 #if defined(SUPPORT_RSA_3072)
 static int crypto_create_rsa_3072_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_3072_t * rsa_3072, const PUBLIC_KEY_RSA_t * public_key) {
     if (NULL == rsa_3072 || NULL == public_key || 3072 != public_key->keySize) {
-        printx("crypto_create_rsa_3072_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_rsa_3072_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy modulus
     if (0 != crypto_write_subvector_3072(&(rsa_3072->modulus), 2, 0, public_key->pubMod, public_key->pubModSize)) {
-        printx("crypto_create_rsa_3072_public_key_asset: crypto_write_subvector_3072(modulus) failed!\n");
+        printf("crypto_create_rsa_3072_public_key_asset: crypto_write_subvector_3072(modulus) failed!\n");
         return -1;
     }
 
     // copy exponent
     if (0 != crypto_write_subvector_64(&(rsa_3072->exponent), 2, 1, public_key->pubExp, public_key->pubExpSize)) {
-        printx("crypto_create_rsa_3072_public_key_asset: crypto_write_subvector_64(exponent) failed!\n");
+        printf("crypto_create_rsa_3072_public_key_asset: crypto_write_subvector_64(exponent) failed!\n");
         return -1;
     }
 
@@ -1251,19 +1429,19 @@ static int crypto_create_rsa_3072_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_3072_t
 #if defined(SUPPORT_RSA_4096)
 static int crypto_create_rsa_4096_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_4096_t * rsa_4096, const PUBLIC_KEY_RSA_t * public_key) {
     if (NULL == rsa_4096 || NULL == public_key || 4096 != public_key->keySize) {
-        printx("crypto_create_rsa_4096_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_rsa_4096_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
     // copy modulus
     if (0 != crypto_write_subvector_4096(&(rsa_4096->modulus), 2, 0, public_key->pubMod, public_key->pubModSize)) {
-        printx("crypto_create_rsa_4096_public_key_asset: crypto_write_subvector_4096(modulus) failed!\n");
+        printf("crypto_create_rsa_4096_public_key_asset: crypto_write_subvector_4096(modulus) failed!\n");
         return -1;
     }
 
     // copy exponent
     if (0 != crypto_write_subvector_64(&(rsa_4096->exponent), 2, 1, public_key->pubExp, public_key->pubExpSize)) {
-        printx("crypto_create_rsa_4096_public_key_asset: crypto_write_subvector_64(exponent) failed!\n");
+        printf("crypto_create_rsa_4096_public_key_asset: crypto_write_subvector_64(exponent) failed!\n");
         return -1;
     }
 
@@ -1295,7 +1473,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
     };
 
     if (NULL == rsa_public_key || NULL == rsa_public_key_asset_id) {
-        printx("crypto_create_rsa_public_key_asset: invalid arguments!\n");
+        printf("crypto_create_rsa_public_key_asset: invalid arguments!\n");
         return -1;
     }
 
@@ -1310,7 +1488,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
         public_key_asset_policy.u64 |= VAL_POLICY_SHA512;
         break;
     default:
-        printx("crypto_create_rsa_public_key_asset: invalid hash algorithm!\n");
+        printf("crypto_create_rsa_public_key_asset: invalid hash algorithm!\n");
         return -1;
     }
 
@@ -1318,7 +1496,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
 #if defined(SUPPORT_RSA_2048)
     case 2048:
         if (0 != crypto_create_rsa_2048_public_key_asset(&(public_key_data.rsa2048), rsa_public_key)) {
-            printx("crypto_create_rsa_public_key_asset: crypto_create_rsa_2048_public_key_asset() failed!\n");
+            printf("crypto_create_rsa_public_key_asset: crypto_create_rsa_2048_public_key_asset() failed!\n");
             return -1;
         }
         public_key_data_ptr = &(public_key_data.rsa2048);
@@ -1328,7 +1506,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
 #if defined(SUPPORT_RSA_3072)
     case 3072:
         if (0 != crypto_create_rsa_3072_public_key_asset(&(public_key_data.rsa3072), rsa_public_key)) {
-            printx("crypto_create_rsa_public_key_asset: crypto_create_rsa_3072_public_key_asset() failed!\n");
+            printf("crypto_create_rsa_public_key_asset: crypto_create_rsa_3072_public_key_asset() failed!\n");
             return -1;
         }
         public_key_data_ptr = &(public_key_data.rsa3072);
@@ -1338,7 +1516,7 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
 #if defined(SUPPORT_RSA_4096)
     case 4096:
         if (0 != crypto_create_rsa_4096_public_key_asset(&(public_key_data.rsa4096), rsa_public_key)) {
-            printx("crypto_create_rsa_public_key_asset: crypto_create_rsa_4096_public_key_asset() failed!\n");
+            printf("crypto_create_rsa_public_key_asset: crypto_create_rsa_4096_public_key_asset() failed!\n");
             return -1;
         }
         public_key_data_ptr = &(public_key_data.rsa4096);
@@ -1346,27 +1524,27 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
         break;
 #endif
     default:
-        printx("crypto_create_rsa_public_key_asset: invalid key size!\n");
+        printf("crypto_create_rsa_public_key_asset: invalid key size!\n");
         return -1;
     }
 
-    printx("crypto_create_rsa_public_key_asset: asset length=0x%x\n", public_key_data_size);
+    printf("crypto_create_rsa_public_key_asset: asset length=0x%x\n", public_key_data_size);
     public_key_asset_other_settings.DataLength = public_key_data_size & 0x3FFu;
     if (0 != vaultip_asset_create(get_rom_identity(), public_key_asset_policy.lo, public_key_asset_policy.hi,
                   public_key_asset_other_settings, 0, &asset_id)) {
-        printx("crypto_create_rsa_public_key_asset: vaultip_asset_create() failed!\n");
+        printf("crypto_create_rsa_public_key_asset: vaultip_asset_create() failed!\n");
         return -1;
     }
 
-    printx("crypto_create_rsa_public_key_asset: asset created, assetid=0x%x\n", asset_id);
+    printf("crypto_create_rsa_public_key_asset: asset created, assetid=0x%x\n", asset_id);
     if (0 != vaultip_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr, public_key_data_size)) {
-        printx("crypto_create_rsa_public_key_asset: vaultip_asset_load_plaintext() failed!\n");
+        printf("crypto_create_rsa_public_key_asset: vaultip_asset_load_plaintext() failed!\n");
         if (0 != vaultip_asset_delete(get_rom_identity(), asset_id)) {
-            printx("crypto_create_rsa_public_key_asset: vaultip_asset_delete() failed!\n");
+            printf("crypto_create_rsa_public_key_asset: vaultip_asset_delete() failed!\n");
         }
         return -1;
     }
-    // printx("crypto_create_rsa_public_key_asset: asset loaded\n");
+    // printf("crypto_create_rsa_public_key_asset: asset loaded\n");
     // //dump_asset(public_key_data_ptr, public_key_data_size);
 
     *rsa_public_key_asset_id = asset_id;
@@ -1394,7 +1572,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
     } signature_data;
 
     if (NULL == signature) {
-        printx("crypto_rsa_verify: invalid arguments!\n");
+        printf("crypto_rsa_verify: invalid arguments!\n");
         return -1;
     }
 
@@ -1402,7 +1580,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
 #if defined(SUPPORT_RSA_2048)
     case 2048:
         if (0 != crypto_write_subvector_2048(&(signature_data.rsa2048.s), 1, 0, signature->rsa.signature, signature->rsa.sigSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_2048(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_2048(r) failed!\n");
             return -1;
         }
         signature_data_ptr = &(signature_data.rsa2048);
@@ -1412,7 +1590,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
 #if defined(SUPPORT_RSA_3072)
     case 3072:
         if (0 != crypto_write_subvector_3072(&(signature_data.rsa3072.s), 1, 0, signature->rsa.signature, signature->rsa.sigSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_3072(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_3072(r) failed!\n");
             return -1;
         }
         signature_data_ptr = &(signature_data.rsa3072);
@@ -1422,7 +1600,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
 #if defined(SUPPORT_RSA_4096)
     case 4096:
         if (0 != crypto_write_subvector_4096(&(signature_data.rsa4096.s), 1, 0, signature->rsa.signature, signature->rsa.sigSize)) {
-            printx("crypto_ecdsa_verify: crypto_write_subvector_4096(r) failed!\n");
+            printf("crypto_ecdsa_verify: crypto_write_subvector_4096(r) failed!\n");
             return -1;
         }
         signature_data_ptr = &(signature_data.rsa4096);
@@ -1430,7 +1608,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
         break;
 #endif
     default:
-        printx("crypto_rsa_verify: invalid key_size!\n");
+        printf("crypto_rsa_verify: invalid key_size!\n");
         return -1;
     }
 
@@ -1445,12 +1623,12 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
         salt_length = 512 / 8;
         break;
     default:
-        printx("crypto_rsa_verify: invalid hash alg!\n");
+        printf("crypto_rsa_verify: invalid hash alg!\n");
         return -1;
     }
     // create the rsa public key asset
     if (0 != crypto_create_rsa_public_key_asset(signature->hashAlg, rsa_public_key, &public_key_asset_id)) {
-        printx("crypto_rsa_verify: crypto_create_rsa_public_key_asset() failed!\n");
+        printf("crypto_rsa_verify: crypto_create_rsa_public_key_asset() failed!\n");
         rv = -1;
         goto DONE;
     }
@@ -1460,7 +1638,7 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
                                              public_key_asset_id, temp_hash_asset_id,
                                              data, (uint32_t)data_size, total_data_size, 
                                              signature_data_ptr, signature_data_size, salt_length)) {
-        printx("crypto_rsa_verify: vaultip_public_key_rsa_pss_verify() failed!\n");
+        printf("crypto_rsa_verify: vaultip_public_key_rsa_pss_verify() failed!\n");
         rv = -1;
         goto DONE;
     }
@@ -1472,7 +1650,7 @@ DONE:
     // delete the public key asset
     if (0 != public_key_asset_id) {
         if (0 != vaultip_asset_delete(get_rom_identity(), public_key_asset_id)) {
-            printx("crypto_ecdsa_verify: vaultip_asset_delete(public_key_asset_id) failed!\n");
+            printf("crypto_ecdsa_verify: vaultip_asset_delete(public_key_asset_id) failed!\n");
         }
     }
     return rv;
@@ -1491,7 +1669,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
     uint32_t total_message_length = (uint32_t)data_size;
 
     if (NULL == data || 0 == data_size) {
-        printx("crypto_verify_pk_signature: invalid arguments!\n");
+        printf("crypto_verify_pk_signature: invalid arguments!\n");
         return -1;
     }
 
@@ -1500,11 +1678,11 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
     case PUBLIC_KEY_TYPE_RSA:
         break;
     default:
-        printx("crypto_verify_pk_signature: not supported key type!\n");
+        printf("crypto_verify_pk_signature: not supported key type!\n");
         return -1;
     }
     if (signature->keyType != public_key->keyType) {
-        printx("crypto_verify_pk_signature: key type does not match signature!\n");
+        printf("crypto_verify_pk_signature: key type does not match signature!\n");
         return -1;
     }
     if (data_size > 4096) {
@@ -1512,7 +1690,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
 
         prehash_length = (uint32_t)(data_size - 4096u);
         prehash_length = (prehash_length + 0x7Fu) & 0xFFFFFF80;
-        printx("crypto_verify_pk_signature: prehash_length=0x%x, \n", prehash_length);
+        printf("crypto_verify_pk_signature: prehash_length=0x%x, \n", prehash_length);
 
         switch (signature->hashAlg) {
         case HASH_ALG_SHA2_256:
@@ -1528,19 +1706,19 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
             temp_digest_asset_other_settings.DataLength = 512 / 8;
             break;
         default:
-            printx("crypto_verify_pk_signature: invalid hash algorithm!\n");
+            printf("crypto_verify_pk_signature: invalid hash algorithm!\n");
             return -1;
         }
 
         // create temp_digest asset
         if (0 != vaultip_asset_create(get_rom_identity(), temp_digest_asset_policy.lo, temp_digest_asset_policy.hi, temp_digest_asset_other_settings, 0, &temp_digest_asset_id)) {
-            printx("crypto_verify_pk_signature: vaultip_asset_create() failed!\n");
+            printf("crypto_verify_pk_signature: vaultip_asset_create() failed!\n");
             return -1;
         }
 
         // pre-hash the data
-        if (0 != vaultip_hash_update(signature->hashAlg, temp_digest_asset_id, data, prehash_length, true)) {
-            printx("crypto_verify_pk_signature: vaultip_hash_init() failed!\n");
+        if (0 != vaultip_hash_update(get_rom_identity(), signature->hashAlg, temp_digest_asset_id, data, prehash_length, true)) {
+            printf("crypto_verify_pk_signature: vaultip_hash_init() failed!\n");
             rv = -1;
             goto DONE;
         }
@@ -1549,7 +1727,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
         data_size -= prehash_length;
     }
 
-    printx("crypto_verify_pk_signature: message_length=0x%x, total_message_length=0x%x\n", data_size, total_message_length);
+    printf("crypto_verify_pk_signature: message_length=0x%lx, total_message_length=0x%x\n", data_size, total_message_length);
     switch (public_key->keyType) {
     case PUBLIC_KEY_TYPE_EC:
         rv = crypto_ecdsa_verify(&(public_key->ec), signature, temp_digest_asset_id, data, data_size, total_message_length);
@@ -1558,14 +1736,14 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
         rv = crypto_rsa_verify(&(public_key->rsa), signature, temp_digest_asset_id, data, data_size, total_message_length);
         break;
     default:
-        printx("crypto_verify_pk_signature: not supported key type!\n");
+        printf("crypto_verify_pk_signature: not supported key type!\n");
         rv = -1;
     }
 
 DONE:
     if (0 != temp_digest_asset_id) {
         if (0 != vaultip_asset_delete(get_rom_identity(), temp_digest_asset_id)) {
-            printx("crypto_verify_pk_signature: vaultip_asset_delete() failed!\n");
+            printf("crypto_verify_pk_signature: vaultip_asset_delete() failed!\n");
         }
     }
     return rv;

@@ -24,6 +24,8 @@ set(SOURCES
     src/bl2_spi_flash.c
     src/bl2_flash_fs.c
     src/bl2_flashfs_driver.c
+    src/bl2_vaultip_controller.c
+    src/bl2_crypto.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/backtrace.c
     src/bl2_build_configuration.c)
