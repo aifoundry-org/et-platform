@@ -68,6 +68,7 @@ typedef struct SERVICE_PROCESSOR_ROM_DATA_s {
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t pcie_config_header;
     uint32_t * pcie_config_data;
     uint32_t * vaultip_firmware_image;
+    uint32_t vaultip_coid_set;
     ESPERANTO_CERTIFICATE_t sp_certificates[2];
     ESPERANTO_IMAGE_FILE_HEADER_t sp_bl1_header;
 } SERVICE_PROCESSOR_ROM_DATA_t;
