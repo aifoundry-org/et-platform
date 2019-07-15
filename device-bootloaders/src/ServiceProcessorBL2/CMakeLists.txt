@@ -27,6 +27,8 @@ set(SOURCES
     src/bl2_vaultip_controller.c
     src/bl2_vaultip_driver.c
     src/bl2_crypto.c
+    src/crc32.c
+    src/memory_copy_8x32.S
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/backtrace.c
     src/bl2_build_configuration.c)

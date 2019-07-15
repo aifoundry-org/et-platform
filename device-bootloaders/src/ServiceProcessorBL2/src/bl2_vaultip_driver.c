@@ -503,7 +503,7 @@ int vaultip_drv_get_system_information(VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * syst
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        printf("flashfs_drv_get_config_data: vaultip_drv_get_system_information() failed!\r\n");
         return -1;
     }
 
@@ -528,7 +528,7 @@ int vaultip_drv_register_read(uint32_t identity, bool incremental_read, uint32_t
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        printf("flashfs_drv_get_config_data: vaultip_drv_register_read() failed!\r\n");
         return -1;
     }
 
@@ -554,7 +554,7 @@ int vaultip_drv_register_write(uint32_t identity, bool incremental_write, uint32
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        printf("flashfs_drv_get_config_data: vaultip_drv_register_write() failed!\r\n");
         return -1;
     }
 
@@ -575,7 +575,7 @@ int vaultip_drv_trng_configuration(uint32_t identity) {
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        printf("flashfs_drv_get_config_data: vaultip_drv_trng_configuration() failed!\r\n");
         return -1;
     }
 
@@ -595,7 +595,7 @@ int vaultip_drv_provision_huk(uint32_t coid) {
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        printf("flashfs_drv_get_config_data: vaultip_drv_provision_huk() failed!\r\n");
         return -1;
     }
 
@@ -615,7 +615,7 @@ int vaultip_drv_reset(uint32_t identity) {
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        printf("flashfs_drv_get_config_data: vaultip_drv_reset() failed!\r\n");
         return -1;
     }
 
@@ -639,7 +639,7 @@ int vaultip_drv_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, s
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        printf("flashfs_drv_get_config_data: vaultip_drv_hash() failed!\r\n");
         return -1;
     }
 
@@ -651,7 +651,7 @@ int vaultip_drv_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, s
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: flash_fs_get_config_data() failed!\r\n");
+        printf("flashfs_drv_get_config_data: vaultip_drv_hash() failed!\r\n");
         return -1;
     }
 

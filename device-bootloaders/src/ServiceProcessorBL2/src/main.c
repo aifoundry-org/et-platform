@@ -7,10 +7,15 @@
 
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
+#include "service_processor_BL2_data.h"
 #include "bl2_firmware_loader.h"
 #include "bl2_flash_fs.h"
 #include "bl2_build_configuration.h"
 #include "build_configuration.h"
+
+#include "bl2_main.h"
+#include "bl2_flashfs_driver.h"
+#include "bl2_vaultip_driver.h"
 
 #include <stdio.h>
 #include "bl2_crypto.h"
@@ -24,6 +29,12 @@ void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackTyp
 void vApplicationIdleHook(void);
 void vApplicationTickHook(void);
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
+
+SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
+
+SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void) {
+    return &g_service_processor_bl2_data;
+}
 
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data);
 
@@ -54,8 +65,18 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     SERIAL_write(PU_UART1, "alive\r\n", 7);
 
     INT_init();
+
+    if (0 != vaultip_drv_init()) {
+        printf("vaultip_drv_init() failed!\n");
+        goto FATAL_ERROR;
+    }
     if (0 != crypto_init(bl1_data->vaultip_coid_set)) {
         printf("crypto_init() failed!\n");
+        goto FATAL_ERROR;
+    }
+    if (0 != flashfs_drv_init(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info)) {
+        printf("flashfs_drv_init() failed!\n");
+        goto FATAL_ERROR;
     }
 
     static TaskHandle_t taskHandleA;
@@ -92,6 +113,11 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     }
 
     vTaskStartScheduler();
+
+FATAL_ERROR:
+    printf("Encountered a FATAL ERROR!\n");
+    printf("Waiting for RESET!!!\n");
+    for(;;);
 }
 
 void taskA(void *pvParameters)

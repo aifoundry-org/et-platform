@@ -14,6 +14,6 @@
 
 #include "service_processor_BL2_data.h"
 
-SERVICE_PROCESSOR_BL1_DATA_t * get_service_processor_bl2_data(void);
+SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void);
 
 #endif
