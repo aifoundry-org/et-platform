@@ -3207,19 +3207,10 @@ static void tensorstore(uint64_t tstorereg)
         int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride;
-        switch (cols)
-        {
-            case  1: stride = XREGS[31] & 0x0000FFFFFFFFFFF0ULL; break;
-            case  2: stride = XREGS[31] & 0x0000FFFFFFFFFFE0ULL; break;
-            case  4: stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL; break;
-            default: stride = 0; break;
-        }
+        uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFF0ULL;
 
         LOG(DEBUG, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
-
-        int src = regstart;
 
         // Check legal coop combination
         // xs[50:49]/xs[56:55]
@@ -3245,21 +3236,23 @@ static void tensorstore(uint64_t tstorereg)
         }
 
         // For all the rows
+        int src = regstart;
+        uint64_t mask = ~(16ull*cols - 1ull);
         for (int row = 0; row < rows; row++)
         {
+            uint64_t vaddr = addr & mask;
             // For all the blocks of 128b
             for (int col = 0; col < cols; col++)
             {
-                assert(addr_is_size_aligned(addr, 16));
-                uint64_t paddr = vmemtranslate(addr + col*16, 16, Mem_Access_TxStore);
+                uint64_t paddr = vmemtranslate(vaddr + col*16, 16, Mem_Access_TxStore);
                 // For all the 32 elements of the 128b block
                 for (uint64_t i = 0; i < 4; i++)
                 {
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u32[idx];
-                    LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
+                    LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, vaddr + col*16 + i*4);
                     bemu::pmemwrite32(paddr + i*4, val);
-                    //log_mem_write(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
+                    //log_mem_write(0, 4, vaddr + col*16 + i*4, val); => Don't log mem changes!
                 }
                 // For 128b stores, move to next desired register immediately.
                 // For 256b and 512b stores, move to next desired register
