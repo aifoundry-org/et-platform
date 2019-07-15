@@ -53,7 +53,7 @@ public:
   bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override;
   bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override;
   bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override;
-  bool launch(uintptr_t launch_pc) override;
+  bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override;
   bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
 
 private:

@@ -12,7 +12,6 @@
 #include "Device/TargetDeviceInfo.h"
 #include "Support/Logging.h"
 #include "SysEmuLauncher.h"
-#include "et-rpc.h"
 
 #include "et_socket_addr.h"
 #include "etrpc/et-card-proxy.h"
@@ -143,8 +142,25 @@ bool CardProxyTarget::writeDevMem(uintptr_t dev_addr, size_t size,
   cpWriteDevMem(card_proxy_.get(), dev_addr, size, buf);
   return true;
 }
-bool CardProxyTarget::launch(uintptr_t launch_pc) {
-  cpLaunch(card_proxy_.get(), launch_pc);
+bool CardProxyTarget::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {
+      fprintf(stderr,
+            "CardProxyTarget::Going to execute kernel {0x%lx}\n"
+            "  tensor_a = 0x%" PRIx64 "\n"
+            "  tensor_b = 0x%" PRIx64 "\n"
+            "  tensor_c = 0x%" PRIx64 "\n"
+            "  tensor_d = 0x%" PRIx64 "\n"
+            "  tensor_e = 0x%" PRIx64 "\n"
+            "  tensor_f = 0x%" PRIx64 "\n"
+            "  tensor_g = 0x%" PRIx64 "\n"
+            "  tensor_h = 0x%" PRIx64 "\n"
+            "  pc/id    = 0x%" PRIx64 "\n",
+            launch_pc,
+            params->tensor_a, params->tensor_b, params->tensor_c,
+            params->tensor_d, params->tensor_e, params->tensor_f,
+            params->tensor_g, params->tensor_h, params->kernel_id);
+
+  RTINFO << "SysEmu launch CardProxyTarget.";
+  cpLaunch(card_proxy_.get(), launch_pc, params);
   return true;
 }
 

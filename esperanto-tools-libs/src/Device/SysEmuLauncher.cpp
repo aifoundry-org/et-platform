@@ -40,7 +40,7 @@ SysEmuLauncher::SysEmuLauncher(
       std::string("-api_comm"), connection_,
       "-mins_dis", // Disable minions by default as booting is done through an
                    // exec commandi
-      // "-l","-lm","0", // Enable logging of minion0
+      //"-l",//"-lm","0", // Enable logging of minion0
       "-max_cycles", "1250000", // Limiting number of virtual simulation cycles.
                                 // Increase if needed
   };

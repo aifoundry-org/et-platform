@@ -24,6 +24,19 @@ class CardProxy;
 namespace et_runtime {
 namespace device {
 
+// Types
+typedef struct {
+    uint64_t tensor_a;     // Pointer to tensor A
+    uint64_t tensor_b;     // Pointer to tensor B
+    uint64_t tensor_c;     // Pointer to tensor C
+    uint64_t tensor_d;     // Pointer to tensor D
+    uint64_t tensor_e;     // Pointer to tensor E
+    uint64_t tensor_f;     // Pointer to tensor F
+    uint64_t tensor_g;     // Pointer to tensor G
+    uint64_t tensor_h;     // Pointer to tensor H
+    uint64_t kernel_id;    // Id for this Kernel
+} layer_dynamic_info;
+
 /// @brief Struct holding the information for configuring a memory region in the
 /// target device
 struct MemoryRegionConf {
@@ -117,7 +130,7 @@ public:
                            const void *buf) = 0;
 
   /// @brief Launch a specific PC on the device.
-  virtual bool launch(uintptr_t launch_pc) = 0;
+  virtual bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) = 0;
 
   /// @brief Boot the device
   virtual bool boot(uintptr_t init_pc, uintptr_t trap_pc) = 0;

@@ -5,6 +5,7 @@
 #include <string>
 #include <sys/types.h>
 #include <vector>
+#include "Core/Device.h"
 
 typedef enum {
   kIPIShutdown,
@@ -23,11 +24,8 @@ typedef struct {
 } MemDescMsg;
 
 typedef struct {
-  long long thread0_pc;
-  long long thread1_pc;
-
-  unsigned long long shire_mask;
-  unsigned long long minion_mask;
+  uint64_t launch_pc;
+  et_runtime::device::layer_dynamic_info params;
 } ExecuteDescMsg;
 
 class Backend {
@@ -41,8 +39,8 @@ public:
                            size_t memory_size);
   virtual void readMemory(void *memory_ptr, void *memory_addr,
                           size_t memory_size);
-  virtual void launch(uint64_t launch_pc);
-  virtual void executeCodeAndWait(uint64_t t0_start_pc, uint64_t t1_start_pc);
+  virtual void launch(uint64_t launch_pc, const et_runtime::device::layer_dynamic_info &params);
+  virtual void executeCodeAndWait(uint64_t launch_pc, const et_runtime::device::layer_dynamic_info &params);
   virtual void shutdown(const char *work_dir);
 
   virtual void startup(const char *work_dir) = 0;

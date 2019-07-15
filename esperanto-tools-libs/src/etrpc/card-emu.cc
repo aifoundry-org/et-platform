@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 using namespace std;
 
@@ -76,7 +77,23 @@ MessageBootRes CardEmu::bootReq(MessageBootReq *msg_p) {
 MessageLaunchRes CardEmu::launchReq(MessageLaunchReq *msg_p) {
   printf("MessageLaunchReq(launch_pc=0x%lx)\n", msg_p->launch_pc);
 
-  gBackendInterface_->launch(msg_p->launch_pc);
+    fprintf(stderr,
+            "CardEmu::Going to execute kernel {0x%lx}\n"
+            "  tensor_a = 0x%" PRIx64 "\n"
+            "  tensor_b = 0x%" PRIx64 "\n"
+            "  tensor_c = 0x%" PRIx64 "\n"
+            "  tensor_d = 0x%" PRIx64 "\n"
+            "  tensor_e = 0x%" PRIx64 "\n"
+            "  tensor_f = 0x%" PRIx64 "\n"
+            "  tensor_g = 0x%" PRIx64 "\n"
+            "  tensor_h = 0x%" PRIx64 "\n"
+            "  pc/id    = 0x%" PRIx64 "\n",
+            msg_p->launch_pc,
+            msg_p->params.tensor_a, msg_p->params.tensor_b, msg_p->params.tensor_c,
+            msg_p->params.tensor_d, msg_p->params.tensor_e, msg_p->params.tensor_f,
+            msg_p->params.tensor_g, msg_p->params.tensor_h, msg_p->params.kernel_id);
+
+  gBackendInterface_->launch(msg_p->launch_pc, msg_p->params);
 
   MessageLaunchRes res_msg = {};
   return res_msg;

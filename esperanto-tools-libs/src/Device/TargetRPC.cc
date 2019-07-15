@@ -9,7 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "Device/TargetRPC.h"
-
+#include <inttypes.h>
 #include "esperanto/simulator-api.grpc.pb.h"
 
 using namespace std;
@@ -129,13 +129,31 @@ bool RPCTarget::writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) {
   return true;
 }
 
-bool RPCTarget::launch(uintptr_t launch_pc) {
+bool RPCTarget::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {
+
+      fprintf(stderr,
+            "RPCTarget::Going to execute kernel {0x%lx}\n"
+            "  tensor_a = 0x%" PRIx64 "\n"
+            "  tensor_b = 0x%" PRIx64 "\n"
+            "  tensor_c = 0x%" PRIx64 "\n"
+            "  tensor_d = 0x%" PRIx64 "\n"
+            "  tensor_e = 0x%" PRIx64 "\n"
+            "  tensor_f = 0x%" PRIx64 "\n"
+            "  tensor_g = 0x%" PRIx64 "\n"
+            "  tensor_h = 0x%" PRIx64 "\n"
+            "  pc/id    = 0x%" PRIx64 "\n",
+            launch_pc,
+            params->tensor_a, params->tensor_b, params->tensor_c,
+            params->tensor_d, params->tensor_e, params->tensor_f,
+            params->tensor_g, params->tensor_h, params->kernel_id);
+
   // Send an Execute command
   simulator_api::Request request;
   auto card_emu = new CardEmuReq();
   auto execute = new CardEmuExecuteReq();
-  execute->set_thread0_pc(launch_pc);
-  execute->set_thread1_pc(launch_pc);
+  execute->set_launch_pc(launch_pc);
+  execute->set_params(params, sizeof(*params));
+  //execute->set_thread1_pc(launch_pc);
   card_emu->set_allocated_execute(execute);
   request.set_allocated_card_emu(card_emu);
   // Check execute response

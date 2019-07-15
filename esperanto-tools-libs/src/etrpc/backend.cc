@@ -168,17 +168,31 @@ void Backend::readMemory(void *memory_ptr, void *memory_addr,
   readBytesFromFd(memory_ptr, memory_size);
 }
 
-void Backend::launch(uint64_t launch_pc) {
-  executeCodeAndWait(launch_pc, launch_pc);
+void Backend::launch(uint64_t launch_pc, const et_runtime::device::layer_dynamic_info &params) {
+
+  executeCodeAndWait(launch_pc, params);
 }
 
-void Backend::executeCodeAndWait(uint64_t t0_start_pc, uint64_t t1_start_pc) {
+void Backend::executeCodeAndWait(uint64_t launch_pc, const et_runtime::device::layer_dynamic_info &params) {
+
+  fprintf(stderr,
+          "  tensor_a = 0x%" PRIx64 "\n"
+          "  tensor_b = 0x%" PRIx64 "\n"
+          "  tensor_c = 0x%" PRIx64 "\n"
+          "  tensor_d = 0x%" PRIx64 "\n"
+          "  tensor_e = 0x%" PRIx64 "\n"
+          "  tensor_f = 0x%" PRIx64 "\n"
+          "  tensor_g = 0x%" PRIx64 "\n"
+          "  tensor_h = 0x%" PRIx64 "\n"
+          "  pc/id    = 0x%" PRIx64 "\n",
+          params.tensor_a, params.tensor_b, params.tensor_c,
+          params.tensor_d, params.tensor_e, params.tensor_f,
+          params.tensor_g, params.tensor_h, params.kernel_id);
+
   ExecuteDescMsg execute_desc;
   char cmd = kIPIExecute;
-  execute_desc.thread0_pc = (long long)t0_start_pc;
-  execute_desc.thread1_pc = (long long)t1_start_pc;
-  execute_desc.shire_mask = 0xffffffffffffffffu;
-  execute_desc.minion_mask = 0xffffffffffffffffu;
+  execute_desc.launch_pc = launch_pc;
+  execute_desc.params = params;
 
   writeBytesIntoFd(&cmd, 1);
   writeBytesIntoFd(&execute_desc, sizeof(execute_desc));

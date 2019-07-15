@@ -2,7 +2,6 @@
 #include "Support/Logging.h"
 #include "card-emu.h"
 #include "esprt_iface.h"
-#include "et-rpc.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -74,11 +73,12 @@ void cpWriteDevMem(CardProxy *card_proxy, uintptr_t dev_addr, size_t size,
   free(msg_p);
 }
 
-void cpLaunch(CardProxy *card_proxy, uintptr_t launch_pc) {
+void cpLaunch(CardProxy *card_proxy, uintptr_t launch_pc, const et_runtime::device::layer_dynamic_info *params) {
   RTINFO << "Card Proxy Launch pc: " << std::hex << launch_pc;
 
   MessageLaunchReq msg = {};
   msg.launch_pc = launch_pc;
+  msg.params = *params;
   card_proxy->card_emu().launchReq(&msg);
 }
 

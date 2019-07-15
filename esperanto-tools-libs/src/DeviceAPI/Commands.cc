@@ -68,57 +68,26 @@ etrtError WriteCommand::execute(Device *device) {
 
 etrtError LaunchCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
+  const auto *params = (const et_runtime::device::layer_dynamic_info *)args_buff.data();
+
   fprintf(stderr,
-          "Going to execute kernel {0x%lx} %s [%s] grid_dim=(%d,%d,%d) "
-          "block_dim=(%d,%d,%d)\n",
+          "LaunchCommand::Going to execute kernel {0x%lx} %s [%s]\n"
+          "  tensor_a = 0x%" PRIx64 "\n"
+          "  tensor_b = 0x%" PRIx64 "\n"
+          "  tensor_c = 0x%" PRIx64 "\n"
+          "  tensor_d = 0x%" PRIx64 "\n"
+          "  tensor_e = 0x%" PRIx64 "\n"
+          "  tensor_f = 0x%" PRIx64 "\n"
+          "  tensor_g = 0x%" PRIx64 "\n"
+          "  tensor_h = 0x%" PRIx64 "\n"
+          "  pc/id    = 0x%" PRIx64 "\n",
           kernel_pc, kernel_name.c_str(), demangle(kernel_name).c_str(),
-          gridDim.x, gridDim.y, gridDim.z, blockDim.x, blockDim.y, blockDim.z);
-// FIXME remove the following
-#if 0
-  if (kernel_pc == 0) {
-    // this is for builtin kernels (calling kernel by name, i.e. kernel_pc == 0)
-    kernel_pc = getBuiltinKernelPcByName(kernel_name);
-  }
+          params->tensor_a, params->tensor_b, params->tensor_c,
+          params->tensor_d, params->tensor_e, params->tensor_f,
+          params->tensor_g, params->tensor_h, params->kernel_id);
 
-  if (!card_proxy) // i.e. local mode
-  {
-    target_device.cpuLaunch(kernel_name, kernel_pc, args_buff);
-    return;
-
-  }
-#endif
-
-  {
-    size_t args_size = args_buff.size();
-    size_t params_size = sizeof(LaunchParams_t) + args_size;
-    assert(params_size < LAUNCH_PARAMS_AREA_SIZE);
-
-    std::vector<uint8_t> params(params_size);
-    LaunchParams_t *params_p = (LaunchParams_t *)&params[0];
-
-    params_p->state.grid_size_x = gridDim.x;
-    params_p->state.grid_size_y = gridDim.y;
-    params_p->state.grid_size_z = gridDim.z;
-    params_p->state.block_size_x = blockDim.x;
-    params_p->state.block_size_y = blockDim.y;
-    params_p->state.block_size_z = blockDim.z;
-
-    params_p->kernel_pc = kernel_pc;
-    params_p->args_size = args_size;
-
-    memcpy(&params_p->args[0], &args_buff[0], args_size);
-
-    target_device.writeDevMem(LAUNCH_PARAMS_AREA_BASE, params_size, params_p);
-  }
-
-#if 0
-  // b4c hack
-  static const long ETSOC_launch = 0x0000008100006038;
-  if (static_kernels)
-    target_device.launch( ETSOC_launch); // b4c - precompiled kernels
-  else
-#endif
-  target_device.launch(kernel_pc); // ETSOC backend - JIT, not covered by b4c
+  target_device.writeDevMem(RT_HOST_KERNEL_LAUNCH_INFO, sizeof(*params), params);
+  target_device.launch(kernel_pc, params); // ETSOC backend - JIT, not covered by b4c
 
   setResponse(LaunchResponse());
   return etrtSuccess;

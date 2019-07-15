@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string>
 #include <unistd.h>
+#include "Core/Device.h"
 
 class CardEmu;
 
@@ -35,7 +36,7 @@ void cpReadDevMem(CardProxy *card_proxy, uintptr_t dev_addr, size_t size,
                   void *buf);
 void cpWriteDevMem(CardProxy *card_proxy, uintptr_t dev_addr, size_t size,
                    const void *buf);
-void cpLaunch(CardProxy *card_proxy, uintptr_t launch_pc);
+void cpLaunch(CardProxy *card_proxy, uintptr_t launch_pc, const et_runtime::device::layer_dynamic_info *params);
 void cpBoot(CardProxy *card_proxy, uintptr_t init_pc, uintptr_t trap_pc);
 
 

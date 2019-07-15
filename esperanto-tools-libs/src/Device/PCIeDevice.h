@@ -16,6 +16,8 @@
 #include <cassert>
 #include <string>
 
+#include "../etrpc/et-rpc.h"
+
 namespace et_runtime {
 namespace device {
 
@@ -73,7 +75,7 @@ public:
     assert(true);
     return true;
   }
-  bool launch(uintptr_t launch_pc) override {
+  bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override {
     assert(true);
     return true;
   }

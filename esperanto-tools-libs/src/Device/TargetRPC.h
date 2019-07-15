@@ -21,6 +21,8 @@
 #include <memory>
 #include <string>
 
+#include "../etrpc/et-rpc.h"
+
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
 using grpc::ClientContext;
@@ -49,7 +51,7 @@ public:
   bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) final;
   bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) final;
   bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) final;
-  bool launch(uintptr_t launch_pc) final;
+  bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) final;
   virtual bool boot(uintptr_t init_pc, uintptr_t trap_pc);
   bool shutdown();
 

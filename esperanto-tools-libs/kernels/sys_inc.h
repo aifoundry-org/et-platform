@@ -30,6 +30,11 @@
 #define STACK_ADDR_START  0x8100000000
 #define MASTER_ADDR_START 0x8200000000
 
+// Scratch area to share information when MM sends an IPI to Compute Minions
+#define FW_KERNEL_LAUNCH_IPI_INFO  0x8000600000ULL
+// Address where the host will place the kernel launch information (synced with fw_common.h)
+#define RT_HOST_KERNEL_LAUNCH_INFO 0x8200000000ULL
+
 // RAM memory region
 //#define RAM_MEMORY_REGION 0x8100000000
 #define RAM_MEMORY_REGION 0x8000000000
