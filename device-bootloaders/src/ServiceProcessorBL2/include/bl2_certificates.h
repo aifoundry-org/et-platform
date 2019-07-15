@@ -18,6 +18,15 @@
 
 #include "service_processor_BL2_data.h"
 
-int verify_minion_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_sp_bl1_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_sp_bl2_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_pcie_data_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_machine_minion_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_master_minion_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_worker_minion_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_compute_kernel_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_maxion_bl1_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+
+int load_sw_certificates_chain(void);
 
 #endif

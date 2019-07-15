@@ -116,7 +116,7 @@ static int basic_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate) 
 //         hash[58], hash[59], hash[60], hash[61], hash[62], hash[63]);
 // }
 
-static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate, const ESPERANTO_CERTIFICATE_t * parent_certificate) {
+static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificate, const ESPERANTO_CERTIFICATE_t * parent_certificate, uint32_t required_designation_flags) {
     if (NULL == certificate) {
         return -1;
     }
@@ -137,11 +137,10 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
         //     return -1;
         // }
 
-        // todo: verify the esperanto designation
-        // if (0 == parent_certificate->certificate_info.esperanto_designation) {
-        //     printx("enhanced_certificate_check: esperanto designation mismatch!\n");
-        //     return -1;
-        // }
+        if (required_designation_flags != (parent_certificate->certificate_info.esperanto_designation & required_designation_flags)) {
+            printx("enhanced_certificate_check: esperanto designation mismatch!\n");
+            return -1;
+        }
 
         if (0 != constant_time_memory_compare(&(certificate->certificate_info.issuer_key_identifier), 
                                               &(parent_certificate->certificate_info.subject_key_identifier),
@@ -169,11 +168,11 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
     return 0;
 }
 
-static int verify_certificate(const ESPERANTO_CERTIFICATE_t * certificate, const ESPERANTO_CERTIFICATE_t * parent_certificate) {
+static int verify_certificate(const ESPERANTO_CERTIFICATE_t * certificate, const ESPERANTO_CERTIFICATE_t * parent_certificate, uint32_t required_designation_flags) {
     if (0 != basic_certificate_check(certificate)) {
         return -1;
     }
-    if (0 != enhanced_certificate_check(certificate, parent_certificate)) {
+    if (0 != enhanced_certificate_check(certificate, parent_certificate, required_designation_flags)) {
         return -1;
     }
     return 0;
@@ -182,7 +181,7 @@ static int verify_certificate(const ESPERANTO_CERTIFICATE_t * certificate, const
 int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
     SERVICE_PROCESSOR_BL1_DATA_t * bl1_data = get_service_processor_bl1_data();
 
-    if (0 != verify_certificate(certificate, &(bl1_data->sp_certificates[1]))) {
+    if (0 != verify_certificate(certificate, &(bl1_data->sp_certificates[1]), ESPERANTO_CERTIFICATE_DESIGNATION_BL2_CA)) {
         printx("verify_bl2_certificate: verify_certificate(0 failed!\n");
         return -1;
     }
