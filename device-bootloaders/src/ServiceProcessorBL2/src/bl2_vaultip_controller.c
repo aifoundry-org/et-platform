@@ -185,7 +185,7 @@ void dump_vip_regs(void) {
     printf("MAILBOX_LOCKOUT: 0x%x\n", val);
 }
 
-int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
+static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
     volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
@@ -245,7 +245,7 @@ int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
     return 0;
 }
 
-int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
+static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
     volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
