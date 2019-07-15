@@ -14,12 +14,18 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+
 #include "bl2_main.h"
 #include "bl2_crypto.h"
 #include "vaultip_hw.h"
 #include "vaultip_sw.h"
 #include "vaultip_sw_asset.h"
 #include "bl2_vaultip_controller.h"
+#include "bl2_vaultip_driver.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
@@ -45,18 +51,38 @@ typedef union ASSET_POLICY_u {
 } ASSET_POLICY_t;
 
 static bool coid_provisioned;
+
+static SemaphoreHandle_t gs_mutex_crypto_create_ec_parameters_asset;
+static SemaphoreHandle_t gs_mutex_crypto_create_ec_public_key_asset;
+static SemaphoreHandle_t gs_mutex_crypto_ecdsa_verify;
+static SemaphoreHandle_t gs_mutex_crypto_create_rsa_public_key_asset;
+static SemaphoreHandle_t gs_mutex_crypto_rsa_verify;
+static StaticSemaphore_t gs_mutex_buffer_crypto_create_ec_parameters_asset;
+static StaticSemaphore_t gs_mutex_buffer_crypto_create_ec_public_key_asset;
+static StaticSemaphore_t gs_mutex_buffer_crypto_ecdsa_verify;
+static StaticSemaphore_t gs_mutex_buffer_crypto_create_rsa_public_key_asset;
+static StaticSemaphore_t gs_mutex_buffer_crypto_rsa_verify;
+
 #define ESPERANTO_COID 0x4F435445 // 'ETCO'
+
+int crypto_init(uint32_t vaultip_coid_set) {
+    coid_provisioned = vaultip_coid_set ? true : false;
+
+    gs_mutex_crypto_create_ec_parameters_asset = xSemaphoreCreateMutexStatic(&gs_mutex_buffer_crypto_create_ec_parameters_asset);
+    gs_mutex_crypto_create_ec_public_key_asset = xSemaphoreCreateMutexStatic(&gs_mutex_buffer_crypto_create_ec_public_key_asset);
+    gs_mutex_crypto_ecdsa_verify = xSemaphoreCreateMutexStatic(&gs_mutex_buffer_crypto_ecdsa_verify);
+    gs_mutex_crypto_create_rsa_public_key_asset = xSemaphoreCreateMutexStatic(&gs_mutex_buffer_crypto_create_rsa_public_key_asset);
+    gs_mutex_crypto_rsa_verify = xSemaphoreCreateMutexStatic(&gs_mutex_buffer_crypto_rsa_verify);
+
+    return 0;
+}
+
 static uint32_t get_rom_identity(void) {
     if (coid_provisioned) {
         return ESPERANTO_COID;
     } else {
         return 0x0;
     }
-}
-
-int crypto_init(uint32_t vaultip_coid_set) {
-    coid_provisioned = vaultip_coid_set ? true : false;
-    return 0;
 }
 
 int crypto_derive_kdk_key(const void * kdk_derivation_data, size_t kdk_derivation_data_size, uint32_t * kdk_asset_id) {
@@ -72,20 +98,20 @@ int crypto_derive_kdk_key(const void * kdk_derivation_data, size_t kdk_derivatio
     uint32_t kdk_lifetime = 0;
 
     // find HUK
-    if (0 != vaultip_static_asset_search(get_rom_identity(), VAULTIP_STATIC_ASSET_HUK, &huk_asset_id, &huk_asset_length)) {
-        printf("derive_kdk: vaultip_static_asset_search(HUK) failed!\n");
+    if (0 != vaultip_drv_static_asset_search(get_rom_identity(), VAULTIP_STATIC_ASSET_HUK, &huk_asset_id, &huk_asset_length)) {
+        printf("derive_kdk: vaultip_drv_static_asset_search(HUK) failed!\n");
         return -1;
     }
 
     // create KDK
-    if (0 != vaultip_asset_create(get_rom_identity(), kdk_policy.lo, kdk_policy.hi, kdk_other_settings, kdk_lifetime, kdk_asset_id)) {
-        printf("derive_kdk: vaultip_asset_create() failed!\n");
+    if (0 != vaultip_drv_asset_create(get_rom_identity(), kdk_policy.lo, kdk_policy.hi, kdk_other_settings, kdk_lifetime, kdk_asset_id)) {
+        printf("derive_kdk: vaultip_drv_asset_create() failed!\n");
         return -1;
     }
  
     // derive KDK
-    if (0 != vaultip_asset_load_derive(get_rom_identity(), *kdk_asset_id, huk_asset_id, NULL, 0, (const uint8_t *)kdk_derivation_data, (uint32_t)kdk_derivation_data_size, NULL, 0)) {
-        printf("derive_kdk: vaultip_asset_load_derive() failed!\n");
+    if (0 != vaultip_drv_asset_load_derive(get_rom_identity(), *kdk_asset_id, huk_asset_id, NULL, 0, (const uint8_t *)kdk_derivation_data, (uint32_t)kdk_derivation_data_size, NULL, 0)) {
+        printf("derive_kdk: vaultip_drv_asset_load_derive() failed!\n");
         return -1;
     }
 
@@ -120,14 +146,14 @@ int crypto_derive_mac_key(ESPERANTO_MAC_TYPE_t mac_alg, uint32_t kdk_asset_id, c
     }
 
     // create MACK
-    if (0 != vaultip_asset_create(get_rom_identity(), mack_policy.lo, mack_policy.hi, mack_other_settings, mack_lifetime, mack_asset_id)) {
-        printf("derive_mack: vaultip_asset_create() failed!\n");
+    if (0 != vaultip_drv_asset_create(get_rom_identity(), mack_policy.lo, mack_policy.hi, mack_other_settings, mack_lifetime, mack_asset_id)) {
+        printf("derive_mack: vaultip_drv_asset_create() failed!\n");
         return -1;
     }
  
     // derive MACK
-    if (0 != vaultip_asset_load_derive(get_rom_identity(), *mack_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)mack_derivation_data, (uint32_t)mack_derivation_data_size, NULL, 0)) {
-        printf("derive_mack: vaultip_asset_load_derive() failed!\n");
+    if (0 != vaultip_drv_asset_load_derive(get_rom_identity(), *mack_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)mack_derivation_data, (uint32_t)mack_derivation_data_size, NULL, 0)) {
+        printf("derive_mack: vaultip_drv_asset_load_derive() failed!\n");
         return -1;
     }
 
@@ -145,14 +171,14 @@ int crypto_derive_enc_key(uint32_t kdk_asset_id, const void * enck_derivation_da
     uint32_t enck_lifetime = 0;
 
     // create ENCK
-    if (0 != vaultip_asset_create(get_rom_identity(), enck_policy.lo, enck_policy.hi, enck_other_settings, enck_lifetime, enck_asset_id)) {
-        printf("derive_enck: vaultip_asset_create() failed!\n");
+    if (0 != vaultip_drv_asset_create(get_rom_identity(), enck_policy.lo, enck_policy.hi, enck_other_settings, enck_lifetime, enck_asset_id)) {
+        printf("derive_enck: vaultip_drv_asset_create() failed!\n");
         return -1;
     }
  
     // derive ENCK
-    if (0 != vaultip_asset_load_derive(get_rom_identity(), *enck_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)enck_derivation_data, (uint32_t)enck_derivation_data_size, NULL, 0)) {
-        printf("derive_enck: vaultip_asset_load_derive() failed!\n");
+    if (0 != vaultip_drv_asset_load_derive(get_rom_identity(), *enck_asset_id, kdk_asset_id, NULL, 0, (const uint8_t *)enck_derivation_data, (uint32_t)enck_derivation_data_size, NULL, 0)) {
+        printf("derive_enck: vaultip_drv_asset_load_derive() failed!\n");
         return -1;
     }
 
@@ -160,8 +186,8 @@ int crypto_derive_enc_key(uint32_t kdk_asset_id, const void * enck_derivation_da
 }
 
 int crypto_delete_key(uint32_t key) {
-    if (0 != vaultip_asset_delete(get_rom_identity(), key)) {
-        printf("crypto_delete_key: vaultip_asset_delete() failed!\n");
+    if (0 != vaultip_drv_asset_delete(get_rom_identity(), key)) {
+        printf("crypto_delete_key: vaultip_drv_asset_delete() failed!\n");
         return -1;
     }
     return 0;
@@ -317,7 +343,7 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t * signature) {
 }
 
 int crypto_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash) {
-    return vaultip_hash(get_rom_identity(), hash_alg, msg, msg_size, hash);
+    return vaultip_drv_hash(get_rom_identity(), hash_alg, msg, msg_size, hash);
 }
 
 int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) {
@@ -350,13 +376,13 @@ int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) 
         return -1;
     }
 
-    if (0 != vaultip_asset_create(get_rom_identity(), 
+    if (0 != vaultip_drv_asset_create(get_rom_identity(), 
                                   temp_digest_asset_policy.lo, 
                                   temp_digest_asset_policy.hi, 
                                   temp_digest_asset_other_settings, 
                                   0, // lifetime, 
                                   &(hash_context->temp_digest_asset_id))) {
-        printf("crypto_hash_init: vaultip_asset_create() failed!\n");
+        printf("crypto_hash_init: vaultip_drv_asset_create() failed!\n");
         return -1;
     }
 
@@ -371,8 +397,8 @@ int crypto_hash_abort(CRYPTO_HASH_CONTEXT_t * hash_context) {
     }
 
     if (hash_context->hash_alg != HASH_ALG_INVALID) {
-        if (0 != vaultip_asset_delete(get_rom_identity(), hash_context->temp_digest_asset_id)) {
-            printf("crypto_hash_abort: vaultip_asset_delete failed!");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), hash_context->temp_digest_asset_id)) {
+            printf("crypto_hash_abort: vaultip_drv_asset_delete failed!");
             return -1;
         }
     }
@@ -392,9 +418,9 @@ int crypto_hash_update(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, s
     }
 
     if (hash_context->init_done) {
-        rv = vaultip_hash_update(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false);
+        rv = vaultip_drv_hash_update(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false);
     } else {
-        rv = vaultip_hash_update(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true);
+        rv = vaultip_drv_hash_update(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true);
         if (0 == rv) {
             hash_context->init_done = true;
         }
@@ -410,14 +436,14 @@ int crypto_hash_final(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, si
     }
 
     if (hash_context->init_done) {
-        rv = vaultip_hash_final(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false, total_msg_length, hash);
+        rv = vaultip_drv_hash_final(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false, total_msg_length, hash);
     } else {
-        rv = vaultip_hash_final(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true, total_msg_length, hash);
+        rv = vaultip_drv_hash_final(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true, total_msg_length, hash);
     }
 
     if (0 == rv) {
-        if (0 != vaultip_asset_delete(get_rom_identity(), hash_context->temp_digest_asset_id)) {
-            printf("crypto_hash_final: vaultip_asset_delete failed!");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), hash_context->temp_digest_asset_id)) {
+            printf("crypto_hash_final: vaultip_drv_asset_delete failed!");
             rv = -1;
         }
 
@@ -450,8 +476,8 @@ int crypto_mac_verify(ESPERANTO_MAC_TYPE_t mac_alg,
     }
 
     // compute MAC
-    if (0 != vaultip_mac_verify(get_rom_identity(), mac_alg, mack_key, data, data_size, mac)) {
-        printf("test_kdk: vaultip_mac_verify() failed!\n");
+    if (0 != vaultip_drv_mac_verify(get_rom_identity(), mac_alg, mack_key, data, data_size, mac)) {
+        printf("test_kdk: vaultip_drv_mac_verify() failed!\n");
         return -1;
     }
 
@@ -476,8 +502,8 @@ int crypto_aes_decrypt_init(CRYPTO_AES_CONTEXT_t * aes_context,
 }
 
 int crypto_aes_decrypt_update(CRYPTO_AES_CONTEXT_t * aes_context, void * data, size_t data_size) {
-    if (0 != vaultip_aes_cbc_decrypt(get_rom_identity(), aes_context->aes_key_asset_id, aes_context->IV, data, data_size)) {
-        printf("crypto_aes_decrypt_update: vaultip_aes_cbc_encrypt() failed!\n");
+    if (0 != vaultip_drv_aes_cbc_decrypt(get_rom_identity(), aes_context->aes_key_asset_id, aes_context->IV, data, data_size)) {
+        printf("crypto_aes_decrypt_update: vaultip_drv_aes_cbc_encrypt() failed!\n");
         return -1;
     }
 
@@ -486,8 +512,8 @@ int crypto_aes_decrypt_update(CRYPTO_AES_CONTEXT_t * aes_context, void * data, s
 
 int crypto_aes_decrypt_final(CRYPTO_AES_CONTEXT_t * aes_context, void * data, size_t data_size, uint8_t * IV) {
     if (NULL != data && data_size > 0) {
-        if (0 != vaultip_aes_cbc_decrypt(get_rom_identity(), aes_context->aes_key_asset_id, aes_context->IV, data, data_size)) {
-            printf("crypto_aes_decrypt_final: vaultip_aes_cbc_encrypt() failed!\n");
+        if (0 != vaultip_drv_aes_cbc_decrypt(get_rom_identity(), aes_context->aes_key_asset_id, aes_context->IV, data, data_size)) {
+            printf("crypto_aes_decrypt_final: vaultip_drv_aes_cbc_encrypt() failed!\n");
             return -1;
         }
     }
@@ -893,6 +919,8 @@ static int crypto_create_ec_521_parameters_asset(VAULTIP_EC_521_DOMAIN_PARAMETER
 // }
 
 static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_t * ec_parameters_asset_id) {
+    int rv;
+
     static union {
 #if defined(SUPPORT_EC_P256) || defined(SUPPORT_EC_CURVE25519) || defined(SUPPORT_EC_EDWARDS25519)
         VAULTIP_EC_256_DOMAIN_PARAMETERS_t ec_256;
@@ -915,12 +943,18 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
         .LifetimeUse = VAL_ASSET_LIFETIME_INFINITE
     };
 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_ec_parameters_asset, portMAX_DELAY)) {
+        printf("crypto_create_ec_parameters_asset: xSemaphoreTake() failed!\n");
+        return -1;
+    }
+
     switch (curve_id) {
 #if defined(SUPPORT_EC_P256)
     case EC_KEY_CURVE_NIST_P256:
         if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256), &ECurve_NIST_P256)) {
             printf("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_256);
         domain_parameters_size = sizeof(domain_parameters_data.ec_256);
@@ -930,7 +964,8 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
     case EC_KEY_CURVE_NIST_P384:
         if (0 != crypto_create_ec_384_parameters_asset(&(domain_parameters_data.ec_384), &ECurve_NIST_P384)) {
             printf("crypto_create_ec_parameters_asset: crypto_create_ec_384_parameters_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_384);
         domain_parameters_size = sizeof(domain_parameters_data.ec_384);
@@ -940,7 +975,8 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
     case EC_KEY_CURVE_NIST_P521:
         if (0 != crypto_create_ec_521_parameters_asset(&(domain_parameters_data.ec_521), &ECurve_NIST_P521)) {
             printf("crypto_create_ec_parameters_asset: crypto_create_ec_521_parameters_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_521);
         domain_parameters_size = sizeof(domain_parameters_data.ec_521);
@@ -950,7 +986,8 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
     case EC_KEY_CURVE_CURVE25519:
         if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256), &ECurve_25519)) {
             printf("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_256);
         domain_parameters_size = sizeof(domain_parameters_data.ec_256);
@@ -960,7 +997,8 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
     case EC_KEY_CURVE_EDWARDS25519:
         if (0 != crypto_create_ec_256_parameters_asset(&(domain_parameters_data.ec_256), &ECurve_Ed25519)) {
             printf("crypto_create_ec_parameters_asset: crypto_create_ec_256_parameters_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         domain_parameters_data_ptr = &(domain_parameters_data.ec_256);
         domain_parameters_size = sizeof(domain_parameters_data.ec_256);
@@ -968,29 +1006,39 @@ static int crypto_create_ec_parameters_asset(EC_KEY_CURVE_ID_t curve_id, uint32_
 #endif
     default:
         printf("crypto_create_ec_parameters_asset: invalid curve_id!\n");
-        return -1;
+        rv = -1;
+        goto DONE;
     }
 
     //printf("crypto_create_ec_parameters_asset: asset size = 0x%x\n", domain_parameters_size);
     public_key_parameters_asset_other_settings.DataLength = domain_parameters_size & 0x3FFu;
-    if (0 != vaultip_asset_create(get_rom_identity(), public_key_parameters_asset_policy.lo, public_key_parameters_asset_policy.hi,
+    if (0 != vaultip_drv_asset_create(get_rom_identity(), public_key_parameters_asset_policy.lo, public_key_parameters_asset_policy.hi,
                   public_key_parameters_asset_other_settings, 0, &asset_id)) {
-        printf("crypto_create_ec_parameters_asset: vaultip_asset_create() failed!\n");
-        return -1;
+        printf("crypto_create_ec_parameters_asset: vaultip_drv_asset_create() failed!\n");
+        rv = -1;
+        goto DONE;
     }
 
-    if (0 != vaultip_asset_load_plaintext(get_rom_identity(), asset_id, domain_parameters_data_ptr, domain_parameters_size)) {
-        printf("crypto_create_ec_parameters_asset: vaultip_asset_load_plaintext() failed!\n");
-        if (0 != vaultip_asset_delete(get_rom_identity(), asset_id)) {
-            printf("crypto_create_ec_parameters_asset: vaultip_asset_delete() failed!\n");
+    if (0 != vaultip_drv_asset_load_plaintext(get_rom_identity(), asset_id, domain_parameters_data_ptr, domain_parameters_size)) {
+        printf("crypto_create_ec_parameters_asset: vaultip_drv_asset_load_plaintext() failed!\n");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), asset_id)) {
+            printf("crypto_create_ec_parameters_asset: vaultip_drv_asset_delete() failed!\n");
         }
-        return -1;
+        rv = -1;
+        goto DONE;
     }
     // printf("Domain parameters asset data @%p:", domain_parameters_data_ptr);
     // dump_asset(domain_parameters_data_ptr, domain_parameters_size);
 
     *ec_parameters_asset_id = asset_id;
-    return 0;
+    rv = 0;
+
+DONE:
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_create_ec_parameters_asset)) {
+        printf("crypto_create_ec_parameters_asset: xSemaphoreGive() failed!\n");
+        rv = -1;
+    }
+    return rv;
 }
 
 #if defined(SUPPORT_EC_P256)
@@ -1097,6 +1145,7 @@ static int crypto_create_ec_edwards25519_public_key_asset(VAULTIP_PUBLIC_KEY_ECD
 #endif
 
 static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_KEY_EC_t * ec_public_key, uint32_t * ec_public_key_asset_id) {
+    int rv;
     static union {
 #if defined(SUPPORT_EC_P256)
         VAULTIP_PUBLIC_KEY_ECDSA_P256_t p256;
@@ -1145,16 +1194,23 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
         return -1;
     }
 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_ec_public_key_asset, portMAX_DELAY)) {
+        printf("crypto_create_ec_public_key_asset: xSemaphoreTake() failed!\n");
+        return -1;
+    }
+
     switch (ec_public_key->curveID) {
 #if defined(SUPPORT_EC_P256)
     case EC_KEY_CURVE_NIST_P256:
         if (HASH_ALG_SHA2_256 != hash_alg) {
             printf("crypto_create_ec_public_key_asset: curve p256 can only be used with SHA256 hash!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         if (0 != crypto_create_ec_p256_public_key_asset(&(public_key_data.p256), ec_public_key)) {
             printf("crypto_create_ec_public_key_asset: crypto_create_ec_p256_public_key_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         public_key_data_ptr = &(public_key_data.p256);
         public_key_data_size = sizeof(public_key_data.p256);
@@ -1164,11 +1220,13 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
     case EC_KEY_CURVE_NIST_P384:
         if (HASH_ALG_SHA2_256 != hash_alg && HASH_ALG_SHA2_384 != hash_alg) {
             printf("crypto_create_ec_public_key_asset: curve p384 can only be used with SHA256 or SHA384 hash!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         if (0 != crypto_create_ec_p384_public_key_asset(&(public_key_data.p384), ec_public_key)) {
             printf("crypto_create_ec_public_key_asset: crypto_create_ec_p384_public_key_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         public_key_data_ptr = &(public_key_data.p384);
         public_key_data_size = sizeof(public_key_data.p384);
@@ -1178,7 +1236,8 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
     case EC_KEY_CURVE_NIST_P521:
         if (0 != crypto_create_ec_p521_public_key_asset(&(public_key_data.p521), ec_public_key)) {
             printf("crypto_create_ec_public_key_asset: crypto_create_ec_p521_public_key_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         public_key_data_ptr = &(public_key_data.p521);
         public_key_data_size = sizeof(public_key_data.p521);
@@ -1189,11 +1248,13 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
         // todo: verify if this is true
         if (HASH_ALG_SHA2_256 != hash_alg) {
             printf("crypto_create_ec_public_key_asset: curve 25519 can only be used with SHA256 hash!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         if (0 != crypto_create_ec_curve25519_public_key_asset(&(public_key_data.curve25519), ec_public_key)) {
             printf("crypto_create_ec_public_key_asset: crypto_create_ec_curve25519_public_key_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         public_key_data_ptr = &(public_key_data.curve25519);
         public_key_data_size = sizeof(public_key_data.curve25519);
@@ -1207,7 +1268,8 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
         }
         if (0 != crypto_create_ec_edwards25519_public_key_asset(&(public_key_data.edwards25519), ec_public_key)) {
             printf("crypto_create_ec_public_key_asset: crypto_create_ec_edwards25519_public_key_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         public_key_data_ptr = &(public_key_data.edwards25519);
         public_key_data_size = sizeof(public_key_data.edwards25519);
@@ -1215,30 +1277,40 @@ static int crypto_create_ec_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_K
 #endif
     default:
         printf("crypto_create_ec_public_key_asset: invalid curve_id!\n");
-        return -1;
+        rv = -1;
+        goto DONE;
     }
 
     //printf("crypto_create_ec_public_key_asset: key_data_size=0x%x\n", public_key_data_size);
     public_key_asset_other_settings.DataLength = public_key_data_size & 0x3FFu;
-    if (0 != vaultip_asset_create(get_rom_identity(), public_key_asset_policy.lo, public_key_asset_policy.hi,
+    if (0 != vaultip_drv_asset_create(get_rom_identity(), public_key_asset_policy.lo, public_key_asset_policy.hi,
                   public_key_asset_other_settings, 0, &asset_id)) {
-        printf("crypto_create_ec_public_key_asset: vaultip_asset_create() failed!\n");
-        return -1;
+        printf("crypto_create_ec_public_key_asset: vaultip_drv_asset_create() failed!\n");
+        rv = -1;
+        goto DONE;
     }
     //printf("crypto_create_ec_public_key_asset: asset created.\n");
-    if (0 != vaultip_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr, public_key_data_size)) {
-        printf("crypto_create_ec_public_key_asset: vaultip_asset_load_plaintext() failed!\n");
-        if (0 != vaultip_asset_delete(get_rom_identity(), asset_id)) {
-            printf("crypto_create_ec_public_key_asset: vaultip_asset_delete() failed!\n");
+    if (0 != vaultip_drv_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr, public_key_data_size)) {
+        printf("crypto_create_ec_public_key_asset: vaultip_drv_asset_load_plaintext() failed!\n");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), asset_id)) {
+            printf("crypto_create_ec_public_key_asset: vaultip_drv_asset_delete() failed!\n");
         }
-        return -1;
+        rv = -1;
+        goto DONE;
     }
     // printf("crypto_create_ec_public_key_asset: asset loaded.\n");
     // printf("Key asset data @ %p:", public_key_data_ptr);
     // dump_asset(public_key_data_ptr, public_key_data_size);
 
     *ec_public_key_asset_id = asset_id;
-    return 0;
+    rv = 0;
+
+DONE:
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_create_ec_public_key_asset)) {
+        printf("crypto_create_ec_public_key_asset: xSemaphoreGive() failed!\n");
+        rv = -1;
+    }
+    return rv;
 }
 
 static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const PUBLIC_SIGNATURE_t * signature, uint32_t temp_hash_asset_id, const void * data, size_t data_size, uint32_t total_data_size) {
@@ -1268,16 +1340,23 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
         return -1;
     }
 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_ecdsa_verify, portMAX_DELAY)) {
+        printf("crypto_ecdsa_verify: xSemaphoreTake() failed!\n");
+        return -1;
+    }
+
     switch (signature->ec.curveID) {
 #if defined(SUPPORT_EC_P256)
     case EC_KEY_CURVE_NIST_P256:
         if (0 != crypto_write_subvector_256(&(signature_data.p256.r), 2, 0, signature->ec.r, signature->ec.rSize)) {
             printf("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         if (0 != crypto_write_subvector_256(&(signature_data.p256.s), 2, 1, signature->ec.s, signature->ec.sSize)) {
             printf("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         signature_data_ptr = &(signature_data.p256);
         signature_data_size = sizeof(signature_data.p256);
@@ -1287,11 +1366,13 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
     case EC_KEY_CURVE_NIST_P384:
         if (0 != crypto_write_subvector_384(&(signature_data.p384.r), 2, 0, signature->ec.r, signature->ec.rSize)) {
             printf("crypto_ecdsa_verify: crypto_write_subvector_384(r) failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         if (0 != crypto_write_subvector_384(&(signature_data.p384.s), 2, 1, signature->ec.s, signature->ec.sSize)) {
             printf("crypto_ecdsa_verify: crypto_write_subvector_384(r) failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         signature_data_ptr = &(signature_data.p384);
         signature_data_size = sizeof(signature_data.p384);
@@ -1301,11 +1382,13 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
     case EC_KEY_CURVE_NIST_P521:
         if (0 != crypto_write_subvector_521(&(signature_data.p521.r), 2, 0, signature->ec.r, signature->ec.rSize)) {
             printf("crypto_ecdsa_verify: crypto_write_subvector_521(r) failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         if (0 != crypto_write_subvector_521(&(signature_data.p521.s), 2, 1, signature->ec.s, signature->ec.sSize)) {
             printf("crypto_ecdsa_verify: crypto_write_subvector_521(r) failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         signature_data_ptr = &(signature_data.p521);
         signature_data_size = sizeof(signature_data.p521);
@@ -1320,7 +1403,8 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
 #if defined(SUPPORT_EC_CURVE25519) || defined(SUPPORT_EC_EDWARDS25519)
         if (0 != crypto_write_subvector_256(&(signature_data.c25519.r), 1, 0, signature->ec.r, signature->ec.rSize)) {
             printf("crypto_ecdsa_verify: crypto_write_subvector_256(r) failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         signature_data_ptr = &(signature_data.c25519);
         signature_data_size = sizeof(signature_data.c25519);
@@ -1328,7 +1412,8 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
 #endif
     default:
         printf("crypto_ecdsa_verify: invalid curve_id!\n");
-        return -1;
+        rv = -1;
+        goto DONE;
     }
 
     // create the ecdsa parameters asset
@@ -1353,11 +1438,11 @@ static int crypto_ecdsa_verify(const PUBLIC_KEY_EC_t * ecdsa_public_key, const P
     // printf("Message data addr: %p, size: 0x%x\n", data, data_size);
 
     // verify the signature
-    if (0 != vaultip_public_key_ecdsa_verify(ecdsa_public_key->curveID, get_rom_identity(), 
+    if (0 != vaultip_drv_public_key_ecdsa_verify(ecdsa_public_key->curveID, get_rom_identity(), 
                                              public_key_asset_id, public_key_parameters_asset_id, temp_hash_asset_id,
                                              data, (uint32_t)data_size, total_data_size, 
                                              signature_data_ptr, signature_data_size)) {
-        printf("crypto_ecdsa_verify: vaultip_public_key_ecdsa_verify() failed!\n");
+        printf("crypto_ecdsa_verify: vaultip_drv_public_key_ecdsa_verify() failed!\n");
         rv = -1;
         goto DONE;
     }
@@ -1368,15 +1453,21 @@ DONE:
 
     // delete the public key asset
     if (0 != public_key_parameters_asset_id) {
-        if (0 != vaultip_asset_delete(get_rom_identity(), public_key_parameters_asset_id)) {
-            printf("crypto_ecdsa_verify: vaultip_asset_delete(public_key_parameters_asset_id) failed!\n");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_parameters_asset_id)) {
+            printf("crypto_ecdsa_verify: vaultip_drv_asset_delete(public_key_parameters_asset_id) failed!\n");
         }
     }
     if (0 != public_key_asset_id) {
-        if (0 != vaultip_asset_delete(get_rom_identity(), public_key_asset_id)) {
-            printf("crypto_ecdsa_verify: vaultip_asset_delete(public_key_asset_id) failed!\n");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_asset_id)) {
+            printf("crypto_ecdsa_verify: vaultip_drv_asset_delete(public_key_asset_id) failed!\n");
         }
     }
+
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_ecdsa_verify)) {
+        printf("crypto_ecdsa_verify: xSemaphoreGive() failed!\n");
+        rv = -1;
+    }
+
     return rv;
 }
 
@@ -1450,6 +1541,7 @@ static int crypto_create_rsa_4096_public_key_asset(VAULTIP_PUBLIC_KEY_RSA_4096_t
 #endif
 
 static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_KEY_RSA_t * rsa_public_key, uint32_t * rsa_public_key_asset_id) {
+    int rv;
     static union {
 #if defined(SUPPORT_RSA_2048)
         VAULTIP_PUBLIC_KEY_RSA_2048_t rsa2048;
@@ -1492,12 +1584,18 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
         return -1;
     }
 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_create_rsa_public_key_asset, portMAX_DELAY)) {
+        printf("crypto_create_rsa_public_key_asset: xSemaphoreTake() failed!\n");
+        return -1;
+    }
+
     switch (rsa_public_key->keySize) {
 #if defined(SUPPORT_RSA_2048)
     case 2048:
         if (0 != crypto_create_rsa_2048_public_key_asset(&(public_key_data.rsa2048), rsa_public_key)) {
             printf("crypto_create_rsa_public_key_asset: crypto_create_rsa_2048_public_key_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         public_key_data_ptr = &(public_key_data.rsa2048);
         public_key_data_size = sizeof(public_key_data.rsa2048);
@@ -1507,7 +1605,8 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
     case 3072:
         if (0 != crypto_create_rsa_3072_public_key_asset(&(public_key_data.rsa3072), rsa_public_key)) {
             printf("crypto_create_rsa_public_key_asset: crypto_create_rsa_3072_public_key_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         public_key_data_ptr = &(public_key_data.rsa3072);
         public_key_data_size = sizeof(public_key_data.rsa3072);
@@ -1517,7 +1616,8 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
     case 4096:
         if (0 != crypto_create_rsa_4096_public_key_asset(&(public_key_data.rsa4096), rsa_public_key)) {
             printf("crypto_create_rsa_public_key_asset: crypto_create_rsa_4096_public_key_asset() failed!\n");
-            return -1;
+            rv = -1;
+            goto DONE;
         }
         public_key_data_ptr = &(public_key_data.rsa4096);
         public_key_data_size = sizeof(public_key_data.rsa4096);
@@ -1525,30 +1625,40 @@ static int crypto_create_rsa_public_key_asset(HASH_ALG_t hash_alg, const PUBLIC_
 #endif
     default:
         printf("crypto_create_rsa_public_key_asset: invalid key size!\n");
-        return -1;
+        rv = -1;
+        goto DONE;
     }
 
     printf("crypto_create_rsa_public_key_asset: asset length=0x%x\n", public_key_data_size);
     public_key_asset_other_settings.DataLength = public_key_data_size & 0x3FFu;
-    if (0 != vaultip_asset_create(get_rom_identity(), public_key_asset_policy.lo, public_key_asset_policy.hi,
+    if (0 != vaultip_drv_asset_create(get_rom_identity(), public_key_asset_policy.lo, public_key_asset_policy.hi,
                   public_key_asset_other_settings, 0, &asset_id)) {
-        printf("crypto_create_rsa_public_key_asset: vaultip_asset_create() failed!\n");
-        return -1;
+        printf("crypto_create_rsa_public_key_asset: vaultip_drv_asset_create() failed!\n");
+        rv = -1;
+        goto DONE;
     }
 
     printf("crypto_create_rsa_public_key_asset: asset created, assetid=0x%x\n", asset_id);
-    if (0 != vaultip_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr, public_key_data_size)) {
-        printf("crypto_create_rsa_public_key_asset: vaultip_asset_load_plaintext() failed!\n");
-        if (0 != vaultip_asset_delete(get_rom_identity(), asset_id)) {
-            printf("crypto_create_rsa_public_key_asset: vaultip_asset_delete() failed!\n");
+    if (0 != vaultip_drv_asset_load_plaintext(get_rom_identity(), asset_id, public_key_data_ptr, public_key_data_size)) {
+        printf("crypto_create_rsa_public_key_asset: vaultip_drv_asset_load_plaintext() failed!\n");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), asset_id)) {
+            printf("crypto_create_rsa_public_key_asset: vaultip_drv_asset_delete() failed!\n");
         }
-        return -1;
+        rv = -1;
+        goto DONE;
     }
     // printf("crypto_create_rsa_public_key_asset: asset loaded\n");
     // //dump_asset(public_key_data_ptr, public_key_data_size);
 
     *rsa_public_key_asset_id = asset_id;
-    return 0;
+    rv = 0;
+
+DONE:
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_create_rsa_public_key_asset)) {
+        printf("crypto_create_rsa_public_key_asset: xSemaphoreGivee() failed!\n");
+        rv = -1;
+    }
+    return rv;
 }
 
 static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBLIC_SIGNATURE_t * signature, uint32_t temp_hash_asset_id, const void * data, size_t data_size, uint32_t total_data_size) {
@@ -1576,12 +1686,18 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
         return -1;
     }
 
+    if (pdPASS != xSemaphoreTake(gs_mutex_crypto_rsa_verify, portMAX_DELAY)) {
+        printf("crypto_rsa_verify: xSemaphoreTake() failed!\n");
+        return -1;
+    }
+
     switch (signature->rsa.keySize) {
 #if defined(SUPPORT_RSA_2048)
     case 2048:
         if (0 != crypto_write_subvector_2048(&(signature_data.rsa2048.s), 1, 0, signature->rsa.signature, signature->rsa.sigSize)) {
-            printf("crypto_ecdsa_verify: crypto_write_subvector_2048(r) failed!\n");
-            return -1;
+            printf("crypto_rsa_verify: crypto_write_subvector_2048(r) failed!\n");
+            rv = -1;
+            goto DONE;
         }
         signature_data_ptr = &(signature_data.rsa2048);
         signature_data_size = sizeof(signature_data.rsa2048);
@@ -1590,8 +1706,9 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
 #if defined(SUPPORT_RSA_3072)
     case 3072:
         if (0 != crypto_write_subvector_3072(&(signature_data.rsa3072.s), 1, 0, signature->rsa.signature, signature->rsa.sigSize)) {
-            printf("crypto_ecdsa_verify: crypto_write_subvector_3072(r) failed!\n");
-            return -1;
+            printf("crypto_rsa_verify: crypto_write_subvector_3072(r) failed!\n");
+            rv = -1;
+            goto DONE;
         }
         signature_data_ptr = &(signature_data.rsa3072);
         signature_data_size = sizeof(signature_data.rsa3072);
@@ -1600,8 +1717,9 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
 #if defined(SUPPORT_RSA_4096)
     case 4096:
         if (0 != crypto_write_subvector_4096(&(signature_data.rsa4096.s), 1, 0, signature->rsa.signature, signature->rsa.sigSize)) {
-            printf("crypto_ecdsa_verify: crypto_write_subvector_4096(r) failed!\n");
-            return -1;
+            printf("crypto_rsa_verify: crypto_write_subvector_4096(r) failed!\n");
+            rv = -1;
+            goto DONE;
         }
         signature_data_ptr = &(signature_data.rsa4096);
         signature_data_size = sizeof(signature_data.rsa4096);
@@ -1609,7 +1727,8 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
 #endif
     default:
         printf("crypto_rsa_verify: invalid key_size!\n");
-        return -1;
+        rv = -1;
+        goto DONE;
     }
 
     switch (signature->hashAlg) {
@@ -1624,7 +1743,8 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
         break;
     default:
         printf("crypto_rsa_verify: invalid hash alg!\n");
-        return -1;
+        rv = -1;
+        goto DONE;
     }
     // create the rsa public key asset
     if (0 != crypto_create_rsa_public_key_asset(signature->hashAlg, rsa_public_key, &public_key_asset_id)) {
@@ -1634,11 +1754,11 @@ static int crypto_rsa_verify(const PUBLIC_KEY_RSA_t * rsa_public_key, const PUBL
     }
 
     // verify the signature
-    if (0 != vaultip_public_key_rsa_pss_verify(rsa_public_key->keySize, get_rom_identity(), 
+    if (0 != vaultip_drv_public_key_rsa_pss_verify(rsa_public_key->keySize, get_rom_identity(), 
                                              public_key_asset_id, temp_hash_asset_id,
                                              data, (uint32_t)data_size, total_data_size, 
                                              signature_data_ptr, signature_data_size, salt_length)) {
-        printf("crypto_rsa_verify: vaultip_public_key_rsa_pss_verify() failed!\n");
+        printf("crypto_rsa_verify: vaultip_drv_public_key_rsa_pss_verify() failed!\n");
         rv = -1;
         goto DONE;
     }
@@ -1649,10 +1769,16 @@ DONE:
 
     // delete the public key asset
     if (0 != public_key_asset_id) {
-        if (0 != vaultip_asset_delete(get_rom_identity(), public_key_asset_id)) {
-            printf("crypto_ecdsa_verify: vaultip_asset_delete(public_key_asset_id) failed!\n");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), public_key_asset_id)) {
+            printf("crypto_rsa_verify: vaultip_drv_asset_delete(public_key_asset_id) failed!\n");
         }
     }
+
+    if (pdPASS != xSemaphoreGive(gs_mutex_crypto_rsa_verify)) {
+        printf("crypto_rsa_verify: xSemaphoreGive() failed!\n");
+        rv = -1;
+    }
+
     return rv;
 }
 
@@ -1711,14 +1837,14 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
         }
 
         // create temp_digest asset
-        if (0 != vaultip_asset_create(get_rom_identity(), temp_digest_asset_policy.lo, temp_digest_asset_policy.hi, temp_digest_asset_other_settings, 0, &temp_digest_asset_id)) {
-            printf("crypto_verify_pk_signature: vaultip_asset_create() failed!\n");
+        if (0 != vaultip_drv_asset_create(get_rom_identity(), temp_digest_asset_policy.lo, temp_digest_asset_policy.hi, temp_digest_asset_other_settings, 0, &temp_digest_asset_id)) {
+            printf("crypto_verify_pk_signature: vaultip_drv_asset_create() failed!\n");
             return -1;
         }
 
         // pre-hash the data
-        if (0 != vaultip_hash_update(get_rom_identity(), signature->hashAlg, temp_digest_asset_id, data, prehash_length, true)) {
-            printf("crypto_verify_pk_signature: vaultip_hash_init() failed!\n");
+        if (0 != vaultip_drv_hash_update(get_rom_identity(), signature->hashAlg, temp_digest_asset_id, data, prehash_length, true)) {
+            printf("crypto_verify_pk_signature: vaultip_drv_hash_update() failed!\n");
             rv = -1;
             goto DONE;
         }
@@ -1742,8 +1868,8 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
 
 DONE:
     if (0 != temp_digest_asset_id) {
-        if (0 != vaultip_asset_delete(get_rom_identity(), temp_digest_asset_id)) {
-            printf("crypto_verify_pk_signature: vaultip_asset_delete() failed!\n");
+        if (0 != vaultip_drv_asset_delete(get_rom_identity(), temp_digest_asset_id)) {
+            printf("crypto_verify_pk_signature: vaultip_drv_asset_delete() failed!\n");
         }
     }
     return rv;
