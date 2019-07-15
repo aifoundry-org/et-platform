@@ -84,7 +84,8 @@ typedef struct SERVICE_PROCESSOR_BL2_DATA_s {
     ESPERANTO_IMAGE_FILE_HEADER_t sp_bl2_header;
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t dram_training_header;
 
-    ESPERANTO_CERTIFICATE_t minion_certificates[2];
+    ESPERANTO_CERTIFICATE_t sw_certificates[2];
+    uint32_t sw_certificates_loaded;
     ESPERANTO_IMAGE_FILE_HEADER_t machine_minion_header;
     ESPERANTO_IMAGE_FILE_HEADER_t master_minion_header;
     ESPERANTO_IMAGE_FILE_HEADER_t worker_minion_header;
