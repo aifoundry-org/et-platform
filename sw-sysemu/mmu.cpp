@@ -521,6 +521,11 @@ uint32_t mmu_fetch(uint64_t vaddr)
     // 4B-aligned fetch
     uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Fetch);
     uint32_t bits = bemu::pmemread32(paddr);
+    if ((bits & 3) != 3) {
+        uint16_t low = uint16_t(bits);
+        LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64 ": 0x%04x", vaddr, low);
+        return low;
+    }
     LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
     return bits;
 }

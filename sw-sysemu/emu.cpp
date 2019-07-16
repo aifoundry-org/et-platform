@@ -4,14 +4,16 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cfenv>        // FIXME: remove this when we purge std::fesetround() from the code!
+#include <cmath>        // FIXME: remove this, we should not do any math here
 #include <cstdio>       // FIXME: Remove this, use "emu_gio.h" instead
 #include <cstring>
 #include <deque>
 #include <list>
 #include <stdexcept>
 #include <unordered_map>
-#include <math.h>
 
+#include "cache.h"
 #include "decode.h"
 #include "emu.h"
 #include "emu_casts.h"
@@ -26,24 +28,17 @@
 #include "mmu.h"
 #include "processor.h"
 #include "rbox.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 #include "tbox_emu.h"
 #include "traps.h"
 #include "txs.h"
 #include "utility.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
-
-#include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 
 // MsgPort defines
 #define PORT_LOG2_MIN_SIZE   2
 #define PORT_LOG2_MAX_SIZE   5
-
-// Scratchpad defines
-#define L1_SCP_ENTRIES    48
-#define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
-typedef Packed<L1D_LINE_SIZE*8> cache_line_t;
 
 // vendor, arch, imp, ISA values
 #define CSR_VENDOR_ID ((11<<7) |        /* bank 11 */ \
@@ -715,19 +710,6 @@ void (*msg_to_thread) (int) = def_msg_to_thread;
 void set_msg_funcs(void (*func_msg_to_thread) (int))
 {
     msg_to_thread = func_msg_to_thread;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// RV64I emulation
-//
-////////////////////////////////////////////////////////////////////////////////
-
-// ILLEGAL INSTRUCTION
-void unknown(const char* comm __attribute__((unused)))
-{
-    LOG(DEBUG, "I(%c): unknown @%016" PRIx64 "(0x%04x)", PRVNAME, PC, current_inst);
-    throw trap_illegal_instruction(current_inst);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2101,8 +2083,25 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
         return;
     }
 
-    // FIXME: This should take mcache_control into account!!!
-    int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+    unsigned set;
+    switch (cpu[current_thread].mcache_control)
+    {
+        case 0:
+            set = shared_dcache_index(paddr);
+            break;
+        case 1:
+            set = (current_thread % EMU_THREADS_PER_MINION)
+                    ? hart1_split_dcache_index(paddr)
+                    : hart0_split_dcache_index(paddr);
+            break;
+        case 3:
+            set = (current_thread % EMU_THREADS_PER_MINION)
+                    ? hart1_split_dcache_index(paddr)
+                    : hart0_spltscp_dcache_index(paddr);
+            break;
+        default:
+            throw std::runtime_error("illegal mcache_control value");
+    }
 
     // Check if paddr already locked in the cache
     int nlocked = 0;
@@ -3208,19 +3207,10 @@ static void tensorstore(uint64_t tstorereg)
         int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride;
-        switch (cols)
-        {
-            case  1: stride = XREGS[31] & 0x0000FFFFFFFFFFF0ULL; break;
-            case  2: stride = XREGS[31] & 0x0000FFFFFFFFFFE0ULL; break;
-            case  4: stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL; break;
-            default: stride = 0; break;
-        }
+        uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFF0ULL;
 
         LOG(DEBUG, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
-
-        int src = regstart;
 
         // Check legal coop combination
         // xs[50:49]/xs[56:55]
@@ -3246,21 +3236,23 @@ static void tensorstore(uint64_t tstorereg)
         }
 
         // For all the rows
+        int src = regstart;
+        uint64_t mask = ~(16ull*cols - 1ull);
         for (int row = 0; row < rows; row++)
         {
+            uint64_t vaddr = addr & mask;
             // For all the blocks of 128b
             for (int col = 0; col < cols; col++)
             {
-                assert(addr_is_size_aligned(addr, 16));
-                uint64_t paddr = vmemtranslate(addr + col*16, 16, Mem_Access_TxStore);
+                uint64_t paddr = vmemtranslate(vaddr + col*16, 16, Mem_Access_TxStore);
                 // For all the 32 elements of the 128b block
                 for (uint64_t i = 0; i < 4; i++)
                 {
                     uint32_t idx = (col & 1) * 4 + i;
                     uint32_t val = FREGS[src].u32[idx];
-                    LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, addr + col*16 + i*4);
+                    LOG(DEBUG, "\t0x%08" PRIx32 " --> MEM32[0x%016" PRIx64 "]", val, vaddr + col*16 + i*4);
                     bemu::pmemwrite32(paddr + i*4, val);
-                    //log_mem_write(0, 4, addr + col*16 + i*4, val); => Don't log mem changes!
+                    //log_mem_write(0, 4, vaddr + col*16 + i*4, val); => Don't log mem changes!
                 }
                 // For 128b stores, move to next desired register immediately.
                 // For 256b and 512b stores, move to next desired register

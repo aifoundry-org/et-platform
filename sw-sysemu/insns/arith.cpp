@@ -16,6 +16,13 @@ extern uint64_t current_pc;
 //namespace bemu {
 
 
+void insn_reserved(insn_t inst)
+{
+    DISASM_NOARG("illegal opcode");
+    throw trap_illegal_instruction(inst.bits);
+}
+
+
 void insn_add(insn_t inst)
 {
     DISASM_RD_RS1_RS2("add");
