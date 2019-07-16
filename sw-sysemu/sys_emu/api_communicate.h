@@ -9,6 +9,13 @@
 // Local
 #include "memory/main_memory.h"
 
+// Defines
+
+// Scratch area to share information when MM sends an IPI to Compute Minions
+#define FW_KERNEL_LAUNCH_IPI_INFO  0x8000600000ULL
+// Address where the host will place the kernel launch information (synced with fw_common.h)
+#define RT_HOST_KERNEL_LAUNCH_INFO 0x8200000000ULL
+
 // Class that receives commands from the runtime API and forwards it to SoC
 class api_communicate
 {
@@ -39,6 +46,18 @@ class api_communicate
         ssize_t write_bytes(int fd, const void * buf, size_t count);
 
         // Types
+        typedef struct {
+            uint64_t tensor_a;     // Pointer to tensor A
+            uint64_t tensor_b;     // Pointer to tensor B
+            uint64_t tensor_c;     // Pointer to tensor C
+            uint64_t tensor_d;     // Pointer to tensor D
+            uint64_t tensor_e;     // Pointer to tensor E
+            uint64_t tensor_f;     // Pointer to tensor F
+            uint64_t tensor_g;     // Pointer to tensor G
+            uint64_t tensor_h;     // Pointer to tensor H
+            uint64_t kernel_id;    // Id for this Kernel
+        } layer_dynamic_info;
+
         typedef enum
         {
             kIPIShutdown,
@@ -59,16 +78,15 @@ class api_communicate
 
         typedef struct
         {
-            long long          thread0_pc;
-            long long          thread1_pc;
-            unsigned long long shire_mask;
-            unsigned long long minion_mask;
+            long long          launch_pc;
+            layer_dynamic_info params;
         } LaunchDescMsg;
 
         // Struct that stores kernel launch information copied by the Host when using runtime
         typedef struct {
             uint64_t unused;
             uint64_t compute_pc;
+            layer_dynamic_info params;
         } __attribute__((packed)) rt_host_kernel_launch_info_t;
 };
 

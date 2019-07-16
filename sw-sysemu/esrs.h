@@ -135,6 +135,10 @@
 #define ESR_DUMMY3                  0x01C0100030ULL /* PP = 0b11 */
 #define ESR_VMSPAGESIZE             0x01C0100038ULL /* PP = 0b11 */
 #define ESR_IPI_REDIRECT_PC         0x0100100040ULL /* PP = 0b00 */
+//#define ESR_HACTRL                      /* PP = 0b10 */
+//#define ESR_HASTATUS0                   /* PP = 0b10 */
+//#define ESR_HASTATUS1                   /* PP = 0b10 */
+//#define ESR_AND_OR_TREEL0               /* PP = 0b10 */
 #define ESR_PMU_CTRL                0x01C0100068ULL /* PP = 0b11 */
 #define ESR_NEIGH_CHICKEN           0x01C0100070ULL /* PP = 0b11 */
 #define ESR_ICACHE_ERR_LOG_CTL      0x01C0100078ULL /* PP = 0b11 */
@@ -170,13 +174,13 @@
 #define ESR_SC_REQQ_DEBUG1                0x01C0300088ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_DEBUG2                0x01C0300090ULL /* PP = 0b11 */
 #define ESR_SC_REQQ_DEBUG3                0x01C0300098ULL /* PP = 0b11 */
-//#define ESR_SC_ECO_CTL                    0x01C03000A0ULL /* PP = 0b11 */
-//#define ESR_SC_PERFMON_CTL_STATUS         0x01C03000B8ULL /* PP = 0b11 */
-//#define ESR_SC_PERFMON_CYC_CNTR           0x01C03000C0ULL /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P0_CNTR            0x01C03000C8ULL /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P1_CNTR            0x01C03000D0ULL /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P0_QUAL            0x01C03000D8ULL /* PP = 0b11 */
-//#define ESR_SC_PERFMON_P1_QUAL            0x01C03000E0ULL /* PP = 0b11 */
+#define ESR_SC_ECO_CTL                    0x01C03000A0ULL /* PP = 0b11 */
+#define ESR_SC_PERFMON_CTL_STATUS         0x01C03000B8ULL /* PP = 0b11 */
+#define ESR_SC_PERFMON_CYC_CNTR           0x01C03000C0ULL /* PP = 0b11 */
+#define ESR_SC_PERFMON_P0_CNTR            0x01C03000C8ULL /* PP = 0b11 */
+#define ESR_SC_PERFMON_P1_CNTR            0x01C03000D0ULL /* PP = 0b11 */
+#define ESR_SC_PERFMON_P0_QUAL            0x01C03000D8ULL /* PP = 0b11 */
+#define ESR_SC_PERFMON_P1_QUAL            0x01C03000E0ULL /* PP = 0b11 */
 //#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
 //#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
 //#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
@@ -245,6 +249,7 @@
 #define ESR_FAST_LOCAL_BARRIER29        0x01003401E8ULL /* PP = 0b00 */
 #define ESR_FAST_LOCAL_BARRIER30        0x01003401F0ULL /* PP = 0b00 */
 #define ESR_FAST_LOCAL_BARRIER31        0x01003401F8ULL /* PP = 0b00 */
+//#define ESR_AND_OR_TREEL1               /* PP = 0b10 */
 #define ESR_MTIME_LOCAL_TARGET          0x01C0340218ULL /* PP = 0b11 */
 #define ESR_SHIRE_POWER_CTRL            0x01C0340220ULL /* PP = 0b11 */
 #define ESR_POWER_CTRL_NEIGH_NSLEEPIN   0x01C0340228ULL /* PP = 0b11 */
@@ -259,23 +264,26 @@
 #define ESR_SHIRE_PLL_CONFIG_DATA_3     0x01C0340270ULL /* PP = 0b11 */
 #define ESR_SHIRE_PLL_CONFIG_DATA_4     0x01C0340278ULL /* PP = 0b11 */
 #define ESR_SHIRE_PLL_CONFIG_DATA_5     0x01C0340280ULL /* PP = 0b11 */
-//#define ESR_SHIRE_PLL_READ_DATA         0x01C0340288ULL /* PP = 0b11 */
+#define ESR_SHIRE_PLL_READ_DATA         0x01C0340288ULL /* PP = 0b11 */
 #define ESR_SHIRE_COOP_MODE             0x0140340290ULL /* PP = 0b01 */
 #define ESR_SHIRE_CTRL_CLOCKMUX         0x01C0340298ULL /* PP = 0b11 */
 #define ESR_SHIRE_CACHE_RAM_CFG1        0x01C03402A0ULL /* PP = 0b11 */
 #define ESR_SHIRE_CACHE_RAM_CFG2        0x01C03402A8ULL /* PP = 0b11 */
 #define ESR_SHIRE_CACHE_RAM_CFG3        0x01C03402B0ULL /* PP = 0b11 */
 #define ESR_SHIRE_CACHE_RAM_CFG4        0x01C03402B8ULL /* PP = 0b11 */
-//#define ESR_SHIRE_NOC_INTERRUPT_STATUS  0x01C03402C0ULL /* PP = 0b11 */
+#define ESR_SHIRE_NOC_INTERRUPT_STATUS  0x01C03402C0ULL /* PP = 0b11 */
 #define ESR_SHIRE_DLL_AUTO_CONFIG       0x01C03402C8ULL /* PP = 0b11 */
 #define ESR_SHIRE_DLL_CONFIG_DATA_0     0x01C03402D0ULL /* PP = 0b11 */
-//#define ESR_SHIRE_DLL_READ_DATA         0x01C03402D8ULL /* PP = 0b11 */
-//#define ESR_UC_CONFIG                   0x01403402E8ULL /* PP = 0b01 */
+#define ESR_SHIRE_DLL_READ_DATA         0x01C03402D8ULL /* PP = 0b11 */
+//#define ESR_TBOX_RBOX_DBG_RC            /* PP = 0b10 */
+#define ESR_UC_CONFIG                   0x01403402E8ULL /* PP = 0b01 */
+//#define ESR_SHIRE_CTRL_RESET_DBG        /* PP = 0b10 */
 #define ESR_ICACHE_UPREFETCH            0x01003402F8ULL /* PP = 0b00 */
 #define ESR_ICACHE_SPREFETCH            0x0140340300ULL /* PP = 0b01 */
 #define ESR_ICACHE_MPREFETCH            0x01C0340308ULL /* PP = 0b11 */
-//#define ESR_CLK_GATE_CTRL               0x01C0340310ULL /* PP = 0b11 */
-//#define ESR_SHIRE_CHANNEL_ECO_CTL       0x01C0340340ULL /* PP = 0b11 */
+#define ESR_CLK_GATE_CTRL               0x01C0340310ULL /* PP = 0b11 */
+//#define ESR_DEBUG_CLK_GATE_CTRL         /* PP = 0b10 */
+#define ESR_SHIRE_CHANNEL_ECO_CTL       0x01C0340340ULL /* PP = 0b11 */
 
 
 // IOshire ESR addresses
@@ -340,6 +348,13 @@ struct shire_cache_esrs_t {
         uint64_t sc_scp_cache_ctl;
         uint32_t sc_reqq_ctl;
         uint16_t sc_err_log_ctl;
+        uint8_t  sc_eco_ctl;
+        uint64_t sc_perfmon_ctl_status;
+        uint64_t sc_perfmon_cyc_cntr;
+        uint64_t sc_perfmon_p0_cntr;
+        uint64_t sc_perfmon_p1_cntr;
+        uint64_t sc_perfmon_p0_qual;
+        uint64_t sc_perfmon_p1_qual;
     } bank[4]; // four banks
 
     void reset();
@@ -377,6 +392,9 @@ struct shire_other_esrs_t {
     uint8_t  minion_feature;
     uint8_t  shire_ctrl_clockmux;
     //bool     shire_coop_mode;
+    bool     uc_config;
+    uint16_t clk_gate_ctrl;
+    uint8_t  shire_channel_eco_ctl;
 
     void reset(unsigned shireid);
 };
@@ -401,6 +419,10 @@ extern broadcast_esrs_t broadcast_esrs[EMU_NUM_SHIRES];
 
 uint64_t esr_read(uint64_t addr);
 void esr_write(uint64_t addr, uint64_t value);
+
+void write_thread0_disable(unsigned shire, uint32_t value);
+void write_thread1_disable(unsigned shire, uint32_t value);
+void write_minion_feature(unsigned shire, uint8_t value);
 
 
 //} // namespace bemu

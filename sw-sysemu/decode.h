@@ -121,6 +121,12 @@
        ptr[0], ptr[1], ptr[2], ptr[3], ptr[4], ptr[5], ptr[6], ptr[7], \
        ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15])
 
+#define LOG_CSR(str, index, value) \
+    LOG(DEBUG, "\t%s " str " 0x%" PRIx64, csr_name(index), value)
+
+#define LOG_TENSOR_MASK(str) \
+    LOG(DEBUG, "\ttensor_mask " str " 0x%" PRIx16, cpu[current_thread].tensor_mask)
+
 
 // -----------------------------------------------------------------------------
 // Access instruction fields

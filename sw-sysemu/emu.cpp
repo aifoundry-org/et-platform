@@ -4,14 +4,16 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cfenv>        // FIXME: remove this when we purge std::fesetround() from the code!
+#include <cmath>        // FIXME: remove this, we should not do any math here
 #include <cstdio>       // FIXME: Remove this, use "emu_gio.h" instead
 #include <cstring>
 #include <deque>
 #include <list>
 #include <stdexcept>
 #include <unordered_map>
-#include <math.h>
 
+#include "cache.h"
 #include "decode.h"
 #include "emu.h"
 #include "emu_casts.h"
@@ -26,24 +28,17 @@
 #include "mmu.h"
 #include "processor.h"
 #include "rbox.h"
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#endif
 #include "tbox_emu.h"
 #include "traps.h"
 #include "txs.h"
 #include "utility.h"
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#endif
-
-#include <cfenv>       // FIXME: remove this when we purge std::fesetround() from the code!
 
 // MsgPort defines
 #define PORT_LOG2_MIN_SIZE   2
 #define PORT_LOG2_MAX_SIZE   5
-
-// Scratchpad defines
-#define L1_SCP_ENTRIES    48
-#define L1_SCP_LINE_SIZE  (L1D_LINE_SIZE)
-typedef Packed<L1D_LINE_SIZE*8> cache_line_t;
 
 // vendor, arch, imp, ISA values
 #define CSR_VENDOR_ID ((11<<7) |        /* bank 11 */ \
@@ -519,18 +514,18 @@ void check_pending_interrupts()
             break;
     }
 
-    if (xip & 0x0800) throw trap_machine_external_interrupt();
-    if (xip & 0x0008) throw trap_machine_software_interrupt();
-    if (xip & 0x0080) throw trap_machine_timer_interrupt();
-    if (xip & 0x0200) throw trap_supervisor_external_interrupt();
-    if (xip & 0x0002) throw trap_supervisor_software_interrupt();
-    if (xip & 0x0020) throw trap_supervisor_timer_interrupt();
+    if (xip & 0x00800) throw trap_machine_external_interrupt();
+    if (xip & 0x00008) throw trap_machine_software_interrupt();
+    if (xip & 0x00080) throw trap_machine_timer_interrupt();
+    if (xip & 0x00200) throw trap_supervisor_external_interrupt();
+    if (xip & 0x00002) throw trap_supervisor_software_interrupt();
+    if (xip & 0x00020) throw trap_supervisor_timer_interrupt();
 #if 0
-    if (xip & 0x0100) throw trap_user_external_interrupt();
-    if (xip & 0x0001) throw trap_user_software_interrupt();
-    if (xip & 0x0010) throw trap_user_timer_interrupt();
+    if (xip & 0x00100) throw trap_user_external_interrupt();
+    if (xip & 0x00001) throw trap_user_software_interrupt();
+    if (xip & 0x00010) throw trap_user_timer_interrupt();
 #endif
-    if (xip & 0x8000) throw trap_bad_ipi_redirect_interrupt();
+    if (xip & 0x10000) throw trap_bad_ipi_redirect_interrupt();
     if (xip & 0x80000) throw trap_icache_ecc_counter_overflow_interrupt();
     if (xip & 0x800000) throw trap_bus_error_interrupt();
 }
@@ -717,19 +712,6 @@ void (*msg_to_thread) (int) = def_msg_to_thread;
 void set_msg_funcs(void (*func_msg_to_thread) (int))
 {
     msg_to_thread = func_msg_to_thread;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
-// RV64I emulation
-//
-////////////////////////////////////////////////////////////////////////////////
-
-// ILLEGAL INSTRUCTION
-void unknown(const char* comm __attribute__((unused)))
-{
-    LOG(DEBUG, "I(%c): unknown @%016" PRIx64 "(0x%04x)", PRVNAME, PC, current_inst);
-    throw trap_illegal_instruction(current_inst);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1659,11 +1641,11 @@ static void csrset(uint16_t src1, uint64_t val)
         {
         case 0x1FEED000:
             LOG_ALL_MINIONS(INFO, "%s", "Signal end test with PASS");
-            m_emu_done = true;
+            sys_emu::deactivate_thread(current_thread);
             break;
         case 0x50BAD000:
             LOG_ALL_MINIONS(INFO, "%s", "Signal end test with FAIL");
-            m_emu_done = true;
+            sys_emu::deactivate_thread(current_thread);
             break;
         }
 #endif
@@ -1789,7 +1771,7 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
                 csrset(src1, newval);
                 break;
         }
-        LOG(DEBUG, "\t%s = 0x%" PRIx64, csr_name(src1), newval);
+        LOG_CSR("=", src1, newval);
     }
 
     // the return value of mip.ssip should be set if external supervisor
@@ -2059,8 +2041,25 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
         return;
     }
 
-    // FIXME: This should take mcache_control into account!!!
-    int set = (paddr / L1D_LINE_SIZE) % L1D_NUM_SETS;
+    unsigned set;
+    switch (cpu[current_thread].mcache_control)
+    {
+        case 0:
+            set = shared_dcache_index(paddr);
+            break;
+        case 1:
+            set = (current_thread % EMU_THREADS_PER_MINION)
+                    ? hart1_split_dcache_index(paddr)
+                    : hart0_split_dcache_index(paddr);
+            break;
+        case 3:
+            set = (current_thread % EMU_THREADS_PER_MINION)
+                    ? hart1_split_dcache_index(paddr)
+                    : hart0_spltscp_dcache_index(paddr);
+            break;
+        default:
+            throw std::runtime_error("illegal mcache_control value");
+    }
 
     // Check if paddr already locked in the cache
     int nlocked = 0;
@@ -2547,6 +2546,7 @@ static void tmask_conv()
         }
     }
     cpu[current_thread].tensor_mask = tmask_value;
+    LOG_TENSOR_MASK("=");
 }
 
 static void tcoop(uint64_t value)
@@ -3183,19 +3183,10 @@ static void tensorstore(uint64_t tstorereg)
         int      coop     = ((tstorereg & 0x0006000000000000ULL) >> 49) + 1; // Number of cooperative minions
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFF0ULL);     // Address where to store the results
 
-        uint64_t stride;
-        switch (cols)
-        {
-            case  1: stride = XREGS[31] & 0x0000FFFFFFFFFFF0ULL; break;
-            case  2: stride = XREGS[31] & 0x0000FFFFFFFFFFE0ULL; break;
-            case  4: stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL; break;
-            default: stride = 0; break;
-        }
+        uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFF0ULL;
 
         LOG(DEBUG, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
-
-        int src = regstart;
 
         // Check legal coop combination
         // xs[50:49]/xs[56:55]
@@ -3221,14 +3212,15 @@ static void tensorstore(uint64_t tstorereg)
         }
 
         // For all the rows
+        int src = regstart;
+        uint64_t mask = ~(16ull*cols - 1ull);
         for (int row = 0; row < rows; row++)
         {
             // For all the blocks of 128b
             for (int col = 0; col < cols; col++)
             {
                 try {
-                    uint64_t vaddr = sextVA(addr + row * stride);
-                    assert(addr_is_size_aligned(vaddr, 16));
+                    uint64_t vaddr = sextVA((addr + row * stride) & mask);
                     uint64_t paddr = vmemtranslate(vaddr + col*16, 16, Mem_Access_TxStore);
                     if (!(col & 1)) LOG_FREG(":", src);
                     const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
@@ -3295,6 +3287,8 @@ static void tensor_fma32(uint64_t tfmareg)
     }
 
     set_rounding_mode(frm());
+
+    LOG_TENSOR_MASK(":");
 
     for (int k = 0; k < acols; ++k)
     {
@@ -3416,6 +3410,8 @@ static void tensor_fma16a32(uint64_t tfmareg)
     }
 
     set_rounding_mode(rtz);
+
+    LOG_TENSOR_MASK(":");
 
     for (int k = 0; k < acols; k += 2)
     {
@@ -3542,16 +3538,7 @@ static void tensor_ima8a32(uint64_t tfmareg)
         return;
     }
 
-    if (first_pass)
-    {
-        for (int i = 0; i < arows; ++i)
-        {
-            for (int j = 0; j < bcols; ++j)
-            {
-                TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = 0;
-            }
-        }
-    }
+    LOG_TENSOR_MASK(":");
 
     for (int k = 0; k < acols; k += 4)
     {
@@ -3562,24 +3549,27 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
         for (int i = 0; i < arows; ++i)
         {
-            // We should skip computation for this row, but if tenc2rf is set,
-            // and we are in the last pass then we must copy TenC to FREGS even
-            // for this row.
+            // We should skip computation for this row, but:
+            // * if first_pass is set and this is the first iteration then we
+            //   still set TenC to 0
+            // * if tenc2rf is set and we are in the last pass then we must
+            //   copy TenC to FREGS even for this row.
             if (usemsk && !tmask_pass(i))
             {
                 if (tenc2rf && (k+4 == acols))
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
-                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = TENC[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL];
+                        FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = (first_pass && !k) ? 0 : TENC[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL];
                         LOG(DEBUG, "\tTensorIMA8A32(%d) f%zu[%zu] = 0x%08" PRIx32, k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
                         log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL]);
                     }
                 }
-                else if (first_pass && (k == 0))
+                else if (first_pass && !k)
                 {
                     for (int j = 0; j < bcols; ++j)
                     {
+                        TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL] = 0;
                         log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, TENC[i*TFMA_REGS_PER_ROW+j/VL].u32[j%VL]);
                     }
                 }
@@ -3589,50 +3579,72 @@ static void tensor_ima8a32(uint64_t tfmareg)
             freg_t* dst = (tenc2rf && (k+4 == acols)) ? FREGS : TENC;
             const char* dname = (tenc2rf && (k+4 == acols)) ? "f" : "TenC";
 
-            // If all products are 0, we can skip the operation, except if first_pass is set and this
-            // is the first iteration, or TenC must be copied to FREGS and this is the last iteration.
-            // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity.
-            if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
-                (SCP[(astart+i) % L1_SCP_ENTRIES].u32[((aoffset+k)/4) % (L1D_LINE_SIZE/4)] == 0))
-                continue;
-
-#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
-            int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
-            int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
-            int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
-            int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
-#undef ASRC
-
-            for (int j = 0; j < bcols; ++j)
+            // If first_pass is 1 and this is the first iteration we do
+            // a1*b1+a2*b2+a3*b3+a4*b4 instead of c0+a1*b1+a2*b2+a3*b3+a4*b4
+            if (first_pass && !k)
             {
+#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
+                int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
+                int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
+                int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
+                int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
+#undef ASRC
+                for (int j = 0; j < bcols; ++j)
+                {
 #define BSRC(x) tmpb.u8[j*4+(x)]
-                int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
-                int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
-                int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
-                int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
+                    int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
+                    int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
+                    int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
+                    int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
 #undef BSRC
-                // If all products are 0 for both column @j and column @j+8 or @j-8, we can skip the
-                // operation, except if first_pass is set and this is the first iteration, or TenC
-                // must be copied to FREGS and this is the last iteration.
-                // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
-                if (j >= 8)
-                {
-                    if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
-                        (tmpb.u32[j] == 0) && (tmpb.u32[j-8] == 0))
-                        continue;
+                    int32_t c = (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
+                    dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
+                    log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
+                    LOG(DEBUG, "\tTensorIMA8A32(%d) %s%zu[%zu]: 0x%08" PRIx32 " = (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
+                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
                 }
-                else
+            }
+            // If all products are 0, we can skip the operation, except if TenC must
+            // be copied to FREGS and this is the last iteration. NB: The detection
+            // is done at 32-bit granularity, not at element (8-bit) granularity.
+            else if ((tenc2rf && (k+4 == acols)) || SCP[(astart+i) % L1_SCP_ENTRIES].u32[((aoffset+k)/4) % (L1D_LINE_SIZE/4)])
+            {
+#define ASRC(x) SCP[(astart+i) % L1_SCP_ENTRIES].u8[(aoffset+k+(x)) % L1D_LINE_SIZE]
+                int32_t a1 = ua ? ASRC(0) : sext8_2(ASRC(0));
+                int32_t a2 = ua ? ASRC(1) : sext8_2(ASRC(1));
+                int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
+                int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
+#undef ASRC
+                for (int j = 0; j < bcols; ++j)
                 {
-                    if (!(first_pass && (k == 0)) && !(tenc2rf && (k+4 == acols)) &&
-                        (tmpb.u32[j] == 0) && ((j+8 >= bcols) || (tmpb.u32[j+8] == 0)))
-                        continue;
+#define BSRC(x) tmpb.u8[j*4+(x)]
+                    int32_t b1 = ub ? BSRC(0) : sext8_2(BSRC(0));
+                    int32_t b2 = ub ? BSRC(1) : sext8_2(BSRC(1));
+                    int32_t b3 = ub ? BSRC(2) : sext8_2(BSRC(2));
+                    int32_t b4 = ub ? BSRC(3) : sext8_2(BSRC(3));
+#undef BSRC
+                    // If all products are 0 for both column @j and column @j+8 or @j-8, we can skip the
+                    // operation, except if TenC must be copied to FREGS and this is the last iteration.
+                    // NB: The detection is done at 32-bit granularity, not at element (8-bit) granularity
+                    if (j >= 8)
+                    {
+                        if (!(tenc2rf && (k+4 == acols)) &&
+                            (tmpb.u32[j] == 0) && (tmpb.u32[j-8] == 0))
+                            continue;
+                    }
+                    else
+                    {
+                        if (!(tenc2rf && (k+4 == acols)) &&
+                            (tmpb.u32[j] == 0) && ((j+8 >= bcols) || (tmpb.u32[j+8] == 0)))
+                            continue;
+                    }
+                    int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL];
+                    int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
+                    dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
+                    log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
+                    LOG(DEBUG, "\tTensorIMA8A32(%d) %s%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
+                        k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
                 }
-                int32_t c0 = TENC[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL];
-                int32_t c = c0 + (a1 * b1) + (a2 * b2) + (a3 * b3) + (a4 * b4);
-                dst[i*TFMA_REGS_PER_ROW+j/VL].i32[j%VL] = c;
-                log_tensor_fma_write(k/4, i*TFMA_REGS_PER_ROW+j/VL, j%VL, uint32_t(c));
-                LOG(DEBUG, "\tTensorIMA8A32(%d) %s%zu[%zu]: 0x%08" PRIx32 " = 0x%08" PRIx32 " + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ") + (0x%02" PRIx8 " * 0x%02" PRIx8 ")",
-                    k/4, dname, i*TFMA_REGS_PER_ROW+j/VL, j%VL, c, c0, uint8_t(a1), uint8_t(b1), uint8_t(a2), uint8_t(b2), uint8_t(a3), uint8_t(b3), uint8_t(a4), uint8_t(b4));
             }
         }
     }

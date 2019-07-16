@@ -158,6 +158,13 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
             addr = addr2;
         }
 
+        if (!spio && !addr_is_size_aligned(addr, size)) {
+            // when data cache is in bypass mode all accesses should be aligned
+            uint8_t ctrl = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].neigh_chicken;
+            if (ctrl & 0x2)
+                throw_access_fault(vaddr, macc);
+        }
+
         if (paddr_is_dram_mbox(addr2)) {
             if (effective_execution_mode(macc) != PRV_M)
                 throw_access_fault(vaddr, macc);
@@ -514,7 +521,7 @@ uint32_t mmu_fetch(uint64_t vaddr)
             uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch);
             uint16_t low = bemu::pmemread16(paddr);
             if ((low & 3) != 3) {
-                LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64
+                LOG(DEBUG, "Fetched compressed instruction from PC 0x%" PRIx64
                     ": 0x%04x", vaddr, low);
                 return low;
             }
@@ -523,15 +530,21 @@ uint32_t mmu_fetch(uint64_t vaddr)
                     : vmemtranslate(vaddr + 2, 2, Mem_Access_Fetch);
             uint16_t high = bemu::pmemread16(paddr);
             uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
-            LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x",
-                vaddr, bits);
+            LOG(DEBUG, "Fetched instruction from PC 0x%" PRIx64
+                ": 0x%08x", vaddr, bits);
             return bits;
         }
         // 4B-aligned fetch
         uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Fetch);
         uint32_t bits = bemu::pmemread32(paddr);
-        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x",
-            vaddr, bits);
+        if ((bits & 3) != 3) {
+            uint16_t low = uint16_t(bits);
+            LOG(DEBUG, "Fetched compressed instruction from PC 0x%" PRIx64
+                ": 0x%04x", vaddr, low);
+            return low;
+        }
+        LOG(DEBUG, "Fetched instruction from PC 0x%" PRIx64
+            ": 0x%08x", vaddr, bits);
         return bits;
     } catch (const bemu::memory_error&) {
         throw trap_instruction_bus_error();

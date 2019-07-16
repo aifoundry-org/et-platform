@@ -6,6 +6,7 @@
 #include "net_emulator.h"
 #include "rvtimer.h"
 
+#include <bitset>
 #include <cstdint>
 #include <list>
 #include <memory>
@@ -66,7 +67,7 @@ std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int ar
 // Reduce state
 enum reduce_state
 {
-    Reduce_Idle,
+    Reduce_Idle = 0,
     Reduce_Ready_To_Send,
     Reduce_Data_Consumed
 };
@@ -100,6 +101,10 @@ public:
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
     static RVTimer& get_pu_rvtimer() { return pu_rvtimer; }
+
+    static void activate_thread(int thread_id) { active_threads[thread_id] = true; }
+    static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
+    static bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
 
 protected:
 
@@ -137,6 +142,7 @@ private:
     static std::list<int>  enabled_threads; // List of enabled threads
     static std::list<int>  fcc_wait_threads[2]; // List of threads waiting for an FCC
     static std::list<int>  port_wait_threads; // List of threads waiting for a port write
+    static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
     static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
     static uint64_t        current_pc[EMU_NUM_THREADS]; // PC for each thread
     static reduce_state    reduce_state_array[EMU_NUM_MINIONS]; // Reduce state
