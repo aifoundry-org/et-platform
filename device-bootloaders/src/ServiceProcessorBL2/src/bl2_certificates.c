@@ -17,7 +17,7 @@
 
 #include "bl2_main.h"
 #include "bl2_certificates.h"
-#include "bl2_flash_fs.h"
+#include "bl2_flashfs_driver.h"
 #include "constant_memory_compare.h"
 #include "bl2_crypto.h"
 
@@ -213,47 +213,47 @@ static int verify_certificate(const ESPERANTO_CERTIFICATE_t * certificate, const
     return 0;
 }
 
-int verify_machine_minion_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
+int verify_esperanto_image_certificate(const ESPERANTO_IMAGE_TYPE_t image_type, const ESPERANTO_CERTIFICATE_t * certificate) {
     SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
+    uint32_t designation_flags;
+    const ESPERANTO_CERTIFICATE_t * parent_certificate;
 
-    if (0 != verify_certificate(certificate, &(bl2_data->sp_certificates[1]), ESPERANTO_CERTIFICATE_DESIGNATION_MACHINE_MINION_CA)) {
-        printf("verify_machine_minion_certificate: verify_certificate(0 failed!\n");
+    switch (image_type) {
+    case ESPERANTO_IMAGE_TYPE_SP_BL1:
+        designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_BL1_CA;
+        parent_certificate = &(bl2_data->sp_certificates[1]);
+        break;
+    case ESPERANTO_IMAGE_TYPE_SP_BL2:
+        designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_BL2_CA;
+        parent_certificate = &(bl2_data->sp_certificates[1]);
+        break;
+    case ESPERANTO_IMAGE_TYPE_MACHINE_MINION:
+        designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_MACHINE_MINION_CA;
+        parent_certificate = &(bl2_data->sw_certificates[1]);
+        break;
+    case ESPERANTO_IMAGE_TYPE_MASTER_MINION:
+        designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_MASTER_MINION_CA;
+        parent_certificate = &(bl2_data->sw_certificates[1]);
+        break;
+    case ESPERANTO_IMAGE_TYPE_WORKER_MINION:
+        designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_WORKER_MINION_CA;
+        parent_certificate = &(bl2_data->sw_certificates[1]);
+        break;
+    // case ESPERANTO_IMAGE_TYPE_COMPUTE_KERNEL:
+    //     designation_flags = ;
+    //     parent_certificate = &(bl2_data->sw_certificates[1]);
+    //     break;
+    case ESPERANTO_IMAGE_TYPE_MAXION_BL1:
+        designation_flags = ESPERANTO_CERTIFICATE_DESIGNATION_MAXION_BL1_CA;
+        parent_certificate = &(bl2_data->sw_certificates[1]);
+        break;
+    default:
+        printf("verify_esperanto_image_certificate: invalid image type!\n");
         return -1;
     }
-    return 0;
-}
-int verify_master_minion_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
-    SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
 
-    if (0 != verify_certificate(certificate, &(bl2_data->sp_certificates[1]), ESPERANTO_CERTIFICATE_DESIGNATION_MASTER_MINION_CA)) {
-        printf("verify_master_minion_certificate: verify_certificate(0 failed!\n");
-        return -1;
-    }
-    return 0;
-}
-int verify_worker_minion_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
-    SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
-
-    if (0 != verify_certificate(certificate, &(bl2_data->sp_certificates[1]), ESPERANTO_CERTIFICATE_DESIGNATION_WORKER_MINION_CA)) {
-        printf("verify_worker_minion_certificate: verify_certificate(0 failed!\n");
-        return -1;
-    }
-    return 0;
-}
-int verify_compute_kernel_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
-    SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
-
-    if (0 != verify_certificate(certificate, &(bl2_data->sp_certificates[1]), ESPERANTO_CERTIFICATE_DESIGNATION_MAXION_BL1_CA)) {
-        printf("verify_compute_kernel_certificate: verify_certificate(0 failed!\n");
-        return -1;
-    }
-    return 0;
-}
-int verify_maxion_bl1_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
-    SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
-
-    if (0 != verify_certificate(certificate, &(bl2_data->sp_certificates[1]), ESPERANTO_CERTIFICATE_DESIGNATION_MACHINE_MINION_CA)) {
-        printf("verify_bl2_certificate: verify_certificate(0 failed!\n");
+    if (0 != verify_certificate(certificate, parent_certificate, designation_flags)) {
+        printf("verify_esperanto_image_certificate: verify_certificate() failed!\n");
         return -1;
     }
     return 0;
@@ -293,16 +293,16 @@ int load_sw_certificates_chain(void) {
     }
 
     // load the SW CA certificates
-    if (0 != flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES, &sw_certificates_size)) {
-        printf("flash_fs_get_file_size(SW_CRT) failed!\n");
+    if (0 != flashfs_drv_get_file_size(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES, &sw_certificates_size)) {
+        printf("flashfs_drv_get_file_size(SW_CRT) failed!\n");
         return -1;
     }
     if (sizeof(bl2_data->sw_certificates) != sw_certificates_size) {
         printf("Invalid SW certificates file size!\n");
         return -1;
     }
-    if (0 != flash_fs_read_file(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES, 0, bl2_data->sw_certificates, sizeof(bl2_data->sw_certificates))) {
-        printf("flash_fs_read_file(SW_CRT) failed!\n");
+    if (0 != flashfs_drv_read_file(ESPERANTO_FLASH_REGION_ID_SW_CERTIFICATES, 0, bl2_data->sw_certificates, sizeof(bl2_data->sw_certificates))) {
+        printf("flashfs_drv_read_file(SW_CRT) failed!\n");
         return -1;
     }
     printf("Loaded SW certificates chain.\n");
