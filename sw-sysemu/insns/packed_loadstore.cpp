@@ -30,7 +30,7 @@ void insn_fbc_ps(insn_t inst)
 void insn_fg32b_ps(insn_t inst)
 {
     require_fp_active();
-    DISASM_GATHER_FD_FS1_RS2("fg32b.ps");
+    DISASM_GATHER_FD_RS1_RS2("fg32b.ps");
     GATHER(sext<8>(mmu_load8((RS2 & ~31ull) + ((RS2 + (RS1>>(5*e))) & 31))));
 }
 
@@ -38,7 +38,7 @@ void insn_fg32b_ps(insn_t inst)
 void insn_fg32h_ps(insn_t inst)
 {
     require_fp_active();
-    DISASM_GATHER_FD_FS1_RS2("fg32h.ps");
+    DISASM_GATHER_FD_RS1_RS2("fg32h.ps");
     GATHER(sext<16>(mmu_load16((RS2 & ~31ull) + ((RS2 + ((RS1>>(4*e))<<1)) & 30))));
 }
 
@@ -46,7 +46,7 @@ void insn_fg32h_ps(insn_t inst)
 void insn_fg32w_ps(insn_t inst)
 {
     require_fp_active();
-    DISASM_GATHER_FD_FS1_RS2("fg32w.ps");
+    DISASM_GATHER_FD_RS1_RS2("fg32w.ps");
     GATHER(mmu_load32((RS2 & ~31ull) + ((RS2 + ((RS1>>(3*e))<<2)) & 28)));
 }
 
