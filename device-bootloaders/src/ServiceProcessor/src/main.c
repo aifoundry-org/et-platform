@@ -1,5 +1,6 @@
 #include "serial.h"
 #include "interrupt.h"
+#include "mailbox.h"
 #include "pcie.h"
 #include "dummy_isr.h"
 
@@ -31,6 +32,7 @@ int main(void)
 
     INT_init();
     PCIe_init();
+    MBOX_init();
 
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];
@@ -73,7 +75,7 @@ void taskA(void *pvParameters)
 
     while (1)
     {
-        printf("A");
+        //printf("A");
         vTaskDelay(2U);
     }
 }
@@ -87,7 +89,7 @@ void taskB(void *pvParameters)
 
     while (1)
     {
-        printf("B");
+        //printf("B");
         vTaskDelay(3U);
     }
 }
@@ -126,7 +128,7 @@ void vApplicationIdleHook(void)
 void vApplicationTickHook(void)
 {
     // TODO FIXME watchdog checking goes here
-    SERIAL_write(UART0, ".", 1);
+    //SERIAL_write(UART0, ".", 1);
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)
