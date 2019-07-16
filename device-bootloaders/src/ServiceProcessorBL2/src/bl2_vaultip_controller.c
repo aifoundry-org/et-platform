@@ -27,6 +27,7 @@
 
 #include "bl2_vaultip_controller.h"
 
+#include "spio_misc_esr.h"
 #include "hal_device.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
@@ -82,6 +83,16 @@ static inline void * const_cast(const void * vp) {
 
     u.vp = vp;
     return u.p;
+}
+
+inline static void set_vault_dma_reloc_read(uint32_t reloc) {
+    volatile Spio_misc_esr_t * spio_misc_esr = (Spio_misc_esr_t*)R_SP_MISC_BASEADDR;
+    spio_misc_esr->VAULT_DMA_R_RELOC.R = ((Spio_misc_esr_VAULT_DMA_R_RELOC_t){ .B = { .Rd_Channel_Addr = reloc & 0xFFu } }).R;
+}
+
+inline static void set_vault_dma_reloc_write(uint32_t reloc) {
+    volatile Spio_misc_esr_t * spio_misc_esr = (Spio_misc_esr_t*)R_SP_MISC_BASEADDR;
+    spio_misc_esr->VAULT_DMA_WR_RELOC.R = ((Spio_misc_esr_VAULT_DMA_WR_RELOC_t){ .B = { .Wt_Channel_Addr = reloc & 0xFFu } }).R;
 }
 
 static uint16_t get_next_token_id(void) {
@@ -376,8 +387,10 @@ int vaultip_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t * dat
 
     input_token.public_data_read.dw_02.AS_ID = asset_id;
     input_token.public_data_read.dw_03.OutputDataLength = data_buffer_size & 0x3FF;
-    input_token.public_data_read.dw_04.OutputDataAddress_31_00 = (uint32_t)(size_t)data_buffer;
-    input_token.public_data_read.dw_05.OutputDataAddress_63_32 = 0;
+    input_token.public_data_read.dw_04.OutputDataAddress_31_00 = PTR232LO(data_buffer);
+    //input_token.public_data_read.dw_05.OutputDataAddress_63_32 = PTR232HI(data_buffer);
+    set_vault_dma_reloc_read(PTR232HI(data_buffer));
+    set_vault_dma_reloc_write(PTR232HI(data_buffer));
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_send_input_token() failed!\n");
@@ -415,8 +428,10 @@ int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t
 
     input_token.monotonic_counter_read.dw_02.AS_ID = asset_id;
     input_token.monotonic_counter_read.dw_03.OutputDataLength = counter_buffer_size & 0x3FF;
-    input_token.monotonic_counter_read.dw_04.OutputDataAddress_31_00 = (uint32_t)(size_t)counter_buffer;
-    input_token.monotonic_counter_read.dw_05.OutputDataAddress_63_32 = 0;
+    input_token.monotonic_counter_read.dw_04.OutputDataAddress_31_00 = PTR232LO(counter_buffer);
+    //input_token.monotonic_counter_read.dw_05.OutputDataAddress_63_32 = PTR232HI(counter_buffer);
+    set_vault_dma_reloc_read(PTR232HI(counter_buffer));
+    set_vault_dma_reloc_write(PTR232HI(counter_buffer));
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_send_input_token() failed!\n");
@@ -491,7 +506,9 @@ int vaultip_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t po
     input_token.otp_data_write.dw_03.AssociatedDataLength = associated_data_length & 0xFFu;
 
     input_token.otp_data_write.dw_04.InputDataAddress_31_00 = PTR232LO(input_data);
-    input_token.otp_data_write.dw_05.InputDataAddress_63_32 = PTR232HI(input_data);
+    //input_token.otp_data_write.dw_05.InputDataAddress_63_32 = PTR232HI(input_data);
+    set_vault_dma_reloc_read(PTR232HI(input_data));
+    set_vault_dma_reloc_write(PTR232HI(input_data));
 
     memcpy(input_token.otp_data_write.dw_63_06, associated_data, associated_data_length & 0xFFu);
 
@@ -676,7 +693,9 @@ int vaultip_trng_get_random_number(void * dst, uint16_t size, bool raw) {
     input_token.trn_get_random_number.dw_02.Size = size;
     input_token.trn_get_random_number.dw_02.RawKey = raw ? VAULTIP_TRNG_RAW : VAULTIP_TRNG_NORMAL;
     input_token.trn_get_random_number.dw_03.OutputDataAddress_31_00 = PTR232LO(dst);
-    input_token.trn_get_random_number.dw_04.OutputDataAddress_63_32 = PTR232HI(dst);
+    //input_token.trn_get_random_number.dw_04.OutputDataAddress_63_32 = PTR232HI(dst);
+    set_vault_dma_reloc_read(PTR232HI(dst));
+    set_vault_dma_reloc_write(PTR232HI(dst));
 
     //suppress_token_read_diagnostics = true;
 
@@ -802,8 +821,10 @@ int vaultip_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, size_
     input_token.dw_01.Identity = identity;
     input_token.hash.dw_02.DataLength = (uint32_t)msg_size;
     temp_msg = const_cast(msg);
-    input_token.hash.dw_03.InputDataAddress_31_00 = (uint32_t)(size_t)temp_msg;
-    input_token.hash.dw_04.InputDataAddress_63_32 = 0;
+    input_token.hash.dw_03.InputDataAddress_31_00 = PTR232LO(temp_msg);
+    //input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(temp_msg);
+    set_vault_dma_reloc_read(PTR232HI(temp_msg));
+    set_vault_dma_reloc_write(PTR232HI(temp_msg));
     input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
     input_token.hash.dw_06.Mode = VAULTIP_HASH_MODE_INITIAL_FINAL;
@@ -858,7 +879,9 @@ int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_
     input_token.dw_01.Identity = identity;
     input_token.hash.dw_02.DataLength = (uint32_t)msg_size;
     input_token.hash.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
     input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_NOT_FINAL : VAULTIP_HASH_MODE_CONTINUED_NOT_FINAL;
@@ -917,7 +940,9 @@ int vaultip_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_a
     input_token.dw_01.Identity = identity;
     input_token.hash.dw_02.DataLength = (uint32_t)msg_size;
     input_token.hash.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
     input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_FINAL : VAULTIP_HASH_MODE_CONTINUED_FINAL;
@@ -981,7 +1006,9 @@ int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32
     input_token.dw_01.Identity = identity;
     input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
     input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
     input_token.mac.dw_06.Mode = VAULTIP_MAC_MODE_INITIAL_FINAL;
@@ -1049,7 +1076,9 @@ int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     input_token.dw_01.Identity = identity;
     input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
     input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
     input_token.mac.dw_06.Mode = VAULTIP_MAC_MODE_INITIAL_FINAL;
@@ -1113,7 +1142,9 @@ int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
     input_token.dw_01.Identity = identity;
     input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
     input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
     input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
@@ -1177,7 +1208,9 @@ int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, 
     input_token.dw_01.Identity = identity;
     input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
     input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
     input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
@@ -1246,7 +1279,9 @@ int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
     input_token.dw_01.Identity = identity;
     input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
     input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
     input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
@@ -1290,10 +1325,12 @@ static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t * I
     input_token.dw_01.Identity = identity;
     input_token.encryption.dw_02.DataLength = (uint32_t)data_size;
     input_token.encryption.dw_03.InputDataAddress_31_00 = PTR232LO(data);
-    input_token.encryption.dw_04.InputDataAddress_63_32 = PTR232HI(data);
+    //input_token.encryption.dw_04.InputDataAddress_63_32 = PTR232HI(data);
+    set_vault_dma_reloc_read(PTR232HI(data));
     input_token.encryption.dw_05.InputDataLength = data_size & 0x1FFFFFu;
     input_token.encryption.dw_06.OutputDataAddress_31_00 = PTR232LO(data);
-    input_token.encryption.dw_07.OutputDataAddress_63_32 = PTR232HI(data);
+    //input_token.encryption.dw_07.OutputDataAddress_63_32 = PTR232HI(data);
+    set_vault_dma_reloc_write(PTR232HI(data));
     input_token.encryption.dw_08.OutputDataLength = data_size & 0x1FFFFFu;
     //input_token.encryption.dw_09.AssociatedDataAddress_31_00 = 0;
     //input_token.encryption.dw_10.AssociatedDataAddress_63_32 = 0;
@@ -1440,9 +1477,11 @@ int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk
     input_token.asset_load.dw_03.AssociatedDataLength = associated_data_size & 0xFFu;
     input_token.asset_load.dw_03.InputDataLength = salt_size & 0x3FFu;
     input_token.asset_load.dw_04.InputDataAddress_31_00 = PTR232LO(salt);
-    input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(salt);
+    //input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(salt);
     input_token.asset_load.dw_06.OutputDataAddress_31_00 = PTR232LO(key_expansion_IV);
-    input_token.asset_load.dw_07.OutputDataAddress_63_32 = PTR232HI(key_expansion_IV);
+    //input_token.asset_load.dw_07.OutputDataAddress_63_32 = PTR232HI(key_expansion_IV);
+    set_vault_dma_reloc_read(PTR232HI(salt));
+    set_vault_dma_reloc_write(PTR232HI(salt));
     input_token.asset_load.dw_08.OutputDataLength = key_expansion_IV_length & 0x7FF;
     input_token.asset_load.dw_09.Key_AS_ID = kdk_asset_id;
     memcpy(input_token.asset_load.dw_10_63[0].AssociatedData, associated_data, associated_data_size);
@@ -1566,6 +1605,8 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
     input_token.public_key.dw_10.SigDataAddress_31_00 = PTR232LO(sig_data_address);
     input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
+    set_vault_dma_reloc_read(PTR232HI(message));
+    set_vault_dma_reloc_write(PTR232HI(message));
     input_token.public_key.dw_12_63.HashDataLength = hash_data_length;
 
     // for (n = 0; n < 13; n++) {
@@ -1627,9 +1668,11 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, 
     input_token.public_key.dw_07.InputDataSize = message_size & 0xFFFu;
     input_token.public_key.dw_07.OutputDataSize_or_SigDataSize = sig_data_size & 0xFFFu;
     input_token.public_key.dw_08.InputDataAddress_31_00 = PTR232LO(message);
-    input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
+    //input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
     input_token.public_key.dw_10.SigDataAddress_31_00 = PTR232LO(sig_data_address);
-    input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
+    //input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
+    set_vault_dma_reloc_read(PTR232HI(message));
+    set_vault_dma_reloc_write(PTR232HI(message));
     input_token.public_key.dw_12_63.HashDataLength = hash_data_length;
 
     // for (n = 0; n < 13; n++) {
