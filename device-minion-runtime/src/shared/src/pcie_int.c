@@ -1,12 +1,12 @@
-/*------------------------------------------------------------------------- 
-* Copyright (C) 2019, Esperanto Technologies Inc. 
-* The copyright to the computer program(s) herein is the 
+/*-------------------------------------------------------------------------
+* Copyright (C) 2019, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
 * property of Esperanto Technologies.
 * The program(s) may be used and/or copied only with
-* the written permission of Esperanto Technologies or 
-* in accordance with the terms and conditions stipulated in the 
-* agreement/contract under which the program(s) have been supplied. 
-*------------------------------------------------------------------------- 
+* the written permission of Esperanto Technologies or
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------
 */
 
 #include "pcie_int.h"
@@ -14,7 +14,7 @@
 #include "hal_device.h"
 #include "pcie_device.h"
 
-#include <stdio.h>
+//#include <stdio.h>
 
 pcie_int_t pcie_get_int_type(void)
 {
@@ -41,7 +41,7 @@ pcie_int_t pcie_get_int_type(void)
     //PCI_TYPE0_INT_EN bit is named "disable" in PCIe spec. Sigh Synopsis. 0 = legacy ints enabled.
     if (status_command.B.PCI_TYPE0_INT_EN == 0) return pcie_int_legacy;
 
-    return pcie_int_none;   
+    return pcie_int_none;
 }
 
 uint32_t pcie_get_int_vecs(pcie_int_t int_type)
@@ -63,7 +63,7 @@ uint32_t pcie_get_int_vecs(pcie_int_t int_type)
         case pcie_int_none:
             //Intentional fall through
         default:
-            printf("ERROR: int type %d not supported\r\n", (int32_t)int_type);
+            //printf("ERROR: int type %d not supported\r\n", (int32_t)int_type);
             return 0;
     }
 }
@@ -74,7 +74,7 @@ int pcie_interrupt_host(uint32_t vec)
 
     if (vec >= pcie_get_int_vecs(int_type))
     {
-        printf("ERROR: int vec %d unsupported\r\n", vec);
+        //printf("ERROR: int vec %d unsupported\r\n", vec);
         return -1;
     }
 
@@ -97,7 +97,7 @@ int pcie_interrupt_host(uint32_t vec)
         case pcie_int_none:
             //Intentional fall through
         default:
-            printf("ERROR: int type %d not supported\r\n", (int32_t)int_type);
+            //printf("ERROR: int type %d not supported\r\n", (int32_t)int_type);
             return -1;
     }
 

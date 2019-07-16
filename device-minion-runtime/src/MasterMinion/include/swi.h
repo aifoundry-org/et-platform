@@ -3,6 +3,6 @@
 
 #include <stdbool.h>
 
-extern bool swi_flag;
+extern volatile bool swi_flag;
 
 #endif

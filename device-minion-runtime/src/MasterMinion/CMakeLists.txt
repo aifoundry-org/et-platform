@@ -33,10 +33,13 @@ set(SOURCES
     src/main.c
     src/putchar.c
     src/build_configuration.c
+    src/mailbox.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/print_exception.c
+    ${SHARED_SRC_DIR}/ringbuffer.c
+    ${SHARED_SRC_DIR}/pcie_int.c
     )
 
 set(TARGET_NAME MasterMinion)

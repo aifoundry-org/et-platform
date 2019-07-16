@@ -3,6 +3,8 @@
 #include "cacheops.h"
 #include "kernel_info.h"
 #include "layout.h"
+#include "mailbox.h"
+#include "mailbox_id.h"
 #include "message.h"
 #include "printf.h"
 #include "print_exception.h"
@@ -10,7 +12,6 @@
 #include "shire.h"
 #include "swi.h"
 
-#include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <inttypes.h>
@@ -69,15 +70,24 @@ static kernel_config_t kernel_config[MAX_SIMULTANEOUS_KERNELS];
 
 static message_t message;
 
+#define DEBUG_SEND_MESSAGES_TO_SP
+#define DEBUG_REFLECT_MESSAGE_FROM_HOST
+//#define DEBUG_FAKE_MESSAGE_FROM_HOST
+
+#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
+static void fake_message_from_host(void);
+#endif
+
 static void handle_message_from_host(void);
+static void handle_message_from_sp(void);
 static void handle_messages_from_workers(void);
 static void handle_message_from_worker(uint64_t shire, uint64_t hart);
-static void handle_message_from_sp(void);
 static void update_shire_state(uint64_t shire, shire_state_t state);
 static void update_kernel_state(kernel_id_t kernel_id, uint64_t shire, shire_state_t shire_state);
 static void handle_pcie_events(void);
 static void handle_timer_events(void);
-static void launch_kernel(const kernel_config_t* const kernel_config_ptr);
+static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_info_t* const kernel_info_ptr);
+
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
@@ -99,6 +109,10 @@ void __attribute__((noreturn)) main(void)
 
     printf("\r\nMaster minion " GIT_VERSION_STRING "\r\n");
 
+    printf("Initializing mailboxes...");
+    MBOX_init();
+    printf("done\r\n");
+
     printf("Initializing message buffers...");
     message_init_master();
     printf("done\r\n");
@@ -114,20 +128,31 @@ void __attribute__((noreturn)) main(void)
     // Wait for a message from the host, worker minion, PCI-E, etc.
     for (;;)
     {
-        // TODO FIXME UNCOMMENT
-        //asm volatile ("wfi");
+#ifdef DEBUG_SEND_MESSAGES_TO_SP
+        MBOX_update_status(MBOX_SP);
+        const uint8_t buffer[4] = {0xDE, 0xAD, 0xBE, 0xEF};
+        MBOX_send(MBOX_SP, buffer, sizeof(buffer));
+#endif
+
+#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
+        fake_message_from_host();
+#else
+        asm volatile ("wfi");
+#endif
 
         if (swi_flag)
         {
             swi_flag = false;
+
+            // Ensure swi_flag clears before messages are handled
+            asm volatile ("fence");
+
+            handle_message_from_host();
+            handle_message_from_sp();
             handle_messages_from_workers();
         }
 
-        // TODO FIXME HACK belongs under if (swi_flag) but faking for now
-        handle_message_from_host();
-
         // External interrupts
-        handle_message_from_sp();
         handle_pcie_events();
 
         // Timer interrupts
@@ -135,34 +160,96 @@ void __attribute__((noreturn)) main(void)
     }
 }
 
-static void handle_message_from_host(void)
+#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
+static void fake_message_from_host(void)
 {
     const kernel_id_t kernel_id = KERNEL_ID_0;
 
     // For now, fake host launches kernel 0 any time it's unused.
     if (kernel_status[kernel_id].kernel_state == KERNEL_STATE_UNUSED)
     {
-        kernel_params_t* const kernel_params_ptr = &kernel_config[kernel_id].kernel_params;
+        const kernel_params_t kernel_params = {
+            .tensor_a = 0,
+            .tensor_b = 0,
+            .tensor_c = 0,
+            .tensor_d = 0,
+            .tensor_e = 0,
+            .tensor_f = 0,
+            .tensor_g = 0,
+            .tensor_h = 0,
+            .kernel_id = kernel_id
+        };
 
-        kernel_params_ptr->kernel_id = kernel_id;
-        kernel_params_ptr->tensor_a = 0;
-        kernel_params_ptr->tensor_b = 0;
-        kernel_params_ptr->tensor_c = 0;
-        kernel_params_ptr->tensor_d = 0;
-        kernel_params_ptr->tensor_e = 0;
-        kernel_params_ptr->tensor_f = 0;
-        kernel_params_ptr->tensor_g = 0;
-        kernel_params_ptr->tensor_h = 0;
+        const kernel_info_t kernel_info = {
+            .compute_pc = KERNEL_UMODE_ENTRY,
+            .uber_kernel_nodes = 0, // unused
+            .shire_mask = 1,
+            .kernel_params_ptr = NULL, // gets fixed up
+            .grid_config_ptr = NULL // TODO
+        };
 
-        kernel_info_t* const kernel_info_ptr = &kernel_config[kernel_id].kernel_info;
+        printf("faking kernel launch message fom host\r\n");
 
-        kernel_info_ptr->compute_pc = 0; // TODO FIXME HACK worker firmware ignores this for now
-        kernel_info_ptr->uber_kernel_nodes = 0; // unused
-        kernel_info_ptr->shire_mask = 1;
-        kernel_info_ptr->kernel_params_ptr = kernel_params_ptr;
-        kernel_info_ptr->grid_config_ptr = NULL; // TODO
+        launch_kernel(&kernel_params, &kernel_info);
+    }
+}
+#endif
 
-        launch_kernel(&kernel_config[kernel_id]);
+static void handle_message_from_host(void)
+{
+    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
+    int64_t length;
+
+    MBOX_update_status(MBOX_PCIE);
+
+    length = MBOX_receive(MBOX_PCIE, buffer, sizeof(buffer));
+
+    if (length > 0)
+    {
+#ifdef DEBUG_REFLECT_MESSAGE_FROM_HOST
+        printf("Received message from host, length = %" PRId64 "\r\n", length);
+
+        for (int64_t i = 0; i < length; i++)
+        {
+            printf ("message[%" PRId64 "] = 0x%02" PRIu8 "\r\n", i, buffer[i]);
+        }
+
+        printf("Reflecting message to host\r\n");
+        MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);
+#endif
+        const mbox_message_id_t* const message_id_ptr = (void*)buffer;
+
+        if (*message_id_ptr == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
+        {
+            printf("received kernel launch message fom host\r\n");
+
+            // For initial testing, message is { message_id_t, kernel_params_t, kernel_info_t }
+            const kernel_params_t* const kernel_params_ptr = (void*)&buffer[sizeof(mbox_message_id_t)];
+            const kernel_info_t* const kernel_info_ptr     = (void*)&buffer[sizeof(mbox_message_id_t) +
+                                                                            sizeof(kernel_params_t)];
+
+            launch_kernel(kernel_params_ptr, kernel_info_ptr);
+        }
+    }
+}
+
+static void handle_message_from_sp(void)
+{
+    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
+    int64_t length;
+
+    MBOX_update_status(MBOX_SP);
+
+    length = MBOX_receive(MBOX_SP, buffer, sizeof(buffer));
+
+    if (length > 0)
+    {
+        printf("Received message from SP, length = %" PRId64 "\r\n", length);
+
+        for (int64_t i = 0; i < length; i++)
+        {
+            printf ("message[%" PRId64 "] = 0x%02" PRIx8 "\r\n", i, buffer[i]);
+        }
     }
 }
 
@@ -239,11 +326,6 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
     }
 }
 
-static void handle_message_from_sp(void)
-{
-
-}
-
 static void update_shire_state(uint64_t shire, shire_state_t shire_state)
 {
     // Get the kernel_id of the kernel associated with this shire, if any.
@@ -305,11 +387,14 @@ static void update_kernel_state(kernel_id_t kernel_id, uint64_t shire, shire_sta
             // If this was the final shire to complete, update kernel status.
             if (kernel_status[kernel_id].shire_complete_mask == kernel_config[kernel_id].kernel_info.shire_mask)
             {
-                printf("All shires complete\r\n");
+                printf("kernel %d complete\r\n", kernel_id);
+                const uint8_t response[3] = {MBOX_MESSAGE_ID_KERNEL_RESULT,
+                                             kernel_id,
+                                             MBOX_KERNEL_RESULT_OK};
+
+                MBOX_send(MBOX_PCIE, response, sizeof(response));
 
                 kernel_status[kernel_id].kernel_state = KERNEL_STATE_COMPLETE;
-
-                // TODO FIXME @Will send message/data back to the host
             }
         }
         break;
@@ -335,14 +420,14 @@ static void handle_timer_events(void)
     // gone wrong and trigger an abort/cleanup.
 }
 
-static void launch_kernel(const kernel_config_t* const kernel_config_ptr)
+static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_info_t* const kernel_info_ptr)
 {
-    const kernel_info_t* const kernel_info_ptr = &kernel_config_ptr->kernel_info;
-    const kernel_id_t kernel_id = kernel_info_ptr->kernel_params_ptr->kernel_id;
+    const kernel_id_t kernel_id = kernel_params_ptr->kernel_id;
     const uint64_t shire_mask = kernel_info_ptr->shire_mask;
     kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_id];
     int64_t num_shires = 0;
     bool allShiresReady = true;
+    bool kernelReady = true;
 
     // Confirm that all the shires this kernel wants to use are ready
     for (uint64_t shire = 0; shire < 33; shire++)
@@ -353,31 +438,53 @@ static void launch_kernel(const kernel_config_t* const kernel_config_ptr)
 
             if (shire_status[shire].shire_state != SHIRE_STATE_READY)
             {
+                printf("launch_kernel: kernel %d shire %d not ready\r\n", kernel_id, shire);
                 allShiresReady = false;
             }
         }
     }
 
-    if (allShiresReady)
+    // Confirm this kernel is not active
+    if (kernel_status[kernel_id].kernel_state != KERNEL_STATE_UNUSED)
     {
+        printf("launch_kernel: kernel %d state not unused\r\n", kernel_id);
+        kernelReady = false;
+    }
+
+    if (allShiresReady && kernelReady)
+    {
+        // Copy params and info into kernel config buffer
+        kernel_config[kernel_id].kernel_params = *kernel_params_ptr;
+        kernel_config[kernel_id].kernel_info   = *kernel_info_ptr;
+
+        // Fix up kernel_params_ptr for the copy in kernel_config
+        kernel_config[kernel_id].kernel_info.kernel_params_ptr = &kernel_config[kernel_id].kernel_params;
+
         // Evict kernel config to point of coherency - worker minion will read this
+        kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
         evict_va(0, to_L3, (uint64_t)kernel_config_ptr, (sizeof(kernel_config_t) + 63) / 64, 64, 0, 0);
         WAIT_CACHEOPS
 
-        int64_t* const kernel_launch_barriers = (int64_t*)FW_MASTER_TO_WORKER_LAUNCH_BARRIERS;
-
         // Initialize the barrier the shires will use to synchronize with each other before launching the kernel
+        int64_t* const kernel_launch_barriers = (int64_t*)FW_MASTER_TO_WORKER_LAUNCH_BARRIERS;
         atomic_barrier_init(&kernel_launch_barriers[kernel_id], num_shires);
 
+        // Create the message to broadcast to all the worker minion
         message.id = MESSAGE_ID_KERNEL_LAUNCH;
-        message.data[0] = kernel_info_ptr->compute_pc;
-        message.data[1] = (uint64_t)kernel_info_ptr->kernel_params_ptr;
-        message.data[2] = (uint64_t)kernel_info_ptr->grid_config_ptr;
+        message.data[0] = kernel_config[kernel_id].kernel_info.compute_pc;
+        message.data[1] = (uint64_t)kernel_config[kernel_id].kernel_info.kernel_params_ptr;
+        message.data[2] = (uint64_t)kernel_config[kernel_id].kernel_info.grid_config_ptr;
 
         if (0 == broadcast_message_send_master(shire_mask, 0xFFFFFFFFFFFFFFFFU, &message))
         {
-            printf("launching kernel\r\n");
+            printf("launch_kernel: launching kernel %d\r\n", kernel_id);
+            const uint8_t response[3] = {MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE,
+                                         kernel_id,
+                                         MBOX_KERNEL_LAUNCH_RESPONSE_OK};
 
+            MBOX_send(MBOX_PCIE, response, sizeof(response));
+
+            kernel_status_ptr->shire_error_mask = 0;
             kernel_status_ptr->shire_complete_mask = 0;
             kernel_status_ptr->kernel_state = KERNEL_STATE_RUNNING;
 
@@ -392,11 +499,21 @@ static void launch_kernel(const kernel_config_t* const kernel_config_ptr)
         }
         else
         {
-            printf("error launching kernel\r\n");
+            printf("launch_kernel: error broadcasting kernel %d launch message\r\n", kernel_id);
+            const uint8_t response[3] = {MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE,
+                                         kernel_id,
+                                         MBOX_KERNEL_LAUNCH_RESPONSE_ERROR};
+
+            MBOX_send(MBOX_PCIE, response, sizeof(response));
         }
     }
     else
     {
-        printf("aborting kernel launch, not all shires are ready\r\n");
+        printf("launch_kernel: aborting kernel %d launch\r\n", kernel_id);
+        const uint8_t response[3] = {MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE,
+                                     kernel_id,
+                                     MBOX_KERNEL_LAUNCH_RESPONSE_ERROR_SHIRES_NOT_READY};
+
+        MBOX_send(MBOX_PCIE, response, sizeof(response));
     }
 }
