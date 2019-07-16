@@ -1,5 +1,6 @@
 #include "syscall.h"
 #include "kernel.h"
+#include "log.h"
 
 #include <stdint.h>
 
@@ -28,6 +29,10 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
 
         case SYSCALL_RETURN_FROM_KERNEL:
             rv = return_from_kernel();
+        break;
+
+        case SYSCALL_LOG_WRITE:
+            rv = LOG_write((char*)arg1, arg2);
         break;
 
         case SYSCALL_PRE_KERNEL_SETUP:

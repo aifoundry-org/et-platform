@@ -95,6 +95,10 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
             rv = -1; // supervisor firmware should never ask the machine code to do this
         break;
 
+        case SYSCALL_LOG_WRITE:
+            rv = -1; // machine/supervisor firmware should call LOG_write() directly
+        break;
+
         default:
             rv = -1; // unhandled syscall! Ignoring for now.
         break;

@@ -22,6 +22,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_ENABLE_THREAD1:
         case SYSCALL_DRAIN_COALESCING_BUFFER_ALT:
         case SYSCALL_CACHE_CONTROL_ALT:
+        case SYSCALL_LOG_WRITE:
             rv = syscall(number, arg1, arg2, arg3); // forward the syscall to the machine mode handler
         break;
 

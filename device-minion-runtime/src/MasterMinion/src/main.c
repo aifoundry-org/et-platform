@@ -70,9 +70,9 @@ static kernel_config_t kernel_config[MAX_SIMULTANEOUS_KERNELS];
 
 static message_t message;
 
-#define DEBUG_SEND_MESSAGES_TO_SP
-#define DEBUG_REFLECT_MESSAGE_FROM_HOST
-//#define DEBUG_FAKE_MESSAGE_FROM_HOST
+//#define DEBUG_SEND_MESSAGES_TO_SP
+//#define DEBUG_REFLECT_MESSAGE_FROM_HOST
+#define DEBUG_FAKE_MESSAGE_FROM_HOST
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
 static void fake_message_from_host(void);
@@ -87,6 +87,7 @@ static void update_kernel_state(kernel_id_t kernel_id, uint64_t shire, shire_sta
 static void handle_pcie_events(void);
 static void handle_timer_events(void);
 static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_info_t* const kernel_info_ptr);
+static void print_log_message(uint64_t hart);
 
 void __attribute__((noreturn)) main(void)
 {
@@ -320,6 +321,10 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
             update_shire_state(shire, SHIRE_STATE_ERROR);
         break;
 
+        case MESSAGE_ID_LOG_WRITE:
+            print_log_message(hart);
+        break;
+
         default:
             printf("Unknown message id = 0x%016" PRIx64 "received from shire %" PRId64 " hart %" PRId64 "\r\n", message.id, shire, hart);
         break;
@@ -516,4 +521,14 @@ static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const 
 
         MBOX_send(MBOX_PCIE, response, sizeof(response));
     }
+}
+
+static void print_log_message(uint64_t hart)
+{
+    const char* const data_ptr = (char*)message.data;
+    const uint8_t length = data_ptr[0];
+
+    printf("log: H%04d: ", hart);
+    SERIAL_write(UART0, &data_ptr[1], length);
+    SERIAL_write(UART0, "\r\n", 2);
 }
