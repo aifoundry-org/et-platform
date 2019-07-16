@@ -254,7 +254,9 @@ float32_t f32_exp2(float32_t a)
         }
     }
 
-    uint32_t in_rev = ((in_shifted >> 1) + (in_shifted % 2)) % (1 << 24);
+      //used to be rm=RMM, but RTL is implementing rm=RTZ
+    //uint32_t in_rev = ((in_shifted >> 1) + (in_shifted % 2)) % (1 << 24);
+    uint32_t in_rev = (in_shifted >> 1) % (1 << 24);    
 
     if(sign) {
         in_rev = ((~in_rev) + 1) % (1 << 24);
