@@ -9,8 +9,9 @@
 *-------------------------------------------------------------------------
 */
 
+#include "serial.h"
 #include <string.h>
-#include "printf.h"
+#include <stdio.h>
 
 #include "bl2_main.h"
 #include "bl2_flashfs_driver.h"
@@ -242,7 +243,7 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
                 printf("load_image_code_and_data: flashfs_drv_read_file(code) failed!\n");
                 goto CLEANUP_ON_ERROR;
             }
-            printf("loaded 0x%x bytes at 0x%08x\n", image_info->secret_info.load_regions[region_no].load_size, load_address.u64);
+            printf("loaded 0x%x bytes at 0x%08lx\n", image_info->secret_info.load_regions[region_no].load_size, load_address.u64);
 
             if (0 != (image_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED)) {
                 // hash encrypted data

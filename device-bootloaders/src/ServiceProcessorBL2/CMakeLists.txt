@@ -29,7 +29,9 @@ set(SOURCES
     src/bl2_crypto.c
     src/bl2_certificates.c
     src/bl2_firmware_loader.c
+    src/bl2_reset.c
     src/crc32.c
+    ${SHARED_SRC_DIR}/constant_memory_compare.c
     src/memory_copy_8x32.S
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/backtrace.c

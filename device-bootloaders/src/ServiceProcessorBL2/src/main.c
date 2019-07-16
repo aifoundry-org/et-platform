@@ -16,24 +16,85 @@
 #include "bl2_main.h"
 #include "bl2_flashfs_driver.h"
 #include "bl2_vaultip_driver.h"
+#include "bl2_reset.h"
 
 #include <stdio.h>
 #include "bl2_crypto.h"
 
+//#define DUMMY_TASKS
+
 #define TASK_STACK_SIZE 4096 // overkill for now
 
+#ifdef DUMMY_TASKS
 void taskA(void *pvParameters);
 void taskB(void *pvParameters);
+#endif
 
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
 void vApplicationIdleHook(void);
 void vApplicationTickHook(void);
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
 
-SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
+static SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
 
 SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void) {
     return &g_service_processor_bl2_data;
+}
+
+static TaskHandle_t gs_taskHandleMain;
+static StackType_t gs_stackMain[TASK_STACK_SIZE];
+static StaticTask_t gs_taskBufferMain;
+
+static void taskMain(void *pvParameters)
+{
+    (void)pvParameters;
+
+    // Disable buffering on stdout
+    setbuf(stdout, NULL);
+
+    if (0 != release_memshire_from_reset()) {
+        printf("Failed to release MemShire from reset!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released MemShire from reset.\n");
+
+    printf("Attempting to load Machine Minion firmware...\n");
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
+        printf("Failed to load Machine Minion firmware!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Machine Minion firmware loaded.\n");
+
+    printf("Attempting to load Master Minion firmware...\n");
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
+        printf("Failed to load Master Minion firmware!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Machine Master firmware loaded.\n");
+
+    printf("Attempting to load Worker Minion firmware...\n");
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
+        printf("Failed to load Worker Minion firmware!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Worker Minion firmware loaded.\n");
+
+    if (0 != release_minions_from_reset()) {
+        printf("Failed to release Minions from reset!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released Minions from reset.\n");
+    goto DONE;
+
+FIRMWARE_LOAD_ERROR:
+    printf("Fatal error... waiting for reset!\n");
+
+DONE:
+    while (1)
+    {
+        printf("M");
+        vTaskDelay(2U);
+    }
 }
 
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data);
@@ -79,6 +140,18 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
         goto FATAL_ERROR;
     }
 
+    gs_taskHandleMain = xTaskCreateStatic(taskMain,
+                                    "Main Task",
+                                    TASK_STACK_SIZE,
+                                    NULL,
+                                    1,
+                                    gs_stackMain,
+                                    &gs_taskBufferMain);
+    if (gs_taskHandleMain == NULL) {
+        printf("xTaskCreateStatic(taskMain) failed!\r\n");
+    }
+
+#ifdef DUMMY_TASKS
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];
     static StaticTask_t taskBufferA;
@@ -111,6 +184,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     {
         printf("taskHandle error\r\n");
     }
+#endif
 
     vTaskStartScheduler();
 
@@ -120,6 +194,7 @@ FATAL_ERROR:
     for(;;);
 }
 
+#ifdef DUMMY_TASKS
 void taskA(void *pvParameters)
 {
     (void)pvParameters;
@@ -147,6 +222,7 @@ void taskB(void *pvParameters)
         vTaskDelay(3U);
     }
 }
+#endif
 
 /* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an
 implementation of vApplicationGetIdleTaskMemory() to provide the memory that is

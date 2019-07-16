@@ -1476,6 +1476,14 @@ int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk
     input_token.asset_load.dw_03.RFC5869 = 1; // todo: verify if this is required or desired
     input_token.asset_load.dw_03.AssociatedDataLength = associated_data_size & 0xFFu;
     input_token.asset_load.dw_03.InputDataLength = salt_size & 0x3FFu;
+
+    if (NULL != salt && NULL != key_expansion_IV) {
+        if (PTR232HI(salt) != PTR232HI(key_expansion_IV)) {
+            printf("vaultip_asset_load_derive: vaultip limitation - the high bits of the salt and key_expansion_IV address differ!\n");
+            return -1;
+        }
+    }
+
     input_token.asset_load.dw_04.InputDataAddress_31_00 = PTR232LO(salt);
     //input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(salt);
     input_token.asset_load.dw_06.OutputDataAddress_31_00 = PTR232LO(key_expansion_IV);
@@ -1601,10 +1609,16 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     input_token.public_key.dw_06.IOAssetRef = temp_message_digest_asset_id;
     input_token.public_key.dw_07.InputDataSize = message_size & 0xFFFu;
     input_token.public_key.dw_07.OutputDataSize_or_SigDataSize = sig_data_size & 0xFFFu;
+
+    if (PTR232HI(message) != PTR232HI(sig_data_address)) {
+        printf("vaultip_public_key_ecdsa_verify: vaultip limitation - the high bits of the message and signature address differ!\n");
+        return -1;
+    }
+
     input_token.public_key.dw_08.InputDataAddress_31_00 = PTR232LO(message);
-    input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
+    //input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
     input_token.public_key.dw_10.SigDataAddress_31_00 = PTR232LO(sig_data_address);
-    input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
+    //input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
     set_vault_dma_reloc_read(PTR232HI(message));
     set_vault_dma_reloc_write(PTR232HI(message));
     input_token.public_key.dw_12_63.HashDataLength = hash_data_length;
@@ -1667,6 +1681,12 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, 
     input_token.public_key.dw_06.IOAssetRef = temp_message_digest_asset_id;
     input_token.public_key.dw_07.InputDataSize = message_size & 0xFFFu;
     input_token.public_key.dw_07.OutputDataSize_or_SigDataSize = sig_data_size & 0xFFFu;
+
+    if (PTR232HI(message) != PTR232HI(sig_data_address)) {
+        printf("vaultip_public_key_ecdsa_verify: vaultip limitation - the high bits of the message and signature address differ!\n");
+        return -1;
+    }
+    
     input_token.public_key.dw_08.InputDataAddress_31_00 = PTR232LO(message);
     //input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
     input_token.public_key.dw_10.SigDataAddress_31_00 = PTR232LO(sig_data_address);
