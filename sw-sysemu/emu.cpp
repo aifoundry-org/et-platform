@@ -3741,23 +3741,24 @@ static void tensorreduce(uint64_t value)
     int other_action    = tensorreduce_info[other_min].action;
     if (this_min != (current_thread>>1))
     {
-        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
-                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                        other_min, this_min, other_start_reg, other_num_reg, other_action);
+        LOG(WARN, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
+            ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
+            other_min, this_min, other_start_reg, other_num_reg, other_action);
         throw std::runtime_error("Mismatched tensor reduce sender target minion");
     }
     if (other_action != 0)
     {
-        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
-                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                        other_min, this_min, other_start_reg, other_num_reg, other_action);
+        LOG(WARN, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
+            ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
+            other_min, this_min, other_start_reg, other_num_reg, other_action);
         throw std::runtime_error("Mismatched tensor reduce sender action");
     }
     if (other_num_reg != this_num_reg)
     {
-        LOG_ALL_MINIONS(DEBUG, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
-                        ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                        other_min, this_min, other_start_reg, other_num_reg, other_action);
+        LOG(WARN, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d"
+            " recver_start_reg=%d recvr_num_reg=%d sender_action=%u",
+            ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
+            other_min, this_min, other_start_reg, other_num_reg, this_start_reg, this_num_reg, other_action);
     }
 
     // Info for checker
