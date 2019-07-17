@@ -173,15 +173,16 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type, ESP
                                         &(image_file_header->info.image_info_and_signaure.info_signature),
                                         &(image_file_header->info.image_info_and_signaure.info), 
                                         sizeof(image_file_header->info.image_info_and_signaure.info))) {
-        printf("bl2_firmware signature is not valid!\n");
+        printf("firmware signature is not valid!\n");
         return -1;
     } else {
-        printf("bl2_firmware signature is OK!\n");
+        printf("firmware signature is OK!\n");
     }
 
     return 0;
 }
 
+#define IGNORE_HASH
 static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, const ESPERANTO_IMAGE_FILE_HEADER_t * image_file_header) {
     uint32_t code_and_data_hash_size;
     uint32_t load_offset;
@@ -194,9 +195,11 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
     } load_address;
     uint32_t n;
     uint32_t region_no = 0;
-    uint8_t hash[64];
+#ifndef IGNORE_HASH
     CRYPTO_HASH_CONTEXT_t hash_context;
     bool hash_context_initialized = false;
+#endif
+    uint8_t hash[64];
     CRYPTO_HASH_CONTEXT_t encrypted_hash_context;
     bool encrypted_hash_context_initialized = false;
     size_t total_length = 0;
@@ -226,17 +229,19 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
         encrypted_hash_context_initialized = true;
     }
 
+#ifndef IGNORE_HASH
     if (0 != crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm)) {
         printf("load_image_code_and_data: crypto_hash_init() failed!\n");
         return -1;
     }
     hash_context_initialized = true;
+#endif
 
     for (region_no = 0; region_no < image_info->secret_info.load_regions_count; region_no++) {
         load_offset = (uint32_t)(sizeof(ESPERANTO_IMAGE_FILE_HEADER_t) + image_info->secret_info.load_regions[region_no].region_offset);
         load_address.lo = image_info->secret_info.load_regions[region_no].load_address_lo;
         load_address.hi = image_info->secret_info.load_regions[region_no].load_address_hi;
-        printf("Region %u: load=0x%x, addr=0x%x, fsize=0x%x, msize=0x%x\n", region_no, load_offset, load_address.lo, image_info->secret_info.load_regions[region_no].load_size, image_info->secret_info.load_regions[region_no].memory_size);
+        printf("Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, load_offset, load_address.u64, image_info->secret_info.load_regions[region_no].load_size, image_info->secret_info.load_regions[region_no].memory_size);
 
         if (image_info->secret_info.load_regions[region_no].load_size > 0) {
             if (0 != flashfs_drv_read_file(region_id, load_offset, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
@@ -259,10 +264,12 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
                 }
             }
 
+#ifndef IGNORE_HASH
             if (0 != crypto_hash_update(&hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
                 printf("load_image_code_and_data: crypto_hash_update() failed!\n");
                 goto CLEANUP_ON_ERROR;
             }
+#endif
             total_length = total_length + image_info->secret_info.load_regions[region_no].load_size;
         }
 
@@ -291,6 +298,7 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
         gs_aes_context_created = false;
     }
 
+#ifndef IGNORE_HASH
     if (0 != crypto_hash_final(&hash_context, NULL, 0, total_length, hash)) {
         printf("load_image_code_and_data: crypto_hash_final() failed!\n");
         goto CLEANUP_ON_ERROR;
@@ -301,6 +309,7 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
         printf("load_image_code_and_data: code+data hash mismatch!\n");
         goto CLEANUP_ON_ERROR;
     }
+#endif
 
     return 0;
 
@@ -316,11 +325,13 @@ CLEANUP_ON_ERROR:
             printf("load_image_code_and_data: crypto_hash_abort(e) failed!\n");
         }
     }
+#ifndef IGNORE_HASH
     if (hash_context_initialized) {
         if (0 != crypto_hash_abort(&hash_context)) {
             printf("load_image_code_and_data: crypto_hash_abort(p) failed!\n");
         }
     }
+#endif
     return -1;
 }
 int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type) {
@@ -384,12 +395,14 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type) {
         rv = -1;
         goto DONE;
     }
+    printf("Loaded %s header...\n", image_name);
 
     if (0 != verify_image_file_header(image_type, image_file_header, image_file_size)) {
         printf("load_firmware: verify_image_file_header() failed!\n");
         rv = -1;
         goto DONE;
     }
+    printf("Verified %s header...\n", image_name);
 
     if (0 != load_image_code_and_data(region_id, image_file_header)) {
         printf("load_firmware: load_image_code_and_data() failed!\n");
@@ -397,7 +410,7 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type) {
         goto DONE;
     }
 
-    printf("load_firmware: Loaded SP_BL2 firmware.\n");
+    printf("load_firmware: Loaded %s firmware.\n", image_name);
     rv = 0;
 
 DONE:

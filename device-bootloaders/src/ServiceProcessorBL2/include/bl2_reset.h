@@ -12,6 +12,7 @@
 #ifndef __BL2_RESET_H__
 #define __BL2_RESET_H__
 
+int release_noc_from_reset(void);
 int release_memshire_from_reset(void);
 int release_minions_from_reset(void);
 

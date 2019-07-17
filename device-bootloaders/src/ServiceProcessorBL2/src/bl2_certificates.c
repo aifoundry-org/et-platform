@@ -289,6 +289,7 @@ int load_sw_certificates_chain(void) {
     }
 
     if (!sw_root_ca_hash_available) {
+        printf("SW ROOT CA is NOT provisioned... using SP ROOT CA instead...\n");
         memcpy(bl2_data->sw_certificates, bl2_data->sp_certificates, sizeof(bl2_data->sw_certificates));
         return 0;
     }

@@ -85,14 +85,25 @@ static inline void * const_cast(const void * vp) {
     return u.p;
 }
 
+static uint32_t gs_vault_dma_reloc_read = 0x0;
+static uint32_t gs_vault_dma_reloc_write = 0x0;
+
 inline static void set_vault_dma_reloc_read(uint32_t reloc) {
     volatile Spio_misc_esr_t * spio_misc_esr = (Spio_misc_esr_t*)R_SP_MISC_BASEADDR;
-    spio_misc_esr->VAULT_DMA_R_RELOC.R = ((Spio_misc_esr_VAULT_DMA_R_RELOC_t){ .B = { .Rd_Channel_Addr = reloc & 0xFFu } }).R;
+    if (reloc != gs_vault_dma_reloc_read) {
+        spio_misc_esr->VAULT_DMA_R_RELOC.R = ((Spio_misc_esr_VAULT_DMA_R_RELOC_t){ .B = { .Rd_Channel_Addr = reloc & 0xFFu } }).R;
+        gs_vault_dma_reloc_read = reloc;
+        printf("*** gs_vault_dma_reloc_read = 0x%x ***\n", gs_vault_dma_reloc_read);
+    }
 }
 
 inline static void set_vault_dma_reloc_write(uint32_t reloc) {
     volatile Spio_misc_esr_t * spio_misc_esr = (Spio_misc_esr_t*)R_SP_MISC_BASEADDR;
-    spio_misc_esr->VAULT_DMA_WR_RELOC.R = ((Spio_misc_esr_VAULT_DMA_WR_RELOC_t){ .B = { .Wt_Channel_Addr = reloc & 0xFFu } }).R;
+    if (reloc != gs_vault_dma_reloc_write) {
+        spio_misc_esr->VAULT_DMA_WR_RELOC.R = ((Spio_misc_esr_VAULT_DMA_WR_RELOC_t){ .B = { .Wt_Channel_Addr = reloc & 0xFFu } }).R;
+        gs_vault_dma_reloc_write = reloc;
+        printf("*** gs_vault_dma_reloc_write = 0x%x ***\n", gs_vault_dma_reloc_write);
+    }
 }
 
 static uint16_t get_next_token_id(void) {
@@ -1434,7 +1445,9 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     //input_token.asset_load.dw_03.RFC5869 = 1; // todo: verify if this is required
     input_token.asset_load.dw_03.InputDataLength = data_size & 0x3FFu;
     input_token.asset_load.dw_04.InputDataAddress_31_00 = PTR232LO(data);
-    input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(data);
+    //input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(data);
+    set_vault_dma_reloc_read(PTR232HI(data));
+    set_vault_dma_reloc_write(PTR232HI(data));
 
     // for (n = 0; n < 6; n++) {
     //     printf("asset_load[%u]=%08x\n", n, input_token.dw[n]);
