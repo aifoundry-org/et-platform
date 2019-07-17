@@ -83,7 +83,8 @@ static void recalculate_thread0_enable(unsigned shire)
     extern std::array<Processor,EMU_NUM_THREADS>  cpu;
 
     uint32_t value = shire_other_esrs[shire].thread0_disable;
-    for (unsigned m = 0; m < 32; ++m) {
+    unsigned mcount = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
+    for (unsigned m = 0; m < mcount; ++m) {
         unsigned thread = shire * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION;
         cpu[thread].enabled = !((value >> m) & 1);
     }
@@ -94,11 +95,13 @@ static void recalculate_thread1_enable(unsigned shire)
 {
     extern std::array<Processor,EMU_NUM_THREADS>  cpu;
 
+    if (shire == EMU_IO_SHIRE_SP)
+        return;
+
     uint32_t value = (shire_other_esrs[shire].minion_feature & 0x10)
             ? 0xffffffff
             : shire_other_esrs[shire].thread1_disable;
-
-    for (unsigned m = 0; m < 32; ++m) {
+    for (unsigned m = 0; m < EMU_MINIONS_PER_SHIRE; ++m) {
         unsigned thread = shire * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + 1;
         cpu[thread].enabled = !((value >> m) & 1);
     }

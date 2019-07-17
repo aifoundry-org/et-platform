@@ -1,7 +1,9 @@
+#ifdef SYSEMU_DEBUG
+
 #include "emu.h"
 #include "sys_emu.h"
+#include "memop.h"
 
-#ifdef SYSEMU_DEBUG
 
 int                                 sys_emu::debug_steps = 0;
 std::list<sys_emu::pc_breakpoint_t> sys_emu::pc_breakpoints;
@@ -97,9 +99,11 @@ static size_t split(const std::string &txt, std::vector<std::string> &strs, char
 
 void sys_emu::memdump(uint64_t addr, uint64_t size)
 {
+    extern uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc);
+
     char ascii[17] = {0};
     for (uint64_t i = 0; i < size; i++) {
-        uint8_t data = pmemread8(vmemtranslate(addr + i, 1, Mem_Access_Load));
+        uint8_t data = bemu::pmemread8(vmemtranslate(addr + i, 1, Mem_Access_Load));
         printf("%02X ", data);
         ascii[i % 16] = std::isprint(data) ? data : '.';
         if ((i + 1) % 8 == 0 || (i + 1) == size) {
