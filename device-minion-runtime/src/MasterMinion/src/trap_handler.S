@@ -79,15 +79,15 @@ test_if_external_interrupt:             /* Check to see if an external interrupt
     bne   t2, t1, as_yet_unhandled      /* Something as yet unhandled. */
 
 handle_external_interupt:
-    li    s0, 0x0010200004              /* Load the address of ulMaxID into s0. */
+    li    s2, 0x0010220004              /* Load the address of target 11 ulMaxID into s2. */
     ld    t0, pullVectorTable           /* Load base address of vector table into t0 */
-    lwu   s1, 0(s0)                     /* Load ulMaxID into s1 to claim the interrupt */
-    beqz  s1, processed_source          /* If ulMaxID is zero, the interrupt has already been claimed (unlikely) */
-    slli  t1, s1, 3                     /* Shift ulMaxID to 8-byte aligned index into vector table in t1 */
+    lwu   s3, 0(s2)                     /* Load ulMaxID into s3 to claim the interrupt */
+    beqz  s3, processed_source          /* If ulMaxID is zero, the interrupt has already been claimed (unlikely) */
+    slli  t1, s3, 3                     /* Shift ulMaxID to 8-byte aligned index into vector table in t1 */
     add   t0, t0, t1                    /* Add 8-byte aligned index to base address of vector table in t0 */
     ld    t1, 0(t0)                     /* load vector from vector table into t1 */
     jalr  t1                            /* jump to interrupt vector */
-    sw    s1, 0(s0)                     /* write ulMaxID to indicate the interrupt has been serviced */
+    sw    s3, 0(s2)                     /* write ulMaxID to indicate the interrupt has been serviced */
     j     processed_source
 
 handle_software_interrupt:

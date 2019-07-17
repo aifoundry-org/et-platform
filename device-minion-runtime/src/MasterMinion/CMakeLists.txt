@@ -34,6 +34,7 @@ set(SOURCES
     src/putchar.c
     src/build_configuration.c
     src/mailbox.c
+    src/pcie_isr.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/message.c

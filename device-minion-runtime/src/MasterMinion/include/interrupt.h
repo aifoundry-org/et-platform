@@ -4,6 +4,8 @@
 //TODO FIXME generate these. Copied by hand by wearle 5/3/2019.
 //See esperanto-soc/dv/tests/ioshire/sw/inc/pu_plic_intr_device.h
 
+#include <stdint.h>
+
 typedef enum {
     PU_PLIC_NO_INTERRUPT_INTR = 0,
     PU_PLIC_I2C_INTR,
@@ -49,5 +51,9 @@ typedef enum {
     PU_PLIC_RESERVED7_INTR,
     PU_PLIC_INTR_CNT
 } interrupt_t;
+
+void INT_init(void);
+void INT_enableInterrupt(interrupt_t interrupt, uint32_t priority, void (*isr)(void));
+void INT_disableInterrupt(interrupt_t interrupt);
 
 #endif

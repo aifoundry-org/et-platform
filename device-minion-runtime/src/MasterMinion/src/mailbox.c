@@ -1,5 +1,7 @@
 #include "mailbox.h"
 #include "hal_device.h"
+#include "interrupt.h"
+#include "pcie_isr.h"
 #include "pcie_int.h"
 #include "printf.h"
 #include "ringbuffer.h"
@@ -23,6 +25,8 @@ void MBOX_init(void)
 {
     init_mbox(MBOX_SP);
     init_mbox(MBOX_PCIE);
+
+    INT_enableInterrupt(PU_PLIC_PCIE_MESSAGE_INTR, 1, pcie_isr);
 }
 
 int64_t MBOX_send(mbox_e mbox, const void* const buffer_ptr, uint32_t length)

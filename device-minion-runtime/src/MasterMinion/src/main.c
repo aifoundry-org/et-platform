@@ -1,11 +1,13 @@
 #include "atomic_barrier.h"
 #include "build_configuration.h"
 #include "cacheops.h"
+#include "interrupt.h"
 #include "kernel_info.h"
 #include "layout.h"
 #include "mailbox.h"
 #include "mailbox_id.h"
 #include "message.h"
+#include "pcie_isr.h"
 #include "printf.h"
 #include "print_exception.h"
 #include "serial.h"
@@ -71,8 +73,8 @@ static kernel_config_t kernel_config[MAX_SIMULTANEOUS_KERNELS];
 static message_t message;
 
 //#define DEBUG_SEND_MESSAGES_TO_SP
-//#define DEBUG_REFLECT_MESSAGE_FROM_HOST
-#define DEBUG_FAKE_MESSAGE_FROM_HOST
+#define DEBUG_REFLECT_MESSAGE_FROM_HOST
+//#define DEBUG_FAKE_MESSAGE_FROM_HOST
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
 static void fake_message_from_host(void);
@@ -107,8 +109,9 @@ void __attribute__((noreturn)) main(void)
     );
 
     SERIAL_init(UART0);
-
     printf("\r\nMaster minion " GIT_VERSION_STRING "\r\n");
+
+    INT_init();
 
     printf("Initializing mailboxes...");
     MBOX_init();
@@ -145,16 +148,26 @@ void __attribute__((noreturn)) main(void)
         {
             swi_flag = false;
 
-            // Ensure swi_flag clears before messages are handled
+            // Ensure flag clears before messages are handled
             asm volatile ("fence");
 
-            handle_message_from_host();
             handle_message_from_sp();
             handle_messages_from_workers();
         }
 
         // External interrupts
-        handle_pcie_events();
+        if (pcie_interrupt_flag)
+        {
+            printf("PCI-E message interrupt received\r\n");
+
+            pcie_interrupt_flag = false;
+
+            // Ensure flag clears before messages are handled
+            asm volatile ("fence");
+
+            handle_message_from_host();
+            handle_pcie_events();
+        }
 
         // Timer interrupts
         handle_timer_events();
@@ -207,7 +220,6 @@ static void handle_message_from_host(void)
 
     if (length > 0)
     {
-#ifdef DEBUG_REFLECT_MESSAGE_FROM_HOST
         printf("Received message from host, length = %" PRId64 "\r\n", length);
 
         for (int64_t i = 0; i < length; i++)
@@ -215,9 +227,11 @@ static void handle_message_from_host(void)
             printf ("message[%" PRId64 "] = 0x%02" PRIu8 "\r\n", i, buffer[i]);
         }
 
+#ifdef DEBUG_REFLECT_MESSAGE_FROM_HOST
         printf("Reflecting message to host\r\n");
         MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);
 #endif
+
         const mbox_message_id_t* const message_id_ptr = (void*)buffer;
 
         if (*message_id_ptr == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
