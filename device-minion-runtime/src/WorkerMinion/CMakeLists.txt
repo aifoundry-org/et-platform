@@ -23,6 +23,7 @@ set(SOURCES
     src/test_kernels.c
     src/build_configuration.c
     ${SHARED_SRC_DIR}/message.c
+    ${SHARED_SRC_DIR}/log.c
     )
 
 set(TARGET_NAME WorkerMinion)

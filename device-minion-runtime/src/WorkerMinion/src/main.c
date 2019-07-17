@@ -4,6 +4,7 @@
 #include "kernel.h"
 #include "kernel_info.h"
 #include "layout.h"
+#include "log.h"
 #include "message.h"
 #include "shire.h"
 #include "syscall.h"
@@ -54,6 +55,9 @@ void __attribute__((noreturn)) main(void)
     if (result)
     {
         message_send_worker(shire_id, hart_id, &message);
+
+        const char* const string = "hello";
+        LOG_write(string, sizeof(string));
     }
 
     for (;;)
