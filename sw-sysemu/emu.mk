@@ -1,5 +1,6 @@
 emu_hdrs := \
 	atomics.h \
+	cache.h \
 	csrs.h \
 	decode.h \
 	emu.h \

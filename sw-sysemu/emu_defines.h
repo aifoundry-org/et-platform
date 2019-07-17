@@ -28,11 +28,6 @@
 
 #define NR_MSG_PORTS    4
 
-// L1 Dcache configuration
-#define L1D_NUM_SETS    16
-#define L1D_NUM_WAYS    4
-#define L1D_LINE_SIZE   64
-
 // Some TensorFMA defines
 #define TFMA_MAX_AROWS    16
 #define TFMA_MAX_ACOLS    16
