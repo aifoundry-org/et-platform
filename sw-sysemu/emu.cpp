@@ -1467,7 +1467,7 @@ static void csrset(uint16_t src1, uint64_t val)
                 cpu[current_thread^1].mcache_control = val & 3;
             }
             num_sets = (val & 0x1) ? 4 : 16;
-            if (~val & 2)
+            if ((~val & 2) && (current_thread != EMU_IO_SHIRE_SP_THREAD))
                 tensorload_setupb_topair[current_thread] = false;
         }
         val &= 3;

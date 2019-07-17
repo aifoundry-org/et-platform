@@ -20,17 +20,26 @@ libsysemu_OBJS := $(filter-out $(sysemu_OBJDIR)/sys_emu/sys_emu_main.o,$(sysemu_
 CC       := gcc
 CXX      := g++
 CPPFLAGS := -MMD -MP -I.. -I. -DSYS_EMU
-CXXFLAGS := -Wall -Wextra -Werror -pedantic-errors -fPIC -g -O2 -std=c++11
-CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -g -O2 -std=c11
+CXXFLAGS := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c++11
+CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c11
 LDLIBS   := -lm
 
-ifeq ($(COVERAGE), 1)
+ifeq ($(DEBUG),)
+    CXXFLAGS += -g -O2
+    CFLAGS += -g -O2
+else
+    CPPFLAGS += -D_GLIBCXX_DEBUG
+    CXXFLAGS += -g3 -O1 -fno-inline
+    CFLAGS += -g3 -O1 -fno-inline
+endif
+
+ifneq ($(COVERAGE),)
   CXXFLAGS += --coverage
   CFLAGS   += --coverage
   LDLIBS   += --coverage
 endif
 
-ifeq ($(PROFILING), 1)
+ifneq ($(PROFILING),)
   CPPFLAGS += -DBEMU_PROFILING -DSYSEMU_PROFILING
 endif
 
@@ -74,7 +83,7 @@ $(sysemu_OBJDIR)/libsysemu.a: $(libsysemu_OBJS)
 	$(AR) $(ARFLAGS) $@ $^
 
 $(libfpu_OBJDIR)/libfpu.a: force
-	$(MAKE) -C ../fpu libfpu_OBJDIR=$(abspath $(libfpu_OBJDIR)) all
+	$(MAKE) -C ../fpu libfpu_OBJDIR=$(abspath $(libfpu_OBJDIR)) DEBUG=$(DEBUG) all
 
 sysemu-artifacts.tar.gz: $(sysemu_artifact_HDRS) $(sysemu_artifact_TGTS)
 	tar zcvf sysemu-artifacts.tar.gz sysemu-artifacts

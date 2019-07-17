@@ -108,7 +108,7 @@ protected:
         // Only check bank 0 because the spec says that all banks must have
         // the same cfg, otherwise behavior is undefined.
         if (bucket >= M)
-            return false;
+            return true;
         uint64_t cfg = shire_cache_esrs[bucket].bank[0].sc_scp_cache_ctl;
         size_type bucket_size = std::min((cfg >> 20) & 0x1fff000, N);
         return (bucket_size < offset) || (n > bucket_size - offset);
