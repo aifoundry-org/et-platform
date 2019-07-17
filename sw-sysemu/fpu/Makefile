@@ -13,9 +13,18 @@ CC       := gcc
 CXX      := g++
 ARFLAGS  := rvs
 CPPFLAGS := -MMD -MP -I..
-CFLAGS   := -Wall -Werror -fPIC -g -O2 -std=c11
-CXXFLAGS := -Wall -Werror -Wextra -pedantic-errors -fPIC -g -O2 -std=c++11
+CFLAGS   := -Wall -Werror -fPIC -std=c11
+CXXFLAGS := -Wall -Werror -Wextra -pedantic-errors -fPIC -std=c++11
 LDFLAGS  := -shared
+
+ifeq ($(DEBUG),)
+    CXXFLAGS += -g -O2
+    CFLAGS += -g -O2
+else
+    CPPFLAGS += -D_GLIBCXX_DEBUG
+    CXXFLAGS += -g3 -O1 -fno-inline
+    CFLAGS += -g3 -O1 -fno-inline
+endif
 
 # FIXME: Remove the following when we convert everything away from C++ floats
 CXXFLAGS += -mf16c -fno-fast-math
