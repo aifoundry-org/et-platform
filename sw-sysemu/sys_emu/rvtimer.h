@@ -2,6 +2,7 @@
 #define _SYSEMU_RVTIMER_H_
 
 #include <cinttypes>
+#include <limits>
 
 struct RVTimer
 {

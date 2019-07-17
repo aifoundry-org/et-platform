@@ -70,7 +70,7 @@ extern void take_trap(const trap_t& t);
 
 // Interrupts
 extern void check_pending_interrupts();
-extern void raise_interrupt(int thread, int cause, uint64_t mip_reg);
+extern void raise_interrupt(int thread, int cause, uint64_t mip, uint64_t mbusaddr=0);
 extern void raise_software_interrupt(int thread);
 extern void clear_software_interrupt(int thread);
 extern void raise_timer_interrupt(int thread);

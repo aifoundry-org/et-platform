@@ -65,7 +65,7 @@ broadcast_esrs_t    broadcast_esrs[EMU_NUM_SHIRES];
 
 // FIXME: the following needs to be cleaned up
 #ifdef SYS_EMU
-#include "../sys_emu/sys_emu.h"
+#include "sys_emu.h"
 #else
 namespace sys_emu {
 static inline void fcc_to_threads(unsigned, unsigned, uint64_t, unsigned) {}

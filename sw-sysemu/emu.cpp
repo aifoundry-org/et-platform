@@ -4142,15 +4142,16 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-void raise_interrupt(int thread, int cause, uint64_t mip_reg)
+void raise_interrupt(int thread, int cause, uint64_t mip, uint64_t mbusaddr)
 {
-    if (cause == 9 && !(mip_reg & 0x200))
+    if (cause == 9 && !(mip & 0x200))
     {
         ext_seip[thread] |= 1<<cause;
     }
     else
     {
         cpu[thread].mip |= 1<<cause;
+        if (cause == 23) cpu[thread].mbusaddr = sextVA(mbusaddr);
     }
 }
 
