@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "kernel_sync.h"
 #include "atomic_barrier.h"
 #include "cacheops.h"
 #include "kernel_info.h"
@@ -336,18 +337,15 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, con
 
     if (result)
     {
-        // Last thread to join barrier sends FCC0 to all HARTs in this shire
-        SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, 0xFFFFFFFFU);
-        SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, 0xFFFFFFFFU);
+        const uint64_t bitmask = 1U << (FIRST_KERNEL_LAUNCH_SYNC_MINON + (kernel_params_ptr->kernel_id / 2));
+        const uint64_t thread = kernel_params_ptr->kernel_id % 2;
+
+        // Last thread to join barrier sends ready FCC1 to master shire sync HART
+        SEND_FCC(MASTER_SHIRE, thread, FCC_1, bitmask);
     }
 
-    // Wait for all HARTs to complete pre_kernel_setup
-    WAIT_FCC(0);
-
-    int64_t* const kernel_launch_barriers = (int64_t*)FW_MASTER_TO_WORKER_LAUNCH_BARRIERS;
-
-    // Wait for all shires to complete pre_kernel_setup
-    atomic_barrier(&kernel_launch_barriers[kernel_params_ptr->kernel_id]);
+    // Wait for FCC1 from master minion sync thread indicating all HARTS in all shires are ready
+    WAIT_FCC(1);
 }
 
 // This must to a a RX function in user space, no W from user!

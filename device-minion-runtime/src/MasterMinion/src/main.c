@@ -1,8 +1,10 @@
-#include "atomic_barrier.h"
+#include "broadcast.h"
 #include "build_configuration.h"
 #include "cacheops.h"
+#include "fcc.h"
 #include "interrupt.h"
 #include "kernel_info.h"
+#include "kernel_sync.h"
 #include "layout.h"
 #include "mailbox.h"
 #include "mailbox_id.h"
@@ -61,6 +63,7 @@ typedef struct
 {
     kernel_info_t kernel_info;
     kernel_params_t kernel_params;
+    uint64_t num_shires;
 } kernel_config_t;
 
 // Local state
@@ -79,6 +82,10 @@ static message_t message;
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
 static void fake_message_from_host(void);
 #endif
+
+static void master_thread(void);
+static void sync_thread(uint64_t kernel_id);
+static void notify_sync_thread(kernel_id_t kernel_id);
 
 static void handle_message_from_host(void);
 static void handle_message_from_sp(void);
@@ -100,11 +107,6 @@ void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
 
-    if (get_hart_id() != 2048)
-    {
-        asm volatile ("wfi");
-    }
-
     // Configure supervisor trap vector and sscratch (supervisor stack pointer)
     asm volatile (
         "la    %0, trap_handler \n"
@@ -112,6 +114,29 @@ void __attribute__((noreturn)) main(void)
         "csrw  sscratch, sp     \n" // Initial saved stack pointer points to S-mode stack scratch region
         : "=&r" (temp)
     );
+
+    const uint64_t hart_id = get_hart_id();
+
+    if (hart_id == 2048)
+    {
+        master_thread();
+    }
+    else if ((hart_id >= 2050) && (hart_id < 2054))
+    {
+        sync_thread(hart_id - 2050);
+    }
+    else
+    {
+        while (1)
+        {
+            asm volatile ("wfi");
+        }
+    }
+}
+
+static void __attribute__((noreturn)) master_thread(void)
+{
+    uint64_t temp;
 
     SERIAL_init(UART0);
     printf("\r\nMaster minion " GIT_VERSION_STRING "\r\n");
@@ -176,10 +201,12 @@ void __attribute__((noreturn)) main(void)
             handle_message_from_sp();
             handle_messages_from_workers();
         }
+#ifndef DEBUG_FAKE_MESSAGE_FROM_HOST
         else
         {
             printf("no swi_flag\r\n");
         }
+#endif
 
         // External interrupts
         if (pcie_interrupt_flag)
@@ -198,6 +225,45 @@ void __attribute__((noreturn)) main(void)
         // Timer interrupts
         handle_timer_events();
     }
+}
+
+// Waits for all the shires associated with a kernel to report ready via a FCC,
+// then synchronizes their release to run the kernel by sending a FCC
+static void __attribute__((noreturn)) sync_thread(uint64_t kernel_id)
+{
+    volatile const kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
+
+    while (1)
+    {
+        // wait for a kernel launch sync request from master_thread
+        WAIT_FCC(0);
+
+        // read fresh kernel_config
+        evict_va(0, to_L3, (uint64_t)kernel_config_ptr, sizeof(kernel_config_t) / 64, 64, 0, 0);
+        WAIT_CACHEOPS
+
+        const uint64_t num_shires = kernel_config_ptr->num_shires;
+        const uint64_t shire_mask = kernel_config_ptr->kernel_info.shire_mask;
+
+        // Wait for a ready FCC1 from each shire
+        for (uint64_t i = 0; i < num_shires; i++)
+        {
+            WAIT_FCC(1);
+        }
+
+        // Broadcast go FCC to all HARTs in all shires in shire_mask
+        broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC1); // thread 0 FCC 1
+        broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC3); // thread 1 FCC 1
+    }
+}
+
+// Notifies the HART running the sync_thread for the kernel_id
+static void notify_sync_thread(kernel_id_t kernel_id)
+{
+    const uint64_t bitmask = 1U << (FIRST_KERNEL_LAUNCH_SYNC_MINON + (kernel_id / 2));
+    const uint64_t thread = kernel_id % 2;
+
+    SEND_FCC(THIS_SHIRE, thread, 0, bitmask);
 }
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
@@ -231,6 +297,10 @@ static void fake_message_from_host(void)
         printf("faking kernel launch message fom host\r\n");
 
         launch_kernel(&kernel_params, &kernel_info);
+    }
+    if (kernel_status[kernel_id].kernel_state == KERNEL_STATE_COMPLETE)
+    {
+        kernel_status[kernel_id].kernel_state = KERNEL_STATE_UNUSED;
     }
 }
 #endif
@@ -468,10 +538,6 @@ static void handle_pcie_events(void)
 {
     // Keep the PCI-E data pump going and update kernel state as needed, i.e. transitioning a kernel
     // from KERNEL_STATE_COMPLETE to KERNEL_STATE_UNUSED once all the device->host data transfer is complete.
-    if (kernel_status[KERNEL_ID_0].kernel_state == KERNEL_STATE_COMPLETE)
-    {
-        kernel_status[KERNEL_ID_0].kernel_state = KERNEL_STATE_UNUSED;
-    }
 }
 
 static void handle_timer_events(void)
@@ -485,7 +551,7 @@ static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const 
     const kernel_id_t kernel_id = kernel_params_ptr->kernel_id;
     const uint64_t shire_mask = kernel_info_ptr->shire_mask;
     kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_id];
-    int64_t num_shires = 0;
+    uint64_t num_shires = 0;
     bool allShiresReady = true;
     bool kernelReady = true;
 
@@ -513,21 +579,20 @@ static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const 
 
     if (allShiresReady && kernelReady)
     {
+        volatile kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
+
         // Copy params and info into kernel config buffer
-        kernel_config[kernel_id].kernel_params = *kernel_params_ptr;
-        kernel_config[kernel_id].kernel_info   = *kernel_info_ptr;
+        kernel_config_ptr->kernel_params = *kernel_params_ptr;
+        kernel_config_ptr->kernel_info   = *kernel_info_ptr;
+        kernel_config_ptr->num_shires    = num_shires;
 
         // Fix up kernel_params_ptr for the copy in kernel_config
-        kernel_config[kernel_id].kernel_info.kernel_params_ptr = &kernel_config[kernel_id].kernel_params;
+        kernel_config_ptr->kernel_info.kernel_params_ptr = &kernel_config[kernel_id].kernel_params;
 
-        // Evict kernel config to point of coherency - worker minion will read this
-        kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
-        evict_va(0, to_L3, (uint64_t)kernel_config_ptr, (sizeof(kernel_config_t) + 63) / 64, 64, 0, 0);
+        // Evict kernel config to point of coherency - sync threads and worker minion will read it
+        FENCE
+        evict_va(0, to_L3, (uint64_t)kernel_config_ptr, sizeof(kernel_config_t) / 64, 64, 0, 0);
         WAIT_CACHEOPS
-
-        // Initialize the barrier the shires will use to synchronize with each other before launching the kernel
-        int64_t* const kernel_launch_barriers = (int64_t*)FW_MASTER_TO_WORKER_LAUNCH_BARRIERS;
-        atomic_barrier_init(&kernel_launch_barriers[kernel_id], num_shires);
 
         // Create the message to broadcast to all the worker minion
         message.id = MESSAGE_ID_KERNEL_LAUNCH;
@@ -543,6 +608,9 @@ static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const 
                                          MBOX_KERNEL_LAUNCH_RESPONSE_OK};
 
             MBOX_send(MBOX_PCIE, response, sizeof(response));
+
+            // notify the appropriate sync thread to manage kernel launch
+            notify_sync_thread(kernel_id);
 
             kernel_status_ptr->shire_error_mask = 0;
             kernel_status_ptr->shire_complete_mask = 0;

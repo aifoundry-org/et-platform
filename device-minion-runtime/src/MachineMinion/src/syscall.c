@@ -11,7 +11,6 @@
 
 int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
-static int64_t broadcast(uint64_t value, uint64_t shire_mask, uint64_t parameters);
 static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id);
 static int64_t enable_thread1(uint64_t hart_disable_mask);
 
@@ -42,7 +41,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
     switch (number)
     {
         case SYSCALL_BROADCAST:
-            rv = broadcast(arg1, arg2, arg3);
+            rv = broadcast_with_parameters(arg1, arg2, arg3);
         break;
 
         case SYSCALL_IPI_TRIGGER:
@@ -105,20 +104,6 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
     }
 
     return rv;
-}
-
-static int64_t broadcast(uint64_t value, uint64_t shire_mask, uint64_t parameters)
-{
-    // privilege of write to BROADCAST1 ESR must match privilege encoded in parameters
-    const uint64_t priv = (parameters & ESR_BROADCAST_PROT_MASK) >> ESR_BROADCAST_PROT_SHIFT;
-
-    volatile uint64_t* const broadcast_esr_ptr = ESR_SHIRE(PRV_U, THIS_SHIRE, BROADCAST0);
-    volatile uint64_t* const broadcast_req_ptr = ESR_SHIRE(priv,  THIS_SHIRE, BROADCAST1);
-
-    *broadcast_esr_ptr = value;
-    *broadcast_req_ptr = parameters | (shire_mask & ESR_BROADCAST_ESR_SHIRE_MASK);
-
-    return 0;
 }
 
 // hart_mask = bit 0 in the mask corresponds to hart 0 in the shire (minion 0, thread 0), bit 1 to hart 1 (minion 0, thread 1) and bit 63 corresponds to hart 63 (minion 31, thread 1).
