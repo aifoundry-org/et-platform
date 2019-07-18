@@ -79,6 +79,8 @@ extern void raise_external_machine_interrupt(int thread);
 extern void clear_external_machine_interrupt(int thread);
 extern void raise_external_supervisor_interrupt(int thread);
 extern void clear_external_supervisor_interrupt(int thread);
+extern void raise_bus_error_interrupt(int thread, uint64_t busaddr);
+extern void clear_bus_error_interrupt(int thread);
 
 // Illegal instruction encodings will execute this
 extern void unknown(const char* comm = 0);

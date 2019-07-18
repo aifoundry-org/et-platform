@@ -30,7 +30,7 @@ struct NullRegion : public MemoryRegion {
     void write(size_type, size_type, const_pointer) override { }
 
     void init(size_type, size_type, const_pointer) override {
-        std::runtime_error("bemu::NullRegion::init()");
+        throw std::runtime_error("bemu::NullRegion::init()");
     }
 
     addr_type first() const override { return Base; }

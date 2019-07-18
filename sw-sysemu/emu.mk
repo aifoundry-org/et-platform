@@ -30,6 +30,7 @@ emu_hdrs := \
 	memory/dump_data.h \
 	memory/load.h \
 	memory/main_memory.h \
+	memory/memory_error.h \
 	memory/memory_region.h \
 	memory/scratch_region.h \
 	memory/sparse_region.h \
