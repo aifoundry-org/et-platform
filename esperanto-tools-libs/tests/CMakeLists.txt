@@ -68,7 +68,6 @@ set(TEST_LIST test_error_or.cc
   test_command_response.cc
   test_command_queue.cc
   test_device_manager.cc
-  test_device_target_card_proxy.cc
   test_device_target_sysemu_grpc.cc
   test_elf_parsing.cc
   test_load_device_fw.cc

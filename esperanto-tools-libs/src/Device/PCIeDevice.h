@@ -19,8 +19,6 @@
 #include <cassert>
 #include <string>
 
-#include "../etrpc/et-rpc.h"
-
 namespace et_runtime {
 namespace device {
 

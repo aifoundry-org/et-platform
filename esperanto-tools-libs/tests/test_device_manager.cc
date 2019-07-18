@@ -8,11 +8,11 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/Device.h"
 #include "Core/CommandLineOptions.h"
+#include "Core/Device.h"
 #include "Core/DeviceManager.h"
 #include "Core/DeviceTarget.h"
-#include "Device/TargetCardProxy.h"
+#include "Device/TargetSysEmu.h"
 #include "Support/DeviceGuard.h"
 
 #include <chrono>
@@ -29,34 +29,20 @@ using namespace et_runtime::device;
 namespace {
 
 TEST(DeviceManager, deviceFactory) {
-  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_card_proxy"));
-  ASSERT_TRUE(absl::GetFlag(FLAGS_dev_target).dev_target.find("sysemu_card_proxy") != string::npos);
+  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));
+  ASSERT_TRUE(absl::GetFlag(FLAGS_dev_target).dev_target.find("sysemu_grpc") !=
+              string::npos);
   auto target_type = DeviceTarget::deviceToCreate();
   auto dev_target = DeviceTarget::deviceFactory(target_type, 0);
-  ASSERT_TRUE(dynamic_cast<CardProxyTarget *>(dev_target.get()) != nullptr);
+  ASSERT_TRUE(dynamic_cast<TargetSysEmu *>(dev_target.get()) != nullptr);
 }
-
-
-TEST(DeviceManager, RegisteAndAccessDevice) {
-
-  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_card_proxy"));
-  auto device_manager = et_runtime::getDeviceManager();
-  auto ret_value = device_manager->registerDevice(0);
-
-  ASSERT_TRUE(ret_value);
-  auto dev = ret_value.get();
-
-  ASSERT_EQ(dev->init(), etrtSuccess);
-  ASSERT_EQ(dev->resetDevice(), etrtSuccess);
-}
-
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   testing::InitGoogleTest(&argc, argv);
 
-  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_card_proxy"));
+  absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));
   google::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }

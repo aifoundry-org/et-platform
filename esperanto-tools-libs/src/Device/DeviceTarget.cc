@@ -12,7 +12,6 @@
 #include "Core/CommandLineOptions.h"
 #include "PCIeDevice.h"
 #include "Support/Logging.h"
-#include "TargetCardProxy.h"
 #include "TargetRPC.h"
 #include "TargetSysEmu.h"
 
@@ -32,7 +31,6 @@ using namespace et_runtime::device;
 const std::map<std::string, DeviceTarget::TargetType>
     DeviceTarget::Str2TargetType = {
         {"pcie", TargetType::PCIe},
-        {"sysemu_card_proxy", TargetType::SysEmuCardProxy},
         {"sysemu_grpc", TargetType::SysEmuGRPC},
         {"device_grpc", TargetType::DeviceGRPC},
 };
@@ -70,7 +68,7 @@ std::string AbslUnparseFlag(DeviceTargetOption target) {
 
 ABSL_FLAG(DeviceTargetOption, dev_target, DeviceTargetOption("device_grpc"),
           "Specify the target device or simulator we would like to talk "
-          "to: pcie ,sysemu_card_proxy, sysemu_grpc, device_grpc");
+          "to: pcie , sysemu_grpc, device_grpc");
 
 DeviceTarget::DeviceTarget(int index) : index_(index), device_alive_(false) {}
 
@@ -82,8 +80,6 @@ std::unique_ptr<DeviceTarget> DeviceTarget::deviceFactory(TargetType target,
   }
   case TargetType::SysEmuGRPC:
     return make_unique<TargetSysEmu>(index);
-  case TargetType::SysEmuCardProxy:
-    return make_unique<CardProxyTarget>(index);
     // FIXME we have no usecase yet where we instantite RPCTarget directly
   // case TargetType::DeviceGRPC:
   //   return make_unique<RPCTarget>(index, "");

@@ -102,26 +102,12 @@ set(ETRT_SOURCES
   Device/PCIeDevice.h
   Device/SysEmuLauncher.cpp
   Device/SysEmuLauncher.h
-  Device/TargetCardProxy.cc
-  Device/TargetCardProxy.h
   Device/TargetDeviceInfo.h.in
   Device/TargetRPC.cc
   Device/TargetRPC.h
   Device/TargetSysEmu.cc
   Device/TargetSysEmu.h
   etlibdevice.h
-  etrpc/backend.cc
-  etrpc/backend.h
-  etrpc/backend-sysemu.cc
-  etrpc/card-emu.cc
-  etrpc/card-emu.h
-  etrpc/esprt_iface.h
-  etrpc/et-card-proxy.cc
-  etrpc/et-card-proxy.h
-  etrpc/et-rpc.cc
-  etrpc/et-rpc.h
-  etrpc/et_socket_addr.cc
-  etrpc/et_socket_addr.h
   registry.h
   Support/DeviceGuard.cc
 
