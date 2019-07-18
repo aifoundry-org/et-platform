@@ -8,9 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/CommandQueue.h"
-#include "DeviceAPI/Command.h"
-#include "DeviceAPI/Response.h"
+#include <Device/PCIeDevice.h>
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -20,13 +18,62 @@
 #include <array>
 #include <chrono>
 #include <cstdio>
+#include <memory>
+#include <random>
 #include <string>
 #include <thread>
 
-namespace et_runtime {
+using namespace et_runtime::device;
 
+namespace {
 
-TEST(PCIeDevice, Example) {
+class PCIEDevTest : public ::testing::Test {
+protected:
+  void SetUp() override { dev_ = std::make_shared<PCIeDevice>(0); }
+
+  void TearDown() override { dev_.reset(); }
+  std::shared_ptr<PCIeDevice> dev_;
+};
+
+TEST_F(PCIEDevTest, SingleWriteMMIO) {
+  std::vector<uint8_t> data = {1, 2, 3, 4};
+  auto res = dev_->writeDevMem(0xdeadbeef, data.size(), data.data());
+  ASSERT_TRUE(res);
+}
+
+TEST_F(PCIEDevTest, SingleReadMMIO) {
+  std::array<uint8_t, 4> data;
+  auto res = dev_->readDevMem(0xdeadbeef, data.size(), data.data());
+  ASSERT_TRUE(res);
+}
+
+TEST_F(PCIEDevTest, SingleWriteReadMMIO) {
+  std::vector<uint8_t> data = {1, 2, 3, 4};
+  auto res = dev_->writeDevMem(0xdeadbeef, data.size(), data.data());
+  ASSERT_TRUE(res);
+  std::array<uint8_t, 4> data_res;
+  res = dev_->readDevMem(0xdeadbeef, data_res.size(), data_res.data());
+  ASSERT_TRUE(res);
+  ASSERT_THAT(data_res, ::testing::ElementsAreArray(data));
+}
+
+TEST_F(PCIEDevTest, ReadWriteMMIO_8k) {
+  ssize_t size = 1 << 8 * 1 << 10;
+  std::random_device
+      rd; // Will be used to obtain a seed for the random number engine
+  std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+  std::uniform_int_distribution<> dis(0, std::numeric_limits<uint8_t>::max());
+
+  std::vector<uint8_t> data(size);
+  for (ssize_t i; i < size; i++) {
+    data[i] = dis(gen);
+  }
+  auto res = dev_->writeDevMem(0xdeadbeef, data.size(), data.data());
+  ASSERT_TRUE(res);
+  std::array<uint8_t, 4> data_res;
+  res = dev_->readDevMem(0xdeadbeef, data_res.size(), data_res.data());
+  ASSERT_TRUE(res);
+  ASSERT_THAT(data_res, ::testing::ElementsAreArray(data));
 }
 
 int main(int argc, char **argv) {
@@ -36,4 +83,4 @@ int main(int argc, char **argv) {
   return RUN_ALL_TESTS();
 }
 
-} // namespace et_runtime
+} // namespace

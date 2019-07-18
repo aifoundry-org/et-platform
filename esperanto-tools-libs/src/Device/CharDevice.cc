@@ -12,6 +12,14 @@
 
 #include "Support/Logging.h"
 
+#include <sys/types.h>
+
+#include <cerrno>
+#include <cstring>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 using namespace std;
 
 namespace et_runtime {
@@ -19,28 +27,62 @@ namespace device {
 
 CharacterDevice::CharacterDevice(
     const std::experimental::filesystem::path &char_dev)
-    : path_(char_dev), device_(char_dev.string(), ios_base::in | ios_base::out |
-                                                      ios_base::binary) {
-
-  std::ios_base::iostate exceptionMask =
-      device_.exceptions() | std::ios::failbit;
-  device_.exceptions(exceptionMask);
+    : path_(char_dev) {
+  fd_ = open(path_.string().c_str(), O_RDWR);
+  if (fd_ == 0) {
+    std::terminate();
+  }
 }
 
 CharacterDevice::CharacterDevice(CharacterDevice &&other)
-    : device_(std::move(other.device_)) {}
+    : fd_(std::move(other.fd_)) {}
 
-bool CharacterDevice::write(uintptr_t addr, const void *data, size_t size) {
-  try {
-    device_.seekg(addr);
-  } catch (std::ios_base::failure &e) {
-    RTERROR << "Failed to seek to device_offset " << e.what();
+CharacterDevice::~CharacterDevice() {
+  auto res = close(fd_);
+  auto err = errno;
+  if (res < 0) {
+    RTERROR << "Failed to close file, error : " << std::strerror(err) << "\n";
+    std::terminate();
+  }
+}
+
+bool CharacterDevice::write(uintptr_t addr, const void *data, ssize_t size) {
+
+  off_t target_offset = static_cast<off_t>(addr);
+  auto offset = lseek(fd_, target_offset, SEEK_SET);
+  auto err = errno;
+  if (offset != target_offset) {
+    RTERROR << "Failed to seek to device offset " << hex << addr;
+    RTERROR << " Error: " << std::strerror(err) << "\n";
     return false;
   }
-  device_.write(reinterpret_cast<const char *>(data), size);
-  if (device_.fail() || device_.bad()) {
-    RTERROR << "Failed to write to device " << path_;
-    device_.clear();
+
+  auto rc = ::write(fd_, data, size);
+  err = errno;
+  if (rc != size) {
+    RTERROR << "Failed to write full data, wrote: " << rc;
+    RTERROR << " Error: " << std::strerror(err) << "\n";
+    return false;
+  }
+  return true;
+}
+
+bool CharacterDevice::read(uintptr_t addr, void *data, ssize_t size) {
+
+  off_t target_offset = static_cast<off_t>(addr);
+  auto offset = lseek(fd_, target_offset, SEEK_SET);
+  auto err = errno;
+  if (offset != target_offset) {
+    RTERROR << "Failed to seek to device offset " << hex << addr;
+    RTERROR << " Error: " << std::strerror(err) << "\n";
+    return false;
+  }
+
+  auto rc = ::read(fd_, data, size);
+  err = errno;
+  if (rc != size) {
+    RTERROR << "Failed to write full data, wrote: " << rc;
+    RTERROR << " Error: " << std::strerror(err) << "\n";
     return false;
   }
   return true;

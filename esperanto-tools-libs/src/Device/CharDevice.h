@@ -31,15 +31,16 @@ public:
   /// @brief Move constructor
   CharacterDevice(CharacterDevice &&other);
 
-  virtual ~CharacterDevice() = default;
+  virtual ~CharacterDevice();
 
-  bool write(uintptr_t addr, const void *data, size_t size);
+  bool write(uintptr_t addr, const void *data, ssize_t size);
+  bool read(uintptr_t addr, void *data, ssize_t size);
 
 protected:
   /// Using a fstream for now, we need to move to another implementation in the
   /// future
   std::experimental::filesystem::path path_;
-  std::fstream device_;
+  int fd_ = -1;
 };
 
 } // namespace device

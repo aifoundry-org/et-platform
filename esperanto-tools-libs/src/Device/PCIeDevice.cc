@@ -83,8 +83,7 @@ bool PCIeDevice::defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) {
 }
 
 bool PCIeDevice::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
-  assert(false);
-  return true;
+  return drct_dram_.read(dev_addr, buf, size);
 }
 
 bool PCIeDevice::writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) {
