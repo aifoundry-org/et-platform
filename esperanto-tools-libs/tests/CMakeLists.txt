@@ -86,6 +86,25 @@ foreach(TEST_FILE ${TEST_LIST})
   target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
   target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
   target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
-  gtest_discover_tests(${TEST_TARGET} TEST_PREFIX runtime:)
-
+  gtest_discover_tests(${TEST_TARGET} TEST_PREFIX runtime:
+    PROPERTIES LABELS "Generic")
 endforeach(TEST_FILE)
+
+
+set(QEMU_TEST_LIST
+  system/test_pcie_device.cc
+  )
+
+
+foreach(QEMU_TEST_FILE ${QEMU_TEST_LIST})
+  get_filename_component(TEST_TARGET ${QEMU_TEST_FILE} NAME_WE)
+  add_executable(${TEST_TARGET} ${QEMU_TEST_FILE})
+  add_dependencies(${TEST_TARGET} googletest)
+  add_dependencies(${TEST_TARGET} ${external_project_dependencies})
+  add_dependencies(${TEST_TARGET} ci-dependencies)
+  target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})
+  target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
+  target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
+  gtest_discover_tests(${TEST_TARGET} TEST_PREFIX runtime:
+    PROPERTIES LABELS "QEMU-Driver-SNPS")
+endforeach(QEMU_TEST_FILE)

@@ -37,8 +37,9 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
 
     ExternalProject_Add(gflags
       PREFIX ${gflags_PREFIX}
-      GIT_REPOSITORY "https://github.com/gflags/gflags.git"
-      GIT_TAG "v2.2.2"
+      GIT_REPOSITORY "git@gitlab.esperanto.ai:software/gflags-mirror.git"
+      GIT_TAG "91179af8ebeb566830d1d6173d6d501ab71dfe47"
+      GIT_SUBMODULES ""
       UPDATE_COMMAND ""
       INSTALL_DIR ${gflags_INSTALL}
       CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release
@@ -110,7 +111,7 @@ if (NOT __GLOG_INCLUDED)
     ExternalProject_Add(glog
       DEPENDS ${GLOG_DEPENDS}
       PREFIX ${glog_PREFIX}
-      GIT_REPOSITORY "https://github.com/google/glog"
+      GIT_REPOSITORY "git@gitlab.esperanto.ai:software/glog-mirror.git"
       GIT_TAG "v0.4.0"
       UPDATE_COMMAND ""
       INSTALL_DIR ${glog_INSTALL}
@@ -140,7 +141,7 @@ set(fmtlib_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 
 ExternalProject_Add(fmtlib
   PREFIX ${fmtlib_BUILD}
-  GIT_REPOSITORY "https://github.com/fmtlib/fmt.git"
+  GIT_REPOSITORY "git@gitlab.esperanto.ai:software/fmt-mirror.git"
   GIT_TAG "5.3.0"
   INSTALL_DIR ${fmtlib_INSTALL}
   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${fmtlib_INSTALL}
