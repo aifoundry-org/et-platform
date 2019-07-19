@@ -11,7 +11,7 @@
 // +---------+---------+----------------+----------------+-------------+
 // |    0G   |    1G   | 0x00_0000_0000 | 0x00_3fff_ffff | IO region   |
 // |    1G   |    2G   | 0x00_4000_0000 | 0x00_7fff_ffff | SP region   |
-// |    1G   | 1G+64K  | 0x00_4000_0000 | 0x00_4000_ffff | SP/ROM      |
+// |    1G   | 1G+128K | 0x00_4000_0000 | 0x00_4001_ffff | SP/ROM      |
 // |  1G+1M  |  1G+2M  | 0x00_4040_0000 | 0x00_404f_ffff | SP/SRAM     |
 // |    2G   |    4G   | 0x00_8000_0000 | 0x00_ffff_ffff | SCP region  |
 // |    4G   |    8G   | 0x01_0000_0000 | 0x01_ffff_ffff | ESR region  |
@@ -40,7 +40,7 @@ inline bool paddr_is_sp_space(uint64_t addr)
 
 
 inline bool paddr_is_sp_rom(uint64_t addr)
-{ return (addr >= 0x0040000000ULL) && (addr < 0x0040010000ULL); }
+{ return (addr >= 0x0040000000ULL) && (addr < 0x0040020000ULL); }
 
 
 inline bool paddr_is_sp_sram(uint64_t addr)
