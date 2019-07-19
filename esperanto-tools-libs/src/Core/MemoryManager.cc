@@ -155,6 +155,9 @@ void MemoryManager::uninitMemRegions() {
 
   munmap(dev_mem_region_->region_base, dev_mem_region_->region_size);
   dev_mem_region_.reset(nullptr);
+
+  munmap(kernels_dev_mem_region_->region_base, kernels_dev_mem_region_->region_size);
+  kernels_dev_mem_region_.reset(nullptr);
 }
 
 etrtError MemoryManager::mallocHost(void **ptr, size_t size) {
