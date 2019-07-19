@@ -72,7 +72,7 @@ macro(add_riscv_executable TARGET_NAME)
 
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
 
-    target_include_directories(${ELF_FILE} PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
+    target_include_directories(${ELF_FILE} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
 
     if (DEFINED LINKER_SCRIPT)
         # Get the absolute path to the linker script

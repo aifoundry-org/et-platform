@@ -38,12 +38,13 @@ include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/crypto_library/incl
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 install(TARGETS ${TARGET_NAME}.elf
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/WorkerMinion
+  EXPORT esperanto-fw-targets
+  RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/WorkerMinion
   COMPONENT worker-minion)
 
 string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
 foreach(FILE ${OUTPUT_LIST})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/et-firmware/WorkerMinion
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
     COMPONENT zebu)
 endforeach(FILE)
