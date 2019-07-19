@@ -17,12 +17,6 @@ trap_handler:
 from_u_mode:
     mv    t1, sp                        /* Set t1 to original sp */
     ld    sp, 8 (t0)                    /* If we came from U-mode, switch to the S-mode stack */
-
-.option push
-.option norelax
-    la    gp, __global_pointer$         /* If we came from U-mode, switch to the S-mode global pointer */
-.option pop
-
     j     from_any_mode
 
 from_s_mode:
@@ -64,6 +58,11 @@ from_any_mode:
     sd    x29, 26 * 8( sp )
     sd    x30, 27 * 8( sp )
     sd    x31, 28 * 8( sp )
+
+.option push
+.option norelax
+    la    gp, __global_pointer$         /* switch to the S-mode global pointer */
+.option pop
 
     csrr  t2, scause                    /* Leave a0-a3 unmodified for environment calls */
     csrr  s1, sepc
