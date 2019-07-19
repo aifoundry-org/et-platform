@@ -10,11 +10,8 @@
 
 #include <Device/PCIeDevice.h>
 
-#include <gflags/gflags.h>
-#include <glog/logging.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
 #include <array>
 #include <chrono>
 #include <cstdio>
@@ -24,8 +21,6 @@
 #include <thread>
 
 using namespace et_runtime::device;
-
-namespace {
 
 class PCIEDevTest : public ::testing::Test {
 protected:
@@ -75,12 +70,3 @@ TEST_F(PCIEDevTest, ReadWriteMMIO_8k) {
   ASSERT_TRUE(res);
   ASSERT_THAT(data_res, ::testing::ElementsAreArray(data));
 }
-
-int main(int argc, char **argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
-} // namespace

@@ -94,13 +94,4 @@ TEST(KernelELFInfo, parse_kernel_elf) {
   EXPECT_EQ(0x17f4, elf_info.rawKernelOffset("convolution"));
 }
 
-extern std::string FLAGS_dev_target;
-
-int main(int argc, char **argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
 } // namespace

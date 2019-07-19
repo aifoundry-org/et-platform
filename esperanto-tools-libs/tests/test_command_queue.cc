@@ -68,11 +68,4 @@ TEST(CommandQueue, Example) {
   set_response.join();
 }
 
-int main(int argc, char **argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
 } // namespace et_runtime

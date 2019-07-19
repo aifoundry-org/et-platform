@@ -34,8 +34,6 @@ using namespace et_runtime::device;
 using namespace std;
 namespace fs = std::experimental::filesystem;
 
-namespace {
-
 TEST(DeviceFW, loadOnSysEMU) {
   // Send memory definition
   fs::path p = "/proc/self/exe";
@@ -62,7 +60,6 @@ TEST(DeviceFW, loadOnSysEMU) {
   EXPECT_EQ(etrtSuccess, dev->resetDevice());
 }
 
-extern std::string FLAGS_dev_target;
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
@@ -70,5 +67,3 @@ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-
-} // namespace

@@ -26,8 +26,6 @@ using namespace std;
 
 using namespace et_runtime::device;
 
-namespace {
-
 TEST(DeviceManager, deviceFactory) {
   absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));
   ASSERT_TRUE(absl::GetFlag(FLAGS_dev_target).dev_target.find("sysemu_grpc") !=
@@ -46,5 +44,3 @@ int main(int argc, char **argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
   return RUN_ALL_TESTS();
 }
-
-} // namespace

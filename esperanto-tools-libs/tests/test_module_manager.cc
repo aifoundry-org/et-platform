@@ -76,13 +76,4 @@ TEST(ModuleManager, loadOnSysEMU) {
   EXPECT_EQ(etrtSuccess, dev->resetDevice());
 }
 
-extern std::string FLAGS_dev_target;
-
-int main(int argc, char **argv) {
-  google::InitGoogleLogging(argv[0]);
-  google::SetCommandLineOption("GLOG_minloglevel", "0");
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
-}
-
 } // namespace
