@@ -148,14 +148,31 @@ static void mbox_task(void* pvParameters)
 
         update_mbox_status(mbox);
 
-        const int64_t length = mbox_receive(mbox, buffer, sizeof(buffer));
+        int64_t length;
+
+        do
+        {
+            length = mbox_receive(mbox, buffer, sizeof(buffer));
 
 #ifdef DEBUG_REFLECT_MESSAGES_FROM_MM
-        if (length > 0)
-        {
-            MBOX_send(mbox, buffer, (uint32_t)length);
-        }
+            if (length > 0)
+            {
+                printf("Received message from MM, length = %" PRId64 "\r\n", length);
+
+                int64_t result = MBOX_send(mbox, buffer, (uint32_t)length);
+
+                if (result == 0)
+                {
+                    printf("Sent message to MM, length = %" PRId64 "\r\n", length);
+                }
+                else
+                {
+                    printf("mbox_send error %" PRId64 "\r\n", result);
+                }
+            }
 #endif
+        }
+        while (length > 0);
     }
 }
 
