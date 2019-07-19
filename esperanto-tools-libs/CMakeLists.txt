@@ -97,17 +97,14 @@ set(EXTERNAL_LINK_DIRECTORIES
 add_subdirectory(external)
 list(APPEND CMAKE_PREFIX_PATH ${RT_EXTERNAL_INSTALL_PREFIX})
 
-find_package(absl REQUIRED)
-
+find_package(absl REQUIRED
+  )
 message("ABSEIL FOUND : '${absl_FOUND}'")
 
-
-if(TARGET absl::flags)
-  message(STATUS "Found Target: absl::flags")
-else()
-  message(FATAL_ERROR "Target absl::flags not found")
-endif()
-
+# Currenly esperanto-fw is not required. Will be the case one we are completly rid
+# of the fake-fw
+find_package(esperanto-fw)
+message("Espernato-FW found: " ${esperanto-fw_FOUND})
 
 # Add rules for auto-generated headers.
 add_subdirectory(include)

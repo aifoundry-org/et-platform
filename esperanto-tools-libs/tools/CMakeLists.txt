@@ -28,11 +28,6 @@ set(COMMON_LIBRARIES
   # Link the whole archive so that we can pull the gflags symbols
   # that define runtime command line options
   -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
-  absl::flags
-  absl::flags_usage
-  absl::flags_parse
-  absl::flags_internal
-  absl::flags_marshalling
   absl::strings
   etsim_api_static
   protobuf

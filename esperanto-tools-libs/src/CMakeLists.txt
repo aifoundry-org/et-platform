@@ -109,8 +109,8 @@ set(ETRT_SOURCES
   Device/TargetSysEmu.h
   etlibdevice.h
   registry.h
+  Support/CommandLineOptions.cc
   Support/DeviceGuard.cc
-
   )
 
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})
@@ -140,6 +140,7 @@ add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj>)
 target_link_libraries(etrt
   absl::flags
   absl::flags_internal
+  absl::flags_parse
   ${GLOG_LIBRARIES}
   ${GFLAGS_LIBRAIES}
   ${FMTLIB_LIBRARIES}
@@ -174,6 +175,7 @@ add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj>)
 target_link_libraries(etrt_static
   absl::flags
   absl::flags_internal
+  absl::flags_parse
   ${GLOG_LIBRARIES}
   ${GFLAGS_LIBRAIES}
   ${FMTLIB_LIBRARIES}

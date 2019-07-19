@@ -13,6 +13,8 @@
 
 #include "absl/flags/flag.h"
 
+#include <string>
+#include <vector>
 
 struct FWType {
   FWType(const std::string &t) : type(t) {}
@@ -31,5 +33,24 @@ struct DeviceTargetOption {
 
 ABSL_DECLARE_FLAG(DeviceTargetOption, dev_target);
 
+ABSL_DECLARE_FLAG(std::string, master_minion_elf);
+ABSL_DECLARE_FLAG(std::string, worker_minion_elf);
+ABSL_DECLARE_FLAG(std::string, machine_minion_elf);
+
+namespace et_runtime {
+///
+/// @brief Helper function that parses any runtime command
+/// line specific options. To be used by in the main function
+/// of tests or utilities
+///
+/// @param[in] argc Original argc from main
+/// @param[in] argv Origianl argv from main
+/// @param[in] help_enable Vector of strings where the string is the filename
+/// whose
+///    abseil options we want to be listed in the "short" help message that
+///    abseil generates
+void ParseCommandLineOptions(int argc, char **argv,
+                             const std::vector<std::string> &help_enable = {});
+} // namespace et_runtime
 
 #endif // ET_RUNTIME_COMMAND_LINE_OPTIONS_H

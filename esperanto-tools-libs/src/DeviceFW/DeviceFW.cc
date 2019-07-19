@@ -15,11 +15,19 @@
 #include "Support/HelperMacros.h"
 #include "Support/Logging.h"
 
+#include <absl/flags/flag.h>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <type_traits>
 #include <vector>
+
+ABSL_FLAG(std::string, master_minion_elf, "",
+          "Path to the MasterMiniion.elf file");
+ABSL_FLAG(std::string, worker_minion_elf, "",
+          "Path to the WorkerMiniion.elf file");
+ABSL_FLAG(std::string, machine_minion_elf, "",
+          "Path to the MachineMiniion.elf file");
 
 namespace et_runtime {
 namespace device_fw {
