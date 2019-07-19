@@ -44,6 +44,27 @@ inline uint64_t pmemread64(uint64_t paddr)
 }
 
 
+inline void pmemread128(uint64_t paddr, void* result)
+{
+    extern MainMemory memory;
+    memory.read(paddr, 16, result);
+}
+
+
+inline void pmemread256(uint64_t paddr, void* result)
+{
+    extern MainMemory memory;
+    memory.read(paddr, 32, result);
+}
+
+
+inline void pmemread512(uint64_t paddr, void* result)
+{
+    extern MainMemory memory;
+    memory.read(paddr, 64, result);
+}
+
+
 inline void pmemwrite8(uint64_t paddr, uint8_t data)
 {
     extern MainMemory memory;
@@ -69,6 +90,20 @@ inline void pmemwrite64(uint64_t paddr, uint64_t data)
 {
     extern MainMemory memory;
     memory.write(paddr, 8, &data);
+}
+
+
+inline void pmemwrite128(uint64_t paddr, const void* source)
+{
+    extern MainMemory memory;
+    memory.write(paddr, 16, source);
+}
+
+
+inline void pmemwrite512(uint64_t paddr, const void* source)
+{
+    extern MainMemory memory;
+    memory.write(paddr, 64, source);
 }
 
 

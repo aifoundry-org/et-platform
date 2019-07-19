@@ -1020,7 +1020,14 @@ sys_emu::main_internal(int argc, char * argv[])
                                     current_pc[thread_id]);
                 }
                 current_pc[thread_id] = emu_state_change.pc;
-                thread++;
+                ++thread;
+            }
+            catch (const bemu::memory_error& e)
+            {
+                insn_t inst = fetch_and_decode();
+                current_pc[thread_id] += inst.size();
+                raise_bus_error_interrupt(thread_id, e.addr);
+                ++thread;
             }
             catch (const std::exception& e)
             {

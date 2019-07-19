@@ -10,6 +10,7 @@
 #include "devices/pu_uart.h"
 #include "emu_defines.h"
 #include "literals.h"
+#include "memory_error.h"
 #include "memory_region.h"
 #include "null_region.h"
 #include "scratch_region.h"
@@ -172,7 +173,7 @@ protected:
     MemoryRegion* search(addr_type addr, size_type n) const {
         auto lo = std::lower_bound(regions.cbegin(), regions.cend(), addr, above);
         if ((lo == regions.cend()) || ((*lo)->first() > addr))
-            throw trap_bus_error(addr);
+            throw memory_error(addr);
         if (addr+n-1 > (*lo)->last())
             throw std::out_of_range("bemu::MainMemory::search()");
         return *lo;

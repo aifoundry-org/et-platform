@@ -382,7 +382,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
     const uint64_t pte_idx_mask     = (uint64_t(1) << PTE_Idx_Size) - 1;
     const uint64_t pte_top_idx_mask = (uint64_t(1) << PTE_top_Idx_Size) - 1;
 
-    LOG(DEBUG, "Virtual memory enabled. Performing page walk on addr 0x%016" PRIx64 "...", vaddr);
+    LOG(DEBUG, "Performing page walk on addr 0x%016" PRIx64 "...", vaddr);
 
     // Perform page walk. Anything that goes wrong raises a page fault error
     // for the access type of the original access, setting tval to the
@@ -399,8 +399,13 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
         uint64_t vpn = (vaddr >> (PG_OFFSET_SIZE + PTE_Idx_Size*level)) & pte_idx_mask;
         // Read PTE
         pte_addr = (ppn << PG_OFFSET_SIZE) + vpn*PTE_Size;
-        pte = bemu::pmemread64(pma_check_ptw_access(vaddr, pte_addr, macc));
-        LOG(DEBUG, "\tPTW: %016" PRIx64 " <-- PMEM64[%016" PRIx64 "]", pte, pte_addr);
+        try {
+            pte = bemu::pmemread64(pma_check_ptw_access(vaddr, pte_addr, macc));
+            LOG_MEMREAD(64, pte_addr, pte);
+        }
+        catch (const bemu::memory_error&) {
+            throw_access_fault(vaddr, macc);
+        }
 
         // Read PTE fields
         pte_v = (pte >> PTE_V_OFFSET) & 0x1;
@@ -424,17 +429,24 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
 
     // Check permissions. This is different for each access type.
     // Load accesses are permitted iff all the following are true:
-    // - the page has read permissions or the page has execute permissions and mstatus.mxr is set
-    // - if the effective execution mode is user, then the page permits user-mode access (U=1)
-    // - if the effective execution mode is system, then the page permits system-mode access (U=0 or SUM=1)
+    // - the page has read permissions or the page has execute permissions and
+    //   mstatus.mxr is set
+    // - if the effective execution mode is user, then the page permits
+    //   user-mode access (U=1)
+    // - if the effective execution mode is system, then the page permits
+    //   system-mode access (U=0 or SUM=1)
     // Store accesses are permitted iff all the following are true:
     // - the page has write permissions
-    // - if the effective execution mode is user, then the page permits user-mode access (U=1)
-    // - if the effective execution mode is system, then the page permits system-mode access (U=0 or SUM=1)
+    // - if the effective execution mode is user, then the page permits
+    //   user-mode access (U=1)
+    // - if the effective execution mode is system, then the page permits
+    //   system-mode access (U=0 or SUM=1)
     // Instruction fetches are permitted iff all the following are true:
     // - the page has execute permissions
-    // - if the execution mode is user, then the page permits user-mode access (U=1)
-    // - if the execution mode is system, then the page does not permit user-mode access (U=0)
+    // - if the execution mode is user, then the page permits user-mode access
+    //   (U=1)
+    // - if the execution mode is system, then the page does not permit
+    //   user-mode access (U=0)
     switch (macc)
     {
     case Mem_Access_Load:
@@ -480,7 +492,8 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
     uint64_t paddr = vaddr & PG_OFFSET_M;
 
     for (int i = 0; i < Num_Levels; i++) {
-        // If level > 0, this is a superpage translation so VPN[level-1:0] are part of the page offset
+        // If level > 0, this is a superpage translation so VPN[level-1:0] are
+        // part of the page offset
         if (i < level) {
             paddr |= vaddr & (pte_idx_mask << (PG_OFFSET_SIZE + PTE_Idx_Size*i));
         }
@@ -501,33 +514,41 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
 
 uint32_t mmu_fetch(uint64_t vaddr)
 {
-    check_fetch_breakpoint(vaddr);
-    if (vaddr & 3) {
-        // 2B-aligned fetch
-        uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch);
-        uint16_t low = bemu::pmemread16(paddr);
-        if ((low & 3) != 3) {
-            LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64 ": 0x%04x", vaddr, low);
+    try {
+        check_fetch_breakpoint(vaddr);
+        if (vaddr & 3) {
+            // 2B-aligned fetch
+            uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch);
+            uint16_t low = bemu::pmemread16(paddr);
+            if ((low & 3) != 3) {
+                LOG(DEBUG, "Fetched compressed instruction from PC 0x%" PRIx64
+                    ": 0x%04x", vaddr, low);
+                return low;
+            }
+            paddr = ((paddr & 4095) <= 4092)
+                    ? (paddr + 2)
+                    : vmemtranslate(vaddr + 2, 2, Mem_Access_Fetch);
+            uint16_t high = bemu::pmemread16(paddr);
+            uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
+            LOG(DEBUG, "Fetched instruction from PC 0x%" PRIx64
+                ": 0x%08x", vaddr, bits);
+            return bits;
+        }
+        // 4B-aligned fetch
+        uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Fetch);
+        uint32_t bits = bemu::pmemread32(paddr);
+        if ((bits & 3) != 3) {
+            uint16_t low = uint16_t(bits);
+            LOG(DEBUG, "Fetched compressed instruction from PC 0x%" PRIx64
+                ": 0x%04x", vaddr, low);
             return low;
         }
-        paddr = ((paddr & 4095) <= 4092)
-                ? (paddr + 2)
-                : vmemtranslate(vaddr + 2, 2, Mem_Access_Fetch);
-        uint16_t high = bemu::pmemread16(paddr);
-        uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
-        LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
+        LOG(DEBUG, "Fetched instruction from PC 0x%" PRIx64
+            ": 0x%08x", vaddr, bits);
         return bits;
+    } catch (const bemu::memory_error&) {
+        throw trap_instruction_bus_error();
     }
-    // 4B-aligned fetch
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Fetch);
-    uint32_t bits = bemu::pmemread32(paddr);
-    if ((bits & 3) != 3) {
-        uint16_t low = uint16_t(bits);
-        LOG(DEBUG, "Fetched compressed instruction from PC %" PRIx64 ": 0x%04x", vaddr, low);
-        return low;
-    }
-    LOG(DEBUG, "Fetched instruction from PC %" PRIx64 ": 0x%08x", vaddr, bits);
-    return bits;
 }
 
 

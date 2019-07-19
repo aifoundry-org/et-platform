@@ -1,3 +1,5 @@
+/* vim: set sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+
 #ifndef BEMU_PU_UART_H
 #define BEMU_PU_UART_H
 
@@ -5,15 +7,17 @@
 #include <cerrno>
 #include <cinttypes>
 #include <cstdint>
-#include <unistd.h>
 #include <system_error>
+#include <unistd.h>
+#include "memory/memory_error.h"
 #include "memory/memory_region.h"
 
 namespace bemu {
 
 
 template <unsigned long long Base, size_t N>
-struct PU_Uart : public MemoryRegion {
+struct PU_Uart : public MemoryRegion
+{
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;
     typedef typename MemoryRegion::value_type     value_type;
@@ -68,11 +72,11 @@ struct PU_Uart : public MemoryRegion {
         DW_APB_UART_CTR         = 0xfc
     };
 
-    void read(size_type offset, size_type count, pointer result) const override {
-        switch (offset) {
+    void read(size_type pos, size_type n, pointer result) const override {
+        switch (pos) {
         case DW_APB_UART_LSR:
-            assert(count == 4);
-            *reinterpret_cast<uint32_t *>(result) = 0;
+            assert(n == 4);
+            *reinterpret_cast<uint32_t*>(result) = 0;
             break;
         case DW_APB_UART_RBR:
         case DW_APB_UART_IER:
@@ -117,19 +121,19 @@ struct PU_Uart : public MemoryRegion {
         case DW_APB_UART_CPR:
         case DW_APB_UART_UCV:
         case DW_APB_UART_CTR:
-                break;
+            break;
         default:
-                throw trap_bus_error(first() + offset);
+            throw memory_error(first() + pos);
         }
     }
 
-    void write(size_type offset, size_type count, const_pointer source) override {
-        switch (offset) {
+    void write(size_type pos, size_type n, const_pointer source) override {
+        switch (pos) {
         case DW_APB_UART_RBR:
-            assert(count == 4);
-            if (fd != -1) {
-                if (::write(fd, reinterpret_cast<const void *>(source), 1) < 0)
-                        throw std::system_error(std::error_code(errno, std::system_category()), "PU_Uart::write failed");
+            assert(n == 4);
+            if ((fd == -1) || (::write(fd, source, 1) < 0)) {
+                auto error = std::error_code(errno, std::system_category());
+                throw std::system_error(error, "bemu::PU_Uart::write()");
             }
             break;
         case DW_APB_UART_IER:
@@ -175,14 +179,14 @@ struct PU_Uart : public MemoryRegion {
         case DW_APB_UART_CPR:
         case DW_APB_UART_UCV:
         case DW_APB_UART_CTR:
-                break;
+            break;
         default:
-                throw trap_bus_error(first() + offset);
+            throw memory_error(first() + pos);
         }
     }
 
     void init(size_type, size_type, const_pointer) override {
-        std::runtime_error("bemu::PU_Uart::init()");
+        throw std::runtime_error("bemu::PU_Uart::init()");
     }
 
     addr_type first() const override { return Base; }
@@ -190,10 +194,11 @@ struct PU_Uart : public MemoryRegion {
 
     void dump_data(std::ostream&, size_type, size_type) const override { }
 
+    // For exposition only
     int fd = -1;
 };
 
 
-} // namesapce bemu
+} // namespace bemu
 
 #endif // BEMU_PU_UART_H
