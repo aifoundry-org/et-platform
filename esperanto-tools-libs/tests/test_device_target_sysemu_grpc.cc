@@ -43,8 +43,6 @@ TEST(TargetGRPCSysEmu, GRPCCardEmu) {
   ASSERT_TRUE(device.init());
   // Send memory definition
   uintptr_t addr = 0x8000100000;
-  ASSERT_TRUE(device.defineDevMem(addr, 10, 3));
-  ASSERT_TRUE(device.defineDevMem(addr, 10, 1));
   // FIXME we should try tye launch, boot function but those
   // functions have side-effects to the simulator and we do not
   // have a mock kernel to test on the simulator

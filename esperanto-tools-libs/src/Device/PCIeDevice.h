@@ -36,7 +36,6 @@ public:
   bool submitCommand() override;
   bool registerResponseCallback() override;
   bool registerDeviceEventCallback() override;
-  bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) override;
   bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override;
   bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override;
   bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override;

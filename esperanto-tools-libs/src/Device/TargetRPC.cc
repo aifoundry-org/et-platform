@@ -68,25 +68,6 @@ simulator_api::Reply RPCTarget::doRPC(const simulator_api::Request &request) {
   return reply;
 }
 
-bool RPCTarget::defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) {
-  simulator_api::Request request;
-  auto card_emu = new CardEmuReq();
-  auto define_mem = new CardEmuDefineMemReq();
-  define_mem->set_devptr(dev_addr);
-  define_mem->set_size(size);
-  define_mem->set_is_exec(is_exec);
-  card_emu->set_allocated_define_mem(define_mem);
-  request.set_allocated_card_emu(card_emu);
-  // Do RPC
-  auto reply = doRPC(request);
-  assert(reply.has_card_emu());
-  auto &card_emu_resp = reply.card_emu();
-  assert(card_emu_resp.has_define_mem());
-  auto &define_mem_resp = card_emu_resp.define_mem();
-  assert(define_mem_resp.success());
-  return true;
-}
-
 bool RPCTarget::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
   // Create request
   simulator_api::Request request;

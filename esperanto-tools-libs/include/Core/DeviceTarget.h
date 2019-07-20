@@ -130,9 +130,6 @@ public:
   /// proxy this is transitional code that probably could be removed in the
   /// future.
 
-  /// @brief Define the properties of a specific device region
-  virtual bool defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) = 0;
-
   /// @brief Read device memory
   virtual bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) = 0;
 

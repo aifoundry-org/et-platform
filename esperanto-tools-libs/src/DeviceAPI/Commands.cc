@@ -37,16 +37,8 @@ CommandBase::IDty CommandBase::command_id_ = 0;
 CommandBase::CommandBase() { command_id_++; }
 
 etrtError ConfigureCommand::execute(Device *device) {
-  auto &target_device = device->getTargetDevice();
-  auto status = device->configureDevMemRegions();
+  auto status = device->loadFirmwareOnDevice();
   assert(status == etrtSuccess);
-  status = device->loadFirmwareOnDevice();
-  assert(status == etrtSuccess);
-
-  target_device.defineDevMem((uintptr_t)devMemRegionPtr, devMemRegionSize,
-                             false);
-  target_device.defineDevMem((uintptr_t)kernelsDevMemRegionPtr,
-                             kernelsDevMemRegionSize, true);
   setResponse(ConfigureResponse());
   return etrtSuccess;
 }

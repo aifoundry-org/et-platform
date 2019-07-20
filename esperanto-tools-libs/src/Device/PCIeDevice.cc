@@ -76,12 +76,6 @@ bool PCIeDevice::registerDeviceEventCallback() {
   return false;
 }
 
-bool PCIeDevice::defineDevMem(uintptr_t dev_addr, size_t size, bool is_exec) {
-  // FIXME we perform no such action in the PCIE-device
-  RTINFO << "PCIE-device performs no deviceDevMem";
-  return true;
-}
-
 bool PCIeDevice::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
   return drct_dram_.read(dev_addr, buf, size);
 }
