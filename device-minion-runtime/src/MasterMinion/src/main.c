@@ -91,6 +91,11 @@ static void handle_timer_events(void);
 static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_info_t* const kernel_info_ptr);
 static void print_log_message(uint64_t hart);
 
+#ifdef DEBUG_SEND_MESSAGES_TO_SP
+static uint16_t lfsr(void);
+static uint16_t generate_message(uint8_t* const buffer);
+#endif
+
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
@@ -129,13 +134,30 @@ void __attribute__((noreturn)) main(void)
         : "=&r" (temp)
     );
 
+#ifdef DEBUG_SEND_MESSAGES_TO_SP
+    static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
+    uint16_t length = generate_message(buffer);
+#endif
+
     // Wait for a message from the host, worker minion, PCI-E, etc.
     for (;;)
     {
+
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
         MBOX_update_status(MBOX_SP);
-        const uint8_t buffer[4] = {0xDE, 0xAD, 0xBE, 0xEF};
-        MBOX_send(MBOX_SP, buffer, sizeof(buffer));
+
+        printf("Sending message to SP, length = %" PRId16 "\r\n", length);
+
+        int64_t result = MBOX_send(MBOX_SP, buffer, length);
+
+        if (result == 0)
+        {
+            length = generate_message(buffer);
+        }
+        else
+        {
+            printf("MBOX_send error %d\r\n, result");
+        }
 #endif
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
@@ -153,6 +175,10 @@ void __attribute__((noreturn)) main(void)
 
             handle_message_from_sp();
             handle_messages_from_workers();
+        }
+        else
+        {
+            printf("no swi_flag\r\n");
         }
 
         // External interrupts
@@ -253,19 +279,34 @@ static void handle_message_from_sp(void)
     static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
     int64_t length;
 
+#ifdef DEBUG_SEND_MESSAGES_TO_SP
+    static uint8_t receive_data;
+#endif
+
     MBOX_update_status(MBOX_SP);
 
-    length = MBOX_receive(MBOX_SP, buffer, sizeof(buffer));
-
-    if (length > 0)
+    do
     {
-        printf("Received message from SP, length = %" PRId64 "\r\n", length);
+        length = MBOX_receive(MBOX_SP, buffer, sizeof(buffer));
 
-        for (int64_t i = 0; i < length; i++)
+        if (length > 0)
         {
-            printf ("message[%" PRId64 "] = 0x%02" PRIx8 "\r\n", i, buffer[i]);
+            printf("Received message from SP, length = %" PRId64 "\r\n", length);
+
+#ifdef DEBUG_SEND_MESSAGES_TO_SP
+            for (int64_t i = 0; i < length; i++)
+            {
+                uint8_t expected = receive_data++;
+
+                if (buffer[i] != expected)
+                {
+                    printf ("message[%" PRId64 "] = 0x%02" PRIx8 " expected 0x%02" PRIx8 "\r\n", i, buffer[i], expected);
+                }
+            }
+#endif
         }
     }
+    while (length > 0);
 }
 
 static void handle_messages_from_workers(void)
@@ -546,3 +587,37 @@ static void print_log_message(uint64_t hart)
     SERIAL_write(UART0, &data_ptr[1], length);
     SERIAL_write(UART0, "\r\n", 2);
 }
+
+#ifdef DEBUG_SEND_MESSAGES_TO_SP
+static uint16_t lfsr(void)
+{
+    static uint16_t lfsr = 0xACE1u;  /* Any nonzero start state will work. */
+
+    for (uint64_t i = 0; i < 16; i++)
+    {
+        lfsr ^= (uint16_t)(lfsr >> 7U);
+        lfsr ^= (uint16_t)(lfsr << 9U);
+        lfsr ^= (uint16_t)(lfsr >> 13U);
+    }
+
+    return lfsr;
+}
+
+// Generates a random length message with a predictable pattern
+uint16_t generate_message(uint8_t* const buffer)
+{
+    static uint8_t transmit_data;
+    uint16_t length;
+
+    do {
+        length = lfsr() & 0xFF;
+    } while ((length == 0) || (length > MBOX_MAX_MESSAGE_LENGTH));
+
+    for (uint64_t i = 0; i < length ; i++)
+    {
+        buffer[i] = transmit_data++;
+    }
+
+    return length;
+}
+#endif
