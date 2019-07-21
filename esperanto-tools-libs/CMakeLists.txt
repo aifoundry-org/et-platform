@@ -102,8 +102,11 @@ find_package(absl REQUIRED
 message("ABSEIL FOUND : '${absl_FOUND}'")
 
 # Currenly esperanto-fw is not required. Will be the case one we are completly rid
-# of the fake-fw
-find_package(esperanto-fw)
+# of the fake-fw. Also prevert CMake from using the default search path currently it
+# needs to be specified manually
+find_package(esperanto-fw
+  NO_DEFAULT_PATH
+  )
 message("Espernato-FW found: " ${esperanto-fw_FOUND})
 
 # Add rules for auto-generated headers.
