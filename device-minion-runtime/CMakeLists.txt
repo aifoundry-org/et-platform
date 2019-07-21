@@ -18,10 +18,10 @@ set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 project(DeviceFirmware VERSION 0.1.0 LANGUAGES C ASM)
 
 set(CMAKE_VERBOSE_MAKEFILE OFF)
-set(BIN_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/bin CACHE STRING "Bin install dir")
-set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/ CACHE STRING "Include install dir")
-set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install dir")
-set(SYSCONFIG_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc/et-fw/ CACHE STRING "Config install dir")
+set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
+set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
+set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
+set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
 option(BUILD_DOC "Build documentation" ON)
 
