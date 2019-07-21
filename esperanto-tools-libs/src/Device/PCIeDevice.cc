@@ -28,15 +28,13 @@ PCIeDevice::PCIeDevice(int index)
       index_(index),                                      //
       prefix_(absl::StrFormat("et%d", index)),            //
       bulk_("/dev/" + prefix_ + "bulk"),                  //
-      from_mm_("/dev/" + prefix_ + "mb_from_mm"),         //
-      to_mm_("/dev/" + prefix_ + "mb_to_mm"),             //
-      from_sp_("/dev/" + prefix_ + "mb_from_sp"),         //
-      to_sp_("/dev/" + prefix_ + "mb_to_sp"),             //
+      drct_dram_("/dev/" + prefix_ + "drct_dram"),        //
+      mm_("/dev/" + prefix_ + "mb_mm"),                   //
+      sp_("/dev/" + prefix_ + "mb_sp"),                   //
       pcie_userersr_("/dev/" + prefix_ + "pcie_useresr"), //
-      trg_pcie_("/dev/" + prefix_ + "trg_pcie"),          //
-      mbox_sp_("/dev/" + prefix_ + "mbox_sp"),            //
-      mbox_mm_("/dev/" + prefix_ + "mbox_mm"),            //
-      drct_dram_("/dev/" + prefix_ + "drct_dram")         //
+      r_mbox_sp_("/dev/" + prefix_ + "r_mbox_sp"),        //
+      r_mbox_mm_("/dev/" + prefix_ + "r_mbox_mm"),        //
+      trg_pcie_("/dev/" + prefix_ + "trg_pcie")           //
 {}
 
 bool PCIeDevice::init() {

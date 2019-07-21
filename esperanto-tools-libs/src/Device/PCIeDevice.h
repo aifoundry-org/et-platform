@@ -45,15 +45,13 @@ private:
   int index_;
   std::string prefix_;
   CharacterDevice bulk_;
-  MailBoxDev from_mm_;
-  MailBoxDev to_mm_;
-  MailBoxDev from_sp_;
-  MailBoxDev to_sp_;
-  CharacterDevice pcie_userersr_;
-  CharacterDevice trg_pcie_;
-  CharacterDevice mbox_sp_;
-  CharacterDevice mbox_mm_;
   CharacterDevice drct_dram_;
+  MailBoxDev mm_;
+  MailBoxDev sp_;
+  CharacterDevice pcie_userersr_;
+  CharacterDevice r_mbox_sp_;
+  CharacterDevice r_mbox_mm_;
+  CharacterDevice trg_pcie_;
 };
 
 } // namespace device
