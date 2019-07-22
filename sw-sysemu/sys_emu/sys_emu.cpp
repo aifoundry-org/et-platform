@@ -128,30 +128,38 @@ static bool parse_mem_file(const char * filename)
 ////////////////////////////////////////////////////////////////////////////////
 static const char * help_msg =
 "\n ET System Emulator\n\n\
-     sys_emu <-mem_desc <file> | -elf <file>> [-net_desc <file>] [-api_comm <path>] [-master_min] [-minions <mask>] [-shires <mask>] [-dump_file <file_name> [-dump_addr <address>] [-dump_size <size>]] [-l] [-lm <minion]> [-reset_pc <addr>] [-sp_reset_pc <addr>] [-d] [-max_cycles <cycles>]\n\n\
- -mem_desc    Path to a file describing the memory regions to create and what code to load there\n\
- -elf         Path to an ELF file to load.\n\
- -net_desc    Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
- -api_comm    Path to socket that feeds runtime API commands.\n\
- -master_min  Enables master minion to send interrupts to compute minions.\n\
- -minions     A mask of Minions that should be enabled in each Shire. Default: 1 Minion per shire\n\
- -shires      A mask of Shires that should be enabled. Default: 1 Shire\n\
- -dump_file   Path to the file in which to dump the memory content at the end of the simulation\n\
- -dump_addr   Address in memory at which to start dumping. Only valid if -dump_file is used\n\
- -dump_size   Size of the memory to dump. Only valid if -dump_file is used\n\
- -l           Enable Logging\n\
- -lm          Log a given Minion ID only. Default: all Minions\n\
- -reset_pc    Sets boot program counter (default 0x8000001000) \n\
- -sp_reset_pc Sets Service Processor boot program counter (default 0x40000000) \n\
- -d           Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n\
- -max_cycles  Stops execution after provided number of cycles (default: 10M)\n\
- -mins_dis    Minions start disabled\n\
- -dump_mem    Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n"
-#ifdef SYSEMU_PROFILING
-"\
- -dump_prof   Path to the file in which to dump the profiling content at the end of the simulation\n"
+     sys_emu [options]\n\n\
+ Where options are one of:\n\
+     -api_comm <path>      Path to socket that feeds runtime API commands.\n\
+"
+#ifdef SYSEMU_DEBUG
+"     -d                    Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
 #endif
-;
+"\
+     -dump_addr <addr>     Address in memory at which to start dumping. Only valid if -dump_file is used\n\
+     -dump_file <path>     Path to the file in which to dump the memory content at the end of the simulation\n\
+     -dump_mem <path>      Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n\
+"
+#ifdef SYSEMU_PROFILING
+"     -dump_prof <path>     Path to the file in which to dump the profiling content at the end of the simulation\n"
+#endif
+"\
+     -dump_size <size>     Size of the memory to dump. Only valid if -dump_file is used\n\
+     -elf <path>           Path to an ELF file to load.\n\
+     -l                    Enable Logging\n\
+     -lm <minion>          Log a given Minion ID only. (default: all)\n\
+     -master_min           Enables master minion to send interrupts to compute minions.\n\
+     -max_cycles <cycles>  Stops execution after provided number of cycles (default: 10M)\n\
+     -mem_desc <path>      Path to a file describing the memory regions to create and what code to load there\n\
+     -mem_reset <byte>     Reset value of main memory (default: 0)\n\
+     -minions <mask>       A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
+     -mins_dis             Minions start disabled\n\
+     -net_desc <path>      Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
+     -reset_pc <addr>      Sets boot program counter (default: 0x8000001000)\n\
+     -shires <mask>        A mask of Shires that should be enabled. (default: 1 Shire)\n\
+     -single_thread        Disable 2nd Minion thread\n\
+     -sp_reset_pc <addr>   Sets Service Processor boot program counter (default: 0x40000000)\n\
+";
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
@@ -565,6 +573,11 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
             cmd_options.dump_mem = argv[i];
             cmd_options.dump = 0;
         }
+        else if(cmd_options.mem_reset_flag)
+        {
+            cmd_options.mem_reset = atoi(argv[i]);
+            cmd_options.mem_reset_flag = false;
+        }
 #ifdef SYSEMU_PROFILING
         else if(cmd_options.dump_prof == 1)
         {
@@ -624,6 +637,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             cmd_options.dump = 3;
         }
+        else if(strcmp(argv[i], "-mem_reset") == 0)
+        {
+            cmd_options.mem_reset_flag = true;
+        }
 #ifdef SYSEMU_PROFILING
         else if(strcmp(argv[i], "-dump_prof") == 0)
         {
@@ -658,10 +675,12 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             cmd_options.second_thread = false;
         }
+#ifdef SYSEMU_DEBUG
         else if(strcmp(argv[i], "-d") == 0)
         {
             cmd_options.debug = true;
         }
+#endif
         else if(strcmp(argv[i], "-mins_dis") == 0)
         {
             cmd_options.mins_dis = true;
@@ -702,14 +721,12 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
         LOG_NOTHREAD(FTL, "%s", "Can't have net_desc and master_min set at same time!");
     }
 
-    if (cmd_options.debug == true) {
 #ifdef SYSEMU_DEBUG
+    if (cmd_options.debug == true) {
        LOG_NOTHREAD(INFO, "%s", "Starting in interactive mode.");
        debug_init();
-#else
-       LOG_NOTHREAD(WARN, "%s", "Can't start interactive mode. SYSEMU hasn't been compiled with SYSEMU_DEBUG.");
-#endif
     }
+#endif
 
     emu::log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
 
@@ -717,6 +734,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     init_emu(system_version_t::ETSOC1_A0);
     log_only_minion(cmd_options.log_min);
     global_log_min = cmd_options.log_min;
+    bemu::memory_reset_value = cmd_options.mem_reset;
 
     // Callbacks for port writes
     set_msg_funcs(msg_to_thread);

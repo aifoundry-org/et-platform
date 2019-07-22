@@ -95,7 +95,8 @@ static std::ostringstream uart_stream[EMU_NUM_THREADS];
 
 // Memory state
 namespace bemu {
-MainMemory memory;
+MainMemory memory{};
+typename MemoryRegion::value_type memory_reset_value = {};
 }
 
 // Hart state
