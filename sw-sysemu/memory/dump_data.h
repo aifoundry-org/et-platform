@@ -11,7 +11,8 @@ namespace bemu {
 
 
 template<typename Container>
-void dump_data(std::ostream& os, const Container& cont, size_t pos, size_t n)
+void dump_data(std::ostream& os, const Container& cont, size_t pos, size_t n,
+               const typename Container::value_type& default_value)
 {
     typedef typename Container::value_type value_type;
     typedef typename Container::size_type size_type;
@@ -22,7 +23,7 @@ void dump_data(std::ostream& os, const Container& cont, size_t pos, size_t n)
         os.write(source, m * sizeof(value_type));
         n -= m;
     }
-    value_type zero = value_type();
+    value_type zero(default_value);
     while (n-- > 0)
         os.write(reinterpret_cast<const char*>(&zero), sizeof(value_type));
 }

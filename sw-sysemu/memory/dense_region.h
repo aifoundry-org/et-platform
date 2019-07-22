@@ -14,6 +14,9 @@
 namespace bemu {
 
 
+extern typename MemoryRegion::value_type memory_reset_value;
+
+
 template<unsigned long long Base, size_t N, bool Writeable=true>
 struct DenseRegion : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
@@ -30,7 +33,7 @@ struct DenseRegion : public MemoryRegion {
 
     void read(size_type pos, size_type n, pointer result) const override {
         if (storage.empty()) {
-            std::fill_n(result, n, value_type());
+            std::fill_n(result, n, memory_reset_value);
         } else {
             std::copy_n(storage.cbegin() + pos, n, result);
         }
@@ -45,6 +48,7 @@ struct DenseRegion : public MemoryRegion {
     void init(size_type pos, size_type n, const_pointer source) override {
         if (storage.empty()) {
             storage.allocate();
+            storage.fill(memory_reset_value);
         }
         std::copy_n(source, n, storage.begin() + pos);
     }
@@ -53,7 +57,7 @@ struct DenseRegion : public MemoryRegion {
     addr_type last() const override { return Base + N - 1; }
 
     void dump_data(std::ostream& os, size_type pos, size_type n) const override {
-        bemu::dump_data(os, storage, pos, n);
+        bemu::dump_data(os, storage, pos, n, memory_reset_value);
     }
 
     // For exposition only
