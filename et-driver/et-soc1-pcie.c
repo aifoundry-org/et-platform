@@ -277,7 +277,7 @@ uint32_t ringbuffer_write(void __iomem *queue, uint8_t* buff, uint32_t
 	uint32_t dwords;
 
 	//Write until next u32 alignment
-	while (head_index & 0x3) {
+	while (head_index & 0x3 && len) {
 		iowrite8(*buff, queue + head_index);
 		head_index = (head_index + 1U) % RINGBUFFER_LENGTH;
 		++buff;
@@ -380,7 +380,7 @@ uint32_t ringbuffer_read(void __iomem *queue, uint8_t* buff, uint32_t
 	uint32_t dwords;
 
 	//Read until next u32 alignment
-	while (tail_index & 0x3) {
+	while (tail_index & 0x3 && len) {
 		*buff = ioread8(queue + tail_index);
 		tail_index = (tail_index + 1U) % RINGBUFFER_LENGTH;
 		++buff;
@@ -433,7 +433,6 @@ static ssize_t mbox_read(struct mbox *mbox, char __user *buf, size_t count)
 		//TODO: block in this condition. Sleep for IRQ to signal to
 		//check again. For now, just return 0 (no bytes read - not
 		//an error condition.
-		printk("bytes_avail (%d) < %ld\n", bytes_avail, MBOX_HEADER_SIZE + 1);
 		return 0;
 	}
 
