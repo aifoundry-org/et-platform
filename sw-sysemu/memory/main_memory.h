@@ -36,7 +36,7 @@ namespace bemu {
 // |  512M+64K | 512+128K | 0x00_2001_0000 | 0x00_2001_FFFF |     PU/SRAM_MID |
 // | 512M+128K | 512+256K | 0x00_2002_0000 | 0x00_2003_FFFF |     PU/SRAM_HI  |
 // |      1G   |     2G   | 0x00_4000_0000 | 0x00_7FFF_FFFF | SP region       |
-// |      1G   |  1G+64K  | 0x00_4000_0000 | 0x00_4000_FFFF |   SP/ROM        |
+// |      1G   |  1G+128K | 0x00_4000_0000 | 0x00_4001_FFFF |   SP/ROM        |
 // |    1G+4M  |   1G+5M  | 0x00_4040_0000 | 0x00_404F_FFFF |   SP/SRAM       |
 // |      2G   |     4G   | 0x00_8000_0000 | 0x00_FFFF_FFFF | SCP region      |
 // |      4G   |     8G   | 0x01_0000_0000 | 0x01_FFFF_FFFF | ESR region      |
