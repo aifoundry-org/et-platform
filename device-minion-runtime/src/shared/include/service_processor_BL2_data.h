@@ -76,6 +76,7 @@ typedef struct SERVICE_PROCESSOR_BL2_DATA_s {
     uint32_t service_processor_bl2_version;
     uint32_t service_processor_bl1_version;
     uint32_t service_processor_rom_version;
+    uint32_t sp_gpio_pins;
     uint32_t vaultip_coid_set;
 
     FLASH_FS_BL2_INFO_t flash_fs_bl2_info;

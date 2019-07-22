@@ -62,6 +62,7 @@ typedef struct SERVICE_PROCESSOR_BL1_DATA_s {
     uint32_t service_processor_bl1_data_size;
     uint32_t service_processor_bl1_version;
     uint32_t service_processor_rom_version;
+    uint32_t sp_gpio_pins;
     uint32_t vaultip_coid_set;
     FLASH_FS_BL1_INFO_t flash_fs_bl1_info;
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t pcie_config_header;
