@@ -8,7 +8,22 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_subdirectory("beef")
-add_subdirectory("crc32")
-add_subdirectory("empty")
-add_subdirectory("power")
+set(SOURCES
+    crt.S
+    power.c
+    )
+
+set(TARGET_NAME power)
+set(LINKER_SCRIPT sections.ld)
+set(ZEBU_TARGET DDR_NEW)
+set(ZEBU_FILENAME memImage)
+
+include_directories(include)
+include_directories(${SHARED_INC_DIRS})
+
+add_riscv_executable(${TARGET_NAME} ${SOURCES})
+
+install(TARGETS ${TARGET_NAME}.elf
+  EXPORT esperanto-fw-targets
+  RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/kernels
+  COMPONENT kernels)
