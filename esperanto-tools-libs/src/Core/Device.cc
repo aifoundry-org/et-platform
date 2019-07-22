@@ -97,7 +97,12 @@ void Device::deviceExecute() {
 }
 
 etrtError Device::loadFirmwareOnDevice() {
+  // FIXME SW-364 enable correct memory initialization
+  if (target_device_->type() == DeviceTarget::TargetType::PCIe) {
+    return etrtSuccess;
+  }
   return fw_manager_->firmware().loadOnDevice(target_device_.get());
+
 }
 
 bool Device::setFWFilePaths(const std::vector<std::string> &paths) {
