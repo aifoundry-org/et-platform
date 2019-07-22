@@ -126,6 +126,7 @@ static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data) {
 
     g_service_processor_bl2_data.service_processor_rom_version = bl1_data->service_processor_rom_version;
     g_service_processor_bl2_data.service_processor_bl1_version = bl1_data->service_processor_bl1_version;
+    g_service_processor_bl2_data.sp_gpio_pins = bl1_data->sp_gpio_pins;
     g_service_processor_bl2_data.vaultip_coid_set = bl1_data->vaultip_coid_set;
 
     // copy the SP ROOT/ISSUING CA certificates chain
