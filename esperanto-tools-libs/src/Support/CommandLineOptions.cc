@@ -29,9 +29,8 @@ void ParseCommandLineOptions(int argc, char **argv,
                                         "DeviceFW.cc"};
   gen_help_for.insert(gen_help_for.end(), help_enable.begin(),
                       help_enable.end());
-  auto main_help_files = [](absl::string_view path) -> bool {
-    for (auto &i : {"runtime_tester.cc", "DeviceTarget.cc", "FWManager.cc",
-                    "DeviceFW.cc"}) {
+  auto main_help_files = [&gen_help_for](absl::string_view path) -> bool {
+    for (auto &i : gen_help_for) {
       auto fname = fs::path(path).filename().string();
       if (fname == i) {
         return true;
