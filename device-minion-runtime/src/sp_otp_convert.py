@@ -4,7 +4,7 @@ import sys
 from struct import *
 
 sp_otp_size = 8192
-physical_bit_index_adjustment = 16219
+physical_bit_index_adjustment = 16218
 
 def save_zebu_otp_file(zebu_path_prefix, index, data, offset, count):
     # print("zebu_path_prefix arguments:")
@@ -23,7 +23,8 @@ def save_zebu_otp_file(zebu_path_prefix, index, data, offset, count):
 
     for word_index in range(offset, offset + count):
         value = unpack_from("<H", data, word_index * 2)[0]
-        print("@{0:02x} {1:04x}".format(word_index, value), file = out_file)
+        #print("@{0:02x} {1:04x}{2:04x}".format(word_index, value, value), file = out_file)
+        print("{0:04x}{1:04x}".format(value, value), file = out_file)
     
     out_file.close()
     print("Saved '{0}'.".format(filename))
@@ -72,9 +73,11 @@ def convert_bin_to_zebu(binary_path, zebu_path_prefix):
                 
                 pack_into("<H", physical_pages[physical_page_index - 3], physical_word_index_in_page * 2, new_physical_word_value)
 
-    save_zebu_otp_file(zebu_path_prefix, 3, physical_pages[0], 245, 256 - 245)
+    #save_zebu_otp_file(zebu_path_prefix, 3, physical_pages[0], 245, 256 - 245)
+    save_zebu_otp_file(zebu_path_prefix, 3, physical_pages[0], 0, 256)
     save_zebu_otp_file(zebu_path_prefix, 4, physical_pages[1], 0, 256)
-    save_zebu_otp_file(zebu_path_prefix, 5, physical_pages[2], 0, 246)
+    #save_zebu_otp_file(zebu_path_prefix, 5, physical_pages[2], 0, 246)
+    save_zebu_otp_file(zebu_path_prefix, 5, physical_pages[2], 0, 256)
 
 def convert_zebu_to_bin(binary_path, mem_filepaths_list):
     print("convert_zebu_to_bin not implmented!")
