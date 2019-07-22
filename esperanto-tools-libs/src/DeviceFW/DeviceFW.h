@@ -25,7 +25,7 @@ namespace device_fw {
 /// @brief Class holding the information of the real DeviceFW
 class DeviceFW final : public Firmware {
 public:
-  DeviceFW() = default;
+  DeviceFW();
 
   bool setFWFilePaths(const std::vector<std::string> &paths) override;
   bool readFW() override;

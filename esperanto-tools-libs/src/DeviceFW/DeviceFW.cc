@@ -32,6 +32,14 @@ ABSL_FLAG(std::string, machine_minion_elf, "",
 namespace et_runtime {
 namespace device_fw {
 
+DeviceFW::DeviceFW()
+{
+  auto worker_minion = absl::GetFlag(FLAGS_worker_minion_elf);
+  auto machine_minion = absl::GetFlag(FLAGS_machine_minion_elf);
+  auto master_minion = absl::GetFlag(FLAGS_master_minion_elf);
+  this->setFWFilePaths({master_minion, machine_minion, worker_minion});
+}
+
 bool DeviceFW::setFWFilePaths(const std::vector<std::string> &paths) {
   // Expect that the order the paths are going to be given is the one bellow
   std::vector<std::tuple<std::string, std::unique_ptr<ELFInfo> &>> images = {
