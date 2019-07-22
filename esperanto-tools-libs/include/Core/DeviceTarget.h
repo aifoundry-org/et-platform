@@ -65,7 +65,6 @@ public:
   enum class TargetType : uint8_t {
     None = 0,
     PCIe,
-    SysEmuCardProxy,
     SysEmuGRPC,
     DeviceGRPC,
   };
@@ -97,6 +96,8 @@ public:
     return {};
   }
 
+  /// @brief Return the type of this device
+  virtual TargetType type() = 0;
   /// @brief Initialize the target device
   virtual bool init() = 0;
   /// @brief De-Initialize the target device

@@ -29,6 +29,7 @@ public:
 
   static std::vector<DeviceInformation> enumerateDevices();
 
+  TargetType type() override { return DeviceTarget::TargetType::PCIe; }
   bool init() override;
   bool deinit() override;
   bool getStatus() override;

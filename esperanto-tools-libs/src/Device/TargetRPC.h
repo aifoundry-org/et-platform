@@ -38,6 +38,7 @@ public:
   RPCTarget(int index, const std::string &str);
   virtual ~RPCTarget() = default;
 
+  TargetType type() override { return DeviceTarget::TargetType::DeviceGRPC; }
   bool init() override;
   bool deinit() override;
 

@@ -30,6 +30,7 @@ public:
   TargetSysEmu(int index);
   ~TargetSysEmu();
 
+  TargetType type() override { return DeviceTarget::TargetType::SysEmuGRPC; }
   bool init() override;
   bool deinit() override;
   bool getStatus() override;
