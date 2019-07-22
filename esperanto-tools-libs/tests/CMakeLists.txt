@@ -138,4 +138,15 @@ set(QEMU_TEST_LIST
   system/test_pcie_device.cc:""
   )
 
+if(esperanto-fw_FOUND)
+  get_property(EMPTY_KERNEL_ELF TARGET esperanto-fw::empty.elf PROPERTY LOCATION)
+  get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
+
+
+  list(APPEND QEMU_TEST_LIST
+    system/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+    )
+endif(esperanto-fw_FOUND)
+
+
 create_test_targets("${QEMU_TEST_LIST}" "QEMU-Driver-SNPS")

@@ -8,9 +8,10 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/ELFSupport.h"
-
+#include "Core/CodeModule.h"
 #include "Core/CommandLineOptions.h"
+#include "Core/ELFSupport.h"
+#include "Support/Logging.h"
 
 #include <experimental/filesystem>
 #include <glog/logging.h>
@@ -57,9 +58,28 @@ TEST(KernelELFInfo, parse_dev_fw_kernel_elf) {
   EXPECT_EQ(0x8104000000, elf_info.loadAddr());
 }
 
+// Test kernel elf parsing where we are we have only the
+// ELF entrypoint and no magic annocated symbols
+TEST(KernelELFInfo, code_module_dev_fw) {
+
+  KernelELFInfo elf_info{"empty"};
+  auto empty_elf = absl::GetFlag(FLAGS_empty_elf);
+
+  Module module(1, "empty");
+
+  auto res = module.readELF(empty_elf);
+  ASSERT_TRUE(res);
+
+  RTDEBUG << "Elf Load Addr 0x" << std::hex << module.elfLoadAddr() << "\n";
+
+  // For this kernel they are no raw kernel entrypoints
+  EXPECT_EQ(0x8104000000, module.elfLoadAddr());
+}
+
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
+  google::SetCommandLineOption("GLOG_logtostderr", "1");
   testing::InitGoogleTest(&argc, argv);
   et_runtime::ParseCommandLineOptions(argc, argv);
   return RUN_ALL_TESTS();

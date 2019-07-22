@@ -85,7 +85,7 @@ std::unique_ptr<DeviceTarget> DeviceTarget::deviceFactory(TargetType target,
   //   return make_unique<RPCTarget>(index, "");
   default:
     RTERROR << "Unknwon Device type";
-    assert(true);
+    assert(false);
     return nullptr;
   }
   return nullptr;
