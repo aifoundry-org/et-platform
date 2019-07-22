@@ -219,7 +219,12 @@ if("${runtime_SW_SYSEMU_PROVIDER}" STREQUAL "module")
     BUILD_ALWAYS 1
     )
 
-  set(SYSEMU_PATH  ${RT_EXTERNAL_INSTALL_PREFIX}/bin/sys_emu PARENT_SCOPE)
+
+  if(ENABLE_SYSEMU_ARTIFACT)
+    set(SYSEMU_PATH  ${REPOROOT}/swx/sw-artifacts/bin/sys_emu PARENT_SCOPE)
+  else()
+    set(SYSEMU_PATH  ${RT_EXTERNAL_INSTALL_PREFIX}/bin/sys_emu PARENT_SCOPE)
+  endif(ENABLE_SYSEMU_ARTIFACT)
 
   list(APPEND external_project_dependencies sw-sysemu)
 
