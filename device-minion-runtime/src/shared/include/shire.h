@@ -9,6 +9,8 @@
 *-------------------------------------------------------------------------
 */
 
+#define THIS_SHIRE 0xFF
+
 static inline unsigned int __attribute__((always_inline)) get_hart_id(void)
 {
     unsigned int ret;

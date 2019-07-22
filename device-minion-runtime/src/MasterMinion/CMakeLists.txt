@@ -41,6 +41,7 @@ set(SOURCES
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/ringbuffer.c
     ${SHARED_SRC_DIR}/pcie_int.c
+    ${SHARED_SRC_DIR}/broadcast.c
     )
 
 set(TARGET_NAME MasterMinion)

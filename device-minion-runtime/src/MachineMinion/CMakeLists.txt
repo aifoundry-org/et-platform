@@ -27,6 +27,7 @@ set(SOURCES
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/log.c
+    ${SHARED_SRC_DIR}/broadcast.c
     )
 
 set(TARGET_NAME MachineMinion)

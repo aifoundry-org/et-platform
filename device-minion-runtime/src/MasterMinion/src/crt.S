@@ -21,6 +21,11 @@ _start:
     li    sp, FW_SMODE_STACK_BASE
     sub   sp, sp, a0
 
+    # skip bss init if not minion 0 thread 0 in the shire
+    csrr  a0, hartid
+    andi  a0, a0, 0x3F
+    bnez  a0, bss_loop_end
+
     # zero out the bss section
     la   x26, __bss_start
     la   x27, __bss_end
