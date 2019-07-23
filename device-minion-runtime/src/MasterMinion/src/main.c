@@ -66,6 +66,12 @@ typedef struct
     uint64_t num_shires;
 } kernel_config_t;
 
+typedef struct {
+    mbox_message_id_t message_id;
+    kernel_params_t kernel_params;
+    kernel_info_t kernel_info;
+} host_message_t;
+
 // Local state
 static shire_status_t shire_status[33];
 static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS];
@@ -76,7 +82,7 @@ static kernel_config_t kernel_config[MAX_SIMULTANEOUS_KERNELS];
 static message_t message;
 
 //#define DEBUG_SEND_MESSAGES_TO_SP
-#define DEBUG_REFLECT_MESSAGE_FROM_HOST
+//#define DEBUG_REFLECT_MESSAGE_FROM_HOST
 //#define DEBUG_FAKE_MESSAGE_FROM_HOST
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
@@ -274,29 +280,31 @@ static void fake_message_from_host(void)
     // For now, fake host launches kernel 0 any time it's unused.
     if (kernel_status[kernel_id].kernel_state == KERNEL_STATE_UNUSED)
     {
-        const kernel_params_t kernel_params = {
-            .tensor_a = 0,
-            .tensor_b = 0,
-            .tensor_c = 0,
-            .tensor_d = 0,
-            .tensor_e = 0,
-            .tensor_f = 0,
-            .tensor_g = 0,
-            .tensor_h = 0,
-            .kernel_id = kernel_id
-        };
-
-        const kernel_info_t kernel_info = {
-            .compute_pc = KERNEL_UMODE_ENTRY,
-            .uber_kernel_nodes = 0, // unused
-            .shire_mask = 1,
-            .kernel_params_ptr = NULL, // gets fixed up
-            .grid_config_ptr = NULL // TODO
+        const host_message_t host_message = {
+            .message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH,
+            .kernel_params = {
+                .tensor_a = 0,
+                .tensor_b = 0,
+                .tensor_c = 0,
+                .tensor_d = 0,
+                .tensor_e = 0,
+                .tensor_f = 0,
+                .tensor_g = 0,
+                .tensor_h = 0,
+                .kernel_id = kernel_id
+            },
+            .kernel_info = {
+                .compute_pc = KERNEL_UMODE_ENTRY,
+                .uber_kernel_nodes = 0, // unused
+                .shire_mask = 1,
+                .kernel_params_ptr = NULL, // gets fixed up
+                .grid_config_ptr = NULL // TODO
+            }
         };
 
         printf("faking kernel launch message fom host\r\n");
 
-        launch_kernel(&kernel_params, &kernel_info);
+        launch_kernel(&host_message.kernel_params, &host_message.kernel_info);
     }
     if (kernel_status[kernel_id].kernel_state == KERNEL_STATE_COMPLETE)
     {
@@ -318,9 +326,9 @@ static void handle_message_from_host(void)
     {
         printf("Received message from host, length = %" PRId64 "\r\n", length);
 
-        for (int64_t i = 0; i < length; i++)
+        for (int64_t i = 0; i < length / 8; i++)
         {
-            printf ("message[%" PRId64 "] = 0x%02" PRIu8 "\r\n", i, buffer[i]);
+            printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((uint64_t*)(void*)buffer)[i] );
         }
 
 #ifdef DEBUG_REFLECT_MESSAGE_FROM_HOST
@@ -328,18 +336,12 @@ static void handle_message_from_host(void)
         MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);
 #endif
 
-        const mbox_message_id_t* const message_id_ptr = (void*)buffer;
+        const host_message_t* const host_message_ptr = (void*)buffer;
 
-        if (*message_id_ptr == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
+        if (host_message_ptr->message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
         {
             printf("received kernel launch message fom host\r\n");
-
-            // For initial testing, message is { message_id_t, kernel_params_t, kernel_info_t }
-            const kernel_params_t* const kernel_params_ptr = (void*)&buffer[sizeof(mbox_message_id_t)];
-            const kernel_info_t* const kernel_info_ptr     = (void*)&buffer[sizeof(mbox_message_id_t) +
-                                                                            sizeof(kernel_params_t)];
-
-            launch_kernel(kernel_params_ptr, kernel_info_ptr);
+            launch_kernel(&host_message_ptr->kernel_params, &host_message_ptr->kernel_info);
         }
     }
 }
@@ -548,6 +550,11 @@ static void handle_timer_events(void)
 
 static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_info_t* const kernel_info_ptr)
 {
+    // TODO FIXME HACK
+    printf("kernel_params_ptr = 0x%010" PRIx64 "\r\n", (uint64_t)kernel_params_ptr);
+    printf("kernel_info_ptr = 0x%010" PRIx64 "\r\n", (uint64_t)kernel_info_ptr);
+    asm volatile ("fence");
+
     const kernel_id_t kernel_id = kernel_params_ptr->kernel_id;
     const uint64_t shire_mask = kernel_info_ptr->shire_mask;
     kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_id];
