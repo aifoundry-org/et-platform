@@ -433,13 +433,16 @@ etrtError Device::rawLaunch(et_runtime::ModuleID module_id,
     return etrtErrorModuleNotOnDevice;
   }
 
-  THROW_IF(!module->rawKernelExists(kernel_name),
-           "No raw kernel found in module by kernel name.");
+  uintptr_t kernel_entry_point;
+  if (module->rawKernelExists(kernel_name)) {
 
-  auto entry_point_res = module->onDeviceKernelEntryPoint(kernel_name);
-  assert(entry_point_res);
+    auto entry_point_res = module->onDeviceKernelEntryPoint(kernel_name);
+    assert(entry_point_res);
 
-  uintptr_t kernel_entry_point = entry_point_res.get();
+    kernel_entry_point = entry_point_res.get();
+  } else {
+    kernel_entry_point = module->elfLoadAddr();
+  }
 
   std::vector<uint8_t> args_buff(args_size);
   ::memcpy(&args_buff[0], args, args_size);

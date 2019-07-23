@@ -119,6 +119,7 @@ if(esperanto-fw_FOUND)
   get_property(MASTER_MINION_ELF TARGET esperanto-fw::MasterMinion.elf PROPERTY LOCATION)
   get_property(MACHINE_MINION_ELF TARGET esperanto-fw::MachineMinion.elf PROPERTY LOCATION)
   get_property(WORKER_MINION_ELF TARGET esperanto-fw::WorkerMinion.elf PROPERTY LOCATION)
+  get_property(EMPTY_KERNEL_ELF TARGET esperanto-fw::empty.elf PROPERTY LOCATION)
 
   # Example when passsing arguments then make sure that you use the "=" operation between
   # the option and its value and you space separate the different options.
@@ -127,7 +128,7 @@ if(esperanto-fw_FOUND)
 
   list(APPEND TEST_LIST
     test_load_device_fw.cc:${DEV_FW_ARGS}
-    test_elf_parsing_dev_fw.cc:${DEV_FW_ARGS}
+    test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
     )
 endif(esperanto-fw_FOUND)
 

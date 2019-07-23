@@ -36,6 +36,8 @@ bool Module::readELF(const std::string path) {
 
 const std::string &Module::name() const { return elf_info_->name(); };
 
+uintptr_t Module::elfLoadAddr() const { return elf_info_->loadAddr(); }
+
 bool Module::rawKernelExists(const std::string &name) {
   return elf_info_->rawKernelExists(name);
 }

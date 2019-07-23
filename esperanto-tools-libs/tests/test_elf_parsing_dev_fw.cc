@@ -40,6 +40,23 @@ TEST(ELFInfo, parse_device_fw_elf) {
   EXPECT_EQ(elf_info.loadAddr(), 0x8100200000);
 }
 
+ABSL_FLAG(std::string, empty_elf, "", "Path to the empty ELF binary");
+
+// Test kernel elf parsing where we are we have only the
+// ELF entrypoint and no magic annocated symbols
+TEST(KernelELFInfo, parse_dev_fw_kernel_elf) {
+
+  KernelELFInfo elf_info{"empty"};
+  auto empty_elf = absl::GetFlag(FLAGS_empty_elf);
+
+  EXPECT_TRUE(elf_info.loadELF(empty_elf));
+
+  // For this kernel they are no raw kernel entrypoints
+  EXPECT_FALSE(elf_info.rawKernelExists("empty"));
+
+  EXPECT_EQ(0x8104000000, elf_info.loadAddr());
+}
+
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
