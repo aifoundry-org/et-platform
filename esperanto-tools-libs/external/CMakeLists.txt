@@ -219,7 +219,6 @@ if("${runtime_SW_SYSEMU_PROVIDER}" STREQUAL "module")
     BUILD_ALWAYS 1
     )
 
-
   if(ENABLE_SYSEMU_ARTIFACT)
     set(SYSEMU_PATH  ${REPOROOT}/swx/sw-artifacts/bin/sys_emu PARENT_SCOPE)
   else()
@@ -230,7 +229,14 @@ if("${runtime_SW_SYSEMU_PROVIDER}" STREQUAL "module")
 
 else()
 
-  set(SYSEMU_PATH  ${DEPENDENCIES_PATH}/bin/sys_emu PARENT_SCOPE)
+  if(ENABLE_SYSEMU_ARTIFACT)
+    # Use relative path for artifactory
+    set(SYSEMU_PATH  ./swx/sw-artifacts/bin/sys_emu PARENT_SCOPE)
+    message("SYSEMU_PATH iartifactory set to ${SYSEMU_PATH}")
+  else()
+    set(SYSEMU_PATH  ${DEPENDENCIES_PATH}/bin/sys_emu PARENT_SCOPE)
+    message("SYSEMU_PATH package set to ${SYSEMU_PATH}")
+  endif(ENABLE_SYSEMU_ARTIFACT)
 
 endif()
 
