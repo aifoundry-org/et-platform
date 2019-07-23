@@ -24,17 +24,17 @@ namespace et_runtime {
 namespace device {
 
 PCIeDevice::PCIeDevice(int index)
-    : DeviceTarget(index),                                //
-      index_(index),                                      //
-      prefix_(absl::StrFormat("et%d", index)),            //
-      bulk_("/dev/" + prefix_ + "bulk"),                  //
-      drct_dram_("/dev/" + prefix_ + "drct_dram"),        //
-      mm_("/dev/" + prefix_ + "mb_mm"),                   //
-      sp_("/dev/" + prefix_ + "mb_sp"),                   //
-      pcie_userersr_("/dev/" + prefix_ + "pcie_useresr"), //
-      r_mbox_sp_("/dev/" + prefix_ + "r_mbox_sp"),        //
-      r_mbox_mm_("/dev/" + prefix_ + "r_mbox_mm"),        //
-      trg_pcie_("/dev/" + prefix_ + "trg_pcie")           //
+    : DeviceTarget(index),                                       //
+      index_(index),                                             //
+      prefix_(absl::StrFormat("et%d", index)),                   //
+      bulk_("/dev/" + prefix_ + "bulk"),                         //
+      drct_dram_("/dev/" + prefix_ + "drct_dram", 0x8100000000), //
+      mm_("/dev/" + prefix_ + "mb_mm"),                          //
+      sp_("/dev/" + prefix_ + "mb_sp"),                          //
+      pcie_userersr_("/dev/" + prefix_ + "pcie_useresr"),        //
+      r_mbox_sp_("/dev/" + prefix_ + "r_mbox_sp"),               //
+      r_mbox_mm_("/dev/" + prefix_ + "r_mbox_mm"),               //
+      trg_pcie_("/dev/" + prefix_ + "trg_pcie")                  //
 {}
 
 bool PCIeDevice::init() {

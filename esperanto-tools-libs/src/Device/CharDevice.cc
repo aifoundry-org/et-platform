@@ -26,8 +26,8 @@ namespace et_runtime {
 namespace device {
 
 CharacterDevice::CharacterDevice(
-    const std::experimental::filesystem::path &char_dev)
-    : path_(char_dev) {
+    const std::experimental::filesystem::path &char_dev, uintptr_t base_addr)
+    : path_(char_dev), base_addr_(base_addr) {
   fd_ = open(path_.string().c_str(), O_RDWR);
   if (fd_ == 0) {
     std::terminate();
@@ -35,7 +35,8 @@ CharacterDevice::CharacterDevice(
 }
 
 CharacterDevice::CharacterDevice(CharacterDevice &&other)
-    : fd_(std::move(other.fd_)) {}
+    : path_(std::move(other.path_)), fd_(std::move(other.fd_)),
+      base_addr_(other.base_addr_) {}
 
 CharacterDevice::~CharacterDevice() {
   auto res = close(fd_);
@@ -48,6 +49,11 @@ CharacterDevice::~CharacterDevice() {
 
 bool CharacterDevice::write(uintptr_t addr, const void *data, ssize_t size) {
 
+  // If we know the base address then substrasct that because for now we are
+  // expecting SOC absolute addresses
+  if (base_addr_ > 0) {
+    addr -= base_addr_;
+  }
   off_t target_offset = static_cast<off_t>(addr);
   auto offset = lseek(fd_, target_offset, SEEK_SET);
   auto err = errno;
@@ -68,7 +74,11 @@ bool CharacterDevice::write(uintptr_t addr, const void *data, ssize_t size) {
 }
 
 bool CharacterDevice::read(uintptr_t addr, void *data, ssize_t size) {
-
+  // If we know the base address then substrasct that because for now we are
+  // expecting SOC absolute addresses
+  if (base_addr_ > 0) {
+    addr -= base_addr_;
+  }
   off_t target_offset = static_cast<off_t>(addr);
   auto offset = lseek(fd_, target_offset, SEEK_SET);
   auto err = errno;

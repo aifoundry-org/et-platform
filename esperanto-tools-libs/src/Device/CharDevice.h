@@ -25,7 +25,8 @@ namespace device {
 class CharacterDevice {
 public:
   /// @brief Constuct a guard passing the path to the character device
-  CharacterDevice(const std::experimental::filesystem::path &char_dev);
+  CharacterDevice(const std::experimental::filesystem::path &char_dev,
+                  uintptr_t base_addr = 0);
   /// @brief  Disable copy constructor for the guard, object not copyable
   CharacterDevice(const CharacterDevice &rhs) = delete;
   /// @brief Move constructor
@@ -39,8 +40,12 @@ public:
 protected:
   /// Using a fstream for now, we need to move to another implementation in the
   /// future
-  std::experimental::filesystem::path path_;
-  int fd_ = -1;
+  std::experimental::filesystem::path path_; ///< Path fo the device
+  int fd_ = -1;                              ///< File descriptor to the device
+  uintptr_t
+      base_addr_; ///< Base address of the device to be used to translate
+                  ///< absolute adresses FIXME: We should pull this information
+                  ///< form an IOCTL to the character device along with the size
 };
 
 } // namespace device
