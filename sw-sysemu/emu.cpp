@@ -249,11 +249,11 @@ void reset_esrs_for_shire(unsigned shireid)
 
     for (unsigned neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; ++neigh) {
         unsigned idx = EMU_NEIGH_PER_SHIRE*shire + neigh;
-        neigh_esrs[idx].reset();
+        bemu::neigh_esrs[idx].reset();
     }
-    shire_cache_esrs[shire].reset();
-    shire_other_esrs[shire].reset(shireid);
-    broadcast_esrs[shire].reset();
+    bemu::shire_cache_esrs[shire].reset();
+    bemu::shire_other_esrs[shire].reset(shireid);
+    bemu::broadcast_esrs[shire].reset();
 
     esr_shire_coop_mode[shire] = false;
 #ifndef SYS_EMU
@@ -4069,7 +4069,7 @@ static uint64_t flbarrier(uint64_t value)
     unsigned limit   = (value >> 5) & 0xFF;
 
     unsigned shire = current_thread / EMU_THREADS_PER_SHIRE;
-    unsigned oldval = shire_other_esrs[shire].fast_local_barrier[barrier];
+    unsigned oldval = bemu::shire_other_esrs[shire].fast_local_barrier[barrier];
 
     LOG(DEBUG, "FastLocalBarrier: doing barrier %u with value %u, limit %u",
         barrier, oldval, limit);
@@ -4078,14 +4078,14 @@ static uint64_t flbarrier(uint64_t value)
     {
         // Last thread, zero barrier and return 1
         LOG(DEBUG, "%s", "FastLocalBarrier: last hart, set barrier to 0");
-        shire_other_esrs[shire].fast_local_barrier[barrier] = 0;
+        bemu::shire_other_esrs[shire].fast_local_barrier[barrier] = 0;
         return 1;
     }
 
     // Not last thread, increment barrier and return 0
     LOG(DEBUG, "FastLocalBarrier: not last hart, increment barrier to %u",
         oldval + 1);
-    shire_other_esrs[shire].fast_local_barrier[barrier] = oldval + 1;
+    bemu::shire_other_esrs[shire].fast_local_barrier[barrier] = oldval + 1;
     return 0;
 }
 

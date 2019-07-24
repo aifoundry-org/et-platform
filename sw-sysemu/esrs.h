@@ -6,7 +6,7 @@
 #include <cstdint>
 #include "emu_defines.h"
 
-//namespace bemu {
+namespace bemu {
 
 
 // ESR region 'pp' field in bits [31:30]
@@ -425,6 +425,6 @@ void write_thread1_disable(unsigned shire, uint32_t value);
 void write_minion_feature(unsigned shire, uint8_t value);
 
 
-//} // namespace bemu
+} // namespace bemu
 
 #endif // BEMU_ESRS_H

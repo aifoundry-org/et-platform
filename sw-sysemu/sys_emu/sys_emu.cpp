@@ -55,7 +55,7 @@ uint64_t        sys_emu::shires_en  = 1;
 
 static inline bool multithreading_is_disabled(unsigned shire)
 {
-    return shire_other_esrs[shire].minion_feature & 0x10;
+    return bemu::shire_other_esrs[shire].minion_feature & 0x10;
 }
 
 static inline bool thread_is_disabled(unsigned thread)
@@ -251,34 +251,34 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
         throw std::runtime_error("IPI_REDIRECT to SvcProc");
 
     // Get IPI_REDIRECT_FILTER ESR for the shire
-    uint64_t ipi_redirect_filter = esr_read(ESR_SHIRE(shire, IPI_REDIRECT_FILTER));
+    uint64_t ipi_redirect_filter = bemu::shire_other_esrs[shire].ipi_redirect_filter;
 
     unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
-    for(int t = 0; t < EMU_THREADS_PER_SHIRE; t++)
+    for(unsigned t = 0; t < EMU_THREADS_PER_SHIRE; t++)
     {
         // If both IPI_REDIRECT_TRIGGER and IPI_REDIRECT_FILTER has bit set
         if(((thread_mask >> t) & 1) && ((ipi_redirect_filter >> t) & 1))
         {
             // Get PC
-            uint64_t neigh = t / EMU_THREADS_PER_NEIGH;
-            uint64_t new_pc = esr_read(ESR_NEIGH(shire, neigh, IPI_REDIRECT_PC));
-            int thread_id = thread0 + t;
-            LOG_OTHER(DEBUG, thread_id, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
+            unsigned tid = thread0 + t;
+            unsigned neigh = tid / EMU_THREADS_PER_NEIGH;
+            uint64_t new_pc = bemu::neigh_esrs[neigh].ipi_redirect_pc;
+            LOG_OTHER(DEBUG, tid, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
             // If thread sleeping, wakes up and changes PC
-            if(std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+            if(std::find(enabled_threads.begin(), enabled_threads.end(), tid) == enabled_threads.end())
             {
-                if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
-                    LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received IPI_REDIRECT");
+                if (!thread_is_active(tid) || thread_is_disabled(tid)) {
+                    LOG_OTHER(DEBUG, tid, "%s", "Disabled thread received IPI_REDIRECT");
                 } else {
-                    LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI_REDIRECT");
-                    enabled_threads.push_back(thread_id);
-                    current_pc[thread_id] = new_pc;
+                    LOG_OTHER(DEBUG, tid, "%s", "Waking up due to IPI_REDIRECT");
+                    enabled_threads.push_back(tid);
+                    current_pc[tid] = new_pc;
                 }
             }
             // Otherwise IPI is dropped
             else
             {
-                LOG_OTHER(DEBUG, thread_id, "%s", "WARNING => IPI_REDIRECT dropped");
+                LOG_OTHER(DEBUG, tid, "%s", "WARNING => IPI_REDIRECT dropped");
             }
         }
     }
@@ -294,7 +294,7 @@ sys_emu::raise_timer_interrupt(uint64_t shire_mask)
         unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
         unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
 
-        uint32_t target = shire_other_esrs[s].mtime_local_target;
+        uint32_t target = bemu::shire_other_esrs[s].mtime_local_target;
         for (unsigned m = 0; m < shire_minion_count; m++) {
             if (target & (1ULL << m)) {
                 for (unsigned ii = 0; ii < minion_thread_count; ii++) {
@@ -320,7 +320,7 @@ sys_emu::clear_timer_interrupt(uint64_t shire_mask)
         unsigned shire_minion_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
         unsigned minion_thread_count = (s == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
 
-        uint32_t target = shire_other_esrs[s].mtime_local_target;
+        uint32_t target = bemu::shire_other_esrs[s].mtime_local_target;
         for (unsigned m = 0; m < shire_minion_count; m++) {
             if (target & (1ULL << m)) {
                 for (unsigned ii = 0; ii < minion_thread_count; ii++) {
@@ -848,11 +848,11 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 
         // Enable threads
         uint32_t minion_mask = minions_en & ((1ull << shire_minion_count) - 1);
-        write_thread0_disable(s, ~minion_mask);
+        bemu::write_thread0_disable(s, ~minion_mask);
         if (disable_multithreading) {
-            write_thread1_disable(s, 0xffffffff);
+            bemu::write_thread1_disable(s, 0xffffffff);
         } else {
-            write_thread1_disable(s, ~minion_mask);
+            bemu::write_thread1_disable(s, ~minion_mask);
         }
 
         // For all the minions

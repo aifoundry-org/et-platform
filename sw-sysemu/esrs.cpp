@@ -6,7 +6,23 @@
 #include "processor.h"
 #include "txs.h"
 
-//namespace bemu {
+// FIXME: the following needs to be cleaned up
+#ifdef SYS_EMU
+#include "sys_emu.h"
+#else
+namespace sys_emu {
+static inline void fcc_to_threads(unsigned, unsigned, uint64_t, unsigned) {}
+static inline void send_ipi_redirect_to_threads(unsigned, uint64_t) {}
+static inline void raise_software_interrupt(unsigned, uint64_t) {}
+static inline void clear_software_interrupt(unsigned, uint64_t) {}
+}
+#endif
+//extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
+extern uint32_t current_thread;
+extern std::array<Processor,EMU_NUM_THREADS>  cpu;
+
+
+namespace bemu {
 
 
 #define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000
@@ -63,25 +79,8 @@ broadcast_esrs_t    broadcast_esrs[EMU_NUM_SHIRES];
 #define THREAD(hart)    ((hart) % EMU_THREADS_PER_MINION)
 
 
-// FIXME: the following needs to be cleaned up
-#ifdef SYS_EMU
-#include "sys_emu.h"
-#else
-namespace sys_emu {
-static inline void fcc_to_threads(unsigned, unsigned, uint64_t, unsigned) {}
-static inline void send_ipi_redirect_to_threads(unsigned, uint64_t) {}
-static inline void raise_software_interrupt(unsigned, uint64_t) {}
-static inline void clear_software_interrupt(unsigned, uint64_t) {}
-}
-#endif
-extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
-extern uint32_t current_thread;
-
-
 static void recalculate_thread0_enable(unsigned shire)
 {
-    extern std::array<Processor,EMU_NUM_THREADS>  cpu;
-
     uint32_t value = shire_other_esrs[shire].thread0_disable;
     unsigned mcount = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
     for (unsigned m = 0; m < mcount; ++m) {
@@ -93,8 +92,6 @@ static void recalculate_thread0_enable(unsigned shire)
 
 static void recalculate_thread1_enable(unsigned shire)
 {
-    extern std::array<Processor,EMU_NUM_THREADS>  cpu;
-
     if (shire == EMU_IO_SHIRE_SP)
         return;
 
@@ -1080,4 +1077,4 @@ void write_minion_feature(unsigned shire, uint8_t value)
 }
 
 
-//} // namespace bemu
+} // namespace bemu

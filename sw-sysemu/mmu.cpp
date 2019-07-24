@@ -160,7 +160,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 
         if (!spio && !addr_is_size_aligned(addr, size)) {
             // when data cache is in bypass mode all accesses should be aligned
-            uint8_t ctrl = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].neigh_chicken;
+            uint8_t ctrl = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].neigh_chicken;
             if (ctrl & 0x2)
                 throw_access_fault(vaddr, macc);
         }
@@ -172,7 +172,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
         }
 
         if (paddr_is_dram_osbox(addr2)) {
-            uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+            uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
             if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
                 throw_access_fault(vaddr, macc);
             return addr;
@@ -209,7 +209,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
     }
 
     if (paddr_is_io_space(addr)) {
-        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+        uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
         if (amo
             || ts_tl_co
             || !addr_is_size_aligned(addr, size)
@@ -219,7 +219,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
     }
 
     if (paddr_is_pcie_space(addr)) {
-        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+        uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
         if (amo
             || ts_tl_co
             || !addr_is_size_aligned(addr, size)
@@ -250,7 +250,7 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
         }
 
         if (paddr_is_dram_osbox(addr2)) {
-            uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+            uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
             if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
                 throw_access_fault(vaddr, macc);
             return addr;
@@ -297,7 +297,7 @@ static uint64_t pma_check_ptw_access(uint64_t vaddr, uint64_t addr,
         }
 
         if (paddr_is_dram_osbox(addr2)) {
-            uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+            uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
             if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
                 throw_access_fault(vaddr, macc);
             return addr;
@@ -950,7 +950,7 @@ bool mmu_check_cacheop_access(uint64_t paddr)
         return effective_execution_mode(Mem_Access_CacheOp) == PRV_M;
 
     if (paddr_is_dram_osbox(paddr)) {
-        uint8_t mprot = neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+        uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
         return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
     }
 
