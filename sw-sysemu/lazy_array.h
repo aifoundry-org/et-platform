@@ -82,7 +82,7 @@ struct lazy_array {
 
     // Members
 
-    std::unique_ptr<array_type> p;
+    std::unique_ptr<array_type> p{};
 };
 
 

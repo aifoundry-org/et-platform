@@ -5,7 +5,6 @@
 
 #include <algorithm>
 #include <array>
-#include "dump_data.h"
 #include "esrs.h"
 #include "lazy_array.h"
 #include "memory_error.h"
@@ -15,6 +14,9 @@
 extern uint32_t current_thread;
 
 namespace bemu {
+
+
+extern typename MemoryRegion::value_type memory_reset_value;
 
 
 template <unsigned long long Base, size_t N, size_t M, bool Writeable=true>
@@ -45,7 +47,7 @@ struct ScratchRegion : public MemoryRegion
             throw memory_error(first() + pos);
         }
         if (storage[bucket].empty()) {
-            std::fill_n(result, n, value_type());
+            std::fill_n(result, n, memory_reset_value);
         } else {
             std::copy_n(storage[bucket].cbegin() + offset, n, result);
         }
@@ -66,6 +68,7 @@ struct ScratchRegion : public MemoryRegion
         }
         if (storage[bucket].empty()) {
             storage[bucket].allocate();
+            storage[bucket].fill(memory_reset_value);
         }
         std::copy_n(source, n, storage[bucket].begin() + offset);
     }

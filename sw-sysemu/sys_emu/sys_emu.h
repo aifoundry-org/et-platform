@@ -54,10 +54,14 @@ struct sys_emu_cmd_options {
     uint64_t sp_reset_pc       = SP_RESET_PC;
     bool reset_pc_flag         = false;
     bool sp_reset_pc_flag      = false;
+#ifdef SYSEMU_DEBUG
     bool debug                 = false;
+#endif
     uint64_t max_cycles        = 10000000;
     bool max_cycle             = false;
     bool mins_dis              = false;
+    int  mem_reset             = 0;
+    bool mem_reset_flag        = false;
 };
 
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);

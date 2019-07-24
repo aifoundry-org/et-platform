@@ -10,6 +10,9 @@
 namespace bemu {
 
 
+extern typename MemoryRegion::value_type memory_reset_value;
+
+
 template<unsigned long long Base, size_t N>
 struct NullRegion : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
@@ -24,7 +27,7 @@ struct NullRegion : public MemoryRegion {
                   "bemu::NullRegion size must be a multiple of 64");
 
     void read(size_type, size_type n, pointer result) const override {
-        std::fill_n(result, n, value_type());
+        std::fill_n(result, n, memory_reset_value);
     }
 
     void write(size_type, size_type, const_pointer) override { }

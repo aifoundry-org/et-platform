@@ -149,21 +149,21 @@ struct MainMemory {
 
     // Members
 
-    NullRegion    <pu_dev0_base, pu_dev0_size>         pu_dev0_space;
-    PU_Uart       <pu_uart_base, pu_uart_size>         pu_uart_space;
-    NullRegion    <pu_dev1_base, pu_dev1_size>         pu_dev1_space;
-    PU_Uart       <pu_uart1_base, pu_uart1_size>       pu_uart1_space;
-    NullRegion    <pu_dev2_base, pu_dev2_size>         pu_dev2_space;
-    SparseRegion  <pu_sram_base, pu_sram_size, 16_KiB> pu_sram_space;
-    NullRegion    <pu_dev3_base, pu_dev3_size>         pu_dev3_space;
-    DenseRegion   <sp_rom_base, sp_rom_size, false>    sp_rom_space;
-    NullRegion    <sp_dev0_base, sp_dev0_size>         sp_dev0_space;
-    SparseRegion  <sp_sram_base, sp_sram_size, 64_KiB> sp_sram_space;
-    NullRegion    <sp_dev1_base, sp_dev1_size>         sp_dev1_space;
-    ScratchRegion <scp_base, 4_MiB, EMU_NUM_SHIRES>    scp_space;
-    SysregRegion  <sysreg_base, sysreg_size>           sysreg_space;
-    NullRegion    <pcie_base, pcie_size>               pcie_space;
-    SparseRegion  <dram_base, dram_size, 16_MiB>       dram_space;
+    NullRegion    <pu_dev0_base, pu_dev0_size>         pu_dev0_space{};
+    PU_Uart       <pu_uart_base, pu_uart_size>         pu_uart_space{};
+    NullRegion    <pu_dev1_base, pu_dev1_size>         pu_dev1_space{};
+    PU_Uart       <pu_uart1_base, pu_uart1_size>       pu_uart1_space{};
+    NullRegion    <pu_dev2_base, pu_dev2_size>         pu_dev2_space{};
+    SparseRegion  <pu_sram_base, pu_sram_size, 16_KiB> pu_sram_space{};
+    NullRegion    <pu_dev3_base, pu_dev3_size>         pu_dev3_space{};
+    DenseRegion   <sp_rom_base, sp_rom_size, false>    sp_rom_space{};
+    NullRegion    <sp_dev0_base, sp_dev0_size>         sp_dev0_space{};
+    SparseRegion  <sp_sram_base, sp_sram_size, 64_KiB> sp_sram_space{};
+    NullRegion    <sp_dev1_base, sp_dev1_size>         sp_dev1_space{};
+    ScratchRegion <scp_base, 4_MiB, EMU_NUM_SHIRES>    scp_space{};
+    SysregRegion  <sysreg_base, sysreg_size>           sysreg_space{};
+    NullRegion    <pcie_base, pcie_size>               pcie_space{};
+    SparseRegion  <dram_base, dram_size, 16_MiB>       dram_space{};
 
 protected:
     static inline bool above(const MemoryRegion* lhs, addr_type rhs) {
