@@ -788,7 +788,7 @@ static insn_exec_funct_t dec_custom3(uint32_t bits, uint16_t& flags)
                case 0x04: return (funct3 == 0) ? insn_fexp_ps : insn_reserved;
                case 0x06: flags |= insn_t::flag_1ULP; return (funct3 == 0) ? insn_fsin_ps : insn_reserved;
                case 0x07: return (funct3 == 0) ? insn_frcp_ps : insn_reserved;
-               case 0x08: flags |= insn_t::flag_1ULP; return (funct3 == 0) ? insn_frsq_ps : insn_reserved;
+               case 0x08: return (funct3 == 0) ? insn_frsq_ps : insn_reserved;
                default  : return insn_reserved;
                }
     case 0x2f: return (funct3 == 0) ? insn_maskpopc_rast : insn_reserved;
