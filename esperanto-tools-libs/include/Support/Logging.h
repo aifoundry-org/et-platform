@@ -21,7 +21,8 @@
 
 /// Helpers around GLOG for the runtime
 
+#define RTDEBUG LOG(DEBUG) << "ETRuntime: "
 #define RTINFO LOG(INFO) << "ETRuntime: "
-#define RTERROR LOG(ERROR) << "EtRuntime: "
+#define RTERROR LOG(ERROR) << "ETRuntime: "
 
 #endif // ET_RUNTIME_SUPPORT_LOGGING_H

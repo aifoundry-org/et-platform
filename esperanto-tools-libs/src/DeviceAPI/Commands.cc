@@ -10,8 +10,9 @@
 
 #include "DeviceAPI/Command.h"
 
-#include "DeviceAPI/Commands.h"
 #include "Core/Device.h"
+#include "DeviceAPI/Commands.h"
+#include "Support/Logging.h"
 #include "Support/STLHelpers.h"
 #include "etrt-bin.h"
 
@@ -20,14 +21,9 @@
 #include "../kernels/sys_inc.h"
 #undef INCLUDE_FOR_HOST
 
-//#include "cpu_algo.h"
 #include "demangle.h"
 
 using namespace et_runtime;
-
-#if 0
-static bool static_kernels = false;
-#endif
 
 namespace et_runtime {
 namespace device_api {
