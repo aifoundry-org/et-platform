@@ -32,7 +32,7 @@ add_subdirectory("MachineMinion")
 add_subdirectory("MasterMinion")
 add_subdirectory("WorkerMinion")
 
-if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/ServiceProcessorROM")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ServiceProcessorROM/CMakeLists.txt")
     add_subdirectory("ServiceProcessorROM")
 endif()
 

@@ -12,6 +12,8 @@
 # toolchain
 include(ExternalProject)
 
+if(ENABLE_SYSEMU)
+
 ExternalProject_Add(sw-sysemu
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu
   CONFIGURE_COMMAND ""
@@ -19,3 +21,5 @@ ExternalProject_Add(sw-sysemu
   BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sysemu-build/sys_emu
   INSTALL_COMMAND ""
   )
+
+endif(ENABLE_SYSEMU)
