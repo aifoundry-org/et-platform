@@ -25,6 +25,7 @@
 #include <linux/uaccess.h>
 #include <uapi/linux/pci_regs.h>
 #include <asm/uaccess.h>
+#include "hal_device.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
@@ -44,6 +45,16 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{ PCI_DEVICE(ET_PCIE_VENDOR_ID, ET_PCIE_SOC1_ID) },
 	{}
 };
+
+#define ESPERANTO_PCIE_IOCTL_MAGIC 0x67879
+
+#define GET_DRAM_BASE _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 1, int)
+#define GET_DRAM_SIZE _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 2, int)
+#define GET_MM_MBOX_MAX_MSG _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 3, int)
+#define GET_SP_MBOX_MAX_MSG _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 4, int)
+#define RESET_MBOXES _IO(ESPERANTO_PCIE_IOCTL_MAGIC, 5)
+#define GET_MM_MBOX_READY _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 6, int)
+#define GET_SP_MBOX_READY _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 7, int)
 
 static struct class *pclass;
 static int major;
@@ -100,16 +111,12 @@ static const enum et_cdev_type MINOR_TYPES[] = {
 #define R_DRCT_DRAM_SIZE       0x0700000000
 
 #define R_PU_MBOX_PC_MM_OFFSET 0x0000
-#define R_PU_MBOX_PC_MM_SIZE   0x1000
 
 #define R_PU_MBOX_PC_SP_OFFSET 0x1000
-#define R_PU_MBOX_PC_SP_SIZE   0x1000
 
 #define R_PU_TRG_PCIE_OFFSET   0x2000
-#define R_PU_TRG_PCIE_SIZE     0x2000
 
 #define R_PCIE_USRESR_OFFSET   0x4000
-#define R_PCIE_USRESR_SIZE     0x1000
 
 static const u64 MINOR_FIO_SIZES[] = {
 #ifdef TEST_MODE
@@ -873,6 +880,92 @@ static loff_t esperanto_pcie_llseek(struct file *fp, loff_t pos, int whence)
 	return new_pos;
 }
 
+static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned long arg)
+{
+	struct et_pci_minor_dev *minor_dev = fp->private_data;
+	struct et_pci_dev *et_dev = minor_dev->et_dev;
+	unsigned long dram_base, dram_size;
+	unsigned long mbox_rdy, mbox_max_msg;
+
+	switch (cmd) {
+	case GET_DRAM_BASE:
+		dram_base = R_DRCT_DRAM_BASEADDR;
+		if (copy_to_user((u64 *)arg, &dram_base, sizeof(u64))) {
+			pr_err("ioctl: GET_DRAM_BASE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case GET_DRAM_SIZE:
+		dram_size = R_DRCT_DRAM_SIZE;
+		if (copy_to_user((u64 *)arg, &dram_size, sizeof(u64))) {
+			pr_err("ioctl: GET_DRAM_SIZE: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case GET_MM_MBOX_MAX_MSG:
+		mbox_max_msg = ringbuffer_free(0ul, 0ul) - MBOX_HEADER_SIZE;
+		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) {
+			pr_err("ioctl: GET_MM_MBOX_MAX_MSG: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case GET_SP_MBOX_MAX_MSG:
+		mbox_max_msg = ringbuffer_free(0ul, 0ul) - MBOX_HEADER_SIZE;
+		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) {
+			pr_err("ioctl: GET_SP_MBOX_MAX_MSG: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case RESET_MBOXES:
+		// First, grab the lock
+		mutex_lock(&minor_dev->read_write_mutex);
+
+		//Request that the SoC reset the mailboxes
+               	iowrite32(MBOX_STATUS_WAITING, &(&et_dev->mbox_mm)->mem->slave_status);
+               	iowrite32(MBOX_STATUS_WAITING, &(&et_dev->mbox_sp)->mem->slave_status);
+
+               	//Flush PCIe writes: this makes sure the status changes are visible
+               	//to the interrupt routines in the MM and SP
+               	mbox_rdy = ioread32(&(&et_dev->mbox_mm)->mem->slave_status);
+
+		// Notify the masters
+               	(&et_dev->mbox_mm)->send_interrupt(et_dev->r_pu_trg_pcie);
+               	(&et_dev->mbox_sp)->send_interrupt(et_dev->r_pu_trg_pcie);
+
+               	//Flush PCIe writes again for complete safety: the send_interrupt()
+               	//routine is really just an iowrite32(), flush them as well
+               	mbox_rdy = ioread32(&(&et_dev->mbox_mm)->mem->slave_status);
+
+ 		mutex_unlock(&minor_dev->read_write_mutex);
+		return 0;
+
+	case GET_MM_MBOX_READY:
+		mbox_rdy = (unsigned long)mbox_ready(&et_dev->mbox_mm);
+		if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) {
+			pr_err("ioctl: GET_MM_MBOX_READY: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	case GET_SP_MBOX_READY:
+		mbox_rdy = (unsigned long)mbox_ready(&et_dev->mbox_sp);
+		if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) {
+			pr_err("ioctl: GET_SP_MBOX_READY: failed to copy to user\n");
+			return -ENOMEM;
+		}
+		return 0;
+
+	default:
+		pr_err("esperanto_pcie_ioctl: unknown cmd: 0x%x\n", cmd);
+		return -EINVAL;
+	}
+	return -EINVAL;
+}
+
 static int esperanto_pcie_open(struct inode *inode, struct file *filp)
 {
 	//int rc;
@@ -919,6 +1012,7 @@ static struct file_operations et_pcie_fops = {
 	.read = esperanto_pcie_read,
 	.write = esperanto_pcie_write,
 	.llseek = esperanto_pcie_llseek,
+	.unlocked_ioctl = esperanto_pcie_ioctl,
 	.open = esperanto_pcie_open,
 	.release = esperanto_pcie_release,
 };
