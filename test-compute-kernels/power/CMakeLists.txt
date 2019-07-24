@@ -27,3 +27,12 @@ install(TARGETS ${TARGET_NAME}.elf
   EXPORT esperanto-fw-targets
   RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/kernels
   COMPONENT kernels)
+
+message("Power kernel hex to install ${TARGET_NAME_OUTPUT}")
+
+string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
+foreach(FILE ${OUTPUT_LIST})
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/power
+    COMPONENT zebu)
+endforeach(FILE)
