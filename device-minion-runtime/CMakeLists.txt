@@ -17,6 +17,7 @@ set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
 project(DeviceFirmware VERSION 0.1.0 LANGUAGES C ASM)
 
+option(ENABLE_SYSEMU "Enable building sysemu" OFF)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
