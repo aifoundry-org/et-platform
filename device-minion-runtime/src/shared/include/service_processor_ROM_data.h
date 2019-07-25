@@ -64,10 +64,12 @@ typedef struct FLASH_FS_ROM_INFO_s {
 typedef struct SERVICE_PROCESSOR_ROM_DATA_s {
     uint32_t service_processor_rom_data_size;
     uint32_t service_processor_rom_version;
+    uint32_t sp_gpio_pins;
     FLASH_FS_ROM_INFO_t flash_fs_rom_info;
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t pcie_config_header;
     uint32_t * pcie_config_data;
     uint32_t * vaultip_firmware_image;
+    uint32_t vaultip_coid_set;
     ESPERANTO_CERTIFICATE_t sp_certificates[2];
     ESPERANTO_IMAGE_FILE_HEADER_t sp_bl1_header;
 } SERVICE_PROCESSOR_ROM_DATA_t;

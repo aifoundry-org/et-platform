@@ -76,6 +76,9 @@ typedef struct SERVICE_PROCESSOR_BL2_DATA_s {
     uint32_t service_processor_bl2_version;
     uint32_t service_processor_bl1_version;
     uint32_t service_processor_rom_version;
+    uint32_t sp_gpio_pins;
+    uint32_t vaultip_coid_set;
+
     FLASH_FS_BL2_INFO_t flash_fs_bl2_info;
 
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t pcie_config_header;
@@ -84,7 +87,8 @@ typedef struct SERVICE_PROCESSOR_BL2_DATA_s {
     ESPERANTO_IMAGE_FILE_HEADER_t sp_bl2_header;
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t dram_training_header;
 
-    ESPERANTO_CERTIFICATE_t minion_certificates[2];
+    ESPERANTO_CERTIFICATE_t sw_certificates[2];
+    uint32_t sw_certificates_loaded;
     ESPERANTO_IMAGE_FILE_HEADER_t machine_minion_header;
     ESPERANTO_IMAGE_FILE_HEADER_t master_minion_header;
     ESPERANTO_IMAGE_FILE_HEADER_t worker_minion_header;
