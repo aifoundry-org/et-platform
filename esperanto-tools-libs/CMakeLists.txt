@@ -23,6 +23,7 @@ option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ETSOC "Build for the ETSOC")
 option(ENABLE_TESTS "Enable tests" ON)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
+option(ENABLE_SYSEMU_ARTIFACT "Enable artifactory path for etsoc builds" OFF)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):
 # "module": build the dependency using sources from git submodule under external
