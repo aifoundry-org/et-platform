@@ -62,6 +62,8 @@ struct sys_emu_cmd_options {
     bool mins_dis              = false;
     int  mem_reset             = 0;
     bool mem_reset_flag        = false;
+    char * pu_uart_tx_file     = nullptr;
+    char * pu_uart1_tx_file    = nullptr;
 };
 
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);

@@ -4,7 +4,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <fcntl.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <list>
 #include <exception>
 #include <algorithm>
@@ -130,35 +133,37 @@ static const char * help_msg =
 "\n ET System Emulator\n\n\
      sys_emu [options]\n\n\
  Where options are one of:\n\
-     -api_comm <path>      Path to socket that feeds runtime API commands.\n\
+     -api_comm <path>         Path to socket that feeds runtime API commands.\n\
 "
 #ifdef SYSEMU_DEBUG
-"     -d                    Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
+"     -d                      Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
 #endif
 "\
-     -dump_addr <addr>     Address in memory at which to start dumping. Only valid if -dump_file is used\n\
-     -dump_file <path>     Path to the file in which to dump the memory content at the end of the simulation\n\
-     -dump_mem <path>      Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n\
+     -dump_addr <addr>        Address in memory at which to start dumping. Only valid if -dump_file is used\n\
+     -dump_file <path>        Path to the file in which to dump the memory content at the end of the simulation\n\
+     -dump_mem <path>         Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n\
 "
 #ifdef SYSEMU_PROFILING
-"     -dump_prof <path>     Path to the file in which to dump the profiling content at the end of the simulation\n"
+"     -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
 #endif
 "\
-     -dump_size <size>     Size of the memory to dump. Only valid if -dump_file is used\n\
-     -elf <path>           Path to an ELF file to load.\n\
-     -l                    Enable Logging\n\
-     -lm <minion>          Log a given Minion ID only. (default: all)\n\
-     -master_min           Enables master minion to send interrupts to compute minions.\n\
-     -max_cycles <cycles>  Stops execution after provided number of cycles (default: 10M)\n\
-     -mem_desc <path>      Path to a file describing the memory regions to create and what code to load there\n\
-     -mem_reset <byte>     Reset value of main memory (default: 0)\n\
-     -minions <mask>       A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
-     -mins_dis             Minions start disabled\n\
-     -net_desc <path>      Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
-     -reset_pc <addr>      Sets boot program counter (default: 0x8000001000)\n\
-     -shires <mask>        A mask of Shires that should be enabled. (default: 1 Shire)\n\
-     -single_thread        Disable 2nd Minion thread\n\
-     -sp_reset_pc <addr>   Sets Service Processor boot program counter (default: 0x40000000)\n\
+     -dump_size <size>        Size of the memory to dump. Only valid if -dump_file is used\n\
+     -elf <path>              Path to an ELF file to load.\n\
+     -l                       Enable Logging\n\
+     -lm <minion>             Log a given Minion ID only. (default: all)\n\
+     -master_min              Enables master minion to send interrupts to compute minions.\n\
+     -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
+     -mem_desc <path>         Path to a file describing the memory regions to create and what code to load there\n\
+     -mem_reset <byte>        Reset value of main memory (default: 0)\n\
+     -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
+     -mins_dis                Minions start disabled\n\
+     -net_desc <path>         Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
+     -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
+     -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
+     -single_thread           Disable 2nd Minion thread\n\
+     -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
+     -pu_uart_tx_file <path>  Path to the file in which to dump the contents of PU UART TX\n\
+     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -573,6 +578,16 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
             cmd_options.dump_mem = argv[i];
             cmd_options.dump = 0;
         }
+        else if(cmd_options.dump == 6)
+        {
+            cmd_options.pu_uart_tx_file = argv[i];
+            cmd_options.dump = 0;
+        }
+        else if(cmd_options.dump == 7)
+        {
+            cmd_options.pu_uart1_tx_file = argv[i];
+            cmd_options.dump = 0;
+        }
         else if(cmd_options.mem_reset_flag)
         {
             cmd_options.mem_reset = atoi(argv[i]);
@@ -625,6 +640,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             cmd_options.sp_reset_pc_flag = true;
         }
+        else if(strcmp(argv[i], "-mem_reset") == 0)
+        {
+            cmd_options.mem_reset_flag = true;
+        }
         else if(strcmp(argv[i], "-dump_addr") == 0)
         {
             cmd_options.dump = 1;
@@ -637,16 +656,6 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             cmd_options.dump = 3;
         }
-        else if(strcmp(argv[i], "-mem_reset") == 0)
-        {
-            cmd_options.mem_reset_flag = true;
-        }
-#ifdef SYSEMU_PROFILING
-        else if(strcmp(argv[i], "-dump_prof") == 0)
-        {
-            cmd_options.dump_prof = 1;
-        }
-#endif
         else if(strcmp(argv[i], "-lm") == 0)
         {
             cmd_options.dump = 4;
@@ -654,6 +663,14 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if(strcmp(argv[i], "-dump_mem") == 0)
         {
             cmd_options.dump = 5;
+        }
+        else if(strcmp(argv[i], "-pu_uart_tx_file") == 0)
+        {
+            cmd_options.dump = 6;
+        }
+        else if(strcmp(argv[i], "-pu_uart1_tx_file") == 0)
+        {
+            cmd_options.dump = 7;
         }
         else if(strcmp(argv[i], "-m") == 0)
         {
@@ -679,6 +696,12 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if(strcmp(argv[i], "-d") == 0)
         {
             cmd_options.debug = true;
+        }
+#endif
+#ifdef SYSEMU_PROFILING
+        else if(strcmp(argv[i], "-dump_prof") == 0)
+        {
+            cmd_options.dump_prof = 1;
         }
 #endif
         else if(strcmp(argv[i], "-mins_dis") == 0)
@@ -754,9 +777,29 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
             return false;
     }
 
-    // Setup UART streams
-    bemu::memory.pu_uart_space.fd = STDOUT_FILENO;
-    bemu::memory.pu_uart1_space.fd = STDOUT_FILENO;
+    // Setup PU UART stream
+    if (cmd_options.pu_uart_tx_file) {
+        int fd = open(cmd_options.pu_uart_tx_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart_tx_file);
+            return false;
+        }
+        bemu::memory.pu_uart_space.fd = fd;
+    } else {
+        bemu::memory.pu_uart_space.fd = STDOUT_FILENO;
+    }
+
+    // Setup PU UART1 stream
+    if (cmd_options.pu_uart1_tx_file) {
+        int fd = open(cmd_options.pu_uart1_tx_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+        if (fd < 0) {
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart1_tx_file);
+            return false;
+        }
+        bemu::memory.pu_uart1_space.fd = fd;
+    } else {
+        bemu::memory.pu_uart1_space.fd = STDOUT_FILENO;
+    }
 
     // Initialize network
     net_emu = net_emulator(&bemu::memory);
@@ -1126,6 +1169,12 @@ sys_emu::main_internal(int argc, char * argv[])
 
     if(cmd_options.dump_mem)
         bemu::dump_data(bemu::memory, cmd_options.dump_mem, bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);
+
+    if(cmd_options.pu_uart_tx_file != nullptr)
+        close(bemu::memory.pu_uart_space.fd);
+
+    if(cmd_options.pu_uart1_tx_file != nullptr)
+        close(bemu::memory.pu_uart1_space.fd);
 
 #ifdef SYSEMU_PROFILING
     if (cmd_options.dump_prof_file != NULL) {
