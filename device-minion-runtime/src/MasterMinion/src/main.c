@@ -526,7 +526,7 @@ static void update_kernel_state(kernel_id_t kernel_id, uint64_t shire, shire_sta
 
                 MBOX_send(MBOX_PCIE, response, sizeof(response));
 
-                kernel_status[kernel_id].kernel_state = KERNEL_STATE_COMPLETE;
+                kernel_status[kernel_id].kernel_state = KERNEL_STATE_UNUSED;
             }
         }
         break;
