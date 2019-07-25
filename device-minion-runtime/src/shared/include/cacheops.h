@@ -21,6 +21,7 @@
 #endif
 
 #include <stdbool.h>
+#include <stddef.h>
 
 enum cop_dest {
    to_L1  = 0x0ULL,
@@ -131,6 +132,18 @@ inline void __attribute__((always_inline)) evict_va(uint64_t use_tmask, uint64_t
       : [x31_enc] "r" (x31_enc), [csr_enc] "r" (csr_enc)
       : "x31"
    );
+}
+
+//-------------------------------------------------------------------------------------------------
+//
+// FUNCTION: evict
+//
+//   This function evicts all cache lines from address to address+size up to the provided
+//   cache level.
+//
+static inline void evict(enum cop_dest dest, volatile const void* const address, size_t size)
+{
+    evict_va(0, dest, (uint64_t)address, (((uint64_t)address & 0x3F) + size) >> 6, 64, 0, 0);
 }
 
 

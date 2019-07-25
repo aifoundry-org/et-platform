@@ -76,6 +76,8 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         "sd    x29, 26 * 8( sp )   \n"
         "sd    x30, 27 * 8( sp )   \n"
         "sd    x31, 28 * 8( sp )   \n"
+        "mv    x10, %4             \n" // a0 = kernel_params_ptr
+        "mv    x11, %5             \n" // a1 = grid_config_ptr
         "sd    sp, %0              \n" // save sp to supervisor stack SP region
         "mv    ra, %1              \n" // set return address to kernel_return_function
         "mv    s0, %2              \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
@@ -93,8 +95,6 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         "mv    x7, zero            \n"
         "mv    x8, zero            \n"
         "mv    x9, zero            \n"
-        "mv    x10, %4             \n" // a0 = kernel_params_ptr
-        "mv    x11, %5             \n" // a1 = grid_config_ptr
         "mv    x12, zero           \n"
         "mv    x13, zero           \n"
         "mv    x14, zero           \n"
@@ -289,8 +289,8 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, con
 
         // Evict to invalidate kernel_params and grid_config
         // These address must never be dirty, i.e. firmware must never write to addresses where parmeters are placed
-        evict_va(0, to_L3, (uint64_t)kernel_params_ptr, (sizeof(kernel_params_t) + 63) / 64, 64, 0, 0);
-        evict_va(0, to_L3, (uint64_t)grid_config_ptr, (sizeof(grid_config_t) + 63) / 64, 64, 0, 0);
+        evict(to_L3, kernel_params_ptr, sizeof(kernel_params_t));
+        evict(to_L3, grid_config_ptr, sizeof(grid_config_t));
 
         // Zero out TensorExtensionCSRs
         asm volatile (

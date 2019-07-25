@@ -245,7 +245,7 @@ static void __attribute__((noreturn)) sync_thread(uint64_t kernel_id)
         WAIT_FCC(0);
 
         // read fresh kernel_config
-        evict_va(0, to_L3, (uint64_t)kernel_config_ptr, sizeof(kernel_config_t) / 64, 64, 0, 0);
+        evict(to_L3, kernel_config_ptr, sizeof(kernel_config_t));
         WAIT_CACHEOPS
 
         const uint64_t num_shires = kernel_config_ptr->num_shires;
@@ -598,14 +598,14 @@ static void launch_kernel(const kernel_params_t* const kernel_params_ptr, const 
 
         // Evict kernel config to point of coherency - sync threads and worker minion will read it
         FENCE
-        evict_va(0, to_L3, (uint64_t)kernel_config_ptr, sizeof(kernel_config_t) / 64, 64, 0, 0);
+        evict(to_L3, kernel_config_ptr, sizeof(kernel_config_t));
         WAIT_CACHEOPS
 
         // Create the message to broadcast to all the worker minion
         message.id = MESSAGE_ID_KERNEL_LAUNCH;
         message.data[0] = kernel_config[kernel_id].kernel_info.compute_pc;
-        message.data[1] = (uint64_t)kernel_config[kernel_id].kernel_info.kernel_params_ptr;
-        message.data[2] = (uint64_t)kernel_config[kernel_id].kernel_info.grid_config_ptr;
+        message.data[1] = (uint64_t)&kernel_config[kernel_id].kernel_params;
+        message.data[2] = 0; // TODO grid config
 
         if (0 == broadcast_message_send_master(shire_mask, 0xFFFFFFFFFFFFFFFFU, &message))
         {
