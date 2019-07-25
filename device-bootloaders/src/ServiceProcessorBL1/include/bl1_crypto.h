@@ -2,6 +2,7 @@
 #define __BL1_CRYPTO_H__
 
 #include <stdlib.h>
+
 #include "esperanto_public_key_data.h"
 
 typedef struct CRYPTO_HASH_CONTEXT_s {
@@ -15,13 +16,17 @@ typedef struct CRYPTO_AES_CONTEXT_s {
     uint8_t IV[16];
 } CRYPTO_AES_CONTEXT_t;
 
+int crypto_init(void);
+
 int crypto_verify_public_key_params(const PUBLIC_KEY_t * public_key);
 int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t * signature);
 
 int crypto_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash);
+
 int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg);
 int crypto_hash_update(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, size_t msg_size);
-int crypto_hash_final(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, size_t msg_size, size_t total_msg_length, uint8_t * hash);
+int crypto_hash_final(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, size_t msg_size, 
+                      size_t total_msg_length, uint8_t * hash);
 int crypto_hash_abort(CRYPTO_HASH_CONTEXT_t * hash_context);
 
 int crypto_derive_kdk_key(const void * derivation_data, size_t derivation_data_size, uint32_t * kdk_key);

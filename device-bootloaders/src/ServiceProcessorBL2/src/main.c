@@ -4,22 +4,142 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+
 #include "service_processor_ROM_data.h"
 #include "service_processor_BL1_data.h"
+#include "service_processor_BL2_data.h"
+#include "bl2_certificates.h"
+#include "bl2_firmware_loader.h"
+#include "bl2_flash_fs.h"
 #include "bl2_build_configuration.h"
 #include "build_configuration.h"
 
+#include "bl2_main.h"
+#include "bl2_flashfs_driver.h"
+#include "bl2_vaultip_driver.h"
+#include "bl2_reset.h"
+
 #include <stdio.h>
+#include <string.h>
+#include "bl2_crypto.h"
+
+//#define DUMMY_TASKS
 
 #define TASK_STACK_SIZE 4096 // overkill for now
 
+#ifdef DUMMY_TASKS
 void taskA(void *pvParameters);
 void taskB(void *pvParameters);
+#endif
 
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
 void vApplicationIdleHook(void);
 void vApplicationTickHook(void);
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
+
+static SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
+
+SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void) {
+    return &g_service_processor_bl2_data;
+}
+
+static TaskHandle_t gs_taskHandleMain;
+static StackType_t gs_stackMain[TASK_STACK_SIZE];
+static StaticTask_t gs_taskBufferMain;
+
+static void taskMain(void *pvParameters)
+{
+    (void)pvParameters;
+
+    // Disable buffering on stdout
+    setbuf(stdout, NULL);
+
+    if (0 != release_noc_from_reset()) {
+        printf("Failed to release main NoC from reset!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released main NoC from reset.\n");
+
+    if (0 != release_memshire_from_reset()) {
+        printf("Failed to release MemShire from reset!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released MemShire from reset.\n");
+
+    printf("---------------------------------------------\n");
+    printf("Attempting to load SW ROOT/Issuing Certificate chain...\n");
+    if (0 != load_sw_certificates_chain()) {
+        printf("Failed to load SW ROOT/Issuing Certificate chain!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+
+    printf("---------------------------------------------\n");
+    printf("Attempting to load Machine Minion firmware...\n");
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MACHINE_MINION)) {
+        printf("Failed to load Machine Minion firmware!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Machine Minion firmware loaded.\n");
+
+    printf("---------------------------------------------\n");
+    printf("Attempting to load Master Minion firmware...\n");
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_MASTER_MINION)) {
+        printf("Failed to load Master Minion firmware!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Master Minion firmware loaded.\n");
+
+    printf("---------------------------------------------\n");
+    printf("Attempting to load Worker Minion firmware...\n");
+    if (0 != load_firmware(ESPERANTO_IMAGE_TYPE_WORKER_MINION)) {
+        printf("Failed to load Worker Minion firmware!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Worker Minion firmware loaded.\n");
+
+    printf("---------------------------------------------\n");
+
+    if (0 != release_minions_from_reset()) {
+        printf("Failed to release Minions from reset!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released Minions from reset.\n");
+    goto DONE;
+
+FIRMWARE_LOAD_ERROR:
+    printf("Fatal error... waiting for reset!\n");
+
+DONE:
+    while (1)
+    {
+        printf("M");
+        vTaskDelay(2U);
+    }
+}
+
+static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data) {
+    printf("SP BL1 data address: %p\n", bl1_data);
+    if (NULL == bl1_data || sizeof(SERVICE_PROCESSOR_BL1_DATA_t) != bl1_data->service_processor_bl1_data_size || SERVICE_PROCESSOR_BL1_DATA_VERSION != bl1_data->service_processor_bl1_version) {
+        printf("Invalid BL1 DATA!\n");
+        return -1;
+    }
+
+    g_service_processor_bl2_data.service_processor_rom_version = bl1_data->service_processor_rom_version;
+    g_service_processor_bl2_data.service_processor_bl1_version = bl1_data->service_processor_bl1_version;
+    g_service_processor_bl2_data.sp_gpio_pins = bl1_data->sp_gpio_pins;
+    g_service_processor_bl2_data.vaultip_coid_set = bl1_data->vaultip_coid_set;
+
+    // copy the SP ROOT/ISSUING CA certificates chain
+    memcpy(&(g_service_processor_bl2_data.sp_certificates), &(bl1_data->sp_certificates), sizeof(bl1_data->sp_certificates));
+
+    // copy the SP BL1 header
+    memcpy(&(g_service_processor_bl2_data.sp_bl1_header), &(bl1_data->sp_bl1_header), sizeof(bl1_data->sp_bl1_header));
+
+    // copy the SP BL2 header
+    memcpy(&(g_service_processor_bl2_data.sp_bl2_header), &(bl1_data->sp_bl2_header), sizeof(bl1_data->sp_bl2_header));
+
+    return 0;
+}
 
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data);
 
@@ -36,7 +156,15 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     printf("File version %u.%u.%u\n", image_version_info->file_version_major, image_version_info->file_version_minor, image_version_info->file_version_revision);
     printf("GIT version: %s\n", GIT_VERSION_STRING);
     printf("GIT hash: %s\n", GIT_HASH_STRING);
-    printf("bl1_data @ %p\n", bl1_data);
+
+    memset(&g_service_processor_bl2_data, 0, sizeof(g_service_processor_bl2_data));
+    g_service_processor_bl2_data.service_processor_bl2_data_size = sizeof(g_service_processor_bl2_data);
+    g_service_processor_bl2_data.service_processor_bl2_version = SERVICE_PROCESSOR_BL2_DATA_VERSION;
+
+    if (0 != copy_bl1_data(bl1_data)) {
+        printf("copy_bl1_data() failed!!\n");
+        goto FATAL_ERROR;
+    }
 
     //SERIAL_init(UART0);
 
@@ -51,6 +179,31 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
 
     INT_init();
 
+    if (0 != vaultip_drv_init()) {
+        printf("vaultip_drv_init() failed!\n");
+        goto FATAL_ERROR;
+    }
+    if (0 != crypto_init(bl1_data->vaultip_coid_set)) {
+        printf("crypto_init() failed!\n");
+        goto FATAL_ERROR;
+    }
+    if (0 != flashfs_drv_init(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info)) {
+        printf("flashfs_drv_init() failed!\n");
+        goto FATAL_ERROR;
+    }
+
+    gs_taskHandleMain = xTaskCreateStatic(taskMain,
+                                    "Main Task",
+                                    TASK_STACK_SIZE,
+                                    NULL,
+                                    1,
+                                    gs_stackMain,
+                                    &gs_taskBufferMain);
+    if (gs_taskHandleMain == NULL) {
+        printf("xTaskCreateStatic(taskMain) failed!\r\n");
+    }
+
+#ifdef DUMMY_TASKS
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];
     static StaticTask_t taskBufferA;
@@ -83,10 +236,17 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     {
         printf("taskHandle error\r\n");
     }
+#endif
 
     vTaskStartScheduler();
+
+FATAL_ERROR:
+    printf("Encountered a FATAL ERROR!\n");
+    printf("Waiting for RESET!!!\n");
+    for(;;);
 }
 
+#ifdef DUMMY_TASKS
 void taskA(void *pvParameters)
 {
     (void)pvParameters;
@@ -114,6 +274,7 @@ void taskB(void *pvParameters)
         vTaskDelay(3U);
     }
 }
+#endif
 
 /* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an
 implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
@@ -149,7 +310,7 @@ void vApplicationIdleHook(void)
 void vApplicationTickHook(void)
 {
     // TODO FIXME watchdog checking goes here
-    SERIAL_write(UART0, ".", 1);
+    //SERIAL_write(UART0, ".", 1);
 }
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName)

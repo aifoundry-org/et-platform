@@ -14,7 +14,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "et_cru.h"
 #include "serial.h"
 #include "crc32.h"
 
@@ -24,15 +23,14 @@
 #include "vaultip_static_assets.h"
 #include "system_registers.h"
 #include "bl2_flash_fs.h"
+#include "cache_flush_ops.h"
 
 #include "bl2_vaultip_controller.h"
 
+#include "spio_misc_esr.h"
 #include "hal_device.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
-
-//#define VAULTIP_CRYPTO_OFFICER_IDENTITY 0x4F435445
-#define VAULTIP_CRYPTO_OFFICER_IDENTITY 0
 
 //#define VERBOSE_FW_LOAD
 //#define TEST_RAM_FIRMWARE
@@ -60,7 +58,7 @@
 #define PTR232LO(x) ((uint32_t)(((size_t)x) & 0xFFFFFFFFu))
 #define PTR232HI(x) ((uint32_t)((((size_t)x) >> 32u) & 0xFFFFFFFFu))
 
-static uint16_t gs_next_token_id = 0x1000;
+static uint16_t gs_next_token_id = 0x3000;
 
 static VAULTIP_INPUT_TOKEN_t input_token;
 static VAULTIP_OUTPUT_TOKEN_t output_token;
@@ -85,6 +83,27 @@ static inline void * const_cast(const void * vp) {
 
     u.vp = vp;
     return u.p;
+}
+
+static uint32_t gs_vault_dma_reloc_read = 0x0;
+static uint32_t gs_vault_dma_reloc_write = 0x0;
+
+inline static void set_vault_dma_reloc_read(uint32_t reloc) {
+    volatile Spio_misc_esr_t * spio_misc_esr = (Spio_misc_esr_t*)R_SP_MISC_BASEADDR;
+    if (reloc != gs_vault_dma_reloc_read) {
+        spio_misc_esr->VAULT_DMA_R_RELOC.R = ((Spio_misc_esr_VAULT_DMA_R_RELOC_t){ .B = { .Rd_Channel_Addr = reloc & 0xFFu } }).R;
+        gs_vault_dma_reloc_read = reloc;
+        printf("*** gs_vault_dma_reloc_read = 0x%x ***\n", gs_vault_dma_reloc_read);
+    }
+}
+
+inline static void set_vault_dma_reloc_write(uint32_t reloc) {
+    volatile Spio_misc_esr_t * spio_misc_esr = (Spio_misc_esr_t*)R_SP_MISC_BASEADDR;
+    if (reloc != gs_vault_dma_reloc_write) {
+        spio_misc_esr->VAULT_DMA_WR_RELOC.R = ((Spio_misc_esr_VAULT_DMA_WR_RELOC_t){ .B = { .Wt_Channel_Addr = reloc & 0xFFu } }).R;
+        gs_vault_dma_reloc_write = reloc;
+        printf("*** gs_vault_dma_reloc_write = 0x%x ***\n", gs_vault_dma_reloc_write);
+    }
 }
 
 static uint16_t get_next_token_id(void) {
@@ -188,7 +207,7 @@ void dump_vip_regs(void) {
     printf("MAILBOX_LOCKOUT: 0x%x\n", val);
 }
 
-int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
+static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
     volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
@@ -248,7 +267,7 @@ int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
     return 0;
 }
 
-int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
+static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
     volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
@@ -327,9 +346,14 @@ static void print_failed_input_token_info(const uint32_t * input_token_words, ui
     uint32_t n;
     printf("Input token:\n");
     for (n = 0; n < words_count; n++) {
-        printf("  si[%u] = %08x\n", n, input_token_words[n]);
+        printf("  si[%u] = %08x", n, input_token_words[n]);
+        if (3 == (n % 4)) {
+            printf("\n");
+        }
     }
-    printf("\n");
+    if (0 != (n % 4)) {
+        printf("\n");
+    }
 }
 
 int vaultip_get_system_information(VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info) {
@@ -358,7 +382,167 @@ int vaultip_get_system_information(VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_i
     }
 }
 
-int vaultip_register_read(bool incremental_read, uint32_t number, const uint32_t * address, uint32_t * result) {
+int vaultip_public_data_read(uint32_t identity, uint32_t asset_id, uint8_t * data_buffer, uint32_t data_buffer_size, uint32_t * data_size) {
+    if (NULL == data_buffer || 0 == data_buffer_size || NULL == data_size) {
+        printf("Invalid arguments!\n");
+        return -1;
+    }
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_01.Identity = identity;
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_ASSET_MANAGEMENT;
+    input_token.dw_00.SubCode = VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_PUBLIC_DATA_READ;
+
+    input_token.public_data_read.dw_02.AS_ID = asset_id;
+    input_token.public_data_read.dw_03.OutputDataLength = data_buffer_size & 0x3FF;
+    input_token.public_data_read.dw_04.OutputDataAddress_31_00 = PTR232LO(data_buffer);
+    //input_token.public_data_read.dw_05.OutputDataAddress_63_32 = PTR232HI(data_buffer);
+    set_vault_dma_reloc_read(PTR232HI(data_buffer));
+    set_vault_dma_reloc_write(PTR232HI(data_buffer));
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        if (NULL != data_size) {
+            *data_size = output_token.public_data_read.dw_01.DataLength;
+        }
+        return 0;
+    } else {
+        return -1;
+    }
+}
+
+int vaultip_monotonic_counter_read(uint32_t identity, uint32_t asset_id, uint8_t * counter_buffer, uint32_t counter_buffer_size, uint32_t * data_size) {
+    if (NULL == counter_buffer || 0 == counter_buffer_size || NULL == data_size) {
+        printf("Invalid arguments!\n");
+        return -1;
+    }
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_01.Identity = identity;
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_ASSET_MANAGEMENT;
+    input_token.dw_00.SubCode = VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_MONOTONIC_COUNTER_READ;
+
+    input_token.monotonic_counter_read.dw_02.AS_ID = asset_id;
+    input_token.monotonic_counter_read.dw_03.OutputDataLength = counter_buffer_size & 0x3FF;
+    input_token.monotonic_counter_read.dw_04.OutputDataAddress_31_00 = PTR232LO(counter_buffer);
+    //input_token.monotonic_counter_read.dw_05.OutputDataAddress_63_32 = PTR232HI(counter_buffer);
+    set_vault_dma_reloc_read(PTR232HI(counter_buffer));
+    set_vault_dma_reloc_write(PTR232HI(counter_buffer));
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        *data_size = output_token.monotonic_counter_read.dw_01.DataLength;
+        return 0;
+    } else {
+        //printf("vaultip_monotonic_counter_read: output_token = 0x%x\n", output_token.dw[0]);
+        //print_failed_input_token_info(input_token.dw, 6);
+        return -1;
+    }
+}
+
+int vaultip_monotonic_counter_increment(uint32_t identity, uint32_t asset_id) {
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_01.Identity = identity;
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_ASSET_MANAGEMENT;
+    input_token.dw_00.SubCode = VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_MONOTONIC_COUNTER_INCREMENT;
+
+    input_token.monotonic_counter_increment.dw_02.AS_ID = asset_id;
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        return 0;
+    } else {
+        printf("vaultip_monotonic_counter_increment: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 3);
+        return -1;
+    }
+}
+
+int vaultip_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_t policy_number, bool CRC, const void * input_data, size_t input_data_length, const void * associated_data, size_t associated_data_length) {
+    if (associated_data_length > 232) {
+        return -1;
+    }
+
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_01.Identity = identity;
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_ASSET_MANAGEMENT;
+    input_token.dw_00.SubCode = VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_OTP_DATA_WRITE;
+
+    input_token.otp_data_write.dw_02.AssetNumber = asset_number & 0x1Fu;
+    input_token.otp_data_write.dw_02.PolicyNumber = policy_number & 0x1Fu;
+    input_token.otp_data_write.dw_02.CRC = CRC ? 1 : 0;
+
+    input_token.otp_data_write.dw_03.InputDataLength = input_data_length & 0x3FFu;
+    input_token.otp_data_write.dw_03.AssociatedDataLength = associated_data_length & 0xFFu;
+
+    input_token.otp_data_write.dw_04.InputDataAddress_31_00 = PTR232LO(input_data);
+    //input_token.otp_data_write.dw_05.InputDataAddress_63_32 = PTR232HI(input_data);
+    set_vault_dma_reloc_read(PTR232HI(input_data));
+    set_vault_dma_reloc_write(PTR232HI(input_data));
+
+    memcpy(input_token.otp_data_write.dw_63_06, associated_data, associated_data_length & 0xFFu);
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        return 0;
+    } else {
+        printf("vaultip_otp_data_write: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 64);
+        return -1;
+    }
+}
+
+int vaultip_register_read(uint32_t identity, bool incremental_read, uint32_t number, const uint32_t * address, uint32_t * result) {
     uint32_t n;
 
     if (number > VAULTIP_INPUT_TOKEN_REGISTER_READ_MAXIMUM_NUMBER) {
@@ -368,7 +552,7 @@ int vaultip_register_read(bool incremental_read, uint32_t number, const uint32_t
     memset(&input_token, 0, sizeof(input_token));
     memset(&output_token, 0, sizeof(output_token));
 
-    input_token.dw_01.Identity = VAULTIP_CRYPTO_OFFICER_IDENTITY;
+    input_token.dw_01.Identity = identity;
 
     input_token.dw_00.TokenID = get_next_token_id();
     input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_SERVICE;
@@ -401,11 +585,13 @@ int vaultip_register_read(bool incremental_read, uint32_t number, const uint32_t
         }
         return 0;
     } else {
+        printf("vaultip_register_read: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 4);
         return -1;
     }
 }
 
-int vaultip_register_write(bool incremental_write, uint32_t number, const uint32_t * mask, const uint32_t * address, const uint32_t * value) {
+int vaultip_register_write(uint32_t identity, bool incremental_write, uint32_t number, const uint32_t * mask, const uint32_t * address, const uint32_t * value) {
     uint32_t n;
 
     if (number > VAULTIP_INPUT_TOKEN_REGISTER_READ_MAXIMUM_NUMBER) {
@@ -415,7 +601,7 @@ int vaultip_register_write(bool incremental_write, uint32_t number, const uint32
     memset(&input_token, 0, sizeof(input_token));
     memset(&output_token, 0, sizeof(output_token));
 
-    input_token.dw_01.Identity = VAULTIP_CRYPTO_OFFICER_IDENTITY;
+    input_token.dw_01.Identity = identity;
 
     input_token.dw_00.TokenID = get_next_token_id();
     input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_SERVICE;
@@ -457,17 +643,21 @@ int vaultip_register_write(bool incremental_write, uint32_t number, const uint32
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
+        printf("vaultip_register_write: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 4);
         return -1;
     }
 }
 
-int vaultip_trng_configuration(void) {
+int vaultip_trng_configuration(uint32_t identity) {
     memset(&input_token, 0, sizeof(input_token));
     memset(&output_token, 0, sizeof(output_token));
 
     input_token.dw_00.TokenID = get_next_token_id();
     input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_TRNG;
     input_token.dw_00.SubCode = VAULTIP_TOKEN_TRNG_SUBCODE_CONFIGURE_NRBG;
+
+    input_token.dw_01.Identity = identity;
 
     input_token.trng_configuration.dw_02.LST = 1;
     input_token.trng_configuration.dw_02.RRD = 1;
@@ -478,6 +668,45 @@ int vaultip_trng_configuration(void) {
     input_token.trng_configuration.dw_03.SampleDiv = 0;
     input_token.trng_configuration.dw_03.SampleCycles = 8;
     input_token.trng_configuration.dw_03.Scale = 0;
+
+    //suppress_token_read_diagnostics = true;
+        print_failed_input_token_info(input_token.dw, 4);
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    //suppress_token_read_diagnostics = false;
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        return 0;
+    } else {
+        printf("vaultip_trng_configuration: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 4);
+        return -1;
+    }
+}
+
+int vaultip_trng_get_random_number(void * dst, uint16_t size, bool raw) {
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_TRNG;
+    input_token.dw_00.SubCode = VAULTIP_TOKEN_TRNG_SUBCODE_GET_RANDOM_NUMBER;
+
+    input_token.trn_get_random_number.dw_02.Size = size;
+    input_token.trn_get_random_number.dw_02.RawKey = raw ? VAULTIP_TRNG_RAW : VAULTIP_TRNG_NORMAL;
+    input_token.trn_get_random_number.dw_03.OutputDataAddress_31_00 = PTR232LO(dst);
+    //input_token.trn_get_random_number.dw_04.OutputDataAddress_63_32 = PTR232HI(dst);
+    set_vault_dma_reloc_read(PTR232HI(dst));
+    set_vault_dma_reloc_write(PTR232HI(dst));
 
     //suppress_token_read_diagnostics = true;
 
@@ -496,11 +725,13 @@ int vaultip_trng_configuration(void) {
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
+        printf("vaultip_trng_get_random_number: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 5);
         return -1;
     }
 }
 
-int vaultip_provision_huk(void) {
+int vaultip_provision_huk(uint32_t coid) {
     memset(&input_token, 0, sizeof(input_token));
     memset(&output_token, 0, sizeof(output_token));
 
@@ -508,7 +739,7 @@ int vaultip_provision_huk(void) {
     input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_ASSET_MANAGEMENT;
     input_token.dw_00.SubCode = VAULTIP_TOKEN_ASSET_MANAGEMENT_SUBCODE_PROVISION_RANDOM_HUK;
     
-    input_token.dw_01.Identity = VAULTIP_CRYPTO_OFFICER_IDENTITY;
+    input_token.dw_01.Identity = coid;
 
     input_token.provision_huk.dw_02.AssetNumber = VAULTIP_STATIC_ASSET_HUK;
     input_token.provision_huk.dw_02.AutoSeed = 0;
@@ -537,17 +768,21 @@ int vaultip_provision_huk(void) {
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
+        printf("vaultip_provision_huk: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 5);
         return -1;
     }
 }
 
-int vaultip_reset(void) {
+int vaultip_reset(uint32_t identity) {
     memset(&input_token, 0, sizeof(input_token));
     memset(&output_token, 0, sizeof(output_token));
 
     input_token.dw_00.TokenID = get_next_token_id();
     input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_SYSTEM;
     input_token.dw_00.SubCode = VAULTIP_TOKEN_SYSTEM_SUBCODE_RESET;
+
+    input_token.dw_01.Identity = identity;
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_send_input_token() failed!\n");
@@ -566,7 +801,7 @@ int vaultip_reset(void) {
     }
 }
 
-int vaultip_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash) {
+int vaultip_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash) {
     void * temp_msg;
     uint32_t hash_size;
     uint32_t hash_type;
@@ -594,15 +829,20 @@ int vaultip_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t
 
     input_token.dw_00.TokenID = get_next_token_id();
     input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_HASH;
+    input_token.dw_01.Identity = identity;
     input_token.hash.dw_02.DataLength = (uint32_t)msg_size;
     temp_msg = const_cast(msg);
-    input_token.hash.dw_03.InputDataAddress_31_00 = (uint32_t)(size_t)temp_msg;
-    input_token.hash.dw_04.InputDataAddress_63_32 = 0;
+    input_token.hash.dw_03.InputDataAddress_31_00 = PTR232LO(temp_msg);
+    //input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(temp_msg);
+    set_vault_dma_reloc_read(PTR232HI(temp_msg));
+    set_vault_dma_reloc_write(PTR232HI(temp_msg));
     input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
     input_token.hash.dw_06.Mode = VAULTIP_HASH_MODE_INITIAL_FINAL;
     input_token.hash.dw_24.TotalMessageLength_31_00 = (uint32_t)msg_size;
     input_token.hash.dw_25.TotalMessageLength_60_32 = 0;
+
+    l1_data_cache_flush_region(msg, msg_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_hash: vaultip_send_input_token() failed!\n");
@@ -624,7 +864,7 @@ int vaultip_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t
     }
 }
 
-int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init) {
+int vaultip_hash_update(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init) {
     uint32_t hash_type;
 
     switch(hash_alg) {
@@ -647,15 +887,20 @@ int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const voi
 
     input_token.dw_00.TokenID = get_next_token_id();
     input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_HASH;
+    input_token.dw_01.Identity = identity;
     input_token.hash.dw_02.DataLength = (uint32_t)msg_size;
     input_token.hash.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
     input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_NOT_FINAL : VAULTIP_HASH_MODE_CONTINUED_NOT_FINAL;
     input_token.hash.dw_07.Digest_AS_ID = digest_asset_id;
     input_token.hash.dw_24.TotalMessageLength_31_00 = 0;
     input_token.hash.dw_25.TotalMessageLength_60_32 = 0;
+
+    l1_data_cache_flush_region(msg, msg_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_hash_update: vaultip_send_input_token() failed!\n");
@@ -676,7 +921,7 @@ int vaultip_hash_update(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const voi
     }
 }
 
-int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init, size_t total_msg_length, uint8_t * hash) {
+int vaultip_hash_final(uint32_t identity, HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void * msg, size_t msg_size, bool init, size_t total_msg_length, uint8_t * hash) {
     uint32_t hash_size;
     uint32_t hash_type;
 
@@ -703,15 +948,20 @@ int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void
 
     input_token.dw_00.TokenID = get_next_token_id();
     input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_HASH;
+    input_token.dw_01.Identity = identity;
     input_token.hash.dw_02.DataLength = (uint32_t)msg_size;
     input_token.hash.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
-    input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    //input_token.hash.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
     input_token.hash.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
     input_token.hash.dw_06.Algorithm = hash_type & 0xFu;
     input_token.hash.dw_06.Mode = init ? VAULTIP_HASH_MODE_INITIAL_FINAL : VAULTIP_HASH_MODE_CONTINUED_FINAL;
     input_token.hash.dw_07.Digest_AS_ID = digest_asset_id;
     input_token.hash.dw_24.TotalMessageLength_31_00 = (uint32_t)total_msg_length;
     input_token.hash.dw_25.TotalMessageLength_60_32 = (total_msg_length >> 32u) & 0x1FFFFFFFu;
+
+    l1_data_cache_flush_region(msg, msg_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_hash_final: vaultip_send_input_token() failed!\n");
@@ -731,6 +981,411 @@ int vaultip_hash_final(HASH_ALG_t hash_alg, uint32_t digest_asset_id, const void
         print_failed_input_token_info(input_token.dw, 26);
         return -1;
     }
+}
+
+int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id, const void * msg, size_t msg_size, uint8_t * mac) {
+    uint32_t mac_type;
+    uint32_t mac_size;
+
+    switch(mac_alg) {
+    case ESPERANTO_MAC_TYPE_AES_CMAC:
+        mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
+        mac_size = 128 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_256:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_256;
+        mac_size = 256 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_384:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_384;
+        mac_size = 384 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_512:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_512;
+        mac_size = 512 / 8;
+        break;
+    default:
+        printf("vaultip_mac_generate: invalid mac_alg!\n");
+        return -1;
+    }
+
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_MAC;
+    input_token.dw_01.Identity = identity;
+    input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
+    input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
+    input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
+    input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
+    input_token.mac.dw_06.Mode = VAULTIP_MAC_MODE_INITIAL_FINAL;
+    input_token.mac.dw_06.AS_LoadKey = 1u;
+    input_token.mac.dw_06.AS_LoadMAC = 0u;
+    input_token.mac.dw_06.KeyLength = 0u;
+ 
+    input_token.mac.dw_07.MAC_AS_ID = 0;
+    input_token.dw[28] = key_asset_id;
+
+    input_token.mac.dw_24.TotalMessageLength_31_00 = msg_size & 0xFFFFFFFF;
+    input_token.mac.dw_25.TotalMessageLength_60_32 = 0;
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_mac_generate: vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_mac_generate: vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        memcpy(mac, output_token.mac.dw_02_17, mac_size);
+        return 0;
+    } else {
+        printf("vaultip_mac_generate: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 60);
+        return -1;
+    }
+}
+
+int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t key_asset_id, const void * msg, size_t msg_size, const uint8_t * mac) {
+    uint32_t mac_type;
+    uint32_t mac_size;
+
+    switch(mac_alg) {
+    case ESPERANTO_MAC_TYPE_AES_CMAC:
+        mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
+        mac_size = 128 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_256:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_256;
+        mac_size = 256 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_384:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_384;
+        mac_size = 384 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_512:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_512;
+        mac_size = 512 / 8;
+        break;
+    default:
+        printf("vaultip_mac_verify: invalid mac_alg!\n");
+        return -1;
+    }
+
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_MAC;
+    input_token.dw_01.Identity = identity;
+    input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
+    input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
+    input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
+    input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
+    input_token.mac.dw_06.Mode = VAULTIP_MAC_MODE_INITIAL_FINAL;
+    input_token.mac.dw_06.AS_LoadKey = 1u;
+    input_token.mac.dw_06.AS_LoadMAC = 1u;
+    input_token.mac.dw_06.KeyLength = 0u;
+ 
+    input_token.mac.dw_07.MAC_AS_ID = 0;
+    memcpy(input_token.mac.dw_23_08, mac, mac_size);
+
+    input_token.mac.dw_24.TotalMessageLength_31_00 = msg_size & 0xFFFFFFFF;
+    input_token.mac.dw_25.TotalMessageLength_60_32 = 0;
+
+    input_token.dw[28] = key_asset_id;
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_mac_verify: vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_mac_verify: vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        return 0;
+    } else {
+        printf("vaultip_mac_verify: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 60);
+        return -1;
+    }
+}
+
+int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, bool init) {
+    uint32_t mac_type;
+
+    switch(mac_alg) {
+    case ESPERANTO_MAC_TYPE_AES_CMAC:
+        mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_256:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_256;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_384:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_384;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_512:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_512;
+        break;
+    default:
+        printf("vaultip_mac_update: invalid mac_alg!\n");
+        return -1;
+    }
+
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_MAC;
+    input_token.dw_01.Identity = identity;
+    input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
+    input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
+    input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
+    input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
+    input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
+    input_token.mac.dw_06.AS_LoadKey = 1u;
+    input_token.mac.dw_06.AS_LoadMAC = 0u;
+    input_token.mac.dw_06.KeyLength = 0u;
+ 
+    input_token.mac.dw_07.MAC_AS_ID = mac_asset_id;
+    input_token.dw[28] = key_asset_id;
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_mac_update: vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_mac_update: vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        return 0;
+    } else {
+        printf("vaultip_mac_update: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 60);
+        return -1;
+    }
+}
+
+int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, size_t total_msg_size, bool init, uint8_t * mac) {
+    uint32_t mac_type;
+    uint32_t mac_size;
+
+    switch(mac_alg) {
+    case ESPERANTO_MAC_TYPE_AES_CMAC:
+        mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
+        mac_size = 128 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_256:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_256;
+        mac_size = 256 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_384:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_384;
+        mac_size = 384 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_512:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_512;
+        mac_size = 512 / 8;
+        break;
+    default:
+        printf("vaultip_mac_final_generate: invalid mac_alg!\n");
+        return -1;
+    }
+
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_MAC;
+    input_token.dw_01.Identity = identity;
+    input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
+    input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
+    input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
+    input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
+    input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
+    input_token.mac.dw_06.AS_LoadKey = 1u;
+    input_token.mac.dw_06.AS_LoadMAC = 0u;
+    input_token.mac.dw_06.KeyLength = 0u;
+ 
+    input_token.mac.dw_07.MAC_AS_ID = mac_asset_id;
+
+    input_token.mac.dw_24.TotalMessageLength_31_00 = total_msg_size & 0xFFFFFFFF;
+    input_token.mac.dw_25.TotalMessageLength_60_32 = 0;
+
+    input_token.dw[28] = key_asset_id;
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_mac_final_generate: vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_mac_final_generate: vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        memcpy(mac, output_token.mac.dw_02_17, mac_size);
+        return 0;
+    } else {
+        printf("vaultip_mac_final_generate: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 60);
+        return -1;
+    }
+}
+
+int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t mac_asset_id, uint32_t key_asset_id, const void * msg, size_t msg_size, size_t total_msg_size, bool init, const uint8_t * mac) {
+    uint32_t mac_type;
+    uint32_t mac_size;
+
+    switch(mac_alg) {
+    case ESPERANTO_MAC_TYPE_AES_CMAC:
+        mac_type = VAULTIP_MAC_ALGORITHM_AES_CMAC;
+        mac_size = 128 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_256:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_256;
+        mac_size = 256 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_384:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_384;
+        mac_size = 384 / 8;
+        break;
+    case ESPERANTO_MAC_TYPE_HMAC_SHA2_512:
+        mac_type = VAULTIP_MAC_ALGORITHM_HMAC_SHA_512;
+        mac_size = 512 / 8;
+        break;
+    default:
+        printf("vaultip_mac_final_verify: invalid mac_alg!\n");
+        return -1;
+    }
+
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_MAC;
+    input_token.dw_01.Identity = identity;
+    input_token.mac.dw_02.DataLength = (uint32_t)msg_size;
+    input_token.mac.dw_03.InputDataAddress_31_00 = PTR232LO(msg);
+    //input_token.mac.dw_04.InputDataAddress_63_32 = PTR232HI(msg);
+    set_vault_dma_reloc_read(PTR232HI(msg));
+    set_vault_dma_reloc_write(PTR232HI(msg));
+    input_token.mac.dw_05.InputDataLength = msg_size & 0x1FFFFFu;
+    input_token.mac.dw_06.Algorithm = mac_type & 0xFu;
+    input_token.mac.dw_06.Mode = init ? VAULTIP_MAC_MODE_INITIAL_FINAL : VAULTIP_MAC_MODE_CONTINUED_FINAL;
+    input_token.mac.dw_06.AS_LoadKey = 1u;
+    input_token.mac.dw_06.AS_LoadMAC = 1u;
+    input_token.mac.dw_06.KeyLength = 0u;
+ 
+    input_token.mac.dw_07.MAC_AS_ID = mac_asset_id;
+    memcpy(input_token.mac.dw_23_08, mac, mac_size);
+
+    input_token.mac.dw_24.TotalMessageLength_31_00 = total_msg_size & 0xFFFFFFFF;
+    input_token.mac.dw_25.TotalMessageLength_60_32 = 0;
+
+    input_token.dw[28] = key_asset_id;
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_mac_final_verify: vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_mac_final_verify: vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        return 0;
+    } else {
+        printf("vaultip_mac_final_verify: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 60);
+        return -1;
+    }
+}
+
+static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size, bool encrypt) {
+    memset(&input_token, 0, sizeof(input_token));
+    memset(&output_token, 0, sizeof(output_token));
+
+    input_token.dw_00.TokenID = get_next_token_id();
+    input_token.dw_00.OpCode = VAULTIP_TOKEN_OPCODE_ENCRYPTION;
+    input_token.dw_01.Identity = identity;
+    input_token.encryption.dw_02.DataLength = (uint32_t)data_size;
+    input_token.encryption.dw_03.InputDataAddress_31_00 = PTR232LO(data);
+    //input_token.encryption.dw_04.InputDataAddress_63_32 = PTR232HI(data);
+    set_vault_dma_reloc_read(PTR232HI(data));
+    input_token.encryption.dw_05.InputDataLength = data_size & 0x1FFFFFu;
+    input_token.encryption.dw_06.OutputDataAddress_31_00 = PTR232LO(data);
+    //input_token.encryption.dw_07.OutputDataAddress_63_32 = PTR232HI(data);
+    set_vault_dma_reloc_write(PTR232HI(data));
+    input_token.encryption.dw_08.OutputDataLength = data_size & 0x1FFFFFu;
+    //input_token.encryption.dw_09.AssociatedDataAddress_31_00 = 0;
+    //input_token.encryption.dw_10.AssociatedDataAddress_63_32 = 0;
+    input_token.encryption.dw_11.Algorithm = VAULTIP_ENCRYPT_ALGORITHM_AES;
+    input_token.encryption.dw_11.Mode = VAULTIP_ENCRYPT_MODE_CBC;
+    input_token.encryption.dw_11.AS_LoadKey = 1;
+    input_token.encryption.dw_11.AS_LoadIV = 0;
+    //input_token.encryption.dw_11.LoadParam = 0;
+    //input_token.encryption.dw_11.AS_SaveIV = 1;
+    //input_token.encryption.dw_11.GCM_Mode = 0;
+    input_token.encryption.dw_11.Encrypt = encrypt ? 1 : 0;
+    input_token.encryption.dw_11.KeyLength = VAULTIP_ENCRYPT_KEY_LENGTH_256;
+    //input_token.encryption.dw_11.NonceLength = 0;
+    //input_token.encryption.dw_11.TagLength_or_F8_SaltKeyLength = 0;
+    input_token.encryption.dw_12.SaveIV_AS_ID = 0;
+    memcpy(input_token.encryption.dw_16_13, IV, 16);
+    input_token.encryption.dw_24_17[0].Key32 = key_asset_id;
+
+    if (0 != vaultip_send_input_token(&input_token)) {
+        printf("vaultip_aes_cbc: vaultip_send_input_token() failed!\n");
+        return -1;
+    }
+
+    if (0 != vaultip_read_output_token(&output_token, DEFAULT_READ_TOKEN_TIMEOUT)) {
+        printf("vaultip_aes_cbc: vaultip_read_output_token() failed!\n");
+        return -1;
+    }
+
+    if (0 == output_token.dw_00.Error) {
+        memcpy(IV, output_token.encryption.dw_05_02, 16);
+        return 0;
+    } else {
+        printf("vaultip_aes_cbc: output_token = 0x%x\n", output_token.dw[0]);
+        print_failed_input_token_info(input_token.dw, 41);
+        return -1;
+    }
+}
+
+int vaultip_aes_cbc_encrypt(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size) {
+    return vaultip_aes_cbc(identity, key_asset_id, IV, data, data_size, true);
+}
+
+int vaultip_aes_cbc_decrypt(uint32_t identity, uint32_t key_asset_id, uint8_t * IV, void * data, size_t data_size) {
+    return vaultip_aes_cbc(identity, key_asset_id, IV, data, data_size, false);
 }
 
 int vaultip_asset_create(uint32_t identity, uint32_t policy_31_00, uint32_t policy_63_32, VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t other_settings, uint32_t lifetime, uint32_t * asset_id) {
@@ -790,13 +1445,17 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     //input_token.asset_load.dw_03.RFC5869 = 1; // todo: verify if this is required
     input_token.asset_load.dw_03.InputDataLength = data_size & 0x3FFu;
     input_token.asset_load.dw_04.InputDataAddress_31_00 = PTR232LO(data);
-    input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(data);
+    //input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(data);
+    set_vault_dma_reloc_read(PTR232HI(data));
+    set_vault_dma_reloc_write(PTR232HI(data));
 
     // for (n = 0; n < 6; n++) {
     //     printf("asset_load[%u]=%08x\n", n, input_token.dw[n]);
     // }
 
 //    printf("vaultip_asset_load_plaintext: assetid=0x%08x, length=0x%08x\n", asset_id, data_size);
+
+    l1_data_cache_flush_region(data, data_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_send_input_token() failed!\n");
@@ -811,6 +1470,7 @@ int vaultip_asset_load_plaintext(uint32_t identity, uint32_t asset_id, const voi
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
+        printf("vaultip_asset_load_plaintext: output_token[0]=%08x\n", output_token.dw[0]);
         return -1;
     }
 }
@@ -829,13 +1489,26 @@ int vaultip_asset_load_derive(uint32_t identity, uint32_t asset_id, uint32_t kdk
     input_token.asset_load.dw_03.RFC5869 = 1; // todo: verify if this is required or desired
     input_token.asset_load.dw_03.AssociatedDataLength = associated_data_size & 0xFFu;
     input_token.asset_load.dw_03.InputDataLength = salt_size & 0x3FFu;
+
+    if (NULL != salt && NULL != key_expansion_IV) {
+        if (PTR232HI(salt) != PTR232HI(key_expansion_IV)) {
+            printf("vaultip_asset_load_derive: vaultip limitation - the high bits of the salt and key_expansion_IV address differ!\n");
+            return -1;
+        }
+    }
+
     input_token.asset_load.dw_04.InputDataAddress_31_00 = PTR232LO(salt);
-    input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(salt);
+    //input_token.asset_load.dw_05.InputDataAddress_63_32 = PTR232HI(salt);
     input_token.asset_load.dw_06.OutputDataAddress_31_00 = PTR232LO(key_expansion_IV);
-    input_token.asset_load.dw_07.OutputDataAddress_63_32 = PTR232HI(key_expansion_IV);
+    //input_token.asset_load.dw_07.OutputDataAddress_63_32 = PTR232HI(key_expansion_IV);
+    set_vault_dma_reloc_read(PTR232HI(salt));
+    set_vault_dma_reloc_write(PTR232HI(salt));
     input_token.asset_load.dw_08.OutputDataLength = key_expansion_IV_length & 0x7FF;
     input_token.asset_load.dw_09.Key_AS_ID = kdk_asset_id;
     memcpy(input_token.asset_load.dw_10_63[0].AssociatedData, associated_data, associated_data_size);
+
+    l1_data_cache_flush_region(salt, salt_size);
+    l1_data_cache_flush_region(key_expansion_IV, key_expansion_IV_length);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_send_input_token() failed!\n");
@@ -949,16 +1622,27 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     input_token.public_key.dw_06.IOAssetRef = temp_message_digest_asset_id;
     input_token.public_key.dw_07.InputDataSize = message_size & 0xFFFu;
     input_token.public_key.dw_07.OutputDataSize_or_SigDataSize = sig_data_size & 0xFFFu;
-    input_token.public_key.dw_08.InputDataAddress_31_00 = PTR232LO(message);
-    input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
-    input_token.public_key.dw_10.SigDataAddress_31_00 = PTR232LO(sig_data_address);
-    input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
-    input_token.public_key.dw_12_63.HashDataLength = hash_data_length;
-/*
-    for (n = 0; n < 13; n++) {
-        printf("ec_verify[%u]=%08x\n", n, input_token.dw[n]);
+
+    if (PTR232HI(message) != PTR232HI(sig_data_address)) {
+        printf("vaultip_public_key_ecdsa_verify: vaultip limitation - the high bits of the message and signature address differ!\n");
+        return -1;
     }
-*/
+
+    input_token.public_key.dw_08.InputDataAddress_31_00 = PTR232LO(message);
+    //input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
+    input_token.public_key.dw_10.SigDataAddress_31_00 = PTR232LO(sig_data_address);
+    //input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
+    set_vault_dma_reloc_read(PTR232HI(message));
+    set_vault_dma_reloc_write(PTR232HI(message));
+    input_token.public_key.dw_12_63.HashDataLength = hash_data_length;
+
+    // for (n = 0; n < 13; n++) {
+    //     printf("ec_verify[%u]=%08x\n", n, input_token.dw[n]);
+    // }
+
+    l1_data_cache_flush_region(message, message_size);
+    l1_data_cache_flush_region(sig_data_address, sig_data_size);
+
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_send_input_token() failed!\n");
         return -1;
@@ -972,6 +1656,7 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     if (0 == output_token.dw_00.Error) {
         return 0;
     } else {
+        printf("vaultip_public_key_ecdsa_verify: vaultip_read_output_token() output token[0] = 0x%08x\n", output_token.dw[0]);
         return -1;
     }
 }
@@ -1009,15 +1694,27 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, 
     input_token.public_key.dw_06.IOAssetRef = temp_message_digest_asset_id;
     input_token.public_key.dw_07.InputDataSize = message_size & 0xFFFu;
     input_token.public_key.dw_07.OutputDataSize_or_SigDataSize = sig_data_size & 0xFFFu;
+
+    if (PTR232HI(message) != PTR232HI(sig_data_address)) {
+        printf("vaultip_public_key_ecdsa_verify: vaultip limitation - the high bits of the message and signature address differ!\n");
+        return -1;
+    }
+    
     input_token.public_key.dw_08.InputDataAddress_31_00 = PTR232LO(message);
-    input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
+    //input_token.public_key.dw_09.InputDataAddress_63_32 = PTR232HI(message);
     input_token.public_key.dw_10.SigDataAddress_31_00 = PTR232LO(sig_data_address);
-    input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
+    //input_token.public_key.dw_11.SigDataAddress_63_32 = PTR232HI(sig_data_address);
+    set_vault_dma_reloc_read(PTR232HI(message));
+    set_vault_dma_reloc_write(PTR232HI(message));
     input_token.public_key.dw_12_63.HashDataLength = hash_data_length;
 
     // for (n = 0; n < 13; n++) {
     //     printf("rsa_verify[%u]=%08x\n", n, input_token.dw[n]);
     // }
+
+    l1_data_cache_flush_all();
+    // l1_data_cache_flush_region(message, message_size);
+    // l1_data_cache_flush_region(sig_data_address, sig_data_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printf("vaultip_send_input_token() failed!\n");

@@ -9,8 +9,8 @@
 *-------------------------------------------------------------------------
 */
 
-#ifndef __BL1_SP_FIRMWARE_LOADER_H__
-#define __BL1_SP_FIRMWARE_LOADER_H__
+#ifndef __BL2_SP_FIRMWARE_LOADER_H__
+#define __BL2_SP_FIRMWARE_LOADER_H__
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -18,8 +18,6 @@
 
 #include "service_processor_BL2_data.h"
 
-int load_minion_machine_minion_firmware(void);
-int load_minion_master_minion_firmware(void);
-int load_minion_worker_minion_firmware(void);
+int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type);
 
 #endif

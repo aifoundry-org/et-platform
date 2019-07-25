@@ -9,11 +9,11 @@
 *-------------------------------------------------------------------------
 */
 
-#ifndef __BL2_MAIN_H__
-#define __BL2_MAIN_H__
+#ifndef __BL2_RESET_H__
+#define __BL2_RESET_H__
 
-#include "service_processor_BL2_data.h"
-
-SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void);
+int release_noc_from_reset(void);
+int release_memshire_from_reset(void);
+int release_minions_from_reset(void);
 
 #endif

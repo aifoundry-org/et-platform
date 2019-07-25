@@ -24,16 +24,16 @@
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
-//#define SUPPORT_RSA_2048
+#define SUPPORT_RSA_2048
 #define SUPPORT_RSA_3072
-//#define SUPPORT_RSA_4096
+#define SUPPORT_RSA_4096
 #define SUPPORT_EC_P256
-//#define SUPPORT_EC_P384
-//#define SUPPORT_EC_P521
+#define SUPPORT_EC_P384
+#define SUPPORT_EC_P521
 //#define SUPPORT_EC_CURVE25519
 #define SUPPORT_EC_EDWARDS25519
 
-//#define TRNG_ENABLED
+#define TRNG_ENABLED
 
 #include "ec_domain_parameters.h"
 
@@ -45,8 +45,20 @@ typedef union ASSET_POLICY_u {
     };
 } ASSET_POLICY_t;
 
+static bool coid_provisioned;
+#define ESPERANTO_COID 0x4F435445 // 'ETCO'
 static uint32_t get_rom_identity(void) {
-    return 0x0;
+    if (coid_provisioned) {
+        return ESPERANTO_COID;
+    } else {
+        return 0x0;
+    }
+}
+
+int crypto_init(void) {
+    SERVICE_PROCESSOR_BL1_DATA_t * bl1_data =  get_service_processor_bl1_data();
+    coid_provisioned = bl1_data->vaultip_coid_set ? true : false;
+    return 0;
 }
 
 int crypto_derive_kdk_key(const void * kdk_derivation_data, size_t kdk_derivation_data_size, uint32_t * kdk_asset_id) {
@@ -306,6 +318,10 @@ int crypto_verify_signature_params(const PUBLIC_SIGNATURE_t * signature) {
     return 0;
 }
 
+int crypto_hash(HASH_ALG_t hash_alg, const void * msg, size_t msg_size, uint8_t * hash) {
+    return vaultip_hash(get_rom_identity(), hash_alg, msg, msg_size, hash);
+}
+
 int crypto_hash_init(CRYPTO_HASH_CONTEXT_t * hash_context, HASH_ALG_t hash_alg) {
     ASSET_POLICY_t temp_digest_asset_policy;
     VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t temp_digest_asset_other_settings = (VAULTIP_INPUT_TOKEN_ASSET_CREATE_WORD_4_t){
@@ -378,9 +394,9 @@ int crypto_hash_update(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, s
     }
 
     if (hash_context->init_done) {
-        rv = vaultip_hash_update(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false);
+        rv = vaultip_hash_update(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false);
     } else {
-        rv = vaultip_hash_update(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true);
+        rv = vaultip_hash_update(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true);
         if (0 == rv) {
             hash_context->init_done = true;
         }
@@ -396,9 +412,9 @@ int crypto_hash_final(CRYPTO_HASH_CONTEXT_t * hash_context, const void * msg, si
     }
 
     if (hash_context->init_done) {
-        rv = vaultip_hash_final(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false, total_msg_length, hash);
+        rv = vaultip_hash_final(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, false, total_msg_length, hash);
     } else {
-        rv = vaultip_hash_final(hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true, total_msg_length, hash);
+        rv = vaultip_hash_final(get_rom_identity(), hash_context->hash_alg, hash_context->temp_digest_asset_id, msg, msg_size, true, total_msg_length, hash);
     }
 
     if (0 == rv) {
@@ -436,7 +452,7 @@ int crypto_mac_verify(ESPERANTO_MAC_TYPE_t mac_alg,
     }
 
     // compute MAC
-    if (0 != vaultip_mac_verify(mac_alg, mack_key, data, data_size, mac)) {
+    if (0 != vaultip_mac_verify(get_rom_identity(), mac_alg, mack_key, data, data_size, mac)) {
         printx("test_kdk: vaultip_mac_verify() failed!\n");
         return -1;
     }
@@ -1703,7 +1719,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
         }
 
         // pre-hash the data
-        if (0 != vaultip_hash_update(signature->hashAlg, temp_digest_asset_id, data, prehash_length, true)) {
+        if (0 != vaultip_hash_update(get_rom_identity(), signature->hashAlg, temp_digest_asset_id, data, prehash_length, true)) {
             printx("crypto_verify_pk_signature: vaultip_hash_init() failed!\n");
             rv = -1;
             goto DONE;

@@ -11,11 +11,11 @@
 #include "bl1_sp_firmware_loader.h"
 #include "bl1_flash_fs.h"
 #include "bl1_main.h"
+#include "bl1_crypto.h"
 #include "bl1_build_configuration.h"
 #include "build_configuration.h"
 
 SERVICE_PROCESSOR_BL1_DATA_t g_service_processor_bl1_data;
-//static bool normal_boot_priority = true;
 
 SERVICE_PROCESSOR_BL1_DATA_t * get_service_processor_bl1_data(void) {
     return &g_service_processor_bl1_data;
@@ -46,6 +46,8 @@ static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data) {
     }
 
     g_service_processor_bl1_data.service_processor_rom_version = rom_data->service_processor_rom_version;
+    g_service_processor_bl1_data.sp_gpio_pins = rom_data->sp_gpio_pins;
+    g_service_processor_bl1_data.vaultip_coid_set = rom_data->vaultip_coid_set;
 
     // copy the SP ROOT/ISSUING CA certificates chain
     memcpy(&(g_service_processor_bl1_data.sp_certificates), &(rom_data->sp_certificates), sizeof(rom_data->sp_certificates));
@@ -73,6 +75,11 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
 
     if (0 != copy_rom_data(rom_data)) {
         printx("copy_rom_data() failed!!\n");
+        goto FATAL_ERROR;
+    }
+
+    if (0 != crypto_init()) {
+        printx("crypto_init() failed!!\n");
         goto FATAL_ERROR;
     }
 

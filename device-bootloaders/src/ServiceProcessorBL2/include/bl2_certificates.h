@@ -18,6 +18,8 @@
 
 #include "service_processor_BL2_data.h"
 
-int verify_minion_certificate(const ESPERANTO_CERTIFICATE_t * certificate);
+int verify_esperanto_image_certificate(const ESPERANTO_IMAGE_TYPE_t image_type, const ESPERANTO_CERTIFICATE_t * certificate);
+
+int load_sw_certificates_chain(void);
 
 #endif
