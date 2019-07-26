@@ -331,7 +331,8 @@ static ssize_t mbox_write(struct mbox *mbox, struct et_pci_dev* et_dev,
 	free_bytes = ringbuffer_free(head_index, tail_index);
 
 	if (free_bytes < MBOX_HEADER_SIZE + count) {
-		pr_err("no room for message\n");
+		pr_err("no room for message (%d free, %ld needed)\n",
+		       free_bytes, MBOX_HEADER_SIZE + count);
 		return -ENOMEM;
 	}
 
@@ -450,7 +451,8 @@ static ssize_t mbox_read(struct mbox *mbox, char __user *buf, size_t count)
 
 		iowrite32(tail_index, &mbox->mem->tx_ring_buffer.tail_index);
 
-		pr_err("invalid mailbox message\n");
+		pr_err("invalid mailbox message (header: 0x%08x)\n",
+		       *((u32*)&header));
 		return -EIO;
 	}
 
@@ -459,6 +461,16 @@ static ssize_t mbox_read(struct mbox *mbox, char __user *buf, size_t count)
 		//If not, do NOT remove the message from the queue. Give the
 		//user a chance to allocate a bigger buffer and try again.
 		return -ENOMEM;
+	}
+
+	//Check if the body of the message is available yet
+	if (bytes_avail - MBOX_HEADER_SIZE < header.length) {
+		//TODO: Once mbox IRQs are implemented, this is an error
+		//condition - the SoC should not send the interrupt until the
+		//message body data is in the buffer. For now, return 0 (without
+		//moving tail_index!!!) in this case. The user should call
+		//read() in a loop until the whole message is available.
+		return 0;
 	}
 
 	//Read message body over PCIe
