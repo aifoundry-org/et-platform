@@ -2,8 +2,8 @@
 #include "cacheops.h"
 #include "fcc.h"
 #include "flb.h"
+#include "hart.h"
 #include "macros.h"
-#include "shire.h"
 
 #include <stdint.h>
 #include <stdbool.h>
