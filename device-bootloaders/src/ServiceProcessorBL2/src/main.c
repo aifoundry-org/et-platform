@@ -128,6 +128,8 @@ static int copy_bl1_data(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data) {
     g_service_processor_bl2_data.service_processor_bl1_version = bl1_data->service_processor_bl1_version;
     g_service_processor_bl2_data.sp_gpio_pins = bl1_data->sp_gpio_pins;
     g_service_processor_bl2_data.vaultip_coid_set = bl1_data->vaultip_coid_set;
+    g_service_processor_bl2_data.spi_controller_rx_baudrate_divider = bl1_data->spi_controller_rx_baudrate_divider;
+    g_service_processor_bl2_data.spi_controller_tx_baudrate_divider = bl1_data->spi_controller_tx_baudrate_divider;
 
     // copy the SP ROOT/ISSUING CA certificates chain
     memcpy(&(g_service_processor_bl2_data.sp_certificates), &(bl1_data->sp_certificates), sizeof(bl1_data->sp_certificates));

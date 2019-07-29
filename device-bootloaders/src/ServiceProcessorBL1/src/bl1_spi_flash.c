@@ -10,6 +10,7 @@
 */
 
 #include "serial.h"
+#include "string.h"
 
 #include "printx.h"
 #include "bl1_spi_controller.h"
@@ -158,26 +159,39 @@ int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_b
     return 0;
 }
 
+#define MAXIMUM_READ_SIZE 256
 int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_buffer, uint32_t data_buffer_size) {
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
+    uint32_t read_size;
 
     if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
         return -1;
     }
 
-    command.cmd = SPI_FLASH_CMD_NORMAL_READ;
-    command.include_address = true;
-    command.dummy_bytes = 0;
-    command.data_receive = true;
-    command.address = address;
-    command.data_size = data_buffer_size;
-    command.data_buffer = data_buffer;
+    while (data_buffer_size > 0) {
+        read_size = data_buffer_size;
+        if (read_size > MAXIMUM_READ_SIZE) {
+            read_size = MAXIMUM_READ_SIZE;
+        }
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-        printx("spi_controller_command(RD) failed!\n");
-        return -1;
+        command.cmd = SPI_FLASH_CMD_NORMAL_READ;
+        command.include_address = true;
+        command.dummy_bytes = 0;
+        command.data_receive = true;
+        command.address = address;
+        command.data_size = read_size;
+        command.data_buffer = data_buffer;
+
+        if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+            printx("spi_controller_command(RD) failed!\n");
+            return -1;
+        }
+
+        address += read_size;
+        data_buffer += read_size;
+        data_buffer_size -= read_size;
     }
 
     return 0;
@@ -187,28 +201,40 @@ int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * dat
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
+    uint32_t read_size;
 
     if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
         return -1;
     }
 
-    command.cmd = SPI_FLASH_CMD_FAST_READ;
-    command.include_address = true;
-    command.dummy_bytes = 1;
-    command.data_receive = true;
-    command.address = address;
-    command.data_size = data_buffer_size;
-    command.data_buffer = data_buffer;
+    while (data_buffer_size > 0) {
+        read_size = data_buffer_size;
+        if (read_size > 0x10000) {
+            read_size = 0x10000;
+        }
 
-    if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-        printx("spi_controller_command(RDHS) failed!\n");
-        return -1;
+        command.cmd = SPI_FLASH_CMD_FAST_READ;
+        command.include_address = true;
+        command.dummy_bytes = 1;
+        command.data_receive = true;
+        command.address = address;
+        command.data_size = data_buffer_size;
+        command.data_buffer = data_buffer;
+
+        if (0 != spi_controller_command(controller_id, slave_index, &command)) {
+            printx("spi_controller_command(RDHS) failed!\n");
+            return -1;
+        }
+
+        address += read_size;
+        data_buffer += read_size;
+        data_buffer_size -= read_size;
     }
 
     return 0;
 }
 
-int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_buffer, uint32_t data_buffer_size) {
+int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t * data_buffer, uint32_t data_buffer_size) {
     SPI_COMMAND_t command;
     SPI_CONTROLLER_ID_t controller_id;
     uint8_t slave_index;
@@ -223,7 +249,10 @@ int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_
     command.data_receive = false;
     command.address = address;
     command.data_size = data_buffer_size;
-    command.data_buffer = data_buffer;
+#pragma GCC push_options
+#pragma GCC diagnostic ignored "-Wcast-qual"
+    command.data_buffer = (uint8_t*)data_buffer;
+#pragma GCC pop_options
 
     if (0 != spi_controller_command(controller_id, slave_index, &command)) {
         printx("spi_controller_command(PP) failed!\n");

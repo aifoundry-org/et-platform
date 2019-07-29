@@ -48,6 +48,8 @@ static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data) {
     g_service_processor_bl1_data.service_processor_rom_version = rom_data->service_processor_rom_version;
     g_service_processor_bl1_data.sp_gpio_pins = rom_data->sp_gpio_pins;
     g_service_processor_bl1_data.vaultip_coid_set = rom_data->vaultip_coid_set;
+    g_service_processor_bl1_data.spi_controller_rx_baudrate_divider = rom_data->spi_controller_rx_baudrate_divider;
+    g_service_processor_bl1_data.spi_controller_tx_baudrate_divider = rom_data->spi_controller_tx_baudrate_divider;
 
     // copy the SP ROOT/ISSUING CA certificates chain
     memcpy(&(g_service_processor_bl1_data.sp_certificates), &(rom_data->sp_certificates), sizeof(rom_data->sp_certificates));
