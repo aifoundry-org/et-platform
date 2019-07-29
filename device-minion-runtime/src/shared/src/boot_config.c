@@ -60,17 +60,17 @@ static volatile uint32_t* get_addr_and_mask(
         return NULL;
     }
 
-    uint64_t base_addr = MEM_SPACE_LUT[cmd->dw0.B.memSpace];
-    if (base_addr == 0) return NULL;
+    volatile uint32_t *addr = (volatile uint32_t*)MEM_SPACE_LUT[cmd->dw0.B.memSpace];
+    if (addr == 0) return NULL;
 
     *mask = cmd->dw2.B.mask;
 
     if (addr_white_list) {
-        bool white_listed;
+        bool white_listed = false;
 
         for (size_t i = 0; i < addr_white_list_count; ++i) {
             if ((addr_white_list[i].addr.B.offset_24_2 == cmd->dw0.B.offset_24_2) && 
-                (addr_white_list[i].addr.B.memSpace == cmd->dw0.B.memSpace)) { //TODO: test where one of each is wrong
+                (addr_white_list[i].addr.B.memSpace == cmd->dw0.B.memSpace)) {
                 white_listed = true;
                 *mask &= addr_white_list[i].mask;
                 break;
@@ -80,13 +80,9 @@ static volatile uint32_t* get_addr_and_mask(
         if (!white_listed) return NULL;
     }
    
-    // Expand the address. Assumes all addresses are 4-byte aligned.
-    uint64_t target_addr = base_addr + ((uint64_t)cmd->dw0.B.offset_24_2 << 2ULL);
+    addr += cmd->dw0.B.offset_24_2;
 
-    // Check for int overflow
-    if (target_addr < base_addr) return NULL;
-
-    return (volatile uint32_t*)target_addr;
+    return addr;
 }
 int boot_config_execute(
     const CONFIG_COMMAND_t * commands,
@@ -121,7 +117,8 @@ int boot_config_execute(
                 if (!regPtr) return -1;
 
                 uint32_t readVal = *regPtr;
-                *regPtr = (readVal & ~mask) | (cmd->dw1.B.value & mask); //TODO: test case for untouched bits not changing (both at 0 and 1)...
+             
+                *regPtr = (readVal & ~mask) | (cmd->dw1.B.value & mask);
             }   
             break;
 
@@ -239,8 +236,8 @@ static const uint32_t test_seq_valid_mem0[] = {
     0xFF000000,                                  //writeVal
     0x11000000,                                  //mask
     //rmw write test_mem[0]
-    //Should write bit 0, clear bit 28, leave bit 24 untouched
-    //test_mem[0] = 0x01000001
+    //Should write bit 0, clear bit 24, leave bit 28 untouched
+    //test_mem[0] = 0x10000001
     0x2 << 28 | BOOT_CONFIG_MEM_SPACE_TEST << 24 | 0, //offset = 0
     0x00000001,                                  //writeVal
     0x01000001,                                  //mask
@@ -248,14 +245,14 @@ static const uint32_t test_seq_valid_mem0[] = {
     //check bit 24 == 1, ignore others
     //should immediately return true
     0x3 << 28 | BOOT_CONFIG_MEM_SPACE_TEST << 24 | 0, //offset = 0
-    0x01000000,                                  //desiredVal
-    0x01000000,                                  //mask
+    0x10000000,                                  //desiredVal
+    0x10000000,                                  //mask
     //poll test_mem[0]
-    //check bit 28 == 0, ignore others
+    //check bit 24 == 0, ignore others
     //should immediately return true
     0x3 << 28 | BOOT_CONFIG_MEM_SPACE_TEST << 24 | 0, //offset = 0
     0x00000000,                                  //desiredVal
-    0x10000000,                                  //mask
+    0x01000000,                                  //mask
     //wait 1 tick
     0x4 << 28,
     1,                                           //tick count
@@ -274,7 +271,7 @@ static const uint32_t test_seq_valid_mem1[] = {
     0x00FF0000,                                  //writeVal
     0x00110000,                                  //mask
     //rmw write test_mem[1]
-    //test_mem[0] = 0x00010001
+    //test_mem[0] = 0x00100001
     0x2 << 28 | BOOT_CONFIG_MEM_SPACE_TEST << 24 | 4, //offset = 4
     0x00000001,                                  //writeVal
     0x00010001,                                  //mask
@@ -282,14 +279,14 @@ static const uint32_t test_seq_valid_mem1[] = {
     //check bit == 1, ignore others
     //should immediately return true
     0x3 << 28 | BOOT_CONFIG_MEM_SPACE_TEST << 24 | 4, //offset = 4
-    0x00010000,                                  //desiredVal
-    0x00010000,                                  //mask
+    0x00100000,                                  //desiredVal
+    0x00100000,                                  //mask
     //poll test_mem[1]
     //check bit == 0, ignore others
     //should immediately return true
     0x3 << 28 | BOOT_CONFIG_MEM_SPACE_TEST << 24 | 4, //offset = 4
     0x00000000,                                  //desiredVal
-    0x00100000,                                  //mask
+    0x00010000,                                  //mask
     //wait 1 tick
     0x4 << 28,
     1,                                           //tick count
@@ -300,8 +297,36 @@ static const uint32_t test_seq_valid_mem1[] = {
     0xFFFFFFFF
 };
 
-static const uint64_t test_white_list[] = {
-    (uint64_t)&test_mem[0]
+static const ADDR_WHITE_LIST_t test_white_list[] = {
+    {
+    .addr.B = {
+        .offset_24_2 = 0,
+        .memSpace = BOOT_CONFIG_MEM_SPACE_TEST,
+    },
+    .mask = 0xFFFFFFFF
+    }
+};
+
+//Test white list mask
+static const uint32_t test_white_list_mask[] = {
+    //write test_mem[0]
+    0x1 << 28 | BOOT_CONFIG_MEM_SPACE_TEST << 24 | 0, //offset = 0
+    0x0000000F,                                  //writeVal
+    0x0000000C,                                  //mask
+    //terminator
+    0xFFFFFFFF,
+    0xFFFFFFFF,
+    0xFFFFFFFF
+};
+
+static const ADDR_WHITE_LIST_t test_white_list_masked[] = {
+    {
+    .addr.B = {
+        .offset_24_2 = 0,
+        .memSpace = BOOT_CONFIG_MEM_SPACE_TEST,
+    },
+    .mask = 0x00000008
+    }
 };
 
 int boot_config_self_test(void)
@@ -346,7 +371,7 @@ int boot_config_self_test(void)
     if (test_result != 0) {
         return -8;
     }
-    else if (test_mem[0] != 0x01000001) {
+    else if (test_mem[0] != 0x10000001) {
         return -9;
     }
 
@@ -361,8 +386,17 @@ int boot_config_self_test(void)
     if (test_result != 0) {
         return -11;
     }
-    else if (test_mem[1] != 0x00010001) {
+    else if (test_mem[1] != 0x00100001) {
         return -12;
+    }
+
+    //Write a value such that the white list changes the mask
+    test_result = boot_config_execute((const CONFIG_COMMAND_t*)test_white_list_mask, 2, test_white_list_masked, 1);
+    if (test_result != 0) {
+        return -13;
+    }
+    else if (test_mem[0] != 0x00000008) {
+        return -14;
     }
 
     //All tests passed
