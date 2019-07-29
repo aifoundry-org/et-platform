@@ -337,12 +337,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         case MESSAGE_ID_KERNEL_COMPLETE:
         {
             printf("MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
-            update_shire_state(shire, SHIRE_STATE_COMPLETE);
-
-            if (kernel_complete(kernel))
-            {
-                update_kernel_state(kernel, KERNEL_STATE_COMPLETE);
-            }
+            update_kernel_state(kernel, KERNEL_STATE_COMPLETE);
         }
         break;
 

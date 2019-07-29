@@ -1,5 +1,6 @@
 #include "shire.h"
 #include "kernel.h"
+#include "printf.h"
 
 typedef struct
 {
@@ -12,6 +13,8 @@ static shire_status_t shire_status[33];
 
 void update_shire_state(uint64_t shire, shire_state_t shire_state)
 {
+    const shire_state_t current_state = shire_status[shire].shire_state;
+
     // TODO FIXME this is hokey, clean up state handling.
     if (shire_state == SHIRE_STATE_COMPLETE)
     {
@@ -19,7 +22,22 @@ void update_shire_state(uint64_t shire, shire_state_t shire_state)
     }
     else
     {
-        shire_status[shire].shire_state = shire_state;
+        if (current_state != SHIRE_STATE_ERROR)
+        {
+            shire_status[shire].shire_state = shire_state;
+        }
+        else
+        {
+            // The only legal transition from ERROR state is to READY state
+            if (shire_state == SHIRE_STATE_READY)
+            {
+                shire_status[shire].shire_state = shire_state;
+            }
+            else
+            {
+                printf("Error illegal shire %d state transition from error\r\n", shire);
+            }
+        }
     }
 }
 

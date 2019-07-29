@@ -43,6 +43,17 @@ void __attribute__((noreturn)) main(void)
         syscall(SYSCALL_ENABLE_THREAD1, 0, 0, 0);
     }
 
+    // Empty all FCCs
+    for (uint64_t i = read_fcc(0); i > 0; i--)
+    {
+        WAIT_FCC(0);
+    }
+
+    for (uint64_t i = read_fcc(1); i > 0; i--)
+    {
+        WAIT_FCC(1);
+    }
+
     // TODO run BIST
 
     message_t message = {.id = MESSAGE_ID_SHIRE_READY, .data = {0}};
@@ -61,6 +72,7 @@ void __attribute__((noreturn)) main(void)
         // Wait for a message from the master
         asm volatile ("wfi");
 
+         // TODO handle messages in SWI ISR so we can handle them while pending on a FCC
         if (broadcast_message_available(previous_broadcast_message_number))
         {
             previous_broadcast_message_number = broadcast_message_receive_worker(&message);
