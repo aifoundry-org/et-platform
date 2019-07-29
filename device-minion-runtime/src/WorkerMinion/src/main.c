@@ -1,11 +1,11 @@
 #include "build_configuration.h"
 #include "fcc.h"
 #include "flb.h"
+#include "hart.h"
 #include "kernel.h"
 #include "kernel_info.h"
 #include "layout.h"
 #include "message.h"
-#include "shire.h"
 #include "syscall.h"
 
 #include <stdint.h>

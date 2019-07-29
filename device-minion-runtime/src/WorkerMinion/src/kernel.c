@@ -5,10 +5,10 @@
 #include "kernel_info.h"
 #include "fcc.h"
 #include "flb.h"
+#include "hart.h"
 #include "layout.h"
 #include "macros.h"
 #include "message.h"
-#include "shire.h"
 #include "syscall.h"
 #include "test_kernels.h"
 
@@ -289,6 +289,7 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, con
 
         // Evict to invalidate kernel_params and grid_config
         // These address must never be dirty, i.e. firmware must never write to addresses where parmeters are placed
+        // TODO FIXME don't need these if kernel always starts in clean state
         evict(to_L3, kernel_params_ptr, sizeof(kernel_params_t));
         evict(to_L3, grid_config_ptr, sizeof(grid_config_t));
 

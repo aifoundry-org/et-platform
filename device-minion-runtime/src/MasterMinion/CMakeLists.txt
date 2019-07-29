@@ -31,6 +31,8 @@ set(SOURCES
     src/swi.c
     src/exception.c
     src/main.c
+    src/kernel.c
+    src/shire.c
     src/putchar.c
     src/build_configuration.c
     src/mailbox.c

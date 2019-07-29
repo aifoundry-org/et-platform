@@ -1,6 +1,6 @@
 #include "broadcast.h"
 #include "esr_defines.h"
-#include "shire.h"
+#include "hart.h"
 
 inline uint64_t broadcast_encode_parameters(uint64_t pp, uint64_t region, uint64_t address)
 {
