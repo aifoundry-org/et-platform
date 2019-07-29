@@ -3,28 +3,59 @@
 
 #include <stdint.h>
 
+typedef enum {
+    BOOT_CONFIG_MEM_SPACE_RESERVED0 = 0,
+    BOOT_CONFIG_MEM_SPACE_R_SP_CRU,
+    BOOT_CONFIG_MEM_SPACE_R_PCIE_ESR,
+    BOOT_CONFIG_MEM_SPACE_R_PCIE_APB_SUBSYS,
+    BOOT_CONFIG_MEM_SPACE_R_PCIE0_DBI_SLV,
+    BOOT_CONFIG_MEM_SPACE_TEST,
+    BOOT_CONFIG_MEM_SPACE_EOL
+} BOOT_CONFIG_MEM_SPACE_t;
+
 typedef struct CONFIG_COMMAND_u {
     union {
         struct {
-            uint32_t offset : 24;
+            uint32_t reserved : 2; //reserved for OTP flags when address stored there
+            uint32_t offset_24_2 : 22;
             uint32_t memSpace : 4;
             uint32_t opCode : 4;
-        } B;
+        } __attribute__ ((__packed__)) B;
         uint32_t R;
     } dw0;
     union {
         struct {
             uint32_t value : 32;
-        } B;
+        } __attribute__ ((__packed__)) B;
         uint32_t R;
     } dw1;
     union {
         struct {
             uint32_t mask : 32;
-        } B;
+        } __attribute__ ((__packed__)) B;
         uint32_t R;
     } dw2;
-} CONFIG_COMMAND_t;
+} __attribute__ ((__packed__)) CONFIG_COMMAND_t;
+
+/*
+ * White list for CONFIG_COMMANT_t commands. If used, all of the addresses passed to
+ * boot_config_execute must appear on the white list.
+ * @addr address to allow
+ * @mask bits of the address to allow modifying. Other bits in CONFIG_COMMAND_t will
+ * be ignored.
+ */
+typedef struct ADDR_WHITE_LIST_s {
+    union {
+        struct {
+            uint32_t reserved0 : 2; //reserved for OTP flags when address stored there
+            uint32_t offset_24_2 : 22;
+            uint32_t memSpace : 4;
+            uint32_t reserved1 : 4;
+        } __attribute__ ((__packed__)) B;
+        uint32_t R;
+    } addr;
+    uint32_t mask;
+} __attribute__ ((__packed__)) ADDR_WHITE_LIST_t;
 
 /* 
  * Executes @commands. Intended to store a set of register accesses needed for very
@@ -35,14 +66,14 @@ typedef struct CONFIG_COMMAND_u {
  * @commands_count number of commands in the list
  * @addr_white_list list of addresses valid to access. Commands issued to other addresses
    will be considered invalid. Pass NULL to bypass white list check.
- * @add_white_list_size number of elements in @commands_count
+ * @addr_white_list_count number of elements in @addr_white_list
  * @return 0 on success
  */
 int boot_config_execute(
     const CONFIG_COMMAND_t * commands,
     uint32_t commands_count,
-    const uint64_t * addr_white_list,
-    uint32_t addr_white_list_size);
+    const ADDR_WHITE_LIST_t * addr_white_list,
+    uint32_t addr_white_list_count);
 
 #ifdef BOOT_CONFIG_SELF_TEST
 /* 
