@@ -23,7 +23,8 @@
                     {
                         "id" : "VAULTIP_FW",
                         "size" : 96,
-                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.12_rom_keys.sbi"
+                        "--file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.12_rom_keys.sbi",
+                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.12_rom_keys_no_op.sbi"
                     },
                     {
                         "id" : "SP_CERTIFICATES",
@@ -38,14 +39,14 @@
                     {
                         "id" : "SP_BL1",
                         "size" : 128,
-                        "file" : "firmware-tools/code-signing-tools/otp_bl1.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_bl1.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_bl1.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_bl1.img"
                     },
                     {
                         "id" : "SP_BL2",
                         "size" : 384,
-                        "file" : "firmware-tools/code-signing-tools/otp_bl2.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_bl2.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_bl2.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_bl2.img"
                     },
                     {
                         "id" : "MACHINE_MINION",
@@ -79,8 +80,8 @@
                     },
                     {
                         "id" : "SP_BL1",
-                        "file" : "firmware-tools/code-signing-tools/otp_bl1.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_bl1.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_bl1.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_bl1.img"
                     },
                     {
                         "id" : "PCIE_CONFIG",
@@ -89,13 +90,14 @@
                     },
                     {
                         "id" : "SP_BL2",
-                        "file" : "firmware-tools/code-signing-tools/otp_bl2.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_bl2.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_bl2.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_bl2.img"
                     },
                     {
                         "id" : "VAULTIP_FW",
                         "size" : 96,
-                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.12_rom_keys.sbi"
+                        "--file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.12_rom_keys.sbi",
+                        "file" : "src/ServiceProcessorROM/vaultip_firmware/firmware_eip130_ram_2.5.12_rom_keys_no_op.sbi"
                     },
                     {
                         "id" : "MACHINE_MINION",
