@@ -50,15 +50,36 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
         const uint64_t num_shires = kernel_config_ptr->num_shires;
         const uint64_t shire_mask = kernel_config_ptr->kernel_info.shire_mask;
 
-        // Wait for a ready FCC1 from each shire
-        for (uint64_t i = 0; i < num_shires; i++)
+        if ((num_shires > 0) && (shire_mask > 0))
         {
-            WAIT_FCC(1);
-        }
+            // Wait for a ready FCC1 from each shire
+            for (uint64_t i = 0; i < num_shires; i++)
+            {
+                WAIT_FCC(1);
+            }
 
-        // Broadcast go FCC to all HARTs in all shires in shire_mask
-        broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC1); // thread 0 FCC 1
-        broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC3); // thread 1 FCC 1
+            // Broadcast go FCC to all HARTs in all shires in shire_mask
+            broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC1); // thread 0 FCC 1
+            broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC3); // thread 1 FCC 1
+
+            // Wait for a done FCC1 from each shire
+            for (uint64_t i = 0; i < num_shires; i++)
+            {
+                WAIT_FCC(1);
+            }
+
+            // Send message to master minion indicating the kernel is complete
+            message_t sync_message = {.id = MESSAGE_ID_KERNEL_COMPLETE, .data = {0}};
+            sync_message.data[0] = kernel_id;
+            message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
+        }
+        else
+        {
+            // Invalid config, send error message to the master minion
+            message_t sync_message = {.id = MESSAGE_ID_KERNEL_LAUNCH_NACK, .data = {0}};
+            sync_message.data[0] = kernel_id;
+            message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
+        }
     }
 }
 
@@ -98,6 +119,15 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
                                          MBOX_KERNEL_RESULT_OK};
 
             MBOX_send(MBOX_PCIE, response, sizeof(response));
+
+            // Mark all shires associated with this kernel as complete
+            for (uint64_t shire = 0; shire < 33; shire++)
+            {
+                if (kernel_status[kernel_id].shire_mask & (1ULL << shire))
+                {
+                    update_shire_state(shire, SHIRE_STATE_COMPLETE);
+                }
+            }
 
             kernel_status[kernel_id].kernel_state = KERNEL_STATE_UNUSED;
         }

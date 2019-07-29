@@ -19,9 +19,10 @@ int64_t LOG_write(const char* const string_ptr, uint64_t length)
     message.id = MESSAGE_ID_LOG_WRITE;
     data_ptr[0] = (uint8_t)length;
 
-    for (uint64_t i = 1; (i < length) && (i < sizeof(message.data)); i++)
+    for (uint64_t i = 0; (i < length) && ((i + 1) < sizeof(message.data)); i++)
     {
         data_ptr[i] = string_ptr[i-1];
+        data_ptr[i+1] = string_ptr[i];
     }
 
     return message_send_worker(get_shire_id(), get_hart_id(), &message);

@@ -18,7 +18,7 @@ static const uint8_t tensorZeros[64] __attribute__ ((aligned (64))) = {0};
 
 static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
 static void kernel_return_function(void) __attribute__ ((used));
-static void post_kernel_cleanup(void);
+static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
 int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
@@ -153,7 +153,7 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
     );
 
-    post_kernel_cleanup();
+    post_kernel_cleanup(kernel_params_ptr);
 
     // TODO FIXME return kernel's return value
     return 0;
@@ -329,7 +329,7 @@ static void kernel_return_function(void)
     syscall(SYSCALL_RETURN_FROM_KERNEL, 0, 0, 0);
 }
 
-static void post_kernel_cleanup(void)
+static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
 {
     bool result;
 
@@ -371,14 +371,10 @@ static void post_kernel_cleanup(void)
     // Last thread to join barrier
     if (result)
     {
-        static message_t message = {.id = MESSAGE_ID_KERNEL_COMPLETE, .data = {0}};
-        const uint64_t shire_id = get_shire_id();
-        const uint64_t hart_id = get_hart_id();
+        const uint64_t bitmask = 1U << (FIRST_KERNEL_LAUNCH_SYNC_MINON + (kernel_params_ptr->kernel_id / 2));
+        const uint64_t thread = kernel_params_ptr->kernel_id % 2;
 
-        message.data[0] = shire_id;
-        message.data[1] = hart_id;
-
-        // Send message to master indicating the kernel is complete in this shire
-        message_send_worker(shire_id, hart_id, &message);
+        // Last thread to join barrier sends done FCC1 to master shire sync thread
+        SEND_FCC(MASTER_SHIRE, thread, FCC_1, bitmask);
     }
 }
