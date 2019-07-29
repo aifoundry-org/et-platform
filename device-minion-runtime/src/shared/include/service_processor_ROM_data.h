@@ -65,6 +65,8 @@ typedef struct SERVICE_PROCESSOR_ROM_DATA_s {
     uint32_t service_processor_rom_data_size;
     uint32_t service_processor_rom_version;
     uint32_t sp_gpio_pins;
+    uint16_t spi_controller_rx_baudrate_divider;
+    uint16_t spi_controller_tx_baudrate_divider;
     FLASH_FS_ROM_INFO_t flash_fs_rom_info;
     ESPERANTO_RAW_IMAGE_FILE_HEADER_t pcie_config_header;
     uint32_t * pcie_config_data;
