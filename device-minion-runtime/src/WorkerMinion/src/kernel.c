@@ -10,12 +10,9 @@
 #include "macros.h"
 #include "message.h"
 #include "syscall.h"
-#include "test_kernels.h"
 
 #include <stdbool.h>
 #include <inttypes.h>
-
-//#define USE_TEST_KERNEL
 
 static const uint8_t tensorZeros[64] __attribute__ ((aligned (64))) = {0};
 
@@ -160,29 +157,6 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
 
     // TODO FIXME return kernel's return value
     return 0;
-}
-
-void kernel_function(void)
-{
-#ifdef USE_TEST_KERNEL
-    // Test kernel:
-    // // thread 0s run compute kernel
-    if (get_thread_id() == 0)
-    {
-        // TODO get PC of compute kernel from master net_desc.compute_pc - IPI? Need to define this aspect of Minion API.
-        test_compute_kernel();
-    }
-    // For now, all active thread 1s run prefetch kernel
-    else if (get_thread_id() == 1)
-    {
-        // TODO get PC of prefetch kernel from master - IPI? net_desc only has compute_pc for now.
-        test_prefetch_kernel();
-    }
-    else
-    {
-        asm volatile ("wfi");
-    }
-#endif
 }
 
 // Restores firmware context

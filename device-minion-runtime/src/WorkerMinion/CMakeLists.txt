@@ -20,7 +20,6 @@ set(SOURCES
     src/exception.c
     src/main.c
     src/kernel.c
-    src/test_kernels.c
     src/build_configuration.c
     ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/log.c
