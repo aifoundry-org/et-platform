@@ -13,7 +13,6 @@
 #include "Support/Logging.h"
 
 #include <sys/types.h>
-
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
@@ -48,7 +47,8 @@ CharacterDevice::~CharacterDevice() {
 }
 
 bool CharacterDevice::write(uintptr_t addr, const void *data, ssize_t size) {
-
+  RTINFO << "Dev: " << path_ << "PCIE Write: 0x" << std::hex << addr << " size "
+         << std::dec << size << "\n";
   // If we know the base address then substrasct that because for now we are
   // expecting SOC absolute addresses
   if (base_addr_ > 0) {
@@ -74,6 +74,8 @@ bool CharacterDevice::write(uintptr_t addr, const void *data, ssize_t size) {
 }
 
 bool CharacterDevice::read(uintptr_t addr, void *data, ssize_t size) {
+  RTINFO << "Dev: " << path_ << "PCIE Read: 0x" << std::hex << addr << " size "
+         << std::dec << size << "\n";
   // If we know the base address then substrasct that because for now we are
   // expecting SOC absolute addresses
   if (base_addr_ > 0) {

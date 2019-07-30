@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-#ifndef ET_RUNTIME_SUPPORT_LOGGING_H
-#define ET_RUNTIME_SUPPORT_LOGGING_H
+#ifndef ET_RUNTIME_SUPPORT_TIMEHELPERS_H
+#define ET_RUNTIME_SUPPORT_TIMEHELPERS_H
 
-#include <glog/logging.h>
+#include <chrono>
 
-/// Helpers around GLOG for the runtime
+namespace et_runtime {
 
-#define RTDEBUG DLOG(INFO) << "ETRuntime: "
-#define RTINFO LOG(INFO) << "ETRuntime: "
-#define RTERROR LOG(ERROR) << "ETRuntime: "
+// Top-level aliases of time related types to be used
+// in our code-base
 
-#endif // ET_RUNTIME_SUPPORT_LOGGING_H
+using Clock = std::chrono::system_clock;
+using Timepoint = Clock::time_point;
+using TimeDuration = Clock::duration;
+
+} // namespace et_runtime
+#endif // ET_RUNTIME_SUPPORT_TIMEHELPERS_H

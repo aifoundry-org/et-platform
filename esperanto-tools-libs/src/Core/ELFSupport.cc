@@ -151,6 +151,7 @@ bool KernelELFInfo::loadELF(std::istream &stream) {
   /*
    * Check out all kernel entry functions in .dynsym section.
    */
+  bool entrypoints_found = false;
   using ELFIO::Elf64_Addr;
   using ELFIO::Elf_Half;
   using ELFIO::Elf_Xword;
@@ -199,9 +200,18 @@ bool KernelELFInfo::loadELF(std::istream &stream) {
                  << " [" << demangle(kernel_name) << "]\n";
           assert(value);
           (*kernel_map)[kernel_name] = value;
+          entrypoints_found = true;
         }
       }
     }
+  }
+
+  // If no entrypoint functions were found then assume that the entrypoint is
+  // the load address function of the segment
+  if (!entrypoints_found) {
+    RTINFO << "No entrypoint function found, segment offset: 0x" << std::hex
+           << reader_.segments[0]->get_offset() << "\n";
+    raw_kernel_offset_[name_] = reader_.segments[0]->get_offset();
   }
   return true;
 }

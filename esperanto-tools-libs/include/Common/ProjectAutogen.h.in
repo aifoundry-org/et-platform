@@ -29,4 +29,8 @@ typedef enum libraryPropertyType_t {
   PATCH_LEVEL = ESPERANTO_RUNTIME_VERSION_PATCH
 } libraryPropertyType;
 
+
+#define ENABLE_DEVICE_FW @esperanto-fw_FOUND@
+static constexpr bool enable_device_fw = @esperanto-fw_FOUND@;
+
 #endif //PROJECT_AUTOGEN_H_

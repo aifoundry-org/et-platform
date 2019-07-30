@@ -77,3 +77,12 @@ TEST(KernelELFInfo, parse_kernel_elf) {
 }
 
 } // namespace
+
+int main(int argc, char **argv) {
+  google::InitGoogleLogging(argv[0]);
+  // Force logging in stderr and set min logging level
+  FLAGS_minloglevel = 0;
+  FLAGS_logtostderr = 1;
+  testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}

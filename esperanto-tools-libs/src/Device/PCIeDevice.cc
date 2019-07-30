@@ -12,6 +12,10 @@
 
 #include "Support/Logging.h"
 
+#if ENABLE_DEVICE_FW
+#include "host_message.h"
+#endif // ENABLE_DEVICE_FW
+
 #include <absl/strings/str_format.h>
 #include <experimental/filesystem>
 #include <iostream>
@@ -81,8 +85,45 @@ bool PCIeDevice::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
 bool PCIeDevice::writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) {
   return drct_dram_.write(dev_addr, buf, size);
 }
+
 bool PCIeDevice::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {
-  assert(false);
+#if ENABLE_DEVICE_FW
+  // FIXME ugly hack this needsOB to be cleaned up
+  struct __attribute__((__packed__)) launch_message_t {
+    uint64_t mbox_message_id_t;
+    layer_dynamic_info params;
+    kernel_info_t kernel_info;
+  };
+
+  launch_message_t msg = {0};
+
+  msg.mbox_message_id_t = MBOX_MESSAGE_ID_KERNEL_LAUNCH;
+  msg.params = *params;
+  msg.kernel_info.compute_pc = launch_pc;
+  msg.kernel_info.shire_mask = 0x1;
+  msg.kernel_info.kernel_params_ptr = 0;
+  msg.kernel_info.grid_config_ptr = 0;
+
+  auto res = mm_.write(&msg, sizeof(msg));
+  assert(res);
+
+  std::array<uint8_t, MailBoxDev::MBOX_MAX_MESSAGE_LENGTH> message = {0};
+  auto size =
+      mm_.read(message.data(), message.size(), std::chrono::seconds(60));
+  assert(size == sizeof(devfw_response_t));
+  auto response = reinterpret_cast<devfw_response_t *>(message.data());
+  RTDEBUG << "MessageID: " << response->message_id
+          << " kernel_id: " << response->kernel_id
+          << " kernel_result: " << response->launch_response << "\n";
+
+  if (response->message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE &&
+      response->launch_response == MBOX_KERNEL_LAUNCH_RESPONSE_RESULT_OK) {
+    RTDEBUG << "Received successfull launch \n";
+  } else {
+    assert(false);
+  }
+
+#endif // ENABLE_DEVICE_FW
   return true;
 }
 

@@ -58,6 +58,9 @@ public:
   /// @brief True iff the module is loaded on the device
   bool onDevice() { return onDevice_; }
 
+  /// @brief Return elf load address on device
+  uintptr_t deviceLoadAddress() { return devPtr_; }
+
   /// @brief PC where the kernel entrypoint is located
   ErrorOr<uintptr_t> onDeviceKernelEntryPoint(const std::string &kernel_name);
 
