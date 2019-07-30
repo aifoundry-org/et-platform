@@ -1,12 +1,12 @@
 #include "kernel.h"
 #include "kernel_sync.h"
-#include "atomic_barrier.h"
 #include "cacheops.h"
 #include "kernel_info.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"
 #include "layout.h"
+#include "log.h"
 #include "macros.h"
 #include "message.h"
 #include "syscall.h"
@@ -221,7 +221,7 @@ int64_t return_from_kernel(void)
     }
 }
 
-static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr)
+static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __attribute__((unused)) const grid_config_t* const grid_config_ptr)
 {
     // arg1 = 0 to enable all thread 1s
     syscall(SYSCALL_PRE_KERNEL_SETUP, 0, 0, 0);
@@ -260,12 +260,6 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, con
     if (get_thread_id() == 0)
     {
         uint64_t temp, temp2;
-
-        // Evict to invalidate kernel_params and grid_config
-        // These address must never be dirty, i.e. firmware must never write to addresses where parmeters are placed
-        // TODO FIXME don't need these if kernel always starts in clean state
-        evict(to_L3, kernel_params_ptr, sizeof(kernel_params_t));
-        evict(to_L3, grid_config_ptr, sizeof(grid_config_t));
 
         // Zero out TensorExtensionCSRs
         asm volatile (

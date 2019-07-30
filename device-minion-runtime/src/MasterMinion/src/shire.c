@@ -57,23 +57,6 @@ bool all_shires_ready(uint64_t shire_mask)
     return true;
 }
 
-bool all_shires_complete(uint64_t shire_mask)
-{
-    for (uint64_t shire = 0; shire < 33; shire++)
-    {
-        if (shire_mask & (1ULL << shire))
-        {
-            if ((shire_status[shire].shire_state != SHIRE_STATE_COMPLETE) &&
-                (shire_status[shire].shire_state != SHIRE_STATE_READY))
-            {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
 void set_shire_kernel_id(uint64_t shire, kernel_id_t kernel_id)
 {
     shire_status[shire].kernel_id = kernel_id;

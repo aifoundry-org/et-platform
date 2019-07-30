@@ -21,7 +21,6 @@ int64_t LOG_write(const char* const string_ptr, uint64_t length)
 
     for (uint64_t i = 0; (i < length) && ((i + 1) < sizeof(message.data)); i++)
     {
-        data_ptr[i] = string_ptr[i-1];
         data_ptr[i+1] = string_ptr[i];
     }
 

@@ -12,6 +12,7 @@
 #include "serial.h"
 #include "shire.h"
 #include "swi.h"
+#include "syscall.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -63,6 +64,9 @@ void __attribute__((noreturn)) main(void)
 
     if (hart_id == 2048)
     {
+        // Enable thread 1 on minion 1 and 2 for kernel sync threads
+        syscall(SYSCALL_ENABLE_THREAD1, 0xFFFFFFFC, 0, 0);
+
         master_thread();
     }
     else if ((hart_id >= 2050) && (hart_id < 2054))
@@ -94,6 +98,8 @@ static void __attribute__((noreturn)) master_thread(void)
     printf("Initializing message buffers...");
     message_init_master();
     printf("done\r\n");
+
+    kernel_init();
 
     // Enable supervisor external and software interrupts
     asm volatile (
@@ -174,7 +180,7 @@ static void __attribute__((noreturn)) master_thread(void)
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
 static void fake_message_from_host(void)
 {
-    const kernel_id_t kernel_id = KERNEL_ID_0;
+    const kernel_id_t kernel_id = KERNEL_ID_1;
 
     // For now, fake host launches kernel 0 any time it's unused.
     if (get_kernel_state(kernel_id) == KERNEL_STATE_UNUSED)
@@ -322,10 +328,15 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
             printf("Invalid MESSAGE_ID_KERNEL_ABORT received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
         break;
 
+        case MESSAGE_ID_KERNEL_LAUNCH_ACK:
+            printf("MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            update_kernel_state(message.data[0], KERNEL_STATE_RUNNING);
+        break;
+
         case MESSAGE_ID_KERNEL_LAUNCH_NACK:
             printf("MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
             update_shire_state(shire, SHIRE_STATE_ERROR);
-            update_kernel_state(kernel, KERNEL_STATE_ERROR);
+            update_kernel_state(message.data[0], KERNEL_STATE_ERROR);
         break;
 
         case MESSAGE_ID_KERNEL_ABORT_NACK:
@@ -337,7 +348,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         case MESSAGE_ID_KERNEL_COMPLETE:
         {
             printf("MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
-            update_kernel_state(kernel, KERNEL_STATE_COMPLETE);
+            update_kernel_state(message.data[0], KERNEL_STATE_COMPLETE);
         }
         break;
 

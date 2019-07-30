@@ -2,26 +2,46 @@
 #include "hart.h"
 #include "message.h"
 
-void swi_handler(void);
+static message_t message;
+static message_number_t previous_broadcast_message_number = 0xFFFFFFFFU;
 
+void swi_handler(void);
+static void handle_message(uint64_t shire, uint64_t hart, message_t* const message_ptr);
+
+// Must not access kernel_config - firmware assumes kernel_config addresses remain clean/invalid until reading on a FCC
 void swi_handler(void)
 {
     // We got a software interrupt handed down from M-mode.
     // M-mode already cleared the IPI - check messages
-
     const uint64_t shire = get_shire_id();
     const uint64_t hart = get_hart_id();
-    const uint64_t message_id = get_message_id(shire, hart);
 
-    if (message_id == MESSAGE_ID_KERNEL_ABORT)
+    if (broadcast_message_available(previous_broadcast_message_number))
+    {
+        previous_broadcast_message_number = broadcast_message_receive_worker(&message);
+        handle_message(shire, hart, &message);
+    }
+
+    if (message_available(shire, hart))
+    {
+        message_receive_worker(shire, hart, &message);
+        handle_message(shire, hart, &message);
+    }
+
+    // Clear pending software interrupt
+    asm volatile ("csrci sip, 0x2");
+}
+
+static void handle_message(uint64_t shire, uint64_t hart, message_t* const message_ptr)
+{
+    if (message_ptr->id == MESSAGE_ID_KERNEL_ABORT)
     {
         // If kernel was running, returns to firmware context
         // If not, doesn't do anything.
         return_from_kernel();
     }
-
-    // Otherwise handle the message in firmware context
-
-    // Clear pending software interrupt
-    asm volatile ("csrci sip, 0x2");
+    else if (message_ptr->id == MESSAGE_ID_LOOPBACK)
+    {
+        message_send_worker(shire, hart, message_ptr);
+    }
 }

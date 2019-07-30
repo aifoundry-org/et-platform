@@ -1,8 +1,10 @@
 #include "build_configuration.h"
+#include "cacheops.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"
 #include "kernel.h"
+#include "kernel_config.h"
 #include "kernel_info.h"
 #include "layout.h"
 #include "message.h"
@@ -10,7 +12,8 @@
 
 #include <stdint.h>
 
-static void handle_message(uint64_t shire_id, uint64_t hart_id, message_t* const message_ptr);
+// Shared state - Worker minion fetch kernel parameters from these
+static const kernel_config_t* const kernel_config = (kernel_config_t*)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
 
 void __attribute__((noreturn)) main(void)
 {
@@ -27,6 +30,7 @@ void __attribute__((noreturn)) main(void)
 
     const uint64_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();
+    const uint64_t shire_mask = 1ULL << shire_id;
 
     message_init_worker(shire_id, hart_id);
 
@@ -56,60 +60,47 @@ void __attribute__((noreturn)) main(void)
 
     // TODO run BIST
 
-    message_t message = {.id = MESSAGE_ID_SHIRE_READY, .data = {0}};
-    message_number_t previous_broadcast_message_number = 0xFFFFFFFFU;
-
     WAIT_FLB(64, 31, result);
 
-    // Last thread to join barrier
+    // Last thread to join barrier sends ready message to master
     if (result)
     {
+        const message_t message = {.id = MESSAGE_ID_SHIRE_READY, .data = {0}};
         message_send_worker(shire_id, hart_id, &message);
     }
 
     for (;;)
     {
-        // Wait for a message from the master
-        asm volatile ("wfi");
+        int64_t rv = -1;
 
-         // TODO handle messages in SWI ISR so we can handle them while pending on a FCC
-        if (broadcast_message_available(previous_broadcast_message_number))
+        // Wait for a credit (kernel launch fastpath)
+        // or SWI (message passing slow path)
+        WAIT_FCC(FCC_0);
+
+        for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++)
         {
-            previous_broadcast_message_number = broadcast_message_receive_worker(&message);
-            handle_message(shire_id, hart_id, &message);
+            volatile const kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
+
+            if (kernel_config_ptr->kernel_info.shire_mask & shire_mask)
+            {
+                const uint64_t* const kernel_entry_addr = (uint64_t*)kernel_config_ptr->kernel_info.compute_pc;
+                const uint64_t* const kernel_stack_addr = (uint64_t*)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
+                const kernel_params_t* const kernel_params_ptr = kernel_config_ptr->kernel_info.kernel_params_ptr;
+                const grid_config_t* const grid_config_ptr = NULL; // TODO FIXME
+
+                rv = launch_kernel(kernel_entry_addr, kernel_stack_addr, kernel_params_ptr, grid_config_ptr);
+                break;
+            }
         }
 
-        if (message_available(shire_id, hart_id))
+        if (rv != 0)
         {
-            message_receive_worker(shire_id, hart_id, &message);
-            handle_message(shire_id, hart_id, &message);
+            // Something went wrong launching the kernel.
+            // Can't rely on post_kernel_cleanup(), so evict to invalidate.
+            for (uint64_t kernel_id = 0; kernel_id < MAX_SIMULTANEOUS_KERNELS; kernel_id++)
+            {
+                evict(to_L3, &kernel_config[kernel_id], sizeof(kernel_config_t));
+            }
         }
-    }
-}
-
-static void handle_message(uint64_t shire_id, uint64_t hart_id, message_t* const message_ptr)
-{
-    if (message_ptr->id == MESSAGE_ID_KERNEL_LAUNCH)
-    {
-        const uint64_t* const kernel_entry_addr = (uint64_t*)message_ptr->data[0];
-        const uint64_t* const kernel_stack_addr = (uint64_t*)(KERNEL_UMODE_STACK_BASE - (hart_id * KERNEL_UMODE_STACK_SIZE));
-        const kernel_params_t* const kernel_params_ptr = (kernel_params_t*)message_ptr->data[1];
-        const grid_config_t* const grid_config_ptr = (grid_config_t*)message_ptr->data[2];
-
-        if (0 < launch_kernel(kernel_entry_addr, kernel_stack_addr, kernel_params_ptr, grid_config_ptr))
-        {
-            // TODO FIXME send an error message if the kernel returns an error
-            message_ptr->id = MESSAGE_ID_KERNEL_LAUNCH_NACK;
-            message_send_worker(shire_id, hart_id, message_ptr);
-        }
-    }
-    else if (message_ptr->id == MESSAGE_ID_LOOPBACK)
-    {
-        message_send_worker(shire_id, hart_id, message_ptr);
-    }
-    else
-    {
-        // TODO FIXME HACK for now, reflect all other received message back to master
-        message_send_worker(shire_id, hart_id, message_ptr);
     }
 }
