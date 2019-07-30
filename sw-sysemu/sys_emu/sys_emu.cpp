@@ -784,9 +784,9 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
             LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart_tx_file);
             return false;
         }
-        bemu::memory.pu_uart_space.fd = fd;
+        bemu::memory.pu_io_space.pu_uart.fd = fd;
     } else {
-        bemu::memory.pu_uart_space.fd = STDOUT_FILENO;
+        bemu::memory.pu_io_space.pu_uart.fd = STDOUT_FILENO;
     }
 
     // Setup PU UART1 stream
@@ -796,9 +796,9 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
             LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart1_tx_file);
             return false;
         }
-        bemu::memory.pu_uart1_space.fd = fd;
+        bemu::memory.pu_io_space.pu_uart1.fd = fd;
     } else {
-        bemu::memory.pu_uart1_space.fd = STDOUT_FILENO;
+        bemu::memory.pu_io_space.pu_uart1.fd = STDOUT_FILENO;
     }
 
     // Initialize network
@@ -1171,10 +1171,10 @@ sys_emu::main_internal(int argc, char * argv[])
         bemu::dump_data(bemu::memory, cmd_options.dump_mem, bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);
 
     if(cmd_options.pu_uart_tx_file != nullptr)
-        close(bemu::memory.pu_uart_space.fd);
+        close(bemu::memory.pu_io_space.pu_uart.fd);
 
     if(cmd_options.pu_uart1_tx_file != nullptr)
-        close(bemu::memory.pu_uart1_space.fd);
+        close(bemu::memory.pu_io_space.pu_uart1.fd);
 
 #ifdef SYSEMU_PROFILING
     if (cmd_options.dump_prof_file != NULL) {

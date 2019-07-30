@@ -9,7 +9,6 @@
 #include "lazy_array.h"
 #include "memory_error.h"
 #include "memory_region.h"
-#include "traps.h"
 
 namespace bemu {
 
