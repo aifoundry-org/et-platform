@@ -37,6 +37,13 @@ static const uint64_t MEM_SPACE_LUT[16] = {
 
 static const uint64_t MAX_WAIT_LOOPS = 100000;
 
+volatile uint32_t* get_namespace_address(BOOT_CONFIG_MEM_SPACE_t memSpace) {
+    if (memSpace <= BOOT_CONFIG_MEM_SPACE_RESERVED0 || memSpace >= BOOT_CONFIG_MEM_SPACE_EOL) {
+        return NULL;
+    }
+    return ((uint32_t*)MEM_SPACE_LUT[memSpace]);
+}
+
 static volatile uint32_t* get_addr_and_mask(
     const CONFIG_COMMAND_t *const cmd,
     const ADDR_WHITE_LIST_t *const addr_white_list,

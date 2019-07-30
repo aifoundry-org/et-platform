@@ -57,6 +57,9 @@ typedef struct ADDR_WHITE_LIST_s {
     uint32_t mask;
 } __attribute__ ((__packed__)) ADDR_WHITE_LIST_t;
 
+/* Returns the base address for the namespace or NULL on error */
+volatile uint32_t* get_namespace_address(BOOT_CONFIG_MEM_SPACE_t memSpace);
+
 /* 
  * Executes @commands. Intended to store a set of register accesses needed for very
  * early power-on configuration that can be executed safely before the firmware is
