@@ -1308,8 +1308,8 @@ static void csrset(uint16_t src1, uint64_t val)
         cpu[current_thread].mtval = val;
         break;
     case CSR_MIP:
-        // Only seip, stip, ssip are writeable
-        val &= 0x0000000000800222ULL;
+        // Only bus_error, mieco, mbad_red, seip, stip, ssip are writeable
+        val &= 0x0000000000890222ULL;
         cpu[current_thread].mip = val;
         break;
     case CSR_TSELECT:
