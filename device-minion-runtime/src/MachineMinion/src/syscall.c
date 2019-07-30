@@ -26,7 +26,13 @@ static int64_t evict_l2_start(void);
 static int64_t evict_l2_wait(void);
 static int64_t evict_l2(void);
 
-static inline void idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_ptr);
+static int64_t flush_l3(void);
+
+static inline void sc_idx_cop_sm_ctl_all_banks_go(uint64_t opcode);
+static inline void sc_idx_cop_sm_ctl_all_banks_wait_idle(void);
+static inline void sc_idx_cop_sm_ctl_go(volatile uint64_t* const addr, uint64_t opcode);
+static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_ptr);
+
 static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank);
 static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t hart_mask);
 
@@ -83,6 +89,11 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_CACHE_CONTROL:
         case SYSCALL_CACHE_CONTROL_ALT:
             rv = set_l1_cache_control(arg1, arg2);
+        break;
+
+        case SYSCALL_FLUSH_L3:
+        case SYSCALL_FLUSH_L3_ALT:
+            rv = flush_l3();
         break;
 
         case SYSCALL_DRAIN_COALESCING_BUFFER:
@@ -327,28 +338,15 @@ static int64_t unlock_l1(void)
 
 static int64_t evict_l2_start(void)
 {
-    for (uint64_t i = 0; i < 4; i++)
-    {
-        volatile uint64_t* const idx_cop_sm_ctl_ptr = ESR_CACHE(PRV_M, 0xFF, i, IDX_COP_SM_CTL);
-        idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_ptr);
-    }
-
-    // Broadcast L2 evict to all 4 banks
-    volatile uint64_t* const idx_cop_sm_ctl_ptr = ESR_CACHE(PRV_M, 0xFF, 0xF, IDX_COP_SM_CTL);
-
-    *idx_cop_sm_ctl_ptr = (1ULL << 0) | // Go bit = 1
-                          (3ULL << 8);  // Opcode = L2_Evict (Evicts all L2 indexes)
+    sc_idx_cop_sm_ctl_all_banks_wait_idle();
+    sc_idx_cop_sm_ctl_all_banks_go(3); // Opcode = L2_Evict (Evicts all L2 indexes)
 
     return 0;
 }
 
 static int64_t evict_l2_wait(void)
 {
-    for (uint64_t i = 0; i < 4; i++)
-    {
-        volatile const uint64_t* const idx_cop_sm_ctl_ptr = ESR_CACHE(PRV_M, 0xFF, i, IDX_COP_SM_CTL);
-        idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_ptr);
-    }
+    sc_idx_cop_sm_ctl_all_banks_wait_idle();
 
     return 0;
 }
@@ -367,25 +365,53 @@ static int64_t evict_l2(void)
     return rv;
 }
 
-static inline void idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_ptr)
+static int64_t flush_l3(void)
+{
+    sc_idx_cop_sm_ctl_all_banks_wait_idle();
+    sc_idx_cop_sm_ctl_all_banks_go(5); // Opcode = L3_Flush (Flushes all L3 indexes)
+    sc_idx_cop_sm_ctl_all_banks_wait_idle();
+
+    return 0;
+}
+
+static inline void sc_idx_cop_sm_ctl_all_banks_go(uint64_t opcode)
+{
+    // Broadcast to all 4 banks
+    volatile uint64_t* const addr = ESR_CACHE(PRV_M, 0xFF, 0xF, IDX_COP_SM_CTL);
+    sc_idx_cop_sm_ctl_go(addr, opcode);
+}
+
+static inline void sc_idx_cop_sm_ctl_all_banks_wait_idle(void)
+{
+    for (uint64_t i = 0; i < 4; i++)
+    {
+        volatile uint64_t* const addr = ESR_CACHE(PRV_M, SHIRE_OWN, i, IDX_COP_SM_CTL);
+        sc_idx_cop_sm_ctl_wait_idle(addr);
+    }
+}
+
+static inline void sc_idx_cop_sm_ctl_go(volatile uint64_t* const addr, uint64_t opcode)
+{
+    *addr = (1ULL           << 0) | // Go bit = 1
+            ((opcode & 0xF) << 8);  // Opcode
+}
+
+static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t* const addr)
 {
     uint64_t state;
 
     do {
-        state = (*idx_cop_sm_ctl_ptr >> 24) & 0xFF;
+        state = (*addr >> 24) & 0xFF;
     } while (state != 4);
 }
 
 static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank)
 {
-    volatile uint64_t* const idx_cop_sm_ctl_ptr = ESR_CACHE(PRV_M, shire, bank, IDX_COP_SM_CTL);
+    volatile uint64_t* const addr = ESR_CACHE(PRV_M, shire, bank, IDX_COP_SM_CTL);
 
-    idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_ptr);
-
-    *idx_cop_sm_ctl_ptr = (1ULL << 0) | // Go bit = 1
-                          (10ULL << 8); // Opcode = CB_Inv (Coalescing buffer invalidate)
-
-    idx_cop_sm_ctl_wait_idle(idx_cop_sm_ctl_ptr);
+    sc_idx_cop_sm_ctl_wait_idle(addr);
+    sc_idx_cop_sm_ctl_go(addr, 10); // Opcode = CB_Inv (Coalescing buffer invalidate)
+    sc_idx_cop_sm_ctl_wait_idle(addr);
 }
 
 static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t hart_mask)
