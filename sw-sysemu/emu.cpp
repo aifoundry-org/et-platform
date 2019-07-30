@@ -1646,7 +1646,7 @@ static void csrset(uint16_t src1, uint64_t val)
             break;
         case 0x50BAD000:
             LOG_ALL_MINIONS(INFO, "%s", "Signal end test with FAIL");
-            sys_emu::deactivate_thread(current_thread);
+            m_emu_done = true;
             break;
         }
 #endif
