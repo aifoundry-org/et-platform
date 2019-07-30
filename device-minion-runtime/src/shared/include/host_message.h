@@ -11,5 +11,11 @@ typedef struct {
     kernel_info_t kernel_info;
 } host_message_t;
 
+typedef struct {
+    mbox_message_id_t message_id;
+    uint64_t kernel_id;
+    mbox_response_id_t response_id;
+} devfw_response_t;
+
 
 #endif // HOST_MESSAGE_H

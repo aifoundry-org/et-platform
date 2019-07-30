@@ -11,6 +11,9 @@ typedef enum
     MBOX_MESSAGE_ID_KERNEL_RESULT
 } mbox_message_id_e;
 
+
+typedef uint64_t mbox_response_id_t;
+
 typedef enum {
     MBOX_KERNEL_LAUNCH_RESPONSE_OK,
     MBOX_KERNEL_LAUNCH_RESPONSE_ERROR_SHIRES_NOT_READY,

@@ -4,6 +4,7 @@
 #include "esr_defines.h"
 #include "fcc.h"
 #include "hart.h"
+#include "host_message.h"
 #include "kernel_config.h"
 #include "layout.h"
 #include "mailbox.h"
@@ -128,11 +129,11 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
         case KERNEL_STATE_ERROR:
         {
-            const uint8_t response[3] = {MBOX_MESSAGE_ID_KERNEL_RESULT,
-                                         kernel_id,
-                                         MBOX_KERNEL_RESULT_ERROR};
-
-            MBOX_send(MBOX_PCIE, response, sizeof(response));
+            const devfw_response_t response = {
+                .message_id = MBOX_MESSAGE_ID_KERNEL_RESULT,
+                .kernel_id = kernel_id,
+                .response_id = MBOX_KERNEL_RESULT_ERROR};
+            MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
 
             clear_kernel_config(kernel_id);
             kernel_status[kernel_id].kernel_state = KERNEL_STATE_ERROR;
@@ -141,11 +142,12 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
         case KERNEL_STATE_COMPLETE:
         {
-            const uint8_t response[3] = {MBOX_MESSAGE_ID_KERNEL_RESULT,
-                                         kernel_id,
-                                         MBOX_KERNEL_RESULT_OK};
-
-            MBOX_send(MBOX_PCIE, response, sizeof(response));
+            printf("kernel %d complete\r\n", kernel_id);
+            const devfw_response_t response = {
+                .message_id = MBOX_MESSAGE_ID_KERNEL_RESULT,
+                .kernel_id = kernel_id,
+                .response_id = MBOX_KERNEL_RESULT_OK};
+            MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
 
             // Mark all shires associated with this kernel as complete
             for (uint64_t shire = 0; shire < 33; shire++)
@@ -232,11 +234,12 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
     else
     {
         printf("launch_kernel: aborting kernel %d launch\r\n", kernel_id);
-        const uint8_t response[3] = {MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE,
-                                     kernel_id,
-                                     MBOX_KERNEL_LAUNCH_RESPONSE_ERROR_SHIRES_NOT_READY};
 
-        MBOX_send(MBOX_PCIE, response, sizeof(response));
+        const devfw_response_t response = {
+            .message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE,
+            .kernel_id = kernel_id,
+            .response_id = MBOX_KERNEL_LAUNCH_RESPONSE_ERROR_SHIRES_NOT_READY};
+        MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
     }
 }
 
