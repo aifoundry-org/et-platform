@@ -41,6 +41,7 @@ public:
   bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override;
   bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override;
   bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
+  uintptr_t dramBaseAddr() const;
 
 private:
   int index_;

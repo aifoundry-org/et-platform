@@ -91,6 +91,8 @@ bool PCIeDevice::boot(uintptr_t init_pc, uintptr_t trap_pc) {
   return true;
 }
 
+uintptr_t PCIeDevice::dramBaseAddr() const { return drct_dram_.baseAddr(); }
+
 std::vector<DeviceInformation> PCIeDevice::enumerateDevices() {
   std::vector<DeviceInformation> infos;
   /// We are going to match one of the character devices if it exists we are

@@ -36,6 +36,7 @@ public:
 
   bool write(uintptr_t addr, const void *data, ssize_t size);
   bool read(uintptr_t addr, void *data, ssize_t size);
+  uintptr_t baseAddr() const { return base_addr_; }
 
 protected:
   /// Using a fstream for now, we need to move to another implementation in the

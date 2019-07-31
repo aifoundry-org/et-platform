@@ -32,22 +32,25 @@ protected:
 
 TEST_F(PCIEDevTest, SingleWriteMMIO) {
   std::vector<uint8_t> data = {1, 2, 3, 4};
-  auto res = dev_->writeDevMem(0xdeadbeef, data.size(), data.data());
+  uintptr_t addr = dev_->dramBaseAddr() + 0xdeadbeef;
+  auto res = dev_->writeDevMem(addr, data.size(), data.data());
   ASSERT_TRUE(res);
 }
 
 TEST_F(PCIEDevTest, SingleReadMMIO) {
   std::array<uint8_t, 4> data;
-  auto res = dev_->readDevMem(0xdeadbeef, data.size(), data.data());
+  uintptr_t addr = dev_->dramBaseAddr() + 0xdeadbeef;
+  auto res = dev_->readDevMem(addr, data.size(), data.data());
   ASSERT_TRUE(res);
 }
 
 TEST_F(PCIEDevTest, SingleWriteReadMMIO) {
   std::vector<uint8_t> data = {1, 2, 3, 4};
-  auto res = dev_->writeDevMem(0xdeadbeef, data.size(), data.data());
+  uintptr_t addr = dev_->dramBaseAddr() + 0xdeadbeef;
+  auto res = dev_->writeDevMem(addr, data.size(), data.data());
   ASSERT_TRUE(res);
   std::array<uint8_t, 4> data_res;
-  res = dev_->readDevMem(0xdeadbeef, data_res.size(), data_res.data());
+  res = dev_->readDevMem(addr, data_res.size(), data_res.data());
   ASSERT_TRUE(res);
   ASSERT_THAT(data_res, ::testing::ElementsAreArray(data));
 }
