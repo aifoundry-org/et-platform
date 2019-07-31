@@ -27,25 +27,7 @@ class Device;
 
 namespace device {
 
-// Region of host or device memory region.
-struct EtMemRegion {
-  void *region_base;
-  size_t region_size;
-  std::map<const void *, size_t>
-      alloced_ptrs; // alloced ptr -> size of alloced area
-
-  EtMemRegion(void *ptr, size_t size) : region_base(ptr), region_size(size) {}
-
-  static constexpr size_t kAlign = 1 << 20; // 1M
-  bool isPtrAlloced(const void *ptr);
-  void *alloc(size_t size);
-  void free(void *ptr);
-  void print();
-  bool isPtrInRegion(const void *ptr) {
-    return ptr >= region_base &&
-           (uintptr_t)ptr < (uintptr_t)region_base + region_size;
-  }
-};
+struct EtMemRegion;
 
 /// @brief MemoryManager, responsible for tracking device memory use.
 class MemoryManager {
@@ -73,18 +55,11 @@ public:
                                  const void *ptr);
 
   /// @brief Return true iff this is a host pointer
-  bool isPtrAllocedHost(const void *ptr) {
-    uint8_t *tptr = reinterpret_cast<uint8_t *>(const_cast<void *>(ptr));
-    return host_mem_region_.find(tptr) == host_mem_region_.end();
-  }
+  bool isPtrAllocedHost(const void *ptr);
   /// @brief Return true iff this is a device pointer
-  bool isPtrAllocedDev(const void *ptr) {
-    return dev_mem_region_->isPtrAlloced(ptr);
-  }
+  bool isPtrAllocedDev(const void *ptr);
   /// @brief Return true iff this points in a device region
-  bool isPtrInDevRegion(const void *ptr) {
-    return dev_mem_region_->isPtrInRegion(ptr);
-  }
+  bool isPtrInDevRegion(const void *ptr);
 
 private:
   void initMemRegions();
