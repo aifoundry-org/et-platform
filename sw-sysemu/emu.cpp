@@ -1789,7 +1789,7 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
         default:
             break;
     }
-    WRITE_REG(dst, oldval);
+    WRITE_REG(dst, oldval, write && (src1 == CSR_FLB));
 }
 
 void ecall(const char* comm __attribute__((unused)))

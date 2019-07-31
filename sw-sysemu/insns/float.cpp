@@ -140,7 +140,7 @@ void insn_fcvt_w_s(insn_t inst)
     DISASM_RD_FS1_RM("fcvt.w.s");
     set_rounding_mode(RM);
     int32_t tmp = fpu::f32_to_i32(FS1.f32[0]);
-    WRITE_RD(sext<32>(tmp));
+    LATE_WRITE_RD(sext<32>(tmp));
     set_fp_exceptions();
 }
 
@@ -151,7 +151,7 @@ void insn_fcvt_wu_s(insn_t inst)
     DISASM_RD_FS1_RM("fcvt.wu.s");
     set_rounding_mode(RM);
     uint32_t tmp = fpu::f32_to_ui32(FS1.f32[0]);
-    WRITE_RD(sext<32>(tmp));
+    LATE_WRITE_RD(sext<32>(tmp));
     set_fp_exceptions();
 }
 
@@ -226,7 +226,7 @@ void insn_fmv_x_w(insn_t inst)
 {
     require_fp_active();
     DISASM_RD_FS1("fmv.x.w");
-    WRITE_RD(sext<32>(FS1.u32[0]));
+    LATE_WRITE_RD(sext<32>(FS1.u32[0]));
 }
 
 
@@ -235,7 +235,7 @@ void insn_feq_s(insn_t inst)
     require_fp_active();
     DISASM_RD_FS1_FS2("feq.s");
     bool tmp = fpu::f32_eq(FS1.f32[0], FS2.f32[0]);
-    WRITE_RD(tmp);
+    LATE_WRITE_RD(tmp);
     set_fp_exceptions();
 }
 
@@ -245,7 +245,7 @@ void insn_fle_s(insn_t inst)
     require_fp_active();
     DISASM_RD_FS1_FS2("fle.s");
     bool tmp = fpu::f32_le(FS1.f32[0], FS2.f32[0]);
-    WRITE_RD(tmp);
+    LATE_WRITE_RD(tmp);
     set_fp_exceptions();
 }
 
@@ -255,7 +255,7 @@ void insn_flt_s(insn_t inst)
     require_fp_active();
     DISASM_RD_FS1_FS2("flt.s");
     bool tmp = fpu::f32_lt(FS1.f32[0], FS2.f32[0]);
-    WRITE_RD(tmp);
+    LATE_WRITE_RD(tmp);
     set_fp_exceptions();
 }
 
@@ -264,7 +264,7 @@ void insn_fclass_s(insn_t inst)
 {
     require_fp_active();
     DISASM_RD_FS1("fclass.s");
-    WRITE_RD(sext<32>(fpu::f32_classify(FS1.f32[0])));
+    LATE_WRITE_RD(sext<32>(fpu::f32_classify(FS1.f32[0])));
 }
 
 

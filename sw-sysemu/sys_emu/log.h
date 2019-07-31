@@ -28,6 +28,7 @@ inline void clearlogstate()
 
 // There is no checker so we make this an empty interface
 inline void log_xreg_write(int, uint64_t) {}
+inline void log_xreg_late_write(int, uint64_t) {}
 inline void log_freg_write(int, const freg_t&) {}
 inline void log_mreg_write(int, const mreg_t&) {}
 inline void log_fflags_write(uint64_t) {}

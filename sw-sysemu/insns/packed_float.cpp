@@ -250,7 +250,7 @@ void insn_fmvs_x_ps(insn_t inst)
 {
     require_fp_active();
     DISASM_RD_FS1_UIMM3("fmvs.x.ps");
-    WRITE_RD(sext<32>(FS1.u32[UIMM3]));
+    LATE_WRITE_RD(sext<32>(FS1.u32[UIMM3]));
 }
 
 
@@ -258,7 +258,7 @@ void insn_fmvz_x_ps(insn_t inst)
 {
     require_fp_active();
     DISASM_RD_FS1_UIMM3("fmvz.x.ps");
-    WRITE_RD(FS1.u32[UIMM3]);
+    LATE_WRITE_RD(FS1.u32[UIMM3]);
 }
 
 

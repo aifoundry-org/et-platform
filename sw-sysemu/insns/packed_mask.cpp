@@ -57,7 +57,7 @@ void insn_maskpopc(insn_t inst)
 {
     require_fp_active();
     DISASM_RD_MS1("maskpopc");
-    WRITE_RD(popcount1(MS1));
+    LATE_WRITE_RD(popcount1(MS1));
 }
 
 // LCOV_EXCL_START
@@ -73,7 +73,7 @@ void insn_maskpopc_rast(insn_t inst)
     case 2  : m2 = 0xf0; m1 = 0xf0; break;
     default : m2 = 0xff; m1 = 0xff; break;
     }
-    WRITE_RD(popcount1(MS1 & m1) + popcount1(MS2 & m2));
+    LATE_WRITE_RD(popcount1(MS1 & m1) + popcount1(MS2 & m2));
 }
 // LCOV_EXCL_STOP
 
@@ -81,7 +81,7 @@ void insn_maskpopcz(insn_t inst)
 {
     require_fp_active();
     DISASM_RD_MS1("maskpopcz");
-    WRITE_RD(popcount0(MS1));
+    LATE_WRITE_RD(popcount0(MS1));
 }
 
 
@@ -121,14 +121,14 @@ void insn_mova_x_m(insn_t inst)
 {
     require_fp_active();
     DISASM_RD_ALLMASK("mova.x.m");
-    WRITE_RD((cpu[current_thread].mregs[0].to_ullong() << (0*MLEN)) +
-             (cpu[current_thread].mregs[1].to_ullong() << (1*MLEN)) +
-             (cpu[current_thread].mregs[2].to_ullong() << (2*MLEN)) +
-             (cpu[current_thread].mregs[3].to_ullong() << (3*MLEN)) +
-             (cpu[current_thread].mregs[4].to_ullong() << (4*MLEN)) +
-             (cpu[current_thread].mregs[5].to_ullong() << (5*MLEN)) +
-             (cpu[current_thread].mregs[6].to_ullong() << (6*MLEN)) +
-             (cpu[current_thread].mregs[7].to_ullong() << (7*MLEN)));
+    LATE_WRITE_RD((cpu[current_thread].mregs[0].to_ullong() << (0*MLEN)) +
+                  (cpu[current_thread].mregs[1].to_ullong() << (1*MLEN)) +
+                  (cpu[current_thread].mregs[2].to_ullong() << (2*MLEN)) +
+                  (cpu[current_thread].mregs[3].to_ullong() << (3*MLEN)) +
+                  (cpu[current_thread].mregs[4].to_ullong() << (4*MLEN)) +
+                  (cpu[current_thread].mregs[5].to_ullong() << (5*MLEN)) +
+                  (cpu[current_thread].mregs[6].to_ullong() << (6*MLEN)) +
+                  (cpu[current_thread].mregs[7].to_ullong() << (7*MLEN)));
 }
 
 

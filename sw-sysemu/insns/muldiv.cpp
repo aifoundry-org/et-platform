@@ -62,91 +62,91 @@ static inline int64_t iremw(int64_t a, int64_t b)
 void insn_div(insn_t inst)
 {
     DISASM_RD_RS1_RS2("div");
-    WRITE_RD(idiv(RS1, RS2));
+    LATE_WRITE_RD(idiv(RS1, RS2));
 }
 
 
 void insn_divu(insn_t inst)
 {
     DISASM_RD_RS1_RS2("divu");
-    WRITE_RD(udiv(RS1, RS2));
+    LATE_WRITE_RD(udiv(RS1, RS2));
 }
 
 
 void insn_divuw(insn_t inst)
 {
     DISASM_RD_RS1_RS2("divuw");
-    WRITE_RD(udivw(uint32_t(RS1), uint32_t(RS2)));
+    LATE_WRITE_RD(udivw(uint32_t(RS1), uint32_t(RS2)));
 }
 
 
 void insn_divw(insn_t inst)
 {
     DISASM_RD_RS1_RS2("divw");
-    WRITE_RD(idivw(sext<32>(RS1), sext<32>(RS2)));
+    LATE_WRITE_RD(idivw(sext<32>(RS1), sext<32>(RS2)));
 }
 
 
 void insn_mul(insn_t inst)
 {
     DISASM_RD_RS1_RS2("mul");
-    WRITE_RD(RS1 * RS2);
+    LATE_WRITE_RD(RS1 * RS2);
 }
 
 
 void insn_mulh(insn_t inst)
 {
     DISASM_RD_RS1_RS2("mulh");
-    WRITE_RD(mulh(RS1, RS2));
+    LATE_WRITE_RD(mulh(RS1, RS2));
 }
 
 
 void insn_mulhsu(insn_t inst)
 {
     DISASM_RD_RS1_RS2("mulhsu");
-    WRITE_RD(mulhsu(RS1, RS2));
+    LATE_WRITE_RD(mulhsu(RS1, RS2));
 }
 
 
 void insn_mulhu(insn_t inst)
 {
     DISASM_RD_RS1_RS2("mulhu");
-    WRITE_RD(mulhu(RS1, RS2));
+    LATE_WRITE_RD(mulhu(RS1, RS2));
 }
 
 
 void insn_mulw(insn_t inst)
 {
     DISASM_RD_RS1_RS2("mulw");
-    WRITE_RD(sext<32>(RS1 * RS2));
+    LATE_WRITE_RD(sext<32>(RS1 * RS2));
 }
 
 
 void insn_rem(insn_t inst)
 {
     DISASM_RD_RS1_RS2("rem");
-    WRITE_RD(irem(RS1, RS2));
+    LATE_WRITE_RD(irem(RS1, RS2));
 }
 
 
 void insn_remu(insn_t inst)
 {
     DISASM_RD_RS1_RS2("remu");
-    WRITE_RD(urem(RS1, RS2));
+    LATE_WRITE_RD(urem(RS1, RS2));
 }
 
 
 void insn_remuw(insn_t inst)
 {
     DISASM_RD_RS1_RS2("remuw");
-    WRITE_RD(uremw(uint32_t(RS1), uint32_t(RS2)));
+    LATE_WRITE_RD(uremw(uint32_t(RS1), uint32_t(RS2)));
 }
 
 
 void insn_remw(insn_t inst)
 {
     DISASM_RD_RS1_RS2("remw");
-    WRITE_RD(iremw(sext<32>(RS1), sext<32>(RS2)));
+    LATE_WRITE_RD(iremw(sext<32>(RS1), sext<32>(RS2)));
 }
 
 

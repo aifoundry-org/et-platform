@@ -263,23 +263,31 @@
 } while (0)
 
 
-#define WRITE_REG(n, expr) do { \
+#define WRITE_REG(n, expr, late) do { \
     if (n != 0) { \
         cpu[current_thread].xregs[n] = (expr); \
         LOG_REG("=", n); \
     } \
-    log_xreg_write(n, cpu[current_thread].xregs[n]); \
+    if (late) \
+        log_xreg_late_write(n, cpu[current_thread].xregs[n]); \
+    else \
+        log_xreg_write(n, cpu[current_thread].xregs[n]); \
 } while (0)
 
 
-#define WRITE_X0(expr)      WRITE_REG(0, expr)
-#define WRITE_X1(expr)      WRITE_REG(1, expr)
-#define WRITE_X2(expr)      WRITE_REG(2, expr)
-#define WRITE_RD(expr)      WRITE_REG(inst.rd(), expr)
-#define WRITE_C_RS1(expr)   WRITE_REG(inst.rvc_rs1(), expr)
-#define WRITE_C_RS1P(expr)  WRITE_REG(inst.rvc_rs1p(), expr)
-#define WRITE_C_RS2P(expr)  WRITE_REG(inst.rvc_rs2p(), expr)
+#define WRITE_X0(expr)      WRITE_REG(0, expr, false)
+#define WRITE_X1(expr)      WRITE_REG(1, expr, false)
+#define WRITE_X2(expr)      WRITE_REG(2, expr, false)
+#define WRITE_RD(expr)      WRITE_REG(inst.rd(), expr, false)
+#define WRITE_C_RS1(expr)   WRITE_REG(inst.rvc_rs1(), expr, false)
+#define WRITE_C_RS1P(expr)  WRITE_REG(inst.rvc_rs1p(), expr, false)
+#define WRITE_C_RS2P(expr)  WRITE_REG(inst.rvc_rs2p(), expr, false)
 
+#define LATE_WRITE_RD(expr) WRITE_REG(inst.rd(), expr, true)
+
+#define LOAD_WRITE_RD(expr)     WRITE_REG(inst.rd(), expr, true)
+#define LOAD_WRITE_C_RS1(expr)  WRITE_REG(inst.rvc_rs1(), expr, true)
+#define LOAD_WRITE_C_RS2P(expr) WRITE_REG(inst.rvc_rs2p(), expr, true)
 
 #define WRITE_MREG(n, expr) do { \
     cpu[current_thread].mregs[n] = (expr); \
