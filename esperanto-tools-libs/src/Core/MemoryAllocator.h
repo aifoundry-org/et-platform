@@ -32,14 +32,18 @@ struct MemoryRange {
   size_t size_ = 0;
 };
 
-// Region of host or device memory region.
-struct EtMemRegion {
+/// @brief Linear Memory Allocator
+///
+/// Linear memory allocator that can allocate consecutive memory
+/// buffers in a given region. Curretly it does not have the ability
+/// to handle any "wholes" in the region created by freeing memory
+struct LinearMemoryAllocator {
   void *region_base;
   size_t region_size;
   std::map<const void *, size_t>
       alloced_ptrs; // alloced ptr -> size of alloced area
 
-  EtMemRegion(void *ptr, size_t size) : region_base(ptr), region_size(size) {}
+  LinearMemoryAllocator(void *ptr, size_t size) : region_base(ptr), region_size(size) {}
 
   static constexpr size_t kAlign = 1 << 20; // 1M
   bool isPtrAlloced(const void *ptr);

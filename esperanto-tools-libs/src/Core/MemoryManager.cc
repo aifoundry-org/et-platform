@@ -48,7 +48,7 @@ void MemoryManager::initMemRegions() {
                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   PERROR_IF(dev_base == MAP_FAILED);
   THROW_IF(dev_base != kDevMemBaseAddr, "Cannot allocate dev memory.");
-  dev_mem_region_.reset(new EtMemRegion(dev_base, kDevMemRegionSize));
+  dev_mem_region_.reset(new LinearMemoryAllocator(dev_base, kDevMemRegionSize));
 
   void *kernels_dev_base =
       mmap(kKernelsDevMemBaseAddr, kKernelsDevMemRegionSize, PROT_NONE,
@@ -57,7 +57,7 @@ void MemoryManager::initMemRegions() {
   THROW_IF(kernels_dev_base != kKernelsDevMemBaseAddr,
            "Cannot allocate kernels dev memory.");
   kernels_dev_mem_region_.reset(
-      new EtMemRegion(kernels_dev_base, kKernelsDevMemRegionSize));
+      new LinearMemoryAllocator(kernels_dev_base, kKernelsDevMemRegionSize));
 
   std::shared_ptr<EtAction> actionConfigure = nullptr;
   std::shared_ptr<EtAction> actionEvent = nullptr;

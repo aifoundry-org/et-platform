@@ -27,7 +27,7 @@ class Device;
 
 namespace device {
 
-struct EtMemRegion;
+struct LinearMemoryAllocator;
 
 /// @brief MemoryManager, responsible for tracking device memory use.
 class MemoryManager {
@@ -66,8 +66,8 @@ private:
   void uninitMemRegions();
 
   std::unordered_map<uint8_t *, std::unique_ptr<uint8_t>> host_mem_region_;
-  std::unique_ptr<EtMemRegion> dev_mem_region_;
-  std::unique_ptr<EtMemRegion> kernels_dev_mem_region_;
+  std::unique_ptr<LinearMemoryAllocator> dev_mem_region_;
+  std::unique_ptr<LinearMemoryAllocator> kernels_dev_mem_region_;
   Device &device_;
 };
 } // namespace device

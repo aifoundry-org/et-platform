@@ -19,7 +19,7 @@
 namespace et_runtime {
 namespace device {
 
-bool EtMemRegion::isPtrAlloced(const void *ptr) {
+bool LinearMemoryAllocator::isPtrAlloced(const void *ptr) {
   if (alloced_ptrs.count(ptr) > 0) {
     return true;
   }
@@ -35,7 +35,7 @@ bool EtMemRegion::isPtrAlloced(const void *ptr) {
   return false;
 }
 
-void *EtMemRegion::alloc(size_t size) {
+void *LinearMemoryAllocator::alloc(size_t size) {
   if (size == 0) {
     return nullptr;
   }
@@ -67,7 +67,7 @@ void *EtMemRegion::alloc(size_t size) {
   THROW("Can't alloc memory");
 }
 
-void EtMemRegion::free(void *ptr) {
+void LinearMemoryAllocator::free(void *ptr) {
   if (ptr == nullptr) {
     return;
   }
@@ -75,7 +75,7 @@ void EtMemRegion::free(void *ptr) {
   alloced_ptrs.erase(ptr);
 }
 
-void EtMemRegion::print() {
+void LinearMemoryAllocator::print() {
   printf("start: %p\n", region_base);
   for (auto it : alloced_ptrs) {
     printf("[%p - %p)\n", it.first, (uint8_t *)it.first + it.second);
