@@ -111,6 +111,7 @@ set(TEST_LIST
   test_device_manager.cc:""
   test_device_target_sysemu_grpc.cc:""
   test_elf_parsing.cc:""
+  test_memory_manager.cc:""
   test_module_load.cc:""
   test_module_manager.cc:""
   )

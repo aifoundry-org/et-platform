@@ -14,8 +14,10 @@
 #include "Common/ErrorTypes.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <unordered_map>
 
 struct etrtPointerAttributes;
 
@@ -72,7 +74,8 @@ public:
 
   /// @brief Return true iff this is a host pointer
   bool isPtrAllocedHost(const void *ptr) {
-    return host_mem_region_->isPtrAlloced(ptr);
+    uint8_t *tptr = reinterpret_cast<uint8_t *>(const_cast<void *>(ptr));
+    return host_mem_region_.find(tptr) == host_mem_region_.end();
   }
   /// @brief Return true iff this is a device pointer
   bool isPtrAllocedDev(const void *ptr) {
@@ -87,7 +90,7 @@ private:
   void initMemRegions();
   void uninitMemRegions();
 
-  std::unique_ptr<EtMemRegion> host_mem_region_;
+  std::unordered_map<uint8_t *, std::unique_ptr<uint8_t>> host_mem_region_;
   std::unique_ptr<EtMemRegion> dev_mem_region_;
   std::unique_ptr<EtMemRegion> kernels_dev_mem_region_;
   Device &device_;

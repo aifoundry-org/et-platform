@@ -100,11 +100,6 @@ bool MemoryManager::deInit() {
 }
 
 void MemoryManager::initMemRegions() {
-  void *host_base = mmap(nullptr, kHostMemRegionSize, PROT_READ | PROT_WRITE,
-                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  PERROR_IF(host_base == MAP_FAILED);
-  host_mem_region_.reset(new EtMemRegion(host_base, kHostMemRegionSize));
-
   void *kDevMemBaseAddr = (void *)GLOBAL_MEM_REGION_BASE;
   size_t kDevMemRegionSize = GLOBAL_MEM_REGION_SIZE;
   void *kKernelsDevMemBaseAddr = (void *)EXEC_MEM_REGION_BASE;
@@ -150,8 +145,6 @@ void MemoryManager::initMemRegions() {
 }
 
 void MemoryManager::uninitMemRegions() {
-  munmap(host_mem_region_->region_base, host_mem_region_->region_size);
-  host_mem_region_.reset(nullptr);
 
   munmap(dev_mem_region_->region_base, dev_mem_region_->region_size);
   dev_mem_region_.reset(nullptr);
@@ -161,12 +154,18 @@ void MemoryManager::uninitMemRegions() {
 }
 
 etrtError MemoryManager::mallocHost(void **ptr, size_t size) {
-  *ptr = host_mem_region_->alloc(size);
+  uint8_t *tptr = new uint8_t[size];
+  *ptr = tptr;
+  host_mem_region_[tptr] = std::unique_ptr<uint8_t>(tptr);
   return etrtSuccess;
 }
 
 etrtError MemoryManager::freeHost(void *ptr) {
-  host_mem_region_->free(ptr);
+  uint8_t *tptr = reinterpret_cast<uint8_t *>(ptr);
+  auto num_removed = host_mem_region_.erase(tptr);
+  if (num_removed == 0) {
+    return etrtErrorHostMemoryNotRegistered;
+  }
   return etrtSuccess;
 }
 
@@ -186,7 +185,8 @@ MemoryManager::pointerGetAttributes(struct etrtPointerAttributes *attributes,
   void *p = (void *)ptr;
   attributes->device = 0;
   attributes->isManaged = false;
-  if (host_mem_region_->isPtrAlloced(ptr)) {
+  auto tptr = reinterpret_cast<uint8_t *>(const_cast<void *>(ptr));
+  if (host_mem_region_.find(tptr) != host_mem_region_.end()) {
     attributes->memoryType = etrtMemoryTypeHost;
     attributes->devicePointer = nullptr;
     attributes->hostPointer = p;
