@@ -23,6 +23,7 @@
 
 //#define DEBUG_SEND_MESSAGES_TO_SP
 //#define DEBUG_FAKE_MESSAGE_FROM_HOST
+//#define DEBUG_FAKE_ABORT_FROM_HOST
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
 static void fake_message_from_host(void);
@@ -216,6 +217,16 @@ static void fake_message_from_host(void)
 
         launch_kernel(&host_message.kernel_params, &host_message.kernel_info);
     }
+
+#ifdef DEBUG_FAKE_ABORT_FROM_HOST
+    if (get_kernel_state(kernel_id) == KERNEL_STATE_RUNNING)
+    {
+        printf("faking kernel abort message fom host\r\n");
+
+        abort_kernel(kernel_id);
+    }
+#endif
+
 }
 #endif
 
@@ -243,7 +254,7 @@ static void handle_message_from_host(void)
 
     if (*message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
     {
-        printf("received kernel launch message fom host , length = %" PRId64 "\r\n", length);
+        printf("received kernel launch message fom host, length = %" PRId64 "\r\n", length);
         for (int64_t i = 0; i < length / 8; i++)
         {
             printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((uint64_t*)(void*)buffer)[i] );
@@ -252,6 +263,14 @@ static void handle_message_from_host(void)
         const host_message_t* const host_message_ptr = (void*)buffer;
 
         launch_kernel(&host_message_ptr->kernel_params, &host_message_ptr->kernel_info);
+    }
+    else if (*message_id == MBOX_MESSAGE_ID_KERNEL_ABORT)
+    {
+        printf("received kernel abort message fom host\r\n");
+
+        const host_message_t* const host_message_ptr = (void*)buffer;
+
+        abort_kernel(host_message_ptr->kernel_params.kernel_id);
     }
     else if (*message_id == MBOX_MESSAGE_ID_REFLECT_TEST)
     {

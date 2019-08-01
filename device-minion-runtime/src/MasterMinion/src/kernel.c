@@ -100,7 +100,7 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
 
 void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 {
-    if ((kernel_id == KERNEL_ID_NONE) || (kernel_id > KERNEL_ID_3))
+    if (kernel_id >= KERNEL_ID_NONE)
     {
         return; // error
     }
@@ -118,6 +118,8 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
         case KERNEL_STATE_RUNNING:
         {
+            kernel_status[kernel_id].kernel_state = KERNEL_STATE_RUNNING;
+
             // Mark all shires associated with this kernel as running
             for (uint64_t shire = 0; shire < 33; shire++)
             {
@@ -127,6 +129,10 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
                 }
             }
         }
+        break;
+
+        case KERNEL_STATE_ABORTED:
+            kernel_status[kernel_id].kernel_state = KERNEL_STATE_ABORTED;
         break;
 
         case KERNEL_STATE_ERROR:
@@ -185,7 +191,8 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
         allShiresReady = false;
     }
 
-    uint32_t* pc = (uint32_t *) kernel_info_ptr->compute_pc;
+    const uint32_t* pc = (uint32_t*)kernel_info_ptr->compute_pc;
+
     for (int i =0 ; i < 10; i++)
     {
         printf("PC: 0x%010" PRIxPTR " data: 0x%08" PRIx32 "\r\n", pc, *pc);
@@ -250,6 +257,37 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
             .response_id = MBOX_KERNEL_LAUNCH_RESPONSE_ERROR_SHIRES_NOT_READY};
         MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
     }
+}
+
+// Sends an abort message to all HARTs in all shires associated with the kernel_id if
+// the kernel is running
+void abort_kernel(kernel_id_t kernel_id)
+{
+    const kernel_state_t kernel_state = kernel_status[kernel_id].kernel_state;
+
+    devfw_response_t response = {
+        .message_id = MBOX_MESSAGE_ID_KERNEL_ABORT_RESPONSE,
+        .kernel_id = kernel_id,
+        .response_id = MBOX_KERNEL_ABORT_RESPONSE_RESULT_ERROR};
+
+    if ((kernel_state == KERNEL_STATE_LAUNCHED) || (kernel_state == KERNEL_STATE_RUNNING) || (kernel_state == KERNEL_STATE_ERROR))
+    {
+        message_t message = {.id = MESSAGE_ID_KERNEL_ABORT, .data = {0}};
+
+        if (0 == broadcast_message_send_master(kernel_status[kernel_id].shire_mask, 0xFFFFFFFFFFFFFFFFU, &message))
+        {
+            printf("abort_kernel: aborted kernel %d\r\n", kernel_id);
+            update_kernel_state(kernel_id, KERNEL_STATE_ABORTED);
+
+            response.response_id = MBOX_KERNEL_ABORT_RESPONSE_RESULT_OK;
+
+            MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
+
+            return;
+        }
+    }
+
+    MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
 }
 
 kernel_state_t get_kernel_state(kernel_id_t kernel_id)
