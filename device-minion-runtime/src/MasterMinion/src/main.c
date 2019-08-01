@@ -1,5 +1,6 @@
 #include "build_configuration.h"
 #include "hart.h"
+#include "host_message.h"
 #include "interrupt.h"
 #include "kernel.h"
 #include "layout.h"
@@ -18,11 +19,6 @@
 #include <stddef.h>
 #include <inttypes.h>
 
-typedef struct {
-    mbox_message_id_t message_id;
-    kernel_params_t kernel_params;
-    kernel_info_t kernel_info;
-} host_message_t;
 
 //#define DEBUG_SEND_MESSAGES_TO_SP
 //#define DEBUG_REFLECT_MESSAGE_FROM_HOST
