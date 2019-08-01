@@ -3,7 +3,6 @@
 #include "hart.h"
 #include "print_exception.h"
 #include "message.h"
-#include "printf.h"
 
 #include <stdbool.h>
 

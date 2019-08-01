@@ -21,6 +21,8 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_EVICT_L2:
         case SYSCALL_EVICT_L2_WAIT:
         case SYSCALL_CACHE_CONTROL:
+        case SYSCALL_FLUSH_L3:
+        case SYSCALL_FLUSH_L3_ALT:
         case SYSCALL_ENABLE_THREAD1:
         case SYSCALL_DRAIN_COALESCING_BUFFER_ALT:
         case SYSCALL_CACHE_CONTROL_ALT:
