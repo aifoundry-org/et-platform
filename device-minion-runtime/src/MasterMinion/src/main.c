@@ -21,7 +21,6 @@
 
 
 //#define DEBUG_SEND_MESSAGES_TO_SP
-//#define DEBUG_REFLECT_MESSAGE_FROM_HOST
 //#define DEBUG_FAKE_MESSAGE_FROM_HOST
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
@@ -219,28 +218,45 @@ static void handle_message_from_host(void)
 
     length = MBOX_receive(MBOX_PCIE, buffer, sizeof(buffer));
 
-    if (length > 0)
+    if (length < 0)
     {
-        printf("Received message from host, length = %" PRId64 "\r\n", length);
+        return;
+    }
 
+    if ((size_t)length < sizeof(mbox_message_id_t))
+    {
+        printf("Invalid message: length = %" PRId64 ", min length %d\r\n", length, sizeof(mbox_message_id_t));
+        return;
+    }
+
+    const mbox_message_id_t* const message_id = (void*)buffer;
+
+    if (*message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
+    {
+        printf("received kernel launch message fom host , length = %" PRId64 "\r\n", length);
         for (int64_t i = 0; i < length / 8; i++)
         {
             printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((uint64_t*)(void*)buffer)[i] );
         }
 
-#ifdef DEBUG_REFLECT_MESSAGE_FROM_HOST
-        printf("Reflecting message to host\r\n");
-        MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);
-#endif
-
         const host_message_t* const host_message_ptr = (void*)buffer;
 
-        if (host_message_ptr->message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
+        launch_kernel(&host_message_ptr->kernel_params, &host_message_ptr->kernel_info);
+    }
+    else if (*message_id == MBOX_MESSAGE_ID_REFLECT_TEST)
+    {
+        MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);
+    }
+    else
+    {
+        printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
+
+        for (int64_t i = 0; i < length / 8; i++)
         {
-            printf("received kernel launch message fom host\r\n");
-            launch_kernel(&host_message_ptr->kernel_params, &host_message_ptr->kernel_info);
+            printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((uint64_t*)(void*)buffer)[i] );
         }
     }
+    
 }
 
 static void handle_message_from_sp(void)
