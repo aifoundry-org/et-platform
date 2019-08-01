@@ -35,7 +35,7 @@ class net_emulator
     public:
         // Constructor and destructor
         net_emulator() = default;
-        net_emulator(bemu::MainMemory* mem_) : mem(mem_), enabled(false) {}
+        net_emulator(bemu::MainMemory* mem_) : helper_done(false), mem(mem_), enabled(false) {}
 
         // Set
         void set_file(char * net_desc_file);
