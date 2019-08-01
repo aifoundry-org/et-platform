@@ -114,10 +114,10 @@ bool PCIeDevice::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {
   auto response = reinterpret_cast<devfw_response_t *>(message.data());
   RTDEBUG << "MessageID: " << response->message_id
           << " kernel_id: " << response->kernel_id
-          << " kernel_result: " << response->launch_response << "\n";
+          << " kernel_result: " << response->response_id << "\n";
 
-  if (response->message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE &&
-      response->launch_response == MBOX_KERNEL_LAUNCH_RESPONSE_RESULT_OK) {
+  if (response->message_id == MBOX_MESSAGE_ID_KERNEL_RESULT &&
+      response->response_id == MBOX_KERNEL_RESULT_OK) {
     RTDEBUG << "Received successfull launch \n";
   } else {
     assert(false);
