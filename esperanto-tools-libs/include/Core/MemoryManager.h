@@ -55,9 +55,9 @@ public:
                                  const void *ptr);
 
   /// @brief Return true iff this is a host pointer
-  bool isPtrAllocedHost(const void *ptr);
+  bool isPtrAllocatedHost(const void *ptr);
   /// @brief Return true iff this is a device pointer
-  bool isPtrAllocedDev(const void *ptr);
+  bool isPtrAllocatedDev(const void *ptr);
   /// @brief Return true iff this points in a device region
   bool isPtrInDevRegion(const void *ptr);
 

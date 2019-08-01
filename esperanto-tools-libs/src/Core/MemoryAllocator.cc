@@ -19,17 +19,11 @@
 namespace et_runtime {
 namespace device {
 
-bool LinearMemoryAllocator::isPtrAlloced(const void *ptr) {
-  if (alloced_ptrs.count(ptr) > 0) {
-    return true;
-  }
-  for (auto i : alloced_ptrs) {
-    if (i.first <= ptr) {
-      if ((const char *)i.first + i.second > ptr) {
-        return true;
-      }
-    } else {
-      return false;
+bool LinearMemoryAllocator::isPtrAllocated(const void *ptr) const {
+  uintptr_t tptr = reinterpret_cast<uintptr_t>(ptr);
+  for (auto &range : allocated_buffers_) {
+    if (range.addr_ <= tptr && tptr < range.end()) {
+      return true;
     }
   }
   return false;
@@ -40,47 +34,60 @@ void *LinearMemoryAllocator::alloc(size_t size) {
     return nullptr;
   }
 
-  uintptr_t currBeg = align_up((uintptr_t)region_base, kAlign);
+  uintptr_t pointer = 0;
 
-  for (auto it : alloced_ptrs) {
-    uintptr_t currEnd = (uintptr_t)it.first;
-    uintptr_t nextBeg = align_up((uintptr_t)it.first + it.second, kAlign);
-
-    assert(currEnd >= currBeg);
-    if (currEnd - currBeg >= size) {
-      void *ptr = (void *)currBeg;
-      alloced_ptrs[ptr] = size;
-      return ptr;
-    }
-
-    currBeg = nextBeg;
+  if (allocated_buffers_.empty()) {
+    pointer = align_up(region_base_, kAlign);
+  } else {
+    auto end = allocated_buffers_.rbegin();
+    pointer = align_up(end->end(), kAlign);
   }
 
-  uintptr_t regionEnd = (uintptr_t)region_base + region_size;
-  assert(regionEnd >= currBeg);
-  if (regionEnd - currBeg >= size) {
-    void *ptr = (void *)currBeg;
-    alloced_ptrs[ptr] = size;
-    return ptr;
+  if ((pointer + size) > (region_base_ + region_size_)) {
+    RTERROR << "Can't alloc memory \n";
+    return nullptr;
   }
 
-  THROW("Can't alloc memory");
+  auto res = allocated_buffers_.insert({pointer, size});
+  if (!res.second) {
+    RTERROR << "Failed to insert memory region \n";
+    return nullptr;
+  }
+
+  return reinterpret_cast<void *>(pointer);
+}
+
+bool LinearMemoryAllocator::emplace(void *ptr, size_t size) {
+  if (size == 0) {
+    return false;
+  }
+
+  uintptr_t tptr = reinterpret_cast<uintptr_t>(ptr);
+  auto res = allocated_buffers_.insert({tptr, size});
+  return res.second;
 }
 
 void LinearMemoryAllocator::free(void *ptr) {
   if (ptr == nullptr) {
     return;
   }
-  assert(alloced_ptrs.count(ptr));
-  alloced_ptrs.erase(ptr);
+  uintptr_t tptr = reinterpret_cast<uintptr_t>(ptr);
+  for (auto it = allocated_buffers_.begin(); it != allocated_buffers_.end();) {
+    if (it->addr_ == tptr) {
+      allocated_buffers_.erase(it);
+      break;
+    } else {
+      ++it;
+    }
+  }
 }
 
-void LinearMemoryAllocator::print() {
-  printf("start: %p\n", region_base);
-  for (auto it : alloced_ptrs) {
-    printf("[%p - %p)\n", it.first, (uint8_t *)it.first + it.second);
+void LinearMemoryAllocator::print() const {
+  printf("start: %p\n", (void *)region_base_);
+  for (auto it : allocated_buffers_) {
+    printf("[%p - %p)\n", (void *)it.addr_, (void *)it.end());
   }
-  printf("end: %p\n", (uint8_t *)region_base + region_size);
+  printf("end: %p\n", (void *)(region_base_ + region_size_));
 }
 
 } // namespace device

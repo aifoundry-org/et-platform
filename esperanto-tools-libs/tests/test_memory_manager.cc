@@ -62,6 +62,57 @@ TEST(MemoryRange, test_container) {
   ASSERT_EQ(end->addr_, 30);
 }
 
+TEST(LinearMemoryAllocator, test_memory_allocations) {
+  uintptr_t base_addr = 0x8100000000;
+  size_t size = 0x100000000ULL; // 4GB
+
+  auto allocator = LinearMemoryAllocator(base_addr, size);
+
+  size_t buf_size = 100;
+  auto ptr = allocator.alloc(buf_size);
+  ASSERT_EQ(reinterpret_cast<uintptr_t>(ptr), base_addr);
+
+  // Check the pointer is allocated
+  auto res = allocator.isPtrAllocated(ptr);
+  ASSERT_TRUE(res);
+
+  // Check a pointer that falls inside buffer previously
+  // allocated
+  uint8_t *mid_ptr = (uint8_t *)ptr + 10;
+  res = allocator.isPtrAllocated(mid_ptr);
+  ASSERT_TRUE(res);
+
+  // Check that the next allocation is kAlign aligned
+  auto ptr2 = allocator.alloc(buf_size);
+  uintptr_t trgt =
+      reinterpret_cast<uintptr_t>(ptr) + LinearMemoryAllocator::kAlign;
+  ASSERT_EQ(reinterpret_cast<uintptr_t>(ptr2), trgt);
+
+  allocator.print();
+
+  allocator.free(ptr);
+  allocator.print();
+}
+
+TEST(LinearMemoryAllocator, emplace_buffer) {
+  uintptr_t base_addr = 0x8100000000;
+  size_t size = 0x100000000ULL; // 4GB
+
+  auto allocator = LinearMemoryAllocator(base_addr, size);
+
+  size_t buf_size = 1 << 10;
+  auto ptr = allocator.alloc(buf_size);
+  ASSERT_EQ(reinterpret_cast<uintptr_t>(ptr), base_addr);
+
+  uintptr_t ptr_2 = reinterpret_cast<uintptr_t>(ptr) + buf_size;
+  auto res = allocator.emplace((void *)ptr_2, buf_size);
+  ASSERT_TRUE(res);
+
+  ptr_2 = reinterpret_cast<uintptr_t>(ptr) + buf_size / 2;
+  res = allocator.emplace((void *)ptr_2, buf_size);
+  ASSERT_FALSE(res);
+}
+
 TEST(MemoryManager, alloc_host) {
   absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("fake_device"));
   FakeDevice dev;

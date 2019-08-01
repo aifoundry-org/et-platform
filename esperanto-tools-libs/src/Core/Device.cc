@@ -216,8 +216,8 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
   if (kind == etrtMemcpyDefault) {
     // All addresses not in device address space count as host address even if
     // it was not created with MallocHost
-    bool is_dst_host = isPtrAllocedHost(dst) || !isPtrInDevRegion(dst);
-    bool is_src_host = isPtrAllocedHost(src) || !isPtrInDevRegion(src);
+    bool is_dst_host = isPtrAllocatedHost(dst) || !isPtrInDevRegion(dst);
+    bool is_src_host = isPtrAllocatedHost(src) || !isPtrInDevRegion(src);
     if (is_src_host) {
       if (is_dst_host) {
         kind = etrtMemcpyHostToHost;

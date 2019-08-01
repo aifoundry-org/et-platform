@@ -12,7 +12,7 @@
 #define ET_RUNTIME_MEMORY_ALLOCATOR_H
 
 #include <cstdint>
-#include <map>
+#include <set>
 
 namespace et_runtime {
 namespace device {
@@ -28,6 +28,7 @@ struct MemoryRange {
   bool operator<(const MemoryRange other) const {
     return (addr_ + size_) <= other.addr_;
   }
+  uintptr_t end() const { return addr_ + size_; }
   uintptr_t addr_ = 0;
   size_t size_ = 0;
 };
@@ -37,23 +38,45 @@ struct MemoryRange {
 /// Linear memory allocator that can allocate consecutive memory
 /// buffers in a given region. Curretly it does not have the ability
 /// to handle any "wholes" in the region created by freeing memory
-struct LinearMemoryAllocator {
-  void *region_base;
-  size_t region_size;
-  std::map<const void *, size_t>
-      alloced_ptrs; // alloced ptr -> size of alloced area
-
-  LinearMemoryAllocator(void *ptr, size_t size) : region_base(ptr), region_size(size) {}
-
+class LinearMemoryAllocator {
+public:
   static constexpr size_t kAlign = 1 << 20; // 1M
-  bool isPtrAlloced(const void *ptr);
+
+  LinearMemoryAllocator(uintptr_t ptr, size_t size)
+      : region_base_(ptr), region_size_(size) {}
+  /// @brief Return true if pointer is allocated
+  bool isPtrAllocated(const void *ptr) const;
+
+  /// @brief Allocate a region of memory
+  ///
+  /// @params[in] size Size of the buffer to allocate
+  /// @return Pointer to allocated region
   void *alloc(size_t size);
+
+  /// @brief "Emplace" a buffer in the region
+  ///
+  /// Try to insert an allocate buffer. This can be used to exclude
+  /// a memory region from being allocated.
+  bool emplace(void *ptr, size_t size);
+
+  /// @brief Free an allocated buffer
   void free(void *ptr);
-  void print();
+
+  /// @brief Print the allocated memory regions
+  void print() const;
+
+  /// @brief Return true of the pointer is allocated in the regious
   bool isPtrInRegion(const void *ptr) {
-    return ptr >= region_base &&
-           (uintptr_t)ptr < (uintptr_t)region_base + region_size;
+    return reinterpret_cast<uintptr_t>(ptr) >= region_base_ &&
+           reinterpret_cast<uintptr_t>(ptr) < region_base_ + region_size_;
   }
+
+private:
+  uintptr_t region_base_;
+  size_t region_size_;
+  std::set<MemoryRange>
+      allocated_buffers_; ///< Set of memory ranges alocated, each range is the
+                          ///< buffers pointer and size
 };
 
 } // namespace device
