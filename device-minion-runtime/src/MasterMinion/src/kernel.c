@@ -183,6 +183,13 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
         allShiresReady = false;
     }
 
+    uint32_t* pc = (uint32_t *) kernel_info_ptr->compute_pc;
+    for (int i =0 ; i < 10; i++)
+    {
+        printf("PC: 0x%010" PRIxPTR " data: 0x%08" PRIx32 "\r\n", pc, *pc);
+        pc += 1;
+    }
+
     // Confirm this kernel is not active
     if (kernel_status_ptr->kernel_state != KERNEL_STATE_UNUSED)
     {
