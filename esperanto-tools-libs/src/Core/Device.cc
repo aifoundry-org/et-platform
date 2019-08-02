@@ -301,6 +301,10 @@ etrtError Device::memset(void *devPtr, int value, size_t count) {
 
 etrtError Device::freeHost(void *ptr) { return mem_manager_->freeHost(ptr); }
 
+etrtError Device::reserveMemory(void *ptr, size_t size) {
+  return mem_manager_->reserveMemory(ptr, size);
+}
+
 etrtError Device::malloc(void **devPtr, size_t size) {
   return mem_manager_->malloc(devPtr, size);
 }

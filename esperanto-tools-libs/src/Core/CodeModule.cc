@@ -15,6 +15,7 @@
 #include "ELFSupport.h"
 
 #include <cassert>
+#include <elfio/elfio.hpp>
 
 using namespace std;
 using namespace et_runtime;
@@ -48,19 +49,59 @@ size_t Module::rawKernelOffset(const std::string &name) {
 
 /// @Brief Load the ELF on the device
 bool Module::loadOnDevice(Device *dev) {
-  dev->malloc((void **)&devPtr_, elf_raw_data_.size());
+  auto &mem_manager = dev->mem_manager_;
+  for (auto &segment : elf_info_->reader_.segments) {
+    auto type = segment->get_type();
+    if (type & PT_LOAD) {
+      auto offset = segment->get_offset();
+      auto load_address = segment->get_physical_address();
+      auto file_size = segment->get_file_size();
+      auto mem_size = segment->get_memory_size();
 
-  auto write_command = make_shared<device_api::WriteCommand>(
-      (void *)devPtr_, elf_raw_data_.data(), elf_raw_data_.size());
+      RTDEBUG << "Found segment: " << segment->get_index()
+              << " Physical Address: 0x" << std::hex
+              << segment->get_physical_address() << " File Size: 0x"
+              << file_size << " Mem Size : 0x" << mem_size << "\n";
 
-  dev->addCommand(
-      dev->defaultStream(),
-      std::dynamic_pointer_cast<device_api::CommandBase>(write_command));
+      // FIXME for any segment that has as a load address below the RAM base
+      // then allocate a buffer and "relocate" it there. Still our ELFs are not
+      // PIE and the force them to load to a specific address
+      uintptr_t write_address = 0;
+      if (load_address < mem_manager->ramBase()) {
+        mem_manager->malloc((void **)&devPtr_, elf_raw_data_.size());
+        relocated_ = true;
+        write_address = devPtr_ + offset;
+      } else {
+        // We are loading the segment its specified the LOAD address
+        // Set devPtr to zero as the functions have entrypoint addresses
+        // that are absolute
+        devPtr_ = load_address;
+        auto res = mem_manager->reserveMemory(reinterpret_cast<void *>(devPtr_),
+                                              mem_size);
+        assert(res == etrtSuccess);
+        write_address = devPtr_;
+      }
 
-  auto response_future = write_command->getFuture();
-  auto response = response_future.get();
-  onDevice_ = true;
-  return response.error() == etrtSuccess;
+      RTDEBUG << "Loading segment: " << segment->get_index()
+              << " Physical Address: 0x" << std::hex << write_address
+              << " Mem Size : 0x" << mem_size << "\n";
+
+      auto write_command = make_shared<device_api::WriteCommand>(
+          (void *)write_address, elf_raw_data_.data() + offset, mem_size);
+
+      dev->addCommand(
+          dev->defaultStream(),
+          std::dynamic_pointer_cast<device_api::CommandBase>(write_command));
+
+      auto response_future = write_command->getFuture();
+      auto response = response_future.get();
+      if (response.error() != etrtSuccess) {
+        return false;
+      }
+      onDevice_ = true;
+    }
+  }
+  return true;
 }
 
 ErrorOr<uintptr_t>
@@ -68,5 +109,10 @@ Module::onDeviceKernelEntryPoint(const std::string &kernel_name) {
   if (!onDevice_) {
     return etrtErrorModuleNotOnDevice;
   }
-  return (uintptr_t)devPtr_ + rawKernelOffset(kernel_name);
+  auto kernel_offset = rawKernelOffset(kernel_name);
+  if (relocated_) {
+
+    return (uintptr_t)devPtr_ + kernel_offset;
+  }
+  return kernel_offset;
 }

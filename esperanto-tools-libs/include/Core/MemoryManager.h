@@ -42,10 +42,15 @@ public:
   /// right order
   bool init();
   bool deInit();
+
+  uintptr_t ramBase() const;
+
   /// @brief Allocate pinned memory on the host
   etrtError mallocHost(void **ptr, size_t size);
   /// @brief Deallocate host memory
   etrtError freeHost(void *ptr);
+  /// @brief Reserve a memory region starting at address ptr
+  etrtError reserveMemory(void *ptr, size_t size);
   /// @brief Allocate memory on the device
   etrtError malloc(void **devPtr, size_t size);
   /// @brief Free device memory.

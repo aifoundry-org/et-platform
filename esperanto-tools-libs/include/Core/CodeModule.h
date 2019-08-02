@@ -70,6 +70,8 @@ private:
   std::vector<char>
       elf_raw_data_;      ///< Buffer holding the whole ELF as read from file
   bool onDevice_ = false; ///< True iff the module is loaded on the device
+  bool relocated_ = false; ///< Truee if the segments have been relocated
+                           ///< relative to their original load addresses
   uintptr_t devPtr_ = 0;  ///< Base on device point of the loaded binary
   std::shared_ptr<et_runtime::EtAction> actionEvent_ =
       nullptr; ///<  Action used for synchronize with load completion on the

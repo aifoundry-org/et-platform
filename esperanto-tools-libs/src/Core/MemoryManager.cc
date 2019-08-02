@@ -38,6 +38,8 @@ bool MemoryManager::deInit() {
   return true;
 }
 
+uintptr_t MemoryManager::ramBase() const { return RAM_MEMORY_REGION; }
+
 void MemoryManager::initMemRegions() {
   dev_mem_region_.reset(new LinearMemoryAllocator(GLOBAL_MEM_REGION_BASE,
                                                   GLOBAL_MEM_REGION_SIZE));
@@ -78,6 +80,15 @@ etrtError MemoryManager::freeHost(void *ptr) {
   auto num_removed = host_mem_region_.erase(tptr);
   if (num_removed == 0) {
     return etrtErrorHostMemoryNotRegistered;
+  }
+  return etrtSuccess;
+}
+
+etrtError MemoryManager::reserveMemory(void *ptr, size_t size) {
+  // For now this applies only to the dev mem region
+  auto res = dev_mem_region_->emplace(ptr, size);
+  if (!res) {
+    return etrtErrorHostMemoryAlreadyRegistered;
   }
   return etrtSuccess;
 }

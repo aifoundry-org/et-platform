@@ -48,6 +48,7 @@ struct EtLoadedKernelsBin {
 class Device {
   friend class ::GetDev;
   friend class et_runtime::device::MemoryManager;
+  friend class Module;
 
 public:
   Device(int index);
@@ -235,6 +236,8 @@ public:
 
   etrtError mallocHost(void **ptr, size_t size);
   etrtError freeHost(void *ptr);
+  /// @brief Reserve a memory region starting at address ptr
+  etrtError reserveMemory(void *ptr, size_t size);
   etrtError malloc(void **devPtr, size_t size);
   etrtError free(void *devPtr);
   etrtError pointerGetAttributes(struct etrtPointerAttributes *attributes,

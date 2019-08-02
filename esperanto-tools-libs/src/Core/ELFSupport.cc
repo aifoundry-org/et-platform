@@ -211,7 +211,7 @@ bool KernelELFInfo::loadELF(std::istream &stream) {
   if (!entrypoints_found) {
     RTINFO << "No entrypoint function found, segment offset: 0x" << std::hex
            << reader_.segments[0]->get_offset() << "\n";
-    raw_kernel_offset_[name_] = reader_.segments[0]->get_offset();
+    raw_kernel_offset_[name_] = reader_.segments[0]->get_virtual_address();
   }
   return true;
 }

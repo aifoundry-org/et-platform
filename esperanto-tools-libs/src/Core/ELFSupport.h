@@ -20,9 +20,13 @@
 
 namespace et_runtime {
 
+class Module;
+
 /// @Brief Base class holding the information of an ELF file
 class ELFInfo {
 public:
+  friend class Module;
+
   ELFInfo(const std::string &name);
   virtual ~ELFInfo() = default;
 
