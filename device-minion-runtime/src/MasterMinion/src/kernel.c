@@ -25,7 +25,6 @@ static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS];
 // Shared state - Worker minion fetch kernel parameters from these
 static kernel_config_t* const kernel_config = (kernel_config_t*)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
 
-static void notify_sync_thread(kernel_id_t kernel_id);
 static void clear_kernel_config(kernel_id_t kernel_id);
 
 void kernel_init(void)
@@ -226,7 +225,7 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
         WAIT_CACHEOPS
 
         // notify the appropriate sync thread to manage kernel launch
-        notify_sync_thread(kernel_id);
+        notify_kernel_sync_thread(kernel_id, FCC_0);
 
         update_kernel_state(kernel_id, KERNEL_STATE_LAUNCHED);
         kernel_status_ptr->shire_mask = shire_mask;
@@ -256,15 +255,6 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
 kernel_state_t get_kernel_state(kernel_id_t kernel_id)
 {
     return kernel_status[kernel_id].kernel_state;
-}
-
-// Notifies the HART running the sync_thread for the kernel_id
-static void notify_sync_thread(kernel_id_t kernel_id)
-{
-    const uint64_t bitmask = 1U << (FIRST_KERNEL_LAUNCH_SYNC_MINON + (kernel_id / 2));
-    const uint64_t thread = kernel_id % 2;
-
-    SEND_FCC(THIS_SHIRE, thread, 0, bitmask);
 }
 
 // Clear fields of kernel config so worker minion recognize it's inactive

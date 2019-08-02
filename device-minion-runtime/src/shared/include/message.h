@@ -5,8 +5,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define MASTER_SHIRE 32U
-
 typedef enum
 {
     MESSAGE_ID_NONE = 0xA5A5A5A5U,
