@@ -3154,6 +3154,8 @@ static void tensorstore(uint64_t tstorereg)
             return;
         }
 
+	log_tensor_store(true, rows, 4, 1);
+
         // For all the rows
         for (int row = 0; row < rows; row++)
         {
@@ -3163,6 +3165,9 @@ static void tensorstore(uint64_t tstorereg)
                 uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxStore);
                 bemu::pmemwrite512(paddr, SCP[src].u32.data());
                 LOG_MEMWRITE512(paddr, SCP[src].u32);
+		for (int col=0; col < 16; col++) {
+                    log_tensor_store_write(paddr + col*4, SCP[src].u32[col]);
+                }
             }
             catch (const sync_trap_t&) {
                 update_tensor_error(1 << 7);
@@ -3212,6 +3217,8 @@ static void tensorstore(uint64_t tstorereg)
                 throw trap_illegal_instruction(current_inst);
         }
 
+        log_tensor_store(false, rows, cols, coop);
+
         // For all the rows
         int src = regstart;
         uint64_t mask = ~(16ull*cols - 1ull);
@@ -3227,6 +3234,9 @@ static void tensorstore(uint64_t tstorereg)
                     const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
                     bemu::pmemwrite128(paddr, ptr);
                     LOG_MEMWRITE128(paddr, ptr);
+		    for (int w=0; w < 4; w++) {
+                        log_tensor_store_write(paddr + w*4, *(ptr+w));
+                    }
                 }
                 catch (const sync_trap_t&) {
                     update_tensor_error(1 << 7);

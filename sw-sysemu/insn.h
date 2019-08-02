@@ -26,8 +26,9 @@ public:
         flag_TENSOR_FMA   = 0x0080,
         flag_TENSOR_LOAD  = 0x0100,
         flag_TENSOR_QUANT = 0x0200,
-        flag_WFI          = 0x0400,
-        flag_STALL        = 0x0800
+        flag_TENSOR_STORE = 0x0400,
+        flag_WFI          = 0x0800,
+        flag_STALL        = 0x1000
     };
 
     uint32_t          bits;
@@ -49,6 +50,7 @@ public:
     constexpr bool is_tensor_fma() const { return (flags & flag_TENSOR_FMA); }
     constexpr bool is_tensor_load() const { return (flags & flag_TENSOR_LOAD); }
     constexpr bool is_tensor_quant() const { return (flags & flag_TENSOR_QUANT); }
+    constexpr bool is_tensor_store() const { return (flags & flag_TENSOR_STORE); }
 
     /* extract RV64IMAF+ET fields */
 
