@@ -1,4 +1,5 @@
 #include "mailbox.h"
+#include "mailbox_id.h"
 #include "esr_defines.h"
 #include "hal_device.h"
 #include "interrupt.h"
@@ -13,8 +14,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stdio.h>
-
-#define DEBUG_REFLECT_MESSAGES_FROM_MM
 
 static TaskHandle_t taskHandles[MBOX_COUNT];
 static StackType_t stacks[MBOX_COUNT][MBOX_STACK_SIZE];
@@ -154,23 +153,41 @@ static void mbox_task(void* pvParameters)
         {
             length = mbox_receive(mbox, buffer, sizeof(buffer));
 
-#ifdef DEBUG_REFLECT_MESSAGES_FROM_MM
-            if (length > 0)
+            if (length < 0)
             {
-                printf("Received message from MM, length = %" PRId64 "\r\n", length);
-
-                int64_t result = MBOX_send(mbox, buffer, (uint32_t)length);
-
-                if (result == 0)
-                {
-                    printf("Sent message to MM, length = %" PRId64 "\r\n", length);
-                }
-                else
-                {
-                    printf("mbox_send error %" PRId64 "\r\n", result);
-                }
+                break;
             }
-#endif
+
+            if ((size_t)length < sizeof(mbox_message_id_t))
+            {
+                printf("Invalid message: length = %" PRId64 ", min length %" PRIu64 "\r\n", length, sizeof(mbox_message_id_t));
+                break;
+            }
+
+            const mbox_message_id_t* const message_id = (void*)buffer;
+
+            switch (*message_id)
+            {
+                case MBOX_MESSAGE_ID_REFLECT_TEST:
+                    {
+                        int64_t result = MBOX_send(mbox, buffer, (uint32_t)length);
+
+                        if (result != 0)
+                        {
+                            printf("mbox_send error %" PRId64 "\r\n", result);
+                        }
+                    }
+                    break;
+                
+                default:
+                    printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
+                    printf("message length: %" PRIi64 ", buffer:\r\n", length);
+                    for (int64_t i = 0; i < length; ++i)
+                    {
+                        if (i % 8 == 0 && i != 0) printf("\r\n");
+                        printf("%02x ", buffer[i]);
+                    }
+            }
         }
         while (length > 0);
     }
