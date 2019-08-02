@@ -3262,13 +3262,6 @@ static void tensor_fma32(uint64_t tfmareg)
     arows = arows + 1;
     acols = acols + 1;
 
-    // Check if L1 SCP is enabled
-    if (cpu[current_thread].mcache_control != 3)
-    {
-        update_tensor_error(1 << 4);
-        return;
-    }
-
     LOG(DEBUG, "\tStart TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(frm()));
 
@@ -3283,7 +3276,18 @@ static void tensor_fma32(uint64_t tfmareg)
     // rows/columns size, or not tenb and orphaned TensorLoadSetupB
     if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb))
     {
-        update_tensor_error(1 << 6);
+        // If L1 SCP is disabled we should set multiple bits in tesnor_error
+        if (cpu[current_thread].mcache_control != 3)
+            update_tensor_error((1 << 4) | (1 << 6));
+        else
+            update_tensor_error(1 << 6);
+        return;
+    }
+
+    // Check if L1 SCP is enabled
+    if (cpu[current_thread].mcache_control != 3)
+    {
+        update_tensor_error(1 << 4);
         return;
     }
 
@@ -3384,13 +3388,6 @@ static void tensor_fma16a32(uint64_t tfmareg)
     acols = (acols + 1) * 2;
     aoffset = aoffset * 2;
 
-    // Check if L1 SCP is enabled
-    if (cpu[current_thread].mcache_control != 3)
-    {
-        update_tensor_error(1 << 4);
-        return;
-    }
-
     LOG(DEBUG, "\tStart TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rtz));
 
@@ -3406,7 +3403,18 @@ static void tensor_fma16a32(uint64_t tfmareg)
     // TensorLoadSetupB
     if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb))
     {
-        update_tensor_error(1 << 6);
+        // If L1 SCP is disabled we should set multiple bits in tesnor_error
+        if (cpu[current_thread].mcache_control != 3)
+            update_tensor_error((1 << 4) | (1 << 6));
+        else
+            update_tensor_error(1 << 6);
+        return;
+    }
+
+    // Check if L1 SCP is enabled
+    if (cpu[current_thread].mcache_control != 3)
+    {
+        update_tensor_error(1 << 4);
         return;
     }
 
@@ -3513,13 +3521,6 @@ static void tensor_ima8a32(uint64_t tfmareg)
     acols = (acols + 1) * 4;
     aoffset = aoffset * 4;
 
-    // Check if L1 SCP is enabled
-    if (cpu[current_thread].mcache_control != 3)
-    {
-        update_tensor_error(1 << 4);
-        return;
-    }
-
     LOG(DEBUG, "\tStart TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
         usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
 
@@ -3535,7 +3536,18 @@ static void tensor_ima8a32(uint64_t tfmareg)
     // TensorLoadSetupB
     if ((tenb && (!load_tenb || (brows_tenb != acols))) || (!tenb && load_tenb))
     {
-        update_tensor_error(1 << 6);
+        // If L1 SCP is disabled we should set multiple bits in tesnor_error
+        if (cpu[current_thread].mcache_control != 3)
+            update_tensor_error((1 << 4) | (1 << 6));
+        else
+            update_tensor_error(1 << 6);
+        return;
+    }
+
+    // Check if L1 SCP is enabled
+    if (cpu[current_thread].mcache_control != 3)
+    {
+        update_tensor_error(1 << 4);
         return;
     }
 
