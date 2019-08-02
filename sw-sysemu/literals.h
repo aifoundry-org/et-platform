@@ -4,6 +4,7 @@
 #define BEMU_LITERALS_H
 
 namespace bemu {
+inline namespace literals {
 
 
 //
@@ -23,6 +24,7 @@ constexpr inline unsigned long long operator"" _TiB(unsigned long long v)
 { return v << 40; }
 
 
+} // namespace bemu::literals
 } // namespace bemu
 
 #endif // BEMU_LITERALS_H

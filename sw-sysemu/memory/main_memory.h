@@ -87,16 +87,6 @@ struct MainMemory {
         sysreg_base         = 0x0100000000ULL,
         pcie_base           = 0x4000000000ULL,
         dram_base           = 0x8000000000ULL,
-
-        // sizes for the various regions of the address space
-        pu_maxion_size      = 256_MiB,
-        pu_io_size          = 256_MiB,
-        pu_mbox_size        = 512_MiB,
-        spio_size           = 1_GiB,
-        scp_size            = 2_GiB,
-        sysreg_size         = 4_GiB,
-        pcie_size           = 256_GiB,
-        dram_size           = 32_GiB,
     };
 
     void read(addr_type addr, size_type n, void* result) const {
@@ -114,8 +104,8 @@ struct MainMemory {
         elem->init(addr - elem->first(), n, reinterpret_cast<const_pointer>(source));
     }
 
-    addr_type first() const { return 0; }
-    addr_type last() const { return dram_base + dram_size - 1; }
+    addr_type first() const { return pu_maxion_space.first(); }
+    addr_type last() const { return dram_space.last(); }
 
     void dump_data(std::ostream& os, addr_type addr, size_type n) const {
         auto lo = std::lower_bound(regions.cbegin(), regions.cend(), addr, above);
@@ -134,14 +124,14 @@ struct MainMemory {
     }
 
     // Members
-    MaxionRegion     <pu_maxion_base, pu_maxion_size>   pu_maxion_space{};
-    PeripheralRegion <pu_io_base, pu_io_size>           pu_io_space{};
-    MailboxRegion    <pu_mbox_base, pu_mbox_size>       pu_mbox_space{};
-    SvcProcRegion    <spio_base, spio_size>             spio_space{};
+    MaxionRegion     <pu_maxion_base, 256_MiB>          pu_maxion_space{};
+    PeripheralRegion <pu_io_base, 256_MiB>              pu_io_space{};
+    MailboxRegion    <pu_mbox_base, 512_MiB>            pu_mbox_space{};
+    SvcProcRegion    <spio_base, 1_GiB>                 spio_space{};
     ScratchRegion    <scp_base, 4_MiB, EMU_NUM_SHIRES>  scp_space{};
-    SysregRegion     <sysreg_base, sysreg_size>         sysreg_space{};
-    NullRegion       <pcie_base, pcie_size>             pcie_space{};
-    SparseRegion     <dram_base, dram_size, 16_MiB>     dram_space{};
+    SysregRegion     <sysreg_base, 4_GiB>               sysreg_space{};
+    NullRegion       <pcie_base, 256_GiB>               pcie_space{};
+    SparseRegion     <dram_base, 32_GiB, 16_MiB>        dram_space{};
 
 protected:
     static inline bool above(const MemoryRegion* lhs, addr_type rhs) {

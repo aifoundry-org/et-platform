@@ -28,6 +28,7 @@ namespace bemu {
 #define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000
 #define ESR_ICACHE_ERR_LOG_CTL_RESET_VAL  0x6
 #define ESR_TEXTURE_CONTROL_RESET_VAL     0x5
+#define ESR_MPROT_RESET_VAL               0x8
 
 #define ESR_SC_L3_SHIRE_SWIZZLE_CTL_RESET_VAL   0x0000987765543210ULL
 #define ESR_SC_REQQ_CTL_RESET_VAL               0x00038A80
@@ -138,7 +139,7 @@ void neigh_esrs_t::reset()
     texture_control = ESR_TEXTURE_CONTROL_RESET_VAL;
     texture_status = 0;
     icache_err_log_ctl = ESR_ICACHE_ERR_LOG_CTL_RESET_VAL;
-    mprot = 0;
+    mprot = ESR_MPROT_RESET_VAL;
     neigh_chicken = 0;
     vmspagesize = 0;
     pmu_ctrl = 0;
@@ -655,7 +656,7 @@ void esr_write(uint64_t addr, uint64_t value)
                                 shire, neigh, neigh_esrs[pos].texture_control);
                 break;
             case ESR_MPROT:
-                neigh_esrs[pos].mprot = uint8_t(value & 0x7);
+                neigh_esrs[pos].mprot = uint8_t(value & 0x1f);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:mprot = 0x%" PRIx8,
                                 shire, neigh, neigh_esrs[pos].mprot);
                 break;

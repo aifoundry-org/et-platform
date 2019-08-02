@@ -7,6 +7,7 @@
 #include "decode.h"
 #include "emu_gio.h"
 #include "esrs.h"
+#include "literals.h"
 #include "log.h"
 #include "memmap.h"
 #include "memop.h"
@@ -133,12 +134,31 @@ static inline void check_store_breakpoint(uint64_t addr)
 #define MPROT_DISABLE_IO_ACCESS    0x1
 #define MPROT_DISABLE_PCIE_ACCESS  0x2
 #define MPROT_DISABLE_OSBOX_ACCESS 0x4
+#define MPROT_DRAM_SIZE_8G         0x00
+#define MPROT_DRAM_SIZE_16G        0x08
+#define MPROT_DRAM_SIZE_24G        0x10
+#define MPROT_DRAM_SIZE_32G        0x18
+#define MPROT_DRAM_SIZE(x)         ((x) & 0x18)
 
 #define PP(x)   (int(((x) & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT))
 
 
 static inline bool paddr_is_sp_cacheable(uint64_t addr)
 { return paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr); }
+
+
+static inline uint64_t pma_dram_limit(uint8_t mprot)
+{
+    using namespace bemu::literals;
+
+    switch (MPROT_DRAM_SIZE(mprot)) {
+    case MPROT_DRAM_SIZE_8G : return 0x8000000000ULL +  8_GiB;
+    case MPROT_DRAM_SIZE_16G: return 0x8000000000ULL + 16_GiB;
+    case MPROT_DRAM_SIZE_24G: return 0x8000000000ULL + 24_GiB;
+    case MPROT_DRAM_SIZE_32G: return 0x8000000000ULL + 32_GiB;
+    }
+    throw std::runtime_error("Illegal mprot.dram_size value");
+}
 
 
 static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
@@ -171,14 +191,18 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
             return addr;
         }
 
+        uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+
         if (paddr_is_dram_osbox(addr2)) {
-            uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
             if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
                 throw_access_fault(vaddr, macc);
             return addr;
         }
 
         // dram_other
+        if (addr >= pma_dram_limit(mprot))
+            throw_access_fault(vaddr, macc);
+
         return addr;
     }
 
@@ -249,14 +273,18 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
             return addr;
         }
 
+        uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+
         if (paddr_is_dram_osbox(addr2)) {
-            uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
             if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
                 throw_access_fault(vaddr, macc);
             return addr;
         }
 
         // dram_other
+        if (addr >= pma_dram_limit(mprot))
+            throw_access_fault(vaddr, macc);
+
         return addr;
     }
 
@@ -296,14 +324,18 @@ static uint64_t pma_check_ptw_access(uint64_t vaddr, uint64_t addr,
             return addr;
         }
 
+        uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
+
         if (paddr_is_dram_osbox(addr2)) {
-            uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
             if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
                 throw_access_fault(vaddr, macc);
             return addr;
         }
 
         // dram_other
+        if (addr >= pma_dram_limit(mprot))
+            throw_access_fault(vaddr, macc);
+
         return addr;
     }
 
