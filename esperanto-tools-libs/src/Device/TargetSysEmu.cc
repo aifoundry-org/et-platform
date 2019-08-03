@@ -12,7 +12,10 @@
 
 #include "esperanto/simulator-api.grpc.pb.h"
 
-#include <Support/Logging.h>
+#include "Device/TargetDeviceInfo.h"
+#include "Support/Logging.h"
+
+#include <absl/flags/flag.h>
 #include <cstdio>
 #include <experimental/filesystem>
 #include <string>
@@ -22,6 +25,9 @@ namespace fs = std::experimental::filesystem;
 
 using namespace std;
 using namespace simulator_api;
+
+ABSL_FLAG(std::string, sysemu_path, et_runtime::device::SYSEMU_PATH,
+          "Path to sysemu");
 
 namespace et_runtime {
 namespace device {

@@ -10,6 +10,7 @@
 
 #include "SysEmuLauncher.h"
 
+#include "Core/CommandLineOptions.h"
 #include "Device/TargetDeviceInfo.h"
 #include "Support/Logging.h"
 
@@ -32,7 +33,7 @@ SysEmuLauncher::SysEmuLauncher(
     const std::string &con, const std::vector<std::string> &additional_options)
     : connection_(con), device_alive_(false) {
   execute_args_ = {
-      SYSEMU_PATH, //
+      absl::GetFlag(FLAGS_sysemu_path), // Path to SysEMU
       "-minions",
       "FFFFFFFF",             // All minions enabled
       "-shires", "1FFFFFFFF", // All shires enabled

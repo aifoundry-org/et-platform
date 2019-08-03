@@ -21,8 +21,6 @@ struct FWType {
 
   std::string type;
 };
-
-
 ABSL_DECLARE_FLAG(FWType, fw_type);
 
 struct DeviceTargetOption {
@@ -30,12 +28,12 @@ struct DeviceTargetOption {
 
   std::string dev_target;
 };
-
 ABSL_DECLARE_FLAG(DeviceTargetOption, dev_target);
 
 ABSL_DECLARE_FLAG(std::string, master_minion_elf);
 ABSL_DECLARE_FLAG(std::string, worker_minion_elf);
 ABSL_DECLARE_FLAG(std::string, machine_minion_elf);
+ABSL_DECLARE_FLAG(std::string, sysemu_path);
 
 namespace et_runtime {
 ///
