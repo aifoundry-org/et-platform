@@ -65,6 +65,7 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/Core/Stream.h
   ${PROJECT_SOURCE_DIR}/include/Core/CodeModule.h
   ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptions.h
+  ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptionsDef.in
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Response.h
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Command.h

@@ -1,0 +1,34 @@
+//******************************************************************************
+// Copyright (C) 2019, Esperanto Technologies Inc.
+// The copyright to the computer program(s) herein is the2
+// property of Esperanto Technologies, Inc. All Rights Reserved.
+// The program(s) may be used and/or copied only with
+// the written permission of Esperanto Technologies and
+// in accordance with the terms and conditions stipulated in the
+// agreement/contract under which the program(s) have been supplied.
+//------------------------------------------------------------------------------
+
+/**
+ * Marco definitions of the different command line options/types that the runtime exposes.
+ * The runtime internally is using abseil for defining its command line options.
+ * Target programs that are going to link with the runtime could be using a different
+ * library for parsing command line arguments.
+ * This file includes marcos that can help us easily re-create the command line options
+ * in the target program and copy the parsed values in our internal representation of the
+ * options.
+ */
+
+//ETRT_OPT(opt_name, OptName, CXX_TYPE, ABSEIL_TYPE, HELP)
+
+#ifndef ETRT_OPT
+#error Define the DEF_OPT macro
+#endif // ETRT_OPT
+
+ETRT_OPT(fw_type, fw-type, std::string, FWType, "Specify the type of FW to load on the target: device-fw, fake-fw")
+ETRT_OPT(dev_target, dev-target, std::string, DeviceTargetOption, "Specify the target device or simulator we would like to talk to: pcie , sysemu_grpc, device_grpc")
+ETRT_OPT(master_minion_elf, master-minion-elf, std::string, std::string, "Path to the MasterMiniion.elf file")
+ETRT_OPT(worker_minion_elf, worker-minion-elf, std::string, std::string, "Path to the WorkerMiniion.elf file")
+ETRT_OPT(machine_minion_elf, machine-minion-elf, std::string, std::string, "Path to the MachineMiniion.elf file")
+ETRT_OPT(sysemu_path, sysemu-path, std::string, std::string, "Path to sysemu")
+
+#undef ETRT_OPT

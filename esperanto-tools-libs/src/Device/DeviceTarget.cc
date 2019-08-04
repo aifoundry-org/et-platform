@@ -66,7 +66,7 @@ std::string AbslUnparseFlag(DeviceTargetOption target) {
   return false;
 }
 
-ABSL_FLAG(DeviceTargetOption, dev_target, DeviceTargetOption("device_grpc"),
+ABSL_FLAG(DeviceTargetOption, dev_target, DeviceTargetOption("sysemu_grpc"),
           "Specify the target device or simulator we would like to talk "
           "to: pcie , sysemu_grpc, device_grpc");
 

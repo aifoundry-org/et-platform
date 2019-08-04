@@ -21,19 +21,17 @@ struct FWType {
 
   std::string type;
 };
-ABSL_DECLARE_FLAG(FWType, fw_type);
 
 struct DeviceTargetOption {
   DeviceTargetOption(const std::string &t) : dev_target(t) {}
 
   std::string dev_target;
 };
-ABSL_DECLARE_FLAG(DeviceTargetOption, dev_target);
 
-ABSL_DECLARE_FLAG(std::string, master_minion_elf);
-ABSL_DECLARE_FLAG(std::string, worker_minion_elf);
-ABSL_DECLARE_FLAG(std::string, machine_minion_elf);
-ABSL_DECLARE_FLAG(std::string, sysemu_path);
+#define ETRT_OPT(opt_name, OptName, CXX_TYPE, ABSEIL_TYPE, HELP)               \
+  ABSL_DECLARE_FLAG(ABSEIL_TYPE, opt_name);
+
+#include "Core/CommandLineOptionsDef.in"
 
 namespace et_runtime {
 ///

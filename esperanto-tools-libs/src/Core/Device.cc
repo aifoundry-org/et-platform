@@ -36,8 +36,6 @@ using namespace et_runtime::device;
 namespace et_runtime {
 namespace device {
 
-DECLARE_string(dev_target);
-
 }
 } // namespace et_runtime
 
