@@ -3328,6 +3328,7 @@ static void tensor_fma32(uint64_t tfmareg)
                     for (int j = 0; j < bcols; ++j)
                     {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = 0;
+                        LOG(DEBUG, "\tTensorFMA32(0) f%zu[%zu] = 0x0", i*TFMA_REGS_PER_ROW+j/VL, j%VL);
                         log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
                     }
                 }
@@ -3455,6 +3456,7 @@ static void tensor_fma16a32(uint64_t tfmareg)
                     for (int j = 0; j < bcols; ++j)
                     {
                         FREGS[i*TFMA_REGS_PER_ROW + j/VL].u32[j%VL] = 0;
+                        LOG(DEBUG, "\tTensorFMA16A32(0) f%zu[%zu] = 0x0", i*TFMA_REGS_PER_ROW+j/VL, j%VL);
                         log_tensor_fma_write(0, i*TFMA_REGS_PER_ROW+j/VL, j%VL, 0);
                     }
                 }
