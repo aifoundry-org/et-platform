@@ -1,5 +1,6 @@
 #include "build_configuration.h"
 #include "fcc.h"
+#include "cacheops.h"
 #include "hart.h"
 #include "host_message.h"
 #include "interrupt.h"
@@ -8,6 +9,8 @@
 #include "mailbox.h"
 #include "mailbox_id.h"
 #include "message.h"
+#include "pcie_device.h"
+#include "pcie_dma.h"
 #include "pcie_isr.h"
 #include "printf.h"
 #include "print_exception.h"
@@ -295,6 +298,46 @@ static void handle_message_from_host(void)
     else if (*message_id == MBOX_MESSAGE_ID_REFLECT_TEST)
     {
         MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);
+    }
+    else if (*message_id == MBOX_MESSAGE_ID_DMA_RUN_TO_DONE)
+    {
+        int rc;
+
+        //Starts the DMA engine, and blocks for the DMA to complete.
+        const dma_run_to_done_message_t *const message = (void*)buffer;
+
+        dma_done_message_t done_message = {
+            .message_id = MBOX_MESSAGE_ID_DMA_DONE,
+            .chan = message->chan,
+            .status = 0
+        };
+
+        if(message->chan <= DMA_CHAN_READ_3) {
+            rc = dma_configure_read(message->chan);
+        }
+        else if (message->chan >= DMA_CHAN_WRITE_0 && message->chan <= DMA_CHAN_WRITE_3) {
+            rc = dma_configure_write(message->chan);
+        }
+        else {
+            rc = -1;
+        }
+
+        if (rc != 0) {
+            printf("Failed to configure DMA chan %d (errno %d)\r\n", message->chan, rc);
+            done_message.status = rc;
+            MBOX_send(MBOX_PCIE, &done_message, sizeof(done_message));
+            return;
+        }
+
+        dma_start(message->chan);
+        while (!dma_check_done(message->chan)); //TODO: setup DMA ISR, wait using that and MBOX_send from there instead
+        dma_clear_done(message->chan);
+
+        //TODO: does not deal with error conditions that could abort DMA transfer at all.
+
+        MBOX_send(MBOX_PCIE, &done_message, sizeof(done_message));
+
+        //TODO: notify glow kernel HARTs that data is done being transferred
     }
     else
     {
