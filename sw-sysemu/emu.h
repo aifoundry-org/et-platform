@@ -126,7 +126,8 @@ extern void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port
 
 // TensorReduce
 
-extern void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_min, unsigned* action);
+extern void tensor_reduce_step(unsigned thread);
+extern void tensor_reduce_execute();
 
 // Shire cooperative mode
 

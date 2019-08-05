@@ -69,16 +69,6 @@ struct sys_emu_cmd_options {
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
 
-
-// Reduce state
-enum reduce_state
-{
-    Reduce_Idle = 0,
-    Reduce_Ready_To_Send,
-    Reduce_Data_Consumed
-};
-
-
 class sys_emu
 {
 public:
@@ -151,8 +141,6 @@ private:
     static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
     static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
     static uint64_t        current_pc[EMU_NUM_THREADS]; // PC for each thread
-    static reduce_state    reduce_state_array[EMU_NUM_MINIONS]; // Reduce state
-    static uint32_t        reduce_pair_array[EMU_NUM_MINIONS]; // Reduce pairing minion
     static int             global_log_min;
     static RVTimer         pu_rvtimer;
     static uint64_t        minions_en;

@@ -110,14 +110,6 @@ std::array<uint32_t,EMU_NUM_THREADS>    ext_seip;
 static std::array<bool,EMU_NUM_THREADS-1> tensorload_setupb_topair;
 static std::array<int, EMU_NUM_THREADS-1> tensorload_setupb_numlines;
 
-struct tensor_reduce_info_t {
-    uint16_t minion_id;
-    uint8_t  start_reg;
-    uint8_t  num_reg;
-    uint8_t  action;
-};
-static std::array<tensor_reduce_info_t,EMU_NUM_MINIONS-1> tensorreduce_info;
-
 // Scratchpad
 std::array<std::array<cache_line_t,L1_SCP_ENTRIES+TFMA_MAX_AROWS>,EMU_NUM_THREADS> scp;
 
@@ -281,7 +273,7 @@ static void tensor_fma32(uint64_t tfmareg);
 static void tensor_fma16a32(uint64_t tfmareg);
 static void tensor_ima8a32(uint64_t tfmareg);
 static void tensorquant(uint64_t value);
-static void tensorreduce(uint64_t value);
+static void tensor_reduce_start(uint64_t value);
 static int64_t port_get(uint32_t id, bool block);
 static void configure_port(uint32_t id, uint64_t wdata);
 static uint64_t flbarrier(uint64_t value);
@@ -293,27 +285,30 @@ static uint64_t read_port_base_address(unsigned thread, unsigned id);
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-static inline const char* get_fp_flags(uint_fast8_t flags)
+// internal accessor to frm
+static inline int frm()
 {
-    static const char* fnames[] = {
-        "",            "NX",             "UF",             "UF,NX",
-        "OF",          "OF,NX",          "OF,UF",          "OF,UF,NX",
-        "DZ",          "DZ,NX",          "DZ,UF",          "DZ,UF,NX",
-        "DZ,OF",       "DZ,OF,NX",       "DZ,OF,UF",       "DZ,OF,UF,NX",
-        "NV",          "NV,NX",          "NV,UF",          "NV,UF,NX",
-        "NV,OF",       "NV,OF,NX",       "NV,OF,UF",       "NV,OF,UF,NX",
-        "NV,DZ",       "NV,DZ,NX",       "NV,DZ,UF",       "NV,DZ,UF,NX",
-        "NV,DZ,OF",    "NV,DZ,OF,NX",    "NV,DZ,OF,UF",    "NV,DZ,OF,UF,NX",
-        "ID",          "ID,NX",          "ID,UF",          "ID,UF,NX",
-        "ID,OF",       "ID,OF,NX",       "ID,OF,UF",       "ID,OF,UF,NX",
-        "ID,DZ",       "ID,DZ,NX",       "ID,DZ,UF",       "ID,DZ,UF,NX",
-        "ID,DZ,OF",    "ID,DZ,OF,NX",    "ID,DZ,OF,UF",    "ID,DZ,OF,UF,NX",
-        "ID,NV",       "ID,NV,NX",       "ID,NV,UF",       "ID,NV,UF,NX",
-        "ID,NV,OF",    "ID,NV,OF,NX",    "ID,NV,OF,UF",    "ID,NV,OF,UF,NX",
-        "ID,NV,DZ",    "ID,NV,DZ,NX",    "ID,NV,DZ,UF",    "ID,NV,DZ,UF,NX",
-        "ID,NV,DZ,OF", "ID,NV,DZ,OF,NX", "ID,NV,DZ,OF,UF", "ID,NV,DZ,OF,UF,NX"
+    return (cpu[current_thread].fcsr >> 5) & 0x7;
+}
+
+static const char* get_rounding_mode(int mode)
+{
+    static const char* rmnames[] = {
+        "rne",      "rtz",       "rdn",       "rup",
+        "rmm",      "res5",      "res6",      "dyn",
+        "dyn(rne)", "dyn(rtz)",  "dyn(rdn)",  "dyn(rup)",
+        "dyn(rmm)", "dyn(res5)", "dyn(res6)", "dyn(res7)",
     };
-    return fnames[flags % 64];
+
+    return rmnames[(mode == rmdyn) ? (8 + frm()) : (mode & 7)];
+}
+
+static const char* get_reduce_state(Processor::Reduce::State state)
+{
+    static const char* stnames[] = {
+        "Idle", "Send", "Recv"
+    };
+    return stnames[static_cast<uint8_t>(state)];
 }
 
 void init(xreg dst, uint64_t val)
@@ -351,12 +346,6 @@ void fpinit(freg dst, uint64_t val[VL/2])
         FREGS[dst].u64[i] = val[i];
 }
 
-// internal accessor to frm
-static inline int frm()
-{
-    return ((cpu[current_thread].fcsr >> 5) & 0x7);
-}
-
 static void activate_breakpoints(prv_t priv)
 {
     uint64_t mcontrol = cpu[current_thread].tdata1;
@@ -390,18 +379,6 @@ static inline void update_tensor_error(unsigned thread, uint16_t value)
 static inline void update_tensor_error(uint16_t value)
 {
     update_tensor_error(current_thread, value);
-}
-
-static inline const char* get_rounding_mode(int mode)
-{
-    static const char* rmnames[] = {
-        "rne",      "rtz",       "rdn",       "rup",
-        "rmm",      "res5",      "res6",      "dyn",
-        "dyn(rne)", "dyn(rtz)",  "dyn(rdn)",  "dyn(rup)",
-        "dyn(rmm)", "dyn(res5)", "dyn(res6)", "dyn(res7)",
-    };
-
-    return rmnames[(mode == rmdyn) ? (8 + frm()) : (mode & 7)];
 }
 
 void reset_hart(unsigned thread)
@@ -448,6 +425,10 @@ void reset_hart(unsigned thread)
     cpu[thread].break_on_load = false;
     cpu[thread].break_on_store = false;
     cpu[thread].break_on_fetch = false;
+
+    // Tensor reduction operation state machine
+    cpu[thread].reduce.count = 0;
+    cpu[thread].reduce.state = Processor::Reduce::State::Idle;
 
     // Other processor state outside of cpu[thread]
     for (int i = 0; i < NR_MSG_PORTS; ++i)
@@ -1508,7 +1489,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_TENSOR_REDUCE:
         require_feature_ml_on_thread0();
-        tensorreduce(val);
+        tensor_reduce_start(val);
         break;
     case CSR_TENSOR_FMA:
         require_feature_ml_on_thread0();
@@ -3693,376 +3674,268 @@ static void tensor_ima8a32(uint64_t tfmareg)
 
 // ----- TensorReduce emulation ------------------------------------------------
 
-static void tensorreduce(uint64_t value)
+static void tensor_reduce_start(uint64_t value)
 {
-    unsigned other_min, action;
+    static const char* reducecmd[4] = {
+        "TensorSend", "TensorRecv",
+        "TensorBroadcast", "TensorReduce"
+    };
 
-    tensor_reduce_decode(current_thread>>1, value, &other_min, &action);
+    unsigned type     = value & 3;
+    unsigned level    = (value >> 3) & 0xF;
+    unsigned distance = 1 << level;
+    unsigned minmask  = (1 << (level + 1)) - 1;
 
-    // Do nothing
-    if (action == 2)
-    {
-#ifndef SYS_EMU
-        unsigned level = (value >> 3) & 0xF;
-        unsigned type = value & 3;
-        uint64_t distance = 1ull << level;
-        uint64_t minmask = (1ull << (level + 1)) - 1ull;
-        LOG(DEBUG, "%s with level: %u, distance: %" PRId64 ", minmask: 0x%016" PRIx64,
-            (type == 2) ? "TensorBroadcast" : "TensorReduce", level, distance, minmask);
-#endif
+    cpu[current_thread].reduce.regid  = (value >> 57) & 0x1F;
+    cpu[current_thread].reduce.count  = (value >> 16) & 0x7F;
+    cpu[current_thread].reduce.optype = ((value >> 24) & 0xF) | (type << 4);
+
+    if (type == 0) {
+        cpu[current_thread].reduce.state = Processor::Reduce::State::Send;
+        cpu[current_thread].reduce.thread = (value >> 2) & 0x3FFE;
+    } else if (type == 1) {
+        cpu[current_thread].reduce.state = Processor::Reduce::State::Recv;
+        cpu[current_thread].reduce.thread = (value >> 2) & 0x3FFE;
+    } else if (type == 2) {
+        // Broadcast: compute sender/receiver using recursive halving
+        unsigned minion  = current_thread / EMU_THREADS_PER_MINION;
+        if ((minion & minmask) == distance) {
+            cpu[current_thread].reduce.state = Processor::Reduce::State::Recv;
+            cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
+        } else if ((minion & minmask) == 0) {
+            cpu[current_thread].reduce.state = Processor::Reduce::State::Send;
+            cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion + distance);
+        } else {
+            cpu[current_thread].reduce.state = Processor::Reduce::State::Idle;
+        }
+    } else {
+        // Reduce: compute sender/receiver using recursive halving
+        unsigned minion = current_thread / EMU_THREADS_PER_MINION;
+        if ((minion & minmask) == distance) {
+            cpu[current_thread].reduce.state = Processor::Reduce::State::Send;
+            cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
+        } else if ((minion & minmask) == 0) {
+            cpu[current_thread].reduce.state = Processor::Reduce::State::Recv;
+            cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion + distance);
+        } else {
+            cpu[current_thread].reduce.state = Processor::Reduce::State::Idle;
+        }
+    }
+
+    if (cpu[current_thread].reduce.state == Processor::Reduce::State::Idle) {
+        LOG(DEBUG, "\t%s(skip) with level: %u, distance: %u, minmask: 0x%08u",
+            reducecmd[type], level, distance, minmask);
         return;
     }
 
-    if (action == 4)
-    {
-#ifndef SYS_EMU
-        static const char* reducecmd[4] = {
-            "TensorSend", "TensorRecv",
-            "TensorBroadcast", "TensorReduce"
-        };
-        LOG(DEBUG, "\t%s with num_reg: 0", reducecmd[value & 3]);
-#endif
-        return;
-    }
-
-    //op = rs[35:32]
-    int      this_start_reg = (value >> 57) & 0x1F;
-    uint8_t  this_operation = (value >> 24) & 0xF;
-    int      this_num_reg   = (value >> 16) & 0x7F;
-
-    // Send or receive to/from the same minion
-    if (action == 3)
-    {
-#ifndef SYS_EMU
-        static const char* reducecmd[4] = {
-            "TensorSend", "TensorRecv",
-            "TensorBroadcast", "TensorReduce"
-        };
-        LOG(DEBUG, "\t%s other_minion: %u, start_reg: %d, num_reg: %d",
-            reducecmd[value & 3], other_min, this_start_reg, this_num_reg);
-#endif
+    // Sending and receiving from the same minion should fail immediately
+    if (cpu[current_thread].reduce.thread == current_thread) {
+        cpu[current_thread].reduce.state = Processor::Reduce::State::Idle;
+        LOG(DEBUG, "\t%s(error) other_thread: %u, start_reg: %u, num_reg: %u", reducecmd[type],
+            current_thread, cpu[current_thread].reduce.regid, cpu[current_thread].reduce.count);
         update_tensor_error(1 << 9);
         return;
     }
 
-    // Send
-    if (action == 0)
+    // Sending or receiving 0 registers means do nothing
+    // NB: This check has lower priority than "other_thread == this_thread" because
+    // tensor_error[9] should be set even when "count" == 0".
+    if (cpu[current_thread].reduce.count == 0) {
+        cpu[current_thread].reduce.state = Processor::Reduce::State::Idle;
+        LOG(DEBUG, "\t%s(skip) num_reg: 0", reducecmd[type]);
+        return;
+    }
+}
+
+void tensor_reduce_step(unsigned thread)
+{
+    static const char* reducecmd[4] = {
+        "TensorSend", "TensorRecv",
+        "TensorBroadcast", "TensorReduce"
+    };
+
+    Processor::Reduce& send = cpu[thread].reduce;
+    Processor::Reduce& recv = cpu[current_thread].reduce;
+
+    unsigned type = (recv.optype >> 4);
+
+    if (send.count-- == 0) {
+        throw std::runtime_error("Tensor reduce sender register count is 0");
+    }
+    if (recv.count-- == 0) {
+        LOG(WARN, "%s", "Mismatched tensor reduce register count");
+        send.regid = (send.regid + 1) % NFREGS;
+        recv.count = 0;
+        return;
+    }
+
+    switch (recv.optype & 0xF) {
+    case 0x0: // fadd
+        set_rounding_mode(frm());
+        LOG(DEBUG, "\t%s(recv) op=fadd sender=H%u rounding_mode=%s", reducecmd[type], thread, get_rounding_mode(frm()));
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        LOG_FREG("(this) :", recv.regid);
+        for (unsigned j = 0; j < VL; j++) {
+            FREGS[recv.regid].f32[j] = fpu::f32_add(cpu[thread].fregs[send.regid].f32[j], FREGS[recv.regid].f32[j]);
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        }
+        LOG_FREG("(this) =", recv.regid);
+        set_fp_exceptions();
+        break;
+    case 0x1: // fsub
+        set_rounding_mode(frm());
+        LOG(DEBUG, "\t%s(recv) op=fsub sender=H%u rounding_mode=%s", reducecmd[type], thread, get_rounding_mode(frm()));
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        LOG_FREG("(this) :", recv.regid);
+        for (unsigned j = 0; j < VL; j++) {
+            FREGS[recv.regid].f32[j] = fpu::f32_sub(cpu[thread].fregs[send.regid].f32[j], FREGS[recv.regid].f32[j]);
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        }
+        LOG_FREG("(this) =", recv.regid);
+        set_fp_exceptions();
+        break;
+    case 0x2: // fmax
+        LOG(DEBUG, "\t%s(recv) op=fmax sender=H%u", reducecmd[type], thread);
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        LOG_FREG("(this) :", recv.regid);
+        for (unsigned j = 0; j < VL; j++) {
+            FREGS[recv.regid].f32[j] = fpu::f32_maximumNumber(cpu[thread].fregs[send.regid].f32[j], FREGS[recv.regid].f32[j]);
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        }
+        LOG_FREG("(this) =", recv.regid);
+        set_fp_exceptions();
+        break;
+    case 0x3: // fmin
+        LOG(DEBUG, "\t%s(recv) op=fmin sender=H%u", reducecmd[type], thread);
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        LOG_FREG("(this) :", recv.regid);
+        for (unsigned j = 0; j < VL; j++) {
+            FREGS[recv.regid].f32[j] = fpu::f32_minimumNumber(cpu[thread].fregs[send.regid].f32[j], FREGS[recv.regid].f32[j]);
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        }
+        LOG_FREG("(this) =", recv.regid);
+        set_fp_exceptions();
+        break;
+    case 0x4: // iadd
+        LOG(DEBUG, "\t%s(recv) op=iadd sender=H%u", reducecmd[type], thread);
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        LOG_FREG("(this) :", recv.regid);
+        for (unsigned j = 0; j < VL; j++) {
+            FREGS[recv.regid].u32[j] = cpu[thread].fregs[send.regid].u32[j] + FREGS[recv.regid].u32[j];
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        }
+        LOG_FREG("(this) =", recv.regid);
+        break;
+    case 0x5: // isub
+        LOG(DEBUG, "\t%s(recv) op=isub sender=H%u", reducecmd[type], thread);
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        LOG_FREG("(this) :", recv.regid);
+        for (unsigned j = 0; j < VL; j++) {
+            FREGS[recv.regid].u32[j] = cpu[thread].fregs[send.regid].u32[j] - FREGS[recv.regid].u32[j];
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        }
+        LOG_FREG("(this) =", recv.regid);
+        break;
+    case 0x6: // imax
+        LOG(DEBUG, "\t%s(recv) op=imax sender=H%u", reducecmd[type], thread);
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        LOG_FREG("(this) :", recv.regid);
+        for (unsigned j = 0; j < VL; j++) {
+            FREGS[recv.regid].i32[j] = std::max(cpu[thread].fregs[send.regid].i32[j], FREGS[recv.regid].i32[j]);
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        }
+        LOG_FREG("(this) =", recv.regid);
+        break;
+    case 0x7: // imin
+        LOG(DEBUG, "\t%s(recv) op=imin sender=H%u", reducecmd[type], thread);
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        LOG_FREG("(this) :", recv.regid);
+        for (unsigned j = 0; j < VL; j++) {
+            FREGS[recv.regid].i32[j] = std::min(cpu[thread].fregs[send.regid].i32[j], FREGS[recv.regid].i32[j]);
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        }
+        LOG_FREG("(this) =", recv.regid);
+        break;
+    case 0x8: // fget
+        LOG(DEBUG, "\t%s(recv) op=fget sender=H%u", reducecmd[type], thread);
+        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
+        FREGS[recv.regid] = cpu[thread].fregs[send.regid];
+        for (unsigned j = 0; j < VL; j++)
+            log_tensor_reduce_write(recv.regid, j, FREGS[recv.regid].u32[j]);
+        LOG_FREG("(this) =", recv.regid);
+        break;
+    default:
+        throw std::runtime_error("TensorReduce with illegal operation code!");
+    }
+    dirty_fp_state();
+
+    send.regid = (send.regid + 1) % NFREGS;
+    recv.regid = (recv.regid + 1) % NFREGS;
+}
+
+void tensor_reduce_execute()
+{
+    static const char* reducecmd[4] = {
+        "TensorSend", "TensorRecv",
+        "TensorBroadcast", "TensorReduce"
+    };
+
+    // Get information from receiver
+    unsigned other_thread   = cpu[current_thread].reduce.thread;
+    unsigned this_start_reg = cpu[current_thread].reduce.regid;
+    unsigned this_num_reg   = cpu[current_thread].reduce.count;
+    unsigned type           = cpu[current_thread].reduce.optype >> 4;
+
+    if (cpu[current_thread].reduce.state != Processor::Reduce::State::Recv)
     {
 #ifndef SYS_EMU
-        LOG(DEBUG, "\t%s other_minion: %u, start_reg: %d, num_reg: %d",
-            ((value & 3) == 2) ? "TensorBroadcast(send)" : (((value & 3) == 3) ? "TensorReduce(send)" : "TensorSend"),
-            other_min, this_start_reg, this_num_reg);
-        for (int i = 0; i < this_num_reg; ++i)
+        if (cpu[current_thread].reduce.state == Processor::Reduce::State::Send)
         {
-            int this_op_reg = (i + this_start_reg) % NFREGS;
-            LOG_FREG("(this) :", this_op_reg);
+            LOG(DEBUG, "\t%s(send) receiver=H%u, start_reg=%u, num_reg=%u", reducecmd[type], other_thread, this_start_reg, this_num_reg);
+            for (unsigned i = 0; i < this_num_reg; ++i)
+            {
+                unsigned this_op_reg = (i + this_start_reg) % NFREGS;
+                LOG_FREG("(this) :", this_op_reg);
+            }
         }
 #endif
         return;
     }
 
-    // Receive
-
     // Get information from sender
-    unsigned this_min   = tensorreduce_info[other_min].minion_id;
-    int other_start_reg = tensorreduce_info[other_min].start_reg;
-    int other_num_reg   = tensorreduce_info[other_min].num_reg;
-    int other_action    = tensorreduce_info[other_min].action;
-    if (this_min != (current_thread>>1))
+    unsigned this_thread     = cpu[other_thread].reduce.thread;
+    unsigned other_start_reg = cpu[other_thread].reduce.regid;
+    unsigned other_num_reg   = cpu[other_thread].reduce.count;
+
+    if (this_thread != current_thread)
     {
-        LOG(WARN, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
-            ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-            other_min, this_min, other_start_reg, other_num_reg, other_action);
+        LOG(WARN, "\t%s(recv) sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u sender_state=%s",
+            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, get_reduce_state(cpu[other_thread].reduce.state));
         throw std::runtime_error("Mismatched tensor reduce sender target minion");
     }
-    if (other_action != 0)
+    if (cpu[other_thread].reduce.state != Processor::Reduce::State::Send)
     {
-        LOG(WARN, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d sender_action=%u",
-            ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-            other_min, this_min, other_start_reg, other_num_reg, other_action);
-        throw std::runtime_error("Mismatched tensor reduce sender action");
+        LOG(WARN, "\t%s(recv) with sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u sender_state=%s",
+            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, get_reduce_state(cpu[other_thread].reduce.state));
+        throw std::runtime_error("Mismatched tensor reduce sender state");
     }
     if (other_num_reg != this_num_reg)
     {
-        LOG(WARN, "\t%s with sender=%u sender_other_min=%u sender_start_reg=%d sender_num_reg=%d"
-            " recver_start_reg=%d recvr_num_reg=%d sender_action=%u",
-            ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-            other_min, this_min, other_start_reg, other_num_reg, this_start_reg, this_num_reg, other_action);
+        LOG(WARN, "\t%s(recv) with sender=H%u receiver=H%u sender_start_reg=%u sender_num_reg=%u receiver_start_reg=%u receiver_num_reg=%u sender_state=%s",
+            reducecmd[type], other_thread, this_thread, other_start_reg, other_num_reg, this_start_reg, this_num_reg, get_reduce_state(cpu[other_thread].reduce.state));
     }
 
-    // Info for checker
     log_tensor_reduce(this_start_reg, this_num_reg);
 
-    switch (this_operation)
-    {
-        case 0x0: // fadd
-            set_rounding_mode(frm());
-            LOG(DEBUG, "\t%s op: fadd, other_minion: %u, rounding_mode: %s",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min, get_rounding_mode(frm()));
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                LOG_FREG("(this) :", this_op_reg);
-                for (unsigned j = 0; j < VL; j++)
-                {
-                    FREGS[this_op_reg].f32[j] = fpu::f32_add(cpu[other_min<<1].fregs[other_op_reg].f32[j], FREGS[this_op_reg].f32[j]);
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                }
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            set_fp_exceptions();
-            break;
-        case 0x1: // fsub
-            set_rounding_mode(frm());
-            LOG(DEBUG, "\t%s op: fsub, other_minion: %u, rounding_mode: %s",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min, get_rounding_mode(frm()));
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                LOG_FREG("(this) :", this_op_reg);
-                for (unsigned j = 0; j < VL; j++)
-                {
-                    FREGS[this_op_reg].f32[j] = fpu::f32_sub(cpu[other_min<<1].fregs[other_op_reg].f32[j], FREGS[this_op_reg].f32[j]);
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                }
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            set_fp_exceptions();
-            break;
-        case 0x2: // fmax
-            LOG(DEBUG, "\t%s op: fmax, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min);
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                LOG_FREG("(this) :", this_op_reg);
-                for (unsigned j = 0; j < VL; j++)
-                {
-                    FREGS[this_op_reg].f32[j] = fpu::f32_maximumNumber(cpu[other_min<<1].fregs[other_op_reg].f32[j], FREGS[this_op_reg].f32[j]);
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                }
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            set_fp_exceptions();
-            break;
-        case 0x3: // fmin
-            LOG(DEBUG, "\t%s op: fmax, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min);
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                LOG_FREG("(this) :", this_op_reg);
-                for (unsigned j = 0; j < VL; j++)
-                {
-                    FREGS[this_op_reg].f32[j] = fpu::f32_minimumNumber(cpu[other_min<<1].fregs[other_op_reg].f32[j], FREGS[this_op_reg].f32[j]);
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                }
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            set_fp_exceptions();
-            break;
-        case 0x4: // iadd
-            LOG(DEBUG, "\t%s op: iadd, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min);
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                LOG_FREG("(this) :", this_op_reg);
-                for (unsigned j = 0; j < VL; j++)
-                {
-                    FREGS[this_op_reg].u32[j] = cpu[other_min<<1].fregs[other_op_reg].u32[j] + FREGS[this_op_reg].u32[j];
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                }
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            break;
-        case 0x5: // isub
-            LOG(DEBUG, "\t%s op: isub, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min);
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                LOG_FREG("(this) :", this_op_reg);
-                for (unsigned j = 0; j < VL; j++)
-                {
-                    FREGS[this_op_reg].u32[j] = cpu[other_min<<1].fregs[other_op_reg].u32[j] - FREGS[this_op_reg].u32[j];
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                }
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            break;
-        case 0x6: // imax
-            LOG(DEBUG, "\t%s op: imax, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min);
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                LOG_FREG("(this) :", this_op_reg);
-                for (unsigned j = 0; j < VL; j++)
-                {
-                    FREGS[this_op_reg].i32[j] = std::max(cpu[other_min<<1].fregs[other_op_reg].i32[j], FREGS[this_op_reg].i32[j]);
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                }
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            break;
-        case 0x7: // imin
-            LOG(DEBUG, "\t%s op: imin, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min);
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                LOG_FREG("(this) :", this_op_reg);
-                for (unsigned j = 0; j < VL; j++)
-                {
-                    FREGS[this_op_reg].i32[j] = std::min(cpu[other_min<<1].fregs[other_op_reg].i32[j], FREGS[this_op_reg].i32[j]);
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                }
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            break;
-        case 0x8: // fget
-            LOG(DEBUG, "\t%s op: fget, other_minion: %u",
-                ((value & 3) == 2) ? "TensorBroadcast(recv)" : (((value & 3) == 3) ? "TensorReduce(recv)" : "TensorRecv"),
-                other_min);
-            for (int i = 0; i < this_num_reg; i++)
-            {
-                int this_op_reg = (i + this_start_reg) % NFREGS;
-                int other_op_reg = (i + other_start_reg) % NFREGS;
-                LOG_FREG_OTHER(other_min<<1, "(othr) :", other_op_reg);
-                FREGS[this_op_reg] = cpu[other_min<<1].fregs[other_op_reg];
-                for (unsigned j = 0; j < VL; j++)
-                    log_tensor_reduce_write(this_op_reg, j, FREGS[this_op_reg].u32[j]);
-                LOG_FREG("(this) =", this_op_reg);
-            }
-            break;
-        default:
-            throw std::runtime_error("TensorReduce with illegal operation code!");
-            break;
-    }
-    if (this_num_reg)
-        dirty_fp_state();
-}
+    unsigned count = std::min(this_num_reg, other_num_reg);
+    while (count--)
+        tensor_reduce_step(other_thread);
 
-// Helper function that given the written value to the CSR, returns:
-//   - what is the ID of the other minion of the reduce
-//   - what is the action taken by the minion (send, receive, do nothing)
-void tensor_reduce_decode(uint64_t minion_id, uint64_t value, unsigned* other_min, unsigned* action)
-{
-    uint64_t level = (value >> 3) & 0xF;
-    uint64_t type  = value & 3;
-    int      nreg  = (value >> 16) & 0x7F;
+    if (cpu[current_thread].reduce.count == 0)
+        cpu[current_thread].reduce.state = Processor::Reduce::State::Idle;
 
-    // SENDER
-    if (type == 0)
-    {
-        *action = 0;
-        *other_min = (value >> 3) & 0x1FFF;
-        //LOG_ALL_MINIONS(DEBUG, "TensorSend[0x%" PRIx64 "]: other_min=%d", value, *other_min);
-    }
-    // RECEIVER
-    else if (type == 1)
-    {
-        *action = 1;
-        *other_min = (value >> 3) & 0x1FFF;
-        //LOG_ALL_MINIONS(DEBUG, "TensorRecv[0x%" PRIx64 "]: other_min=%d", value, *other_min);
-    }
-    // BROADCAST: Compute sender/receiver assuming recursive halving
-    else if (type == 2)
-    {
-        uint64_t distance = 1 << level;
-        uint64_t minion_mask = (1 << (level + 1)) - 1;
-        if ((minion_id & minion_mask) == distance)
-        {
-            *action = 1; // receiver
-            *other_min = minion_id - distance;
-        }
-        else if ((minion_id & minion_mask) == 0)
-        {
-            *action = 0; // sender
-            *other_min = minion_id + distance;
-        }
-        else
-        {
-            *action = 2; // do nothing
-        }
-        //LOG_ALL_MINIONS(DEBUG, "TensorBroadcast[0x%" PRIx64 "]: action=%s, other_min=%d", value,
-        //                (*action == 0 ? "SEND" : (*action == 1 ? "RECV" : "NONE")), *other_min);
-    }
-    // REDUCE: Compute sender/receiver assuming recursive halving
-    else
-    {
-        uint64_t distance = 1 << level;
-        uint64_t minion_mask = (1 << (level + 1)) - 1;
-        if ((minion_id & minion_mask) == distance)
-        {
-            *action = 0; // sender
-            *other_min = minion_id - distance;
-        }
-        else if ((minion_id & minion_mask) == 0)
-        {
-            *action = 1; // receiver
-            *other_min = minion_id + distance;
-        }
-        else
-        {
-            *action = 2; // do nothing
-        }
-        //LOG_ALL_MINIONS(DEBUG, "TensorReduce[0x%" PRIx64 "]: action=%s, other_min=%d", value,
-        //                (*action == 0 ? "SEND" : (*action == 1 ? "RECV" : "NONE")), *other_min);
-    }
-
-    if (*action == 2)
-        return;
-
-    // Sending and receiving from the same minion should fail immediately
-    if (*other_min == (current_thread>>1))
-    {
-        *action = 3;
-        return;
-    }
-
-    // Sending or receiving 0 registers means do nothing
-    // NB: This check has lower priority than "other_min == this_min" because
-    // tensor_error[[9] should be set even when "nreg == 0".
-    if (nreg == 0)
-    {
-        *action = 4;
-        return;
-    }
-
-    // Update sender information so it can be used by the receiver
-    if (*action == 0)
-    {
-        tensorreduce_info[minion_id].minion_id = *other_min;
-        tensorreduce_info[minion_id].start_reg = (value >> 57) & 0x1F;
-        tensorreduce_info[minion_id].num_reg   = (value >> 16) & 0x7F;
-        tensorreduce_info[minion_id].action    = *action;
-    }
+    if (cpu[other_thread].reduce.count == 0)
+        cpu[other_thread].reduce.state = Processor::Reduce::State::Idle;
 }
 
 // ----- Shire cooperative mode ------------------------------------------------

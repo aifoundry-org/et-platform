@@ -78,6 +78,20 @@ struct Processor {
     bool break_on_store;
     bool break_on_fetch;
     bool enabled;
+
+    // Tensor reduction operation state machine
+    // TODO: this is per core not per hart
+    struct Reduce {
+        uint16_t thread;    // partner hart
+        uint8_t  regid;     // next register to send/receive
+        uint8_t  count;     // number of remaining registers to operate on
+        uint8_t  optype;    // arithmetic operation and reduction type
+        enum class State : uint8_t {
+            Idle = 0,
+            Send = 1,
+            Recv = 2
+        } state;
+    } reduce;
 };
 
 

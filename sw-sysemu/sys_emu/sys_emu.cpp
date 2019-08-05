@@ -29,6 +29,7 @@
 #include "profiling.h"
 #include "rvtimer.h"
 
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Static Member variables
@@ -41,8 +42,6 @@ std::list<int>  sys_emu::port_wait_threads;                                     
 std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
 uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                                   // PC for each thread
-reduce_state    sys_emu::reduce_state_array[EMU_NUM_MINIONS];                           // Reduce state
-uint32_t        sys_emu::reduce_pair_array[EMU_NUM_MINIONS];                            // Reduce pairing minion
 int             sys_emu::global_log_min;
 RVTimer         sys_emu::pu_rvtimer;
 uint64_t        sys_emu::minions_en = 1;
@@ -60,7 +59,6 @@ static inline bool multithreading_is_disabled(unsigned shire)
 
 static inline bool thread_is_disabled(unsigned thread)
 {
-    extern std::array<Processor,EMU_NUM_THREADS>  cpu;
     return !cpu[thread].enabled;
 }
 
@@ -824,7 +822,6 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     port_wait_threads.clear();
     active_threads.reset();
     bzero(pending_fcc, sizeof(pending_fcc));
-    bzero(reduce_state_array, sizeof(reduce_state_array));
 
     for (unsigned s = 0; s < EMU_NUM_SHIRES; s++) {
         reset_esrs_for_shire(s);
@@ -866,7 +863,6 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
                 unsigned tid = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + t;
                 LOG_OTHER(DEBUG, tid, "%s", "Resetting");
                 current_pc[tid] = (s == EMU_IO_SHIRE_SP) ? cmd_options.sp_reset_pc : cmd_options.reset_pc;
-                reduce_state_array[tid / EMU_THREADS_PER_MINION] = Reduce_Idle;
 
                 reset_hart(tid);
                 set_thread(tid);
@@ -892,6 +888,12 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 int
 sys_emu::main_internal(int argc, char * argv[])
 {
+#if 0
+    std::cout << "command:";
+    for (int i = 0; i < argc; ++i)
+        std::cout << " " << argv[i];
+    std::cout << std::endl;
+#endif
     auto result = parse_command_line_arguments(argc, argv);
     bool status = std::get<0>(result);
     sys_emu_cmd_options cmd_options = std::get<1>(result);
@@ -958,65 +960,32 @@ sys_emu::main_internal(int argc, char * argv[])
                 set_thread(thread_id);
                 set_pc(current_pc[thread_id]);
                 check_pending_interrupts();
-                insn_t inst = fetch_and_decode();
-
-                // In case of reduce, we need to make sure that the other minion is also in reduce state
-                bool reduce_wait = false;
-
-                // FIXME: This is a hack, because we do not call inst.execute() until the tensor_reduce
-                // has synchronized; but we should not wait if we are going to raise an exception
-                if(inst.is_reduce() && ((thread_id % EMU_THREADS_PER_MINION) == 0))
+                // In case of reduce, we need to make sure that the other
+                // thread is also in reduce state before we complete execution
+                if (cpu[thread_id].reduce.state == Processor::Reduce::State::Send)
                 {
-                    unsigned other_min, action;
-                    // Gets the source used for the reduce
-                    uint64_t value = xget(inst.rs1());
-                    tensor_reduce_decode(thread_id / EMU_THREADS_PER_MINION, value, &other_min, &action);
-                    // Sender
-                    if(action == 0)
-                    {
-                        // Moves to ready to send
-                        reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Ready_To_Send;
-                        reduce_pair_array[thread_id / EMU_THREADS_PER_MINION] = other_min;
-                        // If the other minion hasn't arrived yet, wait
-                        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != uint32_t(thread_id / EMU_THREADS_PER_MINION)))
-                        {
-                            reduce_wait = true;
-                        }
-                        // If it has consumed the data, move both threads to Idle
-                        else if(reduce_state_array[other_min] == Reduce_Data_Consumed)
-                        {
-                            reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Idle;
-                            reduce_state_array[other_min] = Reduce_Idle;
-                        }
-                        else
-                        {
-                            LOG_ALL_MINIONS(FTL, "Reduce error: Found pairing receiver minion: %u in Reduce_Ready_To_Send!!", other_min);
-                        }
-                    }
-                    // Receiver
-                    else if(action == 1)
-                    {
-                        reduce_pair_array[thread_id / EMU_THREADS_PER_MINION] = other_min;
-                        // If the other minion hasn't arrived yet, wait
-                        if((reduce_state_array[other_min] == Reduce_Idle) || (reduce_pair_array[other_min] != uint32_t(thread_id / EMU_THREADS_PER_MINION)))
-                        {
-                            reduce_wait = true;
-                        }
-                        // If pairing minion is in ready to send, consume the data
-                        else if(reduce_state_array[other_min] == Reduce_Ready_To_Send)
-                        {
-                            reduce_state_array[thread_id / EMU_THREADS_PER_MINION] = Reduce_Data_Consumed;
-                        }
-                        else
-                        {
-                            LOG_ALL_MINIONS(FTL, "Reduce error: Found pairing sender minion: %u in Reduce_Data_Consumed!!", other_min);
-                        }
-                    }
+                    LOG(DEBUG, "Waiting to send data to H%u", cpu[thread_id].reduce.thread);
+                    ++thread;
                 }
-
-                // Executes the instruction
-                if(!reduce_wait)
+                else if (cpu[thread_id].reduce.state == Processor::Reduce::State::Recv)
                 {
+                    unsigned other_thread = cpu[thread_id].reduce.thread;
+                    // If pairing minion is in ready to send, consume the data
+                    if ((cpu[other_thread].reduce.state == Processor::Reduce::State::Send) &&
+                        (cpu[other_thread].reduce.thread == thread_id))
+                    {
+                        tensor_reduce_execute();
+                    }
+                    else
+                    {
+                        LOG(DEBUG, "Waiting to receive data from H%u", other_thread);
+                    }
+                    ++thread;
+                }
+                else
+                {
+                    // Executes the instruction
+                    insn_t inst = fetch_and_decode();
                     execute(inst);
 
                     if (get_msg_port_stall(thread_id, 0))
@@ -1065,10 +1034,6 @@ sys_emu::main_internal(int argc, char * argv[])
                             current_pc[thread_id] += inst.size();
                         }
                     }
-                }
-                else
-                {
-                    ++thread;
                 }
             }
             catch (const trap_t& t)
