@@ -134,6 +134,17 @@ static void __attribute__((noreturn)) master_thread(void)
         pcie_interrupt_flag = true;
 #endif
 
+        asm volatile("csrci sstatus, 0x2"); // Disable supervisor interrupts
+
+        bool event_pending = swi_flag || pcie_interrupt_flag;
+
+        if (!event_pending)
+        {
+            asm volatile("wfi");
+        }
+
+        asm volatile("csrsi sstatus, 0x2"); // Enable supervisor interrupts
+
         if (swi_flag)
         {
             swi_flag = false;
