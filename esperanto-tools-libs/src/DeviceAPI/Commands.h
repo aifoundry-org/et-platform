@@ -36,15 +36,15 @@ public:
 
 /// @brief
 class ConfigureCommand final : public Command<ConfigureResponse> {
-  const void *devMemRegionPtr;
+  uintptr_t devMemRegionPtr;
   size_t devMemRegionSize;
-  const void *kernelsDevMemRegionPtr;
+  uintptr_t kernelsDevMemRegionPtr;
   size_t kernelsDevMemRegionSize;
   bool res_is_local_mode = false;
 
 public:
-  ConfigureCommand(const void *devMemRegionPtr, size_t devMemRegionSize,
-                   const void *kernelsDevMemRegionPtr,
+  ConfigureCommand(const uintptr_t devMemRegionPtr, size_t devMemRegionSize,
+                   const uintptr_t kernelsDevMemRegionPtr,
                    size_t kernelsDevMemRegionSize)
       : devMemRegionPtr(devMemRegionPtr), devMemRegionSize(devMemRegionSize),
         kernelsDevMemRegionPtr(kernelsDevMemRegionPtr),

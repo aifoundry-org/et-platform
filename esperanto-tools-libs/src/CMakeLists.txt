@@ -81,6 +81,8 @@ set(ETRT_SOURCES
   Core/Error.cc
   Core/Event.cc
   Core/MemoryManager.cc
+  Core/MemoryAllocator.cc
+  Core/MemoryAllocator.h
   Core/ModuleManager.cc
   Core/ModuleManager.h
   Core/registry.cc

@@ -33,6 +33,7 @@ const std::map<std::string, DeviceTarget::TargetType>
         {"pcie", TargetType::PCIe},
         {"sysemu_grpc", TargetType::SysEmuGRPC},
         {"device_grpc", TargetType::DeviceGRPC},
+        {"fake_device", TargetType::FakeDevice},
 };
 
 static string getDeviceTypesStr() {
@@ -83,6 +84,9 @@ std::unique_ptr<DeviceTarget> DeviceTarget::deviceFactory(TargetType target,
     // FIXME we have no usecase yet where we instantite RPCTarget directly
   // case TargetType::DeviceGRPC:
   //   return make_unique<RPCTarget>(index, "");
+  case TargetType::FakeDevice:
+    return nullptr;
+    break;
   default:
     RTERROR << "Unknwon Device type";
     assert(false);

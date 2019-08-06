@@ -9,6 +9,8 @@
 //------------------------------------------------------------------------------
 
 #include "Core/MemoryManager.h"
+
+#include "Core/MemoryAllocator.h"
 #include "DeviceAPI/Commands.h"
 #include "EsperantoRuntime.h"
 
@@ -22,71 +24,8 @@
 namespace et_runtime {
 namespace device {
 
-bool EtMemRegion::isPtrAlloced(const void *ptr) {
-  if (alloced_ptrs.count(ptr) > 0) {
-    return true;
-  }
-  for (auto i : alloced_ptrs) {
-    if (i.first <= ptr) {
-      if ((const char *)i.first + i.second > ptr) {
-        return true;
-      }
-    } else {
-      return false;
-    }
-  }
-  return false;
-}
-
-void *EtMemRegion::alloc(size_t size) {
-  if (size == 0) {
-    return nullptr;
-  }
-
-  uintptr_t currBeg = align_up((uintptr_t)region_base, kAlign);
-
-  for (auto it : alloced_ptrs) {
-    uintptr_t currEnd = (uintptr_t)it.first;
-    uintptr_t nextBeg = align_up((uintptr_t)it.first + it.second, kAlign);
-
-    assert(currEnd >= currBeg);
-    if (currEnd - currBeg >= size) {
-      void *ptr = (void *)currBeg;
-      alloced_ptrs[ptr] = size;
-      return ptr;
-    }
-
-    currBeg = nextBeg;
-  }
-
-  uintptr_t regionEnd = (uintptr_t)region_base + region_size;
-  assert(regionEnd >= currBeg);
-  if (regionEnd - currBeg >= size) {
-    void *ptr = (void *)currBeg;
-    alloced_ptrs[ptr] = size;
-    return ptr;
-  }
-
-  THROW("Can't alloc memory");
-}
-
-void EtMemRegion::free(void *ptr) {
-  if (ptr == nullptr) {
-    return;
-  }
-  assert(alloced_ptrs.count(ptr));
-  alloced_ptrs.erase(ptr);
-}
-
-void EtMemRegion::print() {
-  printf("start: %p\n", region_base);
-  for (auto it : alloced_ptrs) {
-    printf("[%p - %p)\n", it.first, (uint8_t *)it.first + it.second);
-  }
-  printf("end: %p\n", (uint8_t *)region_base + region_size);
-}
-
 MemoryManager::MemoryManager(Device &dev) : device_(dev) {}
+
 MemoryManager::~MemoryManager() {}
 
 bool MemoryManager::init() {
@@ -99,31 +38,13 @@ bool MemoryManager::deInit() {
   return true;
 }
 
+uintptr_t MemoryManager::ramBase() const { return RAM_MEMORY_REGION; }
+
 void MemoryManager::initMemRegions() {
-  void *host_base = mmap(nullptr, kHostMemRegionSize, PROT_READ | PROT_WRITE,
-                         MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  PERROR_IF(host_base == MAP_FAILED);
-  host_mem_region_.reset(new EtMemRegion(host_base, kHostMemRegionSize));
-
-  void *kDevMemBaseAddr = (void *)GLOBAL_MEM_REGION_BASE;
-  size_t kDevMemRegionSize = GLOBAL_MEM_REGION_SIZE;
-  void *kKernelsDevMemBaseAddr = (void *)EXEC_MEM_REGION_BASE;
-  size_t kKernelsDevMemRegionSize = EXEC_MEM_REGION_SIZE;
-
-  void *dev_base = mmap(kDevMemBaseAddr, kDevMemRegionSize, PROT_NONE,
-                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  PERROR_IF(dev_base == MAP_FAILED);
-  THROW_IF(dev_base != kDevMemBaseAddr, "Cannot allocate dev memory.");
-  dev_mem_region_.reset(new EtMemRegion(dev_base, kDevMemRegionSize));
-
-  void *kernels_dev_base =
-      mmap(kKernelsDevMemBaseAddr, kKernelsDevMemRegionSize, PROT_NONE,
-           MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  PERROR_IF(kernels_dev_base == MAP_FAILED);
-  THROW_IF(kernels_dev_base != kKernelsDevMemBaseAddr,
-           "Cannot allocate kernels dev memory.");
+  dev_mem_region_.reset(new LinearMemoryAllocator(GLOBAL_MEM_REGION_BASE,
+                                                  GLOBAL_MEM_REGION_SIZE));
   kernels_dev_mem_region_.reset(
-      new EtMemRegion(kernels_dev_base, kKernelsDevMemRegionSize));
+    new LinearMemoryAllocator(EXEC_MEM_REGION_BASE, EXEC_MEM_REGION_SIZE));
 
   std::shared_ptr<EtAction> actionConfigure = nullptr;
   std::shared_ptr<EtAction> actionEvent = nullptr;
@@ -132,7 +53,8 @@ void MemoryManager::initMemRegions() {
   device_.defaultStream_ = device_.createStream(false);
 
   auto configure_command = std::make_shared<device_api::ConfigureCommand>(
-      dev_base, kDevMemRegionSize, kernels_dev_base, kKernelsDevMemRegionSize);
+      GLOBAL_MEM_REGION_BASE, GLOBAL_MEM_REGION_SIZE,
+      EXEC_MEM_REGION_BASE, EXEC_MEM_REGION_SIZE);
 
   device_.addCommand(
       device_.defaultStream_,
@@ -140,33 +62,34 @@ void MemoryManager::initMemRegions() {
 
   auto configure_future = configure_command->getFuture();
   auto configure_resp = configure_future.get();
-
-  if (configure_command->isLocalMode()) {
-    PERROR_IF(mprotect(dev_base, kDevMemRegionSize, PROT_READ | PROT_WRITE) ==
-              -1);
-    PERROR_IF(mprotect(kernels_dev_base, kKernelsDevMemRegionSize,
-                       PROT_READ | PROT_WRITE) == -1);
-  }
 }
 
 void MemoryManager::uninitMemRegions() {
-  munmap(host_mem_region_->region_base, host_mem_region_->region_size);
-  host_mem_region_.reset(nullptr);
 
-  munmap(dev_mem_region_->region_base, dev_mem_region_->region_size);
-  dev_mem_region_.reset(nullptr);
-
-  munmap(kernels_dev_mem_region_->region_base, kernels_dev_mem_region_->region_size);
-  kernels_dev_mem_region_.reset(nullptr);
 }
 
 etrtError MemoryManager::mallocHost(void **ptr, size_t size) {
-  *ptr = host_mem_region_->alloc(size);
+  uint8_t *tptr = new uint8_t[size];
+  *ptr = tptr;
+  host_mem_region_[tptr] = std::unique_ptr<uint8_t>(tptr);
   return etrtSuccess;
 }
 
 etrtError MemoryManager::freeHost(void *ptr) {
-  host_mem_region_->free(ptr);
+  uint8_t *tptr = reinterpret_cast<uint8_t *>(ptr);
+  auto num_removed = host_mem_region_.erase(tptr);
+  if (num_removed == 0) {
+    return etrtErrorHostMemoryNotRegistered;
+  }
+  return etrtSuccess;
+}
+
+etrtError MemoryManager::reserveMemory(void *ptr, size_t size) {
+  // For now this applies only to the dev mem region
+  auto res = dev_mem_region_->emplace(ptr, size);
+  if (!res) {
+    return etrtErrorHostMemoryAlreadyRegistered;
+  }
   return etrtSuccess;
 }
 
@@ -186,11 +109,12 @@ MemoryManager::pointerGetAttributes(struct etrtPointerAttributes *attributes,
   void *p = (void *)ptr;
   attributes->device = 0;
   attributes->isManaged = false;
-  if (host_mem_region_->isPtrAlloced(ptr)) {
+  auto tptr = reinterpret_cast<uint8_t *>(const_cast<void *>(ptr));
+  if (host_mem_region_.find(tptr) != host_mem_region_.end()) {
     attributes->memoryType = etrtMemoryTypeHost;
     attributes->devicePointer = nullptr;
     attributes->hostPointer = p;
-  } else if (dev_mem_region_->isPtrAlloced(ptr)) {
+  } else if (dev_mem_region_->isPtrAllocated(ptr)) {
     attributes->memoryType = etrtMemoryTypeDevice;
     attributes->devicePointer = p;
     attributes->hostPointer = nullptr;
@@ -198,6 +122,19 @@ MemoryManager::pointerGetAttributes(struct etrtPointerAttributes *attributes,
     THROW("Unexpected pointer");
   }
   return etrtSuccess;
+}
+
+bool MemoryManager::isPtrAllocatedHost(const void *ptr) {
+  uint8_t *tptr = reinterpret_cast<uint8_t *>(const_cast<void *>(ptr));
+  return host_mem_region_.find(tptr) == host_mem_region_.end();
+}
+
+bool MemoryManager::isPtrAllocatedDev(const void *ptr) {
+  return dev_mem_region_->isPtrAllocated(ptr);
+}
+
+bool MemoryManager::isPtrInDevRegion(const void *ptr) {
+  return dev_mem_region_->isPtrInRegion(ptr);
 }
 
 } // namespace device

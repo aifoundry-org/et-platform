@@ -26,6 +26,7 @@ link_directories(${GTEST_DIR}/lib64
 set(CI_DEPENDENCIES convolution.elf
                     bootrom.mem
                     gpu_0_softmax_110.elf
+                    sample-kernel
   )
 set(CI_DN_TARGETS "")
 
@@ -111,6 +112,7 @@ set(TEST_LIST
   test_device_manager.cc:""
   test_device_target_sysemu_grpc.cc:""
   test_elf_parsing.cc:""
+  test_memory_manager.cc:""
   test_module_load.cc:""
   test_module_manager.cc:""
   )

@@ -48,6 +48,7 @@ struct EtLoadedKernelsBin {
 class Device {
   friend class ::GetDev;
   friend class et_runtime::device::MemoryManager;
+  friend class Module;
 
 public:
   Device(int index);
@@ -204,11 +205,11 @@ public:
   /// a way to hide it.
   device::DeviceTarget &getTargetDevice() { return *target_device_; }
 
-  bool isPtrAllocedHost(const void *ptr) {
-    return mem_manager_->isPtrAllocedHost(ptr);
+  bool isPtrAllocatedHost(const void *ptr) {
+    return mem_manager_->isPtrAllocatedHost(ptr);
   }
-  bool isPtrAllocedDev(const void *ptr) {
-    return mem_manager_->isPtrAllocedDev(ptr);
+  bool isPtrAllocatedDev(const void *ptr) {
+    return mem_manager_->isPtrAllocatedDev(ptr);
   }
 
   bool isPtrInDevRegion(const void *ptr) {
@@ -235,6 +236,8 @@ public:
 
   etrtError mallocHost(void **ptr, size_t size);
   etrtError freeHost(void *ptr);
+  /// @brief Reserve a memory region starting at address ptr
+  etrtError reserveMemory(void *ptr, size_t size);
   etrtError malloc(void **devPtr, size_t size);
   etrtError free(void *devPtr);
   etrtError pointerGetAttributes(struct etrtPointerAttributes *attributes,

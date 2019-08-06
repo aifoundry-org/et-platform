@@ -67,6 +67,7 @@ public:
     PCIe,
     SysEmuGRPC,
     DeviceGRPC,
+    FakeDevice,
   };
 
   static const std::map<std::string, TargetType> Str2TargetType;

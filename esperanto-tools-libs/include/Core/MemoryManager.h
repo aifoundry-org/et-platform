@@ -14,8 +14,10 @@
 #include "Common/ErrorTypes.h"
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
+#include <unordered_map>
 
 struct etrtPointerAttributes;
 
@@ -25,25 +27,7 @@ class Device;
 
 namespace device {
 
-// Region of host or device memory region.
-struct EtMemRegion {
-  void *region_base;
-  size_t region_size;
-  std::map<const void *, size_t>
-      alloced_ptrs; // alloced ptr -> size of alloced area
-
-  EtMemRegion(void *ptr, size_t size) : region_base(ptr), region_size(size) {}
-
-  static constexpr size_t kAlign = 1 << 20; // 1M
-  bool isPtrAlloced(const void *ptr);
-  void *alloc(size_t size);
-  void free(void *ptr);
-  void print();
-  bool isPtrInRegion(const void *ptr) {
-    return ptr >= region_base &&
-           (uintptr_t)ptr < (uintptr_t)region_base + region_size;
-  }
-};
+struct LinearMemoryAllocator;
 
 /// @brief MemoryManager, responsible for tracking device memory use.
 class MemoryManager {
@@ -58,10 +42,15 @@ public:
   /// right order
   bool init();
   bool deInit();
+
+  uintptr_t ramBase() const;
+
   /// @brief Allocate pinned memory on the host
   etrtError mallocHost(void **ptr, size_t size);
   /// @brief Deallocate host memory
   etrtError freeHost(void *ptr);
+  /// @brief Reserve a memory region starting at address ptr
+  etrtError reserveMemory(void *ptr, size_t size);
   /// @brief Allocate memory on the device
   etrtError malloc(void **devPtr, size_t size);
   /// @brief Free device memory.
@@ -71,25 +60,19 @@ public:
                                  const void *ptr);
 
   /// @brief Return true iff this is a host pointer
-  bool isPtrAllocedHost(const void *ptr) {
-    return host_mem_region_->isPtrAlloced(ptr);
-  }
+  bool isPtrAllocatedHost(const void *ptr);
   /// @brief Return true iff this is a device pointer
-  bool isPtrAllocedDev(const void *ptr) {
-    return dev_mem_region_->isPtrAlloced(ptr);
-  }
+  bool isPtrAllocatedDev(const void *ptr);
   /// @brief Return true iff this points in a device region
-  bool isPtrInDevRegion(const void *ptr) {
-    return dev_mem_region_->isPtrInRegion(ptr);
-  }
+  bool isPtrInDevRegion(const void *ptr);
 
 private:
   void initMemRegions();
   void uninitMemRegions();
 
-  std::unique_ptr<EtMemRegion> host_mem_region_;
-  std::unique_ptr<EtMemRegion> dev_mem_region_;
-  std::unique_ptr<EtMemRegion> kernels_dev_mem_region_;
+  std::unordered_map<uint8_t *, std::unique_ptr<uint8_t>> host_mem_region_;
+  std::unique_ptr<LinearMemoryAllocator> dev_mem_region_;
+  std::unique_ptr<LinearMemoryAllocator> kernels_dev_mem_region_;
   Device &device_;
 };
 } // namespace device
