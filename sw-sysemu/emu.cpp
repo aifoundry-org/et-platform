@@ -3147,14 +3147,15 @@ static void tensorstore(uint64_t tstorereg)
         int src = scpstart % L1_SCP_ENTRIES;
         LOG(DEBUG, "\tStart TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
 
+        log_tensor_store(true, rows, 4, 1);
+	
         // Check if L1 SCP is enabled
         if (cpu[current_thread].mcache_control != 0x3)
         {
             update_tensor_error(1 << 4);
+	    log_tensor_store_error(1 << 4);
             return;
-        }
-
-	log_tensor_store(true, rows, 4, 1);
+        }	
 
         // For all the rows
         for (int row = 0; row < rows; row++)
@@ -3171,6 +3172,7 @@ static void tensorstore(uint64_t tstorereg)
             }
             catch (const sync_trap_t&) {
                 update_tensor_error(1 << 7);
+                log_tensor_store_error(1 << 7);
                 return;
             }
             catch (const bemu::memory_error&) {
@@ -3203,9 +3205,12 @@ static void tensorstore(uint64_t tstorereg)
             true,  false, false, false
         };
 
+        log_tensor_store(false, rows, cols, coop);
+
         if (!coop_comb[4*(coop-1)+(cols-1)])
         {
             update_tensor_error(1 << 8);
+            log_tensor_store_error(1 << 8);
             return;
         }
 
@@ -3215,9 +3220,7 @@ static void tensorstore(uint64_t tstorereg)
             uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
             if (!esr_shire_coop_mode[shire])
                 throw trap_illegal_instruction(current_inst);
-        }
-
-        log_tensor_store(false, rows, cols, coop);
+        }        
 
         // For all the rows
         int src = regstart;
@@ -3234,16 +3237,17 @@ static void tensorstore(uint64_t tstorereg)
                     const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
                     bemu::pmemwrite128(paddr, ptr);
                     LOG_MEMWRITE128(paddr, ptr);
-		    for (int w=0; w < 4; w++) {
+		    for (int w=0; w < 4; w++) {			
                         log_tensor_store_write(paddr + w*4, *(ptr+w));
                     }
                 }
                 catch (const sync_trap_t&) {
                     update_tensor_error(1 << 7);
+                    log_tensor_store_error(1 << 7);		  
                     return;
                 }
                 catch (const bemu::memory_error&) {
-                    raise_bus_error_interrupt(current_thread, 0);
+                    raise_bus_error_interrupt(current_thread, 0);		   
                 }
                 // For 128b stores, move to next desired register immediately.
                 // For 256b and 512b stores, move to next desired register

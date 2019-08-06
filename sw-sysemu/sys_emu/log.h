@@ -60,5 +60,6 @@ inline void log_tensor_reduce_write(uint8_t, uint8_t, uint32_t) {}
 // TensorStore
 inline void log_tensor_store(bool, uint8_t, uint8_t, uint8_t) {}
 inline void log_tensor_store_write(uint64_t, uint32_t) {}
+inline void log_tensor_store_error(uint16_t) {}
 
 #endif // _LOG_H
