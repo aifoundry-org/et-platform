@@ -131,9 +131,7 @@ static void __attribute__((noreturn)) master_thread(void)
 #endif
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
-        fake_message_from_host();
-#else
-        asm volatile ("wfi");
+        pcie_interrupt_flag = true;
 #endif
 
         if (swi_flag)
@@ -146,22 +144,18 @@ static void __attribute__((noreturn)) master_thread(void)
             handle_message_from_sp();
             handle_messages_from_workers();
         }
-#ifndef DEBUG_FAKE_MESSAGE_FROM_HOST
-        else
-        {
-            printf("no swi_flag\r\n");
-        }
-#endif
 
         // External interrupts
         if (pcie_interrupt_flag)
         {
-            printf("PCI-E message interrupt received\r\n");
-
             pcie_interrupt_flag = false;
 
             // Ensure flag clears before messages are handled
             asm volatile ("fence");
+
+#ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
+            fake_message_from_host();
+#endif
 
             handle_message_from_host();
             handle_pcie_events();
@@ -256,7 +250,7 @@ static void handle_message_from_host(void)
             printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((uint64_t*)(void*)buffer)[i] );
         }
     }
-    
+
 }
 
 static void handle_message_from_sp(void)
