@@ -801,7 +801,7 @@ void esr_write(uint64_t addr, uint64_t value)
                                 shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_p1_qual);
                 break;
             case ESR_SC_IDX_COP_SM_CTL_USER:
-                // if (PRV == USER) shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ctl = value;
+                // shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ctl = value;
                 break;
              default:
                 LOG(WARN, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
