@@ -143,7 +143,8 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
                 .message_id = MBOX_MESSAGE_ID_KERNEL_RESULT,
                 .kernel_id = kernel_id,
                 .response_id = MBOX_KERNEL_RESULT_ERROR};
-            MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
+
+            MBOX_send(MBOX_PCIE, &response, sizeof(response));
 
             clear_kernel_config(kernel_id);
             kernel_status[kernel_id].kernel_state = KERNEL_STATE_ERROR;
@@ -153,11 +154,13 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
         case KERNEL_STATE_COMPLETE:
         {
             printf("kernel %d complete\r\n", kernel_id);
+
             const devfw_response_t response = {
                 .message_id = MBOX_MESSAGE_ID_KERNEL_RESULT,
                 .kernel_id = kernel_id,
                 .response_id = MBOX_KERNEL_RESULT_OK};
-            MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
+
+            MBOX_send(MBOX_PCIE, &response, sizeof(response));
 
             // Mark all shires associated with this kernel as complete
             for (uint64_t shire = 0; shire < 33; shire++)
@@ -173,6 +176,7 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
         }
         break;
 
+        case KERNEL_STATE_UNKNOWN:
         default:
         break;
     }
@@ -259,7 +263,8 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
             .message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE,
             .kernel_id = kernel_id,
             .response_id = MBOX_KERNEL_LAUNCH_RESPONSE_ERROR_SHIRES_NOT_READY};
-        MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
+
+        MBOX_send(MBOX_PCIE, &response, sizeof(response));
     }
 }
 
@@ -285,18 +290,25 @@ void abort_kernel(kernel_id_t kernel_id)
 
             response.response_id = MBOX_KERNEL_ABORT_RESPONSE_RESULT_OK;
 
-            MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
+            MBOX_send(MBOX_PCIE, &response, sizeof(response));
 
             return;
         }
     }
 
-    MBOX_send(MBOX_PCIE, (const void*)&response, sizeof(response));
+    MBOX_send(MBOX_PCIE, &response, sizeof(response));
 }
 
 kernel_state_t get_kernel_state(kernel_id_t kernel_id)
 {
-    return kernel_status[kernel_id].kernel_state;
+    if (kernel_id >= KERNEL_ID_NONE)
+    {
+        return KERNEL_STATE_UNKNOWN;
+    }
+    else
+    {
+        return kernel_status[kernel_id].kernel_state;
+    }
 }
 
 // Clear fields of kernel config so worker minion recognize it's inactive

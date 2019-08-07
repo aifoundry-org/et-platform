@@ -17,5 +17,4 @@ typedef struct {
     mbox_response_id_t response_id;
 } devfw_response_t;
 
-
 #endif // HOST_MESSAGE_H
