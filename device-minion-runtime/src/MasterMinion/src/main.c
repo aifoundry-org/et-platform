@@ -1,4 +1,5 @@
 #include "build_configuration.h"
+#include "fcc.h"
 #include "hart.h"
 #include "host_message.h"
 #include "interrupt.h"
@@ -93,6 +94,10 @@ static void __attribute__((noreturn)) master_thread(void)
     printf("Initializing message buffers...");
     message_init_master();
     printf("done\r\n");
+
+    // Empty all FCCs
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
 
     kernel_init();
 

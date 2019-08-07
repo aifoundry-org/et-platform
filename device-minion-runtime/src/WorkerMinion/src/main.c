@@ -48,15 +48,8 @@ void __attribute__((noreturn)) main(void)
     }
 
     // Empty all FCCs
-    for (uint64_t i = read_fcc(0); i > 0; i--)
-    {
-        WAIT_FCC(0);
-    }
-
-    for (uint64_t i = read_fcc(1); i > 0; i--)
-    {
-        WAIT_FCC(1);
-    }
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
 
     // TODO run BIST
 

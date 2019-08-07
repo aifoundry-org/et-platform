@@ -237,15 +237,8 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
     }
 
     // Empty all FCCs
-    for (uint64_t i = read_fcc(0); i > 0; i--)
-    {
-        WAIT_FCC(0);
-    }
-
-    for (uint64_t i = read_fcc(1); i > 0; i--)
-    {
-        WAIT_FCC(1);
-    }
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
 
     // Disable message ports
     // "Attempting to write a value lower than 2 sets LogMsgSize to the value 2."
@@ -340,10 +333,7 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     WAIT_TENSOR_REDUCE
 
     // Empty FCC0
-    for (uint64_t i = read_fcc(0); i > 0; i--)
-    {
-        WAIT_FCC(0);
-    }
+    init_fcc(FCC_0);
 
     WAIT_FLB(64, 29, result);
 
