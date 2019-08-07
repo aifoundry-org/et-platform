@@ -280,6 +280,18 @@ static void handle_message_from_host(void)
 
         abort_kernel(host_message_ptr->kernel_params.kernel_id);
     }
+    else if (*message_id == MBOX_MESSAGE_ID_GET_KERNEL_STATE)
+    {
+        const host_message_t* const host_message_ptr = (void*)buffer;
+
+        const devfw_response_t response = {
+            .message_id = MBOX_MESSAGE_ID_GET_KERNEL_STATE_RESPONSE,
+            .kernel_id = host_message_ptr->kernel_params.kernel_id,
+            .response_id = get_kernel_state(host_message_ptr->kernel_params.kernel_id)};
+
+        MBOX_send(MBOX_PCIE, &response, sizeof(response));
+    }
+
     else if (*message_id == MBOX_MESSAGE_ID_REFLECT_TEST)
     {
         MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);

@@ -2,6 +2,7 @@
 #define KERNEL_H
 
 #include "kernel_info.h"
+#include "kernel_state.h"
 #include "kernel_sync.h"
 
 #include <stdbool.h>
@@ -15,16 +16,6 @@ typedef enum
     KERNEL_ID_3,
     KERNEL_ID_NONE
 } kernel_id_t;
-
-typedef enum
-{
-    KERNEL_STATE_UNUSED = 0,
-    KERNEL_STATE_LAUNCHED,
-    KERNEL_STATE_RUNNING,
-    KERNEL_STATE_ABORTED,
-    KERNEL_STATE_ERROR,
-    KERNEL_STATE_COMPLETE
-} kernel_state_t;
 
 void kernel_init(void);
 void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id);
