@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <inttypes.h>
 
-
+//#define DEBUG_PRINT_HOST_MESSAGE
 //#define DEBUG_SEND_MESSAGES_TO_SP
 //#define DEBUG_FAKE_MESSAGE_FROM_HOST
 //#define DEBUG_FAKE_ABORT_FROM_HOST
@@ -37,6 +37,10 @@ static void handle_messages_from_workers(void);
 static void handle_message_from_worker(uint64_t shire, uint64_t hart);
 static void handle_pcie_events(void);
 static void handle_timer_events(void);
+
+#ifdef DEBUG_PRINT_HOST_MESSAGE
+static void print_host_message(const uint8_t* const buffer, int64_t length);
+#endif
 
 static void print_log_message(uint64_t hart, const message_t* const message);
 
@@ -255,10 +259,10 @@ static void handle_message_from_host(void)
     if (*message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
     {
         printf("received kernel launch message fom host, length = %" PRId64 "\r\n", length);
-        for (int64_t i = 0; i < length / 8; i++)
-        {
-            printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((uint64_t*)(void*)buffer)[i] );
-        }
+
+#ifdef DEBUG_PRINT_HOST_MESSAGE
+        print_host_message(buffer, length);
+#endif
 
         const host_message_t* const host_message_ptr = (void*)buffer;
 
@@ -267,6 +271,10 @@ static void handle_message_from_host(void)
     else if (*message_id == MBOX_MESSAGE_ID_KERNEL_ABORT)
     {
         printf("received kernel abort message fom host\r\n");
+
+#ifdef DEBUG_PRINT_HOST_MESSAGE
+        print_host_message(buffer, length);
+#endif
 
         const host_message_t* const host_message_ptr = (void*)buffer;
 
@@ -280,10 +288,9 @@ static void handle_message_from_host(void)
     {
         printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
 
-        for (int64_t i = 0; i < length / 8; i++)
-        {
-            printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((uint64_t*)(void*)buffer)[i] );
-        }
+#ifdef DEBUG_PRINT_HOST_MESSAGE
+        print_host_message(buffer, length);
+#endif
     }
 
 }
@@ -424,6 +431,16 @@ static void handle_timer_events(void)
     // We will need watchdog style timeouts on kernel launches, etc. so we can detect when something's
     // gone wrong and trigger an abort/cleanup.
 }
+
+#ifdef DEBUG_PRINT_HOST_MESSAGE
+static void print_host_message(const uint8_t* const buffer, int64_t length)
+{
+    for (int64_t i = 0; i < length / 8; i++)
+    {
+        printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((const uint64_t* const)(const void* const)buffer)[i] );
+    }
+}
+#endif
 
 static void print_log_message(uint64_t hart, const message_t* const message)
 {

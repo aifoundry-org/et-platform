@@ -13,6 +13,8 @@
 #include "printf.h"
 #include "shire.h"
 
+//#define DEBUG_PRINT_KERNEL_INSTRUCTIONS
+
 typedef struct
 {
     kernel_state_t kernel_state;
@@ -191,13 +193,15 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
         allShiresReady = false;
     }
 
+#ifdef DEBUG_PRINT_KERNEL_INSTRUCTIONS
     const uint32_t* pc = (uint32_t*)kernel_info_ptr->compute_pc;
 
-    for (int i =0 ; i < 10; i++)
+    for (int i = 0 ; i < 10; i++)
     {
         printf("PC: 0x%010" PRIxPTR " data: 0x%08" PRIx32 "\r\n", pc, *pc);
         pc += 1;
     }
+#endif
 
     // Confirm this kernel is not active
     if (kernel_status_ptr->kernel_state != KERNEL_STATE_UNUSED)
