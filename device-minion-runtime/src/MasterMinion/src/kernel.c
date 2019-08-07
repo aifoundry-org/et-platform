@@ -42,6 +42,9 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
 {
     volatile const kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
 
+    init_fcc(FCC_0);
+    init_fcc(FCC_1);
+
     while (1)
     {
         // wait for a kernel launch sync request from master_thread

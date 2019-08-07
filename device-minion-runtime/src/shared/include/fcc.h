@@ -8,8 +8,12 @@
 #define THIS_SHIRE 0xFF
 #define THREAD_0 0
 #define THREAD_1 1
-#define FCC_0 0
-#define FCC_1 1
+
+typedef enum
+{
+    FCC_0 = 0,
+    FCC_1 = 1
+} fcc_t;
 
 // shire = shire to send the credit to, 0-32 or 0xFF for "this shire"
 // thread = thread to send credit to, 0 or 1
@@ -20,12 +24,12 @@
 // fcc = fast credit counter to block on, 0 or 1
 #define WAIT_FCC(fcc) asm volatile ("csrwi fcc, %0" : : "I" (fcc))
 
-static inline void wait_fcc(uint64_t fcc)
+static inline void wait_fcc(fcc_t fcc)
 {
     asm volatile ("csrw fcc, %0" : : "r" (fcc));
 }
 
-static inline uint64_t read_fcc(uint64_t fcc)
+static inline uint64_t read_fcc(fcc_t fcc)
 {
     uint64_t temp;
     uint64_t val;
@@ -42,6 +46,15 @@ static inline uint64_t read_fcc(uint64_t fcc)
     );
 
     return val;
+}
+
+static inline void init_fcc(fcc_t fcc)
+{
+    // Consume all credits
+    for (uint64_t i = read_fcc(fcc); i > 0; i--)
+    {
+        WAIT_FCC(fcc);
+    }
 }
 
 #endif // FCC_H

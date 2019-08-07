@@ -207,11 +207,6 @@
 #define PRV_M 3
 
 // Shire defines
-#define SHIRE_MASTER 32
 #define SHIRE_OWN    0xFF
-
-// Thread defines
-#define THREAD_0 0
-#define THREAD_1 1
 
 #endif
