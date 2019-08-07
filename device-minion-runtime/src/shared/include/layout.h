@@ -4,6 +4,7 @@
 // aligns an address to the next 64-byte cache line
 #define CACHE_LINE_ALIGN(x) (((x + 63U) / 64U) * 64U)
 
+#define MASTER_SHIRE 32
 #define NUM_SHIRES 33
 #define HARTS_PER_SHIRE 64
 #define NUM_HARTS (NUM_SHIRES * HARTS_PER_SHIRE)

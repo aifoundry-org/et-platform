@@ -299,11 +299,7 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
 
     if (result)
     {
-        const uint64_t bitmask = 1U << (FIRST_KERNEL_LAUNCH_SYNC_MINON + (kernel_params_ptr->kernel_id / 2));
-        const uint64_t thread = kernel_params_ptr->kernel_id % 2;
-
-        // Last thread to join barrier sends ready FCC1 to master shire sync HART
-        SEND_FCC(MASTER_SHIRE, thread, FCC_1, bitmask);
+        notify_kernel_sync_thread(kernel_params_ptr->kernel_id, FCC_1);
     }
 
     // Wait for FCC1 from master minion sync thread indicating all HARTS in all shires are ready
