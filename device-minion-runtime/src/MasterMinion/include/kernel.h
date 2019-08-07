@@ -21,6 +21,7 @@ typedef enum
     KERNEL_STATE_UNUSED = 0,
     KERNEL_STATE_LAUNCHED,
     KERNEL_STATE_RUNNING,
+    KERNEL_STATE_ABORTED,
     KERNEL_STATE_ERROR,
     KERNEL_STATE_COMPLETE
 } kernel_state_t;
@@ -29,6 +30,7 @@ void kernel_init(void);
 void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id);
 void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state);
 void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_info_t* const kernel_info_ptr);
+void abort_kernel(kernel_id_t kernel_id);
 kernel_state_t get_kernel_state(kernel_id_t kernel_id);
 
 #endif
