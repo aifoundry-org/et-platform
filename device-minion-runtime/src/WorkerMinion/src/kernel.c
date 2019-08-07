@@ -254,7 +254,17 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
     {
         uint64_t temp, temp2;
 
-        // Zero out TensorExtensionCSRs
+        // Perform a dummy TensorFMA to consume an unpaired TensorLoadSetupB, if any (rare)
+        // If there isn't an unpaired TensorLoadSetupB (common case), this just generates a TensorError
+        asm volatile (
+            "li    %0, 0x0000000000100006 \n" // B in memory, TensorType = IMA8A32
+            "csrw  tensor_fma, %0         \n"
+            "csrwi tensor_wait, 7         \n"
+            : "=&r" (temp)
+        );
+
+        // Zero out TensorExtensionCSRs - previous FMA typically causes a TensorError
+
         asm volatile (
             "csrwi tensor_mask,  0 \n"
             "csrwi tensor_error, 0 \n"
@@ -281,28 +291,30 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
             : "x31"
         );
 
-        asm volatile (
-            "mov.m.x m0, zero, 0xF \n" // Enables 4 elements of FPU
-            "csrw    frm, zero     \n" // Set rounding mode to 0 (round near even)
-        );
+        // Enables 4 elements of FPU
+        asm volatile ("mov.m.x m0, zero, 0xF");
 
         // Ensure all cache evicts are complete
         WAIT_CACHEOPS
     }
 
+    // Clear floating point flags and set rounding mode to 0 (round near even)
+    asm volatile ("csrw fcsr, zero");
+
     // Ensure all FLB and FCC init is complete
-    asm volatile("fence");
+    asm volatile ("fence");
 
     bool result;
 
     WAIT_FLB(64, 28, result);
 
+    // Last thread to join barrier sends ready FCC1 to master shire sync thread
     if (result)
     {
         notify_kernel_sync_thread(kernel_params_ptr->kernel_id, FCC_1);
     }
 
-    // Wait for FCC1 from master minion sync thread indicating all HARTS in all shires are ready
+    // Wait for go FCC1 from master shire sync thread
     WAIT_FCC(1);
 }
 
@@ -348,13 +360,12 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
 
     WAIT_FLB(64, 31, result);
 
-    // Last thread to join barrier
+    // Last thread to join barrier sends done FCC1 to master shire sync thread
     if (result)
     {
         const uint64_t bitmask = 1U << (FIRST_KERNEL_LAUNCH_SYNC_MINON + (kernel_params_ptr->kernel_id / 2));
         const uint64_t thread = kernel_params_ptr->kernel_id % 2;
 
-        // Last thread to join barrier sends done FCC1 to master shire sync thread
         SEND_FCC(MASTER_SHIRE, thread, FCC_1, bitmask);
     }
 }
