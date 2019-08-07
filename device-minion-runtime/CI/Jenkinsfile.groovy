@@ -76,6 +76,7 @@ pipeline {
                 ])
 
                 sshagent (credentials: ['jennkis_aws_centos']) {
+                    sh 'git submodule deinit --all -f'
                     sh 'git clean -xfd'
                     sh 'git submodule foreach --recursive git clean -xfd'
                     sh 'git reset --hard'
