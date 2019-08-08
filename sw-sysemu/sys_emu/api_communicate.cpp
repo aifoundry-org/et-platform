@@ -138,9 +138,9 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
                 LOG_NOTHREAD(INFO, "%s", "api_communicate: continue");
                 assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
 
-                // Set "unused" (count) to 0 to tell we are in runtime mode (see fw_master_scode.cc)
+                // Write 0s tell we are in runtime mode (see fw_master_scode.cc)
                 rt_host_kernel_launch_info_t launch_info;
-                launch_info.unused = htole64(0);
+                memset(&launch_info, 0, sizeof(launch_info));
 
                 // Write the kernel launch parameters to memory (RT_HOST_KERNEL_LAUNCH_INFO in fw_common.h)
                 mem->write(RT_HOST_KERNEL_LAUNCH_INFO, sizeof(launch_info), &launch_info);
