@@ -47,6 +47,7 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/Support/RuntimeErrors.h
   ${PROJECT_SOURCE_DIR}/include/Support/HelperMacros.h
   ${PROJECT_SOURCE_DIR}/include/Support/DeviceGuard.h
+  ${PROJECT_SOURCE_DIR}/include/Support/MemoryRange.h
   ${PROJECT_SOURCE_DIR}/include/etrt-bin.h
   ${PROJECT_SOURCE_DIR}/include/Common/ProjectAutogen.h.in
   ${PROJECT_SOURCE_DIR}/include/Common/ErrorTypes.h
@@ -114,6 +115,7 @@ set(ETRT_SOURCES
   registry.h
   Support/CommandLineOptions.cc
   Support/DeviceGuard.cc
+  Support/MemoryRange.cc
   )
 
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})
@@ -121,7 +123,7 @@ add_library(etrt_obj OBJECT ${ETRT_SOURCES})
 # Include path dependencies
 if(esperanto-fw_FOUND)
   target_include_directories(etrt_obj PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/esperanto-fw")
-endif(espernato-fw_FOUND)
+endif(esperanto-fw_FOUND)
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Device")

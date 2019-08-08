@@ -11,27 +11,13 @@
 #ifndef ET_RUNTIME_MEMORY_ALLOCATOR_H
 #define ET_RUNTIME_MEMORY_ALLOCATOR_H
 
+#include "Support/MemoryRange.h"
+
 #include <cstdint>
 #include <set>
 
 namespace et_runtime {
 namespace device {
-
-/// @brief Struct holding the beging and size of an allocated buffer
-///
-/// This struct will be used to indentify the allocated memory regions
-/// It will provide
-struct MemoryRange {
-  MemoryRange() = default;
-  // The less operator will return true iff this range is not overlapping
-  // and to the left of the "other" one
-  bool operator<(const MemoryRange other) const {
-    return (addr_ + size_) <= other.addr_;
-  }
-  uintptr_t end() const { return addr_ + size_; }
-  uintptr_t addr_ = 0;
-  size_t size_ = 0;
-};
 
 /// @brief Linear Memory Allocator
 ///
@@ -74,7 +60,7 @@ public:
 private:
   uintptr_t region_base_;
   size_t region_size_;
-  std::set<MemoryRange>
+  std::set<support::MemoryRange>
       allocated_buffers_; ///< Set of memory ranges alocated, each range is the
                           ///< buffers pointer and size
 };

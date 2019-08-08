@@ -76,6 +76,24 @@ TEST(KernelELFInfo, parse_kernel_elf) {
   EXPECT_EQ(0x17f4, elf_info.rawKernelOffset("convolution"));
 }
 
+TEST(KernelELFInfo, parse_multisegment_elf) {
+
+  KernelELFInfo elf_info{"etsocmaxsplat.elf"};
+
+  // We expect that the elf we test with is installed next to the test-binary
+  // Find the absolute pasth of the test binary
+  fs::path p = "/proc/self/exe";
+  auto test_real_path = fs::read_symlink(p);
+  auto dir_name = test_real_path.remove_filename();
+  auto conv_elf = dir_name / "etsocmaxsplat.elf";
+
+  EXPECT_TRUE(elf_info.loadELF(conv_elf));
+
+  EXPECT_TRUE(elf_info.rawKernelExists("etsocmaxsplat"));
+
+  EXPECT_EQ(0x10a0, elf_info.rawKernelOffset("etsocmaxsplat"));
+}
+
 } // namespace
 
 int main(int argc, char **argv) {

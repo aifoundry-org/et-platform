@@ -19,6 +19,7 @@
 #include <set>
 
 using namespace et_runtime::device;
+using namespace et_runtime::support;
 
 class FakeDevice : public et_runtime::Device {
 public:

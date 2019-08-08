@@ -50,6 +50,19 @@ size_t Module::rawKernelOffset(const std::string &name) {
 /// @Brief Load the ELF on the device
 bool Module::loadOnDevice(Device *dev) {
   auto &mem_manager = dev->mem_manager_;
+
+  // Check if the elf has been compiled with absolute SOC DRAM offsets or not
+  assert(elf_info_->reader_.segments.size() > 0);
+  auto first_segment = elf_info_->reader_.segments[0];
+  uintptr_t dev_base_addr = 0;
+  // If compiled as PIC (i.e. without absolute SOC addresses) then allocate a
+  // buffer the size of the ELF file
+  if (first_segment->get_physical_address() < mem_manager->ramBase()) {
+    mem_manager->malloc((void **)&dev_base_addr, elf_info_->elfSize());
+    RTDEBUG << "Allocating memory for PIC ELF, Addr: 0x" << std::hex
+            << dev_base_addr << "\n";
+  }
+  // Copy over the all LOAD segments specified in the EL0F
   for (auto &segment : elf_info_->reader_.segments) {
     auto type = segment->get_type();
     if (type & PT_LOAD) {
@@ -57,6 +70,7 @@ bool Module::loadOnDevice(Device *dev) {
       auto load_address = segment->get_physical_address();
       auto file_size = segment->get_file_size();
       auto mem_size = segment->get_memory_size();
+      uintptr_t devPtr = 0;
 
       RTDEBUG << "Found segment: " << segment->get_index()
               << " Physical Address: 0x" << std::hex
@@ -67,19 +81,18 @@ bool Module::loadOnDevice(Device *dev) {
       // then allocate a buffer and "relocate" it there. Still our ELFs are not
       // PIE and the force them to load to a specific address
       uintptr_t write_address = 0;
-      if (load_address < mem_manager->ramBase()) {
-        mem_manager->malloc((void **)&devPtr_, elf_raw_data_.size());
-        relocated_ = true;
-        write_address = devPtr_ + offset;
+      if (dev_base_addr > 0) {
+        write_address = dev_base_addr + offset;
+        device_remap_.push_back({{load_address, mem_size}, dev_base_addr});
       } else {
         // We are loading the segment its specified the LOAD address
         // Set devPtr to zero as the functions have entrypoint addresses
         // that are absolute
-        devPtr_ = load_address;
-        auto res = mem_manager->reserveMemory(reinterpret_cast<void *>(devPtr_),
+        devPtr = load_address;
+        auto res = mem_manager->reserveMemory(reinterpret_cast<void *>(devPtr),
                                               mem_size);
         assert(res == etrtSuccess);
-        write_address = devPtr_;
+        write_address = devPtr;
       }
 
       RTDEBUG << "Loading segment: " << segment->get_index()
@@ -110,9 +123,18 @@ Module::onDeviceKernelEntryPoint(const std::string &kernel_name) {
     return etrtErrorModuleNotOnDevice;
   }
   auto kernel_offset = rawKernelOffset(kernel_name);
-  if (relocated_) {
 
-    return (uintptr_t)devPtr_ + kernel_offset;
+  if (device_remap_.size() > 0) {
+    for (auto &[elf_mem_range, dev_addr] : device_remap_) {
+      if (elf_mem_range.addr_ < kernel_offset &&
+          kernel_offset < elf_mem_range.end()) {
+        return dev_addr + kernel_offset;
+      }
+    }
+    RTERROR << "For kernel " << kernel_name << " found elf offset: " << std::hex
+            << kernel_offset << "but no containing rellocated ELF segment \n";
+    abort();
+    return -1;
   }
   return kernel_offset;
 }

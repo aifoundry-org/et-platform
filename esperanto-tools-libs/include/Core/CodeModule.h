@@ -13,9 +13,11 @@
 
 #include "Common/CommonTypes.h"
 #include "Support/ErrorOr.h"
+#include "Support/MemoryRange.h"
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -58,9 +60,6 @@ public:
   /// @brief True iff the module is loaded on the device
   bool onDevice() { return onDevice_; }
 
-  /// @brief Return elf load address on device
-  uintptr_t deviceLoadAddress() { return devPtr_; }
-
   /// @brief PC where the kernel entrypoint is located
   ErrorOr<uintptr_t> onDeviceKernelEntryPoint(const std::string &kernel_name);
 
@@ -70,9 +69,11 @@ private:
   std::vector<char>
       elf_raw_data_;      ///< Buffer holding the whole ELF as read from file
   bool onDevice_ = false; ///< True iff the module is loaded on the device
-  bool relocated_ = false; ///< Truee if the segments have been relocated
-                           ///< relative to their original load addresses
-  uintptr_t devPtr_ = 0;  ///< Base on device point of the loaded binary
+  std::vector<std::tuple<support::MemoryRange, uintptr_t>>
+      device_remap_; ///< Mapping of the ELF segment load address ( and size) to
+                     ///< the load address of the segment on the device. To be
+                     ///< used in order to find the correct base address to use
+                     ///< for the kernel lauch address.
   std::shared_ptr<et_runtime::EtAction> actionEvent_ =
       nullptr; ///<  Action used for synchronize with load completion on the
                ///<  device

@@ -27,6 +27,7 @@ set(CI_DEPENDENCIES convolution.elf
                     bootrom.mem
                     gpu_0_softmax_110.elf
                     sample-kernel
+                    etsocmaxsplat.elf
   )
 set(CI_DN_TARGETS "")
 
