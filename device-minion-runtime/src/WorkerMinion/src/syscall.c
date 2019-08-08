@@ -30,7 +30,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         break;
 
         case SYSCALL_RETURN_FROM_KERNEL:
-            rv = return_from_kernel();
+            rv = return_from_kernel((int64_t)arg1);
         break;
 
         case SYSCALL_LOG_WRITE:

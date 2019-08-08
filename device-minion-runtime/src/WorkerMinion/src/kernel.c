@@ -9,15 +9,18 @@
 #include "log.h"
 #include "macros.h"
 #include "message.h"
+#include "printf.h"
 #include "syscall.h"
 
 #include <stdbool.h>
 #include <inttypes.h>
 
-static const uint8_t tensorZeros[64] __attribute__ ((aligned (64))) = {0};
+static const uint8_t tensor_zeros[64] __attribute__ ((aligned (64))) = {0};
+static char string_buffer[64];
 
 static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
-static void kernel_return_function(void) __attribute__ ((used));
+static void kernel_return_function(int64_t return_value) __attribute__ ((used));
+static void log_errors(int64_t return_value, uint64_t tensor_error);
 static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr);
 
 // Saves firmware context and launches kernel in user mode with clean stack and registers
@@ -27,6 +30,8 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
                       const grid_config_t* const grid_config_ptr)
 {
     uint64_t* firmware_sp;
+    int64_t return_value;
+    uint64_t tensor_error;
 
     asm volatile (
         "csrr  %0, sscratch \n"
@@ -73,18 +78,18 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         "sd    x29, 26 * 8( sp )   \n"
         "sd    x30, 27 * 8( sp )   \n"
         "sd    x31, 28 * 8( sp )   \n"
-        "mv    x10, %4             \n" // a0 = kernel_params_ptr
-        "mv    x11, %5             \n" // a1 = grid_config_ptr
+        "mv    x10, %6             \n" // a0 = kernel_params_ptr
+        "mv    x11, %7             \n" // a1 = grid_config_ptr
         "sd    sp, %0              \n" // save sp to supervisor stack SP region
-        "mv    ra, %1              \n" // set return address to kernel_return_function
-        "mv    s0, %2              \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
+        "mv    ra, %3              \n" // set return address to kernel_return_function
+        "mv    s0, %4              \n" // switch to kernel stack: set s0 (frame pointer) to kernel_stack_addr
         "addi  sp, s0, -32         \n" // switch to kernel stack: set sp to kernel stack after stack frame
         "sd    ra, 24(sp)          \n" // push ra
         "sd    s0, 16(sp)          \n" // push s0
         "li    x5, 0x100           \n" // bitmask to clear sstatus SPP=user
         "csrc  sstatus, x5         \n" // clear sstatus SPP
         "csrsi sstatus, 0x10       \n" // set sstatus UPIE
-        "csrw  sepc, %3            \n" // kernel address to jump to in user mode
+        "csrw  sepc, %5            \n" // kernel address to jump to in user mode
         "mv    x3, zero            \n" // kernel must set its own gp if it uses it
         "mv    x4, zero            \n" // Wipe registers: don't leak state from S to U
         "mv    x5, zero            \n"
@@ -146,21 +151,24 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
         "fcvt.s.w f30, x0          \n"
         "fcvt.s.w f31, x0          \n"
 #endif
-        "sret                      \n"
-        "1:                        \n"
-        : "=m" (*firmware_sp)
+        "sret                      \n" // ret to kernel_entry_addr in user mode
+        "1:                        \n" // firmware context resumes from here via return_from_kernel()
+        "mv    %1, a0              \n" // collect kernel return value
+        "csrr  %2, tensor_error    \n" // collect tensor_error
+        : "=m" (*firmware_sp), "=r" (return_value), "=r" (tensor_error)
         : "r" (kernel_return_function), "r" (kernel_stack_addr), "r" (kernel_entry_addr), "r" (kernel_params_ptr), "r" (grid_config_ptr)
         : "ra" // SYSCALL_RETURN_FROM_KERNEL rets back to 1: so ra is clobbered. Rest of context is preserved.
     );
 
+    log_errors(return_value, tensor_error);
+
     post_kernel_cleanup(kernel_params_ptr);
 
-    // TODO FIXME return kernel's return value
-    return 0;
+    return return_value;
 }
 
 // Restores firmware context
-int64_t return_from_kernel(void)
+int64_t return_from_kernel(int64_t return_value)
 {
     uint64_t* firmware_sp;
 
@@ -186,7 +194,7 @@ int64_t return_from_kernel(void)
             "ld    x7,  4  * 8( sp ) \n"
             "ld    x8,  5  * 8( sp ) \n"
             "ld    x9,  6  * 8( sp ) \n"
-            "ld    x10, 7  * 8( sp ) \n"
+                                         // Leave return_value from kernel in a0
             "ld    x11, 8  * 8( sp ) \n"
             "ld    x12, 9  * 8( sp ) \n"
             "ld    x13, 10 * 8( sp ) \n"
@@ -213,11 +221,11 @@ int64_t return_from_kernel(void)
             : "+m" (*firmware_sp)
         );
 
-        return 0;
+        return return_value;
     }
     else
     {
-        return -1;
+        return KERNEL_LAUNCH_ERROR_NO_SAVED_CONTEXT;
     }
 }
 
@@ -273,21 +281,21 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
 
         // Zero out TenC
         asm volatile (
-            "la    %0, tensorZeros        \n"
+            "la    %0, tensor_zeros        \n"
             "li    x31, 0                 \n" // 0-byte stride, ID 0
             "li    %1, 0x000000000000000F \n" // Load 16 lines to L1SP lines 0-15
-            "or    %1, %0, %1             \n" // Set address of tensorLoad to tensorZeros
+            "or    %1, %0, %1             \n" // Set address of tensorLoad to tensor_zeros
             "csrw  tensor_load, %1        \n"
             "csrwi tensor_wait, 0         \n"
             "li    %1, 0x020000000000000F \n" // Load 16 lines to L1SP lines 16-31
-            "or    %1, %0, %1             \n" // Set address of tensorLoad to tensorZeros
+            "or    %1, %0, %1             \n" // Set address of tensorLoad to tensor_zeros
             "csrw  tensor_load, %1        \n"
             "csrwi tensor_wait, 0         \n"
             "li    %1, 0x01FF800000610007 \n" // 16x16 TenC = 16x64 A in L1 SP lines 0-15 * 64x16 B in L1SP lines 16-31
             "csrw  tensor_fma, %1         \n"
             "csrwi tensor_wait, 7         \n"
             : "=&r" (temp), "=&r" (temp2)
-            : "m" (tensorZeros[64])
+            : "m" (tensor_zeros[64])
             : "x31"
         );
 
@@ -319,9 +327,32 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
 }
 
 // This must to a a RX function in user space, no W from user!
-static void kernel_return_function(void)
+static void kernel_return_function(int64_t return_value)
 {
-    syscall(SYSCALL_RETURN_FROM_KERNEL, 0, 0, 0);
+    syscall(SYSCALL_RETURN_FROM_KERNEL, (uint64_t)return_value, 0, 0);
+}
+
+static void log_errors(int64_t return_value, uint64_t tensor_error)
+{
+    if ((return_value < 0) && (return_value != KERNEL_LAUNCH_ERROR_ABORTED))
+    {
+        int64_t length = snprintf(string_buffer, sizeof(string_buffer), "return_value %" PRId64, return_value);
+
+        if (length > 0)
+        {
+            LOG_write(string_buffer, (uint64_t)length);
+        }
+    }
+
+    if (tensor_error != 0)
+    {
+        int64_t length = snprintf(string_buffer, sizeof(string_buffer), "tensor_error 0x%016" PRIx64, tensor_error);
+
+        if (length > 0)
+        {
+            LOG_write(string_buffer, (uint64_t)length);
+        }
+    }
 }
 
 static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)

@@ -5,10 +5,12 @@
 
 #include <inttypes.h>
 
-static void print_regs(uint64_t hart_id, uint64_t mepc, uint64_t mtval, uint64_t mstatus);
+static void print_regs(uint64_t mepc, uint64_t mtval, uint64_t mstatus);
 
 void print_exception(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus, uint64_t hart_id)
 {
+    printf("H%04" PRIu64 ": ", hart_id);
+
     switch ((exception_t)mcause)
     {
         case EXCEPTION_INSTRUCTION_ADDRESS_MISALIGNED:
@@ -99,14 +101,14 @@ void print_exception(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t ms
         break;
     }
 
-    print_regs(hart_id, mepc, mtval, mstatus);
+    print_regs(mepc, mtval, mstatus);
 }
 
-static void print_regs(uint64_t hart_id, uint64_t mepc, uint64_t mtval, uint64_t mstatus)
+static void print_regs(uint64_t mepc, uint64_t mtval, uint64_t mstatus)
 {
     const uint64_t pc = mepc - 4U;
 
-    printf("hart=%" PRIu64 " PC=0x%010" PRIx64 " mtval=0x%016" PRIx64 " mstatus=0x%016" PRIx64 " priv=", hart_id, pc, mtval, mstatus);
+    printf("PC=0x%010" PRIx64 " mtval=0x%016" PRIx64 " mstatus=0x%016" PRIx64 " priv=", pc, mtval, mstatus);
 
     // Check mstatus.MPP to determine what privilege the trap came from
     switch ((mstatus & 0x1800U) >> 11U)

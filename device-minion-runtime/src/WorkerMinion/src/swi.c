@@ -38,7 +38,7 @@ static void handle_message(uint64_t shire, uint64_t hart, message_t* const messa
     {
         // If kernel was running, returns to firmware context
         // If not, doesn't do anything.
-        return_from_kernel();
+        return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
     }
     else if (message_ptr->id == MESSAGE_ID_LOOPBACK)
     {

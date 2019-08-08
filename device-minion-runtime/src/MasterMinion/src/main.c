@@ -459,7 +459,7 @@ static void print_log_message(uint64_t hart, const message_t* const message)
     const char* const data_ptr = (const char* const)message->data;
     const uint8_t length = data_ptr[0];
 
-    printf("log: H%04d: ", hart);
+    printf("H%04d: ", hart);
     SERIAL_write(UART0, &data_ptr[1], length);
     SERIAL_write(UART0, "\r\n", 2);
 }
