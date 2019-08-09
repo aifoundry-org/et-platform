@@ -398,9 +398,6 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     // Last thread to join barrier sends done FCC1 to master shire sync thread
     if (result)
     {
-        const uint64_t bitmask = 1U << (FIRST_KERNEL_LAUNCH_SYNC_MINON + (kernel_params_ptr->kernel_id / 2));
-        const uint64_t thread = kernel_params_ptr->kernel_id % 2;
-
-        SEND_FCC(MASTER_SHIRE, thread, FCC_1, bitmask);
+        notify_kernel_sync_thread(kernel_params_ptr->kernel_id, FCC_1);
     }
 }
