@@ -18,7 +18,7 @@ static inline void clear_software_interrupt(unsigned, uint64_t) {}
 }
 #endif
 //extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
-extern uint32_t current_thread;
+extern unsigned current_thread;
 extern std::array<Processor,EMU_NUM_THREADS>  cpu;
 
 

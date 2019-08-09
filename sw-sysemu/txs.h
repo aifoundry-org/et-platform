@@ -7,9 +7,9 @@
 //#define TEXTURE_CACHE
 extern void init_txs(uint64_t imgTableAddr);
 
-extern uint32_t tbox_id_from_thread(uint32_t current_trhead);
+extern uint32_t tbox_id_from_thread(uint32_t thread);
 
-extern void new_sample_request(uint32_t current_thread, uint32_t port_id, uint32_t number_packets, uint64_t base_address);
+extern void new_sample_request(uint32_t thread, uint32_t port_id, uint32_t number_packets, uint64_t base_address);
 
 extern void checker_sample_quad(uint32_t thread, uint64_t basePtr, TBOX::SampleRequest currentRequest, freg_t input[], freg_t output[]);
 

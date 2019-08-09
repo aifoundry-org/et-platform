@@ -21,7 +21,7 @@ void insn_flw(insn_t inst)
 {
     require_fp_active();
     DISASM_LOAD_FD_RS1_IIMM("flw");
-    WRITE_FD(mmu_load32(RS1 + IIMM));
+    LOAD_FD(mmu_load32(RS1 + IIMM));
 }
 
 

@@ -72,7 +72,7 @@ void insn_flwg_ps(insn_t inst)
     DISASM_LOAD_FD_RS1("flwg.ps");
     LOG_MREG(":", 0);
     mmu_aligned_loadVLEN(RS1, FD, M0);
-    WRITE_VD_NODATA(M0);
+    LOAD_VD_NODATA(M0);
 }
 
 
@@ -82,7 +82,7 @@ void insn_flwl_ps(insn_t inst)
     DISASM_LOAD_FD_RS1("flwl.ps");
     LOG_MREG(":", 0);
     mmu_aligned_loadVLEN(RS1, FD, M0);
-    WRITE_VD_NODATA(M0);
+    LOAD_VD_NODATA(M0);
 }
 
 

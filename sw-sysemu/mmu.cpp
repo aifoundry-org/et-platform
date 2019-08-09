@@ -18,7 +18,7 @@
 
 // FIXME: Replace with "processor.h"
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
-extern uint32_t current_thread;
+extern unsigned current_thread;
 
 
 //------------------------------------------------------------------------------

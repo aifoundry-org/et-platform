@@ -32,7 +32,7 @@ extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
 #endif
 
 // Processor configuration
-extern uint32_t current_thread;
+extern unsigned current_thread;
 namespace bemu {
     extern MainMemory memory;
     extern typename MemoryRegion::value_type memory_reset_value;
@@ -47,19 +47,19 @@ extern void reset_hart(unsigned thread);
 
 // Helpers
 extern bool emu_done();
-extern std::string dump_xregs(uint32_t thread_id);
-extern std::string dump_fregs(uint32_t thread_id);
+extern std::string dump_xregs(unsigned thread_id);
+extern std::string dump_fregs(unsigned thread_id);
 extern void init_stack();
-extern uint64_t get_csr(uint32_t thread, uint16_t cnum);
-extern uint64_t xget(uint64_t src1);
+extern uint64_t get_csr(unsigned thread, uint16_t cnum);
+extern uint64_t xget(xreg src1);
 extern void init(xreg dst, uint64_t val);         // init general purpose register
 extern void fpinit(freg dst, uint64_t val[VL/2]); // init vector register
 extern void minit(mreg dst, uint64_t val);        // init mask register
 
 // Processor state manipulation
 extern void set_pc(uint64_t pc);
-extern void set_thread(uint32_t thread);
-extern uint32_t get_thread();
+extern void set_thread(unsigned thread);
+extern unsigned get_thread();
 extern bool thread_is_blocked(unsigned thread);
 extern uint32_t get_mask(unsigned maskNr);
 
@@ -114,16 +114,27 @@ extern void csrrci(xreg dst, uint16_t src1, uint64_t imm, const char* comm = 0);
 extern unsigned get_msg_port_write_width(unsigned thread, unsigned port);
 
 extern void set_delayed_msg_port_write(bool f);
-extern bool get_msg_port_stall(uint32_t target_thread, uint32_t port_id);
-extern void read_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t *data, uint8_t* oob);
-extern void write_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t *data, uint8_t oob);
-extern void write_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id, uint32_t *data, uint8_t oob);
-extern void write_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id, uint32_t *data, uint8_t oob);
-extern void commit_msg_port_data(uint32_t target_thread, uint32_t port_id, uint32_t source_thread);
-extern void commit_msg_port_data_from_tbox(uint32_t target_thread, uint32_t port_id, uint32_t tbox_id);
-extern void commit_msg_port_data_from_rbox(uint32_t target_thread, uint32_t port_id, uint32_t rbox_id);
+extern bool get_msg_port_stall(unsigned target_thread, unsigned port_id);
+extern void write_msg_port_data(unsigned target_thread, unsigned port_id, uint32_t *data, uint8_t oob);
+extern void write_msg_port_data_from_tbox(unsigned target_thread, unsigned port_id, unsigned tbox_id, uint32_t *data, uint8_t oob);
+extern void write_msg_port_data_from_rbox(unsigned target_thread, unsigned port_id, unsigned rbox_id, uint32_t *data, uint8_t oob);
+extern void commit_msg_port_data(unsigned target_thread, unsigned port_id, unsigned source_thread);
+extern void commit_msg_port_data_from_tbox(unsigned target_thread, unsigned port_id, unsigned tbox_id);
+extern void commit_msg_port_data_from_rbox(unsigned target_thread, unsigned port_id, unsigned rbox_id);
 
 // ----- Esperanto tensor extension --------------------------------------------
+
+// TensorFMA
+
+extern void tensor_fma_execute();
+
+// TensorLoad
+
+extern void tensor_load_execute();
+
+// TensorQuant
+
+extern void tensor_quant_execute();
 
 // TensorReduce
 

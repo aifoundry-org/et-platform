@@ -13,7 +13,7 @@
 #include "dense_region.h"
 #include "sparse_region.h"
 
-extern uint32_t current_thread;
+extern unsigned current_thread;
 extern void pu_plic_interrupt_pending_set(uint32_t source_id);
 
 namespace bemu {
@@ -21,7 +21,7 @@ namespace bemu {
 
 extern typename MemoryRegion::value_type memory_reset_value;
 
-template <unsigned long long Base, size_t N>
+template <unsigned long long Base, unsigned long long N>
 struct PU_TRG_MMin_Region : public MemoryRegion
 {
     typedef typename MemoryRegion::addr_type      addr_type;
@@ -95,7 +95,7 @@ protected:
     uint32_t counter = 0;
 };
 
-template<unsigned long long Base, size_t N>
+template<unsigned long long Base, unsigned long long N>
 struct MailboxRegion : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;

@@ -12,7 +12,7 @@ namespace bemu {
 struct MemoryRegion
 {
     typedef unsigned long long    addr_type;
-    typedef size_t                size_type;
+    typedef unsigned long long    size_type;
     typedef unsigned char         value_type;
     typedef value_type*           pointer;
     typedef const value_type*     const_pointer;

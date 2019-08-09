@@ -21,11 +21,11 @@ namespace emu {
     if ((LOG_##severity >= emu::log.getLogLevel()) && (cond)) \
     { \
         emu::lprintf(LOG_##severity, "[H%u S%u:N%u:C%u:T%u] " format, \
-                     thread, \
-                     thread / EMU_THREADS_PER_SHIRE, \
-                     (thread / EMU_THREADS_PER_NEIGH) % EMU_NEIGH_PER_SHIRE, \
-                     (thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_NEIGH, \
-                     thread % EMU_THREADS_PER_MINION, \
+                     unsigned(thread), \
+                     unsigned(thread / EMU_THREADS_PER_SHIRE), \
+                     unsigned((thread / EMU_THREADS_PER_NEIGH) % EMU_NEIGH_PER_SHIRE), \
+                     unsigned((thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_NEIGH), \
+                     unsigned(thread % EMU_THREADS_PER_MINION), \
                      ##__VA_ARGS__); \
     } \
 } while (0)
@@ -69,7 +69,7 @@ namespace emu {
 #define DEBUG_MASK(_MR) LOG(DEBUG, "\tmask = 0x%02lx",(_MR).to_ulong())
 
 
-extern uint32_t current_thread;
+extern unsigned current_thread;
 extern int32_t minion_only_log;
 
 extern void log_only_minion(int32_t);

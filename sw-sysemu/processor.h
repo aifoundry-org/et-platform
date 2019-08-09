@@ -3,6 +3,8 @@
 #ifndef BEMU_PROCESSOR_H
 #define BEMU_PROCESSOR_H
 
+#include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <array>
@@ -59,7 +61,7 @@ struct Processor {
     uint8_t     mcache_control;   // 2b -- TODO: this is per core not per hart
     uint64_t    tensor_conv_size; // can we remove?
     uint64_t    tensor_conv_ctrl; // can we remove?
-    // TODO: tensor_coop  
+    // TODO: tensor_coop
     uint16_t    tensor_mask;
     uint16_t    tensor_error;
     uint16_t    ucache_control;   // TODO: this is per core not per hart
@@ -79,6 +81,15 @@ struct Processor {
     bool break_on_fetch;
     bool enabled;
 
+    enum class Tensor {
+        None,
+        Reduce,
+        Quant,
+        FMA
+    };
+
+    // Tensor accelerator state
+
     // Tensor reduction operation state machine
     // TODO: this is per core not per hart
     struct Reduce {
@@ -89,9 +100,63 @@ struct Processor {
         enum class State : uint8_t {
             Idle = 0,
             Send = 1,
-            Recv = 2
+            Recv = 2,
+            Skip = 3
         } state;
     } reduce;
+
+    // Tensor quantization operation state machine
+    // TODO: this is per core not per hart
+    uint64_t txquant;
+
+    // NB: Due to pipelining a TensorQuant can start a few cycles before the
+    // last one finishes, but this case manifests only in ZSIM.
+    uint64_t shadow_txquant;
+
+    // Tensor FMA operation state machine
+    // TODO: this is per core not per hart
+    uint64_t txfma;
+
+    // NB: Due to pipelining a TensorFMA can start a few cycles before the
+    // last one finishes, but this case manifests only in ZSIM.
+    uint64_t shadow_txfma;
+
+    // TensorLoad state machine
+    uint64_t txload;
+    uint64_t txstride;
+
+    // NB: Due to pipelining a TensorQuant can start a few cycles before the
+    // last one finishes, but this case manifests only in ZSIM.
+    uint64_t shadow_txload;
+    uint64_t shadow_txstride;
+
+    // Active tensor operation state machines
+    // TODO: this is per core not per hart
+    std::array<Tensor,3> tensor_op;
+
+    bool enqueue_tensor_op(Tensor kind) {
+        for (unsigned i = 0; i < 3; ++i) {
+            if (tensor_op[i] == Tensor::None) {
+                tensor_op[i] = kind;
+                return true;
+            }
+            // Cannot have the same FSM twice in the list
+            assert(tensor_op[i] != kind);
+        }
+        return false;
+    }
+
+    Tensor dequeue_tensor_op() {
+        Tensor op = tensor_op[0];
+        tensor_op[0] = tensor_op[1];
+        tensor_op[1] = tensor_op[2];
+        tensor_op[2] = Tensor::None;
+        return op;
+    }
+
+    constexpr Tensor active_tensor_op() const {
+        return tensor_op[0];
+    }
 };
 
 
