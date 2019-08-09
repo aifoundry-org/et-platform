@@ -10,7 +10,7 @@
 #include "memory_error.h"
 #include "memory_region.h"
 
-extern uint32_t current_thread;
+extern unsigned current_thread;
 
 namespace bemu {
 
@@ -18,7 +18,8 @@ namespace bemu {
 extern typename MemoryRegion::value_type memory_reset_value;
 
 
-template <unsigned long long Base, size_t N, size_t M, bool Writeable=true>
+template <unsigned long long Base, unsigned long long N, unsigned long long M,
+          bool Writeable=true>
 struct ScratchRegion : public MemoryRegion
 {
     typedef typename MemoryRegion::addr_type      addr_type;
@@ -117,7 +118,7 @@ protected:
         if (bucket >= M)
             return true;
         uint64_t cfg = shire_cache_esrs[bucket].bank[0].sc_scp_cache_ctl;
-        size_type bucket_size = std::min((cfg >> 20) & 0x1fff000, N);
+        size_type bucket_size = std::min(size_type((cfg >> 20) & 0x1fff000), N);
         return (bucket_size < offset) || (n > bucket_size - offset);
     }
 };

@@ -72,6 +72,9 @@
         SCP[row].u32[8], SCP[row].u32[9], SCP[row].u32[10], SCP[row].u32[11], \
         SCP[row].u32[12], SCP[row].u32[13], SCP[row].u32[14], SCP[row].u32[15])
 
+#define LOG_SCP_32x1(str, row, col) \
+    LOG(DEBUG, "\tSCP[%d] " str " { %d:0x%08" PRIx32 " }", row, col, SCP[row].u32[col])
+
 #define LOG_FREG_OTHER(other_thread, str, n) \
     LOG(DEBUG, "\tf%d " str " {" \
         " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
@@ -267,6 +270,11 @@
 // -----------------------------------------------------------------------------
 // Write destination registers
 
+inline mreg_t mkmask(unsigned len) {
+    return mreg_t((1 << len) - 1);
+}
+
+
 #define WRITE_PC(expr) do { \
     uint64_t pc = sextVA(expr); \
     PROFILING_WRITE_PC(current_thread, pc); \
@@ -311,18 +319,23 @@
 #define WRITE_MD(expr)  WRITE_MREG(inst.md(), expr)
 
 
-#define WRITE_FD(expr) do { \
+#define WRITE_FD_REG(expr, load) do { \
     FD.u32[0] = fpu::UI32(expr); \
     for (size_t e = 1; e < MLEN; ++e) { \
         FD.u32[e] = 0; \
     } \
     LOG_FREG("=", inst.fd()); \
     dirty_fp_state(); \
-    log_freg_write(inst.fd(), FD); \
+    if (load) \
+        log_freg_load(inst.fd(), mreg_t(-1), FD); \
+    else \
+        log_freg_write(inst.fd(), mreg_t(-1), FD); \
 } while (0)
 
+#define WRITE_FD(expr)  WRITE_FD_REG(expr, false)
+#define LOAD_FD(expr)   WRITE_FD_REG(expr, true)
 
-#define WRITE_VD(expr) do { \
+#define WRITE_VD_REG(expr, load) do { \
     LOG_MREG(":", 0); \
     if (M0.any()) { \
         for (size_t e = 0; e < MLEN; ++e) { \
@@ -333,9 +346,14 @@
         LOG_FREG("=", inst.fd()); \
         dirty_fp_state(); \
     } \
-    log_freg_write(inst.fd(), FD); \
+    if (load) \
+        log_freg_load(inst.fd(), M0, FD); \
+    else \
+        log_freg_write(inst.fd(), M0, FD); \
 } while (0)
 
+#define WRITE_VD(expr)  WRITE_VD_REG(expr, false)
+#define LOAD_VD(expr)   WRITE_VD_REG(expr, true)
 
 #define SCATTER(expr) do { \
     LOG_GSC_PROGRESS(":"); \
@@ -380,7 +398,7 @@
                 if (dirty) { \
                     LOG_FREG("=", inst.fd()); \
                     dirty_fp_state(); \
-                    log_freg_write(inst.fd(), FD); \
+                    log_freg_load(inst.fd(), mkmask(e) & M0, FD); \
                 } \
                 throw; \
             } \
@@ -395,7 +413,7 @@
         LOG_FREG("=", inst.fd()); \
         dirty_fp_state(); \
     } \
-    log_freg_write(inst.fd(), FD); \
+    log_freg_load(inst.fd(), M0, FD); \
 } while (0)
 
 
@@ -422,7 +440,7 @@
         LOG_FREG("=", inst.fd()); \
         dirty_fp_state(); \
     } \
-    log_freg_write(inst.fd(), FD); \
+    log_freg_load(inst.fd(), M0, FD); \
 } while (0)
 
 
@@ -444,7 +462,7 @@
                 if (dirty) { \
                     LOG_FREG("=", inst.fd()); \
                     dirty_fp_state(); \
-                    log_freg_write(inst.fd(), FD); \
+                    log_freg_load(inst.fd(), mkmask(e) & M0, FD); \
                 } \
                 throw; \
             } \
@@ -459,7 +477,7 @@
         LOG_FREG("=", inst.fd()); \
         dirty_fp_state(); \
     } \
-    log_freg_write(inst.fd(), FD); \
+    log_freg_load(inst.fd(), M0, FD); \
 } while (0)
 
 
@@ -469,16 +487,16 @@
     } \
     LOG_FREG("=", inst.fd()); \
     dirty_fp_state(); \
-    log_freg_write(inst.fd(), FD); \
+    log_freg_write(inst.fd(), mreg_t(-1), FD); \
 } while (0)
 
 
-#define WRITE_VD_NODATA(msk) do { \
+#define LOAD_VD_NODATA(msk) do { \
     if (msk.any()) { \
         LOG_FREG("=", inst.fd()); \
         dirty_fp_state(); \
     } \
-    log_freg_write(inst.fd(), FD); \
+    log_freg_load(inst.fd(), msk, FD); \
 } while (0)
 
 

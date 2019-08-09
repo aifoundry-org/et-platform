@@ -19,7 +19,7 @@ namespace bemu {
 extern typename MemoryRegion::value_type memory_reset_value;
 
 
-template<unsigned long long Base, size_t N>
+template<unsigned long long Base, unsigned long long N>
 struct PeripheralRegion : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;

@@ -23,7 +23,7 @@ void insn_fbc_ps(insn_t inst)
     DISASM_LOAD_FD_RS1_IIMM("fbc.ps");
     LOG_MREG(":", 0);
     uint32_t tmp = M0.any() ? mmu_load32(RS1 + IIMM) : 0;
-    WRITE_VD(tmp);
+    LOAD_VD(tmp);
 }
 
 
@@ -80,7 +80,7 @@ void insn_flq2(insn_t inst)
     require_fp_active();
     DISASM_LOAD_FD_RS1_IIMM("flq2");
     mmu_loadVLEN(RS1 + IIMM, FD, mreg_t(-1));
-    WRITE_VD_NODATA(mreg_t(-1));
+    LOAD_VD_NODATA(mreg_t(-1));
 }
 
 
@@ -90,7 +90,7 @@ void insn_flw_ps(insn_t inst)
     DISASM_LOAD_FD_RS1_IIMM("flw.ps");
     LOG_MREG(":", 0);
     mmu_loadVLEN(RS1 + IIMM, FD, M0);
-    WRITE_VD_NODATA(M0);
+    LOAD_VD_NODATA(M0);
 }
 
 void insn_fsc32b_ps(insn_t inst)

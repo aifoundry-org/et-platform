@@ -11,7 +11,7 @@
 namespace bemu {
 
 
-template <unsigned long long Base, size_t N>
+template <unsigned long long Base, unsigned long long N>
 struct SysregRegion : public MemoryRegion {
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;
