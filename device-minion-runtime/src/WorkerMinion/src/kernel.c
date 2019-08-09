@@ -234,14 +234,19 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
     // arg1 = 0 to enable all thread 1s
     syscall(SYSCALL_PRE_KERNEL_SETUP, 0, 0, 0);
 
-    // First HART in the shire
-    if (get_hart_id() % 64U == 0U)
+    // Second HART (first minion thread 1) in the shire
+    // Thread 0s have more init to do than thread 1s, so use a thread 1 for per-shire init
+    if (get_hart_id() % 64U == 1U)
     {
         // Init all FLBs except reserved FLBs 28-31
         for (uint64_t barrier = 0; barrier < 28; barrier++)
         {
             INIT_FLB(THIS_SHIRE, barrier);
         }
+
+        // Enable cooperative TensorLoads and TensorStores in this shire
+        volatile uint64_t* const shire_coop_mode_ptr = ESR_SHIRE(PRV_S, THIS_SHIRE, COOP_MODE);
+        *shire_coop_mode_ptr = 1;
     }
 
     // Empty all FCCs
@@ -272,7 +277,6 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
         );
 
         // Zero out TensorExtensionCSRs - previous FMA typically causes a TensorError
-
         asm volatile (
             "csrwi tensor_mask,  0 \n"
             "csrwi tensor_error, 0 \n"
@@ -281,7 +285,7 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
 
         // Zero out TenC
         asm volatile (
-            "la    %0, tensor_zeros        \n"
+            "la    %0, tensor_zeros       \n"
             "li    x31, 0                 \n" // 0-byte stride, ID 0
             "li    %1, 0x000000000000000F \n" // Load 16 lines to L1SP lines 0-15
             "or    %1, %0, %1             \n" // Set address of tensorLoad to tensor_zeros
