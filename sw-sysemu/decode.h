@@ -23,6 +23,17 @@
 // -----------------------------------------------------------------------------
 // Log operands
 
+#define PRVNAME ("USHM"[cpu[current_thread].prv])
+
+#define RMDYN   (RM==7)
+#define RMNAME  (&"rne\0rtz\0rdn\0rup\0rmm\0rm5\0rm6\0dyn"[RM * 4])
+#define FRMNAME (&"rne\0rtz\0rdn\0rup\0rmm\0rm5\0rm6\0rm7"[FRM * 4])
+
+#define LOG_FRM(str, cond) do { \
+    if (cond) \
+        LOG(DEBUG, "\tfrm " str " 0x%x (%s)", FRM, FRMNAME); \
+} while (0)
+
 #define LOG_REG(str, n) \
     LOG_IF(DEBUG, n != 0, "\tx%d " str " 0x%" PRIx64, n, cpu[current_thread].xregs[n])
 
@@ -481,11 +492,6 @@
 // -----------------------------------------------------------------------------
 // Disassemble instruction, and input operands
 
-#define PRVNAME ("USHM"[cpu[current_thread].prv])
-#define RMNAME  (&"rne\0rtz\0rdn\0rup\0rmm\0rm5\0rm6\0dyn"[((RM==7) ? FRM : RM) * 4])
-#define FRMNAME (&"rne\0rtz\0rdn\0rup\0rmm\0rm5\0rm6\0rm7"[FRM * 4])
-
-
 #define DISASM_NOARG(name) do { \
     LOG(DEBUG, "I(%c): " name, PRVNAME); \
 } while (0)
@@ -588,7 +594,8 @@
 } while (0)
 
 #define DISASM_FD_FS1_FRM(name) do { \
-    LOG(DEBUG, "I(%c): " name " f%d,f%d [%s]", PRVNAME, inst.fd(), inst.fs1(), FRMNAME); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d", PRVNAME, inst.fd(), inst.fs1()); \
+    LOG_FRM(":", true); \
     LOG_FREG(":", inst.fs1()); \
 } while (0)
 
@@ -599,7 +606,8 @@
 } while (0)
 
 #define DISASM_FD_FS1_FS2_FRM(name) do { \
-    LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d [%s]", PRVNAME, inst.fd(), inst.fs1(), inst.fs2(), FRMNAME); \
+    LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d", PRVNAME, inst.fd(), inst.fs1(), inst.fs2()); \
+    LOG_FRM(":", true); \
     LOG_FREG(":", inst.fs1()); \
     LOG_FREG(":", inst.fs2()); \
 } while (0)
@@ -620,6 +628,7 @@
 
 #define DISASM_FD_FS1_FS2_FS3_RM(name) do { \
     LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d,f%d,%s", PRVNAME, inst.fd(), inst.fs1(), inst.fs2(), inst.fs3(), RMNAME); \
+    LOG_FRM(":", RMDYN); \
     LOG_FREG(":", inst.fs1()); \
     LOG_FREG(":", inst.fs2()); \
     LOG_FREG(":", inst.fs3()); \
@@ -627,12 +636,14 @@
 
 #define DISASM_FD_FS1_FS2_RM(name) do { \
     LOG(DEBUG, "I(%c): " name " f%d,f%d,f%d,%s", PRVNAME, inst.fd(), inst.fs1(), inst.fs2(), RMNAME); \
+    LOG_FRM(":", RMDYN); \
     LOG_FREG(":", inst.fs1()); \
     LOG_FREG(":", inst.fs2()); \
 } while (0)
 
 #define DISASM_FD_FS1_RM(name) do { \
     LOG(DEBUG, "I(%c): " name " f%d,f%d,%s", PRVNAME, inst.fd(), inst.fs1(), RMNAME); \
+    LOG_FRM(":", RMDYN); \
     LOG_FREG(":", inst.fs1()); \
 } while (0)
 
@@ -667,6 +678,7 @@
 
 #define DISASM_FD_RS1_RM(name) do { \
     LOG(DEBUG, "I(%c): " name " f%d,x%d,%s", PRVNAME, inst.fd(), inst.rs1(), RMNAME); \
+    LOG_FRM(":", RMDYN); \
     LOG_REG(":", inst.rs1()); \
 } while (0)
 
@@ -683,6 +695,7 @@
 
 #define DISASM_RD_FS1_RM(name) do { \
     LOG(DEBUG, "I(%c): " name " x%d,f%d,%s", PRVNAME, inst.rd(), inst.fs1(), RMNAME); \
+    LOG_FRM(":", RMDYN); \
     LOG_FREG(":", inst.fs1()); \
 } while (0)
 

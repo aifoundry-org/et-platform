@@ -38,7 +38,7 @@ union Packed {
 // -----------------------------------------------------------------------------
 // Register types
 
-enum : size_t {
+enum : unsigned {
     XLEN = 64,
     FLEN = 32,
     VLEN = 256,
