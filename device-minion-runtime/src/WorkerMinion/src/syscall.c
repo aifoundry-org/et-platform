@@ -15,6 +15,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_BROADCAST:
         case SYSCALL_IPI_TRIGGER:
         case SYSCALL_INIT_L1:
+        case SYSCALL_GET_MTIME:
         case SYSCALL_DRAIN_COALESCING_BUFFER:
         case SYSCALL_EVICT_L1:
         case SYSCALL_UNLOCK_L1:

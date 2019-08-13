@@ -406,6 +406,11 @@ extern
 #define R_PU_TIMER_SIZE                                   0x0000001000
 
 
+//Added by hand based on PRM-19!
+#define R_PU_RVTIM_BASEADDR                               0x01FF800000
+#define R_PU_RVTIM_SIZE                                   0x0000001000
+
+
 #define R_SP_PLL4_BASEADDR                                0x0054057000
 #define R_SP_PLL4_SIZE                                    0x0000001000
 
