@@ -991,7 +991,6 @@ static uint64_t csrget(uint16_t src1)
         val = 0;
         break;
     case CSR_TENSOR_ERROR:
-        require_feature_ml();
         val = cpu[current_thread].tensor_error;
         break;
     case CSR_UCACHE_CONTROL:
@@ -1006,7 +1005,6 @@ static uint64_t csrget(uint16_t src1)
     case CSR_FCC:
     case CSR_STALL:
     case CSR_TENSOR_WAIT:
-        require_feature_ml();
         val = 0;
         break;
     case CSR_TENSOR_LOAD:
@@ -1535,7 +1533,6 @@ static void csrset(uint16_t src1, uint64_t val)
                            read_port_base_address(current_thread, val & 0xf /* port id */));
         break;
     case CSR_TENSOR_ERROR:
-        require_feature_ml();
         val &= 0x1ff;
         cpu[current_thread].tensor_error = val;
         log_tensor_error_value(val);
@@ -1580,7 +1577,6 @@ static void csrset(uint16_t src1, uint64_t val)
         // FIXME: Do something here?
         break;
     case CSR_TENSOR_WAIT:
-        require_feature_ml();
         log_tensor_error_value(cpu[current_thread].tensor_error);
         // FIXME: Do something here?
         break;
