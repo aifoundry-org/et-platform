@@ -22,11 +22,11 @@
 #include <type_traits>
 #include <vector>
 
-ABSL_FLAG(std::string, master_minion_elf, "",
+ABSL_FLAG(std::string, master_minion_elf, MASTER_MINION_ELF,
           "Path to the MasterMiniion.elf file");
-ABSL_FLAG(std::string, worker_minion_elf, "",
+ABSL_FLAG(std::string, worker_minion_elf, WORKER_MINION_ELF,
           "Path to the WorkerMiniion.elf file");
-ABSL_FLAG(std::string, machine_minion_elf, "",
+ABSL_FLAG(std::string, machine_minion_elf, MACHINE_MINION_ELF,
           "Path to the MachineMiniion.elf file");
 
 namespace et_runtime {

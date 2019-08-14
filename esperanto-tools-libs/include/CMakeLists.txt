@@ -8,6 +8,13 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+if(esperanto-fw_FOUND)
+  get_property(MASTER_MINION_ELF TARGET esperanto-fw::MasterMinion.elf PROPERTY LOCATION)
+  get_property(MACHINE_MINION_ELF TARGET esperanto-fw::MachineMinion.elf PROPERTY LOCATION)
+  get_property(WORKER_MINION_ELF TARGET esperanto-fw::WorkerMinion.elf PROPERTY LOCATION)
+  get_property(EMPTY_KERNEL_ELF TARGET esperanto-fw::empty.elf PROPERTY LOCATION)
+endif(epseranot-fw_FOUND)
+
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/Common/ProjectAutogen.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/Common/ProjectAutogen.h"
