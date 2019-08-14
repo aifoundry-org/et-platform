@@ -45,6 +45,7 @@ bool PCIeDevice::init() {
   // FIXME current we perform no initialization action that will not apply in
   // the future.
   RTINFO << "PCIeDevice performs no init actions";
+  device_alive_ = true;
   return true;
 }
 
