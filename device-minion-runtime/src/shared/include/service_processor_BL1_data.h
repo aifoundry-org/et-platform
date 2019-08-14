@@ -63,6 +63,9 @@ typedef struct SERVICE_PROCESSOR_BL1_DATA_s {
     uint32_t service_processor_bl1_version;
     uint32_t service_processor_rom_version;
     uint32_t sp_gpio_pins;
+    uint32_t sp_pll0_frequency;
+    uint32_t sp_pll1_frequency;
+    uint32_t pcie_pll0_frequency;
     uint32_t vaultip_coid_set;
     uint16_t spi_controller_rx_baudrate_divider;
     uint16_t spi_controller_tx_baudrate_divider;
