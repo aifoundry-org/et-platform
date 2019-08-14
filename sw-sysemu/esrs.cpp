@@ -353,6 +353,8 @@ uint64_t esr_read(uint64_t addr)
             return shire_cache_esrs[shire].bank[bnk].sc_perfmon_p0_qual;
         case ESR_SC_PERFMON_P1_QUAL:
             return shire_cache_esrs[shire].bank[bnk].sc_perfmon_p1_qual;
+        case ESR_SC_IDX_COP_SM_CTL_USER:
+            return 4ull << 24; // idx_cop_sm_state = IDLE
         }
         LOG(WARN, "Read unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);
         throw bemu::memory_error(addr);
@@ -796,6 +798,9 @@ void esr_write(uint64_t addr, uint64_t value)
                 shire_cache_esrs[shire].bank[b].sc_perfmon_p1_qual = value;
                 LOG_ALL_MINIONS(DEBUG, "S%u:B%u:sc_perfmon_p1_qual = 0x%" PRIx64,
                                 shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_p1_qual);
+                break;
+            case ESR_SC_IDX_COP_SM_CTL_USER:
+                // if (PRV == USER) shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ctl = value;
                 break;
              default:
                 LOG(WARN, "Write unknown shire_cache ESR S%u:B%u:0x%" PRIx64, shire, bnk, esr);

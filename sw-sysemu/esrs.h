@@ -181,6 +181,7 @@ namespace bemu {
 #define ESR_SC_PERFMON_P1_CNTR            0x01C03000D0ULL /* PP = 0b11 */
 #define ESR_SC_PERFMON_P0_QUAL            0x01C03000D8ULL /* PP = 0b11 */
 #define ESR_SC_PERFMON_P1_QUAL            0x01C03000E0ULL /* PP = 0b11 */
+#define ESR_SC_IDX_COP_SM_CTL_USER        0x0100300100ULL /* PP = 0b00 */
 //#define ESR_SC_TRACE_ADDRESS_ENABLE     /* PP = 0b10 */
 //#define ESR_SC_TRACE_ADDRESS_VALUE      /* PP = 0b10 */
 //#define ESR_SC_TRACE_CTL                /* PP = 0b10 */
