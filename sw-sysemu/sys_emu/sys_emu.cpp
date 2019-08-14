@@ -611,6 +611,11 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
             cmd_options.pu_uart1_tx_file = argv[i];
             dump_option = 0;
         }
+        else if(dump_option == 8)
+        {
+            sscanf(argv[i], "%" PRIx64, &cmd_options.dump_at_pc);
+            dump_option = 0;
+        }
         else if(cmd_options.mem_reset_flag)
         {
             cmd_options.mem_reset = atoi(argv[i]);
@@ -699,6 +704,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             dump_option = 7;
         }
+        else if(strcmp(argv[i], "-dump_at_pc") == 0)
+        {
+            dump_option = 8;
+        }
         else if(strcmp(argv[i], "-m") == 0)
         {
             cmd_options.create_mem_at_runtime = true;
@@ -779,7 +788,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 #endif
 
     emu::log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
-
+   
     // Init emu
     init_emu(system_version_t::ETSOC1_A0);
     log_only_minion(cmd_options.log_min);
@@ -1012,6 +1021,17 @@ sys_emu::main_internal(int argc, char * argv[])
                 {
                     // Executes the instruction
                     insn_t inst = fetch_and_decode();
+
+                    // Dumping
+                    if (current_pc[0] == cmd_options.dump_at_pc) {
+                      emu::log.setLogLevel(LOG_DEBUG);
+                      for (auto &dump: cmd_options.dump_files) {
+                        char filename[256];
+                        snprintf(filename, sizeof(filename), "%s_pc", dump.file);
+                        bemu::dump_data(bemu::memory, filename, dump.addr, dump.size);
+                      }
+                    }
+
                     execute(inst);
 
                     if (get_msg_port_stall(thread_id, 0))
