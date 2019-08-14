@@ -4,6 +4,7 @@
 #include "esr_defines.h"
 #include "fcc.h"
 #include "flb.h"
+#include "hal_device.h"
 #include "hart.h"
 #include "printf.h"
 
@@ -43,6 +44,7 @@ static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
 int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
     int64_t rv;
+    volatile const uint64_t * const mtime_reg = (volatile const uint64_t * const)(R_PU_RVTIM_BASEADDR);
 
     switch (number)
     {
@@ -68,6 +70,10 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
 
         case SYSCALL_INIT_L1:
             rv = init_l1();
+        break;
+
+        case SYSCALL_GET_MTIME:
+            rv = (int64_t)*mtime_reg;
         break;
 
         case SYSCALL_EVICT_L1:
