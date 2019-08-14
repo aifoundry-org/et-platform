@@ -18,19 +18,13 @@
 #include "bl2_flashfs_driver.h"
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
+#include "bl2_sp_pll.h"
 
 #include <stdio.h>
 #include <string.h>
 #include "bl2_crypto.h"
 
-//#define DUMMY_TASKS
-
 #define TASK_STACK_SIZE 4096 // overkill for now
-
-#ifdef DUMMY_TASKS
-void taskA(void *pvParameters);
-void taskB(void *pvParameters);
-#endif
 
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
 void vApplicationIdleHook(void);
@@ -181,6 +175,10 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
 
     INT_init();
 
+    if (0 != pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency, bl1_data->pcie_pll0_frequency)) {
+        printf("pll_init() failed!\n");
+        goto FATAL_ERROR;
+    }
     if (0 != vaultip_drv_init()) {
         printf("vaultip_drv_init() failed!\n");
         goto FATAL_ERROR;
@@ -205,41 +203,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
         printf("xTaskCreateStatic(taskMain) failed!\r\n");
     }
 
-#ifdef DUMMY_TASKS
-    static TaskHandle_t taskHandleA;
-    static StackType_t stackA[TASK_STACK_SIZE];
-    static StaticTask_t taskBufferA;
-
-    static TaskHandle_t taskHandleB;
-    static StackType_t stackB[TASK_STACK_SIZE];
-    static StaticTask_t taskBufferB;
-
-    taskHandleA = xTaskCreateStatic(taskA,
-                                    "task A",
-                                    TASK_STACK_SIZE,
-                                    NULL,
-                                    1,
-                                    stackA,
-                                    &taskBufferA);
-    if ((taskHandleA == NULL) || (taskHandleB == NULL))
-    {
-        printf("taskHandle error\r\n");
-    }
-
-    taskHandleB = xTaskCreateStatic(taskB,
-                                    "task B",
-                                    TASK_STACK_SIZE,
-                                    NULL,
-                                    1,
-                                    stackB,
-                                    &taskBufferB);
-
-    if ((taskHandleA == NULL) || (taskHandleB == NULL))
-    {
-        printf("taskHandle error\r\n");
-    }
-#endif
-
     vTaskStartScheduler();
 
 FATAL_ERROR:
@@ -247,36 +210,6 @@ FATAL_ERROR:
     printf("Waiting for RESET!!!\n");
     for(;;);
 }
-
-#ifdef DUMMY_TASKS
-void taskA(void *pvParameters)
-{
-    (void)pvParameters;
-
-    // Disable buffering on stdout
-    setbuf(stdout, NULL);
-
-    while (1)
-    {
-        printf("A");
-        vTaskDelay(2U);
-    }
-}
-
-void taskB(void *pvParameters)
-{
-    (void)pvParameters;
-
-    // Disable buffering on stdout
-    setbuf(stdout, NULL);
-
-    while (1)
-    {
-        printf("B");
-        vTaskDelay(3U);
-    }
-}
-#endif
 
 /* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an
 implementation of vApplicationGetIdleTaskMemory() to provide the memory that is
