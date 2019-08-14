@@ -520,7 +520,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     int code = (cause & 63);
     assert(curprv <= PRV_S);
 
-    LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+    LOG(INFO, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
 
     // if checking against RTL, clear the correspoding MIP bit
     // it will be set to 1 again if the pending bit was not really cleared
@@ -556,7 +556,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     // Throw an error if no one ever set stvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
     if (stvec_is_set[current_thread] == false)
-        LOG(DEBUG, "%s", "WARNING Trap vector has never been set. Can't take exception properly");
+        LOG(WARN, "%s", "Trap vector has never been set. Can't take exception properly");
 
     // compute address where to jump to:
     //  if tvec[0]==0 (direct mode) => jump to tvec
@@ -601,7 +601,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     }
 #endif
 
-    LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+    LOG(INFO, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
 
     // Take mie
     uint64_t mstatus = cpu[current_thread].mstatus;
@@ -620,7 +620,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     // Throw an error if no one ever set mtvec otherwise we'll enter an infinite loop of illegal
     // instruction exceptions
     if (mtvec_is_set[current_thread] == false)
-        LOG(DEBUG, "%s", "WARNING Trap vector has never been set. Doesn't smell good...");
+        LOG(WARN, "%s", "Trap vector has never been set. Doesn't smell good...");
 
     // compute address where to jump to
     //  if tvec[0]==0 (direct mode) => jump to tvec
