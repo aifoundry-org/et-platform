@@ -10,10 +10,13 @@
 
 set(SOURCES
     ${SHARED_KERNEL_SRC_DIR}/crt.S
-    empty.c
+    ${SHARED_SRC_DIR}/log.c
+    ${SHARED_SRC_DIR}/message.c
+    ${SHARED_SRC_DIR}/printf.c
+    random_read.c
     )
 
-set(TARGET_NAME empty)
+set(TARGET_NAME random_read)
 set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
 set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
@@ -29,11 +32,11 @@ install(TARGETS ${TARGET_NAME}.elf
   RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/kernels
   COMPONENT kernels)
 
-message("Empty kernel hex to install ${TARGET_NAME_OUTPUT}")
+message("random_read kernel hex to install ${TARGET_NAME_OUTPUT}")
 
 string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
 foreach(FILE ${OUTPUT_LIST})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/empty
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/random_read
     COMPONENT zebu)
 endforeach(FILE)

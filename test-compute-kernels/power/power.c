@@ -1,39 +1,48 @@
 #include "fcc.h"
 #include "flb.h"
 #include "hart.h"
+#include "kernel_params.h"
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
-static void prefetch_thread(void);
-static void compute_thread(void);
+static void prefetch_thread(uint64_t cycles);
+static void compute_thread(uint64_t cycles);
 
-void main(void)
+int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
+    if ((kernel_params_ptr == NULL) || (kernel_params_ptr->tensor_a == 0) || ((kernel_params_ptr->tensor_a) % 2 != 0))
+    {
+        // Bad arguments
+        return -1;
+    }
+
     // thread 0s run compute kernel
     if (get_thread_id() == 0)
     {
-        compute_thread();
+        compute_thread(kernel_params_ptr->tensor_a);
     }
     // thread 1s run prefetch kernel
     else
     {
-        prefetch_thread();
+        prefetch_thread(kernel_params_ptr->tensor_a);
     }
+
+    return 0;
 }
 
-static void prefetch_thread(void)
+static void prefetch_thread(uint64_t cycles)
 {
     const uint64_t this_minion_id_bitmask = 1ULL << get_minion_id();
-    //register unsigned int cycles = 0;
 
-    // Start with available credits for data buffers in SCSP.
-    SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, this_minion_id_bitmask);
-    SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, this_minion_id_bitmask);
-    SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, this_minion_id_bitmask);
-    SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, this_minion_id_bitmask);
+    // Start with up to 4 available credits for data buffers in SCSP.
+    for (uint64_t i = 0; (i < 4) && (i < cycles); i++)
+    {
+        SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, this_minion_id_bitmask);
+    }
 
-    while (1)
+    while (cycles--)
     {
         // Wait for FCC0 from compute threads indicating a SCSP space is free
         WAIT_FCC(0);
@@ -46,13 +55,20 @@ static void prefetch_thread(void)
     }
 }
 
-static void compute_thread(void)
+static void compute_thread(uint64_t cycles)
 {
     const uint64_t minion_id = get_minion_id();
 
     //16x64 A = 1K * 32 VPUs = 32K data
     //64x16 B = 1K * 32 VPUs = 32K data
     // 2K stride to hold minion : [b1, controller, memshire] address mapping constant
+
+    // DRAM loads
+    // register uint64_t tensor_a0_load = 0x000000820000000FULL | (minion_id << 6U); // Load 16 lines from 0x80000000 to A L1SP lines 0-15
+    // register uint64_t tensor_b0_load = 0x001000820001000FULL | (minion_id << 6U); // Load 16 lines from 0x80010000 to TenB
+    // register uint64_t tensor_a1_load = 0x020000820000800FULL | (minion_id << 6U); // Load 16 lines from 0x80008000 to A L1SP lines 16-31
+    // register uint64_t tensor_b1_load = 0x001000820001800FULL | (minion_id << 6U); // Load 16 lines from 0x80018000 to TenB
+
     register const uint64_t tensor_a0_load = 0x000000008000000FULL | (minion_id << 6U); // Load 16 lines from 0x80000000 to A L1SP lines 0-15
     register const uint64_t tensor_b0_load = 0x001000008001000FULL | (minion_id << 6U); // Load 16 lines from 0x80010000 to TenB
     register const uint64_t tensor_a1_load = 0x020000008000800FULL | (minion_id << 6U); // Load 16 lines from 0x80008000 to A L1SP lines 16-31
@@ -68,7 +84,7 @@ static void compute_thread(void)
 
     // Relying on the fact that kicking off a tensor op while one is already running stalls the pipeline -
     // This is the only way to avoid TensorLoading A over top of A data still in use!
-    while (1)
+    while (cycles)
     {
         WAIT_FCC(FCC_0); // Wait for a FCC0 from prefetch thread indicating Tensor A in SCSP is ready
 
@@ -126,5 +142,12 @@ static void compute_thread(void)
         {
             SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, 0xFFFFFFFFU);
         }
+
+        // tensor_a0_load += 0x20000;
+        // tensor_a1_load += 0x20000;
+        // tensor_b0_load += 0x20000;
+        // tensor_b1_load += 0x20000;
+
+        cycles -= 2;
     }
 }

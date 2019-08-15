@@ -8,7 +8,11 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
+get_filename_component(SHARED_KERNEL_SRC_DIR "shared" ABSOLUTE)
+get_filename_component(SHARED_KERNEL_INC_DIR "shared/include" ABSOLUTE)
+
 add_subdirectory("beef")
 add_subdirectory("crc32")
 add_subdirectory("empty")
 add_subdirectory("power")
+add_subdirectory("random_read")

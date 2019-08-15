@@ -9,17 +9,18 @@
 #------------------------------------------------------------------------------
 
 set(SOURCES
-    crt.S
+    ${SHARED_KERNEL_SRC_DIR}/crt.S
     crc32.c
     )
 
 set(TARGET_NAME crc32)
-set(LINKER_SCRIPT sections.ld)
+set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
 set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
+include_directories(${SHARED_KERNEL_INC_DIR})
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
