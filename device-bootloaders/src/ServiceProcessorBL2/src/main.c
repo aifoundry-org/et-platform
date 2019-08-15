@@ -19,6 +19,8 @@
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
+#include "bl2_minion_pll_and_dll.h"
+#include "bl2_ddr_config.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -48,17 +50,40 @@ static void taskMain(void *pvParameters)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    if (0 != release_noc_from_reset()) {
-        printf("Failed to release main NoC from reset!\n");
+    printf("---------------------------------------------\n");
+    printf("Starting MINIONs reset release sequence...\n");
+
+    if (0 != configure_sp_pll_2()) {
+        printf("configure_sp_pll_2() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("Released main NoC from reset.\n");
+    if (0 != configure_sp_pll_4()) {
+        printf("configure_sp_pll_4() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("SP PLLs 2 & 4 configured and locked.\n");
 
     if (0 != release_memshire_from_reset()) {
-        printf("Failed to release MemShire from reset!\n");
+        printf("release_memshire_from_reset() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("Released MemShire from reset.\n");
+    if (0 != ddr_config()) {
+        printf("ddr_config() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("DRAM ready.\n");
+
+    if (0 != release_minions_from_cold_reset()) {
+        printf("release_minions_from_cold_reset() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released Minion shires from cold reset.\n");
+
+    if (0 != configure_minion_plls_and_dlls()) {
+        printf("configure_minion_plls_and_dlls() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Minion shires PLLs and DLLs configured.\n");
 
     printf("---------------------------------------------\n");
     printf("Attempting to load SW ROOT/Issuing Certificate chain...\n");
@@ -93,8 +118,8 @@ static void taskMain(void *pvParameters)
 
     printf("---------------------------------------------\n");
 
-    if (0 != release_minions_from_reset()) {
-        printf("Failed to release Minions from reset!\n");
+    if (0 != release_minions_from_warm_reset()) {
+        printf("release_minions_from_warm_reset() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
     printf("Released Minions from reset.\n");
