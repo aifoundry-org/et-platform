@@ -12,6 +12,7 @@
 #include "message.h"
 #include "printf.h"
 #include "shire.h"
+#include "syscall.h"
 
 //#define DEBUG_PRINT_KERNEL_INSTRUCTIONS
 
@@ -19,6 +20,8 @@ typedef struct
 {
     kernel_state_t kernel_state;
     uint64_t shire_mask;
+    uint64_t start_time;
+    uint64_t end_time;
 } kernel_status_t;
 
 // Local state
@@ -120,6 +123,8 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
         case KERNEL_STATE_RUNNING:
         {
+            kernel_status[kernel_id].start_time = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
+
             kernel_status[kernel_id].kernel_state = KERNEL_STATE_RUNNING;
 
             // Mark all shires associated with this kernel as running
@@ -153,7 +158,14 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
         case KERNEL_STATE_COMPLETE:
         {
-            printf("kernel %d complete\r\n", kernel_id);
+            kernel_status[kernel_id].end_time = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
+            // TODO FIXME mtime is currently 40MHz and not the specified 10MHz for two reasons:
+            // 1. RTLMIN-5392: PU RV Timer is dividing clk_100Mhz /25 instead of /10
+            // 2. In ZeBu, clk_100 is forced to 1GHz for now - it will reduce to 100MHz eventually.
+            // 1GHz / 25 = 40Mhz
+            uint64_t elapsed_time_us = (kernel_status[kernel_id].end_time - kernel_status[kernel_id].start_time) / 40;
+
+            printf("kernel %d complete, %" PRId64 "us\r\n", kernel_id, elapsed_time_us);
 
             const devfw_response_t response = {
                 .message_id = MBOX_MESSAGE_ID_KERNEL_RESULT,
@@ -253,7 +265,7 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
             }
         }
 
-        printf("launch_kernel: launching kernel %d \r\n", kernel_id);
+        printf("launch_kernel: launching kernel %d\r\n", kernel_id);
     }
     else
     {
