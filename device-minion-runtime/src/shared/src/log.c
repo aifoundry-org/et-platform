@@ -7,7 +7,7 @@
 // sends a log message from a worker minion to the master minion for display
 int64_t LOG_write(const char* const string_ptr, uint64_t length)
 {
-    static message_t message;
+    message_t message = {.id = MESSAGE_ID_LOG_WRITE, .data = {0}};
 
     if (string_ptr == NULL)
     {
@@ -15,8 +15,6 @@ int64_t LOG_write(const char* const string_ptr, uint64_t length)
     }
 
     char* data_ptr = (char*)message.data;
-
-    message.id = MESSAGE_ID_LOG_WRITE;
     data_ptr[0] = (uint8_t)length;
 
     for (uint64_t i = 0; (i < length) && ((i + 1) < sizeof(message.data)); i++)
