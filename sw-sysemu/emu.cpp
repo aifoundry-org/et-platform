@@ -4149,7 +4149,7 @@ uint64_t read_icache_prefetch(int privilege __attribute__((unused)), unsigned sh
     assert(shire <= EMU_MASTER_SHIRE);
 #ifdef SYS_EMU
     // NB: Prefetches finish instantaneously in sys_emu
-    return esr_shire_coop_mode[shire];
+    return 1;
 #else
     return esr_icache_prefetch_active[shire] ? 0ull : 1ull;
 #endif
