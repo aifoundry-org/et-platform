@@ -79,6 +79,12 @@ static void taskMain(void *pvParameters)
     }
     printf("Released Minion shires from cold reset.\n");
 
+    if (0 != release_minions_from_warm_reset()) {
+        printf("release_minions_from_warm_reset() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released Minions from warm reset.\n");
+
     if (0 != configure_minion_plls_and_dlls()) {
         printf("configure_minion_plls_and_dlls() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
@@ -118,11 +124,18 @@ static void taskMain(void *pvParameters)
 
     printf("---------------------------------------------\n");
 
-    if (0 != release_minions_from_warm_reset()) {
-        printf("release_minions_from_warm_reset() failed!\n");
+    if (0 != enable_minion_neighborhoods()) {
+        printf("Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("Released Minions from reset.\n");
+    printf("Minion neighborhoods enabled.\n");
+
+    if (0 != enable_minion_threads()) {
+        printf("Failed to enable minion threads!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Minion threads enabled.\n");
+
     goto DONE;
 
 FIRMWARE_LOAD_ERROR:
@@ -190,13 +203,8 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     //SERIAL_init(UART0);
 
     SERIAL_init(UART1);
-    SERIAL_write(UART1, "alive\r\n", 7);
-
     SERIAL_init(PU_UART0);
-    SERIAL_write(PU_UART0, "alive\r\n", 7);
-
     SERIAL_init(PU_UART1);
-    SERIAL_write(PU_UART1, "alive\r\n", 7);
 
     INT_init();
 

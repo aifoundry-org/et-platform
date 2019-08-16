@@ -137,3 +137,21 @@ int configure_minion_plls_and_dlls(void) {
     rv = minion_pll_config(1);
     return rv;
 }
+
+int enable_minion_neighborhoods(void) {
+    //enable shire 0 neigh
+    write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_CONFIG, ESR_SHIRE_CONFIG_0_EN);
+    //enable shire 32 neigh
+    write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_CONFIG, ESR_SHIRE_CONFIG_32_EN);
+
+    return 0;
+}
+
+int enable_minion_threads(void) {
+    //enable shire 0 thread 0
+    write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0xfffffffe);
+    //enable shire 32 thread 0
+    write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0xfffffffe);
+
+    return 0;
+}
