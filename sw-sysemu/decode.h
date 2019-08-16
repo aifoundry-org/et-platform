@@ -399,6 +399,33 @@
 } while (0)
 
 
+#define SCATTER32(expr) do { \
+    for (size_t e = 0; e < MLEN; ++e) { \
+        if (M0[e]) { \
+            expr; \
+        } else { \
+            log_mem_write(false, -1, 0, 0, 0); \
+        } \
+    } \
+} while (0)
+
+
+#define GATHER32(expr) do { \
+    for (size_t e = 0; e < MLEN; ++e) { \
+        if (M0[e]) { \
+            FD.u32[e] = fpu::UI32(expr); \
+        } else { \
+            log_mem_read(false, -1, 0, 0); \
+        } \
+    } \
+    if (M0.any()) { \
+        LOG_FREG("=", inst.fd()); \
+        dirty_fp_state(); \
+    } \
+    log_freg_write(inst.fd(), FD); \
+} while (0)
+
+
 #define GSCAMO(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \

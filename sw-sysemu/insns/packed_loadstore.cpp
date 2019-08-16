@@ -31,7 +31,7 @@ void insn_fg32b_ps(insn_t inst)
 {
     require_fp_active();
     DISASM_GATHER_FD_RS1_RS2("fg32b.ps");
-    GATHER(sext<8>(mmu_load8((RS2 & ~31ull) + ((RS2 + (RS1>>(5*e))) & 31))));
+    GATHER32(sext<8>(mmu_load8((RS2 & ~31ull) + ((RS2 + (RS1>>(5*e))) & 31))));
 }
 
 
@@ -39,7 +39,7 @@ void insn_fg32h_ps(insn_t inst)
 {
     require_fp_active();
     DISASM_GATHER_FD_RS1_RS2("fg32h.ps");
-    GATHER(sext<16>(mmu_load16((RS2 & ~31ull) + ((RS2 + ((RS1>>(4*e))<<1)) & 30))));
+    GATHER32(sext<16>(mmu_load16((RS2 & ~31ull) + ((RS2 + ((RS1>>(4*e))<<1)) & 30))));
 }
 
 
@@ -47,7 +47,7 @@ void insn_fg32w_ps(insn_t inst)
 {
     require_fp_active();
     DISASM_GATHER_FD_RS1_RS2("fg32w.ps");
-    GATHER(mmu_load32((RS2 & ~31ull) + ((RS2 + ((RS1>>(3*e))<<2)) & 28)));
+    GATHER32(mmu_load32((RS2 & ~31ull) + ((RS2 + ((RS1>>(3*e))<<2)) & 28)));
 }
 
 
@@ -97,7 +97,7 @@ void insn_fsc32b_ps(insn_t inst)
 {
     require_fp_active();
     DISASM_SCATTER_FD_RS1_RS2("fsc32b.ps");
-    SCATTER(mmu_store8((RS2 & ~31ull) + ((RS2 + (RS1>>(5*e))) & 31), uint8_t(FD.u32[e])));
+    SCATTER32(mmu_store8((RS2 & ~31ull) + ((RS2 + (RS1>>(5*e))) & 31), uint8_t(FD.u32[e])));
 }
 
 
@@ -105,7 +105,7 @@ void insn_fsc32h_ps(insn_t inst)
 {
     require_fp_active();
     DISASM_SCATTER_FD_RS1_RS2("fsc32h.ps");
-    SCATTER(mmu_store16((RS2 & ~31ull) + ((RS2 + ((RS1>>(4*e))<<1)) & 30), uint16_t(FD.u32[e])));
+    SCATTER32(mmu_store16((RS2 & ~31ull) + ((RS2 + ((RS1>>(4*e))<<1)) & 30), uint16_t(FD.u32[e])));
 }
 
 
@@ -113,7 +113,7 @@ void insn_fsc32w_ps(insn_t inst)
 {
     require_fp_active();
     DISASM_SCATTER_FD_RS1_RS2("fsc32w.ps");
-    SCATTER(mmu_store32((RS2 & ~31ull) + ((RS2 + ((RS1>>(3*e))<<2)) & 28), FD.u32[e]));
+    SCATTER32(mmu_store32((RS2 & ~31ull) + ((RS2 + ((RS1>>(3*e))<<2)) & 28), FD.u32[e]));
 }
 
 
