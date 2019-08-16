@@ -954,5 +954,5 @@ bool mmu_check_cacheop_access(uint64_t paddr)
         return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
     }
 
-    return paddr_is_dram(paddr);
+    return (spio && paddr_is_sp_cacheable(paddr)) || paddr_is_dram(paddr);
 }
