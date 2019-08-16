@@ -1114,16 +1114,19 @@ static void csrset(uint16_t src1, uint64_t val)
         require_fp_active();
         val = (cpu[current_thread].fcsr & 0x000000E0) | (val & 0x8000001F);
         cpu[current_thread].fcsr = val;
+        dirty_fp_state();
         break;
     case CSR_FRM:
         require_fp_active();
         val = (cpu[current_thread].fcsr & 0x8000001F) | ((val & 0x7) << 5);
         cpu[current_thread].fcsr = val;
+        dirty_fp_state();
         break;
     case CSR_FCSR:
         require_fp_active();
         val &= 0x800000FF;
         cpu[current_thread].fcsr = val;
+        dirty_fp_state();
         break;
     case CSR_SSTATUS:
         // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
