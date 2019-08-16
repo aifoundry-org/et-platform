@@ -25,12 +25,18 @@
 #include <linux/uaccess.h>
 #include <uapi/linux/pci_regs.h>
 #include <asm/uaccess.h>
+
+#include "et_dma.h"
+#include "et_mbox.h"
+#include "et_ringbuffer.h"
 #include "hal_device.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
 MODULE_DESCRIPTION("PCIe device driver for esperanto soc-1");
 MODULE_VERSION("1.0");  
+
+#define MBOX_MAX_MESSAGE_LENGTH ET_RINGBUFFER_MAX_LENGTH
 
 #define TEST_MODE 1
 
@@ -107,15 +113,9 @@ static const enum et_cdev_type MINOR_TYPES[] = {
 	et_cdev_type_bulk
 };
 
-#define R_DRCT_DRAM_OFFSET     0x0000000000
-#define R_DRCT_DRAM_SIZE       0x0700000000
-
 #define R_PU_MBOX_PC_MM_OFFSET 0x0000
-
 #define R_PU_MBOX_PC_SP_OFFSET 0x1000
-
 #define R_PU_TRG_PCIE_OFFSET   0x2000
-
 #define R_PCIE_USRESR_OFFSET   0x4000
 
 static const u64 MINOR_FIO_SIZES[] = {
@@ -141,49 +141,6 @@ static u8 __attribute__((aligned(8))) rw_buff[8192];
 #define MIN_VECS 1
 #define REQ_VECS 2
 
-// Make length be a factor of eight to facilitate alignment (2032 bytes)
-#define RINGBUFFER_LENGTH (254*8)
-#define RINGBUFFER_MAX_LENGTH (RINGBUFFER_LENGTH - 1U)
-#define MBOX_MAX_MESSAGE_LENGTH RINGBUFFER_MAX_LENGTH
-
-struct ringbuffer
-{
-	uint32_t head_index;
-	uint32_t tail_index;
-	uint8_t queue[RINGBUFFER_LENGTH];
-} __attribute__ ((__packed__));
-
-#define MBOX_MAGIC 0xBEEF
-
-enum mbox_status
-{
-	MBOX_STATUS_NOT_READY = 0U,
-	MBOX_STATUS_READY = 1U,
-	MBOX_STATUS_WAITING = 2U,
-	MBOX_STATUS_ERROR = 3U
-} __attribute__ ((__packed__));
-
-struct mbox_mem
-{
-	uint32_t master_status;
-	uint32_t slave_status;
-	struct ringbuffer tx_ring_buffer;
-	struct ringbuffer rx_ring_buffer;
-} __attribute__ ((__packed__));
-
-struct mbox_header
-{
-	uint16_t length;
-	uint16_t magic;
-} __attribute__ ((__packed__));
-
-#define MBOX_HEADER_SIZE (sizeof(struct mbox_header))
-
-struct mbox {
-	struct mbox_mem *mem;
-	void (*send_interrupt)(void __iomem *r_pu_trg_pcie);
-};
-
 struct et_pci_minor_dev {
 	struct device *pdevice;
 	struct et_pci_dev *et_dev;
@@ -201,64 +158,11 @@ struct et_pci_dev {
 	void __iomem *r_pu_mbox_pc_sp;
 	void __iomem *r_pu_trg_pcie;
 	void __iomem *r_pcie_usresr;
-	struct mbox mbox_mm;
-	struct mbox mbox_sp;
+	struct et_mbox mbox_mm;
+	struct et_mbox mbox_sp;
 	int num_vecs;
 	struct et_pci_minor_dev et_minor_devs[MINORS_PER_SOC];
 };
-
-static void mbox_init(struct mbox *mbox, void __iomem* mem, 
-	              struct et_pci_dev* et_dev,
-		      void (*send_interrupt)(void __iomem *r_pu_trg_pcie))
-{
-	volatile uint32_t temp;
-
-	mbox->mem = (struct mbox_mem *)mem;
-	mbox->send_interrupt = send_interrupt;
-
-	//The host is always the mailbox slave; the SoC inits other fields
-	iowrite32(MBOX_STATUS_NOT_READY, &mbox->mem->slave_status);
-
-	//Flush writes to PCIe
-	temp = ioread32(&mbox->mem->slave_status);
-
-	//Notify SoC status changed
-	if(mbox->send_interrupt) mbox->send_interrupt(et_dev->r_pu_trg_pcie);
-}
-
-static void mbox_destroy(struct mbox *mbox)
-{
-	uint32_t temp;
-
-	if (mbox->mem) {
-		//Request that the SoC reset the mailbox
-		iowrite32(MBOX_STATUS_WAITING, &mbox->mem->slave_status);
-
-		//Flush writes to PCIe
-		temp = ioread32(&mbox->mem->slave_status);
-	}
-
-	mbox->mem = NULL;
-	mbox->send_interrupt = NULL;
-}
-
-//TODO: ioctl to fetch this
-static bool mbox_ready(struct mbox *mbox)
-{
-	uint32_t master_status, slave_status;
-
-	master_status = ioread32(&mbox->mem->master_status);
-	slave_status = ioread32(&mbox->mem->slave_status);
-
-	return master_status == MBOX_STATUS_READY &&
-		slave_status == MBOX_STATUS_READY;
-}
-
-static uint32_t ringbuffer_free(const uint32_t head_index, const uint32_t tail_index)
-{
-	return (head_index >= tail_index) ? (RINGBUFFER_LENGTH - 1U) - (head_index - tail_index) :
-		tail_index - head_index - 1U;
-}
 
 static void et_ioread8_block(void __iomem *port, const void *dst, u64 count)
 {
@@ -278,281 +182,13 @@ static void et_ioread32_block(void __iomem *port, const void *dst, u64 count)
 	}
 }
 
-uint32_t ringbuffer_write(void __iomem *queue, uint8_t* buff, uint32_t
-	                  head_index, size_t len)
-{
-	uint32_t dwords;
-
-	//Write until next u32 alignment
-	while (head_index & 0x3 && len) {
-		iowrite8(*buff, queue + head_index);
-		head_index = (head_index + 1U) % RINGBUFFER_LENGTH;
-		++buff;
-		--len;
-	}
-
-	//Write u32 aligned values
-	dwords = len / 4;
-
-	while (dwords) {
-		iowrite32(*(u32 *)buff, queue + head_index);	
-		head_index = (head_index + 4U) % RINGBUFFER_LENGTH;
-		buff += 4;
-		len -= 4;
-		--dwords;
-	}
-
-	//Write any remaining bytes (0-3 bytes)
-	while (len) {
-		iowrite8(*buff, queue + head_index);
-		head_index = (head_index + 1U) % RINGBUFFER_LENGTH;
-		++buff;
-		--len;
-	}
-
-	return head_index;
-}
-
-static ssize_t mbox_write(struct mbox *mbox, struct et_pci_dev* et_dev,
-	                  const char __user *buf, size_t count)
-{
-	int rc;
-	volatile uint32_t head_index, tail_index;
-	uint32_t free_bytes;
-	void __iomem *queue = mbox->mem->rx_ring_buffer.queue;
-	const struct mbox_header header = {.length = (uint16_t)count, 
-		.magic = MBOX_MAGIC};
-
-	if (!mbox_ready(mbox)) {
-		pr_err("mbox not ready\n");
-		return -EIO;
-	}
-
-	if (count < 1 || count > U16_MAX) {
-		return -EINVAL;
-	}
-
-	head_index = ioread32(&mbox->mem->rx_ring_buffer.head_index);
-	tail_index = ioread32(&mbox->mem->rx_ring_buffer.tail_index);
-
-	free_bytes = ringbuffer_free(head_index, tail_index);
-
-	if (free_bytes < MBOX_HEADER_SIZE + count) {
-		pr_err("no room for message (%d free, %ld needed)\n",
-		       free_bytes, MBOX_HEADER_SIZE + count);
-		return -ENOMEM;
-	}
-
-	rc = copy_from_user(rw_buff, buf, count);
-	if (rc) {
-		pr_err("et_mm_mbox_send: copy_from_user() failed.\n");
-		return -ENOMEM;
-	}
-
-	//Write header
-	head_index = ringbuffer_write(queue, (u8 *)&header, head_index,
-				      MBOX_HEADER_SIZE);
-
-	//Write body
-	head_index = ringbuffer_write(queue, rw_buff, head_index, count);
-
-	//Do a dummy read so that any PCIe writes still in flight are forced to
-	//complete.
-	tail_index = ioread32(&mbox->mem->rx_ring_buffer.tail_index);
-
-	//Write the head index. The SoC may poll for the head_index changing; it
-	//is critical that all data that goes with the index change be in memory
-	//by the time the head index changes (see above read).
-	iowrite32(head_index, &mbox->mem->rx_ring_buffer.head_index);
-
-	//Read again to be assured head_index is done being updated.
-	tail_index = ioread32(&mbox->mem->rx_ring_buffer.tail_index);
-
-	//Notify the SoC new data is ready, if it's not polling. Again, the head
-	//index change needs to be assured to be in SoC mem before the IPI is
-	//fired.
-	if (mbox->send_interrupt) mbox->send_interrupt(et_dev->r_pu_trg_pcie);
-
-	return count;
-}
-
-static uint32_t ringbuffer_used(uint32_t head_index, uint32_t tail_index)
-{
-	return (head_index >= tail_index) ? head_index - tail_index :
-		(RINGBUFFER_LENGTH + head_index - tail_index);
-}
-
-uint32_t ringbuffer_read(void __iomem *queue, uint8_t* buff, uint32_t
-	                 tail_index, size_t len)
-{
-	uint32_t dwords;
-
-	//Read until next u32 alignment
-	while (tail_index & 0x3 && len) {
-		*buff = ioread8(queue + tail_index);
-		tail_index = (tail_index + 1U) % RINGBUFFER_LENGTH;
-		++buff;
-		--len;
-	}
-
-	//Read u32 aligned values
-	dwords = len / 4;
-
-	while (dwords) {
-
-		*(u32 *)buff = ioread32(queue + tail_index);
-		tail_index = (tail_index + 4U) % RINGBUFFER_LENGTH;
-		buff += 4;
-		len -= 4;
-		--dwords;
-	}
-
-	//Read any remaining bytes (0-3 bytes)
-	while (len) {
-		*buff = ioread8(queue + tail_index);
-		tail_index = (tail_index + 1U) % RINGBUFFER_LENGTH;
-		++buff;
-		--len;
-	}
-
-	return tail_index;
-}
-
-static ssize_t mbox_read(struct mbox *mbox, char __user *buf, size_t count)
-{
-	int rc;
-	uint32_t head_index, tail_index;
-	uint32_t bytes_avail;
-	struct mbox_header header;
-	void __iomem *queue = mbox->mem->tx_ring_buffer.queue;
-
-	if (!mbox_ready(mbox)) {
-		pr_err("mbox not ready\n");
-		return -EIO;
-	}
-
-	head_index = ioread32(&mbox->mem->tx_ring_buffer.head_index);
-	tail_index = ioread32(&mbox->mem->tx_ring_buffer.tail_index);
-
-	bytes_avail = ringbuffer_used(head_index, tail_index);
-
-	//Wait for there to be a message in the mailbox before reading
-	if (bytes_avail < MBOX_HEADER_SIZE) {
-		//TODO: block in this condition. Sleep for IRQ to signal to
-		//check again. For now, just return 0 (no bytes read - not
-		//an error condition.
-		return 0;
-	}
-
-	//Read the message header
-	tail_index = ringbuffer_read(queue, (uint8_t*)&header, tail_index, 
-				     MBOX_HEADER_SIZE);
-
-	//Check if the message is valid
-	if (header.length < 1 || 
-	    header.length > RINGBUFFER_LENGTH - MBOX_HEADER_SIZE ||
-	    header.magic != MBOX_MAGIC) {
-		//If the header is invalid, remove it from the queue
-		tail_index = (tail_index + MBOX_HEADER_SIZE) 
-	                     % RINGBUFFER_LENGTH;
-
-		iowrite32(tail_index, &mbox->mem->tx_ring_buffer.tail_index);
-
-		pr_err("invalid mailbox message (header: 0x%08x)\n",
-		       *((u32*)&header));
-		return -EIO;
-	}
-
-	//Check if the user's buffer is big enough to store the message body
-	if (count < header.length) {
-		//If not, do NOT remove the message from the queue. Give the
-		//user a chance to allocate a bigger buffer and try again.
-		return -ENOMEM;
-	}
-
-	//Check if the body of the message is available yet
-	if (bytes_avail - MBOX_HEADER_SIZE < header.length) {
-		//TODO: Once mbox IRQs are implemented, this is an error
-		//condition - the SoC should not send the interrupt until the
-		//message body data is in the buffer. For now, return 0 (without
-		//moving tail_index!!!) in this case. The user should call
-		//read() in a loop until the whole message is available.
-		return 0;
-	}
-
-	//Read message body over PCIe
-	tail_index = ringbuffer_read(queue, rw_buff, tail_index,
-		                     header.length);
-
-	//Return the buffer space read to the SoC
-	iowrite32(tail_index, &mbox->mem->tx_ring_buffer.tail_index);
-
-	//Read to make sure the write has propagated through PCIe
-	tail_index = ioread32(&mbox->mem->tx_ring_buffer.tail_index);
-
-	//Copy data to the user's buffer
-	rc = copy_to_user(buf, rw_buff, header.length);
-	if (rc) {
-		pr_err("failed to copy to user\n");
-		return -ENOMEM;
-	}
-
-	return header.length;
-}
-
-static void mbox_isr(struct mbox *mbox, struct et_pci_dev *et_dev)
-{
-	uint32_t master_status, slave_status;
-
-	//The SoC will interrupt when it sends data, or changes status
-
-	master_status = ioread32(&mbox->mem->master_status);
-	slave_status = ioread32(&mbox->mem->slave_status);
-
-	//The host is always the mbox slave
-	switch (master_status) {
-	case MBOX_STATUS_NOT_READY:
-        	break;
-        case MBOX_STATUS_READY:
-        	if (slave_status != MBOX_STATUS_READY &&
-                    slave_status != MBOX_STATUS_WAITING)
-                {
-                	//received master ready, going slave ready
-                	iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
-
-                	//Flush PCIe write
-                	slave_status = ioread32(&mbox->mem->slave_status);
-
-                	mbox->send_interrupt(et_dev->r_pu_trg_pcie);
-                }
-                break;
-        case MBOX_STATUS_WAITING:
-                if (slave_status != MBOX_STATUS_READY &&
-                    slave_status != MBOX_STATUS_WAITING)
-                {
-                	//received master waiting, going slave ready
-                	iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
-
-                	//Flush PCIe write
-                	slave_status = ioread32(&mbox->mem->slave_status);
-
-                	mbox->send_interrupt(et_dev->r_pu_trg_pcie);
-                }
-            	break;
-        case MBOX_STATUS_ERROR:
-        	break;
-	}
-
-	//TODO: signal any blocked read() calls if mbox ready 
-}
-
 static irqreturn_t et_pcie_isr(int irq, void *dev_id)
 {
 	struct et_pci_dev *et_dev = (struct et_pci_dev *)dev_id;
 
 	//TODO: if multi-vector setup, dispatch without broadcasting to everyone
-	mbox_isr(&et_dev->mbox_sp, et_dev);
-	mbox_isr(&et_dev->mbox_mm, et_dev);
+	et_mbox_isr(&et_dev->mbox_sp);
+	et_mbox_isr(&et_dev->mbox_mm);
 
 	return IRQ_HANDLED;
 }
@@ -677,13 +313,16 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 		break;
 #endif
 	case et_cdev_type_mb_sp:
-		rv = mbox_read(&et_dev->mbox_sp, buf, count);
+		rv = et_mbox_read_to_user(&et_dev->mbox_sp, buf, count);
 		break;
 	case et_cdev_type_mb_mm:
-		rv = mbox_read(&et_dev->mbox_mm, buf, count);
+		rv = et_mbox_read_to_user(&et_dev->mbox_mm, buf, count);
 		break;
 	case et_cdev_type_bulk:
-		//TODO (fall though intentionally for now)
+		rv = et_dma_push_to_user(buf, count, pos, et_dma_chan_write_0,
+					 &et_dev->mbox_mm, et_dev->r_drct_dram,
+					 et_dev->pdev);
+		break;
 	default:
 		pr_err("dev type invalid");
 		rv = -EINVAL;
@@ -817,13 +456,20 @@ static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
 		break;
 #endif
 	case et_cdev_type_mb_sp:
-		rv = mbox_write(&et_dev->mbox_sp, et_dev, buf, count);
+		rv = et_mbox_write_from_user(&et_dev->mbox_sp, buf, count);
 		break;
 	case et_cdev_type_mb_mm:
-		rv = mbox_write(&et_dev->mbox_mm, et_dev, buf, count);
+		rv = et_mbox_write_from_user(&et_dev->mbox_mm, buf, count);
 		break;
 	case et_cdev_type_bulk:
-		//TODO (fall though intentionally for now)
+		//TODO: pick DMA channel from an ioctl
+		//TODO: allow multiple bulk reads/writes at once; change locking
+		//TODO: allow picking MMIO / DMA with ioctl, and pick dynamically by default
+		//TODO: async I/O api
+		rv = et_dma_pull_from_user(buf, count, pos, et_dma_chan_read_0,
+					   &et_dev->mbox_mm,
+					   et_dev->r_drct_dram, et_dev->pdev);
+		break;
 	default:
 		pr_err("dev type invalid");
 		return -EINVAL;
@@ -842,7 +488,7 @@ static loff_t esperanto_pcie_llseek(struct file *fp, loff_t pos, int whence)
 
 	mutex_lock(&minor_dev->read_write_mutex);
 
-	switch(minor_dev->type) {
+	switch (minor_dev->type) {
 	case et_cdev_type_mb_sp:
 	case et_cdev_type_mb_mm:
 		pr_err("dev does not support lseek");
@@ -860,17 +506,24 @@ static loff_t esperanto_pcie_llseek(struct file *fp, loff_t pos, int whence)
 		new_pos = fp->f_pos + pos;
 		break;
 	case SEEK_END:
-		new_pos = MINOR_FIO_SIZES[minor_dev->type] + pos;
-		break;
+		pr_err("SEEK_END not supported");
+		return -EINVAL;
 	}
 
-	if (new_pos > MINOR_FIO_SIZES[minor_dev->type]) {
-		pr_err("pos > bounds");
-		return -EINVAL;
+	if (minor_dev->type == et_cdev_type_bulk) {
+		if (et_dma_bounds_check((uint64_t)new_pos, 1)) {
+			return -EINVAL;
+		}
 	}
-	if (new_pos < 0) {
-		pr_err("pos < bounds");
-		return -EINVAL;
+	else {
+		if (new_pos > MINOR_FIO_SIZES[minor_dev->type]) {
+			pr_err("pos > bounds");
+			return -EINVAL;
+		}
+		if (new_pos < 0) {
+			pr_err("pos < bounds");
+			return -EINVAL;
+		}
 	}
 
 	fp->f_pos = new_pos;
@@ -890,7 +543,7 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 	switch (cmd) {
 	case GET_DRAM_BASE:
 		dram_base = R_DRCT_DRAM_BASEADDR;
-		if (copy_to_user((u64 *)arg, &dram_base, sizeof(u64))) {
+		if (copy_to_user((u64 *)arg, &dram_base, sizeof(u64))) { //TODO: is u64 cast ok here?
 			pr_err("ioctl: GET_DRAM_BASE: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -898,62 +551,48 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 
 	case GET_DRAM_SIZE:
 		dram_size = R_DRCT_DRAM_SIZE;
-		if (copy_to_user((u64 *)arg, &dram_size, sizeof(u64))) {
+		if (copy_to_user((u64 *)arg, &dram_size, sizeof(u64))) { //TODO: is u64 cast ok here?
 			pr_err("ioctl: GET_DRAM_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case GET_MM_MBOX_MAX_MSG:
-		mbox_max_msg = ringbuffer_free(0ul, 0ul) - MBOX_HEADER_SIZE;
-		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) {
+		mbox_max_msg = ET_MBOX_MAX_MSG_SIZE;
+		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) {  //TODO: is u64 cast ok here?
 			pr_err("ioctl: GET_MM_MBOX_MAX_MSG: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case GET_SP_MBOX_MAX_MSG:
-		mbox_max_msg = ringbuffer_free(0ul, 0ul) - MBOX_HEADER_SIZE;
-		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) {
+		mbox_max_msg = ET_MBOX_MAX_MSG_SIZE;
+		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) { //TODO: is u64 cast ok here?
 			pr_err("ioctl: GET_SP_MBOX_MAX_MSG: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case RESET_MBOXES:
-		// First, grab the lock
 		mutex_lock(&minor_dev->read_write_mutex);
 
-		//Request that the SoC reset the mailboxes
-               	iowrite32(MBOX_STATUS_WAITING, &(&et_dev->mbox_mm)->mem->slave_status);
-               	iowrite32(MBOX_STATUS_WAITING, &(&et_dev->mbox_sp)->mem->slave_status);
-
-               	//Flush PCIe writes: this makes sure the status changes are visible
-               	//to the interrupt routines in the MM and SP
-               	mbox_rdy = ioread32(&(&et_dev->mbox_mm)->mem->slave_status);
-
-		// Notify the masters
-               	(&et_dev->mbox_mm)->send_interrupt(et_dev->r_pu_trg_pcie);
-               	(&et_dev->mbox_sp)->send_interrupt(et_dev->r_pu_trg_pcie);
-
-               	//Flush PCIe writes again for complete safety: the send_interrupt()
-               	//routine is really just an iowrite32(), flush them as well
-               	mbox_rdy = ioread32(&(&et_dev->mbox_mm)->mem->slave_status);
+		et_mbox_reset(&et_dev->mbox_mm);
+		et_mbox_reset(&et_dev->mbox_sp);
 
  		mutex_unlock(&minor_dev->read_write_mutex);
 		return 0;
 
 	case GET_MM_MBOX_READY:
-		mbox_rdy = (unsigned long)mbox_ready(&et_dev->mbox_mm);
-		if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) {
+		mbox_rdy = (unsigned long)et_mbox_ready(&et_dev->mbox_mm);
+		if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) { //TODO: is u64 cast ok here?
 			pr_err("ioctl: GET_MM_MBOX_READY: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case GET_SP_MBOX_READY:
-		mbox_rdy = (unsigned long)mbox_ready(&et_dev->mbox_sp);
-		if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) {
+		mbox_rdy = (unsigned long)et_mbox_ready(&et_dev->mbox_sp);
+		if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) { //TODO: is u64 cast ok here?
 			pr_err("ioctl: GET_SP_MBOX_READY: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -1234,10 +873,10 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_free_irq_vecs;
 	}
 
-	mbox_init(&et_dev->mbox_mm, et_dev->r_pu_mbox_pc_mm, et_dev,
-		  interrupt_mbox_mm);
-	mbox_init(&et_dev->mbox_sp, et_dev->r_pu_mbox_pc_sp, et_dev,
-		  interrupt_mbox_sp);
+	et_mbox_init(&et_dev->mbox_mm, et_dev->r_pu_mbox_pc_mm,
+		     et_dev->r_pu_trg_pcie, interrupt_mbox_mm);
+	et_mbox_init(&et_dev->mbox_sp, et_dev->r_pu_mbox_pc_sp,
+		     et_dev->r_pu_trg_pcie, interrupt_mbox_sp);
 
 	//Create minor character devices for this device
 	for (i = 0; i < MINORS_PER_SOC; ++i) {
@@ -1282,8 +921,8 @@ error_destory_devs:
 		cdev_del(&minor_dev->cdev);
 	}
 
-	mbox_destroy(&et_dev->mbox_sp);
-	mbox_destroy(&et_dev->mbox_mm);
+	et_mbox_destroy(&et_dev->mbox_sp);
+	et_mbox_destroy(&et_dev->mbox_mm);
 
 	free_irq(irq_vec, (void*)et_dev);
 
@@ -1324,8 +963,8 @@ static void esperanto_pcie_remove(struct pci_dev *pdev)
 		cdev_del(&minor_dev->cdev);
 	}
 
-	mbox_destroy(&et_dev->mbox_sp);
-	mbox_destroy(&et_dev->mbox_mm);
+	et_mbox_destroy(&et_dev->mbox_sp);
+	et_mbox_destroy(&et_dev->mbox_mm);
 
 	irq_vec = pci_irq_vector(pdev, 0);
 
