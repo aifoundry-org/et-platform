@@ -2843,9 +2843,13 @@ static void tensorquant(uint64_t value)
     rows = rows + 1;
     line = line % L1_SCP_ENTRIES;
 
+    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %u, rows: %u, cols: %u, regstart: %u, frm: %s",
+        line, rows, cols, fstart, get_rounding_mode(frm()));
+
+    // TensorQuant raises illegal instruction exception when rounding mode is
+    // invalid even if the transforms do not use FRM
     set_rounding_mode(frm());
 
-    LOG(DEBUG, "\tStart Tensor Quant with scratchpad: %u, rows: %u, cols: %u, regstart: %u", line, rows, cols, fstart);
     for (int k = 0; k < TQUANT_MAX_TRANS; k++)
     {
         int trans = (value >> (k*4)) & 0xF;
@@ -2854,11 +2858,6 @@ static void tensorquant(uint64_t value)
         switch (trans)
         {
             case 0: // NONE
-                if (k)
-                {
-                    set_fp_exceptions();
-                    dirty_fp_state();
-                }
                 return;
             case 1: // INT32_TO_FP32
                 log_tensor_quant_new_transform();
@@ -2878,6 +2877,8 @@ static void tensorquant(uint64_t value)
                     for (unsigned j = 0; j < cols; j += VL)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
+                set_fp_exceptions();
+                dirty_fp_state();
                 break;
             case 2: // FP32_TO_INT32
                 log_tensor_quant_new_transform();
@@ -2897,6 +2898,8 @@ static void tensorquant(uint64_t value)
                     for (unsigned j = 0; j < cols; j += VL)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
+                set_fp_exceptions();
+                dirty_fp_state();
                 break;
             case 3: // INT32_RELU
                 log_tensor_quant_new_transform();
@@ -2916,6 +2919,7 @@ static void tensorquant(uint64_t value)
                     for (unsigned j = 0; j < cols; j += VL)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
+                dirty_fp_state();
                 break;
             case 4: // INT32_ADD_ROW
                 if (cpu[current_thread].mcache_control != 0x3)
@@ -2944,6 +2948,7 @@ static void tensorquant(uint64_t value)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
+                dirty_fp_state();
                 break;
             case 5: // INT32_ADD_COL
                 if (cpu[current_thread].mcache_control != 0x3)
@@ -2973,6 +2978,7 @@ static void tensorquant(uint64_t value)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
+                dirty_fp_state();
                 break;
             case 6: // FP32_MUL_ROW
                 if (cpu[current_thread].mcache_control != 0x3)
@@ -3001,6 +3007,8 @@ static void tensorquant(uint64_t value)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
+                set_fp_exceptions();
+                dirty_fp_state();
                 break;
             case 7: // FP32_MUL_COL
                 if (cpu[current_thread].mcache_control != 0x3)
@@ -3030,6 +3038,8 @@ static void tensorquant(uint64_t value)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
                 line = (line + 1) % L1_SCP_ENTRIES;
+                set_fp_exceptions();
+                dirty_fp_state();
                 break;
             case 8: // SATINT8
                 log_tensor_quant_new_transform();
@@ -3049,6 +3059,7 @@ static void tensorquant(uint64_t value)
                     for (unsigned j = 0; j < cols; j += VL)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
+                dirty_fp_state();
                 break;
             case 9: // SATUINT8
                 log_tensor_quant_new_transform();
@@ -3068,6 +3079,7 @@ static void tensorquant(uint64_t value)
                     for (unsigned j = 0; j < cols; j += VL)
                         LOG_FREG("=", (fstart + i*2 + j/VL) % 32);
                 }
+                dirty_fp_state();
                 break;
             case 10: // PACK_128B
                 // RTL operates on even registers first, and then on odd
@@ -3094,16 +3106,13 @@ static void tensorquant(uint64_t value)
                     }
                     LOG_FREG("=", fdst);
                 }
+                dirty_fp_state();
                 break;
             default:
                 throw std::runtime_error("Illegal TensorQuant transform!");
                 break;
         }
     }
-
-    // Executed TQUANT_MAX_TRANS transforms without early exit
-    set_fp_exceptions();
-    dirty_fp_state();
 }
 
 // ----- TensorStore emulation -------------------------------------------------
@@ -3256,6 +3265,9 @@ static void tensor_fma32(uint64_t tfmareg)
     LOG(DEBUG, "\tStart TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(frm()));
 
+    // Illegal instruction exception has higher priority than other errors
+    set_rounding_mode(frm());
+
     // Unpair the last TensorLoadSetupB
     bool load_tenb = tensorload_setupb_topair[current_thread];
     int  brows_tenb = tensorload_setupb_numlines[current_thread];
@@ -3281,8 +3293,6 @@ static void tensor_fma32(uint64_t tfmareg)
         update_tensor_error(1 << 4);
         return;
     }
-
-    set_rounding_mode(frm());
 
     LOG_TENSOR_MASK(":");
 
@@ -3677,14 +3687,22 @@ static void tensor_reduce_start(uint64_t value)
         "TensorBroadcast", "TensorReduce"
     };
 
-    unsigned type     = value & 3;
-    unsigned level    = (value >> 3) & 0xF;
-    unsigned distance = 1 << level;
-    unsigned minmask  = (1 << (level + 1)) - 1;
+    unsigned type      = value & 3;
+    unsigned level     = (value >> 3) & 0xF;
+    unsigned distance  = 1 << level;
+    unsigned minmask   = (1 << (level + 1)) - 1;
+    unsigned operation = (value >> 24) & 0xF;
+
+    if ((type != 0) && (operation == 0)) {
+        // TensorRecv, TensorBroadcast and TensorReduce should raise illegal
+        // instruction if the encoded operation is FADD and FRM does not hold
+        // a valid rounding mode
+        set_rounding_mode(frm());
+    }
 
     cpu[current_thread].reduce.regid  = (value >> 57) & 0x1F;
     cpu[current_thread].reduce.count  = (value >> 16) & 0x7F;
-    cpu[current_thread].reduce.optype = ((value >> 24) & 0xF) | (type << 4);
+    cpu[current_thread].reduce.optype = operation | (type << 4);
 
     if (type == 0) {
         cpu[current_thread].reduce.state = Processor::Reduce::State::Send;
