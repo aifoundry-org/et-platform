@@ -10,10 +10,11 @@
 
 #include "PCIeDevice.h"
 
+#include "Core/CommandLineOptions.h"
 #include "Support/Logging.h"
 
 #if ENABLE_DEVICE_FW
-#include "host_message.h"
+#include <esperanto-fw/host_message.h>
 #endif // ENABLE_DEVICE_FW
 
 #include <absl/strings/str_format.h>
@@ -50,8 +51,7 @@ bool PCIeDevice::init() {
 }
 
 bool PCIeDevice::deinit() {
-  assert(false);
-  return false;
+  return true;
 }
 
 bool PCIeDevice::getStatus() {
@@ -89,19 +89,16 @@ bool PCIeDevice::writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) {
 
 bool PCIeDevice::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {
 #if ENABLE_DEVICE_FW
-  // FIXME ugly hack this needsOB to be cleaned up
-  struct __attribute__((__packed__)) launch_message_t {
-    uint64_t mbox_message_id_t;
-    layer_dynamic_info params;
-    kernel_info_t kernel_info;
-  };
+  host_message_t msg = {0};
 
-  launch_message_t msg = {0};
+  // FIXME we should be querying the device-fw for that information first
+  auto active_shires_opt = absl::GetFlag(FLAGS_shires);
+  int active_shires = std::stoi(active_shires_opt);
 
-  msg.mbox_message_id_t = MBOX_MESSAGE_ID_KERNEL_LAUNCH;
-  msg.params = *params;
+  msg.message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH;
+  msg.kernel_params = *reinterpret_cast<const kernel_params_t *>(params);
   msg.kernel_info.compute_pc = launch_pc;
-  msg.kernel_info.shire_mask = 0x1;
+  msg.kernel_info.shire_mask = (1ULL << active_shires) - 1;
   msg.kernel_info.kernel_params_ptr = 0;
   msg.kernel_info.grid_config_ptr = 0;
 

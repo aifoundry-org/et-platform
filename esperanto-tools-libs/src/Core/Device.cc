@@ -14,6 +14,7 @@
 #include "demangle.h"
 #include "registry.h"
 
+#include <absl/flags/flag.h>
 #include <assert.h>
 #include <exception>
 #include <fstream>
@@ -30,14 +31,10 @@
 #include "../kernels/sys_inc.h"
 #undef INCLUDE_FOR_HOST
 
+ABSL_FLAG(std::string, shires, "2", "Number of active worker shires");
+
 using namespace et_runtime;
 using namespace et_runtime::device;
-
-namespace et_runtime {
-namespace device {
-
-}
-} // namespace et_runtime
 
 Device::Device(int index)
     : device_index_(index), fw_manager_(std::make_unique<FWManager>()),
