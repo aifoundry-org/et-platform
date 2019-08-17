@@ -24,6 +24,9 @@
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
+// uncomment the following line to ignore HASH check results using VaultIP
+// #define IGNORE_HASH
+
 static const uint8_t gs_machine_minion_kdk_derivation_data[] = MACHINE_MINION_KDK_DERIVATION_DATA;
 static const uint8_t gs_machine_minion_mac_derivation_data[] = MACHINE_MINION_MAC_DERIVATION_DATA;
 static const uint8_t gs_machine_minion_enc_derivation_data[] = MACHINE_MINION_ENC_DERIVATION_DATA;
@@ -210,7 +213,6 @@ static int remap_load_address(uint64_t * address, uint64_t size) {
     return -1;
 }
 
-#define IGNORE_HASH
 static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, const ESPERANTO_IMAGE_FILE_HEADER_t * image_file_header) {
     uint32_t code_and_data_hash_size;
     uint32_t load_offset;
