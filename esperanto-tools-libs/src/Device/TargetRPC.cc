@@ -9,8 +9,11 @@
 //------------------------------------------------------------------------------
 
 #include "Device/TargetRPC.h"
-#include <inttypes.h>
+
+#include "EmuMailBoxDev.h"
 #include "esperanto/simulator-api.grpc.pb.h"
+
+#include <inttypes.h>
 
 using namespace std;
 using namespace simulator_api;
@@ -19,7 +22,8 @@ namespace et_runtime {
 namespace device {
 
 RPCTarget::RPCTarget(int index, const std::string &p)
-    : DeviceTarget(index), path_(p) {}
+    : DeviceTarget(index), path_(p),
+      mailboxDev_(std::make_unique<EmuMailBoxDev>(*this)) {}
 
 bool RPCTarget::init() {
   grpc::ChannelArguments ch_args;

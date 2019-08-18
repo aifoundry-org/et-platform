@@ -92,6 +92,8 @@ set(ETRT_SOURCES
   DeviceAPI/Commands.cc
   DeviceAPI/Commands.h
   Device/DeviceTarget.cc
+  Device/EmuMailBoxDev.cc
+  Device/EmuMailBoxDev.h
   DeviceFW/DeviceFW.cc
   DeviceFW/DeviceFW.h
   DeviceFW/FakeFW.cc

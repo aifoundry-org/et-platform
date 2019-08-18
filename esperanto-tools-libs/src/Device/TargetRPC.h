@@ -13,6 +13,7 @@
 
 #include "Core/DeviceTarget.h"
 
+#include "EmuMailBoxDev.h"
 #include <esperanto/simulator-api.grpc.pb.h>
 #include <grpc/support/log.h>
 #include <grpcpp/grpcpp.h>
@@ -49,6 +50,11 @@ public:
   virtual bool registerDeviceEventCallback() override;
   bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) final;
   bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) final;
+  // FIXME populate this class with the interface for doing MMIO and raising
+  // interrupts to the target device. This interface is to be used by the
+  // EmuMailBoxDev to implement the underlying MailBoxProtocol
+
+  // FIXME kernel launch semantics
   bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) final;
   virtual bool boot(uintptr_t init_pc, uintptr_t trap_pc);
   bool shutdown();
@@ -59,6 +65,7 @@ protected:
   std::unique_ptr<simulator_api::SimAPI::Stub> stub_;
   grpc::CompletionQueue cq_;
 
+  std::unique_ptr<EmuMailBoxDev> mailboxDev_;
   simulator_api::Reply doRPC(const simulator_api::Request &req);
 };
 
