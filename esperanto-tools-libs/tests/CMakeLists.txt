@@ -74,7 +74,7 @@ set(COMMON_TEST_LIBRARIES
 ##     to emulate tuples where the first element of the tuple is the test source file
 ##     and the send element is any additional test arguments
 ##  TEST_LABEL String with the list of labels to apply to the test
-function(create_test_targets TEST_LIST TEST_LABEL)
+function(create_test_targets TEST_LIST TEST_PROPERTIES)
   foreach(TEST_INFO ${TEST_LIST})
     string(REPLACE ":" ";" TMP_LIST ${TEST_INFO})
     list(GET TMP_LIST 0 TEST_FILE)
@@ -100,7 +100,8 @@ function(create_test_targets TEST_LIST TEST_LABEL)
     gtest_discover_tests(${TEST_TARGET}
       EXTRA_ARGS ${TEST_ARGS}
       TEST_PREFIX runtime:
-      PROPERTIES LABELS ${TEST_LABEL}
+      PROPERTIES ${TEST_PROPERTIES}
+      TEST_LIST DISCOVERED_TESTS
       )
   endforeach(TEST_INFO)
 endfunction()
@@ -118,6 +119,9 @@ set(TEST_LIST
   test_module_manager.cc:""
   )
 
+
+create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
+
 if(esperanto-fw_FOUND)
   get_property(MASTER_MINION_ELF TARGET esperanto-fw::MasterMinion.elf PROPERTY LOCATION)
   get_property(MACHINE_MINION_ELF TARGET esperanto-fw::MachineMinion.elf PROPERTY LOCATION)
@@ -129,13 +133,14 @@ if(esperanto-fw_FOUND)
 
   set(DEV_FW_ARGS "--fw_type=device-fw --master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
 
-  list(APPEND TEST_LIST
-    test_load_device_fw.cc:${DEV_FW_ARGS}
-    test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
+  # List of tests to be compiled if we have support for device-fw
+  set(DEVFW_TEST_LIST
+    device-fw/test_load_device_fw.cc:${DEV_FW_ARGS}
+    device-fw/test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
+    device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
     )
+  create_test_targets("${DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;600")
 endif(esperanto-fw_FOUND)
-
-create_test_targets("${TEST_LIST}" "Generic")
 
 set(QEMU_TEST_LIST
   system/test_pcie_device.cc:""
@@ -152,4 +157,4 @@ if(esperanto-fw_FOUND)
 endif(esperanto-fw_FOUND)
 
 
-create_test_targets("${QEMU_TEST_LIST}" "QEMU-Driver-SNPS")
+create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
