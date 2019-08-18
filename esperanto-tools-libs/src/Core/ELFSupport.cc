@@ -199,6 +199,8 @@ bool KernelELFInfo::loadELF(std::istream &stream) {
     THROW_IF(reader_.segments.size() > 1,
              "If no kernel entrypoint function is defined, we support only a "
              "single load segment");
+    RTINFO << "Setting the kernel name to: \"" << name_ << "\" with jump address: " <<
+      std::hex << reader_.segments[0]->get_virtual_address() << "\n";
     raw_kernel_offset_[name_] = reader_.segments[0]->get_virtual_address();
   }
   return true;

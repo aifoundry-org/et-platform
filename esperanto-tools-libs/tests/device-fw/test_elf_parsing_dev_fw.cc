@@ -53,7 +53,7 @@ TEST(KernelELFInfo, parse_dev_fw_kernel_elf) {
   EXPECT_TRUE(elf_info.loadELF(empty_elf));
 
   // For this kernel they are no raw kernel entrypoints
-  EXPECT_FALSE(elf_info.rawKernelExists("empty"));
+  EXPECT_TRUE(elf_info.rawKernelExists("empty"));
 
   EXPECT_EQ(0x8104000000, elf_info.loadAddr());
 }
@@ -80,6 +80,8 @@ int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   google::SetCommandLineOption("GLOG_logtostderr", "1");
+  FLAGS_minloglevel = 0;
+  FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
   et_runtime::ParseCommandLineOptions(argc, argv);
   return RUN_ALL_TESTS();
