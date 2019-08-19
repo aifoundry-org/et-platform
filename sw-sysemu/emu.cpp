@@ -2847,8 +2847,23 @@ static void tensorquant(uint64_t value)
         line, rows, cols, fstart, get_rounding_mode(frm()));
 
     // TensorQuant raises illegal instruction exception when rounding mode is
-    // invalid even if the transforms do not use FRM
+    // invalid even if the transforms do not use FRM.
     set_rounding_mode(frm());
+
+    // If a transformation needs the scratchpad, and the scratchpad is
+    // disabled, then we set tensor_error and do nothing.
+    for (int k = 0; k < TQUANT_MAX_TRANS; k++) {
+        int trans = (value >> (k*4)) & 0xF;
+        if (!trans)
+            break;
+        if ((trans >= 4) && (trans <= 7) &&
+            (cpu[current_thread].mcache_control != 0x3)) {
+            LOG(DEBUG, "\tTransformation %d is %s but scratchpad is disabled",
+                k, get_quant_transform(trans));
+            update_tensor_error(1 << 4);
+            return;
+        }
+    }
 
     for (int k = 0; k < TQUANT_MAX_TRANS; k++)
     {
@@ -2922,11 +2937,6 @@ static void tensorquant(uint64_t value)
                 dirty_fp_state();
                 break;
             case 4: // INT32_ADD_ROW
-                if (cpu[current_thread].mcache_control != 0x3)
-                {
-                    update_tensor_error(1 << 4);
-                    return;
-                }
                 log_tensor_quant_new_transform();
                 for (unsigned j = 0; j < cols; j += VL)
                     LOG_SCP(":", line, j);
@@ -2951,11 +2961,6 @@ static void tensorquant(uint64_t value)
                 dirty_fp_state();
                 break;
             case 5: // INT32_ADD_COL
-                if (cpu[current_thread].mcache_control != 0x3)
-                {
-                    update_tensor_error(1 << 4);
-                    return;
-                }
                 log_tensor_quant_new_transform();
                 for (unsigned i = 0; i < rows; i += VL)
                     LOG_SCP(":", line, i);
@@ -2981,11 +2986,6 @@ static void tensorquant(uint64_t value)
                 dirty_fp_state();
                 break;
             case 6: // FP32_MUL_ROW
-                if (cpu[current_thread].mcache_control != 0x3)
-                {
-                    update_tensor_error(1 << 4);
-                    return;
-                }
                 log_tensor_quant_new_transform();
                 for (unsigned j = 0; j < cols; j += VL)
                     LOG_SCP(":", line, j);
@@ -3011,11 +3011,6 @@ static void tensorquant(uint64_t value)
                 dirty_fp_state();
                 break;
             case 7: // FP32_MUL_COL
-                if (cpu[current_thread].mcache_control != 0x3)
-                {
-                    update_tensor_error(1 << 4);
-                    return;
-                }
                 log_tensor_quant_new_transform();
                 for (unsigned i = 0; i < rows; i += VL)
                     LOG_SCP(":", line, i);
