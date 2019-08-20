@@ -82,8 +82,8 @@ etrtError DeviceFW::loadOnDevice(device::DeviceTarget *dev) {
   for (auto &elf : elfs) {
     auto &elf_data = (*elf)->data();
     const auto addr = (*elf)->loadAddr();
-    dev->writeDevMem(addr, elf_data.size(),
-                     reinterpret_cast<const void *>(elf_data.data()));
+    dev->writeDevMemMMIO(addr, elf_data.size(),
+                         reinterpret_cast<const void *>(elf_data.data()));
   }
 
   return etrtSuccess;

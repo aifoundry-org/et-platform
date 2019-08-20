@@ -72,7 +72,16 @@ simulator_api::Reply RPCTarget::doRPC(const simulator_api::Request &request) {
   return reply;
 }
 
-bool RPCTarget::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
+bool RPCTarget::readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) {
+  // FIXME use "DMA" to do bulk mmio transfers
+  return readDevMemDMA(dev_addr, size, buf);
+}
+bool RPCTarget::writeDevMemMMIO(uintptr_t dev_addr, size_t size,
+                                const void *buf) {
+  return writeDevMemDMA(dev_addr, size, buf);
+}
+
+bool RPCTarget::readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) {
   // Create request
   simulator_api::Request request;
   auto dma = new DMAAccess();
@@ -93,7 +102,8 @@ bool RPCTarget::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
   return true;
 }
 
-bool RPCTarget::writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) {
+bool RPCTarget::writeDevMemDMA(uintptr_t dev_addr, size_t size,
+                               const void *buf) {
   // Create request
   simulator_api::Request request;
   auto dma = new DMAAccess();
@@ -112,6 +122,15 @@ bool RPCTarget::writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) {
   assert(dma_resp.size() == size);
   assert(dma_resp.status() == DMAAccessStatus::DMAStatus_SUCCESS);
   return true;
+}
+
+bool RPCTarget::mb_write(const void *data, ssize_t size) {
+  abort();
+  return true;
+}
+ssize_t RPCTarget::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
+  abort();
+  return 0;
 }
 
 bool RPCTarget::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {

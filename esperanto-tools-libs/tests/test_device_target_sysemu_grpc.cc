@@ -48,9 +48,9 @@ TEST(TargetGRPCSysEmu, GRPCCardEmu) {
   // have a mock kernel to test on the simulator
   // Try to copy data back and forth
   std::array<uint8_t, 10> data = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-  ASSERT_TRUE(device.writeDevMem(addr, data.size(), data.data()));
+  ASSERT_TRUE(device.writeDevMemMMIO(addr, data.size(), data.data()));
   std::array<uint8_t, 10> out_data;
-  ASSERT_TRUE(device.readDevMem(addr, out_data.size(), out_data.data()));
+  ASSERT_TRUE(device.readDevMemMMIO(addr, out_data.size(), out_data.data()));
   // Stop the simulator
   ASSERT_TRUE(device.deinit());
   ASSERT_THAT(out_data, ::testing::ElementsAreArray(data));

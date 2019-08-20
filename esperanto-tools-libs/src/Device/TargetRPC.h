@@ -48,8 +48,14 @@ public:
   virtual bool submitCommand() override;
   virtual bool registerResponseCallback() override;
   virtual bool registerDeviceEventCallback() override;
-  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) final;
-  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) final;
+  bool readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) final;
+  bool writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void *buf) final;
+  bool readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) final;
+  bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void *buf) final;
+  bool mb_write(const void *data, ssize_t size) final;
+  ssize_t mb_read(void *data, ssize_t size,
+                  TimeDuration wait_time = TimeDuration::max()) final;
+
   // FIXME populate this class with the interface for doing MMIO and raising
   // interrupts to the target device. This interface is to be used by the
   // EmuMailBoxDev to implement the underlying MailBoxProtocol

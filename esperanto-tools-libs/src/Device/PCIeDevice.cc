@@ -79,12 +79,31 @@ bool PCIeDevice::registerDeviceEventCallback() {
   return false;
 }
 
-bool PCIeDevice::readDevMem(uintptr_t dev_addr, size_t size, void *buf) {
+bool PCIeDevice::readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) {
   return drct_dram_.read(dev_addr, buf, size);
 }
 
-bool PCIeDevice::writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) {
+bool PCIeDevice::writeDevMemMMIO(uintptr_t dev_addr, size_t size,
+                                 const void *buf) {
   return drct_dram_.write(dev_addr, buf, size);
+}
+
+bool PCIeDevice::readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) {
+  abort();
+  return true;
+}
+bool PCIeDevice::writeDevMemDMA(uintptr_t dev_addr, size_t size,
+                                const void *buf) {
+  abort();
+  return true;
+}
+bool PCIeDevice::mb_write(const void *data, ssize_t size) {
+  abort();
+  return true;
+}
+ssize_t PCIeDevice::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
+  abort();
+  return true;
 }
 
 bool PCIeDevice::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {

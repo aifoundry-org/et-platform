@@ -91,7 +91,7 @@ static void write_memory(const std::string &opt_val) {
   auto data = res.second;
   auto bytes = hexToBytes(data);
   RTINFO << "Writting address: " << std::hex << addr << " with data: " << data;
-  auto ret = dev_target.writeDevMem(addr, bytes.size(), bytes.data());
+  auto ret = dev_target.writeDevMemMMIO(addr, bytes.size(), bytes.data());
   assert(ret);
 }
 

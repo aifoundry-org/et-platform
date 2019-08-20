@@ -41,7 +41,7 @@ etrtError ConfigureCommand::execute(Device *device) {
 
 etrtError ReadCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
-  target_device.readDevMem((uintptr_t)srcDevPtr, count, dstHostPtr);
+  target_device.readDevMemMMIO((uintptr_t)srcDevPtr, count, dstHostPtr);
   setResponse(ReadResponse());
   return etrtSuccess;
 }
@@ -49,7 +49,7 @@ etrtError ReadCommand::execute(Device *device) {
 etrtError WriteCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
 
-  target_device.writeDevMem((uintptr_t)dstDevPtr, count, srcHostPtr);
+  target_device.writeDevMemMMIO((uintptr_t)dstDevPtr, count, srcHostPtr);
   setResponse(WriteResponse());
   return etrtSuccess;
 }
@@ -74,7 +74,8 @@ etrtError LaunchCommand::execute(Device *device) {
           params->tensor_d, params->tensor_e, params->tensor_f,
           params->tensor_g, params->tensor_h, params->kernel_id);
 
-  target_device.writeDevMem(RT_HOST_KERNEL_LAUNCH_INFO, sizeof(*params), params);
+  target_device.writeDevMemMMIO(RT_HOST_KERNEL_LAUNCH_INFO, sizeof(*params),
+                                params);
   target_device.launch(kernel_pc, params); // ETSOC backend - JIT, not covered by b4c
 
   setResponse(LaunchResponse());

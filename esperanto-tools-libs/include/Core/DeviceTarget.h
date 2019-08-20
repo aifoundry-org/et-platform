@@ -12,6 +12,7 @@
 #define ET_RUNTIME_DEVICE_TARGET_H
 
 #include "Core/DeviceInformation.h"
+#include "Support/TimeHelpers.h"
 
 #include <cstdint>
 #include <functional>
@@ -132,12 +133,39 @@ public:
   /// proxy this is transitional code that probably could be removed in the
   /// future.
 
-  /// @brief Read device memory
-  virtual bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) = 0;
+  /// @brief Read device memory using MMIO
+  virtual bool readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) = 0;
 
-  /// @brief Write device memory
-  virtual bool writeDevMem(uintptr_t dev_addr, size_t size,
-                           const void *buf) = 0;
+  /// @brief Write device memory using MMIO
+  virtual bool writeDevMemMMIO(uintptr_t dev_addr, size_t size,
+                               const void *buf) = 0;
+
+  /// @brief Read device memory using MMIO
+  virtual bool readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) = 0;
+
+  /// @brief Write device memory using MMIO
+  virtual bool writeDevMemDMA(uintptr_t dev_addr, size_t size,
+                              const void *buf) = 0;
+
+  /// @brief MailBox write message
+  ///
+  /// @param[in] data Pointer to mailbox message
+  /// @param[in] size Size in bytes of the mailbox message to write
+  ///
+  /// @return True iff write is successfull
+  virtual bool mb_write(const void *data, ssize_t size) = 0;
+
+  /// @Brief Mailbox message read
+  ///
+  /// @param[inout] data  Pointer to buffer that will hold the size of the
+  /// message we want to read
+  /// @param[in] size  Size of the mailbox message to read.
+  /// @param[wait_time] wait_time. Time to wait for the read to complete, i.e.
+  /// to receive a message.
+  ///
+  /// @return Size of the message read. Zero iff the read was not succesfull.
+  virtual ssize_t mb_read(void *data, ssize_t size,
+                          TimeDuration wait_time = TimeDuration::max()) = 0;
 
   /// @brief Launch a specific PC on the device.
   virtual bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) = 0;

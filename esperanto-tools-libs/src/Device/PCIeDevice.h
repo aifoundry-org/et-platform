@@ -37,8 +37,13 @@ public:
   bool submitCommand() override;
   bool registerResponseCallback() override;
   bool registerDeviceEventCallback() override;
-  bool readDevMem(uintptr_t dev_addr, size_t size, void *buf) override;
-  bool writeDevMem(uintptr_t dev_addr, size_t size, const void *buf) override;
+  bool readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) final;
+  bool writeDevMemMMIO(uintptr_t dev_addr, size_t size, const void *buf) final;
+  bool readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) final;
+  bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void *buf) final;
+  bool mb_write(const void *data, ssize_t size) final;
+  ssize_t mb_read(void *data, ssize_t size,
+                  TimeDuration wait_time = TimeDuration::max()) final;
   bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override;
   bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
   uintptr_t dramBaseAddr() const;

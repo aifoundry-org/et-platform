@@ -57,7 +57,7 @@ etrtError FakeFW::loadOnDevice(device::DeviceTarget *dev) {
   const void *bootrom_p = reinterpret_cast<const void *>(bootrom_data_.data());
   size_t bootrom_file_size = bootrom_data_.size();
 
-  dev->writeDevMem(BOOTROM_START_IP, bootrom_file_size, bootrom_p);
+  dev->writeDevMemMMIO(BOOTROM_START_IP, bootrom_file_size, bootrom_p);
 
   // FIXME deprecate the following eventually
 #if 1
@@ -74,7 +74,7 @@ etrtError FakeFW::loadOnDevice(device::DeviceTarget *dev) {
     descr.init_pc = ETSOC_init;
     descr.trap_pc = ETSOC_mtrap;
 
-    dev->writeDevMem(LAUNCH_PARAMS_AREA_BASE, sizeof(descr), &descr);
+    dev->writeDevMemMMIO(LAUNCH_PARAMS_AREA_BASE, sizeof(descr), &descr);
   }
 
   dev->boot(ETSOC_init, ETSOC_mtrap);
