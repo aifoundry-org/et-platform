@@ -39,4 +39,7 @@
 //PShire ESRs accessible to processors on the SoC (SP, MM, MX) but not PShire
 #define PCIE_NOPCIESR ((volatile Pshire_usr1_t* const)R_PCIE_NOPCIESR_BASEADDR)
 
+//PShire ESRs accessible to Host/SP/MM/Maxion
+#define PCIE_USRESR ((volatile Pshire_usr0_t* const)R_PCIE_USRESR_BASEADDR)
+
 #endif

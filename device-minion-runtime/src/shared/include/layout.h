@@ -43,4 +43,22 @@
 #define KERNEL_UMODE_STACK_SIZE 4096 // 4K for VM stack pages
 
 #define KERNEL_UMODE_ENTRY      0x8104000000ULL
+
+//Storage for DMA configuration linked lists.
+//Store at end of R_L3_DRAM region, 64MB at 0x87FC800000 - 0x87FFFFFFFF
+//For each DMA channel, reserve 8MB for the list. Chosen arbitrarily to balance mem
+//useage vs likely need. Each entry is 24 bytes, so 349525 entries max per list. If the
+//host system is totally fragmented (each entry tracks 4kB - VERY unlkely), can DMA
+//~1.4GB without modifying the list.
+#define DMA_LL_SIZE 0x800000
+
+#define DMA_CHAN_READ_0_LL_BASE 0x87FC000000
+#define DMA_CHAN_READ_1_LL_BASE 0x87FC800000
+#define DMA_CHAN_READ_2_LL_BASE 0x87FD000000
+#define DMA_CHAN_READ_3_LL_BASE 0x87FD800000
+#define DMA_CHAN_WRITE_0_LL_BASE 0x87FE000000
+#define DMA_CHAN_WRITE_1_LL_BASE 0x87FE800000
+#define DMA_CHAN_WRITE_2_LL_BASE 0x87FF000000
+#define DMA_CHAN_WRITE_3_LL_BASE 0x87FF800000
+
 #endif
