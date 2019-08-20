@@ -92,55 +92,23 @@ bool PCIeDevice::readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) {
   abort();
   return true;
 }
+
 bool PCIeDevice::writeDevMemDMA(uintptr_t dev_addr, size_t size,
                                 const void *buf) {
   abort();
   return true;
 }
+
 bool PCIeDevice::mb_write(const void *data, ssize_t size) {
-  abort();
-  return true;
+  return mm_.write(data, size);
 }
+
 ssize_t PCIeDevice::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
-  abort();
-  return true;
+  return mm_.read(data, size, wait_time);
 }
 
 bool PCIeDevice::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {
-#if ENABLE_DEVICE_FW
-  host_message_t msg = {0};
-
-  // FIXME we should be querying the device-fw for that information first
-  auto active_shires_opt = absl::GetFlag(FLAGS_shires);
-  int active_shires = std::stoi(active_shires_opt);
-
-  msg.message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH;
-  msg.kernel_params = *reinterpret_cast<const kernel_params_t *>(params);
-  msg.kernel_info.compute_pc = launch_pc;
-  msg.kernel_info.shire_mask = (1ULL << active_shires) - 1;
-  msg.kernel_info.kernel_params_ptr = 0;
-  msg.kernel_info.grid_config_ptr = 0;
-
-  auto res = mm_.write(&msg, sizeof(msg));
-  assert(res);
-
-  std::array<uint8_t, MailBoxDev::MBOX_MAX_MESSAGE_LENGTH> message = {0};
-  auto size =
-      mm_.read(message.data(), message.size(), std::chrono::seconds(60));
-  assert(size == sizeof(devfw_response_t));
-  auto response = reinterpret_cast<devfw_response_t *>(message.data());
-  RTDEBUG << "MessageID: " << response->message_id
-          << " kernel_id: " << response->kernel_id
-          << " kernel_result: " << response->response_id << "\n";
-
-  if (response->message_id == MBOX_MESSAGE_ID_KERNEL_RESULT &&
-      response->response_id == MBOX_KERNEL_RESULT_OK) {
-    RTDEBUG << "Received successfull launch \n";
-  } else {
-    assert(false);
-  }
-
-#endif // ENABLE_DEVICE_FW
+  abort();
   return true;
 }
 

@@ -8,16 +8,19 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "DeviceAPI/Command.h"
-
-#include "Core/Device.h"
 #include "DeviceAPI/Commands.h"
+
+#include "Core/CommandLineOptions.h"
+#include "Core/Device.h"
+#include "Device/MailBoxDev.h"
 #include "Support/Logging.h"
 #include "Support/STLHelpers.h"
-#include "etrt-bin.h"
+
+#if ENABLE_DEVICE_FW
+#include <esperanto-fw/host_message.h>
+#endif // ENABLE_DEVICE_FW
 
 #define INCLUDE_FOR_HOST
-#include "../etlibdevice.h"
 #include "../kernels/sys_inc.h"
 #undef INCLUDE_FOR_HOST
 
@@ -58,26 +61,58 @@ etrtError LaunchCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
   const auto *params = (const et_runtime::device::layer_dynamic_info *)args_buff.data();
 
-  fprintf(stderr,
-          "LaunchCommand::Going to execute kernel {0x%lx} %s [%s]\n"
-          "  tensor_a = 0x%" PRIx64 "\n"
-          "  tensor_b = 0x%" PRIx64 "\n"
-          "  tensor_c = 0x%" PRIx64 "\n"
-          "  tensor_d = 0x%" PRIx64 "\n"
-          "  tensor_e = 0x%" PRIx64 "\n"
-          "  tensor_f = 0x%" PRIx64 "\n"
-          "  tensor_g = 0x%" PRIx64 "\n"
-          "  tensor_h = 0x%" PRIx64 "\n"
-          "  pc/id    = 0x%" PRIx64 "\n",
-          kernel_pc, kernel_name.c_str(), demangle(kernel_name).c_str(),
-          params->tensor_a, params->tensor_b, params->tensor_c,
-          params->tensor_d, params->tensor_e, params->tensor_f,
-          params->tensor_g, params->tensor_h, params->kernel_id);
+  RTDEBUG << "LaunchCommand::Going to execute kernel {0x" << std::hex << kernel_pc
+          << "} " << kernel_name << " [" << demangle(kernel_name) << "] \n"
+          << " tensor_a = 0x" << params->tensor_a << "\n"
+          << " tensor_b = 0x" << params->tensor_b << "\n"
+          << " tensor_c = 0x" << params->tensor_c << "\n"
+          << " tensor_d = 0x" << params->tensor_d << "\n"
+          << " tensor_e = 0x" << params->tensor_e << "\n"
+          << " tensor_f = 0x" << params->tensor_f << "\n"
+          << " tensor_g = 0x" << params->tensor_g << "\n"
+          << " tensor_h = 0x" << params->tensor_h << "\n"
+          << " pc/id    = 0x" << params->kernel_id << "\n";
 
+#if ENABLE_DEVICE_FW
+  host_message_t msg = {0};
+
+  // FIXME we should be querying the device-fw for that information first
+  auto active_shires_opt = absl::GetFlag(FLAGS_shires);
+  int active_shires = std::stoi(active_shires_opt);
+
+  msg.message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH;
+  msg.kernel_params = *reinterpret_cast<const kernel_params_t *>(params);
+  msg.kernel_info.compute_pc = kernel_pc;
+  msg.kernel_info.shire_mask = (1ULL << active_shires) - 1;
+  msg.kernel_info.kernel_params_ptr = 0;
+  msg.kernel_info.grid_config_ptr = 0;
+
+  auto res = target_device.mb_write(&msg, sizeof(msg));
+  assert(res);
+
+  std::array<uint8_t, device::MailBoxDev::MBOX_MAX_MESSAGE_LENGTH> message = {
+      0};
+  auto size = target_device.mb_read(message.data(), message.size(),
+                                    std::chrono::seconds(60));
+  assert(size == sizeof(devfw_response_t));
+  auto response = reinterpret_cast<devfw_response_t *>(message.data());
+  RTDEBUG << "MessageID: " << response->message_id
+          << " kernel_id: " << response->kernel_id
+          << " kernel_result: " << response->response_id << "\n";
+
+  if (response->message_id == MBOX_MESSAGE_ID_KERNEL_RESULT &&
+      response->response_id == MBOX_KERNEL_RESULT_OK) {
+    RTDEBUG << "Received successfull launch \n";
+  } else {
+    assert(false);
+  }
+
+#else
   target_device.writeDevMemMMIO(RT_HOST_KERNEL_LAUNCH_INFO, sizeof(*params),
-                                params);
-  target_device.launch(kernel_pc, params); // ETSOC backend - JIT, not covered by b4c
-
+                            params);
+  target_device.launch(kernel_pc,
+                       params); // ETSOC backend - JIT, not covered by b4c
+#endif // ENABLE_DEVICE_FW
   setResponse(LaunchResponse());
   return etrtSuccess;
 }
