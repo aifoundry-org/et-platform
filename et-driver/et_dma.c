@@ -60,8 +60,9 @@ struct et_mem_region {
 
 static const struct et_mem_region valid_dma_targets[] = {
 	//L3, but beginning reserved for minion stacks, end reserved for DMA config
-	{ .begin = 0x8200000000, .end = 0x87FBFFFFFF }
-	//TODO: allow shire-cache scratch pad regions
+	{ .begin = 0x8200000000, .end = 0x87FBFFFFFF },
+	//Shire-cache scratch pads. Limit to first 4MB * 33 shires.
+	{ .begin = 0x80000000, .end = 0x88400000}
 };
 
 int et_dma_bounds_check(uint64_t soc_addr, uint64_t count)
