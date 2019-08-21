@@ -38,9 +38,25 @@ public:
   /// @brief Move constructor for the device
   MailBoxDev(MailBoxDev &&other);
 
+  /// @brief Query if the mailbox devie is ready
+  bool ready();
+
+  /// @brief Reret the mailbox device and discard any pending mailbox messages
+  /// from the device
+  bool reset();
+
+  /// @brief Return the maximum size of a mailbox message
+  ssize_t mboxMaxMsgSize() const { return mbox_max_msg_size_; }
+
   bool write(const void *data, ssize_t size);
   ssize_t read(void *data, ssize_t size,
                TimeDuration wait_time = TimeDuration::max());
+
+protected:
+  ssize_t mbox_max_msg_size_ = -1; ///< Maximum size of mailbox message;
+
+  /// @brief Return the maximum mbox size using the respective IOCTL
+  ssize_t queryMboxMaxMsgSize();
 };
 } // namespace device
 

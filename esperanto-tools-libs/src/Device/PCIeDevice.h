@@ -48,6 +48,7 @@ public:
   bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
   uintptr_t dramBaseAddr() const;
   uintptr_t dramSize() const;
+  ssize_t mboxMsgMaxSize() const override;
 
 private:
   int index_;

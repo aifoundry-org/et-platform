@@ -32,15 +32,26 @@ protected:
 
 /*
 TEST_F(PCIEDevTest, dram_base) {
+TEST_F(PCIEDevTest, DramBase) {
   auto base_addr = dev_->dramBaseAddr();
   // FIXME the runtime for now has been using the R_L3_DRAM_BASEADDR
   ASSERT_EQ(base_addr, 0xc100000000);
 }
 */
 
-TEST_F(PCIEDevTest, dram_size) {
+TEST_F(PCIEDevTest, DramSize) {
   auto base_addr = dev_->dramSize();
   ASSERT_EQ(base_addr, 0x700000000);
+}
+
+TEST_F(PCIEDevTest, MboxMsgMaxSize) {
+  auto max_size = dev_->mboxMsgMaxSize();
+  ASSERT_EQ(max_size, 2027);
+}
+
+TEST_F(PCIEDevTest, Init) {
+  auto ready = dev_->init();
+  ASSERT_TRUE(ready);
 }
 
 TEST_F(PCIEDevTest, SingleReadMMIO) {
@@ -61,8 +72,9 @@ TEST_F(PCIEDevTest, SingleWriteReadMMIO) {
   ASSERT_THAT(data_res, ::testing::ElementsAreArray(data));
 }
 
-TEST_F(PCIEDevTest, ReadWriteMMIO_8k) {
-  ssize_t size = 1 << 2 * 1 << 10;
+
+TEST_F(PCIEDevTest, ReadWriteMMIO_1k) {
+  ssize_t size = 1 << 10;
   std::random_device
       rd; // Will be used to obtain a seed for the random number engine
   std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()

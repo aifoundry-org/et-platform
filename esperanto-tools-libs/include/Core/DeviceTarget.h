@@ -147,6 +147,9 @@ public:
   virtual bool writeDevMemDMA(uintptr_t dev_addr, size_t size,
                               const void *buf) = 0;
 
+  /// @brief Return the maximum size of a mailbox message
+  virtual ssize_t mboxMsgMaxSize() const = 0;
+
   /// @brief MailBox write message
   ///
   /// @param[in] data Pointer to mailbox message

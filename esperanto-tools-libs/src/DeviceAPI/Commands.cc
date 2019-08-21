@@ -90,8 +90,7 @@ etrtError LaunchCommand::execute(Device *device) {
   auto res = target_device.mb_write(&msg, sizeof(msg));
   assert(res);
 
-  std::array<uint8_t, device::MailBoxDev::MBOX_MAX_MESSAGE_LENGTH> message = {
-      0};
+  std::vector<uint8_t> message(target_device.mboxMsgMaxSize(), 0);
   auto size = target_device.mb_read(message.data(), message.size(),
                                     std::chrono::seconds(60));
   assert(size == sizeof(devfw_response_t));

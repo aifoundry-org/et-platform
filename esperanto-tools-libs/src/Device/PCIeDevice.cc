@@ -40,7 +40,27 @@ PCIeDevice::PCIeDevice(int index)
 bool PCIeDevice::init() {
   // FIXME current we perform no initialization action that will not apply in
   // the future.
-  RTINFO << "PCIeDevice performs no init actions";
+  RTINFO << "PCIeDevice: Initialization \n";
+  auto res = mm_.reset();
+  assert(res);
+  RTINFO << "PCIEDevice: Reset MM mailbox \n";
+  // Wait for the device to be ready
+  // FIXME "random" wait time and polling interval
+  auto wait_time = std::chrono::seconds(2 * 60);
+  auto start = Clock::now();
+  auto end = start + wait_time;
+  static const TimeDuration polling_interval = wait_time / 10;
+  bool mb_ready = mm_.ready();
+  while (mb_ready == 0) {
+    std::this_thread::sleep_for(polling_interval);
+    if (end < Clock::now()) {
+      RTERROR << "Mailbox not ready in time \n";
+      return false;
+    }
+    mb_ready = mm_.ready();
+  }
+
+  RTINFO << "PCIEDevice: MM mailbox ready \n";
   device_alive_ = true;
   return true;
 }
@@ -113,6 +133,8 @@ bool PCIeDevice::boot(uintptr_t init_pc, uintptr_t trap_pc) {
 uintptr_t PCIeDevice::dramBaseAddr() const { return bulk_.baseAddr(); }
 
 uintptr_t PCIeDevice::dramSize() const { return bulk_.size(); }
+
+ssize_t PCIeDevice::mboxMsgMaxSize() const { return mm_.mboxMaxMsgSize(); }
 
 std::vector<DeviceInformation> PCIeDevice::enumerateDevices() {
   std::vector<DeviceInformation> infos;
