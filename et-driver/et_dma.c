@@ -62,7 +62,7 @@ static const struct et_mem_region valid_dma_targets[] = {
 	//L3, but beginning reserved for minion stacks, end reserved for DMA config
 	{ .begin = 0x8200000000, .end = 0x87FBFFFFFF },
 	//Shire-cache scratch pads. Limit to first 4MB * 33 shires.
-	{ .begin = 0x80000000, .end = 0x88400000}
+	{ .begin = 0x80000000, .end = 0x883FFFFF }
 };
 
 int et_dma_bounds_check(uint64_t soc_addr, uint64_t count)
@@ -147,8 +147,7 @@ static void write_xfer_list_link(enum et_dma_chan chan, uint32_t i,
 
 static ssize_t et_dma_contig_buff(dma_addr_t buff, uint64_t soc_addr,
 				  ssize_t count, enum et_dma_chan chan,
-				  struct et_mbox *mbox_mm,
-				  void __iomem *r_drct_dram)
+				  struct et_pci_dev *et_dev)
 {
 	ssize_t rv;
 	struct dma_run_to_done_message_t run_msg = {
@@ -171,17 +170,18 @@ static ssize_t et_dma_contig_buff(dma_addr_t buff, uint64_t soc_addr,
 
 	//Use MMIO to write a single-data-element xfer list
 	write_xfer_list_data(chan, 0, src_addr, dest_addr, count,
-			     true /*interrupt*/, r_drct_dram);
+			     true /*interrupt*/,
+			     et_dev->iomem[IOMEM_R_DRCT_DRAM]);
 	write_xfer_list_link(chan, 1,
 			     R_L3_DRAM_BASEADDR +
 				     XFER_LIST_OFFSETS[chan] /*circular link*/,
-			     r_drct_dram);
+			     et_dev->iomem[IOMEM_R_DRCT_DRAM]);
 
 	//This code relies on mbox write doing a pcie read to make sure all of the
 	//linked list node writes are done before DMA is started.
 
 	//Signal the MM to start and supervise the DMA transefer
-	rv = et_mbox_write(mbox_mm, &run_msg, sizeof(run_msg));
+	rv = et_mbox_write(&et_dev->mbox_mm, &run_msg, sizeof(run_msg));
 	if (rv < 0) {
 		pr_err("mbox write errored\n");
 		return rv;
@@ -198,7 +198,8 @@ static ssize_t et_dma_contig_buff(dma_addr_t buff, uint64_t soc_addr,
 	//be dispatched from the mbox ISR by message_id).
 	do {
 		msleep(100);
-		rv = et_mbox_read(mbox_mm, &done_msg, sizeof(done_msg));
+		rv = et_mbox_read(&et_dev->mbox_mm, &done_msg,
+				  sizeof(done_msg));
 	} while (rv == 0);
 
 	if (rv < 0) {
@@ -228,8 +229,7 @@ static ssize_t et_dma_contig_buff(dma_addr_t buff, uint64_t soc_addr,
 }
 
 ssize_t et_dma_pull_from_user(const char __user *buf, size_t count, loff_t *pos,
-			      enum et_dma_chan chan, struct et_mbox *mbox_mm,
-			      void __iomem *r_drct_dram, struct pci_dev *pdev)
+			      enum et_dma_chan chan, struct et_pci_dev *et_dev)
 {
 	ssize_t rv;
 	uint64_t soc_addr = (uint64_t)*pos;
@@ -262,7 +262,8 @@ ssize_t et_dma_pull_from_user(const char __user *buf, size_t count, loff_t *pos,
 	//TODO: long-term: the buffer from user mode might be quite large (GB).
 	//Copying the whole thing might be very bad, both for exec time and
 	//memory pressure. Instead, pin/DMA it in little chunks at a time.
-	kern_buff = dma_alloc_coherent(&pdev->dev, count, &kern_buff_addr, GFP_KERNEL);
+	kern_buff = dma_alloc_coherent(&et_dev->pdev->dev, count,
+				       &kern_buff_addr, GFP_KERNEL);
 
 	if (!kern_buff) {
 		pr_err("dma alloc failed\n");
@@ -271,26 +272,25 @@ ssize_t et_dma_pull_from_user(const char __user *buf, size_t count, loff_t *pos,
 
 	//Copy the buffer from user-mode
 	rv = copy_from_user(kern_buff, buf, count);
-	if (rv != 0 ) {
+	if (rv != 0) {
 		pr_err("Failed to copy from user\n");
 		goto error;
 	}
 
-	rv = et_dma_contig_buff(kern_buff_addr, soc_addr, count, chan, mbox_mm,
-				r_drct_dram);
+	rv = et_dma_contig_buff(kern_buff_addr, soc_addr, count, chan, et_dev);
 
 error:
 	//Free the buffer
-	dma_free_coherent(&pdev->dev, count, kern_buff, kern_buff_addr);
+	dma_free_coherent(&et_dev->pdev->dev, count, kern_buff, kern_buff_addr);
 
-	if (rv > 0) *pos += rv;
+	if (rv > 0)
+		*pos += rv;
 
 	return rv;
 }
 
 ssize_t et_dma_push_to_user(char __user *buf, size_t count, loff_t *pos,
-			    enum et_dma_chan chan, struct et_mbox *mbox_mm,
-			    void __iomem *r_drct_dram, struct pci_dev *pdev)
+			    enum et_dma_chan chan, struct et_pci_dev *et_dev)
 {
 	ssize_t rv, dma_cnt;
 	uint64_t soc_addr = (uint64_t)*pos;
@@ -323,7 +323,8 @@ ssize_t et_dma_push_to_user(char __user *buf, size_t count, loff_t *pos,
 	//TODO: long-term: the buffer from user mode might be quite large (GB).
 	//Copying the whole thing might be very bad, both for exec time and
 	//memory pressure. Instead, pin/DMA it in little chunks at a time.
-	kern_buff = dma_alloc_coherent(&pdev->dev, count, &kern_buff_addr, GFP_KERNEL);
+	kern_buff = dma_alloc_coherent(&et_dev->pdev->dev, count,
+				       &kern_buff_addr, GFP_KERNEL);
 
 	if (!kern_buff) {
 		pr_err("dma alloc failed\n");
@@ -331,8 +332,8 @@ ssize_t et_dma_push_to_user(char __user *buf, size_t count, loff_t *pos,
 	}
 
 	dma_cnt = et_dma_contig_buff(kern_buff_addr, soc_addr, count, chan,
-				     mbox_mm, r_drct_dram);
-	if (dma_cnt < 0 ) {
+				     et_dev);
+	if (dma_cnt < 0) {
 		goto error;
 	}
 
@@ -345,9 +346,10 @@ ssize_t et_dma_push_to_user(char __user *buf, size_t count, loff_t *pos,
 
 error:
 	//Free the buffer
-	dma_free_coherent(&pdev->dev, count, kern_buff, kern_buff_addr);
+	dma_free_coherent(&et_dev->pdev->dev, count, kern_buff, kern_buff_addr);
 
-	if (dma_cnt > 0) *pos += dma_cnt;
+	if (dma_cnt > 0)
+		*pos += dma_cnt;
 
 	return dma_cnt;
 }

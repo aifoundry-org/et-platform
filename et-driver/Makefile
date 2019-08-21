@@ -2,4 +2,4 @@
 
 obj-m += esperanto.o
 
-esperanto-y := et-soc1-pcie.o et_dma.o et_mbox.o et_ringbuffer.o 
+esperanto-y := et-soc1-pcie.o et_dma.o et_mmio.o et_mbox.o et_pci_dev.o et_ringbuffer.o 

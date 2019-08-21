@@ -5,6 +5,7 @@
 #include <linux/types.h>
 
 #include "et_mbox.h"
+#include "et_pci_dev.h"
 
 enum et_dma_chan {
 	et_dma_chan_read_0 = 0,
@@ -30,8 +31,7 @@ int et_dma_bounds_check(uint64_t soc_addr, uint64_t count);
  * Returns the number of bytes DMAed.
  */
 ssize_t et_dma_pull_from_user(const char __user *buf, size_t count, loff_t *pos,
-			      enum et_dma_chan chan, struct et_mbox *mbox_mm,
-			      void __iomem *r_drct_dram, struct pci_dev *pdev);
+			      enum et_dma_chan chan, struct et_pci_dev *et_dev);
 
 /*
  * Uses the SoC's DMA engines to push data from the SoC to a user-mode buffer.
@@ -41,7 +41,6 @@ ssize_t et_dma_pull_from_user(const char __user *buf, size_t count, loff_t *pos,
  * Returns the number of bytes DMAed on success, or a negative value on failure.
  */
 ssize_t et_dma_push_to_user(char __user *buf, size_t count, loff_t *pos,
-			    enum et_dma_chan chan, struct et_mbox *mbox_mm,
-			    void __iomem *r_drct_dram, struct pci_dev *pdev);
+			    enum et_dma_chan chan, struct et_pci_dev *et_dev);
 
 #endif

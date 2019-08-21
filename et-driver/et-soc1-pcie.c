@@ -27,7 +27,10 @@
 #include <asm/uaccess.h>
 
 #include "et_dma.h"
+#include "et_ioctl.h"
 #include "et_mbox.h"
+#include "et_mmio.h"
+#include "et_pci_dev.h"
 #include "et_ringbuffer.h"
 #include "hal_device.h"
 
@@ -35,10 +38,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Esperanto <esperanto@gmail.com or admin@esperanto.com>");
 MODULE_DESCRIPTION("PCIe device driver for esperanto soc-1");
 MODULE_VERSION("1.0");  
-
-#define MBOX_MAX_MESSAGE_LENGTH ET_RINGBUFFER_MAX_LENGTH
-
-#define TEST_MODE 1
 
 #define DRIVER_NAME "esperanto"
 
@@ -52,88 +51,10 @@ static const struct pci_device_id esperanto_pcie_tbl[] = {
 	{}
 };
 
-#define ESPERANTO_PCIE_IOCTL_MAGIC 0x67879
-
-#define GET_DRAM_BASE _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 1, int)
-#define GET_DRAM_SIZE _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 2, int)
-#define GET_MM_MBOX_MAX_MSG _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 3, int)
-#define GET_SP_MBOX_MAX_MSG _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 4, int)
-#define RESET_MBOXES _IO(ESPERANTO_PCIE_IOCTL_MAGIC, 5)
-#define GET_MM_MBOX_READY _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 6, int)
-#define GET_SP_MBOX_READY _IOR(ESPERANTO_PCIE_IOCTL_MAGIC, 7, int)
-
 static struct class *pclass;
 static int major;
 static int curr_minor;
 static int curr_dev = 0;
-
-static const char *MINOR_NAMES[] = {
-#ifdef TEST_MODE
-	"et%ddrct_dram",
-	"et%dr_mbox_mm",
-	"et%dr_mbox_sp",
-	"et%dtrg_pcie",
-	"et%dpcie_useresr",
-#endif
-	"et%dmb_sp",
-	"et%dmb_mm",
-	"et%dbulk"
-};
-
-#define MINORS_PER_SOC ARRAY_SIZE(MINOR_NAMES)
-
-/* MAX_MINORS picked arbitrarily; each SoC needs 8x PCIe lanes, assuming no
-   modern CPU will have 128 lanes. */
-#define MIN_MINOR 0
-#define MAX_MINORS MINORS_PER_SOC * 16
-
-enum et_cdev_type {
-#ifdef TEST_MODE
-	et_cdev_type_drct_dram = 0,
-	et_cdev_type_mbox_mm,
-	et_cdev_type_mbox_sp,
-	et_cdev_type_trg_pcie,
-	et_cdev_type_pcie_useresr,
-#endif
-	et_cdev_type_mb_sp,
-	et_cdev_type_mb_mm,
-	et_cdev_type_bulk
-};
-
-static const enum et_cdev_type MINOR_TYPES[] = {
-#ifdef TEST_MODE
-	et_cdev_type_drct_dram,
-	et_cdev_type_mbox_mm,
-	et_cdev_type_mbox_sp,
-	et_cdev_type_trg_pcie,
-	et_cdev_type_pcie_useresr,
-#endif
-	et_cdev_type_mb_sp,
-	et_cdev_type_mb_mm,
-	et_cdev_type_bulk
-};
-
-#define R_PU_MBOX_PC_MM_OFFSET 0x0000
-#define R_PU_MBOX_PC_SP_OFFSET 0x1000
-#define R_PU_TRG_PCIE_OFFSET   0x2000
-#define R_PCIE_USRESR_OFFSET   0x4000
-
-static const u64 MINOR_FIO_SIZES[] = {
-#ifdef TEST_MODE
-	R_DRCT_DRAM_SIZE, //et_cdev_type_drct_dram
-	R_PU_MBOX_PC_MM_SIZE, //et_cdev_type_mbox_mm
-	R_PU_MBOX_PC_SP_SIZE, //et_cdev_type_mbox_sp
-	R_PU_TRG_PCIE_SIZE, //et_cdev_type_trg_pcie
-	R_PCIE_USRESR_SIZE, //et_cdev_type_pcie_useresr
-#endif
-	0, //et_cdev_type_mb_sp
-	0, //et_cdev_type_mb_mm
-	R_DRCT_DRAM_SIZE, //et_cdev_type_bulk
-};
-
-static u8 __attribute__((aligned(8))) rw_buff[8192];
-
-#define RW_BUFF_DWORDS ARRAY_SIZE(rw_buff) / 4
 
 //The SoC supports MSI, MSI-X, and Legacy PCI IRQs. Legacy gives you exactly 1
 //interrupt vector. MSI is up to 32 in powers of 2. MSI-X is up to 2048 in any
@@ -141,46 +62,9 @@ static u8 __attribute__((aligned(8))) rw_buff[8192];
 #define MIN_VECS 1
 #define REQ_VECS 2
 
-struct et_pci_minor_dev {
-	struct device *pdevice;
-	struct et_pci_dev *et_dev;
-	struct cdev cdev;
-	struct mutex open_close_mutex;
-	struct mutex read_write_mutex;
-	enum et_cdev_type type;
-	int ref_count;
-};
-
-struct et_pci_dev {
-	struct pci_dev *pdev;
-	void __iomem *r_drct_dram;
-	void __iomem *r_pu_mbox_pc_mm;
-	void __iomem *r_pu_mbox_pc_sp;
-	void __iomem *r_pu_trg_pcie;
-	void __iomem *r_pcie_usresr;
-	struct et_mbox mbox_mm;
-	struct et_mbox mbox_sp;
-	int num_vecs;
-	struct et_pci_minor_dev et_minor_devs[MINORS_PER_SOC];
-};
-
-static void et_ioread8_block(void __iomem *port, const void *dst, u64 count)
-{
-	while (count--) {
-		*(u8 *)dst = ioread8(port);
-		++port;
-		++dst;
-	}
-}
-
-static void et_ioread32_block(void __iomem *port, const void *dst, u64 count)
-{
-	while (count--) {
-		*(u32 *)dst = ioread32(port);
-		dst += 4;
-		port += 4;
-	}
-}
+/* MAX_MINORS picked arbitrarily */
+#define MIN_MINOR 0
+#define MAX_MINORS (MINORS_PER_SOC * 16)
 
 static irqreturn_t et_pcie_isr(int irq, void *dev_id)
 {
@@ -193,92 +77,8 @@ static irqreturn_t et_pcie_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int et_mmio_bounds_check(u64 max_size, size_t count, loff_t *pos)
-{
-	u64 last_off = *pos + count - 1;
-
-	if (*pos >= last_off) {
-		pr_err("read overflow\n");
-		return -EIO;
-	}
-
-	if (last_off >= max_size) {
-		pr_err("read out of bounds\n");
-		return -EIO;
-	}
-
-	return 0;
-}
-
-static ssize_t et_mmio_read(void __iomem *mem, u64 max_size, char __user *buf,
-	                    size_t count, loff_t *pos)
-{
-	int rc;
-	u64 iocount, buf_dwords;
-	ssize_t read_count = 0;
-	
-	rc = et_mmio_bounds_check(max_size, count, pos);
-	if (rc < 0) {
-		return rc;
-	}
-
-	//Go to next u32 aligned iomem 
-	if (*pos & 0x3) {
-		iocount = 4 - (*pos & 0x3);
-
-		et_ioread8_block(mem + *pos, rw_buff, iocount);
-
-		rc = copy_to_user(buf, rw_buff, iocount);
-		if (rc) {
-			pr_err("failed to copy to user\n");
-			*pos += iocount - rc;
-			return iocount - rc;
-		}
-
-		*pos += iocount;
-		buf += iocount;
-		read_count += iocount;
-	}
-
-	//Copy 32-bit aligned values. The data set from user-mode might be quite
-	//large (GB), so break up pulling it into smaller chunks.
-	buf_dwords = (count - read_count) / 4;
-	while(buf_dwords) {
-		iocount = min((u64)RW_BUFF_DWORDS, buf_dwords);
-
-		et_ioread32_block(mem + *pos, rw_buff, iocount);
-
-		rc = copy_to_user(buf, rw_buff, iocount * 4);
-		if (rc) {
-			pr_err("failed to copy to user\n");
-			*pos += (iocount * 4) - rc;
-			return read_count + ((iocount * 4) - rc);
-		}
-
-		*pos += iocount * 4;
-		buf += iocount * 4;
-		read_count += iocount * 4;
-		buf_dwords -= iocount;
-	}
-
-	//Remaining bytes smaller than a u32
-	iocount = count - read_count;
-	if (iocount) {
-		et_ioread8_block(mem + *pos, rw_buff, iocount);
-
-		rc = copy_to_user(buf, rw_buff, iocount);
-		if (rc) {
-			pr_err("failed to copy to user\n");
-			*pos += iocount - rc;
-			return iocount - rc;
-		}
-
-		*pos += iocount;
-		read_count += iocount;
-	}
-
-	return read_count;
-}
+//TODO: tune this value
+#define DMA_THRESHOLD 1024
 
 static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 				   size_t count, loff_t *pos)
@@ -286,32 +86,11 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 	struct et_pci_minor_dev *minor_dev = fp->private_data;
 	struct et_pci_dev *et_dev = minor_dev->et_dev;
 	ssize_t rv;
+	bool use_mmio = false;
 
 	mutex_lock(&minor_dev->read_write_mutex);
 
 	switch(minor_dev->type){
-#ifdef TEST_MODE
-	case et_cdev_type_drct_dram:
-		rv = et_mmio_read(et_dev->r_drct_dram, R_DRCT_DRAM_SIZE, buf,
- 			          count, pos);
-		break;
-	case et_cdev_type_mbox_mm:
-		rv = et_mmio_read(et_dev->r_pu_mbox_pc_mm, R_PU_MBOX_PC_MM_SIZE,
-				  buf, count, pos);
-		break;
-	case et_cdev_type_mbox_sp:
-		rv = et_mmio_read(et_dev->r_pu_mbox_pc_sp, R_PU_MBOX_PC_SP_SIZE,
- 				  buf, count, pos);
-		break;
-	case et_cdev_type_trg_pcie:
-		rv = et_mmio_read(et_dev->r_pu_trg_pcie, R_PU_TRG_PCIE_SIZE,
- 				  buf, count, pos);
-		break;
-	case et_cdev_type_pcie_useresr:
-		rv = et_mmio_read(et_dev->r_pcie_usresr, R_PCIE_USRESR_SIZE,
- 			          buf, count, pos);
-		break;
-#endif
 	case et_cdev_type_mb_sp:
 		rv = et_mbox_read_to_user(&et_dev->mbox_sp, buf, count);
 		break;
@@ -319,9 +98,21 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 		rv = et_mbox_read_to_user(&et_dev->mbox_mm, buf, count);
 		break;
 	case et_cdev_type_bulk:
-		rv = et_dma_push_to_user(buf, count, pos, et_dma_chan_write_0,
-					 &et_dev->mbox_mm, et_dev->r_drct_dram,
-					 et_dev->pdev);
+		if (et_dev->bulk_cfg == BULK_CFG_AUT0) {
+			if (count < DMA_THRESHOLD) {
+				use_mmio = true;
+			}
+		} else if (et_dev->bulk_cfg == BULK_CFG_MMIO) {
+			use_mmio = true;
+		}
+
+		if (use_mmio) {
+			rv = et_mmio_read_to_user(buf, count, pos, et_dev);
+		} else {
+			rv = et_dma_push_to_user(buf, count, pos,
+						 et_dma_chan_write_0, et_dev);
+		}
+
 		break;
 	default:
 		pr_err("dev type invalid");
@@ -333,128 +124,17 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 	return rv;
 }
 
-static void et_iowrite8_block(void __iomem *port, const void *src, u64 count)
-{
-	while (count--) {
-		iowrite8(*(u8 *)src, port);
-		++src;
-		++port;
-	}
-}
-
-static void et_iowrite32_block(void __iomem *port, const void *src, u64 count)
-{
-	while (count--) {
-		iowrite32(*(u32 *)src, port);
-		src += 4;
-		port += 4;
-	}
-}
-
-static ssize_t et_mmio_write(void __iomem *mem, u64 max_size, const char __user *buf,
-	                    size_t count, loff_t *pos)
-{
-	int rc;
-	u64 iocount, buf_dwords;
-	ssize_t write_count = 0;
-	
-	rc = et_mmio_bounds_check(max_size, count, pos);
-	if (rc < 0) {
-		return rc;
-	}
-
-	//Handle unaligned bytes at beginning of write
-	if (*pos & 0x3) {
-		iocount = 4 - (*pos & 0x3);
-
-		rc = copy_from_user(rw_buff, buf, iocount);
-		if (rc) {
-			pr_err("failed to copy from user\n");
-			return write_count;
-		}
-
-		et_iowrite8_block(mem + *pos, rw_buff, iocount);
-
-		*pos += iocount;
-		buf += iocount;
-		write_count += iocount;
-	}
-
-	//Copy 32-bit aligned values. The data set from user-mode might be quite
-	//large (GB), so break up pulling it into smaller chunks.
-	buf_dwords = (count - write_count) / 4;
-
-	while (buf_dwords) {
-		iocount = min((u64)RW_BUFF_DWORDS, buf_dwords);
-
-		rc = copy_from_user(rw_buff, buf, iocount * 4);
-		if (rc) {
-			pr_err("failed to copy from user\n");
-			return write_count;
-		}
-
-		et_iowrite32_block(mem + *pos, rw_buff, iocount);
-
-		*pos += iocount * 4;
-		buf += iocount * 4;
-		write_count += iocount * 4;
-		buf_dwords -= iocount;
-	}
-
-	//Remaining bytes smaller than a u32
-	iocount = count - write_count;
-	if (iocount) {
-		rc = copy_from_user(rw_buff, buf, iocount);
-		if (rc) {
-			pr_err("failed to copy from user\n");
-			return write_count;
-		}
-
-		et_iowrite8_block(mem + *pos, rw_buff, iocount);
-
-		*pos += iocount;
-		write_count += iocount;
-	}
-
-	return write_count;
-}
-
 static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
 				    size_t count, loff_t *pos)
 {
 	struct et_pci_minor_dev *minor_dev = fp->private_data;
 	struct et_pci_dev *et_dev = minor_dev->et_dev;
 	ssize_t rv = 0;
-	u64 max_size = MINOR_FIO_SIZES[minor_dev->type];
+	bool use_mmio = false;
  
-	// Set up return value if relevant mailbox is not ready
-	rv = -EBUSY;
-
 	mutex_lock(&minor_dev->read_write_mutex);
 
 	switch(minor_dev->type) {
-#ifdef TEST_MODE
-	case et_cdev_type_drct_dram:
-		rv = et_mmio_write(et_dev->r_drct_dram, max_size, buf, count,
-			           pos);
-		break;
-	case et_cdev_type_mbox_mm:
-		rv = et_mmio_write(et_dev->r_pu_mbox_pc_mm, max_size, buf, 
-			           count, pos);
-		break;
-	case et_cdev_type_mbox_sp:
-		rv = et_mmio_write(et_dev->r_pu_mbox_pc_sp, max_size, buf,
-			           count, pos);
-		break;
-	case et_cdev_type_trg_pcie:
-		rv = et_mmio_write(et_dev->r_pu_trg_pcie, max_size, buf, count,
-			           pos);
-		break;
-	case et_cdev_type_pcie_useresr:
-		rv = et_mmio_write(et_dev->r_pcie_usresr, max_size, buf, count,
-			           pos);
-		break;
-#endif
 	case et_cdev_type_mb_sp:
 		rv = et_mbox_write_from_user(&et_dev->mbox_sp, buf, count);
 		break;
@@ -464,15 +144,27 @@ static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
 	case et_cdev_type_bulk:
 		//TODO: pick DMA channel from an ioctl
 		//TODO: allow multiple bulk reads/writes at once; change locking
-		//TODO: allow picking MMIO / DMA with ioctl, and pick dynamically by default
 		//TODO: async I/O api
-		rv = et_dma_pull_from_user(buf, count, pos, et_dma_chan_read_0,
-					   &et_dev->mbox_mm,
-					   et_dev->r_drct_dram, et_dev->pdev);
+		if (et_dev->bulk_cfg == BULK_CFG_AUT0) {
+			if (count < DMA_THRESHOLD) {
+				use_mmio = true;
+			}
+		}
+		else if (et_dev->bulk_cfg == BULK_CFG_MMIO) {
+			use_mmio = true;
+		}
+
+		if (use_mmio) {
+			rv = et_mmio_write_from_user(buf, count, pos, et_dev);
+		} else {
+			rv = et_dma_pull_from_user(buf, count, pos,
+						   et_dma_chan_read_0, et_dev);
+		}
+
 		break;
 	default:
 		pr_err("dev type invalid");
-		return -EINVAL;
+		rv = -EINVAL;
 	}
 
  	mutex_unlock(&minor_dev->read_write_mutex);
@@ -488,14 +180,11 @@ static loff_t esperanto_pcie_llseek(struct file *fp, loff_t pos, int whence)
 
 	mutex_lock(&minor_dev->read_write_mutex);
 
-	switch (minor_dev->type) {
-	case et_cdev_type_mb_sp:
-	case et_cdev_type_mb_mm:
-		pr_err("dev does not support lseek");
-		break;
-	default:
-		//Other char devices support lseek
-		break;
+	if (minor_dev->type == et_cdev_type_mb_sp ||
+	    minor_dev->type == et_cdev_type_mb_mm) {
+		pr_err("dev does not support lseek\n");
+		new_pos = -EINVAL;
+		goto error;
 	}
 
 	switch (whence) {
@@ -506,28 +195,24 @@ static loff_t esperanto_pcie_llseek(struct file *fp, loff_t pos, int whence)
 		new_pos = fp->f_pos + pos;
 		break;
 	case SEEK_END:
-		pr_err("SEEK_END not supported");
-		return -EINVAL;
+	default:
+		pr_err("whence %d not supported\n", whence);
+		new_pos = -EINVAL;
+		goto error;
 	}
 
-	if (minor_dev->type == et_cdev_type_bulk) {
+	//Could do MMIO or DMA based on the size; so, either bounds check
+	//passing is sufficent.
+	if (et_mmio_iomem_idx((uint64_t)new_pos, 1) < 0) {
 		if (et_dma_bounds_check((uint64_t)new_pos, 1)) {
-			return -EINVAL;
-		}
-	}
-	else {
-		if (new_pos > MINOR_FIO_SIZES[minor_dev->type]) {
-			pr_err("pos > bounds");
-			return -EINVAL;
-		}
-		if (new_pos < 0) {
-			pr_err("pos < bounds");
-			return -EINVAL;
+			new_pos = -EINVAL;
+			goto error;
 		}
 	}
 
 	fp->f_pos = new_pos;
 
+error:
 	mutex_unlock(&minor_dev->read_write_mutex);
 
 	return new_pos;
@@ -597,6 +282,28 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 			return -ENOMEM;
 		}
 		return 0;
+	
+	case SET_BULK_CFG:
+	{
+		uint32_t bulk_cfg = (uint32_t)arg;
+		
+		if (minor_dev->type != et_cdev_type_bulk) {
+			pr_err("Tried to set bulk cfg on non-bulk device\n");
+			return -EINVAL;
+		}
+
+		
+		if (arg > BULK_CFG_DMA) {
+			pr_err("Invalid bulk cfg %d\n", bulk_cfg);
+			return -EINVAL;
+		}
+
+		mutex_lock(&minor_dev->read_write_mutex);
+		et_dev->bulk_cfg = bulk_cfg;
+		mutex_unlock(&minor_dev->read_write_mutex);
+
+		return 0;
+	}
 
 	default:
 		pr_err("esperanto_pcie_ioctl: unknown cmd: 0x%x\n", cmd);
@@ -699,23 +406,20 @@ static void destory_et_pci_dev(struct et_pci_dev *et_dev)
 
 static void et_unmap_bars(struct et_pci_dev *et_dev)
 {
-	if (et_dev->r_drct_dram)
-		iounmap(et_dev->r_drct_dram);
-	if (et_dev->r_pu_mbox_pc_mm)
-		iounmap(et_dev->r_pu_mbox_pc_mm);
-	if (et_dev->r_pu_mbox_pc_sp)
-		iounmap(et_dev->r_pu_mbox_pc_sp);
-	if (et_dev->r_pu_trg_pcie)
-		iounmap(et_dev->r_pu_trg_pcie);
-	if (et_dev->r_pcie_usresr)
-		iounmap(et_dev->r_pcie_usresr);
+	int i;
+
+	for (i = 0; i < IOMEM_REGIONS; ++i) {
+		if (et_dev->iomem[i]) {
+			iounmap(et_dev->iomem[i]);
+		}
+	}
 
 	pci_release_regions(et_dev->pdev);
 }
 
 static int et_map_bars(struct et_pci_dev *et_dev)
 {
-	int rc;
+	int rc, i;
 
 	struct pci_dev *pdev = et_dev->pdev;
 
@@ -725,69 +429,27 @@ static int et_map_bars(struct et_pci_dev *et_dev)
 		return rc;
 	}
 
-	//Map all regions that are RAM with wc (write combining) for performance
+	for (i = 0; i < IOMEM_REGIONS; ++i) {
+		//Map all regions that don't map registers with wc (write
+		//combining) for perfomance
+		if (BAR_MAPPINGS[i].maps_regs) {
+			et_dev->iomem[i] =
+				pci_iomap_range(pdev, BAR_MAPPINGS[i].bar,
+						BAR_MAPPINGS[i].bar_offset,
+						BAR_MAPPINGS[i].size);
+		} else {
+			et_dev->iomem[i] =
+				pci_iomap_wc_range(pdev, BAR_MAPPINGS[i].bar,
+						   BAR_MAPPINGS[i].bar_offset,
+						   BAR_MAPPINGS[i].size);
+		}
 
-	//Setup BAR0
-	//Name        Host Addr       Size   Notes
-	//R_DRCT_DRAM BAR0 + 0x0000   28G    DRAM with PCIe access permissions
-
-	et_dev->r_drct_dram = pci_iomap_wc(pdev, 0, R_DRCT_DRAM_SIZE);
-
-	if (IS_ERR(et_dev->r_drct_dram)) {
-		dev_err(&pdev->dev, "mapping r_drct_dram failed\n");
-		rc = PTR_ERR(et_dev->r_drct_dram);
-		goto error;
-	}
-    
-	//Setup BAR2
-	//Name              Host Addr       Size   Notes
-	//R_PU_MBOX_PC_MM   BAR2 + 0x0000   4k     Mailbox shared memory
-	//R_PU_MBOX_PC_SP   BAR2 + 0x1000   4k     Mailbox shared memory
-	//R_PU_TRG_PCIE     BAR2 + 0x2000   8k     Mailbox interrupts
-	//R_PCIE_USRESR     BAR2 + 0x4000   4k     DMA control registers
-
-	et_dev->r_pu_mbox_pc_mm = pci_iomap_wc_range(pdev, 2,
-		                                     R_PU_MBOX_PC_MM_OFFSET,
-						     R_PU_MBOX_PC_MM_SIZE);
-
-	if (IS_ERR(et_dev->r_pu_mbox_pc_mm)) {
-		dev_err(&pdev->dev, "mapping r_pu_mbox_pc_mm failed\n");
-		rc = PTR_ERR(et_dev->r_pu_mbox_pc_mm);
-		goto error;
-	}
-
-	et_dev->r_pu_mbox_pc_sp = pci_iomap_wc_range(pdev, 2,
-		                                     R_PU_MBOX_PC_SP_OFFSET,
-						     R_PU_MBOX_PC_SP_SIZE);
-
-	if (IS_ERR(et_dev->r_pu_mbox_pc_sp)) {
-		dev_err(&pdev->dev, "mapping r_pu_mbox_pc_sp failed\n");
-		rc = PTR_ERR(et_dev->r_pu_mbox_pc_sp);
-		goto error;
-	}
-
-	//Important: This region maps registers. Do NOT mark as
-	//write-combinable, writes should not trigger writes to adjacent regs
-	et_dev->r_pu_trg_pcie = pci_iomap_range(pdev, 2,
-		                                R_PU_TRG_PCIE_OFFSET,
-						R_PU_TRG_PCIE_SIZE);
-
-	if (IS_ERR(et_dev->r_pu_trg_pcie)) {
-		dev_err(&pdev->dev, "mapping r_pu_trg_pcie failed\n");
-		rc = PTR_ERR(et_dev->r_pu_trg_pcie);
-		goto error;
-	}
-
-	//Important: This region maps registers. Do NOT mark as
-	//write-combinable, writes should not trigger writes to adjacent regs
-	et_dev->r_pcie_usresr = pci_iomap_range(pdev, 2,
-		                                R_PCIE_USRESR_OFFSET,
-					        R_PCIE_USRESR_SIZE);
-
-	if (IS_ERR(et_dev->r_pcie_usresr)) {
-		dev_err(&pdev->dev, "mapping r_pcie_usresr failed\n");
-		rc = PTR_ERR(et_dev->r_pcie_usresr);
-		goto error;
+		if (IS_ERR(et_dev->iomem[i])) {
+			dev_err(&pdev->dev, "mapping BAR_MAPPINGS[%d] failed\n",
+				i);
+			rc = PTR_ERR(et_dev->iomem[i]);
+			goto error;
+		}
 	}
 
 	return 0;
@@ -855,7 +517,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_unmap_bars;
 	}
 	else {
-		et_dev->num_vecs = rc;
+		et_dev->num_irq_vecs = rc;
 	}
 
 	//TODO: For now, only using one vec. In the future, take advantage of multi vec
@@ -873,10 +535,10 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_free_irq_vecs;
 	}
 
-	et_mbox_init(&et_dev->mbox_mm, et_dev->r_pu_mbox_pc_mm,
-		     et_dev->r_pu_trg_pcie, interrupt_mbox_mm);
-	et_mbox_init(&et_dev->mbox_sp, et_dev->r_pu_mbox_pc_sp,
-		     et_dev->r_pu_trg_pcie, interrupt_mbox_sp);
+	et_mbox_init(&et_dev->mbox_mm, et_dev->iomem[IOMEM_R_PU_MBOX_PC_MM],
+		     et_dev->iomem[IOMEM_R_PU_TRG_PCIE], interrupt_mbox_mm);
+	et_mbox_init(&et_dev->mbox_sp, et_dev->iomem[IOMEM_R_PU_MBOX_PC_SP],
+		     et_dev->iomem[IOMEM_R_PU_TRG_PCIE], interrupt_mbox_sp);
 
 	//Create minor character devices for this device
 	for (i = 0; i < MINORS_PER_SOC; ++i) {
