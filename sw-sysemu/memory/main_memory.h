@@ -89,7 +89,7 @@ struct MainMemory {
         dram_base           = 0x8000000000ULL,
     };
 
-    void read(addr_type addr, size_type n, void* result) const {
+    void read(addr_type addr, size_type n, void* result) {
         const auto elem = search(addr, n);
         elem->read(addr - elem->first(), n, reinterpret_cast<pointer>(result));
     }

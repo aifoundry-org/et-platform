@@ -25,6 +25,7 @@ emu_hdrs := \
 	traps.h \
 	txs.h \
 	utility.h \
+	devices/plic.h \
 	devices/pu_uart.h \
 	memory/dense_region.h \
 	memory/dump_data.h \

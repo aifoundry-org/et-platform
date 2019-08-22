@@ -28,7 +28,7 @@ struct MaxionRegion : public MemoryRegion {
 
     static_assert(N == 256_MiB, "bemu::MaxionRegion has illegal size");
 
-    void read(size_type pos, size_type n, pointer result) const override {
+    void read(size_type pos, size_type n, pointer result) override {
         if (current_thread != EMU_IO_SHIRE_SP_THREAD)
             throw memory_error(first() + pos);
         std::fill_n(result, n, memory_reset_value);

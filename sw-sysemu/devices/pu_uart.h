@@ -72,7 +72,7 @@ struct PU_Uart : public MemoryRegion
         DW_APB_UART_CTR         = 0xfc
     };
 
-    void read(size_type pos, size_type n, pointer result) const override {
+    void read(size_type pos, size_type n, pointer result) override {
         switch (pos) {
         case DW_APB_UART_LSR:
             assert(n == 4);

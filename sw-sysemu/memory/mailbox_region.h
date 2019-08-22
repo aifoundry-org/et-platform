@@ -44,7 +44,7 @@ struct MailboxRegion : public MemoryRegion {
         pu_mbox_pc_sp_pos  = 0x10003000,
     };
 
-    void read(size_type pos, size_type n, pointer result) const override {
+    void read(size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
         if (!elem) {
             std::fill_n(result, n, memory_reset_value);

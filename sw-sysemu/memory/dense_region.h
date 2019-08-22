@@ -30,7 +30,7 @@ struct DenseRegion : public MemoryRegion {
     static_assert((N > 0) && !(N % 64),
                   "bemu::DenseRegion size must be a multiple of 64");
 
-    void read(size_type pos, size_type n, pointer result) const override {
+    void read(size_type pos, size_type n, pointer result) override {
         if (storage.empty()) {
             std::fill_n(result, n, memory_reset_value);
         } else {

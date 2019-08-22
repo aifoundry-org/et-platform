@@ -36,7 +36,7 @@ struct SparseRegion : public MemoryRegion
     static_assert((N > 0) && !(N % M),
                   "bemu::SparseRegion size must be a multiple of bucket size");
 
-    void read(size_type pos, size_type n, pointer result) const override {
+    void read(size_type pos, size_type n, pointer result) override {
         size_type bucket = pos / M;
         size_type offset = pos % M;
         size_type count = std::min(n, M - offset);

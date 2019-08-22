@@ -8,8 +8,10 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
-// Local
-#include "memory/main_memory.h"
+// Forward declarations
+namespace bemu {
+struct MainMemory;
+}
 
 typedef struct
 {

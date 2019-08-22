@@ -7,9 +7,10 @@
 #include <endian.h>
 
 // Local
-#include "api_communicate.h"
-#include "emu_gio.h"
 #include "sys_emu.h"
+#include "emu_gio.h"
+#include "api_communicate.h"
+#include "memory/main_memory.h"
 
 // Set
 void api_communicate::set_comm_path(char * api_comm_path)

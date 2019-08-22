@@ -20,7 +20,7 @@ struct MemoryRegion
     virtual ~MemoryRegion() {}
 
     // Copies @n bytes starting from offset @pos into @result
-    virtual void read(size_type pos, size_type n, pointer result) const = 0;
+    virtual void read(size_type pos, size_type n, pointer result) = 0;
 
     // Copies @n bytes from @source starting into offset @pos
     virtual void write(size_type pos, size_type n, const_pointer source) = 0;

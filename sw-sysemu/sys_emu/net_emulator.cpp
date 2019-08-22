@@ -3,8 +3,9 @@
 #include <inttypes.h>
 
 // Local
-#include "net_emulator.h"
 #include "emu_gio.h"
+#include "net_emulator.h"
+#include "memory/main_memory.h"
 
 // Set
 void net_emulator::set_file(char * net_desc_file)

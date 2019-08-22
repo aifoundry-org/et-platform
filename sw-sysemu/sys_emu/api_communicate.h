@@ -3,11 +3,13 @@
 
 // STD
 #include <list>
+#include <cstdint>
+#include <unistd.h>
 
-// Global
-
-// Local
-#include "memory/main_memory.h"
+// Forward declarations
+namespace bemu {
+struct MainMemory;
+}
 
 // Defines
 

@@ -24,7 +24,7 @@ struct SysregRegion : public MemoryRegion {
     static_assert(N == ESR_REGION_SIZE,
                   "bemu::SysregRegion has illegal size");
 
-    void read(size_type pos, size_type count, pointer result) const override {
+    void read(size_type pos, size_type count, pointer result) override {
         assert(count == 8);
         *reinterpret_cast<uint64_t*>(result) = esr_read(first() + pos);
     }

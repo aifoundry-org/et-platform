@@ -34,7 +34,7 @@ struct SvcProcRegion : public MemoryRegion {
         sp_sram_base   = 0x00400000,
     };
 
-    void read(size_type pos, size_type n, pointer result) const override {
+    void read(size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
         if (!elem) {
             std::fill_n(result, n, memory_reset_value);

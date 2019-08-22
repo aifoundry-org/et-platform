@@ -38,18 +38,8 @@ struct ScratchRegion : public MemoryRegion
     static_assert((M > 0) && (M < 128),
                   "bemu::ScratchRegion must have at most 127 buckets");
 
-    void read(size_type pos, size_type n, pointer result) const override {
-        size_type index = normalize(pos);
-        size_type bucket = slice(index);
-        size_type offset = index % 8_MiB;
-        if (out_of_range(bucket, offset, n)) {
-            throw memory_error(first() + pos);
-        }
-        if (storage[bucket].empty()) {
-            std::fill_n(result, n, memory_reset_value);
-        } else {
-            std::copy_n(storage[bucket].cbegin() + offset, n, result);
-        }
+    void read(size_type pos, size_type n, pointer result) override {
+        read_const(pos, n, result);
     }
 
     void write(size_type pos, size_type n, const_pointer source) override {
@@ -78,7 +68,7 @@ struct ScratchRegion : public MemoryRegion
     void dump_data(std::ostream& os, size_type pos, size_type n) const override {
         value_type elem;
         while (n-- > 0) {
-            this->read(pos++, 1, &elem);
+            this->read_const(pos++, 1, &elem);
             os.write(reinterpret_cast<const char*>(&elem), sizeof(value_type));
         }
     }
@@ -87,6 +77,20 @@ struct ScratchRegion : public MemoryRegion
     storage_type  storage;
 
 protected:
+    void read_const(size_type pos, size_type n, pointer result) const {
+        size_type index = normalize(pos);
+        size_type bucket = slice(index);
+        size_type offset = index % 8_MiB;
+        if (out_of_range(bucket, offset, n)) {
+            throw memory_error(first() + pos);
+        }
+        if (storage[bucket].empty()) {
+            std::fill_n(result, n, memory_reset_value);
+        } else {
+            std::copy_n(storage[bucket].cbegin() + offset, n, result);
+        }
+    }
+
     size_type normalize(size_type pos) const {
         if (pos >= 1_GiB) {
             pos = ( (pos         & ~0x4fffffc0ull) |
