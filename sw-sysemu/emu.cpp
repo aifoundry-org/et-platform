@@ -373,7 +373,7 @@ static inline void update_tensor_error(unsigned thread, uint16_t value)
 {
     cpu[thread].tensor_error |= value;
     if (value)
-        LOG_OTHER(DEBUG, thread, "\tTensorError = 0x%04" PRIx16 " (0x%04" PRIx16 ")", cpu[thread].tensor_error, value);
+        LOG_OTHER(DEBUG, thread, "\ttensor_error  = 0x%04" PRIx16 " (0x%04" PRIx16 ")", cpu[thread].tensor_error, value);
 }
 
 static inline void update_tensor_error(uint16_t value)
