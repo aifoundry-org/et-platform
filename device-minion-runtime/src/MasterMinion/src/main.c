@@ -6,13 +6,13 @@
 #include "interrupt.h"
 #include "kernel.h"
 #include "layout.h"
+#include "log.h"
 #include "mailbox.h"
 #include "mailbox_id.h"
 #include "message.h"
 #include "pcie_device.h"
 #include "pcie_dma.h"
 #include "pcie_isr.h"
-#include "printf.h"
 #include "print_exception.h"
 #include "serial.h"
 #include "shire.h"
@@ -25,7 +25,7 @@
 
 //#define DEBUG_PRINT_HOST_MESSAGE
 //#define DEBUG_SEND_MESSAGES_TO_SP
-//#define DEBUG_FAKE_MESSAGE_FROM_HOST
+#define DEBUG_FAKE_MESSAGE_FROM_HOST
 //#define DEBUG_FAKE_ABORT_FROM_HOST
 
 #ifdef DEBUG_FAKE_MESSAGE_FROM_HOST
@@ -91,17 +91,17 @@ static void __attribute__((noreturn)) master_thread(void)
     uint64_t temp;
 
     SERIAL_init(UART0);
-    printf("\r\nMaster minion " GIT_VERSION_STRING "\r\n");
+    log_write(LOG_LEVEL_CRITICAL, "\r\nMaster minion " GIT_VERSION_STRING "\r\n");
 
     INT_init();
 
-    printf("Initializing mailboxes...");
+    log_write(LOG_LEVEL_CRITICAL, "Initializing mailboxes...");
     MBOX_init();
-    printf("done\r\n");
+    log_write(LOG_LEVEL_CRITICAL, "done\r\n");
 
-    printf("Initializing message buffers...");
+    log_write(LOG_LEVEL_CRITICAL, "Initializing message buffers...");
     message_init_master();
-    printf("done\r\n");
+    log_write(LOG_LEVEL_CRITICAL, "done\r\n");
 
     // Empty all FCCs
     init_fcc(FCC_0);
@@ -129,7 +129,7 @@ static void __attribute__((noreturn)) master_thread(void)
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
         MBOX_update_status(MBOX_SP);
 
-        printf("Sending message to SP, length = %" PRId16 "\r\n", length);
+        log_write(LOG_LEVEL_DEBUG, "Sending message to SP, length = %" PRId16 "\r\n", length);
 
         int64_t result = MBOX_send(MBOX_SP, buffer, length);
 
@@ -139,7 +139,7 @@ static void __attribute__((noreturn)) master_thread(void)
         }
         else
         {
-            printf("MBOX_send error %d\r\n, result");
+            log_write(LOG_LEVEL_DEBUG, "MBOX_send error %d\r\n, result");
         }
 #endif
 
@@ -220,7 +220,7 @@ static void fake_message_from_host(void)
             }
         };
 
-        printf("faking kernel launch message fom host\r\n");
+        log_write(LOG_LEVEL_DEBUG, "faking kernel launch message fom host\r\n");
 
         launch_kernel(&host_message.kernel_params, &host_message.kernel_info);
     }
@@ -228,7 +228,7 @@ static void fake_message_from_host(void)
 #ifdef DEBUG_FAKE_ABORT_FROM_HOST
     if (get_kernel_state(kernel_id) == KERNEL_STATE_RUNNING)
     {
-        printf("faking kernel abort message fom host\r\n");
+        log_write(LOG_LEVEL_CRITICAL, "faking kernel abort message fom host\r\n");
 
         abort_kernel(kernel_id);
     }
@@ -253,7 +253,7 @@ static void handle_message_from_host(void)
 
     if ((size_t)length < sizeof(mbox_message_id_t))
     {
-        printf("Invalid message: length = %" PRId64 ", min length %d\r\n", length, sizeof(mbox_message_id_t));
+        log_write(LOG_LEVEL_ERROR, "Invalid message: length = %" PRId64 ", min length %d\r\n", length, sizeof(mbox_message_id_t));
         return;
     }
 
@@ -261,7 +261,7 @@ static void handle_message_from_host(void)
 
     if (*message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
     {
-        printf("received kernel launch message fom host, length = %" PRId64 "\r\n", length);
+        log_write(LOG_LEVEL_INFO, "received kernel launch message fom host, length = %" PRId64 "\r\n", length);
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE
         print_host_message(buffer, length);
@@ -273,7 +273,7 @@ static void handle_message_from_host(void)
     }
     else if (*message_id == MBOX_MESSAGE_ID_KERNEL_ABORT)
     {
-        printf("received kernel abort message fom host\r\n");
+        log_write(LOG_LEVEL_INFO, "received kernel abort message fom host\r\n");
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE
         print_host_message(buffer, length);
@@ -323,7 +323,7 @@ static void handle_message_from_host(void)
         }
 
         if (rc != 0) {
-            printf("Failed to configure DMA chan %d (errno %d)\r\n", message->chan, rc);
+            log_write(LOG_LEVEL_ERROR, "Failed to configure DMA chan %d (errno %d)\r\n", message->chan, rc);
             done_message.status = rc;
             MBOX_send(MBOX_PCIE, &done_message, sizeof(done_message));
             return;
@@ -339,9 +339,24 @@ static void handle_message_from_host(void)
 
         //TODO: notify glow kernel HARTs that data is done being transferred
     }
+    else if (*message_id == MBOX_MESSAGE_ID_SET_MASTER_LOG_LEVEL)
+    {
+        const host_log_level_message_t* const host_log_level_message_ptr = (void*)buffer;
+        log_set_level(host_log_level_message_ptr->log_level);
+    }
+    else if (*message_id == MBOX_MESSAGE_ID_SET_WORKER_LOG_LEVEL)
+    {
+        const host_log_level_message_t* const host_log_level_message_ptr = (void*)buffer;
+
+        message_t message;
+        message.id = MESSAGE_ID_SET_LOG_LEVEL;
+        message.data[0] = host_log_level_message_ptr->log_level;
+
+        broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
+    }
     else
     {
-        printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
+        log_write(LOG_LEVEL_ERROR, "Invalid message id: %" PRIu64 "\r\n", *message_id);
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE
         print_host_message(buffer, length);
@@ -367,7 +382,7 @@ static void handle_message_from_sp(void)
 
         if (length > 0)
         {
-            printf("Received message from SP, length = %" PRId64 "\r\n", length);
+            log_write(LOG_LEVEL_INFO, "Received message from SP, length = %" PRId64 "\r\n", length);
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
             for (int64_t i = 0; i < length; i++)
@@ -376,7 +391,7 @@ static void handle_message_from_sp(void)
 
                 if (buffer[i] != expected)
                 {
-                    printf ("message[%" PRId64 "] = 0x%02" PRIx8 " expected 0x%02" PRIx8 "\r\n", i, buffer[i], expected);
+                    log_write(LOG_LEVEL_INFO, "message[%" PRId64 "] = 0x%02" PRIx8 " expected 0x%02" PRIx8 "\r\n", i, buffer[i], expected);
                 }
             }
 #endif
@@ -415,48 +430,48 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
     switch (message.id)
     {
         case MESSAGE_ID_NONE:
-            printf("Invalid MESSAGE_ID_NONE received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_DEBUG, "Invalid MESSAGE_ID_NONE received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
         break;
 
         case MESSAGE_ID_SHIRE_READY:
-            printf("MESSAGE_ID_SHIRE_READY received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_SHIRE_READY received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
             update_shire_state(shire, SHIRE_STATE_READY);
         break;
 
         case MESSAGE_ID_KERNEL_LAUNCH:
-            printf("Invalid MESSAGE_ID_KERNEL_LAUNCH received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_KERNEL_LAUNCH received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
         break;
 
         case MESSAGE_ID_KERNEL_ABORT:
-            printf("Invalid MESSAGE_ID_KERNEL_ABORT received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_KERNEL_ABORT received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
         break;
 
         case MESSAGE_ID_KERNEL_LAUNCH_ACK:
-            printf("MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_KERNEL_LAUNCH_ACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
             update_kernel_state(message.data[0], KERNEL_STATE_RUNNING);
         break;
 
         case MESSAGE_ID_KERNEL_LAUNCH_NACK:
-            printf("MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
             update_shire_state(shire, SHIRE_STATE_ERROR);
             update_kernel_state(message.data[0], KERNEL_STATE_ERROR);
         break;
 
         case MESSAGE_ID_KERNEL_ABORT_NACK:
-            printf("MESSAGE_ID_KERNEL_ABORT_NACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_KERNEL_ABORT_NACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
             update_shire_state(shire, SHIRE_STATE_ERROR);
             update_kernel_state(kernel, KERNEL_STATE_ERROR);
         break;
 
         case MESSAGE_ID_KERNEL_COMPLETE:
         {
-            printf("MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_KERNEL_COMPLETE received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
             update_kernel_state(message.data[0], KERNEL_STATE_COMPLETE);
         }
         break;
 
         case MESSAGE_ID_LOOPBACK:
-            printf("MESSAGE_ID_LOOPBACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+            log_write(LOG_LEVEL_DEBUG, "MESSAGE_ID_LOOPBACK received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
         break;
 
         case MESSAGE_ID_EXCEPTION:
@@ -469,8 +484,12 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
             print_log_message(shire, hart, &message);
         break;
 
+        case MESSAGE_ID_SET_LOG_LEVEL:
+            log_write(LOG_LEVEL_WARNING, "Invalid MESSAGE_ID_SET_LOG_LEVEL received from shire %" PRId64 " hart %" PRId64 "\r\n", shire, hart);
+        break;
+
         default:
-            printf("Unknown message id = 0x%016" PRIx64 "received from shire %" PRId64 " hart %" PRId64 "\r\n", message.id, shire, hart);
+            log_write(LOG_LEVEL_WARNING, "Unknown message id = 0x%016" PRIx64 "received from shire %" PRId64 " hart %" PRId64 "\r\n", message.id, shire, hart);
         break;
     }
 }
@@ -492,19 +511,18 @@ static void print_host_message(const uint8_t* const buffer, int64_t length)
 {
     for (int64_t i = 0; i < length / 8; i++)
     {
-        printf ("message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((const uint64_t* const)(const void* const)buffer)[i] );
+        log_write(LOG_LEVEL_INFO, "message[%" PRId64 "] = 0x%016" PRIx64 "\r\n", i, ((const uint64_t* const)(const void* const)buffer)[i]);
     }
 }
 #endif
 
 static void print_log_message(uint64_t shire, uint64_t hart, const message_t* const message)
 {
-    const char* const data_ptr = (const char* const)message->data;
-    const uint8_t length = data_ptr[0];
+    const char* const string_ptr = (const char* const)message->data;
 
-    printf("S%02" PRId64 " H%04" PRId64 ": ", shire, hart);
-    SERIAL_write(UART0, &data_ptr[1], length);
-    SERIAL_write(UART0, "\r\n", 2);
+    // Print all messages receives - worker minion have their own warning level threshold.
+    // Limit length of displayed string in case we receive garbage
+    log_write(LOG_LEVEL_CRITICAL, "S%02" PRId64 " H%03" PRId64 ": %.*s\r\n", shire, hart, sizeof(message->data) - 1, string_ptr);
 }
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP

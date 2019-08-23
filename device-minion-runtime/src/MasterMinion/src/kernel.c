@@ -7,10 +7,10 @@
 #include "host_message.h"
 #include "kernel_config.h"
 #include "layout.h"
+#include "log.h"
 #include "mailbox.h"
 #include "mailbox_id.h"
 #include "message.h"
-#include "printf.h"
 #include "shire.h"
 #include "syscall.h"
 
@@ -165,7 +165,7 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
             // 1GHz / 25 = 40Mhz
             uint64_t elapsed_time_us = (kernel_status[kernel_id].end_time - kernel_status[kernel_id].start_time) / 40;
 
-            printf("kernel %d complete, %" PRId64 "us\r\n", kernel_id, elapsed_time_us);
+            log_write(LOG_LEVEL_INFO, "kernel %d complete, %" PRId64 "us\r\n", kernel_id, elapsed_time_us);
 
             const devfw_response_t response = {
                 .message_id = MBOX_MESSAGE_ID_KERNEL_RESULT,
@@ -205,7 +205,7 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
 
     if (!all_shires_ready(shire_mask))
     {
-        printf("launch_kernel: kernel %d not all shires ready\r\n", kernel_id);
+        log_write(LOG_LEVEL_ERROR, "aborting kernel %d launch, not all shires ready\r\n", kernel_id);
         allShiresReady = false;
     }
 
@@ -214,7 +214,7 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
 
     for (int i = 0 ; i < 10; i++)
     {
-        printf("PC: 0x%010" PRIxPTR " data: 0x%08" PRIx32 "\r\n", pc, *pc);
+        log_write(LOG_LEVEL_INFO, "PC: 0x%010" PRIxPTR " data: 0x%08" PRIx32 "\r\n", pc, *pc);
         pc += 1;
     }
 #endif
@@ -222,7 +222,7 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
     // Confirm this kernel is not active
     if (kernel_status_ptr->kernel_state != KERNEL_STATE_UNUSED)
     {
-        printf("launch_kernel: kernel %d state not unused\r\n", kernel_id);
+        log_write(LOG_LEVEL_ERROR, "aborting kernel %d launch, state not unused\r\n", kernel_id);
         kernelReady = false;
     }
 
@@ -265,12 +265,10 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
             }
         }
 
-        printf("launch_kernel: launching kernel %d\r\n", kernel_id);
+        log_write(LOG_LEVEL_INFO, "launching kernel %d\r\n", kernel_id);
     }
     else
     {
-        printf("launch_kernel: aborting kernel %d launch\r\n", kernel_id);
-
         const devfw_response_t response = {
             .message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE,
             .kernel_id = kernel_id,
@@ -297,7 +295,7 @@ void abort_kernel(kernel_id_t kernel_id)
 
         if (0 == broadcast_message_send_master(kernel_status[kernel_id].shire_mask, 0xFFFFFFFFFFFFFFFFU, &message))
         {
-            printf("abort_kernel: aborted kernel %d\r\n", kernel_id);
+            log_write(LOG_LEVEL_INFO, "abort_kernel: aborted kernel %d\r\n", kernel_id);
             update_kernel_state(kernel_id, KERNEL_STATE_ABORTED);
 
             response.response_id = MBOX_KERNEL_ABORT_RESPONSE_RESULT_OK;

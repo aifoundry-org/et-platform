@@ -1,9 +1,9 @@
 #include "mailbox.h"
 #include "hal_device.h"
 #include "interrupt.h"
+#include "log.h"
 #include "pcie_isr.h"
 #include "pcie_int.h"
-#include "printf.h"
 #include "ringbuffer.h"
 
 #include <inttypes.h>
@@ -70,13 +70,13 @@ int64_t MBOX_receive(mbox_e mbox, void* const buffer_ptr, size_t buffer_size)
                 }
                 else
                 {
-                    printf("MBOX_receive: insufficient buffer, dropping message\r\n");
+                    log_write(LOG_LEVEL_ERROR, "MBOX_receive: insufficient buffer, dropping message\r\n");
                     return RINGBUFFER_read(ringbuffer_ptr, NULL, header.length);
                 }
             }
             else
             {
-                printf("MBOX_receive: invalid header\r\n");
+                log_write(LOG_LEVEL_ERROR, "MBOX_receive: invalid header\r\n");
             }
         }
     }
@@ -97,7 +97,7 @@ void MBOX_update_status(mbox_e mbox)
             case MBOX_STATUS_READY:
                 if (mbox_hw[mbox]->master_status == MBOX_STATUS_WAITING)
                 {
-                    printf("received slave ready, going master ready\r\n");
+                    log_write(LOG_LEVEL_INFO, "received slave ready, going master ready\r\n");
                     mbox_hw[mbox]->master_status = MBOX_STATUS_READY;
                     send_interrupt(mbox);
                 }
@@ -105,7 +105,7 @@ void MBOX_update_status(mbox_e mbox)
 
             case MBOX_STATUS_WAITING:
                 // The slave has requested we reset the mailbox interface.
-                printf("received slave reset req\r\n");
+                log_write(LOG_LEVEL_INFO, "received slave reset req\r\n");
                 reset_mbox(mbox);
             break;
 
@@ -125,7 +125,7 @@ void MBOX_update_status(mbox_e mbox)
                 if ((mbox_hw[mbox]->slave_status != MBOX_STATUS_READY) &&
                     (mbox_hw[mbox]->slave_status != MBOX_STATUS_WAITING))
                 {
-                    printf("received master ready, going slave ready\r\n");
+                    log_write(LOG_LEVEL_INFO, "received master ready, going slave ready\r\n");
                     mbox_hw[mbox]->slave_status = MBOX_STATUS_READY;
                     send_interrupt(mbox);
                 }
@@ -135,7 +135,7 @@ void MBOX_update_status(mbox_e mbox)
                 if ((mbox_hw[mbox]->slave_status != MBOX_STATUS_READY) &&
                     (mbox_hw[mbox]->slave_status != MBOX_STATUS_WAITING))
                 {
-                    printf("received master waiting, going slave ready\r\n");
+                    log_write(LOG_LEVEL_INFO, "received master waiting, going slave ready\r\n");
                     mbox_hw[mbox]->slave_status = MBOX_STATUS_READY;
                     send_interrupt(mbox);
                 }

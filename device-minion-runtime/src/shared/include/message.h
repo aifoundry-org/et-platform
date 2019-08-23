@@ -17,7 +17,8 @@ typedef enum
     MESSAGE_ID_KERNEL_COMPLETE,
     MESSAGE_ID_LOOPBACK,
     MESSAGE_ID_EXCEPTION,
-    MESSAGE_ID_LOG_WRITE
+    MESSAGE_ID_LOG_WRITE,
+    MESSAGE_ID_SET_LOG_LEVEL
 } message_id_t;
 
 typedef uint32_t message_number_t;

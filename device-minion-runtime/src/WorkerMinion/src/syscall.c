@@ -35,7 +35,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         break;
 
         case SYSCALL_LOG_WRITE:
-            rv = LOG_write((char*)arg1, arg2);
+            rv = log_write(arg1, (char*)arg2, arg3);
         break;
 
         case SYSCALL_PRE_KERNEL_SETUP:

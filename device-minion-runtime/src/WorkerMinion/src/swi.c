@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "hart.h"
+#include "log.h"
 #include "message.h"
 
 static message_t message;
@@ -39,6 +40,10 @@ static void handle_message(uint64_t shire, uint64_t hart, message_t* const messa
         // If kernel was running, returns to firmware context
         // If not, doesn't do anything.
         return_from_kernel(KERNEL_LAUNCH_ERROR_ABORTED);
+    }
+    else if (message_ptr->id == MESSAGE_ID_SET_LOG_LEVEL)
+    {
+        log_set_level(message_ptr->data[0]);
     }
     else if (message_ptr->id == MESSAGE_ID_LOOPBACK)
     {
