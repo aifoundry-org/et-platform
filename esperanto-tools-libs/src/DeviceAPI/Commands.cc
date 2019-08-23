@@ -44,15 +44,26 @@ etrtError ConfigureCommand::execute(Device *device) {
 
 etrtError ReadCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
-  target_device.readDevMemMMIO((uintptr_t)srcDevPtr, count, dstHostPtr);
+  // FIXME this heuristic should be revisited
+  uint64_t threshold_size = 1 << 12;
+  if (count < threshold_size) {
+    target_device.readDevMemMMIO((uintptr_t)srcDevPtr, count, dstHostPtr);
+  } else {
+    target_device.readDevMemDMA((uintptr_t)srcDevPtr, count, dstHostPtr);
+  }
   setResponse(ReadResponse());
   return etrtSuccess;
 }
 
 etrtError WriteCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
-
-  target_device.writeDevMemMMIO((uintptr_t)dstDevPtr, count, srcHostPtr);
+  // FIXME this heuristic should be revisited
+  uint64_t threshold_size = 1 << 12;
+  if ( count < threshold_size) {
+    target_device.writeDevMemMMIO((uintptr_t)dstDevPtr, count, srcHostPtr);
+  } else {
+      target_device.writeDevMemDMA((uintptr_t)dstDevPtr, count, srcHostPtr);
+  }
   setResponse(WriteResponse());
   return etrtSuccess;
 }
