@@ -18,6 +18,8 @@
 
 #define DRAM_REGION_BASE_ADDRESS 0x8100000000ULL
 
+#define SCSP_REGION_BASE_ADDRESS 0x0080000000ULL
+
 // MLS LFSR polynomials from https://users.ece.cmu.edu/~koopman/lfsr/index.html
 
 #define POLYNOMIAL_32_BIT 0x080000057ULL // 4GB DRAM
@@ -130,10 +132,10 @@ void fast_scsp_tensor_loads(uint64_t cycles)
     const uint64_t minion_id = get_minion_id();
 
     // Load 16 lines to A L1SP lines 0-15
-    register const uint64_t tensor_0_mask = DRAM_REGION_BASE_ADDRESS | 0xFULL;
+    register const uint64_t tensor_0_mask = SCSP_REGION_BASE_ADDRESS | 0xFULL;
 
     // Load 16 linesto A L1SP lines 16-31
-    register const uint64_t tensor_1_mask = DRAM_REGION_BASE_ADDRESS | 0x020000008000000FULL;
+    register const uint64_t tensor_1_mask = SCSP_REGION_BASE_ADDRESS | 0x020000008000000FULL;
 
     // 64B stride, ID 0
     register const uint64_t tensor_0_stride = 64 | 0x1;
@@ -222,8 +224,8 @@ static inline uint64_t generate_random_address(uint64_t lfsr)
 
 static inline uint64_t generate_l2_address(uint64_t minion_id, uint64_t tensor_load_id)
 {
-    // Spread minion accesses out across L2 bank/sbank/set
+    // Spread minion accesses out across SCSP way/sbank/set
     // Each 1K tesnor load hits all the sbank/bank on a set
-    // Each minion hits two sets with the tensorLoad ID 0/1
+    // Each minion hits two ways with the tensorLoad ID 0/1
     return ((minion_id * 2) + tensor_load_id) * 1024;
 }
