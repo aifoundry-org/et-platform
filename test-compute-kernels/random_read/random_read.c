@@ -69,9 +69,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t elapsed_time_us = ((uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0) - start_timestamp) / 40;
     uint64_t mb_per_s = (bytes * 1000000) / (elapsed_time_us * 1024 * 1024);
 
-    char buffer[64];
-    int64_t length = snprintf(buffer, sizeof(buffer), "%" PRIu64 "us %" PRIu64 "MB/s", elapsed_time_us, mb_per_s);
-    LOG_write(buffer, (uint64_t)length);
+    log_write(LOG_LEVEL_INFO, "%" PRIu64 "us %" PRIu64 "MB/s", elapsed_time_us, mb_per_s);
 
     return 0;
 }
@@ -214,9 +212,7 @@ static inline uint64_t generate_random_address(uint64_t lfsr)
     }
 
 #ifdef LOG_ADDRESSES
-        char buffer[64];
-        int64_t length = snprintf(buffer, sizeof(buffer), "%010" PRIx64, lfsr);
-        LOG_write(buffer, (uint64_t)length);
+        log_write(LOG_LEVEL_INFO, "%010" PRIx64, lfsr);
 #endif
 
     return lfsr;
