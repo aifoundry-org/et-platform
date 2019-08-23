@@ -1,6 +1,6 @@
 #include "shire.h"
 #include "kernel.h"
-#include "printf.h"
+#include "log.h"
 
 typedef struct
 {
@@ -35,7 +35,7 @@ void update_shire_state(uint64_t shire, shire_state_t shire_state)
             }
             else
             {
-                printf("Error illegal shire %d state transition from error\r\n", shire);
+                log_write(LOG_LEVEL_ERROR, "Error illegal shire %d state transition from error\r\n", shire);
             }
         }
     }

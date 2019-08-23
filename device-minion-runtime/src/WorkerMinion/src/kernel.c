@@ -16,7 +16,6 @@
 #include <inttypes.h>
 
 static const uint8_t tensor_zeros[64] __attribute__ ((aligned (64))) = {0};
-static char string_buffer[64];
 
 static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
 static void kernel_return_function(int64_t return_value) __attribute__ ((used));
@@ -340,22 +339,12 @@ static void log_errors(int64_t return_value, uint64_t tensor_error)
 {
     if ((return_value < 0) && (return_value != KERNEL_LAUNCH_ERROR_ABORTED))
     {
-        int64_t length = snprintf(string_buffer, sizeof(string_buffer), "return_value %" PRId64, return_value);
-
-        if (length > 0)
-        {
-            LOG_write(string_buffer, (uint64_t)length);
-        }
+        log_write(LOG_LEVEL_ERROR, "return_value %" PRId64, return_value);
     }
 
     if (tensor_error != 0)
     {
-        int64_t length = snprintf(string_buffer, sizeof(string_buffer), "tensor_error 0x%016" PRIx64, tensor_error);
-
-        if (length > 0)
-        {
-            LOG_write(string_buffer, (uint64_t)length);
-        }
+        log_write(LOG_LEVEL_ERROR, "tensor_error 0x%016" PRIx64, tensor_error);
     }
 }
 

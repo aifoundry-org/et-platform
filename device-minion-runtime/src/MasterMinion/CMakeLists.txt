@@ -32,6 +32,7 @@ set(SOURCES
     src/exception.c
     src/main.c
     src/kernel.c
+    src/log.c
     src/shire.c
     src/putchar.c
     src/build_configuration.c
