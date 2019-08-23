@@ -8,6 +8,6 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-install(FILES kernel_info.h kernel_params.h layout.h host_message.h mailbox_id.h
+install(FILES kernel_info.h kernel_params.h layout.h host_message.h mailbox_id.h log_levels.h
   DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw
   COMPONENT master-minion)
