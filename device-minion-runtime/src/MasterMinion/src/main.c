@@ -45,7 +45,7 @@ static void handle_timer_events(void);
 static void print_host_message(const uint8_t* const buffer, int64_t length);
 #endif
 
-static void print_log_message(uint64_t hart, const message_t* const message);
+static void print_log_message(uint64_t shire, uint64_t hart, const message_t* const message);
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP
 static uint16_t lfsr(void);
@@ -214,7 +214,7 @@ static void fake_message_from_host(void)
             .kernel_info = {
                 .compute_pc = KERNEL_UMODE_ENTRY,
                 .uber_kernel_nodes = 0, // unused
-                .shire_mask = 1,
+                .shire_mask = 0x1, //0xFFFFFFFF
                 .kernel_params_ptr = NULL, // gets fixed up
                 .grid_config_ptr = NULL // TODO
             }
@@ -466,7 +466,7 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
         break;
 
         case MESSAGE_ID_LOG_WRITE:
-            print_log_message(hart, &message);
+            print_log_message(shire, hart, &message);
         break;
 
         default:
@@ -497,12 +497,12 @@ static void print_host_message(const uint8_t* const buffer, int64_t length)
 }
 #endif
 
-static void print_log_message(uint64_t hart, const message_t* const message)
+static void print_log_message(uint64_t shire, uint64_t hart, const message_t* const message)
 {
     const char* const data_ptr = (const char* const)message->data;
     const uint8_t length = data_ptr[0];
 
-    printf("H%04d: ", hart);
+    printf("S%02" PRId64 " H%04" PRId64 ": ", shire, hart);
     SERIAL_write(UART0, &data_ptr[1], length);
     SERIAL_write(UART0, "\r\n", 2);
 }
