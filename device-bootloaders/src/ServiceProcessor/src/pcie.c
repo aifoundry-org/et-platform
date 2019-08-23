@@ -289,16 +289,16 @@ static void pcie_init_atus(void)
 
     //Setup BAR0
     //Name        Host Addr       SoC Addr      Size   Notes
-    //R_DRCT_DRAM BAR0 + 0x0000   0xC100000000  28G    DRAM with PCIe access permissions
+    //R_L3_DRAM   BAR0 + 0x0000   0x8100000000  28G    DRAM with PCIe access permissions
     
     uint64_t bar0 = 
         ((uint64_t)PCIE0->PF0_TYPE0_HDR.BAR1_REG.R << 32) |
         ((uint64_t)PCIE0->PF0_TYPE0_HDR.BAR0_REG.R & 0xFFFFFFF0ULL);
 
     config_inbound_iatu_0(
-        bar0,                 //baseAddr
-        R_DRCT_DRAM_BASEADDR, //targetAddr
-        R_DRCT_DRAM_SIZE);    //size
+        bar0,               //baseAddr
+        R_L3_DRAM_BASEADDR, //targetAddr
+        R_L3_DRAM_SIZE);    //size
 
     //Setup BAR2
     //Name              Host Addr       SoC Addr      Size   Notes
