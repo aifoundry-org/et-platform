@@ -59,7 +59,7 @@ public:
   /// of the ioctl. Otherwise the first element of the tuple is false.
   template <typename ARG_TYPE>
   bool ioctl_set(unsigned int request, const ARG_TYPE argp) {
-    auto rc = :4:ioctl(fd_, request, argp);
+    auto rc = ::ioctl(fd_, request, argp);
     if (rc < 0) {
       auto error = errno;
       RTERROR << "Failed to execute IOCTL: " << std::strerror(error) << "\n";

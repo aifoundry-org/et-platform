@@ -29,17 +29,12 @@ namespace et_runtime {
 namespace device {
 
 PCIeDevice::PCIeDevice(int index)
-    : DeviceTarget(index),                                       //
-      index_(index),                                             //
-      prefix_(absl::StrFormat("et%d", index)),                   //
-      bulk_("/dev/" + prefix_ + "bulk"),                         //
-      drct_dram_("/dev/" + prefix_ + "drct_dram", 0x8100000000), //
-      mm_("/dev/" + prefix_ + "mb_mm"),                          //
-      sp_("/dev/" + prefix_ + "mb_sp"),                          //
-      pcie_userersr_("/dev/" + prefix_ + "pcie_useresr"),        //
-      r_mbox_sp_("/dev/" + prefix_ + "r_mbox_sp"),               //
-      r_mbox_mm_("/dev/" + prefix_ + "r_mbox_mm"),               //
-      trg_pcie_("/dev/" + prefix_ + "trg_pcie")                  //
+    : DeviceTarget(index),                     //
+      index_(index),                           //
+      prefix_(absl::StrFormat("et%d", index)), //
+      bulk_("/dev/" + prefix_ + "bulk"),       //
+      mm_("/dev/" + prefix_ + "mb_mm"),        //
+      sp_("/dev/" + prefix_ + "mb_sp")         //
 {}
 
 bool PCIeDevice::init() {
@@ -80,23 +75,21 @@ bool PCIeDevice::registerDeviceEventCallback() {
 }
 
 bool PCIeDevice::readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) {
-  return drct_dram_.read(dev_addr, buf, size);
+  return bulk_.read_mmio(dev_addr, buf, size);
 }
 
 bool PCIeDevice::writeDevMemMMIO(uintptr_t dev_addr, size_t size,
                                  const void *buf) {
-  return drct_dram_.write(dev_addr, buf, size);
+  return bulk_.write_mmio(dev_addr, buf, size);
 }
 
 bool PCIeDevice::readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) {
-  abort();
-  return true;
+  return bulk_.read_dma(dev_addr, buf, size);
 }
 
 bool PCIeDevice::writeDevMemDMA(uintptr_t dev_addr, size_t size,
                                 const void *buf) {
-  abort();
-  return true;
+  return bulk_.write_dma(dev_addr, buf, size);
 }
 
 bool PCIeDevice::mb_write(const void *data, ssize_t size) {
@@ -117,7 +110,9 @@ bool PCIeDevice::boot(uintptr_t init_pc, uintptr_t trap_pc) {
   return true;
 }
 
-uintptr_t PCIeDevice::dramBaseAddr() const { return drct_dram_.baseAddr(); }
+uintptr_t PCIeDevice::dramBaseAddr() const { return bulk_.baseAddr(); }
+
+uintptr_t PCIeDevice::dramSize() const { return bulk_.size(); }
 
 std::vector<DeviceInformation> PCIeDevice::enumerateDevices() {
   std::vector<DeviceInformation> infos;

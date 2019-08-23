@@ -13,7 +13,7 @@
 
 #include "Core/DeviceTarget.h"
 
-#include "CharDevice.h"
+#include "BulkDev.h"
 #include "MailBoxDev.h"
 
 #include <cassert>
@@ -47,18 +47,14 @@ public:
   bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override;
   bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
   uintptr_t dramBaseAddr() const;
+  uintptr_t dramSize() const;
 
 private:
   int index_;
   std::string prefix_;
-  CharacterDevice bulk_;
-  CharacterDevice drct_dram_;
+  BulkDev bulk_;
   MailBoxDev mm_;
   MailBoxDev sp_;
-  CharacterDevice pcie_userersr_;
-  CharacterDevice r_mbox_sp_;
-  CharacterDevice r_mbox_mm_;
-  CharacterDevice trg_pcie_;
 };
 
 } // namespace device

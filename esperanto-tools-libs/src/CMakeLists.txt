@@ -91,6 +91,8 @@ set(ETRT_SOURCES
   demangle.h
   DeviceAPI/Commands.cc
   DeviceAPI/Commands.h
+  Device/BulkDev.cc
+  Device/BulkDev.h
   Device/DeviceTarget.cc
   Device/EmuMailBoxDev.cc
   Device/EmuMailBoxDev.h

@@ -30,11 +30,17 @@ protected:
   std::shared_ptr<PCIeDevice> dev_;
 };
 
-TEST_F(PCIEDevTest, SingleWriteMMIO) {
-  std::vector<uint8_t> data = {1, 2, 3, 4};
-  uintptr_t addr = dev_->dramBaseAddr() + 0xdeadbeef;
-  auto res = dev_->writeDevMemMMIO(addr, data.size(), data.data());
-  ASSERT_TRUE(res);
+/*
+TEST_F(PCIEDevTest, dram_base) {
+  auto base_addr = dev_->dramBaseAddr();
+  // FIXME the runtime for now has been using the R_L3_DRAM_BASEADDR
+  ASSERT_EQ(base_addr, 0xc100000000);
+}
+*/
+
+TEST_F(PCIEDevTest, dram_size) {
+  auto base_addr = dev_->dramSize();
+  ASSERT_EQ(base_addr, 0x700000000);
 }
 
 TEST_F(PCIEDevTest, SingleReadMMIO) {
@@ -55,10 +61,8 @@ TEST_F(PCIEDevTest, SingleWriteReadMMIO) {
   ASSERT_THAT(data_res, ::testing::ElementsAreArray(data));
 }
 
-
-/* FIXME Disable test for now
 TEST_F(PCIEDevTest, ReadWriteMMIO_8k) {
-  ssize_t size = 1 << 8 * 1 << 10;
+  ssize_t size = 1 << 2 * 1 << 10;
   std::random_device
       rd; // Will be used to obtain a seed for the random number engine
   std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
@@ -68,11 +72,42 @@ TEST_F(PCIEDevTest, ReadWriteMMIO_8k) {
   for (ssize_t i; i < size; i++) {
     data[i] = dis(gen);
   }
-  auto res = dev_->writeDevMem(0xdeadbeef, data.size(), data.data());
+  uintptr_t addr = dev_->dramBaseAddr() + 0xdeadbeef;
+  auto res = dev_->writeDevMemMMIO(addr, data.size(), data.data());
   ASSERT_TRUE(res);
-  std::array<uint8_t, 4> data_res;
-  res = dev_->readDevMem(0xdeadbeef, data_res.size(), data_res.data());
+  std::vector<uint8_t> data_res(size);
+  res = dev_->readDevMemMMIO(addr, data_res.size(), data_res.data());
   ASSERT_TRUE(res);
   ASSERT_THAT(data_res, ::testing::ElementsAreArray(data));
 }
-*/
+
+TEST_F(PCIEDevTest, SingleReadDMA) {
+  static constexpr uint32_t size = 1 << 20; // 1MB
+  std::array<uint8_t, size> data;
+  uintptr_t addr = BulkDev::DMA_BASE_ADDR;
+  auto res = dev_->readDevMemDMA(addr, data.size(), data.data());
+  ASSERT_TRUE(res);
+}
+
+TEST_F(PCIEDevTest, SingleWriteReadDMA) {
+  ssize_t size = 1 << 20;
+  std::random_device
+      rd; // Will be used to obtain a seed for the random number engine
+  std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
+  std::uniform_int_distribution<> dis(0, std::numeric_limits<uint8_t>::max());
+
+  std::vector<uint8_t> data(size);
+  for (ssize_t i; i < size; i++) {
+    data[i] = dis(gen);
+  }
+
+  // FIXME this is the valid DMA base or now
+  uintptr_t addr = BulkDev::DMA_BASE_ADDR + 0xdeadbeef;
+
+  auto res = dev_->writeDevMemDMA(addr, data.size(), data.data());
+  ASSERT_TRUE(res);
+  std::vector<uint8_t> data_res(size);
+  res = dev_->readDevMemDMA(addr, data_res.size(), data_res.data());
+  ASSERT_TRUE(res);
+  ASSERT_THAT(data_res, ::testing::ElementsAreArray(data));
+}
