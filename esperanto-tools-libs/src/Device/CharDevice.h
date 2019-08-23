@@ -11,8 +11,17 @@
 #ifndef ET_RUNTIME_DEVICE_CHAR_DEVICE_H
 #define ET_RUNTIME_DEVICE_CHAR_DEVICE_H
 
+#include "Support/Logging.h"
+#include "Device/LinuxETIOCTL.h"
+
+#include <cassert>
+#include <cerrno>
+#include <cstring>
 #include <experimental/filesystem>
 #include <fstream>
+#include <linux/fs.h>
+#include <sys/ioctl.h>
+#include <tuple>
 
 namespace et_runtime {
 namespace device {
@@ -34,9 +43,51 @@ public:
 
   virtual ~CharacterDevice();
 
+  /// @brief Write data[size] to address at the device
   bool write(uintptr_t addr, const void *data, ssize_t size);
+
+  /// @brief Read data[size] at address from the device
   bool read(uintptr_t addr, void *data, ssize_t size);
-  uintptr_t baseAddr() const { return base_addr_; }
+
+  /// @brief Execute an IOCTL command on the character device that does not return a result
+  ///
+  /// @param[in] request The IOCTL command number
+  /// @param[in] argp ARG_TYPE data to pass to the device command (usually a pointer)
+  ///
+  /// @return Tuple of bool and int. If the ioctl was succesfull the tuple
+  /// value is <true, return_value>, where return_value holds the return value
+  /// of the ioctl. Otherwise the first element of the tuple is false.
+  template <typename ARG_TYPE>
+  bool ioctl_set(unsigned int request, const ARG_TYPE argp) {
+    auto rc = :4:ioctl(fd_, request, argp);
+    if (rc < 0) {
+      auto error = errno;
+      RTERROR << "Failed to execute IOCTL: " << std::strerror(error) << "\n";
+      return false;
+    }
+    assert(rc == 0);
+    return true;
+  }
+
+  /// @brief Execute an IOCTL command on the character device
+  ///
+  /// @param[in] request The IOCTL command number
+  /// @param[in] argp ARG_TYPE pointer data to pass to the device command (usually a pointer)
+  ///
+  /// @return Tuple of bool and ARG_TYPE. If the ioctl was succesfull the tuple
+  /// value is <true, return_value>, where return_value holds the return value
+  /// of the ioctl. Otherwise the first element of the tuple is false.
+  template <typename ARG_TYPE>
+  std::tuple<bool, ARG_TYPE> ioctl(unsigned int request, const ARG_TYPE* argp) {
+    auto rc = ::ioctl(fd_, request, argp);
+    if (rc < 0) {
+      auto error = errno;
+      RTERROR << "Failed to execute IOCTL: " << std::strerror(error) << "\n";
+      return {false, 0};
+    }
+    assert(rc == 0);
+    return {true, *argp};
+  }
 
 protected:
   /// Using a fstream for now, we need to move to another implementation in the
