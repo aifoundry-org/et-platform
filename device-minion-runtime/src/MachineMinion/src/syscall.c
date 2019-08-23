@@ -28,6 +28,7 @@ static int64_t evict_l2_wait(void);
 static int64_t evict_l2(void);
 
 static int64_t flush_l3(void);
+static int64_t evict_l3(void);
 
 static inline void sc_idx_cop_sm_ctl_all_banks_go(uint64_t opcode);
 static inline void sc_idx_cop_sm_ctl_all_banks_wait_idle(void);
@@ -182,6 +183,7 @@ static int64_t post_kernel_cleanup(void)
     if (result)
     {
         evict_l2();
+        evict_l3();
     }
 
     return 0;
@@ -375,6 +377,15 @@ static int64_t flush_l3(void)
 {
     sc_idx_cop_sm_ctl_all_banks_wait_idle();
     sc_idx_cop_sm_ctl_all_banks_go(5); // Opcode = L3_Flush (Flushes all L3 indexes)
+    sc_idx_cop_sm_ctl_all_banks_wait_idle();
+
+    return 0;
+}
+
+static int64_t evict_l3(void)
+{
+    sc_idx_cop_sm_ctl_all_banks_wait_idle();
+    sc_idx_cop_sm_ctl_all_banks_go(6); // Opcode = L3_Evict (Evicts all L3 indexes)
     sc_idx_cop_sm_ctl_all_banks_wait_idle();
 
     return 0;
