@@ -61,4 +61,10 @@
 #define DMA_CHAN_WRITE_2_LL_BASE 0x87FF000000
 #define DMA_CHAN_WRITE_3_LL_BASE 0x87FF800000
 
+
+// Define the address range in DRAM that the host runtime can explicitly manage
+// the range is the START to (END-1)
+#define HOST_MANAGED_DRAM_START KERNEL_UMODE_ENTRY
+#define HOST_MANAGED_DRAM_END DMA_CHAN_READ_0_LL_BASE
+
 #endif
