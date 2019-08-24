@@ -58,7 +58,6 @@ public:
 #if ENABLE_DEVICE_FW
     return HOST_MANAGED_DRAM_START;
 #else
-    assert(false);
     return -1;
 #endif
   }

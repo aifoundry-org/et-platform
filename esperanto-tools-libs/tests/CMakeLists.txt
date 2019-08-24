@@ -140,13 +140,11 @@ if(esperanto-fw_FOUND)
     device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
     )
   create_test_targets("${DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;600")
-endif(esperanto-fw_FOUND)
 
-set(QEMU_TEST_LIST
-  system/test_pcie_device.cc:""
-  )
+  set(QEMU_TEST_LIST
+    system/test_pcie_device.cc:""
+    )
 
-if(esperanto-fw_FOUND)
   get_property(EMPTY_KERNEL_ELF TARGET esperanto-fw::empty.elf PROPERTY LOCATION)
   get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
 
@@ -154,7 +152,6 @@ if(esperanto-fw_FOUND)
   list(APPEND QEMU_TEST_LIST
     system/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
     )
+
+  create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
 endif(esperanto-fw_FOUND)
-
-
-create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
