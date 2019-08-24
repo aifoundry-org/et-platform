@@ -131,14 +131,14 @@ static inline void check_store_breakpoint(uint64_t addr)
 //------------------------------------------------------------------------------
 // PMA checks
 
-#define MPROT_DISABLE_IO_ACCESS    0x1
-#define MPROT_DISABLE_PCIE_ACCESS  0x2
-#define MPROT_DISABLE_OSBOX_ACCESS 0x4
+#define MPROT_IO_ACCESS_MODE(x)    ((x) & 0x3)
+#define MPROT_DISABLE_PCIE_ACCESS  0x4
+#define MPROT_DISABLE_OSBOX_ACCESS 0x8
 #define MPROT_DRAM_SIZE_8G         0x00
-#define MPROT_DRAM_SIZE_16G        0x08
-#define MPROT_DRAM_SIZE_24G        0x10
-#define MPROT_DRAM_SIZE_32G        0x18
-#define MPROT_DRAM_SIZE(x)         ((x) & 0x18)
+#define MPROT_DRAM_SIZE_16G        0x10
+#define MPROT_DRAM_SIZE_24G        0x20
+#define MPROT_DRAM_SIZE_32G        0x30
+#define MPROT_DRAM_SIZE(x)         ((x) & 0x30)
 
 #define PP(x)   (int(((x) & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT))
 
@@ -237,7 +237,8 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
         if (amo
             || ts_tl_co
             || !addr_is_size_aligned(addr, size)
-            || (!spio && (mprot & MPROT_DISABLE_IO_ACCESS)))
+            || (!spio && ((MPROT_IO_ACCESS_MODE(mprot) == 0x2)
+                          || (effective_execution_mode(macc) < MPROT_IO_ACCESS_MODE(mprot)))))
             throw_access_fault(vaddr, macc);
         return addr;
     }
