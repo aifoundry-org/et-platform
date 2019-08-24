@@ -12,8 +12,13 @@
 #define ET_RUNTIME_DEVICE_BULKDEV_H
 
 #include "CharDevice.h"
+#include "Common/ProjectAutogen.h"
 
 #include "Support/TimeHelpers.h"
+
+#if ENABLE_DEVICE_FW
+#include "esperanto-fw/layout.h"
+#endif // ENABLE_DEVICE_FW
 
 #include <chrono>
 #include <experimental/filesystem>
@@ -27,8 +32,6 @@ namespace device {
 /// DMA.
 class BulkDev final : public CharacterDevice {
 public:
-  static constexpr uintptr_t DMA_BASE_ADDR = 0x8200000000;
-
   /// @brief Construct a Bulk device passing the path to it
   BulkDev(const std::experimental::filesystem::path &char_dev);
   /// @bried Copying the device has been disabled
@@ -51,7 +54,14 @@ public:
   /// @brief Return the SOC absolute base address of the backing storage of the
   /// device
   // FIXME remove this hard-coded value
-  uintptr_t baseAddr() const { return 0x8100000000; }
+  constexpr uintptr_t baseAddr() const {
+#if ENABLE_DEVICE_FW
+    return HOST_MANAGED_DRAM_START;
+#else
+    assert(false);
+    return -1;
+#endif
+  }
 
   /// @brief Return the SOC DRAM size
   uintptr_t size() const { return size_; }
@@ -62,12 +72,14 @@ private:
          ///< absolute adresses FIXME: We should pull this information
          ///< form an IOCTL to the character device along with the size
 
-  uintptr_t size_; ///< Size of the backing device DRAM we can access
+  uintptr_t size_ = -1; ///< Size of the backing device DRAM we can access
 
   /// @brief Query the device for the base address
+  // FIXME the ioctl could be removed in the future
   uintptr_t queryBaseAddr();
 
   /// @brief Querh the device for the size;
+  // FIXME the ioctl could be removed in the future
   uintptr_t querySize();
 
   /// @brief Switch device to use MMIO

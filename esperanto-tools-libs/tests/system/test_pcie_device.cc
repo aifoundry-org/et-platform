@@ -8,7 +8,8 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include <Device/PCIeDevice.h>
+#include "Device/PCIeDevice.h"
+#include "esperanto-fw/layout.h"
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -30,18 +31,14 @@ protected:
   std::shared_ptr<PCIeDevice> dev_;
 };
 
-/*
-TEST_F(PCIEDevTest, dram_base) {
 TEST_F(PCIEDevTest, DramBase) {
   auto base_addr = dev_->dramBaseAddr();
-  // FIXME the runtime for now has been using the R_L3_DRAM_BASEADDR
-  ASSERT_EQ(base_addr, 0xc100000000);
+  ASSERT_EQ(base_addr, HOST_MANAGED_DRAM_START);
 }
-*/
 
 TEST_F(PCIEDevTest, DramSize) {
   auto base_addr = dev_->dramSize();
-  ASSERT_EQ(base_addr, 0x700000000);
+  ASSERT_EQ(base_addr, HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START);
 }
 
 TEST_F(PCIEDevTest, MboxMsgMaxSize) {
@@ -96,7 +93,7 @@ TEST_F(PCIEDevTest, ReadWriteMMIO_1k) {
 TEST_F(PCIEDevTest, SingleReadDMA) {
   static constexpr uint32_t size = 1 << 20; // 1MB
   std::array<uint8_t, size> data;
-  uintptr_t addr = BulkDev::DMA_BASE_ADDR;
+  uintptr_t addr = dev_->dramBaseAddr();
   auto res = dev_->readDevMemDMA(addr, data.size(), data.data());
   ASSERT_TRUE(res);
 }
@@ -113,8 +110,7 @@ TEST_F(PCIEDevTest, SingleWriteReadDMA) {
     data[i] = dis(gen);
   }
 
-  // FIXME this is the valid DMA base or now
-  uintptr_t addr = BulkDev::DMA_BASE_ADDR + 0xdeadbeef;
+  uintptr_t addr = dev_->dramBaseAddr() + 0xdeadbeef;
 
   auto res = dev_->writeDevMemDMA(addr, data.size(), data.data());
   ASSERT_TRUE(res);

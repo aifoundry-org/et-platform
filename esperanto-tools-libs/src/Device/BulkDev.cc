@@ -24,7 +24,9 @@ BulkDev::BulkDev(const std::experimental::filesystem::path &char_dev)
   // FIXME enable using the value of the IOCTL
   auto input_base_addr = queryBaseAddr();
   RTDEBUG << "Device base address : 0x" << std::hex << input_base_addr << "\n";
-  size_ = querySize();
+#if ENABLE_DEVICE_FW
+  size_ = HOST_MANAGED_DRAM_END - HOST_MANAGED_DRAM_START;
+#endif
   RTDEBUG << "Device DRAM size : 0x" << std::hex << size_ << "\n";
 }
 
@@ -49,6 +51,7 @@ bool BulkDev::enable_dma() {
 }
 
 uintptr_t BulkDev::queryBaseAddr() {
+
   uintptr_t arg;
   auto [valid, res] = ioctl(GET_DRAM_BASE, &arg);
   if (!valid) {
