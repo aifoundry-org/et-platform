@@ -31,7 +31,7 @@ int main(void)
     SERIAL_write(UART1, "alive\r\n", 7);
 
     INT_init();
-    PCIe_init();
+    PCIe_init(false /*expect_link_up*/);
     MBOX_init();
 
     static TaskHandle_t taskHandleA;

@@ -38,6 +38,7 @@ set(SOURCES
     src/memory_copy_8x32.S
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/backtrace.c
+    ${SHARED_SRC_DIR}/pcie.c
     src/bl2_build_configuration.c)
 
 set(TARGET_NAME ServiceProcessorBL2)
