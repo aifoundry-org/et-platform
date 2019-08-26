@@ -33,6 +33,7 @@ static const uint64_t MEM_SPACE_LUT[16] = {
 #define CONFIG_OP_CODE_READ_MOD_WRITE 2
 #define CONFIG_OP_CODE_POLL           3
 #define CONFIG_OP_CODE_WAIT           4
+#define CONFIG_OP_CODE_INFINITE_POLL  5
 #define CONFIG_OP_CODE_TERMINATOR1    0xF
 
 static const uint64_t MAX_WAIT_LOOPS = 100000;
@@ -146,6 +147,16 @@ int boot_config_execute(
                 uint64_t loopCounter = cmd->dw1.B.value;
 
                 while (loopCounter) --loopCounter;
+            }
+            break;
+
+            case CONFIG_OP_CODE_INFINITE_POLL:
+            {
+                uint32_t mask;
+                volatile uint32_t* regPtr = get_addr_and_mask(cmd, addr_white_list, addr_white_list_count, &mask);
+                if (!regPtr) return -1;
+
+                while ((*regPtr & mask) != cmd->dw1.B.value);
             }
             break;
 
