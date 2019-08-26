@@ -173,6 +173,8 @@ static int create_partition(const PARTITION_INFO_t * partition_info, uint8_t * p
                 region_size = region_size / FLASH_PAGE_SIZE;
             }
 
+            printf("  region %u: '%s'\n", n, partition_info->regions[n].file_path);
+            
             switch(partition_info->regions[n].id) {
             case ESPERANTO_FLASH_REGION_ID_PRIORITY_DESIGNATOR:
             case ESPERANTO_FLASH_REGION_ID_BOOT_COUNTERS:
