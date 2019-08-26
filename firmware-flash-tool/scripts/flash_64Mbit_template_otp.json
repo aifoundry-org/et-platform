@@ -50,20 +50,20 @@
                     {
                         "id" : "MACHINE_MINION",
                         "size" : 64,
-                        "file" : "firmware-tools/code-signing-tools/otp_machine_minion.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_machine_minion.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_machine_minion.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_machine_minion.img"
                     },
                     {
                         "id" : "MASTER_MINION",
                         "size" : 64,
-                        "file" : "firmware-tools/code-signing-tools/otp_master_minion.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_master_minion.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_master_minion.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_master_minion.img"
                     },
                     {
                         "id" : "WORKER_MINION",
                         "size" : 64,
-                        "file" : "firmware-tools/code-signing-tools/otp_worker_minion.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_worker_minion.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_worker_minion.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_worker_minion.img"
                     }
                 ]
             },
@@ -100,20 +100,20 @@
                     {
                         "id" : "MACHINE_MINION",
                         "size" : 64,
-                        "file" : "firmware-tools/code-signing-tools/otp_machine_minion.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_machine_minion.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_machine_minion.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_machine_minion.img"
                     },
                     {
                         "id" : "MASTER_MINION",
                         "size" : 64,
-                        "file" : "firmware-tools/code-signing-tools/otp_master_minion.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_master_minion.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_master_minion.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_master_minion.img"
                     },
                     {
                         "id" : "WORKER_MINION",
                         "size" : 64,
-                        "file" : "firmware-tools/code-signing-tools/otp_worker_minion.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_otp_worker_minion.img"
+                        "--file" : "firmware-tools/code-signing-tools/otp_worker_minion.img",
+                        "file" : "firmware-tools/code-signing-tools/encrypted_otp_worker_minion.img"
                     }
                 ]
             }
