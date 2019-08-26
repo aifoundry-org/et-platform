@@ -28,6 +28,8 @@
 #define WRITES_USE_32_BIT_FRAMES
 #define READS_USE_32_BIT_FRAMES
 
+#define MAX_RX_TX_FIFO_SIZE 256
+
 #if 1
 #define SCPOL_VALUE SSI_CTRLR0_SCPOL_SCPOL_SCLK_LOW
 #else
@@ -99,7 +101,7 @@ static inline uint32_t reverse_endian(const uint32_t v) {
 #endif
 
 #ifdef WRITES_USE_32_BIT_FRAMES
-static int spi_controller_tx32_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size) {
+static int spi_controller_tx32_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size, uint32_t slave_en_mask) {
     int rv;
     //Ssi_SR_t sr;
     //Ssi_TXFLR_t txflr;
@@ -148,6 +150,12 @@ static int spi_controller_tx32_data(volatile Ssi_t * spi_regs, const uint8_t * s
     }
 
     rx32_count = (spi_command_length + tx_data_size) / 4;
+
+    if (rx32_count > MAX_RX_TX_FIFO_SIZE) {
+        printf("spi_controller_tx32_data: tx_data size exceeds RX/TX FIFO size!\n");
+        return -1;
+    }
+
     spi_command_32 = (const uint32_t*)(const void*)spi_command;
     tx_data_32 = (const uint32_t*)(const void*)tx_data;
     tx_data_32_end = (const uint32_t*)(const void*)(tx_data + tx_data_size);
@@ -160,6 +168,10 @@ static int spi_controller_tx32_data(volatile Ssi_t * spi_regs, const uint8_t * s
         tx_data_32++;
     }
 
+    // set SLAVE ENABLE REGISTER to start the transfer
+    spi_regs->SER.R = slave_en_mask;
+
+    // read the data from the RX FIFO to complete the transfer
     timeout = 0;
     while (rx32_count > 0) {
         rxflr.R = spi_regs->RXFLR.R;
@@ -191,7 +203,7 @@ DONE:
 }
 #endif
 
-static int spi_controller_tx_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size) {
+static int spi_controller_tx_data(volatile Ssi_t * spi_regs, const uint8_t * spi_command, uint32_t spi_command_length, uint8_t * tx_data, uint32_t tx_data_size, uint32_t slave_en_mask) {
 #ifdef USE_TX_ONLY_MODE
     int rv;
     Ssi_TXFLR_t txflr;
@@ -278,6 +290,11 @@ DONE:
     // }
     rx_data_count = spi_command_length + tx_data_size;
 
+    if (rx_data_count > MAX_RX_TX_FIFO_SIZE) {
+        printf("spi_controller_tx32_data: tx_data size exceeds RX/TX FIFO size!\n");
+        return -1;
+    }
+
     spi_command_end = spi_command + spi_command_length;
     tx_data_end = tx_data + tx_data_size;
 
@@ -291,6 +308,9 @@ DONE:
         spi_regs->DR0.B.DR = (uint32_t)*tx_data;
         tx_data++;
     }
+
+    // set SLAVE ENABLE REGISTER to start the transfer
+    spi_regs->SER.R = slave_en_mask;
 
     timeout = 0;
     while (rx_data_count > 0) {
@@ -504,6 +524,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
     uint32_t dfs32_frame_size;
     Ssi_BAUDR_t baud_rate;
     SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
+    uint32_t slave_en_mask;
 
 #if defined(WRITES_USE_32_BIT_FRAMES) || defined(READS_USE_32_BIT_FRAMES)
     bool use_32bit_frames = false;
@@ -601,7 +622,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
 #endif
 
     spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 0 }}.R;
-    spi_regs->SER.R = (Ssi_SER_t){ .B = { .SER = (1u << slave_index) & SLAVE_MASK }}.R;
+    slave_en_mask = (Ssi_SER_t){ .B = { .SER = (1u << slave_index) & SLAVE_MASK }}.R;
 
     if (command->data_receive) {
         baud_rate.R = (Ssi_BAUDR_t){ .B = { .SCKDV = bl2_data->spi_controller_rx_baudrate_divider }}.R;
@@ -631,6 +652,7 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
 #endif
 
         spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
+        spi_regs->SER.R = slave_en_mask;
 
 #ifdef READS_USE_32_BIT_FRAMES
         if (use_32bit_frames) {
@@ -661,9 +683,9 @@ int spi_controller_command(SPI_CONTROLLER_ID_t id, uint8_t slave_index, SPI_COMM
         spi_regs->SSIENR.R = (Ssi_SSIENR_t){ .B = { .SSI_EN = 1 }}.R;
 #ifdef WRITES_USE_32_BIT_FRAMES
     if (use_32bit_frames) {
-        rv = spi_controller_tx32_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size);
+        rv = spi_controller_tx32_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size, slave_en_mask);
     } else {
-        rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size);
+        rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size, slave_en_mask);
     }
 #else
     rv = spi_controller_tx_data(spi_regs, spi_command, spi_command_length, command->data_buffer, command->data_size);

@@ -18,19 +18,15 @@
 #include "bl2_flashfs_driver.h"
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
+#include "bl2_sp_pll.h"
+#include "bl2_minion_pll_and_dll.h"
+#include "bl2_ddr_config.h"
 
 #include <stdio.h>
 #include <string.h>
 #include "bl2_crypto.h"
 
-//#define DUMMY_TASKS
-
 #define TASK_STACK_SIZE 4096 // overkill for now
-
-#ifdef DUMMY_TASKS
-void taskA(void *pvParameters);
-void taskB(void *pvParameters);
-#endif
 
 void vApplicationGetIdleTaskMemory(StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize);
 void vApplicationIdleHook(void);
@@ -54,17 +50,46 @@ static void taskMain(void *pvParameters)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    if (0 != release_noc_from_reset()) {
-        printf("Failed to release main NoC from reset!\n");
+    printf("---------------------------------------------\n");
+    printf("Starting MINIONs reset release sequence...\n");
+
+    if (0 != configure_sp_pll_2()) {
+        printf("configure_sp_pll_2() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("Released main NoC from reset.\n");
+    if (0 != configure_sp_pll_4()) {
+        printf("configure_sp_pll_4() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("SP PLLs 2 & 4 configured and locked.\n");
 
     if (0 != release_memshire_from_reset()) {
-        printf("Failed to release MemShire from reset!\n");
+        printf("release_memshire_from_reset() failed!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("Released MemShire from reset.\n");
+    if (0 != ddr_config()) {
+        printf("ddr_config() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("DRAM ready.\n");
+
+    if (0 != release_minions_from_cold_reset()) {
+        printf("release_minions_from_cold_reset() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released Minion shires from cold reset.\n");
+
+    if (0 != release_minions_from_warm_reset()) {
+        printf("release_minions_from_warm_reset() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Released Minions from warm reset.\n");
+
+    if (0 != configure_minion_plls_and_dlls()) {
+        printf("configure_minion_plls_and_dlls() failed!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Minion shires PLLs and DLLs configured.\n");
 
     printf("---------------------------------------------\n");
     printf("Attempting to load SW ROOT/Issuing Certificate chain...\n");
@@ -99,11 +124,18 @@ static void taskMain(void *pvParameters)
 
     printf("---------------------------------------------\n");
 
-    if (0 != release_minions_from_reset()) {
-        printf("Failed to release Minions from reset!\n");
+    if (0 != enable_minion_neighborhoods()) {
+        printf("Failed to enable minion neighborhoods!\n");
         goto FIRMWARE_LOAD_ERROR;
     }
-    printf("Released Minions from reset.\n");
+    printf("Minion neighborhoods enabled.\n");
+
+    if (0 != enable_minion_threads()) {
+        printf("Failed to enable minion threads!\n");
+        goto FIRMWARE_LOAD_ERROR;
+    }
+    printf("Minion threads enabled.\n");
+
     goto DONE;
 
 FIRMWARE_LOAD_ERROR:
@@ -171,16 +203,15 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     //SERIAL_init(UART0);
 
     SERIAL_init(UART1);
-    SERIAL_write(UART1, "alive\r\n", 7);
-
     SERIAL_init(PU_UART0);
-    SERIAL_write(PU_UART0, "alive\r\n", 7);
-
     SERIAL_init(PU_UART1);
-    SERIAL_write(PU_UART1, "alive\r\n", 7);
 
     INT_init();
 
+    if (0 != pll_init(bl1_data->sp_pll0_frequency, bl1_data->sp_pll1_frequency, bl1_data->pcie_pll0_frequency)) {
+        printf("pll_init() failed!\n");
+        goto FATAL_ERROR;
+    }
     if (0 != vaultip_drv_init()) {
         printf("vaultip_drv_init() failed!\n");
         goto FATAL_ERROR;
@@ -205,41 +236,6 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
         printf("xTaskCreateStatic(taskMain) failed!\r\n");
     }
 
-#ifdef DUMMY_TASKS
-    static TaskHandle_t taskHandleA;
-    static StackType_t stackA[TASK_STACK_SIZE];
-    static StaticTask_t taskBufferA;
-
-    static TaskHandle_t taskHandleB;
-    static StackType_t stackB[TASK_STACK_SIZE];
-    static StaticTask_t taskBufferB;
-
-    taskHandleA = xTaskCreateStatic(taskA,
-                                    "task A",
-                                    TASK_STACK_SIZE,
-                                    NULL,
-                                    1,
-                                    stackA,
-                                    &taskBufferA);
-    if ((taskHandleA == NULL) || (taskHandleB == NULL))
-    {
-        printf("taskHandle error\r\n");
-    }
-
-    taskHandleB = xTaskCreateStatic(taskB,
-                                    "task B",
-                                    TASK_STACK_SIZE,
-                                    NULL,
-                                    1,
-                                    stackB,
-                                    &taskBufferB);
-
-    if ((taskHandleA == NULL) || (taskHandleB == NULL))
-    {
-        printf("taskHandle error\r\n");
-    }
-#endif
-
     vTaskStartScheduler();
 
 FATAL_ERROR:
@@ -247,36 +243,6 @@ FATAL_ERROR:
     printf("Waiting for RESET!!!\n");
     for(;;);
 }
-
-#ifdef DUMMY_TASKS
-void taskA(void *pvParameters)
-{
-    (void)pvParameters;
-
-    // Disable buffering on stdout
-    setbuf(stdout, NULL);
-
-    while (1)
-    {
-        printf("A");
-        vTaskDelay(2U);
-    }
-}
-
-void taskB(void *pvParameters)
-{
-    (void)pvParameters;
-
-    // Disable buffering on stdout
-    setbuf(stdout, NULL);
-
-    while (1)
-    {
-        printf("B");
-        vTaskDelay(3U);
-    }
-}
-#endif
 
 /* configUSE_STATIC_ALLOCATION is set to 1, so the application must provide an
 implementation of vApplicationGetIdleTaskMemory() to provide the memory that is

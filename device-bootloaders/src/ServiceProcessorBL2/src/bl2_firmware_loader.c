@@ -24,6 +24,9 @@
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
+// uncomment the following line to ignore HASH check results using VaultIP
+// #define IGNORE_HASH
+
 static const uint8_t gs_machine_minion_kdk_derivation_data[] = MACHINE_MINION_KDK_DERIVATION_DATA;
 static const uint8_t gs_machine_minion_mac_derivation_data[] = MACHINE_MINION_MAC_DERIVATION_DATA;
 static const uint8_t gs_machine_minion_enc_derivation_data[] = MACHINE_MINION_ENC_DERIVATION_DATA;
@@ -182,7 +185,34 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type, ESP
     return 0;
 }
 
-#define IGNORE_HASH
+#define CACHED_DDR_ADDR     0x8000000000lu
+#define UNCACHED_DDR_ADDR   0xC000000000lu
+#define DDR_SIZE            0x4000000000lu
+
+static int remap_load_address(uint64_t * address, uint64_t size) {
+    uint64_t address_end;
+
+    if (0 == size) {
+        return -1;
+    }
+
+    address_end = *address + size;
+    if (address_end < *address) {
+        return -1; // integer overflow
+    }
+
+    if (*address >= CACHED_DDR_ADDR && address_end <= (CACHED_DDR_ADDR + DDR_SIZE)) {
+        *address = *address | 0x4000000000lu; // remap to uncached region
+        return 0;
+    }
+
+    if (*address >= UNCACHED_DDR_ADDR && address_end <= (UNCACHED_DDR_ADDR + DDR_SIZE)) {
+        return 0;
+    }
+
+    return -1;
+}
+
 static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, const ESPERANTO_IMAGE_FILE_HEADER_t * image_file_header) {
     uint32_t code_and_data_hash_size;
     uint32_t load_offset;
@@ -241,6 +271,10 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
         load_offset = (uint32_t)(sizeof(ESPERANTO_IMAGE_FILE_HEADER_t) + image_info->secret_info.load_regions[region_no].region_offset);
         load_address.lo = image_info->secret_info.load_regions[region_no].load_address_lo;
         load_address.hi = image_info->secret_info.load_regions[region_no].load_address_hi;
+        if (remap_load_address(&load_address.u64, image_info->secret_info.load_regions[region_no].memory_size)) {
+            printf("Invalid region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, load_offset, load_address.u64, image_info->secret_info.load_regions[region_no].load_size, image_info->secret_info.load_regions[region_no].memory_size);
+            goto CLEANUP_ON_ERROR;
+        }
         printf("Region %u: load=0x%x, addr=0x%lx, fsize=0x%x, msize=0x%x\n", region_no, load_offset, load_address.u64, image_info->secret_info.load_regions[region_no].load_size, image_info->secret_info.load_regions[region_no].memory_size);
 
         if (image_info->secret_info.load_regions[region_no].load_size > 0) {
