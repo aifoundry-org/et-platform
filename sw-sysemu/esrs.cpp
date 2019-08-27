@@ -656,7 +656,7 @@ void esr_write(uint64_t addr, uint64_t value)
                                 shire, neigh, neigh_esrs[pos].texture_control);
                 break;
             case ESR_MPROT:
-                neigh_esrs[pos].mprot = uint8_t(value & 0x1f);
+                neigh_esrs[pos].mprot = uint8_t(value & 0x3f);
                 LOG_ALL_MINIONS(DEBUG, "S%u:N%u:mprot = 0x%" PRIx8,
                                 shire, neigh, neigh_esrs[pos].mprot);
                 break;
