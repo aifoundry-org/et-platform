@@ -227,62 +227,76 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 
 	switch (cmd) {
 	case GET_DRAM_BASE:
-		dram_base = R_DRCT_DRAM_BASEADDR;
-		if (copy_to_user((u64 *)arg, &dram_base, sizeof(u64))) { //TODO: is u64 cast ok here?
+		if (minor_dev->type != et_cdev_type_bulk) {
+			// Allowed on DRAM devices only
+			return -EINVAL;
+		}
+		dram_base = R_L3_DRAM_BASEADDR;
+		if (copy_to_user((u64 *)arg, &dram_base, sizeof(u64))) {
 			pr_err("ioctl: GET_DRAM_BASE: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
 	case GET_DRAM_SIZE:
-		dram_size = R_DRCT_DRAM_SIZE;
-		if (copy_to_user((u64 *)arg, &dram_size, sizeof(u64))) { //TODO: is u64 cast ok here?
+		if (minor_dev->type != et_cdev_type_bulk) {
+			// Allowed on DRAM devices only
+			return -EINVAL;
+		}
+		dram_size = R_L3_DRAM_SIZE;
+		if (copy_to_user((u64 *)arg, &dram_size, sizeof(u64))) {
 			pr_err("ioctl: GET_DRAM_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
-	case GET_MM_MBOX_MAX_MSG:
+	case GET_MBOX_MAX_MSG:
+		if (minor_dev->type != et_cdev_type_mb_mm &&
+		    minor_dev->type != et_cdev_type_mb_sp) {
+			// Allowed on mailbox devices only
+			return -EINVAL;
+		}
 		mbox_max_msg = ET_MBOX_MAX_MSG_SIZE;
-		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) {  //TODO: is u64 cast ok here?
-			pr_err("ioctl: GET_MM_MBOX_MAX_MSG: failed to copy to user\n");
+		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) {
+			pr_err("ioctl: GET_BOX_MAX_MSG: failed to copy to user\n");
 			return -ENOMEM;
 		}
 		return 0;
 
-	case GET_SP_MBOX_MAX_MSG:
-		mbox_max_msg = ET_MBOX_MAX_MSG_SIZE;
-		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) { //TODO: is u64 cast ok here?
-			pr_err("ioctl: GET_SP_MBOX_MAX_MSG: failed to copy to user\n");
-			return -ENOMEM;
+	case RESET_MBOX:
+		if (minor_dev->type == et_cdev_type_mb_mm) {
+			mutex_lock(&minor_dev->read_write_mutex);
+			et_mbox_reset(&et_dev->mbox_mm);
+ 			mutex_unlock(&minor_dev->read_write_mutex);
+			return 0;
+		} else if (minor_dev->type == et_cdev_type_mb_sp) {
+			mutex_lock(&minor_dev->read_write_mutex);
+			et_mbox_reset(&et_dev->mbox_sp);
+ 			mutex_unlock(&minor_dev->read_write_mutex);
+			return 0;
 		}
-		return 0;
+		// Allowed on mailbox devices only
+		return -EINVAL;
 
-	case RESET_MBOXES:
-		mutex_lock(&minor_dev->read_write_mutex);
-
-		et_mbox_reset(&et_dev->mbox_mm);
-		et_mbox_reset(&et_dev->mbox_sp);
-
- 		mutex_unlock(&minor_dev->read_write_mutex);
-		return 0;
-
-	case GET_MM_MBOX_READY:
-		mbox_rdy = (unsigned long)et_mbox_ready(&et_dev->mbox_mm);
-		if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) { //TODO: is u64 cast ok here?
-			pr_err("ioctl: GET_MM_MBOX_READY: failed to copy to user\n");
-			return -ENOMEM;
+	case GET_MBOX_READY:
+		if (minor_dev->type == et_cdev_type_mb_mm) {
+			mbox_rdy = (unsigned long)et_mbox_ready(&et_dev->mbox_mm);
+			if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) {
+				pr_err("ioctl: GET_MBOX_READY: failed to copy to user\n");
+				return -ENOMEM;
+			}
+			return 0;
+		} else if (minor_dev->type == et_cdev_type_mb_sp) {
+			mbox_rdy = (unsigned long)et_mbox_ready(&et_dev->mbox_sp);
+			if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) {
+				pr_err("ioctl: GET_MBOX_READY: failed to copy to user\n");
+				return -ENOMEM;
+			}
+			return 0;
 		}
-		return 0;
+		// Allowed on mailbox devices only
+		return -EINVAL;
 
-	case GET_SP_MBOX_READY:
-		mbox_rdy = (unsigned long)et_mbox_ready(&et_dev->mbox_sp);
-		if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) { //TODO: is u64 cast ok here?
-			pr_err("ioctl: GET_SP_MBOX_READY: failed to copy to user\n");
-			return -ENOMEM;
-		}
-		return 0;
-	
 	case SET_BULK_CFG:
 	{
 		uint32_t bulk_cfg = (uint32_t)arg;
