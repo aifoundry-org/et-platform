@@ -20,11 +20,6 @@
 
 namespace bemu {
 
-struct PLIC_Source {
-    virtual ~PLIC_Source() {}
-    virtual void interrupt_completed(void) const = 0;
-};
-
 using PLIC_Target_Notify = void (*)(void);
 
 struct PLIC_Interrupt_Target {

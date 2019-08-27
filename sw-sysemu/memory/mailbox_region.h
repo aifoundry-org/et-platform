@@ -33,6 +33,8 @@ struct MailboxRegion : public MemoryRegion {
 
     enum : unsigned long long {
         // base addresses for the various regions of the address space
+        pu_trg_mmin_pos    = 0x00000000,
+        pu_trg_mmin_sp_pos = 0x00002000,
         pu_sram_mm_mx_pos  = 0x00004000,
         pu_mbox_mm_mx_pos  = 0x00005000,
         pu_mbox_mm_sp_pos  = 0x00006000,
@@ -42,6 +44,10 @@ struct MailboxRegion : public MemoryRegion {
         pu_mbox_pc_mx_pos  = 0x10001000,
         pu_mbox_spare_pos  = 0x10002000,
         pu_mbox_pc_sp_pos  = 0x10003000,
+        pu_trg_max_pos     = 0x10004000,
+        pu_trg_max_sp_pos  = 0x10006000,
+        pu_trg_pcie_pos    = 0x10008000,
+        pu_trg_pcie_sp_pos = 0x1000A000,
     };
 
     void read(size_type pos, size_type n, pointer result) override {
@@ -77,6 +83,8 @@ struct MailboxRegion : public MemoryRegion {
     void dump_data(std::ostream&, size_type, size_type) const override { }
 
     // Members
+    DenseRegion  <pu_trg_mmin_pos, 8_KiB>       pu_trg_mmin{};
+    DenseRegion  <pu_trg_mmin_sp_pos, 8_KiB>    pu_trg_mmin_sp{};
     DenseRegion  <pu_sram_mm_mx_pos, 4_KiB>     pu_sram_mm_mx{};
     DenseRegion  <pu_mbox_mm_mx_pos, 4_KiB>     pu_mbox_mm_mx{};
     DenseRegion  <pu_mbox_mm_sp_pos, 4_KiB>     pu_mbox_mm_sp{};
@@ -86,6 +94,10 @@ struct MailboxRegion : public MemoryRegion {
     DenseRegion  <pu_mbox_pc_mx_pos, 4_KiB>     pu_mbox_pc_mx{};
     DenseRegion  <pu_mbox_spare_pos, 4_KiB>     pu_mbox_spare{};
     DenseRegion  <pu_mbox_pc_sp_pos, 4_KiB>     pu_mbox_pc_sp{};
+    DenseRegion  <pu_trg_max_pos, 8_KiB>        pu_trg_max{};
+    DenseRegion  <pu_trg_max_sp_pos, 8_KiB>     pu_trg_max_sp{};
+    DenseRegion  <pu_trg_pcie_pos, 8_KiB>       pu_trg_pcie{};
+    DenseRegion  <pu_trg_pcie_sp_pos , 8_KiB>   pu_trg_pcie_sp{};
 
 protected:
     static inline bool above(const MemoryRegion* lhs, size_type rhs) {
@@ -111,7 +123,9 @@ protected:
     }
 
     // These arrays must be sorted by region offset
-    std::array<MemoryRegion*,9> spio_regions = {{
+    std::array<MemoryRegion*,15> spio_regions = {{
+        &pu_trg_mmin,
+        &pu_trg_mmin_sp,
         &pu_sram_mm_mx,
         &pu_mbox_mm_mx,
         &pu_mbox_mm_sp,
@@ -121,8 +135,13 @@ protected:
         &pu_mbox_pc_mx,
         &pu_mbox_spare,
         &pu_mbox_pc_sp,
+        &pu_trg_max,
+        &pu_trg_max_sp,
+        &pu_trg_pcie,
+        &pu_trg_pcie_sp,
     }};
-    std::array<MemoryRegion*,5> minion_regions = {{
+    std::array<MemoryRegion*,6> minion_regions = {{
+        &pu_trg_mmin,
         &pu_sram_mm_mx,
         &pu_mbox_mm_mx,
         &pu_mbox_mm_sp,
