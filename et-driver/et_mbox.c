@@ -20,8 +20,6 @@ void et_mbox_init(struct et_mbox *mbox, void __iomem *mem,
 		  void __iomem *r_pu_trg_pcie,
 		  void (*send_interrupt)(void __iomem *trig_regs))
 {
-	volatile uint32_t temp;
-
 	mbox->mem = (struct et_mbox_mem *)mem;
 	mbox->r_pu_trg_pcie = r_pu_trg_pcie;
 	mbox->send_interrupt = send_interrupt;
@@ -29,31 +27,17 @@ void et_mbox_init(struct et_mbox *mbox, void __iomem *mem,
 	//The host is always the mailbox slave; the SoC inits other fields
 	iowrite32(MBOX_STATUS_NOT_READY, &mbox->mem->slave_status);
 
-	//Flush writes to PCIe
-	temp = ioread32(&mbox->mem->slave_status);
-
-	//Notify SoC status changed
-	if (mbox->send_interrupt) {
-		mbox->send_interrupt(mbox->r_pu_trg_pcie);
-
-		//Flush writes to PCIe
-		temp = ioread32(&mbox->mem->slave_status);
-	}
+	et_mbox_reset(mbox);
 }
 
 void et_mbox_destroy(struct et_mbox *mbox)
 {
-	uint32_t temp;
-
 	if (mbox->mem) {
-		//Request that the SoC reset the mailbox
-		iowrite32(MBOX_STATUS_WAITING, &mbox->mem->slave_status);
-
-		//Flush writes to PCIe
-		temp = ioread32(&mbox->mem->slave_status);
+		iowrite32(MBOX_STATUS_NOT_READY, &mbox->mem->slave_status);
 	}
 
 	mbox->mem = NULL;
+	mbox->r_pu_trg_pcie = NULL;
 	mbox->send_interrupt = NULL;
 }
 
@@ -63,6 +47,44 @@ bool et_mbox_ready(struct et_mbox *mbox)
 
 	master_status = ioread32(&mbox->mem->master_status);
 	slave_status = ioread32(&mbox->mem->slave_status);
+
+	//The host is always the mbox slave
+	switch (master_status) {
+	case MBOX_STATUS_NOT_READY:
+		break;
+	case MBOX_STATUS_READY:
+		if (slave_status != MBOX_STATUS_READY &&
+		    slave_status != MBOX_STATUS_WAITING) {
+			pr_info("received master ready, going slave ready");
+			iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
+
+			//Flush PCIe write
+			slave_status = ioread32(&mbox->mem->slave_status);
+
+			mbox->send_interrupt(mbox->r_pu_trg_pcie);
+
+			//Flush interrupt IPI write
+			slave_status = ioread32(&mbox->mem->slave_status);
+		}
+		break;
+	case MBOX_STATUS_WAITING:
+		if (slave_status != MBOX_STATUS_READY &&
+		    slave_status != MBOX_STATUS_WAITING) {
+			pr_info("received master waiting, going slave ready");
+			iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
+
+			//Flush PCIe write
+			slave_status = ioread32(&mbox->mem->slave_status);
+
+			mbox->send_interrupt(mbox->r_pu_trg_pcie);
+
+			//Flush interrupt IPI write
+			slave_status = ioread32(&mbox->mem->slave_status);
+		}
+		break;
+	case MBOX_STATUS_ERROR:
+		break;
+	}
 
 	return master_status == MBOX_STATUS_READY &&
 	       slave_status == MBOX_STATUS_READY;
@@ -78,14 +100,12 @@ void et_mbox_reset(struct et_mbox *mbox)
 	//to the interrupt routines in the MM and SP
 	slave_status = ioread32(&mbox->mem->slave_status);
 
-	// Notify the masters
-	if (mbox->send_interrupt) {
-		mbox->send_interrupt(mbox->r_pu_trg_pcie);
+	//Notify SoC status changed
+	mbox->send_interrupt(mbox->r_pu_trg_pcie);
 
-		//Flush PCIe writes again for complete safety: the send_interrupt()
-		//routine is really just an iowrite32(), flush them as well
-		slave_status = ioread32(&mbox->mem->slave_status);
-	}
+	//Flush PCIe writes again for complete safety: the send_interrupt()
+	//routine is really just an iowrite32(), flush them as well
+	slave_status = ioread32(&mbox->mem->slave_status);
 }
 
 ssize_t et_mbox_write(struct et_mbox *mbox, void *buff, size_t count)
@@ -137,15 +157,14 @@ ssize_t et_mbox_write(struct et_mbox *mbox, void *buff, size_t count)
 	//Read again to be assured head_index is done being updated. TODO: write ordering is assured. Confirm and remove dummy reads.
 	tail_index = ioread32(&mbox->mem->rx_ring_buffer.tail_index);
 
-	//Notify the SoC new data is ready, if it's not polling. Again, the head
-	//index change needs to be assured to be in SoC mem before the IPI is
-	//fired.
-	if (mbox->send_interrupt) {
-		mbox->send_interrupt(mbox->r_pu_trg_pcie);
+	//Notify the SoC new data is ready. Again, the head index change needs
+	//to be assured to be in SoC mem before the IPI is fired.
+	
+	mbox->send_interrupt(mbox->r_pu_trg_pcie);
 
-		//Flush writes to PCIe
-		temp = ioread32(&mbox->mem->slave_status);
-	}
+	//Flush writes to PCIe
+	temp = ioread32(&mbox->mem->slave_status);
+	
 
 	//TODO: release mbox->write_mutex
 
@@ -292,52 +311,14 @@ ssize_t et_mbox_read(struct et_mbox *mbox, void* buff, size_t count)
 	return header.length;
 }
 
+
+
 void et_mbox_isr(struct et_mbox *mbox)
 {
-	uint32_t master_status, slave_status;
-
 	//The SoC will interrupt when it sends data, or changes status
 
-	master_status = ioread32(&mbox->mem->master_status);
-	slave_status = ioread32(&mbox->mem->slave_status);
+	//Check if ready, and also to update status
+	et_mbox_ready(mbox);
 
-	//The host is always the mbox slave
-	switch (master_status) {
-	case MBOX_STATUS_NOT_READY:
-		break;
-	case MBOX_STATUS_READY:
-		if (slave_status != MBOX_STATUS_READY &&
-		    slave_status != MBOX_STATUS_WAITING) {
-			//received master ready, going slave ready
-			iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
-
-			//Flush PCIe write
-			slave_status = ioread32(&mbox->mem->slave_status);
-
-			mbox->send_interrupt(mbox->r_pu_trg_pcie);
-
-			//Flush interrupt IPI write
-			slave_status = ioread32(&mbox->mem->slave_status);
-		}
-		break;
-	case MBOX_STATUS_WAITING:
-		if (slave_status != MBOX_STATUS_READY &&
-		    slave_status != MBOX_STATUS_WAITING) {
-			//received master waiting, going slave ready
-			iowrite32(MBOX_STATUS_READY, &mbox->mem->slave_status);
-
-			//Flush PCIe write
-			slave_status = ioread32(&mbox->mem->slave_status);
-
-			mbox->send_interrupt(mbox->r_pu_trg_pcie);
-
-			//Flush interrupt IPI write
-			slave_status = ioread32(&mbox->mem->slave_status);
-		}
-		break;
-	case MBOX_STATUS_ERROR:
-		break;
-	}
-
-	//TODO: signal any blocked read() calls if mbox ready
+	//TODO: If there is Soc->host data, dispatch message based on message ID
 }
