@@ -38,6 +38,7 @@ bool BulkDev::enable_mmio() {
     RTERROR << "Failed to enable MMIO \n";
     std::terminate();
   }
+  RTDEBUG << "Bulk MMIO \n";
   return true;
 }
 
@@ -47,6 +48,7 @@ bool BulkDev::enable_dma() {
     RTERROR << "Failed to enable DMA \n";
     std::terminate();
   }
+  RTDEBUG << "Bulk DMA \n";
   return true;
 }
 

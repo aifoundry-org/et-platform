@@ -248,12 +248,15 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
 
     dim3 gridDim(defaultGridDim1D(dev_count));
     dim3 blockDim(defaultBlockDim1D());
-    etrtConfigureCall(gridDim, blockDim, 0, stream);
-
-    etrtSetupArgument(&dev_count, 4, 0);
-    etrtSetupArgument(&src, 8, 8);
-    etrtSetupArgument(&dst, 8, 16);
-    etrtLaunch(nullptr, kern);
+    EtLaunchConf launch_conf;
+    launch_conf.gridDim = gridDim;
+    launch_conf.blockDim = blockDim;
+    launch_conf.etStream = nullptr;
+    appendLaunchConf(launch_conf);
+    setupArgument(&dev_count, 4, 0);
+    setupArgument(&src, 8, 8);
+    setupArgument(&dst, 8, 16);
+    launch(nullptr, kern);
   } break;
   default:
     THROW("Unsupported Memcpy kind");
@@ -264,8 +267,8 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
 
 etrtError Device::memcpy(void *dst, const void *src, size_t count,
                          enum etrtMemcpyKind kind) {
-  etrtError res = etrtMemcpyAsync(dst, src, count, kind, 0);
-  etrtStreamSynchronize(0);
+  etrtError res = memcpyAsync(dst, src, count, kind, 0);
+  streamSynchronize(0);
 
   return res;
 }
@@ -283,12 +286,15 @@ etrtError Device::memset(void *devPtr, int value, size_t count) {
 
   dim3 gridDim(defaultGridDim1D(count));
   dim3 blockDim(defaultBlockDim1D());
-  etrtConfigureCall(gridDim, blockDim, 0, 0);
-
-  etrtSetupArgument(&count, 4, 0);
-  etrtSetupArgument(&value, 4, 4);
-  etrtSetupArgument(&devPtr, 8, 8);
-  etrtLaunch(nullptr, kern);
+  EtLaunchConf launch_conf;
+  launch_conf.gridDim = gridDim;
+  launch_conf.blockDim = blockDim;
+  launch_conf.etStream = nullptr;
+  appendLaunchConf(launch_conf);
+  setupArgument(&count, 4, 0);
+  setupArgument(&value, 4, 4);
+  setupArgument(&devPtr, 8, 8);
+  launch(nullptr, kern);
   etrtStreamSynchronize(0);
 
   return etrtSuccess;
