@@ -995,6 +995,8 @@ int vaultip_mac_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32
     input_token.mac.dw_24.TotalMessageLength_31_00 = msg_size & 0xFFFFFFFF;
     input_token.mac.dw_25.TotalMessageLength_60_32 = 0;
 
+    l1_data_cache_flush_region(msg, msg_size);
+
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_mac_generate: vaultip_send_input_token() failed!\n");
         return -1;
@@ -1065,6 +1067,8 @@ int vaultip_mac_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
 
     input_token.dw[28] = key_asset_id;
 
+    l1_data_cache_flush_region(msg, msg_size);
+
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_mac_verify: vaultip_send_input_token() failed!\n");
         return -1;
@@ -1123,6 +1127,8 @@ int vaultip_mac_update(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, uint32_t
  
     input_token.mac.dw_07.MAC_AS_ID = mac_asset_id;
     input_token.dw[28] = key_asset_id;
+
+    l1_data_cache_flush_region(msg, msg_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_mac_update: vaultip_send_input_token() failed!\n");
@@ -1191,6 +1197,8 @@ int vaultip_mac_final_generate(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, 
     input_token.mac.dw_25.TotalMessageLength_60_32 = 0;
 
     input_token.dw[28] = key_asset_id;
+
+    l1_data_cache_flush_region(msg, msg_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_mac_final_generate: vaultip_send_input_token() failed!\n");
@@ -1262,6 +1270,8 @@ int vaultip_mac_final_verify(uint32_t identity, ESPERANTO_MAC_TYPE_t mac_alg, ui
 
     input_token.dw[28] = key_asset_id;
 
+    l1_data_cache_flush_region(msg, msg_size);
+
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_mac_final_verify: vaultip_send_input_token() failed!\n");
         return -1;
@@ -1311,6 +1321,8 @@ static int vaultip_aes_cbc(uint32_t identity, uint32_t key_asset_id, uint8_t * I
     input_token.encryption.dw_12.SaveIV_AS_ID = 0;
     memcpy(input_token.encryption.dw_16_13, IV, 16);
     input_token.encryption.dw_24_17[0].Key32 = key_asset_id;
+
+    l1_data_cache_flush_region(data, data_size);
 
     if (0 != vaultip_send_input_token(&input_token)) {
         printx("vaultip_aes_cbc: vaultip_send_input_token() failed!\n");
