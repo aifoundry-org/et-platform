@@ -60,7 +60,7 @@ TEST_F(PCIEKernelLaunchTest, empty_kernel) {
   ASSERT_EQ(launch_res, etrtSuccess);
 }
 
-TEST_F(PCIEKernelLaunchTest, DISABLED_beef_kernel) {
+TEST_F(PCIEKernelLaunchTest, beef_kernel) {
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path empty_kernel = fs::path(kernels_dir)  / fs::path("beef.elf");
 
