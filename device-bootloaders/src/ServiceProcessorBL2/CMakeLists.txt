@@ -33,6 +33,7 @@ set(SOURCES
     src/bl2_sp_pll.c
     src/bl2_ddr_config.c
     src/bl2_minion_pll_and_dll.c
+    src/bl2_timer.c
     src/crc32.c
     ${SHARED_SRC_DIR}/constant_memory_compare.c
     src/memory_copy_8x32.S

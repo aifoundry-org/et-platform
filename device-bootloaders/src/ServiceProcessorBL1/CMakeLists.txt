@@ -16,6 +16,7 @@ set(SOURCES
     src/crc32.c
     ${SHARED_SRC_DIR}/constant_memory_compare.c
     src/memory_copy_8x32.S
+    src/bl1_timer.c
     src/bl1_crypto.c
     src/bl1_sp_certificates.c
     src/bl1_sp_firmware_loader.c

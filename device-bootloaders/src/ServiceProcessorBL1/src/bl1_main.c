@@ -11,6 +11,7 @@
 #include "bl1_sp_firmware_loader.h"
 #include "bl1_flash_fs.h"
 #include "bl1_main.h"
+#include "bl1_timer.h"
 #include "bl1_crypto.h"
 #include "bl1_build_configuration.h"
 #include "build_configuration.h"
@@ -50,6 +51,7 @@ static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data) {
     g_service_processor_bl1_data.sp_pll0_frequency = rom_data->sp_pll0_frequency;
     g_service_processor_bl1_data.sp_pll1_frequency = rom_data->sp_pll1_frequency;
     g_service_processor_bl1_data.pcie_pll0_frequency = rom_data->pcie_pll0_frequency;
+    g_service_processor_bl1_data.timer_raw_ticks_before_pll_turned_on = rom_data->timer_raw_ticks_before_pll_turned_on;
     g_service_processor_bl1_data.vaultip_coid_set = rom_data->vaultip_coid_set;
     g_service_processor_bl1_data.spi_controller_rx_baudrate_divider = rom_data->spi_controller_rx_baudrate_divider;
     g_service_processor_bl1_data.spi_controller_tx_baudrate_divider = rom_data->spi_controller_tx_baudrate_divider;
@@ -83,6 +85,8 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
         goto FATAL_ERROR;
     }
 
+    timer_init();
+
     if (0 != crypto_init()) {
         printx("crypto_init() failed!!\n");
         goto FATAL_ERROR;
@@ -97,6 +101,8 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
         printx("load_bl2_firmware() failed!!\n");
         goto FATAL_ERROR;
     }
+
+    printx("time: %lu\n", timer_get_ticks_count());
 
     invoke_sp_bl2();
     for (;;);
