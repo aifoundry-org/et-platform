@@ -32,7 +32,7 @@ bool MailBoxDev::ready() {
   uint64_t ready;
   // FIXME SW-642: currently we query only the master minion fix the ioctl
   // once the driver is fixed
-  auto [valid, res] = ioctl(GET_MM_MBOX_READY, &ready);
+  auto [valid, res] = ioctl(GET_MBOX_READY, &ready);
   if (!valid) {
     RTERROR << "Failed to get the status of the mailbox \n";
     std::terminate();
@@ -45,7 +45,7 @@ bool MailBoxDev::reset() {
   uint64_t unused;
   // FIXME SW-642: currently we query only the master minion fix the ioctl
   // once the driver is fixed
-  auto valid = ioctl_set(RESET_MBOXES, &unused);
+  auto valid = ioctl_set(RESET_MBOX, &unused);
   if (!valid) {
     RTERROR << "Failed to g \n";
     std::terminate();
@@ -58,7 +58,7 @@ ssize_t MailBoxDev::queryMboxMaxMsgSize() {
   ssize_t mb_size;
   // FIXME SW-642: currently we query only the master minion fix the ioctl
   // once the driver is adapted
-  auto [valid, res] = ioctl(GET_MM_MBOX_MAX_MSG, &mb_size);
+  auto [valid, res] = ioctl(GET_MBOX_MAX_MSG, &mb_size);
   if (!valid) {
     RTERROR << "Failed to get maximum mailbox message size \n";
     std::terminate();
