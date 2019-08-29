@@ -45,20 +45,20 @@ void __attribute__((noreturn)) main(void)
     {
         const uint64_t* const master_entry = (uint64_t*)FW_MASTER_SMODE_ENTRY;
 
-        // Set MPROT[2] for neighborhood 0 in master shire to disable access to OS region
+        // Set MPROT[3] for neighborhood 0 in master shire to disable access to OS region
         volatile uint64_t* mprot_ptr = ESR_NEIGH(PRV_M, 0xFF, 0, MPROT);
-        *mprot_ptr = 0x4U;
+        *mprot_ptr = 0x8U;
 
-        // Set MPROT[0:2] for neighborhoods 1-3 in master shire to disable access to OS, PCI-E and IO regions
+        // Set MPROT[3:0] for neighborhoods 1-3 in master shire to disable access to OS, PCI-E and IO regions
         // TODO FIXME master shire only has 1 neighborhood in mini-SoC Zebu image
         // mprot_ptr = ESR_NEIGH(PRV_M, 0xFF, 1, MPROT);
-        // *mprot_ptr = 0x7U;
+        // *mprot_ptr = 0xEU;
 
         // mprot_ptr = ESR_NEIGH(PRV_M, 0xFF, 2, MPROT);
-        // *mprot_ptr = 0x7U;
+        // *mprot_ptr = 0xEU;
 
         // mprot_ptr = ESR_NEIGH(PRV_M, 0xFF, 3, MPROT);
-        // *mprot_ptr = 0x7U;
+        // *mprot_ptr = 0xEU;
 
         // Jump to master firmware in supervisor mode
         asm volatile (
@@ -72,9 +72,9 @@ void __attribute__((noreturn)) main(void)
     {
         const uint64_t* const worker_entry = (uint64_t*)FW_WORKER_SMODE_ENTRY;
 
-        // Set MPROT[2:0] for all neighborhoods in worker shires to disable access to OS, PCI-E and IO regions
+        // Set MPROT[3:0] for all neighborhoods in worker shires to disable access to OS, PCI-E and IO regions
         volatile uint64_t* const mprot_ptr = ESR_NEIGH(PRV_M, 0xFF, 0xF, MPROT);
-        *mprot_ptr = 0x7U;
+        *mprot_ptr = 0xEU;
 
         // Jump to worker firmware in supervisor mode
         asm volatile (
