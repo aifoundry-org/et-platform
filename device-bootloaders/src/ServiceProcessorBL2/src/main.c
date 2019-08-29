@@ -127,6 +127,7 @@ static void taskMain(void *pvParameters)
     printf("Worker Minion firmware loaded.\n");
 
     printf("---------------------------------------------\n");
+    printf("time: %lu\n", timer_get_ticks_count());
 
     if (0 != enable_minion_neighborhoods()) {
         printf("Failed to enable minion neighborhoods!\n");

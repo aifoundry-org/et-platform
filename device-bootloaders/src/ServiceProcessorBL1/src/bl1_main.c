@@ -102,6 +102,8 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
         goto FATAL_ERROR;
     }
 
+    printx("time: %lu\n", timer_get_ticks_count());
+
     invoke_sp_bl2();
     for (;;);
 
