@@ -16,6 +16,7 @@
 #include "build_configuration.h"
 
 #include "bl2_main.h"
+#include "bl2_timer.h"
 #include "bl2_flashfs_driver.h"
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
@@ -203,6 +204,8 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
         goto FATAL_ERROR;
     }
 
+    timer_init(bl1_data->timer_raw_ticks_before_pll_turned_on, bl1_data->sp_pll0_frequency);
+    
     //SERIAL_init(UART0);
 
     SERIAL_init(UART1);
