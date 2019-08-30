@@ -52,7 +52,7 @@ def convert_bin_to_zebu(binary_path, zebu_path_prefix):
         virtual_word_value = unpack_from("<I", binary_data, 4 * virtual_word_index)[0]
         for virtual_bit_in_word_offset in range(32):
             bit_value = virtual_word_value & (1 << virtual_bit_in_word_offset)
-            if 0 != bit_value:
+            if 0 == bit_value:
                 virtual_bit_index = virtual_bit_in_word_offset + 32 * virtual_word_index
                 physical_bit_index = 8192 - virtual_bit_index + physical_bit_index_adjustment
                 physical_bit_index_within_word = physical_bit_index % 16
