@@ -158,12 +158,19 @@ private:
 
     // PLIC Read register subregions
     void reg_priority_source_read(size_type pos, uint32_t *result32) const {
-        *result32 = priority[pos / 4];
+        uint32_t index = pos / 4;
+        if (index >= S)
+            return;
+
+        *result32 = priority[index];
     }
 
     void reg_pending_read(size_type pos, uint32_t *result32) const {
-        size_type idx = 32 * (pos / 4);
-        *result32 = bitset_read_u32(ip, idx);
+        uint32_t index = pos / 4;
+        if (index >= S)
+            return;
+
+        *result32 = bitset_read_u32(ip, 32 * index);
     }
 
     void reg_enable_read(size_type pos, uint32_t *result32) const {
@@ -173,33 +180,34 @@ private:
 
         if (target_address_to_name(target_addr, &name_id))
             *result32 = bitset_read_u32(ie[name_id], sources);
-        else
-            *result32 = 0;
     }
 
     void reg_threshold_maxid_read(size_type pos, uint32_t *result32) {
         uint32_t name_id = 0;
         size_type target_addr = pos / 0x1000;
 
-        if (target_address_to_name(target_addr, &name_id)) {
-            if ((pos % 1000) == 0) { // Threshold registers
-                *result32 = threshold[name_id];
-            } else if ((pos % 1000) == 4) { // MaxID registers
-                // To claim an interrupt, the target reads its MaxID register
-                if (max_id[name_id] > 0) {
-                    in_flight[max_id[name_id]] = true;
-                    *result32 = max_id[name_id];
-                    update_logic();
-                }
+        if (!target_address_to_name(target_addr, &name_id))
+            return;
+
+        if ((pos % 1000) == 0) { // Threshold registers
+            *result32 = threshold[name_id];
+        } else if ((pos % 1000) == 4) { // MaxID registers
+            // To claim an interrupt, the target reads its MaxID register
+            if (max_id[name_id] > 0) {
+                in_flight[max_id[name_id]] = true;
+                *result32 = max_id[name_id];
+                update_logic();
             }
-        } else {
-            *result32 = 0;
         }
     }
 
     // PLIC Write register subregions
     void reg_priority_source_write(size_type pos, const uint32_t *source32) {
-        priority[pos / 4] = *source32 & PLIC_PRIORITY_MASK;
+        uint32_t index = pos / 4;
+        if (index >= S)
+            return;
+
+        priority[index] = *source32 & PLIC_PRIORITY_MASK;
     }
 
     void reg_enable_write(size_type pos, const uint32_t *source32) {
@@ -215,15 +223,16 @@ private:
         uint32_t name_id = 0;
         size_type target_addr = pos / 0x1000;
 
-        if (target_address_to_name(target_addr, &name_id)) {
-            if ((pos % 1000) == 0) { // Threshold registers
-                threshold[name_id] = *source32 & PLIC_THRESHOLD_MASK;
-            } else if ((pos % 1000) == 4) { // MaxID registers
-                // Complete an interrupt: target writes to MaxID the ID of the interrupt
-                if (max_id[name_id] == *source32) {
-                    in_flight[max_id[name_id]] = false;
-                    update_logic();
-                }
+        if (!target_address_to_name(target_addr, &name_id))
+            return;
+
+        if ((pos % 1000) == 0) { // Threshold registers
+            threshold[name_id] = *source32 & PLIC_THRESHOLD_MASK;
+        } else if ((pos % 1000) == 4) { // MaxID registers
+            // Complete an interrupt: target writes to MaxID the ID of the interrupt
+            if (max_id[name_id] == *source32) {
+                in_flight[max_id[name_id]] = false;
+                update_logic();
             }
         }
     }
