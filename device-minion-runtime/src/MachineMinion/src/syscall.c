@@ -160,6 +160,13 @@ static int64_t pre_kernel_setup(uint64_t arg1)
         init_l1();
     }
 
+    // First minion in each neighborhood
+    if (get_hart_id() % 8 == 0U)
+    {
+        // Invalidate shared L1 I-cache
+        asm volatile ("csrw cache_invalidate, 1");
+    }
+
     return 0;
 }
 
