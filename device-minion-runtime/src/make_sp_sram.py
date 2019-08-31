@@ -92,9 +92,9 @@ def make_region(hex_files, bin_file, address):
 
 def make(hex_files, bin_files):
     make_region(hex_files[0:4],   bin_files[0], 0x40400000)
-    # make_region(hex_files[4:8],   bin_files[1], 0x40440000)
-    # make_region(hex_files[8:12],  bin_files[2], 0x40480000)
-    # make_region(hex_files[12:16], bin_files[3], 0x404C0000)
+    make_region(hex_files[4:8],   bin_files[1], 0x40440000)
+    make_region(hex_files[8:12],  bin_files[2], 0x40480000)
+    make_region(hex_files[12:16], bin_files[3], 0x404C0000)
 
 def usage():
     print("Usage:", sys.argv[0], "<output_hex_file_prefix> <input_bin_file_prefix>")

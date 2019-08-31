@@ -83,9 +83,9 @@ def dump_region(bin_file, hex_files, address):
 
 def dump(bin_files, hex_files):
     dump_region(bin_files[0], hex_files[0:4],   0x40400000)
-    # dump_region(bin_files[1], hex_files[4:8],   0x40440000)
-    # dump_region(bin_files[2], hex_files[8:12],  0x40480000)
-    # dump_region(bin_files[3], hex_files[12:16], 0x404C0000)
+    dump_region(bin_files[1], hex_files[4:8],   0x40440000)
+    dump_region(bin_files[2], hex_files[8:12],  0x40480000)
+    dump_region(bin_files[3], hex_files[12:16], 0x404C0000)
 
 def usage():
     print("Usage:", sys.argv[0], "<output_bin_file_prefix> <input_hex_file_prefix>")
