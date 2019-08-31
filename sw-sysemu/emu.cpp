@@ -238,8 +238,9 @@ void init_emu(system_version_t ver)
 void reset_esrs_for_shire(unsigned shireid)
 {
     unsigned shire = (shireid == IO_SHIRE_ID) ? EMU_IO_SHIRE_SP : shireid;
+    unsigned neigh_count = (shire == EMU_IO_SHIRE_SP) ? 1 : EMU_NEIGH_PER_SHIRE;
 
-    for (unsigned neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; ++neigh) {
+    for (unsigned neigh = 0; neigh < neigh_count; ++neigh) {
         unsigned idx = EMU_NEIGH_PER_SHIRE*shire + neigh;
         bemu::neigh_esrs[idx].reset();
     }

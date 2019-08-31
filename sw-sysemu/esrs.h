@@ -3,6 +3,7 @@
 #ifndef BEMU_ESRS_H
 #define BEMU_ESRS_H
 
+#include <array>
 #include <cstdint>
 #include "emu_defines.h"
 
@@ -322,7 +323,7 @@ struct neigh_esrs_t {
     void reset();
 };
 
-extern neigh_esrs_t neigh_esrs[EMU_NUM_NEIGHS];
+extern std::array<neigh_esrs_t, EMU_NUM_NEIGHS> neigh_esrs;
 
 
 // -----------------------------------------------------------------------------
@@ -361,7 +362,7 @@ struct shire_cache_esrs_t {
     void reset();
 };
 
-extern shire_cache_esrs_t shire_cache_esrs[EMU_NUM_SHIRES];
+extern std::array<shire_cache_esrs_t, EMU_NUM_SHIRES> shire_cache_esrs;
 
 
 // -----------------------------------------------------------------------------
@@ -400,7 +401,7 @@ struct shire_other_esrs_t {
     void reset(unsigned shireid);
 };
 
-extern shire_other_esrs_t shire_other_esrs[EMU_NUM_SHIRES];
+extern std::array<shire_other_esrs_t, EMU_NUM_SHIRES> shire_other_esrs;
 
 
 // -----------------------------------------------------------------------------
@@ -412,7 +413,7 @@ struct broadcast_esrs_t {
     void reset() {}
 };
 
-extern broadcast_esrs_t broadcast_esrs[EMU_NUM_SHIRES];
+extern std::array<broadcast_esrs_t, EMU_NUM_SHIRES> broadcast_esrs;
 
 
 // -----------------------------------------------------------------------------

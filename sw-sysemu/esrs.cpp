@@ -47,10 +47,10 @@ namespace bemu {
 #define ESR_SHIRE_CLK_GATE_CTRL_RESET_VAL       0x0
 
 
-neigh_esrs_t        neigh_esrs[EMU_NUM_NEIGHS];
-shire_cache_esrs_t  shire_cache_esrs[EMU_NUM_SHIRES];
-shire_other_esrs_t  shire_other_esrs[EMU_NUM_SHIRES];
-broadcast_esrs_t    broadcast_esrs[EMU_NUM_SHIRES];
+std::array<neigh_esrs_t, EMU_NUM_NEIGHS>       neigh_esrs;
+std::array<shire_cache_esrs_t, EMU_NUM_SHIRES> shire_cache_esrs;
+std::array<shire_other_esrs_t, EMU_NUM_SHIRES> shire_other_esrs;
+std::array<broadcast_esrs_t, EMU_NUM_SHIRES>   broadcast_esrs;
 
 
 // ESR region 'base address' field in bits [39:32], and mask to determine if
