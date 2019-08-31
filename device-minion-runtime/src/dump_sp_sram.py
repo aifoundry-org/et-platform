@@ -51,7 +51,7 @@ def decode_line(hex, data_bytes):
 
     return parity_bits
 
-def dump_memory(hex_files, address):
+def dump_region(bin_file, hex_files, address):
     eof = False
     data_bytes = bytearray(16)
     while False == eof:
@@ -74,8 +74,21 @@ def dump_memory(hex_files, address):
             print("{0:08x}.{1}: {2} {3} {4:04x}  {5}".format(address, n, line, hex_bytes, parity_bits, str_bytes))
             address += 16
 
+            try:
+                bin_file.write(data_bytes)
+            except:
+                print(ex)
+                print("Error writing to bin file!")
+                sys.exit(-1)
+
+def dump(bin_files, hex_files):
+    dump_region(bin_files[0], hex_files[0:4],   0x40400000)
+    # dump_region(bin_files[1], hex_files[4:8],   0x40440000)
+    # dump_region(bin_files[2], hex_files[8:12],  0x40480000)
+    # dump_region(bin_files[3], hex_files[12:16], 0x404C0000)
+
 def usage():
-    print("Usage:", sys.argv[0], "[-a <address>] <row_0_hex_file> <row_1_hex_file> <row_2_hex_file> <row_3_hex_file>")
+    print("Usage:", sys.argv[0], "<output_bin_file_prefix> <input_hex_file_prefix>")
     sys.exit(-1)
 
 try:
@@ -83,30 +96,34 @@ try:
 except ImportError as error:
         print("You don't have bitstring installed. pip3 install bitstring")
 
-if len(sys.argv) < 5:
+if len(sys.argv) != 3:
     usage()
-
-address = 0
-if sys.argv[1] == "-a":
-    if len(sys.argv) < 7:
-        usage()
-    try:
-        address = int(sys.argv[2], 0)
-    except:
-        print("Invalid address argument '{}'!".format(argv[2]))
-        usage()
-    index = 3
-else:
-    index = 1
+    sys.exit(-1)
 
 hex_files = []
-for n in range(0, 4):
+for n in range(0, 16):
     try:
-        hex_files.append(open(sys.argv[index+n], 'r'))
+        filename = "{0}_{1:1X}.hex".format(sys.argv[2], n)
+        hex_files.append(open(filename, 'r'))
     except Exception as ex:
         print(ex)
-        print("Could not open {} file {}".format(n+1, sys.argv[index+n]))
+        print("Could not open input file {}".format(filename))
         sys.exit(-1)
-    print("Opened {} for reading".format(sys.argv[index+n]))
+    print("Opened {0} for reading".format(filename))
 
-dump_memory(hex_files, address)
+print()
+
+bin_files = []
+for n in range(0, 4):
+    try:
+        filename = "{0}_{1:1X}.bin".format(sys.argv[1], n)
+        bin_files.append(open(filename, 'wb'))
+    except Exception as ex:
+        print(ex)
+        print("Could not open output file {}".format(filename))
+        sys.exit(-1)
+    print("Opened {0} for writing".format(filename))
+
+print()
+
+dump(bin_files, hex_files)
