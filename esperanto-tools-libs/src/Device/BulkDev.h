@@ -13,12 +13,8 @@
 
 #include "CharDevice.h"
 #include "Common/ProjectAutogen.h"
-
+#include "Device/DeviceFwTypes.h"
 #include "Support/TimeHelpers.h"
-
-#if ENABLE_DEVICE_FW
-#include "esperanto-fw/layout.h"
-#endif // ENABLE_DEVICE_FW
 
 #include <chrono>
 #include <experimental/filesystem>

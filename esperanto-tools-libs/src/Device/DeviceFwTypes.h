@@ -8,32 +8,27 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "EmuMailBoxDev.h"
+#ifndef ET_RUNTIME_DEVICE_DEVICE_FW_TYPES_H
+#define ET_RUNTIME_DEVICE_DEVICE_FW_TYPES_H
 
-#include "DeviceFwTypes.h"
-#include "Support/Logging.h"
-#include "TargetRPC.h"
+#include "Common/ProjectAutogen.h"
 
-#include <cassert>
-#include <unistd.h>
+/// Wrap the device-fw types in a separate namespace
 
 namespace et_runtime {
-namespace device {
+namespace device_fw {
 
-EmuMailBoxDev::EmuMailBoxDev(RPCTarget &dev) : rpcDev_(dev) {}
+#if ENABLE_DEVICE_FW
 
-bool EmuMailBoxDev::write(const void *data, ssize_t size) {
-  // FIXME currently we do not take into consideration the maximum mailbox size
-  RTDEBUG << "Mailbox Write, size: " << size << "\n";
-  assert(false);
-  return true;
-}
+#include <esperanto-fw/host_message.h>
+#include <esperanto-fw/layout.h>
+#include <esperanto-fw/mailbox_common.h>
+#include <esperanto-fw/mailbox_id.h>
+#include <esperanto-fw/ringbuffer_common.h>
 
-ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
-  RTDEBUG << "Mailbox READ, size: \n";
-  assert(false);
-  return 0;
-}
+#endif // ENABLE_DEVICE_FW
 
-} // namespace device
+} // namespace device_fw
 } // namespace et_runtime
+
+#endif // ET_RUNTIME_DEVICE_DEVICE_FW_TYPES_H

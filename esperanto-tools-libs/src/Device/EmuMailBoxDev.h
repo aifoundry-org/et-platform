@@ -29,12 +29,6 @@ class RPCTarget;
 /// Device-FW over the SimulatorAPI to SysEmu or VCS
 class EmuMailBoxDev {
 public:
-  // FIXME The following values have been extracted form the device-fw code
-  // We need to be including the appropriate headers
-  static constexpr int RINGBUFFER_LENGTH = (254 * 8);
-  static constexpr int RINGBUFFER_MAX_LENGTH = (RINGBUFFER_LENGTH - 1U);
-  static constexpr int MBOX_MAX_MESSAGE_LENGTH = RINGBUFFER_MAX_LENGTH;
-
   /// @brief Construct a MailBox device passing the path to it
   EmuMailBoxDev(RPCTarget &rpcDevice);
   EmuMailBoxDev(EmuMailBoxDev &) = delete;

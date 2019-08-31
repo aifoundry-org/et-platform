@@ -11,11 +11,8 @@
 #include "PCIeDevice.h"
 
 #include "Core/CommandLineOptions.h"
+#include "Device/DeviceFwTypes.h"
 #include "Support/Logging.h"
-
-#if ENABLE_DEVICE_FW
-#include <esperanto-fw/host_message.h>
-#endif // ENABLE_DEVICE_FW
 
 #include <absl/strings/str_format.h>
 #include <experimental/filesystem>
