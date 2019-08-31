@@ -16,6 +16,9 @@
 #include "bl1_build_configuration.h"
 #include "build_configuration.h"
 
+//#define MINIMAL_IMAGE
+
+#ifndef MINIMAL_IMAGE
 SERVICE_PROCESSOR_BL1_DATA_t g_service_processor_bl1_data;
 
 SERVICE_PROCESSOR_BL1_DATA_t * get_service_processor_bl1_data(void) {
@@ -64,6 +67,7 @@ static int copy_rom_data(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data) {
 
     return 0;
 }
+#endif
 
 int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data);
 
@@ -76,6 +80,12 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
     printx("GIT version: %s\n", GIT_VERSION_STRING);
     printx("GIT hash: %s\n", GIT_HASH_STRING);
 
+    volatile uint32_t * rom = (uint32_t*)0x40000000;
+    printx("ROM: %08x %08x %08x %08x\n", rom[0], rom[1], rom[2], rom[3]);
+
+#ifdef MINIMAL_IMAGE
+    (void)rom_data;
+#else
     memset(&g_service_processor_bl1_data, 0, sizeof(g_service_processor_bl1_data));
     g_service_processor_bl1_data.service_processor_bl1_data_size = sizeof(g_service_processor_bl1_data);
     g_service_processor_bl1_data.service_processor_bl1_version = SERVICE_PROCESSOR_BL1_DATA_VERSION;
@@ -112,6 +122,7 @@ FATAL_ERROR:
     for (;;);
 
     printx("*** SP BL1 FINISHED ***\r\n");
+#endif
 
     while (1) {}
 }
