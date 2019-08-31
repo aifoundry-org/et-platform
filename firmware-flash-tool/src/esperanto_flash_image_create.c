@@ -169,7 +169,8 @@ static int create_partition(const PARTITION_INFO_t * partition_info, uint8_t * p
                     return -1;
                 }
             } else {
-                region_size = ((uint32_t)file_size + (FLASH_PAGE_SIZE - 1)) & (uint32_t)(~(FLASH_PAGE_SIZE - 1));
+            	uint32_t required_size = (uint32_t)(file_size + sizeof(file_info));
+                region_size = (required_size + (FLASH_PAGE_SIZE - 1)) & (uint32_t)(~(FLASH_PAGE_SIZE - 1));
                 region_size = region_size / FLASH_PAGE_SIZE;
             }
 
