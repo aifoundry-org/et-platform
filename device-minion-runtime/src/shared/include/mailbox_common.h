@@ -1,7 +1,7 @@
 #ifndef MAILBOX_COMMON_H
 #define MAILBOX_COMMON_H
 
-#include "ringbuffer.h"
+#include "ringbuffer_common.h"
 
 #include <assert.h>
 #include <stdint.h>
