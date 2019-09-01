@@ -11,14 +11,65 @@
 #ifndef ET_RUNTIME_DEVICE_EMUMAILBOXDEV_H
 #define ET_RUNTIME_DEVICE_EMUMAILBOXDEV_H
 
+#include "Device/DeviceFwTypes.h"
 #include "Support/TimeHelpers.h"
 
+#include <cassert>
+#include <cstdlib>
+#include <stdint.h>
 #include <unistd.h>
 
 namespace et_runtime {
 namespace device {
 
 class RPCTarget;
+
+enum class RingBufferType : uint8_t {
+  NONE = 0,
+  RX = 1,
+  TX = 2,
+};
+
+#if ENABLE_DEVICE_FW
+  /// @brief Implementation of the ringbuffer that device-fw supports
+  /// over the mailbox.
+  class RingBuffer {
+  public:
+    RingBuffer(RingBufferType type, RPCTarget &target);
+    const device_fw::ringbuffer_s &state() const { return ringbuffer_; }
+    void setState(const device_fw::ringbuffer_s &rb) { ringbuffer_ = rb; }
+    int64_t write(const void *const data_ptr, uint32_t length);
+    int64_t read(void *const data_ptr, uint32_t length);
+    uint64_t free();
+    uint64_t used();
+    bool empty();
+    bool full();
+
+    // NOTE: the mailbox class is responsible for pulling the lastest state from
+    // the simulator before we operate on the ringbuffer, and writing the
+    // ringbuffer's updated state back to the simulator once it is done updating
+    // it.
+    /// @brief Update the state of the ring buffer from the "source" fo truth
+    /// that is the target simulator
+    bool readRingBufferState();
+    /// @brief Write-back the mailbox status
+    bool writeRingBufferState();
+
+  private:
+    RingBufferType type_;
+    struct device_fw::ringbuffer_s ringbuffer_;
+    RPCTarget &rpcDev_;
+  };
+
+#else
+
+  class RingBuffer {
+  public:
+    RingBuffer(RingBufferType type, RPCTarget &target) {  }
+  };
+
+#endif
+
 
 ///
 /// @brief Helper class that impements the mailbox protocol.
@@ -37,8 +88,22 @@ public:
   ssize_t read(void *data, ssize_t size,
                TimeDuration wait_time = TimeDuration::max());
 
-private:
+protected:
+  RingBuffer tx_ring_buffer_; ///<
+  RingBuffer rx_ring_buffer_; ///<
+  uint32_t master_status_; ///< master status for the mailbox. WE SHOULD NEVER
+                           ///< MODIFY DIRECTLY THE MASTER STATUS
+  /// HERE WE HAVE A READ ONLY COPY
+  // The host is always the mailbox slave
+  uint32_t slave_status_; ///< slave status for the mailbox
   RPCTarget &rpcDev_;
+
+  bool readRemoteStatus();
+  bool writeRemoteStatus();
+  bool mboxDestroy();
+  bool mboxReady();
+  bool waitForHostInterrupt();
+  bool raiseDeviceInterrupt();
 };
 } // namespace device
 

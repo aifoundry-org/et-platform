@@ -76,7 +76,7 @@ public:
   ///
   /// @param[in] wait_time : Time to wait to receive the interrupt, but default
   ///  block indefinitely.
-  bool waitForDeviceInterrupt(TimeDuration wait_time = TimeDuration::max());
+  bool waitForHostInterrupt(TimeDuration wait_time = TimeDuration::max());
 
   /// @brief get the maximum mailbox message
   ssize_t mboxMsgMaxSize() const final {

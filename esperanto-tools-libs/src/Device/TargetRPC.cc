@@ -186,7 +186,7 @@ std::tuple<bool, device_fw::ringbuffer_s> RPCTarget::readRxRb() {
   mb->set_type(MailBoxAccessType::MB_READ);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
-  auto rbi = new RingBuffer();
+  auto rbi = new simulator_api::RingBuffer();
   mb->set_allocated_rx_ring_buffer(rbi);
   request.set_allocated_mailbox(mb);
 
@@ -218,7 +218,7 @@ bool RPCTarget::writeRxRb(const device_fw::ringbuffer_s &rb) {
   mb->set_type(MailBoxAccessType::MB_WRITE);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
-  auto rbw = new RingBuffer();
+  auto rbw = new simulator_api::RingBuffer();
   // Write the ring buffer state
   rbw->set_head_index(rb.head_index);
   rbw->set_tail_index(rb.tail_index);
@@ -250,7 +250,7 @@ std::tuple<bool, device_fw::ringbuffer_s> RPCTarget::readTxRb() {
   mb->set_type(MailBoxAccessType::MB_READ);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
-  auto rbi = new RingBuffer();
+  auto rbi = new simulator_api::RingBuffer();
   mb->set_allocated_tx_ring_buffer(rbi);
   request.set_allocated_mailbox(mb);
 
@@ -280,7 +280,7 @@ bool RPCTarget::writeTxRb(const device_fw::ringbuffer_s &rb) {
   mb->set_type(MailBoxAccessType::MB_WRITE);
   mb->set_req_status(MailBoxAccessStatus::MB_STATUS_NONE);
 
-  auto rbw = new RingBuffer();
+  auto rbw = new simulator_api::RingBuffer();
   rbw->set_head_index(rb.head_index);
   rbw->set_tail_index(rb.tail_index);
   rbw->set_queue(rb.queue, RINGBUFFER_LENGTH);
@@ -312,7 +312,7 @@ bool RPCTarget::raiseDeviceInterrupt() {
   return true;
 }
 
-bool RPCTarget::waitForDeviceInterrupt(TimeDuration wait_time) {
+bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
   simulator_api::Request request;
   auto interrupt = new Interrupt();
   request.set_allocated_host_interrupt(interrupt);

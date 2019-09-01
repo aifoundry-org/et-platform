@@ -17,11 +17,12 @@
 using namespace std;
 using namespace simulator_api;
 namespace fs = std::experimental::filesystem;
+using namespace et_runtime;
 
 class DummySimulator final : public AbstractSimulator {
 
 public:
-  DummySimulator() : AbstractSimulator(createSocketFile()), done_(false) {}
+  DummySimulator() : AbstractSimulator(createSocketFile()), done_(false), mbox_{0} {}
 
   std::string createSocketFile() const {
     // Create a temporary file for the socket and overwrite the
@@ -46,19 +47,17 @@ public:
   bool boot() override { return true; }
   bool sync() override { return true; }
   bool read(uint64_t ad, size_t size, void *data) override {
-    memcpy(data, data_.data(), size);
     return true;
   }
   bool write(uint64_t ad, size_t size, const void *data) override {
-    data_.clear();
-    data_.resize(size);
-    memcpy(data_.data(), data, size);
     return true;
   }
   bool mb_read(struct mbox_t* mbox) override {
+    *mbox = mbox_;
     return true;
   }
   bool mb_write(const struct mbox_t& mbox) override {
+    mbox_ = mbox;
     return true;
   }
   bool raise_device_interrupt() override {
@@ -73,16 +72,15 @@ public:
   bool continue_exec() override { return true; }
   void set_done(bool val) override { done_.store(val); }
 
-private:
-  // memorize the last write
-  vector<uint8_t> data_;
   std::atomic<bool> done_;
+  struct mbox_t mbox_;
 };
 
 class MBSimAPITest : public ::testing::Test {
 
 protected:
-  MBSimAPITest() : sim_(), sim_api_(&sim_), rpc_(0, sim_.communicationPath()) {}
+  MBSimAPITest()
+      : sim_(), sim_api_(&sim_, true), rpc_(0, sim_.communicationPath()) {}
 
   void SetUp() override {
     auto res = sim_api_.init();
@@ -123,7 +121,7 @@ TEST_F(MBSimAPITest, RaiseDeviceInterrupt) {
 TEST_F(MBSimAPITest, BlockOnDeviceInterrupt) {
   // Thread that waits to receive an interrupt from the device.
   auto rpc_thread = std::thread([this]() {
-    rpc_.waitForDeviceInterrupt();
+    rpc_.waitForHostInterrupt();
     return true;
   });
   // send interrupt to host
@@ -133,7 +131,86 @@ TEST_F(MBSimAPITest, BlockOnDeviceInterrupt) {
   rpc_.shutdown();
 }
 
-// Prepopulate the mailbox message and send it.
+// Read a mailbox message cases
+TEST_F(MBSimAPITest, ReadEmptyMailBoxMessage) {
+  // Prepare the mailbox status
+  sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
+  // Raise a host interrupt on the device
+  sim_api_.raiseHostInterrupt();
+  uint8_t data[MBOX_MAX_LENGTH];
+  // Read the mailbox message it should be empty
+  auto res = rpc_.mb_read(data, sizeof(data));
+  EXPECT_TRUE(!res);
+  rpc_.shutdown();
+}
+
+// Read a valid mailbox message
+TEST_F(MBSimAPITest, ReadMailBoxMessage) {
+  // Prepare the mailbox status
+  sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
+  device::RingBuffer rb(device::RingBufferType::RX, rpc_);
+  auto elem_num = 20;
+  std::vector<uint16_t> data(elem_num, 0xbeef);
+  uint16_t data_size =
+      data.size() * sizeof(typename decltype(data)::value_type);
+  const device_fw::mbox_header_t header = {.length = (uint16_t)data_size,
+                                           .magic = MBOX_MAGIC};
+  rb.write(&header, sizeof(header));
+  rb.write(data.data(), data_size);
+  auto &state = rb.state();
+  sim_.mbox_.tx_ring_buffer.head_index = state.head_index;
+  sim_.mbox_.tx_ring_buffer.tail_index = state.tail_index;
+  memcpy(sim_.mbox_.tx_ring_buffer.queue, state.queue, sizeof(state.queue));
+
+  // Raise a host interrupt on the device, to mark the device ready
+  sim_api_.raiseHostInterrupt();
+  std::vector<uint16_t> res_data(elem_num, 0);
+
+  // Read the mailbox message
+  auto res = rpc_.mb_read(res_data.data(), data_size);
+  EXPECT_EQ(res, data_size);
+  EXPECT_THAT(res_data, ::testing::ElementsAreArray(data));
+  rpc_.shutdown();
+}
+
+// Write a valid mailbox message
+TEST_F(MBSimAPITest, WriteMailBoxMessage) {
+  // Prepare the mailbox status
+  sim_.mbox_.master_status = et_runtime::device_fw::MBOX_STATUS_READY;
+
+  // reference data
+  auto elem_num = 20;
+  std::vector<uint16_t> data(elem_num, 0xbeef);
+  uint16_t data_size =
+      data.size() * sizeof(typename decltype(data)::value_type);
+
+  // Raise a host interrupt on the device so that the host can proceed
+  sim_api_.raiseHostInterrupt();
+
+  // Write the mailbox message
+  auto res = rpc_.mb_write(data.data(), data_size);
+  EXPECT_TRUE(res);
+
+  // Validate the writen results in the simulator
+
+  device::RingBuffer rb(device::RingBufferType::RX, rpc_);
+  device_fw::ringbuffer_s irb;
+  irb.head_index = sim_.mbox_.rx_ring_buffer.head_index;
+  irb.tail_index = sim_.mbox_.rx_ring_buffer.tail_index;
+  memcpy(irb.queue, sim_.mbox_.rx_ring_buffer.queue, sizeof(irb.queue));
+
+  rb.setState(irb);
+  device_fw::mbox_header_t header;
+
+  rb.read(&header, sizeof(header));
+  EXPECT_EQ(header.length, data_size);
+
+  std::vector<uint16_t> res_data(elem_num, 0);
+  rb.read(res_data.data(), data_size);
+
+  EXPECT_THAT(res_data, ::testing::ElementsAreArray(data));
+  rpc_.shutdown();
+}
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);

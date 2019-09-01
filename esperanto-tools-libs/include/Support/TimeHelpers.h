@@ -18,6 +18,7 @@
 #define ET_RUNTIME_SUPPORT_TIMEHELPERS_H
 
 #include <chrono>
+#include <stdint.h>
 
 namespace et_runtime {
 

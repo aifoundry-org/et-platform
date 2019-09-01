@@ -13,6 +13,8 @@
 
 #include "Common/ProjectAutogen.h"
 
+#include <stdint.h>
+
 /// Wrap the device-fw types in a separate namespace
 
 namespace et_runtime {
