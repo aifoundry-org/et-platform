@@ -6,20 +6,94 @@
 #include <array>
 #include <cstdint>
 #include <functional>
-#include "dense_region.h"
 #include "emu_defines.h"
 #include "literals.h"
 #include "memory_error.h"
 #include "memory_region.h"
+#include "dense_region.h"
 #include "sparse_region.h"
 
 extern uint32_t current_thread;
+extern void pu_plic_interrupt_pending_set(uint32_t source_id);
 
 namespace bemu {
 
 
 extern typename MemoryRegion::value_type memory_reset_value;
 
+template <unsigned long long Base, size_t N>
+struct PU_TRG_MMin_Region : public MemoryRegion
+{
+    typedef typename MemoryRegion::addr_type      addr_type;
+    typedef typename MemoryRegion::size_type      size_type;
+    typedef typename MemoryRegion::value_type     value_type;
+    typedef typename MemoryRegion::pointer        pointer;
+    typedef typename MemoryRegion::const_pointer  const_pointer;
+
+    enum : unsigned long long {
+        MMM_INT_INC = 0x4,
+        PCI_INT_DEC = 0x8,
+        PCI_MMM_CNT = 0xC,
+    };
+
+    void read(size_type pos, size_type n, pointer result) override {
+        uint32_t *result32 = reinterpret_cast<uint32_t *>(result);
+
+        if (n != 4)
+            throw memory_error(first() + pos);
+
+        switch (pos) {
+        case MMM_INT_INC:
+            *result32 = 0;
+            break;
+        case PCI_INT_DEC:
+            *result32 = 0;
+            break;
+        case PCI_MMM_CNT:
+            *result32 = counter;
+            break;
+        }
+    }
+
+    void write(size_type pos, size_type n, const_pointer source) override {
+        const uint32_t *source32 = reinterpret_cast<const uint32_t *>(source);
+
+        if (n != 4)
+            throw memory_error(first() + pos);
+
+        switch (pos) {
+        case MMM_INT_INC:
+            break;
+        case PCI_INT_DEC:
+            counter -= *source32 & 1;
+            check_trigger_int();
+            break;
+        case PCI_MMM_CNT:
+            break;
+        }
+    }
+
+    void init(size_type, size_type, const_pointer) override {
+        throw std::runtime_error("bemu::MailboxRegion::PU_TRG_MMin_Region::init()");
+    }
+
+    addr_type first() const override { return Base; }
+    addr_type last() const override { return Base + N - 1; }
+
+    void dump_data(std::ostream&, size_type, size_type) const override { }
+
+    void interrupt_inc() { ++counter; check_trigger_int(); }
+
+protected:
+    void check_trigger_int() {
+        if (counter > 0) {
+            // PU_PLIC_PCIE_MSI_INTR
+            pu_plic_interrupt_pending_set(24);
+        }
+    }
+
+    uint32_t counter = 0;
+};
 
 template<unsigned long long Base, size_t N>
 struct MailboxRegion : public MemoryRegion {
@@ -83,21 +157,21 @@ struct MailboxRegion : public MemoryRegion {
     void dump_data(std::ostream&, size_type, size_type) const override { }
 
     // Members
-    DenseRegion  <pu_trg_mmin_pos, 8_KiB>       pu_trg_mmin{};
-    DenseRegion  <pu_trg_mmin_sp_pos, 8_KiB>    pu_trg_mmin_sp{};
-    DenseRegion  <pu_sram_mm_mx_pos, 4_KiB>     pu_sram_mm_mx{};
-    DenseRegion  <pu_mbox_mm_mx_pos, 4_KiB>     pu_mbox_mm_mx{};
-    DenseRegion  <pu_mbox_mm_sp_pos, 4_KiB>     pu_mbox_mm_sp{};
-    DenseRegion  <pu_mbox_pc_mm_pos, 4_KiB>     pu_mbox_pc_mm{};
-    SparseRegion <pu_sram_pos, 224_KiB, 16_KiB> pu_sram{};
-    DenseRegion  <pu_mbox_mx_sp_pos, 4_KiB>     pu_mbox_mx_sp{};
-    DenseRegion  <pu_mbox_pc_mx_pos, 4_KiB>     pu_mbox_pc_mx{};
-    DenseRegion  <pu_mbox_spare_pos, 4_KiB>     pu_mbox_spare{};
-    DenseRegion  <pu_mbox_pc_sp_pos, 4_KiB>     pu_mbox_pc_sp{};
-    DenseRegion  <pu_trg_max_pos, 8_KiB>        pu_trg_max{};
-    DenseRegion  <pu_trg_max_sp_pos, 8_KiB>     pu_trg_max_sp{};
-    DenseRegion  <pu_trg_pcie_pos, 8_KiB>       pu_trg_pcie{};
-    DenseRegion  <pu_trg_pcie_sp_pos , 8_KiB>   pu_trg_pcie_sp{};
+    PU_TRG_MMin_Region <pu_trg_mmin_pos, 8_KiB>       pu_trg_mmin{};
+    DenseRegion        <pu_trg_mmin_sp_pos, 8_KiB>    pu_trg_mmin_sp{};
+    DenseRegion        <pu_sram_mm_mx_pos, 4_KiB>     pu_sram_mm_mx{};
+    DenseRegion        <pu_mbox_mm_mx_pos, 4_KiB>     pu_mbox_mm_mx{};
+    DenseRegion        <pu_mbox_mm_sp_pos, 4_KiB>     pu_mbox_mm_sp{};
+    DenseRegion        <pu_mbox_pc_mm_pos, 4_KiB>     pu_mbox_pc_mm{};
+    SparseRegion       <pu_sram_pos, 224_KiB, 16_KiB> pu_sram{};
+    DenseRegion        <pu_mbox_mx_sp_pos, 4_KiB>     pu_mbox_mx_sp{};
+    DenseRegion        <pu_mbox_pc_mx_pos, 4_KiB>     pu_mbox_pc_mx{};
+    DenseRegion        <pu_mbox_spare_pos, 4_KiB>     pu_mbox_spare{};
+    DenseRegion        <pu_mbox_pc_sp_pos, 4_KiB>     pu_mbox_pc_sp{};
+    DenseRegion        <pu_trg_max_pos, 8_KiB>        pu_trg_max{};
+    DenseRegion        <pu_trg_max_sp_pos, 8_KiB>     pu_trg_max_sp{};
+    DenseRegion        <pu_trg_pcie_pos, 8_KiB>       pu_trg_pcie{};
+    DenseRegion        <pu_trg_pcie_sp_pos , 8_KiB>   pu_trg_pcie_sp{};
 
 protected:
     static inline bool above(const MemoryRegion* lhs, size_type rhs) {

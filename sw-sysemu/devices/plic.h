@@ -96,16 +96,18 @@ struct PLIC : public MemoryRegion
 
     // PLIC methods
 
-    void interrupt_pending_set(size_type source_id) {
-        assert(source_id < S);
-        ip[source_id] = true;
-        update_logic();
+    void interrupt_pending_set(uint32_t source_id) {
+        if (source_id < S) {
+            ip[source_id] = true;
+            update_logic();
+        }
     }
 
-    void interrupt_pending_clear(size_type source_id) {
-        assert(source_id < S);
-        ip[source_id] = false;
-        update_logic();
+    void interrupt_pending_clear(uint32_t source_id) {
+        if (source_id < S) {
+            ip[source_id] = false;
+            update_logic();
+        }
     }
 
 protected:

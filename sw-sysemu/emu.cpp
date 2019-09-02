@@ -4118,6 +4118,11 @@ void clear_bus_error_interrupt(int thread)
     cpu[thread].mip &= ~0x800000;
 }
 
+void pu_plic_interrupt_pending_set(uint32_t source_id)
+{
+    bemu::memory.pu_io_space.pu_plic.interrupt_pending_set(source_id);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Esperanto code prefetching extension emulation
