@@ -14,12 +14,14 @@
 
 #include "pcie.h"
 
-#include "hal_device.h"
-#include "pcie_device.h"
-
 #include <inttypes.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
+
+#include "etsoc_hal/rm_esr.h"
+#include "hal_device.h"
+#include "pcie_device.h"
 
 static void pcie_init_pshire(void);
 static void pcie_init_caps_list(void);
@@ -30,6 +32,13 @@ static void pcie_init_atus(void);
 static void pcie_wait_for_ints(void);
 
 #define SMLH_LTSSM_STATE_LINK_UP 0x11
+
+static int release_pshire_from_reset(void) {
+    volatile Reset_Manager_t * reset_manager = (Reset_Manager_t*)R_SP_CRU_BASEADDR;
+    reset_manager->rm_pshire_cold.R = (Reset_Manager_rm_pshire_cold_t){ .B = { .rstn = 1 }}.R;
+    reset_manager->rm_pshire_warm.R = (Reset_Manager_rm_pshire_warm_t){ .B = { .rstn = 1 }}.R;
+    return 0;
+}
 
 void PCIe_init(bool expect_link_up)
 {  
@@ -47,6 +56,10 @@ void PCIe_init(bool expect_link_up)
         else {
             printf("Warning: PCIe link not properly inited, trying again...\r\n");
         }
+    }
+    else {
+        //Normally ServiceProcessorROM releases reset, however this codepath skips that
+        release_pshire_from_reset();
     }
 
     if (init_link) {
