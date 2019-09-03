@@ -119,7 +119,6 @@ set(TEST_LIST
   test_module_manager.cc:""
   )
 
-
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
 
 if(esperanto-fw_FOUND)
@@ -135,6 +134,9 @@ if(esperanto-fw_FOUND)
 
   # List of tests to be compiled if we have support for device-fw
   set(DEVFW_TEST_LIST
+    # This tests exercises the simulator API but given that we need to test the mailbox this
+    # can be enabled only for the case of device-fw
+    device-fw/test_mb_sim_api.cc:""
     device-fw/test_load_device_fw.cc:${DEV_FW_ARGS}
     device-fw/test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
     device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
