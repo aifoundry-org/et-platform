@@ -303,11 +303,23 @@ bool RPCTarget::writeTxRb(const device_fw::ringbuffer_s &rb) {
 bool RPCTarget::raiseDeviceInterrupt() {
   simulator_api::Request request;
   auto interrupt = new Interrupt();
-  request.set_allocated_interrupt(interrupt);
+  request.set_allocated_device_interrupt(interrupt);
   // Do RPC and wait for reply
   auto reply = doRPC(request);
-  assert(reply.has_interrupt());
-  auto &interrupt_rsp = reply.interrupt();
+  assert(reply.has_device_interrupt());
+  auto &interrupt_rsp = reply.device_interrupt();
+  assert(interrupt_rsp.success());
+  return true;
+}
+
+bool RPCTarget::waitForDeviceInterrupt(TimeDuration wait_time) {
+  simulator_api::Request request;
+  auto interrupt = new Interrupt();
+  request.set_allocated_host_interrupt(interrupt);
+  // Do RPC and wait for reply
+  auto reply = doRPC(request);
+  assert(reply.has_host_interrupt());
+  auto &interrupt_rsp = reply.host_interrupt();
   assert(interrupt_rsp.success());
   return true;
 }

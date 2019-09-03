@@ -72,6 +72,11 @@ public:
   /// @brief Raise an interrupt in the target "device" in which case this is the
   /// simulator
   bool raiseDeviceInterrupt();
+  /// @brief Wait to receive an interrupt from the device or timeout.
+  ///
+  /// @param[in] wait_time : Time to wait to receive the interrupt, but default
+  ///  block indefinitely.
+  bool waitForDeviceInterrupt(TimeDuration wait_time = TimeDuration::max());
 
   /// @brief get the maximum mailbox message
   ssize_t mboxMsgMaxSize() const final {
