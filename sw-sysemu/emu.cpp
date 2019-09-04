@@ -896,6 +896,9 @@ static uint64_t csrget(uint16_t src1)
     case CSR_HPMCOUNTER6:
     case CSR_HPMCOUNTER7:
     case CSR_HPMCOUNTER8:
+        check_counter_is_enabled(src1 - CSR_CYCLE);
+        val = 0;
+        break;
     case CSR_HPMCOUNTER9:
     case CSR_HPMCOUNTER10:
     case CSR_HPMCOUNTER11:
@@ -919,8 +922,7 @@ static uint64_t csrget(uint16_t src1)
     case CSR_HPMCOUNTER29:
     case CSR_HPMCOUNTER30:
     case CSR_HPMCOUNTER31:
-        check_counter_is_enabled(src1 - CSR_CYCLE);
-        val = 0;
+        throw trap_illegal_instruction(current_inst);
         break;
     case CSR_MVENDORID:
         val = CSR_VENDOR_ID;
@@ -1380,6 +1382,7 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_MIMPID:
     case CSR_MHARTID:
         throw trap_illegal_instruction(current_inst);
+        break;
     // ----- Esperanto registers -------------------------------------
     case CSR_MATP: // Shared register
         // do not write the register if it is locked (L==1)
