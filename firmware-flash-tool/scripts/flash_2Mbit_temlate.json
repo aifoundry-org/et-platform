@@ -31,11 +31,11 @@
                     },
                     {
                         "id" : "PCIE_CONFIG",
-                        "file" : "firmware-tools/test_files/test_pcie_config_data.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/test_pcie_config_data.img"
                     },
                     {
                         "id" : "SP_BL1",
-                        "file" : "firmware-tools/code-signing-tools/bl1.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/bl1.img"
                     }
                 ]
             },
@@ -51,11 +51,11 @@
                     },
                     {
                         "id" : "SP_BL1",
-                        "file" : "firmware-tools/code-signing-tools/bl1.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/bl1.img"
                     },
                     {
                         "id" : "PCIE_CONFIG",
-                        "file" : "firmware-tools/test_files/test_pcie_config_data.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/test_pcie_config_data.img"
                     },
                     {
                         "id" : "VAULTIP_FW",

@@ -28,42 +28,38 @@
                     {
                         "id" : "SP_CERTIFICATES",
                         "size" : 4,
-                        "file" : "firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp.crt"
+                        "file" : "firmware-tools/code-signing-tools/test_templates_and_certificates/test_otp_sp.crt"
                     },
                     {
                         "id" : "PCIE_CONFIG",
                         "size" : 44,
-                        "file" : "firmware-tools/test_files/test_pcie_config_data.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/otp_test_pcie_config_data.img"
                     },
                     {
                         "id" : "SP_BL1",
                         "size" : 128,
-                        "--file" : "firmware-tools/code-signing-tools/bl1.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_bl1.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_bl1.img"
                     },
                     {
                         "id" : "SP_BL2",
                         "size" : 384,
-                        "--file" : "firmware-tools/code-signing-tools/bl2.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_bl2.img"
+                        "--file" : "firmware-tools/code-signing-tools/test_signed_images/bl2.img",
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_bl2.img"
                     },
                     {
                         "id" : "MACHINE_MINION",
                         "size" : 64,
-                        "--file" : "firmware-tools/code-signing-tools/machine_minion.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_machine_minion.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_machine_minion.img"
                     },
                     {
                         "id" : "MASTER_MINION",
                         "size" : 64,
-                        "--file" : "firmware-tools/code-signing-tools/master_minion.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_master_minion.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_master_minion.img"
                     },
                     {
                         "id" : "WORKER_MINION",
                         "size" : 64,
-                        "--file" : "firmware-tools/code-signing-tools/worker_minion.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_worker_minion.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_worker_minion.img"
                     }
                 ]
             },
@@ -75,22 +71,20 @@
                 "regions" : [
                     {
                         "id" : "SP_CERTIFICATES",
-                        "file" : "firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp.crt"
+                        "file" : "firmware-tools/code-signing-tools/test_templates_and_certificates/test_otp_sp.crt"
                     },
                     {
                         "id" : "SP_BL1",
-                        "file" : "firmware-tools/code-signing-tools/bl1.img",
-                        "--file" : "firmware-tools/code-signing-tools/encrypted_bl1.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_bl1.img"
                     },
                     {
                         "id" : "PCIE_CONFIG",
                         "size" : 44,
-                        "file" : "firmware-tools/test_files/test_pcie_config_data.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/otp_test_pcie_config_data.img"
                     },
                     {
                         "id" : "SP_BL2",
-                        "--file" : "firmware-tools/code-signing-tools/bl2.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_bl2.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_bl2.img"
                     },
                     {
                         "id" : "VAULTIP_FW",
@@ -100,20 +94,17 @@
                     {
                         "id" : "MACHINE_MINION",
                         "size" : 64,
-                        "--file" : "firmware-tools/code-signing-tools/machine_minion.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_machine_minion.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_machine_minion.img"
                     },
                     {
                         "id" : "MASTER_MINION",
                         "size" : 64,
-                        "--file" : "firmware-tools/code-signing-tools/master_minion.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_master_minion.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_master_minion.img"
                     },
                     {
                         "id" : "WORKER_MINION",
                         "size" : 64,
-                        "--file" : "firmware-tools/code-signing-tools/worker_minion.img",
-                        "file" : "firmware-tools/code-signing-tools/encrypted_worker_minion.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/encrypted_worker_minion.img"
                     }
                 ]
             }
