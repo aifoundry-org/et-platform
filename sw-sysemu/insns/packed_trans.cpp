@@ -60,6 +60,7 @@ static inline float32_t frcp_vs_gold(float32_t x)
 }
 
 
+#if 0
 static inline float32_t frsq_vs_gold(float32_t x)
 {
     float32_t fpuval = fpu::f32_rsqrt(x);
@@ -84,7 +85,8 @@ static inline float32_t fsin_vs_gold(float32_t x)
     }
     return fpuval;
 }
-// LCOV_EXCL_STOP
+#endif
+
 
 void insn_fexp_ps(insn_t inst)
 {
@@ -115,19 +117,29 @@ void insn_frcp_ps(insn_t inst)
 
 void insn_frsq_ps(insn_t inst)
 {
+#if 0
     require_fp_active();
     DISASM_FD_FS1("frsq.ps");
     WRITE_VD( frsq_vs_gold(FS1.f32[e]) );
     set_fp_exceptions();
+#else
+    DISASM_FD_FS1("frsq.ps");
+    throw trap_mcode_instruction(inst.bits);
+#endif
 }
 
 
 void insn_fsin_ps(insn_t inst)
 {
+#if 0
     require_fp_active();
     DISASM_FD_FS1("fsin.ps");
     WRITE_VD( fsin_vs_gold(FS1.f32[e]) );
     set_fp_exceptions();
+#else
+    DISASM_FD_FS1("fsin.ps");
+    throw trap_mcode_instruction(inst.bits);
+#endif
 }
 
 
