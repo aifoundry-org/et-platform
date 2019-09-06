@@ -131,7 +131,7 @@ struct MainMemory {
     ScratchRegion    <scp_base, 4_MiB, EMU_NUM_SHIRES>  scp_space{};
     SysregRegion     <sysreg_base, 4_GiB>               sysreg_space{};
     NullRegion       <pcie_base, 256_GiB>               pcie_space{};
-    SparseRegion     <dram_base, 32_GiB, 16_MiB>        dram_space{};
+    SparseRegion     <dram_base, EMU_DRAM_SIZE, 16_MiB> dram_space{};
 
 protected:
     static inline bool above(const MemoryRegion* lhs, addr_type rhs) {

@@ -28,7 +28,7 @@ namespace bemu {
 #define ESR_NEIGH_MINION_BOOT_RESET_VAL   0x8000001000
 #define ESR_ICACHE_ERR_LOG_CTL_RESET_VAL  0x6
 #define ESR_TEXTURE_CONTROL_RESET_VAL     0x5
-#define ESR_MPROT_RESET_VAL               0x10
+#define ESR_MPROT_RESET_VAL               0x13
 
 #define ESR_SC_L3_SHIRE_SWIZZLE_CTL_RESET_VAL   0x0000987765543210ULL
 #define ESR_SC_REQQ_CTL_RESET_VAL               0x00038A80
@@ -172,7 +172,7 @@ void shire_other_esrs_t::reset(unsigned shire)
     shire_cache_ram_cfg3 = ESR_SHIRE_CACHE_RAM_CFG3_RESET_VAL;
     shire_cache_ram_cfg4 = ESR_SHIRE_CACHE_RAM_CFG4_RESET_VAL;
     shire_cache_ram_cfg2 = ESR_SHIRE_CACHE_RAM_CFG2_RESET_VAL;
-    shire_config = ESR_SHIRE_CONFIG_CONST_RESET_VAL | shire;
+    shire_config = ESR_SHIRE_CONFIG_CONST_RESET_VAL | SHIREID(shire);
     thread0_disable = 0xffffffff;
     thread1_disable = 0xffffffff;
     mtime_local_target = 0;

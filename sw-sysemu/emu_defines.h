@@ -34,12 +34,18 @@
 #define TFMA_MAX_ACOLS    16
 #define TFMA_MAX_BCOLS    16
 #define TFMA_REGS_PER_ROW (TFMA_MAX_BCOLS / unsigned(VLEN/32))
+
 // FastLocalBarrier
 #define FAST_LOCAL_BARRIERS 32
+
 // TensorQuant defines
 #define TQUANT_MAX_TRANS 10
+
 // FastCreditCounters
 #define EMU_NUM_FCC_COUNTERS_PER_THREAD 2
+
+// Main memory size (16GiB)
+#define EMU_DRAM_SIZE  (16ULL*1024ULL*1024ULL*1024ULL)
 
 // VA to PA translation
 #define PA_SIZE        40

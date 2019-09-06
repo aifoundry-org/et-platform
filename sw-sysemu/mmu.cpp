@@ -147,6 +147,21 @@ static inline bool paddr_is_sp_cacheable(uint64_t addr)
 { return paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr); }
 
 
+static inline uint64_t spio_pma_dram_limit()
+{
+    using namespace bemu::literals;
+    return 0x8000000000ULL + 32_GiB;
+}
+
+
+// NB: We have only 16GiB of DRAM installed
+static inline uint64_t truncated_dram_addr(uint64_t addr)
+{
+    using namespace bemu::literals;
+    return 0x8000000000ULL + ((addr - 0x8000000000ULL) % EMU_DRAM_SIZE);
+}
+
+
 static inline uint64_t pma_dram_limit(uint8_t mprot)
 {
     using namespace bemu::literals;
@@ -200,10 +215,10 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
         }
 
         // dram_other
-        if (addr >= pma_dram_limit(mprot))
+        if (addr >= (spio ? spio_pma_dram_limit() : pma_dram_limit(mprot)))
             throw_access_fault(vaddr, macc);
 
-        return addr;
+        return truncated_dram_addr(addr);
     }
 
     if (paddr_is_scratchpad(addr)) {
@@ -283,10 +298,10 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
         }
 
         // dram_other
-        if (addr >= pma_dram_limit(mprot))
+        if (addr >= (spio ? spio_pma_dram_limit() : pma_dram_limit(mprot)))
             throw_access_fault(vaddr, macc);
 
-        return addr;
+        return truncated_dram_addr(addr);
     }
 
     if (paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr)) {
@@ -334,10 +349,10 @@ static uint64_t pma_check_ptw_access(uint64_t vaddr, uint64_t addr,
         }
 
         // dram_other
-        if (addr >= pma_dram_limit(mprot))
+        if (addr >= (spio ? spio_pma_dram_limit() : pma_dram_limit(mprot)))
             throw_access_fault(vaddr, macc);
 
-        return addr;
+        return truncated_dram_addr(addr);
     }
 
     if (paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr)) {
