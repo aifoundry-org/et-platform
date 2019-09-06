@@ -35,7 +35,7 @@
                     },
                     {
                         "id" : "SP_BL1",
-                        "file" : "firmware-tools/code-signing-tools/test_signed_images/bl1.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/minimal_bl1.img"
                     }
                 ]
             },
@@ -51,7 +51,7 @@
                     },
                     {
                         "id" : "SP_BL1",
-                        "file" : "firmware-tools/code-signing-tools/test_signed_images/bl1.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/minimal_bl1.img"
                     },
                     {
                         "id" : "PCIE_CONFIG",
