@@ -25,6 +25,7 @@
 #include "memory/main_memory.h"
 #include "mmu.h"
 #include "net_emulator.h"
+#include "api_communicate.h"
 #include "processor.h"
 #include "profiling.h"
 #include "rvtimer.h"
@@ -156,12 +157,12 @@ static const char * help_msg =
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -mins_dis                Minions start disabled\n\
      -net_desc <path>         Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
+     -pu_uart_tx_file <path>  Path to the file in which to dump the contents of PU UART TX\n\
+     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
      -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
      -single_thread           Disable 2nd Minion thread\n\
      -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
-     -pu_uart_tx_file <path>  Path to the file in which to dump the contents of PU UART TX\n\
-     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -446,6 +447,20 @@ sys_emu::raise_external_supervisor_interrupt(unsigned shire_id)
         }
     }
 }
+
+bool sys_emu::init_api_listener(const char *communication_path, bemu::MainMemory* memory) {
+
+    api_listener = std::unique_ptr<api_communicate>(new api_communicate(memory));
+
+    api_listener->set_comm_path(communication_path);
+
+    if(!api_listener->init())
+    {
+        throw std::runtime_error("Failed to initialize api listener");
+    }
+    return true;
+}
+
 
 void
 sys_emu::clear_external_supervisor_interrupt(unsigned shire_id)
@@ -807,11 +822,8 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
         net_emu.set_file(cmd_options.net_desc_file);
     }
 
-    api_listener = allocate_api_listener(&bemu::memory);
-    // Parses the net description (it emulates a Maxion sending interrupts to minions)
-    if(cmd_options.api_comm_path != NULL)
-    {
-        api_listener->set_comm_path(cmd_options.api_comm_path);
+    if (cmd_options.api_comm_path) {
+        init_api_listener(cmd_options.api_comm_path, &bemu::memory);
     }
 
     // Reset the SoC
@@ -919,7 +931,7 @@ sys_emu::main_internal(int argc, char * argv[])
              || !port_wait_threads.empty()
              ||  pu_rvtimer.is_active()
              || (net_emu.is_enabled() && !net_emu.done())
-             || (api_listener->is_enabled() && !api_listener->is_done())
+             || (api_listener && api_listener->is_enabled() && !api_listener->is_done())
             )
          && (emu_cycle < cmd_options.max_cycles)
     )
@@ -1084,8 +1096,10 @@ sys_emu::main_internal(int argc, char * argv[])
             }
         }
 
+        if (api_listener) {
         // Runtime API: check for new commands
         api_listener->get_next_cmd(&enabled_threads);
+        }
 
         emu_cycle++;
     }

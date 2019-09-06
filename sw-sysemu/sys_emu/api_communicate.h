@@ -3,6 +3,7 @@
 
 // STD
 #include <list>
+#include <string>
 #include <cstdint>
 #include <unistd.h>
 
@@ -28,20 +29,23 @@ class api_communicate
         { }
 
         // Set
-        void set_comm_path(char * api_comm_path);
+        virtual void set_comm_path(const char * api_comm_path);
 
         // Access
         bool is_done();
-        bool is_enabled();
+        virtual bool is_enabled();
 
         // Execution
-        void get_next_cmd(std::list<int> * enabled_threads);
+        virtual bool init();
+        virtual void get_next_cmd(std::list<int> * enabled_threads);
 
-    private:
+    protected:
         bemu::MainMemory* mem;                   // Pointer to the memory
         bool              enabled;               // The communication through API has been enabled
         bool              done;                  // Is there pending work to be done
         int               communication_channel; // Opened descriptor for socket communication
+        std::string   communication_path;    // Path to socket file
+
 
         // Socket auxiliar
         ssize_t read_bytes(int fd, void * buf, size_t count);
@@ -90,7 +94,9 @@ class api_communicate
             uint64_t compute_pc;
             layer_dynamic_info params;
         } __attribute__((packed)) rt_host_kernel_launch_info_t;
+
+    bool execute(const rt_host_kernel_launch_info_t& launch_info);
+    bool continue_exec(std::list<int> * enabled_threads);
 };
 
 #endif // _API_COMMUNICATE_
-

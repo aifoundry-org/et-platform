@@ -69,6 +69,8 @@ struct sys_emu_cmd_options {
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
 
+class api_communicate;
+
 class sys_emu
 {
 public:
@@ -104,10 +106,9 @@ public:
 
 protected:
 
-    // Function to be overwritten by subclass to allocate custom
-    virtual std::unique_ptr<api_communicate> allocate_api_listener(bemu::MainMemory* memory) {
-        return std::unique_ptr<api_communicate>(new api_communicate(memory));
-    }
+    // Function to be overwritten by subclass to allocate and initialize custom
+    // API listener
+    virtual bool init_api_listener(const char *communication_path, bemu::MainMemory* memory);
 
 private:
 
