@@ -876,6 +876,40 @@ typedef struct VAULTIP_OUTPUT_TOKEN_PROVISION_HUK_s {
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+typedef struct VAULTIP_INPUT_TOKEN_CLOCK_SWITCH_WORD_2_s {
+    uint32_t EncryptClk_ON : 1;
+    uint32_t HashClk_ON : 1;
+    uint32_t TRNG_Clk_ON : 1;
+    uint32_t PKCP_Clk_ON : 1;
+    uint32_t CM_Clk_ON : 1;
+    uint32_t Reserved : 3;
+    uint32_t CE3_Clk_ON : 1;
+    uint32_t CE4_Clk_ON : 1;
+    uint32_t CE5_Clk_ON : 1;
+    uint32_t CE6_Clk_ON : 1;
+    uint32_t CE7_Clk_ON : 1;
+    uint32_t CE8_Clk_ON : 1;
+    uint32_t CE9_Clk_ON : 1;
+    uint32_t CE10_Clk_ON : 1;
+    uint32_t EncryptClk_OFF : 1;
+    uint32_t HashClk_OFF : 1;
+    uint32_t TRNG_Clk_OFF : 1;
+    uint32_t PKCP_Clk_OFF : 1;
+    uint32_t Reserved2 : 4;
+    uint32_t CE3_Clk_OFF : 1;
+    uint32_t CE4_Clk_OFF : 1;
+    uint32_t CE5_Clk_OFF : 1;
+    uint32_t CE6_Clk_OFF : 1;
+    uint32_t CE7_Clk_OFF : 1;
+    uint32_t CE8_Clk_OFF : 1;
+    uint32_t CE9_Clk_OFF : 1;
+    uint32_t CE10_Clk_OFF : 1;
+} VAULTIP_INPUT_TOKEN_CLOCK_SWITCH_WORD_2_t;
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
 typedef union VAULTIP_INPUT_TOKEN_s {
     uint32_t dw[64];
     struct {
@@ -900,6 +934,7 @@ typedef union VAULTIP_INPUT_TOKEN_s {
             VAULTIP_INPUT_TOKEN_MONOTONIC_COUNTER_INCREMENT_t       monotonic_counter_increment;
             VAULTIP_INPUT_TOKEN_OTP_DATA_WRITE_t                    otp_data_write;
             VAULTIP_INPUT_TOKEN_PROVISION_HUK_t                     provision_huk;
+            VAULTIP_INPUT_TOKEN_CLOCK_SWITCH_WORD_2_t               clock_switch;
         };
     };
 } VAULTIP_INPUT_TOKEN_t;
