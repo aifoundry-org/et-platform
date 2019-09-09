@@ -127,12 +127,12 @@ static void pcie_init_caps_list(void)
 }
 
 //BAR Sizes must be powers of 2 per the PCIe spec. Round up to next biggest power of 2.
-#define BAR0_SIZE 0x00000007FFFFFFFFULL /*32gb*/
 #define BAR2_SIZE 0x000000000000FFFFULL /*64kb*/
 
 #define BAR_IN_MEM_SPACE 0
 #define BAR_TYPE_64BIT 2
 #define BAR_ENABLE 1
+#define BAR_DISABLE 0
 
 static void pcie_init_bars(void)
 {
@@ -142,35 +142,46 @@ static void pcie_init_bars(void)
     miscControl1.B.DBI_RO_WR_EN = 1;
     PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
 
-    //Write the BAR mask registers first. A BAR must be enabled for the other configuration
-    //writes to take effect.
-
     //When BARs are used in 64-bit mode, BAR1 becomes the high 32-bits of BAR0, and so on
     //(BAR3 for BAR2, BAR5 for BAR4)
-    PCIE0->PF0_TYPE0_HDR_DBI2.BAR0_MASK_REG.R = (uint32_t)(BAR0_SIZE & 0xFFFFFFFFULL) | BAR_ENABLE;
-    PCIE0->PF0_TYPE0_HDR_DBI2.BAR1_MASK_REG.R = (uint32_t)((BAR0_SIZE >> 32) & 0xFFFFFFFFULL);
 
+    //BAR0 has the resizeable BAR capability setup. It ignores the mask register (except for the
+    //enable bit), and instead bases it's size on RESBAR_CTRL_REG_BAR_SIZE.
+    PCIE0->PF0_TYPE0_HDR_DBI2.BAR0_MASK_REG.R = BAR_ENABLE;
+    PCIE0->PF0_TYPE0_HDR_DBI2.BAR1_MASK_REG.R = BAR_DISABLE;
+
+    //All other BARs are not resizeable, and use the mask register to set size
     PCIE0->PF0_TYPE0_HDR_DBI2.BAR2_MASK_REG.R = (uint32_t)(BAR2_SIZE & 0xFFFFFFFFUL) | BAR_ENABLE;
     PCIE0->PF0_TYPE0_HDR_DBI2.BAR3_MASK_REG.R = (uint32_t)((BAR2_SIZE >> 32) & 0xFFFFFFFFULL);
 
-    PCIE0->PF0_TYPE0_HDR_DBI2.BAR4_MASK_REG.B.PCI_TYPE0_BAR4_ENABLED = 0;
-    PCIE0->PF0_TYPE0_HDR_DBI2.BAR5_MASK_REG.B.PCI_TYPE0_BAR5_ENABLED = 0;
+    PCIE0->PF0_TYPE0_HDR_DBI2.BAR4_MASK_REG.R = BAR_DISABLE;
+    PCIE0->PF0_TYPE0_HDR_DBI2.BAR5_MASK_REG.R = BAR_DISABLE;
 
-    PCIE0->PF0_TYPE0_HDR_DBI2.EXP_ROM_BAR_MASK_REG.B.ROM_BAR_ENABLED = 0;
+    PCIE0->PF0_TYPE0_HDR_DBI2.EXP_ROM_BAR_MASK_REG.R = BAR_DISABLE;
 
-    //BAR0 (maps DRAM)
-    PCIE0->PF0_TYPE0_HDR.BAR0_REG = (PE0_DWC_pcie_ctl_DBI_Slave_PF0_TYPE0_HDR_BAR0_REG_t){ .B = {
+    //Only allow the host to size BAR0 to 32GB
+    PCIE0->PF0_RESBAR_CAP.RESBAR_CAP_REG_0_REG.R = (PE0_DWC_pcie_ctl_DBI_Slave_PF0_RESBAR_CAP_RESBAR_CAP_REG_0_REG_t){ .B = {
+        .RESBAR_CAP_REG_0_32GB = 1
+    }}.R;
+
+    //Default BAR0 to 32GB. 32GB = 2^35. BAR size is encoded as 2^(RESBAR_CTRL_REG_BAR_SIZE + 20) - set to 15 to get 32GB.
+    PCIE0->PF0_RESBAR_CAP.RESBAR_CTRL_REG_0_REG.R = (PE0_DWC_pcie_ctl_DBI_Slave_PF0_RESBAR_CAP_RESBAR_CTRL_REG_0_REG_t){ .B = {
+        .RESBAR_CTRL_REG_BAR_SIZE = 15
+    }}.R;
+
+    //BAR0 config (maps DRAM)
+    PCIE0->PF0_TYPE0_HDR.BAR0_REG.R = (PE0_DWC_pcie_ctl_DBI_Slave_PF0_TYPE0_HDR_BAR0_REG_t){ .B = {
         .BAR0_MEM_IO = BAR_IN_MEM_SPACE,
         .BAR0_TYPE = BAR_TYPE_64BIT,
         .BAR0_PREFETCH = 1 //IMPORTANT: Many hosts do not tolerate > 1 gb BARs that are not prefetchable
-    }};
+    }}.R;
 
-    //BAR2 (maps registers)
-    PCIE0->PF0_TYPE0_HDR.BAR2_REG = (PE0_DWC_pcie_ctl_DBI_Slave_PF0_TYPE0_HDR_BAR2_REG_t){ .B = {
+    //BAR2 config (maps registers)
+    PCIE0->PF0_TYPE0_HDR.BAR2_REG.R = (PE0_DWC_pcie_ctl_DBI_Slave_PF0_TYPE0_HDR_BAR2_REG_t){ .B = {
         .BAR2_MEM_IO = BAR_IN_MEM_SPACE,
         .BAR2_TYPE = BAR_TYPE_64BIT,
         .BAR2_PREFETCH = 0 //IMPORTANT - not prefetchable (registers with read side effects mapped here)
-    }};
+    }}.R;
 
     //Wait to init iATUs until BAR addresses are assigned - see PCIe_initATUs.
 
