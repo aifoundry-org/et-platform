@@ -69,6 +69,7 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
     VAULTIP_DRIVER_REQUEST_t request;
     union {
         struct {
+            uint32_t identity;
             VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info;
         } get_system_information;
         struct {
@@ -326,7 +327,7 @@ static void vaultip_driver_task(void *pvParameters) {
 
         switch (req_msg.request) {
         case VAULTIP_DRIVER_GET_SYSTEM_INFORMATION:
-            rsp_msg.status_code = vaultip_get_system_information(req_msg.args.get_system_information.system_info);
+            rsp_msg.status_code = vaultip_get_system_information(req_msg.args.get_system_information.identity, req_msg.args.get_system_information.system_info);
             break;
         case VAULTIP_DRIVER_REGISTER_READ:
             rsp_msg.status_code = vaultip_register_read(req_msg.args.register_read.identity, req_msg.args.register_read.incremental_read, req_msg.args.register_read.number, req_msg.args.register_read.address, req_msg.args.register_read.result);
@@ -489,12 +490,13 @@ static int queue_request_and_wait_for_response(const VAULTIP_DRIVER_REQUEST_MESS
     return 0;
 }
 
-int vaultip_drv_get_system_information(VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info) {
+int vaultip_drv_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info) {
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
 
     req.id = get_next_request_id();
     req.request = VAULTIP_DRIVER_GET_SYSTEM_INFORMATION;
+    req.args.get_system_information.identity = identity;
     req.args.get_system_information.system_info = system_info;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {

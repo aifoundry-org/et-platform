@@ -351,7 +351,7 @@ int vaultip_self_test(void) {
 
     //time_end = timer_get_ticks_count();
 
-    MESSAGE_INFO_DEBUG("MODULE_STATUS: %08x\n", vaultip_regs->MODULE_STATUS);
+    MESSAGE_INFO_DEBUG("MODULE_STATUS: %08x\n", vaultip_regs->MODULE_STATUS.R);
     if (1 == vaultip_regs->MODULE_STATUS.B.FIPS_mode && 0 == vaultip_regs->MODULE_STATUS.B.Non_FIPS_mode) {
         MESSAGE_INFO("FIPS ON\n");
     }
@@ -395,7 +395,7 @@ int vaultip_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTE
 
     //time_end = timer_get_ticks_count();
 
-    MESSAGE_INFO_DEBUG("MODULE_STATUS: %08x\n", vaultip_regs->MODULE_STATUS);
+    MESSAGE_INFO_DEBUG("MODULE_STATUS: %08x\n", vaultip_regs->MODULE_STATUS.R);
 
     //time_delta = time_end - time_start;
     //MESSAGE_INFO_DEBUG("GetSystemInfo time: %lu\n", time_delta);
@@ -733,6 +733,8 @@ int vaultip_trng_get_random_number(void * dst, uint16_t size, bool raw) {
     gs_input_token.trn_get_random_number.dw_02.RawKey = raw ? VAULTIP_TRNG_RAW : VAULTIP_TRNG_NORMAL;
     gs_input_token.trn_get_random_number.dw_03.OutputDataAddress_31_00 = PTR232LO(dst);
     gs_input_token.trn_get_random_number.dw_04.OutputDataAddress_63_32 = PTR232HI(dst);
+
+    l1_data_cache_flush_region(dst, size);
 
     //suppress_token_read_diagnostics = true;
 
@@ -1659,7 +1661,7 @@ int vaultip_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identit
     if (0 == gs_output_token.dw_00.Error) {
         return 0;
     } else {
-        MESSAGE_ERROR_DEBUG("public_key_ecdsa_verify: output token[0] = 0x%08x\n", gs_output_token.dw_00);
+        MESSAGE_ERROR_DEBUG("public_key_ecdsa_verify: output token[0] = 0x%08x\n", gs_output_token.dw[0]);
         return -1;
     }
 }
@@ -1718,7 +1720,7 @@ int vaultip_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, 
     if (0 == gs_output_token.dw_00.Error) {
         return 0;
     } else {
-        MESSAGE_ERROR_DEBUG("vaultip_public_key_rsa_pss_verify: output token[0] = 0x%08x\n", gs_output_token.dw_00);
+        MESSAGE_ERROR_DEBUG("vaultip_public_key_rsa_pss_verify: output token[0] = 0x%08x\n", gs_output_token.dw[0]);
         print_failed_input_token_info(gs_input_token.dw, 13);
         return -1;
     }

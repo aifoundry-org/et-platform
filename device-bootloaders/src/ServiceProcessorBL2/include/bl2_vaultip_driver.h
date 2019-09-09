@@ -6,7 +6,7 @@
 #include "vaultip_sw.h"
 
 int vaultip_drv_init(void);
-int vaultip_drv_get_system_information(VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info);
+int vaultip_drv_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info);
 int vaultip_drv_register_read(uint32_t identity, bool incremental_read, uint32_t number, const uint32_t * address, uint32_t * result);
 int vaultip_drv_register_write(uint32_t identity, bool incremental_write, uint32_t number, const uint32_t * mask, const uint32_t * address, const uint32_t * value);
 int vaultip_drv_trng_configuration(uint32_t identity);

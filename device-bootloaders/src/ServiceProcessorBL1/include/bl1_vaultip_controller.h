@@ -20,8 +20,6 @@
 
 int vaultip_test_initial_state(void);
 void dump_vip_regs(void);
-int vaultip_verify_firmware_header(const uint32_t * firmware, uint32_t firmware_size_in_bytes);
-int vaultip_load_firmware(const uint32_t * firmware, uint32_t length_in_bytes);
 int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * input_token);
 int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * output_token, uint32_t timeout);
 int vaultip_self_test(void);
