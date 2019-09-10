@@ -1097,8 +1097,8 @@ sys_emu::main_internal(int argc, char * argv[])
         }
 
         if (api_listener) {
-        // Runtime API: check for new commands
-        api_listener->get_next_cmd(&enabled_threads);
+            // Runtime API: check for new commands
+            api_listener->get_next_cmd(&enabled_threads);
         }
 
         emu_cycle++;

@@ -131,7 +131,7 @@ struct PU_Uart : public MemoryRegion
         switch (pos) {
         case DW_APB_UART_RBR:
             assert(n == 4);
-            if ((fd == -1) || (::write(fd, source, 1) < 0)) {
+            if ((fd != -1) && (::write(fd, source, 1) < 0)) {
                 auto error = std::error_code(errno, std::system_category());
                 throw std::system_error(error, "bemu::PU_Uart::write()");
             }
