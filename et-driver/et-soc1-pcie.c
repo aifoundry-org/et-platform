@@ -525,7 +525,7 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_disable_dev;
 	}
 
-	rc = pci_alloc_irq_vectors(pdev, MIN_VECS, REQ_VECS, PCI_IRQ_MSI /*TODO: MSIX*/);
+	rc = pci_alloc_irq_vectors(pdev, MIN_VECS, REQ_VECS, PCI_IRQ_MSI | PCI_IRQ_MSIX);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "alloc irq vectors failed\n");
 		goto error_unmap_bars;
