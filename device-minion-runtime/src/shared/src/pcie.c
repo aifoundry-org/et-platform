@@ -81,8 +81,6 @@ void PCIe_init(bool expect_link_up)
 
 static void pcie_init_pshire(void)
 {
-    //TODO: Reset manager config for pshire
-
     //TODO FIXME JIRA SW-327: Use PShire PLL
     //For now, for emulation, we are bypassing the PShire PLL, and not configuring it at all
     //or waiting for it to lock.
@@ -154,8 +152,9 @@ static void pcie_init_bars(void)
     PCIE0->PF0_TYPE0_HDR_DBI2.BAR2_MASK_REG.R = (uint32_t)(BAR2_SIZE & 0xFFFFFFFFUL) | BAR_ENABLE;
     PCIE0->PF0_TYPE0_HDR_DBI2.BAR3_MASK_REG.R = (uint32_t)((BAR2_SIZE >> 32) & 0xFFFFFFFFULL);
 
-    PCIE0->PF0_TYPE0_HDR_DBI2.BAR4_MASK_REG.R = BAR_DISABLE;
-    PCIE0->PF0_TYPE0_HDR_DBI2.BAR5_MASK_REG.R = BAR_DISABLE;
+    //Leave the BAR 4/5 pair in it's default configuration. This pair is set in hardware
+    //to only be accessable on the SoC from within the Synopsis PCIe IP block. It is used
+    //for accessing things like the MSI-X table, which is in RAM contained in the IP block.
 
     PCIE0->PF0_TYPE0_HDR_DBI2.EXP_ROM_BAR_MASK_REG.R = BAR_DISABLE;
 
@@ -208,7 +207,16 @@ static void pcie_init_ints(void)
     PCIE0->PF0_MSI_CAP.PCI_MSI_CAP_ID_NEXT_CTRL_REG.R = msi_ctrl.R;
 
     //Configure MSI-X
-    //TODO
+
+    PCIE0->PF0_MSIX_CAP.PCI_MSIX_CAP_ID_NEXT_CTRL_REG.R = (PE0_DWC_pcie_ctl_DBI_Slave_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_t){ .B = {
+        .PCI_MSIX_TABLE_SIZE = MSI_TWO_VECTORS
+    }}.R;
+
+    //The PCIe IP will look for AXI writes to a special address you specify, and turn them into
+    //MSI-X writes (by walking the MSI-X table, and figuring out the host address to write). It also
+    //handles queuing ints if the vector is masked.
+    PCIE0->PF0_PORT_LOGIC.MSIX_ADDRESS_MATCH_HIGH_OFF.R = (uint32_t)((uint64_t)MSIX_TRIG_REG >> 32);
+    PCIE0->PF0_PORT_LOGIC.MSIX_ADDRESS_MATCH_LOW_OFF.R = (uint32_t)(uint64_t)MSIX_TRIG_REG | 1U;
 
     miscControl1.B.DBI_RO_WR_EN = 0;
     PCIE0->PF0_PORT_LOGIC.MISC_CONTROL_1_OFF.R = miscControl1.R;
@@ -392,16 +400,17 @@ static void pcie_wait_for_ints(void)
     // Wait until the x86 host driver comes up and enables MSI
     // See pci_alloc_irq_vectors on the host driver.
     // TODO FIXME JIRA SW-330: Don't monopolize the HART to poll
-    // TODO Intentionally not supporting legacy ints at this time. Future feature?
+    // Intentionally not supporting legacy ints.
 
     PE0_DWC_pcie_ctl_DBI_Slave_PF0_MSI_CAP_PCI_MSI_CAP_ID_NEXT_CTRL_REG_t msi_ctrl;
+    PE0_DWC_pcie_ctl_DBI_Slave_PF0_MSIX_CAP_PCI_MSIX_CAP_ID_NEXT_CTRL_REG_t msix_ctrl;
 
     printf("Waiting for host to enable MSI/MSI-X...");
     do
     {
         msi_ctrl.R = PCIE0->PF0_MSI_CAP.PCI_MSI_CAP_ID_NEXT_CTRL_REG.R;
-        //TODO: MSI-X
+        msix_ctrl.R = PCIE0->PF0_MSIX_CAP.PCI_MSIX_CAP_ID_NEXT_CTRL_REG.R;
     }
-    while(msi_ctrl.B.PCI_MSI_ENABLE == 0);
+    while(msi_ctrl.B.PCI_MSI_ENABLE == 0 && msix_ctrl.B.PCI_MSIX_ENABLE == 0);
     printf(" done\r\n");
 }
