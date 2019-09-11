@@ -42,7 +42,7 @@ uint32_t get_input_clock_index(void) {
     return reset_manager->rm_status2.B.strap_in;
 }
 
-static int configure_pll_off(volatile uint16_t * pll_registers) {
+static int configure_pll_off(volatile uint32_t * pll_registers) {
     // disable the PLL
     pll_registers[0] = 0;
 
@@ -52,7 +52,7 @@ static int configure_pll_off(volatile uint16_t * pll_registers) {
     return 0;
 }
 
-static int configure_pll(volatile uint16_t * pll_registers, uint8_t mode, PLL_ID_t pll_id) {
+static int configure_pll(volatile uint32_t * pll_registers, uint8_t mode, PLL_ID_t pll_id) {
     uint32_t timeout = PLL_LOCK_TIMEOUT;
     uint8_t register_index;
     uint16_t register_value;
@@ -136,7 +136,7 @@ static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable) {
     return 0;
 }
 
-static int configure_sp_pll(PLL_ID_t pll_id, volatile uint16_t * pll_registers, const uint8_t mode[INPUT_CLK_CONFIG_COUNT]) {
+static int configure_sp_pll(PLL_ID_t pll_id, volatile uint32_t * pll_registers, const uint8_t mode[INPUT_CLK_CONFIG_COUNT]) {
     int rv;
 
     rv = configure_pll(pll_registers, mode[get_input_clock_index()], pll_id);
@@ -163,7 +163,7 @@ int configure_sp_pll_2(void) {
     int rv;
     static const uint8_t mode[INPUT_CLK_CONFIG_COUNT] = { 5, 11, 17 };
 
-    rv = configure_sp_pll(PLL_ID_SP_PLL_2, (uint16_t*)R_SP_PLL2_BASEADDR, mode);
+    rv = configure_sp_pll(PLL_ID_SP_PLL_2, (uint32_t*)R_SP_PLL2_BASEADDR, mode);
     if (0 == rv) {
         gs_sp_pll_2_frequency = 500;
     } else {
@@ -177,7 +177,7 @@ int configure_sp_pll_4(void) {
     int rv;
     static const uint8_t mode[INPUT_CLK_CONFIG_COUNT] = { 3, 9, 15 };
 
-    rv = configure_sp_pll(PLL_ID_SP_PLL_4, (uint16_t*)R_SP_PLL4_BASEADDR, mode);
+    rv = configure_sp_pll(PLL_ID_SP_PLL_4, (uint32_t*)R_SP_PLL4_BASEADDR, mode);
     if (0 == rv) {
         gs_sp_pll_2_frequency = 1000;
     } else {
