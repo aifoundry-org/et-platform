@@ -102,77 +102,7 @@ static uint16_t get_next_token_id(void) {
     return gs_next_token_id++;
 }
 
-int vaultip_test_initial_state(void) {
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
-    EIP_VERSION_t eip_version;
-    MODULE_STATUS_t module_status;
-
-    eip_version.R = vaultip_regs->EIP_VERSION.R;
-    if (0x82 != eip_version.B.EIP_number || 0x7D != eip_version.B.EIP_number_complement) {
-        MESSAGE_ERROR("EIP_VERSION mismatch!\n");
-        return -1;
-    }
-
-    module_status.R = vaultip_regs->MODULE_STATUS.R;
-    if (0 == module_status.B.CRC24_OK) {
-        MESSAGE_ERROR("MODULE_STATUS CRC24_OK is not 1!\n");
-        return -1;
-    }
-    if (0 != module_status.B.FatalError) {
-        MESSAGE_ERROR("MODULE_STATUS FatalError is 1!\n");
-        return -1;
-    }
-    if (0 != module_status.B.fw_image_written) {
-        MESSAGE_ERROR("MODULE_STATUS fw_image_written is 1!\n");
-        return -1;
-    }
-    if (0 != module_status.B.fw_image_checks_done) {
-        MESSAGE_ERROR("MODULE_STATUS fw_image_checks_done is 1!\n");
-        return -1;
-    }
-    if (0 != module_status.B.fw_image_accepted) {
-        MESSAGE_ERROR("MODULE_STATUS fw_image_accepted is 1!\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-void dump_vip_regs(void) {
-    volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
-    uint32_t val;
-
-    (void)val;
-
-    val = vaultip_regs->EIP_VERSION.R;
-    MESSAGE_INFO_DEBUG("EIP_VERSION: 0x%x\n", val);
-
-    val = vaultip_regs->EIP_OPTIONS2.R;
-    MESSAGE_INFO_DEBUG("EIP_OPTIONS2: 0x%x\n", val);
-
-    val = vaultip_regs->EIP_OPTIONS.R;
-    MESSAGE_INFO_DEBUG("EIP_OPTIONS: 0x%x\n", val);
-
-    val = vaultip_regs->MODULE_STATUS.R;
-    MESSAGE_INFO_DEBUG("MODULE_STATUS: 0x%x\n", val);
-
-    val = vaultip_regs->MAILBOX_STAT.R;
-    MESSAGE_INFO_DEBUG("MAILBOX_STAT: 0x%x\n", val);
-
-    val = vaultip_regs->MAILBOX_RAWSTAT.R;
-    MESSAGE_INFO_DEBUG("MAILBOX_RAWSTAT: 0x%x\n", val);
-
-    val = vaultip_regs->MAILBOX_LINKID.R;
-    MESSAGE_INFO_DEBUG("MAILBOX_LINKID: 0x%x\n", val);
-
-    val = vaultip_regs->MAILBOX_OUTID.R;
-    MESSAGE_INFO_DEBUG("MAILBOX_OUTID: 0x%x\n", val);
-
-    val = vaultip_regs->MAILBOX_LOCKOUT.R;
-    MESSAGE_INFO_DEBUG("MAILBOX_LOCKOUT: 0x%x\n", val);
-}
-
-int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
+static int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
     volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;
@@ -232,7 +162,7 @@ int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * pinput_token) {
     return 0;
 }
 
-int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
+static int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * poutput_token, uint32_t timeout) {
     volatile VAULTIP_HW_REGS_t * vaultip_regs = (VAULTIP_HW_REGS_t *)R_SP_VAULT_BASEADDR;
     MODULE_STATUS_t module_status;
     MAILBOX_STAT_t mailbox_stat;

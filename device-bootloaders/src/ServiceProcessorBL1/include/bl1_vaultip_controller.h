@@ -18,10 +18,6 @@
 #include "vaultip_sw.h"
 #include "vaultip_static_assets.h"
 
-int vaultip_test_initial_state(void);
-void dump_vip_regs(void);
-int vaultip_send_input_token(const VAULTIP_INPUT_TOKEN_t * input_token);
-int vaultip_read_output_token(VAULTIP_OUTPUT_TOKEN_t * output_token, uint32_t timeout);
 int vaultip_self_test(void);
 int vaultip_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info);
 int vaultip_register_read(uint32_t identity, bool incremental_read, uint32_t number, const uint32_t * address, uint32_t * result);

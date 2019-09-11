@@ -47,10 +47,11 @@ int crypto_aes_decrypt_final(CRYPTO_AES_CONTEXT_t * aes_context, void * data, si
 
 int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIGNATURE_t * signature, const void * data, size_t data_size);
 
-int load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * hash_size);
-int load_monotonic_counter_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * counter_size);
+int crypto_load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * hash_size);
+int crypto_load_monotonic_counter_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * counter_size);
 
-int get_sp_bl1_monotonic_counter_value(uint32_t * value);
-int get_pcie_cfg_data_monotonic_counter_value(uint32_t * value);
+int crypto_get_sp_bl1_monotonic_counter_value(uint32_t * value);
+int crypto_get_pcie_cfg_data_monotonic_counter_value(uint32_t * value);
+int crypto_get_sp_bl2_monotonic_counter_value(uint32_t * value);
 
 #endif

@@ -27,6 +27,7 @@
 
 typedef enum VAULTIP_DRIVER_REQUEST_e {
     VAULTIP_DRIVER_REQUEST_INVALID,
+    VAULTIP_DRIVER_SELF_TEST,
     VAULTIP_DRIVER_GET_SYSTEM_INFORMATION,
     VAULTIP_DRIVER_REGISTER_READ,
     VAULTIP_DRIVER_REGISTER_WRITE,
@@ -61,6 +62,9 @@ typedef enum VAULTIP_DRIVER_REQUEST_e {
 
     VAULTIP_DRIVER_PUBLIC_KEY_ECDSA_VERIFY,
     VAULTIP_DRIVER_PUBLIC_KEY_RSA_PSS_VERIFY,
+
+    VAULTIP_DRIVER_CLOCK_SWITCH,
+
     _VAULTIP_DRIVER_REQUEST_COUNT_
 } VAULTIP_DRIVER_REQUEST_t;
 
@@ -91,6 +95,7 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
             uint32_t identity;
         } trng_configuration;
         struct {
+            uint32_t identity;
             void * destination;
             uint16_t size;
             bool raw;
@@ -280,6 +285,11 @@ typedef struct VAULTIP_DRIVER_REQUEST_MESSAGE_s {
             uint32_t sig_data_size;
             uint32_t salt_length;
         } public_key_rsa_pss_verify;
+
+        struct {
+            uint32_t identity;
+            uint32_t token;
+        } clock_switch;
     } args;
 } VAULTIP_DRIVER_REQUEST_MESSAGE_t;
 
@@ -326,6 +336,9 @@ static void vaultip_driver_task(void *pvParameters) {
         rsp_msg.request = req_msg.request;
 
         switch (req_msg.request) {
+        case VAULTIP_DRIVER_SELF_TEST:
+            rsp_msg.status_code = vaultip_self_test();
+            break;
         case VAULTIP_DRIVER_GET_SYSTEM_INFORMATION:
             rsp_msg.status_code = vaultip_get_system_information(req_msg.args.get_system_information.identity, req_msg.args.get_system_information.system_info);
             break;
@@ -416,6 +429,9 @@ static void vaultip_driver_task(void *pvParameters) {
         case VAULTIP_DRIVER_PUBLIC_KEY_RSA_PSS_VERIFY:
             rsp_msg.status_code = vaultip_public_key_rsa_pss_verify(req_msg.args.public_key_rsa_pss_verify.modulus_size, req_msg.args.public_key_rsa_pss_verify.identity, req_msg.args.public_key_rsa_pss_verify.public_key_asset_id, req_msg.args.public_key_rsa_pss_verify.temp_message_digest_asset_id, req_msg.args.public_key_rsa_pss_verify.message, req_msg.args.public_key_rsa_pss_verify.message_size, req_msg.args.public_key_rsa_pss_verify.hash_data_length, req_msg.args.public_key_rsa_pss_verify.sig_data_address, req_msg.args.public_key_rsa_pss_verify.sig_data_size, req_msg.args.public_key_rsa_pss_verify.salt_length);
             break;
+        case VAULTIP_DRIVER_CLOCK_SWITCH:
+            rsp_msg.status_code = vaultip_clock_switch(req_msg.args.clock_switch.identity, req_msg.args.clock_switch.token);
+            break;
 
         default:
             printf("vaultip_driver_task: invalid or not supported request code %u!\r\n", req_msg.request);
@@ -490,6 +506,26 @@ static int queue_request_and_wait_for_response(const VAULTIP_DRIVER_REQUEST_MESS
     return 0;
 }
 
+int vaultip_drv_self_test(void) {
+    VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
+    VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
+
+    req.id = get_next_request_id();
+    req.request = VAULTIP_DRIVER_SELF_TEST;
+
+    if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
+        printf("vaultip_drv_self_test: queue_request_and_wait_for_response() failed!\r\n");
+        return -1;
+    }
+
+    if (0 != rsp.status_code) {
+        printf("vaultip_drv_self_test: vaultip_drv_get_system_information() failed!\r\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 int vaultip_drv_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info) {
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
@@ -500,12 +536,12 @@ int vaultip_drv_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_S
     req.args.get_system_information.system_info = system_info;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        printf("vaultip_drv_get_system_information: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: vaultip_drv_get_system_information() failed!\r\n");
+        printf("vaultip_drv_get_system_information: vaultip_drv_get_system_information() failed!\r\n");
         return -1;
     }
 
@@ -525,12 +561,12 @@ int vaultip_drv_register_read(uint32_t identity, bool incremental_read, uint32_t
     req.args.register_read.result = result;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        printf("vaultip_drv_register_read: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: vaultip_drv_register_read() failed!\r\n");
+        printf("vaultip_drv_register_read: vaultip_drv_register_read() failed!\r\n");
         return -1;
     }
 
@@ -551,12 +587,12 @@ int vaultip_drv_register_write(uint32_t identity, bool incremental_write, uint32
     req.args.register_write.value = value;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        printf("vaultip_drv_register_write: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: vaultip_drv_register_write() failed!\r\n");
+        printf("vaultip_drv_register_write: vaultip_drv_register_write() failed!\r\n");
         return -1;
     }
 
@@ -572,17 +608,42 @@ int vaultip_drv_trng_configuration(uint32_t identity) {
     req.args.trng_configuration.identity = identity;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        printf("vaultip_drv_trng_configuration: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: vaultip_drv_trng_configuration() failed!\r\n");
+        printf("vaultip_drv_trng_configuration: vaultip_drv_trng_configuration() failed!\r\n");
         return -1;
     }
 
     return 0;
 }
+
+int vaultip_drv_trng_get_random_number(uint32_t identity, void * dst, uint16_t size, bool raw) {
+    VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
+    VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
+
+    req.id = get_next_request_id();
+    req.request = VAULTIP_DRIVER_TRNG_GET_RANDOM_NUMBER;
+    req.args.get_random_number.identity = identity;
+    req.args.get_random_number.destination = dst;
+    req.args.get_random_number.size = size;
+    req.args.get_random_number.raw = raw;
+
+    if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
+        printf("vaultip_drv_trng_get_random_number: queue_request_and_wait_for_response() failed!\r\n");
+        return -1;
+    }
+
+    if (0 != rsp.status_code) {
+        printf("vaultip_drv_trng_get_random_number: vaultip_drv_trng_get_random_number() failed!\r\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 int vaultip_drv_provision_huk(uint32_t coid) {
     VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
     VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
@@ -592,12 +653,12 @@ int vaultip_drv_provision_huk(uint32_t coid) {
     req.args.provision_huk.coid = coid;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        printf("vaultip_drv_provision_huk: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: vaultip_drv_provision_huk() failed!\r\n");
+        printf("vaultip_drv_provision_huk: vaultip_drv_provision_huk() failed!\r\n");
         return -1;
     }
 
@@ -612,12 +673,12 @@ int vaultip_drv_reset(uint32_t identity) {
     req.args.reset.identity = identity;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        printf("vaultip_drv_reset: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: vaultip_drv_reset() failed!\r\n");
+        printf("vaultip_drv_reset: vaultip_drv_reset() failed!\r\n");
         return -1;
     }
 
@@ -636,24 +697,24 @@ int vaultip_drv_hash(uint32_t identity, HASH_ALG_t hash_alg, const void * msg, s
     req.args.hash.hash = hash;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        printf("vaultip_drv_hash: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: vaultip_drv_hash() failed!\r\n");
+        printf("vaultip_drv_hash: vaultip_drv_hash() failed!\r\n");
         return -1;
     }
 
     return 0;
 
     if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
-        printf("flashfs_drv_get_config_data: queue_request_and_wait_for_response() failed!\r\n");
+        printf("vaultip_drv_hash: queue_request_and_wait_for_response() failed!\r\n");
         return -1;
     }
 
     if (0 != rsp.status_code) {
-        printf("flashfs_drv_get_config_data: vaultip_drv_hash() failed!\r\n");
+        printf("vaultip_drv_hash: vaultip_drv_hash() failed!\r\n");
         return -1;
     }
 
@@ -1166,6 +1227,27 @@ int vaultip_drv_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identi
 
     if (0 != rsp.status_code) {
         printf("vaultip_drv_public_key_rsa_pss_verify: vaultip_public_key_rsa_pss_verify() failed!\r\n");
+        return -1;
+    }
+
+    return 0;
+}
+int vaultip_drv_clock_switch(uint32_t identity, uint32_t token) {
+    VAULTIP_DRIVER_REQUEST_MESSAGE_t req;
+    VAULTIP_DRIVER_RESPONSE_MESSAGE_t rsp;
+
+    req.id = get_next_request_id();
+    req.request = VAULTIP_DRIVER_CLOCK_SWITCH;
+    req.args.clock_switch.identity = identity;
+    req.args.clock_switch.token = token;
+
+    if (0 != queue_request_and_wait_for_response(&req, &rsp)) {
+        printf("vaultip_drv_clock_switch: queue_request_and_wait_for_response() failed!\r\n");
+        return -1;
+    }
+
+    if (0 != rsp.status_code) {
+        printf("vaultip_drv_clock_switch: vaultip_public_key_rsa_pss_verify() failed!\r\n");
         return -1;
     }
 

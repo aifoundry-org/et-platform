@@ -45,8 +45,6 @@ typedef union ASSET_POLICY_u {
     };
 } ASSET_POLICY_t;
 
-uint32_t vaultip_firmware_image[VAULTIP_FIRMWARE_IMAGE_MAX_FILE_SIZE/sizeof(uint32_t)];
-
 static bool coid_provisioned = false;
 #define ESPERANTO_COID 0x4F435445 // 'ETCO'
 static uint32_t get_rom_identity(void) {
@@ -1695,7 +1693,7 @@ int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIG
 
         prehash_length = (uint32_t)(data_size - 4096u);
         prehash_length = (prehash_length + 0x7Fu) & 0xFFFFFF80;
-        MESSAGE_ERROR_DEBUG("crypto_verify_pk_signature: prehash_length=0x%x, \n", prehash_length);
+        MESSAGE_INFO_DEBUG("crypto_verify_pk_signature: prehash_length=0x%x, \n", prehash_length);
 
         switch (signature->hashAlg) {
         case HASH_ALG_SHA2_256:
@@ -1754,7 +1752,7 @@ DONE:
     return rv;
 }
 
-int load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * hash_size) {
+int crypto_load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * hash_size) {
     uint32_t asset_id;
     uint32_t asset_size;
 
@@ -1788,7 +1786,7 @@ int load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, voi
     return 0;
 }
 
-int load_monotonic_counter_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * counter_size) {
+int crypto_load_monotonic_counter_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * counter_size) {
     uint32_t asset_id;
     uint32_t asset_size;
 
@@ -1825,7 +1823,7 @@ int load_monotonic_counter_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, v
 #define MAXIMUM_COUNTER_WORDS 8
 #define MAXIMUM_COUNTER_BYTES (MAXIMUM_COUNTER_WORDS * 8)
 
-static int get_monotonic_counter_value(VAULTIP_STATIC_ASSET_ID_t static_asset_id, uint32_t * value) {
+static int crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_ID_t static_asset_id, uint32_t * value) {
     static union {
         uint8_t   u8[MAXIMUM_COUNTER_BYTES];
         uint64_t u64[MAXIMUM_COUNTER_WORDS];
@@ -1837,7 +1835,7 @@ static int get_monotonic_counter_value(VAULTIP_STATIC_ASSET_ID_t static_asset_id
         return -1;
     }
 
-    if (0 != load_monotonic_counter_from_otp(static_asset_id, buffer.u8, MAXIMUM_COUNTER_BYTES, &counter_size)) {
+    if (0 != crypto_load_monotonic_counter_from_otp(static_asset_id, buffer.u8, MAXIMUM_COUNTER_BYTES, &counter_size)) {
         *value = 0;
         return 0;
     }
@@ -1856,10 +1854,16 @@ static int get_monotonic_counter_value(VAULTIP_STATIC_ASSET_ID_t static_asset_id
     return 0;
 }
 
-int get_sp_bl1_monotonic_counter_value(uint32_t * value) {
-    return get_monotonic_counter_value(VAULTIP_STATIC_ASSET_SP_BL1_REVOCATION_COUNTER, value);
+int crypto_get_sp_bl1_monotonic_counter_value(uint32_t * value) {
+    return crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_SP_BL1_REVOCATION_COUNTER, value);
 }
 
-int get_pcie_cfg_data_monotonic_counter_value(uint32_t * value) {
-    return get_monotonic_counter_value(VAULTIP_STATIC_ASSET_PCI_CFG_DATA_REVOCATION_COUNTER, value);
+int crypto_get_pcie_cfg_data_monotonic_counter_value(uint32_t * value) {
+    return crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_PCI_CFG_DATA_REVOCATION_COUNTER, value);
 }
+
+int crypto_get_sp_bl2_monotonic_counter_value(uint32_t * value) {
+    return crypto_get_monotonic_counter_value(VAULTIP_STATIC_ASSET_SP_BL2_REVOCATION_COUNTER, value);
+}
+
+
