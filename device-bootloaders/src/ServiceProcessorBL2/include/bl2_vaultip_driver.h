@@ -6,10 +6,12 @@
 #include "vaultip_sw.h"
 
 int vaultip_drv_init(void);
-int vaultip_drv_get_system_information(VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info);
+int vaultip_drv_self_test(void);
+int vaultip_drv_get_system_information(uint32_t identity, VAULTIP_OUTPUT_TOKEN_SYSTEM_INFO_t * system_info);
 int vaultip_drv_register_read(uint32_t identity, bool incremental_read, uint32_t number, const uint32_t * address, uint32_t * result);
 int vaultip_drv_register_write(uint32_t identity, bool incremental_write, uint32_t number, const uint32_t * mask, const uint32_t * address, const uint32_t * value);
 int vaultip_drv_trng_configuration(uint32_t identity);
+int vaultip_drv_trng_get_random_number(uint32_t identity, void * dst, uint16_t size, bool raw);
 int vaultip_drv_provision_huk(uint32_t coid);
 int vaultip_drv_reset(uint32_t identity);
 
@@ -39,5 +41,7 @@ int vaultip_drv_otp_data_write(uint32_t identity, uint32_t asset_number, uint32_
 
 int vaultip_drv_public_key_ecdsa_verify(EC_KEY_CURVE_ID_t curve_id, uint32_t identity, uint32_t public_key_asset_id, uint32_t curve_parameters_asset_id, uint32_t temp_message_digest_asset_id, const void * message, uint32_t message_size, uint32_t hash_data_length, const void * sig_data_address, uint32_t sig_data_size);
 int vaultip_drv_public_key_rsa_pss_verify(uint32_t modulus_size, uint32_t identity, uint32_t public_key_asset_id, uint32_t temp_message_digest_asset_id, const void * message, uint32_t message_size, uint32_t hash_data_length, const void * sig_data_address, uint32_t sig_data_size, uint32_t salt_length);
+
+int vaultip_drv_clock_switch(uint32_t identity, uint32_t token);
 
 #endif

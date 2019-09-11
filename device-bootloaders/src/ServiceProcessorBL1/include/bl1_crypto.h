@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "esperanto_public_key_data.h"
+#include "vaultip_static_assets.h"
 
 typedef struct CRYPTO_HASH_CONTEXT_s {
     HASH_ALG_t hash_alg;
@@ -45,5 +46,12 @@ int crypto_aes_decrypt_update(CRYPTO_AES_CONTEXT_t * aes_context, void * data, s
 int crypto_aes_decrypt_final(CRYPTO_AES_CONTEXT_t * aes_context, void * data, size_t data_size, uint8_t * IV);
 
 int crypto_verify_pk_signature(const PUBLIC_KEY_t * public_key, const PUBLIC_SIGNATURE_t * signature, const void * data, size_t data_size);
+
+int crypto_load_public_key_hash_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * hash_size);
+int crypto_load_monotonic_counter_from_otp(VAULTIP_STATIC_ASSET_ID_t static_asset_id, void * buffer, size_t buffer_size, uint32_t * counter_size);
+
+int crypto_get_sp_bl1_monotonic_counter_value(uint32_t * value);
+int crypto_get_pcie_cfg_data_monotonic_counter_value(uint32_t * value);
+int crypto_get_sp_bl2_monotonic_counter_value(uint32_t * value);
 
 #endif

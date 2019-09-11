@@ -17,6 +17,8 @@
 #include "bl2_spi_controller.h"
 #include "bl2_spi_flash.h"
 
+#include "bl2_main.h"
+
 #pragma GCC push_options
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 
@@ -48,6 +50,7 @@ int spi_flash_init(SPI_FLASH_ID_t flash_id) {
     uint8_t slave_index;
 
     if (0 != get_flash_controller_and_slave_ids(flash_id, &controller_id, &slave_index)) {
+        MESSAGE_ERROR("get_flash_controller_and_slave_ids() failed!\n");
         return -1;
     }
 
@@ -72,7 +75,7 @@ int spi_flash_wren(SPI_FLASH_ID_t flash_id) {
     command.data_buffer = NULL;
 
     if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-        printf("spi_controller_command(RDSR) failed!\n");
+        MESSAGE_ERROR("spi_controller_command(RDSR) failed!\n");
         return -1;
     }
 
@@ -98,7 +101,7 @@ int spi_flash_rdsr(SPI_FLASH_ID_t flash_id, uint8_t * status) {
     command.data_buffer = &data;
 
     if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-        printf("spi_controller_command(RDSR) failed!\n");
+        MESSAGE_ERROR("spi_controller_command(RDSR) failed!\n");
         return -1;
     }
 
@@ -125,7 +128,7 @@ int spi_flash_rdid(SPI_FLASH_ID_t flash_id, uint8_t * manufacturer_id, uint8_t d
     command.data_buffer = data;
 
     if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-        printf("spi_controller_command(RDID) failed!\n");
+        MESSAGE_ERROR("spi_controller_command(RDID) failed!\n");
         return -1;
     }
 
@@ -153,7 +156,7 @@ int spi_flash_rdsfdp(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * data_b
     command.data_buffer = data_buffer;
 
     if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-        printf("spi_controller_command(RDSFDP) failed!\n");
+        MESSAGE_ERROR("spi_controller_command(RDSFDP) failed!\n");
         return -1;
     }
 
@@ -186,7 +189,7 @@ int spi_flash_normal_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * d
         command.data_buffer = data_buffer;
 
         if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-            printf("spi_controller_command(RD) failed!\n");
+            MESSAGE_ERROR("spi_controller_command(RD) failed!\n");
             return -1;
         }
 
@@ -210,8 +213,8 @@ int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * dat
 
     while (data_buffer_size > 0) {
         read_size = data_buffer_size;
-        if (read_size > 0x10000) {
-            read_size = 0x10000;
+        if (read_size > MAXIMUM_READ_SIZE) {
+            read_size = MAXIMUM_READ_SIZE;
         }
 
         command.cmd = SPI_FLASH_CMD_FAST_READ;
@@ -223,7 +226,7 @@ int spi_flash_fast_read(SPI_FLASH_ID_t flash_id, uint32_t address, uint8_t * dat
         command.data_buffer = data_buffer;
 
         if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-            printf("spi_controller_command(RDHS) failed!\n");
+            MESSAGE_ERROR("spi_controller_command(RDHS) failed!\n");
             return -1;
         }
 
@@ -256,7 +259,7 @@ int spi_flash_program(SPI_FLASH_ID_t flash_id, uint32_t address, const uint8_t *
 #pragma GCC pop_options
 
     if (0 != spi_controller_command(controller_id, slave_index, &command)) {
-        printf("spi_controller_command(PP) failed!\n");
+        MESSAGE_ERROR("spi_controller_command(PP) failed!\n");
         return -1;
     }
 

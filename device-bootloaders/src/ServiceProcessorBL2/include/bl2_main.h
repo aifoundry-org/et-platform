@@ -16,4 +16,15 @@
 
 SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void);
 
+#ifdef RELEASE_BUILD
+#define MESSAGE_ERROR_DEBUG(cformat, ...)
+#define MESSAGE_INFO_DEBUG(cformat, ...)
+#else
+#define MESSAGE_ERROR_DEBUG(cformat, ...) printf(cformat, ##__VA_ARGS__)
+#define MESSAGE_INFO_DEBUG(cformat, ...) printf(cformat, ##__VA_ARGS__)
+#endif
+
+#define MESSAGE_ERROR(cformat, ...) printf(cformat, ##__VA_ARGS__)
+#define MESSAGE_INFO(cformat, ...) printf(cformat, ##__VA_ARGS__)
+
 #endif
