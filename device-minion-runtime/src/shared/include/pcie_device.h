@@ -42,4 +42,9 @@
 //PShire ESRs accessible to Host/SP/MM/Maxion
 #define PCIE_USRESR ((volatile Pshire_usr0_t* const)R_PCIE_USRESR_BASEADDR)
 
+//The MSI-X Engine will snoop writes on the AXI port of the PCIe controller,
+//and fire an interrupt when you write to a special address on the port. You
+//pick the address. I picked offset 0 arbitrarily ¯\_(ツ)_/¯. 
+#define MSIX_TRIG_REG ((volatile uint64_t* const)R_PCIE0_SLV_BASEADDR)
+
 #endif
