@@ -518,6 +518,9 @@ std::tuple<bool, struct sys_emu_cmd_options>
 sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
     sys_emu_cmd_options cmd_options;
+    int dump_option = 0;
+    uint64_t dump_addr = 0;
+    uint64_t dump_size = 0;
 
     for(int i = 1; i < argc; i++)
     {
@@ -566,40 +569,45 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
           sscanf(argv[i], "%" PRIx64, &cmd_options.sp_reset_pc);
           cmd_options.sp_reset_pc_flag = false;
         }
-        else if(cmd_options.dump == 1)
+        else if(dump_option == 1)
         {
-            sscanf(argv[i], "%" PRIx64, &cmd_options.dump_addr);
-            cmd_options.dump = 0;
+            sscanf(argv[i], "%" PRIx64, &dump_addr);
+            dump_option = 0;
         }
-        else if(cmd_options.dump == 2)
+        else if(dump_option == 2)
         {
-            cmd_options.dump_size = atoi(argv[i]);
-            cmd_options.dump = 0;
+            dump_size = atoi(argv[i]);
+            dump_option = 0;
         }
-        else if(cmd_options.dump == 3)
+        else if(dump_option == 3)
         {
-            cmd_options.dump_file = argv[i];
-            cmd_options.dump = 0;
+            sys_emu_cmd_options::dump_file dump = {
+                dump_addr,
+                dump_size,
+                argv[i]
+            };
+            cmd_options.dump_files.push_back(dump);
+            dump_option = 0;
         }
-        else if(cmd_options.dump == 4)
+        else if(dump_option == 4)
         {
             cmd_options.log_min = atoi(argv[i]);
-            cmd_options.dump = 0;
+            dump_option = 0;
         }
-        else if(cmd_options.dump == 5)
+        else if(dump_option == 5)
         {
             cmd_options.dump_mem = argv[i];
-            cmd_options.dump = 0;
+            dump_option = 0;
         }
-        else if(cmd_options.dump == 6)
+        else if(dump_option == 6)
         {
             cmd_options.pu_uart_tx_file = argv[i];
-            cmd_options.dump = 0;
+            dump_option = 0;
         }
-        else if(cmd_options.dump == 7)
+        else if(dump_option == 7)
         {
             cmd_options.pu_uart1_tx_file = argv[i];
-            cmd_options.dump = 0;
+            dump_option = 0;
         }
         else if(cmd_options.mem_reset_flag)
         {
@@ -659,31 +667,31 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if(strcmp(argv[i], "-dump_addr") == 0)
         {
-            cmd_options.dump = 1;
+            dump_option = 1;
         }
         else if(strcmp(argv[i], "-dump_size") == 0)
         {
-            cmd_options.dump = 2;
+            dump_option = 2;
         }
         else if(strcmp(argv[i], "-dump_file") == 0)
         {
-            cmd_options.dump = 3;
+            dump_option = 3;
         }
         else if(strcmp(argv[i], "-lm") == 0)
         {
-            cmd_options.dump = 4;
+            dump_option = 4;
         }
         else if(strcmp(argv[i], "-dump_mem") == 0)
         {
-            cmd_options.dump = 5;
+            dump_option = 5;
         }
         else if(strcmp(argv[i], "-pu_uart_tx_file") == 0)
         {
-            cmd_options.dump = 6;
+            dump_option = 6;
         }
         else if(strcmp(argv[i], "-pu_uart1_tx_file") == 0)
         {
-            cmd_options.dump = 7;
+            dump_option = 7;
         }
         else if(strcmp(argv[i], "-m") == 0)
         {
@@ -1143,8 +1151,8 @@ sys_emu::main_internal(int argc, char * argv[])
     LOG_NOTHREAD(INFO, "%s", "Finishing emulation");
 
     // Dumping
-    if(cmd_options.dump_file != NULL)
-        bemu::dump_data(bemu::memory, cmd_options.dump_file, cmd_options.dump_addr, cmd_options.dump_size);
+    for (auto &dump: cmd_options.dump_files)
+        bemu::dump_data(bemu::memory, dump.file, dump.addr, dump.size);
 
     if(cmd_options.dump_mem)
         bemu::dump_data(bemu::memory, cmd_options.dump_mem, bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);

@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <vector>
 #include <tuple>
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -26,44 +27,47 @@
 /// \bried Struct holding the values of the parsed command line arguments
 ////////////////////////////////////////////////////////////////////////////////
 struct sys_emu_cmd_options {
-    char * elf_file            = nullptr;
-    char * mem_desc_file       = nullptr;
-    char * net_desc_file       = nullptr;
+    struct dump_file {
+        uint64_t addr;
+        uint64_t size;
+        char *file;
+    };
+
+    char * elf_file                   = nullptr;
+    char * mem_desc_file              = nullptr;
+    char * net_desc_file              = nullptr;
     char * api_comm_path       = nullptr;
-    bool elf                   = false;
-    bool mem_desc              = false;
-    bool net_desc              = false;
-    bool api_comm              = false;
-    bool master_min            = false;
-    bool minions               = false;
-    bool second_thread         = true;
-    bool shires                = false;
-    bool log_en                = false;
-    bool create_mem_at_runtime = false;
-    int  log_min               = -1;
-    char * dump_file           = nullptr;
+    bool elf                          = false;
+    bool mem_desc                     = false;
+    bool net_desc                     = false;
+    bool api_comm                     = false;
+    bool master_min                   = false;
+    bool minions                      = false;
+    bool second_thread                = true;
+    bool shires                       = false;
+    bool log_en                       = false;
+    bool create_mem_at_runtime        = false;
+    int  log_min                      = -1;
 #ifdef SYSEMU_PROFILING
-    char * dump_prof_file      = nullptr;
-    int dump_prof              = 0;
+    char * dump_prof_file             = nullptr;
+    int dump_prof                     = 0;
 #endif
-    int dump                   = 0;
-    uint64_t dump_addr         = 0;
-    uint64_t dump_size         = 0;
-    char *   dump_mem          = nullptr;
-    uint64_t reset_pc          = RESET_PC;
-    uint64_t sp_reset_pc       = SP_RESET_PC;
-    bool reset_pc_flag         = false;
-    bool sp_reset_pc_flag      = false;
+    std::vector<dump_file> dump_files;
+    char *   dump_mem                 = nullptr;
+    uint64_t reset_pc                 = RESET_PC;
+    uint64_t sp_reset_pc              = SP_RESET_PC;
+    bool reset_pc_flag                = false;
+    bool sp_reset_pc_flag             = false;
 #ifdef SYSEMU_DEBUG
-    bool debug                 = false;
+    bool debug                        = false;
 #endif
-    uint64_t max_cycles        = 10000000;
-    bool max_cycle             = false;
-    bool mins_dis              = false;
-    int  mem_reset             = 0;
-    bool mem_reset_flag        = false;
-    char * pu_uart_tx_file     = nullptr;
-    char * pu_uart1_tx_file    = nullptr;
+    uint64_t max_cycles               = 10000000;
+    bool max_cycle                    = false;
+    bool mins_dis                     = false;
+    int  mem_reset                    = 0;
+    bool mem_reset_flag               = false;
+    char * pu_uart_tx_file            = nullptr;
+    char * pu_uart1_tx_file           = nullptr;
 };
 
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
