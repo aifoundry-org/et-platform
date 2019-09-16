@@ -112,7 +112,7 @@ static int clock_manager_pll_bypass(PLL_ID_t pll, bool bypass_enable) {
 
     switch (pll) {
     case PLL_ID_SP_PLL_0:
-        sp_clock_manager->cm_pll0_ctrl.R = ((Clock_Manager_cm_pll0_ctrl_t){.B = { .enable = bypass_enable ? 0 : 1 }}).R;
+        sp_clock_manager->cm_ios_ctrl.R = ((Clock_Manager_cm_ios_ctrl_t){.B = { .mission = bypass_enable ? 0 : 1 }}).R;
         break;
     case PLL_ID_SP_PLL_1:
         sp_clock_manager->cm_pll1_ctrl.R = ((Clock_Manager_cm_pll1_ctrl_t){.B = { .enable = bypass_enable ? 0 : 1 }}).R;
