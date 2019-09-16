@@ -38,7 +38,7 @@
                     {
                         "id" : "PCIE_CONFIG",
                         "size" : 44,
-                        "file" : "firmware-tools/code-signing-tools/test_signed_images/otp_test_pcie_config_data.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/otp_pcie_config_data.img"
                     },
                     {
                         "id" : "SP_BL2",
@@ -75,7 +75,7 @@
                     {
                         "id" : "PCIE_CONFIG",
                         "size" : 44,
-                        "file" : "firmware-tools/code-signing-tools/test_signed_images/otp_test_pcie_config_data.img"
+                        "file" : "firmware-tools/code-signing-tools/test_signed_images/otp_pcie_config_data.img"
                     },
                     {
                         "id" : "SP_BL1",
