@@ -352,6 +352,13 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
 {
     bool result;
 
+    // All accesses to kernel_params must happen before SYSCALL_POST_KERNEL_CLEANUP
+    // evicts all the caches to avoid pulling it back in as a valid line
+    const uint64_t kernel_id = kernel_params_ptr->kernel_id;
+
+    // Wait for all memory accesses to complete
+    FENCE
+
     // Wait for all tensor ops to complete
     WAIT_TENSOR_LOAD_0
     WAIT_TENSOR_LOAD_1
@@ -387,6 +394,6 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     // Last thread to join barrier sends done FCC1 to master shire sync thread
     if (result)
     {
-        notify_kernel_sync_thread(kernel_params_ptr->kernel_id, FCC_1);
+        notify_kernel_sync_thread(kernel_id, FCC_1);
     }
 }
