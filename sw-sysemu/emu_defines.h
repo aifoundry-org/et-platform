@@ -118,7 +118,11 @@ enum : uint16_t {
 // Memory access type
 enum mem_access_type {
     Mem_Access_Load,
+    Mem_Access_LoadL,
+    Mem_Access_LoadG,
     Mem_Access_Store,
+    Mem_Access_StoreL,
+    Mem_Access_StoreG,
     Mem_Access_Fetch,
     Mem_Access_PTW,
     Mem_Access_AtomicL,
@@ -128,6 +132,8 @@ enum mem_access_type {
     Mem_Access_Prefetch,
     Mem_Access_CacheOp
 };
+
+#define Mem_Access_Type_Size 14
 
 using mreg = unsigned;
 using xreg = unsigned;

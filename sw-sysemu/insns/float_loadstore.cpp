@@ -21,7 +21,8 @@ void insn_flw(insn_t inst)
 {
     require_fp_active();
     DISASM_LOAD_FD_RS1_IIMM("flw");
-    LOAD_FD(mmu_load32(RS1 + IIMM));
+    LOAD_FD(mmu_load<uint32_t>(RS1 + IIMM, Mem_Access_Load));
+
 }
 
 
@@ -29,7 +30,7 @@ void insn_fsw(insn_t inst)
 {
     require_fp_active();
     DISASM_STORE_FS2_RS1_SIMM("fsw");
-    mmu_store32(RS1 + SIMM, FS2.u32[0]);
+    mmu_store<uint32_t>(RS1 + SIMM, FS2.u32[0], Mem_Access_Load);
 }
 
 

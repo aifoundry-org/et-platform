@@ -24,6 +24,10 @@ CXXFLAGS := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c++11
 CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c11
 LDLIBS   := -lm
 
+ifeq ($(COHERENCY),1)
+    CPPFLAGS += -DSYSEMU_COHERENCY_DEBUG
+endif
+
 ifeq ($(DEBUG),)
     CXXFLAGS += -g -O2
     CFLAGS += -g -O2

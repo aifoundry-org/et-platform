@@ -293,7 +293,7 @@ uint64_t RBOX::RBOXEmu::read_esr(uint32_t esr_id)
 uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
 {
     InPcktHeaderT header;
-    header.qw = bemu::pmemread64(packet);
+    header.qw = bemu::pmemread<uint64_t>(packet);
 
     uint32_t packet_size = 0;
 
@@ -307,7 +307,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    fully_covered_tile_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
+                    fully_covered_tile_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, fully_covered_tile_pckt.qw[qw]);
                 }
 
@@ -332,7 +332,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    large_tri_tile_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
+                    large_tri_tile_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, large_tri_tile_pckt.qw[qw]);
                 }
 
@@ -357,7 +357,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    tri_with_tile_64x64_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
+                    tri_with_tile_64x64_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, tri_with_tile_64x64_pckt.qw[qw]);
                 }
 
@@ -396,7 +396,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    tri_with_tile_128x128_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
+                    tri_with_tile_128x128_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, tri_with_tile_128x128_pckt.qw[qw]);
                 }
                 for (uint32_t eq = 0; eq < 3; eq++)
@@ -434,7 +434,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    large_tri_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
+                    large_tri_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, large_tri_pckt.qw[qw]);
                 }
 
@@ -463,7 +463,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 8; qw++)
                 {
-                    rbox_state_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
+                    rbox_state_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw, rbox_state_pckt.qw[qw]);
                 }
                 rbox_state = rbox_state_pckt.state;
@@ -478,7 +478,7 @@ uint32_t RBOX::RBOXEmu::process_packet(uint64_t packet)
                 LOG_NOTHREAD(DEBUG, "RBOX [%d] => Packet Data", rbox_id);
                 for (uint32_t qw = 0; qw < 4; qw++)
                 {
-                    frag_shader_state_pckt.qw[qw] = bemu::pmemread64(packet + qw * 8);
+                    frag_shader_state_pckt.qw[qw] = bemu::pmemread<uint64_t>(packet + qw * 8);
                     LOG_NOTHREAD(DEBUG, "\t[%u] = %016" PRIx64, qw,frag_shader_state_pckt.qw[qw]);
                 }
                 frag_shader_state = frag_shader_state_pckt.state;
@@ -658,7 +658,7 @@ bool RBOX::RBOXEmu::test_quad(QuadInfoT &quad)
         if (quad.fragment[f].coverage)
         {
             uint64_t frag_depth_stencil_address = compute_depth_stencil_buffer_address(x, y);
-            uint32_t frag_depth_stencil = bemu::pmemread32(frag_depth_stencil_address);
+            uint32_t frag_depth_stencil = bemu::pmemread<uint32_t>(frag_depth_stencil_address);
 
             uint8_t frag_stencil = frag_depth_stencil >> 24;
             uint32_t frag_depth = frag_depth_stencil & 0x00FFFFFF;

@@ -103,7 +103,7 @@ void sys_emu::memdump(uint64_t addr, uint64_t size)
 
     char ascii[17] = {0};
     for (uint64_t i = 0; i < size; i++) {
-        uint8_t data = bemu::pmemread8(vmemtranslate(addr + i, 1, Mem_Access_Load));
+        uint8_t data = bemu::pmemread<uint8_t>(vmemtranslate(addr + i, 1, Mem_Access_Load));
         printf("%02X ", data);
         ascii[i % 16] = std::isprint(data) ? data : '.';
         if ((i + 1) % 8 == 0 || (i + 1) == size) {

@@ -971,7 +971,7 @@ bool TBOX::TBOXEmu::access_memory(uint64_t address, uint64_t &data)
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
 #else
-    data = bemu::pmemread64(address);
+    data = bemu::pmemread<uint64_t>(address);
     LOG(DEBUG, "\t\t %016lx <- PMEM64[%016lx]", data, address);
     return true;
 #endif
@@ -982,7 +982,7 @@ bool TBOX::TBOXEmu::access_memory(uint64_t address, uint32_t &data)
 #ifdef TBOX_MINION_SIM
     return access_l2(address, data);
 #else
-    data = bemu::pmemread32(address);
+    data = bemu::pmemread<uint32_t>(address);
     LOG(DEBUG, "\t\t %08x <- PMEM32[%016lx]", data, address);
     return true;
 #endif
@@ -1238,10 +1238,10 @@ bool TBOX::TBOXEmu::read_image_info_cache_line(uint64_t address, ImageInfo &data
 #ifdef TBOX_MINION_SIM
     return get_l2_data(address, data);
 #else
-    data.data[0] = bemu::pmemread64(address + 0);
-    data.data[1] = bemu::pmemread64(address + 8);
-    data.data[2] = bemu::pmemread64(address + 16);
-    data.data[3] = bemu::pmemread64(address + 24);
+    data.data[0] = bemu::pmemread<uint64_t>(address + 0);
+    data.data[1] = bemu::pmemread<uint64_t>(address + 8);
+    data.data[2] = bemu::pmemread<uint64_t>(address + 16);
+    data.data[3] = bemu::pmemread<uint64_t>(address + 24);
     return true;
 #endif
 }
@@ -2319,10 +2319,10 @@ bool TBOX::TBOXEmu::get_image_info(SampleRequest request, ImageInfo &currentImag
     LOG(DEBUG, "\tRead Image Descriptor with ID %d from Address %016lx", request.info.imageid, imageInfoAddress);
     fflush(stdout);
 
-    currentImage.data[0] = bemu::pmemread64(imageInfoAddress);
-    currentImage.data[1] = bemu::pmemread64(imageInfoAddress + 8);
-    currentImage.data[2] = bemu::pmemread64(imageInfoAddress + 16);
-    currentImage.data[3] = bemu::pmemread64(imageInfoAddress + 24);
+    currentImage.data[0] = bemu::pmemread<uint64_t>(imageInfoAddress);
+    currentImage.data[1] = bemu::pmemread<uint64_t>(imageInfoAddress + 8);
+    currentImage.data[2] = bemu::pmemread<uint64_t>(imageInfoAddress + 16);
+    currentImage.data[3] = bemu::pmemread<uint64_t>(imageInfoAddress + 24);
 
     LOG(DEBUG, "\tImage Info %016lx %016lx %016lx %016lx", currentImage.data[0],
                currentImage.data[1], currentImage.data[2], currentImage.data[3]);
@@ -3667,37 +3667,37 @@ void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j, u
     {
         case 1:
             {
-                data[0] = bemu::pmemread8(texelAddress);
+                data[0] = bemu::pmemread<uint8_t>(texelAddress);
                 LOG(DEBUG, "\t\t%02x <- PMEM8[%016lx]", data[0], texelAddress);
             }
             break;
         case 2:
             {
-                uint16_t texelData = bemu::pmemread16(texelAddress);
+                uint16_t texelData = bemu::pmemread<uint16_t>(texelAddress);
                 memcpy_uint16(&data[0], texelData);
                 LOG(DEBUG, "\t\t%04x <- PMEM16[%016lx]", texelData, texelAddress);
             }
             break;
         case 4:
             {
-                uint32_t texelData = bemu::pmemread32(texelAddress);
+                uint32_t texelData = bemu::pmemread<uint32_t>(texelAddress);
                 memcpy_uint32(&data[0], texelData);
                 LOG(DEBUG, "\t\t%08x <- PMEM32[%016lx]", texelData, texelAddress);
             }
             break;
         case 8:
             {
-                uint64_t texelData = bemu::pmemread64(texelAddress);
+                uint64_t texelData = bemu::pmemread<uint64_t>(texelAddress);
                 memcpy_uint64(&data[0], texelData);
                 LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress);
             }
             break;
         case 16:
             {
-                uint64_t texelData = bemu::pmemread64(texelAddress);
+                uint64_t texelData = bemu::pmemread<uint64_t>(texelAddress);
                 memcpy_uint64(&data[0], texelData);
                 LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress);
-                texelData = bemu::pmemread64(texelAddress + 8);
+                texelData = bemu::pmemread<uint64_t>(texelAddress + 8);
                 memcpy_uint64(&data[8], texelData);
                 LOG(DEBUG, "\t\t%016lx <- PMEM64[%016lx]", texelData, texelAddress + 8);
             }

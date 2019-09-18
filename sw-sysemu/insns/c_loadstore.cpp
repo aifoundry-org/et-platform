@@ -19,7 +19,7 @@ extern std::array<Processor,EMU_NUM_THREADS> cpu;
 void insn_c_ld(insn_t inst)
 {
     C_DISASM_LOAD_RS2P_RS1P_IMMLSD("c.ld");
-    uint64_t tmp = mmu_load64(C_RS1P + C_IMMLSD);
+    uint64_t tmp = mmu_load<uint64_t>(C_RS1P + C_IMMLSD, Mem_Access_Load);
     LOAD_WRITE_C_RS2P(tmp);
 }
 
@@ -27,7 +27,7 @@ void insn_c_ld(insn_t inst)
 void insn_c_ldsp(insn_t inst)
 {
     C_DISASM_LOAD_LDSP("c.ldsp");
-    uint64_t tmp = mmu_load64(X2 + C_IMMLDSP);
+    uint64_t tmp = mmu_load<uint64_t>(X2 + C_IMMLDSP, Mem_Access_Load);
     LOAD_WRITE_C_RS1(tmp);
 }
 
@@ -35,7 +35,7 @@ void insn_c_ldsp(insn_t inst)
 void insn_c_lw(insn_t inst)
 {
     C_DISASM_LOAD_RS2P_RS1P_IMMLSW("c.lw");
-    uint64_t tmp = sext<32>(mmu_load32(C_RS1P + C_IMMLSW));
+    uint64_t tmp = sext<32>(mmu_load<uint32_t>(C_RS1P + C_IMMLSW, Mem_Access_Load));
     LOAD_WRITE_C_RS2P(tmp);
 }
 
@@ -43,7 +43,7 @@ void insn_c_lw(insn_t inst)
 void insn_c_lwsp(insn_t inst)
 {
     C_DISASM_LOAD_LWSP("c.lwsp");
-    uint64_t tmp = sext<32>(mmu_load32(X2 + C_IMMLWSP));
+    uint64_t tmp = sext<32>(mmu_load<uint32_t>(X2 + C_IMMLWSP, Mem_Access_Load));
     LOAD_WRITE_C_RS1(tmp);
 }
 
@@ -51,28 +51,28 @@ void insn_c_lwsp(insn_t inst)
 void insn_c_sd(insn_t inst)
 {
     C_DISASM_STORE_RS2P_RS1P_IMMLSD("c.sd");
-    mmu_store64(C_RS1P + C_IMMLSD, C_RS2P);
+    mmu_store<uint64_t>(C_RS1P + C_IMMLSD, C_RS2P, Mem_Access_Store);
 }
 
 
 void insn_c_sdsp(insn_t inst)
 {
     C_DISASM_STORE_SWSP("c.sdsp");
-    mmu_store64(X2 + C_IMMSDSP, C_RS2);
+    mmu_store<uint64_t>(X2 + C_IMMSDSP, C_RS2, Mem_Access_Store);
 }
 
 
 void insn_c_sw(insn_t inst)
 {
     C_DISASM_STORE_RS2P_RS1P_IMMLSW("c.sd");
-    mmu_store32(C_RS1P + C_IMMLSW, uint32_t(C_RS2P));
+    mmu_store<uint32_t>(C_RS1P + C_IMMLSW, uint32_t(C_RS2P), Mem_Access_Store);
 }
 
 
 void insn_c_swsp(insn_t inst)
 {
     C_DISASM_STORE_SWSP("c.swsp");
-    mmu_store32(X2 + C_IMMSWSP, uint32_t(C_RS2));
+    mmu_store<uint32_t>(X2 + C_IMMSWSP, uint32_t(C_RS2), Mem_Access_Store);
 }
 
 

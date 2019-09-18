@@ -14,6 +14,12 @@ sysemu_cpp_srcs := \
 	sys_emu/sys_emu_main.cpp \
 	sys_emu/testLog.cpp
 
+ifeq ($(COHERENCY), 1)
+  sysemu_hdrs     += sys_emu/mem_directory.h
+  sysemu_cpp_srcs += sys_emu/mem_directory.cpp
+
+endif
+
 ifeq ($(PROFILING), 1)
   sysemu_hdrs     += sys_emu/profiling.h
   sysemu_cpp_srcs += sys_emu/profiling.cpp

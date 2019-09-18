@@ -95,7 +95,7 @@
     LOG(DEBUG, "\tgsc_progress " str " %u", unsigned(cpu[current_thread].gsc_progress))
 
 #define LOG_MEMWRITE(size, addr, value) \
-   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] = 0x%" PRIx ##size , addr, value)
+   LOG(DEBUG, "\tMEM%zu[0x%" PRIx64 "] = 0x%llx", size_t(size) , addr, static_cast<unsigned long long>(value))
 
 #define LOG_MEMWRITE128(addr, ptr) \
    LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] : {" \
@@ -114,7 +114,7 @@
        ptr[8], ptr[9], ptr[10], ptr[11], ptr[12], ptr[13], ptr[14], ptr[15])
 
 #define LOG_MEMREAD(size, addr, value) \
-   LOG(DEBUG, "\tMEM" #size "[0x%" PRIx64 "] : 0x%" PRIx ##size , addr, value);
+   LOG(DEBUG, "\tMEM%zu[0x%" PRIx64 "] : 0x%llx", size_t(size), addr, static_cast<unsigned long long>(value))
 
 #define LOG_MEMREAD128(addr, ptr) \
    LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] : {" \

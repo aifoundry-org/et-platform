@@ -7,41 +7,22 @@
 
 namespace bemu {
 
-
-inline uint8_t pmemread8(uint64_t paddr)
+template <typename T>
+inline T pmemread(uint64_t paddr)
 {
+
+    static_assert(std::is_same<T, uint8_t>::value == true   ||
+                  std::is_same<T, uint16_t>::value == true  ||
+                  std::is_same<T, uint32_t>::value == true  ||
+                  std::is_same<T, uint64_t>::value == true, "ERROR: Only uint8_t, uint16_t, uint32_t and uint64_t loads are performed by this function.");
+
+
     extern MainMemory memory;
-    uint8_t ret;
-    memory.read(paddr, 1, &ret);
+    T ret;
+    memory.read(paddr, sizeof(T), &ret);
     return ret;
 }
 
-
-inline uint16_t pmemread16(uint64_t paddr)
-{
-    extern MainMemory memory;
-    uint16_t ret;
-    memory.read(paddr, 2, &ret);
-    return ret;
-}
-
-
-inline uint32_t pmemread32(uint64_t paddr)
-{
-    extern MainMemory memory;
-    uint32_t ret;
-    memory.read(paddr, 4, &ret);
-    return ret;
-}
-
-
-inline uint64_t pmemread64(uint64_t paddr)
-{
-    extern MainMemory memory;
-    uint64_t ret;
-    memory.read(paddr, 8, &ret);
-    return ret;
-}
 
 
 inline void pmemread128(uint64_t paddr, void* result)

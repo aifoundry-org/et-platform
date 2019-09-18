@@ -16,32 +16,31 @@ uint64_t vmemtranslate(uint64_t addr, size_t size, mem_access_type macc);
 
 
 // MMU virtual memory read accesses
-uint32_t mmu_fetch    (uint64_t vaddr);
-uint8_t  mmu_load8    (uint64_t eaddr);
-uint16_t mmu_load16   (uint64_t eaddr);
-uint32_t mmu_load32   (uint64_t eaddr);
-uint64_t mmu_load64   (uint64_t eaddr);
-void     mmu_loadVLEN (uint64_t eaddr, freg_t& data, mreg_t mask);
+uint32_t mmu_fetch  (uint64_t vaddr);
+
+template <typename T>
+T mmu_load          (uint64_t eaddr, mem_access_type macc);
+
+void mmu_loadVLEN   (uint64_t eaddr, freg_t& data, mreg_t mask, mem_access_type macc);
 
 
 // MMU virtual memory write accesses
-void mmu_store8    (uint64_t eaddr, uint8_t data);
-void mmu_store16   (uint64_t eaddr, uint16_t data);
-void mmu_store32   (uint64_t eaddr, uint32_t data);
-void mmu_store64   (uint64_t eaddr, uint64_t data);
-void mmu_storeVLEN (uint64_t eaddr, freg_t data, mreg_t mask);
+template <typename T>
+void mmu_store      (uint64_t eaddr, T data, mem_access_type macc);
+
+void mmu_storeVLEN  (uint64_t eaddr, freg_t data, mreg_t mask, mem_access_type macc);
 
 
 // MMU naturally aligned virtual memory read accesses
-uint16_t mmu_aligned_load16   (uint64_t eaddr);
-uint32_t mmu_aligned_load32   (uint64_t eaddr);
-void     mmu_aligned_loadVLEN (uint64_t eaddr, freg_t& data, mreg_t mask);
+uint16_t mmu_aligned_load16   (uint64_t eaddr, mem_access_type macc);
+uint32_t mmu_aligned_load32   (uint64_t eaddr, mem_access_type macc);
+void     mmu_aligned_loadVLEN (uint64_t eaddr, freg_t& data, mreg_t mask, mem_access_type macc);
 
 
 // MMU naturally aligned virtual memory write accesses
-void mmu_aligned_store16   (uint64_t eaddr, uint16_t data);
-void mmu_aligned_store32   (uint64_t eaddr, uint32_t data);
-void mmu_aligned_storeVLEN (uint64_t eaddr, freg_t data, mreg_t mask);
+void mmu_aligned_store16   (uint64_t eaddr, uint16_t data, mem_access_type macc);
+void mmu_aligned_store32   (uint64_t eaddr, uint32_t data, mem_access_type macc);
+void mmu_aligned_storeVLEN (uint64_t eaddr, freg_t data, mreg_t mask, mem_access_type macc);
 
 
 // MMU global atomic memory accesses
