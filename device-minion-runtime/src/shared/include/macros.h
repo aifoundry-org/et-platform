@@ -69,9 +69,9 @@
          "wfi\n" \
          : : : "a7");
 
-#define NOP  __asm__ __volatile__ ("nop\n");
-#define FENCE __asm__ __volatile__ ("fence\n");
-#define WFI __asm__ __volatile__ ("wfi\n");
+#define NOP  __asm__ __volatile__ ("nop");
+#define FENCE __asm__ __volatile__ ("fence" : : : "memory");
+#define WFI __asm__ __volatile__ ("wfi");
 #define WAIT_TENSOR_LOAD_0     __asm__ __volatile__ ( "csrwi 0x830, 0\n" : : );
 #define WAIT_TENSOR_LOAD_1     __asm__ __volatile__ ( "csrwi 0x830, 1\n" : : );
 #define WAIT_TENSOR_LOAD_L2_0  __asm__ __volatile__ ( "csrwi 0x830, 2\n" : : );
