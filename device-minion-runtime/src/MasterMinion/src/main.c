@@ -476,8 +476,13 @@ static void handle_message_from_worker(uint64_t shire, uint64_t hart)
 
         case MESSAGE_ID_EXCEPTION:
             print_exception(message.data[1], message.data[2], message.data[3], message.data[4], message.data[0]);
-            update_shire_state(shire, SHIRE_STATE_ERROR);
-            update_kernel_state(kernel, KERNEL_STATE_ERROR);
+            update_shire_state(shire, SHIRE_STATE_ERROR); // non-kernel exceptions are unrecoverable. Put the shire in error state
+            update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
+        break;
+
+        case MESSAGE_ID_KERNEL_EXCEPTION:
+            print_exception(message.data[1], message.data[2], message.data[3], message.data[4], message.data[0]);
+            update_kernel_state(kernel, KERNEL_STATE_ERROR); // the kernel has failed
         break;
 
         case MESSAGE_ID_LOG_WRITE:

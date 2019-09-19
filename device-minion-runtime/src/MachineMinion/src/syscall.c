@@ -2,6 +2,7 @@
 #include "broadcast.h"
 #include "cacheops.h"
 #include "esr_defines.h"
+#include "exception.h"
 #include "fcc.h"
 #include "flb.h"
 #include "hal_device.h"
@@ -114,6 +115,10 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
 
         case SYSCALL_LOG_WRITE:
             rv = -1; // machine/supervisor firmware should call LOG_write() directly
+        break;
+
+        case SYSCALL_REGISTER_RETURN_FROM_KERNEL_FUNCTION:
+            rv = register_return_from_kernel_function((int64_t (*)(int64_t))arg1);
         break;
 
         default:

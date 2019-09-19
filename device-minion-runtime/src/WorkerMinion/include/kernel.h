@@ -1,12 +1,10 @@
 #ifndef KERNEL_H
 #define KERNEL_H
 
+#include "kernel_error.h"
 #include "kernel_info.h"
 
 #include <stdint.h>
-
-#define KERNEL_LAUNCH_ERROR_ABORTED          -1000LL
-#define KERNEL_LAUNCH_ERROR_NO_SAVED_CONTEXT -1001LL
 
 int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
                       const uint64_t* const kernel_stack_addr,

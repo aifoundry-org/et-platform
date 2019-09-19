@@ -34,6 +34,12 @@ void __attribute__((noreturn)) main(void)
 
     message_init_worker(shire_id, hart_id);
 
+    // Register the return_from_kernel function with the machine mode firmware
+    // so it can return to firmware context from a kernel exception
+    // Only one minion needs to do this, but the cache management to get all to use it
+    // ends up being more work than just having all of them set it at startup.
+    syscall(SYSCALL_REGISTER_RETURN_FROM_KERNEL_FUNCTION, (uint64_t)return_from_kernel, 0, 0);
+
     // Enable supervisor software interrupts
     asm volatile (
         "csrsi sie, 0x2     \n" // Enable supervisor software interrupts
