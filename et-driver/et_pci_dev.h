@@ -29,7 +29,6 @@ struct et_pci_minor_dev {
 	struct et_pci_dev *et_dev;
 	struct cdev cdev;
 	struct mutex open_close_mutex;
-	struct mutex read_write_mutex;
 	enum et_cdev_type type;
 	int ref_count;
 };
@@ -58,6 +57,7 @@ struct et_pci_dev {
 	struct pci_dev *pdev;
 	struct et_mbox mbox_mm;
 	struct et_mbox mbox_sp;
+	struct mutex read_write_mutex;
 	struct et_pci_minor_dev et_minor_devs[MINORS_PER_SOC];
 	void __iomem *iomem[IOMEM_REGIONS];
 	uint32_t bulk_cfg;

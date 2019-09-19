@@ -88,7 +88,7 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 	ssize_t rv;
 	bool use_mmio = false;
 
-	mutex_lock(&minor_dev->read_write_mutex);
+	mutex_lock(&et_dev->read_write_mutex);
 
 	switch(minor_dev->type){
 	case et_cdev_type_mb_sp:
@@ -119,7 +119,7 @@ static ssize_t esperanto_pcie_read(struct file *fp, char __user *buf,
 		rv = -EINVAL;
 	}
  
-  	mutex_unlock(&minor_dev->read_write_mutex);
+  	mutex_unlock(&et_dev->read_write_mutex);
 
 	return rv;
 }
@@ -131,8 +131,8 @@ static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
 	struct et_pci_dev *et_dev = minor_dev->et_dev;
 	ssize_t rv = 0;
 	bool use_mmio = false;
- 
-	mutex_lock(&minor_dev->read_write_mutex);
+
+	mutex_lock(&et_dev->read_write_mutex);
 
 	switch(minor_dev->type) {
 	case et_cdev_type_mb_sp:
@@ -167,7 +167,7 @@ static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
 		rv = -EINVAL;
 	}
 
- 	mutex_unlock(&minor_dev->read_write_mutex);
+ 	mutex_unlock(&et_dev->read_write_mutex);
 
 	return rv;
 }
@@ -175,10 +175,11 @@ static ssize_t esperanto_pcie_write(struct file *fp, const char __user *buf,
 static loff_t esperanto_pcie_llseek(struct file *fp, loff_t pos, int whence)
 {
 	struct et_pci_minor_dev *minor_dev = fp->private_data;
+	struct et_pci_dev *et_dev = minor_dev->et_dev;
 
 	loff_t new_pos = 0;
 
-	mutex_lock(&minor_dev->read_write_mutex);
+	mutex_lock(&et_dev->read_write_mutex);
 
 	if (minor_dev->type == et_cdev_type_mb_sp ||
 	    minor_dev->type == et_cdev_type_mb_mm) {
@@ -213,7 +214,7 @@ static loff_t esperanto_pcie_llseek(struct file *fp, loff_t pos, int whence)
 	fp->f_pos = new_pos;
 
 error:
-	mutex_unlock(&minor_dev->read_write_mutex);
+	mutex_unlock(&et_dev->read_write_mutex);
 
 	return new_pos;
 }
@@ -222,8 +223,8 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 {
 	struct et_pci_minor_dev *minor_dev = fp->private_data;
 	struct et_pci_dev *et_dev = minor_dev->et_dev;
-	unsigned long dram_base, dram_size;
-	unsigned long mbox_rdy, mbox_max_msg;
+	uint64_t dram_base, dram_size;
+	uint64_t mbox_rdy, mbox_max_msg;
 
 	switch (cmd) {
 	case GET_DRAM_BASE:
@@ -232,7 +233,7 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 			return -EINVAL;
 		}
 		dram_base = R_L3_DRAM_BASEADDR;
-		if (copy_to_user((u64 *)arg, &dram_base, sizeof(u64))) {
+		if (copy_to_user((uint64_t *)arg, &dram_base, sizeof(uint64_t))) {
 			pr_err("ioctl: GET_DRAM_BASE: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -244,7 +245,7 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 			return -EINVAL;
 		}
 		dram_size = R_L3_DRAM_SIZE;
-		if (copy_to_user((u64 *)arg, &dram_size, sizeof(u64))) {
+		if (copy_to_user((uint64_t *)arg, &dram_size, sizeof(uint64_t))) {
 			pr_err("ioctl: GET_DRAM_SIZE: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -257,7 +258,7 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 			return -EINVAL;
 		}
 		mbox_max_msg = ET_MBOX_MAX_MSG_SIZE;
-		if (copy_to_user((u64 *)arg, &mbox_max_msg, sizeof(u64))) {
+		if (copy_to_user((uint64_t *)arg, &mbox_max_msg, sizeof(uint64_t))) {
 			pr_err("ioctl: GET_BOX_MAX_MSG: failed to copy to user\n");
 			return -ENOMEM;
 		}
@@ -265,14 +266,14 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 
 	case RESET_MBOX:
 		if (minor_dev->type == et_cdev_type_mb_mm) {
-			mutex_lock(&minor_dev->read_write_mutex);
+			mutex_lock(&et_dev->read_write_mutex);
 			et_mbox_reset(&et_dev->mbox_mm);
- 			mutex_unlock(&minor_dev->read_write_mutex);
+ 			mutex_unlock(&et_dev->read_write_mutex);
 			return 0;
 		} else if (minor_dev->type == et_cdev_type_mb_sp) {
-			mutex_lock(&minor_dev->read_write_mutex);
+			mutex_lock(&et_dev->read_write_mutex);
 			et_mbox_reset(&et_dev->mbox_sp);
- 			mutex_unlock(&minor_dev->read_write_mutex);
+ 			mutex_unlock(&et_dev->read_write_mutex);
 			return 0;
 		}
 		// Allowed on mailbox devices only
@@ -280,15 +281,15 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 
 	case GET_MBOX_READY:
 		if (minor_dev->type == et_cdev_type_mb_mm) {
-			mbox_rdy = (unsigned long)et_mbox_ready(&et_dev->mbox_mm);
-			if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) {
+			mbox_rdy = (uint64_t)et_mbox_ready(&et_dev->mbox_mm);
+			if (copy_to_user((uint64_t *)arg, &mbox_rdy, sizeof(uint64_t))) {
 				pr_err("ioctl: GET_MBOX_READY: failed to copy to user\n");
 				return -ENOMEM;
 			}
 			return 0;
 		} else if (minor_dev->type == et_cdev_type_mb_sp) {
-			mbox_rdy = (unsigned long)et_mbox_ready(&et_dev->mbox_sp);
-			if (copy_to_user((u64 *)arg, &mbox_rdy, sizeof(u64))) {
+			mbox_rdy = (uint64_t)et_mbox_ready(&et_dev->mbox_sp);
+			if (copy_to_user((uint64_t *)arg, &mbox_rdy, sizeof(uint64_t))) {
 				pr_err("ioctl: GET_MBOX_READY: failed to copy to user\n");
 				return -ENOMEM;
 			}
@@ -312,9 +313,9 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 			return -EINVAL;
 		}
 
-		mutex_lock(&minor_dev->read_write_mutex);
+		mutex_lock(&et_dev->read_write_mutex);
 		et_dev->bulk_cfg = bulk_cfg;
-		mutex_unlock(&minor_dev->read_write_mutex);
+		mutex_unlock(&et_dev->read_write_mutex);
 
 		return 0;
 	}
@@ -332,7 +333,8 @@ static int esperanto_pcie_open(struct inode *inode, struct file *filp)
 
 	//Find container of cdev, save for other file i/o calls
 	struct et_pci_minor_dev *minor_dev;
- 	minor_dev = container_of(inode->i_cdev, struct et_pci_minor_dev, cdev);
+
+	minor_dev = container_of(inode->i_cdev, struct et_pci_minor_dev, cdev);
  	filp->private_data = minor_dev;
 
  	/*mutex_lock(&minor_dev->open_close_mutex);
@@ -387,6 +389,8 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev)
 
 	if (!et_dev) return -ENOMEM;
 
+	mutex_init(&et_dev->read_write_mutex);
+
 	//Initialize data for minors
 	for(i = 0; i < MINORS_PER_SOC; ++i) {
 		struct et_pci_minor_dev *minor_dev = &et_dev->et_minor_devs[i];
@@ -394,7 +398,6 @@ static int create_et_pci_dev(struct et_pci_dev **new_dev)
 		minor_dev->et_dev = et_dev;
 
 		mutex_init(&minor_dev->open_close_mutex);
-		mutex_init(&minor_dev->read_write_mutex);
 
 		minor_dev->type = MINOR_TYPES[i];
 	}
@@ -409,11 +412,13 @@ static void destory_et_pci_dev(struct et_pci_dev *et_dev)
 	for(i = 0; i < MINORS_PER_SOC; ++i) {
 		struct et_pci_minor_dev *minor_dev = &et_dev->et_minor_devs[i];
 
-		mutex_destroy(&minor_dev->read_write_mutex);
+		
 		mutex_destroy(&minor_dev->open_close_mutex);
 
 		minor_dev->et_dev = NULL;
 	}
+
+	mutex_destroy(&et_dev->read_write_mutex);
 
 	kfree(et_dev);
 }
@@ -511,8 +516,8 @@ static int esperanto_pcie_probe(struct pci_dev *pdev,
 		goto error_free_dev;
 	}
 
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
-	if (rc < 0) {
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc) {
 		dev_err(&pdev->dev, "set dma mask failed\n");
 		goto error_disable_dev;
 	}
