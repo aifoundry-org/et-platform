@@ -195,8 +195,10 @@ static void fake_message_from_host(void)
 {
     const kernel_id_t kernel_id = KERNEL_ID_1;
 
+    const kernel_state_t kernel_state = get_kernel_state(kernel_id);
+
     // For now, fake host launches kernel 0 any time it's unused.
-    if (get_kernel_state(kernel_id) == KERNEL_STATE_UNUSED)
+    if (kernel_state == KERNEL_STATE_UNUSED)
     {
         const host_message_t host_message = {
             .message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH,
@@ -226,7 +228,7 @@ static void fake_message_from_host(void)
     }
 
 #ifdef DEBUG_FAKE_ABORT_FROM_HOST
-    if (get_kernel_state(kernel_id) == KERNEL_STATE_RUNNING)
+    if ((kernel_state == KERNEL_STATE_LAUNCHED)) || (kernel_state == KERNEL_STATE_RUNNING))
     {
         log_write(LOG_LEVEL_CRITICAL, "faking kernel abort message fom host\r\n");
 
