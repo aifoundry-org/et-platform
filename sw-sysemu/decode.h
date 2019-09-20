@@ -271,7 +271,7 @@
 // Write destination registers
 
 inline mreg_t mkmask(unsigned len) {
-    return mreg_t((1 << len) - 1);
+    return mreg_t((1ull << len) - 1ull);
 }
 
 

@@ -121,14 +121,14 @@ struct Processor {
     // last one finishes, but this case manifests only in ZSIM.
     uint64_t shadow_txfma;
 
-    // TensorLoad state machine
-    uint64_t txload;
-    uint64_t txstride;
+    // TensorLoad state machines
+    std::array<uint64_t,2> txload;
+    std::array<uint64_t,2> txstride;
 
-    // NB: Due to pipelining a TensorQuant can start a few cycles before the
+    // NB: Due to pipelining a TensorLoad can start a few cycles before the
     // last one finishes, but this case manifests only in ZSIM.
-    uint64_t shadow_txload;
-    uint64_t shadow_txstride;
+    std::array<uint64_t,2> shadow_txload;
+    std::array<uint64_t,2> shadow_txstride;
 
     // Active tensor operation state machines
     // TODO: this is per core not per hart
