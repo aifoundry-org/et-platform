@@ -1469,7 +1469,6 @@ static void csrset(uint16_t src1, uint64_t val)
             if ((~val & 2) && (current_thread != EMU_IO_SHIRE_SP_THREAD))
                 tensorload_setupb_topair[current_thread] = false;
         }
-        val &= 3;
         break;
     case CSR_EVICT_SW:
     case CSR_FLUSH_SW:
