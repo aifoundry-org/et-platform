@@ -84,8 +84,7 @@ bool broadcast_message_available(message_number_t previous_broadcast_message_num
     // Evict to invalidate, must not be dirty
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 
-    return ((master_to_worker_broadcast_message_buffer_ptr->id != MESSAGE_ID_NONE) &&
-            (master_to_worker_broadcast_message_buffer_ptr->number != previous_broadcast_message_number));
+    return (master_to_worker_broadcast_message_buffer_ptr->number != previous_broadcast_message_number);
 }
 
 // Sends a message from master minion to worker minion
@@ -118,8 +117,10 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_ha
 
     static message_number_t number;
 
+    // First broadcast message number is 1, so OK for worker minion
+    // to init previous_broadcast_message_number to 0
     *master_to_worker_broadcast_message_buffer_ptr = *message;
-    master_to_worker_broadcast_message_buffer_ptr->number = number++;
+    master_to_worker_broadcast_message_buffer_ptr->number = ++number;
 
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 

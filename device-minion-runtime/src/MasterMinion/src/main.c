@@ -520,9 +520,12 @@ static void print_log_message(uint64_t shire, uint64_t hart, const message_t* co
 {
     const char* const string_ptr = (const char* const)message->data;
 
+    // messages are passed with shire and 0-63 intra-shire hart index - convert back to global 0-2112 hart index
+    uint64_t hart_id = (shire * HARTS_PER_SHIRE) + hart;
+
     // Print all messages receives - worker minion have their own warning level threshold.
     // Limit length of displayed string in case we receive garbage
-    log_write(LOG_LEVEL_CRITICAL, "S%02" PRId64 " H%03" PRId64 ": %.*s\r\n", shire, hart, sizeof(message->data) - 1, string_ptr);
+    log_write(LOG_LEVEL_CRITICAL, "H%04" PRId64 ": %.*s\r\n", hart_id, sizeof(message->data) - 1, string_ptr);
 }
 
 #ifdef DEBUG_SEND_MESSAGES_TO_SP

@@ -1,10 +1,11 @@
 #include "kernel.h"
 #include "hart.h"
+#include "layout.h"
 #include "log.h"
 #include "message.h"
 
 static message_t message;
-static message_number_t previous_broadcast_message_number = 0xFFFFFFFFU;
+static message_number_t previous_broadcast_message_number[NUM_HARTS];
 
 void swi_handler(void);
 static void handle_message(uint64_t shire, uint64_t hart, message_t* const message_ptr);
@@ -17,9 +18,9 @@ void swi_handler(void)
     const uint64_t shire = get_shire_id();
     const uint64_t hart = get_hart_id();
 
-    if (broadcast_message_available(previous_broadcast_message_number))
+    if (broadcast_message_available(previous_broadcast_message_number[hart]))
     {
-        previous_broadcast_message_number = broadcast_message_receive_worker(&message);
+        previous_broadcast_message_number[hart] = broadcast_message_receive_worker(&message);
         handle_message(shire, hart, &message);
     }
 
