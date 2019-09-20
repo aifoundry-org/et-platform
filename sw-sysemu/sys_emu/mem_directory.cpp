@@ -1,5 +1,6 @@
 #include "mem_directory.h"
 #include "emu_defines.h"
+#include "emu_gio.h"
 
 /*! \brief Directory update for a memory block.
  *
@@ -164,7 +165,7 @@ bool mem_directory::access(uint64_t addr, mem_access_type macc, uint32_t current
 
         if(!coherent)
         {
-            LOG(DEBUG, "\t%s(Coherency Write Hazard) addr=0x%x, location=%d, shire_id=%u, minion_id=%u", addr, location, shire_id, minion_id);
+            LOG(DEBUG, "\t(Coherency Write Hazard) addr=%lu, location=%d, shire_id=%u, minion_id=%u", addr, location, shire_id, minion_id);
             return false;
         }
         return true;            
@@ -174,7 +175,7 @@ bool mem_directory::access(uint64_t addr, mem_access_type macc, uint32_t current
 
     if(!coherent)
     {
-        LOG(DEBUG, "\t%s(Coherency Read Hazard) addr=0x%x, location=%d, shire_id=%u, minion_id=%u", addr, location, shire_id, minion_id);
+        LOG(DEBUG, "\t(Coherency Read Hazard) addr=%lu, location=%d, shire_id=%u, minion_id=%u", addr, location, shire_id, minion_id);
         return false;
     }
     return true;            
