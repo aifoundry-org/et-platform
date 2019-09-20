@@ -21,7 +21,7 @@ typedef enum
     MESSAGE_ID_SET_LOG_LEVEL
 } message_id_t;
 
-typedef uint32_t message_number_t;
+typedef uint8_t message_number_t;
 
 typedef struct
 {
