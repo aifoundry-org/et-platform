@@ -685,7 +685,7 @@ bool RBOX::RBOXEmu::test_quad(QuadInfoT &quad)
                     out_depth = frag_depth;
 
                 uint32_t out_depth_stencil = (out_stencil << 24) | out_depth;
-                bemu::pmemwrite32(frag_depth_stencil_address, out_depth_stencil);
+                bemu::pmemwrite<uint32_t>(frag_depth_stencil_address, out_depth_stencil);
             }
 
             quad.fragment[f].coverage = quad.fragment[f].coverage && depth_bound_test && stencil_test && depth_test;
@@ -1159,7 +1159,7 @@ void RBOX::RBOXEmu::send_packet(uint32_t minion_hart_id, uint64_t packet[4], uin
         for (uint32_t qw = 0; qw < 4; qw++)
         {
             LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, packet[qw], out_addr);
-            bemu::pmemwrite64(out_addr, packet[qw]);
+            bemu::pmemwrite<uint64_t>(out_addr, packet[qw]);
             out_addr = out_addr + 8;
         }
 
@@ -1206,7 +1206,7 @@ void RBOX::RBOXEmu::write_next_packet()
     for (uint32_t p = 0; p < 4; p++)
     {
         LOG_NOTHREAD(DEBUG, "RBOX [%d] => Writing QW %016" PRIx64 " at address %016" PRIx64, rbox_id, output_packets[0].second, minion_hart_out_addr);
-        bemu::pmemwrite64(minion_hart_out_addr, output_packets[0].second);
+        bemu::pmemwrite<uint64_t>(minion_hart_out_addr, output_packets[0].second);
         output_packets.erase(output_packets.begin());
         minion_hart_out_addr += 8;
     }

@@ -5,7 +5,7 @@
 
 #include "emu_defines.h"
 
-typedef enum {MINION, SHIRE, GLOBAL} op_location_t;
+typedef enum {COH_MINION, COH_SHIRE, COH_CB, COH_GLOBAL} op_location_t;
 
 struct mem_info_t
 {
@@ -25,12 +25,15 @@ private:
   // map with address as key
   directory_map_t m_directory_map;
 
-  bool update(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id);
+  bool update(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, cacheop_type cop);
   bool lookup(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id);
 
 public:
 
-  bool access(uint64_t addr, mem_access_type macc, uint32_t current_thread);
+  bool access(uint64_t addr, mem_access_type macc, cacheop_type cop, uint32_t current_thread);
+  void cb_drain(uint32_t shire_id, uint32_t cache_bank);
+  void l2_flush(uint32_t shire_id, uint32_t cache_bank);
+  void l2_evict(uint32_t shire_id, uint32_t cache_bank);
 };
 
 #endif

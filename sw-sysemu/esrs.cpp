@@ -21,6 +21,10 @@ static inline void clear_software_interrupt(unsigned, uint64_t) {}
 extern unsigned current_thread;
 extern std::array<Processor,EMU_NUM_THREADS>  cpu;
 
+#ifdef SYSEMU_COHERENCY_DEBUG
+    #include "mem_directory.h"
+    extern mem_directory mem_dir;
+#endif
 
 namespace bemu {
 
@@ -723,6 +727,23 @@ void esr_write(uint64_t addr, uint64_t value)
                                 shire, b, shire_cache_esrs[shire].bank[b].sc_scp_cache_ctl);
                 break;
             case ESR_SC_IDX_COP_SM_CTL:
+#ifdef SYSEMU_COHERENCY_DEBUG
+                // Doing a CB drain
+                if((value & 1) && (((value >> 8) & 0xF) == 10))
+                {
+                    mem_dir.cb_drain(shire, b);
+                }
+                // Doing an L2 flush
+                else if((value & 1) && (((value >> 8) & 0xF) == 2))
+                {
+                    mem_dir.l2_flush(shire, b);
+                }
+                // Doing an L2 evict
+                else if((value & 1) && (((value >> 8) & 0xF) == 3))
+                {
+                    mem_dir.l2_evict(shire, b);
+                }
+#endif
                 // shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ctl = value;
                 break;
             case ESR_SC_IDX_COP_SM_PHYSICAL_INDEX:
@@ -801,6 +822,13 @@ void esr_write(uint64_t addr, uint64_t value)
                                 shire, b, shire_cache_esrs[shire].bank[b].sc_perfmon_p1_qual);
                 break;
             case ESR_SC_IDX_COP_SM_CTL_USER:
+#ifdef SYSEMU_COHERENCY_DEBUG
+                // Doing a CB drain
+                if((value & 1) && (((value >> 8) & 0xF) == 10))
+                {
+                    mem_dir.cb_drain(shire, b);
+                }
+#endif
                 // shire_cache_esrs[shire].bank[b].sc_idx_cop_sm_ctl = value;
                 break;
              default:

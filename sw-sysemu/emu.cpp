@@ -1972,7 +1972,11 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
         uint64_t paddr;
         try
         {
-            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
+            cacheop_type cop = CacheOp_None;
+            if     (dest == 1) cop = CacheOp_EvictL2;
+            else if(dest == 2) cop = CacheOp_EvictL3;
+            else if(dest == 3) cop = CacheOp_EvictDDR;
+            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, cop);
         }
         catch (const sync_trap_t& t)
         {
@@ -2120,7 +2124,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         try {
             // LockVA is a hint, so no need to model soft-locking of the cache.
             // We just need to make sure we zero the cache line.
-            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
+            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, CacheOp_None);
             bemu::pmemwrite512(paddr, tmp.u32.data());
             LOG_MEMWRITE512(paddr, tmp.u32);
             LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
@@ -2147,7 +2151,7 @@ static void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __
 
         try {
             // Soft-locking of the cache is not modeled, so there is nothing more to do here.
-            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp);
+            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, CacheOp_None);
             LOG(DEBUG, "\tDoing UnlockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
         }
         catch (const sync_trap_t& t) {
@@ -2209,7 +2213,7 @@ static void write_msg_port_data_to_scp(unsigned thread, unsigned id, uint32_t *d
     for (int i = 0; i < wr_words; i++)
     {
         LOG_ALL_MINIONS(DEBUG, "Writing MSG_PORT (m%u p%u) data 0x%08" PRIx32 " to addr 0x%016" PRIx64,  thread, id, data[i], base_addr + 4 * i);
-        bemu::pmemwrite32(base_addr + 4 * i, data[i]);
+        bemu::pmemwrite<uint32_t>(base_addr + 4 * i, data[i]);
     }
 
     msg_ports[thread][id].size++;

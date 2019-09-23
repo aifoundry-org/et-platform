@@ -135,6 +135,16 @@ enum mem_access_type {
 
 #define Mem_Access_Type_Size 14
 
+// CacheOp type
+enum cacheop_type {
+    CacheOp_None,
+    CacheOp_EvictL2,
+    CacheOp_EvictL3,
+    CacheOp_EvictDDR,
+    CacheOp_LoadL,
+    CacheOp_CacheOp
+};
+
 using mreg = unsigned;
 using xreg = unsigned;
 using freg = unsigned;

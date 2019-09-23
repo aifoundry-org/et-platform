@@ -19,10 +19,7 @@
 #include "utility.h"
 
 #ifdef SYSEMU_COHERENCY_DEBUG
-#include "mem_directory.h"
-#endif
-
-#ifdef SYSEMU_COHERENCY_DEBUG
+    #include "mem_directory.h"
     mem_directory mem_dir;
 #endif
 
@@ -195,7 +192,7 @@ static inline uint64_t pma_dram_limit(uint8_t mprot)
 
 
 static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
-                                      size_t size, mem_access_type macc)
+                                      size_t size, mem_access_type macc, cacheop_type cop)
 {
     bool spio     = ((current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP);
     bool amo      = (macc == Mem_Access_AtomicL) || (macc == Mem_Access_AtomicG);
@@ -224,7 +221,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 
             // low m-code range
             #ifdef SYSEMU_COHERENCY_DEBUG
-            mem_dir.access(addr, macc, current_thread);
+            mem_dir.access(addr, macc, cop, current_thread);
             #endif
             return addr;
         }
@@ -237,7 +234,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 
             #ifdef SYSEMU_COHERENCY_DEBUG
             // low OS range
-            mem_dir.access(addr, macc, current_thread);
+            mem_dir.access(addr, macc, cop, current_thread);
             #endif
 
             return addr;
@@ -249,7 +246,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 
         #ifdef SYSEMU_COHERENCY_DEBUG
         // low DRAM memory range
-        mem_dir.access(addr, macc, current_thread);
+        mem_dir.access(addr, macc, cop, current_thread);
         #endif
         return truncated_dram_addr(addr);
     }
@@ -260,7 +257,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
     
         #ifdef SYSEMU_COHERENCY_DEBUG
         // SCP range
-        mem_dir.access(addr, macc, current_thread);
+        mem_dir.access(addr, macc, cop, current_thread);
         #endif
         return addr;
     }
@@ -327,7 +324,7 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
             #ifdef SYSEMU_COHERENCY_DEBUG
             // low m-code range
-            mem_dir.access(addr, macc, current_thread);
+            mem_dir.access(addr, macc, CacheOp_None, current_thread);
             #endif
 
             return addr;
@@ -341,7 +338,7 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
             #ifdef SYSEMU_COHERENCY_DEBUG
             // low OS range
-            mem_dir.access(addr, macc, current_thread);
+            mem_dir.access(addr, macc, CacheOp_None, current_thread);
             #endif
 
             return addr;
@@ -353,7 +350,7 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
         #ifdef SYSEMU_COHERENCY_DEBUG
         // low DRAM memory range
-        mem_dir.access(addr, macc, current_thread);
+        mem_dir.access(addr, macc, CacheOp_None, current_thread);
         #endif
 
         return truncated_dram_addr(addr);
@@ -371,11 +368,11 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
 
 static inline uint64_t pma_check_mem_access(uint64_t vaddr, uint64_t addr,
-                                            size_t size, mem_access_type macc)
+                                            size_t size, mem_access_type macc, cacheop_type cop)
 {
     return (macc == Mem_Access_Fetch)
             ? pma_check_fetch_access(vaddr, addr, macc)
-            : pma_check_data_access(vaddr, addr, size, macc);
+            : pma_check_data_access(vaddr, addr, size, macc, cop);
 }
 
 
@@ -427,7 +424,7 @@ static uint64_t pma_check_ptw_access(uint64_t vaddr, uint64_t addr,
 //
 //------------------------------------------------------------------------------
 
-uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
+uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc, cacheop_type cop)
 {
     // Read mstatus
     const uint64_t mstatus = cpu[current_thread].mstatus;
@@ -453,7 +450,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
     bool vm_enabled = (atp_mode != SATP_MODE_BARE);
 
     if (!vm_enabled) {
-        return pma_check_mem_access(vaddr, vaddr & PA_M, size, macc);
+        return pma_check_mem_access(vaddr, vaddr & PA_M, size, macc, cop);
     }
 
     int64_t sign;
@@ -616,7 +613,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc)
     // Final physical address only uses 40 bits
     paddr &= PA_M;
     LOG(DEBUG, "\tPTW: Paddr = 0x%016" PRIx64, paddr);
-    return pma_check_mem_access(vaddr, paddr, size, macc);
+    return pma_check_mem_access(vaddr, paddr, size, macc, cop);
 }
 
 
@@ -760,7 +757,7 @@ void mmu_store(uint64_t eaddr, T data, mem_access_type macc)
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
     uint64_t paddr = vmemtranslate(vaddr, sizeof(T), macc);
-    bemu::pmemwrite8(paddr, data);
+    bemu::pmemwrite<T>(paddr, data);
     LOG_MEMWRITE(CHAR_BIT*sizeof(T), paddr, data);
     log_mem_write(true, sizeof(T), vaddr, paddr, data);
 }
@@ -779,7 +776,7 @@ void mmu_aligned_store16(uint64_t eaddr, uint16_t data, mem_access_type macc)
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 2, macc);
-    bemu::pmemwrite16(paddr, data);
+    bemu::pmemwrite<uint16_t>(paddr, data);
     LOG_MEMWRITE(16, paddr, data);
     log_mem_write(true, 2, vaddr, paddr, data);
 }
@@ -793,7 +790,7 @@ void mmu_aligned_store32(uint64_t eaddr, uint32_t data, mem_access_type macc)
         throw trap_store_access_fault(vaddr);
     }
     uint64_t paddr = vmemtranslate(vaddr, 4, macc);
-    bemu::pmemwrite32(paddr, data);
+    bemu::pmemwrite<uint32_t>(paddr, data);
     LOG_MEMWRITE(32, paddr, data);
     log_mem_write(true, 4, vaddr, paddr, data);
 }
@@ -807,7 +804,7 @@ void mmu_storeVLEN(uint64_t eaddr, freg_t data, mreg_t mask, mem_access_type mac
         uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
-                bemu::pmemwrite32(paddr + 4*e, data.u32[e]);
+                bemu::pmemwrite<uint32_t>(paddr + 4*e, data.u32[e]);
                 LOG_MEMWRITE(32, paddr + 4*e, data.u32[e]);
             }
             log_mem_write(mask[e], 4, vaddr + 4*e, paddr + 4*e, data.u32[e]);
@@ -827,7 +824,7 @@ void mmu_aligned_storeVLEN(uint64_t eaddr, freg_t data, mreg_t mask, mem_access_
         uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
-                bemu::pmemwrite32(paddr + 4*e, data.u32[e]);
+                bemu::pmemwrite<uint32_t>(paddr + 4*e, data.u32[e]);
                 LOG_MEMWRITE(32, paddr + 4*e, data.u32[e]);
             }
             log_mem_write(mask[e], 4, vaddr + 4*e, paddr + 4*e, data.u32[e]);
@@ -848,7 +845,7 @@ uint32_t mmu_global_atomic32(uint64_t eaddr, uint32_t data,
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     uint32_t newval = fn(oldval, data);
-    bemu::pmemwrite32(paddr, newval);
+    bemu::pmemwrite<uint16_t>(paddr, newval);
     LOG_MEMWRITE(32, paddr, newval);
     log_mem_read_write(true, 4, vaddr, paddr, data);
     return oldval;
@@ -867,7 +864,7 @@ uint64_t mmu_global_atomic64(uint64_t eaddr, uint64_t data,
     uint64_t oldval = bemu::pmemread<uint64_t>(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     uint64_t newval = fn(oldval, data);
-    bemu::pmemwrite64(paddr, newval);
+    bemu::pmemwrite<uint64_t>(paddr, newval);
     LOG_MEMWRITE(64, paddr, newval);
     log_mem_read_write(true, 8, vaddr, paddr, data);
     return oldval;
@@ -886,7 +883,7 @@ uint32_t mmu_local_atomic32(uint64_t eaddr, uint32_t data,
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     uint32_t newval = fn(oldval, data);
-    bemu::pmemwrite32(paddr, newval);
+    bemu::pmemwrite<uint32_t>(paddr, newval);
     LOG_MEMWRITE(32, paddr, newval);
     log_mem_read_write(true, 4, vaddr, paddr, data);
     return oldval;
@@ -905,7 +902,7 @@ uint64_t mmu_local_atomic64(uint64_t eaddr, uint64_t data,
     uint64_t oldval = bemu::pmemread<uint64_t>(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     uint64_t newval = fn(oldval, data);
-    bemu::pmemwrite64(paddr, newval);
+    bemu::pmemwrite<uint64_t>(paddr, newval);
     LOG_MEMWRITE(64, paddr, newval);
     log_mem_read_write(true, 8, vaddr, paddr, data);
     return oldval;
@@ -924,7 +921,7 @@ uint32_t mmu_global_compare_exchange32(uint64_t eaddr, uint32_t expected,
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     if (oldval == expected) {
-        bemu::pmemwrite32(paddr, desired);
+        bemu::pmemwrite<uint32_t>(paddr, desired);
         LOG_MEMWRITE(32, paddr, desired);
 
     }
@@ -945,7 +942,7 @@ uint64_t mmu_global_compare_exchange64(uint64_t eaddr, uint64_t expected,
     uint64_t oldval = bemu::pmemread<uint64_t>(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     if (oldval == expected) {
-        bemu::pmemwrite64(paddr, desired);
+        bemu::pmemwrite<uint64_t>(paddr, desired);
         LOG_MEMWRITE(64, paddr, desired);
     }
     log_mem_read_write(true, 8, vaddr, paddr, desired);
@@ -965,7 +962,7 @@ uint32_t mmu_local_compare_exchange32(uint64_t eaddr, uint32_t expected,
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     if (oldval == expected) {
-        bemu::pmemwrite32(paddr, desired);
+        bemu::pmemwrite<uint32_t>(paddr, desired);
         LOG_MEMWRITE(32, paddr, desired);
     }
     log_mem_read_write(true, 4, vaddr, paddr, desired);
@@ -985,7 +982,7 @@ uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
     uint64_t oldval = bemu::pmemread<uint64_t>(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     if (oldval == expected) {
-        bemu::pmemwrite64(paddr, desired);
+        bemu::pmemwrite<uint64_t>(paddr, desired);
         LOG_MEMWRITE(64, paddr, desired);
     }
     log_mem_read_write(true, 8, vaddr, paddr, desired);

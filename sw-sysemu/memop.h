@@ -46,31 +46,18 @@ inline void pmemread512(uint64_t paddr, void* result)
 }
 
 
-inline void pmemwrite8(uint64_t paddr, uint8_t data)
+template <typename T>
+inline void pmemwrite(uint64_t paddr, T data)
 {
+
+    static_assert(std::is_same<T, uint8_t>::value == true   ||
+                  std::is_same<T, uint16_t>::value == true  ||
+                  std::is_same<T, uint32_t>::value == true  ||
+                  std::is_same<T, uint64_t>::value == true, "ERROR: Only uint8_t, uint16_t, uint32_t and uint64_t stores are performed by this function.");
+
+
     extern MainMemory memory;
-    memory.write(paddr, 1, &data);
-}
-
-
-inline void pmemwrite16(uint64_t paddr, uint16_t data)
-{
-    extern MainMemory memory;
-    memory.write(paddr, 2, &data);
-}
-
-
-inline void pmemwrite32(uint64_t paddr, uint32_t data)
-{
-    extern MainMemory memory;
-    memory.write(paddr, 4, &data);
-}
-
-
-inline void pmemwrite64(uint64_t paddr, uint64_t data)
-{
-    extern MainMemory memory;
-    memory.write(paddr, 8, &data);
+    memory.write(paddr, sizeof(T), &data);
 }
 
 
