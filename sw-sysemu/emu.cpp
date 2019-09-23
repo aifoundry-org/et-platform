@@ -434,8 +434,8 @@ void reset_hart(unsigned thread)
     cpu[thread].shadow_txquant = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].shadow_txfma = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].txload = 0xFFFFFFFFFFFFFFFFULL;
-    cpu[thread].shadow_txload = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[thread].txload.fill(0xFFFFFFFFFFFFFFFFULL);
+    cpu[thread].shadow_txload.fill(0xFFFFFFFFFFFFFFFFULL);
     cpu[thread].tensor_op.fill(Processor::Tensor::None);
 
     // Other processor state outside of cpu[thread]
@@ -1469,7 +1469,6 @@ static void csrset(uint16_t src1, uint64_t val)
             if ((~val & 2) && (current_thread != EMU_IO_SHIRE_SP_THREAD))
                 tensorload_setupb_topair[current_thread] = false;
         }
-        val &= 3;
         break;
     case CSR_EVICT_SW:
     case CSR_FLUSH_SW:
@@ -2567,14 +2566,14 @@ void tensor_load_start(uint64_t control)
         tm, use_coop, trans, dst, tenb, addr, boffset, rows, stride);
 
 #ifdef ZSIM
-    bool txload_busy = (cpu[current_thread].txload != 0xFFFFFFFFFFFFFFFFULL);
+    bool txload_busy = (cpu[current_thread].txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL);
     if (txload_busy) {
-        if (cpu[current_thread].shadow_txload != 0xFFFFFFFFFFFFFFFFULL)
+        if (cpu[current_thread].shadow_txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL)
             throw std::runtime_error("tensor_load_start() called while "
                                      "this thread's TensorLoad FSM is active");
     }
 #else
-    if (cpu[current_thread].txload != 0xFFFFFFFFFFFFFFFFULL) {
+    if (cpu[current_thread].txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_load_start() called while "
                                  "this thread's TensorLoad FSM is active");
     }
@@ -2619,36 +2618,39 @@ void tensor_load_start(uint64_t control)
 
 #ifdef ZSIM
     if (txload_busy) {
-        cpu[current_thread].shadow_txload = control;
-        cpu[current_thread].shadow_txstride = stride;
+        cpu[current_thread].shadow_txload[int(tenb)] = control;
+        cpu[current_thread].shadow_txstride[int(tenb)] = stride;
     } else {
-        cpu[current_thread].txload = control;
-        cpu[current_thread].txstride = stride;
+        cpu[current_thread].txload[int(tenb)] = control;
+        cpu[current_thread].txstride[int(tenb)] = stride;
     }
 #else
-    cpu[current_thread].txload = control;
-    cpu[current_thread].txstride = stride;
-    tensor_load_execute();
+    cpu[current_thread].txload[int(tenb)] = control;
+    cpu[current_thread].txstride[int(tenb)] = stride;
+    tensor_load_execute(tenb);
 #endif
 }
 
-void tensor_load_execute()
+void tensor_load_execute(bool tenb)
 {
-    uint64_t stride             = cpu[current_thread].txstride;
-    int      tm                 = (cpu[current_thread].txload >> 63) & 0x1;
-    int      use_coop           = (cpu[current_thread].txload >> 62) & 0x1;
-    int      trans              = (cpu[current_thread].txload >> 59) & 0x7;
-    int      dst                = (cpu[current_thread].txload >> 53) & 0x3F;
-    int      tenb               = (cpu[current_thread].txload >> 52) & 0x1;
-    uint64_t addr               = sext<48>(cpu[current_thread].txload & 0xFFFFFFFFFFC0ULL);
-    int      boffset            = (cpu[current_thread].txload >>  4) & 0x03;
-    int      rows               = ((cpu[current_thread].txload     ) & 0xF) + 1;
+    uint64_t txload = cpu[current_thread].txload[int(tenb)];
+    uint64_t stride = cpu[current_thread].txstride[int(tenb)];
+
+    int      tm       = (txload >> 63) & 0x1;
+    int      use_coop = (txload >> 62) & 0x1;
+    int      trans    = (txload >> 59) & 0x7;
+    int      dst      = (txload >> 53) & 0x3F;
+    uint64_t addr     = sext<48>(txload & 0xFFFFFFFFFFC0ULL);
+    int      boffset  = (txload >>  4) & 0x03;
+    int      rows     = ((txload     ) & 0xF) + 1;
+
+    assert(int(tenb) == ((txload >> 52) & 0x1));
 
     LOG(DEBUG, "\tExecute TensorLoad with tm: %d, use_coop: %d, trans: %d, dst: %d, "
         "tenb: %d, addr: 0x%" PRIx64 ", boffset: %d, rows: %d, stride: 0x%" PRIx64,
         tm, use_coop, trans, dst, tenb, addr, boffset, rows, stride);
 
-    if (cpu[current_thread].txload == 0xFFFFFFFFFFFFFFFFULL) {
+    if (txload == 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_load_execute() called while "
                                  "this thread's TensorLoad FSM is inactive");
     }
@@ -2828,11 +2830,11 @@ void tensor_load_execute()
     }
 
 tensor_load_execute_done:
-    cpu[current_thread].txload = 0xFFFFFFFFFFFFFFFFULL;
+    cpu[current_thread].txload[int(tenb)] = 0xFFFFFFFFFFFFFFFFULL;
 #ifdef ZSIM
-    if (cpu[current_thread].shadow_txload != 0xFFFFFFFFFFFFFFFFULL) {
-        std::swap(cpu[current_thread].txload, cpu[current_thread].shadow_txload);
-        std::swap(cpu[current_thread].txstride, cpu[current_thread].shadow_txstride);
+    if (cpu[current_thread].shadow_txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL) {
+        std::swap(cpu[current_thread].txload[int(tenb)], cpu[current_thread].shadow_txload[int(tenb)]);
+        std::swap(cpu[current_thread].txstride[int(tenb)], cpu[current_thread].shadow_txstride[int(tenb)]);
     }
 #endif
 }
@@ -3112,12 +3114,7 @@ void tensor_quant_execute()
 
                 // Notify the checker
                 if (funct == 10) {
-                    if (ncols > VL) {
-                        log_tensor_quant_write(trans, fd, mkmask(VL/4), FREGS[fd]);
-                        log_tensor_quant_write(trans, fd, mkmask((ncols-VL)/4), FREGS[fd]);
-                    } else {
-                        log_tensor_quant_write(trans, fd, mkmask(ncols/4), FREGS[fd]);
-                    }
+                    log_tensor_quant_write(trans, fd, mkmask(nelem/4) << (col/4), FREGS[fd]);
                 } else {
                     log_tensor_quant_write(trans, fd, mkmask(nelem), FREGS[fd]);
                 }
@@ -3637,8 +3634,10 @@ static void tensor_ima8a32_execute()
     acols = (acols + 1) * 4;
     aoffset = aoffset * 4;
 
+#ifdef ZSIM
     LOG(DEBUG, "\tExecute TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
         usemsk, aoffset, first_pass, bcols, acols, arows, ub, ua, tenc2rf, tenb, bstart, astart);
+#endif
 
     LOG_TENSOR_MASK(":");
 

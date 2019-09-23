@@ -130,7 +130,7 @@ extern void tensor_fma_execute();
 
 // TensorLoad
 
-extern void tensor_load_execute();
+extern void tensor_load_execute(bool tenb);
 
 // TensorQuant
 
