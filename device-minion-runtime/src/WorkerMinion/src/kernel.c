@@ -166,7 +166,9 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
     return return_value;
 }
 
-// Restores firmware context
+// Restores firmware context and resumes execution in launch_kernel()
+// Called from machine context by M-mode trap handler (e.g. if the kernel takes an exception)
+// and by firmware (e.g. normal kernel completion, kernel abort)
 int64_t return_from_kernel(int64_t return_value)
 {
     uint64_t* firmware_sp;
