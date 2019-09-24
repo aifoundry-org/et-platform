@@ -191,6 +191,7 @@ uint32_t num_ways = 4;
 static std::array<std::array<uint32_t,MAXSTACK>,EMU_NUM_THREADS> shaderstack;
 static bool check_stack = false;
 
+bool coherency_check = false;
 bool m_emu_done = false;
 
 bool emu_done()

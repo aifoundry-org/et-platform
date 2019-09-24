@@ -17,15 +17,18 @@
 #include "processor.h"
 #include "traps.h"
 #include "utility.h"
+#ifdef SYS_EMU
+#include "mem_directory.h"
+#endif
 
-#ifdef SYSEMU_COHERENCY_DEBUG
-    #include "mem_directory.h"
-    mem_directory mem_dir;
+#ifdef SYS_EMU
+mem_directory mem_dir;
 #endif
 
 // FIXME: Replace with "processor.h"
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern unsigned current_thread;
+extern bool coherency_check;
 
 
 //------------------------------------------------------------------------------
@@ -220,9 +223,14 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
                 throw_access_fault(vaddr, macc);
 
             // low m-code range
-            #ifdef SYSEMU_COHERENCY_DEBUG
-            mem_dir.access(addr, macc, cop, current_thread);
-            #endif
+#ifdef SYS_EMU
+            if(coherency_check)
+            {
+                mem_dir.access(addr, macc, cop, current_thread);
+            }
+#else
+            if(0) addr = cop; // To prevent compile error due not using cop when SYS_EMU is disabled...
+#endif
             return addr;
         }
 
@@ -232,10 +240,13 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
             if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
                 throw_access_fault(vaddr, macc);
 
-            #ifdef SYSEMU_COHERENCY_DEBUG
             // low OS range
-            mem_dir.access(addr, macc, cop, current_thread);
-            #endif
+#ifdef SYS_EMU
+            if(coherency_check)
+            {
+                mem_dir.access(addr, macc, cop, current_thread);
+            }
+#endif
 
             return addr;
         }
@@ -244,10 +255,13 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
         if (addr >= (spio ? spio_pma_dram_limit() : pma_dram_limit(mprot)))
             throw_access_fault(vaddr, macc);
 
-        #ifdef SYSEMU_COHERENCY_DEBUG
         // low DRAM memory range
-        mem_dir.access(addr, macc, cop, current_thread);
-        #endif
+#ifdef SYS_EMU
+        if(coherency_check)
+        {
+            mem_dir.access(addr, macc, cop, current_thread);
+        }
+#endif
         return truncated_dram_addr(addr);
     }
 
@@ -255,10 +269,13 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
         if (amo_l)
             throw_access_fault(vaddr, macc);
     
-        #ifdef SYSEMU_COHERENCY_DEBUG
         // SCP range
-        mem_dir.access(addr, macc, cop, current_thread);
-        #endif
+#ifdef SYS_EMU
+        if(coherency_check)
+        {
+            mem_dir.access(addr, macc, cop, current_thread);
+        }
+#endif
         return addr;
     }
 
@@ -322,10 +339,13 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
             if (effective_execution_mode(macc) != PRV_M)
                 throw_access_fault(vaddr, macc);
 
-            #ifdef SYSEMU_COHERENCY_DEBUG
             // low m-code range
-            mem_dir.access(addr, macc, CacheOp_None, current_thread);
-            #endif
+#ifdef SYS_EMU
+            if(coherency_check)
+            {
+                mem_dir.access(addr, macc, CacheOp_None, current_thread);
+            }
+#endif
 
             return addr;
         }
@@ -336,10 +356,13 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
             if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
                 throw_access_fault(vaddr, macc);
 
-            #ifdef SYSEMU_COHERENCY_DEBUG
             // low OS range
-            mem_dir.access(addr, macc, CacheOp_None, current_thread);
-            #endif
+#ifdef SYS_EMU
+            if(coherency_check)
+            {
+                mem_dir.access(addr, macc, CacheOp_None, current_thread);
+            }
+#endif
 
             return addr;
         }
@@ -348,10 +371,13 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
         if (addr >= (spio ? spio_pma_dram_limit() : pma_dram_limit(mprot)))
             throw_access_fault(vaddr, macc);
 
-        #ifdef SYSEMU_COHERENCY_DEBUG
         // low DRAM memory range
-        mem_dir.access(addr, macc, CacheOp_None, current_thread);
-        #endif
+#ifdef SYS_EMU
+        if(coherency_check)
+        {
+            mem_dir.access(addr, macc, CacheOp_None, current_thread);
+        }
+#endif
 
         return truncated_dram_addr(addr);
 

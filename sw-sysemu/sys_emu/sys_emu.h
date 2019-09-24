@@ -59,6 +59,7 @@ struct sys_emu_cmd_options {
     uint64_t sp_reset_pc              = SP_RESET_PC;
     bool reset_pc_flag                = false;
     bool sp_reset_pc_flag             = false;
+    bool coherency_check              = false;
 #ifdef SYSEMU_DEBUG
     bool debug                        = false;
 #endif

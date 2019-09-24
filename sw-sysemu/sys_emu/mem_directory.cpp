@@ -230,7 +230,8 @@ bool mem_directory::access(uint64_t addr, mem_access_type macc, cacheop_type cop
 
         if(!coherent)
         {
-            LOG(FTL, "\t(Coherency Write Hazard) addr=%llx, location=%d, shire_id=%u, minion_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id);
+            //LOG(FTL, "\t(Coherency Write Hazard) addr=%llx, location=%d, shire_id=%u, minion_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id);
+            LOG(WARN, "\t(Coherency Write Hazard) addr=%llx, location=%d, shire_id=%u, minion_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id);
             return false;
         }
     }
@@ -240,7 +241,7 @@ bool mem_directory::access(uint64_t addr, mem_access_type macc, cacheop_type cop
 
         if(!coherent)
         {
-            LOG(FTL, "\t(Coherency Read Hazard) addr=%llx, location=%d, shire_id=%u, minion_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id);
+            LOG(WARN, "\t(Coherency Read Hazard) addr=%llx, location=%d, shire_id=%u, minion_id=%u", (long long unsigned int) addr & ~0x3FULL, location, shire_id, minion_id);
             return false;
         }
     }
@@ -257,6 +258,9 @@ void mem_directory::cb_drain(uint32_t shire_id, uint32_t cache_bank)
 void mem_directory::l2_flush(uint32_t shire_id, uint32_t cache_bank)
 {
     printf("mem_directory::l2_flush => shire_id %i, bank %ir\n", shire_id, cache_bank);
+
+    // L2 flush drains CB as well
+    cb_drain(shire_id, cache_bank);
 }
 
 void mem_directory::l2_evict(uint32_t shire_id, uint32_t cache_bank)

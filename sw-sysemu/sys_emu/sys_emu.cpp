@@ -31,6 +31,7 @@
 #include "rvtimer.h"
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern bool coherency_check;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Static Member variables
@@ -163,6 +164,7 @@ static const char * help_msg =
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
      -single_thread           Disable 2nd Minion thread\n\
      -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
+     -coherency_check         Enables cache coherency checks\n\
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -660,6 +662,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if(strcmp(argv[i], "-sp_reset_pc") == 0)
         {
             cmd_options.sp_reset_pc_flag = true;
+        }
+        else if(strcmp(argv[i], "-coherency_check") == 0)
+        {
+            coherency_check = true;
         }
         else if(strcmp(argv[i], "-mem_reset") == 0)
         {
