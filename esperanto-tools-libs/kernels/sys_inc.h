@@ -23,11 +23,18 @@
 
 #define CACHE_LINE_SIZE 64
 
-//ETSOC map
+#define L2SCP_SIZE 0x3000000 // 48MB
+
+// ETSOC map
 #define STACK_ADDR_START    0x8100000000
 #define ELF_ADDR_START      0x8180000000
 #define LAYER_ADDR_START_1  0x8201000000
 #define DATA_ADDR_START     0x8210000000
+#define L2SCP_ADDR_START    0x00C0000000
+
+// EInstruction 
+#define EI_MAX_SRCS 5
+#define EI_MAX_DSTS 5
 
 // Address where the host will place the kernel launch information (synced with fw_common.h)
 #define RT_HOST_KERNEL_LAUNCH_INFO 0x8200000000ULL
