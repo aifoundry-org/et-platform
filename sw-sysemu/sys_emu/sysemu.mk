@@ -3,7 +3,8 @@ sysemu_hdrs := \
 	sys_emu/sys_emu.h \
 	sys_emu/log.h \
 	sys_emu/testLog.h \
-	sys_emu/rvtimer.h
+	sys_emu/rvtimer.h \
+  sys_emu/mem_directory.h
 
 sysemu_cpp_srcs := \
 	sys_emu/api_communicate.cpp \
@@ -12,13 +13,8 @@ sysemu_cpp_srcs := \
 	sys_emu/sys_emu.cpp \
 	sys_emu/sys_emu_debug.cpp \
 	sys_emu/sys_emu_main.cpp \
-	sys_emu/testLog.cpp
-
-ifeq ($(COHERENCY), 1)
-  sysemu_hdrs     += sys_emu/mem_directory.h
-  sysemu_cpp_srcs += sys_emu/mem_directory.cpp
-
-endif
+	sys_emu/testLog.cpp \
+  sys_emu/mem_directory.cpp
 
 ifeq ($(PROFILING), 1)
   sysemu_hdrs     += sys_emu/profiling.h

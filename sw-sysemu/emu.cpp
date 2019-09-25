@@ -30,6 +30,7 @@
 #include "rbox.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
+#include "mem_directory.h"
 #endif
 #include "tbox_emu.h"
 #include "traps.h"
@@ -184,14 +185,16 @@ system_version_t sysver = system_version_t::UNKNOWN;
 uint64_t current_pc = 0;
 uint32_t current_inst = 0;
 unsigned current_thread = 0;
-uint32_t num_sets = 16;
-uint32_t num_ways = 4;
 
 #define MAXSTACK 2048
 static std::array<std::array<uint32_t,MAXSTACK>,EMU_NUM_THREADS> shaderstack;
 static bool check_stack = false;
 
 bool coherency_check = false;
+#ifdef SYS_EMU
+extern mem_directory mem_dir;
+#endif
+
 bool m_emu_done = false;
 
 bool emu_done()
@@ -1466,10 +1469,12 @@ static void csrset(uint16_t src1, uint64_t val)
                 cpu[current_thread^1].ucache_control = val;
                 cpu[current_thread^1].mcache_control = val & 3;
             }
-            num_sets = (val & 0x1) ? 4 : 16;
             if ((~val & 2) && (current_thread != EMU_IO_SHIRE_SP_THREAD))
                 tensorload_setupb_topair[current_thread] = false;
         }
+#ifdef SYS_EMU
+        mem_dir.mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
+#endif
         break;
     case CSR_EVICT_SW:
     case CSR_FLUSH_SW:
@@ -1563,6 +1568,9 @@ static void csrset(uint16_t src1, uint64_t val)
             cpu[current_thread^1].ucache_control = val;
             cpu[current_thread^1].mcache_control = val & 3;
         }
+#ifdef SYS_EMU
+        mem_dir.mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
+#endif
         break;
     case CSR_PREFETCH_VA:
         require_feature_u_cacheops();
@@ -1943,6 +1951,16 @@ static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, i
             }
             LOG(DEBUG, "\tDoing %s: Set: %d, Way: %d, DestLevel: %d",
                 evict ? "EvictSW" : "FlushSW", set, way, dest);
+#ifdef SYS_EMU
+            if(coherency_check)
+            {
+                unsigned shire = current_thread / EMU_THREADS_PER_SHIRE;
+                unsigned minion  = (current_thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE;
+                if(evict) mem_dir.l1_evict_sw(shire, minion, set, way);
+                else      mem_dir.l1_flush_sw(shire, minion, set, way);
+            }
+#endif
+
         }
         // Increment set and way with wrap-around
         if (++set >= L1D_NUM_SETS)
@@ -2034,25 +2052,7 @@ static void dcache_lock_paddr(int way, uint64_t paddr)
         return;
     }
 
-    unsigned set;
-    switch (cpu[current_thread].mcache_control)
-    {
-        case 0:
-            set = shared_dcache_index(paddr);
-            break;
-        case 1:
-            set = (current_thread % EMU_THREADS_PER_MINION)
-                    ? hart1_split_dcache_index(paddr)
-                    : hart0_split_dcache_index(paddr);
-            break;
-        case 3:
-            set = (current_thread % EMU_THREADS_PER_MINION)
-                    ? hart1_split_dcache_index(paddr)
-                    : hart0_spltscp_dcache_index(paddr);
-            break;
-        default:
-            throw std::runtime_error("illegal mcache_control value");
-    }
+    unsigned set = dcache_index(paddr, cpu[current_thread].mcache_control, current_thread, EMU_THREADS_PER_MINION);
 
     // Check if paddr already locked in the cache
     int nlocked = 0;
