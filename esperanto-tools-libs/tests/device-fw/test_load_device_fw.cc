@@ -18,6 +18,8 @@ TEST_F(DeviceFWTest, loadOnSysEMU) {
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
+  FLAGS_minloglevel = 0;
+  FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
   et_runtime::ParseCommandLineOptions(argc, argv);
   return RUN_ALL_TESTS();
