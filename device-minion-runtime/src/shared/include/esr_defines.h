@@ -118,6 +118,7 @@
 // ShireCache ESRs
 #define ESR_CACHE_0                     0x0000  /* PP = 0b00 */
 #define ESR_CACHE_IDX_COP_SM_CTL        0x0030  /* PP = 0b00 */
+#define ESR_CACHE_IDX_COP_SM_CTL_USER   0x0100  /* PP = 0b00 */
 #define ESR_CACHE_UNKNOWN               0x01D8  /* PP = 0b00 */
 
 // RBOX ESRs
