@@ -163,23 +163,5 @@ bool TargetSysEmu::registerDeviceEventCallback() {
   assert(true);
   return false;
 }
-
-bool TargetSysEmu::boot(uintptr_t init_pc, uintptr_t trap_pc) {
-  simulator_api::Request request;
-  auto card_emu = new CardEmuReq();
-  // Send continue request
-  auto cont = new CardEmuContinueReq();
-  cont->set_cont(true);
-  card_emu->set_allocated_cont(cont);
-  request.set_allocated_card_emu(card_emu);
-  // Do RPC
-  auto reply = doRPC(request);
-  assert(reply.has_card_emu());
-  auto &card_emu_resp = reply.card_emu();
-  assert(card_emu_resp.has_cont());
-  auto &cont_resp = card_emu_resp.cont();
-  assert(cont_resp.success());
-  return true;
-}
 }
 } // namespace et_runtime

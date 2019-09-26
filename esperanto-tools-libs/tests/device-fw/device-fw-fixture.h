@@ -61,7 +61,7 @@ protected:
     ASSERT_TRUE(target_device != nullptr);
 
     // Boot device-fw
-    target_device->boot(0x8000001000, 0x8000001000);
+    target_device->boot(0x8000001000);
     auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
     ASSERT_TRUE(res);
   }

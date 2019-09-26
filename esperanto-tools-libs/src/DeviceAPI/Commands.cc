@@ -117,10 +117,20 @@ etrtError LaunchCommand::execute(Device *device) {
   }
 
 #else
-  target_device.writeDevMemMMIO(RT_HOST_KERNEL_LAUNCH_INFO, sizeof(*params),
-                            params);
-  target_device.launch(kernel_pc,
-                       params); // ETSOC backend - JIT, not covered by b4c
+  struct {
+    uint64_t unused;
+    uint64_t kernel_pc;
+    et_runtime::device::layer_dynamic_info params;
+  } __attribute__((packed)) fake_fw_launch_info;
+
+  memset(&fake_fw_launch_info, 0, sizeof(fake_fw_launch_info));
+  fake_fw_launch_info.kernel_pc = kernel_pc;
+  fake_fw_launch_info.params = *params;
+
+  target_device.writeDevMemMMIO(RT_HOST_KERNEL_LAUNCH_INFO,
+                                sizeof(fake_fw_launch_info),
+                                &fake_fw_launch_info);
+  target_device.launch();
 #endif // ENABLE_DEVICE_FW
   setResponse(LaunchResponse());
   return etrtSuccess;

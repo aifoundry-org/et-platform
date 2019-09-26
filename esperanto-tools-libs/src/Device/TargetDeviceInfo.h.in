@@ -16,11 +16,11 @@
 /// Header file that contains target specific information (e.g. simulator etc)
 /// that is generated at compile time.
 
-namespace et_runtime{
-    namespace device{
-// FIXME the following should eventually become a command line argument.
+namespace et_runtime {
+    namespace device {
+        // FIXME the following should eventually become a command line argument.
         static const std::string SYSEMU_PATH = "@SYSEMU_PATH@" ; ///< Absolutte where SysEMU binary is found
-
     }
 }
+
 #endif // DEVICE_TARGET_DEVICE_INFO_H

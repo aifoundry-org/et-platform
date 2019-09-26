@@ -37,50 +37,15 @@ bool FakeFW::readFW() {
   return true;
 }
 
-std::vector<device::MemoryRegionConf> FakeFW::memoryRegionConfigurations() {
-  size_t bootrom_file_size = bootrom_data_.size();
-
-  return {
-      {LAUNCH_PARAMS_AREA_BASE, LAUNCH_PARAMS_AREA_SIZE, false},
-      {BLOCK_SHARED_REGION, BLOCK_SHARED_REGION_TOTAL_SIZE, false},
-      {STACK_REGION, STACK_REGION_TOTAL_SIZE << 3, false},
-      {0x8000100000, 0x100000, false},
-      {0x8000300000, 0x108000, false},
-      {0x8000408000, 0x108000, false},
-      {0x8200000000, 64, false},
-      {0x8000600000, 64, false},
-      {BOOTROM_START_IP, align_up(bootrom_file_size, 0x1000), true},
-  };
-};
-
 etrtError FakeFW::loadOnDevice(device::DeviceTarget *dev) {
   const void *bootrom_p = reinterpret_cast<const void *>(bootrom_data_.data());
   size_t bootrom_file_size = bootrom_data_.size();
 
+  // TODO: Currently when running with Fake-FW, the firmware is loaded in
+  // the sys_emu's mem_desc.txt (check EMemoryMap::dumpMemoryDescriptor)
   dev->writeDevMemMMIO(BOOTROM_START_IP, bootrom_file_size, bootrom_p);
 
-  // FIXME deprecate the following eventually
-#if 1
-
-  static const long ETSOC_init = 0x000000810000600c;
-  static const long ETSOC_mtrap = 0x0000008100007000;
-
-  {
-    struct BootromInitDescr_t {
-      uint64_t init_pc;
-      uint64_t trap_pc;
-    } descr;
-
-    descr.init_pc = ETSOC_init;
-    descr.trap_pc = ETSOC_mtrap;
-
-    dev->writeDevMemMMIO(LAUNCH_PARAMS_AREA_BASE, sizeof(descr), &descr);
-  }
-
-  dev->boot(ETSOC_init, ETSOC_mtrap);
-#else
-  dev->boot(0, 0);
-#endif
+  dev->boot(BOOTROM_START_IP); // TODO Where to place this?
 
   return etrtSuccess;
 }

@@ -104,18 +104,14 @@ public:
 class LaunchCommand final : public Command<LaunchResponse> {
 
 public:
-  LaunchCommand(dim3 gridDim, dim3 blockDim,
-                const std::vector<uint8_t> &args_buff, uintptr_t kernel_pc,
+  LaunchCommand(uintptr_t kernel_pc, const std::vector<uint8_t> &args_buff,
                 const std::string &kernel_name)
-      : gridDim(gridDim), blockDim(blockDim), args_buff(args_buff),
-        kernel_pc(kernel_pc), kernel_name(kernel_name) {}
+      : kernel_pc(kernel_pc), args_buff(args_buff), kernel_name(kernel_name) {}
   etrtError execute(et_runtime::Device *device_target) override;
 
 private:
-  dim3 gridDim;
-  dim3 blockDim;
-  std::vector<uint8_t> args_buff;
   uintptr_t kernel_pc;
+  std::vector<uint8_t> args_buff;
   std::string kernel_name;
 };
 

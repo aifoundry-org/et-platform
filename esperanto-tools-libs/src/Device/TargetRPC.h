@@ -54,6 +54,14 @@ public:
   bool readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) final;
   bool writeDevMemDMA(uintptr_t dev_addr, size_t size, const void *buf) final;
 
+  /// @brief Boot the device Minions at a given PC
+  ///
+  /// @param[in] pc : Start address of the Minions
+  bool boot(uint64_t pc);
+
+  /// @brief Shutdown target
+  bool shutdown();
+
 #if ENABLE_DEVICE_FW
   // Interace for interacting with the MailBox state using the simulator API
 
@@ -78,9 +86,13 @@ public:
   bool writeTxRb(const device_fw::ringbuffer_s &rb);
 #endif // ENABLE_DEVICE_FW
 
-  /// @brief Raise an interrupt in the target "device" in which case this is the
-  /// simulator
-  bool raiseDeviceInterrupt();
+  /// @brief Raise the PU PLIC PCIe Message Interrupt in the target "device"
+  /// in which case this is the simulator
+  bool raiseDevicePuPlicPcieMessageInterrupt();
+  
+  /// @brief Raise an IPI interrupt to the Master Shire in the target "device"
+  /// in which case this is the simulator
+  bool raiseDeviceMasterShireIpiInterrupt();
 
   /// @brief Wait to receive an interrupt from the device or timeout.
   ///
@@ -104,9 +116,7 @@ public:
   // EmuMailBoxDev to implement the underlying MailBoxProtocol
 
   // FIXME kernel launch semantics
-  bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) final;
-  virtual bool boot(uintptr_t init_pc, uintptr_t trap_pc);
-  bool shutdown();
+  bool launch() final;
 
 protected:
   std::string path_;

@@ -66,16 +66,6 @@ bool DeviceFW::setFWFilePaths(const std::vector<std::string> &paths) {
 
 bool DeviceFW::readFW() { return true; }
 
-std::vector<device::MemoryRegionConf> DeviceFW::memoryRegionConfigurations() {
-  return {
-      // Machine Minion region
-      {/*R_L3_MCODE_BASEADDR*/ 0x8000000000, /*R_L3_MCODE_SIZE*/ 0x200000,
-       false},
-      // Lower 16MB are allocated by device fw
-      {/*R_L3_DRAM_BASEADDR*/ 0x8100000000, /*16 MB */ 0x0001000000, false},
-  };
-};
-
 etrtError DeviceFW::loadOnDevice(device::DeviceTarget *dev) {
   std::vector<decltype(master_minion_) *> elfs = {
       &master_minion_, &machine_minion_, &worker_minion_};

@@ -108,12 +108,17 @@ ssize_t PCIeDevice::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
   return mm_.read(data, size, wait_time);
 }
 
-bool PCIeDevice::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {
+bool PCIeDevice::launch() {
   abort();
   return true;
 }
 
-bool PCIeDevice::boot(uintptr_t init_pc, uintptr_t trap_pc) {
+bool PCIeDevice::boot(uint64_t pc) {
+  assert(false);
+  return true;
+}
+
+bool PCIeDevice::shutdown() {
   assert(false);
   return true;
 }

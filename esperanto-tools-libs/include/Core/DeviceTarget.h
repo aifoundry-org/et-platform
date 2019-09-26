@@ -37,14 +37,6 @@ typedef struct {
     uint64_t kernel_id;    // Id for this Kernel
 } layer_dynamic_info;
 
-/// @brief Struct holding the information for configuring a memory region in the
-/// target device
-struct MemoryRegionConf {
-  uintptr_t start_addr = 0;
-  size_t size = 0;
-  bool is_exec = false;
-};
-
 /// @brief Abtract class describing the interface to talk to different targets
 ///
 /// The runtime can talk to a number of underlying device targers beyond the
@@ -170,11 +162,16 @@ public:
   virtual ssize_t mb_read(void *data, ssize_t size,
                           TimeDuration wait_time = TimeDuration::max()) = 0;
 
-  /// @brief Launch a specific PC on the device.
-  virtual bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) = 0;
+  /// @brief Launch the kernel
+  virtual bool launch() = 0;
 
-  /// @brief Boot the device
-  virtual bool boot(uintptr_t init_pc, uintptr_t trap_pc) = 0;
+  /// @brief Boot the device Minions at a given PC
+  ///
+  /// @param[in] pc : Start address of the Minions
+  virtual bool boot(uint64_t pc) = 0;
+
+  /// @brief Shutdown the device
+  virtual bool shutdown() = 0;
 
   /// @brief Factory function that will generate the appropriate target device
   static std::unique_ptr<DeviceTarget> deviceFactory(TargetType target,

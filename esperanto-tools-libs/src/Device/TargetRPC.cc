@@ -300,26 +300,40 @@ bool RPCTarget::writeTxRb(const device_fw::ringbuffer_s &rb) {
 }
 #endif // ENABLE_DEVICE_FW
 
-bool RPCTarget::raiseDeviceInterrupt() {
+bool RPCTarget::raiseDevicePuPlicPcieMessageInterrupt() {
   simulator_api::Request request;
-  auto interrupt = new Interrupt();
-  request.set_allocated_device_interrupt(interrupt);
+  auto device_interrupt = new DeviceInterrupt();
+  device_interrupt->set_type(simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT);
+  request.set_allocated_device_interrupt(device_interrupt);
   // Do RPC and wait for reply
   auto reply = doRPC(request);
-  assert(reply.has_device_interrupt());
-  auto &interrupt_rsp = reply.device_interrupt();
+  assert(reply.has_interrupt());
+  auto &interrupt_rsp = reply.interrupt();
+  assert(interrupt_rsp.success());
+  return true;
+}
+
+bool RPCTarget::raiseDeviceMasterShireIpiInterrupt() {
+  simulator_api::Request request;
+  auto device_interrupt = new DeviceInterrupt();
+  device_interrupt->set_type(simulator_api::DeviceInterruptType::MASTER_SHIRE_IPI_INTERRUPT);
+  request.set_allocated_device_interrupt(device_interrupt);
+  // Do RPC and wait for reply
+  auto reply = doRPC(request);
+  assert(reply.has_interrupt());
+  auto &interrupt_rsp = reply.interrupt();
   assert(interrupt_rsp.success());
   return true;
 }
 
 bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
   simulator_api::Request request;
-  auto interrupt = new Interrupt();
-  request.set_allocated_host_interrupt(interrupt);
+  auto host_interrupt = new HostInterrupt();
+  request.set_allocated_host_interrupt(host_interrupt);
   // Do RPC and wait for reply
   auto reply = doRPC(request);
-  assert(reply.has_host_interrupt());
-  auto &interrupt_rsp = reply.host_interrupt();
+  assert(reply.has_interrupt());
+  auto &interrupt_rsp = reply.interrupt();
   assert(interrupt_rsp.success());
   return true;
 }
@@ -347,76 +361,36 @@ ssize_t RPCTarget::mb_read(void *data, ssize_t size, TimeDuration wait_time) {
   return res;
 }
 
-bool RPCTarget::launch(uintptr_t launch_pc, const layer_dynamic_info *params) {
-  // Send an Execute command
-  simulator_api::Request request;
-  auto card_emu = new CardEmuReq();
-  auto execute = new CardEmuExecuteReq();
-  execute->set_launch_pc(launch_pc);
-  execute->set_params(params, sizeof(*params));
-  //execute->set_thread1_pc(launch_pc);
-  card_emu->set_allocated_execute(execute);
-  request.set_allocated_card_emu(card_emu);
-  // Check execute response
-  {
-    auto reply = doRPC(request);
-    assert(reply.has_card_emu());
-    auto &card_emu_resp = reply.card_emu();
-    assert(card_emu_resp.has_execute());
-    auto &execute_resp = card_emu_resp.execute();
-    assert(execute_resp.success());
-  }
-
-  // Send a sync command
-  auto sync = new CardEmuSyncReq();
-  sync->set_do_sync(true);
-  card_emu->set_allocated_sync(sync);
-  // Check execute response
-  {
-    auto reply = doRPC(request);
-    assert(reply.has_card_emu());
-    auto &card_emu_resp = reply.card_emu();
-    assert(card_emu_resp.has_sync());
-    auto &sync_resp = card_emu_resp.sync();
-    assert(sync_resp.success());
-  }
-  return true;
+bool RPCTarget::launch() {
+  bool res = true;
+#if !ENABLE_DEVICE_FW
+  res = raiseDeviceMasterShireIpiInterrupt();
+#endif // ENABLE_DEVICE_FW
+  return res;
 }
 
-bool RPCTarget::boot(uintptr_t init_pc, uintptr_t trap_pc) {
+bool RPCTarget::boot(uint64_t pc) {
   simulator_api::Request request;
-  auto card_emu = new CardEmuReq();
-  // Send boot request
-  auto boot = new CardEmuBootReq();
-  boot->set_init_pc(init_pc);
-  boot->set_trap_pc(trap_pc);
-  card_emu->set_allocated_boot(boot);
-  request.set_allocated_card_emu(card_emu);
-  // Do RPC
+  auto boot_req = new BootReq();
+  boot_req->set_pc(pc);
+  request.set_allocated_boot(boot_req);
+  // Do RPC and wait for reply
   auto reply = doRPC(request);
-  assert(reply.has_card_emu());
-  auto &card_emu_resp = reply.card_emu();
-  assert(card_emu_resp.has_boot());
-  auto &boot_resp = card_emu_resp.boot();
-  assert(boot_resp.success());
+  assert(reply.has_boot());
+  auto &boot_rsp = reply.boot();
+  assert(boot_rsp.success());
   return true;
 }
 
 bool RPCTarget::shutdown() {
-  // Send a Shutdown comand to the target
   simulator_api::Request request;
-  auto card_emu = new CardEmuReq();
-  auto shutdown = new CardEmuShutdownReq();
-  shutdown->set_shutdown(true);
-  card_emu->set_allocated_shutdown(shutdown);
-  request.set_allocated_card_emu(card_emu);
-  // Do RPC
+  auto shutdown_req = new ShutdownReq();
+  request.set_allocated_shutdown(shutdown_req);
+  // Do RPC and wait for reply
   auto reply = doRPC(request);
-  assert(reply.has_card_emu());
-  auto &card_emu_resp = reply.card_emu();
-  assert(card_emu_resp.has_shutdown());
-  auto &shutdown_resp = card_emu_resp.shutdown();
-  assert(shutdown_resp.success());
+  assert(reply.has_shutdown());
+  auto &shutdown_rsp = reply.shutdown();
+  assert(shutdown_rsp.success());
   return true;
 }
 

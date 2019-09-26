@@ -44,8 +44,9 @@ public:
   bool mb_write(const void *data, ssize_t size) final;
   ssize_t mb_read(void *data, ssize_t size,
                   TimeDuration wait_time = TimeDuration::max()) final;
-  bool launch(uintptr_t launch_pc, const layer_dynamic_info *params) override;
-  bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
+  bool launch() override;
+  bool boot(uint64_t pc) override;
+  bool shutdown() override;
   uintptr_t dramBaseAddr() const;
   uintptr_t dramSize() const;
   ssize_t mboxMsgMaxSize() const override;

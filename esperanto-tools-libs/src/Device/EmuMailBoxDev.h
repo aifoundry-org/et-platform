@@ -120,7 +120,7 @@ protected:
   bool mboxReady();
   bool mboxReset();
   bool waitForHostInterrupt(TimeDuration wait_time);
-  bool raiseDeviceInterrupt();
+  bool raiseDevicePuPlicPcieMessageInterrupt();
 };
 } // namespace device
 

@@ -263,7 +263,7 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
   assert(res);
 
   // Raise interrupt to M&M to consume the new mailbox message
-  res = raiseDeviceInterrupt();
+  res = raiseDevicePuPlicPcieMessageInterrupt();
   assert(res);
   return true;
 }
@@ -377,8 +377,8 @@ bool EmuMailBoxDev::waitForHostInterrupt(TimeDuration wait_time) {
   return rpcDev_.waitForHostInterrupt(wait_time);
 }
 
-bool EmuMailBoxDev::raiseDeviceInterrupt() {
-  return rpcDev_.raiseDeviceInterrupt();
+bool EmuMailBoxDev::raiseDevicePuPlicPcieMessageInterrupt() {
+  return rpcDev_.raiseDevicePuPlicPcieMessageInterrupt();
 }
 
 bool EmuMailBoxDev::ready(TimeDuration wait_time) {
@@ -405,7 +405,7 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
     res = rx_ring_buffer_.writeRingBufferState();
     assert(res);
 
-    rpcDev_.raiseDeviceInterrupt();
+    rpcDev_.raiseDevicePuPlicPcieMessageInterrupt();
     rpcDev_.waitForHostInterrupt(polling_interval);
 #endif // ENABLE_DEVICE_FW
   }
@@ -427,7 +427,7 @@ bool EmuMailBoxDev::reset(TimeDuration wait_time) {
       RTERROR << "Mailbox not reset in time \n";
       return false;
     }
-    rpcDev_.raiseDeviceInterrupt();
+    rpcDev_.raiseDevicePuPlicPcieMessageInterrupt();
     rpcDev_.waitForHostInterrupt(polling_interval);
   }
   return reset;

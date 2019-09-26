@@ -38,7 +38,6 @@ public:
   bool submitCommand() override;
   bool registerResponseCallback() override;
   bool registerDeviceEventCallback() override;
-  bool boot(uintptr_t init_pc, uintptr_t trap_pc) override;
 
 private:
   std::future<bool>

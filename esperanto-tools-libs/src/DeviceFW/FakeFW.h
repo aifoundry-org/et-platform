@@ -28,7 +28,6 @@ public:
 
   bool setFWFilePaths(const std::vector<std::string> &paths) override;
   bool readFW() override;
-  std::vector<device::MemoryRegionConf> memoryRegionConfigurations() override;
   etrtError loadOnDevice(device::DeviceTarget *dev) override;
 
 private:

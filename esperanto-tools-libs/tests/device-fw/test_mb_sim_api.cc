@@ -42,10 +42,19 @@ public:
     return string("unix://") + socket_name;
   }
 
-  bool done() override { return done_.load(); }
-  int active_threads() override { return 0; }
-  bool boot() override { return true; }
-  bool sync() override { return true; }
+  bool boot(uint64_t pc) override {
+    return true;
+  }
+  bool shutdown() override {
+    done_.store(true);
+    return true;
+  }
+  bool is_done() override {
+    return done_.load();
+  }
+  int active_threads() override {
+    return 0;
+  }
   bool read(uint64_t ad, size_t size, void *data) override {
     return true;
   }
@@ -60,17 +69,9 @@ public:
     mbox_ = mbox;
     return true;
   }
-  bool raise_device_interrupt() override {
+  bool raise_device_interrupt(simulator_api::DeviceInterruptType type) override {
     return true;
   }
-  bool new_region(uint64_t base, uint64_t size, int flags = 0) override {
-    return true;
-  }
-  bool execute(const rt_host_kernel_launch_info_t &launch_info) override {
-    return true;
-  }
-  bool continue_exec() override { return true; }
-  void set_done(bool val) override { done_.store(val); }
 
   std::atomic<bool> done_;
   struct mbox_t mbox_;
@@ -96,7 +97,7 @@ protected:
 
   // Simulator Execution loop
   void execution_loop() {
-    while (!sim_.done()) {
+    while (!sim_.is_done()) {
       sim_api_.nextCmd(false);
     }
   }
@@ -110,9 +111,15 @@ protected:
 // Start the simulator thread and send simple RPC commands
 TEST_F(MBSimAPITest, StartThread) { rpc_.shutdown(); }
 
-// Send a device Interrupt
-TEST_F(MBSimAPITest, RaiseDeviceInterrupt) {
-  rpc_.raiseDeviceInterrupt();
+// Send a device PU PLIC PCIe Message Interrupt
+TEST_F(MBSimAPITest, RaiseDevicePuPlicPcieMessageInterrupt) {
+  rpc_.raiseDevicePuPlicPcieMessageInterrupt();
+  rpc_.shutdown();
+}
+
+// Send an IPI to the Master Shire
+TEST_F(MBSimAPITest, RaiseDeviceMasterShireIpiInterrupt) {
+  rpc_.raiseDeviceMasterShireIpiInterrupt();
   rpc_.shutdown();
 }
 

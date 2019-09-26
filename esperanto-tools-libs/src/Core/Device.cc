@@ -451,8 +451,8 @@ etrtError Device::rawLaunch(et_runtime::ModuleID module_id,
 
   addCommand(getStream(stream), std::shared_ptr<device_api::CommandBase>(
                                     new device_api::LaunchCommand(
-                                        dim3(0, 0, 0), dim3(0, 0, 0), args_buff,
-                                        kernel_entry_point, kernel_name)));
+                                        kernel_entry_point, args_buff,
+                                        kernel_name)));
 
   return etrtSuccess;
 }
