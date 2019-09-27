@@ -3963,6 +3963,10 @@ static void tensor_reduce_start(uint64_t value)
 
     log_tensor_reduce(cpu[current_thread].reduce.state == Processor::Reduce::State::Recv,
                       cpu[current_thread].reduce.regid, cpu[current_thread].reduce.count);
+
+#if !defined(SYS_EMU) && !defined(ZSIM)
+    tensor_reduce_execute();
+#endif
 }
 
 void tensor_reduce_step(unsigned thread)
