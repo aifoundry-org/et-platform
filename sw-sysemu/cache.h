@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <iosfwd>
+#include <stdexcept>
 
 #include "state.h"
 

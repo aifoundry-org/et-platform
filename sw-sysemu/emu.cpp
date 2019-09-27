@@ -2649,7 +2649,7 @@ void tensor_load_execute(bool tenb)
     int      boffset  = (txload >>  4) & 0x03;
     int      rows     = ((txload     ) & 0xF) + 1;
 
-    assert(int(tenb) == ((txload >> 52) & 0x1));
+    assert(int(tenb) == int((txload >> 52) & 0x1));
 
     LOG(DEBUG, "\tExecute TensorLoad with tm: %d, use_coop: %d, trans: %d, dst: %d, "
         "tenb: %d, addr: 0x%" PRIx64 ", boffset: %d, rows: %d, stride: 0x%" PRIx64,
