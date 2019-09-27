@@ -21,11 +21,15 @@
 namespace et_runtime {
 
 class Module;
+namespace device_fw{
+class DeviceFW;
+}
 
 /// @Brief Base class holding the information of an ELF file
 class ELFInfo {
 public:
   friend class Module;
+  friend class device_fw::DeviceFW;
 
   ELFInfo(const std::string &name);
   virtual ~ELFInfo() = default;
