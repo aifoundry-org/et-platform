@@ -3959,6 +3959,14 @@ static void tensor_reduce_start(uint64_t value)
         return;
     }
 
+    // Illegal operation should fail immediately
+    if (operation == 1 || operation == 5 || operation > 8) {
+        cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
+        LOG(DEBUG, "\t%s(error) illegal operation: %u", reducecmd[type], operation);
+        update_tensor_error(1 << 9);
+        return;
+    }
+
     assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::Reduce));
 
     log_tensor_reduce(cpu[current_thread].reduce.state == Processor::Reduce::State::Recv,
@@ -4000,7 +4008,7 @@ void tensor_reduce_step(unsigned thread)
     }
 
     switch (recv.optype & 0xF) {
-    case 0x0: // fadd
+    case 0: // fadd
         set_rounding_mode(frm());
         LOG(DEBUG, "\t%s(recv) op=fadd sender=H%u rounding_mode=%s", reducecmd[type], thread, get_rounding_mode(frm()));
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
@@ -4011,18 +4019,7 @@ void tensor_reduce_step(unsigned thread)
         LOG_FREG("(this) =", recv.regid);
         set_fp_exceptions();
         break;
-    case 0x1: // fsub
-        set_rounding_mode(frm());
-        LOG(DEBUG, "\t%s(recv) op=fsub sender=H%u rounding_mode=%s", reducecmd[type], thread, get_rounding_mode(frm()));
-        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
-        LOG_FREG("(this) :", recv.regid);
-        for (unsigned j = 0; j < VL; j++) {
-            FREGS[recv.regid].f32[j] = fpu::f32_sub(cpu[thread].fregs[send.regid].f32[j], FREGS[recv.regid].f32[j]);
-        }
-        LOG_FREG("(this) =", recv.regid);
-        set_fp_exceptions();
-        break;
-    case 0x2: // fmax
+    case 2: // fmax
         LOG(DEBUG, "\t%s(recv) op=fmax sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
@@ -4032,7 +4029,7 @@ void tensor_reduce_step(unsigned thread)
         LOG_FREG("(this) =", recv.regid);
         set_fp_exceptions();
         break;
-    case 0x3: // fmin
+    case 3: // fmin
         LOG(DEBUG, "\t%s(recv) op=fmin sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
@@ -4042,7 +4039,7 @@ void tensor_reduce_step(unsigned thread)
         LOG_FREG("(this) =", recv.regid);
         set_fp_exceptions();
         break;
-    case 0x4: // iadd
+    case 4: // iadd
         LOG(DEBUG, "\t%s(recv) op=iadd sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
@@ -4051,16 +4048,7 @@ void tensor_reduce_step(unsigned thread)
         }
         LOG_FREG("(this) =", recv.regid);
         break;
-    case 0x5: // isub
-        LOG(DEBUG, "\t%s(recv) op=isub sender=H%u", reducecmd[type], thread);
-        LOG_FREG_OTHER(thread, "(othr) :", send.regid);
-        LOG_FREG("(this) :", recv.regid);
-        for (unsigned j = 0; j < VL; j++) {
-            FREGS[recv.regid].u32[j] = cpu[thread].fregs[send.regid].u32[j] - FREGS[recv.regid].u32[j];
-        }
-        LOG_FREG("(this) =", recv.regid);
-        break;
-    case 0x6: // imax
+    case 6: // imax
         LOG(DEBUG, "\t%s(recv) op=imax sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
@@ -4069,7 +4057,7 @@ void tensor_reduce_step(unsigned thread)
         }
         LOG_FREG("(this) =", recv.regid);
         break;
-    case 0x7: // imin
+    case 7: // imin
         LOG(DEBUG, "\t%s(recv) op=imin sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         LOG_FREG("(this) :", recv.regid);
@@ -4078,7 +4066,7 @@ void tensor_reduce_step(unsigned thread)
         }
         LOG_FREG("(this) =", recv.regid);
         break;
-    case 0x8: // fget
+    case 8: // fget
         LOG(DEBUG, "\t%s(recv) op=fget sender=H%u", reducecmd[type], thread);
         LOG_FREG_OTHER(thread, "(othr) :", send.regid);
         FREGS[recv.regid] = cpu[thread].fregs[send.regid];
