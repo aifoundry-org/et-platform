@@ -26,38 +26,38 @@ const char *MINOR_NAMES[] = {
 
 const struct et_bar_mapping BAR_MAPPINGS[] = {
 	{
-		.soc_addr =   R_L3_DRAM_BASEADDR,
-		.size =       R_L3_DRAM_SIZE,
-		.bar_offset = 0,
-		.bar        = 0,
-		.maps_regs  = false
+		.soc_addr =              R_L3_DRAM_BASEADDR,
+		.size =                  R_L3_DRAM_SIZE,
+		.bar_offset =            0,
+		.bar =                   0,
+		.strictly_order_access = false
 	},
 	{
-		.soc_addr =   R_PU_MBOX_PC_MM_BASEADDR,
-		.size =       R_PU_MBOX_PC_MM_SIZE,
-		.bar_offset = 0,
-		.bar        = 2,
-		.maps_regs  = false
+		.soc_addr=               R_PU_MBOX_PC_MM_BASEADDR,
+		.size =                  R_PU_MBOX_PC_MM_SIZE,
+		.bar_offset =            0,
+		.bar =                   2,
+		.strictly_order_access = true
 	},
 	{
-		.soc_addr =   R_PU_MBOX_PC_SP_BASEADDR,
-		.size =       R_PU_MBOX_PC_SP_SIZE,
-		.bar_offset = 0x1000,
-		.bar        = 2,
-		.maps_regs  = false
+		.soc_addr =              R_PU_MBOX_PC_SP_BASEADDR,
+		.size =                  R_PU_MBOX_PC_SP_SIZE,
+		.bar_offset =            0x1000,
+		.bar =                   2,
+		.strictly_order_access = true
 	},
 	{
-		.soc_addr =   R_PU_TRG_PCIE_BASEADDR,
-		.size =       R_PU_TRG_PCIE_SIZE,
-		.bar_offset = 0x2000,
-		.bar        = 2,
-		.maps_regs  = true
+		.soc_addr =              R_PU_TRG_PCIE_BASEADDR,
+		.size =                  R_PU_TRG_PCIE_SIZE,
+		.bar_offset =            0x2000,
+		.bar =                   2,
+		.strictly_order_access = true
 	},
 	{
-		.soc_addr =   R_PCIE_USRESR_BASEADDR,
-		.size =       R_PCIE_USRESR_SIZE,
-		.bar_offset = 0x4000,
-		.bar        = 2,
-		.maps_regs  = true
+		.soc_addr =              R_PCIE_USRESR_BASEADDR,
+		.size =                  R_PCIE_USRESR_SIZE,
+		.bar_offset =            0x4000,
+		.bar =                   2,
+		.strictly_order_access = true
 	}
 };

@@ -4,6 +4,10 @@
 #include <linux/cdev.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
+#include "et_dma.h"
 #include "et_mbox.h"
 
 struct et_iomem {
@@ -48,7 +52,7 @@ struct et_bar_mapping {
 	uint64_t size;
 	uint64_t bar_offset;
 	uint32_t bar;
-	bool maps_regs;
+	bool strictly_order_access;
 };
 
 extern const struct et_bar_mapping BAR_MAPPINGS[];
@@ -57,11 +61,17 @@ struct et_pci_dev {
 	struct pci_dev *pdev;
 	struct et_mbox mbox_mm;
 	struct et_mbox mbox_sp;
-	struct mutex read_write_mutex;
+	struct et_dma_chan dma_chans[ET_DMA_NUM_CHANS];
+	struct mutex dev_mutex;
 	struct et_pci_minor_dev et_minor_devs[MINORS_PER_SOC];
 	void __iomem *iomem[IOMEM_REGIONS];
 	uint32_t bulk_cfg;
 	int num_irq_vecs;
+	struct workqueue_struct *workqueue;
+	struct work_struct isr_work;
+	struct timer_list missed_irq_timer;
+	spinlock_t abort_lock;
+	bool aborting;
 };
 
 #endif
