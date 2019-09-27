@@ -37,8 +37,8 @@ bool ELFInfo::loadELF(const std::string &path) {
 bool ELFInfo::loadELF(std::istream &stream) {
 
   // Read the data in a file
-  auto stream_it = std::istream_iterator<char>(stream);
-  data_.insert(data_.begin(), stream_it, std::istream_iterator<char>());
+  auto stream_it = std::istreambuf_iterator<char>(stream);
+  data_.insert(data_.begin(), stream_it, {} /* end iterator */);
 
   // Rewind the stream clear the EOF error before calling seekg
   stream.clear();
@@ -109,7 +109,7 @@ bool ELFInfo::loadELF(std::vector<char> &data) {
   return loadELF(is);
 }
 
-size_t ELFInfo::loadAddr() {
+size_t ELFInfo::loadAddr() const {
   return reader_.segments[0]->get_physical_address();
 }
 

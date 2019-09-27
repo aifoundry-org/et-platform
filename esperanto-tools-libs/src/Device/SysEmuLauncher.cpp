@@ -47,6 +47,11 @@ SysEmuLauncher::SysEmuLauncher(
   };
   execute_args_.insert(execute_args_.end(), additional_options.begin(),
                        additional_options.end());
+
+  auto fw_type = absl::GetFlag(FLAGS_fw_type);
+  if (fw_type.type == "device-fw") {
+    execute_args_.push_back("-sim_api_async");
+  }
 }
 
 SysEmuLauncher::SysEmuLauncher(const std::string &con)

@@ -21,11 +21,15 @@
 namespace et_runtime {
 
 class Module;
+namespace device_fw{
+class DeviceFW;
+}
 
 /// @Brief Base class holding the information of an ELF file
 class ELFInfo {
 public:
   friend class Module;
+  friend class device_fw::DeviceFW;
 
   ELFInfo(const std::string &name);
   virtual ~ELFInfo() = default;
@@ -36,13 +40,13 @@ public:
 
   const std::string &name() const { return name_; }
   const std::vector<char> &data() const { return data_; }
-  size_t elfSize() { return elf_size_; }
+  size_t elfSize() const { return elf_size_; }
 
   /// @Brief return the address where we are expected to load the ELF
   ///
   /// Currently we are expecting to have a signle segment per ELF file, return
   /// the physical address of that segment
-  size_t loadAddr();
+  size_t loadAddr() const;
 
 protected:
   std::vector<char> data_; ///< ELF raw data

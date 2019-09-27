@@ -80,10 +80,27 @@ etrtError DeviceFW::loadOnDevice(device::DeviceTarget *dev) {
   std::vector<decltype(master_minion_) *> elfs = {
       &master_minion_, &machine_minion_, &worker_minion_};
   for (auto &elf : elfs) {
-    auto &elf_data = (*elf)->data();
-    const auto addr = (*elf)->loadAddr();
-    dev->writeDevMemMMIO(addr, elf_data.size(),
-                         reinterpret_cast<const void *>(elf_data.data()));
+    // Copy over the all LOAD segments specified in the EL0F
+    for (auto &segment : (*elf)->reader_.segments) {
+      auto type = segment->get_type();
+      if (type & PT_LOAD) {
+        auto offset = segment->get_offset();
+        auto load_address = segment->get_physical_address();
+        auto file_size = segment->get_file_size();
+        auto mem_size = segment->get_memory_size();
+
+        RTDEBUG << "Found segment: " << segment->get_index()
+                << " Offset " << std::hex << offset
+                << " Physical Address: 0x" << std::hex
+                << load_address << " File Size: 0x"
+                << file_size << " Mem Size : 0x" << mem_size << "\n";
+
+        auto &elf_data = (*elf)->data();
+        const void* data_ptr = reinterpret_cast<const void *>(elf_data.data() + offset);
+        dev->writeDevMemMMIO(load_address, mem_size,
+                         data_ptr);
+      }
+    }
   }
 
   return etrtSuccess;
