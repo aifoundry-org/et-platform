@@ -43,7 +43,12 @@ public:
   /// @brief Return the maximum size of a mailbox message
   ssize_t mboxMaxMsgSize() const { return mbox_max_msg_size_; }
 
+  /// @brief Write message pointed by pointer data of size "size". Return true
+  /// of success
   bool write(const void *data, ssize_t size);
+
+  /// @brief Read message of size "size" in buffer data. Wait until wait_time
+  /// expires otherwise return false.
   ssize_t read(void *data, ssize_t size,
                TimeDuration wait_time = TimeDuration::max());
 

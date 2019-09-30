@@ -294,6 +294,8 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   return header.length;
 }
 
+ssize_t EmuMailBoxDev::mboxMaxMsgSize() const { return MBOX_MAX_LENGTH; }
+
 #else
 
 EmuMailBoxDev::EmuMailBoxDev(RPCTarget &dev)
@@ -332,6 +334,8 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   return 0;
 }
 
+ssize_t EmuMailBoxDev::mboxMaxMsgSize() const { return 0; }
+
 #endif // ENABLE_DEVICE_FW
 
 bool EmuMailBoxDev::waitForHostInterrupt() {
@@ -340,6 +344,14 @@ bool EmuMailBoxDev::waitForHostInterrupt() {
 
 bool EmuMailBoxDev::raiseDeviceInterrupt() {
   return rpcDev_.raiseDeviceInterrupt();
+}
+
+bool EmuMailBoxDev::ready() { return mboxReady(); }
+
+bool EmuMailBoxDev::reset() {
+  // FIXME implement the functionality
+  std::terminate();
+  return true;
 }
 
 } // namespace device

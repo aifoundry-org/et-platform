@@ -84,7 +84,21 @@ public:
   EmuMailBoxDev(RPCTarget &rpcDevice);
   EmuMailBoxDev(EmuMailBoxDev &) = delete;
 
+  /// @brief Query if the mailbox devie is ready
+  bool ready();
+
+  /// @brief Reret the mailbox device and discard any pending mailbox messages
+  /// from the device
+  bool reset();
+
+  /// @brief Return the maximum size of a mailbox message
+  ssize_t mboxMaxMsgSize() const;
+
+  /// @brief Write message pointed by pointer data of size "size"
   bool write(const void *data, ssize_t size);
+
+  /// @brief Read message of size "size" in buffer data. Wait until wait_time
+  /// expires otherwise return false.
   ssize_t read(void *data, ssize_t size,
                TimeDuration wait_time = TimeDuration::max());
 

@@ -56,22 +56,32 @@ public:
 
 #if ENABLE_DEVICE_FW
   // Interace for interacting with the MailBox state using the simulator API
+
+  /// @brief Get mailbox emu device
+  EmuMailBoxDev &mailboxDev() { return *mailboxDev_; }
+
   /// @brief Read from target_sim the status header of the mailbox
   std::tuple<bool, std::tuple<uint32_t, uint32_t>> readMBStatus();
   /// @brief Write the mailbox status
   bool writeMBStatus(uint32_t master_status, uint32_t slave_status);
+
   /// @brief Read the rx ring buffer
   std::tuple<bool, device_fw::ringbuffer_s> readRxRb();
+
   /// @brief Write the rx ring buffer
   bool writeRxRb(const device_fw::ringbuffer_s &rb);
+
   /// @brief Read the tx ring buffer
   std::tuple<bool, device_fw::ringbuffer_s> readTxRb();
+
   /// @brief Write the tx ring buffer
   bool writeTxRb(const device_fw::ringbuffer_s &rb);
 #endif // ENABLE_DEVICE_FW
+
   /// @brief Raise an interrupt in the target "device" in which case this is the
   /// simulator
   bool raiseDeviceInterrupt();
+
   /// @brief Wait to receive an interrupt from the device or timeout.
   ///
   /// @param[in] wait_time : Time to wait to receive the interrupt, but default
