@@ -1995,7 +1995,7 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
             if     (dest == 1) cop = CacheOp_EvictL2;
             else if(dest == 2) cop = CacheOp_EvictL3;
             else if(dest == 3) cop = CacheOp_EvictDDR;
-            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, cop);
+            paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), cop);
         }
         catch (const sync_trap_t& t)
         {
@@ -2028,7 +2028,7 @@ static void dcache_prefetch_vaddr(uint64_t val)
         {
             try {
                 cache_line_t tmp;
-                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch);
+                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch, mreg_t(-1));
                 bemu::pmemread512(paddr, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
             }
@@ -2125,7 +2125,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         try {
             // LockVA is a hint, so no need to model soft-locking of the cache.
             // We just need to make sure we zero the cache line.
-            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, CacheOp_None);
+            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_None);
             bemu::pmemwrite512(paddr, tmp.u32.data());
             LOG_MEMWRITE512(paddr, tmp.u32);
             LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
@@ -2152,7 +2152,7 @@ static void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __
 
         try {
             // Soft-locking of the cache is not modeled, so there is nothing more to do here.
-            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, CacheOp_None);
+            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_None);
             LOG(DEBUG, "\tDoing UnlockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
         }
         catch (const sync_trap_t& t) {
@@ -2685,7 +2685,7 @@ void tensor_load_execute(bool tenb)
                 try {
                     uint64_t vaddr = sextVA(addr + i*stride);
                     assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
-                    uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
+                    uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad, mreg_t(-1));
                     bemu::pmemread512(paddr, SCP[idx].u32.data());
                     LOG_MEMREAD512(paddr, SCP[idx].u32.data());
                     LOG_SCP_32x16("=", idx);
@@ -2720,7 +2720,7 @@ void tensor_load_execute(bool tenb)
                         Packed<128> tmp;
                         uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 16));
-                        uint64_t paddr  = vmemtranslate(vaddr, 16, Mem_Access_TxLoad);
+                        uint64_t paddr  = vmemtranslate(vaddr, 16, Mem_Access_TxLoad, mreg_t(-1));
                         bemu::pmemread128(paddr, tmp.u32.data());
                         LOG_MEMREAD128(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
@@ -2762,7 +2762,7 @@ void tensor_load_execute(bool tenb)
                         Packed<256> tmp;
                         uint64_t vaddr = sextVA(addr + boffset + (2*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 32));
-                        uint64_t paddr = vmemtranslate(vaddr, 32, Mem_Access_TxLoad);
+                        uint64_t paddr = vmemtranslate(vaddr, 32, Mem_Access_TxLoad, mreg_t(-1));
                         bemu::pmemread256(paddr, tmp.u32.data());
                         LOG_MEMREAD256(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
@@ -2801,7 +2801,7 @@ void tensor_load_execute(bool tenb)
             uint64_t vaddr = sextVA(addr + j*stride);
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
-                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
+                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad, mreg_t(-1));
                 bemu::pmemread512(paddr, tmp[j].u32.data());
                 LOG_MEMREAD512(paddr, tmp[j].u32);
             }
@@ -2869,7 +2869,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
                 cache_line_t tmp;
-                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad);
+                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad, mreg_t(-1));
                 bemu::pmemread512(paddr, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
                 bemu::pmemwrite512(l2scp_addr, tmp.u32.data());
@@ -3174,7 +3174,7 @@ static void tensorstore(uint64_t tstorereg)
             assert(addr_is_size_aligned(addr, L1D_LINE_SIZE));
             LOG_SCP_32x16(":", src);
             try {
-                uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxStore);
+                uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxStore, mreg_t(-1));
                 bemu::pmemwrite512(paddr, SCP[src].u32.data());
                 LOG_MEMWRITE512(paddr, SCP[src].u32);
 		for (int col=0; col < 16; col++) {
@@ -3243,7 +3243,7 @@ static void tensorstore(uint64_t tstorereg)
             {
                 try {
                     uint64_t vaddr = sextVA((addr + row * stride) & mask);
-                    uint64_t paddr = vmemtranslate(vaddr + col*16, 16, Mem_Access_TxStore);
+                    uint64_t paddr = vmemtranslate(vaddr + col*16, 16, Mem_Access_TxStore, mreg_t(-1));
                     if (!(col & 1)) LOG_FREG(":", src);
                     const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
                     bemu::pmemwrite128(paddr, ptr);

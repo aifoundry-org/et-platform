@@ -12,7 +12,7 @@
 
 
 // MMU virtual to physical address translation
-uint64_t vmemtranslate(uint64_t addr, size_t size, mem_access_type macc, cacheop_type cop = CacheOp_None);
+uint64_t vmemtranslate(uint64_t addr, size_t size, mem_access_type macc, mreg_t mask, cacheop_type cop = CacheOp_None);
 
 
 // MMU virtual memory read accesses

@@ -10,15 +10,18 @@ typedef enum {COH_MINION, COH_SHIRE, COH_CB, COH_GLOBAL} op_location_t;
 
 struct global_mem_info_t
 {
-    uint8_t shire_id_dirty;             // Which shire has dirty data
-    bool    shire_mask[EMU_NUM_SHIRES]; // Which shires have the line in l1
+    uint8_t l2_dirty_shire_id;          // Which shire has dirty data
+    bool    shire_mask[EMU_NUM_SHIRES]; // Which shires have the line in l1/l2
+    bool    cb_dirty;                   // Data dirty in Coallescing Buffer
+    bool    cb_dirty_quarter[4];        // Chunks of 128b that are dirty
 };
 
 struct shire_mem_info_t
 {
     bool    l2_dirty;                           // Data dirty in L2
+    uint8_t l2_dirty_minion_id;                 // Which minion has the line dirty (255 is none)
     bool    cb_dirty;                           // Data dirty in Coallescing Buffer
-    uint8_t minion_id_dirty;                    // Which minion has the line dirty (255 is none)
+    bool    cb_dirty_quarter[4];                // Chunks of 128b that are dirty
     bool    minion_mask[EMU_MINIONS_PER_SHIRE]; // Which minions have the line in l1
 };
 
@@ -48,11 +51,11 @@ private:
   uint32_t l1_minion_control[EMU_NUM_MINIONS];
 
   // Write and read functions
-  bool write   (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
+  bool write   (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter);
   bool read    (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
   bool evict_va(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
 
-  void l1_clear_set(uint32_t minion, uint32_t set);
+  void l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t set);
 
   void dump_state(global_directory_map_t::iterator it_global, shire_directory_map_t::iterator it_shire, minion_directory_map_t::iterator it_minion, uint32_t shire_id, uint32_t minion);
 
@@ -60,7 +63,7 @@ public:
 
   mem_directory();
 
-  bool access(uint64_t addr, mem_access_type macc, cacheop_type cop, uint32_t current_thread);
+  bool access(uint64_t addr, mem_access_type macc, cacheop_type cop, uint32_t current_thread, size_t size, mreg_t mask);
   void cb_drain(uint32_t shire_id, uint32_t cache_bank);
   void l2_flush(uint32_t shire_id, uint32_t cache_bank);
   void l2_evict(uint32_t shire_id, uint32_t cache_bank);

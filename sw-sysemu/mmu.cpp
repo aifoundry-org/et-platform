@@ -195,7 +195,7 @@ static inline uint64_t pma_dram_limit(uint8_t mprot)
 
 
 static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
-                                      size_t size, mem_access_type macc, cacheop_type cop)
+                                      size_t size, mem_access_type macc, mreg_t mask, cacheop_type cop)
 {
     bool spio     = ((current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP);
     bool amo      = (macc == Mem_Access_AtomicL) || (macc == Mem_Access_AtomicG);
@@ -226,10 +226,11 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 #ifdef SYS_EMU
             if(coherency_check)
             {
-                mem_dir.access(addr, macc, cop, current_thread);
+                mem_dir.access(addr, macc, cop, current_thread, size, mask);
             }
 #else
-            if(0) addr = cop; // To prevent compile error due not using cop when SYS_EMU is disabled...
+            if(0) cop = addr; // To prevent compile error due not using cop when SYS_EMU is disabled...
+            if(0) mask = cop;
 #endif
             return addr;
         }
@@ -244,7 +245,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 #ifdef SYS_EMU
             if(coherency_check)
             {
-                mem_dir.access(addr, macc, cop, current_thread);
+                mem_dir.access(addr, macc, cop, current_thread, size, mask);
             }
 #endif
 
@@ -259,7 +260,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 #ifdef SYS_EMU
         if(coherency_check)
         {
-            mem_dir.access(addr, macc, cop, current_thread);
+            mem_dir.access(addr, macc, cop, current_thread, size, mask);
         }
 #endif
         return truncated_dram_addr(addr);
@@ -273,7 +274,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 #ifdef SYS_EMU
         if(coherency_check)
         {
-            mem_dir.access(addr, macc, cop, current_thread);
+            mem_dir.access(addr, macc, cop, current_thread, size, mask);
         }
 #endif
         return addr;
@@ -343,7 +344,7 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 #ifdef SYS_EMU
             if(coherency_check)
             {
-                mem_dir.access(addr, macc, CacheOp_None, current_thread);
+                mem_dir.access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
             }
 #endif
 
@@ -360,7 +361,7 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 #ifdef SYS_EMU
             if(coherency_check)
             {
-                mem_dir.access(addr, macc, CacheOp_None, current_thread);
+                mem_dir.access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
             }
 #endif
 
@@ -375,7 +376,7 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 #ifdef SYS_EMU
         if(coherency_check)
         {
-            mem_dir.access(addr, macc, CacheOp_None, current_thread);
+            mem_dir.access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
         }
 #endif
 
@@ -394,11 +395,11 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
 
 static inline uint64_t pma_check_mem_access(uint64_t vaddr, uint64_t addr,
-                                            size_t size, mem_access_type macc, cacheop_type cop)
+                                            size_t size, mem_access_type macc, mreg_t mask, cacheop_type cop)
 {
     return (macc == Mem_Access_Fetch)
             ? pma_check_fetch_access(vaddr, addr, macc)
-            : pma_check_data_access(vaddr, addr, size, macc, cop);
+            : pma_check_data_access(vaddr, addr, size, macc, mask, cop);
 }
 
 
@@ -450,7 +451,7 @@ static uint64_t pma_check_ptw_access(uint64_t vaddr, uint64_t addr,
 //
 //------------------------------------------------------------------------------
 
-uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc, cacheop_type cop)
+uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc, mreg_t mask, cacheop_type cop)
 {
     // Read mstatus
     const uint64_t mstatus = cpu[current_thread].mstatus;
@@ -476,7 +477,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc, cacheo
     bool vm_enabled = (atp_mode != SATP_MODE_BARE);
 
     if (!vm_enabled) {
-        return pma_check_mem_access(vaddr, vaddr & PA_M, size, macc, cop);
+        return pma_check_mem_access(vaddr, vaddr & PA_M, size, macc, mask, cop);
     }
 
     int64_t sign;
@@ -639,7 +640,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc, cacheo
     // Final physical address only uses 40 bits
     paddr &= PA_M;
     LOG(DEBUG, "\tPTW: Paddr = 0x%016" PRIx64, paddr);
-    return pma_check_mem_access(vaddr, paddr, size, macc, cop);
+    return pma_check_mem_access(vaddr, paddr, size, macc, mask, cop);
 }
 
 
@@ -649,7 +650,7 @@ uint32_t mmu_fetch(uint64_t vaddr)
         check_fetch_breakpoint(vaddr);
         if (vaddr & 3) {
             // 2B-aligned fetch
-            uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch);
+            uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch, mreg_t(-1));
             uint16_t low = bemu::pmemread<uint16_t>(paddr);
             if ((low & 3) != 3) {
                 LOG(DEBUG, "Fetched compressed instruction from PC 0x%" PRIx64
@@ -658,7 +659,7 @@ uint32_t mmu_fetch(uint64_t vaddr)
             }
             paddr = ((paddr & 4095) <= 4092)
                     ? (paddr + 2)
-                    : vmemtranslate(vaddr + 2, 2, Mem_Access_Fetch);
+                    : vmemtranslate(vaddr + 2, 2, Mem_Access_Fetch, mreg_t(-1));
             uint16_t high = bemu::pmemread<uint16_t>(paddr);
             uint32_t bits = uint32_t(low) + (uint32_t(high) << 16);
             LOG(DEBUG, "Fetched instruction from PC 0x%" PRIx64
@@ -666,7 +667,7 @@ uint32_t mmu_fetch(uint64_t vaddr)
             return bits;
         }
         // 4B-aligned fetch
-        uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Fetch);
+        uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_Fetch, mreg_t(-1));
         uint32_t bits = bemu::pmemread<uint32_t>(paddr);
         if ((bits & 3) != 3) {
             uint16_t low = uint16_t(bits);
@@ -692,7 +693,7 @@ T mmu_load(uint64_t eaddr, mem_access_type macc)
 
     uint64_t vaddr = sextVA(eaddr);
     check_load_breakpoint(vaddr);
-    uint64_t paddr = vmemtranslate(vaddr, sizeof(T), macc);
+    uint64_t paddr = vmemtranslate(vaddr, sizeof(T), macc, mreg_t(-1));
     T value = bemu::pmemread<T>(paddr);
     LOG_MEMREAD(CHAR_BIT*sizeof(T), paddr, value);
     log_mem_read(true, sizeof(T), vaddr, paddr);
@@ -712,7 +713,7 @@ uint16_t mmu_aligned_load16(uint64_t eaddr, mem_access_type macc)
     if (!addr_is_size_aligned(vaddr, 2)) {
         throw trap_load_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 2, macc);
+    uint64_t paddr = vmemtranslate(vaddr, 2, macc, mreg_t(-1));
     uint16_t value = bemu::pmemread<uint16_t>(paddr);
     LOG_MEMREAD(16, paddr, value);
     log_mem_read(true, 2, vaddr, paddr);
@@ -727,7 +728,7 @@ uint32_t mmu_aligned_load32(uint64_t eaddr, mem_access_type macc)
     if (!addr_is_size_aligned(vaddr, 4)) {
         throw trap_load_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, macc);
+    uint64_t paddr = vmemtranslate(vaddr, 4, macc, mreg_t(-1));
     uint32_t value = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, value);
     log_mem_read(true, 4, vaddr, paddr);
@@ -740,7 +741,7 @@ void mmu_loadVLEN(uint64_t eaddr, freg_t& data, mreg_t mask, mem_access_type mac
     if (mask.any()) {
         uint64_t vaddr = sextVA(eaddr);
         check_load_breakpoint(vaddr);
-        uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc);
+        uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc, mask);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
                 data.u32[e] = bemu::pmemread<uint32_t>(paddr + 4*e);
@@ -760,7 +761,7 @@ void mmu_aligned_loadVLEN(uint64_t eaddr, freg_t& data, mreg_t mask, mem_access_
         if (!addr_is_size_aligned(vaddr, VLEN/8)) {
             throw trap_load_access_fault(vaddr);
         }
-        uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc);
+        uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc, mask);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
                 data.u32[e] = bemu::pmemread<uint32_t>(paddr + 4*e);
@@ -782,7 +783,7 @@ void mmu_store(uint64_t eaddr, T data, mem_access_type macc)
 
     uint64_t vaddr = sextVA(eaddr);
     check_store_breakpoint(vaddr);
-    uint64_t paddr = vmemtranslate(vaddr, sizeof(T), macc);
+    uint64_t paddr = vmemtranslate(vaddr, sizeof(T), macc, mreg_t(-1));
     bemu::pmemwrite<T>(paddr, data);
     LOG_MEMWRITE(CHAR_BIT*sizeof(T), paddr, data);
     log_mem_write(true, sizeof(T), vaddr, paddr, data);
@@ -801,7 +802,7 @@ void mmu_aligned_store16(uint64_t eaddr, uint16_t data, mem_access_type macc)
     if (!addr_is_size_aligned(vaddr, 2)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 2, macc);
+    uint64_t paddr = vmemtranslate(vaddr, 2, macc, mreg_t(-1));
     bemu::pmemwrite<uint16_t>(paddr, data);
     LOG_MEMWRITE(16, paddr, data);
     log_mem_write(true, 2, vaddr, paddr, data);
@@ -815,7 +816,7 @@ void mmu_aligned_store32(uint64_t eaddr, uint32_t data, mem_access_type macc)
     if (!addr_is_size_aligned(vaddr, 4)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, macc);
+    uint64_t paddr = vmemtranslate(vaddr, 4, macc, mreg_t(-1));
     bemu::pmemwrite<uint32_t>(paddr, data);
     LOG_MEMWRITE(32, paddr, data);
     log_mem_write(true, 4, vaddr, paddr, data);
@@ -827,7 +828,7 @@ void mmu_storeVLEN(uint64_t eaddr, freg_t data, mreg_t mask, mem_access_type mac
     if (mask.any()) {
         uint64_t vaddr = sextVA(eaddr);
         check_store_breakpoint(vaddr);
-        uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc);
+        uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc, mask);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
                 bemu::pmemwrite<uint32_t>(paddr + 4*e, data.u32[e]);
@@ -847,7 +848,7 @@ void mmu_aligned_storeVLEN(uint64_t eaddr, freg_t data, mreg_t mask, mem_access_
         if (!addr_is_size_aligned(vaddr, VLEN/8)) {
             throw trap_store_access_fault(vaddr);
         }
-        uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc);
+        uint64_t paddr = vmemtranslate(vaddr, VLEN/8, macc, mask);
         for (size_t e = 0; e < MLEN; ++e) {
             if (mask[e]) {
                 bemu::pmemwrite<uint32_t>(paddr + 4*e, data.u32[e]);
@@ -867,7 +868,7 @@ uint32_t mmu_global_atomic32(uint64_t eaddr, uint32_t data,
     if (!addr_is_size_aligned(vaddr, 4)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG);
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG, mreg_t(-1));
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     uint32_t newval = fn(oldval, data);
@@ -886,7 +887,7 @@ uint64_t mmu_global_atomic64(uint64_t eaddr, uint64_t data,
     if (!addr_is_size_aligned(vaddr, 8)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicG);
+    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicG, mreg_t(-1));
     uint64_t oldval = bemu::pmemread<uint64_t>(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     uint64_t newval = fn(oldval, data);
@@ -905,7 +906,7 @@ uint32_t mmu_local_atomic32(uint64_t eaddr, uint32_t data,
     if (!addr_is_size_aligned(vaddr, 4)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL);
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL, mreg_t(-1));
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     uint32_t newval = fn(oldval, data);
@@ -924,7 +925,7 @@ uint64_t mmu_local_atomic64(uint64_t eaddr, uint64_t data,
     if (!addr_is_size_aligned(vaddr, 8)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicL);
+    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicL, mreg_t(-1));
     uint64_t oldval = bemu::pmemread<uint64_t>(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     uint64_t newval = fn(oldval, data);
@@ -943,7 +944,7 @@ uint32_t mmu_global_compare_exchange32(uint64_t eaddr, uint32_t expected,
     if (!addr_is_size_aligned(vaddr, 4)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG);
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicG, mreg_t(-1));
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     if (oldval == expected) {
@@ -964,7 +965,7 @@ uint64_t mmu_global_compare_exchange64(uint64_t eaddr, uint64_t expected,
     if (!addr_is_size_aligned(vaddr, 8)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicG);
+    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicG, mreg_t(-1));
     uint64_t oldval = bemu::pmemread<uint64_t>(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     if (oldval == expected) {
@@ -984,7 +985,7 @@ uint32_t mmu_local_compare_exchange32(uint64_t eaddr, uint32_t expected,
     if (!addr_is_size_aligned(vaddr, 4)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL);
+    uint64_t paddr = vmemtranslate(vaddr, 4, Mem_Access_AtomicL, mreg_t(-1));
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     if (oldval == expected) {
@@ -1004,7 +1005,7 @@ uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
     if (!addr_is_size_aligned(vaddr, 8)) {
         throw trap_store_access_fault(vaddr);
     }
-    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicL);
+    uint64_t paddr = vmemtranslate(vaddr, 8, Mem_Access_AtomicL, mreg_t(-1));
     uint64_t oldval = bemu::pmemread<uint64_t>(paddr);
     LOG_MEMREAD(64, paddr, oldval);
     if (oldval == expected) {
