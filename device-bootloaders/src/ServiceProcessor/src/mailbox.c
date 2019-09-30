@@ -60,7 +60,7 @@ void MBOX_init(void)
 
 int64_t MBOX_send(mbox_e mbox, const void* const buffer_ptr, uint32_t length)
 {
-    int32_t rv = -1;
+    int64_t rv = -1;
 
     volatile ringbuffer_t* const ringbuffer_ptr = mbox_master[mbox] ? &(mbox_hw[mbox]->tx_ring_buffer) : &(mbox_hw[mbox]->rx_ring_buffer);
 
@@ -178,7 +178,7 @@ static void mbox_task(void* pvParameters)
                         }
                     }
                     break;
-                
+
                 default:
                     printf("Invalid message id: %" PRIu64 "\r\n", *message_id);
                     printf("message length: %" PRIi64 ", buffer:\r\n", length);
