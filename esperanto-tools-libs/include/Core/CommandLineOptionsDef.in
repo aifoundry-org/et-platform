@@ -33,4 +33,7 @@ ETRT_OPT(machine_minion_elf, machine-minion-elf, std::string, std::string, "Path
 ETRT_OPT(sysemu_path, sysemu-path, std::string, std::string, "Path to sysemu")
 ETRT_OPT(shires, shires, std::string, std::string, "Number of active shires")
 
+// Sysemu Options
+ETRT_OPT(sysemu_log_enable, sysemu-log-enable, bool, bool, "Enable sysemu logging")
+ETRT_OPT(sysemu_log_minion, sysemu-log-minion, int64_t, int64_t, "Enable sysemu logging for minion X")
 #undef ETRT_OPT

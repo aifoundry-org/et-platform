@@ -26,6 +26,9 @@
 
 using namespace std;
 
+ABSL_FLAG(bool, sysemu_log_enable, false, "Enable sysemu logging");
+ABSL_FLAG(int64_t, sysemu_log_minion, -1, "Enable logging of minion X");
+
 namespace et_runtime {
 namespace device {
 
@@ -48,9 +51,15 @@ SysEmuLauncher::SysEmuLauncher(
   execute_args_.insert(execute_args_.end(), additional_options.begin(),
                        additional_options.end());
 
-  auto fw_type = absl::GetFlag(FLAGS_fw_type);
-  if (fw_type.type == "device-fw") {
+  if (absl::GetFlag(FLAGS_fw_type).type == "device-fw") {
     execute_args_.push_back("-sim_api_async");
+  }
+  if (absl::GetFlag(FLAGS_sysemu_log_enable)) {
+    execute_args_.push_back("-l");
+  }
+  if (auto mx = absl::GetFlag(FLAGS_sysemu_log_minion); mx > 0) {
+    execute_args_.insert(execute_args_.end(),
+                         {"-l", "-lm", fmt::format("{}", mx)});
   }
 }
 
