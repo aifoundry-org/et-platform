@@ -229,7 +229,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
                 mem_dir.access(addr, macc, cop, current_thread, size, mask);
             }
 #else
-            if(0) cop = addr; // To prevent compile error due not using cop when SYS_EMU is disabled...
+            if(0) cop = (cacheop_type) addr; // To prevent compile error due not using cop when SYS_EMU is disabled...
             if(0) mask = cop;
 #endif
             return addr;
