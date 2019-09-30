@@ -32,6 +32,8 @@
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern bool coherency_check;
+extern uint64_t md_log_addr;
+extern uint32_t md_log_minion;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Static Member variables
@@ -165,6 +167,8 @@ static const char * help_msg =
      -single_thread           Disable 2nd Minion thread\n\
      -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
      -coherency_check         Enables cache coherency checks\n\
+     -coherency_check_minion  Enables cache coherency check prints for a specific minion (default: 0x2048 [no minion, 0xFFFFFFFF all minions])\n\
+     -coherency_check_addr    Enables cache coherency check prints for a specific address (default: 0x0 [all addresses])\n\
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -611,6 +615,16 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
             cmd_options.pu_uart1_tx_file = argv[i];
             dump_option = 0;
         }
+        else if(dump_option == 8)
+        {
+            md_log_minion = atoi(argv[i]);
+            dump_option = 0;
+        }
+        else if(dump_option == 9)
+        {
+            sscanf(argv[i], "%" PRIx64, &md_log_addr);
+            dump_option = 0;
+        }
         else if(cmd_options.mem_reset_flag)
         {
             cmd_options.mem_reset = atoi(argv[i]);
@@ -698,6 +712,14 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if(strcmp(argv[i], "-pu_uart1_tx_file") == 0)
         {
             dump_option = 7;
+        }
+        else if(strcmp(argv[i], "-coherency_check_minion") == 0)
+        {
+            dump_option = 8;
+        }
+        else if(strcmp(argv[i], "-coherency_check_addr") == 0)
+        {
+            dump_option = 9;
         }
         else if(strcmp(argv[i], "-m") == 0)
         {

@@ -18,6 +18,7 @@ struct global_mem_info_t
 
 struct shire_mem_info_t
 {
+    bool    l2;                                 // Data in L2
     bool    l2_dirty;                           // Data dirty in L2
     uint8_t l2_dirty_minion_id;                 // Which minion has the line dirty (255 is none)
     bool    cb_dirty;                           // Data dirty in Coallescing Buffer
@@ -53,7 +54,7 @@ private:
   // Write and read functions
   bool write   (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter);
   bool read    (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
-  bool evict_va(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
+  bool evict_va(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, bool * dirty_evict);
 
   void l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t set);
 
