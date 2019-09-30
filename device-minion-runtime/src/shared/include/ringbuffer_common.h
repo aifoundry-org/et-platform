@@ -13,6 +13,8 @@ static_assert(RINGBUFFER_LENGTH % 8 == 0, "ringbuffer length must be 8-byte alig
 
 #define RINGBUFFER_ERROR_BAD_LENGTH -1
 #define RINGBUFFER_ERROR_DATA_DROPPED -2
+#define RINGBUFFER_ERROR_BAD_HEAD_INDEX -3
+#define RINGBUFFER_ERROR_BAD_TAIL_INDEX -4
 
 typedef struct ringbuffer_s
 {
