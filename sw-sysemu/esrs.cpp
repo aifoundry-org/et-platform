@@ -579,7 +579,7 @@ void esr_write(uint64_t addr, uint64_t value)
         unsigned hart = (addr2 & ESR_REGION_HART_MASK) >> ESR_REGION_HART_SHIFT;
         if ((esr >= ESR_PORT0) && (esr <= ESR_PORT3)) {
             unsigned hartid = hart + shire * EMU_THREADS_PER_SHIRE;
-            unsigned port = (esr - ESR_PORT0) >> 3;
+            unsigned port = (esr - ESR_PORT0) >> 6;
             if (get_msg_port_write_width(hartid, port) > 8)
                 throw std::runtime_error("Write to port with incompatible size");
             uint64_t tmp = value;
