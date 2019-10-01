@@ -23,6 +23,11 @@ int64_t RINGBUFFER_write(volatile ringbuffer_t* restrict const ringbuffer_ptr, c
     {
         return RINGBUFFER_ERROR_BAD_LENGTH;
     }
+
+    if (head_index >= RINGBUFFER_LENGTH)
+    {
+        return RINGBUFFER_ERROR_BAD_HEAD_INDEX;
+    }
     else
     {
         for (uint16_t i = 0; i < length; i++)
@@ -45,6 +50,11 @@ int64_t RINGBUFFER_read(volatile ringbuffer_t* restrict const ringbuffer_ptr, vo
     if (length > RINGBUFFER_used(ringbuffer_ptr))
     {
         return RINGBUFFER_ERROR_BAD_LENGTH;
+    }
+
+    if (tail_index >= RINGBUFFER_LENGTH)
+    {
+        return RINGBUFFER_ERROR_BAD_TAIL_INDEX;
     }
     else
     {
