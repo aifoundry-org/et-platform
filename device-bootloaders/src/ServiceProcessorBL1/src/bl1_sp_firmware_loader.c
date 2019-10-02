@@ -17,6 +17,7 @@
 #include "bl1_flash_fs.h"
 #include "bl1_sp_certificates.h"
 #include "bl1_sp_firmware_loader.h"
+#include "bl1_sp_otp.h"
 #include "constant_memory_compare.h"
 #include "bl1_crypto.h"
 #include "key_derivation_data.h"
@@ -36,6 +37,9 @@ static bool gs_sp_bl2_enck_created;
 static uint8_t gs_sp_bl2_IV[16];
 static CRYPTO_AES_CONTEXT_t gs_sp_bl2_aes_context;
 static bool gs_sp_bl2_aes_context_created;
+
+static bool gs_vaultip_disabled;
+static bool gs_ignore_signatures;
 
 static int verify_bl2_image_file_header(ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_file_header, uint32_t sp_bl2_size) {
     if (NULL == sp_bl2_file_header) {
@@ -62,11 +66,15 @@ static int verify_bl2_image_file_header(ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
         return -1;
     }
 
-    if (0 != verify_bl2_certificate(&(sp_bl2_file_header->info.signing_certificate))) {
-        printx("SP BL2 certificate is not valid!\n");
-        return -1;
+    if (gs_vaultip_disabled) {
+        MESSAGE_INFO("BL2 CRT IGN\n");
     } else {
-        printx("SP BL2 certificate OK!\n");
+        if (0 != verify_bl2_certificate(&(sp_bl2_file_header->info.signing_certificate))) {
+            printx("SP BL2 certificate is not valid!\n");
+            return -1;
+        } else {
+            printx("SP BL2 certificate OK!\n");
+        }
     }
 
     if (0 != (sp_bl2_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED)) {
@@ -116,14 +124,19 @@ static int verify_bl2_image_file_header(ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
         }
     }
 
-    if (0 != crypto_verify_pk_signature(&(sp_bl2_file_header->info.signing_certificate.certificate_info.subject_public_key), 
-                                        &(sp_bl2_file_header->info.image_info_and_signaure.info_signature),
-                                        &(sp_bl2_file_header->info.image_info_and_signaure.info), 
-                                        sizeof(sp_bl2_file_header->info.image_info_and_signaure.info))) {
-        printx("bl2_firmware signature is not valid!\n");
-        return -1;
+    if (gs_vaultip_disabled || gs_ignore_signatures) {
+        MESSAGE_INFO("BL2 SIG IGN\n");
+        return 0;
     } else {
-        printx("bl2_firmware signature is OK!\n");
+        if (0 != crypto_verify_pk_signature(&(sp_bl2_file_header->info.signing_certificate.certificate_info.subject_public_key), 
+                                            &(sp_bl2_file_header->info.image_info_and_signaure.info_signature),
+                                            &(sp_bl2_file_header->info.image_info_and_signaure.info), 
+                                            sizeof(sp_bl2_file_header->info.image_info_and_signaure.info))) {
+            printx("bl2_firmware signature is not valid!\n");
+            return -1;
+        } else {
+            printx("bl2_firmware signature is OK!\n");
+        }
     }
 
     return 0;
@@ -173,11 +186,13 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
         encrypted_hash_context_initialized = true;
     }
 
-    if (0 != crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm)) {
-        printx("load_bl2_code_and_data: crypto_hash_init() failed!\n");
-        return -1;
+    if (!gs_vaultip_disabled) {
+        if (0 != crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm)) {
+            printx("load_bl2_code_and_data: crypto_hash_init() failed!\n");
+            return -1;
+        }
+        hash_context_initialized = true;
     }
-    hash_context_initialized = true;
 
     for (region_no = 0; region_no < image_info->secret_info.load_regions_count; region_no++) {
         load_offset = (uint32_t)(sizeof(ESPERANTO_IMAGE_FILE_HEADER_t) + image_info->secret_info.load_regions[region_no].region_offset);
@@ -192,23 +207,25 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
             }
             printx("loaded 0x%x bytes at 0x%08x\n", image_info->secret_info.load_regions[region_no].load_size, load_address.u64);
 
-            if (0 != (sp_bl2_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED)) {
-                // hash encrypted data
-                if (0 != crypto_hash_update(&encrypted_hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
+            if (!gs_vaultip_disabled) {
+                if (0 != (sp_bl2_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED)) {
+                    // hash encrypted data
+                    if (0 != crypto_hash_update(&encrypted_hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
+                        printx("load_bl2_code_and_data: crypto_hash_update() failed!\n");
+                        goto CLEANUP_ON_ERROR;
+                    }
+
+                    // decrypt data
+                    if (0 != crypto_aes_decrypt_update(&gs_sp_bl2_aes_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
+                        printx("load_bl2_code_and_data: crypto_aes_decrypt_update() failed!\n");
+                        goto CLEANUP_ON_ERROR;
+                    }
+                }
+
+                if (0 != crypto_hash_update(&hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
                     printx("load_bl2_code_and_data: crypto_hash_update() failed!\n");
                     goto CLEANUP_ON_ERROR;
                 }
-
-                // decrypt data
-                if (0 != crypto_aes_decrypt_update(&gs_sp_bl2_aes_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
-                    printx("load_bl2_code_and_data: crypto_aes_decrypt_update() failed!\n");
-                    goto CLEANUP_ON_ERROR;
-                }
-            }
-
-            if (0 != crypto_hash_update(&hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
-                printx("load_bl2_code_and_data: crypto_hash_update() failed!\n");
-                goto CLEANUP_ON_ERROR;
             }
             total_length = total_length + image_info->secret_info.load_regions[region_no].load_size;
         }
@@ -232,21 +249,25 @@ static int load_bl2_code_and_data(const ESPERANTO_IMAGE_FILE_HEADER_t * sp_bl2_f
         }
     
         if (0 != crypto_aes_decrypt_final(&gs_sp_bl2_aes_context, NULL, 0, NULL)) {
-            printx("load_bl1_code_and_data: crypto_aes_decrypt_final() failed!\n");
+            printx("load_bl2_code_and_data: crypto_aes_decrypt_final() failed!\n");
             goto CLEANUP_ON_ERROR;
         }
         gs_sp_bl2_aes_context_created = false;
     }
 
-    if (0 != crypto_hash_final(&hash_context, NULL, 0, total_length, hash)) {
-        printx("load_bl2_code_and_data: crypto_hash_final() failed!\n");
-        goto CLEANUP_ON_ERROR;
-    }
-    hash_context_initialized = false;
+    if (gs_vaultip_disabled || gs_ignore_signatures) {
+        MESSAGE_INFO("BL2 HASH IGN\n");
+    } else {
+        if (0 != crypto_hash_final(&hash_context, NULL, 0, total_length, hash)) {
+            printx("load_bl2_code_and_data: crypto_hash_final() failed!\n");
+            goto CLEANUP_ON_ERROR;
+        }
+        hash_context_initialized = false;
 
-    if (0 != constant_time_memory_compare(hash, image_info->public_info.code_and_data_hash, code_and_data_hash_size)) {
-        printx("load_bl2_code_and_data: code+data hash mismatch!\n");
-        goto CLEANUP_ON_ERROR;
+        if (0 != constant_time_memory_compare(hash, image_info->public_info.code_and_data_hash, code_and_data_hash_size)) {
+            printx("load_bl2_code_and_data: code+data hash mismatch!\n");
+            goto CLEANUP_ON_ERROR;
+        }
     }
 
     return 0;
@@ -270,6 +291,7 @@ CLEANUP_ON_ERROR:
     }
     return -1;
 }
+
 int load_bl2_firmware(void) {
     int rv;
     uint32_t sp_bl2_size;
@@ -279,6 +301,16 @@ int load_bl2_firmware(void) {
     gs_sp_bl2_mack_created = false;
     gs_sp_bl2_enck_created = false;
     gs_sp_bl2_aes_context_created = false;
+
+    gs_vaultip_disabled = false;
+    gs_ignore_signatures = false;
+
+    if (0 != sp_otp_get_vaultip_chicken_bit(&gs_vaultip_disabled)) {
+        gs_vaultip_disabled = false;
+    }
+    if (0 != sp_otp_get_signatures_check_chicken_bit(&gs_ignore_signatures)) {
+        gs_ignore_signatures = false;
+    }
 
     // load the SP BL2 image
     if (0 != flash_fs_get_file_size(ESPERANTO_FLASH_REGION_ID_SP_BL2, &sp_bl2_size)) {
