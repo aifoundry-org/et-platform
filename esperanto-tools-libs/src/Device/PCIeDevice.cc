@@ -46,7 +46,7 @@ bool PCIeDevice::init() {
   auto wait_time = std::chrono::seconds(2 * 60);
   auto start = Clock::now();
   auto end = start + wait_time;
-  static const TimeDuration polling_interval = wait_time / 10;
+  static const TimeDuration polling_interval = std::chrono::seconds(1);
   bool mb_ready = mm_.ready();
   while (mb_ready == 0) {
     std::this_thread::sleep_for(polling_interval);

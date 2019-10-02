@@ -78,7 +78,7 @@ ssize_t MailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   auto start = Clock::now();
   auto end = start + wait_time;
   // FIXME random polling interval
-  static const TimeDuration polling_interval = wait_time / 10;
+  static const TimeDuration polling_interval = std::chrono::seconds(1);
   ssize_t mb_read = 0;
   while (mb_read == 0) {
     mb_read = ::read(fd_, data, size);
