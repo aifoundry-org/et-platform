@@ -20,6 +20,7 @@ set(SOURCES
     src/bl1_crypto.c
     src/bl1_sp_certificates.c
     src/bl1_sp_firmware_loader.c
+    src/bl1_sp_otp.c
     src/bl1_vaultip_controller.c
     src/bl1_build_configuration.c)
 

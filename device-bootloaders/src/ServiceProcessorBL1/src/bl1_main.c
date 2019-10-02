@@ -15,6 +15,7 @@
 #include "bl1_crypto.h"
 #include "bl1_build_configuration.h"
 #include "build_configuration.h"
+#include "bl1_sp_otp.h"
 
 //#define MINIMAL_IMAGE
 
@@ -73,6 +74,8 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data);
 
 int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
 {
+    bool disable_vault;
+
     const IMAGE_VERSION_INFO_t * image_version_info = get_image_version_info();
     //SERIAL_init(UART0);
     printx("\n*** SP BL1 STARTED ***\r\n");
@@ -97,9 +100,22 @@ int bl1_main(const SERVICE_PROCESSOR_ROM_DATA_t * rom_data)
 
     timer_init();
 
-    if (0 != crypto_init()) {
-        printx("crypto_init() failed!!\n");
+    if (0 != sp_otp_init()) {
+        printx("sp_otp_init() failed!!\n");
         goto FATAL_ERROR;
+    }
+
+    if (0 != sp_otp_get_vaultip_chicken_bit(&disable_vault)) {
+        disable_vault = false;
+    }
+
+    if (false == disable_vault) {
+        MESSAGE_INFO("CE DIS\n");
+    } else {
+        if (0 != crypto_init()) {
+            printx("crypto_init() failed!!\n");
+            goto FATAL_ERROR;
+        }
     }
 
     if (0 != flash_fs_init(&(g_service_processor_bl1_data.flash_fs_bl1_info), &(rom_data->flash_fs_rom_info))) {
