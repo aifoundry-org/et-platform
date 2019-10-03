@@ -141,7 +141,7 @@ if(esperanto-fw_FOUND)
     device-fw/test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
     device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
     )
-  create_test_targets("${DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;600")
+  create_test_targets("${DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
 
   set(QEMU_TEST_LIST
     system/test_pcie_device.cc:""
