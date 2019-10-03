@@ -18,6 +18,7 @@
 #include "bl2_crypto.h"
 #include "bl2_certificates.h"
 #include "bl2_firmware_loader.h"
+#include "bl2_sp_otp.h"
 #include "constant_memory_compare.h"
 
 #include "key_derivation_data.h"
@@ -48,6 +49,9 @@ static bool gs_enck_created;
 static uint8_t gs_IV[16];
 static CRYPTO_AES_CONTEXT_t gs_aes_context;
 static bool gs_aes_context_created;
+
+static bool gs_vaultip_disabled;
+static bool gs_ignore_signatures;
 
 static int get_kdk_derivation_data(const ESPERANTO_IMAGE_TYPE_t image_type, const uint8_t ** kdk_data, size_t * kdk_data_size, const uint8_t ** mac_data, size_t * mac_data_size, const uint8_t ** enc_data, size_t * enc_data_size) {
     switch (image_type) {
@@ -118,11 +122,15 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type, ESP
         return -1;
     }
 
-    if (0 != verify_esperanto_image_certificate(image_type, &(image_file_header->info.signing_certificate))) {
-        printf("verify_image_file_header: image certificate is not valid!\n");
-        return -1;
+    if (gs_vaultip_disabled) {
+        MESSAGE_INFO("Image CRT IGN\n");
     } else {
-        printf("Image certificate OK!\n");
+        if (0 != verify_esperanto_image_certificate(image_type, &(image_file_header->info.signing_certificate))) {
+            printf("verify_image_file_header: image certificate is not valid!\n");
+            return -1;
+        } else {
+            printf("Image certificate OK!\n");
+        }
     }
 
     if (0 != (image_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED)) {
@@ -172,14 +180,19 @@ static int verify_image_file_header(const ESPERANTO_IMAGE_TYPE_t image_type, ESP
         }
     }
 
-    if (0 != crypto_verify_pk_signature(&(image_file_header->info.signing_certificate.certificate_info.subject_public_key), 
-                                        &(image_file_header->info.image_info_and_signaure.info_signature),
-                                        &(image_file_header->info.image_info_and_signaure.info), 
-                                        sizeof(image_file_header->info.image_info_and_signaure.info))) {
-        printf("firmware signature is not valid!\n");
-        return -1;
+    if (gs_vaultip_disabled || gs_ignore_signatures) {
+        MESSAGE_INFO("Image SIG IGN\n");
+        return 0;
     } else {
-        printf("firmware signature is OK!\n");
+        if (0 != crypto_verify_pk_signature(&(image_file_header->info.signing_certificate.certificate_info.subject_public_key), 
+                                            &(image_file_header->info.image_info_and_signaure.info_signature),
+                                            &(image_file_header->info.image_info_and_signaure.info), 
+                                            sizeof(image_file_header->info.image_info_and_signaure.info))) {
+            printf("firmware signature is not valid!\n");
+            return -1;
+        } else {
+            printf("firmware signature is OK!\n");
+        }
     }
 
     return 0;
@@ -260,11 +273,13 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
     }
 
 #ifndef IGNORE_HASH
-    if (0 != crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm)) {
-        printf("load_image_code_and_data: crypto_hash_init() failed!\n");
-        return -1;
+    if (!gs_vaultip_disabled) {
+        if (0 != crypto_hash_init(&hash_context, image_info->public_info.code_and_data_hash_algorithm)) {
+            printf("load_image_code_and_data: crypto_hash_init() failed!\n");
+            return -1;
+        }
+        hash_context_initialized = true;
     }
-    hash_context_initialized = true;
 #endif
 
     for (region_no = 0; region_no < image_info->secret_info.load_regions_count; region_no++) {
@@ -284,26 +299,28 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
             }
             printf("loaded 0x%x bytes at 0x%08lx\n", image_info->secret_info.load_regions[region_no].load_size, load_address.u64);
 
-            if (0 != (image_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED)) {
-                // hash encrypted data
-                if (0 != crypto_hash_update(&encrypted_hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
+            if (!gs_vaultip_disabled) {
+                if (0 != (image_file_header->info.file_header_flags & ESPERANTO_IMAGE_FILE_HEADER_FLAGS_ENCRYPTED)) {
+                    // hash encrypted data
+                    if (0 != crypto_hash_update(&encrypted_hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
+                        printf("load_image_code_and_data: crypto_hash_update() failed!\n");
+                        goto CLEANUP_ON_ERROR;
+                    }
+
+                    // decrypt data
+                    if (0 != crypto_aes_decrypt_update(&gs_aes_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
+                        printf("load_image_code_and_data: crypto_aes_decrypt_update() failed!\n");
+                        goto CLEANUP_ON_ERROR;
+                    }
+                }
+
+#ifndef IGNORE_HASH
+                if (0 != crypto_hash_update(&hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
                     printf("load_image_code_and_data: crypto_hash_update() failed!\n");
                     goto CLEANUP_ON_ERROR;
                 }
-
-                // decrypt data
-                if (0 != crypto_aes_decrypt_update(&gs_aes_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
-                    printf("load_image_code_and_data: crypto_aes_decrypt_update() failed!\n");
-                    goto CLEANUP_ON_ERROR;
-                }
-            }
-
-#ifndef IGNORE_HASH
-            if (0 != crypto_hash_update(&hash_context, (void*)load_address.u64, image_info->secret_info.load_regions[region_no].load_size)) {
-                printf("load_image_code_and_data: crypto_hash_update() failed!\n");
-                goto CLEANUP_ON_ERROR;
-            }
 #endif
+            }
             total_length = total_length + image_info->secret_info.load_regions[region_no].load_size;
         }
 
@@ -333,15 +350,19 @@ static int load_image_code_and_data( ESPERANTO_FLASH_REGION_ID_t region_id, cons
     }
 
 #ifndef IGNORE_HASH
-    if (0 != crypto_hash_final(&hash_context, NULL, 0, total_length, hash)) {
-        printf("load_image_code_and_data: crypto_hash_final() failed!\n");
-        goto CLEANUP_ON_ERROR;
-    }
-    hash_context_initialized = false;
+    if (gs_vaultip_disabled || gs_ignore_signatures) {
+        MESSAGE_INFO("Image HASH IGN\n");
+    } else {
+        if (0 != crypto_hash_final(&hash_context, NULL, 0, total_length, hash)) {
+            printf("load_image_code_and_data: crypto_hash_final() failed!\n");
+            goto CLEANUP_ON_ERROR;
+        }
+        hash_context_initialized = false;
 
-    if (0 != constant_time_memory_compare(hash, image_info->public_info.code_and_data_hash, code_and_data_hash_size)) {
-        printf("load_image_code_and_data: code+data hash mismatch!\n");
-        goto CLEANUP_ON_ERROR;
+        if (0 != constant_time_memory_compare(hash, image_info->public_info.code_and_data_hash, code_and_data_hash_size)) {
+            printf("load_image_code_and_data: code+data hash mismatch!\n");
+            goto CLEANUP_ON_ERROR;
+        }
     }
 #endif
 
@@ -380,6 +401,16 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type) {
     gs_mack_created = false;
     gs_enck_created = false;
     gs_aes_context_created = false;
+
+    gs_vaultip_disabled = false;
+    gs_ignore_signatures = false;
+
+    if (0 != sp_otp_get_vaultip_chicken_bit(&gs_vaultip_disabled)) {
+        gs_vaultip_disabled = false;
+    }
+    if (0 != sp_otp_get_signatures_check_chicken_bit(&gs_ignore_signatures)) {
+        gs_ignore_signatures = false;
+    }
 
     switch (image_type) {
     // case ESPERANTO_IMAGE_TYPE_SP_BL1:

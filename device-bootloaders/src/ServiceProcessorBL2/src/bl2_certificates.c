@@ -18,11 +18,15 @@
 
 #include "bl2_main.h"
 #include "bl2_certificates.h"
+#include "bl2_sp_otp.h"
 #include "bl2_flashfs_driver.h"
 #include "constant_memory_compare.h"
 #include "bl2_crypto.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
+
+static bool gs_vaultip_disabled;
+static bool gs_ignore_signatures;
 
 static void dump_sha512(const uint8_t hash[512/8]) {
     printf("%02x%02x%02x%02x%02x%02x..%02x%02x%02x%02x%02x%02x\n",
@@ -192,12 +196,16 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
             return -1;
         }
 
-        if (0 != crypto_verify_pk_signature(&(parent_certificate->certificate_info.subject_public_key), 
-                                            &(certificate->certificate_info_signature), 
-                                            &(certificate->certificate_info),
-                                            sizeof(certificate->certificate_info))) {
-            printf("enhanced_certificate_check: signature check failed!\n");
-            return -1;
+        if (gs_ignore_signatures) {
+            MESSAGE_INFO("CRT SIG IGN\n");
+        } else {
+            if (0 != crypto_verify_pk_signature(&(parent_certificate->certificate_info.subject_public_key), 
+                                                &(certificate->certificate_info_signature), 
+                                                &(certificate->certificate_info),
+                                                sizeof(certificate->certificate_info))) {
+                printf("enhanced_certificate_check: signature check failed!\n");
+                return -1;
+            }
         }
     }
 
@@ -218,6 +226,11 @@ int verify_esperanto_image_certificate(const ESPERANTO_IMAGE_TYPE_t image_type, 
     SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
     uint32_t designation_flags;
     const ESPERANTO_CERTIFICATE_t * parent_certificate;
+
+    if (gs_vaultip_disabled) {
+        MESSAGE_ERROR("CE DIS!\n");
+        return -1;
+    }
 
     switch (image_type) {
     case ESPERANTO_IMAGE_TYPE_SP_BL1:
@@ -283,9 +296,24 @@ int load_sw_certificates_chain(void) {
     uint32_t sw_certificates_size;
     SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
 
-    if (0 != is_sw_root_ca_hash_provisioned(&sw_root_ca_hash_available)) {
-        printf("is_sw_root_ca_hash_provisioned() failed!\n");
-        return -1;
+    gs_vaultip_disabled = false;
+    gs_ignore_signatures = false;
+
+    if (0 != sp_otp_get_vaultip_chicken_bit(&gs_vaultip_disabled)) {
+        gs_vaultip_disabled = false;
+    }
+    if (0 != sp_otp_get_signatures_check_chicken_bit(&gs_ignore_signatures)) {
+        gs_ignore_signatures = false;
+    }
+
+    if (gs_vaultip_disabled) {
+        printf("VaultIP disabled!  Check for SW ROOT CA HASH in VaultIP OTP skipped!\n");
+        sw_root_ca_hash_available = false;
+    } else {
+        if (0 != is_sw_root_ca_hash_provisioned(&sw_root_ca_hash_available)) {
+            printf("is_sw_root_ca_hash_provisioned() failed!\n");
+            return -1;
+        }
     }
 
     if (!sw_root_ca_hash_available) {

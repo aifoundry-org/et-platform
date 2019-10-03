@@ -13,11 +13,15 @@
 
 #include "bl1_main.h"
 #include "bl1_sp_certificates.h"
+#include "bl1_sp_otp.h"
 #include "bl1_flash_fs.h"
 #include "constant_memory_compare.h"
 #include "bl1_crypto.h"
 
 #pragma GCC diagnostic ignored "-Wswitch-enum"
+
+static bool gs_vaultip_disabled;
+static bool gs_ignore_signatures;
 
 static int verify_certificate_name_sequence(const SECURITY_CERTIFICATE_NAME_SEQUENCE_t * sequence) {
     if (sequence->organization_length > sizeof(sequence->organization)) {
@@ -156,12 +160,16 @@ static int enhanced_certificate_check(const ESPERANTO_CERTIFICATE_t * certificat
             return -1;
         }
 
-        if (0 != crypto_verify_pk_signature(&(parent_certificate->certificate_info.subject_public_key), 
-                                            &(certificate->certificate_info_signature), 
-                                            &(certificate->certificate_info),
-                                            sizeof(certificate->certificate_info))) {
-            printx("enhanced_certificate_check: signature check failed!\n");
-            return -1;
+        if (gs_ignore_signatures) {
+            MESSAGE_INFO("CRT SIG IGN\n");
+        } else {
+            if (0 != crypto_verify_pk_signature(&(parent_certificate->certificate_info.subject_public_key), 
+                                                &(certificate->certificate_info_signature), 
+                                                &(certificate->certificate_info),
+                                                sizeof(certificate->certificate_info))) {
+                printx("enhanced_certificate_check: signature check failed!\n");
+                return -1;
+            }
         }
     }
 
@@ -180,6 +188,21 @@ static int verify_certificate(const ESPERANTO_CERTIFICATE_t * certificate, const
 
 int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
     SERVICE_PROCESSOR_BL1_DATA_t * bl1_data = get_service_processor_bl1_data();
+
+    gs_vaultip_disabled = false;
+    gs_ignore_signatures = false;
+
+    if (0 != sp_otp_get_vaultip_chicken_bit(&gs_vaultip_disabled)) {
+        gs_vaultip_disabled = false;
+    }
+    if (0 != sp_otp_get_signatures_check_chicken_bit(&gs_ignore_signatures)) {
+        gs_ignore_signatures = false;
+    }
+
+    if (gs_vaultip_disabled) {
+        MESSAGE_ERROR("CE DIS!\n");
+        return -1;
+    }
 
     if (0 != verify_certificate(certificate, &(bl1_data->sp_certificates[1]), ESPERANTO_CERTIFICATE_DESIGNATION_BL2_CA)) {
         printx("verify_bl2_certificate: verify_certificate(0 failed!\n");

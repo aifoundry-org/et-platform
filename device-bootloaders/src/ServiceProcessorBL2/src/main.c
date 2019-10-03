@@ -21,6 +21,7 @@
 #include "bl2_vaultip_driver.h"
 #include "bl2_reset.h"
 #include "bl2_sp_pll.h"
+#include "bl2_sp_otp.h"
 #include "bl2_minion_pll_and_dll.h"
 #include "bl2_ddr_config.h"
 
@@ -184,6 +185,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data);
 
 void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
 {
+    bool vaultip_disabled;
     const IMAGE_VERSION_INFO_t * image_version_info = get_image_version_info();
 
     // Disable buffering on stdout
@@ -206,7 +208,16 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
     }
 
     timer_init(bl1_data->timer_raw_ticks_before_pll_turned_on, bl1_data->sp_pll0_frequency);
-    
+
+    if (0 != sp_otp_init()) {
+        printf("sp_otp_init() failed!\n");
+        goto FATAL_ERROR;
+    }
+
+    if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
+        vaultip_disabled = false;
+    }
+
     //SERIAL_init(UART0);
 
     SERIAL_init(UART1);
@@ -219,18 +230,24 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
         printf("pll_init() failed!\n");
         goto FATAL_ERROR;
     }
-    if (0 != vaultip_drv_init()) {
-        printf("vaultip_drv_init() failed!\n");
-        goto FATAL_ERROR;
-    }
-    if (0 != crypto_init(bl1_data->vaultip_coid_set)) {
-        printf("crypto_init() failed!\n");
-        goto FATAL_ERROR;
+
+    if (vaultip_disabled) {
+        printf("VaultIP is disabled!\n");
+    } else {
+        if (0 != vaultip_drv_init()) {
+            printf("vaultip_drv_init() failed!\n");
+            goto FATAL_ERROR;
+        }
+        if (0 != crypto_init(bl1_data->vaultip_coid_set)) {
+            printf("crypto_init() failed!\n");
+            goto FATAL_ERROR;
+        }
     }
     if (0 != flashfs_drv_init(&g_service_processor_bl2_data.flash_fs_bl2_info, &bl1_data->flash_fs_bl1_info)) {
         printf("flashfs_drv_init() failed!\n");
         goto FATAL_ERROR;
     }
+    printf("Starting RTOS...\n");
 
     gs_taskHandleMain = xTaskCreateStatic(taskMain,
                                     "Main Task",
