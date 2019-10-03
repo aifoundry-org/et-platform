@@ -10,8 +10,8 @@
 
 #include "device-fw-fixture.h"
 
-
-TEST_F(DeviceFWTest, mb_cmd_launch) {
+// FIXME SW-987
+TEST_F(DeviceFWTest, DISABLED_mb_cmd_launch) {
 }
 
 int main(int argc, char **argv) {

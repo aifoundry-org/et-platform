@@ -13,12 +13,14 @@
 #include <thread>
 #include <chrono>
 
-TEST_F(DeviceFWTest, loadOnSysEMU) {
+// FIXME SW-987
+TEST_F(DeviceFWTest, DISABLED_loadOnSysEMU) {
   // Do nothing make sure that the fixture starts/stop the simulator correctly
 }
 
 // Wait for device-fw to raise an interrupt from device to host
-TEST_F(DeviceFWTest, waitForHostInterrupt) {
+// FIXME SW-987
+TEST_F(DeviceFWTest, DISABLED_waitForHostInterrupt) {
   auto *target_device_ptr = &dev_->getTargetDevice();
 
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
@@ -31,7 +33,8 @@ TEST_F(DeviceFWTest, waitForHostInterrupt) {
 }
 
 // Wait for the mailbox to get ready
-TEST_F(DeviceFWTest, waitForMailboxReady) {
+// FIXME SW-987
+TEST_F(DeviceFWTest, DISABLED_waitForMailboxReady) {
 
   auto *target_device_ptr = &dev_->getTargetDevice();
 
