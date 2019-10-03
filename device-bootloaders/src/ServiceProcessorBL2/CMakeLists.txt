@@ -31,6 +31,7 @@ set(SOURCES
     src/bl2_firmware_loader.c
     src/bl2_reset.c
     src/bl2_sp_pll.c
+    src/bl2_sp_otp.c
     src/bl2_ddr_config.c
     src/bl2_minion_pll_and_dll.c
     src/bl2_timer.c
