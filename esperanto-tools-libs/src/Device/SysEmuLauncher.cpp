@@ -28,6 +28,8 @@ using namespace std;
 
 ABSL_FLAG(bool, sysemu_log_enable, false, "Enable sysemu logging");
 ABSL_FLAG(int64_t, sysemu_log_minion, -1, "Enable logging of minion X");
+ABSL_FLAG(std::string, sysemu_pu_uart_tx_file, "", "Set sysemu PU UART TX log file");
+ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "", "Set sysemu PU UART1 TX log file");
 
 namespace et_runtime {
 namespace device {
@@ -60,6 +62,14 @@ SysEmuLauncher::SysEmuLauncher(
   if (auto mx = absl::GetFlag(FLAGS_sysemu_log_minion); mx > 0) {
     execute_args_.insert(execute_args_.end(),
                          {"-l", "-lm", fmt::format("{}", mx)});
+  }
+  if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart_tx_file); !file.empty()) {
+    execute_args_.push_back("-pu_uart_tx_file");
+    execute_args_.push_back(file);
+  }
+  if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart1_tx_file); !file.empty()) {
+    execute_args_.push_back("-pu_uart1_tx_file");
+    execute_args_.push_back(file);
   }
 }
 
