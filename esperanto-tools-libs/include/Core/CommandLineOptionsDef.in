@@ -27,13 +27,16 @@
 //       name_suf  name-suf  abseil-type  llvm-type  Help
 ETRT_OPT(fw_type, fw-type, std::string, FWType, "Specify the type of FW to load on the target: device-fw, fake-fw")
 ETRT_OPT(dev_target, dev-target, std::string, DeviceTargetOption, "Specify the target device or simulator we would like to talk to: pcie , sysemu_grpc, device_grpc")
-ETRT_OPT(master_minion_elf, master-minion-elf, std::string, std::string, "Path to the MasterMiniion.elf file")
-ETRT_OPT(worker_minion_elf, worker-minion-elf, std::string, std::string, "Path to the WorkerMiniion.elf file")
-ETRT_OPT(machine_minion_elf, machine-minion-elf, std::string, std::string, "Path to the MachineMiniion.elf file")
+ETRT_OPT(master_minion_elf, master-minion-elf, std::string, std::string, "Path to the MasterMinion.elf file")
+ETRT_OPT(worker_minion_elf, worker-minion-elf, std::string, std::string, "Path to the WorkerMinion.elf file")
+ETRT_OPT(machine_minion_elf, machine-minion-elf, std::string, std::string, "Path to the MachineMinion.elf file")
 ETRT_OPT(sysemu_path, sysemu-path, std::string, std::string, "Path to sysemu")
 ETRT_OPT(shires, shires, std::string, std::string, "Number of active shires")
 
 // Sysemu Options
 ETRT_OPT(sysemu_log_enable, sysemu-log-enable, bool, bool, "Enable sysemu logging")
 ETRT_OPT(sysemu_log_minion, sysemu-log-minion, int64_t, int64_t, "Enable sysemu logging for minion X")
+ETRT_OPT(sysemu_pu_uart_tx_file, sysemu-pu-uart-tx-file, std::string, std::string, "Set sysemu PU UART TX log file")
+ETRT_OPT(sysemu_pu_uart1_tx_file, sysemu-pu-uart1-tx-file, std::string, std::string, "Set sysemu PU UART1 TX log file")
+
 #undef ETRT_OPT
