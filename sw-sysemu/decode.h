@@ -98,13 +98,13 @@
    LOG(DEBUG, "\tMEM%zu[0x%" PRIx64 "] = 0x%llx", size_t(size) , addr, static_cast<unsigned long long>(value))
 
 #define LOG_MEMWRITE128(addr, ptr) \
-   LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] : {" \
+   LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] = {" \
        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
        " }", addr, \
        ptr[0], ptr[1], ptr[2], ptr[3])
 
 #define LOG_MEMWRITE512(addr, ptr) \
-   LOG(DEBUG, "\tMEM512[0x%" PRIx64 "] : {" \
+   LOG(DEBUG, "\tMEM512[0x%" PRIx64 "] = {" \
        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
        " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
        " 8:0x%08" PRIx32 " 9:0x%08" PRIx32 " 10:0x%08" PRIx32 " 11:0x%08" PRIx32 \

@@ -2883,7 +2883,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
                 bemu::pmemread512(paddr, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
                 bemu::pmemwrite512(l2scp_addr, tmp.u32.data());
-                LOG_MEMWRITE512(paddr, tmp.u32);
+                LOG_MEMWRITE512(l2scp_addr, tmp.u32);
             }
             catch (const sync_trap_t&) {
                 update_tensor_error(1 << 7);
