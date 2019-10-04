@@ -1146,6 +1146,11 @@ static void csrset(uint16_t src1, uint64_t val)
         // Preserve sd, sxl, uxl, tsr, tw, tvm, mprv, xs, mpp, mpie, mie
         // Modify mxr, sum, fs, spp, spie, (upie=0), sie, (uie=0)
         val = (val & 0x00000000000C6122ULL) | (cpu[current_thread].mstatus & 0x0000000F00739888ULL);
+        // Setting fs=1 or fs=2 will set fs=3
+        if (val & 0x6000ULL)
+        {
+            val |= 0x6000ULL;
+        }
         // Set sd if fs==3 or xs==3
         if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
         {
@@ -1213,6 +1218,11 @@ static void csrset(uint16_t src1, uint64_t val)
         // Preserve sd, sxl, uxl, xs
         // Write all others (except upie=0, uie=0)
         val = (val & 0x00000000007E79AAULL) | (cpu[current_thread].mstatus & 0x0000000F00018000ULL);
+        // Setting fs=1 or fs=2 will set fs=3
+        if (val & 0x6000ULL)
+        {
+            val |= 0x6000ULL;
+        }
         // Set sd if fs==3 or xs==3
         if ((((val >> 13) & 0x3) == 0x3) || (((val >> 15) & 0x3) == 0x3))
         {

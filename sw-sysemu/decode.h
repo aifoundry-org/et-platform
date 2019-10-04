@@ -220,7 +220,7 @@
 
 #define require_fp_active() do { \
     extern uint32_t current_inst; \
-    if ((cpu[current_thread].mstatus & 0x0006000ULL) == 0) \
+    if ((cpu[current_thread].mstatus & 0x6000ULL) == 0) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
@@ -516,7 +516,7 @@ inline mreg_t mkmask(unsigned len) {
 
 
 #define dirty_fp_state() do { \
-    cpu[current_thread].mstatus |= 0x8000000000006000ULL; \
+    /*cpu[current_thread].mstatus |= 0x8000000000006000ULL;*/ \
 } while (0)
 
 
