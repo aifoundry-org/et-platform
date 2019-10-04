@@ -29,7 +29,7 @@ MEMORY
 
 SECTIONS
 {
-    .text :
+    .text : ALIGN(128)
     {
         *(SORT_BY_ALIGNMENT(.text) SORT_BY_ALIGNMENT(.text.*) SORT_BY_ALIGNMENT(.gnu.linkonce.t.*))
     } > CODE
@@ -47,7 +47,6 @@ SECTIONS
     .sdata2 :
     {
         *(SORT_BY_ALIGNMENT(.sdata2) SORT_BY_ALIGNMENT(.sdata2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s2.*))
-        . = ALIGN(128);
     } > CODE
 
     .sbss2 :
@@ -55,14 +54,13 @@ SECTIONS
         *(SORT_BY_ALIGNMENT(.sbss2) SORT_BY_ALIGNMENT(.sbss2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.sb2.*))
     } > CODE
 
-    .data :
+    .data : ALIGN(128)
     {
-        /* Align here to ensure crt.S data init asm has aligned start end address */
-        . = ALIGN(4);
+        /* ALIGN(128) above should ensure crt.S data init asm has 64-bit aligned start address */
         __data_start = .;
 
         *(SORT_BY_ALIGNMENT(.data) SORT_BY_ALIGNMENT(.data.*) SORT_BY_ALIGNMENT(.gnu.linkonce.d.*))
-    } > DATA
+    } > DATA 
 
     /* We want the small data sections together, so single-instruction offsets
       can access them all, and initialized data all before uninitialized, so
@@ -80,16 +78,14 @@ SECTIONS
         *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
         *(SORT_BY_ALIGNMENT(.sdata) SORT_BY_ALIGNMENT(.sdata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s.*))
 
-        /* Align here to ensure crt.S data init asm has aligned end address */
-        /*. = ALIGN(4);*/
-        . = ALIGN(128);
+        /* Align here to ensure crt.S data init asm has 64-bit aligned end address */
+        . = ALIGN(8);
         __data_end = .;
     } > DATA
 
-    .bss (NOLOAD) :
+    .bss (NOLOAD) : ALIGN(128)
     {
-        /* Align here to ensure crt.S bss init asm has an aligned start address */
-        . = ALIGN(4);
+        /* ALIGN(128) above should ensure crt.S bss init asm has a 64-bit aligned start address */
         __bss_start = .;
 
         *(.bss .bss.* .gnu.linkonce.b.*)
@@ -99,8 +95,8 @@ SECTIONS
     {
         *(.sbss .sbss.* .gnu.linkonce.sb.*)
 
-        /* Align here to ensure crt.S bss init asm has an aligned end address */
-        . = ALIGN(4);
+        /* Align here to ensure crt.S bss init asm has a 64-bit aligned end address */
+        . = ALIGN(8);
         __bss_end = .;
     } > DATA
 
