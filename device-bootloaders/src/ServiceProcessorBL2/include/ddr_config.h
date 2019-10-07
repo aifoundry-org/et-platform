@@ -13,7 +13,7 @@ Attachments
 11:09 AM (0 minutes ago)
 to me
 
- 
+
 
 Attachments area
 */
@@ -27,9 +27,9 @@ Attachments area
 // The general flow is:
 // 1) Turn off the APB reset and set Power OK by writing to the the ddrc_reset_ctl (a memshire/DDRC ESR)
 // 2) Configure the memory controller main blocks by writing to various registers in both controllers
-// 3) Turn off the core and AXI resets by writing to the ddrc_reset_ctl 
-// 4) Turn off the PUB reset by writing to the ddrc_reset_ctl 
-// 5) Configure the PUB (PHY) by writing to various PUB registers 
+// 3) Turn off the core and AXI resets by writing to the ddrc_reset_ctl
+// 4) Turn off the PUB reset by writing to the ddrc_reset_ctl
+// 5) Configure the PUB (PHY) by writing to various PUB registers
 // 6) Wait for PHY init to complete by polling a memory controller register
 // 7) finalize initialzation  by writing a few memory controller registers
 //
@@ -41,9 +41,9 @@ Attachments area
 // read_esr  <register_name>          : read an esr in the memshire
 //
 // write_both_ddrc_reg <reg> <value>  : write a value to a memory controller register in both memory controllers
-// write_ddrc_reg <blk> <reg> <value> : write a value to particular memory controller block:  
+// write_ddrc_reg <blk> <reg> <value> : write a value to particular memory controller block:
 //                                    : 0 = mem controller 0, 1 = mem controller 1, 2 = PUB (PHY)
-// read_ddrc_reg <blk> <reg>          : read a value to particular memory controller block:  
+// read_ddrc_reg <blk> <reg>          : read a value to particular memory controller block:
 //                                    : 0 = mem controller 0, 1 = mem controller 1, 2 = PUB (PHY)
 //
 // poll_ddrc_reg <blk> <reg> <value> <mask> <timeout> : continues to issue read_ddrc_reg <blk> <reg> until
@@ -52,40 +52,20 @@ Attachments area
 //
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-static inline uint64_t *set_address(uint32_t memshire_id, uint64_t address)
+static inline void write_reg(uint32_t memshire_id, uint64_t address, uint32_t value)
 {
    if (address & 0x100000000)
-      return ((uint64_t*)(address | ((0xe8 + memshire_id) << 22)));      
-   else 
-      return ((uint64_t*)(address | (memshire_id << 26)) );
+      *(volatile uint64_t*)(address | ((0xe8 + memshire_id) << 22)) = value;
+   else
+      *(volatile uint32_t*)(address | (memshire_id << 26)) = value;
 }
 
-static inline void write_reg(uint32_t memshire_id, uint64_t address, uint32_t value){
-   uint64_t* addr64;
-   uint32_t* addr32;
-
-   if (address & 0x100000000){
-      addr64 =(uint64_t*)set_address(memshire_id, address);
-      *addr64 = value;
-   }
-   else{
-      addr32 =(uint32_t*)set_address(memshire_id, address);
-      *addr32 = value;
-   }
-}
-
-static inline uint32_t read_reg(uint32_t memshire_id, uint64_t address){
-   uint64_t *addr64;
-   uint32_t *addr32;
-   
-   if (address & 0x100000000){
-      addr64 =(uint64_t*)set_address(memshire_id, address);
-      return (uint32_t)(*addr64);
-   }
-   else{ 
-      addr32 =(uint32_t*)set_address(memshire_id, address);
-      return (*addr32);
-   }
+static inline uint32_t read_reg(uint32_t memshire_id, uint64_t address)
+{
+   if (address & 0x100000000)
+      return (uint32_t)*(volatile uint64_t*)(address | ((0xe8 + memshire_id) << 22));
+   else
+      return *(volatile uint32_t*)(address | (memshire_id << 26));
 }
 
 static void ddr_init(uint32_t memshire_id ){
@@ -117,13 +97,13 @@ write_reg( memshire_id, 0x60001304, 0x00000001);
 write_reg( memshire_id, 0x60000030, 0x00000001);
 write_reg( memshire_id, 0x60001030, 0x00000001);
 
-// make sure operating mode is Init 
+// make sure operating mode is Init
 value_read = read_reg( memshire_id, 0x60000004);
-while(!((value_read & 0x7) == 0)) 
+while(!((value_read & 0x7) == 0))
    value_read = read_reg( memshire_id, 0x60000004);
 
 value_read = read_reg( memshire_id, 0x60001004);
-while(!((value_read & 0x7) == 0)) 
+while(!((value_read & 0x7) == 0))
    value_read = read_reg( memshire_id, 0x60001004);
 
 //////////////////////////////////////////////////////////////////////
@@ -349,18 +329,18 @@ while(!((value_read & 0x1ff) == 0))
    value_read = read_reg( memshire_id, 0x60000030);
 
 value_read = read_reg( memshire_id, 0x60000030);
-while(!((value_read & 0x1ff) == 0)) 
+while(!((value_read & 0x1ff) == 0))
    value_read = read_reg( memshire_id, 0x60000030);
 
 write_reg( memshire_id, 0x60000030, 0x00000000);
 write_reg( memshire_id, 0x60001030, 0x00000000);
 
 value_read = read_reg( memshire_id, 0x60000030);
-while(!((value_read & 0x1ff) == 0)) 
+while(!((value_read & 0x1ff) == 0))
    value_read = read_reg( memshire_id, 0x60000030);
 
 value_read = read_reg( memshire_id, 0x60000030);
-while(!((value_read & 0x1ff) == 0)) 
+while(!((value_read & 0x1ff) == 0))
    value_read = read_reg( memshire_id, 0x60000030);
 
 write_reg( memshire_id, 0x60000030, 0x00000000);
@@ -373,55 +353,55 @@ write_reg( memshire_id, 0x600001b0, 0x00001080);
 write_reg( memshire_id, 0x600011b0, 0x00001080);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// These are probably optional, but good to make sure 
+// These are probably optional, but good to make sure
 // the memory controllers are in the expected state
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 value_read = read_reg( memshire_id, 0x600000d0);
-while(!((value_read & 0xffffffff) == 0x00020002)) 
+while(!((value_read & 0xffffffff) == 0x00020002))
    value_read = read_reg( memshire_id, 0x600000d0);
 
 value_read = read_reg( memshire_id, 0x600001c0);
-while(!((value_read & 0xffffffff) == 0x00000001)) 
+while(!((value_read & 0xffffffff) == 0x00000001))
    value_read = read_reg( memshire_id, 0x600001c0);
 
 value_read = read_reg( memshire_id, 0x60000000);
-while(!((value_read & 0xffffffff) == 0x00080020)) 
+while(!((value_read & 0xffffffff) == 0x00080020))
    value_read = read_reg( memshire_id, 0x60000000);
 
 value_read = read_reg( memshire_id, 0x600000dc);
-while(!((value_read & 0xffffffff) == 0x0074007f)) 
+while(!((value_read & 0xffffffff) == 0x0074007f))
    value_read = read_reg( memshire_id, 0x600000dc);
 
 value_read = read_reg( memshire_id, 0x600000e0);
-while(!((value_read & 0xffffffff) == 0x00330000)) 
+while(!((value_read & 0xffffffff) == 0x00330000))
    value_read = read_reg( memshire_id, 0x600000e0);
 
 value_read = read_reg( memshire_id, 0x600000e8);
-while(!((value_read & 0xffffffff) == 0x0000004d)) 
+while(!((value_read & 0xffffffff) == 0x0000004d))
    value_read = read_reg( memshire_id, 0x600000e8);
 
 value_read = read_reg( memshire_id, 0x600010d0);
-while(!((value_read & 0xffffffff) == 0x00020002)) 
+while(!((value_read & 0xffffffff) == 0x00020002))
    value_read = read_reg( memshire_id, 0x600010d0);
 
 value_read = read_reg( memshire_id, 0x600011c0);
-while(!((value_read & 0xffffffff) == 0x00000001)) 
+while(!((value_read & 0xffffffff) == 0x00000001))
    value_read = read_reg( memshire_id, 0x600011c0);
 
 value_read = read_reg( memshire_id, 0x60001000);
-while(!((value_read & 0xffffffff) == 0x00080020)) 
+while(!((value_read & 0xffffffff) == 0x00080020))
    value_read = read_reg( memshire_id, 0x60001000);
 
 value_read = read_reg( memshire_id, 0x600010dc);
-while(!((value_read & 0xffffffff) == 0x0074007f)) 
+while(!((value_read & 0xffffffff) == 0x0074007f))
    value_read = read_reg( memshire_id, 0x600010dc);
 
 value_read = read_reg( memshire_id, 0x600010e0);
-while(!((value_read & 0xffffffff) == 0x00330000)) 
+while(!((value_read & 0xffffffff) == 0x00330000))
    value_read = read_reg( memshire_id, 0x600010e0);
 
 value_read = read_reg( memshire_id, 0x600010e8);
-while(!((value_read & 0xffffffff) == 0x0000004d)) 
+while(!((value_read & 0xffffffff) == 0x0000004d))
    value_read = read_reg( memshire_id, 0x600010e8);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -432,7 +412,7 @@ write_reg( memshire_id, 0x1c0000200, 0x0000000c);
 //value_read = read_reg( memshire_id, 0x1c0000200);
 addr64 =(uint64_t*)(0x1c0000200 | ((0xe8 + memshire_id) << 22));
 value_read = (uint32_t)*addr64;
-while(!((value_read & 0xffffffff) == 0x0000000c)) 
+while(!((value_read & 0xffffffff) == 0x0000000c))
     value_read = (uint32_t)*addr64;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -443,11 +423,11 @@ write_reg( memshire_id, 0x1c0000200, 0x00000008);
 //value_read = read_reg( memshire_id, 0x1c0000200);
 addr64 =(uint64_t*)(0x1c0000200 | ((0xe8 + memshire_id) << 22));
 value_read = (uint32_t)*addr64;
-while(!((value_read & 0xffffffff) == 0x00000008)) 
+while(!((value_read & 0xffffffff) == 0x00000008))
    value_read = read_reg( memshire_id, 0x1c0000200);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Execute routine to initialize the phy 
+// Execute routine to initialize the phy
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //set my_repo_root [get_env REPOROOT]
 //set procs_file "${my_repo_root}/dv/tests/memshire/tcl_tests/tcl_scripts/lib/phy_init.tcl"
@@ -1181,11 +1161,11 @@ write_reg( memshire_id, 0x600011b0, 0x000010a0);
 // wait for init complete
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 value_read = read_reg( memshire_id, 0x600001bc);
-while(!((value_read & 0x1) == 1)) 
+while(!((value_read & 0x1) == 1))
    value_read = read_reg( memshire_id, 0x600001bc);
 
 value_read = read_reg( memshire_id, 0x600011bc);
-while(!((value_read & 0x1) == 1)) 
+while(!((value_read & 0x1) == 1))
    value_read = read_reg( memshire_id, 0x600011bc);
 
 write_reg( memshire_id, 0x600001b0, 0x00001080);
@@ -1198,31 +1178,31 @@ write_reg( memshire_id, 0x60000320, 0x00000001);
 write_reg( memshire_id, 0x60001320, 0x00000001);
 
 value_read = read_reg( memshire_id, 0x60000324);
-while(!((value_read & 0x1) == 1)) 
+while(!((value_read & 0x1) == 1))
    value_read = read_reg( memshire_id, 0x60000324);
 
 value_read = read_reg( memshire_id, 0x60001324);
-while(!((value_read & 0x1) == 1)) 
+while(!((value_read & 0x1) == 1))
    value_read = read_reg( memshire_id, 0x60001324);
 
 
 //value_read = read_reg( memshire_id, 0x60000004);
-//while(!((value_read & 0x1) == 1)) 
+//while(!((value_read & 0x1) == 1))
 //   value_read = read_reg( memshire_id, 0x60000004);
 
 volatile uint32_t* addr32 =(uint32_t*)(0x60000004);
 uint32_t value_32_read = *addr32;
-while(!((value_32_read & 0x1) == 1)) 
+while(!((value_32_read & 0x1) == 1))
 {
    value_32_read = *addr32;
 }
 
 //value_read = read_reg( memshire_id, 0x60001004);
-//while(!((value_read & 0x1) == 1)) 
+//while(!((value_read & 0x1) == 1))
 //   value_read = read_reg( memshire_id, 0x60001004);
 addr32 =(uint32_t*)(0x60001004);
 value_32_read = *addr32;
-while(!((value_32_read & 0x1) == 1)) 
+while(!((value_32_read & 0x1) == 1))
 {
    value_32_read = *addr32;
 }
@@ -1240,4 +1220,3 @@ write_reg( memshire_id, 0x60001540, 0x00000001);
 };
 //ddrc_boot_seq.txt
 //Displaying ddrc_boot_seq.txt.
-
