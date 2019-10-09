@@ -1,0 +1,37 @@
+#!/bin/bash
+
+#Sign BL1/2, Machine/Master/WorkerMinion images
+firmware-tools/code-signing-tools/build/tools/esperanto_sign_elf -N SP_BL1 build/signed_bl1.img build/src/ServiceProcessorBL1/ServiceProcessorBL1.elf firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp_bl1_certificate.crt firmware-tools/code-signing-tools/test_keys/test_sp_bl1_prv_key.json SHA2-256 0
+firmware-tools/code-signing-tools/build/tools/esperanto_sign_elf -N SP_BL2 build/signed_bl2.img build/src/ServiceProcessorBL2/ServiceProcessorBL2.elf firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp_bl2_certificate.crt firmware-tools/code-signing-tools/test_keys/test_sp_bl2_prv_key.json SHA2-256 0
+firmware-tools/code-signing-tools/build/tools/esperanto_sign_elf -N MACHINE_MINION build/signed_machine_minion.img build/src/MachineMinion/MachineMinion.elf firmware-tools/code-signing-tools/test_templates_and_certificates/test_default_machine_minion_certificate.crt firmware-tools/code-signing-tools/test_keys/test_default_machine_minion_prv_key.json SHA2-256 0
+firmware-tools/code-signing-tools/build/tools/esperanto_sign_elf -N MASTER_MINION build/signed_master_minion.img build/src/MasterMinion/MasterMinion.elf firmware-tools/code-signing-tools/test_templates_and_certificates/test_default_master_minion_certificate.crt firmware-tools/code-signing-tools/test_keys/test_default_master_minion_prv_key.json SHA2-256 0
+firmware-tools/code-signing-tools/build/tools/esperanto_sign_elf -N WORKER_MINION build/signed_worker_minion.img build/src/WorkerMinion/WorkerMinion.elf firmware-tools/code-signing-tools/test_templates_and_certificates/test_default_worker_minion_certificate.crt firmware-tools/code-signing-tools/test_keys/test_default_worker_minion_prv_key.json SHA2-256 0
+
+# Generate stage 1 PCI-E boot config ROM
+src/ServiceProcessorROM/scripts/config_rom_assembler.py --outfile build/pcie_stage_1.bin --opfile src/ServiceProcessorROM/scripts/pcie_boot_config_stage_1_no_phy_load.yaml --regfile src/ServiceProcessorROM/scripts/pcie_boot_config_regs.yaml
+
+# Generate PCI-E config data with just stage 1 for now
+firmware-tools/code-signing-tools/scripts/make_pcie_config_data.py -1 build/pcie_stage_1.bin build/pcie_config_data.bin
+
+# Sign PCI-E config data
+firmware-tools/code-signing-tools/build/tools/esperanto_sign_raw -N PCIE_PHY_FW build/signed_pcie_config_data.img build/pcie_config_data.bin firmware-tools/code-signing-tools/test_templates_and_certificates/test_pcie_config_certificate.crt firmware-tools/code-signing-tools/test_keys/test_pcie_config_prv_key.json SHA2-256 0 0 0 00000000000000000000000000000000
+
+# Build flash image
+firmware-tools/esperanto-flash-tool/build/esperanto_flash_tool create build/flash_16Mbit.img firmware-tools/esperanto-flash-tool/scripts/flash_16Mbit_template.json
+
+# Convert flash image to hex
+# See Patryk's scripts
+firmware-tools/esperanto-flash-tool/scripts/make_zebu_flash_image.py build/flash_16Mbit.hex build/flash_16Mbit.img
+
+# Zebu stuff
+
+# Load ROM
+# see /projects/esperanto/patryk/et-project/run/b_load_rom
+# it loads SP ROM and VaultIP ROM
+
+# Load flash hex
+# mem write top.spi0.zspiflash.zrm_wrapper_0 flash_16Mbit.hex
+
+# Copy OTP fuse images from /projects/esperanto/patryk/skip_vault
+
+# Run b_load_sp_otp script before the b_rst script to set OTP bypass vault fuse.
