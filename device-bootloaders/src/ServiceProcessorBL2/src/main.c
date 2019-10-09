@@ -75,7 +75,7 @@ static void taskMain(void *pvParameters)
     // Disable buffering on stdout
     setbuf(stdout, NULL);
 
-    PCIe_init(true /*expect_link_up*/);
+    //PCIe_init(true /*expect_link_up*/);
 
     printf("---------------------------------------------\n");
     printf("Starting MINIONs reset release sequence...\n");
