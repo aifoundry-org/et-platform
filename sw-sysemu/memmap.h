@@ -17,8 +17,8 @@
 // |    4G   |    8G   | 0x01_0000_0000 | 0x01_ffff_ffff | ESR region  |
 // |    8G   |  256G   | 0x02_0000_0000 | 0x3f_ffff_ffff | Reserved    |
 // |  256G   |  512G   | 0x40_0000_0000 | 0x7f_ffff_ffff | PCIe region |
-// |  512G   | 512G+2M | 0x80_0000_0000 | 0x80_001f_ffff | DRAM/Mbox   |
-// | 512G+2M |  516G   | 0x80_0020_0000 | 0x80_ffff_ffff | DRAM/OSbox  |
+// |  512G   | 512G+8M | 0x80_0000_0000 | 0x80_007f_ffff | DRAM/Mbox   |
+// | 512G+8M |  516G   | 0x80_0020_0000 | 0x80_ffff_ffff | DRAM/OSbox  |
 // |  516G   |  ...    | 0x81_0000_0000 | 0xff_ffff_ffff | DRAM/Other  |
 // +---------+---------+----------------+----------------+-------------+
 
@@ -46,6 +46,11 @@ inline bool paddr_is_sp_rom(uint64_t addr)
 inline bool paddr_is_sp_sram(uint64_t addr)
 { return (addr >= 0x0040400000ULL) && (addr < 0x0040500000ULL); }
 
+inline bool paddr_is_sp_sram_code(uint64_t addr)
+{ return (addr >= 0x0040400000ULL) && (addr < 0x0040480000ULL); }
+
+inline bool paddr_is_sp_sram_data(uint64_t addr)
+{ return (addr >= 0x0040480000ULL) && (addr < 0x0040500000ULL); }
 
 inline bool paddr_is_scratchpad(uint64_t addr)
 { return (addr >= 0x0080000000ULL) && (addr < 0x0100000000ULL); }
@@ -64,11 +69,11 @@ inline bool paddr_is_pcie_space(uint64_t addr)
 
 
 inline bool paddr_is_dram_mbox(uint64_t addr)
-{ return (addr >= 0x8000000000ULL) && (addr < 0x8000200000ULL); }
+{ return (addr >= 0x8000000000ULL) && (addr < 0x8000800000ULL); }
 
 
 inline bool paddr_is_dram_osbox(uint64_t addr)
-{ return (addr >= 0x8000200000ULL) && (addr < 0x8100000000ULL); }
+{ return (addr >= 0x8000800000ULL) && (addr < 0x8100000000ULL); }
 
 
 inline bool paddr_is_dram_other(uint64_t addr)
