@@ -872,7 +872,7 @@ uint32_t mmu_global_atomic32(uint64_t eaddr, uint32_t data,
     uint32_t oldval = bemu::pmemread<uint32_t>(paddr);
     LOG_MEMREAD(32, paddr, oldval);
     uint32_t newval = fn(oldval, data);
-    bemu::pmemwrite<uint16_t>(paddr, newval);
+    bemu::pmemwrite<uint32_t>(paddr, newval);
     LOG_MEMWRITE(32, paddr, newval);
     log_mem_read_write(true, 4, vaddr, paddr, data);
     return oldval;
