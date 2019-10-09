@@ -46,7 +46,6 @@ private:
   std::unique_ptr<SysEmuLauncher>
       sys_emu_; ///< Object responsible for lauching and monitoring
                 /// the sysemu simulator
-  std::FILE *socket_file_ = nullptr;
 
   std::string name_ = "SysEmuGRPC";
   /// @brief Wait for a connectio from SysEmu

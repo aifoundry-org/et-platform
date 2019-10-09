@@ -35,8 +35,9 @@ namespace et_runtime {
 namespace device {
 
 SysEmuLauncher::SysEmuLauncher(
-    const std::string &con, const std::vector<std::string> &additional_options)
-    : connection_(con), device_alive_(false) {
+    const std::string &run_dir, const std::string &con,
+    const std::vector<std::string> &additional_options)
+    : sysemu_run_(run_dir), connection_(con), device_alive_(false) {
   execute_args_ = {
       absl::GetFlag(FLAGS_sysemu_path), // Path to SysEMU
       "-minions",
@@ -66,15 +67,23 @@ SysEmuLauncher::SysEmuLauncher(
   if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart_tx_file); !file.empty()) {
     execute_args_.push_back("-pu_uart_tx_file");
     execute_args_.push_back(file);
+  } else {
+    execute_args_.push_back("-pu_uart_tx_file");
+    execute_args_.push_back(sysemu_run_ + "/pu_uart_tx.log");
   }
+
   if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart1_tx_file); !file.empty()) {
     execute_args_.push_back("-pu_uart1_tx_file");
     execute_args_.push_back(file);
+  } else {
+    execute_args_.push_back("-pu_uart1_tx_file");
+    execute_args_.push_back(sysemu_run_ + "/pu_uart1_tx.log");
   }
 }
 
-SysEmuLauncher::SysEmuLauncher(const std::string &con)
-    : SysEmuLauncher(con, {}) {}
+SysEmuLauncher::SysEmuLauncher(const std::string &run_dir,
+                               const std::string &con)
+    : SysEmuLauncher(run_dir, con, {}) {}
 
 SysEmuLauncher::~SysEmuLauncher() {}
 
@@ -107,10 +116,22 @@ void SysEmuLauncher::createProcess(const char *path,
       // "GRPC_VERBOSITY=DEBUG",
       NULL
     };
+    // tee sysemu to a log file and redirect there the stdout and stderr
+    auto tee_log_file = fmt::format("tee {}/sysemu.log", sysemu_run_);
+    auto tee = popen(tee_log_file.c_str(), "w");
+    assert(tee != nullptr);
+    auto pipe_fd = fileno(tee);
+    assert(pipe_fd > 0);
+    auto res = dup2(pipe_fd, STDOUT_FILENO);
+    assert(res > 0);
+    res = dup2(pipe_fd, STDERR_FILENO);
+    assert(res > 0);
     execvpe(path, const_cast<char *const *>(c_argv.get()), const_cast<char* const*>(envp)) ;
     int errno_val = errno;
 
     write(error_report_pipe_fd[1], &errno_val, sizeof(int));
+    res = pclose(tee);
+    assert(res == 0);
     exit(EXIT_FAILURE);
   }
 

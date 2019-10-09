@@ -18,8 +18,12 @@
 #include <absl/flags/flag.h>
 #include <cstdio>
 #include <experimental/filesystem>
+#include <fmt/format.h>
+#include <limits>
+#include <random>
 #include <string>
 #include <string_view>
+#include <sys/un.h>
 #include <thread>
 namespace fs = std::experimental::filesystem;
 
@@ -28,29 +32,59 @@ using namespace simulator_api;
 
 ABSL_FLAG(std::string, sysemu_path, et_runtime::device::SYSEMU_PATH,
           "Path to sysemu");
+// SysEMU run directory, there we will create the socket file and
+// store any uart logs from sysemu
+ABSL_FLAG(std::string, sysemu_run_dir, "", "Path to sysemu run folder");
 
 namespace et_runtime {
 namespace device {
 TargetSysEmu::TargetSysEmu(int index) : RPCTarget(index, "") {
-  // Create a temporary file for the socket and overwrite the
-  // one passed by the user. The following function opens the file and
-  // immediately deletes as log as it is open by the process it is still
-  // accessible.
-  socket_file_ = std::tmpfile();
-  // Get filename from the socket number
-  auto file_path =
-      fs::path("/proc/self/fd") / std::to_string(fileno(socket_file_));
-  cout << "FilePath : " + file_path.string() << "\n";
-  auto socket_name = fs::read_symlink(file_path).string();
-  // Remove the following suffix  and replace it with -sysemu.sock
-  auto pos = socket_name.find_last_not_of(" (deleted)");
-  socket_name = socket_name.substr(0, pos);
-  socket_name += "-sysemu.sock";
-  path_ = string("unix://") + socket_name;
-  sys_emu_ = make_unique<SysEmuLauncher>(path_, vector<string>({"-sim_api"}));
+  // Find the current directory
+  // Do not use the full path as the path we provide needs to fit in 107
+  // characters
+  auto cwd = fs::current_path();
+  auto pid = getpid();
+  auto opt_path = absl::GetFlag(FLAGS_sysemu_run_dir);
+  // The runtime + sysemu could be costructed/destructed multiple times in the
+  // lifetime of a process (e.g. google test) The PID is not sufficient for
+  // separating the run folder
+  std::random_device rd;
+  std::mt19937 mt(rd());
+  std::uniform_int_distribution<uint32_t> dist(
+      0, std::numeric_limits<uint32_t>::max());
+  auto rand = dist(mt);
+  auto run_folder =
+      !opt_path.empty()
+          ? fs::path(opt_path)
+          : cwd / fs::path(fmt::format("sysemu_run_{}_{}",
+                                       static_cast<uint64_t>(pid), rand));
+
+  RTINFO << "SysEmu Run Folder" << run_folder << "\n";
+  if (fs::exists(run_folder)) {
+    RTERROR << "Folder already exists " << run_folder << "\n";
+    std::terminate();
+  }
+  fs::create_directories(run_folder);
+  // Create a unique name for an abtract unix socket.
+  // Using the "@" allows us to create the socket inside the currently running
+  // directory We do not need to provide the full path to the "unix:@<SOCKET>"
+  // URL to GRPC, but this URL still  has a 107 character length limit
+  auto socket_name = fmt::format("sysemu_{}_{}.sock", pid, rand);
+  // Check that the file path we provide can fit in the max length of a socket.
+  // to be passed to GRPC
+  sockaddr_un fsocket;
+  assert(socket_name.size() < sizeof(fsocket.sun_path));
+
+  RTINFO << "Abstract unit socket name : " + socket_name << "\n";
+
+  // Use an abstract socket and not an actuall file
+  // See
+  path_ = std::string("unix:@") + socket_name;
+  sys_emu_ = make_unique<SysEmuLauncher>(run_folder.string(), path_,
+                                         vector<string>({"-sim_api"}));
 };
 
-TargetSysEmu::~TargetSysEmu() { fclose(socket_file_); }
+TargetSysEmu::~TargetSysEmu() {}
 
 bool TargetSysEmu::init() {
 

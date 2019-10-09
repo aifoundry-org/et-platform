@@ -31,6 +31,7 @@ ETRT_OPT(master_minion_elf, master-minion-elf, std::string, std::string, "Path t
 ETRT_OPT(worker_minion_elf, worker-minion-elf, std::string, std::string, "Path to the WorkerMinion.elf file")
 ETRT_OPT(machine_minion_elf, machine-minion-elf, std::string, std::string, "Path to the MachineMinion.elf file")
 ETRT_OPT(sysemu_path, sysemu-path, std::string, std::string, "Path to sysemu")
+ETRT_OPT(sysemu_run_dir, sysemu-run-dir, std::string, std::string, "Path to sysemu run folder")
 ETRT_OPT(shires, shires, std::string, std::string, "Number of active shires")
 
 // Sysemu Options

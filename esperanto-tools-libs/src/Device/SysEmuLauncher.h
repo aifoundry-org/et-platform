@@ -24,14 +24,15 @@ namespace device {
 class SysEmuLauncher {
 
 public:
-  SysEmuLauncher(const std::string &con,
+  SysEmuLauncher(const std::string &run_dir, const std::string &con,
                  const std::vector<std::string> &additional_options);
-  SysEmuLauncher(const std::string &con);
+  SysEmuLauncher(const std::string &run_dir, const std::string &con);
   ~SysEmuLauncher();
 
   bool launchSimulator();
 
 private:
+  std::string sysemu_run_; ///< Path to sysemu runfolder
   std::string connection_; ///< Path fo the socket used to talk to sysemu
   std::vector<std::string>
       execute_args_;  ///< Arguments we are going to use to instantiate sysemu
