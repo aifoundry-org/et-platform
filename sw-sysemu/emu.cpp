@@ -3960,20 +3960,22 @@ static void tensor_reduce_start(uint64_t value)
         return;
     }
 
+    // Illegal operation on a receiving minion should fail immediately
+    if ((cpu[current_thread].reduce.state == Processor::Reduce::State::Recv) &&
+        (operation == 1 || operation == 5 || operation > 8))
+    {
+        cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
+        LOG(DEBUG, "\t%s(error) illegal operation: %u", reducecmd[type], operation);
+        update_tensor_error(1 << 9);
+        return;
+    }
+
     // Sending or receiving 0 registers means do nothing
-    // NB: This check has lower priority than "other_thread == this_thread" because
+    // NB: This check has lower priority than other errors because
     // tensor_error[9] should be set even when "count" == 0".
     if (cpu[current_thread].reduce.count == 0) {
         cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
         LOG(DEBUG, "\t%s(skip) num_reg: 0", reducecmd[type]);
-        return;
-    }
-
-    // Illegal operation should fail immediately
-    if (operation == 1 || operation == 5 || operation > 8) {
-        cpu[current_thread].reduce.state = Processor::Reduce::State::Skip;
-        LOG(DEBUG, "\t%s(error) illegal operation: %u", reducecmd[type], operation);
-        update_tensor_error(1 << 9);
         return;
     }
 
