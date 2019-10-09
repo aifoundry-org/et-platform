@@ -144,13 +144,15 @@ bool SysEmuLauncher::launchSimulator() {
   RTINFO << "Wait for SysEmu process to terminate: " << pid;
   int wstatus = 0;
   auto ret_value = waitpid(pid, &wstatus, 0);
-  if (ret_value < 0) {
-    if (!WIFEXITED(wstatus)) {
-      RTERROR << "SysEmu terminated abnormally";
-      abort();
-    }
+  // on success we get the pid we waited on
+  assert(ret_value == pid);
+  if (WIFEXITED(wstatus) && WEXITSTATUS(wstatus) == 0) {
+    return true;
   }
-  return true;
+
+  RTERROR << "SysEmu terminated abnormally";
+  abort();
+  return false;
 }
 
 } // namespace device
