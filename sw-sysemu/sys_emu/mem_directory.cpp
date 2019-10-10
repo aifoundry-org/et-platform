@@ -687,11 +687,21 @@ bool mem_directory::access(uint64_t addr, mem_access_type macc, cacheop_type cop
     case Mem_Access_LoadG:
         location = COH_GLOBAL;
         break;
-    case Mem_Access_TxLoad: // Normal op. Tensor load 0 reads from L2 SCP and stores into L1 SCP, tensor load 1 reads from L2 SCP into buffer in the VPU. Can we distinguish both cases in BEMU?
+    case Mem_Access_TxLoad:
+        location = COH_SHIRE;
+        break;
+    case Mem_Access_TxLoadL2Scp:
         location = COH_GLOBAL;
         break;
-    case Mem_Access_Prefetch: // Prefetch cache-op. Like a load from L2 to L1. The lookup op will fail if the line has not been written by the minion
-        //location = COH_MINION;  // TODO I need Minion, local, and global identifiers for Mem_Access_Prefetch.
+    case Mem_Access_Prefetch:
+        if     (cop == CacheOp_PrefetchL1)
+            location = COH_MINION;
+        else if(cop == CacheOp_PrefetchL2)
+            location = COH_SHIRE;
+        else if(cop == CacheOp_PrefetchL3)
+            location = COH_GLOBAL;
+        else
+            LOG_ALL_MINIONS(FTL, "Invalid CacheOp type %i for prefetch!!\n", (int) cop);
         break;
     case Mem_Access_Store:
         operation = 2;
@@ -705,7 +715,7 @@ bool mem_directory::access(uint64_t addr, mem_access_type macc, cacheop_type cop
         operation = 2;
         location  = COH_GLOBAL;
         break;
-    case Mem_Access_TxStore: // Normal op. Tensor store to L1
+    case Mem_Access_TxStore:
         operation = 2;
         location  = COH_CB;
         break;
@@ -722,7 +732,7 @@ bool mem_directory::access(uint64_t addr, mem_access_type macc, cacheop_type cop
             operation = 6;
         else
             LOG_ALL_MINIONS(FTL, "CacheOp %i not supported yet!!\n", (int) cop);
-        if((cop == CacheOp_None) || (cop == CacheOp_EvictL3) || (cop == CacheOp_EvictDDR))
+        if((cop == CacheOp_EvictL3) || (cop == CacheOp_EvictDDR))
             location = COH_GLOBAL;
         else if((cop == CacheOp_EvictL2))
             location = COH_SHIRE;

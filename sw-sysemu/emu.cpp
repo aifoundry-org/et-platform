@@ -2002,9 +2002,18 @@ static void dcache_evict_flush_vaddr(bool evict, bool tm, int dest, uint64_t vad
         try
         {
             cacheop_type cop = CacheOp_None;
-            if     (dest == 1) cop = CacheOp_EvictL2;
-            else if(dest == 2) cop = CacheOp_EvictL3;
-            else if(dest == 3) cop = CacheOp_EvictDDR;
+            if(evict)
+            {
+                if     (dest == 1) cop = CacheOp_EvictL2;
+                else if(dest == 2) cop = CacheOp_EvictL3;
+                else if(dest == 3) cop = CacheOp_EvictDDR;
+            }
+            else
+            {
+                if     (dest == 1) cop = CacheOp_FlushL2;
+                else if(dest == 2) cop = CacheOp_FlushL3;
+                else if(dest == 3) cop = CacheOp_FlushDDR;
+            }
             paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), cop);
         }
         catch (const sync_trap_t& t)
@@ -2032,13 +2041,17 @@ static void dcache_prefetch_vaddr(uint64_t val)
     if (dest == 3)
         return;
 
+    cacheop_type       cop = CacheOp_PrefetchL1;
+    if     (dest == 1) cop = CacheOp_PrefetchL2;
+    else if(dest == 2) cop = CacheOp_PrefetchL3;
+
     for (int i = 0; i < count; i++, vaddr += stride)
     {
         if (!tm || tmask_pass(i))
         {
             try {
                 cache_line_t tmp;
-                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch, mreg_t(-1));
+                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_Prefetch, mreg_t(-1), cop);
                 bemu::pmemread512(paddr, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
             }
@@ -2135,7 +2148,7 @@ static void dcache_lock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __at
         try {
             // LockVA is a hint, so no need to model soft-locking of the cache.
             // We just need to make sure we zero the cache line.
-            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_None);
+            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_Lock);
             bemu::pmemwrite512(paddr, tmp.u32.data());
             LOG_MEMWRITE512(paddr, tmp.u32);
             LOG(DEBUG, "\tDoing LockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
@@ -2162,7 +2175,7 @@ static void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __
 
         try {
             // Soft-locking of the cache is not modeled, so there is nothing more to do here.
-            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_None);
+            uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_CacheOp, mreg_t(-1), CacheOp_Unlock);
             LOG(DEBUG, "\tDoing UnlockVA: 0x%016" PRIx64 " (0x%016" PRIx64 ")", vaddr, paddr);
         }
         catch (const sync_trap_t& t) {
@@ -2879,7 +2892,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
             assert(addr_is_size_aligned(vaddr, L1D_LINE_SIZE));
             try {
                 cache_line_t tmp;
-                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_TxLoad, mreg_t(-1));
+                uint64_t paddr = vmemtranslate(vaddr, L1D_LINE_SIZE, Mem_Access_TxLoadL2Scp, mreg_t(-1));
                 bemu::pmemread512(paddr, tmp.u32.data());
                 LOG_MEMREAD512(paddr, tmp.u32);
                 bemu::pmemwrite512(l2scp_addr, tmp.u32.data());

@@ -52,6 +52,7 @@ static inline int effective_execution_mode(mem_access_type macc)
     case Mem_Access_LoadL:
     case Mem_Access_LoadG:
     case Mem_Access_TxLoad:
+    case Mem_Access_TxLoadL2Scp:
     case Mem_Access_Prefetch:
         throw trap_load_page_fault(addr);
     case Mem_Access_Store:
@@ -79,6 +80,7 @@ static inline int effective_execution_mode(mem_access_type macc)
     case Mem_Access_LoadL:
     case Mem_Access_LoadG:
     case Mem_Access_TxLoad:
+    case Mem_Access_TxLoadL2Scp:
     case Mem_Access_Prefetch:
         throw trap_load_access_fault(addr);
     case Mem_Access_Store:
@@ -581,6 +583,7 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc, mreg_t
     case Mem_Access_LoadL:
     case Mem_Access_LoadG:
     case Mem_Access_TxLoad:
+    case Mem_Access_TxLoadL2Scp:
     case Mem_Access_Prefetch:
         if (!(pte_r || (mxr && pte_x))
             || ((curprv == PRV_U) && !pte_u)
