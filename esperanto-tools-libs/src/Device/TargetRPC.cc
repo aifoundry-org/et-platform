@@ -324,6 +324,10 @@ bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
   return true;
 }
 
+ssize_t RPCTarget::mboxMsgMaxSize() const {
+  return mailboxDev_->mboxMaxMsgSize();
+}
+
 bool RPCTarget::mb_write(const void *data, ssize_t size) {
   bool res = false;
 #if ENABLE_DEVICE_FW

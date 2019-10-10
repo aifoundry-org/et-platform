@@ -89,10 +89,7 @@ public:
   bool waitForHostInterrupt(TimeDuration wait_time = TimeDuration::max());
 
   /// @brief get the maximum mailbox message
-  ssize_t mboxMsgMaxSize() const final {
-    abort();
-    return 0;
-  }
+  ssize_t mboxMsgMaxSize() const final;
 
   /// @brief Write a full mailbox message, this corresponds to the API that the
   /// PCIE device exposes
