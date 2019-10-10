@@ -192,6 +192,21 @@ bool EmuMailBoxDev::mboxReady() {
          slave_status_ == device_fw::MBOX_STATUS_READY;
 }
 
+bool EmuMailBoxDev::mboxReset() {
+  // first update status the status from the remote
+  auto res = readRemoteStatus();
+  assert(res);
+
+  RTDEBUG << "Reseting slave, transitioning to WAITING \n";
+  slave_status_ = device_fw::MBOX_STATUS_WAITING;
+
+  // Write back the status to the remote simulator
+  res = writeRemoteStatus();
+  assert(res);
+
+  return true;
+}
+
 bool EmuMailBoxDev::write(const void *data, ssize_t size) {
   RTDEBUG << "Mailbox Write, size: " << size << "\n";
 
@@ -320,6 +335,11 @@ bool EmuMailBoxDev::mboxReady() {
   return false;
 }
 
+bool EmuMailBoxDev::mboxReset() {
+  std::terminate();
+  return false;
+}
+
 bool EmuMailBoxDev::write(const void *data, ssize_t size) {
   std::terminate();
   return false;
@@ -363,10 +383,25 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
   return ready;
 }
 
-bool EmuMailBoxDev::reset() {
-  // FIXME implement the functionality
-  std::terminate();
-  return true;
+bool EmuMailBoxDev::reset(TimeDuration wait_time) {
+  auto start = Clock::now();
+  auto end = start + wait_time;
+  static const TimeDuration polling_interval = std::chrono::seconds(1);
+
+  auto reset = mboxReset();
+  while (!reset) {
+    reset = mboxReset();
+    if (reset) {
+      return reset;
+    }
+    if (end < Clock::now()) {
+      RTERROR << "Mailbox not reset in time \n";
+      return false;
+    }
+    rpcDev_.raiseDeviceInterrupt();
+    rpcDev_.waitForHostInterrupt(polling_interval);
+  }
+  return reset;
 }
 
 } // namespace device

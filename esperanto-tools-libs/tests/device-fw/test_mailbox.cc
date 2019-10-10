@@ -13,37 +13,36 @@
 
 // Wait for device-fw to raise an interrupt from device to host
 TEST_F(DeviceFWTest, waitForHostInterrupt) {
-  auto *target_device_ptr = &dev_->getTargetDevice();
-
-  auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
-  EXPECT_TRUE(target_device != nullptr);
-
-  target_device->boot(0x8000001000, 0x8000001000);
-
-  auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
-  EXPECT_TRUE(res);
+  // Do nothing the test fixture should do the above
 }
 
 // Wait for the mailbox to get ready
 TEST_F(DeviceFWTest, waitForMailboxReady) {
-
   auto *target_device_ptr = &dev_->getTargetDevice();
-
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
-
-  target_device->boot(0x8000001000, 0x8000001000);
-  auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
-  EXPECT_TRUE(res);
-
   auto &mb_emu = target_device->mailboxDev();
 
   auto ready = mb_emu.ready(std::chrono::seconds(20));
-  // FIXME ignore it for now
   EXPECT_TRUE(ready);
 }
 
-TEST_F(DeviceFWTest, mb_cmd_launch) {
+// Reset the mailbox and wait to get ready again
+TEST_F(DeviceFWTest, resetMailBox) {
+
+  auto *target_device_ptr = &dev_->getTargetDevice();
+  auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
+  EXPECT_TRUE(target_device != nullptr);
+  auto &mb_emu = target_device->mailboxDev();
+
+  auto success = mb_emu.ready(std::chrono::seconds(20));
+  EXPECT_TRUE(success);
+
+  success = mb_emu.reset();
+  EXPECT_TRUE(success);
+
+  success = mb_emu.ready(std::chrono::seconds(20));
+  EXPECT_TRUE(success);
 }
 
 int main(int argc, char **argv) {

@@ -89,7 +89,7 @@ public:
 
   /// @brief Reret the mailbox device and discard any pending mailbox messages
   /// from the device
-  bool reset();
+  bool reset(TimeDuration wait_time = TimeDuration::max());
 
   /// @brief Return the maximum size of a mailbox message
   ssize_t mboxMaxMsgSize() const;
@@ -116,6 +116,7 @@ protected:
   bool writeRemoteStatus();
   bool mboxDestroy();
   bool mboxReady();
+  bool mboxReset();
   bool waitForHostInterrupt();
   bool raiseDeviceInterrupt();
 };
