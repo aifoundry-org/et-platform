@@ -23,10 +23,6 @@ static inline void clear_software_interrupt(unsigned, uint64_t) {}
 //extern void write_msg_port_data(uint32_t thread, uint32_t id, uint32_t *data, uint8_t oob);
 extern unsigned current_thread;
 extern std::array<Processor,EMU_NUM_THREADS>  cpu;
-#ifdef SYS_EMU
-extern mem_directory mem_dir;
-#endif
-extern bool coherency_check;
 
 namespace bemu {
 
@@ -730,22 +726,22 @@ void esr_write(uint64_t addr, uint64_t value)
                 break;
             case ESR_SC_IDX_COP_SM_CTL:
 #ifdef SYS_EMU
-                if(coherency_check)
+                if(sys_emu::get_coherency_check())
                 {
                     // Doing a CB drain
                     if((value & 1) && (((value >> 8) & 0xF) == 10))
                     {
-                        mem_dir.cb_drain(shire, b);
+                        sys_emu::get_mem_directory().cb_drain(shire, b);
                     }
                     // Doing an L2 flush
                     else if((value & 1) && (((value >> 8) & 0xF) == 2))
                     {
-                        mem_dir.l2_flush(shire, b);
+                        sys_emu::get_mem_directory().l2_flush(shire, b);
                     }
                     // Doing an L2 evict
                     else if((value & 1) && (((value >> 8) & 0xF) == 3))
                     {
-                        mem_dir.l2_evict(shire, b);
+                        sys_emu::get_mem_directory().l2_evict(shire, b);
                     }
                 }
 #endif
@@ -828,12 +824,12 @@ void esr_write(uint64_t addr, uint64_t value)
                 break;
             case ESR_SC_IDX_COP_SM_CTL_USER:
 #ifdef SYS_EMU
-                if(coherency_check)
+                if(sys_emu::get_coherency_check())
                 {
                     // Doing a CB drain
                     if((value & 1) && (((value >> 8) & 0xF) == 10))
                     {
-                        mem_dir.cb_drain(shire, b);
+                        sys_emu::get_mem_directory().cb_drain(shire, b);
                     }
                 }
 #endif

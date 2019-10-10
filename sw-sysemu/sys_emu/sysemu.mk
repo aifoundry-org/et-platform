@@ -4,7 +4,8 @@ sysemu_hdrs := \
 	sys_emu/log.h \
 	sys_emu/testLog.h \
 	sys_emu/rvtimer.h \
-  sys_emu/mem_directory.h
+  sys_emu/mem_directory.h \
+  sys_emu/scp_directory.h
 
 sysemu_cpp_srcs := \
 	sys_emu/api_communicate.cpp \
@@ -14,7 +15,8 @@ sysemu_cpp_srcs := \
 	sys_emu/sys_emu_debug.cpp \
 	sys_emu/sys_emu_main.cpp \
 	sys_emu/testLog.cpp \
-  sys_emu/mem_directory.cpp
+  sys_emu/mem_directory.cpp \
+  sys_emu/scp_directory.cpp
 
 ifeq ($(PROFILING), 1)
   sysemu_hdrs     += sys_emu/profiling.h

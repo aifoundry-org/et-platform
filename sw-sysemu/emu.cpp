@@ -31,6 +31,7 @@
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #include "mem_directory.h"
+#include "scp_directory.h"
 #endif
 #include "tbox_emu.h"
 #include "traps.h"
@@ -160,6 +161,25 @@ std::queue<uint32_t> minions_to_awake;
 std::queue<uint32_t> &get_minions_to_awake() {return minions_to_awake;}
 #endif
 
+// SCP checks
+#ifdef SYS_EMU
+    #define L1_SCP_CHECK_FILL(thread, idx, id) \
+        { if(sys_emu::get_scp_check()) \
+        { \
+            sys_emu::get_scp_directory().l1_scp_fill(thread, idx, id); \
+        } }
+    #define L1_SCP_CHECK_READ(thread, idx) \
+        { if(sys_emu::get_scp_check()) \
+        { \
+            sys_emu::get_scp_directory().l1_scp_read(thread, idx); \
+        } }
+#else
+    #define L1_SCP_CHECK_FILL(thread, idx, id) \
+        { }
+    #define L1_SCP_CHECK_READ(thread, idx) \
+        { }
+#endif
+
 const char* csr_name(uint16_t num)
 {
     static thread_local char unknown_name[60];
@@ -189,11 +209,6 @@ unsigned current_thread = 0;
 #define MAXSTACK 2048
 static std::array<std::array<uint32_t,MAXSTACK>,EMU_NUM_THREADS> shaderstack;
 static bool check_stack = false;
-
-bool coherency_check = false;
-#ifdef SYS_EMU
-extern mem_directory mem_dir;
-#endif
 
 bool m_emu_done = false;
 
@@ -1483,7 +1498,10 @@ static void csrset(uint16_t src1, uint64_t val)
                 tensorload_setupb_topair[current_thread] = false;
         }
 #ifdef SYS_EMU
-        mem_dir.mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
+        if(sys_emu::get_coherency_check())
+        {
+            sys_emu::get_mem_directory().mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
+        }
 #endif
         break;
     case CSR_EVICT_SW:
@@ -1579,7 +1597,10 @@ static void csrset(uint16_t src1, uint64_t val)
             cpu[current_thread^1].mcache_control = val & 3;
         }
 #ifdef SYS_EMU
-        mem_dir.mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
+        if(sys_emu::get_coherency_check())
+        {
+            sys_emu::get_mem_directory().mcache_control_up((current_thread >> 1) / EMU_MINIONS_PER_SHIRE, (current_thread >> 1) % EMU_MINIONS_PER_SHIRE, cpu[current_thread].mcache_control);
+        }
 #endif
         break;
     case CSR_PREFETCH_VA:
@@ -1609,6 +1630,16 @@ static void csrset(uint16_t src1, uint64_t val)
         // FIXME: Do something here?
         break;
     case CSR_TENSOR_WAIT:
+#ifdef SYS_EMU
+        if(sys_emu::get_scp_check())
+        {
+            // TensorWait TLoad Id0
+            if     ((val & 0xF) == 0) { sys_emu::get_scp_directory().l1_scp_wait(current_thread, 0); }
+            else if((val & 0xF) == 1) { sys_emu::get_scp_directory().l1_scp_wait(current_thread, 1); }
+            else if((val & 0xF) == 2) { sys_emu::get_scp_directory().l2_scp_wait(current_thread, 0); }
+            else if((val & 0xF) == 3) { sys_emu::get_scp_directory().l2_scp_wait(current_thread, 1); }
+        }
+#endif
         log_tensor_error_value(cpu[current_thread].tensor_error);
         // FIXME: Do something here?
         break;
@@ -1962,12 +1993,12 @@ static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, i
             LOG(DEBUG, "\tDoing %s: Set: %d, Way: %d, DestLevel: %d",
                 evict ? "EvictSW" : "FlushSW", set, way, dest);
 #ifdef SYS_EMU
-            if(coherency_check)
+            if(sys_emu::get_coherency_check())
             {
                 unsigned shire = current_thread / EMU_THREADS_PER_SHIRE;
                 unsigned minion  = (current_thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE;
-                if(evict) mem_dir.l1_evict_sw(shire, minion, set, way);
-                else      mem_dir.l1_flush_sw(shire, minion, set, way);
+                if(evict) sys_emu::get_mem_directory().l1_evict_sw(shire, minion, set, way);
+                else      sys_emu::get_mem_directory().l1_flush_sw(shire, minion, set, way);
             }
 #endif
 
@@ -2579,6 +2610,7 @@ static void tcoop(uint64_t value)
 void tensor_load_start(uint64_t control)
 {
     uint64_t stride  = XREGS[31] & 0xFFFFFFFFFFC0ULL;
+    int      id      = XREGS[31] & 1;
 
     int      tm                 = (control >> 63) & 0x1;
     int      use_coop           = (control >> 62) & 0x1;
@@ -2655,11 +2687,11 @@ void tensor_load_start(uint64_t control)
 #else
     cpu[current_thread].txload[int(tenb)] = control;
     cpu[current_thread].txstride[int(tenb)] = stride;
-    tensor_load_execute(tenb);
+    tensor_load_execute(tenb, id);
 #endif
 }
 
-void tensor_load_execute(bool tenb)
+void tensor_load_execute(bool tenb, int id)
 {
     uint64_t txload = cpu[current_thread].txload[int(tenb)];
     uint64_t stride = cpu[current_thread].txstride[int(tenb)];
@@ -2675,8 +2707,8 @@ void tensor_load_execute(bool tenb)
     assert(int(tenb) == int((txload >> 52) & 0x1));
 
     LOG(DEBUG, "\tExecute TensorLoad with tm: %d, use_coop: %d, trans: %d, dst: %d, "
-        "tenb: %d, addr: 0x%" PRIx64 ", boffset: %d, rows: %d, stride: 0x%" PRIx64,
-        tm, use_coop, trans, dst, tenb, addr, boffset, rows, stride);
+        "tenb: %d, addr: 0x%" PRIx64 ", boffset: %d, rows: %d, stride: 0x%" PRIx64 ", id: %d",
+        tm, use_coop, trans, dst, tenb, addr, boffset, rows, stride, id);
 
     if (txload == 0xFFFFFFFFFFFFFFFFULL) {
         throw std::runtime_error("tensor_load_execute() called while "
@@ -2712,6 +2744,7 @@ void tensor_load_execute(bool tenb)
                     bemu::pmemread512(paddr, SCP[idx].u32.data());
                     LOG_MEMREAD512(paddr, SCP[idx].u32.data());
                     LOG_SCP_32x16("=", idx);
+                    L1_SCP_CHECK_FILL(current_thread, idx, id);
                 }
                 catch (const sync_trap_t&) {
                     update_tensor_error(1 << 7);
@@ -2737,6 +2770,7 @@ void tensor_load_execute(bool tenb)
             {
                 bool dirty = false;
                 int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
+                L1_SCP_CHECK_FILL(current_thread, idx, id);
                 for (int r = 0; r < 4; ++r)
                 {
                     try {
@@ -2779,6 +2813,7 @@ void tensor_load_execute(bool tenb)
             {
                 bool dirty = false;
                 int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
+                L1_SCP_CHECK_FILL(current_thread, idx, id);
                 for (int r = 0; r < 2; ++r)
                 {
                     try {
@@ -2843,6 +2878,7 @@ void tensor_load_execute(bool tenb)
             if (((okay >> i) & 1) && (!tm || tmask_pass(i)))
             {
                 int idx = adj + ((dst + i) % L1_SCP_ENTRIES);
+                L1_SCP_CHECK_FILL(current_thread, idx, id);
                 for (int j = 0; j < elements; ++j)
                 {
                     switch (size) {
@@ -2872,6 +2908,7 @@ tensor_load_execute_done:
 void tensorloadl2(uint64_t control)//TranstensorloadL2
 {
     uint64_t stride  = XREGS[31] & 0xFFFFFFFFFFC0ULL;
+    uint64_t id      = XREGS[31] & 1ULL;
 
     int      tm      = (control >> 63) & 0x1;
     int      dst     = ((control >> 46) & 0x1FFFC)  + ((control >> 4)  & 0x3);
@@ -2897,6 +2934,12 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
                 LOG_MEMREAD512(paddr, tmp.u32);
                 bemu::pmemwrite512(l2scp_addr, tmp.u32.data());
                 LOG_MEMWRITE512(l2scp_addr, tmp.u32);
+#ifdef SYS_EMU
+                if(sys_emu::get_scp_check())
+                {
+                    sys_emu::get_scp_directory().l2_scp_fill(current_thread, dst + i, id);
+                }
+#endif
             }
             catch (const sync_trap_t&) {
                 update_tensor_error(1 << 7);
@@ -3079,6 +3122,7 @@ void tensor_quant_execute()
                     for (unsigned e = 0; e < nelem; ++e) {
                         FREGS[fd].i32[e] = FREGS[fd].i32[e] + SCP[line].i32[col+e];
                     }
+                    L1_SCP_CHECK_READ(current_thread, line);
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
@@ -3088,6 +3132,7 @@ void tensor_quant_execute()
                     for (unsigned e = 0; e < nelem; ++e) {
                         FREGS[fd].i32[e] = FREGS[fd].i32[e] + SCP[line].i32[row];
                     }
+                    L1_SCP_CHECK_READ(current_thread, line);
                     LOG_FREG("=", fd);
                     dirty_fp_state();
                     break;
@@ -3097,6 +3142,7 @@ void tensor_quant_execute()
                     for (unsigned e = 0; e < nelem; ++e) {
                         FREGS[fd].f32[e] = fpu::f32_mul(FREGS[fd].f32[e], SCP[line].f32[col+e]);
                     }
+                    L1_SCP_CHECK_READ(current_thread, line);
                     LOG_FREG("=", fd);
                     set_fp_exceptions();
                     dirty_fp_state();
@@ -3107,6 +3153,7 @@ void tensor_quant_execute()
                     for (unsigned e = 0; e < nelem; ++e) {
                         FREGS[fd].f32[e] = fpu::f32_mul(FREGS[fd].f32[e], SCP[line].f32[row]);
                     }
+                    L1_SCP_CHECK_READ(current_thread, line);
                     LOG_FREG("=", fd);
                     set_fp_exceptions();
                     dirty_fp_state();
@@ -3203,6 +3250,7 @@ static void tensorstore(uint64_t tstorereg)
 		for (int col=0; col < 16; col++) {
                     log_tensor_store_write(paddr + col*4, SCP[src].u32[col]);
                 }
+                L1_SCP_CHECK_READ(current_thread, src);
             }
             catch (const sync_trap_t&) {
                 update_tensor_error(1 << 7);
@@ -3321,6 +3369,7 @@ static void tensor_fma32_execute()
 
         // Model TenB as an extension of the scratchpad
         cache_line_t& tmpb = SCP[tenb ? (k+L1_SCP_ENTRIES) : ((bstart+k)%L1_SCP_ENTRIES)];
+        if(!tenb) L1_SCP_CHECK_READ(current_thread, ((bstart+k)%L1_SCP_ENTRIES));
 
         for (int i = 0; i < arows; ++i)
         {
@@ -3341,7 +3390,9 @@ static void tensor_fma32_execute()
                 continue;
             }
 
-            float32_t a = SCP[(astart+i) % L1_SCP_ENTRIES].f32[(aoffset+k) % (L1D_LINE_SIZE/4)];
+            uint32_t a_scp_entry = (astart+i) % L1_SCP_ENTRIES;
+            float32_t a = SCP[a_scp_entry].f32[(aoffset+k) % (L1D_LINE_SIZE/4)];
+            L1_SCP_CHECK_READ(current_thread, a_scp_entry);
 
             // If first_pass is 1 and this is the first iteration we do FMUL
             // instead of FMA
@@ -3495,6 +3546,7 @@ static void tensor_fma16a32_execute()
 
         // Model TenB as an extension of the scratchpad
         cache_line_t& tmpb = SCP[tenb ? ((k/2)+L1_SCP_ENTRIES) : ((bstart+k/2)%L1_SCP_ENTRIES)];
+        if(!tenb) L1_SCP_CHECK_READ(current_thread, ((bstart+k/2)%L1_SCP_ENTRIES));
 
         for (int i = 0; i < arows; ++i)
         {
@@ -3515,8 +3567,10 @@ static void tensor_fma16a32_execute()
                 continue;
             }
 
-            float16_t a1 = SCP[(astart+i) % L1_SCP_ENTRIES].f16[(aoffset+k+0) % (L1D_LINE_SIZE/2)];
-            float16_t a2 = SCP[(astart+i) % L1_SCP_ENTRIES].f16[(aoffset+k+1) % (L1D_LINE_SIZE/2)];
+            uint32_t a_scp_entry = (astart+i) % L1_SCP_ENTRIES;
+            float16_t a1 = SCP[a_scp_entry].f16[(aoffset+k+0) % (L1D_LINE_SIZE/2)];
+            float16_t a2 = SCP[a_scp_entry].f16[(aoffset+k+1) % (L1D_LINE_SIZE/2)];
+            L1_SCP_CHECK_READ(current_thread, a_scp_entry);
 
             // If first_pass is 1 and this is the first iteration we do
             // a1*b1+a2*b2 instead of a1*b1+a2*b2+c0
@@ -3675,6 +3729,7 @@ static void tensor_ima8a32_execute()
 
         // Model TenB as an extension of the scratchpad
         cache_line_t& tmpb = SCP[tenb ? ((k/4)+L1_SCP_ENTRIES) : ((bstart+k/4)%L1_SCP_ENTRIES)];
+        if(!tenb) L1_SCP_CHECK_READ(current_thread, ((bstart+k/4)%L1_SCP_ENTRIES));
 
         bool write_freg = (tenc2rf && (k+4 == acols));
         freg_t* dst = write_freg ? FREGS : TENC;
@@ -3717,6 +3772,7 @@ static void tensor_ima8a32_execute()
                 int32_t a3 = ua ? ASRC(2) : sext8_2(ASRC(2));
                 int32_t a4 = ua ? ASRC(3) : sext8_2(ASRC(3));
 #undef ASRC
+                L1_SCP_CHECK_READ(current_thread, (astart+i) % L1_SCP_ENTRIES);
                 for (int j = 0; j < bcols; ++j)
                 {
 #define BSRC(x) tmpb.u8[j*4+(x)]

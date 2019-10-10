@@ -21,14 +21,9 @@
 #include "mem_directory.h"
 #endif
 
-#ifdef SYS_EMU
-mem_directory mem_dir;
-#endif
-
 // FIXME: Replace with "processor.h"
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern unsigned current_thread;
-extern bool coherency_check;
 
 
 //------------------------------------------------------------------------------
@@ -226,9 +221,9 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 
             // low m-code range
 #ifdef SYS_EMU
-            if(coherency_check)
+            if(sys_emu::get_coherency_check())
             {
-                mem_dir.access(addr, macc, cop, current_thread, size, mask);
+                sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
             }
 #else
             if(0) cop = (cacheop_type) addr; // To prevent compile error due not using cop when SYS_EMU is disabled...
@@ -245,9 +240,9 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 
             // low OS range
 #ifdef SYS_EMU
-            if(coherency_check)
+            if(sys_emu::get_coherency_check())
             {
-                mem_dir.access(addr, macc, cop, current_thread, size, mask);
+                sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
             }
 #endif
 
@@ -260,9 +255,9 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
 
         // low DRAM memory range
 #ifdef SYS_EMU
-        if(coherency_check)
+        if(sys_emu::get_coherency_check())
         {
-            mem_dir.access(addr, macc, cop, current_thread, size, mask);
+            sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
         }
 #endif
         return truncated_dram_addr(addr);
@@ -274,10 +269,15 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
     
         // SCP range
 #ifdef SYS_EMU
-        if(coherency_check)
+        if(sys_emu::get_coherency_check())
         {
-            mem_dir.access(addr, macc, cop, current_thread, size, mask);
+            sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
         }
+        if(sys_emu::get_scp_check())
+        {
+            sys_emu::get_scp_directory().l2_scp_read(current_thread, addr);
+        }
+
 #endif
         return addr;
     }
@@ -344,9 +344,9 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
             // low m-code range
 #ifdef SYS_EMU
-            if(coherency_check)
+            if(sys_emu::get_coherency_check())
             {
-                mem_dir.access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
+                sys_emu::get_mem_directory().access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
             }
 #endif
 
@@ -361,9 +361,9 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
             // low OS range
 #ifdef SYS_EMU
-            if(coherency_check)
+            if(sys_emu::get_coherency_check())
             {
-                mem_dir.access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
+                sys_emu::get_mem_directory().access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
             }
 #endif
 
@@ -376,9 +376,9 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
         // low DRAM memory range
 #ifdef SYS_EMU
-        if(coherency_check)
+        if(sys_emu::get_coherency_check())
         {
-            mem_dir.access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
+            sys_emu::get_mem_directory().access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
         }
 #endif
 
