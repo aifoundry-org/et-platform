@@ -2908,7 +2908,7 @@ tensor_load_execute_done:
 void tensorloadl2(uint64_t control)//TranstensorloadL2
 {
     uint64_t stride  = XREGS[31] & 0xFFFFFFFFFFC0ULL;
-    uint64_t id      = XREGS[31] & 1ULL;
+    uint32_t id      = XREGS[31] & 1ULL;
 
     int      tm      = (control >> 63) & 0x1;
     int      dst     = ((control >> 46) & 0x1FFFC)  + ((control >> 4)  & 0x3);
@@ -2916,8 +2916,8 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
     int      rows    = ((control     ) & 0xF) + 1;
     uint64_t addr    = sext<48>(base);
 
-    LOG(DEBUG, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%" PRIx64 " - stride: 0x%" PRIx64,
-        rows, tm, dst, addr, stride);
+    LOG(DEBUG, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%" PRIx64 " - stride: 0x%" PRIx64 " - id: %d",
+        rows, tm, dst, addr, stride, id);
 
     uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
     for (int i = 0; i < rows; ++i)
