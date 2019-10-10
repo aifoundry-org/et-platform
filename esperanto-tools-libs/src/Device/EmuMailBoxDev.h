@@ -85,7 +85,7 @@ public:
   EmuMailBoxDev(EmuMailBoxDev &) = delete;
 
   /// @brief Query if the mailbox devie is ready
-  bool ready();
+  bool ready(TimeDuration wait_time = TimeDuration::max());
 
   /// @brief Reret the mailbox device and discard any pending mailbox messages
   /// from the device

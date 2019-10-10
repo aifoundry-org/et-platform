@@ -346,7 +346,7 @@ bool EmuMailBoxDev::raiseDeviceInterrupt() {
   return rpcDev_.raiseDeviceInterrupt();
 }
 
-bool EmuMailBoxDev::ready() { return mboxReady(); }
+bool EmuMailBoxDev::ready(TimeDuration wait_time) { return mboxReady(); }
 
 bool EmuMailBoxDev::reset() {
   // FIXME implement the functionality

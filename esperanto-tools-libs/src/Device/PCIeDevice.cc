@@ -44,20 +44,11 @@ bool PCIeDevice::init() {
   // Wait for the device to be ready
   // FIXME "random" wait time and polling interval
   auto wait_time = std::chrono::seconds(2 * 60);
-  auto start = Clock::now();
-  auto end = start + wait_time;
-  static const TimeDuration polling_interval = std::chrono::seconds(1);
-  bool mb_ready = mm_.ready();
-  while (mb_ready == 0) {
-    std::this_thread::sleep_for(polling_interval);
-    if (end < Clock::now()) {
-      RTERROR << "Mailbox not ready in time \n";
-      return false;
-    }
-    mb_ready = mm_.ready();
+  bool mb_ready = mm_.ready(wait_time);
+  RTINFO << "PCIEDevice: MM mailbox ready " << mb_ready << "\n";
+  if (!mb_ready) {
+    return false;
   }
-
-  RTINFO << "PCIEDevice: MM mailbox ready \n";
   device_alive_ = true;
   return true;
 }

@@ -28,17 +28,33 @@ MailBoxDev::MailBoxDev(const std::experimental::filesystem::path &char_dev)
 MailBoxDev::MailBoxDev(MailBoxDev &&other)
     : CharacterDevice(std::move(other)) {}
 
-bool MailBoxDev::ready() {
-  uint64_t ready;
+bool MailBoxDev::ready(TimeDuration wait_time) {
+  uint64_t ready = 0;
+  auto start = Clock::now();
+  auto end = start + wait_time;
+  static const TimeDuration polling_interval = std::chrono::seconds(1);
+
   // FIXME SW-642: currently we query only the master minion fix the ioctl
   // once the driver is fixed
-  auto [valid, res] = ioctl(GET_MBOX_READY, &ready);
-  if (!valid) {
-    RTERROR << "Failed to get the status of the mailbox \n";
-    std::terminate();
+  while (ready == 0) {
+    bool valid = false;
+    auto res = ioctl(GET_MBOX_READY, &ready);
+    std::tie(valid, ready) = res;
+    if (!valid) {
+      RTERROR << "Failed to get the status of the mailbox \n";
+      std::terminate();
+    }
+    RTDEBUG << "MailBox: Ready Value: " << ready << "\n";
+    if (ready) {
+      return true;
+    }
+    std::this_thread::sleep_for(polling_interval);
+    if (end < Clock::now()) {
+      RTERROR << "Mailbox not ready in time \n";
+      return false;
+    }
   }
-  RTDEBUG << "MailBox: Ready Value: " << res << "\n";
-  return (bool)res;
+  return (bool)ready;
 }
 
 bool MailBoxDev::reset() {

@@ -33,8 +33,8 @@ public:
   /// @brief Move constructor for the device
   MailBoxDev(MailBoxDev &&other);
 
-  /// @brief Query if the mailbox devie is ready
-  bool ready();
+  /// @brief Query if the mailbox devie is ready provide timeout to wait for
+  bool ready(TimeDuration wait_time = TimeDuration::max());
 
   /// @brief Reret the mailbox device and discard any pending mailbox messages
   /// from the device
