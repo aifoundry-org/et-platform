@@ -38,17 +38,7 @@ TEST_F(DeviceFWTest, waitForMailboxReady) {
 
   auto &mb_emu = target_device->mailboxDev();
 
-  /// FIXME wait for device to get ready
-  bool ready = false;
-  for (int i = 0; i < 10 && !ready; i++) {
-    ready = mb_emu.ready();
-    if (ready) {
-      break;
-    }
-    cerr << "MB NOT READY YET \n";
-    target_device->raiseDeviceInterrupt();
-    target_device->waitForHostInterrupt(std::chrono::seconds(10));
-  }
+  auto ready = mb_emu.ready(std::chrono::seconds(20));
   // FIXME ignore it for now
   EXPECT_TRUE(ready);
 }

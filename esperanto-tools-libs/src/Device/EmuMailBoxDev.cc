@@ -171,8 +171,6 @@ bool EmuMailBoxDev::mboxReady() {
         slave_status_ != device_fw::MBOX_STATUS_WAITING) {
       RTDEBUG << "Received master ready, going slave ready \n";
       slave_status_ = device_fw::MBOX_STATUS_READY;
-      // FIXME Should we raise the interrupt here ?
-      // mbox->send_interrupt(mbox->r_pu_trg_pcie);
     }
     break;
   case device_fw::MBOX_STATUS_WAITING:
@@ -180,8 +178,6 @@ bool EmuMailBoxDev::mboxReady() {
         slave_status_ != device_fw::MBOX_STATUS_WAITING) {
       RTDEBUG << "Received master waiting, going slave ready \n";
       slave_status_ = device_fw::MBOX_STATUS_READY;
-      // FIXME Should we raise the interrupt here ?
-      // mbox->send_interrupt(mbox->r_pu_trg_pcie);
     }
     break;
   case device_fw::MBOX_STATUS_ERROR:
@@ -346,7 +342,26 @@ bool EmuMailBoxDev::raiseDeviceInterrupt() {
   return rpcDev_.raiseDeviceInterrupt();
 }
 
-bool EmuMailBoxDev::ready(TimeDuration wait_time) { return mboxReady(); }
+bool EmuMailBoxDev::ready(TimeDuration wait_time) {
+  auto start = Clock::now();
+  auto end = start + wait_time;
+  static const TimeDuration polling_interval = std::chrono::seconds(1);
+
+  auto ready = mboxReady();
+  while (!ready) {
+    ready = mboxReady();
+    if (ready) {
+      return ready;
+    }
+    if (end < Clock::now()) {
+      RTERROR << "Mailbox not ready in time \n";
+      return false;
+    }
+    rpcDev_.raiseDeviceInterrupt();
+    rpcDev_.waitForHostInterrupt(polling_interval);
+  }
+  return ready;
+}
 
 bool EmuMailBoxDev::reset() {
   // FIXME implement the functionality
