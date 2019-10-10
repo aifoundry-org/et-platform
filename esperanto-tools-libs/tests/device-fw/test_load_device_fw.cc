@@ -17,48 +17,6 @@ TEST_F(DeviceFWTest, loadOnSysEMU) {
   // Do nothing make sure that the fixture starts/stop the simulator correctly
 }
 
-// Wait for device-fw to raise an interrupt from device to host
-TEST_F(DeviceFWTest, waitForHostInterrupt) {
-  auto *target_device_ptr = &dev_->getTargetDevice();
-
-  auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
-  EXPECT_TRUE(target_device != nullptr);
-
-  target_device->boot(0x8000001000, 0x8000001000);
-
-  auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
-  EXPECT_TRUE(res);
-}
-
-// Wait for the mailbox to get ready
-TEST_F(DeviceFWTest, waitForMailboxReady) {
-
-  auto *target_device_ptr = &dev_->getTargetDevice();
-
-  auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
-  EXPECT_TRUE(target_device != nullptr);
-
-  target_device->boot(0x8000001000, 0x8000001000);
-  auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
-  EXPECT_TRUE(res);
-
-  auto &mb_emu = target_device->mailboxDev();
-
-  /// FIXME wait for device to get ready
-  bool ready = false;
-  for (int i = 0; i < 10 && !ready; i++) {
-    ready = mb_emu.ready();
-    if (ready) {
-      break;
-    }
-    cerr << "MB NOT READY YET \n";
-    target_device->raiseDeviceInterrupt();
-    target_device->waitForHostInterrupt(std::chrono::seconds(10));
-  }
-  // FIXME ignore it for now
-  EXPECT_TRUE(ready);
-}
-
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
