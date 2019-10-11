@@ -91,9 +91,16 @@ uint64_t RingBuffer::used() {
              ? head_index - tail_index
              : (RINGBUFFER_LENGTH + head_index - tail_index);
 }
+
+bool RingBuffer::init() {
+  ringbuffer_.head_index = ringbuffer_.tail_index = 0;
+  return true;
+}
+
 bool RingBuffer::empty() {
   return (ringbuffer_.head_index == ringbuffer_.tail_index);
 }
+
 bool RingBuffer::full() {
   return (((ringbuffer_.head_index + 1U) % RINGBUFFER_LENGTH) ==
           ringbuffer_.tail_index);
@@ -193,6 +200,7 @@ bool EmuMailBoxDev::mboxReady() {
 }
 
 bool EmuMailBoxDev::mboxReset() {
+  RTDEBUG << "Reset Mailbox \n";
   // first update status the status from the remote
   auto res = readRemoteStatus();
   assert(res);
@@ -202,6 +210,14 @@ bool EmuMailBoxDev::mboxReset() {
 
   // Write back the status to the remote simulator
   res = writeRemoteStatus();
+  assert(res);
+
+  // Clean up the ring buffer state, consume all messages similar to reset
+  tx_ring_buffer_.init();
+  res = tx_ring_buffer_.writeRingBufferState();
+  assert(res);
+  rx_ring_buffer_.init();
+  res = rx_ring_buffer_.writeRingBufferState();
   assert(res);
 
   return true;
@@ -253,13 +269,15 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
 }
 
 ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
-  RTDEBUG << "Mailbox READ, size: " << size << " \n";
+  RTDEBUG << "Mailbox READ, req buf size: " << size << " \n";
   // read the mailbox from the simulator currently is not blocking like in the
   // pcie driver
+  auto received = waitForHostInterrupt(wait_time);
+  if (!received) {
+    return 0;
+  }
 
   RingBuffer &rb = tx_ring_buffer_;
-
-  waitForHostInterrupt();
 
   if (!mboxReady()) {
     RTERROR << "MBox not ready\n";
@@ -302,6 +320,7 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
 
   // write back to the simulator that we consumed the message
   rb.writeRingBufferState();
+  RTDEBUG << "Mailbox READ, read size: " << header.length << " \n";
   return header.length;
 }
 
@@ -354,8 +373,8 @@ ssize_t EmuMailBoxDev::mboxMaxMsgSize() const { return 0; }
 
 #endif // ENABLE_DEVICE_FW
 
-bool EmuMailBoxDev::waitForHostInterrupt() {
-  return rpcDev_.waitForHostInterrupt();
+bool EmuMailBoxDev::waitForHostInterrupt(TimeDuration wait_time) {
+  return rpcDev_.waitForHostInterrupt(wait_time);
 }
 
 bool EmuMailBoxDev::raiseDeviceInterrupt() {
@@ -377,8 +396,18 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
       RTERROR << "Mailbox not ready in time \n";
       return false;
     }
+#if ENABLE_DEVICE_FW
+    // Clean up the ring buffer state, consume all messages similar to reset
+    tx_ring_buffer_.init();
+    auto res = tx_ring_buffer_.writeRingBufferState();
+    assert(res);
+    rx_ring_buffer_.init();
+    res = rx_ring_buffer_.writeRingBufferState();
+    assert(res);
+
     rpcDev_.raiseDeviceInterrupt();
     rpcDev_.waitForHostInterrupt(polling_interval);
+#endif // ENABLE_DEVICE_FW
   }
   return ready;
 }

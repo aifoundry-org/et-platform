@@ -42,6 +42,8 @@ enum class RingBufferType : uint8_t {
     int64_t read(void *const data_ptr, uint32_t length);
     uint64_t free();
     uint64_t used();
+    /// @brief Initialize the ring buffer to empty
+    bool init();
     bool empty();
     bool full();
 
@@ -117,7 +119,7 @@ protected:
   bool mboxDestroy();
   bool mboxReady();
   bool mboxReset();
-  bool waitForHostInterrupt();
+  bool waitForHostInterrupt(TimeDuration wait_time);
   bool raiseDeviceInterrupt();
 };
 } // namespace device
