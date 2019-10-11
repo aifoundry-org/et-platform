@@ -127,6 +127,8 @@ if(esperanto-fw_FOUND)
   get_property(WORKER_MINION_ELF TARGET esperanto-fw::WorkerMinion.elf PROPERTY LOCATION)
   get_property(EMPTY_KERNEL_ELF TARGET esperanto-fw::empty.elf PROPERTY LOCATION)
 
+  get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
+
   # Example when passsing arguments then make sure that you use the "=" operation between
   # the option and its value and you space separate the different options.
 
@@ -140,16 +142,13 @@ if(esperanto-fw_FOUND)
     device-fw/test_load_device_fw.cc:${DEV_FW_ARGS}
     device-fw/test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
     device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
+    device-fw/test_sysemu_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
     )
   create_test_targets("${DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
 
   set(QEMU_TEST_LIST
     system/test_pcie_device.cc:""
     )
-
-  get_property(EMPTY_KERNEL_ELF TARGET esperanto-fw::empty.elf PROPERTY LOCATION)
-  get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
-
 
   list(APPEND QEMU_TEST_LIST
     system/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
