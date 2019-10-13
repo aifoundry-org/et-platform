@@ -13,10 +13,21 @@ _init_handler:
     la   sp,  __stack_base
 
     # R_SP_MISC region is 4K at 0x52029000, SP_BYPASS_CACHE is 32 bits at offset 0x14
-    # Enable L1 I and D caches by clearing [0] Bypass ICache and [1] Bypass DCache
     li   t0, 0x52029014
-    sw   zero, 0(t0)
+    lw   t1, 0(t0)
+    # mask out all the bits except [0] Bypass ICache and [1] Bypass DCache
+    and  t1, t1, 3
+    # If the ICache and DCache are already enabled (bypass bits are cleared) we can skip to init_bss
+    beqz t1, init_bss
 
+    # before turning the L1 cache on, synchronize the instruction and data streams
+    FENCE
+    # Enable L1 I and D caches by clearing [0] Bypass ICache and [1] Bypass DCache
+    sw   zero, 0(t0)
+    # after turning the L1 cache on, synchronize the instruction and data streams
+    FENCE
+
+init_bss:
     # zero out the bss section
     la   x26, __bss_start
     la   x27, __bss_end
