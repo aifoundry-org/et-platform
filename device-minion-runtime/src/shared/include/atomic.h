@@ -36,9 +36,9 @@ static inline __attribute__((always_inline)) uint64_t read_u64(const volatile ui
     // The original value in memory is returned in integer register 'rd'.
     // Assembly: amoorg.d rd, rs2, (rs1)
     asm volatile (
-        "amoorg.d %0, x0, %1"
+        "amoorg.d %0, %1, x0"
         : "=r" (result)
-        : "m" (*address)
+        : "r" (address), "m" (*address)
     );
 
     return result;
@@ -49,9 +49,9 @@ static inline __attribute__((always_inline)) int64_t read_64(const volatile int6
     int64_t result;
 
     asm volatile (
-        "amoorg.d %0, x0, %1"
+        "amoorg.d %0, %1, x0"
         : "=r" (result)
-        : "m" (*address)
+        : "r" (address), "m" (*address)
     );
 
     return result;
@@ -63,18 +63,18 @@ static inline __attribute__((always_inline)) void write_u64(volatile uint64_t* c
     // and the value in the memory address pointed by integer register 'rs1'.
     // Assembly: amoswapg.d rd, rs2, (rs1)
     asm volatile (
-        "amoswapg.d x0, %1, %0 \n"
+        "amoswapg.d x0, %1, %2 \n"
         : "=m" (*address)
-        : "r" (data)
+        : "r" (address), "r" (data)
     );
 }
 
 static inline __attribute__((always_inline)) void write_64(volatile int64_t* const address, int64_t data)
 {
     asm volatile (
-        "amoswapg.d x0, %1, %0 \n"
+        "amoswapg.d x0, %1, %2 \n"
         : "=m" (*address)
-        : "r" (data)
+        : "r" (address), "r" (data)
     );
 }
 
@@ -87,9 +87,9 @@ static inline __attribute__((always_inline)) uint64_t add_u64(volatile uint64_t*
     // The original value in memory is returned in integer register ‘rd’.
     // Assembly: amoaddg.d rd, rs2, (rs1)
     asm volatile (
-        "amoaddg.d %0, %2, %1 \n"
+        "amoaddg.d %0, %2, %3 \n"
         : "=r" (prev), "+m" (*address)
-        : "r" (data)
+        : "r" (address), "r" (data)
     );
 
     return prev;
@@ -100,9 +100,9 @@ static inline __attribute__((always_inline)) int64_t add_64(volatile int64_t* co
     int64_t prev;
 
     asm volatile (
-        "amoaddg.d %0, %2, %1 \n"
+        "amoaddg.d %0, %2, %3 \n"
         : "=r" (prev), "+m" (*address)
-        : "r" (data)
+        : "r" (address), "r" (data)
     );
 
     return prev;
