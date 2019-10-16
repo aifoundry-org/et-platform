@@ -296,12 +296,9 @@ int load_sw_certificates_chain(void) {
     uint32_t sw_certificates_size;
     SERVICE_PROCESSOR_BL2_DATA_t * bl2_data = get_service_processor_bl2_data();
 
-    gs_vaultip_disabled = false;
+    gs_vaultip_disabled = is_vaultip_disabled();
     gs_ignore_signatures = false;
 
-    if (0 != sp_otp_get_vaultip_chicken_bit(&gs_vaultip_disabled)) {
-        gs_vaultip_disabled = false;
-    }
     if (0 != sp_otp_get_signatures_check_chicken_bit(&gs_ignore_signatures)) {
         gs_ignore_signatures = false;
     }

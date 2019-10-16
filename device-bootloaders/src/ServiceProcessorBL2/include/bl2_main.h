@@ -16,6 +16,8 @@
 
 SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void);
 
+bool is_vaultip_disabled(void);
+
 #ifdef RELEASE_BUILD
 #define MESSAGE_ERROR_DEBUG(cformat, ...)
 #define MESSAGE_INFO_DEBUG(cformat, ...)
