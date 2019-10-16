@@ -15,7 +15,7 @@
 /* Configuration files:                                                    */
 /*    /eng/ssmith/work/repos/soc_hal/dv/common/scripts/semifore_css/bitfield_enum_doc.css */
 /*                                                                         */
-/* Generated on: Fri Sep 13 06:33:34 2019                                  */
+/* Generated on: Tue Oct 15 06:34:55 2019                                  */
 /*           by: ssmith                                                    */
 /*                                                                         */
 
@@ -369,7 +369,7 @@ typedef struct {
    union {
       struct {
 
-         /* Source filename: rm_esr.csr, line: 714                         */
+         /* Source filename: rm_esr.csr, line: 721                         */
          /* Title: strap_in                                                */
          /* Description:                                                   */
          /**
@@ -377,7 +377,7 @@ typedef struct {
          */
          uint32_t strap_in : 4; /* bits 3 to 0; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 707                         */
+         /* Source filename: rm_esr.csr, line: 714                         */
          /* Title: skip_vault                                              */
          /* Description:                                                   */
          /**
@@ -386,7 +386,7 @@ typedef struct {
          */
          uint32_t skip_vault : 1; /* bit 4; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 700                         */
+         /* Source filename: rm_esr.csr, line: 707                         */
          /* Title: skip_sms_udr                                            */
          /* Description:                                                   */
          /**
@@ -394,7 +394,7 @@ typedef struct {
          */
          uint32_t skip_sms_udr : 1; /* bit 5; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 693                         */
+         /* Source filename: rm_esr.csr, line: 700                         */
          /* Title: skip_sms_bihr                                           */
          /* Description:                                                   */
          /**
@@ -402,7 +402,7 @@ typedef struct {
          */
          uint32_t skip_sms_bihr : 1; /* bit 6; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 686                         */
+         /* Source filename: rm_esr.csr, line: 693                         */
          /* Title: skip_bist                                               */
          /* Description:                                                   */
          /**
@@ -410,7 +410,7 @@ typedef struct {
          */
          uint32_t skip_bist : 1; /* bit 7; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 630                         */
+         /* Source filename: rm_esr.csr, line: 637                         */
          /* Title: debug_enable                                            */
          /* Description:                                                   */
          /**
@@ -418,16 +418,24 @@ typedef struct {
          */
          uint32_t debug_enable : 1; /* bit 8; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 637                         */
+         /* Source filename: rm_esr.csr, line: 644                         */
          /* Title: emergency_dbg                                           */
          /* Description:                                                   */
          /**
           *    reflect the value on the boot pin: emergency_dbg.
          */
          uint32_t emergency_dbg : 1; /* bit 9; R/W; 0 */
-         uint32_t : 6; /* bits 15 to 10 */
 
-         /* Source filename: rm_esr.csr, line: 679                         */
+         /* Source filename: rm_esr.csr, line: 630                         */
+         /* Title: a0_unlock                                               */
+         /* Description:                                                   */
+         /**
+          *    reflect the value on the boot pin: a0_unlock.
+         */
+         uint32_t a0_unlock : 1; /* bit 10; R/W; 0 */
+         uint32_t : 5; /* bits 15 to 11 */
+
+         /* Source filename: rm_esr.csr, line: 686                         */
          /* Title: error_vaultsms_udr                                      */
          /* Description:                                                   */
          /**
@@ -435,7 +443,7 @@ typedef struct {
          */
          uint32_t error_vaultsms_udr : 1; /* bit 16; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 665                         */
+         /* Source filename: rm_esr.csr, line: 672                         */
          /* Title: error_vaultsms_bihr                                     */
          /* Description:                                                   */
          /**
@@ -443,7 +451,7 @@ typedef struct {
          */
          uint32_t error_vaultsms_bihr : 1; /* bit 17; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 672                         */
+         /* Source filename: rm_esr.csr, line: 679                         */
          /* Title: error_vaultsms_bist                                     */
          /* Description:                                                   */
          /**
@@ -451,7 +459,7 @@ typedef struct {
          */
          uint32_t error_vaultsms_bist : 1; /* bit 18; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 658                         */
+         /* Source filename: rm_esr.csr, line: 665                         */
          /* Title: error_sms_udr                                           */
          /* Description:                                                   */
          /**
@@ -459,7 +467,7 @@ typedef struct {
          */
          uint32_t error_sms_udr : 1; /* bit 19; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 644                         */
+         /* Source filename: rm_esr.csr, line: 651                         */
          /* Title: error_sms_bihr                                          */
          /* Description:                                                   */
          /**
@@ -467,7 +475,7 @@ typedef struct {
          */
          uint32_t error_sms_bihr : 1; /* bit 20; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 651                         */
+         /* Source filename: rm_esr.csr, line: 658                         */
          /* Title: error_sms_bist                                          */
          /* Description:                                                   */
          /**
@@ -722,13 +730,13 @@ typedef struct {
 } Reset_Manager_rm_max_t;
 
 /* Typedef for Register: Reset_Manager::rm_sys_reset_config                */
-/* Source filename: rm_esr.csr, line: 723                                  */
+/* Source filename: rm_esr.csr, line: 730                                  */
 /* Title: rm_sys_reset_config                                              */
 typedef struct {
    union {
       struct {
 
-         /* Source filename: rm_esr.csr, line: 733                         */
+         /* Source filename: rm_esr.csr, line: 740                         */
          /* Title: width                                                   */
          /* Description:                                                   */
          /**
@@ -739,7 +747,7 @@ typedef struct {
          uint32_t width : 7; /* bits 6 to 0; R/W; 1 */
          uint32_t : 1; /* bit 7 */
 
-         /* Source filename: rm_esr.csr, line: 726                         */
+         /* Source filename: rm_esr.csr, line: 733                         */
          /* Title: hw_perstn                                               */
          /* Description:                                                   */
          /**
@@ -756,13 +764,13 @@ typedef struct {
 } Reset_Manager_rm_sys_reset_config_t;
 
 /* Typedef for Register: Reset_Manager::rm_sys_reset_ctrl                  */
-/* Source filename: rm_esr.csr, line: 742                                  */
+/* Source filename: rm_esr.csr, line: 749                                  */
 /* Title: rm_sys_reset_ctrl                                                */
 typedef struct {
    union {
       struct {
 
-         /* Source filename: rm_esr.csr, line: 745                         */
+         /* Source filename: rm_esr.csr, line: 752                         */
          /* Title: enable                                                  */
          /* Description:                                                   */
          /**
@@ -776,13 +784,13 @@ typedef struct {
 } Reset_Manager_rm_sys_reset_ctrl_t;
 
 /* Typedef for Register: Reset_Manager::rm_usb2_0                          */
-/* Source filename: rm_esr.csr, line: 754                                  */
+/* Source filename: rm_esr.csr, line: 761                                  */
 /* Title: rm_usb2_0                                                        */
 typedef struct {
    union {
       struct {
 
-         /* Source filename: rm_esr.csr, line: 792                         */
+         /* Source filename: rm_esr.csr, line: 799                         */
          /* Title: phy_po_rstn                                             */
          /* Description:                                                   */
          /**
@@ -790,7 +798,7 @@ typedef struct {
          */
          uint32_t phy_po_rstn : 1; /* bit 0; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 799                         */
+         /* Source filename: rm_esr.csr, line: 806                         */
          /* Title: phy_port0_rstn                                          */
          /* Description:                                                   */
          /**
@@ -799,7 +807,7 @@ typedef struct {
          */
          uint32_t phy_port0_rstn : 1; /* bit 1; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 771                         */
+         /* Source filename: rm_esr.csr, line: 778                         */
          /* Title: ctrl_phy_rstn                                           */
          /* Description:                                                   */
          /**
@@ -807,7 +815,7 @@ typedef struct {
          */
          uint32_t ctrl_phy_rstn : 1; /* bit 2; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 764                         */
+         /* Source filename: rm_esr.csr, line: 771                         */
          /* Title: ctrl_ahb_rstn                                           */
          /* Description:                                                   */
          /**
@@ -815,7 +823,7 @@ typedef struct {
          */
          uint32_t ctrl_ahb_rstn : 1; /* bit 3; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 785                         */
+         /* Source filename: rm_esr.csr, line: 792                         */
          /* Title: esr_rstn                                                */
          /* Description:                                                   */
          /**
@@ -823,7 +831,7 @@ typedef struct {
          */
          uint32_t esr_rstn : 1; /* bit 4; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 806                         */
+         /* Source filename: rm_esr.csr, line: 813                         */
          /* Title: reloc_rstn                                              */
          /* Description:                                                   */
          /**
@@ -831,7 +839,7 @@ typedef struct {
          */
          uint32_t reloc_rstn : 1; /* bit 5; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 757                         */
+         /* Source filename: rm_esr.csr, line: 764                         */
          /* Title: ahb2axi_rstn                                            */
          /* Description:                                                   */
          /**
@@ -839,7 +847,7 @@ typedef struct {
          */
          uint32_t ahb2axi_rstn : 1; /* bit 6; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 778                         */
+         /* Source filename: rm_esr.csr, line: 785                         */
          /* Title: dbg_rstn                                                */
          /* Description:                                                   */
          /**
@@ -854,13 +862,13 @@ typedef struct {
 } Reset_Manager_rm_usb2_0_t;
 
 /* Typedef for Register: Reset_Manager::rm_usb2_1                          */
-/* Source filename: rm_esr.csr, line: 815                                  */
+/* Source filename: rm_esr.csr, line: 822                                  */
 /* Title: rm_usb2_1                                                        */
 typedef struct {
    union {
       struct {
 
-         /* Source filename: rm_esr.csr, line: 846                         */
+         /* Source filename: rm_esr.csr, line: 853                         */
          /* Title: phy_po_rstn                                             */
          /* Description:                                                   */
          /**
@@ -868,7 +876,7 @@ typedef struct {
          */
          uint32_t phy_po_rstn : 1; /* bit 0; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 853                         */
+         /* Source filename: rm_esr.csr, line: 860                         */
          /* Title: phy_port0_rstn                                          */
          /* Description:                                                   */
          /**
@@ -877,7 +885,7 @@ typedef struct {
          */
          uint32_t phy_port0_rstn : 1; /* bit 1; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 832                         */
+         /* Source filename: rm_esr.csr, line: 839                         */
          /* Title: ctrl_phy_rstn                                           */
          /* Description:                                                   */
          /**
@@ -885,7 +893,7 @@ typedef struct {
          */
          uint32_t ctrl_phy_rstn : 1; /* bit 2; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 825                         */
+         /* Source filename: rm_esr.csr, line: 832                         */
          /* Title: ctrl_ahb_rstn                                           */
          /* Description:                                                   */
          /**
@@ -893,7 +901,7 @@ typedef struct {
          */
          uint32_t ctrl_ahb_rstn : 1; /* bit 3; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 839                         */
+         /* Source filename: rm_esr.csr, line: 846                         */
          /* Title: esr_rstn                                                */
          /* Description:                                                   */
          /**
@@ -901,7 +909,7 @@ typedef struct {
          */
          uint32_t esr_rstn : 1; /* bit 4; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 860                         */
+         /* Source filename: rm_esr.csr, line: 867                         */
          /* Title: reloc_rstn                                              */
          /* Description:                                                   */
          /**
@@ -909,7 +917,7 @@ typedef struct {
          */
          uint32_t reloc_rstn : 1; /* bit 5; R/W; 0 */
 
-         /* Source filename: rm_esr.csr, line: 818                         */
+         /* Source filename: rm_esr.csr, line: 825                         */
          /* Title: ahb2axi_rstn                                            */
          /* Description:                                                   */
          /**
@@ -1330,7 +1338,7 @@ typedef struct {
 } Reset_Manager_rm_pu_spi_t;
 
 /* Typedef for Addressmap: Reset_Manager                                   */
-/* Source filename: rm_esr.csr, line: 869                                  */
+/* Source filename: rm_esr.csr, line: 876                                  */
 typedef struct {
    uint8_t _pad0[0x200];
    Reset_Manager_rm_memshire_cold_t rm_memshire_cold; /**< Offset 0x200 (R/W) */
