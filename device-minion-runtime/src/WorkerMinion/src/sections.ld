@@ -85,13 +85,4 @@ SECTIONS
         . = ALIGN(4);
         __bss_end = .;
     }
-
-    /* esperanto_sign_elf tool requires 128 byte aligned elf segment size,
-       so place fill section at end of each memory region and align to 128 bytes */
-    .fill :
-    {
-        FILL(0);
-        BYTE(0); /* Need a non-empty section. Unfortunately wastes 128 bytes if . was already aligned. */
-        . = ALIGN(128);
-    }
 }
