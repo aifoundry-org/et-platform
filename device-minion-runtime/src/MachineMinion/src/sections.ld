@@ -20,7 +20,8 @@ MEMORY
 {
     /* stacks are STACK_SIZE bytes per HART, HART_COUNT HARTs, descending from the end of M_MODE_REGION
        so ensure image fits in non-stack region */
-    MCODE (rwx) : org = M_MODE_REGION_BASE, l = M_MODE_REGION_SIZE - (STACK_SIZE * HART_COUNT)
+    MCODE (rx)  : org = M_CODE_REGION_BASE, l = M_CODE_REGION_SIZE
+    MDATA (!rx) : org = M_DATA_REGION_BASE, l = M_DATA_REGION_SIZE - (STACK_SIZE * HART_COUNT)
 }
 
 SECTIONS
@@ -47,17 +48,17 @@ SECTIONS
     .sdata2 :
     {
         *(SORT_BY_ALIGNMENT(.sdata2) SORT_BY_ALIGNMENT(.sdata2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s2.*))
-    } > MCODE
+    } > MDATA
 
     .sbss2 :
     {
         *(SORT_BY_ALIGNMENT(.sbss2) SORT_BY_ALIGNMENT(.sbss2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.sb2.*))
-    } > MCODE
+    } > MDATA
 
     .data :
     {
         *(.data .data.* .gnu.linkonce.d.*)
-    } > MCODE
+    } > MDATA
 
     /* We want the small data sections together, so single-instruction offsets
       can access them all, and initialized data all before uninitialized, so
@@ -74,7 +75,7 @@ SECTIONS
         __global_pointer$ = . + 0x800;
         *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
         *(.sdata .sdata.* .gnu.linkonce.s.*)
-    } > MCODE
+    } > MDATA
 
     .bss (NOLOAD) :
     {
@@ -83,7 +84,7 @@ SECTIONS
         __bss_start = .;
 
         *(.bss .bss.* .gnu.linkonce.b.*)
-    } > MCODE
+    } > MDATA
 
     .sbss (NOLOAD) :
     {
@@ -92,5 +93,5 @@ SECTIONS
         /* Align here to ensure crt.S bss init asm has an aligned end address */
         . = ALIGN(4);
         __bss_end = .;
-    } > MCODE
+    } > MDATA
 }

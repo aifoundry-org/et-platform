@@ -50,6 +50,7 @@ set(SOURCES
 
 set(TARGET_NAME MasterMinion)
 set(LINKER_SCRIPT src/sections.ld)
+set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
 

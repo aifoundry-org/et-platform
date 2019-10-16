@@ -87,6 +87,14 @@ macro(add_riscv_executable TARGET_NAME)
         set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE}")
     endif()
 
+    if (DEFINED LINKER_SCRIPT_DEPENDENCY)
+        # Get the absolute path to the file the linker script depends on
+        get_filename_component(LINKER_SCRIPT_DEPENDENCY_ABS_PATH ${LINKER_SCRIPT_DEPENDENCY} ABSOLUTE)
+
+        # Add explicit dependency on file when linking target
+        set_target_properties(${ELF_FILE} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_DEPENDENCY_ABS_PATH})
+    endif()
+
     # Must use target_link_libraries() to add libraries to get correct symbol resolution -
     # putting libraries in CMAKE_EXE_LINKER_FLAGS is too early
     target_link_libraries(${ELF_FILE} c m gcc)

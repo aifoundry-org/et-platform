@@ -13,43 +13,47 @@ INCLUDE layout.ld
 
 ENTRY(_start)
 
+MEMORY
+{
+    SCODE (rx)  : org = FW_WORKER_SCODE_BASE, l = FW_WORKER_SCODE_SIZE
+    SDATA (!rx) : org = FW_WORKER_SDATA_BASE, l = FW_WORKER_SDATA_SIZE
+    UCODE (rx)  : org = FW_WORKER_UCODE_BASE, l = FW_WORKER_UCODE_SIZE
+}
+
 SECTIONS
 {
-    . = FW_WORKER_SMODE_ENTRY;
-
     .text :
     {
         /* Place boot code first */
         *(.text.init)
         *(SORT_BY_ALIGNMENT(.text) SORT_BY_ALIGNMENT(.text.*) SORT_BY_ALIGNMENT(.gnu.linkonce.t.*))
-    }
+    } > SCODE
 
     .rodata :
     {
         *(SORT_BY_ALIGNMENT(.rodata) SORT_BY_ALIGNMENT(.rodata.*) SORT_BY_ALIGNMENT(.gnu.linkonce.r.*))
         KEEP(*(SORT_BY_ALIGNMENT(.rodata.keep)))
-    }
+    } > SCODE
 
     .rodata1 :
     {
         *(SORT_BY_ALIGNMENT(.rodata1))
-    }
+    } > SCODE
 
     .sdata2 :
     {
         *(SORT_BY_ALIGNMENT(.sdata2) SORT_BY_ALIGNMENT(.sdata2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.s2.*))
-    }
+    } > SDATA
 
     .sbss2 :
     {
         *(SORT_BY_ALIGNMENT(.sbss2) SORT_BY_ALIGNMENT(.sbss2.*) SORT_BY_ALIGNMENT(.gnu.linkonce.sb2.*))
-
-    }
+    } > SDATA
 
     .data :
     {
         *(.data .data.* .gnu.linkonce.d.*)
-    }
+    } > SDATA
 
     /* We want the small data sections together, so single-instruction offsets
       can access them all, and initialized data all before uninitialized, so
@@ -66,7 +70,7 @@ SECTIONS
         __global_pointer$ = . + 0x800;
         *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata .srodata.*)
         *(.sdata .sdata.* .gnu.linkonce.s.*)
-    }
+    } > SDATA
 
     .bss (NOLOAD) :
     {
@@ -75,7 +79,7 @@ SECTIONS
         __bss_start = .;
 
         *(.bss .bss.* .gnu.linkonce.b.*)
-    }
+    } > SDATA
 
     .sbss (NOLOAD) :
     {
@@ -84,5 +88,11 @@ SECTIONS
         /* Align here to ensure crt.S bss init asm has an aligned end address */
         . = ALIGN(4);
         __bss_end = .;
+    } > SDATA
+
+    .user_text :
+    {
+        *(SORT_BY_ALIGNMENT(.user_text) SORT_BY_ALIGNMENT(.user_text.*))
     }
+    > UCODE
 }

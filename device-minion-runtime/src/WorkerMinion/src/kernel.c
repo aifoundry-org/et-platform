@@ -18,7 +18,7 @@
 static const uint8_t tensor_zeros[64] __attribute__ ((aligned (64))) = {0};
 
 static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, const grid_config_t* const grid_config_ptr);
-static void kernel_return_function(int64_t return_value) __attribute__ ((used));
+static void kernel_return_function(int64_t return_value) __attribute__ ((used, section(".user_text"))); // must be placed in U-mode accessible section
 static void log_errors(int64_t return_value, uint64_t tensor_error);
 static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr);
 
@@ -166,70 +166,6 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
     return return_value;
 }
 
-// Restores firmware context and resumes execution in launch_kernel()
-// Called from machine context by M-mode trap handler (e.g. if the kernel takes an exception)
-// and by firmware (e.g. normal kernel completion, kernel abort)
-int64_t return_from_kernel(int64_t return_value)
-{
-    uint64_t* firmware_sp;
-
-    asm volatile (
-        "csrr  %0, sscratch \n"
-        "addi  %0, %0, 8    \n"
-        : "=r" (firmware_sp)
-    );
-
-    if (*firmware_sp != 0)
-    {
-        // Switch to firmware stack
-        // restore context from stack
-        asm volatile (
-            "li    x1, 0x120         \n" // bitmask to set sstatus SPP and SPIE
-            "csrs  sstatus, x1       \n" // set sstatus SPP and SPIE
-            "ld    sp, %0            \n" // load sp from supervisor stack SP region
-            "sd    zero, %0          \n" // clear supervisor stack SP region
-            "ld    x1,  0  * 8( sp ) \n" // restore context
-            "ld    x3,  1  * 8( sp ) \n"
-            "ld    x5,  2  * 8( sp ) \n"
-            "ld    x6,  3  * 8( sp ) \n"
-            "ld    x7,  4  * 8( sp ) \n"
-            "ld    x8,  5  * 8( sp ) \n"
-            "ld    x9,  6  * 8( sp ) \n"
-                                         // Leave return_value from kernel in a0
-            "ld    x11, 8  * 8( sp ) \n"
-            "ld    x12, 9  * 8( sp ) \n"
-            "ld    x13, 10 * 8( sp ) \n"
-            "ld    x14, 11 * 8( sp ) \n"
-            "ld    x15, 12 * 8( sp ) \n"
-            "ld    x16, 13 * 8( sp ) \n"
-            "ld    x17, 14 * 8( sp ) \n"
-            "ld    x18, 15 * 8( sp ) \n"
-            "ld    x19, 16 * 8( sp ) \n"
-            "ld    x20, 17 * 8( sp ) \n"
-            "ld    x21, 18 * 8( sp ) \n"
-            "ld    x22, 19 * 8( sp ) \n"
-            "ld    x23, 20 * 8( sp ) \n"
-            "ld    x24, 21 * 8( sp ) \n"
-            "ld    x25, 22 * 8( sp ) \n"
-            "ld    x26, 23 * 8( sp ) \n"
-            "ld    x27, 24 * 8( sp ) \n"
-            "ld    x28, 25 * 8( sp ) \n"
-            "ld    x29, 26 * 8( sp ) \n"
-            "ld    x30, 27 * 8( sp ) \n"
-            "ld    x31, 28 * 8( sp ) \n"
-            "addi  sp, sp, 29 * 8    \n"
-            "ret                     \n"
-            : "+m" (*firmware_sp)
-        );
-
-        return return_value;
-    }
-    else
-    {
-        return KERNEL_LAUNCH_ERROR_NO_SAVED_CONTEXT;
-    }
-}
-
 static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __attribute__((unused)) const grid_config_t* const grid_config_ptr)
 {
     // arg1 = 0 to enable all thread 1s
@@ -331,7 +267,7 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
     WAIT_FCC(1);
 }
 
-// This must to a a RX function in user space, no W from user!
+
 static void kernel_return_function(int64_t return_value)
 {
     syscall(SYSCALL_RETURN_FROM_KERNEL, (uint64_t)return_value, 0, 0);

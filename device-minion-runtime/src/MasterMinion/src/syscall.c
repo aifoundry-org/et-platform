@@ -32,7 +32,6 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_PRE_KERNEL_SETUP:
         case SYSCALL_POST_KERNEL_CLEANUP:
         case SYSCALL_RETURN_FROM_KERNEL:
-        case SYSCALL_REGISTER_RETURN_FROM_KERNEL_FUNCTION:
             rv = -1; // user master minion firmware should never ask the supervisor master minon firmware to do this
         break;
 

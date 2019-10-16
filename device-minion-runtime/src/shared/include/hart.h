@@ -25,6 +25,11 @@ static inline unsigned int __attribute__((always_inline)) get_shire_id(void)
     return get_hart_id() >> 6;
 }
 
+static inline unsigned int __attribute__((always_inline)) get_neighborhood_id(void)
+{
+    return (get_hart_id() % 64) >> 4;
+}
+
 static inline unsigned int __attribute__((always_inline)) get_minion_id(void)
 {
     return get_hart_id() >> 1;

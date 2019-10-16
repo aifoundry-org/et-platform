@@ -117,10 +117,6 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
             rv = -1; // machine/supervisor firmware should call LOG_write() directly
         break;
 
-        case SYSCALL_REGISTER_RETURN_FROM_KERNEL_FUNCTION:
-            rv = register_return_from_kernel_function((int64_t (*)(int64_t))arg1);
-        break;
-
         default:
             rv = -1; // unhandled syscall! Ignoring for now.
         break;

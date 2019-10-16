@@ -1,4 +1,6 @@
 #include "esr_defines.h"
+#include "fcc.h"
+#include "flb.h"
 #include "hart.h"
 #include "layout.h"
 #include "message.h"
@@ -8,6 +10,7 @@
 void __attribute__((noreturn)) main(void)
 {
     uint64_t temp;
+
     // "Upon reset, a hart's privilege mode is set to M. The mstatus fields MIE and MPRV are reset to 0.
     // The pc is set to an implementation-defined reset vector. The mcause register is set to a value
     // indicating the cause of the reset. All other hart state is undefined."
@@ -26,9 +29,6 @@ void __attribute__((noreturn)) main(void)
         : "=&r" (temp)
     );
 
-    // TODO read OTP table of which minion shires are healthy and usable? Or are 0-32 logical always usable?
-    // TODO file ticket to track this.
-
     asm volatile (
         "li    %0, 0x1020  \n" // Setup for mret into S-mode: bitmask for mstatus MPP[1] and SPIE
         "csrc  mstatus, %0 \n" // clear mstatus MPP[1] = supervisor mode, SPIE = interrupts disabled
@@ -37,25 +37,57 @@ void __attribute__((noreturn)) main(void)
         : "=&r" (temp)
     );
 
-    // Block user-level PC redirection
-    volatile uint64_t* const ipi_redirect_filter_ptr = ESR_SHIRE(PRV_M, 0xFF, IPI_REDIRECT_FILTER);
-    *ipi_redirect_filter_ptr = 0;
+    if (get_hart_id() % 64 == 0) // First HART every shire, master or worker
+    {
+        // Block user-level PC redirection
+        volatile uint64_t* const ipi_redirect_filter_ptr = ESR_SHIRE(PRV_M, 0xFF, IPI_REDIRECT_FILTER);
+        *ipi_redirect_filter_ptr = 0;
+    }
 
-    if (get_shire_id() == 32)
+    if (get_shire_id() == 32) // Master shire
     {
         const uint64_t* const master_entry = (uint64_t*)FW_MASTER_SMODE_ENTRY;
+        bool result;
 
-        // Set MPROT for neighborhood 0 in master shire to disable access to OS region
-        volatile uint64_t* const mprot_n0_ptr = ESR_NEIGH(PRV_M, 0xFF, 0, MPROT);
-        uint64_t mprot = *mprot_n0_ptr;
-        mprot &= ~0x7ULL; // clear disable_pcie_access and io_access_mode
-        mprot |= 0x8; // set disable_osbox_access to disable access to OS region
-        *mprot_n0_ptr = mprot;
+        // First HART in each neighborhood
+        if (get_hart_id() % 16 == 0)
+        {
+            const uint64_t neighborhood_id = get_neighborhood_id();
 
-        // Set MPROT for neighborhoods 1-3 in master shire to disable access to OS, PCI-E and IO regions
-        // TODO FIXME master shire only has 1 neighborhood in mini-SoC Zebu image
-        // mprot |= 0xEU; // set disable_osbox_access, disable_pcie_access and io_access_mode
-        // *mprot_ptr = mprot;
+            volatile uint64_t* const mprot_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, neighborhood_id, MPROT);
+            uint64_t mprot = *mprot_ptr;
+
+            if (neighborhood_id == 0)
+            {
+                // Set MPROT for neighborhood 0 in master shire to allow acess to OS, PCI-E and IO regions
+                mprot &= ~0x7ULL; // clear disable_pcie_access and set io_access_mode = b00 (user)
+                mprot |= 0x40; // set enable_secure_memory to use M/S RX/RW regions
+                *mprot_ptr = mprot;
+            }
+            else
+            {
+                // Set MPROT for neighborhoods 1-3 in master shire to disable access to OS, PCI-E and IO regions and enable secure memory permissions
+                mprot |= 0x4E; // set enable_secure_memory, disable_osbox_access, disable_pcie_access and io_access_mode = b10 (disabled)
+                *mprot_ptr = mprot;
+            }
+
+            // Wait for MPROT config on all 4 neighborhoods to complete before any thread can continue.
+            WAIT_FLB(4, 31, result);
+
+            if (result)
+            {
+                // Last neighborhood to configure MPROT sends FCC0 to all HARTs in this shire
+                // minion thread1s aren't enabled yet, so send FCC0 to 32 thread0s.
+                SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, 0xFFFFFFFFU);
+            }
+        }
+
+        // Only thread0s participate in the initial MRPOT config rendezvous
+        // thread1s boot up later, long after MPROT has been configured per neighborhood
+        if (get_thread_id() == 0)
+        {
+            WAIT_FCC(0);
+        }
 
         // Jump to master firmware in supervisor mode
         asm volatile (
@@ -65,17 +97,30 @@ void __attribute__((noreturn)) main(void)
             : "r" (master_entry)
         );
     }
-    else
+    else // Worker shire
     {
-        // Worker shire
         const uint64_t* const worker_entry = (uint64_t*)FW_WORKER_SMODE_ENTRY;
 
-        // Set MPROT for all neighborhoods in worker shires to disable access to OS, PCI-E and IO regions
-        volatile uint64_t* const mprot_n0_ptr = ESR_NEIGH(PRV_M, 0xFF, 0, MPROT);
-        volatile uint64_t* const mprot_bc_ptr = ESR_NEIGH(PRV_M, 0xFF, 0xF, MPROT);
-        uint64_t mprot = *mprot_n0_ptr;
-        mprot |= 0xE; // set disable_osbox_access, disable_pcie_access and io_access_mode
-        *mprot_bc_ptr = mprot;
+        // First HART in each shire
+        if (get_hart_id() % 64 == 0)
+        {
+            // Set MPROT for all neighborhoods in worker shire to disable access to OS, PCI-E and IO regions and enable secure memory permissions
+            volatile uint64_t* const mprot_neighborhood0_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, 0, MPROT);
+            volatile uint64_t* const mprot_broadcast_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, 0xF, MPROT); // 0xF = broadcast to all 4 neighborhoods
+            uint64_t mprot = *mprot_neighborhood0_ptr;
+            mprot |= 0x46; // set enable_secure_memory, disable_pcie_access and io_access_mode = b10 (disabled)
+            *mprot_broadcast_ptr = mprot;
+
+            // minion thread1s aren't enabled yet, so send FCC0 to all thread0s
+            SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, 0xFFFFFFFFU);
+        }
+
+        // Only thread0s participate in the initial MRPOT config rendezvous
+        // thread1s boot up later, long after MPROT has been configured per neighborhood
+        if (get_thread_id() == 0)
+        {
+            WAIT_FCC(0);
+        }
 
         // Jump to worker firmware in supervisor mode
         asm volatile (
