@@ -18,6 +18,7 @@ set(SOURCES
 
 set(TARGET_NAME random_data)
 set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
+set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
 
