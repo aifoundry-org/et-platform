@@ -25,6 +25,9 @@
 #include "bl2_minion_pll_and_dll.h"
 #include "bl2_ddr_config.h"
 
+#include "rm_esr.h"
+#include "hal_device.h"
+
 #include <stdio.h>
 #include <string.h>
 #include "bl2_crypto.h"
@@ -40,6 +43,25 @@ static SERVICE_PROCESSOR_BL2_DATA_t g_service_processor_bl2_data;
 
 SERVICE_PROCESSOR_BL2_DATA_t * get_service_processor_bl2_data(void) {
     return &g_service_processor_bl2_data;
+}
+
+bool is_vaultip_disabled(void) {
+    volatile Reset_Manager_t * reset_manager = (Reset_Manager_t*)R_SP_CRU_BASEADDR;
+    Reset_Manager_rm_status2_t rm_status2;
+    static bool initialized = false;
+    static bool vaultip_disabled = false;
+
+    if (!initialized) {
+        if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
+            vaultip_disabled = false;
+        }
+        rm_status2.R = reset_manager->rm_status2.R;
+        if (0 != rm_status2.B.a0_unlock && 0 != rm_status2.B.skip_vault) {
+            vaultip_disabled = true;
+        }
+    }
+
+    return vaultip_disabled;
 }
 
 static TaskHandle_t gs_taskHandleMain;
@@ -214,9 +236,7 @@ void bl2_main(const SERVICE_PROCESSOR_BL1_DATA_t * bl1_data)
         goto FATAL_ERROR;
     }
 
-    if (0 != sp_otp_get_vaultip_chicken_bit(&vaultip_disabled)) {
-        vaultip_disabled = false;
-    }
+    vaultip_disabled = is_vaultip_disabled();
 
     //SERIAL_init(UART0);
 

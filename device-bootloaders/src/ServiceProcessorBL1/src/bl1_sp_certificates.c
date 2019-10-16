@@ -189,12 +189,9 @@ static int verify_certificate(const ESPERANTO_CERTIFICATE_t * certificate, const
 int verify_bl2_certificate(const ESPERANTO_CERTIFICATE_t * certificate) {
     SERVICE_PROCESSOR_BL1_DATA_t * bl1_data = get_service_processor_bl1_data();
 
-    gs_vaultip_disabled = false;
+    gs_vaultip_disabled = is_vaultip_disabled();
     gs_ignore_signatures = false;
 
-    if (0 != sp_otp_get_vaultip_chicken_bit(&gs_vaultip_disabled)) {
-        gs_vaultip_disabled = false;
-    }
     if (0 != sp_otp_get_signatures_check_chicken_bit(&gs_ignore_signatures)) {
         gs_ignore_signatures = false;
     }

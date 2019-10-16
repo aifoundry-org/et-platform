@@ -402,12 +402,9 @@ int load_firmware(const ESPERANTO_IMAGE_TYPE_t image_type) {
     gs_enck_created = false;
     gs_aes_context_created = false;
 
-    gs_vaultip_disabled = false;
+    gs_vaultip_disabled = is_vaultip_disabled();
     gs_ignore_signatures = false;
 
-    if (0 != sp_otp_get_vaultip_chicken_bit(&gs_vaultip_disabled)) {
-        gs_vaultip_disabled = false;
-    }
     if (0 != sp_otp_get_signatures_check_chicken_bit(&gs_ignore_signatures)) {
         gs_ignore_signatures = false;
     }
