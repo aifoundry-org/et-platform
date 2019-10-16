@@ -47,7 +47,7 @@ class net_emulator
         bool is_enabled();
 
         // Execution
-        void get_new_ipi(std::list<int> * enabled_threads, std::list<int> * ipi_threads, uint64_t * new_pc);
+        void get_new_ipi(std::list<int> * running_threads, std::list<int> * ipi_threads, uint64_t * new_pc);
     private:
         std::list<net_emulator_layer> layers;      // List of layers to do
         bool                          helper_done; // Helper IPI already sent
