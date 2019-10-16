@@ -30,7 +30,7 @@ void insn_fsw(insn_t inst)
 {
     require_fp_active();
     DISASM_STORE_FS2_RS1_SIMM("fsw");
-    mmu_store<uint32_t>(RS1 + SIMM, FS2.u32[0], Mem_Access_Load);
+    mmu_store<uint32_t>(RS1 + SIMM, FS2.u32[0], Mem_Access_Store);
 }
 
 

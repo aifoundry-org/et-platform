@@ -5,6 +5,8 @@
 #include "emu_defines.h"
 #include "net_emulator.h"
 #include "rvtimer.h"
+#include "mem_directory.h"
+#include "scp_directory.h"
 
 #include <bitset>
 #include <cstdint>
@@ -70,7 +72,8 @@ struct sys_emu_cmd_options {
     bool mem_reset_flag               = false;
     char * pu_uart_tx_file            = nullptr;
     char * pu_uart1_tx_file           = nullptr;
-    uint64_t dump_at_pc        = 0;
+    uint64_t dump_at_pc               = 0;
+    uint64_t stop_dump_at_pc          = 0;
 };
 
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
@@ -110,6 +113,11 @@ public:
     static void activate_thread(int thread_id) { active_threads[thread_id] = true; }
     static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
     static bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
+
+    static bool get_coherency_check() { return coherency_check; }
+    static mem_directory& get_mem_directory() { return mem_dir; }
+    static bool get_scp_check() { return scp_check; }
+    static scp_directory& get_scp_directory() { return scp_dir; }
 
 protected:
 
@@ -153,6 +161,10 @@ private:
     static RVTimer         pu_rvtimer;
     static uint64_t        minions_en;
     static uint64_t        shires_en;
+    static bool            coherency_check;
+    static mem_directory   mem_dir;
+    static bool            scp_check;
+    static scp_directory   scp_dir;
 
     net_emulator net_emu;
     std::unique_ptr<api_communicate> api_listener;

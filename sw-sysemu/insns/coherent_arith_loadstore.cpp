@@ -19,28 +19,28 @@ extern std::array<Processor,EMU_NUM_THREADS> cpu;
 void insn_sbg(insn_t inst)
 {
     DISASM_STORE_RS2_RS1("sbg");
-    mmu_store<uint8_t>(RS1, uint8_t(RS2), Mem_Access_LoadG);
+    mmu_store<uint8_t>(RS1, uint8_t(RS2), Mem_Access_StoreG);
 }
 
 
 void insn_sbl(insn_t inst)
 {
     DISASM_STORE_RS2_RS1("sbl");
-    mmu_store<uint8_t>(RS1, uint8_t(RS2), Mem_Access_LoadL);
+    mmu_store<uint8_t>(RS1, uint8_t(RS2), Mem_Access_StoreL);
 }
 
 
 void insn_shg(insn_t inst)
 {
     DISASM_STORE_RS2_RS1("shg");
-    mmu_aligned_store16(RS1, uint16_t(RS2), Mem_Access_LoadG);
+    mmu_aligned_store16(RS1, uint16_t(RS2), Mem_Access_StoreG);
 }
 
 
 void insn_shl(insn_t inst)
 {
     DISASM_STORE_RS2_RS1("shl");
-    mmu_aligned_store16(RS1, uint16_t(RS2), Mem_Access_LoadL);
+    mmu_aligned_store16(RS1, uint16_t(RS2), Mem_Access_StoreL);
 }
 
 

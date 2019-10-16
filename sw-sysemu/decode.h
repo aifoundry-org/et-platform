@@ -98,13 +98,13 @@
    LOG(DEBUG, "\tMEM%zu[0x%" PRIx64 "] = 0x%llx", size_t(size) , addr, static_cast<unsigned long long>(value))
 
 #define LOG_MEMWRITE128(addr, ptr) \
-   LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] : {" \
+   LOG(DEBUG, "\tMEM128[0x%" PRIx64 "] = {" \
        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
        " }", addr, \
        ptr[0], ptr[1], ptr[2], ptr[3])
 
 #define LOG_MEMWRITE512(addr, ptr) \
-   LOG(DEBUG, "\tMEM512[0x%" PRIx64 "] : {" \
+   LOG(DEBUG, "\tMEM512[0x%" PRIx64 "] = {" \
        " 0:0x%08" PRIx32 " 1:0x%08" PRIx32 " 2:0x%08" PRIx32 " 3:0x%08" PRIx32 \
        " 4:0x%08" PRIx32 " 5:0x%08" PRIx32 " 6:0x%08" PRIx32 " 7:0x%08" PRIx32 \
        " 8:0x%08" PRIx32 " 9:0x%08" PRIx32 " 10:0x%08" PRIx32 " 11:0x%08" PRIx32 \
@@ -220,7 +220,7 @@
 
 #define require_fp_active() do { \
     extern uint32_t current_inst; \
-    if ((cpu[current_thread].mstatus & 0x0006000ULL) == 0) \
+    if ((cpu[current_thread].mstatus & 0x6000ULL) == 0) \
         throw trap_illegal_instruction(current_inst); \
 } while (0)
 
@@ -444,6 +444,47 @@ inline mreg_t mkmask(unsigned len) {
 } while (0)
 
 
+#ifdef ZSIM
+// Do not write the fregs, the value will come from the monitor
+#define GSCAMO(expr) do { \
+    LOG_GSC_PROGRESS(":"); \
+    bool dirty = false; \
+    for (size_t e = 0; e < cpu[current_thread].gsc_progress; ++e) \
+        log_mem_read_write(false, -1, 0, 0, 0); \
+    freg_t tmp(FD); \
+    for (size_t e = cpu[current_thread].gsc_progress; e < MLEN; ++e) { \
+        if (M0[e]) { \
+            try { \
+                FD.u32[e] = fpu::UI32(expr); \
+                dirty = true; \
+            } \
+            catch (const trap_t&) { \
+                cpu[current_thread].gsc_progress = e; \
+                LOG_GSC_PROGRESS("="); \
+                log_gsc_progress(e); \
+                if (dirty) { \
+                    LOG_FREG("=", inst.fd()); \
+                    dirty_fp_state(); \
+                    log_freg_load(inst.fd(), mkmask(e) & M0, FD); \
+                } \
+                std::swap(tmp, FD); \
+                throw; \
+            } \
+        } else { \
+            log_mem_read_write(false, -1, 0, 0, 0); \
+        } \
+    } \
+    cpu[current_thread].gsc_progress = 0; \
+    LOG_GSC_PROGRESS("="); \
+    log_gsc_progress(0); \
+    if (dirty) { \
+        LOG_FREG("=", inst.fd()); \
+        dirty_fp_state(); \
+    } \
+    log_freg_load(inst.fd(), M0, FD); \
+    std::swap(tmp, FD); \
+} while (0)
+#else // ZSIM
 #define GSCAMO(expr) do { \
     LOG_GSC_PROGRESS(":"); \
     bool dirty = false; \
@@ -479,7 +520,7 @@ inline mreg_t mkmask(unsigned len) {
     } \
     log_freg_load(inst.fd(), M0, FD); \
 } while (0)
-
+#endif // ZSIM
 
 #define WRITE_VD_NOMASK(expr) do { \
     for (size_t e = 0; e < MLEN; ++e) { \
@@ -516,7 +557,7 @@ inline mreg_t mkmask(unsigned len) {
 
 
 #define dirty_fp_state() do { \
-    cpu[current_thread].mstatus |= 0x8000000000006000ULL; \
+    /*cpu[current_thread].mstatus |= 0x8000000000006000ULL;*/ \
 } while (0)
 
 

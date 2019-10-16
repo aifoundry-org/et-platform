@@ -128,6 +128,7 @@ enum mem_access_type {
     Mem_Access_AtomicL,
     Mem_Access_AtomicG,
     Mem_Access_TxLoad,
+    Mem_Access_TxLoadL2Scp,
     Mem_Access_TxStore,
     Mem_Access_Prefetch,
     Mem_Access_CacheOp
@@ -141,7 +142,14 @@ enum cacheop_type {
     CacheOp_EvictL2,
     CacheOp_EvictL3,
     CacheOp_EvictDDR,
-    CacheOp_LoadL,
+    CacheOp_FlushL2,
+    CacheOp_FlushL3,
+    CacheOp_FlushDDR,
+    CacheOp_PrefetchL1,
+    CacheOp_PrefetchL2,
+    CacheOp_PrefetchL3,
+    CacheOp_Lock,
+    CacheOp_Unlock,
     CacheOp_CacheOp
 };
 
