@@ -298,6 +298,31 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
 }
 
 void
+sys_emu::raise_interrupt_wakeup_check(unsigned thread_id, const char *str)
+{
+    unsigned old_thread = get_thread();
+    set_thread(thread_id);
+    try {
+        check_pending_interrupts();
+    } catch (const trap_t& t) {
+        LOG_OTHER(DEBUG, thread_id, "Waking up due to %s", str);
+
+        // Put the interrupted thread back to running
+        running_threads.push_back(thread_id);
+
+        // If it was waiting for an FCC, remove it
+        for (auto &fcc_wait_it: fcc_wait_threads) {
+            auto th = std::find(fcc_wait_it.begin(),
+                                fcc_wait_it.end(),
+                                thread_id);
+            if (th != fcc_wait_it.end())
+                fcc_wait_it.erase(th);
+        }
+    }
+    set_thread(old_thread);
+}
+
+void
 sys_emu::raise_timer_interrupt(uint64_t shire_mask)
 {
     for (int s = 0; s < EMU_NUM_SHIRES; s++) {
@@ -309,15 +334,20 @@ sys_emu::raise_timer_interrupt(uint64_t shire_mask)
 
         uint32_t target = bemu::shire_other_esrs[s].mtime_local_target;
         for (unsigned m = 0; m < shire_minion_count; m++) {
-            if (target & (1ULL << m)) {
-                for (unsigned ii = 0; ii < minion_thread_count; ii++) {
-                    int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
-                    if (thread_is_active(thread_id) && !thread_is_disabled(thread_id)) {
-                        ::raise_timer_interrupt(thread_id);
-                        if (!thread_is_running(thread_id))
-                            running_threads.push_back(thread_id);
-                    }
-                }
+            if (!(target & (1ULL << m)))
+                continue;
+
+            for (unsigned ii = 0; ii < minion_thread_count; ii++) {
+                int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
+                LOG_OTHER(DEBUG, thread_id, "%s", "Receiving Machine timer interrupt");
+                ::raise_timer_interrupt(thread_id);
+
+                if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
+                    continue;
+
+                // Check if the thread has to be awakened
+                if (!thread_is_running(thread_id))
+                    raise_interrupt_wakeup_check(thread_id, "Machine timer interrupt");
             }
         }
     }
@@ -355,24 +385,22 @@ sys_emu::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
     unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
 
     // Write mip.msip to all selected threads
-    for (unsigned t = 0; t < shire_thread_count; ++t)
-    {
-        if (thread_mask & (1ull << t))
-        {
-            unsigned thread_id = thread0 + t;
-            if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
-                LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received IPI");
-            } else {
-                LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
-                ::raise_software_interrupt(thread_id);
-                // If thread sleeping, wakes up
-                if (!thread_is_running(thread_id) && !thread_waiting_fcc(thread_id))
-                {
-                    LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI");
-                    running_threads.push_back(thread_id);
-                }
-            }
+    for (unsigned t = 0; t < shire_thread_count; ++t) {
+        if (!(thread_mask & (1ull << t)))
+            continue;
+
+        unsigned thread_id = thread0 + t;
+        if (!thread_is_active(thread_id) || thread_is_disabled(thread_id)) {
+            LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received IPI");
+            continue;
         }
+
+        LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
+        ::raise_software_interrupt(thread_id);
+
+        // Check if the thread has to be awakened
+        if (!thread_is_running(thread_id))
+            raise_interrupt_wakeup_check(thread_id, "IPÌ");
     }
 }
 
@@ -409,14 +437,15 @@ sys_emu::raise_external_interrupt(unsigned shire)
     for (unsigned t = 0; t < shire_thread_count; ++t)
     {
         unsigned thread_id = thread0 + t;
-        LOG_OTHER(DEBUG, thread_id, "%s", "Receiving External Interrupt");
+        LOG_OTHER(DEBUG, thread_id, "%s", "Receiving Machine external interrupt");
         ::raise_external_machine_interrupt(thread_id);
-        // If thread sleeping, wakes up
-        if (!thread_is_running(thread_id) && !thread_waiting_fcc(thread_id))
-        {
-            LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to External Interrupt");
-            running_threads.push_back(thread_id);
-        }
+
+        if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
+            continue;
+
+        // Check if the thread has to be awakened
+        if (!thread_is_running(thread_id))
+            raise_interrupt_wakeup_check(thread_id, "Machine external interrupt");
     }
 }
 
@@ -451,30 +480,17 @@ sys_emu::raise_external_supervisor_interrupt(unsigned shire_id)
     for (unsigned t = 0; t < shire_thread_count; ++t)
     {
         unsigned thread_id = thread0 + t;
-        LOG_OTHER(DEBUG, thread_id, "%s", "Receiving External Supervisor Interrupt");
+        LOG_OTHER(DEBUG, thread_id, "%s", "Receiving Supervisor external interrupt");
         ::raise_external_supervisor_interrupt(thread_id);
-        // If thread sleeping, wakes up
+
+        if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
+            continue;
+
+        // Check if the thread has to be awakened
         if (!thread_is_running(thread_id))
-        {
-            LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to External Supervisor Interrupt");
-            running_threads.push_back(thread_id);
-        }
+            raise_interrupt_wakeup_check(thread_id, "Supervisor external interrupt");
     }
 }
-
-bool sys_emu::init_api_listener(const char *communication_path, bemu::MainMemory* memory) {
-
-    api_listener = std::unique_ptr<api_communicate>(new api_communicate(memory));
-
-    api_listener->set_comm_path(communication_path);
-
-    if(!api_listener->init())
-    {
-        throw std::runtime_error("Failed to initialize api listener");
-    }
-    return true;
-}
-
 
 void
 sys_emu::clear_external_supervisor_interrupt(unsigned shire_id)
@@ -492,6 +508,19 @@ sys_emu::clear_external_supervisor_interrupt(unsigned shire_id)
         unsigned thread_id = thread0 + t;
         ::clear_external_supervisor_interrupt(thread_id);
     }
+}
+
+bool sys_emu::init_api_listener(const char *communication_path, bemu::MainMemory* memory) {
+
+    api_listener = std::unique_ptr<api_communicate>(new api_communicate(memory));
+
+    api_listener->set_comm_path(communication_path);
+
+    if(!api_listener->init())
+    {
+        throw std::runtime_error("Failed to initialize api listener");
+    }
+    return true;
 }
 
 void

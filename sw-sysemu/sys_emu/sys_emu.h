@@ -111,13 +111,6 @@ public:
     static uint64_t get_emu_cycle()  { return emu_cycle; }
     static RVTimer& get_pu_rvtimer() { return pu_rvtimer; }
 
-    static bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
-
-    static bool thread_waiting_fcc(int thread_id) {
-            return contains(fcc_wait_threads[0], thread_id) ||
-                   contains(fcc_wait_threads[1], thread_id);
-    }
-
     static void activate_thread(int thread_id) { active_threads[thread_id] = true; }
     static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
     static bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
@@ -133,12 +126,19 @@ protected:
     // API listener
     virtual bool init_api_listener(const char *communication_path, bemu::MainMemory* memory);
 
-private:
-
+    // Returns whether a container contains an element
     template<class _container, class _Ty>
     static inline bool contains(_container _C, const _Ty& _Val) {
         return std::find(_C.begin(), _C.end(), _Val) != _C.end();
     }
+
+    // Returns whether a thread is running (not sleeping/waiting)
+    static bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
+
+    // Checks if a sleeping thread (FCC) has to wake up when receiving an interrupt
+    static void raise_interrupt_wakeup_check(unsigned thread_id, const char *str);
+
+private:
 
 #ifdef SYSEMU_DEBUG
     struct pc_breakpoint_t {
@@ -165,7 +165,7 @@ private:
 
     static uint64_t        emu_cycle;
     static std::list<int>  running_threads; // List of running threads
-    static std::list<int>  fcc_wait_threads[2]; // List of threads waiting for an FCC
+    static std::list<int>  fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD]; // List of threads waiting for an FCC
     static std::list<int>  port_wait_threads; // List of threads waiting for a port write
     static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
     static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
