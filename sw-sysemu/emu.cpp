@@ -1669,6 +1669,7 @@ static void csrset(uint16_t src1, uint64_t val)
             int      count  = (val & 0x0F) + 1;
             uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
             int      id     = XREGS[31] & 0x0000000000000001ULL;
+            LOG_REG(":", 31);
             dcache_evict_flush_vaddr(src1 == CSR_EVICT_VA, tm, dest, vaddr, count, id, stride);
         }
         break;
@@ -1738,6 +1739,7 @@ static void csrset(uint16_t src1, uint64_t val)
             int      count  = (val & 0xF) + 1;
             uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
             int      id     = XREGS[31] & 0x0000000000000001ULL;
+            LOG_REG(":", 31);
             dcache_lock_vaddr(tm, vaddr, count, id, stride);
         }
         break;
@@ -1750,6 +1752,7 @@ static void csrset(uint16_t src1, uint64_t val)
             int      count  = (val & 0xF) + 1;
             uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
             int      id     = XREGS[31] & 0x0000000000000001ULL;
+            LOG_REG(":", 31);
             dcache_unlock_vaddr(tm, vaddr, count, id, stride);
         }
         break;
@@ -1908,6 +1911,7 @@ void sfence_vma(xreg src1, xreg src2, const char* comm __attribute__((unused)))
 void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((unused)))
 {
     LOG(DEBUG, "I(%c): csrrw x%d, %s, x%d", PRVNAME, dst, csr_name(src1), src2);
+    LOG_REG(":", src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = XREGS[src2];
     csr_insn(dst, src1, oldval, newval, true);
@@ -1916,6 +1920,7 @@ void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((u
 void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((unused)))
 {
     LOG(DEBUG, "I(%c): csrrs x%d, %s, x%d", PRVNAME, dst, csr_name(src1), src2);
+    LOG_REG(":", src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | XREGS[src2];
     csr_insn(dst, src1, oldval, newval, src2 != x0);
@@ -1924,6 +1929,7 @@ void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((u
 void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((unused)))
 {
     LOG(DEBUG, "I(%c): csrrc x%d, %s, x%d", PRVNAME, dst, csr_name(src1), src2);
+    LOG_REG(":", src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~XREGS[src2]);
     csr_insn(dst, src1, oldval, newval, src2 != x0);
@@ -2067,6 +2073,8 @@ static void dcache_prefetch_vaddr(uint64_t val)
     int  count      = (val & 0xF) + 1;
     uint64_t stride = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
     //int      id   = XREGS[31] & 0x0000000000000001ULL;
+
+    LOG_REG(":", 31);
 
     // Skip all if dest is MEM
     if (dest == 3)
@@ -2621,9 +2629,10 @@ void tensor_load_start(uint64_t control)
     int      boffset            = (control >>  4) & 0x03;
     int      rows               = ((control      ) & 0xF) + 1;
 
+    LOG_REG(":", 31);
     LOG(DEBUG, "\tStart TensorLoad with tm: %d, use_coop: %d, trans: %d, dst: %d, "
-        "tenb: %d, addr: 0x%" PRIx64 ", boffset: %d, rows: %d, stride: 0x%" PRIx64,
-        tm, use_coop, trans, dst, tenb, addr, boffset, rows, stride);
+        "tenb: %d, addr: 0x%" PRIx64 ", boffset: %d, rows: %d, stride: 0x%" PRIx64 ", id: %d",
+        tm, use_coop, trans, dst, tenb, addr, boffset, rows, stride, id);
 
 #ifdef ZSIM
     bool txload_busy = (cpu[current_thread].txload[int(tenb)] != 0xFFFFFFFFFFFFFFFFULL);
@@ -2679,22 +2688,23 @@ void tensor_load_start(uint64_t control)
 #ifdef ZSIM
     if (txload_busy) {
         cpu[current_thread].shadow_txload[int(tenb)] = control;
-        cpu[current_thread].shadow_txstride[int(tenb)] = stride;
+        cpu[current_thread].shadow_txstride[int(tenb)] = XREGS[31];
     } else {
         cpu[current_thread].txload[int(tenb)] = control;
-        cpu[current_thread].txstride[int(tenb)] = stride;
+        cpu[current_thread].txstride[int(tenb)] = XREGS[31];
     }
 #else
     cpu[current_thread].txload[int(tenb)] = control;
-    cpu[current_thread].txstride[int(tenb)] = stride;
-    tensor_load_execute(tenb, id);
+    cpu[current_thread].txstride[int(tenb)] = XREGS[31];
+    tensor_load_execute(tenb);
 #endif
 }
 
-void tensor_load_execute(bool tenb, int id)
+void tensor_load_execute(bool tenb)
 {
     uint64_t txload = cpu[current_thread].txload[int(tenb)];
-    uint64_t stride = cpu[current_thread].txstride[int(tenb)];
+    uint64_t stride = cpu[current_thread].txstride[int(tenb)] & 0xFFFFFFFFFFC0ULL;
+    int      id     = cpu[current_thread].txstride[int(tenb)] & 1;
 
     int      tm       = (txload >> 63) & 0x1;
     int      use_coop = (txload >> 62) & 0x1;
@@ -2916,6 +2926,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
     int      rows    = ((control     ) & 0xF) + 1;
     uint64_t addr    = sext<48>(base);
 
+    LOG_REG(":", 31);
     LOG(DEBUG, "TensorLoadL2SCP: rows:%d - tm:%d - dst:%d - addr:0x%" PRIx64 " - stride: 0x%" PRIx64 " - id: %d",
         rows, tm, dst, addr, stride, id);
 
@@ -3222,10 +3233,11 @@ static void tensorstore(uint64_t tstorereg)
         int      scpstart =  (tstorereg & 0x3F00000000000000ULL) >> 56;      // Start scratchpad entry to store
         int      rows     = ((tstorereg & 0x0078000000000000ULL) >> 51) + 1; // Number of rows to store
         uint64_t addr     = sext<48>(tstorereg & 0x0000FFFFFFFFFFC0ULL);     // Address where to store the results
+        int      src      = scpstart % L1_SCP_ENTRIES;
 
         uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFC0ULL;
 
-        int src = scpstart % L1_SCP_ENTRIES;
+        LOG_REG(":", 31);
         LOG(DEBUG, "\tStart TensorStoreFromScp with addr: %016" PRIx64 ", stride: %016" PRIx64 ", rows: %d, scpstart: %d, srcinc: %d", addr, stride, rows, src, srcinc);
 
         log_tensor_store(true, rows, 4, 1);
@@ -3275,6 +3287,7 @@ static void tensorstore(uint64_t tstorereg)
 
         uint64_t stride   = XREGS[31] & 0x0000FFFFFFFFFFF0ULL;
 
+        LOG_REG(":", 31);
         LOG(DEBUG, "\tStart TensorStore with addr: %016" PRIx64 ", stride: %016" PRIx64 ", regstart: %d, rows: %d, cols: %d, srcinc: %d, coop: %d",
             addr, stride, regstart, rows, cols, srcinc, coop);
 

@@ -77,7 +77,7 @@ bool api_communicate::execute(const rt_host_kernel_launch_info_t& launch_info)
     return true;
 }
 
-bool api_communicate::continue_exec(std::list<int> * enabled_threads)
+bool api_communicate::continue_exec(std::list<int> * running_threads)
 {
     LOG_NOTHREAD(INFO, "%s", "sim_api_communicate: continue");
     assert(32 < (EMU_NUM_MINIONS / EMU_MINIONS_PER_SHIRE));
@@ -94,8 +94,8 @@ bool api_communicate::continue_exec(std::list<int> * enabled_threads)
         for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++) {
             int minion_id = s * EMU_THREADS_PER_SHIRE +
                 m * EMU_THREADS_PER_MINION;
-            enabled_threads->push_back(minion_id);
-            enabled_threads->push_back(minion_id + 1);
+            running_threads->push_back(minion_id);
+            running_threads->push_back(minion_id + 1);
         }
     }
 
@@ -103,14 +103,14 @@ bool api_communicate::continue_exec(std::list<int> * enabled_threads)
     for (int m = 0; m < EMU_MINIONS_PER_SHIRE; m++) {
         int minion_id = EMU_MASTER_SHIRE * EMU_THREADS_PER_SHIRE +
             m * EMU_THREADS_PER_MINION;
-        enabled_threads->push_back(minion_id);
-        enabled_threads->push_back(minion_id + 1);
+        running_threads->push_back(minion_id);
+        running_threads->push_back(minion_id + 1);
     }
     return true;
 }
 
 // Execution
-void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
+void api_communicate::get_next_cmd(std::list<int> * running_threads)
 {
     // if we have received a shutdown do not check the socket for any
     // new commands.
@@ -119,7 +119,7 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
         return;
     }
     // Waits until all minions are idle
-    if(!enabled || (enabled_threads->size() != 0)) return;
+    if(!enabled || (running_threads->size() != 0)) return;
 
     LOG_NOTHREAD(INFO, "%s", "api_communicate: command");
 
@@ -203,7 +203,7 @@ void api_communicate::get_next_cmd(std::list<int> * enabled_threads)
             break;
         case kIPIContinue:
             {
-                continue_exec(enabled_threads);
+                continue_exec(running_threads);
             }
             break;
         case kIPIShutdown:

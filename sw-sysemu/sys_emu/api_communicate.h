@@ -37,7 +37,7 @@ class api_communicate
 
         // Execution
         virtual bool init();
-        virtual void get_next_cmd(std::list<int> * enabled_threads);
+        virtual void get_next_cmd(std::list<int> * running_threads);
 
     protected:
         bemu::MainMemory* mem;                   // Pointer to the memory
@@ -96,7 +96,7 @@ class api_communicate
         } __attribute__((packed)) rt_host_kernel_launch_info_t;
 
     bool execute(const rt_host_kernel_launch_info_t& launch_info);
-    bool continue_exec(std::list<int> * enabled_threads);
+    bool continue_exec(std::list<int> * running_threads);
 };
 
 #endif // _API_COMMUNICATE_

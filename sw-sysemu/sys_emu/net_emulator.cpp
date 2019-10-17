@@ -51,10 +51,10 @@ bool net_emulator::is_enabled(){
 }
 
 // Execution
-void net_emulator::get_new_ipi(std::list<int> * enabled_threads, std::list<int> * ipi_threads, uint64_t * new_pc)
+void net_emulator::get_new_ipi(std::list<int> * running_threads, std::list<int> * ipi_threads, uint64_t * new_pc)
 {
     // Wait until all threads are in WFI before sending IPI for next layer
-    if(!helper_done && enabled_threads && enabled_threads->size()) return;
+    if(!helper_done && running_threads && running_threads->size()) return;
     // No layers pending
     if(layers.size() == 0) return;
 

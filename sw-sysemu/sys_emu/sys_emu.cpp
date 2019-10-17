@@ -41,7 +41,7 @@ extern uint32_t sd_log_minion;
 ////////////////////////////////////////////////////////////////////////////////
 
 uint64_t        sys_emu::emu_cycle = 0;
-std::list<int>  sys_emu::enabled_threads;                                               // List of enabled threads
+std::list<int>  sys_emu::running_threads;                                               // List of running threads
 std::list<int>  sys_emu::fcc_wait_threads[2];                                           // List of threads waiting for an FCC
 std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
 std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
@@ -219,7 +219,7 @@ sys_emu::fcc_to_threads(unsigned shire_id, unsigned thread_dest, uint64_t thread
                     LOG_OTHER(DEBUG, thread_id, "Disabled thread received FCC%u", thread_dest*2 + cnt_dest);
                 } else {
                     LOG_OTHER(DEBUG, thread_id, "Waking up due to received FCC%u", thread_dest*2 + cnt_dest);
-                    enabled_threads.push_back(thread_id);
+                    running_threads.push_back(thread_id);
                 }
                 fcc_wait_threads[cnt_dest].erase(thread);
                 --fcc[thread_id][cnt_dest];
@@ -246,7 +246,7 @@ sys_emu::msg_to_thread(int thread_id)
             LOG_OTHER(DEBUG, thread_id, "%s", "Disabled thread received msg");
         } else {
             LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due msg");
-            enabled_threads.push_back(thread_id);
+            running_threads.push_back(thread_id);
         }
         port_wait_threads.erase(thread);
     }
@@ -278,13 +278,13 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
             uint64_t new_pc = bemu::neigh_esrs[neigh].ipi_redirect_pc;
             LOG_OTHER(DEBUG, tid, "Receiving IPI_REDIRECT to %llx", (long long unsigned int) new_pc);
             // If thread sleeping, wakes up and changes PC
-            if(std::find(enabled_threads.begin(), enabled_threads.end(), tid) == enabled_threads.end())
+            if(!thread_is_running(tid))
             {
                 if (!thread_is_active(tid) || thread_is_disabled(tid)) {
                     LOG_OTHER(DEBUG, tid, "%s", "Disabled thread received IPI_REDIRECT");
                 } else {
                     LOG_OTHER(DEBUG, tid, "%s", "Waking up due to IPI_REDIRECT");
-                    enabled_threads.push_back(tid);
+                    running_threads.push_back(tid);
                     current_pc[tid] = new_pc;
                 }
             }
@@ -314,8 +314,8 @@ sys_emu::raise_timer_interrupt(uint64_t shire_mask)
                     int thread_id = s * EMU_THREADS_PER_SHIRE + m * EMU_THREADS_PER_MINION + ii;
                     if (thread_is_active(thread_id) && !thread_is_disabled(thread_id)) {
                         ::raise_timer_interrupt(thread_id);
-                        if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
-                            enabled_threads.push_back(thread_id);
+                        if (!thread_is_running(thread_id))
+                            running_threads.push_back(thread_id);
                     }
                 }
             }
@@ -366,10 +366,10 @@ sys_emu::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
                 LOG_OTHER(DEBUG, thread_id, "%s", "Receiving IPI");
                 ::raise_software_interrupt(thread_id);
                 // If thread sleeping, wakes up
-                if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+                if (!thread_is_running(thread_id) && !thread_waiting_fcc(thread_id))
                 {
                     LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to IPI");
-                    enabled_threads.push_back(thread_id);
+                    running_threads.push_back(thread_id);
                 }
             }
         }
@@ -412,10 +412,10 @@ sys_emu::raise_external_interrupt(unsigned shire)
         LOG_OTHER(DEBUG, thread_id, "%s", "Receiving External Interrupt");
         ::raise_external_machine_interrupt(thread_id);
         // If thread sleeping, wakes up
-        if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+        if (!thread_is_running(thread_id) && !thread_waiting_fcc(thread_id))
         {
             LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to External Interrupt");
-            enabled_threads.push_back(thread_id);
+            running_threads.push_back(thread_id);
         }
     }
 }
@@ -454,10 +454,10 @@ sys_emu::raise_external_supervisor_interrupt(unsigned shire_id)
         LOG_OTHER(DEBUG, thread_id, "%s", "Receiving External Supervisor Interrupt");
         ::raise_external_supervisor_interrupt(thread_id);
         // If thread sleeping, wakes up
-        if (std::find(enabled_threads.begin(), enabled_threads.end(), thread_id) == enabled_threads.end())
+        if (!thread_is_running(thread_id))
         {
             LOG_OTHER(DEBUG, thread_id, "%s", "Waking up due to External Supervisor Interrupt");
-            enabled_threads.push_back(thread_id);
+            running_threads.push_back(thread_id);
         }
     }
 }
@@ -903,7 +903,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 
     // Reset the SoC
 
-    enabled_threads.clear();
+    running_threads.clear();
     fcc_wait_threads[0].clear();
     fcc_wait_threads[1].clear();
     port_wait_threads.clear();
@@ -959,7 +959,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
                 activate_thread(tid);
                 if (!cmd_options.mins_dis) {
                     assert(!thread_is_disabled(tid));
-                    enabled_threads.push_back(tid);
+                    running_threads.push_back(tid);
                 }
             }
         }
@@ -1000,7 +1000,7 @@ sys_emu::main_internal(int argc, char * argv[])
 
     // While there are active threads or the network emulator is still not done
     while(  (emu_done() == false)
-         && (   !enabled_threads.empty()
+         && (   !running_threads.empty()
              || !fcc_wait_threads[0].empty()
              || !fcc_wait_threads[1].empty()
              || !port_wait_threads.empty()
@@ -1019,16 +1019,16 @@ sys_emu::main_internal(int argc, char * argv[])
         // Update devices
         pu_rvtimer.update(emu_cycle);
 
-        auto thread = enabled_threads.begin();
+        auto thread = running_threads.begin();
 
-        while(thread != enabled_threads.end())
+        while(thread != running_threads.end())
         {
             auto thread_id = * thread;
 
             // lazily erase disabled threads from the active thread list
             if (!thread_is_active(thread_id) || thread_is_disabled(thread_id))
             {
-                thread = enabled_threads.erase(thread);
+                thread = running_threads.erase(thread);
                 LOG_OTHER(DEBUG, thread_id, "%s", "Disabling thread");
                 continue;
             }
@@ -1092,9 +1092,9 @@ sys_emu::main_internal(int argc, char * argv[])
 
                     if (get_msg_port_stall(thread_id, 0))
                     {
-                        thread = enabled_threads.erase(thread);
+                        thread = running_threads.erase(thread);
                         port_wait_threads.push_back(thread_id);
-                        if (thread == enabled_threads.end()) break;
+                        if (thread == running_threads.end()) break;
                     }
                     else
                     {
@@ -1107,7 +1107,7 @@ sys_emu::main_internal(int argc, char * argv[])
                             if (pending_fcc[old_thread][cnt]==0)
                             {
                                 LOG(DEBUG, "Going to sleep (FCC%u)", 2*(thread_id & 1) + cnt);
-                                thread = enabled_threads.erase(thread);
+                                thread = running_threads.erase(thread);
                                 fcc_wait_threads[cnt].push_back(thread_id);
                             }
                             else
@@ -1118,12 +1118,12 @@ sys_emu::main_internal(int argc, char * argv[])
                         else if (inst.is_wfi())
                         {
                             LOG(DEBUG, "%s", "Going to sleep (WFI)");
-                            thread = enabled_threads.erase(thread);
+                            thread = running_threads.erase(thread);
                         }
                         else if (inst.is_stall())
                         {
                             LOG(DEBUG, "%s", "Going to sleep (STALL)");
-                            thread = enabled_threads.erase(thread);
+                            thread = running_threads.erase(thread);
                         }
                         else
                         {
@@ -1173,7 +1173,7 @@ sys_emu::main_internal(int argc, char * argv[])
         // Net emu: check pending IPIs
         std::list<int> net_emu_ipi_threads;
         uint64_t net_emu_new_pc;
-        net_emu.get_new_ipi(&enabled_threads, &net_emu_ipi_threads, &net_emu_new_pc);
+        net_emu.get_new_ipi(&running_threads, &net_emu_ipi_threads, &net_emu_new_pc);
 
         // Net emu: sets the PC for all the minions that got an IPI with PC
         for (auto it = net_emu_ipi_threads.begin(); it != net_emu_ipi_threads.end(); it++) {
@@ -1181,14 +1181,14 @@ sys_emu::main_internal(int argc, char * argv[])
             if (thread_is_disabled(*it)) {
                 LOG_OTHER(DEBUG, *it, "Disabled thread received IPI with PC 0x%" PRIx64, net_emu_new_pc);
             } else {
-                enabled_threads.push_back(*it);
+                running_threads.push_back(*it);
                 LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, net_emu_new_pc);
             }
         }
 
         if (api_listener) {
             // Runtime API: check for new commands
-            api_listener->get_next_cmd(&enabled_threads);
+            api_listener->get_next_cmd(&running_threads);
         }
 
         emu_cycle++;
@@ -1198,8 +1198,8 @@ sys_emu::main_internal(int argc, char * argv[])
     {
        // Dumps awaken threads
        LOG_NOTHREAD(INFO, "%s", "Dumping awaken threads:");
-       auto thread = enabled_threads.begin();
-       while(thread != enabled_threads.end())
+       auto thread = running_threads.begin();
+       while(thread != running_threads.end())
        {
           auto thread_id = * thread;
           LOG_NOTHREAD(INFO, "\tThread %" SCNd32 ", PC: 0x%" PRIx64, thread_id, current_pc[thread_id]);
