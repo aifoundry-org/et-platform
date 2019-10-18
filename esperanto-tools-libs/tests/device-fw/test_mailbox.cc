@@ -18,7 +18,8 @@ TEST_F(DeviceFWTest, waitForHostInterrupt) {
 }
 
 // Wait for the mailbox to get ready
-TEST_F(DeviceFWTest, waitForMailboxReady) {
+// FIXME SW-1078
+TEST_F(DeviceFWTest, DISABLED_waitForMailboxReady) {
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
@@ -29,7 +30,8 @@ TEST_F(DeviceFWTest, waitForMailboxReady) {
 }
 
 // Reset the mailbox and wait to get ready again
-TEST_F(DeviceFWTest, resetMailBox) {
+// FIXME SW-1078
+TEST_F(DeviceFWTest, DISABLED_resetMailBox) {
 
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
@@ -47,7 +49,8 @@ TEST_F(DeviceFWTest, resetMailBox) {
 }
 
 // Send the echo message and check for a reply back
-TEST_F(DeviceFWTest, reflectTest) {
+// FIXME SW-1078
+TEST_F(DeviceFWTest, DISABLED_reflectTest) {
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
