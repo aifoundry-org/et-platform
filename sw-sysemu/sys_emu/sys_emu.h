@@ -40,7 +40,7 @@ struct sys_emu_cmd_options {
     char * elf_file                   = nullptr;
     char * mem_desc_file              = nullptr;
     char * net_desc_file              = nullptr;
-    char * api_comm_path       = nullptr;
+    char * api_comm_path              = nullptr;
     bool elf                          = false;
     bool mem_desc                     = false;
     bool net_desc                     = false;
@@ -93,6 +93,7 @@ public:
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
+    static void set_thread_pc(unsigned thread_id, uint64_t pc);
     static void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
                                uint64_t thread_mask, unsigned cnt_dest);
     static void msg_to_thread(int thread_id);
@@ -106,6 +107,7 @@ public:
     static void raise_external_supervisor_interrupt(unsigned shire_id);
     static void clear_external_supervisor_interrupt(unsigned shire_id);
     static void evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_mask);
+    static void shire_enable_threads(unsigned shire_id);
     int main_internal(int argc, char * argv[]);
 
     static uint64_t get_emu_cycle()  { return emu_cycle; }
@@ -115,16 +117,18 @@ public:
     static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
     static bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
 
+    static int running_threads_count() { return running_threads.size(); }
+
     static bool get_coherency_check() { return coherency_check; }
     static mem_directory& get_mem_directory() { return mem_dir; }
     static bool get_scp_check() { return scp_check; }
     static scp_directory& get_scp_directory() { return scp_dir; }
 
-protected:
+    static api_communicate &get_api_communicate() { return *api_listener; }
 
-    // Function to be overwritten by subclass to allocate and initialize custom
-    // API listener
-    virtual bool init_api_listener(const char *communication_path, bemu::MainMemory* memory);
+    static bool init_api_listener(const char *communication_path, bemu::MainMemory* memory);
+
+protected:
 
     // Returns whether a container contains an element
     template<class _container, class _Ty>
@@ -136,7 +140,7 @@ protected:
     static bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
 
     // Checks if a sleeping thread (FCC) has to wake up when receiving an interrupt
-    static void raise_interrupt_wakeup_check(unsigned thread_id, const char *str);
+    static void raise_interrupt_wakeup_check(unsigned thread_id, uint64_t mask, const char *str);
 
 private:
 
@@ -165,6 +169,7 @@ private:
 
     static uint64_t        emu_cycle;
     static std::list<int>  running_threads; // List of running threads
+    static std::list<int>  wfi_wait_threads; // List of threads waiting in a WFI
     static std::list<int>  fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD]; // List of threads waiting for an FCC
     static std::list<int>  port_wait_threads; // List of threads waiting for a port write
     static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
@@ -179,8 +184,9 @@ private:
     static bool            scp_check;
     static scp_directory   scp_dir;
 
-    net_emulator net_emu;
-    std::unique_ptr<api_communicate> api_listener;
+    static net_emulator net_emu;
+    static std::unique_ptr<api_communicate> api_listener;
+    static sys_emu_cmd_options cmd_options;
 };
 
 

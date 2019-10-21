@@ -68,18 +68,31 @@ DEF_TRAP_Y(28, sync,  trap_store_split_page_fault);
 DEF_TRAP_Y(30, sync,  trap_mcode_instruction);
 
 // Interrupts
-DEF_TRAP_N( 0 + (1ull<<63), async, trap_user_software_interrupt);
-DEF_TRAP_N( 1 + (1ull<<63), async, trap_supervisor_software_interrupt);
-DEF_TRAP_N( 3 + (1ull<<63), async, trap_machine_software_interrupt);
-DEF_TRAP_N( 4 + (1ull<<63), async, trap_user_timer_interrupt);
-DEF_TRAP_N( 5 + (1ull<<63), async, trap_supervisor_timer_interrupt);
-DEF_TRAP_N( 7 + (1ull<<63), async, trap_machine_timer_interrupt);
-DEF_TRAP_N( 8 + (1ull<<63), async, trap_user_external_interrupt);
-DEF_TRAP_N( 9 + (1ull<<63), async, trap_supervisor_external_interrupt);
-DEF_TRAP_N(11 + (1ull<<63), async, trap_machine_external_interrupt);
-DEF_TRAP_N(16 + (1ull<<63), async, trap_bad_ipi_redirect_interrupt);
-DEF_TRAP_N(19 + (1ull<<63), async, trap_icache_ecc_counter_overflow_interrupt);
-DEF_TRAP_N(23 + (1ull<<63), async, trap_bus_error_interrupt);
+#define USER_SOFTWARE_INTERRUPT               0
+#define SUPERVISOR_SOFTWARE_INTERRUPT         1
+#define MACHINE_SOFTWARE_INTERRUPT            3
+#define USER_TIMER_INTERRUPT                  4
+#define SUPERVISOR_TIMER_INTERRUPT            5
+#define MACHINE_TIMER_INTERRUPT               7
+#define USER_EXTERNAL_INTERRUPT               8
+#define SUPERVISOR_EXTERNAL_INTERRUPT         9
+#define MACHINE_EXTERNAL_INTERRUPT            11
+#define BAD_IPI_REDIRECT_INTERRUPT            16
+#define ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT 19
+#define BUS_ERROR_INTERRUPT                   23
+
+DEF_TRAP_N(USER_SOFTWARE_INTERRUPT               + (1ull<<63), async, trap_user_software_interrupt);
+DEF_TRAP_N(SUPERVISOR_SOFTWARE_INTERRUPT         + (1ull<<63), async, trap_supervisor_software_interrupt);
+DEF_TRAP_N(MACHINE_SOFTWARE_INTERRUPT            + (1ull<<63), async, trap_machine_software_interrupt);
+DEF_TRAP_N(USER_TIMER_INTERRUPT                  + (1ull<<63), async, trap_user_timer_interrupt);
+DEF_TRAP_N(SUPERVISOR_TIMER_INTERRUPT            + (1ull<<63), async, trap_supervisor_timer_interrupt);
+DEF_TRAP_N(MACHINE_TIMER_INTERRUPT               + (1ull<<63), async, trap_machine_timer_interrupt);
+DEF_TRAP_N(USER_EXTERNAL_INTERRUPT               + (1ull<<63), async, trap_user_external_interrupt);
+DEF_TRAP_N(SUPERVISOR_EXTERNAL_INTERRUPT         + (1ull<<63), async, trap_supervisor_external_interrupt);
+DEF_TRAP_N(MACHINE_EXTERNAL_INTERRUPT            + (1ull<<63), async, trap_machine_external_interrupt);
+DEF_TRAP_N(BAD_IPI_REDIRECT_INTERRUPT            + (1ull<<63), async, trap_bad_ipi_redirect_interrupt);
+DEF_TRAP_N(ICACHE_ECC_COUNTER_OVERFLOW_INTERRUPT + (1ull<<63), async, trap_icache_ecc_counter_overflow_interrupt);
+DEF_TRAP_N(BUS_ERROR_INTERRUPT                   + (1ull<<63), async, trap_bus_error_interrupt);
 
 
 //} // namespace bemu

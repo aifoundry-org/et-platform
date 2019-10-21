@@ -32,6 +32,7 @@
 #include "scp_directory.h"
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern std::array<uint32_t,EMU_NUM_THREADS>  ext_seip;
 extern uint64_t md_log_addr;
 extern uint32_t md_log_minion;
 extern uint32_t sd_log_minion;
@@ -42,7 +43,8 @@ extern uint32_t sd_log_minion;
 
 uint64_t        sys_emu::emu_cycle = 0;
 std::list<int>  sys_emu::running_threads;                                               // List of running threads
-std::list<int>  sys_emu::fcc_wait_threads[2];                                           // List of threads waiting for an FCC
+std::list<int>  sys_emu::wfi_wait_threads;                                              // List of threads waiting in a WFI
+std::list<int>  sys_emu::fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD];             // List of threads waiting for an FCC
 std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
 std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
 uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
@@ -55,6 +57,9 @@ bool            sys_emu::coherency_check = false;
 mem_directory   sys_emu::mem_dir;
 bool            sys_emu::scp_check       = false;
 scp_directory   sys_emu::scp_dir;
+net_emulator    sys_emu::net_emu;
+std::unique_ptr<api_communicate> sys_emu::api_listener;
+sys_emu_cmd_options              sys_emu::cmd_options;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helper methods
@@ -142,7 +147,7 @@ static const char * help_msg =
      -api_comm <path>         Path to socket that feeds runtime API commands.\n\
 "
 #ifdef SYSEMU_DEBUG
-"     -d                      Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
+"    -d                       Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
 #endif
 "\
      -dump_addr <addr>        Address in memory at which to start dumping. Only valid if -dump_file is used\n\
@@ -150,7 +155,7 @@ static const char * help_msg =
      -dump_mem <path>         Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n\
 "
 #ifdef SYSEMU_PROFILING
-"     -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
+"    -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
 #endif
 "\
      -dump_size <size>        Size of the memory to dump. Only valid if -dump_file is used\n\
@@ -178,6 +183,16 @@ static const char * help_msg =
      -dump_at_pc              Enables logging when minion reaches a given PC\n\
      -stop_dump_at_pc         Disables logging when minion reaches a given PC\n\
 ";
+
+////////////////////////////////////////////////////////////////////////////////
+// Sets the PC of the given thread.
+////////////////////////////////////////////////////////////////////////////////
+
+void
+sys_emu::set_thread_pc(unsigned thread_id, uint64_t pc)
+{
+    current_pc[thread_id] = pc;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
@@ -298,17 +313,38 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
 }
 
 void
-sys_emu::raise_interrupt_wakeup_check(unsigned thread_id, const char *str)
+sys_emu::raise_interrupt_wakeup_check(unsigned thread_id, uint64_t mask, const char *str)
 {
-    unsigned old_thread = get_thread();
-    set_thread(thread_id);
-    try {
-        check_pending_interrupts();
-    } catch (const trap_t& t) {
+    bool wakeup = false;
+
+    // WFI doesn't require the global interrupt bits in mstatus to be enabled
+    uint64_t xip = (cpu[thread_id].mip | ext_seip[thread_id]) & cpu[thread_id].mie;
+    if (xip & mask) {
+        wakeup = true;
+    } else {
+        // If there's a trap, catch it and wakeup the thread
+        unsigned old_thread = get_thread();
+        set_thread(thread_id);
+        try {
+            check_pending_interrupts();
+        } catch (const trap_t& t) {
+            wakeup = true;
+        }
+        set_thread(old_thread);
+    }
+
+    if (wakeup) {
         LOG_OTHER(DEBUG, thread_id, "Waking up due to %s", str);
 
         // Put the interrupted thread back to running
         running_threads.push_back(thread_id);
+
+        // If it was waiting in a WFI, remove it
+        auto wfi_it = std::find(wfi_wait_threads.begin(),
+                                wfi_wait_threads.end(),
+                                thread_id);
+        if (wfi_it != wfi_wait_threads.end())
+            wfi_wait_threads.erase(wfi_it);
 
         // If it was waiting for an FCC, remove it
         for (auto &fcc_wait_it: fcc_wait_threads) {
@@ -319,7 +355,6 @@ sys_emu::raise_interrupt_wakeup_check(unsigned thread_id, const char *str)
                 fcc_wait_it.erase(th);
         }
     }
-    set_thread(old_thread);
 }
 
 void
@@ -346,8 +381,11 @@ sys_emu::raise_timer_interrupt(uint64_t shire_mask)
                     continue;
 
                 // Check if the thread has to be awakened
-                if (!thread_is_running(thread_id))
-                    raise_interrupt_wakeup_check(thread_id, "Machine timer interrupt");
+                if (!thread_is_running(thread_id)) {
+                    raise_interrupt_wakeup_check(thread_id,
+                                                 1ull << MACHINE_TIMER_INTERRUPT,
+                                                 "Machine timer interrupt");
+                }
             }
         }
     }
@@ -399,8 +437,11 @@ sys_emu::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
         ::raise_software_interrupt(thread_id);
 
         // Check if the thread has to be awakened
-        if (!thread_is_running(thread_id))
-            raise_interrupt_wakeup_check(thread_id, "IPÌ");
+        if (!thread_is_running(thread_id)) {
+            raise_interrupt_wakeup_check(thread_id,
+                                         1ull << MACHINE_SOFTWARE_INTERRUPT,
+                                         "IPÌ");
+        }
     }
 }
 
@@ -444,8 +485,11 @@ sys_emu::raise_external_interrupt(unsigned shire)
             continue;
 
         // Check if the thread has to be awakened
-        if (!thread_is_running(thread_id))
-            raise_interrupt_wakeup_check(thread_id, "Machine external interrupt");
+        if (!thread_is_running(thread_id)) {
+            raise_interrupt_wakeup_check(thread_id,
+                                         1ull << MACHINE_EXTERNAL_INTERRUPT,
+                                         "Machine external interrupt");
+        }
     }
 }
 
@@ -487,8 +531,11 @@ sys_emu::raise_external_supervisor_interrupt(unsigned shire_id)
             continue;
 
         // Check if the thread has to be awakened
-        if (!thread_is_running(thread_id))
-            raise_interrupt_wakeup_check(thread_id, "Supervisor external interrupt");
+        if (!thread_is_running(thread_id)) {
+            raise_interrupt_wakeup_check(thread_id,
+                                         1ull << SUPERVISOR_EXTERNAL_INTERRUPT,
+                                         "Supervisor external interrupt");
+        }
     }
 }
 
@@ -554,6 +601,25 @@ sys_emu::evl_dv_handle_irq_inj(bool raise, uint64_t subopcode, uint64_t shire_ma
         else
             sys_emu::clear_timer_interrupt(shire_mask);
         break;
+    }
+}
+
+void
+sys_emu::shire_enable_threads(unsigned shire_id)
+{
+    if (shire_id == IO_SHIRE_ID)
+        shire_id = EMU_IO_SHIRE_SP;
+
+    unsigned thread0 = EMU_THREADS_PER_SHIRE * shire_id;
+    unsigned shire_thread_count = (shire_id == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+
+    bemu::write_thread0_disable(shire_id, 0);
+    bemu::write_thread1_disable(shire_id, 0);
+
+    for (unsigned t = 0; t < shire_thread_count; ++t) {
+        unsigned thread_id = thread0 + t;
+        if (thread_is_active(thread_id) && !thread_is_disabled(thread_id))
+            running_threads.push_back(thread_id);
     }
 }
 
@@ -846,6 +912,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
 bool
 sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 {
+    this->cmd_options = cmd_options;
     if ((cmd_options.elf_file == NULL) && (cmd_options.mem_desc_file == NULL)
         && (cmd_options.api_comm_path == NULL))
     {
@@ -1035,9 +1102,10 @@ sys_emu::main_internal(int argc, char * argv[])
              || !port_wait_threads.empty()
              ||  pu_rvtimer.is_active()
              || (net_emu.is_enabled() && !net_emu.done())
-             || (api_listener && api_listener->is_enabled() && !api_listener->is_done())
+             || (api_listener && api_listener->is_enabled())
             )
          && (emu_cycle < cmd_options.max_cycles)
+         && !(api_listener && api_listener->is_done())
     )
     {
 #ifdef SYSEMU_DEBUG
@@ -1147,6 +1215,7 @@ sys_emu::main_internal(int argc, char * argv[])
                         else if (inst.is_wfi())
                         {
                             LOG(DEBUG, "%s", "Going to sleep (WFI)");
+                            wfi_wait_threads.push_back(thread_id);
                             thread = running_threads.erase(thread);
                         }
                         else if (inst.is_stall())
