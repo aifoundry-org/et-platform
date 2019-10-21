@@ -17,9 +17,7 @@ TEST_F(DeviceFWTest, waitForHostInterrupt) {
   // Do nothing the test fixture should do the above
 }
 
-// Wait for the mailbox to get ready
-// FIXME SW-1078
-TEST_F(DeviceFWTest, DISABLED_waitForMailboxReady) {
+TEST_F(DeviceFWTest, waitForMailboxReady) {
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
@@ -29,9 +27,7 @@ TEST_F(DeviceFWTest, DISABLED_waitForMailboxReady) {
   EXPECT_TRUE(ready);
 }
 
-// Reset the mailbox and wait to get ready again
-// FIXME SW-1078
-TEST_F(DeviceFWTest, DISABLED_resetMailBox) {
+TEST_F(DeviceFWTest, resetMailBox) {
 
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
@@ -48,9 +44,7 @@ TEST_F(DeviceFWTest, DISABLED_resetMailBox) {
   EXPECT_TRUE(success);
 }
 
-// Send the echo message and check for a reply back
-// FIXME SW-1078
-TEST_F(DeviceFWTest, DISABLED_reflectTest) {
+TEST_F(DeviceFWTest, reflectTest) {
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
@@ -75,11 +69,7 @@ TEST_F(DeviceFWTest, DISABLED_reflectTest) {
   std::vector<uint8_t> message(target_device->mboxMsgMaxSize(), 0);
   auto size = target_device->mb_read(message.data(), message.size(),
                                      std::chrono::seconds(20));
-  // FIXME we are receiving the follwoing from device-fw
-  // MESSAGE_ID_KERNEL_LAUNCH_NACK received from shire 32 hart 2
-  // Error illegal shire 32 state transition from error
-
-  // EXPECT_EQ(size, sizeof(device_fw::host_message_t));
+  EXPECT_EQ(size, sizeof(device_fw::host_message_t));
   auto response = reinterpret_cast<device_fw::host_message_t *>(message.data());
   RTDEBUG << "MessageID: " << response->message_id << "\n";
 }

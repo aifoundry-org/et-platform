@@ -30,7 +30,7 @@ namespace fs = std::experimental::filesystem;
 ABSL_FLAG(std::string, kernels_dir, "",
           "Directory where different kernel ELF files are located");
 
-TEST_F(DeviceFWTest, DISABLED_empty_kernel) {
+TEST_F(DeviceFWTest, empty_kernel) {
 
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
@@ -58,7 +58,21 @@ TEST_F(DeviceFWTest, DISABLED_empty_kernel) {
   ASSERT_EQ(launch_res, etrtSuccess);
 }
 
-TEST_F(DeviceFWTest, DISABLED_beef_kernel) {
+TEST_F(DeviceFWTest, beef_kernel) {
+  auto *target_device_ptr = &dev_->getTargetDevice();
+  auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
+  EXPECT_TRUE(target_device != nullptr);
+  auto &mb_emu = target_device->mailboxDev();
+
+  auto success = mb_emu.ready(std::chrono::seconds(20));
+  EXPECT_TRUE(success);
+
+  success = mb_emu.reset();
+  EXPECT_TRUE(success);
+
+  success = mb_emu.ready(std::chrono::seconds(20));
+  EXPECT_TRUE(success);
+
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path empty_kernel = fs::path(kernels_dir)  / fs::path("beef.elf");
 
@@ -85,7 +99,6 @@ TEST_F(DeviceFWTest, DISABLED_beef_kernel) {
   ASSERT_EQ(launch_res, etrtSuccess);
   ASSERT_THAT(data, ::testing::ElementsAreArray(refdata));
 }
-
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
