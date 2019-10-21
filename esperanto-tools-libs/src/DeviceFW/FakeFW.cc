@@ -12,12 +12,17 @@
 
 #include "Support/Logging.h"
 
+#include "Core/CommandLineOptions.h"
 #include "Core/DeviceTarget.h"
 
 #include <fstream>
 
+ABSL_FLAG(std::string, fake_fw, "", "Path to the fake-fw path");
+
 namespace et_runtime {
 namespace device_fw {
+
+FakeFW::FakeFW() { setFWFilePaths({absl::GetFlag(FLAGS_fake_fw)}); }
 
 bool FakeFW::setFWFilePaths(const std::vector<std::string> &paths) {
   if (paths.size() > 1) {
@@ -26,16 +31,15 @@ bool FakeFW::setFWFilePaths(const std::vector<std::string> &paths) {
   }
   bootrom_path_ = paths[0];
 
-  return true;
-}
-bool FakeFW::readFW() {
   std::ifstream input(bootrom_path_.c_str(), std::ios::binary);
   // Read the input file in binary-form in the holder buffer.
   // Use the stread iterator to read out all the file data
   bootrom_data_ =
       decltype(bootrom_data_)(std::istreambuf_iterator<char>(input), {});
+
   return true;
 }
+bool FakeFW::readFW() { return true; }
 
 etrtError FakeFW::loadOnDevice(device::DeviceTarget *dev) {
   const void *bootrom_p = reinterpret_cast<const void *>(bootrom_data_.data());

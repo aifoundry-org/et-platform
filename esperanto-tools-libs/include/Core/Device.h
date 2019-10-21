@@ -24,6 +24,7 @@
 #include <thread>
 
 class GetDev;
+class DeviceFWTest;
 
 namespace et_runtime {
 
@@ -49,6 +50,8 @@ class Device {
   friend class ::GetDev;
   friend class et_runtime::device::MemoryManager;
   friend class Module;
+  // Friend class to enable unit-testing
+  friend class ::DeviceFWTest;
 
 public:
   Device(int index);

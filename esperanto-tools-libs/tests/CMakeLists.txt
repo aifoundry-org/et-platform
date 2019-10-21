@@ -107,20 +107,6 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
 endfunction()
 
 
-set(TEST_LIST
-  test_error_or.cc:""
-  test_command_response.cc:""
-  test_command_queue.cc:""
-  test_device_manager.cc:""
-  test_device_target_sysemu_grpc.cc:""
-  test_elf_parsing.cc:""
-  test_memory_manager.cc:""
-  test_module_load.cc:""
-  test_module_manager.cc:""
-  )
-
-create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
-
 if(esperanto-fw_FOUND)
   get_property(MASTER_MINION_ELF TARGET esperanto-fw::MasterMinion.elf PROPERTY LOCATION)
   get_property(MACHINE_MINION_ELF TARGET esperanto-fw::MachineMinion.elf PROPERTY LOCATION)
@@ -134,6 +120,25 @@ if(esperanto-fw_FOUND)
 
   set(DEV_FW_ARGS "--fw_type=device-fw --master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
 
+else(esperanto-fw_FOUND)
+  set(DEV_FW_ARGS "--fw_type=fake-fw --fake_fw=${CMAKE_CURRENT_BINARY_DIR}/bootrom.mem")
+endif(esperanto-fw_FOUND)
+
+set(TEST_LIST
+  test_error_or.cc:""
+  test_command_response.cc:""
+  test_command_queue.cc:""
+  test_device_manager.cc:""
+  test_device_target_sysemu_grpc.cc:""
+  test_elf_parsing.cc:""
+  test_memory_manager.cc:""
+  test_module_load.cc:"${DEV_FW_ARGS}"
+  test_module_manager.cc:"${DEV_FW_ARGS}"
+  )
+
+create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
+
+if(esperanto-fw_FOUND)
   # List of tests to be compiled if we have support for device-fw
   set(DEVFW_TEST_LIST
     # This tests exercises the simulator API but given that we need to test the mailbox this

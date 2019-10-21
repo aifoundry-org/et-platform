@@ -54,22 +54,15 @@ protected:
 
     // Start the simulator and load device-fw in memory
     dev_->setFWFilePaths({master_minion, machine_minion, worker_minion});
-    ASSERT_EQ(dev_->init(), etrtSuccess);
-
-    auto *target_device_ptr = &dev_->getTargetDevice();
-    auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
-    ASSERT_TRUE(target_device != nullptr);
-
-    // Boot device-fw
-    target_device->boot(0x8000001000);
-    auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
-    ASSERT_TRUE(res);
   }
 
   void TearDown() override {
+    // Stop the simulator
+    EXPECT_EQ(etrtSuccess, dev_->resetDevice());
+  }
 
-  // Stop the simulator
-  EXPECT_EQ(etrtSuccess, dev_->resetDevice());
+  std::unique_ptr<et_runtime::device::MemoryManager> &memManager() {
+    return dev_->mem_manager_;
   }
 
   std::shared_ptr<Device> dev_;

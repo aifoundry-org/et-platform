@@ -46,9 +46,7 @@ TEST(ModuleManager, loadOnSysEMU) {
   auto ret_value = device_manager->registerDevice(0);
   auto dev = ret_value.get();
 
-  auto bootrom = dir_name / "bootrom.mem";
   // Start the simulator
-  dev->setFWFilePaths({bootrom});
   ASSERT_EQ(dev->init(), etrtSuccess);
 
   auto conv_elf = dir_name / "convolution.elf";
@@ -77,3 +75,14 @@ TEST(ModuleManager, loadOnSysEMU) {
 }
 
 } // namespace
+
+int main(int argc, char **argv) {
+  google::InitGoogleLogging(argv[0]);
+  google::SetCommandLineOption("GLOG_minloglevel", "0");
+  // Force logging in stderr and set min logging level
+  FLAGS_minloglevel = 0;
+  FLAGS_logtostderr = 1;
+  testing::InitGoogleTest(&argc, argv);
+  et_runtime::ParseCommandLineOptions(argc, argv);
+  return RUN_ALL_TESTS();
+}

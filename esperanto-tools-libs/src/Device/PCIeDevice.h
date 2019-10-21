@@ -31,6 +31,10 @@ public:
 
   TargetType type() override { return DeviceTarget::TargetType::PCIe; }
   bool init() override;
+  bool postFWLoadInit() {
+    // Do nothing
+    return true;
+  }
   bool deinit() override;
   bool getStatus() override;
   DeviceInformation getStaticConfiguration() override;

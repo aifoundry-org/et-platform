@@ -113,6 +113,19 @@ bool TargetSysEmu::init() {
   // Wait until sysemu has connected to the socket
   // connection_listener.join();
   device_alive_ = true;
+
+  return true;
+}
+
+bool TargetSysEmu::postFWLoadInit() {
+
+#if ENABLE_DEVICE_FW
+  // Boot device-fw
+  boot(0x8000001000);
+
+#endif // ENABLE_DEVICE_FW
+  auto success = RPCTarget::postFWLoadInit();
+  assert(success);
   return true;
 }
 

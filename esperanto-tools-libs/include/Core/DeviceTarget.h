@@ -94,6 +94,11 @@ public:
   virtual TargetType type() = 0;
   /// @brief Initialize the target device
   virtual bool init() = 0;
+  /// @brief Steps to take after fw is loaded on the device
+  // FIXME this is ore of a place holder that assumes that the runtime loads the
+  // FW on the device
+  // which is true for SysEMU but will not be the case with the real device
+  virtual bool postFWLoadInit() = 0;
   /// @brief De-Initialize the target device
   virtual bool deinit() = 0;
   /// @brief Get status information from the device

@@ -46,9 +46,7 @@ TEST(Module, loadOnSysEMU_convolution_elf) {
   auto ret_value = device_manager->registerDevice(0);
   auto dev = ret_value.get();
 
-  auto bootrom = dir_name / "bootrom.mem";
   // Start the simulator
-  dev->setFWFilePaths({bootrom});
   ASSERT_EQ(dev->init(), etrtSuccess);
 
   auto conv_elf = dir_name / "convolution.elf";
@@ -74,13 +72,10 @@ TEST(Module, loadOnSysEMU_etsocmaxsplat_elf) {
   auto ret_value = device_manager->registerDevice(0);
   auto dev = ret_value.get();
 
-  auto bootrom = dir_name / "bootrom.mem";
   // Start the simulator
-  dev->setFWFilePaths({bootrom});
   ASSERT_EQ(dev->init(), etrtSuccess);
 
   auto conv_elf = dir_name / "etsocmaxsplat.elf";
-
   auto module = make_unique<Module>(1, "etsocmaxsplat.elf");
   EXPECT_TRUE(module->readELF(conv_elf));
 
@@ -108,13 +103,10 @@ TEST(Module, loadOnSysEMU_high_address_kernel) {
   auto ret_value = device_manager->registerDevice(0);
   auto dev = ret_value.get();
 
-  auto bootrom = dir_name / "bootrom.mem";
   // Start the simulator
-  dev->setFWFilePaths({bootrom});
   ASSERT_EQ(dev->init(), etrtSuccess);
 
   auto conv_elf = dir_name / "sample-kernel";
-
   auto module = make_unique<Module>(1, "sample_kernel");
   EXPECT_TRUE(module->readELF(conv_elf));
 
@@ -133,9 +125,11 @@ TEST(Module, loadOnSysEMU_high_address_kernel) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::SetCommandLineOption("GLOG_minloglevel", "0");
   // Force logging in stderr and set min logging level
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
+  et_runtime::ParseCommandLineOptions(argc, argv);
   return RUN_ALL_TESTS();
 }

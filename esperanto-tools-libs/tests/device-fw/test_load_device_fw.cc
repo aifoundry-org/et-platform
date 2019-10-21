@@ -15,6 +15,7 @@
 
 TEST_F(DeviceFWTest, loadOnSysEMU) {
   // Do nothing make sure that the fixture starts/stop the simulator correctly
+  ASSERT_EQ(dev_->init(), etrtSuccess);
 }
 
 int main(int argc, char **argv) {

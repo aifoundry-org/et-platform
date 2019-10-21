@@ -34,6 +34,28 @@ bool RPCTarget::init() {
   return true;
 }
 
+bool RPCTarget::postFWLoadInit() {
+#if ENABLE_DEVICE_FW
+
+  // We expect that the device-cw is already loaded and "booted" at this point
+  // we are resetting the mailboxes
+  auto success = waitForHostInterrupt(std::chrono::seconds(30));
+  assert(success);
+
+  // For DeviceFW reset the mailbox as well and wait for device-fw to be ready
+  success = mailboxDev_->ready(std::chrono::seconds(20));
+  assert(success);
+
+  success = mailboxDev_->reset();
+  assert(success);
+
+  success = mailboxDev_->ready(std::chrono::seconds(20));
+  assert(success);
+
+#endif // ENABLE_DEVICE_FW
+  return true;
+}
+
 bool RPCTarget::deinit() { return shutdown(); }
 
 bool RPCTarget::getStatus() {

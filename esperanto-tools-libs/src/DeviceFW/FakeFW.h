@@ -24,8 +24,7 @@ namespace device_fw {
 /// @brief Class holding the information of the Fake-FW
 class FakeFW final : public Firmware {
 public:
-  FakeFW() = default;
-
+  FakeFW();
   bool setFWFilePaths(const std::vector<std::string> &paths) override;
   bool readFW() override;
   etrtError loadOnDevice(device::DeviceTarget *dev) override;

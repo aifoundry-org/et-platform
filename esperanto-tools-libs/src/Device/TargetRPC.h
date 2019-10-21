@@ -42,6 +42,7 @@ public:
 
   TargetType type() override { return DeviceTarget::TargetType::DeviceGRPC; }
   bool init() override;
+  bool postFWLoadInit() override;
   bool deinit() override;
 
   virtual bool getStatus() override;
@@ -89,7 +90,7 @@ public:
   /// @brief Raise the PU PLIC PCIe Message Interrupt in the target "device"
   /// in which case this is the simulator
   bool raiseDevicePuPlicPcieMessageInterrupt();
-  
+
   /// @brief Raise an IPI interrupt to the Master Shire in the target "device"
   /// in which case this is the simulator
   bool raiseDeviceMasterShireIpiInterrupt();

@@ -52,6 +52,8 @@ Device::~Device() {
 etrtError Device::init() {
   initDeviceThread();
   mem_manager_->init();
+  auto success = target_device_->postFWLoadInit();
+  assert(success);
   return etrtSuccess;
 }
 

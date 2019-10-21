@@ -32,6 +32,7 @@ public:
 
   TargetType type() override { return DeviceTarget::TargetType::SysEmuGRPC; }
   bool init() override;
+  bool postFWLoadInit() override;
   bool deinit() override;
   bool getStatus() override;
   DeviceInformation getStaticConfiguration() override;
