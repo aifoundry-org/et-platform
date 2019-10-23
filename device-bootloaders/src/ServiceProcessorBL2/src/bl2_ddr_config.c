@@ -13,8 +13,10 @@
 #include "ddr_config.h"
 
 int ddr_config(void) {
-    // configure the dram controller and train the memory
-    ddr_init(0);
+    // configure the dram controllers and train the memory
+
+    for (uint32_t memshire_id = 0; memshire_id < 8; memshire_id++)
+        ddr_init(memshire_id);
 
     return 0;
 }
