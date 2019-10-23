@@ -65,77 +65,77 @@ static void ddr_init(uint32_t memshire_id ){
 //# keep other resets asserted
 //###################################
 //
-//if {$config_real_pll} {
+#ifdef CONFIG_REAL_PLL
 //# behavorial PLL model so no need to init the PLL
 //
 //// "TCL: Doing PLL register setup."
 //
-//   write_reg( memshire_id, 0x61000000, 0x00000234);// write_ddrc_reg 0 mem_pll_ctl 0x0234
-// //# Check that what you wrote is there
-// //poll_ddrc_reg 0  mem_pll_ctl  0x0234 0xffffffff
-// //
-// //// "TCL: Program PLL to generate 1067Mhz and turn it on!"
-// //# write_ddrc_reg routines are all "raw", meaning must manually set agent
-//   write_reg( memshire_id, 0x61000000, 0x000001f8);// write_ddrc_reg 0 mem_pll_ctl            0x01f8
-//   write_reg( memshire_id, 0x61000004, 0x00000001);// write_ddrc_reg 0 mem_pll_fcw_prediv     0x0001
-//   write_reg( memshire_id, 0x61000008, 0x00000028);// write_ddrc_reg 0 mem_pll_fcw_int        0x0028
-//   write_reg( memshire_id, 0x6100000c, 0x00000000);// write_ddrc_reg 0 mem_pll_fcw_frac       0x0000
-//   write_reg( memshire_id, 0x61000010, 0x000001b0);// write_ddrc_reg 0 mem_pll_dlf_locked_kp  0x01b0
-//   write_reg( memshire_id, 0x61000014, 0x00000add);// write_ddrc_reg 0 mem_pll_dlf_locked_ki  0x0add
-//   write_reg( memshire_id, 0x61000018, 0x00000000);// write_ddrc_reg 0 mem_pll_dlf_locked_kb  0x0000
-//   write_reg( memshire_id, 0x6100001c, 0x000001c3);// write_ddrc_reg 0 mem_pll_dlf_track_kp   0x01c3
-//   write_reg( memshire_id, 0x61000020, 0x00000988);// write_ddrc_reg 0 mem_pll_dlf_track_ki   0x0988
-//   write_reg( memshire_id, 0x61000024, 0x00000000);// write_ddrc_reg 0 mem_pll_dlf_track_kb   0x0000
-//   write_reg( memshire_id, 0x61000028, 0x000001f0);// write_ddrc_reg 0 mem_pll_lock_count     0x01f0
-//   write_reg( memshire_id, 0x6100002c, 0x0000003d);// write_ddrc_reg 0 mem_pll_lock_threshold 0x003d
-//   write_reg( memshire_id, 0x61000030, 0x00000026);// write_ddrc_reg 0 mem_pll_dco_gain       0x0026
-//   write_reg( memshire_id, 0x61000034, 0x00000000);// write_ddrc_reg 0 mem_pll_dsm_dither     0x0000
-//   write_reg( memshire_id, 0x61000038, 0x00000004);// write_ddrc_reg 0 mem_pll_postdiv        0x0004
-//   write_reg( memshire_id, 0x6100003c, 0x00000000);// write_ddrc_reg 0 mem_pll_reserved1      0x0000
-//   write_reg( memshire_id, 0x61000040, 0x00000000);// write_ddrc_reg 0 mem_pll_reserved2      0x0000
-//   write_reg( memshire_id, 0x61000044, 0x00000000);// write_ddrc_reg 0 mem_pll_reserved3      0x0000
-//   write_reg( memshire_id, 0x61000048, 0x00000000);// write_ddrc_reg 0 mem_pll_postdiv_ctl    0x0000
-//   write_reg( memshire_id, 0x6100004c, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_13      0x0000
-//   write_reg( memshire_id, 0x61000050, 0x00000000);// write_ddrc_reg 0 mem_pll_open_loop_code 0x0000
-//   write_reg( memshire_id, 0x61000054, 0x00000000);// write_ddrc_reg 0 mem_pll_ldo_ctl        0x0000
-//   write_reg( memshire_id, 0x61000058, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_16      0x0000
-//   write_reg( memshire_id, 0x6100005c, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_17      0x0000
-//   write_reg( memshire_id, 0x61000060, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_18      0x0000
-//   write_reg( memshire_id, 0x61000064, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_19      0x0000
-//   write_reg( memshire_id, 0x61000068, 0x00000001);// write_ddrc_reg 0 mem_pll_hidden_1a      0x0001
-//   write_reg( memshire_id, 0x61000080, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_20      0x0000
-//   write_reg( memshire_id, 0x61000084, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_21      0x0000
-//   write_reg( memshire_id, 0x61000088, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_22      0x0000
-//   write_reg( memshire_id, 0x6100008c, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_23      0x0000
-//   write_reg( memshire_id, 0x61000090, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_24      0x0000
-//   write_reg( memshire_id, 0x6100009c, 0x0000000c);// write_ddrc_reg 0 mem_pll_hidden_27      0x000c
-//   write_reg( memshire_id, 0x610000a0, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_28      0x0000
-// //
-// //# strobe the regs:
-//   write_reg( memshire_id, 0x610000e0, 0x00000001);// write_ddrc_reg 0 mem_pll_reg_update_strobe 0x1
-// //
-// //# poll for complete
-//   do
-//     value_read = read_reg( memshire_id, 0x610000e4);// poll_ddrc_reg 0  mem_pll_lock_detect_status 0x1 0x1 100 500
-//   while(!((value_read & 0x1) == 0x1));
-// //
-// //// "TCL: Finished PLL register setup."
-// //
-// //# HPDPLL version 1.2.1 settings for mode 3:
-// //#
-// //#.offsets = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-// //#                   0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11,
-// //#                   0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
-// //#                   0x20, 0x21, 0x22, 0x23, 0x24, 0x27, 0x28, 0x38, 0x39
-// //#      },
-// //#      .values = { 0x01f8, 0x0001, 0x0028, 0x0000, 0x01b0, 0x0add, 0x0000, 0x01c3, 0x0988,
-// //#                  0x0000, 0x01f0, 0x003d, 0x0026, 0x0000, 0x0004, 0x0000, 0x0000, 0x0000,
-// //#                  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0001,
-// //#                  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x000c, 0x0000, 0x0000, 0x0000
-//   write_reg( memshire_id, 0x180000200, 0x0000010d);// write_esr ddrc_reset_ctl 0x10d
-//} else {
+  write_reg( memshire_id, 0x61000000, 0x00000234);// write_ddrc_reg 0 mem_pll_ctl 0x0234
+//# Check that what you wrote is there
+//poll_ddrc_reg 0  mem_pll_ctl  0x0234 0xffffffff
+//
+//// "TCL: Program PLL to generate 1067Mhz and turn it on!"
+//# write_ddrc_reg routines are all "raw", meaning must manually set agent
+  write_reg( memshire_id, 0x61000000, 0x000001f8);// write_ddrc_reg 0 mem_pll_ctl            0x01f8
+  write_reg( memshire_id, 0x61000004, 0x00000001);// write_ddrc_reg 0 mem_pll_fcw_prediv     0x0001
+  write_reg( memshire_id, 0x61000008, 0x00000028);// write_ddrc_reg 0 mem_pll_fcw_int        0x0028
+  write_reg( memshire_id, 0x6100000c, 0x00000000);// write_ddrc_reg 0 mem_pll_fcw_frac       0x0000
+  write_reg( memshire_id, 0x61000010, 0x000001b0);// write_ddrc_reg 0 mem_pll_dlf_locked_kp  0x01b0
+  write_reg( memshire_id, 0x61000014, 0x00000add);// write_ddrc_reg 0 mem_pll_dlf_locked_ki  0x0add
+  write_reg( memshire_id, 0x61000018, 0x00000000);// write_ddrc_reg 0 mem_pll_dlf_locked_kb  0x0000
+  write_reg( memshire_id, 0x6100001c, 0x000001c3);// write_ddrc_reg 0 mem_pll_dlf_track_kp   0x01c3
+  write_reg( memshire_id, 0x61000020, 0x00000988);// write_ddrc_reg 0 mem_pll_dlf_track_ki   0x0988
+  write_reg( memshire_id, 0x61000024, 0x00000000);// write_ddrc_reg 0 mem_pll_dlf_track_kb   0x0000
+  write_reg( memshire_id, 0x61000028, 0x000001f0);// write_ddrc_reg 0 mem_pll_lock_count     0x01f0
+  write_reg( memshire_id, 0x6100002c, 0x0000003d);// write_ddrc_reg 0 mem_pll_lock_threshold 0x003d
+  write_reg( memshire_id, 0x61000030, 0x00000026);// write_ddrc_reg 0 mem_pll_dco_gain       0x0026
+  write_reg( memshire_id, 0x61000034, 0x00000000);// write_ddrc_reg 0 mem_pll_dsm_dither     0x0000
+  write_reg( memshire_id, 0x61000038, 0x00000004);// write_ddrc_reg 0 mem_pll_postdiv        0x0004
+  write_reg( memshire_id, 0x6100003c, 0x00000000);// write_ddrc_reg 0 mem_pll_reserved1      0x0000
+  write_reg( memshire_id, 0x61000040, 0x00000000);// write_ddrc_reg 0 mem_pll_reserved2      0x0000
+  write_reg( memshire_id, 0x61000044, 0x00000000);// write_ddrc_reg 0 mem_pll_reserved3      0x0000
+  write_reg( memshire_id, 0x61000048, 0x00000000);// write_ddrc_reg 0 mem_pll_postdiv_ctl    0x0000
+  write_reg( memshire_id, 0x6100004c, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_13      0x0000
+  write_reg( memshire_id, 0x61000050, 0x00000000);// write_ddrc_reg 0 mem_pll_open_loop_code 0x0000
+  write_reg( memshire_id, 0x61000054, 0x00000000);// write_ddrc_reg 0 mem_pll_ldo_ctl        0x0000
+  write_reg( memshire_id, 0x61000058, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_16      0x0000
+  write_reg( memshire_id, 0x6100005c, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_17      0x0000
+  write_reg( memshire_id, 0x61000060, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_18      0x0000
+  write_reg( memshire_id, 0x61000064, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_19      0x0000
+  write_reg( memshire_id, 0x61000068, 0x00000001);// write_ddrc_reg 0 mem_pll_hidden_1a      0x0001
+  write_reg( memshire_id, 0x61000080, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_20      0x0000
+  write_reg( memshire_id, 0x61000084, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_21      0x0000
+  write_reg( memshire_id, 0x61000088, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_22      0x0000
+  write_reg( memshire_id, 0x6100008c, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_23      0x0000
+  write_reg( memshire_id, 0x61000090, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_24      0x0000
+  write_reg( memshire_id, 0x6100009c, 0x0000000c);// write_ddrc_reg 0 mem_pll_hidden_27      0x000c
+  write_reg( memshire_id, 0x610000a0, 0x00000000);// write_ddrc_reg 0 mem_pll_hidden_28      0x0000
+//
+//# strobe the regs:
+  write_reg( memshire_id, 0x610000e0, 0x00000001);// write_ddrc_reg 0 mem_pll_reg_update_strobe 0x1
+//
+//# poll for complete
+  do
+    value_read = read_reg( memshire_id, 0x610000e4);// poll_ddrc_reg 0  mem_pll_lock_detect_status 0x1 0x1 100 500
+  while(!((value_read & 0x1) == 0x1));
+//
+//// "TCL: Finished PLL register setup."
+//
+//# HPDPLL version 1.2.1 settings for mode 3:
+//#
+//#.offsets = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+//#                   0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11,
+//#                   0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
+//#                   0x20, 0x21, 0x22, 0x23, 0x24, 0x27, 0x28, 0x38, 0x39
+//#      },
+//#      .values = { 0x01f8, 0x0001, 0x0028, 0x0000, 0x01b0, 0x0add, 0x0000, 0x01c3, 0x0988,
+//#                  0x0000, 0x01f0, 0x003d, 0x0026, 0x0000, 0x0004, 0x0000, 0x0000, 0x0000,
+//#                  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0001,
+//#                  0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x000c, 0x0000, 0x0000, 0x0000
+  write_reg( memshire_id, 0x180000200, 0x0000010d);// write_esr ddrc_reset_ctl 0x10d
+#else
   write_reg( memshire_id, 0x180000200, 0x0000000d);// write_esr ddrc_reset_ctl 0x0d
-//}
+#endif
 //
 //set val [read_esr ddrc_reset_ctl]
 //// "ddrc_reset_ctl is [format "%8x" $val]"
@@ -187,13 +187,13 @@ static void ddr_init(uint32_t memshire_id ){
   write_reg( memshire_id, 0x60001064, 0x0082008c);// (controller #1) write_both_ddrc_reg RFSHTMG 0x0082008c
   write_reg( memshire_id, 0x60000068, 0x00410000);// (controller #0) write_both_ddrc_reg RFSHTMG1 0x00410000
   write_reg( memshire_id, 0x60001068, 0x00410000);// (controller #1) write_both_ddrc_reg RFSHTMG1 0x00410000
-//if {$config_ecc} {
-//   write_reg( memshire_id, 0x60000070, 0x003f7f14);// (controller #0) write_both_ddrc_reg ECCCFG0 0x003f7f14;       # enable ECC
-//   write_reg( memshire_id, 0x60001070, 0x003f7f14);// (controller #1) write_both_ddrc_reg ECCCFG0 0x003f7f14;       # enable ECC
-//} else {
+#ifdef CONFIG_ECC
+  write_reg( memshire_id, 0x60000070, 0x003f7f14);// (controller #0) write_both_ddrc_reg ECCCFG0 0x003f7f14;       # enable ECC
+  write_reg( memshire_id, 0x60001070, 0x003f7f14);// (controller #1) write_both_ddrc_reg ECCCFG0 0x003f7f14;       # enable ECC
+#else
   write_reg( memshire_id, 0x60000070, 0x003f7f10);// (controller #0) write_both_ddrc_reg ECCCFG0 0x003f7f10;       # disable ECC
   write_reg( memshire_id, 0x60001070, 0x003f7f10);// (controller #1) write_both_ddrc_reg ECCCFG0 0x003f7f10;       # disable ECC
-//}
+#endif
   write_reg( memshire_id, 0x60000074, 0x000007b2);// (controller #0) write_both_ddrc_reg ECCCFG1 0x000007b2
   write_reg( memshire_id, 0x60001074, 0x000007b2);// (controller #1) write_both_ddrc_reg ECCCFG1 0x000007b2
   write_reg( memshire_id, 0x6000007c, 0x00000300);// (controller #0) write_both_ddrc_reg ECCCTL 0x00000300
@@ -278,28 +278,28 @@ static void ddr_init(uint32_t memshire_id ){
   write_reg( memshire_id, 0x60001208, 0x03000000);// (controller #1) write_both_ddrc_reg ADDRMAP2 0x03000000; # 1/2 cache line same bank
   write_reg( memshire_id, 0x60000210, 0x00001f1f);// (controller #0) write_both_ddrc_reg ADDRMAP4 0x00001f1f
   write_reg( memshire_id, 0x60001210, 0x00001f1f);// (controller #1) write_both_ddrc_reg ADDRMAP4 0x00001f1f
-//#if {$config_ecc_ram4gb} {
+#ifdef CONFIG_ECC_RAM4GB
 //#write_both_ddrc_reg ADDRMAP3 0x11111103;  # For smallest LPDDR4x part
 //#write_both_ddrc_reg ADDRMAP5 0x04040404
 //#write_both_ddrc_reg ADDRMAP6 0x0f0f0404;  # For smallest LPDDR4x part
 //#write_both_ddrc_reg ADDRMAP7 0x00000f0f;  # For smallest LPDDR4x part
-//#}
-//#if {$config_ecc_ram32gb} {
+#endif
+#ifdef $CONFIG_ECC_RAM32GB
 //#write_both_ddrc_reg ADDRMAP3 0x14141403;  # For largest LPDDR4x part
 //#write_both_ddrc_reg ADDRMAP5 0x04040404
 //#write_both_ddrc_reg ADDRMAP6 0x04040404; # For largest LPDDR4x part
 //##write_both_ddrc_reg ADDRMAP7 0x00000f04; # For largest LPDDR4x part
-//#}
-//if {$config_ecc} {
-//   write_reg( memshire_id, 0x6000020c, 0x11111103);// (controller #0) write_both_ddrc_reg ADDRMAP3 0x11111103;  # For smallest LPDDR4x part
-//   write_reg( memshire_id, 0x6000120c, 0x11111103);// (controller #1) write_both_ddrc_reg ADDRMAP3 0x11111103;  # For smallest LPDDR4x part
-//   write_reg( memshire_id, 0x60000214, 0x04040404);// (controller #0) write_both_ddrc_reg ADDRMAP5 0x04040404
-//   write_reg( memshire_id, 0x60001214, 0x04040404);// (controller #1) write_both_ddrc_reg ADDRMAP5 0x04040404
-//   write_reg( memshire_id, 0x60000218, 0x0f0f0404);// (controller #0) write_both_ddrc_reg ADDRMAP6 0x0f0f0404;  # For smallest LPDDR4x part
-//   write_reg( memshire_id, 0x60001218, 0x0f0f0404);// (controller #1) write_both_ddrc_reg ADDRMAP6 0x0f0f0404;  # For smallest LPDDR4x part
-//   write_reg( memshire_id, 0x6000021c, 0x00000f0f);// (controller #0) write_both_ddrc_reg ADDRMAP7 0x00000f0f;  # For smallest LPDDR4x part
-//   write_reg( memshire_id, 0x6000121c, 0x00000f0f);// (controller #1) write_both_ddrc_reg ADDRMAP7 0x00000f0f;  # For smallest LPDDR4x part
-//} else {
+#endif
+#ifdef CONFIG_ECC
+  write_reg( memshire_id, 0x6000020c, 0x11111103);// (controller #0) write_both_ddrc_reg ADDRMAP3 0x11111103;  # For smallest LPDDR4x part
+  write_reg( memshire_id, 0x6000120c, 0x11111103);// (controller #1) write_both_ddrc_reg ADDRMAP3 0x11111103;  # For smallest LPDDR4x part
+  write_reg( memshire_id, 0x60000214, 0x04040404);// (controller #0) write_both_ddrc_reg ADDRMAP5 0x04040404
+  write_reg( memshire_id, 0x60001214, 0x04040404);// (controller #1) write_both_ddrc_reg ADDRMAP5 0x04040404
+  write_reg( memshire_id, 0x60000218, 0x0f0f0404);// (controller #0) write_both_ddrc_reg ADDRMAP6 0x0f0f0404;  # For smallest LPDDR4x part
+  write_reg( memshire_id, 0x60001218, 0x0f0f0404);// (controller #1) write_both_ddrc_reg ADDRMAP6 0x0f0f0404;  # For smallest LPDDR4x part
+  write_reg( memshire_id, 0x6000021c, 0x00000f0f);// (controller #0) write_both_ddrc_reg ADDRMAP7 0x00000f0f;  # For smallest LPDDR4x part
+  write_reg( memshire_id, 0x6000121c, 0x00000f0f);// (controller #1) write_both_ddrc_reg ADDRMAP7 0x00000f0f;  # For smallest LPDDR4x part
+#else
   write_reg( memshire_id, 0x6000020c, 0x03030303);// (controller #0) write_both_ddrc_reg ADDRMAP3 0x03030303;  # 1/2 cache line same bank
   write_reg( memshire_id, 0x6000120c, 0x03030303);// (controller #1) write_both_ddrc_reg ADDRMAP3 0x03030303;  # 1/2 cache line same bank
   write_reg( memshire_id, 0x60000214, 0x07070707);// (controller #0) write_both_ddrc_reg ADDRMAP5 0x07070707
@@ -308,7 +308,7 @@ static void ddr_init(uint32_t memshire_id ){
   write_reg( memshire_id, 0x60001218, 0x07070707);// (controller #1) write_both_ddrc_reg ADDRMAP6 0x07070707;  # assume addressing for largest LPDDR4x part is okay always
   write_reg( memshire_id, 0x6000021c, 0x00000f07);// (controller #0) write_both_ddrc_reg ADDRMAP7 0x00000f07;  # assume addressing for largest LPDDR4x part is okay always
   write_reg( memshire_id, 0x6000121c, 0x00000f07);// (controller #1) write_both_ddrc_reg ADDRMAP7 0x00000f07;  # assume addressing for largest LPDDR4x part is okay always
-//}
+#endif
 //#write_both_ddrc_reg ADDRMAP8 0x00003f3f;  # unused bg
   write_reg( memshire_id, 0x60000224, 0x07070707);// (controller #0) write_both_ddrc_reg ADDRMAP9 0x07070707;  # unused
   write_reg( memshire_id, 0x60001224, 0x07070707);// (controller #1) write_both_ddrc_reg ADDRMAP9 0x07070707;  # unused
@@ -483,11 +483,11 @@ static void ddr_init(uint32_t memshire_id ){
 //######################################################
 //# turn off core and axi resets
 //######################################################
-//if {$config_real_pll} {
-//   write_reg( memshire_id, 0x180000200, 0x0000010c);// write_esr ddrc_reset_ctl 0x10c
-//} else {
+#ifdef CONFIG_REAL_PLL
+  write_reg( memshire_id, 0x180000200, 0x0000010c);// write_esr ddrc_reset_ctl 0x10c
+#else
   write_reg( memshire_id, 0x180000200, 0x0000000c);// write_esr ddrc_reset_ctl 0x0c
-//}
+#endif
 //set val [read_esr ddrc_reset_ctl]
 //// "ddrc_reset_ctl is [format "%8x" $val]"
 //
@@ -497,11 +497,11 @@ static void ddr_init(uint32_t memshire_id ){
 //######################################################
 //# turn off pub reset
 //######################################################
-//if {$config_real_pll} {
-//   write_reg( memshire_id, 0x180000200, 0x00000108);// write_esr ddrc_reset_ctl 0x108
-//} else {
+#ifdef CONFIG_REAL_PLL
+  write_reg( memshire_id, 0x180000200, 0x00000108);// write_esr ddrc_reset_ctl 0x108
+#else
   write_reg( memshire_id, 0x180000200, 0x00000008);// write_esr ddrc_reset_ctl 0x08
-//}
+#endif
 //set val [read_esr ddrc_reset_ctl]
 //// "ddrc_reset_ctl is [format "%8x" $val]"
 //wait_cycles 100;
