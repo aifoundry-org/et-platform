@@ -29,27 +29,27 @@ bool FakeFW::setFWFilePaths(const std::vector<std::string> &paths) {
     RTERROR << "FakeFW expects a single path";
     abort();
   }
-  bootrom_path_ = paths[0];
+  firmware_path_ = paths[0];
 
-  std::ifstream input(bootrom_path_.c_str(), std::ios::binary);
+  std::ifstream input(firmware_path_.c_str(), std::ios::binary);
   // Read the input file in binary-form in the holder buffer.
   // Use the stread iterator to read out all the file data
-  bootrom_data_ =
-      decltype(bootrom_data_)(std::istreambuf_iterator<char>(input), {});
+  firmware_data_ =
+      decltype(firmware_data_)(std::istreambuf_iterator<char>(input), {});
 
   return true;
 }
 bool FakeFW::readFW() { return true; }
 
 etrtError FakeFW::loadOnDevice(device::DeviceTarget *dev) {
-  const void *bootrom_p = reinterpret_cast<const void *>(bootrom_data_.data());
-  size_t bootrom_file_size = bootrom_data_.size();
+  const void *firmware_p = reinterpret_cast<const void *>(firmware_data_.data());
+  size_t firmware_file_size = firmware_data_.size();
 
   // TODO: Currently when running with Fake-FW, the firmware is loaded in
   // the sys_emu's mem_desc.txt (check EMemoryMap::dumpMemoryDescriptor)
-  dev->writeDevMemMMIO(BOOTROM_START_IP, bootrom_file_size, bootrom_p);
+  dev->writeDevMemMMIO(FIRMWARE_LOAD_ADDR, firmware_file_size, firmware_p);
 
-  dev->boot(BOOTROM_START_IP); // TODO Where to place this?
+  dev->boot(FIRMWARE_LOAD_ADDR); // TODO Where to place this?
 
   return etrtSuccess;
 }

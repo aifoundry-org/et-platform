@@ -191,7 +191,7 @@ public:
   /// @brief load the DeviceFW on the target device
   etrtError loadFirmwareOnDevice();
 
-  /// @brief Set the path the the bootrom files and load its contents
+  /// @brief Set the path to the firmware files and load their contents
   ///
   /// @params[in] path Vector of path to the firmware files
   ///

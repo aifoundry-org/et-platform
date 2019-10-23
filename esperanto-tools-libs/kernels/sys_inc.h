@@ -1,8 +1,7 @@
 #ifndef SYS_INC_H
 #define SYS_INC_H
 
-#define BOOTROM_START_IP 0x8000001000
-#define BOOTROM_SIZE    (256*1024*1024) // + 256MB
+#define FIRMWARE_LOAD_ADDR 0x8000001000
 
 // Special addresses in ESR region (4G-8G)
 #define ATOMIC_REGION 0x013FF40100ULL

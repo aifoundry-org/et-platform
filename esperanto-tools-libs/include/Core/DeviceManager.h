@@ -124,7 +124,6 @@ public:
 
 private:
   static const int MAX_DEVICE_NUM = 6;
-  static std::string bootrom_path;
   int active_device_ = -1;
   std::vector<std::shared_ptr<Device>> devices_;
 };

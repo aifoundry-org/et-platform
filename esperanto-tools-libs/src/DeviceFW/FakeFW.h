@@ -30,8 +30,8 @@ public:
   etrtError loadOnDevice(device::DeviceTarget *dev) override;
 
 private:
-  std::string bootrom_path_;                ///< Path to the bootrom file
-  std::vector<unsigned char> bootrom_data_; ///< Data of the bootrom file
+  std::string firmware_path_;                ///< Path to the firmware file
+  std::vector<unsigned char> firmware_data_; ///< Data of the firmware file
 };
 } // namespace device_fw
 } // namespace et_runtime
