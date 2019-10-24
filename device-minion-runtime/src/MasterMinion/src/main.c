@@ -34,10 +34,15 @@ static void fake_message_from_host(void);
 
 static void master_thread(void);
 
-static void handle_message_from_host(void);
-static void handle_message_from_sp(void);
+static void handle_messages_from_host(void);
+static void handle_message_from_host(int64_t length, const uint8_t* const buffer);
+
+static void handle_messages_from_sp(void);
+static void handle_message_from_sp(int64_t length, const uint8_t* const buffer);
+
 static void handle_messages_from_workers(void);
 static void handle_message_from_worker(uint64_t shire, uint64_t hart);
+
 static void handle_pcie_events(void);
 static void handle_timer_events(void);
 
@@ -165,7 +170,7 @@ static void __attribute__((noreturn)) master_thread(void)
             // Ensure flag clears before messages are handled
             asm volatile ("fence");
 
-            handle_message_from_sp();
+            handle_messages_from_sp();
             handle_messages_from_workers();
         }
 
@@ -181,7 +186,7 @@ static void __attribute__((noreturn)) master_thread(void)
             fake_message_from_host();
 #endif
 
-            handle_message_from_host();
+            handle_messages_from_host();
             handle_pcie_events();
         }
 
@@ -239,15 +244,27 @@ static void fake_message_from_host(void)
 }
 #endif
 
-static void handle_message_from_host(void)
+static void handle_messages_from_host(void)
 {
     static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
     int64_t length;
 
     MBOX_update_status(MBOX_PCIE);
 
-    length = MBOX_receive(MBOX_PCIE, buffer, sizeof(buffer));
+    do
+    {
+        length = MBOX_receive(MBOX_PCIE, buffer, sizeof(buffer));
 
+        if (length > 0)
+        {
+            handle_message_from_host(length, buffer);
+        }
+    }
+    while (length > 0);
+}
+
+static void handle_message_from_host(int64_t length, const uint8_t* const buffer)
+{
     if (length < 0)
     {
         return;
@@ -259,7 +276,7 @@ static void handle_message_from_host(void)
         return;
     }
 
-    const mbox_message_id_t* const message_id = (void*)buffer;
+    const mbox_message_id_t* const message_id = (const void* const)buffer;
 
     if (*message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
     {
@@ -269,7 +286,7 @@ static void handle_message_from_host(void)
         print_host_message(buffer, length);
 #endif
 
-        const host_message_t* const host_message_ptr = (void*)buffer;
+        const host_message_t* const host_message_ptr = (const void* const)buffer;
 
         launch_kernel(&host_message_ptr->kernel_params, &host_message_ptr->kernel_info);
     }
@@ -281,13 +298,13 @@ static void handle_message_from_host(void)
         print_host_message(buffer, length);
 #endif
 
-        const host_message_t* const host_message_ptr = (void*)buffer;
+        const host_message_t* const host_message_ptr = (const void* const)buffer;
 
         abort_kernel(host_message_ptr->kernel_params.kernel_id);
     }
     else if (*message_id == MBOX_MESSAGE_ID_GET_KERNEL_STATE)
     {
-        const host_message_t* const host_message_ptr = (void*)buffer;
+        const host_message_t* const host_message_ptr = (const void* const)buffer;
 
         const devfw_response_t response = {
             .message_id = MBOX_MESSAGE_ID_GET_KERNEL_STATE_RESPONSE,
@@ -306,7 +323,7 @@ static void handle_message_from_host(void)
         int rc;
 
         //Starts the DMA engine, and blocks for the DMA to complete.
-        const dma_run_to_done_message_t *const message = (void*)buffer;
+        const dma_run_to_done_message_t *const message = (const void* const)buffer;
 
         dma_done_message_t done_message = {
             .message_id = MBOX_MESSAGE_ID_DMA_DONE,
@@ -343,12 +360,12 @@ static void handle_message_from_host(void)
     }
     else if (*message_id == MBOX_MESSAGE_ID_SET_MASTER_LOG_LEVEL)
     {
-        const host_log_level_message_t* const host_log_level_message_ptr = (void*)buffer;
+        const host_log_level_message_t* const host_log_level_message_ptr = (const void* const)buffer;
         log_set_level(host_log_level_message_ptr->log_level);
     }
     else if (*message_id == MBOX_MESSAGE_ID_SET_WORKER_LOG_LEVEL)
     {
-        const host_log_level_message_t* const host_log_level_message_ptr = (void*)buffer;
+        const host_log_level_message_t* const host_log_level_message_ptr = (const void* const)buffer;
 
         message_t message;
         message.id = MESSAGE_ID_SET_LOG_LEVEL;
@@ -364,17 +381,12 @@ static void handle_message_from_host(void)
         print_host_message(buffer, length);
 #endif
     }
-
 }
 
-static void handle_message_from_sp(void)
+static void handle_messages_from_sp(void)
 {
     static uint8_t buffer[MBOX_MAX_MESSAGE_LENGTH] __attribute__((aligned(MBOX_BUFFER_ALIGNMENT)));
     int64_t length;
-
-#ifdef DEBUG_SEND_MESSAGES_TO_SP
-    static uint8_t receive_data;
-#endif
 
     MBOX_update_status(MBOX_SP);
 
@@ -384,22 +396,32 @@ static void handle_message_from_sp(void)
 
         if (length > 0)
         {
-            log_write(LOG_LEVEL_INFO, "Received message from SP, length = %" PRId64 "\r\n", length);
-
-#ifdef DEBUG_SEND_MESSAGES_TO_SP
-            for (int64_t i = 0; i < length; i++)
-            {
-                uint8_t expected = receive_data++;
-
-                if (buffer[i] != expected)
-                {
-                    log_write(LOG_LEVEL_INFO, "message[%" PRId64 "] = 0x%02" PRIx8 " expected 0x%02" PRIx8 "\r\n", i, buffer[i], expected);
-                }
-            }
-#endif
+            handle_message_from_sp(length, buffer);
         }
+
     }
     while (length > 0);
+}
+
+static void handle_message_from_sp(int64_t length, const uint8_t* const buffer)
+{
+    log_write(LOG_LEVEL_INFO, "Received message from SP, length = %" PRId64 "\r\n", length);
+
+#ifdef DEBUG_SEND_MESSAGES_TO_SP
+    static uint8_t receive_data;
+
+    for (int64_t i = 0; i < length; i++)
+    {
+        uint8_t expected = receive_data++;
+
+        if (buffer[i] != expected)
+        {
+            log_write(LOG_LEVEL_INFO, "message[%" PRId64 "] = 0x%02" PRIx8 " expected 0x%02" PRIx8 "\r\n", i, buffer[i], expected);
+        }
+    }
+#else
+    (void)buffer;
+#endif
 }
 
 static void handle_messages_from_workers(void)
