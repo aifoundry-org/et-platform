@@ -26,6 +26,8 @@ option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
 ## FIXME this option needs to be deprecated and etsoc will need to start
 ## setting the --sysemu runtime option eventually
 option(ENABLE_SYSEMU_ARTIFACT "Enable artifactory path for etsoc builds" OFF)
+# For now keep building the dependencies
+option(BUILD_DEPENDENCIES "Build all dependencies from source" ON)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):
 # "module": build the dependency using sources from git submodule under external

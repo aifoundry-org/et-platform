@@ -182,13 +182,13 @@ if("${runtime_SIMULATOR_API_PROVIDER}" STREQUAL "module")
 
   set(simulator_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
   ExternalProject_Add(simulator-api
-    PREFIX simulator-api
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/simulator_api
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/simulator_api
     INSTALL_DIR ${simulator_api_INSTALL}
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${simulator_api_INSTALL}
-    ${EXTERNAL_PROJECT_CCACHE}
-    ${EXTERNAL_PROJECT_ENABLE_CCACHE}
-    #  BUILD_BYPRODUCTS ${device_api_INSTALL}/lib/libfmt.a
+               -DBUILD_DEPENDENCIES=${BUILD_DEPENDENCIES}
+               ${EXTERNAL_PROJECT_CCACHE}
+               ${EXTERNAL_PROJECT_ENABLE_CCACHE}
     BUILD_ALWAYS 1
     )
 
