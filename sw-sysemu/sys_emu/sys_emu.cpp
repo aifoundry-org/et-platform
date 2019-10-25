@@ -177,7 +177,7 @@ static const char * help_msg =
      -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
      -coherency_check         Enables cache coherency checks\n\
      -coherency_check_minion  Enables cache coherency check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
-     -coherency_check_addr    Enables cache coherency check prints for a specific address (default: 0x0 [all addresses])\n\
+     -coherency_check_addr    Enables cache coherency check prints for a specific address (default: 0x1 [none])\n\
      -scp_check               Enables SCP checks\n\
      -scp_check_minion        Enables SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
      -dump_at_pc              Enables logging when minion reaches a given PC\n\

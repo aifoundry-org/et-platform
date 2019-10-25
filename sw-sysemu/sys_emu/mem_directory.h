@@ -28,9 +28,9 @@ struct shire_mem_info_t
 
 struct minion_mem_info_t
 {
-    bool    thread_mask_write[EMU_THREADS_PER_MINION];
-    bool    thread_mask_read[EMU_THREADS_PER_MINION];
-    uint8_t thread_set[EMU_THREADS_PER_MINION];
+    bool    thread_mask_write[EMU_THREADS_PER_MINION]; // Which thread has written the line
+    bool    thread_mask_read[EMU_THREADS_PER_MINION];  // Which thread has read the line
+    uint8_t thread_set[EMU_THREADS_PER_MINION];        // Set where each thread stored the line
 };
 
 typedef std::map<uint64_t, global_mem_info_t> global_directory_map_t;
