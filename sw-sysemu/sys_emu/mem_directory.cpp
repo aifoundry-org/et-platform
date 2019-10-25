@@ -4,6 +4,7 @@
 
 uint64_t md_log_addr   = 0x1;
 uint32_t md_log_minion = 2048;
+uint64_t global_time_stamp = 0;
 
 #define MD_LOG(addr, minion, cmd) \
     { if((addr == 0x0) || (md_log_addr == 0x0) || (addr == md_log_addr)) \
@@ -35,6 +36,9 @@ uint64_t bool_array_to_int(bool * array, uint64_t size)
 bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter)
 {
     uint32_t minion = shire_id * EMU_MINIONS_PER_SHIRE + minion_id;
+
+    // Increments the global time stamp for every write
+    global_time_stamp++;
 
     global_directory_map_t::iterator it_global;
     shire_directory_map_t::iterator  it_shire;
@@ -91,7 +95,6 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
             data_in_other_shire |= it_global->second.shire_mask[shire] && (shire != shire_id);
     }
 
-
     // Checks if access is coherent
     bool coherent = true;
 
@@ -113,6 +116,8 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
              || ((it_global->second.l2_dirty_shire_id == shire_id) && !data_in_other_shire && ((location == COH_MINION) || (location == COH_SHIRE))) // Rewriting in same shire
              || (!it_global->second.cb_dirty_quarter[cb_quarter]   && (it_global->second.l2_dirty_shire_id == 255) && (location == COH_CB));         // CB quarter was still not written
 
+    if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
+
     bool update_minion = (location == COH_MINION);
     bool update_shire  = (location == COH_MINION) || (location == COH_SHIRE) || (location == COH_CB);
     bool update_global = (location != COH_GLOBAL);
@@ -120,12 +125,12 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
     // Updates the minion directory
     if(update_minion)
     {
-        minion_mem_info_t new_entry;
         uint32_t adjusted_thread_id = (l1_minion_control[minion] == 0) ? 0 : thread_id;
 
         // Not present, insert
         if(it_minion == minion_directory_map[minion].end())
         {
+            minion_mem_info_t new_entry;
             for(uint32_t thread = 0; thread < EMU_THREADS_PER_MINION; thread++)
             {
                 new_entry.thread_mask_read [thread] = false;
@@ -135,9 +140,12 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
             new_entry.thread_mask_read [adjusted_thread_id] = true;
             new_entry.thread_mask_write[adjusted_thread_id] = true;
             new_entry.thread_set       [adjusted_thread_id] = l1_set;
+            new_entry.time_stamp                            = global_time_stamp;
 
             minion_directory_map[minion].insert(minion_directory_map_t::value_type(address, new_entry));
-            MD_LOG(address, minion, printf("mem_directory::write insert minion directory => addr %016llX, shire_id %i, minion_id %i\n", (long long unsigned int) address, shire_id, minion_id));
+            MD_LOG(address, minion, printf("mem_directory::write insert minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id: %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: %llu\n",
+                  (long long unsigned int) address, shire_id, minion_id, thread_id, (int32_t) bool_array_to_int(new_entry.thread_mask_write, EMU_THREADS_PER_MINION),
+                  (int32_t) bool_array_to_int(new_entry.thread_mask_read, EMU_THREADS_PER_MINION), new_entry.thread_set[adjusted_thread_id], (long long unsigned int) new_entry.time_stamp));
         }
         // Update
         else
@@ -145,7 +153,10 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
             it_minion->second.thread_mask_read [adjusted_thread_id] = true;
             it_minion->second.thread_mask_write[adjusted_thread_id] = true;
             it_minion->second.thread_set       [adjusted_thread_id] = l1_set;
-            MD_LOG(address, minion, printf("mem_directory::write update minion directory => addr %016llX, shire_id %i, minion_id %i\n", (long long unsigned int) address, shire_id, minion_id));
+            it_minion->second.time_stamp                            = global_time_stamp;
+            MD_LOG(address, minion, printf("mem_directory::write update minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id: %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: %llu\n",
+                  (long long unsigned int) address, shire_id, minion_id, thread_id, (int32_t) bool_array_to_int(it_minion->second.thread_mask_write, EMU_THREADS_PER_MINION),
+                  (int32_t) bool_array_to_int(it_minion->second.thread_mask_read, EMU_THREADS_PER_MINION), it_minion->second.thread_set[adjusted_thread_id], (long long unsigned int) it_minion->second.time_stamp));
         }
     }
 
@@ -158,6 +169,7 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
         new_value.l2                 = (location == COH_MINION) || (location == COH_SHIRE);
         new_value.l2_dirty           = (location == COH_MINION) || (location == COH_SHIRE);
         new_value.l2_dirty_minion_id = (location == COH_MINION) ? minion_id : 255;
+        new_value.time_stamp         = global_time_stamp;
 
         // CB dirty
         new_value.cb_dirty = (location == COH_CB);
@@ -175,6 +187,7 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
         if(it_shire == shire_directory_map[shire_id].end())
         {
             shire_directory_map[shire_id].insert(shire_directory_map_t::value_type(address, new_value));
+
             MD_LOG(address, minion, printf("mem_directory::write insert shire directory => addr %016llX, shire_id %i, l2: %i, l2_dirty: %i, l2_dirty_minion_id: %i, cb_dirty: %i, cb_quarter: 0x%X, minion_mask: 0x%X\n",
                   (long long unsigned int) address, shire_id, new_value.l2, new_value.l2_dirty, new_value.l2_dirty_minion_id,
                   new_value.cb_dirty, (int32_t) bool_array_to_int(new_value.cb_dirty_quarter, 4), (int32_t) bool_array_to_int(new_value.minion_mask, 32)));
@@ -184,11 +197,13 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
         {
             it_shire->second.l2                     = new_value.l2;
             it_shire->second.l2_dirty               = new_value.l2_dirty;
-            it_shire->second.cb_dirty               = new_value.cb_dirty;
             it_shire->second.l2_dirty_minion_id     = new_value.l2_dirty_minion_id;
+            it_shire->second.time_stamp             = new_value.time_stamp;
+            it_shire->second.cb_dirty               = new_value.cb_dirty;
             it_shire->second.minion_mask[minion_id] = new_value.minion_mask[minion_id];
             if(new_value.cb_dirty)
                 it_shire->second.cb_dirty_quarter[cb_quarter] = true;
+
             MD_LOG(address, minion, printf("mem_directory::write update shire directory => addr %016llX, shire_id %i, l2: %i, l2_dirty: %i, l2_dirty_minion_id: %i, cb_dirty: %i, cb_quarter: 0x%X, minion_mask: 0x%X\n",
                   (long long unsigned int) address, shire_id, it_shire->second.l2, it_shire->second.l2_dirty, it_shire->second.l2_dirty_minion_id,
                   it_shire->second.cb_dirty, (int32_t) bool_array_to_int(it_shire->second.cb_dirty_quarter, 4), (int32_t) bool_array_to_int(new_value.minion_mask, 32)));
@@ -200,12 +215,17 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
     {
         global_mem_info_t new_value;
 
-        // Sets dirty bits
+        // Set CB bits
         new_value.cb_dirty = (location == COH_CB);
-        new_value.l2_dirty_shire_id = new_value.cb_dirty ? 255 : shire_id;
         for(int quarter = 0; quarter < 4; quarter++)
           new_value.cb_dirty_quarter[quarter] = false;
         new_value.cb_dirty_quarter[cb_quarter] = new_value.cb_dirty;
+
+        // Sets dirty bits
+        new_value.l2_dirty_shire_id = new_value.cb_dirty ? 255 : shire_id;
+        new_value.time_stamp        = global_time_stamp;
+
+        // Shire mask
         for(uint32_t shire = 0; shire < EMU_NUM_SHIRES; shire++)
             new_value.shire_mask[shire] = false;
         new_value.shire_mask[shire_id] = true;
@@ -219,15 +239,14 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
         // Update
         else
         {
-            it_global->second.l2_dirty_shire_id = new_value.l2_dirty_shire_id;
-            it_global->second.shire_mask[shire_id] = new_value.shire_mask[shire_id];
-            it_global->second.cb_dirty = new_value.cb_dirty;
+            it_global->second.time_stamp                   = new_value.time_stamp;
+            it_global->second.l2_dirty_shire_id            = new_value.l2_dirty_shire_id;
+            it_global->second.shire_mask[shire_id]         = new_value.shire_mask[shire_id];
+            it_global->second.cb_dirty                     = new_value.cb_dirty;
             it_global->second.cb_dirty_quarter[cb_quarter] = new_value.cb_dirty;
             MD_LOG(address, minion, printf("mem_directory::write update global directory => addr %016llX\n", (long long unsigned int) address));
         }
     }
-
-    if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
     return coherent;
 }
@@ -280,6 +299,14 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
         }
     }
 
+    // Get timestamps
+    uint64_t it_minion_time_stamp = -1;
+    uint64_t it_shire_time_stamp  = -1;
+    uint64_t it_global_time_stamp = -1;
+    if(minion_found) it_minion_time_stamp = it_minion->second.time_stamp;
+    if(shire_found)  it_shire_time_stamp  = it_shire->second.time_stamp;
+    if(global_found) it_global_time_stamp = it_global->second.time_stamp;
+
     // Checks if access is coherent
     bool coherent = true;
 
@@ -298,6 +325,11 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
     coherent &= (it_global == global_directory_map.end())                                                                     // Not in global
              || ((it_global->second.l2_dirty_shire_id == 255) && !it_global->second.cb_dirty)                                 // Still clean
              || ((it_global->second.l2_dirty_shire_id == shire_id) && ((location == COH_MINION) || (location == COH_SHIRE))); // Reading dirty inside shire
+
+    // Time stamp is coherent (minion has new version than shire, shire newer than global)
+    coherent &= (it_minion_time_stamp >= it_shire_time_stamp) && (it_shire_time_stamp >= it_global_time_stamp);
+
+    if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
     bool update_minion = (location == COH_MINION);
     bool update_shire  = (location == COH_MINION) || (location == COH_SHIRE) || (location == COH_CB);
@@ -320,16 +352,23 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
             }
             new_entry.thread_mask_read[adjusted_thread_id] = true;
             new_entry.thread_set      [adjusted_thread_id] = l1_set;
+            new_entry.time_stamp                           = shire_found  ? it_shire_time_stamp
+                                                           : global_found ? it_global_time_stamp
+                                                           :                global_time_stamp;
 
             minion_directory_map[minion].insert(minion_directory_map_t::value_type(address, new_entry));
-            MD_LOG(address, minion, printf("mem_directory::read insert minion directory => addr %016llX, shire_id %i, minion_id %i\n", (long long unsigned int) address, shire_id, minion_id));
+            MD_LOG(address, minion, printf("mem_directory::read insert minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id: %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: %llu\n",
+                  (long long unsigned int) address, shire_id, minion_id, thread_id, (int32_t) bool_array_to_int(new_entry.thread_mask_write, EMU_THREADS_PER_MINION),
+                  (int32_t) bool_array_to_int(new_entry.thread_mask_read, EMU_THREADS_PER_MINION), new_entry.thread_set[adjusted_thread_id], (long long unsigned int) new_entry.time_stamp));
         }
         // Update
         else
         {
             it_minion->second.thread_mask_read[adjusted_thread_id] = true;
             it_minion->second.thread_set      [adjusted_thread_id] = l1_set;
-            MD_LOG(address, minion, printf("mem_directory::read update minion directory => addr %016llX, shire_id %i, minion_id %i\n", (long long unsigned int) address, shire_id, minion_id));
+            MD_LOG(address, minion, printf("mem_directory::read update minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id: %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: %llu\n",
+                  (long long unsigned int) address, shire_id, minion_id, thread_id, (int32_t) bool_array_to_int(it_minion->second.thread_mask_write, EMU_THREADS_PER_MINION),
+                  (int32_t) bool_array_to_int(it_minion->second.thread_mask_read, EMU_THREADS_PER_MINION), it_minion->second.thread_set[adjusted_thread_id], (long long unsigned int) it_minion->second.time_stamp));
         }
     }
 
@@ -342,6 +381,8 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
         new_value.l2                 = true;
         new_value.l2_dirty           = false;
         new_value.l2_dirty_minion_id = 255;
+        new_value.time_stamp         = global_found ? it_global_time_stamp
+                                     :                global_time_stamp;
 
         // CB dirty
         new_value.cb_dirty = false;
@@ -377,7 +418,8 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
     {
         global_mem_info_t new_value;
 
-        new_value.cb_dirty = false;
+        new_value.time_stamp        = global_time_stamp;
+        new_value.cb_dirty          = false;
         new_value.l2_dirty_shire_id = 255;
         for(int quarter = 0; quarter < 4; quarter++)
           new_value.cb_dirty_quarter[quarter] = false;
@@ -398,8 +440,6 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
             MD_LOG(address, minion, printf("mem_directory::read update global directory => addr %016llX\n", (long long unsigned int) address));
         }
     }
-
-    if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
     return coherent;
 }
@@ -458,6 +498,8 @@ bool mem_directory::evict_va(uint64_t address, op_location_t location, uint32_t 
              || ((it_global->second.l2_dirty_shire_id == 255) && !it_global->second.cb_dirty) // Data is clean
              || (it_global->second.l2_dirty_shire_id == shire_id);                            // Evicting from the shire with dirty data
 
+    if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
+
     bool update_minion = ((location == COH_SHIRE) || (location == COH_GLOBAL)) && (it_minion != minion_directory_map[minion].end());
     bool update_shire  = (location == COH_GLOBAL) && (it_shire  != shire_directory_map[shire_id].end());
 
@@ -476,6 +518,10 @@ bool mem_directory::evict_va(uint64_t address, op_location_t location, uint32_t 
         // Clears status bits
         it_minion->second.thread_mask_read [adjusted_thread_id] = false;
         it_minion->second.thread_mask_write[adjusted_thread_id] = false;
+
+        MD_LOG(address, minion, printf("mem_directory::evict_va update minion directory => addr %016llX, shire_id %i, minion_id %i, thread_id: %i, mask_write: 0x%X, mask_read: 0x%X, set: 0x%X, time_stamp: %llu\n",
+              (long long unsigned int) address, shire_id, minion_id, thread_id, (int32_t) bool_array_to_int(it_minion->second.thread_mask_write, EMU_THREADS_PER_MINION),
+              (int32_t) bool_array_to_int(it_minion->second.thread_mask_read, EMU_THREADS_PER_MINION), it_minion->second.thread_set[adjusted_thread_id], (long long unsigned int) it_minion->second.time_stamp));
 
         // Checks if all sets are clear
         bool all_clear = true;
@@ -500,8 +546,13 @@ bool mem_directory::evict_va(uint64_t address, op_location_t location, uint32_t 
             {
                 LOG_ALL_MINIONS(FTL, "\t(Coherency EvictVA Hazard wrong minion) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_minion_id=%u\n", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_shire->second.l2_dirty_minion_id);
             }
-            it_shire->second.l2_dirty_minion_id = 255;
+            it_shire->second.l2_dirty_minion_id     = 255;
             it_shire->second.minion_mask[minion_id] = false;
+            if(it_shire->second.time_stamp < it_minion->second.time_stamp)
+            {
+                it_shire->second.time_stamp = it_minion->second.time_stamp;
+            }
+
             MD_LOG(address, minion, printf("mem_directory::evict_va update shire directory => addr %016llX, shire_id %i, l2: %i, l2_dirty: %i, l2_dirty_minion_id: %i, cb_dirty: %i, cb_quarter: 0x%X, minion_mask: 0x%X\n",
                   (long long unsigned int) address, shire_id, it_shire->second.l2, it_shire->second.l2_dirty, it_shire->second.l2_dirty_minion_id,
                   it_shire->second.cb_dirty, (int32_t) bool_array_to_int(it_shire->second.cb_dirty_quarter, 4), (int32_t) bool_array_to_int(it_shire->second.minion_mask, 32)));
@@ -549,8 +600,12 @@ bool mem_directory::evict_va(uint64_t address, op_location_t location, uint32_t 
             {
                 LOG_ALL_MINIONS(FTL, "\t(Coherency EvictVA Hazard wrong shire) addr=%llX, location=%d, shire_id=%u, minion_id=%u, thread_id=%u, l2_dirty_shire_id=%u", (long long unsigned int) address, location, shire_id, minion_id, thread_id, it_global->second.l2_dirty_shire_id);
             }
-            it_global->second.l2_dirty_shire_id = 255;
+            it_global->second.l2_dirty_shire_id    = 255;
             it_global->second.shire_mask[shire_id] = false;
+            if(it_global->second.time_stamp < it_shire->second.time_stamp)
+            {
+                it_global->second.time_stamp = it_shire->second.time_stamp;
+            }
         }
     }
 
@@ -581,7 +636,6 @@ bool mem_directory::evict_va(uint64_t address, op_location_t location, uint32_t 
             global_directory_map.erase(it_global);
         }
     }
-    if(!coherent) dump_state(it_global, it_shire, it_minion, shire_id, minion);
 
     return coherent;
 }
@@ -610,6 +664,10 @@ void mem_directory::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t
             }
         }
 
+        MD_LOG(addr, minion, printf("mem_directory::l1_clear_set update minion directory => addr %016llX, shire_id %i, minion_id %i, mask_write: 0x%X, mask_read: 0x%X, time_stamp: %llu\n",
+              (long long unsigned int) addr, shire_id, minion_id, (int32_t) bool_array_to_int(it_minion->second.thread_mask_write, EMU_THREADS_PER_MINION),
+              (int32_t) bool_array_to_int(it_minion->second.thread_mask_read, EMU_THREADS_PER_MINION), (long long unsigned int) it_minion->second.time_stamp));
+
         // Checks if all sets are clear
         bool all_clear = true;
         for(uint32_t thread = 0; thread < EMU_THREADS_PER_MINION; thread++)
@@ -621,12 +679,6 @@ void mem_directory::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t
         // Line is no longer in minion, update shire state and remove in minion
         if(all_clear)
         {
-            // Remove minion entry
-            MD_LOG(addr, minion, printf("mem_directory::l1_clear_set remove minion directory => addr %016llX, shire_id %i, minion_id %i\n", (long long unsigned int) addr, shire_id, minion_id));
-            minion_directory_map_t::iterator it_orig = it_minion;
-            it_minion++;
-            minion_directory_map[minion].erase(it_orig);
-
             // Clears the minion dirty flag in shire
             shire_directory_map_t::iterator it_shire;
             it_shire = shire_directory_map[shire_id].find(addr);
@@ -637,11 +689,58 @@ void mem_directory::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t
                 LOG_ALL_MINIONS(FTL, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
             }
 
-            it_shire->second.l2_dirty_minion_id = 255;
+            it_shire->second.l2_dirty_minion_id     = 255;
             it_shire->second.minion_mask[minion_id] = false;
+            if(it_shire->second.time_stamp < it_minion->second.time_stamp)
+            {
+                it_shire->second.time_stamp = it_minion->second.time_stamp;
+            }
+
             MD_LOG(addr, minion, printf("mem_directory::l1_clear_set update shire directory => addr %016llX, shire_id %i, l2: %i, l2_dirty: %i, l2_dirty_minion_id: %i, cb_dirty: %i, cb_quarter: 0x%X, minion_mask: 0x%X\n",
                   (long long unsigned int) addr, shire_id, it_shire->second.l2, it_shire->second.l2_dirty, it_shire->second.l2_dirty_minion_id,
                   it_shire->second.cb_dirty, (int32_t) bool_array_to_int(it_shire->second.cb_dirty_quarter, 4), (int32_t) bool_array_to_int(it_shire->second.minion_mask, 32)));
+
+            // Remove minion entry
+            MD_LOG(addr, minion, printf("mem_directory::l1_clear_set remove minion directory => addr %016llX, shire_id %i, minion_id %i\n", (long long unsigned int) addr, shire_id, minion_id));
+            minion_directory_map_t::iterator it_orig = it_minion;
+            it_minion++;
+            minion_directory_map[minion].erase(it_orig);
+
+            // Checks if need to remove shire entry
+            all_clear = !it_shire->second.l2 && !it_shire->second.l2_dirty && !it_shire->second.cb_dirty;
+            for(uint32_t i = 0; i < EMU_MINIONS_PER_SHIRE; i++)
+                all_clear &= !it_shire->second.minion_mask[i];
+
+            if(all_clear)
+            {
+                // Removes entry from shire
+                MD_LOG(addr, 0xFFFFFFFF, printf("mem_directory::l1_clear_set remove shire directory => addr %016llX, shire_id %i\n", (long long unsigned int) addr, shire_id));
+                shire_directory_map[shire_id].erase(it_shire);
+
+                // Clears global
+                global_directory_map_t::iterator it_global;
+                it_global = global_directory_map.find(addr);
+
+                // Must have an entry
+                if(it_global == global_directory_map.end())
+                {
+                    LOG_ALL_MINIONS(FTL, "Should have found address %llX in global when doing l1_clear_set\n", (long long unsigned int) addr);
+                }
+
+                it_global->second.shire_mask[shire_id] = false;
+
+                // Checks if no shires have the cacheline
+                all_clear = true;
+                for(uint32_t shire = 0; shire < EMU_NUM_SHIRES; shire++)
+                    all_clear &= (it_global->second.shire_mask[shire] == false);
+
+                // Remove from global
+                if(all_clear)
+                {
+                    MD_LOG(addr, 0xFFFFFFFF, printf("mem_directory::l1_clear_set remove global directory => addr %016llX\n", (long long unsigned int) addr));
+                    global_directory_map.erase(it_global);
+                }
+            }
         }
         else
         {
@@ -656,6 +755,7 @@ void mem_directory::dump_state(global_directory_map_t::iterator it_global, shire
     if(it_global != global_directory_map.end())
     {
         MD_LOG(0, minion, printf("Dumping global state\n"));
+        MD_LOG(0, minion, printf("  time_stamp: %llu\n", (long long unsigned int) it_global->second.time_stamp));
         MD_LOG(0, minion, printf("  l2_dirty_shire_id: %i\n", it_global->second.l2_dirty_shire_id));
         MD_LOG(0, minion, printf("  cb_dirty: %i\n", it_global->second.cb_dirty));
         MD_LOG(0, minion, printf("  cb_dirty_quarter: %i%i%i%i\n", it_global->second.cb_dirty_quarter[3], it_global->second.cb_dirty_quarter[2], it_global->second.cb_dirty_quarter[1], it_global->second.cb_dirty_quarter[0]));
@@ -667,6 +767,7 @@ void mem_directory::dump_state(global_directory_map_t::iterator it_global, shire
     if(it_shire != shire_directory_map[shire_id].end())
     {
         MD_LOG(0, minion, printf("Dumping shire state\n"));
+        MD_LOG(0, minion, printf("  time_stamp: %llu\n", (long long unsigned int) it_shire->second.time_stamp));
         MD_LOG(0, minion, printf("  l2: %i\n", it_shire->second.l2));
         MD_LOG(0, minion, printf("  l2_dirty: %i\n", it_shire->second.l2_dirty));
         MD_LOG(0, minion, printf("  l2_dirty_minion_id: %i\n", it_shire->second.l2_dirty_minion_id));
@@ -680,6 +781,7 @@ void mem_directory::dump_state(global_directory_map_t::iterator it_global, shire
     if(it_minion != minion_directory_map[minion].end())
     {
         MD_LOG(0, minion, printf("Dumping minion state\n"));
+        MD_LOG(0, minion, printf("  time_stamp: %llu\n", (long long unsigned int) it_minion->second.time_stamp));
         for(uint32_t thread = 0; thread < EMU_THREADS_PER_MINION; thread++)
         {
               MD_LOG(0, minion, printf("  thread_mask_write[%i] = %i\n", thread, it_minion->second.thread_mask_write[thread]));
@@ -898,6 +1000,11 @@ void mem_directory::cb_drain(uint32_t shire_id, uint32_t cache_bank)
                     it_shire->second.cb_dirty_quarter[quarter] = false;
                 }
             }
+            // Update time stamp if newer
+            if(it_global->second.time_stamp < it_shire->second.time_stamp)
+            {
+                it_global->second.time_stamp = it_shire->second.time_stamp;
+            }
 
             // Clears the CB dirty bit in global (only if all quarters) and shire (always)
             it_shire->second.cb_dirty = false;
@@ -989,7 +1096,8 @@ void mem_directory::l2_evict(uint32_t shire_id, uint32_t cache_bank)
             if(it_shire->second.l2_dirty && (it_shire->second.l2_dirty_minion_id == 255))
             {
                 it_global->second.l2_dirty_shire_id = 255;
-                it_shire->second.l2_dirty = false;
+                it_shire->second.l2_dirty           = false;
+                it_global->second.time_stamp        = it_shire->second.time_stamp;
             }
 
             // Line is no present in l2

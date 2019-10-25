@@ -10,27 +10,30 @@ typedef enum {COH_MINION, COH_SHIRE, COH_CB, COH_GLOBAL} op_location_t;
 
 struct global_mem_info_t
 {
-    uint8_t l2_dirty_shire_id;          // Which shire has dirty data
-    bool    shire_mask[EMU_NUM_SHIRES]; // Which shires have the line in l1/l2
-    bool    cb_dirty;                   // Data dirty in Coallescing Buffer
-    bool    cb_dirty_quarter[4];        // Chunks of 128b that are dirty
+    uint8_t  l2_dirty_shire_id;          // Which shire has dirty data
+    bool     shire_mask[EMU_NUM_SHIRES]; // Which shires have the line in l1/l2
+    bool     cb_dirty;                   // Data dirty in Coallescing Buffer
+    bool     cb_dirty_quarter[4];        // Chunks of 128b that are dirty
+    uint64_t time_stamp;                 // Time stamp of the value
 };
 
 struct shire_mem_info_t
 {
-    bool    l2;                                 // Data in L2
-    bool    l2_dirty;                           // Data dirty in L2
-    uint8_t l2_dirty_minion_id;                 // Which minion has the line dirty (255 is none)
-    bool    cb_dirty;                           // Data dirty in Coallescing Buffer
-    bool    cb_dirty_quarter[4];                // Chunks of 128b that are dirty
-    bool    minion_mask[EMU_MINIONS_PER_SHIRE]; // Which minions have the line in l1
+    bool     l2;                                 // Data in L2
+    bool     l2_dirty;                           // Data dirty in L2
+    uint8_t  l2_dirty_minion_id;                 // Which minion has the line dirty (255 is none)
+    bool     cb_dirty;                           // Data dirty in Coallescing Buffer
+    bool     cb_dirty_quarter[4];                // Chunks of 128b that are dirty
+    bool     minion_mask[EMU_MINIONS_PER_SHIRE]; // Which minions have the line in l1
+    uint64_t time_stamp;                         // Time stamp of the value
 };
 
 struct minion_mem_info_t
 {
-    bool    thread_mask_write[EMU_THREADS_PER_MINION]; // Which thread has written the line
-    bool    thread_mask_read[EMU_THREADS_PER_MINION];  // Which thread has read the line
-    uint8_t thread_set[EMU_THREADS_PER_MINION];        // Set where each thread stored the line
+    bool     thread_mask_write[EMU_THREADS_PER_MINION]; // Which thread has written the line
+    bool     thread_mask_read[EMU_THREADS_PER_MINION];  // Which thread has read the line
+    uint8_t  thread_set[EMU_THREADS_PER_MINION];        // Set where each thread stored the line
+    uint64_t time_stamp;                                // Time stamp of the value
 };
 
 typedef std::map<uint64_t, global_mem_info_t> global_directory_map_t;
