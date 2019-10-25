@@ -13,10 +13,11 @@ include(ExternalProject)
 if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
   set(__GFLAGS_INCLUDED TRUE)
 
-  # FIXME use the system-wide gflags if present
-  # find_package(GFlags)
-  if (GFLAGS_FOUND)
+  if (gflags_FOUND)
     set(GFLAGS_EXTERNAL FALSE)
+    set(GFLAGS_LIBRARIES libgflags.a ${CMAKE_THREAD_LIBS_INIT} PARENT_SCOPE)
+    set(GFLAGS_LIBRARY_DIRS /lib CACHE PATH "gflags library dirs")
+
   else()
     # gflags will use pthreads if it's available in the system, so we must link with it
     find_package(Threads)
@@ -82,10 +83,11 @@ endif()
 if (NOT __GLOG_INCLUDED)
   set(__GLOG_INCLUDED TRUE)
 
-  # FIXME try the system-wide glog first
-  # find_package(Glog)
   if (GLOG_FOUND)
-      set(GLOG_EXTERNAL FALSE)
+    set(GLOG_EXTERNAL FALSE)
+    set(GLOG_LIBRARIES libglog.a PARENT_SCOPE)
+    set(GLOG_LIBRARY_DIRS lib CACHE PATH "glog library path")
+
   else()
     # fetch and build glog from github
 
@@ -135,29 +137,36 @@ if (NOT __GLOG_INCLUDED)
 
 endif()
 
+if(fmt_FOUND)
+  message("fmt FOUND ${fmt_FOUND}")
+  set(FMTLIB_INCLUDE_DIRS $<TARGET_PROPERTY:fmt::fmt,INTERFACE_INCLUDE_DIRECTORIES> CACHE PATH "fmtlib include dir")
+  set(FMTLIB_LIBRARIES fmt::fmt CACHE STRING "fmtlib libraries")
+  set(FMTLIB_LIBRARY_DIRS ${fmtlib_INSTALL}/lib64 CACHE PATH "fmtlib library path")
 
-set(fmtlib_BUILD ${CMAKE_CURRENT_BINARY_DIR}/fmtlib-build)
-set(fmtlib_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
+else()
+  set(fmtlib_BUILD ${CMAKE_CURRENT_BINARY_DIR}/fmtlib-build)
+  set(fmtlib_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
 
-ExternalProject_Add(fmtlib
-  PREFIX ${fmtlib_BUILD}
-  GIT_REPOSITORY "git@gitlab.esperanto.ai:software/fmt-mirror.git"
-  GIT_TAG "5.3.0"
-  INSTALL_DIR ${fmtlib_INSTALL}
-  CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${fmtlib_INSTALL}
-             -DCMAKE_CXX_FLAGS=-fPIC
-             ${EXTERNAL_PROJECT_CCACHE}
-  BUILD_BYPRODUCTS ${fmtlib_INSTALL}/lib64/libfmt.a
-  LOG_DOWNLOAD 1
-  LOG_CONFIGURE 1
-  LOG_INSTALL 1
-  )
+  ExternalProject_Add(fmtlib
+    PREFIX ${fmtlib_BUILD}
+    GIT_REPOSITORY "git@gitlab.esperanto.ai:software/fmt-mirror.git"
+    GIT_TAG "5.3.0"
+    INSTALL_DIR ${fmtlib_INSTALL}
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${fmtlib_INSTALL}
+               -DCMAKE_CXX_FLAGS=-fPIC
+               ${EXTERNAL_PROJECT_CCACHE}
+    BUILD_BYPRODUCTS ${fmtlib_INSTALL}/lib64/libfmt.a
+    LOG_DOWNLOAD 1
+    LOG_CONFIGURE 1
+    LOG_INSTALL 1
+    )
 
-set(FMTLIB_INCLUDE_DIRS ${fmtlib_INSTALL}/include CACHE PATH "fmtlib include dir")
-set(FMTLIB_LIBRARIES ${fmtlib_INSTALL}/lib64/libfmt.a CACHE PATH "fmtlib libraries")
-set(FMTLIB_LIBRARY_DIRS ${fmtlib_INSTALL}/lib64 CACHE PATH "fmtlib library path")
+  set(FMTLIB_INCLUDE_DIRS ${fmtlib_INSTALL}/include CACHE PATH "fmtlib include dir")
+  set(FMTLIB_LIBRARIES ${fmtlib_INSTALL}/lib64/libfmt.a CACHE SRTING "fmtlib libraries")
+  set(FMTLIB_LIBRARY_DIRS ${fmtlib_INSTALL}/lib64 CACHE PATH "fmtlib library path")
 
-list(APPEND external_project_dependencies fmtlib)
+  list(APPEND external_project_dependencies fmtlib)
+endif()
 
 if("${runtime_DEVICE_API_PROVIDER}" STREQUAL "module")
 
@@ -180,20 +189,40 @@ endif()
 
 if("${runtime_SIMULATOR_API_PROVIDER}" STREQUAL "module")
 
+  # Force build the Simulator-API as part of the cmake configure-step
+  # we we are not consuming it form the outside. This will enable us to
+  # use find_package as part of the configure step
   set(simulator_api_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
-  ExternalProject_Add(simulator-api
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/simulator_api
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/simulator_api
-    INSTALL_DIR ${simulator_api_INSTALL}
-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${simulator_api_INSTALL}
-               -DBUILD_DEPENDENCIES=${BUILD_DEPENDENCIES}
-               ${EXTERNAL_PROJECT_CCACHE}
-               ${EXTERNAL_PROJECT_ENABLE_CCACHE}
-    BUILD_ALWAYS 1
+  # Configure the simulator_api target
+  execute_process(COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/simulator-api)
+  execute_process(COMMAND ${CMAKE_COMMAND} -H${CMAKE_CURRENT_SOURCE_DIR}/simulator_api
+                     -DCMAKE_INSTALL_PREFIX=${simulator_api_INSTALL}
+                     -DBUILD_DEPENDENCIES=${BUILD_DEPENDENCIES}
+                     ${EXTERNAL_PROJECT_CCACHE}
+                     ${EXTERNAL_PROJECT_ENABLE_CCACHE}
+    RESULT_VARIABLE result
+    ERROR_VARIABLE err
+    OUTPUT_VARIABLE out
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/simulator-api)
+  if(result)
+    message(FATAL_ERROR "CMake step for simulator-api failed ${result}: ${err} ${out}")
+  endif()
+  # Build the simulator_api target
+  execute_process(COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} --target install
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/simulator-api)
+  if(result)
+    message(FATAL_ERROR "Build step for simulator-api failed: ${result}")
+  endif()
+  message(STATUS "Building: simualtor-api...DONE")
+
+  # Force the search location to be the one where we have installed the package
+  find_package(SimulatorAPI CONFIG REQUIRED
+    PATHS "${simulator_api_INSTALL}/lib/cmake/SimulatorAPI"
+    NO_CMAKE_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_DEFAULT_PATH
     )
-
-  list(APPEND external_project_dependencies simulator-api)
-
 endif()
 
 if("${runtime_SW_SYSEMU_PROVIDER}" STREQUAL "module")
@@ -202,20 +231,26 @@ if("${runtime_SW_SYSEMU_PROVIDER}" STREQUAL "module")
     set(SYSEMU_CCACHE  CC=ccache\ ${CMAKE_C_COMPILER} CXX=ccache\ ${CMAKE_CXX_COMPILER})
   endif(ENABLE_CCACHE)
 
+  if (BUILD_DEPENDECIES)
+    set(EXTERN_SYSPATH "external_SYSPATH=${RT_EXTERNAL_INSTALL_PREFIX}")
+  endif()
+
   ExternalProject_Add(sw-sysemu
     PREFIX sw-sysemu
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/sw-sysemu
     CONFIGURE_COMMAND ""
     BUILD_COMMAND $(MAKE) -C <SOURCE_DIR>/sys_emu/
-    ${SYSEMU_CCACHE}
-    sysemu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build
-    libfpu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build-fpu
-    external_SYSPATH=${RT_EXTERNAL_INSTALL_PREFIX}
-
+                          ${SYSEMU_CCACHE}
+                          sysemu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build
+                          libfpu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build-fpu
+                          simapi_SYSPATH=${RT_EXTERNAL_INSTALL_PREFIX}
+                          ${EXTERN_SYSPATH}
     BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
     INSTALL_COMMAND mkdir -p ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
     && cp ${CMAKE_CURRENT_BINARY_DIR}/sysemu-build/sys_emu ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
-    DEPENDS simulator-api
+    # The dependency does not apply any more as the simulator-api should have been built
+    # as part of the cmake configuration step
+    # DEPENDS simulator-api
     BUILD_ALWAYS 1
     )
 
@@ -240,9 +275,8 @@ else()
 
 endif()
 
-if("${runtime_ELFIO_PROVIDER}" STREQUAL "module")
 
-
+if (NOT elfio_FOUND)
   if(ENABLE_CCACHE)
     set(ELFIO_CCACHE CC=ccache\ ${CMAKE_C_COMPILER} CXX=ccache\ ${CMAKE_CXX_COMPILER})
   endif(ENABLE_CCACHE)
@@ -260,21 +294,27 @@ if("${runtime_ELFIO_PROVIDER}" STREQUAL "module")
     BUILD_ALWAYS 1
     )
 
-list(APPEND external_project_dependencies elfio)
+  list(APPEND external_project_dependencies elfio)
 
 endif()
 
-set(GTEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest-install CACHE INTERNAL "")
-ExternalProject_Add(googletest
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/googletest
-  GIT_REPOSITORY git@gitlab.esperanto.ai:software/gtest-mirror.git
-  GIT_TAG release-1.8.1
-  SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-src"
-  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-build"
-  INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest"
-  CMAKE_ARGS = "-DCMAKE_INSTALL_PREFIX=${GTEST_DIR}"
-               ${EXTERNAL_PROJECT_ENABLE_CCACHE}
-  )
+if(GTest_FOUND)
+  set(external_test_dependencies "" PARENT_SCOPE)
+else()
+  set(GTEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest-install CACHE INTERNAL "")
+  ExternalProject_Add(googletest
+    PREFIX ${CMAKE_CURRENT_BINARY_DIR}/googletest
+    GIT_REPOSITORY git@gitlab.esperanto.ai:software/gtest-mirror.git
+    GIT_TAG release-1.8.1
+    SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-src"
+    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-build"
+    INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest"
+    CMAKE_ARGS = "-DCMAKE_INSTALL_PREFIX=${GTEST_DIR}"
+                 ${EXTERNAL_PROJECT_ENABLE_CCACHE}
+                 )
+
+  set(external_test_dependencies googletest PARENT_SCOPE)
+endif()
 
 ### For now include abseil as a subdirectory we pull the targets directly
 
@@ -285,26 +325,30 @@ set(BUILD_TESTING OFF)
 ##############
 ##  ABSEIL  ##
 ##############
-message(STATUS "Building: ABSEIL...")
+find_package(absl CONFIG)
 
-# Download, build, install abseil-cpp at configure time
-configure_file(
-	${CMAKE_CURRENT_SOURCE_DIR}/abseil.CMakeLists.txt
-	${CMAKE_CURRENT_BINARY_DIR}/abseil-cpp/CMakeLists.txt)
+if(NOT absl_FOUND)
+  message(STATUS "Building: ABSEIL...")
 
-execute_process(COMMAND ${CMAKE_COMMAND} -H. -Bproject_build -G "${CMAKE_GENERATOR}"
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/abseil-cpp)
-if(result)
-  message(FATAL_ERROR "CMake step for abseil failed: ${result}")
+  # Download, build, install abseil-cpp at configure time
+  configure_file(
+          ${CMAKE_CURRENT_SOURCE_DIR}/abseil.CMakeLists.txt
+          ${CMAKE_CURRENT_BINARY_DIR}/abseil-cpp/CMakeLists.txt)
+
+  execute_process(COMMAND ${CMAKE_COMMAND} -H. -Bproject_build -G "${CMAKE_GENERATOR}"
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/abseil-cpp)
+  if(result)
+    message(FATAL_ERROR "CMake step for abseil failed: ${result}")
+  endif()
+
+  execute_process(COMMAND ${CMAKE_COMMAND} --build project_build --config Release
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/abseil-cpp)
+  if(result)
+    message(FATAL_ERROR "Build step for abseil failed: ${result}")
+  endif()
+  message(STATUS "Building: ABSEIL...DONE")
 endif()
-
-execute_process(COMMAND ${CMAKE_COMMAND} --build project_build --config ${CMAKE_BUILD_TYPE}
-  RESULT_VARIABLE result
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/abseil-cpp)
-if(result)
-  message(FATAL_ERROR "Build step for abseil failed: ${result}")
-endif()
-message(STATUS "Building: ABSEIL...DONE")
 
 set(external_project_dependencies ${external_project_dependencies}  PARENT_SCOPE)

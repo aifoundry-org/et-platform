@@ -30,16 +30,9 @@ set(COMMON_LIBRARIES
   -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
   absl::strings
   etsim_api_static
-  protobuf
-  grpc++
-  grpc
-  gpr
-  z
-  cares
-  address_sorting
-  pthread
   stdc++fs
   ${GLOG_LIBRARIES}
+  ${GFLAGS_LIBRARIES}
   )
 
 add_executable(runtime-tester runtime_tester.cc)

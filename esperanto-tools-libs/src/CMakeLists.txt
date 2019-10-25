@@ -30,7 +30,6 @@ if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Build type." FORCE)
 endif()
 
-
 set( CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined" )
 
 # FIXME : disable for now hidden visibility by default: -fvisibility=hidden -fvisibility-inlines-hidden
@@ -143,7 +142,9 @@ target_include_directories(etrt_obj PUBLIC ${FMTLIB_INCLUDE_DIRS})
 # Library dependencies
 target_link_libraries(etrt_obj pthread)
 add_dependencies(etrt_obj ${external_project_dependencies})
-link_directories(${EXTERNAL_LINK_DIRECTORIES})
+link_directories(${EXTERNAL_LINK_DIRECTORIES}
+                 ${SIMULATOR_API_LIB_DIR})
+
 
 set_property(TARGET etrt_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
@@ -154,19 +155,14 @@ target_link_libraries(etrt
   absl::flags_internal
   absl::flags_parse
   ${GLOG_LIBRARIES}
-  ${GFLAGS_LIBRAIES}
+  ${GFLAGS_LIBRARIES}
   ${FMTLIB_LIBRARIES}
   etsim_api
-  protobuf
-  grpc++
-  grpc
-  gpr
-  z
-  cares
-  address_sorting
-  pthread
   stdc++fs
   )
+target_link_directories(etrt PUBLIC
+                               ${EXTERNAL_LINK_DIRECTORIES}
+                               ${SIMULATOR_API_LIB_DIR})
 
 ## Build shared library
 install(TARGETS etrt
@@ -179,6 +175,8 @@ install(TARGETS etrt
 
 add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj>)
 
+message("GLOG ${GLOG_LIBRARIES}")
+
 # FIXME The static library as part of its targets should provide a list
 # of all the library dependencies it has. To be done correctly this requires
 # us to invoke find_package on all of the runtime's dependencies. Currently
@@ -189,19 +187,16 @@ target_link_libraries(etrt_static
   absl::flags_internal
   absl::flags_parse
   ${GLOG_LIBRARIES}
-  ${GFLAGS_LIBRAIES}
+  ${GFLAGS_LIBRARIES}
   ${FMTLIB_LIBRARIES}
-  # libetsim_api_static.a
-  # libprotobuf.a
-  # libgrpc++.a
-  # libgrpc.a
-  # libgpr.a
-  # libz.a
-  # libcares.a
-  # libaddress_sorting.a
-  pthread
+  etsim_api_static
   stdc++fs
   )
+
+target_link_directories(etrt_static PUBLIC
+                               ${EXTERNAL_LINK_DIRECTORIES}
+                               ${SIMULATOR_API_LIB_DIR})
+
 
 ## Build static library
 install(TARGETS etrt_static

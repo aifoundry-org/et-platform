@@ -26,8 +26,7 @@ option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
 ## FIXME this option needs to be deprecated and etsoc will need to start
 ## setting the --sysemu runtime option eventually
 option(ENABLE_SYSEMU_ARTIFACT "Enable artifactory path for etsoc builds" OFF)
-# For now keep building the dependencies
-option(BUILD_DEPENDENCIES "Build all dependencies from source" ON)
+option(BUILD_DEPENDENCIES "Build all dependencies from source" OFF)
 
 # Providers for third-party dependencies (gRPC_*_PROVIDER properties):
 # "module": build the dependency using sources from git submodule under external
@@ -72,6 +71,11 @@ endforeach()
 set(RT_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
   CACHE PATH "Instalation path of external dependencies")
 
+if(NOT "${CMAKE_INSTALL_PREFIX}" STREQUAL "")
+  set(RT_EXTERNAL_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}" CACHE PATH
+     "Instalation path of external dependencies" FORCE)
+endif()
+
 message(STATUS "CMAKE_CURRENT_SOURCE_DIR=" ${CMAKE_CURRENT_SOURCE_DIR})
 message(STATUS "CMAKE_CURRENT_BINARY_DIR=" ${CMAKE_CURRENT_BINARY_DIR})
 message(STATUS "HOST_SW=" ${HOST_SW})
@@ -98,13 +102,38 @@ set(EXTERNAL_LINK_DIRECTORIES
   )
 
 
-# External dependencies
+# List of packages to find
+
+if (NOT BUILD_DEPENDENCIES)
+  find_package(gflags)
+endif()
+
+if(NOT BUILD_DEPENDENCIES)
+  find_package(Glog)
+endif()
+
+if(NOT BUILD_DEPENDENCIES)
+  find_package(fmt CONFIG)
+endif()
+
+if(NOT BUILD_DEPENDENCIES)
+  find_package(GTest)
+endif()
+
+if(NOT BUILD_DEPENDENCIES)
+  find_package(elfio)
+endif()
+message("ELFIO FOUND ${elfio_FOUND}")
+
+# Build any external dependencies
 add_subdirectory(external)
 list(APPEND CMAKE_PREFIX_PATH ${RT_EXTERNAL_INSTALL_PREFIX})
 
-find_package(absl REQUIRED
-  )
+find_package(absl CONFIG REQUIRED)
 message("ABSEIL FOUND : '${absl_FOUND}'")
+
+find_package(SimulatorAPI CONFIG REQUIRED)
+message("Sim API FOUND: ${SimulatorAPI_FOUND}")
 
 # Currenly esperanto-fw is not required. Will be the case one we are completly rid
 # of the fake-fw. Also prevert CMake from using the default search path currently it
@@ -138,8 +167,9 @@ export(PACKAGE EsperantoRuntime)
 # Create the EsperantoRuntimeConfig.cmake and EsperantoRuntimeConfigVersion files
 configure_package_config_file(EsperantoRuntimeConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfig.cmake
+  INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}
   INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoRuntime/cmake
-  PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR)
+  PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
 write_basic_package_version_file(
   ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntimeConfigVersion.cmake
   VERSION ${VERSION}

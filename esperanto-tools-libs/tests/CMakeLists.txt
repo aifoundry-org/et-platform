@@ -52,15 +52,10 @@ set(COMMON_TEST_LIBRARIES
   absl::flags
   absl::flags_parse
   etsim_api
-  protobuf
-  grpc++
-  grpc
-  gpr
-  z
-  cares
-  address_sorting
   libgtest_main.a
   libgtest.a
+  libglog.a
+  libgflags.a
   ${GLOG_LIBRARIES}
   ${FMTLIB_LIBRARIES}
   pthread
@@ -91,7 +86,9 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
     message("Test args: " ${TEST_ARGS})
     get_filename_component(TEST_TARGET ${TEST_FILE} NAME_WE)
     add_executable(${TEST_TARGET} ${TEST_FILE})
-    add_dependencies(${TEST_TARGET} googletest)
+    if(${external_test_dependencies})
+      add_dependencies(${TEST_TARGET} ${external_test_dependencies})
+    endif()
     add_dependencies(${TEST_TARGET} ${external_project_dependencies})
     add_dependencies(${TEST_TARGET} ci-dependencies)
     target_link_libraries(${TEST_TARGET} ${COMMON_TEST_LIBRARIES})

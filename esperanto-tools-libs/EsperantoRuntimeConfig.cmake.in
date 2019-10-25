@@ -8,12 +8,27 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-# set(ESPERANTO_RUNTIME_VERSION x.y.z)
+set(ESPERANTO_RUNTIME_VERSION 0.1.0)
 
 @PACKAGE_INIT@
 
 set_and_check(ESPERANTO_RUNTIME_INCLUDE_DIR "@PACKAGE_INCLUDE_INSTALL_DIR@")
-# set_and_check(ESPERANTO_RUNTIME_SYSCONFIG_DIR "@PACKAGE_SYSCONFIG_INSTALL_DIR@")
+set_and_check(ESPERANTO_RUNTIME_LIB_DIR "@PACKAGE_LIB_INSTALL_DIR@")
+
+include(CMakeFindDependencyMacro)
+
+# NOTE: do not move these statements earlier as they can overwrite the PACKAGE_PREFIX_DIR variable
+find_dependency(absl)
+find_dependency(fmt)
+# FIXME expect that the sim api is installed next to etruntime
+find_dependency(SimulatorAPI
+  PATHS "${ESPERANTO_RUNTIME_LIB_DIR}/cmake/SimulatorAPI"
+  NO_CMAKE_PATH
+  NO_CMAKE_ENVIRONMENT_PATH
+  NO_DEFAULT_PATH
+  )
+
+message("DIR: ${SimulatorAPI_DIR}")
 
 check_required_components(EsperantoRuntime)
 
