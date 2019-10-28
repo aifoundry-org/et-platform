@@ -172,7 +172,7 @@ static bool data_access_is_write(mem_access_type macc)
     case Mem_Access_Fetch:
     case Mem_Access_TxLoad:
     case Mem_Access_Prefetch:
-        return true;
+        return false;
     case Mem_Access_Store:
     case Mem_Access_StoreL:
     case Mem_Access_StoreG:
@@ -181,7 +181,7 @@ static bool data_access_is_write(mem_access_type macc)
     case Mem_Access_AtomicG:
     case Mem_Access_TxStore:
     case Mem_Access_CacheOp:
-        return false;
+        return true;
     }
     throw std::invalid_argument("throw_page_fault()");
 }
