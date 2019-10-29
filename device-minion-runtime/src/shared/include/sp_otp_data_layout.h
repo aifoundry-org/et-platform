@@ -208,6 +208,18 @@ typedef struct OTP_SPECIAL_CUSTOMER_DESIGNATOR_s {
     };
 } OTP_CRITICAL_PAOTP_SPECIAL_CUSTOMER_DESIGNATOR_t;
 
+typedef struct OTP_PLL_CONFIGURATION_DELAY_s {
+    union {
+        struct {
+            uint32_t sp_pll_0_delay : 15;
+            uint32_t sp_pll_0_delay_ignore : 1;
+            uint32_t sp_pll_1_delay : 15;
+            uint32_t sp_pll_1_delay_ignore : 1;
+        } B;
+        uint32_t R;
+    };
+} OTP_PLL_CONFIGURATION_DELAY_t;
+
 #define SP_OTP_MAX_PCIE_CONFIG_ENTRIES_COUNT 16
 #define SP_OTP_MAX_PLL_CONFIG_ENTRIES_COUNT 16
 
@@ -229,6 +241,7 @@ typedef struct OTP_SPECIAL_CUSTOMER_DESIGNATOR_s {
 #define SP_OTP_INDEX_VAULTIP_FIRMWARE_OUTPUT_TOKEN_TIMEOUT_4                        193
 #define SP_OTP_INDEX_VAULTIP_FIRMWARE_OUTPUT_TOKEN_TIMEOUT_5                        194
 #define SP_OTP_INDEX_VAULTIP_FIRMWARE_CLOCK_SWITCH_INPUT_TOKEN                      195
+
 #define SP_OTP_INDEX_CRITICAL_PATCH_0_ADDRESS_HI                                    196
 #define SP_OTP_INDEX_CRITICAL_PATCH_0_ADDRESS_LO                                    197
 #define SP_OTP_INDEX_CRITICAL_PATCH_0_DATA_HI                                       198
@@ -245,7 +258,26 @@ typedef struct OTP_SPECIAL_CUSTOMER_DESIGNATOR_s {
 #define SP_OTP_INDEX_CRITICAL_PATCH_3_ADDRESS_LO                                    209
 #define SP_OTP_INDEX_CRITICAL_PATCH_3_DATA_HI                                       210
 #define SP_OTP_INDEX_CRITICAL_PATCH_3_DATA_LO                                       211
+#define SP_OTP_INDEX_CRITICAL_PATCH_4_ADDRESS_HI                                    212
+#define SP_OTP_INDEX_CRITICAL_PATCH_4_ADDRESS_LO                                    213
+#define SP_OTP_INDEX_CRITICAL_PATCH_4_DATA_HI                                       214
+#define SP_OTP_INDEX_CRITICAL_PATCH_4_DATA_LO                                       215
+#define SP_OTP_INDEX_CRITICAL_PATCH_5_ADDRESS_HI                                    216
+#define SP_OTP_INDEX_CRITICAL_PATCH_5_ADDRESS_LO                                    217
+#define SP_OTP_INDEX_CRITICAL_PATCH_5_DATA_HI                                       218
+#define SP_OTP_INDEX_CRITICAL_PATCH_5_DATA_LO                                       219
+#define SP_OTP_INDEX_CRITICAL_PATCH_6_ADDRESS_HI                                    220
+#define SP_OTP_INDEX_CRITICAL_PATCH_6_ADDRESS_LO                                    221
+#define SP_OTP_INDEX_CRITICAL_PATCH_6_DATA_HI                                       222
+#define SP_OTP_INDEX_CRITICAL_PATCH_6_DATA_LO                                       223
+#define SP_OTP_INDEX_CRITICAL_PATCH_7_ADDRESS_HI                                    224
+#define SP_OTP_INDEX_CRITICAL_PATCH_7_ADDRESS_LO                                    225
+#define SP_OTP_INDEX_CRITICAL_PATCH_7_DATA_HI                                       226
+#define SP_OTP_INDEX_CRITICAL_PATCH_7_DATA_LO                                       227
 
+#define SP_OTP_INDEX_PLL_CONFIG_DELAY                                               228
+
+#define SP_OTP_INDEX_COMM_ISSUING_CA_CERTIFICATE_MONOTONIC_VERSION_COUNTER          236
 #define SP_OTP_INDEX_MAXION_BL1_CERTIFICATE_MONOTONIC_VERSION_COUNTER               237
 #define SP_OTP_INDEX_COMPUTE_KERNEL_CERTIFICATE_MONOTONIC_VERSION_COUNTER           238
 #define SP_OTP_INDEX_WORKER_MINION_CERTIFICATE_MONOTONIC_VERSION_COUNTER            239
