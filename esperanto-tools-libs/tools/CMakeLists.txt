@@ -48,3 +48,13 @@ install(TARGETS runtime-tester
   ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
   COMPONENT et-runtime
   )
+
+add_custom_target(gen-python-tools ALL
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/trace_printer.py
+            ${CMAKE_CURRENT_BINARY_DIR}/trace_printer.py
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${CMAKE_CURRENT_BINARY_DIR}/../src/Tracing/etrt_trace_pb2.py
+          ${CMAKE_CURRENT_BINARY_DIR}/etrt_trace_pb2.py
+  DEPENDS etrt-tracing-gen-code
+            )

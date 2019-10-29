@@ -1,0 +1,85 @@
+{
+    "title": "Esperanto",
+    "description": "Esperanto Runtime Tracing Specification",
+    "type": "object",
+    "properties": {
+        "Modules":  {
+            "description": "List of different modules we have in the system that we want to enable tracing for",
+            "type": "array",
+            "items": { "$ref": "#/definitions/Module" }
+        }
+    },
+    "required": [ "Modules" ],
+    "definitions": {
+        "FunctionArgument": {
+            "type": "object",
+            "description": "A function argument",
+            "properties": {
+                "Name": {
+                    "type": "string"
+                },
+                "Type": {
+                    "type": "string",
+                    "enum": ["double", "float", "int32", "int64", "uint32", "uint64", "sint32",
+                             "sint64", "fixed32", "fixed64", "sfixed32", "sfixed64", "bool",
+                             "string", "bytes"]
+                },
+                "Required": {
+                    "type": "boolean"
+                },
+                "Deprecated": {
+                    "type": "boolean"
+                }
+            },
+            "required": ["Name", "Type"]
+        },
+        "Function": {
+            "type": "object",
+            "description": "A function that we want to trace",
+            "properties": {
+                "Name": {
+                    "type":"string"
+                },
+
+                "EnablePBLogging": {
+                    "type": "boolean",
+                    "description": "Set to False if you want to disable protobuf tracing support"
+                },
+                "EnableTextLogging": {
+                    "type": "boolean",
+                    "description": "Set to False if you want to dsiable GLOG support"
+                },
+                "Arguments": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/FunctionArgument" }
+                }
+            },
+            "required" : ["Name"]
+        },
+        "Module": {
+            "type": "object",
+            "description": "Module specification that can describe multiple profiling tracing functions",
+            "required": [ "Name", "Functions"],
+            "properties": {
+                "Name": {
+                    "type": "string",
+                    "description": "Name of the Module"
+                },
+                "EnablePBLogging": {
+                    "type": "boolean",
+                    "description": "Set to False if you want to disable protobuf tracing support"
+                },
+                "EnableTextLogging": {
+                    "type": "boolean",
+                    "description": "Set to False if you want to dsiable GLOG support"
+                },
+                "Functions": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/Function" },
+                    "minItems": 1
+                }
+            },
+            "required": ["Name", "Functions"]
+        }
+    }
+}

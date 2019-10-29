@@ -38,22 +38,21 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/conf.py"
     @ONLY)
 
-file(
-  COPY
+set(DOC_FILES
     Tracing.rst
     MemoryManagement.rst
     StreamManagement.rst
-  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
-  )
+    index.rst
+    contents.rst
+    )
 
-configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/index.rst"
-    "${CMAKE_CURRENT_BINARY_DIR}/index.rst"
-    @ONLY)
+set(TRACING_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src/Tracing)
+
+foreach(DOC_FILE ${DOC_FILES})
   configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/contents.rst"
-    "${CMAKE_CURRENT_BINARY_DIR}/contents.rst"
-    @ONLY)
+    "${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE}"
+    "${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}")
+endforeach()
 
 add_custom_target(doc-runtime
     ${SPHINX_EXECUTABLE}

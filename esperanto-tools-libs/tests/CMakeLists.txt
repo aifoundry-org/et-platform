@@ -83,7 +83,7 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
     # When passed to gtest_discover_tests in EXTRA_ARGS this will result in generating
     # "--arg1=val1"  "--arg2=val2"  that is the correct way to escape the arguments.
     string(REPLACE " " ";" TEST_ARGS "${TEST_ARGS}")
-    message("Test args: " ${TEST_ARGS})
+    # message("Test args: " ${TEST_ARGS})
     get_filename_component(TEST_TARGET ${TEST_FILE} NAME_WE)
     add_executable(${TEST_TARGET} ${TEST_FILE})
     if(${external_test_dependencies})
@@ -95,7 +95,7 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
     target_include_directories(${TEST_TARGET} PUBLIC ${GFLAGS_INCLUDE_DIRS})
     target_include_directories(${TEST_TARGET} PUBLIC ${GLOG_INCLUDE_DIRS})
     gtest_discover_tests(${TEST_TARGET}
-      EXTRA_ARGS ${TEST_ARGS}
+      EXTRA_ARGS ${TEST_ARGS} --etrt_trace ${CMAKE_CURRENT_BINARY_DIR}/${TEST_TARGET}.etrt_trace
       TEST_PREFIX runtime:
       PROPERTIES ${TEST_PROPERTIES}
       TEST_LIST DISCOVERED_TESTS

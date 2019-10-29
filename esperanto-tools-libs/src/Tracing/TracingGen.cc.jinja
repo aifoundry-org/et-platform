@@ -1,0 +1,58 @@
+/*------------------------------------------------------------------------------
+ * Copyright (C) 2019, Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ ------------------------------------------------------------------------------ */
+
+// WARNING: this file is auto-generated do not edit directly
+
+#include "Tracing/Tracing.h"
+#include "TracingCommonGen.h"
+#include "etrt-trace.pb.h"
+#include <memory>
+
+namespace et_runtime {
+namespace tracing {
+
+const std::array<const char*, static_cast<uint16_t>(TracingOptions::TracingEnable::NUM_ELEM)>
+TracingOptions::logging_knobs = {
+  /* NONE */  "",
+<% for module in spec['Modules'] -%>
+  <% set mname = module['Name'] %>
+  "<< mname | upper >>_PB_LOG",
+  "<< mname | upper >>_TEXT_LOG",
+  <% set functions = module['Functions'] -%>
+  <% for function in functions -%>
+    <% set fname = function['Name'] %>
+  "<< mname | upper >>_<< fname |upper >>_PB_LOG",
+  "<< mname | upper >>_<< fname |upper >>_TEXT_LOG",
+  <%- endfor %>
+<%- endfor %>
+};
+
+<% for module in spec['Modules'] -%>
+  <% set mname = module['Name'] -%>
+  <% set functions = module['Functions'] -%>
+  <% for function in functions -%>
+    <% set fname = function['Name'] %>
+bool PBRecord_<< mname >>_<< fname >>(<< cgh.get_cxx_function_arg_list(function) >>)
+{
+   auto message = std::make_unique<RuntimeTraceEntry>();
+   message->set_type(MessageType::<< mname | upper >>_<< fname | upper >>);
+   auto body = new << mname >>_<< fname >>();
+   <% for argument in function['Arguments'] %>
+   body->set_<<argument['Name']>>(<<argument['Name']>>);
+   <%- endfor %>
+   message->set_allocated_<< mname | lower >>_<< fname | lower >>_e(body);
+   return saveMessageInTrace(*message);
+}
+  <%- endfor %>
+<%- endfor %>
+
+
+}
+}

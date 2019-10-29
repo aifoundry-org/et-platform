@@ -11,19 +11,6 @@
 # Add the device-api as an external project that we build from source
 include(ExternalProject)
 
-# FIXME device-api disabled in esperanto-soc because of cloning permision
-# issues
-# ExternalProject_Add(device-api
-#  PREFIX device-api
-#  GIT_REPOSITORY git@gitlab:software/device-api.git
-#  GIT_TAG 29f910a5744dfdfe1f0f5e408382117b5cb6f44d
-#  )
-
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/Device/TargetDeviceInfo.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/Device/TargetDeviceInfo.h"
-  )
-
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(STATUS "No build type selected, default to Debug")
@@ -37,6 +24,22 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall -Werror")
 ## FIXME  should do a proper Debug release for now force the flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
+
+# Add the tracing subdirectory
+add_subdirectory(Tracing)
+
+# FIXME device-api disabled in esperanto-soc because of cloning permision
+# issues
+# ExternalProject_Add(device-api
+#  PREFIX device-api
+#  GIT_REPOSITORY git@gitlab:software/device-api.git
+#  GIT_TAG 29f910a5744dfdfe1f0f5e408382117b5cb6f44d
+#  )
+
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/Device/TargetDeviceInfo.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/Device/TargetDeviceInfo.h"
+  )
 
 set(ETRT_SOURCES
   ${PROJECT_BINARY_DIR}/include/Common/ProjectAutogen.h
@@ -149,7 +152,7 @@ link_directories(${EXTERNAL_LINK_DIRECTORIES}
 set_property(TARGET etrt_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 # Generate both static and shared libraries
-add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj>)
+add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj> $<TARGET_OBJECTS:etrt_tracing>)
 target_link_libraries(etrt
   absl::flags
   absl::flags_internal
@@ -173,7 +176,7 @@ install(TARGETS etrt
   COMPONENT et-runtime
   )
 
-add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj>)
+add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj> $<TARGET_OBJECTS:etrt_tracing>)
 
 message("GLOG ${GLOG_LIBRARIES}")
 

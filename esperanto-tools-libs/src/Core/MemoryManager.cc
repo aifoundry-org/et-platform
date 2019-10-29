@@ -13,6 +13,7 @@
 #include "Core/MemoryAllocator.h"
 #include "DeviceAPI/Commands.h"
 #include "EsperantoRuntime.h"
+#include "Tracing/Tracing.h"
 
 #include <sys/mman.h>
 #include <unistd.h>
@@ -95,6 +96,7 @@ etrtError MemoryManager::reserveMemory(void *ptr, size_t size) {
 
 etrtError MemoryManager::malloc(void **devPtr, size_t size) {
   *devPtr = dev_mem_region_->alloc(size);
+  TRACE_MemoryManager_malloc(size, reinterpret_cast<uint64_t>(*devPtr));
   return etrtSuccess;
 }
 
