@@ -4418,6 +4418,11 @@ void pu_plic_interrupt_pending_set(uint32_t source_id)
     bemu::memory.pu_io_space.pu_plic.interrupt_pending_set(source_id);
 }
 
+void pu_plic_interrupt_pending_clear(uint32_t source_id)
+{
+    bemu::memory.pu_io_space.pu_plic.interrupt_pending_clear(source_id);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // Esperanto code prefetching extension emulation
