@@ -34,7 +34,7 @@ extensions = [
 
 # Setup the breathe extension
 breathe_projects = {
-    "Esperanto Runtime": "./doxyoutput/xml"
+    "Esperanto Runtime": "./docs/xml"
 }
 breathe_default_project = "Esperanto Runtime"
 
@@ -42,21 +42,23 @@ breathe_default_project = "Esperanto Runtime"
 exhale_args = {
     # These arguments are required
     "containmentFolder":     "@CMAKE_CURRENT_BINARY_DIR@/api",
-    "rootFileName":          "runtime_root.rst",
+    "rootFileName":          "EsperantoRuntime_root.rst",
     "rootFileTitle":         "Esperanto Runtime API",
-    "doxygenStripFromPath":  "@PROJECT_SOURCE_DIR@/include",
+    "doxygenStripFromPath":   "@PROJECT_SOURCE_DIR@",
     # Suggested optional arguments
     "createTreeView":        True,
     "treeViewIsBootstrap": True,
     # TIP: if using the sphinx-bootstrap-theme, you need
     # "treeViewIsBootstrap": True,
     "exhaleExecutesDoxygen": True,
-    "exhaleDoxygenStdin":
-    """INPUT = @CMAKE_CURRENT_SOURCE_DIR@/../include/ \
-               @CMAKE_CURRENT_SOURCE_DIR@/../src/ \
-
-    FILE_PATTERN = *.h
-    """
+    "exhaleUseDoxyfile": True,
+    # For now use the Doxygenfile directly and not the following
+    # configuration string
+    # "exhaleDoxygenStdin":
+    # """INPUT = @CMAKE_CURRENT_BINARY_DIR@/../include/ \
+    #            @CMAKE_CURRENT_SOURCE_DIR@/../src/ \
+    # FILE_PATTERN = *.h *.cc
+    # """
 }
 
 # Tell sphinx what the primary language being documented is.

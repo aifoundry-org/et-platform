@@ -10,7 +10,14 @@ Welcome to Esperanto Runtime's documentation!
    :caption: Contents:
 
    about
-   api/runtime_root
+
+   StreamManagement
+   MemoryManagement
+   Tracing
+
+   api/EsperantoRuntime_root
+
+
 
 Indices and tables
 ==================
