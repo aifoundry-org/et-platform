@@ -35,7 +35,10 @@ extern std::array<Processor,EMU_NUM_THREADS> cpu;
 extern std::array<uint32_t,EMU_NUM_THREADS>  ext_seip;
 extern uint64_t md_log_addr;
 extern uint32_t md_log_minion;
-extern uint32_t sd_log_minion;
+extern uint32_t sd_l1_log_minion;
+extern uint32_t sd_l2_log_shire;
+extern uint32_t sd_l2_log_line;
+extern uint32_t sd_l2_log_minion;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Static Member variables
@@ -179,7 +182,10 @@ static const char * help_msg =
      -coherency_check_minion  Enables cache coherency check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
      -coherency_check_addr    Enables cache coherency check prints for a specific address (default: 0x1 [none])\n\
      -scp_check               Enables SCP checks\n\
-     -scp_check_minion        Enables SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
+     -l1_scp_check_minion     Enables L1 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
+     -l2_scp_check_shire      Enables L2 SCP check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
+     -l2_scp_check_line       Enables L2 SCP check prints for a specific minion (default: 1048576 [1048576 => no L2 scp line, -1 => all L2 scp lines])\n\
+     -l2_scp_check_minion     Enables L2 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
      -log_at_pc               Enables logging when minion reaches a given PC\n\
      -stop_log_at_pc          Disables logging when minion reaches a given PC\n\
      -dump_at_pc_pc           Dump when PC M0:T0 reaches this PC\n\
@@ -736,35 +742,50 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if(dump_option == 10)
         {
-            sd_log_minion = atoi(argv[i]);
+            sd_l1_log_minion = atoi(argv[i]);
             dump_option = 0;
         }
         else if(dump_option == 11)
         {
-            sscanf(argv[i], "%" PRIx64, &cmd_options.log_at_pc);
+            sd_l2_log_shire = atoi(argv[i]);
             dump_option = 0;
         }
         else if(dump_option == 12)
         {
-            sscanf(argv[i], "%" PRIx64, &cmd_options.stop_log_at_pc);
+            sd_l2_log_line = atoi(argv[i]);
             dump_option = 0;
         }
         else if(dump_option == 13)
         {
-            sscanf(argv[i], "%" PRIx64, &dump_at_pc_pc);
+            sd_l2_log_minion = atoi(argv[i]);
             dump_option = 0;
         }
         else if(dump_option == 14)
         {
-            sscanf(argv[i], "%" PRIx64, &dump_at_pc_addr);
+            sscanf(argv[i], "%" PRIx64, &cmd_options.log_at_pc);
             dump_option = 0;
         }
         else if(dump_option == 15)
         {
-            sscanf(argv[i], "%" PRIx64, &dump_at_pc_size);
+            sscanf(argv[i], "%" PRIx64, &cmd_options.stop_log_at_pc);
             dump_option = 0;
         }
         else if(dump_option == 16)
+        {
+            sscanf(argv[i], "%" PRIx64, &dump_at_pc_pc);
+            dump_option = 0;
+        }
+        else if(dump_option == 17)
+        {
+            sscanf(argv[i], "%" PRIx64, &dump_at_pc_addr);
+            dump_option = 0;
+        }
+        else if(dump_option == 18)
+        {
+            sscanf(argv[i], "%" PRIx64, &dump_at_pc_size);
+            dump_option = 0;
+        }
+        else if(dump_option == 19)
         {
             sys_emu_cmd_options::dump_info dump = {
                 dump_at_pc_addr,
@@ -874,33 +895,45 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             dump_option = 9;
         }
-        else if(strcmp(argv[i], "-scp_check_minion") == 0)
+        else if(strcmp(argv[i], "-l1_scp_check_minion") == 0)
         {
             dump_option = 10;
         }
-        else if(strcmp(argv[i], "-log_at_pc") == 0)
+        else if(strcmp(argv[i], "-l2_scp_check_shire") == 0)
         {
             dump_option = 11;
         }
-        else if(strcmp(argv[i], "-stop_log_at_pc") == 0)
+        else if(strcmp(argv[i], "-l2_scp_check_line") == 0)
         {
             dump_option = 12;
         }
-        else if(strcmp(argv[i], "-dump_at_pc_pc") == 0)
+        else if(strcmp(argv[i], "-l2_scp_check_minion") == 0)
         {
             dump_option = 13;
         }
-        else if(strcmp(argv[i], "-dump_at_pc_addr") == 0)
+        else if(strcmp(argv[i], "-log_at_pc") == 0)
         {
             dump_option = 14;
         }
-        else if(strcmp(argv[i], "-dump_at_pc_size") == 0)
+        else if(strcmp(argv[i], "-stop_log_at_pc") == 0)
         {
             dump_option = 15;
         }
-        else if(strcmp(argv[i], "-dump_at_pc_file") == 0)
+        else if(strcmp(argv[i], "-dump_at_pc_pc") == 0)
         {
             dump_option = 16;
+        }
+        else if(strcmp(argv[i], "-dump_at_pc_addr") == 0)
+        {
+            dump_option = 17;
+        }
+        else if(strcmp(argv[i], "-dump_at_pc_size") == 0)
+        {
+            dump_option = 18;
+        }
+        else if(strcmp(argv[i], "-dump_at_pc_file") == 0)
+        {
+            dump_option = 19;
         }
         else if(strcmp(argv[i], "-m") == 0)
         {
