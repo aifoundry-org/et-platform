@@ -3,12 +3,28 @@
 #include "emu_gio.h"
 
 // Logging variables and macros
-uint32_t sd_log_minion = 0x2048;
+uint32_t sd_l1_log_minion = 2048;            // None by default
+uint32_t sd_l2_log_shire  = 64;              // None by default
+uint32_t sd_l2_log_line   = 1 * 1024 * 1024; // None by default
+uint32_t sd_l2_log_minion = 2048;            // None by default
 
-#define SD_LOG(minion, cmd) \
-  { if((minion == 0xFFFFFFFF) || (sd_log_minion == 0xFFFFFFFF) || (minion == sd_log_minion)) \
+#define SD_L1_LOG(minion, cmd) \
+  { if((minion == 0xFFFFFFFF) || (sd_l1_log_minion == 0xFFFFFFFF) || (minion == sd_l1_log_minion)) \
     { \
       cmd; \
+    } \
+  }
+
+#define SD_L2_LOG(shire, line, minion, cmd) \
+  { if((shire == 0xFFFFFFFF) || (sd_l2_log_shire == 0xFFFFFFFF) || (shire == sd_l2_log_shire)) \
+    { \
+      if((line == 0xFFFFFFFF) || (sd_l2_log_line == 0xFFFFFFFF) || (line == sd_l2_log_line)) \
+      { \
+        if((minion == 0xFFFFFFFF) || (sd_l2_log_minion == 0xFFFFFFFF) || (minion == sd_l2_log_minion)) \
+        { \
+          cmd; \
+        } \
+      } \
     } \
   }
 
@@ -33,6 +49,7 @@ scp_directory::scp_directory()
     for(uint32_t entry = 0; entry < L2_SCP_ENTRIES; entry++)
     {
       shire_scp_info[shire].l2_scp_line_status[entry] = L2Scp_Valid;
+      shire_scp_info[shire].l2_scp_line_addr[entry]   = 0x0ULL;
     }
   }
 }
@@ -51,7 +68,7 @@ void scp_directory::l1_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t 
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
   minion_scp_info[minion_id].l1_scp_line_status[idx] = L1Scp_Fill;
   minion_scp_info[minion_id].l1_scp_line_id[idx]     = id;
-  SD_LOG(minion_id, printf("scp_directory::l1_scp_fill => fill shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
+  SD_L1_LOG(minion_id, printf("scp_directory::l1_scp_fill => fill shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
 }
 
 /*! \brief Waits for fills to L1 scp to finish
@@ -64,7 +81,7 @@ void scp_directory::l1_scp_wait(uint32_t current_thread, uint32_t id)
   uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_LOG(minion_id, printf("scp_directory::l1_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
+  SD_L1_LOG(minion_id, printf("scp_directory::l1_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
 
   // For all the entries of the minion
   for(uint32_t entry = 0 ; entry < L1_SCP_ENTRIES; entry++)
@@ -74,7 +91,7 @@ void scp_directory::l1_scp_wait(uint32_t current_thread, uint32_t id)
     {
       minion_scp_info[minion_id].l1_scp_line_status[entry] = L1Scp_Valid;
       minion_scp_info[minion_id].l1_scp_line_id[entry]     = -1;
-      SD_LOG(minion_id, printf("scp_directory::l1_scp_wait => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, entry, id));
+      SD_L1_LOG(minion_id, printf("scp_directory::l1_scp_wait => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, entry, id));
     }
   }
 }
@@ -88,7 +105,7 @@ void scp_directory::l1_scp_read(uint32_t current_thread, uint32_t idx)
   uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_LOG(minion_id, printf("scp_directory::l1_scp_read => shire: %i, minion: %i, line: %i,\n", shire, minion, idx));
+  SD_L1_LOG(minion_id, printf("scp_directory::l1_scp_read => shire: %i, minion: %i, line: %i,\n", shire, minion, idx));
 
   if(minion_scp_info[minion_id].l1_scp_line_status[idx] != L1Scp_Valid)
   {
@@ -101,20 +118,32 @@ void scp_directory::l1_scp_read(uint32_t current_thread, uint32_t idx)
  *  Sets an entry of the L2 scp of a specific minion/shire as filled and sets
  *  also the id related to the fill
  */
-void scp_directory::l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t id)
+void scp_directory::l2_scp_fill(uint32_t current_thread, uint32_t idx, uint32_t id, uint64_t src_addr)
 {
   uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_LOG(minion_id, printf("scp_directory::l2_scp_fill => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
+  SD_L2_LOG(shire, idx, minion_id, printf("scp_directory::l2_scp_fill => valid shire: %i, minion: %i, line: %i, id: %i\n", shire, minion, idx, id));
 
-  if(shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Fill)
+  if((shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Fill) && (shire_scp_info[shire].l2_scp_line_addr[idx] != src_addr))
   {
-    LOG_ALL_MINIONS(FTL, "scp_directory::l2_scp_fill => setting as fill an already fill line %i\n", idx);
+    LOG_ALL_MINIONS(FTL, "scp_directory::l2_scp_fill => filling with a different address an already inflight fill line %i. Old addr %016llX, new addr %016llX\n",
+        idx, (long long unsigned int) shire_scp_info[shire].l2_scp_line_addr[idx], (long long unsigned int) src_addr);
+  }
+
+  // If line is being overwritten with exact same addr as before and it is already valid, the line
+  // stays as valid. This is required due prefetching several times same cacheline with same contents
+  // in convolution nodes. When optimized, we could disable this.
+  // TODO: this is a potential hole in the checking, as it make sense for close prefetches, but for
+  // long prefetches the contents of the source address might have changed
+  if((shire_scp_info[shire].l2_scp_line_status[idx] == L2Scp_Valid) && (shire_scp_info[shire].l2_scp_line_addr[idx] == src_addr))
+  {
+    return;
   }
 
   // Marks the line as in fill
   shire_scp_info[shire].l2_scp_line_status[idx] = L2Scp_Fill;
+  shire_scp_info[shire].l2_scp_line_addr[idx]   = src_addr;
 
   // Enters pending l2 scp fill for minion
   l2_scp_fill_info_t l2_scp_fill;
@@ -133,7 +162,7 @@ void scp_directory::l2_scp_wait(uint32_t current_thread, uint32_t id)
   uint32_t minion_id = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion    = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire     = current_thread / EMU_THREADS_PER_SHIRE;
-  SD_LOG(minion_id, printf("scp_directory::l2_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
+  SD_L2_LOG(shire, 0xFFFFFFFF, minion_id, printf("scp_directory::l2_scp_wait => shire: %i, minion: %i, id: %i\n", shire, minion, id));
 
   // Goes over all entries of minion
   auto it = shire_scp_info[shire].l2_scp_fills[minion].begin();
@@ -142,7 +171,7 @@ void scp_directory::l2_scp_wait(uint32_t current_thread, uint32_t id)
     // Same ID, set line as valid and remove from list
     if(it->id == id)
     {
-      SD_LOG(minion_id, printf("scp_directory::l2_scp_wait => valid shire: %i, line: %i\n", shire, it->line));
+      SD_L2_LOG(shire, it->line, minion_id, printf("scp_directory::l2_scp_wait => valid shire: %i, line: %i\n", shire, it->line));
       shire_scp_info[shire].l2_scp_line_status[it->line] = L2Scp_Valid;
       auto it_orig = it;
       it++;
@@ -164,16 +193,22 @@ void scp_directory::l2_scp_read(uint32_t current_thread, uint64_t addr)
   uint32_t minion_id    = current_thread / EMU_THREADS_PER_MINION;
   uint32_t minion       = minion_id % EMU_MINIONS_PER_SHIRE;
   uint32_t shire        = current_thread / EMU_THREADS_PER_SHIRE;
+
+  // Non-linear address, convert it!
+  if(addr & 0x40000000ULL)
+  {
+    uint64_t new_addr;
+    new_addr =              addr & 0x3FULL;               // Within cacheline
+    new_addr = new_addr | ((addr >> 5)  &   0x7FFFC0ULL); // Offset
+    new_addr = new_addr | ((addr << 17) &  0xF800000ULL); // Shire Id [4:0]
+    new_addr = new_addr | (addr         & 0x30000000ULL); // Shire Id [6:5]
+    addr = new_addr;
+  }
+
   uint32_t shire_access = (addr >> 23) & 0x3FULL;
   uint32_t line_access  = (addr >> 6) & 0x1FFFF;
 
-  SD_LOG(minion_id, printf("scp_directory::l2_scp_read => shire: %i, minion: %i, addr: %016llX, shire_addr: %i, line: %i\n", shire, minion, (long long unsigned int) addr, shire_access, line_access));
-
-  // Shouldn't receive this type of access
-  if(addr & 0x40000000ULL)
-  {
-    LOG_ALL_MINIONS(FTL, "scp_directory::l2_scp_read => non-linear address type %016llx\n", (long long unsigned int) addr);
-  }
+  SD_L2_LOG(shire, line_access, minion_id, printf("scp_directory::l2_scp_read => shire: %i, minion: %i, addr: %016llX, shire_addr: %i, line: %i\n", shire, minion, (long long unsigned int) addr, shire_access, line_access));
 
   if(shire_access >= EMU_NUM_SHIRES)
   {

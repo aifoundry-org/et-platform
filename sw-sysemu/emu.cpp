@@ -2948,7 +2948,7 @@ void tensorloadl2(uint64_t control)//TranstensorloadL2
 #ifdef SYS_EMU
                 if(sys_emu::get_scp_check())
                 {
-                    sys_emu::get_scp_directory().l2_scp_fill(current_thread, dst + i, id);
+                    sys_emu::get_scp_directory().l2_scp_fill(current_thread, dst + i, id, paddr);
                 }
 #endif
             }
