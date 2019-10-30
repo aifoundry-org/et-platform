@@ -147,26 +147,46 @@ static inline void check_store_breakpoint(uint64_t addr)
 // PMA checks
 
 #define MPROT_IO_ACCESS_MODE(x)    ((x) & 0x3)
-#define MPROT_DISABLE_PCIE_ACCESS  0x4
-#define MPROT_DISABLE_OSBOX_ACCESS 0x8
+#define MPROT_DISABLE_PCIE_ACCESS  0x04
+#define MPROT_DISABLE_OSBOX_ACCESS 0x08
 #define MPROT_DRAM_SIZE_8G         0x00
 #define MPROT_DRAM_SIZE_16G        0x10
 #define MPROT_DRAM_SIZE_24G        0x20
 #define MPROT_DRAM_SIZE_32G        0x30
 #define MPROT_DRAM_SIZE(x)         ((x) & 0x30)
+#define MPROT_ENABLE_SECURE_MEMORY 0x40
 
 #define PP(x)   (int(((x) & ESR_REGION_PROT_MASK) >> ESR_REGION_PROT_SHIFT))
 
 
+static bool data_access_is_write(mem_access_type macc)
+{
+    switch (macc)
+    {
+    case Mem_Access_Load:
+    case Mem_Access_LoadL:
+    case Mem_Access_LoadG:
+    case Mem_Access_Fetch:
+    case Mem_Access_TxLoad:
+    case Mem_Access_TxLoadL2Scp:
+    case Mem_Access_Prefetch:
+        return false;
+    case Mem_Access_Store:
+    case Mem_Access_StoreL:
+    case Mem_Access_StoreG:
+    case Mem_Access_PTW:
+    case Mem_Access_AtomicL:
+    case Mem_Access_AtomicG:
+    case Mem_Access_TxStore:
+    case Mem_Access_CacheOp:
+        return true;
+    }
+    throw std::invalid_argument("data_access_is_write()");
+}
+
+
 static inline bool paddr_is_sp_cacheable(uint64_t addr)
 { return paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr); }
-
-
-static inline uint64_t spio_pma_dram_limit()
-{
-    using namespace bemu::literals;
-    return 0x8000000000ULL + 32_GiB;
-}
 
 
 // NB: We have only 16GiB of DRAM installed
@@ -177,10 +197,12 @@ static inline uint64_t truncated_dram_addr(uint64_t addr)
 }
 
 
-static inline uint64_t pma_dram_limit(uint8_t mprot)
+static inline uint64_t pma_dram_limit(bool spio, uint8_t mprot)
 {
     using namespace bemu::literals;
-
+    if (spio) {
+        return 0x8000000000ULL + 32_GiB;
+    }
     switch (MPROT_DRAM_SIZE(mprot)) {
     case MPROT_DRAM_SIZE_8G : return 0x8000000000ULL +  8_GiB;
     case MPROT_DRAM_SIZE_16G: return 0x8000000000ULL + 16_GiB;
@@ -194,18 +216,24 @@ static inline uint64_t pma_dram_limit(uint8_t mprot)
 static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
                                       size_t size, mem_access_type macc, mreg_t mask, cacheop_type cop)
 {
+#ifndef SYS_EMU
+    (void) cop;
+    (void) mask;
+#endif
     bool spio     = ((current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP);
     bool amo      = (macc == Mem_Access_AtomicL) || (macc == Mem_Access_AtomicG);
     bool amo_l    = (macc == Mem_Access_AtomicL);
     bool ts_tl_co = (macc >= Mem_Access_TxLoad) && (macc <= Mem_Access_CacheOp);
 
     if (paddr_is_dram(addr)) {
-        uint64_t addr2 = addr & ~0x4000000000ULL;
 
-        if (spio && (addr != addr2)) {
-            if (amo || ts_tl_co || !addr_is_size_aligned(addr, size))
-                throw_access_fault(vaddr, macc);
-            addr = addr2;
+        if (spio) {
+            uint64_t addr2 = addr & ~0x4000000000ULL;
+            if (addr != addr2) {
+                if (amo || ts_tl_co || !addr_is_size_aligned(addr, size))
+                    throw_access_fault(vaddr, macc);
+                addr = addr2;
+            }
         }
 
         if (!spio && !addr_is_size_aligned(addr, size)) {
@@ -215,48 +243,54 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
                 throw_access_fault(vaddr, macc);
         }
 
-        if (paddr_is_dram_mbox(addr2)) {
-            if (effective_execution_mode(macc) != PRV_M)
-                throw_access_fault(vaddr, macc);
-
-            // low m-code range
-#ifdef SYS_EMU
-            if(sys_emu::get_coherency_check())
-            {
-                sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
-            }
-#else
-            if(0) cop = (cacheop_type) addr; // To prevent compile error due not using cop when SYS_EMU is disabled...
-            if(0) mask = cop;
-#endif
-            return addr;
-        }
-
         uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
 
-        if (paddr_is_dram_osbox(addr2)) {
-            if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
-                throw_access_fault(vaddr, macc);
-
-            // low OS range
-#ifdef SYS_EMU
-            if(sys_emu::get_coherency_check())
-            {
-                sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
+        if (mprot & MPROT_ENABLE_SECURE_MEMORY) {
+            if (paddr_is_dram_mcode(addr)) {
+                if (!spio && (data_access_is_write(macc)
+                              || (effective_execution_mode(macc) != PRV_M)))
+                    throw_access_fault(vaddr, macc);
             }
-#endif
-
-            return addr;
+            else if (paddr_is_dram_mdata(addr)) {
+                if (!spio && (effective_execution_mode(macc) != PRV_M))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_scode(addr)) {
+                if (!spio && (data_access_is_write(macc)
+                              ? (effective_execution_mode(macc) != PRV_M)
+                              : (effective_execution_mode(macc) == PRV_U)))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_sdata(addr)) {
+                if (!spio && (effective_execution_mode(macc) == PRV_U))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_osbox(addr)) {
+                if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (addr >= pma_dram_limit(spio, mprot)) {
+                throw_access_fault(vaddr, macc);
+            }
+        } else {
+            if (paddr_is_dram_mbox(addr)) {
+                if (!spio && (effective_execution_mode(macc) != PRV_M))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_sbox(addr)) {
+                if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_osbox(addr)) {
+                if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (addr >= pma_dram_limit(spio, mprot)) {
+                throw_access_fault(vaddr, macc);
+            }
         }
-
-        // dram_other
-        if (addr >= (spio ? spio_pma_dram_limit() : pma_dram_limit(mprot)))
-            throw_access_fault(vaddr, macc);
-
-        // low DRAM memory range
 #ifdef SYS_EMU
-        if(sys_emu::get_coherency_check())
-        {
+        if (sys_emu::get_coherency_check()) {
             sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
         }
 #endif
@@ -266,18 +300,13 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
     if (paddr_is_scratchpad(addr)) {
         if (amo_l)
             throw_access_fault(vaddr, macc);
-    
-        // SCP range
 #ifdef SYS_EMU
-        if(sys_emu::get_coherency_check())
-        {
+        if (sys_emu::get_coherency_check()) {
             sys_emu::get_mem_directory().access(addr, macc, cop, current_thread, size, mask);
         }
-        if(sys_emu::get_scp_check())
-        {
+        if (sys_emu::get_scp_check()) {
             sys_emu::get_scp_directory().l2_scp_read(current_thread, addr);
         }
-
 #endif
         return addr;
     }
@@ -294,9 +323,12 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
     }
 
     if (paddr_is_sp_space(addr)) {
+        int mode = effective_execution_mode(macc);
         if (!spio
             || amo
             || ts_tl_co
+            || (paddr_is_sp_sram_code(addr) && data_access_is_write(macc) && (mode != PRV_M))
+            || (paddr_is_sp_sram_data(addr) && (mode == PRV_U))
             || (!paddr_is_sp_cacheable(addr) && !addr_is_size_aligned(addr, size)))
             throw_access_fault(vaddr, macc);
         return addr;
@@ -333,61 +365,74 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
     bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
 
     if (paddr_is_dram(addr)) {
-        uint64_t addr2 = addr & ~0x4000000000ULL;
-
         if (spio)
-            addr = addr2;
-
-        if (paddr_is_dram_mbox(addr2)) {
-            if (effective_execution_mode(macc) != PRV_M)
-                throw_access_fault(vaddr, macc);
-
-            // low m-code range
-#ifdef SYS_EMU
-            if(sys_emu::get_coherency_check())
-            {
-                sys_emu::get_mem_directory().access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
-            }
-#endif
-
-            return addr;
-        }
+            throw_access_fault(vaddr, macc);
 
         uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
 
-        if (paddr_is_dram_osbox(addr2)) {
-            if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
-                throw_access_fault(vaddr, macc);
-
-            // low OS range
-#ifdef SYS_EMU
-            if(sys_emu::get_coherency_check())
-            {
-                sys_emu::get_mem_directory().access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
+        if (mprot & MPROT_ENABLE_SECURE_MEMORY) {
+            if (paddr_is_dram_mcode(addr)) {
+                if (effective_execution_mode(macc) != PRV_M)
+                    throw_access_fault(vaddr, macc);
             }
-#endif
-
-            return addr;
+            else if (paddr_is_dram_mdata(addr)) {
+                throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_scode(addr)) {
+                if (effective_execution_mode(macc) != PRV_S)
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_sdata(addr)) {
+                throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_osbox(addr)) {
+                if ((mprot & MPROT_DISABLE_OSBOX_ACCESS) ||
+                    (effective_execution_mode(macc) != PRV_U))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if ((addr >= pma_dram_limit(spio, mprot)) ||
+                     (effective_execution_mode(macc) != PRV_U)) {
+                throw_access_fault(vaddr, macc);
+            }
+        } else {
+            if (paddr_is_dram_mbox(addr)) {
+                if (effective_execution_mode(macc) != PRV_M)
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_sbox(addr)) {
+                if (mprot & MPROT_DISABLE_OSBOX_ACCESS)
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_osbox(addr)) {
+                if (mprot & MPROT_DISABLE_OSBOX_ACCESS)
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (addr >= pma_dram_limit(spio, mprot)) {
+                throw_access_fault(vaddr, macc);
+            }
         }
-
-        // dram_other
-        if (addr >= (spio ? spio_pma_dram_limit() : pma_dram_limit(mprot)))
-            throw_access_fault(vaddr, macc);
-
-        // low DRAM memory range
 #ifdef SYS_EMU
-        if(sys_emu::get_coherency_check())
-        {
+        if (sys_emu::get_coherency_check()) {
             sys_emu::get_mem_directory().access(addr, macc, CacheOp_None, current_thread, 64, mreg_t(-1));
         }
 #endif
-
         return truncated_dram_addr(addr);
-
     }
 
-    if (paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr)) {
+    if (paddr_is_sp_rom(addr)) {
         if (!spio)
+            throw_access_fault(vaddr, macc);
+        return addr;
+    }
+
+    if (paddr_is_sp_sram_code(addr)) {
+        if (!spio || (effective_execution_mode(macc) == PRV_U))
+            throw_access_fault(vaddr, macc);
+        return addr;
+    }
+
+    if (paddr_is_sp_sram_data(addr)) {
+        if (!spio || (effective_execution_mode(macc) != PRV_M))
             throw_access_fault(vaddr, macc);
         return addr;
     }
@@ -397,7 +442,8 @@ static uint64_t pma_check_fetch_access(uint64_t vaddr, uint64_t addr,
 
 
 static inline uint64_t pma_check_mem_access(uint64_t vaddr, uint64_t addr,
-                                            size_t size, mem_access_type macc, mreg_t mask, cacheop_type cop)
+                                            size_t size, mem_access_type macc,
+                                            mreg_t mask, cacheop_type cop)
 {
     return (macc == Mem_Access_Fetch)
             ? pma_check_fetch_access(vaddr, addr, macc)
@@ -411,34 +457,53 @@ static uint64_t pma_check_ptw_access(uint64_t vaddr, uint64_t addr,
     bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
 
     if (paddr_is_dram(addr)) {
-        uint64_t addr2 = addr & ~0x4000000000ULL;
-
-        if (spio)
-            addr = addr2;
-
-        if (paddr_is_dram_mbox(addr2)) {
-            if (effective_execution_mode(macc) != PRV_M)
-                throw_access_fault(vaddr, macc);
-            return addr;
-        }
-
         uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
 
-        if (paddr_is_dram_osbox(addr2)) {
-            if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+        if (spio)
+            addr &= ~0x4000000000ULL;
+
+        if (mprot & MPROT_ENABLE_SECURE_MEMORY) {
+            if (paddr_is_dram_mcode(addr)) {
+                if (!spio)
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_mdata(addr)) {
+                if (!spio && (effective_execution_mode(macc) != PRV_M))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_scode(addr)) {
+                if (!spio && (effective_execution_mode(macc) != PRV_M))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_osbox(addr)) {
+                if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (addr >= pma_dram_limit(spio, mprot)) {
                 throw_access_fault(vaddr, macc);
-            return addr;
+            }
+        } else {
+            if (paddr_is_dram_mbox(addr)) {
+                if (!spio && (effective_execution_mode(macc) != PRV_M))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_sbox(addr)) {
+                if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (paddr_is_dram_osbox(addr)) {
+                if (!spio && (mprot & MPROT_DISABLE_OSBOX_ACCESS))
+                    throw_access_fault(vaddr, macc);
+            }
+            else if (addr >= pma_dram_limit(spio, mprot)) {
+                throw_access_fault(vaddr, macc);
+            }
         }
-
-        // dram_other
-        if (addr >= (spio ? spio_pma_dram_limit() : pma_dram_limit(mprot)))
-            throw_access_fault(vaddr, macc);
-
         return truncated_dram_addr(addr);
     }
 
     if (paddr_is_sp_rom(addr) || paddr_is_sp_sram(addr)) {
-        if (!spio)
+        if (!spio || paddr_is_sp_sram_code(addr))
             throw_access_fault(vaddr, macc);
         return addr;
     }
@@ -1038,7 +1103,7 @@ bool mmu_check_cacheop_access(uint64_t paddr)
 
     if (paddr_is_dram_osbox(paddr)) {
         uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
-        return spio || (~mprot & 0x4)/*!mprot.disable_osbox_access*/;
+        return spio || (~mprot & MPROT_DISABLE_OSBOX_ACCESS);
     }
 
     return (spio && paddr_is_sp_cacheable(paddr)) || paddr_is_dram(paddr);

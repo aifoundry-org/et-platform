@@ -54,12 +54,12 @@ namespace bemu {
 // | 0x02_0000_0000 | 0x3F_FFFF_FFFF |  256GiB  | Reserved          |
 // | 0x40_0000_0000 | 0x7F_FFFF_FFFF |  512GiB  | PCIe region       |
 // | 0x80_0000_0000 | 0xFF_FFFF_FFFF |  512GiB  | DRAM region       |
-// | 0x80_0000_0000 | 0x80_001F_FFFF |    2MiB  |   DRAM/Mcode      |
-// | 0x80_0020_0000 | 0x80_FFFF_FFFF |    4GiB  |   DRAM/OS         |
+// | 0x80_0000_0000 | 0x80_007F_FFFF |    2MiB  |   DRAM/Mcode      |
+// | 0x80_0080_0000 | 0x80_FFFF_FFFF |    4GiB  |   DRAM/OS         |
 // | 0x81_0000_0000 | 0x87_FFFF_FFFF |   28GiB  |   DRAM/Other      |
 // | 0x88_0000_0000 | 0xBF_FFFF_FFFF |  224GiB  |   Reserved        |
-// | 0xC0_0000_0000 | 0xC0_001F_FFFF |    2MiB  |   DRAM/Mcode      |
-// | 0xC0_0020_0000 | 0xC0_FFFF_FFFF |    4GiB  |   DRAM/OS         |
+// | 0xC0_0000_0000 | 0xC0_007F_FFFF |    2MiB  |   DRAM/Mcode      |
+// | 0xC0_0080_0000 | 0xC0_FFFF_FFFF |    4GiB  |   DRAM/OS         |
 // | 0xC1_0000_0000 | 0xC7_FFFF_FFFF |   28GiB  |   DRAM/Other      |
 // | 0xC8_0000_0000 | 0xFF_FFFF_FFFF |  224GiB  |   Reserved        |
 // +----------------+----------------+----------+-------------------+
