@@ -1,0 +1,20 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#include "etsoc_hal/rm_esr.h"
+#include "etsoc_hal/cm_esr.h"
+#include "etsoc_hal/pshire_esr.h"
+#include "hal_device.h"
+
+#include "sp_ddr_config.h"
+
+#include "ddr_config.h"
+
+int ddr_config(void) {
+    // configure the dram controller and train the memory
+    ddr_init(0);
+
+    return 0;
+}
