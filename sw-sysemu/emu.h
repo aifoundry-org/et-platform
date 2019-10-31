@@ -83,6 +83,7 @@ extern void clear_external_supervisor_interrupt(int thread);
 extern void raise_bus_error_interrupt(int thread, uint64_t busaddr);
 extern void clear_bus_error_interrupt(int thread);
 extern void pu_plic_interrupt_pending_set(uint32_t source_id);
+extern void pu_plic_interrupt_pending_clear(uint32_t source_id);
 
 // Illegal instruction encodings will execute this
 extern void unknown(const char* comm = 0);

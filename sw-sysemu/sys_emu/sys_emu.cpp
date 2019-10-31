@@ -150,15 +150,15 @@ static const char * help_msg =
 "    -d                       Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
 #endif
 "\
-     -dump_addr <addr>        Address in memory at which to start dumping. Only valid if -dump_file is used\n\
-     -dump_file <path>        Path to the file in which to dump the memory content at the end of the simulation\n\
-     -dump_mem <path>         Path to the file in which to dump the memory content at the end of the simulation (dumps all the memory contents)\n\
+     -dump_addr <addr>        At the end of simulation, address where to start the dump. Only valid if -dump_file is used\n\
+     -dump_size <size>        At the end of simulation, size of the dump. Only valid if -dump_file is used\n\
+     -dump_file <path>        At the end of simulation, file in which to dump\n\
+     -dump_mem <path>         At the end of simulation, file where to dump ALL the memory content\n\
 "
 #ifdef SYSEMU_PROFILING
 "    -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
 #endif
 "\
-     -dump_size <size>        Size of the memory to dump. Only valid if -dump_file is used\n\
      -elf <path>              Path to an ELF file to load.\n\
      -l                       Enable Logging\n\
      -lm <minion>             Log a given Minion ID only. (default: all)\n\
@@ -180,8 +180,12 @@ static const char * help_msg =
      -coherency_check_addr    Enables cache coherency check prints for a specific address (default: 0x1 [none])\n\
      -scp_check               Enables SCP checks\n\
      -scp_check_minion        Enables SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
-     -dump_at_pc              Enables logging when minion reaches a given PC\n\
-     -stop_dump_at_pc         Disables logging when minion reaches a given PC\n\
+     -log_at_pc               Enables logging when minion reaches a given PC\n\
+     -stop_log_at_pc          Disables logging when minion reaches a given PC\n\
+     -dump_at_pc_pc           Dump when PC M0:T0 reaches this PC\n\
+     -dump_at_pc_addr         Address where to start the dump\n\
+     -dump_at_pc_size         Size of the dump\n\
+     -dump_at_pc_file         File where to store the dump\n\
 ";
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -558,15 +562,17 @@ sys_emu::clear_external_supervisor_interrupt(unsigned shire_id)
 }
 
 bool sys_emu::init_api_listener(const char *communication_path, bemu::MainMemory* memory) {
-
-    api_listener = std::unique_ptr<api_communicate>(new api_communicate(memory));
+    (void) communication_path;
+    (void) memory;
+    // Now api_communicate is an interface
+    /*api_listener = std::unique_ptr<api_communicate>(new api_communicate(memory));
 
     api_listener->set_comm_path(communication_path);
 
     if(!api_listener->init())
     {
         throw std::runtime_error("Failed to initialize api listener");
-    }
+    }*/
     return true;
 }
 
@@ -628,8 +634,8 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
     sys_emu_cmd_options cmd_options;
     int dump_option = 0;
-    uint64_t dump_addr = 0;
-    uint64_t dump_size = 0;
+    uint64_t dump_at_end_addr = 0, dump_at_end_size = 0;
+    uint64_t dump_at_pc_pc, dump_at_pc_addr, dump_at_pc_size;
 
     for(int i = 1; i < argc; i++)
     {
@@ -680,22 +686,22 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if(dump_option == 1)
         {
-            sscanf(argv[i], "%" PRIx64, &dump_addr);
+            sscanf(argv[i], "%" PRIx64, &dump_at_end_addr);
             dump_option = 0;
         }
         else if(dump_option == 2)
         {
-            dump_size = atoi(argv[i]);
+            dump_at_end_size = atoi(argv[i]);
             dump_option = 0;
         }
         else if(dump_option == 3)
         {
-            sys_emu_cmd_options::dump_file dump = {
-                dump_addr,
-                dump_size,
-                argv[i]
-            };
-            cmd_options.dump_files.push_back(dump);
+            sys_emu_cmd_options::dump_info dump = {
+                dump_at_end_addr,
+                dump_at_end_size,
+                std::string(argv[i])
+             };
+            cmd_options.dump_at_end.push_back(dump);
             dump_option = 0;
         }
         else if(dump_option == 4)
@@ -735,14 +741,39 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if(dump_option == 11)
         {
-            sscanf(argv[i], "%" PRIx64, &cmd_options.dump_at_pc);
+            sscanf(argv[i], "%" PRIx64, &cmd_options.log_at_pc);
             dump_option = 0;
         }
         else if(dump_option == 12)
         {
-            sscanf(argv[i], "%" PRIx64, &cmd_options.stop_dump_at_pc);
+            sscanf(argv[i], "%" PRIx64, &cmd_options.stop_log_at_pc);
             dump_option = 0;
         }
+        else if(dump_option == 13)
+        {
+            sscanf(argv[i], "%" PRIx64, &dump_at_pc_pc);
+            dump_option = 0;
+        }
+        else if(dump_option == 14)
+        {
+            sscanf(argv[i], "%" PRIx64, &dump_at_pc_addr);
+            dump_option = 0;
+        }
+        else if(dump_option == 15)
+        {
+            sscanf(argv[i], "%" PRIx64, &dump_at_pc_size);
+            dump_option = 0;
+        }
+        else if(dump_option == 16)
+        {
+            sys_emu_cmd_options::dump_info dump = {
+                dump_at_pc_addr,
+                dump_at_pc_size,
+                std::string(argv[i])
+            };
+            cmd_options.dump_at_pc.emplace(dump_at_pc_pc, dump);
+             dump_option = 0;
+         }
         else if(cmd_options.mem_reset_flag)
         {
             cmd_options.mem_reset = atoi(argv[i]);
@@ -847,13 +878,29 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             dump_option = 10;
         }
-        else if(strcmp(argv[i], "-dump_at_pc") == 0)
+        else if(strcmp(argv[i], "-log_at_pc") == 0)
         {
             dump_option = 11;
         }
-        else if(strcmp(argv[i], "-stop_dump_at_pc") == 0)
+        else if(strcmp(argv[i], "-stop_log_at_pc") == 0)
         {
             dump_option = 12;
+        }
+        else if(strcmp(argv[i], "-dump_at_pc_pc") == 0)
+        {
+            dump_option = 13;
+        }
+        else if(strcmp(argv[i], "-dump_at_pc_addr") == 0)
+        {
+            dump_option = 14;
+        }
+        else if(strcmp(argv[i], "-dump_at_pc_size") == 0)
+        {
+            dump_option = 15;
+        }
+        else if(strcmp(argv[i], "-dump_at_pc_file") == 0)
+        {
+            dump_option = 16;
         }
         else if(strcmp(argv[i], "-m") == 0)
         {
@@ -936,7 +983,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 #endif
 
     emu::log.setLogLevel(cmd_options.log_en ? LOG_DEBUG : LOG_INFO);
-   
+
     // Init emu
     init_emu(system_version_t::ETSOC1_A0);
     log_only_minion(cmd_options.log_min);
@@ -1171,18 +1218,18 @@ sys_emu::main_internal(int argc, char * argv[])
                     // Executes the instruction
                     insn_t inst = fetch_and_decode();
 
-                    // Dumping
-                    if (current_pc[0] == cmd_options.dump_at_pc) {
-                      emu::log.setLogLevel(LOG_DEBUG);
-                      for (auto &dump: cmd_options.dump_files) {
-                        char filename[256];
-                        snprintf(filename, sizeof(filename), "%s_pc", dump.file);
-                        bemu::dump_data(bemu::memory, filename, dump.addr, dump.size);
-                      }
-                    }
+                    // Dumping when M0:T0 reaches a PC
+                    auto range = cmd_options.dump_at_pc.equal_range(current_pc[0]);
+                    for (auto it = range.first; it != range.second; ++it) {
+                            bemu::dump_data(bemu::memory, it->second.file.c_str(),
+                                            it->second.addr, it->second.size);
+                     }
 
-                    if (current_pc[0] == cmd_options.stop_dump_at_pc) {
-                      emu::log.setLogLevel(LOG_INFO);
+                    // Logging
+                    if (current_pc[0] == cmd_options.log_at_pc) {
+                        emu::log.setLogLevel(LOG_DEBUG);
+                    } else if (current_pc[0] == cmd_options.stop_log_at_pc) {
+                       emu::log.setLogLevel(LOG_INFO);
                     }
 
                     execute(inst);
@@ -1331,8 +1378,8 @@ sys_emu::main_internal(int argc, char * argv[])
     LOG_NOTHREAD(INFO, "%s", "Finishing emulation");
 
     // Dumping
-    for (auto &dump: cmd_options.dump_files)
-        bemu::dump_data(bemu::memory, dump.file, dump.addr, dump.size);
+    for (auto &dump: cmd_options.dump_at_end)
+        bemu::dump_data(bemu::memory, dump.file.c_str(), dump.addr, dump.size);
 
     if(cmd_options.dump_mem)
         bemu::dump_data(bemu::memory, cmd_options.dump_mem, bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);

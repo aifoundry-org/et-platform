@@ -20,7 +20,7 @@
 
 namespace bemu {
 
-using PLIC_Target_Notify = void (*)(void);
+using PLIC_Target_Notify = void (*)(bool raise);
 
 struct PLIC_Interrupt_Target {
     uint32_t           name_id;
@@ -130,6 +130,7 @@ private:
     void update_logic() {
         // For each interrupt target
         for (const auto &t : get_target_list()) {
+            uint32_t max_prio = 0;
             uint32_t new_max_id = 0;
             bool trigger = false;
             // For each interrupt source
@@ -142,8 +143,9 @@ private:
                 // the source priority is greater than the target threshold
                 if (ip[s] && ie[t.name_id][s] && (priority[s] > threshold[t.name_id])) {
                     // Update which source has max priority
-                    if (priority[s] > new_max_id) {
-                        new_max_id = priority[s];
+                    if (priority[s] > max_prio) {
+                        max_prio = priority[s];
+                        new_max_id = s;
                         trigger = true;
                     }
                 }
@@ -151,9 +153,16 @@ private:
 
             // Update target's MaxID
             max_id[t.name_id] = new_max_id;
-            if (trigger /* && !eip[t.name_id] */) {
+
+            // Raise/clear interrupt
+            if (trigger && !eip[t.name_id]) {
+                eip[t.name_id] = true;
                 // Send interrupt to target
-                t.notify();
+                t.notify(true);
+            } else if (!trigger && eip[t.name_id]) {
+                eip[t.name_id] = false;
+                // Clear interrupt to target
+                t.notify(false);
             }
         }
     }
@@ -191,13 +200,16 @@ private:
         if (!target_address_to_name(target_addr, &name_id))
             return;
 
-        if ((pos % 1000) == 0) { // Threshold registers
+        if ((pos % 0x1000) == 0) { // Threshold registers
             *result32 = threshold[name_id];
-        } else if ((pos % 1000) == 4) { // MaxID registers
+        } else if ((pos % 0x1000) == 4) { // MaxID registers
+            // Read current MaxID
+            *result32 = max_id[name_id];
             // To claim an interrupt, the target reads its MaxID register
             if (max_id[name_id] > 0) {
                 in_flight[max_id[name_id]] = true;
-                *result32 = max_id[name_id];
+                // Save the ID of the Target that claimed the source interrupt
+                in_flight_by[max_id[name_id]] = name_id;
                 update_logic();
             }
         }
@@ -228,12 +240,12 @@ private:
         if (!target_address_to_name(target_addr, &name_id))
             return;
 
-        if ((pos % 1000) == 0) { // Threshold registers
+        if ((pos % 0x1000) == 0) { // Threshold registers
             threshold[name_id] = *source32 & PLIC_THRESHOLD_MASK;
-        } else if ((pos % 1000) == 4) { // MaxID registers
+        } else if ((pos % 0x1000) == 4) { // MaxID registers
             // Complete an interrupt: target writes to MaxID the ID of the interrupt
-            if (max_id[name_id] == *source32) {
-                in_flight[max_id[name_id]] = false;
+            if (in_flight[*source32] && (in_flight_by[*source32] == name_id)) {
+                in_flight[*source32] = false;
                 update_logic();
             }
         }
@@ -256,9 +268,10 @@ private:
 
     std::bitset<S>                ip;        // Interrupt Pending (per source)
     std::bitset<S>                in_flight; // Interrupt inFlight (per source)
+    std::array<uint32_t, S>       in_flight_by; // ID of the target that claimed the source interrupt (per source)
     std::array<uint32_t, S>       priority;  // Interrupt Priority (per source)
     std::array<std::bitset<S>, T> ie;        // Interrupt Enable (per target x source)
-    //std::bitset<T>               eip;      // External Interrupt Pending (per target). Not needed for now
+    std::bitset<T>                eip;      // External Interrupt Pending (per target)
     std::array<uint32_t, T>       threshold; // Interrupt Threshold (per target)
     std::array<uint32_t, T>       max_id;    // Interrupt MaxID (per target)
 };
@@ -266,17 +279,27 @@ private:
 template <unsigned long long Base, size_t N>
 struct PU_PLIC : public PLIC<Base, N, 41, 12>
 {
-    static void Target_M_mode_Notify(void) {
+    static void Target_M_mode_Notify(bool raise) {
+        (void) raise;
 #ifdef SYS_EMU
-        for (int i = 0; i < EMU_NUM_MINION_SHIRES; i++)
-            sys_emu::raise_external_interrupt(i);
+        for (int i = 0; i < EMU_NUM_MINION_SHIRES; i++) {
+            if (raise)
+                sys_emu::raise_external_interrupt(i);
+            else
+                sys_emu::clear_external_interrupt(i);
+        }
 #endif
     }
 
-    static void Target_S_mode_Notify(void) {
+    static void Target_S_mode_Notify(bool raise) {
+        (void) raise;
 #ifdef SYS_EMU
-        for (int i = 0; i < EMU_NUM_MINION_SHIRES; i++)
-            sys_emu::raise_external_supervisor_interrupt(i);
+        for (int i = 0; i < EMU_NUM_MINION_SHIRES; i++) {
+            if (raise)
+                sys_emu::raise_external_supervisor_interrupt(i);
+            else
+                sys_emu::clear_external_supervisor_interrupt(i);
+        }
 #endif
     }
 

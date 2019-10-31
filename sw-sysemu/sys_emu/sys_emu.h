@@ -13,9 +13,9 @@
 #include <cstdint>
 #include <list>
 #include <memory>
-#include <vector>
 #include <tuple>
-
+#include <unordered_map>
+#include <vector>
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -31,10 +31,10 @@
 /// \bried Struct holding the values of the parsed command line arguments
 ////////////////////////////////////////////////////////////////////////////////
 struct sys_emu_cmd_options {
-    struct dump_file {
+    struct dump_info {
         uint64_t addr;
         uint64_t size;
-        char *file;
+        std::string file;
     };
 
     char * elf_file                   = nullptr;
@@ -56,7 +56,8 @@ struct sys_emu_cmd_options {
     char * dump_prof_file             = nullptr;
     int dump_prof                     = 0;
 #endif
-    std::vector<dump_file> dump_files;
+    std::vector<dump_info>            dump_at_end;
+    std::unordered_multimap<uint64_t, dump_info> dump_at_pc;
     char *   dump_mem                 = nullptr;
     uint64_t reset_pc                 = RESET_PC;
     uint64_t sp_reset_pc              = SP_RESET_PC;
@@ -73,8 +74,8 @@ struct sys_emu_cmd_options {
     bool mem_reset_flag               = false;
     char * pu_uart_tx_file            = nullptr;
     char * pu_uart1_tx_file           = nullptr;
-    uint64_t dump_at_pc               = 0;
-    uint64_t stop_dump_at_pc          = 0;
+    uint64_t log_at_pc                = ~0ull;
+    uint64_t stop_log_at_pc           = ~0ull;
 };
 
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);

@@ -13,8 +13,10 @@
 #include "dense_region.h"
 #include "sparse_region.h"
 
+// From emu.cpp
 extern unsigned current_thread;
 extern void pu_plic_interrupt_pending_set(uint32_t source_id);
+extern void pu_plic_interrupt_pending_clear(uint32_t source_id);
 
 namespace bemu {
 
@@ -86,9 +88,11 @@ struct PU_TRG_MMin_Region : public MemoryRegion
 
 protected:
     void check_trigger_int() {
+        // PU_PLIC_PCIE_MESSAGE_INTR_ID
         if (counter > 0) {
-            // PU_PLIC_PCIE_MSI_INTR
-            pu_plic_interrupt_pending_set(24);
+            pu_plic_interrupt_pending_set(33);
+        } else {
+            pu_plic_interrupt_pending_clear(33);
         }
     }
 

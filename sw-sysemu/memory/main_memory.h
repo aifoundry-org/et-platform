@@ -14,6 +14,7 @@
 #include "memory_error.h"
 #include "memory_region.h"
 #include "null_region.h"
+#include "pcie_region.h"
 #include "peripheral_region.h"
 #include "scratch_region.h"
 #include "sparse_region.h"
@@ -131,7 +132,7 @@ struct MainMemory {
     SvcProcRegion    <spio_base, 1_GiB>                 spio_space{};
     ScratchRegion    <scp_base, 4_MiB, EMU_NUM_SHIRES>  scp_space{};
     SysregRegion     <sysreg_base, 4_GiB>               sysreg_space{};
-    NullRegion       <pcie_base, 256_GiB>               pcie_space{};
+    PcieRegion       <pcie_base, 256_GiB>               pcie_space{};
     SparseRegion     <dram_base, EMU_DRAM_SIZE, 16_MiB> dram_space{};
 
 protected:
