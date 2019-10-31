@@ -91,7 +91,8 @@ public:
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
-    static void set_thread_pc(unsigned thread_id, uint64_t pc);
+    static uint64_t get_thread_pc(unsigned thread_id) { return current_pc[thread_id]; }
+    static void set_thread_pc(unsigned thread_id, uint64_t pc) { current_pc[thread_id] = pc; }
     static void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
                                uint64_t thread_mask, unsigned cnt_dest);
     static void msg_to_thread(int thread_id);

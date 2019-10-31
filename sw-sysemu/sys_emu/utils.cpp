@@ -1,0 +1,63 @@
+#include "emu.h"
+#include "memory/load.h"
+
+////////////////////////////////////////////////////////////////////////////////
+// Parses a file that defines the memory regions plus contents to be
+// loaded in the different regions
+////////////////////////////////////////////////////////////////////////////////
+
+bool parse_mem_file(const char * filename)
+{
+    FILE * file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        LOG_NOTHREAD(FTL, "Parse Mem File Error -> Couldn't open file %s for reading!!", filename);
+        return false;
+    }
+
+    // Parses the contents
+    char buffer[1024];
+    char * buf_ptr = (char *) buffer;
+    size_t buf_size = 1024;
+    while (getline(&buf_ptr, &buf_size, file) != -1)
+    {
+        uint64_t base_addr;
+        uint64_t size;
+        char str[1024];
+        if(sscanf(buffer, "New Mem Region: 40'h%" PRIX64 ", 40'h%" PRIX64 ", %s", &base_addr, &size, str) == 3)
+        {
+            LOG_NOTHREAD(WARN, "Ignore: New Mem Region found: @ 0x%" PRIx64 ", size = 0x%" PRIu64, base_addr, size);
+        }
+        else if(sscanf(buffer, "File Load: 40'h%" PRIX64 ", %s", &base_addr, str) == 2)
+        {
+            LOG_NOTHREAD(INFO, "New File Load found: @ 0x%" PRIx64, base_addr);
+            try
+            {
+                bemu::load_raw(bemu::memory, str, base_addr);
+            }
+            catch (...)
+            {
+                fclose(file);
+                LOG_NOTHREAD(FTL, "Error loading file \"%s\"", str);
+                return false;
+            }
+        }
+        else if(sscanf(buffer, "ELF Load: %s", str) == 1)
+        {
+            LOG_NOTHREAD(INFO, "New ELF Load found: %s", str);
+            try
+            {
+                bemu::load_elf(bemu::memory, str);
+            }
+            catch (...)
+            {
+                fclose(file);
+                LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", str);
+                return false;
+            }
+        }
+    }
+    // Closes the file
+    fclose(file);
+    return true;
+}
