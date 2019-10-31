@@ -103,6 +103,19 @@ int main(void)
     }
     printf("Minion shires PLLs and DLLs configured.\n");
 
+    if (0 != enable_minion_neighborhoods()) {
+        printf("Failed to enable minion neighborhoods!\n");
+        goto FATAL_ERROR;
+    }
+    printf("Minion neighborhoods enabled.\n");
+
+    if (0 != enable_minion_threads()) {
+        printf("Failed to enable minion threads!\n");
+        goto FATAL_ERROR;
+    }
+    printf("Minion threads enabled.\n");
+
+
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];
     static StaticTask_t taskBufferA;
