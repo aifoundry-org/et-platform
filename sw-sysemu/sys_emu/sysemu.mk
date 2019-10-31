@@ -2,7 +2,6 @@ sysemu_hdrs := \
     sys_emu/api_communicate.h \
     sys_emu/log.h \
     sys_emu/mem_directory.h \
-    sys_emu/rvtimer.h \
     sys_emu/scp_directory.h \
     sys_emu/sys_emu.h \
     sys_emu/testLog.h \

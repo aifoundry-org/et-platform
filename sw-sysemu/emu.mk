@@ -27,6 +27,7 @@ emu_hdrs := \
 	utility.h \
 	devices/plic.h \
 	devices/pu_uart.h \
+	devices/rvtimer.h \
 	memory/dense_region.h \
 	memory/dump_data.h \
 	memory/load.h \
@@ -39,6 +40,7 @@ emu_hdrs := \
 
 emu_cpp_srcs := \
 	decode.cpp \
+	devices/rvtimer.cpp \
 	emu.cpp \
 	emu_gio.cpp \
 	esrs.cpp \

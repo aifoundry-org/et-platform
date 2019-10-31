@@ -2,8 +2,8 @@
 #define _SYS_EMU_H_
 
 #include "api_communicate.h"
+#include "devices/rvtimer.h"
 #include "emu_defines.h"
-#include "rvtimer.h"
 #include "mem_directory.h"
 #include "scp_directory.h"
 

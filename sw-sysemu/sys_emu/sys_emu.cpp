@@ -15,6 +15,7 @@
 #include <tuple>
 
 #include "api_communicate.h"
+#include "devices/rvtimer.h"
 #include "emu.h"
 #include "emu_gio.h"
 #include "esrs.h"
@@ -24,10 +25,8 @@
 #include "memory/load.h"
 #include "memory/main_memory.h"
 #include "mmu.h"
-#include "api_communicate.h"
 #include "processor.h"
 #include "profiling.h"
-#include "rvtimer.h"
 #include "scp_directory.h"
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
@@ -1171,13 +1170,6 @@ sys_emu::main_internal(int argc, char * argv[])
 
         // Update devices
         pu_rvtimer.update(emu_cycle);
-
-        // Check interrupts from devices
-        if (pu_rvtimer.interrupt_pending()) {
-            raise_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
-        } else if (pu_rvtimer.clear_pending()) {
-            clear_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
-        }
 
         auto thread = running_threads.begin();
 
