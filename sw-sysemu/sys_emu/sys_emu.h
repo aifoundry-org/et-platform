@@ -3,7 +3,6 @@
 
 #include "api_communicate.h"
 #include "emu_defines.h"
-#include "net_emulator.h"
 #include "rvtimer.h"
 #include "mem_directory.h"
 #include "scp_directory.h"
@@ -39,11 +38,9 @@ struct sys_emu_cmd_options {
 
     char * elf_file                   = nullptr;
     char * mem_desc_file              = nullptr;
-    char * net_desc_file              = nullptr;
     char * api_comm_path              = nullptr;
     bool elf                          = false;
     bool mem_desc                     = false;
-    bool net_desc                     = false;
     bool api_comm                     = false;
     bool master_min                   = false;
     bool minions                      = false;
@@ -185,7 +182,6 @@ private:
     static bool            scp_check;
     static scp_directory   scp_dir;
 
-    static net_emulator net_emu;
     static std::unique_ptr<api_communicate> api_listener;
     static sys_emu_cmd_options cmd_options;
 };

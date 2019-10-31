@@ -10,7 +10,6 @@ sysemu_hdrs := \
 sysemu_cpp_srcs := \
     sys_emu/log.cpp \
     sys_emu/mem_directory.cpp \
-    sys_emu/net_emulator.cpp \
     sys_emu/scp_directory.cpp \
     sys_emu/sys_emu.cpp \
     sys_emu/sys_emu_debug.cpp \

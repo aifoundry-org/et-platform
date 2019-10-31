@@ -24,7 +24,6 @@
 #include "memory/load.h"
 #include "memory/main_memory.h"
 #include "mmu.h"
-#include "net_emulator.h"
 #include "api_communicate.h"
 #include "processor.h"
 #include "profiling.h"
@@ -60,7 +59,6 @@ bool            sys_emu::coherency_check = false;
 mem_directory   sys_emu::mem_dir;
 bool            sys_emu::scp_check       = false;
 scp_directory   sys_emu::scp_dir;
-net_emulator    sys_emu::net_emu;
 std::unique_ptr<api_communicate> sys_emu::api_listener;
 sys_emu_cmd_options              sys_emu::cmd_options;
 
@@ -171,7 +169,6 @@ static const char * help_msg =
      -mem_reset <byte>        Reset value of main memory (default: 0)\n\
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -mins_dis                Minions start disabled\n\
-     -net_desc <path>         Path to a file describing emulation of a Maxion sending interrupts to minions.\n\
      -pu_uart_tx_file <path>  Path to the file in which to dump the contents of PU UART TX\n\
      -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
      -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
@@ -660,11 +657,6 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
             cmd_options.mem_desc = false;
             cmd_options.mem_desc_file = argv[i];
         }
-        else if(cmd_options.net_desc)
-        {
-            cmd_options.net_desc = false;
-            cmd_options.net_desc_file = argv[i];
-        }
         else if(cmd_options.api_comm)
         {
             cmd_options.api_comm = false;
@@ -818,10 +810,6 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if(strcmp(argv[i], "-mem_desc") == 0)
         {
             cmd_options.mem_desc = true;
-        }
-        else if(strcmp(argv[i], "-net_desc") == 0)
-        {
-            cmd_options.net_desc = true;
         }
         else if(strcmp(argv[i], "-api_comm") == 0)
         {
@@ -999,15 +987,6 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
         LOG_NOTHREAD(FTL, "%s", "Need an elf file or a mem_desc file or runtime API!");
     }
 
-    uint64_t drivers_enabled = 0;
-    if (cmd_options.net_desc_file != NULL) drivers_enabled++;
-    if (cmd_options.master_min)            drivers_enabled++;
-
-    if (drivers_enabled > 1)
-    {
-        LOG_NOTHREAD(FTL, "%s", "Can't have net_desc and master_min set at same time!");
-    }
-
 #ifdef SYSEMU_DEBUG
     if (cmd_options.debug == true) {
        LOG_NOTHREAD(INFO, "%s", "Starting in interactive mode.");
@@ -1065,14 +1044,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
         bemu::memory.pu_io_space.pu_uart1.fd = STDOUT_FILENO;
     }
 
-    // Initialize network
-    net_emu = net_emulator(&bemu::memory);
-    // Parses the net description (it emulates a Maxion sending interrupts to minions)
-    if(cmd_options.net_desc_file != NULL)
-    {
-        net_emu.set_file(cmd_options.net_desc_file);
-    }
-
+    // Initialize Simulator API
     if (cmd_options.api_comm_path) {
         init_api_listener(cmd_options.api_comm_path, &bemu::memory);
     }
@@ -1181,7 +1153,6 @@ sys_emu::main_internal(int argc, char * argv[])
              || !fcc_wait_threads[1].empty()
              || !port_wait_threads.empty()
              ||  pu_rvtimer.is_active()
-             || (net_emu.is_enabled() && !net_emu.done())
              || (api_listener && api_listener->is_enabled())
             )
          && (emu_cycle < cmd_options.max_cycles)
@@ -1193,8 +1164,20 @@ sys_emu::main_internal(int argc, char * argv[])
             debug_check();
 #endif
 
+        // Runtime API: check for new commands
+        if (api_listener) {
+            api_listener->get_next_cmd(&running_threads);
+        }
+
         // Update devices
         pu_rvtimer.update(emu_cycle);
+
+        // Check interrupts from devices
+        if (pu_rvtimer.interrupt_pending()) {
+            raise_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
+        } else if (pu_rvtimer.clear_pending()) {
+            clear_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
+        }
 
         auto thread = running_threads.begin();
 
@@ -1339,34 +1322,6 @@ sys_emu::main_internal(int argc, char * argv[])
             {
                 LOG_ALL_MINIONS(FTL, "%s", e.what());
             }
-        }
-
-        // Check interrupts from devices
-        if (pu_rvtimer.interrupt_pending()) {
-            raise_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
-        } else if (pu_rvtimer.clear_pending()) {
-            clear_timer_interrupt((1ULL << EMU_NUM_SHIRES) - 1);
-        }
-
-        // Net emu: check pending IPIs
-        std::list<int> net_emu_ipi_threads;
-        uint64_t net_emu_new_pc;
-        net_emu.get_new_ipi(&running_threads, &net_emu_ipi_threads, &net_emu_new_pc);
-
-        // Net emu: sets the PC for all the minions that got an IPI with PC
-        for (auto it = net_emu_ipi_threads.begin(); it != net_emu_ipi_threads.end(); it++) {
-            if(net_emu_new_pc != 0) current_pc[*it] = net_emu_new_pc; // 0 means resume
-            if (thread_is_disabled(*it)) {
-                LOG_OTHER(DEBUG, *it, "Disabled thread received IPI with PC 0x%" PRIx64, net_emu_new_pc);
-            } else {
-                running_threads.push_back(*it);
-                LOG_OTHER(DEBUG, *it, "Waking up due IPI with PC 0x%" PRIx64, net_emu_new_pc);
-            }
-        }
-
-        if (api_listener) {
-            // Runtime API: check for new commands
-            api_listener->get_next_cmd(&running_threads);
         }
 
         emu_cycle++;
