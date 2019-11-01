@@ -36,43 +36,32 @@ struct sys_emu_cmd_options {
         std::string file;
     };
 
-    char * elf_file                   = nullptr;
-    char * mem_desc_file              = nullptr;
-    char * api_comm_path              = nullptr;
-    bool elf                          = false;
-    bool mem_desc                     = false;
-    bool api_comm                     = false;
-    bool master_min                   = false;
-    bool minions                      = false;
-    bool second_thread                = true;
-    bool shires                       = false;
-    bool log_en                       = false;
-    bool create_mem_at_runtime        = false;
-    int  log_min                      = -1;
-#ifdef SYSEMU_PROFILING
-    char * dump_prof_file             = nullptr;
-    int dump_prof                     = 0;
-#endif
-    std::vector<dump_info>            dump_at_end;
+    std::string elf_file;
+    std::string mem_desc_file;
+    std::string api_comm_path;
+    bool        master_min                   = false;
+    bool        second_thread                = true;
+    bool        log_en                       = false;
+    int         log_min                      = -1;
+    std::vector<dump_info> dump_at_end;
     std::unordered_multimap<uint64_t, dump_info> dump_at_pc;
-    char *   dump_mem                 = nullptr;
-    uint64_t reset_pc                 = RESET_PC;
-    uint64_t sp_reset_pc              = SP_RESET_PC;
-    bool reset_pc_flag                = false;
-    bool sp_reset_pc_flag             = false;
-    bool coherency_check              = false;
-#ifdef SYSEMU_DEBUG
-    bool debug                        = false;
+    std::string dump_mem;
+    uint64_t    reset_pc                     = RESET_PC;
+    uint64_t    sp_reset_pc                  = SP_RESET_PC;
+    bool        coherency_check              = false;
+    uint64_t    max_cycles                   = 10000000;
+    bool        mins_dis                     = false;
+    int         mem_reset                    = 0;
+    std::string pu_uart_tx_file;
+    std::string pu_uart1_tx_file;
+    uint64_t    log_at_pc                    = ~0ull;
+    uint64_t    stop_log_at_pc               = ~0ull;
+#ifdef SYSEMU_PROFILING
+    std::string dump_prof_file;
 #endif
-    uint64_t max_cycles               = 10000000;
-    bool max_cycle                    = false;
-    bool mins_dis                     = false;
-    int  mem_reset                    = 0;
-    bool mem_reset_flag               = false;
-    char * pu_uart_tx_file            = nullptr;
-    char * pu_uart1_tx_file           = nullptr;
-    uint64_t log_at_pc                = ~0ull;
-    uint64_t stop_log_at_pc           = ~0ull;
+#ifdef SYSEMU_DEBUG
+    bool        debug                        = false;
+#endif
 };
 
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);

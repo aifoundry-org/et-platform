@@ -1,6 +1,7 @@
 /* vim: set sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
 
 #include <cstring>
+#include <getopt.h>
 #include "emu_gio.h"
 #include "sys_emu.h"
 
@@ -14,37 +15,33 @@ extern uint32_t sd_l2_log_minion;
 static const char * help_msg =
 "\n ET System Emulator\n\n\
      sys_emu [options]\n\n\
- Where options are one of:\n\
+ Where options are:\n\
      -api_comm <path>         Path to socket that feeds runtime API commands.\n\
-"
-#ifdef SYSEMU_DEBUG
-"    -d                       Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
-#endif
-"\
+     -elf <path>              Path to an ELF file to load.\n\
+     -mem_desc <path>         Path to a file describing the memory regions to create and what code to load there\n\
+     -l                       Enable Logging\n\
+     -lm <minion>             Log a given Minion ID only. (default: all)\n\
+     -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
+     -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
+     -master_min              Enables master shire\n\
+     -single_thread           Disable 2nd Minion thread\n\
+     -mins_dis                Minions start disabled\n\
+     -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
+     -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
+     -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
+     -mem_reset <byte>        Reset value of main memory (default: 0)\n\
+     -pu_uart_tx_file <path>  Path to the file in which to dump the contents of PU UART TX\n\
+     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
+     -log_at_pc <PC>          Enables logging when minion reaches a given PC\n\
+     -stop_log_at_pc <PC>     Disables logging when minion reaches a given PC\n\
      -dump_addr <addr>        At the end of simulation, address where to start the dump. Only valid if -dump_file is used\n\
      -dump_size <size>        At the end of simulation, size of the dump. Only valid if -dump_file is used\n\
      -dump_file <path>        At the end of simulation, file in which to dump\n\
      -dump_mem <path>         At the end of simulation, file where to dump ALL the memory content\n\
-"
-#ifdef SYSEMU_PROFILING
-"    -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
-#endif
-"\
-     -elf <path>              Path to an ELF file to load.\n\
-     -l                       Enable Logging\n\
-     -lm <minion>             Log a given Minion ID only. (default: all)\n\
-     -master_min              Enables master minion to send interrupts to compute minions.\n\
-     -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
-     -mem_desc <path>         Path to a file describing the memory regions to create and what code to load there\n\
-     -mem_reset <byte>        Reset value of main memory (default: 0)\n\
-     -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
-     -mins_dis                Minions start disabled\n\
-     -pu_uart_tx_file <path>  Path to the file in which to dump the contents of PU UART TX\n\
-     -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
-     -reset_pc <addr>         Sets boot program counter (default: 0x8000001000)\n\
-     -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
-     -single_thread           Disable 2nd Minion thread\n\
-     -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
+     -dump_at_pc_pc <PC>      Dump when PC M0:T0 reaches this PC\n\
+     -dump_at_pc_addr <addr>  Address where to start the dump\n\
+     -dump_at_pc_size <size>  Size of the dump\n\
+     -dump_at_pc_file <file>  File where to store the dump\n\
      -coherency_check         Enables cache coherency checks\n\
      -coherency_check_minion  Enables cache coherency check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
      -coherency_check_addr    Enables cache coherency check prints for a specific address (default: 0x1 [none])\n\
@@ -53,344 +50,244 @@ static const char * help_msg =
      -l2_scp_check_shire      Enables L2 SCP check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
      -l2_scp_check_line       Enables L2 SCP check prints for a specific minion (default: 1048576 [1048576 => no L2 scp line, -1 => all L2 scp lines])\n\
      -l2_scp_check_minion     Enables L2 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
-     -log_at_pc               Enables logging when minion reaches a given PC\n\
-     -stop_log_at_pc          Disables logging when minion reaches a given PC\n\
-     -dump_at_pc_pc           Dump when PC M0:T0 reaches this PC\n\
-     -dump_at_pc_addr         Address where to start the dump\n\
-     -dump_at_pc_size         Size of the dump\n\
-     -dump_at_pc_file         File where to store the dump\n\
+"
+#ifdef SYSEMU_DEBUG
+"    -d                       Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
+#endif
+#ifdef SYSEMU_PROFILING
+"    -dump_prof <path>        Path to the file in which to dump the profiling content at the end of the simulation\n"
+#endif
+"\
 ";
 
 std::tuple<bool, struct sys_emu_cmd_options>
 sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
     sys_emu_cmd_options cmd_options;
-    int dump_option = 0;
+    int ret, index;
     uint64_t dump_at_end_addr = 0, dump_at_end_size = 0;
     uint64_t dump_at_pc_pc, dump_at_pc_addr, dump_at_pc_size;
 
-    for(int i = 1; i < argc; i++)
-    {
-        if (cmd_options.max_cycle)
-        {
-            cmd_options.max_cycle = false;
-            sscanf(argv[i], "%" SCNu64, &cmd_options.max_cycles);
+    static const struct option long_options[] = {
+        {"api_comm",               required_argument, nullptr, 0},
+        {"elf",                    required_argument, nullptr, 0},
+        {"mem_desc",               required_argument, nullptr, 0},
+        {"l",                      no_argument,       nullptr, 0},
+        {"lm",                     required_argument, nullptr, 0},
+        {"minions",                required_argument, nullptr, 0},
+        {"shires",                 required_argument, nullptr, 0},
+        {"master_min",             no_argument,       nullptr, 0},
+        {"single_thread",          no_argument,       nullptr, 0},
+        {"mins_dis",               no_argument,       nullptr, 0},
+        {"reset_pc",               required_argument, nullptr, 0},
+        {"sp_reset_pc",            required_argument, nullptr, 0},
+        {"max_cycles",             required_argument, nullptr, 0},
+        {"mem_reset",              required_argument, nullptr, 0},
+        {"pu_uart_tx_file",        required_argument, nullptr, 0},
+        {"pu_uart1_tx_file",       required_argument, nullptr, 0},
+        {"log_at_pc",              required_argument, nullptr, 0},
+        {"stop_log_at_pc",         required_argument, nullptr, 0},
+        {"dump_addr",              required_argument, nullptr, 0},
+        {"dump_size",              required_argument, nullptr, 0},
+        {"dump_file",              required_argument, nullptr, 0},
+        {"dump_mem",               required_argument, nullptr, 0},
+        {"dump_at_pc_pc",          required_argument, nullptr, 0},
+        {"dump_at_pc_addr",        required_argument, nullptr, 0},
+        {"dump_at_pc_size",        required_argument, nullptr, 0},
+        {"dump_at_pc_file",        required_argument, nullptr, 0},
+        {"coherency_check",        no_argument,       nullptr, 0},
+        {"coherency_check_minion", required_argument, nullptr, 0},
+        {"coherency_check_addr",   required_argument, nullptr, 0},
+        {"scp_check",              no_argument,       nullptr, 0},
+        {"l1_scp_check_minion",    required_argument, nullptr, 0},
+        {"l2_scp_check_shire",     required_argument, nullptr, 0},
+        {"l2_scp_check_line",      required_argument, nullptr, 0},
+        {"l2_scp_check_minion",    required_argument, nullptr, 0},
+        {"m",                      no_argument,       nullptr, 0},
+#ifdef SYSEMU_DEBUG
+        {"d",                      no_argument,       nullptr, 0},
+#endif
+#ifdef SYSEMU_PROFILING
+        {"dump_prof",              required_argument, nullptr, 0},
+#endif
+        {"help",                   no_argument,       nullptr, 0},
+        {nullptr,                  0,                 nullptr, 0}
+    };
+
+    while ((ret = getopt_long_only(argc, argv, "", long_options, &index)) != -1) {
+        if (ret == '?') {
+            LOG_NOTHREAD(FTL, "%s", "Wrong arguments");
+            continue;
         }
-        else if (cmd_options.elf)
+
+        const char *const name = long_options[index].name;
+
+        if (!strcmp(name, "api_comm"))
         {
-            cmd_options.elf = false;
-            cmd_options.elf_file = argv[i];
+            cmd_options.api_comm_path = optarg;
         }
-        else if(cmd_options.mem_desc)
+        else if (!strcmp(name, "elf"))
         {
-            cmd_options.mem_desc = false;
-            cmd_options.mem_desc_file = argv[i];
+            cmd_options.elf_file = optarg;
         }
-        else if(cmd_options.api_comm)
+        else if (!strcmp(name, "mem_desc"))
         {
-            cmd_options.api_comm = false;
-            cmd_options.api_comm_path = argv[i];
+            cmd_options.mem_desc_file = optarg;
         }
-        else if(cmd_options.minions)
+        else if (!strcmp(name, "l"))
         {
-            sscanf(argv[i], "%" PRIx64, &minions_en);
-            cmd_options.minions = 0;
+            cmd_options.log_en = true;
         }
-        else if(cmd_options.shires)
+        else if (!strcmp(name, "lm"))
         {
-            sscanf(argv[i], "%" PRIx64, &shires_en);
-            cmd_options.shires = 0;
+            cmd_options.log_min = atoi(optarg);
         }
-        else if(cmd_options.reset_pc_flag)
+        else if (!strcmp(name, "minions"))
         {
-          sscanf(argv[i], "%" PRIx64, &cmd_options.reset_pc);
-          cmd_options.reset_pc_flag = false;
+            sscanf(optarg, "%" PRIx64, &minions_en);
         }
-        else if(cmd_options.sp_reset_pc_flag)
+        else if (!strcmp(name, "shires"))
         {
-          sscanf(argv[i], "%" PRIx64, &cmd_options.sp_reset_pc);
-          cmd_options.sp_reset_pc_flag = false;
+            sscanf(optarg, "%" PRIx64, &shires_en);
         }
-        else if(dump_option == 1)
+        else if (!strcmp(name, "master_min"))
         {
-            sscanf(argv[i], "%" PRIx64, &dump_at_end_addr);
-            dump_option = 0;
+            cmd_options.master_min = true;
         }
-        else if(dump_option == 2)
+        else if (!strcmp(name, "single_thread"))
         {
-            dump_at_end_size = atoi(argv[i]);
-            dump_option = 0;
+            cmd_options.second_thread = false;
         }
-        else if(dump_option == 3)
+        else if (!strcmp(name, "mins_dis"))
+        {
+            cmd_options.mins_dis = true;
+        }
+        else if (!strcmp(name, "reset_pc"))
+        {
+            sscanf(optarg, "%" PRIx64, &cmd_options.reset_pc);
+        }
+        else if (!strcmp(name, "sp_reset_pc"))
+        {
+            sscanf(optarg, "%" PRIx64, &cmd_options.sp_reset_pc);
+        }
+        else if (!strcmp(name, "max_cycles"))
+        {
+            sscanf(optarg, "%" SCNu64, &cmd_options.max_cycles);
+        }
+        else if (!strcmp(name, "mem_reset"))
+        {
+            cmd_options.mem_reset = atoi(optarg);
+        }
+        else if (!strcmp(name, "pu_uart_tx_file"))
+        {
+            cmd_options.pu_uart_tx_file = optarg;
+        }
+        else if (!strcmp(name, "pu_uart1_tx_file"))
+        {
+            cmd_options.pu_uart1_tx_file = optarg;
+        }
+        else if (!strcmp(name, "log_at_pc"))
+        {
+            sscanf(optarg, "%" PRIx64, &cmd_options.log_at_pc);
+        }
+        else if (!strcmp(name, "stop_log_at_pc"))
+        {
+            sscanf(optarg, "%" PRIx64, &cmd_options.stop_log_at_pc);
+        }
+        else if (!strcmp(name, "dump_addr"))
+        {
+            sscanf(optarg, "%" PRIx64, &dump_at_end_addr);
+        }
+        else if (!strcmp(name, "dump_size"))
+        {
+            dump_at_end_size = atoi(optarg);
+        }
+        else if (!strcmp(name, "dump_file"))
         {
             sys_emu_cmd_options::dump_info dump = {
                 dump_at_end_addr,
                 dump_at_end_size,
-                std::string(argv[i])
+                std::string(optarg)
              };
             cmd_options.dump_at_end.push_back(dump);
-            dump_option = 0;
         }
-        else if(dump_option == 4)
+        else if (!strcmp(name, "dump_mem"))
         {
-            cmd_options.log_min = atoi(argv[i]);
-            dump_option = 0;
+            cmd_options.dump_mem = optarg;
         }
-        else if(dump_option == 5)
+        else if (!strcmp(name, "dump_at_pc_pc"))
         {
-            cmd_options.dump_mem = argv[i];
-            dump_option = 0;
+            sscanf(optarg, "%" PRIx64, &dump_at_pc_pc);
         }
-        else if(dump_option == 6)
+        else if (!strcmp(name, "dump_at_pc_addr"))
         {
-            cmd_options.pu_uart_tx_file = argv[i];
-            dump_option = 0;
+            sscanf(optarg, "%" PRIx64, &dump_at_pc_addr);
         }
-        else if(dump_option == 7)
+        else if (!strcmp(name, "dump_at_pc_size"))
         {
-            cmd_options.pu_uart1_tx_file = argv[i];
-            dump_option = 0;
+            sscanf(optarg, "%" PRIx64, &dump_at_pc_size);
         }
-        else if(dump_option == 8)
-        {
-            md_log_minion = atoi(argv[i]);
-            dump_option = 0;
-        }
-        else if(dump_option == 9)
-        {
-            sscanf(argv[i], "%" PRIx64, &md_log_addr);
-            dump_option = 0;
-        }
-        else if(dump_option == 10)
-        {
-            sd_l1_log_minion = atoi(argv[i]);
-            dump_option = 0;
-        }
-        else if(dump_option == 11)
-        {
-            sd_l2_log_shire = atoi(argv[i]);
-            dump_option = 0;
-        }
-        else if(dump_option == 12)
-        {
-            sd_l2_log_line = atoi(argv[i]);
-            dump_option = 0;
-        }
-        else if(dump_option == 13)
-        {
-            sd_l2_log_minion = atoi(argv[i]);
-            dump_option = 0;
-        }
-        else if(dump_option == 14)
-        {
-            sscanf(argv[i], "%" PRIx64, &cmd_options.log_at_pc);
-            dump_option = 0;
-        }
-        else if(dump_option == 15)
-        {
-            sscanf(argv[i], "%" PRIx64, &cmd_options.stop_log_at_pc);
-            dump_option = 0;
-        }
-        else if(dump_option == 16)
-        {
-            sscanf(argv[i], "%" PRIx64, &dump_at_pc_pc);
-            dump_option = 0;
-        }
-        else if(dump_option == 17)
-        {
-            sscanf(argv[i], "%" PRIx64, &dump_at_pc_addr);
-            dump_option = 0;
-        }
-        else if(dump_option == 18)
-        {
-            sscanf(argv[i], "%" PRIx64, &dump_at_pc_size);
-            dump_option = 0;
-        }
-        else if(dump_option == 19)
+        else if (!strcmp(name, "dump_at_pc_file"))
         {
             sys_emu_cmd_options::dump_info dump = {
                 dump_at_pc_addr,
                 dump_at_pc_size,
-                std::string(argv[i])
+                std::string(optarg)
             };
             cmd_options.dump_at_pc.emplace(dump_at_pc_pc, dump);
-             dump_option = 0;
-         }
-        else if(cmd_options.mem_reset_flag)
-        {
-            cmd_options.mem_reset = atoi(argv[i]);
-            cmd_options.mem_reset_flag = false;
         }
-#ifdef SYSEMU_PROFILING
-        else if(cmd_options.dump_prof == 1)
-        {
-            cmd_options.dump_prof_file = argv[i];
-            cmd_options.dump_prof = 0;
-        }
-#endif
-        else if(strcmp(argv[i], "-max_cycles") == 0)
-        {
-            cmd_options.max_cycle = true;
-        }
-        else if(strcmp(argv[i], "-elf") == 0)
-        {
-            cmd_options.elf = true;
-        }
-        else if(strcmp(argv[i], "-mem_desc") == 0)
-        {
-            cmd_options.mem_desc = true;
-        }
-        else if(strcmp(argv[i], "-api_comm") == 0)
-        {
-            cmd_options.api_comm = true;
-        }
-        else if(strcmp(argv[i], "-master_min") == 0)
-        {
-            cmd_options.master_min = true;
-        }
-        else if(strcmp(argv[i], "-minions") == 0)
-        {
-            cmd_options.minions = true;
-        }
-        else if(strcmp(argv[i], "-shires") == 0)
-        {
-            cmd_options.shires = true;
-        }
-        else if(strcmp(argv[i], "-reset_pc") == 0)
-        {
-            cmd_options.reset_pc_flag = true;
-        }
-        else if(strcmp(argv[i], "-sp_reset_pc") == 0)
-        {
-            cmd_options.sp_reset_pc_flag = true;
-        }
-        else if(strcmp(argv[i], "-coherency_check") == 0)
+        else if (!strcmp(name, "coherency_check"))
         {
             coherency_check = true;
         }
-        else if(strcmp(argv[i], "-scp_check") == 0)
+        else if (!strcmp(name, "scp_check"))
         {
             scp_check = true;
         }
-        else if(strcmp(argv[i], "-mem_reset") == 0)
+        else if (!strcmp(name, "coherency_check_minion"))
         {
-            cmd_options.mem_reset_flag = true;
+            md_log_minion = atoi(optarg);
         }
-        else if(strcmp(argv[i], "-dump_addr") == 0)
+        else if (!strcmp(name, "coherency_check_addr"))
         {
-            dump_option = 1;
+            sscanf(optarg, "%" PRIx64, &md_log_addr);
         }
-        else if(strcmp(argv[i], "-dump_size") == 0)
+        else if (!strcmp(name, "l1_scp_check_minion"))
         {
-            dump_option = 2;
+            sd_l1_log_minion = atoi(optarg);
         }
-        else if(strcmp(argv[i], "-dump_file") == 0)
+        else if (!strcmp(name, "l2_scp_check_shire"))
         {
-            dump_option = 3;
+            sd_l2_log_shire = atoi(optarg);
         }
-        else if(strcmp(argv[i], "-lm") == 0)
+        else if (!strcmp(name, "l2_scp_check_line"))
         {
-            dump_option = 4;
+            sd_l2_log_line = atoi(optarg);
         }
-        else if(strcmp(argv[i], "-dump_mem") == 0)
+        else if (!strcmp(name, "l2_scp_check_minion"))
         {
-            dump_option = 5;
+            sd_l2_log_minion = atoi(optarg);
         }
-        else if(strcmp(argv[i], "-pu_uart_tx_file") == 0)
+        else if (!strcmp(name, "m"))
         {
-            dump_option = 6;
-        }
-        else if(strcmp(argv[i], "-pu_uart1_tx_file") == 0)
-        {
-            dump_option = 7;
-        }
-        else if(strcmp(argv[i], "-coherency_check_minion") == 0)
-        {
-            dump_option = 8;
-        }
-        else if(strcmp(argv[i], "-coherency_check_addr") == 0)
-        {
-            dump_option = 9;
-        }
-        else if(strcmp(argv[i], "-l1_scp_check_minion") == 0)
-        {
-            dump_option = 10;
-        }
-        else if(strcmp(argv[i], "-l2_scp_check_shire") == 0)
-        {
-            dump_option = 11;
-        }
-        else if(strcmp(argv[i], "-l2_scp_check_line") == 0)
-        {
-            dump_option = 12;
-        }
-        else if(strcmp(argv[i], "-l2_scp_check_minion") == 0)
-        {
-            dump_option = 13;
-        }
-        else if(strcmp(argv[i], "-log_at_pc") == 0)
-        {
-            dump_option = 14;
-        }
-        else if(strcmp(argv[i], "-stop_log_at_pc") == 0)
-        {
-            dump_option = 15;
-        }
-        else if(strcmp(argv[i], "-dump_at_pc_pc") == 0)
-        {
-            dump_option = 16;
-        }
-        else if(strcmp(argv[i], "-dump_at_pc_addr") == 0)
-        {
-            dump_option = 17;
-        }
-        else if(strcmp(argv[i], "-dump_at_pc_size") == 0)
-        {
-            dump_option = 18;
-        }
-        else if(strcmp(argv[i], "-dump_at_pc_file") == 0)
-        {
-            dump_option = 19;
-        }
-        else if(strcmp(argv[i], "-m") == 0)
-        {
-            cmd_options.create_mem_at_runtime = true;
             LOG_NOTHREAD(WARN, "%s", "Ignoring deprecated option '-m'");
         }
-        else if(strcmp(argv[i], "-l") == 0)
-        {
-            cmd_options.log_en = true;
-        }
-        else if (  (strcmp(argv[i], "-h") == 0)
-                 ||(strcmp(argv[i], "-help") == 0)
-                 ||(strcmp(argv[i], "--help") == 0)) {
-           printf("%s", help_msg);
-           std::tuple<bool, sys_emu_cmd_options> ret_value(false, sys_emu_cmd_options());
-           return ret_value;
-        }
-        else if (strcmp(argv[i], "-single_thread") == 0)
-        {
-            cmd_options.second_thread = false;
-        }
 #ifdef SYSEMU_DEBUG
-        else if(strcmp(argv[i], "-d") == 0)
+        else if (!strcmp(name, "d"))
         {
             cmd_options.debug = true;
         }
 #endif
 #ifdef SYSEMU_PROFILING
-        else if(strcmp(argv[i], "-dump_prof") == 0)
+        else if (!strcmp(name, "dump_prof"))
         {
-            cmd_options.dump_prof = 1;
+            cmd_options.dump_prof_file = optarg;
         }
 #endif
-        else if(strcmp(argv[i], "-mins_dis") == 0)
-        {
-            cmd_options.mins_dis = true;
-        }
-        else
-        {
-            LOG_NOTHREAD(FTL, "Unknown parameter %s", argv[i]);
+        else if (!strcmp(name, "help")) {
+           printf("%s", help_msg);
+           std::tuple<bool, sys_emu_cmd_options> ret_value(false, sys_emu_cmd_options());
+           return ret_value;
         }
     }
 

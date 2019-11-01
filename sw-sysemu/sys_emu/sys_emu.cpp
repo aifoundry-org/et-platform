@@ -512,8 +512,9 @@ bool
 sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
 {
     this->cmd_options = cmd_options;
-    if ((cmd_options.elf_file == NULL) && (cmd_options.mem_desc_file == NULL)
-        && (cmd_options.api_comm_path == NULL))
+    if (cmd_options.elf_file.empty()      &&
+        cmd_options.mem_desc_file.empty() &&
+        cmd_options.api_comm_path.empty())
     {
         LOG_NOTHREAD(FTL, "%s", "Need an elf file or a mem_desc file or runtime API!");
     }
@@ -537,25 +538,25 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     set_msg_funcs(msg_to_thread);
 
     // Parses the memory description
-    if (cmd_options.elf_file != NULL) {
+    if (!cmd_options.elf_file.empty()) {
         try {
-            bemu::load_elf(bemu::memory, cmd_options.elf_file);
+            bemu::load_elf(bemu::memory, cmd_options.elf_file.c_str());
         }
         catch (...) {
-            LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", cmd_options.elf_file);
+            LOG_NOTHREAD(FTL, "Error loading ELF \"%s\"", cmd_options.elf_file.c_str());
             return false;
         }
     }
-    if (cmd_options.mem_desc_file != NULL) {
-        if (!parse_mem_file(cmd_options.mem_desc_file))
+    if (!cmd_options.mem_desc_file.empty()) {
+        if (!parse_mem_file(cmd_options.mem_desc_file.c_str()))
             return false;
     }
 
     // Setup PU UART stream
-    if (cmd_options.pu_uart_tx_file) {
-        int fd = open(cmd_options.pu_uart_tx_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (!cmd_options.pu_uart_tx_file.empty()) {
+        int fd = open(cmd_options.pu_uart_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart_tx_file);
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart_tx_file.c_str());
             return false;
         }
         bemu::memory.pu_io_space.pu_uart.fd = fd;
@@ -564,10 +565,10 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     }
 
     // Setup PU UART1 stream
-    if (cmd_options.pu_uart1_tx_file) {
-        int fd = open(cmd_options.pu_uart1_tx_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+    if (!cmd_options.pu_uart1_tx_file.empty()) {
+        int fd = open(cmd_options.pu_uart1_tx_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0666);
         if (fd < 0) {
-            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart1_tx_file);
+            LOG_NOTHREAD(FTL, "Error creating \"%s\"", cmd_options.pu_uart1_tx_file.c_str());
             return false;
         }
         bemu::memory.pu_io_space.pu_uart1.fd = fd;
@@ -576,8 +577,8 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     }
 
     // Initialize Simulator API
-    if (cmd_options.api_comm_path) {
-        init_api_listener(cmd_options.api_comm_path, &bemu::memory);
+    if (!cmd_options.api_comm_path.empty()) {
+        init_api_listener(cmd_options.api_comm_path.c_str(), &bemu::memory);
     }
 
     // Reset the SoC
@@ -893,19 +894,19 @@ sys_emu::main_internal(int argc, char * argv[])
     for (auto &dump: cmd_options.dump_at_end)
         bemu::dump_data(bemu::memory, dump.file.c_str(), dump.addr, dump.size);
 
-    if(cmd_options.dump_mem)
-        bemu::dump_data(bemu::memory, cmd_options.dump_mem, bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);
+    if(!cmd_options.dump_mem.empty())
+        bemu::dump_data(bemu::memory, cmd_options.dump_mem.c_str(), bemu::memory.first(), (bemu::memory.last() - bemu::memory.first()) + 1);
 
-    if(cmd_options.pu_uart_tx_file != nullptr)
+    if(!cmd_options.pu_uart_tx_file.empty())
         close(bemu::memory.pu_io_space.pu_uart.fd);
 
-    if(cmd_options.pu_uart1_tx_file != nullptr)
+    if(!cmd_options.pu_uart1_tx_file.empty())
         close(bemu::memory.pu_io_space.pu_uart1.fd);
 
 #ifdef SYSEMU_PROFILING
-    if (cmd_options.dump_prof_file != NULL) {
+    if (!cmd_options.dump_prof_file.empty()) {
         profiling_flush();
-        profiling_dump(cmd_options.dump_prof_file);
+        profiling_dump(cmd_options.dump_prof_file.c_str());
     }
     profiling_fini();
 #endif
