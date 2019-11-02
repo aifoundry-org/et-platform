@@ -70,7 +70,7 @@ int main(const kernel_params_t* const kernel_params_ptr)
 
     tensor_store(reg_stride, start_reg, row_size, num_rows, store_addr, coop_minions, stride);
     
-    tensorWait(TENSOR_STORE_WAIT);  
+    tensor_wait(TENSOR_STORE_WAIT);  
     
     // Flush out SC coalescing buffer after store so that dependents can get the data
     //cb_flush_addr should be 0x010031E100UL
@@ -101,7 +101,7 @@ int main(const kernel_params_t* const kernel_params_ptr)
        
     tensor_load(use_tmask, use_coop, scp_start, load_trans, use_tenb, load_addr, offset, tl_num_rows, stride, id);
         
-    tensorWait(TENSOR_LOAD_WAIT_0);
+    tensor_wait(TENSOR_LOAD_WAIT_0);
 
     unsigned long functional_error = get_tensor_error();
     
