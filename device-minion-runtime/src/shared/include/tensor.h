@@ -18,6 +18,7 @@
 
 // Tensor wait inputs
 #define TENSOR_LOAD_WAIT_0 0
+#define TENSOR_LOAD_WAIT_1 1
 #define TENSOR_FMA_WAIT 7
 #define TENSOR_STORE_WAIT 8
 #define TENSOR_REDUCE_WAIT 9
@@ -29,7 +30,7 @@
 //
 //   Tensor wait instruction, input parameter defines what the wait is for    
 //
-inline __attribute__((always_inline)) void tensorWait(long id) {
+inline __attribute__((always_inline)) void tensor_wait(long id) {
     __asm__ __volatile__
         (
          " csrw 0x830, %[id]\n"
@@ -110,6 +111,52 @@ inline void __attribute__((always_inline)) tensor_store(uint64_t reg_stride,
    );
 }
 
+
+//-------------------------------------------------------------------------------------------------
+//
+// FUNCTION tensor_fma
+//
+//   Tensor FMA instruction. Supports all flavors of FMA (IMA8A32, FMA16A32, FMA32)
+//
+inline void __attribute__((always_inline)) tensor_fma(bool use_tmask, uint64_t b_num_col, uint64_t a_num_rows, uint64_t a_num_cols, uint64_t offset, bool tenc_loc, bool tenb_unsigned, bool tena_unsigned, bool tenb_loc, uint64_t scp_loc_b, uint64_t scp_loc_a, uint64_t opcode, bool first_pass) {
+   uint64_t csr_enc = (((uint64_t)use_tmask & 1) << 63)       |
+                      ((b_num_col & 0x3) << 55)               |
+                      ((a_num_rows & 0xF) << 51)              |
+                      ((a_num_cols & 0xF) << 47)              |
+                      ((offset & 0xF) << 43)                  |
+                      (((uint64_t) tenc_loc & 1) << 23)       |
+                      (((uint64_t) tena_unsigned & 1) << 22)  |
+                      (((uint64_t) tenb_unsigned & 1) << 21)  |
+                      (((uint64_t) tenb_loc & 1) << 20)       |
+                      ((scp_loc_b & 0xFF) << 12)              |
+                      ((scp_loc_a & 0xFF) << 4)               |
+                      ((opcode & 0x7) << 1)                   |
+                      ((uint64_t)first_pass & 1);
+
+   __asm__ __volatile__ (
+         "csrw 0x801, %[csr_enc]\n"
+         :
+         : [csr_enc] "r" (csr_enc)
+         :
+   );
+}
+
+
+//-------------------------------------------------------------------------------------------------
+//
+// FUNCTION tensor_coop
+//
+//   Writes the Coop CSR register used by coop loads
+//
+inline void __attribute__((always_inline)) tensor_coop(uint64_t val)
+{
+    __asm__ __volatile__ (
+         "csrw 0x804, %[val]\n"
+         :
+         : [val] "r" (val)
+         :
+         );
+}
 
 unsigned long get_tensor_error(void);
 
