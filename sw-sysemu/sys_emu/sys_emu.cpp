@@ -19,6 +19,7 @@
 #include "emu.h"
 #include "emu_gio.h"
 #include "esrs.h"
+#include "gdbstub.h"
 #include "insn.h"
 #include "log.h"
 #include "memory/dump_data.h"
@@ -55,6 +56,8 @@ bool            sys_emu::scp_check       = false;
 scp_directory   sys_emu::scp_dir;
 std::unique_ptr<api_communicate> sys_emu::api_listener;
 sys_emu_cmd_options              sys_emu::cmd_options;
+std::unordered_multimap<unsigned, uint64_t> sys_emu::breakpoints;
+std::bitset<EMU_NUM_THREADS> sys_emu::single_step;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helper methods
@@ -501,6 +504,41 @@ sys_emu::shire_enable_threads(unsigned shire_id)
     }
 }
 
+void
+sys_emu::insert_breakpoint(int thread_id, uint64_t addr)
+{
+    LOG_NOTHREAD(INFO, "Inserting breakpoint at address 0x%" PRIx64 " for thread %d",
+                 addr, thread_id);
+    breakpoints.emplace(thread_id, addr);
+}
+
+void
+sys_emu::remove_breakpoint(int thread_id, uint64_t addr)
+{
+    LOG_NOTHREAD(INFO, "Removing breakpoint at address 0x%" PRIx64 " for thread %d",
+                 addr, thread_id);
+
+    auto range = breakpoints.equal_range(thread_id);
+    auto it = range.first;
+    while (it != range.second) {
+        if (it->second == addr)
+            it = breakpoints.erase(it);
+        else
+            it++;
+    }
+}
+
+bool
+sys_emu::has_breakpoint(int thread_id, uint64_t addr)
+{
+    auto range = breakpoints.equal_range(thread_id);
+    for (auto it = range.first; it != range.second; ++it) {
+        if (it->second == addr)
+            return true;
+    }
+    return false;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Main initialization function.
 ///
@@ -676,6 +714,11 @@ sys_emu::main_internal(int argc, char * argv[])
     profiling_init();
 #endif
 
+    if (cmd_options.gdb) {
+        gdbstub_init();
+        gdbstub_accept_client();
+    }
+
     LOG_NOTHREAD(INFO, "%s", "Starting emulation");
 
     // While there are active threads or the network emulator is still not done
@@ -686,6 +729,7 @@ sys_emu::main_internal(int argc, char * argv[])
              || !port_wait_threads.empty()
              ||  pu_rvtimer.is_active()
              || (api_listener && api_listener->is_enabled())
+             || (cmd_options.gdb && (gdbstub_get_status() != GDBSTUB_STATUS_NOT_INITIALIZED))
             )
          && (emu_cycle < cmd_options.max_cycles)
          && !(api_listener && api_listener->is_done())
@@ -695,6 +739,20 @@ sys_emu::main_internal(int argc, char * argv[])
         if (cmd_options.debug)
             debug_check();
 #endif
+
+        if (cmd_options.gdb) {
+            switch (gdbstub_get_status()) {
+            case GDBSTUB_STATUS_WAITING_CLIENT:
+                gdbstub_accept_client();
+                break;
+            case GDBSTUB_STATUS_RUNNING:
+                /* Non-blocking, consumes all the pending GDB commands */
+                gdbstub_io();
+                break;
+            default:
+                break;
+            }
+        }
 
         // Runtime API: check for new commands
         if (api_listener) {
@@ -758,6 +816,15 @@ sys_emu::main_internal(int argc, char * argv[])
                 {
                     // Executes the instruction
                     insn_t inst = fetch_and_decode();
+
+                    // Check for breakpoints
+                    if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) &&
+                        has_breakpoint(thread_id, current_pc[thread_id])) {
+                        LOG(DEBUG, "Hit breakpoint at address 0x%" PRIx64, current_pc[thread_id]);
+                        gdbstub_signal(5);
+                        running_threads.clear();
+                        break;
+                    }
 
                     // Dumping when M0:T0 reaches a PC
                     auto range = cmd_options.dump_at_pc.equal_range(current_pc[0]);
@@ -847,6 +914,15 @@ sys_emu::main_internal(int argc, char * argv[])
             {
                 LOG_ALL_MINIONS(FTL, "%s", e.what());
             }
+
+            // Check for single-step mode
+            if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && single_step[thread_id]) {
+                LOG(DEBUG, "%s", "Single-step done");
+                gdbstub_signal(5);
+                single_step[thread_id] = false;
+                running_threads.clear();
+                break;
+            }
         }
 
         emu_cycle++;
@@ -889,6 +965,9 @@ sys_emu::main_internal(int argc, char * argv[])
        LOG_NOTHREAD(ERR, "Error, max cycles reached (%" SCNd64 ")", cmd_options.max_cycles);
     }
     LOG_NOTHREAD(INFO, "%s", "Finishing emulation");
+
+    if (cmd_options.gdb)
+        gdbstub_fini();
 
     // Dumping
     for (auto &dump: cmd_options.dump_at_end)

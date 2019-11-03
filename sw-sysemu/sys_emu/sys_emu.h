@@ -5,6 +5,7 @@
 #include "devices/rvtimer.h"
 #include "emu_defines.h"
 #include "mem_directory.h"
+#include "processor.h"
 #include "scp_directory.h"
 
 #include <algorithm>
@@ -15,6 +16,8 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+
+extern std::array<Processor,EMU_NUM_THREADS> cpu;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -56,6 +59,7 @@ struct sys_emu_cmd_options {
     std::string pu_uart1_tx_file;
     uint64_t    log_at_pc                    = ~0ull;
     uint64_t    stop_log_at_pc               = ~0ull;
+    bool        gdb                          = false;
 #ifdef SYSEMU_PROFILING
     std::string dump_prof_file;
 #endif
@@ -80,8 +84,11 @@ public:
     /// Function used for parsing the command line arguments
     static std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
-    static uint64_t get_thread_pc(unsigned thread_id) { return current_pc[thread_id]; }
-    static void set_thread_pc(unsigned thread_id, uint64_t pc) { current_pc[thread_id] = pc; }
+    static uint64_t thread_get_pc(unsigned thread_id) { return current_pc[thread_id]; }
+    static void thread_set_pc(unsigned thread_id, uint64_t pc) { current_pc[thread_id] = pc; }
+    static uint64_t thread_get_reg(int thread_id, int reg) { return cpu[thread_id].xregs[reg]; }
+    static void thread_set_reg(int thread_id, int reg, uint64_t data) { cpu[thread_id].xregs[reg] = data; }
+
     static void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
                                uint64_t thread_mask, unsigned cnt_dest);
     static void msg_to_thread(int thread_id);
@@ -105,12 +112,27 @@ public:
     static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
     static bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
 
+    // Returns whether a thread is running (not sleeping/waiting)
+    static bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
+    static void thread_set_running(int thread_id) {
+        if (thread_is_active(thread_id) &&
+            /* && !thread_is_disabled(thread_id) && */
+            !contains(running_threads, thread_id)) {
+            running_threads.push_back(thread_id);
+        }
+    }
     static int running_threads_count() { return running_threads.size(); }
+
+    static void thread_set_single_step(int thread_id) { single_step[thread_id] = true; }
 
     static bool get_coherency_check() { return coherency_check; }
     static mem_directory& get_mem_directory() { return mem_dir; }
     static bool get_scp_check() { return scp_check; }
     static scp_directory& get_scp_directory() { return scp_dir; }
+
+    static void insert_breakpoint(int thread_id, uint64_t addr);
+    static void remove_breakpoint(int thread_id, uint64_t addr);
+    static bool has_breakpoint(int thread_id, uint64_t addr);
 
     static api_communicate &get_api_communicate() { return *api_listener; }
 
@@ -123,9 +145,6 @@ protected:
     static inline bool contains(_container _C, const _Ty& _Val) {
         return std::find(_C.begin(), _C.end(), _Val) != _C.end();
     }
-
-    // Returns whether a thread is running (not sleeping/waiting)
-    static bool thread_is_running(int thread_id) { return contains(running_threads, thread_id); }
 
     // Checks if a sleeping thread (FCC) has to wake up when receiving an interrupt
     static void raise_interrupt_wakeup_check(unsigned thread_id, uint64_t mask, const char *str);
@@ -171,6 +190,8 @@ private:
     static mem_directory   mem_dir;
     static bool            scp_check;
     static scp_directory   scp_dir;
+    static std::unordered_multimap<unsigned, uint64_t> breakpoints;
+    static std::bitset<EMU_NUM_THREADS> single_step;
 
     static std::unique_ptr<api_communicate> api_listener;
     static sys_emu_cmd_options cmd_options;

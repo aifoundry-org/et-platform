@@ -50,6 +50,7 @@ static const char * help_msg =
      -l2_scp_check_shire      Enables L2 SCP check prints for a specific shire (default: 64 [64 => no shire, -1 => all shires])\n\
      -l2_scp_check_line       Enables L2 SCP check prints for a specific minion (default: 1048576 [1048576 => no L2 scp line, -1 => all L2 scp lines])\n\
      -l2_scp_check_minion     Enables L2 SCP check prints for a specific minion (default: 2048 [2048 => no minion, -1 => all minions])\n\
+     -gdb                     Start the GDB stub for remote debugging\n\
 "
 #ifdef SYSEMU_DEBUG
 "    -d                       Start in interactive debug mode (must have been compiled with SYSEMU_DEBUG)\n"
@@ -103,6 +104,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"l2_scp_check_shire",     required_argument, nullptr, 0},
         {"l2_scp_check_line",      required_argument, nullptr, 0},
         {"l2_scp_check_minion",    required_argument, nullptr, 0},
+        {"gdb",                    no_argument,       nullptr, 0},
         {"m",                      no_argument,       nullptr, 0},
 #ifdef SYSEMU_DEBUG
         {"d",                      no_argument,       nullptr, 0},
@@ -267,6 +269,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "l2_scp_check_minion"))
         {
             sd_l2_log_minion = atoi(optarg);
+        }
+        else if (!strcmp(name, "gdb"))
+        {
+            cmd_options.gdb = true;
         }
         else if (!strcmp(name, "m"))
         {
