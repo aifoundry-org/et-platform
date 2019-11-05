@@ -15,7 +15,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
 
   if (gflags_FOUND)
     set(GFLAGS_EXTERNAL FALSE)
-    set(GFLAGS_LIBRARIES libgflags.a ${CMAKE_THREAD_LIBS_INIT} PARENT_SCOPE)
+    set(GFLAGS_LIBRARIES gflags ${CMAKE_THREAD_LIBS_INIT} PARENT_SCOPE)
     set(GFLAGS_LIBRARY_DIRS /lib CACHE PATH "gflags library dirs")
 
   else()
@@ -85,7 +85,7 @@ if (NOT __GLOG_INCLUDED)
 
   if (GLOG_FOUND)
     set(GLOG_EXTERNAL FALSE)
-    set(GLOG_LIBRARIES libglog.a PARENT_SCOPE)
+    set(GLOG_LIBRARIES glog PARENT_SCOPE)
     set(GLOG_LIBRARY_DIRS lib CACHE PATH "glog library path")
 
   else()

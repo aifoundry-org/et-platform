@@ -54,8 +54,8 @@ set(COMMON_TEST_LIBRARIES
   etsim_api
   libgtest_main.a
   libgtest.a
-  libglog.a
-  libgflags.a
+  glog
+  gflags
   ${GLOG_LIBRARIES}
   ${FMTLIB_LIBRARIES}
   pthread
