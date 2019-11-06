@@ -1,0 +1,163 @@
+{
+    "title": "Esperanto",
+    "description": "Esperanto Runtime Tracing Specification",
+    "type": "object",
+    "properties": {
+        "Modules":  {
+            "description": "List of different modules we have in the system that we want to enable tracing for",
+            "type": "array",
+            "items": { "$ref": "#/definitions/Module" }
+        }
+    },
+    "required": [ "Modules"],
+    "definitions": {
+        "MemberField": {
+            "type": "object",
+            "description": "A member field of a struct.",
+            "properties": {
+                "Name": {
+                    "type": "string"
+                },
+                "Description": { "type": "string"} ,
+                "Type": {
+                    "type": "string",
+                    "enum": ["double", "float", "int8_t", "uint8_t",
+                             "int16_t", "uint16_t",
+                             "int32_t", "uint32_t",
+                             "uint64_t", "uint64_t",
+                             "bool", "struct", "enum"]
+                },
+                "Struct": { "type": "string" },
+                "Enum": { "type": "string" }
+            },
+            "required": ["Name", "Type"]
+        },
+        "TraceRecordEntry": {
+            "type": "object",
+            "description": "A member field of a trace record",
+            "properties": {
+                "Name": {
+                    "type": "string"
+                },
+                "Description": { "type": "string"} ,
+                "Type": {
+                    "type": "string",
+                    "enum": ["double", "float", "int32_t", "int64_t", "uint32_t", "uint64_t",
+                             "bool", "bytes"]
+                }
+            },
+            "required": ["Name", "Type"]
+        },
+
+        "Enum": {
+            "type": "object",
+            "description": "A Struct that is comprised of different member fields",
+            "properties": {
+                "Name": {
+                    "type":"string"
+                },
+                "Description": { "type": "string"} ,
+                "Type": {
+                    "type": "string",
+                    "enum": ["double", "float", "int32_t", "int64_t", "uint32_t", "uint64_t",
+                             "bool", "bytes", "struct", "enum"]
+                },
+                "Values": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "Name": { "type": "string" },
+                            "Value": { "type": "integer" }
+                        },
+                        "required": ["Name", "Value"]
+                    }
+                }
+            },
+            "required" : ["Name", "Values"]
+        },
+        "Struct": {
+            "type": "object",
+            "description": "A Struct that is comprised of different member fields",
+            "properties": {
+                "Name": {
+                    "type":"string"
+                },
+                "Description": { "type": "string"} ,
+                "Fields": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/MemberField" }
+                }
+            },
+            "required" : ["Name", "Fields"]
+        },
+        "Message": {
+            "type": "object",
+            "description": "A Struct that is comprised of different member fields",
+            "properties": {
+                "Name": {
+                    "type":"string"
+                },
+                "Description": { "type": "string"} ,
+                "Type": {
+                    "type": "string",
+                    "enum": ["Command", "Response", "Event"]
+                },
+                "Fields": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/MemberField" }
+                }
+            },
+            "required" : ["Name", "Type", "Fields"]
+        },
+        "TraceEvent": {
+            "type": "object",
+            "description": "Description of a trace-event record",
+            "properties": {
+                "Name": {
+                    "type":"string"
+                },
+                "Description": { "type": "string"} ,
+                "Fields": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/TraceRecordEntry" }
+                }
+            },
+            "required" : ["Name", "Fields"]
+        },
+        "Module": {
+            "type": "object",
+            "description": "Module specification that can describe multiple profiling tracing functions",
+            "required": [ "Name", "Functions"],
+            "properties": {
+                "Name": {
+                    "type": "string",
+                    "description": "Name of the Module"
+                },
+                "Description": { "type": "string"} ,
+                "Enums": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/Enum" },
+                    "minItems": 0
+                },
+
+                "Structs": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/Struct" },
+                    "minItems": 0
+                },
+                "Messages": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/Message" },
+                    "minItems": 1
+                },
+                "TraceEvents": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/TraceEvent" },
+                    "minItems": 1
+                }
+            },
+            "required": ["Name"]
+        }
+    }
+}

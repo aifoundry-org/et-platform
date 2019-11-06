@@ -1,0 +1,43 @@
+#------------------------------------------------------------------------------
+# Copyright (C) 2019, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------
+
+Name: DeviceFWTracing
+TraceEvents:
+  - Name: text_entry
+    Fields:
+      - Name: text
+        Type: bytes
+  - Name: kernel_launch
+    Fields:
+      - Name: tensor_a
+        Type: uint64_t
+      - Name: tensor_b
+        Type: uint64_t
+      - Name: tensor_c
+        Type: uint64_t
+      - Name: tensor_d
+        Type: uint64_t
+      - Name: tensor_e
+        Type: uint64_t
+      - Name: tensor_f
+        Type: uint64_t
+      - Name: tensor_g
+        Type: uint64_t
+      - Name: kernel_id
+        Type: uint64_t
+  - Name: kernel_finished
+    Fields:
+      - Name: status
+        Type: uint64_t
+  - Name: uber_kernel_marker
+    Type: TraceEntry
+    Fields:
+      - Name: subkernel_id
+        Type: uint32_t
