@@ -173,14 +173,14 @@ static void target_continue(int thread)
     sys_emu::thread_set_running(thread - 1);
 }
 
-static void target_insert_breakpoint(int thread, uint64_t addr)
+static void target_breakpoint_insert(uint64_t addr)
 {
-    sys_emu::insert_breakpoint(thread - 1, addr);
+    sys_emu::breakpoint_insert(addr);
 }
 
-static void target_remove_breakpoint(int thread, uint64_t addr)
+static void target_breakpoint_remove(uint64_t addr)
 {
-    sys_emu::remove_breakpoint(thread - 1, addr);
+    sys_emu::breakpoint_remove(addr);
 }
 
 static void target_remote_command(char *cmd)
@@ -362,7 +362,7 @@ static ssize_t gdbstub_qxfer_send_object(const char *object, size_t object_size,
                                          unsigned long offset, unsigned long length)
 {
     char resp;
-    char reply[GDBSTUB_MAX_PACKET_SIZE + 1];
+    char reply[GDBSTUB_MAX_PACKET_SIZE + 2];
 
     if (offset == object_size) { /* Offset at the end, no more data to be read */
         rsp_send_packet("l");
@@ -381,6 +381,7 @@ static ssize_t gdbstub_qxfer_send_object(const char *object, size_t object_size,
 
     reply[0] = resp;
     strncpy(&reply[1], object + offset, length);
+    reply[length + 1] = '\0';
     return rsp_send_packet_len(reply, length + 1);
 }
 
@@ -654,7 +655,7 @@ static bool parse_breakpoint(char *packet, char *type, uint64_t *addr, uint64_t 
     return true;
 }
 
-static void gdbstub_handle_insert_breakpoint(char *packet)
+static void gdbstub_handle_breakpoint_insert(char *packet)
 {
     char type;
     uint64_t addr, kind;
@@ -669,11 +670,11 @@ static void gdbstub_handle_insert_breakpoint(char *packet)
 
     switch (type) {
     case '0': /* Software breakpoint */
-        target_insert_breakpoint(g_cur_general_thread, addr);
+        target_breakpoint_insert(addr);
         rsp_send_packet("OK");
         break;
     case '1': /* Hardware breakpoint */
-        target_insert_breakpoint(g_cur_general_thread, addr);
+        target_breakpoint_insert(addr);
         rsp_send_packet("OK");
         break;
     case '2': /* Write watchpoint */
@@ -688,7 +689,7 @@ static void gdbstub_handle_insert_breakpoint(char *packet)
     }
 }
 
-static void gdbstub_handle_remove_breakpoint(char *packet)
+static void gdbstub_handle_breakpoint_remove(char *packet)
 {
     char type;
     uint64_t addr, kind;
@@ -703,11 +704,11 @@ static void gdbstub_handle_remove_breakpoint(char *packet)
 
     switch (type) {
     case '0': /* Software breakpoint */
-        target_remove_breakpoint(g_cur_general_thread, addr);
+        target_breakpoint_remove(addr);
         rsp_send_packet("OK");
         break;
     case '1': /* Hardware breakpoint */
-        target_remove_breakpoint(g_cur_general_thread, addr);
+        target_breakpoint_remove(addr);
         rsp_send_packet("OK");
         break;
     case '2': /* Write watchpoint */
@@ -842,10 +843,10 @@ static int gdbstub_handle_packet(char *packet)
         }
         break;
     case 'z': /* Remove breakpoint */
-        gdbstub_handle_remove_breakpoint(packet);
+        gdbstub_handle_breakpoint_remove(packet);
         break;
     case 'Z': /* Insert breakpoint */
-        gdbstub_handle_insert_breakpoint(packet);
+        gdbstub_handle_breakpoint_insert(packet);
         break;
     default:
         LOG_NOTHREAD(DEBUG, "GDB stub: unrecognized command \"%c\"", packet[0]);

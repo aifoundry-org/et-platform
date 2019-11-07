@@ -15,6 +15,7 @@
 #include <memory>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
@@ -130,9 +131,9 @@ public:
     static bool get_scp_check() { return scp_check; }
     static scp_directory& get_scp_directory() { return scp_dir; }
 
-    static void insert_breakpoint(int thread_id, uint64_t addr);
-    static void remove_breakpoint(int thread_id, uint64_t addr);
-    static bool has_breakpoint(int thread_id, uint64_t addr);
+    static void breakpoint_insert(uint64_t addr);
+    static void breakpoint_remove(uint64_t addr);
+    static bool breakpoint_exists(uint64_t addr);
 
     static api_communicate &get_api_communicate() { return *api_listener; }
 
@@ -190,7 +191,7 @@ private:
     static mem_directory   mem_dir;
     static bool            scp_check;
     static scp_directory   scp_dir;
-    static std::unordered_multimap<unsigned, uint64_t> breakpoints;
+    static std::unordered_set<uint64_t> breakpoints;
     static std::bitset<EMU_NUM_THREADS> single_step;
 
     static std::unique_ptr<api_communicate> api_listener;

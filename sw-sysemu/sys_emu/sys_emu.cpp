@@ -56,7 +56,7 @@ bool            sys_emu::scp_check       = false;
 scp_directory   sys_emu::scp_dir;
 std::unique_ptr<api_communicate> sys_emu::api_listener;
 sys_emu_cmd_options              sys_emu::cmd_options;
-std::unordered_multimap<unsigned, uint64_t> sys_emu::breakpoints;
+std::unordered_set<uint64_t> sys_emu::breakpoints;
 std::bitset<EMU_NUM_THREADS> sys_emu::single_step;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -505,38 +505,23 @@ sys_emu::shire_enable_threads(unsigned shire_id)
 }
 
 void
-sys_emu::insert_breakpoint(int thread_id, uint64_t addr)
+sys_emu::breakpoint_insert(uint64_t addr)
 {
-    LOG_NOTHREAD(INFO, "Inserting breakpoint at address 0x%" PRIx64 " for thread %d",
-                 addr, thread_id);
-    breakpoints.emplace(thread_id, addr);
+    LOG_NOTHREAD(INFO, "Inserting breakpoint at address 0x%" PRIx64 "", addr);
+    breakpoints.insert(addr);
 }
 
 void
-sys_emu::remove_breakpoint(int thread_id, uint64_t addr)
+sys_emu::breakpoint_remove(uint64_t addr)
 {
-    LOG_NOTHREAD(INFO, "Removing breakpoint at address 0x%" PRIx64 " for thread %d",
-                 addr, thread_id);
-
-    auto range = breakpoints.equal_range(thread_id);
-    auto it = range.first;
-    while (it != range.second) {
-        if (it->second == addr)
-            it = breakpoints.erase(it);
-        else
-            it++;
-    }
+    LOG_NOTHREAD(INFO, "Removing breakpoint at address 0x%" PRIx64 "", addr);
+    breakpoints.erase(addr);
 }
 
 bool
-sys_emu::has_breakpoint(int thread_id, uint64_t addr)
+sys_emu::breakpoint_exists(uint64_t addr)
 {
-    auto range = breakpoints.equal_range(thread_id);
-    for (auto it = range.first; it != range.second; ++it) {
-        if (it->second == addr)
-            return true;
-    }
-    return false;
+    return contains(breakpoints, addr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -818,8 +803,7 @@ sys_emu::main_internal(int argc, char * argv[])
                     insn_t inst = fetch_and_decode();
 
                     // Check for breakpoints
-                    if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) &&
-                        has_breakpoint(thread_id, current_pc[thread_id])) {
+                    if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(current_pc[thread_id])) {
                         LOG(DEBUG, "Hit breakpoint at address 0x%" PRIx64, current_pc[thread_id]);
                         gdbstub_signal(5);
                         running_threads.clear();
