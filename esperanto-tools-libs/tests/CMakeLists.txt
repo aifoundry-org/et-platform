@@ -48,18 +48,10 @@ add_custom_target(ci-dependencies
 add_compile_options(-g3 -O0 -std=c++17)
 
 set(COMMON_TEST_LIBRARIES
-  -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
-  absl::flags
-  absl::flags_parse
-  etsim_api
+
+   -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
   libgtest_main.a
   libgtest.a
-  glog
-  gflags
-  ${GLOG_LIBRARIES}
-  ${FMTLIB_LIBRARIES}
-  pthread
-  stdc++fs
   )
 
 
