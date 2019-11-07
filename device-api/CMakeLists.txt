@@ -10,11 +10,17 @@
 
 cmake_minimum_required(VERSION 3.5)
 
-project(DeviceAPI LANGUAGES C CXX)
+project(EspernatoDeviceAPI
+  VERSION 0.1.0
+  DESCRIPTION "Esperanto DeviceAPI Project"
+  LANGUAGES C CXX)
 
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/ CACHE STRING "Include install dir")
+set(LIB_INSTALL_DIR  ${CMAKE_INSTALL_PREFIX}/lib/  CACHE STRING "Library install dir")
+set(SYSCONFIG_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/etc/et-runtime/ CACHE STRING "Config install dir")
 
 if(ENABLE_CCACHE)
   find_program(CCACHE_PROGRAM ccache)
@@ -49,3 +55,36 @@ else (DOXYGEN_FOUND)
 endif (DOXYGEN_FOUND)
 
 add_subdirectory(src)
+
+### Add package information
+include(CMakePackageConfigHelpers)
+
+# Add all targets to the build-tree export set
+#export(TARGETS gen-device-api
+#  FILE "${PROJECT_BINARY_DIR}/esperanto-device-api-targets.cmake")
+
+# Export the package for use from the build-tree
+# (this registers the build-tree with a global CMake-registry)
+export(PACKAGE esperanto-device-api)
+
+# Create the esperanto-device-api-config.cmake and esperanto-device-api-vonfig-version files
+configure_package_config_file(esperanto-device-api-config.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config.cmake
+  INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX}
+  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/esperanto-device-api/cmake
+  PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config-version.cmake
+  VERSION ${VERSION}
+  COMPATIBILITY SameMajorVersion )
+
+# Install the esperanto-device-apiConfig.cmake and esperanto-device-api-config-version.cmake
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/esperanto-device-api-config-version.cmake"
+  DESTINATION ${LIB_INSTALL_DIR}/cmake/esperanto-device-api
+  COMPONENT device-api)
+
+# Install the export set for use with the install-tree
+#install(EXPORT esperanto-device-api-targets DESTINATION
+#  "${LIB_INSTALL_DIR}/cmake/esperanto-device-api" COMPONENT device-api)
