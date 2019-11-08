@@ -17,12 +17,25 @@ set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
 project(DeviceFirmware VERSION 0.1.0 LANGUAGES C ASM)
 
+# Providers for third-party dependencies (gRPC_*_PROVIDER properties):
+# "module": build the dependency using sources from git submodule under external
+# "package": use cmake's find_package functionality to locate a pre-installed dependency
+# TODO enable correct use of package to find preinstalled dependencies for now "package"
+# will mean to use the DEPENDENCIES_PATH to derive the include and library paths
+set(devicefw_DEVICE_API_PROVIDER "module" CACHE STRING "Provider of device-api library")
+set_property(CACHE devicefw_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
+
 option(ENABLE_SYSEMU "Enable building sysemu" OFF)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
+
+set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
+  CACHE PATH "Instalation path of external dependencies")
+
+list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
 
 option(BUILD_DOC "Build documentation" ON)
 
