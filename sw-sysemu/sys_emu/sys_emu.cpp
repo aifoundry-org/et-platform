@@ -768,6 +768,8 @@ sys_emu::main_internal(int argc, char * argv[])
             }
 
             // Try to execute one instruction, this may trap
+            insn_t inst {0, 0, nullptr};
+
             try
             {
                 // Gets instruction and sets state
@@ -800,7 +802,7 @@ sys_emu::main_internal(int argc, char * argv[])
                 else
                 {
                     // Executes the instruction
-                    insn_t inst = fetch_and_decode();
+                    inst = fetch_and_decode();
 
                     // Check for breakpoints
                     if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(current_pc[thread_id])) {
@@ -889,7 +891,6 @@ sys_emu::main_internal(int argc, char * argv[])
             }
             catch (const bemu::memory_error& e)
             {
-                insn_t inst = fetch_and_decode();
                 current_pc[thread_id] += inst.size();
                 raise_bus_error_interrupt(thread_id, e.addr);
                 ++thread;
