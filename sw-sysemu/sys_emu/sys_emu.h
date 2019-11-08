@@ -60,6 +60,7 @@ struct sys_emu_cmd_options {
     std::string pu_uart1_tx_file;
     uint64_t    log_at_pc                    = ~0ull;
     uint64_t    stop_log_at_pc               = ~0ull;
+    bool        display_trap_info            = false;
     bool        gdb                          = false;
 #ifdef SYSEMU_PROFILING
     std::string dump_prof_file;
@@ -130,6 +131,7 @@ public:
     static mem_directory& get_mem_directory() { return mem_dir; }
     static bool get_scp_check() { return scp_check; }
     static scp_directory& get_scp_directory() { return scp_dir; }
+    static bool get_display_trap_info() { return cmd_options.display_trap_info; }
 
     static void breakpoint_insert(uint64_t addr);
     static void breakpoint_remove(uint64_t addr);

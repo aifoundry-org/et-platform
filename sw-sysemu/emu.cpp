@@ -547,7 +547,14 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
     int code = (cause & 63);
     assert(curprv <= PRV_S);
 
-    LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+#ifdef SYS_EMU
+    if (sys_emu::get_display_trap_info())  {
+      LOG(INFO, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+    } else 
+#endif
+    {
+      LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+    }
 
     // if checking against RTL, clear the correspoding MIP bit
     // it will be set to 1 again if the pending bit was not really cleared
@@ -628,7 +635,14 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
     }
 #endif
 
-    LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+#ifdef SYS_EMU
+    if (sys_emu::get_display_trap_info())  {
+      LOG(INFO, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+    } else 
+#endif
+    {
+      LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
+    }
 
     // Take mie
     uint64_t mstatus = cpu[current_thread].mstatus;

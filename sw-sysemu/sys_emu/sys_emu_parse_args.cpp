@@ -34,6 +34,7 @@ static const char * help_msg =
      -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
      -log_at_pc <PC>          Enables logging when minion reaches a given PC\n\
      -stop_log_at_pc <PC>     Disables logging when minion reaches a given PC\n\
+     -display_trap_info       Displays trap logging in the INFO channel instead of DEBUG\n\
      -dump_addr <addr>        At the end of simulation, address where to start the dump. Only valid if -dump_file is used\n\
      -dump_size <size>        At the end of simulation, size of the dump. Only valid if -dump_file is used\n\
      -dump_file <path>        At the end of simulation, file in which to dump\n\
@@ -88,6 +89,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"pu_uart1_tx_file",       required_argument, nullptr, 0},
         {"log_at_pc",              required_argument, nullptr, 0},
         {"stop_log_at_pc",         required_argument, nullptr, 0},
+        {"display_trap_info",      no_argument,       nullptr, 0},
         {"dump_addr",              required_argument, nullptr, 0},
         {"dump_size",              required_argument, nullptr, 0},
         {"dump_file",              required_argument, nullptr, 0},
@@ -195,6 +197,10 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         else if (!strcmp(name, "stop_log_at_pc"))
         {
             sscanf(optarg, "%" PRIx64, &cmd_options.stop_log_at_pc);
+        }
+        else if (!strcmp(name, "display_trap_info"))
+        {
+            cmd_options.display_trap_info = true;
         }
         else if (!strcmp(name, "dump_addr"))
         {
