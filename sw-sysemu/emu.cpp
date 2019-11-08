@@ -4363,68 +4363,93 @@ void fcc_inc(uint64_t thread, uint64_t shire, uint64_t minion_mask, uint64_t fcc
 //
 ////////////////////////////////////////////////////////////////////////////////
 
+#define set_mip_bit(thread, cause) do {  \
+    if (~cpu[thread].mip & 1<<(cause)) \
+        LOG(DEBUG, "Raising interrupt number %d", cause); \
+    cpu[thread].mip |= 1<<(cause); \
+} while (0)
+
+#define clear_mip_bit(thread, cause) do {  \
+    if (cpu[thread].mip & 1<<(cause)) \
+        LOG(DEBUG, "Clearing interrupt number %d", cause); \
+    cpu[thread].mip &= ~(1<<(cause)); \
+} while (0)
+
+#define set_ext_seip(thread) do { \
+    if (ext_seip[thread] & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)) \
+        LOG(DEBUG, "Raising external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT); \
+    ext_seip[thread] |= (1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
+} while (0)
+
+#define clear_ext_seip(thread) do { \
+    if (~ext_seip[thread] & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)) \
+        LOG(DEBUG, "Clearing external interrupt number %d", SUPERVISOR_EXTERNAL_INTERRUPT); \
+    ext_seip[thread] &= ~(1<<SUPERVISOR_EXTERNAL_INTERRUPT); \
+} while (0)
+
 void raise_interrupt(int thread, int cause, uint64_t mip, uint64_t mbusaddr)
 {
-    if (cause == 9 && !(mip & 0x200))
+    if (cause == SUPERVISOR_EXTERNAL_INTERRUPT && !(mip & (1<<SUPERVISOR_EXTERNAL_INTERRUPT)))
     {
-        ext_seip[thread] |= 1<<cause;
+        set_ext_seip(thread);
     }
     else
     {
-        cpu[thread].mip |= 1<<cause;
-        if (cause == 23) cpu[thread].mbusaddr = sextVA(mbusaddr);
+        set_mip_bit(thread, cause);
+        if (cause == BUS_ERROR_INTERRUPT)
+            cpu[thread].mbusaddr = sextVA(mbusaddr);
     }
 }
 
 void raise_software_interrupt(int thread)
 {
-    cpu[thread].mip |= 0x8;
+    set_mip_bit(thread, MACHINE_SOFTWARE_INTERRUPT);
 }
 
 void clear_software_interrupt(int thread)
 {
-    cpu[thread].mip &= ~0x8;
+    clear_mip_bit(thread, MACHINE_SOFTWARE_INTERRUPT);
 }
 
 void raise_timer_interrupt(int thread)
 {
-    cpu[thread].mip |= 0x80;
+    set_mip_bit(thread, MACHINE_TIMER_INTERRUPT);
 }
 
 void clear_timer_interrupt(int thread)
 {
-    cpu[thread].mip &= ~0x80;
+    clear_mip_bit(thread, MACHINE_TIMER_INTERRUPT);
 }
 
 void raise_external_machine_interrupt(int thread)
 {
-    cpu[thread].mip |= 0x800;
+    set_mip_bit(thread, MACHINE_EXTERNAL_INTERRUPT);
 }
 
 void clear_external_machine_interrupt(int thread)
 {
-    cpu[thread].mip &= ~0x800;
+    clear_mip_bit(thread, MACHINE_EXTERNAL_INTERRUPT);
 }
 
 void raise_external_supervisor_interrupt(int thread)
 {
-    ext_seip[thread] |= 0x200;
+    set_ext_seip(thread);
 }
 
 void clear_external_supervisor_interrupt(int thread)
 {
-    ext_seip[thread] &= ~0x200;
+    clear_ext_seip(thread);
 }
 
 void raise_bus_error_interrupt(int thread, uint64_t busaddr)
 {
-    cpu[thread].mip |= 0x800000;
+    set_mip_bit(thread, BUS_ERROR_INTERRUPT);
     cpu[thread].mbusaddr = sextVA(busaddr);
 }
 
 void clear_bus_error_interrupt(int thread)
 {
-    cpu[thread].mip &= ~0x800000;
+    clear_mip_bit(thread, BUS_ERROR_INTERRUPT);
 }
 
 void pu_plic_interrupt_pending_set(uint32_t source_id)
