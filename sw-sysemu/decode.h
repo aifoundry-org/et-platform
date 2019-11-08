@@ -86,7 +86,7 @@
         cpu[other_thread].fregs[n].u32[6], cpu[other_thread].fregs[n].u32[7])
 
 #define LOG_FFLAGS(str, n) \
-    LOG(DEBUG, "\tfflags " str " 0x%" PRIx8, uint8_t(n))
+    LOG(DEBUG, "\tfflags " str " 0x%" PRIx32, uint32_t(n))
 
 #define LOG_PC(str) \
     LOG(DEBUG, "\tpc " str " 0x%" PRIx64, PC)
