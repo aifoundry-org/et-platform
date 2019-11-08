@@ -7,7 +7,8 @@
             "description": "List of different modules we have in the system that we want to enable tracing for",
             "type": "array",
             "items": { "$ref": "#/definitions/Module" }
-        }
+        },
+        "DeviceAPI": { "$ref": "file://@ESPERANTO_DEVICE_API_LIB_DIR@/esperanto/device-api/schema/device-api.schema.json" }
     },
     "required": [ "Modules" ],
     "definitions": {
