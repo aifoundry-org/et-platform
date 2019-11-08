@@ -23,6 +23,8 @@
 
 #include "demangle.h"
 
+#include <esperanto/device-api/device_api.h>
+
 using namespace et_runtime;
 
 namespace et_runtime {

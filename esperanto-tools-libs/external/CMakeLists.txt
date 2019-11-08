@@ -198,7 +198,7 @@ if("${runtime_DEVICE_API_PROVIDER}" STREQUAL "module")
 
   # Force the search location to be the one where we have installed the package
   find_package(esperanto-device-api CONFIG REQUIRED
-    PATHS "${simulator_api_INSTALL}/lib/cmake/esperanto-device-api"
+    PATHS "${device_api_INSTALL}/lib/cmake/esperanto-device-api"
     NO_CMAKE_PATH
     NO_CMAKE_ENVIRONMENT_PATH
     NO_DEFAULT_PATH
