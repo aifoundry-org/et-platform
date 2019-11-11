@@ -2,6 +2,7 @@
 #define _EMU_GIO_H
 
 #include <cinttypes>
+#include <bitset>
 #include "testLog.h"
 #include "emu_defines.h"
 
@@ -33,14 +34,14 @@ namespace emu {
 
 #define LOG(severity, format, ...) do { \
     _LOG_IMPL(severity, \
-              (minion_only_log < 0) || int32_t(current_thread / EMU_THREADS_PER_MINION) == minion_only_log, \
+              log_thread[current_thread], \
               _LOG_THREAD(current_thread), format, ##__VA_ARGS__); \
 } while (0)
 
 
 #define LOG_OTHER(severity, thread, format, ...) do { \
     _LOG_IMPL(severity, \
-              (minion_only_log < 0) || int32_t(thread / EMU_THREADS_PER_MINION) == minion_only_log, \
+              log_thread[current_thread], \
               _LOG_THREAD(thread), format, ##__VA_ARGS__); \
 } while (0)
 
@@ -60,8 +61,7 @@ namespace emu {
 
 #define LOG_IF(severity, cond, format, ...) do { \
     _LOG_IMPL(severity, \
-              ((minion_only_log < 0) || int32_t(current_thread / EMU_THREADS_PER_MINION) == minion_only_log) \
-               && (cond), \
+              log_thread[current_thread] && (cond), \
                _LOG_THREAD(current_thread), format, ##__VA_ARGS__); \
 } while (0)
 
@@ -70,8 +70,8 @@ namespace emu {
 
 
 extern unsigned current_thread;
-extern int32_t minion_only_log;
+extern std::bitset<EMU_NUM_THREADS> log_thread;
 
-extern void log_only_minion(int32_t);
+void log_set_threads(const std::bitset<EMU_NUM_THREADS> &threads);
 
 #endif // _EMU_GIO_H

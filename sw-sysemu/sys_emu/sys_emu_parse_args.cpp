@@ -19,8 +19,10 @@ static const char * help_msg =
      -api_comm <path>         Path to socket that feeds runtime API commands.\n\
      -elf <path>              Path to an ELF file to load.\n\
      -mem_desc <path>         Path to a file describing the memory regions to create and what code to load there\n\
-     -l                       Enable Logging\n\
-     -lm <minion>             Log a given Minion ID only. (default: all)\n\
+     -l                       Set logging verbosity to DEBUG\n\
+     -lt <thread>             Log a given Thread. Can be used multiple times. (default: all)\n\
+     -lm <minion>             Log a given Minion. Can be used multiple times. (default: all)\n\
+     -ls <shire>,<threads>    Log given Threads of a Shire. Can be used multiple times. (default: all)\n\
      -minions <mask>          A mask of Minions that should be enabled in each Shire (default: 1 Minion/Shire)\n\
      -shires <mask>           A mask of Shires that should be enabled. (default: 1 Shire)\n\
      -master_min              Enables master shire\n\
@@ -62,6 +64,19 @@ static const char * help_msg =
 "\
 ";
 
+static int strsplit(char *str, const char *delimiters, char *tokens[], int max_tokens)
+{
+    int n = 0;
+    char *tok = strtok(str, delimiters);
+
+    while ((tok != NULL) && (n < max_tokens)) {
+        tokens[n++] = tok;
+        tok = strtok(NULL, delimiters);
+    }
+
+    return n;
+}
+
 std::tuple<bool, struct sys_emu_cmd_options>
 sys_emu::parse_command_line_arguments(int argc, char* argv[])
 {
@@ -75,7 +90,9 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"elf",                    required_argument, nullptr, 0},
         {"mem_desc",               required_argument, nullptr, 0},
         {"l",                      no_argument,       nullptr, 0},
+        {"lt",                     required_argument, nullptr, 0},
         {"lm",                     required_argument, nullptr, 0},
+        {"ls",                     required_argument, nullptr, 0},
         {"minions",                required_argument, nullptr, 0},
         {"shires",                 required_argument, nullptr, 0},
         {"master_min",             no_argument,       nullptr, 0},
@@ -142,9 +159,36 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {
             cmd_options.log_en = true;
         }
+        else if (!strcmp(name, "lt"))
+        {
+            cmd_options.log_thread[atoi(optarg)] = true;
+        }
         else if (!strcmp(name, "lm"))
         {
-            cmd_options.log_min = atoi(optarg);
+            unsigned minion = 2 * atoi(optarg);
+            cmd_options.log_thread[minion] = true;
+            cmd_options.log_thread[minion + 1] = true;
+        }
+        else if (!strcmp(name, "ls"))
+        {
+            char *tokens[2];
+            int ntokens = strsplit(optarg, ",", tokens, 2);
+            if (ntokens == 2) {
+                uint64_t threads;
+                unsigned shire = atoi(tokens[0]);
+                sscanf(tokens[1], "%" PRIx64, &threads);
+
+                if (shire == IO_SHIRE_ID)
+                    shire = EMU_IO_SHIRE_SP;
+
+                unsigned thread0 = EMU_THREADS_PER_SHIRE * shire;
+                unsigned shire_thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_SHIRE);
+
+                for (unsigned t = 0; t < shire_thread_count; ++t) {
+                    if (threads & (1ULL << t))
+                        cmd_options.log_thread[thread0 + t] = true;
+                }
+            }
         }
         else if (!strcmp(name, "minions"))
         {

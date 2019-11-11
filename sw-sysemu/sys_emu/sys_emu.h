@@ -46,7 +46,7 @@ struct sys_emu_cmd_options {
     bool        master_min                   = false;
     bool        second_thread                = true;
     bool        log_en                       = false;
-    int         log_min                      = -1;
+    std::bitset<EMU_NUM_THREADS> log_thread;
     std::vector<dump_info> dump_at_end;
     std::unordered_multimap<uint64_t, dump_info> dump_at_pc;
     std::string dump_mem;

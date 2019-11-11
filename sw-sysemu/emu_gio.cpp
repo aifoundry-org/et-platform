@@ -19,9 +19,12 @@ namespace emu {
 
 }
 
-// for sys_emu, to log only data from one minion
-int32_t minion_only_log = -1;
+std::bitset<EMU_NUM_THREADS> log_thread;
 
-void log_only_minion(int32_t m) {
-    minion_only_log = (m >= 0 && m < EMU_NUM_MINIONS) ? m : -1;
+void log_set_threads(const std::bitset<EMU_NUM_THREADS> &threads)
+{
+    if (threads.count() == 0)
+        log_thread.set();
+    else
+        log_thread = threads;
 }
