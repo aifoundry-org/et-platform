@@ -21,8 +21,11 @@
 #define PLL_COUNT 3
 #define PLL_CONFIG_COUNT 4
 
+#define PLL_REG_INDEX_REG_0 0
 #define PLL_REG_INDEX_REG_UPDATE_STROBE 0x38
 #define PLL_REG_INDEX_REG_LOCK_DETECT_STATUS 0x39
+#define DCO_NORMALIZATION_ENABLE__SHIFT 7u
+#define DCO_NORMALIZATION_ENABLE__MASK (1u << DCO_NORMALIZATION_ENABLE__SHIFT)
 
 static uint32_t gs_sp_pll_0_frequency;
 static uint32_t gs_sp_pll_1_frequency;
@@ -52,12 +55,25 @@ static int configure_pll_off(volatile uint32_t * pll_registers) {
     return 0;
 }
 
+static void update_pll_registers(volatile uint32_t * pll_registers) {
+    uint32_t strobe;
+
+    strobe = pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE];
+    strobe = strobe & 0xFFFFFFFE;
+    pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = strobe;
+
+    strobe = pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE];
+    strobe = strobe | 1;
+    pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = strobe;
+}
+
 static int configure_pll(volatile uint32_t * pll_registers, uint8_t mode, PLL_ID_t pll_id) {
     uint32_t timeout = PLL_LOCK_TIMEOUT;
     uint8_t register_index;
     uint16_t register_value;
     uint8_t entry_index;
     uint32_t pll_settings_index;
+    uint32_t reg0;
     static const uint32_t pll_settings_count = sizeof(gs_pll_settings) / sizeof(PLL_SETTING_t);
 
     if (0 == mode) {
@@ -80,22 +96,47 @@ FOUND_CONFIG_DATA:
         }
     }
 
+    // program the PLL registers using generated configuration data
     for (entry_index = 0; entry_index < gs_pll_settings[pll_settings_index].count; entry_index++) {
         register_index = gs_pll_settings[pll_settings_index].offsets[entry_index];
         register_value = gs_pll_settings[pll_settings_index].values[entry_index];
-
-        switch (register_index) {
-        case PLL_REG_INDEX_REG_UPDATE_STROBE:
-        case PLL_REG_INDEX_REG_LOCK_DETECT_STATUS:
-            break;
-
-        default:
-            pll_registers[register_index] = register_value;
-        }
+        pll_registers[register_index] = register_value;
     }
 
-    // set reg_update strobe to update registers
-    pll_registers[PLL_REG_INDEX_REG_UPDATE_STROBE] = 1;
+    // Update PLL registers
+    update_pll_registers(pll_registers);
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    // BUG WORKAROUND BEGIN
+    ///////////////////////////////////////////////////////////////////////////////////////
+
+    // Toggle the DCO_NORMALIZATION_ENABLE 1 -> 0 -> 1 in order for PLL to acquire lock
+    // this is required to work around a HW bug in Movellus PLL
+
+    // if the DCO_NORMALIZATION_ENABLE bit is NOT 1, set it to 1
+    reg0 = pll_registers[PLL_REG_INDEX_REG_0];
+    if (!(reg0 & DCO_NORMALIZATION_ENABLE__MASK)) {
+        reg0 = reg0 | DCO_NORMALIZATION_ENABLE__MASK;
+        pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+        update_pll_registers(pll_registers);
+    }
+
+    // set the DCO_NORMALIZATION_ENABLE bit to 0
+    reg0 = pll_registers[PLL_REG_INDEX_REG_0];
+    reg0 = reg0 & ~DCO_NORMALIZATION_ENABLE__MASK;
+    pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+    update_pll_registers(pll_registers);
+
+    // set the DCO_NORMALIZATION_ENABLE bit to 1
+    reg0 = pll_registers[PLL_REG_INDEX_REG_0];
+    reg0 = reg0 | DCO_NORMALIZATION_ENABLE__MASK;
+    pll_registers[PLL_REG_INDEX_REG_0] = reg0;
+    update_pll_registers(pll_registers);
+
+    ///////////////////////////////////////////////////////////////////////////////////////
+    // BUG WORKAROUND END
+    ///////////////////////////////////////////////////////////////////////////////////////
 
     // wait for the PLL to lock
     while (timeout > 0) {
