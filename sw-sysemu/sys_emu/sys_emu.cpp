@@ -46,7 +46,6 @@ std::list<int>  sys_emu::port_wait_threads;                                     
 std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
 uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                                   // PC for each thread
-int             sys_emu::global_log_min;
 RVTimer         sys_emu::pu_rvtimer;
 uint64_t        sys_emu::minions_en = 1;
 uint64_t        sys_emu::shires_en  = 1;
@@ -132,7 +131,7 @@ void
 sys_emu::msg_to_thread(int thread_id)
 {
     auto thread = std::find(port_wait_threads.begin(), port_wait_threads.end(), thread_id);
-    LOG_NOTHREAD(INFO, "Message to thread %i with log %i", thread_id, global_log_min);
+    LOG_NOTHREAD(INFO, "Message to thread %i", thread_id);
     // Checks if in port wait state
     if(thread != port_wait_threads.end())
     {
@@ -554,7 +553,6 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     // Init emu
     init_emu(system_version_t::ETSOC1_A0);
     log_only_minion(cmd_options.log_min);
-    global_log_min = cmd_options.log_min;
     bemu::memory_reset_value = cmd_options.mem_reset;
 
     // Callbacks for port writes

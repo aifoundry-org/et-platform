@@ -185,7 +185,6 @@ private:
     static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
     static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
     static uint64_t        current_pc[EMU_NUM_THREADS]; // PC for each thread
-    static int             global_log_min;
     static RVTimer         pu_rvtimer;
     static uint64_t        minions_en;
     static uint64_t        shires_en;
