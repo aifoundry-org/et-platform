@@ -68,9 +68,13 @@ int main(void)
     sp_pll_stage_0_init();
     printf("SP PLLs 0 and 1 and PShire PLL configured and locked.\n");
 
+#if 0
     INT_init();
     PCIe_init(false /*expect_link_up*/);
     MBOX_init();
+#else
+    printf("Skipping INT, PCIe and MBOX init...\n");
+#endif
 
     sp_pll_stage_1_init();
     printf("SP PLLs 2 & 4 configured and locked.\n");
