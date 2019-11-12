@@ -130,12 +130,15 @@ add_subdirectory(external)
 list(APPEND CMAKE_PREFIX_PATH ${RT_EXTERNAL_INSTALL_PREFIX})
 
 find_package(absl CONFIG REQUIRED)
-message("ABSEIL FOUND : '${absl_FOUND}'")
+message("ABSEIL Found : '${absl_FOUND}'")
 
 find_package(SimulatorAPI CONFIG REQUIRED)
-message("Sim API FOUND: ${SimulatorAPI_FOUND}")
+message("Sim API Found: ${SimulatorAPI_FOUND}")
 
-# Currenly esperanto-fw is not required. Will be the case one we are completly rid
+find_package(esperanto-device-api CONFIG REQUIRED)
+message("Espernato Device API Found: ${espernato-device-api_FOUND}")
+
+# Currenly esperanto-fw is not required. Will be the case once we get completly rid
 # of the fake-fw. Also prevert CMake from using the default search path currently it
 # needs to be specified manually
 find_package(esperanto-fw

@@ -156,6 +156,7 @@ def gen_code(args):
     v = jsonschema.Draft7Validator(schema)
     errors = sorted(v.iter_errors(spec_data), key=lambda e: e.path)
     for error in errors:
+        print(error.message, "  ", error.path, " ", error.instance)
         for suberror in sorted(error.context, key=lambda e: e.schema_path):
             print(list(suberror.schema_path), suberror.message, sep=", ")
     if not len(errors) == 0:

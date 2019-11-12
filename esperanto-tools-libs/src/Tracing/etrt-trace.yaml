@@ -10,4 +10,4 @@
 
 Modules:
   - !include mem-manager.yaml
-#  - !include device-api.yaml
+DeviceAPI: !include @ESPERANTO_DEVICE_API_LIB_DIR@/esperanto/device-api/schema/device-api.yaml
