@@ -144,6 +144,30 @@ inline void __attribute__((always_inline)) tensor_fma(bool use_tmask, uint64_t b
 
 //-------------------------------------------------------------------------------------------------
 //
+// FUNCTION tensor_reduce
+//
+//   Tensor Reduce instruction. Supports all flavors of Reduce (send, receive, broadcast, auto)
+//   For broadcast and auto partnerID should be the depth
+//
+inline void __attribute__((always_inline)) tensor_reduce(uint64_t start_reg, uint64_t operation, uint64_t num_reg, uint64_t partnerID, uint64_t action) {
+
+   uint64_t csr_enc = ((start_reg & 0x1F       ) << 57) |
+                      ((operation & 0xF        ) << 24) |
+                      ((num_reg   & 0xFF       ) << 16) |
+                      ((partnerID & 0x1FFF     ) << 3 ) |
+                      ((action    & 0x3        )      );
+
+   __asm__ __volatile__ (
+         "csrw 0x800, %[csr_enc]\n"
+         :
+         : [csr_enc] "r" (csr_enc)
+         :
+   );
+}
+
+
+//-------------------------------------------------------------------------------------------------
+//
 // FUNCTION tensor_coop
 //
 //   Writes the Coop CSR register used by coop loads
