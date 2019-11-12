@@ -41,7 +41,7 @@ static inline uint64_t read_fcc(fcc_t fcc)
         "1: lui   %1, 0x10   \n" // mask with 0xFFFF
         "   addiw %1, %1, -1 \n"
         "   and   %0, %0, %1 \n"
-        : "=r" (val), "=&r" (temp)
+        : "=&r" (val), "=r" (temp)
         : "r" (fcc)
     );
 
