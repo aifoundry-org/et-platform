@@ -93,7 +93,8 @@ CSRDEF(0x7a2, tdata2, TDATA2)
 CSRDEF(0x7a3, tdata3, TDATA3)
 CSRDEF(0x7b0, dcsr, DCSR)               // TODO
 CSRDEF(0x7b1, dpc, DPC)                 // TODO
-CSRDEF(0x7b2, dscratch, DSCRATCH)       // TODO
+CSRDEF(0x7b2, dscratch0, DSCRATCH0)
+CSRDEF(0x7b3, dscratch1, DSCRATCH1)
 CSRDEF(0xb00, mcycle, MCYCLE)
 CSRDEF(0xb02, minstret, MINSTRET)
 CSRDEF(0xb03, mhpmcounter3, MHPMCOUNTER3)

@@ -889,12 +889,11 @@ static uint64_t csrget(uint16_t src1)
     case CSR_TDATA2:
         val = cpu[current_thread].tdata2;
         break;
-    case CSR_TDATA3:
-        val = 0;
-        break;
+    // unimplemented: TDATA3
     // TODO: DCSR
     // TODO: DPC
-    // TODO: DSCRATCH
+    // unimplemented: DSCRATCH0
+    // unimplemented: DSCRATCH1
     case CSR_MCYCLE:
     case CSR_MINSTRET:
     case CSR_MHPMCOUNTER3:
@@ -1359,11 +1358,11 @@ static void csrset(uint16_t src1, uint64_t val)
         val &= VA_M;
         cpu[current_thread].tdata2 = val;
         break;
-    case CSR_TDATA3:
-        break;
-    // DCSR
-    // DPC
-    // DSCRATCH
+    // unimplemented: TDATA3
+    // TODO: DCSR
+    // TODO: DPC
+    // unimplemented: DSCRATCH0
+    // unimplemented: DSCRATCH1
     case CSR_MCYCLE:
     case CSR_MINSTRET:
     case CSR_MHPMCOUNTER3:
