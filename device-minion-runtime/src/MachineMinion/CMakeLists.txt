@@ -28,10 +28,12 @@ set(SOURCES
     ${SHARED_SRC_DIR}/print_exception.c
     ${SHARED_SRC_DIR}/log.c
     ${SHARED_SRC_DIR}/broadcast.c
+    ${SHARED_SRC_DIR}/kernel_return.c
     )
 
 set(TARGET_NAME MachineMinion)
 set(LINKER_SCRIPT src/sections.ld)
+set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
 

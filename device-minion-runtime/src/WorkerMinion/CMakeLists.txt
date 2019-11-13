@@ -24,10 +24,12 @@ set(SOURCES
     ${SHARED_SRC_DIR}/message.c
     ${SHARED_SRC_DIR}/log.c
     ${SHARED_SRC_DIR}/printf.c
+    ${SHARED_SRC_DIR}/kernel_return.c
     )
 
 set(TARGET_NAME WorkerMinion)
 set(LINKER_SCRIPT src/sections.ld)
+set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
 set(ZEBU_TARGET DDR_NEW)
 set(ZEBU_FILENAME memImage)
 

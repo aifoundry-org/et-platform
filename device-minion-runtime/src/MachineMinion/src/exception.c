@@ -2,8 +2,9 @@
 #include "exception_codes.h"
 #include "hart.h"
 #include "kernel_error.h"
-#include "print_exception.h"
+#include "kernel_return.h"
 #include "message.h"
+#include "print_exception.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -13,9 +14,6 @@
 
 //                                 mhartid     |    rs1=0     |           csrrs
 #define INST_CSRRS_MHARTID   ((0xF14ULL << 20) | (   0 << 15) | (0x2 << 12) | (0x73))
-
-// pointer to return_from_kernel function in worker minion image
-static int64_t (*return_from_kernel_function_ptr)(int64_t return_value);
 
 static void write_reg(uint64_t* const reg, uint64_t rd, uint64_t val);
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus, uint64_t hart_id, bool user_mode);
@@ -55,10 +53,7 @@ void exception_handler(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t*
         // If the exception was from user mode, return to firmware context.
         if (user_mode)
         {
-            if (return_from_kernel_function_ptr != NULL)
-            {
-                (*return_from_kernel_function_ptr)(KERNEL_ERROR_EXCEPTION);
-            }
+            return_from_kernel(KERNEL_ERROR_EXCEPTION);
         }
     }
 
@@ -66,12 +61,6 @@ void exception_handler(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t*
     {
         asm volatile ("wfi");
     }
-}
-
-int64_t register_return_from_kernel_function(int64_t (*function_ptr)(int64_t))
-{
-    return_from_kernel_function_ptr = function_ptr;
-    return 0;
 }
 
 static void write_reg(uint64_t* const reg, uint64_t rd, uint64_t val)
