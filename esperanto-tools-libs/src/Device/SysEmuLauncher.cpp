@@ -61,8 +61,9 @@ SysEmuLauncher::SysEmuLauncher(
     execute_args_.push_back("-l");
   }
   if (auto mx = absl::GetFlag(FLAGS_sysemu_log_minion); mx > 0) {
-    execute_args_.insert(execute_args_.end(),
-                         {"-l", "-lm", fmt::format("{}", mx)});
+    execute_args_.push_back("-l");
+    execute_args_.push_back("-lm");
+    execute_args_.push_back(fmt::format("{}", mx));
   }
   if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart_tx_file); !file.empty()) {
     execute_args_.push_back("-pu_uart_tx_file");
