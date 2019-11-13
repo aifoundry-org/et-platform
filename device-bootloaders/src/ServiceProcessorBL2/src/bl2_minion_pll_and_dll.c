@@ -47,95 +47,194 @@ static inline void __attribute__((always_inline)) write_esr(esr_protection_t pp,
 #define TIMEOUT_PLL_CONFIG 100000
 #define TIMEOUT_PLL_LOCK 100000
 
-static int pll_config(uint32_t shire_32id )
+/*==================== Function Separator =============================*/
+static void pll_config_multiple_write(uint32_t shire_id, uint32_t reg_first, uint32_t reg_num)
 {
-    uint32_t timeout;
-    uint8_t shire_id = (uint8_t) shire_32id;
-    // Select 1 GHz
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_CTRL_CLOCKMUX, 0xb);
+  uint64_t reg_value;
 
-    // PLL and DLL configuration
-    // Assume invalid values initially, then "write" values into PLL config registers
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, 0x0);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, 0x0);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, REG_SHIRE_PLL_AUTO_CONFIG_SHADOW1);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, REG_SHIRE_DLL_AUTO_CONFIG_SHADOW1);
-    // check shire_pll_wrapper.v for details on values for PLL registers
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000a000101e8);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_1, 0x0003027e002e0003);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_2, 0x0100000a02be0033);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_3, 0x00010001000000d5);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_4, 0x0000000000010001);
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_5, 0x0000000100000000);
-    // check shire_pll_wrapper.v for details on values for DLL registers
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_CONFIG_DATA_0, 0x000a002000080001);
-    // Enable state machines for PLL
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, REG_SHIRE_PLL_AUTO_CONFIG_SHADOW2);
-    // Reset pll_read reg
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, REG_SHIRE_PLL_AUTO_CONFIG_SHADOW5);
-    // Trigger configuration of PLL
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, REG_SHIRE_PLL_AUTO_CONFIG_SHADOW3);
+  // Enable PLL auto config
+  reg_value =  SHIRE_OTHER_PLL_AUTO_CONFIG_PCLK_SEL
+            | (reg_num << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_NUM_OFF)
+            | (reg_first << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_FIRST_OFF)
+            | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_ENABLE_OFF);
+  write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, reg_value);
+  
+  // Start PLL auto config
+  reg_value =  SHIRE_OTHER_PLL_AUTO_CONFIG_PCLK_SEL
+            | (reg_num << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_NUM_OFF)
+            | (reg_first << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_FIRST_OFF)
+            | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_WRITE_OFF)
+            | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_RUN_OFF)
+            | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_ENABLE_OFF);
+  write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, reg_value);
+  
+  // Wait for the PLL configuration to finish
+  while((read_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_PLL_READ_DATA) & 0x10000));
+  
+  // Stop the PLL auto config
+  reg_value =  SHIRE_OTHER_PLL_AUTO_CONFIG_PCLK_SEL
+            | (reg_num << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_NUM_OFF)
+            | (reg_first << SHIRE_OTHER_PLL_AUTO_CONFIG_REG_FIRST_OFF);
+  write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, reg_value);
+}
+/*
+static void dll_config_multiple_write(uint32_t shire_id, uint32_t reg_first, uint32_t reg_num)
+{
+  uint64_t reg_value;
 
-    // Wait until PLL configuration is finished
-    timeout = TIMEOUT_PLL_CONFIG;
-    while((read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_PLL_READ_DATA) & 0x10000)) {
-        timeout--;
-        if (0 == timeout) {
-            printf("timeout waiting for PLL config to finish!\n");
-            return -1;
-        }
-    }
-    // Stop configuration state machine for PLL
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, REG_SHIRE_PLL_AUTO_CONFIG_SHADOW4);
-    // Wait until PLL is locked to change clock mux
-    timeout = TIMEOUT_PLL_LOCK;
-    while(!(read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_PLL_READ_DATA) & 0x20000)) {
-        timeout--;
-        if (0 == timeout) {
-            printf("timeout waiting for PLL lock to finish!\n");
-            return -1;
-        }
-    }
-    // force reg_shire_ctrl_clockmux = 4'b0100;
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_CTRL_CLOCKMUX, 0x4);
+  // Enable DLL auto config
+  reg_value =  SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL
+            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF)
+            | (reg_num << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_NUM_OFF)
+            | (reg_first << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_FIRST_OFF)
+            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_ENABLE_OFF);
+  write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
+  
+  // Start DLL auto config
+  reg_value =  SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL
+            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF)
+            | (reg_num << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_NUM_OFF)
+            | (reg_first << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_FIRST_OFF)
+            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_WRITE_OFF)
+            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_RUN_OFF)
+            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_ENABLE_OFF);
+  write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
+  
+  // Wait for the DLL configuration to finish
+  while((read_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x10000));
+  
+  // Stop the DLL auto config
+  reg_value =  SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL
+            | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF)
+            | (reg_num << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_NUM_OFF)
+            | (reg_first << SHIRE_OTHER_DLL_AUTO_CONFIG_REG_FIRST_OFF);
+  write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
+}
+*/
+static void pll_config(uint32_t shire_id )
+{
+   uint64_t reg_value;
+   
+   // Select 1 GHz from step_clock, Bits[2:0] = 3'b011. Bit 3 to '1' to go with DLL output
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_CTRL_CLOCKMUX, 0xb);
+   
+   // PLL and DLL initialization
+   /////////////////////////////////////////////////////////////////////////////
+   // Initialize auto-config register and reset PLL
+   reg_value =  SHIRE_OTHER_PLL_AUTO_CONFIG_PCLK_SEL
+             | (0x1 << SHIRE_OTHER_PLL_AUTO_CONFIG_RESET_OFF);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_AUTO_CONFIG, reg_value);
+   
+   // Initialize auto-config register and reset DLL
+   reg_value =  SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL
+             | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_RESET_OFF);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
+   
+   // PLL configuration (register values taken from Movellus testbench for LVDPLL v1.2.1a)
+   /////////////////////////////////////////////////////////////////////////////
+   
+   // Reset PLL strobe register 0x38
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000000);
+   pll_config_multiple_write(shire_id,0x38,0x0);
 
-    // Enable state machines for DLL
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, REG_SHIRE_DLL_AUTO_CONFIG_SHADOW2);
-    // Reset dll_read reg
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, REG_SHIRE_DLL_AUTO_CONFIG_SHADOW5);
-    // Trigger configuration of DLL
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, REG_SHIRE_DLL_AUTO_CONFIG_SHADOW3);
-    // Wait until DLL configuration is finished
-    //while(!(read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x20000));
-    //while(read_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x11);
-    // Stop configuration state machine for DLL
+   // Write PLL registers 0x00 to 0x0f. PLL registers can be downloaded in chunks of 16 registers
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x00000014000101b8); // 1GHz
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_1, 0x02bb1bf40aeb02bb);
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_2, 0x003d01f01bf40aeb);
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_3, 0x000200020000000c);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000f000101b8); // 750 MHz
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_1, 0x02bb1bf40aeb02bb); 
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_2, 0x001e01f01bf40aeb); 
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_3, 0x000200020000000c); 
+   pll_config_multiple_write(shire_id,0x00,0xf);
+   
+   // Write PLL registers 0x10 to 0x1a.
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000020002); // 1GHz    
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_1, 0x0000000000000000);            
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_2, 0x0000000000000000);            
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_3, 0x0000000000000000);            
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000020002); // 750 MHz 
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_1, 0x0000000000000000);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_2, 0x0000000000000001);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_3, 0x0000000000000000);
+   pll_config_multiple_write(shire_id,0x10,0xa);
 
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, REG_SHIRE_DLL_AUTO_CONFIG_SHADOW4);
-    // force reg_shire_ctrl_clockmux = 4'b1100;
-    write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_CTRL_CLOCKMUX, 0xc);
+   // Write PLL registers 0x20 to 0x24.
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000001); // 1GHz    
+ //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_1, 0x0000000000000000);            
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000003); // 750 MHz 
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_1, 0x0000000000000000);
+   pll_config_multiple_write(shire_id,0x20,0x4);
 
-    return 0;
+   // Write PLL registers 0x27 to 0x28.(DATA_1 and DATA_2 and DATA_3 not changed)
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x000000000000000c);
+   pll_config_multiple_write(shire_id,0x27,0x1);
+   
+   // Write PLL strobe register 0x38 to load previous configuration
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000000);
+   pll_config_multiple_write(shire_id,0x38,0x0);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000001);
+   pll_config_multiple_write(shire_id,0x38,0x0);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000000);
+   pll_config_multiple_write(shire_id,0x38,0x0);
+   
+   // Update PLL register 0 to enable PLL
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000001400010138);
+   pll_config_multiple_write(shire_id,0x00,0x0);
+   
+   // Write PLL strobe register 0x38 to load previous configuration
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000001);
+   pll_config_multiple_write(shire_id,0x38,0x0);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000000);
+   pll_config_multiple_write(shire_id,0x38,0x0);
+   
+   // Update PLL register 0 to enable PLL
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x00000014000101b8);
+   pll_config_multiple_write(shire_id,0x00,0x0);
+   
+   // Write PLL strobe register 0x38 to load previous configuration
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000001);
+   pll_config_multiple_write(shire_id,0x38,0x0);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_PLL_CONFIG_DATA_0, 0x0000000000000000);
+   pll_config_multiple_write(shire_id,0x38,0x0);
+   
+   
+   // Wait until PLL is locked to change clock mux
+   while(!(read_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_PLL_READ_DATA) & 0x20000));
+   
+   // Select PLL[0] output. Bits[2:0]=3'b100. Bit 3 to '1' to go with DLL output
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_CTRL_CLOCKMUX, 0xc);
+
+   // DLL configuration (register values taken from Movellus testbench v 1.1.0b)
+   /////////////////////////////////////////////////////////////////////////////
+
+   // Auto-config register set dll_enable and get reset deasserted of the DLL
+   reg_value =  SHIRE_OTHER_DLL_AUTO_CONFIG_PCLK_SEL
+             | (0x1 << SHIRE_OTHER_DLL_AUTO_CONFIG_DLL_EN_OFF);
+   write_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_OTHER_DLL_AUTO_CONFIG, reg_value);
+
+   // Write registers from 0x0 to 0x4
+   //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_CONFIG_DATA_0, 0x00102200400000c0);
+   //write_esr(PP_MACHINE, shire_id, REGION_OTHER, SHIRE_OTHER_DLL_CONFIG_DATA_1, 0x0000000000000101);
+   //dll_config_multiple_write(shire_id,0x0,0x4);
+
+   // Wait until DLL is locked to change clock mux
+   while(!(read_esr(PP_MACHINE, (uint8_t)shire_id, REGION_OTHER, SHIRE_DLL_READ_DATA) & 0x20000));
+
 }
 
-//void minion_pll_config ( uint64_t minion_shire_mask){
-static int minion_pll_config(uint64_t mask) {
-    uint32_t n;
-    for (n = 0; n <= 33; n++) {
-        if (mask & 1u) {
-            if (0 != pll_config(n)) {
-                printf("pll_config(%u) failed!\n", n);
-                return -1;
-            }
-        }
-        mask = mask >> 1u;
-    }
-   return 0;
+static void minion_pll_config ( uint64_t minion_shire_mask){
+
+   for ( uint32_t i = 0; i <= 33; i ++){
+     if (minion_shire_mask & 1)
+       pll_config(i);
+     minion_shire_mask >>=1;
+   }
 }
 
 int configure_minion_plls_and_dlls(void) {
-    int rv;
-    rv = minion_pll_config(1);
-    return rv;
+    minion_pll_config(1);
+    return 0;
 }
 
 int enable_minion_neighborhoods(void) {
