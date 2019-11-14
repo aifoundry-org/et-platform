@@ -1,4 +1,6 @@
 #include "et_pci_dev.h"
+
+#include "et_layout.h"
 #include "hal_device.h"
 
 const enum et_cdev_type MINOR_TYPES[] = {
@@ -15,7 +17,7 @@ const char *MINOR_NAMES[] = {
 
 //BAR0
 //Name              Host Addr       Size   Notes
-//R_L3_DRAM         BAR0 + 0x0000   28G    DRAM with PCIe access permissions
+//R_L3_DRAM         BAR0 + 0x0000   ~32GB  SoC DRAM
 
 //BAR2
 //Name              Host Addr       Size   Notes
@@ -26,8 +28,8 @@ const char *MINOR_NAMES[] = {
 
 const struct et_bar_mapping BAR_MAPPINGS[] = {
 	{
-		.soc_addr =              R_L3_DRAM_BASEADDR,
-		.size =                  R_L3_DRAM_SIZE,
+		.soc_addr =              DRAM_MEMMAP_BEGIN,
+		.size =                  DRAM_MEMMAP_SIZE,
 		.bar_offset =            0,
 		.bar =                   0,
 		.strictly_order_access = false

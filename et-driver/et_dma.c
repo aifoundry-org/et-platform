@@ -11,32 +11,22 @@
 #include <asm/uaccess.h>
 
 #include "hal_device.h"
+#include "et_layout.h"
 #include "et_pci_dev.h"
 
 //TODO: define all of these structures / constants shared between the Linux driver
 //and SoC firmware somewhere common. Note the Linux driver needs to be self-contained
 //(no dependencies) if we are going to mainline it.
 
-#define DMA_LL_SIZE 0x800000
-
-#define DMA_CHAN_READ_0_LL_BASE 0x87FC000000
-#define DMA_CHAN_READ_1_LL_BASE 0x87FC800000
-#define DMA_CHAN_READ_2_LL_BASE 0x87FD000000
-#define DMA_CHAN_READ_3_LL_BASE 0x87FD800000
-#define DMA_CHAN_WRITE_0_LL_BASE 0x87FE000000
-#define DMA_CHAN_WRITE_1_LL_BASE 0x87FE800000
-#define DMA_CHAN_WRITE_2_LL_BASE 0x87FF000000
-#define DMA_CHAN_WRITE_3_LL_BASE 0x87FF800000
-
 static uint64_t XFER_LIST_OFFSETS[] = {
-	DMA_CHAN_READ_0_LL_BASE - R_L3_DRAM_BASEADDR,
-	DMA_CHAN_READ_1_LL_BASE - R_L3_DRAM_BASEADDR,
-	DMA_CHAN_READ_2_LL_BASE - R_L3_DRAM_BASEADDR,
-	DMA_CHAN_READ_3_LL_BASE - R_L3_DRAM_BASEADDR,
-	DMA_CHAN_WRITE_0_LL_BASE - R_L3_DRAM_BASEADDR,
-	DMA_CHAN_WRITE_1_LL_BASE - R_L3_DRAM_BASEADDR,
-	DMA_CHAN_WRITE_2_LL_BASE - R_L3_DRAM_BASEADDR,
-	DMA_CHAN_WRITE_3_LL_BASE - R_L3_DRAM_BASEADDR
+	DMA_CHAN_READ_0_LL_BASE - DRAM_MEMMAP_BEGIN,
+	DMA_CHAN_READ_1_LL_BASE - DRAM_MEMMAP_BEGIN,
+	DMA_CHAN_READ_2_LL_BASE - DRAM_MEMMAP_BEGIN,
+	DMA_CHAN_READ_3_LL_BASE - DRAM_MEMMAP_BEGIN,
+	DMA_CHAN_WRITE_0_LL_BASE - DRAM_MEMMAP_BEGIN,
+	DMA_CHAN_WRITE_1_LL_BASE - DRAM_MEMMAP_BEGIN,
+	DMA_CHAN_WRITE_2_LL_BASE - DRAM_MEMMAP_BEGIN,
+	DMA_CHAN_WRITE_3_LL_BASE - DRAM_MEMMAP_BEGIN
 };
 
 #define MBOX_MESSAGE_ID_DMA_RUN_TO_DONE 9
@@ -50,7 +40,7 @@ struct et_mem_region {
 
 static const struct et_mem_region valid_dma_targets[] = {
 	//L3, but beginning reserved for minion stacks, end reserved for DMA config
-	{ .begin = 0x8104000000ULL, .end = 0x87FBFFFFFF },
+	{ .begin = HOST_MANAGED_DRAM_START, .end = (HOST_MANAGED_DRAM_END - 1) },
 	//Shire-cache scratch pads. Limit to first 4MB * 33 shires.
 	{ .begin = 0x80000000, .end = 0x883FFFFF }
 };
@@ -225,7 +215,7 @@ static ssize_t et_dma_contig_buff(dma_addr_t buff, uint64_t soc_addr,
 	write_xfer_list_data(id, 0, src_addr, dest_addr, count,
 			     true /*interrupt*/, et_dev);
 	write_xfer_list_link(id, 1,
-			     R_L3_DRAM_BASEADDR +
+			     DRAM_MEMMAP_BEGIN +
 				     XFER_LIST_OFFSETS[id] /*circular link*/,
 			     et_dev);
 

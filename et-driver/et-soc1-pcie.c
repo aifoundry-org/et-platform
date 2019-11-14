@@ -28,6 +28,7 @@
 
 #include "et_dma.h"
 #include "et_ioctl.h"
+#include "et_layout.h"
 #include "et_mbox.h"
 #include "et_mmio.h"
 #include "et_pci_dev.h"
@@ -263,7 +264,7 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 			// Allowed on DRAM devices only
 			return -EINVAL;
 		}
-		dram_base = R_L3_DRAM_BASEADDR;
+		dram_base = DRAM_MEMMAP_BEGIN;
 		if (copy_to_user((uint64_t *)arg, &dram_base, sizeof(uint64_t))) {
 			pr_err("ioctl: GET_DRAM_BASE: failed to copy to user\n");
 			return -ENOMEM;
@@ -275,7 +276,7 @@ static long esperanto_pcie_ioctl(struct file *fp, unsigned int cmd, unsigned lon
 			// Allowed on DRAM devices only
 			return -EINVAL;
 		}
-		dram_size = R_L3_DRAM_SIZE;
+		dram_size = DRAM_MEMMAP_SIZE;
 		if (copy_to_user((uint64_t *)arg, &dram_size, sizeof(uint64_t))) {
 			pr_err("ioctl: GET_DRAM_SIZE: failed to copy to user\n");
 			return -ENOMEM;
