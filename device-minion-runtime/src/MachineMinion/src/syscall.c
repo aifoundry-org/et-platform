@@ -109,12 +109,11 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
             rv = drain_coalescing_buffer_with_params(arg1, arg2);
         break;
 
-        case SYSCALL_RETURN_FROM_KERNEL:
-            rv = -1; // supervisor firmware should never ask the machine code to do this
-        break;
-
-        case SYSCALL_LOG_WRITE:
-            rv = -1; // machine/supervisor firmware should call LOG_write() directly
+        case SYSCALL_RETURN_FROM_KERNEL: // supervisor firmware should never ask the machine code to do this
+        case SYSCALL_LOG_WRITE: // /supervisor firmware should call log_write() directly
+        case SYSCALL_GET_LOG_LEVEL: // supervisor firmware should call get_log_level() directly
+        case SYSCALL_MESSAGE_SEND: // supervisor firmware should call message_send() directly
+            rv = -1;
         break;
 
         default:

@@ -21,8 +21,8 @@ set(SOURCES
     src/main.c
     src/kernel.c
     src/build_configuration.c
+    src/log.c
     ${SHARED_SRC_DIR}/message.c
-    ${SHARED_SRC_DIR}/log.c
     ${SHARED_SRC_DIR}/printf.c
     ${SHARED_SRC_DIR}/kernel_return.c
     )

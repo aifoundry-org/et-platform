@@ -1,6 +1,7 @@
 #include "syscall.h"
 #include "kernel.h"
 #include "log.h"
+#include "message.h"
 
 #include <stdint.h>
 
@@ -36,6 +37,14 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
 
         case SYSCALL_LOG_WRITE:
             rv = log_write(arg1, (char*)arg2, arg3);
+        break;
+
+        case SYSCALL_GET_LOG_LEVEL:
+            rv = (int64_t)get_log_level();
+        break;
+
+        case SYSCALL_MESSAGE_SEND:
+            rv = message_send_worker(arg1, arg2, (message_t*)arg3);
         break;
 
         case SYSCALL_PRE_KERNEL_SETUP:
