@@ -5,6 +5,9 @@
 #include <assert.h>
 #endif
 
+//TODO: Keep in sync with sw-platform/virtual-platform/kernel/et-pcie-driver/et_layout.h
+//TODO: Single source between these two files
+
 // aligns an address to the next 64-byte cache line
 #define CACHE_LINE_ALIGN(x) (((x + 63U) / 64U) * 64U)
 
@@ -78,7 +81,7 @@ static_assert((FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER + FW_MASTER_TO_WORKE
 static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_BROADCAST_MESSAGE_BUFFER_SIZE) < (KERNEL_UMODE_STACK_BASE - (NUM_HARTS * KERNEL_UMODE_STACK_SIZE)), "U-stack / kenrel config region collision");
 #endif
 
-#define KERNEL_UMODE_ENTRY      KERNEL_UMODE_STACK_BASE + 0x100000000ULL // TODO FIXME offset to stay above4GB  OS region for now, see SW-1235
+#define KERNEL_UMODE_ENTRY      KERNEL_UMODE_STACK_BASE
 
 //Storage for DMA configuration linked lists.
 //Store at end of R_L3_DRAM region, 64MB at 0x87FC800000 - 0x87FFFFFFFF
@@ -101,5 +104,12 @@ static_assert((FW_MASTER_TO_WORKER_KERNEL_CONFIGS + FW_MASTER_TO_WORKER_BROADCAS
 // the range is the START to (END-1)
 #define HOST_MANAGED_DRAM_START KERNEL_UMODE_ENTRY
 #define HOST_MANAGED_DRAM_END DMA_CHAN_READ_0_LL_BASE
+
+// This range is mapped to the host via BAR0. The host can write the DMA configuration
+// linked list, but should never touch the stacks for the SoC processors in the first
+// part of DRAM.
+#define DRAM_MEMMAP_BEGIN KERNEL_UMODE_STACK_BASE
+#define DRAM_MEMMAP_END 0x87FFFFFFFF
+#define DRAM_MEMMAP_SIZE (DRAM_MEMMAP_END - DRAM_MEMMAP_BEGIN + 1)
 
 #endif
