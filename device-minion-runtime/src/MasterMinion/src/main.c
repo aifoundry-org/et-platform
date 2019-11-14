@@ -19,6 +19,8 @@
 #include "swi.h"
 #include "syscall.h"
 
+#include <esperanto/device-api/device_api.h>
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <inttypes.h>
