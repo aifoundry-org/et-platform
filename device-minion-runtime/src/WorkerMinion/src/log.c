@@ -1,0 +1,43 @@
+#include "log.h"
+#include "hart.h"
+#include "message.h"
+#include "printf.h"
+
+#include <stdarg.h>
+#include <stddef.h>
+
+// TODO All worker harts currently crudely share the same log level
+static log_level_t current_log_level = LOG_LEVEL_WARNING;
+
+void log_set_level(log_level_t level)
+{
+    current_log_level = level;
+}
+
+log_level_t get_log_level(void)
+{
+    return current_log_level;
+}
+
+// sends a log message from a worker minion to the master minion for display
+int64_t log_write(log_level_t level, const char* const fmt, ...)
+{
+    if (level > current_log_level)
+    {
+        return 0;
+    }
+
+    message_t message;
+    message.id = MESSAGE_ID_LOG_WRITE;
+
+    va_list va;
+    va_start(va, fmt);
+    char* string_ptr = (char*)message.data;
+
+    if (vsnprintf(string_ptr, sizeof(message.data), fmt, va) < 0)
+    {
+        return -1;
+    }
+
+    return message_send_worker(get_shire_id(), get_hart_id(), &message);
+}

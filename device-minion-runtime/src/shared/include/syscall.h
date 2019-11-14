@@ -30,7 +30,9 @@ typedef enum {
     SYSCALL_RETURN_FROM_KERNEL = 304,
 
     // from userspace to supervisor for both master and compute firmwares [400-499]
-    SYSCALL_LOG_WRITE = 400     // FW_SCODE_ECALL_LOG_WRITE
+    SYSCALL_LOG_WRITE = 400,     // FW_SCODE_ECALL_LOG_WRITE
+    SYSCALL_GET_LOG_LEVEL = 401,
+    SYSCALL_MESSAGE_SEND = 402
 } syscall_t;
 
 

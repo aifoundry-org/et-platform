@@ -2,21 +2,20 @@
 #include "hart.h"
 #include "message.h"
 #include "printf.h"
+#include "syscall.h"
 
 #include <stdarg.h>
 #include <stddef.h>
 
-// TODO All worker harts currently crudely share the same log level
-static log_level_t current_log_level = LOG_LEVEL_WARNING;
-
-void log_set_level(log_level_t level)
-{
-    current_log_level = level;
-}
-
-// sends a log message from a worker minion to the master minion for display
+// sends a log message from a worker minion in user privilege to the master minion for display
+// Not intended for firmware use - only call from kernels in user mode
 int64_t log_write(log_level_t level, const char* const fmt, ...)
 {
+    // TODO two syscalls is more overhead, but can't pass va_args through syscall and should do
+    // string manipulation in lowest privilege possible. Could check current_log_level in syscall
+    // after building string and drop there.
+    const log_level_t current_log_level = (log_level_t)syscall(SYSCALL_GET_LOG_LEVEL, 0, 0, 0);
+
     if (level > current_log_level)
     {
         return 0;
@@ -34,5 +33,5 @@ int64_t log_write(log_level_t level, const char* const fmt, ...)
         return -1;
     }
 
-    return message_send_worker(get_shire_id(), get_hart_id(), &message);
+    return syscall(SYSCALL_MESSAGE_SEND, get_shire_id(), get_hart_id(), (uint64_t)&message);
 }
