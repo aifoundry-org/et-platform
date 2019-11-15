@@ -12,9 +12,9 @@
     },
     "required": [ "Modules" ],
     "definitions": {
-        "FunctionArgument": {
+        "MemberField": {
             "type": "object",
-            "description": "A function argument",
+            "description": "A function argument or struct memmber field",
             "properties": {
                 "Name": {
                     "type": "string"
@@ -34,6 +34,43 @@
             },
             "required": ["Name", "Type"]
         },
+        "Enum": {
+            "type": "object",
+            "description": "An Enum definition with list of member values",
+            "properties": {
+                "Name": {
+                    "type":"string"
+                },
+                "Description": { "type": "string"} ,
+                "Values": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "Name": { "type": "string" },
+                            "Value": { "type": "integer" }
+                        },
+                        "required": ["Name", "Value"]
+                    }
+                }
+            },
+            "required" : ["Name", "Values"]
+        },
+        "Struct": {
+            "type": "object",
+            "description": "A Struct that is comprised of different member fields",
+            "properties": {
+                "Name": {
+                    "type":"string"
+                },
+                "Description": { "type": "string"} ,
+                "Fields": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/MemberField" }
+                }
+            },
+            "required" : ["Name", "Fields"]
+        },
         "Function": {
             "type": "object",
             "description": "A function that we want to trace",
@@ -52,7 +89,7 @@
                 },
                 "Arguments": {
                     "type": "array",
-                    "items": { "$ref": "#definitions/FunctionArgument" }
+                    "items": { "$ref": "#definitions/MemberField" }
                 }
             },
             "required" : ["Name"]
@@ -74,11 +111,22 @@
                     "type": "boolean",
                     "description": "Set to False if you want to dsiable GLOG support"
                 },
+                "Enums": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/Enum" },
+                    "minItems": 1
+                },
+                "Structs": {
+                    "type": "array",
+                    "items": { "$ref": "#definitions/Struct" },
+                    "minItems": 1
+                },
                 "Functions": {
                     "type": "array",
                     "items": { "$ref": "#definitions/Function" },
                     "minItems": 1
                 }
+
             },
             "required": ["Name", "Functions"]
         }
