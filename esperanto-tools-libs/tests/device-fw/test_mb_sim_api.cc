@@ -1,5 +1,5 @@
 #include "Core/CommandLineOptions.h"
-#include "Device/TargetRPC.h"
+#include "RPCDevice/TargetRPC.h"
 
 // Enable logging on the server side
 #define ENABLE_LOGGING 1

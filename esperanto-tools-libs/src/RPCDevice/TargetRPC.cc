@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Device/TargetRPC.h"
+#include "TargetRPC.h"
 
 #include "EmuMailBoxDev.h"
 #include "esperanto/simulator-api.grpc.pb.h"

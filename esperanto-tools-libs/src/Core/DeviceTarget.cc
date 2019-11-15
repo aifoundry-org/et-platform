@@ -10,10 +10,10 @@
 
 #include "Core/DeviceTarget.h"
 #include "Core/CommandLineOptions.h"
-#include "PCIeDevice.h"
+#include "PCIEDevice/PCIeDevice.h"
+#include "RPCDevice/TargetRPC.h"
+#include "RPCDevice/TargetSysEmu.h"
 #include "Support/Logging.h"
-#include "TargetRPC.h"
-#include "TargetSysEmu.h"
 
 #include <absl/flags/flag.h>
 #include <absl/flags/marshalling.h>
@@ -45,15 +45,14 @@ static string getDeviceTypesStr() {
   return res;
 }
 
-
 std::string AbslUnparseFlag(DeviceTargetOption target) {
   return absl::UnparseFlag(target.dev_target);
 }
 
 /// @brief Command line option for specifying the type of device to initialize
 /// FIXME this option should not be available in production code.
- bool AbslParseFlag(absl::string_view text, DeviceTargetOption *target,
-                          std::string *error) {
+bool AbslParseFlag(absl::string_view text, DeviceTargetOption *target,
+                   std::string *error) {
   if (!absl::ParseFlag(text, &target->dev_target, error)) {
     return false;
   }

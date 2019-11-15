@@ -11,8 +11,8 @@
 #ifndef ET_RUNTIME_DEVICE_CHAR_DEVICE_H
 #define ET_RUNTIME_DEVICE_CHAR_DEVICE_H
 
+#include "PCIEDevice/LinuxETIOCTL.h"
 #include "Support/Logging.h"
-#include "Device/LinuxETIOCTL.h"
 
 #include <cassert>
 #include <cerrno>
@@ -49,10 +49,12 @@ public:
   /// @brief Read data[size] at address from the device
   bool read(uintptr_t addr, void *data, ssize_t size);
 
-  /// @brief Execute an IOCTL command on the character device that does not return a result
+  /// @brief Execute an IOCTL command on the character device that does not
+  /// return a result
   ///
   /// @param[in] request The IOCTL command number
-  /// @param[in] argp ARG_TYPE data to pass to the device command (usually a pointer)
+  /// @param[in] argp ARG_TYPE data to pass to the device command (usually a
+  /// pointer)
   ///
   /// @return Tuple of bool and int. If the ioctl was succesfull the tuple
   /// value is <true, return_value>, where return_value holds the return value
@@ -72,13 +74,14 @@ public:
   /// @brief Execute an IOCTL command on the character device
   ///
   /// @param[in] request The IOCTL command number
-  /// @param[in] argp ARG_TYPE pointer data to pass to the device command (usually a pointer)
+  /// @param[in] argp ARG_TYPE pointer data to pass to the device command
+  /// (usually a pointer)
   ///
   /// @return Tuple of bool and ARG_TYPE. If the ioctl was succesfull the tuple
   /// value is <true, return_value>, where return_value holds the return value
   /// of the ioctl. Otherwise the first element of the tuple is false.
   template <typename ARG_TYPE>
-  std::tuple<bool, ARG_TYPE> ioctl(unsigned int request, const ARG_TYPE* argp) {
+  std::tuple<bool, ARG_TYPE> ioctl(unsigned int request, const ARG_TYPE *argp) {
     auto rc = ::ioctl(fd_, request, argp);
     if (rc < 0) {
       auto error = errno;

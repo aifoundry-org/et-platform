@@ -37,8 +37,8 @@ add_subdirectory(Tracing)
 #  )
 
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/Device/TargetDeviceInfo.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/Device/TargetDeviceInfo.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/RPCDevice/TargetDeviceInfo.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/RPCDevice/TargetDeviceInfo.h"
   )
 
 set(ETRT_SOURCES
@@ -93,30 +93,30 @@ set(ETRT_SOURCES
   demangle.h
   DeviceAPI/Commands.cc
   DeviceAPI/Commands.h
-  Device/BulkDev.cc
-  Device/BulkDev.h
-  Device/DeviceTarget.cc
-  Device/EmuMailBoxDev.cc
-  Device/EmuMailBoxDev.h
+  Core/DeviceTarget.cc
   DeviceFW/DeviceFW.cc
   DeviceFW/DeviceFW.h
   DeviceFW/FakeFW.cc
   DeviceFW/FakeFW.h
   DeviceFW/FWManager.cc
   DeviceFW/FWManager.h
-  Device/CharDevice.cc
-  Device/CharDevice.h
-  Device/MailBoxDev.cc
-  Device/MailBoxDev.h
-  Device/PCIeDevice.cc
-  Device/PCIeDevice.h
-  Device/SysEmuLauncher.cpp
-  Device/SysEmuLauncher.h
-  Device/TargetDeviceInfo.h.in
-  Device/TargetRPC.cc
-  Device/TargetRPC.h
-  Device/TargetSysEmu.cc
-  Device/TargetSysEmu.h
+  PCIEDevice/BulkDev.cc
+  PCIEDevice/BulkDev.h
+  PCIEDevice/CharDevice.cc
+  PCIEDevice/CharDevice.h
+  PCIEDevice/MailBoxDev.cc
+  PCIEDevice/MailBoxDev.h
+  PCIEDevice/PCIeDevice.cc
+  PCIEDevice/PCIeDevice.h
+  RPCDevice/EmuMailBoxDev.cc
+  RPCDevice/EmuMailBoxDev.h
+  RPCDevice/SysEmuLauncher.cpp
+  RPCDevice/SysEmuLauncher.h
+  RPCDevice/TargetDeviceInfo.h.in
+  RPCDevice/TargetRPC.cc
+  RPCDevice/TargetRPC.h
+  RPCDevice/TargetSysEmu.cc
+  RPCDevice/TargetSysEmu.h
   etlibdevice.h
   registry.h
   Support/CommandLineOptions.cc

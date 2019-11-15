@@ -11,7 +11,7 @@
 #include "SysEmuLauncher.h"
 
 #include "Core/CommandLineOptions.h"
-#include "Device/TargetDeviceInfo.h"
+#include "RPCDevice/TargetDeviceInfo.h"
 #include "Support/Logging.h"
 
 #include <fcntl.h>

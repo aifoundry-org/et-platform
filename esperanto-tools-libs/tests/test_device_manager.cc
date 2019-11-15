@@ -12,7 +12,7 @@
 #include "Core/Device.h"
 #include "Core/DeviceManager.h"
 #include "Core/DeviceTarget.h"
-#include "Device/TargetSysEmu.h"
+#include "RPCDevice/TargetSysEmu.h"
 #include "Support/DeviceGuard.h"
 
 #include <chrono>

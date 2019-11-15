@@ -10,7 +10,7 @@
 
 #include "Core/CommandLineOptions.h"
 #include "Core/Device.h"
-#include "Device/PCIeDevice.h"
+#include "PCIEDevice/PCIeDevice.h"
 
 #include <absl/flags/flag.h>
 #include <array>

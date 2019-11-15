@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Device/TargetSysEmu.h"
+#include "RPCDevice/TargetSysEmu.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 

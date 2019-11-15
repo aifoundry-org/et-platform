@@ -13,7 +13,7 @@
 
 #include "CharDevice.h"
 #include "Common/ProjectAutogen.h"
-#include "Device/DeviceFwTypes.h"
+#include "Core/DeviceFwTypes.h"
 #include "Support/TimeHelpers.h"
 
 #include <chrono>

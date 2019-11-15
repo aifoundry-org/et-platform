@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_EMUMAILBOXDEV_H
 #define ET_RUNTIME_DEVICE_EMUMAILBOXDEV_H
 
-#include "Device/DeviceFwTypes.h"
+#include "Core/DeviceFwTypes.h"
 #include "Support/TimeHelpers.h"
 
 #include <cassert>
