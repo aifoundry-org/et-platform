@@ -923,10 +923,11 @@ static int gdbstub_handle_packet(char *packet)
     return 0;
 }
 
-static int gdbstub_open_port(int port)
+static int gdbstub_open_port(unsigned short *port)
 {
     struct sockaddr_in sockaddr;
     int fd, ret, opt;
+    socklen_t len = sizeof(sockaddr);
 
     fd = socket(PF_INET, SOCK_STREAM, 0);
     if (fd < 0) {
@@ -944,14 +945,29 @@ static int gdbstub_open_port(int port)
     }
 
     sockaddr.sin_family = AF_INET;
-    sockaddr.sin_port = htons(port);
+    sockaddr.sin_port = htons(GDBSTUB_DEFAULT_PORT);
     sockaddr.sin_addr.s_addr = 0;
     ret = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
     if (ret < 0) {
-        LOG_NOTHREAD(INFO, "GDB stub: bind error: %d", ret);
+        sockaddr.sin_family = AF_INET;
+        sockaddr.sin_port = htons(0); /* Automatic port */
+        sockaddr.sin_addr.s_addr = 0;
+        ret = bind(fd, (struct sockaddr *)&sockaddr, sizeof(sockaddr));
+        if (ret < 0) {
+            LOG_NOTHREAD(INFO, "GDB stub: bind error: %d", ret);
+            close(fd);
+            return ret;
+        }
+    }
+
+    ret = getsockname(fd, (struct sockaddr *)&sockaddr, &len);
+    if (ret < 0) {
+        LOG_NOTHREAD(INFO, "GDB stub: getsockname error: %d", ret);
         close(fd);
         return ret;
     }
+
+    *port = ntohs(sockaddr.sin_port);
 
     ret = listen(fd, 1);
     if (ret < 0) {
@@ -992,17 +1008,19 @@ static int gdbstub_accept(int listen_fd)
 
 int gdbstub_init()
 {
+    unsigned short port;
+
     if (g_status != GDBSTUB_STATUS_NOT_INITIALIZED)
         return -1;
 
     LOG_NOTHREAD(INFO, "GDB stub: %s", "Initializing...");
 
-    g_listen_fd = gdbstub_open_port(GDBSTUB_DEFAULT_PORT);
+    g_listen_fd = gdbstub_open_port(&port);
     if (g_listen_fd < 0) {
         return g_listen_fd;
     }
 
-    LOG_NOTHREAD(INFO, "GDB stub: Listening on port %d...", GDBSTUB_DEFAULT_PORT);
+    LOG_NOTHREAD(INFO, "GDB stub: Listening on port %d ...", port);
 
     g_status = GDBSTUB_STATUS_WAITING_CLIENT;
     return 0;
