@@ -86,21 +86,50 @@ inline void __attribute__((always_inline)) tensor_load (uint64_t use_tmask,
 //   from the register file (not L1 SCP)
 //
 inline void __attribute__((always_inline)) tensor_store(uint64_t reg_stride,
-                                                         uint64_t start_reg,
-                                                         uint64_t cols,
-                                                         uint64_t Arows,
-                                                         uint64_t addr,
-                                                         uint64_t coop_store,
-                                                         uint64_t stride)
+							uint64_t start_reg,
+							uint64_t cols,
+							uint64_t rows,
+							uint64_t addr,
+							uint64_t coop_store,
+							uint64_t stride)
 {
    uint64_t csr_enc = ((reg_stride     & 0x3 ) << 62) |
                       ((start_reg      & 0x1F) << 57) |
                       ((cols           & 0x3 ) << 55) |
                       ((addr & 0xFFFFFFFFFFF0)      ) |
-                      ((Arows          & 0xF ) << 51) |
+                      ((rows          & 0xF ) << 51) |
                       ((coop_store     & 0x3 ) << 49);
 
    uint64_t x31_enc = (stride & 0xFFFFFFFFFF0UL);
+
+   __asm__ __volatile__ (
+         "add x31, zero, %[x31_enc]\n"
+         "csrw 0x87f, %[csr_enc]\n"
+         :
+         : [x31_enc] "r" (x31_enc), [csr_enc] "r" (csr_enc)
+         : "x31"
+   );
+}
+
+
+//-------------------------------------------------------------------------------------------------
+//
+// FUNCTION tensor_store_scp
+//
+//   Tensor store instruction, support for tensor stores from the L1 SCP
+//
+inline void __attribute__((always_inline)) tensor_store_scp(uint64_t entry_stride,
+                                                            uint64_t start_scp_entry,
+                                                            uint64_t rows,
+                                                            uint64_t addr,
+                                                            uint64_t stride)
+{
+   uint64_t csr_enc = ((entry_stride & 0x3) << 62)      |
+                      ((start_scp_entry & 0x3F) << 56)  |
+                      ((addr & 0xFFFFFFFFFFC0ULL))      |
+                      ((rows & 0xF) << 51)             |
+                      (((uint64_t)1) << 48);
+   uint64_t x31_enc = (stride & 0xFFFFFFFFFFC0UL);
 
    __asm__ __volatile__ (
          "add x31, zero, %[x31_enc]\n"
