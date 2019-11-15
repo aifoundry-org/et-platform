@@ -19,6 +19,8 @@
 #include <vector>
 
 extern std::array<Processor,EMU_NUM_THREADS> cpu;
+extern uint64_t get_csr(unsigned thread, uint16_t cnum);
+extern void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Defines
@@ -90,6 +92,10 @@ public:
     static void thread_set_pc(unsigned thread_id, uint64_t pc) { current_pc[thread_id] = pc; }
     static uint64_t thread_get_reg(int thread_id, int reg) { return cpu[thread_id].xregs[reg]; }
     static void thread_set_reg(int thread_id, int reg, uint64_t data) { cpu[thread_id].xregs[reg] = data; }
+    static uint32_t thread_get_freg(int thread_id, int reg) { return cpu[thread_id].fregs[reg].u32[0]; }
+    static void thread_set_freg(int thread_id, int reg, uint32_t data) { cpu[thread_id].fregs[reg].u32[0] = data; }
+    static uint64_t thread_get_csr(int thread_id, int csr) { return get_csr(thread_id, csr); }
+    static void thread_set_csr(int thread_id, int csr, uint32_t data) { set_csr(thread_id, csr, data); }
 
     static void fcc_to_threads(unsigned shire_id, unsigned thread_dest,
                                uint64_t thread_mask, unsigned cnt_dest);

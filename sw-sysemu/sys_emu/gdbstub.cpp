@@ -12,7 +12,7 @@
 #define ARRAY_SIZE(x)           (sizeof(x) / sizeof(*x))
 
 #define GDBSTUB_DEFAULT_PORT    1337
-#define GDBSTUB_MAX_PACKET_SIZE 1024
+#define GDBSTUB_MAX_PACKET_SIZE 2048
 
 #define RSP_START_TOKEN     '$'
 #define RSP_END_TOKEN       '#'
@@ -52,6 +52,11 @@ static int g_cur_general_thread = 1;
 static inline uint64_t bswap64(uint64_t val)
 {
     return __builtin_bswap64(val);
+}
+
+static inline uint64_t bswap32(uint64_t val)
+{
+    return __builtin_bswap32(val);
 }
 
 static inline int from_hex(char ch)
@@ -152,6 +157,16 @@ static void target_write_register(int thread, int reg, uint64_t data)
     sys_emu::thread_set_reg(thread - 1, reg, data);
 }
 
+static uint32_t target_read_fregister(int thread, int reg)
+{
+    return sys_emu::thread_get_freg(thread - 1, reg);
+}
+
+static void target_write_fregister(int thread, int reg, uint32_t data)
+{
+    sys_emu::thread_set_freg(thread - 1, reg, data);
+}
+
 static uint64_t target_read_pc(int thread)
 {
     return sys_emu::thread_get_pc(thread - 1);
@@ -160,6 +175,23 @@ static uint64_t target_read_pc(int thread)
 static void target_write_pc(int thread, uint64_t data)
 {
     sys_emu::thread_set_pc(thread - 1, data);
+}
+
+static uint64_t target_read_csr(int thread, int csr)
+{
+    try {
+        return sys_emu::thread_get_csr(thread - 1, csr);
+    } catch (...) {
+        return 0;
+    }
+}
+
+static void target_write_csr(int thread, int csr, uint64_t data)
+{
+    try {
+        sys_emu::thread_set_csr(thread - 1, csr, data);
+    } catch (...) {
+    }
 }
 
 static void target_step(int thread)
@@ -487,19 +519,33 @@ static void gdbstub_handle_qsthreadinfo(void)
 
 static void gdbstub_handle_read_general_registers(void)
 {
-    char buffer[33 * 16 + 1];
+    char buffer[(32 + 1) * 16 + (32 + 3) * 8 + 1];
     char tmp[16 + 1];
     buffer[0] = '\0';
 
     /* General purpose registers */
     for (int i = 0; i < 32; i++) {
         uint64_t value = bswap64(target_read_register(g_cur_general_thread, i));
-        snprintf(tmp, sizeof(tmp), "%016lX", value);
+        snprintf(tmp, sizeof(tmp), "%016" PRIx64, value);
         strcat(buffer, tmp);
     }
 
     /* PC */
-    snprintf(tmp, sizeof(tmp), "%016lX", bswap64(target_read_pc(g_cur_general_thread)));
+    snprintf(tmp, sizeof(tmp), "%016" PRIx64, bswap64(target_read_pc(g_cur_general_thread)));
+    strcat(buffer, tmp);
+
+    /* Floating point registers */
+    for (int i = 0; i < 32; i++) {
+        uint32_t value = bswap32(target_read_fregister(g_cur_general_thread, i));
+        snprintf(tmp, sizeof(tmp), "%08" PRIx32, value);
+        strcat(buffer, tmp);
+    }
+
+    snprintf(tmp, sizeof(tmp), "%08" PRIx32, (uint32_t)target_read_csr(g_cur_general_thread, CSR_FFLAGS));
+    strcat(buffer, tmp);
+    snprintf(tmp, sizeof(tmp), "%08" PRIx32, (uint32_t)target_read_csr(g_cur_general_thread, CSR_FRM));
+    strcat(buffer, tmp);
+    snprintf(tmp, sizeof(tmp), "%08" PRIx32, (uint32_t)target_read_csr(g_cur_general_thread, CSR_FCSR));
     strcat(buffer, tmp);
 
     rsp_send_packet(buffer);
@@ -507,23 +553,35 @@ static void gdbstub_handle_read_general_registers(void)
 
 static void gdbstub_handle_read_register(const char *packet)
 {
-    uint64_t value;
     char buffer[32];
     uint64_t reg = strtoul(packet + 1, NULL, 16);
 
     LOG_NOTHREAD(DEBUG, "GDB stub: read register: %ld", reg);
 
-    if (reg > 32) {
+    if (reg < 32) {
+        uint64_t value = bswap64(target_read_register(g_cur_general_thread, reg));
+        snprintf(buffer, sizeof(buffer), "%016" PRIx64, value);
+    } else if (reg == 32) { /* PC register */
+        uint64_t value = bswap64(target_read_pc(g_cur_general_thread));
+        snprintf(buffer, sizeof(buffer), "%016" PRIx64, value);
+    } else if (reg < 64 + 3) { /* Floating point registers + fflags, frm, fcsr */
+        uint32_t value = bswap64(target_read_fregister(g_cur_general_thread, reg - 33));
+        if (reg < 65) {
+            value = target_read_fregister(g_cur_general_thread, reg - 33);
+        } else if (reg == 65) { /* CSR fflags */
+            value = target_read_csr(g_cur_general_thread, CSR_FFLAGS);
+        } else if (reg == 66) { /* CSR frm */
+            value = target_read_csr(g_cur_general_thread, CSR_FRM);
+        } else if (reg == 67) { /* CSR fcsr */
+            value = target_read_csr(g_cur_general_thread, CSR_FCSR);
+        }
+        snprintf(buffer, sizeof(buffer), "%08" PRIx32, value);
+    } else {
         LOG_NOTHREAD(INFO, "GDB stub: read register: unknown register %ld", reg);
         rsp_send_packet("E00");
         return;
-    } else if (reg == 32) { /* PC register */
-        value = bswap64(target_read_pc(g_cur_general_thread));
-    } else {
-        value = bswap64(target_read_register(g_cur_general_thread, reg));
     }
 
-    snprintf(buffer, sizeof(buffer), "%016lX", value);
     rsp_send_packet(buffer);
 }
 
@@ -534,14 +592,22 @@ static void gdbstub_handle_write_register(const char *packet)
 
     LOG_NOTHREAD(DEBUG, "GDB stub: write register: %ld <- %ld", reg, value);
 
-    if (reg > 32) {
+    if (reg < 32) {
+        target_write_register(g_cur_general_thread, reg, value);
+    } else if (reg == 32) { /* PC register */
+        target_write_pc(g_cur_general_thread, value);
+    } else if (reg < 65) { /* Floating point registers */
+        target_write_fregister(g_cur_general_thread, reg - 33, value);
+    } else if (reg == 65) { /* CSR fflags */
+        target_write_csr(g_cur_general_thread, CSR_FFLAGS, value);
+    } else if (reg == 66) { /* CSR frm */
+        target_write_csr(g_cur_general_thread, CSR_FRM, value);
+    } else if (reg == 67) { /* CSR fcsr */
+        target_write_csr(g_cur_general_thread, CSR_FCSR, value);
+    } else {
         LOG_NOTHREAD(INFO, "GDB stub: write register: unknown register %ld", reg);
         rsp_send_packet("E00");
         return;
-    } else if (reg == 32) { /* PC register */
-        target_write_pc(g_cur_general_thread, value);
-    } else {
-        target_write_register(g_cur_general_thread, reg, value);
     }
 
     rsp_send_packet("OK");

@@ -51,6 +51,7 @@ extern std::string dump_xregs(unsigned thread_id);
 extern std::string dump_fregs(unsigned thread_id);
 extern void init_stack();
 extern uint64_t get_csr(unsigned thread, uint16_t cnum);
+extern void set_csr(unsigned thread, uint16_t cnum, uint64_t data);
 extern uint64_t xget(xreg src1);
 extern void init(xreg dst, uint64_t val);         // init general purpose register
 extern void fpinit(freg dst, uint64_t val[VL/2]); // init vector register
