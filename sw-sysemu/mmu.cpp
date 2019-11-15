@@ -117,7 +117,6 @@ static bool matches_breakpoint_address(uint64_t addr)
   bool exact = ~cpu[current_thread].tdata1 & 0x80;
   uint64_t val = cpu[current_thread].tdata2;
   uint64_t msk = exact ? 0 : (((((~val & (val + 1)) - 1) & 0x3f) << 1) | 1);
-  LOG(DEBUG, "addr %10lx = bkp %10lx ", (addr | msk), ((addr & VA_M) | msk));
   return ((val | msk) == ((addr & VA_M) | msk));
 }
 
@@ -714,8 +713,8 @@ uint64_t vmemtranslate(uint64_t vaddr, size_t size, mem_access_type macc, mreg_t
 
 uint32_t mmu_fetch(uint64_t vaddr)
 {
+    check_fetch_breakpoint(vaddr);
     try {
-        check_fetch_breakpoint(vaddr);
         if (vaddr & 3) {
             // 2B-aligned fetch
             uint64_t paddr = vmemtranslate(vaddr, 2, Mem_Access_Fetch, mreg_t(-1));

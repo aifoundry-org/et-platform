@@ -12,10 +12,6 @@
 extern uint32_t current_inst;
 extern uint64_t current_pc;
 
-// from emu.cpp
-extern bool matches_fetch_breakpoint(uint64_t);
-extern __attribute__((noreturn)) void throw_trap_breakpoint(uint64_t);
-
 // re-define the type
 typedef void (*insn_exec_funct_t)(insn_t);
 

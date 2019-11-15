@@ -283,7 +283,7 @@ void reset_esrs_for_shire(unsigned shireid)
 
 // forward declarations
 static uint64_t csrget(uint16_t src1);
-static void csrset(uint16_t src1, uint64_t val);
+static uint64_t csrset(uint16_t src1, uint64_t val);
 static void tmask_conv();
 static void tcoop(uint64_t value);
 static void tensor_load_start(uint64_t control);
@@ -388,13 +388,6 @@ static inline void set_prv(prv_t val)
     cpu[current_thread].prv = val;
     activate_breakpoints(val);
 }
-
-static inline void set_tdata1(uint64_t val)
-{
-    cpu[current_thread].tdata1 = val;
-    activate_breakpoints(PRV);
-}
-
 
 // internal accessor to tensor_error
 static inline void update_tensor_error(unsigned thread, uint16_t value)
@@ -1154,7 +1147,7 @@ static uint64_t csrget(uint16_t src1)
     return val;
 }
 
-static void csrset(uint16_t src1, uint64_t val)
+static uint64_t csrset(uint16_t src1, uint64_t val)
 {
     uint64_t msk;
 
@@ -1271,6 +1264,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     case CSR_MISA:
         // Writeable but hardwired
+        val = CSR_ISA_MAX;
         break;
     case CSR_MEDELEG:
         // Not all exceptions can be delegated
@@ -1328,6 +1322,7 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_MHPMEVENT29:
     case CSR_MHPMEVENT30:
     case CSR_MHPMEVENT31:
+        val = 0;
         break;
     case CSR_MSCRATCH:
         cpu[current_thread].mscratch = val;
@@ -1352,19 +1347,35 @@ static void csrset(uint16_t src1, uint64_t val)
         cpu[current_thread].mip = val;
         break;
     case CSR_TSELECT:
+        val = 0;
         break;
     case CSR_TDATA1:
-        if ((~val & 0x0800000000000000ull) || debug_mode[current_thread])
+        if ((~cpu[current_thread].tdata1 & 0x0800000000000000ULL) || debug_mode[current_thread])
         {
             // Preserve type, maskmax, timing
             val = (val & 0x08000000000010DFULL) | (cpu[current_thread].tdata1 & 0xF7E0000000040000ULL);
-            set_tdata1(val);
+            if (~val & 0x08000000000010DFULL) {
+                val &= ~0x000000000000F000ULL;
+            }
+            cpu[current_thread].tdata1 = val;
+            activate_breakpoints(PRV);
+        }
+        else
+        {
+            val = cpu[current_thread].tdata1;
         }
         break;
     case CSR_TDATA2:
         // keep only valid virtual or pysical addresses
-        val &= VA_M;
-        cpu[current_thread].tdata2 = val;
+        if ((~cpu[current_thread].tdata1 & 0x0800000000000000ULL) || debug_mode[current_thread])
+        {
+            val &= VA_M;
+            cpu[current_thread].tdata2 = val;
+        }
+        else
+        {
+            val = cpu[current_thread].tdata2;
+        }
         break;
     // unimplemented: TDATA3
     // TODO: DCSR
@@ -1402,6 +1413,7 @@ static void csrset(uint16_t src1, uint64_t val)
     case CSR_MHPMCOUNTER29:
     case CSR_MHPMCOUNTER30:
     case CSR_MHPMCOUNTER31:
+        val = 0;
         break;
     case CSR_CYCLE:
     case CSR_INSTRET:
@@ -1472,6 +1484,7 @@ static void csrset(uint16_t src1, uint64_t val)
         break;
     // TODO: CSR_AMOFENCE_CTRL
     case CSR_CACHE_INVALIDATE:
+        val &= 0x3;
         break;
     case CSR_MENABLE_SHADOWS:
         val &= 1;
@@ -1518,6 +1531,7 @@ static void csrset(uint16_t src1, uint64_t val)
             if ((~val & 2) && (current_thread != EMU_IO_SHIRE_SP_THREAD))
                 tensorload_setupb_topair[current_thread] = false;
         }
+        val &= 3;
 #ifdef SYS_EMU
         if(sys_emu::get_coherency_check())
         {
@@ -1801,6 +1815,8 @@ static void csrset(uint16_t src1, uint64_t val)
     default:
         throw trap_illegal_instruction(current_inst);
     }
+
+    return val;
 }
 
 // LCOV_EXCL_START
@@ -1830,7 +1846,7 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
                 oldval = flbarrier(newval);
                 break;
             default:
-                csrset(src1, newval);
+                newval = csrset(src1, newval);
                 break;
         }
         LOG_CSR("=", src1, newval);
