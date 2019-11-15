@@ -11,9 +11,9 @@
 set(TRACING_PB ${CMAKE_CURRENT_BINARY_DIR}/etrt-trace)
 
 set(SCHEMA_SRC_FILES
-     etrt-trace.yaml
-     mem-manager.yaml
-     tracing-spec.schema
+     Schema/etrt-trace.yaml
+     Schema/mem-manager.yaml
+     Schema/tracing-spec.schema.json
      )
 
 set(SCHEMA_FILES "")
@@ -41,8 +41,8 @@ foreach(TMPL_TUPLE ${JINJA_FILES})
   add_custom_command(
      OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/tracing_codegen.py
-     ARGS  --spec ${CMAKE_CURRENT_BINARY_DIR}/etrt-trace.yaml
-           --schema ${CMAKE_CURRENT_BINARY_DIR}/tracing-spec.schema
+     ARGS  --spec ${CMAKE_CURRENT_BINARY_DIR}/Schema/etrt-trace.yaml
+           --schema ${CMAKE_CURRENT_BINARY_DIR}/Schema/tracing-spec.schema.json
            --template ${CMAKE_CURRENT_SOURCE_DIR}/${TMPL}
            --output ${CMAKE_CURRENT_BINARY_DIR}/${GEN_OUTPUT}
      DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tracing_codegen.py
