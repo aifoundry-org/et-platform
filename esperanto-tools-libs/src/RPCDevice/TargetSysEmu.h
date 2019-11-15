@@ -11,9 +11,9 @@
 #ifndef ET_RUNTIME_DEVICE_SYSEMU_H
 #define ET_RUNTIME_DEVICE_SYSEMU_H
 
-#include "Device/TargetRPC.h"
+#include "RPCDevice/TargetRPC.h"
 
-#include "Device/SysEmuLauncher.h"
+#include "RPCDevice/SysEmuLauncher.h"
 
 #include <cassert>
 #include <future>

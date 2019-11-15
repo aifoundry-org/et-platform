@@ -10,7 +10,7 @@
 
 #include "Core/DeviceManager.h"
 #include "Core/Device.h"
-#include "Device/PCIeDevice.h"
+#include "PCIEDevice/PCIeDevice.h"
 #include "Support/Logging.h"
 
 #include "etrt-bin.h"

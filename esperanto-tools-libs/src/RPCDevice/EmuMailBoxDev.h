@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_EMUMAILBOXDEV_H
 #define ET_RUNTIME_DEVICE_EMUMAILBOXDEV_H
 
-#include "Device/DeviceFwTypes.h"
+#include "Core/DeviceFwTypes.h"
 #include "Support/TimeHelpers.h"
 
 #include <cassert>
@@ -31,47 +31,46 @@ enum class RingBufferType : uint8_t {
 };
 
 #if ENABLE_DEVICE_FW
-  /// @brief Implementation of the ringbuffer that device-fw supports
-  /// over the mailbox.
-  class RingBuffer {
-  public:
-    RingBuffer(RingBufferType type, RPCTarget &target);
-    const device_fw::ringbuffer_s &state() const { return ringbuffer_; }
-    void setState(const device_fw::ringbuffer_s &rb) { ringbuffer_ = rb; }
-    int64_t write(const void *const data_ptr, uint32_t length);
-    int64_t read(void *const data_ptr, uint32_t length);
-    uint64_t free();
-    uint64_t used();
-    /// @brief Initialize the ring buffer to empty
-    bool init();
-    bool empty();
-    bool full();
+/// @brief Implementation of the ringbuffer that device-fw supports
+/// over the mailbox.
+class RingBuffer {
+public:
+  RingBuffer(RingBufferType type, RPCTarget &target);
+  const device_fw::ringbuffer_s &state() const { return ringbuffer_; }
+  void setState(const device_fw::ringbuffer_s &rb) { ringbuffer_ = rb; }
+  int64_t write(const void *const data_ptr, uint32_t length);
+  int64_t read(void *const data_ptr, uint32_t length);
+  uint64_t free();
+  uint64_t used();
+  /// @brief Initialize the ring buffer to empty
+  bool init();
+  bool empty();
+  bool full();
 
-    // NOTE: the mailbox class is responsible for pulling the lastest state from
-    // the simulator before we operate on the ringbuffer, and writing the
-    // ringbuffer's updated state back to the simulator once it is done updating
-    // it.
-    /// @brief Update the state of the ring buffer from the "source" fo truth
-    /// that is the target simulator
-    bool readRingBufferState();
-    /// @brief Write-back the mailbox status
-    bool writeRingBufferState();
+  // NOTE: the mailbox class is responsible for pulling the lastest state from
+  // the simulator before we operate on the ringbuffer, and writing the
+  // ringbuffer's updated state back to the simulator once it is done updating
+  // it.
+  /// @brief Update the state of the ring buffer from the "source" fo truth
+  /// that is the target simulator
+  bool readRingBufferState();
+  /// @brief Write-back the mailbox status
+  bool writeRingBufferState();
 
-  private:
-    RingBufferType type_;
-    struct device_fw::ringbuffer_s ringbuffer_;
-    RPCTarget &rpcDev_;
-  };
+private:
+  RingBufferType type_;
+  struct device_fw::ringbuffer_s ringbuffer_;
+  RPCTarget &rpcDev_;
+};
 
 #else
 
-  class RingBuffer {
-  public:
-    RingBuffer(RingBufferType type, RPCTarget &target) {  }
-  };
+class RingBuffer {
+public:
+  RingBuffer(RingBufferType type, RPCTarget &target) {}
+};
 
 #endif
-
 
 ///
 /// @brief Helper class that impements the mailbox protocol.

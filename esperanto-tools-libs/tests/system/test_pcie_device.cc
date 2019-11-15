@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Device/PCIeDevice.h"
+#include "PCIEDevice/PCIeDevice.h"
 #include "esperanto-fw/layout.h"
 
 #include <gmock/gmock.h>

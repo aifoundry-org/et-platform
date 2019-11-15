@@ -25,8 +25,22 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -std=c++17 -Wall -Werror")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
-# Add the tracing subdirectory
-add_subdirectory(Tracing)
+# List of subdirectories with our sources
+set(SUBFOLDERS
+  Core
+  DeviceAPI
+  DeviceFW
+  PCIEDevice
+  RPCDevice
+  Support
+  Tracing
+  )
+
+
+foreach(FOLDER ${SUBFOLDERS})
+  add_subdirectory(${FOLDER})
+endforeach()
+
 
 # FIXME device-api disabled in esperanto-soc because of cloning permision
 # issues
@@ -37,8 +51,8 @@ add_subdirectory(Tracing)
 #  )
 
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/Device/TargetDeviceInfo.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/Device/TargetDeviceInfo.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/RPCDevice/TargetDeviceInfo.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/RPCDevice/TargetDeviceInfo.h"
   )
 
 set(ETRT_SOURCES
@@ -75,53 +89,9 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/EsperantoRuntime.h
   # FIXME the following should be deprecated once we move to the simulator API
   C-API/etrt.cc
-  Core/CodeModule.cc
-  Core/CommandQueue.h
-  Core/Device.cc
-  Core/DeviceManager.cc
-  Core/ELFSupport.cc
-  Core/ELFSupport.h
-  Core/Error.cc
-  Core/Event.cc
-  Core/MemoryManager.cc
-  Core/MemoryAllocator.cc
-  Core/MemoryAllocator.h
-  Core/ModuleManager.cc
-  Core/ModuleManager.h
-  Core/registry.cc
-  Core/Stream.cc
   demangle.h
-  DeviceAPI/Commands.cc
-  DeviceAPI/Commands.h
-  Device/BulkDev.cc
-  Device/BulkDev.h
-  Device/DeviceTarget.cc
-  Device/EmuMailBoxDev.cc
-  Device/EmuMailBoxDev.h
-  DeviceFW/DeviceFW.cc
-  DeviceFW/DeviceFW.h
-  DeviceFW/FakeFW.cc
-  DeviceFW/FakeFW.h
-  DeviceFW/FWManager.cc
-  DeviceFW/FWManager.h
-  Device/CharDevice.cc
-  Device/CharDevice.h
-  Device/MailBoxDev.cc
-  Device/MailBoxDev.h
-  Device/PCIeDevice.cc
-  Device/PCIeDevice.h
-  Device/SysEmuLauncher.cpp
-  Device/SysEmuLauncher.h
-  Device/TargetDeviceInfo.h.in
-  Device/TargetRPC.cc
-  Device/TargetRPC.h
-  Device/TargetSysEmu.cc
-  Device/TargetSysEmu.h
   etlibdevice.h
   registry.h
-  Support/CommandLineOptions.cc
-  Support/DeviceGuard.cc
-  Support/MemoryRange.cc
   )
 
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})
@@ -151,8 +121,15 @@ link_directories(${EXTERNAL_LINK_DIRECTORIES}
 
 set_property(TARGET etrt_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
+# Construct list of object files from the object libraries to be linked
+# together in the runtime static and dynamic libraries
+set(LIB_OBJS "")
+foreach(FOLDER ${SUBFOLDERS})
+  list(APPEND LIB_OBJS $<TARGET_OBJECTS:etrt_${FOLDER}>)
+endforeach()
+
 # Generate both static and shared libraries
-add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj> $<TARGET_OBJECTS:etrt_tracing>)
+add_library(etrt SHARED $<TARGET_OBJECTS:etrt_obj> ${LIB_OBJS})
 target_link_libraries(etrt
   absl::flags
   absl::flags_internal
@@ -176,7 +153,7 @@ install(TARGETS etrt
   COMPONENT et-runtime
   )
 
-add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj> $<TARGET_OBJECTS:etrt_tracing>)
+add_library(etrt_static STATIC $<TARGET_OBJECTS:etrt_obj> ${LIB_OBJS})
 
 message("GLOG ${GLOG_LIBRARIES}")
 

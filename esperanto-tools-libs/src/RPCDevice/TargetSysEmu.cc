@@ -12,7 +12,7 @@
 
 #include "esperanto/simulator-api.grpc.pb.h"
 
-#include "Device/TargetDeviceInfo.h"
+#include "RPCDevice/TargetDeviceInfo.h"
 #include "Support/Logging.h"
 
 #include <absl/flags/flag.h>
@@ -176,5 +176,5 @@ bool TargetSysEmu::registerDeviceEventCallback() {
   assert(true);
   return false;
 }
-}
+} // namespace device
 } // namespace et_runtime

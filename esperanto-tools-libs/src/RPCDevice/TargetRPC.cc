@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Device/TargetRPC.h"
+#include "TargetRPC.h"
 
 #include "EmuMailBoxDev.h"
 #include "esperanto/simulator-api.grpc.pb.h"
@@ -325,7 +325,8 @@ bool RPCTarget::writeTxRb(const device_fw::ringbuffer_s &rb) {
 bool RPCTarget::raiseDevicePuPlicPcieMessageInterrupt() {
   simulator_api::Request request;
   auto device_interrupt = new DeviceInterrupt();
-  device_interrupt->set_type(simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT);
+  device_interrupt->set_type(
+      simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT);
   request.set_allocated_device_interrupt(device_interrupt);
   // Do RPC and wait for reply
   auto reply = doRPC(request);
@@ -338,7 +339,8 @@ bool RPCTarget::raiseDevicePuPlicPcieMessageInterrupt() {
 bool RPCTarget::raiseDeviceMasterShireIpiInterrupt() {
   simulator_api::Request request;
   auto device_interrupt = new DeviceInterrupt();
-  device_interrupt->set_type(simulator_api::DeviceInterruptType::MASTER_SHIRE_IPI_INTERRUPT);
+  device_interrupt->set_type(
+      simulator_api::DeviceInterruptType::MASTER_SHIRE_IPI_INTERRUPT);
   request.set_allocated_device_interrupt(device_interrupt);
   // Do RPC and wait for reply
   auto reply = doRPC(request);

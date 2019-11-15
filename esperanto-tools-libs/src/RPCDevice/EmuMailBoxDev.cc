@@ -10,7 +10,7 @@
 
 #include "EmuMailBoxDev.h"
 
-#include "DeviceFwTypes.h"
+#include "Core/DeviceFwTypes.h"
 #include "Support/Logging.h"
 #include "TargetRPC.h"
 

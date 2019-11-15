@@ -85,7 +85,7 @@ add_custom_target(etrt-tracing-gen-code
   DEPENDS ${GEN_FILES} ${ETRT_TRACING_PROTO_SRCS} ${ETRT_TRACING_PROTO_HDRS} ${ETRT_TRACING_PROTO_PY}
   )
 
-add_library(etrt_tracing OBJECT
+add_library(etrt_Tracing OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/Tracing.cc
   ${ETRT_TRACING_PROTO_SRCS}
   ${ETRT_TRACING_PROTO_HDRS}
@@ -93,10 +93,14 @@ add_library(etrt_tracing OBJECT
   ${CMAKE_CURRENT_BINARY_DIR}/TracingGen.h
   ${CMAKE_CURRENT_BINARY_DIR}/TracingCommonGen.h
   )
-target_include_directories(etrt_tracing PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-target_include_directories(etrt_tracing PUBLIC ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(etrt_tracing PUBLIC ${PROJECT_SOURCE_DIR}/src)
-target_include_directories(etrt_tracing PUBLIC ${PROJECT_BINARY_DIR}/include)
-target_include_directories(etrt_tracing PUBLIC ${PROJECT_BINARY_DIR}/src)
-target_link_libraries(etrt_tracing
+
+target_include_directories(etrt_Tracing PUBLIC
+  ${CMAKE_CURRENT_BINARY_DIR}
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_BINARY_DIR}/include
+  ${PROJECT_BINARY_DIR}/src
+ )
+
+target_link_libraries(etrt_Tracing
   protobuf)

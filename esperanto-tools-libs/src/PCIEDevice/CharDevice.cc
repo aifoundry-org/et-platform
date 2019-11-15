@@ -12,11 +12,11 @@
 
 #include "Support/Logging.h"
 
-#include <sys/types.h>
 #include <cerrno>
 #include <cstring>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 using namespace std;

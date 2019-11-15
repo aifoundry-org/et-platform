@@ -11,7 +11,7 @@
 #include "SysEmuLauncher.h"
 
 #include "Core/CommandLineOptions.h"
-#include "Device/TargetDeviceInfo.h"
+#include "RPCDevice/TargetDeviceInfo.h"
 #include "Support/Logging.h"
 
 #include <fcntl.h>
@@ -19,17 +19,19 @@
 #include <glog/logging.h>
 #include <memory>
 #include <stddef.h>
+#include <sys/prctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/prctl.h>
 
 using namespace std;
 
 ABSL_FLAG(bool, sysemu_log_enable, false, "Enable sysemu logging");
 ABSL_FLAG(int64_t, sysemu_log_minion, -1, "Enable logging of minion X");
-ABSL_FLAG(std::string, sysemu_pu_uart_tx_file, "", "Set sysemu PU UART TX log file");
-ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "", "Set sysemu PU UART1 TX log file");
+ABSL_FLAG(std::string, sysemu_pu_uart_tx_file, "",
+          "Set sysemu PU UART TX log file");
+ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
+          "Set sysemu PU UART1 TX log file");
 
 namespace et_runtime {
 namespace device {
@@ -48,8 +50,8 @@ SysEmuLauncher::SysEmuLauncher(
       "-mins_dis", // Disable minions by default as booting is done through an
                    // exec commandi
       //"-l",//"-lm","0", // Enable logging of minion0
-      "-max_cycles", "1000000000", // Limiting number of virtual simulation cycles.
-                                // Increase if needed
+      "-max_cycles", "1000000000", // Limiting number of virtual simulation
+                                   // cycles. Increase if needed
   };
   execute_args_.insert(execute_args_.end(), additional_options.begin(),
                        additional_options.end());
@@ -112,11 +114,9 @@ void SysEmuLauncher::createProcess(const char *path,
     // kill when parent dies
     prctl(PR_SET_PDEATHSIG, SIGHUP);
     close(error_report_pipe_fd[0]);
-    const char* envp[] = {
-      // "GRPC_TRACE=api",
-      // "GRPC_VERBOSITY=DEBUG",
-      NULL
-    };
+    const char *envp[] = {// "GRPC_TRACE=api",
+                          // "GRPC_VERBOSITY=DEBUG",
+                          NULL};
     // tee sysemu to a log file and redirect there the stdout and stderr
     auto tee_log_file = fmt::format("tee {}/sysemu.log", sysemu_run_);
     auto tee = popen(tee_log_file.c_str(), "w");
@@ -127,7 +127,8 @@ void SysEmuLauncher::createProcess(const char *path,
     assert(res > 0);
     res = dup2(pipe_fd, STDERR_FILENO);
     assert(res > 0);
-    execvpe(path, const_cast<char *const *>(c_argv.get()), const_cast<char* const*>(envp)) ;
+    execvpe(path, const_cast<char *const *>(c_argv.get()),
+            const_cast<char *const *>(envp));
     int errno_val = errno;
 
     write(error_report_pipe_fd[1], &errno_val, sizeof(int));

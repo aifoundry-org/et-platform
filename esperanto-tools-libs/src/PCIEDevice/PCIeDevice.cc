@@ -11,7 +11,7 @@
 #include "PCIeDevice.h"
 
 #include "Core/CommandLineOptions.h"
-#include "Device/DeviceFwTypes.h"
+#include "Core/DeviceFwTypes.h"
 #include "Support/Logging.h"
 
 #include <absl/strings/str_format.h>
@@ -53,9 +53,7 @@ bool PCIeDevice::init() {
   return true;
 }
 
-bool PCIeDevice::deinit() {
-  return true;
-}
+bool PCIeDevice::deinit() { return true; }
 
 bool PCIeDevice::getStatus() {
   assert(false);

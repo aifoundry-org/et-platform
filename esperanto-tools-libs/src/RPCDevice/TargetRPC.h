@@ -13,7 +13,7 @@
 
 #include "Core/DeviceTarget.h"
 
-#include "DeviceFwTypes.h"
+#include "Core/DeviceFwTypes.h"
 #include "EmuMailBoxDev.h"
 #include <esperanto/simulator-api.grpc.pb.h>
 #include <grpc/support/log.h>

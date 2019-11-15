@@ -12,8 +12,8 @@
 
 #include "Core/CommandLineOptions.h"
 #include "Core/Device.h"
-#include "Device/DeviceFwTypes.h"
-#include "Device/MailBoxDev.h"
+#include "Core/DeviceFwTypes.h"
+#include "PCIEDevice/MailBoxDev.h"
 #include "Support/Logging.h"
 #include "Support/STLHelpers.h"
 

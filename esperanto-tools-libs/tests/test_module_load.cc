@@ -15,7 +15,7 @@
 #include "Core/DeviceTarget.h"
 #include "Core/ELFSupport.h"
 #include "Core/ModuleManager.h"
-#include "Device/TargetSysEmu.h"
+#include "RPCDevice/TargetSysEmu.h"
 
 #include <glog/logging.h>
 #include <gmock/gmock.h>
