@@ -83,6 +83,8 @@ int main(void)
         printf("release_memshire_from_reset() failed!\n");
         goto FATAL_ERROR;
     }
+    printf("Memshire released from reset\n");
+
     if (0 != ddr_config()) {
         printf("ddr_config() failed!\n");
         goto FATAL_ERROR;
