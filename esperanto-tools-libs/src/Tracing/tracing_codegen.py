@@ -11,6 +11,7 @@
 #------------------------------------------------------------------------------
 
 import argparse
+import copy
 import jinja2
 import json
 import jsonschema
@@ -51,6 +52,59 @@ class CodeGeneratorHelper(object):
     """
     def __init__(self, spec_data):
         self.spec_data = spec_data
+        self.convert_device_api_to_traceinfo()
+
+
+    def convert_device_api_to_traceinfo(self):
+        """Convert the schema described in the DeviceAPI into a module to be recorded in the trace"""
+        DevAPIMod = {
+            'Name': 'DeviceAPI',
+            'Enums': [],
+            'Structs': [],
+            'EnableTextLogging': True,
+            'EnablePBLogging': True,
+            'Functions': []
+        }
+        # Copy any enum definition
+        for mod in self.spec_data['DeviceAPI']['Modules']:
+            for enum in mod.get('Enums', []):
+                menum = copy.deepcopy(enum)
+                menum['Name'] = f"{mod['Name']}_{menum['Name']}"
+                DevAPIMod['Enums'].append(menum)
+        # Copy any struct definition
+        for mod in self.spec_data['DeviceAPI']['Modules']:
+            for struct in mod.get('Structs', []):
+                DevAPIMod['Structs'].append(
+                    {
+                        'Name': f'{mod["Name"]}_{struct["Name"]}',
+                        'Arguments': [
+                            {
+                                'Name': f'{mod["Name"]}_{struct["Name"]}',
+                                'Type': self.cxx_to_proto_type(mod, f)
+                            }
+                            for f in struct['Fields']
+                        ]
+                    })
+        # Convert the messages to tracing function calls
+        for mod in self.spec_data['DeviceAPI']['Modules']:
+            entries = []
+            if 'Messages' in mod:
+                entries = mod.get('Messages', [])
+            elif 'TraceEvents' in mod:
+                entries = mod.get('TraceEvents', [])
+            for msg in entries:
+                DevAPIMod['Functions'].append(
+                    {
+                        'Name': f'{mod["Name"]}_{msg["Name"]}',
+                        'Arguments': [
+                            {
+                                'Name': f['Name'],
+                                'Type': self.cxx_to_proto_type(mod, f)
+                            }
+                            for f in msg['Fields']
+                        ]
+                    })
+        self.spec_data['Modules'].append(DevAPIMod)
 
     @staticmethod
     def module_enable_pb_logging(module):
@@ -109,7 +163,7 @@ class CodeGeneratorHelper(object):
             "double" : "double",
             "float": "float",
             "int32": "int32_t",
-            "int64": "int32_t",
+            "int64": "int64_t",
             "uint32": "uint32_t",
             "uint64": "uint64_t",
             "sint32": "int32_t",
@@ -120,9 +174,53 @@ class CodeGeneratorHelper(object):
             "sfixed64": "int64_t",
             "bool": "bool",
             "string": "std::string",
-            "bytes": "std::vector<utin8_t>",
+            "bytes": "std::vector<uint8_t>",
         }
-        return types[type_name]
+        if type_name in types:
+            return types[type_name]
+        return type_name
+
+    @staticmethod
+    def proto_type(type_name):
+        """Return true of it is a protobuf primitive type
+        """
+        types = [
+            "double", "float", "int32", "int64", "uint32",
+            "uint64", "sint32", "sint64", "fixed32",
+            "fixed64", "sfixed32", "sfixed64",
+            "bool", "string",  "bytes",
+        ]
+        return type_name in types
+
+
+    @staticmethod
+    def cxx_to_proto_type(module, field):
+        """Convert the C/C++ type to proto
+
+        Args:
+          type_name (str): Name of type
+        """
+        if 'struct' == field['Type']:
+            return f'DeviceAPI_{module["Name"]}_{field["Struct"]}'
+        elif 'enum' == field['Type']:
+            return f'DeviceAPI_{module["Name"]}_{field["Enum"]}'
+        types = {
+            "double" : "double",
+            "float": "float",
+            # Upcast small C/C++ types
+            'int8_t' : 'int32',
+            'uint8_t': 'uint32',
+            'int16_t': 'int32',
+            'uint16_t': 'uint32',
+            "int32_t": "int32",
+            "uint32_t": "uint32",
+            "int64_t": "int64",
+            "uint64_t": "uint64",
+            "bool": "bool",
+            "bytes": "bytes",
+        }
+        return types[field['Type']]
+
 
     @staticmethod
     def get_cxx_function_arg_list(function):
@@ -134,7 +232,12 @@ class CodeGeneratorHelper(object):
         args = function.get("Arguments", [])
         params = []
         for arg in args:
-            params += [f"{CodeGeneratorHelper.proto_to_cxx_type(arg['Type'])} {arg['Name']}"]
+            if CodeGeneratorHelper.proto_type(arg['Type']) or arg['Type'][-2:] == "_e":
+                params += [f"const {CodeGeneratorHelper.proto_to_cxx_type(arg['Type'])}& {arg['Name']}"]
+            elif arg['Type'][-2:] == "_t":
+                params += [f"{CodeGeneratorHelper.proto_to_cxx_type(arg['Type'])}* {arg['Name']}"]
+            else:
+                raise RuntimeError(f"Unhandled argument type: '{arg['Type']}")
         return ", ".join(params)
 
 

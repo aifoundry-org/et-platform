@@ -15,19 +15,35 @@ package et_runtime.tracing;
 <% for module in spec['Modules'] -%>
 
   <% set mname = module['Name'] -%>
+  <% set enums = module['Enums'] -%>
+  <% set structs = module['Structs'] -%>
   <% set functions = module['Functions'] -%>
 
-  <% for function in functions -%>
-    <% set fname = function['Name'] %>
+  <% for enum in enums %>
+enum << mname >>_<< enum['Name'] >>_e {
+    <% for value in enum['Values'] -%>
+    << mname | upper >>_<< enum['Name'] | upper >>_<< value['Name'] | upper >> = << value['Value'] >>;
+    <% endfor %>
+}
+  <% endfor %>
 
-message << mname >>_<< fname >> {
-    <% for arg in function['Arguments'] %>
+  <% for struct in structs %>
+message << mname >>_<< struct['Name'] >> {
+    <%- for arg in struct['Fields'] %>
   << arg['Type'] >> << arg['Name']>>  = << loop.index >> ;
     <%- endfor %>
 };
+  <% endfor %>
 
-  <%- endfor %>
-<%- endfor %>
+  <% for function in functions %>
+message << mname >>_<< function['Name'] >> {
+    <%- for arg in function['Arguments'] %>
+  << arg['Type'] >> << arg['Name']>>  = << loop.index >> ;
+    <%- endfor %>
+};
+  <% endfor %>
+
+<% endfor %>
 
 // To avoid modifying the enum after we add a new function in each module
 // have a base value of 1000 per module
