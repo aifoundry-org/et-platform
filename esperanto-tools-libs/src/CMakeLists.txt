@@ -41,6 +41,18 @@ foreach(FOLDER ${SUBFOLDERS})
   add_subdirectory(${FOLDER})
 endforeach()
 
+## Add top-level target to capture all generated code
+add_custom_target(etrt-gen-code DEPENDS
+  etrt-tracing-gen-code
+  )
+
+## Add a dependency to all libraries on the generated code
+## as they could be consuming it
+foreach(FOLDER ${SUBFOLDERS})
+  add_dependencies(etrt_${FOLDER}
+    etrt-gen-code
+    )
+endforeach()
 
 # FIXME device-api disabled in esperanto-soc because of cloning permision
 # issues
@@ -114,7 +126,10 @@ target_include_directories(etrt_obj PUBLIC ${FMTLIB_INCLUDE_DIRS})
 
 # Library dependencies
 target_link_libraries(etrt_obj pthread)
-add_dependencies(etrt_obj ${external_project_dependencies})
+add_dependencies(etrt_obj
+  ${external_project_dependencies}
+  etrt-gen-code
+  )
 link_directories(${EXTERNAL_LINK_DIRECTORIES}
                  ${SIMULATOR_API_LIB_DIR})
 
