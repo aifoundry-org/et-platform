@@ -53,9 +53,7 @@ bool PCIeDevice::init() {
   return true;
 }
 
-bool PCIeDevice::deinit() {
-  return true;
-}
+bool PCIeDevice::deinit() { return true; }
 
 bool PCIeDevice::getStatus() {
   assert(false);

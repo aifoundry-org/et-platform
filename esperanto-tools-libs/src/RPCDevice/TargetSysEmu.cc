@@ -176,5 +176,5 @@ bool TargetSysEmu::registerDeviceEventCallback() {
   assert(true);
   return false;
 }
-}
+} // namespace device
 } // namespace et_runtime
