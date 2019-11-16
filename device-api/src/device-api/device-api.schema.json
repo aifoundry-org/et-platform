@@ -103,12 +103,16 @@
                     "type": "string",
                     "enum": ["Command", "Response", "Event"]
                 },
+                "PairedMessage": {
+                    "description": "Name of the message that this one is paired with, to be used by commands to denote their replies",
+                    "type": "string"
+                },
                 "Fields": {
                     "type": "array",
                     "items": { "$ref": "#definitions/MemberField" }
                 }
             },
-            "required" : ["Name", "Type", "Fields"]
+            "required" : ["Name", "Type", "PairedMessage", "Fields"]
         },
         "TraceEvent": {
             "type": "object",

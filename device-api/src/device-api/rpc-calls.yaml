@@ -77,14 +77,16 @@ Structs:
 # DeviceAPI can exchange with the host
 Messages :
   - Name: device_fw_version_cmd
-    Description:  Request the device-fw version assumption we have a 64 bit
-                  hash that capture the version
+    Description:  Request the device-fw version. We have a 64 bit
+                  hash that captures the version
     Type: Command
+    PairedMessage: device_fw_version_rsp
     Fields:
       - Name: runtime_version
         Type: uint64_t
   - Name: device_fw_version_rsp
     Type: Response
+    PairedMessage: device_fw_version_cmd
     Fields:
       - Name: device_fw_version
         Type: uint64_t
@@ -93,6 +95,7 @@ Messages :
     Description:  Request the version of the device_api supported
                   by the target, advertise the one we support
     Type: Command
+    PairedMessage: device_api_version_rsp
     Fields:
       - Name: major
         Type: uint64_t
@@ -105,6 +108,7 @@ Messages :
   - Name: device_api_version_rsp
     Type: Response
     Description: Return the version implemented by the target
+    PairedMessage: device_api_version_cmd
     Fields:
       - Name: major
         Type: uint64_t
@@ -121,6 +125,7 @@ Messages :
 #-------------------------------------------------------------------------------
   - Name: kernel_launch_cmd
     Description: Launch a kernel on the target
+    PairedMessage: kernel_launch_rsp
     Type: Command
     Fields:
       - Name: kernel_params
@@ -132,6 +137,7 @@ Messages :
   - Name: kernel_launch_rsp
     Description: Response and result of a kernel launch on the device
     Type: Response
+    PairedMessage: kernel_launch_cmd
     Fields:
       - Name: kernel_id
         Type: uint64_t
@@ -142,25 +148,29 @@ Messages :
   - Name: kernel_abort_cmd
     Description: Command to abort a currently running kernel on the device
     Type: Command
+    PairedMessage: kernel_abort_rsp
     Fields:
       - Name: kernel_id
         Type: uint64_t
   - Name: kernel_abort_rsp
     Description: Response to an abort request
+    PairedMessage: kernel_abort_cmd
     Type: Response
     Fields:
       - Name: status
         Type: bool
 #-------------------------------------------------------------------------------
-  - Name: get_kernel_state_cmd
+  - Name: kernel_state_cmd
     Description: Query the state if a currently running kernel
     Type: Command
+    PairedMessage: kernel_state_rsp
     Fields:
       - Name: kernel_id
         Type: uint64_t
-  - Name: get_kernel_state_rsp
+  - Name: kernel_state_rsp
     Description: Kernel state reply
     Type: Response
+    PairedMessage: kernel_state_cmd
     Fields:
       - Name: status
         Type: uint64_t
@@ -168,12 +178,14 @@ Messages :
   - Name: set_master_log_level_cmd
     Descripiton: Set the master shire logging level
     Type: Command
+    PairedMessage: set_master_log_level_rsp
     Fields:
       - Name: log_level
         Type: enum
         Enum: log_levels_e
   - Name: set_master_log_level_rsp
     Type: Response
+    PairedMessage: set_master_log_level_cmd
     Fields:
       - Name: status
         Type: bool
@@ -181,12 +193,14 @@ Messages :
   - Name: set_worker_log_level_cmd
     Description: Set the worker shire logging level
     Type: Command
+    PairedMessage: set_worker_log_level_rsp
     Fields:
       - Name: log_level
         Type: enum
         Enum: log_levels_e
   - Name: set_worker_log_level_rsp
     Type: Response
+    PairedMessage: set_worker_log_level_cmd
     Fields:
       - Name: status
         Type: bool
@@ -195,6 +209,7 @@ Messages :
   - Name: device_fw_error
     Description: Generic error reported by the device
     Type: Event
+    PairedMessage: None
     Fields:
       - Name: error_type
         Type: enum
@@ -203,6 +218,7 @@ Messages :
   - Name: trace_buffer_full
     Description: Binary trace buffer is full and the host should consume it
     Type: Event
+    PairedMessage: None
     Fields:
       - Name: ring_buffer_start
         Type: uint64_t

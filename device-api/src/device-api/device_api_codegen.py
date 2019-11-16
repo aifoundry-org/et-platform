@@ -259,6 +259,17 @@ class DevAPICodeGeneratorHelper(object):
                                            f"to be placed in creasing size, {field} is not")
                     else:
                         last_size = ftype_size
+        # Check that the values of PairedMessage are valid message names
+        for module in self.spec_data.get("Modules", []):
+            messages = module.get("Messages", [])
+            for msg in messages:
+                paired_message = msg['PairedMessage']
+                if not paired_message == "None":
+                    pmsg_exists = [i for i in messages if i['Name'] == paired_message]
+                    if not pmsg_exists:
+                        raise RuntimeError(f"In message: {msg['Name']}, paired message:"
+                                           f" {paired_message} does not exist")
+
 
 
 def gen_code(args):
