@@ -13,6 +13,7 @@ Welcome to Esperanto Runtime's documentation!
 
    StreamManagement
    MemoryManagement
+   DeviceAPI
    Tracing
 
    api/EsperantoRuntime_root

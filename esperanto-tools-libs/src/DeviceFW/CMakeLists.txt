@@ -23,4 +23,5 @@ target_include_directories(etrt_DeviceFW PRIVATE
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_BINARY_DIR}/include
   ${PROJECT_BINARY_DIR}/src
+  ${EXTERNAL_INCLUDE_DIRECTORIES}
   )

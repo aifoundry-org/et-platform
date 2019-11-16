@@ -15,6 +15,7 @@
 
 #include "Common/ErrorTypes.h"
 
+#include <esperanto/device-api/device_api.h>
 #include <chrono>
 #include <cstdint>
 #include <future>
@@ -45,14 +46,42 @@ protected:
   static IDty command_id_;
 };
 
-template <class Response> class Command : public CommandBase {
+
+///
+/// @brief Dummy Command info.
+///
+/// Class used as a place holder for now until we fully populate the different
+/// Types of commands and responses we have across the DeviceAPI and the PCIE Device
+class DummyCommandInfo {
+public:
+  DummyCommandInfo() = default;
+};
+
+///
+/// @brief Command sent to the device.
+///
+/// The Command issued to the device can be either issued at the level of the
+/// of the DeviceAPI or it could be an interaaction with the PCIE driver.
+template <class Response, class CommandInfo=DummyCommandInfo> class Command : public CommandBase {
 public:
   using Timestamp = typename Response::Timestamp;
 
-  Command()
-      : timestamp_(std::chrono::high_resolution_clock::now()), promise_() {}
+  Command(const CommandInfo &i)
+      : cmd_info_(i), timestamp_(std::chrono::high_resolution_clock::now()),
+        promise_() {}
+
+  // FIXME the following constructor should be eventually removed
+  Command() : Command(CommandInfo()) {}
 
   virtual ~Command() = default;
+
+  /// @brief Return the type of the command
+  uint64_t commandType() const { return cmd_info_.message_id; }
+
+  /// @brief Return the command information
+  const ::device_api::command_header_t &cmd_info() const {
+    return cmd_info_.command_info;
+  }
 
   /// @brief Returns std::future<Response> to wait on until the Response of
   /// this Command is ready.
@@ -70,6 +99,7 @@ public:
   Timestamp startTime() const { return timestamp_; }
 
 private:
+  CommandInfo cmd_info_; ///< object holding the basic command information
   Timestamp timestamp_;            ///< Timestamp this command was created
   std::promise<Response> promise_; ///< Promise used to return a future with the
                                    ///< Repose value of this command

@@ -97,6 +97,7 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptionsDef.in
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Response.h
+  ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Event.h
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Command.h
   ${PROJECT_SOURCE_DIR}/include/EsperantoRuntime.h
   # FIXME the following should be deprecated once we move to the simulator API

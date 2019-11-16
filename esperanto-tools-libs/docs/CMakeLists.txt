@@ -39,12 +39,13 @@ configure_file(
     @ONLY)
 
 set(DOC_FILES
-    Tracing.rst
-    MemoryManagement.rst
-    StreamManagement.rst
-    index.rst
-    contents.rst
-    )
+  DeviceAPI.rst
+  Tracing.rst
+  MemoryManagement.rst
+  StreamManagement.rst
+  index.rst
+  contents.rst
+  )
 
 set(TRACING_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src/Tracing)
 

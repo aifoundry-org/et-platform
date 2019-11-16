@@ -13,6 +13,7 @@
 
 #include <Common/ErrorTypes.h>
 
+#include <esperanto/device-api/device_api.h>
 #include <chrono>
 
 namespace et_runtime {
@@ -51,6 +52,37 @@ private:
   Timestamp timestamp_;  ///< Creation timestamp
   etrtError error_type_; ///< Error type of an error encountered or etrtSuccess
                          ///< by default
+};
+
+///
+/// @brief Response to a Command sent to the device.
+///
+/// The Command could be issued to the device either through a DeviceAPI
+/// command or because of an interaction with the PCIE driver
+template <class ResponseType> class Response {
+public:
+  Response(const ResponseType &r) : rsp_(r) {}
+
+  /// @brief Return the type of the response
+  ::device_api::device_api_msg_e type() const {
+    return rsp_.response_info.message_id;
+  }
+
+  /// @brief Return the information of the commmand the response matches
+  const ::device_api::command_header_t &cmd_info() const {
+    return rsp_.response_info.command_info;
+  }
+
+  /// @brief Return the device timestamp the response was generated
+  uint64_t device_timestamp() const {
+    return rsp_.response_info.device_timestamp;
+  }
+
+  /// @brief Return the response information
+  const ResponseType &response() const { return rsp_; }
+
+protected:
+  ResponseType rsp_; ///< Actual response data
 };
 
 } // namespace device_api

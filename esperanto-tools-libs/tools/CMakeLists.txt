@@ -17,6 +17,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 include_directories(${GLOG_INCLUDE_DIRS})
 include_directories(${PROJECT_SOURCE_DIR}/external/abseil)
+include_directories(${EXTERNAL_INCLUDE_DIRECTORIES})
 
 link_directories(${RT_EXTERNAL_INSTALL_PREFIX}/lib64
   ${RT_EXTERNAL_INSTALL_PREFIX}/lib
