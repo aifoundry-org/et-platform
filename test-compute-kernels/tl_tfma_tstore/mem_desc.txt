@@ -1,0 +1,6 @@
+ELF Load: @PROJECT_BINARY_DIR@/src/MasterMinion/MasterMinion.elf
+ELF Load: @PROJECT_BINARY_DIR@/src/MachineMinion/MachineMinion.elf
+ELF Load: @PROJECT_BINARY_DIR@/src/WorkerMinion/WorkerMinion.elf
+ELF Load: @PROJECT_BINARY_DIR@/src/kernels/tl_tfma_tstore/tl_tfma_tstore.elf
+File Load: 40'h8180000000, @PROJECT_BINARY_DIR@/src/kernels/tl_tfma_tstore/in.raw
+File Load: 40'h8280000000, @PROJECT_BINARY_DIR@/src/kernels/tl_tfma_tstore/out.raw
