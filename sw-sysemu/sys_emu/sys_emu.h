@@ -143,7 +143,7 @@ public:
     static void breakpoint_remove(uint64_t addr);
     static bool breakpoint_exists(uint64_t addr);
 
-    static api_communicate &get_api_communicate() { return *api_listener; }
+    static api_communicate *get_api_communicate() { return api_listener.get(); }
 
     static bool init_api_listener(const char *communication_path, bemu::MainMemory* memory);
 
