@@ -16,7 +16,6 @@
 #include "Core/DeviceInformation.h"
 #include "Core/DeviceManager.h"
 #include "Core/Error.h"
-#include "Core/Event.h"
 #include "Core/Kernel.h"
 #include "Core/Stream.h"
 

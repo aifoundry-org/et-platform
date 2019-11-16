@@ -27,7 +27,6 @@
 
 #include "Common/ErrorTypes.h"
 #include "Common/ProjectAutogen.h"
-#include "Core/Event.h"
 #include "Core/Stream.h"
 
 #include <stddef.h>

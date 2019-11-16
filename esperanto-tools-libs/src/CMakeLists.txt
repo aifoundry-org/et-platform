@@ -44,6 +44,7 @@ endforeach()
 ## Add top-level target to capture all generated code
 add_custom_target(etrt-gen-code DEPENDS
   etrt-tracing-gen-code
+  etrt-device-api-gen-code
   )
 
 ## Add a dependency to all libraries on the generated code

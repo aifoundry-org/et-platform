@@ -64,7 +64,7 @@ public:
 /// of the DeviceAPI or it could be an interaaction with the PCIE driver.
 template <class Response, class CommandInfo=DummyCommandInfo> class Command : public CommandBase {
 public:
-  using Timestamp = typename Response::Timestamp;
+  using Timestamp = typename ResponseBase::Timestamp;
 
   Command(const CommandInfo &i)
       : cmd_info_(i), timestamp_(std::chrono::high_resolution_clock::now()),
@@ -98,7 +98,7 @@ public:
   /// @brief Return timestamp the Command was created
   Timestamp startTime() const { return timestamp_; }
 
-private:
+protected:
   CommandInfo cmd_info_; ///< object holding the basic command information
   Timestamp timestamp_;            ///< Timestamp this command was created
   std::promise<Response> promise_; ///< Promise used to return a future with the

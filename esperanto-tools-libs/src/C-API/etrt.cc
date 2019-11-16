@@ -1,5 +1,6 @@
 #include "C-API/etrt.h"
 #include "Core/Stream.h"
+#include "Core/Event.h"
 #include "DeviceAPI/Commands.h"
 #include "EsperantoRuntime.h"
 #include "Support/DeviceGuard.h"

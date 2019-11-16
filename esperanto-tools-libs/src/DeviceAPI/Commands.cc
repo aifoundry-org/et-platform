@@ -10,6 +10,8 @@
 
 #include "DeviceAPI/Commands.h"
 
+#include "DeviceAPI/EventsGen.h"
+
 #include "Core/CommandLineOptions.h"
 #include "Core/Device.h"
 #include "Core/DeviceFwTypes.h"

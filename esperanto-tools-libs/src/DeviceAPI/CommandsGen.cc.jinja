@@ -1,0 +1,55 @@
+/*------------------------------------------------------------------------------
+ * Copyright (C) 2019, Esperanto Technologies Inc.
+ * The copyright to the computer program(s) herein is the
+ * property of Esperanto Technologies, Inc. All Rights Reserved.
+ * The program(s) may be used and/or copied only with
+ * the written permission of Esperanto Technologies and
+ * in accordance with the terms and conditions stipulated in the
+ * agreement/contract under which the program(s) have been supplied.
+ ------------------------------------------------------------------------------ */
+
+// WARNING: this file is auto-generated do not edit directly
+
+#include "CommandsGen.h"
+#include "Tracing/TracingGen.h"
+
+using Ms = std::chrono::milliseconds;
+
+namespace et_runtime {
+namespace device_api {
+namespace devfw_commands {
+
+<% for msg in cgh.rpc_commands() %>
+
+<% set class_name = cgh.name_to_camelcase(msg['Name']) -%>
+<% set msg_name = msg['Name'] -%>
+
+
+<< class_name >>::<< class_name >>(uint32_t stream_id,
+ <%- for f in msg['Fields'] -%>
+ <%- set namespace = "::device_api::" if cgh.custom_type(f) else "" -%>
+ const << namespace >><< cgh.message_field_type(f) >>& << f['Name'] >> <% if not loop.last %>,<% endif %>
+ <%- endfor -%>)
+{
+  cmd_info_.command_info.command_id = ::device_api::MBOX_MESSAGE_ID_<< msg['Name'] | upper >>;
+  auto time = std::chrono::high_resolution_clock::now();
+  cmd_info_.command_info.host_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
+                     time.time_since_epoch()).count();
+  cmd_info_.command_info.stream_id = stream_id;
+
+  <%- for f in msg['Fields'] %>
+  cmd_info_.<< f['Name'] >> = << f['Name'] >>;
+  <%- endfor %>
+
+  TRACE_DeviceAPI_RPC_Calls_<<msg_name>>( \
+    <% for f in msg['Fields'] -%>
+    << f['Name'] >> <% if not loop.last %>,<% endif %> \
+    <% endfor -%>
+  );
+}
+
+<% endfor %>
+
+} // devfw_commands
+} // device_api
+} // et_runtime
