@@ -72,6 +72,18 @@ class DevAPICodeGeneratorHelper(object):
                 return mod
         return None
 
+    def rpc_commands(self):
+        """Return list of all the rpc Commands"""
+        return [ i for i in self.rpc_calls()['Messages'] if i['Type'] == 'Command']
+
+    def rpc_responses(self):
+        """Return list of all the rpc Responses"""
+        return [ i for i in self.rpc_calls()['Messages'] if i['Type'] == 'Response']
+
+    def rpc_events(self):
+        """Return list of all the rpc Events"""
+        return [ i for i in self.rpc_calls()['Messages'] if i['Type'] == 'Event']
+
     def trace_events(self):
         """Return the schema of the DeviceFwTracing module
 
@@ -173,6 +185,15 @@ class DevAPICodeGeneratorHelper(object):
             return enums[0]["Type"]
         else:
             return self.message_field_type(field)
+
+    @staticmethod
+    def name_to_camelcase(name):
+        """Convert a underscore separate name to camel case"""
+        words = name.split("_")
+        name = ""
+        for w in words:
+            name += f'{w[0].upper()}{w[1:]}'
+        return name
 
     @staticmethod
     def validate_trace(trace_event):
