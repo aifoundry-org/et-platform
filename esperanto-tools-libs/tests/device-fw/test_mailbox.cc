@@ -25,6 +25,9 @@ TEST_F(DeviceFWTest, waitForHostInterrupt) {
   res = memManager()->init();
   ASSERT_TRUE(res);
 
+  auto success = dev_->loadFirmwareOnDevice();
+  assert(success == etrtSuccess);
+
   target_device->boot(0x8000001000);
   res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
   ASSERT_TRUE(res);
@@ -40,6 +43,9 @@ TEST_F(DeviceFWTest, waitForMailboxReady) {
 
   res = memManager()->init();
   ASSERT_TRUE(res);
+
+  auto success = dev_->loadFirmwareOnDevice();
+  assert(success == etrtSuccess);
 
   target_device->boot(0x8000001000);
   res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
@@ -59,6 +65,9 @@ TEST_F(DeviceFWTest, resetMailBox) {
 
   res = memManager()->init();
   ASSERT_TRUE(res);
+
+  auto fw_load = dev_->loadFirmwareOnDevice();
+  assert(fw_load == etrtSuccess);
 
   target_device->boot(0x8000001000);
   res = target_device->waitForHostInterrupt(std::chrono::seconds(30));

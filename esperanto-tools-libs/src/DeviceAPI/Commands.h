@@ -29,31 +29,6 @@ class Device;
 namespace device_api {
 
 /// @brief
-class ConfigureResponse final : public ResponseBase {
-public:
-  ConfigureResponse() = default;
-};
-
-/// @brief
-class ConfigureCommand final : public Command<ConfigureResponse> {
-  uintptr_t devMemRegionPtr;
-  size_t devMemRegionSize;
-  uintptr_t kernelsDevMemRegionPtr;
-  size_t kernelsDevMemRegionSize;
-  bool res_is_local_mode = false;
-
-public:
-  ConfigureCommand(const uintptr_t devMemRegionPtr, size_t devMemRegionSize,
-                   const uintptr_t kernelsDevMemRegionPtr,
-                   size_t kernelsDevMemRegionSize)
-      : devMemRegionPtr(devMemRegionPtr), devMemRegionSize(devMemRegionSize),
-        kernelsDevMemRegionPtr(kernelsDevMemRegionPtr),
-        kernelsDevMemRegionSize(kernelsDevMemRegionSize) {}
-  etrtError execute(et_runtime::Device *device_target) override;
-  bool isLocalMode() { return res_is_local_mode; }
-};
-
-/// @brief
 class ReadResponse final : public ResponseBase {
 public:
   ReadResponse() = default;

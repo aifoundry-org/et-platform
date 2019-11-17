@@ -36,13 +36,6 @@ CommandBase::IDty CommandBase::command_id_ = 0;
 
 CommandBase::CommandBase() { command_id_++; }
 
-etrtError ConfigureCommand::execute(Device *device) {
-  auto status = device->loadFirmwareOnDevice();
-  assert(status == etrtSuccess);
-  setResponse(ConfigureResponse());
-  return etrtSuccess;
-}
-
 etrtError ReadCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
   // FIXME this heuristic should be revisited

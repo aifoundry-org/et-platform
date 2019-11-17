@@ -42,6 +42,7 @@ Device::Device(int index)
       module_manager_(std::make_unique<ModuleManager>()) {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, index);
+  defaultStream_ = createStream(false);
 }
 
 Device::~Device() {
@@ -52,8 +53,11 @@ Device::~Device() {
 etrtError Device::init() {
   initDeviceThread();
   mem_manager_->init();
-  auto success = target_device_->postFWLoadInit();
-  assert(success);
+  // Load the FW on the device
+  auto success = loadFirmwareOnDevice();
+  assert(success == etrtSuccess);
+  auto res = target_device_->postFWLoadInit();
+  assert(res);
   return etrtSuccess;
 }
 
