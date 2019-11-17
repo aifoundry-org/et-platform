@@ -27,14 +27,11 @@ class DeviceFWTest;
 
 namespace et_runtime {
 
-class AbstractMemoryPtr;
-class DeviceMemoryPtr;
 class Event;
 class EtAction;
 class EtActionEvent;
 class Firmware;
 class FWManager;
-class HostMemoryPtr;
 class ModuleManager;
 class Module;
 class Stream;
@@ -81,41 +78,6 @@ public:
   /// @return  etrtSuccess
   ////
   etrtError resetDevice();
-
-  ///
-  /// @brief  Allocate memory on the Host.
-  ///
-  /// Take a byte count and return an error or a @ref HostMemoryPtr to that
-  /// number of directly DMA-able bytes of memory on the Host. This will return
-  /// a failure indication if it is not possible to meet the given request.
-  /// @ref HostMemoryPtr provides unique_ptr semantics and memory gets
-  /// automatically deallocated then lifetime of the pointer ends.
-  ///
-  /// @param[in]  size  The number of bytes of memory that should be allocated
-  /// on the Host.
-  /// @return  Error or @HostMemoryPtr to the allocated memory location on the
-  /// host
-  ///
-  ErrorOr<HostMemoryPtr> mallocHost();
-
-  ///
-  /// @brief Allocate memory on the Device.
-  ///
-  /// Take a byte count and return a @ref DeviceMemoryPtr to
-  /// that number of (contiguous, long-word aligned) bytes of shared global
-  /// memory on the calling thread's currently attached Device. The allocated
-  /// Device memory region is associated with the calling thread and will be
-  /// automatically freed when the calling thread exits. This will return a
-  /// failure indication if it is not possible to meet the given request.
-  ///
-  /// The memory on the device gets deallocated automatically when the lifetime
-  /// of the @ref DeviceMemoryPtr object ends.
-  ///
-  /// @param[in]  size  The number of bytes of memory that should be allocated
-  /// on the Device.
-  /// @return  ErrorOr ( etrtErrorInvalidValue, etrtErrorMemoryAllocation ) or a
-  /// valid pointer
-  ErrorOr<DeviceMemoryPtr> mallocDevice(size_t size);
 
   ///
   /// @brief  Copy the contents of one region of allocated memory to another.
@@ -208,17 +170,6 @@ public:
   /// a way to hide it.
   device::DeviceTarget &getTargetDevice() { return *target_device_; }
 
-  bool isPtrAllocatedHost(const void *ptr) {
-    return mem_manager_->isPtrAllocatedHost(ptr);
-  }
-  bool isPtrAllocatedDev(const void *ptr) {
-    return mem_manager_->isPtrAllocatedDev(ptr);
-  }
-
-  bool isPtrInDevRegion(const void *ptr) {
-    return mem_manager_->isPtrInDevRegion(ptr);
-  }
-
   ///
   /// @brief Return reference to the memory manager of the device.
   ///
@@ -245,15 +196,6 @@ public:
   addCommand(Stream *et_stream,
              std::shared_ptr<et_runtime::device_api::CommandBase> et_action);
 
-  etrtError mallocHost(void **ptr, size_t size);
-  etrtError freeHost(void *ptr);
-  /// @brief Reserve a memory region starting at address ptr
-  etrtError reserveMemory(void *ptr, size_t size);
-  etrtError malloc(void **devPtr, size_t size);
-  etrtError free(void *devPtr);
-  etrtError pointerGetAttributes(struct etrtPointerAttributes *attributes,
-                                 const void *ptr);
-
   etrtError memcpyAsync(void *dst, const void *src, size_t count,
                         enum etrtMemcpyKind kind, Stream *stream);
   etrtError memcpy(void *dst, const void *src, size_t count,
@@ -265,7 +207,6 @@ public:
   }
 
   etrtError setupArgument(const void *arg, size_t size, size_t offset);
-  etrtError launch(const void *func, const char *kernel_name);
   // FIXME pass module_id
   etrtError rawLaunch(et_runtime::ModuleID module_id, const char *kernel_name,
                       const void *args, size_t args_size, Stream *stream);

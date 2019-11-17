@@ -71,7 +71,7 @@ TEST_F(PCIEKernelLaunchTest, beef_kernel) {
   int array_size = 200;
   int size = sizeof(uint64_t) * array_size;
   void *dev_ptr = 0;
-  auto status = dev_->malloc(&dev_ptr, size);
+  auto status = dev_->mem_manager().malloc(&dev_ptr, size);
   ASSERT_EQ(status, etrtSuccess);
 
   layer_dynamic_info layer_info = {};

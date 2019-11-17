@@ -194,10 +194,6 @@ void Device::addCommand(
   deviceExecute();
 }
 
-etrtError Device::mallocHost(void **ptr, size_t size) {
-  return mem_manager_->mallocHost(ptr, size);
-}
-
 etrtError Device::streamSynchronize(Stream *stream) {
   Stream *et_stream = getStream(stream);
 
@@ -218,8 +214,8 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
   if (kind == etrtMemcpyDefault) {
     // All addresses not in device address space count as host address even if
     // it was not created with MallocHost
-    bool is_dst_host = isPtrAllocatedHost(dst) || !isPtrInDevRegion(dst);
-    bool is_src_host = isPtrAllocatedHost(src) || !isPtrInDevRegion(src);
+    bool is_dst_host = mem_manager_->isPtrAllocatedHost(dst) || !mem_manager_->isPtrInDevRegion(dst);
+    bool is_src_host = mem_manager_->isPtrAllocatedHost(src) || !mem_manager_->isPtrInDevRegion(src);
     if (is_src_host) {
       if (is_dst_host) {
         kind = etrtMemcpyHostToHost;
@@ -247,6 +243,9 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
                                   dst, src, count)));
   } break;
   case etrtMemcpyDeviceToDevice: {
+    abort();
+    /* FIXME SW-1293
+
     int dev_count = count;
     const char *kern = "CopyKernel_Int8";
 
@@ -266,11 +265,11 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
     setupArgument(&src, 8, 8);
     setupArgument(&dst, 8, 16);
     launch(nullptr, kern);
+    */
   } break;
   default:
     THROW("Unsupported Memcpy kind");
   }
-
   return etrtSuccess;
 }
 
@@ -283,6 +282,8 @@ etrtError Device::memcpy(void *dst, const void *src, size_t count,
 }
 
 etrtError Device::memset(void *devPtr, int value, size_t count) {
+  abort();
+  /* FIXME SW-1293
   const char *kern = "SetKernel_Int8";
 
   if ((count % 4) == 0) {
@@ -305,25 +306,8 @@ etrtError Device::memset(void *devPtr, int value, size_t count) {
   setupArgument(&devPtr, 8, 8);
   launch(nullptr, kern);
   etrtStreamSynchronize(0);
-
+  */
   return etrtSuccess;
-}
-
-etrtError Device::freeHost(void *ptr) { return mem_manager_->freeHost(ptr); }
-
-etrtError Device::reserveMemory(void *ptr, size_t size) {
-  return mem_manager_->reserveMemory(ptr, size);
-}
-
-etrtError Device::malloc(void **devPtr, size_t size) {
-  return mem_manager_->malloc(devPtr, size);
-}
-
-etrtError Device::free(void *devPtr) { return mem_manager_->free(devPtr); }
-
-etrtError Device::pointerGetAttributes(struct etrtPointerAttributes *attributes,
-                                       const void *ptr) {
-  return mem_manager_->pointerGetAttributes(attributes, ptr);
 }
 
 et_runtime::Module &Device::createModule(const std::string &name) {
@@ -344,91 +328,6 @@ etrtError Device::setupArgument(const void *arg, size_t size, size_t offset) {
   buff.resize(new_buff_size, 0);
   ::memcpy(&buff[offset], arg, size);
 
-  return etrtSuccess;
-}
-
-etrtError Device::launch(const void *func, const char *kernel_name) {
-  abort();
-  // FIXME disabled for now until this feature is used unit-tested and
-  // exercised.
-  /*
-    EtLaunchConf launch_conf = std::move(dev->launch_confs_.back());
-    launch_confs_.pop_back();
-
-    uintptr_t kernel_entry_point = 0;
-    if (func) {
-      EtKernelInfo kernel_info = etrtGetKernelInfoByHostFun(func);
-      assert(kernel_info.name == kernel_name);
-      if (kernel_info.elf_p) {
-        // We have kernel from registered Esperanto ELF binary, incorporated
-    into
-        // host binary. First, ensure ELF binary is loaded to device. Second, we
-        // will launch kernel not by name, but by kernel entry point address.
-
-        EtLoadedKernelsBin &loaded_kernels_bin =
-            dev->loaded_kernels_bin_[kernel_info.elf_p];
-
-        if (loaded_kernels_bin.devPtr == nullptr) {
-          dev->malloc(&loaded_kernels_bin.devPtr, kernel_info.elf_size);
-
-          dev->addAction(dev->defaultStream_,
-                         new EtActionWrite(loaded_kernels_bin.devPtr,
-                                           kernel_info.elf_p,
-                                           kernel_info.elf_size));
-
-          assert(loaded_kernels_bin.actionEvent == nullptr);
-          loaded_kernels_bin.actionEvent = new EtActionEvent();
-          loaded_kernels_bin.actionEvent->incRefCounter();
-
-          dev->addAction(dev->defaultStream_, loaded_kernels_bin.actionEvent);
-        }
-
-        if (loaded_kernels_bin.actionEvent) {
-          if (loaded_kernels_bin.actionEvent->isExecuted()) {
-            // ELF is already loaded, free actionEvent
-            EtAction::decRefCounter(loaded_kernels_bin.actionEvent);
-            loaded_kernels_bin.actionEvent = nullptr;
-          } else {
-            // ELF loading is in process, insert EtActionEventWaiter before
-            // EtActionLaunch
-            dev->addAction(
-                launch_conf.etStream,
-                new EtActionEventWaiter(loaded_kernels_bin.actionEvent));
-          }
-        }
-
-        kernel_entry_point =
-            (uintptr_t)loaded_kernels_bin.devPtr + kernel_info.offset;
-      } else {
-        // For this kernel we have no registered Esperanto ELF binary,
-        // incorporated into host binary. Try map kernel into builtin kernel and
-        // call it by name.
-
-        static const std::map<std::string, const char *> kKernelRemapTable = {
-            {"void caffe2::math::(anonymous namespace)::SetKernel<float>(int, "
-             "float, float*)",
-             "SetKernel_Float"},
-            {"void caffe2::SigmoidKernel<float>(int, float const*, float*)",
-             "SigmoidKernel_Float"},
-            {"void caffe2::MulBroadcast2Kernel<float, float>(float const*, float
-    " "const*, float*, int, int, int)", "MulBroadcast2Kernel_Float_Float"},
-            {"void caffe2::(anonymous "
-             "namespace)::binary_add_kernel_broadcast<false, float, float>(float
-    " "const*, float const*, float*, int, int, int)",
-             "BinAddKernelBroadcast_False_Float_Float"},
-            {"caffe2::math::_Kernel_float_Add(int, float const*, float const*, "
-             "float*)",
-             "AddKernel_Float"}};
-
-        kernel_name = kKernelRemapTable.at(demangle(kernel_name));
-      }
-    }
-
-    dev->addAction(launch_conf.etStream,
-                   new EtActionLaunch(launch_conf.gridDim, launch_conf.blockDim,
-                                      launch_conf.args_buff, kernel_entry_point,
-                                    kernel_name));
-  */
   return etrtSuccess;
 }
 

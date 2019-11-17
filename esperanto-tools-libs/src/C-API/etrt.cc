@@ -61,28 +61,28 @@ etrtError_t etrtSetDevice(int device) {
 
 etrtError_t etrtMallocHost(void **ptr, size_t size) {
   GetDev dev;
-  return dev->mallocHost(ptr, size);
+  return dev->mem_manager().mallocHost(ptr, size);
 }
 
 etrtError_t etrtFreeHost(void *ptr) {
   GetDev dev;
-  return dev->freeHost(ptr);
+  return dev->mem_manager().freeHost(ptr);
 }
 
 etrtError_t etrtMalloc(void **devPtr, size_t size) {
   GetDev dev;
-  return dev->malloc(devPtr, size);
+  return dev->mem_manager().malloc(devPtr, size);
 }
 
 etrtError_t etrtFree(void *devPtr) {
   GetDev dev;
-  return dev->free(devPtr);
+  return dev->mem_manager().free(devPtr);
 }
 
 etrtError_t etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
                                      const void *ptr) {
   GetDev dev;
-  return dev->pointerGetAttributes(attributes, ptr);
+  return dev->mem_manager().pointerGetAttributes(attributes, ptr);
 }
 
 etrtError_t etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags) {
