@@ -80,7 +80,6 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/etrt-bin.h
   ${PROJECT_SOURCE_DIR}/include/Common/ProjectAutogen.h.in
   ${PROJECT_SOURCE_DIR}/include/Common/ErrorTypes.h
-  ${PROJECT_SOURCE_DIR}/include/Common/et-misc.h
   ${PROJECT_SOURCE_DIR}/include/Common/CommonTypes.h
   ${PROJECT_SOURCE_DIR}/include/C-API/etrt.h
   ${PROJECT_SOURCE_DIR}/include/Core/DeviceTarget.h
