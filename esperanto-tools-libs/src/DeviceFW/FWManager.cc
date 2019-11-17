@@ -10,9 +10,9 @@
 
 #include "FWManager.h"
 
+#include "CodeManagement/ELFSupport.h"
 #include "Core/CommandLineOptions.h"
 #include "Core/DeviceTarget.h"
-#include "Core/ELFSupport.h"
 #include "DeviceFW.h"
 #include "FakeFW.h"
 #include "Support/Logging.h"

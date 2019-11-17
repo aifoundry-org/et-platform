@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/CodeModule.h"
+#include "CodeModule.h"
 
 #include "Core/Device.h"
 #include "DeviceAPI/Commands.h"

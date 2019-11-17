@@ -10,8 +10,8 @@
 
 #include "DeviceFW.h"
 
+#include "CodeManagement/ELFSupport.h"
 #include "Core/DeviceTarget.h"
-#include "Core/ELFSupport.h"
 #include "Support/HelperMacros.h"
 #include "Support/Logging.h"
 

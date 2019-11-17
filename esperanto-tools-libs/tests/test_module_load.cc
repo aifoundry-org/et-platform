@@ -8,13 +8,13 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/CodeModule.h"
+#include "CodeManagement/CodeModule.h"
+#include "CodeManagement/ELFSupport.h"
+#include "CodeManagement/ModuleManager.h"
 #include "Core/CommandLineOptions.h"
 #include "Core/Device.h"
 #include "Core/DeviceManager.h"
 #include "Core/DeviceTarget.h"
-#include "Core/ELFSupport.h"
-#include "Core/ModuleManager.h"
 #include "RPCDevice/TargetSysEmu.h"
 
 #include <glog/logging.h>

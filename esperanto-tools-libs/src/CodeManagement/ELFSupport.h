@@ -21,7 +21,7 @@
 namespace et_runtime {
 
 class Module;
-namespace device_fw{
+namespace device_fw {
 class DeviceFW;
 }
 

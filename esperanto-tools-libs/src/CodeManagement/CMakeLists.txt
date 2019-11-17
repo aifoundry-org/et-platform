@@ -8,21 +8,16 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-add_library(etrt_Core OBJECT
-  CommandQueue.h
-  Device.cc
-  DeviceManager.cc
-  DeviceTarget.cc
-  Error.cc
-  Event.cc
-  MemoryManager.cc
-  MemoryAllocator.cc
-  MemoryAllocator.h
-  registry.cc
-  Stream.cc
+add_library(etrt_CodeManagement OBJECT
+  CodeModule.cc
+  CodeModule.h
+  ELFSupport.cc
+  ELFSupport.h
+  ModuleManager.cc
+  ModuleManager.h
   )
 
-target_include_directories(etrt_Core PRIVATE
+target_include_directories(etrt_CodeManagement PRIVATE
   ${CMAKE_CURRENT_BINARY_DIR}
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/src
@@ -32,5 +27,5 @@ target_include_directories(etrt_Core PRIVATE
   )
 
 if(esperanto-fw_FOUND)
-  target_include_directories(etrt_Core PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
+  target_include_directories(etrt_CodeManagement PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
 endif(esperanto-fw_FOUND)

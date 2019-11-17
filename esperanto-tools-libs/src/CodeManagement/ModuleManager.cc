@@ -10,7 +10,7 @@
 
 #include "ModuleManager.h"
 
-#include "Core/CodeModule.h"
+#include "CodeModule.h"
 #include "ELFSupport.h"
 
 #include <algorithm>
