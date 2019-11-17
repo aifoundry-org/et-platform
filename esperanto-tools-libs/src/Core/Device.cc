@@ -237,11 +237,13 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
   switch (kind) {
   case etrtMemcpyHostToDevice: {
     addCommand(et_stream, std::shared_ptr<device_api::CommandBase>(
-                              new device_api::WriteCommand(dst, src, count)));
+                              new device_api::pcie_commands::WriteCommand(
+                                  dst, src, count)));
   } break;
   case etrtMemcpyDeviceToHost: {
     addCommand(et_stream, std::shared_ptr<device_api::CommandBase>(
-                              new device_api::ReadCommand(dst, src, count)));
+                              new device_api::pcie_commands::ReadCommand(
+                                  dst, src, count)));
   } break;
   case etrtMemcpyDeviceToDevice: {
     int dev_count = count;

@@ -28,6 +28,8 @@ class Device;
 
 namespace device_api {
 
+namespace pcie_responses {
+
 /// @brief
 class ReadResponse final : public ResponseBase {
 public:
@@ -37,7 +39,16 @@ private:
 };
 
 /// @brief
-class ReadCommand final : public Command<ReadResponse> {
+class WriteResponse final : public ResponseBase {
+public:
+  WriteResponse() = default;
+};
+
+} // namespace pcie_responses
+
+namespace pcie_commands {
+/// @brief
+class ReadCommand final : public Command<pcie_responses::ReadResponse> {
 
 public:
   ReadCommand(void *dstHostPtr, const void *srcDevPtr, size_t count)
@@ -50,13 +61,7 @@ private:
   size_t count;
 };
 
-/// @brief
-class WriteResponse final : public ResponseBase {
-public:
-  WriteResponse() = default;
-};
-
-class WriteCommand final : public Command<WriteResponse> {
+class WriteCommand final : public Command<pcie_responses::WriteResponse> {
 
 public:
   WriteCommand(void *dstDevPtr, const void *srcHostPtr, size_t count)
@@ -68,6 +73,11 @@ private:
   const void *srcHostPtr;
   size_t count;
 };
+
+} // namespace pcie_commands
+
+// TODO the launch command is to be removed and replaced in the future
+// with DeviceAPI commands
 
 /// @brief
 class LaunchResponse final : public ResponseBase {
