@@ -12,7 +12,6 @@
 #define ET_RUNTIME_DEVICE_H
 
 #include "Common/CommonTypes.h"
-#include "Core/CodeModule.h"
 #include "Core/DeviceInformation.h"
 #include "Core/DeviceTarget.h"
 #include "Core/Kernel.h"
@@ -37,6 +36,7 @@ class Firmware;
 class FWManager;
 class HostMemoryPtr;
 class ModuleManager;
+class Module;
 class Stream;
 
 // Loaded to device kernels ELF binary descriptor.

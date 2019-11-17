@@ -28,30 +28,7 @@ class Device;
 
 namespace device_api {
 
-/// @brief
-class ConfigureResponse final : public ResponseBase {
-public:
-  ConfigureResponse() = default;
-};
-
-/// @brief
-class ConfigureCommand final : public Command<ConfigureResponse> {
-  uintptr_t devMemRegionPtr;
-  size_t devMemRegionSize;
-  uintptr_t kernelsDevMemRegionPtr;
-  size_t kernelsDevMemRegionSize;
-  bool res_is_local_mode = false;
-
-public:
-  ConfigureCommand(const uintptr_t devMemRegionPtr, size_t devMemRegionSize,
-                   const uintptr_t kernelsDevMemRegionPtr,
-                   size_t kernelsDevMemRegionSize)
-      : devMemRegionPtr(devMemRegionPtr), devMemRegionSize(devMemRegionSize),
-        kernelsDevMemRegionPtr(kernelsDevMemRegionPtr),
-        kernelsDevMemRegionSize(kernelsDevMemRegionSize) {}
-  etrtError execute(et_runtime::Device *device_target) override;
-  bool isLocalMode() { return res_is_local_mode; }
-};
+namespace pcie_responses {
 
 /// @brief
 class ReadResponse final : public ResponseBase {
@@ -62,7 +39,16 @@ private:
 };
 
 /// @brief
-class ReadCommand final : public Command<ReadResponse> {
+class WriteResponse final : public ResponseBase {
+public:
+  WriteResponse() = default;
+};
+
+} // namespace pcie_responses
+
+namespace pcie_commands {
+/// @brief
+class ReadCommand final : public Command<pcie_responses::ReadResponse> {
 
 public:
   ReadCommand(void *dstHostPtr, const void *srcDevPtr, size_t count)
@@ -75,13 +61,7 @@ private:
   size_t count;
 };
 
-/// @brief
-class WriteResponse final : public ResponseBase {
-public:
-  WriteResponse() = default;
-};
-
-class WriteCommand final : public Command<WriteResponse> {
+class WriteCommand final : public Command<pcie_responses::WriteResponse> {
 
 public:
   WriteCommand(void *dstDevPtr, const void *srcHostPtr, size_t count)
@@ -93,6 +73,11 @@ private:
   const void *srcHostPtr;
   size_t count;
 };
+
+} // namespace pcie_commands
+
+// TODO the launch command is to be removed and replaced in the future
+// with DeviceAPI commands
 
 /// @brief
 class LaunchResponse final : public ResponseBase {

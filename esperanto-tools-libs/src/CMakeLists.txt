@@ -27,6 +27,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC -Wall")
 
 # List of subdirectories with our sources
 set(SUBFOLDERS
+  CodeManagement
   Core
   DeviceAPI
   DeviceFW
@@ -80,7 +81,6 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/etrt-bin.h
   ${PROJECT_SOURCE_DIR}/include/Common/ProjectAutogen.h.in
   ${PROJECT_SOURCE_DIR}/include/Common/ErrorTypes.h
-  ${PROJECT_SOURCE_DIR}/include/Common/et-misc.h
   ${PROJECT_SOURCE_DIR}/include/Common/CommonTypes.h
   ${PROJECT_SOURCE_DIR}/include/C-API/etrt.h
   ${PROJECT_SOURCE_DIR}/include/Core/DeviceTarget.h
@@ -93,7 +93,6 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/Core/Error.h
   ${PROJECT_SOURCE_DIR}/include/Core/Device.h
   ${PROJECT_SOURCE_DIR}/include/Core/Stream.h
-  ${PROJECT_SOURCE_DIR}/include/Core/CodeModule.h
   ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptions.h
   ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptionsDef.in
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI

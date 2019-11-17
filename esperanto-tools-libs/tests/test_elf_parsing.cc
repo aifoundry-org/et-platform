@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/ELFSupport.h"
+#include "CodeManagement/ELFSupport.h"
 
 #include "gtest/gtest.h"
 #include <experimental/filesystem>

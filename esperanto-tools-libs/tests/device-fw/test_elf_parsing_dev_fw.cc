@@ -8,9 +8,9 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/CodeModule.h"
+#include "CodeManagement/CodeModule.h"
+#include "CodeManagement/ELFSupport.h"
 #include "Core/CommandLineOptions.h"
-#include "Core/ELFSupport.h"
 #include "Support/Logging.h"
 
 #include <experimental/filesystem>

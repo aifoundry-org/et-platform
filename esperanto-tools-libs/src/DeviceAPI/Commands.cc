@@ -36,12 +36,7 @@ CommandBase::IDty CommandBase::command_id_ = 0;
 
 CommandBase::CommandBase() { command_id_++; }
 
-etrtError ConfigureCommand::execute(Device *device) {
-  auto status = device->loadFirmwareOnDevice();
-  assert(status == etrtSuccess);
-  setResponse(ConfigureResponse());
-  return etrtSuccess;
-}
+namespace pcie_commands {
 
 etrtError ReadCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();
@@ -52,7 +47,7 @@ etrtError ReadCommand::execute(Device *device) {
   } else {
     target_device.readDevMemDMA((uintptr_t)srcDevPtr, count, dstHostPtr);
   }
-  setResponse(ReadResponse());
+  setResponse(pcie_responses::ReadResponse());
   return etrtSuccess;
 }
 
@@ -65,9 +60,11 @@ etrtError WriteCommand::execute(Device *device) {
   } else {
       target_device.writeDevMemDMA((uintptr_t)dstDevPtr, count, srcHostPtr);
   }
-  setResponse(WriteResponse());
+  setResponse(pcie_responses::WriteResponse());
   return etrtSuccess;
 }
+
+} // namespace pcie_commands
 
 etrtError LaunchCommand::execute(Device *device) {
   auto &target_device = device->getTargetDevice();

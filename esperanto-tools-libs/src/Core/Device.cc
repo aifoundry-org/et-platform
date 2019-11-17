@@ -1,14 +1,15 @@
 #include "Core/Device.h"
 
+#include "CodeManagement/CodeModule.h"
+#include "CodeManagement/ELFSupport.h"
+#include "CodeManagement/ModuleManager.h"
 #include "Common/ErrorTypes.h"
 #include "Core/DeviceTarget.h"
-#include "Core/ELFSupport.h"
 #include "Core/Event.h"
 #include "Core/MemoryManager.h"
 #include "Core/Stream.h"
 #include "DeviceAPI/Commands.h"
 #include "DeviceFW/FWManager.h"
-#include "ModuleManager.h"
 #include "Support/DeviceGuard.h"
 #include "Support/Logging.h"
 #include "demangle.h"
@@ -42,6 +43,7 @@ Device::Device(int index)
       module_manager_(std::make_unique<ModuleManager>()) {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, index);
+  defaultStream_ = createStream(false);
 }
 
 Device::~Device() {
@@ -52,8 +54,11 @@ Device::~Device() {
 etrtError Device::init() {
   initDeviceThread();
   mem_manager_->init();
-  auto success = target_device_->postFWLoadInit();
-  assert(success);
+  // Load the FW on the device
+  auto success = loadFirmwareOnDevice();
+  assert(success == etrtSuccess);
+  auto res = target_device_->postFWLoadInit();
+  assert(res);
   return etrtSuccess;
 }
 
@@ -233,11 +238,13 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
   switch (kind) {
   case etrtMemcpyHostToDevice: {
     addCommand(et_stream, std::shared_ptr<device_api::CommandBase>(
-                              new device_api::WriteCommand(dst, src, count)));
+                              new device_api::pcie_commands::WriteCommand(
+                                  dst, src, count)));
   } break;
   case etrtMemcpyDeviceToHost: {
     addCommand(et_stream, std::shared_ptr<device_api::CommandBase>(
-                              new device_api::ReadCommand(dst, src, count)));
+                              new device_api::pcie_commands::ReadCommand(
+                                  dst, src, count)));
   } break;
   case etrtMemcpyDeviceToDevice: {
     int dev_count = count;

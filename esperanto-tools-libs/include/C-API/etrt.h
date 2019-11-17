@@ -82,7 +82,6 @@
 #define ETRT_H
 
 #include "Common/CommonTypes.h"
-#include "Common/et-misc.h"
 #include "Core/Stream.h"
 #include "etrt-bin.h"
 
@@ -92,15 +91,15 @@
 using namespace et_runtime;
 
 // Registry public interface.
-EXAPI void **__etrtRegisterFatBinary(void *fatCubin);
-EXAPI void __etrtUnregisterFatBinary(void **fatCubinHandle);
-EXAPI void __etrtRegisterFunction(void **fatCubinHandle, const char *hostFun,
-                                  char *deviceFun, const char *deviceName,
-                                  int thread_limit, uint3 *tid, uint3 *bid,
-                                  dim3 *bDim, dim3 *gDim, int *wSize);
-EXAPI void __etrtRegisterVar(void **fatCubinHandle, char *hostVar,
-                             char *deviceAddress, const char *deviceName,
-                             int ext, size_t size, int constant, int global);
+void **__etrtRegisterFatBinary(void *fatCubin);
+void __etrtUnregisterFatBinary(void **fatCubinHandle);
+void __etrtRegisterFunction(void **fatCubinHandle, const char *hostFun,
+                            char *deviceFun, const char *deviceName,
+                            int thread_limit, uint3 *tid, uint3 *bid,
+                            dim3 *bDim, dim3 *gDim, int *wSize);
+void __etrtRegisterVar(void **fatCubinHandle, char *hostVar,
+                       char *deviceAddress, const char *deviceName, int ext,
+                       size_t size, int constant, int global);
 
 /**
  * @addtogroup ETCRT_ERROR_HANDLING ET Runtime API Error Handling
@@ -122,7 +121,7 @@ EXAPI void __etrtRegisterVar(void **fatCubinHandle, char *hostVar,
  * @return  A string that describes the result of an API call.
 
  */
-EXAPI const char *etrtGetErrorString(etrtError_t error);
+const char *etrtGetErrorString(etrtError_t error);
 
 /**
  * @brief  Returns the last error from an API call.
@@ -151,7 +150,7 @@ EXAPI const char *etrtGetErrorString(etrtError_t error);
  etrtErrorJitCompilerNotFound
 
  */
-EXAPI etrtError_t etrtGetLastError(void);
+etrtError_t etrtGetLastError(void);
 
 /**
  * @}
@@ -185,7 +184,7 @@ EXAPI etrtError_t etrtGetLastError(void);
  * Devices is to be written.
  * @return  etrtSuccess
  */
-EXAPI etrtError_t etrtGetDeviceCount(int *count);
+etrtError_t etrtGetDeviceCount(int *count);
 
 /**
  * @brief  Return information about a given Device
@@ -203,8 +202,7 @@ EXAPI etrtError_t etrtGetDeviceCount(int *count);
  * be queried.
  * @return  etrtSuccess, etrtErrorInvalidDevice
  */
-EXAPI etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop,
-                                          int device);
+etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop, int device);
 
 /**
  * @brief  Returns the number of the Device currently in use by the calling
@@ -218,7 +216,7 @@ EXAPI etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop,
  * to be written.
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-EXAPI etrtError_t etrtGetDevice(int *device);
+etrtError_t etrtGetDevice(int *device);
 
 /**
  * @brief  Attach a Device to the calling process.
@@ -233,7 +231,7 @@ EXAPI etrtError_t etrtGetDevice(int *device);
  * caller's process.
  * @return  etrtSuccess, etrtErrorInvalidDevice, etrtErrorDeviceAlreadyInUse
  */
-EXAPI etrtError_t etrtSetDevice(int device);
+etrtError_t etrtSetDevice(int device);
 
 /**
  * @brief  Return the version of the ET Device Driver that is being used.
@@ -243,7 +241,7 @@ EXAPI etrtError_t etrtSetDevice(int device);
  *
  * @return  etrtSuccess
  */
-EXAPI const char *etrtGetDriverVersion();
+const char *etrtGetDriverVersion();
 
 /**
  * @brief  Detach the currently connected Device from the caller's process.
@@ -256,7 +254,7 @@ EXAPI const char *etrtGetDriverVersion();
  *
  * @return  etrtSuccess
  */
-EXAPI etrtError_t etrtResetDevice();
+etrtError_t etrtResetDevice();
 
 /**
  * @}
@@ -314,7 +312,7 @@ EXAPI etrtError_t etrtResetDevice();
  * the Host.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorMemoryAllocation
  */
-EXAPI etrtError_t etrtMallocHost(void **ptr, size_t size);
+etrtError_t etrtMallocHost(void **ptr, size_t size);
 
 /**
  * @brief  Free allocated Host memory.
@@ -327,7 +325,7 @@ EXAPI etrtError_t etrtMallocHost(void **ptr, size_t size);
  * @param[in] ptr  A pointer to a previously allocated region of Host memory.
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-EXAPI etrtError_t etrtFreeHost(void *ptr);
+etrtError_t etrtFreeHost(void *ptr);
 
 /**
  * @brief  Allocate memory on the Device.
@@ -345,7 +343,7 @@ EXAPI etrtError_t etrtFreeHost(void *ptr);
  * the Device.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorMemoryAllocation
  */
-EXAPI etrtError_t etrtMalloc(void **devPtr, size_t size);
+etrtError_t etrtMalloc(void **devPtr, size_t size);
 
 /**
  * @brief  Free allocated Device memory.
@@ -359,7 +357,7 @@ EXAPI etrtError_t etrtMalloc(void **devPtr, size_t size);
  * memory.
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-EXAPI etrtError_t etrtFree(void *devPtr);
+etrtError_t etrtFree(void *devPtr);
 
 /**
  * @brief Get information related to a region of memory allocated by this API.
@@ -378,8 +376,8 @@ EXAPI etrtError_t etrtFree(void *devPtr);
  * @param[in] ptr  A pointer to an allocated region of (Host or Device) memory
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-EXAPI etrtError_t etrtPointerGetAttributes(
-    struct etrtPointerAttributes *attributes, const void *ptr);
+etrtError_t etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
+                                     const void *ptr);
 
 /**
  * @brief  Asynchronously copy the contents of one region of allocated memory to
@@ -405,8 +403,8 @@ EXAPI etrtError_t etrtPointerGetAttributes(
  * default Stream.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidMemoryDirection
  */
-EXAPI etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
-                                  enum etrtMemcpyKind kind, Stream *stream);
+etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
+                            enum etrtMemcpyKind kind, Stream *stream);
 
 /**
  * @brief  Copy the contents of one region of allocated memory to another.
@@ -425,8 +423,8 @@ EXAPI etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
  * H->D, D->H, or D->D).
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidMemoryDirection
  */
-EXAPI etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
-                             enum etrtMemcpyKind kind);
+etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
+                       enum etrtMemcpyKind kind);
 
 /**
  * @brief  Sets the bytes in allocated memory region to a given value.
@@ -441,7 +439,7 @@ EXAPI etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
  * @param[in] count  Number of bytes to be written with the given value.
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-EXAPI etrtError_t etrtMemset(void *ptr, int value, size_t count);
+etrtError_t etrtMemset(void *ptr, int value, size_t count);
 
 /**
  * @}
@@ -495,12 +493,11 @@ EXAPI etrtError_t etrtMemset(void *ptr, int value, size_t count);
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
 // @todo FIXME
-// EXAPI etrtError_t etrtStreamCreateWithFlags(Stream * *pStream, unsigned
+//  etrtError_t etrtStreamCreateWithFlags(Stream * *pStream, unsigned
 // int flags);
 
-EXAPI etrtError_t etrtStreamCreate(Stream **pStream);
-EXAPI etrtError_t etrtStreamCreateWithFlags(Stream **pStream,
-                                            unsigned int flags);
+etrtError_t etrtStreamCreate(Stream **pStream);
+etrtError_t etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags);
 
 /**
  * @brief  Delete an existing Stream.
@@ -516,7 +513,7 @@ EXAPI etrtError_t etrtStreamCreateWithFlags(Stream **pStream,
  * @param[in] stream  The handle for one of the calling process' Streams.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle
  */
-EXAPI etrtError_t etrtStreamDestroy(Stream *stream);
+etrtError_t etrtStreamDestroy(Stream *stream);
 
 /**
  * @brief  Block until all of a Stream's operations have completed.
@@ -530,7 +527,7 @@ EXAPI etrtError_t etrtStreamDestroy(Stream *stream);
  * @param[in] stream  The handle for one of the calling process' Streams.
  * @return  etrtSuccess, etrtErrorInvalidResourceHandle
  */
-EXAPI etrtError_t etrtStreamSynchronize(Stream *stream);
+etrtError_t etrtStreamSynchronize(Stream *stream);
 
 /**
  * @brief  Have a Stream wait for an Event before continuing with its execution.
@@ -544,10 +541,10 @@ EXAPI etrtError_t etrtStreamSynchronize(Stream *stream);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle
  */
 // @todo FIXME
-// EXAPI etrtError_t etrtStreamWaitEvent(Stream * stream, Event *
+//  etrtError_t etrtStreamWaitEvent(Stream * stream, Event *
 // event);
-EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
-                                      unsigned int flags);
+etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
+                                unsigned int flags);
 
 /**
  * @}
@@ -576,7 +573,7 @@ EXAPI etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
  *
  */
 
-EXAPI etrtError_t etrtEventCreate(Event **event);
+etrtError_t etrtEventCreate(Event **event);
 
 /**
  * @brief  Create a new Event.
@@ -597,7 +594,7 @@ EXAPI etrtError_t etrtEventCreate(Event **event);
  * etrtErrorMemoryAllocation
  */
 // @todo FIXME
-EXAPI etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags);
+etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags);
 
 /**
  * @brief  Return the state of an Event.
@@ -615,7 +612,7 @@ EXAPI etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags);
  * @return  etrtSuccess, etrtErrorNotReady, etrtErrorInvalidValue,
  * etrtErrorInvalidResourceHandle, etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventQuery(Event *event);
+etrtError_t etrtEventQuery(Event *event);
 
 /**
  * @brief  Capture a snapshot of the state of a given Stream.
@@ -637,7 +634,7 @@ EXAPI etrtError_t etrtEventQuery(Event *event);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle,
  * etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventRecord(Event *event, Stream *stream);
+etrtError_t etrtEventRecord(Event *event, Stream *stream);
 
 /**
  * @brief  Wait for all of the work captured in an Event to complete.
@@ -650,7 +647,7 @@ EXAPI etrtError_t etrtEventRecord(Event *event, Stream *stream);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourcHandle,
  * etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventSynchronize(Event *event);
+etrtError_t etrtEventSynchronize(Event *event);
 
 /**
  * @brief  Returns the time between a starting and ending Event.
@@ -679,7 +676,7 @@ EXAPI etrtError_t etrtEventSynchronize(Event *event);
  * @return  etrtSuccess, etrtErrorNotReady, etrtErrorInvalidValue,
  * etrtErrorInvalidResourceHandle, etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventElapsedTime(float *ms, Event *start, Event *end);
+etrtError_t etrtEventElapsedTime(float *ms, Event *start, Event *end);
 
 /**
  * @brief  Delete an Event.
@@ -691,7 +688,7 @@ EXAPI etrtError_t etrtEventElapsedTime(float *ms, Event *start, Event *end);
  * @param[in] event  The handle for an Event created by the calling process.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorLaunchFailure
  */
-EXAPI etrtError_t etrtEventDestroy(Event *event);
+etrtError_t etrtEventDestroy(Event *event);
 
 /**
  * @}
@@ -863,10 +860,10 @@ EXAPI etrtError_t etrtEventDestroy(Event *event);
  * etrtErrorLaunchOutOfResources
  */
 // @todo FIXme
-// EXAPI etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
+//  etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
 // sharedMem, unsigned int flags);
-EXAPI etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim,
-                                    size_t sharedMem, Stream *stream);
+etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem,
+                              Stream *stream);
 
 /**
  * @brief  Define the inputs to be given to all instances of the next Kernel to
@@ -884,9 +881,8 @@ EXAPI etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim,
  * @return  etrtSuccess, etrtErrorInvalidConfiguration
  */
 // @todo FIXME
-// EXAPI etrtError_t etrtSetupArgument(const void **args, size_t sizes[]);
-EXAPI etrtError_t etrtSetupArgument(const void *arg, size_t size,
-                                    size_t offset);
+//  etrtError_t etrtSetupArgument(const void **args, size_t sizes[]);
+etrtError_t etrtSetupArgument(const void *arg, size_t size, size_t offset);
 
 /**
  * @brief  Launch a Kernel and give this execution a name.
@@ -915,9 +911,9 @@ EXAPI etrtError_t etrtSetupArgument(const void *arg, size_t size,
  * etrtErrorJitCompilerNotFound
  */
 // @todo FIXME
-// EXAPI etrtError_t etrtLaunch(const void *kernel, const char *kernelName,
+//  etrtError_t etrtLaunch(const void *kernel, const char *kernelName,
 // Stream * stream);
-EXAPI etrtError_t etrtLaunch(const void *func, const char *kernel_name);
+etrtError_t etrtLaunch(const void *func, const char *kernel_name);
 
 /**
  * @}
@@ -938,7 +934,7 @@ EXAPI etrtError_t etrtLaunch(const void *func, const char *kernel_name);
  *
  * @return  etrtSuccess, etrtError
  */
-EXAPI etrtError_t etrtProfileInitialize();
+etrtError_t etrtProfileInitialize();
 
 /**
  * @brief  Start profiling.
@@ -947,7 +943,7 @@ EXAPI etrtError_t etrtProfileInitialize();
  *
  * @return  etrtSuccess, etrtError
  */
-EXAPI etrtError_t etrtProfileStart();
+etrtError_t etrtProfileStart();
 
 /**
  * @brief  Stop profiling.
@@ -956,7 +952,7 @@ EXAPI etrtError_t etrtProfileStart();
  *
  * @return  etrtSuccess, etrtError
  */
-EXAPI etrtError_t etrtProfileStop();
+etrtError_t etrtProfileStop();
 
 /**
  * @}
@@ -966,11 +962,10 @@ namespace et_runtime {
 class Module;
 }
 
-EXAPI etrtError_t etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
-                                 size_t image_size);
-EXAPI etrtError_t etrtModuleUnload(et_runtime::ModuleID mid);
-EXAPI etrtError_t etrtRawLaunch(et_runtime::ModuleID mid,
-                                const char *kernel_name, const void *args,
-                                size_t args_size, Stream *stream);
+etrtError_t etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
+                           size_t image_size);
+etrtError_t etrtModuleUnload(et_runtime::ModuleID mid);
+etrtError_t etrtRawLaunch(et_runtime::ModuleID mid, const char *kernel_name,
+                          const void *args, size_t args_size, Stream *stream);
 
 #endif // ETRT_H

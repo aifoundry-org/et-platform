@@ -65,7 +65,7 @@ static const __fatBinC_Wrapper_t
     *gRegisteredFunctionsFatbinWrapper[kRegisteredFunctionsMax];
 static size_t gRegisteredFunctionsNum = 0;
 
-EXAPI void **__etrtRegisterFatBinary(void *fatCubin) {
+void **__etrtRegisterFatBinary(void *fatCubin) {
   // FYI: fatbin wrapper located in .nvFatBinSegment section
   __fatBinC_Wrapper_t *fatbin_wrapper_p = (__fatBinC_Wrapper_t *)fatCubin;
   assert(fatbin_wrapper_p->magic == FATBINC_MAGIC);
@@ -95,15 +95,15 @@ EXAPI void **__etrtRegisterFatBinary(void *fatCubin) {
   return (void **)fatbin_handle;
 }
 
-EXAPI void __etrtUnregisterFatBinary(void **fatCubinHandle) {
+void __etrtUnregisterFatBinary(void **fatCubinHandle) {
   // do nothing
   // TODO: ...?
 }
 
-EXAPI void __etrtRegisterFunction(void **fatCubinHandle, const char *hostFun,
-                                  char *deviceFun, const char *deviceName,
-                                  int thread_limit, uint3 *tid, uint3 *bid,
-                                  dim3 *bDim, dim3 *gDim, int *wSize) {
+void __etrtRegisterFunction(void **fatCubinHandle, const char *hostFun,
+                            char *deviceFun, const char *deviceName,
+                            int thread_limit, uint3 *tid, uint3 *bid,
+                            dim3 *bDim, dim3 *gDim, int *wSize) {
   // handle is the pointer inside gRegisteredFatbinWrappers array
   const __fatBinC_Wrapper_t **fatbin_handle =
       (const __fatBinC_Wrapper_t **)fatCubinHandle;
@@ -121,9 +121,9 @@ EXAPI void __etrtRegisterFunction(void **fatCubinHandle, const char *hostFun,
   gRegisteredFunctionsNum++;
 }
 
-EXAPI void __etrtRegisterVar(void **fatCubinHandle, char *hostVar,
-                             char *deviceAddress, const char *deviceName,
-                             int ext, size_t size, int constant, int global) {
+void __etrtRegisterVar(void **fatCubinHandle, char *hostVar,
+                       char *deviceAddress, const char *deviceName, int ext,
+                       size_t size, int constant, int global) {
   assert(deviceAddress == deviceName);
   // do nothing
   // TODO: ...?

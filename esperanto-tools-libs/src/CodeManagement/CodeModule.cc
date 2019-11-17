@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/CodeModule.h"
+#include "CodeModule.h"
 
 #include "Core/Device.h"
 #include "DeviceAPI/Commands.h"
@@ -99,7 +99,7 @@ bool Module::loadOnDevice(Device *dev) {
               << " Physical Address: 0x" << std::hex << write_address
               << " Mem Size : 0x" << mem_size << "\n";
 
-      auto write_command = make_shared<device_api::WriteCommand>(
+      auto write_command = make_shared<device_api::pcie_commands::WriteCommand>(
           (void *)write_address, elf_raw_data_.data() + offset, mem_size);
 
       dev->addCommand(

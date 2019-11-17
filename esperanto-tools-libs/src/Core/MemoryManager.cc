@@ -47,22 +47,6 @@ void MemoryManager::initMemRegions() {
   kernels_dev_mem_region_.reset(
     new LinearMemoryAllocator(EXEC_MEM_REGION_BASE, EXEC_MEM_REGION_SIZE));
 
-  std::shared_ptr<EtAction> actionConfigure = nullptr;
-  std::shared_ptr<EtAction> actionEvent = nullptr;
-
-  assert(device_.defaultStream_ == nullptr);
-  device_.defaultStream_ = device_.createStream(false);
-
-  auto configure_command = std::make_shared<device_api::ConfigureCommand>(
-      GLOBAL_MEM_REGION_BASE, GLOBAL_MEM_REGION_SIZE,
-      EXEC_MEM_REGION_BASE, EXEC_MEM_REGION_SIZE);
-
-  device_.addCommand(
-      device_.defaultStream_,
-      std::dynamic_pointer_cast<device_api::CommandBase>(configure_command));
-
-  auto configure_future = configure_command->getFuture();
-  auto configure_resp = configure_future.get();
 }
 
 void MemoryManager::uninitMemRegions() {
