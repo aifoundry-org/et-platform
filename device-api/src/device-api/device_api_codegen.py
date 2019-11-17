@@ -141,6 +141,12 @@ class DevAPICodeGeneratorHelper(object):
             return []
         return trace_events.get("TraceEvents", [])
 
+    def custom_type(self, field):
+        """Return true if this is a custom device-api type
+        """
+        return field['Type'] in ["enum", "struct"]
+
+
     def message_field_type(self, field):
         """Return the correct type for a given message field
 
