@@ -141,11 +141,11 @@ if(esperanto-fw_FOUND)
   create_test_targets("${DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
 
   set(QEMU_TEST_LIST
-    system/test_pcie_device.cc:""
+    pcie/test_pcie_device.cc:""
     )
 
   list(APPEND QEMU_TEST_LIST
-    system/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+    pcie/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
     )
 
   create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
