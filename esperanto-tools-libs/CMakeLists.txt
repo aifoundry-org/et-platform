@@ -22,6 +22,7 @@ option(HOST_SW "Enable building for the host-sw repo")
 option(BUILD_SHARED_LIBS "Build shared libs." ON)
 option(ETSOC "Build for the ETSOC")
 option(ENABLE_TESTS "Enable tests" ON)
+option(ENABLE_PCIE "Enable pcie support by default" OFF)
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)
 ## FIXME this option needs to be deprecated and etsoc will need to start
 ## setting the --sysemu runtime option eventually

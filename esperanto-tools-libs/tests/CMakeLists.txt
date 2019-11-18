@@ -129,7 +129,8 @@ create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
 
 if(esperanto-fw_FOUND)
   # List of tests to be compiled if we have support for device-fw
-  set(DEVFW_TEST_LIST
+  # List of tests that are currently running only in the simulator
+  set(SIM_DEVFW_TEST_LIST
     # This tests exercises the simulator API but given that we need to test the mailbox this
     # can be enabled only for the case of device-fw
     device-fw/test_mb_sim_api.cc:""
@@ -138,13 +139,23 @@ if(esperanto-fw_FOUND)
     device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
     device-fw/test_sysemu_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
     )
-  create_test_targets("${DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
+  create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
 
+  # List of tests that run either in the simulator or in PCIE
+  set(DUAL_MODE_OPTS "${DEV_FW_ARGS}")
+  if(ENABLE_PCIE)
+    set(DUAL_MODE_OPTS "${DUAL_MODE_OPTS} --dev_target=pcie")
+    set(DUAL_TEST_LABELS "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
+  else()
+    set(DUAL_TEST_LABELS "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
+  endif(ENABLE_PCIE)
+  set(DUAL_TEST_LIST "")
+  create_test_targets("${DUAL_TEST_LIST}" ${DUAL_TEST_LABELS})
+
+
+  # PCIE only tests
   set(QEMU_TEST_LIST
     pcie/test_pcie_device.cc:""
-    )
-
-  list(APPEND QEMU_TEST_LIST
     pcie/test_pcie_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
     )
 
