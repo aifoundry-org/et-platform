@@ -20,6 +20,7 @@ add_library(etrt_Core OBJECT
   MemoryAllocator.h
   registry.cc
   Stream.cc
+  VersionCheckers.cc
   )
 
 target_include_directories(etrt_Core PRIVATE

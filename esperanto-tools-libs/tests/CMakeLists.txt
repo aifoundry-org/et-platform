@@ -149,9 +149,11 @@ if(esperanto-fw_FOUND)
   else()
     set(DUAL_TEST_LABELS "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
   endif(ENABLE_PCIE)
-  set(DUAL_TEST_LIST "")
-  create_test_targets("${DUAL_TEST_LIST}" ${DUAL_TEST_LABELS})
 
+  set(DUAL_TEST_LIST
+    device-fw/test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
+    )
+  create_test_targets("${DUAL_TEST_LIST}" ${DUAL_TEST_LABELS})
 
   # PCIE only tests
   set(QEMU_TEST_LIST

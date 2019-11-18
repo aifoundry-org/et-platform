@@ -43,6 +43,13 @@ set_property(CACHE runtime_SW_SYSEMU_PROVIDER PROPERTY STRINGS "module" "package
 set(runtime_ELFIO_PROVIDER "module" CACHE STRING "Provider of the sw-sysemu executable")
 set_property(CACHE runtime_ELFIO_PROVIDER PROPERTY STRINGS "module" "package")
 
+execute_process(
+  COMMAND git rev-parse --verify HEAD
+  OUTPUT_VARIABLE ET_RUNTIME_GIT_HASH
+  TIMEOUT 20
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+
 if(ENABLE_CCACHE)
   find_program(CCACHE_PROGRAM ccache)
   if(CCACHE_PROGRAM)
