@@ -18,6 +18,9 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
+
+#include <ostream>
+
 namespace device_api {
 #endif
 
@@ -79,6 +82,23 @@ struct << message["Name"] >>_t {
 <% endfor %>
 
 #ifdef __cplusplus
+
+// Overloads of the operators<<"<<">> to enable outputing the structs in C++
+
+<% for struct in cgh.structs() -%>
+/// @brief Output << struct["Description"] >>
+static inline std::ostream& operator<< "<<" >>(std::ostream& output, const << struct['Name'] >>& obj)
+{
+  output
+  <%- for field in struct.get("Fields", []) -%>
+  << "<<" >> obj.<< field["Name"] >>
+  <%- endfor %>;
+
+  return output;
+};
+<% endfor %>
+
+
 } // namespace device_api
 #endif
 
