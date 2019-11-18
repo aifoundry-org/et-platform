@@ -96,6 +96,8 @@ class CodeGeneratorHelper(object):
                 DevAPIMod['Functions'].append(
                     {
                         'Name': f'{mod["Name"]}_{msg["Name"]}',
+                        'EnableTextLogging': True,
+                        'EnablePBLogging': True,
                         'Arguments': [
                             {
                                 'Name': f['Name'],
