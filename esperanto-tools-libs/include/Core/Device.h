@@ -80,43 +80,6 @@ public:
   etrtError resetDevice();
 
   ///
-  /// @brief  Copy the contents of one region of allocated memory to another.
-  ///
-  /// Initiate the copying of the given number of bytes from the given source
-  /// location to the given destination location.  The source and destination
-  /// regions can be other either the Host or an attached Device, but both
-  /// regions must be currently allocated by the calling process using this API.
-  /// This call returns when the transfer has completed (or a failure occurs).
-  ///
-  /// @param[in] dst  A pointer to the location where the memory is to be
-  /// copied.
-  /// @param[in] src  A pointer to the location from which the memory is to be
-  /// copied.
-  /// @param[in] count  The number of bytes that should be copied.
-  /// @param[in] kind  Enum indicating the direction of the transfer (i.e.,
-  /// H->H, H->D, D->H, or D->D).
-  /// @return  etrtSuccess, etrtErrorInvalidValue,
-  /// etrtErrorInvalidMemoryDirection
-  //  etrtError memcpy(AbstractMemoryPtr *dst, const AbstractMemoryPtr *src,
-  //                   size_t count);
-
-  ///
-  /// @brief  Sets the bytes in allocated memory region to a given value.
-  ///
-  /// Writes a given number of bytes in an allocated memory region to a given
-  /// byte value. This function executes asynchronously, unless the target
-  /// memory address refers to a pinned Host memory region.
-  ///
-  /// @param[in] ptr  Pointer to location of currently allocated memory region
-  /// that is to be written.
-  /// @param[in] value  Constant byte value to write into the given memory
-  /// region.
-  /// @param[in] count  Number of bytes to be written with the given value.
-  /// @return  etrtSuccess, etrtErrorInvalidValue
-  ////
-  etrtError memset(AbstractMemoryPtr &ptr, uint8_t value, size_t count);
-
-  ///
   /// @brief  Create a new Stream.
   ///
   /// Return the handle for a newly created Stream for the caller's process.
@@ -196,10 +159,55 @@ public:
   addCommand(Stream *et_stream,
              std::shared_ptr<et_runtime::device_api::CommandBase> et_action);
 
+  /// Memory initialization and manipulation on the device
+  /// FIXME SW-1293
+  ///
+  /// @brief  Copy the contents of one region of allocated memory to another.
+  ///
+  /// Initiate the copying of the given number of bytes from the given source
+  /// location to the given destination location.  The source and destination
+  /// regions can be other either the Host or an attached Device, but both
+  /// regions must be currently allocated by the calling process using this API.
+  /// This call returns when the transfer has completed (or a failure occurs).
+  ///
+  /// @param[in] dst  A pointer to the location where the memory is to be
+  /// copied.
+  /// @param[in] src  A pointer to the location from which the memory is to be
+  /// copied.
+  /// @param[in] count  The number of bytes that should be copied.
+  /// @param[in] kind  Enum indicating the direction of the transfer (i.e.,
+  /// H->H, H->D, D->H, or D->D).
+  /// @return  etrtSuccess, etrtErrorInvalidValue,
+  /// etrtErrorInvalidMemoryDirection
+  //  etrtError memcpy(AbstractMemoryPtr *dst, const AbstractMemoryPtr *src,
+  //                   size_t count);
+
+  /// FIXME SW-1293
+  ///
+  /// @brief  Sets the bytes in allocated memory region to a given value.
+  ///
+  /// Writes a given number of bytes in an allocated memory region to a given
+  /// byte value. This function executes asynchronously, unless the target
+  /// memory address refers to a pinned Host memory region.
+  ///
+  /// @param[in] ptr  Pointer to location of currently allocated memory region
+  /// that is to be written.
+  /// @param[in] value  Constant byte value to write into the given memory
+  /// region.
+  /// @param[in] count  Number of bytes to be written with the given value.
+  /// @return  etrtSuccess, etrtErrorInvalidValue
+  ////
+  etrtError memset(AbstractMemoryPtr &ptr, uint8_t value, size_t count);
+
+  /// FIXME SW-1293
   etrtError memcpyAsync(void *dst, const void *src, size_t count,
                         enum etrtMemcpyKind kind, Stream *stream);
+
+  /// FIXME SW-1293
   etrtError memcpy(void *dst, const void *src, size_t count,
                    enum etrtMemcpyKind kind);
+
+  /// FIXME SW-1293
   etrtError memset(void *devPtr, int value, size_t count);
 
   void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
