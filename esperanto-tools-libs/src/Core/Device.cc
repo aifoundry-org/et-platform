@@ -143,6 +143,9 @@ void Device::uninitDeviceThread() {
 }
 
 Stream *Device::defaultStream() const { return defaultStream_; }
+
+Stream *Device::defaultStream() { return defaultStream_; }
+
 Stream *Device::getStream(Stream *stream) {
   Stream *et_stream = reinterpret_cast<Stream *>(stream);
   if (et_stream == nullptr) {
@@ -151,8 +154,6 @@ Stream *Device::getStream(Stream *stream) {
   assert(stl_count(stream_storage_, et_stream));
   return et_stream;
 }
-
-Stream *Device::defaultStream() { return defaultStream_; }
 
 Event *Device::getEvent(Event *event) {
   Event *et_event = reinterpret_cast<Event *>(event);

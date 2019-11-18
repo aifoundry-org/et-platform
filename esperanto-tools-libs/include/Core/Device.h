@@ -79,6 +79,42 @@ public:
   ////
   etrtError resetDevice();
 
+  /// @brief Return true if the device is alive and we can execute commands
+  bool deviceAlive();
+
+  /// @brief Send the commands to the device
+  void deviceExecute();
+
+  /// @brief load the DeviceFW on the target device
+  etrtError loadFirmwareOnDevice();
+
+  ///
+  /// @brief Set the path to the firmware files and load their contents
+  ///
+  /// @params[in] path Vector of path to the firmware files
+  ///
+  /// @todo This function "violates" the RIIA principle that all setup
+  /// information should be passed throug the constructor. If were to do that
+  /// now that would require passing the path in the DeviceManager class as
+  /// well. @idoud I would like to revisit and clear this once we have the real
+  /// Device-FW in the picture where we should be passsing as a runtime argument
+  /// its location.
+  bool setFWFilePaths(const std::vector<std::string> &paths);
+
+  ///
+  /// @brief Return reference to the underlying target specific device
+  /// @todo This interface is currently used by the commands and we should find
+  /// a way to hide it.
+  device::DeviceTarget &getTargetDevice() { return *target_device_; }
+
+  ///
+  /// @brief Return reference to the memory manager of the device.
+  ///
+  /// Through this referene the user should be able to allocate memory on the
+  /// device
+  ///
+  device::MemoryManager& mem_manager() { return *mem_manager_; }
+
   ///
   /// @brief  Create a new Stream.
   ///
@@ -108,56 +144,51 @@ public:
   ////
   ErrorOr<std::unique_ptr<Stream>> streamCreateWithFlags(unsigned int flags);
 
-  /// @brief Return true if the device is alive and we can execute commands
-  bool deviceAlive();
-
-  void deviceExecute();
-
-  /// @brief load the DeviceFW on the target device
-  etrtError loadFirmwareOnDevice();
-
-  /// @brief Set the path to the firmware files and load their contents
-  ///
-  /// @params[in] path Vector of path to the firmware files
-  ///
-  /// @todo This function "violates" the RIIA principle that all setup
-  /// information should be passed throug the constructor. If were to do that
-  /// now that would require passing the path in the DeviceManager class as
-  /// well. @idoud I would like to revisit and clear this once we have the real
-  /// Device-FW in the picture where we should be passsing as a runtime argument
-  /// its location.
-  bool setFWFilePaths(const std::vector<std::string> &paths);
-
-  /// @brief Return reference to the underlying target specific device
-  /// @todo This interface is currently used by the commands and we should find
-  /// a way to hide it.
-  device::DeviceTarget &getTargetDevice() { return *target_device_; }
-
-  ///
-  /// @brief Return reference to the memory manager of the device.
-  ///
-  /// Through this referene the user should be able to allocate memory on the
-  /// device
-  ///
-  device::MemoryManager& mem_manager() { return *mem_manager_; }
-
+  /// @brief Return the default stream
   Stream *defaultStream() const;
-  Stream *getStream(Stream *stream);
 
+  /// @brief Return the default stream
   Stream *defaultStream();
 
+  /// @brief Return the stream with type StreamID
+  /// FIXME SW-1294
+  Stream *getStream(Stream *stream);
+
+  /// @Brief create a new Stream
+  Stream *createStream(bool is_blocking);
+
+  /// FIXME SW-1291 remove the following function
+  etrtError streamSynchronize(Stream *stream);
+
+  /// FIXME SW-1294
+  void destroyStream(Stream *et_stream);
+
+  /// FIXME SW-1291 this function should move the Stream Class
+  Event *createEvent(bool disable_timing, bool blocking_sync);
+
+  /// FIXME SW-1291 this function should move the Stream Class
+  void destroyEvent(Event *et_event);
+
+  /// FIXME SW-1291 this function should move the Stream Class
   Event *getEvent(Event *event);
 
-  et_runtime::Module *getModule(et_runtime::ModuleID mid);
-
-  Stream *createStream(bool is_blocking);
-  void destroyStream(Stream *et_stream);
-  Event *createEvent(bool disable_timing, bool blocking_sync);
-  etrtError streamSynchronize(Stream *stream);
-  void destroyEvent(Event *et_event);
+  /// FIXME SW-1291 this function should move the Stream Class
   void
   addCommand(Stream *et_stream,
              std::shared_ptr<et_runtime::device_api::CommandBase> et_action);
+
+  /// FIXME SW-1291 this function should move the Function Launch Class
+  void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
+    launch_confs_.push_back(conf);
+  }
+
+  /// FIXME SW-1291 this function should move the Function Launch Class
+  etrtError setupArgument(const void *arg, size_t size, size_t offset);
+
+  /// FIXME SW-1291 this function should move the Function Launch Class
+  // FIXME pass module_id
+  etrtError rawLaunch(et_runtime::ModuleID module_id, const char *kernel_name,
+                      const void *args, size_t args_size, Stream *stream);
 
   /// Memory initialization and manipulation on the device
   /// FIXME SW-1293
@@ -210,14 +241,7 @@ public:
   /// FIXME SW-1293
   etrtError memset(void *devPtr, int value, size_t count);
 
-  void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
-    launch_confs_.push_back(conf);
-  }
-
-  etrtError setupArgument(const void *arg, size_t size, size_t offset);
-  // FIXME pass module_id
-  etrtError rawLaunch(et_runtime::ModuleID module_id, const char *kernel_name,
-                      const void *args, size_t args_size, Stream *stream);
+  et_runtime::Module *getModule(et_runtime::ModuleID mid);
 
   ErrorOr<et_runtime::ModuleID> moduleLoad(const std::string &name,
                                            const std::string &path);
