@@ -25,7 +25,11 @@
 
 namespace et_runtime {
 
-class TestResponse : public device_api::ResponseBase {};
+class TestResponse : public device_api::ResponseBase {
+public:
+  // dummy type
+  using response_devapi_t = bool;
+};
 
 class TestCommand : public device_api::Command<TestResponse> {
   using Response = TestResponse;

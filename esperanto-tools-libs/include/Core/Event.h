@@ -21,6 +21,8 @@ namespace et_runtime {
 
 class EventResponse final : public device_api::ResponseBase {
 public:
+  // dummy type
+  using response_devapi_t = bool;
   EventResponse() = default;
 };
 

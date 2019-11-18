@@ -33,6 +33,9 @@ namespace pcie_responses {
 /// @brief
 class ReadResponse final : public ResponseBase {
 public:
+  // dummy type
+  using response_devapi_t = bool;
+
   ReadResponse() = default;
 
 private:
@@ -41,6 +44,9 @@ private:
 /// @brief
 class WriteResponse final : public ResponseBase {
 public:
+  // dummy type
+  using response_devapi_t = bool;
+
   WriteResponse() = default;
 };
 
@@ -82,6 +88,9 @@ private:
 /// @brief
 class LaunchResponse final : public ResponseBase {
 public:
+  // dummy type
+  using response_devapi_t = bool;
+
   LaunchResponse() = default;
 };
 

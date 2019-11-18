@@ -525,6 +525,8 @@ enum etrtError {
    * This indicates an internal startup failure in the ET Runtime.
    */
   etrtErrorStartupFailure = 0x7f,
+
+  etrtMailBoxWriteError,
 };
 
 #endif // ERROR_TYPES_H_

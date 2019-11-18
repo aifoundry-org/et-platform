@@ -61,6 +61,8 @@ private:
 /// command or because of an interaction with the PCIE driver
 template <class ResponseType> class Response {
 public:
+  using response_devapi_t = ResponseType;
+
   Response(const ResponseType &r) : rsp_(r) {}
 
   /// @brief Return the type of the response

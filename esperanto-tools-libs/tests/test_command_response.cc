@@ -26,7 +26,11 @@ namespace et_runtime {
 
 namespace device_api {
 
-class TestResponse : public ResponseBase {};
+class TestResponse : public ResponseBase {
+public:
+  // dummy type
+  using response_devapi_t = bool;
+};
 
 class TestCommand : public Command<TestResponse> {
   using Response = TestResponse;

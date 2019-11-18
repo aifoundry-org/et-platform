@@ -15,6 +15,7 @@
 
 #include "DeviceAPI/Command.h"
 #include "DeviceAPI/ResponsesGen.h"
+#include "Common/ErrorTypes.h"
 
 namespace et_runtime {
 namespace device_api {
@@ -35,6 +36,7 @@ public:
     const << namespace >><< cgh.message_field_type(f) >>& << f['Name'] >> <% if not loop.last %>,<% endif %>
     <%- endfor -%>);
 
+    etrtError execute(et_runtime::Device* dev);
 };
 
 <% endfor %>

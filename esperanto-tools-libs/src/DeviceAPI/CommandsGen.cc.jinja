@@ -11,7 +11,10 @@
 // WARNING: this file is auto-generated do not edit directly
 
 #include "CommandsGen.h"
+#include "Core/Device.h"
+#include "Core/DeviceTarget.h"
 #include "Tracing/TracingGen.h"
+#include "Common/ErrorTypes.h"
 
 using Ms = std::chrono::milliseconds;
 
@@ -46,6 +49,30 @@ namespace devfw_commands {
     << f['Name'] >> <% if not loop.last %>,<% endif %> \
     <% endfor -%>
   );
+}
+
+etrtError << class_name >>::execute(et_runtime::Device* dev) {
+  auto &target_device = dev->getTargetDevice();
+  auto res = target_device.mb_write(&cmd_info_, sizeof(cmd_info_));
+  if (!res) {
+    return etrtMailBoxWriteError;
+  }
+  // FIXME remove the bellow once threading is introduced
+  std::vector<uint8_t> message(target_device.mboxMsgMaxSize(), 0);
+  auto size = target_device.mb_read(message.data(), message.size(),
+                                    std::chrono::seconds(60));
+  assert(size == sizeof(response_devapi_t));
+  auto response_data =
+      reinterpret_cast<response_devapi_t *>(message.data());
+
+  <% set paired_msg = msg['PairedMessage'] -%>
+  <% set rsp_cname = cgh.name_to_camelcase(paired_msg) -%>
+
+  auto response = devfw_responses::<< rsp_cname >>(*response_data);
+
+  setResponse(response);
+
+  return etrtSuccess;
 }
 
 <% endfor %>

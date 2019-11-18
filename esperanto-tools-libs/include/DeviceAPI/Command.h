@@ -65,6 +65,7 @@ public:
 template <class Response, class CommandInfo=DummyCommandInfo> class Command : public CommandBase {
 public:
   using Timestamp = typename ResponseBase::Timestamp;
+  using response_devapi_t = typename Response::response_devapi_t;
 
   Command(const CommandInfo &i)
       : cmd_info_(i), timestamp_(std::chrono::high_resolution_clock::now()),
@@ -75,11 +76,14 @@ public:
 
   virtual ~Command() = default;
 
+  /// @brief Return the underlying command
+  const CommandInfo &cmd_info() const { return cmd_info_; }
+
   /// @brief Return the type of the command
   uint64_t commandType() const { return cmd_info_.message_id; }
 
   /// @brief Return the command information
-  const ::device_api::command_header_t &cmd_info() const {
+  const ::device_api::command_header_t &cmd_header() const {
     return cmd_info_.command_info;
   }
 
@@ -99,7 +103,7 @@ public:
   Timestamp startTime() const { return timestamp_; }
 
 protected:
-  CommandInfo cmd_info_; ///< object holding the basic command information
+  CommandInfo cmd_info_; ///< Object holding the basic command information
   Timestamp timestamp_;            ///< Timestamp this command was created
   std::promise<Response> promise_; ///< Promise used to return a future with the
                                    ///< Repose value of this command
