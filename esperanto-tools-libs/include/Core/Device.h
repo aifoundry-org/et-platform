@@ -219,6 +219,14 @@ public:
     return mem_manager_->isPtrInDevRegion(ptr);
   }
 
+  ///
+  /// @brief Return reference to the memory manager of the device.
+  ///
+  /// Through this referene the user should be able to allocate memory on the
+  /// device
+  ///
+  device::MemoryManager& mem_manager() { return *mem_manager_; }
+
   Stream *defaultStream() const;
   Stream *getStream(Stream *stream);
 
