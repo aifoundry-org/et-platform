@@ -77,18 +77,19 @@ Structs:
 # DeviceAPI can exchange with the host
 Messages :
   - Name: device_fw_version_cmd
-    Description:  Request the device-fw version. We have a 64 bit
-                  hash that captures the version
+    Description:  Request the device-fw version. Use the 8 bytes of the uint64_t
+                  to store 8 characters of the git-hash.
     Type: Command
     PairedMessage: device_fw_version_rsp
     Fields:
-      - Name: runtime_version
+      - Name: runtime_commit
         Type: uint64_t
   - Name: device_fw_version_rsp
+    Description:  Reply, the 8 bytes of the uint64_t to store 8 characters of the git-hash.
     Type: Response
     PairedMessage: device_fw_version_cmd
     Fields:
-      - Name: device_fw_version
+      - Name: device_fw_commit
         Type: uint64_t
 #-------------------------------------------------------------------------------
   - Name: device_api_version_cmd
