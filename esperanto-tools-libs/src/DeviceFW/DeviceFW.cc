@@ -57,7 +57,7 @@ bool DeviceFW::setFWFilePaths(const std::vector<std::string> &paths) {
     elf_info = std::make_unique<ELFInfo>(elf_name);
     elf_info->loadELF(path);
     RTINFO << "Loaded " << elf_info->name() << " from: " << path
-           << " Load address: " << std::hex << elf_info->loadAddr()
+           << " Load address: " << std::hex << elf_info->entryAddr()
            << " size: " << elf_info->elfSize();
     i++;
   }

@@ -25,7 +25,7 @@ namespace fs = std::experimental::filesystem;
 
 // Test device-fw elf parsing functionality
 // FIXME SW-1225
-TEST(ELFInfo, DISABLED_parse_device_fw_elf) {
+TEST(ELFInfo, parse_device_fw_elf) {
 
   KernelELFInfo elf_info{"master_minion"};
 
@@ -39,7 +39,7 @@ TEST(ELFInfo, DISABLED_parse_device_fw_elf) {
   EXPECT_TRUE(elf_info.loadELF(master_minion));
 
   // Check the load address of the Masterminion
-  EXPECT_EQ(elf_info.loadAddr(), 0x8000800000);
+  EXPECT_EQ(elf_info.entryAddr(), 0x8000800000);
 }
 
 ABSL_FLAG(std::string, empty_elf, "", "Path to the empty ELF binary");
@@ -47,7 +47,7 @@ ABSL_FLAG(std::string, empty_elf, "", "Path to the empty ELF binary");
 // Test kernel elf parsing where we are we have only the
 // ELF entrypoint and no magic annocated symbols
 // FIXME SW-1225
-TEST(KernelELFInfo, DISABLED_parse_dev_fw_kernel_elf) {
+TEST(KernelELFInfo, parse_dev_fw_kernel_elf) {
 
   KernelELFInfo elf_info{"empty"};
   auto empty_elf = absl::GetFlag(FLAGS_empty_elf);
@@ -57,13 +57,13 @@ TEST(KernelELFInfo, DISABLED_parse_dev_fw_kernel_elf) {
   // For this kernel they are no raw kernel entrypoints
   EXPECT_TRUE(elf_info.rawKernelExists("empty"));
 
-  EXPECT_EQ(0x8005000000, elf_info.loadAddr());
+  EXPECT_EQ(0x8105000000, elf_info.entryAddr());
 }
 
 // Test kernel elf parsing where we are we have only the
 // ELF entrypoint and no magic annocated symbols
 // FIXME SW-1225
-TEST(KernelELFInfo, DISABLED_code_module_dev_fw) {
+TEST(KernelELFInfo, code_module_dev_fw) {
 
   KernelELFInfo elf_info{"empty"};
   auto empty_elf = absl::GetFlag(FLAGS_empty_elf);
@@ -73,10 +73,10 @@ TEST(KernelELFInfo, DISABLED_code_module_dev_fw) {
   auto res = module.readELF(empty_elf);
   ASSERT_TRUE(res);
 
-  RTDEBUG << "Elf Load Addr 0x" << std::hex << module.elfLoadAddr() << "\n";
+  RTDEBUG << "Elf Entry Addr 0x" << std::hex << module.elfEntryAddr() << "\n";
 
   // For this kernel they are no raw kernel entrypoints
-  EXPECT_EQ(0x8005000000, module.elfLoadAddr());
+  EXPECT_EQ(0x8105000000, module.elfEntryAddr());
 }
 
 int main(int argc, char **argv) {

@@ -109,9 +109,7 @@ bool ELFInfo::loadELF(std::vector<char> &data) {
   return loadELF(is);
 }
 
-size_t ELFInfo::loadAddr() const {
-  return reader_.segments[0]->get_physical_address();
-}
+size_t ELFInfo::entryAddr() const { return reader_.get_entry(); }
 
 //------------------------------------------------------------------------------
 

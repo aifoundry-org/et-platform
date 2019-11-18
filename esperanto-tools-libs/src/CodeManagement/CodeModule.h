@@ -46,7 +46,7 @@ public:
   const std::string &name() const;
 
   /// @brief Return the elf load address
-  uintptr_t elfLoadAddr() const;
+  uintptr_t elfEntryAddr() const;
 
   /// @brief return true iff the "raw" kernel exists in the module
   bool rawKernelExists(const std::string &name);

@@ -43,10 +43,7 @@ public:
   size_t elfSize() const { return elf_size_; }
 
   /// @Brief return the address where we are expected to load the ELF
-  ///
-  /// Currently we are expecting to have a signle segment per ELF file, return
-  /// the physical address of that segment
-  size_t loadAddr() const;
+  size_t entryAddr() const;
 
 protected:
   std::vector<char> data_; ///< ELF raw data
