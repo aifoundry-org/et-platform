@@ -147,9 +147,6 @@ public:
   /// @brief Return the default stream
   Stream *defaultStream() const;
 
-  /// @brief Return the default stream
-  Stream *defaultStream();
-
   /// @brief Return the stream with type StreamID
   /// FIXME SW-1294
   Stream *getStream(Stream *stream);

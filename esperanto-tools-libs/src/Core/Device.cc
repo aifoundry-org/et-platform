@@ -144,8 +144,6 @@ void Device::uninitDeviceThread() {
 
 Stream *Device::defaultStream() const { return defaultStream_; }
 
-Stream *Device::defaultStream() { return defaultStream_; }
-
 Stream *Device::getStream(Stream *stream) {
   Stream *et_stream = reinterpret_cast<Stream *>(stream);
   if (et_stream == nullptr) {
