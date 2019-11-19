@@ -31,7 +31,7 @@ namespace device_api {
 /// container
 class CommandBase {
 public:
-  using IDty = int64_t;
+  using IDty = uint64_t;
 
   CommandBase();
   virtual ~CommandBase() = default;
@@ -68,13 +68,16 @@ public:
   using response_devapi_t = typename Response::response_devapi_t;
 
   Command(const CommandInfo &i)
-      : cmd_info_(i), timestamp_(std::chrono::high_resolution_clock::now()),
-        promise_() {}
+    : CommandBase(), cmd_info_(i), timestamp_(std::chrono::high_resolution_clock::now()),
+        promise_() {
+  }
 
   // FIXME the following constructor should be eventually removed
   Command() : Command(CommandInfo()) {}
 
   virtual ~Command() = default;
+
+  uint64_t commandID() const { return command_id_; }
 
   /// @brief Return the underlying command
   const CommandInfo &cmd_info() const { return cmd_info_; }
