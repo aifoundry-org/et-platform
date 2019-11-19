@@ -42,7 +42,24 @@
      ; \
   } \
   if (options.<< mname >>_<< fname >>_enable_pb_log) { \
-    et_runtime::tracing::PBRecord_<< mname >>_<< fname >>(<< cgh.function_get_argname_list(function) >>); \
+     <%- for arg in function.get("Arguments", []) -%>
+       <%- if cgh.proto_type(arg['Type'])  %>
+     auto val_<<arg['Name']>> = <<arg['Name']>>; \
+       <%- elif arg['Struct'] %>
+     auto val_<<arg['Name']>> = new et_runtime::tracing::<<arg['Type']>>(); \
+       <% for f in cgh.get_struct(arg['Type'])['Arguments'] -%>
+     val_<<arg['Name']>>->set_<<f['Name']>>(<<arg['Name']>>.<<f['Name']>>); \
+       <% endfor -%> \
+       <%- else %>
+     et_runtime::tracing::<<arg['Type']>> val_<<arg['Name']>> = (et_runtime::tracing::<<arg['Type']>>) <<arg['Name']>>; \
+       <%- endif -%>
+     <%- endfor %>
+     et_runtime::tracing::PBRecord_<< mname >>_<< fname >>(
+     <%- for arg in function.get("Arguments", []) -%>
+       val_<<arg['Name']>>
+       <%- if not loop.last %>,<% endif -%>
+     <%- endfor -%>
+     ); \
   } \
 } while(0);
 

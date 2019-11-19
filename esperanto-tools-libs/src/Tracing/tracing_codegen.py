@@ -79,7 +79,7 @@ class CodeGeneratorHelper(object):
                         'Name': f'{mod["Name"]}_{struct["Name"]}',
                         'Arguments': [
                             {
-                                'Name': f'{mod["Name"]}_{struct["Name"]}',
+                                'Name': f['Name'],
                                 'Type': self.cxx_to_proto_type(mod, f)
                             }
                             for f in struct['Fields']
@@ -101,12 +101,33 @@ class CodeGeneratorHelper(object):
                         'Arguments': [
                             {
                                 'Name': f['Name'],
-                                'Type': self.cxx_to_proto_type(mod, f)
+                                'Type': self.cxx_to_proto_type(mod, f),
+                                'Struct': f['Type'] == 'struct',
+                                'Enum': f['Type'] == 'enum',
                             }
                             for f in msg['Fields']
                         ]
                     })
         self.spec_data['Modules'].append(DevAPIMod)
+
+    def get_struct(self, struct_name):
+        """Return dict with the struct definition if it exists
+
+        Args:
+          struct_name (str): Name of the structure
+
+        Returns:
+          dict : Struct definition
+        """
+        slist = [ ]
+        for mod in self.spec_data['Modules']:
+            for i in mod.get('Structs', []):
+                if f"{mod['Name']}_{i['Name']}" == struct_name:
+                    slist.append(i)
+        if not slist:
+            return {}
+        assert(len(slist) == 1)
+        return slist[0]
 
     @staticmethod
     def module_enable_pb_logging(module):

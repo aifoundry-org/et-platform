@@ -23,7 +23,15 @@
                     "type": "string",
                     "enum": ["double", "float", "int32", "int64", "uint32", "uint64", "sint32",
                              "sint64", "fixed32", "fixed64", "sfixed32", "sfixed64", "bool",
-                             "string", "bytes"]
+                             "string", "bytes", "struct", "enum"]
+                },
+                "Struct": {
+                    "description": "Name of the struct type to reference",
+                    "type": "boolean"
+                },
+                "Enum": {
+                    "description": "Name of the enum type to reference",
+                    "type": "boolean"
                 },
                 "Required": {
                     "type": "boolean"
