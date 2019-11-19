@@ -34,7 +34,7 @@ namespace devfw_commands {
  const << namespace >><< cgh.message_field_type(f) >>& << f['Name'] >> <% if not loop.last %>,<% endif %>
  <%- endfor -%>)
 {
-  cmd_info_.command_info.command_id = ::device_api::MBOX_MESSAGE_ID_<< msg['Name'] | upper >>;
+  cmd_info_.command_info.command_id = ::device_api::MBOX_DEVAPI_MESSAGE_ID_<< msg['Name'] | upper >>;
   auto time = std::chrono::high_resolution_clock::now();
   cmd_info_.command_info.host_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
                      time.time_since_epoch()).count();
