@@ -14,7 +14,8 @@ struct global_mem_info_t
     bool     shire_mask[EMU_NUM_SHIRES]; // Which shires have the line in l1/l2
     bool     cb_dirty;                   // Data dirty in Coallescing Buffer
     bool     cb_dirty_quarter[4];        // Chunks of 128b that are dirty
-    uint64_t time_stamp;                 // Time stamp of the value
+    uint64_t time_stamp;                 // Time stamp of the value in the L3
+    uint64_t latest_time_stamp;          // Time stamp of the latest written value
 };
 
 struct shire_mem_info_t
@@ -45,35 +46,43 @@ class mem_directory
 
 private:
 
-  // Directories global, per shire and per minion
-  global_directory_map_t global_directory_map;
-  shire_directory_map_t  shire_directory_map[EMU_NUM_SHIRES];
-  minion_directory_map_t minion_directory_map[EMU_NUM_MINIONS];
+    // Directories global, per shire and per minion
+    global_directory_map_t global_directory_map;
+    shire_directory_map_t  shire_directory_map[EMU_NUM_SHIRES];
+    minion_directory_map_t minion_directory_map[EMU_NUM_MINIONS];
 
-  // Minion L1 status per set/way
-  bool l1_minion_valid[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
-  uint32_t l1_minion_control[EMU_NUM_MINIONS];
+    // Minion L1 status per set/way
+    bool l1_minion_valid[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
+    uint32_t l1_minion_control[EMU_NUM_MINIONS];
 
-  // Write and read functions
-  bool write   (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter);
-  bool read    (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
-  bool evict_va(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, bool * dirty_evict);
+    // Write and read functions
+    bool write   (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, size_t size, uint32_t cb_quarter);
+    bool read    (uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
+    bool evict_va(uint64_t address, op_location_t location, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id, bool * dirty_evict);
 
-  void l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t set);
+    void l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t set, bool evict);
 
-  void dump_state(global_directory_map_t::iterator it_global, shire_directory_map_t::iterator it_shire, minion_directory_map_t::iterator it_minion, uint32_t shire_id, uint32_t minion);
+    bool is_minion_clean(minion_directory_map_t::iterator it_minion);
+    bool is_shire_clean (shire_directory_map_t::iterator  it_shire);
+    bool is_global_clean(global_directory_map_t::iterator it_global);
+
+    void dump_minion(minion_mem_info_t * minion_info, std::string func, std::string op, uint64_t addr, uint32_t shire_id, uint32_t minion_id, uint32_t thread_id);
+    void dump_shire (shire_mem_info_t  * shire_info,  std::string func, std::string op, uint64_t addr, uint32_t shire_id, uint32_t minion);
+    void dump_global(global_mem_info_t * global_info, std::string func, std::string op, uint64_t addr, uint32_t minion);
+
+    void dump_state(global_directory_map_t::iterator it_global, shire_directory_map_t::iterator it_shire, minion_directory_map_t::iterator it_minion, uint32_t shire_id, uint32_t minion);
 
 public:
 
-  mem_directory();
+    mem_directory();
 
-  bool access(uint64_t addr, mem_access_type macc, cacheop_type cop, uint32_t current_thread, size_t size, mreg_t mask);
-  void cb_drain(uint32_t shire_id, uint32_t cache_bank);
-  void l2_flush(uint32_t shire_id, uint32_t cache_bank);
-  void l2_evict(uint32_t shire_id, uint32_t cache_bank);
-  void l1_evict_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
-  void l1_flush_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
-  void mcache_control_up(uint32_t shire_id, uint32_t minion_id, uint32_t val);
+    bool access(uint64_t addr, mem_access_type macc, cacheop_type cop, uint32_t current_thread, size_t size, mreg_t mask);
+    void cb_drain(uint32_t shire_id, uint32_t cache_bank);
+    void l2_flush(uint32_t shire_id, uint32_t cache_bank);
+    void l2_evict(uint32_t shire_id, uint32_t cache_bank);
+    void l1_evict_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
+    void l1_flush_sw(uint32_t shire_id, uint32_t minion_id, uint32_t set, uint32_t way);
+    void mcache_control_up(uint32_t shire_id, uint32_t minion_id, uint32_t val);
 };
 
 #endif
