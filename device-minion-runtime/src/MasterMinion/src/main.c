@@ -23,6 +23,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <string.h>
 #include <inttypes.h>
 
 //#define DEBUG_PRINT_HOST_MESSAGE
@@ -38,6 +39,10 @@ static void master_thread(void);
 
 static void handle_messages_from_host(void);
 static void handle_message_from_host(int64_t length, const uint8_t* const buffer);
+static void prepare_device_api_reply(const struct command_header_t* const cmd,
+                                     struct response_header_t* const rsp);
+static void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
+                                                const uint8_t* const buffer);
 
 static void handle_messages_from_sp(void);
 static void handle_message_from_sp(int64_t length, const uint8_t* const buffer);
@@ -265,6 +270,35 @@ static void handle_messages_from_host(void)
     while (length > 0);
 }
 
+static void prepare_device_api_reply(const struct command_header_t* const cmd,
+                                     struct response_header_t* const rsp)
+{
+    rsp->command_info = *cmd;
+    // FIXME SW-1308 update the timestamp
+}
+
+static void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
+                                                const uint8_t* const buffer)
+{
+    // FIXME SW-1308 Updat the command timestamp
+    if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_CMD)
+    {
+        const struct device_fw_version_cmd_t* const cmd = (const void* const) buffer;
+        struct device_fw_version_rsp_t rsp;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+        memcpy(&rsp.device_fw_commit, IMAGE_VERSION_INFO_SYMBOL.git_hash, sizeof(rsp.device_fw_commit));
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result == 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI reply MBOX_send error " PRIi64 "\r\n", result);
+        }
+    }
+    else
+    {
+        log_write(LOG_LEVEL_ERROR, "Invalid DeviceAPI message ID: 5" PRIu64 "\r\n", *message_id);
+    }
+}
+
 static void handle_message_from_host(int64_t length, const uint8_t* const buffer)
 {
     if (length < 0)
@@ -374,6 +408,10 @@ static void handle_message_from_host(int64_t length, const uint8_t* const buffer
         message.data[0] = host_log_level_message_ptr->log_level;
 
         broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
+    }
+    else if (MBOX_DEVAPI_MESSAGE_ID_NONE < *message_id && *message_id < MBOX_DEVAPI_MESSAGE_ID_LAST)
+    {
+        handle_device_api_message_from_host(message_id, buffer);
     }
     else
     {
