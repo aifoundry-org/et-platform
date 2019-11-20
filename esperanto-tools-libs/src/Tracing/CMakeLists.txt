@@ -13,6 +13,7 @@ set(TRACING_PB ${CMAKE_CURRENT_BINARY_DIR}/etrt-trace)
 set(SCHEMA_SRC_FILES
      Schema/etrt-trace.yaml
      Schema/mem-manager.yaml
+     Schema/device.yaml
      Schema/tracing-spec.schema.json
      )
 

@@ -15,6 +15,7 @@
 #include "DeviceAPI/CommandsGen.h"
 #include "DeviceAPI/ResponsesGen.h"
 #include "Support/Logging.h"
+#include "Tracing/Tracing.h"
 
 #include <memory>
 #include <string>
@@ -45,10 +46,59 @@ uint64_t GitVersionChecker::deviceFWHash() {
   dev_.addCommand(def_stream, devfw_cmd);
 
   auto response_future = devfw_cmd->getFuture();
-  auto response_wrapper = response_future.get();
-  device_fw_commit_ = response_wrapper.response().device_fw_commit;
+  auto &response = response_future.get().response();
+  assert(response.response_info.message_id ==
+         ::device_api::MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_RSP);
+  device_fw_commit_ = response.device_fw_commit;
 
   return device_fw_commit_;
+}
+
+DeviceAPIChecker::DeviceAPIChecker(Device &dev) : dev_(dev) {}
+
+bool DeviceAPIChecker::getDeviceAPIVersion() {
+  if (deviceQueried_) {
+    return true;
+  }
+  auto def_stream = dev_.defaultStream();
+  auto devapi_cmd =
+      std::make_shared<device_api::devfw_commands::DeviceApiVersionCmd>(
+          0, ESPERANTO_DEVICE_API_VERSION_MAJOR,
+          ESPERANTO_DEVICE_API_VERSION_MINOR,
+          ESPERANTO_DEVICE_API_VERSION_PATCH, DEVICE_API_HASH);
+
+  dev_.addCommand(def_stream, devapi_cmd);
+
+  auto response_future = devapi_cmd->getFuture();
+  auto &response = response_future.get().response();
+  assert(response.response_info.message_id ==
+         ::device_api::MBOX_DEVAPI_MESSAGE_ID_DEVICE_API_VERSION_RSP);
+  mmFWDevAPIMajor_ = response.major;
+  mmFWDevAPIMinor_ = response.minor;
+  mmFWDevAPIPatch_ = response.patch;
+  mmFWDevAPIHash_ = response.api_hash;
+  mmFWAccept_ = response.accept;
+  deviceQueried_ = true;
+  return true;
+}
+
+bool DeviceAPIChecker::isDeviceSupported() {
+  auto success = getDeviceAPIVersion();
+  if (!success) {
+    RTERROR << "Failed to query the device for the version of the DeviceAPI";
+    return false;
+  }
+
+  bool supported = true;
+  if ((mmFWDevAPIMajor_ != ESPERANTO_DEVICE_API_VERSION_MAJOR) ||
+      (mmFWAccept_ == false) ||
+      (mmFWDevAPIMinor_ < ESPERANTO_DEVICE_API_VERSION_MAJOR)) {
+    supported = false;
+  }
+
+  TRACE_Device_device_api_supported(supported, DEVICE_API_HASH,
+                                    mmFWDevAPIHash_);
+  return supported;
 }
 
 } // namespace et_runtime

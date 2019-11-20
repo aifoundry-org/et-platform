@@ -8,7 +8,21 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-Modules:
-  - !include mem-manager.yaml
-  - !include device.yaml
-DeviceAPI: !include @ESPERANTO_DEVICE_API_LIB_DIR@/esperanto/device-api/schema/device-api.yaml
+Name: Device
+EnablePBLogging : True
+EnableTextLogging: True
+DefaultON : True
+Functions :
+  - Name: device_api_supported
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: supported
+        Type : bool
+      # Debug fields to help us identify if the versions of the
+      # DeviceAPI are dfferent between host and device
+      - Name: dev_api_hash_host
+        Type: uint64
+      - Name: dev_api_hash_device
+        Type: uint64

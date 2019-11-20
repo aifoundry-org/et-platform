@@ -18,7 +18,8 @@ namespace et_runtime {
 class Device;
 
 ///
-/// @brief Add support for checking the device-firmware commit
+/// @brief Helper class for checking the device-firmware commit
+//
 class GitVersionChecker {
 
 public:
@@ -39,6 +40,39 @@ private:
       runtime_sw_commit_; ///< The first 8 bytes of the git hash to adverstise
   ///< to the device
   uint64_t device_fw_commit_ = 0; ///< The first 8 bytes of the device-fw commit
+};
+
+///
+/// @brief Helper class that checks the the DeviceAPI version on the Device
+//
+class DeviceAPIChecker {
+
+public:
+  DeviceAPIChecker(Device &dev);
+
+  /// @brief Query the MasterMinion and pull the DeviceAPI version that it
+  /// supports
+  bool getDeviceAPIVersion();
+
+  /// @brief Return true if the target version of the DeviceAPI on the Device is
+  /// supported
+  //// by the runtime.
+  bool isDeviceSupported();
+
+private:
+  bool deviceQueried_ = false; ///< True if the device has been already queried
+  Device &dev_;                ///< Reference to the Device
+  // Avoid including the device-api struct here to avoid leaking this
+  // implementation in this public header
+  uint64_t mmFWDevAPIMajor_ =
+      0; ///< Major Version of the DeviceAPI on the device
+  uint64_t mmFWDevAPIMinor_ =
+      0; ///< Minor Version of the DeviceAPI on the device
+  uint64_t mmFWDevAPIPatch_ =
+      0; ///< Patch Version of the DeviceAPI on the device
+  uint64_t mmFWDevAPIHash_ = 0; ///< Hash of the DeviceAPI schema on the device
+  bool mmFWAccept_ = false; ///< Accept reply of the DeviceAPI version that the
+                            ///< runtime supports from the master minion
 };
 
 } // namespace et_runtime

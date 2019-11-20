@@ -29,6 +29,20 @@ TEST_F(DeviceFWTest, DeviceAPI_GetDevFWVersion) {
   ASSERT_TRUE(devfw_hash != 0);
 }
 
+// Test the call that retries the DevceAPI version from the Device
+TEST_F(DeviceFWTest, DeviceAPI_GetDevAPIVersion) {
+  // Do nothing make sure that the fixture starts/stop the simulator correctly
+  ASSERT_EQ(dev_->init(), etrtSuccess);
+
+  DeviceAPIChecker devapi_checker(*dev_);
+  auto success = devapi_checker.getDeviceAPIVersion();
+  ASSERT_TRUE(success);
+  // Require that we always build the runtime with a target device-fw
+  // that the runtime can support
+  success = devapi_checker.isDeviceSupported();
+  ASSERT_TRUE(success);
+}
+
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   google::SetCommandLineOption("GLOG_minloglevel", "0");
