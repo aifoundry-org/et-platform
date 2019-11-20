@@ -18,8 +18,6 @@ typedef enum
     MBOX_MESSAGE_ID_REFLECT_TEST              = 8,
     MBOX_MESSAGE_ID_DMA_RUN_TO_DONE           = 9,
     MBOX_MESSAGE_ID_DMA_DONE                  = 10,
-    MBOX_MESSAGE_ID_SET_MASTER_LOG_LEVEL      = 11,
-    MBOX_MESSAGE_ID_SET_WORKER_LOG_LEVEL      = 12
 } mbox_message_id_e;
 
 typedef uint64_t mbox_response_id_t;

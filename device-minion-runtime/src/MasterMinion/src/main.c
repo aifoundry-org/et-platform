@@ -41,6 +41,7 @@ static void handle_messages_from_host(void);
 static void handle_message_from_host(int64_t length, const uint8_t* const buffer);
 static void prepare_device_api_reply(const struct command_header_t* const cmd,
                                      struct response_header_t* const rsp);
+static log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level);
 static void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
                                                 const uint8_t* const buffer);
 
@@ -277,6 +278,12 @@ static void prepare_device_api_reply(const struct command_header_t* const cmd,
     // FIXME SW-1308 update the timestamp
 }
 
+static log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level)
+{
+    // FIXME we expect that the enums between devapi and fw match for now just cast
+    return (log_level_e) log_level;
+}
+
 static void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
                                                 const uint8_t* const buffer)
 {
@@ -309,6 +316,42 @@ static void handle_device_api_message_from_host(const mbox_message_id_t* message
         if (result != 0)
         {
             log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Version MBOX_send error " PRIi64 "\r\n", result);
+        }
+    }
+    else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_SET_MASTER_LOG_LEVEL_CMD)
+    {
+        const struct set_master_log_level_cmd_t* const cmd = (const void* const) buffer;
+        struct set_master_log_level_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_SET_MASTER_LOG_LEVEL_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+        log_set_level(devapi_loglevel_to_fw(cmd->log_level));
+        rsp.status = true;
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error " PRIi64 "\r\n", result);
+        }
+
+    }
+    else if (*message_id ==  MBOX_DEVAPI_MESSAGE_ID_SET_WORKER_LOG_LEVEL_CMD)
+    {
+        const struct set_worker_log_level_cmd_t* const cmd = (const void* const) buffer;
+        struct set_worker_log_level_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_SET_WORKER_LOG_LEVEL_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+        // send message to workers
+        message_t message;
+        message.id = MESSAGE_ID_SET_LOG_LEVEL;
+        message.data[0] = devapi_loglevel_to_fw(cmd->log_level);
+
+        broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
+
+        rsp.status = true;
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Set Master Log Level MBOX_send error " PRIi64 "\r\n", result);
         }
     }
     else
@@ -411,21 +454,6 @@ static void handle_message_from_host(int64_t length, const uint8_t* const buffer
         MBOX_send(MBOX_PCIE, &done_message, sizeof(done_message));
 
         //TODO: notify glow kernel HARTs that data is done being transferred
-    }
-    else if (*message_id == MBOX_MESSAGE_ID_SET_MASTER_LOG_LEVEL)
-    {
-        const host_log_level_message_t* const host_log_level_message_ptr = (const void* const)buffer;
-        log_set_level(host_log_level_message_ptr->log_level);
-    }
-    else if (*message_id == MBOX_MESSAGE_ID_SET_WORKER_LOG_LEVEL)
-    {
-        const host_log_level_message_t* const host_log_level_message_ptr = (const void* const)buffer;
-
-        message_t message;
-        message.id = MESSAGE_ID_SET_LOG_LEVEL;
-        message.data[0] = host_log_level_message_ptr->log_level;
-
-        broadcast_message_send_master(0xFFFFFFFF, 0xFFFFFFFFFFFFFFFF, &message);
     }
     else if (MBOX_DEVAPI_MESSAGE_ID_NONE < *message_id && *message_id < MBOX_DEVAPI_MESSAGE_ID_LAST)
     {
