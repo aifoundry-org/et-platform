@@ -92,8 +92,8 @@ public:
     static void thread_set_pc(unsigned thread_id, uint64_t pc) { current_pc[thread_id] = pc; }
     static uint64_t thread_get_reg(int thread_id, int reg) { return cpu[thread_id].xregs[reg]; }
     static void thread_set_reg(int thread_id, int reg, uint64_t data) { cpu[thread_id].xregs[reg] = data; }
-    static uint32_t thread_get_freg(int thread_id, int reg) { return cpu[thread_id].fregs[reg].u32[0]; }
-    static void thread_set_freg(int thread_id, int reg, uint32_t data) { cpu[thread_id].fregs[reg].u32[0] = data; }
+    static freg_t thread_get_freg(int thread_id, int reg) { return cpu[thread_id].fregs[reg]; }
+    static void thread_set_freg(int thread_id, int reg, freg_t data) { cpu[thread_id].fregs[reg] = data; }
     static uint64_t thread_get_csr(int thread_id, int csr) { return get_csr(thread_id, csr); }
     static void thread_set_csr(int thread_id, int csr, uint32_t data) { set_csr(thread_id, csr, data); }
 
