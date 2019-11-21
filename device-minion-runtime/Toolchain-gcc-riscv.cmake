@@ -122,9 +122,13 @@ macro(add_riscv_executable TARGET_NAME)
 
     if (DEFINED ZEBU_TARGET)
         # custom command to generate a ZeBu hex file from the elf
+        # This file creates multiple output files that are not captured correctly as outputs.
+        # Create a token file file to mark success of converting the ELF to hex, and prevent
+        # regeneration of the hex files if the ELF has not changed
         add_custom_command(
-            OUTPUT ${HEX_FILE}
+            OUTPUT ${HEX_FILE}.done
             COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME}
+            COMMAND date > ${HEX_FILE}.done
             DEPENDS ${ELF_FILE}
         )
 
@@ -159,7 +163,7 @@ macro(add_riscv_executable TARGET_NAME)
         add_custom_target(
             "${TARGET_NAME}.hex.always"
             ALL
-            DEPENDS ${ELFTOHEX_ABS_PATH} ${HEX_FILE}
+            DEPENDS ${ELFTOHEX_ABS_PATH} ${HEX_FILE}.done
         )
     endif()
 
