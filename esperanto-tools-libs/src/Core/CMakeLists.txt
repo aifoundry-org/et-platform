@@ -12,6 +12,7 @@ add_library(etrt_Core OBJECT
   CommandQueue.h
   Device.cc
   DeviceManager.cc
+  DeviceHelpers.cc
   DeviceTarget.cc
   Error.cc
   Event.cc

@@ -21,46 +21,25 @@ ABSL_FLAG(std::string, kernels_dir, "",
 
 using namespace et_runtime;
 
-TEST_F(DeviceFWTest, DeviceAPI_GetDevFWVersion) {
-  // Do nothing make sure that the fixture starts/stop the simulator correctly
-  ASSERT_EQ(dev_->init(), etrtSuccess);
 
-  GitVersionChecker git_checker (*dev_);
-  auto devfw_hash = git_checker.deviceFWHash();
-  ASSERT_TRUE(devfw_hash != 0);
-}
-
-// Test the call that retries the DevceAPI version from the Device
-TEST_F(DeviceFWTest, DeviceAPI_GetDevAPIVersion) {
-  // Do nothing make sure that the fixture starts/stop the simulator correctly
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
-  DeviceAPIChecker devapi_checker(*dev_);
-  auto success = devapi_checker.getDeviceAPIVersion();
-  ASSERT_TRUE(success);
-  // Require that we always build the runtime with a target device-fw
-  // that the runtime can support
-  success = devapi_checker.isDeviceSupported();
-  ASSERT_TRUE(success);
-}
-
+///  FIXME SW-1364
 // Test setting the master minion logging levels
-TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelMaster) {
+TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelWorker) {
   // Do nothing make sure that the fixture starts/stop the simulator correctly
   ASSERT_EQ(dev_->init(), etrtSuccess);
 
-  SetMasterLogLevel master_level(*dev_);
-  auto success = master_level.set_level_critical();
+  SetWorkerLogLevel worker_level(*dev_);
+  auto success = worker_level.set_level_critical();
   ASSERT_TRUE(success);
-  success = master_level.set_level_error();
+  success = worker_level.set_level_error();
   ASSERT_TRUE(success);
-  success = master_level.set_level_warning();
+  success = worker_level.set_level_warning();
   ASSERT_TRUE(success);
-  success = master_level.set_level_info();
+  success = worker_level.set_level_info();
   ASSERT_TRUE(success);
-  success = master_level.set_level_debug();
+  success = worker_level.set_level_debug();
   ASSERT_TRUE(success);
-  success = master_level.set_level_trace();
+  success = worker_level.set_level_trace();
   ASSERT_TRUE(success);
 }
 

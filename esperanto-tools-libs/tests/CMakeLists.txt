@@ -138,6 +138,7 @@ if(esperanto-fw_FOUND)
     device-fw/test_elf_parsing_dev_fw.cc:"${DEV_FW_ARGS} --empty_elf ${EMPTY_KERNEL_ELF}"
     device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
     device-fw/test_sysemu_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+    device-fw/test_device_api_sysemu.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
     )
   create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
 
@@ -153,7 +154,7 @@ if(esperanto-fw_FOUND)
   set(DUAL_TEST_LIST
     device-fw/test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
     )
-  create_test_targets("${DUAL_TEST_LIST}" ${DUAL_TEST_LABELS})
+  create_test_targets("${DUAL_TEST_LIST}" "${DUAL_TEST_LABELS}")
 
   # PCIE only tests
   set(QEMU_TEST_LIST
