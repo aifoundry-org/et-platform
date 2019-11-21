@@ -8,39 +8,14 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-set(SOURCES
-    ${SHARED_KERNEL_SRC_DIR}/crt.S
-    ${SHARED_SRC_DIR}/log.c
-    ${SHARED_SRC_DIR}/printf.c # log needs printf.c to build string
-    ${SHARED_SRC_DIR}/message.c # log needs message.c to send log message to master minion
-    tl_tfma_tstore.c
-    )
-
-set(TARGET_NAME tl_tfma_tstore)
-set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
-set(ZEBU_TARGET DDR_NEW)
-set(ZEBU_FILENAME memImage)
-
-include_directories(include)
-include_directories(${SHARED_INC_DIRS})
-include_directories(${SHARED_KERNEL_INC_DIR})
-
-add_riscv_executable(${TARGET_NAME} ${SOURCES})
-
-install(TARGETS ${TARGET_NAME}.elf
-  EXPORT esperanto-fw-targets
-  RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/kernels
-  COMPONENT kernels)
-
-message("tl_tfma_tstore kernel hex to install ${TARGET_NAME_OUTPUT}")
-
-string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
-foreach(FILE ${OUTPUT_LIST})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
-    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/tl_tfma_tstore
-    COMPONENT zebu)
-endforeach(FILE)
-
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/mem_desc.txt ${CMAKE_CURRENT_BINARY_DIR}/mem_desc.txt)
-execute_process(COMMAND python3 gen_random_params.py --shires 3 --scenario tload_tfma_tstore --target_dir include --output_type array --repeat 4
-                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} )             
+randomized_test(
+  NAME tl_tfma_tstore
+  NUMBER_OF_TESTS 10
+  GEN_COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/gen_random_params.py --shires 3 --scenario tload_tfma_tstore --target_dir include --output_type array --repeat 4
+  OUTPUT_GEN_FILES random_seed
+                   include/tstore_configs.h
+                   include/tfma_configs.h
+                   include/tl0_configs.h
+                   include/tl1_configs.h
+  SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/tl_tfma_tstore.c
+  )

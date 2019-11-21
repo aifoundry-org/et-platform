@@ -11,6 +11,80 @@
 get_filename_component(SHARED_KERNEL_SRC_DIR "shared" ABSOLUTE)
 get_filename_component(SHARED_KERNEL_INC_DIR "shared/include" ABSOLUTE)
 
+# Helper function for creating different instances of randomized tests
+# In this case we expect that a different instance of an elf file will be compiled
+# based on an auto-generated header
+# Arguments:
+# TEST_NAME: Name of the test
+# NUMBER_OF_TESTS : number of individual tests to create
+# GEN_COMMAND : Command to generate to produce the
+# OUTPUT_GEN_FILE : Name of the output generated files
+# SOURCES : Input compile sources
+macro(randomized_test)
+  cmake_parse_arguments(RANDOMIZED_TEST
+    ""
+    "NAME;NUMBER_OF_TESTS"
+    "OUTPUT_GEN_FILES;SOURCES;GEN_COMMAND"
+    ${ARGN})
+
+  include_directories(include)
+  include_directories(${SHARED_INC_DIRS})
+  include_directories(${SHARED_KERNEL_INC_DIR})
+  foreach(TEST_ID RANGE ${RANDOMIZED_TEST_NUMBER_OF_TESTS})
+
+    set(TEST_NAME "${RANDOMIZED_TEST_NAME}_${TEST_ID}")
+    set(TEST_BUILD_FOLDER ${CMAKE_CURRENT_BINARY_DIR}/${TEST_NAME})
+
+    execute_process(COMMAND mkdir -p ${TEST_BUILD_FOLDER})
+
+    list(TRANSFORM RANDOMIZED_TEST_OUTPUT_GEN_FILES PREPEND ${TEST_BUILD_FOLDER}/ OUTPUT_VARIABLE OUTPUT_GEN_FILES)
+
+    add_custom_command(
+      OUTPUT ${TEST_BUILD_FOLDER}/gen.done
+      COMMAND mkdir -p ${TEST_BUILD_FOLDER} && mkdir -p ${TEST_BUILD_FOLDER}/include
+      COMMAND cd ${TEST_BUILD_FOLDER} && ${RANDOMIZED_TEST_GEN_COMMAND}
+      COMMAND date > ${TEST_BUILD_FOLDER}/gen.done
+      )
+
+    add_custom_target(${TEST_NAME}-gen-files
+      DEPENDS ${TEST_BUILD_FOLDER}/gen.done)
+
+    set(SOURCES
+      ${SHARED_KERNEL_SRC_DIR}/crt.S
+      ${SHARED_SRC_DIR}/log.c
+      ${SHARED_SRC_DIR}/printf.c # log needs printf.c to build string
+      ${SHARED_SRC_DIR}/message.c # log needs message.c to send log message to master minion
+      ${RANDOMIZED_TEST_SOURCES}
+      )
+    include_directories(${TEST_BUILD_FOLDER}/include)
+
+    set(TARGET_NAME ${TEST_NAME})
+    set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
+    set(ZEBU_TARGET DDR_NEW)
+    set(ZEBU_FILENAME ${TEST_BUILD_FOLDER}/memImage)
+    set(TARGET_RUNTIME_OUTPUT_DIRECTORY ${TEST_BUILD_FOLDER})
+    add_riscv_executable(${TARGET_NAME} ${SOURCES})
+    add_dependencies(${TARGET_NAME}.elf ${TEST_NAME}-gen-files)
+
+    install(TARGETS ${TARGET_NAME}.elf
+      EXPORT esperanto-fw-targets
+      RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/kernels/${TARGET_NAME}
+      COMPONENT kernels)
+
+    string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
+    foreach(FILE ${OUTPUT_LIST})
+      install(FILES ${FILE}
+        DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/${TEST_NAME}
+        COMPONENT zebu)
+    endforeach(FILE)
+
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/mem_desc.txt ${TEST_BUILD_FOLDER}/mem_desc.txt)
+
+  endforeach()
+
+endmacro(RANDOMIZED_TEST)
+
+
 add_subdirectory("beef")
 add_subdirectory("crc32")
 add_subdirectory("empty")
