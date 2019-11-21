@@ -86,17 +86,19 @@ etrtError_t etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
 }
 
 etrtError_t etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags) {
-  assert((flags & ~(etrtStreamDefault | etrtStreamNonBlocking)) == 0);
+  assert((flags & ~(ETRT_EVENT_FLAGS_STREAM_DEFAULT |
+                    ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING)) == 0);
 
   GetDev dev;
 
-  Stream *new_stream = dev->createStream((flags & etrtStreamNonBlocking) == 0);
+  Stream *new_stream =
+      dev->createStream((flags & ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING) == 0);
   *pStream = reinterpret_cast<Stream *>(new_stream);
   return etrtSuccess;
 }
 
 etrtError_t etrtStreamCreate(Stream **pStream) {
-  return etrtStreamCreateWithFlags(pStream, etrtHostAllocDefault);
+  return etrtStreamCreateWithFlags(pStream, ETRT_MEM_ALLOC_HOST);
 }
 
 etrtError_t etrtStreamDestroy(Stream *stream) {
@@ -135,20 +137,23 @@ etrtError_t etrtStreamSynchronize(Stream *stream) {
 etrtError_t etrtGetLastError(void) { return etrtSuccess; }
 
 etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags) {
-  assert((flags & ~(etrtEventDefault | etrtEventBlockingSync |
-                    etrtEventDisableTiming | etrtEventInterprocess)) == 0);
-  assert((flags & ~(etrtEventDisableTiming | etrtEventBlockingSync)) == 0);
+  assert((flags & ~(ETRT_EVENT_FLAGS_STREAM_DEFAULT |
+                    ETRT_EVENT_FLAGS_STREAM_BLOCKING_SYNC |
+                    ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING |
+                    ETRT_EVENT_FLAGS_INTERPROCESS |
+                    ETRT_EVENT_FLAGS_DISABLE_TIMING)) == 0);
 
   GetDev dev;
 
-  Event *new_event = dev->createEvent((flags & etrtEventDisableTiming) != 0,
-                                      (flags & etrtEventBlockingSync) != 0);
+  Event *new_event =
+      dev->createEvent((flags & ETRT_EVENT_FLAGS_DISABLE_TIMING) != 0,
+                       (flags & ETRT_EVENT_FLAGS_STREAM_BLOCKING_SYNC) != 0);
   *event = reinterpret_cast<Event *>(new_event);
   return etrtSuccess;
 }
 
 etrtError_t etrtEventCreate(Event **event) {
-  return etrtEventCreateWithFlags(event, etrtEventDefault);
+  return etrtEventCreateWithFlags(event, ETRT_EVENT_FLAGS_STREAM_DEFAULT);
 }
 
 etrtError_t etrtEventQuery(Event *event) {

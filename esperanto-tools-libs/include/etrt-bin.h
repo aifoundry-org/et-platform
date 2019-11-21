@@ -31,97 +31,6 @@
 
 #include <stddef.h>
 
-#define etrtHostAllocDefault 0x00 /**< Default page-locked allocation flag */
-#define etrtHostAllocPortable                                                  \
-  0x01 /**< Pinned memory accessible by all contexts */
-#define etrtHostAllocMapped 0x02        /**< Map allocation into device space */
-#define etrtHostAllocWriteCombined 0x04 /**< Write-combined memory */
-
-#define etrtHostRegisterDefault                                                \
-  0x00 /**< Default host memory registration flag */
-#define etrtHostRegisterPortable                                               \
-  0x01 /**< Pinned memory accessible by all contexts */
-#define etrtHostRegisterMapped                                                 \
-  0x02 /**< Map registered memory into device space */
-#define etrtHostRegisterIoMemory 0x04 /**< Memory-mapped I/O space */
-
-#define etrtPeerAccessDefault 0x00 /**< Default peer addressing enable flag */
-
-#define etrtStreamDefault 0x00 /**< Default stream flag */
-#define etrtStreamNonBlocking                                                  \
-  0x01 /**< Stream does not synchronize with stream 0 (the NULL stream) */
-
-/**
- * @brief Per-thread stream handle
- *
- * Stream handle that can be passed as a Stream * to use an implicit stream
- * with per-thread synchronization behavior.
- *
- * See details of the @link_sync_behavior
- */
-#define etrtStreamPerThread ((Stream *)0x2)
-
-#define etrtEventDefault 0x00       /**< Default event flag */
-#define etrtEventBlockingSync 0x01  /**< Event uses blocking synchronization */
-#define etrtEventDisableTiming 0x02 /**< Event will not record timing data */
-#define etrtEventInterprocess                                                  \
-  0x04 /**< Event is suitable for interprocess use. etrtEventDisableTiming     \
-          must be set */
-
-#define etrtDeviceScheduleAuto 0x00 /**< Device flag - Automatic scheduling */
-#define etrtDeviceScheduleSpin                                                 \
-  0x01 /**< Device flag - Spin default scheduling */
-#define etrtDeviceScheduleYield                                                \
-  0x02 /**< Device flag - Yield default scheduling */
-#define etrtDeviceScheduleBlockingSync                                         \
-  0x04 /**< Device flag - Use blocking synchronization */
-#define etrtDeviceScheduleMask 0x07 /**< Device schedule flags mask */
-#define etrtDeviceMapHost                                                      \
-  0x08 /**< Device flag - Support mapped pinned allocations */
-#define etrtDeviceLmemResizeToMax                                              \
-  0x10 /**< Device flag - Keep local memory allocation after launch */
-#define etrtDeviceMask 0x1f /**< Device flags mask */
-
-#define etrtIpcMemLazyEnablePeerAccess                                         \
-  0x01 /**< Automatically enable peer access between remote devices as needed  \
-        */
-
-#define etrtMemAttachGlobal                                                    \
-  0x01 /**< Memory can be accessed by any stream on any device*/
-#define etrtMemAttachHost                                                      \
-  0x02 /**< Memory cannot be accessed by any stream on any device */
-#define etrtMemAttachSingle                                                    \
-  0x04 /**< Memory can only be accessed by a single stream on the associated   \
-          device */
-
-#define etrtOccupancyDefault 0x00 /**< Default behavior */
-#define etrtOccupancyDisableCachingOverride                                    \
-  0x01 /**< Assume global caching is enabled and cannot be automatically       \
-          turned off */
-
-#define etrtCpuDeviceId ((int)-1) /**< Device id that represents the CPU */
-#define etrtInvalidDeviceId                                                    \
-  ((int)-2) /**< Device id that represents an invalid device */
-
-/**
- * @brief  Flag to make kernel launch obey pre-synch rules
- *
- * If set, each kernel launched as part of
- * ::etrtLaunchCooperativeKernelMultiDevice only waits for prior work in the
- * stream corresponding to that Device to complete before the kernel begins
- * execution.
- */
-#define etrtCooperativeLaunchMultiDeviceNoPreSync 0x01
-
-/**
- * @brief  Flag to make kernel launch obey post-synch rules
- *
- * If set, any subsequent work pushed in a stream that participated in a call to
- * ::etrtLaunchCooperativeKernelMultiDevice will only wait for the kernel
- * launched on the Device corresponding to that stream to complete before it
- * begins execution.
- */
-#define etrtCooperativeLaunchMultiDeviceNoPostSync 0x02
 
 /**
  * @brief ET Runtime memory types
@@ -294,6 +203,7 @@ typedef class et_runtime::Stream *etrtStream_t;
 typedef class et_runtime::Stream EtStream;
 typedef class et_runtime::Event* etrtEvent_t;
 
+
 /**
  * A three-integer-element data type
  */
@@ -330,25 +240,5 @@ struct dim3 {
 typedef struct uint3 uint3;
 typedef struct uint4 uint4;
 typedef struct dim3 dim3;
-
-/*
- * @brief ET Runtime Supported Datatypes
- */
-typedef enum etrtDataType_t {
-  ETRT_R_16F = 2,  /* real as a half */
-  ETRT_C_16F = 6,  /* complex as a pair of half numbers */
-  ETRT_R_32F = 0,  /* real as a float */
-  ETRT_C_32F = 4,  /* complex as a pair of float numbers */
-  ETRT_R_64F = 1,  /* real as a double */
-  ETRT_C_64F = 5,  /* complex as a pair of double numbers */
-  ETRT_R_8I = 3,   /* real as a signed char */
-  ETRT_C_8I = 7,   /* complex as a pair of signed char numbers */
-  ETRT_R_8U = 8,   /* real as a unsigned char */
-  ETRT_C_8U = 9,   /* complex as a pair of unsigned char numbers */
-  ETRT_R_32I = 10, /* real as a signed int */
-  ETRT_C_32I = 11, /* complex as a pair of signed int numbers */
-  ETRT_R_32U = 12, /* real as a unsigned int */
-  ETRT_C_32U = 13  /* complex as a pair of unsigned int numbers */
-} etrtDataType;
 
 #endif // ETRT_BIN_H
