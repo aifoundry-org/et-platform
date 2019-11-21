@@ -47,10 +47,19 @@ set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=
 # if LINKER_SCRIPT is defined, uses it instead of the default
 macro(add_riscv_executable TARGET_NAME)
     set(ELF_FILE ${TARGET_NAME}.elf)
-    set(BIN_FILE ${TARGET_NAME}.bin)
+    if (DEFINED TARGET_RUNTIME_OUTPUT_DIRECTORY)
+        set(ELF_FILE_PATH ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${ELF_FILE})
+        set(BIN_FILE ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}.bin)
+        set(MAP_FILE ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}.map)
+        set(LST_FILE ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${TARGET_NAME}.lst)
+    else()
+        set(ELF_FILE_PATH ${ELF_FILE})
+        set(BIN_FILE ${TARGET_NAME}.bin)
+        set(MAP_FILE ${TARGET_NAME}.map)
+        set(LST_FILE ${TARGET_NAME}.lst)
+    endif()
+
     set(HEX_FILE ${TARGET_NAME}.hex)
-    set(MAP_FILE ${TARGET_NAME}.map)
-    set(LST_FILE ${TARGET_NAME}.lst)
 
     if (NOT DEFINED GIT_HASH_STRING)
         execute_process(COMMAND ${CMAKE_GET_GIT_HASH} ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE GIT_HASH_STRING)
@@ -71,7 +80,9 @@ macro(add_riscv_executable TARGET_NAME)
     )
 
     add_executable(${ELF_FILE} ${ARGN}) # ARGN is "the rest of the arguments", i.e. the source list
-
+    if (DEFINED TARGET_RUNTIME_OUTPUT_DIRECTORY)
+        set_target_properties(${ELF_FILE} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY})
+    endif()
     target_include_directories(${ELF_FILE} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/include)
 
     if (DEFINED LINKER_SCRIPT)
@@ -105,7 +116,7 @@ macro(add_riscv_executable TARGET_NAME)
     # custom command to generate a bin from the elf
     add_custom_command(
         OUTPUT ${BIN_FILE}
-        COMMAND ${CMAKE_OBJCOPY} -O binary ${ELF_FILE} ${BIN_FILE}
+        COMMAND ${CMAKE_OBJCOPY} -O binary ${ELF_FILE_PATH} ${BIN_FILE}
         DEPENDS ${ELF_FILE}
     )
 
@@ -113,13 +124,13 @@ macro(add_riscv_executable TARGET_NAME)
         # custom command to generate a ZeBu hex file from the elf
         add_custom_command(
             OUTPUT ${HEX_FILE}
-            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} --output-file ${ZEBU_FILENAME}
+            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME}
             DEPENDS ${ELF_FILE}
         )
 
         # call elftohex and get the list of files it will generate per target
         execute_process(
-            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE} --output-file ${ZEBU_FILENAME} --print-output-files
+            COMMAND ${CMAKE_ELFTOHEX} ${ZEBU_TARGET} ${ELF_FILE_PATH} --output-file ${ZEBU_FILENAME} --print-output-files
             OUTPUT_VARIABLE "${TARGET_NAME}_OUTPUT"
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
@@ -128,7 +139,7 @@ macro(add_riscv_executable TARGET_NAME)
     # custom command to generate an assembly listing from the elf
     add_custom_command(
         OUTPUT ${LST_FILE}
-        COMMAND ${CMAKE_OBJDUMP} -h -S ${ELF_FILE} > ${LST_FILE}
+        COMMAND ${CMAKE_OBJDUMP} -h -S ${ELF_FILE_PATH} > ${LST_FILE}
         DEPENDS ${ELF_FILE}
     )
 
