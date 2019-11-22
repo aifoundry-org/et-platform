@@ -92,9 +92,4 @@ struct etrtPointerAttributes {
   int isManaged;
 };
 
-typedef enum etrtError etrtError_t;
-typedef class et_runtime::Stream *etrtStream_t;
-typedef class et_runtime::Stream EtStream;
-typedef class et_runtime::Event* etrtEvent_t;
-
 #endif // ETRT_BIN_H

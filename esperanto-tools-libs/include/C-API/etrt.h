@@ -110,7 +110,7 @@ using namespace et_runtime;
  * @return  A string that describes the result of an API call.
 
  */
-const char *etrtGetErrorString(etrtError_t error);
+const char *etrtGetErrorString(enum etrtError error);
 
 /**
  * @brief  Returns the last error from an API call.
@@ -139,7 +139,7 @@ const char *etrtGetErrorString(etrtError_t error);
  etrtErrorJitCompilerNotFound
 
  */
-etrtError_t etrtGetLastError(void);
+enum etrtError etrtGetLastError(void);
 
 /**
  * @}
@@ -173,7 +173,7 @@ etrtError_t etrtGetLastError(void);
  * Devices is to be written.
  * @return  etrtSuccess
  */
-etrtError_t etrtGetDeviceCount(int *count);
+enum etrtError etrtGetDeviceCount(int *count);
 
 /**
  * @brief  Return information about a given Device
@@ -191,7 +191,7 @@ etrtError_t etrtGetDeviceCount(int *count);
  * be queried.
  * @return  etrtSuccess, etrtErrorInvalidDevice
  */
-etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop, int device);
+enum etrtError etrtGetDeviceProperties(struct etrtDeviceProp *prop, int device);
 
 /**
  * @brief  Returns the number of the Device currently in use by the calling
@@ -205,7 +205,7 @@ etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop, int device);
  * to be written.
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-etrtError_t etrtGetDevice(int *device);
+enum etrtError etrtGetDevice(int *device);
 
 /**
  * @brief  Attach a Device to the calling process.
@@ -220,7 +220,7 @@ etrtError_t etrtGetDevice(int *device);
  * caller's process.
  * @return  etrtSuccess, etrtErrorInvalidDevice, etrtErrorDeviceAlreadyInUse
  */
-etrtError_t etrtSetDevice(int device);
+enum etrtError etrtSetDevice(int device);
 
 /**
  * @brief  Return the version of the ET Device Driver that is being used.
@@ -243,7 +243,7 @@ const char *etrtGetDriverVersion();
  *
  * @return  etrtSuccess
  */
-etrtError_t etrtResetDevice();
+enum etrtError etrtResetDevice();
 
 /**
  * @}
@@ -301,7 +301,7 @@ etrtError_t etrtResetDevice();
  * the Host.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorMemoryAllocation
  */
-etrtError_t etrtMallocHost(void **ptr, size_t size);
+enum etrtError etrtMallocHost(void **ptr, size_t size);
 
 /**
  * @brief  Free allocated Host memory.
@@ -314,7 +314,7 @@ etrtError_t etrtMallocHost(void **ptr, size_t size);
  * @param[in] ptr  A pointer to a previously allocated region of Host memory.
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-etrtError_t etrtFreeHost(void *ptr);
+enum etrtError etrtFreeHost(void *ptr);
 
 /**
  * @brief  Allocate memory on the Device.
@@ -332,7 +332,7 @@ etrtError_t etrtFreeHost(void *ptr);
  * the Device.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorMemoryAllocation
  */
-etrtError_t etrtMalloc(void **devPtr, size_t size);
+enum etrtError etrtMalloc(void **devPtr, size_t size);
 
 /**
  * @brief  Free allocated Device memory.
@@ -346,7 +346,7 @@ etrtError_t etrtMalloc(void **devPtr, size_t size);
  * memory.
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-etrtError_t etrtFree(void *devPtr);
+enum etrtError etrtFree(void *devPtr);
 
 /**
  * @brief Get information related to a region of memory allocated by this API.
@@ -365,8 +365,9 @@ etrtError_t etrtFree(void *devPtr);
  * @param[in] ptr  A pointer to an allocated region of (Host or Device) memory
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-etrtError_t etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
-                                     const void *ptr);
+enum etrtError
+etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
+                         const void *ptr);
 
 /**
  * @brief  Asynchronously copy the contents of one region of allocated memory to
@@ -392,8 +393,8 @@ etrtError_t etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
  * default Stream.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidMemoryDirection
  */
-etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
-                            enum etrtMemcpyKind kind, Stream *stream);
+enum etrtError etrtMemcpyAsync(void *dst, const void *src, size_t count,
+                               enum etrtMemcpyKind kind, Stream *stream);
 
 /**
  * @brief  Copy the contents of one region of allocated memory to another.
@@ -412,8 +413,8 @@ etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
  * H->D, D->H, or D->D).
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidMemoryDirection
  */
-etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
-                       enum etrtMemcpyKind kind);
+enum etrtError etrtMemcpy(void *dst, const void *src, size_t count,
+                          enum etrtMemcpyKind kind);
 
 /**
  * @brief  Sets the bytes in allocated memory region to a given value.
@@ -428,7 +429,7 @@ etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
  * @param[in] count  Number of bytes to be written with the given value.
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
-etrtError_t etrtMemset(void *ptr, int value, size_t count);
+enum etrtError etrtMemset(void *ptr, int value, size_t count);
 
 /**
  * @}
@@ -482,11 +483,11 @@ etrtError_t etrtMemset(void *ptr, int value, size_t count);
  * @return  etrtSuccess, etrtErrorInvalidValue
  */
 // @todo FIXME
-//  etrtError_t etrtStreamCreateWithFlags(Stream * *pStream, unsigned
+//  enum etrtError etrtStreamCreateWithFlags(Stream * *pStream, unsigned
 // int flags);
 
-etrtError_t etrtStreamCreate(Stream **pStream);
-etrtError_t etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags);
+enum etrtError etrtStreamCreate(Stream **pStream);
+enum etrtError etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags);
 
 /**
  * @brief  Delete an existing Stream.
@@ -502,7 +503,7 @@ etrtError_t etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags);
  * @param[in] stream  The handle for one of the calling process' Streams.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle
  */
-etrtError_t etrtStreamDestroy(Stream *stream);
+enum etrtError etrtStreamDestroy(Stream *stream);
 
 /**
  * @brief  Block until all of a Stream's operations have completed.
@@ -516,7 +517,7 @@ etrtError_t etrtStreamDestroy(Stream *stream);
  * @param[in] stream  The handle for one of the calling process' Streams.
  * @return  etrtSuccess, etrtErrorInvalidResourceHandle
  */
-etrtError_t etrtStreamSynchronize(Stream *stream);
+enum etrtError etrtStreamSynchronize(Stream *stream);
 
 /**
  * @brief  Have a Stream wait for an Event before continuing with its execution.
@@ -530,10 +531,10 @@ etrtError_t etrtStreamSynchronize(Stream *stream);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle
  */
 // @todo FIXME
-//  etrtError_t etrtStreamWaitEvent(Stream * stream, Event *
+//  enum etrtError etrtStreamWaitEvent(Stream * stream, Event *
 // event);
-etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
-                                unsigned int flags);
+enum etrtError etrtStreamWaitEvent(Stream *stream, Event *event,
+                                   unsigned int flags);
 
 /**
  * @}
@@ -562,7 +563,7 @@ etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
  *
  */
 
-etrtError_t etrtEventCreate(Event **event);
+enum etrtError etrtEventCreate(Event **event);
 
 /**
  * @brief  Create a new Event.
@@ -583,7 +584,7 @@ etrtError_t etrtEventCreate(Event **event);
  * etrtErrorMemoryAllocation
  */
 // @todo FIXME
-etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags);
+enum etrtError etrtEventCreateWithFlags(Event **event, unsigned int flags);
 
 /**
  * @brief  Return the state of an Event.
@@ -601,7 +602,7 @@ etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags);
  * @return  etrtSuccess, etrtErrorNotReady, etrtErrorInvalidValue,
  * etrtErrorInvalidResourceHandle, etrtErrorLaunchFailure
  */
-etrtError_t etrtEventQuery(Event *event);
+enum etrtError etrtEventQuery(Event *event);
 
 /**
  * @brief  Capture a snapshot of the state of a given Stream.
@@ -623,7 +624,7 @@ etrtError_t etrtEventQuery(Event *event);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle,
  * etrtErrorLaunchFailure
  */
-etrtError_t etrtEventRecord(Event *event, Stream *stream);
+enum etrtError etrtEventRecord(Event *event, Stream *stream);
 
 /**
  * @brief  Wait for all of the work captured in an Event to complete.
@@ -636,7 +637,7 @@ etrtError_t etrtEventRecord(Event *event, Stream *stream);
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourcHandle,
  * etrtErrorLaunchFailure
  */
-etrtError_t etrtEventSynchronize(Event *event);
+enum etrtError etrtEventSynchronize(Event *event);
 
 /**
  * @brief  Returns the time between a starting and ending Event.
@@ -665,7 +666,7 @@ etrtError_t etrtEventSynchronize(Event *event);
  * @return  etrtSuccess, etrtErrorNotReady, etrtErrorInvalidValue,
  * etrtErrorInvalidResourceHandle, etrtErrorLaunchFailure
  */
-etrtError_t etrtEventElapsedTime(float *ms, Event *start, Event *end);
+enum etrtError etrtEventElapsedTime(float *ms, Event *start, Event *end);
 
 /**
  * @brief  Delete an Event.
@@ -677,7 +678,7 @@ etrtError_t etrtEventElapsedTime(float *ms, Event *start, Event *end);
  * @param[in] event  The handle for an Event created by the calling process.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorLaunchFailure
  */
-etrtError_t etrtEventDestroy(Event *event);
+enum etrtError etrtEventDestroy(Event *event);
 
 /**
  * @}
@@ -849,7 +850,7 @@ etrtError_t etrtEventDestroy(Event *event);
  * etrtErrorLaunchOutOfResources
  */
 // @todo FIXme
-//  etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
+//  enum etrtError etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
 // sharedMem, unsigned int flags);
 
 /**
@@ -868,8 +869,8 @@ etrtError_t etrtEventDestroy(Event *event);
  * @return  etrtSuccess, etrtErrorInvalidConfiguration
  */
 // @todo FIXME
-//  etrtError_t etrtSetupArgument(const void **args, size_t sizes[]);
-etrtError_t etrtSetupArgument(const void *arg, size_t size, size_t offset);
+//  enum etrtError etrtSetupArgument(const void **args, size_t sizes[]);
+enum etrtError etrtSetupArgument(const void *arg, size_t size, size_t offset);
 
 /**
  * @brief  Launch a Kernel and give this execution a name.
@@ -898,9 +899,9 @@ etrtError_t etrtSetupArgument(const void *arg, size_t size, size_t offset);
  * etrtErrorJitCompilerNotFound
  */
 // @todo FIXME
-//  etrtError_t etrtLaunch(const void *kernel, const char *kernelName,
+//  enum etrtError etrtLaunch(const void *kernel, const char *kernelName,
 // Stream * stream);
-etrtError_t etrtLaunch(const void *func, const char *kernel_name);
+enum etrtError etrtLaunch(const void *func, const char *kernel_name);
 
 /**
  * @}
@@ -921,7 +922,7 @@ etrtError_t etrtLaunch(const void *func, const char *kernel_name);
  *
  * @return  etrtSuccess, etrtError
  */
-etrtError_t etrtProfileInitialize();
+enum etrtError etrtProfileInitialize();
 
 /**
  * @brief  Start profiling.
@@ -930,7 +931,7 @@ etrtError_t etrtProfileInitialize();
  *
  * @return  etrtSuccess, etrtError
  */
-etrtError_t etrtProfileStart();
+enum etrtError etrtProfileStart();
 
 /**
  * @brief  Stop profiling.
@@ -939,7 +940,7 @@ etrtError_t etrtProfileStart();
  *
  * @return  etrtSuccess, etrtError
  */
-etrtError_t etrtProfileStop();
+enum etrtError etrtProfileStop();
 
 /**
  * @}
@@ -949,10 +950,11 @@ namespace et_runtime {
 class Module;
 }
 
-etrtError_t etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
-                           size_t image_size);
-etrtError_t etrtModuleUnload(et_runtime::ModuleID mid);
-etrtError_t etrtRawLaunch(et_runtime::ModuleID mid, const char *kernel_name,
-                          const void *args, size_t args_size, Stream *stream);
+enum etrtError etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
+                              size_t image_size);
+enum etrtError etrtModuleUnload(et_runtime::ModuleID mid);
+enum etrtError etrtRawLaunch(et_runtime::ModuleID mid, const char *kernel_name,
+                             const void *args, size_t args_size,
+                             Stream *stream);
 
 #endif // ETRT_H

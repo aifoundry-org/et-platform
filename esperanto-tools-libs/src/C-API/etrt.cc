@@ -16,11 +16,11 @@
 using namespace std;
 using namespace et_runtime;
 
-const char *etrtGetErrorString(etrtError_t error) {
+const char *etrtGetErrorString(enum etrtError error) {
   return et_runtime::Error::errorString(error);
 }
 
-etrtError_t etrtGetDeviceCount(int *count) {
+enum etrtError etrtGetDeviceCount(int *count) {
   auto deviceManager = getDeviceManager();
   auto ret = deviceManager->getDeviceCount();
   if (!ret) {
@@ -30,7 +30,8 @@ etrtError_t etrtGetDeviceCount(int *count) {
   return etrtSuccess;
 }
 
-etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop, int device) {
+enum etrtError etrtGetDeviceProperties(struct etrtDeviceProp *prop,
+                                       int device) {
   auto deviceManager = getDeviceManager();
   auto ret = deviceManager->getDeviceInformation(device);
   if (!ret) {
@@ -40,7 +41,7 @@ etrtError_t etrtGetDeviceProperties(struct etrtDeviceProp *prop, int device) {
   return etrtSuccess;
 }
 
-etrtError_t etrtGetDevice(int *device) {
+enum etrtError etrtGetDevice(int *device) {
   // FIXME SW-256
   auto deviceManager = getDeviceManager();
   auto device_res = deviceManager->getActiveDeviceID();
@@ -51,7 +52,7 @@ etrtError_t etrtGetDevice(int *device) {
   return etrtSuccess;
 }
 
-etrtError_t etrtSetDevice(int device) {
+enum etrtError etrtSetDevice(int device) {
   // FIXME SW-256
   assert(device == 0);
   auto deviceManager = getDeviceManager();
@@ -59,33 +60,34 @@ etrtError_t etrtSetDevice(int device) {
   return etrtSuccess;
 }
 
-etrtError_t etrtMallocHost(void **ptr, size_t size) {
+enum etrtError etrtMallocHost(void **ptr, size_t size) {
   GetDev dev;
   return dev->mem_manager().mallocHost(ptr, size);
 }
 
-etrtError_t etrtFreeHost(void *ptr) {
+enum etrtError etrtFreeHost(void *ptr) {
   GetDev dev;
   return dev->mem_manager().freeHost(ptr);
 }
 
-etrtError_t etrtMalloc(void **devPtr, size_t size) {
+enum etrtError etrtMalloc(void **devPtr, size_t size) {
   GetDev dev;
   return dev->mem_manager().malloc(devPtr, size);
 }
 
-etrtError_t etrtFree(void *devPtr) {
+enum etrtError etrtFree(void *devPtr) {
   GetDev dev;
   return dev->mem_manager().free(devPtr);
 }
 
-etrtError_t etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
-                                     const void *ptr) {
+enum etrtError
+etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
+                         const void *ptr) {
   GetDev dev;
   return dev->mem_manager().pointerGetAttributes(attributes, ptr);
 }
 
-etrtError_t etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags) {
+enum etrtError etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags) {
   assert((flags & ~(ETRT_EVENT_FLAGS_STREAM_DEFAULT |
                     ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING)) == 0);
 
@@ -97,11 +99,11 @@ etrtError_t etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags) {
   return etrtSuccess;
 }
 
-etrtError_t etrtStreamCreate(Stream **pStream) {
+enum etrtError etrtStreamCreate(Stream **pStream) {
   return etrtStreamCreateWithFlags(pStream, ETRT_MEM_ALLOC_HOST);
 }
 
-etrtError_t etrtStreamDestroy(Stream *stream) {
+enum etrtError etrtStreamDestroy(Stream *stream) {
   GetDev dev;
 
   Stream *et_stream = dev->getStream(stream);
@@ -109,34 +111,34 @@ etrtError_t etrtStreamDestroy(Stream *stream) {
   return etrtSuccess;
 }
 
-etrtError_t etrtMemcpyAsync(void *dst, const void *src, size_t count,
-                            enum etrtMemcpyKind kind, Stream *stream) {
+enum etrtError etrtMemcpyAsync(void *dst, const void *src, size_t count,
+                               enum etrtMemcpyKind kind, Stream *stream) {
   GetDev dev;
 
   return dev->memcpyAsync(dst, src, count, kind, stream);
 }
 
-etrtError_t etrtMemcpy(void *dst, const void *src, size_t count,
-                       enum etrtMemcpyKind kind) {
-  etrtError_t res = etrtMemcpyAsync(dst, src, count, kind, 0);
+enum etrtError etrtMemcpy(void *dst, const void *src, size_t count,
+                          enum etrtMemcpyKind kind) {
+  enum etrtError res = etrtMemcpyAsync(dst, src, count, kind, 0);
   etrtStreamSynchronize(0);
 
   return res;
 }
 
-etrtError_t etrtMemset(void *devPtr, int value, size_t count) {
+enum etrtError etrtMemset(void *devPtr, int value, size_t count) {
   GetDev dev;
   return dev->memset(devPtr, value, count);
 }
 
-etrtError_t etrtStreamSynchronize(Stream *stream) {
+enum etrtError etrtStreamSynchronize(Stream *stream) {
   GetDev dev;
   return dev->streamSynchronize(stream);
 }
 
-etrtError_t etrtGetLastError(void) { return etrtSuccess; }
+enum etrtError etrtGetLastError(void) { return etrtSuccess; }
 
-etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags) {
+enum etrtError etrtEventCreateWithFlags(Event **event, unsigned int flags) {
   assert((flags & ~(ETRT_EVENT_FLAGS_STREAM_DEFAULT |
                     ETRT_EVENT_FLAGS_STREAM_BLOCKING_SYNC |
                     ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING |
@@ -152,11 +154,11 @@ etrtError_t etrtEventCreateWithFlags(Event **event, unsigned int flags) {
   return etrtSuccess;
 }
 
-etrtError_t etrtEventCreate(Event **event) {
+enum etrtError etrtEventCreate(Event **event) {
   return etrtEventCreateWithFlags(event, ETRT_EVENT_FLAGS_STREAM_DEFAULT);
 }
 
-etrtError_t etrtEventQuery(Event *event) {
+enum etrtError etrtEventQuery(Event *event) {
   GetDev dev;
 
   Event *et_event = dev->getEvent(event);
@@ -166,7 +168,7 @@ etrtError_t etrtEventQuery(Event *event) {
 }
 
 // @todo FIXME the following is not tested
-etrtError_t etrtEventRecord(Event *event, Stream *stream) {
+enum etrtError etrtEventRecord(Event *event, Stream *stream) {
   // GetDev dev;
 
   // Stream *et_stream = dev->getStream(stream);
@@ -175,8 +177,8 @@ etrtError_t etrtEventRecord(Event *event, Stream *stream) {
   return etrtSuccess;
 }
 
-etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
-                                unsigned int flags) {
+enum etrtError etrtStreamWaitEvent(Stream *stream, Event *event,
+                                   unsigned int flags) {
   // Must be zero by current API.
   assert(flags == 0);
 
@@ -188,7 +190,7 @@ etrtError_t etrtStreamWaitEvent(Stream *stream, Event *event,
   return etrtSuccess;
 }
 
-etrtError_t etrtEventSynchronize(Event *event) {
+enum etrtError etrtEventSynchronize(Event *event) {
   // TODO: current implementation uses blocking semantics regardless of
   // cudaEventBlockingSync flag
   GetDev dev;
@@ -199,13 +201,13 @@ etrtError_t etrtEventSynchronize(Event *event) {
   return etrtSuccess;
 }
 
-etrtError_t etrtEventElapsedTime(float *ms, Event *start, Event *end) {
+enum etrtError etrtEventElapsedTime(float *ms, Event *start, Event *end) {
   // TODO:
   assert(false);
   return etrtSuccess;
 }
 
-etrtError_t etrtEventDestroy(Event *event) {
+enum etrtError etrtEventDestroy(Event *event) {
   GetDev dev;
 
   Event *et_event = dev->getEvent(event);
@@ -214,7 +216,8 @@ etrtError_t etrtEventDestroy(Event *event) {
 }
 
 // FIXME SW-1362
-// etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem,
+// enum etrtError etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
+// sharedMem,
 //                               Stream *stream) {
 //   assert(sharedMem < 100 * 1024); // 100КВ; actually we allocate
 //                                   // BLOCK_SHARED_REGION_TOTAL_SIZE - 64B
@@ -233,12 +236,13 @@ etrtError_t etrtEventDestroy(Event *event) {
 // }
 
 // FIXME SW-1362
-// etrtError_t etrtSetupArgument(const void *arg, size_t size, size_t offset) {
+// enum etrtError etrtSetupArgument(const void *arg, size_t size, size_t offset)
+// {
 //   GetDev dev;
 //   return dev->setupArgument(arg, size, offset);
 // }
 
-etrtError_t etrtLaunch(const void *func, const char *kernel_name) {
+enum etrtError etrtLaunch(const void *func, const char *kernel_name) {
   // FIXME
   //  GetDev dev;
   //  return dev->launch(func, kernel_name);
@@ -246,8 +250,8 @@ etrtError_t etrtLaunch(const void *func, const char *kernel_name) {
   return etrtSuccess;
 }
 
-etrtError_t etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
-                           size_t image_size) {
+enum etrtError etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
+                              size_t image_size) {
   abort();
   // FIXME enable
   // GetDev dev;
@@ -259,13 +263,14 @@ etrtError_t etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
   return etrtSuccess;
 }
 
-etrtError_t etrtModuleUnload(et_runtime::ModuleID mid) {
+enum etrtError etrtModuleUnload(et_runtime::ModuleID mid) {
   GetDev dev;
   return dev->moduleUnload(mid);
 }
 
-etrtError_t etrtRawLaunch(et_runtime::ModuleID mid, const char *kernel_name,
-                          const void *args, size_t args_size, Stream *stream) {
+enum etrtError etrtRawLaunch(et_runtime::ModuleID mid, const char *kernel_name,
+                             const void *args, size_t args_size,
+                             Stream *stream) {
   GetDev dev;
   return dev->rawLaunch(mid, kernel_name, args, args_size, stream);
 }
