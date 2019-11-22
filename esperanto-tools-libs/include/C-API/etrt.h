@@ -90,17 +90,6 @@
 
 using namespace et_runtime;
 
-// Registry public interface.
-void **__etrtRegisterFatBinary(void *fatCubin);
-void __etrtUnregisterFatBinary(void **fatCubinHandle);
-void __etrtRegisterFunction(void **fatCubinHandle, const char *hostFun,
-                            char *deviceFun, const char *deviceName,
-                            int thread_limit, uint3 *tid, uint3 *bid,
-                            dim3 *bDim, dim3 *gDim, int *wSize);
-void __etrtRegisterVar(void **fatCubinHandle, char *hostVar,
-                       char *deviceAddress, const char *deviceName, int ext,
-                       size_t size, int constant, int global);
-
 /**
  * @addtogroup ETCRT_ERROR_HANDLING ET Runtime API Error Handling
  * @ingroup  ETCRT_API
@@ -862,8 +851,6 @@ etrtError_t etrtEventDestroy(Event *event);
 // @todo FIXme
 //  etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
 // sharedMem, unsigned int flags);
-etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem,
-                              Stream *stream);
 
 /**
  * @brief  Define the inputs to be given to all instances of the next Kernel to

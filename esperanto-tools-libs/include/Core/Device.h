@@ -175,12 +175,14 @@ public:
              std::shared_ptr<et_runtime::device_api::CommandBase> et_action);
 
   /// FIXME SW-1291 this function should move the Function Launch Class
-  void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
-    launch_confs_.push_back(conf);
-  }
+  // void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
+  //   launch_confs_.push_back(conf);
+  // }
 
   /// FIXME SW-1291 this function should move the Function Launch Class
-  etrtError setupArgument(const void *arg, size_t size, size_t offset);
+  /// FIXME SW-1362 the interface should also be re-implemented of this
+  /// functionality
+  // etrtError setupArgument(const void *arg, size_t size, size_t offset);
 
   /// FIXME SW-1291 this function should move the Function Launch Class
   // FIXME pass module_id
@@ -261,7 +263,8 @@ private:
   Stream *defaultStream_ = nullptr;
   std::vector<std::unique_ptr<Stream>> stream_storage_;
   std::vector<std::unique_ptr<Event>> event_storage_;
-  std::vector<et_runtime::EtLaunchConf> launch_confs_;
+  // FIXME SW-1362
+  // std::vector<et_runtime::EtLaunchConf> launch_confs_;
   // FIXME: remove the following
   std::map<const void *, EtLoadedKernelsBin>
       loaded_kernels_bin_; // key is id; there are 2 cases now:

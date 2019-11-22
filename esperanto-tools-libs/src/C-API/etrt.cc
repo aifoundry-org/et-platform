@@ -213,28 +213,30 @@ etrtError_t etrtEventDestroy(Event *event) {
   return etrtSuccess;
 }
 
-etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem,
-                              Stream *stream) {
-  assert(sharedMem < 100 * 1024); // 100КВ; actually we allocate
-                                  // BLOCK_SHARED_REGION_TOTAL_SIZE - 64B
+// FIXME SW-1362
+// etrtError_t etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem,
+//                               Stream *stream) {
+//   assert(sharedMem < 100 * 1024); // 100КВ; actually we allocate
+//                                   // BLOCK_SHARED_REGION_TOTAL_SIZE - 64B
 
-  GetDev dev;
+//   GetDev dev;
 
-  Stream *et_stream = dev->getStream(stream);
+//   Stream *et_stream = dev->getStream(stream);
 
-  EtLaunchConf launch_conf;
-  launch_conf.gridDim = gridDim;
-  launch_conf.blockDim = blockDim;
-  launch_conf.etStream = et_stream;
+//   EtLaunchConf launch_conf;
+//   launch_conf.gridDim = gridDim;
+//   launch_conf.blockDim = blockDim;
+//   launch_conf.etStream = et_stream;
 
-  dev->appendLaunchConf(launch_conf);
-  return etrtSuccess;
-}
+//   dev->appendLaunchConf(launch_conf);
+//   return etrtSuccess;
+// }
 
-etrtError_t etrtSetupArgument(const void *arg, size_t size, size_t offset) {
-  GetDev dev;
-  return dev->setupArgument(arg, size, offset);
-}
+// FIXME SW-1362
+// etrtError_t etrtSetupArgument(const void *arg, size_t size, size_t offset) {
+//   GetDev dev;
+//   return dev->setupArgument(arg, size, offset);
+// }
 
 etrtError_t etrtLaunch(const void *func, const char *kernel_name) {
   // FIXME

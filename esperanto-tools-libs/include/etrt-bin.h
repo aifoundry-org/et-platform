@@ -203,42 +203,4 @@ typedef class et_runtime::Stream *etrtStream_t;
 typedef class et_runtime::Stream EtStream;
 typedef class et_runtime::Event* etrtEvent_t;
 
-
-/**
- * A three-integer-element data type
- */
-struct uint3 {
-  unsigned int x, y, z;
-};
-
-/**
- * A four-integer-element data type
- */
-struct /*__builtin_align__(16)*/ uint4 {
-  unsigned int x, y, z, w;
-};
-
-/**
- * A three-element array data type
- */
-struct dim3 {
-  unsigned int x, y, z;
-#if defined(__cplusplus)
-  dim3(unsigned int vx = 1, unsigned int vy = 1, unsigned int vz = 1)
-      : x(vx), y(vy), z(vz) {}
-  dim3(uint3 v) : x(v.x), y(v.y), z(v.z) {}
-  operator uint3(void) {
-    uint3 t;
-    t.x = x;
-    t.y = y;
-    t.z = z;
-    return t;
-  }
-#endif /* __cplusplus */
-};
-
-typedef struct uint3 uint3;
-typedef struct uint4 uint4;
-typedef struct dim3 dim3;
-
 #endif // ETRT_BIN_H

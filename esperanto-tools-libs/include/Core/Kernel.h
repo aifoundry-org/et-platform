@@ -20,17 +20,6 @@ namespace et_runtime {
 
 class Stream;
 
-// FIXME move dim3 in this header
-//struct dim3;
-
-/// @brief Kernel Launch Configuration.
-struct EtLaunchConf {
-  dim3 gridDim;
-  dim3 blockDim;
-  Stream *etStream = nullptr;
-  std::vector<uint8_t> args_buff;
-};
-
 ///
 /// The whole purpose of the ET SoC is to run many instances of Kernels in
 /// parallel to accelerate computationally complex applications.
@@ -195,7 +184,9 @@ public:
   /// @return  etrtSuccess, etrtErrorInvalidConfiguration,
   /// etrtErrorLaunchOutOfResources
   ///
-  etrtError etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t sharedMem);
+  /// FIXME SW-1362
+  // ///etrtError etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
+  // sharedMem);
 
   ///
   /// @brief Append an argument to the Kenel launch

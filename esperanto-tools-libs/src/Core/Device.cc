@@ -318,17 +318,19 @@ void Device::destroyModule(et_runtime::ModuleID module) {
   module_manager_->destroyModule(module);
 }
 
-etrtError Device::setupArgument(const void *arg, size_t size, size_t offset) {
+// FIXME SW-1362
+// etrtError Device::setupArgument(const void *arg, size_t size, size_t offset)
+// {
 
-  std::vector<uint8_t> &buff = launch_confs_.back().args_buff;
-  THROW_IF(offset && offset != align_up(buff.size(), size),
-           "kernel code relies on argument natural alignment");
-  size_t new_buff_size = std::max(buff.size(), offset + size);
-  buff.resize(new_buff_size, 0);
-  ::memcpy(&buff[offset], arg, size);
+//   std::vector<uint8_t> &buff = launch_confs_.back().args_buff;
+//   THROW_IF(offset && offset != align_up(buff.size(), size),
+//            "kernel code relies on argument natural alignment");
+//   size_t new_buff_size = std::max(buff.size(), offset + size);
+//   buff.resize(new_buff_size, 0);
+//   ::memcpy(&buff[offset], arg, size);
 
-  return etrtSuccess;
-}
+//   return etrtSuccess;
+// }
 
 etrtError Device::rawLaunch(et_runtime::ModuleID module_id,
                             const char *kernel_name, const void *args,

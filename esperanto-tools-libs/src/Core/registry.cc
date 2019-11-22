@@ -65,69 +65,72 @@ static const __fatBinC_Wrapper_t
     *gRegisteredFunctionsFatbinWrapper[kRegisteredFunctionsMax];
 static size_t gRegisteredFunctionsNum = 0;
 
-void **__etrtRegisterFatBinary(void *fatCubin) {
-  // FYI: fatbin wrapper located in .nvFatBinSegment section
-  __fatBinC_Wrapper_t *fatbin_wrapper_p = (__fatBinC_Wrapper_t *)fatCubin;
-  assert(fatbin_wrapper_p->magic == FATBINC_MAGIC);
-  assert(fatbin_wrapper_p->version == FATBINC_VERSION);
+// FIXME SW-SW-1363
 
-  // FYI: fatbin data located in .nv_fatbin section
-  const unsigned long long *fatbin_data_p = fatbin_wrapper_p->data;
+// void **__etrtRegisterFatBinary(void *fatCubin) {
+//   // FYI: fatbin wrapper located in .nvFatBinSegment section
+//   __fatBinC_Wrapper_t *fatbin_wrapper_p = (__fatBinC_Wrapper_t *)fatCubin;
+//   assert(fatbin_wrapper_p->magic == FATBINC_MAGIC);
+//   assert(fatbin_wrapper_p->version == FATBINC_VERSION);
 
-  if ((uint32_t)*fatbin_data_p == NVIDIA_FATBIN_DATA_MAGIC) {
-    //        fprintf(stderr, "This is original NVIDIA fatbin data\n");
-  } else if ((uint32_t)*fatbin_data_p == ELF_MAGIC) {
-    //        fprintf(stderr, "This is ELF fatbin data (Esperanto RISCV shared
-    //        object)\n"); parse_elf(fatbin_data_p);
-  } else {
-    fprintf(stderr, "fatbin_data_p = %p, *fatbin_data_p = 0x%016llx\n",
-            fatbin_data_p, *fatbin_data_p);
-    THROW("Unknown fatbin data\n");
-  }
+//   // FYI: fatbin data located in .nv_fatbin section
+//   const unsigned long long *fatbin_data_p = fatbin_wrapper_p->data;
 
-  THROW_IF(gRegisteredFatbinWrappersNum >= kRegisteredFatbinWrappersMax,
-           "RegisteredFatbinWrappers exhausted");
-  const __fatBinC_Wrapper_t **fatbin_handle =
-      &gRegisteredFatbinWrappers[gRegisteredFatbinWrappersNum];
-  gRegisteredFatbinWrappers[gRegisteredFatbinWrappersNum] = fatbin_wrapper_p;
-  gRegisteredFatbinWrappersNum++;
+//   if ((uint32_t)*fatbin_data_p == NVIDIA_FATBIN_DATA_MAGIC) {
+//     //        fprintf(stderr, "This is original NVIDIA fatbin data\n");
+//   } else if ((uint32_t)*fatbin_data_p == ELF_MAGIC) {
+//     //        fprintf(stderr, "This is ELF fatbin data (Esperanto RISCV
+//     shared
+//     //        object)\n"); parse_elf(fatbin_data_p);
+//   } else {
+//     fprintf(stderr, "fatbin_data_p = %p, *fatbin_data_p = 0x%016llx\n",
+//             fatbin_data_p, *fatbin_data_p);
+//     THROW("Unknown fatbin data\n");
+//   }
 
-  return (void **)fatbin_handle;
-}
+//   THROW_IF(gRegisteredFatbinWrappersNum >= kRegisteredFatbinWrappersMax,
+//            "RegisteredFatbinWrappers exhausted");
+//   const __fatBinC_Wrapper_t **fatbin_handle =
+//       &gRegisteredFatbinWrappers[gRegisteredFatbinWrappersNum];
+//   gRegisteredFatbinWrappers[gRegisteredFatbinWrappersNum] = fatbin_wrapper_p;
+//   gRegisteredFatbinWrappersNum++;
 
-void __etrtUnregisterFatBinary(void **fatCubinHandle) {
-  // do nothing
-  // TODO: ...?
-}
+//   return (void **)fatbin_handle;
+// }
 
-void __etrtRegisterFunction(void **fatCubinHandle, const char *hostFun,
-                            char *deviceFun, const char *deviceName,
-                            int thread_limit, uint3 *tid, uint3 *bid,
-                            dim3 *bDim, dim3 *gDim, int *wSize) {
-  // handle is the pointer inside gRegisteredFatbinWrappers array
-  const __fatBinC_Wrapper_t **fatbin_handle =
-      (const __fatBinC_Wrapper_t **)fatCubinHandle;
-  assert(fatbin_handle >= &gRegisteredFatbinWrappers[0]);
-  assert(fatbin_handle <
-         &gRegisteredFatbinWrappers[gRegisteredFatbinWrappersNum]);
+// void __etrtUnregisterFatBinary(void **fatCubinHandle) {
+//   // do nothing
+//   // TODO: ...?
+// }
 
-  assert(deviceFun == deviceName);
+// void __etrtRegisterFunction(void **fatCubinHandle, const char *hostFun,
+//                             char *deviceFun, const char *deviceName,
+//                             int thread_limit, uint3 *tid, uint3 *bid,
+//                             dim3 *bDim, dim3 *gDim, int *wSize) {
+//   // handle is the pointer inside gRegisteredFatbinWrappers array
+//   const __fatBinC_Wrapper_t **fatbin_handle =
+//       (const __fatBinC_Wrapper_t **)fatCubinHandle;
+//   assert(fatbin_handle >= &gRegisteredFatbinWrappers[0]);
+//   assert(fatbin_handle <
+//          &gRegisteredFatbinWrappers[gRegisteredFatbinWrappersNum]);
 
-  THROW_IF(gRegisteredFunctionsNum >= kRegisteredFunctionsMax,
-           "RegisteredFunctions exhausted");
-  gRegisteredFunctionsPtr[gRegisteredFunctionsNum] = hostFun;
-  gRegisteredFunctionsName[gRegisteredFunctionsNum] = deviceName;
-  gRegisteredFunctionsFatbinWrapper[gRegisteredFunctionsNum] = *fatbin_handle;
-  gRegisteredFunctionsNum++;
-}
+//   assert(deviceFun == deviceName);
 
-void __etrtRegisterVar(void **fatCubinHandle, char *hostVar,
-                       char *deviceAddress, const char *deviceName, int ext,
-                       size_t size, int constant, int global) {
-  assert(deviceAddress == deviceName);
-  // do nothing
-  // TODO: ...?
-}
+//   THROW_IF(gRegisteredFunctionsNum >= kRegisteredFunctionsMax,
+//            "RegisteredFunctions exhausted");
+//   gRegisteredFunctionsPtr[gRegisteredFunctionsNum] = hostFun;
+//   gRegisteredFunctionsName[gRegisteredFunctionsNum] = deviceName;
+//   gRegisteredFunctionsFatbinWrapper[gRegisteredFunctionsNum] =
+//   *fatbin_handle; gRegisteredFunctionsNum++;
+// }
+
+// void __etrtRegisterVar(void **fatCubinHandle, char *hostVar,
+//                        char *deviceAddress, const char *deviceName, int ext,
+//                        size_t size, int constant, int global) {
+//   assert(deviceAddress == deviceName);
+//   // do nothing
+//   // TODO: ...?
+// }
 
 ////////////////////////////////////////////////////////////////////////////////////
 
