@@ -21,9 +21,6 @@ set(SOURCES
     src/main.c
     src/stubs.c
     src/mailbox.c
-    src/minion_pll_and_dll.c
-    src/sp_ddr_config.c
-    src/sp_pll.c
     ${SHARED_SRC_DIR}/serial.c
     ${SHARED_SRC_DIR}/backtrace.c
     ${SHARED_SRC_DIR}/pcie.c
