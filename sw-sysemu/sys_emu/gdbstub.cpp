@@ -46,8 +46,8 @@ static unsigned target_csr_list[] {
 
 extern char gdb_target_xml;
 extern unsigned int gdb_target_xml_len;
-extern char build_obj_sys_emu_gdb_target_csr_xml;
-extern unsigned int build_obj_sys_emu_gdb_target_csr_xml_len;
+extern char gdb_target_csr_xml;
+extern unsigned int gdb_target_csr_xml_len;
 
 struct gdbstub_target_description {
     const char *annex;
@@ -57,7 +57,7 @@ struct gdbstub_target_description {
 
 static const gdbstub_target_description gdbstub_target_descs[] = {
     {"target.xml", &gdb_target_xml, gdb_target_xml_len},
-    {"target_csr.xml", &build_obj_sys_emu_gdb_target_csr_xml, build_obj_sys_emu_gdb_target_csr_xml_len}
+    {"target_csr.xml", &gdb_target_csr_xml, gdb_target_csr_xml_len}
 };
 
 static enum gdbstub_status g_status = GDBSTUB_STATUS_NOT_INITIALIZED;
