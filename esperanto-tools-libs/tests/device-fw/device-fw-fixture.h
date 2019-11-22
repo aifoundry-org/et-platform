@@ -40,7 +40,6 @@ protected:
     auto test_real_path = fs::read_symlink(p);
     auto dir_name = test_real_path.remove_filename();
 
-    absl::SetFlag(&FLAGS_dev_target, DeviceTargetOption("sysemu_grpc"));
     auto fw_type = absl::GetFlag(FLAGS_fw_type);
     ASSERT_STREQ(fw_type.type.c_str(), "device-fw");
     absl::SetFlag(&FLAGS_fw_type, FWType("device-fw"));
