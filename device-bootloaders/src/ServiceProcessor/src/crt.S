@@ -25,12 +25,10 @@ _start:
     # set the stack pointer
     la   sp,  __stack_base
 
-    FENCE
     # R_SP_MISC region is 4K at 0x52029000, SP_BYPASS_CACHE is 32 bits at offset 0x14
     # Enable L1 I and D caches by clearing [0] Bypass ICache and [1] Bypass DCache
     li   t0, 0x52029014
     sw   zero, 0(t0)
-    FENCE
 
     # copy the data section into RAM
     la   x25, __data_load_start

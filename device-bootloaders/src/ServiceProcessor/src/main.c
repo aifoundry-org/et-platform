@@ -3,13 +3,6 @@
 #include "mailbox.h"
 #include "pcie.h"
 #include "dummy_isr.h"
-#include "etsoc_hal/cm_esr.h"
-#include "etsoc_hal/rm_esr.h"
-#include "hal_device.h"
-
-#include "sp_pll.h"
-#include "sp_ddr_config.h"
-#include "minion_pll_and_dll.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -26,34 +19,6 @@ void vApplicationIdleHook(void);
 void vApplicationTickHook(void);
 void vApplicationStackOverflowHook(TaskHandle_t xTask, signed char *pcTaskName);
 
-static int release_memshire_from_reset(void) {
-    volatile Reset_Manager_t * rm_esr = (Reset_Manager_t *)R_SP_CRU_BASEADDR;
-    //volatile Clock_Manager_t * cm_esr = (Clock_Manager_t *)R_SP_CRU_BASEADDR;
-
-    rm_esr->rm_memshire_cold.R = ((Reset_Manager_rm_memshire_cold_t){ .B = { .rstn = 0x01 } }).R;
-    rm_esr->rm_memshire_warm.R = ((Reset_Manager_rm_memshire_warm_t){ .B = { .rstn = 0xFF } }).R;
-    return 0;
-}
-
-static int release_minions_from_cold_reset(void) {
-    volatile Reset_Manager_t * rm_esr = (Reset_Manager_t *)R_SP_CRU_BASEADDR;
-    //volatile Clock_Manager_t * cm_esr = (Clock_Manager_t *)R_SP_CRU_BASEADDR;
-
-    rm_esr->rm_minion.R = ((Reset_Manager_rm_minion_t){ .B = { .cold_rstn = 1, .warm_rstn = 1 } }).R;
- 
-    return 0;
-}
-
-static int release_minions_from_warm_reset(void) {
-    volatile Reset_Manager_t * rm_esr = (Reset_Manager_t *)R_SP_CRU_BASEADDR;
-    //volatile Clock_Manager_t * cm_esr = (Clock_Manager_t *)R_SP_CRU_BASEADDR;
-
-    rm_esr->rm_minion_warm_a.R = ((Reset_Manager_rm_minion_warm_a_t){ .B = { .rstn = 0xFFFFFFFF } }).R;
-    rm_esr->rm_minion_warm_b.R = ((Reset_Manager_rm_minion_warm_b_t){ .B = { .rstn = 0x3 } }).R;
- 
-    return 0;
-}
-
 int main(void)
 {
     // Disable buffering on stdout
@@ -65,62 +30,9 @@ int main(void)
     SERIAL_init(UART1);
     SERIAL_write(UART1, "alive\r\n", 7);
 
-    sp_pll_stage_0_init();
-    printf("SP PLLs 0 and 1 and PShire PLL configured and locked.\n");
-
-#if 0
     INT_init();
     PCIe_init(false /*expect_link_up*/);
     MBOX_init();
-#else
-    printf("Skipping INT, PCIe and MBOX init...\n");
-#endif
-
-    sp_pll_stage_1_init();
-    printf("SP PLLs 2 & 4 configured and locked.\n");
-
-    if (0 != release_memshire_from_reset()) {
-        printf("release_memshire_from_reset() failed!\n");
-        goto FATAL_ERROR;
-    }
-    printf("Memshire released from reset\n");
-
-    if (0 != ddr_config()) {
-        printf("ddr_config() failed!\n");
-        goto FATAL_ERROR;
-    }
-    printf("DRAM ready.\n");
-
-    if (0 != release_minions_from_cold_reset()) {
-        printf("release_minions_from_cold_reset() failed!\n");
-        goto FATAL_ERROR;
-    }
-    printf("Released Minion shires from cold reset.\n");
-
-    if (0 != release_minions_from_warm_reset()) {
-        printf("release_minions_from_warm_reset() failed!\n");
-        goto FATAL_ERROR;
-    }
-    printf("Released Minions from warm reset.\n");
-
-    if (0 != configure_minion_plls_and_dlls()) {
-        printf("configure_minion_plls_and_dlls() failed!\n");
-        goto FATAL_ERROR;
-    }
-    printf("Minion shires PLLs and DLLs configured.\n");
-
-    if (0 != enable_minion_neighborhoods()) {
-        printf("Failed to enable minion neighborhoods!\n");
-        goto FATAL_ERROR;
-    }
-    printf("Minion neighborhoods enabled.\n");
-
-    if (0 != enable_minion_threads()) {
-        printf("Failed to enable minion threads!\n");
-        goto FATAL_ERROR;
-    }
-    printf("Minion threads enabled.\n");
-
 
     static TaskHandle_t taskHandleA;
     static StackType_t stackA[TASK_STACK_SIZE];
@@ -152,10 +64,6 @@ int main(void)
     }
 
     vTaskStartScheduler();
-
-FATAL_ERROR:
-    printf("FATAL ERROR!!!\n");
-    for(;;);
 }
 
 void taskA(void *pvParameters)
