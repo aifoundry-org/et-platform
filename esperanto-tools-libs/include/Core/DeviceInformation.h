@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_INFORMATION_H
 #define ET_RUNTIME_DEVICE_INFORMATION_H
 
-#include "etrt-bin.h"
+#include "Common/CommonTypes.h"
 
 #include <stddef.h>
 #include <stdint.h>

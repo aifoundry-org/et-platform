@@ -11,6 +11,7 @@
 #include "DeviceFW.h"
 
 #include "CodeManagement/ELFSupport.h"
+#include "Common/ProjectAutogen.h"
 #include "Core/DeviceTarget.h"
 #include "Support/HelperMacros.h"
 #include "Support/Logging.h"

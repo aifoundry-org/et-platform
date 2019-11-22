@@ -40,6 +40,13 @@ enum etrt_mem_alloc_e {
   ETRT_MEM_ALLOC_DEVICE = 2,  ///< Allocate memory on the device
 };
 
+///
+/// @brief Esperanto Device properties
+///
+struct etrtDeviceProp {
+  char name[256]; ///< ASCII string identifying the device
+};
+
 #ifdef __cplusplus
 }
 #endif // __cplusplus
