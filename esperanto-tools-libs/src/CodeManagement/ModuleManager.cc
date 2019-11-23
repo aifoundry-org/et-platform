@@ -48,6 +48,18 @@ ErrorOr<Module *> ModuleManager::getModule(CodeModuleID mid) {
   return std::get<1>(*elem).get();
 }
 
+ErrorOr<Module *> ModuleManager::getModule(const std::string &name) {
+
+  auto elem = std::find_if(module_storage_.begin(), module_storage_.end(),
+                           [name](decltype(module_storage_)::value_type &e) {
+                             return std::get<1>(e)->name() == name;
+                           });
+  if (elem == module_storage_.end()) {
+    return etrtErrorRuntime;
+  }
+  return std::get<1>(*elem).get();
+}
+
 ErrorOr<CodeModuleID> ModuleManager::loadOnDevice(CodeModuleID mid,
                                                   const std::string &path,
                                                   Device *dev) {
@@ -75,6 +87,7 @@ bool ModuleManager::destroyModule(CodeModuleID mid) {
                        return std::get<0>(e) == mid;
                      }),
       module_storage_.end());
+  /// SW-1370
   // FIXME we should be de-allocating memory from the device when we delete a
   // loaded module and free Code-Space
   return true;

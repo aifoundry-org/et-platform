@@ -19,7 +19,17 @@ namespace et_runtime {
 
 /// Unique identifier for a code module loaded by the runtime it effectively keeps
 /// track of the ELF files loaded through the runtime
-typedef uint64_t CodeModuleID;
+typedef int64_t CodeModuleID;
+
+/// Unique ID of each library code loaded through the runtime. A library ID will
+/// effectively match the CodeModuleID since a library corresponds to an ELF
+typedef int64_t LibraryCodeID;
+
+/// Unique ID for each kernel code in the system.
+typedef int64_t KernelCodeID;
+
+/// Unique ID for each uber-kernel code in the system.
+typedef int64_t UberKernelCodeID;
 
 /// Enumeration with the different types of events we can create in the system
 enum etrt_event_flags_e {

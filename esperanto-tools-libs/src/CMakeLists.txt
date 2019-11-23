@@ -70,6 +70,7 @@ configure_file (
   )
 
 set(ETRT_SOURCES
+
   ${PROJECT_BINARY_DIR}/include/esperanto/runtime/Common/ProjectAutogen.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/Logging.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/ErrorOr.h
@@ -84,6 +85,9 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/CommonTypes.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/C-API/etrt.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/CodeManagement/Kernel.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/CodeManagement/Library.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/CodeManagement/CodeRegistry.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/CodeManagement/UberKernel.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/CommandLineOptions.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/CommandLineOptionsDef.in
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Device.h

@@ -11,6 +11,7 @@ Welcome to Esperanto Runtime's documentation!
 
    about
 
+   CodeManagement
    StreamManagement
    MemoryManagement
    DeviceAPI

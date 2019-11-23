@@ -39,6 +39,7 @@ configure_file(
     @ONLY)
 
 set(DOC_FILES
+  CodeManagement.rst
   DeviceAPI.rst
   Tracing.rst
   MemoryManagement.rst

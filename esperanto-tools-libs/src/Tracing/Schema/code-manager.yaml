@@ -8,8 +8,26 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-Modules:
-  - !include code-manager.yaml
-  - !include mem-manager.yaml
-  - !include device.yaml
-DeviceAPI: !include @ESPERANTO_DEVICE_API_LIB_DIR@/esperanto/device-api/schema/device-api.yaml
+Name: CodeManager
+EnablePBLogging : True
+EnableTextLogging: True
+DefaultON : True
+Functions :
+  - Name: create_kernel
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: id
+        Type : uint64
+      - Name: name
+        Type : string
+  - Name: create_uber_kernel
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: id
+        Type : uint64
+      - Name: name
+        Type : string

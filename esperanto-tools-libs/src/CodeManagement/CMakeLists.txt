@@ -11,10 +11,14 @@
 add_library(etrt_CodeManagement OBJECT
   CodeModule.cc
   CodeModule.h
+  CodeRegistry.cc
   ELFSupport.cc
   ELFSupport.h
+  Kernel.cc
+  Library.cc
   ModuleManager.cc
   ModuleManager.h
+  UberKernel.cc
   )
 
 target_include_directories(etrt_CodeManagement PRIVATE

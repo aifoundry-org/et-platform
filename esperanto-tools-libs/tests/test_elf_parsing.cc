@@ -26,6 +26,7 @@ namespace {
 // Test basic elf parsing functionality
 TEST(ELFInfo, load_elf) {
 
+  // FIXME SW-1369 do not consume the downloaded ELF file
   ELFInfo elf_info{"convolution"};
 
   // We expect that the elf we test with is installed next to the test-binary

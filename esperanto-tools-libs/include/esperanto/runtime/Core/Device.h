@@ -11,14 +11,15 @@
 #ifndef ET_RUNTIME_DEVICE_H
 #define ET_RUNTIME_DEVICE_H
 
+#include "esperanto/runtime/CodeManagement/Kernel.h"
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Core/DeviceInformation.h"
 #include "esperanto/runtime/Core/DeviceTarget.h"
-#include "esperanto/runtime/CodeManagement/Kernel.h"
 #include "esperanto/runtime/Core/MemoryManager.h"
 #include "esperanto/runtime/DeviceAPI/Command.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 #include "esperanto/runtime/Support/STLHelpers.h"
+#include "esperanto/runtime/etrt-bin.h"
 
 #include <memory>
 #include <thread>

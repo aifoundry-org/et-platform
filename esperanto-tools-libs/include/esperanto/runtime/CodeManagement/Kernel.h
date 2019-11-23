@@ -11,15 +11,23 @@
 #ifndef ET_RUNTIME_KERNEL_H
 #define ET_RUNTIME_KERNEL_H
 
-#include "esperanto/runtime/etrt-bin.h"
+/// @file
 
+#include "esperanto/runtime/Common/CommonTypes.h"
+#include "esperanto/runtime/Support/ErrorOr.h"
+
+#include <memory>
 #include <string>
-#include <vector>
+#include <tuple>
+#include <unordered_map>
 
 namespace et_runtime {
 
 class Stream;
 
+/// @class Kernel Kernel.h
+/// FIXME the following comment is outdate and does not correspond to the
+/// current implementation
 ///
 /// The whole purpose of the ET SoC is to run many instances of Kernels in
 /// parallel to accelerate computationally complex applications.
@@ -164,7 +172,23 @@ class Stream;
 ////
 class Kernel {
 public:
-  Kernel(const std::string &name);
+  /// @brief Construct a new kernel
+  ///
+  /// @param[in] name String with the unique name of the kernel across the whole
+  /// system
+  /// @param[in] mid  ModuleID of the CodeModue/ELF that contains the kernel
+  Kernel(const std::string &name, CodeModuleID mid);
+
+  virtual ~Kernel() = default;
+
+  /// @return Return the unique ID of this registered kernel function
+  KernelCodeID id() const { return id_; }
+
+  /// @return Return the Module ID where this kernel is defined
+  CodeModuleID moduleID() const { return mid_; }
+
+  /// @return Name of the kernel
+  const std::string &name() const { return name_; }
 
   ///
   /// @brief  Set up the indexing configuration for Kernel launches.
@@ -199,7 +223,40 @@ public:
 
   ///
   /// @brief Launch the kernel on the device.
+  /// @todo Fix the bellow function
   etrtError launch();
+
+protected:
+  /// Delegating constructor that is going to do the basic initialization for
+  /// this class and any children classes. No logging is performed as part of
+  /// this constructor
+  ///
+  /// @param mid ModuleID this kernel is part of
+  Kernel(CodeModuleID mid);
+
+  /// @brief Register the kernel in the global kernel registry
+  ///
+  /// @param[in] name Name fo the kernel
+  /// @param[in] kernel Pointer ot the allocated kernel. This pointer will be
+  /// stored in a std::unique_ptr so that all kernel objects get automatically
+  /// destroyed when the static kernel registry gets destroyed
+  ///
+  /// @return True on success, False if the kernel has already been registered
+  static bool registerKernel(const std::string &name, Kernel *kernel);
+
+  KernelCodeID id_ = -1; ///< ID of the current kernel
+  CodeModuleID mid_ =
+      -1; ///< ID of the module (ELF) where this kernel is located
+  std::string name_;
+
+  static KernelCodeID
+      global_kernel_id_; ///< Static counter with the total number of kernels
+                         ///< recorded by the runtime
+  using KernelMap =
+      std::unordered_map<std::string,
+                         std::tuple<KernelCodeID, std::unique_ptr<Kernel>>>;
+  static KernelMap kernel_registry_; ///< Static map that keeps track of all the
+                                     ///< kernels registered in the runtime
 };
 } // namespace et_runtime
 #endif // ET_RUNTIME_KERNEL_H
