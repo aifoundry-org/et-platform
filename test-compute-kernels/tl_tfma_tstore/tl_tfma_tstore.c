@@ -242,8 +242,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
     __asm__ __volatile__ ("fence\n");
 
-    // Need data memory so we can see it with Zebu -- should that be inside the loop ?
-    evict_va(0, 3, base_dst_addr + tstore_configs[NUM_ITER * TSTORE_PARAMS * TOTAL_MINIONS  + tstore_minion_idx + TSTORE_ADDR], 15, 0x40, 0, 0);
+    for (uint64_t iter=0; iter < NUM_ITER; iter++) {
+	evict_va(0, 3, base_dst_addr + tstore_configs[iter * TSTORE_PARAMS * TOTAL_MINIONS  + tstore_minion_idx + TSTORE_ADDR], 15, 0x40, 0, 0);
+    }
     WAIT_CACHEOPS;
 
     unsigned long functional_error = get_tensor_error();

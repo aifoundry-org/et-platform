@@ -445,8 +445,6 @@ def generate_tensorstores(shires, target_dir, output_type, num_iter, total_iter,
         minion_list = list(range(0,minions_per_shire))
         minion_addr_list = random.sample(minion_list, minions_per_shire)
         addr_list = [0] * minions_per_shire
-        #print(shire_addr_list)
-        print(minion_addr_list)
         for m in range(minions_per_shire):
             addr_list[m] = 0x8000 * shire_list[sh] + 0x400 * minion_addr_list[m]
         # Still need to find a way to randomize strides w/o doing conflict computation
