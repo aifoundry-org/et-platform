@@ -73,7 +73,7 @@ def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, 
         
         # Todo: If tmask_list = 1 you need to set up the tensor mask register
         tl_tmask_list = [random.randint(0,1) for i in range(minions_per_shire)]
-        tl_coop_list = [0] * minions_per_shire           
+        tl_coop_list = [0] * minions_per_shire
         
         tl_scp_start_line_list =  [random.randint(0,63) for i in range(minions_per_shire)]
 
@@ -445,8 +445,6 @@ def generate_tensorstores(shires, target_dir, output_type, num_iter, total_iter,
         minion_list = list(range(0,minions_per_shire))
         minion_addr_list = random.sample(minion_list, minions_per_shire)
         addr_list = [0] * minions_per_shire
-        #print(shire_addr_list)
-        print(minion_addr_list)
         for m in range(minions_per_shire):
             addr_list[m] = 0x8000 * shire_list[sh] + 0x400 * minion_addr_list[m]
         # Still need to find a way to randomize strides w/o doing conflict computation
@@ -665,8 +663,7 @@ parser.add_argument("--output_type", type=str, help="What will be the output typ
 args = parser.parse_args()
 
 if args.seed == -1:
-    currentDT = time.localtime()
-    initial_seed = int(time.mktime(currentDT))    
+    initial_seed = int(time.time() * 100000)
     random.seed(initial_seed)
     seed_file = open("tensor_rand_seed","w")
     seed_file.write(str(initial_seed))

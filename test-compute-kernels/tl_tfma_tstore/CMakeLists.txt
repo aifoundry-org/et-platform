@@ -10,7 +10,7 @@
 
 randomized_test(
   NAME tl_tfma_tstore
-  NUMBER_OF_TESTS 10
+  NUMBER_OF_TESTS 9
   GEN_COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/gen_random_params.py --shires 3 --scenario tload_tfma_tstore --target_dir include --output_type array --repeat 4
   OUTPUT_GEN_FILES random_seed
                    include/tstore_configs.h
