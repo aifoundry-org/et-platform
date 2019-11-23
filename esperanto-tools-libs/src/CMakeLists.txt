@@ -83,6 +83,7 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/ErrorTypes.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/CommonTypes.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/C-API/etrt.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/CodeManagement/Kernel.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/CommandLineOptions.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/CommandLineOptionsDef.in
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Device.h
@@ -91,7 +92,6 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/DeviceInformation.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Event.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Error.h
-  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Kernel.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Memory.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/MemoryManager.h
   ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Stream.h

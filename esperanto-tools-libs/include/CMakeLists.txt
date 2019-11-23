@@ -29,7 +29,7 @@ configure_file (
 endforeach()
 
 
-set(COPY_FOLDERS "esperanto/runtime/Core;esperanto/runtime/Support;esperanto/runtime/DeviceAPI")
+set(COPY_FOLDERS "esperanto/runtime/Core;/esperanto/runtime/CodeManagement;esperanto/runtime/Support;esperanto/runtime/DeviceAPI")
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/esperanto/runtime/EsperantoRuntime.h
   DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime/)

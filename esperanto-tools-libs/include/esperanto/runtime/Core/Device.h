@@ -14,7 +14,7 @@
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Core/DeviceInformation.h"
 #include "esperanto/runtime/Core/DeviceTarget.h"
-#include "esperanto/runtime/Core/Kernel.h"
+#include "esperanto/runtime/CodeManagement/Kernel.h"
 #include "esperanto/runtime/Core/MemoryManager.h"
 #include "esperanto/runtime/DeviceAPI/Command.h"
 #include "esperanto/runtime/Support/ErrorOr.h"

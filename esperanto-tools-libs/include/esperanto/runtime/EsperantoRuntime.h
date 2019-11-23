@@ -16,7 +16,7 @@
 #include "esperanto/runtime/Core/DeviceInformation.h"
 #include "esperanto/runtime/Core/DeviceManager.h"
 #include "esperanto/runtime/Core/Error.h"
-#include "esperanto/runtime/Core/Kernel.h"
+#include "esperanto/runtime/CodeManagement/Kernel.h"
 #include "esperanto/runtime/Core/Stream.h"
 
 #endif // ESPERANTO_RUNTIME_H
