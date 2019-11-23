@@ -132,8 +132,8 @@ def open_output_files(prefix, suffix, files, cmd_line_args):
             filename = "%s%s%d%s.hex" % (name, prefix, i, suffix)
             outFileNames.append(filename)
             outFiles.append(open(filename, 'w'))
-    except:
-        print("Could not open output files")
+    except Exception as e:
+        print(f"Could not open output files: {e}")
         sys.exit(-1)
 
     return
