@@ -17,7 +17,7 @@
 #include <tuple>
 
 namespace et_runtime {
-std::tuple<ModuleID, Module &>
+std::tuple<CodeModuleID, Module &>
 ModuleManager::createModule(const std::string &name) {
   auto elem = std::find_if(module_storage_.begin(), module_storage_.end(),
                            [&name](decltype(module_storage_)::value_type &e) {
@@ -36,7 +36,7 @@ ModuleManager::createModule(const std::string &name) {
   return {module_count_, *new_module};
 }
 
-ErrorOr<Module *> ModuleManager::getModule(ModuleID mid) {
+ErrorOr<Module *> ModuleManager::getModule(CodeModuleID mid) {
 
   auto elem = std::find_if(module_storage_.begin(), module_storage_.end(),
                            [mid](decltype(module_storage_)::value_type &e) {
@@ -48,9 +48,9 @@ ErrorOr<Module *> ModuleManager::getModule(ModuleID mid) {
   return std::get<1>(*elem).get();
 }
 
-ErrorOr<ModuleID> ModuleManager::loadOnDevice(ModuleID mid,
-                                              const std::string &path,
-                                              Device *dev) {
+ErrorOr<CodeModuleID> ModuleManager::loadOnDevice(CodeModuleID mid,
+                                                  const std::string &path,
+                                                  Device *dev) {
   auto find_res = getModule(mid);
   if (!find_res) {
     return find_res.getError();
@@ -68,7 +68,7 @@ ErrorOr<ModuleID> ModuleManager::loadOnDevice(ModuleID mid,
   return mid;
 }
 
-bool ModuleManager::destroyModule(ModuleID mid) {
+bool ModuleManager::destroyModule(CodeModuleID mid) {
   module_storage_.erase(
       std::remove_if(module_storage_.begin(), module_storage_.end(),
                      [mid](const decltype(module_storage_)::value_type &e) {

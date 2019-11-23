@@ -31,7 +31,7 @@ class EtAction;
 /// @brief Dynamically loaded module descriptor.
 class Module {
 public:
-  Module(const ModuleID mid, const std::string &name);
+  Module(const CodeModuleID mid, const std::string &name);
 
   /// @brief Load the ELF file in path in host memory
   bool readELF(const std::string path);
@@ -64,7 +64,7 @@ public:
   ErrorOr<uintptr_t> onDeviceKernelEntryPoint(const std::string &kernel_name);
 
 private:
-  ModuleID module_id_;                      ///< ID of this module
+  CodeModuleID module_id_;                  ///< ID of this module
   std::unique_ptr<KernelELFInfo> elf_info_; ///< Pointer to the decoded ELF
   std::vector<char>
       elf_raw_data_;      ///< Buffer holding the whole ELF as read from file

@@ -313,7 +313,7 @@ et_runtime::Module &Device::createModule(const std::string &name) {
   return std::get<1>(res);
 }
 
-void Device::destroyModule(et_runtime::ModuleID module) {
+void Device::destroyModule(et_runtime::CodeModuleID module) {
   module_manager_->destroyModule(module);
 }
 
@@ -331,7 +331,7 @@ void Device::destroyModule(et_runtime::ModuleID module) {
 //   return etrtSuccess;
 // }
 
-etrtError Device::rawLaunch(et_runtime::ModuleID module_id,
+etrtError Device::rawLaunch(et_runtime::CodeModuleID module_id,
                             const char *kernel_name, const void *args,
                             size_t args_size, Stream *stream) {
 
@@ -365,7 +365,7 @@ etrtError Device::rawLaunch(et_runtime::ModuleID module_id,
   return etrtSuccess;
 }
 
-et_runtime::Module *Device::getModule(et_runtime::ModuleID mid) {
+et_runtime::Module *Device::getModule(et_runtime::CodeModuleID mid) {
   auto res = module_manager_->getModule(mid);
   if (!res) {
     return nullptr;
@@ -373,14 +373,14 @@ et_runtime::Module *Device::getModule(et_runtime::ModuleID mid) {
   return res.get();
 }
 
-ErrorOr<et_runtime::ModuleID> Device::moduleLoad(const std::string &name,
-                                                 const std::string &path) {
+ErrorOr<et_runtime::CodeModuleID> Device::moduleLoad(const std::string &name,
+                                                     const std::string &path) {
 
   auto res = module_manager_->createModule(name);
   return module_manager_->loadOnDevice(std::get<0>(res), path, this);
 }
 
-etrtError Device::moduleUnload(et_runtime::ModuleID mid) {
+etrtError Device::moduleUnload(et_runtime::CodeModuleID mid) {
   auto et_module_res = module_manager_->getModule(mid);
   if (!et_module_res) {
     return et_module_res.getError();

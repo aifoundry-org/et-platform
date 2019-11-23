@@ -249,7 +249,7 @@ enum etrtError etrtLaunch(const void *func, const char *kernel_name) {
   return etrtSuccess;
 }
 
-enum etrtError etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
+enum etrtError etrtModuleLoad(et_runtime::CodeModuleID mid, const void *image,
                               size_t image_size) {
   abort();
   // FIXME enable
@@ -262,14 +262,14 @@ enum etrtError etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
   return etrtSuccess;
 }
 
-enum etrtError etrtModuleUnload(et_runtime::ModuleID mid) {
+enum etrtError etrtModuleUnload(et_runtime::CodeModuleID mid) {
   GetDev dev;
   return dev->moduleUnload(mid);
 }
 
-enum etrtError etrtRawLaunch(et_runtime::ModuleID mid, const char *kernel_name,
-                             const void *args, size_t args_size,
-                             Stream *stream) {
+enum etrtError etrtRawLaunch(et_runtime::CodeModuleID mid,
+                             const char *kernel_name, const void *args,
+                             size_t args_size, Stream *stream) {
   GetDev dev;
   return dev->rawLaunch(mid, kernel_name, args, args_size, stream);
 }

@@ -20,7 +20,7 @@
 using namespace std;
 using namespace et_runtime;
 
-Module::Module(ModuleID mid, const std::string &name)
+Module::Module(CodeModuleID mid, const std::string &name)
     : module_id_(mid), elf_info_(make_unique<KernelELFInfo>(name)) {}
 
 bool Module::readELF(const std::string path) {

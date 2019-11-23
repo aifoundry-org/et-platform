@@ -950,11 +950,11 @@ namespace et_runtime {
 class Module;
 }
 
-enum etrtError etrtModuleLoad(et_runtime::ModuleID mid, const void *image,
+enum etrtError etrtModuleLoad(et_runtime::CodeModuleID mid, const void *image,
                               size_t image_size);
-enum etrtError etrtModuleUnload(et_runtime::ModuleID mid);
-enum etrtError etrtRawLaunch(et_runtime::ModuleID mid, const char *kernel_name,
-                             const void *args, size_t args_size,
-                             Stream *stream);
+enum etrtError etrtModuleUnload(et_runtime::CodeModuleID mid);
+enum etrtError etrtRawLaunch(et_runtime::CodeModuleID mid,
+                             const char *kernel_name, const void *args,
+                             size_t args_size, Stream *stream);
 
 #endif // ETRT_H

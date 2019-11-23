@@ -17,8 +17,9 @@
 namespace et_runtime {
 #endif // __cplusplus
 
-/// Unique identifier for a code module loaded by the runtime
-typedef uint64_t ModuleID;
+/// Unique identifier for a code module loaded by the runtime it effectively keeps
+/// track of the ELF files loaded through the runtime
+typedef uint64_t CodeModuleID;
 
 /// Enumeration with the different types of events we can create in the system
 enum etrt_event_flags_e {

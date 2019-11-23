@@ -31,16 +31,16 @@ public:
   ModuleManager() = default;
   ~ModuleManager() = default;
 
-  std::tuple<ModuleID, Module &> createModule(const std::string &name);
-  ErrorOr<Module *> getModule(ModuleID mid);
-  ErrorOr<ModuleID> loadOnDevice(ModuleID mid, const std::string &path,
-                                 Device *dev);
-  bool destroyModule(ModuleID mid);
+  std::tuple<CodeModuleID, Module &> createModule(const std::string &name);
+  ErrorOr<Module *> getModule(CodeModuleID mid);
+  ErrorOr<CodeModuleID> loadOnDevice(CodeModuleID mid, const std::string &path,
+                                     Device *dev);
+  bool destroyModule(CodeModuleID mid);
 
 private:
-  std::vector<std::tuple<ModuleID, std::unique_ptr<et_runtime::Module>>>
+  std::vector<std::tuple<CodeModuleID, std::unique_ptr<et_runtime::Module>>>
       module_storage_;
-  ModuleID module_count_ = 0;
+  CodeModuleID module_count_ = 0;
 };
 
 } // namespace et_runtime

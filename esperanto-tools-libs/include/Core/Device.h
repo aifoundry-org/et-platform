@@ -186,8 +186,9 @@ public:
 
   /// FIXME SW-1291 this function should move the Function Launch Class
   // FIXME pass module_id
-  etrtError rawLaunch(et_runtime::ModuleID module_id, const char *kernel_name,
-                      const void *args, size_t args_size, Stream *stream);
+  etrtError rawLaunch(et_runtime::CodeModuleID module_id,
+                      const char *kernel_name, const void *args,
+                      size_t args_size, Stream *stream);
 
   /// Memory initialization and manipulation on the device
   /// FIXME SW-1293
@@ -240,11 +241,11 @@ public:
   /// FIXME SW-1293
   etrtError memset(void *devPtr, int value, size_t count);
 
-  et_runtime::Module *getModule(et_runtime::ModuleID mid);
+  et_runtime::Module *getModule(et_runtime::CodeModuleID mid);
 
-  ErrorOr<et_runtime::ModuleID> moduleLoad(const std::string &name,
-                                           const std::string &path);
-  etrtError moduleUnload(et_runtime::ModuleID mid);
+  ErrorOr<et_runtime::CodeModuleID> moduleLoad(const std::string &name,
+                                               const std::string &path);
+  etrtError moduleUnload(et_runtime::CodeModuleID mid);
 
 private:
   void initDeviceThread();
@@ -252,7 +253,7 @@ private:
   void uninitObjects();
 
   et_runtime::Module &createModule(const std::string &name);
-  void destroyModule(et_runtime::ModuleID modue);
+  void destroyModule(et_runtime::CodeModuleID modue);
 
   int device_index_;
   std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
