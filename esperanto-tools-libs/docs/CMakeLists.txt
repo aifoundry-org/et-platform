@@ -59,6 +59,7 @@ add_custom_target(doc-runtime
     ${SPHINX_EXECUTABLE}
         -q -b html
         -d "${SPHINX_CACHE_DIR}"
+        -j auto
         "${CMAKE_CURRENT_BINARY_DIR}"
         "${SPHINX_HTML_DIR}"
     COMMENT "Building HTML documentation with Sphinx")
