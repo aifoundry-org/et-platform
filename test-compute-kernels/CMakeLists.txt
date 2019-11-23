@@ -82,7 +82,7 @@ macro(randomized_test)
 
   endforeach()
 
-endmacro(RANDOMIZED_TEST)
+endmacro(randomized_test)
 
 
 add_subdirectory("beef")
