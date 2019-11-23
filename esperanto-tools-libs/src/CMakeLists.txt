@@ -83,18 +83,18 @@ set(ETRT_SOURCES
   ${PROJECT_SOURCE_DIR}/include/Common/ErrorTypes.h
   ${PROJECT_SOURCE_DIR}/include/Common/CommonTypes.h
   ${PROJECT_SOURCE_DIR}/include/C-API/etrt.h
+  ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptions.h
+  ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptionsDef.in
+  ${PROJECT_SOURCE_DIR}/include/Core/Device.h
   ${PROJECT_SOURCE_DIR}/include/Core/DeviceTarget.h
   ${PROJECT_SOURCE_DIR}/include/Core/DeviceManager.h
   ${PROJECT_SOURCE_DIR}/include/Core/DeviceInformation.h
-  ${PROJECT_SOURCE_DIR}/include/Core/Memory.h
-  ${PROJECT_SOURCE_DIR}/include/Core/Kernel.h
   ${PROJECT_SOURCE_DIR}/include/Core/Event.h
-  ${PROJECT_SOURCE_DIR}/include/Core/MemoryManager.h
   ${PROJECT_SOURCE_DIR}/include/Core/Error.h
-  ${PROJECT_SOURCE_DIR}/include/Core/Device.h
+  ${PROJECT_SOURCE_DIR}/include/Core/Kernel.h
+  ${PROJECT_SOURCE_DIR}/include/Core/Memory.h
+  ${PROJECT_SOURCE_DIR}/include/Core/MemoryManager.h
   ${PROJECT_SOURCE_DIR}/include/Core/Stream.h
-  ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptions.h
-  ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptionsDef.in
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Response.h
   ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Event.h
@@ -104,7 +104,6 @@ set(ETRT_SOURCES
   C-API/etrt.cc
   demangle.h
   etlibdevice.h
-  registry.h
   )
 
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})

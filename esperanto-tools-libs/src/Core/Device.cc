@@ -13,7 +13,6 @@
 #include "Support/DeviceGuard.h"
 #include "Support/Logging.h"
 #include "demangle.h"
-#include "registry.h"
 
 #include <absl/flags/flag.h>
 #include <assert.h>

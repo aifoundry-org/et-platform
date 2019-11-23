@@ -1,12 +1,11 @@
 #include "C-API/etrt.h"
-#include "Core/Stream.h"
 #include "Core/Event.h"
+#include "Core/Stream.h"
 #include "DeviceAPI/Commands.h"
 #include "EsperantoRuntime.h"
 #include "Support/DeviceGuard.h"
 #include "Support/HelperMacros.h"
 #include "demangle.h"
-#include "registry.h"
 
 #include <assert.h>
 #include <memory>

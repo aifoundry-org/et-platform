@@ -19,7 +19,6 @@ add_library(etrt_Core OBJECT
   MemoryManager.cc
   MemoryAllocator.cc
   MemoryAllocator.h
-  registry.cc
   Stream.cc
   VersionCheckers.cc
   )
