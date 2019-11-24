@@ -11,11 +11,9 @@
 #ifndef ET_RUNTIME_MEMORY_COMMANDS_H
 #define ET_RUNTIME_MEMORY_COMMANDS_H
 
-#include "DeviceAPI/Command.h"
-
-#include "Support/HelperMacros.h"
-
-#include "etrt-bin.h"
+#include "esperanto/runtime/DeviceAPI/Command.h"
+#include "esperanto/runtime/Support/HelperMacros.h"
+#include "esperanto/runtime/etrt-bin.h"
 
 #include <atomic>
 #include <cassert>

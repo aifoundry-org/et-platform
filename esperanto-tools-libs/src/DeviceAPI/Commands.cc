@@ -12,12 +12,12 @@
 
 #include "DeviceAPI/EventsGen.h"
 
-#include "Core/CommandLineOptions.h"
-#include "Core/Device.h"
 #include "Core/DeviceFwTypes.h"
 #include "PCIEDevice/MailBoxDev.h"
-#include "Support/Logging.h"
-#include "Support/STLHelpers.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Support/Logging.h"
+#include "esperanto/runtime/Support/STLHelpers.h"
 
 #define INCLUDE_FOR_HOST
 #include "../kernels/sys_inc.h"

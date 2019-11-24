@@ -8,12 +8,12 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/DeviceTarget.h"
-#include "Core/CommandLineOptions.h"
+#include "esperanto/runtime/Core/DeviceTarget.h"
 #include "PCIEDevice/PCIeDevice.h"
 #include "RPCDevice/TargetRPC.h"
 #include "RPCDevice/TargetSysEmu.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <absl/flags/flag.h>
 #include <absl/flags/marshalling.h>

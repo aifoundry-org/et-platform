@@ -11,8 +11,8 @@
 #ifndef ET_RUNTIME_MEMORY_MANAGER_H
 #define ET_RUNTIME_MEMORY_MANAGER_H
 
-#include "Common/ErrorTypes.h"
-#include "Support/ErrorOr.h"
+#include "esperanto/runtime/Common/ErrorTypes.h"
+#include "esperanto/runtime/Support/ErrorOr.h"
 
 #include <cstddef>
 #include <cstdint>

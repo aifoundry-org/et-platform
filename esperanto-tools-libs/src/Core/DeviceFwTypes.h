@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_DEVICE_FW_TYPES_H
 #define ET_RUNTIME_DEVICE_DEVICE_FW_TYPES_H
 
-#include "Common/ProjectAutogen.h"
+#include "esperanto/runtime/Common/ProjectAutogen.h"
 
 #include <stdint.h>
 

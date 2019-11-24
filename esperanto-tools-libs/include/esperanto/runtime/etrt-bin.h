@@ -25,9 +25,9 @@
 #ifndef ETRT_BIN_H
 #define ETRT_BIN_H
 
-#include "Common/ErrorTypes.h"
-#include "Common/ProjectAutogen.h"
-#include "Core/Stream.h"
+#include "esperanto/runtime/Common/ErrorTypes.h"
+#include "esperanto/runtime/Common/ProjectAutogen.h"
+#include "esperanto/runtime/Core/Stream.h"
 
 #include <stddef.h>
 

@@ -8,12 +8,12 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/CommandLineOptions.h"
-#include "Core/Device.h"
-#include "Core/DeviceManager.h"
-#include "Core/DeviceTarget.h"
 #include "RPCDevice/TargetSysEmu.h"
-#include "Support/DeviceGuard.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Core/DeviceManager.h"
+#include "esperanto/runtime/Core/DeviceTarget.h"
+#include "esperanto/runtime/Support/DeviceGuard.h"
 
 #include <chrono>
 #include <cstdio>

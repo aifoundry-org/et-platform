@@ -10,10 +10,9 @@
 
 #include "FakeFW.h"
 
-#include "Support/Logging.h"
-
-#include "Core/CommandLineOptions.h"
-#include "Core/DeviceTarget.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Core/DeviceTarget.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <fstream>
 

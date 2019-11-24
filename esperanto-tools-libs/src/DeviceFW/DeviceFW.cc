@@ -11,10 +11,10 @@
 #include "DeviceFW.h"
 
 #include "CodeManagement/ELFSupport.h"
-#include "Common/ProjectAutogen.h"
-#include "Core/DeviceTarget.h"
-#include "Support/HelperMacros.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Common/ProjectAutogen.h"
+#include "esperanto/runtime/Core/DeviceTarget.h"
+#include "esperanto/runtime/Support/HelperMacros.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <absl/flags/flag.h>
 #include <memory>

@@ -10,9 +10,9 @@
 
 #include "ELFSupport.h"
 
-#include "Support/HelperMacros.h"
-#include "Support/Logging.h"
 #include "demangle.h"
+#include "esperanto/runtime/Support/HelperMacros.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <cstdint>
 #include <elfio/elfio.hpp>

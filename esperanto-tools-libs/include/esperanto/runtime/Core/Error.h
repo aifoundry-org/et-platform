@@ -8,24 +8,25 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#ifndef ET_RUNTIME_DEVICE_INFORMATION_H
-#define ET_RUNTIME_DEVICE_INFORMATION_H
+#ifndef ET_RUNTIME_ERROR_H
+#define ET_RUNTIME_ERROR_H
 
-#include "Common/CommonTypes.h"
-
-#include <stddef.h>
-#include <stdint.h>
+#include "esperanto/runtime/Common/ErrorTypes.h"
 
 namespace et_runtime {
 
-///
-/// @brief ET Device properties
-///
-struct DeviceInformation final : public etrtDeviceProp {
-  DeviceInformation() = default;
-  DeviceInformation(const etrtDeviceProp &prop) { *this = prop; }
+class Error {
+public:
+  ///
+  /// @brief  Return the description string for an API call return value.
+  ///
+  /// Take an API return value and return a pointer to the string that describes
+  ///  the result of an API call.
+  ///
+  /// @param[in] error  The value returned by an API call.
+  /// @return  A string that describes the result of an API call.
+  static const char *errorString(etrtError error);
 };
 
 } // namespace et_runtime
-
-#endif // ET_RUNTIME_DEVICE_INFORMATION_H
+#endif // ET_RUNTIME_ERROR_H

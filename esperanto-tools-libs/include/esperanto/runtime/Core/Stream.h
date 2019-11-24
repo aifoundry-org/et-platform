@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_STREAM_H
 #define ET_RUNTIME_STREAM_H
 
-#include "Support/ErrorOr.h"
+#include "esperanto/runtime/Support/ErrorOr.h"
 
 #include <chrono>
 #include <memory>

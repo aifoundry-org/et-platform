@@ -31,7 +31,7 @@ struct DeviceTargetOption {
 #define ETRT_OPT(opt_name, OptName, CXX_TYPE, ABSEIL_TYPE, HELP)               \
   ABSL_DECLARE_FLAG(ABSEIL_TYPE, opt_name);
 
-#include "Core/CommandLineOptionsDef.in"
+#include "esperanto/runtime/Core/CommandLineOptionsDef.in"
 
 namespace et_runtime {
 ///

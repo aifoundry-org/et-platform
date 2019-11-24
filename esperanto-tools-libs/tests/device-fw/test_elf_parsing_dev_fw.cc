@@ -10,8 +10,8 @@
 
 #include "CodeManagement/CodeModule.h"
 #include "CodeManagement/ELFSupport.h"
-#include "Core/CommandLineOptions.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <experimental/filesystem>
 #include <glog/logging.h>

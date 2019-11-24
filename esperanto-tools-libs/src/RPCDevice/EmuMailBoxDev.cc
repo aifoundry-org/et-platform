@@ -11,8 +11,8 @@
 #include "EmuMailBoxDev.h"
 
 #include "Core/DeviceFwTypes.h"
-#include "Support/Logging.h"
 #include "TargetRPC.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <cassert>
 #include <unistd.h>

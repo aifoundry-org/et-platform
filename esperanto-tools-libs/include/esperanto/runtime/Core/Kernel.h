@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_KERNEL_H
 #define ET_RUNTIME_KERNEL_H
 
-#include "etrt-bin.h"
+#include "esperanto/runtime/etrt-bin.h"
 
 #include <string>
 #include <vector>

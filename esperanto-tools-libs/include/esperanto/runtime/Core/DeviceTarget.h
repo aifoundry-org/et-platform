@@ -11,8 +11,8 @@
 #ifndef ET_RUNTIME_DEVICE_TARGET_H
 #define ET_RUNTIME_DEVICE_TARGET_H
 
-#include "Core/DeviceInformation.h"
-#include "Support/TimeHelpers.h"
+#include "esperanto/runtime/Core/DeviceInformation.h"
+#include "esperanto/runtime/Support/TimeHelpers.h"
 
 #include <cstdint>
 #include <functional>

@@ -10,7 +10,7 @@
 
 #include "device-fw-fixture.h"
 
-#include "Support/Logging.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 // Wait for device-fw to raise an interrupt from device to host
 TEST_F(DeviceFWTest, waitForHostInterrupt) {

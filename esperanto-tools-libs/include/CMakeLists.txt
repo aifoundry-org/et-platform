@@ -16,42 +16,43 @@ if(esperanto-fw_FOUND)
 endif()
 
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/Common/ProjectAutogen.h.in"
-  "${CMAKE_CURRENT_BINARY_DIR}/Common/ProjectAutogen.h"
+  "${CMAKE_CURRENT_SOURCE_DIR}/esperanto/runtime/Common/ProjectAutogen.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime/Common/ProjectAutogen.h"
   )
 
 foreach(FILE CommonTypes.h ErrorTypes.h)
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/Common/${FILE}"
-  "${CMAKE_CURRENT_BINARY_DIR}/Common/${FILE}"
+  "${CMAKE_CURRENT_SOURCE_DIR}/esperanto/runtime/Common/${FILE}"
+  "${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime/Common/${FILE}"
   COPYONLY
   )
 endforeach()
 
 
-set(COPY_FOLDERS "Core;Support;DeviceAPI")
+set(COPY_FOLDERS "esperanto/runtime/Core;esperanto/runtime/Support;esperanto/runtime/DeviceAPI")
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/EsperantoRuntime.h
-  DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/etrt-bin.h
-  DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/esperanto/runtime/EsperantoRuntime.h
+  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime/)
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/esperanto/runtime/etrt-bin.h
+  DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime)
 
 foreach(FOLDER ${COPY_FOLDERS})
   file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${FOLDER}
-    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/)
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime)
 endforeach()
 
-set(INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/et-runtime)
+set(INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/include/)
 # Install the headers
 # FIXME currently we are installing blindly all headers in the future we need to
 # separate the helpers for the different components and target libraries.
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/EsperantoRuntime.h ${CMAKE_CURRENT_BINARY_DIR}/etrt-bin.h
-  DESTINATION ${INSTALL_DIR}
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime/EsperantoRuntime.h
+              ${CMAKE_CURRENT_BINARY_DIR}/esperanto/runtime/etrt-bin.h
+  DESTINATION ${INSTALL_DIR}/esperanto/runtime/
   COMPONENT et-runtime
   )
-foreach(INC_DIR Common;${COPY_FOLDERS})
+foreach(INC_DIR esperanto/runtime/Common;${COPY_FOLDERS})
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${INC_DIR}
-  DESTINATION ${INSTALL_DIR}
+  DESTINATION ${INSTALL_DIR}/esperanto/runtime/
   COMPONENT et-runtime
   )
 endforeach(INC_DIR)

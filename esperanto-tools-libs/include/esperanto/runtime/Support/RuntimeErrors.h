@@ -11,6 +11,6 @@
 #ifndef ET_RUNTIME_ERRORS_H
 #define ET_RUNTIME_ERRORS_H
 
-#include "Common/ErrorTypes.h"
+#include "esperanto/runtime/Common/ErrorTypes.h"
 
 #endif // ET_RUNTIME_ERRORS_H

@@ -1,4 +1,4 @@
-#include "Core/Stream.h"
+#include "esperanto/runtime/Core/Stream.h"
 #include "DeviceAPI/Commands.h"
 
 namespace et_runtime {

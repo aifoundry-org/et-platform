@@ -8,25 +8,15 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#ifndef ET_RUNTIME_ERROR_H
-#define ET_RUNTIME_ERROR_H
+#ifndef ESPERANTO_RUNTIME_H
+#define ESPERANTO_RUNTIME_H
 
-#include "Common/ErrorTypes.h"
+#include "esperanto/runtime/Common/CommonTypes.h"
+#include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Core/DeviceInformation.h"
+#include "esperanto/runtime/Core/DeviceManager.h"
+#include "esperanto/runtime/Core/Error.h"
+#include "esperanto/runtime/Core/Kernel.h"
+#include "esperanto/runtime/Core/Stream.h"
 
-namespace et_runtime {
-
-class Error {
-public:
-  ///
-  /// @brief  Return the description string for an API call return value.
-  ///
-  /// Take an API return value and return a pointer to the string that describes
-  ///  the result of an API call.
-  ///
-  /// @param[in] error  The value returned by an API call.
-  /// @return  A string that describes the result of an API call.
-  static const char *errorString(etrtError error);
-};
-
-} // namespace et_runtime
-#endif // ET_RUNTIME_ERROR_H
+#endif // ESPERANTO_RUNTIME_H

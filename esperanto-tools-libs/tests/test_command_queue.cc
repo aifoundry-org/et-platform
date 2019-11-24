@@ -9,8 +9,8 @@
 //------------------------------------------------------------------------------
 
 #include "Core/CommandQueue.h"
-#include "DeviceAPI/Command.h"
-#include "DeviceAPI/Response.h"
+#include "esperanto/runtime/DeviceAPI/Command.h"
+#include "esperanto/runtime/DeviceAPI/Response.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>

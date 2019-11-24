@@ -11,9 +11,9 @@
 #ifndef ET_RUNTIME_CODE_MODULE_H
 #define ET_RUNTIME_CODE_MODULE_H
 
-#include "Common/CommonTypes.h"
-#include "Support/ErrorOr.h"
-#include "Support/MemoryRange.h"
+#include "esperanto/runtime/Common/CommonTypes.h"
+#include "esperanto/runtime/Support/ErrorOr.h"
+#include "esperanto/runtime/Support/MemoryRange.h"
 
 #include <memory>
 #include <string>

@@ -10,7 +10,7 @@
 
 #include "Tracing.h"
 
-#include "Core/CommandLineOptions.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
 
 #include "Tracing/etrt-trace.pb.h"
 #include <fstream>

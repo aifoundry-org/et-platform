@@ -18,7 +18,7 @@
 #include <cstring>
 #include <string>
 
-#include "Support/Logging.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #define STRINGIFY(s) STRINGIFY_INTERNAL(s)
 #define STRINGIFY_INTERNAL(s) #s

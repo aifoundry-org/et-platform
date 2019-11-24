@@ -10,9 +10,9 @@
 
 #include "CodeModule.h"
 
-#include "Core/Device.h"
 #include "DeviceAPI/Commands.h"
 #include "ELFSupport.h"
+#include "esperanto/runtime/Core/Device.h"
 
 #include <cassert>
 #include <elfio/elfio.hpp>

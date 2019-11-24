@@ -13,7 +13,7 @@
 #include "esperanto/simulator-api.grpc.pb.h"
 
 #include "RPCDevice/TargetDeviceInfo.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <absl/flags/flag.h>
 #include <cstdio>

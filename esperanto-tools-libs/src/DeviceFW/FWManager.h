@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_DEVICEFW_FWMANAGER_H
 #define ET_RUNTIME_DEVICEFW_FWMANAGER_H
 
-#include "Common/ErrorTypes.h"
+#include "esperanto/runtime/Common/ErrorTypes.h"
 
 #include <cstdint>
 #include <memory>

@@ -24,7 +24,7 @@
 #ifndef ET_RUNTIME_ERROR_OR_H
 #define ET_RUNTIME_ERROR_OR_H
 
-#include "Support/RuntimeErrors.h"
+#include "esperanto/runtime/Support/RuntimeErrors.h"
 
 #include <cassert>
 #include <system_error>

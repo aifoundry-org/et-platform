@@ -70,36 +70,36 @@ configure_file (
   )
 
 set(ETRT_SOURCES
-  ${PROJECT_BINARY_DIR}/include/Common/ProjectAutogen.h
-  ${PROJECT_SOURCE_DIR}/include/Support/Logging.h
-  ${PROJECT_SOURCE_DIR}/include/Support/ErrorOr.h
-  ${PROJECT_SOURCE_DIR}/include/Support/STLHelpers.h
-  ${PROJECT_SOURCE_DIR}/include/Support/RuntimeErrors.h
-  ${PROJECT_SOURCE_DIR}/include/Support/HelperMacros.h
-  ${PROJECT_SOURCE_DIR}/include/Support/DeviceGuard.h
-  ${PROJECT_SOURCE_DIR}/include/Support/MemoryRange.h
-  ${PROJECT_SOURCE_DIR}/include/etrt-bin.h
-  ${PROJECT_SOURCE_DIR}/include/Common/ProjectAutogen.h.in
-  ${PROJECT_SOURCE_DIR}/include/Common/ErrorTypes.h
-  ${PROJECT_SOURCE_DIR}/include/Common/CommonTypes.h
-  ${PROJECT_SOURCE_DIR}/include/C-API/etrt.h
-  ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptions.h
-  ${PROJECT_SOURCE_DIR}/include/Core/CommandLineOptionsDef.in
-  ${PROJECT_SOURCE_DIR}/include/Core/Device.h
-  ${PROJECT_SOURCE_DIR}/include/Core/DeviceTarget.h
-  ${PROJECT_SOURCE_DIR}/include/Core/DeviceManager.h
-  ${PROJECT_SOURCE_DIR}/include/Core/DeviceInformation.h
-  ${PROJECT_SOURCE_DIR}/include/Core/Event.h
-  ${PROJECT_SOURCE_DIR}/include/Core/Error.h
-  ${PROJECT_SOURCE_DIR}/include/Core/Kernel.h
-  ${PROJECT_SOURCE_DIR}/include/Core/Memory.h
-  ${PROJECT_SOURCE_DIR}/include/Core/MemoryManager.h
-  ${PROJECT_SOURCE_DIR}/include/Core/Stream.h
-  ${PROJECT_SOURCE_DIR}/include/DeviceAPI
-  ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Response.h
-  ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Event.h
-  ${PROJECT_SOURCE_DIR}/include/DeviceAPI/Command.h
-  ${PROJECT_SOURCE_DIR}/include/EsperantoRuntime.h
+  ${PROJECT_BINARY_DIR}/include/esperanto/runtime/Common/ProjectAutogen.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/Logging.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/ErrorOr.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/STLHelpers.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/RuntimeErrors.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/HelperMacros.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/DeviceGuard.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Support/MemoryRange.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/etrt-bin.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/ProjectAutogen.h.in
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/ErrorTypes.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Common/CommonTypes.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/C-API/etrt.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/CommandLineOptions.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/CommandLineOptionsDef.in
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Device.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/DeviceTarget.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/DeviceManager.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/DeviceInformation.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Event.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Error.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Kernel.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Memory.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/MemoryManager.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/Core/Stream.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI/Response.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI/Event.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/DeviceAPI/Command.h
+  ${PROJECT_SOURCE_DIR}/include/esperanto/runtime/EsperantoRuntime.h
   # FIXME the following should be deprecated once we move to the simulator API
   C-API/etrt.cc
   demangle.h

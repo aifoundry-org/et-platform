@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_PCIE_H
 #define ET_RUNTIME_DEVICE_PCIE_H
 
-#include "Core/DeviceTarget.h"
+#include "esperanto/runtime/Core/DeviceTarget.h"
 
 #include "BulkDev.h"
 #include "MailBoxDev.h"

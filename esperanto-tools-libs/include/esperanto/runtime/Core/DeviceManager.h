@@ -11,8 +11,8 @@
 #ifndef ET_RUNTIME_DEVICE_MANAGER_H
 #define ET_RUNTIME_DEVICE_MANAGER_H
 
-#include "Core/DeviceInformation.h"
-#include "Support/ErrorOr.h"
+#include "esperanto/runtime/Core/DeviceInformation.h"
+#include "esperanto/runtime/Support/ErrorOr.h"
 
 #include <cstdint>
 #include <memory>

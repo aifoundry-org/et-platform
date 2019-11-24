@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_DEVICE_RPC_H
 #define ET_RUNTIME_DEVICE_RPC_H
 
-#include "Core/DeviceTarget.h"
+#include "esperanto/runtime/Core/DeviceTarget.h"
 
 #include "Core/DeviceFwTypes.h"
 #include "EmuMailBoxDev.h"

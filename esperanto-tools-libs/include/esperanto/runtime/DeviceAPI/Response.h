@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_DEVICEAPI_RESPONSE_H
 #define ET_RUNTIME_DEVICEAPI_RESPONSE_H
 
-#include <Common/ErrorTypes.h>
+#include "esperanto/runtime/Common/ErrorTypes.h"
 
 #include <esperanto/device-api/device_api.h>
 #include <chrono>

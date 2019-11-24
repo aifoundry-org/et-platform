@@ -8,10 +8,10 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Support/DeviceGuard.h"
+#include "esperanto/runtime/Support/DeviceGuard.h"
 
-#include "Core/Device.h"
-#include "Core/DeviceManager.h"
+#include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Core/DeviceManager.h"
 
 #include <cassert>
 

@@ -1,11 +1,20 @@
-#include "C-API/etrt.h"
-#include "Core/Event.h"
-#include "Core/Stream.h"
+//******************************************************************************
+// Copyright (C) 2019, Esperanto Technologies Inc.
+// The copyright to the computer program(s) herein is the2
+// property of Esperanto Technologies, Inc. All Rights Reserved.
+// The program(s) may be used and/or copied only with
+// the written permission of Esperanto Technologies and
+// in accordance with the terms and conditions stipulated in the
+// agreement/contract under which the program(s) have been supplied.
+//------------------------------------------------------------------------------
+
+#include "esperanto/runtime/C-API/etrt.h"
 #include "DeviceAPI/Commands.h"
-#include "EsperantoRuntime.h"
-#include "Support/DeviceGuard.h"
-#include "Support/HelperMacros.h"
 #include "demangle.h"
+#include "esperanto/runtime/Core/Event.h"
+#include "esperanto/runtime/EsperantoRuntime.h"
+#include "esperanto/runtime/Support/DeviceGuard.h"
+#include "esperanto/runtime/Support/HelperMacros.h"
 
 #include <assert.h>
 #include <memory>

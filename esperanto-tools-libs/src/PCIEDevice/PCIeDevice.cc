@@ -10,9 +10,9 @@
 
 #include "PCIeDevice.h"
 
-#include "Core/CommandLineOptions.h"
 #include "Core/DeviceFwTypes.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <absl/strings/str_format.h>
 #include <experimental/filesystem>

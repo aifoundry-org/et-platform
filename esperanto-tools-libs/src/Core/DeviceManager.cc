@@ -8,13 +8,13 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/DeviceManager.h"
-#include "Common/CommonTypes.h"
-#include "Core/Device.h"
+#include "esperanto/runtime/Core/DeviceManager.h"
 #include "PCIEDevice/PCIeDevice.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Common/CommonTypes.h"
+#include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Support/Logging.h"
 
-#include "etrt-bin.h"
+#include "esperanto/runtime/etrt-bin.h"
 
 #include <cstring>
 #include <memory>

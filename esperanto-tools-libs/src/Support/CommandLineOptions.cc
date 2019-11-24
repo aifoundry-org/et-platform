@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/CommandLineOptions.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
 
 #include <absl/flags/flag.h>
 #include <absl/flags/parse.h>

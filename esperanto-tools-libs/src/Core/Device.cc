@@ -1,18 +1,18 @@
-#include "Core/Device.h"
+#include "esperanto/runtime/Core/Device.h"
 
 #include "CodeManagement/CodeModule.h"
 #include "CodeManagement/ELFSupport.h"
 #include "CodeManagement/ModuleManager.h"
-#include "Common/ErrorTypes.h"
-#include "Core/DeviceTarget.h"
-#include "Core/Event.h"
-#include "Core/MemoryManager.h"
-#include "Core/Stream.h"
 #include "DeviceAPI/Commands.h"
 #include "DeviceFW/FWManager.h"
-#include "Support/DeviceGuard.h"
-#include "Support/Logging.h"
 #include "demangle.h"
+#include "esperanto/runtime/Common/ErrorTypes.h"
+#include "esperanto/runtime/Core/DeviceTarget.h"
+#include "esperanto/runtime/Core/Event.h"
+#include "esperanto/runtime/Core/MemoryManager.h"
+#include "esperanto/runtime/Core/Stream.h"
+#include "esperanto/runtime/Support/DeviceGuard.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <absl/flags/flag.h>
 #include <assert.h>
@@ -24,8 +24,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-// FIXME remove the follwing
-#include "C-API/etrt.h"
 
 #define INCLUDE_FOR_HOST
 #include "../kernels/sys_inc.h"

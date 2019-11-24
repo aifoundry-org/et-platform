@@ -10,8 +10,8 @@
 
 #include "device-fw-fixture.h"
 
-#include "Core/DeviceHelpers.h"
-#include "Core/VersionCheckers.h"
+#include "esperanto/runtime/Core/DeviceHelpers.h"
+#include "esperanto/runtime/Core/VersionCheckers.h"
 
 #include <thread>
 #include <chrono>

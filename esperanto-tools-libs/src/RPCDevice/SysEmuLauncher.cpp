@@ -10,9 +10,9 @@
 
 #include "SysEmuLauncher.h"
 
-#include "Core/CommandLineOptions.h"
 #include "RPCDevice/TargetDeviceInfo.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <fcntl.h>
 #include <fmt/format.h>

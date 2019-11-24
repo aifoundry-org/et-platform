@@ -11,9 +11,9 @@
 #ifndef ET_RUNTIME_EVENT_H
 #define ET_RUNTIME_EVENT_H
 
-#include "Support/ErrorOr.h"
+#include "esperanto/runtime/Support/ErrorOr.h"
 
-#include "DeviceAPI/Command.h"
+#include "esperanto/runtime/DeviceAPI/Command.h"
 
 #include <memory>
 

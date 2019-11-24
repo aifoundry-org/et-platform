@@ -8,12 +8,12 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/MemoryManager.h"
+#include "esperanto/runtime/Core/MemoryManager.h"
 
 #include "Core/MemoryAllocator.h"
 #include "DeviceAPI/Commands.h"
-#include "EsperantoRuntime.h"
 #include "Tracing/Tracing.h"
+#include "esperanto/runtime/EsperantoRuntime.h"
 
 #include <sys/mman.h>
 #include <unistd.h>

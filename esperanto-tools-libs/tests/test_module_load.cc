@@ -11,11 +11,11 @@
 #include "CodeManagement/CodeModule.h"
 #include "CodeManagement/ELFSupport.h"
 #include "CodeManagement/ModuleManager.h"
-#include "Core/CommandLineOptions.h"
-#include "Core/Device.h"
-#include "Core/DeviceManager.h"
-#include "Core/DeviceTarget.h"
 #include "RPCDevice/TargetSysEmu.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Core/DeviceManager.h"
+#include "esperanto/runtime/Core/DeviceTarget.h"
 
 #include <glog/logging.h>
 #include <gmock/gmock.h>

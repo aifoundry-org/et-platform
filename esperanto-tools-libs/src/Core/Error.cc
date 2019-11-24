@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/Error.h"
+#include "esperanto/runtime/Core/Error.h"
 
 namespace et_runtime {
 

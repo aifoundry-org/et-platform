@@ -15,7 +15,7 @@
 
 // FIXME fix include path of this file
 #include "../kernels/sys_inc.h"
-#include "Support/STLHelpers.h"
+#include "esperanto/runtime/Support/STLHelpers.h"
 #include <vector>
 
 namespace et_runtime {

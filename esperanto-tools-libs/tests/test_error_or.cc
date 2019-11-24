@@ -8,7 +8,7 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Support/ErrorOr.h"
+#include "esperanto/runtime/Support/ErrorOr.h"
 #include "gtest/gtest.h"
 
 #include <cstdint>

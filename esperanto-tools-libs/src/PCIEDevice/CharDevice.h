@@ -12,7 +12,7 @@
 #define ET_RUNTIME_DEVICE_CHAR_DEVICE_H
 
 #include "PCIEDevice/LinuxETIOCTL.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <cassert>
 #include <cerrno>

@@ -1,7 +1,7 @@
-#include "EsperantoRuntime.h"
+#include "esperanto/runtime/EsperantoRuntime.h"
 
-#include "Core/CommandLineOptions.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <absl/flags/flag.h>
 #include <absl/strings/numbers.h>

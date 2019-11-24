@@ -11,9 +11,9 @@
 #ifndef ET_RUNTIME_MODULE_MANAGER_H
 #define ET_RUNTIME_MODULE_MANAGER_H
 
-#include <Common/CommonTypes.h>
-#include <Core/Device.h>
-#include <Support/ErrorOr.h>
+#include "esperanto/runtime/Common/CommonTypes.h"
+#include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Support/ErrorOr.h"
 
 #include <memory>
 #include <string>

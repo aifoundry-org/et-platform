@@ -81,9 +81,9 @@
 #ifndef ETRT_H
 #define ETRT_H
 
-#include "Common/CommonTypes.h"
-#include "Core/Stream.h"
-#include "etrt-bin.h"
+#include "esperanto/runtime/Common/CommonTypes.h"
+#include "esperanto/runtime/Core/Stream.h"
+#include "esperanto/runtime/etrt-bin.h"
 
 // FIXME this header is poluted with C++ code for a period of active refactoring
 // in the future restore it back to a pure C-API

@@ -8,13 +8,13 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/DeviceHelpers.h"
+#include "esperanto/runtime/Core/DeviceHelpers.h"
 
-#include "Common/ProjectAutogen.h"
-#include "Core/Device.h"
 #include "DeviceAPI/CommandsGen.h"
 #include "DeviceAPI/ResponsesGen.h"
-#include "Support/Logging.h"
+#include "esperanto/runtime/Common/ProjectAutogen.h"
+#include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <memory>
 #include <string>

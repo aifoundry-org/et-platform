@@ -12,7 +12,7 @@
 #define ET_RUNTIME_DEVICE_EMUMAILBOXDEV_H
 
 #include "Core/DeviceFwTypes.h"
-#include "Support/TimeHelpers.h"
+#include "esperanto/runtime/Support/TimeHelpers.h"
 
 #include <cassert>
 #include <cstdlib>

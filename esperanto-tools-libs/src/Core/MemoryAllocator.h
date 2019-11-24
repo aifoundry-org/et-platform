@@ -11,7 +11,7 @@
 #ifndef ET_RUNTIME_MEMORY_ALLOCATOR_H
 #define ET_RUNTIME_MEMORY_ALLOCATOR_H
 
-#include "Support/MemoryRange.h"
+#include "esperanto/runtime/Support/MemoryRange.h"
 
 #include <cstdint>
 #include <set>

@@ -8,9 +8,9 @@
 // agreement/contract under which the program(s) have been supplied.
 //------------------------------------------------------------------------------
 
-#include "Core/CommandLineOptions.h"
-#include "Core/Device.h"
 #include "PCIEDevice/PCIeDevice.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
+#include "esperanto/runtime/Core/Device.h"
 
 #include <absl/flags/flag.h>
 #include <array>
