@@ -20,20 +20,15 @@
 using namespace std;
 using namespace et_runtime;
 
-Module::Module(CodeModuleID mid, const std::string &name)
-    : module_id_(mid), elf_info_(make_unique<KernelELFInfo>(name)) {}
+CodeModuleID Module::module_count_ = 1;
 
-bool Module::readELF(const std::string path) {
-  std::ifstream f(path, std::ios::binary);
-  auto stream_it = std::istreambuf_iterator<char>{f};
-  elf_raw_data_.insert(elf_raw_data_.begin(), stream_it, {} /*end iterator*/);
+Module::Module(const std::string &name, const std::string &path)
+    : module_id_(module_count_++),
+      elf_info_(make_unique<KernelELFInfo>(name, path)) {}
 
-  elf_info_->loadELF(path);
+bool Module::readELF() { return elf_info_->loadELF(); }
 
-  assert(elf_info_->elfSize() <= elf_raw_data_.size());
-
-  return true;
-}
+const bool Module::ELFRead() { return elf_info_->elfSize() != 0; }
 
 const std::string &Module::name() const { return elf_info_->name(); };
 
@@ -100,7 +95,7 @@ bool Module::loadOnDevice(Device *dev) {
               << " Mem Size : 0x" << mem_size << "\n";
 
       auto write_command = make_shared<device_api::pcie_commands::WriteCommand>(
-          (void *)write_address, elf_raw_data_.data() + offset, mem_size);
+          (void *)write_address, elf_info_->data().data() + offset, mem_size);
 
       dev->addCommand(
           dev->defaultStream(),

@@ -31,16 +31,16 @@ class EtAction;
 /// @brief Dynamically loaded module descriptor.
 class Module {
 public:
-  Module(const CodeModuleID mid, const std::string &name);
+  Module(const std::string &name, const std::string &path);
+
+  /// @return ID of this module
+  CodeModuleID id() const { return module_id_; }
 
   /// @brief Load the ELF file in path in host memory
-  bool readELF(const std::string path);
-
-  /// @brief Return a buffer containing the raw ELF data as read from the file
-  const std::vector<char> &elfRawData() { return elf_raw_data_; }
+  bool readELF();
 
   /// @brief Return true iff we have read and decoded the elf file
-  const bool ELFRead() { return elf_raw_data_.size() != 0; }
+  const bool ELFRead();
 
   /// @brief Return the nanme of the module.
   const std::string &name() const;
@@ -64,10 +64,11 @@ public:
   ErrorOr<uintptr_t> onDeviceKernelEntryPoint(const std::string &kernel_name);
 
 private:
+  static CodeModuleID
+      module_count_; ///< Static count of all modules in the system
+
   CodeModuleID module_id_;                  ///< ID of this module
   std::unique_ptr<KernelELFInfo> elf_info_; ///< Pointer to the decoded ELF
-  std::vector<char>
-      elf_raw_data_;      ///< Buffer holding the whole ELF as read from file
   bool onDevice_ = false; ///< True iff the module is loaded on the device
   std::vector<std::tuple<support::MemoryRange, uintptr_t>>
       device_remap_; ///< Mapping of the ELF segment load address ( and size) to

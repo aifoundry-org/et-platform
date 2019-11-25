@@ -18,7 +18,7 @@
 
 namespace et_runtime {
 std::tuple<CodeModuleID, Module &>
-ModuleManager::createModule(const std::string &name) {
+ModuleManager::createModule(const std::string &name, const std::string &path) {
   auto elem = std::find_if(module_storage_.begin(), module_storage_.end(),
                            [&name](decltype(module_storage_)::value_type &e) {
                              return std::get<1>(e)->name() == name;
@@ -28,12 +28,13 @@ ModuleManager::createModule(const std::string &name) {
     return {id, *ptr.get()};
   }
 
-  module_count_++;
-  auto new_module = std::make_unique<Module>(module_count_, name);
+  auto new_module = std::make_unique<Module>(name, path);
+  auto mid = new_module->id();
 
-  auto val = std::move(std::make_tuple(module_count_, std::move(new_module)));
+  auto val =
+      std::move(std::make_tuple(new_module->id(), std::move(new_module)));
   module_storage_.emplace_back(std::move(val));
-  return {module_count_, *new_module};
+  return {mid, *new_module};
 }
 
 ErrorOr<Module *> ModuleManager::getModule(CodeModuleID mid) {
@@ -61,7 +62,6 @@ ErrorOr<Module *> ModuleManager::getModule(const std::string &name) {
 }
 
 ErrorOr<CodeModuleID> ModuleManager::loadOnDevice(CodeModuleID mid,
-                                                  const std::string &path,
                                                   Device *dev) {
   auto find_res = getModule(mid);
   if (!find_res) {
@@ -71,7 +71,7 @@ ErrorOr<CodeModuleID> ModuleManager::loadOnDevice(CodeModuleID mid,
   if (module->ELFRead()) {
     return etrtErrorModuleELFDataExists;
   }
-  auto status = module->readELF(path);
+  auto status = module->readELF();
   assert(status == true);
   status = module->loadOnDevice(dev);
   if (!status) {

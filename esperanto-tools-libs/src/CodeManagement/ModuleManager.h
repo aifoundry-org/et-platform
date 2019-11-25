@@ -41,13 +41,12 @@ public:
   /// @brief Create a new Module
   ///
   /// @param[in] name Name of the module which should be unique in the system.
-  /// For that we could use
-  ///    the path of the ELF (but we do not assume that the name is actually the
-  ///    path
+  /// @param[in] path Path fo the ELF this module corre
   ///
   /// @return Tuple that contained the ID and a referenced to the constructed
   /// module
-  std::tuple<CodeModuleID, Module &> createModule(const std::string &name);
+  std::tuple<CodeModuleID, Module &> createModule(const std::string &name,
+                                                  const std::string &path);
 
   ///
   /// @brief Get a registered module by ID
@@ -69,12 +68,10 @@ public:
   /// @brief Load the module on the Device
   ///
   /// @param[in] mid ID of the module to load
-  /// @param[in] path Path of the ELF to load on the device
   /// @param[in] dev Pointer to the device to load the module on
   ///
   /// @return Return error or the ID of the loaded module
-  ErrorOr<CodeModuleID> loadOnDevice(CodeModuleID mid, const std::string &path,
-                                     Device *dev);
+  ErrorOr<CodeModuleID> loadOnDevice(CodeModuleID mid, Device *dev);
 
   ///
   /// @brief Remove a module from the system
@@ -87,7 +84,6 @@ public:
 private:
   std::vector<std::tuple<CodeModuleID, std::unique_ptr<et_runtime::Module>>>
       module_storage_;
-  CodeModuleID module_count_ = 0;
 };
 
 } // namespace et_runtime

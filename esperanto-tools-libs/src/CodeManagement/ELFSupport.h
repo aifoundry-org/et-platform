@@ -31,10 +31,10 @@ public:
   friend class Module;
   friend class device_fw::DeviceFW;
 
-  ELFInfo(const std::string &name);
+  ELFInfo(const std::string &name, const std::string &path);
   virtual ~ELFInfo() = default;
 
-  virtual bool loadELF(const std::string &path);
+  virtual bool loadELF();
   virtual bool loadELF(std::istream &stream);
   virtual bool loadELF(std::vector<char> &data);
 
@@ -61,9 +61,9 @@ private:
 /// @brief Clas that hold the information of the Kernel ELF file
 class KernelELFInfo final : public ELFInfo {
 public:
-  KernelELFInfo(const std::string &name);
+  KernelELFInfo(const std::string &name, const std::string &path);
 
-  virtual bool loadELF(const std::string &path) override;
+  virtual bool loadELF() override;
   virtual bool loadELF(std::istream &stream) override;
   virtual bool loadELF(std::vector<char> &data) override;
 

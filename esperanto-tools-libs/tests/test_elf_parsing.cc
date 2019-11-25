@@ -26,9 +26,6 @@ namespace {
 // Test basic elf parsing functionality
 TEST(ELFInfo, load_elf) {
 
-  // FIXME SW-1369 do not consume the downloaded ELF file
-  ELFInfo elf_info{"convolution"};
-
   // We expect that the elf we test with is installed next to the test-binary
   // Find the absolute pasth of the test binary
   fs::path p = "/proc/self/exe";
@@ -36,20 +33,23 @@ TEST(ELFInfo, load_elf) {
   auto dir_name = test_real_path.remove_filename();
   auto conv_elf = dir_name / "convolution.elf";
 
-  EXPECT_TRUE(elf_info.loadELF(conv_elf));
+  // FIXME SW-1369 do not consume the downloaded ELF file
+  ELFInfo elf_info{"convolution", conv_elf.string()};
+
+  EXPECT_TRUE(elf_info.loadELF());
 }
 
 // Test parsing the elf using data in a preloaded vector.
 TEST(ELFInfo, load_elf_vector) {
 
-  ELFInfo elf_info{"convolution"};
-
   // We expect that the elf we test with is installed next to the test-binary
   // Find the absolute pasth of the test binary
   fs::path p = "/proc/self/exe";
   auto test_real_path = fs::read_symlink(p);
   auto dir_name = test_real_path.remove_filename();
   auto conv_elf = dir_name / "convolution.elf";
+
+  ELFInfo elf_info{"convolution", conv_elf.string()};
 
   ifstream testFile(conv_elf, std::ios::binary);
   std::vector<char> fileContents((std::istreambuf_iterator<char>(testFile)),
@@ -61,8 +61,6 @@ TEST(ELFInfo, load_elf_vector) {
 // Test kernel elf parsing functionality
 TEST(KernelELFInfo, parse_kernel_elf) {
 
-  KernelELFInfo elf_info{"convolution"};
-
   // We expect that the elf we test with is installed next to the test-binary
   // Find the absolute pasth of the test binary
   fs::path p = "/proc/self/exe";
@@ -70,7 +68,9 @@ TEST(KernelELFInfo, parse_kernel_elf) {
   auto dir_name = test_real_path.remove_filename();
   auto conv_elf = dir_name / "convolution.elf";
 
-  EXPECT_TRUE(elf_info.loadELF(conv_elf));
+  KernelELFInfo elf_info{"convolution", conv_elf.string()};
+
+  EXPECT_TRUE(elf_info.loadELF());
 
   EXPECT_TRUE(elf_info.rawKernelExists("convolution"));
 
@@ -79,8 +79,6 @@ TEST(KernelELFInfo, parse_kernel_elf) {
 
 TEST(KernelELFInfo, parse_multisegment_elf) {
 
-  KernelELFInfo elf_info{"etsocmaxsplat.elf"};
-
   // We expect that the elf we test with is installed next to the test-binary
   // Find the absolute pasth of the test binary
   fs::path p = "/proc/self/exe";
@@ -88,7 +86,9 @@ TEST(KernelELFInfo, parse_multisegment_elf) {
   auto dir_name = test_real_path.remove_filename();
   auto conv_elf = dir_name / "etsocmaxsplat.elf";
 
-  EXPECT_TRUE(elf_info.loadELF(conv_elf));
+  KernelELFInfo elf_info{"etsocmaxsplat.elf", conv_elf.string()};
+
+  EXPECT_TRUE(elf_info.loadELF());
 
   EXPECT_TRUE(elf_info.rawKernelExists("etsocmaxsplat"));
 

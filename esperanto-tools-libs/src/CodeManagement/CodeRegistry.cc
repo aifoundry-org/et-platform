@@ -30,12 +30,12 @@ ErrorOr<std::tuple<KernelCodeID, KernelClass &>>
 CodeRegistry::registerKernelHelper(const std::string &name,
                                    const std::string &elf_path) {
 
-  auto mod_exists = mod_manager_->getModule(elf_path);
+  auto mod_exists = mod_manager_->getModule(name);
   if ((bool)mod_exists == true) {
     return etrtErrorModuleELFDataExists;
   }
 
-  auto mod_info = mod_manager_->createModule(elf_path);
+  auto mod_info = mod_manager_->createModule(name, elf_path);
 
   auto mid = std::get<0>(mod_info);
   /// This pointer should be tracked by the KernelRegistry

@@ -55,8 +55,8 @@ bool DeviceFW::setFWFilePaths(const std::vector<std::string> &paths) {
       THROW("The Expected order of DeviceFW ELF-file paths is: "
             "MasterMinion.elf, MachineMinion.elf, WorkerMinion.elf");
     }
-    elf_info = std::make_unique<ELFInfo>(elf_name);
-    elf_info->loadELF(path);
+    elf_info = std::make_unique<ELFInfo>(elf_name, path);
+    elf_info->loadELF();
     RTINFO << "Loaded " << elf_info->name() << " from: " << path
            << " Load address: " << std::hex << elf_info->entryAddr()
            << " size: " << elf_info->elfSize();

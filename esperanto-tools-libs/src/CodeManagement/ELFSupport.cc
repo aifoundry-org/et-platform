@@ -22,12 +22,12 @@
 #include <vector>
 
 namespace et_runtime {
-ELFInfo::ELFInfo(const std::string &n) : name_(n), reader_() {}
+ELFInfo::ELFInfo(const std::string &n, const std::string &path)
+    : path_(path), name_(n), reader_() {}
 
-bool ELFInfo::loadELF(const std::string &path) {
-  path_ = path;
+bool ELFInfo::loadELF() {
   std::ifstream stream;
-  stream.open(path.c_str(), std::ios::in | std::ios::binary);
+  stream.open(path_.c_str(), std::ios::in | std::ios::binary);
   if (!stream) {
     return false;
   }
@@ -113,12 +113,12 @@ size_t ELFInfo::entryAddr() const { return reader_.get_entry(); }
 
 //------------------------------------------------------------------------------
 
-KernelELFInfo::KernelELFInfo(const std::string &name)
-    : ELFInfo(name), kernel_offset_(), raw_kernel_offset_() {}
+KernelELFInfo::KernelELFInfo(const std::string &name, const std::string &path)
+    : ELFInfo(name, path), kernel_offset_(), raw_kernel_offset_() {}
 
-bool KernelELFInfo::loadELF(const std::string &path) {
+bool KernelELFInfo::loadELF() {
   std::ifstream stream;
-  stream.open(path.c_str(), std::ios::in | std::ios::binary);
+  stream.open(path_.c_str(), std::ios::in | std::ios::binary);
   if (!stream) {
     return false;
   }

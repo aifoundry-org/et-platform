@@ -51,8 +51,8 @@ TEST(Module, loadOnSysEMU_convolution_elf) {
 
   auto conv_elf = dir_name / "convolution.elf";
 
-  auto module = make_unique<Module>(1, "convolution.elf");
-  EXPECT_TRUE(module->readELF(conv_elf));
+  auto module = make_unique<Module>("convolution.elf", conv_elf.string());
+  EXPECT_TRUE(module->readELF());
 
   EXPECT_TRUE(module->loadOnDevice(dev.get()));
 
@@ -76,8 +76,8 @@ TEST(Module, loadOnSysEMU_etsocmaxsplat_elf) {
   ASSERT_EQ(dev->init(), etrtSuccess);
 
   auto conv_elf = dir_name / "etsocmaxsplat.elf";
-  auto module = make_unique<Module>(1, "etsocmaxsplat.elf");
-  EXPECT_TRUE(module->readELF(conv_elf));
+  auto module = make_unique<Module>("etsocmaxsplat.elf", conv_elf.string());
+  EXPECT_TRUE(module->readELF());
 
   EXPECT_TRUE(module->loadOnDevice(dev.get()));
 
@@ -107,8 +107,8 @@ TEST(Module, loadOnSysEMU_high_address_kernel) {
   ASSERT_EQ(dev->init(), etrtSuccess);
 
   auto conv_elf = dir_name / "sample-kernel";
-  auto module = make_unique<Module>(1, "sample_kernel");
-  EXPECT_TRUE(module->readELF(conv_elf));
+  auto module = make_unique<Module>("sample_kernel", conv_elf.string());
+  EXPECT_TRUE(module->readELF());
 
   EXPECT_TRUE(module->loadOnDevice(dev.get()));
 

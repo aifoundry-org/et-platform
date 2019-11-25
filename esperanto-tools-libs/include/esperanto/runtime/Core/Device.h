@@ -254,7 +254,8 @@ private:
   void uninitDeviceThread();
   void uninitObjects();
 
-  et_runtime::Module &createModule(const std::string &name);
+  et_runtime::Module &createModule(const std::string &name,
+                                   const std::string &path);
   void destroyModule(et_runtime::CodeModuleID modue);
 
   int device_index_;

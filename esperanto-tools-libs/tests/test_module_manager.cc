@@ -53,16 +53,18 @@ TEST(ModuleManager, loadOnSysEMU) {
 
   et_runtime::ModuleManager module_manager;
 
-  auto module_res = module_manager.createModule("convolution.elf");
+  auto module_res =
+      module_manager.createModule("convolution.elf", conv_elf.string());
   auto conv_mid = get<0>(module_res);
-  auto load_res = module_manager.loadOnDevice(conv_mid, conv_elf, dev.get());
+  auto load_res = module_manager.loadOnDevice(conv_mid, dev.get());
   EXPECT_EQ(load_res.getError(), etrtSuccess);
   EXPECT_EQ(load_res.get(), conv_mid);
 
   auto softmax_elf = dir_name / "gpu_0_softmax_110.elf";
-  auto module_res2 = module_manager.createModule("softmax");
+  auto module_res2 =
+      module_manager.createModule("softmax", softmax_elf.string());
   auto softmax_mid = get<0>(module_res2);
-  load_res = module_manager.loadOnDevice(softmax_mid, softmax_elf, dev.get());
+  load_res = module_manager.loadOnDevice(softmax_mid, dev.get());
   EXPECT_EQ(load_res.getError(), etrtSuccess);
   EXPECT_EQ(load_res.get(), softmax_mid);
 

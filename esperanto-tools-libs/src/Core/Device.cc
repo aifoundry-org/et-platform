@@ -306,8 +306,9 @@ etrtError Device::memset(void *devPtr, int value, size_t count) {
   return etrtSuccess;
 }
 
-et_runtime::Module &Device::createModule(const std::string &name) {
-  auto res = module_manager_->createModule(name);
+et_runtime::Module &Device::createModule(const std::string &name,
+                                         const std::string &path) {
+  auto res = module_manager_->createModule(name, path);
   return std::get<1>(res);
 }
 
@@ -374,8 +375,8 @@ et_runtime::Module *Device::getModule(et_runtime::CodeModuleID mid) {
 ErrorOr<et_runtime::CodeModuleID> Device::moduleLoad(const std::string &name,
                                                      const std::string &path) {
 
-  auto res = module_manager_->createModule(name);
-  return module_manager_->loadOnDevice(std::get<0>(res), path, this);
+  auto res = module_manager_->createModule(name, path);
+  return module_manager_->loadOnDevice(std::get<0>(res), this);
 }
 
 etrtError Device::moduleUnload(et_runtime::CodeModuleID mid) {
