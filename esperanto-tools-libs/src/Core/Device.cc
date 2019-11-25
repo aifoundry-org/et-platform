@@ -6,6 +6,7 @@
 #include "DeviceAPI/Commands.h"
 #include "DeviceFW/FWManager.h"
 #include "demangle.h"
+#include "esperanto/runtime/CodeManagement/CodeRegistry.h"
 #include "esperanto/runtime/Common/ErrorTypes.h"
 #include "esperanto/runtime/Core/DeviceTarget.h"
 #include "esperanto/runtime/Core/Event.h"
@@ -36,8 +37,7 @@ using namespace et_runtime::device;
 
 Device::Device(int index)
     : device_index_(index), fw_manager_(std::make_unique<FWManager>()),
-      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
-      module_manager_(std::make_unique<ModuleManager>()) {
+      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)) {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, index);
   defaultStream_ = createStream(false);
@@ -306,16 +306,6 @@ etrtError Device::memset(void *devPtr, int value, size_t count) {
   return etrtSuccess;
 }
 
-et_runtime::Module &Device::createModule(const std::string &name,
-                                         const std::string &path) {
-  auto res = module_manager_->createModule(name, path);
-  return std::get<1>(res);
-}
-
-void Device::destroyModule(et_runtime::CodeModuleID module) {
-  module_manager_->destroyModule(module);
-}
-
 // FIXME SW-1362
 // etrtError Device::setupArgument(const void *arg, size_t size, size_t offset)
 // {
@@ -334,12 +324,8 @@ etrtError Device::rawLaunch(et_runtime::CodeModuleID module_id,
                             const char *kernel_name, const void *args,
                             size_t args_size, Stream *stream) {
 
-  auto et_module_res = module_manager_->getModule(module_id);
-  if (!et_module_res) {
-    return et_module_res.getError();
-  }
-
-  auto module = et_module_res.get();
+  auto module = CodeRegistry::registry().getModule(module_id);
+  assert(module != nullptr);
 
   if (!module->onDevice()) {
     return etrtErrorModuleNotOnDevice;
@@ -364,26 +350,7 @@ etrtError Device::rawLaunch(et_runtime::CodeModuleID module_id,
   return etrtSuccess;
 }
 
-et_runtime::Module *Device::getModule(et_runtime::CodeModuleID mid) {
-  auto res = module_manager_->getModule(mid);
-  if (!res) {
-    return nullptr;
-  }
-  return res.get();
-}
-
-ErrorOr<et_runtime::CodeModuleID> Device::moduleLoad(const std::string &name,
-                                                     const std::string &path) {
-
-  auto res = module_manager_->createModule(name, path);
-  return module_manager_->loadOnDevice(std::get<0>(res), this);
-}
-
 etrtError Device::moduleUnload(et_runtime::CodeModuleID mid) {
-  auto et_module_res = module_manager_->getModule(mid);
-  if (!et_module_res) {
-    return et_module_res.getError();
-  }
-  this->destroyModule(mid);
+  /// FIXME SW-1370 correctly unload the module form the device
   return etrtSuccess;
 }

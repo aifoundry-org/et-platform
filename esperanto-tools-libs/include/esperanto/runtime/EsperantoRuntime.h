@@ -11,12 +11,14 @@
 #ifndef ESPERANTO_RUNTIME_H
 #define ESPERANTO_RUNTIME_H
 
+#include "esperanto/runtime/CodeManagement/CodeRegistry.h"
+#include "esperanto/runtime/CodeManagement/Kernel.h"
+#include "esperanto/runtime/CodeManagement/UberKernel.h"
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Core/Device.h"
 #include "esperanto/runtime/Core/DeviceInformation.h"
 #include "esperanto/runtime/Core/DeviceManager.h"
 #include "esperanto/runtime/Core/Error.h"
-#include "esperanto/runtime/CodeManagement/Kernel.h"
 #include "esperanto/runtime/Core/Stream.h"
 
 #endif // ESPERANTO_RUNTIME_H

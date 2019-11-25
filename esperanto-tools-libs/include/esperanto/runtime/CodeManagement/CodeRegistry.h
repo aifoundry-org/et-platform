@@ -21,6 +21,8 @@
 
 namespace et_runtime {
 
+class Device;
+class Module;
 class ModuleManager;
 class Kernel;
 class UberKernel;
@@ -61,6 +63,35 @@ public:
   /// registered kernel
   ErrorOr<std::tuple<KernelCodeID, UberKernel &>>
   registerUberKernel(const std::string &name, const std::string &elf_path);
+
+  /// @brief Get a pointer to a regisetered module
+  ///
+  /// @param[in] mid Id of the module
+  ///
+  /// @return Pointer to code module
+  et_runtime::Module *getModule(CodeModuleID mid);
+
+  /// @brief Destroy a registered module
+  ///
+  /// @param[in] ID of the mdoule to destroy
+  void destroyModule(CodeModuleID mid);
+
+  /// @brief Load a module to a device
+  ///
+  /// @param[in] mid ID of the module to load
+  /// @param[in] dev Pointer to device to load the module to
+  ///
+  /// @return Error or ID of the loaded module that should match the passed mid
+  /// value
+  ErrorOr<et_runtime::CodeModuleID> moduleLoad(CodeModuleID mid, Device *dev);
+
+  /// @brief Unload module from device
+  ///
+  /// @param[in] mid ID of the module to unload
+  /// @param[in] dev Pointer to device to load the device
+  ///
+  /// @return Success of error of the action
+  etrtError moduleUnload(CodeModuleID mid, Device *dev);
 
 private:
   std::unique_ptr<ModuleManager> mod_manager_;

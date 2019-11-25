@@ -522,6 +522,11 @@ enum etrtError {
   etrtErrorModuleFailedToLoadOnDevice,
 
   /**
+   * This error indicates that we failed destroy a code module
+   */
+  etrtErrorModuleFailedToDestroy,
+
+  /**
    * This indicates an internal startup failure in the ET Runtime.
    */
   etrtErrorStartupFailure = 0x7f,

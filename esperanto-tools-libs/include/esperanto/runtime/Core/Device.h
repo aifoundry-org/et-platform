@@ -38,13 +38,6 @@ class ModuleManager;
 class Module;
 class Stream;
 
-// Loaded to device kernels ELF binary descriptor.
-struct EtLoadedKernelsBin {
-  void *devPtr = nullptr; // base device address of loaded binary
-  et_runtime::EtActionEvent *actionEvent =
-      nullptr; // used for synchronize with load completion
-};
-
 class Device {
   friend class ::GetDev;
   friend class et_runtime::device::MemoryManager;
@@ -243,10 +236,11 @@ public:
   /// FIXME SW-1293
   etrtError memset(void *devPtr, int value, size_t count);
 
-  et_runtime::Module *getModule(et_runtime::CodeModuleID mid);
-
-  ErrorOr<et_runtime::CodeModuleID> moduleLoad(const std::string &name,
-                                               const std::string &path);
+  /// @brief Unload a module from the device
+  ///
+  /// @param[in] ID of the code module to unload
+  ///
+  /// @return Success or error of the operation
   etrtError moduleUnload(et_runtime::CodeModuleID mid);
 
 private:
@@ -254,26 +248,16 @@ private:
   void uninitDeviceThread();
   void uninitObjects();
 
-  et_runtime::Module &createModule(const std::string &name,
-                                   const std::string &path);
-  void destroyModule(et_runtime::CodeModuleID modue);
-
   int device_index_;
   std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
   std::unique_ptr<et_runtime::FWManager> fw_manager_;
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
-  std::unique_ptr<et_runtime::ModuleManager> module_manager_;
   bool device_thread_exit_requested_ = false;
   Stream *defaultStream_ = nullptr;
   std::vector<std::unique_ptr<Stream>> stream_storage_;
   std::vector<std::unique_ptr<Event>> event_storage_;
   // FIXME SW-1362
   // std::vector<et_runtime::EtLaunchConf> launch_confs_;
-  // FIXME: remove the following
-  std::map<const void *, EtLoadedKernelsBin>
-      loaded_kernels_bin_; // key is id; there are 2 cases now:
-                           // - Esperanto registered ELF (from fat binary)
-                           // - dynamically loaded module
 };
 } // namespace et_runtime
 

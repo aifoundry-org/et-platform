@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "PCIEDevice/PCIeDevice.h"
+#include "esperanto/runtime/CodeManagement/CodeRegistry.h"
 #include "esperanto/runtime/Core/CommandLineOptions.h"
 #include "esperanto/runtime/Core/Device.h"
 
@@ -50,8 +51,12 @@ protected:
 TEST_F(PCIEKernelLaunchTest, empty_kernel) {
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path empty_kernel = fs::path(kernels_dir)  / fs::path("empty.elf");
+  auto &registry = CodeRegistry::registry();
 
-  auto load_res = dev_->moduleLoad("main", empty_kernel.string());
+  auto res = registry.registerKernel("main", empty_kernel.string());
+  ASSERT_TRUE((bool)res);
+  auto &kernel = std::get<1>(res.get());
+  auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
   ASSERT_EQ(load_res.getError(), etrtSuccess);
   auto module_id = load_res.get();
 
@@ -62,9 +67,14 @@ TEST_F(PCIEKernelLaunchTest, empty_kernel) {
 
 TEST_F(PCIEKernelLaunchTest, beef_kernel) {
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
-  fs::path empty_kernel = fs::path(kernels_dir)  / fs::path("beef.elf");
+  fs::path beef_kernel = fs::path(kernels_dir) / fs::path("beef.elf");
+  auto &registry = CodeRegistry::registry();
 
-  auto load_res = dev_->moduleLoad("main", empty_kernel.string());
+  auto register_res = registry.registerKernel("main", beef_kernel.string());
+  ASSERT_TRUE((bool)register_res);
+  auto &kernel = std::get<1>(register_res.get());
+
+  auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
   ASSERT_EQ(load_res.getError(), etrtSuccess);
   auto module_id = load_res.get();
 
