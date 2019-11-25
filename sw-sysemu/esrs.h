@@ -264,8 +264,6 @@ namespace bemu {
 #define ESR_SHIRE_PLL_CONFIG_DATA_1     0x01C0340260ULL /* PP = 0b11 */
 #define ESR_SHIRE_PLL_CONFIG_DATA_2     0x01C0340268ULL /* PP = 0b11 */
 #define ESR_SHIRE_PLL_CONFIG_DATA_3     0x01C0340270ULL /* PP = 0b11 */
-#define ESR_SHIRE_PLL_CONFIG_DATA_4     0x01C0340278ULL /* PP = 0b11 */
-#define ESR_SHIRE_PLL_CONFIG_DATA_5     0x01C0340280ULL /* PP = 0b11 */
 #define ESR_SHIRE_PLL_READ_DATA         0x01C0340288ULL /* PP = 0b11 */
 #define ESR_SHIRE_COOP_MODE             0x0140340290ULL /* PP = 0b01 */
 #define ESR_SHIRE_CTRL_CLOCKMUX         0x01C0340298ULL /* PP = 0b11 */
@@ -276,7 +274,8 @@ namespace bemu {
 #define ESR_SHIRE_NOC_INTERRUPT_STATUS  0x01C03402C0ULL /* PP = 0b11 */
 #define ESR_SHIRE_DLL_AUTO_CONFIG       0x01C03402C8ULL /* PP = 0b11 */
 #define ESR_SHIRE_DLL_CONFIG_DATA_0     0x01C03402D0ULL /* PP = 0b11 */
-#define ESR_SHIRE_DLL_READ_DATA         0x01C03402D8ULL /* PP = 0b11 */
+#define ESR_SHIRE_DLL_CONFIG_DATA_1     0x01C03402D8ULL /* PP = 0b11 */
+#define ESR_SHIRE_DLL_READ_DATA         0x01C03402E0ULL /* PP = 0b11 */
 //#define ESR_TBOX_RBOX_DBG_RC            /* PP = 0b10 */
 #define ESR_UC_CONFIG                   0x01403402E8ULL /* PP = 0b01 */
 //#define ESR_SHIRE_CTRL_RESET_DBG        /* PP = 0b10 */
@@ -376,8 +375,9 @@ struct shire_other_esrs_t {
     //uint64_t icache_uprefetch;
     uint64_t ipi_redirect_filter;
     uint64_t ipi_trigger;
-    uint64_t shire_pll_config_data[6];
+    uint64_t shire_pll_config_data[4];
     uint64_t shire_dll_config_data_0;
+    uint64_t shire_dll_config_data_1;
     uint64_t shire_cache_ram_cfg1;
     uint64_t shire_cache_ram_cfg3;
     uint64_t shire_cache_ram_cfg4;

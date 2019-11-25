@@ -462,8 +462,6 @@ uint64_t esr_read(uint64_t addr)
         case ESR_SHIRE_PLL_CONFIG_DATA_1:
         case ESR_SHIRE_PLL_CONFIG_DATA_2:
         case ESR_SHIRE_PLL_CONFIG_DATA_3:
-        case ESR_SHIRE_PLL_CONFIG_DATA_4:
-        case ESR_SHIRE_PLL_CONFIG_DATA_5:
             return shire_other_esrs[shire].shire_pll_config_data[(esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3];
         case ESR_SHIRE_PLL_READ_DATA:
             return 0x20000; /* PLL is locked */
@@ -485,6 +483,8 @@ uint64_t esr_read(uint64_t addr)
             return shire_other_esrs[shire].shire_dll_auto_config;
         case ESR_SHIRE_DLL_CONFIG_DATA_0:
             return shire_other_esrs[shire].shire_dll_config_data_0;
+        case ESR_SHIRE_DLL_CONFIG_DATA_1:
+            return shire_other_esrs[shire].shire_dll_config_data_1;
         case ESR_SHIRE_DLL_READ_DATA:
             return 0x10000; /* DLL is locked */
         case ESR_UC_CONFIG:
@@ -1011,8 +1011,6 @@ void esr_write(uint64_t addr, uint64_t value)
         case ESR_SHIRE_PLL_CONFIG_DATA_1:
         case ESR_SHIRE_PLL_CONFIG_DATA_2:
         case ESR_SHIRE_PLL_CONFIG_DATA_3:
-        case ESR_SHIRE_PLL_CONFIG_DATA_4:
-        case ESR_SHIRE_PLL_CONFIG_DATA_5:
             shire_other_esrs[shire].shire_pll_config_data[(esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3] = value;
             LOG_ALL_MINIONS(DEBUG, "S%u:shire_pll_config_data_%llu = 0x%" PRIx64,
                             shire, (esr - ESR_SHIRE_PLL_CONFIG_DATA_0)>>3,
@@ -1056,6 +1054,11 @@ void esr_write(uint64_t addr, uint64_t value)
             shire_other_esrs[shire].shire_dll_config_data_0 = value;
             LOG_ALL_MINIONS(DEBUG, "S%u:shire_dll_config_data_0 = 0x%" PRIx64,
                             shire, shire_other_esrs[shire].shire_dll_config_data_0);
+            return;
+        case ESR_SHIRE_DLL_CONFIG_DATA_1:
+            shire_other_esrs[shire].shire_dll_config_data_1 = value;
+            LOG_ALL_MINIONS(DEBUG, "S%u:shire_dll_config_data_1 = 0x%" PRIx64,
+                            shire, shire_other_esrs[shire].shire_dll_config_data_1);
             return;
         case ESR_UC_CONFIG:
             shire_other_esrs[shire].uc_config = value & 1;
