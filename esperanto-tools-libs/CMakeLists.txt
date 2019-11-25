@@ -143,7 +143,12 @@ message("ABSEIL Found : '${absl_FOUND}'")
 find_package(SimulatorAPI CONFIG REQUIRED)
 message("Sim API Found: ${SimulatorAPI_FOUND}")
 
-find_package(esperanto-device-api CONFIG REQUIRED)
+find_package(esperanto-device-api CONFIG REQUIRED
+  PATHS "${RT_EXTERNAL_INSTALL_PREFIX}/lib/cmake/esperanto-device-api"
+  NO_CMAKE_PATH
+  NO_CMAKE_ENVIRONMENT_PATH
+  NO_DEFAULT_PATH
+)
 message("Espernato Device API Found: ${espernato-device-api_FOUND}")
 
 # Currenly esperanto-fw is not required. Will be the case once we get completly rid
