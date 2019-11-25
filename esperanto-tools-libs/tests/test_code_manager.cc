@@ -42,8 +42,9 @@ TEST(CodeRegistry, registerKernel) {
   auto dir_name = test_real_path.remove_filename();
   auto conv_elf = dir_name / "convolution.elf";
 
-  auto res =
-      CodeRegistry::registry().registerKernel("convolution", conv_elf.string());
+  auto res = CodeRegistry::registry().registerKernel(
+      "convolution", {Kernel::ArgType::T_layer_dynamic_info},
+      conv_elf.string());
   ASSERT_TRUE(res);
 
   auto kernel_id = std::get<0>(res.get());
@@ -62,12 +63,16 @@ TEST(CodeRegistry, registerUberKernel) {
   // FIXME Use a real Uber Kernel
   auto conv_elf = dir_name / "convolution.elf";
 
-  auto res = CodeRegistry::registry().registerUberKernel("convolutio_2",
-                                                         conv_elf.string());
+  auto res = CodeRegistry::registry().registerUberKernel(
+      "convolutio_2", {{Kernel::ArgType::T_layer_dynamic_info}},
+      conv_elf.string());
   ASSERT_TRUE(res);
 
   auto kernel_id = std::get<0>(res.get());
   ASSERT_TRUE(kernel_id != 0);
+
+  auto find_kernel = Kernel::findKernel(kernel_id);
+  ASSERT_TRUE((bool)find_kernel);
 }
 
 } // namespace

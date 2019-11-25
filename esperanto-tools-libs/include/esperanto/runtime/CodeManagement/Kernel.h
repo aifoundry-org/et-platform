@@ -20,9 +20,11 @@
 #include <string>
 #include <tuple>
 #include <unordered_map>
+#include <vector>
 
 namespace et_runtime {
 
+class Device;
 class Stream;
 
 /// @class Kernel Kernel.h
@@ -172,12 +174,96 @@ class Stream;
 ////
 class Kernel {
 public:
+  /// @struct layer_dynamic_info
+  ///
+  /// Struct holding the current version of the activation record
+  struct layer_dynamic_info_t {
+    uint64_t tensor_a;  // Pointer to tensor A
+    uint64_t tensor_b;  // Pointer to tensor B
+    uint64_t tensor_c;  // Pointer to tensor C
+    uint64_t tensor_d;  // Pointer to tensor D
+    uint64_t tensor_e;  // Pointer to tensor E
+    uint64_t tensor_f;  // Pointer to tensor F
+    uint64_t tensor_g;  // Pointer to tensor G
+    uint64_t tensor_h;  // Pointer to tensor H
+    uint64_t kernel_id; // Id for this Kernel
+  };
+
+  enum class ArgType : uint8_t {
+    None = 0,
+    T_int8 = 1,
+    T_uint8 = 2,
+    T_int16 = 3,
+    T_uint16 = 4,
+    T_int32 = 5,
+    T_uint32 = 6,
+    T_float = 7,
+    T_double = 8,
+    T_tensor = 9,
+    T_layer_dynamic_info = 10,
+    Num
+  };
+
+  // FIXME we shoule move to avariant but that requires c++17
+  /// @union Value of the individual argument values to pass to a kernel launch
+  union ArgValue {
+    int8_t int8;
+    uint8_t uint8;
+    int16_t int16;
+    uint16_t uint16;
+    int32_t int32;
+    uint32_t uint32;
+    float vfloat;
+    double vdouble;
+    // FIXME define tesnor type
+    layer_dynamic_info_t layer_dynamic_info;
+  };
+
+  struct LaunchArg {
+    ArgType type;
+    ArgValue value;
+  };
+
+  /// @class KernelLaunch
+  ///
+  /// @brief Launch a kernel on the devie with the specified arguments
+  //
+  class KernelLaunch {
+  public:
+    ///
+    /// @param[in] kernel Reference to a registered kernel
+    /// @param[in] args  Vector with the arguments to pass to the kernel and
+    /// their type
+    ///   Their types will be checked against the registered signature of the
+    ///   kernel
+    KernelLaunch(const Kernel &kernel, std::vector<LaunchArg> &args);
+
+    /// @brief Launch the kernel and wait for the result
+    ///
+    /// This is a blocking kernel launch the function will block until a result
+    /// is received from the device
+    ///
+    /// @param[in] stream  Stream to launch this kernel on
+    /// @returns etrtSuccess or error describing the kernel launch status
+    etrtError launchBlocking(Device *dev, Stream *stream);
+
+    /// @brief Non blocking kernel launch
+    /// FIXME SW-1382
+    etrtError launchNonBlocking(Stream *stream);
+
+  private:
+    const Kernel &kernel_;
+    std::vector<LaunchArg> args_;
+  };
+
   /// @brief Construct a new kernel
   ///
   /// @param[in] name String with the unique name of the kernel across the whole
   /// system
+  /// @param[in] arg_list Vector with type of argumenrs this kernel can accept
   /// @param[in] mid  ModuleID of the CodeModue/ELF that contains the kernel
-  Kernel(const std::string &name, CodeModuleID mid);
+  Kernel(const std::string &name, const std::vector<ArgType> &arg_list,
+         CodeModuleID mid);
 
   virtual ~Kernel() = default;
 
@@ -190,41 +276,13 @@ public:
   /// @return Name of the kernel
   const std::string &name() const { return name_; }
 
-  ///
-  /// @brief  Set up the indexing configuration for Kernel launches.
-  ///
-  /// Define the Grid and Block dimensions for subsequent Kernel launches, as
-  /// well as the maximum amount of shared memory that the Kernel instances can
-  /// consume.
-  ///
-  /// @todo  Document the Kernel launch options selected by the flags argument.
-  ///
-  /// @param[in] gridDim  The higher-level (i.e., Grid) index dimensions for
-  /// Kernels to be launched.
-  /// @param[in] blockDim  The lower-level (i.e., Block) indexes dimensions
-  /// Kernels to be launched.
-  /// @param[in] sharedMem  Maximum number of bytes of shared memory that can be
-  /// used by the launched Kernel instances.
-  /// @return  etrtSuccess, etrtErrorInvalidConfiguration,
-  /// etrtErrorLaunchOutOfResources
-  ///
-  /// FIXME SW-1362
-  // ///etrtError etrtConfigureCall(dim3 gridDim, dim3 blockDim, size_t
-  // sharedMem);
+  /// @return List of argument types
+  const std::vector<ArgType> &kernelArgs() const { return kernel_args_; }
 
-  ///
-  /// @brief Append an argument to the Kenel launch
-  ///
-  /// Append to the list of launch arguments the value
-  ///
-  /// @param[in] value  Argument value to be passed to the kernel
-  /// @return  etrtSuccess, \todo Add exit codes
-  template <typename T> etrtError addArgument(const T &value);
+  std::unique_ptr<KernelLaunch>
+  createKernelLaunch(std::vector<LaunchArg> &args);
 
-  ///
-  /// @brief Launch the kernel on the device.
-  /// @todo Fix the bellow function
-  etrtError launch();
+  static ErrorOr<Kernel &> findKernel(KernelCodeID id);
 
 protected:
   /// Delegating constructor that is going to do the basic initialization for
@@ -248,6 +306,7 @@ protected:
   CodeModuleID mid_ =
       -1; ///< ID of the module (ELF) where this kernel is located
   std::string name_;
+  std::vector<ArgType> kernel_args_;
 
   static KernelCodeID
       global_kernel_id_; ///< Static counter with the total number of kernels
@@ -259,4 +318,10 @@ protected:
                                      ///< kernels registered in the runtime
 };
 } // namespace et_runtime
+
+/// @brief Helper overload of operator<< that will allow us to print a vector of
+/// kenrel laucnh arguments
+std::ostream &operator<<(std::ostream &os,
+                         const std::vector<et_runtime::Kernel::LaunchArg> &vec);
+
 #endif // ET_RUNTIME_KERNEL_H

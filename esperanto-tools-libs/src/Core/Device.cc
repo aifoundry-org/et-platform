@@ -306,50 +306,6 @@ etrtError Device::memset(void *devPtr, int value, size_t count) {
   return etrtSuccess;
 }
 
-// FIXME SW-1362
-// etrtError Device::setupArgument(const void *arg, size_t size, size_t offset)
-// {
-
-//   std::vector<uint8_t> &buff = launch_confs_.back().args_buff;
-//   THROW_IF(offset && offset != align_up(buff.size(), size),
-//            "kernel code relies on argument natural alignment");
-//   size_t new_buff_size = std::max(buff.size(), offset + size);
-//   buff.resize(new_buff_size, 0);
-//   ::memcpy(&buff[offset], arg, size);
-
-//   return etrtSuccess;
-// }
-
-etrtError Device::rawLaunch(et_runtime::CodeModuleID module_id,
-                            const char *kernel_name, const void *args,
-                            size_t args_size, Stream *stream) {
-
-  auto module = CodeRegistry::registry().getModule(module_id);
-  assert(module != nullptr);
-
-  if (!module->onDevice()) {
-    return etrtErrorModuleNotOnDevice;
-  }
-
-  uintptr_t kernel_entry_point;
-  assert(module->rawKernelExists(kernel_name));
-
-  auto entry_point_res = module->onDeviceKernelEntryPoint(kernel_name);
-  assert(entry_point_res);
-
-  kernel_entry_point = entry_point_res.get();
-
-  std::vector<uint8_t> args_buff(args_size);
-  ::memcpy(&args_buff[0], args, args_size);
-
-  addCommand(getStream(stream), std::shared_ptr<device_api::CommandBase>(
-                                    new device_api::LaunchCommand(
-                                        kernel_entry_point, args_buff,
-                                        kernel_name)));
-
-  return etrtSuccess;
-}
-
 etrtError Device::moduleUnload(et_runtime::CodeModuleID mid) {
   /// FIXME SW-1370 correctly unload the module form the device
   return etrtSuccess;

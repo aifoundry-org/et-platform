@@ -89,6 +89,7 @@ add_custom_target(etrt-tracing-gen-code
 
 add_library(etrt_Tracing OBJECT
   ${CMAKE_CURRENT_SOURCE_DIR}/Tracing.cc
+  ${CMAKE_CURRENT_SOURCE_DIR}/TracingHelpers.cc
   ${ETRT_TRACING_PROTO_SRCS}
   ${ETRT_TRACING_PROTO_HDRS}
   ${CMAKE_CURRENT_BINARY_DIR}/TracingGen.cc

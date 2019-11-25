@@ -169,22 +169,6 @@ public:
   addCommand(Stream *et_stream,
              std::shared_ptr<et_runtime::device_api::CommandBase> et_action);
 
-  /// FIXME SW-1291 this function should move the Function Launch Class
-  // void appendLaunchConf(const et_runtime::EtLaunchConf &conf) {
-  //   launch_confs_.push_back(conf);
-  // }
-
-  /// FIXME SW-1291 this function should move the Function Launch Class
-  /// FIXME SW-1362 the interface should also be re-implemented of this
-  /// functionality
-  // etrtError setupArgument(const void *arg, size_t size, size_t offset);
-
-  /// FIXME SW-1291 this function should move the Function Launch Class
-  // FIXME pass module_id
-  etrtError rawLaunch(et_runtime::CodeModuleID module_id,
-                      const char *kernel_name, const void *args,
-                      size_t args_size, Stream *stream);
-
   /// Memory initialization and manipulation on the device
   /// FIXME SW-1293
   ///

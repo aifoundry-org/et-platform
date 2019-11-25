@@ -280,5 +280,8 @@ enum etrtError etrtRawLaunch(et_runtime::CodeModuleID mid,
                              const char *kernel_name, const void *args,
                              size_t args_size, Stream *stream) {
   GetDev dev;
-  return dev->rawLaunch(mid, kernel_name, args, args_size, stream);
+  // FIXME
+  abort();
+  //  return dev->rawLaunch(mid, kernel_name, args, args_size, stream);
+  return etrtSuccess;
 }

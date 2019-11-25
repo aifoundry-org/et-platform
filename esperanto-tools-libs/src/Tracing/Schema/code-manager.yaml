@@ -12,6 +12,78 @@ Name: CodeManager
 EnablePBLogging : True
 EnableTextLogging: True
 DefaultON : True
+Enums:
+  - Name: kernel_argument_type
+    Values:
+      - Name: None
+        Value: 0
+      - Name: INT8
+        Value: 1
+      - Name: UINT8
+        Value: 2
+      - Name: INT16
+        Value: 3
+      - Name: UINT16
+        Value: 4
+      - Name: INT32
+        Value: 5
+      - Name: UINT32
+        Value: 6
+      - Name: FLOAT
+        Value: 7
+      - Name: DOUBLE
+        Value: 8
+      - Name: TENSOR
+        Value: 9
+      - Name: LAYER_DYNAMIC_INFO
+        Value: 10
+Structs:
+  - Name: layer_dynamic_info_t
+    Fields:
+      - Name: tensor_a
+        Type: uint64
+      - Name: tensor_b
+        Type: uint64
+      - Name: tensor_c
+        Type: uint64
+      - Name: tensor_d
+        Type: uint64
+      - Name: tensor_e
+        Type: uint64
+      - Name: tensor_f
+        Type: uint64
+      - Name: tensor_g
+        Type: uint64
+      - Name: tensor_h
+        Type: uint64
+      - Name: kernel_id
+        Type: uint64
+Unions:
+  - Name: kernel_argument
+    Fields:
+      - Name: int8
+        Type: int32
+      - Name: uint8
+        Type: uint32
+      - Name: int16
+        Type: int32
+      - Name: uint16
+        Type: uint32
+      - Name: int32
+        Type: int32
+      - Name: uint32
+        Type: uint32
+      - Name: int64
+        Type: int64
+      - Name: uint64
+        Type: uint64
+      - Name: vfloat
+        Type: float
+      - Name: vdouble
+        Type: double
+      - Name: layer_dynamic_info
+        Type: struct
+        Struct: layer_dynamic_info_t
 Functions :
   - Name: create_kernel
     EnablePBLogging : True
@@ -22,6 +94,25 @@ Functions :
         Type : uint64
       - Name: name
         Type : string
+      - Name: args
+        Type: enum
+        Enum : kernel_argument_type_e
+        Repeated : True
+        SrcType: et_runtime::Kernel::ArgType
+  - Name: kernel_launch
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: id
+        Type : uint64
+      - Name: name
+        Type : string
+      - Name: args
+        Type: union
+        Union : kernel_argument
+        Repeated : True
+        SrcType : et_runtime::Kernel::LaunchArg
   - Name: create_uber_kernel
     EnablePBLogging : True
     EnableTextLogging: True

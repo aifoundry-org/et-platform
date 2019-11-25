@@ -13,9 +13,12 @@
 
 namespace et_runtime {
 
-UberKernel::UberKernel(const std::string &name, CodeModuleID mid)
+UberKernel::UberKernel(const std::string &name,
+                       const std::vector<std::vector<ArgType>> &arg_list,
+                       CodeModuleID mid)
     : Kernel(mid) {
   name_ = name;
+  arg_list_ = arg_list;
   auto success = registerKernel(name, this);
   if (!success) {
     RTERROR << "Kernel by name: " << name << " already exists \n";
@@ -23,4 +26,13 @@ UberKernel::UberKernel(const std::string &name, CodeModuleID mid)
   }
   TRACE_CodeManager_create_uber_kernel(id_, name);
 }
+
+ErrorOr<UberKernel &> UberKernel::findKernel(KernelCodeID id) {
+  auto find_res = Kernel::findKernel(id);
+  if (!(bool)find_res) {
+    return find_res.getError();
+  }
+  return dynamic_cast<UberKernel &>(find_res.get());
+}
+
 } // namespace et_runtime

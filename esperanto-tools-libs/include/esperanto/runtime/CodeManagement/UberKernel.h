@@ -14,6 +14,8 @@
 /// @file
 #include "esperanto/runtime/CodeManagement/Kernel.h"
 
+#include <vector>
+
 namespace et_runtime {
 
 /// @class UberKernel UberKernel.h
@@ -24,14 +26,60 @@ namespace et_runtime {
 ///
 class UberKernel final : public Kernel {
 public:
+  /// @class UberKernelLaunch
+  ///
+  /// @brief Launch a kernel on the devie with the specified arguments
+  //
+  class UberKernelLaunch {
+  public:
+    ///
+    /// @param[in] kernel Reference to a registered kernel
+    /// @param[in] args  Vector with the arguments to pass to the kernel and
+    /// their type
+    ///   Their types will be checked against the registered signature of the
+    ///   kernel
+    UberKernelLaunch(const Kernel &kernel,
+                     std::vector<std::vector<LaunchArg>> &args)
+        : kernel_(kernel) {
+      abort();
+    }
+
+    /// @brief Launch the kernel and wait for the result
+    ///
+    /// This is a blocking kernel launch the function will block until a result
+    /// is received from the device
+    ///
+    /// @param[in] stream  Stream to launch this kernel on
+    /// @returns etrtSuccess or error describing the kernel launch status
+    etrtError launchBlocking(Device *dev, Stream *stream) { abort(); }
+
+    /// @brief Non blocking kernel launch
+    /// FIXME SW-1382
+    etrtError launchNonBlocking(Stream *stream) { abort(); }
+
+  private:
+    const Kernel &kernel_;
+    std::vector<LaunchArg> args_;
+  };
+
   /// @brief Costruct a new Uber Kernel
   ///
   /// @param[in] name  Name of the UberKernel that needs to be unique across all
   /// kernels in the system
   /// @param[in] mid   Id of the module this module is part of
-  UberKernel(const std::string &name, CodeModuleID mid);
+  UberKernel(const std::string &name,
+             const std::vector<std::vector<ArgType>> &arg_list,
+             CodeModuleID mid);
+
+  std::unique_ptr<UberKernelLaunch>
+  createKernelLaunch(std::vector<std::vector<LaunchArg>> &args) {
+    return nullptr;
+  }
+
+  static ErrorOr<UberKernel &> findKernel(KernelCodeID id);
 
 private:
+  std::vector<std::vector<ArgType>> arg_list_;
 };
 
 } // namespace et_runtime

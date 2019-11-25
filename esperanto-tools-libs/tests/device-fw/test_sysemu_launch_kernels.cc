@@ -39,7 +39,8 @@ TEST_F(DeviceFWTest, empty_kernel) {
   fs::path empty_kernel = fs::path(kernels_dir)  / fs::path("empty.elf");
   auto &registry = CodeRegistry::registry();
 
-  auto register_res = registry.registerKernel("main", empty_kernel.string());
+  auto register_res = registry.registerKernel(
+      "main", {Kernel::ArgType::T_layer_dynamic_info}, empty_kernel.string());
   ASSERT_TRUE((bool)register_res);
   auto &kernel = std::get<1>(register_res.get());
 
@@ -47,8 +48,14 @@ TEST_F(DeviceFWTest, empty_kernel) {
   ASSERT_EQ(load_res.getError(), etrtSuccess);
   auto module_id = load_res.get();
 
-  layer_dynamic_info layer_info = {0};
-  auto launch_res = dev_->rawLaunch(module_id, "main", &layer_info, sizeof(layer_info), nullptr);
+  Kernel::layer_dynamic_info_t layer_info = {0};
+  Kernel::LaunchArg arg;
+  arg.type = Kernel::ArgType::T_layer_dynamic_info;
+  arg.value.layer_dynamic_info = layer_info;
+  auto args = std::vector<Kernel::LaunchArg>({arg});
+  auto launch = kernel.createKernelLaunch(args);
+  auto launch_res = launch->launchBlocking(dev_.get(), nullptr);
+
   ASSERT_EQ(launch_res, etrtSuccess);
 }
 
@@ -59,7 +66,8 @@ TEST_F(DeviceFWTest, beef_kernel) {
   fs::path beef_kernel = fs::path(kernels_dir) / fs::path("beef.elf");
   auto &registry = CodeRegistry::registry();
 
-  auto register_res = registry.registerKernel("main", beef_kernel.string());
+  auto register_res = registry.registerKernel(
+      "main", {Kernel::ArgType::T_layer_dynamic_info}, beef_kernel.string());
   ASSERT_TRUE((bool)register_res);
   auto &kernel = std::get<1>(register_res.get());
   auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
@@ -73,10 +81,15 @@ TEST_F(DeviceFWTest, beef_kernel) {
   auto status = dev_->mem_manager().malloc(&dev_ptr, size);
   ASSERT_EQ(status, etrtSuccess);
 
-  layer_dynamic_info layer_info = {};
+  Kernel::layer_dynamic_info_t layer_info = {};
   layer_info.tensor_a = reinterpret_cast<uint64_t>(dev_ptr);
   layer_info.tensor_b = size;
-  auto launch_res = dev_->rawLaunch(module_id, "main", &layer_info, sizeof(layer_info), nullptr);
+  Kernel::LaunchArg arg;
+  arg.type = Kernel::ArgType::T_layer_dynamic_info;
+  arg.value.layer_dynamic_info = layer_info;
+  auto args = std::vector<Kernel::LaunchArg>({arg});
+  auto launch = kernel.createKernelLaunch(args);
+  auto launch_res = launch->launchBlocking(dev_.get(), nullptr);
   ASSERT_EQ(launch_res, etrtSuccess);
 
   std::vector<uint64_t> data(array_size, 0xEEEEEEEEEEEEEEEEULL);

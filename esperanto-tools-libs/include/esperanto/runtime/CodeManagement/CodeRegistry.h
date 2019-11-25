@@ -13,11 +13,13 @@
 
 /// @file
 
+#include "esperanto/runtime/CodeManagement/Kernel.h"
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 
 #include <memory>
 #include <tuple>
+#include <vector>
 
 namespace et_runtime {
 
@@ -44,13 +46,16 @@ public:
   /// @brief Register a kernel with the runtime
   ///
   /// @param[in] name  String with the name of the kernel
+  /// @param[in] arg_list Vector with type of arguments this kernel can accept
   /// @param[in] elf_path Path to the ELF containing the kernel. The expectation
   /// is that the ELF contains a single kernel
   ///
   /// @return Return an error or a tuple with the the ID and a reference to the
   /// registered kernel
   ErrorOr<std::tuple<KernelCodeID, Kernel &>>
-  registerKernel(const std::string &name, const std::string &elf_path);
+  registerKernel(const std::string &name,
+                 const std::vector<Kernel::ArgType> &arg_list,
+                 const std::string &elf_path);
 
   ///
   /// @brief Register a UberKernel with the runtime
@@ -62,7 +67,9 @@ public:
   /// @return Return an error or a tuple with the the ID and a reference to the
   /// registered kernel
   ErrorOr<std::tuple<KernelCodeID, UberKernel &>>
-  registerUberKernel(const std::string &name, const std::string &elf_path);
+  registerUberKernel(const std::string &name,
+                     const std::vector<std::vector<Kernel::ArgType>> &arg_list,
+                     const std::string &elf_path);
 
   /// @brief Get a pointer to a regisetered module
   ///
@@ -100,6 +107,8 @@ private:
   /// @brief Register a UberKernel with the runtime
   ///
   /// @tparam KernelClass Class type of the kernel to create
+  /// @tparam KernelArgTypes Class that holds the list of argument types the
+  /// kernel accepts
   ///
   /// @param[in] name  String with the name of the kernel
   /// @param[in] elf_path Path to the ELF containing the kernel. The expectation
@@ -107,9 +116,10 @@ private:
   ///
   /// @return Return an error or a tuple with the the ID and a reference to the
   /// registered kernel
-  template <class KernelClass>
+  template <class KernelClass, class KernelArgTypes>
   ErrorOr<std::tuple<KernelCodeID, KernelClass &>>
-  registerKernelHelper(const std::string &name, const std::string &elf_path);
+  registerKernelHelper(const std::string &name, const KernelArgTypes &arg_types,
+                       const std::string &elf_path);
 };
 
 } // namespace et_runtime

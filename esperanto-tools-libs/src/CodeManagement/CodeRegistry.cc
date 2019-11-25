@@ -26,9 +26,10 @@ CodeRegistry &CodeRegistry::registry() {
   return registry;
 }
 
-template <class KernelClass>
+template <class KernelClass, class KernelArgTypes>
 ErrorOr<std::tuple<KernelCodeID, KernelClass &>>
 CodeRegistry::registerKernelHelper(const std::string &name,
+                                   const KernelArgTypes &arg_types,
                                    const std::string &elf_path) {
 
   auto mod_exists = mod_manager_->getModule(name);
@@ -40,23 +41,26 @@ CodeRegistry::registerKernelHelper(const std::string &name,
 
   auto mid = std::get<0>(mod_info);
   /// This pointer should be tracked by the KernelRegistry
-  auto kernel = new KernelClass(name, mid);
+  auto kernel = new KernelClass(name, arg_types, mid);
 
   return std::tuple<KernelCodeID, KernelClass &>{kernel->id(), *kernel};
 }
 
 ErrorOr<std::tuple<KernelCodeID, Kernel &>>
 CodeRegistry::registerKernel(const std::string &name,
+                             const std::vector<Kernel::ArgType> &arg_list,
                              const std::string &elf_path) {
 
-  return registerKernelHelper<Kernel>(name, elf_path);
+  return registerKernelHelper<Kernel>(name, arg_list, elf_path);
 }
 
 ErrorOr<std::tuple<KernelCodeID, UberKernel &>>
-CodeRegistry::registerUberKernel(const std::string &name,
-                                 const std::string &elf_path) {
+CodeRegistry::registerUberKernel(
+    const std::string &name,
+    const std::vector<std::vector<Kernel::ArgType>> &arg_list,
+    const std::string &elf_path) {
 
-  return registerKernelHelper<UberKernel>(name, elf_path);
+  return registerKernelHelper<UberKernel>(name, arg_list, elf_path);
 }
 
 et_runtime::Module *CodeRegistry::getModule(CodeModuleID mid) {
