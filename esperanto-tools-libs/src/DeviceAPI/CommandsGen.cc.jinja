@@ -47,7 +47,11 @@ namespace devfw_commands {
 
   TRACE_DeviceAPI_RPC_Calls_<<msg_name>>( \
     <% for f in msg['Fields'] -%>
-    << f['Name'] >> <% if not loop.last %>,<% endif %> \
+      <%- if f['Type'] == 'enum' %>
+    static_cast< et_runtime::tracing::DeviceAPI_RPC_Calls_<<f['Enum']>> >(static_cast<int64_t>(<< f['Name'] >>))
+      <%- else %>
+    << f['Name'] >>
+      <%- endif %>  <% if not loop.last %>,<% endif %> \
     <% endfor -%>
   );
 }

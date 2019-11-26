@@ -11,6 +11,7 @@
 // WARNING: this file is auto-generated do not edit directly
 
 #include "Tracing/Tracing.h"
+#include "Tracing/TracingHelpers.h"
 #include "TracingCommonGen.h"
 #include "etrt-trace.pb.h"
 #include <memory>
@@ -39,7 +40,7 @@ TracingOptions::logging_knobs = {
   <% set functions = module['Functions'] -%>
   <% for function in functions -%>
     <% set fname = function['Name'] %>
-bool PBRecord_<< mname >>_<< fname >>(<< cgh.get_cxx_function_arg_list(function) >>)
+bool PBRecord_<< mname >>_<< fname >>(<< cgh.get_cxx_function_arg_list(module, function) >>)
 {
    auto message = std::make_unique<RuntimeTraceEntry>();
    message->set_type(MessageType::<< mname | upper >>_<< fname | upper >>);
@@ -47,7 +48,12 @@ bool PBRecord_<< mname >>_<< fname >>(<< cgh.get_cxx_function_arg_list(function)
    <% for argument in function['Arguments'] %>
      <%- if argument['Type'] == "bytes" %>
    body->set_<<argument['Name']>>(<<argument['Name']>>.data(), <<argument['Name']>>.size());
-     <%- elif cgh.proto_type(argument['Type']) or argument['Type'][-2:] == '_e' %>
+     <%- elif argument['Repeated'] %>
+   auto vec = body->mutable_<<argument['Name']>>();
+   for (auto& i : <<argument['Name']>>) {
+     *(vec->Add())= i;
+   }
+     <%- elif cgh.is_proto_type(argument['Type']) or argument['Type'][-2:] == '_e' or argument['Type'] == 'enum'%>
    body->set_<<argument['Name']>>(<<argument['Name']>>);
      <%- else %>
    body->set_allocated_<<argument['Name']>>(<<argument['Name']>>);

@@ -67,7 +67,7 @@ static inline constexpr const TracingOptions getTracingOptions() {
   <% set functions = module['Functions'] -%>
   <% for function in functions -%>
     <% set fname = function['Name'] %>
-bool PBRecord_<< mname >>_<< fname >>(<< cgh.get_cxx_function_arg_list(function) >>);
+bool PBRecord_<< mname >>_<< fname >>(<< cgh.get_cxx_function_arg_list(module, function) >>);
   <%- endfor %>
 <%- endfor %>
 

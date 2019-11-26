@@ -17,6 +17,7 @@
 
 #define ETRT_ENABLE_TRACING 1
 #include "Tracing/TracingGen.h"
+#include "Tracing/etrt-trace.pb.h"
 
 namespace et_runtime {
 namespace tracing {

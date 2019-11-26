@@ -101,9 +101,9 @@ class CodeGeneratorHelper(object):
                         'Arguments': [
                             {
                                 'Name': f['Name'],
-                                'Type': self.cxx_to_proto_type(mod, f),
-                                'Struct': f['Type'] == 'struct',
-                                'Enum': f['Type'] == 'enum',
+                                'Type' : 'struct' if f['Type'] == 'struct' else 'enum' if f['Type'] == 'enum' else self.cxx_to_proto_type(mod, f),
+                                'Struct': self.cxx_to_proto_type(mod, f) if f['Type'] == 'struct' else "",
+                                'Enum': self.cxx_to_proto_type(mod, f) if f['Type'] == 'enum' else "",
                             }
                             for f in msg['Fields']
                         ]
@@ -176,12 +176,25 @@ class CodeGeneratorHelper(object):
         return ", ".join([arg['Name'] for arg in args])
 
     @staticmethod
-    def proto_to_cxx_type(type_name):
+    def proto_to_cxx_type(module, arg):
         """Convert the protobuf type to a C++ type
 
         Args:
           type_name (str): Name of type
         """
+        type_name = None
+        if CodeGeneratorHelper.is_proto_type(arg['Type']) or arg['Type'][-2:] == "_e":
+            type_name = arg['Type']
+        elif arg['Type'] == 'enum':
+            type_name = arg['Enum']
+        elif arg['Type'][-2:] == "_t":
+            type_name = arg['Type']
+        elif arg['Type'] == 'struct':
+            type_name = arg['Struct']
+        elif arg['Type'] == 'union':
+            type_name = arg['Union']
+        else:
+            raise RuntimeError(f"Unhandled argument type: '{arg['Type']}")
         types = {
             "double" : "double",
             "float": "float",
@@ -199,12 +212,13 @@ class CodeGeneratorHelper(object):
             "string": "std::string",
             "bytes": "std::vector<uint8_t>",
         }
+
         if type_name in types:
             return types[type_name]
-        return type_name
+        return f"{module['Name']}_{type_name}"
 
     @staticmethod
-    def proto_type(type_name):
+    def is_proto_type(type_name):
         """Return true of it is a protobuf primitive type
         """
         types = [
@@ -217,6 +231,19 @@ class CodeGeneratorHelper(object):
 
 
     @staticmethod
+    def proto_type(module, field):
+        """Return the protobuf name of a type"""
+        if CodeGeneratorHelper.is_proto_type(field['Type']):
+            return field['Type']
+        elif field['Type'] == 'struct':
+            return f"{module['Name']}_{field['Struct']}"
+        elif field['Type'] == 'enum':
+            return f"{module['Name']}_{field['Enum']}"
+        elif field['Type'] == 'union':
+            return f"{module['Name']}_{field['Union']}"
+        raise RuntimeError(f"Unknown field type {field['Type']}")
+
+    @staticmethod
     def cxx_to_proto_type(module, field):
         """Convert the C/C++ type to proto
 
@@ -224,9 +251,9 @@ class CodeGeneratorHelper(object):
           type_name (str): Name of type
         """
         if 'struct' == field['Type']:
-            return f'DeviceAPI_{module["Name"]}_{field["Struct"]}'
+            return f'{module["Name"]}_{field["Struct"]}'
         elif 'enum' == field['Type']:
-            return f'DeviceAPI_{module["Name"]}_{field["Enum"]}'
+            return f'{module["Name"]}_{field["Enum"]}'
         types = {
             "double" : "double",
             "float": "float",
@@ -246,7 +273,7 @@ class CodeGeneratorHelper(object):
 
 
     @staticmethod
-    def get_cxx_function_arg_list(function):
+    def get_cxx_function_arg_list(module, function):
         """Return string with all the arguments of the C++ function
 
         Args:
@@ -255,12 +282,16 @@ class CodeGeneratorHelper(object):
         args = function.get("Arguments", [])
         params = []
         for arg in args:
-            if CodeGeneratorHelper.proto_type(arg['Type']) or arg['Type'][-2:] == "_e":
-                params += [f"const {CodeGeneratorHelper.proto_to_cxx_type(arg['Type'])}& {arg['Name']}"]
-            elif arg['Type'][-2:] == "_t":
-                params += [f"{CodeGeneratorHelper.proto_to_cxx_type(arg['Type'])}* {arg['Name']}"]
+            pass_by_ref = True
+            type = CodeGeneratorHelper.proto_to_cxx_type(module, arg)
+            if arg['Type'][-2:] == "_t" or arg['Type'] == 'struct':
+                pass_by_ref = False
+            if arg.get('Repeated', False):
+                params += [f"const std::vector<{type}>& {arg['Name']}"]
+            elif pass_by_ref:
+                params += [f"const {type}& {arg['Name']}"]
             else:
-                raise RuntimeError(f"Unhandled argument type: '{arg['Type']}")
+                params += [f"{type}* {arg['Name']}"]
         return ", ".join(params)
 
 

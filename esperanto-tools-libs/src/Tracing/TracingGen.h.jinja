@@ -22,6 +22,7 @@
 #define ET_RUNTIME_TRACING_GEN_H
 
 #include "Tracing/TracingCommonGen.h"
+#include "Tracing/TracingHelpers.h"
 
 #include "esperanto/runtime/Support/Logging.h"
 
@@ -44,11 +45,15 @@
   } \
   if (options.<< mname >>_<< fname >>_enable_pb_log) { \
      <%- for arg in function.get("Arguments", []) -%>
-       <%- if cgh.proto_type(arg['Type'])  %>
+       <%- if arg['Repeated'] %>
+     auto val_<<arg['Name']>> = conv_vec< << arg['SrcType']>>, et_runtime::tracing::<<cgh.proto_to_cxx_type(module, arg)>> >(<<arg['Name']>>); \
+       <%- elif arg['Enum'] %>
+     et_runtime::tracing::<<module['Name']>>_<<arg['Enum']>> val_<<arg['Name']>> = <<arg['Name']>>; \
+       <%- elif cgh.is_proto_type(arg['Type']) %>
      auto val_<<arg['Name']>> = <<arg['Name']>>; \
        <%- elif arg['Struct'] %>
-     auto val_<<arg['Name']>> = new et_runtime::tracing::<<arg['Type']>>(); \
-       <% for f in cgh.get_struct(arg['Type'])['Arguments'] -%>
+     auto val_<<arg['Name']>> = new et_runtime::tracing::<<module['Name']>>_<<arg['Struct']>>(); \
+       <% for f in cgh.get_struct(arg['Struct'])['Fields'] -%>
      val_<<arg['Name']>>->set_<<f['Name']>>(<<arg['Name']>>.<<f['Name']>>); \
        <% endfor -%> \
        <%- else %>

@@ -17,6 +17,7 @@ package et_runtime.tracing;
   <% set mname = module['Name'] -%>
   <% set enums = module['Enums'] -%>
   <% set structs = module['Structs'] -%>
+  <% set unions = module['Unions'] -%>
   <% set functions = module['Functions'] -%>
 
   <% for enum in enums %>
@@ -29,16 +30,26 @@ enum << mname >>_<< enum['Name'] >>_e {
 
   <% for struct in structs %>
 message << mname >>_<< struct['Name'] >> {
-    <%- for arg in struct['Arguments'] %>
-  << arg['Type'] >> << arg['Name']>>  = << loop.index >> ;
+    <%- for arg in struct['Fields'] %>
+  << cgh.proto_type(module, arg) >> << arg['Name']>>  = << loop.index >> ;
     <%- endfor %>
+};
+  <% endfor %>
+
+  <% for union in unions %>
+message << mname >>_<< union['Name'] >> {
+  oneof << union['Name'] >>_oneof {
+    <%- for arg in union['Fields'] %>
+    << cgh.proto_type(module, arg) >> << arg['Name']>>  = << loop.index >> ;
+    <%- endfor %>
+  }
 };
   <% endfor %>
 
   <% for function in functions %>
 message << mname >>_<< function['Name'] >> {
     <%- for arg in function['Arguments'] %>
-  << arg['Type'] >> << arg['Name']>>  = << loop.index >> ;
+  <% if arg['Repeated'] %>repeated<% endif %> << cgh.proto_type(module, arg) >> << arg['Name']>>  = << loop.index >> ;
     <%- endfor %>
 };
   <% endfor %>
