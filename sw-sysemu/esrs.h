@@ -51,7 +51,7 @@ namespace bemu {
 
 
 // IOshire has a different mask from Minion shires
-#define ESR_IOSHIRE_ESR_MASK    0xFFC03FFFFFULL
+#define ESR_IOSHIRE_ESR_MASK    0xFFC0200FFFULL
 
 
 // bits [21:20] and further limited by bits [19:12] depending on the region

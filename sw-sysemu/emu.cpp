@@ -4284,7 +4284,7 @@ void tensor_reduce_execute()
 
 void write_shire_coop_mode(unsigned shire, uint64_t val)
 {
-    assert(shire < EMU_NUM_MINION_SHIRES);
+    assert(shire < EMU_NUM_SHIRES);
     esr_shire_coop_mode[shire] = !!(val & 1);
 #ifndef SYS_EMU
     if (!esr_shire_coop_mode[shire])
@@ -4294,7 +4294,7 @@ void write_shire_coop_mode(unsigned shire, uint64_t val)
 
 uint64_t read_shire_coop_mode(unsigned shire)
 {
-    assert(shire < EMU_NUM_MINION_SHIRES);
+    assert(shire < EMU_NUM_SHIRES);
     return esr_shire_coop_mode[shire] ? 1ull : 0ull;
 }
 
