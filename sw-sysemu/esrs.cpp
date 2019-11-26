@@ -486,7 +486,7 @@ uint64_t esr_read(uint64_t addr)
         case ESR_SHIRE_DLL_CONFIG_DATA_1:
             return shire_other_esrs[shire].shire_dll_config_data_1;
         case ESR_SHIRE_DLL_READ_DATA:
-            return 0x10000; /* DLL is locked */
+            return 0x20000; /* DLL is locked */
         case ESR_UC_CONFIG:
             return shire_other_esrs[shire].uc_config;
         case ESR_ICACHE_UPREFETCH:
