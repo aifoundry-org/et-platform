@@ -11,7 +11,6 @@
 #include "kernel_params.h"
 #include "esr_defines.h"
 #include "crc32.h"
-#include "crc_vals.h"
 #include "log.h"
 
 #define ALL_BANKS_MASK 0xFUL;
@@ -65,7 +64,7 @@
 #define TFMA_PARAMS 13
 
 #define TOTAL_MINIONS 96
-#define NUM_ITER 10000
+#define NUM_ITER 20
 #define NUM_RANDOM_SAMPLES 10
 #define NUM_ITER_FOR_BARRIER 4
 
@@ -130,7 +129,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     // Do not use masks (to maximize number of cache line accesses
     // Write always to the RF and do not add TenC
     tensor_wait(TENSOR_LOAD_WAIT_0);
-
+    
     for (uint64_t iter=0; iter < NUM_ITER; iter++) {		
 
 	// === Actual kernel body:
@@ -279,14 +278,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
         // Total number of bytes:
         // 16 lines / minion * 64 bytes / line * 32 minions = 32768
-        crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 32768), 32768, crc);
-        if (crc != crc_vals[shire_id]) {    	
-            log_write(LOG_LEVEL_CRITICAL, "CRC error, shire %lu, got %x, expected %x\n", shire_id, crc,  crc_vals[shire_id]);
-	    return -3;
-        } else {
-	    log_write(LOG_LEVEL_CRITICAL, "Shire %lu Passed\n", shire_id);
-	    return 0;
-	}
+        crc = crc32_8bytes((void *) (base_dst_addr + shire_id * 32768), 32768, crc);
+        uint32_t *crc_ptr = (uint32_t*)(base_dst_addr + 1048576 + shire_id * 4);
+	*crc_ptr = crc;
+	log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
     }
 
     return 0;
