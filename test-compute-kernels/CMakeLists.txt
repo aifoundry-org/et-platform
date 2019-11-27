@@ -56,7 +56,6 @@ macro(randomized_test)
       ${SHARED_SRC_DIR}/message.c # log needs message.c to send log message to master minion
       ${RANDOMIZED_TEST_SOURCES}
       )
-    include_directories(${TEST_BUILD_FOLDER}/include)
 
     set(TARGET_NAME ${TEST_NAME})
     set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
@@ -64,6 +63,7 @@ macro(randomized_test)
     set(ZEBU_FILENAME ${TEST_BUILD_FOLDER}/memImage)
     set(TARGET_RUNTIME_OUTPUT_DIRECTORY ${TEST_BUILD_FOLDER})
     add_riscv_executable(${TARGET_NAME} ${SOURCES})
+    target_include_directories(${TARGET_NAME}.elf PRIVATE ${TEST_BUILD_FOLDER}/include)
     add_dependencies(${TARGET_NAME}.elf ${TEST_NAME}-gen-files)
 
     install(TARGETS ${TARGET_NAME}.elf
