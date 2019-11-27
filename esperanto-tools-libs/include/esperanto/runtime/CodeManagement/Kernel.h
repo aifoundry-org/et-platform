@@ -224,6 +224,15 @@ public:
     ArgValue value;
   };
 
+  /// @brief Return string with the name of the argument type
+  static const std::string &argTypeToStr(ArgType arg);
+
+  /// @brief Return the size in bytes of the argument type
+  static ssize_t argTypeSize(ArgType arg);
+
+  /// @Breif Return vector with the raw bytes of an argument
+  static std::vector<uint8_t> argBytes(const LaunchArg &arg);
+
   /// @class KernelLaunch
   ///
   /// @brief Launch a kernel on the devie with the specified arguments

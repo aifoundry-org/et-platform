@@ -9,9 +9,9 @@
 //------------------------------------------------------------------------------
 
 #include "esperanto/runtime/CodeManagement/Kernel.h"
+
 #include "esperanto/runtime/CodeManagement/CodeRegistry.h"
 #include "CodeManagement/CodeModule.h"
-
 #include "DeviceAPI/Commands.h"
 #include "Tracing/Tracing.h"
 #include "Tracing/TracingHelpers.h"
@@ -25,19 +25,113 @@ namespace et_runtime {
 KernelCodeID Kernel::global_kernel_id_ = 1;
 Kernel::KernelMap Kernel::kernel_registry_;
 
-static const char *arg_type_names[(int)Kernel::ArgType::Num] = {
-    [(int)Kernel::ArgType::None] = "Unknwon",
-    [(int)Kernel::ArgType::T_int8] = "int8",
-    [(int)Kernel::ArgType::T_uint8] = "uint8",
-    [(int)Kernel::ArgType::T_int16] = "int16",
-    [(int)Kernel::ArgType::T_uint16] = "uint16",
-    [(int)Kernel::ArgType::T_int32] = "int32",
-    [(int)Kernel::ArgType::T_uint32] = "uint32",
-    [(int)Kernel::ArgType::T_float] = "float",
-    [(int)Kernel::ArgType::T_double] = "double",
-    [(int)Kernel::ArgType::T_tensor] = "tensor",
-    [(int)Kernel::ArgType::T_layer_dynamic_info] = "layer_dynamic_info",
+static const std::string arg_type_names[(int)Kernel::ArgType::Num + 1] = {
+    [(int)Kernel::ArgType::None] = std::string("Unknwon"),
+    [(int)Kernel::ArgType::T_int8] = std::string("int8"),
+    [(int)Kernel::ArgType::T_uint8] = std::string("uint8"),
+    [(int)Kernel::ArgType::T_int16] = std::string("int16"),
+    [(int)Kernel::ArgType::T_uint16] = std::string("uint16"),
+    [(int)Kernel::ArgType::T_int32] = std::string("int32"),
+    [(int)Kernel::ArgType::T_uint32] = std::string("uint32"),
+    [(int)Kernel::ArgType::T_float] = std::string("float"),
+    [(int)Kernel::ArgType::T_double] = std::string("double"),
+    [(int)Kernel::ArgType::T_tensor] = std::string("tensor"),
+    [(int)Kernel::ArgType::T_layer_dynamic_info] =
+        std::string("layer_dynamic_info"),
+    [(int)Kernel::ArgType::Num] = std::string("Unknown"),
 };
+
+const std::string &Kernel::argTypeToStr(Kernel::ArgType arg) {
+  return arg_type_names[(int)arg];
+}
+
+ssize_t Kernel::argTypeSize(Kernel::ArgType arg) {
+  switch (arg) {
+  case et_runtime::Kernel::ArgType::T_int8:
+    return sizeof(int8_t);
+    break;
+  case et_runtime::Kernel::ArgType::T_uint8:
+    return sizeof(uint8_t);
+    break;
+  case et_runtime::Kernel::ArgType::T_int16:
+    return sizeof(int16_t);
+    break;
+  case et_runtime::Kernel::ArgType::T_uint16:
+    return sizeof(uint16_t);
+    break;
+  case et_runtime::Kernel::ArgType::T_int32:
+    return sizeof(int32_t);
+    break;
+  case et_runtime::Kernel::ArgType::T_uint32:
+    return sizeof(uint32_t);
+    break;
+  case et_runtime::Kernel::ArgType::T_float:
+    return sizeof(float);
+    break;
+  case et_runtime::Kernel::ArgType::T_double:
+    return sizeof(double);
+    break;
+  case et_runtime::Kernel::ArgType::T_tensor:
+    abort(); // Unknown type
+    break;
+  case et_runtime::Kernel::ArgType::T_layer_dynamic_info:
+    return sizeof(layer_dynamic_info_t);
+  default:
+    std::terminate();
+    break;
+  }
+  return -1;
+}
+
+std::vector<uint8_t> Kernel::argBytes(const Kernel::LaunchArg &arg) {
+  std::vector<uint8_t> data;
+  switch (arg.type) {
+  case et_runtime::Kernel::ArgType::T_int8:
+    data.resize(sizeof(arg.value.int8));
+    memcpy(data.data(), &arg.value.int8, sizeof(arg.value.int8));
+    break;
+  case et_runtime::Kernel::ArgType::T_uint8:
+    data.resize(sizeof(arg.value.uint8));
+    memcpy(data.data(), &arg.value.uint8, sizeof(arg.value.uint8));
+    break;
+  case et_runtime::Kernel::ArgType::T_int16:
+    data.resize(sizeof(arg.value.int16));
+    memcpy(data.data(), &arg.value.int16, sizeof(arg.value.int16));
+    break;
+  case et_runtime::Kernel::ArgType::T_uint16:
+    data.resize(sizeof(arg.value.uint16));
+    memcpy(data.data(), &arg.value.uint16, sizeof(arg.value.uint16));
+    break;
+  case et_runtime::Kernel::ArgType::T_int32:
+    data.resize(sizeof(arg.value.int32));
+    memcpy(data.data(), &arg.value.int32, sizeof(arg.value.int32));
+    break;
+  case et_runtime::Kernel::ArgType::T_uint32:
+    data.resize(sizeof(arg.value.uint32));
+    memcpy(data.data(), &arg.value.uint32, sizeof(arg.value.uint32));
+    break;
+  case et_runtime::Kernel::ArgType::T_float:
+    data.resize(sizeof(arg.value.vfloat));
+    memcpy(data.data(), &arg.value.vfloat, sizeof(arg.value.vfloat));
+    break;
+  case et_runtime::Kernel::ArgType::T_double:
+    data.resize(sizeof(arg.value.vdouble));
+    memcpy(data.data(), &arg.value.vdouble, sizeof(arg.value.vdouble));
+    break;
+  case et_runtime::Kernel::ArgType::T_tensor:
+    abort(); // Unknown type
+    break;
+  case et_runtime::Kernel::ArgType::T_layer_dynamic_info:
+    data.resize(sizeof(arg.value.layer_dynamic_info));
+    memcpy(data.data(), &arg.value.layer_dynamic_info,
+           sizeof(arg.value.layer_dynamic_info));
+    break;
+  default:
+    std::terminate();
+    break;
+  }
+  return data;
+}
 
 Kernel::KernelLaunch::KernelLaunch(const Kernel &kernel,
                                    std::vector<LaunchArg> &args)

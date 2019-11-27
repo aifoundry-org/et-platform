@@ -27,6 +27,9 @@ std::ostream &operator<<(std::ostream &os, const std::vector<T> &vec) {
   return os;
 }
 
+std::ostream &operator<<(std::ostream &os,
+                         const std::vector<unsigned char> &vec);
+
 /// @brief Helper function that will allow us to convert a vector from one type
 /// to another
 template <class SrcType, class DstType>

@@ -165,7 +165,12 @@ bool KernelELFInfo::loadELF(std::istream &stream) {
       // List of function name suffixes to search for
       std::vector<std::tuple<std::string, KernelOffsetMap *>> suffixes = {
           {"_ETKERNEL_entry_point", &kernel_offset_},
-          {"_RAWKERNEL_entry_point", &raw_kernel_offset_}};
+          {"_RAWKERNEL_entry_point", &raw_kernel_offset_},
+          // FIXME SW-904, Find the uberKernelStart function name.
+          // Search for the function name that is suffixed with Start and the entrypoint
+          // function name is going to uberKernel
+          {"Start", &raw_kernel_offset_},
+      };
 
       for (auto &[suffix, kernel_map] : suffixes) {
         // if not suffix found continue

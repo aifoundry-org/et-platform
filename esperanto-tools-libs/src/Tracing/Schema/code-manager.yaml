@@ -122,3 +122,19 @@ Functions :
         Type : uint64
       - Name: name
         Type : string
+  - Name: uber_kernel_launch
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: id
+        Type : uint64
+      - Name: name
+        Type : string
+      - Name: args
+        Type: union
+        Union : kernel_argument
+        Repeated : True
+        SrcType : et_runtime::Kernel::LaunchArg
+      - Name: arg_vec
+        Type: bytes

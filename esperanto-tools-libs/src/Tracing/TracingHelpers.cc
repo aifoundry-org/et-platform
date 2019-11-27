@@ -13,6 +13,14 @@
 #include "Tracing/Tracing.h"
 #include "esperanto/runtime/CodeManagement/Kernel.h"
 
+std::ostream &operator<<(std::ostream &os,
+                         const std::vector<unsigned char> &vec) {
+  for (auto &i : vec) {
+    os << std::hex << (unsigned int) i << ", ";
+  }
+  return os;
+}
+
 template <>
 std::vector<et_runtime::tracing::CodeManager_kernel_argument_type_e>
 conv_vec<et_runtime::Kernel::ArgType,

@@ -38,11 +38,8 @@ public:
     /// their type
     ///   Their types will be checked against the registered signature of the
     ///   kernel
-    UberKernelLaunch(const Kernel &kernel,
-                     std::vector<std::vector<LaunchArg>> &args)
-        : kernel_(kernel) {
-      abort();
-    }
+    UberKernelLaunch(const UberKernel &kernel,
+                     std::vector<std::vector<LaunchArg>> &args);
 
     /// @brief Launch the kernel and wait for the result
     ///
@@ -51,15 +48,18 @@ public:
     ///
     /// @param[in] stream  Stream to launch this kernel on
     /// @returns etrtSuccess or error describing the kernel launch status
-    etrtError launchBlocking(Device *dev, Stream *stream) { abort(); }
+    etrtError launchBlocking(Device *dev, Stream *stream);
 
     /// @brief Non blocking kernel launch
     /// FIXME SW-1382
     etrtError launchNonBlocking(Stream *stream) { abort(); }
 
   private:
-    const Kernel &kernel_;
-    std::vector<LaunchArg> args_;
+    const UberKernel &kernel_;
+    // Flattened out buffer of all arguments to pass to the UberKernel
+    std::vector<unsigned char>
+        arg_vals_; ///< Actual byte array with all arguments to be transfered to
+                   ///< the device
   };
 
   /// @brief Costruct a new Uber Kernel
@@ -71,9 +71,11 @@ public:
              const std::vector<std::vector<ArgType>> &arg_list,
              CodeModuleID mid);
 
+  const std::vector<std::vector<ArgType>> argList() const { return arg_list_; }
+
   std::unique_ptr<UberKernelLaunch>
   createKernelLaunch(std::vector<std::vector<LaunchArg>> &args) {
-    return nullptr;
+    return std::make_unique<UberKernelLaunch>(*this, args);
   }
 
   static ErrorOr<UberKernel &> findKernel(KernelCodeID id);
