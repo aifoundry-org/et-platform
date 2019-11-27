@@ -93,10 +93,12 @@ macro(add_riscv_executable TARGET_NAME)
         set_target_properties(${ELF_FILE} PROPERTIES LINK_DEPENDS ${LINKER_SCRIPT_ABS_PATH})
 
         # Use custom linker script
-        set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE} -T ${LINKER_SCRIPT_ABS_PATH}")
+        set(ELF_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE} -T ${LINKER_SCRIPT_ABS_PATH}")
     else()
-        set(CMAKE_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE}")
+        set(ELF_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE}")
     endif()
+
+    set_target_properties(${ELF_FILE} PROPERTIES LINK_FLAGS ${ELF_EXE_LINKER_FLAGS})
 
     if (DEFINED LINKER_SCRIPT_DEPENDENCY)
         # Get the absolute path to the file the linker script depends on
