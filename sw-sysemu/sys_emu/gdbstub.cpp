@@ -24,7 +24,7 @@
 
 #define THREAD_ID_ALL_THREADS -1
 
-static unsigned target_csr_list[] {
+static const unsigned target_csr_list[] {
 #define CSRDEF(num, lower, upper) num,
 #include "csrs.h"
 #undef CSRDEF
@@ -64,6 +64,7 @@ static enum gdbstub_status g_status = GDBSTUB_STATUS_NOT_INITIALIZED;
 static int g_listen_fd = -1;
 static int g_client_fd = -1;
 static int g_cur_general_thread = 1;
+static char *g_thread_list_xml = NULL;
 
 /** Helper routines ***/
 
@@ -162,7 +163,7 @@ static inline freg_t hexstr_to_freg(const char *buf)
     return freg;
 }
 
-static int strsplit(char *str, const char *delimiters, char *tokens[], int max_tokens)
+static inline int strsplit(char *str, const char *delimiters, char *tokens[], int max_tokens)
 {
     int n = 0;
     char *tok = strtok(str, delimiters);
@@ -175,11 +176,41 @@ static int strsplit(char *str, const char *delimiters, char *tokens[], int max_t
     return n;
 }
 
+static inline char *strconcat(char *dst, const char *suffix)
+{
+    char *newstr;
+    size_t dst_len = strlen(dst);
+    size_t suffix_len = strlen(suffix);
+    newstr = (char *)realloc((void *)dst, dst_len + suffix_len + 1);
+    strcat(newstr, suffix);
+    return newstr;
+}
+
 /** Target platform hooks ***/
+
+/* Conversion between GDB thread ID and SysEMU thread ID (thread index) */
+static inline int to_target_thread(int thread_id)
+{
+    return ((thread_id - 1) == IO_SHIRE_ID * EMU_THREADS_PER_SHIRE) ?
+        EMU_IO_SHIRE_SP_THREAD :
+        thread_id - 1;
+}
 
 static inline unsigned target_num_threads()
 {
     return EMU_NUM_THREADS;
+}
+
+/* Returns whether the thread is "physically present" */
+static inline bool target_thread_exists(int thread)
+{
+    return sys_emu::thread_is_active(to_target_thread(thread));
+}
+
+static inline bool target_thread_is_alive(int thread)
+{
+    return sys_emu::thread_is_active(to_target_thread(thread))
+        /* && !sys_emu::thread_is_running(to_target_thread(thread)) */ ;
 }
 
 static bool target_read_memory(uint64_t addr, uint8_t *buffer, uint64_t size)
@@ -206,38 +237,38 @@ static bool target_write_memory(uint64_t addr, const uint8_t *buffer, uint64_t s
 
 static uint64_t target_read_register(int thread, int reg)
 {
-    return sys_emu::thread_get_reg(thread - 1, reg);
+    return sys_emu::thread_get_reg(to_target_thread(thread), reg);
 }
 
 static void target_write_register(int thread, int reg, uint64_t data)
 {
-    sys_emu::thread_set_reg(thread - 1, reg, data);
+    sys_emu::thread_set_reg(to_target_thread(thread), reg, data);
 }
 
 static freg_t target_read_fregister(int thread, int reg)
 {
-    return sys_emu::thread_get_freg(thread - 1, reg);
+    return sys_emu::thread_get_freg(to_target_thread(thread), reg);
 }
 
 static void target_write_fregister(int thread, int reg, freg_t data)
 {
-    sys_emu::thread_set_freg(thread - 1, reg, data);
+    sys_emu::thread_set_freg(to_target_thread(thread), reg, data);
 }
 
 static uint64_t target_read_pc(int thread)
 {
-    return sys_emu::thread_get_pc(thread - 1);
+    return sys_emu::thread_get_pc(to_target_thread(thread));
 }
 
 static void target_write_pc(int thread, uint64_t data)
 {
-    sys_emu::thread_set_pc(thread - 1, data);
+    sys_emu::thread_set_pc(to_target_thread(thread), data);
 }
 
 static uint64_t target_read_csr(int thread, int csr)
 {
     try {
-        return sys_emu::thread_get_csr(thread - 1, csr);
+        return sys_emu::thread_get_csr(to_target_thread(thread), csr);
     } catch (...) {
         return 0;
     }
@@ -246,20 +277,20 @@ static uint64_t target_read_csr(int thread, int csr)
 static void target_write_csr(int thread, int csr, uint64_t data)
 {
     try {
-        sys_emu::thread_set_csr(thread - 1, csr, data);
+        sys_emu::thread_set_csr(to_target_thread(thread), csr, data);
     } catch (...) {
     }
 }
 
 static void target_step(int thread)
 {
-    sys_emu::thread_set_single_step(thread - 1);
-    sys_emu::thread_set_running(thread - 1);
+    sys_emu::thread_set_single_step(to_target_thread(thread));
+    sys_emu::thread_set_running(to_target_thread(thread));
 }
 
 static void target_continue(int thread)
 {
-    sys_emu::thread_set_running(thread - 1);
+    sys_emu::thread_set_running(to_target_thread(thread));
 }
 
 static void target_breakpoint_insert(uint64_t addr)
@@ -516,14 +547,41 @@ static void gdbstub_handle_qxfer_features(char *tokens[], int ntokens)
 static void gdbstub_handle_qxfer_threads(char *tokens[], int ntokens)
 {
     unsigned long offset, length;
-    /* TODO: Generate the list */
-    static const char *thread_list_xml =
-        "<?xml version=\"1.0\"?>"
-        "<!DOCTYPE threads SYSTEM \"threads.dtd\">"
-        "<threads>"
-        "    <thread id=\"1\" core=\"0\" name=\"S0:M0:T0\"></thread>"
-        "    <thread id=\"2\" core=\"0\" name=\"S0:M0:T1\"></thread>"
-        "</threads>";
+
+    /* Generate the list */
+    if (g_thread_list_xml == NULL) {
+        g_thread_list_xml = (char *)malloc(1);
+        g_thread_list_xml[0] = '\0';
+
+        g_thread_list_xml = strconcat(g_thread_list_xml,
+            "<?xml version=\"1.0\"?>\n"
+            "<!DOCTYPE threads SYSTEM \"threads.dtd\">\n"
+            "<threads>\n");
+
+        for (unsigned shire = 0; shire < EMU_NUM_SHIRES; shire++) {
+            unsigned minion_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_MINIONS_PER_SHIRE);
+            unsigned thread_count = (shire == EMU_IO_SHIRE_SP ? 1 : EMU_THREADS_PER_MINION);
+            unsigned shire_id = (shire == EMU_IO_SHIRE_SP ? IO_SHIRE_ID : shire);
+
+            for (unsigned minion = 0; minion < minion_count; minion++) {
+                unsigned minion_id = minion + EMU_MINIONS_PER_SHIRE * shire_id;
+
+                for (unsigned thread = 0; thread < thread_count; thread++) {
+                    unsigned gdb_thread_id = 1 + thread + minion_id * EMU_THREADS_PER_MINION;
+
+                    if (target_thread_exists(gdb_thread_id)) {
+                        char desc[512];
+                        snprintf(desc, sizeof(desc),
+                            "    <thread id=\"%X\" core=\"%d\" name=\"S%d:M%d:T%d\"></thread>\n",
+                            gdb_thread_id, minion_id, shire_id, minion, thread);
+                        g_thread_list_xml = strconcat(g_thread_list_xml, desc);
+                    }
+                }
+            }
+        }
+
+        g_thread_list_xml = strconcat(g_thread_list_xml, "</threads>");
+    }
 
     if (ntokens < 4) {
         rsp_send_packet("");
@@ -539,7 +597,7 @@ static void gdbstub_handle_qxfer_threads(char *tokens[], int ntokens)
     offset = strtoul(tokens[3], NULL, 16);
     length = strtoul(strchr(tokens[3], ',') + 1 , NULL, 16);
 
-    gdbstub_qxfer_send_object(thread_list_xml, strlen(thread_list_xml), offset, length);
+    gdbstub_qxfer_send_object(g_thread_list_xml, strlen(g_thread_list_xml), offset, length);
 }
 
 static void gdbstub_handle_qxfer(char *packet)
@@ -564,8 +622,8 @@ static void gdbstub_handle_qfthreadinfo(void)
 {
     LOG_NOTHREAD(DEBUG, "GDB stub: %s", "handle qfThreadInfo");
 
-    /* TODO: Implement properly. qXfer:threads has preference over this. */
-    rsp_send_packet("m0,1,2,3,4,5");
+    /* qXfer:threads has preference over this method. Reply: not supported. */
+    rsp_send_packet("");
 }
 
 static void gdbstub_handle_qsthreadinfo(void)
@@ -644,18 +702,18 @@ static void gdbstub_handle_write_register(const char *packet)
 
     LOG_NOTHREAD(DEBUG, "GDB stub: write register: %ld <- \"%s\"", reg, valuep);
 
-    if (reg < 32) {
+    if (/* reg >= XREGS_START && */ reg <= XREGS_END) {
         target_write_register(g_cur_general_thread, reg, hexstr_to_u64(valuep));
-    } else if (reg == 32) { /* PC register */
+    } else if (reg == PC_REG) { /* PC register */
         target_write_pc(g_cur_general_thread, hexstr_to_u64(valuep));
-    } else if (reg < 65) { /* Floating point registers */
-        target_write_fregister(g_cur_general_thread, reg - 33, hexstr_to_freg(valuep));
-    } else if (reg == 65) { /* CSR fflags */
-        target_write_csr(g_cur_general_thread, CSR_FFLAGS, hexstr_to_u32(valuep));
-    } else if (reg == 66) { /* CSR frm */
-        target_write_csr(g_cur_general_thread, CSR_FRM, hexstr_to_u32(valuep));
-    } else if (reg == 67) { /* CSR fcsr */
-        target_write_csr(g_cur_general_thread, CSR_FCSR, hexstr_to_u32(valuep));
+    } else if (reg >= FREGS_START && reg <= FREGS_END) { /* Floating-point vector registers */
+        target_write_fregister(g_cur_general_thread, reg - FREGS_START, hexstr_to_freg(valuep));
+    } else if (reg >= CSR_FREGS_START && reg <= CSR_FREGS_END) { /* fflags, frm, fcsr */
+        int fcsr = CSR_FFLAGS + (reg - CSR_FREGS_START);
+        target_write_csr(g_cur_general_thread, fcsr, hexstr_to_u32(valuep));
+    } else if (reg >= CSR_REGS_START && reg <= CSR_REGS_END) {
+        int csr = target_csr_list[reg - CSR_REGS_START];
+        target_write_csr(g_cur_general_thread, csr, hexstr_to_u32(valuep));
     } else {
         LOG_NOTHREAD(INFO, "GDB stub: write register: unknown register %ld", reg);
         rsp_send_packet("E00");
@@ -672,10 +730,11 @@ static void gdbstub_handle_set_thread(const char *packet)
     LOG_NOTHREAD(DEBUG, "GDB stub: handle set_thread, op: %c", op);
 
     if (op == 'g') {
-        g_cur_general_thread = atoi(&packet[2]);
+        g_cur_general_thread = strtol(&packet[2], NULL, 16);
         /* 0 means pick any thread */
         if (g_cur_general_thread == 0)
             g_cur_general_thread = 1;
+        LOG_NOTHREAD(DEBUG, "GDB stub: setting general thread to: %d", g_cur_general_thread);
     } else if (op == 'c') {
         /* We support vCont, this is deprecated */
         rsp_send_packet("");
@@ -698,25 +757,29 @@ static void gdbstub_handle_qrcmd(const char *packet)
 {
     char cmd[GDBSTUB_MAX_PACKET_SIZE + 1];
     const char *cmd_hex = strchr(packet, ',');
-    if (cmd_hex) {
-        hextostr(cmd, cmd_hex + 1);
-        target_remote_command(cmd);
-        rsp_send_packet("OK");
-    } else {
+
+    if (!cmd_hex) {
         rsp_send_packet("");
+        return;
     }
+
+    hextostr(cmd, cmd_hex + 1);
+    target_remote_command(cmd);
+    rsp_send_packet("OK");
 }
 
 static void gdbstub_handle_thread_alive(const char *packet)
 {
     int thread_id;
-    (void) thread_id;
 
     LOG_NOTHREAD(DEBUG, "GDB stub: %s", "handle thread alive");
 
-    thread_id = atoi(&packet[1]);
-    /* TODO: Properly implement */
-    rsp_send_packet("OK");
+    thread_id = strtol(&packet[1], NULL, 16);
+
+    if (target_thread_is_alive(thread_id))
+        rsp_send_packet("OK");
+    else
+        rsp_send_packet("E00");
 }
 
 static inline void gdbstub_handle_vcont_action(char action, int thread)
@@ -740,7 +803,7 @@ static void gdbstub_handle_vcont(char *packet)
         /* Find optional thread-id */
         char *threadptr = strchr(action, ':');
         if (threadptr) {
-            thread = atoi(threadptr + 1);
+            thread = strtol(threadptr + 1, NULL, 16);
             *threadptr = '\0';
         }
 
@@ -1115,6 +1178,11 @@ void gdbstub_fini()
     }
 
     gdbstub_close_client();
+
+    if (g_thread_list_xml) {
+        free(g_thread_list_xml);
+        g_thread_list_xml = NULL;
+    }
 
     g_status = GDBSTUB_STATUS_NOT_INITIALIZED;
 }
