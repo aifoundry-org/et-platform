@@ -67,11 +67,6 @@ static inline bool multithreading_is_disabled(unsigned shire)
     return bemu::shire_other_esrs[shire].minion_feature & 0x10;
 }
 
-static inline bool thread_is_disabled(unsigned thread)
-{
-    return !cpu[thread].enabled;
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Sends an FCC to the desired minions specified in thread mask to the 1st or
 // second thread (thread_dest), to the counter 0 or 1 (cnt_dest), inside the shire

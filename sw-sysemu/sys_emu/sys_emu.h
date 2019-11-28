@@ -116,6 +116,8 @@ public:
     static uint64_t get_emu_cycle()  { return emu_cycle; }
     static RVTimer& get_pu_rvtimer() { return pu_rvtimer; }
 
+    static bool thread_is_disabled(unsigned thread) { return !cpu[thread].enabled; }
+
     static void activate_thread(int thread_id) { active_threads[thread_id] = true; }
     static void deactivate_thread(int thread_id) { active_threads[thread_id] = false; }
     static bool thread_is_active(int thread_id) { return active_threads[thread_id]; }
