@@ -26,7 +26,7 @@ Enums:
         Value: 4
       - Name: TRACE
         Value: 5
-  - Name: kernel_launch_error
+  - Name: dev_api_kernel_launch_error
     Type: uint32_t
     Values:
       - Name: NONE
@@ -37,13 +37,38 @@ Enums:
         Value: 1001
       - Name: EXCEPTION
         Value: 1002
-  - Name: error_type
+  - Name: dev_api_error_type
     Type: uint32_t
     Values:
       - Name: NONE
         Value: 0
       - Name: ASYNC_ERROR_0
         Value: 1
+  - Name: dev_api_kernel_abort_response_result
+    Type: uint32_t
+    Values:
+      - Name: NONE
+        Value: 0
+      - Name : OK
+        Value : 1
+      - Name : ERROR
+        Value : 2
+  - Name: dev_api_kernel_state
+    Type: uint32_t
+    Values:
+      - Name: UNUSED
+        Value: 0
+      - Name: LAUNCHED
+        Value: 1
+      - Name: RUNNING
+        Value: 2
+      - Name: ABORTED
+        Value: 3
+      - Name: ERROR
+        Value: 4
+      - Name: COMPLETE
+        Value: 5
+
 # List of Structs used in our messages
 Structs:
   - Name : kernel_params_t
@@ -144,7 +169,7 @@ Messages :
         Type: uint64_t
       - Name: error
         Type: enum
-        Enum: kernel_launch_error_e
+        Enum: dev_api_kernel_launch_error_e
 #-------------------------------------------------------------------------------
   - Name: kernel_abort_cmd
     Description: Command to abort a currently running kernel on the device
@@ -159,7 +184,8 @@ Messages :
     Type: Response
     Fields:
       - Name: status
-        Type: bool
+        Type: enum
+        Enum: dev_api_kernel_abort_response_result_e
 #-------------------------------------------------------------------------------
   - Name: kernel_state_cmd
     Description: Query the state if a currently running kernel
@@ -214,7 +240,7 @@ Messages :
     Fields:
       - Name: error_type
         Type: enum
-        Enum: error_type_e
+        Enum: dev_api_error_type_e
 #-------------------------------------------------------------------------------
   - Name: trace_buffer_full
     Description: Binary trace buffer is full and the host should consume it
