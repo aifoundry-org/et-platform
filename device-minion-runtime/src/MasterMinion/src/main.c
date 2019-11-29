@@ -299,30 +299,6 @@ static void handle_message_from_host(int64_t length, uint8_t* buffer)
 
         launch_kernel(&host_message_ptr->kernel_params, &host_message_ptr->kernel_info);
     }
-    else if (*message_id == MBOX_MESSAGE_ID_KERNEL_ABORT)
-    {
-        log_write(LOG_LEVEL_INFO, "received kernel abort message fom host\r\n");
-
-#ifdef DEBUG_PRINT_HOST_MESSAGE
-        print_host_message(buffer, length);
-#endif
-
-        const host_message_t* const host_message_ptr = (const void* const)buffer;
-
-        abort_kernel(host_message_ptr->kernel_params.kernel_id);
-    }
-    else if (*message_id == MBOX_MESSAGE_ID_GET_KERNEL_STATE)
-    {
-        const host_message_t* const host_message_ptr = (const void* const)buffer;
-
-        const devfw_response_t response = {
-            .message_id = MBOX_MESSAGE_ID_GET_KERNEL_STATE_RESPONSE,
-            .kernel_id = host_message_ptr->kernel_params.kernel_id,
-            .response_id = get_kernel_state(host_message_ptr->kernel_params.kernel_id)};
-
-        MBOX_send(MBOX_PCIE, &response, sizeof(response));
-    }
-
     else if (*message_id == MBOX_MESSAGE_ID_REFLECT_TEST)
     {
         MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);

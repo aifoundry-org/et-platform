@@ -66,6 +66,44 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
             log_write(LOG_LEVEL_ERROR, "DeviceAPI DeviceAPI Version MBOX_send error " PRIi64 "\r\n", result);
         }
     }
+    else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_ABORT_CMD)
+    {
+        log_write(LOG_LEVEL_INFO, "received kernel abort message fom host\r\n");
+
+#ifdef DEBUG_PRINT_HOST_MESSAGE
+        print_host_message(buffer, length);
+#endif
+
+        const struct kernel_abort_cmd_t* const cmd = (const void* const) buffer;
+        struct kernel_abort_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_KERNEL_ABORT_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+        abort_kernel(cmd->kernel_id);
+
+        rsp.status = true;
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Abort error " PRIi64 "\r\n", result);
+        }
+    }
+    else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_STATE_CMD)
+    {
+        const struct kernel_state_cmd_t* const cmd = (const void* const) buffer;
+        struct kernel_state_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_KERNEL_STATE_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+
+        rsp.status = get_kernel_state(cmd->kernel_id);
+        log_write(LOG_LEVEL_INFO, "Kernel: " PRIi64 " status: " PRIi64 "\r\n", cmd->kernel_id, rsp.status);
+
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Status MBOX_sedn error " PRIi64 "\r\n", result);
+        }
+    }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_SET_MASTER_LOG_LEVEL_CMD)
     {
         const struct set_master_log_level_cmd_t* const cmd = (const void* const) buffer;
