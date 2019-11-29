@@ -15,7 +15,7 @@ extern unsigned current_thread;
 namespace bemu {
 
 
-extern typename MemoryRegion::value_type memory_reset_value;
+extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template <unsigned long long Base, unsigned long long N, unsigned long long M,
@@ -58,7 +58,7 @@ struct ScratchRegion : public MemoryRegion
         }
         if (storage[bucket].empty()) {
             storage[bucket].allocate();
-            storage[bucket].fill(memory_reset_value);
+            storage[bucket].fill_pattern(memory_reset_value, MEM_RESET_PATTERN_SIZE);
         }
         std::copy_n(source, n, storage[bucket].begin() + offset);
     }
@@ -86,7 +86,7 @@ protected:
             throw memory_error(first() + pos);
         }
         if (storage[bucket].empty()) {
-            std::fill_n(result, n, memory_reset_value);
+            default_value(result, n, memory_reset_value, pos);
         } else {
             std::copy_n(storage[bucket].cbegin() + offset, n, result);
         }

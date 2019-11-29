@@ -15,7 +15,7 @@ extern unsigned current_thread;
 namespace bemu {
 
 
-extern typename MemoryRegion::value_type memory_reset_value;
+extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template<unsigned long long Base, unsigned long long N>
@@ -31,7 +31,7 @@ struct MaxionRegion : public MemoryRegion {
     void read(size_type pos, size_type n, pointer result) override {
         if (current_thread != EMU_IO_SHIRE_SP_THREAD)
             throw memory_error(first() + pos);
-        std::fill_n(result, n, memory_reset_value);
+        default_value(result, n, memory_reset_value, pos);
     }
 
     void write(size_type pos, size_type, const_pointer) override {

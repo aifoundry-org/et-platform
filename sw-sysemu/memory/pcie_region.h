@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <functional>
 #include <vector>
+#include <cstring>
 #include "emu_gio.h"
 #include "literals.h"
 #include "memory_error.h"
@@ -17,7 +18,7 @@
 
 namespace bemu {
 
-extern typename MemoryRegion::value_type memory_reset_value;
+extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template<unsigned long long Base, unsigned long long N>
@@ -47,7 +48,8 @@ struct PcieDbiSlvRegion : public MemoryRegion {
             *result32 = (1u << 16) | (0u << 20); /* PCI_MSI_ENABLE = 1, PCI_MSI_MULTIPLE_MSG_EN = 0 */
             break;
         default:
-            *result32 = memory_reset_value;
+            *result32 = 0;
+            std::memcpy(result32, memory_reset_value, std::min(sizeof(memory_reset_value),4UL));            
             break;
         }
     }
@@ -94,8 +96,9 @@ struct PcieNoPcieEsrRegion : public MemoryRegion {
 
         switch (pos) {
         default:
-            *result32 = memory_reset_value;
-            break;
+          *result32 = 0;
+          memcpy(result32, memory_reset_value, std::min(sizeof(memory_reset_value), 4UL));
+          break;
         }
     }
 
@@ -153,7 +156,7 @@ struct PcieRegion : public MemoryRegion {
     void read(size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
         if (!elem) {
-            std::fill_n(result, n, memory_reset_value);
+            default_value(result, n, memory_reset_value, pos);
             return;
         }
         elem->read(pos - elem->first(), n, result);

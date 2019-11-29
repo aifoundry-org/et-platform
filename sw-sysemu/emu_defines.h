@@ -275,4 +275,7 @@ enum et_core_t {
 #define ET_DIAG_IRQ_INJ_TI      (1)
 #define ET_DIAG_IRQ_INJ_SEI     (2)
 
+
+#define MEM_RESET_PATTERN_SIZE 4 // mem reset pattern is 4 bytes (to allow for instance, 0xDEADBEEF)
+
 #endif // BEMU_DEFINES_H

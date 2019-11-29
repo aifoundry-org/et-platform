@@ -35,7 +35,7 @@ extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
 extern unsigned current_thread;
 namespace bemu {
     extern MainMemory memory;
-    extern typename MemoryRegion::value_type memory_reset_value;
+    extern typename MemoryRegion::reset_value_type memory_reset_value;
 }
 
 // Configure the emulation environment

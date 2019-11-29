@@ -57,7 +57,7 @@ struct sys_emu_cmd_options {
     bool        coherency_check              = false;
     uint64_t    max_cycles                   = 10000000;
     bool        mins_dis                     = false;
-    int         mem_reset                    = 0;
+    uint32_t    mem_reset                    = 0;
     std::string pu_uart_tx_file;
     std::string pu_uart1_tx_file;
     uint64_t    log_at_pc                    = ~0ull;

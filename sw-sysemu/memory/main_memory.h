@@ -21,6 +21,7 @@
 #include "svcproc_region.h"
 #include "sysreg_region.h"
 
+
 namespace bemu {
 
 
@@ -71,7 +72,7 @@ namespace bemu {
 // It is the responsibility of the requesting agent to map address with
 // address[39:38]==0b11 to address[39:38]==0b10 before calling MainMemory.
 
-
+  
 struct MainMemory {
     typedef typename MemoryRegion::addr_type      addr_type;
     typedef typename MemoryRegion::size_type      size_type;

@@ -15,7 +15,7 @@
 namespace bemu {
 
 
-extern typename MemoryRegion::value_type memory_reset_value;
+extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template<unsigned long long Base, unsigned long long N>
@@ -37,7 +37,7 @@ struct SvcProcRegion : public MemoryRegion {
     void read(size_type pos, size_type n, pointer result) override {
         const auto elem = search(pos, n);
         if (!elem) {
-            std::fill_n(result, n, memory_reset_value);
+            default_value(result, n, memory_reset_value, pos);
             return;
         }
         elem->read(pos - elem->first(), n, result);

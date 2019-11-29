@@ -78,6 +78,11 @@ struct lazy_array {
 
     void fill(const_reference val) { p->fill(val); }
 
+    void fill_pattern(const_pointer val, size_t size) {
+      for ( size_t i = 0 ; i < N ; i++)
+        (*p)[i] = val[i % size];
+    }
+  
     void swap(lazy_array& other) noexcept { p->swap(other); }
 
     // Members

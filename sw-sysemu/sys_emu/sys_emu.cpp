@@ -548,7 +548,7 @@ sys_emu::init_simulator(const sys_emu_cmd_options& cmd_options)
     // Init emu
     init_emu(system_version_t::ETSOC1_A0);
     log_set_threads(cmd_options.log_thread);
-    bemu::memory_reset_value = cmd_options.mem_reset;
+    memcpy(&(bemu::memory_reset_value), &(cmd_options.mem_reset), MEM_RESET_PATTERN_SIZE);
 
     // Callbacks for port writes
     set_msg_funcs(msg_to_thread);

@@ -32,6 +32,7 @@ static const char * help_msg =
      -sp_reset_pc <addr>      Sets Service Processor boot program counter (default: 0x40000000)\n\
      -max_cycles <cycles>     Stops execution after provided number of cycles (default: 10M)\n\
      -mem_reset <byte>        Reset value of main memory (default: 0)\n\
+     -mem_reset32 <uint32>    Reset value of main memory (default: 0)\n\
      -pu_uart_tx_file <path>  Path to the file in which to dump the contents of PU UART TX\n\
      -pu_uart1_tx_file <path> Path to the file in which to dump the contents of PU UART1 TX\n\
      -log_at_pc <PC>          Enables logging when minion reaches a given PC\n\
@@ -102,6 +103,7 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         {"sp_reset_pc",            required_argument, nullptr, 0},
         {"max_cycles",             required_argument, nullptr, 0},
         {"mem_reset",              required_argument, nullptr, 0},
+        {"mem_reset32",            required_argument, nullptr, 0},
         {"pu_uart_tx_file",        required_argument, nullptr, 0},
         {"pu_uart1_tx_file",       required_argument, nullptr, 0},
         {"log_at_pc",              required_argument, nullptr, 0},
@@ -224,7 +226,13 @@ sys_emu::parse_command_line_arguments(int argc, char* argv[])
         }
         else if (!strcmp(name, "mem_reset"))
         {
-            cmd_options.mem_reset = atoi(optarg);
+          cmd_options.mem_reset = strtol(optarg, NULL, 0) & 0xFF;
+          cmd_options.mem_reset |= cmd_options.mem_reset << 8;
+          cmd_options.mem_reset |= cmd_options.mem_reset << 16;          
+        }
+        else if (!strcmp(name, "mem_reset32"))
+        {
+          cmd_options.mem_reset = strtol(optarg, NULL, 0);
         }
         else if (!strcmp(name, "pu_uart_tx_file"))
         {

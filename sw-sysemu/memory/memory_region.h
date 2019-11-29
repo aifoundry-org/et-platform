@@ -14,9 +14,10 @@ struct MemoryRegion
     typedef unsigned long long    addr_type;
     typedef unsigned long long    size_type;
     typedef unsigned char         value_type;
+    typedef value_type            reset_value_type[MEM_RESET_PATTERN_SIZE];
     typedef value_type*           pointer;
     typedef const value_type*     const_pointer;
-
+  
     virtual ~MemoryRegion() {}
 
     // Copies @n bytes starting from offset @pos into @result
@@ -36,6 +37,11 @@ struct MemoryRegion
 
     // Outputs region data to a stream
     virtual void dump_data(std::ostream& os, size_type pos, size_type n) const = 0;
+
+    static void default_value(pointer result, size_type n, reset_value_type pattern, size_type offset){
+      for ( unsigned i = 0 ; i < n; i++)
+        result[i] = pattern[(i + offset) % MEM_RESET_PATTERN_SIZE];
+    }
 };
 
 

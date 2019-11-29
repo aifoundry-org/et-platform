@@ -13,7 +13,7 @@
 namespace bemu {
 
 
-extern typename MemoryRegion::value_type memory_reset_value;
+extern typename MemoryRegion::reset_value_type memory_reset_value;
 
 
 template <unsigned long long Base, unsigned long long N, unsigned long long M,
@@ -76,12 +76,12 @@ struct SparseRegion : public MemoryRegion
         size_type offset = pos % M;
         while (lo != hi) {
             bemu::dump_data(os, storage[lo], offset,
-                            M - offset, memory_reset_value);
+                            M - offset, memory_reset_value[0]);
             ++lo;
             offset = 0;
         }
         bemu::dump_data(os, storage[lo], offset,
-                        1 + ((pos + n - 1) % M), memory_reset_value);
+                        1 + ((pos + n - 1) % M), memory_reset_value[0]);
     }
 
     // For exposition only
@@ -92,7 +92,7 @@ protected:
                           size_type count, pointer result) const
     {
         if (storage[bucket].empty()) {
-            std::fill_n(result, count, memory_reset_value);
+          default_value(result, count, memory_reset_value, pos);
         } else {
             std::copy_n(storage[bucket].cbegin() + pos, count, result);
         }
@@ -104,7 +104,7 @@ protected:
     {
         if (storage[bucket].empty()) {
             storage[bucket].allocate();
-            storage[bucket].fill(memory_reset_value);
+            storage[bucket].fill_pattern(memory_reset_value, MEM_RESET_PATTERN_SIZE);
         }
         std::copy_n(source, count, storage[bucket].begin() + pos);
         return count;
