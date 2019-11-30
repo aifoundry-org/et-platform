@@ -16,6 +16,7 @@ add_library(etrt_Core OBJECT
   DeviceTarget.cc
   Error.cc
   Event.cc
+  KernelActions.cc
   MemoryManager.cc
   MemoryAllocator.cc
   MemoryAllocator.h

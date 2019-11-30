@@ -10,8 +10,12 @@
 
 #include "device-fw-fixture.h"
 
+#include "Core/KernelActions.h"
+#include "esperanto/runtime/CodeManagement/CodeRegistry.h"
+#include "esperanto/runtime/CodeManagement/Kernel.h"
 #include "esperanto/runtime/Core/DeviceHelpers.h"
 #include "esperanto/runtime/Core/VersionCheckers.h"
+#include "esperanto/runtime/Support/Logging.h"
 
 #include <thread>
 #include <chrono>
@@ -38,6 +42,51 @@ TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelWorker) {
   ASSERT_TRUE(success);
   success = worker_level.set_level_trace();
   ASSERT_TRUE(success);
+}
+
+// Test that will launch a kernel that is expected to
+TEST_F(DeviceFWTest, DeviceAPI_CheckKernelStatus) {
+  auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
+  fs::path beef_kernel = fs::path(kernels_dir) / fs::path("hang.elf");
+  auto &registry = CodeRegistry::registry();
+
+  auto register_res = registry.registerKernel(
+      "main", {Kernel::ArgType::T_layer_dynamic_info}, beef_kernel.string());
+  ASSERT_TRUE((bool)register_res);
+  auto &kernel = std::get<1>(register_res.get());
+  auto load_res = registry.moduleLoad(kernel.moduleID(), dev_.get());
+
+  KernelActions kernel_actions;
+
+  // FIXME SW-1279 use the hang kernel to test correctly that we can
+  // abort a hang kernel and start runnign a new one.
+  // The problem is currently all DeviceAPI calls are practically blocking
+  // and wait for a reply. Fix this test is resolved
+
+
+  // Kernel::layer_dynamic_info_t layer_info = {0};
+  // Kernel::LaunchArg arg;
+  // arg.type = Kernel::ArgType::T_layer_dynamic_info;
+  // arg.value.layer_dynamic_info = layer_info;
+  // auto args = std::vector<Kernel::LaunchArg>({arg});
+
+  // auto launch_res = kernel_actions.launchNonBlocking(&dev_->defaultStream(),
+  // kernel, args);
+
+  // ASSERT_EQ(launch_res, etrtSuccess);
+
+  auto kernel_state_res = kernel_actions.state(&dev_->defaultStream());
+  ASSERT_EQ(kernel_state_res.getError(), etrtSuccess);
+
+  RTINFO << "Kernel Status: " << (int)kernel_state_res.get() << "\n";
+  ASSERT_EQ(kernel_state_res.get(), ::device_api::DEV_API_KERNEL_STATE_UNUSED);
+
+  auto kernel_abort_res = kernel_actions.abort(&dev_->defaultStream());
+  ASSERT_EQ(kernel_abort_res.getError(), etrtSuccess);
+
+  RTINFO << "Kernel abort: " << (int)kernel_abort_res.get() << "\n";
+  ASSERT_EQ(kernel_abort_res.get(),
+            ::device_api::DEV_API_KERNEL_ABORT_RESPONSE_RESULT_OK);
 }
 
 int main(int argc, char **argv) {

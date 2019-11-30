@@ -231,6 +231,9 @@ public:
     ArgValue value;
   };
 
+  using ArgSignature = std::vector<ArgType>;
+  using ArgValues = std::vector<LaunchArg>;
+
   /// @brief Return string with the name of the argument type
   static const std::string &argTypeToStr(ArgType arg);
 
@@ -252,7 +255,7 @@ public:
     /// their type
     ///   Their types will be checked against the registered signature of the
     ///   kernel
-    KernelLaunch(const Kernel &kernel, std::vector<LaunchArg> &args);
+    KernelLaunch(const Kernel &kernel, const ArgValues &args);
 
     /// @brief Launch the kernel and wait for the result
     ///
@@ -271,7 +274,7 @@ public:
 
   private:
     const Kernel &kernel_;
-    std::vector<LaunchArg> args_;
+    ArgValues args_;
 
     /// @brief Helper function for launching a kernel
     ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
@@ -284,7 +287,7 @@ public:
   /// system
   /// @param[in] arg_list Vector with type of argumenrs this kernel can accept
   /// @param[in] mid  ModuleID of the CodeModue/ELF that contains the kernel
-  Kernel(const std::string &name, const std::vector<ArgType> &arg_list,
+  Kernel(const std::string &name, const ArgSignature &arg_list,
          CodeModuleID mid);
 
   virtual ~Kernel() = default;
@@ -304,8 +307,7 @@ public:
   /// @brief Create a Kernel Launch object with the given list of argument
   /// values
   /// @return Pointer to the created kernel launch object
-  std::unique_ptr<KernelLaunch>
-  createKernelLaunch(std::vector<LaunchArg> &args);
+  std::unique_ptr<KernelLaunch> createKernelLaunch(const ArgValues &args) const;
 
   /// @brief Search for the kernel object by ID
   static ErrorOr<Kernel &> findKernel(KernelCodeID id);

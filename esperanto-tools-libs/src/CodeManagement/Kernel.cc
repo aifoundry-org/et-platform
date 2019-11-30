@@ -135,8 +135,7 @@ std::vector<uint8_t> Kernel::argBytes(const Kernel::LaunchArg &arg) {
   return data;
 }
 
-Kernel::KernelLaunch::KernelLaunch(const Kernel &kernel,
-                                   std::vector<LaunchArg> &args)
+Kernel::KernelLaunch::KernelLaunch(const Kernel &kernel, const ArgValues &args)
     : kernel_(kernel), args_(args) {
   const auto &arg_types = kernel_.kernelArgs();
   if (arg_types.size() != args_.size()) {
@@ -296,7 +295,7 @@ ErrorOr<Kernel &> Kernel::findKernel(KernelCodeID id) {
 }
 
 std::unique_ptr<Kernel::KernelLaunch>
-Kernel::createKernelLaunch(std::vector<LaunchArg> &args) {
+Kernel::createKernelLaunch(const ArgValues &args) const {
   return std::make_unique<Kernel::KernelLaunch>(*this, args);
 }
 

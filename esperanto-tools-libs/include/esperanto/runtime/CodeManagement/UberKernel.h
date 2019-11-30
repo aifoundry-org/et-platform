@@ -26,6 +26,8 @@ namespace et_runtime {
 ///
 class UberKernel final : public Kernel {
 public:
+  using ArgSignature = std::vector<std::vector<ArgType>>;
+  using ArgValues = std::vector<std::vector<LaunchArg>>;
   /// @class UberKernelLaunch
   ///
   /// @brief Launch a kernel on the devie with the specified arguments
@@ -38,8 +40,7 @@ public:
     /// their type
     ///   Their types will be checked against the registered signature of the
     ///   kernel
-    UberKernelLaunch(const UberKernel &kernel,
-                     std::vector<std::vector<LaunchArg>> &args);
+    UberKernelLaunch(const UberKernel &kernel, const ArgValues &args);
 
     /// @brief Launch the kernel and wait for the result
     ///
@@ -72,15 +73,15 @@ public:
   ///
   /// @param[in] name  Name of the UberKernel that needs to be unique across all
   /// kernels in the system
+  /// @param[in] arg_list : Signature of the arguments the kernel expects
   /// @param[in] mid   Id of the module this module is part of
-  UberKernel(const std::string &name,
-             const std::vector<std::vector<ArgType>> &arg_list,
+  UberKernel(const std::string &name, const ArgSignature &arg_list,
              CodeModuleID mid);
 
   const std::vector<std::vector<ArgType>> argList() const { return arg_list_; }
 
   std::unique_ptr<UberKernelLaunch>
-  createKernelLaunch(std::vector<std::vector<LaunchArg>> &args) {
+  createKernelLaunch(const ArgValues &args) const {
     return std::make_unique<UberKernelLaunch>(*this, args);
   }
 

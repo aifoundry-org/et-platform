@@ -21,8 +21,8 @@
 
 namespace et_runtime {
 
-UberKernel::UberKernelLaunch::UberKernelLaunch(
-    const UberKernel &kernel, std::vector<std::vector<Kernel::LaunchArg>> &args)
+UberKernel::UberKernelLaunch::UberKernelLaunch(const UberKernel &kernel,
+                                               const ArgValues &args)
     : kernel_(kernel) {
   std::vector<LaunchArg> flat_args; // flatten out the nested vectors
   unsigned int flat_args_bytes = 0;
