@@ -505,7 +505,8 @@ enum etrtError etrtMemset(void *ptr, int value, size_t count);
  * @param[in] stream  The handle for one of the calling process' Streams.
  * @return  etrtSuccess, etrtErrorInvalidValue, etrtErrorInvalidResourceHandle
  */
-enum etrtError etrtStreamDestroy(Stream *stream);
+// FIXME when we decide to ressurect the C-API
+// enum etrtError etrtStreamDestroy(Stream *stream);
 
 /**
  * @brief  Block until all of a Stream's operations have completed.

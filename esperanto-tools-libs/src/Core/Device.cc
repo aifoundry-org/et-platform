@@ -146,15 +146,6 @@ void Device::uninitDeviceThread() {
 
 Stream &Device::defaultStream() const { return *defaultStream_; }
 
-Stream *Device::getStream(Stream *stream) {
-  Stream *et_stream = reinterpret_cast<Stream *>(stream);
-  if (et_stream == nullptr) {
-    return defaultStream_;
-  }
-  assert(stl_count(stream_storage_, et_stream));
-  return et_stream;
-}
-
 Event *Device::getEvent(Event *event) {
   Event *et_event = reinterpret_cast<Event *>(event);
   assert(stl_count(event_storage_, et_event));
@@ -207,11 +198,8 @@ void Device::addCommand(
 }
 
 etrtError Device::streamSynchronize(Stream *stream) {
-  Stream *et_stream = getStream(stream);
-
   auto event = std::make_shared<Event>();
-  addCommand(et_stream,
-             std::dynamic_pointer_cast<device_api::CommandBase>(event));
+  addCommand(stream, std::dynamic_pointer_cast<device_api::CommandBase>(event));
   auto future = event->getFuture();
   auto response = future.get();
   return response.error();
@@ -221,7 +209,7 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
                               enum etrtMemcpyKind kind, Stream *stream) {
   Stream *et_stream;
 
-  et_stream = getStream(stream);
+  et_stream = stream;
 
   if (kind == etrtMemcpyDefault) {
     // All addresses not in device address space count as host address even if

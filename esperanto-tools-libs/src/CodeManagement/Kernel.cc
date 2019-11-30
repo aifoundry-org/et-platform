@@ -177,7 +177,7 @@ etrtError Kernel::KernelLaunch::launchBlocking(Device *dev, Stream *stream) {
   ::memcpy(&args_buff[0], &args_[0].value.layer_dynamic_info, args_size);
 
   dev->addCommand(
-      dev->getStream(stream),
+      stream,
       std::shared_ptr<device_api::CommandBase>(new device_api::LaunchCommand(
           kernel_entry_point, args_buff, kernel_.name())));
 

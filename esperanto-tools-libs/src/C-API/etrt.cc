@@ -113,13 +113,13 @@ etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
 //   return etrtStreamCreateWithFlags(pStream, ETRT_MEM_ALLOC_HOST);
 // }
 
-enum etrtError etrtStreamDestroy(Stream *stream) {
-  GetDev dev;
+// enum etrtError etrtStreamDestroy(Stream *stream) {
+//   GetDev dev;
 
-  Stream *et_stream = dev->getStream(stream);
-  dev->destroyStream(et_stream);
-  return etrtSuccess;
-}
+//   Stream *et_stream = dev->getStream(stream);
+//   dev->destroyStream(et_stream);
+//   return etrtSuccess;
+// }
 
 enum etrtError etrtMemcpyAsync(void *dst, const void *src, size_t count,
                                enum etrtMemcpyKind kind, Stream *stream) {

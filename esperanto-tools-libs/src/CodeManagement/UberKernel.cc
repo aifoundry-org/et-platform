@@ -110,7 +110,7 @@ etrtError UberKernel::UberKernelLaunch::launchBlocking(Device *dev,
   ::memcpy(&args_buff[0], &layer_info, sizeof(layer_info));
 
   dev->addCommand(
-      dev->getStream(stream),
+      stream,
       std::shared_ptr<device_api::CommandBase>(new device_api::LaunchCommand(
           kernel_entry_point, args_buff, kernel_.name())));
 

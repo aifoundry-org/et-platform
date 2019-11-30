@@ -144,10 +144,6 @@ public:
   /// @brief Return the default stream
   Stream &defaultStream() const;
 
-  /// @brief Return the stream with type StreamID
-  /// FIXME SW-1294
-  Stream *getStream(Stream *stream);
-
   /// FIXME SW-1291 remove the following function
   etrtError streamSynchronize(Stream *stream);
 
