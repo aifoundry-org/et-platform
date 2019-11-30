@@ -140,6 +140,7 @@ if(esperanto-fw_FOUND)
     device-fw/test_mailbox.cc:"${DEV_FW_ARGS}"
     device-fw/test_sysemu_launch_kernels.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
     device-fw/test_device_api_sysemu.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
+    device-fw/test_streams.cc:"${DEV_FW_ARGS} --kernels_dir ${KERNELS_DIR}"
     )
   create_test_targets("${SIM_DEVFW_TEST_LIST}" "LABELS;Generic;LABELS;DeviceFW;TIMEOUT;120")
 

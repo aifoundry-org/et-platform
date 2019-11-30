@@ -486,8 +486,10 @@ enum etrtError etrtMemset(void *ptr, int value, size_t count);
 //  enum etrtError etrtStreamCreateWithFlags(Stream * *pStream, unsigned
 // int flags);
 
-enum etrtError etrtStreamCreate(Stream **pStream);
-enum etrtError etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags);
+// FIXME re-enable when the interface is stable
+// enum etrtError etrtStreamCreate(Stream **pStream);
+// enum etrtError etrtStreamCreateWithFlags(Stream **pStream, unsigned int
+// flags);
 
 /**
  * @brief  Delete an existing Stream.

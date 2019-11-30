@@ -40,7 +40,12 @@ Device::Device(int index)
       mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)) {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, index);
-  defaultStream_ = createStream(false);
+  auto create_res = streamCreate(false);
+  if (create_res.getError() != etrtSuccess) {
+    std::terminate();
+  }
+  defaultStream_ = &create_res.get();
+  stream_storage_.push_back(defaultStream_);
 }
 
 Device::~Device() {
@@ -71,7 +76,7 @@ void Device::deviceExecute() {
     while (true) {
       std::shared_ptr<device_api::CommandBase> commandToExecute;
       for (auto &it : stream_storage_) {
-        Stream *stream = it.get();
+        Stream *stream = it;
         if (!stream->noCommands()) {
           auto command = stream->frontCommand();
           commandToExecute = command;
@@ -118,7 +123,7 @@ bool Device::setFWFilePaths(const std::vector<std::string> &paths) {
  */
 void Device::uninitObjects() {
   for (auto &it : stream_storage_) {
-    Stream *stream = it.get();
+    Stream *stream = it;
     while (!stream->noCommands()) {
       auto act = stream->frontCommand();
       stream->popCommand();
@@ -139,7 +144,7 @@ void Device::uninitDeviceThread() {
   target_device_->deinit();
 }
 
-Stream *Device::defaultStream() const { return defaultStream_; }
+Stream &Device::defaultStream() const { return *defaultStream_; }
 
 Stream *Device::getStream(Stream *stream) {
   Stream *et_stream = reinterpret_cast<Stream *>(stream);
@@ -156,14 +161,24 @@ Event *Device::getEvent(Event *event) {
   return et_event;
 }
 
-Stream *Device::createStream(bool is_blocking) {
-  Stream *new_stream = new Stream(is_blocking);
-  stream_storage_.emplace_back(new_stream);
-  return new_stream;
+ErrorOr<Stream &> Device::streamCreate(bool blocking) {
+  auto stream = new Stream(*this, blocking);
+  // The stream object is being tracked by the global stream registry return
+  // just a reference
+  stream_storage_.push_back(stream);
+  return *stream;
 }
-void Device::destroyStream(Stream *et_stream) {
-  assert(stl_count(stream_storage_, et_stream) == 1);
-  stl_remove(stream_storage_, et_stream);
+etrtError Device::destroyStream(StreamID id) {
+  auto remove_registry = Stream::destroyStream(id);
+  if (remove_registry != etrtSuccess) {
+    return remove_registry;
+  }
+  stream_storage_.erase(
+      std::remove_if(stream_storage_.begin(), stream_storage_.end(),
+                     // remove any stream with a matching ID
+                     [&id](Stream *x) { return x->id() == id; }),
+      stream_storage_.end());
+  return etrtSuccess;
 }
 Event *Device::createEvent(bool disable_timing, bool blocking_sync) {
   Event *new_event = new Event(disable_timing, blocking_sync);
@@ -172,6 +187,7 @@ Event *Device::createEvent(bool disable_timing, bool blocking_sync) {
 }
 
 void Device::destroyEvent(Event *et_event) {
+
   assert(stl_count(event_storage_, et_event) == 1);
   stl_remove(event_storage_, et_event);
 }

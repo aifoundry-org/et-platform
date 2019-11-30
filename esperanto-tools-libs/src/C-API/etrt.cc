@@ -95,21 +95,23 @@ etrtPointerGetAttributes(struct etrtPointerAttributes *attributes,
   return dev->mem_manager().pointerGetAttributes(attributes, ptr);
 }
 
-enum etrtError etrtStreamCreateWithFlags(Stream **pStream, unsigned int flags) {
-  assert((flags & ~(ETRT_EVENT_FLAGS_STREAM_DEFAULT |
-                    ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING)) == 0);
+// FIXME re-enable when the inteface is stable
+// enum etrtError etrtStreamCreateWithFlags(Stream **pStream, unsigned int
+// flags) {
+//   assert((flags & ~(ETRT_EVENT_FLAGS_STREAM_DEFAULT |
+//                     ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING)) == 0);
 
-  GetDev dev;
+//   GetDev dev;
 
-  Stream *new_stream =
-      dev->createStream((flags & ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING) == 0);
-  *pStream = reinterpret_cast<Stream *>(new_stream);
-  return etrtSuccess;
-}
+//   Stream *new_stream =
+//       dev->createStream((flags & ETRT_EVENT_FLAGS_STREAM_NON_BLOCKING) == 0);
+//   *pStream = reinterpret_cast<Stream *>(new_stream);
+//   return etrtSuccess;
+// }
 
-enum etrtError etrtStreamCreate(Stream **pStream) {
-  return etrtStreamCreateWithFlags(pStream, ETRT_MEM_ALLOC_HOST);
-}
+// enum etrtError etrtStreamCreate(Stream **pStream) {
+//   return etrtStreamCreateWithFlags(pStream, ETRT_MEM_ALLOC_HOST);
+// }
 
 enum etrtError etrtStreamDestroy(Stream *stream) {
   GetDev dev;

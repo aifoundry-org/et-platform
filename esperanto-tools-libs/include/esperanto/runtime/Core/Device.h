@@ -115,10 +115,12 @@ public:
   ///
   /// Return the handle for a newly created Stream for the caller's process.
   ///
-  /// @return  ErrorOr (etrtError: etrtErrorInvalidValue) or pointer to @ref
+  /// @param[in] blocking: True if this is a blocking thread
+  ///
+  /// @return  ErrorOr (etrtError: etrtErrorInvalidValue) or reference to @ref
   /// Stream object
-  ////
-  ErrorOr<std::unique_ptr<Stream>> streamCreate();
+  ///
+  ErrorOr<Stream &> streamCreate(bool blocking);
 
   ///
   /// @brief  Create a new Stream.
@@ -140,20 +142,19 @@ public:
   ErrorOr<std::unique_ptr<Stream>> streamCreateWithFlags(unsigned int flags);
 
   /// @brief Return the default stream
-  Stream *defaultStream() const;
+  Stream &defaultStream() const;
 
   /// @brief Return the stream with type StreamID
   /// FIXME SW-1294
   Stream *getStream(Stream *stream);
 
-  /// @Brief create a new Stream
-  Stream *createStream(bool is_blocking);
-
   /// FIXME SW-1291 remove the following function
   etrtError streamSynchronize(Stream *stream);
 
-  /// FIXME SW-1294
-  void destroyStream(Stream *et_stream);
+  /// @brief destroy a Stream that belongs to this device
+  /// @param[in] id : Id of the stream to remove
+  /// @returns etrtSuccess on success or the appropriate error
+  etrtError destroyStream(StreamID ID);
 
   /// FIXME SW-1291 this function should move the Stream Class
   Event *createEvent(bool disable_timing, bool blocking_sync);
@@ -238,7 +239,7 @@ private:
   std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
   bool device_thread_exit_requested_ = false;
   Stream *defaultStream_ = nullptr;
-  std::vector<std::unique_ptr<Stream>> stream_storage_;
+  std::vector<Stream *> stream_storage_;
   std::vector<std::unique_ptr<Event>> event_storage_;
   // FIXME SW-1362
   // std::vector<et_runtime::EtLaunchConf> launch_confs_;

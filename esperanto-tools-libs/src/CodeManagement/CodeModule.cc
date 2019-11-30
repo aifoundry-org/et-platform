@@ -98,7 +98,7 @@ bool Module::loadOnDevice(Device *dev) {
           (void *)write_address, elf_info_->data().data() + offset, mem_size);
 
       dev->addCommand(
-          dev->defaultStream(),
+          &dev->defaultStream(),
           std::dynamic_pointer_cast<device_api::CommandBase>(write_command));
 
       auto response_future = write_command->getFuture();

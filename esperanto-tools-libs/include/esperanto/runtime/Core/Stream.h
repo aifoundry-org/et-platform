@@ -11,19 +11,23 @@
 #ifndef ET_RUNTIME_STREAM_H
 #define ET_RUNTIME_STREAM_H
 
+#include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 
 #include <chrono>
 #include <memory>
 #include <queue>
+#include <unordered_map>
 
 namespace et_runtime {
 
 namespace device_api {
 class CommandBase;
 }
+
 class AbstractMemoryPtr;
 class Event;
+class Device;
 class Kernel;
 
 ///
@@ -54,13 +58,38 @@ class Kernel;
 /// semantics of CUDA (as opposed to CUDA's Legacy Stream semantics).
 class Stream {
 public:
-  Stream(bool is_blocking) : is_blocking_(is_blocking) { init(); }
+  /// @brierf Stream constructor
+  ///
+  /// @param[in] dev Reference to the associate device
+  /// @param[in] is_blocking Bool if this is a blockign stream
+  Stream(Device &dev, bool is_blocking);
+
+  ~Stream();
+
+  // A stream is a non-copyable object
+  Stream(const Stream &) = delete;
+  Stream &operator=(const Stream &) = delete;
+
+  /// @returns the ID of the current Stream
+  StreamID id() const { return id_; }
+
+  /// @returns the Device this stream is registered with
+  Device &dev() const { return dev_; }
 
   ///
-  /// @brief initalize the stream
-  void init();
+  /// @brief Return reference to a registered stream
+  ///
+  /// @param[in] sid : StreamID of the stream
+  /// @returns Error if no such stream is found or a reference to the stream
+  static ErrorOr<Stream &> getStream(StreamID sid);
 
-  ~Stream() { assert(actions_.empty()); }
+  ///
+  /// @brief Destroy a stream from the system, and remove it from the global
+  /// registry
+  ///
+  /// @param[in] ID of the stream to remove
+  /// @returns errtError signifying success or note
+  static etrtError destroyStream(StreamID id);
 
   ///
   /// @brief  Block until all of a Stream's operations have completed.
@@ -204,8 +233,17 @@ public:
   void popCommand() { actions_.pop(); }
 
 private:
-  bool is_blocking_;
-  std::queue<std::shared_ptr<et_runtime::device_api::CommandBase>> actions_;
+  static StreamID global_stream_count_; ///< Static variable that generates a
+                                        ///< unique StreamID per Stream created
+
+  using StreamRegistry = std::unordered_map<StreamID, std::unique_ptr<Stream>>;
+  static StreamRegistry
+      stream_registry_; ///< Global Registry of all constructed streams
+  StreamID id_;                         ///< ID of the current stream
+  Device &dev_;                         ///< Device this stream belongs to
+  bool is_blocking_; ///< True if this is a blocking stream
+  std::queue<std::shared_ptr<et_runtime::device_api::CommandBase>>
+      actions_; ///< Queue of commands that this stream has pending
 };
 } // namespace et_runtime
 

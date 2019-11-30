@@ -31,6 +31,9 @@ typedef int64_t KernelCodeID;
 /// Unique ID for each uber-kernel code in the system.
 typedef int64_t UberKernelCodeID;
 
+/// Unique ID of a Stream
+typedef uint64_t StreamID;
+
 /// Enumeration with the different types of events we can create in the system
 enum etrt_event_flags_e {
   ETRT_EVENT_FLAGS_STREAM_DEFAULT = 0, ///< Default flags

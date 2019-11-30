@@ -3,8 +3,32 @@
 
 namespace et_runtime {
 
-void Stream::init() {
-  // fprintf(stderr, "Hello from EtStream::init()\n");
+StreamID Stream::global_stream_count_ = 1;
+
+Stream::StreamRegistry Stream::stream_registry_ = {};
+
+Stream::Stream(Device &dev, bool is_blocking)
+    : id_(global_stream_count_++), dev_(dev), is_blocking_(is_blocking) {
+  stream_registry_[id_] = std::unique_ptr<Stream>(this);
+}
+
+Stream::~Stream() { assert(actions_.empty()); }
+
+ErrorOr<Stream &> Stream::getStream(StreamID sid) {
+  auto it = stream_registry_.find(sid);
+  if (it == stream_registry_.end()) {
+    return etrtErrorInvalidResourceHandle;
+  }
+  return *it->second;
+}
+
+etrtError Stream::destroyStream(StreamID id) {
+  auto it = stream_registry_.find(id);
+  if (it == stream_registry_.end()) {
+    return etrtErrorInvalidResourceHandle;
+  }
+  stream_registry_.erase(it);
+  return etrtSuccess;
 }
 
 void Stream::addCommand(
