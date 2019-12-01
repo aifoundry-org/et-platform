@@ -37,7 +37,14 @@ static void fake_message_from_host(void);
 static void master_thread(void);
 
 static void handle_messages_from_host(void);
-static void handle_message_from_host(int64_t length, const uint8_t* const buffer);
+
+/// \brief Handle a command from the host
+/// \param[in] length: Size of the message in bytes
+/// \param[in] buffer: Pointer to the data. The buffer is not made const in purpose
+///             to allow us to modify the contents of the message upon arrive and record
+////            necessary additional information, like timestamps
+static void handle_message_from_host(int64_t length, uint8_t* buffer);
+
 
 static void handle_messages_from_sp(void);
 static void handle_message_from_sp(int64_t length, const uint8_t* const buffer);
@@ -265,7 +272,7 @@ static void handle_messages_from_host(void)
     while (length > 0);
 }
 
-static void handle_message_from_host(int64_t length, const uint8_t* const buffer)
+static void handle_message_from_host(int64_t length, uint8_t* buffer)
 {
     if (length < 0)
     {

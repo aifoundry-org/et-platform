@@ -27,7 +27,7 @@ log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level);
 ///             necessary additional information, like timestamps. We also expect that the
 ///             buffer has the expected size for the type of the message held
 void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
-                                         const uint8_t* const buffer);
+                                         uint8_t* buffer);
 
 
 #endif

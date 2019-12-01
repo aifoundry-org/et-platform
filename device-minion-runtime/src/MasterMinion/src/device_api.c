@@ -7,9 +7,10 @@
 #include "log.h"
 #include "mailbox.h"
 #include "message.h"
+#include "syscall.h"
+
 
 #include <esperanto/device-api/device_api.h>
-
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
@@ -19,7 +20,7 @@ void prepare_device_api_reply(const struct command_header_t* const cmd,
                               struct response_header_t* const rsp)
 {
     rsp->command_info = *cmd;
-    // FIXME SW-1308 update the timestamp
+    rsp->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
 }
 
 log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level)
@@ -29,9 +30,12 @@ log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level)
 }
 
 void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
-                                         const uint8_t* const buffer)
+                                         uint8_t* buffer)
 {
-    // FIXME SW-1308 Update the command timestamp upon receiving the message
+    {
+        struct command_header_t* const cmd = (void*) buffer;
+        cmd->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
+    }
     if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_CMD)
     {
         const struct device_fw_version_cmd_t* const cmd = (const void* const) buffer;
