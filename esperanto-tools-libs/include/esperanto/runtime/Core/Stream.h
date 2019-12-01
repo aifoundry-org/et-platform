@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_STREAM_H
 #define ET_RUNTIME_STREAM_H
 
+/// @file
+
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 
@@ -30,10 +32,12 @@ class Event;
 class Device;
 class Kernel;
 
+
+/// @class Stream Stream.h esperanto/runtime/Core/Stream.h
 ///
 /// @brief Class holding the information for a Stream
 ///
-///
+/// \rst
 /// Streams are essentially independent work queues for executing operations in
 /// parallel. Operations can be issued on specific Streams, with the guarantee
 /// that they execute sequentially (in the order of their issue) within the
@@ -56,6 +60,9 @@ class Kernel;
 ///
 /// This API chooses to have the Default Stream follow the per-thread Stream
 /// semantics of CUDA (as opposed to CUDA's Legacy Stream semantics).
+///
+/// \endrst
+///
 class Stream {
 public:
   /// @brierf Stream constructor

@@ -123,25 +123,6 @@ public:
   ///
   ErrorOr<Stream &> streamCreate(bool blocking);
 
-  ///
-  /// @brief  Create a new Stream.
-  ///
-  /// Return the handle for a newly created Stream for the caller's process.
-  ///
-  /// The `flags` argument allows the caller to have control over the behavior
-  /// of the newly created Stream. If a 0 (or `cudaStreamDefault`) value is
-  /// given, then the Stream is created using the default options. If the
-  /// `cudaStreamNonBlocking` value is given, then the newly created Stream may
-  /// run concurrently with the Default Stream (i.e., Stream 0), and it performs
-  /// no implicit synchronization with the Default Stream.
-  ///
-  /// @param[in] flags  A bitmap composed of flags that select options for the
-  /// new Stream.
-  /// @return  ErrorOr (etrtError: etrtErrorInvalidValue) or pointer to @ref
-  /// Stream
-  ////
-  ErrorOr<std::unique_ptr<Stream>> streamCreateWithFlags(unsigned int flags);
-
   /// @brief Return the default stream
   Stream &defaultStream() const;
 
@@ -150,13 +131,13 @@ public:
   /// @returns etrtSuccess on success or the appropriate error
   etrtError destroyStream(StreamID ID);
 
-  /// FIXME SW-1291 this function should move the Stream Class
+  /// FIXME SW-1493 this function should move the Stream Class
   Event *createEvent(bool disable_timing, bool blocking_sync);
 
-  /// FIXME SW-1291 this function should move the Stream Class
+  /// FIXME SW-1493 this function should move the Stream Class
   void destroyEvent(Event *et_event);
 
-  /// FIXME SW-1291 this function should move the Stream Class
+  /// FIXME SW-1493 this function should move the Stream Class
   Event *getEvent(Event *event);
 
   /// Memory initialization and manipulation on the device
