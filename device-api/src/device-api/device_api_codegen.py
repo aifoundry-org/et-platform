@@ -170,7 +170,7 @@ class DevAPICodeGeneratorHelper(object):
             structs = list(filter(lambda x : x["Name"] in struct_name, self.structs()))
             if not len(structs) == 1:
                 raise RuntimeError(f"None or multiple structs found: {structs}, {struct_name}")
-            return struct_name
+            return f'{struct_name}'
         return type
 
     def message_field_storage_type(self, field):

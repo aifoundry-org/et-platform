@@ -29,14 +29,16 @@ Enums:
   - Name: dev_api_kernel_launch_error
     Type: uint32_t
     Values:
-      - Name: NONE
+      - Name: OK
         Value: 0
-      - Name: ABORTED
-        Value: 1000
-      - Name: NO_SAVED_CONTEXT
-        Value: 1001
-      - Name: EXCEPTION
-        Value: 1002
+      - Name: SHIRES_NOT_READY
+        Value: 1
+      - Name: ERROR
+        Value: 2
+      - Name: RESULT_OK
+        Value: 3
+      - Name: RESULT_ERROR
+        Value: 4
   - Name: dev_api_error_type
     Type: uint32_t
     Values:
@@ -71,7 +73,7 @@ Enums:
 
 # List of Structs used in our messages
 Structs:
-  - Name : kernel_params_t
+  - Name : dev_api_kernel_params_t
     Fields:
       - Name: tensor_a
         Type: uint64_t
@@ -87,9 +89,11 @@ Structs:
         Type: uint64_t
       - Name: tensor_g
         Type: uint64_t
+      - Name: tensor_h
+        Type: uint64_t
       - Name: kernel_id
         Type: uint64_t
-  - Name: kernel_info_t
+  - Name: dev_api_kernel_info_t
     Fields:
       - Name: compute_pc
         Type: uint64_t
@@ -156,10 +160,10 @@ Messages :
     Fields:
       - Name: kernel_params
         Type : struct
-        Struct: kernel_params_t
+        Struct: dev_api_kernel_params_t
       - Name: kernel_info
         Type: struct
-        Struct: kernel_info_t
+        Struct: dev_api_kernel_info_t
   - Name: kernel_launch_rsp
     Description: Response and result of a kernel launch on the device
     Type: Response
