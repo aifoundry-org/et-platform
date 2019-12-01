@@ -11,6 +11,7 @@
 #include "esperanto/runtime/Core/Stream.h"
 #include "DeviceAPI/Commands.h"
 #include "esperanto/runtime/Core/Device.h"
+#include "esperanto/runtime/Core/Event.h"
 
 namespace et_runtime {
 
@@ -40,6 +41,14 @@ etrtError Stream::destroyStream(StreamID id) {
   }
   stream_registry_.erase(it);
   return etrtSuccess;
+}
+
+etrtError Stream::synchronize() {
+  auto event = std::make_shared<Event>();
+  addCommand(std::dynamic_pointer_cast<device_api::CommandBase>(event));
+  auto future = event->getFuture();
+  auto response = future.get();
+  return response.error();
 }
 
 void Stream::addCommand(

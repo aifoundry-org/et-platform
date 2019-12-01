@@ -145,9 +145,6 @@ public:
   /// @brief Return the default stream
   Stream &defaultStream() const;
 
-  /// FIXME SW-1291 remove the following function
-  etrtError streamSynchronize(Stream *stream);
-
   /// @brief destroy a Stream that belongs to this device
   /// @param[in] id : Id of the stream to remove
   /// @returns etrtSuccess on success or the appropriate error

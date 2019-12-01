@@ -97,9 +97,6 @@ public:
   /// Take the handle for one of the calling process's Streams and returns only
   /// when all of the operations that were issued on it have completed.
   ///
-  /// TODO decide if we want to support the `etDeviceScheduleBlockingSync`
-  /// option on Devices
-  ///
   /// @return  etrtSuccess, etrtErrorInvalidResourceHandle
   ////
   etrtError synchronize();

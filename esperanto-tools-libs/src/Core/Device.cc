@@ -193,14 +193,6 @@ void Device::destroyEvent(Event *et_event) {
   stl_remove(event_storage_, et_event);
 }
 
-etrtError Device::streamSynchronize(Stream *stream) {
-  auto event = std::make_shared<Event>();
-  stream->addCommand(std::dynamic_pointer_cast<device_api::CommandBase>(event));
-  auto future = event->getFuture();
-  auto response = future.get();
-  return response.error();
-}
-
 etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
                               enum etrtMemcpyKind kind, Stream *stream) {
   Stream *et_stream = defaultStream_;
@@ -272,8 +264,10 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
 etrtError Device::memcpy(void *dst, const void *src, size_t count,
                          enum etrtMemcpyKind kind) {
   etrtError res = memcpyAsync(dst, src, count, kind, 0);
-  streamSynchronize(defaultStream_);
-
+  if (res != etrtSuccess) {
+    return res;
+  }
+  res = defaultStream_->synchronize();
   return res;
 }
 

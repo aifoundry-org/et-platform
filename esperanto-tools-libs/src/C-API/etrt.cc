@@ -143,7 +143,7 @@ enum etrtError etrtMemset(void *devPtr, int value, size_t count) {
 
 enum etrtError etrtStreamSynchronize(Stream *stream) {
   GetDev dev;
-  return dev->streamSynchronize(stream);
+  return stream->synchronize();
 }
 
 enum etrtError etrtGetLastError(void) { return etrtSuccess; }
