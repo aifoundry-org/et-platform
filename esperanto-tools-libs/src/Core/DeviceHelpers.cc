@@ -22,13 +22,12 @@
 namespace et_runtime {
 
 template <class SetLogLevelCmd, class SetLogLevelRsp>
-static bool set_log_level_helper(Device &dev_,
+static bool set_log_level_helper(Device &dev,
                                  ::device_api::LOG_LEVELS log_level) {
-  auto &def_stream = dev_.defaultStream();
 
   auto log_level_cmd = std::make_shared<SetLogLevelCmd>(0, log_level);
 
-  dev_.addCommand(&def_stream, log_level_cmd);
+  dev.defaultStream().addCommand(log_level_cmd);
 
   auto response_future = log_level_cmd->getFuture();
   auto &response = response_future.get().response();

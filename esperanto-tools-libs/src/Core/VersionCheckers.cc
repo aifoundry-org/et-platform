@@ -43,7 +43,7 @@ uint64_t GitVersionChecker::deviceFWHash() {
       std::make_shared<device_api::devfw_commands::DeviceFwVersionCmd>(
           0, runtime_sw_commit_);
 
-  dev_.addCommand(&def_stream, devfw_cmd);
+  def_stream.addCommand(devfw_cmd);
 
   auto response_future = devfw_cmd->getFuture();
   auto &response = response_future.get().response();
@@ -60,14 +60,14 @@ bool DeviceAPIChecker::getDeviceAPIVersion() {
   if (deviceQueried_) {
     return true;
   }
-  auto &def_stream = dev_.defaultStream();
+
   auto devapi_cmd =
       std::make_shared<device_api::devfw_commands::DeviceApiVersionCmd>(
           0, ESPERANTO_DEVICE_API_VERSION_MAJOR,
           ESPERANTO_DEVICE_API_VERSION_MINOR,
           ESPERANTO_DEVICE_API_VERSION_PATCH, DEVICE_API_HASH);
 
-  dev_.addCommand(&def_stream, devapi_cmd);
+  dev_.defaultStream().addCommand(devapi_cmd);
 
   auto response_future = devapi_cmd->getFuture();
   auto &response = response_future.get().response();

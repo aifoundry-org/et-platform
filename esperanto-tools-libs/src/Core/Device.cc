@@ -1,3 +1,13 @@
+//******************************************************************************
+// Copyright (C) 2019, Esperanto Technologies Inc.
+// The copyright to the computer program(s) herein is the
+// property of Esperanto Technologies, Inc. All Rights Reserved.
+// The program(s) may be used and/or copied only with
+// the written permission of Esperanto Technologies and
+// in accordance with the terms and conditions stipulated in the
+// agreement/contract under which the program(s) have been supplied.
+//------------------------------------------------------------------------------
+
 #include "esperanto/runtime/Core/Device.h"
 
 #include "CodeManagement/CodeModule.h"
@@ -183,23 +193,9 @@ void Device::destroyEvent(Event *et_event) {
   stl_remove(event_storage_, et_event);
 }
 
-void Device::addCommand(
-    Stream *et_stream,
-    std::shared_ptr<et_runtime::device_api::CommandBase> et_action) {
-  // FIXME: all blocking streams can synchronize through EtActionEventWaiter
-  if (et_stream->isBlocking()) {
-    defaultStream_->addCommand(et_action);
-  } else {
-    et_stream->addCommand(et_action);
-  }
-  /// @todo the following should be removed once we move to a multi-threaded
-  /// setup
-  deviceExecute();
-}
-
 etrtError Device::streamSynchronize(Stream *stream) {
   auto event = std::make_shared<Event>();
-  addCommand(stream, std::dynamic_pointer_cast<device_api::CommandBase>(event));
+  stream->addCommand(std::dynamic_pointer_cast<device_api::CommandBase>(event));
   auto future = event->getFuture();
   auto response = future.get();
   return response.error();
@@ -207,9 +203,11 @@ etrtError Device::streamSynchronize(Stream *stream) {
 
 etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
                               enum etrtMemcpyKind kind, Stream *stream) {
-  Stream *et_stream;
+  Stream *et_stream = defaultStream_;
 
-  et_stream = stream;
+  if (stream != nullptr) {
+    et_stream = stream;
+  }
 
   if (kind == etrtMemcpyDefault) {
     // All addresses not in device address space count as host address even if
@@ -233,14 +231,12 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
 
   switch (kind) {
   case etrtMemcpyHostToDevice: {
-    addCommand(et_stream, std::shared_ptr<device_api::CommandBase>(
-                              new device_api::pcie_commands::WriteCommand(
-                                  dst, src, count)));
+    et_stream->addCommand(std::shared_ptr<device_api::CommandBase>(
+        new device_api::pcie_commands::WriteCommand(dst, src, count)));
   } break;
   case etrtMemcpyDeviceToHost: {
-    addCommand(et_stream, std::shared_ptr<device_api::CommandBase>(
-                              new device_api::pcie_commands::ReadCommand(
-                                  dst, src, count)));
+    et_stream->addCommand(std::shared_ptr<device_api::CommandBase>(
+        new device_api::pcie_commands::ReadCommand(dst, src, count)));
   } break;
   case etrtMemcpyDeviceToDevice: {
     abort();
@@ -276,7 +272,7 @@ etrtError Device::memcpyAsync(void *dst, const void *src, size_t count,
 etrtError Device::memcpy(void *dst, const void *src, size_t count,
                          enum etrtMemcpyKind kind) {
   etrtError res = memcpyAsync(dst, src, count, kind, 0);
-  streamSynchronize(0);
+  streamSynchronize(defaultStream_);
 
   return res;
 }

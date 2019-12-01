@@ -155,7 +155,7 @@ Kernel::KernelLaunch::KernelLaunch(const Kernel &kernel,
   TRACE_CodeManager_kernel_launch(kernel_.id(), kernel_.name(), args);
 }
 
-etrtError Kernel::KernelLaunch::launchBlocking(Device *dev, Stream *stream) {
+etrtError Kernel::KernelLaunch::launchBlocking(Stream *stream) {
   auto module_id = kernel_.moduleID();
   auto module = CodeRegistry::registry().getModule(module_id);
   assert(module != nullptr);
@@ -176,8 +176,7 @@ etrtError Kernel::KernelLaunch::launchBlocking(Device *dev, Stream *stream) {
   std::vector<uint8_t> args_buff(args_size);
   ::memcpy(&args_buff[0], &args_[0].value.layer_dynamic_info, args_size);
 
-  dev->addCommand(
-      stream,
+  stream->addCommand(
       std::shared_ptr<device_api::CommandBase>(new device_api::LaunchCommand(
           kernel_entry_point, args_buff, kernel_.name())));
 

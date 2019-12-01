@@ -97,8 +97,7 @@ bool Module::loadOnDevice(Device *dev) {
       auto write_command = make_shared<device_api::pcie_commands::WriteCommand>(
           (void *)write_address, elf_info_->data().data() + offset, mem_size);
 
-      dev->addCommand(
-          &dev->defaultStream(),
+      dev->defaultStream().addCommand(
           std::dynamic_pointer_cast<device_api::CommandBase>(write_command));
 
       auto response_future = write_command->getFuture();

@@ -63,9 +63,9 @@ UberKernel::UberKernelLaunch::UberKernelLaunch(
                                        arg_vals_);
 }
 
-etrtError UberKernel::UberKernelLaunch::launchBlocking(Device *dev,
-                                                       Stream *stream) {
+etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
 
+  Device *dev = &stream->dev();
   // Make sure that the ELF is on the device, if not load it
   auto module_id = kernel_.moduleID();
   auto module = CodeRegistry::registry().getModule(module_id);
@@ -109,8 +109,7 @@ etrtError UberKernel::UberKernelLaunch::launchBlocking(Device *dev,
   std::vector<uint8_t> args_buff(args_size);
   ::memcpy(&args_buff[0], &layer_info, sizeof(layer_info));
 
-  dev->addCommand(
-      stream,
+  stream->addCommand(
       std::shared_ptr<device_api::CommandBase>(new device_api::LaunchCommand(
           kernel_entry_point, args_buff, kernel_.name())));
 

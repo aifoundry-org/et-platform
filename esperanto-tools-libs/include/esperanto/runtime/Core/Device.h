@@ -42,6 +42,7 @@ class Device {
   friend class ::GetDev;
   friend class et_runtime::device::MemoryManager;
   friend class Module;
+  friend class Stream;
   // Friend class to enable unit-testing
   friend class ::DeviceFWTest;
 
@@ -160,11 +161,6 @@ public:
 
   /// FIXME SW-1291 this function should move the Stream Class
   Event *getEvent(Event *event);
-
-  /// FIXME SW-1291 this function should move the Stream Class
-  void
-  addCommand(Stream *et_stream,
-             std::shared_ptr<et_runtime::device_api::CommandBase> et_action);
 
   /// Memory initialization and manipulation on the device
   /// FIXME SW-1293

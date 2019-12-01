@@ -67,7 +67,7 @@ TEST_F(PCIEKernelLaunchTest, empty_kernel) {
   arg.value.layer_dynamic_info = layer_info;
   auto args = std::vector<Kernel::LaunchArg>({arg});
   auto launch = kernel.createKernelLaunch(args);
-  auto launch_res = launch->launchBlocking(dev_.get(), nullptr);
+  auto launch_res = launch->launchBlocking(&dev_->defaultStream());
   ASSERT_EQ(launch_res, etrtSuccess);
 }
 
@@ -99,7 +99,7 @@ TEST_F(PCIEKernelLaunchTest, beef_kernel) {
   arg.value.layer_dynamic_info = layer_info;
   auto args = std::vector<Kernel::LaunchArg>({arg});
   auto launch = kernel.createKernelLaunch(args);
-  auto launch_res = launch->launchBlocking(dev_.get(), nullptr);
+  auto launch_res = launch->launchBlocking(&dev_->defaultStream());
   ASSERT_EQ(launch_res, etrtSuccess);
 
   std::vector<uint64_t> data(array_size, 0xEEEEEEEEEEEEEEEEULL);

@@ -221,10 +221,16 @@ public:
   ErrorOr<Kernel> createKernel();
 
   bool isBlocking() { return is_blocking_; }
-  /// @brief Add a command to execute in the command Queue.
+
+  ///
+  /// @brief Add a command to execute in the command Queue of the stream
   void addCommand(std::shared_ptr<et_runtime::device_api::CommandBase> action);
+
+  ///
   /// @brief Return True iff the command queue is empty
   bool noCommands() const { return actions_.empty(); }
+
+  ///
   /// @brief Return pointer to the command in the front of the queue
   std::shared_ptr<et_runtime::device_api::CommandBase> frontCommand() {
     return actions_.front();

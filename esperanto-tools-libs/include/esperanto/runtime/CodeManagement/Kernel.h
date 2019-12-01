@@ -254,7 +254,7 @@ public:
     ///
     /// @param[in] stream  Stream to launch this kernel on
     /// @returns etrtSuccess or error describing the kernel launch status
-    etrtError launchBlocking(Device *dev, Stream *stream);
+    etrtError launchBlocking(Stream *stream);
 
     /// @brief Non blocking kernel launch
     /// FIXME SW-1382
