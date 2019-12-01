@@ -17,10 +17,4 @@ typedef struct {
     log_level_t log_level;
 } host_log_level_message_t;
 
-typedef struct {
-    mbox_message_id_t message_id;
-    uint64_t kernel_id;
-    mbox_response_id_t response_id;
-} devfw_response_t;
-
 #endif // HOST_MESSAGE_H

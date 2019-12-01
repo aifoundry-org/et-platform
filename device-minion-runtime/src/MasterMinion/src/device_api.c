@@ -101,6 +101,17 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
             log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Abort error " PRIi64 "\r\n", result);
         }
     }
+    else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_CMD)
+    {
+        log_write(LOG_LEVEL_INFO, "received kernel launch message fom host \r\n");
+
+#ifdef DEBUG_PRINT_HOST_MESSAGE
+        print_host_message(buffer, length);
+#endif
+
+        const struct kernel_launch_cmd_t* const cmd = (const void* const)buffer;
+        launch_kernel(cmd);
+    }
     else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_KERNEL_STATE_CMD)
     {
         const struct kernel_state_cmd_t* const cmd = (const void* const) buffer;

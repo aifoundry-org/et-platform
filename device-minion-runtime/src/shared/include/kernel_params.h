@@ -2,17 +2,15 @@
 #define KERNEL_PARAMS_H
 
 #include <stdint.h>
+#include <esperanto/device-api/device_api.h>
 
-typedef struct {
-    uint64_t tensor_a;
-    uint64_t tensor_b;
-    uint64_t tensor_c;
-    uint64_t tensor_d;
-    uint64_t tensor_e;
-    uint64_t tensor_f;
-    uint64_t tensor_g;
-    uint64_t tensor_h;
-    uint64_t kernel_id;
-} kernel_params_t;
+#ifdef __cplusplus
+// FIXME This header is still included by the runtime, remove the dependency
+// at some point
+using kernel_params_t = ::device_api::dev_api_kernel_params_t;
+#else
+// FIXME create an alias to avoid extensive modifications in the existing code-base
+typedef struct dev_api_kernel_params_t kernel_params_t;
+#endif
 
 #endif
