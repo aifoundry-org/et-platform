@@ -37,8 +37,7 @@ struct command_header_t {
                          /// sent to the device
     uint64_t host_timestamp; /// Timestamp on the host when the command as created. Used for performance
                              /// tracking
-    uint64_t device_timestamp; /// Timestamp on the device, when the command arrived. Used for performance
-                               /// tracking
+    uint64_t device_timestamp_mtime;  /// mtime arrival timestamp of the message. Used for performance tracking
     uint32_t stream_id; /// Unique ID idetntifying the host stream that issued the command, necessary
                         /// for routing the response back to the appropriate host stream
 };
@@ -48,7 +47,7 @@ struct response_header_t {
     mbox_message_id_t message_id; /// Type of the message
     struct command_header_t  command_info; /// Copy of the information of the original command
                                            /// this response corresponds to
-    uint64_t device_timestamp; /// Timestamp on the device, when the response is enqueued in the mailbox
+    uint64_t device_timestamp_mtime;  /// mtime departute timestamp of the message. Used for performance tracking
 };
 
 
