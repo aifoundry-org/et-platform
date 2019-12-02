@@ -51,9 +51,9 @@
      et_runtime::tracing::<<module['Name']>>_<<arg['Enum']>> val_<<arg['Name']>> = <<arg['Name']>>; \
        <%- elif cgh.is_proto_type(arg['Type']) %>
      auto val_<<arg['Name']>> = <<arg['Name']>>; \
-       <%- elif arg['Struct'] %>
+       <%- elif arg['Type'] == 'struct' %>
      auto val_<<arg['Name']>> = new et_runtime::tracing::<<module['Name']>>_<<arg['Struct']>>(); \
-       <% for f in cgh.get_struct(arg['Struct'])['Fields'] -%>
+       <% for f in cgh.get_struct(module['Name'] + "_" + arg['Struct'])['Fields'] -%>
      val_<<arg['Name']>>->set_<<f['Name']>>(<<arg['Name']>>.<<f['Name']>>); \
        <% endfor -%> \
        <%- else %>

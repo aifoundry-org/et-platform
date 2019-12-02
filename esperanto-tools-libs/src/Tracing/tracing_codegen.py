@@ -77,10 +77,12 @@ class CodeGeneratorHelper(object):
                 DevAPIMod['Structs'].append(
                     {
                         'Name': f'{mod["Name"]}_{struct["Name"]}',
-                        'Arguments': [
+                        'Fields': [
                             {
                                 'Name': f['Name'],
-                                'Type': self.cxx_to_proto_type(mod, f)
+                                'Type' : 'struct' if f['Type'] == 'struct' else 'enum' if f['Type'] == 'enum' else self.cxx_to_proto_type(mod, f),
+                                'Struct': self.cxx_to_proto_type(mod, f) if f['Type'] == 'struct' else "",
+                                'Enum': self.cxx_to_proto_type(mod, f) if f['Type'] == 'enum' else "",
                             }
                             for f in struct['Fields']
                         ]
