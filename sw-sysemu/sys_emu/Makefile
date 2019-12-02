@@ -86,7 +86,7 @@ $(sysemu_OBJDIR)/libsysemu.a: $(libsysemu_OBJS)
 $(libfpu_OBJDIR)/libfpu.a: force
 	$(MAKE) -C ../fpu libfpu_OBJDIR=$(abspath $(libfpu_OBJDIR)) DEBUG=$(DEBUG) all
 
-$(sysemu_OBJDIR)/obj/sys_emu/%.o: %.xml
+%.o: %.xml
 	$(SILENT)xxd -i $< | $(CC) -c -x c - -o $@
 
 sysemu-artifacts.tar.gz: $(sysemu_artifact_HDRS) $(sysemu_artifact_TGTS)
@@ -133,7 +133,10 @@ sysemu-artifacts/libsysemu.a: $(sysemu_OBJDIR)/libsysemu.a | $$(@D)/.
 sysemu-artifacts/sys_emu: $(sysemu_OBJDIR)/sys_emu | $$(@D)/.
 	cp -f $< $@
 
-gdb_target_csr.xml: ../csrs.h
+$(sysemu_OBJDIR)/obj/%.xml: ../%.xml | $$(@D)/.
+	cp -f $< $@
+
+$(sysemu_OBJDIR)/obj/sys_emu/gdb_target_csr.xml: ../csrs.h | $$(@D)/.
 	@echo "<?xml version=\"1.0\"?>" > $@
 	@echo "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">" >> $@
 	@echo "<feature name=\"org.gnu.gdb.riscv.csr\">" >> $@
