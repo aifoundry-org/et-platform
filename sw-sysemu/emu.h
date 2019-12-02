@@ -2,34 +2,8 @@
 #define _EMU_H
 
 #include <queue>
-#include <iomanip>
 
-#include "emu_casts.h"
-#include "emu_defines.h"
-#include "emu_gio.h"
-#include "fpu/fpu.h"
-#include "fpu/fpu_casts.h"
 #include "memory/main_memory.h"
-#include "rbox.h"
-#include "tbox_emu.h"
-#include "testLog.h"
-
-// Accelerators
-#if (EMU_TBOXES_PER_SHIRE > 1)
-extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
-#define GET_TBOX(shire_id, tbox_id) tbox[shire_id][tbox_id]
-#else
-extern TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
-#define GET_TBOX(shire_id, tbox_id) tbox[shire_id]
-#endif
-
-#if (EMU_RBOXES_PER_SHIRE > 1)
-extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
-#define GET_RBOX(shire_id, rbox_id) rbox[shire_id][rbox_id]
-#else
-extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
-#define GET_RBOX(shire_id, rbox_id) rbox[shire_id]
-#endif
 
 // Processor configuration
 extern unsigned current_thread;

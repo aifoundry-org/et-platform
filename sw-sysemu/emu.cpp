@@ -16,7 +16,6 @@
 #include "cache.h"
 #include "decode.h"
 #include "emu.h"
-#include "emu_casts.h"
 #include "emu_gio.h"
 #include "esrs.h"
 #include "fpu/fpu.h"
@@ -27,13 +26,11 @@
 #include "memop.h"
 #include "mmu.h"
 #include "processor.h"
-#include "rbox.h"
 #ifdef SYS_EMU
 #include "sys_emu.h"
 #include "mem_directory.h"
 #include "scp_directory.h"
 #endif
-#include "tbox_emu.h"
 #include "traps.h"
 #include "txs.h"
 #include "utility.h"
@@ -129,19 +126,6 @@ static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending
 static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes_tbox;
 static std::array<std::vector<msg_port_write_t>,EMU_NUM_SHIRES> msg_port_pending_writes_rbox;
 static bool msg_port_delayed_write = false;
-
-// Accelerators
-#if (EMU_TBOXES_PER_SHIRE > 1)
-TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
-#else
-TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
-#endif
-
-#if (EMU_RBOXES_PER_SHIRE > 1)
-RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
-#else
-RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
-#endif
 
 // FCC: these are special ESRs that look like CSRs
 std::array<std::array<uint16_t,2>,EMU_NUM_THREADS> fcc;

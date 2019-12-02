@@ -4,7 +4,6 @@ emu_hdrs := \
 	csrs.h \
 	decode.h \
 	emu.h \
-	emu_casts.h \
 	emu_defines.h \
 	emu_gio.h \
 	emu_memop.h \

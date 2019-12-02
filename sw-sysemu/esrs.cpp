@@ -4,6 +4,8 @@
 #include "emu_gio.h"
 #include "esrs.h"
 #include "processor.h"
+#include "rbox.h"
+#include "tbox_emu.h"
 #include "txs.h"
 #ifdef SYS_EMU
 #include "mem_directory.h"

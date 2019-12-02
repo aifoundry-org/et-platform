@@ -7,12 +7,16 @@
 #include "fpu/fpu_casts.h"
 #include "memop.h"
 #include "tbox_emu.h"
-#ifndef TBOX_MINION_SIM
-#include "emu.h"
-#endif
 
 #define min(a, b) (((a) <= (b)) ? (a) : (b))
 #define max(a, b) (((a) >= (b)) ? (a) : (b))
+
+// Accelerators
+#if (EMU_TBOXES_PER_SHIRE > 1)
+TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES][EMU_TBOXES_PER_SHIRE];
+#else
+TBOX::TBOXEmu tbox[EMU_NUM_COMPUTE_SHIRES];
+#endif
 
 const uint32_t TBOX::TBOXEmu::BYTES_PER_TEXEL_IN_MEMORY[] = {
     0,  // FORMAT_UNDEFINED
@@ -652,39 +656,39 @@ const TBOX::TBOXEmu::EncodeSRGBFP16 TBOX::TBOXEmu::SRGB2LINEAR_TABLE[256] =
     {{0, 0x00, 0xf, 0}}
 };
 
-uint16_t TBOX::TBOXEmu::cast_bytes_to_uint16(uint8_t *src)
+static inline uint16_t cast_bytes_to_uint16(uint8_t *src)
 {
     return uint16_t(src[0]) | (uint16_t(src[1]) << 8);
 }
 
-uint32_t TBOX::TBOXEmu::cast_bytes_to_uint24(uint8_t *src)
+static inline uint32_t cast_bytes_to_uint24(uint8_t *src)
 {
     return uint32_t(src[0]) | (uint32_t(src[1]) << 8) | (uint32_t(src[2]) << 16);
 }
 
-uint32_t TBOX::TBOXEmu::cast_bytes_to_uint32(uint8_t *src)
+static inline uint32_t cast_bytes_to_uint32(uint8_t *src)
 {
     return uint32_t(src[0]) | (uint32_t(src[1]) << 8) | (uint32_t(src[2]) << 16) | (uint32_t(src[3]) << 24);
 }
 
-uint64_t TBOX::TBOXEmu::cast_bytes_to_uint64(uint8_t *src)
+static inline uint64_t cast_bytes_to_uint64(uint8_t *src)
 {
     return (uint64_t(src[0]) <<  0) | (uint64_t(src[1]) <<  8) | (uint64_t(src[2]) << 16) | (uint64_t(src[3]) << 24)
          | (uint64_t(src[4]) << 32) | (uint64_t(src[5]) << 40) | (uint64_t(src[6]) << 48) | (uint64_t(src[7]) << 56);
 }
 
-float TBOX::TBOXEmu::cast_bytes_to_float(uint8_t *src)
+static inline float cast_bytes_to_float(uint8_t *src)
 {
     return fpu::FLT(cast_bytes_to_uint32(src));
 }
 
-void TBOX::TBOXEmu::memcpy_uint16(uint8_t *dst, uint16_t src)
+static inline void memcpy_uint16(uint8_t *dst, uint16_t src)
 {
     dst[0] = (src >>  0) & 0xff;
     dst[1] = (src >>  8) & 0xff;
 }
 
-void TBOX::TBOXEmu::memcpy_uint32(uint8_t *dst, uint32_t src)
+static inline void memcpy_uint32(uint8_t *dst, uint32_t src)
 {
     dst[0] = (src >>  0) & 0xff;
     dst[1] = (src >>  8) & 0xff;
@@ -692,7 +696,7 @@ void TBOX::TBOXEmu::memcpy_uint32(uint8_t *dst, uint32_t src)
     dst[3] = (src >> 24) & 0xff;
 }
 
-void TBOX::TBOXEmu::memcpy_uint64(uint8_t *dst, uint64_t src)
+static inline void memcpy_uint64(uint8_t *dst, uint64_t src)
 {
     dst[0] = (src >>  0) & 0xff;
     dst[1] = (src >>  8) & 0xff;
@@ -762,15 +766,15 @@ freg_t TBOX::TBOXEmu::get_request_results(uint32_t thread, uint32_t idx)
     return output[thread][idx];
 }
 
-/* 
-    This function return the TBOX results with packed channels 
+/*
+    This function return the TBOX results with packed channels
 */
 unsigned TBOX::TBOXEmu::get_request_results(uint32_t thread, freg_t* data)
 {
     if (thread >= EMU_NUM_THREADS)
         throw std::runtime_error("Thread id out-of-range");
 
-    
+
     unsigned out_channel = 0;
     bool channel_in_result = true; // Packing disabled
     for(unsigned channel = 0; channel < 4; channel++)
@@ -2455,9 +2459,9 @@ void TBOX::TBOXEmu::sample_pixel(SampleRequest currentRequest, freg_t input[], f
         aniso_count = aniso_count * 2;
         if (aniso_count == 0)
             LOG(WARN, "Aniso count is 0!! aniso_ratio = %f round(aniso_ratio) = %f", aniso_ratio, round(aniso_ratio));
-        
+
         aniso_weight = 1.0f / float(aniso_count);
-        
+
         LOG(DEBUG, "\taniso_count = %d aniso_weight = %f", aniso_count, aniso_weight);
 
     }
@@ -2606,7 +2610,7 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg
     {
         float u, v, w;
         uint32_t a;
-        
+
         /*
             aniso_sample: 0 1 2  3 4  5 6  7 8  9 10 11 12 13 14 15
             aniso_step:   0 0 1 -1 2 -2 3 -3 4 -4  5 -5  6 -6  7 -7
@@ -2637,7 +2641,7 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg
         else
             a = 0;
 
-        
+
         LOG(DEBUG, "%s", "\tSAMPLE operation (unnormalized coordinates)");
         switch (currentImage.info.type)
             {
@@ -2659,7 +2663,7 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg
                 LOG(DEBUG, "\tmip width %u mip height %u u %f v %f a %u", mip_width, mip_height, u, v, a);
                 break;
             }
-        
+
 
         if (filter == FILTER_TYPE_LINEAR)
         {
@@ -2737,7 +2741,7 @@ void TBOX::TBOXEmu::sample_bilinear(SampleRequest currentRequest, freg_t s, freg
             LOG(DEBUG, "\t\tBank = %d Tag = %" PRIx64 " Hit = %d", banks[0], tags[0], hit);
             for ( int i = 0; i< 4; i++) LOG(DEBUG, "\t\tAddress[%d] = %" PRIx64, i, address[0][i]);
             for ( int i = 0; i< 8;i++) LOG(DEBUG, "\t\tData[%d] = %" PRIx64, i, data[i]);;
-            
+
             read_texel(currentImage, i[0], j[0], data, texel_ul, output_result);
 #else
             read_texel(currentImage, i[0], j[0], k[0], l, sample_mip_level, texel_ul);
@@ -3612,7 +3616,7 @@ uint64_t TBOX::TBOXEmu::texel_virtual_address(ImageInfo currentImage, uint32_t i
         LOG(DEBUG, "\t\telement_pitch = %ld mip_pitch = %ld row_pitch = %ld",
                           currentImage.info.elementpitch, mip_pitch, row_pitch);
 
-        texelAddress = currentImage.info.address + 
+        texelAddress = currentImage.info.address +
                      + (currentImage.info.elementpitch * l + mip_pitch + j * row_pitch) * 64
                      + i * fmtBytesPerTexel;
     }
@@ -3849,7 +3853,7 @@ void TBOX::TBOXEmu::read_texel(ImageInfo currentImage, uint32_t i, uint32_t j,
         //  Get the actual texel after decompressing the compressed block.
         CompressedFormatInfo compInfo = getCompressedFormatInfoL1(fmt);
         fmt = compInfo.format;
-    
+
         // sRGB conversion from unorm8 to float16 already performed for the data in the cache.
         if (fmtIsSRGB)
             fmt = FORMAT_R16G16B16A16_SFLOAT;
@@ -4177,7 +4181,6 @@ void TBOX::TBOXEmu::print_sample_request(SampleRequest req)
                 fpu::FLT(fpu::f16_to_f32(fpu::F16(req.info.lodaniso.lodanisoq.lod[1]))));
             break;
     }
- 
 }
 
 void TBOX::TBOXEmu::print_image_info(ImageInfo in)

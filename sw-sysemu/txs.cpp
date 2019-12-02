@@ -6,9 +6,9 @@
 #include <string.h>
 
 #include "emu.h"
-#include "emu_casts.h"
 #include "emu_gio.h"
 #include "fpu/fpu.h"
+#include "fpu/fpu_casts.h"
 #include "memop.h"
 #include "rbox.h"
 #include "tbox_emu.h"
@@ -19,7 +19,7 @@ static TBOX::TBOXEmu tbox_emulator;
 void init_txs(uint64_t imgTableAddr)
 {
     LOG_NOTHREAD(DEBUG, "Setting Image Table Address = %016" PRIx64, imgTableAddr);
- 
+
     tbox_emulator.set_image_table_address(imgTableAddr);
 
     for (uint32_t t = 0; t < EMU_NUM_THREADS; t++)
@@ -71,14 +71,14 @@ void new_sample_request(uint32_t thread, uint32_t port_id, uint32_t number_packe
         tbox_id, number_packets, port_id, thread, base_address);
 
     uint64_t val[12];
-    
+
     /* Get data from port and send it to TBOX */
     for(unsigned i=0; i<number_packets*2; i++)
     {
         val[i] = bemu::pmemread<uint64_t>(base_address);
         base_address+=8; // 8 bytes
-    }    
-    
+    }
+
     GET_TBOX(shire_id, tbox_id).set_request_pending(thread, true);
 
     // Set header
@@ -96,7 +96,7 @@ void new_sample_request(uint32_t thread, uint32_t port_id, uint32_t number_packe
         LOG_NOTHREAD(DEBUG, "\t Set *%c* texture coordinates", coord_name[i]);
         for(uint32_t c = 0; c < VL_TBOX; c++)
         {
-            LOG_NOTHREAD(DEBUG, "\t[%d] 0x%08x (%f)", c, coordinates.u32[c], cast_uint32_to_float(coordinates.u32[c]));
+            LOG_NOTHREAD(DEBUG, "\t[%d] 0x%08x (%f)", c, coordinates.u32[c], fpu::FLT(coordinates.u32[c]));
         }
     }
 
@@ -109,7 +109,7 @@ void new_sample_request(uint32_t thread, uint32_t port_id, uint32_t number_packe
     freg_t data[4]; // Space for 4 channels
 
     unsigned num_channels = GET_TBOX(shire_id, tbox_id).get_request_results(thread, data);
-    
+
     for (uint32_t channel = 0; channel < num_channels; channel++)
     {
         LOG_NOTHREAD(DEBUG, "\t[Channel %d] 0x%08x 0x%08x 0x%08x 0x%08x <-", channel, data[channel].u32[0], data[channel].u32[1], data[channel].u32[2], data[channel].u32[3]);

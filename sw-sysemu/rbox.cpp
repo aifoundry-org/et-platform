@@ -8,6 +8,12 @@
 #include "memop.h"
 #include "rbox.h"
 
+#if (EMU_RBOXES_PER_SHIRE > 1)
+RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+#else
+RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
+#endif
+
 void RBOX::RBOXEmu::reset(uint32_t id)
 {
     rbox_id = id;

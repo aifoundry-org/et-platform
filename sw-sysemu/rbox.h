@@ -157,4 +157,12 @@ namespace RBOX
 
 } // namespace RBOX
 
+#if (EMU_RBOXES_PER_SHIRE > 1)
+extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES][EMU_RBOXES_PER_SHIRE];
+#define GET_RBOX(shire_id, rbox_id) rbox[shire_id][rbox_id]
+#else
+extern RBOX::RBOXEmu rbox[EMU_NUM_COMPUTE_SHIRES];
+#define GET_RBOX(shire_id, rbox_id) rbox[shire_id]
+#endif
+
 #endif // _RBOX_H
