@@ -30,6 +30,7 @@ macro(randomized_test)
   include_directories(include)
   include_directories(${SHARED_INC_DIRS})
   include_directories(${SHARED_KERNEL_INC_DIR})
+  include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
   foreach(TEST_ID RANGE ${RANDOMIZED_TEST_NUMBER_OF_TESTS})
 
     set(TEST_NAME "${RANDOMIZED_TEST_NAME}_${TEST_ID}")

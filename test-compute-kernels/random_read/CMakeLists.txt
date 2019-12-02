@@ -25,6 +25,7 @@ set(ZEBU_FILENAME memImage)
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
 include_directories(${SHARED_KERNEL_INC_DIR})
+include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
