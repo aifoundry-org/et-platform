@@ -10,6 +10,8 @@
 
 syntax = "proto3";
 
+import "google/protobuf/timestamp.proto";
+
 package et_runtime.tracing;
 
 <% for module in spec['Modules'] -%>
@@ -48,8 +50,10 @@ message << mname >>_<< union['Name'] >> {
 
   <% for function in functions %>
 message << mname >>_<< function['Name'] >> {
+   google.protobuf.Timestamp timestamp = 1;
+   uint64 tid = 2;
     <%- for arg in function['Arguments'] %>
-  <% if arg['Repeated'] %>repeated<% endif %> << cgh.proto_type(module, arg) >> << arg['Name']>>  = << loop.index >> ;
+  <% if arg['Repeated'] %>repeated<% endif %> << cgh.proto_type(module, arg) >> << arg['Name']>>  = << 2 + loop.index >> ;
     <%- endfor %>
 };
   <% endfor %>

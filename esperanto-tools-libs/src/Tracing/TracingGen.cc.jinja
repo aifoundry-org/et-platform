@@ -14,7 +14,10 @@
 #include "Tracing/TracingHelpers.h"
 #include "TracingCommonGen.h"
 #include "etrt-trace.pb.h"
+
+#include <sys/time.h>
 #include <memory>
+#include <thread>
 
 namespace et_runtime {
 namespace tracing {
@@ -45,6 +48,18 @@ bool PBRecord_<< mname >>_<< fname >>(<< cgh.get_cxx_function_arg_list(module, f
    auto message = std::make_unique<RuntimeTraceEntry>();
    message->set_type(MessageType::<< mname | upper >>_<< fname | upper >>);
    auto body = new << mname >>_<< fname >>();
+
+   // Set the timestamp
+   struct timeval tv;
+   gettimeofday(&tv, NULL);
+
+   auto bp_timestamp = body->mutable_timestamp();
+   bp_timestamp->set_seconds(tv.tv_sec);
+   bp_timestamp->set_nanos(tv.tv_usec * 1000);
+
+   std::hash<std::thread::id> hasher;
+   body->set_tid(hasher(std::this_thread::get_id()));
+
    <% for argument in function['Arguments'] %>
      <%- if argument['Type'] == "bytes" %>
    body->set_<<argument['Name']>>(<<argument['Name']>>.data(), <<argument['Name']>>.size());
