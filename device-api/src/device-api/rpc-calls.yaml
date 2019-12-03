@@ -164,6 +164,9 @@ Messages :
       - Name: kernel_info
         Type: struct
         Struct: dev_api_kernel_info_t
+      - Name: uber_kernel
+        Type: bool
+        Description: True if we are lauching an uber kernel.
   - Name: kernel_launch_rsp
     Description: Response and result of a kernel launch on the device
     Type: Response
