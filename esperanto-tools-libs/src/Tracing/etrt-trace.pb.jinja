@@ -14,6 +14,22 @@ import "google/protobuf/timestamp.proto";
 
 package et_runtime.tracing;
 
+message DeviceAPI_cmd_hdr {
+  uint64 command_id = 1;
+  uint64 host_timestamp = 2;
+  uint64 device_timestamp_mtime = 3;
+  uint32 stream_id = 4;
+};
+
+message DeviceAPI_rsp_hdr {
+  DeviceAPI_cmd_hdr cmd_hdr = 1;
+  uint64 device_timestamp_mtime = 2;
+};
+
+message DeviceAPI_event_hdr {
+  uint64 device_timestamp_mtime = 1;
+};
+
 <% for module in spec['Modules'] -%>
 
   <% set mname = module['Name'] -%>

@@ -41,11 +41,17 @@ namespace devfw_commands {
                      time.time_since_epoch()).count();
   cmd_info_.command_info.stream_id = stream_id;
 
+  auto cmd_hdr = new et_runtime::tracing::DeviceAPI_cmd_hdr();
+  cmd_hdr->set_command_id(command_id_);
+  cmd_hdr->set_host_timestamp(cmd_info_.command_info.host_timestamp);
+  cmd_hdr->set_stream_id(stream_id);
+
   <%- for f in msg['Fields'] %>
   cmd_info_.<< f['Name'] >> = << f['Name'] >>;
   <%- endfor %>
 
   TRACE_DeviceAPI_RPC_Calls_<<msg_name>>( \
+    cmd_hdr, \
     <% for f in msg['Fields'] -%>
       <%- if f['Type'] == 'enum' %>
     static_cast< et_runtime::tracing::DeviceAPI_RPC_Calls_<<f['Enum']>> >(static_cast<int64_t>(<< f['Name'] >>))

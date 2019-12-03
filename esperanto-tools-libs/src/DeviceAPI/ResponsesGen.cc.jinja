@@ -25,7 +25,16 @@ namespace devfw_responses {
 << class_name >>::<<class_name>>(const ::device_api::<<msg_name>>_t& msg):
    Response(msg)
 {
+  auto rsp = new et_runtime::tracing::DeviceAPI_rsp_hdr();
+  auto cmd_hdr = rsp->mutable_cmd_hdr();
+  cmd_hdr->set_command_id(msg.response_info.command_info.command_id);
+  cmd_hdr->set_host_timestamp(msg.response_info.command_info.host_timestamp);
+  cmd_hdr->set_device_timestamp_mtime(msg.response_info.command_info.device_timestamp_mtime);
+  cmd_hdr->set_stream_id(msg.response_info.command_info.stream_id);
+  rsp->set_device_timestamp_mtime(msg.response_info.device_timestamp_mtime);
+
   TRACE_DeviceAPI_RPC_Calls_<<msg_name>>( \
+    rsp,
     <% for f in msg['Fields'] -%>
       <%- if f['Type'] == 'enum' %>
     static_cast< et_runtime::tracing::DeviceAPI_RPC_Calls_<<f['Enum']>> >(static_cast<int64_t>(msg.<< f['Name'] >>))

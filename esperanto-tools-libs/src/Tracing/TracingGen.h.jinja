@@ -49,8 +49,10 @@
      auto val_<<arg['Name']>> = conv_vec< << arg['SrcType']>>, et_runtime::tracing::<<cgh.proto_to_cxx_type(module, arg)>> >(<<arg['Name']>>); \
        <%- elif arg['Enum'] %>
      et_runtime::tracing::<<module['Name']>>_<<arg['Enum']>> val_<<arg['Name']>> = <<arg['Name']>>; \
-       <%- elif cgh.is_proto_type(arg['Type']) %>
+
+       <%- elif cgh.is_proto_type(arg['Type']) or arg.get('PreInitialized', False) %>
      auto val_<<arg['Name']>> = <<arg['Name']>>; \
+
        <%- elif arg['Type'] == 'struct' %>
      auto val_<<arg['Name']>> = new et_runtime::tracing::<<module['Name']>>_<<arg['Struct']>>(); \
        <% for f in cgh.get_struct(module['Name'] + "_" + arg['Struct'])['Fields'] -%>

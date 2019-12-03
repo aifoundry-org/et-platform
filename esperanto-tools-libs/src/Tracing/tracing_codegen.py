@@ -95,12 +95,26 @@ class CodeGeneratorHelper(object):
             elif 'TraceEvents' in mod:
                 entries = mod.get('TraceEvents', [])
             for msg in entries:
+                if msg['Type'] == 'Command':
+                    field_name = 'cmd_hdr'
+                elif msg['Type'] == 'Response':
+                    field_name = 'rsp_hdr'
+                elif msg['Type'] == 'Event' or msg['Type'] == 'TraceEntry':
+                    field_name = 'event_hdr'
+                else:
+                     assert(False)
+                hdr = {
+                    'Name': field_name,
+                    'Type': 'struct',
+                    'Struct': field_name,
+                    'PreInitialized': True
+                }
                 DevAPIMod['Functions'].append(
                     {
                         'Name': f'{mod["Name"]}_{msg["Name"]}',
                         'EnableTextLogging': True,
                         'EnablePBLogging': True,
-                        'Arguments': [
+                        'Arguments': [ hdr ] + [
                             {
                                 'Name': f['Name'],
                                 'Type' : 'struct' if f['Type'] == 'struct' else 'enum' if f['Type'] == 'enum' else self.cxx_to_proto_type(mod, f),

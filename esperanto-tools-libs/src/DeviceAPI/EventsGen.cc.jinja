@@ -25,7 +25,11 @@ namespace devfw_events{
 << class_name >>::<<class_name>>(const ::device_api::<<msg_name>>_t& msg):
    Event(msg)
 {
+  auto event_hdr = new et_runtime::tracing::DeviceAPI_event_hdr();
+  event_hdr->set_device_timestamp_mtime(msg.event_info.device_timestamp_mtime);
+
   TRACE_DeviceAPI_RPC_Calls_<<msg_name>>( \
+    event_hdr, \
     <% for f in msg['Fields'] -%>
     msg.<< f['Name'] >> <% if not loop.last %>,<% endif %> \
     <% endfor -%>
