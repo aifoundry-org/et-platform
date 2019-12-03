@@ -54,7 +54,7 @@ struct response_header_t {
 /// @brief Common header for all event messages taht the device can send to the host
 struct event_header_t {
     mbox_message_id_t message_id; /// Type of the message
-    uint64_t device_timestamp; /// Timestamp on the device, when the response is enqueued in the mailbox
+    uint64_t device_timestamp_mtime; /// Timestamp on the device, when the response is enqueued in the mailbox
 };
 
 static inline mbox_message_id_t get_device_api_message_id(const void* msg) {

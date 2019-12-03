@@ -11,10 +11,12 @@
 Name: DeviceFWTracing
 TraceEvents:
   - Name: text_entry
+    Type: TraceEntry
     Fields:
       - Name: text
         Type: bytes
   - Name: kernel_launch
+    Type: TraceEntry
     Fields:
       - Name: tensor_a
         Type: uint64_t
@@ -33,6 +35,7 @@ TraceEvents:
       - Name: kernel_id
         Type: uint64_t
   - Name: kernel_finished
+    Type : TraceEntry
     Fields:
       - Name: status
         Type: uint64_t

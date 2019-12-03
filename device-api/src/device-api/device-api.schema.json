@@ -122,12 +122,16 @@
                     "type":"string"
                 },
                 "Description": { "type": "string"} ,
+                "Type" : {
+                    "type" : "string",
+                    "enum" : ["TraceEntry"]
+                },
                 "Fields": {
                     "type": "array",
                     "items": { "$ref": "#definitions/TraceRecordEntry" }
                 }
             },
-            "required" : ["Name", "Fields"]
+            "required" : ["Name", "Fields", "Type"]
         },
         "Module": {
             "type": "object",
