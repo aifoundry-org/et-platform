@@ -38,7 +38,7 @@ ETRT_OPT(etrt_trace, etrt-trace, std::string, std::string, "Path to runtime Prot
 
 // Sysemu Options
 ETRT_OPT(sysemu_log_enable, sysemu-log-enable, bool, bool, "Enable sysemu logging")
-ETRT_OPT(sysemu_log_minion, sysemu-log-minion, int64_t, int64_t, "Enable sysemu logging for minion X")
+ETRT_OPT(sysemu_log_minion, sysemu-log-minion, int, int, "Enable sysemu logging for a specific minion. Depends on sysemu_log_enable.")
 ETRT_OPT(sysemu_pu_uart_tx_file, sysemu-pu-uart-tx-file, std::string, std::string, "Set sysemu PU UART TX log file")
 ETRT_OPT(sysemu_pu_uart1_tx_file, sysemu-pu-uart1-tx-file, std::string, std::string, "Set sysemu PU UART1 TX log file")
 

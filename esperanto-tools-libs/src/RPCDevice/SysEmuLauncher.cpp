@@ -27,7 +27,7 @@
 using namespace std;
 
 ABSL_FLAG(bool, sysemu_log_enable, false, "Enable sysemu logging");
-ABSL_FLAG(int64_t, sysemu_log_minion, -1, "Enable logging of minion X");
+ABSL_FLAG(int, sysemu_log_minion, -1, "Enable logging of minion X");
 ABSL_FLAG(std::string, sysemu_pu_uart_tx_file, "",
           "Set sysemu PU UART TX log file");
 ABSL_FLAG(std::string, sysemu_pu_uart1_tx_file, "",
@@ -59,14 +59,15 @@ SysEmuLauncher::SysEmuLauncher(
   if (absl::GetFlag(FLAGS_fw_type).type == "device-fw") {
     execute_args_.push_back("-sim_api_async");
   }
+
   if (absl::GetFlag(FLAGS_sysemu_log_enable)) {
     execute_args_.push_back("-l");
+    if (auto minion = absl::GetFlag(FLAGS_sysemu_log_minion); minion != -1) {
+        execute_args_.push_back("-lm");
+        execute_args_.push_back(fmt::format("{}", minion));
+    }
   }
-  if (auto mx = absl::GetFlag(FLAGS_sysemu_log_minion); mx > 0) {
-    execute_args_.push_back("-l");
-    execute_args_.push_back("-lm");
-    execute_args_.push_back(fmt::format("{}", mx));
-  }
+
   if (auto file = absl::GetFlag(FLAGS_sysemu_pu_uart_tx_file); !file.empty()) {
     execute_args_.push_back("-pu_uart_tx_file");
     execute_args_.push_back(file);
