@@ -6,6 +6,7 @@
 #include <type_traits>
 #include <climits>
 
+#include "cache.h"
 #include "decode.h"
 #include "emu_gio.h"
 #include "esrs.h"
@@ -1090,20 +1091,15 @@ uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
 //
 //------------------------------------------------------------------------------
 
-bool mmu_check_cacheop_access(uint64_t paddr)
+bool mmu_check_cacheop_access(uint64_t paddr, cacheop_type cop)
 {
-    bool spio = (current_thread / EMU_THREADS_PER_SHIRE) == EMU_IO_SHIRE_SP;
-
-    if (paddr_is_scratchpad(paddr))
-        return true;
-
-    if (paddr_is_dram_mbox(paddr))
-        return effective_execution_mode(Mem_Access_CacheOp) == PRV_M;
-
-    if (paddr_is_dram_osbox(paddr)) {
-        uint8_t mprot = bemu::neigh_esrs[current_thread/EMU_THREADS_PER_NEIGH].mprot;
-        return spio || (~mprot & MPROT_DISABLE_OSBOX_ACCESS);
+    try {
+        uint64_t addr = paddr & ~(L1D_LINE_SIZE-1ull);
+        (void) pma_check_data_access(addr, addr,  L1D_LINE_SIZE,
+                                     Mem_Access_CacheOp, mreg_t(-1), cop);
     }
-
-    return (spio && paddr_is_sp_cacheable(paddr)) || paddr_is_dram(paddr);
+    catch (const trap_store_access_fault&) {
+        return false;
+    }
+    return true;
 }

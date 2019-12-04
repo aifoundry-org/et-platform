@@ -2128,7 +2128,7 @@ static void dcache_prefetch_vaddr(uint64_t val)
 
 static void dcache_lock_paddr(int way, uint64_t paddr)
 {
-    if (!mmu_check_cacheop_access(paddr))
+    if (!mmu_check_cacheop_access(paddr, CacheOp_Lock))
     {
         LOG(DEBUG, "\tLockSW: 0x%016" PRIx64 ", Way: %d access fault", paddr, way);
         update_tensor_error(1 << 7);

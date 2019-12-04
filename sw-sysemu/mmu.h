@@ -7,6 +7,7 @@
 #include <functional>
 
 #include "state.h"
+#include "emu_defines.h"
 
 //namespace bemu {
 
@@ -66,7 +67,7 @@ uint64_t mmu_local_compare_exchange64(uint64_t eaddr, uint64_t expected,
 
 
 // Cache-management
-bool mmu_check_cacheop_access(uint64_t paddr);
+bool mmu_check_cacheop_access(uint64_t paddr, cacheop_type cop);
 
 
 //} // namespace bemu
