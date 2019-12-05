@@ -11,7 +11,10 @@
 #ifndef ERROR_TYPES_H_
 #define ERROR_TYPES_H_
 
+/// @file
+
 /**
+ * @enum etrtError
  * @brief ET Runtime error types
  *
  * Most calls to the ET Runtime API return a value of this type.

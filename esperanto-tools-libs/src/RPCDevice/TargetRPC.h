@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_DEVICE_RPC_H
 #define ET_RUNTIME_DEVICE_RPC_H
 
+/// @file
+
 #include "esperanto/runtime/Core/DeviceTarget.h"
 
 #include "Core/DeviceFwTypes.h"
@@ -35,6 +37,7 @@ using simulator_api::SimAPI;
 namespace et_runtime {
 namespace device {
 
+/// @class RPCTarget
 class RPCTarget : public DeviceTarget {
 public:
   RPCTarget(int index, const std::string &str);

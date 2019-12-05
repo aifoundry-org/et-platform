@@ -13,6 +13,8 @@
 
 #include "esperanto/runtime/Core/DeviceTarget.h"
 
+/// @file
+
 #include "BulkDev.h"
 #include "MailBoxDev.h"
 
@@ -22,6 +24,7 @@
 namespace et_runtime {
 namespace device {
 
+/// @class PCIeDevice
 class PCIeDevice final : public DeviceTarget {
 public:
   PCIeDevice(int index);

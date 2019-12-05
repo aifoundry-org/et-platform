@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_DEVICE_MANAGER_H
 #define ET_RUNTIME_DEVICE_MANAGER_H
 
+/// @file
+
 #include "esperanto/runtime/Core/DeviceInformation.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 
@@ -24,7 +26,8 @@ namespace et_runtime {
 class Device;
 class DeviceInformation;
 
-/// \brief Esperanto Device Manager class.
+/// @class DeviceManager
+/// @brief Esperanto Device Manager class.
 ///
 /// The Device Manager is the entrypoint class to the rest of the system.
 /// It provides the functionality to enumerate the devices, report their

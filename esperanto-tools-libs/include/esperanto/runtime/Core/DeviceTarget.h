@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_DEVICE_TARGET_H
 #define ET_RUNTIME_DEVICE_TARGET_H
 
+/// @file
+
 #include "esperanto/runtime/Core/DeviceInformation.h"
 #include "esperanto/runtime/Support/TimeHelpers.h"
 
@@ -37,6 +39,8 @@ typedef struct {
     uint64_t kernel_id;    // Id for this Kernel
 } layer_dynamic_info;
 
+
+/// @class DeviceTarget
 /// @brief Abtract class describing the interface to talk to different targets
 ///
 /// The runtime can talk to a number of underlying device targers beyond the

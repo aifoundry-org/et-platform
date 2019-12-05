@@ -24,6 +24,8 @@
 #ifndef ET_RUNTIME_ERROR_OR_H
 #define ET_RUNTIME_ERROR_OR_H
 
+// @file
+
 #include "esperanto/runtime/Support/RuntimeErrors.h"
 
 #include <cassert>
@@ -33,6 +35,7 @@
 
 namespace et_runtime {
 
+/// @class ErrorOr
 /// Represents either an error or a value T.
 ///
 /// ErrorOr<T> is a pointer-like class that represents the result of an
@@ -61,7 +64,7 @@ namespace et_runtime {
 /// there is special handling to make operator -> work as if T was not a
 /// reference.
 ///
-/// T cannot be a rvalue reference.
+/// @tparam T:  T cannot be a rvalue reference.
 template <class T> class ErrorOr {
   template <class OtherT> friend class ErrorOr;
 

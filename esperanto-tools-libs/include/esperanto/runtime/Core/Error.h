@@ -11,10 +11,13 @@
 #ifndef ET_RUNTIME_ERROR_H
 #define ET_RUNTIME_ERROR_H
 
+/// @file
+
 #include "esperanto/runtime/Common/ErrorTypes.h"
 
 namespace et_runtime {
 
+/// @class Error
 class Error {
 public:
   ///

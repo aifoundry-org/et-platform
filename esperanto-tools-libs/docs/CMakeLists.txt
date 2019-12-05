@@ -38,15 +38,7 @@ configure_file(
     "${CMAKE_CURRENT_BINARY_DIR}/conf.py"
     @ONLY)
 
-set(DOC_FILES
-  CodeManagement.rst
-  DeviceAPI.rst
-  Tracing.rst
-  MemoryManagement.rst
-  StreamManagement.rst
-  index.rst
-  contents.rst
-  )
+file(GLOB_RECURSE DOC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} *.rst)
 
 set(TRACING_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../src/Tracing)
 

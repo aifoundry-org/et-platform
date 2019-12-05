@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_DEVICE_SYSEMU_H
 #define ET_RUNTIME_DEVICE_SYSEMU_H
 
+/// @file
+
 #include "RPCDevice/TargetRPC.h"
 
 #include "RPCDevice/SysEmuLauncher.h"
@@ -25,6 +27,7 @@ namespace device {
 
 class SysEmuLauncher;
 
+/// @class TargetSysEmu
 class TargetSysEmu final : public RPCTarget {
 public:
   TargetSysEmu(int index);
