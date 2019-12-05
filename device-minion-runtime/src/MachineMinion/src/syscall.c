@@ -7,6 +7,7 @@
 #include "flb.h"
 #include "hal_device.h"
 #include "hart.h"
+#include "layout.h"
 #include "printf.h"
 
 #include <stdint.h>
@@ -183,6 +184,7 @@ static int64_t pre_kernel_setup(uint64_t arg1)
 static int64_t post_kernel_cleanup(void)
 {
     bool result;
+    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
 
     // Thread 0 in each minion evicts L1
     if (get_thread_id() == 0)
@@ -191,7 +193,7 @@ static int64_t post_kernel_cleanup(void)
     }
 
     // Wait for all L1 evicts to complete before evicting L2
-    WAIT_FLB(64, 30, result);
+    WAIT_FLB(thread_count, 30, result);
 
     // Last thread in shire to join barrier evicts L2
     // A full L2 evict includes flushing the coalescing buffer

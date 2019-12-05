@@ -168,11 +168,14 @@ int64_t launch_kernel(const uint64_t* const kernel_entry_addr,
 
 static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __attribute__((unused)) const grid_config_t* const grid_config_ptr)
 {
+    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
+
     // arg1 = 0 to enable all thread 1s
     syscall(SYSCALL_PRE_KERNEL_SETUP, 0, 0, 0);
 
     // Second HART (first minion thread 1) in the shire
     // Thread 0s have more init to do than thread 1s, so use a thread 1 for per-shire init
+    // TODO: Change condition to properly support sync-minions
     if (get_hart_id() % 64U == 1U)
     {
         // Init all FLBs except reserved FLBs 28-31
@@ -255,7 +258,7 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
 
     bool result;
 
-    WAIT_FLB(64, 28, result);
+    WAIT_FLB(thread_count, 28, result);
 
     // Last thread to join barrier sends ready FCC1 to master shire sync thread
     if (result)
@@ -289,6 +292,8 @@ static void log_errors(int64_t return_value, uint64_t tensor_error)
 static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
 {
     bool result;
+    const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
+    const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
 
     // All accesses to kernel_params must happen before SYSCALL_POST_KERNEL_CLEANUP
     // evicts all the caches to avoid pulling it back in as a valid line
@@ -312,13 +317,13 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     // Empty FCC0
     init_fcc(FCC_0);
 
-    WAIT_FLB(64, 29, result);
+    WAIT_FLB(thread_count, 29, result);
 
     if (result)
     {
         // Last thread to join barrier sends FCC0 to all HARTs in this shire
-        SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, 0xFFFFFFFFU);
-        SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, 0xFFFFFFFFU);
+        SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
+        SEND_FCC(THIS_SHIRE, THREAD_1, FCC_0, minion_mask);
     }
 
     // Wait until all HARTs are synchronized in post_kernel_cleanup before
@@ -327,7 +332,7 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
 
     syscall(SYSCALL_POST_KERNEL_CLEANUP, 0, 0, 0);
 
-    WAIT_FLB(64, 31, result);
+    WAIT_FLB(thread_count, 31, result);
 
     // Last thread to join barrier sends done FCC1 to master shire sync thread
     if (result)

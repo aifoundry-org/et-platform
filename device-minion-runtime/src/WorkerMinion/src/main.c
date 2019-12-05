@@ -31,6 +31,7 @@ void __attribute__((noreturn)) main(void)
     const uint64_t shire_id = get_shire_id();
     const uint64_t hart_id = get_hart_id();
     const uint64_t shire_mask = 1ULL << shire_id;
+    const uint32_t thread_count = (shire_id == MASTER_SHIRE) ? 32 : 64;
 
     message_init_worker(shire_id, hart_id);
 
@@ -40,8 +41,9 @@ void __attribute__((noreturn)) main(void)
         "csrsi sstatus, 0x2 \n" // Enable interrupts
     );
 
-    // First HART in the shire
-    if (hart_id % 64U == 0U)
+    // First HART in the shire. In case of sync-minions of Master shire,
+    // this syscall is performed by the MasterMinion code
+    if ((shire_id != MASTER_SHIRE) && (hart_id % 64U == 0U))
     {
         // Enable all thread1s so they can run BIST, master can communicate with them, etc.
         syscall(SYSCALL_ENABLE_THREAD1, 0, 0, 0);
@@ -53,7 +55,7 @@ void __attribute__((noreturn)) main(void)
 
     // TODO run BIST
 
-    WAIT_FLB(64, 31, result);
+    WAIT_FLB(thread_count, 31, result);
 
     // Last thread to join barrier sends ready message to master
     if (result)
