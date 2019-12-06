@@ -10,6 +10,7 @@
 
 #include "MailBoxDev.h"
 
+#include "Tracing/Tracing.h"
 #include "esperanto/runtime/Support/Logging.h"
 
 #include <cassert>
@@ -46,14 +47,17 @@ bool MailBoxDev::ready(TimeDuration wait_time) {
     }
     RTDEBUG << "MailBox: Ready Value: " << ready << "\n";
     if (ready) {
+      TRACE_PCIeDevice_mailbox_ready(true);
       return true;
     }
     std::this_thread::sleep_for(polling_interval);
     if (end < Clock::now()) {
       RTERROR << "Mailbox not ready in time \n";
+      TRACE_PCIeDevice_mailbox_ready(false);
       return false;
     }
   }
+  TRACE_PCIeDevice_mailbox_ready((bool)ready);
   return (bool)ready;
 }
 
@@ -66,7 +70,7 @@ bool MailBoxDev::reset() {
     RTERROR << "Failed to g \n";
     std::terminate();
   }
-  RTDEBUG << "MailBox: Reset done \n";
+  TRACE_PCIeDevice_mailbox_reset();
   return true;
 }
 
@@ -84,9 +88,10 @@ ssize_t MailBoxDev::queryMboxMaxMsgSize() {
 
 bool MailBoxDev::write(const void *data, ssize_t size) {
   // FIXME currently we do not take into consideration the maximum mailbox size
-  RTDEBUG << "Mailbox Write, size: " << size << "\n";
+  TRACE_PCIeDevice_mailbox_write_start((uint64_t)data, size);
   auto write_size = ::write(fd_, data, size);
   assert(write_size == size);
+  TRACE_PCIeDevice_mailbox_write_end();
   return true;
 }
 
@@ -96,6 +101,7 @@ ssize_t MailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
   // FIXME random polling interval
   static const TimeDuration polling_interval = std::chrono::seconds(1);
   ssize_t mb_read = 0;
+  TRACE_PCIeDevice_mailbox_read_start((uint64_t)data, size);
   while (mb_read == 0) {
     mb_read = ::read(fd_, data, size);
     std::this_thread::sleep_for(polling_interval);
@@ -103,8 +109,7 @@ ssize_t MailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
       break;
     }
   }
-
-  RTDEBUG << "Mailbox READ, size: " << mb_read << "\n";
+  TRACE_PCIeDevice_mailbox_read_end(mb_read);
   return mb_read;
 }
 

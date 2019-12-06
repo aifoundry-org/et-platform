@@ -12,6 +12,7 @@
 
 #include "Core/DeviceFwTypes.h"
 #include "TargetRPC.h"
+#include "Tracing/Tracing.h"
 #include "esperanto/runtime/Support/Logging.h"
 
 #include <cassert>
@@ -176,14 +177,14 @@ bool EmuMailBoxDev::mboxReady() {
   case device_fw::MBOX_STATUS_READY:
     if (slave_status_ != device_fw::MBOX_STATUS_READY &&
         slave_status_ != device_fw::MBOX_STATUS_WAITING) {
-      RTDEBUG << "Received master ready, going slave ready \n";
+      TRACE_RPCDevice_mbox_master_ready_slave_ready();
       slave_status_ = device_fw::MBOX_STATUS_READY;
     }
     break;
   case device_fw::MBOX_STATUS_WAITING:
     if (slave_status_ != device_fw::MBOX_STATUS_READY &&
         slave_status_ != device_fw::MBOX_STATUS_WAITING) {
-      RTDEBUG << "Received master waiting, going slave ready \n";
+      TRACE_RPCDevice_mbox_master_waiting_slave_ready();
       slave_status_ = device_fw::MBOX_STATUS_READY;
     }
     break;
@@ -200,7 +201,7 @@ bool EmuMailBoxDev::mboxReady() {
 }
 
 bool EmuMailBoxDev::mboxReset() {
-  RTDEBUG << "Reset Mailbox \n";
+  TRACE_RPCDevice_mbox_reset();
   // first update status the status from the remote
   auto res = readRemoteStatus();
   assert(res);
@@ -224,7 +225,8 @@ bool EmuMailBoxDev::mboxReset() {
 }
 
 bool EmuMailBoxDev::write(const void *data, ssize_t size) {
-  RTDEBUG << "Mailbox Write, size: " << size << "\n";
+
+  TRACE_RPCDevice_write(size);
 
   const device_fw::mbox_header_t header = {.length = (uint16_t)size,
                                            .magic = MBOX_MAGIC};
@@ -269,7 +271,8 @@ bool EmuMailBoxDev::write(const void *data, ssize_t size) {
 }
 
 ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
-  RTDEBUG << "Mailbox READ, req buf size: " << size << " \n";
+  TRACE_RPCDevice_read(size);
+
   // read the mailbox from the simulator currently is not blocking like in the
   // pcie driver
   auto received = waitForHostInterrupt(wait_time);

@@ -12,4 +12,6 @@ Modules:
   - !include code-manager.yaml
   - !include mem-manager.yaml
   - !include device.yaml
+  - !include pcie-device.yaml
+  - !include rpc-device.yaml
 DeviceAPI: !include @ESPERANTO_DEVICE_API_LIB_DIR@/esperanto/device-api/schema/device-api.yaml

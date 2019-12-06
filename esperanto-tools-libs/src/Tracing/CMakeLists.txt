@@ -10,13 +10,8 @@
 
 set(TRACING_PB ${CMAKE_CURRENT_BINARY_DIR}/etrt-trace)
 
-set(SCHEMA_SRC_FILES
-     Schema/etrt-trace.yaml
-     Schema/code-manager.yaml
-     Schema/mem-manager.yaml
-     Schema/device.yaml
-     Schema/tracing-spec.schema.json
-     )
+file(GLOB_RECURSE SCHEMA_SRC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} Schema/*.yaml)
+list(APPEND SCHEMA_SRC_FILES  Schema/tracing-spec.schema.json)
 
 set(SCHEMA_FILES "")
 
