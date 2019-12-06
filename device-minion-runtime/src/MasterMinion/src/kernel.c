@@ -14,6 +14,8 @@
 #include "shire.h"
 #include "syscall.h"
 
+#include <esperanto/device-api/device_api.h>
+
 //#define DEBUG_PRINT_KERNEL_INSTRUCTIONS
 
 typedef struct
@@ -280,14 +282,9 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
 
 // Sends an abort message to all HARTs in all shires associated with the kernel_id if
 // the kernel is running
-void abort_kernel(kernel_id_t kernel_id)
+dev_api_kernel_abort_response_result_e abort_kernel(kernel_id_t kernel_id)
 {
     const kernel_state_t kernel_state = kernel_status[kernel_id].kernel_state;
-
-    devfw_response_t response = {
-        .message_id = MBOX_MESSAGE_ID_KERNEL_ABORT_RESPONSE,
-        .kernel_id = kernel_id,
-        .response_id = MBOX_KERNEL_ABORT_RESPONSE_RESULT_ERROR};
 
     if ((kernel_state == KERNEL_STATE_LAUNCHED) || (kernel_state == KERNEL_STATE_RUNNING) || (kernel_state == KERNEL_STATE_ERROR))
     {
@@ -298,15 +295,11 @@ void abort_kernel(kernel_id_t kernel_id)
             log_write(LOG_LEVEL_INFO, "abort_kernel: aborted kernel %d\r\n", kernel_id);
             update_kernel_state(kernel_id, KERNEL_STATE_ABORTED);
 
-            response.response_id = MBOX_KERNEL_ABORT_RESPONSE_RESULT_OK;
-
-            MBOX_send(MBOX_PCIE, &response, sizeof(response));
-
-            return;
+            return DEV_API_KERNEL_ABORT_RESPONSE_RESULT_OK;
         }
     }
 
-    MBOX_send(MBOX_PCIE, &response, sizeof(response));
+    return DEV_API_KERNEL_ABORT_RESPONSE_RESULT_ERROR;
 }
 
 kernel_state_t get_kernel_state(kernel_id_t kernel_id)
