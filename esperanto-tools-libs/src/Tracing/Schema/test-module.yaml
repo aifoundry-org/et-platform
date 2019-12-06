@@ -8,11 +8,26 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-Modules:
-  - !include code-manager.yaml
-  - !include mem-manager.yaml
-  - !include device.yaml
-  - !include pcie-device.yaml
-  - !include rpc-device.yaml
-  - !include test-module.yaml
-DeviceAPI: !include @ESPERANTO_DEVICE_API_LIB_DIR@/esperanto/device-api/schema/device-api.yaml
+Name: Test
+EnablePBLogging : True
+EnableTextLogging: True
+DefaultON : True
+Functions :
+  - Name: string
+    Type: Marker
+    Description: Record a string value
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: string_value
+        Type : string
+  - Name: bytes
+    Type: Marker
+    Description: Record bytes
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: bytes_value
+        Type : bytes

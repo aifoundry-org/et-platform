@@ -15,6 +15,7 @@ include_directories(${GTEST_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
 include_directories(${EXTERNAL_INCLUDE_DIRECTORIES})
 
 link_directories(${GTEST_DIR}/lib64
@@ -121,6 +122,7 @@ set(TEST_LIST
   test_device_manager.cc:""
   test_device_target_sysemu_grpc.cc:""
   test_elf_parsing.cc:""
+  test_tracing.cc:""
   test_memory_manager.cc:""
   test_module_load.cc:"${DEV_FW_ARGS}"
   test_module_manager.cc:"${DEV_FW_ARGS}"
