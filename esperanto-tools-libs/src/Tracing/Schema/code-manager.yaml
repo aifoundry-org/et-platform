@@ -86,6 +86,8 @@ Unions:
         Struct: layer_dynamic_info_t
 Functions :
   - Name: create_kernel
+    Type: Snapshot
+    Description: Snapshot inserted when a new kenrel is registered with the runtime.
     EnablePBLogging : True
     EnableTextLogging: True
     DefaultON : True
@@ -100,6 +102,8 @@ Functions :
         Repeated : True
         SrcType: et_runtime::Kernel::ArgType
   - Name: kernel_launch
+    Type: Snapshot
+    Description: Snapshot insderted when a kernel launch object is created.
     EnablePBLogging : True
     EnableTextLogging: True
     DefaultON : True
@@ -114,6 +118,8 @@ Functions :
         Repeated : True
         SrcType : et_runtime::Kernel::LaunchArg
   - Name: create_uber_kernel
+    Type: Snapshot
+    Description: Snapshot inserted when an UberKernel is created.
     EnablePBLogging : True
     EnableTextLogging: True
     DefaultON : True
@@ -123,6 +129,8 @@ Functions :
       - Name: name
         Type : string
   - Name: uber_kernel_launch
+    Type: Snapshot
+    Description: Snapshot inserted when an UberKernel launch object gets created
     EnablePBLogging : True
     EnableTextLogging: True
     DefaultON : True

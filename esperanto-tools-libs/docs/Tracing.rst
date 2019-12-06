@@ -66,12 +66,52 @@ How to add a new function
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A function in turn can be added to the list of functions specified in the module.
+
+The intent is that the function can easily map to the `Chrome Tracing Event <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>`_ specification so that we can visualize
+the latency/performance overhead etc.
+
+Out of the plethora of events that Chrome can support our goal is to currently support:
+
+* Duration events: we are expressing start/stop events in our tracing schema.
+* Complete events: Currently are not supported, and probably will not be
+* Instant/Marker events: They are supported in the form of our Marker Events
+* Counter events: Not currently supported, but should be added as part of SW-1483
+* Async events: We have not found a mapping of those events in our usecase, we could map DeviceAPI events if
+  need be.
+* Flow events: No mapping in our usecase
+* Object Events: Could be potentially be used for keeping the lifetime of memory objects in our system, TODO
+
+
 The schema for the function is specified above and it contains:
 
 * The function's name.
 
+* Type of and function that can be one of: Start, Stop, Marker, Info
+
+  The mapping between our events and "Chrome Tracing Events" is:
+
+  +----------------+-------+
+  |RT Events       | CTE   |
+  +================+=======+
+  | Start          |  B    |
+  +----------------+-------+
+  | Stop           |  E    |
+  +----------------+-------+
+  | Marker         |  R    |
+  +----------------+-------+
+  | ObjectCreate   |  N    |
+  +----------------+-------+
+  | ObjectDestroy  |  D    |
+  +----------------+-------+
+  | Snapshot       |  S    |
+  +----------------+-------+
+
+
 * A number of options similar to the module's for controlling the generated tracing/logging and if it is on
   by default. A function's options supercsede those of the module.
+
+  * EnablePBLogging: Enable/disable protobuf logging. True by default
+  * EnableTextLogging: Enable/Disable test logging. True by default
 
 * A list of arguments, where we speficy:
 

@@ -14,6 +14,8 @@ EnableTextLogging: True
 DefaultON : True
 Functions :
   - Name: malloc
+    Type: ObjectCreate
+    Description: Object created when a malloc call is called and we record the allocated memory pointer
     EnablePBLogging : True
     EnableTextLogging: True
     DefaultON : True
@@ -29,3 +31,14 @@ Functions :
         Required: True
         Deprecated: False
   - Name: free
+    Type: ObjectDestroy
+    Description: Object destroyed, deallocate a tesnor on the device
+    EnablePBLogging : True
+    EnableTextLogging: True
+    DefaultON : True
+    Arguments:
+      - Name: pointer
+        Output : True
+        Type: uint64
+        Required: True
+        Deprecated: False

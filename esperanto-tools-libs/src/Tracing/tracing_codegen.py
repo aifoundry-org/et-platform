@@ -109,9 +109,17 @@ class CodeGeneratorHelper(object):
                     'Struct': field_name,
                     'PreInitialized': True
                 }
+                MsgType = {
+                    "Command": "Start",
+                    "Response": "Stop",
+                    "Event": "Marker",
+                    "TraceEntry": "Marker",
+                    }
                 DevAPIMod['Functions'].append(
                     {
                         'Name': f'{mod["Name"]}_{msg["Name"]}',
+                        'Type': MsgType[msg['Type']],
+                        'Description': msg.get('Description', ""),
                         'EnableTextLogging': True,
                         'EnablePBLogging': True,
                         'Arguments': [ hdr ] + [

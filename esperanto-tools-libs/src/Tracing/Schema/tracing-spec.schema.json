@@ -110,7 +110,15 @@
                 "Name": {
                     "type":"string"
                 },
-
+                "Type": {
+                    "type": "string",
+                    "description": "Type of the event we are recording",
+                    "enum": [ "Start", "Stop", "Marker", "ObjectCreate", "ObjectDestroy", "Snapshot"]
+                },
+                "Description": {
+                    "type": "string",
+                    "description": "Description fo the function"
+                },
                 "EnablePBLogging": {
                     "type": "boolean",
                     "description": "Set to False if you want to disable protobuf tracing support"
@@ -124,7 +132,7 @@
                     "items": { "$ref": "#definitions/MemberField" }
                 }
             },
-            "required" : ["Name"]
+            "required" : ["Name", "Type", "Description"]
         },
         "Module": {
             "type": "object",

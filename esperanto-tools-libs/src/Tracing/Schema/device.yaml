@@ -14,6 +14,8 @@ EnableTextLogging: True
 DefaultON : True
 Functions :
   - Name: device_api_supported
+    Type: Snapshot
+    Description: Record the DeviceAPI information the runtime supports
     EnablePBLogging : True
     EnableTextLogging: True
     DefaultON : True
