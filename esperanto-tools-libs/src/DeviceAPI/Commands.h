@@ -26,6 +26,10 @@ class Device;
 
 namespace device_api {
 
+/// @namespace pcie_responses
+///
+/// This namespace contains all classes that are Responses to a PCIe Command
+/// and perform data-tranfers
 namespace pcie_responses {
 
 /// @brief
@@ -50,6 +54,9 @@ public:
 
 } // namespace pcie_responses
 
+/// @namespace pcie_commands
+///
+/// This namespace contains all Commands we can issue to PCIe to do data-transfers
 namespace pcie_commands {
 /// @brief
 class ReadCommand final : public Command<pcie_responses::ReadResponse> {

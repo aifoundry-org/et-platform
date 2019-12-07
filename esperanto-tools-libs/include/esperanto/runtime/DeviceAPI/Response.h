@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_DEVICEAPI_RESPONSE_H
 #define ET_RUNTIME_DEVICEAPI_RESPONSE_H
 
+/// @file
+
 #include "esperanto/runtime/Common/ErrorTypes.h"
 
 #include <esperanto/device-api/device_api.h>
@@ -19,7 +21,7 @@
 namespace et_runtime {
 namespace device_api {
 
-///
+/// @class ResponseBase
 /// @brief Base class for the different types of responses that we are going to
 /// encounter
 ///
@@ -54,7 +56,7 @@ private:
                          ///< by default
 };
 
-///
+/// @class Response
 /// @brief Response to a Command sent to the device.
 ///
 /// The Command could be issued to the device either through a DeviceAPI

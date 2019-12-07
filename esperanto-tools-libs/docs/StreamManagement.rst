@@ -1,3 +1,5 @@
+.. _Stream_Management:
+
 Stream Management
 =================
 

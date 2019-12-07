@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_DEVICEAPI_COMMAND_H
 #define ET_RUNTIME_DEVICEAPI_COMMAND_H
 
+/// @file
+
 #include "esperanto/runtime/DeviceAPI/Response.h"
 
 #include "esperanto/runtime/Common/ErrorTypes.h"
@@ -26,7 +28,7 @@ class Device;
 
 namespace device_api {
 
-///
+/// @class CommandBase
 /// @brief Empty CommandBase class so that derived classes can be held inside a
 /// container
 class CommandBase {
@@ -47,7 +49,7 @@ protected:
 };
 
 
-///
+/// @class DummyCommandInfo
 /// @brief Dummy Command info.
 ///
 /// Class used as a place holder for now until we fully populate the different
@@ -57,11 +59,14 @@ public:
   DummyCommandInfo() = default;
 };
 
-///
+/// @class Command
 /// @brief Command sent to the device.
 ///
 /// The Command issued to the device can be either issued at the level of the
 /// of the DeviceAPI or it could be an interaaction with the PCIE driver.
+///
+/// @tparam Response : Class of the @ref Response this Commands expects to receive from the Device.
+/// @tparam CommandInfo: State of the command to write to the @ref et_runtime::device::DeviceTarget
 template <class Response, class CommandInfo=DummyCommandInfo> class Command : public CommandBase {
 public:
   using Timestamp = typename ResponseBase::Timestamp;

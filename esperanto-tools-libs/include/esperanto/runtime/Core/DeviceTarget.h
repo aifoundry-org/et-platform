@@ -61,10 +61,10 @@ public:
   /// @brief Type of different target devices we can have.
   enum class TargetType : uint8_t {
     None = 0,
-    PCIe,
-    SysEmuGRPC,
-    DeviceGRPC,
-    FakeDevice,
+    PCIe, ///< PCIE device type
+    SysEmuGRPC, ///< Create an RPC device and connect to SysEmu
+    DeviceGRPC, ///< Create a RPC device and connect to any simulator that simplements the SimulatorAPI
+    FakeDevice, ///< @todo this type should be deprecated
   };
 
   static const std::map<std::string, TargetType> Str2TargetType;

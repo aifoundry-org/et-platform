@@ -11,6 +11,8 @@
 #ifndef ET_RUNTIME_DEVICEAPI_EVENT_H
 #define ET_RUNTIME_DEVICEAPI_EVENT_H
 
+/// @file
+
 #include <esperanto/device-api/device_api.h>
 
 #include <chrono>
@@ -19,7 +21,7 @@
 namespace et_runtime {
 namespace device_api {
 
-///
+/// @class EventBase
 /// @brief Base Event class that enables us to store events it generic
 /// containers
 ///
@@ -28,7 +30,7 @@ public:
   virtual ~EventBase() = default;
 };
 
-///
+/// @class Event
 /// @brief Device Event
 ///
 /// Class hold information about an event that has originated in the device.

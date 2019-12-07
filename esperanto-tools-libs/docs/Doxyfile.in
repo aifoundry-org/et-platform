@@ -794,7 +794,8 @@ WARN_LOGFILE           =
 INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/../README.md \
                          @CMAKE_CURRENT_SOURCE_DIR@/../src \
                          @PROJECT_BINARY_DIR@/include \
-                         @PROJECT_BINARY_DIR@/src \
+                         @PROJECT_BINARY_DIR@/src/DeviceAPI \
+
                          @PROJECT_BINARY_DIR@/tools \
 
 

@@ -1,5 +1,6 @@
-RPC Device
-==========
+PRC Device Target
+-----------------
+
 
 :class:`et_runtime::device::RPCTarget`
 
