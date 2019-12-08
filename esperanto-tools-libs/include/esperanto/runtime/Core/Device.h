@@ -21,7 +21,9 @@
 #include "esperanto/runtime/Support/STLHelpers.h"
 #include "esperanto/runtime/etrt-bin.h"
 
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <thread>
 
 class GetDev;
@@ -77,9 +79,6 @@ public:
 
   /// @brief Return true if the device is alive and we can execute commands
   bool deviceAlive();
-
-  /// @brief Send the commands to the device
-  void deviceExecute();
 
   /// @brief load the DeviceFW on the target device
   etrtError loadFirmwareOnDevice();
@@ -203,16 +202,54 @@ private:
   void uninitDeviceThread();
   void uninitObjects();
 
-  int device_index_;
-  std::unique_ptr<et_runtime::device::DeviceTarget> target_device_;
-  std::unique_ptr<et_runtime::FWManager> fw_manager_;
-  std::unique_ptr<et_runtime::device::MemoryManager> mem_manager_;
-  bool device_thread_exit_requested_ = false;
-  Stream *defaultStream_ = nullptr;
-  std::vector<Stream *> stream_storage_;
-  std::vector<std::unique_ptr<Event>> event_storage_;
-  // FIXME SW-1362
-  // std::vector<et_runtime::EtLaunchConf> launch_confs_;
+  /// @brief add a command to the device's command qeuue.
+  ///
+  /// This function is private and it is meant to be called only by
+  /// friend-classes
+  /// @param[in] cmd : Reference to a shared pointer to the `ref Command
+  /// @returns True if operation was succesfull.
+  bool addCommand(std::shared_ptr<et_runtime::device_api::CommandBase> &cmd);
+
+  /// @brief Send the commands to the device
+  void deviceExecute();
+
+  int device_index_; ///< Index of the device in the system: e.g. it is device
+                     ///< #1 as enumerated by the OS.
+  std::unique_ptr<et_runtime::device::DeviceTarget>
+      target_device_; ///< Pointer to the device implementation class
+  std::unique_ptr<et_runtime::FWManager>
+      fw_manager_; ///< Pointer to the firwmware manager class that is
+                   ///< responsible for managing and loading the FW on the
+                   ///< device
+  std::unique_ptr<et_runtime::device::MemoryManager>
+      mem_manager_; ///< Memory manager of the device
+  bool device_thread_exit_requested_ =
+      false; ///< This is true if we have requested to terminate the simulation
+  Stream *defaultStream_ =
+      nullptr; ///< Pointer to the default @ref et_runtime::Stream of the device
+  std::vector<Stream *>
+      stream_storage_; ///< vector of @ref et_runtime::Stream pointers, of the
+                       ///< ones registered/created by this device.
+  std::vector<std::unique_ptr<Event>>
+      event_storage_; ///< Vector of pending, non handled events from the Device
+
+  /// Command queue and related variables
+  /// The Device has a queue of commands that that it needs to execute in the
+  /// CommandExecution thread. Each stream, the moment it creates a new command,
+  /// it also enqueues it inside the device command queue. The commands are
+  /// executed serially across streams, and in the order they are inserted in
+  /// the bellow queue
+  std::queue<std::shared_ptr<et_runtime::device_api::CommandBase>>
+      cmd_queue_;                    ///< Queue of commands
+  std::mutex cmd_queue_mutex_;       ///< Mutex that protects the command qeuue
+  std::condition_variable queue_cv_; ///< Conditional variable that blocks until
+                                     ///< the queue has a command to execute
+
+  /// Threads that the Device maintains
+  std::thread command_executor_; ///< Thread responsible for executing the
+                                 ///< enqueued @ref BaseCommand.
+  std::atomic_bool
+      terminate_cmd_executor_; ///< Set to true when we decide to terminate the thread
 };
 } // namespace et_runtime
 

@@ -32,9 +32,11 @@ using namespace et_runtime;
 namespace et_runtime {
 namespace device_api {
 
-CommandBase::IDty CommandBase::command_id_ = 0;
+CommandID CommandBase::global_command_id_ = 0;
 
-CommandBase::CommandBase() { command_id_++; }
+CommandBase::CommandBase() : id_(global_command_id_++) {}
+
+void CommandBase::registerStream(Stream *stream) { stream_ = stream; }
 
 namespace pcie_commands {
 

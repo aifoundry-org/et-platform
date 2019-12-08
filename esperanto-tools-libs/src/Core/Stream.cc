@@ -53,10 +53,14 @@ etrtError Stream::synchronize() {
 
 void Stream::addCommand(
     std::shared_ptr<et_runtime::device_api::CommandBase> action) {
+  // Push to the stream's command
   actions_.push(action);
+  action->registerStream(this);
 
-  // FIXME this should be removed once we enable threading in the device
-  dev_.deviceExecute();
+  // Push to the device's command queue
+  auto res = dev_.addCommand(action);
+  assert(res);
+
 }
 
 } // namespace et_runtime

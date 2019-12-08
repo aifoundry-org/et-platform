@@ -47,7 +47,8 @@ using namespace et_runtime::device;
 
 Device::Device(int index)
     : device_index_(index), fw_manager_(std::make_unique<FWManager>()),
-      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)) {
+      mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
+      command_executor_(), terminate_cmd_executor_(false) {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, index);
   auto create_res = streamCreate(false);
@@ -82,32 +83,31 @@ etrtError Device::resetDevice() {
 
 bool Device::deviceAlive() { return target_device_->alive(); }
 
+bool Device::addCommand(
+    std::shared_ptr<et_runtime::device_api::CommandBase> &cmd) {
+  {
+    std::lock_guard<decltype(cmd_queue_mutex_)> guard(cmd_queue_mutex_);
+    cmd_queue_.push(cmd);
+  }
+  queue_cv_.notify_one();
+  return true;
+}
+
 void Device::deviceExecute() {
-    while (true) {
-      std::shared_ptr<device_api::CommandBase> commandToExecute;
-      for (auto &it : stream_storage_) {
-        Stream *stream = it;
-        if (!stream->noCommands()) {
-          auto command = stream->frontCommand();
-          commandToExecute = command;
-          stream->popCommand();
-          break;
-        }
-      }
+  while (!terminate_cmd_executor_) {
+    std::unique_lock<decltype(cmd_queue_mutex_)> lk(cmd_queue_mutex_);
+    queue_cv_.wait(lk, [this]() {
+      return !(cmd_queue_.empty() && !terminate_cmd_executor_);
+    });
 
-      // if there is no action then we are going to wait on condition variable
-      if (!commandToExecute) {
-        break;
-      }
+    if (cmd_queue_.size() > 0) {
+      auto command = cmd_queue_.front();
+      cmd_queue_.pop();
 
-      // execute action without mutex
-      commandToExecute->execute(this);
+      command->execute(this);
     }
-
-    if (!target_device_->alive()) {
-      return;
-    }
-
+  }
+  RTINFO << "Command Executor Thread Terminated";
 }
 
 etrtError Device::loadFirmwareOnDevice() {
@@ -148,9 +148,19 @@ void Device::initDeviceThread() {
     RTERROR << "Failed to initialize device";
     std::terminate();
   }
+  command_executor_ = std::thread([this]() { this->deviceExecute(); });
 }
 
 void Device::uninitDeviceThread() {
+  // Notify the command executor thread to "wake" it up from the being blocked
+  // waiting for a command to be inserted. The target_device should not be alive
+  // any more and the executor thread should terminate and us we should be able
+  // to make that thread join.
+  terminate_cmd_executor_ = true;
+  queue_cv_.notify_one();
+  command_executor_.join();
+
+  /// Release the target device / or simulator
   target_device_->deinit();
 }
 

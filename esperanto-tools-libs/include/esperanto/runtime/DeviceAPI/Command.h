@@ -15,6 +15,7 @@
 
 #include "esperanto/runtime/DeviceAPI/Response.h"
 
+#include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Common/ErrorTypes.h"
 
 #include <esperanto/device-api/device_api.h>
@@ -25,6 +26,7 @@
 namespace et_runtime {
 
 class Device;
+class Stream;
 
 namespace device_api {
 
@@ -33,19 +35,25 @@ namespace device_api {
 /// container
 class CommandBase {
 public:
-  using IDty = uint64_t;
 
   CommandBase();
   virtual ~CommandBase() = default;
 
   /// @brief Return the unique ID of this specific command
-  IDty id() const { return command_id_; }
+  CommandID id() const { return id_; }
 
   /// @brief Execute the command on the Device
   virtual etrtError execute(et_runtime::Device *device_target) = 0;
 
+  /// @brief Register this command with the @ref Stream it is going to execute
+  /// as part of.
+  void registerStream(Stream *stream);
+
 protected:
-  static IDty command_id_;
+  CommandID id_ = 0; ///< Unique ID of this command
+  Stream *stream_ =
+      nullptr; ///< Pointer to the stream this command is registered with
+  static CommandID global_command_id_; ///< Global command counter
 };
 
 
@@ -81,8 +89,6 @@ public:
   Command() : Command(CommandInfo()) {}
 
   virtual ~Command() = default;
-
-  uint64_t commandID() const { return command_id_; }
 
   /// @brief Return the underlying command
   const CommandInfo &cmd_info() const { return cmd_info_; }

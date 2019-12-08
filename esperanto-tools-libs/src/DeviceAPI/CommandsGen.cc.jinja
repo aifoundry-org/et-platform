@@ -35,14 +35,14 @@ namespace devfw_commands {
  <%- endfor -%>)
 {
   cmd_info_.command_info.message_id = ::device_api::MBOX_DEVAPI_MESSAGE_ID_<< msg['Name'] | upper >>;
-  cmd_info_.command_info.command_id = command_id_;
+  cmd_info_.command_info.command_id = id_;
   auto time = std::chrono::high_resolution_clock::now();
   cmd_info_.command_info.host_timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
                      time.time_since_epoch()).count();
   cmd_info_.command_info.stream_id = stream_id;
 
   auto cmd_hdr = new et_runtime::tracing::DeviceAPI_cmd_hdr();
-  cmd_hdr->set_command_id(command_id_);
+  cmd_hdr->set_command_id(id_);
   cmd_hdr->set_host_timestamp(cmd_info_.command_info.host_timestamp);
   cmd_hdr->set_stream_id(stream_id);
 
