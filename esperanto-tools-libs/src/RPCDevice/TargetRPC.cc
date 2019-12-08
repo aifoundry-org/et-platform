@@ -83,15 +83,15 @@ bool RPCTarget::registerDeviceEventCallback() {
   return false;
 }
 
-simulator_api::Reply RPCTarget::doRPC(const simulator_api::Request &request) {
+std::pair<bool, simulator_api::Reply>
+RPCTarget::doRPC(const simulator_api::Request &request) {
   simulator_api::Reply reply;
   Status status;
   grpc::ClientContext context;
   // Wait until the server is up do not fail immediately
   context.set_wait_for_ready(true);
   status = stub_->SimCommand(&context, request, &reply);
-  assert(status.ok());
-  return reply;
+  return {status.ok(), reply};
 }
 
 bool RPCTarget::readDevMemMMIO(uintptr_t dev_addr, size_t size, void *buf) {
@@ -113,8 +113,13 @@ bool RPCTarget::readDevMemDMA(uintptr_t dev_addr, size_t size, void *buf) {
   dma->set_size(size);
   request.set_allocated_dma(dma);
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
   assert(reply.has_dma());
+
   auto &dma_resp = reply.dma();
   assert(dma_resp.type() == DMAAccessType::DMA_READ);
   assert(dma_resp.addr() == dev_addr);
@@ -136,7 +141,11 @@ bool RPCTarget::writeDevMemDMA(uintptr_t dev_addr, size_t size,
   dma->set_data(buf, size);
   request.set_allocated_dma(dma);
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
   assert(reply.has_dma());
   auto &dma_resp = reply.dma();
   assert(dma_resp.type() == DMAAccessType::DMA_WRITE);
@@ -161,8 +170,11 @@ std::tuple<bool, std::tuple<uint32_t, uint32_t>> RPCTarget::readMBStatus() {
   request.set_allocated_mailbox(mb);
 
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
-
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return {false, {{}, {}}};
+  }
+  auto reply = reply_res.second;
   assert(reply.has_mailbox());
 
   auto &mb_resp = reply.mailbox();
@@ -189,7 +201,11 @@ bool RPCTarget::writeMBStatus(uint32_t master_status, uint32_t slave_status) {
   request.set_allocated_mailbox(mb);
 
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
   assert(reply.has_mailbox());
   auto &mb_resp = reply.mailbox();
   // Check that the write was successful
@@ -213,7 +229,11 @@ std::tuple<bool, device_fw::ringbuffer_s> RPCTarget::readRxRb() {
   request.set_allocated_mailbox(mb);
 
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return {false, {}};
+  }
+  auto reply = reply_res.second;
 
   assert(reply.has_mailbox());
   auto &mb_resp = reply.mailbox();
@@ -250,9 +270,13 @@ bool RPCTarget::writeRxRb(const device_fw::ringbuffer_s &rb) {
   request.set_allocated_mailbox(mb);
 
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
 
-  // Check that the write was succesful
+  // Check that the OAwrite was succesful
   assert(reply.has_mailbox());
   auto &mb_resp = reply.mailbox();
   assert(mb_resp.type() == MailBoxAccessType::MB_WRITE);
@@ -277,7 +301,12 @@ std::tuple<bool, device_fw::ringbuffer_s> RPCTarget::readTxRb() {
   request.set_allocated_mailbox(mb);
 
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return {false, {}};
+  }
+
+  auto reply = reply_res.second;
   assert(reply.has_mailbox());
   auto &mb_resp = reply.mailbox();
   assert(mb_resp.type() == MailBoxAccessType::MB_READ);
@@ -310,7 +339,12 @@ bool RPCTarget::writeTxRb(const device_fw::ringbuffer_s &rb) {
   request.set_allocated_mailbox(mb);
 
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
+
   assert(reply.has_mailbox());
 
   auto &mb_resp = reply.mailbox();
@@ -329,7 +363,12 @@ bool RPCTarget::raiseDevicePuPlicPcieMessageInterrupt() {
       simulator_api::DeviceInterruptType::PU_PLIC_PCIE_MESSAGE_INTERRUPT);
   request.set_allocated_device_interrupt(device_interrupt);
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
+
   assert(reply.has_interrupt());
   auto &interrupt_rsp = reply.interrupt();
   assert(interrupt_rsp.success());
@@ -343,7 +382,12 @@ bool RPCTarget::raiseDeviceMasterShireIpiInterrupt() {
       simulator_api::DeviceInterruptType::MASTER_SHIRE_IPI_INTERRUPT);
   request.set_allocated_device_interrupt(device_interrupt);
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
+
   assert(reply.has_interrupt());
   auto &interrupt_rsp = reply.interrupt();
   assert(interrupt_rsp.success());
@@ -355,7 +399,12 @@ bool RPCTarget::waitForHostInterrupt(TimeDuration wait_time) {
   auto host_interrupt = new HostInterrupt();
   request.set_allocated_host_interrupt(host_interrupt);
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
+
   assert(reply.has_interrupt());
   auto &interrupt_rsp = reply.interrupt();
   assert(interrupt_rsp.success());
@@ -399,7 +448,12 @@ bool RPCTarget::boot(uint64_t pc) {
   boot_req->set_pc(pc);
   request.set_allocated_boot(boot_req);
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
+
   assert(reply.has_boot());
   auto &boot_rsp = reply.boot();
   assert(boot_rsp.success());
@@ -411,7 +465,12 @@ bool RPCTarget::shutdown() {
   auto shutdown_req = new ShutdownReq();
   request.set_allocated_shutdown(shutdown_req);
   // Do RPC and wait for reply
-  auto reply = doRPC(request);
+  auto reply_res = doRPC(request);
+  if (!reply_res.first) {
+    return false;
+  }
+  auto reply = reply_res.second;
+
   assert(reply.has_shutdown());
   auto &shutdown_rsp = reply.shutdown();
   assert(shutdown_rsp.success());

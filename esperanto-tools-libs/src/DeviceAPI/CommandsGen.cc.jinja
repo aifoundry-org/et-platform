@@ -68,21 +68,17 @@ etrtError << class_name >>::execute(et_runtime::Device* dev) {
   if (!res) {
     return etrtMailBoxWriteError;
   }
-  // FIXME remove the bellow once threading is introduced
-  std::vector<uint8_t> message(target_device.mboxMsgMaxSize(), 0);
-  auto size = target_device.mb_read(message.data(), message.size(),
-                                    std::chrono::seconds(60));
-  assert(size == sizeof(response_devapi_t));
-  auto response_data =
-      reinterpret_cast<response_devapi_t *>(message.data());
-
   <% set paired_msg = msg['PairedMessage'] -%>
   <% set rsp_cname = cgh.name_to_camelcase(paired_msg) -%>
 
-  auto response = devfw_responses::<< rsp_cname >>(*response_data);
-
-  setResponse(response);
-
+  res = dev->registerMBReadCallBack(
+     this, [this](const std::vector<uint8_t> &data) {
+        auto response_data = reinterpret_cast<const response_devapi_t *>(data.data());
+        auto response = devfw_responses::<< rsp_cname >>(*response_data);
+        setResponse(response);
+        return true;
+     });
+  assert(res);
   return etrtSuccess;
 }
 

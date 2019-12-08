@@ -30,10 +30,14 @@ class TestResponse : public device_api::ResponseBase {
 public:
   // dummy type
   using response_devapi_t = bool;
+
+  static constexpr MBOXMessageTypeID responseTypeID() { return 0; }
 };
 
 class TestCommand : public device_api::Command<TestResponse> {
   using Response = TestResponse;
+
+  MBOXMessageTypeID commandTypeID() const { return 0; }
 
   etrtError execute(et_runtime::Device *deviice) override {
     return etrtSuccess;

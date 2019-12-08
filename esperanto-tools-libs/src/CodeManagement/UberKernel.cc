@@ -109,9 +109,12 @@ etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
   std::vector<uint8_t> args_buff(args_size);
   ::memcpy(&args_buff[0], &layer_info, sizeof(layer_info));
 
-  stream->addCommand(
-      std::shared_ptr<device_api::CommandBase>(new device_api::LaunchCommand(
-          kernel_entry_point, args_buff, kernel_.name(), true)));
+  auto launch_cmd =
+      std::shared_ptr<device_api::LaunchCommand>(new device_api::LaunchCommand(
+          kernel_entry_point, args_buff, kernel_.name(), true));
+  stream->addCommand(launch_cmd);
+  auto ft = launch_cmd->getFuture();
+  auto resp = ft.get();
 
   return etrtSuccess;
 }

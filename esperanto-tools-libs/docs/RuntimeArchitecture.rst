@@ -9,8 +9,8 @@ Esperanto Runtime Architecture
    DeviceManager
    Device
    DeviceAPI
-   CodeManagement
    StreamManagement
+   CodeManagement
    KernelInteractions
    MemoryManagement
    Tracing

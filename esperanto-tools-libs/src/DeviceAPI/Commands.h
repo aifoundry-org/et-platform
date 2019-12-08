@@ -40,6 +40,8 @@ public:
 
   ReadResponse() = default;
 
+  static constexpr MBOXMessageTypeID responseTypeID() { return 0; }
+
 private:
 };
 
@@ -50,6 +52,8 @@ public:
   using response_devapi_t = bool;
 
   WriteResponse() = default;
+
+  static constexpr MBOXMessageTypeID responseTypeID() { return 0; }
 };
 
 } // namespace pcie_responses
@@ -66,6 +70,9 @@ public:
       : dstHostPtr(dstHostPtr), srcDevPtr(srcDevPtr), count(count) {}
   etrtError execute(et_runtime::Device *device_target) override;
 
+  // FIXME invalid command id
+  MBOXMessageTypeID commandTypeID() const { return 0; }
+
 private:
   void *dstHostPtr;
   const void *srcDevPtr;
@@ -79,6 +86,9 @@ public:
       : dstDevPtr(dstDevPtr), srcHostPtr(srcHostPtr), count(count) {}
   etrtError execute(et_runtime::Device *device_target) override;
 
+  // FIXME invalid command id
+  MBOXMessageTypeID commandTypeID() const { return 0; }
+
 private:
   void *dstDevPtr;
   const void *srcHostPtr;
@@ -86,6 +96,29 @@ private:
 };
 
 } // namespace pcie_commands
+
+// ReflectTest response and commands
+/// @brief
+class ReflectTestResponse final : public ResponseBase {
+public:
+  // dummy type
+  using response_devapi_t = bool;
+
+  ReflectTestResponse() = default;
+
+  static MBOXMessageTypeID responseTypeID();
+};
+
+/// @brief
+class ReflectTestCommand final : public Command<ReflectTestResponse> {
+
+public:
+  ReflectTestCommand() = default;
+  etrtError execute(et_runtime::Device *device_target) override;
+
+  MBOXMessageTypeID commandTypeID() const override;
+
+};
 
 // TODO the launch command is to be removed and replaced in the future
 // with DeviceAPI commands
@@ -97,6 +130,9 @@ public:
   using response_devapi_t = bool;
 
   LaunchResponse() = default;
+
+  /// @brief Return the MBOX message ID  of the Response
+  static MBOXMessageTypeID responseTypeID();
 };
 
 /// @brief
@@ -109,6 +145,8 @@ public:
         uber_kernel_(uber_kernel) {}
   etrtError execute(et_runtime::Device *device_target) override;
 
+  MBOXMessageTypeID commandTypeID() const override;
+
 private:
   uintptr_t kernel_pc;
   std::vector<uint8_t> args_buff;
@@ -116,7 +154,7 @@ private:
   bool uber_kernel_; ///< True if we are launching an uber-kernel, in which case
                      ///< we need to modify the shire mask
 
-  static constexpr int MASTER_SHIRE = 32;
+  static constexpr int MASTER_SHIRE_NUM = 32;
 };
 
 } // namespace device_api

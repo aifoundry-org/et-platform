@@ -10,7 +10,10 @@
 
 #include "device-fw-fixture.h"
 
+#include "DeviceAPI/Commands.h"
 #include "esperanto/runtime/Support/Logging.h"
+
+using namespace et_runtime::device_api;
 
 // Wait for device-fw to raise an interrupt from device to host
 TEST_F(MailboxEmuTest, waitForHostInterrupt) {
@@ -62,20 +65,12 @@ TEST_F(DeviceFWTest, reflectTest) {
   EXPECT_TRUE(target_device != nullptr);
 
 
-  // Construct the reflect message and write it
-  device_fw::host_message_t msg = {0};
-  int active_shires = 1;
-  msg.message_id = device_fw::MBOX_MESSAGE_ID_REFLECT_TEST;
+  auto reflect_cmd = std::make_shared<ReflectTestCommand>();
+  dev_->defaultStream().addCommand(reflect_cmd);
 
-  auto success = target_device->mb_write(&msg, sizeof(msg));
-  EXPECT_TRUE(success);
-
-  std::vector<uint8_t> message(target_device->mboxMsgMaxSize(), 0);
-  auto size = target_device->mb_read(message.data(), message.size(),
-                                     std::chrono::seconds(20));
-  EXPECT_EQ(size, sizeof(device_fw::host_message_t));
-  auto response = reinterpret_cast<device_fw::host_message_t *>(message.data());
-  RTDEBUG << "MessageID: " << response->message_id << "\n";
+  auto future = reflect_cmd->getFuture();
+  auto respose = future.get();
+  RTDEBUG << "Reflect message received \n";
 }
 
 int main(int argc, char **argv) {

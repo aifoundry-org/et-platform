@@ -23,14 +23,15 @@
 #include <string>
 #include <thread>
 
-namespace et_runtime {
-
-namespace device_api {
+using namespace et_runtime;
+using namespace et_runtime::device_api;
 
 class TestResponse : public ResponseBase {
 public:
   // dummy type
   using response_devapi_t = bool;
+
+  static constexpr MBOXMessageTypeID responseTypeID() { return 0; };
 };
 
 class TestCommand : public Command<TestResponse> {
@@ -52,10 +53,6 @@ TEST(Command, Example) {
 
   set_response.join();
 }
-
-} // namespace device_api
-} // namespace et_runtime
-
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);

@@ -129,7 +129,8 @@ protected:
   grpc::CompletionQueue cq_;
 
   std::unique_ptr<EmuMailBoxDev> mailboxDev_;
-  simulator_api::Reply doRPC(const simulator_api::Request &req);
+  std::pair<bool, simulator_api::Reply>
+  doRPC(const simulator_api::Request &req);
 };
 
 } // namespace device

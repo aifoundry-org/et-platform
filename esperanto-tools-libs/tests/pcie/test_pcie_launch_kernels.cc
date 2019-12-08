@@ -43,7 +43,8 @@ protected:
   }
 
   void TearDown() override {
-    dev_.reset();
+    // Stop the simulator
+    EXPECT_EQ(etrtSuccess, dev_->resetDevice());
   }
   std::shared_ptr<Device> dev_;
 };
@@ -113,6 +114,7 @@ TEST_F(PCIEKernelLaunchTest, beef_kernel) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   // Force logging in stderr and set min logging level
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;

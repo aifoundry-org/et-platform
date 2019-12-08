@@ -14,6 +14,7 @@
 #define ET_RUNTIME_DEVICE_API_RESPONSES_GEN_H
 
 #include "esperanto/runtime/DeviceAPI/Response.h"
+#include "esperanto/runtime/Common/CommonTypes.h"
 
 namespace et_runtime {
 namespace device_api {
@@ -28,6 +29,9 @@ class << class_name >> : public Response<::device_api::<<msg_name>>_t> {
 public:
    << class_name >>(const ::device_api::<<msg_name>>_t& msg);
 
+   static MBOXMessageTypeID responseTypeID() {
+     return ::device_api::MBOX_DEVAPI_MESSAGE_ID_<< msg["Name"] | upper >>;
+   } ;
 };
 
 <% endfor %>

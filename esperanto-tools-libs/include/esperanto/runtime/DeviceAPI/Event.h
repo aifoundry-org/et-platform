@@ -13,6 +13,7 @@
 
 /// @file
 
+#include "esperanto/runtime/Common/CommonTypes.h"
 #include <esperanto/device-api/device_api.h>
 
 #include <chrono>
@@ -46,6 +47,9 @@ public:
 
   /// @brief Return the device timestamp the event was generated
   uint64_t device_timestamp() const { return event_.event_info.device_timestamp; }
+
+  /// @brief Return the MBOX message ID  of the Response
+  constexpr MBOXMessageTypeID responseTypeID() const { return 0; };
 
   /// @brief return the event data
   const EventType &event() const { return event_; }

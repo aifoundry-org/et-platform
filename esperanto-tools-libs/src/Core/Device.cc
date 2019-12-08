@@ -13,6 +13,7 @@
 #include "CodeManagement/CodeModule.h"
 #include "CodeManagement/ELFSupport.h"
 #include "CodeManagement/ModuleManager.h"
+#include "Core/DeviceFwTypes.h"
 #include "DeviceAPI/Commands.h"
 #include "DeviceFW/FWManager.h"
 #include "demangle.h"
@@ -48,7 +49,7 @@ using namespace et_runtime::device;
 Device::Device(int index)
     : device_index_(index), fw_manager_(std::make_unique<FWManager>()),
       mem_manager_(std::make_unique<et_runtime::device::MemoryManager>(*this)),
-      command_executor_(), terminate_cmd_executor_(false) {
+      command_executor_(), terminate_cmd_executor_(false), device_reader_() {
   auto target_type = DeviceTarget::deviceToCreate();
   target_device_ = DeviceTarget::deviceFactory(target_type, index);
   auto create_res = streamCreate(false);
@@ -65,13 +66,20 @@ Device::~Device() {
 }
 
 etrtError Device::init() {
-  initDeviceThread();
   mem_manager_->init();
+  initDeviceThread();
   // Load the FW on the device
   auto success = loadFirmwareOnDevice();
   assert(success == etrtSuccess);
   auto res = target_device_->postFWLoadInit();
   assert(res);
+  // Initialize thread that is responsible for listening to mailbox
+  // Resposes/Events. do that after the FW is loaded and the device
+  // is initialized
+  device_reader_ = std::thread([this]() { this->deviceListener(); });
+  // Detach the device-reader it is expected to run in parallel and
+  // consume any replies back from the device.
+  device_reader_.detach();
   return etrtSuccess;
 }
 
@@ -91,6 +99,66 @@ bool Device::addCommand(
   }
   queue_cv_.notify_one();
   return true;
+}
+
+bool Device::registerMBReadCallBack(et_runtime::device_api::CommandBase *cmd,
+                                    const MBReadCallBack &cb) {
+#if ENABLE_DEVICE_FW
+  auto msgid = cmd->commandTypeID();
+  if (::device_fw::MBOX_MESSAGE_ID_NONE < msgid &&
+      msgid <= ::device_fw::MBOX_MESSAGE_ID_FW_LAST) {
+    mb_fw_cmds_.push({cmd, cb});
+    return true;
+  }
+  auto emplace_res = cb_map_.emplace(cmd->id(), std::forward_as_tuple(cmd, cb));
+  return emplace_res.second;
+#else
+  return false;
+#endif
+}
+
+void Device::deviceListener() {
+#if ENABLE_DEVICE_FW
+  while (true) {
+    // Allocate a vector of the maximum mailbox message size to read
+    // data in
+    std::vector<uint8_t> message(target_device_->mboxMsgMaxSize(), 0);
+    auto res = target_device_->mb_read(message.data(), message.size());
+    if (res < 0) {
+      RTERROR << "Error reading mailbox" << std::strerror(errno);
+      continue;
+    }
+    if (!res) {
+      RTERROR << "Error reading from the device mailbox \n";
+      continue;
+    }
+    auto response =
+        reinterpret_cast<device_fw::host_message_t *>(message.data());
+    RTDEBUG << "MessageID: " << response->message_id << "\n";
+    auto msgid = response->message_id;
+    if (::device_fw::MBOX_MESSAGE_ID_NONE < msgid &&
+        msgid <= ::device_fw::MBOX_MESSAGE_ID_FW_LAST) {
+      assert(mb_fw_cmds_.size() > 0);
+      MBReadCallBack cb;
+      std::tie(std::ignore, cb) = mb_fw_cmds_.front();
+      mb_fw_cmds_.pop();
+      auto res = cb(message);
+      assert(res);
+    } else if (::device_api::MBOX_DEVAPI_MESSAGE_ID_NONE < msgid
+               && msgid < ::device_api::MBOX_DEVAPI_MESSAGE_ID_LAST) {
+      auto rsp_header =
+        reinterpret_cast<::device_api::response_header_t*>(message.data());
+      auto it = cb_map_.find(rsp_header->command_info.command_id);
+      assert(it != cb_map_.end());
+      auto &[cmd, cb] = it->second;
+      assert(cmd->commandTypeID() == rsp_header->command_info.message_id);
+      auto res = cb(message);
+      assert(res);
+    } else {
+      assert(false);
+    }
+  }
+#endif
 }
 
 void Device::deviceExecute() {

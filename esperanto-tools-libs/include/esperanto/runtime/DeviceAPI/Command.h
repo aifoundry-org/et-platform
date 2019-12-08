@@ -49,6 +49,12 @@ public:
   /// as part of.
   void registerStream(Stream *stream);
 
+  /// @brief Return the MBOX message ID  of the Command
+  virtual MBOXMessageTypeID commandTypeID() const = 0;
+
+  /// @brief Return the MBOX message ID  of the Response the Command expects
+  virtual MBOXMessageTypeID responseTypeID() const = 0;
+
 protected:
   CommandID id_ = 0; ///< Unique ID of this command
   Stream *stream_ =
@@ -65,6 +71,10 @@ protected:
 class DummyCommandInfo {
 public:
   DummyCommandInfo() = default;
+
+  struct {
+    MBOXMessageTypeID message_id = 0;
+  } command_info;
 };
 
 /// @class Command
@@ -93,8 +103,15 @@ public:
   /// @brief Return the underlying command
   const CommandInfo &cmd_info() const { return cmd_info_; }
 
-  /// @brief Return the type of the command
-  uint64_t commandType() const { return cmd_info_.message_id; }
+  /// @brief Return the type of thecCommand
+  virtual MBOXMessageTypeID commandTypeID() const {
+    return cmd_info_.command_info.message_id;
+  }
+
+  /// @brief Return the expected Response type
+  constexpr MBOXMessageTypeID responseTypeID() const {
+    return Response::responseTypeID();
+  }
 
   /// @brief Return the command information
   const ::device_api::command_header_t &cmd_header() const {

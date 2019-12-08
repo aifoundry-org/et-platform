@@ -58,9 +58,6 @@ class Kernel;
 /// entire Stream. Note that this is in addition to the finer-grained type of
 /// synchronization that can be accomplished with the Event mechanism.
 ///
-/// This API chooses to have the Default Stream follow the per-thread Stream
-/// semantics of CUDA (as opposed to CUDA's Legacy Stream semantics).
-///
 /// \endrst
 ///
 class Stream {

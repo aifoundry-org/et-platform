@@ -24,6 +24,9 @@ public:
   // dummy type
   using response_devapi_t = bool;
   EventResponse() = default;
+
+  /// @brief Return the MBOX message ID  of the Response
+  static MBOXMessageTypeID responseTypeID() { return 0; };
 };
 
 ///

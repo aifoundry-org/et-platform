@@ -49,6 +49,9 @@ class Device {
   friend class ::DeviceFWTest;
 
 public:
+  /// CallBack function type that a Command can register with the Device.
+  using MBReadCallBack = std::function<bool(const std::vector<uint8_t> &)>;
+
   Device(int index);
 
   virtual ~Device();
@@ -129,6 +132,16 @@ public:
   /// @param[in] id : Id of the stream to remove
   /// @returns etrtSuccess on success or the appropriate error
   etrtError destroyStream(StreamID ID);
+
+  /// @brief Register a mailbox read callback
+  ///
+  /// This function registers a callback that updates the command with the
+  /// received mailbox reponse from the Master Minion.
+  /// @param[in] cmd: Pointer to the command to register the callback with
+  /// @param[in] cb: Callback to be executed noce a @ref Response for this @ref
+  /// Command has been received.
+  bool registerMBReadCallBack(et_runtime::device_api::CommandBase *cmd,
+                              const MBReadCallBack &cb);
 
   /// FIXME SW-1493 this function should move the Stream Class
   Event *createEvent(bool disable_timing, bool blocking_sync);
@@ -213,6 +226,11 @@ private:
   /// @brief Send the commands to the device
   void deviceExecute();
 
+  /// @brief Read and handle MB messages from the Device. This function is
+  /// running in a separate thread that reads and blocks on the Device waiting
+  /// for responses back form the Device
+  void deviceListener();
+
   int device_index_; ///< Index of the device in the system: e.g. it is device
                      ///< #1 as enumerated by the OS.
   std::unique_ptr<et_runtime::device::DeviceTarget>
@@ -245,11 +263,39 @@ private:
   std::condition_variable queue_cv_; ///< Conditional variable that blocks until
                                      ///< the queue has a command to execute
 
+  /// The mailbox can send receive 2 classes of messages. There are th
+  /// FW-messages are in the range (MBOX_MESSAGE_ID_NONEs,
+  /// BOX_MESSAGE_ID_DEVICE_LAST) and there DeviceAPI messages that occupy the
+  /// value space above that space.
+
+  /// FW-messages issueing commands are going to be kept track in a queue, while
+  /// DeviceAPI commands will be kept track in a map, since the DeviceAPI
+  /// messages do keep track of the related CommandIDs
+
+  /// FW-message commands are saved in a queue and expected to receive responses
+  /// in reverse order
+  std::queue<std::tuple<et_runtime::device_api::CommandBase *, MBReadCallBack>>
+      mb_fw_cmds_ = {}; ///< Queue of commands of FW messages
+
+  /// Mailbox Response callback tracking. Each command registers a callback that
+  /// gets executed once a Response for the respective command has been
+  /// received.
+  using CallBackMap =
+      std::map<CommandID, std::tuple<et_runtime::device_api::CommandBase *,
+                                     MBReadCallBack>>;
+
+  CallBackMap cb_map_ =
+      {}; ///< Map that keeps track of the registered DeviceAPI commands
+          ///< that expect a @ref Response back.
   /// Threads that the Device maintains
   std::thread command_executor_; ///< Thread responsible for executing the
                                  ///< enqueued @ref BaseCommand.
+
   std::atomic_bool
       terminate_cmd_executor_; ///< Set to true when we decide to terminate the thread
+
+  std::thread device_reader_; ///< Thread responsible for reading the mailbox
+                              ///< for responses.
 };
 } // namespace et_runtime
 

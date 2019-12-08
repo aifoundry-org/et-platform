@@ -169,7 +169,9 @@ bool EmuMailBoxDev::mboxDestroy() {
 bool EmuMailBoxDev::mboxReady() {
   // first update status the status from the remote
   auto res = readRemoteStatus();
-  assert(res);
+  if (!res) {
+    return false;
+  }
   // The host is always the mbox slave
   switch (master_status_) {
   case device_fw::MBOX_STATUS_NOT_READY:
@@ -289,7 +291,9 @@ ssize_t EmuMailBoxDev::read(void *data, ssize_t size, TimeDuration wait_time) {
 
   // pull the latest state from the simulator
   auto res = rb.readRingBufferState();
-  assert(res);
+  if (!res) {
+    return 0;
+  }
 
   device_fw::mbox_header_t header = {};
 
@@ -403,10 +407,16 @@ bool EmuMailBoxDev::ready(TimeDuration wait_time) {
     // Clean up the ring buffer state, consume all messages similar to reset
     tx_ring_buffer_.init();
     auto res = tx_ring_buffer_.writeRingBufferState();
-    assert(res);
+    if(!res) {
+      RTERROR << "tx_ring_buffer write failed \n";
+      return false;
+    }
     rx_ring_buffer_.init();
     res = rx_ring_buffer_.writeRingBufferState();
-    assert(res);
+    if(!res) {
+      RTERROR << "rx_ring_buffer write failed \n";
+      return false;
+    }
 
     rpcDev_.raiseDevicePuPlicPcieMessageInterrupt();
     rpcDev_.waitForHostInterrupt(polling_interval);
