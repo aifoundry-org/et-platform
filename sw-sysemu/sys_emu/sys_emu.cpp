@@ -40,7 +40,7 @@ extern std::array<uint32_t,EMU_NUM_THREADS>  ext_seip;
 
 uint64_t        sys_emu::emu_cycle = 0;
 std::list<int>  sys_emu::running_threads;                                               // List of running threads
-std::list<int>  sys_emu::wfi_wait_threads;                                              // List of threads waiting in a WFI
+std::list<int>  sys_emu::wfi_stall_wait_threads;                                        // List of threads waiting in a WFI or stall
 std::list<int>  sys_emu::fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD];             // List of threads waiting for an FCC
 std::list<int>  sys_emu::port_wait_threads;                                             // List of threads waiting for a port write
 std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
@@ -186,46 +186,46 @@ sys_emu::send_ipi_redirect_to_threads(unsigned shire, uint64_t thread_mask)
 }
 
 void
-sys_emu::raise_interrupt_wakeup_check(unsigned thread_id, uint64_t mask, const char *str)
+sys_emu::raise_interrupt_wakeup_check(unsigned thread_id)
 {
-    bool wakeup = false;
-
-    // WFI doesn't require the global interrupt bits in mstatus to be enabled
+    // WFI/stall don't require the global interrupt bits in mstatus to be enabled
     uint64_t xip = (cpu[thread_id].mip | ext_seip[thread_id]) & cpu[thread_id].mie;
-    if (xip & mask) {
-        wakeup = true;
-    } else {
-        // If there's a trap, catch it and wakeup the thread
+    if (xip) {
+        bool trap = false;
+
+        // If it was waiting in a WFI or stall, wake it up
+        auto wfi_stall_it = std::find(wfi_stall_wait_threads.begin(),
+                                wfi_stall_wait_threads.end(),
+                                thread_id);
+        if (wfi_stall_it != wfi_stall_wait_threads.end()) {
+            LOG_OTHER(DEBUG, thread_id, "%s", "Waking up thread");
+            wfi_stall_wait_threads.erase(wfi_stall_it);
+            running_threads.push_back(thread_id);
+            return;
+        }
+
+        // Otherwise, if there's a trap, catch it and wakeup the thread
         unsigned old_thread = get_thread();
         set_thread(thread_id);
         try {
             check_pending_interrupts();
         } catch (const trap_t& t) {
-            wakeup = true;
+            trap = true;
         }
         set_thread(old_thread);
-    }
 
-    if (wakeup) {
-        LOG_OTHER(DEBUG, thread_id, "Waking up due to %s", str);
+        if (trap) {
+            LOG_OTHER(DEBUG, thread_id, "%s", "Waking up thread");
+            running_threads.push_back(thread_id);
 
-        // Put the interrupted thread back to running
-        running_threads.push_back(thread_id);
-
-        // If it was waiting in a WFI, remove it
-        auto wfi_it = std::find(wfi_wait_threads.begin(),
-                                wfi_wait_threads.end(),
-                                thread_id);
-        if (wfi_it != wfi_wait_threads.end())
-            wfi_wait_threads.erase(wfi_it);
-
-        // If it was waiting for an FCC, remove it
-        for (auto &fcc_wait_it: fcc_wait_threads) {
-            auto th = std::find(fcc_wait_it.begin(),
-                                fcc_wait_it.end(),
-                                thread_id);
-            if (th != fcc_wait_it.end())
-                fcc_wait_it.erase(th);
+            // If it was waiting for an FCC, remove it from the list
+            for (auto &fcc_wait_it: fcc_wait_threads) {
+                auto th = std::find(fcc_wait_it.begin(),
+                                    fcc_wait_it.end(),
+                                    thread_id);
+                if (th != fcc_wait_it.end())
+                    fcc_wait_it.erase(th);
+            }
         }
     }
 }
@@ -254,11 +254,8 @@ sys_emu::raise_timer_interrupt(uint64_t shire_mask)
                     continue;
 
                 // Check if the thread has to be awakened
-                if (!thread_is_running(thread_id)) {
-                    raise_interrupt_wakeup_check(thread_id,
-                                                 1ull << MACHINE_TIMER_INTERRUPT,
-                                                 "Machine timer interrupt");
-                }
+                if (!thread_is_running(thread_id))
+                    raise_interrupt_wakeup_check(thread_id);
             }
         }
     }
@@ -310,11 +307,8 @@ sys_emu::raise_software_interrupt(unsigned shire, uint64_t thread_mask)
         ::raise_software_interrupt(thread_id);
 
         // Check if the thread has to be awakened
-        if (!thread_is_running(thread_id)) {
-            raise_interrupt_wakeup_check(thread_id,
-                                         1ull << MACHINE_SOFTWARE_INTERRUPT,
-                                         "IPÌ");
-        }
+        if (!thread_is_running(thread_id))
+            raise_interrupt_wakeup_check(thread_id);
     }
 }
 
@@ -358,11 +352,8 @@ sys_emu::raise_external_interrupt(unsigned shire)
             continue;
 
         // Check if the thread has to be awakened
-        if (!thread_is_running(thread_id)) {
-            raise_interrupt_wakeup_check(thread_id,
-                                         1ull << MACHINE_EXTERNAL_INTERRUPT,
-                                         "Machine external interrupt");
-        }
+        if (!thread_is_running(thread_id))
+            raise_interrupt_wakeup_check(thread_id);
     }
 }
 
@@ -404,11 +395,8 @@ sys_emu::raise_external_supervisor_interrupt(unsigned shire_id)
             continue;
 
         // Check if the thread has to be awakened
-        if (!thread_is_running(thread_id)) {
-            raise_interrupt_wakeup_check(thread_id,
-                                         1ull << SUPERVISOR_EXTERNAL_INTERRUPT,
-                                         "Supervisor external interrupt");
-        }
+        if (!thread_is_running(thread_id))
+            raise_interrupt_wakeup_check(thread_id);
     }
 }
 
@@ -848,14 +836,25 @@ sys_emu::main_internal(int argc, char * argv[])
                         }
                         else if (inst.is_wfi())
                         {
-                            LOG(DEBUG, "%s", "Going to sleep (WFI)");
-                            wfi_wait_threads.push_back(thread_id);
-                            thread = running_threads.erase(thread);
+                            if (cpu[thread_id].excl_mode) {
+                                LOG(DEBUG, "%s", "Not going to sleep (WFI) because exclusive mode");
+                            } else {
+                                LOG(DEBUG, "%s", "Going to sleep (WFI)");
+                                wfi_stall_wait_threads.push_back(thread_id);
+                                thread = running_threads.erase(thread);
+                                raise_interrupt_wakeup_check(thread_id);
+                            }
                         }
                         else if (inst.is_stall())
                         {
-                            LOG(DEBUG, "%s", "Going to sleep (STALL)");
-                            thread = running_threads.erase(thread);
+                            if (cpu[thread_id].excl_mode) {
+                                LOG(DEBUG, "%s", "Not going to sleep (STALL) because exclusive mode");
+                            } else {
+                                LOG(DEBUG, "%s", "Going to sleep (STALL)");
+                                wfi_stall_wait_threads.push_back(thread_id);
+                                thread = running_threads.erase(thread);
+                                raise_interrupt_wakeup_check(thread_id);
+                            }
                         }
                         else
                         {

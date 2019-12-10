@@ -157,8 +157,8 @@ protected:
         return std::find(_C.begin(), _C.end(), _Val) != _C.end();
     }
 
-    // Checks if a sleeping thread (FCC) has to wake up when receiving an interrupt
-    static void raise_interrupt_wakeup_check(unsigned thread_id, uint64_t mask, const char *str);
+    // Checks if a sleeping thread (FCC, WFI, stall) has to wake up when receiving an interrupt
+    static void raise_interrupt_wakeup_check(unsigned thread_id);
 
 private:
 
@@ -187,7 +187,7 @@ private:
 
     static uint64_t        emu_cycle;
     static std::list<int>  running_threads; // List of running threads
-    static std::list<int>  wfi_wait_threads; // List of threads waiting in a WFI
+    static std::list<int>  wfi_stall_wait_threads; // List of threads waiting in a WFI or stall
     static std::list<int>  fcc_wait_threads[EMU_NUM_FCC_COUNTERS_PER_THREAD]; // List of threads waiting for an FCC
     static std::list<int>  port_wait_threads; // List of threads waiting for a port write
     static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
