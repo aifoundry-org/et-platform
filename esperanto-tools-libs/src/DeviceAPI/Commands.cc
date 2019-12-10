@@ -97,6 +97,11 @@ etrtError LaunchCommand::execute(Device *device) {
   msg.kernel_info.kernel_params_ptr = 0;
   msg.kernel_info.grid_config_ptr = 0;
 
+  RTDEBUG << "LaunchCommand:: "
+          << " kernel_pc: 0x" << std::hex <<   msg.kernel_info.compute_pc
+          << " shire_mack: 0x " <<   msg.kernel_info.shire_mask
+          << "\n";
+
   auto res = target_device.mb_write(&msg, sizeof(msg));
   assert(res);
 
