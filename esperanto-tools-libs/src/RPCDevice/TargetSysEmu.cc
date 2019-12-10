@@ -32,6 +32,11 @@ using namespace simulator_api;
 
 ABSL_FLAG(std::string, sysemu_path, et_runtime::device::SYSEMU_PATH,
           "Path to sysemu");
+
+ABSL_FLAG(std::string, sysemu_socket_dir, "",
+          "Existing folder where sysemu sockets are going to be created, "
+          "expected < 100 characters.");
+
 // SysEMU run directory, there we will create the socket file and
 // store any uart logs from sysemu
 ABSL_FLAG(std::string, sysemu_run_dir, "", "Path to sysemu run folder");
@@ -73,13 +78,19 @@ TargetSysEmu::TargetSysEmu(int index) : RPCTarget(index, "") {
   // Check that the file path we provide can fit in the max length of a socket.
   // to be passed to GRPC
   sockaddr_un fsocket;
-  assert(socket_name.size() < sizeof(fsocket.sun_path));
 
   RTINFO << "Abstract unit socket name : " + socket_name << "\n";
 
   // Use an abstract socket and not an actuall file
   // See
-  path_ = std::string("unix:@") + socket_name;
+  auto socket_dir = absl::GetFlag(FLAGS_sysemu_socket_dir);
+  if (socket_dir.size() > 0) {
+    auto sock_path = fs::path(socket_dir) / socket_name;
+    path_ = std::string("unix://") + sock_path.string();
+  } else {
+    path_ = std::string("unix:@") + socket_name;
+  }
+  assert(path_.size() < sizeof(fsocket.sun_path));
   sys_emu_ = make_unique<SysEmuLauncher>(run_folder.string(), path_,
                                          vector<string>({"-sim_api"}));
 };

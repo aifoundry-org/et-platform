@@ -25,9 +25,10 @@ void ParseCommandLineOptions(int argc, char **argv,
                              const std::vector<std::string> &help_enable) {
   // Parse runtime arguments using abseil
   absl::FlagsUsageConfig config;
-  std::vector<std::string> gen_help_for{"DeviceTarget.cc",    "FWManager.cc",
-                                        "FakeFW.cc",          "DeviceFW.cc",
-                                        "SysEmuLauncher.cpp", "Tracing.cc"};
+  std::vector<std::string> gen_help_for{
+      "DeviceTarget.cc",    "FWManager.cc", "FakeFW.cc",       "DeviceFW.cc",
+      "SysEmuLauncher.cpp", "Tracing.cc",   "TargetSysEmu.cc",
+  };
   gen_help_for.insert(gen_help_for.end(), help_enable.begin(),
                       help_enable.end());
   auto main_help_files = [&gen_help_for](absl::string_view path) -> bool {

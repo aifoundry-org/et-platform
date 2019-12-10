@@ -32,6 +32,7 @@ ETRT_OPT(worker_minion_elf, worker-minion-elf, std::string, std::string, "Path t
 ETRT_OPT(machine_minion_elf, machine-minion-elf, std::string, std::string, "Path to the MachineMinion.elf file")
 ETRT_OPT(fake_fw, fake-fw, std::string, std::string, "Path to the fake-fw file")
 ETRT_OPT(sysemu_path, sysemu-path, std::string, std::string, "Path to sysemu")
+ETRT_OPT(sysemu_socket_dir, sysemu-socket-dir, std::string, std::string, "Existing folder where the sysemu socket will be created.")
 ETRT_OPT(sysemu_run_dir, sysemu-run-dir, std::string, std::string, "Path to sysemu run folder")
 ETRT_OPT(shires, shires, std::string, std::string, "Number of active shires")
 ETRT_OPT(etrt_trace, etrt-trace, std::string, std::string, "Path to runtime Protobuf trace")
