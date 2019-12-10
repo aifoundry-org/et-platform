@@ -86,9 +86,6 @@ $(sysemu_OBJDIR)/libsysemu.a: $(libsysemu_OBJS)
 $(libfpu_OBJDIR)/libfpu.a: force
 	$(MAKE) -C ../fpu libfpu_OBJDIR=$(abspath $(libfpu_OBJDIR)) DEBUG=$(DEBUG) all
 
-%.o: %.xml
-	$(SILENT)xxd -i $< | $(CC) -c -x c - -o $@
-
 sysemu-artifacts.tar.gz: $(sysemu_artifact_HDRS) $(sysemu_artifact_TGTS)
 	tar zcvf sysemu-artifacts.tar.gz sysemu-artifacts
 
@@ -132,19 +129,6 @@ sysemu-artifacts/libsysemu.a: $(sysemu_OBJDIR)/libsysemu.a | $$(@D)/.
 
 sysemu-artifacts/sys_emu: $(sysemu_OBJDIR)/sys_emu | $$(@D)/.
 	cp -f $< $@
-
-$(sysemu_OBJDIR)/obj/%.xml: ../%.xml | $$(@D)/.
-	cp -f $< $@
-
-$(sysemu_OBJDIR)/obj/sys_emu/gdb_target_csr.xml: ../csrs.h | $$(@D)/.
-	@echo "<?xml version=\"1.0\"?>" > $@
-	@echo "<!DOCTYPE target SYSTEM \"gdb-target.dtd\">" >> $@
-	@echo "<feature name=\"org.gnu.gdb.riscv.csr\">" >> $@
-	@echo -e \
-	'#define CSRDEF(num, lower, upper) <reg name= #lower bitsize="64"/>\n'\
-	'#include "csrs.h"\n'\
-	'#undef CSRDEF' | $(CXX) -P -E  -I.. -I. - >> $@
-	@echo "</feature>" >> $@
 
 # ----- rules for generating coverage report ----------------------------------
 

@@ -8,6 +8,7 @@
 #include "emu_gio.h"
 #include "gdbstub.h"
 #include "emu.h"
+#include "gdb_target_xml.h"
 
 #define ARRAY_SIZE(x)           (sizeof(x) / sizeof(*x))
 
@@ -44,11 +45,6 @@ static const unsigned target_csr_list[] {
 #define CSR_REGS_START  (CSR_FREGS_END + 1)
 #define CSR_REGS_END    (CSR_REGS_START + ARRAY_SIZE(target_csr_list) - 1)
 
-extern char build_obj_sys_emu_gdb_target_xml;
-extern unsigned int build_obj_sys_emu_gdb_target_xml_len;
-extern char build_obj_sys_emu_gdb_target_csr_xml;
-extern unsigned int build_obj_sys_emu_gdb_target_csr_xml_len;
-
 struct gdbstub_target_description {
     const char *annex;
     const char *data;
@@ -56,8 +52,8 @@ struct gdbstub_target_description {
 };
 
 static const gdbstub_target_description gdbstub_target_descs[] = {
-    {"target.xml", &build_obj_sys_emu_gdb_target_xml, build_obj_sys_emu_gdb_target_xml_len},
-    {"target_csr.xml", &build_obj_sys_emu_gdb_target_csr_xml, build_obj_sys_emu_gdb_target_csr_xml_len}
+    {"target.xml", gdb_target_xml, sizeof(gdb_target_xml) - 1},
+    {"target_csr.xml", gdb_target_csr_xml, sizeof(gdb_target_csr_xml) - 1}
 };
 
 static enum gdbstub_status g_status = GDBSTUB_STATUS_NOT_INITIALIZED;

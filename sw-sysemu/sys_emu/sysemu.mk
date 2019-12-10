@@ -18,9 +18,7 @@ sysemu_cpp_srcs := \
     sys_emu/sys_emu_main.cpp \
     sys_emu/sys_emu_parse_args.cpp \
     sys_emu/testLog.cpp \
-    sys_emu/utils.cpp \
-    sys_emu/gdb_target.xml \
-    sys_emu/gdb_target_csr.xml
+    sys_emu/utils.cpp
 
 ifeq ($(PROFILING), 1)
   sysemu_hdrs     += sys_emu/profiling.h
