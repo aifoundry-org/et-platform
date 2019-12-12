@@ -279,7 +279,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         // Total number of bytes:
         // 16 lines / minion * 64 bytes / line * 32 minions = 32768
         crc = crc32_8bytes((void *) (base_dst_addr + shire_id * 32768), 32768, crc);
-        uint32_t *crc_ptr = (uint32_t*)(base_dst_addr + 1048576 + shire_id * 4);
+        uint32_t *crc_ptr = (uint32_t*)(base_dst_addr + 1048576 + shire_id * 64);
 	*crc_ptr = crc;
 	log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
     }
