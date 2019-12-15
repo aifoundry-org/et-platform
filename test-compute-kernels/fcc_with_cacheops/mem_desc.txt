@@ -1,0 +1,4 @@
+ELF Load: /eng/pravindran/software/device-firmware/build/src/MasterMinion/MasterMinion.elf
+ELF Load: /eng/pravindran/software/device-firmware/build/src/MachineMinion/MachineMinion.elf
+ELF Load: /eng/pravindran/software/device-firmware/build/src/WorkerMinion/WorkerMinion.elf
+ELF Load: /eng/pravindran/software/device-firmware/build/src/kernels/fcc_with_cacheops/fcc_with_cacheops.elf
