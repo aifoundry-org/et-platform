@@ -33,8 +33,6 @@ ABSL_FLAG(std::string, kernels_dir, "",
           "Directory where different kernel ELF files are located");
 
 TEST_F(DeviceFWTest, launch_uberkernel) {
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path uberkernel = fs::path(kernels_dir) / fs::path("uberkernel.elf");
   auto &registry = CodeRegistry::registry();
@@ -107,6 +105,7 @@ TEST_F(DeviceFWTest, launch_uberkernel) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   // Force logging in stderr and set min logging level
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;

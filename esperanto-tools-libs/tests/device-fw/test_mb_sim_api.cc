@@ -221,6 +221,7 @@ TEST_F(MBSimAPITest, WriteMailBoxMessage) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);

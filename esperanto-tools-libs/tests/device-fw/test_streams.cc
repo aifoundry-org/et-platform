@@ -22,8 +22,6 @@ ABSL_FLAG(std::string, kernels_dir, "",
 using namespace et_runtime;
 
 TEST_F(DeviceFWTest, TestStreamCreate) {
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
   auto &defaultStream = dev_->defaultStream();
 
   // This test is really limited to one device
@@ -50,6 +48,7 @@ TEST_F(DeviceFWTest, TestStreamCreate) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;

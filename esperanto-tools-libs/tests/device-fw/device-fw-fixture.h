@@ -32,6 +32,49 @@ using namespace et_runtime::device;
 using namespace std;
 namespace fs = std::experimental::filesystem;
 
+class MailboxEmuTest : public ::testing::Test {
+
+protected:
+  void SetUp() override {
+    fs::path p = "/proc/self/exe";
+    auto test_real_path = fs::read_symlink(p);
+    auto dir_name = test_real_path.remove_filename();
+
+    absl::SetFlag(&FLAGS_fw_type, FWType("device-fw"));
+    auto device_manager = et_runtime::getDeviceManager();
+    auto ret_value = device_manager->registerDevice(0);
+    dev_ = ret_value.get();
+
+    auto worker_minion = absl::GetFlag(FLAGS_worker_minion_elf);
+    auto machine_minion = absl::GetFlag(FLAGS_machine_minion_elf);
+    auto master_minion = absl::GetFlag(FLAGS_master_minion_elf);
+
+    // Start the simulator and load device-fw in memory
+    dev_->setFWFilePaths({master_minion, machine_minion, worker_minion});
+
+    // Do nothing the test fixture should do the above
+    auto *target_device_ptr = &dev_->getTargetDevice();
+    auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
+    ASSERT_TRUE(target_device != nullptr);
+
+    auto res = target_device->init();
+    ASSERT_TRUE(res);
+
+    res = dev_->mem_manager().init();
+    ASSERT_TRUE(res);
+
+    auto success = dev_->loadFirmwareOnDevice();
+    ASSERT_TRUE(success == etrtSuccess);
+  }
+
+  void TearDown() override {
+    // Stop the simulator
+    ASSERT_TRUE(dev_->getTargetDevice().deinit());
+  }
+
+  std::shared_ptr<Device> dev_;
+};
+
 class DeviceFWTest : public ::testing::Test {
 
 protected:
@@ -51,6 +94,8 @@ protected:
 
     // Start the simulator and load device-fw in memory
     dev_->setFWFilePaths({master_minion, machine_minion, worker_minion});
+
+    ASSERT_EQ(dev_->init(), etrtSuccess);
   }
 
   void TearDown() override {

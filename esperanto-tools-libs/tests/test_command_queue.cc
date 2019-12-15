@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "Core/CommandQueue.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
 #include "esperanto/runtime/DeviceAPI/Command.h"
 #include "esperanto/runtime/DeviceAPI/Response.h"
 
@@ -73,3 +74,15 @@ TEST(CommandQueue, Example) {
 }
 
 } // namespace et_runtime
+
+int main(int argc, char **argv) {
+  google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
+  // Force logging in stderr and set min logging level
+  FLAGS_minloglevel = 0;
+  FLAGS_logtostderr = 1;
+  testing::InitGoogleTest(&argc, argv);
+  et_runtime::ParseCommandLineOptions(argc, argv,
+                                      {"test_launch_uberkernel.cc"});
+  return RUN_ALL_TESTS();
+}

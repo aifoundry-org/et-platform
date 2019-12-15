@@ -80,6 +80,7 @@ TEST(KernelELFInfo, code_module_dev_fw) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   google::SetCommandLineOption("GLOG_logtostderr", "1");
   FLAGS_minloglevel = 0;

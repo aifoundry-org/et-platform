@@ -22,9 +22,6 @@ ABSL_FLAG(std::string, kernels_dir, "",
 using namespace et_runtime;
 
 TEST_F(DeviceFWTest, DeviceAPI_GetDevFWVersion) {
-  // Do nothing make sure that the fixture starts/stop the simulator correctly
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
   GitVersionChecker git_checker (*dev_);
   auto devfw_hash = git_checker.deviceFWHash();
   ASSERT_TRUE(devfw_hash != 0);
@@ -32,9 +29,6 @@ TEST_F(DeviceFWTest, DeviceAPI_GetDevFWVersion) {
 
 // Test the call that retries the DevceAPI version from the Device
 TEST_F(DeviceFWTest, DeviceAPI_GetDevAPIVersion) {
-  // Do nothing make sure that the fixture starts/stop the simulator correctly
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
   DeviceAPIChecker devapi_checker(*dev_);
   auto success = devapi_checker.getDeviceAPIVersion();
   ASSERT_TRUE(success);
@@ -46,9 +40,6 @@ TEST_F(DeviceFWTest, DeviceAPI_GetDevAPIVersion) {
 
 // Test setting the master minion logging levels
 TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelMaster) {
-  // Do nothing make sure that the fixture starts/stop the simulator correctly
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
   SetMasterLogLevel master_level(*dev_);
   auto success = master_level.set_level_critical();
   ASSERT_TRUE(success);
@@ -66,6 +57,7 @@ TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelMaster) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;

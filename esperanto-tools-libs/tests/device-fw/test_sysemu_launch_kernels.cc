@@ -33,8 +33,6 @@ ABSL_FLAG(std::string, kernels_dir, "",
           "Directory where different kernel ELF files are located");
 
 TEST_F(DeviceFWTest, empty_kernel) {
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path empty_kernel = fs::path(kernels_dir)  / fs::path("empty.elf");
   auto &registry = CodeRegistry::registry();
@@ -60,8 +58,6 @@ TEST_F(DeviceFWTest, empty_kernel) {
 }
 
 TEST_F(DeviceFWTest, beef_kernel) {
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
   auto kernels_dir = absl::GetFlag(FLAGS_kernels_dir);
   fs::path beef_kernel = fs::path(kernels_dir) / fs::path("beef.elf");
   auto &registry = CodeRegistry::registry();
@@ -102,6 +98,7 @@ TEST_F(DeviceFWTest, beef_kernel) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   // Force logging in stderr and set min logging level
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;

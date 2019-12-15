@@ -25,9 +25,6 @@ using namespace et_runtime;
 ///  FIXME SW-1364
 // Test setting the master minion logging levels
 TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelWorker) {
-  // Do nothing make sure that the fixture starts/stop the simulator correctly
-  ASSERT_EQ(dev_->init(), etrtSuccess);
-
   SetWorkerLogLevel worker_level(*dev_);
   auto success = worker_level.set_level_critical();
   ASSERT_TRUE(success);
@@ -45,6 +42,7 @@ TEST_F(DeviceFWTest, DeviceAPI_SetLogLevelWorker) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;

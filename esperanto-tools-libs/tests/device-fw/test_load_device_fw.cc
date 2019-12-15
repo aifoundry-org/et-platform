@@ -15,11 +15,11 @@
 
 TEST_F(DeviceFWTest, loadOnSysEMU) {
   // Do nothing make sure that the fixture starts/stop the simulator correctly
-  ASSERT_EQ(dev_->init(), etrtSuccess);
 }
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   google::SetCommandLineOption("GLOG_minloglevel", "0");
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;

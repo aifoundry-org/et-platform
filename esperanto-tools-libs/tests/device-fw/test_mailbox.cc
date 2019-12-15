@@ -13,64 +13,37 @@
 #include "esperanto/runtime/Support/Logging.h"
 
 // Wait for device-fw to raise an interrupt from device to host
-TEST_F(DeviceFWTest, waitForHostInterrupt) {
+TEST_F(MailboxEmuTest, waitForHostInterrupt) {
   // Do nothing the test fixture should do the above
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   ASSERT_TRUE(target_device != nullptr);
 
-  auto res = target_device->init();
-  ASSERT_TRUE(res);
-
-  res = memManager()->init();
-  ASSERT_TRUE(res);
-
-  auto success = dev_->loadFirmwareOnDevice();
-  assert(success == etrtSuccess);
-
   target_device->boot(0x8000001000);
-  res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
+  auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
   ASSERT_TRUE(res);
 }
 
-TEST_F(DeviceFWTest, waitForMailboxReady) {
+TEST_F(MailboxEmuTest, waitForMailboxReady) {
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
 
-  auto res = target_device->init();
-  ASSERT_TRUE(res);
-
-  res = memManager()->init();
-  ASSERT_TRUE(res);
-
-  auto success = dev_->loadFirmwareOnDevice();
-  assert(success == etrtSuccess);
-
   target_device->boot(0x8000001000);
-  res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
+  auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
 
   auto &mb_emu = target_device->mailboxDev();
   auto ready = mb_emu.ready(std::chrono::seconds(20));
   EXPECT_TRUE(ready);
 }
 
-TEST_F(DeviceFWTest, resetMailBox) {
-
+TEST_F(MailboxEmuTest, resetMailBox) {
   auto *target_device_ptr = &dev_->getTargetDevice();
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
-  auto res = target_device->init();
-  ASSERT_TRUE(res);
-
-  res = memManager()->init();
-  ASSERT_TRUE(res);
-
-  auto fw_load = dev_->loadFirmwareOnDevice();
-  assert(fw_load == etrtSuccess);
 
   target_device->boot(0x8000001000);
-  res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
+  auto res = target_device->waitForHostInterrupt(std::chrono::seconds(30));
 
   auto &mb_emu = target_device->mailboxDev();
   auto success = mb_emu.ready(std::chrono::seconds(20));
@@ -88,7 +61,6 @@ TEST_F(DeviceFWTest, reflectTest) {
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
 
-  ASSERT_EQ(dev_->init(), etrtSuccess);
 
   // Construct the reflect message and write it
   device_fw::host_message_t msg = {0};
@@ -108,6 +80,7 @@ TEST_F(DeviceFWTest, reflectTest) {
 
 int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
+  google::InstallFailureSignalHandler();
   FLAGS_minloglevel = 0;
   FLAGS_logtostderr = 1;
   testing::InitGoogleTest(&argc, argv);
