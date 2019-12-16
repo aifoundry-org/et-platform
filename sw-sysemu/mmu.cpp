@@ -214,7 +214,8 @@ static inline uint64_t pma_dram_limit(bool spio, uint8_t mprot)
 
 
 static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
-                                      size_t size, mem_access_type macc, mreg_t mask, cacheop_type cop)
+                                      size_t size, mem_access_type macc,
+                                      mreg_t mask, cacheop_type cop)
 {
 #ifndef SYS_EMU
     (void) cop;
@@ -326,7 +327,7 @@ static uint64_t pma_check_data_access(uint64_t vaddr, uint64_t addr,
         int mode = effective_execution_mode(macc);
         if (!spio
             || amo
-            || ts_tl_co
+            || (ts_tl_co && !paddr_is_sp_cacheable(addr))
             || (paddr_is_sp_sram_code(addr) && data_access_is_write(macc) && (mode != PRV_M))
             || (paddr_is_sp_sram_data(addr) && (mode == PRV_U))
             || (!paddr_is_sp_cacheable(addr) && !addr_is_size_aligned(addr, size)))
