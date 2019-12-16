@@ -19,6 +19,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_GET_MTIME:
         case SYSCALL_DRAIN_COALESCING_BUFFER:
         case SYSCALL_EVICT_L1:
+        case SYSCALL_EVICT_L1_ALT:
         case SYSCALL_UNLOCK_L1:
         case SYSCALL_EVICT_L2:
         case SYSCALL_EVICT_L2_WAIT:

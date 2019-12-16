@@ -81,6 +81,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         break;
 
         case SYSCALL_EVICT_L1:
+        case SYSCALL_EVICT_L1_ALT:
             rv = evict_l1(arg1, arg2);
         break;
 

@@ -29,7 +29,8 @@ typedef enum {
     SYSCALL_CACHE_CONTROL_ALT = 302,
     SYSCALL_FLUSH_L3_ALT = 303,
     SYSCALL_SHIRE_CACHE_BANK_OP_ALT = 304,
-    SYSCALL_RETURN_FROM_KERNEL = 305,
+    SYSCALL_EVICT_L1_ALT = 305,
+    SYSCALL_RETURN_FROM_KERNEL = 306,
 
     // from userspace to supervisor for both master and compute firmwares [400-499]
     SYSCALL_LOG_WRITE = 400,
