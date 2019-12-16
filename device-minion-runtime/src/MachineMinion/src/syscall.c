@@ -39,6 +39,8 @@ static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const i
 static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank);
 static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t hart_mask);
 
+static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op);
+
 static inline void l1_shared_to_split(uint64_t scp_en);
 static inline void l1_split_to_shared(uint64_t scp_enabled);
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
@@ -107,6 +109,11 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_DRAIN_COALESCING_BUFFER:
         case SYSCALL_DRAIN_COALESCING_BUFFER_ALT:
             rv = drain_coalescing_buffer_with_params(arg1, arg2);
+        break;
+
+        case SYSCALL_SHIRE_CACHE_BANK_OP:
+        case SYSCALL_SHIRE_CACHE_BANK_OP_ALT:
+            rv = shire_cache_bank_op_with_params(arg1, arg2, arg3);
         break;
 
         case SYSCALL_RETURN_FROM_KERNEL: // supervisor firmware should never ask the machine code to do this
@@ -296,12 +303,10 @@ static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, ui
     evict_sw(use_tmask, dest_level, 3, set, num_sets, 0);
 }
 
-static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level)
+static int64_t evict_l1_all(uint64_t use_tmask, uint64_t dest_level)
 {
     int64_t rv;
     const uint64_t mcache_control_reg = mcache_control_get();
-
-    excl_mode(1); // get exclusive access to the processor
 
     if ((mcache_control_reg & 0x3) == 3)
     {
@@ -328,7 +333,21 @@ static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level)
     WAIT_CACHEOPS
     FENCE
 
-    excl_mode(0); // release exclusive access to the processor
+    return rv;
+}
+
+static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level)
+{
+    int64_t rv;
+
+    // Gain exclusive access to the processor
+    excl_mode(1);
+
+    // Evict all cache lines from the L1 to a given level
+    rv = evict_l1_all(use_tmask, dest_level);
+
+    // Release the hold of the processor
+    excl_mode(0);
 
     return rv;
 }
@@ -429,13 +448,18 @@ static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t* const ad
     } while (state != 4);
 }
 
-static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank)
+static inline void shire_cache_bank_op(uint64_t shire, uint64_t bank, uint64_t op)
 {
     volatile uint64_t* const addr = ESR_CACHE(PRV_M, shire, bank, IDX_COP_SM_CTL);
 
     sc_idx_cop_sm_ctl_wait_idle(addr);
-    sc_idx_cop_sm_ctl_go(addr, 10); // Opcode = CB_Inv (Coalescing buffer invalidate)
+    sc_idx_cop_sm_ctl_go(addr, op);
     sc_idx_cop_sm_ctl_wait_idle(addr);
+}
+
+static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank)
+{
+    shire_cache_bank_op(shire, bank, 10); // Opcode = CB_Inv (Coalescing buffer invalidate)
 }
 
 static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t hart_mask)
@@ -477,6 +501,14 @@ static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t har
     return 0;
 }
 
+static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op)
+{
+    // XXX: Here we might want to forbid some harmful operations or shire(s)
+    shire_cache_bank_op(shire, bank, op);
+
+    return 0;
+}
+
 // change L1 configuration from Shared to Split, optionally with Scratchpad enabled
 static inline void l1_shared_to_split(uint64_t scp_en)
 {
@@ -484,7 +516,7 @@ static inline void l1_shared_to_split(uint64_t scp_en)
     excl_mode(1);
 
     // Evict all cache lines from the L1 to L2
-    evict_l1(0, to_L2);
+    evict_l1_all(0, to_L2);
 
     // Wait for all evictions to complete
     WAIT_CACHEOPS
