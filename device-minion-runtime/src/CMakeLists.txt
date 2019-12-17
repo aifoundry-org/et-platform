@@ -70,7 +70,7 @@ if("${devicefw_DEVICE_API_PROVIDER}" STREQUAL "module")
 else()
   find_package(esperanto-device-api CONFIG REQUIRED)
 endif()
-message("Espernato Device API Found: ${espernato-device-api_FOUND}")
+message("Esperanto Device API Found: ${espernato-device-api_FOUND}")
 
 add_subdirectory("shared/include")
 add_subdirectory("MachineMinion")

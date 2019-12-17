@@ -18,6 +18,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_GET_MTIME:
         case SYSCALL_DRAIN_COALESCING_BUFFER:
         case SYSCALL_EVICT_L1:
+        case SYSCALL_EVICT_L1_ALT:
         case SYSCALL_UNLOCK_L1:
         case SYSCALL_EVICT_L2:
         case SYSCALL_EVICT_L2_WAIT:
@@ -27,7 +28,8 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
         case SYSCALL_ENABLE_THREAD1:
         case SYSCALL_DRAIN_COALESCING_BUFFER_ALT:
         case SYSCALL_CACHE_CONTROL_ALT:
-
+        case SYSCALL_SHIRE_CACHE_BANK_OP:
+        case SYSCALL_SHIRE_CACHE_BANK_OP_ALT:
             rv = syscall(number, arg1, arg2, arg3); // forward the syscall to the machine mode handler
         break;
 
