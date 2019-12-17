@@ -157,6 +157,7 @@ if(esperanto-fw_FOUND)
 
   set(DUAL_TEST_LIST
     device-fw/test_device_api.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
+    device-fw/test_launch_uberkernel.cc:"${DUAL_MODE_OPTS} --kernels_dir ${KERNELS_DIR}"
     )
   create_test_targets("${DUAL_TEST_LIST}" "${DUAL_TEST_LABELS}")
 

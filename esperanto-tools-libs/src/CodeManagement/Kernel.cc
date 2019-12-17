@@ -178,7 +178,7 @@ etrtError Kernel::KernelLaunch::launchBlocking(Stream *stream) {
 
   stream->addCommand(
       std::shared_ptr<device_api::CommandBase>(new device_api::LaunchCommand(
-          kernel_entry_point, args_buff, kernel_.name())));
+          kernel_entry_point, args_buff, kernel_.name(), false)));
 
   return etrtSuccess;
 }

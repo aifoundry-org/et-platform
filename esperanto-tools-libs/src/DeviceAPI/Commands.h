@@ -97,14 +97,19 @@ class LaunchCommand final : public Command<LaunchResponse> {
 
 public:
   LaunchCommand(uintptr_t kernel_pc, const std::vector<uint8_t> &args_buff,
-                const std::string &kernel_name)
-      : kernel_pc(kernel_pc), args_buff(args_buff), kernel_name(kernel_name) {}
+                const std::string &kernel_name, bool uber_kernel)
+      : kernel_pc(kernel_pc), args_buff(args_buff), kernel_name(kernel_name),
+        uber_kernel_(uber_kernel) {}
   etrtError execute(et_runtime::Device *device_target) override;
 
 private:
   uintptr_t kernel_pc;
   std::vector<uint8_t> args_buff;
   std::string kernel_name;
+  bool uber_kernel_; ///< True if we are launching an uber-kernel, in which case
+                     ///< we need to modify the shire mask
+
+  static constexpr int MASTER_SHIRE = 32;
 };
 
 } // namespace device_api

@@ -14,6 +14,7 @@
 /// @file
 
 #include "esperanto/runtime/CodeManagement/Kernel.h"
+#include "esperanto/runtime/CodeManagement/UberKernel.h"
 #include "esperanto/runtime/Common/CommonTypes.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 
