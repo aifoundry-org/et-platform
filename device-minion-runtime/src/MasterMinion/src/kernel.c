@@ -60,31 +60,45 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
         evict(to_L3, kernel_config_ptr, sizeof(kernel_config_t));
         WAIT_CACHEOPS
 
-        const uint64_t num_shires = kernel_config_ptr->num_shires;
+        const uint64_t num_shires = kernel_config_ptr->num_shires; // Also contains Master shire if sync-minions are used
         const uint64_t shire_mask = kernel_config_ptr->kernel_info.shire_mask;
 
         if ((num_shires > 0) && (shire_mask > 0))
         {
-            // Broadcast launch FCC0 to all HARTs in all shires in shire_mask
-            broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC0); // thread 0 FCC 0
-            broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC2); // thread 1 FCC 0
+            const bool uses_sync_minions = (shire_mask & (1ULL << MASTER_SHIRE)) != 0;
+            const uint64_t sync_minions_mask = uses_sync_minions ? 0xFFFF0000U : 0;
+            const uint64_t compute_shires_mask = shire_mask & ~(1ULL << MASTER_SHIRE);
 
-            // Wait for a ready FCC1 from each shire
+            // Broadcast launch FCC0 to all HARTs in all required compute shires
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC0); // thread 0 FCC 0
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC2); // thread 1 FCC 0
+            if (sync_minions_mask) {
+                // Send launch FCC0 to sync-minions of master shire
+                SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_0, sync_minions_mask);
+                SEND_FCC(MASTER_SHIRE, THREAD_1, FCC_0, sync_minions_mask);
+            }
+
+            // Wait for a ready FCC1 from each shire, plus sync-minions of master shire
             for (uint64_t i = 0; i < num_shires; i++)
             {
                 WAIT_FCC(1);
             }
 
-            // Broadcast go FCC1 to all HARTs in all shires in shire_mask
-            broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC1); // thread 0 FCC 1
-            broadcast(0xFFFFFFFFU, shire_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC3); // thread 1 FCC 1
+            // Broadcast go FCC1 to all HARTs in all required compute shires
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC1); // thread 0 FCC 1
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC3); // thread 1 FCC 1
+            if (sync_minions_mask) {
+                // Send go FCC1 to sync-minions of master shire
+                SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_1, sync_minions_mask);
+                SEND_FCC(MASTER_SHIRE, THREAD_1, FCC_1, sync_minions_mask);
+            }
 
             // Send message to master minion indicating the kernel is starting
             message_t sync_message = {.id = MESSAGE_ID_KERNEL_LAUNCH_ACK, .data = {0}};
             sync_message.data[0] = kernel_id;
             message_send_worker(get_shire_id(), get_hart_id(), &sync_message);
 
-            // Wait for a done FCC1 from each shire
+            // Wait for a done FCC1 from each shire, plus sync-minions of master shire
             for (uint64_t i = 0; i < num_shires; i++)
             {
                 WAIT_FCC(1);

@@ -44,9 +44,10 @@ void __attribute__((noreturn)) main(void)
         *ipi_redirect_filter_ptr = 0;
     }
 
-    if (get_shire_id() == 32) // Master shire
+    if ((get_shire_id() == 32) && ((get_minion_id() & 0x1F) < 16)) // Master shire non-sync minions (lower 16)
     {
         const uint64_t* const master_entry = (uint64_t*)FW_MASTER_SMODE_ENTRY;
+        const uint32_t minion_mask = 0xFFFFU;
         bool result;
 
         // First HART in each neighborhood
@@ -71,14 +72,14 @@ void __attribute__((noreturn)) main(void)
                 *mprot_ptr = mprot;
             }
 
-            // Wait for MPROT config on all 4 neighborhoods to complete before any thread can continue.
-            WAIT_FLB(4, 31, result);
+            // Wait for MPROT config on all 2 non-sync neighborhoods to complete before any thread can continue.
+            WAIT_FLB(2, 31, result);
 
             if (result)
             {
-                // Last neighborhood to configure MPROT sends FCC0 to all HARTs in this shire
-                // minion thread1s aren't enabled yet, so send FCC0 to 32 thread0s.
-                SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, 0xFFFFFFFFU);
+                // Last neighborhood to configure MPROT sends FCC0 to all HARTs (other than sync-minions) in this shire
+                // minion thread1s aren't enabled yet, so send FCC0 to 16 thread0s.
+                SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
             }
         }
 
@@ -97,22 +98,26 @@ void __attribute__((noreturn)) main(void)
             : "r" (master_entry)
         );
     }
-    else // Worker shire
+    else // Worker shire and Master shire sync-minions (upper 16)
     {
         const uint64_t* const worker_entry = (uint64_t*)FW_WORKER_SMODE_ENTRY;
+        const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
+        const uint32_t first_hart = (get_shire_id() == MASTER_SHIRE) ? 32 : 0;
+        const uint32_t first_neighborhood = (get_shire_id() == MASTER_SHIRE) ? 2 : 0;
+        const uint32_t neighborhood_mask = (get_shire_id() == MASTER_SHIRE) ? 0xC : 0xF;
 
         // First HART in each shire
-        if (get_hart_id() % 64 == 0)
+        if (get_hart_id() % 64 == first_hart)
         {
             // Set MPROT for all neighborhoods in worker shire to disable access to OS, PCI-E and IO regions and enable secure memory permissions
-            volatile uint64_t* const mprot_neighborhood0_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, 0, MPROT);
-            volatile uint64_t* const mprot_broadcast_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, 0xF, MPROT); // 0xF = broadcast to all 4 neighborhoods
+            volatile uint64_t* const mprot_neighborhood0_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, first_neighborhood, MPROT);
+            volatile uint64_t* const mprot_broadcast_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, neighborhood_mask, MPROT); // 0xF = broadcast to all 4 neighborhoods
             uint64_t mprot = *mprot_neighborhood0_ptr;
             mprot |= 0x46; // set enable_secure_memory, disable_pcie_access and io_access_mode = b10 (disabled)
             *mprot_broadcast_ptr = mprot;
 
             // minion thread1s aren't enabled yet, so send FCC0 to all thread0s
-            SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, 0xFFFFFFFFU);
+            SEND_FCC(THIS_SHIRE, THREAD_0, FCC_0, minion_mask);
         }
 
         // Only thread0s participate in the initial MRPOT config rendezvous
