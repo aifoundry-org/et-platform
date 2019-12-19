@@ -117,6 +117,11 @@ extern void tensor_quant_execute();
 extern void tensor_reduce_step(unsigned thread);
 extern void tensor_reduce_execute();
 
+// TensorWait
+
+extern void tensor_wait_start(uint64_t value);
+extern void tensor_wait_execute();
+
 // Shire cooperative mode
 
 extern void write_shire_coop_mode(unsigned shire, uint64_t val);

@@ -684,6 +684,7 @@ static insn_exec_funct_t dec_system(uint32_t bits, uint16_t& flags)
     case 0x820 : flags |= insn_t::flag_FLB; break;
     case 0x821 : flags |= insn_t::flag_FCC; break;
     case 0x822 : flags |= insn_t::flag_STALL; break;
+    case 0x830 : flags |= insn_t::flag_TENSOR_WAIT; break;
     case 0x83f : flags |= insn_t::flag_TENSOR_LOAD; break;
     case 0x87f : flags |= insn_t::flag_TENSOR_STORE; break;
     }
