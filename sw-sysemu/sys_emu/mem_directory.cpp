@@ -1,6 +1,7 @@
 #include "mem_directory.h"
 #include "emu_defines.h"
 #include "emu_gio.h"
+#include "memmap.h"
 
 uint64_t md_log_addr   = 0x1;
 uint32_t md_log_minion = 2048;
@@ -164,8 +165,9 @@ bool mem_directory::write(uint64_t address, op_location_t location, uint32_t shi
         shire_mem_info_t new_value;
 
         // L2 dirty
-        new_value.l2                 = (location == COH_MINION) || (location == COH_SHIRE);
-        new_value.l2_dirty           = (location == COH_SHIRE);
+        bool is_l2_scp               = paddr_is_scratchpad(address);
+        new_value.l2                 = ((location == COH_MINION) || (location == COH_SHIRE)) && !is_l2_scp;
+        new_value.l2_dirty           = (location == COH_SHIRE) && !is_l2_scp;
         new_value.l2_dirty_minion_id = (location == COH_MINION) ? minion_id : 255;
         // Not writing to shire cache, then get global time stamp if available (if not write previous time stamp). If writing to shire cache get current time stamp
         new_value.time_stamp         = (location == COH_MINION) ? global_found ? it_global->second.time_stamp : global_time_stamp - 1 : global_time_stamp;
@@ -362,7 +364,8 @@ bool mem_directory::read(uint64_t address, op_location_t location, uint32_t shir
         shire_mem_info_t new_value;
 
         // L2 dirty
-        new_value.l2                 = true;
+        bool is_l2_scp               = paddr_is_scratchpad(address);
+        new_value.l2                 = !is_l2_scp;
         new_value.l2_dirty           = false;
         new_value.l2_dirty_minion_id = 255;
         new_value.time_stamp         = global_found ? it_global->second.time_stamp
@@ -482,8 +485,9 @@ bool mem_directory::evict_va(uint64_t address, op_location_t location, uint32_t 
         // Dirty evict: updates time stamp and marks line as dirty in shire
         if(* dirty_evict)
         {
-            it_shire->second.l2         = true;
-            it_shire->second.l2_dirty   = true;
+            bool is_l2_scp              = paddr_is_scratchpad(address);
+            it_shire->second.l2         = !is_l2_scp;
+            it_shire->second.l2_dirty   = !is_l2_scp;
             it_shire->second.time_stamp = it_minion->second.time_stamp;
             dump_shire(&it_shire->second, "evict_va", "update", address, shire_id, minion);
         }
@@ -615,8 +619,9 @@ void mem_directory::l1_clear_set(uint32_t shire_id, uint32_t minion_id, uint32_t
             {
                 LOG_ALL_MINIONS(FTL, "Should have found address %llX in shire when doing l1_clear_set\n", (long long unsigned int) addr);
             }
-            it_shire->second.l2         = true;
-            it_shire->second.l2_dirty   = true;
+            bool is_l2_scp              = paddr_is_scratchpad(addr);
+            it_shire->second.l2         = !is_l2_scp;
+            it_shire->second.l2_dirty   = !is_l2_scp;
             it_shire->second.time_stamp = it_minion->second.time_stamp;
             dump_shire(&it_shire->second, "l1_clear_set", "update", addr, shire_id, minion);
         }
