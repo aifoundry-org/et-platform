@@ -74,6 +74,15 @@ struct sys_emu_cmd_options {
 
 std::tuple<bool, struct sys_emu_cmd_options> parse_command_line_arguments(int argc, char* argv[]);
 
+struct sys_emu_coop_tload
+{
+    bool     tenb;
+    uint32_t id;
+    uint32_t coop_id;
+    uint32_t min_mask;
+    uint32_t neigh_mask;
+};
+
 
 class api_communicate;
 
@@ -141,6 +150,12 @@ public:
     static scp_directory& get_scp_directory() { return scp_dir; }
     static bool get_display_trap_info() { return cmd_options.display_trap_info; }
 
+    static void coop_tload_add(uint32_t thread_id, bool tenb, uint32_t id, uint32_t coop_id, uint32_t min_mask, uint32_t neigh_mask);
+    static bool coop_tload_check(uint32_t thread_id, bool tenb, uint32_t id, uint32_t & requested_mask, uint32_t & present_mask);
+    static bool coop_tload_all_present(uint32_t thread_id, const sys_emu_coop_tload & coop_tload, uint32_t & requested_mask, uint32_t & present_mask);
+    static void coop_tload_mark_done(uint32_t thread_id, const sys_emu_coop_tload & coop_tload);
+    static uint32_t coop_tload_get_thread_id(uint32_t thread_id, uint32_t neigh, uint32_t min);
+
     static void breakpoint_insert(uint64_t addr);
     static void breakpoint_remove(uint64_t addr);
     static bool breakpoint_exists(uint64_t addr);
@@ -193,6 +208,7 @@ private:
     static std::bitset<EMU_NUM_THREADS> active_threads; // List of threads being simulated
     static uint16_t        pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
     static uint64_t        current_pc[EMU_NUM_THREADS]; // PC for each thread
+    static std::list<sys_emu_coop_tload> coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
     static RVTimer         pu_rvtimer;
     static uint64_t        minions_en;
     static uint64_t        shires_en;

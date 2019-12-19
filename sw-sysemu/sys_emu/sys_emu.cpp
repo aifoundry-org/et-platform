@@ -46,6 +46,7 @@ std::list<int>  sys_emu::port_wait_threads;                                     
 std::bitset<EMU_NUM_THREADS> sys_emu::active_threads;                                   // List of threads being simulated
 uint16_t        sys_emu::pending_fcc[EMU_NUM_THREADS][EMU_NUM_FCC_COUNTERS_PER_THREAD]; // Pending FastCreditCounter list
 uint64_t        sys_emu::current_pc[EMU_NUM_THREADS];                                   // PC for each thread
+std::list<sys_emu_coop_tload>    sys_emu::coop_tload_pending_list[EMU_NUM_THREADS];                      // List of pending cooperative tloads per thread
 RVTimer         sys_emu::pu_rvtimer;
 uint64_t        sys_emu::minions_en = 1;
 uint64_t        sys_emu::shires_en  = 1;
@@ -55,8 +56,8 @@ bool            sys_emu::scp_check       = false;
 scp_directory   sys_emu::scp_dir;
 std::unique_ptr<api_communicate> sys_emu::api_listener;
 sys_emu_cmd_options              sys_emu::cmd_options;
-std::unordered_set<uint64_t> sys_emu::breakpoints;
-std::bitset<EMU_NUM_THREADS> sys_emu::single_step;
+std::unordered_set<uint64_t>     sys_emu::breakpoints;
+std::bitset<EMU_NUM_THREADS>     sys_emu::single_step;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Helper methods
@@ -418,7 +419,8 @@ sys_emu::clear_external_supervisor_interrupt(unsigned shire_id)
     }
 }
 
-bool sys_emu::init_api_listener(const char *communication_path, bemu::MainMemory* memory) {
+bool
+sys_emu::init_api_listener(const char *communication_path, bemu::MainMemory* memory) {
     (void) communication_path;
     (void) memory;
     // Now api_communicate is an interface
@@ -484,6 +486,198 @@ sys_emu::shire_enable_threads(unsigned shire_id)
         if (thread_is_active(thread_id) && !thread_is_disabled(thread_id))
             running_threads.push_back(thread_id);
     }
+}
+
+void
+sys_emu::coop_tload_add(uint32_t thread_id, bool tenb, uint32_t id, uint32_t coop_id, uint32_t min_mask, uint32_t neigh_mask)
+{
+    sys_emu_coop_tload coop_tload;
+
+    coop_tload.tenb       = tenb;
+    coop_tload.id         = id;
+    coop_tload.coop_id    = coop_id;
+    coop_tload.min_mask   = min_mask;
+    coop_tload.neigh_mask = neigh_mask;
+    coop_tload_pending_list[thread_id].push_back(coop_tload);
+}
+
+// Returns the thread id of the cooperating minion for a tensor load
+uint32_t
+sys_emu::coop_tload_get_thread_id(uint32_t thread_id, uint32_t neigh, uint32_t min)
+{
+    uint32_t other_thread_id = 0;
+    uint32_t shire_id = thread_id / EMU_THREADS_PER_SHIRE;
+    other_thread_id = shire_id * EMU_THREADS_PER_SHIRE + (neigh * EMU_MINIONS_PER_NEIGH + min) * EMU_THREADS_PER_MINION;
+    return other_thread_id;    
+}
+
+// Returns if the cooperative tloads are present in other threads
+bool
+sys_emu::coop_tload_all_present(uint32_t thread_id, const sys_emu_coop_tload & coop_tload, uint32_t & requested_mask, uint32_t & present_mask)
+{
+    bool all_present = true;
+
+    // For all the neighs
+    for(uint32_t neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
+    {
+        // Skip check if not enabled
+        if(((coop_tload.neigh_mask >> neigh) & 0x1) == 0) continue;
+
+        // For all the minions
+        for(uint32_t min = 0; min < EMU_MINIONS_PER_NEIGH; min++)
+        {
+            // Skip check if not enabled
+            if(((coop_tload.min_mask >> min) & 0x1) == 0) continue;
+
+            // Updates requested mask
+            requested_mask |= 1 << (min + neigh * EMU_MINIONS_PER_NEIGH);
+
+            // Gets the thread id of the cooperating thread
+            uint32_t coop_thread_id = coop_tload_get_thread_id(thread_id, neigh, min);
+
+            // Looks for first tload coop going to same tenb
+            uint8_t state = 0;
+            auto it_coop = coop_tload_pending_list[coop_thread_id].begin();
+            while((state == 0) && (it_coop != coop_tload_pending_list[coop_thread_id].end()))
+            {
+                //printf("COOP: %i => checking id %i vs id %i of thread %i\n", thread_id, coop_tload.coop_id, it_coop->coop_id, coop_thread_id);
+                // Coming from same TLoad FSM
+                if(it_coop->tenb == coop_tload.tenb)
+                {
+                    if(it_coop->coop_id != coop_tload.coop_id) state = 2; // Found entry, different coop_id => TODO: this is a SW bug
+                    else                                       state = 1; // Found entry, same coop_id
+                }
+                else it_coop++;
+            }
+
+            // If no tload found from same unit and same coop_id, then not ready
+            if(state != 1)
+            {
+                all_present = false;
+            }
+            else
+            {
+                present_mask |= 1 << (min + neigh * EMU_MINIONS_PER_NEIGH);
+            }
+        }
+    }
+
+    return all_present;
+}
+
+// Marks as done the cooperating tensor loads
+void
+sys_emu::coop_tload_mark_done(uint32_t thread_id, const sys_emu_coop_tload & coop_tload)
+{
+    // For all the neighs
+    for(uint32_t neigh = 0; neigh < EMU_NEIGH_PER_SHIRE; neigh++)
+    {
+        // Skip check if not enabled
+        if(((coop_tload.neigh_mask >> neigh) & 0x1) == 0) continue;
+
+        // For all the minions
+        for(uint32_t min = 0; min < EMU_MINIONS_PER_NEIGH; min++)
+        {
+            // Skip check if not enabled
+            if(((coop_tload.min_mask >> min) & 0x1) == 0) continue;
+
+            // Gets the thread id of the cooperating thread
+            uint32_t coop_thread_id = coop_tload_get_thread_id(thread_id, neigh, min);
+
+            // Do not remove himself
+            if(coop_thread_id == thread_id) continue;
+
+            // Looks for first tload coop going to same tenb
+            uint8_t state = 0;
+            auto it_coop = coop_tload_pending_list[coop_thread_id].begin();
+            while((state == 0) && (it_coop != coop_tload_pending_list[coop_thread_id].end()))
+            {
+                // Coming from same TLoad FSM
+                if(it_coop->tenb == coop_tload.tenb)
+                {
+                    if(it_coop->coop_id != coop_tload.coop_id) state = 2; // Found entry, different coop_id => TODO: this is a SW bug
+                    // Found entry, remove it
+                    else
+                    {
+                        coop_tload_pending_list[coop_thread_id].erase(it_coop);
+                        state = 1;
+                    }
+                }
+                else it_coop++;
+            }
+        }
+    }
+}
+
+// Checks if all cooperative tensor loads with id id for a specific thread id are done
+bool
+sys_emu::coop_tload_check(uint32_t thread_id, bool tenb, uint32_t id, uint32_t & requested_mask, uint32_t & present_mask)
+{
+    // Returns true if thread_id has all tloads resolved with id id
+    bool resolved = true;
+
+    // Clears the mask bits
+    requested_mask = 0;
+    present_mask   = 0;
+
+    //printf("COOP: %i => coop_tload_check: tenb %i, id %i\n", thread_id, tenb, id);
+
+    // First we need to distinguesh between tloads to TENB or not
+    // Second, for non TENB, as there's a single FSM and it executes
+    // in order, we need to check which is the last tload with the checked
+    // id. Then, all the older tloads regardless of their id need to be
+    // checked, as the FSM is in order
+
+    auto last_tload = coop_tload_pending_list[thread_id].begin();
+    if(tenb)
+    {
+        last_tload = coop_tload_pending_list[thread_id].end();
+    }
+    else
+    {
+        auto it = coop_tload_pending_list[thread_id].begin();
+        while(it != coop_tload_pending_list[thread_id].end())
+        {
+            if(!it->tenb && (it->id == id))
+            {
+                last_tload = it;
+            }
+            it++;
+        }
+    }
+
+    // We need to check all the tloads from the same FSM (tenb or not tenb)
+    // For all the pending coop tloads
+    bool last = false;
+    auto it = coop_tload_pending_list[thread_id].begin();
+    while(!last && (it != coop_tload_pending_list[thread_id].end()))
+    {
+        // Mark this is the last required checked
+        last = (it == last_tload);
+        // Ignores entry if different tenb
+        if(it->tenb != tenb)
+        {
+            //printf("COOP: %i => coop_tload_check skip to check: id %i, coop_id %i, neigh %01x, min %02x\n", thread_id, it->id, it->coop_id, it->neigh_mask, it->min_mask);
+            it++;
+            continue;
+        }
+        //printf("COOP: %i => coop_tload_check need to check: id %i, neigh %01x, min %02x\n", thread_id, it->coop_id, it->neigh_mask, it->min_mask);
+
+        // Gets if all tloads are present
+        bool all_present = coop_tload_all_present(thread_id, * it, requested_mask, present_mask);
+        if(all_present)
+        {
+            coop_tload_mark_done(thread_id, * it);
+            it = coop_tload_pending_list[thread_id].erase(it);
+        }
+        else
+        {
+            // Not all done
+            return false;
+        }
+    }
+
+    return resolved;
 }
 
 void
@@ -777,6 +971,24 @@ sys_emu::main_internal(int argc, char * argv[])
                     else
                     {
                         LOG(DEBUG, "Waiting to receive data from H%u", other_thread);
+                    }
+                    ++thread;
+                }
+                else if (cpu[thread_id].wait.state != Processor::Wait::State::Idle)
+                {
+                    if (cpu[thread_id].wait.state == Processor::Wait::State::WaitReady)
+                    {
+                        tensor_wait_execute();
+                    }
+                    else if (cpu[thread_id].wait.state == Processor::Wait::State::Wait)
+                    {
+                        LOG(DEBUG, "%s", "Rechecking TensorWait state");
+                        tensor_wait_start(cpu[thread_id].wait.value);
+                    }
+                    else if (cpu[thread_id].wait.state == Processor::Wait::State::TxFMA)
+                    {
+                        LOG(DEBUG, "%s", "Rechecking TensorFMA state");
+                        tensor_fma_execute();
                     }
                     ++thread;
                 }

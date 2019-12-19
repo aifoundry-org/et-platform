@@ -434,6 +434,7 @@ void reset_hart(unsigned thread)
     // Reset tensor operation state machines
     cpu[thread].reduce.count = 0;
     cpu[thread].reduce.state = Processor::Reduce::State::Idle;
+    cpu[thread].wait.state = Processor::Wait::State::Idle;
     cpu[thread].txquant = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].shadow_txquant = 0xFFFFFFFFFFFFFFFFULL;
     cpu[thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
@@ -1649,18 +1650,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         // FIXME: Do something here?
         break;
     case CSR_TENSOR_WAIT:
-#ifdef SYS_EMU
-        if(sys_emu::get_scp_check())
-        {
-            // TensorWait TLoad Id0
-            if     ((val & 0xF) == 0) { sys_emu::get_scp_directory().l1_scp_wait(current_thread, 0); }
-            else if((val & 0xF) == 1) { sys_emu::get_scp_directory().l1_scp_wait(current_thread, 1); }
-            else if((val & 0xF) == 2) { sys_emu::get_scp_directory().l2_scp_wait(current_thread, 0); }
-            else if((val & 0xF) == 3) { sys_emu::get_scp_directory().l2_scp_wait(current_thread, 1); }
-        }
-#endif
-        log_tensor_error_value(cpu[current_thread].tensor_error);
-        // FIXME: Do something here?
+        tensor_wait_start(val);
         break;
     case CSR_TENSOR_LOAD:
         require_feature_ml_on_thread0();
@@ -2627,9 +2617,12 @@ static void tmask_conv()
 
 static void tcoop(uint64_t value)
 {
-    uint8_t neigh_mask  = (value >> 16) & 0xF;
-    uint8_t minion_mask = (value >>  8) & 0xFF;
-    int     coop_id     = (value >>  0) & 0xFF;
+    uint32_t neigh_mask  = (value >> 16) & 0xF;
+    uint32_t minion_mask = (value >>  8) & 0xFF;
+    uint32_t coop_id     = (value >>  0) & 0x1F;
+    cpu[current_thread].tensor_coop = neigh_mask << 16
+                                    | minion_mask << 8
+                                    | coop_id;
     // TODO: implement functionality checking the addresses and tcoop of every use of Tensor Load
     LOG(DEBUG, "\tSetting Tensor Cooperation: coopneighmask=%02X, coopminmask=%02X, coopid=%d", neigh_mask, minion_mask, coop_id);
 }
@@ -2745,6 +2738,14 @@ void tensor_load_execute(bool tenb)
         throw std::runtime_error("tensor_load_execute() called while "
                                  "this thread's TensorLoad FSM is inactive");
     }
+
+#ifdef SYS_EMU
+    // Logs tensorload coop info
+    if(use_coop)
+    {
+        sys_emu::coop_tload_add(current_thread, tenb, tenb ? 0 : id, cpu[current_thread].tensor_coop & 0xF, (cpu[current_thread].tensor_coop >> 8) & 0xFF, cpu[current_thread].tensor_coop >> 16);
+    }
+#endif
 
     int adj = 0;
     if (tenb)
@@ -3267,7 +3268,7 @@ static void tensorstore(uint64_t tstorereg)
         if (cpu[current_thread].mcache_control != 0x3)
         {
             update_tensor_error(1 << 4);
-	    log_tensor_store_error(1 << 4);
+            log_tensor_store_error(1 << 4);
             return;
         }
 
@@ -3280,7 +3281,7 @@ static void tensorstore(uint64_t tstorereg)
                 uint64_t paddr = vmemtranslate(addr, L1D_LINE_SIZE, Mem_Access_TxStore, mreg_t(-1));
                 bemu::pmemwrite512(paddr, SCP[src].u32.data());
                 LOG_MEMWRITE512(paddr, SCP[src].u32);
-		for (int col=0; col < 16; col++) {
+                for (int col=0; col < 16; col++) {
                     log_tensor_store_write(paddr + col*4, SCP[src].u32[col]);
                 }
                 L1_SCP_CHECK_READ(current_thread, src);
@@ -3353,7 +3354,7 @@ static void tensorstore(uint64_t tstorereg)
                     const uint32_t* ptr = &FREGS[src].u32[(col & 1) * 4];
                     bemu::pmemwrite128(paddr, ptr);
                     LOG_MEMWRITE128(paddr, ptr);
-		    for (int w=0; w < 4; w++) {
+                    for (int w=0; w < 4; w++) {
                         log_tensor_store_write(paddr + w*4, *(ptr+w));
                     }
                 }
@@ -3391,6 +3392,27 @@ static void tensor_fma32_execute()
     bcols = (bcols + 1) * 4;
     arows = arows + 1;
     acols = acols + 1;
+
+#ifdef SYS_EMU
+    if(tenb)
+    {
+        uint32_t requested_mask;
+        uint32_t present_mask;
+        bool resolved = sys_emu::coop_tload_check(current_thread, true, 0, requested_mask, present_mask); // TENB
+        // If not resolved, put the thread to sleep
+        if(!resolved)
+        {
+            cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+            cpu[current_thread].wait.value = 0; // Marks FMA32 for replay
+            LOG(DEBUG, "TensorFMA32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
+            return;
+        }
+        else
+        {
+            cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+        }
+    }
+#endif
 
     LOG(DEBUG, "\tExecute TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(frm()));
@@ -3544,6 +3566,9 @@ static void tensor_fma32_start(uint64_t tfmareg)
         cpu[current_thread].txfma = tfmareg;
         assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::FMA));
     }
+#elif SYS_EMU
+    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
 #else
     cpu[current_thread].txfma = tfmareg;
     tensor_fma32_execute();
@@ -3567,6 +3592,27 @@ static void tensor_fma16a32_execute()
     arows = arows + 1;
     acols = (acols + 1) * 2;
     aoffset = aoffset * 2;
+
+#ifdef SYS_EMU
+    if(tenb)
+    {
+        uint32_t requested_mask;
+        uint32_t present_mask;
+        bool resolved = sys_emu::coop_tload_check(current_thread, true, 0, requested_mask, present_mask); // TENB
+        // If not resolved, put the thread to sleep
+        if(!resolved)
+        {
+            cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+            cpu[current_thread].wait.value = 1; // Marks FMA16A32 for replay
+            LOG(DEBUG, "TensorFMA16A32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
+            return;
+        }
+        else
+        {
+            cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+        }
+    }
+#endif
 
     LOG(DEBUG, "\tExecute TensorFMA16A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
         usemsk, aoffset, first_pass, bcols, acols, arows, tenb, bstart, astart, get_rounding_mode(rtz));
@@ -3723,6 +3769,9 @@ static void tensor_fma16a32_start(uint64_t tfmareg)
         cpu[current_thread].txfma = tfmareg;
         assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::FMA));
     }
+#elif SYS_EMU
+    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
 #else
     cpu[current_thread].txfma = tfmareg;
     tensor_fma16a32_execute();
@@ -3749,6 +3798,27 @@ static void tensor_ima8a32_execute()
     arows = arows + 1;
     acols = (acols + 1) * 4;
     aoffset = aoffset * 4;
+
+#ifdef SYS_EMU
+    if(tenb)
+    {
+        uint32_t requested_mask;
+        uint32_t present_mask;
+        bool resolved = sys_emu::coop_tload_check(current_thread, true, 0, requested_mask, present_mask); // TENB
+        // If not resolved, put the thread to sleep
+        if(!resolved)
+        {
+            cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
+            cpu[current_thread].wait.value = 3; // Marks IMA8A32 for replay
+            LOG(DEBUG, "TensorIMA8A32 TenB => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", requested_mask, present_mask);
+            return;
+        }
+        else
+        {
+            cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+        }
+    }
+#endif
 
 #ifdef ZSIM
     LOG(DEBUG, "\tExecute TensorIMA8A32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, ub: %d, ua: %d, tenc2rf: %d, tenb: %d, bstart: %d, astart: %d",
@@ -3947,6 +4017,9 @@ static void tensor_ima8a32_start(uint64_t tfmareg)
         cpu[current_thread].txfma = tfmareg;
         assert(cpu[current_thread].enqueue_tensor_op(Processor::Tensor::FMA));
     }
+#elif SYS_EMU
+    cpu[current_thread].txfma = tfmareg;
+    cpu[current_thread].wait.state = Processor::Wait::State::TxFMA;
 #else
     cpu[current_thread].txfma = tfmareg;
     tensor_ima8a32_execute();
@@ -3975,7 +4048,11 @@ void tensor_fma_execute()
     case 3: tensor_ima8a32_execute(); break;
     default: throw std::runtime_error("Illegal tensor_fma configuration");
     }
-    cpu[current_thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
+    if(current_thread == 0) printf("Guillem: checking if idle\n");
+    if(cpu[current_thread].wait.state != Processor::Wait::State::TxFMA) {
+        if(current_thread == 0) printf("Guillem: setting to idle\n");
+        cpu[current_thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
+    }
 #ifdef ZSIM
     assert(cpu[current_thread].dequeue_tensor_op() == Processor::Tensor::FMA);
     if (cpu[current_thread].shadow_txfma != 0xFFFFFFFFFFFFFFFFULL) {
@@ -4262,6 +4339,83 @@ void tensor_reduce_execute()
     unsigned count = std::min(this_num_reg, other_num_reg);
     while (count--)
         tensor_reduce_step(other_thread);
+}
+
+// ----- TensorWait emulation ------------------------------------------------
+
+// Starts a tensor wait, checks for stall conditions
+void tensor_wait_start(uint64_t value)
+{
+    value = value & 0xF;
+    cpu[current_thread].wait.id = value;
+    cpu[current_thread].wait.value = value;
+    cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+#ifdef SYS_EMU
+    uint64_t id = value & 0x1;
+    // TensorLoad
+    if(value < 2)
+    {
+        uint32_t requested_mask;
+        uint32_t present_mask;
+        bool resolved = sys_emu::coop_tload_check(current_thread, false, id, requested_mask, present_mask);
+        // If not resolved, put the thread to sleep
+        if(!resolved)
+        {
+            cpu[current_thread].wait.state = Processor::Wait::State::Wait;
+            LOG(DEBUG, "TensorWait with id %i not ready => minion cooperative mask: 0x%08X, minion ready mask: 0x%08x", (int) id, requested_mask, present_mask);
+        }
+    }
+    // TensorLoad L2
+    else if(value < 4)
+    {
+    }
+    // Prefetch
+    else if(value < 6)
+    {
+    }
+    // CacheOp
+    else if(value == 6)
+    {
+    }
+    // TensorFMA
+    else if(value == 7)
+    {
+    }
+    // TensorStore
+    else if(value == 8)
+    {
+    }
+    // TensorReduce
+    else if(value == 9)
+    {
+    }
+    // TensorQuant
+    else if(value == 10)
+    {
+    }
+#endif
+
+    // Execute tensorwait right away for non sys_emu envs
+#ifndef SYS_EMU
+    tensor_wait_execute();
+#endif
+}
+
+// Actual execution of tensor wait
+void tensor_wait_execute()
+{
+#ifdef SYS_EMU
+    if(sys_emu::get_scp_check())
+    {
+        // TensorWait TLoad Id0
+        if     ((cpu[current_thread].wait.id) == 0) { sys_emu::get_scp_directory().l1_scp_wait(current_thread, 0); }
+        else if((cpu[current_thread].wait.id) == 1) { sys_emu::get_scp_directory().l1_scp_wait(current_thread, 1); }
+        else if((cpu[current_thread].wait.id) == 2) { sys_emu::get_scp_directory().l2_scp_wait(current_thread, 0); }
+        else if((cpu[current_thread].wait.id) == 3) { sys_emu::get_scp_directory().l2_scp_wait(current_thread, 1); }
+    }
+#endif
+    cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+    log_tensor_error_value(cpu[current_thread].tensor_error);
 }
 
 // ----- Shire cooperative mode ------------------------------------------------

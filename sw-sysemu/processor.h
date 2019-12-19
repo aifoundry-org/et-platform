@@ -61,7 +61,7 @@ struct Processor {
     uint8_t     mcache_control;   // 2b -- TODO: this is per core not per hart
     uint64_t    tensor_conv_size; // can we remove?
     uint64_t    tensor_conv_ctrl; // can we remove?
-    // TODO: tensor_coop
+    uint32_t    tensor_coop;
     uint16_t    tensor_mask;
     uint16_t    tensor_error;
     uint16_t    ucache_control;   // TODO: this is per core not per hart
@@ -104,6 +104,18 @@ struct Processor {
             Skip = 3
         } state;
     } reduce;
+
+    // Tensor wait operation state machine
+    struct Wait {
+        uint8_t  id;    // ID of the wait
+        uint64_t value; // Value used to do the tensor wait
+        enum class State : uint8_t {
+            Idle = 0,
+            Wait = 1,
+            WaitReady = 2,
+            TxFMA = 3
+        } state;
+    } wait;
 
     // Tensor quantization operation state machine
     // TODO: this is per core not per hart
