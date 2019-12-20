@@ -4048,9 +4048,7 @@ void tensor_fma_execute()
     case 3: tensor_ima8a32_execute(); break;
     default: throw std::runtime_error("Illegal tensor_fma configuration");
     }
-    if(current_thread == 0) printf("Guillem: checking if idle\n");
     if(cpu[current_thread].wait.state != Processor::Wait::State::TxFMA) {
-        if(current_thread == 0) printf("Guillem: setting to idle\n");
         cpu[current_thread].txfma = 0xFFFFFFFFFFFFFFFFULL;
     }
 #ifdef ZSIM
