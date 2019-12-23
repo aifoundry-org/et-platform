@@ -9,6 +9,7 @@
 //------------------------------------------------------------------------------
 
 #include "DeviceAPI/Commands.h"
+#include "DeviceAPI/CommandsGen.h"
 
 #include "DeviceAPI/EventsGen.h"
 
@@ -67,140 +68,6 @@ etrtError WriteCommand::execute(Device *device) {
 }
 
 } // namespace pcie_commands
-
-MBOXMessageTypeID ReflectTestResponse::responseTypeID() {
-  // FIXME remove ocne we deprecate fake-fw
-#if ENABLE_DEVICE_FW
-  return ::device_fw::MBOX_MESSAGE_ID_REFLECT_TEST;
-#else
-  return 0;
-#endif
-}
-
-MBOXMessageTypeID ReflectTestCommand::commandTypeID() const {
-  // FIXME remove once we deprecate fake-fw
-#if ENABLE_DEVICE_FW
-  return ::device_fw::MBOX_MESSAGE_ID_REFLECT_TEST;
-#else
-  return 0;
-#endif
-}
-
-etrtError ReflectTestCommand::execute(Device *device) {
-#if ENABLE_DEVICE_FW
-  // Construct the reflect message and write it
-  device_fw::host_message_t msg = {0};
-  msg.message_id = device_fw::MBOX_MESSAGE_ID_REFLECT_TEST;
-
-  auto success = device->getTargetDevice().mb_write(&msg, sizeof(msg));
-  assert(success);
-  success = device->registerMBReadCallBack(
-      this, [this](const std::vector<uint8_t> &data) {
-        this->setResponse({});
-
-        return true;
-      });
-#endif
-  return etrtSuccess;
-}
-
-MBOXMessageTypeID LaunchResponse::responseTypeID() {
-#if ENABLE_DEVICE_FW
-  return device_fw::MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE;
-#else
-  return 0;
-#endif
-};
-
-MBOXMessageTypeID LaunchCommand::commandTypeID() const {
-#if ENABLE_DEVICE_FW
-  return ::device_fw::MBOX_MESSAGE_ID_KERNEL_LAUNCH;
-#else
-  return 0;
-#endif
-}
-
-etrtError LaunchCommand::execute(Device *device) {
-  auto &target_device = device->getTargetDevice();
-  const auto *params = (const et_runtime::device::layer_dynamic_info *)args_buff.data();
-
-  RTDEBUG << "LaunchCommand::Going to execute kernel {0x" << std::hex << kernel_pc
-          << "} " << kernel_name << " [" << demangle(kernel_name) << "] \n"
-          << " tensor_a = 0x" << params->tensor_a << "\n"
-          << " tensor_b = 0x" << params->tensor_b << "\n"
-          << " tensor_c = 0x" << params->tensor_c << "\n"
-          << " tensor_d = 0x" << params->tensor_d << "\n"
-          << " tensor_e = 0x" << params->tensor_e << "\n"
-          << " tensor_f = 0x" << params->tensor_f << "\n"
-          << " tensor_g = 0x" << params->tensor_g << "\n"
-          << " tensor_h = 0x" << params->tensor_h << "\n"
-          << " pc/id    = 0x" << params->kernel_id << "\n";
-
-#if ENABLE_DEVICE_FW
-  device_fw::host_message_t msg = {0};
-
-  // FIXME we should be querying the device-fw for that information first
-  auto active_shires_opt = absl::GetFlag(FLAGS_shires);
-  int active_shires = std::stoi(active_shires_opt);
-
-  msg.message_id = device_fw::MBOX_MESSAGE_ID_KERNEL_LAUNCH;
-  msg.kernel_params =
-      *reinterpret_cast<const device_fw::kernel_params_t *>(params);
-  msg.kernel_info.compute_pc = kernel_pc;
-  msg.kernel_info.shire_mask = (1ULL << active_shires) - 1;
-  // FIXME the following is a hack that should be eventually be cleaned with
-  // proper support in the DeviceAPI When launching an uberkernel set the
-  // specific bit of the shire mask
-  if (uber_kernel_) {
-    msg.kernel_info.shire_mask |= (1ULL << MASTER_SHIRE_NUM);
-  }
-  msg.kernel_info.kernel_params_ptr = 0;
-  msg.kernel_info.grid_config_ptr = 0;
-
-  RTDEBUG << "LaunchCommand:: "
-          << " kernel_pc: 0x" << std::hex << msg.kernel_info.compute_pc
-          << " shire_mask: 0x" << msg.kernel_info.shire_mask << "\n";
-
-  auto res = target_device.mb_write(&msg, sizeof(msg));
-  assert(res);
-
-  res = device->registerMBReadCallBack(
-      this, [this](const std::vector<uint8_t> &data) {
-        auto response =
-            reinterpret_cast<const device_fw::devfw_response_t *>(data.data());
-        RTINFO << "MessageID: " << response->message_id
-               << " kernel_id: " << response->kernel_id
-               << " kernel_result: " << response->response_id << "\n";
-
-        if (response->message_id == device_fw::MBOX_MESSAGE_ID_KERNEL_RESULT &&
-            response->response_id == device_fw::MBOX_KERNEL_RESULT_OK) {
-          RTDEBUG << "Received successfull launch \n";
-        } else {
-          assert(false);
-        }
-        setResponse(LaunchResponse());
-        return true;
-      });
-
-#else
-  struct {
-    uint64_t unused;
-    uint64_t kernel_pc;
-    et_runtime::device::layer_dynamic_info params;
-  } __attribute__((packed)) fake_fw_launch_info;
-
-  memset(&fake_fw_launch_info, 0, sizeof(fake_fw_launch_info));
-  fake_fw_launch_info.kernel_pc = kernel_pc;
-  fake_fw_launch_info.params = *params;
-
-  target_device.writeDevMemMMIO(RT_HOST_KERNEL_LAUNCH_INFO,
-                                sizeof(fake_fw_launch_info),
-                                &fake_fw_launch_info);
-  target_device.launch();
-  setResponse(LaunchResponse());
-#endif // ENABLE_DEVICE_FW
-  return etrtSuccess;
-}
 
 } // namespace device_api
 } // namespace et_runtime

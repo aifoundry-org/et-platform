@@ -22,10 +22,8 @@ namespace device_fw {
 
 #if ENABLE_DEVICE_FW
 
-#include <esperanto-fw/host_message.h>
 #include <esperanto-fw/layout.h>
 #include <esperanto-fw/mailbox_common.h>
-#include <esperanto-fw/mailbox_id.h>
 #include <esperanto-fw/ringbuffer_common.h>
 
 #endif // ENABLE_DEVICE_FW

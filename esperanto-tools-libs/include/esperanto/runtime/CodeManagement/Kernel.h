@@ -27,6 +27,13 @@ namespace et_runtime {
 class Device;
 class Stream;
 
+namespace device_api {
+namespace devfw_commands {
+
+class KernelLaunchCmd;
+}
+} // namespace device_api
+
 /// @class Kernel Kernel.h
 /// FIXME the following comment is outdate and does not correspond to the
 /// current implementation
@@ -257,12 +264,18 @@ public:
     etrtError launchBlocking(Stream *stream);
 
     /// @brief Non blocking kernel launch
-    /// FIXME SW-1382
+    ///
+    /// @param[in] stream  Stream to launch this kernel on
+    /// @returns etrtSuccess or error describing the kernel launch status
     etrtError launchNonBlocking(Stream *stream);
 
   private:
     const Kernel &kernel_;
     std::vector<LaunchArg> args_;
+
+    /// @brief Helper function for launching a kernel
+    ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
+    launchHelper(Stream *stream);
   };
 
   /// @brief Construct a new kernel
@@ -288,10 +301,23 @@ public:
   /// @return List of argument types
   const std::vector<ArgType> &kernelArgs() const { return kernel_args_; }
 
+  /// @brief Create a Kernel Launch object with the given list of argument
+  /// values
+  /// @return Pointer to the created kernel launch object
   std::unique_ptr<KernelLaunch>
   createKernelLaunch(std::vector<LaunchArg> &args);
 
+  /// @brief Search for the kernel object by ID
   static ErrorOr<Kernel &> findKernel(KernelCodeID id);
+
+  /// @brief Return the entry point address of the kernel on the device
+  ///
+  /// If the ELF is not loaded on the device then load the module on the device
+  /// "lazily"
+  ///
+  /// @returns Error if we failed to load the module on the device or the PC of
+  /// the kenrel
+  ErrorOr<uintptr_t> kernelEntryPoint() const;
 
 protected:
   /// Delegating constructor that is going to do the basic initialization for

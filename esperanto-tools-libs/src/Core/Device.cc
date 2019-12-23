@@ -104,12 +104,6 @@ bool Device::addCommand(
 bool Device::registerMBReadCallBack(et_runtime::device_api::CommandBase *cmd,
                                     const MBReadCallBack &cb) {
 #if ENABLE_DEVICE_FW
-  auto msgid = cmd->commandTypeID();
-  if (::device_fw::MBOX_MESSAGE_ID_NONE < msgid &&
-      msgid <= ::device_fw::MBOX_MESSAGE_ID_FW_LAST) {
-    mb_fw_cmds_.push({cmd, cb});
-    return true;
-  }
   auto emplace_res = cb_map_.emplace(cmd->id(), std::forward_as_tuple(cmd, cb));
   return emplace_res.second;
 #else
@@ -133,19 +127,11 @@ void Device::deviceListener() {
       continue;
     }
     auto response =
-        reinterpret_cast<device_fw::host_message_t *>(message.data());
+        reinterpret_cast<::device_api::response_header_t *>(message.data());
     RTDEBUG << "MessageID: " << response->message_id << "\n";
     auto msgid = response->message_id;
-    if (::device_fw::MBOX_MESSAGE_ID_NONE < msgid &&
-        msgid <= ::device_fw::MBOX_MESSAGE_ID_FW_LAST) {
-      assert(mb_fw_cmds_.size() > 0);
-      MBReadCallBack cb;
-      std::tie(std::ignore, cb) = mb_fw_cmds_.front();
-      mb_fw_cmds_.pop();
-      auto res = cb(message);
-      assert(res);
-    } else if (::device_api::MBOX_DEVAPI_MESSAGE_ID_NONE < msgid
-               && msgid < ::device_api::MBOX_DEVAPI_MESSAGE_ID_LAST) {
+    if (::device_api::MBOX_DEVAPI_MESSAGE_ID_NONE < msgid &&
+        msgid < ::device_api::MBOX_DEVAPI_MESSAGE_ID_LAST) {
       auto rsp_header =
         reinterpret_cast<::device_api::response_header_t*>(message.data());
       auto it = cb_map_.find(rsp_header->command_info.command_id);
@@ -222,8 +208,8 @@ void Device::initDeviceThread() {
 void Device::uninitDeviceThread() {
   // Notify the command executor thread to "wake" it up from the being blocked
   // waiting for a command to be inserted. The target_device should not be alive
-  // any more and the executor thread should terminate and us we should be able
-  // to make that thread join.
+  // any more and the executor thread shoulOBd terminate and us we should be
+  // able to make that thread join.
   terminate_cmd_executor_ = true;
   queue_cv_.notify_one();
   command_executor_.join();

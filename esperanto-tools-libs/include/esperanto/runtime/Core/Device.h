@@ -263,20 +263,6 @@ private:
   std::condition_variable queue_cv_; ///< Conditional variable that blocks until
                                      ///< the queue has a command to execute
 
-  /// The mailbox can send receive 2 classes of messages. There are th
-  /// FW-messages are in the range (MBOX_MESSAGE_ID_NONEs,
-  /// BOX_MESSAGE_ID_DEVICE_LAST) and there DeviceAPI messages that occupy the
-  /// value space above that space.
-
-  /// FW-messages issueing commands are going to be kept track in a queue, while
-  /// DeviceAPI commands will be kept track in a map, since the DeviceAPI
-  /// messages do keep track of the related CommandIDs
-
-  /// FW-message commands are saved in a queue and expected to receive responses
-  /// in reverse order
-  std::queue<std::tuple<et_runtime::device_api::CommandBase *, MBReadCallBack>>
-      mb_fw_cmds_ = {}; ///< Queue of commands of FW messages
-
   /// Mailbox Response callback tracking. Each command registers a callback that
   /// gets executed once a Response for the respective command has been
   /// received.

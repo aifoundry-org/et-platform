@@ -11,6 +11,7 @@
 #include "device-fw-fixture.h"
 
 #include "DeviceAPI/Commands.h"
+#include "DeviceAPI/CommandsGen.h"
 #include "esperanto/runtime/Support/Logging.h"
 
 using namespace et_runtime::device_api;
@@ -64,13 +65,14 @@ TEST_F(DeviceFWTest, reflectTest) {
   auto *target_device = dynamic_cast<device::RPCTarget *>(target_device_ptr);
   EXPECT_TRUE(target_device != nullptr);
 
-
-  auto reflect_cmd = std::make_shared<ReflectTestCommand>();
+  auto reflect_cmd = std::make_shared<devfw_commands::ReflectTestCmd>(
+      dev_->defaultStream().id(), true);
   dev_->defaultStream().addCommand(reflect_cmd);
 
-  auto future = reflect_cmd->getFuture();
-  auto respose = future.get();
-  RTDEBUG << "Reflect message received \n";
+  auto ft = reflect_cmd->getFuture();
+  auto response = ft.get().response();
+  ASSERT_EQ(response.response_info.message_id,
+            ::device_api::MBOX_DEVAPI_MESSAGE_ID_REFLECT_TEST_RSP);
 }
 
 int main(int argc, char **argv) {

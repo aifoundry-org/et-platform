@@ -12,8 +12,10 @@
 
 #include "CodeManagement/CodeModule.h"
 #include "DeviceAPI/Commands.h"
+#include "DeviceAPI/CommandsGen.h"
 #include "Tracing/Tracing.h"
 #include "esperanto/runtime/CodeManagement/CodeRegistry.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
 #include "esperanto/runtime/Core/Device.h"
 #include "esperanto/runtime/Support/Logging.h"
 
@@ -63,59 +65,106 @@ UberKernel::UberKernelLaunch::UberKernelLaunch(
                                        arg_vals_);
 }
 
-etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
+ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
+UberKernel::UberKernelLaunch::launchHelper(Stream *stream) {
 
-  Device *dev = &stream->dev();
-  // Make sure that the ELF is on the device, if not load it
-  auto module_id = kernel_.moduleID();
-  auto module = CodeRegistry::registry().getModule(module_id);
-  assert(module != nullptr);
-
-  if (!module->onDevice()) {
-    return etrtErrorModuleNotOnDevice;
+#if ENABLE_DEVICE_FW
+  auto entry_res = kernel_.kernelEntryPoint();
+  if (entry_res.getError() != etrtSuccess) {
+    return entry_res.getError();
   }
 
-  uintptr_t kernel_entry_point;
-  assert(module->rawKernelExists(kernel_.name()));
-
-  auto entry_point_res = module->onDeviceKernelEntryPoint(kernel_.name());
-  assert(entry_point_res);
-
-  // Find the entrypoint function to call on the ELF
-  kernel_entry_point = entry_point_res.get();
+  uintptr_t kernel_entry_point = entry_res.get();
 
   // Allocate tensor on the device that will hold the arguments of the uber
   // kernel
   void *uber_kernel_args = nullptr;
   // Allocate the buffer on the device and get a pointer to that buffer
   auto alloc_status =
-      dev->mem_manager().malloc(&uber_kernel_args, arg_vals_.size());
+      stream->dev().mem_manager().malloc(&uber_kernel_args, arg_vals_.size());
 
   if (alloc_status != etrtSuccess) {
     return alloc_status;
   }
 
   // Copy the UberKernel arguments to the device
-  auto memcpy_res = dev->memcpy(uber_kernel_args, arg_vals_.data(),
-                                arg_vals_.size(), etrtMemcpyHostToDevice);
+  auto memcpy_res =
+      stream->dev().memcpy(uber_kernel_args, arg_vals_.data(), arg_vals_.size(),
+                           etrtMemcpyHostToDevice);
   if (memcpy_res != etrtSuccess) {
     return memcpy_res;
   }
 
-  Kernel::layer_dynamic_info_t layer_info = {0};
-  layer_info.tensor_a = reinterpret_cast<uint64_t>(uber_kernel_args);
+  ::device_api::dev_api_kernel_params_t params = {0};
+  params.tensor_a = reinterpret_cast<uint64_t>(uber_kernel_args);
 
-  auto args_size = sizeof(layer_info);
-  std::vector<uint8_t> args_buff(args_size);
-  ::memcpy(&args_buff[0], &layer_info, sizeof(layer_info));
+  // FIXME we should be querying the device-fw for that information first
+  auto active_shires_opt = absl::GetFlag(FLAGS_shires);
+  int active_shires = std::stoi(active_shires_opt);
+
+  ::device_api::dev_api_kernel_info_t info = {
+      .compute_pc = kernel_entry_point,
+      .uber_kernel_nodes = 0,
+      .shire_mask = (1ULL << active_shires) - 1,
+  };
+  // FIXME the following is a hack that should be eventually be cleaned with
+  // proper support in the DeviceAPI When launching an uberkernel set the
+  // specific bit of the shire mask
+  info.shire_mask |= (1ULL << MASTER_SHIRE_NUM);
 
   auto launch_cmd =
-      std::shared_ptr<device_api::LaunchCommand>(new device_api::LaunchCommand(
-          kernel_entry_point, args_buff, kernel_.name(), true));
-  stream->addCommand(launch_cmd);
-  auto ft = launch_cmd->getFuture();
-  auto resp = ft.get();
+      std::make_shared<device_api::devfw_commands::KernelLaunchCmd>(
+          stream->id(), params, info, true);
+  return launch_cmd;
+#else
+  return nullptr;
+#endif
+}
 
+etrtError UberKernel::UberKernelLaunch::launchBlocking(Stream *stream) {
+#if ENABLE_DEVICE_FW
+
+  auto create_command_res = launchHelper(stream);
+  if (create_command_res.getError() != etrtSuccess) {
+    return create_command_res.getError();
+  }
+  auto launch_cmd = create_command_res.get();
+  stream->addCommand(launch_cmd);
+
+  auto response_future = launch_cmd->getFuture();
+  auto &response = response_future.get().response();
+  assert(response.response_info.message_id ==
+         ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP);
+
+  auto &cmd_info = launch_cmd->cmd_info();
+  assert(response.kernel_id == cmd_info.kernel_params.kernel_id);
+
+  if (response.error == ::device_api::DEV_API_KERNEL_LAUNCH_ERROR::
+                            DEV_API_KERNEL_LAUNCH_ERROR_OK ||
+      response.error == ::device_api::DEV_API_KERNEL_LAUNCH_ERROR::
+                            DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK) {
+    RTDEBUG << "Received successfull launch \n";
+  } else {
+    assert(false);
+  }
+
+#endif
+  return etrtSuccess;
+}
+
+etrtError UberKernel::UberKernelLaunch::launchNonBlocking(Stream *stream) {
+#if ENABLE_DEVICE_FW
+
+  auto create_command_res = launchHelper(stream);
+  if (create_command_res.getError() != etrtSuccess) {
+    return create_command_res.getError();
+  }
+  auto launch_cmd = create_command_res.get();
+  stream->addCommand(launch_cmd);
+
+#else
+  std::terminate();
+#endif
   return etrtSuccess;
 }
 

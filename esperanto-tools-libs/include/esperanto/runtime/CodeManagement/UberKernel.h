@@ -51,8 +51,10 @@ public:
     etrtError launchBlocking(Stream *stream);
 
     /// @brief Non blocking kernel launch
-    /// FIXME SW-1382
-    etrtError launchNonBlocking(Stream *stream) { abort(); }
+    ///
+    /// @param[in] stream  Stream to launch this kernel on
+    /// @returns etrtSuccess or error describing the kernel launch status
+    etrtError launchNonBlocking(Stream *stream);
 
   private:
     const UberKernel &kernel_;
@@ -60,6 +62,10 @@ public:
     std::vector<unsigned char>
         arg_vals_; ///< Actual byte array with all arguments to be transfered to
                    ///< the device
+
+    /// @brief Helper function for launching a kernel
+    ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
+    launchHelper(Stream *stream);
   };
 
   /// @brief Costruct a new Uber Kernel
@@ -82,6 +88,8 @@ public:
 
 private:
   std::vector<std::vector<ArgType>> arg_list_;
+
+  static constexpr int MASTER_SHIRE_NUM = 32;
 };
 
 } // namespace et_runtime

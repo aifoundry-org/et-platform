@@ -10,12 +10,14 @@
 
 #include "esperanto/runtime/CodeManagement/Kernel.h"
 
-#include "esperanto/runtime/CodeManagement/CodeRegistry.h"
 #include "CodeManagement/CodeModule.h"
 #include "DeviceAPI/Commands.h"
+#include "DeviceAPI/CommandsGen.h"
 #include "Tracing/Tracing.h"
 #include "Tracing/TracingHelpers.h"
+#include "esperanto/runtime/CodeManagement/CodeRegistry.h"
 #include "esperanto/runtime/Common/CommonTypes.h"
+#include "esperanto/runtime/Core/CommandLineOptions.h"
 #include "esperanto/runtime/Core/Device.h"
 #include "esperanto/runtime/Support/ErrorOr.h"
 #include "esperanto/runtime/Support/Logging.h"
@@ -155,41 +157,98 @@ Kernel::KernelLaunch::KernelLaunch(const Kernel &kernel,
   TRACE_CodeManager_kernel_launch(kernel_.id(), kernel_.name(), args);
 }
 
-etrtError Kernel::KernelLaunch::launchBlocking(Stream *stream) {
-  auto module_id = kernel_.moduleID();
-  auto module = CodeRegistry::registry().getModule(module_id);
-  assert(module != nullptr);
-
-  if (!module->onDevice()) {
-    return etrtErrorModuleNotOnDevice;
+ErrorOr<std::shared_ptr<device_api::devfw_commands::KernelLaunchCmd>>
+Kernel::KernelLaunch::launchHelper(Stream *stream) {
+#if ENABLE_DEVICE_FW
+  auto entry_res = kernel_.kernelEntryPoint();
+  if (entry_res.getError() != etrtSuccess) {
+    return entry_res.getError();
   }
 
-  uintptr_t kernel_entry_point;
-  assert(module->rawKernelExists(kernel_.name()));
+  uintptr_t kernel_entry_point = entry_res.get();
 
-  auto entry_point_res = module->onDeviceKernelEntryPoint(kernel_.name());
-  assert(entry_point_res);
+  assert(args_.size() == 1);
+  assert(args_[0].type == ArgType::T_layer_dynamic_info);
+  auto layer_info = args_[0].value.layer_dynamic_info;
 
-  kernel_entry_point = entry_point_res.get();
+  ::device_api::dev_api_kernel_params_t dev_api_params = {
+      .tensor_a = layer_info.tensor_a,
+      .tensor_b = layer_info.tensor_b,
+      .tensor_c = layer_info.tensor_c,
+      .tensor_d = layer_info.tensor_d,
+      .tensor_e = layer_info.tensor_e,
+      .tensor_f = layer_info.tensor_f,
+      .tensor_g = layer_info.tensor_g,
+      .tensor_h = layer_info.tensor_h,
+      .kernel_id = layer_info.kernel_id,
+  };
 
-  auto args_size = sizeof(Kernel::layer_dynamic_info_t);
-  std::vector<uint8_t> args_buff(args_size);
-  ::memcpy(&args_buff[0], &args_[0].value.layer_dynamic_info, args_size);
+  // FIXME we should be querying the device-fw for that information first
+  auto active_shires_opt = absl::GetFlag(FLAGS_shires);
+  int active_shires = std::stoi(active_shires_opt);
+
+  ::device_api::dev_api_kernel_info_t info = {
+      .compute_pc = kernel_entry_point,
+      .uber_kernel_nodes = 0,
+      .shire_mask = (1ULL << active_shires) - 1,
+  };
 
   auto launch_cmd =
-      std::shared_ptr<device_api::LaunchCommand>(new device_api::LaunchCommand(
-          kernel_entry_point, args_buff, kernel_.name(), false));
-  stream->addCommand(launch_cmd);
-  auto ft = launch_cmd->getFuture();
-  auto resp = ft.get();
+      std::make_shared<device_api::devfw_commands::KernelLaunchCmd>(
+          stream->id(), dev_api_params, info, false);
+  return launch_cmd;
+#else
+  return nullptr;
+#endif
+}
 
+etrtError Kernel::KernelLaunch::launchBlocking(Stream *stream) {
+
+#if ENABLE_DEVICE_FW
+  auto create_command_res = launchHelper(stream);
+  if (create_command_res.getError() != etrtSuccess) {
+    return create_command_res.getError();
+  }
+  auto launch_cmd = create_command_res.get();
+
+  stream->addCommand(launch_cmd);
+
+  auto ft = launch_cmd->getFuture();
+  auto response = ft.get().response();
+
+  assert(response.response_info.message_id ==
+         ::device_api::MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP);
+
+  auto &cmd_info = launch_cmd->cmd_info();
+  assert(response.kernel_id == cmd_info.kernel_params.kernel_id);
+
+  if (response.error == ::device_api::DEV_API_KERNEL_LAUNCH_ERROR::
+                            DEV_API_KERNEL_LAUNCH_ERROR_OK ||
+      response.error == ::device_api::DEV_API_KERNEL_LAUNCH_ERROR::
+                            DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK) {
+    RTDEBUG << "Received successfull launch \n";
+  } else {
+    assert(false);
+  }
+
+#else
+  std::terminate();
+#endif // ENABLE_DEVICE_FW
   return etrtSuccess;
 }
 
-/// @brief Non blocking kernel launch
-/// FIXME SW-1382
 etrtError Kernel::KernelLaunch::launchNonBlocking(Stream *stream) {
-  std::terminate();
+
+#if ENABLE_DEVICE_FW
+  auto create_command_res = launchHelper(stream);
+  if (create_command_res.getError() != etrtSuccess) {
+    return create_command_res.getError();
+  }
+  auto launch_cmd = create_command_res.get();
+  stream->addCommand(launch_cmd);
+
+#endif // ENABLE_DEVICE_FW
+
   return etrtSuccess;
 }
 
@@ -239,6 +298,23 @@ ErrorOr<Kernel &> Kernel::findKernel(KernelCodeID id) {
 std::unique_ptr<Kernel::KernelLaunch>
 Kernel::createKernelLaunch(std::vector<LaunchArg> &args) {
   return std::make_unique<Kernel::KernelLaunch>(*this, args);
+}
+
+ErrorOr<uintptr_t> Kernel::kernelEntryPoint() const {
+  auto module_id = moduleID();
+  auto module = CodeRegistry::registry().getModule(module_id);
+  assert(module != nullptr);
+
+  if (!module->onDevice()) {
+    return etrtErrorModuleNotOnDevice;
+  }
+
+  assert(module->rawKernelExists(name_));
+
+  auto entry_point_res = module->onDeviceKernelEntryPoint(name_);
+  assert(entry_point_res);
+
+  return entry_point_res.get();
 }
 
 } // namespace et_runtime

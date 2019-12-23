@@ -97,65 +97,6 @@ private:
 
 } // namespace pcie_commands
 
-// ReflectTest response and commands
-/// @brief
-class ReflectTestResponse final : public ResponseBase {
-public:
-  // dummy type
-  using response_devapi_t = bool;
-
-  ReflectTestResponse() = default;
-
-  static MBOXMessageTypeID responseTypeID();
-};
-
-/// @brief
-class ReflectTestCommand final : public Command<ReflectTestResponse> {
-
-public:
-  ReflectTestCommand() = default;
-  etrtError execute(et_runtime::Device *device_target) override;
-
-  MBOXMessageTypeID commandTypeID() const override;
-
-};
-
-// TODO the launch command is to be removed and replaced in the future
-// with DeviceAPI commands
-
-/// @brief
-class LaunchResponse final : public ResponseBase {
-public:
-  // dummy type
-  using response_devapi_t = bool;
-
-  LaunchResponse() = default;
-
-  /// @brief Return the MBOX message ID  of the Response
-  static MBOXMessageTypeID responseTypeID();
-};
-
-/// @brief
-class LaunchCommand final : public Command<LaunchResponse> {
-
-public:
-  LaunchCommand(uintptr_t kernel_pc, const std::vector<uint8_t> &args_buff,
-                const std::string &kernel_name, bool uber_kernel)
-      : kernel_pc(kernel_pc), args_buff(args_buff), kernel_name(kernel_name),
-        uber_kernel_(uber_kernel) {}
-  etrtError execute(et_runtime::Device *device_target) override;
-
-  MBOXMessageTypeID commandTypeID() const override;
-
-private:
-  uintptr_t kernel_pc;
-  std::vector<uint8_t> args_buff;
-  std::string kernel_name;
-  bool uber_kernel_; ///< True if we are launching an uber-kernel, in which case
-                     ///< we need to modify the shire mask
-
-  static constexpr int MASTER_SHIRE_NUM = 32;
-};
 
 } // namespace device_api
 
