@@ -105,6 +105,22 @@ Structs:
 # List of Commands, Responses, Events that the RPC
 # DeviceAPI can exchange with the host
 Messages :
+  #-------------------------------------------------------------------------------
+  - Name: reflect_test_cmd
+    Description: Reflect test command
+    Type: Command
+    PairedMessage: reflect_test_rsp
+    Fields:
+      - Name: dummy
+        Type: bool
+  - Name: reflect_test_rsp
+    Description:  Reflect test reply
+    Type: Response
+    PairedMessage: reflect_test_cmd
+    Fields:
+      - Name: dummy
+        Type: bool
+#-------------------------------------------------------------------------------
   - Name: device_fw_version_cmd
     Description:  Request the device-fw version. Use the 8 bytes of the uint64_t
                   to store 8 characters of the git-hash.
