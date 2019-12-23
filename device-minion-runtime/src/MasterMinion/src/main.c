@@ -349,6 +349,7 @@ static void handle_message_from_host(int64_t length, uint8_t* buffer)
     }
     else
     {
+        log_write(LOG_LEVEL_INFO, "laldlfkjsldkf");
         log_write(LOG_LEVEL_ERROR, "Invalid message id: %" PRIu64 "\r\n", *message_id);
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE

@@ -36,7 +36,20 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
         struct command_header_t* const cmd = (void*) buffer;
         cmd->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
     }
-    if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_CMD)
+
+    if (*message_id == MBOX_DEVAPI_MESSAGE_ID_REFLECT_TEST_CMD)
+    {
+        const struct reflect_test_cmd_t* const cmd = (const void* const) buffer;
+        struct reflect_test_rsp_t rsp;
+        rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_REFLECT_TEST_RSP;
+        prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+        int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+        if (result != 0)
+        {
+            log_write(LOG_LEVEL_ERROR, "DeviceAPI Reflect Test send error " PRIi64 "\r\n", result);
+        }
+    }
+    else if (*message_id == MBOX_DEVAPI_MESSAGE_ID_DEVICE_FW_VERSION_CMD)
     {
         const struct device_fw_version_cmd_t* const cmd = (const void* const) buffer;
         struct device_fw_version_rsp_t rsp;
