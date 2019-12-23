@@ -246,11 +246,11 @@ private:
   using StreamRegistry = std::unordered_map<StreamID, std::unique_ptr<Stream>>;
   static StreamRegistry
       stream_registry_; ///< Global Registry of all constructed streams
-  StreamID id_;                         ///< ID of the current stream
+  StreamID id_ = -1;    ///< ID of the current stream
   Device &dev_;                         ///< Device this stream belongs to
-  bool is_blocking_; ///< True if this is a blocking stream
-  std::queue<std::shared_ptr<et_runtime::device_api::CommandBase>>
-      actions_; ///< Queue of commands that this stream has pending
+  bool is_blocking_ = false;            ///< True if this is a blocking stream
+  std::queue<std::shared_ptr<et_runtime::device_api::CommandBase>> actions_ =
+      {}; ///< Queue of commands that this stream has pending
 };
 } // namespace et_runtime
 
