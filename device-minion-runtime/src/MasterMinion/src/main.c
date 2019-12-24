@@ -287,19 +287,7 @@ static void handle_message_from_host(int64_t length, uint8_t* buffer)
 
     const mbox_message_id_t* const message_id = (const void* const)buffer;
 
-    if (*message_id == MBOX_MESSAGE_ID_KERNEL_LAUNCH)
-    {
-        log_write(LOG_LEVEL_INFO, "received kernel launch message fom host, length = %" PRId64 "\r\n", length);
-
-#ifdef DEBUG_PRINT_HOST_MESSAGE
-        print_host_message(buffer, length);
-#endif
-
-        const host_message_t* const host_message_ptr = (const void* const)buffer;
-
-        launch_kernel(&host_message_ptr->kernel_params, &host_message_ptr->kernel_info);
-    }
-    else if (*message_id == MBOX_MESSAGE_ID_REFLECT_TEST)
+    if (*message_id == MBOX_MESSAGE_ID_REFLECT_TEST)
     {
         MBOX_send(MBOX_PCIE, buffer, (uint32_t)length);
     }
@@ -349,6 +337,7 @@ static void handle_message_from_host(int64_t length, uint8_t* buffer)
     }
     else
     {
+        log_write(LOG_LEVEL_INFO, "laldlfkjsldkf");
         log_write(LOG_LEVEL_ERROR, "Invalid message id: %" PRIu64 "\r\n", *message_id);
 
 #ifdef DEBUG_PRINT_HOST_MESSAGE

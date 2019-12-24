@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "broadcast.h"
 #include "cacheops.h"
+#include "device_api.h"
 #include "esr_defines.h"
 #include "fcc.h"
 #include "hart.h"
@@ -20,6 +21,7 @@
 
 typedef struct
 {
+    struct kernel_launch_cmd_t launch_cmd;
     kernel_state_t kernel_state;
     uint64_t shire_mask;
     uint64_t start_time;
@@ -32,6 +34,9 @@ static kernel_status_t kernel_status[MAX_SIMULTANEOUS_KERNELS];
 // Shared state - Worker minion fetch kernel parameters from these
 static kernel_config_t* const kernel_config = (kernel_config_t*)FW_MASTER_TO_WORKER_KERNEL_CONFIGS;
 
+/// \brief preparate a response to the kernel respose
+static void send_kernel_launch_response(const struct kernel_launch_cmd_t* const launch_cmd, const dev_api_kernel_launch_error_e error);
+
 static void clear_kernel_config(kernel_id_t kernel_id);
 
 void kernel_init(void)
@@ -40,6 +45,23 @@ void kernel_init(void)
     {
         clear_kernel_config(kernel);
     }
+}
+
+static void send_kernel_launch_response(const struct kernel_launch_cmd_t* const cmd, const dev_api_kernel_launch_error_e error)
+{
+    log_write(LOG_LEVEL_INFO, "Sending Kernel Respose " PRIi64 "\r\n", error);
+    struct kernel_launch_rsp_t rsp;
+    rsp.response_info.message_id = MBOX_DEVAPI_MESSAGE_ID_KERNEL_LAUNCH_RSP;
+    prepare_device_api_reply(&cmd->command_info, &rsp.response_info);
+    rsp.kernel_id = cmd->kernel_params.kernel_id;
+    rsp.error = error;
+
+    int64_t result = MBOX_send(MBOX_PCIE, &rsp, sizeof(rsp));
+    if (result != 0)
+    {
+        log_write(LOG_LEVEL_ERROR, "DeviceAPI Kernel Launch Response MBOX_send error " PRIi64 "\r\n", result);
+    }
+
 }
 
 // Waits for all the shires associated with a kernel to report ready via a FCC,
@@ -160,12 +182,8 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
         case KERNEL_STATE_ERROR:
         {
-            const devfw_response_t response = {
-                .message_id = MBOX_MESSAGE_ID_KERNEL_RESULT,
-                .kernel_id = kernel_id,
-                .response_id = MBOX_KERNEL_RESULT_ERROR};
-
-            MBOX_send(MBOX_PCIE, &response, sizeof(response));
+            send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
+                                        DEV_API_KERNEL_LAUNCH_ERROR_RESULT_ERROR);
 
             clear_kernel_config(kernel_id);
             kernel_status[kernel_id].kernel_state = KERNEL_STATE_ERROR;
@@ -183,12 +201,8 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
             log_write(LOG_LEVEL_INFO, "kernel %d complete, %" PRId64 "us\r\n", kernel_id, elapsed_time_us);
 
-            const devfw_response_t response = {
-                .message_id = MBOX_MESSAGE_ID_KERNEL_RESULT,
-                .kernel_id = kernel_id,
-                .response_id = MBOX_KERNEL_RESULT_OK};
-
-            MBOX_send(MBOX_PCIE, &response, sizeof(response));
+            send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
+                                        DEV_API_KERNEL_LAUNCH_ERROR_RESULT_OK);
 
             // Mark all shires associated with this kernel as complete
             for (uint64_t shire = 0; shire < 33; shire++)
@@ -210,10 +224,10 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
     }
 }
 
-void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_info_t* const kernel_info_ptr)
+void launch_kernel(const struct kernel_launch_cmd_t* const launch_cmd)
 {
-    const kernel_id_t kernel_id = kernel_params_ptr->kernel_id;
-    const uint64_t shire_mask = kernel_info_ptr->shire_mask;
+    const kernel_id_t kernel_id = launch_cmd->kernel_params.kernel_id;
+    const uint64_t shire_mask = launch_cmd->kernel_info.shire_mask;
     kernel_status_t* const kernel_status_ptr = &kernel_status[kernel_id];
     uint64_t num_shires = 0;
     bool allShiresReady = true;
@@ -244,6 +258,9 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
 
     if (allShiresReady && kernelReady)
     {
+        // Update the kernel status cmd with the kernel-launch command we are going to use
+        kernel_status_ptr->launch_cmd = *launch_cmd;
+
         volatile kernel_config_t* const kernel_config_ptr = &kernel_config[kernel_id];
 
         for (uint64_t shire = 0; shire < 33; shire++)
@@ -254,10 +271,12 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
             }
         }
 
-        // Copy params and info into kernel config buffer
-        kernel_config_ptr->kernel_params = *kernel_params_ptr;
-        kernel_config_ptr->kernel_info   = *kernel_info_ptr;
-        kernel_config_ptr->num_shires    = num_shires;
+        // Copy params and info into kernel config bufferb
+        kernel_config_ptr->kernel_params = launch_cmd->kernel_params;
+        kernel_config_ptr->kernel_info.compute_pc = launch_cmd->kernel_info.compute_pc;
+        kernel_config_ptr->kernel_info.uber_kernel_nodes = launch_cmd->kernel_info.uber_kernel_nodes;
+        kernel_config_ptr->kernel_info.shire_mask = launch_cmd->kernel_info.shire_mask;
+        kernel_config_ptr->num_shires = num_shires;
 
         // Fix up kernel_params_ptr for the copy in kernel_config
         kernel_config_ptr->kernel_info.kernel_params_ptr = &kernel_config[kernel_id].kernel_params;
@@ -271,6 +290,7 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
         notify_kernel_sync_thread(kernel_id, FCC_0);
 
         update_kernel_state(kernel_id, KERNEL_STATE_LAUNCHED);
+        // FIXME SW-1471 generate an event message back to the host that we launched
         kernel_status_ptr->shire_mask = shire_mask;
 
         for (uint64_t shire = 0; shire < 33; shire++)
@@ -285,12 +305,8 @@ void launch_kernel(const kernel_params_t* const kernel_params_ptr, const kernel_
     }
     else
     {
-        const devfw_response_t response = {
-            .message_id = MBOX_MESSAGE_ID_KERNEL_LAUNCH_RESPONSE,
-            .kernel_id = kernel_id,
-            .response_id = MBOX_KERNEL_LAUNCH_RESPONSE_ERROR_SHIRES_NOT_READY};
-
-        MBOX_send(MBOX_PCIE, &response, sizeof(response));
+        send_kernel_launch_response(&kernel_status[kernel_id].launch_cmd,
+                                    DEV_API_KERNEL_LAUNCH_ERROR_SHIRES_NOT_READY);
     }
 }
 
