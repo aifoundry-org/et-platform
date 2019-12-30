@@ -149,7 +149,7 @@ find_package(esperanto-device-api CONFIG REQUIRED
   NO_CMAKE_ENVIRONMENT_PATH
   NO_DEFAULT_PATH
 )
-message("Espernato Device API Found: ${espernato-device-api_FOUND}")
+message("Esperanto Device API Found: ${espernato-device-api_FOUND}")
 
 # Currenly esperanto-fw is not required. Will be the case once we get completly rid
 # of the fake-fw. Also prevert CMake from using the default search path currently it
@@ -157,7 +157,7 @@ message("Espernato Device API Found: ${espernato-device-api_FOUND}")
 find_package(esperanto-fw
   NO_DEFAULT_PATH
   )
-message("Espernato-FW found: " ${esperanto-fw_FOUND})
+message("Esperanto-FW found: " ${esperanto-fw_FOUND})
 
 # Add rules for auto-generated headers.
 add_subdirectory(include)
