@@ -96,7 +96,7 @@ static void write_reg(uint64_t* const reg, uint64_t rd, uint64_t val)
 
 static void send_exception_message(uint64_t mcause, uint64_t mepc, uint64_t mtval, uint64_t mstatus, uint64_t hart_id, bool user_mode)
 {
-    static message_t message;
+    message_t message;
 
     // The master minion needs to know if this is a recoverable kernel exception or an unrecoverable exception
     message.id = user_mode ? MESSAGE_ID_KERNEL_EXCEPTION : MESSAGE_ID_EXCEPTION;

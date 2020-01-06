@@ -95,3 +95,6 @@ SECTIONS
         __bss_end = .;
     } > MDATA
 }
+
+ASSERT(SIZEOF(.bss) == 0, "Error, image is shared so .bss section must be empty");
+ASSERT(SIZEOF(.sbss) == 0, "Error, image is shared so .sbss section must be empty");

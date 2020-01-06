@@ -4,8 +4,7 @@
 #include "log.h"
 #include "message.h"
 
-static message_t message;
-static message_number_t previous_broadcast_message_number[NUM_HARTS];
+static message_number_t previous_broadcast_message_number[NUM_HARTS] __attribute__((section(".data"))) = {0};
 
 void swi_handler(void);
 static void handle_message(uint64_t shire, uint64_t hart, message_t* const message_ptr);
@@ -13,6 +12,8 @@ static void handle_message(uint64_t shire, uint64_t hart, message_t* const messa
 // Must not access kernel_config - firmware assumes kernel_config addresses remain clean/invalid until reading on a FCC
 void swi_handler(void)
 {
+    message_t message;
+
     // We got a software interrupt handed down from M-mode.
     // M-mode already cleared the IPI - check messages
     const uint64_t shire = get_shire_id();
