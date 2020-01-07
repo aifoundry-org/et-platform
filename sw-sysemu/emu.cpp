@@ -3412,6 +3412,10 @@ static void tensor_fma32_execute()
             cpu[current_thread].wait.state = Processor::Wait::State::Idle;
         }
     }
+    else
+    {
+        cpu[current_thread].wait.state = Processor::Wait::State::Idle;
+    }
 #endif
 
     LOG(DEBUG, "\tExecute TensorFMA32 with tm: %d, aoffset: %d, first_pass: %d, bcols: %d, acols: %d, arows: %d, tenb: %d, bstart: %d, astart: %d, rm: %s",
@@ -3611,6 +3615,10 @@ static void tensor_fma16a32_execute()
         {
             cpu[current_thread].wait.state = Processor::Wait::State::Idle;
         }
+    }
+    else
+    {
+        cpu[current_thread].wait.state = Processor::Wait::State::Idle;
     }
 #endif
 
@@ -3817,6 +3825,10 @@ static void tensor_ima8a32_execute()
         {
             cpu[current_thread].wait.state = Processor::Wait::State::Idle;
         }
+    }
+    else
+    {
+        cpu[current_thread].wait.state = Processor::Wait::State::Idle;
     }
 #endif
 
