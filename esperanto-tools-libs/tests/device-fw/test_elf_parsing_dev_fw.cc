@@ -25,7 +25,7 @@ namespace fs = std::experimental::filesystem;
 
 // Test device-fw elf parsing functionality
 // FIXME SW-1225
-TEST(ELFInfo, parse_device_fw_elf) {
+TEST(ELFInfo, DISABLED_parse_device_fw_elf) {
 
   // We expect that the elf we test with is installed next to the test-binary
   // Find the absolute pasth of the test binary
@@ -47,7 +47,7 @@ ABSL_FLAG(std::string, empty_elf, "", "Path to the empty ELF binary");
 // Test kernel elf parsing where we are we have only the
 // ELF entrypoint and no magic annocated symbols
 // FIXME SW-1225
-TEST(KernelELFInfo, parse_dev_fw_kernel_elf) {
+TEST(KernelELFInfo, DISABLED_parse_dev_fw_kernel_elf) {
 
   auto empty_elf = absl::GetFlag(FLAGS_empty_elf);
 
@@ -63,7 +63,7 @@ TEST(KernelELFInfo, parse_dev_fw_kernel_elf) {
 // Test kernel elf parsing where we are we have only the
 // ELF entrypoint and no magic annocated symbols
 // FIXME SW-1225
-TEST(KernelELFInfo, code_module_dev_fw) {
+TEST(KernelELFInfo, DISABLED_code_module_dev_fw) {
 
   auto empty_elf = absl::GetFlag(FLAGS_empty_elf);
 
