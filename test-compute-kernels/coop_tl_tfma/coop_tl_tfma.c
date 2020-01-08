@@ -64,7 +64,7 @@
 #define TFMA_PARAMS 13
 
 #define TOTAL_MINIONS 96
-#define NUM_ITER 20
+#define NUM_ITER 100
 #define NUM_RANDOM_SAMPLES 10
 #define NUM_ITER_FOR_BARRIER 4
 
