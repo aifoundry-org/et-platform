@@ -16,8 +16,9 @@ CPPFLAGS := -MMD -MP -I..
 CFLAGS   := -Wall -Werror -fPIC -std=c11
 CXXFLAGS := -Wall -Werror -Wextra -pedantic-errors -fPIC -std=c++11
 LDFLAGS  := -shared
+DEBUG ?= 0
 
-ifeq ($(DEBUG),)
+ifeq ($(DEBUG),0)
     CXXFLAGS += -g -O2
     CFLAGS += -g -O2
 else
