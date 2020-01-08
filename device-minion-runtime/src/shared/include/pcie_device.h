@@ -14,6 +14,7 @@
 
 #include "DWC_pcie_subsystem_custom.h"
 #include "DWC_pcie_dbi_cpcie_usp_4x8.h"
+#include "ns_noc_io_pcie_soc_ip.h"
 #include "pshire_esr.h"
 #include "hal_device.h"
 
@@ -46,5 +47,8 @@
 //and fire an interrupt when you write to a special address on the port. You
 //pick the address. I picked offset 0 arbitrarily ¯\_(ツ)_/¯. 
 #define MSIX_TRIG_REG ((volatile uint64_t* const)R_PCIE0_SLV_BASEADDR)
+
+//NoC Registers for PShire NoC RegBus. Only usable by SP.
+#define PCIE_NOC ((volatile Pcie_noc_t* const)R_SP_PSHIRE_REGBUS_BASEADDR)
 
 #endif

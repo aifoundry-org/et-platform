@@ -21,6 +21,7 @@
 
 #include "etsoc_hal/rm_esr.h"
 #include "hal_device.h"
+#include "layout.h"
 #include "pcie_device.h"
 
 static void pcie_init_pshire(void);
@@ -28,6 +29,7 @@ static void pcie_init_caps_list(void);
 static void pcie_init_bars(void);
 static void pcie_init_ints(void);
 static void pcie_init_link(void);
+static void pcie_init_noc(void);
 static void pcie_init_atus(void);
 static void pcie_wait_for_ints(void);
 
@@ -73,6 +75,7 @@ void PCIe_init(bool expect_link_up)
     //These steps don't block the PCIe IP from responding to config space messages,
     //so their timing does not contribute to the PERST_n requirements. Always do 
     //them as late as possible (i.e. not in pcie_boot_config()) to simplfy things.
+    pcie_init_noc();
     pcie_init_atus();
     pcie_wait_for_ints();
 
@@ -273,6 +276,68 @@ static void pcie_init_link(void)
     printf(" done\r\n");
 }
 
+static void pcie_init_noc(void)
+{
+    //Configure the PShire NoC to allow access to the OS region of DRAM, since
+    //we're not using maxion.
+
+    //This programing sequence is from Miquel Izquierdo, as of Dec 11, 2019.
+
+    //Offset 0x1C0C0
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_8m__512g_16m__8m_3_0_t offset3;
+    offset3.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_8m__512g_16m__8m_3_0.qword;
+    offset3.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_8m__512g_16m__8m_3_0.qword = offset3.qword;
+
+    //Offset 0x1C0E0
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_16m__512g_32m__16m_4_0_t offset4;
+    offset4.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_16m__512g_32m__16m_4_0.qword;
+    offset4.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_16m__512g_32m__16m_4_0.qword = offset4.qword;
+
+    //Offset 0x1C100
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_32m__512g_64m__32m_5_0_t offset5; 
+    offset5.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_32m__512g_64m__32m_5_0.qword;
+    offset5.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_32m__512g_64m__32m_5_0.qword = offset5.qword;
+
+    //Offset 0x1C120
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_64m__512g_128m__64m_6_0_t offset6; 
+    offset6.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_64m__512g_128m__64m_6_0.qword;
+    offset6.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_64m__512g_128m__64m_6_0.qword = offset6.qword;
+
+    //Offset 0x1C140
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_128m__512g_256m__128m_7_0_t offset7; 
+    offset7.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_128m__512g_256m__128m_7_0.qword;
+    offset7.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_128m__512g_256m__128m_7_0.qword = offset7.qword;
+
+    //Offset 0x1C160
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_256m__512g_512m__256m_8_0_t offset8; 
+    offset8.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_256m__512g_512m__256m_8_0.qword;
+    offset8.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_256m__512g_512m__256m_8_0.qword = offset8.qword;
+
+    //Offset 0x1C180
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_512m__513g__512m_9_0_t offset9; 
+    offset9.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_512m__513g__512m_9_0.qword;
+    offset9.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_512g_512m__513g__512m_9_0.qword = offset9.qword;
+
+    //Offset 0x1C1A0
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_513g__514g__1g_10_0_t offset10; 
+    offset10.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_513g__514g__1g_10_0.qword;
+    offset10.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_513g__514g__1g_10_0.qword = offset10.qword;
+
+    //Offset 0x1C1C0
+    Pcie_noc_bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_514g__516g__2g_11_0_t offset11; 
+    offset11.qword = PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_514g__516g__2g_11_0.qword;
+    offset11.B.DI = 0;
+    PCIE_NOC->bridge_p0_p0_m_3_6_am_adbase_mem_main0_tol3_s_sr_main0_tol3_s_map_r_514g__516g__2g_11_0.qword = offset11.qword;
+}
+
 //See DWC_pcie_ctl_dm_databook section 3.10.11
 //Since the regmap codegen does not make an array of iATU registers, parameterize with macros
 #define CONFIG_INBOUND_IATU(num) static void config_inbound_iatu_##num(uint64_t baseAddr, uint64_t targetAddr, uint64_t size) { \
@@ -342,7 +407,7 @@ static void pcie_init_atus(void)
 
     //Setup BAR0
     //Name        Host Addr       SoC Addr      Size   Notes
-    //R_L3_DRAM   BAR0 + 0x0000   0x8100000000  28G    DRAM with PCIe access permissions
+    //R_L3_DRAM   BAR0 + 0x0000   0x8005000000  ~32G   SoC DRAM
     
     uint64_t bar0 = 
         ((uint64_t)PCIE0->PF0_TYPE0_HDR.BAR1_REG.R << 32) |
@@ -350,8 +415,8 @@ static void pcie_init_atus(void)
 
     config_inbound_iatu_0(
         bar0,               //baseAddr
-        R_L3_DRAM_BASEADDR, //targetAddr
-        R_L3_DRAM_SIZE);    //size
+        DRAM_MEMMAP_BEGIN,  //targetAddr
+        DRAM_MEMMAP_END);   //size
 
     //Setup BAR2
     //Name              Host Addr       SoC Addr      Size   Notes
