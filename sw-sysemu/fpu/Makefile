@@ -4,7 +4,7 @@ include ../softfloat/softfloat.mk
 libfpu_OBJDIR ?= build
 
 libfpu_SRCS := $(fpu_cpp_srcs) $(fpu_c_srcs) $(softfloat_c_srcs)
-libfpu_OBJS := $(patsubst %,$(libfpu_OBJDIR)/obj/%.o,$(basename $(libfpu_SRCS)))
+libfpu_OBJS := $(patsubst %,$(libfpu_OBJDIR)/fpu_obj/%.o,$(basename $(libfpu_SRCS)))
 libfpu_DEPS := $(libfpu_OBJS:.o=.d)
 
 
@@ -71,8 +71,8 @@ $(libfpu_OBJDIR)%/.:
 
 .SECONDEXPANSION:
 
-$(libfpu_OBJDIR)/obj/%.o: ../%.cpp | $$(@D)/.
+$(libfpu_OBJDIR)/fpu_obj/%.o: ../%.cpp | $$(@D)/.
 	$(COMPILE.cpp) $(OUTPUT_OPTION) $<
 
-$(libfpu_OBJDIR)/obj/%.o: ../%.c | $$(@D)/.
+$(libfpu_OBJDIR)/fpu_obj/%.o: ../%.c | $$(@D)/.
 	$(COMPILE.c) $(OUTPUT_OPTION) $<
