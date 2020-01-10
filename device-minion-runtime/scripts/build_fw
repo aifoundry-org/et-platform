@@ -1,0 +1,32 @@
+#!/bin/bash -ex
+
+export REPOROOT=`pwd`
+echo "REPOROOT is $REPOROOT"
+
+# Update and clean the repo 
+#git pull -r --prune --recurse-submodules
+git clean -fdx
+
+# build the tools 
+# Code Signing Tool
+cd ${REPOROOT}/firmware-tools/code-signing-tools
+mkdir -p build && cd build
+cmake ..
+make -j
+
+# ET Flash tool
+cd ${REPOROOT}/firmware-tools/esperanto-flash-tool
+mkdir -p build && cd build
+cmake ..
+make -j
+
+# Build the Firwmare
+cd ${REPOROOT}
+mkdir -p build && cd build
+cmake ..
+make doc
+make -j 
+
+# Sign the Image 
+cd ${REPOROOT}
+scripts/sign_flash_image
