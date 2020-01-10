@@ -3,6 +3,7 @@ include sysemu.mk
 
 libfpu_OBJDIR ?= ../fpu/build
 sysemu_OBJDIR ?= build
+DEBUG ?= 0
 
 sysemu_SRCS := $(sysemu_cpp_srcs) $(emu_cpp_srcs)
 sysemu_OBJS := $(patsubst %,$(sysemu_OBJDIR)/obj/%.o,$(basename $(sysemu_SRCS)))
@@ -25,7 +26,7 @@ CXXFLAGS := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c++11
 CFLAGS   := -Wall -Wextra -Werror -pedantic-errors -fPIC -std=c11
 LDLIBS   := -lm
 
-ifeq ($(DEBUG),)
+ifeq ($(DEBUG),0)
     CXXFLAGS += -g -O2
     CFLAGS += -g -O2
 else
