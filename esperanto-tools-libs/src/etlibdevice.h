@@ -1,8 +1,6 @@
 #ifndef _ETLIBDEVICE_H_
 #define _ETLIBDEVICE_H_
 
-#include "../kernels/sys_inc.h"
-
 typedef struct {
   unsigned grid_size_x;  // CUDA gridDim.x
   unsigned grid_size_y;  // CUDA gridDim.y

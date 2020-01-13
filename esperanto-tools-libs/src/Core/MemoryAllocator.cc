@@ -10,8 +10,6 @@
 
 #include "MemoryAllocator.h"
 
-// FIXME this header should be removed
-#include "../kernels/sys_inc.h"
 #include "esperanto/runtime/Support/HelperMacros.h"
 
 #include <cassert>

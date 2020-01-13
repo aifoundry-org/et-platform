@@ -14,6 +14,9 @@
 #include "esperanto/runtime/Core/DeviceTarget.h"
 #include "esperanto/runtime/Support/Logging.h"
 
+// FIXME fix include path of this file
+#include "../kernels/sys_inc.h"
+
 #include <fstream>
 
 ABSL_FLAG(std::string, fake_fw, "", "Path to the fake-fw path");

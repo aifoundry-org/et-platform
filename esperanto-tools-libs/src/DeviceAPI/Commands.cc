@@ -20,10 +20,6 @@
 #include "esperanto/runtime/Support/Logging.h"
 #include "esperanto/runtime/Support/STLHelpers.h"
 
-#define INCLUDE_FOR_HOST
-#include "../kernels/sys_inc.h"
-#undef INCLUDE_FOR_HOST
-
 #include "demangle.h"
 
 #include <esperanto/device-api/device_api.h>

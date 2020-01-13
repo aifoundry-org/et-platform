@@ -13,8 +13,6 @@
 
 #include "FWManager.h"
 
-// FIXME fix include path of this file
-#include "../kernels/sys_inc.h"
 #include "esperanto/runtime/Support/STLHelpers.h"
 #include <vector>
 

@@ -58,6 +58,11 @@ public:
   }
 
 private:
+  template <typename T>
+  static T align_up(T val, T align) {
+    return (val + align - 1) / align * align;
+  }
+
   uintptr_t region_base_;
   size_t region_size_;
   std::set<support::MemoryRange>

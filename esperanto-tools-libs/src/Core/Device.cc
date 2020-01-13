@@ -36,11 +36,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-
-#define INCLUDE_FOR_HOST
-#include "../kernels/sys_inc.h"
-#undef INCLUDE_FOR_HOST
-
 ABSL_FLAG(std::string, shires, "2", "Number of active worker shires");
 
 using namespace et_runtime;
