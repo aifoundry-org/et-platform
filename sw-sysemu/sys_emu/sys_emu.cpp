@@ -1029,7 +1029,7 @@ sys_emu::main_internal(int argc, char * argv[])
                     }
                     else
                     {
-                        if (inst.is_fcc())
+                        if (inst.is_fcc_write())
                         {
                             unsigned cnt = get_fcc_cnt();
                             int old_thread = *thread;

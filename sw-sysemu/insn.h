@@ -19,17 +19,18 @@ public:
         flag_1ULP         = 0x0001,
         flag_CMO          = 0x0002, // Coherent Memory Operation (AMOs, etc)
         flag_CSR_READ     = 0x0004,
-        flag_FCC          = 0x0008,
-        flag_FLB          = 0x0010,
+        flag_CSR_WRITE    = 0x0008,
         flag_LOAD         = 0x0020,
-        flag_REDUCE       = 0x0040,
-        flag_TENSOR_FMA   = 0x0080,
+        flag_WFI          = 0x0040,
+        flag_REDUCE       = 0x0080,
         flag_TENSOR_LOAD  = 0x0100,
         flag_TENSOR_QUANT = 0x0200,
         flag_TENSOR_STORE = 0x0400,
         flag_TENSOR_WAIT  = 0x0800,
-        flag_WFI          = 0x1000,
-        flag_STALL        = 0x2000
+        flag_TENSOR_FMA   = 0x1000,
+        flag_STALL        = 0x2000,
+        flag_FCC          = 0x4000,
+        flag_FLB          = 0x8000
     };
 
     uint32_t          bits;
@@ -42,7 +43,8 @@ public:
     constexpr bool is_1ulp() const      { return (flags & flag_1ULP); }
     constexpr bool is_cmo() const       { return (flags & flag_CMO); }
     constexpr bool is_csr_read() const  { return (flags & flag_CSR_READ); }
-    constexpr bool is_fcc() const       { return (flags & flag_FCC); }
+    constexpr bool is_csr_write() const { return (flags & flag_CSR_WRITE); }
+    constexpr bool is_fcc_write() const { return (flags & flag_FCC) && (flags & flag_CSR_WRITE); }
     constexpr bool is_flb() const       { return (flags & flag_FLB); }
     constexpr bool is_load() const      { return (flags & flag_LOAD); }
     constexpr bool is_reduce() const    { return (flags & flag_REDUCE); }
