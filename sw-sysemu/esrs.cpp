@@ -221,7 +221,7 @@ uint64_t esr_read(uint64_t addr)
     unsigned shire = ((addr2 & ESR_REGION_SHIRE_MASK) >> ESR_REGION_SHIRE_SHIFT);
 
     // addr[21] == 0 means accessing the R_PU_RVTim ESRs
-    if ((shire == EMU_IO_SHIRE_SP) & (~addr2 & 0x200000ULL)) {
+    if ((shire == EMU_IO_SHIRE_SP) && (~addr2 & 0x200000ULL)) {
         uint64_t esr = addr2 & ESR_IOSHIRE_ESR_MASK;
 #ifdef SYS_EMU
         switch (esr) {
