@@ -659,9 +659,9 @@ static insn_exec_funct_t dec_system(uint32_t bits, uint16_t& flags)
     };
     unsigned funct3 = (bits >> 12) & 7;
     uint16_t imm12 = (bits >> 20) & 0xfff;
+    uint16_t rd = (bits >> 7) & 31;
+    uint16_t rs1 = (bits >> 15) & 31;
     if (funct3 == 0) {
-        uint16_t rd = (bits >> 7) & 31;
-        uint16_t rs1 = (bits >> 15) & 31;
         switch (imm12) {
         case 0x000: return (rd | rs1) ? insn_reserved : insn_ecall;
         case 0x001: return (rd | rs1) ? insn_reserved : insn_ebreak;
@@ -675,8 +675,20 @@ static insn_exec_funct_t dec_system(uint32_t bits, uint16_t& flags)
         }
         return insn_reserved;
     }
-    // csrr{w,s,c,wi,si,ci} instructions
-    flags |= insn_t::flag_CSR_READ; // FIXME: csrrw with rd=x0 does not read the CSR!
+    if ((funct3 == 1) || (funct3 == 5)) {
+        // csrrw, csrrwi
+        if (rd) {
+            flags |= insn_t::flag_CSR_READ;
+        }
+        flags |= insn_t::flag_CSR_WRITE;
+    }
+    else if (funct3 != 4) {
+        // csrs, csrc, csrsi, csrci
+        if (rs1) {
+            flags |= insn_t::flag_CSR_WRITE;
+        }
+        flags |= insn_t::flag_CSR_READ;
+    }
     switch (imm12) {
     case 0x800 : flags |= insn_t::flag_REDUCE; break;
     case 0x801 : flags |= insn_t::flag_TENSOR_FMA; break;

@@ -1032,6 +1032,9 @@ static uint64_t csrget(uint16_t src1)
     case CSR_FLB:
     case CSR_FCC:
     case CSR_STALL:
+        require_feature_ml();
+        val = 0;
+        break;
     case CSR_TENSOR_WAIT:
         val = 0;
         break;
