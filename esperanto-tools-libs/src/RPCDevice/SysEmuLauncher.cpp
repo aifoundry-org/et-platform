@@ -56,9 +56,8 @@ SysEmuLauncher::SysEmuLauncher(
   execute_args_.insert(execute_args_.end(), additional_options.begin(),
                        additional_options.end());
 
-  if (absl::GetFlag(FLAGS_fw_type).type == "device-fw") {
-    execute_args_.push_back("-sim_api_async");
-  }
+  // Enable async behavior of the simulator API
+  execute_args_.push_back("-sim_api_async");
 
   if (absl::GetFlag(FLAGS_sysemu_log_enable)) {
     execute_args_.push_back("-l");

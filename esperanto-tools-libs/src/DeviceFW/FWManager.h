@@ -46,7 +46,7 @@ public:
   virtual bool readFW() = 0;
   virtual etrtError loadOnDevice(device::DeviceTarget *dev) = 0;
 
-  static std::unique_ptr<Firmware> allocateFirmware(std::string type);
+  static std::unique_ptr<Firmware> allocateFirmware();
 };
 
 class FWManager {

@@ -40,7 +40,6 @@ protected:
     auto test_real_path = fs::read_symlink(p);
     auto dir_name = test_real_path.remove_filename();
 
-    absl::SetFlag(&FLAGS_fw_type, FWType("device-fw"));
     auto device_manager = et_runtime::getDeviceManager();
     auto ret_value = device_manager->registerDevice(0);
     dev_ = ret_value.get();
@@ -83,7 +82,6 @@ protected:
     auto test_real_path = fs::read_symlink(p);
     auto dir_name = test_real_path.remove_filename();
 
-    absl::SetFlag(&FLAGS_fw_type, FWType("device-fw"));
     auto device_manager = et_runtime::getDeviceManager();
     auto ret_value = device_manager->registerDevice(0);
     dev_ = ret_value.get();

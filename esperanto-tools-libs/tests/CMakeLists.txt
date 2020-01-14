@@ -108,24 +108,19 @@ if(esperanto-fw_FOUND)
   # Example when passsing arguments then make sure that you use the "=" operation between
   # the option and its value and you space separate the different options.
 
-  set(DEV_FW_ARGS "--fw_type=device-fw --master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
+  set(DEV_FW_ARGS "--master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
 
-else(esperanto-fw_FOUND)
-  set(DEV_FW_ARGS "--fw_type=fake-fw --fake_fw=${CMAKE_CURRENT_BINARY_DIR}/bootrom.mem")
 endif(esperanto-fw_FOUND)
 
 set(TEST_LIST
   test_error_or.cc:""
   test_command_response.cc:""
   test_command_queue.cc:""
-  test_code_manager.cc:"${DEV_FW_ARGS}"
   test_device_manager.cc:""
   test_device_target_sysemu_grpc.cc:""
   test_elf_parsing.cc:""
   test_tracing.cc:""
   test_memory_manager.cc:""
-  test_module_load.cc:"${DEV_FW_ARGS}"
-  test_module_manager.cc:"${DEV_FW_ARGS}"
   )
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
@@ -134,6 +129,9 @@ if(esperanto-fw_FOUND)
   # List of tests to be compiled if we have support for device-fw
   # List of tests that are currently running only in the simulator
   set(SIM_DEVFW_TEST_LIST
+    test_code_manager.cc:"${DEV_FW_ARGS}"
+    test_module_load.cc:"${DEV_FW_ARGS}"
+    test_module_manager.cc:"${DEV_FW_ARGS}"
     # This tests exercises the simulator API but given that we need to test the mailbox this
     # can be enabled only for the case of device-fw
     device-fw/test_mb_sim_api.cc:""

@@ -11,8 +11,6 @@
 add_library(etrt_DeviceFW OBJECT
   DeviceFW.cc
   DeviceFW.h
-  FakeFW.cc
-  FakeFW.h
   FWManager.cc
   FWManager.h
   )

@@ -25,12 +25,10 @@
 #endif // ETRT_OPT
 
 //       name_suf  name-suf  abseil-type  llvm-type  Help
-ETRT_OPT(fw_type, fw-type, std::string, FWType, "Specify the type of FW to load on the target: device-fw, fake-fw")
 ETRT_OPT(dev_target, dev-target, std::string, DeviceTargetOption, "Specify the target device or simulator we would like to talk to: pcie , sysemu_grpc, device_grpc")
 ETRT_OPT(master_minion_elf, master-minion-elf, std::string, std::string, "Path to the MasterMinion.elf file")
 ETRT_OPT(worker_minion_elf, worker-minion-elf, std::string, std::string, "Path to the WorkerMinion.elf file")
 ETRT_OPT(machine_minion_elf, machine-minion-elf, std::string, std::string, "Path to the MachineMinion.elf file")
-ETRT_OPT(fake_fw, fake-fw, std::string, std::string, "Path to the fake-fw file")
 ETRT_OPT(sysemu_path, sysemu-path, std::string, std::string, "Path to sysemu")
 ETRT_OPT(sysemu_socket_dir, sysemu-socket-dir, std::string, std::string, "Existing folder where the sysemu socket will be created.")
 ETRT_OPT(sysemu_run_dir, sysemu-run-dir, std::string, std::string, "Path to sysemu run folder")
