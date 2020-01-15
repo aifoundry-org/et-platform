@@ -61,6 +61,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
                  -DGFLAGS_STRIP_INTERNAL_FLAG_HELP=ON
        # Do not install the package cause it tries to write to the cmake registry
        # in the user's home directory
+       BUILD_COMMAND $(MAKE) -j ${COMPILE_THREADS}
        BUILD_BYPRODUCTS ${gflags_INSTALL}/lib/libgflags.a
        LOG_DOWNLOAD 1
        LOG_CONFIGURE 1
@@ -119,6 +120,7 @@ if (NOT __GLOG_INCLUDED)
       INSTALL_DIR ${glog_INSTALL}
       PATCH_COMMAND autoreconf -i ${glog_PREFIX}/src/glog
       CONFIGURE_COMMAND env "CFLAGS=${GLOG_C_FLAGS}" "CXXFLAGS=${GLOG_CXX_FLAGS}" ${glog_PREFIX}/src/glog/configure --prefix=${glog_INSTALL} --enable-shared=no --enable-static=yes --with-gflags=${GFLAGS_LIBRARY_DIRS}/..
+      BUILD_COMMAND $(MAKE) -j ${COMPILE_THREADS}
       BUILD_BYPRODUCTS ${glog_INSTALL}/lib/libglog.a
       LOG_DOWNLOAD 1
       LOG_CONFIGURE 1
@@ -154,7 +156,8 @@ else()
     INSTALL_DIR ${fmtlib_INSTALL}
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${fmtlib_INSTALL}
                -DCMAKE_CXX_FLAGS=-fPIC
-               ${EXTERNAL_PROJECT_CCACHE}
+               ${EXTERNAL_PROJECT_CCACHE
+    BUILD_COMMAND $(MAKE) -j ${COMPILE_THREADS}
     BUILD_BYPRODUCTS ${fmtlib_INSTALL}/lib64/libfmt.a
     LOG_DOWNLOAD 1
     LOG_CONFIGURE 1
@@ -263,7 +266,7 @@ if("${runtime_SW_SYSEMU_PROVIDER}" STREQUAL "module")
                           sysemu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build
                           libfpu_OBJDIR=${CMAKE_CURRENT_BINARY_DIR}/sysemu-build-fpu
                           simapi_SYSPATH=${RT_EXTERNAL_INSTALL_PREFIX}
-                          ${EXTERN_SYSPATH}
+                          ${EXTERN_SYSPATH} -j ${COMPILE_THREADS}
     BUILD_BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/sys_emu
     INSTALL_COMMAND mkdir -p ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
     && cp ${CMAKE_CURRENT_BINARY_DIR}/sysemu-build/sys_emu ${RT_EXTERNAL_INSTALL_PREFIX}/bin/
@@ -308,7 +311,7 @@ if (NOT elfio_FOUND)
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/elfio
     PATCH_COMMAND autoreconf -i <SOURCE_DIR>
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix ${elfio_INSTALL} ${ELFIO_CCACHE}
-    BUILD_COMMAND $(MAKE) -j $(nproc)
+    BUILD_COMMAND $(MAKE) -j ${COMPILE_THREADS}
     INSTALL_COMMAND $(MAKE) install
     BUILD_ALWAYS 1
     )
@@ -330,7 +333,8 @@ else()
     INSTALL_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest"
     CMAKE_ARGS = "-DCMAKE_INSTALL_PREFIX=${GTEST_DIR}"
                  ${EXTERNAL_PROJECT_ENABLE_CCACHE}
-                 )
+    BUILD_COMMAND $(MAKE) -j ${COMPILE_THREADS}
+  )
 
   set(external_test_dependencies googletest PARENT_SCOPE)
 endif()
