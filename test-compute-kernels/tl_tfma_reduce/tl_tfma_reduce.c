@@ -11,7 +11,6 @@
 #include "kernel_params.h"
 #include "esr_defines.h"
 #include "crc32.h"
-#include "crc_vals.h"
 #include "log.h"
 
 #define ALL_BANKS_MASK 0xFUL;
@@ -73,7 +72,7 @@
 #define REDUCE_PARAMS 5
 
 #define TOTAL_MINIONS 96
-#define NUM_ITER 10000
+#define NUM_ITER 100
 #define NUM_RANDOM_SAMPLES 10
 
 #include "tl0_configs.h"
@@ -95,7 +94,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
     uint64_t hart_id = get_hart_id();
     uint64_t minion_id = hart_id >> 1;
-    uint64_t shire_id = (hart_id >> 6) & 0x3f;       
+    uint64_t shire_id = (hart_id >> 6) & 0x3f;
   
     if (hart_id & 1) {
         //C_TEST_PASS; 
@@ -140,7 +139,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     // Write always to the RF and do not add TenC
     tensor_wait(TENSOR_LOAD_WAIT_0);
 
-    for (uint64_t iter=0; iter < NUM_ITER; iter++) {		
+    for (uint64_t iter=0; iter < NUM_ITER; iter++) {
 
 	// === Actual kernel body:
 	// Index in arrays is Iteration idx + Minion Idx + Param Idx:
@@ -168,20 +167,20 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
 	// Tensor Load 1 -- Tenb is 1
 	// Set mask to 0, Coop to 0  and ID to 1
-	tensor_load(0, 
+	tensor_load(0,
 		    0, //tl1_configs[tl_minion_idx + TL_IS_COOP_IDX+ tl_iter_idx],
 		    tl1_configs[tl_minion_idx  + TL_SCP_START_LINE_IDX + tl_iter_idx], 
-		    tl1_configs[tl_minion_idx  + TL_CODE_IDX+ tl_iter_idx], 
+		    tl1_configs[tl_minion_idx  + TL_CODE_IDX+ tl_iter_idx],
 		    tl1_configs[tl_minion_idx  + TL_TENB_IDX + tl_iter_idx],
 	            base_src_addr + tl1_configs[tl_minion_idx  + TL_ADDR_IDX + tl_iter_idx], 
-		    tl1_configs[tl_minion_idx  + TL_OFFSET_IDX + tl_iter_idx], 
+		    tl1_configs[tl_minion_idx  + TL_OFFSET_IDX + tl_iter_idx],
 		    tl1_configs[tl_minion_idx  + TL_NUM_LINES_IDX + tl_iter_idx],
-		    tl1_configs[tl_minion_idx  + TL_STRIDE_IDX + tl_iter_idx], 
+		    tl1_configs[tl_minion_idx  + TL_STRIDE_IDX + tl_iter_idx],
 		    1);
 
 	tensor_wait(TENSOR_LOAD_WAIT_0);
 	
-	// Tensor FMA    
+	// Tensor FMA
 	tensor_fma(0, 
 		   tfma_configs[tfma_minion_idx + TFMA_BCOLS + tfma_iter_idx], // tfma_bcols, 
 		   tfma_configs[tfma_minion_idx + TFMA_AROWS + tfma_iter_idx], // tfma_arows, 
@@ -235,11 +234,11 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	__asm__ __volatile__ ("fence\n");
 	// You will need to poll each bank separately
         uint64_t cb_busy = 0;
-        while (cb_busy != 0x4) {              
-            uint64_t cb_busy_bank[4];               
-            for (uint64_t b=0; b < 4; b++) {             
+        while (cb_busy != 0x4) {
+            uint64_t cb_busy_bank[4];
+            for (uint64_t b=0; b < 4; b++) {
                 cb_flush_addr = ESR_CACHE(PRV_U, shire_id, b, IDX_COP_SM_CTL_USER);             
-                cb_busy_bank[b] = ((*cb_flush_addr) >> 24) & 0x4;             
+                cb_busy_bank[b] = ((*cb_flush_addr) >> 24) & 0x4;
             }
             cb_busy = cb_busy_bank[0] | cb_busy_bank[1] | cb_busy_bank[2] | cb_busy_bank[3];
         }
@@ -278,13 +277,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         // Total number of bytes:
         // 16 lines / minion * 64 bytes / line * 32 minions = 32768
         crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 32768), 32768, crc);
-        if (crc != crc_vals[shire_id]) {    	
-            log_write(LOG_LEVEL_CRITICAL, "CRC error, shire %lu, got %x, expected %x\n", shire_id, crc,  crc_vals[shire_id]);
-	    return -3;
-        } else {
-	    log_write(LOG_LEVEL_CRITICAL, "Shire %lu Passed\n", shire_id);
-	    return 0;
-	}
+	uint32_t *crc_ptr = (uint32_t*)(base_dst_addr + 1048576 + shire_id * 64);
+	*crc_ptr = crc;
+        log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);       
     }
 
     return 0;
