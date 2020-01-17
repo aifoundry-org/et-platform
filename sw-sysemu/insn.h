@@ -50,11 +50,11 @@ public:
     constexpr bool is_reduce() const    { return (flags & flag_REDUCE); }
     constexpr bool is_stall() const     { return (flags & flag_STALL); }
     constexpr bool is_wfi() const       { return (flags & flag_WFI); }
-    constexpr bool is_tensor_fma() const { return (flags & flag_TENSOR_FMA); }
-    constexpr bool is_tensor_load() const { return (flags & flag_TENSOR_LOAD); }
-    constexpr bool is_tensor_quant() const { return (flags & flag_TENSOR_QUANT); }
-    constexpr bool is_tensor_store() const { return (flags & flag_TENSOR_STORE); }
-    constexpr bool is_tensor_wait() const { return (flags & flag_TENSOR_WAIT); }
+    constexpr bool is_tensor_fma_write() const   { return (flags & flag_TENSOR_FMA) && (flags & flag_CSR_WRITE); }
+    constexpr bool is_tensor_load_write() const  { return (flags & flag_TENSOR_LOAD) && (flags & flag_CSR_WRITE); }
+    constexpr bool is_tensor_quant_write() const { return (flags & flag_TENSOR_QUANT) && (flags & flag_CSR_WRITE); }
+    constexpr bool is_tensor_store_write() const { return (flags & flag_TENSOR_STORE) && (flags & flag_CSR_WRITE); }
+    constexpr bool is_tensor_wait_write() const  { return (flags & flag_TENSOR_WAIT) && (flags & flag_CSR_WRITE); }
 
     /* extract RV64IMAF+ET fields */
 
