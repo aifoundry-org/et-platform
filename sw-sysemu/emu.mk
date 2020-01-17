@@ -19,11 +19,11 @@ emu_hdrs := \
 	rbox.h \
 	rbox_pi.h \
 	state.h \
+	sysreg_error.h \
 	tbox_emu.h \
 	tbox_pi.h \
 	traps.h \
 	txs.h \
-	unimpl_esr.h \
 	utility.h \
 	devices/plic.h \
 	devices/pu_uart.h \
