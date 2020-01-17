@@ -1128,6 +1128,9 @@ static uint64_t csrget(uint16_t src1)
         }
         val = cpu[current_thread].mhartid;
         break;
+    case CSR_DCACHE_DEBUG:
+        val = 0;
+        break;
     // ----- All other registers -------------------------------------
     default:
         throw trap_illegal_instruction(current_inst);
