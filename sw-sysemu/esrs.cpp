@@ -9,6 +9,8 @@
 #include "txs.h"
 #ifdef SYS_EMU
 #include "mem_directory.h"
+#else
+#include "unimpl_esr.h"
 #endif
 
 // FIXME: the following needs to be cleaned up
@@ -223,14 +225,20 @@ uint64_t esr_read(uint64_t addr)
     // addr[21] == 0 means accessing the R_PU_RVTim ESRs
     if ((shire == EMU_IO_SHIRE_SP) && (~addr2 & 0x200000ULL)) {
         uint64_t esr = addr2 & ESR_IOSHIRE_ESR_MASK;
-#ifdef SYS_EMU
         switch (esr) {
         case ESR_PU_RVTIM_MTIME:
+#ifdef SYS_EMU
             return sys_emu::get_pu_rvtimer().read_mtime();
-        case ESR_PU_RVTIM_MTIMECMP:
-            return sys_emu::get_pu_rvtimer().read_mtimecmp();
-        }
+#else
+            throw bemu::unimpl_esr(esr);
 #endif
+        case ESR_PU_RVTIM_MTIMECMP:
+#ifdef SYS_EMU
+            return sys_emu::get_pu_rvtimer().read_mtimecmp();
+#else
+            throw bemu::unimpl_esr(esr);
+#endif
+        }
         LOG(WARN, "Read unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
         throw bemu::memory_error(addr);
     }
@@ -553,16 +561,22 @@ void esr_write(uint64_t addr, uint64_t value)
     // addr[21] == 0 means accessing the R_PU_RVTim ESRs
     if ((shire == EMU_IO_SHIRE_SP) && (~addr2 & 0x200000ULL)) {
         uint64_t esr = addr2 & ESR_IOSHIRE_ESR_MASK;
-#ifdef SYS_EMU
         switch (esr) {
         case ESR_PU_RVTIM_MTIME:
+#ifdef SYS_EMU
             sys_emu::get_pu_rvtimer().write_mtime(value);
             return;
+#else
+            throw bemu::unimpl_esr(esr);
+#endif
         case ESR_PU_RVTIM_MTIMECMP:
+#ifdef SYS_EMU
             sys_emu::get_pu_rvtimer().write_mtimecmp(value);
             return;
-        }
+#else
+            throw bemu::unimpl_esr(esr);
 #endif
+        }
         LOG(WARN, "Write unknown R_PU_RVTim ESR 0x%" PRIx64, esr);
         throw bemu::memory_error(addr);
     }

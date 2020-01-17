@@ -23,6 +23,7 @@ emu_hdrs := \
 	tbox_pi.h \
 	traps.h \
 	txs.h \
+	unimpl_esr.h \
 	utility.h \
 	devices/plic.h \
 	devices/pu_uart.h \
