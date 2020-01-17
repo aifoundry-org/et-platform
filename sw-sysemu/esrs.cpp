@@ -189,7 +189,7 @@ void shire_other_esrs_t::reset(unsigned shire)
     if (shire == IO_SHIRE_ID || shire == EMU_IO_SHIRE_SP) {
         minion_feature = 0x3b;
     } else {
-        minion_feature = 0;
+        minion_feature = 0x01;
     }
     shire_ctrl_clockmux = 0;
     uc_config = 0;
