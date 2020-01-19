@@ -12,6 +12,8 @@ get_filename_component(FIRMWARE_TOOLS_DIR "firmware-tools" ABSOLUTE)
 
 cmake_minimum_required(VERSION 3.5)
 
+include(ExternalProject)
+
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
@@ -31,6 +33,8 @@ set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
+
+set(EXTERNAL_PROJECT_DEPENDENCIES "" CACHE STRING "External project list")
 
 set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
   CACHE PATH "Instalation path of external dependencies")
@@ -52,13 +56,22 @@ else (DOXYGEN_FOUND)
   message("Doxygen need to be installed to generate the doxygen documentation")
 endif (DOXYGEN_FOUND)
 
+####################### External package build dependencies ####################
+
+add_subdirectory(external)
+
+############################ FW build Rules ############### ####################
+
 # add the binary tree to the search path for include files
 # so that we will find TutorialConfig.h
 include_directories("${PROJECT_BINARY_DIR}/include")
 
+# List of files the flash image depends on: i.e. *.elf files etc
+set(FLASH_IMAGE_DEPS "" CACHE INTERNAL "")
+
 add_subdirectory(src)
 add_subdirectory(tools)
-
+add_subdirectory(flash_image)
 
 ### Add package information
 include(CMakePackageConfigHelpers)
