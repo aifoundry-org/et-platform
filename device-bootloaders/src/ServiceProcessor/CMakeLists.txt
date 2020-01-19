@@ -38,6 +38,9 @@ include_directories(${FREERTOS_INC_DIRS})
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
+list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
+set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
+
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT esperanto-dev-fw-targets
   RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/ServiceProcessor
