@@ -49,3 +49,11 @@ The generated Doxygen documentation should be under folder:
 
 The entrypoint command follows the same design principles as the one in the sw-platform repo,
 please refer to the documentation of the sw-platform repo.
+
+
+## Generate Firmware Flash Image
+
+Run:
+
+    cd build/flash_image
+    make gen-flash-image

@@ -1,0 +1,69 @@
+#!/bin/bash
+
+set -xe
+
+#Sign BL1/2, Machine/Master/WorkerMinion images
+@SIGN_TOOLS_DIR@/esperanto_sign_elf -N SP_BL1 \
+ @CMAKE_CURRENT_BINARY_DIR@/signed_bl1.img \
+ @PROJECT_BINARY_DIR@/src/ServiceProcessorBL1/ServiceProcessorBL1.elf \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp_bl1_certificate.crt\
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_keys/test_sp_bl1_prv_key.json \
+ SHA2-256 0
+
+@SIGN_TOOLS_DIR@/esperanto_sign_elf -N SP_BL2 \
+ @CMAKE_CURRENT_BINARY_DIR@/signed_bl2.img \
+ @PROJECT_BINARY_DIR@/src/ServiceProcessorBL2/ServiceProcessorBL2.elf \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_templates_and_certificates/test_sp_bl2_certificate.crt\
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_keys/test_sp_bl2_prv_key.json \
+ SHA2-256 0
+
+@SIGN_TOOLS_DIR@/esperanto_sign_elf -N MACHINE_MINION \
+ @CMAKE_CURRENT_BINARY_DIR@/signed_machine_minion.img \
+ @PROJECT_BINARY_DIR@/src/MachineMinion/MachineMinion.elf \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_templates_and_certificates/test_default_machine_minion_certificate.crt\
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_keys/test_default_machine_minion_prv_key.json \
+ SHA2-256 0
+
+@SIGN_TOOLS_DIR@/esperanto_sign_elf -N MASTER_MINION \
+ @CMAKE_CURRENT_BINARY_DIR@/signed_master_minion.img \
+ @PROJECT_BINARY_DIR@/src/MasterMinion/MasterMinion.elf \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_templates_and_certificates/test_default_master_minion_certificate.crt \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_keys/test_default_master_minion_prv_key.json \
+ SHA2-256 0
+
+@SIGN_TOOLS_DIR@/esperanto_sign_elf -N WORKER_MINION \
+ @CMAKE_CURRENT_BINARY_DIR@/signed_worker_minion.img \
+ @PROJECT_BINARY_DIR@/src/WorkerMinion/WorkerMinion.elf \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_templates_and_certificates/test_default_worker_minion_certificate.crt \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_keys/test_default_worker_minion_prv_key.json \
+ SHA2-256 0
+
+# Generate stage 1 PCI-E boot config ROM
+@PROJECT_SOURCE_DIR@/src/ServiceProcessorROM/scripts/config_rom_assembler.py \
+    --outfile @CMAKE_CURRENT_BINARY_DIR@/pcie_stage_1.bin \
+    --opfile  @PROJECT_SOURCE_DIR@/src/ServiceProcessorROM/scripts/pcie_boot_config_stage_1_no_phy_load.yaml \
+    --regfile @PROJECT_SOURCE_DIR@/src/ServiceProcessorROM/scripts/pcie_boot_config_regs.yaml
+
+# Generate PCI-E config data with just stage 1 for now
+@PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/scripts/make_pcie_config_data.py \
+  -1 @CMAKE_CURRENT_BINARY_DIR@/pcie_stage_1.bin \
+  @CMAKE_CURRENT_BINARY_DIR@/pcie_config_data.bin
+
+# Sign PCI-E config data
+@SIGN_TOOLS_DIR@/esperanto_sign_raw -N PCIE_PHY_FW \
+ @CMAKE_CURRENT_BINARY_DIR@/signed_pcie_config_data.img \
+ @CMAKE_CURRENT_BINARY_DIR@/pcie_config_data.bin \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_templates_and_certificates/test_pcie_config_certificate.crt \
+ @PROJECT_SOURCE_DIR@/firmware-tools/code-signing-tools/test_keys/test_pcie_config_prv_key.json \
+ SHA2-256 0 0 0 00000000000000000000000000000000
+
+# build flash image
+@FLASH_TOOLS_DIR@/esperanto_flash_tool \
+    create @CMAKE_CURRENT_BINARY_DIR@/flash_16Mbit.img \
+    @CMAKE_CURRENT_BINARY_DIR@/flash_16Mbit_template.json
+
+# Convert flash image to hex
+# See Patryk's scripts
+@PROJECT_SOURCE_DIR@/firmware-tools/esperanto-flash-tool/scripts/make_zebu_flash_image.py \
+ @CMAKE_CURRENT_BINARY_DIR@/flash_16Mbit.hex \
+ @CMAKE_CURRENT_BINARY_DIR@/flash_16Mbit.img

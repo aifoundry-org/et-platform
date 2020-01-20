@@ -15,7 +15,7 @@
     ],
     "BUILD_STEPS": [
         "echo \"BUILD START\"",
-        "./device-firmware.py et-sw-device-fw --mount-home \"mkdir -p build install && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=../install && make all -j $(nproc) && make install \" ",
+        "./device-firmware.py et-sw-device-fw --mount-home \"mkdir -p build install && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=../install && make all -j $(nproc) && make gen-flash-image && make install \" ",
         "echo sync the documenation",
 
         "echo \"BUILD DONE\""
