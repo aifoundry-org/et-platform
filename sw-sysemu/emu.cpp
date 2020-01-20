@@ -1191,8 +1191,8 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         stvec_is_set[current_thread] = true;
         break;
     case CSR_SCOUNTEREN:
-        val &= 0xFFFFFFFFULL;
-        cpu[current_thread].scounteren = val;
+        val &= 0x1FF;
+        cpu[current_thread].scounteren = uint16_t(val);
         break;
     case CSR_SSCRATCH:
         cpu[current_thread].sscratch = val;
@@ -1278,7 +1278,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         mtvec_is_set[current_thread] = true;
         break;
     case CSR_MCOUNTEREN:
-        val &= 0x1ff;
+        val &= 0x1FF;
         cpu[current_thread].mcounteren = uint16_t(val);
         break;
     case CSR_MHPMEVENT3:
@@ -1499,7 +1499,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         }
         break;
     case CSR_MBUSADDR:
-        val = sextVA(val);
+        val = zextPA(val);
         cpu[current_thread].mbusaddr = val;
         break;
     case CSR_MCACHE_CONTROL:
@@ -4574,7 +4574,7 @@ void raise_interrupt(int thread, int cause, uint64_t mip, uint64_t mbusaddr)
     {
         set_mip_bit(thread, cause);
         if (cause == BUS_ERROR_INTERRUPT)
-            cpu[thread].mbusaddr = sextVA(mbusaddr);
+            cpu[thread].mbusaddr = zextPA(mbusaddr);
     }
 }
 
@@ -4621,7 +4621,7 @@ void clear_external_supervisor_interrupt(int thread)
 void raise_bus_error_interrupt(int thread, uint64_t busaddr)
 {
     set_mip_bit(thread, BUS_ERROR_INTERRUPT);
-    cpu[thread].mbusaddr = sextVA(busaddr);
+    cpu[thread].mbusaddr = zextPA(busaddr);
 }
 
 void clear_bus_error_interrupt(int thread)
