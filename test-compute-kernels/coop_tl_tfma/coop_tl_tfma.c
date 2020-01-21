@@ -196,7 +196,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	    WAIT_FLB(32, TL_COOP_FLB, tl_barrier);
 	    if (tl_barrier == 1) {		
 		uint64_t target_min_mask = 0xFFFFFFFFUL;
-		target_min_mask = target_min_mask & (~(1ULL << minion_id));
+		target_min_mask = target_min_mask & (~(1ULL << (minion_id & 0x1f)));
 		SEND_FCC(shire_id, 0, 0, target_min_mask);
 	    } else {
 		WAIT_FCC(0);
@@ -246,7 +246,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         }
       	
 	uint64_t target_min_mask = 0xFFFFFFFFUL;
-	target_min_mask = target_min_mask & (~(1ULL << minion_id));
+	target_min_mask = target_min_mask & (~(1ULL << (minion_id & 0x1f)));
 	SEND_FCC(shire_id, 0, 0, target_min_mask);
     } else {
 	WAIT_FCC(0);

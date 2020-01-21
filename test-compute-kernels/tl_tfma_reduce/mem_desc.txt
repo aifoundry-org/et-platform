@@ -1,6 +1,6 @@
 ELF Load: @PROJECT_BINARY_DIR@/src/MasterMinion/MasterMinion.elf
 ELF Load: @PROJECT_BINARY_DIR@/src/MachineMinion/MachineMinion.elf
 ELF Load: @PROJECT_BINARY_DIR@/src/WorkerMinion/WorkerMinion.elf
-ELF Load: @PROJECT_BINARY_DIR@/src/kernels/tl_tfma_reduce/tl_tfma_reduce.elf
-File Load: 40'h8180000000, @PROJECT_BINARY_DIR@/src/kernels/tl_tfma_reduce/in.raw
-File Load: 40'h8280000000, @PROJECT_BINARY_DIR@/src/kernels/tl_tfma_reduce/out.raw
+ELF Load: @PROJECT_BINARY_DIR@/src/kernels/@RANDOMIZED_TEST_NAME@/@TEST_NAME@/@TEST_NAME@.elf
+File Load: 40'h8180000000, @PROJECT_BINARY_DIR@/src/kernels/@RANDOMIZED_TEST_NAME@/@TEST_NAME@/in.raw
+File Load: 40'h8280000000, @PROJECT_BINARY_DIR@/src/kernels/@RANDOMIZED_TEST_NAME@/@TEST_NAME@/out.raw
