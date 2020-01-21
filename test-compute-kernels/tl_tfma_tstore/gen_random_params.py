@@ -22,7 +22,7 @@ import os
 
 minions_per_shire = 32
 
-def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, tl_id, max_num_cooploads_in_shire, min_coop_id, use_tenb = False):
+def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, tl_id, max_num_cooploads_in_shire, min_coop_id, use_tenb = False, min_tl_line=0, max_tl_line=15):
     
     """ 
     Generate input parameters for tensor loads running on all minions in "shires" shires.
@@ -94,7 +94,7 @@ def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, 
         
         tl_offset_list = [0] * minions_per_shire
 
-        tl_num_lines_list = [random.randint(11,15) for i in range(minions_per_shire)]
+        tl_num_lines_list = [random.randint(min_tl_line, max_tl_line) for i in range(minions_per_shire)]
 
         # Stride here is speficied in lines
         tl_stride_list =  [(random.randint(1,1024) << 6) for i in range(minions_per_shire)]
@@ -119,22 +119,22 @@ def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, 
             # If so this coop needs to be aborted
             bitfield_min_mask = [int(x) for x in list('{0:0>8b}'.format(min_mask))]
             bitfield_min_mask.reverse()
-            bitfield_shire_mask = []    
+            bitfield_shire_mask = []
             for i in range(4):
-                if (neigh_mask & (1 << i)):                    
+                if (neigh_mask & (1 << i)):
                     bitfield_shire_mask = bitfield_shire_mask + bitfield_min_mask
                 else:
                     bitfield_shire_mask = bitfield_shire_mask + ([0] * 8)
             
             coop_possible = True
-            first_min = -1            
+            first_min = -1
             for m in range(minions_per_shire):
                 if tl_coop_programmed[m] == 0 and bitfield_shire_mask[m] == 1 and first_min == -1:
                     first_min = m
                 if tl_coop_programmed[m] == 1 and bitfield_shire_mask[m] == 1:
                     coop_possible = False
 
-            if not coop_possible:                 
+            if not coop_possible:
                 continue
             else:
                 num_cooploads_in_shire = num_cooploads_in_shire + 1
@@ -164,7 +164,7 @@ def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, 
 
         # All parameters have been set for this iteration, write up the source files
         if (output_type == "switch"):
-            for i in range(0,minions_per_shire):        
+            for i in range(0,minions_per_shire):
                 def_line = " case " + str(sh*minions_per_shire+i) + ":\n   TL" + str(tl_id) + "_COOP_CSR = " + str(hex(tl_coop_csr_list[i])) + ";\n"
                 def_line = def_line + "   TL" + str(tl_id) + "_IS_COOP = " + str(tl_coop_list[i]) + ";\n"
                 def_line = def_line + "   TL" + str(tl_id) + "_TMASK = " + str(tl_tmask_list[i]) + ";\n"
@@ -175,7 +175,7 @@ def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, 
                 def_line = def_line + "   TL" + str(tl_id) + "_OFFSET = " + str(hex(tl_offset_list[i])) + ";\n"
                 def_line = def_line + "   TL" + str(tl_id) + "_NUM_LINES = " + str(tl_num_lines_list[i]) + ";\n";
                 def_line = def_line + "   TL" + str(tl_id) + "_STRIDE = " + str(hex(tl_stride_list[i])) + ";\n";
-                def_line = def_line + "   break;\n"            
+                def_line = def_line + "   break;\n"
                 tl_configs_hf.write(def_line)
         elif output_type == "array":
             for i in range(0,minions_per_shire):
@@ -190,7 +190,7 @@ def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, 
         
         min_coop_id[sh] = (min_coop_id[sh] + num_cooploads_in_shire) % 16
 
-    if num_iter == total_iter-1:        
+    if num_iter == total_iter-1:
             tl_configs_hf.write("};\n")
     
     tl_configs_hf.close()
@@ -210,9 +210,9 @@ def generate_tfmas(shires, target_dir, output_type, num_iter, total_iter, tfma_t
 
     num_minions = shires * minions_per_shire
 
-    tfma_tmask_list = [random.randint(0,1) for i in range(num_minions)]    
+    tfma_tmask_list = [random.randint(0,1) for i in range(num_minions)]
     tfma_bcols_list = [random.randint(0,3) for i in range(num_minions)]
-    tfma_arows_list = [random.randint(0,15) for i in range(num_minions)]    
+    tfma_arows_list = [random.randint(0,15) for i in range(num_minions)]
     tfma_astart_col_list = [random.randint(0,15) for i in range(num_minions)]
     
     # FMA types (FMA32, IMA8A32, FMA16A32)
@@ -267,10 +267,10 @@ def generate_tfmas(shires, target_dir, output_type, num_iter, total_iter, tfma_t
             def_line = def_line + "   TFMA_USE_TENC = " + str(tfma_use_tenc) + ";\n"
             def_line = def_line + "   TFMA_UNSIGNEDA = " + str(tfma_unsigneda) + ";\n"
             def_line = def_line + "   TFMA_UNSIGNEDB = " + str(tfma_unsignedb) + ";\n"
-            def_line = def_line + "   break;\n" 
+            def_line = def_line + "   break;\n"
             tfma_configs_hf.write(def_line)
                 
-        tfma_configs_hf.write("}\n")    
+        tfma_configs_hf.write("}\n")
     
     elif output_type == "array":
         for i in range(num_minions):
@@ -338,7 +338,7 @@ def generate_reduces(shires, target_dir, output_type, num_iter, total_iter, new_
         reduce_order = previous_reduce_list
     elif new_list == "inverse":
         reduce_order = previous_reduce_list
-        for i in range(0,len(reduce_order),2):        
+        for i in range(0,len(reduce_order),2):
             reduce_order[i], reduce_order[i+1] = reduce_order[i+1], reduce_order[i]
 
     reduce_start_reg =  [random.randint(0,31) for i in range(num_minions)]
@@ -428,7 +428,7 @@ def generate_tensorstores(shires, target_dir, output_type, num_iter, total_iter,
         else:
             def_line = "static uint64_t tstore_configs["+str(total_iter*shires*minions_per_shire*8)+"] = {\n"
             def_line = def_line + "// USE_SCP  COOP_MASK  START_REG_LINE  REG_LINE_STRIDE  NUM_ROWS  ROW_SIZE   ADDR   STRIDE  \n"
-        tstore_configs_hf.write(def_line)                          
+        tstore_configs_hf.write(def_line)
     else:
         tstore_configs_hf = open(target_dir+"/tstore_configs.h", "a+")
 
@@ -444,7 +444,7 @@ def generate_tensorstores(shires, target_dir, output_type, num_iter, total_iter,
         # Each minion in the shire can access any 1KB block within a
         minion_list = list(range(0,minions_per_shire))
         minion_addr_list = random.sample(minion_list, minions_per_shire)
-        addr_list = [0] * minions_per_shire
+        addr_list = [0] * minions_per_shire        
         for m in range(minions_per_shire):
             addr_list[m] = 0x8000 * shire_list[sh] + 0x400 * minion_addr_list[m]
         # Still need to find a way to randomize strides w/o doing conflict computation
@@ -527,13 +527,10 @@ def generate_tload_tstore_pairs(shires, target_dir, output_type, num_iter, total
     num_minions = shires * minions_per_shire
     minion_list  = list(range(0,num_minions))
 
-    tstore_list = random.sample(minion_list,num_minions)    
+    tstore_list = random.sample(minion_list,num_minions)
     tload_list = random.sample(minion_list,num_minions)
-        
-    #print(tstore_list)
-    #print(tload_list)
 
-    if num_iter == 0:        
+    if num_iter == 0:
         mappings_hf = open(target_dir+"/tload_tstore_mappings.h","w")
         if output_type == "switch":
             def_line = "switch(minion_id) {\n"
@@ -562,7 +559,7 @@ def generate_tload_tstore_pairs(shires, target_dir, output_type, num_iter, total
                 mappings_hf.write(def_line)
                 break
             
-    if num_iter == total_iter-1:        
+    if num_iter == total_iter-1:
         mappings_hf.write("};\n")
 
 
@@ -574,8 +571,8 @@ def scenario_tload_tfma(shires, repeat, target_dir, output_type):
     """
     max_coop_id = [0] * shires
     for it in range(repeat):
-        max_coop_id, _, _ = generate_tensorloads(shires, target_dir, output_type, it, repeat, 0, 0, max_coop_id, False)
-        max_coop_id, tenb_list, tfma_acols_list = generate_tensorloads(shires, target_dir, output_type, it, repeat, 1, 0, max_coop_id, True)
+        max_coop_id, _, _ = generate_tensorloads(shires, target_dir, output_type, it, repeat, 0, 0, max_coop_id, False, 11, 15)
+        max_coop_id, tenb_list, tfma_acols_list = generate_tensorloads(shires, target_dir, output_type, it, repeat, 1, 0, max_coop_id, True, 11, 15)
                 
         generate_tfmas(shires, target_dir, output_type, it, repeat, tenb_list, tfma_acols_list)
 
@@ -589,8 +586,8 @@ def scenario_coop_tload_tfma(shires, repeat, target_dir, output_type):
 
     max_coop_id = [0] * shires
     for it in range(repeat):
-        max_coop_id, _, _ = generate_tensorloads(shires, target_dir, output_type, it, repeat, 0, 2, max_coop_id, False)
-        max_coop_id, tenb_list, tfma_acols_list = generate_tensorloads(shires, target_dir, output_type, it, repeat, 1, 2, max_coop_id, True)
+        max_coop_id, _, _ = generate_tensorloads(shires, target_dir, output_type, it, repeat, 0, 2, max_coop_id, False, 11, 15)
+        max_coop_id, tenb_list, tfma_acols_list = generate_tensorloads(shires, target_dir, output_type, it, repeat, 1, 2, max_coop_id, True, 11, 15)
                 
         generate_tfmas(shires, target_dir, output_type, it, repeat, tenb_list, tfma_acols_list)
 
@@ -606,8 +603,8 @@ def scenario_tload_tfma_reduce(shires, repeat, target_dir, output_type):
     max_coop_id = [0] * shires
     reduce_order = []
     for it in range(repeat):
-        max_coop_id, _, _ = generate_tensorloads(shires, target_dir, output_type, it, repeat, 0, 0, max_coop_id, False)
-        max_coop_id, tenb_list, tfma_acols_list = generate_tensorloads(shires, target_dir, output_type, it, repeat, 1, 0, max_coop_id, True)
+        max_coop_id, _, _ = generate_tensorloads(shires, target_dir, output_type, it, repeat, 0, 0, max_coop_id, False, 1, 15)
+        max_coop_id, tenb_list, tfma_acols_list = generate_tensorloads(shires, target_dir, output_type, it, repeat, 1, 0, max_coop_id, True, 1, 15)
                 
         generate_tfmas(shires, target_dir, output_type, it, repeat, tenb_list, tfma_acols_list)
         
@@ -644,8 +641,8 @@ def scenario_tload_tfma_tstore(shires, repeat, target_dir, output_type):
     max_tload_coop_id = [2] * shires
     
     for it in range(repeat):
-        max_tload_coop_id, _, _ = generate_tensorloads(shires, target_dir, output_type, it, repeat, 0, 2, max_tload_coop_id, False)
-        max_tload_coop_id, tenb_list, tfma_acols_list = generate_tensorloads(shires, target_dir, output_type, it, repeat, 1, 2, max_tload_coop_id, True)
+        max_tload_coop_id, _, _ = generate_tensorloads(shires, target_dir, output_type, it, repeat, 0, 2, max_tload_coop_id, False, 1, 15)
+        max_tload_coop_id, tenb_list, tfma_acols_list = generate_tensorloads(shires, target_dir, output_type, it, repeat, 1, 2, max_tload_coop_id, True, 1, 15)
         
         generate_tfmas(shires, target_dir, output_type, it, repeat, tenb_list, tfma_acols_list)
         

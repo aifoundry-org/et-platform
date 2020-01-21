@@ -11,7 +11,6 @@
 #include "kernel_params.h"
 #include "esr_defines.h"
 #include "crc32.h"
-#include "crc_vals.h"
 #include "log.h"
 
 #define ALL_BANKS_MASK 0xFUL;
@@ -58,7 +57,12 @@
 #define TSTORE_PARAMS 8
 
 #define TOTAL_MINIONS 96
-#define NUM_ITER 4
+
+// Run fewer iterations than other tests because tensor stores write on the same area and each iteration
+// will tend to overwrite the next possibly hiding errors.
+// TBD: Grow that area a little to avoid overwriting -- this will require changing the py script
+#define NUM_ITER 25
+#define NUM_RANDOM_SAMPLES 10
 
 #include "tl0_configs.h"
 #include "tl1_configs.h"
@@ -130,10 +134,10 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	// === Actual kernel body:
 	// Index in arrays is Iteration idx + Minion Idx + Param Idx:
 	// Using smaller types will reduce cache misses
-	uint64_t tl_iter_idx = iter * TL_PARAMS * TOTAL_MINIONS;
-	uint64_t tfma_iter_idx = iter * TFMA_PARAMS * TOTAL_MINIONS;
-	uint64_t tstore_iter_idx = iter * TSTORE_PARAMS * TOTAL_MINIONS;
-	uint64_t tl_next_iter_idx = iter * TL_PARAMS * TOTAL_MINIONS;
+	uint64_t tl_iter_idx = (iter % NUM_RANDOM_SAMPLES) * TL_PARAMS * TOTAL_MINIONS;
+	uint64_t tfma_iter_idx = (iter % NUM_RANDOM_SAMPLES) * TFMA_PARAMS * TOTAL_MINIONS;
+	uint64_t tstore_iter_idx = (iter % NUM_RANDOM_SAMPLES) * TSTORE_PARAMS * TOTAL_MINIONS;
+	uint64_t tl_next_iter_idx = ((iter + 1) % NUM_RANDOM_SAMPLES) * TL_PARAMS * TOTAL_MINIONS;
 
 	tensor_coop(tl0_coop_csr);
 
@@ -185,7 +189,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 		   tfma_configs[tfma_minion_idx + TFMA_SCP_START_LINEA + tfma_iter_idx], // tfma_scp_start_linea,
 		   tfma_configs[tfma_minion_idx + TFMA_TYPE + tfma_iter_idx], //tfma_type, 
 		   1); // tfma_clear_rf);
-		
+
 	// Tensor Store
 	if (tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_USE_SCP] == 0) {
             tensor_store(tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_REG_LINE_STRIDE],
@@ -195,14 +199,14 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
                          base_dst_addr + tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_ADDR],
                          tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_COOP_MASK],
                          tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_STRIDE]);
-        } else {
+	} else {
             tensor_wait(TENSOR_FMA_WAIT);
             tensor_store_scp(tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_REG_LINE_STRIDE],
                              tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_START_LINE],                     
                              tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_NUM_ROWS],
                              base_dst_addr + tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_ADDR],                   
                              tstore_configs[tstore_iter_idx + tstore_minion_idx + TSTORE_STRIDE]);
-        }
+	}
         tensor_wait(TENSOR_STORE_WAIT);
 
 	// Synchronization for all minions in a shire.
@@ -233,7 +237,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	    }
       	
 	    uint64_t target_min_mask = 0xFFFFFFFFUL;
-	    target_min_mask = target_min_mask & (~(1ULL << minion_id));
+	    target_min_mask = target_min_mask & (~(1ULL << (minion_id & 0x1f)));
 	    SEND_FCC(shire_id, 0, 0, target_min_mask);
 	} else {
 	    WAIT_FCC(0);
@@ -242,9 +246,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 
     __asm__ __volatile__ ("fence\n");
 
-    for (uint64_t iter=0; iter < NUM_ITER; iter++) {
-	evict_va(0, 3, base_dst_addr + tstore_configs[iter * TSTORE_PARAMS * TOTAL_MINIONS  + tstore_minion_idx + TSTORE_ADDR], 15, 0x40, 0, 0);
-    }
+    // Send data out to DRAM so you have Zebu visibility
+    evict_va(0, 3, base_dst_addr + minion_id * 1024, 15, 0x40, 0, 0);
     WAIT_CACHEOPS;
 
     unsigned long functional_error = get_tensor_error();
@@ -268,13 +271,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         // Total number of bytes:
         // 16 lines / minion * 64 bytes / line * 32 minions = 32768
         crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 32768), 32768, crc);
-        if (crc != crc_vals[shire_id]) {    	
-            log_write(LOG_LEVEL_CRITICAL, "CRC error, shire %lu, got %x, expected %x\n", shire_id, crc,  crc_vals[shire_id]);
-	    return -3;
-        } else {
-	    log_write(LOG_LEVEL_CRITICAL, "Shire %lu Passed\n", shire_id);
-	    return 0;
-	}
+	uint32_t *crc_ptr = (uint32_t*)(base_dst_addr + 1048576 + shire_id * 64);
+        *crc_ptr = crc;
+        log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
     }
 
     return 0;
