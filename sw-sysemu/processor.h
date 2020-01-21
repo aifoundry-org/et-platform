@@ -28,7 +28,7 @@ struct Processor {
     // RISCV control and status registers
     uint32_t    fcsr;
     uint64_t    stvec;
-    uint32_t    scounteren;
+    uint16_t    scounteren;             // 9b
     uint64_t    sscratch;
     uint64_t    sepc;
     uint64_t    scause;
@@ -57,7 +57,7 @@ struct Processor {
     uint32_t    minstmatch;
     uint8_t     menable_shadows;  // 2b -- TODO: this is per core not per hart
     uint8_t     excl_mode;        // 1b -- TODO: this is per core not per hart
-    uint64_t    mbusaddr;
+    uint64_t    mbusaddr;         // 40b
     uint8_t     mcache_control;   // 2b -- TODO: this is per core not per hart
     uint64_t    tensor_conv_size; // can we remove?
     uint64_t    tensor_conv_ctrl; // can we remove?

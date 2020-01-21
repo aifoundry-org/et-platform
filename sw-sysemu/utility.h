@@ -33,6 +33,12 @@ inline uint64_t sextVA(uint64_t addr)
 }
 
 
+inline uint64_t zextPA(uint64_t addr)
+{
+    return addr & 0x000000ffffffffffull;
+}
+
+
 inline bool addr_is_size_aligned(uint64_t addr, size_t size)
 {
     return !(addr % size);
