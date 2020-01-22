@@ -9,6 +9,10 @@
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
 
+// tensor_a is destination of the cacheop
+// tensor_b is stride value
+// tensor_c is used to choose b/w flush and evict
+// Each shire accesses the memshire that is closest to it
        
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {

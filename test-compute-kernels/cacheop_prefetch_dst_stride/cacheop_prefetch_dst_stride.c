@@ -9,6 +9,9 @@
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
 
+// tensor_a is destination of prefetch
+// tensor_b is stride value
+// Each shire accesses the memshire that is closest to it
        
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
@@ -27,10 +30,8 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t dst = kernel_params_ptr->tensor_a; // 1 or 2 
     uint64_t stride = kernel_params_ptr->tensor_b; // 1024, 512, 256, 128 
 
-
-//if ((hart_id & 1) == 1) //Only Thread1 (or prefetch threads to do prefetch)
-if (hart_id == 1) //Only Thread1 (or prefetch threads to do prefetch)
-   {
+    if (hart_id == 1) //Only Thread1 (or prefetch threads to do prefetch)
+    {
 	   for(int i = 0; i < N_TIMES ; i++) //N_TIMES = # of times the thread1 performs the prefetch CSR
 	   {
 
@@ -89,6 +90,6 @@ if (hart_id == 1) //Only Thread1 (or prefetch threads to do prefetch)
 		   //WAIT_PREFETCH_0;
 	   }
            return 0;
-   }
-   else {return 0;}
+    }
+    else {return 0;}
 }

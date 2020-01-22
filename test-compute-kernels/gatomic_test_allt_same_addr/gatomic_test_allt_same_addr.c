@@ -8,8 +8,11 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#define BASE_ADDR_FOR_THIS_TEST  0x8105000000ULL
+#define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
 
+// The test takes tensor_a as a parameter
+// This test takes an address offset as a parameter and adds it to the base address
+// All the threads access the same address
 
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
@@ -22,7 +25,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     }
 
     //const int64_t hart_id = get_hart_id();
-    uint64_t addr = kernel_params_ptr->tensor_a & 0xFFF0;
+    uint64_t addr = kernel_params_ptr->tensor_a & 0xFFF0; // address offset
     long unsigned int shire_addr;
     volatile uint64_t* atomic_addr;
     shire_addr = BASE_ADDR_FOR_THIS_TEST | addr;

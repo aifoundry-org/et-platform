@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+// This test checks to see if tensor error is set when each of the four fcc registers 
+// in the minion overflow
 
 int64_t main(void)
 {

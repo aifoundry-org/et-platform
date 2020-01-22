@@ -10,15 +10,17 @@
 #include <stddef.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8200000000ULL
-
 #define POLYNOMIAL_BIT 0x000008012ULL 
-
-
 #define LFSR_SHIFTS_PER_READ 5
 
-static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
+// tensor_a is address offset to start at a random shire-id
+// tensor_b is destination of the cacheop
+// tensor_c is used to choose b/w flush and evict
+// One minion per shire participate in the test
+// Starting at tensor_a, the address loops through all the shires, covering each of them once  
 
-       
+static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
+      
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -36,7 +38,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t dst = kernel_params_ptr->tensor_b; // 1 or 2 or 3 
     uint64_t op = kernel_params_ptr->tensor_c; // 1 is flush, 2 is evict 
 
-    if (hart_id == 0 || hart_id == 64 || hart_id == 128 || hart_id == 192 || hart_id == 256 || hart_id == 320 || hart_id == 384 || hart_id == 448 || hart_id == 512 || hart_id == 576 || hart_id == 640 || hart_id == 704 || hart_id == 768 || hart_id == 832 || hart_id == 896 || hart_id == 960 || hart_id == 1024 || hart_id == 1088 || hart_id == 1152 || hart_id == 1216 || hart_id == 1280 || hart_id == 1344 || hart_id == 1408 || hart_id == 1472 || hart_id == 1536 || hart_id == 1600 || hart_id == 1664 || hart_id == 1728 || hart_id == 1792 || hart_id == 1856 || hart_id == 1920 || hart_id == 1984) {
+    if (hart_id % 64 == 0) {
        
        lfsr = generate_random_value(lfsr);
        lfsr_use = lfsr & 0x1F; 
@@ -57,7 +59,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
        }
        return 0; 
     }
-    else if(hart_id == 1 || hart_id == 65 || hart_id == 129 || hart_id == 193 || hart_id == 257 || hart_id == 321 || hart_id == 385 || hart_id == 449 || hart_id == 513 || hart_id == 577 || hart_id == 641 || hart_id == 705 || hart_id == 769 || hart_id == 833 || hart_id == 897 || hart_id == 961 || hart_id == 1025 || hart_id == 1089 || hart_id == 1153 || hart_id == 1217 || hart_id == 1281 || hart_id == 1345 || hart_id == 1409 || hart_id == 1473 || hart_id == 1537 || hart_id == 1601 || hart_id == 1665 || hart_id == 1729 || hart_id == 1793 || hart_id == 1857 || hart_id == 1921 || hart_id == 1985) {
+    else if(hart_id == 1 || (hart_id % 64) == 1) {
        lfsr = generate_random_value(lfsr);
        lfsr_use = lfsr & 0x1F; 
        for(int i=0;i<31;i++) {

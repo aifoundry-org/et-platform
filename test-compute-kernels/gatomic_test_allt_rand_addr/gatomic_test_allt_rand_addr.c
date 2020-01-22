@@ -8,14 +8,13 @@
 #include <stddef.h>
 
 #define BASE_ADDR_FOR_THIS_TEST  0x8105000040ULL
-
 #define POLYNOMIAL_BIT 0x000008016ULL 
-
-
 #define LFSR_SHIFTS_PER_READ 16
 
-static inline uint64_t generate_random_address(uint64_t lfsr) __attribute((always_inline));
+// tensor_a is used to create random offsets to the base address
+// each thread accesses a random address in a loop
 
+static inline uint64_t generate_random_address(uint64_t lfsr) __attribute((always_inline));
        
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {

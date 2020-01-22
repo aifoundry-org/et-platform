@@ -16,14 +16,17 @@
 
 #define POLYNOMIAL_BIT 0x000008012ULL 
 #define LFSR_SHIFTS_PER_READ 5
-
 #define POLYNOMIAL_BIT_2 0x000000829ULL 
 #define LFSR_SHIFTS_PER_READ_2 12
 
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
-
 static inline uint64_t generate_random_value_2(uint64_t lfsr) __attribute((always_inline));
        
+// tensor_a is address offset to start at a random shire-id
+// tensor_b is for generating random strides and random number of lines
+// First minion per shire participate in the test
+// Starting at tensor_a, the address loops through all the shires, covering each of them once  
+
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
 
@@ -45,7 +48,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t stride = 0;
     uint64_t lfsr_numlines;
 
-    if (hart_id == 0 || hart_id == 64 || hart_id == 128 || hart_id == 192 || hart_id == 256 || hart_id == 320 || hart_id == 384 || hart_id == 448 || hart_id == 512 || hart_id == 576 || hart_id == 640 || hart_id == 704 || hart_id == 768 || hart_id == 832 || hart_id == 896 || hart_id == 960 || hart_id == 1024 || hart_id == 1088 || hart_id == 1152 || hart_id == 1216 || hart_id == 1280 || hart_id == 1344 || hart_id == 1408 || hart_id == 1472 || hart_id == 1536 || hart_id == 1600 || hart_id == 1664 || hart_id == 1728 || hart_id == 1792 || hart_id == 1856 || hart_id == 1920 || hart_id == 1984) {
+    if (hart_id % 64 == 0) {
        lfsr = generate_random_value(lfsr);
        lfsr_use = lfsr & 0x1F; 
        for(int i=0;i<31;i++) {

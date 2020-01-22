@@ -13,6 +13,11 @@
 #define POLYNOMIAL_BIT 0x000008012ULL 
 #define LFSR_SHIFTS_PER_READ 5
 
+// tensor_a is for generating address offset
+// tensor_b is for generating random strides and random number of lines
+// tensor_c is for destination of the cacheop
+// This test prefetches random addresses, with random strides and random number number of lines to either l2 or l3
+
 static inline uint64_t generate_random_value(uint64_t lfsr) __attribute((always_inline));
 
        

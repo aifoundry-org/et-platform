@@ -7,6 +7,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
+// tensor_a is destination of the cacheop.  Should be 1, 2 or 3.
+// tensor_b indicates whether the cacheop is a flush or evict.  Should be 1 or 2.
+// This test prefetches on thread 1 of each of the minion
+// Stride is 64, and with 16 lines,  all the mem-shires will be accesssed by each minion 
        
 int64_t main(const kernel_params_t* const kernel_params_ptr)
 {
