@@ -19,50 +19,47 @@ Status: The script is experimental and ugly
 
 """
 
-import argparse
-import argcomplete
-import jenkins
-import logging
 import sys
-import subprocess
-import time
-
 # Do not generate bytecode for this script
 sys.dont_write_bytecode = True
 
+import argparse
+import argcomplete
+import jenkins
+import json
+import logging
+import os
+import subprocess
+import time
+
+# This so that the script can remain self-contained
+REPOROOT=os.path.abspath(os.path.join(os.path.realpath(__file__), "../.."))
+sys.path.append(REPOROOT)
+import infra_tools.jenkins_helpers as jenkins_helpers
+
 _LOG_LEVEL_STRINGS = ['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG']
-
-# List of parameters that the different Jenkinsfiles expect
-
 
 JENKINS_SERVER = 'http://sc-jenkins01.esperanto.ai:8080'
 
 
-def parent_job_info(child_job_name, child_build_id, timeout=10):
-    """Return the upstream job information if it exists.
+class JenkinsParams:
+    """Generate the parameters for the jobs using other groovy files
 
-    Args:
-      child_job_name (str): Name of the job
-      child_build_id (int): Id of the build
-      timeout (int): jenkins server connection timeout
-
-    Returns:
-      {'build_name': str, 'build_id': int}: Dictonary with the information of the
-        build it it exists empty otherwise.
+    Attributes:
+    job_name (str): Name of the job
     """
-    server = jenkins.Jenkins(JENKINS_SERVER, timeout=timeout)
-    build = server.get_build_info(child_job_name, child_build_id)
-    action0 = build['actions'][0]
-    if 'causes' not in action0:
-        return {'build_name': "None",
-                'build_id': -1}
-    parent_job_info = action0['causes'][0]
-    return {'build_name': parent_job_info['upstreamProject'],
-            'build_id': parent_job_info['upstreamBuild']}
+    def __init__(self, job_name):
+        self.job_name = job_name
+
+    def gen_params(self, branch, **kwargs):
+        """Generate the job's parameters"""
+        return {
+            'BRANCH': branch,
+            }
 
 
 class JenkinsfileParams:
-    """Generate the parameters for the jobs using Jenkinsfile
+    """Generate the parameters for the jobs using Jenkinsfile.groovy
 
     Attributes:
     job_name (str): Name of the jobOB
@@ -89,6 +86,7 @@ class JenkinsfileParams:
 JOB_DESCRIPTION = {
     'docker-image-builder': JenkinsfileParams('Software/device-fw/docker-image-builder'),
     'checkin-regression': JenkinsfileParams('Software/device-fw/checkin-regression'),
+    "Software/sw-platform/checkin-top-level" : JenkinsfileParams("Software/sw-platform/checkin-top-level"),
 }
 
 def run_subcommand(args):
@@ -113,32 +111,31 @@ def run(args, unknown_args):
        args (Namespace): Namespace object returned after parsing the
          command line arguments
        unknown_args ([]): List of unknown args the parser did not recognize
-         used only when integrated with device-firmware.py
+         used only when integrated with maxion.py
     """
-    server = jenkins.Jenkins(JENKINS_SERVER)
     branch_name = args.branch
+    if args.commit_passed:
+        check_job_params = json.loads(args.check_job_params) if args.check_job_params else None
+        if len(args.job) > 1:
+            print("Can handle only one job at a time")
+            sys.exit(-10)
+        job_name = args.job[0]
+        res, url = jenkins_helpers.job_passed_for_commit(JENKINS_SERVER,
+                                                         JOB_DESCRIPTION[job_name].job_name,
+                                                         args.commit_passed,
+                                                         check_job_params)
+        if res > 0:
+            logging.info("Previous job: " + url)
+            sys.exit(0)
+        else:
+            sys.exit(1)
+
     for job in args.job:
         if not branch_name:
             branch_name = run_subcommand(['git', 'rev-parse', '--abbrev-ref', 'HEAD'])
         job_params_obj = JOB_DESCRIPTION[job]
         job_params = job_params_obj.gen_params(branch_name)
-        queue_item_num = server.build_job(job_params_obj.job_name, job_params)
-        logging.debug("JobID: {}".format(queue_item_num))
-        retries = 0
-        executable = None
-        while retries < 10 and not executable:
-            queue_item = server.get_queue_item(queue_item_num)
-            executable = queue_item.get('executable', None)
-            if executable:
-                break;
-            time.sleep(10 + retries * 10)
-            retries = retries + 1
-            logging.info("Waiting for queueed item: {} url: {}".format(queue_item_num,
-                                                                       queue_item['url']))
-        if executable:
-            print("Started job {}\n\t URL: {}".format(job, executable['url']))
-        else:
-            logging.error("No Job found for queued item: {}".format(queue_item_num))
+        jenkins_helpers.launch_job(JENKINS_SERVER, job_params_obj.job_name, job_params)
 
 
 def _log_level_string_to_int(log_level_string):
@@ -169,6 +166,13 @@ def register_command(parser):
                         'specified then the current checkout branch will be running. We '
                         'assume that the user has pushed the latest version o the branch '
                         'to the repo')
+    parser.add_argument("--commit-passed",
+                        default=None,
+                        help="Return 0 or 1 if the commit passed for a specific job")
+    parser.add_argument("--check-job-params",
+                        default=None,
+                        help="String of key value pairs of the parameters names/values to "
+                        "check against. The format of the string is json")
     parser.add_argument('job',
                         nargs="+",
                         choices=list(JOB_DESCRIPTION.keys()),
