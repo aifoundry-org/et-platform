@@ -14,40 +14,44 @@
 ## Firmware Code signing tools
 # Find the package or else build it from source
 
-ExternalProject_Add(code-signing-tools
-  PREFIX code_signing_tools
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../firmware-tools/code-signing-tools/
-  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/code-signing-tools
-  LOG_UPDATE TRUE
-  LOG_PATCH TRUE
+if(BUILD_FLASH_IMAGE)
 
-  # CONFIGURE_COMMAND ""
-  # Compile the tools for x86
-  CMAKE_ARGS
-     -DCMAKE_INSTALL_PREFIX=${DEVFW_EXTERNAL_INSTALL_PREFIX}
-     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-     -DCMAKE_C_COMPILER=gcc
-     ${EXTERNAL_PROJECT_ENABLE_CCACHE}
-     ${EXTERNAL_PROJECT_CCACHE}
-  LOG_TEST TRUE
-  BUILD_ALWAYS 1
-)
+  ExternalProject_Add(code-signing-tools
+    PREFIX code_signing_tools
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../firmware-tools/code-signing-tools/
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/code-signing-tools
+    LOG_UPDATE TRUE
+    LOG_PATCH TRUE
 
-ExternalProject_Add(flash-tool
-  PREFIX flash-tool
-  SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../firmware-tools/esperanto-flash-tool
-  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/esperanto-flash-tool
-  LOG_UPDATE TRUE
-  LOG_PATCH TRUE
-  # Compile the tools for x86
-  CMAKE_ARGS
-     -DCMAKE_INSTALL_PREFIX=${DEVFW_EXTERNAL_INSTALL_PREFIX}
-     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-     -DCMAKE_C_COMPILER=gcc
-     ${EXTERNAL_PROJECT_ENABLE_CCACHE}
-     ${EXTERNAL_PROJECT_CCACHE}
-  LOG_TEST TRUE
-  BUILD_ALWAYS 1
-)
+    # CONFIGURE_COMMAND ""
+    # Compile the tools for x86
+    CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${DEVFW_EXTERNAL_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_C_COMPILER=gcc
+    ${EXTERNAL_PROJECT_ENABLE_CCACHE}
+    ${EXTERNAL_PROJECT_CCACHE}
+    LOG_TEST TRUE
+    BUILD_ALWAYS 1
+    )
 
-set(EXTERNAL_PROJECT_DEPENDENCIES "code-signing-tools;flash-tool"  PARENT_SCOPE)
+  ExternalProject_Add(flash-tool
+    PREFIX flash-tool
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../firmware-tools/esperanto-flash-tool
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/esperanto-flash-tool
+    LOG_UPDATE TRUE
+    LOG_PATCH TRUE
+    # Compile the tools for x86
+    CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${DEVFW_EXTERNAL_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_C_COMPILER=gcc
+    ${EXTERNAL_PROJECT_ENABLE_CCACHE}
+    ${EXTERNAL_PROJECT_CCACHE}
+    LOG_TEST TRUE
+    BUILD_ALWAYS 1
+    )
+
+  set(EXTERNAL_PROJECT_DEPENDENCIES "code-signing-tools;flash-tool"  PARENT_SCOPE)
+
+endif(BUILD_FLASH_IMAGE)
