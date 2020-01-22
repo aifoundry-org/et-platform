@@ -3,13 +3,29 @@ Master Minion Firmware  {#master_minion_firmware}
 
 ## Software Stack
 The Master and Sync Minions software stack looks like follows:
-
-
 <!---
 Source google-doc
 https://docs.google.com/drawings/d/1B7zEIsVYdDNmL5K6YcmqsAkbiSEiYeFUQA15ljCBEvc/edit?usp=sharing
 --->
 ![Master-Minionl SW Stack](Master-Minion-Software-Stack.png)
+
+Execution Sequence
+  - Initialization Sequence
+	- Serial Port (PU UART 0)
+	- Interupt controller
+	- Mailbox (Hand shake message with SP, Worker Minion and Host)
+	- Message buffers
+	- FCC 0 and 1 counters cleared
+	- Kernel Init
+	- Enable Interrupts (External, Supervisor, Software)
+  - Main Execution Loop
+	- if (Debug) Send SP Mbox
+	- if (SW Flags set - SP or Worker Minion)
+ 		- Handle messages from SP and then Worker Minion
+	- if (PCI Ex Interrupt flag set)	
+		- Handle messages from Host
+	- Handler Timer Events
+	- If no messages - go to sleep
 
 As master/runtime minions are not visible to user kernels,
 they should never execute in user mode privilege. In the S-mode there
@@ -45,6 +61,7 @@ Compute and sync minions can communicate only with the runtime minions (assuming
 * Kernel error: same as before, but need to set a variable to 1 to let the runtime minion that there was a problem in the clean up process (Tensor* not in idle state)
 
 ### Communication Mechanisms Between Master and Runtime Minions
+
 
 \todo Guillem's Questions
 * Master to Runtime: spawn a new thread. Done through IPI? Dependent on RTos?
