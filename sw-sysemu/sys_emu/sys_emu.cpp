@@ -1057,7 +1057,7 @@ sys_emu::main_internal(int argc, char * argv[])
                                 raise_interrupt_wakeup_check(thread_id);
                             }
                         }
-                        else if (inst.is_stall())
+                        else if (inst.is_stall_write())
                         {
                             if (cpu[thread_id].excl_mode) {
                                 LOG(DEBUG, "%s", "Not going to sleep (STALL) because exclusive mode");

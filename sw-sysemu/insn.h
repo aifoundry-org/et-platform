@@ -48,8 +48,8 @@ public:
     constexpr bool is_flb() const       { return (flags & flag_FLB); }
     constexpr bool is_load() const      { return (flags & flag_LOAD); }
     constexpr bool is_reduce() const    { return (flags & flag_REDUCE); }
-    constexpr bool is_stall() const     { return (flags & flag_STALL); }
     constexpr bool is_wfi() const       { return (flags & flag_WFI); }
+    constexpr bool is_stall_write() const        { return (flags & flag_STALL) && (flags & flag_CSR_WRITE); }
     constexpr bool is_tensor_fma_write() const   { return (flags & flag_TENSOR_FMA) && (flags & flag_CSR_WRITE); }
     constexpr bool is_tensor_load_write() const  { return (flags & flag_TENSOR_LOAD) && (flags & flag_CSR_WRITE); }
     constexpr bool is_tensor_quant_write() const { return (flags & flag_TENSOR_QUANT) && (flags & flag_CSR_WRITE); }
