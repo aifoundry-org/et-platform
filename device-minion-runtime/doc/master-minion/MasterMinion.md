@@ -9,7 +9,7 @@ https://docs.google.com/drawings/d/1B7zEIsVYdDNmL5K6YcmqsAkbiSEiYeFUQA15ljCBEvc/
 --->
 ![Master-Minionl SW Stack](Master-Minion-Software-Stack.png)
 
-Execution Sequence
+Execution Sequence (Master Minion Execution Thread)
   - Initialization Sequence
 	- Serial Port (PU UART 0)
 	- Interupt controller
