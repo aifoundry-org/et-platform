@@ -2677,18 +2677,18 @@ void tensor_load_start(uint64_t control)
     }
 #endif
 
-    // Check if SCP is enabled
-    if (cpu[current_thread].mcache_control != 0x3) {
-        LOG(WARN, "%s", "\tTensorLoad with SCP disabled!!");
-        update_tensor_error(1 << 4);
-        return;
-    }
-
     // Cooperative tensor loads require the shire to be in cooperative mode
     if (use_coop) {
         uint64_t shire = current_thread / EMU_THREADS_PER_SHIRE;
         if (!esr_shire_coop_mode[shire])
             throw trap_illegal_instruction(current_inst);
+    }
+
+    // Check if SCP is enabled
+    if (cpu[current_thread].mcache_control != 0x3) {
+        LOG(WARN, "%s", "\tTensorLoad with SCP disabled!!");
+        update_tensor_error(1 << 4);
+        return;
     }
 
     if (tenb) {
