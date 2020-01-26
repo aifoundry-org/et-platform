@@ -16,9 +16,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -Werror -g3 -O0")
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/../include)
 include_directories(${GLOG_INCLUDE_DIRS})
-include_directories(${PROJECT_SOURCE_DIR}/external/abseil)
-include_directories(${EXTERNAL_INCLUDE_DIRECTORIES})
 
+include_directories(${EXTERNAL_INCLUDE_DIRECTORIES})
 link_directories(${RT_EXTERNAL_INSTALL_PREFIX}/lib64
   ${RT_EXTERNAL_INSTALL_PREFIX}/lib
   ${DEPENDENCIES_PATH}/lib64
@@ -26,14 +25,7 @@ link_directories(${RT_EXTERNAL_INSTALL_PREFIX}/lib64
   )
 
 set(COMMON_LIBRARIES
-  # Link the whole archive so that we can pull the gflags symbols
-  # that define runtime command line options
-  -Wl,--whole-archive etrt_static -Wl,--no-whole-archive
-  absl::strings
-  etsim_api_static
-  stdc++fs
-  ${GLOG_LIBRARIES}
-  ${GFLAGS_LIBRARIES}
+   etrt
   )
 
 add_executable(runtime-tester runtime_tester.cc)
