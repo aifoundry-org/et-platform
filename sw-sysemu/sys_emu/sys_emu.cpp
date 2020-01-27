@@ -508,7 +508,7 @@ sys_emu::coop_tload_get_thread_id(uint32_t thread_id, uint32_t neigh, uint32_t m
     uint32_t other_thread_id = 0;
     uint32_t shire_id = thread_id / EMU_THREADS_PER_SHIRE;
     other_thread_id = shire_id * EMU_THREADS_PER_SHIRE + (neigh * EMU_MINIONS_PER_NEIGH + min) * EMU_THREADS_PER_MINION;
-    return other_thread_id;    
+    return other_thread_id;
 }
 
 // Returns if the cooperative tloads are present in other threads
@@ -1000,7 +1000,7 @@ sys_emu::main_internal(int argc, char * argv[])
                     // Check for breakpoints
                     if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && breakpoint_exists(current_pc[thread_id])) {
                         LOG(DEBUG, "Hit breakpoint at address 0x%" PRIx64, current_pc[thread_id]);
-                        gdbstub_signal(5);
+                        gdbstub_signal_break(thread_id);
                         running_threads.clear();
                         break;
                     }
@@ -1107,7 +1107,7 @@ sys_emu::main_internal(int argc, char * argv[])
             // Check for single-step mode
             if ((gdbstub_get_status() == GDBSTUB_STATUS_RUNNING) && single_step[thread_id]) {
                 LOG(DEBUG, "%s", "Single-step done");
-                gdbstub_signal(5);
+                gdbstub_signal_break(thread_id);
                 single_step[thread_id] = false;
                 running_threads.clear();
                 break;

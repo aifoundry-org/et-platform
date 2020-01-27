@@ -12,7 +12,7 @@ int gdbstub_accept_client();
 int gdbstub_close_client();
 void gdbstub_fini();
 int gdbstub_io();
-void gdbstub_signal(int signal);
+void gdbstub_signal_break(int thread);
 enum gdbstub_status gdbstub_get_status();
 
 #endif

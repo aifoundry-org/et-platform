@@ -184,12 +184,22 @@ static inline char *strconcat(char *dst, const char *suffix)
 
 /** Target platform hooks ***/
 
-/* Conversion between GDB thread ID and SysEMU thread ID (thread index) */
+/* Conversion from GDB thread ID to SysEMU thread ID (thread index) */
 static inline int to_target_thread(int thread_id)
 {
     return ((thread_id - 1) == IO_SHIRE_ID * EMU_THREADS_PER_SHIRE) ?
         EMU_IO_SHIRE_SP_THREAD :
         thread_id - 1;
+}
+
+static inline int to_gdb_thread(int thread_id)
+{
+    if ((thread_id == IO_SHIRE_ID * EMU_THREADS_PER_SHIRE) ||
+        (thread_id == EMU_IO_SHIRE_SP_THREAD * EMU_THREADS_PER_SHIRE)) {
+            return IO_SHIRE_ID * EMU_THREADS_PER_SHIRE + 1;
+    } else {
+        return thread_id + 1;
+    }
 }
 
 static inline unsigned target_num_threads()
@@ -1216,11 +1226,20 @@ int gdbstub_io()
     return gdbstub_handle_packet(packet);
 }
 
-void gdbstub_signal(int signal)
+void gdbstub_signal_break(int thread)
 {
+    const int signal = 5;
     char buffer[32];
-    int len = snprintf(buffer, sizeof(buffer), "S%02X", signal);
+    int len;
+
+    len = snprintf(buffer, sizeof(buffer), "T%02Xthread:%02X;", signal, thread);
     rsp_send_packet_len(buffer, len);
+
+    /*
+     * "Whenever GDB stops your program, due to a breakpoint or a signal,
+     * it automatically selects the thread where that breakpoint or signal happened."
+     */
+    g_cur_general_thread = to_gdb_thread(thread);
 }
 
 enum gdbstub_status gdbstub_get_status()
