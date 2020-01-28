@@ -9,13 +9,13 @@ Welcome to Esperanto Runtime's documentation!
 Esperanto Runtime Purpose
 -------------------------
 
-The primary prupose that the Esperanto runtime serves is to abstract to the
+The primary purpose that the Esperanto runtime serves is to abstract to the
 user the interactions with the real hardware device and the Esperanto PCIe driver.
 
 Runtime API Flavors
 __________________
 
-The Espranto Runtime has both a C and a C++ flavor. The implementation is done in
+The Esperanto Runtime has both a C and a C++ flavor. The implementation is done in
 C++ and is the primarily supported API. The C-API just wrapps the C++ implementation
 
 * C-API is described in :ref:`file_C-API_etrt.h`
