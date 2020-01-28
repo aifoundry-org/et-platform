@@ -1,5 +1,5 @@
 ELF Load: @PROJECT_BINARY_DIR@/src/MasterMinion/MasterMinion.elf
 ELF Load: @PROJECT_BINARY_DIR@/src/MachineMinion/MachineMinion.elf
 ELF Load: @PROJECT_BINARY_DIR@/src/WorkerMinion/WorkerMinion.elf
-ELF Load: @PROJECT_BINARY_DIR@/src/kernels/producer_consumer/producer_consumer.elf
-File Load: 40'h8180000000, @PROJECT_BINARY_DIR@/src/kernels/producer_consumer/data.raw
+ELF Load: @PROJECT_BINARY_DIR@/src/kernels/@RANDOMIZED_TEST_NAME@/@TEST_NAME@/@TEST_NAME@.elf
+File Load: 40'h8180000000, @PROJECT_BINARY_DIR@/src/kernels/@RANDOMIZED_TEST_NAME@/@TEST_NAME@/data.raw

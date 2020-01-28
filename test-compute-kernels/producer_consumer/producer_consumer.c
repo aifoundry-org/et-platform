@@ -11,7 +11,6 @@
 #include "kernel_params.h"
 #include "esr_defines.h"
 #include "crc32.h"
-#include "crc_vals.h"
 #include "log.h"
 
 #define ALL_BANKS_MASK 0xFUL;
@@ -51,7 +50,7 @@
 #define PAIR_IDX 2
 
 #define MAPPINGS_PARAMS 3
-#define TOTAL_MINIONS 96
+#define TOTAL_MINIONS 64
 #define NUM_ITER 4
 
 
@@ -83,7 +82,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         ((uint64_t*)kernel_params_ptr->tensor_a == NULL) ||
         (kernel_params_ptr->tensor_b == 0) ||
 	((uint64_t*)kernel_params_ptr->tensor_c == NULL) ||
-        (kernel_params_ptr->tensor_b == 0)) {
+        (kernel_params_ptr->tensor_d == 0)) {
 	return -1;
     }
 
@@ -289,9 +288,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     __asm__ __volatile__ ("fence\n");
 
     // Need to evict ts_addr to memory with evict va.
-    evict_va(0, 3, out_addr + 0xc00 * minion_id, 15, 0x40, 0, 0);
-    evict_va(0, 3, out_addr + 0xc00 * minion_id + 0x400, 15, 0x40, 0, 0);
-    evict_va(0, 3, out_addr + 0xc00 * minion_id + 0x800, 15, 0x40, 0, 0);
+    evict_va(0, to_Mem, out_addr + 0xc00 * minion_id, 15, 0x40, 0, 0);
+    evict_va(0, to_Mem, out_addr + 0xc00 * minion_id + 0x400, 15, 0x40, 0, 0);
+    evict_va(0, to_Mem, out_addr + 0xc00 * minion_id + 0x800, 15, 0x40, 0, 0);
     WAIT_CACHEOPS;
 
     // Check for tensor error and make the CRC check
@@ -313,16 +312,12 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
             return -2;
         }
 
-        // Total number of bytes:
+        // Total number of bytes per shire
         // 48 lines / minion * 64 bytes / line * 32 minions = 98306 (96K)
-	crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 98304), 32768, crc);
-        if (crc != crc_vals[shire_id]) {        
-            log_write(LOG_LEVEL_CRITICAL, "CRC error, shire %lu, got %x, expected %x\n", shire_id, crc,  crc_vals[shire_id]);
-            return -3;
-        } else {
-            log_write(LOG_LEVEL_CRITICAL, "Shire %lu Passed\n", shire_id);
-            return 0;
-        }
+	crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 98304), 98306, crc);
+	uint32_t *crc_ptr = (uint32_t*)(out_addr + 98306 * 32 + shire_id * 64);
+        *crc_ptr = crc;
+        log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
     }
 
     return 0;
