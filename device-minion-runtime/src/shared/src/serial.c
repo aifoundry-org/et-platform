@@ -24,8 +24,11 @@ int SERIAL_init(volatile Uart_t* const uartRegs)
     // UART SCLK = clk_100/4 = 250MHz out of reset for now, 25MHz when clk_100 reduces to 100MHz.
     // configuring UART to 1.5Mbaud - fastest possible with 25MHz SCLK, doable with 250Mhz SCLK.
     // 1GHz / 1500000 = 667 so use setRatio(667) for ZeBu transactor
-//    set_baud_divisor(uartRegs, 1500000, 250000000); // for now, when PLLs are OFF
+#if ENABLE_ZEBU_BAUD_RATE
+    set_baud_divisor(uartRegs, 1500000, 250000000); // for now, when PLLs are OFF
+#else
     set_baud_divisor(uartRegs, 1500000, 25000000); // for now, when PLLs are ON
+#endif
 
     /* Write "0" to LCR[7] (DLAB) bit */
     uartRegs->LCR.B.DLAB = 0;

@@ -43,6 +43,13 @@ set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=
 -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "c flags" FORCE)
 
+if(ENABLE_ZEBU_BAUD_RATE)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_ZEBU_BAUD_RATE=1")
+else()
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DENABLE_ZEBU_BAUD_RATE=0")
+endif(ENABLE_ZEBU_BAUD_RATE)
+
+
 # macro to create an executable .elf plus .bin, .hex, .lst and .map files
 # if LINKER_SCRIPT is defined, uses it instead of the default
 macro(add_riscv_executable TARGET_NAME)

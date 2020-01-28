@@ -28,6 +28,7 @@ set(devicefw_DEVICE_API_PROVIDER "module" CACHE STRING "Provider of device-api l
 set_property(CACHE devicefw_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
 
 option(ENABLE_SYSEMU "Enable building sysemu" OFF)
+option(ENABLE_ZEBU_BAUD_RATE "Set the baud rate to be that fo the current Zebu builds" OFF)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
