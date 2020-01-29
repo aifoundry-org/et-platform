@@ -30,7 +30,7 @@ add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT esperanto-fw-targets
-  RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/kernels
+  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels
   COMPONENT kernels)
 
 message("Log kernel hex to install ${TARGET_NAME_OUTPUT}")

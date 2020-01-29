@@ -69,7 +69,7 @@ macro(randomized_test)
 
     install(TARGETS ${TARGET_NAME}.elf
       EXPORT esperanto-fw-targets
-      RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/kernels/${TARGET_NAME}
+      RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/${TARGET_NAME}
       COMPONENT kernels)
 
     string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
