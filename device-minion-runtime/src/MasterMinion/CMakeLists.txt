@@ -62,7 +62,7 @@ set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT esperanto-fw-targets
-  RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/MasterMinion
+  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/MasterMinion
   COMPONENT master-minion)
 
 message("Master minion hex to install ${TARGET_NAME_OUTPUT}")

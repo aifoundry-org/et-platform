@@ -45,7 +45,7 @@ set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT esperanto-fw-targets
-  RUNTIME DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw/WorkerMinion
+  RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
   COMPONENT worker-minion)
 
 string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
