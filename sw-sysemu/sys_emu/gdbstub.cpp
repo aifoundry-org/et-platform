@@ -314,7 +314,7 @@ static void target_remote_command(char *cmd)
     char *tokens[2];
     int ntokens = strsplit(cmd, " ", tokens, ARRAY_SIZE(tokens));
 
-    LOG_NOTHREAD(INFO, "GDB stub: remote command: \"%s\"", cmd);
+    LOG_NOTHREAD(DEBUG, "GDB stub: remote command: \"%s\"", cmd);
 
     if (ntokens == 0)
         return;
@@ -1231,15 +1231,16 @@ void gdbstub_signal_break(int thread)
     const int signal = 5;
     char buffer[32];
     int len;
+    int gdb_thread = to_gdb_thread(thread);
 
-    len = snprintf(buffer, sizeof(buffer), "T%02Xthread:%02X;", signal, thread);
+    len = snprintf(buffer, sizeof(buffer), "T%02Xthread:%02X;", signal, gdb_thread);
     rsp_send_packet_len(buffer, len);
 
     /*
      * "Whenever GDB stops your program, due to a breakpoint or a signal,
      * it automatically selects the thread where that breakpoint or signal happened."
      */
-    g_cur_general_thread = to_gdb_thread(thread);
+    g_cur_general_thread = gdb_thread;
 }
 
 enum gdbstub_status gdbstub_get_status()

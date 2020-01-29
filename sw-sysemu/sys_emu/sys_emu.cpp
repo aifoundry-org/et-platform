@@ -683,14 +683,14 @@ sys_emu::coop_tload_check(uint32_t thread_id, bool tenb, uint32_t id, uint32_t &
 void
 sys_emu::breakpoint_insert(uint64_t addr)
 {
-    LOG_NOTHREAD(INFO, "Inserting breakpoint at address 0x%" PRIx64 "", addr);
+    LOG_NOTHREAD(DEBUG, "Inserting breakpoint at address 0x%" PRIx64 "", addr);
     breakpoints.insert(addr);
 }
 
 void
 sys_emu::breakpoint_remove(uint64_t addr)
 {
-    LOG_NOTHREAD(INFO, "Removing breakpoint at address 0x%" PRIx64 "", addr);
+    LOG_NOTHREAD(DEBUG, "Removing breakpoint at address 0x%" PRIx64 "", addr);
     breakpoints.erase(addr);
 }
 
