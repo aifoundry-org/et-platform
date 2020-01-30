@@ -313,9 +313,9 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         }
 
         // Total number of bytes per shire
-        // 48 lines / minion * 64 bytes / line * 32 minions = 98306 (96K)
-	crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 98304), 98306, crc);
-	uint32_t *crc_ptr = (uint32_t*)(out_addr + 98306 * 32 + shire_id * 64);
+        // 48 lines / minion * 64 bytes / line * 32 minions = 98304 (96K)
+	crc = crc32_8bytes((void *) (kernel_params_ptr->tensor_c + shire_id * 98304), 98304, crc);
+	uint32_t *crc_ptr = (uint32_t*)(out_addr + 98304 * 32 + shire_id * 64);
         *crc_ptr = crc;
         log_write(LOG_LEVEL_CRITICAL, "Shire %lu, CRC value %x\n", shire_id, crc);
     }
