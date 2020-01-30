@@ -10,7 +10,7 @@ Welcome to Esperanto Runtime's documentation!
 The Esperanto runtime is the glue library that is responsible for providing a constant
 interface to both the Esperanto PCIe driver and the Esperanto Device-Firmware.
 
-To get started how to use the runtiime see :ref:`LauchingAKernel`.
+To get started how to use the runtime see :ref:`LauchingAKernel`.
 
 Details how the runtime interacts with the rest of the system are found in :ref:`RuntimeArchitecture`
 
