@@ -20,9 +20,43 @@
 #define SHIRES_COUNT 32
 #define MINIONS_COUNT (SHIRES_COUNT*MINIONS_PER_SHIRE)
 
-#define CACHE_LINE_SIZE 64
+#define CACHE_LINE_BYTES 64
 
-#define L2SCP_SIZE 0x3000000 // 48MB
+/// Scratchpad bytes allocated for activation outputs soc-wise (32 Mb)
+static const size_t SOC_ACT_OUT_L2SCP_BYTES = 0x2000000;
+
+/// Scratchpad lines allocated for activation outputs soc-wise (32 Mb)
+static const size_t SOC_ACT_OUT_L2SCP_LINES = SOC_ACT_OUT_L2SCP_BYTES / CACHE_LINE_BYTES;
+
+/// Scratchpad bytes allocated for activation prefetch soc-wise (16 Mb)
+static const size_t SOC_ACT_PREF_L2SCP_BYTES = 0x1000000;
+
+/// Scratchpad lines allocated for activation prefetch soc-wise (16 Mb)
+static const size_t SOC_ACT_PREF_L2SCP_LINES = SOC_ACT_PREF_L2SCP_BYTES / CACHE_LINE_BYTES;
+
+/// Scratchpad bytes allocated for weight prefetch soc-wise (32 Mb)
+static const size_t SOC_W_PREF_L2SCP_BYTES = 0x2000000;
+
+/// Scratchpad lines allocated for weight prefetch soc-wise (32 Mb)
+static const size_t SOC_W_PREF_L2SCP_LINES = SOC_W_PREF_L2SCP_BYTES / CACHE_LINE_BYTES;
+
+/// Scratchpad bytes allocated for activation outputs shire-wise (1 Mb)
+static const size_t SHIRE_ACT_OUT_L2SCP_BYTES = SOC_ACT_OUT_L2SCP_BYTES / SHIRES_COUNT;
+
+/// Scratchpad lines allocated for activation outputs shire-wise (1 Mb)
+static const size_t SHIRE_ACT_OUT_L2SCP_LINES = SOC_ACT_OUT_L2SCP_LINES / SHIRES_COUNT;
+
+/// Scratchpad bytes allocated for activation prefetch shire-wise (0.5 Mb)
+static const size_t SHIRE_ACT_PREF_L2SCP_BYTES = SOC_ACT_PREF_L2SCP_BYTES / SHIRES_COUNT;
+
+/// Scratchpad lines allocated for activation prefetch shire-wise (0.5 Mb)
+static const size_t SHIRE_ACT_PREF_L2SCP_LINES = SOC_ACT_PREF_L2SCP_LINES / SHIRES_COUNT;
+
+/// Scratchpad bytes allocated for weight prefetch shire-wise (1 Mb)
+static const size_t SHIRE_W_PREF_L2SCP_BYTES = SOC_W_PREF_L2SCP_BYTES / SHIRES_COUNT;
+
+/// Scratchpad lines allocated for weight prefetch shire-wise (1 Mb)
+static const size_t SHIRE_W_PREF_L2SCP_LINES = SOC_W_PREF_L2SCP_LINES / SHIRES_COUNT;
 
 // ETSOC map
 #define STACK_ADDR_START    0x8100000000
@@ -143,10 +177,10 @@ AUX_FUN_ATTRS void evict_cacheline_nowait(void* virtual_addr, unsigned long long
 // Evict cachelines of given address range and wait for completion
 AUX_FUN_ATTRS void evict_range_wait(void* virtual_addr, unsigned len, unsigned long long dest_value)
 {
-    unsigned long long aligned_addr = align_down( (unsigned long long)virtual_addr, (unsigned long long)CACHE_LINE_SIZE );
+    unsigned long long aligned_addr = align_down( (unsigned long long)virtual_addr, (unsigned long long)CACHE_LINE_BYTES );
     unsigned long long end_addr = (unsigned long long)virtual_addr + len;
 
-    for ( unsigned long long addr = aligned_addr ; addr < end_addr ; addr += CACHE_LINE_SIZE )
+    for ( unsigned long long addr = aligned_addr ; addr < end_addr ; addr += CACHE_LINE_BYTES )
     {
         evict_cacheline_nowait( (void*)addr, dest_value );
     }
