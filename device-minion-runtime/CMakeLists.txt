@@ -26,6 +26,9 @@ project(DeviceFirmware VERSION 0.1.0 LANGUAGES C ASM)
 # will mean to use the DEPENDENCIES_PATH to derive the include and library paths
 set(devicefw_DEVICE_API_PROVIDER "module" CACHE STRING "Provider of device-api library")
 set_property(CACHE devicefw_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
+set(devicefw_CODE_SIGNING_TOOLS_PROVIDER "module" CACHE STRING "Provider of code signing tools library")
+set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module" "package")
+
 
 option(ENABLE_SYSEMU "Enable building sysemu" OFF)
 option(ENABLE_ZEBU_BAUD_RATE "Set the baud rate to be that fo the current Zebu builds" OFF)
