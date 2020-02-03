@@ -36,7 +36,7 @@ set(ZEBU_FILENAME memImage)
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
 include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
-include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/crypto_library/include)
+include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
