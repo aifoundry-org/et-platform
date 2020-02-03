@@ -12,7 +12,7 @@ void swi_handler(void)
     // Clear the IPI first: any interrupts that arrived by now had their
     // messages placed in memory first. Any interrupts that arrive after
     // here will be handled on a subsequent IPI.
-    volatile uint64_t* const ipi_trigger_clear_ptr = ESR_SHIRE(PRV_M, 0xFF, IPI_TRIGGER_CLEAR);
+    volatile uint64_t* const ipi_trigger_clear_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, IPI_TRIGGER_CLEAR);
     *ipi_trigger_clear_ptr = 1ULL << (hart_id % 64);
 
     // Ensure the write to clear happens before any message reads

@@ -19,7 +19,7 @@ typedef enum
 // thread = thread to send credit to, 0 or 1
 // fcc = fast credit counter to send credit to, 0 or 1
 // bitmask = which minion to send credit to. bit 0 = minion 0, bit 31 = minion 31
-#define SEND_FCC(shire, thread, fcc, bitmask) (*(ESR_SHIRE(0, shire, FCC0) + (thread * 2) + fcc) = bitmask)
+#define SEND_FCC(shire, thread, fcc, bitmask) (*((volatile uint64_t*)ESR_SHIRE(shire, FCC_CREDINC_0) + (thread * 2) + fcc) = bitmask)
 
 // fcc = fast credit counter to block on, 0 or 1
 #define WAIT_FCC(fcc) asm volatile ("csrwi fcc, %0" : : "I" (fcc))

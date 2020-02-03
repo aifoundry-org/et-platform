@@ -7,9 +7,9 @@
 
 // shire = shire to send the credit to, 0-32 or 0xFF for "this shire"
 // barrier = fast local barrier to use, 0-31
-#define INIT_FLB(shire, barrier) (*(ESR_SHIRE(0, shire, FLB0) + barrier) = 0U)
+#define INIT_FLB(shire, barrier) (*((volatile uint64_t *)ESR_SHIRE(shire, FAST_LOCAL_BARRIER0) + barrier) = 0U)
 
-#define READ_FLB(shire, barrier) (*(ESR_SHIRE(0, shire, FLB0) + barrier)
+#define READ_FLB(shire, barrier) (*((volatile uint64_t *)ESR_SHIRE(shire, FAST_LOCAL_BARRIER0) + barrier)
 
 #define WAIT_FLB(threads, barrier, result) do \
 { \
