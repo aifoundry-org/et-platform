@@ -16,7 +16,7 @@ static inline void cb_drain(uint64_t drain_shire, uint64_t drain_bank)
     // Drain the coalescing buffer of shire cache bank
     // 1. Write the CB invalidate (assumes FSM always available)
     volatile uint64_t *sc_idx_cop_sm_ctl_addr = (volatile uint64_t *)
-        ESR_CACHE(0, drain_shire, drain_bank, IDX_COP_SM_CTL_USER);
+        ESR_CACHE(drain_shire, drain_bank, SC_IDX_COP_SM_CTL_USER);
 
     // 2. Checks done
     uint64_t state;

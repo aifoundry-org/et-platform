@@ -156,7 +156,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
      
 	uint64_t sc_bank_mask = ALL_BANKS_MASK;
 	uint64_t flush_cb_opcode = OPCODE_FLUSH_CB;
-	volatile uint64_t *cb_flush_addr = ESR_CACHE(PRV_U, shire_id, sc_bank_mask, IDX_COP_SM_CTL_USER);
+	volatile uint64_t *cb_flush_addr = (volatile uint64_t *)ESR_CACHE(shire_id, sc_bank_mask, SC_IDX_COP_SM_CTL_USER);
 	store((uint64_t) cb_flush_addr, flush_cb_opcode);
 
 	__asm__ __volatile__ ("fence\n");
@@ -165,7 +165,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
         while (cb_busy != 0x4) {
             uint64_t cb_busy_bank[4];
             for (uint64_t b=0; b < 4; b++) {
-		cb_flush_addr = ESR_CACHE(PRV_U, shire_id, b, IDX_COP_SM_CTL_USER);             
+		cb_flush_addr = (volatile uint64_t *)ESR_CACHE(shire_id, b, SC_IDX_COP_SM_CTL_USER);
                 cb_busy_bank[b] = ((*cb_flush_addr) >> 24) & 0x4;
             }
             cb_busy = cb_busy_bank[0] | cb_busy_bank[1] | cb_busy_bank[2] | cb_busy_bank[3];
