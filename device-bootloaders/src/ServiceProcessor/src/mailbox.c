@@ -318,7 +318,7 @@ static void send_interrupt(mbox_e mbox)
         case MBOX_MASTER_MINION:
         {
             // Send IPI to Shire 32 HART 0
-            volatile uint64_t* const ipi_trigger_ptr = ESR_SHIRE(PRV_M, 32, IPI_TRIGGER);
+            volatile uint64_t* const ipi_trigger_ptr = (volatile uint64_t *)ESR_SHIRE(32, IPI_TRIGGER);
             *ipi_trigger_ptr = 1;
             break;
         }
