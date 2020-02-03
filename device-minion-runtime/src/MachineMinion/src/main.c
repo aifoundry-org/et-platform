@@ -40,7 +40,7 @@ void __attribute__((noreturn)) main(void)
     if (get_hart_id() % 64 == 0) // First HART every shire, master or worker
     {
         // Block user-level PC redirection
-        volatile uint64_t* const ipi_redirect_filter_ptr = ESR_SHIRE(PRV_M, 0xFF, IPI_REDIRECT_FILTER);
+        volatile uint64_t* const ipi_redirect_filter_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, IPI_REDIRECT_FILTER);
         *ipi_redirect_filter_ptr = 0;
     }
 
@@ -55,7 +55,7 @@ void __attribute__((noreturn)) main(void)
         {
             const uint64_t neighborhood_id = get_neighborhood_id();
 
-            volatile uint64_t* const mprot_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, neighborhood_id, MPROT);
+            volatile uint64_t* const mprot_ptr = (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_id, MPROT);
             uint64_t mprot = *mprot_ptr;
 
             if (neighborhood_id == 0)
@@ -110,8 +110,8 @@ void __attribute__((noreturn)) main(void)
         if (get_hart_id() % 64 == first_hart)
         {
             // Set MPROT for all neighborhoods in worker shire to disable access to OS, PCI-E and IO regions and enable secure memory permissions
-            volatile uint64_t* const mprot_neighborhood0_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, first_neighborhood, MPROT);
-            volatile uint64_t* const mprot_broadcast_ptr = ESR_NEIGH(PRV_M, THIS_SHIRE, neighborhood_mask, MPROT); // 0xF = broadcast to all 4 neighborhoods
+            volatile uint64_t* const mprot_neighborhood0_ptr = (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, first_neighborhood, MPROT);
+            volatile uint64_t* const mprot_broadcast_ptr = (volatile uint64_t *)ESR_NEIGH(THIS_SHIRE, neighborhood_mask, MPROT); // 0xF = broadcast to all 4 neighborhoods
             uint64_t mprot = *mprot_neighborhood0_ptr;
             mprot |= 0x46; // set enable_secure_memory, disable_pcie_access and io_access_mode = b10 (disabled)
             *mprot_broadcast_ptr = mprot;

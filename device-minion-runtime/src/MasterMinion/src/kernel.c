@@ -92,8 +92,8 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             const uint64_t compute_shires_mask = shire_mask & ~(1ULL << MASTER_SHIRE);
 
             // Broadcast launch FCC0 to all HARTs in all required compute shires
-            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC0); // thread 0 FCC 0
-            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC2); // thread 1 FCC 0
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_0_REGNO); // thread 0 FCC 0
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_2_REGNO); // thread 1 FCC 0
             if (sync_minions_mask) {
                 // Send launch FCC0 to sync-minions of master shire
                 SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_0, sync_minions_mask);
@@ -107,8 +107,8 @@ void __attribute__((noreturn)) kernel_sync_thread(uint64_t kernel_id)
             }
 
             // Broadcast go FCC1 to all HARTs in all required compute shires
-            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC1); // thread 0 FCC 1
-            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC3); // thread 1 FCC 1
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_1_REGNO); // thread 0 FCC 1
+            broadcast(0xFFFFFFFFU, compute_shires_mask, PRV_U, ESR_SHIRE_REGION, ESR_SHIRE_FCC_CREDINC_3_REGNO); // thread 1 FCC 1
             if (sync_minions_mask) {
                 // Send go FCC1 to sync-minions of master shire
                 SEND_FCC(MASTER_SHIRE, THREAD_0, FCC_1, sync_minions_mask);

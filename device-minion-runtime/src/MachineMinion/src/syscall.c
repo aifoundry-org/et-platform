@@ -137,7 +137,7 @@ int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t
 // shire_id = shire to send the credit to, 0-32 or 0xFF for "this shire"
 static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id)
 {
-    volatile uint64_t* const ipi_trigger_ptr = ESR_SHIRE(PRV_M, shire_id, IPI_TRIGGER);
+    volatile uint64_t* const ipi_trigger_ptr = (volatile uint64_t *)ESR_SHIRE(shire_id, IPI_TRIGGER);
     *ipi_trigger_ptr = hart_mask;
 
     return 0;
@@ -146,7 +146,7 @@ static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id)
 // hart_disable_mask is a bitmask to DISABLE a thread1: bit 0 = minion 0, bit 31 = minion 31
 static int64_t enable_thread1(uint64_t hart_disable_mask)
 {
-    volatile uint64_t* const enable_thread1_ptr = ESR_SHIRE(PRV_M, THIS_SHIRE, THREAD1_DISABLE);
+    volatile uint64_t* const enable_thread1_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, THREAD1_DISABLE);
     *enable_thread1_ptr = hart_disable_mask;
 
     return 0;
@@ -423,7 +423,7 @@ static int64_t evict_l3(void)
 static inline void sc_idx_cop_sm_ctl_all_banks_go(uint64_t opcode)
 {
     // Broadcast to all 4 banks
-    volatile uint64_t* const addr = ESR_CACHE(PRV_M, 0xFF, 0xF, IDX_COP_SM_CTL);
+    volatile uint64_t* const addr = (volatile uint64_t *)ESR_CACHE(THIS_SHIRE, 0xF, SC_IDX_COP_SM_CTL);
     sc_idx_cop_sm_ctl_go(addr, opcode);
 }
 
@@ -431,7 +431,7 @@ static inline void sc_idx_cop_sm_ctl_all_banks_wait_idle(void)
 {
     for (uint64_t i = 0; i < 4; i++)
     {
-        volatile uint64_t* const addr = ESR_CACHE(PRV_M, SHIRE_OWN, i, IDX_COP_SM_CTL);
+        volatile uint64_t* const addr = (volatile uint64_t *)ESR_CACHE(THIS_SHIRE, i, SC_IDX_COP_SM_CTL);
         sc_idx_cop_sm_ctl_wait_idle(addr);
     }
 }
@@ -453,7 +453,7 @@ static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t* const ad
 
 static inline void shire_cache_bank_op(uint64_t shire, uint64_t bank, uint64_t op)
 {
-    volatile uint64_t* const addr = ESR_CACHE(PRV_M, shire, bank, IDX_COP_SM_CTL);
+    volatile uint64_t* const addr = (volatile uint64_t *)ESR_CACHE(shire, bank, SC_IDX_COP_SM_CTL);
 
     sc_idx_cop_sm_ctl_wait_idle(addr);
     sc_idx_cop_sm_ctl_go(addr, op);

@@ -185,7 +185,7 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
         }
 
         // Enable cooperative TensorLoads and TensorStores in this shire
-        volatile uint64_t* const shire_coop_mode_ptr = ESR_SHIRE(PRV_S, THIS_SHIRE, COOP_MODE);
+        volatile uint64_t* const shire_coop_mode_ptr = (volatile uint64_t *)ESR_SHIRE(THIS_SHIRE, SHIRE_COOP_MODE);
         *shire_coop_mode_ptr = 1;
     }
 

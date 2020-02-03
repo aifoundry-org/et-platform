@@ -124,7 +124,10 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_ha
 
     evict_message(master_to_worker_broadcast_message_buffer_ptr);
 
-    const uint64_t broadcast_parameters = broadcast_encode_parameters(PRV_M, ESR_SHIRE_REGION, ESR_SHIRE_IPI_TRIGGER);
+    const uint64_t broadcast_parameters = broadcast_encode_parameters(
+        ESR_SHIRE_IPI_TRIGGER_PROT,
+        ESR_SHIRE_REGION,
+        ESR_SHIRE_IPI_TRIGGER_REGNO);
 
     // Broadcast dest_hart_mask to IPI_TRIGGER ESR in all shires in dest_shire_mask
     syscall(SYSCALL_BROADCAST, dest_hart_mask, dest_shire_mask, broadcast_parameters);
