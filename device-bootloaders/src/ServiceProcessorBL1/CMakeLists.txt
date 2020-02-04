@@ -33,7 +33,7 @@ include_directories(include)
 include_directories(${SHARED_INC_DIRS})
 include_directories(${FIRMWARE_TOOLS_DIR}/esperanto-flash-tool/include)
 include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
-include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/pkcs11/published/2-40-errata-1)
+include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 

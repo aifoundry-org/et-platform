@@ -53,8 +53,8 @@ include_directories(${SHARED_INC_DIR})
 include_directories(${SHARED_HAL_DIR})
 include_directories(${FREERTOS_INC_DIRS})
 include_directories(${FIRMWARE_TOOLS_DIR}/esperanto-flash-tool/include)
-include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/crypto_library/include)
-include_directories(${FIRMWARE_TOOLS_DIR}/code-signing-tools/pkcs11/published/2-40-errata-1)
+include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
+include_directories(${PKCS11_HEADERS})
 
 add_riscv_executable(${TARGET_NAME} ${CMAKE_CURRENT_LIST_DIR} ${SOURCES})
 
