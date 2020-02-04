@@ -21,6 +21,7 @@ if("${devicefw_CODE_SIGNING_TOOLS_PROVIDER}" STREQUAL "module")
   execute_process(COMMAND ${CMAKE_COMMAND} -H${CMAKE_CURRENT_SOURCE_DIR}/../firmware-tools/code-signing-tools/
                      -DCMAKE_INSTALL_PREFIX=${code_signing_tools_INSTALL}
                      -DCMAKE_C_COMPILER=gcc
+                     -DGIT_CONFIG_OPTIONS=${GIT_CONFIG_OPTIONS}
                      ${EXTERNAL_PROJECT_CCACHE}
                      ${EXTERNAL_PROJECT_ENABLE_CCACHE}
     RESULT_VARIABLE result
@@ -55,6 +56,10 @@ message("Code Signing Tools Found: ${EsperantoCodeSigningTools_FOUND}")
 
 get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
 set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH} PARENT_SCOPE)
+
+get_target_property(PKCS11_HEADERS_INTERFACE_PATH pkcs11 INTERFACE_INCLUDE_DIRECTORIES)
+set(PKCS11_HEADERS ${PKCS11_HEADERS_INTERFACE_PATH} PARENT_SCOPE)
+
 
 if(BUILD_FLASH_IMAGE)
 
