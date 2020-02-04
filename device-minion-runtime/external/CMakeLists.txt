@@ -61,25 +61,41 @@ get_target_property(PKCS11_HEADERS_INTERFACE_PATH pkcs11 INTERFACE_INCLUDE_DIREC
 set(PKCS11_HEADERS ${PKCS11_HEADERS_INTERFACE_PATH} PARENT_SCOPE)
 
 
-if(BUILD_FLASH_IMAGE)
 
-  ExternalProject_Add(flash-tool
-    PREFIX flash-tool
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../firmware-tools/esperanto-flash-tool
-    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/esperanto-flash-tool
-    LOG_UPDATE TRUE
-    LOG_PATCH TRUE
-    # Compile the tools for x86
-    CMAKE_ARGS
-    -DCMAKE_INSTALL_PREFIX=${DEVFW_EXTERNAL_INSTALL_PREFIX}
-    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-    -DCMAKE_C_COMPILER=gcc
-    ${EXTERNAL_PROJECT_ENABLE_CCACHE}
-    ${EXTERNAL_PROJECT_CCACHE}
-    LOG_TEST TRUE
-    BUILD_ALWAYS 1
+if("${devicefw_FLASH_TOOL_PROVIDER}" STREQUAL "module")
+  message(STATUS "Building: Flash Tool...")
+
+ # Clone the esperanto flash tool
+  configure_file(
+          ${CMAKE_CURRENT_SOURCE_DIR}/flash-tool.CMakeLists.txt
+          ${CMAKE_CURRENT_BINARY_DIR}/flash-tool/CMakeLists.txt)
+
+  execute_process(COMMAND ${CMAKE_COMMAND} -H. -Bproject_build -G "${CMAKE_GENERATOR}"
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/flash-tool)
+  if(result)
+    message(FATAL_ERROR "CMake step for flash-tool failed: ${result}")
+  endif()
+
+  execute_process(COMMAND ${CMAKE_COMMAND} --build project_build --config Release
+    RESULT_VARIABLE result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/flash-tool)
+  if(result)
+    message(FATAL_ERROR "Build step for flash failed: ${result}")
+  endif()
+
+  set(EsperantoFlashTool_DIR ${DEVFW_EXTERNAL_INSTALL_PREFIX}/lib/cmake/EsperantoFlashTool)
+
+  find_package(EsperantoFlashTool CONFIG REQUIRED
+    PATHS ${DEVFW_EXTERNAL_INSTALL_PREFIX}/lib/cmake/EsperantoFlashTool
+    NO_CMAKE_PATH
+    NO_CMAKE_ENVIRONMENT_PATH
+    NO_DEFAULT_PATH
     )
 
-  set(EXTERNAL_PROJECT_DEPENDENCIES "flash-tool"  PARENT_SCOPE)
+else()
+  find_package(EsperantoFlashTool CONFIG REQUIRED)
+endif()
 
-endif(BUILD_FLASH_IMAGE)
+get_target_property(FLASH_TOOL_HEADERS_INTERFACE_PATH flash-tool INTERFACE_INCLUDE_DIRECTORIES)
+set(FLASH_TOOL_HEADERS ${FLASH_TOOL_HEADERS_INTERFACE_PATH} PARENT_SCOPE)

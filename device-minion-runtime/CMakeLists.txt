@@ -28,6 +28,8 @@ set(devicefw_DEVICE_API_PROVIDER "module" CACHE STRING "Provider of device-api l
 set_property(CACHE devicefw_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
 set(devicefw_CODE_SIGNING_TOOLS_PROVIDER "module" CACHE STRING "Provider of code signing tools library")
 set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module" "package")
+set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
+set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
 
 
 option(ENABLE_SYSEMU "Enable building sysemu" OFF)
