@@ -12,6 +12,7 @@ cmake_minimum_required (VERSION 3.5)
 
 project (FlashTool VERSION 0.1.0 LANGUAGES C)
 
+include(GNUInstallDirs)
 set(CMAKE_BUILD_TYPE Debug)
 
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
@@ -49,10 +50,28 @@ ADD_EXECUTABLE( esperanto_flash_tool ${SOURCES} )
 target_link_libraries (esperanto_flash_tool json-c)
 install(TARGETS esperanto_flash_tool EXPORT EsperantoFlashToolTargets)
 
+add_library(flash-tool INTERFACE)
+target_include_directories(flash-tool INTERFACE
+  "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto/flash-tool>"
+  )
+
+install(
+  TARGETS flash-tool
+  EXPORT EsperantoFlashToolTargets
+  LIBRARY
+    DESTINATION lib
+    COMPONENT flash-tool
+  PUBLIC_HEADER
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto/flash-tool
+    COMPONENT flash-tool
+  )
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto/flash-tool
+  )
+
 
 ### Add package information
-
-### Add package informationc
 include(CMakePackageConfigHelpers)
 
 # Export the package for use from the build-tree
