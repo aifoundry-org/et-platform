@@ -31,7 +31,7 @@ set(ZEBU_FILENAME ServiceProcessorBL1)
 
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
-include_directories(${FIRMWARE_TOOLS_DIR}/esperanto-flash-tool/include)
+include_directories(${FLASH_TOOL_HEADERS})
 include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
 include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
 
