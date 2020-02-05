@@ -89,7 +89,13 @@ def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, 
                 tl_code_list[i] = 0
 
         # The address is the offset from some start address specified in the test
-        # The limit is specified by #shires, we give 1KB per minion because that is the size of the VPU RF, so 32KB (0x8000 per shire)        
+        # The limit is specified by #shires, we give 1KB per minion because that is the size of the VPU RF, so 32KB (0x8000 per shire)
+        # SW-1560: This is not an elegant way to specify addresses because we need to know in advance the address
+        # range. Here we assume that thew input size is 2MB.
+        # The 1st MB is used to for a base address for each shire (each shire points to a 32KB block).
+        # The 2nd MB is to accommodate different strides.
+        # Ideally we should specify an input size and let this function calculate the tl_addr_list
+        # and the tl_stride_list
         tl_addr_list = [random.randint(0, 0x8000 * shires - 1) & 0xFFFFFFFFFFC0 for i in range(minions_per_shire)]
         
         tl_offset_list = [0] * minions_per_shire
@@ -97,7 +103,8 @@ def generate_tensorloads(shires, target_dir, output_type, num_iter, total_iter, 
         tl_num_lines_list = [random.randint(min_tl_line, max_tl_line) for i in range(minions_per_shire)]
 
         # Stride here is speficied in lines
-        tl_stride_list =  [(random.randint(1,1024) << 6) for i in range(minions_per_shire)]
+        # SW-1560: Set max value to 224 instead of 1024
+        tl_stride_list =  [(random.randint(1,224) << 6) for i in range(minions_per_shire)]
 
         tl_coop_csr_list = [0] * minions_per_shire
 

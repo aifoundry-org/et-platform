@@ -10,6 +10,7 @@
 
 get_filename_component(SHARED_KERNEL_SRC_DIR "shared" ABSOLUTE)
 get_filename_component(SHARED_KERNEL_INC_DIR "shared/include" ABSOLUTE)
+get_filename_component(SCRIPTS_KERNEL_DIR "scripts" ABSOLUTE)
 
 # Helper function for creating different instances of randomized tests
 # In this case we expect that a different instance of an elf file will be compiled
