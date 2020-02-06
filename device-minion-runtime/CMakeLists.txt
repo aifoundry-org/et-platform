@@ -28,6 +28,8 @@ set(devicefw_DEVICE_API_PROVIDER "module" CACHE STRING "Provider of device-api l
 set_property(CACHE devicefw_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
 set(devicefw_CODE_SIGNING_TOOLS_PROVIDER "module" CACHE STRING "Provider of code signing tools library")
 set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module" "package")
+set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
+set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
 
 
 option(ENABLE_SYSEMU "Enable building sysemu" OFF)
@@ -47,6 +49,10 @@ list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
 
 option(BUILD_DOC "Build documentation" ON)
 option(BUILD_FLASH_IMAGE "Build the flash image" OFF)
+
+# Git configuration options to pass when building projects we clone
+# when building an external project
+set(GIT_CONFIG_OPTIONS "http.sslVerify=false http.proxy=http://sc-squid-sw.esperanto.ai:3128")
 
 #Make sure that custom modules are loaded
 list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/cmake)

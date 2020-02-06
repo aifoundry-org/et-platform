@@ -1,0 +1,36 @@
+#------------------------------------------------------------------------------
+# Copyright (C) 2020, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+#------------------------------------------------------------------------------
+cmake_minimum_required(VERSION 3.5)
+
+# simplify variable expansion
+cmake_policy(SET CMP0053 NEW)
+cmake_policy(SET CMP0010 NEW)
+
+project(flash-tool NONE)
+
+include(ExternalProject)
+
+ExternalProject_Add(flash-tool
+  PREFIX flash-tool
+  GIT_REPOSITORY git@gitlab.esperanto.ai:software/firmware-flash-tool.git
+  GIT_TAG 1ba6f254a17d644e83d1e552daaeb3dcf8caece8
+  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/esperanto-flash-tool
+  LOG_UPDATE TRUE
+  LOG_PATCH TRUE
+  # Compile the tools for x86
+  CMAKE_ARGS
+    -DCMAKE_INSTALL_PREFIX=${DEVFW_EXTERNAL_INSTALL_PREFIX}
+    -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+    -DCMAKE_C_COMPILER=gcc
+    ${EXTERNAL_PROJECT_ENABLE_CCACHE}
+    ${EXTERNAL_PROJECT_CCACHE}
+  LOG_TEST TRUE
+  BUILD_ALWAYS 1
+  )
