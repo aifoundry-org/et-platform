@@ -38,7 +38,7 @@ set(CMAKE_GET_GIT_VERSION ${GET_GIT_VERSION_ABS_PATH}            CACHE PATH   "g
 # may need -funwind-tables for backtrace
 # FreeRTOS is not compatible with -Wduplicated-cond and -Wduplicated-branches at -Og or higher
 set(CMAKE_C_FLAGS "-Og -g3 -std=gnu11 --specs=nano.specs -mcmodel=medany -march=rv64imf -mabi=lp64f \
--flto -ffunction-sections -fdata-sections -fstack-usage -Wall -Wextra -Werror -Wdouble-promotion -Wformat \
+-ffunction-sections -fdata-sections -fstack-usage -Wall -Wextra -Werror -Wdouble-promotion -Wformat \
 -Wnull-dereference -Wswitch-enum -Wshadow -Wstack-usage=256 \
 -Wpointer-arith -Wundef -Wbad-function-cast -Wcast-qual -Wcast-align -Wconversion -Wlogical-op \
 -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wno-main" CACHE STRING "c flags" FORCE)
@@ -105,6 +105,7 @@ macro(add_riscv_executable TARGET_NAME)
         set(ELF_EXE_LINKER_FLAGS "-nostdlib -nostartfiles -Wl,--gc-sections -Xlinker -Map=${MAP_FILE}")
     endif()
 
+    set_target_properties(${ELF_FILE} PROPERTIES COMPILE_FLAGS "-flto")
     set_target_properties(${ELF_FILE} PROPERTIES LINK_FLAGS ${ELF_EXE_LINKER_FLAGS})
 
     if (DEFINED LINKER_SCRIPT_DEPENDENCY)

@@ -72,12 +72,12 @@ else()
 endif()
 message("Esperanto Device API Found: ${esperanto-device-api_FOUND}")
 
-add_subdirectory("shared/include")
+add_subdirectory("shared/")
 add_subdirectory("MachineMinion")
 add_subdirectory("MasterMinion")
 add_subdirectory("WorkerMinion")
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ServiceProcessorROM/CMakeLists.txt")
+if(BUILD_SP_ROM)
     add_subdirectory("ServiceProcessorROM")
 endif()
 
@@ -86,3 +86,8 @@ add_subdirectory("ServiceProcessorBL2")
 add_subdirectory("ServiceProcessor")
 
 add_subdirectory("kernels")
+
+install(
+  PROGRAMS elftohex.py
+  DESTINATION ${BIN_INSTALL_DIR}
+  COMPONENT elftohex)

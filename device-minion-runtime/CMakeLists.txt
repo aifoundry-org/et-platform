@@ -13,6 +13,8 @@ get_filename_component(FIRMWARE_TOOLS_DIR "firmware-tools" ABSOLUTE)
 cmake_minimum_required(VERSION 3.5)
 
 include(ExternalProject)
+include(GNUInstallDirs)
+cmake_policy(SET CMP0076 NEW)
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
@@ -34,6 +36,9 @@ set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "packa
 
 option(ENABLE_SYSEMU "Enable building sysemu" OFF)
 option(ENABLE_ZEBU_BAUD_RATE "Set the baud rate to be that fo the current Zebu builds" OFF)
+# Temporary option to enable building the SP ROM as part of device-firmware to be used
+# to transition/move the SP_ROM in sw-platform
+option(BUILD_SP_ROM "Enable building the SP-ROM in this module" ON)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
