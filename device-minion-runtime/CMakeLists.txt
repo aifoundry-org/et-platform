@@ -33,12 +33,7 @@ set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module
 set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
 set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
 
-
-option(ENABLE_SYSEMU "Enable building sysemu" OFF)
 option(ENABLE_ZEBU_BAUD_RATE "Set the baud rate to be that fo the current Zebu builds" OFF)
-# Temporary option to enable building the SP ROM as part of device-firmware to be used
-# to transition/move the SP_ROM in sw-platform
-option(BUILD_SP_ROM "Enable building the SP-ROM in this module" ON)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
@@ -87,7 +82,6 @@ set(FLASH_IMAGE_DEPS "" CACHE INTERNAL "")
 
 add_subdirectory(src)
 add_subdirectory(tools)
-add_subdirectory(flash_image)
 
 ### Add package information
 include(CMakePackageConfigHelpers)
