@@ -87,7 +87,6 @@ set(FLASH_IMAGE_DEPS "" CACHE INTERNAL "")
 
 add_subdirectory(src)
 add_subdirectory(tools)
-add_subdirectory(flash_image)
 
 ### Add package information
 include(CMakePackageConfigHelpers)
