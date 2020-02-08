@@ -7,9 +7,6 @@
 [submodule "src/MasterMinion/device_api"]
 	path = src/MasterMinion/device_api
 	url = git@gitlab.esperanto.ai:software/device-api.git
-[submodule "tools/sw-sysemu"]
-	path = tools/sw-sysemu
-	url = git@gitlab.esperanto.ai:software/sw-sysemu.git
 [submodule "src/ServiceProcessorROM"]
 	path = src/ServiceProcessorROM
 	url = git@gitlab.esperanto.ai:software/ServiceProcessorROM.git

@@ -33,8 +33,6 @@ set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module
 set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
 set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
 
-
-option(ENABLE_SYSEMU "Enable building sysemu" OFF)
 option(ENABLE_ZEBU_BAUD_RATE "Set the baud rate to be that fo the current Zebu builds" OFF)
 # Temporary option to enable building the SP ROM as part of device-firmware to be used
 # to transition/move the SP_ROM in sw-platform
