@@ -36,12 +36,22 @@ set(SOURCES
     src/bl2_minion_pll_and_dll.c
     src/bl2_timer.c
     src/crc32.c
-    ${SHARED_SRC_DIR}/constant_memory_compare.c
     src/memory_copy_8x32.S
+    # This file get compiled different based on the serial_device.h configuration of each target
     ${SHARED_SRC_DIR}/serial.c
+    src/bl2_build_configuration.c)
+
+if (BUILD_STAND_ALONE)
+
+else()
+
+  list(APPEND SOURCES
+    ${SHARED_SRC_DIR}/constant_memory_compare.c
     ${SHARED_SRC_DIR}/backtrace.c
     ${SHARED_SRC_DIR}/pcie.c
-    src/bl2_build_configuration.c)
+    )
+
+endif(BUILD_STAND_ALONE)
 
 set(TARGET_NAME ServiceProcessorBL2)
 set(LINKER_SCRIPT src/sections.ld)
@@ -49,6 +59,7 @@ set(ZEBU_TARGET SP_RAM)
 set(ZEBU_FILENAME ServiceProcessorBL2)
 
 include_directories(include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared/include)
 include_directories(${SHARED_INC_DIR})
 include_directories(${SHARED_HAL_DIR})
 include_directories(${FREERTOS_INC_DIRS})
@@ -61,10 +72,17 @@ add_riscv_executable(${TARGET_NAME} ${CMAKE_CURRENT_LIST_DIR} ${SOURCES})
 list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
 set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
+if (BUILD_STAND_ALONE)
+  target_link_libraries(${TARGET_NAME}.elf esperanto-fw::bootrom_helpers)
+  set(EXPORT_NAME EsperantoBootLoaderTargets)
+else()
+  set(EXPORT_NAME esperanto-dev-fw-targets)
+endif()
+
 install(TARGETS ${TARGET_NAME}.elf
-  EXPORT esperanto-dev-fw-targets
+  EXPORT ${EXPORT_NAME}
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
-  COMPONENT service-processor)
+  COMPONENT bootloader)
 
 string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
 foreach(FILE ${OUTPUT_LIST})
