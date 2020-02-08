@@ -77,10 +77,6 @@ add_subdirectory("MachineMinion")
 add_subdirectory("MasterMinion")
 add_subdirectory("WorkerMinion")
 
-if(BUILD_SP_ROM)
-    add_subdirectory("ServiceProcessorROM")
-endif()
-
 add_subdirectory("ServiceProcessorBL1")
 add_subdirectory("ServiceProcessorBL2")
 add_subdirectory("ServiceProcessor")

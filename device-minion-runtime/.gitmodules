@@ -7,6 +7,3 @@
 [submodule "src/MasterMinion/device_api"]
 	path = src/MasterMinion/device_api
 	url = git@gitlab.esperanto.ai:software/device-api.git
-[submodule "src/ServiceProcessorROM"]
-	path = src/ServiceProcessorROM
-	url = git@gitlab.esperanto.ai:software/ServiceProcessorROM.git
