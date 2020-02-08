@@ -77,8 +77,8 @@ add_subdirectory("MachineMinion")
 add_subdirectory("MasterMinion")
 add_subdirectory("WorkerMinion")
 
-add_subdirectory("ServiceProcessorBL1")
-add_subdirectory("ServiceProcessorBL2")
+add_subdirectory("BootLoader/ServiceProcessorBL1")
+add_subdirectory("BootLoader/ServiceProcessorBL2")
 add_subdirectory("ServiceProcessor")
 
 if(BUILD_TEST_KERNELS)
