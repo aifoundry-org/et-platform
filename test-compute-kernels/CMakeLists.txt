@@ -12,6 +12,63 @@ get_filename_component(SHARED_KERNEL_SRC_DIR "shared" ABSOLUTE)
 get_filename_component(SHARED_KERNEL_INC_DIR "shared/include" ABSOLUTE)
 get_filename_component(SCRIPTS_KERNEL_DIR "scripts" ABSOLUTE)
 
+
+set(COMMON_KERNEL_SRC_FILES
+  ${SHARED_KERNEL_SRC_DIR}/crt.S
+  ${SHARED_SRC_DIR}/log.c
+  ${SHARED_SRC_DIR}/message.c
+  ${SHARED_SRC_DIR}/printf.c
+  )
+
+# Helper function for creating different instances of randomized tests
+# In this case we expect that a different instance of an elf file will be compiled
+# based on an auto-generated header
+# Arguments:
+# TEST_NAME: Name of the test
+# SOURCES : Input compile sources
+# INCLUDES : Test include directories
+macro(test_kernel)
+  cmake_parse_arguments(TEST_KERNEL
+    ""
+    "NAME;"
+    "SOURCES;INCLUDES"
+    ${ARGN})
+
+  set(SOURCES
+    ${COMMON_KERNEL_SRC_FILES}
+    ${TEST_KERNEL_SOURCES}
+    )
+
+  set(TARGET_NAME ${TEST_KERNEL_NAME})
+  set(LINKER_SCRIPT ${SHARED_KERNEL_SRC_DIR}/sections.ld)
+  set(LINKER_SCRIPT_DEPENDENCY ${SHARED_INC_DIR}/layout.ld)
+  set(ZEBU_TARGET DDR_NEW)
+  set(ZEBU_FILENAME memImage)
+
+  include_directories(${TEST_KERNEL_INCLUDES})
+  include_directories(${SHARED_INC_DIRS})
+  include_directories(${SHARED_KERNEL_INC_DIR})
+  include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
+
+  add_riscv_executable(${TARGET_NAME} ${SOURCES})
+
+  install(TARGETS ${TARGET_NAME}.elf
+    EXPORT esperanto-fw-targets
+    RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels
+    COMPONENT kernels)
+
+  message("${TEST_KERNEL_NAME} kernel hex to install ${TARGET_NAME_OUTPUT}")
+
+  string(REPLACE " " ";" OUTPUT_LIST ${${TARGET_NAME}_OUTPUT})
+  foreach(FILE ${OUTPUT_LIST})
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${FILE}
+      DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/kernels/${TEST_KERNEL_NAME}
+      COMPONENT zebu)
+  endforeach(FILE)
+
+endmacro()
+
+
 # Helper function for creating different instances of randomized tests
 # In this case we expect that a different instance of an elf file will be compiled
 # based on an auto-generated header
@@ -52,10 +109,7 @@ macro(randomized_test)
       DEPENDS ${TEST_BUILD_FOLDER}/gen.done)
 
     set(SOURCES
-      ${SHARED_KERNEL_SRC_DIR}/crt.S
-      ${SHARED_SRC_DIR}/log.c
-      ${SHARED_SRC_DIR}/printf.c # log needs printf.c to build string
-      ${SHARED_SRC_DIR}/message.c # log needs message.c to send log message to master minion
+      ${COMMON_KERNEL_SRC_FILES}
       ${RANDOMIZED_TEST_SOURCES}
       )
 
