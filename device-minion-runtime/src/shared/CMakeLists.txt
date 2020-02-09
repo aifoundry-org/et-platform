@@ -17,17 +17,17 @@ add_library(bootrom_helpers STATIC
 
 target_include_directories(bootrom_helpers PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/bootrom_helpers>)
+  $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/bootrom_helpers>)
 
 
 install(
   TARGETS bootrom_helpers
   EXPORT esperanto-fw-targets
-  LIBRARY
-    DESTINATION lib
+  ARCHIVE
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
     COMPONENT boorom_helpers
   PUBLIC_HEADER
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/bootrom_helpers
+    DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw/bootrom_helpers
     COMPONENT bootrom_helpers
 )
 
@@ -36,6 +36,69 @@ install(
     include/boot_config.h
     include/constant_memory_compare.h
   DESTINATION
-    ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/bootrom_helpers
+    ${INCLUDE_INSTALL_DIR}/esperanto-fw/bootrom_helpers
   COMPONENT bootrom_helpers
+  )
+
+
+add_library(fw_helpers STATIC
+  src/log.c
+  src/message.c
+  src/printf.c
+  )
+target_include_directories(fw_helpers PUBLIC
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+  "$<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/fw-helpers>"
+  )
+
+install(
+  TARGETS fw_helpers
+  EXPORT esperanto-fw-targets
+  ARCHIVE
+    DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
+    COMPONENT fw_helpers
+  PUBLIC_HEADER
+    DESTINATION ${INCLUDE_INSTALL_DIR}/esperanto-fw/fw-helpers
+    COMPONENT fw-helpers
+  )
+ install(
+   FILES
+    include/atomic.h
+    include/cacheops.h
+    include/common.h
+    include/ec_domain_parameters.h
+    include/esr_defines.h
+    include/fcc.h
+    include/flb.h
+    include/hal_device.h
+    include/hart.h
+    include/key_derivation_data.h
+    include/kernel_params.h
+    include/layout.h
+    include/log.h
+    include/log_levels.h
+    include/macros.h
+    include/minion_esr_defines.h
+    include/movellus_pll_modes_config.h
+    include/printf.h
+    include/serial.h
+    include/service_processor_ROM_data.h
+    include/service_processor_spi_flash.h
+    include/sp_otp_data_layout.h
+    include/spio_DW_apb_ssi_config.h
+    include/syscall.h
+    include/tensor.h
+    include/trap_handler.h
+    include/vpu.h
+  DESTINATION
+    ${INCLUDE_INSTALL_DIR}/esperanto-fw/fw-helpers
+  COMPONENT fw-types
+  )
+
+install(
+  DIRECTORY
+    include/etsoc_hal
+  DESTINATION
+    ${INCLUDE_INSTALL_DIR}/esperanto-fw/fw-helpers
+  COMPONENT fw-types
   )
