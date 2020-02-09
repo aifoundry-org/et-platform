@@ -84,6 +84,6 @@ add_subdirectory("ServiceProcessor")
 add_subdirectory("kernels")
 
 install(
-  PROGRAMS elftohex.py
-  DESTINATION ${BIN_INSTALL_DIR}
-  COMPONENT elftohex)
+  PROGRAMS elftohex.py get_git_hash.py get_git_version.py
+  DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw
+  COMPONENT tools)

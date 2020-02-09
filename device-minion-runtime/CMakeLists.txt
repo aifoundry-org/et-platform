@@ -48,7 +48,6 @@ set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
 list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
 
 option(BUILD_DOC "Build documentation" ON)
-option(BUILD_FLASH_IMAGE "Build the flash image" OFF)
 
 # Git configuration options to pass when building projects we clone
 # when building an external project
