@@ -230,7 +230,7 @@ if(NOT BUILD_TEST_KERNELS)
 
   # Create the *-config.cmake and *-config-version.cmake files
   configure_package_config_file(EsperantoTestKernelsConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoTesctKernelsConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfig.cmake
     INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoTestKernels/cmake
     PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
     )
