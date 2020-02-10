@@ -81,7 +81,9 @@ add_subdirectory("ServiceProcessorBL1")
 add_subdirectory("ServiceProcessorBL2")
 add_subdirectory("ServiceProcessor")
 
-add_subdirectory("kernels")
+if(BUILD_TEST_KERNELS)
+  add_subdirectory("kernels")
+endif()
 
 install(
   PROGRAMS elftohex.py get_git_hash.py get_git_version.py
