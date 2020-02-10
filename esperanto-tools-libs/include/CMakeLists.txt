@@ -12,7 +12,6 @@ if(esperanto-fw_FOUND)
   get_property(MASTER_MINION_ELF TARGET esperanto-fw::MasterMinion.elf PROPERTY LOCATION)
   get_property(MACHINE_MINION_ELF TARGET esperanto-fw::MachineMinion.elf PROPERTY LOCATION)
   get_property(WORKER_MINION_ELF TARGET esperanto-fw::WorkerMinion.elf PROPERTY LOCATION)
-  get_property(EMPTY_KERNEL_ELF TARGET esperanto-fw::empty.elf PROPERTY LOCATION)
 endif()
 
 configure_file (

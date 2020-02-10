@@ -159,6 +159,11 @@ find_package(esperanto-fw
   )
 message("Esperanto-FW found: " ${esperanto-fw_FOUND})
 
+find_package(EsperantoTestKernels
+   NO_DEFAULT_PATH
+  )
+message("EsperantoTestKernels found: " ${EsperantoTestKernels_FOUND})
+
 # Add rules for auto-generated headers.
 add_subdirectory(include)
 add_subdirectory(docs)
