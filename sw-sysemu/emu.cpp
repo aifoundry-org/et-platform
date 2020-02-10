@@ -1086,7 +1086,7 @@ static uint64_t csrget(uint16_t src1)
 // LCOV_EXCL_STOP
     case CSR_LOCK_VA:
     case CSR_UNLOCK_VA:
-        require_lock_unlock_enabled();
+        require_feature_u_cacheops();
         val = 0;
         break;
     case CSR_PORTCTRL0:
