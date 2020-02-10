@@ -14,7 +14,9 @@
 #include "memory_error.h"
 #include "memory_region.h"
 #include "null_region.h"
+#ifdef SYS_EMU
 #include "pcie_region.h"
+#endif
 #include "peripheral_region.h"
 #include "scratch_region.h"
 #include "sparse_region.h"
@@ -88,7 +90,9 @@ struct MainMemory {
         spio_base           = 0x0040000000ULL,
         scp_base            = 0x0080000000ULL,
         sysreg_base         = 0x0100000000ULL,
+#ifdef SYS_EMU
         pcie_base           = 0x4000000000ULL,
+#endif
         dram_base           = 0x8000000000ULL,
     };
 
@@ -133,7 +137,9 @@ struct MainMemory {
     SvcProcRegion    <spio_base, 1_GiB>                 spio_space{};
     ScratchRegion    <scp_base, 4_MiB, EMU_NUM_SHIRES>  scp_space{};
     SysregRegion     <sysreg_base, 4_GiB>               sysreg_space{};
+#ifdef SYS_EMU
     PcieRegion       <pcie_base, 256_GiB>               pcie_space{};
+#endif
     SparseRegion     <dram_base, EMU_DRAM_SIZE, 16_MiB> dram_space{};
 
 protected:
@@ -151,6 +157,7 @@ protected:
     }
 
     // This array must be sorted by region base address
+#ifdef SYS_EMU
     std::array<MemoryRegion*,8> regions = {{
         &pu_maxion_space,
         &pu_io_space,
@@ -161,6 +168,17 @@ protected:
         &pcie_space,
         &dram_space
     }};
+#else
+    std::array<MemoryRegion*,7> regions = {{
+        &pu_maxion_space,
+        &pu_io_space,
+        &pu_mbox_space,
+        &spio_space,
+        &scp_space,
+        &sysreg_space,
+        &dram_space
+    }};
+#endif
 };
 
 
