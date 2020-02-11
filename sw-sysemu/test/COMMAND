@@ -1,1 +1,0 @@
-g++ -g -I$SGPU/emu ../cvt.cpp test1.cpp

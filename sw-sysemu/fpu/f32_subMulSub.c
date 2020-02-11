@@ -8,6 +8,24 @@
 * agreement/contract under which the program(s) have been supplied.
 *-------------------------------------------------------------------------*/
 
-#include "log.h"
+#include "softfloat/platform.h"
+#include "softfloat/internals.h"
+#include "softfloat/softfloat.h"
 
-inst_state_change emu_state_change;
+float32_t f32_subMulSub( float32_t a, float32_t b, float32_t c )
+{
+    union ui32_f32 uA;
+    uint_fast32_t uiA;
+    union ui32_f32 uB;
+    uint_fast32_t uiB;
+    union ui32_f32 uC;
+    uint_fast32_t uiC;
+
+    uA.f = a;
+    uiA = uA.ui ^ 0x80000000;
+    uB.f = b;
+    uiB = uB.ui;
+    uC.f = c;
+    uiC = uC.ui;
+    return softfloat_mulAddF32( uiA, uiB, uiC, 0 );
+}

@@ -1,4 +1,12 @@
-/* vim: set ts=8 sw=4 et sta cin cino=\:0s,l1,g0,N-s,E-s,i0,+2s,(0,W2s : */
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------*/
 
 #ifndef BEMU_FPU_H
 #define BEMU_FPU_H
@@ -13,6 +21,16 @@
 // functions with the same name in the fpu namespace.
 // ---------------------------------------------------------------------------
 
+extern "C" float32_t f32_copySign(float32_t, float32_t);
+extern "C" float32_t f32_copySignNot(float32_t, float32_t);
+extern "C" float32_t f32_copySignXor(float32_t, float32_t);
+
+extern "C" float32_t f32_maxNum(float32_t, float32_t);
+extern "C" float32_t f32_minNum(float32_t, float32_t);
+
+extern "C" float32_t f32_maximumNumber(float32_t, float32_t);
+extern "C" float32_t f32_minimumNumber(float32_t, float32_t);
+
 float11_t f32_to_f11(float32_t);
 float32_t f11_to_f32(float11_t);
 
@@ -26,6 +44,10 @@ float32_t f32_exp2(float32_t);
 extern "C" float32_t f32_log2(float32_t);
 float32_t f32_rcp(float32_t);
 float32_t f32_rsqrt(float32_t);
+
+extern "C" float32_t f32_mulSub(float32_t, float32_t, float32_t);
+extern "C" float32_t f32_subMulAdd(float32_t, float32_t, float32_t);
+extern "C" float32_t f32_subMulSub(float32_t, float32_t, float32_t);
 
 float32_t f1632_mulAdd2(float16_t, float16_t, float16_t, float16_t);
 float32_t f1632_mulAdd3(float16_t, float16_t, float16_t, float16_t, float32_t);

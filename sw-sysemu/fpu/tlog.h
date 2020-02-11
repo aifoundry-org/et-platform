@@ -1,15 +1,15 @@
-/* Automatically generated from the RTL flog ROM files */
+/*-------------------------------------------------------------------------
+* Copyright (C) 2020, Esperanto Technologies Inc.
+* The copyright to the computer program(s) herein is the
+* property of Esperanto Technologies, Inc. All Rights Reserved.
+* The program(s) may be used and/or copied only with
+* the written permission of Esperanto Technologies and
+* in accordance with the terms and conditions stipulated in the
+* agreement/contract under which the program(s) have been supplied.
+*-------------------------------------------------------------------------*/
+
 #ifndef BEMU_TLOG_H
 #define BEMU_TLOG_H
-
-/*
- * This file is generated from `trans_log_rom_case_c0.v` and
- * `trans_log_rom_case_c1c2.v` using the script `create_bemu_flog_rom`.
- *
- * bemu(c2) := rtl(c2)
- * bemu(c1) := (-rtl(c1) & 0xffff) << 18
- * bemu(c0) := rtl(c0) << 31
- */
 
 static const struct { unsigned long long c2, c1, c0; } tlog[64] = {
     /*  0 */ { 0x3c8, 0x2e29c0000,  0xe2a8eb00000000 },

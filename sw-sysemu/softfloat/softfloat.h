@@ -213,16 +213,6 @@ bool f32_le_quiet( float32_t, float32_t );
 bool f32_lt_quiet( float32_t, float32_t );
 bool f32_isSignalingNaN( float32_t );
 uint_fast16_t f32_classify( float32_t );
-float32_t f32_mulSub( float32_t, float32_t, float32_t );
-float32_t f32_subMulAdd( float32_t, float32_t, float32_t );
-float32_t f32_subMulSub( float32_t, float32_t, float32_t );
-float32_t f32_maxNum( float32_t, float32_t );
-float32_t f32_minNum( float32_t, float32_t );
-float32_t f32_maximumNumber( float32_t, float32_t );
-float32_t f32_minimumNumber( float32_t, float32_t );
-float32_t f32_copySign( float32_t, float32_t );
-float32_t f32_copySignNot( float32_t, float32_t );
-float32_t f32_copySignXor( float32_t, float32_t );
 
 /*----------------------------------------------------------------------------
 | 64-bit (double-precision) floating-point operations.

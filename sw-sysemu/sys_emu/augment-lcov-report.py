@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
 
+# -------------------------------------------------------------------------
+# Copyright (C) 2020, Esperanto Technologies Inc.
+# The copyright to the computer program(s) herein is the
+# property of Esperanto Technologies, Inc. All Rights Reserved.
+# The program(s) may be used and/or copied only with
+# the written permission of Esperanto Technologies and
+# in accordance with the terms and conditions stipulated in the
+# agreement/contract under which the program(s) have been supplied.
+# -------------------------------------------------------------------------
+
 import re
 import sys
+
 
 def GetEmuCpp():
     '''Get emu.cpp section from coverage file'''
@@ -27,6 +38,7 @@ def GetEmuCpp():
 
     return emucpp
 
+
 def GetLineCoverage(emucpp):
     '''Get covered and uncovered lines'''
 
@@ -45,6 +57,7 @@ def GetLineCoverage(emucpp):
     cov = {int(line):1 for line in covered}
 
     return (cov, nc)
+
 
 def GetCSRCoverage():
     '''Get CSR read and write coverage'''
@@ -132,6 +145,7 @@ def GetCSRCoverage():
 
     return (csr_status, cov_read_count, cov_write_count, nc_read_count, nc_write_count)
 
+
 def UpdateCoverageReport(csr_status, cov_read_count, cov_write_count, nc_read_count, nc_write_count):
     print("Sys_emu CSR high level coverage")
 
@@ -180,6 +194,6 @@ def UpdateCoverageReport(csr_status, cov_read_count, cov_write_count, nc_read_co
                 
             f.write(line)
 
+
 (csr_status, cov_read_count, cov_write_count, nc_read_count, nc_write_count) = GetCSRCoverage()
 UpdateCoverageReport(csr_status, cov_read_count, cov_write_count, nc_read_count, nc_write_count)
-

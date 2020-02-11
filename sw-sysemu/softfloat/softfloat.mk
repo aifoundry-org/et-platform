@@ -63,9 +63,6 @@ softfloat_c_srcs = \
 	softfloat/f16_to_ui64_r_minMag.c \
 	softfloat/f32_add.c \
 	softfloat/f32_classify.c \
-	softfloat/f32_copySign.c \
-	softfloat/f32_copySignNot.c \
-	softfloat/f32_copySignXor.c \
 	softfloat/f32_div.c \
 	softfloat/f32_eq.c \
 	softfloat/f32_eq_signaling.c \
@@ -74,19 +71,12 @@ softfloat_c_srcs = \
 	softfloat/f32_le_quiet.c \
 	softfloat/f32_lt.c \
 	softfloat/f32_lt_quiet.c \
-	softfloat/f32_maxNum.c \
-	softfloat/f32_maximumNumber.c \
-	softfloat/f32_minNum.c \
-	softfloat/f32_minimumNumber.c \
 	softfloat/f32_mul.c \
 	softfloat/f32_mulAdd.c \
-	softfloat/f32_mulSub.c \
 	softfloat/f32_rem.c \
 	softfloat/f32_roundToInt.c \
 	softfloat/f32_sqrt.c \
 	softfloat/f32_sub.c \
-	softfloat/f32_subMulAdd.c \
-	softfloat/f32_subMulSub.c \
 	softfloat/f32_to_f128.c \
 	softfloat/f32_to_f16.c \
 	softfloat/f32_to_f64.c \
