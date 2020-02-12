@@ -81,7 +81,7 @@ struct SparseRegion : public MemoryRegion
             offset = 0;
         }
         bemu::dump_data(os, storage[lo], offset,
-                        1 + ((pos + n - 1) % M), memory_reset_value[0]);
+                        1 + ((pos + n - 1) % M) - offset, memory_reset_value[0]);
     }
 
     // For exposition only
