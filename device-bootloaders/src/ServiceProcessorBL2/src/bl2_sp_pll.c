@@ -13,7 +13,7 @@
 #include "etsoc_hal/pshire_esr.h"
 #include "hal_device.h"
 
-#include "movellus_pll_modes_config.h"
+#include "movellus_hpdpll_modes_config.h"
 
 #define PLL_LOCK_TIMEOUT 10000
 
@@ -74,14 +74,14 @@ static int configure_pll(volatile uint32_t * pll_registers, uint8_t mode, PLL_ID
     uint8_t entry_index;
     uint32_t pll_settings_index;
     uint32_t reg0;
-    static const uint32_t pll_settings_count = sizeof(gs_pll_settings) / sizeof(PLL_SETTING_t);
+    static const uint32_t pll_settings_count = sizeof(gs_hpdpll_settings) / sizeof(HPDPLL_SETTING_t);
 
     if (0 == mode) {
         return 0;
     }
 
     for (pll_settings_index = 0; pll_settings_index < pll_settings_count; pll_settings_index++) {
-        if (gs_pll_settings[pll_settings_index].mode == mode) {
+        if (gs_hpdpll_settings[pll_settings_index].mode == mode) {
             goto FOUND_CONFIG_DATA;
         }
     }
@@ -97,9 +97,9 @@ FOUND_CONFIG_DATA:
     }
 
     // program the PLL registers using generated configuration data
-    for (entry_index = 0; entry_index < gs_pll_settings[pll_settings_index].count; entry_index++) {
-        register_index = gs_pll_settings[pll_settings_index].offsets[entry_index];
-        register_value = gs_pll_settings[pll_settings_index].values[entry_index];
+    for (entry_index = 0; entry_index < gs_hpdpll_settings[pll_settings_index].count; entry_index++) {
+        register_index = gs_hpdpll_settings[pll_settings_index].offsets[entry_index];
+        register_value = gs_hpdpll_settings[pll_settings_index].values[entry_index];
         pll_registers[register_index] = register_value;
     }
 
