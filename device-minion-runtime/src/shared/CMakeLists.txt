@@ -80,6 +80,7 @@ install(
     include/macros.h
     include/minion_esr_defines.h
     include/movellus_pll_modes_config.h
+    include/movellus_hpdpll_modes_config.h
     include/printf.h
     include/serial.h
     include/service_processor_ROM_data.h
