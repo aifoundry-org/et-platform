@@ -13,13 +13,15 @@ add_subdirectory("include")
 add_library(bootrom_helpers STATIC
   src/boot_config.c
   src/constant_memory_compare.c
+  src/pcie.c
   )
 
 target_include_directories(bootrom_helpers PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}/esperanto-fw/bootrom_helpers>)
 
-
+target_include_directories(bootrom_helpers PRIVATE
+                                ${SHARED_INC_DIRS})
 install(
   TARGETS bootrom_helpers
   EXPORT esperanto-fw-targets
@@ -35,6 +37,7 @@ install(
   FILES
     include/boot_config.h
     include/constant_memory_compare.h
+    include/pcie.h
   DESTINATION
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/bootrom_helpers
   COMPONENT bootrom_helpers
