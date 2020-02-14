@@ -13,6 +13,7 @@
 #include "elfio/elfio.hpp"
 #include "emu_gio.h"
 #include "load.h"
+#include "main_memory.h"
 
 namespace bemu {
 
@@ -51,6 +52,9 @@ void load_elf(MainMemory& mem, const char* filename)
                          idx, sec->get_name().c_str(), vma, lma, sec->get_size(),
                          sec->get_type(), sec->get_flags());
 
+            if (lma >= MainMemory::dram_base)
+                lma &= ~0x4000000000ULL;
+
             mem.init(lma, sec->get_size(), sec->get_data());
         }
     }
@@ -70,6 +74,8 @@ void load_raw(MainMemory& mem, const char* filename, unsigned long long addr)
         std::streamsize count = file.gcount();
         if (count <= 0)
             break;
+        if (addr >= MainMemory::dram_base)
+            addr &= ~0x4000000000ULL;
         mem.init(addr, count, reinterpret_cast<MainMemory::const_pointer>(fbuf));
         addr += count;
     }
