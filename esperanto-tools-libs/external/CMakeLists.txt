@@ -308,7 +308,8 @@ if (NOT elfio_FOUND)
   set(elfio_INSTALL ${RT_EXTERNAL_INSTALL_PREFIX})
   ExternalProject_Add(elfio
     PREFIX ${elfio_PREFIX}
-    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/elfio
+    GIT_REPOSITORY https://github.com/serge1/ELFIO.git
+    GIT_TAG 580da2467b3d7da4c817d45a99a367e4b0d6d326
     PATCH_COMMAND autoreconf -i <SOURCE_DIR>
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix ${elfio_INSTALL} ${ELFIO_CCACHE}
     BUILD_COMMAND $(MAKE) -j ${COMPILE_THREADS}
