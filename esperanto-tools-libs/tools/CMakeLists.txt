@@ -30,7 +30,9 @@ set(COMMON_LIBRARIES
 
 add_executable(runtime-tester runtime_tester.cc)
 message("External dependencies: " ${external_project_dependencies})
-add_dependencies(runtime-tester ${external_project_dependencies})
+if (${external_project_dependencies})
+  add_dependencies(runtime-tester ${external_project_dependencies})
+endif()
 target_link_libraries(runtime-tester ${COMMON_LIBRARIES})
 
 ## Build static library
