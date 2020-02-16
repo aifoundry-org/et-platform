@@ -56,3 +56,11 @@ add_custom_target(doc-runtime
         "${CMAKE_CURRENT_BINARY_DIR}"
         "${SPHINX_HTML_DIR}"
     COMMENT "Building HTML documentation with Sphinx")
+
+
+install(
+    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+    DESTINATION ${DOCUMENTATION_INSTALL_DIR}
+    COMPONENT documentation
+    EXCLUDE_FROM_ALL
+    )

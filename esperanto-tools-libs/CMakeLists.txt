@@ -42,6 +42,7 @@ set(runtime_SW_SYSEMU_PROVIDER "module" CACHE STRING "Provider of the sw-sysemu 
 set_property(CACHE runtime_SW_SYSEMU_PROVIDER PROPERTY STRINGS "module" "package")
 set(runtime_ELFIO_PROVIDER "module" CACHE STRING "Provider of the sw-sysemu executable")
 set_property(CACHE runtime_ELFIO_PROVIDER PROPERTY STRINGS "module" "package")
+set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 
 execute_process(
   COMMAND git rev-parse --verify HEAD
