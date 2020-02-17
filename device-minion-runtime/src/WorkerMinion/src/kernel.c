@@ -10,7 +10,7 @@
 #include "macros.h"
 #include "message.h"
 #include "printf.h"
-#include "syscall.h"
+#include "syscall_internal.h"
 
 #include <stdbool.h>
 #include <inttypes.h>
@@ -171,7 +171,7 @@ static void pre_kernel_setup(const kernel_params_t* const kernel_params_ptr, __a
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
 
     // arg1 = 0 to enable all thread 1s
-    syscall(SYSCALL_PRE_KERNEL_SETUP, 0, 0, 0);
+    syscall(SYSCALL_PRE_KERNEL_SETUP_INT, 0, 0, 0);
 
     // Second HART (first minion thread 1) in the shire
     // Thread 0s have more init to do than thread 1s, so use a thread 1 for per-shire init
@@ -295,7 +295,7 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     const uint32_t thread_count = (get_shire_id() == MASTER_SHIRE) ? 32 : 64;
     const uint32_t minion_mask = (get_shire_id() == MASTER_SHIRE) ? 0xFFFF0000U : 0xFFFFFFFFU;
 
-    // All accesses to kernel_params must happen before SYSCALL_POST_KERNEL_CLEANUP
+    // All accesses to kernel_params must happen before SYSCALL_POST_KERNEL_CLEANUP_INT
     // evicts all the caches to avoid pulling it back in as a valid line
     const uint64_t kernel_id = kernel_params_ptr->kernel_id;
 
@@ -330,7 +330,7 @@ static void post_kernel_cleanup(const kernel_params_t* const kernel_params_ptr)
     // draining coalescing buffer and evicting L1->L2 and L2->L3
     WAIT_FCC(0);
 
-    syscall(SYSCALL_POST_KERNEL_CLEANUP, 0, 0, 0);
+    syscall(SYSCALL_POST_KERNEL_CLEANUP_INT, 0, 0, 0);
 
     WAIT_FLB(thread_count, 31, result);
 

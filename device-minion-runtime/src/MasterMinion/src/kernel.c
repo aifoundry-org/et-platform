@@ -13,7 +13,7 @@
 #include "mailbox_id.h"
 #include "message.h"
 #include "shire.h"
-#include "syscall.h"
+#include "syscall_internal.h"
 
 #include <esperanto/device-api/device_api.h>
 
@@ -161,7 +161,7 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
         case KERNEL_STATE_RUNNING:
         {
-            kernel_status[kernel_id].start_time = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
+            kernel_status[kernel_id].start_time = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
 
             kernel_status[kernel_id].kernel_state = KERNEL_STATE_RUNNING;
 
@@ -192,7 +192,7 @@ void update_kernel_state(kernel_id_t kernel_id, kernel_state_t kernel_state)
 
         case KERNEL_STATE_COMPLETE:
         {
-            kernel_status[kernel_id].end_time = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
+            kernel_status[kernel_id].end_time = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
             // TODO FIXME mtime is currently 40MHz and not the specified 10MHz for two reasons:
             // 1. RTLMIN-5392: PU RV Timer is dividing clk_100Mhz /25 instead of /10
             // 2. In ZeBu, clk_100 is forced to 1GHz for now - it will reduce to 100MHz eventually.

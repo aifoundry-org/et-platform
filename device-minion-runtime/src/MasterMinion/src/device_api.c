@@ -7,7 +7,7 @@
 #include "log.h"
 #include "mailbox.h"
 #include "message.h"
-#include "syscall.h"
+#include "syscall_internal.h"
 
 
 #include <esperanto/device-api/device_api.h>
@@ -20,7 +20,7 @@ void prepare_device_api_reply(const struct command_header_t* const cmd,
                               struct response_header_t* const rsp)
 {
     rsp->command_info = *cmd;
-    rsp->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
+    rsp->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
 }
 
 log_level_t devapi_loglevel_to_fw(const enum LOG_LEVELS log_level)
@@ -34,7 +34,7 @@ void handle_device_api_message_from_host(const mbox_message_id_t* message_id,
 {
     {
         struct command_header_t* const cmd = (void*) buffer;
-        cmd->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME, 0, 0, 0);
+        cmd->device_timestamp_mtime = (uint64_t)syscall(SYSCALL_GET_MTIME_INT, 0, 0, 0);
     }
 
     if (*message_id == MBOX_DEVAPI_MESSAGE_ID_REFLECT_TEST_CMD)

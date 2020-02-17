@@ -1,4 +1,4 @@
-#include "syscall.h"
+#include "syscall_internal.h"
 #include "broadcast.h"
 #include "cacheops.h"
 #include "esr_defines.h"
@@ -12,7 +12,7 @@
 
 #include <stdint.h>
 
-int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
+int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
 static int64_t ipi_trigger(uint64_t hart_mask, uint64_t shire_id);
 static int64_t enable_thread1(uint64_t hart_disable_mask);
@@ -23,7 +23,6 @@ static int64_t post_kernel_cleanup(void);
 static int64_t init_l1(void);
 static inline void evict_all_l1_ways(uint64_t use_tmask, uint64_t dest_level, uint64_t set, uint64_t num_sets);
 static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level);
-static int64_t unlock_l1(void);
 
 static int64_t evict_l2_start(void);
 static int64_t evict_l2_wait(void);
@@ -46,91 +45,51 @@ static inline void l1_shared_to_split(uint64_t scp_en);
 static inline void l1_split_to_shared(uint64_t scp_enabled);
 static int64_t set_l1_cache_control(uint64_t d1_split, uint64_t scp_en);
 
-int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
+int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
-    int64_t rv;
+    int64_t ret;
     volatile const uint64_t * const mtime_reg = (volatile const uint64_t * const)(R_PU_RVTIM_BASEADDR);
 
-    switch (number)
-    {
-        case SYSCALL_BROADCAST:
-            rv = broadcast_with_parameters(arg1, arg2, arg3);
-        break;
-
-        case SYSCALL_IPI_TRIGGER:
-            rv = ipi_trigger(arg1, arg2);
-        break;
-
-        case SYSCALL_ENABLE_THREAD1:
-            rv = enable_thread1(arg1);
-        break;
-
-        case SYSCALL_PRE_KERNEL_SETUP:
-            rv = pre_kernel_setup(arg1);
-        break;
-
-        case SYSCALL_POST_KERNEL_CLEANUP:
-            rv = post_kernel_cleanup();
-        break;
-
-        case SYSCALL_INIT_L1:
-            rv = init_l1();
-        break;
-
-        case SYSCALL_GET_MTIME:
-            rv = (int64_t)*mtime_reg;
-        break;
-
-        case SYSCALL_EVICT_L1:
-        case SYSCALL_EVICT_L1_ALT:
-            rv = evict_l1(arg1, arg2);
-        break;
-
-        case SYSCALL_UNLOCK_L1:
-            rv = unlock_l1();
-        break;
-
-        case SYSCALL_EVICT_L2:
-            rv = evict_l2();
-        break;
-
-        case SYSCALL_EVICT_L2_WAIT:
-            rv = evict_l2_wait();
-        break;
-
-        case SYSCALL_CACHE_CONTROL:
-        case SYSCALL_CACHE_CONTROL_ALT:
-            rv = set_l1_cache_control(arg1, arg2);
-        break;
-
-        case SYSCALL_FLUSH_L3:
-        case SYSCALL_FLUSH_L3_ALT:
-            rv = flush_l3();
-        break;
-
-        case SYSCALL_DRAIN_COALESCING_BUFFER:
-        case SYSCALL_DRAIN_COALESCING_BUFFER_ALT:
-            rv = drain_coalescing_buffer_with_params(arg1, arg2);
-        break;
-
-        case SYSCALL_SHIRE_CACHE_BANK_OP:
-        case SYSCALL_SHIRE_CACHE_BANK_OP_ALT:
-            rv = shire_cache_bank_op_with_params(arg1, arg2, arg3);
-        break;
-
-        case SYSCALL_RETURN_FROM_KERNEL: // supervisor firmware should never ask the machine code to do this
-        case SYSCALL_LOG_WRITE: // /supervisor firmware should call log_write() directly
-        case SYSCALL_GET_LOG_LEVEL: // supervisor firmware should call get_log_level() directly
-        case SYSCALL_MESSAGE_SEND: // supervisor firmware should call message_send() directly
-            rv = -1;
-        break;
-
+    switch (number) {
+        case SYSCALL_BROADCAST_INT:
+            ret = broadcast_with_parameters(arg1, arg2, arg3);
+            break;
+        case SYSCALL_IPI_TRIGGER_INT:
+            ret = ipi_trigger(arg1, arg2);
+            break;
+        case SYSCALL_ENABLE_THREAD1_INT:
+            ret = enable_thread1(arg1);
+            break;
+        case SYSCALL_PRE_KERNEL_SETUP_INT:
+            ret = pre_kernel_setup(arg1);
+            break;
+        case SYSCALL_POST_KERNEL_CLEANUP_INT:
+            ret = post_kernel_cleanup();
+            break;
+        case SYSCALL_GET_MTIME_INT:
+            ret = (int64_t)*mtime_reg;
+            break;
+        case SYSCALL_DRAIN_COALESCING_BUFFER_INT:
+            ret = drain_coalescing_buffer_with_params(arg1, arg2);
+            break;
+        case SYSCALL_CACHE_CONTROL_INT:
+            ret = set_l1_cache_control(arg1, arg2);
+            break;
+        case SYSCALL_FLUSH_L3_INT:
+            ret = flush_l3();
+            break;
+        case SYSCALL_SHIRE_CACHE_BANK_OP_INT:
+            ret = shire_cache_bank_op_with_params(arg1, arg2, arg3);
+            break;
+        case SYSCALL_EVICT_L1_INT:
+            ret = evict_l1(arg1, arg2);
+            break;
         default:
-            rv = -1; // unhandled syscall! Ignoring for now.
-        break;
+            ret = -1; // unhandled syscall! Ignoring for now.
+            break;
     }
 
-    return rv;
+    return ret;
 }
 
 // hart_mask = bit 0 in the mask corresponds to hart 0 in the shire (minion 0, thread 0), bit 1 to hart 1 (minion 0, thread 1) and bit 63 corresponds to hart 63 (minion 31, thread 1).
@@ -351,24 +310,6 @@ static int64_t evict_l1(uint64_t use_tmask, uint64_t dest_level)
 
     // Release the hold of the processor
     excl_mode(0);
-
-    return rv;
-}
-
-static int64_t unlock_l1(void)
-{
-    int64_t rv = 0;
-
-    // The number of sets (vertical lines) depends on the D1Split
-    uint64_t num_sets = (mcache_control_get() & 1) ? 4 : 16;
-
-    for (uint64_t set = 0; set < num_sets; set++)
-    {
-        for (uint64_t way = 0; way < 4; way++)
-        {
-            unlock_sw(way, set, 0);
-        }
-    }
 
     return rv;
 }
