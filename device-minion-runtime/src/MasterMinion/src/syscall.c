@@ -1,60 +1,32 @@
-#include "syscall.h"
+#include "syscall_internal.h"
 #include "log.h"
 #include "message.h"
 
 #include <stdint.h>
 
-int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
+int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
-int64_t syscall_handler(syscall_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
+int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 {
-    int64_t rv;
+    int64_t ret;
 
-    switch (number)
-    {
-        case SYSCALL_BROADCAST:
-        case SYSCALL_IPI_TRIGGER:
-        case SYSCALL_INIT_L1:
-        case SYSCALL_GET_MTIME:
-        case SYSCALL_DRAIN_COALESCING_BUFFER:
-        case SYSCALL_EVICT_L1:
-        case SYSCALL_EVICT_L1_ALT:
-        case SYSCALL_UNLOCK_L1:
-        case SYSCALL_EVICT_L2:
-        case SYSCALL_EVICT_L2_WAIT:
-        case SYSCALL_CACHE_CONTROL:
-        case SYSCALL_FLUSH_L3:
-        case SYSCALL_FLUSH_L3_ALT:
-        case SYSCALL_ENABLE_THREAD1:
-        case SYSCALL_DRAIN_COALESCING_BUFFER_ALT:
-        case SYSCALL_CACHE_CONTROL_ALT:
-        case SYSCALL_SHIRE_CACHE_BANK_OP:
-        case SYSCALL_SHIRE_CACHE_BANK_OP_ALT:
-            rv = syscall(number, arg1, arg2, arg3); // forward the syscall to the machine mode handler
-        break;
-
+    switch (number) {
         case SYSCALL_LOG_WRITE:
-            rv = log_write(arg1, (char*)arg2, arg3);
-        break;
-
+            ret = log_write(arg1, (char*)arg2, arg3);
+            break;
         case SYSCALL_GET_LOG_LEVEL:
-            rv = (int64_t)get_log_level();
-        break;
-
+            ret = (int64_t)get_log_level();
+            break;
         case SYSCALL_MESSAGE_SEND:
-            rv = message_send_worker(arg1, arg2, (message_t*)arg3);
-        break;
-
-        case SYSCALL_PRE_KERNEL_SETUP: // user master minion firmware should never ask the supervisor master minon firmware to do this
-        case SYSCALL_POST_KERNEL_CLEANUP: // user master minion firmware should never ask the supervisor master minon firmware to do this
-        case SYSCALL_RETURN_FROM_KERNEL: // user master minion firmware should never ask the supervisor master minon firmware to do this
-            rv = -1;
-        break;
-
+            ret = message_send_worker(arg1, arg2, (message_t*)arg3);
+            break;
+        case SYSCALL_GET_MTIME:
+            ret = syscall(SYSCALL_GET_MTIME_INT, arg1, arg2, arg3);
+            break;
         default:
-            rv = -1; // unhandled syscall! Ignoring for now.
-        break;
+            ret = -1; // unhandled syscall
+            break;
     }
 
-    return rv;
+    return ret;
 }

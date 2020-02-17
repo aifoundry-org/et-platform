@@ -8,7 +8,7 @@
 #include "kernel_info.h"
 #include "layout.h"
 #include "message.h"
-#include "syscall.h"
+#include "syscall_internal.h"
 
 #include <stdint.h>
 
@@ -46,7 +46,7 @@ void __attribute__((noreturn)) main(void)
     if ((shire_id != MASTER_SHIRE) && (hart_id % 64U == 0U))
     {
         // Enable all thread1s so they can run BIST, master can communicate with them, etc.
-        syscall(SYSCALL_ENABLE_THREAD1, 0, 0, 0);
+        syscall(SYSCALL_ENABLE_THREAD1_INT, 0, 0, 0);
     }
 
     // Empty all FCCs

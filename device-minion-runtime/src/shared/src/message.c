@@ -6,7 +6,7 @@
 #include "fcc.h"
 #include "flb.h"
 #include "layout.h"
-#include "syscall.h"
+#include "syscall_internal.h"
 
 #include <stdbool.h>
 
@@ -103,7 +103,7 @@ int64_t message_send_master(uint64_t dest_shire, uint64_t dest_hart, const messa
     evict_message(dest_message_ptr);
 
     // Send an IPI
-    syscall(SYSCALL_IPI_TRIGGER, (1ULL << dest_hart), dest_shire, 0);
+    syscall(SYSCALL_IPI_TRIGGER_INT, (1ULL << dest_hart), dest_shire, 0);
 
     return 0;
 }
@@ -130,7 +130,7 @@ int64_t broadcast_message_send_master(uint64_t dest_shire_mask, uint64_t dest_ha
         ESR_SHIRE_IPI_TRIGGER_REGNO);
 
     // Broadcast dest_hart_mask to IPI_TRIGGER ESR in all shires in dest_shire_mask
-    syscall(SYSCALL_BROADCAST, dest_hart_mask, dest_shire_mask, broadcast_parameters);
+    syscall(SYSCALL_BROADCAST_INT, dest_hart_mask, dest_shire_mask, broadcast_parameters);
 
     return 0;
 }
@@ -166,7 +166,7 @@ int64_t message_send_worker(uint64_t source_shire, uint64_t source_hart, const m
     asm volatile ("fence");
 
     // Send an IPI to shire 32 HART 0
-    syscall(SYSCALL_IPI_TRIGGER, 1U, 32U, 0);
+    syscall(SYSCALL_IPI_TRIGGER_INT, 1U, 32U, 0);
 
     return 0;
 }
