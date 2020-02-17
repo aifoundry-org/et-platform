@@ -110,7 +110,7 @@ static inline void global_barrier_receiver(
 
 static inline void ecall_cb_drain(uint64_t params, uint64_t hart_mask)
 {
-    syscall(SYSCALL_DRAIN_COALESCING_BUFFER_ALT, params, hart_mask, 0);
+    syscall(SYSCALL_DRAIN_COALESCING_BUFFER, params, hart_mask, 0);
 }
 
 static inline void ecall_log_write(const char *str, uint64_t length)
@@ -120,12 +120,12 @@ static inline void ecall_log_write(const char *str, uint64_t length)
 
 static inline void ecall_l1_evict_all(uint64_t use_tmask, uint64_t dest_level)
 {
-    syscall(SYSCALL_EVICT_L1_ALT, use_tmask, dest_level, 0);
+    syscall(SYSCALL_EVICT_L1, use_tmask, dest_level, 0);
 }
 
 static inline void ecall_shire_cache_bank_op(uint64_t shire, uint64_t bank, uint64_t op)
 {
-    syscall(SYSCALL_SHIRE_CACHE_BANK_OP_ALT, shire, bank, op);
+    syscall(SYSCALL_SHIRE_CACHE_BANK_OP, shire, bank, op);
 }
 
 #endif
