@@ -60,6 +60,7 @@ set(ZEBU_FILENAME ServiceProcessorBL2)
 
 include_directories(include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared/include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared/include/etsoc_hal)
 include_directories(${SHARED_INC_DIR})
 include_directories(${SHARED_HAL_DIR})
 include_directories(${FREERTOS_INC_DIRS})
