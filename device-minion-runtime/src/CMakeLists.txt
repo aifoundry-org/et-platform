@@ -78,11 +78,10 @@ add_subdirectory("MasterMinion")
 add_subdirectory("WorkerMinion")
 
 if(BUILD_BOOTLOADER)
+  add_subdirectory("BootLoader/ServiceProcessor")
   add_subdirectory("BootLoader/ServiceProcessorBL1")
   add_subdirectory("BootLoader/ServiceProcessorBL2")
 endif()
-
-add_subdirectory("ServiceProcessor")
 
 if(BUILD_TEST_KERNELS)
   add_subdirectory("kernels")
