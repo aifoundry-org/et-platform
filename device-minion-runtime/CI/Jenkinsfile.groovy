@@ -24,45 +24,36 @@ pipeline {
         string(name: 'BRANCH',
                defaultValue: '$gitlabSourceBranch',
                description: "Branch name to checkout")
+        string(name: 'SW_PLATFORM_BRANCH',
+               defaultValue: 'master',
+               description: "Branch of sw-platform to use")
         string(name: 'PARENT_JOB_NAME', defaultValue: '', description: 'Name of the parent build.')
         string(name: 'PARENT_BUILD_NUMBER', defaultValue: '', description: 'ID of the parent build.')
-        string(name: 'NODE', defaultValue: 'AWS', description: "Node label where the job should run")
-        string(name: 'GIT_STEPS',
-               defaultValue: './CI/jenkins_job_runner.py ./CI/$JOB_NAME.json GIT_STEPS',
-               description: "Additional GIT steps to perform")
-        string(name: 'BUILD_STEPS',
-               defaultValue: './CI/jenkins_job_runner.py ./CI/$JOB_NAME.json BUILD_STEPS',
-               description: "Build steps to perform")
-        string(name: 'TEST_STEPS',
-               defaultValue: './CI/jenkins_job_runner.py ./CI/$JOB_NAME.json TEST_STEPS',
-               description: "Test steps to perform")
+        string(name: 'NODE', defaultValue: 'AWS-Dispatcher', description: "Node label where the job should run")
     }
     agent { label "${params.NODE}" }
-    environment {
-        NAME = trenary_op PARENT_JOB_NAME, JOB_NAME
-        ID = trenary_op PARENT_BUILD_NUMBER, BUILD_NUMBER
-    }
-    post {
-      failure {
-        updateGitlabCommitStatus name: JOB_NAME, state: 'failed'
-      }
-      success {
-        updateGitlabCommitStatus name: JOB_NAME, state: 'success'
-        }
-        always {
-            sh "./device-firmware.py et-sw-device-fw artifacts.py --push ./build/artifacts/ et-sw-ci/${NAME}/${ID}/${GIT_COMMIT}"
-        }
-    }
     options {
         gitLabConnection('Gitlab')
-        timeout(time: 1, unit: 'HOURS')
+        timeout(time: 2, unit: 'HOURS')
     }
     triggers {
         gitlab(triggerOnMergeRequest: true, branchFilterType: 'All')
     }
+    post {
+        failure {
+            updateGitlabCommitStatus name: "${JOB_NAME}", state: 'failed'
+        }
+        success {
+            updateGitlabCommitStatus name: "${JOB_NAME}", state: 'success'
+        }
+        aborted {
+            updateGitlabCommitStatus name: "${JOB_NAME}", state: 'failed'
+        }
+    }
     stages {
         stage('Checkout') {
             steps {
+                updateGitlabCommitStatus name: "${JOB_NAME}", state: 'pending'
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: BRANCH]],
@@ -77,50 +68,34 @@ pipeline {
 
                 sshagent (credentials: ['jennkis_aws_centos']) {
                     sh 'git submodule deinit --all -f'
-                    sh 'git clean -xfd'
+                    sh 'git clean -xffd'
                     sh 'git submodule foreach --recursive git clean -xfd'
                     sh 'git reset --hard'
                     sh 'git submodule foreach --recursive git reset --hard'
                     sh 'git submodule sync'
-                    sh 'git submodule update --init infra_tools'
                 }
                 echo 'Git Checkout Done '
             }
         }
 
-        stage('Docker-Build') {
+        stage('ComponentBuild') {
             steps {
-                echo "Building Docker Image"
-                sh "rm -rf build/ "
-                build job: 'Software/device-fw/docker-image-builder',
+                build job: 'Software/sw-platform/component-builds/component-builder',
                     parameters: [
-                        string(name: 'BRANCH', value: BRANCH)
-                    ]
-                echo "Building Docker Image dONE"
-            }
-        }
-
-        stage('Git-Actions') {
-            steps {
-                echo "Git-Actions"
-                sh "rm -rf build/ "
-                sh "rm -rf install"
-                sh "${params.GIT_STEPS}"
-                echo "Git-Actions Done"
-            }
-        }
-        stage('Build') {
-            steps {
-                echo "Building"
-                sh "${params.BUILD_STEPS}"
-                echo "Building Done"
-            }
-        }
-        stage('Test') {
-            steps {
-                echo "Test"
-                sh "${params.TEST_STEPS}"
-                echo "Testing Done"
+                    string(name: 'BRANCH', value: "${params.SW_PLATFORM_BRANCH}"),
+                    string(name: 'COMPONENT_COMMITS',
+                           value: "device-software/device-firmware:${GIT_COMMIT}"),
+                    string(name: "PARENT_JOB_NAME",
+                           value: "${JOB_NAME}"),
+                    string(name: "PARENT_BUILD_NUMBER",
+                           value: "${BUILD_NUMBER}"),
+                    string(name: 'GIT_STEPS',
+                           value: "./CI/jenkins_job_runner.py ./device-software/device-firmware/CI/checkin-regression.json GIT_STEPS"),
+                    string(name: 'BUILD_STEPS',
+                           value: "./CI/jenkins_job_runner.py ./device-software/device-firmware/CI/checkin-regression.json BUILD_STEPS"),
+                    string(name: 'TEST_STEPS',
+                           value: "./CI/jenkins_job_runner.py ./device-software/device-firmware/CI/checkin-regression.json TEST_STEPS")
+                ]
             }
         }
     }
