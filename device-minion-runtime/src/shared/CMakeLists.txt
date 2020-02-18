@@ -14,6 +14,9 @@ add_library(bootrom_helpers STATIC
   src/boot_config.c
   src/constant_memory_compare.c
   src/pcie.c
+  src/pcie_int.c
+  src/ringbuffer.c
+  src/backtrace.c
   )
 
 target_include_directories(bootrom_helpers PUBLIC
@@ -38,6 +41,11 @@ install(
     include/boot_config.h
     include/constant_memory_compare.h
     include/pcie.h
+    include/pcie_int.h
+    include/mailbox_common.h
+    include/ringbuffer_common.h
+    include/ringbuffer.h
+    include/mailbox_id.h
   DESTINATION
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/bootrom_helpers
   COMPONENT bootrom_helpers
