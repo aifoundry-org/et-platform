@@ -36,9 +36,6 @@ static inline void sc_idx_cop_sm_ctl_all_banks_wait_idle(void);
 static inline void sc_idx_cop_sm_ctl_go(volatile uint64_t* const addr, uint64_t opcode);
 static inline void sc_idx_cop_sm_ctl_wait_idle(volatile const uint64_t * const idx_cop_sm_ctl_ptr);
 
-static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank);
-static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t hart_mask);
-
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op);
 
 static inline void l1_shared_to_split(uint64_t scp_en);
@@ -68,9 +65,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
             break;
         case SYSCALL_GET_MTIME_INT:
             ret = (int64_t)*mtime_reg;
-            break;
-        case SYSCALL_DRAIN_COALESCING_BUFFER_INT:
-            ret = drain_coalescing_buffer_with_params(arg1, arg2);
             break;
         case SYSCALL_CACHE_CONTROL_INT:
             ret = set_l1_cache_control(arg1, arg2);
@@ -399,50 +393,6 @@ static inline void shire_cache_bank_op(uint64_t shire, uint64_t bank, uint64_t o
     sc_idx_cop_sm_ctl_wait_idle(addr);
     sc_idx_cop_sm_ctl_go(addr, op);
     sc_idx_cop_sm_ctl_wait_idle(addr);
-}
-
-static inline void drain_coalescing_buffer(uint64_t shire, uint64_t bank)
-{
-    shire_cache_bank_op(shire, bank, 10); // Opcode = CB_Inv (Coalescing buffer invalidate)
-}
-
-static int64_t drain_coalescing_buffer_with_params(uint64_t params, uint64_t hart_mask)
-{
-    const uint64_t before_fcc_consume = (params >> 0) & 1;
-    const uint64_t before_fcc_reg = (params >> 1) & 1;
-    const uint64_t drain_shire = (params >> 2) & 0xFF;
-    const uint64_t drain_bank = (params >> 10) & 3;
-    const uint64_t after_flb = (params >> 12) & 1;
-    const uint64_t after_flb_num = (params >> 13) & 0x1F;
-    const uint64_t after_flb_match = (params >> 18) & 0xFF;
-    const uint64_t after_fcc_send = (params >> 26) & 1;
-    const uint64_t after_fcc_shire = (params >> 27) & 0xFF;
-    const uint64_t after_fcc_reg = (params >> 35) & 1;
-    const uint64_t after_fcc_thread = (params >> 36) & 1;
-    uint64_t flb_last = 0;
-
-    // Wait until we receive a FCC credit from the compute minions
-    if (before_fcc_consume)
-    {
-        wait_fcc(before_fcc_reg);
-    }
-
-    // Drain the coalescing buffer of shire cache bank
-    drain_coalescing_buffer(drain_shire, drain_bank);
-
-    // Wait until all the other C.B. drainer threads are done
-    if (after_flb)
-    {
-         WAIT_FLB(after_flb_match, after_flb_num, flb_last);
-    }
-
-    // Send the FCC to sync minions so they know the layer is done
-    if (after_fcc_send && flb_last)
-    {
-        SEND_FCC(after_fcc_shire, after_fcc_thread, after_fcc_reg, hart_mask);
-    }
-
-    return 0;
 }
 
 static int64_t shire_cache_bank_op_with_params(uint64_t shire, uint64_t bank, uint64_t op)

@@ -12,9 +12,6 @@ int64_t syscall_handler(uint64_t number, uint64_t arg1, uint64_t arg2, uint64_t 
     int64_t ret;
 
     switch (number) {
-        case SYSCALL_DRAIN_COALESCING_BUFFER:
-            ret = syscall(SYSCALL_DRAIN_COALESCING_BUFFER_INT, arg1, arg2, arg3);
-            break;
         case SYSCALL_CACHE_CONTROL:
             ret = syscall(SYSCALL_CACHE_CONTROL_INT, arg1, arg2, arg3);
             break;
