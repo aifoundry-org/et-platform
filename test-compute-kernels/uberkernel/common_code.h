@@ -108,11 +108,6 @@ static inline void global_barrier_receiver(
     fcc_send(PRV_U, ((minion_id - 16) * 2) + thread_id, thread_dest, fcc_dest, minion_mask_dest);
 }
 
-static inline void ecall_cb_drain(uint64_t params, uint64_t hart_mask)
-{
-    syscall(SYSCALL_DRAIN_COALESCING_BUFFER, params, hart_mask, 0);
-}
-
 static inline void ecall_log_write(const char *str, uint64_t length)
 {
     syscall(SYSCALL_LOG_WRITE, (uint64_t)str, length, 0);
