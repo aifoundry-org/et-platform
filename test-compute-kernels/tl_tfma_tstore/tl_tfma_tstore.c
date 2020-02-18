@@ -95,7 +95,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
     uint64_t tstore_minion_idx = minion_id * TSTORE_PARAMS;
  
     uint64_t tl0_coop_csr = tl0_configs[tl_minion_idx + TL_COOP_CSR_IDX];
-    uint64_t tl0_is_coop = tl0_configs[tl_minion_idx + TL_IS_COOP_IDX];
+    uint64_t tl0_is_coop = 0; //tl0_configs[tl_minion_idx + TL_IS_COOP_IDX];
     uint64_t tl0_code = tl0_configs[tl_minion_idx + TL_CODE_IDX];
     uint64_t tl0_scp_start_line = tl0_configs[tl_minion_idx + TL_SCP_START_LINE_IDX];
     uint64_t tl0_tenb = tl0_configs[tl_minion_idx + TL_TENB_IDX];
@@ -148,7 +148,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	
 	if (iter < NUM_ITER) {
 	    tl0_coop_csr = tl0_configs[tl_minion_idx  + TL_COOP_CSR_IDX + tl_next_iter_idx]; // was (iter + 1) * TL_PARAMS * TOTAL_MINIONS];
-	    tl0_is_coop = tl0_configs[tl_minion_idx  + TL_IS_COOP_IDX+ tl_next_iter_idx];
+	    tl0_is_coop = 0; //tl0_configs[tl_minion_idx  + TL_IS_COOP_IDX+ tl_next_iter_idx];
 	    tl0_code = tl0_configs[tl_minion_idx  + TL_CODE_IDX+ tl_next_iter_idx];
 	    // Since start lines are random make sure that the next TL0 does not overwrite the lines read by current FMA
 	    tl0_scp_start_line = ((tfma_configs[tfma_minion_idx  + TFMA_SCP_START_LINEA + tfma_iter_idx] % 48) + 16) % 48; //tfma_scp_start_linea + 16;
@@ -163,7 +163,7 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 	// Set mask to 0 and ID to 1
 	tensor_coop(tl1_configs[tl_minion_idx  + TL_COOP_CSR_IDX + tl_iter_idx]);
 	tensor_load(0, 
-		    tl1_configs[tl_minion_idx + TL_IS_COOP_IDX+ tl_iter_idx],
+		    0, //tl1_configs[tl_minion_idx + TL_IS_COOP_IDX+ tl_iter_idx],
 		    tl1_configs[tl_minion_idx  + TL_SCP_START_LINE_IDX + tl_iter_idx], 
 		    tl1_configs[tl_minion_idx  + TL_CODE_IDX+ tl_iter_idx], 
 		    tl1_configs[tl_minion_idx  + TL_TENB_IDX + tl_iter_idx],
