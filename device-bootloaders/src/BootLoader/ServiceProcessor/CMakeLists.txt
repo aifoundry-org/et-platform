@@ -14,7 +14,7 @@ set (FILE_REVISION_NUMBER 1)
 
 set(SOURCES
     ${FREERTOS_SRC_FILES}
-    ${SHARED_SRC_DIR}/boot.S
+    src/boot.S
     src/crt.S
     src/dummy_isr.c
     src/interrupt.c
@@ -22,10 +22,17 @@ set(SOURCES
     src/stubs.c
     src/mailbox.c
     ${SHARED_SRC_DIR}/serial.c
+    )
+
+if(NOT BUILD_STAND_ALONE)
+  list(APPEND SOURCES
     ${SHARED_SRC_DIR}/backtrace.c
     ${SHARED_SRC_DIR}/pcie.c
     ${SHARED_SRC_DIR}/pcie_int.c
     ${SHARED_SRC_DIR}/ringbuffer.c)
+  set(EXPORT_NAME esperanto-dev-fw-targets)
+endif()
+
 
 set(TARGET_NAME ServiceProcessor)
 set(LINKER_SCRIPT src/sections.ld)
@@ -38,11 +45,27 @@ include_directories(${FREERTOS_INC_DIRS})
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
+
+if(BUILD_STAND_ALONE)
+  target_link_libraries(${TARGET_NAME}.elf esperanto-fw::bootrom_helpers)
+  set(EXPORT_NAME EsperantoBootLoaderTargets)
+
+else()
+  list(APPEND SOURCES
+    ${SHARED_SRC_DIR}/serial.c
+    ${SHARED_SRC_DIR}/backtrace.c
+    ${SHARED_SRC_DIR}/pcie.c
+    ${SHARED_SRC_DIR}/pcie_int.c
+    ${SHARED_SRC_DIR}/ringbuffer.c)
+  set(EXPORT_NAME esperanto-dev-fw-targets)
+endif()
+
+
 list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
 set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
 install(TARGETS ${TARGET_NAME}.elf
-  EXPORT esperanto-dev-fw-targets
+  EXPORT ${EXPORT_NAME}
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/ServiceProcessor
   COMPONENT service-processor)
 

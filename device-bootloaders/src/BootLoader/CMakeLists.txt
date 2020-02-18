@@ -104,6 +104,7 @@ get_property(FW_TYPES_HELPERS_INCLUDE_PATH
 include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH})
 include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH}/etsoc_hal)
 
+add_subdirectory(ServiceProcessor)
 add_subdirectory(ServiceProcessorBL1)
 add_subdirectory(ServiceProcessorBL2)
 
