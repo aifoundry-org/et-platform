@@ -10,14 +10,11 @@
     ],
     "GIT_STEPS": [
         "echo \"GIT STEPS START\"",
-        "scripts/init-submodules.sh",
         "echo \"GIT STEPS DONE\""
     ],
     "BUILD_STEPS": [
         "echo \"BUILD START\"",
-        "./device-firmware.py et-sw-device-fw --network host --mount-home \"mkdir -p build install && cd build && cmake .. -DCMAKE_INSTALL_PREFIX=../install && make all -j $(nproc)  && make install \" ",
-        "echo sync the documenation",
-
+        "./sw-platform.py et-sw-platform --network host --mount-home \"mkdir -p build install && cd build && cmake .. -DAWS_BUILD=ON && cd device-software/flash-image && make -j $(nproc) gen-flash-image \" ",
         "echo \"BUILD DONE\""
     ],
     "TEST_STEPS": [
