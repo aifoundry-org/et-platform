@@ -56,33 +56,12 @@ pipeline {
                     sh 'git clean -qxxxfd'
                     sh 'git submodule sync'
                     sh 'git reset --hard'
-                    sh 'git submodule update --init infra_tools'
                 }
                 echo 'Git Checkout Done '
             }
         }
-        stage('Docker-Build') {
-            when {
-                // Trigger the docker-image build job only iff we cannot download
-                // the images
-                expression {
-                    return sh(returnStatus: true, script: """ \
-                   ./device-firmware.py docker pull-image et-sw-device-fw
-                   """) != 0
-                }
-            }
-            steps {
-                echo "Building Docker Image"
-                sh "rm -rf build/ "
-                build job: 'Software/device-fw/docker-image-builder',
-                    parameters: [
-                        string(name: 'BRANCH', value: BRANCH)
-                    ]
-                echo "Building Docker Image Done"
-            }
-        }
-
         stage('Device-FW-checkin') {
+            /* FIXME SW-20208 we should introduce a versioned utility docker image that will enable the jenkins_jobs.py scrupt to work
             when {
                 // Trigger the build if it has not passed before for this commit
                 expression {
@@ -91,6 +70,7 @@ pipeline {
                          """) != 0
                 }
             }
+             */
             steps {
                 build job: 'Software/device-fw/checkin-regression',
                     parameters: [
