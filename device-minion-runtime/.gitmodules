@@ -1,9 +1,0 @@
-[submodule "infra_tools"]
-	path = infra_tools
-	url = git@gitlab.esperanto.ai:software/infra-tools.git
-[submodule "firmware-tools"]
-	path = firmware-tools
-	url = git@gitlab.esperanto.ai:software/firmware-tools.git
-[submodule "src/MasterMinion/device_api"]
-	path = src/MasterMinion/device_api
-	url = git@gitlab.esperanto.ai:software/device-api.git

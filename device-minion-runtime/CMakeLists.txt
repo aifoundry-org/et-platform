@@ -8,8 +8,6 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-get_filename_component(FIRMWARE_TOOLS_DIR "firmware-tools" ABSOLUTE)
-
 cmake_minimum_required(VERSION 3.5)
 
 include(ExternalProject)
@@ -26,12 +24,11 @@ project(DeviceFirmware VERSION 0.1.0 LANGUAGES C ASM)
 # "package": use cmake's find_package functionality to locate a pre-installed dependency
 # TODO enable correct use of package to find preinstalled dependencies for now "package"
 # will mean to use the DEPENDENCIES_PATH to derive the include and library paths
-set(devicefw_DEVICE_API_PROVIDER "module" CACHE STRING "Provider of device-api library")
-set_property(CACHE devicefw_DEVICE_API_PROVIDER PROPERTY STRINGS "module" "package")
 set(devicefw_CODE_SIGNING_TOOLS_PROVIDER "module" CACHE STRING "Provider of code signing tools library")
 set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module" "package")
-set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
-set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
+
+find_package(esperanto-device-api CONFIG REQUIRED)
+message("Esperanto Device API Found: ${esperanto-device-api_FOUND}")
 
 option(ENABLE_ZEBU_BAUD_RATE "Set the baud rate to be that fo the current Zebu builds" OFF)
 set(CMAKE_VERBOSE_MAKEFILE OFF)

@@ -5,33 +5,10 @@ This project implements the device firmware running on the Esperanto SOC
 
 The system architecture is described in detail @subpage device_firmware_system_architecture
 
-Following we have the basic steps to build the basic "flavor" of the repo and generating
-the repo's documentation
+## WARNING
 
-## Initialize the repo
-
-### Install the necessary git-hooks
-
-\todo add instructions how to setup the git-hooks
-
-### Update the git submodules
-
-Run:
-
-    ./scripts/init-submodules.sh
-
-## Create a docker container to work in
-
-In the repo's TOT run the following command:
-
-    ./device-firmware.py docker prompt --mount-home et-sw-device-fw
-
-The above should automatically compute the correct version of the et-sw-platform docker image
-to use, instantiate a container for the user and return an active prompt for the user to use.
-The container automatically mounts inside it the repo code and any code that the user builds
-will persist once it exits the container.
-
-For more details about docker see the related documentation section of the sw-platform repo.
+Currently this repo is not self contained and it should be built as part of the
+sw-platform build flow
 
 ## Build the documentation
 
