@@ -1,4 +1,4 @@
-Device Firmware System Architecture  {#device_firmware_system_architecture}
+Device Firmware System Architecture
 ===================================
 
 There are 5 different type of minions, all having same privilege modes but running different services/software on each layer depending on its functionality:
@@ -19,9 +19,8 @@ components:
 * @subpage service_processor : Describes the software stack running on the Service Processor.
 
 
------------------------------
-
-## High-level Execution Flows
+High-level Execution Flows
+---------------------------
 
 This section provides a list of the different high-level execution flows that are supported
 in the firmware and

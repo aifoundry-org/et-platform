@@ -1,4 +1,4 @@
-Slave Minion Firmware {#slave_minion_firmware}
+Slave Minion Firmware
 =====================
 
 The "Slave" Minions are comprized of two groups:
@@ -7,14 +7,17 @@ The "Slave" Minions are comprized of two groups:
 * The Compoute Minions which are all Minions in shire 0-31.
 
 
-## Sync Minion Functionality
+Sync Minion Functionality
+--------------------------
 \todo expand the sync minion basic functionality
 
-## Compute Minions Functionality
+Compute Minions Functionality
+-----------------------------
 \todo expand the compute minion basic functionality
 
 
-## Software Stack
+Software Stack
+--------------
 
 In the Sync and Compute Minions we are going to be running the following SW stack
 
@@ -42,7 +45,8 @@ supported directly by hardware (setting SATP, …). This software layer will run
 \todo Provide link to the machine mode reference.
 
 
-## Bare-metal Device Runtime API
+Bare-metal Device Runtime API
+-----------------------------
 
 The device runtime (s-mode)  will provide the following functionality to
 the execution-kernels (u-mode).
@@ -69,13 +73,15 @@ The transition from u-mode to s-mode is implemneted using the *ECALL* instructio
 How do we now that the arguments passed are correct?
 
 
-## Machine-Code API
+Machine-Code API
+----------------
 
 \todo Fill what are the explicit services that the bare-metal device runtime software
 will request to m-code.
 
 
-## M-mode “transparent” traps
+M-mode “transparent” traps
+--------------------------
 \todo List all the events that will create a trap and cause an m-code call when not specifically
 defined in the RiscV documentation.
 * Instructions not supported natively

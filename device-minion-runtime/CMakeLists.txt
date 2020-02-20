@@ -26,6 +26,7 @@ project(DeviceFirmware VERSION 0.1.0 LANGUAGES C ASM)
 # will mean to use the DEPENDENCIES_PATH to derive the include and library paths
 set(devicefw_CODE_SIGNING_TOOLS_PROVIDER "module" CACHE STRING "Provider of code signing tools library")
 set_property(CACHE devicefw_CODE_SIGNING_TOOLS_PROVIDER PROPERTY STRINGS "module" "package")
+set(DOCUMENTATION_INSTALL_DIR  "${CMAKE_INSTALL_PREFIX}" CACHE STRING "Documentation installation path")
 
 find_package(esperanto-device-api CONFIG REQUIRED)
 message("Esperanto Device API Found: ${esperanto-device-api_FOUND}")
