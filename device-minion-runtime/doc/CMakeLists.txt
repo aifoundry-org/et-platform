@@ -40,11 +40,16 @@ configure_file(
 
 file(GLOB_RECURSE DOC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} *.rst *.png)
 
+set(DOC_FILES_DST "")
 foreach(DOC_FILE ${DOC_FILES})
-  configure_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE}"
-    "${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}")
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE}
+    )
+  list(APPEND DOC_FILES_DST ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE})
 endforeach()
+
 
 add_custom_target(doc
     ${SPHINX_EXECUTABLE}
@@ -53,7 +58,11 @@ add_custom_target(doc
         -j auto
         "${CMAKE_CURRENT_BINARY_DIR}"
         "${SPHINX_HTML_DIR}"
-    COMMENT "Building HTML documentation with Sphinx")
+    COMMENT "Building HTML documentation with Sphinx"
+    DEPENDS Doxyfile.in
+            conf.py.in
+            ${DOC_FILES_DST}
+  )
 
 
 install(
