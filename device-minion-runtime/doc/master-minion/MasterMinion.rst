@@ -1,13 +1,13 @@
-Master Minion Firmware  {#master_minion_firmware}
+Master Minion Firmware
 ======================
 
-## Software Stack
+Software Stack
+--------------
 The Master and Sync Minions software stack looks like follows:
-<!---
-Source google-doc
-https://docs.google.com/drawings/d/1B7zEIsVYdDNmL5K6YcmqsAkbiSEiYeFUQA15ljCBEvc/edit?usp=sharing
---->
-![Master-Minionl SW Stack](Master-Minion-Software-Stack.png)
+
+.. image:: Master-Minion-Software-Stack.png
+  :width: 400
+
 
 Execution Sequence (Master Minion Execution Thread)
   - Initialization Sequence
@@ -22,7 +22,7 @@ Execution Sequence (Master Minion Execution Thread)
 	- if (Debug) Send SP Mbox
 	- if (SW Flags set - SP or Worker Minion)
  		- Handle messages from SP and then Worker Minion
-	- if (PCI Ex Interrupt flag set)	
+	- if (PCI Ex Interrupt flag set)
 		- Handle messages from Host
 	- Handler Timer Events
 	- If no messages - go to sleep
@@ -36,17 +36,20 @@ low level services that are not supported directly by hardware (setting SATP, �
 
 \todo Guillem, From Ioannis: The above sentence is confusing to me.
 
-### S-mode calls to M-mode
+S-mode calls to M-mode
+^^^^^^^^^^^^^^^^^^^^^^
 
 Fill what are the explicit services that the RTos device runtime software will request to m-code.
 
 
-### M-mode “transparent” traps
+M-mode “transparent” traps
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Same as compute minion
 
 
-## Communication Mechanisms Between Sync and Compute Minions
+Communication Mechanisms Between Sync and Compute Minions
+---------------------------------------------------------
 
 \todo Guillem we need to clarify the following paragraph:
 
@@ -60,7 +63,8 @@ Compute and sync minions can communicate only with the runtime minions (assuming
 
 * Kernel error: same as before, but need to set a variable to 1 to let the runtime minion that there was a problem in the clean up process (Tensor* not in idle state)
 
-### Communication Mechanisms Between Master and Runtime Minions
+Communication Mechanisms Between Master and Runtime Minions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
 \todo Guillem's Questions

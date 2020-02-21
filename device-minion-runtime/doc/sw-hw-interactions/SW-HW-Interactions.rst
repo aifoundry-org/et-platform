@@ -1,4 +1,4 @@
-Software Hardware Interactions  {#sw-hw-interactions}
+Software Hardware Interactions
 ==============================
 
 This document provides references to the Hardware specification and explains different
