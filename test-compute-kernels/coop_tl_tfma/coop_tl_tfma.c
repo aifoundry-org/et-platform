@@ -190,8 +190,12 @@ int64_t main(const kernel_params_t* const kernel_params_ptr)
 		   tfma_configs[tfma_minion_idx + TFMA_TYPE + tfma_iter_idx], //tfma_type, 
 		   1); // tfma_clear_rf);
 		
-	// Add a barrier when we may run out of Coop load id's.       
-	if (((iter+1) % NUM_ITER_FOR_BARRIER) == 0) {	    
+	// Add a barrier when we may run out of Coop load id's.
+	// This happens when reach the min number of iterations needed to run out of coop ids (NUM_ITER_FOR_BARRIER).
+	// This number depends on gen_random_params.py, and whether we use coops for both TL0 and TL1.
+	// It can also happen when we use NUM_RANDOM_SAMPLES iterations of randomly generated variables
+	// and NUM_RANDOM_SAMPLES < NUM_ITER, in which case we wrap arounf to the 1st sample and this can have a coop id conflict.
+	if ((((iter+1) % NUM_ITER_FOR_BARRIER) == 0) || ((iter % NUM_RANDOM_SAMPLES) == NUM_RANDOM_SAMPLES-1)) {
 	    uint64_t tl_barrier;
 	    WAIT_FLB(32, TL_COOP_FLB, tl_barrier);
 	    if (tl_barrier == 1) {		
