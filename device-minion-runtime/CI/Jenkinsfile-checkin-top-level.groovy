@@ -72,7 +72,7 @@ pipeline {
             }
              */
             steps {
-                build job: 'Software/device-fw/checkin-regression',
+                build job: 'Software/sw-platform/component-builds/device-software/device-minion-runtime/checkin-regression',
                     parameters: [
                     string(name: 'NODE', value: "AWS"),
                     string(name: 'BRANCH', value: BRANCH),
@@ -88,7 +88,8 @@ pipeline {
                 build job: 'Software/sw-platform/checkin-top-level',
                     parameters: [
                     string(name: 'BRANCH', value: "origin/master"),
-                    string(name: 'DEVICE_FW_COMMIT', value: "${GIT_COMMIT}"),
+                    string(name: 'COMPONENT_COMMITS',
+                           value: "device-software/device-minion-runtime:${GIT_COMMIT}"),
                     string(name: 'PARENT_JOB_NAME', value: JOB_NAME),
                     string(name: 'PARENT_BUILD_NUMBER', value: BUILD_NUMBER),
                 ]
