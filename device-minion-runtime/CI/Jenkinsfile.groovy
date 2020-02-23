@@ -84,17 +84,17 @@ pipeline {
                     parameters: [
                     string(name: 'BRANCH', value: "${params.SW_PLATFORM_BRANCH}"),
                     string(name: 'COMPONENT_COMMITS',
-                           value: "device-software/device-firmware:${GIT_COMMIT}"),
+                           value: "device-software/device-minion-runtime:${GIT_COMMIT}"),
                     string(name: "PARENT_JOB_NAME",
                            value: "${JOB_NAME}"),
                     string(name: "PARENT_BUILD_NUMBER",
                            value: "${BUILD_NUMBER}"),
                     string(name: 'GIT_STEPS',
-                           value: "./CI/jenkins_job_runner.py ./device-software/device-firmware/CI/checkin-regression.json GIT_STEPS"),
+                           value: "./CI/jenkins_job_runner.py ./device-software/device-minion-runtime/CI/checkin-regression.json GIT_STEPS"),
                     string(name: 'BUILD_STEPS',
-                           value: "./CI/jenkins_job_runner.py ./device-software/device-firmware/CI/checkin-regression.json BUILD_STEPS"),
+                           value: "./CI/jenkins_job_runner.py ./device-software/device-minion-runtime/CI/checkin-regression.json BUILD_STEPS"),
                     string(name: 'TEST_STEPS',
-                           value: "./CI/jenkins_job_runner.py ./device-software/device-firmware/CI/checkin-regression.json TEST_STEPS")
+                           value: "./CI/jenkins_job_runner.py ./device-software/device-minion-runtime/CI/checkin-regression.json TEST_STEPS")
                 ]
             }
         }
