@@ -44,8 +44,12 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared/include/etsoc_hal)
 include_directories(${SHARED_INC_DIRS})
 include_directories(${FLASH_TOOL_HEADERS})
-include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
-include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
+
+if(EsperantoCryptoAPI_FOUND)
+  include_directories(${CRYPTO_HEADERS})
+else()
+  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
+endif(EsperantoCryptoAPI_FOUND)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 

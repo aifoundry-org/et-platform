@@ -83,10 +83,21 @@ find_package(EsperantoFlashTool CONFIG REQUIRED)
 get_target_property(FLASH_TOOL_HEADERS_INTERFACE_PATH flash-tool INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${FLASH_TOOL_HEADERS_INTERFACE_PATH})
 
-find_package(EsperantoCodeSigningTools CONFIG REQUIRED)
-get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
-include_directories(${CRYPTO_HEADERS_INTERFACE_PATH}/esperanto/crypto-api)
+find_package(EsperantoCryptoAPI)
+if(EsperantoCryptoAPI_FOUND)
 
+  message("Crypto API Found: ${EsperantoCryptoAPI_FOUND}")
+  get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
+  set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH})
+
+else()
+
+  find_package(EsperantoCodeSigningTools CONFIG REQUIRED)
+  message("Code Signing Tools Found: ${EsperantoCodeSigningTools_FOUND}")
+  get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
+  set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH})
+
+endif()
 
 get_property(BOOTROM_HELPERS_INCLUDE_PATH
   TARGET esperanto-fw::bootrom_helpers
