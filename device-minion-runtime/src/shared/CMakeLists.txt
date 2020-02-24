@@ -11,7 +11,6 @@
 add_subdirectory("include")
 
 add_library(bootrom_helpers STATIC
-  src/boot_config.c
   src/constant_memory_compare.c
   src/pcie.c
   src/pcie_int.c
@@ -38,7 +37,6 @@ install(
 
 install(
   FILES
-    include/boot_config.h
     include/constant_memory_compare.h
     include/pcie.h
     include/pcie_int.h
