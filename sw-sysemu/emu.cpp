@@ -1623,7 +1623,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
                            read_port_base_address(current_thread, val & 0xf /* port id */));
         break;
     case CSR_TENSOR_ERROR:
-        val &= 0x1ff;
+        val &= 0x3ff;
         cpu[current_thread].tensor_error = val;
         log_tensor_error_value(val);
         break;
