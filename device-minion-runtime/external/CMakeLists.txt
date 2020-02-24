@@ -9,13 +9,25 @@
 #------------------------------------------------------------------------------
 
 # Rules for building external cmake dependencies
-# FIXME add support for building the the crypto library SW-1772
+# FIXME add support for building the crypto library SW-1772
 
-## Firmware Code signing tools
-# Find the package or else build it from source
+### Crypto API: handle the case where the library comes from either the
+### CryptoAPI package or the EsperantoCodesigningTools package
 
-find_package(EsperantoCodeSigningTools CONFIG REQUIRED)
-message("Code Signing Tools Found: ${EsperantoCodeSigningTools_FOUND}")
+find_package(EsperantoCryptoAPI)
+if(EsperantoCryptoAPI_FOUND)
 
-get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
-set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH} PARENT_SCOPE)
+  message("Crypto API Found: ${EsperantoCryptoAPI_FOUND}")
+  get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
+  set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH} PARENT_SCOPE)
+  # set the variable in the rest of our scripts
+  set(EsperantoCryptoAPI_FOUND ${EsperantoCryptoAPI_FOUND} PARENT_SCOPE)
+
+else()
+
+  find_package(EsperantoCodeSigningTools CONFIG REQUIRED)
+  message("Code Signing Tools Found: ${EsperantoCodeSigningTools_FOUND}")
+  get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
+  set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH} PARENT_SCOPE)
+
+endif()

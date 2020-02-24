@@ -53,7 +53,12 @@ set(ZEBU_FILENAME memImage)
 include_directories(include)
 include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 include_directories(${SHARED_INC_DIRS})
-include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
+
+if(EsperantoCryptoAPI_FOUND)
+  include_directories(${CRYPTO_HEADERS})
+else()
+  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
+endif(EsperantoCryptoAPI_FOUND)
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
