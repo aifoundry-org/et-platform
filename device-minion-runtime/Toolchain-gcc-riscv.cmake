@@ -3,10 +3,8 @@
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR riscv64)
 
-set(GCC_PATH /esperanto/minion)
-
 # Only search our cross-tooclhain's library paths
-set(CMAKE_FIND_ROOT_PATH ${GCC_PATH})
+set(CMAKE_FIND_ROOT_PATH ${GCC_SYSROOT_PATH})
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
@@ -17,11 +15,11 @@ get_filename_component(ELFTOHEX_ABS_PATH "src/elftohex.py" ABSOLUTE)
 get_filename_component(GET_GIT_HASH_ABS_PATH "src/get_git_hash.py" ABSOLUTE)
 get_filename_component(GET_GIT_VERSION_ABS_PATH "src/get_git_version.py" ABSOLUTE)
 
-set(CMAKE_AR         ${GCC_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
-set(CMAKE_RANLIB     ${GCC_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
-set(CMAKE_C_COMPILER ${GCC_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH   "gcc"      FORCE)
-set(CMAKE_OBJCOPY    ${GCC_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH   "objcopy"  FORCE)
-set(CMAKE_OBJDUMP    ${GCC_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH   "objdump"  FORCE)
+set(CMAKE_AR         ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-ar      CACHE PATH   "ar"       FORCE)
+set(CMAKE_RANLIB     ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-ranlib  CACHE PATH   "ranlib"   FORCE)
+set(CMAKE_C_COMPILER ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-gcc     CACHE PATH   "gcc"      FORCE)
+set(CMAKE_OBJCOPY    ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-objcopy CACHE PATH   "objcopy"  FORCE)
+set(CMAKE_OBJDUMP    ${GCC_SYSROOT_PATH}/bin/riscv64-unknown-elf-objdump CACHE PATH   "objdump"  FORCE)
 set(CMAKE_ELFTOHEX   ${ELFTOHEX_ABS_PATH}                        CACHE PATH   "elftohex" FORCE)
 set(CMAKE_GET_GIT_HASH ${GET_GIT_HASH_ABS_PATH}                  CACHE PATH   "get-git-hash" FORCE)
 set(CMAKE_GET_GIT_VERSION ${GET_GIT_VERSION_ABS_PATH}            CACHE PATH   "get-git-version" FORCE)
