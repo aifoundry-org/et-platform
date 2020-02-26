@@ -3,10 +3,16 @@
 
 #include <stdint.h>
 
+// The following struct has two uses:
+//   1) Information to append to the PCIe whitelist (MASK and SIZE used)
+//   2) Directly patch PCIe registers by writing MASK directly to them
 typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_0_s {
     union {
         struct {
-            uint32_t MASK : 32;
+            union {
+                uint32_t MASK; // used when is_region=0
+                uint32_t SIZE; // used when is_region=1
+            };
         } B;
         uint32_t R;
     };
@@ -18,7 +24,8 @@ typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_1_s {
             uint32_t FLAGS : 2; // 0 - add to white list, 1 - apply before PCIe config, 2 - apply after PCIe config, 3 - ignore
             uint32_t OFFSET_23_02 : 22;  // bits 23:2 of the offset
             uint32_t MEM_SPACE : 4;     // memeory space
-            uint32_t reserved : 4;
+            uint32_t is_region : 1;     // when 0: single-register entry, when 1: region entry
+            uint32_t reserved : 3;
         } B;
         uint32_t R;
     };
