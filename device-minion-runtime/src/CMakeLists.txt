@@ -33,16 +33,6 @@ add_subdirectory("MachineMinion")
 add_subdirectory("MasterMinion")
 add_subdirectory("WorkerMinion")
 
-if(BUILD_BOOTLOADER)
-  add_subdirectory("BootLoader/ServiceProcessor")
-  add_subdirectory("BootLoader/ServiceProcessorBL1")
-  add_subdirectory("BootLoader/ServiceProcessorBL2")
-endif()
-
-if(BUILD_TEST_KERNELS)
-  add_subdirectory("kernels")
-endif()
-
 install(
   PROGRAMS elftohex.py get_git_hash.py get_git_version.py
   DESTINATION ${BIN_INSTALL_DIR}/esperanto-fw

@@ -14,6 +14,8 @@ include(ExternalProject)
 include(GNUInstallDirs)
 cmake_policy(SET CMP0076 NEW)
 
+
+set(GCC_SYSROOT_PATH /esperanto/minion CACHE STRING "Path to the gcc riscv toolchain sysroot folder")
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
@@ -46,8 +48,6 @@ set(DEVFW_EXTERNAL_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/external-install"
 list(APPEND CMAKE_PREFIX_PATH ${DEVFW_EXTERNAL_INSTALL_PREFIX})
 
 option(BUILD_DOC "Build documentation" ON)
-option(BUILD_TEST_KERNELS "Build the test kernels" ON)
-option(BUILD_BOOTLOADER "Build the boot loaders" ON)
 
 # Git configuration options to pass when building projects we clone
 # when building an external project
