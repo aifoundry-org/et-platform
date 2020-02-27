@@ -87,27 +87,27 @@ include(CMakePackageConfigHelpers)
 
 # Export the package for use from the build-tree
 # (this registers the build-tree with a global CMake-registry)
-export(PACKAGE esperanto-fw)
+export(PACKAGE EsperantoDeviceMinionRuntime)
 
 # Create the *-config.cmake and *-config-version.cmake files
-configure_package_config_file(esperanto-fw-config.cmake.in
-     ${CMAKE_CURRENT_BINARY_DIR}/esperanto-fw-config.cmake
-  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/cmake
+configure_package_config_file(EsperantoDeviceMinionRuntimeConfig.cmake.in
+     ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake
+  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoDeviceMinionRuntime/cmake
   PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
   )
 write_basic_package_version_file(
-  ${CMAKE_CURRENT_BINARY_DIR}/esperanto-fw-config-version.cmake
+  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfigVersion.cmake
   VERSION ${VERSION}
   COMPATIBILITY SameMajorVersion )
 
 # Install the *Config.cmake and *ConfigVersion.cmake
 install(FILES
-  "${CMAKE_CURRENT_BINARY_DIR}/esperanto-fw-config.cmake"
-  "${CMAKE_CURRENT_BINARY_DIR}/esperanto-fw-config-version.cmake"
-  DESTINATION ${LIB_INSTALL_DIR}/cmake/esperanto-fw
+  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoDeviceMinionRuntimeConfigVersion.cmake"
+  DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoDeviceMinionRuntime
   COMPONENT machine-minion)
 
 # Install the export set for use with the install-tree
-install(EXPORT esperanto-fw-targets
-  NAMESPACE esperanto-fw::
-  DESTINATION "${LIB_INSTALL_DIR}/cmake/esperanto-fw")
+install(EXPORT EsperantoDeviceMinionRuntimeTargets
+  NAMESPACE EsperantoDeviceMinionRuntime::
+  DESTINATION "${LIB_INSTALL_DIR}/cmake/EsperantoDeviceMinionRuntime")

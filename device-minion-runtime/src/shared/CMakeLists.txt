@@ -26,7 +26,7 @@ target_include_directories(bootrom_helpers PRIVATE
                                 ${SHARED_INC_DIRS})
 install(
   TARGETS bootrom_helpers
-  EXPORT esperanto-fw-targets
+  EXPORT EsperantoDeviceMinionRuntimeTargets
   ARCHIVE
     DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
     COMPONENT boorom_helpers
@@ -62,7 +62,7 @@ target_include_directories(fw_helpers PUBLIC
 
 install(
   TARGETS fw_helpers
-  EXPORT esperanto-fw-targets
+  EXPORT EsperantoDeviceMinionRuntimeTargets
   ARCHIVE
     DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw
     COMPONENT fw_helpers

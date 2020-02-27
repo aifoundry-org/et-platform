@@ -20,7 +20,7 @@ Welcome to Esperanto Minion Device Runtime's documentation!
    master-minion/MasterMinion
    worker-minion/WorkerMinion
 
-   api/EsperantoMinionRuntime_root
+   api/EsperantoDeviceMinionRuntime_root
 
 
 
