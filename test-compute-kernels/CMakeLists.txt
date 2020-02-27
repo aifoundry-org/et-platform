@@ -8,48 +8,40 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-if(NOT BUILD_TEST_KERNELS)
-  cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.5)
 
-  include(ExternalProject)
-  include(GNUInstallDirs)
-  cmake_policy(SET CMP0076 NEW)
+include(ExternalProject)
+include(GNUInstallDirs)
+cmake_policy(SET CMP0076 NEW)
 
-  # First step as the artifacts of this package are consumed by the toolchain script
-  find_package(esperanto-fw CONFIG REQUIRED)
+# First step as the artifacts of this package are consumed by the toolchain script
+find_package(esperanto-fw CONFIG REQUIRED)
 
-  # Must set CMAKE_TOOLCHAIN_FILE before project() is called
-  set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
+# Must set CMAKE_TOOLCHAIN_FILE before project() is called
+set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
 
-  project(EsperantoTestKernelsLoader VERSION 0.1.0 LANGUAGES C ASM)
+project(EsperantoTestKernelsLoader VERSION 0.1.0 LANGUAGES C ASM)
 
-  ### Add package information
-  include(CMakePackageConfigHelpers)
+### Add package information
+include(CMakePackageConfigHelpers)
 
-  set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
-  set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
-  set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
-  set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
+set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
+set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
+set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
+set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
-  get_property(FW_TYPES_HELPERS_INCLUDE_PATH
-    TARGET esperanto-fw::fw_helpers
-    PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-  include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH})
-  include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH}/etsoc_hal)
+get_property(FW_TYPES_HELPERS_INCLUDE_PATH
+  TARGET esperanto-fw::fw_helpers
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH})
+include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH}/etsoc_hal)
 
-  find_package(esperanto-device-api CONFIG REQUIRED)
-  include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
-  set(SHARED_INC_DIR ${PROJECT_SOURCE_DIR}/shared/include)
+find_package(esperanto-device-api CONFIG REQUIRED)
+include_directories(${ESPERANTO_DEVICE_API_INCLUDE_DIR})
 
-else ()
+set(SHARED_INC_DIR ${PROJECT_SOURCE_DIR}/shared/include)
 
-  set(COMMON_KERNEL_SRC_FILES
-    ${SHARED_SRC_DIR}/log.c
-    ${SHARED_SRC_DIR}/message.c
-    ${SHARED_SRC_DIR}/printf.c
-    )
-endif()
 
 get_filename_component(SHARED_KERNEL_SRC_DIR "shared" ABSOLUTE)
 get_filename_component(SHARED_KERNEL_INC_DIR "shared/include" ABSOLUTE)
@@ -91,12 +83,8 @@ macro(test_kernel)
 
   add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
-  if(BUILD_TEST_KERNELS)
-    set(EXPORT_NAME esperanto-fw-targets)
-  else()
-    set(EXPORT_NAME EsperantoTestKernelsTargets)
-    target_link_libraries(${TARGET_NAME}.elf esperanto-fw::fw_helpers)
-  endif()
+  set(EXPORT_NAME EsperantoTestKernelsTargets)
+  target_link_libraries(${TARGET_NAME}.elf esperanto-fw::fw_helpers)
 
   install(TARGETS ${TARGET_NAME}.elf
     EXPORT ${EXPORT_NAME}
@@ -168,12 +156,7 @@ macro(randomized_test)
     target_include_directories(${TARGET_NAME}.elf PRIVATE ${TEST_BUILD_FOLDER}/include)
     add_dependencies(${TARGET_NAME}.elf ${TEST_NAME}-gen-files)
 
-    if(BUILD_TEST_KERNELS)
-      set(EXPORT_NAME esperanto-fw-targets)
-    else()
-      set(EXPORT_NAME EsperantoTestKernelsTargets)
-      target_link_libraries(${TARGET_NAME}.elf esperanto-fw::fw_helpers)
-    endif()
+    set(EXPORT_NAME esperanto-fw-targets)
 
     install(TARGETS ${TARGET_NAME}.elf
       EXPORT ${EXPORT_NAME}
@@ -223,31 +206,30 @@ add_subdirectory("fcc_with_cacheops")
 #add_subdirectory("fcc_overflow")
 add_subdirectory("uberkernel")
 
-if(NOT BUILD_TEST_KERNELS)
-  # Export the package for use from the build-tree
-  # (this registers the build-tree with a global CMake-registry)
-  export(PACKAGE EsperantoTestKernelsTargets)
 
-  # Create the *-config.cmake and *-config-version.cmake files
-  configure_package_config_file(EsperantoTestKernelsConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfig.cmake
-    INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoTestKernels/cmake
-    PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
-    )
-  write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfigVersion.cmake
-    VERSION ${VERSION}
-    COMPATIBILITY SameMajorVersion )
+# Export the package for use from the build-tree
+# (this registers the build-tree with a global CMake-registry)
+export(PACKAGE EsperantoTestKernelsTargets)
 
-  # Install the *Config.cmake and *ConfigVersion.cmake
-  install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfigVersion.cmake"
-    DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoTestKernels
-    COMPONENT machine-minion)
+# Create the *-config.cmake and *-config-version.cmake files
+configure_package_config_file(EsperantoTestKernelsConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfig.cmake
+  INSTALL_DESTINATION ${LIB_INSTALL_DIR}/EsperantoTestKernels/cmake
+  PATH_VARS INCLUDE_INSTALL_DIR SYSCONFIG_INSTALL_DIR LIB_INSTALL_DIR BIN_INSTALL_DIR
+  )
+write_basic_package_version_file(
+  ${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfigVersion.cmake
+  VERSION ${VERSION}
+  COMPATIBILITY SameMajorVersion )
 
-  # Install the export set for use with the install-tree
-  install(EXPORT EsperantoTestKernelsTargets
-    NAMESPACE esperanto-test-kernels::
-    DESTINATION "${LIB_INSTALL_DIR}/cmake/EsperantoTestKernels")
-endif()
+# Install the *Config.cmake and *ConfigVersion.cmake
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/EsperantoTestKernelsConfigVersion.cmake"
+  DESTINATION ${LIB_INSTALL_DIR}/cmake/EsperantoTestKernels
+  COMPONENT machine-minion)
+
+# Install the export set for use with the install-tree
+install(EXPORT EsperantoTestKernelsTargets
+  NAMESPACE esperanto-test-kernels::
+  DESTINATION "${LIB_INSTALL_DIR}/cmake/EsperantoTestKernels")
