@@ -17,9 +17,15 @@ cmake_policy(SET CMP0076 NEW)
 # First step as the artifacts of this package are consumed by the toolchain script
 
 # FIXME this a required package once the esperanto-fw package has been eliminated
-find_package(EsperantoMinionRuntime)
+find_package(EsperantoDeviceMinionRuntime
+  NO_CMAKE_PATH
+  NO_CMAKE_ENVIRONMENT_PATH
+  NO_DEFAULT_PATH
+  )
 
-if(NOT EsperantoMinionRuntime_FOUND)
+if(EsperantoDeviceMinionRuntime_FOUND)
+  set(ESPERANTO_FW_BIN_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR})
+else()
   find_package(esperanto-fw CONFIG REQUIRED)
 endif()
 
@@ -37,9 +43,9 @@ set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
 # FIXME remove eventually
-if(EsperantoMinionRuntime_FOUND)
+if(EsperantoDeviceMinionRuntime_FOUND)
   get_property(FW_TYPES_HELPERS_INCLUDE_PATH
-    TARGET EsperantoMinionRuntime::fw_helpers
+    TARGET EsperantoDeviceMinionRuntime::fw_helpers
     PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 else()
   get_property(FW_TYPES_HELPERS_INCLUDE_PATH
@@ -99,8 +105,8 @@ macro(test_kernel)
   set(EXPORT_NAME EsperantoTestKernelsTargets)
 
   #FIXME remove
-  if(EsperantoMinionRuntime_FOUND)
-    target_link_libraries(${TARGET_NAME}.elf EsperantoMinionRuntime::fw_helpers)
+  if(EsperantoDeviceMinionRuntime_FOUND)
+    target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::fw_helpers)
   else()
     target_link_libraries(${TARGET_NAME}.elf esperanto-fw::fw_helpers)
   endif()
@@ -176,8 +182,8 @@ macro(randomized_test)
     add_dependencies(${TARGET_NAME}.elf ${TEST_NAME}-gen-files)
 
     #FIXME remove
-    if(EsperantoMinionRuntime_FOUND)
-      target_link_libraries(${TARGET_NAME}.elf EsperantoMinionRuntime::fw_helpers)
+    if(EsperantoDeviceMinionRuntime_FOUND)
+      target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::fw_helpers)
     else()
       target_link_libraries(${TARGET_NAME}.elf esperanto-fw::fw_helpers)
     endif()
