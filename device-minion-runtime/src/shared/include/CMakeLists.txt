@@ -36,6 +36,7 @@ install(
     DESTINATION ${CMAKE_INSTALL_INCLUDE_DIR}/esperanto-fw/vaultip
     COMPONENT vaultip
   )
+
 install(
   FILES
     vaultip_hw.h
@@ -45,4 +46,35 @@ install(
   DESTINATION
     ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/vaultip
   COMPONENT vaultip
+  )
+
+
+add_library(device_common INTERFACE)
+target_include_directories(device_common INTERFACE
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+  "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_common>"
+  )
+
+install(
+  TARGETS device_common
+  EXPORT EsperantoDeviceMinionRuntimeTargets
+  LIBRARY
+    DESTINATION lib
+    COMPONENT device_common
+  PUBLIC_HEADER
+    DESTINATION ${CMAKE_INSTALL_INCLUDE_DIR}/esperanto-fw/device_common
+    COMPONENT device_common
+  )
+
+install(
+  FILES
+    device-common/barriers.h
+    device-common/cacheops.h
+    device-common/esr_defines.h
+    device-common/shire.h
+    device-common/tensors.h
+    device-common/utils.h
+  DESTINATION
+    ${CMAKE_INSTALL_INCLUDEDIR}/esperanto-fw/device_common
+  COMPONENT device_common
   )
