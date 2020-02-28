@@ -48,7 +48,7 @@ add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 
 if(BUILD_STAND_ALONE)
-  target_link_libraries(${TARGET_NAME}.elf esperanto-fw::bootrom_helpers)
+  target_link_libraries(${TARGET_NAME}.elf ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers)
   set(EXPORT_NAME EsperantoBootLoaderTargets)
 
 else()

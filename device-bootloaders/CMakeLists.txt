@@ -17,7 +17,17 @@ include(GNUInstallDirs)
 cmake_policy(SET CMP0076 NEW)
 
 # First step as the artifacts of this package are consumed by the toolchain script
-find_package(esperanto-fw CONFIG REQUIRED)
+
+# FIXME this a required package once the esperanto-fw package has been eliminated
+find_package(EsperantoDeviceMinionRuntime)
+
+if(EsperantoDeviceMinionRuntime_FOUND)
+  set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
+  set(ESPERANTO_FW_BIN_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR})
+else()
+  find_package(esperanto-fw CONFIG REQUIRED)
+  set(MINION_RUNTIME_PACKAGE_NAME esperanto-fw)
+endif()
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
@@ -100,17 +110,17 @@ else()
 endif()
 
 get_property(BOOTROM_HELPERS_INCLUDE_PATH
-  TARGET esperanto-fw::bootrom_helpers
+  TARGET ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${BOOTROM_HELPERS_INCLUDE_PATH})
 
 get_property(VAULTIP_HELPERS_INCLUDE_PATH
-  TARGET esperanto-fw::vaultip
+  TARGET ${MINION_RUNTIME_PACKAGE_NAME}::vaultip
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${VAULTIP_HELPERS_INCLUDE_PATH})
 
 get_property(FW_TYPES_HELPERS_INCLUDE_PATH
-  TARGET esperanto-fw::fw_helpers
+  TARGET  ${MINION_RUNTIME_PACKAGE_NAME}::fw_helpers
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH})
 include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH}/etsoc_hal)
