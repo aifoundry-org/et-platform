@@ -167,6 +167,7 @@ if(EsperantoDeviceMinionRuntime_FOUND)
   set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
   message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
   set(MINION_RUNTIME_FOUND 1)
+  set(ESPERANTO_FW_INCLUDE_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_INCLUDE_DIR})
 else()
   find_package(esperanto-fw CONFIG
       NO_CMAKE_PATH
