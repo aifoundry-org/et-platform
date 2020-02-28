@@ -71,6 +71,6 @@ target_include_directories(etrt_DeviceAPI PRIVATE
   ${EXTERNAL_INCLUDE_DIRECTORIES}
   )
 
-if(esperanto-fw_FOUND)
+if(MINION_RUNTIME_FOUND)
   target_include_directories(etrt_DeviceAPI PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/")
-endif(esperanto-fw_FOUND)
+endif(MINION_RUNTIME_FOUND)

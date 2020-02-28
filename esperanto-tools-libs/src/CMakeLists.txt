@@ -113,9 +113,9 @@ set(ETRT_SOURCES
 add_library(etrt_obj OBJECT ${ETRT_SOURCES})
 
 # Include path dependencies
-if(esperanto-fw_FOUND)
+if(MINION_RUNTIME_FOUND)
   target_include_directories(etrt_obj PRIVATE "${ESPERANTO_FW_INCLUDE_DIR}/esperanto-fw")
-endif(esperanto-fw_FOUND)
+endif(MINION_RUNTIME_FOUND)
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../include")
 target_include_directories(etrt_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/Device")

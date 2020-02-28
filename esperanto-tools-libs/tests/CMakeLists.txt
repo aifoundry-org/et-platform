@@ -99,15 +99,15 @@ function(create_test_targets TEST_LIST TEST_PROPERTIES)
 endfunction()
 
 
-if(esperanto-fw_FOUND)
-  get_property(MASTER_MINION_ELF TARGET esperanto-fw::MasterMinion.elf PROPERTY LOCATION)
-  get_property(MACHINE_MINION_ELF TARGET esperanto-fw::MachineMinion.elf PROPERTY LOCATION)
-  get_property(WORKER_MINION_ELF TARGET esperanto-fw::WorkerMinion.elf PROPERTY LOCATION)
+if(MINION_RUNTIME_FOUND)
+  get_property(MASTER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MasterMinion.elf PROPERTY LOCATION)
+  get_property(MACHINE_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::MachineMinion.elf PROPERTY LOCATION)
+  get_property(WORKER_MINION_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::WorkerMinion.elf PROPERTY LOCATION)
 
   if (EsperantoTestKernels_FOUND)
     get_property(EMPTY_KERNEL_ELF TARGET esperanto-test-kernels::empty.elf PROPERTY LOCATION)
   else()
-    get_property(EMPTY_KERNEL_ELF TARGET esperanto-fw::empty.elf PROPERTY LOCATION)
+    get_property(EMPTY_KERNEL_ELF TARGET ${MINION_RUNTIME_PACKAGE_NAME}::empty.elf PROPERTY LOCATION)
   endif()
 
   get_filename_component(KERNELS_DIR ${EMPTY_KERNEL_ELF} DIRECTORY)
@@ -117,7 +117,7 @@ if(esperanto-fw_FOUND)
 
   set(DEV_FW_ARGS "--master_minion_elf=${MASTER_MINION_ELF} --machine_minion_elf=${MACHINE_MINION_ELF} --worker_minion_elf=${WORKER_MINION_ELF}")
 
-endif(esperanto-fw_FOUND)
+endif(MINION_RUNTIME_FOUND)
 
 set(TEST_LIST
   test_error_or.cc:""
@@ -132,7 +132,7 @@ set(TEST_LIST
 
 create_test_targets("${TEST_LIST}" "LABELS;Generic;TIMEOUT;600")
 
-if(esperanto-fw_FOUND)
+if(MINION_RUNTIME_FOUND)
   # List of tests to be compiled if we have support for device-fw
   # List of tests that are currently running only in the simulator
   set(SIM_DEVFW_TEST_LIST
@@ -173,4 +173,4 @@ if(esperanto-fw_FOUND)
     )
 
   create_test_targets("${QEMU_TEST_LIST}" "LABELS;QEMU-Driver-SNPS;TIMEOUT;600")
-endif(esperanto-fw_FOUND)
+endif(MINION_RUNTIME_FOUND)

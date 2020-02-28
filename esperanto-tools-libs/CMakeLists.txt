@@ -152,13 +152,31 @@ find_package(esperanto-device-api CONFIG REQUIRED
 )
 message("Esperanto Device API Found: ${espernato-device-api_FOUND}")
 
+set(MINION_RUNTIME_FOUND 0)
 # Currenly esperanto-fw is not required. Will be the case once we get completly rid
 # of the fake-fw. Also prevert CMake from using the default search path currently it
 # needs to be specified manually
-find_package(esperanto-fw
+# FIXME this a required package once the esperanto-fw package has been eliminated
+find_package(EsperantoDeviceMinionRuntime
+  NO_CMAKE_PATH
+  NO_CMAKE_ENVIRONMENT_PATH
   NO_DEFAULT_PATH
   )
-message("Esperanto-FW found: " ${esperanto-fw_FOUND})
+
+if(EsperantoDeviceMinionRuntime_FOUND)
+  set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
+  message("EsperantoDeviceMinionRuntime found: " ${EsperantoDeviceMinionRuntime_FOUND})
+  set(MINION_RUNTIME_FOUND 1)
+else()
+  find_package(esperanto-fw CONFIG
+      NO_CMAKE_PATH
+      NO_CMAKE_ENVIRONMENT_PATH
+      NO_DEFAULT_PATH
+      )
+  set(MINION_RUNTIME_PACKAGE_NAME esperanto-fw)
+  message("Esperanto-FW found: " ${MINION_RUNTIME_FOUND})
+  set(MINION_RUNTIME_FOUND ${esperanto-fw_FOUND})
+endif()
 
 find_package(EsperantoTestKernels
    NO_DEFAULT_PATH
