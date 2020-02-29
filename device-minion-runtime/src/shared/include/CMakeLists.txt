@@ -28,7 +28,7 @@ target_include_directories(vaultip INTERFACE
 
 install(
   TARGETS vaultip
-  EXPORT esperanto-fw-targets
+  EXPORT EsperantoDeviceMinionRuntimeTargets
   LIBRARY
     DESTINATION lib
     COMPONENT vaultip

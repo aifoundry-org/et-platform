@@ -60,7 +60,7 @@ breathe_default_project = "Esperanto Runtime"
 exhale_args = {
     # These arguments are required
     "containmentFolder":     "@CMAKE_CURRENT_BINARY_DIR@/api",
-    "rootFileName":          "EsperantoMinionRuntime_root.rst",
+    "rootFileName":          "EsperantoDeviceMinionRuntime_root.rst",
     "rootFileTitle":         "Esperanto Minion Device Runtime API",
     "doxygenStripFromPath":   "@PROJECT_SOURCE_DIR@",
     # Suggested optional arguments

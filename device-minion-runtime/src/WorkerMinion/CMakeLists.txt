@@ -49,7 +49,7 @@ list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
 set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
 install(TARGETS ${TARGET_NAME}.elf
-  EXPORT esperanto-fw-targets
+  EXPORT EsperantoDeviceMinionRuntimeTargets
   RUNTIME DESTINATION ${LIB_INSTALL_DIR}/esperanto-fw/WorkerMinion
   COMPONENT worker-minion)
 
