@@ -8,17 +8,68 @@
 # agreement/contract under which the program(s) have been supplied.
 #------------------------------------------------------------------------------
 
-# set input and output files
-set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in)
-set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../cmake")
+find_package(Sphinx REQUIRED)
 
-# request to configure the file
-configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
-message("Doxygen build started")
+if(NOT DEFINED SPHINX_THEME)
+    set(SPHINX_THEME default)
+endif()
 
-# note the option ALL which allows to build the doc together with the application
-add_custom_target( doc-device-api
-    COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/..
-    COMMENT "Generating API documentation with Doxygen"
-    VERBATIM )
+if(NOT DEFINED SPHINX_THEME_DIR)
+    set(SPHINX_THEME_DIR)
+endif()
+
+
+# configured documentation tools and intermediate build results
+set(BINARY_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/_build")
+
+# Sphinx cache with pickled ReST documents
+set(SPHINX_CACHE_DIR "${CMAKE_CURRENT_BINARY_DIR}/_doctrees")
+
+# HTML output directory
+set(SPHINX_HTML_DIR "${CMAKE_CURRENT_BINARY_DIR}/html")
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/Doxyfile"
+    @ONLY)
+
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/conf.py.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/conf.py"
+    @ONLY)
+
+file(GLOB_RECURSE DOC_FILES RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}} *.rst)
+
+set(DOC_FILES_DST "")
+
+foreach(DOC_FILE ${DOC_FILES})
+  add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE} ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE}
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${DOC_FILE}
+    )
+  list(APPEND DOC_FILES_DST ${CMAKE_CURRENT_BINARY_DIR}/${DOC_FILE})
+endforeach()
+
+
+add_custom_target(doc
+    ${SPHINX_EXECUTABLE}
+        -q -b html
+        -d "${SPHINX_CACHE_DIR}"
+        -j auto
+        "${CMAKE_CURRENT_BINARY_DIR}"
+        "${SPHINX_HTML_DIR}"
+    COMMENT "Building HTML documentation with Sphinx"
+    DEPENDS Doxyfile.in
+            conf.py.in
+            ${DOC_FILES_DST}
+            gen-device-api
+            )
+
+install(
+    DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/html
+    DESTINATION ${DOCUMENTATION_INSTALL_DIR}
+    COMPONENT documentation
+    EXCLUDE_FROM_ALL
+    )

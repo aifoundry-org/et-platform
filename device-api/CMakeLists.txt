@@ -15,6 +15,8 @@ project(EsperantoDeviceAPI
   DESCRIPTION "Esperanto DeviceAPI Project"
   LANGUAGES C CXX)
 
+list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/CMake)
+
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 
 option(ENABLE_CCACHE "Enable ccahe in the builds" OFF)

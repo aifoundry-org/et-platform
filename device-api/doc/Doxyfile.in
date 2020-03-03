@@ -162,7 +162,7 @@ FULL_PATH_NAMES        = YES
 # will be relative from the directory where doxygen is started.
 # This tag requires that the tag FULL_PATH_NAMES is set to YES.
 
-STRIP_FROM_PATH        =
+STRIP_FROM_PATH        = @PROJECT_BINARY_DIR@
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
 # path mentioned in the documentation of a class, which tells the reader which
@@ -238,7 +238,8 @@ TAB_SIZE               = 4
 # "Side Effects:". You can put \n's in the value part of an alias to insert
 # newlines.
 
-ALIASES                =
+ALIASES                = "rst=\verbatim embed:rst:leading-asterisk"
+ALIASES                += "endrst=\endverbatim"
 
 # This tag can be used to specify a number of word-keyword mappings (TCL only).
 # A mapping has the form "name=value". For example adding "class=itcl::class"
@@ -441,7 +442,7 @@ EXTRACT_ALL            = YES
 # be included in the documentation.
 # The default value is: NO.
 
-EXTRACT_PRIVATE        = NO
+EXTRACT_PRIVATE        = YES
 
 # If the EXTRACT_PACKAGE tag is set to YES, all members with package or internal
 # scope will be included in the documentation.
@@ -790,12 +791,7 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = @CMAKE_CURRENT_SOURCE_DIR@/../README.md \
-                         @CMAKE_CURRENT_SOURCE_DIR@/../src \
-                         @CMAKE_CURRENT_SOURCE_DIR@/../include \
-                         @CMAKE_CURRENT_SOURCE_DIR@/ \
-                         @CMAKE_CURRENT_BINARY_DIR@/../include/ \
-                         @CMAKE_CURRENT_BINARY_DIR@/../src/device-api/flatc-gen-code/
+INPUT                  = @CMAKE_CURRENT_BINARY_DIR@/../src/device-api/
 
 
 # This tag can be used to specify the character encoding of the source files
@@ -1014,7 +1010,7 @@ INLINE_SOURCES         = YES
 # Fortran comments will always remain visible.
 # The default value is: YES.
 
-STRIP_CODE_COMMENTS    = NO
+STRIP_CODE_COMMENTS    = YES
 
 # If the REFERENCED_BY_RELATION tag is set to YES then for each documented
 # function all documented functions referencing it will be listed.
@@ -1930,7 +1926,7 @@ MAN_LINKS              = NO
 # captures the structure of the code including all documentation.
 # The default value is: NO.
 
-GENERATE_XML           = NO
+GENERATE_XML           = YES
 
 # The XML_OUTPUT tag is used to specify where the XML pages will be put. If a
 # relative path is entered the value of OUTPUT_DIRECTORY will be put in front of
