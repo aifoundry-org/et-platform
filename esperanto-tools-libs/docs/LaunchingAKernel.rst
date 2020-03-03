@@ -1,3 +1,5 @@
+.. _KernelLaunch:
+
 ***********************************
 Launching a Kernel With the Runtime
 ***********************************

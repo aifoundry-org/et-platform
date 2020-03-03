@@ -20,6 +20,7 @@ Details how the runtime interacts with the rest of the system are found in :ref:
 
    about
 
+   Runtime
    CodingStandards
    LaunchingAKernel
    RuntimeArchitecture

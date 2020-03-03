@@ -1,4 +1,4 @@
-.. _Stream_Management:
+.. _StreamManagement:
 
 Stream Management And Device Threading
 ======================================
