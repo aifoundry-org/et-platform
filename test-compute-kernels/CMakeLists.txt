@@ -17,17 +17,11 @@ cmake_policy(SET CMP0076 NEW)
 # First step as the artifacts of this package are consumed by the toolchain script
 
 # FIXME this a required package once the esperanto-fw package has been eliminated
-find_package(EsperantoDeviceMinionRuntime
+find_package(EsperantoDeviceMinionRuntime CONFIG REQUIRED
   NO_CMAKE_PATH
   NO_CMAKE_ENVIRONMENT_PATH
   NO_DEFAULT_PATH
   )
-
-if(EsperantoDeviceMinionRuntime_FOUND)
-  set(ESPERANTO_FW_BIN_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR})
-else()
-  find_package(esperanto-fw CONFIG REQUIRED)
-endif()
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
@@ -42,16 +36,10 @@ set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
 set(SYSCONFIG_INSTALL_DIR etc/et-fw/ CACHE STRING "Config install dir")
 
-# FIXME remove eventually
-if(EsperantoDeviceMinionRuntime_FOUND)
-  get_property(FW_TYPES_HELPERS_INCLUDE_PATH
-    TARGET EsperantoDeviceMinionRuntime::fw_helpers
-    PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-else()
-  get_property(FW_TYPES_HELPERS_INCLUDE_PATH
-    TARGET esperanto-fw::fw_helpers
-    PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
-endif()
+get_property(FW_TYPES_HELPERS_INCLUDE_PATH
+  TARGET EsperantoDeviceMinionRuntime::fw_helpers
+  PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
+
 include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH})
 include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH}/etsoc_hal)
 
@@ -104,12 +92,7 @@ macro(test_kernel)
 
   set(EXPORT_NAME EsperantoTestKernelsTargets)
 
-  #FIXME remove
-  if(EsperantoDeviceMinionRuntime_FOUND)
-    target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::fw_helpers)
-  else()
-    target_link_libraries(${TARGET_NAME}.elf esperanto-fw::fw_helpers)
-  endif()
+  target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::fw_helpers)
 
   install(TARGETS ${TARGET_NAME}.elf
     EXPORT ${EXPORT_NAME}
@@ -181,12 +164,7 @@ macro(randomized_test)
     target_include_directories(${TARGET_NAME}.elf PRIVATE ${TEST_BUILD_FOLDER}/include)
     add_dependencies(${TARGET_NAME}.elf ${TEST_NAME}-gen-files)
 
-    #FIXME remove
-    if(EsperantoDeviceMinionRuntime_FOUND)
-      target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::fw_helpers)
-    else()
-      target_link_libraries(${TARGET_NAME}.elf esperanto-fw::fw_helpers)
-    endif()
+    target_link_libraries(${TARGET_NAME}.elf EsperantoDeviceMinionRuntime::fw_helpers)
 
     set(EXPORT_NAME esperanto-fw-targets)
 
