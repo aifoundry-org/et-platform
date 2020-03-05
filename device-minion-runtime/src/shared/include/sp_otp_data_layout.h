@@ -8,10 +8,12 @@
 //   2) Directly patch PCIe registers by writing MASK directly to them
 typedef struct OTP_PCIE_WHITELIST_ENTRY_OVERRIDE_0_s {
     union {
-        struct {
-            union {
-                uint32_t MASK; // used when is_region=0
-                uint32_t SIZE; // used when is_region=1
+        union {
+            uint32_t MASK; // used when is_region=0
+            struct {       // used when is_region=1
+                uint32_t reserved1 : 2;
+                uint32_t LIMIT_23_02 : 22; // bits 23:2 of the region limit offset
+                uint32_t reserved2 : 8;
             };
         } B;
         uint32_t R;
