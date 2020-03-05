@@ -24,16 +24,6 @@ set(SOURCES
     ${SHARED_SRC_DIR}/serial.c
     )
 
-if(NOT BUILD_STAND_ALONE)
-  list(APPEND SOURCES
-    ${SHARED_SRC_DIR}/backtrace.c
-    ${SHARED_SRC_DIR}/pcie.c
-    ${SHARED_SRC_DIR}/pcie_int.c
-    ${SHARED_SRC_DIR}/ringbuffer.c)
-  set(EXPORT_NAME esperanto-dev-fw-targets)
-endif()
-
-
 set(TARGET_NAME ServiceProcessor)
 set(LINKER_SCRIPT src/sections.ld)
 set(ZEBU_TARGET ROM) # change to SP_RAM eventually
@@ -45,21 +35,8 @@ include_directories(${FREERTOS_INC_DIRS})
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
-
-if(BUILD_STAND_ALONE)
-  target_link_libraries(${TARGET_NAME}.elf ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers)
-  set(EXPORT_NAME EsperantoBootLoaderTargets)
-
-else()
-  list(APPEND SOURCES
-    ${SHARED_SRC_DIR}/serial.c
-    ${SHARED_SRC_DIR}/backtrace.c
-    ${SHARED_SRC_DIR}/pcie.c
-    ${SHARED_SRC_DIR}/pcie_int.c
-    ${SHARED_SRC_DIR}/ringbuffer.c)
-  set(EXPORT_NAME esperanto-dev-fw-targets)
-endif()
-
+target_link_libraries(${TARGET_NAME}.elf ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers)
+set(EXPORT_NAME EsperantoBootLoaderTargets)
 
 list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
 set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")

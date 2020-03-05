@@ -19,15 +19,9 @@ cmake_policy(SET CMP0076 NEW)
 # First step as the artifacts of this package are consumed by the toolchain script
 
 # FIXME this a required package once the esperanto-fw package has been eliminated
-find_package(EsperantoDeviceMinionRuntime)
+find_package(EsperantoDeviceMinionRuntime REQUIRED)
 
-if(EsperantoDeviceMinionRuntime_FOUND)
-  set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
-  set(ESPERANTO_FW_BIN_DIR ${ESPERANTO_DEVICE_MINION_RUNTIME_BIN_DIR})
-else()
-  find_package(esperanto-fw CONFIG REQUIRED)
-  set(MINION_RUNTIME_PACKAGE_NAME esperanto-fw)
-endif()
+set(MINION_RUNTIME_PACKAGE_NAME EsperantoDeviceMinionRuntime)
 
 # Must set CMAKE_TOOLCHAIN_FILE before project() is called
 set(CMAKE_TOOLCHAIN_FILE Toolchain-gcc-riscv.cmake)
@@ -48,7 +42,6 @@ include(CMakePackageConfigHelpers)
 # set(devicefw_FLASH_TOOL_PROVIDER "module" CACHE STRING "Provider of the flash tools library")
 # set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
 
-set(BUILD_STAND_ALONE "True if we are doing a stand-alone build" ON)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
@@ -98,21 +91,11 @@ find_package(EsperantoFlashTool CONFIG REQUIRED)
 get_target_property(FLASH_TOOL_HEADERS_INTERFACE_PATH flash-tool INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${FLASH_TOOL_HEADERS_INTERFACE_PATH})
 
-find_package(EsperantoCryptoAPI)
-if(EsperantoCryptoAPI_FOUND)
+find_package(EsperantoCryptoAPI CONFIG REQUIRED)
 
-  message("Crypto API Found: ${EsperantoCryptoAPI_FOUND}")
-  get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
-  set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH})
-
-else()
-
-  find_package(EsperantoCodeSigningTools CONFIG REQUIRED)
-  message("Code Signing Tools Found: ${EsperantoCodeSigningTools_FOUND}")
-  get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
-  set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH})
-
-endif()
+message("Crypto API Found: ${EsperantoCryptoAPI_FOUND}")
+get_target_property(CRYPTO_HEADERS_INTERFACE_PATH crypto_api INTERFACE_INCLUDE_DIRECTORIES)
+set(CRYPTO_HEADERS ${CRYPTO_HEADERS_INTERFACE_PATH})
 
 get_property(BOOTROM_HELPERS_INCLUDE_PATH
   TARGET ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers

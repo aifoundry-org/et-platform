@@ -24,16 +24,6 @@ set(SOURCES
     ${SHARED_SRC_DIR}/serial.c
     src/bl1_build_configuration.c)
 
-if (BUILD_STAND_ALONE)
-
-else()
-
-  list(APPEND SOURCES
-    ${SHARED_SRC_DIR}/constant_memory_compare.c
-    )
-
-endif(BUILD_STAND_ALONE)
-
 set(TARGET_NAME ServiceProcessorBL1)
 set(LINKER_SCRIPT src/bl1_sections.ld)
 set(ZEBU_TARGET SP_RAM)
@@ -42,24 +32,15 @@ set(ZEBU_FILENAME ServiceProcessorBL1)
 include_directories(include)
 include_directories(${SHARED_INC_DIRS})
 include_directories(${FLASH_TOOL_HEADERS})
-
-if(EsperantoCryptoAPI_FOUND)
-  include_directories(${CRYPTO_HEADERS})
-else()
-  include_directories(${CRYPTO_HEADERS}/esperanto/crypto-api)
-endif(EsperantoCryptoAPI_FOUND)
+include_directories(${CRYPTO_HEADERS})
 
 add_riscv_executable(${TARGET_NAME} ${SOURCES})
 
 list(APPEND FLASH_IMAGE_DEPS ${TARGET_NAME}.elf)
 set(FLASH_IMAGE_DEPS ${FLASH_IMAGE_DEPS} CACHE INTERNAL "FLASH_IMAGE_DEPS")
 
-if (BUILD_STAND_ALONE)
-  target_link_libraries(${TARGET_NAME}.elf ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers)
-  set(EXPORT_NAME EsperantoBootLoaderTargets)
-else()
-  set(EXPORT_NAME esperanto-dev-fw-targets)
-endif()
+target_link_libraries(${TARGET_NAME}.elf ${MINION_RUNTIME_PACKAGE_NAME}::bootrom_helpers)
+set(EXPORT_NAME EsperantoBootLoaderTargets)
 
 install(TARGETS ${TARGET_NAME}.elf
   EXPORT ${EXPORT_NAME}
