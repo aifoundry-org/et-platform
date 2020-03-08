@@ -71,6 +71,13 @@ install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
   )
 
 
+install(
+  PROGRAMS
+    scripts/make_zebu_flash_image.py
+  DESTINATION
+    ${BIN_INSTALL_DIR}
+  )
+
 ### Add package information
 include(CMakePackageConfigHelpers)
 
