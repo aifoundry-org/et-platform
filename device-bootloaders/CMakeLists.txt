@@ -68,6 +68,12 @@ option(BUILD_DOC "Build documentation" ON)
 # so that we will find TutorialConfig.h
 include_directories("${PROJECT_BINARY_DIR}/include")
 
+
+# Download the ETSOC_HAL generated files
+add_subdirectory(shared/include)
+include_directories("${PROJECT_BINARY_DIR}/shared/include/")
+include_directories("${PROJECT_BINARY_DIR}/shared/include/etsoc_hal")
+
 # List of files the flash image depends on: i.e. *.elf files etc
 set(FLASH_IMAGE_DEPS "" CACHE INTERNAL "")
 
@@ -123,7 +129,6 @@ get_property(FW_TYPES_HELPERS_INCLUDE_PATH
   TARGET  ${MINION_RUNTIME_PACKAGE_NAME}::fw_helpers
   PROPERTY INTERFACE_INCLUDE_DIRECTORIES)
 include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH})
-include_directories(${FW_TYPES_HELPERS_INCLUDE_PATH}/etsoc_hal)
 
 add_subdirectory(ServiceProcessor)
 add_subdirectory(ServiceProcessorBL1)

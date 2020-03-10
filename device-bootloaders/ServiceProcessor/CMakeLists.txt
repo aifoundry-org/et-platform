@@ -40,7 +40,6 @@ set(ZEBU_TARGET ROM) # change to SP_RAM eventually
 set(ZEBU_FILENAME romImage)
 
 include_directories(include)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../shared/include/etsoc_hal)
 include_directories(${SHARED_INC_DIRS})
 include_directories(${FREERTOS_INC_DIRS})
 
