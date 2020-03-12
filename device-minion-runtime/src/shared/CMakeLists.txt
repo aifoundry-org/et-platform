@@ -103,11 +103,3 @@ install(
     ${INCLUDE_INSTALL_DIR}/esperanto-fw/fw-helpers
   COMPONENT fw-types
   )
-
-install(
-  DIRECTORY
-    include/etsoc_hal
-  DESTINATION
-    ${INCLUDE_INSTALL_DIR}/esperanto-fw/fw-helpers
-  COMPONENT fw-types
-  )
