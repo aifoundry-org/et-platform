@@ -1817,7 +1817,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
 }
 
 // LCOV_EXCL_START
-static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, bool write)
+static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, bool read, bool write)
 {
     // Check if current privilege mode has access to the register
     int curprv = PRV;
@@ -1832,6 +1832,10 @@ static void csr_insn(xreg dst, uint16_t src1, uint64_t oldval, uint64_t newval, 
         LOG(DEBUG, "Accessing SATP while in %c-mode and mstatus.tvm = %d (mstatus = 0x%016" PRIx64 ")",
             "USHM"[curprv], int((cpu[current_thread].mstatus >> 20) & 1), cpu[current_thread].mstatus);
         throw trap_illegal_instruction(current_inst);
+    }
+    if (read)
+    {
+        LOG_CSR(":", src1, oldval);
     }
     if (write)
     {
@@ -1948,7 +1952,7 @@ void csrrw(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((u
     LOG_REG(":", src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = XREGS[src2];
-    csr_insn(dst, src1, oldval, newval, true);
+    csr_insn(dst, src1, oldval, newval, dst != x0, true);
 }
 
 void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((unused)))
@@ -1957,7 +1961,7 @@ void csrrs(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((u
     LOG_REG(":", src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | XREGS[src2];
-    csr_insn(dst, src1, oldval, newval, src2 != x0);
+    csr_insn(dst, src1, oldval, newval, true, src2 != x0);
 }
 
 void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((unused)))
@@ -1966,7 +1970,7 @@ void csrrc(xreg dst, uint16_t src1, xreg src2, const char* comm __attribute__((u
     LOG_REG(":", src2);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~XREGS[src2]);
-    csr_insn(dst, src1, oldval, newval, src2 != x0);
+    csr_insn(dst, src1, oldval, newval, true, src2 != x0);
 }
 
 void csrrwi(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute__((unused)))
@@ -1974,7 +1978,7 @@ void csrrwi(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute_
     LOG(DEBUG, "I(%c): csrrwi x%d, %s, 0x%016" PRIx64, PRVNAME, dst, csr_name(src1), imm);
     uint64_t oldval = csrget(src1);
     uint64_t newval = imm;
-    csr_insn(dst, src1, oldval, newval, true);
+    csr_insn(dst, src1, oldval, newval, dst != x0, true);
 }
 
 void csrrsi(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute__((unused)))
@@ -1982,7 +1986,7 @@ void csrrsi(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute_
     LOG(DEBUG, "I(%c): csrrsi x%d, %s, 0x%016" PRIx64, PRVNAME, dst, csr_name(src1), imm);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval | imm;
-    csr_insn(dst, src1, oldval, newval, imm != 0);
+    csr_insn(dst, src1, oldval, newval, true, imm != 0);
 }
 
 void csrrci(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute__((unused)))
@@ -1990,7 +1994,7 @@ void csrrci(xreg dst, uint16_t src1, uint64_t imm, const char* comm __attribute_
     LOG(DEBUG, "I(%c): csrrci x%d, %s, 0x%016" PRIx64, PRVNAME, dst, csr_name(src1), imm);
     uint64_t oldval = csrget(src1);
     uint64_t newval = oldval & (~imm);
-    csr_insn(dst, src1, oldval, newval, imm != 0);
+    csr_insn(dst, src1, oldval, newval, true, imm != 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2243,8 +2247,10 @@ static void dcache_unlock_vaddr(bool tm, uint64_t vaddr, int numlines, int id __
     for (int i = 0; i < numlines; i++, vaddr += stride)
     {
         // Skip if masked
-        if (tm && !tmask_pass(i))
+        if (tm && !tmask_pass(i)) {
+            LOG(DEBUG, "\tSkipping UnlockVA: 0x%016" PRIx64, vaddr);
             continue;
+        }
 
         try {
             // Soft-locking of the cache is not modeled, so there is nothing more to do here.
