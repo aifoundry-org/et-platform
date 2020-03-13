@@ -71,8 +71,8 @@ include_directories("${PROJECT_BINARY_DIR}/include")
 
 # Download the ETSOC_HAL generated files
 add_subdirectory(shared/include)
-include_directories("${PROJECT_BINARY_DIR}/shared/include/")
-include_directories("${PROJECT_BINARY_DIR}/shared/include/etsoc_hal")
+include_directories("${PROJECT_SOURCE_DIR}/shared/include/")
+include_directories("${PROJECT_SOURCE_DIR}/shared/include/etsoc_hal")
 
 # List of files the flash image depends on: i.e. *.elf files etc
 set(FLASH_IMAGE_DEPS "" CACHE INTERNAL "")
