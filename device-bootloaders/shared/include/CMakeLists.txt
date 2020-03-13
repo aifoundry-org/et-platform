@@ -17,7 +17,7 @@ set(ETSOC_HAL_URL http://sc-artifactory1.esperanto.ai/artifactory/sw-ci-inputs/H
 
 # Download and extract the etsoc_hal files in the current folder
 execute_process(
-  COMMAND  wget  --tries=400 -nv ${ETSOC_HAL_URL} -O ${ETSOC_HAL}
+  COMMAND  wget -c --retry-connrefused --tries=400 --timeout=15 -nv ${ETSOC_HAL_URL} -O ${ETSOC_HAL}
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   RESULT_VARIABLE ret
   )
