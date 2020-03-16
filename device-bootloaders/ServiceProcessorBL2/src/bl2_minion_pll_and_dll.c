@@ -197,20 +197,24 @@ int configure_minion_plls_and_dlls(void) {
 }
 
 int enable_minion_neighborhoods(void) {
-    // TDB - SW - JIRA - 2275 - Need to enable all Minions Shires
-    //enable shire 0 neigh
+    // TDB - SW - JIRA - 2275 - Need to enable all Minions Shires(Show move this logic to Minion Firmware since it supports broadcast)
+    //enable shire 0 Shire Cache and also all 4 Neighs
     write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_CONFIG, ESR_SHIRE_CONFIG_0_EN);
-    //enable shire 32 neigh
+    //enable shire 32 neigh Shire Cache and also all 4 Neighs
     write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_CONFIG, ESR_SHIRE_CONFIG_32_EN);
     return 0;
 }
 
 int enable_minion_threads(void) {
-    // TDB - SW - JIRA -2275 - Need to enable all Minions Shires
-    //enable shire 0 thread 0
-    write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0xfffffffe);
-    //enable shire 32 thread 0
-    write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0xfffffffe);
+    // TDB - SW - JIRA -2275 - Need to enable all Minions Shires (Show move this logic to Minion Firmware since it supports broadcast)
+    //enable all Minion thread 0 on shire 0 
+    write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
+    //enable all Minion thread 1 on shire 0 
+    write_esr(PP_MACHINE, 0, REGION_OTHER, SHIRE_OTHER_THREAD1_DISABLE, 0x0);
+    //enable all Minion thread 0 on shire 32 
+    write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_THREAD0_DISABLE, 0x0);
+    //enable all Minion thread 1 on shire 32 
+    write_esr(PP_MACHINE, 32, REGION_OTHER, SHIRE_OTHER_THREAD1_DISABLE, 0x0);
 
     return 0;
 }
