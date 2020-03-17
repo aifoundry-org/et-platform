@@ -38,7 +38,7 @@ if (NOT __GFLAGS_INCLUDED) # guard against multiple includes
 
     ExternalProject_Add(gflags
       PREFIX ${gflags_PREFIX}
-      GIT_REPOSITORY "git@gitlab.esperanto.ai:software/gflags-mirror.git"
+      GIT_REPOSITORY "https://github.com/gflags/gflags.git"
       GIT_TAG "91179af8ebeb566830d1d6173d6d501ab71dfe47"
       GIT_SUBMODULES ""
       UPDATE_COMMAND ""
@@ -114,7 +114,7 @@ if (NOT __GLOG_INCLUDED)
     ExternalProject_Add(glog
       DEPENDS ${GLOG_DEPENDS}
       PREFIX ${glog_PREFIX}
-      GIT_REPOSITORY "git@gitlab.esperanto.ai:software/glog-mirror.git"
+      GIT_REPOSITORY "https://github.com/google/glog.git"
       GIT_TAG "v0.4.0"
       UPDATE_COMMAND ""
       INSTALL_DIR ${glog_INSTALL}
@@ -151,7 +151,7 @@ else()
 
   ExternalProject_Add(fmtlib
     PREFIX ${fmtlib_BUILD}
-    GIT_REPOSITORY "git@gitlab.esperanto.ai:software/fmt-mirror.git"
+    GIT_REPOSITORY "https://github.com/fmtlib/fmt.git"
     GIT_TAG "5.3.0"
     INSTALL_DIR ${fmtlib_INSTALL}
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${fmtlib_INSTALL}
@@ -327,7 +327,7 @@ else()
   set(GTEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/gtest-install CACHE INTERNAL "")
   ExternalProject_Add(googletest
     PREFIX ${CMAKE_CURRENT_BINARY_DIR}/googletest
-    GIT_REPOSITORY git@gitlab.esperanto.ai:software/gtest-mirror.git
+    GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG release-1.8.1
     SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-src"
     BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/googletest-build"
