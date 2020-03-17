@@ -118,6 +118,9 @@ static std::array<bool,EMU_NUM_THREADS-1> tensorload_setupb_topair;
 static std::array<int, EMU_NUM_THREADS-1> tensorload_setupb_numlines;
 
 // Scratchpad
+// FIXME: The scratchpad is shared among all threads of a minion. We should
+// really just have one scratchpad per minion, not one per thread. This all
+// works for now because only thread0 of a minion can access the scratchpad.
 std::array<std::array<cache_line_t,L1_SCP_ENTRIES+TFMA_MAX_AROWS>,EMU_NUM_THREADS> scp;
 
 // Used to access different threads transparently
@@ -386,7 +389,7 @@ static inline void update_tensor_error(unsigned thread, uint16_t value)
 {
     cpu[thread].tensor_error |= value;
     if (value)
-        LOG_OTHER(DEBUG, thread, "\ttensor_error  = 0x%04" PRIx16 " (0x%04" PRIx16 ")", cpu[thread].tensor_error, value);
+        LOG_OTHER(DEBUG, thread, "\ttensor_error = 0x%04" PRIx16 " (0x%04" PRIx16 ")", cpu[thread].tensor_error, value);
 }
 
 static inline void update_tensor_error(uint16_t value)
@@ -544,7 +547,7 @@ static void trap_to_smode(uint64_t cause, uint64_t val)
 #ifdef SYS_EMU
     if (sys_emu::get_display_trap_info())  {
       LOG(INFO, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
-    } else 
+    } else
 #endif
     {
       LOG(DEBUG, "\tTrapping to S-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
@@ -632,7 +635,7 @@ static void trap_to_mmode(uint64_t cause, uint64_t val)
 #ifdef SYS_EMU
     if (sys_emu::get_display_trap_info())  {
       LOG(INFO, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
-    } else 
+    } else
 #endif
     {
       LOG(DEBUG, "\tTrapping to M-mode with cause 0x%" PRIx64 " and tval 0x%" PRIx64, cause, val);
@@ -738,6 +741,7 @@ void set_msg_funcs(void (*func_msg_to_thread) (int))
 ////////////////////////////////////////////////////////////////////////////////
 
 // forward declarations
+static void dcache_change_mode(uint8_t, uint8_t);
 static void dcache_evict_flush_set_way(bool, bool, int, int, int, int);
 static void dcache_evict_flush_vaddr(bool, bool, int, uint64_t, int, int, uint64_t);
 static void dcache_prefetch_vaddr(uint64_t);
@@ -1530,6 +1534,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
         val = (val & msk) | (cpu[current_thread].ucache_control & ~msk);
         if (msk)
         {
+            dcache_change_mode(cpu[current_thread].mcache_control, val);
             cpu[current_thread].ucache_control = val;
             cpu[current_thread].mcache_control = val & 3;
             if ((current_thread^1) < EMU_NUM_THREADS) {
@@ -1633,6 +1638,7 @@ static uint64_t csrset(uint16_t src1, uint64_t val)
                && (cpu[current_thread].mcache_control & 1)) ? 1 : 3;
         val = (cpu[current_thread].mcache_control & msk) | (val & ~msk & 0x07df);
         assert((val & 3) != 2);
+        dcache_change_mode(cpu[current_thread].mcache_control, val);
         cpu[current_thread].ucache_control = val;
         cpu[current_thread].mcache_control = val & 3;
         if ((current_thread^1) < EMU_NUM_THREADS) {
@@ -2011,7 +2017,43 @@ static bool scp_locked[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
 // Which PA a locked cacheline is mapped to
 static uint64_t scp_trans[EMU_NUM_MINIONS][L1D_NUM_SETS][L1D_NUM_WAYS];
 
-// ----- CacheOp emulation -----------------------------------------------------
+static void dcache_change_mode(uint8_t oldval, uint8_t newval)
+{
+    bool all_change = (oldval ^ newval) & 1;
+    bool scp_change = (oldval ^ newval) & 2;
+    bool scp_enabled = (newval & 2);
+
+    if (!all_change && !scp_change)
+        return;
+
+    unsigned current_minion = current_thread / EMU_THREADS_PER_MINION;
+
+    // clear locks
+    if (all_change) {
+        for (int i = 0; i < L1D_NUM_SETS; ++i) {
+            for (int j = 0; j < L1D_NUM_WAYS; ++j) {
+                scp_locked[current_minion][i][j] = false;
+                scp_trans[current_minion][i][j] = 0;
+            }
+        }
+    }
+    else if (scp_change) {
+        for (int i = 0; i < L1D_NUM_SETS - 2; ++i) {
+            for (int j = 0; j < L1D_NUM_WAYS; ++j) {
+                scp_locked[current_minion][i][j] = false;
+                scp_trans[current_minion][i][j] = 0;
+            }
+        }
+    }
+
+    // clear L1SCP
+    if (scp_change && scp_enabled) {
+        unsigned scratchpad_thread = current_minion * EMU_THREADS_PER_MINION;
+        for (int i = 0; i < L1_SCP_ENTRIES; ++i) {
+            scp[scratchpad_thread][i].u8.fill(0);
+        }
+    }
+}
 
 static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, int way, int numlines)
 {
@@ -2040,7 +2082,7 @@ static void dcache_evict_flush_set_way(bool evict, bool tm, int dest, int set, i
             if(sys_emu::get_coherency_check())
             {
                 unsigned shire = current_thread / EMU_THREADS_PER_SHIRE;
-                unsigned minion  = (current_thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE;
+                unsigned minion = (current_thread / EMU_THREADS_PER_MINION) % EMU_MINIONS_PER_SHIRE;
                 if(evict) sys_emu::get_mem_directory().l1_evict_sw(shire, minion, set, way);
                 else      sys_emu::get_mem_directory().l1_flush_sw(shire, minion, set, way);
             }
@@ -2308,7 +2350,7 @@ static void write_msg_port_data_to_scp(unsigned thread, unsigned id, uint32_t *d
     uint64_t base_addr = scp_trans[thread >> 1][msg_ports[thread][id].scp_set][msg_ports[thread][id].scp_way];
     base_addr += msg_ports[thread][id].wr_ptr << msg_ports[thread][id].logsize;
 
-    msg_ports[thread][id].stall  = false;
+    msg_ports[thread][id].stall = false;
 
     int wr_words = (1 << (msg_ports[thread][id].logsize))/4;
 
@@ -2838,7 +2880,7 @@ void tensor_load_execute(bool tenb)
                         Packed<128> tmp;
                         uint64_t vaddr = sextVA(addr + boffset + (4*i+r)*stride);
                         assert(addr_is_size_aligned(vaddr, 16));
-                        uint64_t paddr  = vmemtranslate(vaddr, 16, Mem_Access_TxLoad, mreg_t(-1));
+                        uint64_t paddr = vmemtranslate(vaddr, 16, Mem_Access_TxLoad, mreg_t(-1));
                         bemu::pmemread128(paddr, tmp.u32.data());
                         LOG_MEMREAD128(paddr, tmp.u32);
                         for (int c = 0; c < 16; ++c)
@@ -4140,7 +4182,7 @@ static void tensor_reduce_start(uint64_t value)
         cpu[current_thread].reduce.thread = (value >> 2) & 0x3FFE;
     } else if (type == 2) {
         // Broadcast: compute sender/receiver using recursive halving
-        unsigned minion  = current_thread / EMU_THREADS_PER_MINION;
+        unsigned minion = current_thread / EMU_THREADS_PER_MINION;
         if ((minion & minmask) == distance) {
             cpu[current_thread].reduce.state = Processor::Reduce::State::Recv;
             cpu[current_thread].reduce.thread = EMU_THREADS_PER_MINION * (minion - distance);
