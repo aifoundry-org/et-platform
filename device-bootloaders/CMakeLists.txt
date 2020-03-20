@@ -49,7 +49,6 @@ include(CMakePackageConfigHelpers)
 # set_property(CACHE devicefw_FLASH_TOOL_PROVIDER PROPERTY STRINGS "module" "package")
 
 set(BUILD_STAND_ALONE "True if we are doing a stand-alone build" ON)
-option(ENABLE_ZEBU_BAUD_RATE "Set the baud rate to be that fo the current Zebu builds" OFF)
 set(BIN_INSTALL_DIR bin CACHE STRING "Bin install dir")
 set(INCLUDE_INSTALL_DIR include/ CACHE STRING "Include install dir")
 set(LIB_INSTALL_DIR  lib/  CACHE STRING "Library install dir")
